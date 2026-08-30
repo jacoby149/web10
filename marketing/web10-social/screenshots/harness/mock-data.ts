@@ -270,3 +270,80 @@ export function resetWapi(): void {}
 export async function sendDmMulti(): Promise<unknown> { return {}; }
 export async function updateComment(): Promise<void> {}
 export async function updateFollowNotify(): Promise<void> {}
+
+// ── Groups (screenshot seed) ───────────────────────────────────────────────
+// The Groups screen (My Groups + Discover) and its detail read these. Seeded
+// so the PR shots render with realistic content and no backend.
+
+interface SeedGroup {
+  group_id: string;
+  join_policy: string;
+  my_role: string;
+  member_count: number;
+}
+
+const MY_GROUPS: SeedGroup[] = [
+  { group_id: 'web10/groups/users/nova/synthwave-sessions', join_policy: 'open', my_role: 'member', member_count: 128 },
+  { group_id: 'web10/groups/users/luna/creator-backstage', join_policy: 'request', my_role: 'owner', member_count: 89 },
+  { group_id: 'web10/groups/users/kai/lofi-study-room', join_policy: 'open', my_role: 'member', member_count: 512 },
+];
+
+interface SeedDirectoryEntry {
+  group_id: string;
+  name: string;
+  owner: string;
+  slug: string;
+  join_policy: string;
+  member_count: number;
+  tags: string[];
+  permission_summary: string;
+}
+
+const DIRECTORY: SeedDirectoryEntry[] = [
+  { group_id: 'web10/groups/users/nova/synthwave-sessions', name: 'Synthwave Sessions', owner: 'nova', slug: 'synthwave-sessions', join_policy: 'open', member_count: 128, tags: ['music', 'synthwave'], permission_summary: 'member: readAll, create' },
+  { group_id: 'web10/groups/users/pixel/retro-gaming-loft', name: 'Retro Gaming Loft', owner: 'pixel', slug: 'retro-gaming-loft', join_policy: 'open', member_count: 256, tags: ['gaming', 'retro'], permission_summary: 'member: readAll, create' },
+  { group_id: 'web10/groups/users/luna/creator-backstage', name: 'Creator Backstage', owner: 'luna', slug: 'creator-backstage', join_policy: 'request', member_count: 89, tags: ['creators', 'behind-the-scenes'], permission_summary: 'member: readAll' },
+  { group_id: 'web10/groups/users/kai/lofi-study-room', name: 'Lo-fi Study Room', owner: 'kai', slug: 'lofi-study-room', join_policy: 'open', member_count: 512, tags: ['music', 'study'], permission_summary: 'member: readAll, create' },
+  { group_id: 'web10/groups/users/marco/street-photography', name: 'Street Photography', owner: 'marco', slug: 'street-photography', join_policy: 'request', member_count: 167, tags: ['photography', 'street'], permission_summary: 'member: readAll' },
+  { group_id: 'web10/groups/users/vera/inner-circle', name: 'Inner Circle', owner: 'vera', slug: 'inner-circle', join_policy: 'invite_only', member_count: 24, tags: [], permission_summary: 'member: readAll' },
+];
+
+export async function getMyCommunityGroups(): Promise<SeedGroup[]> {
+  return MY_GROUPS;
+}
+export async function readGroupDirectory(): Promise<SeedDirectoryEntry[]> {
+  return DIRECTORY;
+}
+export async function readGroupDetail(groupId: string): Promise<unknown> {
+  const entry = DIRECTORY.find((g) => g.group_id === groupId) ?? DIRECTORY[0];
+  return {
+    group_id: entry.group_id,
+    name: entry.name,
+    owner: entry.owner,
+    slug: entry.slug,
+    join_policy: entry.join_policy,
+    discoverable: true,
+    member_count: entry.member_count,
+    roles: [],
+    permission_summary: entry.permission_summary,
+    description: 'A shared space on your node — content you co-create with the people you choose.',
+    banner_ref: '',
+    avatar_ref: '',
+    website: '',
+    tags: entry.tags,
+    is_member: true,
+    posts_state: 'ok',
+    posts: [
+      { doc_id: 'gp-1', author_key: entry.owner, collection_name: 'posts', body: { text: 'First drop of the week is live — feedback welcome 🎧' }, created_at: minsAgo(42), updated_at: minsAgo(42) },
+      { doc_id: 'gp-2', author_key: 'kai', collection_name: 'posts', body: { text: 'Who is in for the Friday session?' }, created_at: minsAgo(60 * 5), updated_at: minsAgo(60 * 5) },
+    ],
+  };
+}
+export async function joinGroup(): Promise<unknown> { return { status: 'joined' }; }
+export async function requestJoinGroup(): Promise<unknown> { return { status: 'pending' }; }
+export async function leaveGroup(): Promise<unknown> { return { status: 'left' }; }
+export function groupDisplayName(groupId: string, name?: string): string {
+  if (name) return name;
+  const parts = groupId.split('/');
+  return parts[parts.length - 1] || groupId;
+}

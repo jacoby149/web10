@@ -7,6 +7,8 @@ import FeedScreen from '@/components/Feed/FeedScreen';
 import ProfileScreen from '@/components/Bio/ProfileScreen';
 import UserProfileScreen from '@/components/Bio/UserProfileScreen';
 import DiscoverScreen from '@/components/Discover/DiscoverScreen';
+import GroupsScreen from '@/components/Groups/GroupsScreen';
+import GroupDetailScreen from '@/components/Groups/GroupDetailScreen';
 import DmsScreen from '@/components/Chat/DmsScreen';
 import StagingScreen from '@/components/Staging/StagingScreen';
 import SettingsScreen from '@/components/Settings/SettingsScreen';
@@ -108,6 +110,11 @@ function UserProfileRoute() {
       onBack={() => navigate(-1)}
     />
   );
+}
+
+function GroupDetailRoute() {
+  const { groupId } = useParams();
+  return <GroupDetailScreen groupId={groupId!} />;
 }
 
 function UserProfilePostLinkRoute() {
@@ -277,6 +284,8 @@ function App() {
         <Route element={<Layout onLogout={handleLogout} onReportBug={() => handleReportBug('button')} />}>
           <Route path="/feed" element={<FeedRoute onAuthorClick={handleAuthorClick} />} />
           <Route path="/discover" element={<DiscoverScreen />} />
+          <Route path="/groups" element={<GroupsScreen />} />
+          <Route path="/groups/:groupId" element={<GroupDetailRoute />} />
           <Route path="/messages/*" element={<DmsScreen />} />
           <Route path="/profile" element={<ProfileRedirectRoute />} />
           <Route path="/u/:username" element={<UserProfileRoute />} />

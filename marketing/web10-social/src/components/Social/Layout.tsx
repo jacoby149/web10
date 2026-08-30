@@ -12,22 +12,23 @@ interface LayoutProps {
 }
 
 // The four core destinations that stay one thumb-reach on mobile. Settings
-// moves into the "More" sheet so the bottom bar never exceeds five icons —
-// room to grow as surfaces ship.
+// and Groups move into the "More" sheet so the bottom bar never exceeds five
+// icons — room to grow as surfaces ship.
 const feedItem = { path: '/feed', icon: Home, label: 'Feed', testId: 'nav-feed' };
 const discoverItem = { path: '/discover', icon: Compass, label: 'Discover', testId: 'nav-discover' };
 const messagesItem = { path: '/messages', icon: MessageSquare, label: 'Messages', testId: 'nav-messages' };
 const profileItem = { path: '/profile', icon: User, label: 'Profile', testId: 'nav-profile' };
-// The fifth real destination, demoted from the bottom bar into the "More"
-// sheet (and the desktop sidebar).
+// Real destinations demoted from the bottom bar into the "More" sheet (and
+// the desktop sidebar).
+const groupsItem = { path: '/groups', icon: Users, label: 'Groups', testId: 'nav-groups' };
 const settingsItem = { path: '/settings', icon: Settings, label: 'Settings', testId: 'nav-settings' };
 
 // Mobile bottom bar: the four core tabs in thumb-reach order.
 const bottomNavItems = [feedItem, discoverItem, messagesItem, profileItem];
-// Desktop sidebar keeps its historical order (Feed, Discover, Profile,
-// Messages, Settings) — the bottom bar reorders for thumb-reach, the sidebar
-// doesn't need to follow it.
-const sidebarNavItems = [feedItem, discoverItem, profileItem, messagesItem, settingsItem];
+// Desktop sidebar keeps its historical order (Feed, Discover, Groups,
+// Profile, Messages, Settings) — the bottom bar reorders for thumb-reach,
+// the sidebar doesn't need to follow it.
+const sidebarNavItems = [feedItem, discoverItem, groupsItem, profileItem, messagesItem, settingsItem];
 
 // Provisional, non-infringing names for the ephemeral-post and short-video
 // surfaces (Flares ≈ stories, a brief bright signal you send up; Takes ≈
@@ -37,7 +38,6 @@ const comingSoonItems = [
   { icon: Clapperboard, label: 'Takes', testId: 'nav-takes' },
   { icon: Radio, label: 'Livestream', testId: 'nav-livestream' },
   { icon: Gamepad2, label: 'Games', testId: 'nav-games' },
-  { icon: Users, label: 'Groups', testId: 'nav-groups' },
   { icon: Store, label: 'Marketplace', testId: 'nav-marketplace' },
 ];
 
@@ -61,6 +61,7 @@ export default function Layout({ onLogout, onReportBug, children }: LayoutProps)
 
   const isActive = (path: string) => {
     if (path === '/profile') return pathname.startsWith('/u/');
+    if (path === '/groups') return pathname.startsWith('/groups');
     return pathname === path;
   };
 
@@ -281,6 +282,17 @@ export default function Layout({ onLogout, onReportBug, children }: LayoutProps)
                 >
                   <Settings className="w-5 h-5" strokeWidth={1.75} />
                   {settingsItem.label}
+                </button>
+                <button
+                  data-testid="nav-groups-mobile"
+                  onClick={() => go(groupsItem.path)}
+                  className={cn(
+                    'w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors duration-150',
+                    isActive(groupsItem.path) ? 'bg-brand-muted text-brand-300' : 'text-foreground hover:bg-elevated',
+                  )}
+                >
+                  <Users className="w-5 h-5" strokeWidth={1.75} />
+                  {groupsItem.label}
                 </button>
               </div>
 
