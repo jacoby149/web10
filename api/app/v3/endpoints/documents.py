@@ -145,6 +145,7 @@ def update_document(request: Request, data: UpdateDocument):
         author_key=author,
         service=existing["service"],
         body=merged_body,
+        ref_value=existing.get("ref_value", ""),
         tags=merged_body.get("tags", []),
         ad_mode=ad_mode,
         ad_target=ad_target,

@@ -11,6 +11,7 @@
 export { createV3Client, type V3Client } from './v3'
 export type {
   V3ClientOptions,
+  V3AdPreference,
   V3Document,
   V3Group,
   V3GroupMember,

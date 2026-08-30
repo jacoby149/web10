@@ -196,6 +196,43 @@ class TestUpdate:
             )
         assert resp.status_code == 404
 
+    def test_update_preserves_ref_value(self, client, token):
+        """An update must not clear the doc's ref_value (a pinned reply stays a
+        reply). The update re-inserts the row, so ref_value is threaded through
+        from the existing doc."""
+        original_created = datetime(2026, 1, 1)
+        mock_rows = [
+            # ref_value (index 4) is "target-9"
+            (
+                "doc-1",
+                "testuser",
+                "posts",
+                '{"text":"old"}',
+                "target-9",
+                [],
+                original_created,
+                original_created,
+                "none",
+                "",
+            ),
+        ]
+        with patch("app.v3.services.clickhouse.client") as mock_ch:
+            mock_ch.query.return_value = MagicMock(result_rows=mock_rows)
+            resp = client.post(
+                "/v3/update",
+                json={
+                    "token": token,
+                    "doc_id": "doc-1",
+                    "body": {"text": "updated"},
+                },
+            )
+        assert resp.status_code == 200
+        # find the documents re-insert and check it carries the original ref_value (index 4)
+        doc_inserts = [c for c in mock_ch.insert.call_args_list if c.args and c.args[0] == "documents"]
+        assert doc_inserts, "expected a documents insert"
+        inserted_row = doc_inserts[0].args[1][0]
+        assert inserted_row[4] == "target-9"
+
 
 class TestDelete:
     def test_delete(self, client, token):

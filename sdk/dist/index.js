@@ -106,7 +106,9 @@ function createV3Client(options = {}) {
       return;
     try {
       const token = state.token ?? readTokenCookie();
-      const body = { url: window.location.href.split(/[?#]/)[0] };
+      const rawUrl = window.location.href.split(/[?#]/)[0];
+      const url = rawUrl.replace(/\/index\.html$/, "/");
+      const body = { url };
       if (token)
         body.token = token;
       fetch(`${apiOrigin}/v3/apps/register`, {
@@ -176,6 +178,8 @@ function createV3Client(options = {}) {
       const payload = { service: collection, body };
       if (opts?.groups)
         payload.groups = opts.groups;
+      if (opts?.ad_preference)
+        payload.ad_preference = opts.ad_preference;
       return v3Post("create", payload);
     },
     async read(collection, opts) {
@@ -193,6 +197,8 @@ function createV3Client(options = {}) {
       const payload = { doc_id: docId, body };
       if (opts?.groups)
         payload.groups = opts.groups;
+      if (opts?.ad_preference)
+        payload.ad_preference = opts.ad_preference;
       return v3Post("update", payload);
     },
     async delete(docId) {
