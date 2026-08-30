@@ -89,9 +89,9 @@ def confirm_media(data: ConfirmMedia):
 
 @router.post("/list")
 def list_media(data: ListMedia):
-    """List media for the user."""
+    """List media for the user. Optional doc_ids narrows to specific docs."""
     user = _user(data)
-    return ch.list_media(user, limit=data.limit, offset=data.offset)
+    return ch.list_media(user, limit=data.limit, offset=data.offset, doc_ids=data.doc_ids)
 
 
 @router.post("/delete")

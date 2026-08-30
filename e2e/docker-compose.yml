@@ -59,7 +59,10 @@ services:
       DB_URL: mongodb://web10:web10@ferretdb:27017/
       DB: web10
       S3_ENDPOINT: http://minio:9000
-      S3_PUBLIC_ENDPOINT: http://localhost:9000
+      # The presigned URLs the browser follows — host-reachable. Parameterized
+      # so parallel workspaces' e2e stacks don't collide on host :9000
+      # (E2E_MINIO_PORT=9100 runs a second stack side by side).
+      S3_PUBLIC_ENDPOINT: http://localhost:${E2E_MINIO_PORT:-9000}
       CORS_SERVICE_MANAGERS: auth.localhost,social.localhost,marketing.localhost
       STRIPE_STATUS: test
       STRIPE_TEST_KEY: ${STRIPE_TEST_KEY:-sk_test_placeholder}
@@ -110,8 +113,8 @@ services:
   minio:
     image: minio/minio:latest
     ports:
-      - "9000:9000"
-      - "9001:9001"
+      - "${E2E_MINIO_PORT:-9000}:9000"
+      - "${E2E_MINIO_CONSOLE_PORT:-9001}:9001"
     volumes:
       - minio-data:/data
     environment:

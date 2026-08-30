@@ -803,6 +803,51 @@ class TestResolveMediaUrls:
             assert result["media_refs"][0]["read_url"] == "http://a.png"
             assert result["media_refs"][1]["read_url"] == "http://b.jpg"
 
+    def test_resolve_media_presigns_fresh_url_from_object_key(self):
+        """A media doc carrying an object_key gets a FRESH presigned read_url
+        on every read (document-typing: the document never stores a live
+        URL) — the stored url, if any, is stale and must not be served."""
+        body = {"text": "hello", "media_refs": ["img-1"]}
+        with _patch_client() as mock_client, patch.object(ch, "get_s3_signing_client") as mock_signing:
+            mock_client.query.return_value = _mock_result_rows(
+                [
+                    (
+                        "img-1",
+                        '{"url":"http://stale.example/img.png","object_key":"alice/img.png","mime_type":"image/png","filename":"img.png","size_bytes":100}',
+                        "media_metadata",
+                    ),
+                ]
+            )
+            signing = MagicMock()
+            signing.generate_presigned_url.return_value = "http://minio/alice/img.png?sig=fresh"
+            mock_signing.return_value = signing
+            result = ch.resolve_media_urls(body, "alice")
+            ref = result["media_refs"][0]
+            assert ref["read_url"] == "http://minio/alice/img.png?sig=fresh"
+            assert ref["object_key"] == "alice/img.png"
+            # The resolved ref carries the doc_id (the app keys its media
+            # map on it) and the REAL object key (not the doc_id).
+            assert ref["doc_id"] == "img-1"
+            signing.generate_presigned_url.assert_called_once()
+
+    def test_resolve_media_no_object_key_falls_back_to_stored_url(self):
+        """Legacy media docs (no object_key) fall back to the stored url."""
+        body = {"text": "hello", "media_refs": ["img-1"]}
+        with _patch_client() as mock_client, patch.object(ch, "get_s3_signing_client") as mock_signing:
+            mock_client.query.return_value = _mock_result_rows(
+                [
+                    (
+                        "img-1",
+                        '{"url":"http://legacy.example/img.png","mime_type":"image/png"}',
+                        "media_metadata",
+                    ),
+                ]
+            )
+            result = ch.resolve_media_urls(body, "alice")
+            assert result["media_refs"][0]["read_url"] == "http://legacy.example/img.png"
+            assert result["media_refs"][0]["object_key"] is None
+            mock_signing.assert_not_called()
+
 
 class TestResolveMinioTypes:
     def test_no_minio_types_unchanged(self):
@@ -1292,7 +1337,20 @@ class TestMedia:
     def test_confirm_upload(self):
         with _patch_client() as mock_client:
             result = ch.confirm_media_upload("alice", {"url": "http://x", "filename": "a.png"})
-            assert result["filename"] == "a.png"
+            # The confirm response is a document envelope (same shape as
+            # create/read) — the metadata is the document's body. A flat
+            # {doc_id, **metadata} broke clients mapping the response
+            # through the V3Document shape (the social app's profile photo
+            # upload crashed on doc.body.url).
+            assert result["doc_id"]
+            assert result["author_key"] == "alice"
+            assert result["service"] == "media_metadata"
+            assert result["body"]["filename"] == "a.png"
+            assert result["body"]["url"] == "http://x"
+            assert result["ref_value"] == ""
+            assert result["tags"] == []
+            assert result["created_at"]
+            assert result["updated_at"]
             mock_client.insert.assert_called_once()
             # Positional insert must match the documents column count (11,
             # including the v3 ad_preference columns ad_mode/ad_target) — a
@@ -1306,11 +1364,48 @@ class TestMedia:
     def test_list_media(self):
         with _patch_client() as mock_client:
             mock_client.query.return_value = _mock_result_rows(
-                [("doc-1", '{"filename":"a.png"}', datetime(2026, 1, 1))]
+                [
+                    (
+                        "doc-1",
+                        "alice",
+                        "media_metadata",
+                        '{"filename":"a.png","object_key":"alice/a.png"}',
+                        "",
+                        [],
+                        datetime(2026, 1, 1),
+                        datetime(2026, 1, 1),
+                    )
+                ]
             )
             result = ch.list_media("alice")
             assert len(result) == 1
+            # Document envelope (same shape as create/read) — the metadata
+            # is the body, not a separate `metadata` field.
             assert result[0]["doc_id"] == "doc-1"
+            assert result[0]["author_key"] == "alice"
+            assert result[0]["service"] == "media_metadata"
+            assert result[0]["body"]["filename"] == "a.png"
+            assert result[0]["body"]["object_key"] == "alice/a.png"
+            assert result[0]["created_at"]
+
+    def test_list_media_doc_ids_filter(self):
+        with _patch_client() as mock_client:
+            mock_client.query.return_value = _mock_result_rows([])
+            ch.list_media("alice", doc_ids=["m1", "m2"])
+            query = mock_client.query.call_args[0][0]
+            params = mock_client.query.call_args[0][1]
+            # The doc_ids filter narrows the list to specific documents —
+            # the exact-ref resolution the app's avatar/banner refs need.
+            assert "doc_id IN" in query
+            assert params["d0"] == "m1"
+            assert params["d1"] == "m2"
+
+    def test_list_media_no_doc_ids_filter(self):
+        with _patch_client() as mock_client:
+            mock_client.query.return_value = _mock_result_rows([])
+            ch.list_media("alice")
+            query = mock_client.query.call_args[0][0]
+            assert "doc_id IN" not in query
 
     def test_delete_media(self):
         with _patch_client() as mock_client:

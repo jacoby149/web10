@@ -852,6 +852,21 @@ describe('v3 client', () => {
       expect(call.offset).toBeUndefined()
     })
 
+    it('listMedia with doc_ids (exact-ref resolution)', async () => {
+      vi.spyOn(http, 'authPost').mockResolvedValueOnce([] as any)
+      await client.listMedia({ limit: 2, doc_ids: ['m1', 'm2'] })
+      const call = (vi.mocked(http.authPost).mock.calls[0][1] as any)
+      expect(call.limit).toBe(2)
+      expect(call.doc_ids).toEqual(['m1', 'm2'])
+    })
+
+    it('listMedia omits empty doc_ids', async () => {
+      vi.spyOn(http, 'authPost').mockResolvedValueOnce([] as any)
+      await client.listMedia({ doc_ids: [] })
+      const call = (vi.mocked(http.authPost).mock.calls[0][1] as any)
+      expect(call.doc_ids).toBeUndefined()
+    })
+
     it('deleteMedia', async () => {
       vi.spyOn(http, 'authPost').mockResolvedValueOnce({ doc_id: 'abc', status: 'deleted' } as any)
       const result = await client.deleteMedia('abc')

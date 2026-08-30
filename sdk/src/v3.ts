@@ -565,10 +565,11 @@ export function createV3Client(options: V3ClientOptions = {}): V3Client {
       return v3Post<V3Document>('media/confirm', { body: metadata })
     },
 
-    async listMedia(opts?: { limit?: number; offset?: number }): Promise<V3Document[]> {
+    async listMedia(opts?: { limit?: number; offset?: number; doc_ids?: string[] }): Promise<V3Document[]> {
       const payload: V3Body = {}
       if (opts?.limit != null) payload.limit = opts.limit
       if (opts?.offset != null) payload.offset = opts.offset
+      if (opts?.doc_ids?.length) payload.doc_ids = opts.doc_ids
       return v3Post<V3Document[]>('media/list', payload)
     },
 
@@ -787,7 +788,7 @@ export interface V3Client {
   ): Promise<{ upload_url: string; fields: Record<string, string>; object_key: string; content_type: string }>
   getMediaReadUrl(objectKey: string): Promise<{ read_url: string; expires_in: number }>
   confirmMediaUpload(metadata: Record<string, unknown>): Promise<V3Document>
-  listMedia(opts?: { limit?: number; offset?: number }): Promise<V3Document[]>
+  listMedia(opts?: { limit?: number; offset?: number; doc_ids?: string[] }): Promise<V3Document[]>
   deleteMedia(docId: string): Promise<{ doc_id: string; status: string }>
 
   // Stats

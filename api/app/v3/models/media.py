@@ -10,6 +10,7 @@ class ListMedia(BaseModel):
     token: str
     limit: int = 50
     offset: int = 0
+    doc_ids: list[str] | None = None
 
 
 class DeleteMedia(BaseModel):

@@ -514,6 +514,10 @@ INSERT INTO documents VALUES (
 );
 ```
 
+The metadata body carries the `object_key` (the blob reference) — never a
+URL. The confirm response is the standard document envelope (the metadata is
+the doc's `body`), same shape as create/read.
+
 ### `w.getReadUrl(object_key)`
 
 Generate presigned GET URL. No SQL — MinIO operation.
@@ -521,6 +525,9 @@ Generate presigned GET URL. No SQL — MinIO operation.
 ### `w.list(collection, { groups })`
 
 List media metadata for a user, filtered by group membership (same as any read).
+An optional `doc_ids` filter narrows the list to specific documents — the
+exact-ref resolution the app's avatar/banner/post media refs need (a bare
+latest-N list misses refs older than the window).
 
 ```sql
 SELECT doc_id, body, created_at
@@ -528,8 +535,22 @@ FROM documents
 WHERE author_key = :user
   AND collection_name IN ('media_metadata', 'public_media')
   AND deleted = 0
+  -- AND doc_id IN (:doc_ids)  -- optional exact-ref filter
 ORDER BY created_at DESC;
 ```
+
+### Read-time URL resolution
+
+A media doc's blob is addressed by its `object_key`; the document never
+stores a live URL (stored URLs go stale). On read, the API mints a FRESH
+presigned URL from the `object_key`:
+
+- `media_refs` in a post body → each ref resolves to
+  `{doc_id, object_key, mime_type, filename, size_bytes, read_url}` with a
+  fresh presigned `read_url` (a legacy stored `url` is only the fallback when
+  no `object_key` exists).
+- `minio` types anywhere in a body → a fresh presigned `url` added alongside
+  the `value` (see `document-typing.md`).
 
 ## Auth
 

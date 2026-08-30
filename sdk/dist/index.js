@@ -342,6 +342,8 @@ function createV3Client(options = {}) {
         payload.limit = opts.limit;
       if (opts?.offset != null)
         payload.offset = opts.offset;
+      if (opts?.doc_ids?.length)
+        payload.doc_ids = opts.doc_ids;
       return v3Post("media/list", payload);
     },
     async deleteMedia(docId) {

@@ -4,6 +4,7 @@ import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { Input } from '@/components/ui/input';
 import type { PostRecord, MediaRecord } from '@/data/types';
+import { mediaRefId } from '@/data/types';
 import { getWapi } from '@/data/wapi';
 import {
   toggleReaction,
@@ -52,7 +53,7 @@ export function PostLightbox({ post, mediaMap, onClose, onReload, postAuthor, po
   // duplicates the post because the second toggle deletes the old _id.
   const [currentPost, setCurrentPost] = useState(post);
   const media = (currentPost.media_refs || [])
-    .map(ref => mediaMap[ref])
+    .map(ref => mediaMap[mediaRefId(ref)])
     .filter((m): m is MediaRecord => Boolean(m));
   const [index, setIndex] = useState(0);
   const hasMedia = media.length > 0;

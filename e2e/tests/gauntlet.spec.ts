@@ -246,8 +246,11 @@ test.describe('Gauntlet Step 2: Post -> feed', () => {
     const token = await getToken(request, username);
 
     const media = await uploadTinyPng(request, token, 'e2e-photo.png');
-    expect(media.object_key).toBeDefined();
-    expect(media.filename).toBe('e2e-photo.png');
+    // The confirm response is a document envelope (3.28.1) — the metadata is
+    // the body, same shape as create/read.
+    expect(media.doc_id).toBeDefined();
+    expect(media.body.object_key).toBeDefined();
+    expect(media.body.filename).toBe('e2e-photo.png');
   });
 
   test('media list returns records after upload', async ({ request }) => {
@@ -273,7 +276,7 @@ test.describe('Gauntlet Step 2: Post -> feed', () => {
 
     const readRes = await v3Post(request, `${API_BASE}/v3/media/read-url`, {
       token,
-      body: { object_key: media.object_key },
+      body: { object_key: media.body.object_key },
     });
     expect(readRes.ok()).toBeTruthy();
     const data = await readRes.json();

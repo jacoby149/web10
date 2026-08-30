@@ -187,6 +187,29 @@ async function readFollowerCount(request: APIRequestContext, token: string, user
  */
 const settle = (ms = 1500) => new Promise((r) => setTimeout(r, ms));
 
+/**
+ * Poll a read until a predicate holds (bounded). ClickHouse
+ * (ReplacingMergeTree) is eventually consistent — a write (doc create +
+ * doc_groups attach) can lag the very next read by a beat, especially under
+ * parallel-worker load. The write itself is synchronous; this settles the
+ * read side so the assertions are deterministic.
+ */
+async function pollUntil<T>(
+  fn: () => Promise<T>,
+  pred: (v: T) => boolean,
+  timeoutMs = 15000,
+  intervalMs = 500,
+): Promise<T> {
+  const deadline = Date.now() + timeoutMs;
+  let last: T;
+  for (;;) {
+    last = await fn();
+    if (pred(last)) return last;
+    if (Date.now() > deadline) return last;
+    await new Promise((r) => setTimeout(r, intervalMs));
+  }
+}
+
 function setTokenCookie(context: any, domain: string, token: string) {
   return context.addCookies([
     { name: 'token', value: token, domain, path: '/', secure: false, httpOnly: false },
@@ -286,6 +309,127 @@ test.describe('Profiles — API floor (the app\'s exact reads)', () => {
     const posts = await readUserPosts(request, fan.token, owner.username);
     expect(posts.map((d) => d.body.text)).toContain(postText);
   });
+
+  test('media upload → confirm → list(doc_ids) → read-url (the app\'s exact upload pattern)', async ({ request }) => {
+    const owner = await signupAndLogin(request, 'profmedia');
+
+    // 1. Presigned POST form (posts.ts uploadMedia step 1)
+    const uploadRes = await request.post(`${API_BASE}/v3/media/upload-url`, {
+      data: JSON.stringify({ token: owner.token, body: { filename: 'avatar.png', mime_type: 'image/png' } }),
+      headers: { 'Content-Type': 'application/json' },
+    });
+    expect(uploadRes.ok()).toBeTruthy();
+    const { upload_url, fields, object_key } = await uploadRes.json();
+    expect(object_key).toBeTruthy();
+
+    // 2. Upload the blob to object storage via the presigned form
+    const tinyPng = Buffer.from(
+      'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8D4HwAFBQIAX8jx0gAAAABJRU5ErkJggg==',
+      'base64',
+    );
+    const formData = new FormData();
+    for (const [key, value] of Object.entries(fields)) formData.append(key, value);
+    formData.append('file', new File([tinyPng], 'avatar.png', { type: 'image/png' }));
+    const putRes = await fetch(upload_url, { method: 'POST', body: formData });
+    expect(putRes.ok || putRes.status === 204).toBeTruthy();
+
+    // 3. Confirm (posts.ts uploadMedia step 3) — the response is a document
+    //    envelope: the metadata is the body (a flat {doc_id, **metadata} broke
+    //    the app's fromV3DocToMedia — the profile photo upload crash).
+    const confirmRes = await request.post(`${API_BASE}/v3/media/confirm`, {
+      data: JSON.stringify({
+        token: owner.token,
+        body: { object_key, filename: 'avatar.png', mime_type: 'image/png', size_bytes: tinyPng.length, service: 'public_media' },
+      }),
+      headers: { 'Content-Type': 'application/json' },
+    });
+    expect(confirmRes.ok()).toBeTruthy();
+    const confirmed = await confirmRes.json();
+    expect(confirmed.doc_id).toBeTruthy();
+    expect(confirmed.service).toBe('media_metadata');
+    expect(confirmed.body.object_key).toBe(object_key);
+    expect(confirmed.created_at).toBeTruthy();
+
+    // 4. List by doc_ids (posts.ts resolveMediaRefs — exact-ref resolution; a
+    //    bare latest-N list misses refs older than the window)
+    const listRes = await request.post(`${API_BASE}/v3/media/list`, {
+      data: JSON.stringify({ token: owner.token, doc_ids: [confirmed.doc_id] }),
+      headers: { 'Content-Type': 'application/json' },
+    });
+    expect(listRes.ok()).toBeTruthy();
+    const listed = await listRes.json();
+    expect(listed).toHaveLength(1);
+    expect(listed[0].doc_id).toBe(confirmed.doc_id);
+    expect(listed[0].body.object_key).toBe(object_key);
+
+    // 5. Read-url (posts.ts refreshMediaUrls — a fresh presigned GET)
+    const readUrlRes = await request.post(`${API_BASE}/v3/media/read-url`, {
+      data: JSON.stringify({ token: owner.token, body: { object_key } }),
+      headers: { 'Content-Type': 'application/json' },
+    });
+    expect(readUrlRes.ok()).toBeTruthy();
+    const { read_url } = await readUrlRes.json();
+    expect(read_url).toContain(object_key);
+
+    // 6. The blob is actually in the object store — the presigned URL serves
+    //    the exact bytes that were uploaded (the avatar can render).
+    const blobRes = await fetch(read_url);
+    expect(blobRes.ok).toBeTruthy();
+    expect(Buffer.from(await blobRes.arrayBuffer()).toString('base64')).toBe(tinyPng.toString('base64'));
+  });
+
+  test('profile write round-trip through the app contract (create → update → latest wins)', async ({ request }) => {
+    const owner = await signupAndLogin(request, 'profwrite');
+    await addSocialAppContract(request, owner.token);
+    await createFollowersGroup(request, owner.token, owner.username);
+    const groupId = followersGroupId(owner.username);
+
+    // The app's exact write (Origin: social.localhost — the contract gate applies)
+    const createRes = await request.post(`${API_BASE}/v3/create`, {
+      data: JSON.stringify({
+        token: owner.token,
+        service: 'profile',
+        body: { display_name: 'First Name', website: 'first.example' },
+        groups: [groupId],
+      }),
+      headers: { 'Content-Type': 'application/json', Origin: SOCIAL_ORIGIN },
+    });
+    expect(createRes.ok(), `profile create failed (${createRes.status})`).toBeTruthy();
+    const docId = (await createRes.json()).doc_id as string;
+
+    // The app's exact update (saveProfile with an _id)
+    const updateRes = await request.post(`${API_BASE}/v3/update`, {
+      data: JSON.stringify({
+        token: owner.token,
+        doc_id: docId,
+        body: { display_name: 'Second Name', website: 'second.example' },
+      }),
+      headers: { 'Content-Type': 'application/json', Origin: SOCIAL_ORIGIN },
+    });
+    expect(updateRes.ok(), `profile update failed (${updateRes.status})`).toBeTruthy();
+
+    // Latest wins — the app reads docs[0] (created_at DESC). (Poll — the CH
+    // read side can lag the write by a beat under load.)
+    const profiles = await pollUntil(
+      () => readProfileDocs(request, owner.token, owner.username),
+      (docs) => docs.length >= 1 && (docs[0].body as any).display_name === 'Second Name',
+    );
+    expect(profiles[0].body.display_name).toBe('Second Name');
+    expect(profiles[0].body.website).toBe('second.example');
+
+    // Contract gate anti-test: the same write from an origin with NO contract
+    // is rejected (the app contract is what grants the social origin CRUD).
+    const noContractRes = await request.post(`${API_BASE}/v3/create`, {
+      data: JSON.stringify({
+        token: owner.token,
+        service: 'profile',
+        body: { display_name: 'Nope' },
+        groups: [groupId],
+      }),
+      headers: { 'Content-Type': 'application/json', Origin: 'http://evil.example' },
+    });
+    expect(noContractRes.status()).toBe(403);
+  });
 });
 
 // ---------------------------------------------------------------------------
@@ -317,6 +461,14 @@ test.describe('Profiles gauntlet — real flow + log sequence', () => {
 
     // The bio renders after save.
     await expect(page.getByText(bio, { exact: false })).toBeVisible({ timeout: 15000 });
+
+    // Settle the CH read side before the reload (the write is synchronous;
+    // the ReplacingMergeTree read can lag a beat under load).
+    const settled = await pollUntil(
+      () => readProfileDocs(request, owner.token, owner.username),
+      (docs) => docs.length >= 1,
+    );
+    expect(settled[0].body.bio).toBe(bio);
 
     // Return run: reload. The token cookie persists, the profile re-reads,
     // and the bio survives (the doc was written to the followers group).
@@ -362,6 +514,152 @@ test.describe('Profiles gauntlet — real flow + log sequence', () => {
     // The follow UI is present (the follow button — the groups surface owns
     // its state; here we pin that the profile exposes the follow control).
     await expect(page.locator('[data-testid="follow-button"]')).toBeVisible();
+  });
+
+  test('COLD START: no followers group, no profile doc — edit name/website/bio → persists', async ({ page, context, request }) => {
+    const logs = captureConsoleLogs(page, '[profile]');
+
+    // A fresh user with ONLY the app contract — NO followers group, NO
+    // profile doc. The old saveProfile wrote the profile doc into the
+    // followers group without ensuring it existed: the write 200'd into a
+    // phantom group, the next read 403'd, and the edit "didn't persist"
+    // (the operator's "i cant even change my name / website"). saveProfile
+    // now ensures the group first (the 3.25.3 settings fix, profile.ts was
+    // the named unfixed sibling) — this test drives that seam cold.
+    const owner = await signupAndLogin(request, 'profcold');
+    await addSocialAppContract(request, owner.token);
+    await setTokenCookie(context, 'social.localhost', owner.token);
+    await setTokenCookie(context, 'auth.localhost', owner.token);
+    await settle();
+
+    await page.goto(`${SOCIAL_BASE}/u/${owner.username}`);
+    await page.waitForLoadState('networkidle');
+    await expect(page.locator('[data-testid="edit-profile-button"]')).toBeVisible({ timeout: 15000 });
+
+    // Edit display name + website + bio.
+    const displayName = `Cold Start ${Date.now()}`;
+    const website = `cold${Date.now()}.example`;
+    const bio = `cold start bio ${Date.now()}`;
+    await page.locator('[data-testid="edit-profile-button"]').click();
+    await page.getByPlaceholder('Display name').fill(displayName);
+    await page.getByPlaceholder('Website').fill(website);
+    await page.getByPlaceholder('Bio').fill(bio);
+    await page.locator('[data-testid="save-profile-button"]').click();
+
+    // The edits render after save.
+    await expect(page.getByText(displayName)).toBeVisible({ timeout: 15000 });
+    await expect(page.getByText(website)).toBeVisible();
+    await expect(page.getByText(bio, { exact: false })).toBeVisible();
+
+    // Node-level: the app created the followers group (not the spec) and the
+    // profile doc is attached to it with the edited body. (Poll — the CH
+    // read side can lag the write by a beat under load.)
+    const groupsRes = await request.post(`${API_BASE}/v3/groups/list`, {
+      data: JSON.stringify({ token: owner.token }),
+      headers: { 'Content-Type': 'application/json' },
+    });
+    const groups = (await groupsRes.json()) as any[];
+    expect(groups.map((g) => g.group_id)).toContain(followersGroupId(owner.username));
+    const profiles = await pollUntil(
+      () => readProfileDocs(request, owner.token, owner.username),
+      (docs) => docs.length >= 1,
+    );
+    expect(profiles[0].body.display_name).toBe(displayName);
+    expect(profiles[0].body.website).toBe(website);
+    expect(profiles[0].body.bio).toBe(bio);
+
+    // Return run: reload — the profile re-reads from the group and the edits
+    // survive.
+    await page.reload();
+    await page.waitForLoadState('networkidle');
+    await expect(page.getByText(displayName)).toBeVisible({ timeout: 15000 });
+    await expect(page.getByText(website)).toBeVisible();
+    await expect(page.getByText(bio, { exact: false })).toBeVisible();
+
+    // The save path logged the group-ensure (the seam that was missing).
+    const logStr = logs.join('\n');
+    expect(logStr).toContain('[profile] saveProfile — followers group ready:');
+  });
+
+  test('AVATAR UPLOAD: real file → presigned → confirm → renders → persists across reload', async ({ page, context, request }) => {
+    const logs = captureConsoleLogs(page, '[social]');
+
+    const owner = await signupAndLogin(request, 'profavatar');
+    await addSocialAppContract(request, owner.token);
+    await createFollowersGroup(request, owner.token, owner.username);
+    await setTokenCookie(context, 'social.localhost', owner.token);
+    await setTokenCookie(context, 'auth.localhost', owner.token);
+    await settle();
+
+    await page.goto(`${SOCIAL_BASE}/u/${owner.username}`);
+    await page.waitForLoadState('networkidle');
+    await expect(page.locator('[data-testid="edit-profile-button"]')).toBeVisible({ timeout: 15000 });
+
+    // No avatar yet — the fallback letter renders, no avatar <img>.
+    expect(await page.locator('[data-testid="avatar-image"]').count()).toBe(0);
+
+    // Drive the real upload seam: click the avatar button (the user's real
+    // path — the click's transient activation carries into the hidden
+    // input.click(), so the file chooser opens) and feed the file through it
+    // (→ the real handleFileChange → uploadMedia's presigned flow → confirm →
+    // saveProfile). The file is a tiny 1x1 PNG.
+    const tinyPng = Buffer.from(
+      'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8D4HwAFBQIAX8jx0gAAAABJRU5ErkJggg==',
+      'base64',
+    );
+    const [fileChooser] = await Promise.all([
+      page.waitForEvent('filechooser'),
+      page.locator('[data-testid="edit-avatar-button"]').click(),
+    ]);
+    await fileChooser.setFiles({
+      name: 'avatar.png',
+      mimeType: 'image/png',
+      buffer: tinyPng,
+    });
+
+    // The avatar renders from a FRESH presigned URL (S3 v4 signature in the
+    // src — the object store is private, a bare key 403s).
+    const avatarImg = page.locator('[data-testid="avatar-image"]');
+    await expect(avatarImg).toBeVisible({ timeout: 30000 });
+    const src = await avatarImg.getAttribute('src');
+    expect(src).toBeTruthy();
+    expect(src).toContain('X-Amz-Signature');
+
+    // Node-level: the profile doc carries the avatar_ref and the media doc
+    // carries the object_key (the blob reference, never a URL). (Poll — the
+    // CH read side can lag the write by a beat under load.)
+    const profiles = await pollUntil(
+      () => readProfileDocs(request, owner.token, owner.username),
+      (docs) => docs.length >= 1 && Boolean((docs[0].body as any).avatar_ref),
+    );
+    const avatarRef = profiles[0].body.avatar_ref as string;
+    expect(avatarRef).toBeTruthy();
+    const listRes = await request.post(`${API_BASE}/v3/media/list`, {
+      data: JSON.stringify({ token: owner.token, doc_ids: [avatarRef] }),
+      headers: { 'Content-Type': 'application/json' },
+    });
+    const listed = (await listRes.json()) as any[];
+    expect(listed).toHaveLength(1);
+    expect(listed[0].body.object_key).toBeTruthy();
+
+    // The uploaded blob is served by the presigned URL (the image actually
+    // loaded — naturalWidth > 0 proves the bytes came back).
+    const naturalWidth = await avatarImg.evaluate((el) => (el as HTMLImageElement).naturalWidth);
+    expect(naturalWidth).toBeGreaterThan(0);
+
+    // Return run: reload — the avatar re-resolves (resolveMediaRefs →
+    // listMedia(doc_ids) → fresh presign) and still renders.
+    await page.reload();
+    await page.waitForLoadState('networkidle');
+    const reloadedAvatar = page.locator('[data-testid="avatar-image"]');
+    await expect(reloadedAvatar).toBeVisible({ timeout: 30000 });
+    const reloadedSrc = await reloadedAvatar.getAttribute('src');
+    expect(reloadedSrc).toContain('X-Amz-Signature');
+
+    // The upload seam logged its sequence (the gradient for the next debug).
+    const logStr = logs.join('\n');
+    expect(logStr).toContain('[social] handleFileChange — uploaded, media _id:');
+    expect(logStr).toContain('[social] handleFileChange — profile saved');
   });
 
   test('the /u/:username/p/:postId deep link lands on the post', async ({ page, context, request }) => {

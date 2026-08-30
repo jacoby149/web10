@@ -1304,16 +1304,30 @@ class TestMediaConfirm:
             "/v3/media/confirm",
             json={
                 "token": token,
-                "body": {"filename": "a.png", "url": "http://x", "mime_type": "image/png"},
+                "body": {"filename": "a.png", "object_key": "alice/a.png", "mime_type": "image/png"},
             },
         )
         assert resp.status_code == 200
-        assert resp.json()["filename"] == "a.png"
+        # Document envelope — the metadata is the body (clients map the
+        # response through the V3Document shape).
+        data = resp.json()
+        assert data["doc_id"]
+        assert data["service"] == "media_metadata"
+        assert data["body"]["filename"] == "a.png"
+        assert data["body"]["object_key"] == "alice/a.png"
+        assert data["created_at"]
 
 
 class TestMediaList:
     def test_list(self, client, token):
         resp = client.post("/v3/media/list", json={"token": token})
+        assert resp.status_code == 200
+
+    def test_list_doc_ids(self, client, token):
+        resp = client.post(
+            "/v3/media/list",
+            json={"token": token, "doc_ids": ["m1", "m2"]},
+        )
         assert resp.status_code == 200
 
 

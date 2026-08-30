@@ -22,7 +22,9 @@ import type {
   MediaRecord,
   ProfileRecord,
   SuggestedUser,
+  ResolvedMediaRef,
 } from '@/data';
+import { mediaRefId } from '@/data';
 import {
   Compass,
   Flame,
@@ -895,15 +897,13 @@ export default function DiscoverScreen() {
       const postsWithMedia = results.filter(p => p.media_refs?.length);
       if (postsWithMedia.length) {
         try {
-          const byAuthor = new Map<string, { posts: typeof postsWithMedia; refs: string[] }>();
+          const byAuthor = new Map<string, { posts: typeof postsWithMedia; refs: (string | ResolvedMediaRef)[] }>();
           for (const p of postsWithMedia) {
             const key = `${p.author_username}@${p.author_provider}`;
             const entry = byAuthor.get(key);
             if (entry) {
               entry.posts.push(p);
-              if (p.media_refs?.length) {
-                entry.refs.push(...p.media_refs);
-              }
+              entry.refs.push(...(p.media_refs || []));
             } else {
               byAuthor.set(key, {
                 posts: [p],
@@ -915,7 +915,17 @@ export default function DiscoverScreen() {
           for (const [key, entry] of byAuthor) {
             const [username, provider] = key.split('@');
             const isOwn = username === token.username && provider === token.provider;
-            const uniqueRefs = [...new Set(entry.refs)];
+            // Dedupe by doc_id, keeping the original ref shape (resolved
+            // objects carry the cross-user read_url; strings are doc_ids).
+            const seen = new Set<string>();
+            const uniqueRefs: (string | ResolvedMediaRef)[] = [];
+            for (const r of entry.refs) {
+              const id = mediaRefId(r);
+              if (id && !seen.has(id)) {
+                seen.add(id);
+                uniqueRefs.push(r);
+              }
+            }
             if (!uniqueRefs.length) continue;
             const media = await resolveMediaRefs(
               uniqueRefs,
@@ -924,7 +934,8 @@ export default function DiscoverScreen() {
             );
             for (const p of entry.posts) {
               if (p.media_refs?.length) {
-                mMap[p._id || ''] = media.filter(m => p.media_refs?.includes(m._id || ''));
+                const postRefIds = new Set((p.media_refs || []).map(mediaRefId));
+                mMap[p._id || ''] = media.filter(m => postRefIds.has(m._id || ''));
               }
             }
           }
