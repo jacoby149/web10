@@ -3,8 +3,8 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { Input } from '@/components/ui/input';
-import { createPost, uploadMedia, readProfile, resolveMediaRefs, fanOutToFollowers } from '@/data';
-import type { MediaRecord, ProfileRecord, Visibility } from '@/data';
+import { createPost, uploadMedia, readProfile, resolveMediaRefs, fanOutToFollowers, readMyAds } from '@/data';
+import type { MediaRecord, ProfileRecord, Visibility, AdRecord, AdAlbum } from '@/data';
 import { readSettings } from '@/data/settings';
 import {
   validateMedia,
@@ -15,8 +15,9 @@ import {
   validateVideoDuration,
 } from '@/lib/mediaProcessing';
 import type { ProcessingError as MediaProcessingError } from '@/lib/mediaProcessing';
-import { Image, X, Send, Loader2, AlertTriangle, GripVertical, Globe, Lock } from 'lucide-react';
+import { Image, X, Send, Loader2, AlertTriangle, GripVertical, Globe, Lock, Megaphone } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { AdPicker } from './AdPicker';
 
 let nextMediaId = 0;
 
@@ -146,8 +147,31 @@ export default function PostComposer({ onPostCreated }: { onPostCreated?: () => 
   const [profile, setProfile] = useState<ProfileRecord | null>(null);
   const [avatarUrl, setAvatarUrl] = useState<string | undefined>(undefined);
   const [visibility, setVisibility] = useState<Visibility>('public');
+  const [pinnedAd, setPinnedAd] = useState<AdRecord | null>(null);
+  const [showAdPicker, setShowAdPicker] = useState(false);
+  const [ads, setAds] = useState<AdRecord[]>([]);
+  const [albums, setAlbums] = useState<AdAlbum[]>([]);
+  const [loadingAds, setLoadingAds] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const dragIdRef = useRef<number | null>(null);
+
+  // Load the creator's ads + albums when the picker opens (lazy — only when
+  // the creator actually pins an ad).
+  const openAdPicker = useCallback(async () => {
+    setShowAdPicker(true);
+    if (!ads.length && !loadingAds) {
+      setLoadingAds(true);
+      try {
+        const { ads: myAds, albums: myAlbums } = await readMyAds();
+        setAds(myAds);
+        setAlbums(myAlbums);
+      } catch (e) {
+        console.warn('[social-composer] readMyAds failed:', e);
+      } finally {
+        setLoadingAds(false);
+      }
+    }
+  }, [ads.length, loadingAds]);
 
   useEffect(() => {
     readProfile()
@@ -391,12 +415,16 @@ export default function PostComposer({ onPostCreated }: { onPostCreated?: () => 
       }
 
       setPosting(true);
-      const postRecord = await createPost({
-        text: text.trim(),
-        media_refs: mediaRecords.map((m) => m._id!).filter(Boolean),
-        visibility,
-        created_at: new Date().toISOString(),
-      });
+      const postRecord = await createPost(
+        {
+          text: text.trim(),
+          media_refs: mediaRecords.map((m) => m._id!).filter(Boolean),
+          visibility,
+          created_at: new Date().toISOString(),
+        },
+        undefined,
+        pinnedAd ? { mode: 'pinned', target: pinnedAd._id } : undefined,
+      );
 
       // Fan-out to followers' inboxes (public posts only)
       if (visibility === 'public') {
@@ -411,6 +439,7 @@ export default function PostComposer({ onPostCreated }: { onPostCreated?: () => 
       previewUrlsRef.current.clear();
       setText('');
       setMediaItems([]);
+      setPinnedAd(null);
       onPostCreated?.();
     } catch (e) {
       console.error('Failed to create post:', e);
@@ -535,6 +564,41 @@ export default function PostComposer({ onPostCreated }: { onPostCreated?: () => 
                   )}
                 </div>
               </div>
+
+              <Button
+                variant="ghost"
+                size="icon"
+                className={cn(
+                  'h-10 w-10 transition-colors duration-150',
+                  pinnedAd
+                    ? 'text-brand hover:text-brand hover:bg-brand-muted/50'
+                    : 'text-muted-foreground hover:text-brand hover:bg-brand-muted/50',
+                )}
+                onClick={openAdPicker}
+                disabled={posting}
+                aria-label="Pin an ad"
+                data-testid="pin-ad-button"
+              >
+                <Megaphone className="w-[18px] h-[18px]" strokeWidth={1.75} />
+              </Button>
+              {pinnedAd && (
+                <span
+                  className="flex items-center gap-1.5 max-w-40 rounded-full bg-brand-muted px-3 py-1 text-xs text-brand-300"
+                  data-testid="pinned-ad-chip"
+                >
+                  <span className="truncate">{pinnedAd.text || 'Untitled ad'}</span>
+                  <button
+                    type="button"
+                    onClick={() => setPinnedAd(null)}
+                    disabled={posting}
+                    aria-label="Remove pinned ad"
+                    className="shrink-0 hover:text-foreground transition-colors"
+                    data-testid="pinned-ad-remove"
+                  >
+                    <X className="w-3 h-3" />
+                  </button>
+                </span>
+              )}
               <input
                 ref={fileInputRef}
                 type="file"
@@ -579,6 +643,23 @@ export default function PostComposer({ onPostCreated }: { onPostCreated?: () => 
           </div>
         </div>
       </div>
+
+      <AdPicker
+        open={showAdPicker}
+        ads={ads}
+        albums={albums}
+        selectedAdId={pinnedAd?._id}
+        loading={loadingAds}
+        onClose={() => setShowAdPicker(false)}
+        onSelect={(ad) => {
+          setPinnedAd(ad);
+          setShowAdPicker(false);
+        }}
+        onClear={() => {
+          setPinnedAd(null);
+          setShowAdPicker(false);
+        }}
+      />
     </div>
   );
 }

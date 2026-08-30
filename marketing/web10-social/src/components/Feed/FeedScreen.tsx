@@ -26,6 +26,7 @@ import { cn } from '@/lib/utils';
 import { MARKETING_ORIGIN } from '@/lib/origins';
 import { CommentThread } from './CommentThread';
 import { TextWithLinks } from './LinkEmbed';
+import { AdBlock } from './AdBlock';
 import { PostLightbox } from '@/components/Bio/PostLightbox';
 
 function formatTimeAgo(dateStr: string): string {
@@ -322,6 +323,13 @@ function PostCard({
           </Badge>
         )}
       </div>
+
+      {post.ad && (
+        <AdBlock
+          ad={post.ad}
+          className="md:mx-4 md:mb-3 md:rounded-lg md:border md:border-border"
+        />
+      )}
 
       <CommentThread
         postId={post._id || ''}
