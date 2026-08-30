@@ -152,7 +152,7 @@ class TestUpdateDocument:
                 service="posts",
                 body={"text": "updated"},
             )
-            assert result["created_at"] == "2026-01-01 12:00:00"
+            assert result["created_at"] == "2026-01-01T12:00:00Z"
             assert result["updated_at"] != result["created_at"]
             # Verify the insert uses the original created_at
             insert_call = mock_client.insert.call_args[0]
