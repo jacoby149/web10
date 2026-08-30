@@ -9,6 +9,208 @@ Status legend: [decided] intent set · [in-progress] · [open] still debating.
 
 ---
 
+### D58 — Group access model: per-service role maps + principal classes (`anyone` / `authenticated` / `member`) [decided]
+
+Operator, 30.08.2026 — out of the "make groups look like a Facebook group"
+discussion (group profile photo, name, about, admin-managed). Chasing that
+feature exposed that the group permission model underneath was a fiction:
+the roles the KB described were not the roles the code enforced. The
+operator's driving calls: "reads are always role gated"; "anon is a shit
+unclear word … use a word which is exactly like it means"; "we should have
+unauthorized-user, authenticated-user, and all … let people even set
+permissions for people signed in or not"; "i want to bring aws level
+control to the user"; and, on versioning, "lets keep it v3, v3 hasnt even
+gone to prod yet … silly to release v4."
+
+**The problem the decision solves:**
+
+The KB described a group permission model the code never built. Five
+specific gaps, found by reading the enforcement, not the docs:
+
+1. **The `services` array on roles is decorative.** A role is
+   `{name, services: [], permissions: []}` — a flat permission list applied
+   to a list of services. But no enforcement path reads `services`. The only
+   real role check (`_require_group_permission`) does
+   `permission in role.permissions` — flat, no service scoping — and it only
+   gates group-management ops. Document CRUD is gated by the **app
+   contract**, not group roles. So "service-scoped roles" (the KB's load-
+   bearing phrase) does not exist.
+2. **`anon` is a misnomer.** It means "no token," but the grant it carries
+   (the discover board's `anon` member row) actually applies to *any*
+   non-member, signed in or not. A logged-in stranger is not anon, yet they
+   would hold the "anon" role. The name describes the old mechanism, not the
+   principal.
+3. **Reads are membership-only, not role-gated.** A reader either is a
+   member (sees the group's docs) or isn't (sees nothing). That can't
+   express "signed-in users can read, signed-out can't," or any non-member
+   partial access.
+4. **The attach hole.** `create_document` checks the app contract, then
+   `attach_doc_to_groups` — which validates **nothing**. Any signed-in user
+   with an app contract can attach their doc to a group they're not in, and
+   that group's members read it. The write side has no membership/role gate.
+5. **The KB contradicts itself.** `overview.md` says "one role per member";
+   `identity.md` says "a user can hold different roles for different
+   services in the same group." The code is one-role-per-member (a single
+   `role` column in `group_members`). `identity.md` is the outlier.
+
+**The decision (eight parts):**
+
+**1. Roles are per-service permission maps.** Replace
+`{name, services: [], permissions: []}` with
+`{name, permissions: {service: [ops]}}`. The `services` array is retired —
+it was never enforced. This is the **same shape the app contract already
+uses** (`permissions: {service: [ops]}`), so there is one permission language
+across both contract types: the app contract says *this app* may do *these
+ops* on *these services*; a group role says *this principal* may do *these
+ops* on *these services*.
+
+```
+{ "name": "page-curator",
+  "permissions": { "group-identity-service": ["readAll", "create", "updateOwn", "deleteOwn"] } }
+
+{ "name": "owner",
+  "permissions": {
+    "*":     ["readAll", "create", "updateOwn", "updateAll", "deleteOwn", "deleteAll", "hideAll"],
+    "group": ["manageRoles", "assignRoles", "revokeRoles", "deleteGroup"]
+  } }
+```
+
+`'*'` is the wildcard over document services; `'group'` is the reserved key
+for management ops on the group itself (part 8).
+
+**2. One role per person.** This is already the implementation (`group_
+members` has a single `role` column, upserted per (group, member)). The
+per-service map makes a single role **fully expressive** — any
+(principal, service, permission) matrix fits in one role's map — so the
+"multiple roles per user" escape hatch is unnecessary. `identity.md`'s
+"multiple roles per user" is retired; `overview.md`'s "one role per member"
+was already right.
+
+**3. Three nested principal classes: `anyone` / `authenticated` / `member`.**
+Retire `anon`.
+
+| class | who it is | nesting |
+|---|---|---|
+| `anyone` | every request, signed in or not | broadest |
+| `authenticated` | valid token, any web10 user, member or not | ⊂ anyone |
+| `member` | has a member row in this group | ⊂ authenticated |
+
+Not `all` (collides with the `*` / all-services wildcard). Not
+`unauthorized-user` (in HTTP/security that means *authenticated-but-
+denied*, the opposite of the intent). `authenticated` is the model key; the
+UI renders it "Signed-in users."
+
+**4. Union semantics.** A principal's effective permissions in a group = the
+**union** of the permission maps of every class they belong to:
+
+- signed-out visitor → the `anyone` grant
+- signed-in stranger → `anyone` ∪ `authenticated`
+- member → `anyone` ∪ `authenticated` ∪ their member role
+
+The nesting enforces a sane invariant for free: a member always sees *at
+least* what a signed-in stranger sees. You cannot make a member see less
+than a bystander — that's incoherent, and the model won't let you express it.
+
+**5. Principal classes are reserved keys in `group_members`.** No new table.
+`group_members` already stores `(group_id, member_key, role)` — and it
+already stores a non-human principal (`anon`) for the discover board. Rename
+that reserved key `anon` → `anyone` (one row, one group) and add
+`authenticated` as a second reserved key. A "public group" is literally a
+`group_members` row: `(G, 'anyone', 'reader')`. Same machinery, honest names.
+
+**6. Reads are role-gated for content; identity stays public.** Content
+(posts / comments / media docs) is read-gated by the effective role's
+per-service `readAll` — this replaces the membership-only read check.
+**Identity** (the `group_identity` table: name, banner, description,
+website, tags) stays **public to everyone** — it is the group's face, and the
+Facebook-shaped front door depends on a non-member seeing the cover, the
+name, and the about. The D53 directory stays a public metadata list.
+Metadata public, content role-gated.
+
+**7. Public / private = a role grant to `anyone` / `authenticated`.** No new
+flag.
+
+- **fully public** → `readAll` on `anyone`
+- **signed-in only** → on `authenticated` (members inherit — they're
+  authenticated; signed-out can't get in)
+- **private** → only on member roles
+
+Join policy stays **orthogonal** — it controls how a *human* becomes a
+*member* (open = instant, request = pending, invite_only = owner adds). How
+you get in vs. what a bystander can see are different doors.
+
+**8. Management ops live under the reserved `'group'` service key.** Group-
+management ops (`manageRoles`, `assignRoles`, `revokeRoles`, `deleteGroup`,
+the join/member ops, `hideAll` moderation) act on the group itself, not on a
+document service. In the per-service map they sit under `'group'`. The
+existing flat management check becomes a per-service check on that key.
+
+**Why (the reasoning):**
+
+- **AWS-level control, one mechanism.** Per-service maps + principal classes
+  = principal → permission per resource, the IAM shape. One gate (the
+  effective role) answers every access question — read, write, manage. No
+  more three half-mechanisms (app contract + membership boolean + flat role
+  check) that the KB pretended were one.
+- **Consistency.** The app contract already uses the per-service map. Group
+  roles now use the same shape. One permission language, two trust layers
+  (app trust × person trust).
+- **ClickHouse makes it cheap.** The role check never touches the big
+  `documents` table. It runs on the small metadata tables
+  (`group_members` + `group_contracts.roles`) → computes the `group_ids`
+  list the reader's effective role clears, **per service** → the columnar
+  scan runs exactly as it does today, just with a different input list.
+  Fine-grained control lives in the relational layer (an index lookup); the
+  scan stays a scan.
+- **It reuses an existing precedent.** The discover board already works this
+  way — `anon` is a literal member row with a read role. D58 generalizes
+  that from one hardcoded board to a first-class concept and gives it honest
+  names.
+- **It closes the attach hole for free.** "Create in service S attached to
+  group G requires your role in G to grant that op on S" — the same check
+  that gates everything else.
+
+**What it rejects:**
+
+- The `{services: [], permissions: []}` shape (the `services` array was
+  decorative / unenforced).
+- The `anon` term (a misnomer — "no token," but the grant applied to any
+  non-member).
+- `all` as a principal name (collides with the `*` / all-services wildcard).
+- Membership-only read gating (too coarse — can't express signed-in-only or
+  non-member partial access).
+- Multiple roles per user (the per-service map makes one role fully
+  expressive; the code was already one-role-per-person).
+- A v4 / MAJOR version bump (operator: v3 is pre-prod, a month in
+  development; a breaking protocol change stays on the 3.x line).
+
+**Migration / backfill (one-time, at implementation):**
+
+- **Role shape:** fan the old flat `permissions` out across the old
+  `services` list (`['*']` → the `'*'` key). One-shot over
+  `group_contracts`.
+- **`anon` → `anyone`:** rename the reserved `member_key` (the discover
+  board's row).
+- **Visibility default is conservative:** no existing group besides the
+  discover group becomes `anyone`-readable; owners opt in. No silent access
+  expansion.
+
+**Open items (recommendations, not yet locked):**
+
+- **Per-service publicness in v1, or all-or-nothing.** Recommendation:
+  **all-or-nothing** in v1 — the `anyone` role grants `readAll` on
+  `posts` + `comments`, or nothing. The map shape carries per-service from
+  day one; the UI toggle stays one switch until someone actually wants
+  "public posts, private comments."
+- **The identity write path** (the original goal that started this) lands
+  *on* this model: a role grant on `group-identity-service`, enforced by the
+  same per-service check. See `groups/identity.md`.
+
+**Version:** stays **v3** (3.x). Operator call — v3 has not shipped.
+
+For the canonical model reference, see `knowledge-base/web10-v3/
+groups/access.md`.
+
 ### D57 — Two-layer ad model: creator ads (D55) + node-level ads; the payment model is scoped to what the node can enforce [decided]
 
 Operator, 30.08.2026 — after the ads lane completed (3.30.0), the business
