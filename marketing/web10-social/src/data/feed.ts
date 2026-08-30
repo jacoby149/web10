@@ -1,5 +1,5 @@
 import { getV3Client } from './v3';
-import { getDiscoverGroupId, getMyGroups } from './groups';
+import { getDiscoverGroupId, getMyGroups, getFeedGroups } from './groups';
 import { fromV3DocToPost, fromV3DocToProfile, mediaRefId, type PostRecord, type DiscoverSort } from './types';
 
 // ── Feed / Discover data layer (v3) ──────────────────────────────────────────
@@ -109,11 +109,7 @@ import type { FeedSort } from './types';
  */
 export async function readFeed(sort: FeedSort = 'newest', limit = 50): Promise<PostRecord[]> {
   const w = getV3Client();
-  const groups = await getMyGroups();
-  const feedGroups = groups
-    .filter((g) => g.group_id !== getDiscoverGroupId())
-    .map((g) => g.group_id);
-  console.log('[social-feed] readFeed — my groups:', JSON.stringify(groups.map((g) => g.group_id)));
+  const feedGroups = await getFeedGroups();
   console.log('[social-feed] readFeed — feed groups (minus discover):', JSON.stringify(feedGroups));
 
   if (!feedGroups.length) {
@@ -132,6 +128,40 @@ export async function readFeed(sort: FeedSort = 'newest', limit = 50): Promise<P
   posts.sort((a, b) => (new Date(a.created_at).getTime() - new Date(b.created_at).getTime()) * direction);
   console.log('[social-feed] readFeed — sorted', posts.length, 'posts by', sort);
   return posts;
+}
+
+/**
+ * Engagement counts for the feed's posts (the ref pattern — the same one
+ * DiscoverScreen runs): one read of the `reactions` + `comments` collections
+ * over the feed's groups, counted client-side by `ref_value` (the target
+ * post's doc_id). Without this the feed's likes/comments knobs only ever
+ * see recency. Returns per-doc_id counts; a missing post is simply absent
+ * (the caller treats absent as 0).
+ */
+export async function readFeedEngagement(
+  feedGroups: string[],
+  limit = 500,
+): Promise<{ likes: Record<string, number>; comments: Record<string, number> }> {
+  const w = getV3Client();
+  console.log('[social-feed] readFeedEngagement — counting over', feedGroups.length, 'groups');
+  const [reactionDocs, commentDocs] = await Promise.all([
+    w.read('reactions', { groups: feedGroups, limit }),
+    w.read('comments', { groups: feedGroups, limit }),
+  ]);
+  const likes: Record<string, number> = {};
+  const comments: Record<string, number> = {};
+  for (const d of reactionDocs) {
+    if (d.ref_value) likes[d.ref_value] = (likes[d.ref_value] || 0) + 1;
+  }
+  for (const d of commentDocs) {
+    if (d.ref_value) comments[d.ref_value] = (comments[d.ref_value] || 0) + 1;
+  }
+  console.log(
+    '[social-feed] readFeedEngagement — counted',
+    Object.values(likes).reduce((a, b) => a + b, 0), 'reactions +',
+    Object.values(comments).reduce((a, b) => a + b, 0), 'comments',
+  );
+  return { likes, comments };
 }
 
 // ── Backward compat for discovery types ──────────────────────────────────────
