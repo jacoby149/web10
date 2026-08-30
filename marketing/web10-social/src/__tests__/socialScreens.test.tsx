@@ -80,7 +80,11 @@ describe('FeedScreen', () => {
 
   it('renders empty state with subtle import link', async () => {
     const { default: FeedScreen } = await import('@/components/Feed/FeedScreen');
-    render(<FeedScreen />);
+    render(
+      <MemoryRouter>
+        <FeedScreen />
+      </MemoryRouter>,
+    );
     await waitFor(() => {
       expect(screen.getByText(/Your feed will appear here/)).toBeInTheDocument();
     });

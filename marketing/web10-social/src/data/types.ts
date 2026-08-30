@@ -1,4 +1,5 @@
 import type { V3Document } from './v3';
+import type { KnobState } from '@/lib/powerMean';
 
 // ── V3 document mapping ────────────────────────────────────────────────────
 // The v3 API returns V3Document (doc_id, author_key, collection_name, body,
@@ -390,6 +391,9 @@ export type DiscoverSort = 'recent' | 'trending';
 
 export interface AppSettings {
   defaultVisibility?: 'public' | 'private';
+  /** The feed's knob tuning (the D36 power-mean state) — persisted so the
+   *  app remembers how the user tuned their feed across sessions/devices. */
+  feedKnobs?: KnobState;
 }
 
 // ── Legacy types (backward compat) ──────────────────────────────────────────

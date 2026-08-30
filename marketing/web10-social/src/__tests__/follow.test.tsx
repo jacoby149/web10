@@ -431,7 +431,11 @@ describe('FeedScreen author navigation', () => {
     const { default: FeedScreen } = await import('@/components/Feed/FeedScreen');
     const onAuthorClick = vi.fn();
 
-    render(<FeedScreen onAuthorClick={onAuthorClick} />);
+    render(
+      <MemoryRouter>
+        <FeedScreen onAuthorClick={onAuthorClick} />
+      </MemoryRouter>,
+    );
 
     // The component renders without crashing
     await waitFor(() => {
@@ -445,7 +449,11 @@ describe('FeedScreen author navigation', () => {
     // postsMap was set — every card rendered null, a blank feed.
     // v3 stub: verify FeedScreen renders without crashing when profile read fails.
     const { default: FeedScreen } = await import('@/components/Feed/FeedScreen');
-    render(<FeedScreen onAuthorClick={() => {}} />);
+    render(
+      <MemoryRouter>
+        <FeedScreen onAuthorClick={() => {}} />
+      </MemoryRouter>,
+    );
 
     // The component renders without crashing — the empty state is shown
     // when no feed data is available.

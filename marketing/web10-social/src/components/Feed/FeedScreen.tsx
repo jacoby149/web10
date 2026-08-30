@@ -1,26 +1,36 @@
-import { useState, useEffect, useCallback, useRef } from 'react';
+import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Select } from '@/components/ui/select';
 import { Skeleton } from '@/components/ui/skeleton';
 import {
   readFeed,
+  getFeedGroups,
+  readFeedEngagement,
   readProfile,
   readUserProfile,
-  readMyPosts,
   resolveMediaRefs,
   countReactions,
   countComments,
   toggleReaction,
+  readSettings,
+  saveSettings,
 } from '@/data';
 import { getWapi } from '@/data/wapi';
 import type {
   PostRecord,
   MediaRecord,
-  FeedSort,
   ProfileRecord,
 } from '@/data/types';
+import {
+  rankPosts,
+  PRESETS,
+  getPreset,
+  type PresetId,
+  type KnobState,
+} from '@/lib/powerMean';
+import { KnobRack } from '@/components/Discover/KnobRack';
 import { Heart, MessageCircle, Play, Pause, Edit3 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { MARKETING_ORIGIN } from '@/lib/origins';
@@ -28,6 +38,49 @@ import { CommentThread } from './CommentThread';
 import { TextWithLinks } from './LinkEmbed';
 import { AdBlock } from './AdBlock';
 import { PostLightbox } from '@/components/Bio/PostLightbox';
+
+const LOG = (...args: unknown[]) => console.log('[social:feed]', ...args);
+
+// ── Feed knob state (D36 knobs on the feed — operator 30.08) ────────────────
+// The feed gets the same sorting knobs as the trending page (the D36 rack:
+// presets + 5 rotary knobs, power-mean re-ranking). The knob state is screen
+// state, so the URL holds it (the deep-link rule — same ?knobs= encoding as
+// DiscoverScreen): refresh restores the ranking, a shared link carries it.
+// The state is ALSO persisted to the user's web10 `settings` service
+// (settings.ts → the settings doc in the followers group), so the app
+// remembers how the user tuned their feed across sessions and devices.
+//
+// Precedence: URL (?knobs=) > saved settings (feedKnobs) > the Newest preset
+// (the feed is chronological until the user tunes it — the delivery pitch).
+
+const KNOB_KEYS: (keyof KnobState)[] = ['recency', 'likes', 'comments', 'halfLife', 'character'];
+
+function encodeKnobState(state: KnobState): string {
+  return KNOB_KEYS.map((k) => String(state[k])).join(',');
+}
+
+function parseKnobParam(raw: string | null): KnobState | null {
+  if (!raw) return null;
+  const parts = raw.split(',');
+  if (parts.length !== KNOB_KEYS.length) return null;
+  const state = {} as KnobState;
+  for (let i = 0; i < KNOB_KEYS.length; i++) {
+    const n = Number(parts[i]);
+    if (!Number.isInteger(n) || n < 0 || n > 5) return null;
+    state[KNOB_KEYS[i]] = n;
+  }
+  return state;
+}
+
+function presetIdForState(state: KnobState): PresetId | null {
+  const match = PRESETS.find((p) => KNOB_KEYS.every((k) => p.state[k] === state[k]));
+  return match ? match.id : null;
+}
+
+// The feed's default tuning: Newest (pure chronological — "no algorithm" is
+// the delivery pitch; the knobs are opt-in).
+const FEED_DEFAULT_STATE = () => getPreset('newest')!.state;
+const FEED_DEFAULT_ENCODING = encodeKnobState(FEED_DEFAULT_STATE());
 
 function formatTimeAgo(dateStr: string): string {
   const diff = Date.now() - new Date(dateStr).getTime();
@@ -386,7 +439,6 @@ function FeedSkeleton() {
 
 export default function FeedScreen({ onAuthorClick }: { onAuthorClick?: (username: string, provider: string) => void }) {
   const [posts, setPosts] = useState<PostRecord[]>([]);
-  const [sort, setSort] = useState<FeedSort>('newest');
   const [loading, setLoading] = useState(true);
   const [mediaMap, setMediaMap] = useState<Record<string, MediaRecord[]>>({});
   const [flatMediaMap, setFlatMediaMap] = useState<Record<string, MediaRecord>>({});
@@ -400,11 +452,108 @@ export default function FeedScreen({ onAuthorClick }: { onAuthorClick?: (usernam
   const isOwnPost = (p: PostRecord) =>
     token && p.author_username === token.username && p.author_provider === token.provider;
 
+  // ── Knob state: URL > saved settings > Newest preset ──────────────────────
+  const [searchParams, setSearchParams] = useSearchParams();
+
+  // The persisted tuning (the web10 `settings` service) — loaded once.
+  const [savedKnobs, setSavedKnobs] = useState<KnobState | null>(null);
+  useEffect(() => {
+    readSettings()
+      .then((s) => {
+        setSavedKnobs(s.feedKnobs ?? null);
+        if (s.feedKnobs) LOG('saved knobs — restored from settings service:', encodeKnobState(s.feedKnobs));
+      })
+      .catch((e) => LOG('saved knobs — failed to load settings:', e));
+  }, []);
+
+  const knobState = useMemo<KnobState>(() => {
+    const fromUrl = parseKnobParam(searchParams.get('knobs'));
+    if (fromUrl) return fromUrl;
+    if (savedKnobs) return savedKnobs;
+    return FEED_DEFAULT_STATE();
+  }, [searchParams, savedKnobs]);
+  const activePreset = useMemo(() => presetIdForState(knobState), [knobState]);
+
+  // Log the deep-link restore once on mount (the URL held the ranking).
+  useEffect(() => {
+    const raw = searchParams.get('knobs');
+    if (raw) LOG('deep-link — knob state restored from URL:', raw);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // Persist the tuning to the settings service (debounced — a knob twist is
+  // a burst of detent steps; the last one wins).
+  const persistTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const persistKnobs = useCallback((state: KnobState) => {
+    if (persistTimer.current) clearTimeout(persistTimer.current);
+    persistTimer.current = setTimeout(async () => {
+      try {
+        await saveSettings({ feedKnobs: state });
+        LOG('knobs — persisted to settings service:', encodeKnobState(state));
+      } catch (e) {
+        LOG('knobs — persist failed:', e);
+      }
+    }, 400);
+  }, []);
+  useEffect(() => () => { if (persistTimer.current) clearTimeout(persistTimer.current); }, []);
+
+  // Write a knob state to the URL (the deep-linkable ranking). The param is
+  // omitted when the state is the default, so the default URL stays clean.
+  const setKnobUrl = useCallback((next: KnobState) => {
+    const params = new URLSearchParams(searchParams);
+    const encoded = encodeKnobState(next);
+    if (encoded === FEED_DEFAULT_ENCODING) {
+      params.delete('knobs');
+    } else {
+      params.set('knobs', encoded);
+    }
+    setSearchParams(params);
+    const preset = presetIdForState(next);
+    LOG('knob state —', encoded, preset ? `(preset: ${preset})` : '(custom)');
+  }, [searchParams, setSearchParams]);
+
+  const handleKnobChange = useCallback((key: keyof KnobState, value: number) => {
+    const next = { ...knobState, [key]: value };
+    setKnobUrl(next);
+    persistKnobs(next);
+  }, [knobState, setKnobUrl, persistKnobs]);
+
+  const handlePreset = useCallback((id: PresetId) => {
+    const presetDef = getPreset(id);
+    if (presetDef) {
+      setKnobUrl(presetDef.state);
+      persistKnobs(presetDef.state);
+    }
+  }, [setKnobUrl, persistKnobs]);
+
   const loadFeed = useCallback(async () => {
     setLoading(true);
     try {
       // v3: readFeed returns PostRecord[] directly from group-based reads
-      const feed = await readFeed(sort, 50);
+      // (newest first — the ranking below re-orders by the knob state).
+      const [feed, feedGroups] = await Promise.all([
+        readFeed('newest', 50),
+        getFeedGroups(),
+      ]);
+
+      // Engagement counts (the ref pattern — the same one DiscoverScreen
+      // runs): without this the likes/comments knobs only ever see recency.
+      let engLikes: Record<string, number> = {};
+      let engComments: Record<string, number> = {};
+      if (feedGroups.length) {
+        try {
+          const eng = await readFeedEngagement(feedGroups);
+          engLikes = eng.likes;
+          engComments = eng.comments;
+        } catch (e) {
+          LOG('engagement — failed (degrading to zero counts):', e);
+        }
+      }
+      for (const p of feed) {
+        p.likes = engLikes[p._id || ''] || 0;
+        p.comments = engComments[p._id || ''] || 0;
+        p.reposts = 0;
+      }
       setPosts(feed);
 
       const token = getWapi().readToken();
@@ -486,11 +635,27 @@ export default function FeedScreen({ onAuthorClick }: { onAuthorClick?: (usernam
       setPosts([]);
     }
     setLoading(false);
-  }, [sort]);
+  }, []);
 
   useEffect(() => {
     loadFeed();
   }, [loadFeed]);
+
+  // Client-side re-ranking via knob state (zero network calls per twist —
+  // the same pattern as DiscoverScreen). The Newest preset (the default)
+  // short-circuits to pure chronological in rankPosts.
+  const rankedPosts = useMemo(() => {
+    return rankPosts(
+      posts,
+      (post) => ({
+        ageMs: Date.now() - new Date(post.created_at).getTime(),
+        likes: post.likes || 0,
+        comments: post.comments || 0,
+        reposts: post.reposts || 0,
+      }),
+      knobState,
+    );
+  }, [posts, knobState]);
 
   async function handleToggleLike(postId: string) {
     const token = getWapi().readToken();
@@ -515,23 +680,24 @@ export default function FeedScreen({ onAuthorClick }: { onAuthorClick?: (usernam
       <div className="sticky top-0 z-10 bg-background/90 backdrop-blur-md border-b border-border md:static md:border-0 md:bg-transparent md:mb-4">
         <div className="flex items-center justify-between px-4 py-3 md:px-0">
           <h1 className="font-display text-lg font-bold text-foreground">Feed</h1>
-          <Select
-            value={sort}
-            onChange={(e) => setSort(e.target.value as FeedSort)}
-            data-testid="feed-sort"
-            className="h-8 text-xs w-32 bg-elevated border-0 text-foreground"
-          >
-            <option value="newest">Newest</option>
-            <option value="oldest">Oldest</option>
-            <option value="most_reacted">Most reacted</option>
-          </Select>
         </div>
       </div>
+
+      {/* Controls: presets + knobs (the same rack as the trending page, D36) */}
+      <div className="px-4 py-3 md:px-0">
+        <KnobRack
+          state={knobState}
+          activePreset={activePreset}
+          onChange={handleKnobChange}
+          onPreset={handlePreset}
+        />
+      </div>
+
       <div className="md:px-0">
         {!posts.length ? (
           <FeedEmptyState />
         ) : (
-          posts.map((post) => {
+          rankedPosts.map((post) => {
             const authorKey = `${post.author_username}@${post.author_provider}`;
             const profile = profileMap[authorKey];
             const mediaItems = mediaMap[post._id || ''] || [];
