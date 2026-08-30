@@ -45,6 +45,7 @@ function MediaItem({ media }: { media: MediaRecord }) {
   const isVideo = media.mime_type?.startsWith('video/');
   const [playing, setPlaying] = useState(false);
   const videoRef = useRef<HTMLVideoElement>(null);
+  const [measuredRatio, setMeasuredRatio] = useState<number | null>(null);
 
   useEffect(() => {
     if (!playing || !videoRef.current) return;
@@ -56,11 +57,28 @@ function MediaItem({ media }: { media: MediaRecord }) {
 
   const src = media.thumbnail_url || media.url;
 
+  // The read path now carries the real dimensions; measure on load only as a
+  // fallback for legacy media that predates dimension storage. Reserving the
+  // ratio up front (known or measured) is what keeps the feed from shifting.
+  const knownRatio = media.width && media.height ? media.width / media.height : null;
+  const ratio = knownRatio ?? measuredRatio ?? 4 / 3;
+  const onMediaLoaded = (el: HTMLVideoElement | HTMLImageElement) => {
+    if (knownRatio) return;
+    const w = 'videoWidth' in el ? el.videoWidth : el.naturalWidth;
+    const h = 'videoHeight' in el ? el.videoHeight : el.naturalHeight;
+    if (w && h) setMeasuredRatio(w / h);
+  };
+
+  // Natural aspect ratio, capped so a portrait clip can't blow up the feed,
+  // object-contain so it never crops (letterboxes on the cap) — matching the
+  // lightbox. The card bg (not black) shows through any letterbox.
+  const containerStyle: React.CSSProperties = { aspectRatio: `${ratio}`, maxHeight: '60vh' };
+
   if (isVideo) {
     return (
       <div
         className="bg-elevated overflow-hidden group relative cursor-pointer"
-        style={{ aspectRatio: media.width && media.height ? `${media.width}/${media.height}` : '1/1' }}
+        style={containerStyle}
         onClick={() => setPlaying((p) => !p)}
         role="button"
         tabIndex={0}
@@ -77,7 +95,8 @@ function MediaItem({ media }: { media: MediaRecord }) {
           ref={videoRef}
           src={media.url}
           poster={media.thumbnail_url}
-          className="w-full h-full object-cover transition-transform duration-150 group-hover:scale-105"
+          onLoadedMetadata={(e) => onMediaLoaded(e.currentTarget)}
+          className="w-full h-full object-contain"
           preload="metadata"
           playsInline
           muted={!playing}
@@ -107,13 +126,14 @@ function MediaItem({ media }: { media: MediaRecord }) {
   return (
     <div
       className="bg-elevated overflow-hidden group relative"
-      style={{ aspectRatio: media.width && media.height ? `${media.width}/${media.height}` : '1/1' }}
+      style={containerStyle}
       data-testid="media-image"
     >
       <img
         src={src}
         alt={media.alt_text || ''}
-        className="w-full h-full object-cover transition-transform duration-150 group-hover:scale-105"
+        onLoad={(e) => onMediaLoaded(e.currentTarget)}
+        className="w-full h-full object-contain"
         loading="lazy"
       />
       <div className="absolute inset-0 bg-gradient-to-t from-black/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-150" />
@@ -130,30 +150,21 @@ function formatDuration(seconds: number): string {
 function MediaGrid({ mediaItems }: { mediaItems: MediaRecord[] }) {
   if (!mediaItems.length) return null;
   const count = mediaItems.length;
-  const displayItems = mediaItems.slice(0, 6);
-  const remaining = count - 6;
+  const first = mediaItems[0];
 
+  // Option (b): the first item renders at its natural aspect ratio; the rest
+  // live behind a count badge — tapping the card opens the lightbox, which
+  // already has a working carousel for the full set.
   return (
-    <div
-      className={cn(
-        'grid gap-0.5 bg-background overflow-hidden rounded-t-md',
-        count === 1 ? 'grid-cols-1' : count === 2 ? 'grid-cols-2' : 'grid-cols-3',
-      )}
-    >
-      {displayItems.map((m) => (
-        <MediaItem key={m._id || m.url} media={m} />
-      ))}
-      {remaining > 0 && (
-        <div className="aspect-square bg-elevated flex items-center justify-center relative">
-          <img
-            src={mediaItems[6]?.thumbnail_url || mediaItems[6]?.url}
-            alt=""
-            className="absolute inset-0 w-full h-full object-cover"
-            loading="lazy"
-          />
-          <div className="absolute inset-0 bg-black/50 flex items-center justify-center">
-            <span className="text-2xl font-semibold text-foreground">+{remaining}</span>
-          </div>
+    <div className="relative">
+      <MediaItem media={first} />
+      {count > 1 && (
+        <div
+          className="absolute top-2 right-2 flex items-center justify-center min-w-6 h-6 px-2 rounded-full bg-background/70 backdrop-blur-sm text-xs font-semibold text-foreground tabular-nums pointer-events-none"
+          data-testid="media-count-badge"
+          aria-label={`${count} items`}
+        >
+          {count}
         </div>
       )}
     </div>
