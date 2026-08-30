@@ -871,8 +871,8 @@ class TestResolveMediaUrls:
                 ]
             )
             signing = MagicMock()
-            signing.generate_presigned_url.side_effect = (
-                lambda method, Params=None, ExpiresIn=None: f"http://minio/{Params['Key']}?sig=fresh"
+            signing.generate_presigned_url.side_effect = lambda method, Params=None, ExpiresIn=None: (
+                f"http://minio/{Params['Key']}?sig=fresh"
             )
             mock_signing.return_value = signing
             result = ch.resolve_media_urls(body, "alice")
