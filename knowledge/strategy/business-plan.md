@@ -12,11 +12,18 @@ verify market figures before showing this to investors.
 
 web10 Inc is the Automattic of creator-owned social: open,
 self-hostable software (free forever) + a hosted-node offering
-(subscription) + payment rails (~3% of revenue flowing through
-them) + eventually a sponsor marketplace (the nano-promo tier
-nothing serves today). the customer is the creator; users are free
-and arrive with the creator. the software is the funnel, hosting is
-the margin, rails are the compounding asset.
+(usage-based, the MongoDB model) + node-level ad inventory (the
+operator sells their audience's attention, keeps 85-90%) +
+eventually a sponsor marketplace (the nano-promo tier nothing
+serves today). v3 is the **ads platform** — it competes with
+YouTube's ad system (100% delivery, no shadow ban, you keep 100%
+of your ad revenue). the payment model (memberships/tips via
+Stripe Connect, the 3+10+10+77 split) is v4 — it requires
+portable payment relationships, which is a separate engineering
+problem. the customer is the creator; users are free and arrive
+with the creator. the node operator is a media company — they own
+the audience, they sell the attention. the software is the funnel,
+hosting is the margin, node ads are the compounding asset.
 
 ## 2. problem + solution (one line each; THE STORY is the long form)
 
@@ -45,42 +52,173 @@ the margin, rails are the compounding asset.
   shopify, substack ~$650M–1.1B raise-era, onlyfans ~$6B+/yr GMV
   with ~40 employees (the per-employee ceiling of the category).
 
-## 4. business model + pricing (PROPOSED — settle at M2)
+## 4. business model + pricing (D57, 30.08.2026)
 
-four revenue lines, in the order they turn on:
+three revenue lines in v3 (ads only — no Stripe, no memberships, no tips;
+the payment model is v4):
 
-1. HOSTED NODES (turns on at M2). subscription by community size:
-     - founding creators (first 3): free for 12 months, white-glove.
-     - starter: $49/mo (up to ~5k accounts)
-     - creator: $199/mo (up to ~50k accounts)
-     - scale: $499+/mo (beyond; storage/bandwidth passthrough for
-       heavy video — R2-class zero-egress keeps this sane)
-   self-hosting stays free forever (the credibility of the whole
-   ownership story depends on this — never gate the software).
-2. PAYMENT RAILS: ~3% of revenue flowing through web10 stripe
-   connect (memberships, tips, marketplace payouts). self-hosters
-   using their own processor pay 0 — the 3% is earned by
-   convenience, not lock-in (D5).
-3. SPONSOR MARKETPLACE (M3): the nano-tier ($20 promos at 5k
+1. HOSTED NODES (turns on at M2). usage-based pricing (the MongoDB
+   model — D57), not a flat fee. the price scales with the value the
+   customer is extracting:
+      - free: 10GB storage, 100GB egress/mo. the funnel. no credit card.
+      - starter: $49/mo (100GB storage, 1TB egress/mo)
+      - creator: $199/mo (1TB storage, 10TB egress/mo, custom domain)
+      - scale: $999+/mo (dedicated node, 10TB+ storage, 100TB+ egress/mo,
+        SLA, DR)
+      - usage-based overages on storage + egress beyond the tier cap
+        (the video solution: the creator who streams 4K pays for what
+        they use; R2-class offload keeps web10's cost low)
+    self-hosting stays free forever (the credibility of the whole
+    ownership story depends on this — never gate the software).
+2. NODE-LEVEL ADS (turns on at M2, the operator's revenue): the node
+   operator sells ad inventory across the whole node (D57). a node ad
+   is a `posts` doc on the discover group, tagged `ad` + `node_ad`;
+   the read attaches active node ads to posts at the operator's
+   configured percentage (the third join: `doc.ad` + `doc.node_ad`,
+   both can be present). the operator sells the inventory to
+   advertisers directly (off-platform); they keep 85-90%. web10 takes
+   a 10-15% platform fee on the hosting invoice. the operator is a
+   media company, not just a hosting customer.
+3. NO-ADS SUBSCRIPTION (turns on at M2, the fan's revenue): the fan
+   pays a monthly fee to remove ads (the YouTube Premium model). three
+   tiers: free (all ads), tier 1 (no node ads, still see influencer
+   ads), tier 2 (no node ads + no influencer ads, completely
+   ad-free). the subscription revenue splits between the node operator
+   (70%) and web10 (30%). the operator is the merchant of record — the
+   fan pays the operator, the operator pays web10 their share. no
+   Stripe Connect needed. the enforcement: web10's software renders
+   the ad-free experience; if the operator doesn't pay, web10 cuts
+   off the software. open question: tier 2 removes influencer ads,
+   which means the creator loses ad revenue from tier 2 users — the
+   compensation model is a v4 detail.
+4. SPONSOR MARKETPLACE (M3): the nano-tier ($20 promos at 5k
    followers) up to real campaigns. take: 3% per D5 — evaluate
    raising marketplace-side take to ~10% later; still 2-3x cheaper
    than paved (30%) / kit (23.5-30%) / OF (20%). [DECISION OPEN]
-4. LATER, DEMAND-DRIVEN: white-label/agency tier (managers running
-   multiple creator nodes), premium studio features (AI suggester
-   is hosted-tier already, D19 pattern).
 
-the comparison that closes deals: a creator doing $3k/mo in
-memberships pays substack ~$300/mo, OF $600/mo, skool/whop
-$600-900/mo. web10 hosted: $199 + $90 rails = $289 — cheaper at
-$3k/mo and MASSIVELY cheaper as they grow ($10k/mo: substack $1k
-vs web10 $499). the take is flat-ish, not proportional: web10 gets
-cheaper as the creator wins. that's a pricing story no percentage
-platform can match, and it's D5's flat-3%+hosting doing the work.
+v4 (not in this window): the payment model (memberships/tips via
+Stripe Connect, the 3+10+10+77 split, the patron export, portable
+payment relationships). the v4 KB lives in
+`knowledge/knowledge-base/web10-v4/`. the v3/v4 split: v3 is the ads
+platform (compete with YouTube's ad system), v4 is the payment platform
+(compete with Patreon). the split exists because Stripe Connect creates
+migration lock-in (the payment relationship is tied to the node's
+Stripe account) and onboarding friction (KYC, bank account, tax forms)
+that repels creators who already have a payment setup. people trust
+Patreon — the creator links their Patreon from their web10 posts, the
+fan pays on Patreon, the trust is in Patreon.
+
+the comparison that closes deals (v3, ads only): a creator doing
+$3k/mo in ad revenue (affiliate, sponsor) on YouTube pays 0% to
+YouTube (they keep 100% of their affiliate revenue) but YouTube
+throttles their reach (the shadow ban). on web10: $199/mo hosting +
+0% ad revenue take = $199/mo total cost. the creator keeps 100% of
+their ad revenue AND 100% delivery (no shadow ban) AND ownership of
+the audience. the pitch: "same revenue as YouTube, no shadow ban, you
+own the building. the $199 keeps the node running."
+
+the node operator's pitch is different: "run a media property. you
+own the audience, you sell the attention, you keep 85-90% of the ad
+revenue. web10 handles the infrastructure." a node with 500k users,
+10k posts/day, 70% unmonetized, at 10% node ad density, $10 CPM
+(conservative) = ~$7k/mo in node ad revenue. the operator keeps
+~$6k/mo, pays web10 $999 (scale tier). they're up $5k/mo. that's a
+business.
+
+### 4b. the monetization ladder
+
+web10 makes money in stages. each stage is gated by the previous one
+working. the ladder:
+
+**Rung 1: you are the media company (now → M2).**
+you are the node operator. you get users on web10.app. you run node
+ads (sell the inventory to advertisers). you keep 85-90% of the ad
+revenue. you pay web10 (yourself) the hosting fee + platform fee.
+net: you earn ad revenue minus infra cost. web10 Inc's revenue is the
+hosting fee + platform fee (an internal transfer, but it validates the
+model). the goal: prove that a node with real users can sell ad
+inventory at a real CPM. this is the kill test for the entire ad
+model.
+
+**Rung 2: the no-ads subscription (M2).**
+the fan pays a monthly fee to remove ads. the YouTube Premium model.
+three tiers:
+  - free: see all ads (node + influencer)
+  - tier 1 (paid): no node ads (still see influencer ads — the
+    creator's revenue is protected)
+  - tier 2 (paid, higher): no node ads + no influencer ads
+    (completely ad-free)
+the subscription revenue splits between the node operator and web10
+(the operator is the merchant of record — the fan pays the operator,
+the operator pays web10 their share). no Stripe Connect needed — the
+operator handles the payment, web10 gets a cut. the enforcement is
+simple: web10's software renders the ad-free experience; if the
+operator doesn't pay web10, web10 cuts off the software.
+open question: tier 2 removes influencer ads, which means the creator
+loses ad revenue from tier 2 users. the compensation model (does part
+of the tier 2 fee go to the creators whose ads are removed?) is a v4
+detail. for now: the subscription exists, the revenue splits between
+operator and web10, the creator compensation is open.
+the goal: 5% of users on tier 1, 1% on tier 2. at 100k users, that's
+5k tier 1 + 1k tier 2. at $5/mo tier 1 + $10/mo tier 2 = $35k/mo in
+subscription revenue. the operator keeps 70%, web10 keeps 30% =
+$10.5k/mo web10 revenue.
+
+**Rung 3: other node operators come online (M2 → M3).**
+other creators/influencers run their own web10 nodes (hosted by
+web10 or self-hosted). they get their own audience. they run their own
+node ads. they offer their own no-ads subscription. web10 earns:
+hosting fees (real, from other operators) + platform fee on their
+node ad revenue (10-15%) + 30% of their subscription revenue. the
+revenue is no longer internal — it's from other operators. the goal:
+3-5 hosted node operators, each with 10k-100k users, each selling
+their own ad inventory + subscription.
+
+**Rung 4: the network effect (M3+).**
+more nodes → more users → more ad inventory + more subscriptions →
+more revenue. the node operators (not just you) are earning money from
+ads + subscriptions. web10 earns the platform fee + subscription cut
+from all of them. the cross-node discover (a user on node A can follow
+a creator on node B) drives users between nodes. the goal: 10-20
+active node operators, each earning from ads + subscriptions, web10
+earning the platform fee + subscription cut from each.
+
+**Rung 5: the payment model lands (v4).**
+memberships/tips flow through web10's Stripe Connect. the
+3+10+10+77 split. the patron export makes the audience portable.
+web10 earns the 10% platform fee on membership revenue. the operator
+earns the 10% hosting cut. the creator keeps 77% + 100% of their ad
+revenue. the goal: the first creator earning $1k+/mo in memberships
+on the node, the payment relationship proven portable.
+
+**Rung 6: the sponsor marketplace (M3+).**
+web10 is the broker between brands and creators/node operators.
+brands buy ad inventory across multiple nodes through web10. web10
+takes a marketplace fee (3-10%). the goal: the first brand campaign
+running across 3+ nodes, web10 earning the brokerage fee.
+
+the ladder is the business plan's growth model: each rung is a new
+revenue line, gated by the previous rung proving the model. rung 1 is
+"you prove the ad model works." rung 2 is "fans pay to remove ads."
+rung 3 is "others do it too." rung 4 is "the network compounds."
+rung 5 is "the payment layer adds a new revenue stream." rung 6 is
+"web10 is the ad exchange."
 
 ## 5. unit economics (per hosted creator node)
 
-- revenue/creator/mo (base case): $199 hosting + 3% of $3k
-  member/sponsor revenue = ~$289.
+- revenue/creator/mo (base case, v3 ads only): $199 hosting (creator
+  tier) + 0% ad revenue take (the creator keeps 100% of their
+  affiliate/sponsor revenue — web10 doesn't process it). the creator
+  links their Patreon, their affiliate network, their own store — the
+  payment happens off-platform. web10's revenue is the hosting fee.
+- revenue/node-operator/mo (the media company): node ad revenue (they
+  keep 85-90%, web10 takes 10-15% platform fee) + the hosting fee. a
+  node with 500k users, 10k posts/day, 10% node ad density, $10 CPM
+  (conservative) = ~$7k/mo node ad revenue. the operator keeps ~$6k/mo
+  from ads + $199/creator hosting. that's a real business.
+- v4 (not in this window): the membership/tip revenue line (3% Stripe
+  + 10% operator + 10% web10 + 77% creator). the portable payment
+  relationship is the engineering problem that gates it.
 - COGS/creator/mo (REAL infra: $100/mo colocation, 64GB xeon —
   one box hosts ~10-30 small creator nodes): ~$5-15/creator at
   early scale + media storage/egress ~$20-100 for video-heavy
@@ -219,10 +357,13 @@ a $12k risk would be the worst trade in the plan.
   2. posting-within-4-weeks rate (a signed-but-dark creator is
      $199 of revenue and a dead case study — the flywheel runs on
      visible successes, not signatures)
-  3. creator's own revenue (the $3k/mo assumption): drives rails,
-     retention, and pitch #2's credibility. if real creators do
-     $500/mo, blended revenue/creator drops ~30% and the story
-     weakens more than the money does.
+  3. creator's own revenue (the $3k/mo assumption): $2k/mo
+     memberships/tips (web10-processed, drives rails revenue) +
+     $1k/mo affiliate/sponsor (not web10-processed, drives retention
+     and the case study). if real creators do $500/mo memberships,
+     blended revenue/creator drops ~30% and the story weakens more
+     than the money does. the node ad revenue line is separate — it
+     scales with the node's audience, not the individual creator.
   4. churn (3%/mo assumed blind; 6% pushes breakeven to ~month 14)
   5. video COGS (the passthrough tier must actually get charged)
 
@@ -241,6 +382,11 @@ a $12k risk would be the worst trade in the plan.
 - marketplace revenue is $0 in-window: honest, but it means the
   10x-cheaper-marketplace wedge contributes nothing to these
   numbers — pure upside if M3 lands.
+- node ad revenue is untested: the CPM assumption ($20) and the
+  unmonetized percentage (70%) are invented. no node has sold ad
+  inventory yet. the model assumes the operator can sell the
+  inventory at a reasonable CPM — this is the biggest untested
+  assumption in the plan after close rate.
 
 ## 7. cost structure (REAL numbers, 18.07.2026)
 
@@ -368,6 +514,12 @@ money here buys TIME and PROOF-VELOCITY, not survival.
    hang on stripe connect. mitigation: it's the industry default
    and D5 predates this doc; adapterize payments later the way ads
    are adapterized now. [watch, don't build yet]
+6. node ad revenue doesn't materialize: the operator can't sell the
+   inventory at a reasonable CPM, or the unmonetized percentage is
+   lower than assumed (creators monetize most of their posts).
+   mitigation: the node ad layer is optional (percentage = 0 = off);
+   the hosting fee + rails revenue stand on their own. the node ad
+   revenue is upside, not the foundation.
 
 ## 11. strategic alignments + exit posture (dessert, not dinner)
 

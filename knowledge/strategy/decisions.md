@@ -9,6 +9,474 @@ Status legend: [decided] intent set · [in-progress] · [open] still debating.
 
 ---
 
+### D58 — Group access model: per-service role maps + principal classes (`anyone` / `authenticated` / `member`) [decided]
+
+Operator, 30.08.2026 — out of the "make groups look like a Facebook group"
+discussion (group profile photo, name, about, admin-managed). Chasing that
+feature exposed that the group permission model underneath was a fiction:
+the roles the KB described were not the roles the code enforced. The
+operator's driving calls: "reads are always role gated"; "anon is a shit
+unclear word … use a word which is exactly like it means"; "we should have
+unauthorized-user, authenticated-user, and all … let people even set
+permissions for people signed in or not"; "i want to bring aws level
+control to the user"; and, on versioning, "lets keep it v3, v3 hasnt even
+gone to prod yet … silly to release v4."
+
+**The problem the decision solves:**
+
+The KB described a group permission model the code never built. Five
+specific gaps, found by reading the enforcement, not the docs:
+
+1. **The `services` array on roles is decorative.** A role is
+   `{name, services: [], permissions: []}` — a flat permission list applied
+   to a list of services. But no enforcement path reads `services`. The only
+   real role check (`_require_group_permission`) does
+   `permission in role.permissions` — flat, no service scoping — and it only
+   gates group-management ops. Document CRUD is gated by the **app
+   contract**, not group roles. So "service-scoped roles" (the KB's load-
+   bearing phrase) does not exist.
+2. **`anon` is a misnomer.** It means "no token," but the grant it carries
+   (the discover board's `anon` member row) actually applies to *any*
+   non-member, signed in or not. A logged-in stranger is not anon, yet they
+   would hold the "anon" role. The name describes the old mechanism, not the
+   principal.
+3. **Reads are membership-only, not role-gated.** A reader either is a
+   member (sees the group's docs) or isn't (sees nothing). That can't
+   express "signed-in users can read, signed-out can't," or any non-member
+   partial access.
+4. **The attach hole.** `create_document` checks the app contract, then
+   `attach_doc_to_groups` — which validates **nothing**. Any signed-in user
+   with an app contract can attach their doc to a group they're not in, and
+   that group's members read it. The write side has no membership/role gate.
+5. **The KB contradicts itself.** `overview.md` says "one role per member";
+   `identity.md` says "a user can hold different roles for different
+   services in the same group." The code is one-role-per-member (a single
+   `role` column in `group_members`). `identity.md` is the outlier.
+
+**The decision (eight parts):**
+
+**1. Roles are per-service permission maps.** Replace
+`{name, services: [], permissions: []}` with
+`{name, permissions: {service: [ops]}}`. The `services` array is retired —
+it was never enforced. This is the **same shape the app contract already
+uses** (`permissions: {service: [ops]}`), so there is one permission language
+across both contract types: the app contract says *this app* may do *these
+ops* on *these services*; a group role says *this principal* may do *these
+ops* on *these services*.
+
+```
+{ "name": "page-curator",
+  "permissions": { "group-identity-service": ["readAll", "create", "updateOwn", "deleteOwn"] } }
+
+{ "name": "owner",
+  "permissions": {
+    "*":     ["readAll", "create", "updateOwn", "updateAll", "deleteOwn", "deleteAll", "hideAll"],
+    "group": ["manageRoles", "assignRoles", "revokeRoles", "deleteGroup"]
+  } }
+```
+
+`'*'` is the wildcard over document services; `'group'` is the reserved key
+for management ops on the group itself (part 8).
+
+**2. One role per person.** This is already the implementation (`group_
+members` has a single `role` column, upserted per (group, member)). The
+per-service map makes a single role **fully expressive** — any
+(principal, service, permission) matrix fits in one role's map — so the
+"multiple roles per user" escape hatch is unnecessary. `identity.md`'s
+"multiple roles per user" is retired; `overview.md`'s "one role per member"
+was already right.
+
+**3. Three nested principal classes: `anyone` / `authenticated` / `member`.**
+Retire `anon`.
+
+| class | who it is | nesting |
+|---|---|---|
+| `anyone` | every request, signed in or not | broadest |
+| `authenticated` | valid token, any web10 user, member or not | ⊂ anyone |
+| `member` | has a member row in this group | ⊂ authenticated |
+
+Not `all` (collides with the `*` / all-services wildcard). Not
+`unauthorized-user` (in HTTP/security that means *authenticated-but-
+denied*, the opposite of the intent). `authenticated` is the model key; the
+UI renders it "Signed-in users."
+
+**4. Union semantics.** A principal's effective permissions in a group = the
+**union** of the permission maps of every class they belong to:
+
+- signed-out visitor → the `anyone` grant
+- signed-in stranger → `anyone` ∪ `authenticated`
+- member → `anyone` ∪ `authenticated` ∪ their member role
+
+The nesting enforces a sane invariant for free: a member always sees *at
+least* what a signed-in stranger sees. You cannot make a member see less
+than a bystander — that's incoherent, and the model won't let you express it.
+
+**5. Principal classes are reserved keys in `group_members`.** No new table.
+`group_members` already stores `(group_id, member_key, role)` — and it
+already stores a non-human principal (`anon`) for the discover board. Rename
+that reserved key `anon` → `anyone` (one row, one group) and add
+`authenticated` as a second reserved key. A "public group" is literally a
+`group_members` row: `(G, 'anyone', 'reader')`. Same machinery, honest names.
+
+**6. Reads are role-gated for content; identity stays public.** Content
+(posts / comments / media docs) is read-gated by the effective role's
+per-service `readAll` — this replaces the membership-only read check.
+**Identity** (the `group_identity` table: name, banner, description,
+website, tags) stays **public to everyone** — it is the group's face, and the
+Facebook-shaped front door depends on a non-member seeing the cover, the
+name, and the about. The D53 directory stays a public metadata list.
+Metadata public, content role-gated.
+
+**7. Public / private = a role grant to `anyone` / `authenticated`.** No new
+flag.
+
+- **fully public** → `readAll` on `anyone`
+- **signed-in only** → on `authenticated` (members inherit — they're
+  authenticated; signed-out can't get in)
+- **private** → only on member roles
+
+Join policy stays **orthogonal** — it controls how a *human* becomes a
+*member* (open = instant, request = pending, invite_only = owner adds). How
+you get in vs. what a bystander can see are different doors.
+
+**8. Management ops live under the reserved `'group'` service key.** Group-
+management ops (`manageRoles`, `assignRoles`, `revokeRoles`, `deleteGroup`,
+the join/member ops, `hideAll` moderation) act on the group itself, not on a
+document service. In the per-service map they sit under `'group'`. The
+existing flat management check becomes a per-service check on that key.
+
+**Why (the reasoning):**
+
+- **AWS-level control, one mechanism.** Per-service maps + principal classes
+  = principal → permission per resource, the IAM shape. One gate (the
+  effective role) answers every access question — read, write, manage. No
+  more three half-mechanisms (app contract + membership boolean + flat role
+  check) that the KB pretended were one.
+- **Consistency.** The app contract already uses the per-service map. Group
+  roles now use the same shape. One permission language, two trust layers
+  (app trust × person trust).
+- **ClickHouse makes it cheap.** The role check never touches the big
+  `documents` table. It runs on the small metadata tables
+  (`group_members` + `group_contracts.roles`) → computes the `group_ids`
+  list the reader's effective role clears, **per service** → the columnar
+  scan runs exactly as it does today, just with a different input list.
+  Fine-grained control lives in the relational layer (an index lookup); the
+  scan stays a scan.
+- **It reuses an existing precedent.** The discover board already works this
+  way — `anon` is a literal member row with a read role. D58 generalizes
+  that from one hardcoded board to a first-class concept and gives it honest
+  names.
+- **It closes the attach hole for free.** "Create in service S attached to
+  group G requires your role in G to grant that op on S" — the same check
+  that gates everything else.
+
+**What it rejects:**
+
+- The `{services: [], permissions: []}` shape (the `services` array was
+  decorative / unenforced).
+- The `anon` term (a misnomer — "no token," but the grant applied to any
+  non-member).
+- `all` as a principal name (collides with the `*` / all-services wildcard).
+- Membership-only read gating (too coarse — can't express signed-in-only or
+  non-member partial access).
+- Multiple roles per user (the per-service map makes one role fully
+  expressive; the code was already one-role-per-person).
+- A v4 / MAJOR version bump (operator: v3 is pre-prod, a month in
+  development; a breaking protocol change stays on the 3.x line).
+
+**Migration / backfill (one-time, at implementation):**
+
+- **Role shape:** fan the old flat `permissions` out across the old
+  `services` list (`['*']` → the `'*'` key). One-shot over
+  `group_contracts`.
+- **`anon` → `anyone`:** rename the reserved `member_key` (the discover
+  board's row).
+- **Visibility default is conservative:** no existing group besides the
+  discover group becomes `anyone`-readable; owners opt in. No silent access
+  expansion.
+
+**Open items (recommendations, not yet locked):**
+
+- **Per-service publicness in v1, or all-or-nothing.** Recommendation:
+  **all-or-nothing** in v1 — the `anyone` role grants `readAll` on
+  `posts` + `comments`, or nothing. The map shape carries per-service from
+  day one; the UI toggle stays one switch until someone actually wants
+  "public posts, private comments."
+- **The identity write path** (the original goal that started this) lands
+  *on* this model: a role grant on `group-identity-service`, enforced by the
+  same per-service check. See `groups/identity.md`.
+
+**Version:** stays **v3** (3.x). Operator call — v3 has not shipped.
+
+For the canonical model reference, see `knowledge-base/web10-v3/
+groups/access.md`.
+
+### D57 — Two-layer ad model: creator ads (D55) + node-level ads; the payment model is scoped to what the node can enforce [decided]
+
+Operator, 30.08.2026 — after the ads lane completed (3.30.0), the business
+question: "why wouldnt creator just link their patreon?" and "with the ads,
+how does web10 get a cut into the ad revenue / enforce that, not totally
+sure." Then: "web10 could also charge more than $199/mo. how does mongodb
+make money?" Then: "the node owner has to have ads on it too! so they get
+ad rev off all 500k users, so not just the influencers are doing ads, the
+node owner is doing ads too." Then: "what kinds of ads? google ads? or
+what? i am talking about what is feasible simple." Then: "but then there
+needs to be built into the .read function natively the ads of the node,
+maybe on the discover group." Then the unlock: "there are posts, and then
+the ads get joined to the posts, should users posts with none as the ad get
+sponsored ads put on them? so put ads on users posts that arent
+monetizing, some percentage of the time." Then, on the payment split:
+"great, so we are doing patreon because we can, + ads too! the node
+operator should get a cut of the patreons as well." Then, the final
+split: "3% goes to stripe, 10% keeps the node running, 10% keeps web10
+secure, 77% goes to the creator." Then, the v3/v4 split: "should we even
+do patreon? maybe we should do ONLY ads, makes migration simpler, patreon
+could be v4 web10 stuff, move to the v4 knowledge base. then it is much
+simpler to migrate nodes." Then, the Stripe lock-in: "my issue is i dont
+think stripe connect would even necessarily make it easy to switch nodes
+like that." Then, the final call: "we cut out all the stripe shit which is
+hard setup, repels people, people could do their affiliate shit just
+straight out the gate without the patreon stuff it will allow us to really
+focus on making this an effective ads platform, which is really what we
+are trying to compete with, the youtubes, etc, people could link their
+patreons. people trust patreon also."
+
+**The problem the decision solves:**
+
+The business plan's revenue model has a load-bearing assumption that was
+never stress-tested: the 3% rails revenue assumes the creator's money flows
+through web10's Stripe Connect. But a creator with a working Patreon/Stripe/
+Shopify setup has every incentive to route around it. The ad revenue line is
+worse — the `offer.link` is a raw URL; web10 can't intercept an affiliate
+link, can't force a sponsor to pay through the node, and can't verify a
+conversion. The 3% on ads was aspirational, not enforced.
+
+Separately, the node operator had no revenue model of their own. They host
+creators for free (the software is free) and collect a $199/mo fee. A node
+with 500k users is a media property with no mechanism to monetize that
+audience. The operator is a customer, not a revenue-sharing partner.
+
+**The decision (three parts):**
+
+**1. Two ad layers, clearly separated.**
+
+- **Layer 1: creator ads (D55, already built).** The creator pins an ad to
+  their post. The `offer.link` is the creator's own affiliate/sponsor link.
+  web10 does NOT process the payment, does NOT get a cut, and does NOT try
+  to enforce it. The creator keeps 100% of the ad revenue. web10's value
+  here is **delivery** (100% of followers see the ad), not payment
+  processing. This is the existing D55 model, unchanged.
+
+- **Layer 2: node-level ads (new, this decision).** The node operator sells
+  ad inventory across the whole node. A node ad is a `posts` doc on the
+  discover group, tagged `ad` + `node_ad`, authored by the node operator.
+  The read attaches active node ads to posts at the operator's configured
+  **percentage** (default 10%). The attachment is **read-time** — the
+  creator's `ad_mode` column is never modified; the read simply enriches
+  the response. The node ad is a **third join**: the response carries both
+  `doc.ad` (the creator's pinned ad, if `ad_mode = 'pinned'`) AND
+  `doc.node_ad` (the node's ad, if selected by the percentage). A post can
+  have both — the creator's monetization is never suppressed by the node's.
+  The operator sells this inventory to advertisers directly
+  (off-platform, like a small publication sells ad space). web10's cut is
+  the **10% platform fee on membership/tip revenue** (D57), NOT a direct
+  cut of the ad revenue.
+
+**Why read-time attachment, not a separate ad post:**
+
+The first draft interleaved node ads as separate posts in the feed (like a
+sponsored slot every Nth position). The operator rejected it: "there are
+posts, and then the ads get joined to the posts, should users posts with
+none as the ad get sponsored ads put on them?" He was right. The existing
+`ad_preference` mechanism already joins an ad to a post (the pinned ad
+serves inline via `doc.ad`). The node ad uses the same mechanism — the read
+sees the doc, checks the node ad percentage, and if selected, attaches a
+node ad to the response as `doc.node_ad`. No new interleaving logic. No
+separate ad posts. The ad is part of the post response, the same way a
+pinned creator ad is.
+
+**The third join (doc + creator ad + node ad):**
+
+The read returns the doc with up to two ad attachments:
+- `doc.ad` — the creator's pinned ad (if `ad_mode = 'pinned'`)
+- `doc.node_ad` — the node's ad (if selected by the percentage)
+
+Both can be present on the same post. The creator's monetization is never
+suppressed by the node's. The renderer shows both: the post content, the
+creator's ad block, and the node's ad block (with the "Sponsored" label).
+The operator's revenue is independent of the creator's — a post with a
+creator ad still gets a node ad, so the operator's inventory isn't reduced
+by the creator's monetization.
+
+The percentage is the density control. The operator sets
+`node_ad_percentage` in `node_config` (default 10, range 0-100). The read
+uses a deterministic hash of (doc_id + reader_key) to select which posts
+get a node ad — the same user sees the same ads on refresh, but different
+users see different posts with node ads. The node ad cycles through the
+operator's active node ads (round-robin).
+
+**Why not enforce creator ad revenue through web10:**
+
+You can't. The `offer.link` is an external URL. web10 doesn't see the
+click, doesn't see the conversion, doesn't process the payment. Trying to
+enforce it would require web10 to become the merchant of record for every
+affiliate transaction on the platform — a payments company with sales tax
+nexus in every jurisdiction, chargeback liability, and PCI compliance.
+That's a different company than a social protocol. The honest model:
+web10 sells delivery, the creator keeps the revenue.
+
+**Why the node operator can enforce their ad revenue:**
+
+The node ad is rendered by the node's code. The ad block is part of the
+post's response (`doc.ad`), the same way a pinned creator ad is. The
+operator can't sell ad space that isn't rendered by the node. web10's SDK
+renders the ad block, so web10 can meter impressions. The operator's
+revenue is real because the inventory is real — it's part of the product,
+not a suggestion.
+
+**The creator's ad is never suppressed (the non-steal principle):**
+
+The node ad is an *additional* layer, not a replacement. If a post has
+`ad_mode = 'pinned'` (the creator is monetizing it with their own ad), the
+read serves the creator's ad in `doc.ad` AND the node ad in `doc.node_ad`
+(if selected by the percentage). The creator's monetization is never
+reduced by the node's. The pitch to a creator: "your ads are always yours.
+the node's ads are an additional layer on top — they don't replace yours,
+they don't compete with yours, they're a separate revenue stream for the
+operator who hosts you."
+
+**2. v3 is ads only. The payment model (memberships/tips) is v4.**
+
+The first draft of this decision included a full payment model: Stripe
+Connect for memberships/tips, a 3+10+10+77 split, the "you're supporting
+an open internet" marketing frame. The operator rejected it for v3:
+"we cut out all the stripe shit which is hard setup, repels people, people
+could do their affiliate shit just straight out the gate without the
+patreon stuff."
+
+**Why Stripe Connect is a v3 blocker:**
+
+- **It creates migration lock-in.** The payment relationship (fan → Stripe
+  → node's Connect account → creator) is tied to the node's Stripe account.
+  If the creator moves to a different node, the subscription doesn't
+  transfer. "Export your patrons" becomes "ask your fans to re-enter their
+  card." That's not ownership, that's a CSV.
+- **It repels creators.** Stripe Connect onboarding (KYC, bank account,
+  tax forms) is friction. A creator who already has a Patreon, a Shopify
+  store, or an affiliate setup doesn't want to set up a second payment
+  processor. The friction kills the onboarding.
+- **People trust Patreon.** A fan who's been paying a creator $10/mo on
+  Patreon for 3 years is not going to re-enter their card on a new
+  platform. The trust is in Patreon, not in web10.
+
+**What v3 does instead: ads only.**
+
+The platform is an **effective ads platform** — that's what web10
+competes with (YouTube's ad system, not Patreon). The ad is a link. The
+payment happens off-platform, where the fan already trusts:
+
+- **Creator ads (D55, already built):** the creator pins their affiliate
+  link, sponsor deal, or Patreon to their post. `offer.link` is an external
+  URL. No payment processing on the node. The creator keeps 100% of the ad
+  revenue. The creator can link their Patreon directly — the fan clicks
+  through to Patreon, pays there, the trust is in Patreon.
+
+- **Node ads (this decision):** the operator's inventory. `offer.link` is
+  an external URL. No payment processing on the node. The operator sells
+  the inventory to advertisers directly (off-platform). The operator keeps
+  the ad revenue.
+
+Both ad layers are **link-based**, not payment-based. The node doesn't hold
+the payment relationship. Migration is clean: export your posts, your ad
+catalog, your settings → import into the new node. No payment relationship
+to transfer. No subscriber re-subscription.
+
+**The "why not just link Patreon" answer (v3):**
+
+"You don't need to link Patreon for payments. You link it for your
+members. But your ads run on web10, delivered to 100% of your followers,
+and you keep 100% of the ad revenue. web10 doesn't process the payment,
+doesn't take a cut of your ad revenue. The only thing you pay for is the
+hosting (the infrastructure that delivers your content to your audience)."
+
+**v4: the payment model (memberships/tips).**
+
+When v4 starts, the payment model gets its own decision doc (D58?). The
+questions to solve:
+- How do you make payment relationships portable across nodes? (Stripe
+  Connect transfer, creator-managed Stripe, or a payment abstraction
+  layer)
+- The 3+10+10+77 split (or whatever the final numbers are)
+- The "you're supporting an open internet" marketing frame
+- The patron export (the subscriber list is the key piece)
+
+The v4 KB lives in `knowledge/knowledge-base/web10-v4/`. The v3 KB
+(`web10-v3/social/node-ads.md`) is ads only.
+
+**The revenue model (v3):**
+
+Without memberships/tips, web10's revenue is:
+1. **Hosting fees** (usage-based tiers: Free / $49 / $199 / $999+)
+2. **Platform fee on node ads** — web10 takes 10-15% of the node ad
+   revenue (the operator sells the inventory, web10 takes a platform fee
+   on the hosting invoice)
+
+That's it. No 3% Stripe, no 10% operator cut on memberships, no 10% web10
+cut on memberships. The revenue is simpler: hosting + platform fee on node
+ads. The "you're supporting an open internet" framing applies to the
+hosting fee, not to a payment split.
+
+**3. The pricing model is usage-based, not flat (the MongoDB model).**
+
+The flat $199/mo is wrong. It's a SaaS pricing model applied to an
+infrastructure product. The price should scale with the value the customer
+is extracting:
+
+- **Free:** 1 node, 10GB storage, 100GB egress/mo. The funnel. No credit
+  card. A creator can try it for a week.
+- **Starter ($49/mo):** 100GB storage, 1TB egress/mo.
+- **Creator ($199/mo):** 1TB storage, 10TB egress/mo, custom domain.
+- **Scale ($999+/mo):** dedicated node, 10TB+ storage, 100TB+ egress/mo,
+  SLA, DR.
+- **Usage-based overages** on storage + egress beyond the tier cap.
+
+The egress charge is the video solution: the creator who streams 4K to 10k
+concurrent viewers pays for what they use. The R2-class offload keeps
+web10's actual cost low; the passthrough charge keeps the margin.
+
+The node operator's revenue is now: creator hosting fees (tiered) +
+node-level ad revenue (they keep 85-90%) + 10% of the creator's
+membership/tip revenue (keeps the node running). The operator is a
+media company, not just a hosting customer.
+
+**What this rejects:**
+
+- web10 as merchant of record for creator ad revenue (the payments company
+  trap — sales tax, chargebacks, PCI).
+- A flat $199/mo pricing model (doesn't scale with value, subsidizes large
+  creators, undercharges video-heavy workloads).
+- Stripe Connect in v3 (migration lock-in, onboarding friction, repels
+  creators who already have a payment setup). The payment model is v4.
+- "3% of all creator revenue" as the rails model (unenforceable for
+  affiliate/sponsor revenue; the v4 payment model will scope this properly).
+- Google AdSense / programmatic ad networks / VAST pre-roll (not v3; the
+  node ad is a first-party post, not a third-party ad tech stack).
+- The node operator as a pure customer (they're a revenue-sharing partner
+  with their own ad inventory).
+
+**What it gates:**
+
+- The node-ads lane (new) is the build path for the node-level ad layer:
+  the `node_ad` tag, the `node_ad_percentage` config, the read-time
+  attachment logic (the third join: `doc.ad` + `doc.node_ad`), the
+  operator UI, the renderer.
+- The business plan's revenue model needs revision (the pricing tiers +
+  the node ad platform fee; the membership/tip revenue line moves to v4).
+- The v4 payment model (memberships/tips, Stripe Connect, portable
+  payment relationships, the 3+10+10+77 split, the patron export) gets its
+  own decision doc (D58?) when v4 starts. The v4 KB lives in
+  `knowledge/knowledge-base/web10-v4/`.
+
 ### D56 — Full-platform telemetry: GA4 + Hotjar on every surface, content masked [decided]
 Operator, 28.08.2026 — "ultimate privacy isnt what web10 is about, we arent
 encrypting like whatsapp, we are doing analytics for influencers tracking,

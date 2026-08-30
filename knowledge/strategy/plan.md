@@ -191,6 +191,31 @@ identity query). The **detail** is a flexible, principal-based read
 - [✓] **UI: the directory screen** (`marketing/marketing-ui/`) — the browse surface: `/groups` (grid of discoverable groups from `GET /v3/groups/directory`, search by name/owner + topic filter by tag chips) + `/groups/:id` (deep-linkable detail from `GET /v3/groups/detail` — metadata always, posts when the reader is a member else "join to view", 404 not-found state). `GroupCard` component + Navbar "Groups" link. 14 new UI tests (card render/link/skeleton, directory headline/cards/empty/search/tag-filter, detail name/posts/join-to-view/404/skeleton).
 - [✓] **Tests** — unit (identity read + slug fallback, directory query filters `discoverable=1`, directory endpoint shape, detail: non-existent 404s / non-discoverable reachable / member sees posts / non-member "join to view" / anon reads as anon) + e2e (`groups-demo.spec.ts`: directory lists discoverable + excludes non-discoverable; detail 404s ghost / reaches non-discoverable; member sees posts, non-member "join to view").
 
+## Groups: Access Model (D58) — Platform
+
+D58 replaces the group permission model the KB described but the code never
+built. Roles become **per-service permission maps** (the `services` array was
+decorative / unenforced). Access is granted to three **nested principal
+classes** — `anyone` / `authenticated` / `member` (retiring the `anon`
+misnomer) — stored as reserved keys in `group_members`. A principal's
+effective role is the **union** of the grants on every class they belong to.
+**Reads are role-gated** (content); **identity stays public** (the face).
+Public / private = a role grant to `anyone` / `authenticated` — no new flag.
+Management ops live under the reserved `'group'` service key. One role per
+person (already the code). This closes the attach hole (the write side gets
+the same per-service gate). Stays **v3** (operator: pre-prod). KB is the spec:
+`groups/access.md` (canonical) + D58.
+
+- [✓] **Decision: D58** (`knowledge/strategy/decisions.md`) — per-service role maps + principal classes (`anyone`/`authenticated`/`member`) + union semantics + reserved `group_members` keys + role-gated content reads + public identity + public/private via class grants + the `'group'` management key + one-role-per-person + the attach-hole fix + conservative backfill. Stays v3.
+- [✓] **KB** (`knowledge-base/web10-v3/groups/`) — new `access.md` (the canonical model reference: the two trust layers, the role shape, principal classes, union semantics, the gates, public/private, worked examples, invariants); `identity.md` / `overview.md` / `discoverability.md` / `social-contracts.md` / `requests.md` / `detail.md` re-aligned to the per-service map shape + principal classes (the "service-scoped roles" + "multiple roles per user" fiction retired; `anon`-as-member → `anyone`/`authenticated` grants; membership-gate → effective-role-gate).
+- [ ] **API: role shape + read gate + write gate** (`api/app/v3/endpoints/groups.py`, `services/clickhouse.py`, `models/`) — roles stored as per-service maps; the read path computes the reader's **effective role** (union over `anyone` / `authenticated` / member role) and gates content reads on per-service `readAll` (replaces the membership-only check); the write/attach path gates on the effective role granting the op on the service (closes the attach hole); management ops check the `'group'` key.
+- [ ] **API: backfill (one-time, sentinel-gated)** (`services/clickhouse.py`) — fan the old flat `permissions` out across the old `services` list (`['*']` → `'*'` key) over `group_contracts`; rename the discover board's `anon` member row → `anyone`; **conservative visibility default** (no existing group besides discover becomes `anyone`-readable — owners opt in).
+- [ ] **API: identity write endpoint** (`api/app/v3/endpoints/groups.py`) — the group's face (name, description, banner, avatar, website, tags) written to the public `group_identity` table, gated by a role grant on `group-identity-service` (owner / `page-curator`). Lands *on* the D58 model.
+- [ ] **Conformance re-pin** (`api/tests/`) — I3 re-pinned from "membership grants access" to "effective role grants access"; the anti-tests get stronger (anon vs private group, signed-in vs signed-out, member ⊇ stranger ⊇ visitor monotonicity).
+- [ ] **UI: public/private + profile editor** (`ui/src/components/Groups/`) — a "Who can read" control (public / signed-in-only / private = grant/revoke the `anyone` / `authenticated` read role) + a group **profile editor** (name, description, website, tags, banner + avatar upload) next to the existing Settings/Roles/Members dialogs.
+- [ ] **App role definitions** (`marketing/web10-social/src/data/groups.ts`, `sdk/src/`) — the social app's `FOLLOWER_ROLES` / `COMMUNITY_ROLES` / `DM_ROLES` + the SDK's `V3GroupRole` type move to the per-service map shape; the create-group flow can carry an initial `anyone`/`authenticated` read grant (public/private at birth).
+- [ ] **E2E** (`e2e/tests/`) — the public/private fork as a first-class gauntlet: public group → `anyone` reads posts; signed-in-only → signed-in reads, signed-out doesn't; private → member only; the discover board regression-pinned; the attach-hole anti-test (a bystander cannot attach to a group they can't write).
+
 ## Ads: The Catalog + Composer (D54, D55) — Platform
 
 The creator's ads, **v3 mad simple** (D55 + the v3/v4 dissemination split). An
@@ -219,6 +244,30 @@ is in `web10-v3/social/ads-dissemination.md`; the ad object in `social/ads.md`
 - [✓ 3.28.0] **Ads tab (authenticator)** — the Studio's new Ads surface: **ads upload** (the ingest — media + offer + status → a `posts` doc tagged `ad`), **album making** (Apple-Photos-style: make albums, sort by album or all, add an ad to a few), **pin an ad to a post** (pick an ad → set the post's `ad_preference`). All states designed (empty → CTA, skeleton, error). `ui/src/components/Studio/`.
 - [✓ 3.29.0] **Composer pin control (web10-social)** — the "Pin an ad" control in `PostComposer`: pick an ad (from an album or all) to pin to the post, or none (sets the post's `ad_preference`); the ad block renders under the post (creative + offer + disclosure, disclosure never hidden). `marketing/web10-social/src/components/Feed/`.
 - [✓ 3.30.0] **E2E** — the torture gauntlet: create an ad → pin it to a post → follower sees the post with the ad block + disclosure → unpin → it's gone → non-follower never sees the ad (I3) → an ad in two albums shows in both. `e2e/tests/ads.spec.ts`.
+
+## Node-Level Ads (D57) — Platform
+
+The node operator's ad layer — the second layer of the two-layer ad model
+(D57). **v3 is ads only** — no Stripe, no memberships, no tips (the payment
+model is v4). A node ad is a `posts` doc on the discover group, tagged `ad`
++ `node_ad`, authored by the node operator. The read attaches active node
+ads to posts at the operator's configured percentage (default 10%). The
+attachment is read-time — the creator's `ad_mode` column is never modified.
+The response is a **third join**: `doc.ad` (the creator's pinned ad, if
+`ad_mode = 'pinned'`) + `doc.node_ad` (the node's ad, if selected by the
+percentage). Both can be present on the same post — the creator's
+monetization is never suppressed by the node's. The operator sells the
+inventory to advertisers directly; web10 takes a 10-15% platform fee on the
+hosting invoice. The KB is the spec: `web10-v3/social/node-ads.md`. Lane is
+`node-ads` in `parallel-execution.md`.
+
+- [ ] **Decision: D57** (`knowledge/strategy/decisions.md`) — two-layer ad model (creator + node); v3 is ads only (no Stripe, no memberships, no tips — the payment model is v4); read-time attachment at a percentage; the third join (`doc.ad` + `doc.node_ad`, both can be present); usage-based pricing (MongoDB model); the v3/v4 split rationale (Stripe Connect = migration lock-in + onboarding friction)
+- [ ] **KB: `node-ads.md`** (`knowledge/knowledge-base/web10-v3/social/node-ads.md`) — the node ad object, the read-time attachment (the third join), the density control, the renderer (both ads on the same post), the operator's revenue model (hosting + node ad revenue 85-90%), the "what this is NOT" (not a payment processor, v3 is ads only), security invariants
+- [ ] **`node_ad_percentage` config** — new field on `NodeConfig` + `ConfigUpdate` (integer, 0-100, default 10); the Node Config UI exposes it
+- [ ] **Node ad query + read-time attachment (the third join)** (`api/app/v3/`) — `get_active_node_ads()` (bounded query); the read enriches posts with node ads at the configured percentage (deterministic hash, round-robin); the response carries both `doc.ad` and `doc.node_ad`
+- [ ] **Renderer: both ads on the same post** (`marketing/web10-social/`) — the post renders with up to two ad blocks: the creator's ad + the node's ad ("Sponsored" label + node disclosure)
+- [ ] **Ad Inventory card (authenticator)** (`ui/src/components/Studio/`) — percentage slider, list of active node ads, create/pause/resume/retire
+- [ ] **Tests** — unit (query, attachment, percentage, determinism, third join, I3) + e2e (operator creates node ad → feed shows it → pinned post shows BOTH ads → percentage 0 = off)
 
 ## Platform Telemetry (D56) — Platform
 
