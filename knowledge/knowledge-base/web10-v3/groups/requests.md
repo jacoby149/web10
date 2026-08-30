@@ -103,8 +103,8 @@ const req = await w.requestGroupCreate({
   name: 'followers',
   join_policy: 'open',
   roles: [
-    { name: 'owner', services: ['*'], permissions: ['readAll', 'create', 'updateOwn', 'deleteOwn', 'manageRoles', 'assignRoles', 'revokeRoles', 'deleteGroup'] },
-    { name: 'member', services: ['posts'], permissions: ['readAll'] },
+    { name: 'owner', permissions: { '*': ['readAll', 'create', 'updateOwn', 'deleteOwn'], 'group': ['manageRoles', 'assignRoles', 'revokeRoles', 'deleteGroup'] } },
+    { name: 'member', permissions: { 'posts': ['readAll'] } },
   ],
   members: [{ member_key: 'alice', role: 'owner' }],
 })
