@@ -2336,9 +2336,12 @@ def confirm_media_upload(user_key: str, metadata: dict) -> dict:
     """Confirm a media upload by storing metadata in documents table."""
     now = _now()
     doc_id = _gen_doc_id()
+    # Positional insert — must match the documents column count (11, including
+    # the v3 ad_preference columns ad_mode/ad_target). A media doc never
+    # carries an ad, so both are their defaults.
     client.insert(
         "documents",
-        [[doc_id, user_key, "media_metadata", _json(metadata), "", [], now, now, 0]],
+        [[doc_id, user_key, "media_metadata", _json(metadata), "", [], now, now, 0, "none", ""]],
     )
     return {"doc_id": doc_id, **metadata}
 
