@@ -14,6 +14,10 @@ vi.mock('@/data', async (importOriginal) => {
     ...original,
     readFeed: vi.fn().mockResolvedValue([]),
     readPullFeed: vi.fn().mockResolvedValue([]),
+    getFeedGroups: vi.fn().mockResolvedValue([]),
+    readFeedEngagement: vi.fn().mockResolvedValue({ likes: {}, comments: {} }),
+    readSettings: vi.fn().mockResolvedValue({ defaultVisibility: 'public' }),
+    saveSettings: vi.fn().mockResolvedValue({ defaultVisibility: 'public' }),
     readPost: vi.fn().mockResolvedValue(null),
     countReactions: vi.fn().mockResolvedValue(0),
     countComments: vi.fn().mockResolvedValue(0),
@@ -89,6 +93,79 @@ describe('FeedScreen', () => {
       expect(screen.getByText(/Your feed will appear here/)).toBeInTheDocument();
     });
     expect(screen.getByText('import your existing posts')).toBeInTheDocument();
+  });
+
+  it('renders feed media at the natural aspect ratio (not a forced 1:1 crop)', async () => {
+    const { readFeed, resolveMediaRefs } = await import('@/data');
+    vi.mocked(readFeed).mockResolvedValueOnce([
+      { _id: 'p1', text: 'a clip', media_refs: ['m1'], author_username: 'testuser', author_provider: 'test.localhost', created_at: new Date().toISOString() },
+    ]);
+    // The read path now carries the real dimensions (16:9).
+    vi.mocked(resolveMediaRefs).mockResolvedValueOnce([
+      { _id: 'm1', url: 'http://test.com/clip.mp4', mime_type: 'video/mp4', width: 1920, height: 1080, created_at: new Date().toISOString() },
+    ]);
+    const { default: FeedScreen } = await import('@/components/Feed/FeedScreen');
+    render(
+      <MemoryRouter>
+        <FeedScreen />
+      </MemoryRouter>,
+    );
+    await waitFor(() => {
+      expect(screen.getByTestId('media-video')).toBeInTheDocument();
+    });
+    // The container reserves the media's natural ratio (16:9 ≈ 1.7778),
+    // not the old 1:1 fallback that cropped the clip into a square.
+    const ar = parseFloat(screen.getByTestId('media-video').style.aspectRatio);
+    expect(ar).toBeCloseTo(1920 / 1080, 5);
+    // …and it never crops (object-contain, not object-cover).
+    expect(screen.getByTestId('media-video').querySelector('video')?.className).toContain('object-contain');
+  });
+
+  it('falls back to a default ratio for legacy media with no stored dimensions', async () => {
+    const { readFeed, resolveMediaRefs } = await import('@/data');
+    vi.mocked(readFeed).mockResolvedValueOnce([
+      { _id: 'p2', text: 'old pic', media_refs: ['m2'], author_username: 'testuser', author_provider: 'test.localhost', created_at: new Date().toISOString() },
+    ]);
+    // Legacy media: no width/height (jsdom won't fire onLoad, so the measure
+    // fallback can't run — the default ratio is what's reserved).
+    vi.mocked(resolveMediaRefs).mockResolvedValueOnce([
+      { _id: 'm2', url: 'http://test.com/old.png', mime_type: 'image/png', created_at: new Date().toISOString() },
+    ]);
+    const { default: FeedScreen } = await import('@/components/Feed/FeedScreen');
+    render(
+      <MemoryRouter>
+        <FeedScreen />
+      </MemoryRouter>,
+    );
+    await waitFor(() => {
+      expect(screen.getByTestId('media-image')).toBeInTheDocument();
+    });
+    const ar = parseFloat(screen.getByTestId('media-image').style.aspectRatio);
+    expect(ar).toBeCloseTo(4 / 3, 5);
+  });
+
+  it('multi-media posts show the first item + a count badge (option b)', async () => {
+    const { readFeed, resolveMediaRefs } = await import('@/data');
+    vi.mocked(readFeed).mockResolvedValueOnce([
+      { _id: 'p3', text: 'three pics', media_refs: ['a', 'b', 'c'], author_username: 'testuser', author_provider: 'test.localhost', created_at: new Date().toISOString() },
+    ]);
+    vi.mocked(resolveMediaRefs).mockResolvedValueOnce([
+      { _id: 'a', url: 'http://test.com/a.png', mime_type: 'image/png', width: 800, height: 600, created_at: new Date().toISOString() },
+      { _id: 'b', url: 'http://test.com/b.png', mime_type: 'image/png', width: 800, height: 600, created_at: new Date().toISOString() },
+      { _id: 'c', url: 'http://test.com/c.png', mime_type: 'image/png', width: 800, height: 600, created_at: new Date().toISOString() },
+    ]);
+    const { default: FeedScreen } = await import('@/components/Feed/FeedScreen');
+    render(
+      <MemoryRouter>
+        <FeedScreen />
+      </MemoryRouter>,
+    );
+    await waitFor(() => {
+      expect(screen.getByTestId('media-count-badge')).toBeInTheDocument();
+    });
+    // Only the first item renders in the card; the rest live in the lightbox.
+    expect(screen.getByTestId('media-count-badge')).toHaveTextContent('3');
+    expect(screen.getAllByTestId('media-image')).toHaveLength(1);
   });
 });
 

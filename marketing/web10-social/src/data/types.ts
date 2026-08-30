@@ -178,6 +178,10 @@ export interface ResolvedMediaRef {
   filename?: string | null;
   size_bytes?: number | null;
   read_url?: string | null;
+  width?: number | null;
+  height?: number | null;
+  duration_seconds?: number | null;
+  thumbnail_url?: string | null;
 }
 
 /** The doc_id a media ref addresses — strings are doc_ids, resolved objects carry it. */
@@ -194,6 +198,10 @@ export function fromResolvedMediaRef(r: ResolvedMediaRef): MediaRecord {
     created_at: '',
     mime_type: r.mime_type || undefined,
     size_bytes: r.size_bytes || undefined,
+    width: r.width || undefined,
+    height: r.height || undefined,
+    duration_seconds: r.duration_seconds || undefined,
+    thumbnail_url: r.thumbnail_url || undefined,
   };
 }
 

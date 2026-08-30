@@ -1880,12 +1880,14 @@ def resolve_media_urls(doc_body: dict, user_key: str) -> dict:
     for row in result.result_rows:
         meta_map[row[0]] = _parse_json(row[1])
 
-    # Fresh presigned URLs for every object_key (offline — no network call).
+    # Fresh presigned URLs for every object_key + thumbnail_object_key
+    # (offline — no network call).
     object_keys = [m.get("object_key") for m in meta_map.values() if m.get("object_key")]
+    thumbnail_keys = [m.get("thumbnail_object_key") for m in meta_map.values() if m.get("thumbnail_object_key")]
     presigned = {}
-    if object_keys:
+    if object_keys or thumbnail_keys:
         signing_client = get_s3_signing_client()
-        for key in dict.fromkeys(object_keys):
+        for key in dict.fromkeys(object_keys + thumbnail_keys):
             presigned[key] = signing_client.generate_presigned_url(
                 "get_object",
                 Params={"Bucket": settings.S3_BUCKET, "Key": key},
@@ -1897,6 +1899,7 @@ def resolve_media_urls(doc_body: dict, user_key: str) -> dict:
         mref_str = str(mref)
         meta = meta_map.get(mref_str, {})
         object_key = meta.get("object_key")
+        thumbnail_key = meta.get("thumbnail_object_key")
         resolved.append(
             {
                 "doc_id": mref_str,
@@ -1905,6 +1908,15 @@ def resolve_media_urls(doc_body: dict, user_key: str) -> dict:
                 "filename": meta.get("filename"),
                 "size_bytes": meta.get("size_bytes"),
                 "read_url": presigned.get(object_key) if object_key else meta.get("url"),
+                # Dimensions + duration + thumbnail: the metadata doc stores
+                # these (the composer measures them on upload), but the read
+                # path used to drop them — so the client fell back to a 1:1
+                # crop. Carrying them lets the feed render at the media's
+                # natural aspect ratio (no crop, no layout shift).
+                "width": meta.get("width"),
+                "height": meta.get("height"),
+                "duration_seconds": meta.get("duration_seconds"),
+                "thumbnail_url": presigned.get(thumbnail_key) if thumbnail_key else meta.get("thumbnail_url"),
             }
         )
 
