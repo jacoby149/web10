@@ -217,10 +217,13 @@ test.describe('social-groups-directory gauntlet — the /groups screen', () => {
     await addAppContract(request, viewer.token);
 
     // Owner sets up a discoverable open group via API (the "other user").
+    // The slug is UNIQUE per run: the directory is a shared node, so a fixed
+    // slug would accumulate one card per run/retry and break the strict-mode
+    // `hasText` filter (the name falls back to the slug — no identity write yet).
     const owner = await signupAndLogin(request, 'sggo');
     await addAppContract(request, owner.token);
-    const groupId = await createGroup(request, owner.token, owner.username, 'gauntlet-community', { joinPolicy: 'open', discoverable: true });
-    const slug = 'gauntlet-community';
+    const slug = uniqueUser('gauntlet');
+    const groupId = await createGroup(request, owner.token, owner.username, slug, { joinPolicy: 'open', discoverable: true });
 
     // --- Viewer opens /groups (defaults to the My Groups tab) ---
     await page.goto(`${SOCIAL_BASE}/groups`);
@@ -253,9 +256,12 @@ test.describe('social-groups-directory gauntlet — the /groups screen', () => {
     await expect(page.locator('[data-testid="group-detail-leave"]')).toBeVisible();
 
     // --- Verify console logs (the real flow, in order) ---
+    // `getMyCommunityGroups —` logs on mount AND again after the join (the
+    // reload), so assert on the LAST occurrence — the post-join one.
     const dirIdx = logs.findIndex((l) => l.includes('loadDirectory — got'));
     const joinIdx = logs.findIndex((l) => l.includes('join —') && l.includes(groupId));
-    const myIdx = logs.findIndex((l) => l.includes('getMyCommunityGroups —'));
+    let myIdx = -1;
+    logs.forEach((l, i) => { if (l.includes('getMyCommunityGroups —')) myIdx = i; });
     expect(dirIdx, 'missing directory log').toBeGreaterThanOrEqual(0);
     expect(joinIdx, 'missing join log').toBeGreaterThanOrEqual(0);
     expect(myIdx, 'missing my-groups log').toBeGreaterThanOrEqual(0);
