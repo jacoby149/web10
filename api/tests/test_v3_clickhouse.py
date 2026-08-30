@@ -848,6 +848,51 @@ class TestResolveMediaUrls:
             assert result["media_refs"][0]["object_key"] is None
             mock_signing.assert_not_called()
 
+    def test_resolve_media_carries_dimensions_and_thumbnail(self):
+        """The read path carries width/height/duration + a presigned
+        thumbnail_url (from thumbnail_object_key) so the client renders at the
+        media's natural aspect ratio instead of a 1:1 crop. Legacy media (no
+        object_key, no dims) still falls back to the stored url with None dims
+        (the client measures on load as a fallback)."""
+        body = {"text": "hello", "media_refs": ["vid-1", "legacy-1"]}
+        with _patch_client() as mock_client, patch.object(ch, "get_s3_signing_client") as mock_signing:
+            mock_client.query.return_value = _mock_result_rows(
+                [
+                    (
+                        "vid-1",
+                        '{"object_key":"alice/vid.mp4","thumbnail_object_key":"alice/vid-poster.jpg","mime_type":"video/mp4","width":1920,"height":1080,"duration_seconds":42.5}',
+                        "media_metadata",
+                    ),
+                    (
+                        "legacy-1",
+                        '{"url":"http://legacy.example/img.png","mime_type":"image/png"}',
+                        "media_metadata",
+                    ),
+                ]
+            )
+            signing = MagicMock()
+            signing.generate_presigned_url.side_effect = lambda method, Params=None, ExpiresIn=None: (
+                f"http://minio/{Params['Key']}?sig=fresh"
+            )
+            mock_signing.return_value = signing
+            result = ch.resolve_media_urls(body, "alice")
+            refs = result["media_refs"]
+            # New media: dimensions + duration + presigned thumbnail carried.
+            assert refs[0]["width"] == 1920
+            assert refs[0]["height"] == 1080
+            assert refs[0]["duration_seconds"] == 42.5
+            assert refs[0]["read_url"] == "http://minio/alice/vid.mp4?sig=fresh"
+            assert refs[0]["thumbnail_url"] == "http://minio/alice/vid-poster.jpg?sig=fresh"
+            # Legacy media: stored-url fallback, dims are None.
+            assert refs[1]["read_url"] == "http://legacy.example/img.png"
+            assert refs[1]["width"] is None
+            assert refs[1]["height"] is None
+            assert refs[1]["duration_seconds"] is None
+            assert refs[1]["thumbnail_url"] is None
+            # Only the media + its thumbnail object keys got presigned (2 calls);
+            # the legacy media has no object_key.
+            assert signing.generate_presigned_url.call_count == 2
+
 
 class TestResolveMinioTypes:
     def test_no_minio_types_unchanged(self):
