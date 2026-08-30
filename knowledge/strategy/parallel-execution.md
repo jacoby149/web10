@@ -366,6 +366,31 @@ by ID, posts gated by the *reader's* membership, only a non-existent group
 - [✓ 3.24.0] Contract policy editors work (authenticator) — the "Settings" TODO becomes a real `GroupSettingsDialog` join-policy editor; roles editor + discoverable toggle verified end-to-end; `groupDisplayName` bug fixed (returned `users/<username>`, now the slug); 5 UI unit tests
 - [✓ 3.24.0] Torture tests — `e2e/tests/group-contract-editors.spec.ts` (11 tests): API floor (join_policy/roles/discoverable update persists; I3 anti-test: non-member update rejected, the `CRUD` 401) + browser gauntlet (join-policy change → persisted + badge; cancel fork; save-failure fork → status-bar error, no crash; roles add → persisted; empty-role-name anti-test; discoverable toggle ON → listed / OFF → delisted)
 
+### Lane: group-access-model (D58)
+**Owns:** `api/app/v3/endpoints/groups.py` + `services/clickhouse.py` + `models/` (role shape + gates + backfill + identity write), `api/tests/` (conformance re-pin), `ui/src/components/Groups/` (public/private + profile editor), `marketing/web10-social/src/data/groups.ts` + `sdk/src/` (role definitions + `V3GroupRole` type), `e2e/tests/` (public/private gauntlet). Cross-lane by nature — this is the coordinated D58 change; the KB is the spec (`groups/access.md` + D58).
+
+D58 replaces the group permission model the KB described but the code never
+built. Roles become **per-service permission maps** (the `services` array was
+decorative / unenforced). Access is granted to three **nested principal
+classes** — `anyone` / `authenticated` / `member` (retiring the `anon`
+misnomer) — stored as reserved keys in `group_members`. A principal's
+effective role is the **union** of the grants on every class they belong to.
+**Reads are role-gated** (content); **identity stays public** (the face).
+Public / private = a role grant to `anyone` / `authenticated` — no new flag.
+Management ops live under the reserved `'group'` service key. One role per
+person (already the code). Closes the attach hole (the write side gets the
+same per-service gate). Stays **v3** (operator: pre-prod).
+
+- [✓] Decision: D58 (`knowledge/strategy/decisions.md`) — per-service role maps + principal classes + union semantics + reserved `group_members` keys + role-gated content reads + public identity + public/private via class grants + the `'group'` management key + one-role-per-person + the attach-hole fix + conservative backfill; stays v3
+- [✓] KB — new `groups/access.md` (canonical model reference) + `identity.md` / `overview.md` / `discoverability.md` / `social-contracts.md` / `requests.md` / `detail.md` re-aligned to the per-service map shape + principal classes (the "service-scoped roles" + "multiple roles per user" fiction retired; `anon`-as-member → `anyone`/`authenticated` grants; membership-gate → effective-role-gate)
+- [ ] API: role shape + read gate + write gate — roles stored as per-service maps; the read path computes the reader's **effective role** (union over `anyone` / `authenticated` / member role) and gates content reads on per-service `readAll` (replaces the membership-only check); the write/attach path gates on the effective role granting the op on the service (closes the attach hole); management ops check the `'group'` key
+- [ ] API: backfill (one-time, sentinel-gated) — fan the old flat `permissions` out across the old `services` list (`['*']` → `'*'` key) over `group_contracts`; rename the discover board's `anon` member row → `anyone`; **conservative visibility default** (no existing group besides discover becomes `anyone`-readable — owners opt in)
+- [ ] API: identity write endpoint — the group's face (name, description, banner, avatar, website, tags) written to the public `group_identity` table, gated by a role grant on `group-identity-service` (owner / `page-curator`); lands *on* the D58 model
+- [ ] Conformance re-pin — I3 re-pinned from "membership grants access" to "effective role grants access"; stronger anti-tests (anon vs private group, signed-in vs signed-out, member ⊇ stranger ⊇ visitor monotonicity)
+- [ ] UI: public/private + profile editor — a "Who can read" control (public / signed-in-only / private = grant/revoke the `anyone` / `authenticated` read role) + a group **profile editor** (name, description, website, tags, banner + avatar upload) next to the existing Settings/Roles/Members dialogs
+- [ ] App role definitions — the social app's `FOLLOWER_ROLES` / `COMMUNITY_ROLES` / `DM_ROLES` + the SDK's `V3GroupRole` type move to the per-service map shape; the create-group flow can carry an initial `anyone`/`authenticated` read grant (public/private at birth)
+- [ ] E2E — the public/private fork as a first-class gauntlet: public group → `anyone` reads posts; signed-in-only → signed-in reads, signed-out doesn't; private → member only; the discover board regression-pinned; the attach-hole anti-test (a bystander cannot attach to a group they can't write)
+
 ### Lane: admin-console (Phase 3)
 **Owns:** `ui/src/components/Config/`, `api/app/endpoints/system.py`, `api/app/services/config.py`
 
