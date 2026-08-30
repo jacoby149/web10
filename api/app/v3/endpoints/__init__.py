@@ -13,6 +13,7 @@ from . import (
     logs,
     media,
     moderation,
+    session,
 )
 
 router = APIRouter(prefix="/v3")
@@ -46,6 +47,9 @@ router.include_router(logs.router, prefix="")
 
 # Content moderation (D59) — the review queue + auto-hide list
 router.include_router(moderation.router, prefix="/moderation")
+
+# Session health — the confirmatory verifySession oracle
+router.include_router(session.router, prefix="/session")
 
 
 # Node stats

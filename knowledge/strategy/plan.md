@@ -333,15 +333,15 @@ Spec'd in `knowledge-base/web10-v3/social/content-moderation.md` (the model) +
 `sensitive-words-default.md` (the ~50-word default list). Lane is
 `content-moderation` in `parallel-execution.md`.
 
-- [✓ 3.37.0] **Decision: D59** (`knowledge/strategy/decisions.md`) — blocklist detection (not a classifier); the auto-down reuses `group_hidden_docs` (no new role/column/read-path change); `auto_hide_users` for user-level suppression; the review queue is human-in-the-loop; D41 holds (board curation, not secrecy).
-- [✓ 3.37.0] **KB** (`social/content-moderation.md` + `social/sensitive-words-default.md`) — the model, the flow, the node settings, the security invariants, the default list (hate speech only, evasion variants, excluded words + reasoning).
-- [✓ 3.37.0] **Config** — four `node_config` fields (`sensitive_words`, `auto_moderate`, `moderation_enabled`, `auto_hide_users`) + `effective_config` defaults (no DDL — JSON blob) + the shipped default blocklist.
-- [✓ 3.37.0] **Detection** (`app.v3.services.moderation`) — `check_text` (whole-word, case-insensitive), `moderation_config`, `should_auto_hide`, `record_flag` (best-effort).
-- [✓ 3.37.0] **Write-path hook** (`create_document`) — moderates `posts` on the discover group; flag + (auto_moderate OR listed) `hide_doc_from_group(DISCOVER_GROUP_ID, …)`; best-effort.
-- [✓ 3.37.0] **`moderation_flags` table** (DDL template + boot self-heal) + `insert_moderation_flag`/`get_moderation_flags` (the queue is a GROUP BY view).
-- [✓ 3.37.0] **Admin endpoints** — `POST /v3/moderation/flags` (the queue) + `POST /v3/moderation/auto-hide` (add/remove from `auto_hide_users`).
-- [✓ 3.37.0] **UI** — the Node Config "Content Moderation" card (master switch + auto-hide toggle, blocklist tag input, the review queue with "Keep hiding"/"Hiding").
-- [✓ 3.37.0] **Tests** — 27 API (`test_moderation.py`) + 7 UI (`configModeration.test.tsx`).
+- [✓ 3.41.0] **Decision: D59** (`knowledge/strategy/decisions.md`) — blocklist detection (not a classifier); the auto-down reuses `group_hidden_docs` (no new role/column/read-path change); `auto_hide_users` for user-level suppression; the review queue is human-in-the-loop; D41 holds (board curation, not secrecy).
+- [✓ 3.41.0] **KB** (`social/content-moderation.md` + `social/sensitive-words-default.md`) — the model, the flow, the node settings, the security invariants, the default list (hate speech only, evasion variants, excluded words + reasoning).
+- [✓ 3.41.0] **Config** — four `node_config` fields (`sensitive_words`, `auto_moderate`, `moderation_enabled`, `auto_hide_users`) + `effective_config` defaults (no DDL — JSON blob) + the shipped default blocklist.
+- [✓ 3.41.0] **Detection** (`app.v3.services.moderation`) — `check_text` (whole-word, case-insensitive), `moderation_config`, `should_auto_hide`, `record_flag` (best-effort).
+- [✓ 3.41.0] **Write-path hook** (`create_document`) — moderates `posts` on the discover group; flag + (auto_moderate OR listed) `hide_doc_from_group(DISCOVER_GROUP_ID, …)`; best-effort.
+- [✓ 3.41.0] **`moderation_flags` table** (DDL template + boot self-heal) + `insert_moderation_flag`/`get_moderation_flags` (the queue is a GROUP BY view).
+- [✓ 3.41.0] **Admin endpoints** — `POST /v3/moderation/flags` (the queue) + `POST /v3/moderation/auto-hide` (add/remove from `auto_hide_users`).
+- [✓ 3.41.0] **UI** — the Node Config "Content Moderation" card (master switch + auto-hide toggle, blocklist tag input, the review queue with "Keep hiding"/"Hiding").
+- [✓ 3.41.0] **Tests** — 27 API (`test_moderation.py`) + 7 UI (`configModeration.test.tsx`).
 - [ ] **E2E: moderation gauntlet** — post with a flagged word → hidden from the board → operator keeps-hiding → next post auto-hidden → operator removes → next post visible. Gated on the social-e2e stack.
 - [ ] **v1** — profile name/bio detection (flag-only), a retroactive-scan admin command, a user notification on auto-hide.
 

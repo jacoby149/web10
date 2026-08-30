@@ -114,12 +114,36 @@ describe('follows v3 data layer', () => {
         [{ member_key: 'alice', role: 'owner' }],
       );
       expect(groupId).toBe('web10.app/groups/users/alice/followers');
+      // A freshly created group has the creator as owner — no join needed.
+      expect(mock.getMyGroups).not.toHaveBeenCalled();
     });
 
-    it('returns existing group if it exists', async () => {
+    it('returns existing group if it exists and the user is a member', async () => {
       mock.getGroup.mockResolvedValue({ group_id: 'web10.app/groups/users/alice/followers' });
+      mock.getMyGroups.mockResolvedValue([
+        { group_id: 'web10.app/groups/users/alice/followers', my_role: 'owner' },
+      ]);
       const groupId = await groups.ensureFollowers('alice');
       expect(groupId).toBe('web10.app/groups/users/alice/followers');
+      // Already a member — no join (a join would add a duplicate member row
+      // with the `member` role, downgrading the owner on merge).
+      expect(mock.joinGroup).not.toHaveBeenCalled();
+    });
+
+    it('HEALS the phantom-member state: group exists but the user is not a member', async () => {
+      // Pre-3.25.1 groups were created with a phantom member key
+      // (web10.app/users/{username}) the membership checks never match — the
+      // group exists but its owner is NOT a member, so every group-scoped read
+      // 403s. getGroup doesn't require membership, so "exists" is not "can
+      // read": ensureFollowers must join to heal it.
+      mock.getGroup.mockResolvedValue({ group_id: 'web10.app/groups/users/alice/followers' });
+      mock.getMyGroups.mockResolvedValue([
+        { group_id: 'web10.app/groups/web10/discover', my_role: 'member' },
+      ]);
+      mock.joinGroup.mockResolvedValue({ group_id: 'web10.app/groups/users/alice/followers', member_key: 'alice', role: 'member' });
+      const groupId = await groups.ensureFollowers('alice');
+      expect(groupId).toBe('web10.app/groups/users/alice/followers');
+      expect(mock.joinGroup).toHaveBeenCalledWith('web10.app/groups/users/alice/followers');
     });
   });
 });

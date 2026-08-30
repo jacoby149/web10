@@ -894,10 +894,71 @@ describe('v3 client', () => {
     })
   })
 
+  // ── Session health (verifySession) ────────────────────────────────────
+
+  describe('verifySession', () => {
+    beforeEach(() => client.setToken(mockToken))
+
+    it('posts to session/verify and returns the verdict', async () => {
+      const verdict = {
+        status: 'ok',
+        token: 'valid',
+        user: 'exists',
+        contract: { state: 'granted', missing_services: [] },
+        groups: { followers: 'ok' },
+        actions: [],
+        username: 'alice',
+        provider: 'api.localhost',
+      }
+      vi.spyOn(http, 'authPost').mockResolvedValueOnce(verdict as any)
+      const result = await client.verifySession({ services: ['posts', 'profile'] })
+      expect(result.status).toBe('ok')
+      expect(result.actions).toEqual([])
+      const call = (vi.mocked(http.authPost).mock.calls[0] as any)
+      expect(call[0]).toBe('http://api.localhost/v3/session/verify')
+      // The API model takes top-level services/operations (not nested under body)
+      expect(call[1].services).toEqual(['posts', 'profile'])
+      expect(call[1].operations).toBeUndefined()
+    })
+
+    it('omits services/operations for a health probe', async () => {
+      vi.spyOn(http, 'authPost').mockResolvedValueOnce({ status: 'ok', actions: [] } as any)
+      await client.verifySession()
+      const call = (vi.mocked(http.authPost).mock.calls[0][1] as any)
+      expect(call.services).toBeUndefined()
+      expect(call.operations).toBeUndefined()
+    })
+
+    it('sends operations when provided', async () => {
+      vi.spyOn(http, 'authPost').mockResolvedValueOnce({ status: 'ok', actions: [] } as any)
+      await client.verifySession({ services: ['posts'], operations: ['readAll', 'create'] })
+      const call = (vi.mocked(http.authPost).mock.calls[0][1] as any)
+      expect(call.services).toEqual(['posts'])
+      expect(call.operations).toEqual(['readAll', 'create'])
+    })
+
+    it('surfaces a degraded verdict with ordered actions', async () => {
+      const verdict = {
+        status: 'degraded',
+        token: 'valid',
+        user: 'exists',
+        contract: { state: 'missing', missing_services: ['posts'] },
+        groups: { followers: 'not_member' },
+        actions: ['reauth', 'heal_followers_group'],
+        username: 'alice',
+        provider: 'api.localhost',
+      }
+      vi.spyOn(http, 'authPost').mockResolvedValueOnce(verdict as any)
+      const result = await client.verifySession({ services: ['posts'] })
+      expect(result.status).toBe('degraded')
+      // reauth before heal (heal needs a live session)
+      expect(result.actions).toEqual(['reauth', 'heal_followers_group'])
+    })
+  })
+
   // ── App Store ─────────────────────────────────────────────────────────
 
-  describe('app store', () => {
-    beforeEach(() => client.setToken(mockToken))
+  describe('app store', () => {    beforeEach(() => client.setToken(mockToken))
 
     it('registerApp', async () => {
       const mockResponse = { url: 'https://myapp.com', review_state: 'pending' }

@@ -116,18 +116,45 @@ export default function UserProfileScreen({ username, provider, onBack }: UserPr
       let fCount: number | null = null;
 
       if (isOwn) {
-        // Owner path: read from own collections (same as ProfileScreen)
+        // Owner path: read from own collections (same as ProfileScreen).
+        // PER-READ ISOLATION (the feed's 3.25.x pattern): one bad read
+        // (a 403/401 from a broken node state — e.g. the followers group
+        // predating the 3.28.1 membership heal) degrades that tile, it
+        // never blanks the whole screen. A single Promise.all here meant
+        // one members/list 401 killed the profile, the posts, and the
+        // counts together ("Failed to load user profile" with a half-dead
+        // screen).
         const [p, postsRes, fC, fCnt, stgCount] = await Promise.all([
-          readProfile(),
-          readMyPosts(),
-          countFollows(),
-          countFollowers(token.username, token.provider),
-          countStagingPosts(),
+          readProfile().catch((e) => {
+            console.error('[social] loadData — readProfile failed:', e);
+            return null;
+          }),
+          readMyPosts().catch((e) => {
+            console.error('[social] loadData — readMyPosts failed:', e);
+            return [];
+          }),
+          countFollows().catch((e) => {
+            console.error('[social] loadData — countFollows failed:', e);
+            return null;
+          }),
+          countFollowers(token.username, token.provider).catch((e) => {
+            console.error('[social] loadData — countFollowers failed:', e);
+            return null;
+          }),
+          countStagingPosts().catch((e) => {
+            console.error('[social] loadData — countStagingPosts failed:', e);
+            return 0;
+          }),
         ]);
         profile = p;
         postsData = postsRes || [];
-        fc = fC;
-        fCount = fCnt;
+        if (fC === null) {
+          setFollowingCountError(true);
+        } else {
+          fc = fC;
+          setFollowingCountError(false);
+        }
+        fCount = fCnt; // null = ledger unavailable → hide the tile
         setStagingCount(stgCount);
       } else {
         // Viewer path: read from discovery API + public ledger
@@ -171,18 +198,23 @@ export default function UserProfileScreen({ username, provider, onBack }: UserPr
       setFollowingCount(fc);
       setFollowerCount(fCount);
 
-      // Resolve media refs
+      // Resolve media refs (isolated — a media-read failure degrades the
+      // images, never the profile/posts/counts already set above).
       const allRefs = postsData.flatMap((post) => post.media_refs || []);
       if (profile?.avatar_ref) allRefs.push(profile.avatar_ref);
       if (profile?.banner_ref) allRefs.push(profile.banner_ref);
       const mediaMapInit: Record<string, MediaRecord> = {};
       if (allRefs.length) {
-        const media = isOwn
-          ? await resolveMediaRefs([...new Set(allRefs)])
-          : await resolveMediaRefs([...new Set(allRefs)], { username, provider }, 'public_media');
-        media.forEach((m) => {
-          if (m._id) mediaMapInit[m._id] = m;
-        });
+        try {
+          const media = isOwn
+            ? await resolveMediaRefs([...new Set(allRefs)])
+            : await resolveMediaRefs([...new Set(allRefs)], { username, provider }, 'public_media');
+          media.forEach((m) => {
+            if (m._id) mediaMapInit[m._id] = m;
+          });
+        } catch (e) {
+          console.error('[social] loadData — media resolution failed (degraded):', e);
+        }
       }
       setMediaMap(mediaMapInit);
     } catch (e) {

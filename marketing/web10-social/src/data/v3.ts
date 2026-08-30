@@ -49,6 +49,14 @@ export type {
   V3User,
   V3LoginResponse,
   V3Client,
+  SessionVerdict,
+  VerifySessionOptions,
+  SessionStatus,
+  SessionTokenState,
+  SessionUserState,
+  SessionContractState,
+  SessionFollowersState,
+  SessionAction,
 } from 'web10-npm';
 
 // ── V3 client singleton ─────────────────────────────────────────────────────
