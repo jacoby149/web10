@@ -2220,6 +2220,52 @@ def create_user(username: str, password_hash: str, phone: str = "", email: str =
     return {"username": username, "phone": phone, "email": email}
 
 
+def migrate_user(
+    username: str,
+    password_hash: str,
+    phone: str = "",
+    phone_verified: bool = False,
+    email: str = "",
+    email_verified: bool = False,
+) -> dict:
+    """Idempotently migrate a v2 account into the v3 users table.
+
+    The v2→v3 account migration (Phase 1/3). Unlike create_user, the bcrypt
+    hash is carried over verbatim (no re-hash) and the verified flags are
+    carried over too (create_user hardcodes them to 0). Enrolls the account in
+    the node-default discover group the same way a fresh signup is.
+
+    Idempotent: an existing user is not re-inserted (the users table is
+    ReplacingMergeTree keyed on username), but discover-group membership is
+    still ensured. Returns {"username", "created", "enrolled"}.
+    """
+    created = get_user(username) is None
+    if created:
+        now = _now()
+        client.insert(
+            "users",
+            [
+                [
+                    username,
+                    password_hash,
+                    phone,
+                    1 if phone_verified else 0,
+                    email,
+                    1 if email_verified else 0,
+                    now,
+                    now,
+                    0,
+                ]
+            ],
+        )
+    _ensure_discover_group_contract()
+    enrolled = False
+    if username not in get_group_member_keys(DISCOVER_GROUP_ID):
+        add_group_member(DISCOVER_GROUP_ID, username, "member")
+        enrolled = True
+    return {"username": username, "created": created, "enrolled": enrolled}
+
+
 def list_users() -> list[dict]:
     """All active users (deduplicated to the latest row per username)."""
     result = client.query(
