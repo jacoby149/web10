@@ -1,25 +1,39 @@
 # Group Identity Management
 
+The group's **face** — the display metadata (name, description, banner,
+avatar, website, tags) and who writes it. The access model that decides
+*who* can write it (and read content) is in `access.md`; this doc is the
+identity itself.
+
 ## The Model
 
-A group is a collection of web10 users operating on data services. Roles define access, scoped to exactly which services they apply to. One group. No parent-child chains. Multiple roles per user — a user can hold different roles for different services in the same group.
+A group is a collection of web10 users operating on data services. Roles
+define access as a **per-service permission map** — one role per person, each
+role a map from service to the ops it grants. One group. No parent-child
+chains. The full access model (principal classes, union semantics, the
+gates) is in `access.md`.
 
 ```
 Group contract (one record):
   group_id, join_policy, roles
 
-Roles are service-scoped:
-  owner → all services ("*")
-  moderator → posts, comments
-  page-curator → group-identity-service
-  member → posts, comments
+Roles are per-service maps (one role per person):
+  owner          → { "*": [all ops], "group": [management ops] }
+  moderator      → { "posts": […], "comments": […], "group": [hideAll] }
+  page-curator   → { "group-identity-service": [readAll, create, updateOwn, deleteOwn] }
+  member         → { "posts": […], "comments": […] }
 ```
 
-**Service-scoped roles.** Each role lists the services it applies to and the explicit permissions it grants. A `page-curator` can only touch the identity service. A `moderator` can only touch posts and comments. A follower `member` only gets `readAll` on posts — no create, no update, no delete. The model scales infinitely without creating more groups.
+**Per-service roles.** Each role is a map from service to the explicit
+permissions it grants. A `page-curator` can only touch the identity service.
+A `moderator` can only touch posts and comments. A follower `member` only
+gets `readAll` on posts — no create, no update, no delete. The map *is* the
+scope; there is no separate `services` array. The model scales infinitely
+without creating more groups.
 
 ## Group Permissions
 
-Each role defines explicit permissions scoped to its services. Permissions are camelCase, self-focused by default:
+Each role is a per-service map of explicit permissions. Permissions are camelCase, self-focused by default:
 
 - `readAll` — view any content in the service
 - `create` — add new content
@@ -32,16 +46,28 @@ Each role defines explicit permissions scoped to its services. Permissions are c
 
 `updateAll` and `deleteAll` are reserved for collaboration. Default is self-focused: you only touch your own stuff unless explicitly granted otherwise.
 
-**Role examples:**
-- **Owner** — `["*"]` services, all permissions including `manageRoles`, `assignRoles`, `revokeRoles`, `deleteGroup`
-- **Moderator** — `["posts", "comments"]`, `readAll`, `create`, `updateOwn`, `deleteOwn`, `hideAll`, `assignRoles`, `revokeRoles`
-- **Page Curator** — `["group-identity-service"]`, `readAll`, `create`, `updateOwn`, `deleteOwn`
-- **Member** — `["posts", "comments"]`, `readAll`, `create`, `updateOwn`, `deleteOwn`
-- **Follower** — `["posts"]`, `readAll` only (no create, no update, no delete)
+**Role examples** (per-service maps):
+- **Owner** — `{ "*": [all ops], "group": [manageRoles, assignRoles, revokeRoles, deleteGroup] }`
+- **Moderator** — `{ "posts": [readAll, create, updateOwn, deleteOwn, hideAll], "comments": [readAll, …], "group": [assignRoles, revokeRoles] }`
+- **Page Curator** — `{ "group-identity-service": [readAll, create, updateOwn, deleteOwn] }`
+- **Member** — `{ "posts": [readAll, create, updateOwn, deleteOwn], "comments": [readAll, …] }`
+- **Follower** — `{ "posts": [readAll] }` only (no create, no update, no delete)
 
 ## Group Profile
 
-The `group-identity-service` holds the group's profile — banner, name, website, avatar. Append-only. Curators add records, they don't overwrite. Members see the most recent. No accidental overwrites.
+The group's profile — banner, name, description, website, avatar, tags —
+lives in the **public `group_identity` table** (one row per group,
+append-only, latest wins). It is **public display metadata**: every principal
+reads it, anon included — it is the group's face, and the front door depends
+on a non-member seeing it. (It is a table, not a documents collection,
+precisely so it isn't I3-gated; see `discoverability.md`.)
+
+Append-only: an update is a new row, latest wins. No accidental overwrites.
+
+**Who writes it:** a role grant on `group-identity-service` — the owner, or a
+`page-curator` (the role that exists for exactly this). The write is gated by
+the same per-service role check that gates everything else (`access.md`); the
+read is ungated (public).
 
 ## Group Collections
 
