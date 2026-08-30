@@ -207,13 +207,33 @@ the same per-service gate). Stays **v3** (operator: pre-prod). KB is the spec:
 
 - [✓] **Decision: D58** (`knowledge/strategy/decisions.md`) — per-service role maps + principal classes (`anyone`/`authenticated`/`member`) + union semantics + reserved `group_members` keys + role-gated content reads + public identity + public/private via class grants + the `'group'` management key + one-role-per-person + the attach-hole fix + conservative backfill. Stays v3.
 - [✓] **KB** (`knowledge-base/web10-v3/groups/`) — new `access.md` (the canonical model reference: the two trust layers, the role shape, principal classes, union semantics, the gates, public/private, worked examples, invariants); `identity.md` / `overview.md` / `discoverability.md` / `social-contracts.md` / `requests.md` / `detail.md` re-aligned to the per-service map shape + principal classes (the "service-scoped roles" + "multiple roles per user" fiction retired; `anon`-as-member → `anyone`/`authenticated` grants; membership-gate → effective-role-gate).
+**Execution is a three-stage pipeline** (lanes in `parallel-execution.md`):
+Stage 0 is the **backend** — the one sequential keystone (one workspace; a
+single coordinated change across `groups.py` + `clickhouse.py`, so it does not
+parallelize; gated on the in-flight PRs that touch those files landing first).
+Stage 1 is the **demo apps** — fully parallel, one workspace per demo (each
+owns its own dir); the demos are the reference implementation, so green demos
+prove the backend end-to-end. Stage 2 is the **social app + authenticator** —
+fully parallel, one workspace per feature (fan-facing `web10-social` and
+admin-facing `ui/` are separate apps).
+
+**Stage 0 — backend (the keystone, sequential):**
 - [ ] **API: role shape + read gate + write gate** (`api/app/v3/endpoints/groups.py`, `services/clickhouse.py`, `models/`) — roles stored as per-service maps; the read path computes the reader's **effective role** (union over `anyone` / `authenticated` / member role) and gates content reads on per-service `readAll` (replaces the membership-only check); the write/attach path gates on the effective role granting the op on the service (closes the attach hole); management ops check the `'group'` key.
 - [ ] **API: backfill (one-time, sentinel-gated)** (`services/clickhouse.py`) — fan the old flat `permissions` out across the old `services` list (`['*']` → `'*'` key) over `group_contracts`; rename the discover board's `anon` member row → `anyone`; **conservative visibility default** (no existing group besides discover becomes `anyone`-readable — owners opt in).
 - [ ] **API: identity write endpoint** (`api/app/v3/endpoints/groups.py`) — the group's face (name, description, banner, avatar, website, tags) written to the public `group_identity` table, gated by a role grant on `group-identity-service` (owner / `page-curator`). Lands *on* the D58 model.
-- [ ] **Conformance re-pin** (`api/tests/`) — I3 re-pinned from "membership grants access" to "effective role grants access"; the anti-tests get stronger (anon vs private group, signed-in vs signed-out, member ⊇ stranger ⊇ visitor monotonicity).
-- [ ] **UI: public/private + profile editor** (`ui/src/components/Groups/`) — a "Who can read" control (public / signed-in-only / private = grant/revoke the `anyone` / `authenticated` read role) + a group **profile editor** (name, description, website, tags, banner + avatar upload) next to the existing Settings/Roles/Members dialogs.
-- [ ] **App role definitions** (`marketing/web10-social/src/data/groups.ts`, `sdk/src/`) — the social app's `FOLLOWER_ROLES` / `COMMUNITY_ROLES` / `DM_ROLES` + the SDK's `V3GroupRole` type move to the per-service map shape; the create-group flow can carry an initial `anyone`/`authenticated` read grant (public/private at birth).
-- [ ] **E2E** (`e2e/tests/`) — the public/private fork as a first-class gauntlet: public group → `anyone` reads posts; signed-in-only → signed-in reads, signed-out doesn't; private → member only; the discover board regression-pinned; the attach-hole anti-test (a bystander cannot attach to a group they can't write).
+- [ ] **Conformance re-pin** (`api/tests/`) — I3 re-pinned from "membership grants access" to "effective role grants access"; the anti-tests get stronger (anon vs private group, signed-in vs signed-out, member ⊇ stranger ⊇ visitor monotonicity; the attach-hole anti-test).
+
+**Stage 1 — demo apps (parallel, one workspace per demo):**
+- [ ] **Each group-creating demo** (`marketing/marketing-ui/public/docs/{media,notes,sharing,groups,messages,feed,tasks}/`) — adopt the per-service role-map shape in its `createGroup` role literals + drive a public/private + identity fork in its e2e (set the group's face + grant/revoke the `anyone` read role → assert a bystander's read). `groups-demo` is the reference (the richest `ROLE_PRESETS`).
+- [ ] **SDK role type** (`sdk/src/`) — `V3GroupRole` → the per-service map shape (the shared type the demos + social app reflect).
+
+**Stage 2 — social app + authenticator (parallel, one workspace per feature):**
+- [ ] **Role definitions** (`marketing/web10-social/src/data/groups.ts`, `sdk/src/`) — the social app's `FOLLOWER_ROLES` / `COMMUNITY_ROLES` / `DM_ROLES` → the per-service map shape (the shared seam).
+- [ ] **Group profile (fan-facing)** (`web10-social/src/components/Groups/GroupDetailScreen.tsx`) — render the group's face: banner (cover) + overlapping avatar + name + about + tags + website (the Facebook-shaped hero), from the public `group_identity` read.
+- [ ] **Public/private (fan-facing)** (`web10-social/src/components/Groups/`) — the detail + cards show a public/private badge; the create-group dialog gains a visibility control (public / signed-in-only / private) that carries the initial `anyone`/`authenticated` grant.
+- [ ] **Group profile editor (admin-facing)** (`ui/src/components/Groups/`) — a profile editor (name, description, website, tags, banner + avatar upload) next to the existing Settings/Roles/Members dialogs → the identity write endpoint.
+- [ ] **Public/private control (admin-facing)** (`ui/src/components/Groups/`) — a "Who can read" control (public / signed-in-only / private = grant/revoke the `anyone` / `authenticated` read role).
+- [ ] **Feed + detail effective-role read** (`web10-social/`) — verify the feed read + group detail render what the role-gated read returns (a bystander on a private group sees the face + "join to view"; on a public group sees posts) — mostly a render verification, the API does the gating.
 
 ## Ads: The Catalog + Composer (D54, D55) — Platform
 
