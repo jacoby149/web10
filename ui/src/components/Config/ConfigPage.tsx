@@ -6,7 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Skeleton } from '@/components/ui/skeleton';
-import { Lock, UserPlus, X, Check, Store, ShieldAlert, RotateCcw } from 'lucide-react';
+import { Lock, UserPlus, X, Check, Store, ShieldAlert, RotateCcw, Ban, Plus, EyeOff } from 'lucide-react';
 
 function ToggleRow({ label, description, checked, onChange, testId }: {
   label: string; description: string; checked: boolean; onChange: () => void; testId: string;
@@ -72,6 +72,13 @@ interface BoardPost {
 // The board is a group read; moderation is a group op on this group.
 const DISCOVER_GROUP = "web10.app/groups/web10/discover";
 
+interface ModFlag {
+  username: string;
+  flag_count: number;
+  last_flagged: string;
+  matched_words: string[];
+}
+
 function ConfigPage({ I }: { I: Record<string, any> }) {
   const [config, setConfig] = React.useState<Record<string, any> | null>(null);
   const [loadedConfig, setLoadedConfig] = React.useState<Record<string, any>>({});
@@ -92,6 +99,13 @@ function ConfigPage({ I }: { I: Record<string, any> }) {
   const [confirmRemoveId, setConfirmRemoveId] = React.useState<string | null>(null);
   const [removeReason, setRemoveReason] = React.useState("");
   const [moderatingId, setModeratingId] = React.useState<string | null>(null);
+
+  // Content moderation (D57) — the review queue + the blocklist editor.
+  const [modFlags, setModFlags] = React.useState<ModFlag[]>([]);
+  const [modFlagsLoading, setModFlagsLoading] = React.useState(true);
+  const [modFlagsError, setModFlagsError] = React.useState<string | null>(null);
+  const [newWord, setNewWord] = React.useState("");
+  const [autoHidingUser, setAutoHidingUser] = React.useState<string | null>(null);
 
   const nodePost = async (path: string, body: Record<string, any>) => {
     const token = I.v3.state.token;
@@ -227,16 +241,67 @@ function ConfigPage({ I }: { I: Record<string, any> }) {
     }
   };
 
+  // --- Content moderation (D57) -------------------------------------------
+
+  const loadFlags = async () => {
+    setModFlagsLoading(true);
+    setModFlagsError(null);
+    try {
+      const resp = await nodePost("/v3/moderation/flags", { token: I.v3.state.token });
+      setModFlags(resp.data?.flags ?? []);
+    } catch (e: any) {
+      setModFlagsError(e.response?.data?.detail || "Failed to load the moderation queue.");
+    } finally {
+      setModFlagsLoading(false);
+    }
+  };
+
+  const sensitiveWords: string[] = config?.sensitive_words || [];
+  const autoHideUsers: string[] = config?.auto_hide_users || [];
+
+  const addWord = () => {
+    const word = newWord.trim().toLowerCase();
+    if (!word || sensitiveWords.includes(word)) return;
+    updateField("sensitive_words", [...sensitiveWords, word]);
+    setNewWord("");
+  };
+
+  const removeWord = (word: string) =>
+    updateField("sensitive_words", sensitiveWords.filter(w => w !== word));
+
+  // "Keep hiding" / "Restore" — adds or removes a username from the node's
+  // auto_hide_users list (a direct action, not a config save). Already-hidden
+  // posts are unaffected; this governs the user's FUTURE posts.
+  const toggleAutoHide = async (username: string) => {
+    const hide = !autoHideUsers.includes(username);
+    setAutoHidingUser(username);
+    setModFlagsError(null);
+    try {
+      const resp = await nodePost("/v3/moderation/auto-hide", {
+        token: I.v3.state.token,
+        username,
+        hide,
+      });
+      updateField("auto_hide_users", resp.data?.auto_hide_users ?? autoHideUsers);
+    } catch (e: any) {
+      setModFlagsError(e.response?.data?.detail || "Failed to update the auto-hide list.");
+    } finally {
+      setAutoHidingUser(null);
+    }
+  };
+
   React.useEffect(() => {
     if (I.isAdmin) {
       loadConfig();
       loadApps();
       loadBoard();
       loadRemoved();
+      loadFlags();
     } else {
       setLoading(false);
       setAppsLoading(false);
       setBoardLoading(false);
+      setModFlagsLoading(false);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [I.isAdmin]);
@@ -648,6 +713,143 @@ function ConfigPage({ I }: { I: Record<string, any> }) {
                   ))}
                 </div>
               )}
+            </CardContent>
+          </Card>
+
+          <Card data-testid="config-content-moderation-card">
+            <CardHeader>
+              <div className="flex items-center gap-2">
+                <ShieldAlert className="h-4 w-4 text-brand-300" strokeWidth={1.5} />
+                <CardTitle>Content Moderation (D57)</CardTitle>
+              </div>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <p className="text-xs text-muted-foreground">
+                Automatic sensitive-language detection on the public board. A post
+                whose text trips the blocklist is hidden from Discover and its
+                author is added to the review queue below. The author's own copy
+                and their followers' feed are untouched — this is board curation,
+                not a ban.
+              </p>
+
+              <ToggleRow
+                label="Moderation enabled"
+                description="Master switch. Off = no detection runs at all."
+                checked={config?.moderation_enabled ?? true}
+                onChange={() => updateField("moderation_enabled", !(config?.moderation_enabled ?? true))}
+                testId="config-moderation-enabled"
+              />
+              <ToggleRow
+                label="Auto-hide on match"
+                description="When on, a matching post is hidden from Discover immediately. When off, it is only flagged for review."
+                checked={config?.auto_moderate ?? true}
+                onChange={() => updateField("auto_moderate", !(config?.auto_moderate ?? true))}
+                testId="config-moderation-auto"
+              />
+
+              <div>
+                <Label className="mb-1 block text-muted-foreground">Blocklist</Label>
+                <p className="mb-2 text-xs text-muted-foreground">
+                  Whole-word, case-insensitive. Ships with a default slur list; add
+                  or remove words. Changes apply on the next post.
+                </p>
+                <div className="flex gap-2">
+                  <Input
+                    value={newWord}
+                    onChange={e => setNewWord(e.target.value)}
+                    onKeyDown={e => e.key === "Enter" && addWord()}
+                    placeholder="add a word"
+                    aria-label="Add a word to the blocklist"
+                    data-testid="config-moderation-word-input"
+                  />
+                  <Button onClick={addWord} disabled={saving || !newWord.trim()} data-testid="config-moderation-word-add">
+                    <Plus className="mr-1.5 h-4 w-4" strokeWidth={1.5} />
+                    Add
+                  </Button>
+                </div>
+                {sensitiveWords.length === 0 ? (
+                  <p className="mt-2 text-sm text-muted-foreground">Blocklist is empty — detection is off.</p>
+                ) : (
+                  <div className="mt-2 flex flex-wrap gap-1.5" data-testid="config-moderation-words">
+                    {sensitiveWords.map(word => (
+                      <span
+                        key={word}
+                        className="inline-flex items-center gap-1 rounded-full border border-border bg-elevated px-2.5 py-1 font-mono text-xs text-foreground"
+                        data-testid={`config-moderation-word-${word}`}
+                      >
+                        {word}
+                        <button
+                          type="button"
+                          onClick={() => removeWord(word)}
+                          aria-label={`Remove ${word} from the blocklist`}
+                          className="text-muted-foreground transition-colors hover:text-danger focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                          data-testid={`config-moderation-word-remove-${word}`}
+                        >
+                          <X className="h-3 w-3" strokeWidth={2} />
+                        </button>
+                      </span>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              <div className="border-t border-border pt-3">
+                <p className="mb-2 text-xs font-medium text-muted-foreground">Review queue</p>
+                {modFlagsError && (
+                  <div className="rounded bg-danger-muted p-3 text-sm text-danger" data-testid="config-moderation-queue-error">
+                    {modFlagsError}
+                  </div>
+                )}
+                {modFlagsLoading ? (
+                  <Skeleton className="h-16 w-full" />
+                ) : modFlags.length === 0 ? (
+                  <p className="text-sm text-muted-foreground" data-testid="config-moderation-queue-empty">
+                    No flagged users.
+                  </p>
+                ) : (
+                  <div className="space-y-2" data-testid="config-moderation-queue">
+                    {modFlags.map(flag => {
+                      const isHidden = autoHideUsers.includes(flag.username);
+                      return (
+                        <div
+                          key={flag.username}
+                          className="flex items-center justify-between gap-2 rounded-sm border border-border bg-elevated px-3 py-2"
+                          data-testid={`config-moderation-flag-${flag.username}`}
+                        >
+                          <div className="min-w-0">
+                            <div className="truncate font-mono text-xs text-muted-foreground">
+                              @{flag.username} · {flag.flag_count} {flag.flag_count === 1 ? "flag" : "flags"}
+                            </div>
+                            <div className="truncate text-xs text-muted-foreground">
+                              {flag.matched_words.slice(0, 3).join(", ")}
+                            </div>
+                          </div>
+                          <Button
+                            variant={isHidden ? "outline" : "brand"}
+                            size="sm"
+                            className="shrink-0"
+                            disabled={autoHidingUser === flag.username}
+                            onClick={() => toggleAutoHide(flag.username)}
+                            data-testid={`config-moderation-flag-toggle-${flag.username}`}
+                          >
+                            {isHidden ? (
+                              <>
+                                <EyeOff className="mr-1 h-3.5 w-3.5" strokeWidth={1.5} />
+                                Hiding
+                              </>
+                            ) : (
+                              <>
+                                <Ban className="mr-1 h-3.5 w-3.5" strokeWidth={1.5} />
+                                Keep hiding
+                              </>
+                            )}
+                          </Button>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
             </CardContent>
           </Card>
 

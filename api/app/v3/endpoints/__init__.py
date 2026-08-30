@@ -12,6 +12,7 @@ from . import (
     groups,
     logs,
     media,
+    moderation,
 )
 
 router = APIRouter(prefix="/v3")
@@ -42,6 +43,9 @@ router.include_router(appstore.router, prefix="/apps")
 
 # Logs (SDK/E2E forwarding)
 router.include_router(logs.router, prefix="")
+
+# Content moderation (D58) — the review queue + auto-hide list
+router.include_router(moderation.router, prefix="/moderation")
 
 
 # Node stats

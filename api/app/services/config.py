@@ -2,6 +2,36 @@ import secrets
 
 import app.settings as settings
 
+# Content moderation (D58) — the shipped default blocklist. Hate speech and
+# slurs only (not general profanity). Whole-word, case-insensitive matching.
+# The operator can add to or remove from this in the Node Config UI. Source:
+# knowledge/knowledge-base/web10-v3/social/sensitive-words-default.md.
+DEFAULT_SENSITIVE_WORDS: list[str] = [
+    # Anti-Black
+    "nigger", "niggers", "nigga", "niggas", "niggah", "niggahs",
+    "n1gger", "n1gga", "niggur", "nigr", "nigs",
+    # Anti-Asian
+    "chink", "chinks", "gook", "gooks",
+    # Anti-Latino / Anti-Hispanic
+    "spic", "spics", "wetback", "wetbacks", "beaner", "beaners",
+    # Anti-Indigenous / Anti-Native
+    "redskin", "redskins",
+    # Homophobic
+    "fag", "fags", "faggot", "faggots",
+    "f4ggot", "f4g", "feggot", "faggit", "f0gg0t",
+    # Transphobic
+    "tranny", "trannies", "tran",
+    # Antisemitic
+    "kike", "kikes", "k1ke", "yid", "yids", "kraut", "krauts",
+    # Anti-Arab / Anti-Middle Eastern
+    "sandnigger", "sandniggers", "raghead", "ragheads",
+    # Disability slurs
+    "retard", "retards", "retart", "r4tard",
+    "spastic", "spastics",
+    # Anti-Polish / Anti-Eastern European
+    "polack", "polacks",
+]
+
 
 def node_is_configured() -> bool:
     """True if the node has been set up (has users in ClickHouse)."""
@@ -90,6 +120,13 @@ def effective_config() -> dict:
         # saved node_config is the only source. Served via GET /telemetry.
         "ga4_measurement_id": "",
         "hotjar_site_id": "",
+        # Content moderation (D58) — the blocklist ships with a default
+        # (hate speech only); the operator curates it in the Node Config UI.
+        # auto_moderate + moderation_enabled default on; auto_hide_users empty.
+        "sensitive_words": list(DEFAULT_SENSITIVE_WORDS),
+        "auto_moderate": True,
+        "moderation_enabled": True,
+        "auto_hide_users": [],
         "brand_text": "web10",
         "logo_dark": "",
         "logo_light": "",

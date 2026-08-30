@@ -51,6 +51,7 @@ from app.v3.models.media import (
     TranscodeRequest,
     UploadUrlRequest,
 )
+from app.v3.models.moderation import ModerationAutoHide, ModerationFlags
 
 __all__ = [
     # auth
@@ -106,4 +107,7 @@ __all__ = [
     "GetAppRatings",
     "AppsAdmin",
     "ApproveApp",
+    # moderation
+    "ModerationFlags",
+    "ModerationAutoHide",
 ]

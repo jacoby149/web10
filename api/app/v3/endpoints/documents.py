@@ -1,3 +1,5 @@
+import logging
+
 from fastapi import APIRouter, HTTPException, Request
 
 import app.exceptions as exceptions
@@ -6,8 +8,39 @@ from app.v3.endpoints.auth_helper import user as _user
 from app.v3.endpoints.auth_helper import user_or_anon
 from app.v3.models import CreateDocument, DeleteDocument, ReadDocuments, UpdateDocument
 from app.v3.services import clickhouse as ch
+from app.v3.services import moderation
 
 router = APIRouter(tags=["documents"])
+log = logging.getLogger(__name__)
+
+
+def _moderate_post(author: str, doc_id: str, service: str, body: dict, groups: list[str]) -> None:
+    """Content moderation (D58) — the post-create hook.
+
+    Only posts attached to the discover board are moderated. A post by a user
+    on ``auto_hide_users`` is always auto-hidden; a post whose text trips the
+    blocklist is auto-hidden when ``auto_moderate`` is on (otherwise flagged
+    only). Every hit records a flag for the operator's review queue. The hide
+    uses the existing ``group_hidden_docs`` mechanism — the author's own copy
+    is untouched (I3). Best-effort: a moderation failure never fails the post.
+    """
+    if service != "posts" or ch.DISCOVER_GROUP_ID not in (groups or []):
+        return
+    try:
+        cfg = moderation.moderation_config()
+        if not cfg["moderation_enabled"]:
+            return
+        text = body.get("text", "") if isinstance(body, dict) else ""
+        reasons = moderation.should_auto_hide(author, text, cfg)
+        if not reasons:
+            return
+        moderation.record_flag(author, doc_id, reasons)
+        is_listed = "auto_hide_users" in reasons
+        if is_listed or cfg["auto_moderate"]:
+            ch.hide_doc_from_group(ch.DISCOVER_GROUP_ID, doc_id, moderation.NODE_MODERATOR)
+            log.info("[moderation] auto-hidden doc=%s author=%s reasons=%s", doc_id, author, reasons)
+    except Exception as e:
+        log.warning("[moderation] auto-hide failed (non-fatal): %s: %s", type(e).__name__, e)
 
 
 def _mint_hls_manifest_urls(docs: list[dict], reader_key: str) -> list[dict]:
@@ -66,6 +99,7 @@ def create_document(request: Request, data: CreateDocument):
     if data.groups:
         ch.attach_doc_to_groups(doc_id, data.groups)
         result["groups"] = data.groups
+        _moderate_post(author, doc_id, data.service, data.body, data.groups)
 
     return result
 

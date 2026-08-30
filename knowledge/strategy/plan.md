@@ -270,6 +270,33 @@ the decision is D56. Lane is `platform-telemetry` in
 - [✓ 3.27.3] **Runtime-configurable IDs** — the GA4/Hotjar IDs live in `node_config` (ClickHouse), set in the Node Config UI (Telemetry card), resolved at page load via a public `GET /telemetry` (node authoritative, build-time env is the dev fallback). No rebuild to change the IDs. Also fixed the Node Config save (flat body vs the API's `{token:{token}, update:{...}}` — every save 422'd).
 - [ ] **Terms copy** — the tracking disclosure on the marketing site (the "wrong platform for you if you arent ok with that" line, verbatim or close). Gated on a terms surface existing — there is no terms page yet.
 
+## Content Moderation (D58) — Platform
+
+Sensitive-language detection + discover suppression, built on the existing
+`group_hidden_docs` mechanism (the operator's "this is built into groups"
+instinct). A whole-word, case-insensitive blocklist in `node_config` is
+checked on the post-create path; a hit on a discover-group post is auto-hidden
+(the existing hide) + flagged for the operator's review queue. A user on
+`auto_hide_users` is always auto-hidden. The queue is human-in-the-loop — the
+operator suppresses, the machine only flags (no shadow ban). D41 holds:
+suppression is board curation, not secrecy — a suppressed user's data is
+intact, their profile resolves, and their followers still see their posts.
+Spec'd in `knowledge-base/web10-v3/social/content-moderation.md` (the model) +
+`sensitive-words-default.md` (the ~50-word default list). Lane is
+`content-moderation` in `parallel-execution.md`.
+
+- [✓ 3.37.0] **Decision: D58** (`knowledge/strategy/decisions.md`) — blocklist detection (not a classifier); the auto-down reuses `group_hidden_docs` (no new role/column/read-path change); `auto_hide_users` for user-level suppression; the review queue is human-in-the-loop; D41 holds (board curation, not secrecy).
+- [✓ 3.37.0] **KB** (`social/content-moderation.md` + `social/sensitive-words-default.md`) — the model, the flow, the node settings, the security invariants, the default list (hate speech only, evasion variants, excluded words + reasoning).
+- [✓ 3.37.0] **Config** — four `node_config` fields (`sensitive_words`, `auto_moderate`, `moderation_enabled`, `auto_hide_users`) + `effective_config` defaults (no DDL — JSON blob) + the shipped default blocklist.
+- [✓ 3.37.0] **Detection** (`app.v3.services.moderation`) — `check_text` (whole-word, case-insensitive), `moderation_config`, `should_auto_hide`, `record_flag` (best-effort).
+- [✓ 3.37.0] **Write-path hook** (`create_document`) — moderates `posts` on the discover group; flag + (auto_moderate OR listed) `hide_doc_from_group(DISCOVER_GROUP_ID, …)`; best-effort.
+- [✓ 3.37.0] **`moderation_flags` table** (DDL template + boot self-heal) + `insert_moderation_flag`/`get_moderation_flags` (the queue is a GROUP BY view).
+- [✓ 3.37.0] **Admin endpoints** — `POST /v3/moderation/flags` (the queue) + `POST /v3/moderation/auto-hide` (add/remove from `auto_hide_users`).
+- [✓ 3.37.0] **UI** — the Node Config "Content Moderation" card (master switch + auto-hide toggle, blocklist tag input, the review queue with "Keep hiding"/"Hiding").
+- [✓ 3.37.0] **Tests** — 27 API (`test_moderation.py`) + 7 UI (`configModeration.test.tsx`).
+- [ ] **E2E: moderation gauntlet** — post with a flagged word → hidden from the board → operator keeps-hiding → next post auto-hidden → operator removes → next post visible. Gated on the social-e2e stack.
+- [ ] **v1** — profile name/bio detection (flag-only), a retroactive-scan admin command, a user notification on auto-hide.
+
 ## Phase 4 — Production Cutover: v2 → v3, then merge to main
 
 **Where:** `knowledge/knowledge-base/web10-v3/` (migration model), `api/` (migration tooling), `ubuntu-deployment/` (prod deploy)
