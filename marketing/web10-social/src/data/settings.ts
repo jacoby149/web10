@@ -20,6 +20,9 @@ const LOG_ERR = (...args: unknown[]) => console.error('[settings]', ...args);
 
 const defaultSettings: AppSettings = {
   defaultVisibility: 'public',
+  // Real-time (P2P) is on by default — instant delivery + online presence out
+  // of the box. A user opts OUT via the settings toggle.
+  p2pEnabled: true,
 };
 
 let cachedSettings: AppSettings | null = null;
@@ -45,6 +48,8 @@ export async function readSettings(): Promise<AppSettings> {
       const body = docs[0].body as Record<string, unknown>;
       cachedSettings = {
         defaultVisibility: (body.defaultVisibility as AppSettings['defaultVisibility']) || defaultSettings.defaultVisibility,
+        // Absent field (a doc written before the toggle existed) → default on.
+        p2pEnabled: body.p2pEnabled === undefined ? defaultSettings.p2pEnabled : Boolean(body.p2pEnabled),
       };
       LOG('readSettings — resolved:', JSON.stringify(cachedSettings));
       return cachedSettings;
@@ -67,6 +72,7 @@ export async function saveSettings(settings: Partial<AppSettings>): Promise<AppS
 
   const body: Record<string, unknown> = {
     defaultVisibility: merged.defaultVisibility,
+    p2pEnabled: merged.p2pEnabled ?? defaultSettings.p2pEnabled,
   };
 
   // The settings doc is only readable while attached to a group the user is
