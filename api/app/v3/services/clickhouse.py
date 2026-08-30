@@ -1686,7 +1686,7 @@ def resolve_pinned_ads(docs: list[dict], reader: str) -> dict[str, dict]:
     params = {**{f"t{i}": t for i, t in enumerate(targets)}, "reader": reader}
     result = client.query(
         "SELECT ad.doc_id, ad.author_key, ad.body, ad.tags "
-        "FROM (SELECT doc_id, author_key, body, tags, deleted, "
+        "FROM (SELECT doc_id, author_key, body, tags, deleted, collection_name, "
         "row_number() OVER (PARTITION BY doc_id, author_key ORDER BY updated_at DESC) AS rn "
         f"FROM documents WHERE doc_id IN ({placeholders})) ad "
         "WHERE ad.rn = 1 AND ad.deleted = 0 AND ad.collection_name = 'posts' "
