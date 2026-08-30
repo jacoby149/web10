@@ -191,6 +191,31 @@ identity query). The **detail** is a flexible, principal-based read
 - [✓] **UI: the directory screen** (`marketing/marketing-ui/`) — the browse surface: `/groups` (grid of discoverable groups from `GET /v3/groups/directory`, search by name/owner + topic filter by tag chips) + `/groups/:id` (deep-linkable detail from `GET /v3/groups/detail` — metadata always, posts when the reader is a member else "join to view", 404 not-found state). `GroupCard` component + Navbar "Groups" link. 14 new UI tests (card render/link/skeleton, directory headline/cards/empty/search/tag-filter, detail name/posts/join-to-view/404/skeleton).
 - [✓] **Tests** — unit (identity read + slug fallback, directory query filters `discoverable=1`, directory endpoint shape, detail: non-existent 404s / non-discoverable reachable / member sees posts / non-member "join to view" / anon reads as anon) + e2e (`groups-demo.spec.ts`: directory lists discoverable + excludes non-discoverable; detail 404s ghost / reaches non-discoverable; member sees posts, non-member "join to view").
 
+## Groups: Access Model (D58) — Platform
+
+D58 replaces the group permission model the KB described but the code never
+built. Roles become **per-service permission maps** (the `services` array was
+decorative / unenforced). Access is granted to three **nested principal
+classes** — `anyone` / `authenticated` / `member` (retiring the `anon`
+misnomer) — stored as reserved keys in `group_members`. A principal's
+effective role is the **union** of the grants on every class they belong to.
+**Reads are role-gated** (content); **identity stays public** (the face).
+Public / private = a role grant to `anyone` / `authenticated` — no new flag.
+Management ops live under the reserved `'group'` service key. One role per
+person (already the code). This closes the attach hole (the write side gets
+the same per-service gate). Stays **v3** (operator: pre-prod). KB is the spec:
+`groups/access.md` (canonical) + D58.
+
+- [✓] **Decision: D58** (`knowledge/strategy/decisions.md`) — per-service role maps + principal classes (`anyone`/`authenticated`/`member`) + union semantics + reserved `group_members` keys + role-gated content reads + public identity + public/private via class grants + the `'group'` management key + one-role-per-person + the attach-hole fix + conservative backfill. Stays v3.
+- [✓] **KB** (`knowledge-base/web10-v3/groups/`) — new `access.md` (the canonical model reference: the two trust layers, the role shape, principal classes, union semantics, the gates, public/private, worked examples, invariants); `identity.md` / `overview.md` / `discoverability.md` / `social-contracts.md` / `requests.md` / `detail.md` re-aligned to the per-service map shape + principal classes (the "service-scoped roles" + "multiple roles per user" fiction retired; `anon`-as-member → `anyone`/`authenticated` grants; membership-gate → effective-role-gate).
+- [ ] **API: role shape + read gate + write gate** (`api/app/v3/endpoints/groups.py`, `services/clickhouse.py`, `models/`) — roles stored as per-service maps; the read path computes the reader's **effective role** (union over `anyone` / `authenticated` / member role) and gates content reads on per-service `readAll` (replaces the membership-only check); the write/attach path gates on the effective role granting the op on the service (closes the attach hole); management ops check the `'group'` key.
+- [ ] **API: backfill (one-time, sentinel-gated)** (`services/clickhouse.py`) — fan the old flat `permissions` out across the old `services` list (`['*']` → `'*'` key) over `group_contracts`; rename the discover board's `anon` member row → `anyone`; **conservative visibility default** (no existing group besides discover becomes `anyone`-readable — owners opt in).
+- [ ] **API: identity write endpoint** (`api/app/v3/endpoints/groups.py`) — the group's face (name, description, banner, avatar, website, tags) written to the public `group_identity` table, gated by a role grant on `group-identity-service` (owner / `page-curator`). Lands *on* the D58 model.
+- [ ] **Conformance re-pin** (`api/tests/`) — I3 re-pinned from "membership grants access" to "effective role grants access"; the anti-tests get stronger (anon vs private group, signed-in vs signed-out, member ⊇ stranger ⊇ visitor monotonicity).
+- [ ] **UI: public/private + profile editor** (`ui/src/components/Groups/`) — a "Who can read" control (public / signed-in-only / private = grant/revoke the `anyone` / `authenticated` read role) + a group **profile editor** (name, description, website, tags, banner + avatar upload) next to the existing Settings/Roles/Members dialogs.
+- [ ] **App role definitions** (`marketing/web10-social/src/data/groups.ts`, `sdk/src/`) — the social app's `FOLLOWER_ROLES` / `COMMUNITY_ROLES` / `DM_ROLES` + the SDK's `V3GroupRole` type move to the per-service map shape; the create-group flow can carry an initial `anyone`/`authenticated` read grant (public/private at birth).
+- [ ] **E2E** (`e2e/tests/`) — the public/private fork as a first-class gauntlet: public group → `anyone` reads posts; signed-in-only → signed-in reads, signed-out doesn't; private → member only; the discover board regression-pinned; the attach-hole anti-test (a bystander cannot attach to a group they can't write).
+
 ## Ads: The Catalog + Composer (D54, D55) — Platform
 
 The creator's ads, **v3 mad simple** (D55 + the v3/v4 dissemination split). An
