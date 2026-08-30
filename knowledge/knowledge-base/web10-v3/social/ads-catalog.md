@@ -49,17 +49,23 @@ The post composer (`marketing/web10-social/src/components/Feed/PostComposer.tsx`
 
 **The picker.** Tap it → a sheet listing the creator's catalog (the same read as the catalog screen: the creator's posts filtered to `ad`, active first). Each entry: the creative's thumbnail/headline + the offer's partner + kind badge. Selecting one attaches it to the post being composed. The sheet has an empty state (no ads yet — a link out to the Studio catalog) and a loading state.
 
-**What attaching does.** The post document is written with the ad link in its `ref` (the universal link — `ref_value` on create, the 3.16.2 write path):
+**What attaching does.** The post document is written with the ad preference in its `ad_preference` column (the `pinned` | `none` + `target` column on `documents`, `ads-dissemination.md`):
 
 ```json
-{ "ref": "<ad post doc_id>" }
+{ "ad_preference": { "mode": "pinned", "target": "<ad post doc_id>" } }
 ```
 
-The post is a `posts` document; the ad is a `posts` document. The post *carries* the ad — it does not copy it. One ad can be carried by many posts; the catalog's "attached posts" column is the reverse lookup (`ref_value = <ad doc_id>` over the creator's posts). A post has one `ref_value`, so in v0 a post either carries an ad or is a reply — not both (stuck in its ways).
+The post is a `posts` document; the ad is a `posts` document. The post *carries* the ad — it does not copy it. One ad can be carried by many posts; the catalog's "attached posts" column is the reverse lookup (`ad_target = <ad doc_id>` over the creator's posts). A post's `ad_preference` is independent of its `ref_value`, so a post can carry an ad *and* be a reply (the v3 column freed the universal link).
 
-**Rendering.** A post that carries an ad renders the ad block under the post body: the creative (the ad post's media + text, if it differs from the post's own), the offer (partner, CTA, link), and the disclosure (the FTC line, always shown — it is part of the object, not a UI option). A post with no ad renders exactly as it does today.
+**Rendering.** A post that carries an ad renders the ad block under the post body: the creative (the ad post's media + text, if it differs from the post's own), the offer (partner, CTA, link), and the disclosure (the FTC line, always shown — it is part of the object, not a UI option). The read serves the pinned ad inline (`doc.ad`), I3-checked (the ad is served only if the reader is in the ad's group — a pinned ad the reader can't see is simply absent). A post with no ad (`ad_preference.mode = 'none'`) renders exactly as it does today.
 
-**Round-robin.** The composer's ad control has a second option: **Rotate my ads** (instead of picking one). When set, the post is written with no specific `ref` — and the *feed renderer* applies the creator's dissemination setting (`settings` doc, `ads.dissemination`, D51) to the creator's active ads: for each post by a creator whose setting is `round_robin`, the renderer attaches the next ad in rotation (state in the app: memory/localStorage, per D51 — the curation is a shared SDK helper, not server logic). `pinned` renders the pinned ad on every post; `greedy` and `frequency_capped` behave per D51. The composer's "Rotate my ads" is the *per-post* opt-in; the `settings` doc's dissemination is the *default* the rotation follows. A post can still pin a specific ad over the default — explicit beats automatic.
+> **Round-robin is re-scoped (27.08.2026).** The "Rotate my ads" composer option + the
+> `settings`-doc dissemination setting below are the **old client-side model** —
+> superseded. **v3 is `pinned` | `none`** (the composer pins a specific ad, or
+> doesn't — `ads-dissemination.md`); the curation engine (`round_robin` /
+> `greedy` / `random`, the `signal` × `strategy` enums, the node-level density)
+> is the **v4 vision** (`../../web10-v4/social/ads-dissemination.md`). The
+> `curateAds` SDK helper is superseded by the data-layer read.
 
 **Why the post carries the link instead of copying the ad:** the ad keeps its own identity, its own lifecycle (pause the ad and it stops rendering on every post that carries it — the renderer checks `status` at render time), and its own place in the catalog. The post is the vehicle; the ad is the payload.
 
@@ -70,15 +76,15 @@ The post is a `posts` document; the ad is a `posts` document. The post *carries*
 | the catalog | `w.read('posts', { groups: [followers group] })` filtered to `tags ∋ 'ad'` — the feed read, run by the owner |
 | new / edit / retire | the house write path on `posts` docs (create / update / tombstone), tagged `ad` |
 | status | `body.status` = `active` \| `paused` — curation + the renderer filter on it |
-| post carries an ad | the post's `ref` → `ref_value` = the ad post's `doc_id` (the universal link, post → post) |
-| attached-posts column | reverse `ref_value` lookup over the creator's `posts` |
-| round-robin | the D51 dissemination setting on the `settings` doc + the `curateAds` SDK helper at render time |
+| post carries an ad | the post's `ad_preference` column (`pinned` \| `none` + `target` = the ad post's `doc_id`) — the read serves the pinned ad inline, I3-checked (`ads-dissemination.md`) |
+| attached-posts column | reverse `ad_target` lookup over the creator's `posts` |
+| albums | a `posts` doc tagged `ad_album` (name in the body); an ad is in a few via `album:<album doc_id>` tags on the ad (the tag-like link, `ads-dissemination.md`) |
 
-No new tables. No new collection. No new endpoints. No new SDK surface beyond the existing `create`/`read`/`update`/`delete` + `ref` on create. The only new code is UI (the catalog screen, the composer's ad control, the ad block) and the `offer` + `status` fields on the ad post.
+No new tables. No new collection. No new endpoints. One new column on `documents` (`ad_mode` + `ad_target`, the `ad_preference` — `ads-dissemination.md`). No new SDK surface beyond the existing `create`/`read`/`update`/`delete` + `ad_preference` on create/update. The only new code is UI (the catalog screen, the composer's ad control, the ad block) and the `offer` + `status` fields on the ad post.
 
 ## Security Invariants
 
-- **I3 holds unchanged.** The catalog reads the creator's own posts through their own group; a viewer only ever sees posts (ads included) in groups they belong to. Attaching an ad to a post adds no new read path — the post already carries the ref, and the ad post is only fetched by a reader who can see the post's group (the renderer resolves the ref through the same group-scoped read; a ref to an unreadable ad renders as a broken link, never as the ad's contents).
+- **I3 holds unchanged.** The catalog reads the creator's own posts through their own group; a viewer only ever sees posts (ads included) in groups they belong to. Pinning an ad to a post adds no new read path the viewer can abuse — the read serves the pinned ad **only if the reader is a member of the ad's group** (the ad rides the reader's access, not just the post's; a pinned ad the reader can't see is simply absent, never leaked). The check is in the read's query, not the renderer.
 - **I5 holds.** Both surfaces run on the creator's scoped, expiring token. The catalog is the creator's own collection — no app-contract escalation is needed for the owner to manage their ads; other apps read ads through the `posts` permission they already hold to read the feed.
 - **The disclosure is not optional in the UI.** The object carries it; the renderer shows it. Hiding the FTC line is a review rejection.
 

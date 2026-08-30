@@ -121,8 +121,15 @@ def ensure_apps_schema():
             "tags Array(String), created_at DateTime64(3), updated_at DateTime64(3), deleted UInt8 DEFAULT 0"
             ") ENGINE = ReplacingMergeTree(updated_at) ORDER BY group_id"
         )
+        # documents.ad_mode + documents.ad_target — the v3 ad preference
+        # (ads-dissemination.md): a doc's ad is `pinned` (ad_target = the ad
+        # doc_id) or `none`. Pre-existing volumes predate the columns; ADD
+        # COLUMN appends them at the end, which is why document inserts are
+        # positional and append the values last.
+        client.command("ALTER TABLE documents ADD COLUMN IF NOT EXISTS ad_mode String DEFAULT 'none'")
+        client.command("ALTER TABLE documents ADD COLUMN IF NOT EXISTS ad_target String DEFAULT ''")
         log.info(
-            "[v3] schema ensured (apps.visits + app_ratings.comment + node_config + app_visits + group_contracts.discoverable + group_identity present)"
+            "[v3] schema ensured (apps.visits + app_ratings.comment + node_config + app_visits + group_contracts.discoverable + group_identity + documents.ad_mode/ad_target present)"
         )
         # Data migration (idempotent): re-home demo apps registered under
         # their directory-index file URLs onto their directory URLs.
@@ -343,6 +350,8 @@ def insert_document(
     ref_value: str = "",
     tags: list[str] | None = None,
     doc_id: str | None = None,
+    ad_mode: str = "none",
+    ad_target: str = "",
 ) -> dict:
     """Insert a document into the documents table. Generates doc_id if not provided."""
     now = _now()
@@ -350,7 +359,21 @@ def insert_document(
         doc_id = _gen_doc_id()
     client.insert(
         "documents",
-        [[doc_id, author_key, service, _json(body), ref_value or "", tags or [], now, now, 0]],
+        [
+            [
+                doc_id,
+                author_key,
+                service,
+                _json(body),
+                ref_value or "",
+                tags or [],
+                now,
+                now,
+                0,
+                ad_mode or "none",
+                ad_target or "",
+            ]
+        ],
     )
     return {
         "doc_id": doc_id,
@@ -359,6 +382,8 @@ def insert_document(
         "body": body,
         "ref_value": ref_value,
         "tags": tags or [],
+        "ad_mode": ad_mode or "none",
+        "ad_target": ad_target or "",
         "created_at": now.isoformat(),
         "updated_at": now.isoformat(),
     }
@@ -420,7 +445,14 @@ def read_documents(
 
 
 def update_document(
-    doc_id: str, author_key: str, service: str, body: dict, ref_value: str = "", tags: list[str] | None = None
+    doc_id: str,
+    author_key: str,
+    service: str,
+    body: dict,
+    ref_value: str = "",
+    tags: list[str] | None = None,
+    ad_mode: str = "none",
+    ad_target: str = "",
 ) -> dict:
     """Update a document (insert new version with higher updated_at, preserve created_at)."""
     existing = get_document(doc_id, author_key)
@@ -430,7 +462,21 @@ def update_document(
     created_at = datetime.fromisoformat(existing["created_at"])
     client.insert(
         "documents",
-        [[doc_id, author_key, service, _json(body), ref_value or "", tags or [], created_at, now, 0]],
+        [
+            [
+                doc_id,
+                author_key,
+                service,
+                _json(body),
+                ref_value or "",
+                tags or [],
+                created_at,
+                now,
+                0,
+                ad_mode or "none",
+                ad_target or "",
+            ]
+        ],
     )
     return {
         "doc_id": doc_id,
@@ -439,6 +485,8 @@ def update_document(
         "body": body,
         "ref_value": ref_value,
         "tags": tags or [],
+        "ad_mode": ad_mode or "none",
+        "ad_target": ad_target or "",
         "created_at": existing["created_at"],
         "updated_at": now.isoformat(),
     }
@@ -457,7 +505,7 @@ def delete_document(doc_id: str, author_key: str, service: str):
 def get_document(doc_id: str, author_key: str) -> dict | None:
     """Get a single document by doc_id and author_key."""
     result = client.query(
-        "SELECT doc_id, author_key, collection_name, body, ref_value, tags, created_at, updated_at "
+        "SELECT doc_id, author_key, collection_name, body, ref_value, tags, created_at, updated_at, ad_mode, ad_target "
         "FROM documents WHERE doc_id = %(doc_id)s AND author_key = %(author_key)s AND deleted = 0 "
         "ORDER BY updated_at DESC LIMIT 1",
         {"doc_id": doc_id, "author_key": author_key},
@@ -474,6 +522,8 @@ def get_document(doc_id: str, author_key: str) -> dict | None:
         "tags": list(row[5]),
         "created_at": str(row[6]),
         "updated_at": str(row[7]),
+        "ad_mode": row[8] or "none",
+        "ad_target": row[9] or "",
     }
 
 
@@ -1340,12 +1390,12 @@ def _board_base_sql(group_ids: list[str]) -> str:
 
     documents JOIN doc_groups JOIN group_members, filtered by membership,
     tombstones, blacklists, sharing, and hidden docs. Selects
-    (doc_id, author_key, body, tags, created_at, ref_value). Placeholders:
-    %(coll)s, %(member_key)s, %(g0)s..%(gN)s.
+    (doc_id, author_key, body, tags, created_at, ref_value, ad_mode, ad_target).
+    Placeholders: %(coll)s, %(member_key)s, %(g0)s..%(gN)s.
     """
     return (
-        "SELECT p.doc_id AS doc_id, p.author_key, p.body, p.tags, p.created_at, p.ref_value "
-        "FROM (SELECT doc_id, author_key, body, tags, created_at, ref_value, deleted "
+        "SELECT p.doc_id AS doc_id, p.author_key, p.body, p.tags, p.created_at, p.ref_value, p.ad_mode, p.ad_target "
+        "FROM (SELECT doc_id, author_key, body, tags, created_at, ref_value, ad_mode, ad_target, deleted "
         "FROM (SELECT *, row_number() OVER (PARTITION BY doc_id, author_key ORDER BY updated_at DESC) AS rn "
         "FROM documents WHERE collection_name = %(coll)s) "
         "WHERE rn = 1 AND deleted = 0) p "
@@ -1408,6 +1458,8 @@ def _group_docs_query(
             "tags": list(row[3]),
             "created_at": str(row[4]),
             "ref_value": row[5],
+            "ad_mode": row[6] or "none",
+            "ad_target": row[7] or "",
             "service": service,
         }
         for row in result.result_rows
@@ -1483,6 +1535,8 @@ def _group_docs_ranked_query(
             "tags": list(row[3]),
             "created_at": str(row[4]),
             "ref_value": row[5],
+            "ad_mode": row[6] or "none",
+            "ad_target": row[7] or "",
             "service": service,
         }
         for row in result.result_rows
@@ -1572,13 +1626,16 @@ def get_ref_counts(doc_ids: list[str], service: str = "reactions") -> dict[str, 
 def read_document_by_id(doc_id: str, member_key: str, service: str) -> dict | None:
     """Read a single document by doc_id with group permission check.
 
+    Returns the doc's `ad_mode`/`ad_target` so the caller can serve the pinned
+    ad inline (the post detail deep link is a read — same as the feed read).
+
     The user_blacklist anti-join dedups first (latest row per key,
     tombstones included) then filters deleted = 0 — same reason as
     read_documents_in_groups: a raw `deleted = 0` join keeps matching the
     stale pre-unblock row until a background merge.
     """
     result = client.query(
-        "SELECT p.doc_id, p.author_key, p.body, p.tags, p.created_at, p.ref_value "
+        "SELECT p.doc_id, p.author_key, p.body, p.tags, p.created_at, p.ref_value, p.ad_mode, p.ad_target "
         "FROM documents p "
         "LEFT SEMI JOIN ( "
         "SELECT pg.doc_id FROM doc_groups pg "
@@ -1605,8 +1662,63 @@ def read_document_by_id(doc_id: str, member_key: str, service: str) -> dict | No
         "tags": list(row[3]),
         "created_at": str(row[4]),
         "ref_value": row[5],
+        "ad_mode": row[6] or "none",
+        "ad_target": row[7] or "",
         "service": service,
     }
+
+
+def resolve_pinned_ads(docs: list[dict], reader: str) -> dict[str, dict]:
+    """Resolve the pinned ads for a list of docs (the v3 ad preference).
+
+    For each doc with `ad_mode='pinned'` + a non-empty `ad_target`, fetch the
+    pinned ad (by doc_id) — but ONLY if the reader is a member of the ad's group
+    (I3: the ad rides the reader's access, not just the doc's). A pinned ad the
+    reader can't see is simply not returned (the doc comes back with no ad).
+    An ad is a `posts` doc (D55) — a target in any other collection is not an
+    ad and is not served.
+    Returns a map of ad_target -> the ad dict, for the ads the reader can see.
+    """
+    targets = sorted({d["ad_target"] for d in docs if d.get("ad_mode") == "pinned" and d.get("ad_target")})
+    if not targets:
+        return {}
+    placeholders = ", ".join(f"%(t{i})s" for i in range(len(targets)))
+    params = {**{f"t{i}": t for i, t in enumerate(targets)}, "reader": reader}
+    result = client.query(
+        "SELECT ad.doc_id, ad.author_key, ad.body, ad.tags "
+        "FROM (SELECT doc_id, author_key, body, tags, deleted, "
+        "row_number() OVER (PARTITION BY doc_id, author_key ORDER BY updated_at DESC) AS rn "
+        f"FROM documents WHERE doc_id IN ({placeholders})) ad "
+        "WHERE ad.rn = 1 AND ad.deleted = 0 AND ad.collection_name = 'posts' "
+        "AND ad.doc_id IN (SELECT pg.doc_id FROM doc_groups pg "
+        "JOIN group_members gm ON pg.group_id = gm.group_id "
+        "WHERE gm.member_key = %(reader)s AND pg.deleted = 0 AND gm.deleted = 0)",
+        params,
+    )
+    return {
+        row[0]: {
+            "doc_id": row[0],
+            "author_key": row[1],
+            "body": _parse_json(row[2]),
+            "tags": list(row[3]),
+        }
+        for row in result.result_rows
+    }
+
+
+def attach_pinned_ads(docs: list[dict], reader: str) -> list[dict]:
+    """Attach each doc's pinned ad inline (the v3 read serves doc + ad).
+
+    For a doc with `ad_mode='pinned'`, sets `doc['ad']` to the pinned ad's body
+    (I3-checked via `resolve_pinned_ads`). A doc with `ad_mode='none'` (or a
+    pinned ad the reader can't see) gets no `ad` key. The ad's media URLs are
+    resolved by the caller's existing `resolve_media_urls_in_docs` pass.
+    """
+    ads = resolve_pinned_ads(docs, reader)
+    for doc in docs:
+        if doc.get("ad_mode") == "pinned" and doc.get("ad_target") in ads:
+            doc["ad"] = ads[doc["ad_target"]]
+    return docs
 
 
 # ---------------------------------------------------------------------------
@@ -1854,6 +1966,15 @@ def resolve_media_urls_in_docs(docs: list[dict]) -> list[dict]:
         body = resolve_minio_types(body)
         doc_with_media = dict(doc)
         doc_with_media["body"] = body
+        # The v3 pinned ad (inline, `doc["ad"]`) is a posts doc too — resolve
+        # its media the same way so the ad's creative renders.
+        ad = doc.get("ad")
+        if ad:
+            ad_body = ad.get("body", {})
+            if ad_body.get("media_refs"):
+                ad_body = resolve_media_urls(ad_body, ad.get("author_key", ""))
+            ad_body = resolve_minio_types(ad_body)
+            doc_with_media["ad"] = {**ad, "body": ad_body}
         resolved.append(doc_with_media)
     return resolved
 
@@ -2215,9 +2336,12 @@ def confirm_media_upload(user_key: str, metadata: dict) -> dict:
     """Confirm a media upload by storing metadata in documents table."""
     now = _now()
     doc_id = _gen_doc_id()
+    # Positional insert — must match the documents column count (11, including
+    # the v3 ad_preference columns ad_mode/ad_target). A media doc never
+    # carries an ad, so both are their defaults.
     client.insert(
         "documents",
-        [[doc_id, user_key, "media_metadata", _json(metadata), "", [], now, now, 0]],
+        [[doc_id, user_key, "media_metadata", _json(metadata), "", [], now, now, 0, "none", ""]],
     )
     return {"doc_id": doc_id, **metadata}
 

@@ -18,6 +18,7 @@ from app.v3.models.auth import (
 from app.v3.models.blocking import BlockUser, BlockUserInGroup, SetSharing
 from app.v3.models.contracts import AddAppContract, RevokeAppContract
 from app.v3.models.documents import (
+    AdPreference,
     CreateDocument,
     DeleteDocument,
     ReadDocuments,
@@ -72,6 +73,7 @@ __all__ = [
     "ReadDocuments",
     "UpdateDocument",
     "DeleteDocument",
+    "AdPreference",
     # groups
     "CreateGroup",
     "GetGroup",

@@ -16,7 +16,7 @@ He was right. Look at what an ad actually is: content + a link. That is a post w
 - **The contract surface disappears.** The social app already reads `posts`. An ad post is a post — no new `ads: [readAll]` permission, no new app-contract line, no provisioning.
 - **The catalog is a filter, not a read.** The creator's catalog is their own posts where `tags` has `ad` — the house's existing `tags` column (`has(tags, 'ad')`), filtered client-side (a creator's own posts are a small, bounded set).
 
-What the service framing got right survives: the ad object, group delivery, `ref_value` carrying, D51 curation, I3. Only the namespace dies.
+What the service framing got right survives: the ad object, group delivery, carrying (now the `ad_preference` column on the post, `ads-dissemination.md`), D51 curation, I3. Only the namespace dies.
 
 ## The Standard Ad Object
 
@@ -65,7 +65,7 @@ There is no `html` leaf type in the protocol (`document-typing.md`: `text | mini
 | `author_key` | the creator | the creator owns the ad, scoped to them |
 | `tags` | includes `ad` | the marker. `has(tags, 'ad')` — the catalog filter, the renderer's style check |
 | `doc_groups` | the creator's followers group (and/or discover) | delivery by architecture — followers see it |
-| `ref_value` | optional — a related post | an ad can point at the post it accompanies |
+| `ref_value` | optional — a related post | the universal link column; carrying an ad is the *post's* `ad_preference` pointing at this doc (`ads-dissemination.md`), not the ad's `ref_value` |
 
 No new tables. No new collection. No new contract permission. It is a post, and the house read (dedup-then-filter, group membership, hidden-doc exclusion) already handles it.
 
@@ -77,10 +77,10 @@ There is no "ads for this viewer" query — that was the service framing's artif
 w.read('posts', { groups: [discover, ...followed followers groups] })
 ```
 
-returns everything the viewer should see, ads included (they are posts in the viewer's groups). The renderer checks each doc's `tags` for `ad`:
+returns everything the viewer should see, ads included (they are posts in the viewer's groups). A post that *carries* an ad comes back **with the ad inline** (`doc.ad`) — the read resolves the post's `ad_preference` (the `pinned` | `none` column, `ads-dissemination.md`) and serves the pinned ad, I3-checked (the ad is served only if the reader is in the ad's group). The renderer checks each doc:
 
 - **a post tagged `ad`** → render the ad block (the post's creative + the offer + the disclosure)
-- **a post whose `ref_value` is an ad post** → render the post, then the carried ad block (resolve the ref through the same group-scoped read; a ref to an unreadable ad renders as a broken link, never as the ad's contents — I3)
+- **a post with `ad_mode = 'pinned'`** → render the post, then the carried ad block from `doc.ad` (already resolved + I3-checked by the read; a pinned ad the reader can't see is simply absent — the doc renders plain)
 - **a plain post** → render as today
 
 Because the read is group-scoped, an ad is only ever visible to the creator's audience (or the public, if attached to discover). I3 holds: a viewer who does not follow the creator never sees the ad.

@@ -5,6 +5,11 @@
 > [`../../web10-v3/social/ads-dissemination.md`](../../web10-v3/social/ads-dissemination.md)).
 > Documented so the v4 push has the map; **not** built in v3. Read the v3 doc,
 > `ads.md` (the ad object, D55), and `ads-catalog.md` first.
+>
+> **Naming:** v3's **album** (a `posts` doc tagged `ad_album`, an ad in a few
+> via `album:<id>` tags) is v4's **catalog** — the same entity, renamed once the
+> curation modes curate *from* it. The v3 structure is the v4 catalog's
+> foundation; v4 is an enum expansion, not a rebuild.
 
 ## The Design
 

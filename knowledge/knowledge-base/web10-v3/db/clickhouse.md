@@ -147,7 +147,9 @@ CREATE TABLE documents (
     tags Array(String),
     created_at DateTime64(3),
     updated_at DateTime64(3),
-    deleted UInt8 DEFAULT 0
+    deleted UInt8 DEFAULT 0,
+    ad_mode String DEFAULT 'none',
+    ad_target String DEFAULT ''
 ) ENGINE = ReplacingMergeTree(updated_at)
 ORDER BY (author_key, doc_id)
 TTL created_at + INTERVAL 90 DAY;
@@ -160,6 +162,8 @@ TTL created_at + INTERVAL 90 DAY;
 **Tombstones:** deletes are inserts with `deleted = 1`. Queries filter `WHERE deleted = 0`. TTL physically removes old data after 90 days.
 
 **`ref_value`:** the universal link. Comments, reactions, replies, quotes, bookmarks, votes — all just documents with a `ref`.
+
+**`ad_mode` + `ad_target`:** the v3 ad preference (`../social/ads-dissemination.md`). `ad_mode` is `none` (the default — no ad) or `pinned` (the doc carries a specific ad); `ad_target` is the pinned ad's `doc_id`. The read serves a pinned doc with its ad inline, I3-checked. Pre-existing volumes get the columns via the boot self-heal (`ALTER TABLE ... ADD COLUMN IF NOT EXISTS`), which is why document inserts are positional and append the values last.
 
 **`collection_name`:** low cardinality. Distinguishes posts, reactions, comments, outbox, profile — all in the same table.
 

@@ -10,7 +10,9 @@ CREATE TABLE IF NOT EXISTS documents (
     tags Array(String),
     created_at DateTime64(3),
     updated_at DateTime64(3),
-    deleted UInt8 DEFAULT 0
+    deleted UInt8 DEFAULT 0,
+    ad_mode String DEFAULT 'none',
+    ad_target String DEFAULT ''
 ) ENGINE = ReplacingMergeTree(updated_at)
 ORDER BY (author_key, doc_id);
 
