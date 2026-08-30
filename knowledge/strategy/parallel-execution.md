@@ -291,7 +291,7 @@ across all apps. The decision bite is done (D49); the build follows.
 - [✓ 3.15.0] `apps`: stop appending per ping — append on first registration or real metadata change only; retire the `visits` counter column as a store metric
 - [✓ 3.15.0] Metrics: `visits` (count of windowed rows) + `users_1d/30d/90d/1y` (distinct real users, trailing windows) — realtime over `app_visits`
 - [✓ 3.15.0] Store: paginated app list (`limit`/`offset`, sort `users_30d` desc, `visits` tiebreak); grid card shows `users_30d` headline, detail page shows the full set
-- [✓ 3.15.0] `/stats` macro: node-wide `users_1d/30d/90d/1y` (all apps, same query minus `GROUP BY`); homepage leads with `users_30d`
+- [✓ 3.15.0] `/stats` macro: node-wide `users_1d/30d/90d/1y` (all apps, same query minus `GROUP BY`); homepage stat bar leads with the all-time `users` count (3.27.5 — operator preference: all-time, not the 30d window)
 - [✓ 3.15.0] SDK: token in the register ping + re-fire the ping on the sign-in transition (required — else the metric means "returning users")
 - [✓ 3.15.0] Hardening (folded in): #4 URL normalization in `register_app` (lowercase host, one trailing slash); #7 manifest byte cap in `/pwa_listing`
 - [✓ 3.15.0] Tests: unit (gated ingest, anon-drop, forged-token I2 anti-test, metrics, pagination) + e2e (real signed-in user → active count; pagination boundary)

@@ -132,7 +132,7 @@ across all apps. Decision done (D49); lane is `app-store-metrics` in
 - [✓ 3.15.0] **Gated ingest** (`register_app`) — append per (app, user) if latest `seen_at` > 3h (or first); anon dropped at ingest (verified token only, I2); #4 URL normalization folded in.
 - [✓ 3.15.0] **`apps` stable** — stop appending per ping; retire the `visits` counter column as a store metric.
 - [✓ 3.15.0] **Metrics + pagination** (`/v3/apps/list`) — `visits` + `users_1d/30d/90d/1y` realtime; `limit`/`offset`, sort `users_30d` desc, `visits` tiebreak; store grid + detail UI.
-- [✓ 3.15.0] **`/stats` macro** — node-wide `users_1d/30d/90d/1y` (all apps); homepage leads with `users_30d`.
+- [✓ 3.15.0] **`/stats` macro** — node-wide `users_1d/30d/90d/1y` (all apps); homepage stat bar leads with the all-time `users` count (3.27.5 — operator preference: all-time, not the 30d window).
 - [✓ 3.15.0] **SDK** — token in the register ping + re-fire on the sign-in transition (required).
 - [✓ 3.15.0] **Hardening** — #7 manifest byte cap in `/pwa_listing`.
 - [✓ 3.15.0] **Tests** — unit (gated ingest, anon-drop, forged-token I2 anti-test, metrics, pagination) + e2e (real signed-in user → active count; pagination boundary).
