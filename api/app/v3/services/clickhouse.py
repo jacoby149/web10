@@ -2401,9 +2401,7 @@ def list_media(
         "SELECT doc_id, author_key, collection_name, body, ref_value, tags, created_at, updated_at FROM documents "
         "WHERE author_key = %(user_key)s "
         "AND collection_name IN ('media_metadata', 'public_media') "
-        "AND deleted = 0 "
-        + doc_id_filter
-        + "ORDER BY created_at DESC "
+        "AND deleted = 0 " + doc_id_filter + "ORDER BY created_at DESC "
         "LIMIT %(limit)s OFFSET %(offset)s",
         params,
     )

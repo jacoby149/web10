@@ -187,6 +187,29 @@ async function readFollowerCount(request: APIRequestContext, token: string, user
  */
 const settle = (ms = 1500) => new Promise((r) => setTimeout(r, ms));
 
+/**
+ * Poll a read until a predicate holds (bounded). ClickHouse
+ * (ReplacingMergeTree) is eventually consistent — a write (doc create +
+ * doc_groups attach) can lag the very next read by a beat, especially under
+ * parallel-worker load. The write itself is synchronous; this settles the
+ * read side so the assertions are deterministic.
+ */
+async function pollUntil<T>(
+  fn: () => Promise<T>,
+  pred: (v: T) => boolean,
+  timeoutMs = 15000,
+  intervalMs = 500,
+): Promise<T> {
+  const deadline = Date.now() + timeoutMs;
+  let last: T;
+  for (;;) {
+    last = await fn();
+    if (pred(last)) return last;
+    if (Date.now() > deadline) return last;
+    await new Promise((r) => setTimeout(r, intervalMs));
+  }
+}
+
 function setTokenCookie(context: any, domain: string, token: string) {
   return context.addCookies([
     { name: 'token', value: token, domain, path: '/', secure: false, httpOnly: false },
@@ -351,7 +374,7 @@ test.describe('Profiles — API floor (the app\'s exact reads)', () => {
     // 6. The blob is actually in the object store — the presigned URL serves
     //    the exact bytes that were uploaded (the avatar can render).
     const blobRes = await fetch(read_url);
-    expect(blobRes.ok()).toBeTruthy();
+    expect(blobRes.ok).toBeTruthy();
     expect(Buffer.from(await blobRes.arrayBuffer()).toString('base64')).toBe(tinyPng.toString('base64'));
   });
 
@@ -385,8 +408,12 @@ test.describe('Profiles — API floor (the app\'s exact reads)', () => {
     });
     expect(updateRes.ok(), `profile update failed (${updateRes.status})`).toBeTruthy();
 
-    // Latest wins — the app reads docs[0] (created_at DESC)
-    const profiles = await readProfileDocs(request, owner.token, owner.username);
+    // Latest wins — the app reads docs[0] (created_at DESC). (Poll — the CH
+    // read side can lag the write by a beat under load.)
+    const profiles = await pollUntil(
+      () => readProfileDocs(request, owner.token, owner.username),
+      (docs) => docs.length >= 1 && (docs[0].body as any).display_name === 'Second Name',
+    );
     expect(profiles[0].body.display_name).toBe('Second Name');
     expect(profiles[0].body.website).toBe('second.example');
 
@@ -434,6 +461,14 @@ test.describe('Profiles gauntlet — real flow + log sequence', () => {
 
     // The bio renders after save.
     await expect(page.getByText(bio, { exact: false })).toBeVisible({ timeout: 15000 });
+
+    // Settle the CH read side before the reload (the write is synchronous;
+    // the ReplacingMergeTree read can lag a beat under load).
+    const settled = await pollUntil(
+      () => readProfileDocs(request, owner.token, owner.username),
+      (docs) => docs.length >= 1,
+    );
+    expect(settled[0].body.bio).toBe(bio);
 
     // Return run: reload. The token cookie persists, the profile re-reads,
     // and the bio survives (the doc was written to the followers group).
@@ -517,14 +552,18 @@ test.describe('Profiles gauntlet — real flow + log sequence', () => {
     await expect(page.getByText(bio, { exact: false })).toBeVisible();
 
     // Node-level: the app created the followers group (not the spec) and the
-    // profile doc is attached to it with the edited body.
+    // profile doc is attached to it with the edited body. (Poll — the CH
+    // read side can lag the write by a beat under load.)
     const groupsRes = await request.post(`${API_BASE}/v3/groups/list`, {
       data: JSON.stringify({ token: owner.token }),
       headers: { 'Content-Type': 'application/json' },
     });
     const groups = (await groupsRes.json()) as any[];
     expect(groups.map((g) => g.group_id)).toContain(followersGroupId(owner.username));
-    const profiles = await readProfileDocs(request, owner.token, owner.username);
+    const profiles = await pollUntil(
+      () => readProfileDocs(request, owner.token, owner.username),
+      (docs) => docs.length >= 1,
+    );
     expect(profiles[0].body.display_name).toBe(displayName);
     expect(profiles[0].body.website).toBe(website);
     expect(profiles[0].body.bio).toBe(bio);
@@ -559,14 +598,20 @@ test.describe('Profiles gauntlet — real flow + log sequence', () => {
     // No avatar yet — the fallback letter renders, no avatar <img>.
     expect(await page.locator('[data-testid="avatar-image"]').count()).toBe(0);
 
-    // Drive the real upload seam: the persistent file input (setInputFiles
-    // → the real handleFileChange → uploadMedia's presigned flow → confirm →
+    // Drive the real upload seam: click the avatar button (the user's real
+    // path — the click's transient activation carries into the hidden
+    // input.click(), so the file chooser opens) and feed the file through it
+    // (→ the real handleFileChange → uploadMedia's presigned flow → confirm →
     // saveProfile). The file is a tiny 1x1 PNG.
     const tinyPng = Buffer.from(
       'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8D4HwAFBQIAX8jx0gAAAABJRU5ErkJggg==',
       'base64',
     );
-    await page.locator('[data-testid="profile-file-input"]').setInputFiles({
+    const [fileChooser] = await Promise.all([
+      page.waitForEvent('filechooser'),
+      page.locator('[data-testid="edit-avatar-button"]').click(),
+    ]);
+    await fileChooser.setFiles({
       name: 'avatar.png',
       mimeType: 'image/png',
       buffer: tinyPng,
@@ -581,8 +626,12 @@ test.describe('Profiles gauntlet — real flow + log sequence', () => {
     expect(src).toContain('X-Amz-Signature');
 
     // Node-level: the profile doc carries the avatar_ref and the media doc
-    // carries the object_key (the blob reference, never a URL).
-    const profiles = await readProfileDocs(request, owner.token, owner.username);
+    // carries the object_key (the blob reference, never a URL). (Poll — the
+    // CH read side can lag the write by a beat under load.)
+    const profiles = await pollUntil(
+      () => readProfileDocs(request, owner.token, owner.username),
+      (docs) => docs.length >= 1 && Boolean((docs[0].body as any).avatar_ref),
+    );
     const avatarRef = profiles[0].body.avatar_ref as string;
     expect(avatarRef).toBeTruthy();
     const listRes = await request.post(`${API_BASE}/v3/media/list`, {
