@@ -1755,12 +1755,14 @@ def get_active_node_ads() -> list[dict]:
         for row in result.result_rows:
             body = _parse_json(row[2])
             if body.get("status") == "active":
-                ads.append({
-                    "doc_id": row[0],
-                    "author_key": row[1],
-                    "body": body,
-                    "tags": list(row[3]),
-                })
+                ads.append(
+                    {
+                        "doc_id": row[0],
+                        "author_key": row[1],
+                        "body": body,
+                        "tags": list(row[3]),
+                    }
+                )
         return ads
     except Exception:
         return []
@@ -1773,6 +1775,7 @@ def _node_ad_hash(doc_id: str, reader: str) -> int:
     different posts with node ads.
     """
     import hashlib
+
     h = hashlib.sha256(f"{doc_id}:{reader}".encode()).digest()
     return int.from_bytes(h[:4], "big") % 100
 
