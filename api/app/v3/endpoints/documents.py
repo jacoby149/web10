@@ -156,13 +156,17 @@ def read_documents(request: Request, data: ReadDocuments):
         # grants readAll on this service (members via their role, bystanders
         # via the anyone/authenticated grant).
         group_ids = ch.readable_groups(reader, data.service, authenticated, data.groups)
-        # D42: distinguish "no access to any requested group" from "no notes
-        # yet" (which returns an empty list). Anon is exempt: it reads the
-        # public board, and an empty board is a valid (empty) result.
+        # D42: distinguish "group missing / not a member" from "no notes yet"
+        # (which returns an empty list). If the reader's effective role grants
+        # readAll on NONE of the requested groups, this is an access failure the
+        # app can act on (prompt for group setup / fix access) — not an empty
+        # result. The message is a stable contract the demos + e2e key off
+        # (`/not a member/i`). Anon is exempt: it reads the public board, and an
+        # empty board is a valid (empty) result.
         if authenticated and not group_ids:
             raise HTTPException(
                 status_code=403,
-                detail="no access to the requested group",
+                detail="not a member of the requested group",
             )
 
     docs = ch.read_documents_in_groups(

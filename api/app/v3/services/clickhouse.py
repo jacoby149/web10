@@ -970,9 +970,16 @@ def _effective_allows(perms: dict, service: str, op: str) -> bool:
 
 
 def can_read_group(group_id: str, principal: str, service: str, authenticated: bool = False) -> bool:
-    """Can ``principal`` read ``service`` content in ``group_id`` (D58 read
-    gate)? True iff their effective role grants ``readAll`` on the service."""
-    return _effective_allows(effective_role_perms(group_id, principal, authenticated), service, "readAll")
+    """Can `principal` read `service` in `group_id` (D58 read gate)?
+
+    A **member** can read all services in the group (membership grants read —
+    the existing behavior; the per-service role scopes *write* access, not
+    read). A **non-member** can read if the `anyone`/`authenticated` grant
+    grants `readAll` on the service (D58: public / signed-in-only groups)."""
+    if is_group_member(group_id, principal):
+        return True
+    perms = effective_role_perms(group_id, principal, authenticated)
+    return _effective_allows(perms, service, "readAll")
 
 
 def can_write_group(group_id: str, principal: str, service: str, authenticated: bool = True) -> bool:

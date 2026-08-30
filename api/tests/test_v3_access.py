@@ -179,6 +179,16 @@ class TestReadWriteGates:
             assert ch.can_read_group("g1", "alice", "posts", authenticated=True) is True
             assert ch.can_write_group("g1", "alice", "comments") is True
 
+    def test_member_reads_service_their_role_does_not_grant(self):
+        # A member's role only grants readAll on posts, but membership grants
+        # read-all — so they can read the profile service too (the social app's
+        # profile read relies on this: a follower reads a creator's profile,
+        # which is in the 'profile' service, not 'posts').
+        member_posts_only = [{"name": "member", "permissions": {"posts": ["readAll"]}}]
+        with _mock(member_posts_only, {"bob": "member"}):
+            assert ch.can_read_group("g1", "bob", "posts", authenticated=True) is True
+            assert ch.can_read_group("g1", "bob", "profile", authenticated=True) is True
+
 
 # ---------------------------------------------------------------------------
 # has_mgmt_permission (the 'group' key + legacy '*' wildcard)
