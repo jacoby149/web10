@@ -358,10 +358,10 @@ describe('Layout', () => {
     expect(screen.getAllByText('Messages').length).toBeGreaterThanOrEqual(1);
   });
 
-  it('coming-soon items render on the desktop sidebar but NOT in the mobile bottom nav', async () => {
-    // Operator, 31.07.2026: "for the greyed out tabs, just dont even show
-    // them! … coming soon on desktop i actually really like, just dont like
-    // seeing them on mobile."
+  it('mobile bottom nav holds 4 core tabs + a More tab; coming-soon live in the More sheet, not the bar', async () => {
+    // Operator, 30.08.2026: the mobile bottom bar was too crammed — a "More"
+    // tab (the 5th icon) opens a sheet with Settings + the coming-soon
+    // surfaces, so the bar never exceeds five icons and has room to grow.
     const { default: Layout } = await import('@/components/Social/Layout');
     render(
       <MemoryRouter initialEntries={['/feed']}>
@@ -373,17 +373,55 @@ describe('Layout', () => {
     // Desktop sidebar keeps the coming-soon section.
     expect(screen.getByTestId('nav-flares')).toBeInTheDocument();
     expect(screen.getByTestId('nav-takes')).toBeInTheDocument();
-    // Mobile bottom nav (aria-label="Primary mobile") renders none of them.
+
+    // The mobile bottom bar is exactly four core tabs + the More tab.
     const mobileNav = screen.getByLabelText('Primary mobile');
+    expect(within(mobileNav).getByTestId('nav-feed-mobile')).toBeInTheDocument();
+    expect(within(mobileNav).getByTestId('nav-discover-mobile')).toBeInTheDocument();
+    expect(within(mobileNav).getByTestId('nav-messages-mobile')).toBeInTheDocument();
+    expect(within(mobileNav).getByTestId('nav-profile-mobile')).toBeInTheDocument();
+    expect(within(mobileNav).getByTestId('nav-more-mobile')).toBeInTheDocument();
+    // Settings is NOT in the bar (it lives in the More sheet).
+    expect(within(mobileNav).queryByTestId('nav-settings-mobile')).not.toBeInTheDocument();
+    // …and none of the coming-soon icons are crammed into the bar.
     expect(within(mobileNav).queryByTestId('nav-flares-mobile')).not.toBeInTheDocument();
     expect(within(mobileNav).queryByTestId('nav-takes-mobile')).not.toBeInTheDocument();
     expect(within(mobileNav).queryByTestId('nav-livestream-mobile')).not.toBeInTheDocument();
     expect(within(mobileNav).queryByTestId('nav-games-mobile')).not.toBeInTheDocument();
     expect(within(mobileNav).queryByTestId('nav-groups-mobile')).not.toBeInTheDocument();
     expect(within(mobileNav).queryByTestId('nav-marketplace-mobile')).not.toBeInTheDocument();
-    // …and the real destinations are all still there.
-    expect(within(mobileNav).getByTestId('nav-feed-mobile')).toBeInTheDocument();
-    expect(within(mobileNav).getByTestId('nav-discover-mobile')).toBeInTheDocument();
+
+    // The More sheet is closed by default.
+    expect(screen.queryByTestId('more-sheet')).not.toBeInTheDocument();
+
+    // Tapping More opens the sheet: Settings + the coming-soon list.
+    fireEvent.click(screen.getByTestId('nav-more-mobile'));
+    const sheet = screen.getByTestId('more-sheet');
+    expect(sheet).toBeInTheDocument();
+    expect(within(sheet).getByTestId('nav-settings-mobile')).toBeInTheDocument();
+    expect(within(sheet).getByTestId('nav-flares-mobile')).toBeInTheDocument();
+    expect(within(sheet).getByTestId('nav-takes-mobile')).toBeInTheDocument();
+    expect(within(sheet).getByTestId('nav-livestream-mobile')).toBeInTheDocument();
+    expect(within(sheet).getByTestId('nav-games-mobile')).toBeInTheDocument();
+    expect(within(sheet).getByTestId('nav-groups-mobile')).toBeInTheDocument();
+    expect(within(sheet).getByTestId('nav-marketplace-mobile')).toBeInTheDocument();
+  });
+
+  it('Help (report a bug) moves to the mobile top header, not the bottom bar', async () => {
+    const { default: Layout } = await import('@/components/Social/Layout');
+    render(
+      <MemoryRouter initialEntries={['/feed']}>
+        <Layout onLogout={() => {}} onReportBug={() => {}}>
+          <div>Content</div>
+        </Layout>
+      </MemoryRouter>,
+    );
+    // The header's report-a-bug icon button is present…
+    expect(screen.getByTestId('report-bug-button-mobile')).toBeInTheDocument();
+    // …and the bottom bar no longer carries a "Help" tab.
+    const mobileNav = screen.getByLabelText('Primary mobile');
+    expect(within(mobileNav).queryByTestId('report-bug-button-mobile')).not.toBeInTheDocument();
+    expect(within(mobileNav).queryByText('Help')).not.toBeInTheDocument();
   });
 
   it('renders logout button', async () => {
