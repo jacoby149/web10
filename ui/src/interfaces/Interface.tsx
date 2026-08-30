@@ -41,6 +41,30 @@ async function v3Post(action: string, body: Record<string, any>) {
 }
 
 /**
+ * Call an UNAUTHENTICATED v3 endpoint (the recovery flow — the user has no
+ * token; the phone + code are the credential). Unlike v3Post, it never attaches
+ * a token and surfaces the API's `detail` as the error message.
+ */
+async function v3PostAnon(action: string, body: Record<string, any>) {
+    const decoded = (window.I?.v3?.readToken?.()) as { provider?: string } | null;
+    const origin = v3ApiOrigin(decoded);
+    const res = await fetch(`${origin}/v3/${action}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body),
+    });
+    if (!res.ok) {
+        let detail = `recovery ${action} failed: ${res.status}`;
+        try {
+            const data = await res.json();
+            if (data && data.detail) detail = data.detail;
+        } catch { /* non-JSON body — keep the status message */ }
+        throw new Error(detail);
+    }
+    return res.json();
+}
+
+/**
  * JSON.stringify a value for logging, safely.
  *
  * Contract objects carry `_windowSource` — the cross-origin opener Window —
@@ -123,6 +147,13 @@ function useInterface() {
     [I.services, I.setServices] = React.useState([]);
     [I.requests, I.setRequests] = React.useState([]);
     [I.phone, I.setPhone] = React.useState("");
+
+    // Phone-recovery flow (Phase 2): phone → code → pick account → sign in.
+    // The step is wizard state (default "phone"; a fresh load can't resume
+    // code/pick because the phone isn't persisted, so it always starts at phone).
+    [I.recoveryStep, I._setRecoveryStep] = React.useState("phone");
+    [I.recoveryPhone, I.setRecoveryPhone] = React.useState("");
+    [I.recoveryAccounts, I.setRecoveryAccounts] = React.useState([]);
 
     [I.auth, I.setAuth] = React.useState(restoreAuth);
     [I.isAdmin, I.setIsAdmin] = React.useState(false);
@@ -440,10 +471,57 @@ function useInterface() {
         I.setMode("login");
     }
 
-    I.recover = function (provider: string, phone: string) {
-        I.v3.setRecoveryPhone(phone)
-            .then(() => I.setStatus("Recovery code sent!"))
-            .catch(() => I.setStatus("Failed to send recovery code."));
+    // ── Phone recovery (Phase 2): phone → code → pick account → sign in ──────
+    // Unauthenticated — the phone + 6-digit code are the credential. The
+    // current "forgot" (setRecoveryPhone) was broken (needs a token, never
+    // sends a code); this is the net-new flow.
+
+    I.setRecoveryStep = function (step: string) {
+        I._setRecoveryStep(step);
+        // Mirror the step in the URL (the deep-link rule). The phone isn't
+        // persisted, so a fresh load always resumes at "phone" regardless.
+        try {
+            const url = new URL(window.location.href);
+            if (step === "phone") url.searchParams.delete("recovery");
+            else url.searchParams.set("recovery", step);
+            window.history.replaceState({}, "", url.toString());
+        } catch { /* non-navigable context — state still updates */ }
+    }
+
+    I.recoverRequest = function (phone: string) {
+        I.setStatus("Sending code...");
+        v3PostAnon("recovery/request", { phone })
+            .then(() => {
+                I.setRecoveryPhone(phone);
+                I.setRecoveryStep("code");
+                I.setStatus("Code sent — check your phone.");
+            })
+            .catch((e: any) => I.setStatus(e.message || String(e)));
+    }
+
+    I.recoverVerify = function (phone: string, code: string) {
+        I.setStatus("Verifying...");
+        v3PostAnon("recovery/verify", { phone, code })
+            .then((res: any) => {
+                I.setRecoveryAccounts(res.accounts || []);
+                I.setRecoveryStep("pick");
+                I.setStatus(null);
+            })
+            .catch((e: any) => I.setStatus(e.message || String(e)));
+    }
+
+    I.recoverComplete = function (phone: string, code: string, username: string, newPassword?: string) {
+        I.setStatus("Signing you in...");
+        const body: Record<string, any> = { phone, code, username };
+        if (newPassword) body.new_password = newPassword;
+        v3PostAnon("recovery/complete", body)
+            .then((res: any) => {
+                // The token is a normal login token — store it exactly the way
+                // v3.login does, then finish the sign-in.
+                I.v3.setToken(res.token);
+                I.finishLogin();
+            })
+            .catch((e: any) => I.setStatus(e.message || String(e)));
     }
 
     I.isVerified = function () {
