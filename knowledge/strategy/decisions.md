@@ -1468,6 +1468,25 @@ powerMean — copied per the verbatim-copies rule, not shared) ported to
 web10-social's DiscoverScreen. Rejects: knobs on the chronological feed
 (still rejected); a shared knobs package (premature).
 
+**Amendment (30.08.2026, 3.38.0):** the operator lifted the feed reject —
+"the feed could have the same sorting knobs as the trending page right? also
+the social app should save your feed settings in a web10 service, in the
+backend, so it remembers how you tuned your feed." The feed now carries the
+same D36 rack (presets + rotary knobs, power-mean re-ranking, client-side —
+zero network calls per twist). Two guardrails keep the delivery story intact:
+(1) the feed's DEFAULT is the **Newest** preset (pure chronological — the
+feed is chronological until the user tunes it; "no algorithm" remains the
+out-of-the-box experience, the knobs are opt-in); (2) the knob state is
+**deep-linkable** (`?knobs=`, the same encoding as Discover) AND **persisted
+to the user's own web10 `settings` service** (a `feedKnobs` field on the
+settings doc in the followers group — the same pattern as the existing
+settings persistence, 3.25.3). Precedence: URL > saved settings > Newest
+default, so a shared link carries its own ranking while the saved tuning is
+the remembered one. The engagement signal for the likes/comments knobs is
+the ref pattern (one read of reactions + comments over the feed's groups,
+counted client-side by `ref_value` — the same pattern DiscoverScreen runs).
+The shared-knobs-package reject stands (the rack is still a verbatim copy).
+
 ### D35 — Public media is a COLLECTION (`public_media`), not a flag or a blanket whitelist [decided]
 Cross-user media reads are dead today: the `media` service ships with no read
 whitelist (web10-social serviceTerms.ts — owner-only), and both

@@ -1,7 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, fireEvent, waitFor, within } from '@testing-library/react';
 import '@testing-library/jest-dom';
-import { TrendingCard, type FeedPost } from '@/components/FeedPreview';
+import { TrendingCard, parseCreatedAt, type FeedPost } from '@/components/FeedPreview';
 
 // Lane D — coverage for the /trending page pieces (D-trending-*).
 // TrendingCard rank tiers + engagement wiring, and the page's grid /
@@ -236,6 +236,24 @@ function makeV3PostsMedia(n: number) {
   );
 }
 
+// Posts whose media_refs arrive PRE-RESOLVED from the v3 read (objects with
+// mime_type + read_url) and NO video/image tag — media detection must come
+// from the resolved mime_type, not tags.
+function makeV3PostsResolvedMedia(n: number) {
+  return Array.from({ length: n }, (_, i) =>
+    v3Post(i, {
+      doc_id: `post-rm-${i}`,
+      body: {
+        text: `resolved media post ${i}`,
+        media_refs: i % 2 === 0
+          ? [{ doc_id: `ref-${i}`, object_key: `user${i}/a.mp4`, mime_type: 'video/mp4', read_url: `https://cdn.example.com/v${i}.mp4?sig=x` }]
+          : [{ doc_id: `ref-${i}`, object_key: `user${i}/a.jpg`, mime_type: 'image/jpeg', read_url: `https://cdn.example.com/i${i}.jpg?sig=x` }],
+      },
+      tags: ['untagged'],
+    }),
+  );
+}
+
 // Mock the discover feed fetch. The component reads posts + reactions +
 // comments from the discover group; the mock returns the right shape per
 // service (reactions/comments default to empty → zero engagement).
@@ -248,6 +266,42 @@ function mockDiscoverFeed(posts: unknown[] = makeV3Posts(20), reactions: unknown
     return jsonOk([]);
   });
 }
+
+// ── parseCreatedAt: the v3 read returns naive UTC 'YYYY-MM-DD HH:MM:SS' ──────
+//
+// Regression pin: the v3 rewire switched /trending from the v1 /discover/posts
+// endpoint (ISO created_at) to the raw /v3/read group read, which serializes
+// created_at as str(datetime) — a naive UTC wall-clock with a SPACE separator.
+// Browsers parse the space form as LOCAL time, so for west-of-UTC clocks a
+// recent post lands in the future and renders a negative "time ago".
+// parseCreatedAt must normalize the naive form to explicit UTC.
+
+describe('parseCreatedAt (naive UTC from the v3 read)', () => {
+  it('treats a naive space-separated timestamp as UTC (lands in the past)', () => {
+    const twoHoursAgoUtc = new Date(Date.now() - 2 * 3600_000);
+    const naive = twoHoursAgoUtc.toISOString().replace('T', ' ').replace('Z', '').split('.')[0];
+    const ms = parseCreatedAt(naive);
+    expect(ms).toBeLessThan(Date.now());
+    expect(Math.abs(ms - twoHoursAgoUtc.getTime())).toBeLessThan(1000);
+  });
+
+  it('handles fractional seconds', () => {
+    const d = new Date(Date.now() - 3600_000);
+    const naive = d.toISOString().replace('T', ' ').replace('Z', '');
+    expect(Math.abs(parseCreatedAt(naive) - d.getTime())).toBeLessThan(10);
+  });
+
+  it('parses ISO strings (T / Z) as-is', () => {
+    const iso = new Date(Date.now() - 3600_000).toISOString();
+    expect(parseCreatedAt(iso)).toBe(new Date(iso).getTime());
+  });
+
+  it('never returns a future instant for a just-made naive timestamp', () => {
+    const justNowUtc = new Date(Date.now() - 5_000);
+    const naive = justNowUtc.toISOString().replace('T', ' ').replace('Z', '').split('.')[0];
+    expect(parseCreatedAt(naive)).toBeLessThanOrEqual(Date.now());
+  });
+});
 
 describe('Trending page', () => {
   beforeEach(() => {
@@ -580,6 +634,20 @@ describe('Trending view toggle', () => {
     expect(screen.getAllByTestId('youtube-card')).toHaveLength(4);
   });
 
+  it('YouTube view shows posts with resolved media refs (mime from the read, no tag needed)', async () => {
+    // Regression pin: the v3 read serves media_refs pre-resolved (objects with
+    // mime_type). Media detection must come from the resolved mime_type, not
+    // tags — these posts have no video/image tag.
+    mockDiscoverFeed(makeV3PostsResolvedMedia(4));
+    const { default: Trending } = await import('@/pages/Trending');
+    render(<Trending />);
+    await waitFor(() => expect(screen.getByTestId('trending-view-toggle')).toBeInTheDocument());
+    fireEvent.click(screen.getByTestId('view-toggle-youtube'));
+    await waitFor(() => expect(screen.getByTestId('trending-youtube-grid')).toBeInTheDocument());
+    // All 4 have media (2 video + 2 image) via the resolved mime_type.
+    expect(screen.getAllByTestId('youtube-card')).toHaveLength(4);
+  });
+
   it('YouTube view shows empty state when no media posts exist', async () => {
     const textOnlyPosts = Array.from({ length: 5 }, (_, i) =>
       v3Post(i, { doc_id: `text-only-${i}`, body: { text: `text post ${i}` }, tags: ['text'], created_at: new Date().toISOString() }),
@@ -647,6 +715,29 @@ describe('YouTubeCard', () => {
     expect(screen.getByTestId('youtube-card')).toBeInTheDocument();
     expect(screen.getByText("Ada Lovelace")).toBeInTheDocument();
     expect(screen.getByText('2h')).toBeInTheDocument();
+  });
+
+  it('uses the resolved read_url directly (no presign round-trip)', async () => {
+    // Regression pin: the v3 read serves media_refs pre-resolved with a fresh
+    // presigned read_url. TrendingMedia must render it directly instead of
+    // calling the (owner-scoped, token-gated) presign endpoints.
+    const { YouTubeCard } = await import('@/components/FeedPreview');
+    const readUrl = 'https://cdn.example.com/a.mp4?sig=x';
+    const videoPost: FeedPost = {
+      ...basePost,
+      id: 'yt-resolved',
+      media: 'video',
+      mediaRefs: [{ doc_id: 'ref-1', object_key: 'u/a.mp4', mime_type: 'video/mp4', read_url: readUrl }],
+      firstAttachmentMime: 'video/mp4',
+      author: 'testuser',
+    };
+    render(<YouTubeCard post={videoPost} rank={1} />);
+    await waitFor(() => expect(screen.getByTestId('trending-media')).toBeInTheDocument());
+    const video = document.querySelector('video') as HTMLVideoElement;
+    expect(video).not.toBeNull();
+    expect(video.getAttribute('src')).toBe(readUrl);
+    // The resolved path must not hit the network for a presign.
+    expect(vi.mocked(fetch)).not.toHaveBeenCalled();
   });
 });
 
