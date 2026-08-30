@@ -4,7 +4,7 @@ import math
 import threading
 import time
 import uuid
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 import clickhouse_connect
 from uuid6 import uuid7
@@ -71,7 +71,7 @@ def _iso_utc(dt) -> str:
     if not isinstance(dt, datetime):
         return str(dt)
     if dt.tzinfo is not None:
-        dt = dt.astimezone(timezone.utc).replace(tzinfo=None)
+        dt = dt.astimezone(UTC).replace(tzinfo=None)
     return dt.isoformat() + "Z"
 
 
@@ -82,7 +82,7 @@ def _from_iso_utc(s) -> datetime:
     else:
         dt = datetime.fromisoformat(str(s).replace("Z", "+00:00"))
     if dt.tzinfo is not None:
-        dt = dt.astimezone(timezone.utc).replace(tzinfo=None)
+        dt = dt.astimezone(UTC).replace(tzinfo=None)
     return dt
 
 
