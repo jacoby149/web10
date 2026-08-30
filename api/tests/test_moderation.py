@@ -108,9 +108,7 @@ class TestShouldAutoHide:
 
     def test_listed_user_always_flagged(self):
         # A listed user is flagged even with clean text (no blocklist match).
-        assert moderation.should_auto_hide("bad", "hello", self._cfg(auto_hide_users=["bad"])) == [
-            "auto_hide_users"
-        ]
+        assert moderation.should_auto_hide("bad", "hello", self._cfg(auto_hide_users=["bad"])) == ["auto_hide_users"]
 
     def test_text_match(self):
         assert moderation.should_auto_hide("u", "a nigger", self._cfg()) == ["nigger"]
@@ -120,9 +118,7 @@ class TestShouldAutoHide:
 
     def test_listed_user_short_circuits_blocklist(self):
         # Listed user: the reason is the list, not the (also-matching) text.
-        assert moderation.should_auto_hide("bad", "a nigger", self._cfg(auto_hide_users=["bad"])) == [
-            "auto_hide_users"
-        ]
+        assert moderation.should_auto_hide("bad", "a nigger", self._cfg(auto_hide_users=["bad"])) == ["auto_hide_users"]
 
 
 # ---------------------------------------------------------------------------

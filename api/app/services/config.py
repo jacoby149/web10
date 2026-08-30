@@ -8,28 +8,69 @@ import app.settings as settings
 # knowledge/knowledge-base/web10-v3/social/sensitive-words-default.md.
 DEFAULT_SENSITIVE_WORDS: list[str] = [
     # Anti-Black
-    "nigger", "niggers", "nigga", "niggas", "niggah", "niggahs",
-    "n1gger", "n1gga", "niggur", "nigr", "nigs",
+    "nigger",
+    "niggers",
+    "nigga",
+    "niggas",
+    "niggah",
+    "niggahs",
+    "n1gger",
+    "n1gga",
+    "niggur",
+    "nigr",
+    "nigs",
     # Anti-Asian
-    "chink", "chinks", "gook", "gooks",
+    "chink",
+    "chinks",
+    "gook",
+    "gooks",
     # Anti-Latino / Anti-Hispanic
-    "spic", "spics", "wetback", "wetbacks", "beaner", "beaners",
+    "spic",
+    "spics",
+    "wetback",
+    "wetbacks",
+    "beaner",
+    "beaners",
     # Anti-Indigenous / Anti-Native
-    "redskin", "redskins",
+    "redskin",
+    "redskins",
     # Homophobic
-    "fag", "fags", "faggot", "faggots",
-    "f4ggot", "f4g", "feggot", "faggit", "f0gg0t",
+    "fag",
+    "fags",
+    "faggot",
+    "faggots",
+    "f4ggot",
+    "f4g",
+    "feggot",
+    "faggit",
+    "f0gg0t",
     # Transphobic
-    "tranny", "trannies", "tran",
+    "tranny",
+    "trannies",
+    "tran",
     # Antisemitic
-    "kike", "kikes", "k1ke", "yid", "yids", "kraut", "krauts",
+    "kike",
+    "kikes",
+    "k1ke",
+    "yid",
+    "yids",
+    "kraut",
+    "krauts",
     # Anti-Arab / Anti-Middle Eastern
-    "sandnigger", "sandniggers", "raghead", "ragheads",
+    "sandnigger",
+    "sandniggers",
+    "raghead",
+    "ragheads",
     # Disability slurs
-    "retard", "retards", "retart", "r4tard",
-    "spastic", "spastics",
+    "retard",
+    "retards",
+    "retart",
+    "r4tard",
+    "spastic",
+    "spastics",
     # Anti-Polish / Anti-Eastern European
-    "polack", "polacks",
+    "polack",
+    "polacks",
 ]
 
 
