@@ -350,10 +350,12 @@ describe('Layout', () => {
     // DOM in jsdom) — assert via the stable data-testid hooks instead.
     expect(screen.getByTestId('nav-feed')).toBeInTheDocument();
     expect(screen.getByTestId('nav-discover')).toBeInTheDocument();
+    expect(screen.getByTestId('nav-groups')).toBeInTheDocument();
     expect(screen.getByTestId('nav-profile')).toBeInTheDocument();
     expect(screen.getByTestId('nav-messages')).toBeInTheDocument();
     expect(screen.getAllByText('Feed').length).toBeGreaterThanOrEqual(1);
     expect(screen.getAllByText('Discover').length).toBeGreaterThanOrEqual(1);
+    expect(screen.getAllByText('Groups').length).toBeGreaterThanOrEqual(1);
     expect(screen.getAllByText('Profile').length).toBeGreaterThanOrEqual(1);
     expect(screen.getAllByText('Messages').length).toBeGreaterThanOrEqual(1);
   });
@@ -379,11 +381,12 @@ describe('Layout', () => {
     expect(within(mobileNav).queryByTestId('nav-takes-mobile')).not.toBeInTheDocument();
     expect(within(mobileNav).queryByTestId('nav-livestream-mobile')).not.toBeInTheDocument();
     expect(within(mobileNav).queryByTestId('nav-games-mobile')).not.toBeInTheDocument();
-    expect(within(mobileNav).queryByTestId('nav-groups-mobile')).not.toBeInTheDocument();
     expect(within(mobileNav).queryByTestId('nav-marketplace-mobile')).not.toBeInTheDocument();
-    // …and the real destinations are all still there.
+    // …and the real destinations are all still there (Groups graduated from
+    // coming-soon to a real nav destination).
     expect(within(mobileNav).getByTestId('nav-feed-mobile')).toBeInTheDocument();
     expect(within(mobileNav).getByTestId('nav-discover-mobile')).toBeInTheDocument();
+    expect(within(mobileNav).getByTestId('nav-groups-mobile')).toBeInTheDocument();
   });
 
   it('renders logout button', async () => {

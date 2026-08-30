@@ -13,6 +13,7 @@ interface LayoutProps {
 const navItems = [
   { path: '/feed', icon: Home, label: 'Feed', testId: 'nav-feed' },
   { path: '/discover', icon: Compass, label: 'Discover', testId: 'nav-discover' },
+  { path: '/groups', icon: Users, label: 'Groups', testId: 'nav-groups' },
   { path: '/profile', icon: User, label: 'Profile', testId: 'nav-profile' },
   { path: '/messages', icon: MessageSquare, label: 'Messages', testId: 'nav-messages' },
   { path: '/settings', icon: Settings, label: 'Settings', testId: 'nav-settings' },
@@ -26,7 +27,6 @@ const comingSoonItems = [
   { icon: Clapperboard, label: 'Takes', testId: 'nav-takes' },
   { icon: Radio, label: 'Livestream', testId: 'nav-livestream' },
   { icon: Gamepad2, label: 'Games', testId: 'nav-games' },
-  { icon: Users, label: 'Groups', testId: 'nav-groups' },
   { icon: Store, label: 'Marketplace', testId: 'nav-marketplace' },
 ];
 
@@ -49,6 +49,7 @@ export default function Layout({ onLogout, onReportBug, children }: LayoutProps)
 
   const isActive = (path: string) => {
     if (path === '/profile') return pathname.startsWith('/u/');
+    if (path === '/groups') return pathname.startsWith('/groups');
     return pathname === path;
   };
 
