@@ -90,6 +90,7 @@ def effective_config() -> dict:
         # saved node_config is the only source. Served via GET /telemetry.
         "ga4_measurement_id": "",
         "hotjar_site_id": "",
+        "node_ad_percentage": 10,
         "brand_text": "web10",
         "logo_dark": "",
         "logo_light": "",
