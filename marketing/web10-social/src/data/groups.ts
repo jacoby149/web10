@@ -1,6 +1,8 @@
-import { getV3Client, type V3Group } from './v3';
+import { getV3Client, readTokenCookie, type V3Group, type V3Document } from './v3';
 import { extractUsername } from './types';
-import { API_HOST } from '../lib/origins';
+import { API_HOST, API_ORIGIN } from '../lib/origins';
+
+const LOG = (...args: unknown[]) => console.log('[social:groups]', ...args);
 
 // ── Group helpers ────────────────────────────────────────────────────────────
 // v3 groups are the core primitive. Every social pattern (follows, discover,
@@ -274,9 +276,11 @@ export async function getGroupsManages(): Promise<V3Group[]> {
  */
 export async function getFeedGroups(): Promise<string[]> {
   const groups = await getMyGroups();
-  return groups
+  const feedGroups = groups
     .filter((g) => g.group_id !== DISCOVER_GROUP)
     .map((g) => g.group_id);
+  LOG('getFeedGroups —', groups.length, 'my groups →', feedGroups.length, 'feed groups (minus discover)');
+  return feedGroups;
 }
 
 /**
@@ -418,4 +422,147 @@ export async function blockUser(blockedKey: string) {
 export async function unblockUser(blockedKey: string) {
   const w = getV3Client();
   return w.unblockUser(blockedKey);
+}
+
+// ── The group directory + detail (D53) ────────────────────────────────────────
+// The node's public group store: `GET /v3/groups/directory` (anon, the minimal
+// list of discoverable groups) and `GET /v3/groups/detail?group_id=` (the
+// flexible, principal-based read — metadata always, posts only for members,
+// only a non-existent group 404s). These are public GET endpoints (the SDK's
+// POST /v3/<action> pattern doesn't cover them), so they're fetched directly
+// here — the data module keeps its API, the seam stays inside this file.
+
+/** A row from `GET /v3/groups/directory` — the minimal canonical view. */
+export interface GroupDirectoryEntry {
+  group_id: string;
+  name: string;
+  owner: string;
+  slug: string;
+  join_policy: string;
+  member_count: number;
+  tags: string[];
+  permission_summary: string;
+}
+
+/** The group detail (D53 unlisted-model) from `GET /v3/groups/detail`. */
+export interface GroupDetail {
+  group_id: string;
+  name: string;
+  owner: string;
+  slug: string;
+  join_policy: string;
+  discoverable: boolean;
+  member_count: number;
+  roles: Record<string, unknown>[];
+  permission_summary: string;
+  description: string;
+  banner_ref: string;
+  avatar_ref: string;
+  website: string;
+  tags: string[];
+  is_member: boolean;
+  posts_state: 'ok' | 'join_to_view';
+  posts: V3Document[];
+}
+
+/**
+ * Read the public group directory (discoverable groups, anon).
+ */
+export async function readGroupDirectory(
+  limit = 50,
+  offset = 0,
+): Promise<GroupDirectoryEntry[]> {
+  LOG('readGroupDirectory — start', { limit, offset });
+  const res = await fetch(
+    `${API_ORIGIN}/v3/groups/directory?limit=${limit}&offset=${offset}`,
+    { headers: { 'Content-Type': 'application/json' } },
+  );
+  if (!res.ok) {
+    LOG('readGroupDirectory — failed', res.status);
+    throw new Error(`Group directory read failed: ${res.status}`);
+  }
+  const data = (await res.json()) as { groups: GroupDirectoryEntry[] };
+  LOG('readGroupDirectory — got', data.groups.length, 'groups');
+  return data.groups;
+}
+
+/**
+ * Read a group's detail (D53 principal-based read). Reads as the current
+ * user when a token is present (posts come back for members), else as anon
+ * (metadata only). Only a non-existent group 404s.
+ */
+export async function readGroupDetail(groupId: string): Promise<GroupDetail> {
+  LOG('readGroupDetail — start', groupId);
+  const token = readTokenCookie();
+  const params = new URLSearchParams({ group_id: groupId });
+  if (token) params.set('token', token);
+  const res = await fetch(`${API_ORIGIN}/v3/groups/detail?${params.toString()}`, {
+    headers: { 'Content-Type': 'application/json' },
+  });
+  if (!res.ok) {
+    LOG('readGroupDetail — failed', res.status, groupId);
+    throw new Error(`Group detail read failed: ${res.status}`);
+  }
+  const data = (await res.json()) as GroupDetail;
+  LOG('readGroupDetail — got', data.name, {
+    is_member: data.is_member,
+    posts_state: data.posts_state,
+  });
+  return data;
+}
+
+// ── Community-group filtering ─────────────────────────────────────────────────
+// A user's raw group list is mostly infrastructure: their own followers
+// group (the follow target), DM groups (the message threads), and the
+// node-default discover board. The Groups screen shows the rest — the
+// communities the user actually belongs to.
+
+/** The node-default discover board (a board, not a community). */
+export function isDiscoverGroup(groupId: string): boolean {
+  return groupId === DISCOVER_GROUP;
+}
+
+/** A user's own followers group (the follow target, not a community). */
+export function isFollowersGroup(groupId: string, username?: string): boolean {
+  if (!groupId.endsWith('/followers')) return false;
+  if (username && !groupId.includes(`/users/${username}/`)) return false;
+  return true;
+}
+
+/** A DM group (the message threads live here). */
+export function isDmGroup(groupId: string): boolean {
+  return /\/dm-[^/]+$/.test(groupId);
+}
+
+/** True when the group is infrastructure, not a browsable community. */
+export function isInfrastructureGroup(groupId: string, username?: string): boolean {
+  return (
+    isDiscoverGroup(groupId) ||
+    isFollowersGroup(groupId, username) ||
+    isDmGroup(groupId)
+  );
+}
+
+/**
+ * The user's community groups — `getMyGroups()` minus the infrastructure
+ * (discover board, followers groups, DM groups).
+ */
+export async function getMyCommunityGroups(): Promise<V3Group[]> {
+  const token = getV3Client().readToken();
+  const groups = await getMyGroups();
+  const visible = groups.filter(
+    (g) => !isInfrastructureGroup(g.group_id, token?.username),
+  );
+  LOG('getMyCommunityGroups —', groups.length, 'total,', visible.length, 'visible');
+  return visible;
+}
+
+/**
+ * A display name for a group: the identity name if present, else the slug
+ * (the last path segment of the group_id — `{provider}/groups/users/{owner}/{slug}`).
+ */
+export function groupDisplayName(groupId: string, name?: string): string {
+  if (name) return name;
+  const parts = groupId.split('/');
+  return parts[parts.length - 1] || groupId;
 }

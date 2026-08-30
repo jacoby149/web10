@@ -92,6 +92,8 @@ def read_documents(request: Request, data: ReadDocuments):
         # v3 ad preference: the single-doc read serves the pinned ad inline
         # too (the post detail deep link is a read, I3-checked).
         doc = ch.attach_pinned_ads([doc], reader)[0]
+        # D57: node ad attachment (the third join — doc.ad + doc.node_ad).
+        doc = ch.attach_node_ads([doc], reader)[0]
         return _mint_hls_manifest_urls(ch.resolve_media_urls_in_docs([doc]), reader)[0]
 
     if not data.groups:
@@ -124,6 +126,8 @@ def read_documents(request: Request, data: ReadDocuments):
     )
     # v3 ad preference: serve each pinned doc with its ad inline (I3-checked).
     docs = ch.attach_pinned_ads(docs, reader)
+    # D57: node ad attachment (the third join — doc.ad + doc.node_ad).
+    docs = ch.attach_node_ads(docs, reader)
     return _mint_hls_manifest_urls(ch.resolve_media_urls_in_docs(docs), reader)
 
 

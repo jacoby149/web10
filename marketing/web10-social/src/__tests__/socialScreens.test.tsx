@@ -14,6 +14,10 @@ vi.mock('@/data', async (importOriginal) => {
     ...original,
     readFeed: vi.fn().mockResolvedValue([]),
     readPullFeed: vi.fn().mockResolvedValue([]),
+    getFeedGroups: vi.fn().mockResolvedValue([]),
+    readFeedEngagement: vi.fn().mockResolvedValue({ likes: {}, comments: {} }),
+    readSettings: vi.fn().mockResolvedValue({ defaultVisibility: 'public' }),
+    saveSettings: vi.fn().mockResolvedValue({ defaultVisibility: 'public' }),
     readPost: vi.fn().mockResolvedValue(null),
     countReactions: vi.fn().mockResolvedValue(0),
     countComments: vi.fn().mockResolvedValue(0),
@@ -80,11 +84,88 @@ describe('FeedScreen', () => {
 
   it('renders empty state with subtle import link', async () => {
     const { default: FeedScreen } = await import('@/components/Feed/FeedScreen');
-    render(<FeedScreen />);
+    render(
+      <MemoryRouter>
+        <FeedScreen />
+      </MemoryRouter>,
+    );
     await waitFor(() => {
       expect(screen.getByText(/Your feed will appear here/)).toBeInTheDocument();
     });
     expect(screen.getByText('import your existing posts')).toBeInTheDocument();
+  });
+
+  it('renders feed media at the natural aspect ratio (not a forced 1:1 crop)', async () => {
+    const { readFeed, resolveMediaRefs } = await import('@/data');
+    vi.mocked(readFeed).mockResolvedValueOnce([
+      { _id: 'p1', text: 'a clip', media_refs: ['m1'], author_username: 'testuser', author_provider: 'test.localhost', created_at: new Date().toISOString() },
+    ]);
+    // The read path now carries the real dimensions (16:9).
+    vi.mocked(resolveMediaRefs).mockResolvedValueOnce([
+      { _id: 'm1', url: 'http://test.com/clip.mp4', mime_type: 'video/mp4', width: 1920, height: 1080, created_at: new Date().toISOString() },
+    ]);
+    const { default: FeedScreen } = await import('@/components/Feed/FeedScreen');
+    render(
+      <MemoryRouter>
+        <FeedScreen />
+      </MemoryRouter>,
+    );
+    await waitFor(() => {
+      expect(screen.getByTestId('media-video')).toBeInTheDocument();
+    });
+    // The container reserves the media's natural ratio (16:9 ≈ 1.7778),
+    // not the old 1:1 fallback that cropped the clip into a square.
+    const ar = parseFloat(screen.getByTestId('media-video').style.aspectRatio);
+    expect(ar).toBeCloseTo(1920 / 1080, 5);
+    // …and it never crops (object-contain, not object-cover).
+    expect(screen.getByTestId('media-video').querySelector('video')?.className).toContain('object-contain');
+  });
+
+  it('falls back to a default ratio for legacy media with no stored dimensions', async () => {
+    const { readFeed, resolveMediaRefs } = await import('@/data');
+    vi.mocked(readFeed).mockResolvedValueOnce([
+      { _id: 'p2', text: 'old pic', media_refs: ['m2'], author_username: 'testuser', author_provider: 'test.localhost', created_at: new Date().toISOString() },
+    ]);
+    // Legacy media: no width/height (jsdom won't fire onLoad, so the measure
+    // fallback can't run — the default ratio is what's reserved).
+    vi.mocked(resolveMediaRefs).mockResolvedValueOnce([
+      { _id: 'm2', url: 'http://test.com/old.png', mime_type: 'image/png', created_at: new Date().toISOString() },
+    ]);
+    const { default: FeedScreen } = await import('@/components/Feed/FeedScreen');
+    render(
+      <MemoryRouter>
+        <FeedScreen />
+      </MemoryRouter>,
+    );
+    await waitFor(() => {
+      expect(screen.getByTestId('media-image')).toBeInTheDocument();
+    });
+    const ar = parseFloat(screen.getByTestId('media-image').style.aspectRatio);
+    expect(ar).toBeCloseTo(4 / 3, 5);
+  });
+
+  it('multi-media posts show the first item + a count badge (option b)', async () => {
+    const { readFeed, resolveMediaRefs } = await import('@/data');
+    vi.mocked(readFeed).mockResolvedValueOnce([
+      { _id: 'p3', text: 'three pics', media_refs: ['a', 'b', 'c'], author_username: 'testuser', author_provider: 'test.localhost', created_at: new Date().toISOString() },
+    ]);
+    vi.mocked(resolveMediaRefs).mockResolvedValueOnce([
+      { _id: 'a', url: 'http://test.com/a.png', mime_type: 'image/png', width: 800, height: 600, created_at: new Date().toISOString() },
+      { _id: 'b', url: 'http://test.com/b.png', mime_type: 'image/png', width: 800, height: 600, created_at: new Date().toISOString() },
+      { _id: 'c', url: 'http://test.com/c.png', mime_type: 'image/png', width: 800, height: 600, created_at: new Date().toISOString() },
+    ]);
+    const { default: FeedScreen } = await import('@/components/Feed/FeedScreen');
+    render(
+      <MemoryRouter>
+        <FeedScreen />
+      </MemoryRouter>,
+    );
+    await waitFor(() => {
+      expect(screen.getByTestId('media-count-badge')).toBeInTheDocument();
+    });
+    // Only the first item renders in the card; the rest live in the lightbox.
+    expect(screen.getByTestId('media-count-badge')).toHaveTextContent('3');
+    expect(screen.getAllByTestId('media-image')).toHaveLength(1);
   });
 });
 
@@ -350,18 +431,20 @@ describe('Layout', () => {
     // DOM in jsdom) — assert via the stable data-testid hooks instead.
     expect(screen.getByTestId('nav-feed')).toBeInTheDocument();
     expect(screen.getByTestId('nav-discover')).toBeInTheDocument();
+    expect(screen.getByTestId('nav-groups')).toBeInTheDocument();
     expect(screen.getByTestId('nav-profile')).toBeInTheDocument();
     expect(screen.getByTestId('nav-messages')).toBeInTheDocument();
     expect(screen.getAllByText('Feed').length).toBeGreaterThanOrEqual(1);
     expect(screen.getAllByText('Discover').length).toBeGreaterThanOrEqual(1);
+    expect(screen.getAllByText('Groups').length).toBeGreaterThanOrEqual(1);
     expect(screen.getAllByText('Profile').length).toBeGreaterThanOrEqual(1);
     expect(screen.getAllByText('Messages').length).toBeGreaterThanOrEqual(1);
   });
 
-  it('coming-soon items render on the desktop sidebar but NOT in the mobile bottom nav', async () => {
-    // Operator, 31.07.2026: "for the greyed out tabs, just dont even show
-    // them! … coming soon on desktop i actually really like, just dont like
-    // seeing them on mobile."
+  it('mobile bottom nav holds 4 core tabs + a More tab; coming-soon live in the More sheet, not the bar', async () => {
+    // Operator, 30.08.2026: the mobile bottom bar was too crammed — a "More"
+    // tab (the 5th icon) opens a sheet with Settings + the coming-soon
+    // surfaces, so the bar never exceeds five icons and has room to grow.
     const { default: Layout } = await import('@/components/Social/Layout');
     render(
       <MemoryRouter initialEntries={['/feed']}>
@@ -373,17 +456,56 @@ describe('Layout', () => {
     // Desktop sidebar keeps the coming-soon section.
     expect(screen.getByTestId('nav-flares')).toBeInTheDocument();
     expect(screen.getByTestId('nav-takes')).toBeInTheDocument();
-    // Mobile bottom nav (aria-label="Primary mobile") renders none of them.
+
+    // The mobile bottom bar is exactly four core tabs + the More tab.
     const mobileNav = screen.getByLabelText('Primary mobile');
+    expect(within(mobileNav).getByTestId('nav-feed-mobile')).toBeInTheDocument();
+    expect(within(mobileNav).getByTestId('nav-discover-mobile')).toBeInTheDocument();
+    expect(within(mobileNav).getByTestId('nav-messages-mobile')).toBeInTheDocument();
+    expect(within(mobileNav).getByTestId('nav-profile-mobile')).toBeInTheDocument();
+    expect(within(mobileNav).getByTestId('nav-more-mobile')).toBeInTheDocument();
+    // Settings and Groups are NOT in the bar (they live in the More sheet).
+    expect(within(mobileNav).queryByTestId('nav-settings-mobile')).not.toBeInTheDocument();
+    expect(within(mobileNav).queryByTestId('nav-groups-mobile')).not.toBeInTheDocument();
+    // …and none of the coming-soon icons are crammed into the bar.
     expect(within(mobileNav).queryByTestId('nav-flares-mobile')).not.toBeInTheDocument();
     expect(within(mobileNav).queryByTestId('nav-takes-mobile')).not.toBeInTheDocument();
     expect(within(mobileNav).queryByTestId('nav-livestream-mobile')).not.toBeInTheDocument();
     expect(within(mobileNav).queryByTestId('nav-games-mobile')).not.toBeInTheDocument();
-    expect(within(mobileNav).queryByTestId('nav-groups-mobile')).not.toBeInTheDocument();
     expect(within(mobileNav).queryByTestId('nav-marketplace-mobile')).not.toBeInTheDocument();
-    // …and the real destinations are all still there.
-    expect(within(mobileNav).getByTestId('nav-feed-mobile')).toBeInTheDocument();
-    expect(within(mobileNav).getByTestId('nav-discover-mobile')).toBeInTheDocument();
+
+    // The More sheet is closed by default.
+    expect(screen.queryByTestId('more-sheet')).not.toBeInTheDocument();
+
+    // Tapping More opens the sheet: Settings + Groups (real destinations) +
+    // the coming-soon list.
+    fireEvent.click(screen.getByTestId('nav-more-mobile'));
+    const sheet = screen.getByTestId('more-sheet');
+    expect(sheet).toBeInTheDocument();
+    expect(within(sheet).getByTestId('nav-settings-mobile')).toBeInTheDocument();
+    expect(within(sheet).getByTestId('nav-groups-mobile')).toBeInTheDocument();
+    expect(within(sheet).getByTestId('nav-flares-mobile')).toBeInTheDocument();
+    expect(within(sheet).getByTestId('nav-takes-mobile')).toBeInTheDocument();
+    expect(within(sheet).getByTestId('nav-livestream-mobile')).toBeInTheDocument();
+    expect(within(sheet).getByTestId('nav-games-mobile')).toBeInTheDocument();
+    expect(within(sheet).getByTestId('nav-marketplace-mobile')).toBeInTheDocument();
+  });
+
+  it('Help (report a bug) moves to the mobile top header, not the bottom bar', async () => {
+    const { default: Layout } = await import('@/components/Social/Layout');
+    render(
+      <MemoryRouter initialEntries={['/feed']}>
+        <Layout onLogout={() => {}} onReportBug={() => {}}>
+          <div>Content</div>
+        </Layout>
+      </MemoryRouter>,
+    );
+    // The header's report-a-bug icon button is present…
+    expect(screen.getByTestId('report-bug-button-mobile')).toBeInTheDocument();
+    // …and the bottom bar no longer carries a "Help" tab.
+    const mobileNav = screen.getByLabelText('Primary mobile');
+    expect(within(mobileNav).queryByTestId('report-bug-button-mobile')).not.toBeInTheDocument();
+    expect(within(mobileNav).queryByText('Help')).not.toBeInTheDocument();
   });
 
   it('renders logout button', async () => {

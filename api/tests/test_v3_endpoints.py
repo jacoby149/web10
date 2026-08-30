@@ -180,7 +180,7 @@ class TestUpdate:
             )
         assert resp.status_code == 200
         data = resp.json()
-        assert data["created_at"] == "2026-01-01 00:00:00"
+        assert data["created_at"] == "2026-01-01T00:00:00Z"
         assert data["updated_at"] != data["created_at"]
 
     def test_update_not_found(self, client, token):
@@ -1930,7 +1930,7 @@ class TestPowerMeanRead:
                 "author_key": "bob",
                 "body": {"text": "x"},
                 "tags": ["t1"],
-                "created_at": str(datetime(2026, 1, 1)),
+                "created_at": "2026-01-01T00:00:00Z",
                 "ref_value": "ref-9",
                 "ad_mode": "none",
                 "ad_target": "",

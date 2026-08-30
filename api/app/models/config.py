@@ -57,6 +57,10 @@ class NodeConfig(BaseModel):
     ga4_measurement_id: str = ""
     hotjar_site_id: str = ""
 
+    # Node ads (D57) — percentage of posts that get a node ad attached at
+    # read time. 0 = off, 100 = every post. Default 10.
+    node_ad_percentage: int = 10
+
     # Branding
     brand_text: str = "web10"
     logo_dark: str = ""
@@ -168,6 +172,7 @@ class ConfigUpdate(BaseModel):
     dev_pay_pct: int | None = None
     ga4_measurement_id: str | None = None
     hotjar_site_id: str | None = None
+    node_ad_percentage: int | None = None
     brand_text: str | None = None
     logo_dark: str | None = None
     logo_light: str | None = None
