@@ -22,3 +22,16 @@ export const RTC_HOST: string = RTC_ORIGIN.replace(/^https?:\/\//, '');
 // required (D14 parameterized the social app's own backend; D19 Phase A
 // extends it to the importer it links out to).
 export const MARKETING_ORIGIN: string = env?.VITE_MARKETING_ORIGIN || 'https://marketing.web10.app';
+
+// The authenticator's origin for this page: http://auth.localhost when
+// served from a *.localhost host (so social.localhost -> auth.localhost
+// works without build args), the baked AUTH_ORIGIN otherwise. Shared by
+// every consent-popup flow (login, group creation).
+export function getAuthOrigin(): string {
+  const host = window.location.hostname;
+  const local =
+    host === 'localhost' ||
+    host === '127.0.0.1' ||
+    host.endsWith('.localhost');
+  return local ? 'http://auth.localhost' : AUTH_ORIGIN;
+}

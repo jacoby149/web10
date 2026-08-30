@@ -1,8 +1,9 @@
-import { getV3Client, readTokenCookie, type V3Group, type V3Document } from './v3';
+import { getV3Client, readTokenCookie, type V3Group, type V3Document, type V3GroupCR } from './v3';
 import { extractUsername } from './types';
-import { API_HOST, API_ORIGIN } from '../lib/origins';
+import { API_HOST, API_ORIGIN, getAuthOrigin } from '../lib/origins';
 
 const LOG = (...args: unknown[]) => console.log('[social:groups]', ...args);
+const LOG_ERR = (...args: unknown[]) => console.error('[social:groups]', ...args);
 
 // ── Group helpers ────────────────────────────────────────────────────────────
 // v3 groups are the core primitive. Every social pattern (follows, discover,
@@ -236,6 +237,62 @@ export async function ensureCommunity(
     );
     return groupId;
   }
+}
+
+export type GroupCreationResult = { status: string; errors?: string[] };
+
+/**
+ * Create a community group through the authenticator (the D42 consent
+ * pattern — the same flow the demos run): the app sends a group contract
+ * (GCR, `create_group`) to the auth popup; the user approves; the
+ * authenticator (the trusted party) creates the group with its own token
+ * and the group lands under `{provider}/groups/users/{username}/{slug}`.
+ *
+ * Runs on the IIFE SDK (`window.web10`) — its `contractRequest` reuses an
+ * open auth popup (a second window.open would be popup-blocked) and
+ * fast-paths a group that already exists (no popup). Roles are omitted on
+ * purpose: the authenticator applies its standard community roles (owner +
+ * member), so the consent screen and the creation can't drift.
+ *
+ * Returns false when the SDK or a signed-in token is missing (nothing to
+ * send); the result arrives through `onResult` (`approved` | `denied` |
+ * `error`).
+ */
+export function requestGroupCreation(
+  name: string,
+  joinPolicy: 'open' | 'request' | 'invite_only',
+  onResult: (result: GroupCreationResult) => void,
+): boolean {
+  const web10 = window.web10;
+  if (!web10) {
+    LOG_ERR('requestGroupCreation — window.web10 missing, nothing to send');
+    return false;
+  }
+  const token = web10.readTokenCookie();
+  const decoded = token ? web10.decodeJwt(token) : null;
+  const username = decoded?.username;
+  if (!username) {
+    LOG_ERR('requestGroupCreation — no signed-in token, cannot create');
+    return false;
+  }
+  const gcr: V3GroupCR = {
+    kind: 'group',
+    app_origin: window.location.origin,
+    action: 'create_group',
+    name,
+    join_policy: joinPolicy,
+    members: [{ member_key: username, role: 'owner' }],
+  };
+  LOG('requestGroupCreation — sending GCR:', JSON.stringify(gcr));
+  const client = web10.createV3Client({ apiOrigin: API_ORIGIN });
+  client.contractRequest([gcr], getAuthOrigin(), (resp) => {
+    LOG(
+      'requestGroupCreation — callback, status:', resp.status,
+      resp.errors ? `errors: ${JSON.stringify(resp.errors)}` : '',
+    );
+    onResult(resp);
+  });
+  return true;
 }
 
 // ── Group queries ────────────────────────────────────────────────────────────
@@ -496,9 +553,10 @@ export async function readGroupDetail(groupId: string): Promise<GroupDetail> {
 
 // ── Community-group filtering ─────────────────────────────────────────────────
 // A user's raw group list is mostly infrastructure: their own followers
-// group (the follow target), DM groups (the message threads), and the
-// node-default discover board. The Groups screen shows the rest — the
-// communities the user actually belongs to.
+// group (the follow target), DM groups (the message threads), the
+// node-default discover board, and the app-function groups the apps create
+// on the user's behalf (media / notes / sharing storage). The Groups screen
+// shows the rest — the communities the user actually belongs to.
 
 /** The node-default discover board (a board, not a community). */
 export function isDiscoverGroup(groupId: string): boolean {
@@ -517,18 +575,38 @@ export function isDmGroup(groupId: string): boolean {
   return /\/dm-[^/]+$/.test(groupId);
 }
 
+/**
+ * Per-user app-function groups — the storage groups the apps create on the
+ * user's behalf: `{provider}/groups/users/{username}/{prefix}-{username}`.
+ * The media library, notes, and sharing groups are app data containers, not
+ * communities (the KB's "app-backend groups … are infrastructure the apps
+ * create on the user's behalf"). Each demo app owns its prefix; add a prefix
+ * here when a new app-function group shape lands.
+ */
+const APP_FUNCTION_PREFIXES = ['media', 'notes', 'sharing'] as const;
+
+export function isAppFunctionGroup(groupId: string, username?: string): boolean {
+  if (!username) return false;
+  const m = groupId.match(/^.*\/groups\/users\/([^/]+)\/([^/]+)$/);
+  if (!m) return false;
+  const [, creator, slug] = m;
+  if (creator !== username) return false;
+  return APP_FUNCTION_PREFIXES.some((p) => slug === `${p}-${username}`);
+}
+
 /** True when the group is infrastructure, not a browsable community. */
 export function isInfrastructureGroup(groupId: string, username?: string): boolean {
   return (
     isDiscoverGroup(groupId) ||
     isFollowersGroup(groupId, username) ||
-    isDmGroup(groupId)
+    isDmGroup(groupId) ||
+    isAppFunctionGroup(groupId, username)
   );
 }
 
 /**
  * The user's community groups — `getMyGroups()` minus the infrastructure
- * (discover board, followers groups, DM groups).
+ * (discover board, followers groups, DM groups, app-function groups).
  */
 export async function getMyCommunityGroups(): Promise<V3Group[]> {
   const token = getV3Client().readToken();
