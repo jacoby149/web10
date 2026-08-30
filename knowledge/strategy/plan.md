@@ -111,6 +111,7 @@ proves it.
 - [✓ 3.11.0] **Auth on v3** (`src/interfaces/auth.ts`, `src/App.tsx`) — replace the v1 `wapiInit` adapter with the SDK's D42 flow (the same one the demos run): login through the real consent popup (the LoginScreen's one-tap survives via D42 auto-complete), token in the `token=` cookie, `authListen` dedupe (D45), sign-out scrubs.
 - [✓ 3.12.0] **Data on the SDK** (`src/data/v3.ts`) — `getV3Client()` returns the SDK's `createV3Client`; retire the hand-rolled fetch client. The data modules (posts, feed, dms, comments, reactions, contacts, profile) keep their API — the swap is inside the seam.
 - [✓ 3.32.0] **Groups screen** (`src/components/Groups/`, `src/data/groups.ts`) — the "coming soon" Groups tab is now real: **My Groups** (the user's community memberships, infrastructure groups filtered out) + **Discover** (the D53 public directory, search + topic filter) + the **deep-linkable group detail** (`/groups/:id`, the D53 unlisted-model). The data layer gains `readGroupDirectory` + `readGroupDetail` (the public GET endpoints) + the community-group filter. E2E: `social-groups-directory.spec.ts` (API floor + browser gauntlet).
+- [✓ 3.38.0] **Feed knobs** (`src/components/Feed/FeedScreen.tsx`, `src/data/{feed,settings,types}.ts`) — D36 amendment (operator lifted the "knobs on the chronological feed" reject): the feed carries the same D36 rack as Discover (presets + rotary knobs, power-mean re-ranking, client-side). Default = Newest preset (chronological until tuned). Knob state deep-linkable (`?knobs=`) + persisted to the user's web10 `settings` service (`feedKnobs` on the settings doc; URL > saved > default). `readFeedEngagement` (the ref pattern) feeds the likes/comments knobs.
 - [ ] **E2E: per-surface social specs** (`e2e/tests/`) — rewrite the retired social specs (`social-post-feed`, `social-full`, `gauntlet`) against v3, per the demo specs' pattern — **organized by surface so they parallelize across workspaces**: one spec per surface (feed, groups/follows, profiles, messages, settings, trending), each = API floor (the app's exact read pattern + a per-surface I3 anti-test; the primitive floors stay in the demo specs) + browser gauntlet (real D42 login → drive the surface → assert render/interaction/persistence, log-sequence verified). Lane: `social-e2e` in `parallel-execution.md`.
 - [ ] **E2E: capstone gauntlet** (`e2e/tests/social-gauntlet.spec.ts`) — one journey across all screens (login → feed → post → profile → DM → follow → settings → reload), log-sequence verified. Gated on the six surface specs.
 - [ ] **HLS in the feed** (`src/components/`) — adopt the media demo's hls.js player (Safari native fallback, vendored hls.js) for video posts. Moved here from the `hls` lane, which is otherwise complete.
@@ -190,6 +191,31 @@ identity query). The **detail** is a flexible, principal-based read
 - [✓] **UI: the directory screen** (`marketing/marketing-ui/`) — the browse surface: `/groups` (grid of discoverable groups from `GET /v3/groups/directory`, search by name/owner + topic filter by tag chips) + `/groups/:id` (deep-linkable detail from `GET /v3/groups/detail` — metadata always, posts when the reader is a member else "join to view", 404 not-found state). `GroupCard` component + Navbar "Groups" link. 14 new UI tests (card render/link/skeleton, directory headline/cards/empty/search/tag-filter, detail name/posts/join-to-view/404/skeleton).
 - [✓] **Tests** — unit (identity read + slug fallback, directory query filters `discoverable=1`, directory endpoint shape, detail: non-existent 404s / non-discoverable reachable / member sees posts / non-member "join to view" / anon reads as anon) + e2e (`groups-demo.spec.ts`: directory lists discoverable + excludes non-discoverable; detail 404s ghost / reaches non-discoverable; member sees posts, non-member "join to view").
 
+## Groups: Access Model (D58) — Platform
+
+D58 replaces the group permission model the KB described but the code never
+built. Roles become **per-service permission maps** (the `services` array was
+decorative / unenforced). Access is granted to three **nested principal
+classes** — `anyone` / `authenticated` / `member` (retiring the `anon`
+misnomer) — stored as reserved keys in `group_members`. A principal's
+effective role is the **union** of the grants on every class they belong to.
+**Reads are role-gated** (content); **identity stays public** (the face).
+Public / private = a role grant to `anyone` / `authenticated` — no new flag.
+Management ops live under the reserved `'group'` service key. One role per
+person (already the code). This closes the attach hole (the write side gets
+the same per-service gate). Stays **v3** (operator: pre-prod). KB is the spec:
+`groups/access.md` (canonical) + D58.
+
+- [✓] **Decision: D58** (`knowledge/strategy/decisions.md`) — per-service role maps + principal classes (`anyone`/`authenticated`/`member`) + union semantics + reserved `group_members` keys + role-gated content reads + public identity + public/private via class grants + the `'group'` management key + one-role-per-person + the attach-hole fix + conservative backfill. Stays v3.
+- [✓] **KB** (`knowledge-base/web10-v3/groups/`) — new `access.md` (the canonical model reference: the two trust layers, the role shape, principal classes, union semantics, the gates, public/private, worked examples, invariants); `identity.md` / `overview.md` / `discoverability.md` / `social-contracts.md` / `requests.md` / `detail.md` re-aligned to the per-service map shape + principal classes (the "service-scoped roles" + "multiple roles per user" fiction retired; `anon`-as-member → `anyone`/`authenticated` grants; membership-gate → effective-role-gate).
+- [ ] **API: role shape + read gate + write gate** (`api/app/v3/endpoints/groups.py`, `services/clickhouse.py`, `models/`) — roles stored as per-service maps; the read path computes the reader's **effective role** (union over `anyone` / `authenticated` / member role) and gates content reads on per-service `readAll` (replaces the membership-only check); the write/attach path gates on the effective role granting the op on the service (closes the attach hole); management ops check the `'group'` key.
+- [ ] **API: backfill (one-time, sentinel-gated)** (`services/clickhouse.py`) — fan the old flat `permissions` out across the old `services` list (`['*']` → `'*'` key) over `group_contracts`; rename the discover board's `anon` member row → `anyone`; **conservative visibility default** (no existing group besides discover becomes `anyone`-readable — owners opt in).
+- [ ] **API: identity write endpoint** (`api/app/v3/endpoints/groups.py`) — the group's face (name, description, banner, avatar, website, tags) written to the public `group_identity` table, gated by a role grant on `group-identity-service` (owner / `page-curator`). Lands *on* the D58 model.
+- [ ] **Conformance re-pin** (`api/tests/`) — I3 re-pinned from "membership grants access" to "effective role grants access"; the anti-tests get stronger (anon vs private group, signed-in vs signed-out, member ⊇ stranger ⊇ visitor monotonicity).
+- [ ] **UI: public/private + profile editor** (`ui/src/components/Groups/`) — a "Who can read" control (public / signed-in-only / private = grant/revoke the `anyone` / `authenticated` read role) + a group **profile editor** (name, description, website, tags, banner + avatar upload) next to the existing Settings/Roles/Members dialogs.
+- [ ] **App role definitions** (`marketing/web10-social/src/data/groups.ts`, `sdk/src/`) — the social app's `FOLLOWER_ROLES` / `COMMUNITY_ROLES` / `DM_ROLES` + the SDK's `V3GroupRole` type move to the per-service map shape; the create-group flow can carry an initial `anyone`/`authenticated` read grant (public/private at birth).
+- [ ] **E2E** (`e2e/tests/`) — the public/private fork as a first-class gauntlet: public group → `anyone` reads posts; signed-in-only → signed-in reads, signed-out doesn't; private → member only; the discover board regression-pinned; the attach-hole anti-test (a bystander cannot attach to a group they can't write).
+
 ## Ads: The Catalog + Composer (D54, D55) — Platform
 
 The creator's ads, **v3 mad simple** (D55 + the v3/v4 dissemination split). An
@@ -237,8 +263,8 @@ hosting invoice. The KB is the spec: `web10-v3/social/node-ads.md`. Lane is
 
 - [ ] **Decision: D57** (`knowledge/strategy/decisions.md`) — two-layer ad model (creator + node); v3 is ads only (no Stripe, no memberships, no tips — the payment model is v4); read-time attachment at a percentage; the third join (`doc.ad` + `doc.node_ad`, both can be present); usage-based pricing (MongoDB model); the v3/v4 split rationale (Stripe Connect = migration lock-in + onboarding friction)
 - [ ] **KB: `node-ads.md`** (`knowledge/knowledge-base/web10-v3/social/node-ads.md`) — the node ad object, the read-time attachment (the third join), the density control, the renderer (both ads on the same post), the operator's revenue model (hosting + node ad revenue 85-90%), the "what this is NOT" (not a payment processor, v3 is ads only), security invariants
-- [ ] **`node_ad_percentage` config** — new field on `NodeConfig` + `ConfigUpdate` (integer, 0-100, default 10); the Node Config UI exposes it
-- [ ] **Node ad query + read-time attachment (the third join)** (`api/app/v3/`) — `get_active_node_ads()` (bounded query); the read enriches posts with node ads at the configured percentage (deterministic hash, round-robin); the response carries both `doc.ad` and `doc.node_ad`
+- [✓ 3.37.0] **`node_ad_percentage` config** — new field on `NodeConfig` + `ConfigUpdate` (integer, 0-100, default 10); the Node Config UI exposes it
+- [✓ 3.37.0] **Node ad query + read-time attachment (the third join)** (`api/app/v3/`) — `get_active_node_ads()` (bounded query); the read enriches posts with node ads at the configured percentage (deterministic hash, round-robin); the response carries both `doc.ad` and `doc.node_ad`
 - [ ] **Renderer: both ads on the same post** (`marketing/web10-social/`) — the post renders with up to two ad blocks: the creator's ad + the node's ad ("Sponsored" label + node disclosure)
 - [ ] **Ad Inventory card (authenticator)** (`ui/src/components/Studio/`) — percentage slider, list of active node ads, create/pause/resume/retire
 - [ ] **Tests** — unit (query, attachment, percentage, determinism, third join, I3) + e2e (operator creates node ad → feed shows it → pinned post shows BOTH ads → percentage 0 = off)
@@ -270,7 +296,7 @@ the decision is D56. Lane is `platform-telemetry` in
 - [✓ 3.27.3] **Runtime-configurable IDs** — the GA4/Hotjar IDs live in `node_config` (ClickHouse), set in the Node Config UI (Telemetry card), resolved at page load via a public `GET /telemetry` (node authoritative, build-time env is the dev fallback). No rebuild to change the IDs. Also fixed the Node Config save (flat body vs the API's `{token:{token}, update:{...}}` — every save 422'd).
 - [ ] **Terms copy** — the tracking disclosure on the marketing site (the "wrong platform for you if you arent ok with that" line, verbatim or close). Gated on a terms surface existing — there is no terms page yet.
 
-## Content Moderation (D58) — Platform
+## Content Moderation (D59) — Platform
 
 Sensitive-language detection + discover suppression, built on the existing
 `group_hidden_docs` mechanism (the operator's "this is built into groups"
@@ -285,7 +311,7 @@ Spec'd in `knowledge-base/web10-v3/social/content-moderation.md` (the model) +
 `sensitive-words-default.md` (the ~50-word default list). Lane is
 `content-moderation` in `parallel-execution.md`.
 
-- [✓ 3.37.0] **Decision: D58** (`knowledge/strategy/decisions.md`) — blocklist detection (not a classifier); the auto-down reuses `group_hidden_docs` (no new role/column/read-path change); `auto_hide_users` for user-level suppression; the review queue is human-in-the-loop; D41 holds (board curation, not secrecy).
+- [✓ 3.37.0] **Decision: D59** (`knowledge/strategy/decisions.md`) — blocklist detection (not a classifier); the auto-down reuses `group_hidden_docs` (no new role/column/read-path change); `auto_hide_users` for user-level suppression; the review queue is human-in-the-loop; D41 holds (board curation, not secrecy).
 - [✓ 3.37.0] **KB** (`social/content-moderation.md` + `social/sensitive-words-default.md`) — the model, the flow, the node settings, the security invariants, the default list (hate speech only, evasion variants, excluded words + reasoning).
 - [✓ 3.37.0] **Config** — four `node_config` fields (`sensitive_words`, `auto_moderate`, `moderation_enabled`, `auto_hide_users`) + `effective_config` defaults (no DDL — JSON blob) + the shipped default blocklist.
 - [✓ 3.37.0] **Detection** (`app.v3.services.moderation`) — `check_text` (whole-word, case-insensitive), `moderation_config`, `should_auto_hide`, `record_flag` (best-effort).

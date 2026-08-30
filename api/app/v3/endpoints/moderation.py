@@ -15,7 +15,7 @@ log = logging.getLogger(__name__)
 
 @router.post("/flags", tags=["admin"])
 def moderation_flags(data: ModerationFlags):
-    """The content-moderation review queue (D58): users with auto-hidden /
+    """The content-moderation review queue (D59): users with auto-hidden /
     flagged posts, newest first. Admin only."""
     check_admin(Token(token=data.token))
     return {"flags": moderation.get_flags()}
@@ -23,7 +23,7 @@ def moderation_flags(data: ModerationFlags):
 
 @router.post("/auto-hide", tags=["admin"])
 def moderation_auto_hide(data: ModerationAutoHide):
-    """Add or remove a username from the node's ``auto_hide_users`` list (D58).
+    """Add or remove a username from the node's ``auto_hide_users`` list (D59).
 
     ``hide=True`` keeps the user's future posts auto-hidden from discover;
     ``hide=False`` restores their future discover visibility. Already-hidden

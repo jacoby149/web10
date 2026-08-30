@@ -261,9 +261,11 @@ export async function getGroupsManages(): Promise<V3Group[]> {
  */
 export async function getFeedGroups(): Promise<string[]> {
   const groups = await getMyGroups();
-  return groups
+  const feedGroups = groups
     .filter((g) => g.group_id !== DISCOVER_GROUP)
     .map((g) => g.group_id);
+  LOG('getFeedGroups —', groups.length, 'my groups →', feedGroups.length, 'feed groups (minus discover)');
+  return feedGroups;
 }
 
 /**

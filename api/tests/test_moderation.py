@@ -1,4 +1,4 @@
-"""Tests for content moderation (D58) — sensitive-language detection + discover
+"""Tests for content moderation (D59) — sensitive-language detection + discover
 suppression.
 
 The detection is a pure whole-word, case-insensitive blocklist check. The

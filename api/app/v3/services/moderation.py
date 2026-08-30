@@ -1,4 +1,4 @@
-"""Content moderation (D58) — sensitive-language detection + discover suppression.
+"""Content moderation (D59) — sensitive-language detection + discover suppression.
 
 The detection is a pure whole-word, case-insensitive blocklist check. The
 blocklist lives in node_config (operator-curated). A matching post attached to

@@ -2,7 +2,7 @@ import secrets
 
 import app.settings as settings
 
-# Content moderation (D58) — the shipped default blocklist. Hate speech and
+# Content moderation (D59) — the shipped default blocklist. Hate speech and
 # slurs only (not general profanity). Whole-word, case-insensitive matching.
 # The operator can add to or remove from this in the Node Config UI. Source:
 # knowledge/knowledge-base/web10-v3/social/sensitive-words-default.md.
@@ -120,13 +120,14 @@ def effective_config() -> dict:
         # saved node_config is the only source. Served via GET /telemetry.
         "ga4_measurement_id": "",
         "hotjar_site_id": "",
-        # Content moderation (D58) — the blocklist ships with a default
+        # Content moderation (D59) — the blocklist ships with a default
         # (hate speech only); the operator curates it in the Node Config UI.
         # auto_moderate + moderation_enabled default on; auto_hide_users empty.
         "sensitive_words": list(DEFAULT_SENSITIVE_WORDS),
         "auto_moderate": True,
         "moderation_enabled": True,
         "auto_hide_users": [],
+        "node_ad_percentage": 10,
         "brand_text": "web10",
         "logo_dark": "",
         "logo_light": "",

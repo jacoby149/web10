@@ -41,10 +41,10 @@ The `default_role` must match one of the defined role names. It defaults to the 
 
 The public board. Every post attached here is visible to everyone. This is a
 **node default**, not an app-created group: the node creates it at boot
-(`ensure_discover_group()`) and auto-enrolls every user — including `anon` —
-as a member. A token-less read of the group runs as `anon`, which is what
-makes the board anon-readable (the marketing trending page, any public
-surface). Discovery IS a group read — there is no separate discover endpoint.
+(`ensure_discover_group()`) and grants the `anyone` principal a read role —
+that is what makes the board publicly readable (the marketing trending page,
+any public surface). Discovery IS a group read — there is no separate
+discover endpoint.
 
 ```json
 {
@@ -52,19 +52,21 @@ surface). Discovery IS a group read — there is no separate discover endpoint.
   "join_policy": "open",
   "roles": [
     {
+      "name": "reader",
+      "permissions": { "posts": ["readAll"] }
+    },
+    {
       "name": "member",
-      "services": ["posts"],
-      "permissions": ["readAll", "create", "updateOwn", "deleteOwn"]
+      "permissions": { "posts": ["readAll", "create", "updateOwn", "deleteOwn"] }
     }
   ]
 }
 ```
 
 **How it works:**
-- Node default + auto-enrollment = everyone (including anon) is a member by default
-- `readAll` = anyone can see anything posted here. This **is** the public board.
-- `create`, `updateOwn`, `deleteOwn` = you can post to it and manage your own stuff
-- No moderators. No owners. One role. Everyone shares it.
+- `anyone` holds the `reader` role (a `group_members` row `(G, 'anyone', 'reader')`) = the public board. A signed-out visitor reads every post.
+- A signed-in user who posts holds `member` — `create`, `updateOwn`, `deleteOwn` on their own posts.
+- No moderators. No owners. The face (identity) is public; the posts are `anyone`-readable.
 
 **Discovery is group membership.** No `discover` boolean. No separate discover index logic. Posts attached to the discover group are public. Posts without it are private.
 
@@ -81,13 +83,14 @@ Following a public profile is a group join. The user's followers group uses `joi
   "roles": [
     {
       "name": "owner",
-      "services": ["*"],
-      "permissions": ["readAll", "create", "updateOwn", "updateAll", "deleteOwn", "deleteAll", "hideAll", "manageRoles", "assignRoles", "revokeRoles", "deleteGroup"]
+      "permissions": {
+        "*": ["readAll", "create", "updateOwn", "updateAll", "deleteOwn", "deleteAll"],
+        "group": ["hideAll", "manageRoles", "assignRoles", "revokeRoles", "deleteGroup"]
+      }
     },
     {
       "name": "member",
-      "services": ["posts"],
-      "permissions": ["readAll"]
+      "permissions": { "posts": ["readAll"] }
     }
   ]
 }
@@ -96,7 +99,8 @@ Following a public profile is a group join. The user's followers group uses `joi
 **How it works:**
 - `join_policy: "open"` = instant follow. Click follow → you are added as a `member` of `coolguydavid/followers`. No request. No approval.
 - The follower's `member` role only grants `readAll` on `posts` — they can see what the author shares, not post or modify.
-- The author posts by attaching content to the `followers` group. Members discover it via group membership.
+- A **public** profile also grants the `anyone` principal a `reader` role (a `group_members` row `(G, 'anyone', 'reader')`), so a signed-out visitor can read the posts without following. A **private** profile omits that grant — only members read. (`access.md`.)
+- The author posts by attaching content to the `followers` group. Readers discover it via their effective role.
 - Unfollow is just leaving the group. No approval needed.
 
 **Private profile variant:** Same group shape, `join_policy: "request"` — follow requires the author's approval.
@@ -116,13 +120,17 @@ A private group. The creator is the only owner. Approved friends are members. Me
   "roles": [
     {
       "name": "owner",
-      "services": ["*"],
-      "permissions": ["readAll", "create", "updateOwn", "updateAll", "deleteOwn", "deleteAll", "hideAll", "manageRoles", "assignRoles", "revokeRoles", "deleteGroup"]
+      "permissions": {
+        "*": ["readAll", "create", "updateOwn", "updateAll", "deleteOwn", "deleteAll"],
+        "group": ["hideAll", "manageRoles", "assignRoles", "revokeRoles", "deleteGroup"]
+      }
     },
     {
       "name": "member",
-      "services": ["posts", "comments"],
-      "permissions": ["readAll", "create", "updateOwn", "deleteOwn"]
+      "permissions": {
+        "posts": ["readAll", "create", "updateOwn", "deleteOwn"],
+        "comments": ["readAll", "create", "updateOwn", "deleteOwn"]
+      }
     }
   ]
 }
@@ -148,23 +156,31 @@ A community with an owner, moderators, curators, and members. Used for topic-bas
   "roles": [
     {
       "name": "owner",
-      "services": ["*"],
-      "permissions": ["readAll", "create", "updateOwn", "updateAll", "deleteOwn", "deleteAll", "hideAll", "manageRoles", "assignRoles", "revokeRoles", "deleteGroup"]
+      "permissions": {
+        "*": ["readAll", "create", "updateOwn", "updateAll", "deleteOwn", "deleteAll"],
+        "group": ["hideAll", "manageRoles", "assignRoles", "revokeRoles", "deleteGroup"]
+      }
     },
     {
       "name": "moderator",
-      "services": ["posts", "comments"],
-      "permissions": ["readAll", "create", "updateOwn", "deleteOwn", "hideAll", "assignRoles", "revokeRoles"]
+      "permissions": {
+        "posts": ["readAll", "create", "updateOwn", "deleteOwn"],
+        "comments": ["readAll", "create", "updateOwn", "deleteOwn"],
+        "group": ["hideAll", "assignRoles", "revokeRoles"]
+      }
     },
     {
       "name": "page-curator",
-      "services": ["group-identity-service"],
-      "permissions": ["readAll", "create", "updateOwn", "deleteOwn"]
+      "permissions": {
+        "group-identity-service": ["readAll", "create", "updateOwn", "deleteOwn"]
+      }
     },
     {
       "name": "member",
-      "services": ["posts", "comments"],
-      "permissions": ["readAll", "create", "updateOwn", "deleteOwn"]
+      "permissions": {
+        "posts": ["readAll", "create", "updateOwn", "deleteOwn"],
+        "comments": ["readAll", "create", "updateOwn", "deleteOwn"]
+      }
     }
   ]
 }
@@ -194,8 +210,10 @@ A private group between two users. Messages are posts in this group. Both users 
   "roles": [
     {
       "name": "member",
-      "services": ["posts", "comments"],
-      "permissions": ["readAll", "create", "updateOwn", "deleteOwn"]
+      "permissions": {
+        "posts": ["readAll", "create", "updateOwn", "deleteOwn"],
+        "comments": ["readAll", "create", "updateOwn", "deleteOwn"]
+      }
     }
   ]
 }

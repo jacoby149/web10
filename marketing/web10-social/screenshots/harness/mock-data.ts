@@ -253,7 +253,6 @@ export function mapRawDiscoveryPost(): unknown { return null; }
 export async function markInboxRead(): Promise<void> {}
 export async function queryPublicEntries(): Promise<unknown[]> { return []; }
 export async function readDiscoverFeed(): Promise<unknown[]> { return []; }
-export async function readFeed(): Promise<unknown[]> { return []; }
 export async function readFollow(): Promise<unknown> { return null; }
 export async function readFollowsByStatus(): Promise<unknown[]> { return []; }
 export async function readMedia(): Promise<unknown> { return null; }
@@ -346,4 +345,70 @@ export function groupDisplayName(groupId: string, name?: string): string {
   if (name) return name;
   const parts = groupId.split('/');
   return parts[parts.length - 1] || groupId;
+}
+
+// ── Feed (screenshot seed) ───────────────────────────────────────────────────
+// The Feed screen (the D36 knob rack + the follower feed) reads these.
+// Seeded so the PR shots render with realistic content and no backend.
+
+interface SeedFeedPost {
+  _id: string;
+  author_username: string;
+  author_provider: string;
+  text: string;
+  created_at: string;
+  tags?: string[];
+  likes: number;
+  comments: number;
+  reposts: number;
+}
+
+const FEED_POSTS: SeedFeedPost[] = [
+  {
+    _id: 'fp-1',
+    author_username: 'nova',
+    author_provider: 'web10',
+    text: 'Late night synth session — the new drop is almost ready. Feedback welcome 🎧',
+    created_at: minsAgo(38),
+    tags: ['music', 'synthwave'],
+    likes: 128,
+    comments: 24,
+    reposts: 0,
+  },
+  {
+    _id: 'fp-2',
+    author_username: 'luna',
+    author_provider: 'web10',
+    text: 'Behind the scenes from the studio day. The new series drops Friday — no algorithm between you and the post, it just arrives.',
+    created_at: minsAgo(60 * 5),
+    tags: ['creators', 'behind-the-scenes'],
+    likes: 342,
+    comments: 51,
+    reposts: 0,
+  },
+  {
+    _id: 'fp-3',
+    author_username: 'kai',
+    author_provider: 'web10',
+    text: 'Lo-fi study room is live. Headphones on, world off.',
+    created_at: minsAgo(60 * 26),
+    tags: ['music', 'study'],
+    likes: 87,
+    comments: 12,
+    reposts: 0,
+  },
+];
+
+export async function readFeed(): Promise<unknown[]> { return FEED_POSTS; }
+export async function getFeedGroups(): Promise<string[]> {
+  return FEED_POSTS.map((p) => `web10/groups/users/${p.author_username}/followers`);
+}
+export async function readFeedEngagement(): Promise<{ likes: Record<string, number>; comments: Record<string, number> }> {
+  const likes: Record<string, number> = {};
+  const comments: Record<string, number> = {};
+  for (const p of FEED_POSTS) {
+    likes[p._id] = p.likes;
+    comments[p._id] = p.comments;
+  }
+  return { likes, comments };
 }

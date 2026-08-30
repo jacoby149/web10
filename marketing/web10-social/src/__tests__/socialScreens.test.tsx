@@ -14,6 +14,10 @@ vi.mock('@/data', async (importOriginal) => {
     ...original,
     readFeed: vi.fn().mockResolvedValue([]),
     readPullFeed: vi.fn().mockResolvedValue([]),
+    getFeedGroups: vi.fn().mockResolvedValue([]),
+    readFeedEngagement: vi.fn().mockResolvedValue({ likes: {}, comments: {} }),
+    readSettings: vi.fn().mockResolvedValue({ defaultVisibility: 'public' }),
+    saveSettings: vi.fn().mockResolvedValue({ defaultVisibility: 'public' }),
     readPost: vi.fn().mockResolvedValue(null),
     countReactions: vi.fn().mockResolvedValue(0),
     countComments: vi.fn().mockResolvedValue(0),
@@ -80,7 +84,11 @@ describe('FeedScreen', () => {
 
   it('renders empty state with subtle import link', async () => {
     const { default: FeedScreen } = await import('@/components/Feed/FeedScreen');
-    render(<FeedScreen />);
+    render(
+      <MemoryRouter>
+        <FeedScreen />
+      </MemoryRouter>,
+    );
     await waitFor(() => {
       expect(screen.getByText(/Your feed will appear here/)).toBeInTheDocument();
     });
@@ -97,7 +105,11 @@ describe('FeedScreen', () => {
       { _id: 'm1', url: 'http://test.com/clip.mp4', mime_type: 'video/mp4', width: 1920, height: 1080, created_at: new Date().toISOString() },
     ]);
     const { default: FeedScreen } = await import('@/components/Feed/FeedScreen');
-    render(<FeedScreen />);
+    render(
+      <MemoryRouter>
+        <FeedScreen />
+      </MemoryRouter>,
+    );
     await waitFor(() => {
       expect(screen.getByTestId('media-video')).toBeInTheDocument();
     });
@@ -120,7 +132,11 @@ describe('FeedScreen', () => {
       { _id: 'm2', url: 'http://test.com/old.png', mime_type: 'image/png', created_at: new Date().toISOString() },
     ]);
     const { default: FeedScreen } = await import('@/components/Feed/FeedScreen');
-    render(<FeedScreen />);
+    render(
+      <MemoryRouter>
+        <FeedScreen />
+      </MemoryRouter>,
+    );
     await waitFor(() => {
       expect(screen.getByTestId('media-image')).toBeInTheDocument();
     });
@@ -139,7 +155,11 @@ describe('FeedScreen', () => {
       { _id: 'c', url: 'http://test.com/c.png', mime_type: 'image/png', width: 800, height: 600, created_at: new Date().toISOString() },
     ]);
     const { default: FeedScreen } = await import('@/components/Feed/FeedScreen');
-    render(<FeedScreen />);
+    render(
+      <MemoryRouter>
+        <FeedScreen />
+      </MemoryRouter>,
+    );
     await waitFor(() => {
       expect(screen.getByTestId('media-count-badge')).toBeInTheDocument();
     });
