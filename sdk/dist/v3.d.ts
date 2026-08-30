@@ -36,6 +36,10 @@ export interface V3ClientOptions {
     /** RTC server hostname (for P2P via web10-npm/rtc) */
     rtcServer?: string;
 }
+export interface V3AdPreference {
+    mode: 'none' | 'pinned';
+    target?: string;
+}
 export interface V3Document {
     doc_id: string;
     author_key: string;
@@ -46,6 +50,9 @@ export interface V3Document {
     created_at: string;
     updated_at: string;
     groups?: string[];
+    ad_mode?: string;
+    ad_target?: string;
+    ad?: V3Document;
 }
 export interface V3Group {
     group_id: string;
@@ -163,6 +170,7 @@ export interface V3Client {
     }>;
     create(collection: string, body: Record<string, unknown>, opts?: {
         groups?: string[];
+        ad_preference?: V3AdPreference;
     }): Promise<V3Document>;
     read(collection: string, opts: {
         groups: string[];
@@ -172,6 +180,7 @@ export interface V3Client {
     readById(docId: string, collection: string): Promise<V3Document>;
     update(docId: string, body: Record<string, unknown>, opts?: {
         groups?: string[];
+        ad_preference?: V3AdPreference;
     }): Promise<V3Document>;
     delete(docId: string): Promise<{
         doc_id: string;

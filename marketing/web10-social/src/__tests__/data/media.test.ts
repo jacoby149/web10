@@ -2,11 +2,10 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import * as v3 from '../../data/v3';
 import { uploadMedia, refreshMediaUrls, refreshMediaUrl, resolveMediaRefs } from '../../data/posts';
 
-// A tiny valid 1x1 PNG
-const TINY_PNG = Buffer.from(
-  'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8D4HwAFBQIAX8jx0gAAAABJRU5ErkJggg==',
-  'base64',
-);
+// A tiny valid 1x1 PNG (base64 — no Buffer in the browser tsconfig)
+const TINY_PNG_B64 =
+  'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8D4HwAFBQIAX8jx0gAAAABJRU5ErkJggg==';
+const TINY_PNG = Uint8Array.from(atob(TINY_PNG_B64), (c) => c.charCodeAt(0));
 
 function mockV3Client(overrides: Record<string, unknown> = {}) {
   const mock = {

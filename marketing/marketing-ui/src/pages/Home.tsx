@@ -103,7 +103,7 @@ function HomeStatsBar() {
 
   const storage = formatBytes(stats.storage)
   const items: Array<{ value: number; unit?: string; label: string; icon: typeof Users }> = [
-    { value: stats.active_users.users_30d, label: 'active users · 30d', icon: Users },
+    { value: stats.users, label: 'users', icon: Users },
     { value: stats.app_count, label: 'apps in the store', icon: Layers },
     { value: storage.value, unit: storage.unit, label: 'data liberated', icon: HardDrive },
   ]

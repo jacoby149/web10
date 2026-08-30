@@ -178,6 +178,8 @@ function createV3Client(options = {}) {
       const payload = { service: collection, body };
       if (opts?.groups)
         payload.groups = opts.groups;
+      if (opts?.ad_preference)
+        payload.ad_preference = opts.ad_preference;
       return v3Post("create", payload);
     },
     async read(collection, opts) {
@@ -195,6 +197,8 @@ function createV3Client(options = {}) {
       const payload = { doc_id: docId, body };
       if (opts?.groups)
         payload.groups = opts.groups;
+      if (opts?.ad_preference)
+        payload.ad_preference = opts.ad_preference;
       return v3Post("update", payload);
     },
     async delete(docId) {
