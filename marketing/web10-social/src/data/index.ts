@@ -3,6 +3,7 @@ export * from './v3';
 export * from './types';
 export * from './groups';
 export * from './posts';
+export * from './ads';
 export * from './comments';
 export * from './reactions';
 export * from './follows';

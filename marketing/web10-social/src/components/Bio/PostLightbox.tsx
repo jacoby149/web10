@@ -18,6 +18,7 @@ import {
 } from '@/data';
 import { CommentThread } from '@/components/Feed/CommentThread';
 import { TextWithLinks } from '@/components/Feed/LinkEmbed';
+import { AdBlock } from '@/components/Feed/AdBlock';
 import { cn } from '@/lib/utils';
 
 function formatTimeAgo(dateStr: string): string {
@@ -390,6 +391,11 @@ export function PostLightbox({ post, mediaMap, onClose, onReload, postAuthor, po
               )}
             </button>
           </div>
+
+          {/* Pinned ad (the read serves it inline on the post, I3-checked) */}
+          {currentPost.ad && (
+            <AdBlock ad={currentPost.ad} className="mt-3 -mx-1 px-4" />
+          )}
 
           {/* Comment thread */}
           <CommentThread

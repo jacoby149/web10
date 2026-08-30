@@ -48,6 +48,9 @@ export interface PostRecord {
   comments?: number;
   reposts?: number;
   score?: number;
+  // The v3 pinned ad (ads-dissemination.md): the read serves a pinned post with
+  // its ad inline; the ad block renders it under the post.
+  ad?: AdRecord;
   // Aliases for backward compat with DiscoveryPost
   author?: string;
   provider?: string;
@@ -73,10 +76,70 @@ export function fromV3DocToPost(doc: V3Document): PostRecord {
     encrypted: body.encrypted as boolean,
     author_username: username,
     author_provider: provider,
+    // The v3 pinned ad (ads-dissemination.md): the read serves a pinned post
+    // with its ad inline under `ad` (I3-checked). Mapped to an AdRecord for
+    // the ad block renderer.
+    ad: doc.ad ? fromV3DocToAd(doc.ad) : undefined,
     // Backward compat aliases for DiscoveryPost consumers
     author: username,
     provider,
     post_id: doc.doc_id,
+  };
+}
+
+// ── Ad (the v3 ad object, D55) ──────────────────────────────────────────────
+// An ad is a `posts` doc tagged `ad`: the creative (text + media_refs) plus a
+// leaf-typed `offer` (the link that pays) plus a `status`. The read serves a
+// pinned post with its ad inline (`doc.ad`); the app renders it as an ad block
+// (creative + offer + disclosure — the disclosure is never hidden).
+
+export interface AdOffer {
+  kind?: string;
+  partner?: string;
+  link?: string;
+  cta?: string;
+  disclosure?: string;
+}
+
+export interface AdRecord {
+  _id?: string;
+  text?: string;
+  media_refs?: string[];
+  offer?: AdOffer;
+  status?: 'active' | 'paused';
+  author_username?: string;
+  /** album doc_ids this ad belongs to (from its `album:<id>` tags) */
+  albums?: string[];
+}
+
+/** Extract a leaf-typed value: {type, value} → value, string → itself. */
+function leafValue(v: unknown): string | undefined {
+  if (typeof v === 'string') return v || undefined;
+  if (v && typeof v === 'object' && 'value' in v) {
+    const s = String((v as { value?: unknown }).value ?? '') || undefined;
+    return s;
+  }
+  return undefined;
+}
+
+export function fromV3DocToAd(doc: V3Document): AdRecord {
+  const body = doc.body as Record<string, unknown>;
+  const offerRaw = (body.offer || {}) as Record<string, unknown>;
+  const tags = doc.tags || [];
+  return {
+    _id: doc.doc_id,
+    text: (body.text as string) || undefined,
+    media_refs: (body.media_refs as string[]) || undefined,
+    offer: {
+      kind: leafValue(offerRaw.kind),
+      partner: leafValue(offerRaw.partner),
+      link: leafValue(offerRaw.link),
+      cta: leafValue(offerRaw.cta),
+      disclosure: leafValue(offerRaw.disclosure),
+    },
+    status: body.status === 'paused' ? 'paused' : 'active',
+    author_username: extractUsername(doc.author_key),
+    albums: tags.filter((t) => t.startsWith('album:')).map((t) => t.slice('album:'.length)),
   };
 }
 
