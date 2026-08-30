@@ -1086,21 +1086,31 @@ def upsert_group_identity(group_id: str, identity: dict) -> dict:
     now = _now()
     client.insert(
         "group_identity",
-        [[
-            group_id,
-            identity.get("name", ""),
-            identity.get("description", ""),
-            identity.get("banner_ref", ""),
-            identity.get("avatar_ref", ""),
-            identity.get("website", ""),
-            list(identity.get("tags", [])),
-            now,
-            now,
-            0,
-        ]],
+        [
+            [
+                group_id,
+                identity.get("name", ""),
+                identity.get("description", ""),
+                identity.get("banner_ref", ""),
+                identity.get("avatar_ref", ""),
+                identity.get("website", ""),
+                list(identity.get("tags", [])),
+                now,
+                now,
+                0,
+            ]
+        ],
         column_names=[
-            "group_id", "name", "description", "banner_ref", "avatar_ref",
-            "website", "tags", "created_at", "updated_at", "deleted",
+            "group_id",
+            "name",
+            "description",
+            "banner_ref",
+            "avatar_ref",
+            "website",
+            "tags",
+            "created_at",
+            "updated_at",
+            "deleted",
         ],
     )
     return {
@@ -1737,7 +1747,11 @@ def _board_base_sql(group_ids: list[str], require_membership: bool = True) -> st
         "row_number() OVER (PARTITION BY group_id, doc_id ORDER BY updated_at DESC, deleted DESC) AS rn "
         "FROM group_hidden_docs) WHERE rn = 1 AND deleted = 0) hd "
         "ON hd.doc_id = p.doc_id AND hd.group_id = pg.group_id "
-        "WHERE " + membership_where + "pg.group_id IN (%(g0)s" + "".join(f", %(g{i})s" for i in range(1, len(group_ids))) + ")"
+        "WHERE "
+        + membership_where
+        + "pg.group_id IN (%(g0)s"
+        + "".join(f", %(g{i})s" for i in range(1, len(group_ids)))
+        + ")"
     )
 
 

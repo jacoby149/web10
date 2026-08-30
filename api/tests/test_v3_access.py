@@ -74,20 +74,20 @@ OWNER_LEGACY = [
 
 class TestNormalizeRolePerms:
     def test_new_shape_passthrough(self):
-        assert ch._normalize_role_perms({"permissions": {"posts": ["readAll"]}}) == {
-            "posts": ["readAll"]
-        }
+        assert ch._normalize_role_perms({"permissions": {"posts": ["readAll"]}}) == {"posts": ["readAll"]}
 
     def test_new_shape_multiple_services(self):
-        assert ch._normalize_role_perms(
-            {"permissions": {"posts": ["readAll"], "comments": ["readAll", "create"]}}
-        ) == {"posts": ["readAll"], "comments": ["readAll", "create"]}
+        assert ch._normalize_role_perms({"permissions": {"posts": ["readAll"], "comments": ["readAll", "create"]}}) == {
+            "posts": ["readAll"],
+            "comments": ["readAll", "create"],
+        }
 
     def test_legacy_shape_fans_out(self):
         # The flat list is applied to each listed service.
-        assert ch._normalize_role_perms(
-            {"services": ["posts", "comments"], "permissions": ["readAll", "create"]}
-        ) == {"posts": ["readAll", "create"], "comments": ["readAll", "create"]}
+        assert ch._normalize_role_perms({"services": ["posts", "comments"], "permissions": ["readAll", "create"]}) == {
+            "posts": ["readAll", "create"],
+            "comments": ["readAll", "create"],
+        }
 
     def test_legacy_shape_no_services_defaults_to_wildcard(self):
         assert ch._normalize_role_perms({"permissions": ["readAll"]}) == {"*": ["readAll"]}
