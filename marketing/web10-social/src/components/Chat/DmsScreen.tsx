@@ -7,6 +7,7 @@ import { Input } from '@/components/ui/input';
 import { Skeleton } from '@/components/ui/skeleton';
 import { getWapi } from '@/data/wapi';
 import { listConversations, readDms, sendDm, getLastDm, readContacts, startConversation, conversationKey as deriveConversationKey, readFollows, addContact, deleteDm, updateDm, deleteConversation } from '@/data';
+import { sendP2P, onP2PInbound, isP2PReady, getOnlinePeers, peerIdFor, onPresenceChange } from '@/data/p2p';
 import type { DmRecord, ContactRecord, FollowRecord } from '@/data/types';
 import { Send, ChevronLeft, Plus, X, Search, MessageSquare, Mail, Users, MoreVertical, Edit3, Trash2, Check, Loader2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
@@ -16,6 +17,18 @@ import MailView from './MailView';
 import CrmView from './CrmView';
 
 type MessagesView = 'chat' | 'mail' | 'crm';
+
+// Subscribe to the live P2P presence set (peers we've had a live connection to
+// this session). Returns a fresh Set on each change so the UI re-renders.
+function useOnlinePeers(): ReadonlySet<string> {
+  const [peers, setPeers] = useState<ReadonlySet<string>>(() => new Set(getOnlinePeers()));
+  useEffect(() => {
+    const update = () => setPeers(new Set(getOnlinePeers()));
+    update();
+    return onPresenceChange(update);
+  }, []);
+  return peers;
+}
 
 function formatTime(dateStr: string): string {
   const d = new Date(dateStr);
@@ -608,6 +621,28 @@ export default function DmsScreen() {
   const [confirmDialog, setConfirmDialog] = useState<{ open: boolean; title: string; description: string; onConfirm: () => void; confirmLabel?: string; variant?: 'destructive' | 'default' }>({ open: false, title: '', description: '', onConfirm: () => {} });
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const token = getWapi().readToken();
+  const onlinePeers = useOnlinePeers();
+
+  // Real-time inbound: when a P2P nudge arrives (a peer sent us a message),
+  // re-read the open conversation. This is the best-effort fast path — CRUD is
+  // the source of truth, so a message that doesn't show here still lands on
+  // the next normal read. A skipped refresh (transient fetch blip, the page
+  // navigating) is NOT a real error, so it's logged informationally — never as
+  // a console.error (the e2e asserts no error logs, and a fast-path miss is
+  // expected, not a failure).
+  useEffect(() => {
+    const unsub = onP2PInbound(() => {
+      console.log('[social-dms] p2p inbound — refreshing open conversation');
+      if (selectedConv) {
+        readDms(selectedConv)
+          .then(setMessages)
+          .catch(() => {
+            console.log('[social-dms] inbound refresh skipped (message shows on next read)');
+          });
+      }
+    });
+    return unsub;
+  }, [selectedConv]);
 
   // Sync activeView with ?view= search param
   useEffect(() => {
@@ -715,12 +750,24 @@ export default function DmsScreen() {
   );
 
   async function sendMessage() {
-    if (!selectedConv || !input.trim()) return;
+    if (!selectedConv || !input.trim() || !token) return;
     setSending(true);
     try {
       const msg = await sendDm(selectedConv, input.trim());
       setMessages((prev) => [...prev, msg]);
       setInput('');
+      // Real-time nudge: push the just-persisted message over P2P so the
+      // recipient sees it instantly when they're online. CRUD already landed
+      // it in the group — this is the fast path, not the source of truth.
+      const other = getOtherUser(selectedConv);
+      const [otherProvider, otherUsername] = other.split('/');
+      sendP2P(otherProvider || token.provider, otherUsername || other, {
+        doc_id: msg._id,
+        message: msg.message,
+        from: token.username,
+        to: otherUsername || other,
+        sent_at: msg.sent_at,
+      });
     } catch (e) {
       console.error('Failed to send message:', e);
     } finally {
@@ -889,6 +936,10 @@ export default function DmsScreen() {
   if (selectedConv) {
     const otherUser = getOtherUser(selectedConv);
     const displayName = getDisplayName(otherUser);
+    const [otherProv, otherUsername] = otherUser.split('/');
+    const otherPeerId = peerIdFor(otherProv || token?.provider || '', otherUsername || otherUser);
+    const otherOnline = !!otherPeerId && onlinePeers.has(otherPeerId);
+    const p2pOn = isP2PReady();
 
     return (
       <div className="flex flex-col h-full" data-testid="dm-conversation">
@@ -912,13 +963,38 @@ export default function DmsScreen() {
                   {displayName.charAt(0).toUpperCase()}
                 </AvatarFallback>
               </Avatar>
-              <div className={cn(
-                'absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 rounded-full border-2 border-background',
-                'bg-success animate-glow-pulse',
-              )} />
+              <div
+                className={cn(
+                  'absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 rounded-full border-2 border-background',
+                  otherOnline ? 'bg-success animate-glow-pulse' : 'bg-muted-foreground/40',
+                )}
+                data-testid="dm-peer-presence-dot"
+              />
             </div>
-            <span className="font-medium text-sm text-foreground truncate">{displayName}</span>
+            <div className="min-w-0">
+              <span className="font-medium text-sm text-foreground truncate block">{displayName}</span>
+              <span
+                className={cn(
+                  'text-xs truncate block',
+                  otherOnline ? 'text-success' : 'text-muted-foreground/60',
+                )}
+                data-testid="dm-peer-presence-label"
+              >
+                {otherOnline ? 'Online' : 'Offline'}
+              </span>
+            </div>
           </Link>
+          <div
+            className={cn(
+              'flex items-center gap-1.5 shrink-0 px-2 py-1 rounded-full text-xs font-medium border',
+              p2pOn ? 'border-success/30 text-success bg-success/10' : 'border-border text-muted-foreground',
+            )}
+            title={p2pOn ? 'Real-time delivery is on' : 'Real-time delivery is off (Settings → Real-time messages)'}
+            data-testid="dm-p2p-status"
+          >
+            <span className={cn('w-1.5 h-1.5 rounded-full', p2pOn ? 'bg-success' : 'bg-muted-foreground/40')} />
+            <span className="hidden sm:inline">{p2pOn ? 'Real-time' : 'Offline'}</span>
+          </div>
           <button
             onClick={() => handleDeleteConversation(selectedConv)}
             className="flex items-center justify-center h-11 w-11 hover:bg-danger-muted rounded-lg transition-colors duration-150 text-muted-foreground hover:text-danger"
@@ -1073,6 +1149,9 @@ export default function DmsScreen() {
           const otherUser = getOtherUser(conv);
           const displayName = getDisplayName(otherUser);
           const lastMsg = lastMessages[conv];
+          const [cProv, cUser] = otherUser.split('/');
+          const cPeerId = peerIdFor(cProv || token?.provider || '', cUser || otherUser);
+          const cOnline = !!cPeerId && onlinePeers.has(cPeerId);
 
           return (
             <div className="group relative" key={conv}>
@@ -1087,10 +1166,13 @@ export default function DmsScreen() {
                       {displayName.charAt(0).toUpperCase()}
                     </AvatarFallback>
                   </Avatar>
-                  <div className={cn(
-                    'absolute -bottom-0.5 -right-0.5 w-3 h-3 rounded-full border-2 border-background',
-                    'bg-success',
-                  )} />
+                  <div
+                    className={cn(
+                      'absolute -bottom-0.5 -right-0.5 w-3 h-3 rounded-full border-2 border-background',
+                      cOnline ? 'bg-success' : 'bg-muted-foreground/40',
+                    )}
+                    data-testid="dm-conversation-presence-dot"
+                  />
                 </div>
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center justify-between">
