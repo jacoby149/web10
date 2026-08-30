@@ -263,6 +263,28 @@ look alive.
 - [✓ 3.38.1] fix(api) + fix(marketing-ui): /trending consumes the v3 read shape + the API serializes datetimes as ISO 8601 UTC (the 3.16.2 rewire's two regressions, root-caused). (1) Negative times: `/v3/read`'s naive `str(datetime)` `created_at` was parsed as local time (west-of-UTC → future) — **API** now emits ISO 8601 UTC via `_iso_utc()` (every `str(row[N])`/`now.isoformat()` datetime site; `_from_iso_utc()` for the update round-trip), fixing every client at once; **marketing-ui** `parseCreatedAt()` stays as a defensive fallback. (2) Empty Video view: the v3 read serves `media_refs` pre-resolved (objects with `mime_type` + `read_url`), but the page treated them as strings + hardcoded `first_attachment_mime: undefined`, so media was tag-detected only; now `first_attachment_mime` derives from the resolved ref and `TrendingMedia` uses `read_url` directly (no token-gated presign round-trip). 6 marketing-ui tests (241 green) + 835 API tests green.
 - [ ] E2E: board gauntlet — seed → anon reads the board → a real user's post appears → remove/restore round-trip (gated on the social-e2e stack)
 
+### Lane: content-moderation (D59)
+**Owns:** `api/app/v3/services/moderation.py`, `api/app/v3/endpoints/moderation.py`, `api/app/v3/models/moderation.py`, `api/app/v3/endpoints/documents.py` (the create hook), `api/app/services/config.py` (defaults), `api/app/models/config.py`, `api/tests/test_moderation.py`, `ui/src/components/Config/ConfigPage.tsx` (the Moderation card), `ui/src/__tests__/configModeration.test.tsx`, `clickhouse-init/001-init-v3-schema.sql.template` (moderation_flags)
+
+Content moderation (D59): sensitive-language detection + discover suppression,
+built on the existing `group_hidden_docs` mechanism. A whole-word,
+case-insensitive blocklist in `node_config` is checked on the post-create path;
+a hit on a discover-group post is auto-hidden (the existing hide) + flagged.
+A user on `auto_hide_users` is always auto-hidden. The review queue is
+human-in-the-loop (the operator suppresses; the machine only flags). D41 holds
+— suppression is board curation, not secrecy.
+
+- [✓ 3.41.0] Decision: D59 (`knowledge/strategy/decisions.md`) + KB (`social/content-moderation.md` + `social/sensitive-words-default.md`, the ~50-word default list)
+- [✓ 3.41.0] Config: four `node_config` fields (`sensitive_words`, `auto_moderate`, `moderation_enabled`, `auto_hide_users`) + `effective_config` defaults (no DDL — JSON blob) + the shipped default blocklist
+- [✓ 3.41.0] Detection: `app.v3.services.moderation` — `check_text` (whole-word, case-insensitive), `moderation_config`, `should_auto_hide`, `record_flag` (best-effort)
+- [✓ 3.41.0] Write-path hook: `create_document` moderates `posts` on the discover group — flag + (auto_moderate OR listed) `hide_doc_from_group(DISCOVER_GROUP_ID, …)`; best-effort (a moderation failure never fails the post)
+- [✓ 3.41.0] `moderation_flags` table (DDL template + boot self-heal) + `insert_moderation_flag`/`get_moderation_flags` (the queue is a GROUP BY view)
+- [✓ 3.41.0] Admin endpoints: `POST /v3/moderation/flags` (the queue) + `POST /v3/moderation/auto-hide` (add/remove from `auto_hide_users`)
+- [✓ 3.41.0] UI: the Node Config "Content Moderation" card — master switch + auto-hide toggle (diff-only save), blocklist tag input, the review queue with "Keep hiding"/"Hiding"
+- [✓ 3.41.0] Tests: 27 API (`test_moderation.py`) + 7 UI (`configModeration.test.tsx`) — detection, the hook, I3 scoping, the endpoints, the card
+- [ ] E2E: moderation gauntlet — post with a flagged word → hidden from the board → operator keeps-hiding → next post auto-hidden → operator removes → next post visible (gated on the social-e2e stack)
+- [ ] v1: profile name/bio detection (flag-only, not scanned on the post path in v0) + a retroactive-scan admin command + a user notification on auto-hide
+
 ### Lane: ads (monetization)
 **Owns:** `ui/src/components/Studio/`, `api/app/v3/services/clickhouse.py` + `api/app/v3/endpoints/documents.py` + `api/tests/test_ads.py`, `e2e/tests/ads.spec.ts`, `marketing/web10-social/src/components/Feed/PostComposer.tsx` + the ad block
 

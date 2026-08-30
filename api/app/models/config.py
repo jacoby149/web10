@@ -57,6 +57,16 @@ class NodeConfig(BaseModel):
     ga4_measurement_id: str = ""
     hotjar_site_id: str = ""
 
+    # Content moderation (D59) — sensitive-language detection + discover
+    # suppression. The blocklist is a JSON array of words (whole-word,
+    # case-insensitive). auto_moderate auto-hides matching posts from the
+    # discover board. auto_hide_users is a list of usernames whose future
+    # posts are always auto-hidden. moderation_enabled is the master switch.
+    sensitive_words: list[str] = []
+    auto_moderate: bool = True
+    moderation_enabled: bool = True
+    auto_hide_users: list[str] = []
+
     # Node ads (D57) — percentage of posts that get a node ad attached at
     # read time. 0 = off, 100 = every post. Default 10.
     node_ad_percentage: int = 10
@@ -172,6 +182,10 @@ class ConfigUpdate(BaseModel):
     dev_pay_pct: int | None = None
     ga4_measurement_id: str | None = None
     hotjar_site_id: str | None = None
+    sensitive_words: list[str] | None = None
+    auto_moderate: bool | None = None
+    moderation_enabled: bool | None = None
+    auto_hide_users: list[str] | None = None
     node_ad_percentage: int | None = None
     brand_text: str | None = None
     logo_dark: str | None = None

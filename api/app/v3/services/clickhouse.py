@@ -158,8 +158,17 @@ def ensure_apps_schema():
         # positional and append the values last.
         client.command("ALTER TABLE documents ADD COLUMN IF NOT EXISTS ad_mode String DEFAULT 'none'")
         client.command("ALTER TABLE documents ADD COLUMN IF NOT EXISTS ad_target String DEFAULT ''")
+        # moderation_flags — the content-moderation review queue (D59). An
+        # append-only audit log: one row per auto-hidden / flagged post. The
+        # review queue is a GROUP BY view over it (no resolved column — the
+        # operator's action is a node_config update, not a row mutation).
+        client.command(
+            "CREATE TABLE IF NOT EXISTS moderation_flags ("
+            "username String, doc_id String, matched_words Array(String), created_at DateTime64(3)"
+            ") ENGINE = MergeTree ORDER BY (username, created_at)"
+        )
         log.info(
-            "[v3] schema ensured (apps.visits + app_ratings.comment + node_config + app_visits + group_contracts.discoverable + group_identity + documents.ad_mode/ad_target present)"
+            "[v3] schema ensured (apps.visits + app_ratings.comment + node_config + app_visits + group_contracts.discoverable + group_identity + documents.ad_mode/ad_target + moderation_flags present)"
         )
         # Data migration (idempotent): re-home demo apps registered under
         # their directory-index file URLs onto their directory URLs.
@@ -1112,6 +1121,45 @@ def get_hidden_docs(group_id: str) -> list[dict]:
         }
         for row in result.result_rows
     ]
+
+
+# ---------------------------------------------------------------------------
+# Content moderation (D59) — the review queue
+# ---------------------------------------------------------------------------
+
+
+def insert_moderation_flag(username: str, doc_id: str, matched_words: list[str]) -> None:
+    """Append a moderation flag (the review queue). Append-only — every flag is
+    kept as an audit row; the queue is a GROUP BY view over them."""
+    client.insert(
+        "moderation_flags",
+        [[username, doc_id, list(matched_words), _now()]],
+        column_names=["username", "doc_id", "matched_words", "created_at"],
+    )
+
+
+def get_moderation_flags() -> list[dict]:
+    """The review queue: one row per flagged user — the flag count, the latest
+    flag time, and a sample of the matched words. Newest first."""
+    result = client.query(
+        "SELECT username, count(*) AS flag_count, max(created_at) AS last_flagged, "
+        "arrayJoin(groupArray(matched_words)) AS all_words "
+        "FROM moderation_flags GROUP BY username ORDER BY last_flagged DESC"
+    )
+    flags = []
+    for row in result.result_rows:
+        # all_words is the flattened array of every matched word for the user;
+        # surface a deduped sample (the queue UI shows a snippet, not a dump).
+        words = list(dict.fromkeys(w for w in row[3] if w))
+        flags.append(
+            {
+                "username": row[0],
+                "flag_count": int(row[1]),
+                "last_flagged": str(row[2]),
+                "matched_words": words[:10],
+            }
+        )
+    return flags
 
 
 # ---------------------------------------------------------------------------

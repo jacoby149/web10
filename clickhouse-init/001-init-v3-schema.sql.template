@@ -89,6 +89,17 @@ CREATE TABLE IF NOT EXISTS group_hidden_docs (
 ) ENGINE = ReplacingMergeTree(updated_at)
 ORDER BY (group_id, doc_id);
 
+-- Content moderation (D57) — the review queue. Append-only audit log: one row
+-- per auto-hidden / flagged post. The queue is a GROUP BY view over this
+-- (no resolved column — the operator's action is a node_config update).
+CREATE TABLE IF NOT EXISTS moderation_flags (
+    username String,
+    doc_id String,
+    matched_words Array(String),
+    created_at DateTime64(3)
+) ENGINE = MergeTree
+ORDER BY (username, created_at);
+
 CREATE TABLE IF NOT EXISTS service_contracts (
     user_key String,
     service_name String,
