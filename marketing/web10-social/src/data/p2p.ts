@@ -33,10 +33,12 @@ const LOG_ERR = (...args: unknown[]) => console.error('[p2p]', ...args);
 const P2P_LABEL = 'web10-social';
 
 // Minimal shape of an inbound P2P connection (the SDK's PeerConnection is not
-// re-exported). We only need the peer id (to know who sent it) — the payload
-// mirrors the CRUD message body and the handler re-reads from the group.
+// re-exported). We need the peer id (to know who sent it) — the payload
+// mirrors the CRUD message body and the handler re-reads from the group — and
+// the `on` hook (to mark the peer offline when their connection closes).
 export interface P2PInboundConn {
   peer: string;
+  on?: (event: string, handler: () => void) => void;
 }
 
 type InboundListener = (conn: P2PInboundConn, data: unknown) => void;
@@ -46,23 +48,72 @@ let p2pReady = false;
 let site = 'web10';
 const inboundListeners = new Set<InboundListener>();
 
-// Presence: the set of peer ids we've had a live P2P connection to in this
-// session (a successful send, or an inbound message). This is the honest
-// "online" signal available without a server-side presence service — a peer is
-// online while we can reach them over P2P. Cleared on teardown (sign-out).
+// Presence: the set of peer ids we currently consider online. A peer goes
+// online on a live P2P signal (a successful send, or an inbound message) and
+// goes offline when their connection closes (immediate) or after a TTL of no
+// activity (backstop, in case a close event is missed — e.g. the page was
+// backgrounded and the socket dropped silently). This is the honest "online"
+// signal available without a server-side presence service. Cleared on teardown.
 const onlinePeers = new Set<string>();
+// lastSeen: peerId → last live-signal timestamp. Drives the TTL sweep.
+const lastSeen = new Map<string, number>();
 const presenceListeners = new Set<() => void>();
+let sweepTimer: ReturnType<typeof setInterval> | null = null;
 
-function markOnline(peerId: string): void {
-  if (!peerId || onlinePeers.has(peerId)) return;
-  onlinePeers.add(peerId);
-  LOG('presence — online:', peerId);
+// A peer is considered online for this long after their last live signal. The
+// sweep runs more often than the TTL so the dot flips to gray promptly.
+const PRESENCE_TTL_MS = 60_000;
+const SWEEP_INTERVAL_MS = 15_000;
+
+function notifyPresence(): void {
   for (const l of presenceListeners) {
     try {
       l();
     } catch (e) {
       LOG_ERR('presence listener threw:', e);
     }
+  }
+}
+
+function markOnline(peerId: string): void {
+  if (!peerId) return;
+  lastSeen.set(peerId, Date.now());
+  startSweep();
+  if (onlinePeers.has(peerId)) return;
+  onlinePeers.add(peerId);
+  LOG('presence — online:', peerId);
+  notifyPresence();
+}
+
+function markOffline(peerId: string): void {
+  if (!peerId || !onlinePeers.has(peerId)) return;
+  onlinePeers.delete(peerId);
+  lastSeen.delete(peerId);
+  LOG('presence — offline:', peerId);
+  notifyPresence();
+}
+
+// Expire peers whose last live signal is older than the TTL (the backstop for
+// missed close events). Only runs while at least one peer is tracked.
+function sweep(): void {
+  const now = Date.now();
+  for (const [peerId, ts] of lastSeen) {
+    if (now - ts > PRESENCE_TTL_MS) markOffline(peerId);
+  }
+  if (lastSeen.size === 0) stopSweep();
+}
+
+function startSweep(): void {
+  if (sweepTimer !== null) return;
+  sweepTimer = setInterval(sweep, SWEEP_INTERVAL_MS);
+  // Don't keep the process alive on the sweep timer (node/test envs).
+  (sweepTimer as { unref?: () => void }).unref?.();
+}
+
+function stopSweep(): void {
+  if (sweepTimer !== null) {
+    clearInterval(sweepTimer);
+    sweepTimer = null;
   }
 }
 
@@ -98,6 +149,9 @@ function dispatchInbound(conn: P2PInboundConn, data: unknown): void {
   LOG('inbound — from peer:', conn.peer, 'data:', JSON.stringify(data));
   // A live inbound means the sender is online right now.
   markOnline(conn.peer);
+  // Mark them offline the moment this connection drops (immediate, not just
+  // the TTL backstop).
+  conn.on?.('close', () => markOffline(conn.peer));
   for (const listener of inboundListeners) {
     try {
       listener(conn, data);
@@ -165,13 +219,26 @@ export function sendP2P(
   }
   LOG('sendP2P — sending to', `${toProvider}/${toUsername}`, 'site:', site, 'label:', P2P_LABEL);
   try {
-    const result = rtc.send(toProvider, toUsername, site, P2P_LABEL, payload);
-    LOG('sendP2P — result:', JSON.stringify(result));
-    if (result.connected) {
-      // A connected send means the recipient answered over P2P — they're online.
-      markOnline(rtc.peerId(toProvider, toUsername, site, P2P_LABEL));
+    const peerId = rtc.peerId(toProvider, toUsername, site, P2P_LABEL);
+    // connect() returns the existing connection if one is open (the SDK caches
+    // it), else opens a new one. Hook its close so the peer flips offline the
+    // moment the channel drops (immediate, not just the TTL backstop).
+    const conn = rtc.connect(toProvider, toUsername, site, P2P_LABEL);
+    conn.on('close', () => markOffline(peerId));
+    if (conn.open) {
+      conn.send(payload);
+      // A send over an open channel means the recipient answered — online.
+      markOnline(peerId);
+      LOG('sendP2P — sent over open channel');
+      return true;
     }
-    return result.connected;
+    // Channel not open yet — send once it opens (the recipient is connecting).
+    conn.on('open', () => {
+      conn.send(payload);
+      markOnline(peerId);
+    });
+    LOG('sendP2P — channel not open yet, queued on open');
+    return false;
   } catch (e) {
     LOG_ERR('sendP2P FAILED:', e);
     return false;
@@ -205,8 +272,10 @@ export function teardownP2P(): void {
   p2pReady = false;
   rtc = null;
   inboundListeners.clear();
+  stopSweep();
   if (onlinePeers.size > 0) {
     onlinePeers.clear();
+    lastSeen.clear();
     for (const l of presenceListeners) {
       try {
         l();
