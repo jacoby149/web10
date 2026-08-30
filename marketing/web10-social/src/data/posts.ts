@@ -7,8 +7,8 @@ import {
   getFeedGroups,
   ensureFollowers,
 } from './groups';
-import type { PostRecord, MediaRecord, MediaUploadRequest, Visibility } from './types';
-import { fromV3DocToPost, fromV3DocToMedia } from './types';
+import type { PostRecord, MediaRecord, MediaUploadRequest, Visibility, ResolvedMediaRef } from './types';
+import { fromV3DocToPost, fromV3DocToMedia, fromResolvedMediaRef } from './types';
 
 // ── Post data layer (v3) ─────────────────────────────────────────────────────
 // Posts live in the `posts` collection. Visibility is controlled by GROUPS:
@@ -168,37 +168,57 @@ export async function movePostVisibility(post: PostRecord): Promise<PostRecord> 
 
 /**
  * Upload a media file through the v3 media pipeline.
- * 1. Request presigned URL (via the v3 API)
- * 2. Upload file to object storage
- * 3. Confirm upload to create the media record
+ * 1. Request presigned POST form (via the v3 API)
+ * 2. Upload the file to object storage (MinIO) via the presigned form
+ * 3. Confirm the upload — the media document's body carries the object_key
+ *    (never a URL — the node presigns fresh read URLs on demand)
  */
 export async function uploadMedia(request: MediaUploadRequest): Promise<MediaRecord> {
   const w = getV3Client();
+  console.log('[social-media] uploadMedia — start, file:', request.file.name, request.file.type, request.file.size, 'service:', request.service);
 
   // Upload thumbnail/poster first if provided
-  let thumbnailUrl: string | null = null;
+  let thumbnailObjectKey: string | null = null;
   if (request.thumbnailFile) {
     const thumbRecord = await uploadMedia({ file: request.thumbnailFile, service: request.service });
-    thumbnailUrl = thumbRecord.url;
+    thumbnailObjectKey = thumbRecord.object_key || null;
   }
 
-  // For v3, we use the confirm endpoint directly with file metadata
-  // The presigned URL flow is handled by the API
+  // 1. Presigned POST form
+  const presigned = await w.requestMediaUploadUrl({
+    filename: request.file.name,
+    mimeType: request.file.type || 'application/octet-stream',
+    sizeBytes: request.file.size,
+  });
+  console.log('[social-media] uploadMedia — presigned form ok, object_key:', presigned.object_key);
+
+  // 2. Upload the file to object storage
+  const formData = new FormData();
+  for (const [key, value] of Object.entries(presigned.fields || {})) {
+    formData.append(key, value);
+  }
+  formData.append('file', request.file, request.file.name);
+  const putRes = await fetch(presigned.upload_url, { method: 'POST', body: formData });
+  console.log('[social-media] uploadMedia — object storage response status:', putRes.status);
+  if (!putRes.ok) {
+    throw new Error(`Media upload failed: ${putRes.status}`);
+  }
+
+  // 3. Confirm — store the reference, not a URL
   const metadata: Record<string, unknown> = {
+    object_key: presigned.object_key,
     filename: request.file.name,
     mime_type: request.file.type || 'application/octet-stream',
     size_bytes: request.file.size,
     width: request.width ?? null,
     height: request.height ?? null,
     duration_seconds: request.durationSeconds ?? null,
-    thumbnail_url: thumbnailUrl,
+    thumbnail_object_key: thumbnailObjectKey,
     alt_text: request.altText ?? null,
     service: request.service || 'media',
   };
-
-  // For now, store the file URL directly — the presigned upload flow
-  // will be wired when the v3 media endpoints are fully available
   const doc = await w.confirmMediaUpload(metadata);
+  console.log('[social-media] uploadMedia — confirmed, doc_id:', doc.doc_id);
   return fromV3DocToMedia(doc);
 }
 
@@ -234,37 +254,68 @@ export async function deleteMedia(docId: string): Promise<void> {
 
 /**
  * Resolve media_refs to full media records.
+ *
+ * Refs arrive in two shapes:
+ * - resolved objects — the API read path (resolve_media_urls) rewrites a
+ *   post's media_refs to {doc_id, object_key, mime_type, filename,
+ *   size_bytes, read_url} with a fresh presigned read_url. These map
+ *   straight to MediaRecord (this is the ONLY cross-user media path —
+ *   listMedia is owner-scoped).
+ * - bare doc_id strings — avatar_ref/banner_ref and write-path reads.
+ *   Resolved against the user's own media documents (doc_ids filter),
+ *   then presigned fresh.
  */
 export async function resolveMediaRefs(
-  refs: string[],
+  refs: (string | ResolvedMediaRef)[],
   _owner?: { username: string; provider: string },
   _service?: 'media' | 'public_media',
 ): Promise<MediaRecord[]> {
   if (!refs.length) return [];
   const w = getV3Client();
-  const media = await w.listMedia({ limit: refs.length });
-  const refSet = new Set(refs);
-  // The API returns doc_id (the hand-rolled client's phantom `_id?` field
-  // made this filter a silent no-op — media refs never resolved).
-  return media
-    .filter((m) => m.doc_id && refSet.has(m.doc_id))
-    .map(fromV3DocToMedia);
+
+  const direct = refs
+    .filter((r): r is ResolvedMediaRef => typeof r !== 'string')
+    .map(fromResolvedMediaRef);
+
+  const docIds = refs.filter((r): r is string => typeof r === 'string');
+  let fromDocs: MediaRecord[] = [];
+  if (docIds.length) {
+    console.log('[social-media] resolveMediaRefs — resolving', docIds.length, 'doc_id ref(s):', JSON.stringify(docIds));
+    const media = await w.listMedia({ limit: docIds.length, doc_ids: docIds });
+    const refSet = new Set(docIds);
+    fromDocs = media
+      .filter((m) => m.doc_id && refSet.has(m.doc_id))
+      .map(fromV3DocToMedia);
+    // Fresh presigned URLs for the records that carry an object_key
+    fromDocs = await refreshMediaUrls(fromDocs);
+  }
+  console.log('[social-media] resolveMediaRefs — resolved', direct.length, 'direct +', fromDocs.length, 'from docs');
+  return [...direct, ...fromDocs];
 }
 
 /**
- * Refresh a single media record's URLs (alias for resolveMediaRefs).
+ * Refresh a single media record's URLs. A record that carries an
+ * object_key gets a fresh presigned read URL (the document never stores
+ * a live URL — stored URLs go stale); records without one (legacy) are
+ * returned unchanged.
  */
 export async function refreshMediaUrl(
   record: MediaRecord,
   _owner?: { username: string; provider: string },
   _service?: 'media' | 'public_media',
 ): Promise<MediaRecord> {
-  if (!record._id) return record;
+  if (!record.object_key) return record;
   const w = getV3Client();
   try {
-    const doc = await w.readById(record._id, 'media');
-    return fromV3DocToMedia(doc);
-  } catch {
+    const { read_url } = await w.getMediaReadUrl(record.object_key);
+    const refreshed: MediaRecord = { ...record, url: read_url };
+    if (record.thumbnail_object_key) {
+      const { read_url: thumbUrl } = await w.getMediaReadUrl(record.thumbnail_object_key);
+      refreshed.thumbnail_url = thumbUrl;
+    }
+    return refreshed;
+  } catch (e) {
+    console.error('[social-media] refreshMediaUrl — presign failed for', record.object_key, e);
     return record;
   }
 }
@@ -278,19 +329,7 @@ export async function refreshMediaUrls(
   _service?: 'media' | 'public_media',
 ): Promise<MediaRecord[]> {
   if (!records.length) return records;
-  const w = getV3Client();
-  const refreshed = await Promise.all(
-    records.map(async (r) => {
-      if (!r._id) return r;
-      try {
-        const doc = await w.readById(r._id, 'media');
-        return fromV3DocToMedia(doc);
-      } catch {
-        return r;
-      }
-    }),
-  );
-  return refreshed;
+  return Promise.all(records.map((r) => refreshMediaUrl(r)));
 }
 
 // ── Backward compat aliases ──────────────────────────────────────────────────

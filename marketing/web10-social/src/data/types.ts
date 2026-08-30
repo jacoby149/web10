@@ -25,7 +25,12 @@ export interface PostMention {
 export interface PostRecord {
   _id?: string;
   text?: string;
-  media_refs?: string[];
+  // A media ref is either a bare doc_id (string — the write path, or a
+  // pre-resolution read) or a resolved object (the API read path's
+  // resolve_media_urls rewrites media_refs to {doc_id, object_key,
+  // mime_type, filename, size_bytes, read_url} with a fresh presigned
+  // read_url on every read).
+  media_refs?: (string | ResolvedMediaRef)[];
   created_at: string;
   updated_at?: string;
   origin?: Origin;
@@ -88,12 +93,44 @@ export interface MediaRecord {
   height?: number;
   duration_seconds?: number;
   thumbnail_url?: string;
+  thumbnail_object_key?: string;
   hls_manifest_url?: string;
   caption?: string;
   alt_text?: string;
   origin?: Origin;
   origin_id?: string;
   encrypted?: boolean;
+}
+
+/**
+ * A media ref as returned by the API read path (`resolve_media_urls`):
+ * the post's `media_refs` arrive pre-resolved with a fresh presigned
+ * `read_url` (minted from the metadata's object_key on every read).
+ */
+export interface ResolvedMediaRef {
+  doc_id?: string;
+  object_key?: string | null;
+  mime_type?: string | null;
+  filename?: string | null;
+  size_bytes?: number | null;
+  read_url?: string | null;
+}
+
+/** The doc_id a media ref addresses — strings are doc_ids, resolved objects carry it. */
+export function mediaRefId(ref: string | ResolvedMediaRef): string {
+  return typeof ref === 'string' ? ref : ref.doc_id || '';
+}
+
+/** Map an API-resolved media ref (read path) to a MediaRecord. */
+export function fromResolvedMediaRef(r: ResolvedMediaRef): MediaRecord {
+  return {
+    _id: r.doc_id || undefined,
+    url: r.read_url || '',
+    object_key: r.object_key || undefined,
+    created_at: '',
+    mime_type: r.mime_type || undefined,
+    size_bytes: r.size_bytes || undefined,
+  };
 }
 
 export function fromV3DocToMedia(doc: V3Document): MediaRecord {
@@ -109,6 +146,7 @@ export function fromV3DocToMedia(doc: V3Document): MediaRecord {
     height: (body.height as number) || undefined,
     duration_seconds: (body.duration_seconds as number) || undefined,
     thumbnail_url: (body.thumbnail_url as string) || undefined,
+    thumbnail_object_key: (body.thumbnail_object_key as string) || undefined,
     hls_manifest_url: (body.hls_manifest_url as string) || undefined,
     caption: (body.caption as string) || undefined,
     alt_text: (body.alt_text as string) || undefined,

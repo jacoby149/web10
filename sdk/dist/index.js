@@ -106,7 +106,9 @@ function createV3Client(options = {}) {
       return;
     try {
       const token = state.token ?? readTokenCookie();
-      const body = { url: window.location.href.split(/[?#]/)[0] };
+      const rawUrl = window.location.href.split(/[?#]/)[0];
+      const url = rawUrl.replace(/\/index\.html$/, "/");
+      const body = { url };
       if (token)
         body.token = token;
       fetch(`${apiOrigin}/v3/apps/register`, {
@@ -336,6 +338,8 @@ function createV3Client(options = {}) {
         payload.limit = opts.limit;
       if (opts?.offset != null)
         payload.offset = opts.offset;
+      if (opts?.doc_ids?.length)
+        payload.doc_ids = opts.doc_ids;
       return v3Post("media/list", payload);
     },
     async deleteMedia(docId) {

@@ -1,6 +1,6 @@
 import { getV3Client } from './v3';
 import { getDiscoverGroupId, getMyGroups } from './groups';
-import { fromV3DocToPost, fromV3DocToProfile, type PostRecord, type DiscoverSort } from './types';
+import { fromV3DocToPost, fromV3DocToProfile, mediaRefId, type PostRecord, type DiscoverSort } from './types';
 
 // ── Feed / Discover data layer (v3) ──────────────────────────────────────────
 // v3 feed: read from groups, not inbox. Discover: read from discover group.
@@ -159,7 +159,7 @@ export function postToDiscoveryPost(post: PostRecord): DiscoveryPost {
     post_id: post._id || '',
     text: post.text,
     tags: post.tags,
-    media_refs: post.media_refs,
+    media_refs: post.media_refs?.map(mediaRefId),
     created_at: post.created_at,
     likes: 0,
     comments: 0,

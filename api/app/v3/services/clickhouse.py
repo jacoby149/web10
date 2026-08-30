@@ -1855,7 +1855,10 @@ def resolve_media_urls(doc_body: dict, user_key: str) -> dict:
 
     Looks for media_refs array in the body, batches all refs into a single
     query across media_metadata and public_media collections, and returns
-    the body with read_urls injected.
+    the body with read_urls injected. The read_url is a FRESH presigned URL
+    minted from the metadata's object_key on every read (document-typing:
+    the document never stores a live URL) — a legacy stored `url` is only
+    used when no object_key exists.
     """
     media_refs = doc_body.get("media_refs") or []
     if not media_refs:
@@ -1872,22 +1875,36 @@ def resolve_media_urls(doc_body: dict, user_key: str) -> dict:
         params,
     )
 
-    # Build lookup: object_key -> metadata
+    # Build lookup: doc_id -> metadata
     meta_map = {}
     for row in result.result_rows:
         meta_map[row[0]] = _parse_json(row[1])
+
+    # Fresh presigned URLs for every object_key (offline — no network call).
+    object_keys = [m.get("object_key") for m in meta_map.values() if m.get("object_key")]
+    presigned = {}
+    if object_keys:
+        signing_client = get_s3_signing_client()
+        for key in dict.fromkeys(object_keys):
+            presigned[key] = signing_client.generate_presigned_url(
+                "get_object",
+                Params={"Bucket": settings.S3_BUCKET, "Key": key},
+                ExpiresIn=settings.READ_URL_EXPIRY,
+            )
 
     resolved = []
     for mref in media_refs:
         mref_str = str(mref)
         meta = meta_map.get(mref_str, {})
+        object_key = meta.get("object_key")
         resolved.append(
             {
-                "object_key": mref_str,
+                "doc_id": mref_str,
+                "object_key": object_key,
                 "mime_type": meta.get("mime_type"),
                 "filename": meta.get("filename"),
                 "size_bytes": meta.get("size_bytes"),
-                "read_url": meta.get("url"),
+                "read_url": presigned.get(object_key) if object_key else meta.get("url"),
             }
         )
 
@@ -2333,7 +2350,13 @@ def get_phone_record(phone_number: str) -> dict | None:
 
 
 def confirm_media_upload(user_key: str, metadata: dict) -> dict:
-    """Confirm a media upload by storing metadata in documents table."""
+    """Confirm a media upload by storing metadata in documents table.
+
+    Returns the standard document envelope (same shape as create/read) — the
+    metadata is the document's `body`. A flat `{doc_id, **metadata}` broke
+    every client that maps the response through the V3Document shape
+    (web10-social's profile photo upload 500'd into a client TypeError).
+    """
     now = _now()
     doc_id = _gen_doc_id()
     # Positional insert — must match the documents column count (11, including
@@ -2343,25 +2366,57 @@ def confirm_media_upload(user_key: str, metadata: dict) -> dict:
         "documents",
         [[doc_id, user_key, "media_metadata", _json(metadata), "", [], now, now, 0, "none", ""]],
     )
-    return {"doc_id": doc_id, **metadata}
+    return {
+        "doc_id": doc_id,
+        "author_key": user_key,
+        "service": "media_metadata",
+        "body": metadata,
+        "ref_value": "",
+        "tags": [],
+        "created_at": now.isoformat(),
+        "updated_at": now.isoformat(),
+    }
 
 
-def list_media(user_key: str, limit: int = 50, offset: int = 0) -> list[dict]:
-    """List media metadata for a user."""
+def list_media(
+    user_key: str,
+    limit: int = 50,
+    offset: int = 0,
+    doc_ids: list[str] | None = None,
+) -> list[dict]:
+    """List media metadata for a user.
+
+    Returns document envelopes (same shape as create/read). `doc_ids`
+    narrows the list to specific documents — the exact-ref resolution the
+    app's avatar/banner/post media refs need (a bare latest-N list misses
+    refs older than the window).
+    """
+    params: dict = {"user_key": user_key, "limit": limit, "offset": offset}
+    doc_id_filter = ""
+    if doc_ids:
+        placeholders = ", ".join(f"%(d{i})s" for i in range(len(doc_ids)))
+        doc_id_filter = f"AND doc_id IN ({placeholders}) "
+        params.update({f"d{i}": d for i, d in enumerate(doc_ids)})
     result = client.query(
-        "SELECT doc_id, body, created_at FROM documents "
+        "SELECT doc_id, author_key, collection_name, body, ref_value, tags, created_at, updated_at FROM documents "
         "WHERE author_key = %(user_key)s "
         "AND collection_name IN ('media_metadata', 'public_media') "
         "AND deleted = 0 "
-        "ORDER BY created_at DESC "
+        + doc_id_filter
+        + "ORDER BY created_at DESC "
         "LIMIT %(limit)s OFFSET %(offset)s",
-        {"user_key": user_key, "limit": limit, "offset": offset},
+        params,
     )
     return [
         {
             "doc_id": row[0],
-            "metadata": _parse_json(row[1]),
-            "created_at": str(row[2]),
+            "author_key": row[1],
+            "service": row[2],
+            "body": _parse_json(row[3]),
+            "ref_value": row[4],
+            "tags": list(row[5]),
+            "created_at": str(row[6]),
+            "updated_at": str(row[7]),
         }
         for row in result.result_rows
     ]

@@ -273,6 +273,7 @@ export interface V3Client {
     listMedia(opts?: {
         limit?: number;
         offset?: number;
+        doc_ids?: string[];
     }): Promise<V3Document[]>;
     deleteMedia(docId: string): Promise<{
         doc_id: string;
