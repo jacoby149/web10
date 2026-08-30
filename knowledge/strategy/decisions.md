@@ -9,6 +9,272 @@ Status legend: [decided] intent set · [in-progress] · [open] still debating.
 
 ---
 
+### D57 — Two-layer ad model: creator ads (D55) + node-level ads; the payment model is scoped to what the node can enforce [decided]
+
+Operator, 30.08.2026 — after the ads lane completed (3.30.0), the business
+question: "why wouldnt creator just link their patreon?" and "with the ads,
+how does web10 get a cut into the ad revenue / enforce that, not totally
+sure." Then: "web10 could also charge more than $199/mo. how does mongodb
+make money?" Then: "the node owner has to have ads on it too! so they get
+ad rev off all 500k users, so not just the influencers are doing ads, the
+node owner is doing ads too." Then: "what kinds of ads? google ads? or
+what? i am talking about what is feasible simple." Then: "but then there
+needs to be built into the .read function natively the ads of the node,
+maybe on the discover group." Then the unlock: "there are posts, and then
+the ads get joined to the posts, should users posts with none as the ad get
+sponsored ads put on them? so put ads on users posts that arent
+monetizing, some percentage of the time." Then, on the payment split:
+"great, so we are doing patreon because we can, + ads too! the node
+operator should get a cut of the patreons as well." Then, the final
+split: "3% goes to stripe, 10% keeps the node running, 10% keeps web10
+secure, 77% goes to the creator." Then, the v3/v4 split: "should we even
+do patreon? maybe we should do ONLY ads, makes migration simpler, patreon
+could be v4 web10 stuff, move to the v4 knowledge base. then it is much
+simpler to migrate nodes." Then, the Stripe lock-in: "my issue is i dont
+think stripe connect would even necessarily make it easy to switch nodes
+like that." Then, the final call: "we cut out all the stripe shit which is
+hard setup, repels people, people could do their affiliate shit just
+straight out the gate without the patreon stuff it will allow us to really
+focus on making this an effective ads platform, which is really what we
+are trying to compete with, the youtubes, etc, people could link their
+patreons. people trust patreon also."
+
+**The problem the decision solves:**
+
+The business plan's revenue model has a load-bearing assumption that was
+never stress-tested: the 3% rails revenue assumes the creator's money flows
+through web10's Stripe Connect. But a creator with a working Patreon/Stripe/
+Shopify setup has every incentive to route around it. The ad revenue line is
+worse — the `offer.link` is a raw URL; web10 can't intercept an affiliate
+link, can't force a sponsor to pay through the node, and can't verify a
+conversion. The 3% on ads was aspirational, not enforced.
+
+Separately, the node operator had no revenue model of their own. They host
+creators for free (the software is free) and collect a $199/mo fee. A node
+with 500k users is a media property with no mechanism to monetize that
+audience. The operator is a customer, not a revenue-sharing partner.
+
+**The decision (three parts):**
+
+**1. Two ad layers, clearly separated.**
+
+- **Layer 1: creator ads (D55, already built).** The creator pins an ad to
+  their post. The `offer.link` is the creator's own affiliate/sponsor link.
+  web10 does NOT process the payment, does NOT get a cut, and does NOT try
+  to enforce it. The creator keeps 100% of the ad revenue. web10's value
+  here is **delivery** (100% of followers see the ad), not payment
+  processing. This is the existing D55 model, unchanged.
+
+- **Layer 2: node-level ads (new, this decision).** The node operator sells
+  ad inventory across the whole node. A node ad is a `posts` doc on the
+  discover group, tagged `ad` + `node_ad`, authored by the node operator.
+  The read attaches active node ads to posts at the operator's configured
+  **percentage** (default 10%). The attachment is **read-time** — the
+  creator's `ad_mode` column is never modified; the read simply enriches
+  the response. The node ad is a **third join**: the response carries both
+  `doc.ad` (the creator's pinned ad, if `ad_mode = 'pinned'`) AND
+  `doc.node_ad` (the node's ad, if selected by the percentage). A post can
+  have both — the creator's monetization is never suppressed by the node's.
+  The operator sells this inventory to advertisers directly
+  (off-platform, like a small publication sells ad space). web10's cut is
+  the **10% platform fee on membership/tip revenue** (D57), NOT a direct
+  cut of the ad revenue.
+
+**Why read-time attachment, not a separate ad post:**
+
+The first draft interleaved node ads as separate posts in the feed (like a
+sponsored slot every Nth position). The operator rejected it: "there are
+posts, and then the ads get joined to the posts, should users posts with
+none as the ad get sponsored ads put on them?" He was right. The existing
+`ad_preference` mechanism already joins an ad to a post (the pinned ad
+serves inline via `doc.ad`). The node ad uses the same mechanism — the read
+sees the doc, checks the node ad percentage, and if selected, attaches a
+node ad to the response as `doc.node_ad`. No new interleaving logic. No
+separate ad posts. The ad is part of the post response, the same way a
+pinned creator ad is.
+
+**The third join (doc + creator ad + node ad):**
+
+The read returns the doc with up to two ad attachments:
+- `doc.ad` — the creator's pinned ad (if `ad_mode = 'pinned'`)
+- `doc.node_ad` — the node's ad (if selected by the percentage)
+
+Both can be present on the same post. The creator's monetization is never
+suppressed by the node's. The renderer shows both: the post content, the
+creator's ad block, and the node's ad block (with the "Sponsored" label).
+The operator's revenue is independent of the creator's — a post with a
+creator ad still gets a node ad, so the operator's inventory isn't reduced
+by the creator's monetization.
+
+The percentage is the density control. The operator sets
+`node_ad_percentage` in `node_config` (default 10, range 0-100). The read
+uses a deterministic hash of (doc_id + reader_key) to select which posts
+get a node ad — the same user sees the same ads on refresh, but different
+users see different posts with node ads. The node ad cycles through the
+operator's active node ads (round-robin).
+
+**Why not enforce creator ad revenue through web10:**
+
+You can't. The `offer.link` is an external URL. web10 doesn't see the
+click, doesn't see the conversion, doesn't process the payment. Trying to
+enforce it would require web10 to become the merchant of record for every
+affiliate transaction on the platform — a payments company with sales tax
+nexus in every jurisdiction, chargeback liability, and PCI compliance.
+That's a different company than a social protocol. The honest model:
+web10 sells delivery, the creator keeps the revenue.
+
+**Why the node operator can enforce their ad revenue:**
+
+The node ad is rendered by the node's code. The ad block is part of the
+post's response (`doc.ad`), the same way a pinned creator ad is. The
+operator can't sell ad space that isn't rendered by the node. web10's SDK
+renders the ad block, so web10 can meter impressions. The operator's
+revenue is real because the inventory is real — it's part of the product,
+not a suggestion.
+
+**The creator's ad is never suppressed (the non-steal principle):**
+
+The node ad is an *additional* layer, not a replacement. If a post has
+`ad_mode = 'pinned'` (the creator is monetizing it with their own ad), the
+read serves the creator's ad in `doc.ad` AND the node ad in `doc.node_ad`
+(if selected by the percentage). The creator's monetization is never
+reduced by the node's. The pitch to a creator: "your ads are always yours.
+the node's ads are an additional layer on top — they don't replace yours,
+they don't compete with yours, they're a separate revenue stream for the
+operator who hosts you."
+
+**2. v3 is ads only. The payment model (memberships/tips) is v4.**
+
+The first draft of this decision included a full payment model: Stripe
+Connect for memberships/tips, a 3+10+10+77 split, the "you're supporting
+an open internet" marketing frame. The operator rejected it for v3:
+"we cut out all the stripe shit which is hard setup, repels people, people
+could do their affiliate shit just straight out the gate without the
+patreon stuff."
+
+**Why Stripe Connect is a v3 blocker:**
+
+- **It creates migration lock-in.** The payment relationship (fan → Stripe
+  → node's Connect account → creator) is tied to the node's Stripe account.
+  If the creator moves to a different node, the subscription doesn't
+  transfer. "Export your patrons" becomes "ask your fans to re-enter their
+  card." That's not ownership, that's a CSV.
+- **It repels creators.** Stripe Connect onboarding (KYC, bank account,
+  tax forms) is friction. A creator who already has a Patreon, a Shopify
+  store, or an affiliate setup doesn't want to set up a second payment
+  processor. The friction kills the onboarding.
+- **People trust Patreon.** A fan who's been paying a creator $10/mo on
+  Patreon for 3 years is not going to re-enter their card on a new
+  platform. The trust is in Patreon, not in web10.
+
+**What v3 does instead: ads only.**
+
+The platform is an **effective ads platform** — that's what web10
+competes with (YouTube's ad system, not Patreon). The ad is a link. The
+payment happens off-platform, where the fan already trusts:
+
+- **Creator ads (D55, already built):** the creator pins their affiliate
+  link, sponsor deal, or Patreon to their post. `offer.link` is an external
+  URL. No payment processing on the node. The creator keeps 100% of the ad
+  revenue. The creator can link their Patreon directly — the fan clicks
+  through to Patreon, pays there, the trust is in Patreon.
+
+- **Node ads (this decision):** the operator's inventory. `offer.link` is
+  an external URL. No payment processing on the node. The operator sells
+  the inventory to advertisers directly (off-platform). The operator keeps
+  the ad revenue.
+
+Both ad layers are **link-based**, not payment-based. The node doesn't hold
+the payment relationship. Migration is clean: export your posts, your ad
+catalog, your settings → import into the new node. No payment relationship
+to transfer. No subscriber re-subscription.
+
+**The "why not just link Patreon" answer (v3):**
+
+"You don't need to link Patreon for payments. You link it for your
+members. But your ads run on web10, delivered to 100% of your followers,
+and you keep 100% of the ad revenue. web10 doesn't process the payment,
+doesn't take a cut of your ad revenue. The only thing you pay for is the
+hosting (the infrastructure that delivers your content to your audience)."
+
+**v4: the payment model (memberships/tips).**
+
+When v4 starts, the payment model gets its own decision doc (D58?). The
+questions to solve:
+- How do you make payment relationships portable across nodes? (Stripe
+  Connect transfer, creator-managed Stripe, or a payment abstraction
+  layer)
+- The 3+10+10+77 split (or whatever the final numbers are)
+- The "you're supporting an open internet" marketing frame
+- The patron export (the subscriber list is the key piece)
+
+The v4 KB lives in `knowledge/knowledge-base/web10-v4/`. The v3 KB
+(`web10-v3/social/node-ads.md`) is ads only.
+
+**The revenue model (v3):**
+
+Without memberships/tips, web10's revenue is:
+1. **Hosting fees** (usage-based tiers: Free / $49 / $199 / $999+)
+2. **Platform fee on node ads** — web10 takes 10-15% of the node ad
+   revenue (the operator sells the inventory, web10 takes a platform fee
+   on the hosting invoice)
+
+That's it. No 3% Stripe, no 10% operator cut on memberships, no 10% web10
+cut on memberships. The revenue is simpler: hosting + platform fee on node
+ads. The "you're supporting an open internet" framing applies to the
+hosting fee, not to a payment split.
+
+**3. The pricing model is usage-based, not flat (the MongoDB model).**
+
+The flat $199/mo is wrong. It's a SaaS pricing model applied to an
+infrastructure product. The price should scale with the value the customer
+is extracting:
+
+- **Free:** 1 node, 10GB storage, 100GB egress/mo. The funnel. No credit
+  card. A creator can try it for a week.
+- **Starter ($49/mo):** 100GB storage, 1TB egress/mo.
+- **Creator ($199/mo):** 1TB storage, 10TB egress/mo, custom domain.
+- **Scale ($999+/mo):** dedicated node, 10TB+ storage, 100TB+ egress/mo,
+  SLA, DR.
+- **Usage-based overages** on storage + egress beyond the tier cap.
+
+The egress charge is the video solution: the creator who streams 4K to 10k
+concurrent viewers pays for what they use. The R2-class offload keeps
+web10's actual cost low; the passthrough charge keeps the margin.
+
+The node operator's revenue is now: creator hosting fees (tiered) +
+node-level ad revenue (they keep 85-90%) + 10% of the creator's
+membership/tip revenue (keeps the node running). The operator is a
+media company, not just a hosting customer.
+
+**What this rejects:**
+
+- web10 as merchant of record for creator ad revenue (the payments company
+  trap — sales tax, chargebacks, PCI).
+- A flat $199/mo pricing model (doesn't scale with value, subsidizes large
+  creators, undercharges video-heavy workloads).
+- Stripe Connect in v3 (migration lock-in, onboarding friction, repels
+  creators who already have a payment setup). The payment model is v4.
+- "3% of all creator revenue" as the rails model (unenforceable for
+  affiliate/sponsor revenue; the v4 payment model will scope this properly).
+- Google AdSense / programmatic ad networks / VAST pre-roll (not v3; the
+  node ad is a first-party post, not a third-party ad tech stack).
+- The node operator as a pure customer (they're a revenue-sharing partner
+  with their own ad inventory).
+
+**What it gates:**
+
+- The node-ads lane (new) is the build path for the node-level ad layer:
+  the `node_ad` tag, the `node_ad_percentage` config, the read-time
+  attachment logic (the third join: `doc.ad` + `doc.node_ad`), the
+  operator UI, the renderer.
+- The business plan's revenue model needs revision (the pricing tiers +
+  the node ad platform fee; the membership/tip revenue line moves to v4).
+- The v4 payment model (memberships/tips, Stripe Connect, portable
+  payment relationships, the 3+10+10+77 split, the patron export) gets its
+  own decision doc (D58?) when v4 starts. The v4 KB lives in
+  `knowledge/knowledge-base/web10-v4/`.
+
 ### D56 — Full-platform telemetry: GA4 + Hotjar on every surface, content masked [decided]
 Operator, 28.08.2026 — "ultimate privacy isnt what web10 is about, we arent
 encrypting like whatsapp, we are doing analytics for influencers tracking,

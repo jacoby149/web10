@@ -218,6 +218,30 @@ is in `web10-v3/social/ads-dissemination.md`; the ad object in `social/ads.md`
 - [✓ 3.29.0] **Composer pin control (web10-social)** — the "Pin an ad" control in `PostComposer`: pick an ad (from an album or all) to pin to the post, or none (sets the post's `ad_preference`); the ad block renders under the post (creative + offer + disclosure, disclosure never hidden). `marketing/web10-social/src/components/Feed/`.
 - [✓ 3.30.0] **E2E** — the torture gauntlet: create an ad → pin it to a post → follower sees the post with the ad block + disclosure → unpin → it's gone → non-follower never sees the ad (I3) → an ad in two albums shows in both. `e2e/tests/ads.spec.ts`.
 
+## Node-Level Ads (D57) — Platform
+
+The node operator's ad layer — the second layer of the two-layer ad model
+(D57). **v3 is ads only** — no Stripe, no memberships, no tips (the payment
+model is v4). A node ad is a `posts` doc on the discover group, tagged `ad`
++ `node_ad`, authored by the node operator. The read attaches active node
+ads to posts at the operator's configured percentage (default 10%). The
+attachment is read-time — the creator's `ad_mode` column is never modified.
+The response is a **third join**: `doc.ad` (the creator's pinned ad, if
+`ad_mode = 'pinned'`) + `doc.node_ad` (the node's ad, if selected by the
+percentage). Both can be present on the same post — the creator's
+monetization is never suppressed by the node's. The operator sells the
+inventory to advertisers directly; web10 takes a 10-15% platform fee on the
+hosting invoice. The KB is the spec: `web10-v3/social/node-ads.md`. Lane is
+`node-ads` in `parallel-execution.md`.
+
+- [ ] **Decision: D57** (`knowledge/strategy/decisions.md`) — two-layer ad model (creator + node); v3 is ads only (no Stripe, no memberships, no tips — the payment model is v4); read-time attachment at a percentage; the third join (`doc.ad` + `doc.node_ad`, both can be present); usage-based pricing (MongoDB model); the v3/v4 split rationale (Stripe Connect = migration lock-in + onboarding friction)
+- [ ] **KB: `node-ads.md`** (`knowledge/knowledge-base/web10-v3/social/node-ads.md`) — the node ad object, the read-time attachment (the third join), the density control, the renderer (both ads on the same post), the operator's revenue model (hosting + node ad revenue 85-90%), the "what this is NOT" (not a payment processor, v3 is ads only), security invariants
+- [ ] **`node_ad_percentage` config** — new field on `NodeConfig` + `ConfigUpdate` (integer, 0-100, default 10); the Node Config UI exposes it
+- [ ] **Node ad query + read-time attachment (the third join)** (`api/app/v3/`) — `get_active_node_ads()` (bounded query); the read enriches posts with node ads at the configured percentage (deterministic hash, round-robin); the response carries both `doc.ad` and `doc.node_ad`
+- [ ] **Renderer: both ads on the same post** (`marketing/web10-social/`) — the post renders with up to two ad blocks: the creator's ad + the node's ad ("Sponsored" label + node disclosure)
+- [ ] **Ad Inventory card (authenticator)** (`ui/src/components/Studio/`) — percentage slider, list of active node ads, create/pause/resume/retire
+- [ ] **Tests** — unit (query, attachment, percentage, determinism, third join, I3) + e2e (operator creates node ad → feed shows it → pinned post shows BOTH ads → percentage 0 = off)
+
 ## Platform Telemetry (D56) — Platform
 
 web10 tracks hard — GA4 + Hotjar on **every** user-facing surface
