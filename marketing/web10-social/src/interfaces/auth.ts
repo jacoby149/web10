@@ -21,7 +21,7 @@
 // already signed in and the contract already granted, so it hands back the
 // token and closes itself with zero UI — no "all set" screen, no extra tap.
 
-import { API_ORIGIN, AUTH_ORIGIN } from '../lib/origins';
+import { API_ORIGIN, getAuthOrigin } from '../lib/origins';
 import { getV3Client } from '../data/v3';
 import type { TokenPayload, V3AppCR, V3Client } from 'web10-npm';
 
@@ -74,19 +74,11 @@ function socialAppContract(): V3AppCR {
 }
 
 function createSocialAuth(): SocialAuth {
-  const host = window.location.hostname;
-  // Go local when served from any *.localhost host (so social.localhost ->
-  // auth.localhost -> social.localhost works without build args) — the
-  // old adapter's dev-mode switch, kept.
-  const local =
-    host === 'localhost' ||
-    host === '127.0.0.1' ||
-    host.endsWith('.localhost');
-  const authOrigin = local ? 'http://auth.localhost' : AUTH_ORIGIN;
+  const authOrigin = getAuthOrigin();
   // Same API origin as the data layer (src/data/v3.ts) — the contract
   // fast path must check the same node the CRUD calls hit.
   const apiOrigin = API_ORIGIN;
-  LOG('auth init — host:', host, 'local:', local, 'authOrigin:', authOrigin, 'apiOrigin:', apiOrigin);
+  LOG('auth init — authOrigin:', authOrigin, 'apiOrigin:', apiOrigin);
 
   const web10 = window.web10;
   if (!web10) {

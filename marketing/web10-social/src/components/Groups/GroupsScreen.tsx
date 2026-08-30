@@ -26,8 +26,10 @@ import {
   Lock,
   AlertTriangle,
   RefreshCw,
+  Plus,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { CreateGroupDialog } from './CreateGroupDialog';
 
 const LOG = (...args: unknown[]) => console.log('[social:groups]', ...args);
 
@@ -344,6 +346,7 @@ export default function GroupsScreen() {
   const [myLoading, setMyLoading] = useState(true);
   const [myError, setMyError] = useState(false);
   const [leaving, setLeaving] = useState<Record<string, boolean>>({});
+  const [createOpen, setCreateOpen] = useState(false);
 
   const loadMyGroups = useCallback(async () => {
     setMyLoading(true);
@@ -520,6 +523,22 @@ export default function GroupsScreen() {
         {/* My Groups */}
         {tab === 'my' && (
           <div className="flex-1 px-4 py-4 md:px-0" data-testid="groups-my-view">
+            <div className="mb-3 flex items-center justify-between gap-3">
+              <span className="text-xs font-medium uppercase tracking-wide text-muted-foreground">My groups</span>
+              <Button
+                variant="brand"
+                size="sm"
+                className="shrink-0 gap-1.5"
+                onClick={() => {
+                  LOG('create group — dialog opened');
+                  setCreateOpen(true);
+                }}
+                data-testid="groups-create-button"
+              >
+                <Plus className="h-3.5 w-3.5" strokeWidth={2} />
+                Create group
+              </Button>
+            </div>
             {myError ? (
               <GroupsErrorState onRetry={loadMyGroups} />
             ) : isMyInitialLoad ? (
@@ -680,6 +699,20 @@ export default function GroupsScreen() {
             </div>
           </div>
         )}
+
+        {/* Create group (the D42 consent flow — the GCR goes to the authenticator) */}
+        <CreateGroupDialog
+          open={createOpen}
+          onClose={() => {
+            LOG('create group — dialog closed');
+            setCreateOpen(false);
+          }}
+          onCreated={() => {
+            LOG('create group — approved, reloading my groups');
+            setCreateOpen(false);
+            loadMyGroups();
+          }}
+        />
       </div>
     </div>
   );

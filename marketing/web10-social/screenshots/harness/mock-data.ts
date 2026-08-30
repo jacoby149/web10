@@ -342,6 +342,9 @@ export async function readGroupDetail(groupId: string): Promise<unknown> {
 export async function joinGroup(): Promise<unknown> { return { status: 'joined' }; }
 export async function requestJoinGroup(): Promise<unknown> { return { status: 'pending' }; }
 export async function leaveGroup(): Promise<unknown> { return { status: 'left' }; }
+// The create-group GCR goes to the authenticator (window.web10) — the harness
+// has no popup, so this is a no-op stub that keeps the dialog from crashing.
+export function requestGroupCreation(): boolean { return true; }
 export function groupDisplayName(groupId: string, name?: string): string {
   if (name) return name;
   const parts = groupId.split('/');

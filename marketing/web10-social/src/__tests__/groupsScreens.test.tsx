@@ -18,6 +18,7 @@ vi.mock('@/data', async (importOriginal) => {
     joinGroup: vi.fn().mockResolvedValue({ status: 'joined' }),
     requestJoinGroup: vi.fn().mockResolvedValue({ status: 'pending' }),
     leaveGroup: vi.fn().mockResolvedValue({ status: 'left' }),
+    requestGroupCreation: vi.fn().mockReturnValue(true),
   };
 });
 
@@ -28,6 +29,7 @@ import {
   joinGroup,
   requestJoinGroup,
   leaveGroup,
+  requestGroupCreation,
 } from '@/data';
 
 const mockMyGroups = [
@@ -337,6 +339,129 @@ describe('GroupsScreen', () => {
     fireEvent.click(screen.getByTestId('groups-retry'));
     await waitFor(() => {
       expect(screen.getByTestId('groups-discover-grid')).toBeInTheDocument();
+    });
+  });
+});
+
+describe('GroupsScreen — create group (the D42 consent flow)', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    vi.mocked(getMyCommunityGroups).mockResolvedValue(mockMyGroups as never);
+    vi.mocked(readGroupDirectory).mockResolvedValue(mockDirectory as never);
+    // Default: the authenticator approves.
+    vi.mocked(requestGroupCreation).mockImplementation((_name, _policy, onResult) => {
+      onResult({ status: 'approved' });
+      return true;
+    });
+  });
+
+  async function renderScreen() {
+    const { default: GroupsScreen } = await import('@/components/Groups/GroupsScreen');
+    render(
+      <MemoryRouter initialEntries={['/groups']}>
+        <GroupsScreen />
+      </MemoryRouter>,
+    );
+    await waitFor(() => {
+      expect(screen.getByTestId('groups-my-view')).toBeInTheDocument();
+    });
+  }
+
+  it('shows a Create group button on the My Groups tab', async () => {
+    await renderScreen();
+    expect(screen.getByTestId('groups-create-button')).toBeInTheDocument();
+    // The dialog is closed by default
+    expect(screen.queryByTestId('groups-create-dialog')).not.toBeInTheDocument();
+  });
+
+  it('opens the dialog with name + join-policy controls', async () => {
+    await renderScreen();
+    fireEvent.click(screen.getByTestId('groups-create-button'));
+    await waitFor(() => {
+      expect(screen.getByTestId('groups-create-dialog')).toBeInTheDocument();
+    });
+    expect(screen.getByTestId('groups-create-name')).toBeInTheDocument();
+    // The three join policies, open selected by default
+    expect(screen.getByTestId('groups-create-policy-open')).toHaveAttribute('aria-checked', 'true');
+    expect(screen.getByTestId('groups-create-policy-request')).toHaveAttribute('aria-checked', 'false');
+    expect(screen.getByTestId('groups-create-policy-invite_only')).toHaveAttribute('aria-checked', 'false');
+  });
+
+  it('blocks an empty name with an inline validation error (no contract sent)', async () => {
+    await renderScreen();
+    fireEvent.click(screen.getByTestId('groups-create-button'));
+    await waitFor(() => {
+      expect(screen.getByTestId('groups-create-dialog')).toBeInTheDocument();
+    });
+    fireEvent.click(screen.getByTestId('groups-create-submit'));
+    expect(screen.getByTestId('groups-create-name-error')).toBeInTheDocument();
+    expect(requestGroupCreation).not.toHaveBeenCalled();
+  });
+
+  it('sends the GCR with the chosen name + policy on submit', async () => {
+    await renderScreen();
+    fireEvent.click(screen.getByTestId('groups-create-button'));
+    await waitFor(() => {
+      expect(screen.getByTestId('groups-create-dialog')).toBeInTheDocument();
+    });
+    fireEvent.change(screen.getByTestId('groups-create-name'), { target: { value: 'Synthwave Sessions' } });
+    fireEvent.click(screen.getByTestId('groups-create-policy-request'));
+    fireEvent.click(screen.getByTestId('groups-create-submit'));
+    await waitFor(() => {
+      expect(requestGroupCreation).toHaveBeenCalledWith(
+        'Synthwave Sessions',
+        'request',
+        expect.any(Function),
+      );
+    });
+  });
+
+  it('closes the dialog and reloads my groups when the authenticator approves', async () => {
+    await renderScreen();
+    const loadsBefore = vi.mocked(getMyCommunityGroups).mock.calls.length;
+    fireEvent.click(screen.getByTestId('groups-create-button'));
+    await waitFor(() => {
+      expect(screen.getByTestId('groups-create-dialog')).toBeInTheDocument();
+    });
+    fireEvent.change(screen.getByTestId('groups-create-name'), { target: { value: 'Synthwave Sessions' } });
+    fireEvent.click(screen.getByTestId('groups-create-submit'));
+    await waitFor(() => {
+      expect(screen.queryByTestId('groups-create-dialog')).not.toBeInTheDocument();
+    });
+    await waitFor(() => {
+      expect(vi.mocked(getMyCommunityGroups).mock.calls.length).toBe(loadsBefore + 1);
+    });
+  });
+
+  it('shows an error and stays open when the contract is denied', async () => {
+    vi.mocked(requestGroupCreation).mockImplementation((_name, _policy, onResult) => {
+      onResult({ status: 'denied' });
+      return true;
+    });
+    await renderScreen();
+    fireEvent.click(screen.getByTestId('groups-create-button'));
+    await waitFor(() => {
+      expect(screen.getByTestId('groups-create-dialog')).toBeInTheDocument();
+    });
+    fireEvent.change(screen.getByTestId('groups-create-name'), { target: { value: 'Synthwave Sessions' } });
+    fireEvent.click(screen.getByTestId('groups-create-submit'));
+    await waitFor(() => {
+      expect(screen.getByTestId('groups-create-error')).toBeInTheDocument();
+    });
+    expect(screen.getByTestId('groups-create-dialog')).toBeInTheDocument();
+  });
+
+  it('shows an error when the SDK is not ready (requestGroupCreation returns false)', async () => {
+    vi.mocked(requestGroupCreation).mockReturnValue(false);
+    await renderScreen();
+    fireEvent.click(screen.getByTestId('groups-create-button'));
+    await waitFor(() => {
+      expect(screen.getByTestId('groups-create-dialog')).toBeInTheDocument();
+    });
+    fireEvent.change(screen.getByTestId('groups-create-name'), { target: { value: 'Synthwave Sessions' } });
+    fireEvent.click(screen.getByTestId('groups-create-submit'));
+    await waitFor(() => {
+      expect(screen.getByTestId('groups-create-error')).toBeInTheDocument();
     });
   });
 });
