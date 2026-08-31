@@ -97,9 +97,19 @@ def create_document(request: Request, data: CreateDocument):
     doc_id = result["doc_id"]
 
     if data.groups:
-        ch.attach_doc_to_groups(doc_id, data.groups)
-        result["groups"] = data.groups
-        _moderate_post(author, doc_id, data.service, data.body, data.groups)
+        # D58 write gate (closes the attach hole): the author may only attach
+        # the doc to groups their effective role grants `create` on this
+        # service. A bystander with no write grant to any requested group gets
+        # a 403; non-writable groups are dropped from the attachment.
+        writable = [g for g in data.groups if ch.can_write_group(g, author, data.service)]
+        if not writable:
+            raise HTTPException(
+                status_code=403,
+                detail="no write access to the requested group",
+            )
+        ch.attach_doc_to_groups(doc_id, writable)
+        result["groups"] = writable
+        _moderate_post(author, doc_id, data.service, data.body, writable)
 
     return result
 
@@ -116,7 +126,11 @@ def read_documents(request: Request, data: ReadDocuments):
     anon-readable by design (D41: the node is readable by design).
     """
     reader = user_or_anon(data)
-    if reader != "anon":
+    # D58: reads are role-gated. `authenticated` = the reader holds a valid
+    # token (a real user, not anon) — it selects the `authenticated` principal
+    # class in the effective-role union.
+    authenticated = reader != "anon"
+    if authenticated:
         _check_app_permission(request, reader, data.service, "readAll")
 
     if data.doc_id:
@@ -134,17 +148,22 @@ def read_documents(request: Request, data: ReadDocuments):
         raise exceptions.CRUD
 
     if "me" in data.groups:
-        user_groups = ch.get_user_groups(reader)
-        group_ids = [g["group_id"] for g in user_groups]
+        # "my groups" = the groups my effective role can read this service in.
+        candidates = [g["group_id"] for g in ch.get_user_groups(reader)]
+        group_ids = ch.readable_groups(reader, data.service, authenticated, candidates)
     else:
-        group_ids = data.groups
+        # D58 read gate: filter to the groups the reader's effective role
+        # grants readAll on this service (members via their role, bystanders
+        # via the anyone/authenticated grant).
+        group_ids = ch.readable_groups(reader, data.service, authenticated, data.groups)
         # D42: distinguish "group missing / not a member" from "no notes yet"
-        # (which returns an empty list). If the reader is a member of NONE of
-        # the explicitly requested groups, this is an access failure the app
-        # can act on (prompt for the group contract) — not an empty result.
-        # Anon is exempt: it reads the public board, and an empty board is a
-        # valid (empty) result, not an access failure.
-        if reader != "anon" and not any(ch.is_group_member(g, reader) for g in group_ids):
+        # (which returns an empty list). If the reader's effective role grants
+        # readAll on NONE of the requested groups, this is an access failure the
+        # app can act on (prompt for group setup / fix access) — not an empty
+        # result. The message is a stable contract the demos + e2e key off
+        # (`/not a member/i`). Anon is exempt: it reads the public board, and an
+        # empty board is a valid (empty) result.
+        if authenticated and not group_ids:
             raise HTTPException(
                 status_code=403,
                 detail="not a member of the requested group",
@@ -157,6 +176,9 @@ def read_documents(request: Request, data: ReadDocuments):
         limit=data.limit,
         offset=data.offset,
         sort=data.sort.model_dump() if data.sort else None,
+        # D58: group_ids is already filtered to the readable set — drop the
+        # membership JOIN (a public group's reader is not a member).
+        require_membership=False,
     )
     # v3 ad preference: serve each pinned doc with its ad inline (I3-checked).
     docs = ch.attach_pinned_ads(docs, reader)

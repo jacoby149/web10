@@ -1,5 +1,5 @@
 import { getV3Client } from './v3';
-import { followersGroupId, getMyGroups } from './groups';
+import { followersGroupId, ensureFollowers, getMyGroups } from './groups';
 import { extractUsername } from './types';
 
 // ── Contacts data layer (v3) ─────────────────────────────────────────────────
@@ -37,7 +37,7 @@ export async function readContacts(): Promise<ContactRecord[]> {
 
   try {
     const docs = await w.read('contacts', {
-      groups: [`web10.app/groups/${token.username}/followers`],
+      groups: [followersGroupId(token.username, token.provider)],
     });
     return docs.map((d) => {
       const body = d.body as Record<string, unknown>;
@@ -101,8 +101,12 @@ export async function addContact(contact: Omit<ContactRecord, '_id'>): Promise<C
     custom_fields: contact.custom_fields,
   };
 
+  // The contacts doc is only readable while attached to a group the user is a
+  // member of — ensure the home group exists before writing (a write to a
+  // missing / non-member group 403s under the D58 write gate).
+  const groupId = await ensureFollowers(token.username, token.provider);
   const doc = await w.create('contacts', body, {
-    groups: [`web10.app/groups/${token.username}/followers`],
+    groups: [groupId],
   });
   const b = doc.body as Record<string, unknown>;
   return {

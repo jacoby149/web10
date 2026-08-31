@@ -132,6 +132,8 @@ class TestCreateModeration:
             patch("app.v3.services.clickhouse._gen_doc_id", return_value="doc-1"),
             patch("app.v3.services.clickhouse.insert_moderation_flag") as mock_flag,
             patch("app.v3.services.clickhouse.hide_doc_from_group") as mock_hide,
+            # D58 write gate: the author can write to the target groups.
+            patch("app.v3.services.clickhouse.can_write_group", return_value=True),
         ):
             resp = client.post(
                 "/v3/create",
@@ -218,6 +220,8 @@ class TestCreateModeration:
             patch("app.v3.services.moderation.moderation_config", return_value=cfg),
             patch("app.v3.services.clickhouse.insert_moderation_flag") as mock_flag,
             patch("app.v3.services.clickhouse.hide_doc_from_group") as mock_hide,
+            # D58 write gate: the author can write to the target groups.
+            patch("app.v3.services.clickhouse.can_write_group", return_value=True),
         ):
             resp = client.post(
                 "/v3/create",
@@ -262,6 +266,8 @@ class TestI3:
             patch("app.v3.services.clickhouse.insert_moderation_flag"),
             patch("app.v3.services.clickhouse.hide_doc_from_group") as mock_hide,
             patch("app.v3.services.moderation.moderation_config", return_value=cfg),
+            # D58 write gate: the author can write to the target groups.
+            patch("app.v3.services.clickhouse.can_write_group", return_value=True),
         ):
             # Post to BOTH the discover board and the followers group.
             resp = client.post(

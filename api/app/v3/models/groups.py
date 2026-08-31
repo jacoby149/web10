@@ -27,6 +27,21 @@ class UpdateGroup(BaseModel):
     discoverable: bool | None = None
 
 
+class UpdateGroupIdentity(BaseModel):
+    """The group's face (D58) — public display metadata. Gated by a role grant
+    on ``group-identity-service`` (owner / page-curator). Append-only: each
+    write appends a new ``group_identity`` row (latest wins)."""
+
+    token: str
+    group_id: str
+    name: str = ""
+    description: str = ""
+    banner_ref: str = ""
+    avatar_ref: str = ""
+    website: str = ""
+    tags: list[str] = []
+
+
 class ListGroupMembers(BaseModel):
     token: str
     group_id: str
