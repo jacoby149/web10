@@ -166,12 +166,21 @@ class TestReadWriteGates:
             assert ch.can_read_group("g1", "bob", "posts", authenticated=True) is True
             assert ch.can_write_group("g1", "bob", "posts") is True
 
-    def test_read_only_member_cannot_write(self):
-        # member role grants readAll but not create.
-        readonly = [{"name": "member", "permissions": {"posts": ["readAll"]}}]
-        with _mock(readonly, {"bob": "member"}):
-            assert ch.can_read_group("g1", "bob", "posts", authenticated=True) is True
-            assert ch.can_write_group("g1", "bob", "posts") is False
+    def test_member_writes_service_their_role_does_not_list(self):
+        # A member's role lists only posts, but membership grants write to the
+        # group's content — so a persona can react/comment on the board even
+        # though the board's member role lists only `posts`.
+        member_posts_only = [{"name": "member", "permissions": {"posts": ["readAll", "create"]}}]
+        with _mock(member_posts_only, {"bob": "member"}):
+            assert ch.can_write_group("g1", "bob", "posts") is True
+            assert ch.can_write_group("g1", "bob", "reactions") is True
+            assert ch.can_write_group("g1", "bob", "comments") is True
+
+    def test_bystander_cannot_write_private_group(self):
+        # The attach hole: a non-member of a private group (no anyone grant)
+        # cannot write to it.
+        with _mock(MEMBER, {"bob": "member"}):
+            assert ch.can_write_group("g1", "eve", "posts") is False
 
     def test_wildcard_covers_service(self):
         # owner role grants '*' → covers any service.

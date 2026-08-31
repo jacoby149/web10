@@ -983,10 +983,20 @@ def can_read_group(group_id: str, principal: str, service: str, authenticated: b
 
 
 def can_write_group(group_id: str, principal: str, service: str, authenticated: bool = True) -> bool:
-    """Can ``principal`` create ``service`` content in ``group_id`` (D58 write
-    gate — closes the attach hole)? True iff their effective role grants
-    ``create`` on the service."""
-    return _effective_allows(effective_role_perms(group_id, principal, authenticated), service, "create")
+    """Can `principal` create `service` content in `group_id` (D58 write gate —
+    closes the attach hole)?
+
+    A **member** can write to the group's content (membership grants write —
+    the existing behavior; the per-service role scopes fine-grained control,
+    e.g. a persona posts AND reacts on the board even though the board's member
+    role lists only `posts`). A **non-member** can write only if the
+    `anyone`/`authenticated` grant grants `create` on the service (a public
+    board where anyone can post) — a bystander of a private group writes
+    nothing (the attach hole stays closed)."""
+    if is_group_member(group_id, principal):
+        return True
+    perms = effective_role_perms(group_id, principal, authenticated)
+    return _effective_allows(perms, service, "create")
 
 
 def readable_groups(principal: str, service: str, authenticated: bool, candidate_group_ids: list[str]) -> list[str]:
