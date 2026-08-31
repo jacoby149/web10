@@ -91,9 +91,9 @@ Stage 0 / item 1.**
 | Stage | Lane | Status |
 |---|---|---|
 | Decision + KB | — | ✅ done (3.37.0, #733) |
-| Stage 0 — backend | `d58-backend` | 🚧 in flight (3.42.0): items 1 + 3 done, item 2 role-shape backfill done (`anon`→`anyone` rename open), item 4 gate logic pinned in `test_v3_access.py` (conformance re-pin open) |
-| Stage 1 — demos | `d58-demos` | ⛔ gated on Stage 0 |
-| Stage 2 — social + auth | `d58-social` | ⛔ gated on Stage 0 (ideally Stage 1 green) |
+| Stage 0 — backend | `d58-backend` | ✅ done (3.42.0 + 3.43.0): all four items — role shape + read/write gates + attach-hole fix + identity write endpoint + canonical backfill (incl. `anon`→`anyone` rename) + conformance pin (all five forks) |
+| Stage 1 — demos | `d58-demos` | ⛔ ready to fan out (gated on Stage 0 — now clear) |
+| Stage 2 — social + auth | `d58-social` | ⛔ gated on Stage 0 (clear); ideally Stage 1 green as the proven reference |
 
 ## Version
 

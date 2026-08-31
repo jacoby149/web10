@@ -241,3 +241,43 @@ class TestReadableGroups:
             # bob (a member) can read g1; anon cannot.
             assert ch.readable_groups("bob", "posts", True, ["g1"]) == ["g1"]
             assert ch.readable_groups("anon", "posts", False, ["g1"]) == []
+
+
+# ---------------------------------------------------------------------------
+# Monotonicity (the nesting invariant)
+# ---------------------------------------------------------------------------
+
+
+class TestMonotonicity:
+    """The nesting invariant (KB access.md): a member's effective permissions
+    ⊇ a signed-in stranger's ⊇ a signed-out visitor's. The union semantics
+    enforce it — each principal class a principal belongs to ADDS to the union,
+    never removes. You cannot make a member see less than a bystander."""
+
+    @staticmethod
+    def _perm_pairs(perms):
+        return {(svc, op) for svc, ops in perms.items() for op in ops}
+
+    def test_member_superset_of_stranger_superset_of_visitor(self):
+        # A group that is signed-in-only at the bottom and richer for members:
+        #   anyone        → read posts
+        #   authenticated → read posts + comments
+        #   bob (member)  → read+create posts, read comments
+        roles = [
+            {"name": "public-reader", "permissions": {"posts": ["readAll"]}},
+            {"name": "auth-reader", "permissions": {"posts": ["readAll"], "comments": ["readAll"]}},
+            {"name": "member", "permissions": {"posts": ["readAll", "create"], "comments": ["readAll"]}},
+        ]
+        members = {"anyone": "public-reader", "authenticated": "auth-reader", "bob": "member"}
+        with _mock(roles, members):
+            visitor = self._perm_pairs(ch.effective_role_perms("g1", "anon", authenticated=False))
+            stranger = self._perm_pairs(ch.effective_role_perms("g1", "carol", authenticated=True))
+            member = self._perm_pairs(ch.effective_role_perms("g1", "bob", authenticated=True))
+        # visitor ⊆ stranger ⊆ member (the nesting invariant).
+        assert visitor <= stranger
+        assert stranger <= member
+        # and each class strictly adds something (the grants are real, not
+        # vacuous): the authenticated grant adds comments, the member role adds
+        # create.
+        assert stranger - visitor == {("comments", "readAll")}
+        assert member - stranger == {("posts", "create")}
