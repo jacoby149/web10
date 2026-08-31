@@ -1257,10 +1257,12 @@ class TestMigrateD58RoleShape:
         legacy_roles = '[{"name":"member","services":["posts"],"permissions":["readAll"]}]'
         group_rows = [("g1", legacy_roles, "open", 0, "2026-01-01T00:00:00")]
         with _patch_client() as mock_client:
-            # query #1 = sentinel check (absent), query #2 = the group fetch.
+            # query #1 = sentinel check (absent), query #2 = the group fetch,
+            # query #3 = get_group_member(anon) → no anon row (rename no-op).
             mock_client.query.side_effect = [
                 _mock_result_rows([]),
                 _mock_result_rows(group_rows),
+                _mock_result_rows([]),
             ]
             ch._migrate_d58_role_shape()
             inserts = mock_client.insert.call_args_list
@@ -1281,8 +1283,9 @@ class TestMigrateD58RoleShape:
         group_rows = [("g1", new_roles, "open", 0, "2026-01-01T00:00:00")]
         with _patch_client() as mock_client:
             mock_client.query.side_effect = [
-                _mock_result_rows([]),
-                _mock_result_rows(group_rows),
+                _mock_result_rows([]),  # sentinel absent
+                _mock_result_rows(group_rows),  # group fetch
+                _mock_result_rows([]),  # get_group_member(anon) → no anon row
             ]
             ch._migrate_d58_role_shape()
             inserts = mock_client.insert.call_args_list
@@ -1290,11 +1293,56 @@ class TestMigrateD58RoleShape:
             # only the sentinel — no group_contracts rewrite.
             assert tables == ["node_config"]
 
+    def test_renames_discover_anon_to_anyone(self):
+        # No sentinel, no legacy groups, but the discover board has an `anon`
+        # member row → it's renamed to `anyone` (role carried over) and the
+        # anon row is tombstoned.
+        with _patch_client() as mock_client:
+            mock_client.query.side_effect = [
+                _mock_result_rows([]),  # sentinel absent
+                _mock_result_rows([]),  # group fetch → no groups
+                _mock_result_rows([("anon", "member", datetime(2026, 1, 1))]),  # anon exists
+                _mock_result_rows([]),  # get_group_member(anyone) → not yet
+            ]
+            ch._migrate_d58_role_shape()
+            # the anyone row is added, carrying the anon row's role.
+            member_inserts = [c for c in mock_client.insert.call_args_list if c[0][0] == "group_members"]
+            assert len(member_inserts) == 1
+            row = member_inserts[0][0][1][0]
+            assert row[0] == ch.DISCOVER_GROUP_ID
+            assert row[1] == "anyone"
+            assert row[2] == "member"
+            # the anon row is tombstoned (an INSERT...SELECT with deleted = 1).
+            mock_client.command.assert_called_once()
+            sql, params = mock_client.command.call_args[0]
+            assert "deleted" in sql
+            assert params["member_key"] == "anon"
+            assert params["group_id"] == ch.DISCOVER_GROUP_ID
+            # the sentinel is still written.
+            tables = [c[0][0] for c in mock_client.insert.call_args_list]
+            assert "node_config" in tables
+
+    def test_rename_noop_when_no_anon_row(self):
+        # No sentinel, no legacy groups, no anon row → only the sentinel is
+        # written (no member insert, no tombstone command).
+        with _patch_client() as mock_client:
+            mock_client.query.side_effect = [
+                _mock_result_rows([]),  # sentinel absent
+                _mock_result_rows([]),  # group fetch → no groups
+                _mock_result_rows([]),  # get_group_member(anon) → no anon row
+            ]
+            ch._migrate_d58_role_shape()
+            member_inserts = [c for c in mock_client.insert.call_args_list if c[0][0] == "group_members"]
+            assert member_inserts == []
+            mock_client.command.assert_not_called()
+            tables = [c[0][0] for c in mock_client.insert.call_args_list]
+            assert tables == ["node_config"]
+
 
 class TestEnsureDiscoverGroup:
     """The node-default universal public board (KB: social-contracts.md §1)."""
 
-    def test_creates_group_anon_and_backfills(self):
+    def test_creates_group_anyone_and_backfills(self):
         with _patch_client() as mock_client:
             # query sequence: get_group (missing), member keys (empty),
             # list_users (two pre-existing accounts).
@@ -1311,10 +1359,10 @@ class TestEnsureDiscoverGroup:
             # entry) — discoverable is the 4th value in the named insert.
             contract_insert = next(c for c in mock_client.insert.call_args_list if c[0][0] == "group_contracts")
             assert contract_insert[0][1][0][3] == 0
-            # anon + both users enrolled
+            # anyone + both users enrolled
             member_rows = [c[0][1][0] for c in mock_client.insert.call_args_list if c[0][0] == "group_members"]
             enrolled = {r[1] for r in member_rows}
-            assert enrolled == {"anon", "alice", "bob"}
+            assert enrolled == {"anyone", "alice", "bob"}
 
     def test_idempotent_when_populated(self):
         with _patch_client() as mock_client:
@@ -1326,11 +1374,11 @@ class TestEnsureDiscoverGroup:
                 datetime(2026, 1, 1),
                 datetime(2026, 1, 1),
             )
-            # get_group → exists; member keys → anon + alice already in;
+            # get_group → exists; member keys → anyone + alice already in;
             # list_users → alice (already a member, no re-add).
             mock_client.query.side_effect = [
                 _mock_result_rows([group_row]),
-                _mock_result_rows([("anon",), ("alice",)]),
+                _mock_result_rows([("anyone",), ("alice",)]),
                 _mock_result_rows([("alice",)]),
             ]
             ch.ensure_discover_group()
@@ -1347,15 +1395,15 @@ class TestEnsureDiscoverGroup:
                 datetime(2026, 1, 1),
                 datetime(2026, 1, 1),
             )
-            # group exists; anon + alice already members; bob is new.
+            # group exists; anyone + alice already members; bob is new.
             mock_client.query.side_effect = [
                 _mock_result_rows([group_row]),
-                _mock_result_rows([("anon",), ("alice",)]),
+                _mock_result_rows([("anyone",), ("alice",)]),
                 _mock_result_rows([("alice",), ("bob",)]),
             ]
             ch.ensure_discover_group()
             member_rows = [c[0][1][0] for c in mock_client.insert.call_args_list if c[0][0] == "group_members"]
-            # only bob is added — anon + alice are already members
+            # only bob is added — anyone + alice are already members
             assert [r[1] for r in member_rows] == ["bob"]
 
 

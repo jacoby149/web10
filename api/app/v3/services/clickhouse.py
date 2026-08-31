@@ -323,18 +323,23 @@ def _transform_role(role):
 
 
 def _migrate_d58_role_shape() -> None:
-    """One-time, sentinel-gated data migration (D58). Re-shape pre-existing
-    group roles from the legacy flat shape ``{services, permissions}`` to the
-    per-service map shape ``{permissions: {service: [ops]}}``.
+    """One-time, sentinel-gated data migration (D58). Two cleanups:
 
-    The API normalizes both shapes on read, so this is **decoupled** — the
+    1. Re-shape pre-existing group roles from the legacy flat shape
+       ``{services, permissions}`` to the per-service map shape
+       ``{permissions: {service: [ops]}}``.
+    2. Rename the discover board's legacy ``anon`` member row → ``anyone``
+       (the public principal class gets an honest name — KB access.md).
+
+    The API normalizes both role shapes on read and matches both the
+    ``anyone`` and legacy ``anon`` member keys, so this is **decoupled** — the
     gates work before the backfill runs. This is cleanup: it makes the stored
-    data canonical so the API can eventually drop old-shape support.
+    data canonical so the API can eventually drop old-shape / old-key support.
 
     Runs exactly once (a ``node_config`` sentinel marks completion). Idempotent
-    + concurrent-safe: a duplicate run appends identical role rows (dedup hides
-    all but one). Only rewrites the ``roles`` JSON — join_policy / discoverable
-    / membership are untouched.
+    + concurrent-safe: a duplicate run appends identical rows (dedup hides all
+    but one). Only rewrites the ``roles`` JSON + the discover board's public
+    member key — join_policy / discoverable / other membership are untouched.
     """
     done = client.query(
         "SELECT 1 FROM node_config WHERE config_id = %(sentinel)s AND deleted = 0 LIMIT 1",
@@ -365,6 +370,17 @@ def _migrate_d58_role_shape() -> None:
             column_names=["group_id", "roles", "join_policy", "discoverable", "created_at", "updated_at", "deleted"],
         )
         changed += 1
+    # Rename the discover board's legacy `anon` public member row → `anyone`
+    # (D58: the public principal class gets an honest name — KB access.md).
+    # Carry the anon row's role onto the anyone row so the board's public read
+    # grant is preserved, then tombstone the anon row. No-op when there is no
+    # active anon row (already renamed, or a fresh board enrolled `anyone`).
+    anon = get_group_member(DISCOVER_GROUP_ID, "anon")
+    if anon:
+        if not get_group_member(DISCOVER_GROUP_ID, "anyone"):
+            add_group_member(DISCOVER_GROUP_ID, "anyone", anon["role"])
+        remove_group_member(DISCOVER_GROUP_ID, "anon")
+        log.info("[v3] D58 backfill: discover board anon member row → anyone")
     client.insert(
         "node_config",
         [[_D58_ROLE_SHAPE_SENTINEL, _json({"done": True, "groups": changed}), _now(), 0]],
@@ -406,8 +422,9 @@ def _ensure_discover_group_contract() -> None:
     enrolling the new user, not the full anon + backfill pass.
     """
     if not get_group(DISCOVER_GROUP_ID):
-        # discoverable=False (D53): the board is anon-readable (anon is a
-        # member) but NOT a directory entry — it's a board, not a community.
+        # discoverable=False (D53): the board is anyone-readable (the `anyone`
+        # class is a member) but NOT a directory entry — it's a board, not a
+        # community.
         create_group(DISCOVER_GROUP_ID, DISCOVER_ROLES, "open", discoverable=False)
         log.info("[v3] discover group created: %s", DISCOVER_GROUP_ID)
 
@@ -417,10 +434,11 @@ def ensure_discover_group() -> None:
 
     Idempotent boot pass (safe from every gunicorn worker):
       1. create the group contract if missing,
-      2. ensure `anon` is a member — the public surface reads the board as
-         anon, so anon membership is what makes it anon-readable,
+      2. ensure `anyone` is a member — the public surface reads the board as
+          the `anyone` class, so the `anyone` grant is what makes it public
+          (D58: the old `anon` member key is renamed to `anyone`),
       3. backfill every existing user as a member (auto-enrollment for
-         accounts created before the group existed).
+          accounts created before the group existed).
     New users are enrolled at signup (see create_user), so the backfill only
     adds pre-existing accounts.
 
@@ -432,9 +450,9 @@ def ensure_discover_group() -> None:
         _ensure_discover_group_contract()
 
         members = set(get_group_member_keys(DISCOVER_GROUP_ID))
-        if "anon" not in members:
-            add_group_member(DISCOVER_GROUP_ID, "anon", "member")
-            log.info("[v3] discover group: anon enrolled")
+        if "anyone" not in members:
+            add_group_member(DISCOVER_GROUP_ID, "anyone", "member")
+            log.info("[v3] discover group: anyone enrolled")
 
         added = 0
         for user in list_users():
