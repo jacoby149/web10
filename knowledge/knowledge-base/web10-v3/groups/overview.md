@@ -2,6 +2,8 @@
 
 Groups are not data containers. They are policy containers — they define who gets what access to content that lives elsewhere. But they're more than that. A group is an **owned audience relationship**. The owner holds the membership list. They can see who's in it, reach out to them, and that relationship belongs to them — not the platform.
 
+> **The model is universal (D60).** Groups, services, and the per-service role model are **platform primitives** — the building blocks of "the everything app of the future," not features of one app. web10-social is the *killer app* built on them; it is not what the model is *for*. Any app can define its own services (`posts`, `notes`, `web10-social-group-identity`, a music app's `playlists`, a shop's `catalog`) and its own roles, and the platform enforces them identically. The protocol never learns an app's specifics — no app-named tables, no app-named endpoints. App concepts live in **app-named services + role grants**; the platform stays one size.
+
 ## What Groups Are
 
 A group is a collection of web10 users operating on data services. It doesn't hold posts, files, or playlists. It holds people and roles. Three things happen when a group exists:

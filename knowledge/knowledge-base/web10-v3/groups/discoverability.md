@@ -32,21 +32,20 @@ The "List in directory" toggle (in the authenticator's group management) control
 
 ## The Directory Is Minimal
 
-The directory is a **canonical, minimal list** — the smallest thing that lets an app render a browse surface. It is *not* a rich data structure. Per group it returns:
+The directory is a **canonical, minimal list** — the smallest thing that lets an app render a browse surface. It is *not* a rich data structure. It shows only the group's **generic contract metadata** — the platform does not know about any app's face schema (D60). Per group it returns:
 
 | Field | Source |
 |---|---|
 | `group_id` | `group_contracts` |
-| name | `group_identity` record, else derived from the slug |
+| name | the slug (last segment of the group_id) |
 | owner | the username in the group_id |
 | join policy | `group_contracts.join_policy` |
 | member count | `count(group_members)` |
-| tags | `group_identity.tags` (topic — for client-side filtering) |
 | permission summary | `group_contracts.roles` (a short digest) |
 
-That's it. **No banner, no description, no posts in the minimal list.** Those live in `group_identity` (below) and the detail, and apps pull them in as they want. Tags *are* included so an app can filter the list by topic client-side (the zero-extra-call search path).
+That's it. **No name (rich), no description, no banner, no tags, no posts in the minimal list.** The group's *face* (rich name, description, banner, avatar, website, tags) lives in the **app's identity service** (`identity.md`) — the platform directory doesn't render it. Apps pull the face in as they want (the "apps go crazy enriching the minimal thing" principle).
 
-**Why minimal:** the node provides the canonical list; apps are stateless frontends that compose the API. A rich, node-baked directory would freeze the card shape and duplicate the identity data. Minimal keeps the node dumb and lets "apps go crazy enriching the minimal thing."
+**Why minimal + generic:** the node provides the canonical *contract* list; apps are stateless frontends that compose the API. A rich, node-baked directory would freeze the card shape and force the platform to know each app's face schema (the D60 leak). Minimal + generic keeps the node dumb and universal.
 
 ### It's a view, not a table
 
@@ -55,39 +54,25 @@ The directory is a **view** over data that already exists — no dedicated `grou
 ```
 directory  =  group_contracts (WHERE discoverable = 1)
            ⋈  group_members  (member count)
-           ⋈  group_identity  (name + tags, when present — else slug)
 ```
 
-The apps-store precedent (a dedicated `apps` table) does **not** transfer: apps are *external* entities with a node-side lifecycle (register, approve, visit-count), so the node keeps a store record of things it doesn't own. Groups are *core internal* entities that already have their structures (`group_contracts`, `group_members`, `group_identity`). A `group_directory` table would duplicate the name/banner that belongs in `group_identity` — two sources of truth, guaranteed drift.
+The apps-store precedent (a dedicated `apps` table) does **not** transfer: apps are *external* entities with a node-side lifecycle (register, approve, visit-count), so the node keeps a store record of things it doesn't own. Groups are *core internal* entities that already have their structures (`group_contracts`, `group_members`). A `group_directory` table would duplicate the contract metadata — two sources of truth, guaranteed drift. (The group's *face* is not part of this view — it's an app service, `identity.md`.)
 
-## Group Identity: the `group_identity` table
+## The Group's Face Is an App Service (not a platform table)
 
-The rich display metadata for a group — name, description, banner, avatar, website, **tags** — lives in the **`group_identity` table** (one row per group, append-only, latest wins). It is the **single home** for group display metadata: the directory, the group detail, and every app read it from here.
+The rich display metadata for a group — name, description, banner, avatar, website, **tags** — is **documents in an app-named service** (e.g. `web10-social-group-identity`), *not* a platform table. The protocol does not know what a "banner" is (D60). It is public via the group's `anyone` read grant on that service, and writable by the higher role (`page-curator`/`owner`). The full model is in `identity.md`. The platform directory/detail do **not** render the face — they show the generic contract metadata (name falls back to the slug); the app fetches the face from its own service.
 
-```json
-{
-  "name": "Jazz Collectors",
-  "description": "Vinyl-first jazz community",
-  "banner_ref": "…", "avatar_ref": "…", "website": "…",
-  "tags": ["jazz", "vinyl", "collecting"]
-}
-```
-
-- **A table, not a documents collection.** The identity is *public* display metadata (the directory shows the name to anon), so it must be readable by any principal — including anon. The `documents` table is I3-gated (a read returns docs only for an `author_key` the reader owns or a group they're in), which would block anon from reading a group's name. A dedicated public table sidesteps that: it's group-keyed metadata, not user content. This is the same reason the `apps` table exists (public store records, not I3-gated docs).
-- **Append-only**: an update is a new row, latest wins (the house dedup-then-filter pattern).
-- **Managed by the owner / `page-curator` role** — the role that exists for exactly this. The write path is a normal owner action (a fast-follow; this bite builds the read path).
-
-`tags` is how a group's **topic** is expressed.
+`tags` (in the identity service) is how a group's **topic** is expressed.
 
 ## Topic Search
 
-`tags` live in `group_identity`. For topic search, the directory response **includes each group's tags**, so an app can filter the list client-side (the minimal, zero-extra-call path). A server-side `?tag=` filter on the directory is a possible fast-follow that shortcuts the client-side filter — it does not change the model. (The earlier "apps `.query` the identity collection" framing assumed a documents collection; because the identity is a public table, the practical search path is the directory's tags.)
+`tags` live in the **app's identity service** (e.g. `web10-social-group-identity`), not the platform directory. Topic search is therefore a **surface** concern: the surface reads the directory (the list + unhackable metrics), reads each group's identity service (the tags), and filters client-side. A server-side topic filter is *not* a platform feature — the protocol doesn't know what a "topic" tag is (D60). If a surface needs it at scale, the generic lever is a batch identity-read (read one service across many groups), not a special directory field.
 
 ## The Endpoint Surface
 
 | Endpoint | Auth | Returns |
 |---|---|---|
-| `GET /v3/groups/directory` | none (anon) | the minimal list of `discoverable = true` groups (fields above, incl. tags). Paginated. **Metadata only — no posts.** |
+| `GET /v3/groups/directory` | none (anon) | the minimal list of `discoverable = true` groups (fields above — generic contract metadata + the **platform-computed member count**, which is unhackable because the node counts real `group_members` rows). Paginated. **No face, no posts.** |
 | group detail (by ID) | token optional | the flexible, principal-based read — see `detail.md`. Unlisted-model: reachable for any existing group; posts gated by the reader's membership. |
 
 Both are **pure reads** — a directory view writes nothing.
@@ -104,7 +89,7 @@ The discover group (`web10.app/groups/web10/discover`) is publicly readable but 
 
 ## Summary
 
-A group is listed in the directory when `discoverable = true` — an **opt-in** (the default is `false` for every group, including the discover group). The directory is a **minimal, canonical view** over `group_contracts` + `group_members` + `group_identity` (no dedicated directory table). Rich display metadata — including **tags** for topic — lives in the public `group_identity` table; the directory includes each group's tags so apps can filter by topic client-side (a server-side `?tag=` filter is a possible fast-follow). The **detail** is a separate, flexible, principal-based read (unlisted-model) — see `detail.md`. `discoverable` is a blasting flag; the public read grant (a role on the `anyone` / `authenticated` principal, `access.md`) is the read switch; the two are orthogonal.
+A group is listed in the directory when `discoverable = true` — an **opt-in** (the default is `false` for every group, including the discover group). The directory is a **minimal, canonical, generic view** over `group_contracts` + `group_members` (no dedicated directory table, no face): it shows the group's contract metadata + the **platform-computed member count** (unhackable — the node counts real rows). The group's *face* (rich name, description, banner, tags) is **app data** in an app-named identity service (`identity.md`) — the platform doesn't render it; a *surface* (e.g. the marketing page) composes the directory (list + metrics) with the identity read (face). The **detail** is a separate, flexible, principal-based read (unlisted-model) — see `detail.md`. `discoverable` is a blasting flag; the public read grant (a role on the `anyone` / `authenticated` principal, `access.md`) is the read switch; the two are orthogonal.
 
 **Backfill (one-time):** groups created under the earlier discoverable-by-default rule (D53, before the amendment) carry `discoverable = 1`. A one-time, sentinel-gated boot migration delists them (appends a `discoverable = 0` row per live group) so the directory reflects the opt-in model. It runs exactly once (a `node_config` sentinel marks completion) and only ever moves groups *out* of the directory — it never breaks content access (membership is untouched).
 
