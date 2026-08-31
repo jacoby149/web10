@@ -42,9 +42,12 @@ to the ops it grants:
   `{services: [], permissions: []}` shape is retired — the array was never
   enforced).
 - `'*'` is the wildcard over all document services.
-- `'group'` is the reserved key for management ops on the group itself
+- `'group'` is the reserved key for **structural** management ops on the group
+  itself — ops that change the group's *shape*, not its content
   (`manageRoles`, `assignRoles`, `revokeRoles`, `deleteGroup`, the
-  join/member ops, `hideAll` moderation).
+  join/member ops). Content ops — including `hideAll` moderation — live under
+  the **service key** (or the `'*'` wildcard), because they act on documents,
+  not on the group's structure.
 - This is the **same shape the app contract uses**, so there is one
   permission language across both trust layers.
 
@@ -112,9 +115,9 @@ than a bystander — the model won't let you express it.
 
 | surface | read gate | write gate |
 |---|---|---|
-| **Identity** (name, banner, description, website, tags — the `group_identity` table) | **public** — every principal, anon included | role grant on `group-identity-service` (owner / `page-curator`) |
-| **Content** (posts / comments / media docs) | effective role grants `readAll` on that service | effective role grants the op on that service |
-| **Group management** (roles, members, join, delete, moderate) | — | effective role grants the op under the `'group'` key |
+| **Identity** (name, banner, description, website, tags — an app-named service, e.g. `web10-social-group-identity`) | **public** — via the `anyone` read grant on that service | role grant on that service (owner / `page-curator`) |
+| **Content** (posts / comments / media docs) | effective role grants `readAll` on that service | effective role grants the op on that service — including `hideAll` moderation (a content op: it hides a *doc*, so it's scoped to the service, not the `"group"` key) |
+| **Group structure** (roles, members, join, delete) | — | effective role grants the op under the `'group'` key (structural ops only) |
 
 **Identity is public; content is role-gated.** That split is what makes the
 Facebook-shaped front door work: a stranger lands on a group, sees the
@@ -216,8 +219,8 @@ lookup. The scan stays a scan. AWS-level control, zero scan-time penalty.
 ## Relationships
 
 - `overview.md` — the group model tour (policy containers, owned audience).
-- `identity.md` — the group's face (the public `group_identity` table) and
-  who writes it.
+- `identity.md` — the group's face (documents in an app-named service, public
+  via the `anyone` grant) and who writes it (the higher role).
 - `discoverability.md` — the directory and the `discoverable` blasting flag.
 - `detail.md` — the by-ID principal-based read.
 - `social-contracts.md` — the concrete role JSON for the five social group
