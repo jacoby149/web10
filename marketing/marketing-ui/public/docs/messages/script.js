@@ -222,8 +222,8 @@ function createDmGroup(them, callback) {
     name,
     join_policy: 'invite_only',
     roles: [
-      { name: 'owner', services: ['*'], permissions: ['readAll', 'create', 'updateOwn', 'deleteOwn', 'manageRoles'] },
-      { name: 'member', services: [SERVICE], permissions: ['readAll', 'create', 'deleteOwn'] },
+      { name: 'owner', permissions: { '*': ['readAll', 'create', 'updateOwn', 'deleteOwn'], 'group': ['manageRoles'] } },
+      { name: 'member', permissions: { [SERVICE]: ['readAll', 'create', 'deleteOwn'] } },
     ],
     members: [
       { member_key: ME.username, role: 'owner' },

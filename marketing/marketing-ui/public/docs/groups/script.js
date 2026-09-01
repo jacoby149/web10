@@ -27,17 +27,17 @@ const SERVICE = "web10-docs-groups-demo"
 
 const ROLE_PRESETS = {
   community: [
-    { name: 'owner', services: ['*'], permissions: ['readAll','create','updateOwn','updateAll','deleteOwn','deleteAll','hideAll','manageRoles','assignRoles','revokeRoles','deleteGroup'] },
-    { name: 'moderator', services: ['posts','comments'], permissions: ['readAll','create','updateOwn','deleteOwn','hideAll','assignRoles','revokeRoles'] },
-    { name: 'member', services: ['posts','comments'], permissions: ['readAll','create','updateOwn','deleteOwn'] },
+    { name: 'owner', permissions: { '*': ['readAll','create','updateOwn','updateAll','deleteOwn','deleteAll','hideAll'], 'group': ['manageRoles','assignRoles','revokeRoles','deleteGroup'] } },
+    { name: 'moderator', permissions: { 'posts': ['readAll','create','updateOwn','deleteOwn','hideAll'], 'comments': ['readAll','create','updateOwn','deleteOwn','hideAll'], 'group': ['assignRoles','revokeRoles'] } },
+    { name: 'member', permissions: { 'posts': ['readAll','create','updateOwn','deleteOwn'], 'comments': ['readAll','create','updateOwn','deleteOwn'] } },
   ],
   followers: [
-    { name: 'owner', services: ['*'], permissions: ['readAll','create','updateOwn','updateAll','deleteOwn','deleteAll','hideAll','manageRoles','assignRoles','revokeRoles','deleteGroup'] },
-    { name: 'member', services: ['posts'], permissions: ['readAll'] },
+    { name: 'owner', permissions: { '*': ['readAll','create','updateOwn','updateAll','deleteOwn','deleteAll','hideAll'], 'group': ['manageRoles','assignRoles','revokeRoles','deleteGroup'] } },
+    { name: 'member', permissions: { 'posts': ['readAll'] } },
   ],
   close: [
-    { name: 'owner', services: ['*'], permissions: ['readAll','create','updateOwn','updateAll','deleteOwn','deleteAll','hideAll','manageRoles','assignRoles','revokeRoles','deleteGroup'] },
-    { name: 'member', services: ['posts','comments'], permissions: ['readAll','create','updateOwn','deleteOwn'] },
+    { name: 'owner', permissions: { '*': ['readAll','create','updateOwn','updateAll','deleteOwn','deleteAll','hideAll'], 'group': ['manageRoles','assignRoles','revokeRoles','deleteGroup'] } },
+    { name: 'member', permissions: { 'posts': ['readAll','create','updateOwn','deleteOwn'], 'comments': ['readAll','create','updateOwn','deleteOwn'] } },
   ],
 }
 

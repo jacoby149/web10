@@ -437,14 +437,14 @@ literals (the old `{services, permissions}` → `{permissions: {service: [ops]}}
 and drive a **public/private + identity fork** in its e2e (set the group's face
 + grant/revoke the `anyone` read role → assert a bystander's read).
 
-- [ ] **media-demo** — `docs/media/` (creates `media-{username}` with roles)
-- [ ] **notes-demo** — `docs/notes/` (creates `notes-{username}` with roles)
-- [ ] **sharing-demo** — `docs/sharing/` (creates `sharing-{username}` with roles)
-- [ ] **groups-demo** — `docs/groups/` (the richest — `ROLE_PRESETS`, create/join/roles/invite; the reference for the new shape)
-- [ ] **messages-demo** — `docs/messages/` (DM groups with roles)
-- [ ] **feed-demo** — `docs/feed/` (discover/followers groups with roles)
-- [ ] **tasks-demo** — `docs/tasks/` (user-named groups with roles)
-- [ ] **SDK role type** — `sdk/src/` `V3GroupRole` → the per-service map shape (the shared type the demos + social app both reflect; small, can run alongside)
+- [✓ 3.45.0] **media-demo** — `docs/media/` (creates `media-{username}` with roles)
+- [✓ 3.45.0] **notes-demo** — `docs/notes/` (creates `notes-{username}` with roles)
+- [✓ 3.45.0] **sharing-demo** — `docs/sharing/` (creates `sharing-{username}` with roles)
+- [✓ 3.45.0] **groups-demo** — `docs/groups/` (the richest — `ROLE_PRESETS`, create/join/roles/invite; the reference for the new shape)
+- [✓ 3.45.0] **messages-demo** — `docs/messages/` (DM groups with roles)
+- [✓ 3.45.0] **feed-demo** — `docs/feed/` (discover/followers groups with roles)
+- [✓ 3.45.0] **tasks-demo** — `docs/tasks/` (user-named groups with roles)
+- [✓ 3.45.0] **SDK role type** — `sdk/src/` `V3GroupRole` → the per-service map shape (the shared type the demos + social app both reflect; small, can run alongside)
 
 ### Lane: d58-social (Stage 2 — parallel, one workspace per feature)
 **Owns:** `marketing/web10-social/` (fan-facing) + `ui/src/components/Groups/` (admin-facing) + `sdk/src/` (role type). Each feature below is an **independent lane** — different files, so they run in parallel.

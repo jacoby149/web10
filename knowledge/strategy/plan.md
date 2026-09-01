@@ -227,8 +227,8 @@ admin-facing `ui/` are separate apps).
 - [✓ 3.43.0] **Conformance re-pin** (`api/tests/`) — I3 re-pinned from "membership grants access" to "effective role grants access"; the anti-tests get stronger (anon vs private group, signed-in vs signed-out, member ⊇ stranger ⊇ visitor monotonicity; the attach-hole anti-test). Pinned in `test_v3_access.py` (the gate logic + all five principal-class forks, incl. the monotonicity invariant added in 3.43.0). The stub `test_v3_conformance.py` is a separate, larger effort.
 
 **Stage 1 — demo apps (parallel, one workspace per demo):**
-- [ ] **Each group-creating demo** (`marketing/marketing-ui/public/docs/{media,notes,sharing,groups,messages,feed,tasks}/`) — adopt the per-service role-map shape in its `createGroup` role literals + drive a public/private + identity fork in its e2e (set the group's face + grant/revoke the `anyone` read role → assert a bystander's read). `groups-demo` is the reference (the richest `ROLE_PRESETS`).
-- [ ] **SDK role type** (`sdk/src/`) — `V3GroupRole` → the per-service map shape (the shared type the demos + social app reflect).
+- [✓ 3.45.0] **Each group-creating demo** (`marketing/marketing-ui/public/docs/{media,notes,sharing,groups,messages,feed,tasks}/`) — adopt the per-service role-map shape in its `createGroup` role literals + drive a public/private + identity fork in its e2e (set the group's face + grant/revoke the `anyone` read role → assert a bystander's read). `groups-demo` is the reference (the richest `ROLE_PRESETS`).
+- [✓ 3.45.0] **SDK role type** (`sdk/src/`) — `V3GroupRole` → the per-service map shape (the shared type the demos + social app reflect).
 
 **Stage 2 — social app + authenticator (parallel, one workspace per feature):**
 - [ ] **Role definitions** (`marketing/web10-social/src/data/groups.ts`, `sdk/src/`) — the social app's `FOLLOWER_ROLES` / `COMMUNITY_ROLES` / `DM_ROLES` → the per-service map shape (the shared seam).
