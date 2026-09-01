@@ -153,13 +153,13 @@ function createV3Client(options = {}) {
     async getProfile() {
       return v3Post("profile", {});
     },
-    async verifySession(options2 = {}) {
+    async verifyAccess(options2 = {}) {
       const body = {};
       if (options2.services?.length)
         body.services = options2.services;
       if (options2.operations?.length)
         body.operations = options2.operations;
-      return v3Post("session/verify", body);
+      return v3Post("access/verify", body);
     },
     async changePassword(currentPassword, newPassword) {
       return v3Post("change-pass", { password: currentPassword, new_pass: newPassword });

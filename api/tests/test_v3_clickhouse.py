@@ -1108,48 +1108,6 @@ class TestGetGroupMemberKeys:
             assert ch.get_group_member_keys("g") == []
 
 
-class TestGroupIdentity:
-    """Public display metadata for a group (D53) — the directory/detail name source."""
-
-    def test_found(self):
-        with _patch_client() as mock_client:
-            mock_client.query.return_value = _mock_result_rows(
-                [("Jazz Collectors", "Vinyl-first", "banner-1", "avatar-1", "https://jazz.example", ("jazz", "vinyl"))]
-            )
-            result = ch.get_group_identity("web10.app/groups/alice/jazz")
-            assert result["name"] == "Jazz Collectors"
-            assert result["description"] == "Vinyl-first"
-            assert result["banner_ref"] == "banner-1"
-            assert result["avatar_ref"] == "avatar-1"
-            assert result["website"] == "https://jazz.example"
-            assert result["tags"] == ["jazz", "vinyl"]
-
-    def test_not_found(self):
-        with _patch_client() as mock_client:
-            mock_client.query.return_value = _mock_result_rows([])
-            assert ch.get_group_identity("g") is None
-
-    def test_batch(self):
-        with _patch_client() as mock_client:
-            # (group_id, name, description, banner_ref, avatar_ref, website, tags)
-            mock_client.query.return_value = _mock_result_rows(
-                [
-                    ("g1", "One", "", "", "", "", ("a",)),
-                    ("g2", "Two", "", "", "", "", ()),
-                ]
-            )
-            result = ch.get_group_identities(["g1", "g2", "g3"])
-            assert set(result.keys()) == {"g1", "g2"}  # g3 has no identity record
-            assert result["g1"]["name"] == "One"
-            assert result["g1"]["tags"] == ["a"]
-            assert result["g2"]["tags"] == []
-
-    def test_batch_empty(self):
-        with _patch_client() as mock_client:
-            assert ch.get_group_identities([]) == {}
-            mock_client.query.assert_not_called()
-
-
 class TestListDiscoverableGroups:
     """The directory's source query — discoverable groups only (D53)."""
 

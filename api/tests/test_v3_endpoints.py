@@ -434,19 +434,6 @@ class TestGroupDirectory:
             patch(
                 "app.v3.services.clickhouse._get_group_member_counts", return_value={"web10.app/groups/alice/jazz": 42}
             ),
-            patch(
-                "app.v3.services.clickhouse.get_group_identities",
-                return_value={
-                    "web10.app/groups/alice/jazz": {
-                        "name": "Jazz Collectors",
-                        "tags": ["jazz", "vinyl"],
-                        "description": "",
-                        "banner_ref": "",
-                        "avatar_ref": "",
-                        "website": "",
-                    }
-                },
-            ),
         ):
             resp = client.get("/v3/groups/directory")
         assert resp.status_code == 200
@@ -454,29 +441,29 @@ class TestGroupDirectory:
         assert len(data["groups"]) == 1
         g = data["groups"][0]
         assert g["group_id"] == "web10.app/groups/alice/jazz"
-        assert g["name"] == "Jazz Collectors"  # from identity
+        assert g["name"] == "jazz"  # the slug (the face is app data, D60)
         assert g["owner"] == "alice"
         assert g["slug"] == "jazz"
         assert g["join_policy"] == "open"
         assert g["member_count"] == 42
-        assert g["tags"] == ["jazz", "vinyl"]
         assert "readAll" in g["permission_summary"]
+        # no face fields — the directory is generic (D60)
+        assert "tags" not in g
+        assert "description" not in g
 
-    def test_name_falls_back_to_slug(self, client):
+    def test_name_is_the_slug(self, client):
         with (
             patch(
                 "app.v3.services.clickhouse.list_discoverable_groups",
                 return_value=[{"group_id": "web10.app/groups/bob/chess", "join_policy": "request", "roles": []}],
             ),
             patch("app.v3.services.clickhouse._get_group_member_counts", return_value={}),
-            patch("app.v3.services.clickhouse.get_group_identities", return_value={}),  # no identity record
         ):
             resp = client.get("/v3/groups/directory")
         assert resp.status_code == 200
         g = resp.json()["groups"][0]
-        assert g["name"] == "chess"  # slug fallback
+        assert g["name"] == "chess"  # the slug
         assert g["owner"] == "bob"
-        assert g["tags"] == []
 
     def test_created_group_shape_parses_owner_and_slug(self, client):
         """Created groups are {provider}/groups/users/{creator}/{slug} — the
@@ -489,20 +476,18 @@ class TestGroupDirectory:
                 ],
             ),
             patch("app.v3.services.clickhouse._get_group_member_counts", return_value={}),
-            patch("app.v3.services.clickhouse.get_group_identities", return_value={}),
         ):
             resp = client.get("/v3/groups/directory")
         assert resp.status_code == 200
         g = resp.json()["groups"][0]
         assert g["owner"] == "alice123"
         assert g["slug"] == "jazz-club"
-        assert g["name"] == "jazz-club"  # slug fallback
+        assert g["name"] == "jazz-club"  # the slug
 
     def test_empty(self, client):
         with (
             patch("app.v3.services.clickhouse.list_discoverable_groups", return_value=[]),
             patch("app.v3.services.clickhouse._get_group_member_counts", return_value={}),
-            patch("app.v3.services.clickhouse.get_group_identities", return_value={}),
         ):
             resp = client.get("/v3/groups/directory")
         assert resp.status_code == 200
@@ -525,17 +510,6 @@ class TestGroupDetail:
     def _apply(self, is_member, posts=None):
         return (
             patch("app.v3.services.clickhouse.get_group", return_value=self._GROUP),
-            patch(
-                "app.v3.services.clickhouse.get_group_identity",
-                return_value={
-                    "name": "Jazz Collectors",
-                    "tags": ["jazz"],
-                    "description": "d",
-                    "banner_ref": "b",
-                    "avatar_ref": "a",
-                    "website": "w",
-                },
-            ),
             patch("app.v3.services.clickhouse._get_group_member_counts", return_value={self._ID: 7}),
             patch("app.v3.services.clickhouse.is_group_member", return_value=is_member),
             patch("app.v3.services.clickhouse.read_documents_in_groups", return_value=posts or []),
@@ -548,21 +522,21 @@ class TestGroupDetail:
 
     def test_non_discoverable_group_is_reachable(self, client):
         """Unlisted-model: a discoverable=False group does NOT 404."""
-        p1, p2, p3, p4, p5 = self._apply(is_member=False)
-        with p1, p2, p3, p4, p5:
+        p1, p2, p3, p4 = self._apply(is_member=False)
+        with p1, p2, p3, p4:
             resp = client.get("/v3/groups/detail", params={"group_id": self._ID})
         assert resp.status_code == 200
         data = resp.json()
         assert data["discoverable"] is False
-        assert data["name"] == "Jazz Collectors"
+        assert data["name"] == "jazz"  # the slug (the face is app data, D60)
         assert data["member_count"] == 7
         assert data["posts_state"] == "join_to_view"
         assert data["posts"] == []
 
     def test_member_sees_posts(self, client, token):
         posts = [{"doc_id": "p1", "author_key": "web10.app/users/alice", "body": {"text": "hi"}}]
-        p1, p2, p3, p4, p5 = self._apply(is_member=True, posts=posts)
-        with p1, p2, p3, p4, p5:
+        p1, p2, p3, p4 = self._apply(is_member=True, posts=posts)
+        with p1, p2, p3, p4:
             resp = client.get("/v3/groups/detail", params={"group_id": self._ID, "token": token})
         assert resp.status_code == 200
         data = resp.json()
@@ -572,8 +546,8 @@ class TestGroupDetail:
 
     def test_anon_reads_as_anon(self, client):
         """No token → principal is anon; a non-member anon gets "join to view"."""
-        p1, p2, p3, p4, p5 = self._apply(is_member=False)
-        with p1, p2, p3, p4, p5:
+        p1, p2, p3, p4 = self._apply(is_member=False)
+        with p1, p2, p3, p4:
             resp = client.get("/v3/groups/detail", params={"group_id": self._ID})
         assert resp.status_code == 200
         assert resp.json()["posts_state"] == "join_to_view"
@@ -875,57 +849,6 @@ class TestInviteMember:
                 },
             )
         assert resp.status_code == 401
-
-
-# ---------------------------------------------------------------------------
-# Group identity (D58) — the group's face, gated by group-identity-service
-# ---------------------------------------------------------------------------
-
-
-class TestGroupIdentity:
-    def test_owner_writes_face(self, client, token):
-        with (
-            patch("app.v3.services.clickhouse.get_group", return_value={"group_id": "g1", "roles": []}),
-            patch("app.v3.services.clickhouse.can_write_group", return_value=True),
-            patch("app.v3.services.clickhouse.upsert_group_identity") as mock_upsert,
-        ):
-            resp = client.post(
-                "/v3/groups/identity",
-                json={
-                    "token": token,
-                    "group_id": "g1",
-                    "name": "Jazz Collectors",
-                    "description": "Vinyl-first jazz community",
-                    "tags": ["jazz", "vinyl"],
-                },
-            )
-        assert resp.status_code == 200
-        assert resp.json()["status"] == "saved"
-        # the face is persisted with the given fields.
-        assert mock_upsert.call_args.args[1]["name"] == "Jazz Collectors"
-        assert mock_upsert.call_args.args[1]["tags"] == ["jazz", "vinyl"]
-
-    def test_member_without_identity_grant_cannot_write(self, client, token):
-        with (
-            patch("app.v3.services.clickhouse.get_group", return_value={"group_id": "g1", "roles": []}),
-            # a plain member has no group-identity-service grant.
-            patch("app.v3.services.clickhouse.can_write_group", return_value=False),
-            patch("app.v3.services.clickhouse.upsert_group_identity") as mock_upsert,
-        ):
-            resp = client.post(
-                "/v3/groups/identity",
-                json={"token": token, "group_id": "g1", "name": "Nope"},
-            )
-        assert resp.status_code == 401
-        mock_upsert.assert_not_called()
-
-    def test_missing_group_404(self, client, token):
-        with patch("app.v3.services.clickhouse.get_group", return_value=None):
-            resp = client.post(
-                "/v3/groups/identity",
-                json={"token": token, "group_id": "nope", "name": "X"},
-            )
-        assert resp.status_code == 404
 
 
 # ---------------------------------------------------------------------------
@@ -2085,10 +2008,14 @@ class TestPowerMeanRead:
 
 class TestGroupModeration:
     """Board moderation as a group op — hide content from a group's discover
-    (KB: groups/overview.md "Moderation"). Gated by `hideAll` OR node admin."""
+    (KB: groups/overview.md "Moderation"). Gated by `hideAll` on the doc's
+    service (D58: a content op) OR node admin."""
+
+    _DOC = {"doc_id": "doc-1", "author_key": "alice", "service": "posts"}
 
     def test_hide(self, client, token):
         with (
+            patch("app.v3.services.clickhouse.get_document_any_author", return_value=self._DOC),
             patch("app.v3.endpoints.groups._require_moderation"),
             patch("app.v3.services.clickhouse.hide_doc_from_group") as mock_hide,
         ):
@@ -2102,6 +2029,7 @@ class TestGroupModeration:
 
     def test_unhide(self, client, token):
         with (
+            patch("app.v3.services.clickhouse.get_document_any_author", return_value=self._DOC),
             patch("app.v3.endpoints.groups._require_moderation"),
             patch("app.v3.services.clickhouse.unhide_doc_from_group") as mock_unhide,
         ):
@@ -2112,7 +2040,7 @@ class TestGroupModeration:
 
     def test_hidden_list(self, client, token):
         with (
-            patch("app.v3.endpoints.groups._require_moderation"),
+            patch("app.v3.endpoints.groups._require_moderation_any"),
             patch(
                 "app.v3.services.clickhouse.get_hidden_docs",
                 return_value=[
@@ -2136,6 +2064,7 @@ class TestGroupModeration:
     def test_hide_requires_moderation(self, client, token):
         """The gate runs before the hide — a non-moderator never reaches it."""
         with (
+            patch("app.v3.services.clickhouse.get_document_any_author", return_value=self._DOC),
             patch(
                 "app.v3.endpoints.groups._require_moderation",
                 side_effect=Exception("NOT_ADMIN"),

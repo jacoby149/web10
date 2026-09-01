@@ -27,7 +27,6 @@ from app.v3.models import (
     SetSharing,
     UnhideDoc,
     UpdateGroup,
-    UpdateGroupIdentity,
 )
 from app.v3.models.common import TokenOnly
 from app.v3.services import clickhouse as ch
@@ -46,18 +45,27 @@ def _require_group_permission(group_id: str, user: str, permission: str):
         raise exceptions.CRUD
 
 
-def _require_moderation(group_id: str, user: str, token: str):
+def _require_moderation(group_id: str, user: str, token: str, service: str):
     """Gate for hiding/unhiding content from a group's discover.
 
-    A member whose role has `hideAll` can moderate their group (KB:
-    groups/overview.md "Moderation"). The node admin can moderate ANY group —
-    this is how the public board (which has no moderator role) gets moderated.
+    A member whose role grants `hideAll` on the doc's service can moderate that
+    content (D58: `hideAll` is a content op, scoped to the service key, not the
+    structural 'group' key). The node admin can moderate ANY group — this is how
+    the public board (which has no moderator role) gets moderated.
     """
-    try:
-        _require_group_permission(group_id, user, "hideAll")
+    if ch.can_moderate_service(group_id, user, service):
         return
-    except Exception:
-        pass
+    check_admin(Token(token=token))
+
+
+def _require_moderation_any(group_id: str, user: str, token: str):
+    """Gate for listing hidden docs (a moderation read, no specific doc/service).
+
+    A member whose role grants `hideAll` on any service can list the group's
+    hidden docs. The node admin can moderate ANY group.
+    """
+    if ch.can_moderate_group(group_id, user):
+        return
     check_admin(Token(token=token))
 
 
@@ -177,31 +185,6 @@ def update_group(data: UpdateGroup):
         discoverable=discoverable,
     )
     return result
-
-
-@router.post("/identity")
-def update_group_identity(data: UpdateGroupIdentity):
-    """Write the group's face (D58) — name, description, banner, avatar,
-    website, tags. Gated by a role grant on ``group-identity-service`` (owner /
-    page-curator). Append-only: each write appends a new ``group_identity``
-    row (latest wins). The read stays public — the face is public metadata."""
-    user = _user(data)
-    if not ch.get_group(data.group_id):
-        raise exceptions.ENTRY_NOT_FOUND
-    if not ch.can_write_group(data.group_id, user, "group-identity-service"):
-        raise exceptions.CRUD
-    result = ch.upsert_group_identity(
-        data.group_id,
-        {
-            "name": data.name,
-            "description": data.description,
-            "banner_ref": data.banner_ref,
-            "avatar_ref": data.avatar_ref,
-            "website": data.website,
-            "tags": data.tags,
-        },
-    )
-    return {**result, "status": "saved"}
 
 
 @router.post("/members/list")
@@ -343,28 +326,27 @@ def get_groups_manages(data: TokenOnly):
 def list_directory(limit: int = 50, offset: int = 0):
     """The public group directory: the minimal list of discoverable groups.
 
-    Anon (no token needed). Returns id, name (identity record, else slug),
-    owner, join policy, member count, tags, and a permission summary. No posts.
-    A view over group_contracts ⋈ group_members ⋈ group_identity.
+    Anon (no token needed). Returns id, name (the slug), owner, join policy,
+    member count (platform-computed, unhackable), and a permission summary. No
+    face, no posts — the group's *face* (rich name, banner, tags) is app data
+    in an app-named identity service (D60); a surface fetches it separately and
+    composes it with this list. A view over group_contracts ⋈ group_members.
     """
     groups = ch.list_discoverable_groups(limit=limit, offset=offset)
     group_ids = [g["group_id"] for g in groups]
     counts = ch._get_group_member_counts(group_ids)
-    identities = ch.get_group_identities(group_ids)
     out = []
     for g in groups:
         gid = g["group_id"]
-        identity = identities.get(gid) or {}
         owner, slug = _parse_group_id(gid)
         out.append(
             {
                 "group_id": gid,
-                "name": identity.get("name") or slug,
+                "name": slug,
                 "owner": owner,
                 "slug": slug,
                 "join_policy": g["join_policy"],
                 "member_count": counts.get(gid, 0),
-                "tags": identity.get("tags", []),
                 "permission_summary": _permission_summary(g["roles"]),
             }
         )
@@ -377,23 +359,24 @@ def group_detail(group_id: str, token: str | None = None):
 
     Principal-based: reads as the token's user, or `anon` with no token. Only a
     non-existent group 404s — a non-discoverable group is still reachable (like
-    an unlisted video). Metadata (contract + identity + member count) is always
-    returned; posts are returned only if the reader is a member (I3), else a
-    "join to view" state.
+    an unlisted video). Metadata (contract + member count) is always returned;
+    posts are returned only if the reader is a member (I3), else a "join to
+    view" state. The group's *face* (rich name, banner, tags) is app data in an
+    app-named identity service (D60) — the platform detail does not render it;
+    a surface fetches the face from the app's service and composes it here.
     """
     principal = user_or_anon(SimpleNamespace(token=token or ""))
     group = ch.get_group(group_id)
     if not group:
         raise exceptions.ENTRY_NOT_FOUND  # only a non-existent group 404s
 
-    identity = ch.get_group_identity(group_id) or {}
     counts = ch._get_group_member_counts([group_id])
     owner, slug = _parse_group_id(group_id)
     is_member = ch.is_group_member(group_id, principal)
 
     out = {
         "group_id": group_id,
-        "name": identity.get("name") or slug,
+        "name": slug,
         "owner": owner,
         "slug": slug,
         "join_policy": group["join_policy"],
@@ -401,11 +384,6 @@ def group_detail(group_id: str, token: str | None = None):
         "member_count": counts.get(group_id, 0),
         "roles": group["roles"],
         "permission_summary": _permission_summary(group["roles"]),
-        "description": identity.get("description", ""),
-        "banner_ref": identity.get("banner_ref", ""),
-        "avatar_ref": identity.get("avatar_ref", ""),
-        "website": identity.get("website", ""),
-        "tags": identity.get("tags", []),
         "is_member": is_member,
         "posts_state": "ok" if is_member else "join_to_view",
         "posts": [],
@@ -462,7 +440,10 @@ def delete_group(data: DeleteGroup):
 def hide_doc(data: HideDoc):
     """Hide a document from a group's discover (moderator or node admin)."""
     user = _user(data)
-    _require_moderation(data.group_id, user, data.token)
+    doc = ch.get_document_any_author(data.doc_id)
+    if not doc:
+        raise exceptions.ENTRY_NOT_FOUND
+    _require_moderation(data.group_id, user, data.token, doc["service"])
     ch.hide_doc_from_group(data.group_id, data.doc_id, user)
     return {"group_id": data.group_id, "doc_id": data.doc_id, "status": "hidden"}
 
@@ -471,7 +452,10 @@ def hide_doc(data: HideDoc):
 def unhide_doc(data: UnhideDoc):
     """Restore a previously hidden document to a group's discover."""
     user = _user(data)
-    _require_moderation(data.group_id, user, data.token)
+    doc = ch.get_document_any_author(data.doc_id)
+    if not doc:
+        raise exceptions.ENTRY_NOT_FOUND
+    _require_moderation(data.group_id, user, data.token, doc["service"])
     ch.unhide_doc_from_group(data.group_id, data.doc_id)
     return {"group_id": data.group_id, "doc_id": data.doc_id, "status": "restored"}
 
@@ -480,5 +464,5 @@ def unhide_doc(data: UnhideDoc):
 def list_hidden_docs(data: ListHiddenDocs):
     """List the documents currently hidden from a group's discover."""
     user = _user(data)
-    _require_moderation(data.group_id, user, data.token)
+    _require_moderation_any(data.group_id, user, data.token)
     return {"hidden": ch.get_hidden_docs(data.group_id)}

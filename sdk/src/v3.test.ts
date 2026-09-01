@@ -894,28 +894,29 @@ describe('v3 client', () => {
     })
   })
 
-  // ── Session health (verifySession) ────────────────────────────────────
+  // ── Access health (verifyAccess) ──────────────────────────────────────
 
-  describe('verifySession', () => {
+  describe('verifyAccess', () => {
     beforeEach(() => client.setToken(mockToken))
 
-    it('posts to session/verify and returns the verdict', async () => {
+    it('posts to access/verify and returns the verdict', async () => {
       const verdict = {
         status: 'ok',
         token: 'valid',
         user: 'exists',
         contract: { state: 'granted', missing_services: [] },
-        groups: { followers: 'ok' },
         actions: [],
         username: 'alice',
         provider: 'api.localhost',
       }
       vi.spyOn(http, 'authPost').mockResolvedValueOnce(verdict as any)
-      const result = await client.verifySession({ services: ['posts', 'profile'] })
+      const result = await client.verifyAccess({ services: ['posts', 'profile'] })
       expect(result.status).toBe('ok')
       expect(result.actions).toEqual([])
+      // no groups field — the oracle is generic (D60)
+      expect((result as any).groups).toBeUndefined()
       const call = (vi.mocked(http.authPost).mock.calls[0] as any)
-      expect(call[0]).toBe('http://api.localhost/v3/session/verify')
+      expect(call[0]).toBe('http://api.localhost/v3/access/verify')
       // The API model takes top-level services/operations (not nested under body)
       expect(call[1].services).toEqual(['posts', 'profile'])
       expect(call[1].operations).toBeUndefined()
@@ -923,7 +924,7 @@ describe('v3 client', () => {
 
     it('omits services/operations for a health probe', async () => {
       vi.spyOn(http, 'authPost').mockResolvedValueOnce({ status: 'ok', actions: [] } as any)
-      await client.verifySession()
+      await client.verifyAccess()
       const call = (vi.mocked(http.authPost).mock.calls[0][1] as any)
       expect(call.services).toBeUndefined()
       expect(call.operations).toBeUndefined()
@@ -931,7 +932,7 @@ describe('v3 client', () => {
 
     it('sends operations when provided', async () => {
       vi.spyOn(http, 'authPost').mockResolvedValueOnce({ status: 'ok', actions: [] } as any)
-      await client.verifySession({ services: ['posts'], operations: ['readAll', 'create'] })
+      await client.verifyAccess({ services: ['posts'], operations: ['readAll', 'create'] })
       const call = (vi.mocked(http.authPost).mock.calls[0][1] as any)
       expect(call.services).toEqual(['posts'])
       expect(call.operations).toEqual(['readAll', 'create'])
@@ -943,16 +944,14 @@ describe('v3 client', () => {
         token: 'valid',
         user: 'exists',
         contract: { state: 'missing', missing_services: ['posts'] },
-        groups: { followers: 'not_member' },
-        actions: ['reauth', 'heal_followers_group'],
+        actions: ['reauth'],
         username: 'alice',
         provider: 'api.localhost',
       }
       vi.spyOn(http, 'authPost').mockResolvedValueOnce(verdict as any)
-      const result = await client.verifySession({ services: ['posts'] })
+      const result = await client.verifyAccess({ services: ['posts'] })
       expect(result.status).toBe('degraded')
-      // reauth before heal (heal needs a live session)
-      expect(result.actions).toEqual(['reauth', 'heal_followers_group'])
+      expect(result.actions).toEqual(['reauth'])
     })
   })
 

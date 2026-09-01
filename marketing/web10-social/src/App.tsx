@@ -231,16 +231,17 @@ function App() {
   const [signedIn, setSignedIn] = useState(false);
   const [showReportBug, setShowReportBug] = useState(false);
   const [reportTrigger, setReportTrigger] = useState<'button' | 'error-boundary'>('button');
-  // The SessionGuard's manual-fallback banner (set when a recovery is in
+  // The access recovery's manual-fallback banner (set when a recovery is in
   // cooldown or an action failed — the loop-breaker hands the user the wheel).
   const [sessionAlert, setSessionAlert] = useState<string | null>(null);
   const navigate = useNavigate();
 
-  // Run the SessionGuard: verify the session and execute the verdict's
-  // recovery actions (reauth / heal_followers_group / signout), honoring the
-  // cooldown. On mount / after a fresh token, reauth (the popup) is deferred
-  // to an actual failure; the safe local actions (heal, signout) still run.
-  const runSessionGuard = useCallback((allowReauth: boolean) => {
+  // Run the access recovery: verify access and execute the verdict's recovery
+  // actions (reauth / signout) + the app's own followers-group heal, honoring
+  // the cooldown. On mount / after a fresh token, reauth (the popup) is
+  // deferred to an actual failure; the safe local actions (heal, signout) still
+  // run.
+  const runAccessRecovery = useCallback((allowReauth: boolean) => {
     verifyAndRecover({ allowReauth })
       .then((res) => {
         if (res.outcome === 'needs_manual') {
@@ -249,7 +250,7 @@ function App() {
           setSessionAlert(null);
         }
       })
-      .catch((e) => LOG_ERR('session guard failed:', e));
+      .catch((e) => LOG_ERR('access recovery failed:', e));
   }, []);
 
   useEffect(() => {
@@ -261,7 +262,7 @@ function App() {
     LOG('app mount — isSignedIn:', auth.isSignedIn());
     if (auth.isSignedIn()) {
       setSignedIn(true);
-      runSessionGuard(false);
+      runAccessRecovery(false);
     }
     auth.authListen(() => {
       setSignedIn(true);
@@ -274,7 +275,7 @@ function App() {
       // session is mid-handoff). The mount + reactive-failure paths cover it.
     });
 
-    // The guard's terminal signout (user not found) clears the cookie and
+    // The recovery's terminal signout (user not found) clears the cookie and
     // signals us to show the login screen.
     const onSignedOut = () => {
       setSignedIn(false);
@@ -284,14 +285,14 @@ function App() {
 
     // Reactive path: when a data op fails with an auth-class error (401/403),
     // re-ask the oracle (verifyAndRecover) and act on the definitive verdict —
-    // the client never guesses from the status code. The guard's cooldown
+    // the client never guesses from the status code. The recovery's cooldown
     // prevents a loop, and a transient 403 (a deploy window) yields an
     // inconclusive verdict → no action (definite-NO-vs-UNKNOWN).
     const onAuthError = (e: Event) => {
       const err = e instanceof PromiseRejectionEvent ? e.reason : (e as ErrorEvent).error;
       if (err instanceof Web10Error && (err.status === 401 || err.status === 403)) {
         LOG('reactive session check — auth-class error', err.status, err.details);
-        runSessionGuard(true);
+        runAccessRecovery(true);
       }
     };
     window.addEventListener('unhandledrejection', onAuthError);
@@ -308,7 +309,7 @@ function App() {
       window.removeEventListener('error', onAuthError);
       window.removeEventListener('navigate-user-profile', handler);
     };
-  }, [navigate, runSessionGuard]);
+  }, [navigate, runAccessRecovery]);
 
   // P2P lifecycle (real-time messages): open the peer on sign-in when the
   // user's `p2pEnabled` setting is on, tear it down on sign-out. Re-applies
