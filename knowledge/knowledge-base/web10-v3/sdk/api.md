@@ -98,7 +98,7 @@ This is infrastructure trust — "what can this app do with my data?" Per-servic
 
 ## Access Health (verifyAccess)
 
-The confirmatory access check. Instead of an app guessing from status codes (a `401` on this node means "bad token" **or** "no permission" **or** "user not found" — the information is destroyed at the boundary), the server runs the ACTUAL checks it would run on a real request and reports each as a stable code, plus the ordered recovery `actions` the client should execute. The app's SessionGuard executes those actions — the client never reverse-engineers a status code.
+The confirmatory access check. Instead of an app guessing from status codes (a `401` on this node means "bad token" **or** "no permission" **or** "user not found" — the information is destroyed at the boundary), the server runs the ACTUAL checks it would run on a real request and reports each as a stable code, plus the ordered recovery `actions` the client should execute. The app's `verifyAndRecover` (in `access.ts`) executes those actions — the client never reverse-engineers a status code. There is no "guard" — `verifyAccess` is the oracle (the node reports state), `verifyAndRecover` is the recovery (the app acts on it).
 
 **Generic by design (D60).** It checks only *universal* legs — `token`, `user`, `contract`. It does **not** know about any app's groups (no "followers group" check). App-specific recovery (e.g. the social app healing its own followers group) is the **app's** job, client-side — the app is the one that knows what its groups are.
 
@@ -138,7 +138,7 @@ Every store-backed field separates a **decisive** answer (the check ran clean an
 | `reauth` | `token` dead, or `contract` `missing`/`partial` | re-derive the session through the rooted authenticator (fresh token + contract). Near-silent when the authenticator already has the root session; degrades to a login otherwise. **Replace-on-arrival** — the handed-back token overwrites the stale cookie; never clear-then-restore (a blocked popup must not strand the user signed-out) |
 | `signout` | `user` `not_found` | terminal — a deleted account can't be re-authed. Clear the session, show login. The only action that is a true sign-out |
 
-App-specific recovery (e.g. the social app re-creating/joining its followers group) is **not** an oracle action — the app does it client-side in its own SessionGuard, after `reauth` if needed. The oracle stays generic (D60).
+App-specific recovery (e.g. the social app re-creating/joining its followers group) is **not** an oracle action — the app does it client-side in its own `verifyAndRecover`, after `reauth` if needed. The oracle stays generic (D60).
 
 ### What it is not
 
