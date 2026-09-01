@@ -205,8 +205,11 @@ lookup. The scan stays a scan. AWS-level control, zero scan-time penalty.
   effective role grants `readAll` on that service to the reader. A non-member
   with no `anyone`/`authenticated` grant gets no content — only the public
   identity.
-- **Identity is never I3-gated.** It is a public table, readable by any
-  principal. It is group-keyed metadata, not user content.
+- **Identity is never I3-gated by membership.** It is public via the group's
+  `anyone` read grant on the identity service (readable by any principal, anon
+  included). It is group-keyed display metadata in an app-named service, not
+  user content — so the front door (a stranger seeing the face) works without
+  a membership check.
 - **Monotonicity.** A member's effective permissions ⊇ a signed-in
   stranger's ⊇ a signed-out visitor's. The nesting enforces it.
 - **The write side is gated too.** Attaching/creating content in a group
