@@ -173,7 +173,7 @@ export interface V3LoginResponse {
   token: string
 }
 
-// ── Session health (verifySession) ──────────────────────────────────────────
+// ── Access health (verifyAccess) ────────────────────────────────────────────
 // The confirmatory session verdict. Every store-backed field separates a
 // DECISIVE answer (the check ran clean) from `unknown` (the check couldn't run
 // — store unreadable). Only decisive negatives drive `actions`; `unknown`
@@ -182,46 +182,40 @@ export interface V3LoginResponse {
 
 /** Overall verdict. `inconclusive` = a check couldn't run (store unreadable)
  *  and nothing is decisively wrong — the client takes no action, retries later. */
-export type SessionStatus = 'ok' | 'degraded' | 'invalid' | 'inconclusive'
+export type AccessStatus = 'ok' | 'degraded' | 'invalid' | 'inconclusive'
 
 /** Token state. `missing` = no token (not signed in). `expired` = the custom
  *  `expires` claim is in the past. `invalid` = bad signature / malformed / anon. */
-export type SessionTokenState = 'valid' | 'expired' | 'invalid' | 'missing'
+export type AccessTokenState = 'valid' | 'expired' | 'invalid' | 'missing'
 
 /** User state. Only checkable with a valid token; `unknown` otherwise or when
  *  the users store is unreadable. */
-export type SessionUserState = 'exists' | 'not_found' | 'unknown'
+export type AccessUserState = 'exists' | 'not_found' | 'unknown'
 
 /** Contract state. `not_checked` = the app declared no services (health
  *  probe) — excluded from the verdict. `partial` = some declared services
  *  granted, `missing_services` names the rest. */
-export type SessionContractState = 'granted' | 'partial' | 'missing' | 'unknown' | 'not_checked'
-
-/** Followers-group state (the heal target). `ok` = member, `not_member` = the
- *  group exists but the user isn't in it (the pre-3.25.1 phantom-key state),
- *  `missing` = no group. */
-export type SessionFollowersState = 'ok' | 'not_member' | 'missing' | 'unknown'
+export type AccessContractState = 'granted' | 'partial' | 'missing' | 'unknown' | 'not_checked'
 
 /** Ordered recovery actions the client should execute. `reauth` = re-derive
  *  the session through the rooted authenticator (fresh token + contract).
- *  `heal_followers_group` = local join/create (needs a live session, so it
- *  comes after reauth). `signout` = terminal (a deleted account can't be
- *  re-authed) — clear the session and show login. */
-export type SessionAction = 'reauth' | 'heal_followers_group' | 'signout'
+ *  `signout` = terminal (a deleted account can't be re-authed) — clear the
+ *  session and show login. Generic by design (D60): no app-specific actions
+ *  (e.g. the social app's followers-group heal is the app's own job). */
+export type AccessAction = 'reauth' | 'signout'
 
-export interface SessionVerdict {
-  status: SessionStatus
-  token: SessionTokenState
-  user: SessionUserState
-  contract: { state: SessionContractState; missing_services: string[] }
-  groups: { followers: SessionFollowersState }
-  actions: SessionAction[]
+export interface AccessVerdict {
+  status: AccessStatus
+  token: AccessTokenState
+  user: AccessUserState
+  contract: { state: AccessContractState; missing_services: string[] }
+  actions: AccessAction[]
   /** Who we verified (only when the token is valid). */
   username: string | null
   provider: string | null
 }
 
-export interface VerifySessionOptions {
+export interface VerifyAccessOptions {
   /** The services the calling app needs (it declares its own — the signal is
    *  platform-level, the policy is per-app). Omit for a health probe. */
   services?: string[]
@@ -338,18 +332,19 @@ export function createV3Client(options: V3ClientOptions = {}): V3Client {
     },
 
     /**
-     * The confirmatory session-health check. The server runs the ACTUAL checks
-     * (token decode, user lookup, app-contract check, followers-group
-     * membership) and returns a typed verdict + ordered recovery `actions`.
-     * The app's SessionGuard executes those actions — the client never guesses
-     * from status codes. Read-only and idempotent; safe to call at mount and
-     * after any failure.
+     * The confirmatory access-health check. The server runs the ACTUAL checks
+     * (token decode, user lookup, app-contract check) and returns a typed
+     * verdict + ordered recovery `actions`. Generic by design (D60): it checks
+     * only universal legs — it does NOT know about any app's groups. The app's
+     * `verifyAndRecover` executes those actions — the client never guesses from
+     * status codes. Read-only and idempotent; safe to call at mount and after
+     * any failure.
      */
-    async verifySession(options: VerifySessionOptions = {}): Promise<SessionVerdict> {
+    async verifyAccess(options: VerifyAccessOptions = {}): Promise<AccessVerdict> {
       const body: Record<string, unknown> = {}
       if (options.services?.length) body.services = options.services
       if (options.operations?.length) body.operations = options.operations
-      return v3Post<SessionVerdict>('session/verify', body)
+      return v3Post<AccessVerdict>('access/verify', body)
     },
 
     async changePassword(currentPassword: string, newPassword: string): Promise<{ status: string }> {
@@ -798,7 +793,7 @@ export interface V3Client {
   login(username: string, password: string, site?: string): Promise<V3LoginResponse>
   signup(username: string, password: string, phone?: string, email?: string): Promise<V3User>
   getProfile(): Promise<V3User>
-  verifySession(options?: VerifySessionOptions): Promise<SessionVerdict>
+  verifyAccess(options?: VerifyAccessOptions): Promise<AccessVerdict>
   changePassword(currentPassword: string, newPassword: string): Promise<{ status: string }>
   changePhone(phone: string): Promise<{ phone: string }>
   setEmail(email: string): Promise<{ email: string }>

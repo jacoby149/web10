@@ -281,3 +281,40 @@ class TestMonotonicity:
         # create.
         assert stranger - visitor == {("comments", "readAll")}
         assert member - stranger == {("posts", "create")}
+
+
+# ---------------------------------------------------------------------------
+# can_moderate_service / can_moderate_group (hideAll is a content op)
+# ---------------------------------------------------------------------------
+
+
+class TestCanModerate:
+    """D58: `hideAll` is a content op (it hides a *doc*), so it's scoped to the
+    service key (or the '*' wildcard), not the structural 'group' key. A
+    moderator with `hideAll` on `posts` can hide posts but not comments."""
+
+    MODERATOR_POSTS = [{"name": "moderator", "permissions": {"posts": ["readAll", "hideAll"]}}]
+    MODERATOR_WILDCARD = [{"name": "owner", "permissions": {"*": ["readAll", "hideAll"]}}]
+    PLAIN_MEMBER = [{"name": "member", "permissions": {"posts": ["readAll", "create"]}}]
+
+    def test_moderator_with_hideall_on_service_can_moderate_that_service(self):
+        with _mock(self.MODERATOR_POSTS, {"bob": "moderator"}):
+            assert ch.can_moderate_service("g1", "bob", "posts") is True
+            # hideAll on posts does NOT cover comments.
+            assert ch.can_moderate_service("g1", "bob", "comments") is False
+
+    def test_wildcard_hideall_covers_all_services(self):
+        with _mock(self.MODERATOR_WILDCARD, {"alice": "owner"}):
+            assert ch.can_moderate_service("g1", "alice", "posts") is True
+            assert ch.can_moderate_service("g1", "alice", "comments") is True
+            assert ch.can_moderate_service("g1", "alice", "media") is True
+
+    def test_no_hideall_cannot_moderate(self):
+        with _mock(self.PLAIN_MEMBER, {"bob": "member"}):
+            assert ch.can_moderate_service("g1", "bob", "posts") is False
+
+    def test_can_moderate_group_true_when_any_service_grants_hideall(self):
+        with _mock(self.MODERATOR_POSTS, {"bob": "moderator"}):
+            assert ch.can_moderate_group("g1", "bob") is True
+        with _mock(self.PLAIN_MEMBER, {"bob": "member"}):
+            assert ch.can_moderate_group("g1", "bob") is False

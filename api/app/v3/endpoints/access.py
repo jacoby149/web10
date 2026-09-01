@@ -27,13 +27,7 @@ from app.v3.services import clickhouse as ch
 
 logger = logging.getLogger(__name__)
 
-router = APIRouter(tags=["session"])
-
-
-# The followers group ID the API derives for a user — must match the app's
-# followersGroupId (groups.ts): {provider}/groups/users/{username}/followers.
-def _followers_group_id(username: str, provider: str) -> str:
-    return f"{provider}/groups/users/{username}/followers"
+router = APIRouter(tags=["access"])
 
 
 def _check_token(token: str | None) -> tuple[str, str | None, str | None]:
@@ -69,8 +63,14 @@ def _check_token(token: str | None) -> tuple[str, str | None, str | None]:
 
 
 @router.post("/verify")
-def verify_session(request: Request, data: VerifySession):
-    """Return a typed session verdict + ordered recovery actions."""
+def verify_access(request: Request, data: VerifySession):
+    """Return a typed access verdict + ordered recovery actions.
+
+    Generic by design (D60): checks only universal legs — token, user,
+    contract. It does NOT know about any app's groups (no followers-group
+    check); app-specific recovery (e.g. the social app healing its followers
+    group) is the app's job, client-side.
+    """
     token_state, username, provider = _check_token(data.token)
 
     # user: exists | not_found | unknown (only checkable with a valid token)
@@ -81,8 +81,6 @@ def verify_session(request: Request, data: VerifySession):
     contract_state = "not_checked"
     contract_checked = False
     missing_services: list[str] = []
-    # groups.followers: ok | not_member | missing | unknown
-    followers_state = "unknown"
 
     if token_state == "valid":
         # --- user lookup (decisive unless the store is unreadable) ---
@@ -112,19 +110,6 @@ def verify_session(request: Request, data: VerifySession):
                 contract_state = "unknown"
                 missing_services = []
 
-        # --- followers-group membership (the 3.30.1 heal target) ---
-        group_id = _followers_group_id(username, provider)
-        try:
-            if ch.get_group(group_id) is None:
-                followers_state = "missing"
-            elif ch.is_group_member(group_id, username):
-                followers_state = "ok"
-            else:
-                followers_state = "not_member"
-        except Exception as e:  # store unreadable → unknown
-            logger.warning("[session] verify: group check unreadable: %s", e)
-            followers_state = "unknown"
-
     # --- status: invalid > degraded > inconclusive > ok ---
     # Any non-valid token (expired / invalid / missing) is a dead session.
     token_dead = token_state in ("expired", "invalid", "missing")
@@ -132,9 +117,9 @@ def verify_session(request: Request, data: VerifySession):
     contract_unknown = contract_checked and contract_state == "unknown"
     if user_state == "not_found" or token_dead:
         status = "invalid"
-    elif contract_bad or followers_state in ("not_member", "missing"):
+    elif contract_bad:
         status = "degraded"
-    elif user_state == "unknown" or contract_unknown or followers_state == "unknown":
+    elif user_state == "unknown" or contract_unknown:
         status = "inconclusive"
     else:
         status = "ok"
@@ -148,16 +133,12 @@ def verify_session(request: Request, data: VerifySession):
         # Re-derive through the rooted authenticator (fresh token + contract).
         if token_dead or contract_bad:
             actions.append("reauth")
-        # Local heal (needs a live session, so it comes after reauth).
-        if followers_state in ("not_member", "missing"):
-            actions.append("heal_followers_group")
 
     return {
         "status": status,
         "token": token_state,
         "user": user_state,
         "contract": {"state": contract_state, "missing_services": missing_services},
-        "groups": {"followers": followers_state},
         "actions": actions,
         "username": username,
         "provider": provider,
