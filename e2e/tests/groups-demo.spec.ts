@@ -24,8 +24,8 @@ const password = 'TestPass123!';
 // Owner gets full management perms (assignRoles/revokeRoles/deleteGroup) so
 // the join-policy + member-management tests can drive the state machine.
 const ROLES = [
-  { name: 'owner', services: ['*'], permissions: ['readAll', 'create', 'updateOwn', 'updateAll', 'deleteOwn', 'deleteAll', 'hideAll', 'manageRoles', 'assignRoles', 'revokeRoles', 'deleteGroup'] },
-  { name: 'member', services: ['posts'], permissions: ['readAll', 'create', 'updateOwn', 'deleteOwn'] },
+  { name: 'owner', permissions: { '*': ['readAll', 'create', 'updateOwn', 'updateAll', 'deleteOwn', 'deleteAll', 'hideAll'], 'group': ['manageRoles', 'assignRoles', 'revokeRoles', 'deleteGroup'] } },
+  { name: 'member', permissions: { 'posts': ['readAll', 'create', 'updateOwn', 'deleteOwn'] } },
 ];
 
 async function signupFreshUser(request: APIRequestContext, prefix: string): Promise<{ username: string; token: string }> {

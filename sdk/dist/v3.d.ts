@@ -84,8 +84,7 @@ export interface V3ServiceContract {
 }
 export interface V3GroupRole {
     name: string;
-    services: string[];
-    permissions: string[];
+    permissions: Record<string, string[]>;
 }
 export interface V3GroupMemberCR {
     member_key: string;

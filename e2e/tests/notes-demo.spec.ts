@@ -51,8 +51,8 @@ async function setupUser(
       name: groupName,
       join_policy: 'invite_only',
       roles: [
-        { name: 'owner', services: ['*'], permissions: ['readAll', 'create', 'updateOwn', 'deleteOwn', 'manageRoles'] },
-        { name: 'member', services: ['notes'], permissions: ['readAll', 'create', 'updateOwn', 'deleteOwn'] },
+        { name: 'owner', permissions: { '*': ['readAll', 'create', 'updateOwn', 'deleteOwn'], 'group': ['manageRoles'] } },
+        { name: 'member', permissions: { 'notes': ['readAll', 'create', 'updateOwn', 'deleteOwn'] } },
       ],
       members: [{ member_key: username, role: 'owner' }],
     }),
@@ -218,7 +218,7 @@ test.describe('Notes demo — API-level CRUD', () => {
         name: groupName,
         join_policy: 'invite_only',
         roles: [
-          { name: 'owner', services: ['*'], permissions: ['readAll', 'create', 'updateOwn', 'deleteOwn', 'manageRoles'] },
+          { name: 'owner', permissions: { '*': ['readAll', 'create', 'updateOwn', 'deleteOwn'], 'group': ['manageRoles'] } },
         ],
         members: [{ member_key: username, role: 'owner' }],
       }),
@@ -305,7 +305,7 @@ test.describe('Notes demo — API-level CRUD', () => {
         name: groupName,
         join_policy: 'invite_only',
         roles: [
-          { name: 'owner', services: ['*'], permissions: ['readAll', 'create', 'updateOwn', 'deleteOwn', 'manageRoles'] },
+          { name: 'owner', permissions: { '*': ['readAll', 'create', 'updateOwn', 'deleteOwn'], 'group': ['manageRoles'] } },
         ],
         members: [{ member_key: username, role: 'owner' }],
       }),
@@ -347,8 +347,8 @@ test.describe('Notes demo — API-level CRUD', () => {
           name: groupName,
           join_policy: 'invite_only',
           roles: [
-            { name: 'owner', services: ['*'], permissions: ['readAll', 'create', 'updateOwn', 'deleteOwn', 'manageRoles'] },
-            { name: 'member', services: ['notes'], permissions: ['readAll', 'create', 'updateOwn', 'deleteOwn'] },
+            { name: 'owner', permissions: { '*': ['readAll', 'create', 'updateOwn', 'deleteOwn'], 'group': ['manageRoles'] } },
+            { name: 'member', permissions: { 'notes': ['readAll', 'create', 'updateOwn', 'deleteOwn'] } },
           ],
           members: [{ member_key: username, role: 'owner' }],
         }),
@@ -519,7 +519,7 @@ test.describe('Notes demo anti-tests — broken contracts break the app', () => 
         name: groupName,
         join_policy: 'invite_only',
         roles: [
-          { name: 'owner', services: ['*'], permissions: ['readAll', 'create', 'updateOwn', 'deleteOwn', 'manageRoles'] },
+          { name: 'owner', permissions: { '*': ['readAll', 'create', 'updateOwn', 'deleteOwn'], 'group': ['manageRoles'] } },
         ],
         members: [{ member_key: username, role: 'owner' }],
       }),
@@ -596,7 +596,7 @@ test.describe('Notes demo anti-tests — broken contracts break the app', () => 
         name: groupName,
         join_policy: 'invite_only',
         roles: [
-          { name: 'owner', services: ['*'], permissions: ['readAll', 'create', 'updateOwn', 'deleteOwn', 'manageRoles', 'deleteGroup'] },
+          { name: 'owner', permissions: { '*': ['readAll', 'create', 'updateOwn', 'deleteOwn'], 'group': ['manageRoles', 'deleteGroup'] } },
         ],
         members: [{ member_key: username, role: 'owner' }],
       }),

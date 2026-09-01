@@ -150,8 +150,8 @@ setupGroupBtn.onclick = () => {
     name: groupName,
     join_policy: 'invite_only',
     roles: [
-      { name: 'owner', services: ['*'], permissions: ['readAll', 'create', 'updateOwn', 'deleteOwn', 'manageRoles', 'assignRoles', 'revokeRoles', 'deleteGroup'] },
-      { name: 'member', services: [SERVICE], permissions: ['readAll', 'create', 'updateOwn', 'deleteOwn'] },
+      { name: 'owner', permissions: { '*': ['readAll', 'create', 'updateOwn', 'deleteOwn'], 'group': ['manageRoles', 'assignRoles', 'revokeRoles', 'deleteGroup'] } },
+      { name: 'member', permissions: { [SERVICE]: ['readAll', 'create', 'updateOwn', 'deleteOwn'] } },
     ],
     members: [{ member_key: t.username, role: 'owner' }],
   }]

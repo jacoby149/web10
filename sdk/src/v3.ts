@@ -117,11 +117,12 @@ export interface V3ServiceContract {
   permissions: Record<string, string[]>
 }
 
-// Group role definition — each role has a name, scope (services), and permissions.
+// Group role definition — per-service permission map (D58).
+// The map IS the scope: each key is a service name (or '*' wildcard / 'group' structural),
+// each value is the list of ops granted on that service.
 export interface V3GroupRole {
   name: string
-  services: string[]
-  permissions: string[]
+  permissions: Record<string, string[]>
 }
 
 // Group member definition
