@@ -423,13 +423,14 @@ test.describe('Groups directory + detail — API floor (D53)', () => {
     expect(ids).toContain(listedId);
     expect(ids).not.toContain(hiddenId);
 
-    // the listed group carries the minimal fields (name falls back to slug)
+    // the listed group carries the minimal fields (name = the slug, D60 — the
+    // face is app data, not in the generic directory)
     const listed = (dir.body.groups as any[]).find((g) => g.group_id === listedId);
     expect(listed.owner).toBe(a.username);
     expect(listed.name).toBeTruthy();
     expect(listed.join_policy).toBe('open');
     expect(listed.member_count).toBe(1);
-    expect(Array.isArray(listed.tags)).toBeTruthy();
+    expect(listed.tags).toBeUndefined();
   });
 
   test('detail: a non-existent group 404s', async ({ request }) => {
