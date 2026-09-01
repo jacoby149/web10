@@ -67,57 +67,48 @@ export function dmGroupId(a: string, b: string): string {
 const FOLLOWER_ROLES = [
   {
     name: 'owner',
-    services: ['*'],
-    permissions: ['readAll', 'create', 'updateOwn', 'updateAll', 'deleteOwn', 'deleteAll', 'hideAll', 'manageRoles', 'assignRoles', 'revokeRoles', 'deleteGroup'],
+    permissions: { '*': ['readAll', 'create', 'updateOwn', 'updateAll', 'deleteOwn', 'deleteAll', 'hideAll'], 'group': ['manageRoles', 'assignRoles', 'revokeRoles', 'deleteGroup'] },
   },
   {
     name: 'member',
-    services: ['posts'],
-    permissions: ['readAll'],
+    permissions: { 'posts': ['readAll'] },
   },
 ];
 
 const CLOSE_FRIENDS_ROLES = [
   {
     name: 'owner',
-    services: ['*'],
-    permissions: ['readAll', 'create', 'updateOwn', 'updateAll', 'deleteOwn', 'deleteAll', 'hideAll', 'manageRoles', 'assignRoles', 'revokeRoles', 'deleteGroup'],
+    permissions: { '*': ['readAll', 'create', 'updateOwn', 'updateAll', 'deleteOwn', 'deleteAll', 'hideAll'], 'group': ['manageRoles', 'assignRoles', 'revokeRoles', 'deleteGroup'] },
   },
   {
     name: 'member',
-    services: ['posts', 'comments'],
-    permissions: ['readAll', 'create', 'updateOwn', 'deleteOwn'],
+    permissions: { 'posts': ['readAll', 'create', 'updateOwn', 'deleteOwn'], 'comments': ['readAll', 'create', 'updateOwn', 'deleteOwn'] },
   },
 ];
 
 const COMMUNITY_ROLES = [
   {
     name: 'owner',
-    services: ['*'],
-    permissions: ['readAll', 'create', 'updateOwn', 'updateAll', 'deleteOwn', 'deleteAll', 'hideAll', 'manageRoles', 'assignRoles', 'revokeRoles', 'deleteGroup'],
+    permissions: { '*': ['readAll', 'create', 'updateOwn', 'updateAll', 'deleteOwn', 'deleteAll', 'hideAll'], 'group': ['manageRoles', 'assignRoles', 'revokeRoles', 'deleteGroup'] },
   },
   {
     name: 'moderator',
-    services: ['posts', 'comments'],
-    permissions: ['readAll', 'create', 'updateOwn', 'deleteOwn', 'hideAll', 'assignRoles', 'revokeRoles'],
+    permissions: { 'posts': ['readAll', 'create', 'updateOwn', 'deleteOwn', 'hideAll'], 'comments': ['readAll', 'create', 'updateOwn', 'deleteOwn', 'hideAll'], 'group': ['assignRoles', 'revokeRoles'] },
   },
   {
     name: 'page-curator',
-    services: ['group-identity-service'],
-    permissions: ['readAll', 'create', 'updateOwn', 'deleteOwn'],
+    permissions: { 'web10-social-group-identity': ['readAll', 'create', 'updateOwn', 'deleteOwn'] },
   },
   {
     name: 'member',
-    services: ['posts', 'comments'],
-    permissions: ['readAll', 'create', 'updateOwn', 'deleteOwn'],
+    permissions: { 'posts': ['readAll', 'create', 'updateOwn', 'deleteOwn'], 'comments': ['readAll', 'create', 'updateOwn', 'deleteOwn'] },
   },
 ];
 
 const DM_ROLES = [
   {
     name: 'member',
-    services: ['posts', 'comments'],
-    permissions: ['readAll', 'create', 'updateOwn', 'deleteOwn'],
+    permissions: { 'posts': ['readAll', 'create', 'updateOwn', 'deleteOwn'], 'comments': ['readAll', 'create', 'updateOwn', 'deleteOwn'] },
   },
 ];
 
@@ -455,14 +446,19 @@ export interface GroupDetail {
   member_count: number;
   roles: Record<string, unknown>[];
   permission_summary: string;
-  description: string;
-  banner_ref: string;
-  avatar_ref: string;
-  website: string;
-  tags: string[];
   is_member: boolean;
   posts_state: 'ok' | 'join_to_view';
   posts: V3Document[];
+}
+
+/** The group's face (D60: documents in an app-named service, not a table). */
+export interface GroupIdentity {
+  name?: string;
+  description?: string;
+  banner_ref?: string;
+  avatar_ref?: string;
+  website?: string;
+  tags?: string[];
 }
 
 /**
@@ -509,6 +505,32 @@ export async function readGroupDetail(groupId: string): Promise<GroupDetail> {
     posts_state: data.posts_state,
   });
   return data;
+}
+
+const GROUP_IDENTITY_SERVICE = 'web10-social-group-identity';
+
+/**
+ * Read a group's face (D60: documents in the `web10-social-group-identity`
+ * service). Returns the latest identity doc's body, or an empty object if
+ * the group has no face yet.
+ */
+export async function readGroupIdentity(groupId: string): Promise<GroupIdentity> {
+  LOG('readGroupIdentity — start', groupId);
+  try {
+    const w = getV3Client();
+    const docs = await w.read(GROUP_IDENTITY_SERVICE, { groups: [groupId] });
+    if (!docs || docs.length === 0) {
+      LOG('readGroupIdentity — no identity doc', groupId);
+      return {};
+    }
+    const latest = docs[docs.length - 1];
+    const body = (latest.body || {}) as GroupIdentity;
+    LOG('readGroupIdentity — got', body.name, { tags: body.tags?.length });
+    return body;
+  } catch (e) {
+    LOG('readGroupIdentity — failed (non-fatal)', e);
+    return {};
+  }
 }
 
 // ── Community-group filtering ─────────────────────────────────────────────────

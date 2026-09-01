@@ -231,12 +231,12 @@ admin-facing `ui/` are separate apps).
 - [✓ 3.45.0] **SDK role type** (`sdk/src/`) — `V3GroupRole` → the per-service map shape (the shared type the demos + social app reflect).
 
 **Stage 2 — social app + authenticator (parallel, one workspace per feature):**
-- [ ] **Role definitions** (`marketing/web10-social/src/data/groups.ts`, `sdk/src/`) — the social app's `FOLLOWER_ROLES` / `COMMUNITY_ROLES` / `DM_ROLES` → the per-service map shape (the shared seam).
-- [ ] **Group profile (fan-facing)** (`web10-social/src/components/Groups/GroupDetailScreen.tsx`) — render the group's face: banner (cover) + overlapping avatar + name + about + tags + website (the Facebook-shaped hero), from the public `group_identity` read.
-- [ ] **Public/private (fan-facing)** (`web10-social/src/components/Groups/`) — the detail + cards show a public/private badge; the create-group dialog gains a visibility control (public / signed-in-only / private) that carries the initial `anyone`/`authenticated` grant.
-- [ ] **Group profile editor (admin-facing)** (`ui/src/components/Groups/`) — a profile editor (name, description, website, tags, banner + avatar upload) next to the existing Settings/Roles/Members dialogs → the identity write endpoint.
-- [ ] **Public/private control (admin-facing)** (`ui/src/components/Groups/`) — a "Who can read" control (public / signed-in-only / private = grant/revoke the `anyone` / `authenticated` read role).
-- [ ] **Feed + detail effective-role read** (`web10-social/`) — verify the feed read + group detail render what the role-gated read returns (a bystander on a private group sees the face + "join to view"; on a public group sees posts) — mostly a render verification, the API does the gating.
+- [✓ 3.46.0] **Role definitions** (`marketing/web10-social/src/data/groups.ts`, `sdk/src/`) — the social app's `FOLLOWER_ROLES` / `COMMUNITY_ROLES` / `DM_ROLES` → the per-service map shape (the shared seam).
+- [✓ 3.46.0] **Group profile (fan-facing)** (`web10-social/src/components/Groups/GroupDetailScreen.tsx`) — render the group's face: banner (cover) + overlapping avatar + name + about + tags + website (the Facebook-shaped hero), from the `web10-social-group-identity` service (D60).
+- [✓ 3.46.0] **Public/private (fan-facing)** (`web10-social/src/components/Groups/`) — the detail shows a public/private badge; the create-group dialog gains a visibility control (public / signed-in-only / private) that carries the initial `anyone`/`authenticated` grant.
+- [✓ 3.46.0] **Group profile editor (admin-facing)** (`ui/src/components/Groups/`) — a profile editor (name, description, website, tags) next to the existing Settings/Roles/Members dialogs → writes the face via the normal CRUD path (D60).
+- [✓ 3.46.0] **Public/private control (admin-facing)** (`ui/src/components/Groups/`) — a "Who can read" control (public / signed-in-only / private = grant/revoke the `anyone` / `authenticated` read role).
+- [✓ 3.46.0] **Feed + detail effective-role read** (`web10-social/`) — the detail renders what the role-gated read returns (a bystander on a private group sees the face + "join to view"; on a public group sees posts) — the API does the gating.
 
 ## Ads: The Catalog + Composer (D54, D55) — Platform
 
