@@ -2,7 +2,6 @@ import React from 'react';
 import { User, Globe, Tag, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Textarea } from '@/components/ui/textarea';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { groupDisplayName } from '@/lib/group-utils';
 
@@ -102,11 +101,11 @@ function GroupProfileDialog({ open, onOpenChange, group, I }: {
 
             <div>
               <label className="text-sm font-medium text-muted-foreground">About</label>
-              <Textarea
+              <textarea
                 value={description}
                 onChange={(e) => setDescription(e.target.value)}
                 placeholder="What is this group about?"
-                className="mt-1.5 min-h-[80px]"
+                className="mt-1.5 w-full min-h-[80px] rounded border border-border bg-elevated px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                 aria-label="Group description"
               />
             </div>
