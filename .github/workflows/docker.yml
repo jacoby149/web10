@@ -59,7 +59,7 @@ jobs:
             ${{ runner.os }}-buildx-${{ matrix.service.name }}-
 
       - name: Build ${{ matrix.service.name }}
-        uses: docker/build-push-action@v6
+        uses: docker/build-push-action@v7
         with:
           context: ${{ matrix.service.context }}
           file: ${{ matrix.service.dockerfile || format('{0}/Dockerfile', matrix.service.context) }}
