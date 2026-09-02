@@ -496,7 +496,17 @@ def _heal_discover_group_roles() -> None:
     now = _now()
     client.insert(
         "group_contracts",
-        [[DISCOVER_GROUP_ID, _json(DISCOVER_ROLES), group.get("join_policy", "open"), int(group.get("discoverable", 0)), group.get("created_at", now), now, 0]],
+        [
+            [
+                DISCOVER_GROUP_ID,
+                _json(DISCOVER_ROLES),
+                group.get("join_policy", "open"),
+                int(group.get("discoverable", 0)),
+                group.get("created_at", now),
+                now,
+                0,
+            ]
+        ],
         column_names=["group_id", "roles", "join_policy", "discoverable", "created_at", "updated_at", "deleted"],
     )
     log.info("[v3] discover group: roles healed to canonical DISCOVER_ROLES")
