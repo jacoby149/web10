@@ -1302,10 +1302,12 @@ class TestEnsureDiscoverGroup:
 
     def test_creates_group_anyone_and_backfills(self):
         with _patch_client() as mock_client:
-            # query sequence: get_group (missing), member keys (empty),
+            # query sequence: get_group (missing), get_group (heal check,
+            # still missing in the mock), member keys (empty),
             # list_users (two pre-existing accounts).
             mock_client.query.side_effect = [
-                _mock_result_rows([]),  # get_group → missing
+                _mock_result_rows([]),  # get_group → missing (create)
+                _mock_result_rows([]),  # get_group → missing (heal no-op)
                 _mock_result_rows([]),  # get_group_member_keys → nobody yet
                 _mock_result_rows([("alice",), ("bob",)]),  # list_users
             ]
@@ -1332,9 +1334,11 @@ class TestEnsureDiscoverGroup:
                 datetime(2026, 1, 1),
                 datetime(2026, 1, 1),
             )
-            # get_group → exists; member keys → anyone + alice already in;
+            # get_group → exists; get_group (heal check) → exists (empty
+            # roles → no-op); member keys → anyone + alice already in;
             # list_users → alice (already a member, no re-add).
             mock_client.query.side_effect = [
+                _mock_result_rows([group_row]),
                 _mock_result_rows([group_row]),
                 _mock_result_rows([("anyone",), ("alice",)]),
                 _mock_result_rows([("alice",)]),
@@ -1353,8 +1357,10 @@ class TestEnsureDiscoverGroup:
                 datetime(2026, 1, 1),
                 datetime(2026, 1, 1),
             )
-            # group exists; anyone + alice already members; bob is new.
+            # group exists; get_group (heal check) → exists (empty roles →
+            # no-op); anyone + alice already members; bob is new.
             mock_client.query.side_effect = [
+                _mock_result_rows([group_row]),
                 _mock_result_rows([group_row]),
                 _mock_result_rows([("anyone",), ("alice",)]),
                 _mock_result_rows([("alice",), ("bob",)]),

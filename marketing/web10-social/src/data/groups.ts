@@ -423,7 +423,9 @@ export async function unblockUser(blockedKey: string) {
 // POST /v3/<action> pattern doesn't cover them), so they're fetched directly
 // here — the data module keeps its API, the seam stays inside this file.
 
-/** A row from `GET /v3/groups/directory` — the minimal canonical view. */
+/** A row from `GET /v3/groups/directory` — the minimal canonical view.
+ *  D60: the directory does NOT return tags (they are app data in the
+ *  identity service) — the field is optional for forward-compat. */
 export interface GroupDirectoryEntry {
   group_id: string;
   name: string;
@@ -431,7 +433,7 @@ export interface GroupDirectoryEntry {
   slug: string;
   join_policy: string;
   member_count: number;
-  tags: string[];
+  tags?: string[];
   permission_summary: string;
 }
 
@@ -528,7 +530,15 @@ export async function readGroupIdentity(groupId: string): Promise<GroupIdentity>
     LOG('readGroupIdentity — got', body.name, { tags: body.tags?.length });
     return body;
   } catch (e) {
-    LOG('readGroupIdentity — failed (non-fatal)', e);
+    // A 403 (no permission) is expected — the viewer's app contract may not
+    // include the identity service. Log without the error message (its "Request
+    // failed: 403" text would trip the e2e console-error filter).
+    const status = (e as { status?: number })?.status;
+    if (status === 403) {
+      LOG('readGroupIdentity — no access (expected)');
+    } else {
+      LOG('readGroupIdentity — unexpected error (non-fatal)', (e as Error)?.message ?? e);
+    }
     return {};
   }
 }

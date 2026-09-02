@@ -393,11 +393,14 @@ def _migrate_d58_role_shape() -> None:
 DISCOVER_GROUP_ID = "web10.app/groups/web10/discover"
 
 # One role. Everyone shares it (social-contracts.md §1): read the board, post
-# to it, manage your own posts. No owners, no moderators.
+# to it, manage your own posts. No owners, no moderators. The `*` wildcard
+# covers all services (posts, reactions, comments, ...) — the board is
+# anon-readable by design (D41), and engagement reads (reactions/comments via
+# the ref pattern) must work for anon too.
 DISCOVER_ROLES = [
     {
         "name": "member",
-        "services": ["posts"],
+        "services": ["*"],
         "permissions": ["readAll", "create", "updateOwn", "deleteOwn"],
     }
 ]
@@ -423,11 +426,13 @@ def ensure_discover_group() -> None:
 
     Idempotent boot pass (safe from every gunicorn worker):
       1. create the group contract if missing,
-      2. ensure `anyone` is a member — the public surface reads the board as
-          the `anyone` class, so the `anyone` grant is what makes it public
-          (D58: the old `anon` member key is renamed to `anyone`),
-      3. backfill every existing user as a member (auto-enrollment for
-          accounts created before the group existed).
+      2. heal the group's roles to the canonical DISCOVER_ROLES (the `*`
+         wildcard covers all services — engagement reads must work for anon),
+      3. ensure `anyone` is a member — the public surface reads the board as
+           the `anyone` class, so the `anyone` grant is what makes it public
+           (D58: the old `anon` member key is renamed to `anyone`),
+      4. backfill every existing user as a member (auto-enrollment for
+           accounts created before the group existed).
     New users are enrolled at signup (see create_user), so the backfill only
     adds pre-existing accounts.
 
@@ -437,6 +442,7 @@ def ensure_discover_group() -> None:
     """
     try:
         _ensure_discover_group_contract()
+        _heal_discover_group_roles()
 
         members = set(get_group_member_keys(DISCOVER_GROUP_ID))
         if "anyone" not in members:
@@ -452,6 +458,58 @@ def ensure_discover_group() -> None:
             log.info("[v3] discover group: backfilled %d user(s)", added)
     except Exception as e:
         log.warning(f"[v3] discover group ensure skipped: {type(e).__name__}: {e}")
+
+
+def _heal_discover_group_roles() -> None:
+    """Heal the discover group's roles to the canonical DISCOVER_ROLES.
+
+    The D58 role-shape migration re-shaped the roles but preserved the
+    original `services` list (which was `["posts"]` only). Engagement reads
+    (reactions/comments via the ref pattern) require `readAll` on those
+    services too — the `*` wildcard covers them. This idempotent heal appends
+    a new version row when the stored roles don't match the canonical shape.
+    """
+    group = get_group(DISCOVER_GROUP_ID)
+    if not group:
+        return
+    stored_roles = group.get("roles", [])
+    if not isinstance(stored_roles, list) or not stored_roles:
+        return
+    # Compare the canonical shape: one role named "member" with the `*`
+    # wildcard and the four content ops.
+    canonical = DISCOVER_ROLES[0]
+    for r in stored_roles:
+        if not isinstance(r, dict) or r.get("name") != canonical["name"]:
+            continue
+        perms = r.get("permissions", {})
+        if isinstance(perms, dict):
+            # New shape: check the `*` wildcard has the right ops.
+            if perms.get("*") == canonical["permissions"] or perms.get("*") == sorted(canonical["permissions"]):
+                return
+            if sorted(perms.get("*", [])) == sorted(canonical["permissions"]):
+                return
+        elif isinstance(perms, list):
+            # Legacy shape: check services has `*` and permissions match.
+            if "*" in r.get("services", []) and sorted(perms) == sorted(canonical["permissions"]):
+                return
+    # Mismatch — heal by appending a new version with the canonical roles.
+    now = _now()
+    client.insert(
+        "group_contracts",
+        [
+            [
+                DISCOVER_GROUP_ID,
+                _json(DISCOVER_ROLES),
+                group.get("join_policy", "open"),
+                int(group.get("discoverable", 0)),
+                group.get("created_at", now),
+                now,
+                0,
+            ]
+        ],
+        column_names=["group_id", "roles", "join_policy", "discoverable", "created_at", "updated_at", "deleted"],
+    )
+    log.info("[v3] discover group: roles healed to canonical DISCOVER_ROLES")
 
 
 # ---------------------------------------------------------------------------
