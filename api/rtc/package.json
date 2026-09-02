@@ -12,7 +12,7 @@
     "peer": "^0.6.1"
   },
   "devDependencies": {
-    "typescript": "~5.8.2",
+    "typescript": "~7.0.2",
     "@types/jsonwebtoken": "^9.0.0",
     "@types/node": "^22.0.0"
   }
