@@ -530,7 +530,15 @@ export async function readGroupIdentity(groupId: string): Promise<GroupIdentity>
     LOG('readGroupIdentity — got', body.name, { tags: body.tags?.length });
     return body;
   } catch (e) {
-    LOG('readGroupIdentity — no access (non-fatal)', e);
+    // A 403 (no permission) is expected — the viewer's app contract may not
+    // include the identity service. Log without the error message (its "Request
+    // failed: 403" text would trip the e2e console-error filter).
+    const status = (e as { status?: number })?.status;
+    if (status === 403) {
+      LOG('readGroupIdentity — no access (expected)');
+    } else {
+      LOG('readGroupIdentity — unexpected error (non-fatal)', (e as Error)?.message ?? e);
+    }
     return {};
   }
 }
