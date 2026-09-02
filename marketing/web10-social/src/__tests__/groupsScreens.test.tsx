@@ -15,6 +15,7 @@ vi.mock('@/data', async (importOriginal) => {
     getMyCommunityGroups: vi.fn().mockResolvedValue([]),
     readGroupDirectory: vi.fn().mockResolvedValue([]),
     readGroupDetail: vi.fn().mockResolvedValue(null),
+    readGroupIdentity: vi.fn().mockResolvedValue({}),
     joinGroup: vi.fn().mockResolvedValue({ status: 'joined' }),
     requestJoinGroup: vi.fn().mockResolvedValue({ status: 'pending' }),
     leaveGroup: vi.fn().mockResolvedValue({ status: 'left' }),
@@ -25,6 +26,7 @@ import {
   getMyCommunityGroups,
   readGroupDirectory,
   readGroupDetail,
+  readGroupIdentity,
   joinGroup,
   requestJoinGroup,
   leaveGroup,
@@ -88,11 +90,6 @@ const mockDetailMember = {
   member_count: 128,
   roles: [],
   permission_summary: 'member: readAll, create',
-  description: 'Weekly gaming sessions and tournament talk.',
-  banner_ref: '',
-  avatar_ref: '',
-  website: 'https://gaming.example.com',
-  tags: ['gaming', 'retro'],
   is_member: true,
   posts_state: 'ok',
   posts: [
@@ -105,6 +102,15 @@ const mockDetailMember = {
       updated_at: new Date().toISOString(),
     },
   ],
+};
+
+const mockIdentity = {
+  name: 'Gaming Night',
+  description: 'Weekly gaming sessions and tournament talk.',
+  banner_ref: '',
+  avatar_ref: '',
+  website: 'https://gaming.example.com',
+  tags: ['gaming', 'retro'],
 };
 
 const mockDetailNonMember = {
@@ -347,6 +353,7 @@ describe('GroupDetailScreen', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     vi.mocked(readGroupDetail).mockResolvedValue(mockDetailMember as never);
+    vi.mocked(readGroupIdentity).mockResolvedValue(mockIdentity);
   });
 
   function renderDetail(GroupDetailScreen: React.ComponentType<{ groupId: string }>) {

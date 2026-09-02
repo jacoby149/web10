@@ -55,12 +55,12 @@ describe('ConsentView signed-out mode switching', () => {
   it('"Forgot username or password?" swaps in the recover form', () => {
     render(<Harness />)
     fireEvent.click(screen.getByTestId('login-forgot-link'))
-    expect(screen.getByTestId('forgot-submit')).toBeTruthy()
+    expect(screen.getByTestId('recovery-send-code')).toBeTruthy()
   })
 
   it('forgot Cancel returns to login (not the app store) in the consent flow', () => {
     render(<Harness initialMode="forgot" />)
-    fireEvent.click(screen.getByTestId('forgot-cancel'))
+    fireEvent.click(screen.getByTestId('recovery-back-to-login'))
     expect(screen.getByTestId('login-submit')).toBeTruthy()
   })
 })

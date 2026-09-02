@@ -31,8 +31,8 @@ const uniqueUser = (prefix: string) => `${prefix}${Date.now()}-${Math.random().t
 const password = 'TestPass123!';
 
 const ROLES = [
-  { name: 'owner', services: ['*'], permissions: ['readAll', 'create', 'updateOwn', 'updateAll', 'deleteOwn', 'deleteAll', 'hideAll', 'manageRoles', 'assignRoles', 'revokeRoles', 'deleteGroup'] },
-  { name: 'member', services: [SERVICE], permissions: ['readAll', 'create', 'updateOwn', 'deleteOwn'] },
+  { name: 'owner', permissions: { '*': ['readAll', 'create', 'updateOwn', 'updateAll', 'deleteOwn', 'deleteAll', 'hideAll'], 'group': ['manageRoles', 'assignRoles', 'revokeRoles', 'deleteGroup'] } },
+  { name: 'member', permissions: { [SERVICE]: ['readAll', 'create', 'updateOwn', 'deleteOwn'] } },
 ];
 
 async function signupFreshUser(request: APIRequestContext, prefix: string): Promise<{ username: string; token: string }> {

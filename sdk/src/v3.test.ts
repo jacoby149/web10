@@ -894,10 +894,70 @@ describe('v3 client', () => {
     })
   })
 
+  // ── Access health (verifyAccess) ──────────────────────────────────────
+
+  describe('verifyAccess', () => {
+    beforeEach(() => client.setToken(mockToken))
+
+    it('posts to access/verify and returns the verdict', async () => {
+      const verdict = {
+        status: 'ok',
+        token: 'valid',
+        user: 'exists',
+        contract: { state: 'granted', missing_services: [] },
+        actions: [],
+        username: 'alice',
+        provider: 'api.localhost',
+      }
+      vi.spyOn(http, 'authPost').mockResolvedValueOnce(verdict as any)
+      const result = await client.verifyAccess({ services: ['posts', 'profile'] })
+      expect(result.status).toBe('ok')
+      expect(result.actions).toEqual([])
+      // no groups field — the oracle is generic (D60)
+      expect((result as any).groups).toBeUndefined()
+      const call = (vi.mocked(http.authPost).mock.calls[0] as any)
+      expect(call[0]).toBe('http://api.localhost/v3/access/verify')
+      // The API model takes top-level services/operations (not nested under body)
+      expect(call[1].services).toEqual(['posts', 'profile'])
+      expect(call[1].operations).toBeUndefined()
+    })
+
+    it('omits services/operations for a health probe', async () => {
+      vi.spyOn(http, 'authPost').mockResolvedValueOnce({ status: 'ok', actions: [] } as any)
+      await client.verifyAccess()
+      const call = (vi.mocked(http.authPost).mock.calls[0][1] as any)
+      expect(call.services).toBeUndefined()
+      expect(call.operations).toBeUndefined()
+    })
+
+    it('sends operations when provided', async () => {
+      vi.spyOn(http, 'authPost').mockResolvedValueOnce({ status: 'ok', actions: [] } as any)
+      await client.verifyAccess({ services: ['posts'], operations: ['readAll', 'create'] })
+      const call = (vi.mocked(http.authPost).mock.calls[0][1] as any)
+      expect(call.services).toEqual(['posts'])
+      expect(call.operations).toEqual(['readAll', 'create'])
+    })
+
+    it('surfaces a degraded verdict with ordered actions', async () => {
+      const verdict = {
+        status: 'degraded',
+        token: 'valid',
+        user: 'exists',
+        contract: { state: 'missing', missing_services: ['posts'] },
+        actions: ['reauth'],
+        username: 'alice',
+        provider: 'api.localhost',
+      }
+      vi.spyOn(http, 'authPost').mockResolvedValueOnce(verdict as any)
+      const result = await client.verifyAccess({ services: ['posts'] })
+      expect(result.status).toBe('degraded')
+      expect(result.actions).toEqual(['reauth'])
+    })
+  })
+
   // ── App Store ─────────────────────────────────────────────────────────
 
-  describe('app store', () => {
-    beforeEach(() => client.setToken(mockToken))
+  describe('app store', () => {    beforeEach(() => client.setToken(mockToken))
 
     it('registerApp', async () => {
       const mockResponse = { url: 'https://myapp.com', review_state: 'pending' }

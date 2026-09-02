@@ -21,7 +21,7 @@
 // barrel (and the tests that mock this module) keep their surface.
 
 import { createV3Client, type V3Client } from 'web10-npm';
-import { API_ORIGIN } from '../lib/origins';
+import { API_ORIGIN, RTC_HOST } from '../lib/origins';
 
 export {
   cookieDict,
@@ -49,6 +49,13 @@ export type {
   V3User,
   V3LoginResponse,
   V3Client,
+  AccessVerdict,
+  VerifyAccessOptions,
+  AccessStatus,
+  AccessTokenState,
+  AccessUserState,
+  AccessContractState,
+  AccessAction,
 } from 'web10-npm';
 
 // ── V3 client singleton ─────────────────────────────────────────────────────
@@ -57,7 +64,7 @@ let v3Client: V3Client | null = null;
 
 export function getV3Client(): V3Client {
   if (!v3Client) {
-    v3Client = createV3Client({ apiOrigin: API_ORIGIN });
+    v3Client = createV3Client({ apiOrigin: API_ORIGIN, rtcServer: RTC_HOST });
   }
   return v3Client;
 }

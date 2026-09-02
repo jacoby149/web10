@@ -3,6 +3,7 @@ from fastapi import APIRouter
 from app.v3.services import clickhouse as ch
 
 from . import (
+    access,
     account,
     appstore,
     auth,
@@ -12,6 +13,7 @@ from . import (
     groups,
     logs,
     media,
+    moderation,
     recovery,
 )
 
@@ -46,6 +48,12 @@ router.include_router(appstore.router, prefix="/apps")
 
 # Logs (SDK/E2E forwarding)
 router.include_router(logs.router, prefix="")
+
+# Content moderation (D59) — the review queue + auto-hide list
+router.include_router(moderation.router, prefix="/moderation")
+
+# Access health — the confirmatory verifyAccess oracle (generic: token + user + contract)
+router.include_router(access.router, prefix="/access")
 
 
 # Node stats

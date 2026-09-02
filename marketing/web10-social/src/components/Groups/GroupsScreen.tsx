@@ -207,9 +207,9 @@ function DiscoverGroupCard({ entry, joinState, onJoin, onOpen }: DiscoverGroupCa
         <JoinPolicyBadge policy={entry.join_policy} />
       </div>
 
-      {entry.tags.length > 0 && (
+      {(entry.tags ?? []).length > 0 && (
         <div className="mt-3 flex flex-wrap gap-1.5">
-          {entry.tags.slice(0, 3).map((tag) => (
+          {entry.tags!.slice(0, 3).map((tag) => (
             <span
               key={tag}
               className="rounded-full border border-brand/10 bg-brand-muted/60 px-2.5 py-1 text-xs text-brand-300"
@@ -424,17 +424,19 @@ export default function GroupsScreen() {
     }
   }, [loadMyGroups]);
 
-  // Topic chips from the directory's tags
+  // Topic chips from the directory's tags (D60: the directory endpoint does
+  // not return tags — they are app data in the identity service; guard for
+  // the missing field so a group without tags doesn't crash the screen).
   const topics = useMemo(() => {
     const all = new Set<string>();
-    for (const g of directory) for (const t of g.tags) all.add(t);
+    for (const g of directory) for (const t of g.tags ?? []) all.add(t);
     return Array.from(all).sort();
   }, [directory]);
 
   const visibleDirectory = useMemo(() => {
     let filtered = directory;
     if (activeTag) {
-      filtered = filtered.filter((g) => g.tags.includes(activeTag));
+      filtered = filtered.filter((g) => (g.tags ?? []).includes(activeTag));
     }
     if (searchQuery.trim()) {
       const q = searchQuery.toLowerCase();

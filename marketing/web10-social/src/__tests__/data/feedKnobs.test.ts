@@ -86,8 +86,10 @@ describe('settings — feedKnobs persistence (the web10 settings service)', () =
   beforeEach(() => {
     clearSettingsCache();
     mock = mockV3Client();
-    // The followers group exists (ensureFollowers short-circuits on getGroup).
+    // The followers group exists AND the user is a member of it (ensureFollowers
+    // checks membership via getMyGroups when the group exists — the 3.38.2 heal).
     mock.getGroup.mockResolvedValue({ group_id: 'web10.app/groups/users/alice/followers' });
+    mock.getMyGroups.mockResolvedValue([{ group_id: 'web10.app/groups/users/alice/followers' }]);
   });
 
   afterEach(() => {

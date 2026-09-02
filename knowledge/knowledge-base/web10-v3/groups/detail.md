@@ -44,9 +44,11 @@ Two layers, with different gates:
 
 **Metadata — always returned** (the group exists, so its contract is readable):
 - `group_id`, owner (the username in the ID), `join_policy`
+- name — the slug (last segment of the group_id)
 - a roles / permission summary (from `group_contracts.roles`)
-- member count (`count(group_members)`)
-- display metadata from the `group_identity` table when present (name, description, banner, avatar, website, tags) — else derived from the slug
+- member count (`count(group_members)`) — platform-computed, unhackable
+
+The group's *face* (rich name, description, banner, avatar, website, tags) is **app data** in an app-named identity service (`identity.md`) — the platform detail does **not** render it (D60: the protocol doesn't know what a "banner" is). A surface (e.g. the social app's group page) fetches the face from the app's service and composes it with this metadata.
 
 **Posts — gated by the reader's effective role (I3):**
 - The reader's effective role grants `readAll` on the service (as a member, or via an `anyone` / `authenticated` grant) → recent posts are returned (the same group read the Discover screen and marketing trending use, scoped to one group).

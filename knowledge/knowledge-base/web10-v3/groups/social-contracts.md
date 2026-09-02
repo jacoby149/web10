@@ -84,8 +84,8 @@ Following a public profile is a group join. The user's followers group uses `joi
     {
       "name": "owner",
       "permissions": {
-        "*": ["readAll", "create", "updateOwn", "updateAll", "deleteOwn", "deleteAll"],
-        "group": ["hideAll", "manageRoles", "assignRoles", "revokeRoles", "deleteGroup"]
+        "*": ["readAll", "create", "updateOwn", "updateAll", "deleteOwn", "deleteAll", "hideAll"],
+        "group": ["manageRoles", "assignRoles", "revokeRoles", "deleteGroup"]
       }
     },
     {
@@ -121,8 +121,8 @@ A private group. The creator is the only owner. Approved friends are members. Me
     {
       "name": "owner",
       "permissions": {
-        "*": ["readAll", "create", "updateOwn", "updateAll", "deleteOwn", "deleteAll"],
-        "group": ["hideAll", "manageRoles", "assignRoles", "revokeRoles", "deleteGroup"]
+        "*": ["readAll", "create", "updateOwn", "updateAll", "deleteOwn", "deleteAll", "hideAll"],
+        "group": ["manageRoles", "assignRoles", "revokeRoles", "deleteGroup"]
       }
     },
     {
@@ -157,16 +157,16 @@ A community with an owner, moderators, curators, and members. Used for topic-bas
     {
       "name": "owner",
       "permissions": {
-        "*": ["readAll", "create", "updateOwn", "updateAll", "deleteOwn", "deleteAll"],
-        "group": ["hideAll", "manageRoles", "assignRoles", "revokeRoles", "deleteGroup"]
+        "*": ["readAll", "create", "updateOwn", "updateAll", "deleteOwn", "deleteAll", "hideAll"],
+        "group": ["manageRoles", "assignRoles", "revokeRoles", "deleteGroup"]
       }
     },
     {
       "name": "moderator",
       "permissions": {
-        "posts": ["readAll", "create", "updateOwn", "deleteOwn"],
-        "comments": ["readAll", "create", "updateOwn", "deleteOwn"],
-        "group": ["hideAll", "assignRoles", "revokeRoles"]
+        "posts": ["readAll", "create", "updateOwn", "deleteOwn", "hideAll"],
+        "comments": ["readAll", "create", "updateOwn", "deleteOwn", "hideAll"],
+        "group": ["assignRoles", "revokeRoles"]
       }
     },
     {

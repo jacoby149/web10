@@ -25,6 +25,13 @@ export type {
   V3GroupMemberCR,
   V3User,
   V3LoginResponse,
+  AccessVerdict,
+  VerifyAccessOptions,
+  AccessStatus,
+  AccessTokenState,
+  AccessUserState,
+  AccessContractState,
+  AccessAction,
 } from './v3'
 
 // Token utilities

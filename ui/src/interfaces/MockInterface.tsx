@@ -18,6 +18,10 @@ function useMockInterface() {
     [I.requests, I.setRequests] = React.useState(mockRequests);
     [I.phone, I.setPhone] = React.useState("13472092325");
 
+    [I.recoveryStep, I._setRecoveryStep] = React.useState("phone");
+    [I.recoveryPhone, I.setRecoveryPhone] = React.useState("13472092325");
+    [I.recoveryAccounts, I.setRecoveryAccounts] = React.useState<any[]>([]);
+
     [I.auth, I.setAuth] = React.useState(false);
     [I.isAdmin, I.setIsAdmin] = React.useState(true);
     [I.verified, I.setVerified] = React.useState(false);
@@ -78,7 +82,23 @@ function useMockInterface() {
         I.setMode("login");
     }
 
-    I.recover = function () {
+    I.setRecoveryStep = function (step: string) {
+        I._setRecoveryStep(step);
+    }
+
+    I.recoverRequest = function (phone: string) {
+        I.setRecoveryPhone(phone);
+        I.setRecoveryStep("code");
+        I.setStatus("Code sent — check your phone.");
+    }
+
+    I.recoverVerify = function (_phone: string, _code: string) {
+        I.setRecoveryAccounts([{ username: "creator", email: "creator@example.com" }]);
+        I.setRecoveryStep("pick");
+        I.setStatus(null);
+    }
+
+    I.recoverComplete = function () {
         I.setAuth(true);
         I.setMode("contracts");
     }

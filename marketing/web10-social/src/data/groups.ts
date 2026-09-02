@@ -67,57 +67,48 @@ export function dmGroupId(a: string, b: string): string {
 const FOLLOWER_ROLES = [
   {
     name: 'owner',
-    services: ['*'],
-    permissions: ['readAll', 'create', 'updateOwn', 'updateAll', 'deleteOwn', 'deleteAll', 'hideAll', 'manageRoles', 'assignRoles', 'revokeRoles', 'deleteGroup'],
+    permissions: { '*': ['readAll', 'create', 'updateOwn', 'updateAll', 'deleteOwn', 'deleteAll', 'hideAll'], 'group': ['manageRoles', 'assignRoles', 'revokeRoles', 'deleteGroup'] },
   },
   {
     name: 'member',
-    services: ['posts'],
-    permissions: ['readAll'],
+    permissions: { 'posts': ['readAll'] },
   },
 ];
 
 const CLOSE_FRIENDS_ROLES = [
   {
     name: 'owner',
-    services: ['*'],
-    permissions: ['readAll', 'create', 'updateOwn', 'updateAll', 'deleteOwn', 'deleteAll', 'hideAll', 'manageRoles', 'assignRoles', 'revokeRoles', 'deleteGroup'],
+    permissions: { '*': ['readAll', 'create', 'updateOwn', 'updateAll', 'deleteOwn', 'deleteAll', 'hideAll'], 'group': ['manageRoles', 'assignRoles', 'revokeRoles', 'deleteGroup'] },
   },
   {
     name: 'member',
-    services: ['posts', 'comments'],
-    permissions: ['readAll', 'create', 'updateOwn', 'deleteOwn'],
+    permissions: { 'posts': ['readAll', 'create', 'updateOwn', 'deleteOwn'], 'comments': ['readAll', 'create', 'updateOwn', 'deleteOwn'] },
   },
 ];
 
 const COMMUNITY_ROLES = [
   {
     name: 'owner',
-    services: ['*'],
-    permissions: ['readAll', 'create', 'updateOwn', 'updateAll', 'deleteOwn', 'deleteAll', 'hideAll', 'manageRoles', 'assignRoles', 'revokeRoles', 'deleteGroup'],
+    permissions: { '*': ['readAll', 'create', 'updateOwn', 'updateAll', 'deleteOwn', 'deleteAll', 'hideAll'], 'group': ['manageRoles', 'assignRoles', 'revokeRoles', 'deleteGroup'] },
   },
   {
     name: 'moderator',
-    services: ['posts', 'comments'],
-    permissions: ['readAll', 'create', 'updateOwn', 'deleteOwn', 'hideAll', 'assignRoles', 'revokeRoles'],
+    permissions: { 'posts': ['readAll', 'create', 'updateOwn', 'deleteOwn', 'hideAll'], 'comments': ['readAll', 'create', 'updateOwn', 'deleteOwn', 'hideAll'], 'group': ['assignRoles', 'revokeRoles'] },
   },
   {
     name: 'page-curator',
-    services: ['group-identity-service'],
-    permissions: ['readAll', 'create', 'updateOwn', 'deleteOwn'],
+    permissions: { 'web10-social-group-identity': ['readAll', 'create', 'updateOwn', 'deleteOwn'] },
   },
   {
     name: 'member',
-    services: ['posts', 'comments'],
-    permissions: ['readAll', 'create', 'updateOwn', 'deleteOwn'],
+    permissions: { 'posts': ['readAll', 'create', 'updateOwn', 'deleteOwn'], 'comments': ['readAll', 'create', 'updateOwn', 'deleteOwn'] },
   },
 ];
 
 const DM_ROLES = [
   {
     name: 'member',
-    services: ['posts', 'comments'],
-    permissions: ['readAll', 'create', 'updateOwn', 'deleteOwn'],
+    permissions: { 'posts': ['readAll', 'create', 'updateOwn', 'deleteOwn'], 'comments': ['readAll', 'create', 'updateOwn', 'deleteOwn'] },
   },
 ];
 
@@ -149,15 +140,23 @@ export async function ensureDiscover(): Promise<string> {
  * bare username — the same key format the API uses for joins and discover
  * auto-enrollment — so the owner is found by the membership checks the read
  * path runs.
+ *
+ * HEAL: a group created by the pre-3.25.1 code has a phantom member key
+ * (`web10.app/users/{username}`) that the membership checks never match — the
+ * group exists but its owner is NOT a member, so every group-scoped read of
+ * it 403s (the profile screen's "nothing persists" state on real nodes).
+ * getGroup doesn't require membership, so "the group exists" is not "I can
+ * read it": after confirming existence, check membership via getMyGroups and
+ * join if missing (open policy; join is idempotent — duplicate member rows
+ * dedupe in the ReplacingMergeTree).
  */
 export async function ensureFollowers(username: string, provider?: string): Promise<string> {
   const w = getV3Client();
   const groupId = followersGroupId(username, provider);
   try {
-    const group = await w.getGroup(groupId);
-    return group.group_id;
+    await w.getGroup(groupId);
   } catch {
-    // Group doesn't exist — create it
+    // Group doesn't exist — create it (the creator is the owner member)
     await w.createGroup(
       'followers',
       'open',
@@ -166,6 +165,13 @@ export async function ensureFollowers(username: string, provider?: string): Prom
     );
     return groupId;
   }
+  // Group exists — make sure the user is actually a member of it.
+  const myGroups = await w.getMyGroups();
+  if (!myGroups.some((g) => g.group_id === groupId)) {
+    console.log('[groups] ensureFollowers — group exists but user is not a member; joining:', groupId);
+    await w.joinGroup(groupId);
+  }
+  return groupId;
 }
 
 /**
@@ -417,7 +423,9 @@ export async function unblockUser(blockedKey: string) {
 // POST /v3/<action> pattern doesn't cover them), so they're fetched directly
 // here — the data module keeps its API, the seam stays inside this file.
 
-/** A row from `GET /v3/groups/directory` — the minimal canonical view. */
+/** A row from `GET /v3/groups/directory` — the minimal canonical view.
+ *  D60: the directory does NOT return tags (they are app data in the
+ *  identity service) — the field is optional for forward-compat. */
 export interface GroupDirectoryEntry {
   group_id: string;
   name: string;
@@ -425,7 +433,7 @@ export interface GroupDirectoryEntry {
   slug: string;
   join_policy: string;
   member_count: number;
-  tags: string[];
+  tags?: string[];
   permission_summary: string;
 }
 
@@ -440,14 +448,19 @@ export interface GroupDetail {
   member_count: number;
   roles: Record<string, unknown>[];
   permission_summary: string;
-  description: string;
-  banner_ref: string;
-  avatar_ref: string;
-  website: string;
-  tags: string[];
   is_member: boolean;
   posts_state: 'ok' | 'join_to_view';
   posts: V3Document[];
+}
+
+/** The group's face (D60: documents in an app-named service, not a table). */
+export interface GroupIdentity {
+  name?: string;
+  description?: string;
+  banner_ref?: string;
+  avatar_ref?: string;
+  website?: string;
+  tags?: string[];
 }
 
 /**
@@ -494,6 +507,40 @@ export async function readGroupDetail(groupId: string): Promise<GroupDetail> {
     posts_state: data.posts_state,
   });
   return data;
+}
+
+const GROUP_IDENTITY_SERVICE = 'web10-social-group-identity';
+
+/**
+ * Read a group's face (D60: documents in the `web10-social-group-identity`
+ * service). Returns the latest identity doc's body, or an empty object if
+ * the group has no face yet.
+ */
+export async function readGroupIdentity(groupId: string): Promise<GroupIdentity> {
+  LOG('readGroupIdentity — start', groupId);
+  try {
+    const w = getV3Client();
+    const docs = await w.read(GROUP_IDENTITY_SERVICE, { groups: [groupId] });
+    if (!docs || docs.length === 0) {
+      LOG('readGroupIdentity — no identity doc', groupId);
+      return {};
+    }
+    const latest = docs[docs.length - 1];
+    const body = (latest.body || {}) as GroupIdentity;
+    LOG('readGroupIdentity — got', body.name, { tags: body.tags?.length });
+    return body;
+  } catch (e) {
+    // A 403 (no permission) is expected — the viewer's app contract may not
+    // include the identity service. Log without the error message (its "Request
+    // failed: 403" text would trip the e2e console-error filter).
+    const status = (e as { status?: number })?.status;
+    if (status === 403) {
+      LOG('readGroupIdentity — no access (expected)');
+    } else {
+      LOG('readGroupIdentity — unexpected error (non-fatal)', (e as Error)?.message ?? e);
+    }
+    return {};
+  }
 }
 
 // ── Community-group filtering ─────────────────────────────────────────────────

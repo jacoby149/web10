@@ -18,8 +18,8 @@ Group contract (one record):
   group_id, join_policy, roles
 
 Roles are per-service maps (one role per person):
-  owner          → { "*": [all ops], "group": [management ops] }
-  moderator      → { "posts": […], "comments": […], "group": [hideAll] }
+  owner          → { "*": [all content ops incl. hideAll], "group": [structural ops] }
+  moderator      → { "posts": […, hideAll], "comments": […, hideAll], "group": [assignRoles, revokeRoles] }
   page-curator   → { "group-identity-service": [readAll, create, updateOwn, deleteOwn] }
   member         → { "posts": […], "comments": […] }
 ```
@@ -48,34 +48,43 @@ Each role is a per-service map of explicit permissions. Permissions are camelCas
 
 **Role examples** (per-service maps):
 - **Owner** — `{ "*": [all ops], "group": [manageRoles, assignRoles, revokeRoles, deleteGroup] }`
-- **Moderator** — `{ "posts": [readAll, create, updateOwn, deleteOwn, hideAll], "comments": [readAll, …], "group": [assignRoles, revokeRoles] }`
+- **Moderator** — `{ "posts": [readAll, create, updateOwn, deleteOwn, hideAll], "comments": [readAll, create, updateOwn, deleteOwn, hideAll], "group": [assignRoles, revokeRoles] }`
 - **Page Curator** — `{ "group-identity-service": [readAll, create, updateOwn, deleteOwn] }`
 - **Member** — `{ "posts": [readAll, create, updateOwn, deleteOwn], "comments": [readAll, …] }`
 - **Follower** — `{ "posts": [readAll] }` only (no create, no update, no delete)
 
 ## Group Profile
 
-The group's profile — banner, name, description, website, avatar, tags —
-lives in the **public `group_identity` table** (one row per group,
-append-only, latest wins). It is **public display metadata**: every principal
-reads it, anon included — it is the group's face, and the front door depends
-on a non-member seeing it. (It is a table, not a documents collection,
-precisely so it isn't I3-gated; see `discoverability.md`.)
+The group's profile — banner, name, description, website, avatar, tags — is
+**documents in an app-named service** (e.g. `web10-social-group-identity`),
+read and written through the **normal CRUD path**, exactly like `posts`. It is
+**not** a platform table: the protocol does not know what a "banner" is. (D60:
+the platform stays universal — app concepts live in app-named services + role
+grants, not bespoke tables/endpoints.)
 
-Append-only: an update is a new row, latest wins. No accidental overwrites.
+**Public by a role grant, not by construction.** The group grants `anyone`
+`readAll` on the identity service → the face is public (a non-member, anon
+included, reads it — the front door depends on a stranger seeing it). No
+special read path; the normal group read applies.
 
-**Who writes it:** a role grant on `group-identity-service` — the owner, or a
-`page-curator` (the role that exists for exactly this). The write is gated by
-the same per-service role check that gates everything else (`access.md`); the
-read is ungated (public).
+**Gated-higher write.** The write is gated by the per-service role map:
+`page-curator`/`owner` get `create` on the identity service, `member` doesn't.
+That is the exact per-service mechanism that lets one service be gated at a
+*higher* role than the content services (`access.md`) — the identity is the
+first such service.
+
+Any app can define its own `*-identity` / `*-profile` / `*-config` service with
+whatever schema + access level it wants. The platform's directory/detail
+endpoints stay **generic** (the name falls back to the group's slug; the app
+renders the full face from its own service).
 
 ## Group Collections
 
 Each group holds collections:
 - `group-settings-service` — config, permissions
-- `group-identity-service` — group banner, name, website, avatar (append-only)
 - `posts` — group posts
 - `comments` — group comments
+- `web10-social-group-identity` (or the app's own `*-identity`) — the group's face (see "Group Profile" above)
 - Whatever else the group needs
 
 The group can hold any number of collections. Roles are scoped to exactly which ones they can touch.
@@ -143,4 +152,4 @@ One insert. Zero fan-out. Groups are discovery, not containers.
 
 ## Summary
 
-Groups are collections of users operating on data services. The contract holds service-scoped roles and explicit permissions. One group. Multiple roles per user. Roles define access per service. Content lives with the author. Groups define discovery. One insert. Zero fan-out.
+Groups are collections of users operating on data services. The contract holds per-service role maps and explicit permissions. One group. One role per user. Roles define access per service. Content lives with the author. Groups define discovery. One insert. Zero fan-out.

@@ -9,6 +9,89 @@ Status legend: [decided] intent set · [in-progress] · [open] still debating.
 
 ---
 
+### D60 — The protocol stays universal: no app-specific tables/endpoints in the platform; app concepts live in app-named services + role grants [decided]
+Operator, 31.08.2026 — after the D58 Stage 0 identity work: "what hurts me is what if another app wants to define identity differently, we are locking it in to a name a description, a banner photo or whatever we are doing. it is very web10 social contexted is my point, we are making a universal role maker for the web" and "the marketing page is promoting web10 social as the frontier web10 killer app, but this is the new internet needs to be flexible not bespoke functions on the api to the social app, like this identity function that was added." On the session oracle: "is verify session even accurate function name? … keeping it generic to make any app robust / healthy! should be good enough to use in the demo apps."
+
+**Decided** — the platform API (web10) exposes only **universal** primitives: services (documents), the per-service role model, principal classes, the read/write/management gates, groups (contract + members), the app contract, media, the app store, and the power-mean ranked read. It does **not** expose app-specific concepts. Two D58-era leaks are reversed:
+
+1. **The group identity is a service, not a table.** The group's "face" (name, description, banner, avatar, website, tags) is **documents in an app-named service** (e.g. `web10-social-group-identity`), read/written through the **normal CRUD** path — exactly like `posts`. **Publicness is a role grant**: the group grants `anyone` `readAll` on that service → the face is public (no special read path). **Higher-role write is the per-service map**: `page-curator`/`owner` get `create` on it, `member` doesn't. The bespoke `group_identity` table, `POST /v3/groups/identity`, `can_manage_identity`, and the `get/upsert_group_identity` functions are **deleted**. The directory/detail endpoints stay **generic** (name falls back to the slug; the app renders the face from its own service). Any app can define its own `*-identity` / `*-profile` / `*-config` service with whatever schema + access level it wants.
+2. **The session oracle is `verifyAccess`, generic.** `POST /v3/session/verify` (SDK `verifySession` → `verifyAccess`) checks only **universal** legs: `token` (valid/expired/invalid/missing), `user` (exists/not_found), `contract` (granted/partial/missing for the app origin). The **followers-group check is stripped** — "followers group" is a web10-social concept, not a platform one; a generic oracle shouldn't know about it (a messaging/notes app has no followers group). The social app does its own followers-group check + heal **client-side** (in its SessionGuard) — it's the one that knows what the followers group is. The oracle stays the platform's "is my access healthy?" primitive, useful to every app (the demos included).
+
+**Why:** web10 is "the new internet" — a universal protocol with a universal role/service model. web10-social is the *frontier app* built on it, not the protocol itself. The moment the platform API grows a table/endpoint/function that only makes sense for one app (a "banner," a "followers group"), it stops being universal — another app that defines identity differently (or has no followers concept) can't use the platform without the platform knowing its specifics. The per-service role model is the universal mechanism that already does both jobs: it lets any app define any service with any access level (public via the `anyone` grant, gated-higher via a specific role). The identity and the followers-group heal both fit that mechanism with **zero** bespoke platform surface.
+
+**Rejected:** a dedicated `group_identity` table + `POST /v3/groups/identity` endpoint (a social-app schema + endpoint inside the universal API); `can_manage_identity` (a bespoke gate for one app's concept — the per-service role check already does the job); the followers-group check in the session oracle (a social concept inside a generic primitive); the platform directory/detail rendering the social face (would make the platform know the social service — the leak in reverse).
+
+**What stays (all generic):** the per-service role maps, the principal classes (`anyone`/`authenticated`/`member`), the effective-role union, the read/write/management gates, the role-shape backfill, the group contract + members tables (group *structure* is node infrastructure), and the power-mean ranked read (a generic utility — any app supplies its own config; it is not social-specific). Group *structure* = tables (contract/members); group *content* = documents (user-owned, portable via multi-table porting). The group is **not** a document — portability is a porting-layer concern, not a storage-model one.
+
+Full model: `knowledge-base/web10-v3/groups/access.md` (the per-service model) + `identity.md` (the face is a service, not a table). The session-oracle genericity (`verifyAccess`) is part of this decision.
+
+---
+
+### D59 — Content moderation: sensitive-language detection + discover suppression, built on the existing group-hide mechanism [decided]
+Operator, 30.08.2026 — "i think we need some kind of sensitive language
+detection, i.e. n word, all kinds of really just not okay profanity, and then
+have a setting on the web10 node to make those users undiscoverable" — then,
+on the mechanism: "what is cool is this is built into groups! so the user
+could be assigned a role that makes their posts hidden from discover" — then,
+simplifying: "but discover is its own group, so we dont need this suppress
+shit … each group has a hide permission right?" and "i would prefer to auto
+down posts for profanity if enabled. then also i would like if a user is
+violating, that they come up as suggested to take off from discover."
+
+**Decided** — (1) **Detection is a whole-word, case-insensitive blocklist**
+in `node_config.sensitive_words` (a JSON array, operator-curated in the Node
+Config UI). It ships with a default of ~50 slurs (hate speech only — not
+general profanity; the operator opts into stricter). No ML classifier, no
+regex — transparent and auditable. (2) **The auto-down reuses the existing
+`group_hidden_docs` mechanism** — a post attached to the discover group whose
+text trips the blocklist is hidden from the board via the same
+`hide_doc_from_group` call a human moderator uses. No new read-path change,
+no new role, no new column on `group_members`. The board read already
+anti-joins `group_hidden_docs`; the hide just adds a row. (3) **User-level
+suppression is `node_config.auto_hide_users`** — a JSON array of usernames.
+Once the operator confirms a user in the review queue, their *future* posts
+are always auto-hidden (no blocklist match needed). Removing the username
+stops future auto-hides. This is a node-level curation list, not a user
+penalty. (4) **The review queue is a human-in-the-loop surface** — a
+`moderation_flags` table (append-only audit log) feeds a "suggested to hide
+from discover" list in the Node Config panel. The operator decides; the
+machine only flags. No auto-suppression of a user from a single post (that
+would be a shadow ban — the thesis says "no shadow ban, 100% delivery by
+architecture"). (5) **D41 holds** — suppression is board *curation*, not
+*secrecy*. A suppressed user's data is intact, their profile resolves by
+username, and their followers still see their posts in the followers group.
+The hide is scoped to the discover group only (I3: the read anti-join is
+per-group, so a post hidden from discover is still readable in the followers
+group). (6) **Three node settings** — `sensitive_words` (the list),
+`auto_moderate` (on = matching posts auto-hidden; off = flagged only),
+`moderation_enabled` (master switch). All in `node_config`, no DDL (the
+config is a JSON blob).
+
+**Why:** the operator's instinct — "this is built into groups" — was the
+right one. The discover board is a group, and groups already have a
+role-gated hide mechanism (`group_hidden_docs` + `hideAll`/node-admin). The
+moderation feature is a *detection layer on top of that existing mechanism*,
+not a new suppression system. The first draft invented a `suppressed` role +
+a `hidden_from_discover` column; the operator correctly pointed out that the
+group's existing hide permission does the job. Reusing it keeps the read path
+unchanged and the feature small.
+
+**Rejected:** a `suppressed` role in the discover group (roles grant
+*permissions*; suppression is a content-filter concern — a semantic stretch);
+a `hidden_from_discover` column on `group_members` (a new column for what the
+existing `group_hidden_docs` table already does); an ML/LLM classifier (v4 —
+the blocklist is transparent and operator-curated); auto-suppressing a user
+from one post (a shadow ban — the operator always decides user-level
+suppression); scanning profile name/bio on the post path (v0 is post-text
+only; a bio/name match is a flag, not an auto-hide); retroactive scanning when
+the blocklist changes (forward-only; a one-time admin command is a v1
+consideration).
+
+Full model: `knowledge-base/web10-v3/social/content-moderation.md`. Default
+list: `knowledge-base/web10-v3/social/sensitive-words-default.md`.
+
+---
+
 ### D58 — Group access model: per-service role maps + principal classes (`anyone` / `authenticated` / `member`) [decided]
 
 Operator, 30.08.2026 — out of the "make groups look like a Facebook group"
