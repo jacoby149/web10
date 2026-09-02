@@ -14,6 +14,7 @@ from . import (
     logs,
     media,
     moderation,
+    recovery,
 )
 
 router = APIRouter(prefix="/v3")
@@ -23,6 +24,9 @@ router.include_router(auth.router, prefix="")
 
 # Account management — profile, password, phone, email
 router.include_router(account.router, prefix="")
+
+# Account recovery — phone → code → pick account → sign in (unauthenticated)
+router.include_router(recovery.router, prefix="")
 
 # Document CRUD
 router.include_router(documents.router, prefix="")

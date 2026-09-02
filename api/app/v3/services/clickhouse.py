@@ -1,6 +1,7 @@
 import json
 import logging
 import math
+import re
 import threading
 import time
 import uuid
@@ -2838,6 +2839,39 @@ def get_phone_record(phone_number: str) -> dict | None:
         return None
     row = result.result_rows[0]
     return {"username": row[0], "phone": row[1]}
+
+
+def get_users_by_phone(phone_number: str) -> list[dict]:
+    """Find ALL users whose phone matches (for recovery — a phone can back several accounts).
+
+    The plural of get_phone_record. The stored phone format varies (with/without
+    a leading +, spaces, dashes), so both sides are normalized to digits before
+    comparing (replaceRegexpAll strips non-digits in SQL). Deduped to the latest
+    row per username first (the ReplacingMergeTree pattern) so a stale row from a
+    changed phone can't resurrect an old number.
+    """
+    digits = re.sub(r"\D", "", phone_number or "")
+    if not digits:
+        return []
+    result = client.query(
+        "SELECT username, phone, phone_verified, email FROM ("
+        "SELECT username, phone, phone_verified, email, deleted, "
+        "row_number() OVER (PARTITION BY username ORDER BY updated_at DESC, deleted DESC) AS rn "
+        "FROM users) "
+        "WHERE rn = 1 AND deleted = 0 "
+        "AND replaceRegexpAll(phone, '[^0-9]', '') = %(digits)s "
+        "ORDER BY username",
+        {"digits": digits},
+    )
+    return [
+        {
+            "username": row[0],
+            "phone": row[1],
+            "phone_verified": bool(row[2]),
+            "email": row[3],
+        }
+        for row in result.result_rows
+    ]
 
 
 # ---------------------------------------------------------------------------
