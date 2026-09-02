@@ -48,6 +48,14 @@ DEV_PAY_PCT = 98
 
 # S3-compatible object storage (media service)
 S3_ENDPOINT = os.getenv("S3_ENDPOINT", "http://minio:9000")
+
+# ClickHouse v3 OLAP store
+CLICKHOUSE_HOST = os.getenv("CLICKHOUSE_HOST", "clickhouse")
+CLICKHOUSE_PORT = int(os.getenv("CLICKHOUSE_PORT", "8123"))
+CLICKHOUSE_DATABASE = os.getenv("CLICKHOUSE_DATABASE", "web10")
+CLICKHOUSE_USER = os.getenv("CLICKHOUSE_USER", "web10")
+CLICKHOUSE_PASSWORD = os.getenv("CLICKHOUSE_PASSWORD", "web10")
+CLICKHOUSE_SECURE = os.getenv("CLICKHOUSE_SECURE", "false").lower() == "true"
 # Presigned URLs are handed to the BROWSER, so they must embed a host the
 # browser can reach over the page's scheme (HTTPS in prod). S3_ENDPOINT is the
 # INTERNAL address the API container uses to talk to MinIO (e.g.
@@ -72,6 +80,20 @@ S3_PUBLIC_USE_SSL = (
 UPLOAD_URL_EXPIRY = int(os.getenv("UPLOAD_URL_EXPIRY", "300"))
 READ_URL_EXPIRY = int(os.getenv("READ_URL_EXPIRY", "60"))
 MAX_UPLOAD_SIZE = int(os.getenv("MAX_UPLOAD_SIZE", "524288000"))
+
+# HLS transcoding (D44 — the video spine). Renditions are "WxH@bitrate"
+# pairs, lowest first (the player starts low and adapts up). Override the
+# list per environment (e2e uses fewer/shorter renditions for speed).
+HLS_RENDITIONS = os.getenv("HLS_RENDITIONS", "640x360@1M,1280x720@3M,1920x1080@6M")
+# TTL for the JWT that signs the HLS manifest + every segment (10 minutes —
+# the token expiry is the group-membership re-check cadence).
+HLS_SIG_TTL = int(os.getenv("HLS_SIG_TTL", "600"))
+# Concurrent transcodes. 1 keeps a single node's CPU from being eaten by the
+# worker (a transcode must not starve request handling — D43's pool is
+# separate, but ffmpeg is CPU-heavy either way).
+HLS_WORKER_CONCURRENCY = int(os.getenv("HLS_WORKER_CONCURRENCY", "1"))
+# Per-rendition ffmpeg wall-clock cap (seconds).
+HLS_FFMPEG_TIMEOUT = int(os.getenv("HLS_FFMPEG_TIMEOUT", "600"))
 
 # Load environment variables into settings params.
 for v in list(globals()):

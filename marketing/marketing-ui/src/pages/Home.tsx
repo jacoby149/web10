@@ -65,7 +65,8 @@ function CountUp({ value, duration = 1200 }: { value: number; duration?: number 
 /* --- HomeStatsBar --- */
 interface HomeStats {
   users: number
-  apps: number
+  app_count: number
+  active_users: { users_1d: number; users_30d: number; users_90d: number; users_1y: number }
   storage: number
 }
 
@@ -75,7 +76,7 @@ function HomeStatsBar() {
 
   useEffect(() => {
     let alive = true
-    fetch(`${nodeApi()}/stats`, {
+    fetch(`${nodeApi()}/v3/stats`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: '{}',
@@ -85,7 +86,8 @@ function HomeStatsBar() {
         if (!alive) return
         setStats({
           users: data.users ?? 0,
-          apps: Array.isArray(data.apps) ? data.apps.length : 0,
+          app_count: data.app_count ?? 0,
+          active_users: data.active_users ?? { users_1d: 0, users_30d: 0, users_90d: 0, users_1y: 0 },
           storage: data.storage ?? 0,
         })
       })
@@ -101,8 +103,8 @@ function HomeStatsBar() {
 
   const storage = formatBytes(stats.storage)
   const items: Array<{ value: number; unit?: string; label: string; icon: typeof Users }> = [
-    { value: stats.users, label: 'platform users', icon: Users },
-    { value: stats.apps, label: 'appstore apps', icon: Layers },
+    { value: stats.users, label: 'users', icon: Users },
+    { value: stats.app_count, label: 'apps in the store', icon: Layers },
     { value: storage.value, unit: storage.unit, label: 'data liberated', icon: HardDrive },
   ]
 

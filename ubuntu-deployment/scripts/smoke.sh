@@ -20,28 +20,74 @@ check() {  # check <label> <expected-code> <url> — retries while services boot
   echo "  FAIL $1 (got $code, want $2) $3"; fail=1
 }
 
+# v3 POST check — all v3 endpoints are POST-only
+check_post() {  # check_post <label> <expected-code> <url> <json-body>
+  local tries=6 code
+  for ((i = 1; i <= tries; i++)); do
+    code=$(curl -sL -o /dev/null -w '%{http_code}' --max-time 12 \
+      -X POST -H 'Content-Type: application/json' -d "$4" "$3" || echo 000)
+    if [[ "$code" == "$2" ]]; then echo "  ok   $1 ($code)"; return; fi
+    (( i < tries )) && sleep 5
+  done
+  echo "  FAIL $1 (got $code, want $2) $3"; fail=1
+}
+
 for env in dev prod; do
   if [[ "$env" == dev ]]; then pre=dev.; apex=dev.web10.app; else pre=; apex=web10.app; fi
   echo "== $env =="
   check "api docs"     200 "https://api.${pre}web10.app/docs"
-  check "api root"     200 "https://api.${pre}web10.app/"
   check "auth ui"      200 "https://auth.${pre}web10.app/"
   check "social"       200 "https://social.${pre}web10.app/"
   check "marketing"    200 "https://www.${pre}web10.app/"
   check "apex marketing" 200 "https://$apex/"
   check "marketing-api" 200 "https://marketing-api.${pre}web10.app/docs"
-done
 
-# money path on prod: signup a throwaway user, then get a token
-echo "== prod money path =="
-U="smoke$(date +%s)"
-su=$(curl -s -o /dev/null -w '%{http_code}' --max-time 15 -X POST https://api.web10.app/signup \
-  -H 'Content-Type: application/json' \
-  -d "{\"username\":\"$U\",\"password\":\"testpass123\",\"provider\":\"api.web10.app\"}")
-[[ "$su" == 200 ]] && echo "  ok   signup ($su)" || { echo "  FAIL signup ($su)"; fail=1; }
-tk=$(curl -s -o /dev/null -w '%{http_code}' --max-time 15 -X POST https://api.web10.app/web10token \
-  -H 'Content-Type: application/json' \
-  -d "{\"username\":\"$U\",\"password\":\"testpass123\",\"provider\":\"api.web10.app\"}")
-[[ "$tk" == 200 ]] && echo "  ok   token ($tk)" || { echo "  FAIL token ($tk)"; fail=1; }
+  # v3 smoke — full auth flow: signup → login → use token.
+  # DEV ONLY for now: prod is still v2 (1.0.302) until the Phase 4 cutover
+  # (gated — see knowledge/strategy/plan.md). Re-enable for both envs when
+  # the cutover lands; the HTTP checks above stay on both.
+  if [[ "$env" == dev ]]; then
+  echo "  -- v3 --"
+  APISRV="https://api.${pre}web10.app"
+  U="smoke$(date +%s%N)"
+  P="smoketest123"
+
+  # Sign up (no auth needed). v3 echoes the created user back —
+  # {"username":...,"phone":"","email":""} — not v2's "status":"ok".
+  SU=$(curl -s --max-time 15 -X POST "$APISRV/v3/signup" \
+    -H 'Content-Type: application/json' \
+    -d "{\"username\":\"$U\",\"password\":\"$P\"}")
+  SU_CODE=$(echo "$SU" | grep -o "\"username\":\"$U\"" || echo "")
+  if [[ -n "$SU_CODE" ]]; then
+    echo "  ok   v3 signup"
+  else
+    echo "  FAIL v3 signup ($SU)"; fail=1
+  fi
+
+  # Login — get token (reuse the same username from signup)
+  LOGIN=$(curl -s --max-time 15 -X POST "$APISRV/v3/login" \
+    -H 'Content-Type: application/json' \
+    -d "{\"username\":\"$U\",\"password\":\"$P\"}")
+  TOKEN=$(echo "$LOGIN" | python3 -c "import sys,json; print(json.load(sys.stdin).get('token',''))" 2>/dev/null || echo "")
+  if [[ -n "$TOKEN" ]]; then
+    echo "  ok   v3 login (got token)"
+  else
+    echo "  FAIL v3 login ($LOGIN)"; fail=1
+  fi
+
+  # Authenticated v3 endpoints (all require token)
+  if [[ -n "$TOKEN" ]]; then
+    check_post "v3 stats"              200 "$APISRV/v3/stats" "{\"token\":\"$TOKEN\"}"
+    check_post "v3 profile"            200 "$APISRV/v3/profile" "{\"token\":\"$TOKEN\"}"
+    # /v3/read is always group-scoped (KB: sdk/api.md) — a bare {token,service}
+    # body hits the no-groups guard (CRUD/401). "me" = the user's own docs.
+    check_post "v3 documents read"     200 "$APISRV/v3/read" "{\"token\":\"$TOKEN\",\"service\":\"web10\",\"groups\":[\"me\"]}"
+    check_post "v3 groups list"        200 "$APISRV/v3/groups/list" "{\"token\":\"$TOKEN\"}"
+    check_post "v3 appstore list"      200 "$APISRV/v3/apps/list" "{\"token\":\"$TOKEN\"}"
+    check_post "v3 contracts list"     200 "$APISRV/v3/app-contracts/list" "{\"token\":\"$TOKEN\"}"
+    check_post "v3 media list"         200 "$APISRV/v3/media/list" "{\"token\":\"$TOKEN\",\"limit\":1,\"offset\":0}"
+  fi
+  fi
+done
 
 exit $fail

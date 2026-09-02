@@ -1,3 +1,6 @@
+import json
+import logging
+
 import requests
 from fastapi import APIRouter, HTTPException
 from fastapi.responses import RedirectResponse
@@ -5,23 +8,20 @@ from fastapi.responses import RedirectResponse
 import app.exceptions as exceptions
 from app.models.auth import Token
 from app.models.config import (
-    AppAdminQuery,
-    AppApprovalRequest,
-    AppRatingRequest,
     ConfigUpdate,
-    DiscoveryModerationRequest,
     SetupRequest,
     SetupStatus,
 )
 from app.services import config as config_svc
-from app.services import documentdb as db
 from app.services.auth import check_admin, decode_token, get_password_hash
+from app.v3.services import clickhouse as ch
 
 router = APIRouter()
+log = logging.getLogger(__name__)
 
 
-@router.get("/", include_in_schema=False)
-async def root():
+@router.post("/")
+def root():
     """A bare API host should look intentional, not broken."""
     return RedirectResponse(url="/docs")
 
@@ -29,8 +29,8 @@ async def root():
 # --- Setup wizard ---
 
 
-@router.get("/setup", include_in_schema=False)
-async def get_setup_status() -> SetupStatus:
+@router.post("/setup", tags=["system"])
+def get_setup_status() -> SetupStatus:
     """Returns whether the node has been configured."""
     return SetupStatus(
         configured=config_svc.node_is_configured(),
@@ -38,10 +38,15 @@ async def get_setup_status() -> SetupStatus:
     )
 
 
-@router.post("/setup", include_in_schema=False)
-async def post_setup(req: SetupRequest):
-    """First-run setup: generates JWT key, saves config, creates admin."""
-    if config_svc.admin_exists():
+@router.post("/setup/configure", tags=["system"])
+def post_setup(req: SetupRequest):
+    """First-run setup: generates JWT key, saves config, creates admin.
+
+    v3: the admin is a ClickHouse user (``ch.create_user``) — the only store
+    ``/v3/login`` reads — so the wizard's admin can actually log in. The
+    guard is ClickHouse too: a node with any user is already in use.
+    """
+    if ch.node_has_users():
         raise HTTPException(status_code=400, detail="Node already configured")
 
     # Generate JWT key
@@ -49,18 +54,17 @@ async def post_setup(req: SetupRequest):
     key_data["ts"] = __import__("datetime").datetime.utcnow().isoformat()
     config_svc.save_jwt_key(key_data)
 
-    # Build config body
+    # Build config body — the new admin is the node's admin (check_admin
+    # enforces the config admins list).
     config_body = req.model_dump(exclude_none=True)
     config_body["private_key"] = key_data["key"]
     config_body["algorithm"] = "HS256"
+    config_body["admins"] = [req.admin_username]
     config_svc.save_config(config_body)
 
-    # Create admin
-    config_svc.create_admin(
-        req.admin_username,
-        get_password_hash(req.admin_password),
-        phone="",
-    )
+    # Create the admin in ClickHouse.
+    if not ch.create_user(req.admin_username, get_password_hash(req.admin_password)):
+        raise HTTPException(status_code=400, detail="Admin user already exists")
 
     return {
         "status": "configured",
@@ -72,36 +76,32 @@ async def post_setup(req: SetupRequest):
 # --- Config management ---
 
 
-@router.post("/config", include_in_schema=False)
-async def get_config(token: Token):
-    """Returns the current node config (admin only).
+@router.post("/config", tags=["admin"])
+def get_config(token: Token):
+    """Returns the node's EFFECTIVE config (admin only): the settings.py
+    defaults (env-overridden — what the node actually runs) overlaid with
+    the saved node_config. The Node Config UI reads this, so a fresh node
+    shows its live values (provider, ClickHouse, MinIO) instead of blanks.
 
     POST (not GET) because it carries a token in the body — GET bodies are an
     anti-pattern and get stripped by proxies. Matches the sibling system
     endpoints (/setup, /stats) which are all POST.
+
+    Only ``private_key`` is stripped — it is the node's signing secret and
+    the UI has no field for it. Everything else is shown: this is the node
+    operator's own admin surface (check_admin: node-signed JWT + admin
+    list), and the panel's job is to show what the node runs.
     """
     check_admin(token)
-    cfg = config_svc.get_config()
-    # Strip sensitive fields
-    safe = {
-        k: v
-        for k, v in cfg.items()
-        if k
-        not in (
-            "private_key",
-            "s3_secret_key",
-            "twilio_auth_token",
-            "stripe_test_key",
-            "stripe_live_key",
-        )
-    }
+    cfg = config_svc.effective_config()
+    safe = {k: v for k, v in cfg.items() if k != "private_key"}
     # the effective admin list (saved list, or the bootstrap default)
     safe["admins"] = config_svc.list_admins()
     return safe
 
 
-@router.post("/am_admin", include_in_schema=False)
-async def am_admin(token: Token):
+@router.post("/am_admin", tags=["admin"])
+def am_admin(token: Token):
     """Any authenticated user can ask whether THEY are an admin of this node.
 
     Lets the console show/hide the Node Config surface without leaking the
@@ -114,8 +114,8 @@ async def am_admin(token: Token):
         return {"admin": False}
 
 
-@router.patch("/config", include_in_schema=False)
-async def patch_config(token: Token, update: ConfigUpdate):
+@router.post("/config/update", tags=["admin"])
+def patch_config(token: Token, update: ConfigUpdate):
     """Partially update node config (admin only)."""
     check_admin(token)
     current = config_svc.get_config()
@@ -125,190 +125,134 @@ async def patch_config(token: Token, update: ConfigUpdate):
     return {"status": "updated", "changed": list(changes.keys())}
 
 
+@router.get("/telemetry", tags=["system"])
+def telemetry_config():
+    """The node's telemetry IDs, for the frontends to install at runtime (D56).
+
+    Public — no token. GA4 measurement IDs and Hotjar site IDs are public
+    identifiers (they are embedded in every page's HTML for the scripts to
+    load); there is no secret here. CORS is wildcard on this node (the
+    security boundary is the token, not the origin), so every surface —
+    marketing site, social app, authenticator — can read this pre-login from
+    any origin.
+
+    The Node Config UI (admin) is where these are set; this endpoint is how
+    the values reach the client at runtime, so an operator can change the
+    IDs live without a rebuild. Empty string = that instrument is off.
+    """
+    cfg = config_svc.effective_config()
+    return {
+        "ga4_measurement_id": cfg.get("ga4_measurement_id") or "",
+        "hotjar_site_id": cfg.get("hotjar_site_id") or "",
+    }
+
+
 # --- Health ---
 
 
-@router.get("/ready", include_in_schema=False)
-async def ready():
-    """Health check — returns 200 if DB is reachable."""
+@router.get("/ready", tags=["system"])
+def ready():
+    """Health check — returns 200 if ClickHouse is reachable."""
     try:
-        db.client.admin.command("ping")
+        ch.client.command("SELECT 1")
         return {"status": "ok", "configured": config_svc.node_is_configured()}
     except Exception as e:
         raise HTTPException(status_code=503, detail=f"DB unreachable: {e}")
 
 
-@router.post("/stats", include_in_schema=False)
-async def stats(skip: int = 0, limit: int = 0):
-    apps = db.get_apps(skip, limit)
-    users = db.get_user_count()
-    mongo_size = db.total_size()
-    s3_size = db.total_s3_size()
-    return {"apps": apps, "users": users, "storage": mongo_size + s3_size}
+# --- App store listing ---
 
 
 @router.get("/pwa_listing", include_in_schema=False)
-async def pwa(url: str):
-    try:
-        resp = requests.get(url + "manifest.json", {"Accept": "application/json"}, timeout=1)
-    except requests.exceptions.RequestException:
-        raise exceptions.NO_PWA
-    return resp.json()
+def pwa_listing(url: str):
+    """Proxy a registered app's PWA manifest (icon + name for the store).
 
-
-@router.post("/register_app", include_in_schema=False)
-async def register_app(info: dict):
-    """Register an app (v2). Accepts url + optional name, description,
-    icon_url, screenshots. New apps start as pending. Repeat visits
-    from approved apps with changed metadata enter review."""
-    if "url" not in info:
-        return
-    fragments = [
-        "http://",
-        "localhost",
-        "file://",
-        "vscode-webview:/",
-        "--",
-        ".html",
-        "web10.dev",
-        ".id.repl.co",
-    ]
-    for fragment in fragments:
-        if fragment in info["url"]:
-            return
-    db.register_app(info)
-
-
-# --- App Store curation (admin only) ---
-#
-# Anyone can POST /register_app, but an app stays hidden from the public
-# storefront (POST /stats → get_apps) until an admin approves it. These
-# endpoints let the node operator see pending apps and toggle approval
-# from the authenticator's Node Config panel.
-
-
-@router.post("/apps/admin", include_in_schema=False)
-async def apps_admin(query: AppAdminQuery):
-    """List every registered app with its approval state (admin only)."""
-    token = Token(token=query.token)
-    check_admin(token)
-    apps = db.list_apps_admin()
-    pending = sum(1 for a in apps if not a["approved"])
-    return {"apps": apps, "pending": pending}
-
-
-@router.post("/apps/approve", include_in_schema=False)
-async def apps_approve(req: AppApprovalRequest):
-    """Approve or reject a registered app (admin only).
-    On approve of pending_on_change: promotes pending metadata to live fields.
-    On reject: preserves old metadata, sets review_state to rejected."""
-    token = Token(token=req.token)
-    check_admin(token)
-    db.set_app_approval(req.url, req.approved, req.reviewer_note)
-    return {"status": "updated", "url": req.url, "approved": req.approved}
-
-
-# --- App ratings (D37) ---
-
-
-@router.post("/apps/rating", include_in_schema=False)
-async def apps_rating(req: AppRatingRequest):
-    """Submit a 1-5 star rating for an app. Upserts by (target_app_id, author)."""
-    if not 1 <= req.rating <= 5:
-        raise HTTPException(status_code=400, detail="rating must be 1-5")
-    token = Token(token=req.token)
-    decoded = decode_token(token.token)
-    return db.create_app_rating(
-        author=decoded.username,
-        target_app_id=req.target_app_id,
-        rating=req.rating,
-        provider=decoded.provider,
-    )
-
-
-@router.patch("/apps/ratings/{target_app_id}", include_in_schema=False)
-async def apps_ratings(target_app_id: str):
-    """Read all star ratings for an app (anon OK)."""
-    return db.query_app_ratings(target_app_id)
-
-
-# --- Discovery migration (admin only) ---
-
-
-@router.post("/admin/discovery/migrate_terms", include_in_schema=False)
-async def admin_discovery_migrate_terms(req: Token):
-    """Provision the canonical public_posts anon-read term for every existing
-    account that lacks it. Admin only. Idempotent — safe to call multiple times."""
-    check_admin(req)
-    return db.migrate_public_posts_terms()
-
-
-@router.post("/admin/discovery/backfill", include_in_schema=False)
-async def admin_discovery_backfill(req: Token):
-    """Backfill the discovery index with all existing public_posts from every
-    user collection. Admin only. Idempotent — safe to call multiple times."""
-    check_admin(req)
-    return db.backfill_discovery()
-
-
-@router.post("/admin/apps/migrate_v2", include_in_schema=False)
-async def admin_apps_migrate_v2(req: Token):
-    """Migrate legacy web10.apps records to v2 shape (D37).
-    Backfills review_state, metadata_version, web10apps_post_id.
-    Projects approved apps to #web10apps discovery. Admin only. Idempotent."""
-    check_admin(req)
-    return db.migrate_apps_to_v2()
-
-
-@router.post("/admin/discovery/migrate_follows_terms", include_in_schema=False)
-async def admin_discovery_migrate_follows_terms(req: Token):
-    """Provision core app service terms (follows, inbox, reactions, comments,
-    dms) for every existing account that lacks them. Admin only. Idempotent."""
-    check_admin(req)
-    return db.migrate_follows_terms()
-
-
-# --- Discovery board moderation (admin only) ---
-
-
-def _check_moderation_request(req: DiscoveryModerationRequest) -> str:
-    """Admin-gate + input guard. Returns the admin's username (the actor)."""
-    check_admin(Token(token=req.token))
-    if req.service in ("*", "services"):
-        raise HTTPException(status_code=400, detail="invalid service")
-    decoded = decode_token(req.token, private_key=True)
-    return decoded.username
-
-
-@router.post("/admin/discovery/remove", include_in_schema=False)
-async def admin_discovery_remove(req: DiscoveryModerationRequest):
-    """Hide a post from the public discovery board. Admin only.
-
-    Sets a sticky ``removed`` flag on the discovery index document — the post
-    drops out of /discover/posts, /discover/search, /discover/topics,
-    /discover/users and single-post lookup, and an author editing their post
-    cannot un-hide it. The underlying record in the author's collection is
-    NOT touched (I3): this is board-level takedown, not record deletion.
+    The marketing app store fetches the app's manifest through the node so
+    the storefront can show each app's real icon without a CORS round-trip
+    from the browser. Manifest URL = {url without trailing slash} +
+    /manifest.json — so a registered path with or without a trailing slash
+    resolves the same (a path IS an app, D47).
     """
-    actor = _check_moderation_request(req)
-    result = db.moderate_discovery_post(req.author, req.service, req.post_id, True, actor=actor, reason=req.reason)
-    if not result["matched"]:
-        raise HTTPException(status_code=404, detail="post not found on the discovery board")
+    manifest_url = url.rstrip("/") + "/manifest.json"
+    # Hard cap on manifest size (hardening #7): a real PWA manifest is a few
+    # KB; an unbounded read is a memory spike the store would absorb on every
+    # render. Over the cap → treat as no manifest.
+    _MANIFEST_MAX_BYTES = 256 * 1024
+    try:
+        with requests.get(manifest_url, headers={"Accept": "application/json"}, timeout=1, stream=True) as resp:
+            resp.raise_for_status()
+            chunks = []
+            total = 0
+            for chunk in resp.iter_content(chunk_size=8192):
+                total += len(chunk)
+                if total > _MANIFEST_MAX_BYTES:
+                    raise exceptions.NO_PWA
+                chunks.append(chunk)
+            return json.loads(b"".join(chunks))
+    except requests.exceptions.RequestException:
+        log.info("[pwa_listing] fetch failed for %s — NO_PWA", manifest_url)
+        raise exceptions.NO_PWA
+    except (json.JSONDecodeError, UnicodeDecodeError):
+        # A 200 with a non-JSON body (an SPA fallback returning HTML, a text
+        # file, ...) means there is no manifest at that path — the store
+        # falls back to the registered name. Not a server error.
+        log.info("[pwa_listing] non-JSON manifest body at %s — NO_PWA", manifest_url)
+        raise exceptions.NO_PWA
+
+
+# --- Issue Tracking (bug reports) ---
+
+
+@router.post("/bug_report", tags=["issue-tracking"])
+def submit_bug_report(req: dict):
+    """Submit a bug report. Public — no auth required.
+
+    Accepts: description (required), email, page_url, app_version,
+    device_info, browser_info, error_message, stack_trace, screenshots.
+    Screenshots are base64-encoded image strings (data:image/png;base64,...).
+    Optional: token — if provided, username is auto-populated.
+    """
+    description = (req.get("description") or "").strip()
+    if not description:
+        raise HTTPException(status_code=400, detail="description is required")
+
+    # Optional: extract username from token if provided
+    username = ""
+    if req.get("token"):
+        try:
+            decoded = decode_token(req["token"])
+            username = decoded.username if decoded.username and decoded.username != "anon" else ""
+        except Exception:
+            pass
+
+    result = ch.submit_bug_report(
+        description=description,
+        username=username,
+        email=(req.get("email") or "").strip(),
+        page_url=(req.get("page_url") or "").strip(),
+        app_version=(req.get("app_version") or "").strip(),
+        device_info=(req.get("device_info") or "").strip(),
+        browser_info=(req.get("browser_info") or "").strip(),
+        error_message=(req.get("error_message") or "").strip(),
+        stack_trace=(req.get("stack_trace") or "").strip(),
+        screenshots=req.get("screenshots") or [],
+    )
     return result
 
 
-@router.post("/admin/discovery/restore", include_in_schema=False)
-async def admin_discovery_restore(req: DiscoveryModerationRequest):
-    """Restore a previously hidden post to the public discovery board. Admin only."""
-    actor = _check_moderation_request(req)
-    result = db.moderate_discovery_post(req.author, req.service, req.post_id, False, actor=actor, reason=req.reason)
-    if not result["matched"]:
-        raise HTTPException(status_code=404, detail="post not found on the discovery board")
-    return result
-
-
-@router.post("/admin/discovery/removed", include_in_schema=False)
-async def admin_discovery_removed(req: Token):
-    """List posts currently hidden from the discovery board. Admin only."""
+@router.post("/admin/bug_reports", tags=["issue-tracking"])
+def admin_bug_reports(req: Token, limit: int = 100, offset: int = 0):
+    """List bug reports (admin only). Screenshots excluded — too large."""
     check_admin(req)
-    return {"removed": db.list_removed_discovery_posts()}
+    reports = ch.list_bug_reports(limit=limit, offset=offset)
+    return {"reports": reports, "count": len(reports)}
+
+
+@router.post("/admin/bug_reports/{report_id}", tags=["issue-tracking"])
+def admin_bug_report_detail(report_id: str, req: Token):
+    """Get a single bug report with screenshots (admin only)."""
+    check_admin(req)
+    report = ch.get_bug_report(report_id)
+    if not report:
+        raise HTTPException(status_code=404, detail="report not found")
+    return report

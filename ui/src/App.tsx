@@ -9,6 +9,7 @@ import SetupWizard from './components/SetupWizard/SetupWizard';
 import ConfigPage from './components/Config/ConfigPage';
 import StudioPage from './components/Studio/StudioPage';
 import ConsentView from './components/Consent/ConsentView';
+import GroupsPage from './components/Groups/GroupsPage';
 import { config } from './config';
 
 function StatusBar({ I }: { I: Record<string, any> }) {
@@ -30,11 +31,20 @@ function App() {
   const mock = queryParameters.get("mock")
   const auth = queryParameters.get("auth")
   const forgot = queryParameters.get("forgot")
+  // D42: the opener tells the popup who it is acting as, so the popup can
+  // detect a session mismatch (its own cookie's user ≠ the opener's user)
+  // instead of silently acting for the wrong user.
+  const as = queryParameters.get("as")
+  // D42: handoff=none marks a consent-only popup (the lazy group contract) —
+  // the opener already holds the token, so the popup closes without re-sending it.
+  const handoff = queryParameters.get("handoff")
   const mockI = useMockInterface();
   const realI = useInterface();
   const I = mock ? mockI : realI;
   I.isMock = mock;
   I.isAuth = auth;
+  I._expectedUser = as;
+  I._handoff = handoff;
   window.I = I;
 
   const [checkingSetup, setCheckingSetup] = React.useState(true);
@@ -44,7 +54,7 @@ function App() {
       setCheckingSetup(false);
       return;
     }
-    const decoded = I.wapi?.readToken?.();
+    const decoded = I.v3?.readToken?.();
     // Logged out, there's no token to name the provider — fall back to the
     // configured API host, NOT a hardcoded "api.localhost" (which made the
     // readiness probe hit the wrong API on prod). Mirror authAdapter's
@@ -72,8 +82,19 @@ function App() {
     if (forgot) I.setMode("forgot");
   }, []);
 
+  // Set up the contract postMessage listener immediately if opened as a popup
+  // (window.open) — before auth. The demo sends the GCR before the user logs in,
+  // so the listener must be ready to receive it. Contracts accumulate in
+  // I.pendingContracts and display after login.
   React.useEffect(() => {
-    if (I.isAuthenticated() && I._hasReferrer) {
+    if (window.opener && !I.isMock) {
+      I.initAuthenticator();
+    }
+  }, []);
+
+  React.useEffect(() => {
+    // For referrer-based flows (not popups), init after auth.
+    if (I.isAuthenticated() && I._hasReferrer && !window.opener && !I.isMock) {
       I.initAuthenticator();
     }
     // Restored session (reload with a valid token): hydrate admin status +
@@ -122,6 +143,7 @@ function App() {
       {(() => {
         switch (effectiveMode) {
           case "contracts": return <ContractPage I={I} />;
+          case "groups": return <GroupsPage I={I} />;
           case "requests": return <RequestPage I={I} />;
           case "settings": return <Settings I={I} />;
           case "config": return <ConfigPage I={I} />;

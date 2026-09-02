@@ -7,7 +7,7 @@ import { AlertCircle, Loader2 } from 'lucide-react';
 // read as dead. Per design.md §8 (error text under the field, never silent),
 // echo the status right under the submit button, where the click happened.
 function isError(status: string) {
-  return /failed|must|cannot|invalid|do not match|no such|already/i.test(status);
+  return /failed|failure|must|cannot|invalid|wrong|incorrect|doesn't exist|does not exist|no such|already|too many|denied|expired|not found|not registered/i.test(status);
 }
 
 function CredentialStatus({ I }: { I: Record<string, any> }) {

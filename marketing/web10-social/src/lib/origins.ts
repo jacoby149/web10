@@ -12,9 +12,23 @@ export const API_ORIGIN: string = env?.VITE_API_ORIGIN || 'https://api.web10.app
 // web10 addresses are written provider-host/username
 export const API_HOST: string = API_ORIGIN.replace(/^https?:\/\//, '');
 
-export const RTC_ORIGIN: string = env?.VITE_RTC_ORIGIN || 'https://rtc.web10.app';
-// wapiInit takes the rtc endpoint as a bare host
-export const RTC_HOST: string = RTC_ORIGIN.replace(/^https?:\/\//, '');
+// The RTC signaling host tracks the API host so it follows the environment
+// (api.localhost → rtc.localhost, api.web10.app → rtc.web10.app) — the e2e /
+// local stacks set VITE_API_ORIGIN but not VITE_RTC_ORIGIN, so a hardcoded
+// prod RTC host would point the P2P peer at the wrong server. An explicit
+// VITE_RTC_ORIGIN still wins (host AND protocol from it).
+let rtcHost: string;
+let rtcProtocol: 'https' | 'http';
+if (env?.VITE_RTC_ORIGIN) {
+  rtcHost = env.VITE_RTC_ORIGIN.replace(/^https?:\/\//, '');
+  rtcProtocol = env.VITE_RTC_ORIGIN.startsWith('https') ? 'https' : 'http';
+} else {
+  rtcHost = API_HOST.replace(/^api\./, 'rtc.');
+  rtcProtocol = API_ORIGIN.startsWith('https') ? 'https' : 'http';
+}
+// The RTC endpoint as a bare host (the SDK's rtc subpath takes a host, not a URL)
+export const RTC_HOST: string = rtcHost;
+export const RTC_ORIGIN: string = `${rtcProtocol}://${rtcHost}`;
 
 // The marketing site (where the importer /import lives). The social app's
 // empty-state CTAs ("import your existing posts" / "import your contacts")

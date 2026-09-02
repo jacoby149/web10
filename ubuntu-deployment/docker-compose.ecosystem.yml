@@ -37,31 +37,20 @@
 # Changing an origin means re-BUILDING the stack, not just restarting.
 
 services:
-  postgres:
-    image: ghcr.io/ferretdb/postgres-documentdb:17
+  clickhouse:
+    image: clickhouse/clickhouse-server:latest
     environment:
-      POSTGRES_USER: web10
-      POSTGRES_PASSWORD: web10
-      POSTGRES_DB: postgres
+      CLICKHOUSE_DB: web10
+      CLICKHOUSE_USER: web10
+      CLICKHOUSE_PASSWORD: web10
     volumes:
-      - postgres-data:/var/lib/postgresql/data
+      - clickhouse-data:/var/lib/clickhouse
+      - ../clickhouse-init:/docker-entrypoint-initdb.d:ro
     restart: unless-stopped
     networks:
       internal:
         aliases:
-          - ${STACK:?set STACK, e.g. web10-dev}-postgres
-
-  ferretdb:
-    image: ghcr.io/ferretdb/ferretdb:2
-    depends_on:
-      - postgres
-    environment:
-      FERRETDB_POSTGRESQL_URL: postgres://web10:web10@${STACK}-postgres:5432/postgres
-    restart: unless-stopped
-    networks:
-      internal:
-        aliases:
-          - ${STACK}-ferretdb
+          - ${STACK}-clickhouse
 
   minio:
     image: minio/minio:latest
@@ -91,8 +80,8 @@ services:
       context: ../api
       dockerfile: Dockerfile
     depends_on:
-      - ferretdb
       - minio
+      - clickhouse
     extra_hosts:
       - "host.docker.internal:host-gateway"
     environment:
@@ -103,6 +92,8 @@ services:
       # real accounts live in the host mongo's "deploy" database — prod sets
       # DB=deploy + DB_URL=mongodb://host.docker.internal:27017/ (env.prod).
       DB: ${DB:-web10}
+      CLICKHOUSE_HOST: ${STACK}-clickhouse
+      CLICKHOUSE_PORT: 8123
       S3_ENDPOINT: http://${STACK}-minio:9000
       # Presigned upload/read URLs are signed with THIS host and handed to the
       # browser, so it must be the public HTTPS MinIO vhost (NPM → ${STACK}-minio:9000),
@@ -125,14 +116,19 @@ services:
 
   ui:
     build:
-      context: ../ui
-      dockerfile: Dockerfile
+      # Repo-root context so the Dockerfile can COPY sdk/dist/ (the v3 SDK
+      # the auth app depends on). Mirrors .github/workflows/docker.yml.
+      context: ..
+      dockerfile: ui/Dockerfile
       args:
         # names must match ui/Dockerfile's declared ARGs (B5, 1.0.65)
         REACT_APP_API_ORIGIN: ${API_ORIGIN:?e.g. https://api.dev.web10.app}
         REACT_APP_AUTH_ORIGIN: ${AUTH_ORIGIN:?e.g. https://auth.dev.web10.app}
         REACT_APP_RTC_ORIGIN: ${RTC_ORIGIN:?e.g. https://rtc.dev.web10.app}
         REACT_APP_DEFAULT_API: ${API_HOST:?host only, e.g. api.dev.web10.app}
+        # D56: full-platform telemetry (empty = tracking off for this env)
+        VITE_GA4_MEASUREMENT_ID: ${GA4_MEASUREMENT_ID:-}
+        VITE_HOTJAR_SITE_ID: ${HOTJAR_SITE_ID:-}
     environment:
       PORT: "80"
     restart: unless-stopped
@@ -156,14 +152,21 @@ services:
 
   social:
     build:
-      context: ../marketing/web10-social
-      dockerfile: Dockerfile
+      # Repo-root context so the Dockerfile can COPY sdk/ + nginx.conf (the
+      # social app depends on the local web10-npm file: dependency since
+      # D46). Same pattern as the ui service — the Dockerfile's own header
+      # documents this requirement.
+      context: ..
+      dockerfile: marketing/web10-social/Dockerfile
       args:
         VITE_API_ORIGIN: ${API_ORIGIN}
         VITE_AUTH_ORIGIN: ${AUTH_ORIGIN}
         VITE_RTC_ORIGIN: ${RTC_ORIGIN}
         VITE_MARKETING_API: ${MARKETING_API_ORIGIN:?e.g. https://marketing-api.dev.web10.app}
         VITE_MARKETING_ORIGIN: ${MARKETING_UI_ORIGIN:-https://marketing.web10.app}
+        # D56: full-platform telemetry (empty = tracking off for this env)
+        VITE_GA4_MEASUREMENT_ID: ${GA4_MEASUREMENT_ID:-}
+        VITE_HOTJAR_SITE_ID: ${HOTJAR_SITE_ID:-}
     restart: unless-stopped
     networks:
       proxy:
@@ -188,6 +191,9 @@ services:
         VITE_SOCIAL_URL: ${SOCIAL_ORIGIN:-}
         VITE_MARKETING_URL: ${MARKETING_UI_ORIGIN:-}
         STATUS_VERSION: ${STATUS_VERSION:-}
+        # D56: full-platform telemetry (empty = tracking off for this env)
+        VITE_GA4_MEASUREMENT_ID: ${GA4_MEASUREMENT_ID:-}
+        VITE_HOTJAR_SITE_ID: ${HOTJAR_SITE_ID:-}
     restart: unless-stopped
     networks:
       proxy:
@@ -209,9 +215,9 @@ services:
 
 volumes:
   # Portainer prefixes volume names with the stack name, so each
-  # stack gets its own postgres-data / minio-data automatically.
-  postgres-data:
+  # stack gets its own minio-data / clickhouse-data automatically.
   minio-data:
+  clickhouse-data:
 
 networks:
   # per-stack private network for the db tier — never on "proxy"

@@ -30,11 +30,27 @@ services:
     networks:
       - e2e-net
 
+  clickhouse:
+    image: clickhouse/clickhouse-server:24.8
+    user: "101:101"
+    command: ["clickhouse-server", "--config-file=/etc/clickhouse-server/config.xml"]
+    ulimits:
+      nofile:
+        soft: 262144
+        hard: 262144
+    environment:
+      - CLICKHOUSE_DB=web10
+      - CLICKHOUSE_USER=web10
+      - CLICKHOUSE_PASSWORD=web10
+    networks:
+      - e2e-net
+
   api:
     build: ../api
     depends_on:
       - ferretdb
       - minio
+      - clickhouse
     volumes:
       - ../api:/web10
     environment:
@@ -43,18 +59,31 @@ services:
       DB_URL: mongodb://web10:web10@ferretdb:27017/
       DB: web10
       S3_ENDPOINT: http://minio:9000
-      S3_PUBLIC_ENDPOINT: http://localhost:9000
+      # The presigned URLs the browser follows — host-reachable. Parameterized
+      # so parallel workspaces' e2e stacks don't collide on host :9000
+      # (E2E_MINIO_PORT=9100 runs a second stack side by side).
+      S3_PUBLIC_ENDPOINT: http://localhost:${E2E_MINIO_PORT:-9000}
       CORS_SERVICE_MANAGERS: auth.localhost,social.localhost,marketing.localhost
       STRIPE_STATUS: test
       STRIPE_TEST_KEY: ${STRIPE_TEST_KEY:-sk_test_placeholder}
+      CLICKHOUSE_HOST: clickhouse
+      CLICKHOUSE_PORT: "8123"
+      CLICKHOUSE_DATABASE: web10
+      CLICKHOUSE_USER: web10
+      CLICKHOUSE_PASSWORD: web10
+      # Two renditions (not three) — the e2e test video is 320x240, so the
+      # 1080p rendition would be pure upscale waste in a test.
+      HLS_RENDITIONS: 640x360@1M,1280x720@3M
     command: ["uv", "run", "uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "80", "--reload"]
     networks:
       - e2e-net
 
   ui:
     build:
-      context: ../ui
-      dockerfile: Dockerfile
+      # Repo-root context so the Dockerfile can COPY sdk/dist/ (the v3 SDK
+      # the auth app depends on). Mirrors .github/workflows/docker.yml.
+      context: ..
+      dockerfile: ui/Dockerfile
       target: dev
     volumes:
       - ../ui:/ui
@@ -84,14 +113,21 @@ services:
   minio:
     image: minio/minio:latest
     ports:
-      - "9000:9000"
-      - "9001:9001"
+      - "${E2E_MINIO_PORT:-9000}:9000"
+      - "${E2E_MINIO_CONSOLE_PORT:-9001}:9001"
     volumes:
       - minio-data:/data
     environment:
       - MINIO_ROOT_USER=minioadmin
       - MINIO_ROOT_PASSWORD=minioadmin
     command: server /data --console-address :9001
+    networks:
+      - e2e-net
+
+  sdk:
+    build: ../sdk
+    environment:
+      VIRTUAL_HOST: sdk.localhost
     networks:
       - e2e-net
 
@@ -118,19 +154,21 @@ services:
 
   web10-social:
     build:
-      context: ../marketing/web10-social
-      dockerfile: ../../e2e/Dockerfile.social
+      # Repo-root context so the Dockerfile can COPY sdk/ (web10-npm is a
+      # local file: dependency since D46 — same pattern as the ui service).
+      context: ..
+      dockerfile: e2e/Dockerfile.social
     environment:
       VIRTUAL_HOST: social.localhost
       VIRTUAL_PORT: "3000"
       # Without these, src/lib/origins.ts's API_ORIGIN/AUTH_ORIGIN/
       # MARKETING_ORIGIN constants fall back to the production hosts
       # (https://api.web10.app etc.) — Vite dev server reads VITE_*  env
-      # vars at runtime, no rebuild needed. Only code going through
-      # Web10SocialAdapter's own wapiInit() client (CRUD) already
-      # auto-detects *.localhost; anything using these constants directly
-      # via a raw fetch() (discover/suggested-users, the public ledger)
-      # was silently calling the real internet instead of this stack.
+      # vars at runtime, no rebuild needed. The auth seam
+      # (src/interfaces/auth.ts) auto-detects *.localhost for the auth
+      # origin; anything using these constants directly via a raw fetch()
+      # (discover/suggested-users) was silently calling the real internet
+      # instead of this stack.
       VITE_API_ORIGIN: http://api.localhost
       VITE_AUTH_ORIGIN: http://auth.localhost
       VITE_MARKETING_ORIGIN: http://marketing.localhost

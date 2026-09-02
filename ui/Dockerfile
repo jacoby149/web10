@@ -2,17 +2,14 @@ FROM oven/bun:1-alpine AS dev
 
 WORKDIR /ui
 
-COPY package.json bun.lock ./
+COPY ui/package.json ui/bun.lock ./
+COPY sdk/package.json /sdk/package.json
+COPY sdk/dist/ /sdk/dist/
 RUN bun install --frozen-lockfile
-# Patch the npm-published web10-npm SDK: defaultAPIProtocol (undefined) ->
-# APIProtocol. The fix lives in sdk/src/wapiAuth.js but the npm package
-# has not been republished yet. Once web10-npm@>=1.0.9 lands on npm, this
-# sed can be removed.
-RUN sed -i 's/wapi\.defaultAPIProtocol/wapi.APIProtocol/g' node_modules/web10-npm/dist/node/wapi.js node_modules/web10-npm/dist/node/wapi.modern.js 2>/dev/null || true
 
-COPY index.html tsconfig.json vite.config.js ./
-COPY public/ public/
-COPY src/ src/
+COPY ui/index.html ui/tsconfig.json ui/vite.config.js ./
+COPY ui/public/ public/
+COPY ui/src/ src/
 
 EXPOSE 80
 
@@ -29,10 +26,15 @@ ARG REACT_APP_AUTH_ORIGIN
 ARG REACT_APP_API_ORIGIN
 ARG REACT_APP_RTC_ORIGIN
 ARG REACT_APP_DEFAULT_API
+# D56: full-platform telemetry — GA4 + Hotjar IDs (empty = tracking off).
+ARG VITE_GA4_MEASUREMENT_ID
+ARG VITE_HOTJAR_SITE_ID
 ENV REACT_APP_AUTH_ORIGIN=${REACT_APP_AUTH_ORIGIN} \
     REACT_APP_API_ORIGIN=${REACT_APP_API_ORIGIN} \
     REACT_APP_RTC_ORIGIN=${REACT_APP_RTC_ORIGIN} \
-    REACT_APP_DEFAULT_API=${REACT_APP_DEFAULT_API}
+    REACT_APP_DEFAULT_API=${REACT_APP_DEFAULT_API} \
+    VITE_GA4_MEASUREMENT_ID=${VITE_GA4_MEASUREMENT_ID} \
+    VITE_HOTJAR_SITE_ID=${VITE_HOTJAR_SITE_ID}
 
 RUN bun run build
 

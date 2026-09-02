@@ -20,7 +20,7 @@
  * ```
  */
 
-import type { Web10Client } from '../client'
+import type { V3Client } from '../v3'
 
 // Lazy import — peerjs is a peer dependency, optional
 let PeerClass: { new (id: string, opts: PeerJSOptions): PeerInstance } | null = null
@@ -51,7 +51,7 @@ function getPeer(): { new (id: string, opts: PeerJSOptions): PeerInstance } {
  * @param wapi - A web10 client instance
  * @returns An RTC connector for P2P communication
  */
-export function createRTC(wapi: Web10Client): RTCConnector {
+export function createRTC(wapi: V3Client): RTCConnector {
   let peer: PeerInstance | null = null
   const outbound = new Map<string, PeerConnection>()
   const inbound = new Map<string, PeerConnection>()
@@ -62,8 +62,17 @@ export function createRTC(wapi: Web10Client): RTCConnector {
       return `${provider} ${user} ${origin} ${label}`.replaceAll('.', '_')
     },
 
-    /** Initialize P2P and start listening for inbound connections */
-    initP2P(onInbound: ((conn: PeerConnection, data: unknown) => void) | null, label: string = '', secure: boolean = true): void {
+    /**
+     * Initialize P2P and start listening for inbound connections.
+     *
+     * Returns a promise that resolves once the local peer is `open` (its
+     * signaling connection is established), so callers can wait for readiness
+     * before calling `connect`/`send`. PeerJS drops a `connect()` issued
+     * before `open`, so sending too early silently loses the message. The
+     * promise also resolves after a 10s timeout so an unreachable signaling
+     * server cannot hang the caller forever.
+     */
+    initP2P(onInbound: ((conn: PeerConnection, data: unknown) => void) | null, label: string = '', secure: boolean = true): Promise<void> {
       const PC = getPeer()
       const token = wapi.readToken()
       if (!token) throw new Error('Cannot init P2P without a token')
@@ -83,6 +92,18 @@ export function createRTC(wapi: Web10Client): RTCConnector {
           conn.on('close', () => inbound.delete(conn.peer))
         })
       }
+      return new Promise<void>((resolve) => {
+        if (!peer) {
+          resolve()
+          return
+        }
+        if (peer.open) {
+          resolve()
+          return
+        }
+        peer.on('open', () => resolve())
+        setTimeout(resolve, 10000)
+      })
     },
 
     /** Get or create an outbound connection to a peer */
@@ -119,8 +140,8 @@ export function createRTC(wapi: Web10Client): RTCConnector {
 export interface RTCConnector {
   /** Generate a peer ID */
   peerId(provider: string, user: string, origin: string, label?: string): string
-  /** Initialize P2P */
-  initP2P(onInbound: ((conn: PeerConnection, data: unknown) => void) | null, label?: string, secure?: boolean): void
+  /** Initialize P2P (resolves when the local peer is open) */
+  initP2P(onInbound: ((conn: PeerConnection, data: unknown) => void) | null, label?: string, secure?: boolean): Promise<void>
   /** Get or create an outbound connection */
   connect(provider: string, username: string, origin: string, label?: string): PeerConnection
   /** Send data to a peer */
@@ -146,6 +167,7 @@ interface PeerConnection {
 
 interface PeerInstance {
   id: string
+  open: boolean
   on(event: string, handler: (...args: unknown[]) => void): void
   connect(id: string): PeerConnection
 }

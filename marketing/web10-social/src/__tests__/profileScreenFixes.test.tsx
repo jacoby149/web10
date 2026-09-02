@@ -66,19 +66,8 @@ vi.mock('@/data/wapi', () => ({
   resetWapi: vi.fn(),
 }));
 
-vi.mock('web10-npm', () => ({
-  wapiInit: vi.fn().mockReturnValue({
-    isSignedIn: vi.fn().mockReturnValue(false),
-    authListen: vi.fn(),
-    openAuthPortal: vi.fn(),
-    signOut: vi.fn(),
-    readToken: vi.fn().mockReturnValue({
-      provider: 'test.localhost',
-      username: 'testuser',
-    }),
-    SMROnReady: vi.fn(),
-  }),
-}));
+// (The old `vi.mock('web10-npm', ...)` block is gone with the v1 adapter —
+// the screens' graph no longer imports the npm package at runtime.)
 
 describe('ProfileScreen upload presign fix', () => {
   beforeEach(() => {

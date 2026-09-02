@@ -53,9 +53,9 @@ export function AmazonTagCard({ I, onStatus }: AmazonTagCardProps) {
       setTag(trimmed);
       onStatus(`Amazon tag "${trimmed}" saved — links will auto-tag at render`);
 
-      if (!I.isMock && I.wapi?.create) {
+      if (!I.isMock && I.v3?.create) {
         try {
-          await I.wapi.create('monetization', {
+          await I.v3.create('monetization', {
             service: 'monetization',
             type: 'amazon_tag',
             tag: trimmed,

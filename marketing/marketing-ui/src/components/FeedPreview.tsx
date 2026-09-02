@@ -11,6 +11,19 @@ import { SOCIAL_ORIGIN, API_ORIGIN } from '@/lib/origins';
 import { trackFunnel } from '@/lib/analytics';
 import { getPublicMediaUrl, getPublicMediaThumbnailUrl, resolveMediaRef, clearMediaCache } from '@/lib/mediaPresign';
 
+// A media ref as the v3 read path serves it: resolve_media_urls rewrites a
+// post's media_refs from bare doc_id strings to resolved objects carrying a
+// fresh presigned read_url + the metadata's mime_type (the ONLY cross-user
+// media path — listMedia is owner-scoped).
+interface ResolvedMediaRef {
+  doc_id?: string;
+  object_key?: string | null;
+  mime_type?: string | null;
+  filename?: string | null;
+  size_bytes?: number | null;
+  read_url?: string | null;
+}
+
 interface DiscoveryPost {
   author: string;
   service: string;
@@ -24,8 +37,9 @@ interface DiscoveryPost {
     reposts: number;
   };
   engagement_score: number;
-  // A17 media projection fields
-  media_refs?: string[];
+  // A17 media projection fields. media_refs arrive pre-resolved from the v3
+  // read (objects with read_url + mime_type); bare strings are the legacy shape.
+  media_refs?: (string | ResolvedMediaRef)[];
   has_media?: boolean;
   first_attachment_mime?: string;
 }
@@ -39,7 +53,7 @@ interface FeedPost {
   time: string;
   content: string;
   media?: 'image' | 'video' | 'music';
-  mediaRefs?: string[];
+  mediaRefs?: (string | ResolvedMediaRef)[];
   firstAttachmentMime?: string;
   author?: string;
   likes: string;
@@ -68,10 +82,25 @@ function hashToColor(str: string): string {
   return AVATAR_COLORS[Math.abs(hash) % AVATAR_COLORS.length];
 }
 
+// The v3 read serializes datetimes as naive 'YYYY-MM-DD HH:MM:SS[.ffffff]'
+// (str(datetime) of a UTC wall-clock). Browsers parse the space-separated
+// form as LOCAL time, which shifts recent posts into the future for
+// west-of-UTC clocks and renders a negative "time ago". Normalize the naive
+// form to explicit UTC before parsing; ISO strings (T / Z / offset) parse as-is.
+function parseCreatedAt(dateStr: string): number {
+  if (!dateStr) return Date.now();
+  const t = dateStr.trim().replace(' ', 'T');
+  if (/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\d+)?$/.test(t)) {
+    return new Date(`${t}Z`).getTime();
+  }
+  const ms = new Date(dateStr).getTime();
+  return Number.isFinite(ms) ? ms : Date.now();
+}
+
 function timeAgo(dateStr: string): string {
   const now = Date.now();
-  const then = new Date(dateStr).getTime();
-  const diff = now - then;
+  const then = parseCreatedAt(dateStr);
+  const diff = Math.max(0, now - then);
   const seconds = Math.floor(diff / 1000);
   if (seconds < 60) return `${seconds}s`;
   const minutes = Math.floor(seconds / 60);
@@ -180,7 +209,7 @@ function MediaPlaceholder({ type }: { type: 'image' | 'video' | 'music' }) {
 
 interface TrendingMediaProps {
   author: string;
-  mediaRefs?: string[];
+  mediaRefs?: (string | ResolvedMediaRef)[];
   mediaType?: 'image' | 'video' | 'music';
   firstAttachmentMime?: string;
   postId?: string;
@@ -209,11 +238,30 @@ function TrendingMedia({ author, mediaRefs, mediaType, firstAttachmentMime, post
   useEffect(() => {
     if (!mediaRefs?.length || !author) return;
     let cancelled = false;
-    getPublicMediaUrl(author, mediaRefs[0]).then(url => {
+    const ref = mediaRefs[0];
+
+    // The v3 read serves media_refs pre-resolved with a fresh presigned
+    // read_url — use it directly (no extra round-trip). A resolved object is
+    // final: render its read_url, or fall back to the placeholder if there is
+    // none (never pass an object into the string-typed presign path). Bare
+    // string refs are the legacy shape and go through the two-step presign.
+    if (typeof ref === 'object') {
+      if (ref.read_url) {
+        console.log('[trending-media] resolved ref — using read_url directly', ref.doc_id);
+        setImageUrl(ref.read_url);
+      } else {
+        console.log('[trending-media] resolved ref has no read_url — placeholder', ref.doc_id);
+        setError(true);
+      }
+      return () => { cancelled = true; };
+    }
+
+    console.log('[trending-media] bare ref — presigning', ref);
+    getPublicMediaUrl(author, ref).then(url => {
       if (cancelled || !url) return;
       setImageUrl(url);
       if (isVideo) {
-        resolveMediaRef(author, mediaRefs[0]).then(record => {
+        resolveMediaRef(author, ref).then(record => {
           if (cancelled || !record) return;
           getPublicMediaThumbnailUrl(author, record).then(thumb => {
             if (!cancelled && thumb) setThumbUrl(thumb);
@@ -485,8 +533,8 @@ interface LedgerComment {
 
 function commentTimeAgo(dateStr: string): string {
   const now = Date.now();
-  const then = new Date(dateStr).getTime();
-  const diff = now - then;
+  const then = parseCreatedAt(dateStr);
+  const diff = Math.max(0, now - then);
   const seconds = Math.floor(diff / 1000);
   if (seconds < 60) return `${seconds}s`;
   const minutes = Math.floor(seconds / 60);
@@ -851,14 +899,89 @@ function TrendingSkeleton({ featured = false }: { featured?: boolean }) {
   );
 }
 
-async function fetchDiscoverFeed(sort: 'recent' | 'trending', limit = 6): Promise<DiscoveryPost[]> {
-  const resp = await fetch(`${API_ORIGIN}/discover/posts`, {
-    method: 'PATCH',
+// The node-default universal public board (matches the API's DISCOVER_GROUP_ID
+// and the social app's DISCOVER_GROUP). In v3 discovery IS a group read — the
+// board is just this group, read anon through the normal /v3/read path.
+const DISCOVER_GROUP = 'web10.app/groups/web10/discover';
+
+interface V3Doc {
+  doc_id: string;
+  author_key: string;
+  body: Record<string, any>;
+  tags: string[];
+  created_at: string;
+  ref_value: string;
+  service: string;
+}
+
+async function readGroup(service: string, limit: number): Promise<V3Doc[]> {
+  const resp = await fetch(`${API_ORIGIN}/v3/read`, {
+    method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ query: { sort, limit, services: 'public_posts' } }),
+    // No token — anon reads the public board (the discover group).
+    body: JSON.stringify({ service, groups: [DISCOVER_GROUP], limit }),
   });
   if (!resp.ok) return [];
   return resp.json();
+}
+
+async function fetchDiscoverFeed(sort: 'recent' | 'trending', limit = 6): Promise<DiscoveryPost[]> {
+  // v3: the public board is the node-default discover group. Read it through
+  // the normal group-read path as anon (no token). Engagement comes from the
+  // reactions + comments groups (the ref pattern: ref_value = the post id).
+  const [posts, reactions, comments] = await Promise.all([
+    readGroup('posts', 200),
+    readGroup('reactions', 500),
+    readGroup('comments', 500),
+  ]);
+
+  const likesByPost: Record<string, number> = {};
+  for (const r of reactions) {
+    if (r.ref_value) likesByPost[r.ref_value] = (likesByPost[r.ref_value] || 0) + 1;
+  }
+  const commentsByPost: Record<string, number> = {};
+  for (const c of comments) {
+    if (c.ref_value) commentsByPost[c.ref_value] = (commentsByPost[c.ref_value] || 0) + 1;
+  }
+
+  let mapped: DiscoveryPost[] = posts.map((p) => {
+    // The v3 read serves media_refs pre-resolved (objects with mime_type +
+    // read_url). Derive the first attachment's mime from the first resolved
+    // ref so media detection (video/image/music) works without relying on tags.
+    const mediaRefs: (string | ResolvedMediaRef)[] = p.body?.media_refs || [];
+    const first = mediaRefs[0];
+    const firstAttachmentMime =
+      first && typeof first === 'object' ? first.mime_type || undefined : undefined;
+    return {
+      author: p.author_key,
+      service: p.service,
+      post_id: p.doc_id,
+      body_text: p.body?.text || '',
+      tags: p.tags || [],
+      created_at: p.created_at,
+      engagement: {
+        likes: likesByPost[p.doc_id] || 0,
+        comments: commentsByPost[p.doc_id] || 0,
+        reposts: 0,
+      },
+      engagement_score: (likesByPost[p.doc_id] || 0) + (commentsByPost[p.doc_id] || 0),
+      media_refs: mediaRefs,
+      has_media: mediaRefs.length > 0,
+      first_attachment_mime: firstAttachmentMime,
+    };
+  });
+  console.log(
+    '[trending] discover feed —', posts.length, 'posts;',
+    mapped.filter(p => p.has_media).length, 'with media;',
+    mapped.filter(p => p.first_attachment_mime).length, 'with resolved mime',
+  );
+
+  if (sort === 'trending') {
+    mapped.sort((a, b) => b.engagement_score - a.engagement_score || b.created_at.localeCompare(a.created_at));
+  } else {
+    mapped.sort((a, b) => b.created_at.localeCompare(a.created_at));
+  }
+  return mapped.slice(0, limit);
 }
 
 // ── YouTubeCard (D-trending-views) ──────────────────────────────────────────
@@ -969,4 +1092,4 @@ function YouTubeSkeleton() {
   );
 }
 
-export { TrendingCard, TrendingSkeleton, YouTubeCard, YouTubeSkeleton, fetchDiscoverFeed, mapDiscoveryToFeedPost, formatCount, parseCount, type FeedPost, type DiscoveryPost };
+export { TrendingCard, TrendingSkeleton, YouTubeCard, YouTubeSkeleton, fetchDiscoverFeed, mapDiscoveryToFeedPost, formatCount, parseCount, parseCreatedAt, type FeedPost, type DiscoveryPost, type ResolvedMediaRef };

@@ -195,4 +195,44 @@ SELECT count() FROM reactions WHERE doc_id = 'post-123'
 
 One database. Append-only. Compute-on-read. Tombstoning. TTL cleanup. No sync. No drift. No pipeline.
 
+## The Architecture
+
+```mermaid
+graph LR
+    subgraph OLTP["OLTP — Stateful"]
+        U1["UPDATE SET"]
+        U2["DELETE FROM"]
+        U3["BEGIN/COMMIT"]
+        U4["Counter += 1"]
+    end
+
+    subgraph OLAP["OLAP — Append-Only"]
+        O1["Tombstone + Re-insert"]
+        O2["Tombstone INSERT"]
+        O3["Idempotency Key"]
+        O4["Event INSERT, COUNT on read"]
+    end
+
+    U1 -->|"becomes"| O1
+    U2 -->|"becomes"| O2
+    U3 -->|"becomes"| O3
+    U4 -->|"becomes"| O4
+
+    O1 --> CH["ReplacingMergeTree<br/>keeps latest version"]
+    O2 --> CH
+    O3 --> CH
+    O4 --> CH
+
+    CH --> TTL["TTL: physical cleanup<br/>90 days after created_at"]
+    CH --> BG["Background compaction<br/>tombstones without TTL"]
+
+    style OLTP fill:#ffebee,stroke:#c62828,color:#000
+    style OLAP fill:#e8f5e9,stroke:#2e7d32,color:#000
+    style CH fill:#e3f2fd,stroke:#1565c0,color:#000
+    style TTL fill:#fff9c4,stroke:#f57f17,color:#000
+    style BG fill:#fff9c4,stroke:#f57f17,color:#000
+```
+
+No UPDATE. No DELETE. No transactions. No counters. Just INSERTs. `ReplacingMergeTree` keeps the latest. TTL cleans the rest. Background jobs compact what TTL doesn't cover.
+
 OLTP is dead. OLAP only.

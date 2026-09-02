@@ -1,7 +1,13 @@
+# Repo-root build context (see e2e/docker-compose.yml — the web10-social
+# service uses `context: ..`, like the ui service). The context must be the
+# repo root because web10-npm is a local `file:../../sdk` dependency (D46):
+# bun install needs sdk/ in the context.
 FROM oven/bun:1-alpine
 WORKDIR /app
-COPY package.json bun.lock* ./
+COPY marketing/web10-social/package.json marketing/web10-social/bun.lock* ./
+COPY sdk/package.json /sdk/package.json
+COPY sdk/dist/ /sdk/dist/
 RUN bun install --frozen-lockfile || bun install
-COPY . .
+COPY marketing/web10-social/ .
 EXPOSE 3000
 CMD ["bunx", "vite", "--host", "0.0.0.0", "--port", "3000"]

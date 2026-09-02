@@ -1,33 +1,86 @@
-import { useState, useEffect, useCallback, useRef } from 'react';
+import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Select } from '@/components/ui/select';
 import { Skeleton } from '@/components/ui/skeleton';
 import {
-  readPullFeed,
+  readFeed,
+  getFeedGroups,
+  readFeedEngagement,
   readProfile,
   readUserProfile,
-  readMyPosts,
   resolveMediaRefs,
   countReactions,
   countComments,
   toggleReaction,
+  readSettings,
+  saveSettings,
 } from '@/data';
 import { getWapi } from '@/data/wapi';
 import type {
-  InboxRecord,
   PostRecord,
   MediaRecord,
-  FeedSort,
   ProfileRecord,
 } from '@/data/types';
+import {
+  rankPosts,
+  PRESETS,
+  getPreset,
+  type PresetId,
+  type KnobState,
+} from '@/lib/powerMean';
+import { KnobRack } from '@/components/Discover/KnobRack';
 import { Heart, MessageCircle, Play, Pause, Edit3 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { MARKETING_ORIGIN } from '@/lib/origins';
 import { CommentThread } from './CommentThread';
 import { TextWithLinks } from './LinkEmbed';
+import { AdBlock } from './AdBlock';
 import { PostLightbox } from '@/components/Bio/PostLightbox';
+
+const LOG = (...args: unknown[]) => console.log('[social:feed]', ...args);
+
+// ── Feed knob state (D36 knobs on the feed — operator 30.08) ────────────────
+// The feed gets the same sorting knobs as the trending page (the D36 rack:
+// presets + 5 rotary knobs, power-mean re-ranking). The knob state is screen
+// state, so the URL holds it (the deep-link rule — same ?knobs= encoding as
+// DiscoverScreen): refresh restores the ranking, a shared link carries it.
+// The state is ALSO persisted to the user's web10 `settings` service
+// (settings.ts → the settings doc in the followers group), so the app
+// remembers how the user tuned their feed across sessions and devices.
+//
+// Precedence: URL (?knobs=) > saved settings (feedKnobs) > the Newest preset
+// (the feed is chronological until the user tunes it — the delivery pitch).
+
+const KNOB_KEYS: (keyof KnobState)[] = ['recency', 'likes', 'comments', 'halfLife', 'character'];
+
+function encodeKnobState(state: KnobState): string {
+  return KNOB_KEYS.map((k) => String(state[k])).join(',');
+}
+
+function parseKnobParam(raw: string | null): KnobState | null {
+  if (!raw) return null;
+  const parts = raw.split(',');
+  if (parts.length !== KNOB_KEYS.length) return null;
+  const state = {} as KnobState;
+  for (let i = 0; i < KNOB_KEYS.length; i++) {
+    const n = Number(parts[i]);
+    if (!Number.isInteger(n) || n < 0 || n > 5) return null;
+    state[KNOB_KEYS[i]] = n;
+  }
+  return state;
+}
+
+function presetIdForState(state: KnobState): PresetId | null {
+  const match = PRESETS.find((p) => KNOB_KEYS.every((k) => p.state[k] === state[k]));
+  return match ? match.id : null;
+}
+
+// The feed's default tuning: Newest (pure chronological — "no algorithm" is
+// the delivery pitch; the knobs are opt-in).
+const FEED_DEFAULT_STATE = () => getPreset('newest')!.state;
+const FEED_DEFAULT_ENCODING = encodeKnobState(FEED_DEFAULT_STATE());
 
 function formatTimeAgo(dateStr: string): string {
   const diff = Date.now() - new Date(dateStr).getTime();
@@ -45,6 +98,7 @@ function MediaItem({ media }: { media: MediaRecord }) {
   const isVideo = media.mime_type?.startsWith('video/');
   const [playing, setPlaying] = useState(false);
   const videoRef = useRef<HTMLVideoElement>(null);
+  const [measuredRatio, setMeasuredRatio] = useState<number | null>(null);
 
   useEffect(() => {
     if (!playing || !videoRef.current) return;
@@ -56,11 +110,28 @@ function MediaItem({ media }: { media: MediaRecord }) {
 
   const src = media.thumbnail_url || media.url;
 
+  // The read path now carries the real dimensions; measure on load only as a
+  // fallback for legacy media that predates dimension storage. Reserving the
+  // ratio up front (known or measured) is what keeps the feed from shifting.
+  const knownRatio = media.width && media.height ? media.width / media.height : null;
+  const ratio = knownRatio ?? measuredRatio ?? 4 / 3;
+  const onMediaLoaded = (el: HTMLVideoElement | HTMLImageElement) => {
+    if (knownRatio) return;
+    const w = 'videoWidth' in el ? el.videoWidth : el.naturalWidth;
+    const h = 'videoHeight' in el ? el.videoHeight : el.naturalHeight;
+    if (w && h) setMeasuredRatio(w / h);
+  };
+
+  // Natural aspect ratio, capped so a portrait clip can't blow up the feed,
+  // object-contain so it never crops (letterboxes on the cap) — matching the
+  // lightbox. The card bg (not black) shows through any letterbox.
+  const containerStyle: React.CSSProperties = { aspectRatio: `${ratio}`, maxHeight: '60vh' };
+
   if (isVideo) {
     return (
       <div
         className="bg-elevated overflow-hidden group relative cursor-pointer"
-        style={{ aspectRatio: media.width && media.height ? `${media.width}/${media.height}` : '1/1' }}
+        style={containerStyle}
         onClick={() => setPlaying((p) => !p)}
         role="button"
         tabIndex={0}
@@ -77,7 +148,8 @@ function MediaItem({ media }: { media: MediaRecord }) {
           ref={videoRef}
           src={media.url}
           poster={media.thumbnail_url}
-          className="w-full h-full object-cover transition-transform duration-150 group-hover:scale-105"
+          onLoadedMetadata={(e) => onMediaLoaded(e.currentTarget)}
+          className="w-full h-full object-contain"
           preload="metadata"
           playsInline
           muted={!playing}
@@ -107,13 +179,14 @@ function MediaItem({ media }: { media: MediaRecord }) {
   return (
     <div
       className="bg-elevated overflow-hidden group relative"
-      style={{ aspectRatio: media.width && media.height ? `${media.width}/${media.height}` : '1/1' }}
+      style={containerStyle}
       data-testid="media-image"
     >
       <img
         src={src}
         alt={media.alt_text || ''}
-        className="w-full h-full object-cover transition-transform duration-150 group-hover:scale-105"
+        onLoad={(e) => onMediaLoaded(e.currentTarget)}
+        className="w-full h-full object-contain"
         loading="lazy"
       />
       <div className="absolute inset-0 bg-gradient-to-t from-black/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-150" />
@@ -130,30 +203,21 @@ function formatDuration(seconds: number): string {
 function MediaGrid({ mediaItems }: { mediaItems: MediaRecord[] }) {
   if (!mediaItems.length) return null;
   const count = mediaItems.length;
-  const displayItems = mediaItems.slice(0, 6);
-  const remaining = count - 6;
+  const first = mediaItems[0];
 
+  // Option (b): the first item renders at its natural aspect ratio; the rest
+  // live behind a count badge — tapping the card opens the lightbox, which
+  // already has a working carousel for the full set.
   return (
-    <div
-      className={cn(
-        'grid gap-0.5 bg-background overflow-hidden rounded-t-md',
-        count === 1 ? 'grid-cols-1' : count === 2 ? 'grid-cols-2' : 'grid-cols-3',
-      )}
-    >
-      {displayItems.map((m) => (
-        <MediaItem key={m._id || m.url} media={m} />
-      ))}
-      {remaining > 0 && (
-        <div className="aspect-square bg-elevated flex items-center justify-center relative">
-          <img
-            src={mediaItems[6]?.thumbnail_url || mediaItems[6]?.url}
-            alt=""
-            className="absolute inset-0 w-full h-full object-cover"
-            loading="lazy"
-          />
-          <div className="absolute inset-0 bg-black/50 flex items-center justify-center">
-            <span className="text-2xl font-semibold text-foreground">+{remaining}</span>
-          </div>
+    <div className="relative">
+      <MediaItem media={first} />
+      {count > 1 && (
+        <div
+          className="absolute top-2 right-2 flex items-center justify-center min-w-6 h-6 px-2 rounded-full bg-background/70 backdrop-blur-sm text-xs font-semibold text-foreground tabular-nums pointer-events-none"
+          data-testid="media-count-badge"
+          aria-label={`${count} items`}
+        >
+          {count}
         </div>
       )}
     </div>
@@ -324,6 +388,13 @@ function PostCard({
         )}
       </div>
 
+      {post.ad && (
+        <AdBlock
+          ad={post.ad}
+          className="md:mx-4 md:mb-3 md:rounded-lg md:border md:border-border"
+        />
+      )}
+
       <CommentThread
         postId={post._id || ''}
         isOpen={commentsOpen}
@@ -378,10 +449,8 @@ function FeedSkeleton() {
 }
 
 export default function FeedScreen({ onAuthorClick }: { onAuthorClick?: (username: string, provider: string) => void }) {
-  const [items, setItems] = useState<InboxRecord[]>([]);
-  const [sort, setSort] = useState<FeedSort>('newest');
+  const [posts, setPosts] = useState<PostRecord[]>([]);
   const [loading, setLoading] = useState(true);
-  const [postsMap, setPostsMap] = useState<Record<string, PostRecord>>({});
   const [mediaMap, setMediaMap] = useState<Record<string, MediaRecord[]>>({});
   const [flatMediaMap, setFlatMediaMap] = useState<Record<string, MediaRecord>>({});
   const [reactionMap, setReactionMap] = useState<Record<string, number>>({});
@@ -389,19 +458,114 @@ export default function FeedScreen({ onAuthorClick }: { onAuthorClick?: (usernam
   const [likedMap, setLikedMap] = useState<Record<string, boolean>>({});
   const [profileMap, setProfileMap] = useState<Record<string, ProfileRecord>>({});
   const [avatarUrlMap, setAvatarUrlMap] = useState<Record<string, string>>({});
-  const [lightboxItem, setLightboxItem] = useState<InboxRecord | null>(null);
+  const [lightboxPost, setLightboxPost] = useState<PostRecord | null>(null);
   const token = getWapi().readToken();
-  const isOwnPost = (item: InboxRecord) =>
-    token && item.author_username === token.username && item.author_provider === token.provider;
+  const isOwnPost = (p: PostRecord) =>
+    token && p.author_username === token.username && p.author_provider === token.provider;
+
+  // ── Knob state: URL > saved settings > Newest preset ──────────────────────
+  const [searchParams, setSearchParams] = useSearchParams();
+
+  // The persisted tuning (the web10 `settings` service) — loaded once.
+  const [savedKnobs, setSavedKnobs] = useState<KnobState | null>(null);
+  useEffect(() => {
+    readSettings()
+      .then((s) => {
+        setSavedKnobs(s.feedKnobs ?? null);
+        if (s.feedKnobs) LOG('saved knobs — restored from settings service:', encodeKnobState(s.feedKnobs));
+      })
+      .catch((e) => LOG('saved knobs — failed to load settings:', e));
+  }, []);
+
+  const knobState = useMemo<KnobState>(() => {
+    const fromUrl = parseKnobParam(searchParams.get('knobs'));
+    if (fromUrl) return fromUrl;
+    if (savedKnobs) return savedKnobs;
+    return FEED_DEFAULT_STATE();
+  }, [searchParams, savedKnobs]);
+  const activePreset = useMemo(() => presetIdForState(knobState), [knobState]);
+
+  // Log the deep-link restore once on mount (the URL held the ranking).
+  useEffect(() => {
+    const raw = searchParams.get('knobs');
+    if (raw) LOG('deep-link — knob state restored from URL:', raw);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // Persist the tuning to the settings service (debounced — a knob twist is
+  // a burst of detent steps; the last one wins).
+  const persistTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const persistKnobs = useCallback((state: KnobState) => {
+    if (persistTimer.current) clearTimeout(persistTimer.current);
+    persistTimer.current = setTimeout(async () => {
+      try {
+        await saveSettings({ feedKnobs: state });
+        LOG('knobs — persisted to settings service:', encodeKnobState(state));
+      } catch (e) {
+        LOG('knobs — persist failed:', e);
+      }
+    }, 400);
+  }, []);
+  useEffect(() => () => { if (persistTimer.current) clearTimeout(persistTimer.current); }, []);
+
+  // Write a knob state to the URL (the deep-linkable ranking). The param is
+  // omitted when the state is the default, so the default URL stays clean.
+  const setKnobUrl = useCallback((next: KnobState) => {
+    const params = new URLSearchParams(searchParams);
+    const encoded = encodeKnobState(next);
+    if (encoded === FEED_DEFAULT_ENCODING) {
+      params.delete('knobs');
+    } else {
+      params.set('knobs', encoded);
+    }
+    setSearchParams(params);
+    const preset = presetIdForState(next);
+    LOG('knob state —', encoded, preset ? `(preset: ${preset})` : '(custom)');
+  }, [searchParams, setSearchParams]);
+
+  const handleKnobChange = useCallback((key: keyof KnobState, value: number) => {
+    const next = { ...knobState, [key]: value };
+    setKnobUrl(next);
+    persistKnobs(next);
+  }, [knobState, setKnobUrl, persistKnobs]);
+
+  const handlePreset = useCallback((id: PresetId) => {
+    const presetDef = getPreset(id);
+    if (presetDef) {
+      setKnobUrl(presetDef.state);
+      persistKnobs(presetDef.state);
+    }
+  }, [setKnobUrl, persistKnobs]);
 
   const loadFeed = useCallback(async () => {
     setLoading(true);
     try {
-      // The feed PULLS: your own posts + one direct read per person you
-      // follow (their public_posts collection). No inbox fan-out, no
-      // discovery board — discovery is for the Discover page only.
-      const feed = await readPullFeed(sort);
-      setItems(feed);
+      // v3: readFeed returns PostRecord[] directly from group-based reads
+      // (newest first — the ranking below re-orders by the knob state).
+      const [feed, feedGroups] = await Promise.all([
+        readFeed('newest', 50),
+        getFeedGroups(),
+      ]);
+
+      // Engagement counts (the ref pattern — the same one DiscoverScreen
+      // runs): without this the likes/comments knobs only ever see recency.
+      let engLikes: Record<string, number> = {};
+      let engComments: Record<string, number> = {};
+      if (feedGroups.length) {
+        try {
+          const eng = await readFeedEngagement(feedGroups);
+          engLikes = eng.likes;
+          engComments = eng.comments;
+        } catch (e) {
+          LOG('engagement — failed (degrading to zero counts):', e);
+        }
+      }
+      for (const p of feed) {
+        p.likes = engLikes[p._id || ''] || 0;
+        p.comments = engComments[p._id || ''] || 0;
+        p.reposts = 0;
+      }
+      setPosts(feed);
 
       const token = getWapi().readToken();
       if (!token) {
@@ -409,183 +573,108 @@ export default function FeedScreen({ onAuthorClick }: { onAuthorClick?: (usernam
         return;
       }
 
-      const posts: Record<string, PostRecord> = {};
       const profiles: Record<string, ProfileRecord> = {};
-
-      for (const item of feed) {
-        if (item.post_body) {
-          posts[item.post_id] = item.post_body as unknown as PostRecord;
-        }
-        const authorKey = `${item.author_username}@${item.author_provider}`;
+      for (const post of feed) {
+        const authorKey = `${post.author_username}@${post.author_provider}`;
         if (!profiles[authorKey]) {
-          // One author's profile being unreadable (e.g. their account
-          // predates the profile term) must never blank the whole feed —
-          // fall back to their username and keep going.
           let profile: ProfileRecord | null = null;
           try {
             profile =
-              item.author_username === token.username
+              post.author_username === token.username
                 ? await readProfile()
-                : await readUserProfile(item.author_username, item.author_provider);
-          } catch { /* fall through to the username fallback */ }
-          profiles[authorKey] = profile || { display_name: item.author_username };
+                : await readUserProfile(post.author_username || '');
+          } catch { /* fall through */ }
+          profiles[authorKey] = profile || { display_name: post.author_username };
         }
       }
 
-      const myPosts = await readMyPosts();
-      for (const p of myPosts) {
-        if (p._id) posts[p._id] = p;
-      }
-
-      // Resolve media refs — group by post author so cross-user media
-      // reads from the correct collection with public_media service.
-      const allMediaRefs = [...new Set(Object.values(posts).flatMap((p) => p.media_refs || []))];
+      // Resolve media refs per post
       const mMedia: Record<string, MediaRecord[]> = {};
-      if (allMediaRefs.length) {
-        // Build a post-id -> author map for grouping
-        const postAuthors = new Map<string, { username: string; provider: string }>();
-        for (const item of feed) {
-          const post = posts[item.post_id];
-          if (post && post.media_refs?.length) {
-            postAuthors.set(item.post_id, {
-              username: item.author_username,
-              provider: item.author_provider,
-            });
-          }
-        }
-        // Group refs by author
-        const refsByAuthor = new Map<string, string[]>();
-        for (const [postId, author] of postAuthors) {
-          const post = posts[postId];
-          const key = `${author.username}@${author.provider}`;
-          const existing = refsByAuthor.get(key) || [];
-          refsByAuthor.set(key, [...new Set([...existing, ...(post.media_refs || [])])]);
-        }
-        // Also handle own posts (author = current user)
-        const ownRefs = Object.entries(posts)
-          .filter(([postId]) => !postAuthors.has(postId))
-          .flatMap(([, p]) => p.media_refs || []);
-        if (ownRefs.length) {
-          refsByAuthor.set(`${token.username}@${token.provider}`, [...new Set(ownRefs)]);
-        }
-        // Resolve each author's refs — one author's media being unreadable
-        // must never blank the feed; their posts render media-less.
-        for (const [key, refs] of refsByAuthor) {
-          const [authorUsername, authorProvider] = key.split('@');
-          const isOwn = authorUsername === token.username && authorProvider === token.provider;
-          let mediaRecords: MediaRecord[] = [];
+      const flat: Record<string, MediaRecord> = {};
+      for (const post of feed) {
+        if (post.media_refs?.length) {
           try {
-            mediaRecords = await resolveMediaRefs(
-              refs,
-              { username: authorUsername, provider: authorProvider },
-              isOwn ? 'media' : 'public_media',
-            );
-          } catch { /* this author's media is skipped, not fatal */ }
-          // Assign resolved media to each post that references it
-          for (const [postId, author] of postAuthors) {
-            if (author.username === authorUsername && author.provider === authorProvider) {
-              const post = posts[postId];
-              if (post.media_refs?.length && !mMedia[postId]) {
-                mMedia[postId] = mediaRecords.filter((m) =>
-                  post.media_refs?.includes(m._id || ''),
-                );
-              }
+            const media = await resolveMediaRefs(post.media_refs);
+            mMedia[post._id || ''] = media;
+            for (const m of media) {
+              if (m._id) flat[m._id] = m;
             }
-          }
+          } catch { /* skip media for this post */ }
         }
       }
 
+      // Resolve reaction/comment counts per post
       const reactions: Record<string, number> = {};
       const comments: Record<string, number> = {};
-      const liked: Record<string, boolean> = {};
       await Promise.all(
-        feed.map(async (item) => {
-          // Per-item isolation: one post's count failing never blanks the feed.
+        feed.map(async (post) => {
           try {
             const [rc, cc] = await Promise.all([
-              countReactions('posts', item.post_id),
-              countComments(item.post_id),
+              countReactions('posts', post._id || ''),
+              countComments(post._id || ''),
             ]);
-            reactions[item.post_id] = rc;
-            comments[item.post_id] = cc;
-          } catch { /* counts stay 0 for this post */ }
+            reactions[post._id || ''] = rc;
+            comments[post._id || ''] = cc;
+          } catch { /* counts stay 0 */ }
         }),
       );
 
-      // most_reacted sorts client-side with the counts fetched above
-      // (the pull feed returns newest ordering).
-      if (sort === 'most_reacted') {
-        setItems(
-          [...feed].sort((a, b) => (reactions[b.post_id] || 0) - (reactions[a.post_id] || 0)),
-        );
-      }
-
-      // Resolve author avatars — collect unique avatar_refs from profiles
-      // and resolve them via public_media for cross-user reads.
+      // Resolve author avatars
       const avatarByAuthor: Record<string, string> = {};
-      const avatarRefsByAuthor = new Map<string, string>();
       for (const [key, profile] of Object.entries(profiles)) {
         if (profile.avatar_ref) {
           const [u, p] = key.split('@');
-          avatarRefsByAuthor.set(profile.avatar_ref, `${u}@${p}`);
-        }
-      }
-      if (avatarRefsByAuthor.size) {
-        const avatarRefs = [...avatarRefsByAuthor.keys()];
-        // Group by author
-        const avatarsByAuth = new Map<string, string[]>();
-        for (const [ref, key] of avatarRefsByAuthor) {
-          const existing = avatarsByAuth.get(key) || [];
-          avatarsByAuth.set(key, [...new Set([...existing, ref])]);
-        }
-        for (const [key, refs] of avatarsByAuth) {
-          const [u, p] = key.split('@');
-          const isOwn = u === token.username && p === token.provider;
           try {
             const avatars = await resolveMediaRefs(
-              refs,
+              [profile.avatar_ref],
               { username: u, provider: p },
-              isOwn ? 'media' : 'public_media',
+              u === token.username ? 'media' : 'public_media',
             );
-            for (const m of avatars) {
-              if (m._id) avatarByAuthor[m._id] = m.url;
-            }
-          } catch { /* this author's avatar is skipped, not fatal */ }
+            if (avatars[0]?.url) avatarByAuthor[profile.avatar_ref] = avatars[0].url;
+          } catch { /* skip */ }
         }
       }
 
-      setPostsMap(posts);
       setMediaMap(mMedia);
-      // Build flat media map for PostLightbox (keyed by media ref ID)
-      const flat: Record<string, MediaRecord> = {};
-      for (const arr of Object.values(mMedia)) {
-        for (const m of arr) {
-          if (m._id) flat[m._id] = m;
-        }
-      }
       setFlatMediaMap(flat);
       setProfileMap(profiles);
       setAvatarUrlMap(avatarByAuthor);
       setReactionMap(reactions);
       setCommentMap(comments);
-      setLikedMap(liked);
     } catch (e) {
       console.error('Failed to load feed:', e);
+      setPosts([]);
     }
     setLoading(false);
-  }, [sort]);
+  }, []);
 
   useEffect(() => {
     loadFeed();
   }, [loadFeed]);
 
-  async function handleToggleLike(postId: string, postAuthor?: string, postService?: string) {
+  // Client-side re-ranking via knob state (zero network calls per twist —
+  // the same pattern as DiscoverScreen). The Newest preset (the default)
+  // short-circuits to pure chronological in rankPosts.
+  const rankedPosts = useMemo(() => {
+    return rankPosts(
+      posts,
+      (post) => ({
+        ageMs: Date.now() - new Date(post.created_at).getTime(),
+        likes: post.likes || 0,
+        comments: post.comments || 0,
+        reposts: post.reposts || 0,
+      }),
+      knobState,
+    );
+  }, [posts, knobState]);
+
+  async function handleToggleLike(postId: string) {
     const token = getWapi().readToken();
     if (!token) return;
     setLikedMap((prev) => ({ ...prev, [postId]: !prev[postId] }));
     setReactionMap((prev) => ({ ...prev, [postId]: (prev[postId] || 0) + (likedMap[postId] ? -1 : 1) }));
     try {
-      await toggleReaction('posts', postId, 'like', token.username, token.provider, postAuthor, postService);
+      await toggleReaction(postId, 'like', token.username, token.provider);
     } catch (e) {
       console.error('Failed to toggle reaction:', e);
       setLikedMap((prev) => ({ ...prev, [postId]: !prev[postId] }));
@@ -602,77 +691,64 @@ export default function FeedScreen({ onAuthorClick }: { onAuthorClick?: (usernam
       <div className="sticky top-0 z-10 bg-background/90 backdrop-blur-md border-b border-border md:static md:border-0 md:bg-transparent md:mb-4">
         <div className="flex items-center justify-between px-4 py-3 md:px-0">
           <h1 className="font-display text-lg font-bold text-foreground">Feed</h1>
-          <Select
-            value={sort}
-            onChange={(e) => setSort(e.target.value as FeedSort)}
-            data-testid="feed-sort"
-            className="h-8 text-xs w-32 bg-elevated border-0 text-foreground"
-          >
-            <option value="newest">Newest</option>
-            <option value="oldest">Oldest</option>
-            <option value="most_reacted">Most reacted</option>
-          </Select>
         </div>
       </div>
+
+      {/* Controls: presets + knobs (the same rack as the trending page, D36) */}
+      <div className="px-4 py-3 md:px-0">
+        <KnobRack
+          state={knobState}
+          activePreset={activePreset}
+          onChange={handleKnobChange}
+          onPreset={handlePreset}
+        />
+      </div>
+
       <div className="md:px-0">
-        {!items.length ? (
+        {!posts.length ? (
           <FeedEmptyState />
         ) : (
-          items.map((item) => {
-            const post = postsMap[item.post_id];
-            if (!post) return null;
-            const authorKey = `${item.author_username}@${item.author_provider}`;
+          rankedPosts.map((post) => {
+            const authorKey = `${post.author_username}@${post.author_provider}`;
             const profile = profileMap[authorKey];
-            const mediaItems = mediaMap[item.post_id] || [];
+            const mediaItems = mediaMap[post._id || ''] || [];
 
             return (
               <PostCard
-                key={item._id || item.post_id}
+                key={post._id || post.created_at}
                 post={post}
-                authorName={profile?.display_name || item.author_username}
-                authorUsername={item.author_username}
-                authorProvider={item.author_provider}
+                authorName={profile?.display_name || post.author_username || ''}
+                authorUsername={post.author_username}
+                authorProvider={post.author_provider}
                 authorAvatar={
                   profile?.avatar_ref ? avatarUrlMap[profile.avatar_ref] : undefined
                 }
                 mediaItems={mediaItems}
-                reactionCount={reactionMap[item.post_id] || 0}
-                commentCount={commentMap[item.post_id] || 0}
-                liked={!!likedMap[item.post_id]}
-                timestamp={post.created_at || item.delivered_at}
-                onToggleLike={() => handleToggleLike(item.post_id, item.author_username, 'public_posts')}
+                reactionCount={reactionMap[post._id || ''] || 0}
+                commentCount={commentMap[post._id || ''] || 0}
+                liked={!!likedMap[post._id || '']}
+                timestamp={post.created_at}
+                onToggleLike={() => handleToggleLike(post._id || '')}
                 onCommentCountChange={(n) =>
-                  setCommentMap((prev) => ({ ...prev, [item.post_id]: n }))
+                  setCommentMap((prev) => ({ ...prev, [post._id || '']: n }))
                 }
                 onAuthorClick={onAuthorClick}
-                postAuthor={item.author_username}
-                postService={'public_posts'}
-                onOpenLightbox={() => setLightboxItem(item)}
-                isOwnPost={isOwnPost(item)}
+                onOpenLightbox={() => setLightboxPost(post)}
+                isOwnPost={isOwnPost(post)}
               />
             );
           })
         )}
       </div>
 
-      {lightboxItem && (() => {
-        const post = postsMap[lightboxItem.post_id];
-        if (!post) return null;
-        const token = getWapi().readToken();
-        const isOwner = token
-          ? lightboxItem.author_username === token.username && lightboxItem.author_provider === token.provider
-          : false;
-        return (
-          <PostLightbox
-            post={post}
-            mediaMap={flatMediaMap}
-            onClose={() => setLightboxItem(null)}
-            postAuthor={lightboxItem.author_username}
-            postService={'public_posts'}
-            isOwner={isOwner}
-          />
-        );
-      })()}
+      {lightboxPost && (
+        <PostLightbox
+          post={lightboxPost}
+          mediaMap={flatMediaMap}
+          onClose={() => setLightboxPost(null)}
+          isOwner={isOwnPost(lightboxPost)}
+        />
+      )}
     </div>
   );
 }

@@ -1,10 +1,10 @@
 # Web10 Social Group Policy Examples
 
-One group. One JSON. Service-scoped roles. Explicit permissions.
+One group. One JSON. Per-service role maps. Explicit permissions.
 
-Groups are collections of web10 users operating on data services. Roles define access, scoped to exactly which services they apply to. Default is self-focused: you only touch your own content unless explicitly granted otherwise.
+Groups are collections of web10 users operating on data services. Roles define access as a **per-service permission map** — one role per person, each role a map from service to the ops it grants. Default is self-focused: you only touch your own content unless explicitly granted otherwise.
 
-**Multiple roles per user.** A user can hold multiple roles in the same group. `alice` can be a `member` (for posts/comments) AND a `page-curator` (for group-identity-service). The DB maps `user → group → [roles]`. Roles span different services.
+**One role per user.** A user holds exactly one role in a group (D58). The per-service map makes one role fully expressive — any (service, op) matrix fits in a single map — so there's no "stack multiple roles" escape hatch. If a person needs a distinct permission set, they get a distinct role. The DB maps `user → group → role`.
 
 ## Example 1: Community Group
 
@@ -15,44 +15,40 @@ Groups are collections of web10 users operating on data services. Roles define a
   "roles": [
     {
       "name": "owner",
-      "services": ["*"],
-      "permissions": [
-        "readAll", "create", "updateOwn", "updateAll",
-        "deleteOwn", "deleteAll", "hideAll",
-        "manageRoles", "assignRoles", "revokeRoles", "deleteGroup"
-      ]
+      "permissions": {
+        "*": ["readAll", "create", "updateOwn", "updateAll", "deleteOwn", "deleteAll", "hideAll"],
+        "group": ["manageRoles", "assignRoles", "revokeRoles", "deleteGroup"]
+      }
     },
     {
       "name": "moderator",
-      "services": ["posts", "comments"],
-      "permissions": [
-        "readAll", "create", "updateOwn",
-        "deleteOwn", "hideAll",
-        "assignRoles", "revokeRoles"
-      ]
+      "permissions": {
+        "posts": ["readAll", "create", "updateOwn", "deleteOwn", "hideAll"],
+        "comments": ["readAll", "create", "updateOwn", "deleteOwn", "hideAll"],
+        "group": ["assignRoles", "revokeRoles"]
+      }
     },
     {
       "name": "page-curator",
-      "services": ["group-identity-service"],
-      "permissions": [
-        "readAll", "create", "updateOwn", "deleteOwn"
-      ]
+      "permissions": {
+        "group-identity-service": ["readAll", "create", "updateOwn", "deleteOwn"]
+      }
     },
     {
       "name": "member",
-      "services": ["posts", "comments"],
-      "permissions": [
-        "readAll", "create", "updateOwn", "deleteOwn"
-      ]
+      "permissions": {
+        "posts": ["readAll", "create", "updateOwn", "deleteOwn"],
+        "comments": ["readAll", "create", "updateOwn", "deleteOwn"]
+      }
     }
   ]
 }
 ```
 
-**Service-scoped roles.** Each role lists the services it applies to:
+**Per-service role maps.** Each role is a map from service to the ops it grants — the map *is* the scope:
 - `moderator` and `member` only touch `posts` and `comments`.
 - `page-curator` only touches `group-identity-service` (banner, name, website).
-- `owner` touches everything (`"*"`).
+- `owner` touches everything (`"*"`) plus the management ops under the reserved `"group"` key.
 
 **Explicit, self-focused permissions.** Default is you only touch your own stuff. `updateAll` and `deleteAll` are reserved for v2 collaboration. `hideAll` is the moderation power.
 
@@ -78,13 +74,9 @@ The public board. Everyone is a member by default. Replaces the `discover: true`
   "roles": [
     {
       "name": "member",
-      "services": ["posts"],
-      "permissions": [
-        "readAll",
-        "create",
-        "updateOwn",
-        "deleteOwn"
-      ]
+      "permissions": {
+        "posts": ["readAll", "create", "updateOwn", "deleteOwn"]
+      }
     }
   ]
 }
@@ -109,22 +101,16 @@ A private group. The creator is the only owner. Approved friends are members. Me
   "roles": [
     {
       "name": "owner",
-      "services": ["*"],
-      "permissions": [
-        "readAll", "create", "updateOwn", "updateAll",
-        "deleteOwn", "deleteAll", "hideAll",
-        "manageRoles", "assignRoles", "revokeRoles", "deleteGroup"
-      ]
+      "permissions": {
+        "*": ["readAll", "create", "updateOwn", "updateAll", "deleteOwn", "deleteAll", "hideAll"],
+        "group": ["manageRoles", "assignRoles", "revokeRoles", "deleteGroup"]
+      }
     },
     {
       "name": "member",
-      "services": ["posts"],
-      "permissions": [
-        "readAll",
-        "create",
-        "updateOwn",
-        "deleteOwn"
-      ]
+      "permissions": {
+        "posts": ["readAll", "create", "updateOwn", "deleteOwn"]
+      }
     }
   ]
 }
@@ -150,19 +136,16 @@ Following a public profile is a group join. The user's followers group uses `joi
   "roles": [
     {
       "name": "owner",
-      "services": ["*"],
-      "permissions": [
-        "readAll", "create", "updateOwn", "updateAll",
-        "deleteOwn", "deleteAll", "hideAll",
-        "manageRoles", "assignRoles", "revokeRoles", "deleteGroup"
-      ]
+      "permissions": {
+        "*": ["readAll", "create", "updateOwn", "updateAll", "deleteOwn", "deleteAll", "hideAll"],
+        "group": ["manageRoles", "assignRoles", "revokeRoles", "deleteGroup"]
+      }
     },
     {
       "name": "member",
-      "services": ["posts"],
-      "permissions": [
-        "readAll"
-      ]
+      "permissions": {
+        "posts": ["readAll"]
+      }
     }
   ]
 }

@@ -40,11 +40,34 @@ jobs:
             # fetch the branch explicitly, then force the local branch to it)
             cd /opt/web10
             git fetch origin dev
-            git checkout -B dev FETCH_HEAD
+            git reset --hard FETCH_HEAD
 
             # Restore .env symlink if broken (GitOps re-clone can wipe it)
             if [[ ! -L ubuntu-deployment/.env ]] || [[ ! -f ubuntu-deployment/.env ]]; then
               ln -sfn ~/web10-ops/.env ubuntu-deployment/.env
+            fi
+            # Restore env files if missing (git clean or manual ops can wipe them)
+            # Try ~/web10-ops/ first (has real secrets), fall back to .example files
+            if [[ ! -f ubuntu-deployment/env.dev ]]; then
+              if [[ -f ~/web10-ops/env.dev ]]; then
+                cp ~/web10-ops/env.dev ubuntu-deployment/env.dev
+              else
+                cp ubuntu-deployment/env.dev.example ubuntu-deployment/env.dev
+              fi
+            fi
+            # Ensure MINIO_PASSWORD is set (the only real secret needed)
+            if ! grep -q '^MINIO_PASSWORD=.+' ubuntu-deployment/env.dev 2>/dev/null; then
+              sed -i "s|^MINIO_PASSWORD=.*|MINIO_PASSWORD=$(openssl rand -base64 32)|" ubuntu-deployment/env.dev
+            fi
+            if [[ ! -f ubuntu-deployment/env.prod ]]; then
+              if [[ -f ~/web10-ops/env.prod ]]; then
+                cp ~/web10-ops/env.prod ubuntu-deployment/env.prod
+              else
+                cp ubuntu-deployment/env.prod.example ubuntu-deployment/env.prod
+              fi
+            fi
+            if ! grep -q '^MINIO_PASSWORD=.+' ubuntu-deployment/env.prod 2>/dev/null; then
+              sed -i "s|^MINIO_PASSWORD=.*|MINIO_PASSWORD=$(openssl rand -base64 32)|" ubuntu-deployment/env.prod
             fi
 
             # Source env for per-stack vars
@@ -54,7 +77,7 @@ jobs:
 
             # Compute status vars for the baked status.json (E9)
             export GIT_COMMIT=$(git rev-parse --short HEAD)
-            export STATUS_VERSION=$(head -1 CHANGELOG.md | sed 's/[| ].*//' | tr -d '[:space:]')
+            export STATUS_VERSION=$(head -1 knowledge/changelogs/CHANGELOG.md | sed 's/[| ].*//' | tr -d '[:space:]')
 
             # Build and deploy the stack
             cd ubuntu-deployment
@@ -120,11 +143,33 @@ jobs:
             # fetch the branch explicitly, then force the local branch to it)
             cd /opt/web10
             git fetch origin main
-            git checkout -B main FETCH_HEAD
+            git reset --hard FETCH_HEAD
 
             # Restore .env symlink if broken
             if [[ ! -L ubuntu-deployment/.env ]] || [[ ! -f ubuntu-deployment/.env ]]; then
               ln -sfn ~/web10-ops/.env ubuntu-deployment/.env
+            fi
+            # Restore env files if missing
+            if [[ ! -f ubuntu-deployment/env.dev ]]; then
+              if [[ -f ~/web10-ops/env.dev ]]; then
+                cp ~/web10-ops/env.dev ubuntu-deployment/env.dev
+              else
+                cp ubuntu-deployment/env.dev.example ubuntu-deployment/env.dev
+              fi
+            fi
+            # Ensure MINIO_PASSWORD is set
+            if ! grep -q '^MINIO_PASSWORD=.+' ubuntu-deployment/env.dev 2>/dev/null; then
+              sed -i "s|^MINIO_PASSWORD=.*|MINIO_PASSWORD=$(openssl rand -base64 32)|" ubuntu-deployment/env.dev
+            fi
+            if [[ ! -f ubuntu-deployment/env.prod ]]; then
+              if [[ -f ~/web10-ops/env.prod ]]; then
+                cp ~/web10-ops/env.prod ubuntu-deployment/env.prod
+              else
+                cp ubuntu-deployment/env.prod.example ubuntu-deployment/env.prod
+              fi
+            fi
+            if ! grep -q '^MINIO_PASSWORD=.+' ubuntu-deployment/env.prod 2>/dev/null; then
+              sed -i "s|^MINIO_PASSWORD=.*|MINIO_PASSWORD=$(openssl rand -base64 32)|" ubuntu-deployment/env.prod
             fi
 
             # Source env for per-stack vars
@@ -134,7 +179,7 @@ jobs:
 
             # Compute status vars for the baked status.json (E9)
             export GIT_COMMIT=$(git rev-parse --short HEAD)
-            export STATUS_VERSION=$(head -1 CHANGELOG.md | sed 's/[| ].*//' | tr -d '[:space:]')
+            export STATUS_VERSION=$(head -1 knowledge/changelogs/CHANGELOG.md | sed 's/[| ].*//' | tr -d '[:space:]')
 
             # Build and deploy the stack
             cd ubuntu-deployment

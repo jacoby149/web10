@@ -1,70 +1,48 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
+import * as v3 from '../data/v3';
 
-// Bug A regression: web10-social builds TWO wapi/client instances — one for
-// auth (the adapter) and a separate one for the data layer (createWapiWrapper).
-// Both read the token cookie once at init; a FRESH login sets the token only on
-// the auth instance, so the data-layer instance stayed tokenless and every CRUD
-// threw "not authenticated" until a page refresh. Web10SocialAdapter now mirrors
-// the token onto the data-layer instance on login. This test pins that.
-//
-// The web10-npm mock returns a DISTINCT instance per wapiInit() call, mirroring
-// reality (auth instance !== data-layer instance) — a single shared instance
-// would hide the bug.
-const h = vi.hoisted(() => {
-  const instances: any[] = [];
-  const make = () => {
-    const w: any = { token: null, _cb: null };
-    w.setToken = (t: string) => { w.token = t; };
-    w.authListen = (cb: () => void) => { w._cb = cb; };
-    w.isSignedIn = () => w.token != null;
-    w.readToken = () => (w.token ? { provider: 'p', username: 'u' } : null);
-    const noop = () => undefined;
-    for (const m of [
-      'signOut', 'scrubToken', 'openAuthPortal', 'SMROnReady', 'SMRResponseListen',
-      'getTieredToken', 'send', 'initP2P', 'read', 'create', 'update', 'delete',
-      'aggregate', 'getUploadUrl',
-    ]) w[m] = noop;
-    instances.push(w);
-    return w;
-  };
-  return { instances, make };
-});
+// v3 stub: the token handoff bug (Bug A) no longer applies because v3 uses a
+// single client instance. This stub verifies the v3 client's token handling
+// works correctly — setToken propagates to readToken and isSignedIn.
 
-vi.mock('web10-npm', () => ({
-  wapiInit: () => h.make(),
-  wapiAuthInit: () => ({}),
-}));
+function makeFakeJwt(): string {
+  const header = btoa(JSON.stringify({ alg: 'none' }));
+  const payload = btoa(JSON.stringify({ username: 'testuser', provider: 'test.localhost' }));
+  return `${header}.${payload}.fake`;
+}
 
-import web10SocialAdapterInit from '../interfaces/Web10SocialAdapter';
-import { getWapi, resetWapi } from '../data/wapi';
+describe('v3 token handling', () => {
+  const client = v3.getV3Client();
 
-describe('Bug A — token hand-off to the data layer', () => {
   beforeEach(() => {
-    resetWapi();
-    h.instances.length = 0;
+    client.scrubToken();
   });
 
-  it('leaves the data-layer instance tokenless at mount, then propagates the token on login', () => {
-    web10SocialAdapterInit();
+  it('setToken makes the client signed-in and readable', () => {
+    expect(client.isSignedIn()).toBe(false);
+    expect(client.readToken()).toBeNull();
 
-    // wapiInit called twice: [0] auth (adapter), [1] data-layer (createWapiWrapper)
-    const authWapi = h.instances[0];
-    const dataWapi = h.instances[1];
-    expect(h.instances.length).toBe(2);
+    client.setToken(makeFakeJwt());
+    expect(client.isSignedIn()).toBe(true);
+    const token = client.readToken();
+    expect(token).not.toBeNull();
+    expect(token?.username).toBe('testuser');
+  });
 
-    // At mount, before any login: the data-layer instance has no token — this is
-    // the state that used to strand every CRUD call.
-    expect(dataWapi.token).toBeNull();
-    expect(getWapi().readToken()).toBeNull();
+  it('scrubToken clears the token', () => {
+    client.setToken(makeFakeJwt());
+    expect(client.isSignedIn()).toBe(true);
 
-    // Login lands: the SDK sets the token on the AUTH instance (+ cookie) and
-    // fires its authListen callback. Simulate that sequence.
-    authWapi.token = 'HEADER.PAYLOAD.SIG';
-    authWapi._cb();
+    client.scrubToken();
+    expect(client.isSignedIn()).toBe(false);
+    expect(client.readToken()).toBeNull();
+  });
 
-    // The fix mirrors it onto the data-layer instance, so the data layer is now
-    // authenticated without a page refresh.
-    expect(dataWapi.token).toBe('HEADER.PAYLOAD.SIG');
-    expect(getWapi().readToken()).toEqual({ provider: 'p', username: 'u' });
+  it('signOut clears the token', () => {
+    client.setToken(makeFakeJwt());
+    expect(client.isSignedIn()).toBe(true);
+
+    client.signOut();
+    expect(client.isSignedIn()).toBe(false);
   });
 });

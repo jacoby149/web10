@@ -10,31 +10,49 @@ ELAPSED=0
 
 echo "⏳ Waiting for e2e stack to be healthy..."
 
+check_service() {
+  local name="$1" url="$2"
+  if curl -sf "$url" > /dev/null 2>&1; then
+    echo "  ✓ $name"
+    return 0
+  else
+    echo "  ✗ $name ($url)"
+    return 1
+  fi
+}
+
 while [ $ELAPSED -lt $TIMEOUT ]; do
   ALL_UP=true
+  echo ""
+  echo "--- health check at ${ELAPSED}s ---"
 
   # Check API
-  if ! curl -sf http://api.localhost/ready > /dev/null 2>&1; then
+  if ! check_service "api" "http://api.localhost/ready"; then
     ALL_UP=false
   fi
 
   # Check auth UI
-  if ! curl -sf http://auth.localhost > /dev/null 2>&1; then
+  if ! check_service "auth" "http://auth.localhost"; then
     ALL_UP=false
   fi
 
   # Check marketing UI
-  if ! curl -sf http://marketing.localhost > /dev/null 2>&1; then
+  if ! check_service "marketing" "http://marketing.localhost"; then
     ALL_UP=false
   fi
 
   # Check social UI
-  if ! curl -sf http://social.localhost > /dev/null 2>&1; then
+  if ! check_service "social" "http://social.localhost"; then
+    ALL_UP=false
+  fi
+
+  # Check SDK (serves demo apps)
+  if ! check_service "sdk" "http://sdk.localhost"; then
     ALL_UP=false
   fi
 
   # Check marketing-api
-  if ! curl -sf http://marketing-api.localhost/health > /dev/null 2>&1; then
+  if ! check_service "marketing-api" "http://marketing-api.localhost/v3/infra/health"; then
     ALL_UP=false
   fi
 
@@ -45,7 +63,6 @@ while [ $ELAPSED -lt $TIMEOUT ]; do
 
   sleep $INTERVAL
   ELAPSED=$((ELAPSED + INTERVAL))
-  printf "\r⏳ Elapsed: %ds / %ds..." "$ELAPSED" "$TIMEOUT"
 done
 
 echo ""

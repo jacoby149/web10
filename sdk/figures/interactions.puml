@@ -1,28 +1,24 @@
 @startuml
 user-> web10_app : login
 web10_app->web10_auth:request poppup
-web10_app->web10_auth:send SMR
+web10_app->web10_auth:send contract
 web10_auth->user:poppup
 user->web10_auth: authenticator login
 web10_auth -> web10_api : login request
 web10_api -> web10_auth : auth level token
-user->web10_auth : approve SMR
+user->web10_auth : approve contract
 web10_auth -> web10_api : update service term
 user-> web10_auth : approve login
 web10_auth -> web10_api : login request
 web10_api -> web10_auth : app level token
 web10_auth -> web10_app : app level token
 user-> web10_app : interface with app
-web10_app-> mobile_encryptor : encryption request
-mobile_encryptor->web10_app : encryption response
 web10_app -> web10_api : CRUD request
 web10_api -> web10_app : response
 user -> web10_app : connect to friend
 web10_app -> web10rtc : authenticate with web10rtc
 web10rtc -> web10_app : peerid
 user -> web10_app : interact with friends
-web10_app-> mobile_encryptor : encryption request
-mobile_encryptor->web10_app : encryption response
 web10_app -> friend : send data
 friend -> web10_app : recieve data
 friend -> web10_api : CRUD request

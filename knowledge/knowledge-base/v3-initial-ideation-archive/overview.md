@@ -28,9 +28,9 @@ graph TB
     end
 
     subgraph API
-        CRUD["CRUD Endpoints\n/{user}/{service}"]
-        Groups["Groups Endpoint\n/groups"]
-        Media["Media Endpoint\n/{user}/upload, /read, /list, /delete"]
+        CRUD["CRUD Endpoints<br/>/{user}/{service}"]
+        Groups["Groups Endpoint<br/>/groups"]
+        Media["Media Endpoint<br/>/{user}/upload, /read, /list, /delete"]
     end
 
     subgraph ClickHouse
@@ -41,7 +41,7 @@ graph TB
     end
 
     subgraph MinIO
-        Blobs["Media Blobs\n(presigned URLs)"]
+        Blobs["Media Blobs<br/>(presigned URLs)"]
     end
 
     App --> CRUD
@@ -347,22 +347,22 @@ Both must pass. The app needs a service contract to even make the call. The grou
 
 ```mermaid
 flowchart LR
-    subgraph Service["Service Contract\n(outer wall)"]
-        S["service:posts\nallowed: twitter-clone.web10.com"]
+    subgraph Service["Service Contract<br/>(outer wall)"]
+        S["service:posts<br/>allowed: twitter-clone.web10.com"]
     end
 
-    subgraph Group["Group Contract\n(inner permissions)"]
-        G["jazz-collectors\nmembers: alice, dave, eve"]
+    subgraph Group["Group Contract<br/>(inner permissions)"]
+        G["jazz-collectors<br/>members: alice, dave, eve"]
     end
 
     subgraph Post["Document"]
-        P["Attached to\njazz-collectors"]
+        P["Attached to<br/>jazz-collectors"]
     end
 
     S --> Q{"App allowed?"}
     Q -->|"yes"| G
     G --> P
-    P --> Result["dave sees post\nvia twitter-clone"]
+    P --> Result["dave sees post<br/>via twitter-clone"]
 
     style S fill:#ffebee,stroke:#c62828,color:#000
     style G fill:#e8f5e9,stroke:#2e7d32,color:#000
@@ -378,13 +378,13 @@ A document is private by default. Attaching it to a group makes it visible to gr
 
 ```mermaid
 flowchart TD
-    A["User requests\ndocuments"] --> B{"discover flag?"}
-    B -->|"false"| C["Only user's own documents\n(groups don't matter)"]
+    A["User requests<br/>documents"] --> B{"discover flag?"}
+    B -->|"false"| C["Only user's own documents<br/>(groups don't matter)"]
     B -->|"true"| D["Group membership check"]
 
-    D --> E{"Is requester a member\nof any group the document\nis attached to?"}
+    D --> E{"Is requester a member<br/>of any group the document<br/>is attached to?"}
     E -->|"yes"| F["Show it"]
-    E -->|"no"| G{"Is requester\nthe author?"}
+    E -->|"no"| G{"Is requester<br/>the author?"}
     G -->|"yes"| F
     G -->|"no"| H["Hide it"]
 
@@ -401,14 +401,14 @@ Groups are not data containers. They hold people and roles. Any document from an
 ```mermaid
 graph TB
     subgraph Platform
-        GroupsAPI["Groups CRUD\n/groups"]
+        GroupsAPI["Groups CRUD<br/>/groups"]
         ContractsTable["group_contracts"]
         MembersTable["group_members"]
     end
 
     subgraph SocialApp
         SocialPosts["Posts attached to groups"]
-        SocialFeed["Group feed\n?discover=true"]
+        SocialFeed["Group feed<br/>?discover=true"]
     end
 
     subgraph MusicApp

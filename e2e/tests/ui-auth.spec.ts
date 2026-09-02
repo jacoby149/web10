@@ -12,16 +12,9 @@ test.describe('ui auth flows', () => {
     const username = uniqueUser();
     const password = 'TestPass123!';
 
-    const res = await request.post(`${API_BASE}/signup`, {
-      data: {
-        provider: 'api.localhost',
-        username,
-        password,
-        new_pass: password,
-        retypepass: password,
-        phone: '+15551234567',
-        betacode: 'web10betacode',
-      },
+    const res = await request.post(`${API_BASE}/v3/signup`, {
+      data: JSON.stringify({ username, password, phone: '+15551234567' }),
+      headers: { 'Content-Type': 'application/json' },
     });
     expect(res.ok()).toBeTruthy();
   });
@@ -31,26 +24,15 @@ test.describe('ui auth flows', () => {
     const password = 'TestPass123!';
 
     // Signup first
-    await request.post(`${API_BASE}/signup`, {
-      data: {
-        provider: 'api.localhost',
-        username,
-        password,
-        new_pass: password,
-        retypepass: password,
-        phone: '+15551234567',
-        betacode: 'web10betacode',
-      },
+    await request.post(`${API_BASE}/v3/signup`, {
+      data: JSON.stringify({ username, password, phone: '+15551234567' }),
+      headers: { 'Content-Type': 'application/json' },
     });
 
     // Login
-    const res = await request.post(`${API_BASE}/web10token`, {
-      data: {
-        username,
-        password,
-        site: 'auth.localhost',
-        target: username,
-      },
+    const res = await request.post(`${API_BASE}/v3/login`, {
+      data: JSON.stringify({ username, password }),
+      headers: { 'Content-Type': 'application/json' },
     });
     expect(res.ok()).toBeTruthy();
     const body = await res.json();
@@ -61,25 +43,14 @@ test.describe('ui auth flows', () => {
     const username = uniqueUser();
     const password = 'CorrectPass123!';
 
-    await request.post(`${API_BASE}/signup`, {
-      data: {
-        provider: 'api.localhost',
-        username,
-        password,
-        new_pass: password,
-        retypepass: password,
-        phone: '+15551234568',
-        betacode: 'web10betacode',
-      },
+    await request.post(`${API_BASE}/v3/signup`, {
+      data: JSON.stringify({ username, password, phone: '+15551234568' }),
+      headers: { 'Content-Type': 'application/json' },
     });
 
-    const res = await request.post(`${API_BASE}/web10token`, {
-      data: {
-        username,
-        password: 'WrongPassword',
-        site: 'auth.localhost',
-        target: username,
-      },
+    const res = await request.post(`${API_BASE}/v3/login`, {
+      data: JSON.stringify({ username, password: 'WrongPassword' }),
+      headers: { 'Content-Type': 'application/json' },
     });
     expect(res.ok()).toBeFalsy();
   });

@@ -4,6 +4,15 @@ import { cn } from '@/lib/utils'
 
 export type AppCardSize = 'default' | 'plug' | 'browse'
 
+// The `?api=` override (isolated e2e stacks on a non-80 port) must survive
+// the card → product-page navigation — the detail page derives its API
+// origin the same way the store does.
+function apiQuery(): string {
+  if (typeof window === 'undefined') return ''
+  const api = new URLSearchParams(window.location.search).get('api')
+  return api ? `?api=${encodeURIComponent(api)}` : ''
+}
+
 export interface AppCardProps {
   iconSrc?: string
   iconLetter?: string
@@ -11,6 +20,7 @@ export interface AppCardProps {
   description: string
   href: string
   visits?: number
+  metricLabel?: string
   flagship?: boolean
   skeleton?: boolean
   size?: AppCardSize
@@ -25,6 +35,7 @@ function CardContent({
   name,
   description,
   visits,
+  metricLabel,
   badge,
   flagship,
   size,
@@ -35,6 +46,7 @@ function CardContent({
   name: string
   description: string
   visits?: number
+  metricLabel?: string
   badge?: string
   flagship?: boolean
   size: AppCardSize
@@ -80,7 +92,7 @@ function CardContent({
   const visitsEl =
     visits !== undefined && visits >= 0 ? (
       <span className="text-xs text-muted-foreground">
-        {visits.toLocaleString()} {visits === 1 ? 'visit' : 'visits'}
+        {visits.toLocaleString()} {metricLabel ?? (visits === 1 ? 'visit' : 'visits')}
       </span>
     ) : null
 
@@ -159,6 +171,7 @@ export function AppCard({
   description,
   href,
   visits,
+  metricLabel,
   flagship,
   skeleton,
   size = 'default',
@@ -200,6 +213,7 @@ export function AppCard({
       name={name}
       description={description}
       visits={visits}
+      metricLabel={metricLabel}
       badge={badge}
       flagship={flagship}
       size={size}
@@ -210,7 +224,7 @@ export function AppCard({
   if (appId) {
     return (
       <Link
-        to={`/app-store/app/${appId}`}
+        to={`/app-store/app/${encodeURIComponent(appId)}${apiQuery()}`}
         className="group block"
         data-testid={testId ?? 'app-card'}
       >

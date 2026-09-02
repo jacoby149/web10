@@ -1,40 +1,11 @@
 import React from 'react';
-import { Globe, ShieldCheck, Check, X, ChevronDown, ChevronRight, ArrowRight, Plus, Minus } from 'lucide-react';
+import { Globe, Check, X, ChevronDown, ChevronRight, ArrowRight, Plus, Minus, Users } from 'lucide-react';
 import Branding from '../shared/Branding';
 import LoginForm from '../CredentialPage/LoginForm';
 import SignupForm from '../CredentialPage/SignupForm';
 import ForgotForm from '../CredentialPage/ForgotForm';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
-
-// A whitelist/blacklist entry is {username, provider, <action>: true}. Render a
-// readable anchor + granted actions defensively (never throw on odd shapes).
-function entryAnchor(e: any): string {
-  if (!e || typeof e !== 'object') return String(e);
-  const u = e.username === '.*' || e.username == null ? 'anyone' : e.username;
-  const p = e.provider && e.provider !== '.*' ? `@${e.provider}` : '';
-  return `${u}${p}`;
-}
-function entryActions(e: any): string[] {
-  if (!e || typeof e !== 'object') return [];
-  const meta = new Set(['username', 'provider', 'anchor', 'allowed', 'denied']);
-  return Object.keys(e).filter((k) => !meta.has(k) && e[k] === true);
-}
-function entryLabel(e: any): string {
-  const a = entryActions(e);
-  return `${entryAnchor(e)}${a.length ? ` · ${a.join(', ')}` : ''}`;
-}
-
-// A one-line plain-English summary of what a request grants.
-function summarize(req: any): string {
-  const actions = new Set<string>();
-  (Array.isArray(req.whitelist) ? req.whitelist : []).forEach((w: any) =>
-    entryActions(w).forEach((a) => actions.add(a)),
-  );
-  const verbs = actions.size ? Array.from(actions).join('/') : 'access';
-  const sites = Array.isArray(req.cross_origins) ? req.cross_origins.length : 0;
-  return `${verbs} · ${sites} ${sites === 1 ? 'site' : 'sites'}`;
-}
 
 // diff two string lists → {added, removed, same}
 function diffStrings(current: string[], next: string[]) {
@@ -75,26 +46,73 @@ function Chip({ tone = 'default', children }: { tone?: 'default' | 'add' | 'remo
   );
 }
 
+// Derive a readable origin label — handle both "dev.web10.app" and "https://dev.web10.app"
+function originLabel(origin: string): string {
+  try {
+    const url = origin.startsWith('http') ? new URL(origin) : new URL(`https://${origin}`)
+    return url.hostname
+  } catch { return origin }
+}
+
+// Build a one-line summary of what an ACR grants.
+function summarizeACR(acr: any): string {
+  const perms = acr.permissions || {};
+  const services = Object.keys(perms);
+  const actions = new Set<string>();
+  Object.values(perms).forEach((ops: string[]) => ops.forEach((a) => actions.add(a)));
+  const verbs = actions.size ? Array.from(actions).join('/') : 'access';
+  return `${verbs} on ${services.join(', ')}`;
+}
+
+// Build a one-line summary of what a group CR requests.
+function summarizeGCR(gcr: any): string {
+  const action = gcr.action || 'group operation';
+  // Support both new typed fields and old params bag
+  const params = gcr.params || {};
+  const name = gcr.name || params.name || '';
+  const groupId = gcr.group_id || params.group_id || '';
+  if (action === 'create_group') {
+    return `create group "${name}"`;
+  }
+  if (action === 'update_group') {
+    const changes = Object.keys(params).filter(k => k !== 'group_id').join(', ');
+    return `update group "${groupId}" — ${changes || 'settings'}`;
+  }
+  return `${action}${name ? ` "${name}"` : ''}`;
+}
+
 function RequestRow({
-  req,
-  kind,
+  contract,
   current,
   onApprove,
   onDeny,
   idx,
 }: {
-  req: any;
-  kind: 'new' | 'change';
+  contract: any;
   current: any | undefined;
   onApprove: () => void;
   onDeny: () => void;
   idx: number;
 }) {
   const [open, setOpen] = React.useState(false);
-  const sites: string[] = Array.isArray(req.cross_origins) ? req.cross_origins : [];
-  const allows: any[] = Array.isArray(req.whitelist) ? req.whitelist : [];
-  const blocks: any[] = Array.isArray(req.blacklist) ? req.blacklist : [];
-  const siteDiff = kind === 'change' && current ? diffStrings(current.cross_origins || [], sites) : null;
+  const isACR = contract.kind === 'app';
+  const isGCR = contract.kind === 'group';
+  const origin = contract.app_origin || contract.allowed_origin;
+  const perms = isACR ? (contract.permissions || {}) : {};
+  const services = Object.keys(perms);
+  const action = isGCR ? (contract.action || '') : '';
+  const params = isGCR ? (contract.params || {}) : {};
+
+  // Diff permissions against existing contract for each service (ACR only)
+  const permDiffs: Record<string, { added: string[]; removed: string[]; same: string[] }> = {};
+  if (isACR && current) {
+    const currentPerms = current.permissions || {};
+    for (const svc of services) {
+      const currentOps = currentPerms[svc] || [];
+      const nextOps = perms[svc] || [];
+      permDiffs[svc] = diffStrings(currentOps, nextOps);
+    }
+  }
 
   return (
     <div className="rounded-lg border border-border bg-elevated" data-testid={`consent-req-${idx}`}>
@@ -111,12 +129,14 @@ function RequestRow({
           </span>
           <span className="min-w-0">
             <span className="flex items-center gap-2">
-              <span className="truncate font-medium text-foreground">{req.service}</span>
+              <span className="truncate font-medium text-foreground">{originLabel(origin)}</span>
               <span className="shrink-0 rounded-full bg-brand-muted px-2 py-0.5 text-[11px] font-medium text-brand-300">
-                {kind === 'new' ? 'new access' : 'change'}
+                {isACR ? 'access request' : 'group request'}
               </span>
             </span>
-            <span className="mt-0.5 block truncate text-xs text-muted-foreground">{summarize(req)}</span>
+            <span className="mt-0.5 block truncate text-xs text-muted-foreground">
+              {isACR ? summarizeACR(contract) : summarizeGCR(contract)}
+            </span>
           </span>
         </button>
         <div className="flex shrink-0 items-center gap-1.5">
@@ -128,7 +148,7 @@ function RequestRow({
             variant="ghost"
             size="sm"
             onClick={onDeny}
-            aria-label={`Deny ${req.service}`}
+            aria-label={`Deny ${originLabel(origin)}`}
             data-testid={`consent-deny-${idx}`}
             className="text-muted-foreground hover:text-danger"
           >
@@ -137,42 +157,53 @@ function RequestRow({
         </div>
       </div>
 
-      {open && (
-        <div className="border-t border-border px-3.5 py-3 text-sm">
-          <DetailRow label={kind === 'change' ? 'Sites (changes highlighted)' : 'Sites with access'}>
-            {siteDiff ? (
-              <>
-                {siteDiff.same.map((s, i) => (
-                  <Chip key={`s${i}`}><Globe className="h-3 w-3 text-muted-foreground" strokeWidth={1.5} />{s}</Chip>
-                ))}
-                {siteDiff.added.map((s, i) => (
-                  <Chip key={`a${i}`} tone="add">{s}</Chip>
-                ))}
-                {siteDiff.removed.map((s, i) => (
-                  <Chip key={`r${i}`} tone="remove">{s}</Chip>
-                ))}
-                {siteDiff.same.length + siteDiff.added.length + siteDiff.removed.length === 0 && (
-                  <span className="text-xs text-muted-foreground">No sites</span>
-                )}
-              </>
-            ) : sites.length ? (
-              sites.map((s, i) => (
-                <Chip key={i}><Globe className="h-3 w-3 text-muted-foreground" strokeWidth={1.5} />{s}</Chip>
-              ))
-            ) : (
-              <span className="text-xs text-muted-foreground">No sites</span>
-            )}
-          </DetailRow>
+          {open && (
+            <div className="border-t border-border px-3.5 py-3 text-sm">
+              <DetailRow label="Site">
+                <Chip><Globe className="h-3 w-3 text-muted-foreground" strokeWidth={1.5} />{originLabel(origin)}</Chip>
+              </DetailRow>
 
-          {allows.length > 0 && (
-            <DetailRow label="Allowed">
-              {allows.map((w, i) => <Chip key={i} tone="add">{entryLabel(w)}</Chip>)}
+          {isACR && services.map((svc) => (
+            <DetailRow key={svc} label={`Permissions (${svc})`}>
+              {current && permDiffs[svc] ? (
+                <>
+                  {permDiffs[svc].same.map((p, i) => (
+                    <Chip key={`s${i}`}>{p}</Chip>
+                  ))}
+                  {permDiffs[svc].added.map((p, i) => (
+                    <Chip key={`a${i}`} tone="add">{p}</Chip>
+                  ))}
+                  {permDiffs[svc].removed.map((p, i) => (
+                    <Chip key={`r${i}`} tone="remove">{p}</Chip>
+                  ))}
+                  {permDiffs[svc].same.length + permDiffs[svc].added.length + permDiffs[svc].removed.length === 0 && (
+                    <span className="text-xs text-muted-foreground">No permissions</span>
+                  )}
+                </>
+              ) : (
+                (perms[svc] || []).map((p: string, i: number) => (
+                  <Chip key={i} tone="add">{p}</Chip>
+                ))
+              )}
             </DetailRow>
-          )}
-          {blocks.length > 0 && (
-            <DetailRow label="Blocked">
-              {blocks.map((w, i) => <Chip key={i} tone="remove">{entryLabel(w)}</Chip>)}
-            </DetailRow>
+          ))}
+
+          {isGCR && (
+            <>
+              <DetailRow label="Action">
+                <Chip><Users className="h-3 w-3 text-muted-foreground" strokeWidth={1.5} />{action}</Chip>
+              </DetailRow>
+              {params.name && (
+                <DetailRow label="Group name">
+                  <Chip>{params.name}</Chip>
+                </DetailRow>
+              )}
+              {params.join_policy && (
+                <DetailRow label="Join policy">
+                  <Chip>{params.join_policy}</Chip>
+                </DetailRow>
+              )}
+            </>
           )}
         </div>
       )}
@@ -190,20 +221,55 @@ function ConsentView({ I }: { I: Record<string, any> }) {
   }, [I._referrerHost]);
 
   const authed = I.isAuthenticated?.();
-  const services: any[] = I.services || [];
-  const grantedNames = new Set(services.map((s) => s.service));
-  const sirs: any[] = I.SMR?.sirs || [];
-  const scrs: any[] = I.SMR?.scrs || [];
+  const v3Contracts: any[] = I.v3Contracts || [];
+  const grantedOrigins = new Set(v3Contracts.map((c: any) => c.allowed_origin));
+  // Unified pending list — ACRs and GCRs together
+  const pendingContracts: any[] = I.pendingContracts || [];
+  const username = I.v3?.readToken?.()?.username as string | undefined;
+  const expectedUser = I._expectedUser as string | undefined;
+  // D42 identity: the popup's session user ≠ the user the opener is acting for.
+  // On mismatch the popup must not treat "already granted" as "all set" (the
+  // grant is for the wrong user) and must not auto-complete.
+  const mismatch = !!(expectedUser && authed && username && username !== expectedUser);
+  console.log('[consent] pendingContracts:', pendingContracts, 'grantedOrigins:', grantedOrigins, 'mismatch:', mismatch, 'expectedUser:', expectedUser || '(none)');
 
-  // Only ask for what's actually new. A SIR for a service you've already
-  // granted isn't re-asked (re-approving it just makes a duplicate); it's
-  // shown as "already shared". Changes (SCRs) are always something to review.
-  const alreadyShared: string[] = sirs.filter((s) => grantedNames.has(s.service)).map((s) => s.service);
-  const requests = [
-    ...sirs.filter((s) => !grantedNames.has(s.service)).map((s) => ({ req: s, kind: 'new' as const })),
-    ...scrs.map((s) => ({ req: s, kind: 'change' as const })),
-  ];
-  const username = I.wapi?.readToken?.()?.username as string | undefined;
+  // An ACR is "already granted" when its origin holds every requested permission.
+  const isAlreadyGranted = (c: any): boolean => {
+    if (c.kind !== 'app') return false;
+    const origin = c.app_origin || c.allowed_origin;
+    const existing = v3Contracts.find((vc: any) => vc.allowed_origin === origin);
+    if (!existing) return false;
+    const reqPerms = c.permissions || {};
+    for (const service of Object.keys(reqPerms)) {
+      const existingPerms = existing.permissions?.[service] || [];
+      for (const perm of reqPerms[service]) {
+        if (!existingPerms.includes(perm)) return false;
+      }
+    }
+    return true;
+  };
+  // On mismatch, show the requests unfiltered — "already granted" is for the
+  // wrong user, so presenting it as a request (not "all set") is the honest
+  // state. (The SDK rejects the returned token as a backstop.)
+  const displayContracts = mismatch
+    ? pendingContracts
+    : pendingContracts.filter((c: any) => c.kind !== 'app' || !isAlreadyGranted(c));
+
+  // D42 auto-complete: signed in, a contract was received, nothing is left to
+  // show (every contract is either already granted — filtered out — or already
+  // resolved by the user), and no identity mismatch → hand back the token and
+  // close, zero UI. This replaces the old "all set" screen + Close-window tap:
+  // the return run (already granted) and the first login (after the user
+  // approves) both settle here with zero taps.
+  const allSettled = !!(authed && I._contractReceived && displayContracts.length === 0 && !mismatch);
+  console.log('[consent] authed:', authed, 'contractReceived:', I._contractReceived, 'pending:', pendingContracts.length, 'displayContracts:', displayContracts.length, 'mismatch:', mismatch, 'username:', username || '(none)', 'allSettled:', allSettled);
+
+  React.useEffect(() => {
+    if (allSettled) {
+      console.log('[consent] all settled — auto-completing (token + close, zero UI)');
+      I.goToApp();
+    }
+  }, [allSettled]);
 
   return (
     <div className="relative flex h-screen flex-col items-center justify-center overflow-hidden bg-background px-4 py-8 text-foreground">
@@ -220,10 +286,6 @@ function ConsentView({ I }: { I: Record<string, any> }) {
 
         <div className="flex min-h-0 flex-col rounded-lg border border-border bg-card shadow-[0_8px_30px_rgb(0_0_0/0.35)]">
           {!authed ? (
-            // Respect I.mode so "Create a new account" / "Forgot?" work here
-            // too — LoginForm's links call setMode, and rendering only the
-            // login form left those buttons dead in the consent flow (the
-            // signed-out visitor arriving from an app could never sign up).
             <div className="p-6 sm:p-8">
               <div className="mb-6 text-center">
                 <h1 className="font-display text-xl font-semibold text-foreground">
@@ -251,55 +313,45 @@ function ConsentView({ I }: { I: Record<string, any> }) {
                 <LoginForm I={I} embedded />
               )}
             </div>
-          ) : requests.length === 0 ? (
-            <div className="flex flex-col items-center p-8 text-center" data-testid="consent-allset">
-              <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-brand-muted">
-                <ShieldCheck className="h-6 w-6 text-brand-300" strokeWidth={1.5} />
-              </div>
-              <h1 className="font-display text-xl font-semibold text-foreground">You're all set</h1>
-              <p className="mt-1.5 text-sm text-muted-foreground">
-                {alreadyShared.length > 0 ? (
-                  <>
-                    <span className="text-foreground">{host}</span> already has access to{' '}
-                    <span className="text-foreground">{alreadyShared.join(', ')}</span>. Nothing new to review.
-                  </>
-                ) : (
-                  <>Nothing left to review. Head back to <span className="text-foreground">{host}</span>.</>
-                )}
-              </p>
-              <Button variant="brand" className="mt-6 w-full" onClick={() => I.goToApp()} data-testid="consent-goto-app">
-                Go to {host}
-                <ArrowRight className="ml-1.5 h-4 w-4" strokeWidth={2} />
-              </Button>
+          ) : allSettled ? (
+            // D42: nothing to review, no mismatch — the auto-complete effect
+            // hands back the token and closes the window. Brief "connecting"
+            // state until it does. (The old "You're all set" + Close-window
+            // button is gone: that tap asked the user to do the one thing the
+            // popup already knew how to do.)
+            <div className="flex flex-col items-center p-8 text-center" data-testid="consent-connecting">
+              <div className="mb-3 h-8 w-8 animate-spin rounded-full border-2 border-brand-300 border-t-transparent" />
+              <div className="text-sm text-muted-foreground">Connecting…</div>
             </div>
           ) : (
             <>
+              {mismatch && (
+                <div className="shrink-0 border-b border-danger/30 bg-danger/10 px-4 py-3 text-xs text-danger" data-testid="consent-mismatch">
+                  This window is signed in as <span className="font-medium text-foreground">{username}</span>,
+                  but {host} is asking on behalf of <span className="font-medium text-foreground">{expectedUser}</span>.
+                  If that&apos;s not right, use "Not you? Log out" below.
+                </div>
+              )}
               {/* header — fixed */}
               <div className="shrink-0 border-b border-border p-5 text-center">
                 <h1 className="font-display text-xl font-semibold text-foreground">
                   Connect <span className="text-brand-300">{host}</span>
                 </h1>
                 <p className="mt-1 text-sm text-muted-foreground">
-                  Requesting {requests.length} new {requests.length === 1 ? 'service' : 'services'}. Tap any to see details.
+                  Requesting {displayContracts.length} access {displayContracts.length === 1 ? 'request' : 'requests'}. Tap any to see details.
                 </p>
-                {alreadyShared.length > 0 && (
-                  <p className="mt-2 text-xs text-muted-foreground/70">
-                    Already shared: <span className="text-muted-foreground">{alreadyShared.join(', ')}</span>
-                  </p>
-                )}
               </div>
 
               {/* request list — scrolls internally so the actions stay visible */}
               <div className="min-h-0 flex-1 space-y-2.5 overflow-y-auto p-4">
-                {requests.map(({ req, kind }, idx) => (
+                {displayContracts.map((contract: any, idx: number) => (
                   <RequestRow
-                    key={`${req.service}-${idx}`}
-                    req={req}
-                    kind={kind}
+                    key={(contract.app_origin || contract.allowed_origin) + '-' + idx}
+                    contract={contract}
                     idx={idx}
-                    current={services.find((s) => s.service === req.service)}
-                    onApprove={() => (kind === 'new' ? I.submitSIR(req) : I.changeTerms(req))}
-                    onDeny={() => I.purgeSMR(req)}
+                    current={contract.kind === 'app' ? v3Contracts.find((c: any) => c.allowed_origin === (contract.app_origin || contract.allowed_origin)) : undefined}
+                    onApprove={() => I.approveContract(contract)}
+                    onDeny={() => I.denyContract(contract)}
                   />
                 ))}
               </div>
@@ -310,7 +362,7 @@ function ConsentView({ I }: { I: Record<string, any> }) {
                   <p className="text-center text-sm text-muted-foreground" role="status">{I.status}</p>
                 )}
                 <Button variant="brand" className="w-full" onClick={() => I.approveAll()} data-testid="consent-approve-all">
-                  Approve all &amp; continue
+                  Approve all & continue
                 </Button>
                 <Button
                   variant="ghost"

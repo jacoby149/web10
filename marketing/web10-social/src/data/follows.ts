@@ -1,325 +1,131 @@
-import { getWapi } from './wapi';
-import { getCachedSchema, createPublicEntry, queryPublicEntries, deletePublicEntry } from './feed';
-import { API_ORIGIN } from '../lib/origins';
-import { trackEvent } from '../lib/analytics';
-import type { FollowRecord, FollowStatus, InboxRecord, DiscoveryPost } from './types';
+import { getV3Client } from './v3';
+import { followersGroupId, getGroupMembers, blockUser, unblockUser } from './groups';
+import { extractUsername } from './types';
 
-// ── Follows data layer ──────────────────────────────────────────────────────
-// The `follows` service: bidirectional follow graph with status tracking.
-// Per D34: follows also mirror to the public ledger (/public/entries) so
-// follower counts can be read without cross-collection access (I3).
-// The mirror is unconditional — collection-level terms is the lock.
+// ── Follows data layer (v3) ──────────────────────────────────────────────────
+// Follows ARE group membership. Following a user = joining their followers group.
+// Unfollowing = leaving their followers group. No follows table, no ledger mirror.
 
 /**
- * Build a ledger target key for a follow relationship.
- * The target identifies the followed user so we can count followers.
+ * Follow a user (join their followers group).
+ * @param username - the user to follow
+ * @param provider - the node provider (defaults to the token's provider)
  */
-function followTargetKey(username: string, provider: string): string {
-  return `follow:${username}@${provider}`;
+export async function followUser(username: string, provider?: string): Promise<{ username: string; status: 'active' }> {
+  const w = getV3Client();
+  await w.joinGroup(followersGroupId(username, provider));
+  return { username, status: 'active' };
 }
 
 /**
- * Backfill the follower's inbox with the followee's recent public posts.
- * Fetches up to ~20 most recent posts from the discovery API (same pattern
- * as UserProfileScreen), then writes each into the follower's inbox using
- * the D-post-delivery inbox shape. Dedupes on post_id so re-follow doesn't
- * duplicate. Non-fatal — a failure here doesn't break the follow.
+ * Unfollow a user (leave their followers group).
+ * @param username - the user to unfollow
+ * @param provider - the node provider (defaults to the token's provider)
  */
-async function backfillFollow(followeeUsername: string, followeeProvider: string): Promise<void> {
+export async function unfollowUser(username: string, provider?: string): Promise<void> {
+  const w = getV3Client();
+  await w.leaveGroup(followersGroupId(username, provider));
+}
+
+/**
+ * Check if the current user follows a given user.
+ *
+ * Following IS group membership, so the check is: is the user's followers
+ * group in the current user's group list? (The API's `groups/get` does not
+ * return `my_role`, so a per-group lookup can't answer this — `groups/list`
+ * is the membership surface the feed itself reads.)
+ */
+export async function isFollowing(username: string, provider?: string): Promise<boolean> {
+  const w = getV3Client();
   try {
-    const wapi = getWapi();
-    const token = wapi.readToken();
-    if (!token) return;
-
-    // Fetch followee's recent public posts from discovery API
-    const resp = await fetch(
-      `${API_ORIGIN}/discover/posts?sort=recent&limit=20&services=public_posts`,
-      { method: 'PATCH' },
-    );
-    if (!resp.ok) return;
-
-    const allPosts: DiscoveryPost[] = await resp.json();
-    const followeePosts = allPosts
-      .filter((dp) => dp.author === followeeUsername && dp.provider === followeeProvider)
-      .slice(0, 20);
-
-    if (!followeePosts.length) return;
-
-    // Read existing inbox to dedupe on post_id
-    const existingInbox = await wapi.read<InboxRecord>('inbox');
-    const existingPostIds = new Set(existingInbox.map((r) => r.post_id));
-
-    for (const dp of followeePosts) {
-      if (existingPostIds.has(dp.post_id)) continue;
-
-      const postBody: Record<string, unknown> = {
-        text: dp.text,
-        created_at: dp.created_at,
-      };
-      if (dp.tags?.length) postBody.tags = dp.tags;
-      if (dp.media_refs?.length) postBody.media_refs = dp.media_refs;
-
-      const inboxRecord: InboxRecord = {
-        author_username: followeeUsername,
-        author_provider: followeeProvider,
-        post_id: dp.post_id,
-        delivered_at: new Date().toISOString(),
-        post_body: postBody,
-        origin: 'web10',
-      };
-
-      await wapi.create<InboxRecord>('inbox', inboxRecord as unknown as Record<string, unknown>);
-    }
+    const groups = await w.getMyGroups();
+    return groups.some((g) => g.group_id === followersGroupId(username, provider));
   } catch {
-    // Non-fatal — backfill failure doesn't break the follow
+    return false;
   }
 }
 
 /**
- * Read all follows for the current user (people they follow).
+ * Get the number of followers for a user.
  */
-export async function readFollows(): Promise<FollowRecord[]> {
-  const wapi = getWapi();
-  return wapi.read<FollowRecord>('follows');
+export async function getFollowersCount(username: string): Promise<number> {
+  const members = await getGroupMembers(followersGroupId(username));
+  return members.length;
 }
 
 /**
- * Read follows with a specific status.
+ * Get the number of users the current user follows.
  */
-export async function readFollowsByStatus(status: FollowStatus): Promise<FollowRecord[]> {
-  const wapi = getWapi();
-  return wapi.read<FollowRecord>('follows', { status });
+export async function getFollowingCount(): Promise<number> {
+  const w = getV3Client();
+  const groups = await w.getMyGroups();
+  return groups.filter((g) => g.group_id.endsWith('/followers')).length;
 }
 
 /**
- * Read a specific follow record by username+provider.
- * Returns the most authoritative record: prefers 'active' status;
- * if none active, returns the most recent by followed_at.
- * This guards against stale/duplicate records causing the UI to
- * read a wrong state after a follow/unfollow toggle.
+ * List followers of a user (member keys).
  */
-export async function readFollow(username: string, provider: string): Promise<FollowRecord | null> {
-  const wapi = getWapi();
-  const records = await wapi.read<FollowRecord>('follows', { username, provider });
-  if (!records.length) return null;
-  const active = records.find((r) => r.status === 'active');
-  if (active) return active;
-  return records.sort(
-    (a, b) => new Date(b.followed_at || 0).getTime() - new Date(a.followed_at || 0).getTime(),
-  )[0];
+export async function listFollowers(username: string): Promise<{ username: string; provider: string }[]> {
+  const members = await getGroupMembers(followersGroupId(username));
+  return members.map((m) => ({
+    username: extractUsername(m.member_key),
+    provider: m.member_key.split('/')[0] || 'web10',
+  }));
 }
 
-/**
- * Follow a user. Creates a new follow record with 'active' status.
- * Also mirrors to the public ledger (D34: follows are public discourse).
- * Updates ALL matching records (not just one) so duplicates cannot
- * stay stale after a toggle.
- */
-export async function followUser(username: string, provider: string): Promise<FollowRecord> {
-  const wapi = getWapi();
-  const existingRecords = await wapi.read<FollowRecord>('follows', { username, provider });
-  const token = wapi.readToken();
+// ── Backward compat aliases ──────────────────────────────────────────────────
 
-  if (existingRecords.length) {
-    // Update ALL matching records so duplicates cannot diverge
-    const now = new Date().toISOString();
-    for (const existing of existingRecords) {
-      if (existing._id) {
-        await wapi.update<FollowRecord>('follows', { _id: existing._id }, {
-          $set: { status: 'active', followed_at: existing.followed_at || now },
-        });
-      }
-    }
-
-    // Mirror to the public ledger
-    const followSchema = getCachedSchema('Follow');
-    if (followSchema?._id) {
-      createPublicEntry({
-        schema_id: followSchema._id,
-        target: followTargetKey(username, provider),
-        payload: {
-          action: 'follow',
-          target_username: username,
-          target_provider: provider,
-          author_username: token?.username,
-          author_provider: token?.provider,
-        },
-      }).catch(() => { /* non-fatal */ });
-    }
-
-    // Backfill inbox with followee's recent posts (non-fatal)
-    backfillFollow(username, provider).catch(() => {});
-
-    trackEvent('follow');
-    return { username, provider, status: 'active', followed_at: now } as FollowRecord;
-  }
-
-  const record = await wapi.create<FollowRecord>('follows', {
-    username,
-    provider,
-    status: 'active',
-    followed_at: new Date().toISOString(),
-    notify: true,
-  });
-
-  // Mirror to the public ledger
-  const followSchema = getCachedSchema('Follow');
-  if (followSchema?._id) {
-    createPublicEntry({
-      schema_id: followSchema._id,
-      target: followTargetKey(username, provider),
-      payload: {
-        action: 'follow',
-        target_username: username,
-        target_provider: provider,
-        author_username: token?.username,
-        author_provider: token?.provider,
-      },
-    }).catch(() => { /* non-fatal */ });
-  }
-
-  // Backfill inbox with followee's recent posts (non-fatal)
-  backfillFollow(username, provider).catch(() => {});
-
-  trackEvent('follow');
-  return record;
+/** @deprecated use isFollowing */
+export async function readFollow(username: string, _provider?: string): Promise<{ _id?: string; status: 'active' | 'rejected' } | null> {
+  const following = await isFollowing(username);
+  return following ? { status: 'active' } : { status: 'rejected' };
 }
 
-/**
- * Unfollow a user. Sets ALL matching records to 'rejected' so
- * duplicates cannot stay stale. Removes the public ledger entry
- * so the follower count decrements.
- */
-export async function unfollowUser(username: string, provider: string): Promise<void> {
-  const wapi = getWapi();
-  const existingRecords = await wapi.read<FollowRecord>('follows', { username, provider });
-  if (existingRecords.length) {
-    trackEvent('unfollow');
-    // Update ALL matching records so duplicates cannot diverge
-    for (const existing of existingRecords) {
-      if (existing._id) {
-        await wapi.update<FollowRecord>('follows', { _id: existing._id }, { $set: { status: 'rejected' } });
-      }
-    }
-
-    // Remove the public ledger entry
-    const target = followTargetKey(username, provider);
-    const token = wapi.readToken();
-    const entries = await queryPublicEntries({ target });
-    const matching = entries.filter(
-      (e) =>
-        e.payload &&
-        (e.payload as Record<string, unknown>).action === 'follow' &&
-        (e.payload as Record<string, unknown>).author_username === token?.username,
-    );
-    for (const entry of matching) {
-      if (entry._id) {
-        await deletePublicEntry(entry._id);
-      }
-    }
-  }
-}
-
-/**
- * Block a user. Sets status to 'blocked'.
- */
-export async function blockUser(username: string, provider: string): Promise<void> {
-  const wapi = getWapi();
-  const existing = await readFollow(username, provider);
-  if (existing?._id) {
-    await wapi.update<FollowRecord>('follows', { _id: existing._id }, { $set: { status: 'blocked' } });
-  } else {
-    await wapi.create<FollowRecord>('follows', {
-      username,
-      provider,
-      status: 'blocked',
-      followed_at: new Date().toISOString(),
-      notify: false,
-    });
-  }
-}
-
-/**
- * Delete a follow record entirely.
- */
-export async function deleteFollow(username: string, provider: string): Promise<void> {
-  const wapi = getWapi();
-  await wapi.delete('follows', { username, provider });
-}
-
-/**
- * Update follow notification preference.
- */
-export async function updateFollowNotify(username: string, provider: string, notify: boolean): Promise<FollowRecord> {
-  const wapi = getWapi();
-  const existing = await readFollow(username, provider);
-  if (!existing?._id) throw new Error('follow not found');
-  return wapi.update<FollowRecord>('follows', { _id: existing._id }, { $set: { notify } });
-}
-
-/**
- * Count active follows (people you follow).
- */
+/** @deprecated use getFollowingCount */
 export async function countFollows(): Promise<number> {
-  const wapi = getWapi();
-  const all = await wapi.read<FollowRecord>('follows');
-  return all.filter((f) => f.status === 'active').length;
+  return getFollowingCount();
 }
 
-/**
- * List all followers of a user by reading the public ledger.
- * Returns the username + provider of each follower (deduped per author).
- * Same ledger query as countFollowers, but returns the full list.
- */
-export async function listFollowers(username: string, provider: string): Promise<{ username: string; provider: string }[]> {
-  const target = followTargetKey(username, provider);
-  const entries = await queryPublicEntries({ target });
-  const followers = entries.filter(
-    (e) =>
-      e.payload &&
-      (e.payload as Record<string, unknown>).action === 'follow',
-  );
-  // Dedupe: a user might have mirrored multiple times; keep unique (username, provider) pairs.
-  const seen = new Set<string>();
-  const unique: { username: string; provider: string }[] = [];
-  for (const e of followers) {
-    const author = (e.payload as Record<string, unknown>).author_username as string | undefined;
-    const authProvider = (e.payload as Record<string, unknown>).author_provider as string | undefined;
-    if (!author || !authProvider) continue;
-    const key = `${author}@${authProvider}`;
-    if (seen.has(key)) continue;
-    seen.add(key);
-    unique.push({ username: author, provider: authProvider });
-  }
-  return unique;
+/** @deprecated use getFollowersCount */
+export async function countFollowers(username: string, _provider?: string): Promise<number> {
+  return getFollowersCount(username);
 }
 
-/**
- * Count followers of a user by reading the public ledger.
- * Because I3 forbids cross-collection reads, the count comes from
- * ledger entries where payload.action='follow' and target points to
- * the given user.
- */
-export async function countFollowers(username: string, provider: string): Promise<number> {
-  const target = followTargetKey(username, provider);
-  const entries = await queryPublicEntries({ target });
-  return entries.filter(
-    (e) =>
-      e.payload &&
-      (e.payload as Record<string, unknown>).action === 'follow',
-  ).length;
+/** @deprecated use getFollowingCount */
+export async function countUserFollowing(username: string, _provider?: string): Promise<number> {
+  const members = await getGroupMembers(followersGroupId(username));
+  return members.filter((m) => m.role === 'member').length;
 }
 
-/**
- * Count how many users a specific user is following by reading the
- * public ledger. Queries entries where the author is the given user
- * and action='follow'. This is per-user (never the viewer's count).
- */
-export async function countUserFollowing(username: string, provider: string): Promise<number> {
-  const entries = await queryPublicEntries({ author: username });
-  return entries.filter(
-    (e) =>
-      e.payload &&
-      (e.payload as Record<string, unknown>).action === 'follow',
-  ).length;
+/** @deprecated use getMyGroups filtered for /followers */
+export async function readFollows(): Promise<{ username: string; provider: string; status: 'active' }[]> {
+  const w = getV3Client();
+  const groups = await w.getMyGroups();
+  return groups
+    .filter((g) => g.group_id.endsWith('/followers'))
+    .map((g) => {
+      const parts = g.group_id.split('/');
+      const username = parts[parts.length - 2] || '';
+      const provider = parts[0] || 'web10';
+      return { username, provider, status: 'active' as const };
+    });
+}
+
+/** @deprecated use readFollows filtered */
+export async function readFollowsByStatus(status: string): Promise<{ username: string; provider: string; status: string }[]> {
+  const follows = await readFollows();
+  return follows.filter((f) => f.status === status);
+}
+
+/** @deprecated use blockUser from groups.ts */
+export { blockUser, unblockUser } from './groups';
+
+/** @deprecated use unfollowUser */
+export async function deleteFollow(username: string, _provider?: string): Promise<void> {
+  await unfollowUser(username);
+}
+
+/** @deprecated no-op, v3 doesn't use follow notifications */
+export async function updateFollowNotify(_username: string, _provider: string, _notify: boolean): Promise<unknown> {
+  return {};
 }

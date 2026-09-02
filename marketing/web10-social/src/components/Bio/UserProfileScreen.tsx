@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -24,6 +24,7 @@ import {
 } from '@/data';
 import { getWapi } from '@/data/wapi';
 import type { ProfileRecord, PostRecord, MediaRecord, FollowRecord } from '@/data/types';
+import { mediaRefId } from '@/data/types';
 import { MapPin, Globe, Link, Users, UserPlus, UserCheck, Loader2, ArrowLeft, MessageSquare, Play, Camera, Edit3, Check, X, ImagePlus, AlertTriangle, Inbox } from 'lucide-react';
 import { PostLightbox } from './PostLightbox';
 import { cn } from '@/lib/utils';
@@ -88,6 +89,11 @@ export default function UserProfileScreen({ username, provider, onBack }: UserPr
   const [uploadError, setUploadError] = useState<string | null>(null);
   const [draft, setDraft] = useState<Partial<ProfileRecord>>({});
   const [stagingCount, setStagingCount] = useState<number>(0);
+  // The file input is PERSISTENT in the DOM (not created on click) so the
+  // upload seam is drivable from e2e (setInputFiles) — a createElement-on-
+  // click input is unreachable from Playwright.
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const pendingFieldRef = useRef<'avatar_ref' | 'banner_ref' | null>(null);
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -110,24 +116,51 @@ export default function UserProfileScreen({ username, provider, onBack }: UserPr
       let fCount: number | null = null;
 
       if (isOwn) {
-        // Owner path: read from own collections (same as ProfileScreen)
+        // Owner path: read from own collections (same as ProfileScreen).
+        // PER-READ ISOLATION (the feed's 3.25.x pattern): one bad read
+        // (a 403/401 from a broken node state — e.g. the followers group
+        // predating the 3.28.1 membership heal) degrades that tile, it
+        // never blanks the whole screen. A single Promise.all here meant
+        // one members/list 401 killed the profile, the posts, and the
+        // counts together ("Failed to load user profile" with a half-dead
+        // screen).
         const [p, postsRes, fC, fCnt, stgCount] = await Promise.all([
-          readProfile(),
-          readMyPosts(),
-          countFollows(),
-          countFollowers(token.username, token.provider),
-          countStagingPosts(),
+          readProfile().catch((e) => {
+            console.error('[social] loadData — readProfile failed:', e);
+            return null;
+          }),
+          readMyPosts().catch((e) => {
+            console.error('[social] loadData — readMyPosts failed:', e);
+            return [];
+          }),
+          countFollows().catch((e) => {
+            console.error('[social] loadData — countFollows failed:', e);
+            return null;
+          }),
+          countFollowers(token.username, token.provider).catch((e) => {
+            console.error('[social] loadData — countFollowers failed:', e);
+            return null;
+          }),
+          countStagingPosts().catch((e) => {
+            console.error('[social] loadData — countStagingPosts failed:', e);
+            return 0;
+          }),
         ]);
         profile = p;
         postsData = postsRes || [];
-        fc = fC;
-        fCount = fCnt;
+        if (fC === null) {
+          setFollowingCountError(true);
+        } else {
+          fc = fC;
+          setFollowingCountError(false);
+        }
+        fCount = fCnt; // null = ledger unavailable → hide the tile
         setStagingCount(stgCount);
       } else {
         // Viewer path: read from discovery API + public ledger
         const [p, fr] = await Promise.all([
-          readUserProfile(username, provider),
-          readFollow(username, provider).catch(() => null),
+          readUserProfile(username).catch(() => null),
+          readFollow(username).catch(() => null),
         ]);
         profile = p;
         setFollowRecord(fr);
@@ -165,18 +198,23 @@ export default function UserProfileScreen({ username, provider, onBack }: UserPr
       setFollowingCount(fc);
       setFollowerCount(fCount);
 
-      // Resolve media refs
+      // Resolve media refs (isolated — a media-read failure degrades the
+      // images, never the profile/posts/counts already set above).
       const allRefs = postsData.flatMap((post) => post.media_refs || []);
       if (profile?.avatar_ref) allRefs.push(profile.avatar_ref);
       if (profile?.banner_ref) allRefs.push(profile.banner_ref);
       const mediaMapInit: Record<string, MediaRecord> = {};
       if (allRefs.length) {
-        const media = isOwn
-          ? await resolveMediaRefs([...new Set(allRefs)])
-          : await resolveMediaRefs([...new Set(allRefs)], { username, provider }, 'public_media');
-        media.forEach((m) => {
-          if (m._id) mediaMapInit[m._id] = m;
-        });
+        try {
+          const media = isOwn
+            ? await resolveMediaRefs([...new Set(allRefs)])
+            : await resolveMediaRefs([...new Set(allRefs)], { username, provider }, 'public_media');
+          media.forEach((m) => {
+            if (m._id) mediaMapInit[m._id] = m;
+          });
+        } catch (e) {
+          console.error('[social] loadData — media resolution failed (degraded):', e);
+        }
       }
       setMediaMap(mediaMapInit);
     } catch (e) {
@@ -189,15 +227,18 @@ export default function UserProfileScreen({ username, provider, onBack }: UserPr
     if (followLoading) return;
     setFollowLoading(true);
     setFollowError(null);
+    console.log('[social] handleFollow — toggling follow for', username, '— currently following:', following);
     try {
       if (following) {
         await unfollowUser(username, provider);
         setFollowing(false);
         setFollowRecord(null);
+        console.log('[social] handleFollow — no longer following', username);
       } else {
         const rec = await followUser(username, provider);
-        setFollowRecord(rec);
+        setFollowRecord({ ...rec, provider, username });
         setFollowing(true);
+        console.log('[social] handleFollow — now following', username);
       }
     } catch (e) {
       console.error('Failed to toggle follow:', e);
@@ -226,35 +267,41 @@ export default function UserProfileScreen({ username, provider, onBack }: UserPr
     }
   }
 
-  async function handleUpload(field: 'avatar_ref' | 'banner_ref') {
-    const input = document.createElement('input');
-    input.type = 'file';
-    input.accept = 'image/*';
-    input.onchange = async (e) => {
-      const file = (e.target as HTMLInputElement).files?.[0];
-      if (!file) return;
-      setUploadError(null);
-      setUploading(true);
-      try {
-        const media = await uploadMedia({ file, service: 'public_media' });
-        if (media._id) {
-          const [presigned] = await refreshMediaUrls([media]);
-          setMediaMap((prev) => ({ ...prev, [media._id!]: presigned }));
-        }
-        const updated = { ...(profile || {}), [field]: media._id || '' };
-        setDraft(updated);
-        const saved = await saveProfile(updated);
-        setProfile(saved);
-      } catch (err) {
-        console.error('Failed to upload image:', err);
-        setUploadError(
-          err instanceof Error ? err.message : 'Upload failed. Please try again.',
-        );
-      } finally {
-        setUploading(false);
+  function startUpload(field: 'avatar_ref' | 'banner_ref') {
+    pendingFieldRef.current = field;
+    fileInputRef.current?.click();
+  }
+
+  async function handleFileChange(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    // Reset so the same file can be re-selected on a second upload
+    e.target.value = '';
+    const field = pendingFieldRef.current;
+    pendingFieldRef.current = null;
+    if (!file || !field) return;
+    console.log('[social] handleFileChange — uploading', file.name, file.type, file.size, 'for', field);
+    setUploadError(null);
+    setUploading(true);
+    try {
+      const media = await uploadMedia({ file, service: 'public_media' });
+      console.log('[social] handleFileChange — uploaded, media _id:', media._id, 'object_key:', media.object_key);
+      if (media._id) {
+        const [presigned] = await refreshMediaUrls([media]);
+        setMediaMap((prev) => ({ ...prev, [media._id!]: presigned }));
       }
-    };
-    input.click();
+      const updated = { ...(profile || {}), [field]: media._id || '' };
+      setDraft(updated);
+      const saved = await saveProfile(updated);
+      setProfile(saved);
+      console.log('[social] handleFileChange — profile saved, profile _id:', saved._id);
+    } catch (err) {
+      console.error('Failed to upload image:', err);
+      setUploadError(
+        err instanceof Error ? err.message : 'Upload failed. Please try again.',
+      );
+    } finally {
+      setUploading(false);
+    }
   }
 
   if (loading) {
@@ -267,6 +314,15 @@ export default function UserProfileScreen({ username, provider, onBack }: UserPr
 
   return (
     <div className="mx-auto max-w-3xl">
+      {/* Persistent file input — the avatar/banner upload seam (e2e: setInputFiles) */}
+      <input
+        ref={fileInputRef}
+        type="file"
+        accept="image/*"
+        data-testid="profile-file-input"
+        className="hidden"
+        onChange={handleFileChange}
+      />
       {/* Back button (mobile) */}
       {onBack && (
         <div className="md:hidden px-3 py-2 border-b border-border">
@@ -295,7 +351,7 @@ export default function UserProfileScreen({ username, provider, onBack }: UserPr
         )}
         {isOwnProfile && (
           <button
-            onClick={() => handleUpload('banner_ref')}
+            onClick={() => startUpload('banner_ref')}
             disabled={uploading}
             aria-label="Change banner"
             data-testid="edit-banner-button"
@@ -316,7 +372,7 @@ export default function UserProfileScreen({ username, provider, onBack }: UserPr
               isOwnProfile ? 'ring-2 ring-brand/20 hover:ring-brand/40 transition-shadow duration-150' : '',
             )}>
               {avatarMedia ? (
-                <AvatarImage src={avatarMedia.url} alt={profile?.display_name || username} />
+                <AvatarImage data-testid="avatar-image" src={avatarMedia.url} alt={profile?.display_name || username} />
               ) : (
                 <AvatarFallback className="bg-gradient-to-br from-brand to-brand-600 text-white text-2xl font-bold">
                   {profile?.display_name?.charAt(0)?.toUpperCase() || username.charAt(0).toUpperCase()}
@@ -329,7 +385,7 @@ export default function UserProfileScreen({ username, provider, onBack }: UserPr
                 aria-label="Change avatar"
                 data-testid="edit-avatar-button"
                 disabled={uploading}
-                onClick={() => handleUpload('avatar_ref')}
+                onClick={() => startUpload('avatar_ref')}
               >
                 {uploading ? (
                   <Loader2 className="w-3.5 h-3.5 text-foreground animate-spin" />
@@ -589,7 +645,7 @@ export default function UserProfileScreen({ username, provider, onBack }: UserPr
           posts.length ? (
             <div className="grid grid-cols-3 gap-1">
               {posts.map((post) => {
-                const firstMedia = post.media_refs?.[0] ? mediaMap[post.media_refs[0]] : null;
+                const firstMedia = post.media_refs?.[0] ? mediaMap[mediaRefId(post.media_refs[0])] : null;
                 return (
                   <div
                     key={post._id}
@@ -667,11 +723,11 @@ export default function UserProfileScreen({ username, provider, onBack }: UserPr
           <div className="grid grid-cols-3 gap-1">
             {mediaPosts.flatMap((post) =>
               (post.media_refs || []).map((ref) => {
-                const media = mediaMap[ref];
+                const media = mediaMap[mediaRefId(ref)];
                 if (!media) return null;
                 return (
                   <div
-                    key={ref}
+                    key={mediaRefId(ref)}
                     role="button"
                     tabIndex={0}
                     aria-label="View post"

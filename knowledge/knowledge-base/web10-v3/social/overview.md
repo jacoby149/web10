@@ -2,6 +2,37 @@
 
 Web10-social is an app that runs on the web10 platform. It uses groups the same way any app does — groups are generic policy containers. Web10-social just happens to define specific roles for social use cases.
 
+## How Social Maps to Groups
+
+```mermaid
+graph LR
+    subgraph Groups["Group Types — all the same primitive"]
+        G1["Discover<br/>web10/discover<br/>open, auto-join"]
+        G2["Followers<br/>alice/followers<br/>open"]
+        G3["Close Friends<br/>alice/close-friends<br/>request"]
+        G4["Community<br/>charlie/chess-club<br/>invite_only"]
+    end
+
+    G1 --> R["Same role model<br/>owner, moderator, member, follower"]
+    G2 --> R
+    G3 --> R
+    G4 --> R
+
+    R --> C["Same CRUD<br/>w.create, w.read, w.update, w.delete"]
+    C --> D["Same tables<br/>documents, doc_groups,<br/>group_members, group_contracts"]
+
+    style Groups fill:#e8f5e9,stroke:#2e7d32,color:#000
+    style G1 fill:#e3f2fd,stroke:#1565c0,color:#000
+    style G2 fill:#e3f2fd,stroke:#1565c0,color:#000
+    style G3 fill:#e3f2fd,stroke:#1565c0,color:#000
+    style G4 fill:#e3f2fd,stroke:#1565c0,color:#000
+    style R fill:#fff9c4,stroke:#f57f17,color:#000
+    style C fill:#fff3e0,stroke:#e65100,color:#000
+    style D fill:#f5f5f5,stroke:#333,color:#000
+```
+
+One primitive. Four social patterns. Same tables, same CRUD, same roles. The only difference is the join policy and who the members are. No follows table. No inbox table. No discover index. Just groups.
+
 This doc explains how web10-social uses groups. The generic group model is in `../groups/overview.md`.
 
 ## Web10-Social Roles
@@ -13,8 +44,10 @@ Web10-social defines these roles for its groups. They are not platform roles —
 ```json
 {
   "name": "owner",
-  "services": ["*"],
-  "permissions": ["readAll", "create", "updateOwn", "updateAll", "deleteOwn", "deleteAll", "hideAll", "manageRoles", "assignRoles", "revokeRoles", "deleteGroup"]
+  "permissions": {
+    "*": ["readAll", "create", "updateOwn", "updateAll", "deleteOwn", "deleteAll", "hideAll"],
+    "group": ["manageRoles", "assignRoles", "revokeRoles", "deleteGroup"]
+  }
 }
 ```
 
@@ -23,8 +56,11 @@ Web10-social defines these roles for its groups. They are not platform roles —
 ```json
 {
   "name": "moderator",
-  "services": ["posts", "comments"],
-  "permissions": ["readAll", "create", "updateOwn", "deleteOwn", "hideAll", "assignRoles", "revokeRoles"]
+  "permissions": {
+    "posts": ["readAll", "create", "updateOwn", "deleteOwn", "hideAll"],
+    "comments": ["readAll", "create", "updateOwn", "deleteOwn", "hideAll"],
+    "group": ["assignRoles", "revokeRoles"]
+  }
 }
 ```
 
@@ -33,8 +69,9 @@ Web10-social defines these roles for its groups. They are not platform roles —
 ```json
 {
   "name": "page-curator",
-  "services": ["group-identity-service"],
-  "permissions": ["readAll", "create", "updateOwn", "deleteOwn"]
+  "permissions": {
+    "group-identity-service": ["readAll", "create", "updateOwn", "deleteOwn"]
+  }
 }
 ```
 
@@ -43,8 +80,10 @@ Web10-social defines these roles for its groups. They are not platform roles —
 ```json
 {
   "name": "member",
-  "services": ["posts", "comments"],
-  "permissions": ["readAll", "create", "updateOwn", "deleteOwn"]
+  "permissions": {
+    "posts": ["readAll", "create", "updateOwn", "deleteOwn"],
+    "comments": ["readAll", "create", "updateOwn", "deleteOwn"]
+  }
 }
 ```
 
@@ -53,8 +92,9 @@ Web10-social defines these roles for its groups. They are not platform roles —
 ```json
 {
   "name": "member",
-  "services": ["posts"],
-  "permissions": ["readAll"]
+  "permissions": {
+    "posts": ["readAll"]
+  }
 }
 ```
 
@@ -71,10 +111,10 @@ A community with an owner, moderators, curators, and members. Used for topic-bas
   "group_id": "web10.app/groups/jacoby149/abacus-enthusiasts",
   "join_policy": "request",
   "roles": [
-    { "name": "owner", "services": ["*"], "permissions": ["readAll", "create", "updateOwn", "updateAll", "deleteOwn", "deleteAll", "hideAll", "manageRoles", "assignRoles", "revokeRoles", "deleteGroup"] },
-    { "name": "moderator", "services": ["posts", "comments"], "permissions": ["readAll", "create", "updateOwn", "deleteOwn", "hideAll", "assignRoles", "revokeRoles"] },
-    { "name": "page-curator", "services": ["group-identity-service"], "permissions": ["readAll", "create", "updateOwn", "deleteOwn"] },
-    { "name": "member", "services": ["posts", "comments"], "permissions": ["readAll", "create", "updateOwn", "deleteOwn"] }
+    { "name": "owner", "permissions": { "*": ["readAll", "create", "updateOwn", "updateAll", "deleteOwn", "deleteAll", "hideAll"], "group": ["manageRoles", "assignRoles", "revokeRoles", "deleteGroup"] } },
+    { "name": "moderator", "permissions": { "posts": ["readAll", "create", "updateOwn", "deleteOwn", "hideAll"], "comments": ["readAll", "create", "updateOwn", "deleteOwn", "hideAll"], "group": ["assignRoles", "revokeRoles"] } },
+    { "name": "page-curator", "permissions": { "group-identity-service": ["readAll", "create", "updateOwn", "deleteOwn"] } },
+    { "name": "member", "permissions": { "posts": ["readAll", "create", "updateOwn", "deleteOwn"], "comments": ["readAll", "create", "updateOwn", "deleteOwn"] } }
   ]
 }
 ```
@@ -94,7 +134,7 @@ The public board. Everyone is a member by default. Replaces the `discover: true`
   "group_id": "web10.app/groups/web10/discover",
   "join_policy": "open",
   "roles": [
-    { "name": "member", "services": ["posts"], "permissions": ["readAll", "create", "updateOwn", "deleteOwn"] }
+    { "name": "member", "permissions": { "posts": ["readAll", "create", "updateOwn", "deleteOwn"] } }
   ]
 }
 ```
@@ -116,8 +156,8 @@ A private group. The creator is the only owner. Approved friends are members. Me
   "group_id": "web10.app/groups/jacoby149/close-friends",
   "join_policy": "request",
   "roles": [
-    { "name": "owner", "services": ["*"], "permissions": ["readAll", "create", "updateOwn", "updateAll", "deleteOwn", "deleteAll", "hideAll", "manageRoles", "assignRoles", "revokeRoles", "deleteGroup"] },
-    { "name": "member", "services": ["posts"], "permissions": ["readAll", "create", "updateOwn", "deleteOwn"] }
+    { "name": "owner", "permissions": { "*": ["readAll", "create", "updateOwn", "updateAll", "deleteOwn", "deleteAll", "hideAll"], "group": ["manageRoles", "assignRoles", "revokeRoles", "deleteGroup"] } },
+    { "name": "member", "permissions": { "posts": ["readAll", "create", "updateOwn", "deleteOwn"] } }
   ]
 }
 ```
@@ -138,8 +178,8 @@ Following a public profile is a group join. The user's followers group uses `joi
   "group_id": "web10.app/groups/coolguydavid/followers",
   "join_policy": "open",
   "roles": [
-    { "name": "owner", "services": ["*"], "permissions": ["readAll", "create", "updateOwn", "updateAll", "deleteOwn", "deleteAll", "hideAll", "manageRoles", "assignRoles", "revokeRoles", "deleteGroup"] },
-    { "name": "member", "services": ["posts"], "permissions": ["readAll"] }
+    { "name": "owner", "permissions": { "*": ["readAll", "create", "updateOwn", "updateAll", "deleteOwn", "deleteAll", "hideAll"], "group": ["manageRoles", "assignRoles", "revokeRoles", "deleteGroup"] } },
+    { "name": "member", "permissions": { "posts": ["readAll"] } }
   ]
 }
 ```

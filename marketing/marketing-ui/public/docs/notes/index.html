@@ -4,6 +4,10 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Notes — web10 Demo</title>
+  <link rel="manifest" href="manifest.json" />
+  <meta name="description" content="Create, read, update, and delete notes stored in your own web10 collection." />
+  <meta name="theme-color" content="#09090b" />
+  <link rel="apple-touch-icon" href="/brand/icon-192.png" />
   <style>
     :root {
       --bg: #09090b;
@@ -133,10 +137,12 @@
 <body>
   <div class="container">
     <h1>Notes</h1>
-    <p class="subtitle">A CRUD demo: create, read, update, and delete notes stored in your own web10 collection.</p>
+    <p class="subtitle">A CRUD demo: create, read, update, and delete notes stored in your own web10 collection. Notes are attached to groups for sharing and discoverability.</p>
 
     <div class="auth-row">
       <button id="authButton">Log in</button>
+      <button id="fixAccessBtn" class="secondary" style="display:none;">Fix access</button>
+      <button id="setupGroupBtn" class="secondary" style="display:none;">Set up your notes group</button>
       <span id="message">Not started — log in to begin.</span>
     </div>
 

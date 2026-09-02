@@ -87,10 +87,10 @@ function NodeIdentityStep({ data, onChange, onNext, onBack }: {
           <Input
             value={data.db_url}
             onChange={e => onChange("db_url", e.target.value)}
-            placeholder="mongodb://ferretdb:27017"
+            placeholder="http://clickhouse:8123"
             data-testid="wizard-db-url"
           />
-          <p className="mt-1 text-xs text-muted-foreground">MongoDB or FerretDB connection string</p>
+          <p className="mt-1 text-xs text-muted-foreground">ClickHouse connection URL</p>
         </div>
       </div>
       <div className="mt-8 flex justify-center gap-2">
@@ -384,16 +384,21 @@ function CompleteStep({ message, error, onLogin }: { message: string; error: str
   );
 }
 
-function SetupWizard({ I }: { I: Record<string, any> }) {
+const SetupWizard = ({ I }: { I: Record<string, any> }) => {
   const [step, setStep] = React.useState(0);
   const [loading, setLoading] = React.useState(false);
   const [error, setError] = React.useState<string | null>(null);
   const [done, setDone] = React.useState(false);
+  const [logoOk, setLogoOk] = React.useState(true);
+
+  // Derive defaults from the current auth hostname: auth.example.com → api.example.com
+  const authHost = typeof window !== "undefined" ? window.location.hostname : "auth.localhost";
+  const defaultProvider = authHost.startsWith("auth.") ? "api." + authHost.slice(5) : "api.localhost";
 
   const [formData, setFormData] = React.useState({
-    provider: "api.localhost",
+    provider: defaultProvider,
     brand_text: "web10",
-    db_url: "mongodb://ferretdb:27017",
+    db_url: "http://clickhouse:8123",
     db_name: "web10",
     admin_username: "",
     admin_password: "",
@@ -404,7 +409,7 @@ function SetupWizard({ I }: { I: Record<string, any> }) {
     beta_code: "web10betacode",
     free_credits: 0.10,
     free_space: 8,
-    cors_service_managers: "auth.localhost",
+    cors_service_managers: authHost,
     s3_endpoint: "http://minio:9000",
     s3_bucket: "web10-media",
     s3_access_key: "minioadmin",
@@ -420,7 +425,7 @@ function SetupWizard({ I }: { I: Record<string, any> }) {
   const onChange = (key: string, value: any) => setFormData(prev => ({ ...prev, [key]: value }));
 
   const nextStep = () => {
-    if (step === 5) {
+    if (step === 4) {
       submitSetup();
     } else {
       setStep(step + 1);
@@ -431,11 +436,20 @@ function SetupWizard({ I }: { I: Record<string, any> }) {
     setLoading(true);
     setError(null);
     try {
-      const provider = formData.provider.startsWith("http")
+      // Port-aware: an isolated e2e stack (E2E_HTTP_PORT) serves *.localhost
+      // on a non-80 port, and the auth app + API share that proxy port.
+      // Carry the page's port when the provider is a local host without an
+      // explicit one. The provider value itself stays host-only — it is the
+      // node identity, not a URL.
+      const provUrl = formData.provider.startsWith("http")
         ? formData.provider
         : `${window.location.protocol}//${formData.provider}`;
+      const provHost = new URL(provUrl).hostname;
+      const provPort = new URL(provUrl).port;
+      const isLocalProv = provHost === "localhost" || provHost === "127.0.0.1" || provHost.endsWith(".localhost");
+      const portSuffix = isLocalProv && !provPort && window.location.port ? `:${window.location.port}` : "";
 
-      await axios.post(`${provider}/setup`, {
+      await axios.post(`${provUrl}${portSuffix}/setup/configure`, {
         provider: formData.provider,
         admin_username: formData.admin_username,
         admin_password: formData.admin_password,
@@ -465,6 +479,11 @@ function SetupWizard({ I }: { I: Record<string, any> }) {
       setStep(6);
     } catch (e: any) {
       setError(e.response?.data?.detail || String(e));
+      // Land on the Complete step — it carries the error UI ("Setup Failed"
+      // + the server detail + a way out). Staying on the current step left
+      // the error set but never rendered: a silent dead end.
+      setDone(true);
+      setStep(6);
     } finally {
       setLoading(false);
     }
@@ -486,11 +505,14 @@ function SetupWizard({ I }: { I: Record<string, any> }) {
     <div className="flex min-h-screen flex-col bg-background text-foreground" data-testid="setup-wizard">
       <div className="mx-auto flex w-full max-w-[600px] flex-1 flex-col justify-center px-5 py-16">
         <div className="mb-2 flex justify-center">
-          <img
-            src={I.logo}
-            alt="web10"
-            className="mb-5 h-10"
-          />
+          {logoOk && (
+            <img
+              src={I.logo}
+              alt="web10"
+              className="mb-5 h-10"
+              onError={() => setLogoOk(false)}
+            />
+          )}
         </div>
         {!done && step > 0 && step < 6 && (
           <StepIndicator current={step} total={6} />

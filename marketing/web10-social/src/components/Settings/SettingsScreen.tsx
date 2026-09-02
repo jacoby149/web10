@@ -3,7 +3,7 @@ import { getWapi } from '@/data/wapi';
 import { readSettings, saveSettings, type AppSettings } from '@/data/settings';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
-import { Settings as SettingsIcon, User, Database, Info, LogOut, ExternalLink, Shield, Bug, Eye, Lock, Loader2 } from 'lucide-react';
+import { Settings as SettingsIcon, User, Database, Info, LogOut, ExternalLink, Shield, Bug, Eye, Lock, Loader2, Zap } from 'lucide-react';
 
 const APP_VERSION = import.meta.env?.VITE_GIT_COMMIT || '0.1.0';
 const AUTH_ORIGIN = import.meta.env?.VITE_AUTH_ORIGIN || 'https://auth.web10.app';
@@ -116,6 +116,66 @@ function PostingDefaultsSection({ settings, onSave }: { settings: AppSettings; o
   );
 }
 
+function RealTimeSection({ settings, onSave }: { settings: AppSettings; onSave: (s: Partial<AppSettings>) => void }) {
+  const [saving, setSaving] = useState(false);
+  const enabled = settings.p2pEnabled ?? true;
+
+  async function handleToggle() {
+    setSaving(true);
+    const next = !enabled;
+    try {
+      await onSave({ p2pEnabled: next });
+      // Tell the app to (re)apply the P2P peer for the new setting.
+      window.dispatchEvent(new CustomEvent('settings-changed', { detail: { p2pEnabled: next } }));
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  return (
+    <Section title="Real-time Messages" icon={Zap}>
+      <div className="px-4 py-3 flex items-start justify-between gap-3">
+        <div className="flex-1 min-w-0">
+          <p className="text-sm text-foreground">Deliver messages instantly</p>
+          <p className="text-xs text-muted-foreground mt-0.5">
+            When on, messages are delivered in real time over a peer-to-peer
+            connection while you're both online, and you show as online. When
+            off, messages still work — just on your next read, with no real-time
+            nudge.
+          </p>
+        </div>
+        <button
+          type="button"
+          role="switch"
+          aria-checked={enabled}
+          disabled={saving}
+          onClick={handleToggle}
+          data-testid="settings-p2p-toggle"
+          className={cn(
+            'relative shrink-0 w-11 h-6 rounded-full transition-colors duration-150 disabled:cursor-not-allowed disabled:opacity-50',
+            enabled ? 'bg-success' : 'bg-muted-foreground/30',
+          )}
+        >
+          <span
+            className={cn(
+              'absolute top-0.5 left-0.5 h-5 w-5 rounded-full bg-white shadow transition-transform duration-150',
+              enabled ? 'translate-x-5' : 'translate-x-0',
+            )}
+          />
+        </button>
+      </div>
+      {saving && (
+        <div className="px-4 pb-3">
+          <p className="text-xs text-muted-foreground flex items-center gap-1.5">
+            <Loader2 className="w-3 h-3 animate-spin text-brand" />
+            Updating…
+          </p>
+        </div>
+      )}
+    </Section>
+  );
+}
+
 export default function SettingsScreen({ onLogout, onReportBug }: { onLogout: () => void; onReportBug: () => void }) {
   const token = getWapi().readToken();
   const username = token?.username || '';
@@ -176,6 +236,10 @@ export default function SettingsScreen({ onLogout, onReportBug }: { onLogout: ()
 
       {!settingsLoading && settings && (
         <PostingDefaultsSection settings={settings} onSave={handleSaveSettings} />
+      )}
+
+      {!settingsLoading && settings && (
+        <RealTimeSection settings={settings} onSave={handleSaveSettings} />
       )}
 
       <Section title="Your Data" icon={Database}>

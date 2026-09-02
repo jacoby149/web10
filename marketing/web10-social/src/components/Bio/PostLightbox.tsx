@@ -4,6 +4,7 @@ import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { Input } from '@/components/ui/input';
 import type { PostRecord, MediaRecord } from '@/data/types';
+import { mediaRefId } from '@/data/types';
 import { getWapi } from '@/data/wapi';
 import {
   toggleReaction,
@@ -17,6 +18,7 @@ import {
 } from '@/data';
 import { CommentThread } from '@/components/Feed/CommentThread';
 import { TextWithLinks } from '@/components/Feed/LinkEmbed';
+import { AdBlock } from '@/components/Feed/AdBlock';
 import { cn } from '@/lib/utils';
 
 function formatTimeAgo(dateStr: string): string {
@@ -51,7 +53,7 @@ export function PostLightbox({ post, mediaMap, onClose, onReload, postAuthor, po
   // duplicates the post because the second toggle deletes the old _id.
   const [currentPost, setCurrentPost] = useState(post);
   const media = (currentPost.media_refs || [])
-    .map(ref => mediaMap[ref])
+    .map(ref => mediaMap[mediaRefId(ref)])
     .filter((m): m is MediaRecord => Boolean(m));
   const [index, setIndex] = useState(0);
   const hasMedia = media.length > 0;
@@ -140,7 +142,7 @@ export function PostLightbox({ post, mediaMap, onClose, onReload, postAuthor, po
       setBurstKey(k => k + 1);
     }
     try {
-      await toggleReaction('posts', currentPost._id || '', 'like', token.username, token.provider, postAuthor, postService);
+      await toggleReaction(currentPost._id || '', 'like', token.username, token.provider);
     } catch (e) {
       console.error('Failed to toggle reaction:', e);
       setLiked(wasLiked);
@@ -164,7 +166,7 @@ export function PostLightbox({ post, mediaMap, onClose, onReload, postAuthor, po
 
   async function handleDelete() {
     try {
-      await deletePost(currentPost._id || '', currentPost.visibility || 'private');
+      await deletePost(currentPost._id || '');
       onClose();
       onReload?.();
     } catch (e) {
@@ -389,6 +391,11 @@ export function PostLightbox({ post, mediaMap, onClose, onReload, postAuthor, po
               )}
             </button>
           </div>
+
+          {/* Pinned ad (the read serves it inline on the post, I3-checked) */}
+          {currentPost.ad && (
+            <AdBlock ad={currentPost.ad} className="mt-3 -mx-1 px-4" />
+          )}
 
           {/* Comment thread */}
           <CommentThread

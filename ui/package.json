@@ -25,7 +25,7 @@
     "react-phone-input-2": "^2.15.1",
     "react-verification-input": "^3.1.1",
     "tailwind-merge": "^3.6.0",
-    "web10-npm": "^1.0.8"
+    "web10-npm": "file:../sdk"
   },
   "devDependencies": {
     "@tailwindcss/vite": "^4.3.3",
@@ -40,5 +40,9 @@
     "typescript": "~5.8.2",
     "vite": "^6.3.1",
     "vitest": "^3.2.4"
+  },
+  "overrides": {
+    "nanoid": "^3.3.18",
+    "postcss": "^8.5.23"
   }
 }

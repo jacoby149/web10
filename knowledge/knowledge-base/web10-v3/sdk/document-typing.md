@@ -65,46 +65,10 @@ The API can't validate it. The app is responsible for correct types. The convent
 
 **Beware:** if the API assumes a type and the value doesn't match, things break. The app is the source of truth. The API is just a scanner.
 
-## Planned Development: Enforced Schemas
-
-What's cool about this model: we can plan to enforce schemas later without breaking anything.
-
-**Service contract schema** — the service declares its schema. The API validates against it.
-
-```
-service:cats → schema:
-  cat: {type: text, required: true}
-  cat-pic: {type: minio, required: false}
-  age: {type: number, required: false}
-```
-
-**Per-document schema** — each document carries its schema. The reader knows exactly what shape to expect.
-
-```json
-{
-  "$schema": "cats-v1",
-  "cat": {"type": "text", "value": "henry"},
-  "cat-pic": {"type": "minio", "value": "alice/henry.png"},
-  "age": {"type": "number", "value": 5}
-}
-```
-
-**Why this is clean:**
-- Developers know what schema the data was written with
-- Apps can validate before rendering
-- Schema evolution is explicit (cats-v1 → cats-v2)
-- The service contract enforces the schema at write time
-- The document carries the schema at read time
-
-**The plan:**
-1. Start with weak typing (current convention)
-2. Add schema validation to service contracts
-3. Add `$schema` field to documents
-4. Enforce schema at write time
-5. Validate schema at read time
-
-This keeps the current flexibility while planning for clean, enforced schemas. The convention is the foundation. The enforcement is the future.
-
 ## Summary
 
-Documents are opaque JSON. The leaf-level type convention lets the API do useful things (convert MinIO URLs, sort numbers, filter booleans) without knowing the schema. The app owns the structure. The API trusts the types. Weak typing today. Enforced schemas planned. Freeform but useful.
+Documents are opaque JSON. The leaf-level type convention lets the API do useful things (convert MinIO URLs, sort numbers, filter booleans) without knowing the schema. The app owns the structure. The API trusts the types. Weak typing today.
+
+**Enforced schemas** — planned for v4. Service contract schemas, `$schema` field per document, validation at write and read time. See `../../web10-v4/sdk/advanced.md`.
+
+Freeform but useful.

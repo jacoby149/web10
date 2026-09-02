@@ -9,20 +9,22 @@ import json
 
 from fastapi.testclient import TestClient
 
-from app.main import app, analytics_events, _feedback_store, _feedback_file, _feedback_lock, _format_bug_post
+from app.main import app
+from app.v3.endpoints.analytics import analytics_events
+from app.v3.endpoints.feedback import _feedback_store, _feedback_file, _feedback_lock, _format_bug_post
 from app.validation import VALIDATORS, validate_record
 
 client = TestClient(app)
 
 
 def test_health():
-    r = client.get("/health")
+    r = client.get("/v3/infra/health")
     assert r.status_code == 200
 
 
 def test_pageview_tracking():
     r = client.post(
-        "/analytics/pageview",
+        "/v3/analytics/pageview",
         json={"path": "/", "referrer": None, "user_agent": "pytest"},
     )
     assert r.status_code == 200
@@ -54,7 +56,7 @@ def test_validate_record():
 
 def test_submit_feedback_minimal():
     r = client.post(
-        "/feedback",
+        "/v3/feedback",
         json={"message": "something broke", "app": "web10-social", "route": "/feed"},
     )
     assert r.status_code == 200
@@ -65,7 +67,7 @@ def test_submit_feedback_minimal():
 
 def test_submit_feedback_full():
     r = client.post(
-        "/feedback",
+        "/v3/feedback",
         json={
             "message": "white screen on feed",
             "contact": "user@example.com",
@@ -110,7 +112,7 @@ def test_list_feedback():
         "/feedback",
         json={"message": "test2", "app": "marketing-ui", "route": "/import"},
     )
-    r = client.get("/feedback")
+    r = client.get("/v3/feedback")
     assert r.status_code == 200
     data = r.json()
     assert data["total"] == 2
@@ -124,7 +126,7 @@ def test_list_feedback_limit():
         _feedback_file.unlink(missing_ok=True)
     for i in range(5):
         client.post(
-            "/feedback",
+            "/v3/feedback",
             json={"message": f"msg-{i}", "app": "web10-social", "route": "/feed"},
         )
     r = client.get("/feedback?limit=3")
@@ -193,7 +195,7 @@ def test_contact_never_in_public_post_body():
 def test_error_beacon_minimal():
     analytics_events.clear()
     r = client.post(
-        "/analytics/error",
+        "/v3/analytics/error",
         json={"message": "TypeError: x is null", "app": "marketing-ui", "route": "/docs/sdk"},
     )
     assert r.status_code == 200
@@ -204,7 +206,7 @@ def test_error_beacon_minimal():
 def test_error_beacon_full():
     analytics_events.clear()
     r = client.post(
-        "/analytics/error",
+        "/v3/analytics/error",
         json={
             "message": "ReferenceError: foo is not defined",
             "source": "app.js",
@@ -224,7 +226,7 @@ def test_error_beacon_full():
 
 def test_error_beacon_rejects_missing_app():
     r = client.post(
-        "/analytics/error",
+        "/v3/analytics/error",
         json={"message": "broken", "route": "/feed"},
     )
     assert r.status_code == 422
@@ -232,7 +234,7 @@ def test_error_beacon_rejects_missing_app():
 
 def test_error_beacon_rejects_missing_route():
     r = client.post(
-        "/analytics/error",
+        "/v3/analytics/error",
         json={"message": "broken", "app": "marketing-ui"},
     )
     assert r.status_code == 422
@@ -244,7 +246,7 @@ def test_error_beacon_rejects_missing_route():
 def test_funnel_event():
     analytics_events.clear()
     r = client.post(
-        "/analytics/funnel",
+        "/v3/analytics/funnel",
         json={"event": "landing", "metadata": {}},
     )
     assert r.status_code == 200
@@ -257,7 +259,7 @@ def test_funnel_event_new_types():
     analytics_events.clear()
     for event in ("trending_view", "sign_up_click", "github_click", "enter_click"):
         r = client.post(
-            "/analytics/funnel",
+            "/v3/analytics/funnel",
             json={"event": event, "metadata": {}},
         )
         assert r.status_code == 200, f"funnel event {event} should accept"
@@ -266,8 +268,8 @@ def test_funnel_event_new_types():
 def test_analytics_summary_includes_dropoff():
     analytics_events.clear()
     for event in ("landing", "docs_view", "exporter_view"):
-        client.post("/analytics/funnel", json={"event": event, "metadata": {}})
-    r = client.get("/analytics/summary")
+        client.post("/v3/analytics/funnel", json={"event": event, "metadata": {}})
+    r = client.get("/v3/analytics/summary")
     assert r.status_code == 200
     data = r.json()
     assert "funnel_dropoff" in data

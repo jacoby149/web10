@@ -1,48 +1,38 @@
 /**
  * web10-npm — TypeScript SDK for the web10 protocol.
  *
- * Zero required dependencies. Uses native fetch. Full types for
- * records, queries, updates, terms/contracts, tokens, and aggregate
- * pipelines.
+ * V3 only: ClickHouse-backed API, groups as the primitive,
+ * CRUD with groups, app contracts, media, app store.
  *
  * @module web10-npm
  */
 
-// Protocol types
+// V3 client
+export { createV3Client, type V3Client } from './v3'
 export type {
-  Web10Record,
-  QueryOptions,
-  UpdateSpec,
-  TokenPayload,
-  ClientOptions,
-  ClientState,
-  TermsRecord,
-  SIR,
-  SCR,
-  PipelineStage,
-  Pipeline,
-  CreateResponse,
-  UpdateResponse,
-  DeleteResponse,
-  TokenResponse,
-  SignupResponse,
-  CheckoutParams,
-  SubscriptionParams,
-  LoginParams,
-  SignupParams,
-  PlanInfo,
-  MediaUploadUrlParams,
-  MediaUploadUrlResponse,
-  MediaConfirmParams,
-  MediaRecord,
-  MediaReadUrlResponse,
-} from './types'
-
-// Client
-export { createClient, type Web10Client } from './client'
-
-// Auth connector
-export { createAuthConnector, type AuthConnector } from './auth'
+  V3ClientOptions,
+  V3AdPreference,
+  V3Document,
+  V3Group,
+  V3GroupMember,
+  V3InviteResponse,
+  V3JoinRequest,
+  V3ServiceContract,
+  V3CR,
+  V3AppCR,
+  V3GroupCR,
+  V3GroupRole,
+  V3GroupMemberCR,
+  V3User,
+  V3LoginResponse,
+  AccessVerdict,
+  VerifyAccessOptions,
+  AccessStatus,
+  AccessTokenState,
+  AccessUserState,
+  AccessContractState,
+  AccessAction,
+} from './v3'
 
 // Token utilities
 export {
@@ -57,6 +47,5 @@ export {
 // HTTP
 export { Web10Error } from './http'
 
-// Legacy compat shim — re-exports wapiInit / wapiAuthInit for apps still
-// using the old JS SDK API (ui/, web10-social/).
-export { wapiInit, wapiAuthInit } from './compat'
+// Shared types
+export type { TokenPayload } from './types'

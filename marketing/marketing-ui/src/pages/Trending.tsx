@@ -7,6 +7,7 @@ import {
   YouTubeSkeleton,
   fetchDiscoverFeed,
   mapDiscoveryToFeedPost,
+  parseCreatedAt,
 } from '@/components/FeedPreview';
 import type { FeedPost } from '@/components/FeedPreview';
 import { TrendingSidebar } from '@/components/TrendingSidebar';
@@ -136,7 +137,7 @@ function buildTopic(allTags: string[]): string[] {
 
 function postToSignals(post: FeedPost): PostSignals {
   return {
-    ageMs: Date.now() - new Date(post.createdAt).getTime(),
+    ageMs: Math.max(0, Date.now() - parseCreatedAt(post.createdAt)),
     likes: post.likesCount,
     comments: post.commentsCount,
     reposts: post.repostsCount,

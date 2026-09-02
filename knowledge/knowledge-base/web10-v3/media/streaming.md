@@ -54,7 +54,7 @@ Background job:
   → alice/video/1080p.ts   (chunks)
 ```
 
-The document references the manifest. The API presigns the manifest URL. The browser fetches chunks as needed.
+The document references the manifest. The browser fetches chunks as needed. (How the manifest + segments get *authorized* is a separate problem — a plain presigned manifest URL is the insecure option; see `minio-auth-bifurcated.md`.)
 
 **Pros:** Adaptive bitrate. Industry standard. Works everywhere.
 
@@ -62,58 +62,9 @@ The document references the manifest. The API presigns the manifest URL. The bro
 
 **Best for:** Video streaming where quality adaptation matters (YouTube, Netflix).
 
-### 3. PeerTube Model (WebRTC P2P)
+### 3. P2P, Edge Caching, Tile-Based (v4)
 
-PeerTube uses **WebRTC data channels** for P2P video delivery. When you watch a video, you download from the server *and* from other viewers watching the same video. Bandwidth is shared across peers.
-
-```
-Server → Viewer A (chunks 1-100)
-Server → Viewer B (chunks 1-100)
-Viewer A → Viewer B (chunks 1-50)  [P2P]
-Viewer B → Viewer A (chunks 51-100) [P2P]
-```
-
-PeerTube combines this with **BitTorrent** for large file distribution and **HLS** as a fallback.
-
-**Pros:** Server bandwidth scales with viewers, not linearly. 100 viewers ≠ 100x bandwidth. Popular content is cheapest to serve.
-
-**Cons:** Requires viewers to be online simultaneously. First viewer pays the full cost. WebRTC has NAT traversal issues. Small audiences don't benefit. Requires a signaling server.
-
-**Best for:** Popular content with concurrent viewers. Live streams. Community platforms.
-
-### 4. Edge Caching (CDN)
-
-Upload to MinIO → replicate to edge nodes → serve from nearest edge.
-
-```
-MinIO (source) → Cloudflare / Fastly / CloudFront (edges)
-User → nearest edge → cached chunk
-```
-
-**Pros:** Low latency. Scales infinitely. Industry standard.
-
-**Cons:** CDN costs. Egress fees. Not P2P — still linear server cost. Caching invalidation for updates/deletes.
-
-**Best for:** Public content with global audience. Static assets.
-
-### 5. Tile-Based Streaming (Images, Maps, 3D)
-
-For large images and 3D models, split into tiles. Client requests tiles based on viewport and zoom level.
-
-```
-alice/blueprint.png (10,000 x 10,000 pixels)
-→ alice/blueprint/tile/0/0.png  (level 0, tile 0)
-→ alice/blueprint/tile/1/0.png  (level 1, tile 0)
-→ alice/blueprint/tile/1/1.png  (level 1, tile 1)
-```
-
-Client only downloads visible tiles. Zoom in → download higher resolution tiles for visible area.
-
-**Pros:** Massive files become interactive. Only visible data transfers. Works for images, point clouds, 3D models.
-
-**Cons:** Tiling is a preprocessing step. Different tiling formats per type (XYZ for images, Draco for 3D). Client needs a tile renderer.
-
-**Best for:** Satellite imagery, medical scans, architectural blueprints, 3D models.
+WebRTC P2P segment sharing (the PeerTube model), CDN edge caching, and tile-based streaming for large images/3D are scale plays — they pay off with concurrent viewers, global latency, or multi-megapixel assets. None of them are needed for video to *work*. They live in `../../web10-v4/media/streaming.md`.
 
 ## The web10 Approach
 
@@ -123,61 +74,48 @@ MinIO already supports this. The API presigns URLs with range request support. C
 
 No infrastructure changes. Works for everything.
 
-### Layer 2: Background Transcoding (When Video Matters)
+### Layer 2: Background Transcoding (HLS)
 
-Triggered by file type. Video files get transcoded into HLS. Audio files get transcoded into Ogg/MP3. The document gets a `stream` field:
+Triggered by file type. Video files get transcoded into HLS. The document gets its `transcoding_settings` populated (variants + thumbnails — the shape is defined in `transcoding-foundation.md`).
 
-```json
-{
-  "raw": {"type": "minio", "value": "alice/video.mp4"},
-  "stream": {"type": "minio", "value": "alice/video/stream.m3u8"}
-}
-```
+The UI checks `transcoding_settings.enabled` first. Enabled → signed manifest + hls.js. Not enabled (or missing) → fall back to the raw file via presigned URL + range requests.
 
-UI checks `stream` first. Falls back to `raw`.
+### Layer 3+: P2P, Edge Caching (v4)
 
-### Layer 3: P2P (When Popular Content Costs Too Much)
-
-WebRTC signaling server. When a video has N concurrent viewers, peers share chunks. Server bandwidth is O(1), not O(N).
-
-This is the PeerTube innovation. It's not about quality — it's about **economics**. A video with 10,000 concurrent viewers costs 10,000x bandwidth on a traditional model. With P2P, it costs maybe 100x (seeders + initial fetch).
-
-### Layer 4: Edge Caching (When Global Latency Matters)
-
-Replicate popular content to edge nodes. Not P2P — just faster HTTP. For content that doesn't benefit from P2P (small audiences, non-video files).
+When popular content costs too much (P2P) or global latency matters (edge caching): `../../web10-v4/media/streaming.md`.
 
 ## The Type System
 
-The type stays `minio`. Streaming is infrastructure, not a type. The document can carry multiple references:
+The type stays `minio`. Streaming is infrastructure, not a type. The document carries the raw reference plus its `transcoding_settings` (the full shape: `transcoding-foundation.md`):
 
 ```json
 {
-  "raw": {"type": "minio", "value": "alice/video.mp4"},
-  "stream": {"type": "minio", "value": "alice/video/stream.m3u8"},
-  "thumbnail": {"type": "minio", "value": "alice/video/thumb.jpg"}
+  "url": {
+    "type": "minio",
+    "value": "alice/video/vacation-raw.mp4",
+    "transcoding_settings": {
+      "enabled": true,
+      "variants": [ /* minio refs to each rendition's index.m3u8 */ ],
+      "thumbnails": [ /* minio refs */ ]
+    }
+  }
 }
 ```
 
-All `minio`. All presigned. The UI decides which to use. The API doesn't care.
+Everything is still `minio`. The API's special handling for video is keyed off `transcoding_settings`, not off a new type — the type system describes what data *is* (a MinIO reference), not how it's delivered (presigned, chunked, adaptive).
 
 ## What About PeerTube's Torrenting?
 
-BitTorrent for video distribution is clever but has trade-offs:
-
-- **Torrenting requires the full file** — you can't stream partial torrents easily. You need the whole piece before playback.
-- **WebRTC is better for streaming** — data channels deliver chunks in order, low latency.
-- **Torrenting is better for distribution** — seed a file, everyone downloads in parallel.
-
-PeerTube uses both: WebRTC for live streaming, torrents for on-demand, HLS for fallback. For web10, WebRTC P2P is the priority. Torrenting is niche — useful for large file distribution (datasets, backups), not for social media video.
+BitTorrent for video distribution is clever but has trade-offs — and it's a v4 concern (P2P delivery, `../../web10-v4/media/streaming.md`). Short version: torrenting needs the full file before playback (bad for streaming), WebRTC data channels deliver chunks in order (good for streaming), and torrenting's security model (untrusted peer shards, mitigated by piece hashing) is a surface we don't need to open until P2P is actually in scope.
 
 ## Summary
 
 | Approach | When to Use | Infrastructure |
 |---|---|---|
 | Range requests | Everything, Day 1 | MinIO native |
-| HLS transcoding | Video, adaptive bitrate | ffmpeg background job |
-| WebRTC P2P | Popular content, concurrent viewers | Signaling server |
-| Edge caching | Global audience, low latency | CDN |
-| Tile-based | Large images, 3D models | Tiling background job |
+| HLS transcoding | Video, adaptive bitrate | ffmpeg in-process worker |
+| WebRTC P2P | Popular content, concurrent viewers | v4 |
+| Edge caching | Global audience, low latency | v4 |
+| Tile-based | Large images, 3D models | v4 |
 
 Start with range requests. Add transcoding when video matters. Add P2P when popular content costs too much. The type stays `minio`. Streaming is infrastructure.

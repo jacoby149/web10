@@ -1,0 +1,237 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Media — web10 Demo</title>
+  <link rel="manifest" href="manifest.json" />
+  <meta name="description" content="Upload media to your node's object store and read it back through presigned URLs." />
+  <meta name="theme-color" content="#09090b" />
+  <link rel="apple-touch-icon" href="/brand/icon-192.png" />
+  <style>
+    :root {
+      --bg: #09090b;
+      --fg: #fafafa;
+      --muted: #a1a1aa;
+      --surface: #111113;
+      --elevated: #18181b;
+      --border: #27272a;
+      --brand: #8b5cf6;
+      --brand-300: #c4b5fd;
+      --brand-muted: #2e1065;
+      --danger: #ef4444;
+      --success: #22c55e;
+    }
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      font-family: 'Inter', ui-sans-serif, system-ui, sans-serif;
+      background: var(--bg);
+      color: var(--fg);
+      min-height: 100vh;
+      padding: 2rem 1rem;
+    }
+    .container { max-width: 560px; margin: 0 auto; }
+    h1 {
+      font-size: 1.5rem;
+      font-weight: 700;
+      margin-bottom: 0.25rem;
+    }
+    .subtitle { color: var(--muted); font-size: 0.875rem; line-height: 1.5; margin-bottom: 1.5rem; }
+    .auth-row {
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+      margin-bottom: 1.5rem;
+      flex-wrap: wrap;
+    }
+    button {
+      background: var(--brand);
+      color: var(--fg);
+      border: none;
+      border-radius: 0.5rem;
+      padding: 0.5rem 1rem;
+      font-size: 0.8125rem;
+      font-weight: 500;
+      cursor: pointer;
+      transition: background 150ms ease-out;
+    }
+    button:hover { background: #7c3aed; }
+    button:disabled { opacity: 0.5; cursor: not-allowed; }
+    button.secondary {
+      background: var(--elevated);
+      border: 1px solid var(--border);
+    }
+    button.secondary:hover { background: var(--border); }
+    button.danger {
+      background: transparent;
+      color: var(--danger);
+      border: 1px solid var(--danger);
+    }
+    button.danger:hover { background: #450a0a; }
+    .upload-row {
+      display: flex;
+      gap: 0.5rem;
+      align-items: center;
+      margin-bottom: 2rem;
+      flex-wrap: wrap;
+    }
+    select {
+      background: var(--elevated);
+      color: var(--fg);
+      border: 1px solid var(--border);
+      border-radius: 0.5rem;
+      padding: 0.5rem 0.75rem;
+      font-size: 0.8125rem;
+      font-weight: 500;
+      cursor: pointer;
+    }
+    select:hover { background: var(--border); }
+    select:disabled { opacity: 0.5; cursor: not-allowed; }
+    .style-hint {
+      font-size: 0.75rem;
+      color: var(--muted);
+      width: 100%;
+      font-family: 'JetBrains Mono', ui-monospace, monospace;
+    }
+    .player-controls {
+      display: flex;
+      gap: 0.5rem;
+      align-items: center;
+      margin-top: 0.5rem;
+      flex-wrap: wrap;
+    }
+    .player-controls select { padding: 0.25rem 0.5rem; font-size: 0.75rem; }
+    .player-controls button { padding: 0.25rem 0.5rem; font-size: 0.75rem; }
+    .player-controls .ctl-label {
+      font-size: 0.6875rem;
+      color: var(--muted);
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+    }
+    #fileInput {
+      font-size: 0.8125rem;
+      color: var(--muted);
+      max-width: 220px;
+    }
+    #fileInput::file-selector-button {
+      background: var(--elevated);
+      color: var(--fg);
+      border: 1px solid var(--border);
+      border-radius: 0.5rem;
+      padding: 0.5rem 0.75rem;
+      font-size: 0.8125rem;
+      font-weight: 500;
+      cursor: pointer;
+      margin-right: 0.5rem;
+    }
+    #fileInput::file-selector-button:hover { background: var(--border); }
+    .media-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 0.75rem;
+      padding: 1rem;
+      margin-bottom: 0.75rem;
+    }
+    .media-card video {
+      display: block;
+      border-radius: 0.5rem;
+      background: #000;
+      margin: 0 auto;
+      width: 100%;
+    }
+    .transcode-status {
+      font-size: 0.75rem;
+      color: var(--muted);
+      margin-top: 0.5rem;
+      font-family: 'JetBrains Mono', ui-monospace, monospace;
+    }
+    .transcode-status.done { color: var(--success); }
+    .transcode-status.failed { color: var(--danger); }
+    .media-card img {
+      width: 100%;
+      height: auto;
+      display: block;
+      border-radius: 0.5rem;
+      background: var(--elevated);
+      min-height: 40px;
+    }
+    .media-meta {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 0.5rem;
+      margin-top: 0.75rem;
+    }
+    .media-key {
+      font-family: 'JetBrains Mono', ui-monospace, monospace;
+      font-size: 0.75rem;
+      color: var(--muted);
+      word-break: break-all;
+    }
+    .media-date {
+      font-family: 'JetBrains Mono', ui-monospace, monospace;
+      font-size: 0.75rem;
+      color: var(--muted);
+      white-space: nowrap;
+    }
+    .media-actions { margin-top: 0.5rem; display: flex; justify-content: flex-end; }
+    .media-actions button { padding: 0.375rem 0.75rem; font-size: 0.75rem; }
+    #message {
+      font-size: 0.8125rem;
+      color: var(--brand-300);
+    }
+    code {
+      font-family: 'JetBrains Mono', ui-monospace, monospace;
+      background: var(--brand-muted);
+      padding: 0.125rem 0.375rem;
+      border-radius: 0.25rem;
+      font-size: 0.8125rem;
+    }
+    .empty {
+      color: var(--muted);
+      font-size: 0.875rem;
+      text-align: center;
+      padding: 2rem 0;
+    }
+  </style>
+</head>
+<body>
+<div class="container">
+    <h1>Media</h1>
+    <p class="subtitle">Upload an image to MinIO, store it in your document as a <code>minio</code> type, and read it back as a fresh presigned URL. Upload a video — pick a style (TikTok, Instagram, square, original) and it gets reframed in your browser, then transcoded to HLS on your node: adaptive bitrate, signed segments, any aspect ratio. The blob lives in the object store; your document only carries the reference.</p>
+
+    <div class="auth-row">
+      <button id="authButton">Log in</button>
+      <button id="fixAccessBtn" class="secondary" style="display:none;">Fix access</button>
+      <button id="setupGroupBtn" class="secondary" style="display:none;">Set up your media group</button>
+      <span id="message">Not started — log in to begin.</span>
+    </div>
+
+    <div id="editor" style="display:none;">
+      <div class="upload-row">
+        <input type="file" id="fileInput" accept="image/*" data-testid="file-input" />
+        <button id="uploadBtn" onclick="uploadImage()" data-testid="upload-button">Upload & post</button>
+      </div>
+      <div class="upload-row">
+        <input type="file" id="videoInput" accept="video/*" data-testid="video-input" />
+        <select id="styleSelect" data-testid="style-select" aria-label="upload style">
+          <option value="original">Original</option>
+          <option value="tiktok">TikTok (9:16)</option>
+          <option value="instagram">Instagram (4:5)</option>
+          <option value="square">Square (1:1)</option>
+        </select>
+        <button id="videoUploadBtn" onclick="uploadVideo()" data-testid="video-upload-button">Upload video (HLS)</button>
+        <span class="style-hint" id="styleHint" data-testid="style-hint"></span>
+      </div>
+    </div>
+
+    <div id="mediaview"></div>
+  </div>
+
+  <!-- web10 SDK: self-hosted (served from /docs/wapi.js on this site). -->
+  <script src="../wapi.js"></script>
+  <!-- hls.js (vendored): adaptive-bitrate HLS playback for non-Safari browsers. -->
+  <script src="hls.min.js"></script>
+  <script src="script.js"></script>
+</body>
+</html>

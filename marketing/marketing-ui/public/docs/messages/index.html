@@ -4,6 +4,10 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Messages — web10 Demo</title>
+  <link rel="manifest" href="manifest.json" />
+  <meta name="description" content="DM-style messaging: each conversation is a group, with real-time WebRTC delivery when both parties are online." />
+  <meta name="theme-color" content="#09090b" />
+  <link rel="apple-touch-icon" href="/brand/icon-192.png" />
   <style>
     :root {
       --bg: #09090b;
@@ -37,6 +41,7 @@
       align-items: center;
       gap: 0.75rem;
       margin-bottom: 1.5rem;
+      flex-wrap: wrap;
     }
     button {
       background: var(--brand);
@@ -150,38 +155,46 @@
 <body>
   <div class="container">
     <h1>Messages</h1>
-    <p class="subtitle">A DM-style demo: send messages between web10 nodes. Each message lives in the recipient's <code>web10-docs-message-demo</code> collection.</p>
+    <p class="subtitle">A DM-style demo: send messages between web10 users. Each conversation is a group — the first message to someone sets up the DM group, after that it's reused (no popup). Messages are documents attached to the group; members discover them via membership. When both parties are online, a message is also delivered in real time over a WebRTC P2P data channel — the group stays the source of truth, P2P is the fast path.</p>
 
     <div class="auth-row">
-      <button id="authButton">Log in</button>
-      <span id="message">Not started — log in to begin.</span>
+      <button id="authButton" data-testid="auth-button">Log in</button>
+      <button id="fixAccessBtn" class="secondary" style="display:none;" data-testid="fix-access">Fix access</button>
+      <span id="message" data-testid="status">Not started — log in to begin.</span>
+      <span id="p2pStatus" data-testid="p2p-status" style="font-size:0.75rem;color:var(--muted);font-family:'JetBrains Mono',ui-monospace,monospace;">P2P: off</span>
     </div>
 
     <div id="editor" style="display:none;">
       <label class="field-label" for="toUsername">To (username)</label>
       <div class="row">
         <div class="col">
-          <input id="toUsername" placeholder="alice" autocomplete="off" />
+          <input id="toUsername" placeholder="alice" autocomplete="off" data-testid="to-username" />
         </div>
         <div class="col">
-          <input id="toProvider" placeholder="auth.web10.app" autocomplete="off" />
+          <input id="toProvider" placeholder="api.localhost" autocomplete="off" data-testid="to-provider" />
         </div>
       </div>
-      <label class="field-label" for="body">Message</label>
-      <textarea id="body" class="text" placeholder="Write a message…"></textarea>
+      <label class="field-label" for="msgText">Message</label>
+      <textarea id="msgText" class="text" placeholder="Write a message…" data-testid="msg-text"></textarea>
       <div class="create-row">
-        <button onclick="sendMessage()">Send</button>
+        <button onclick="sendMessage()" data-testid="send-button">Send</button>
       </div>
     </div>
 
-    <div id="messageview"></div>
+    <div id="messageview" data-testid="message-view"></div>
   </div>
 
-  <!-- web10 SDK: self-hosted (the old auth.web10.app/sdk/wapi.js path 404s
-       since the SDK moved to npm). Served from /docs/wapi.js on this site. -->
+<!-- web10 SDK: self-hosted (the old auth.web10.app/sdk/wapi.js path 404s
+        since the SDK moved to npm). Served from /docs/wapi.js on this site.
+        This file is a copy of sdk/dist/browser.js — keep it in sync (the
+        marketing-ui Dockerfile rebuilds it from sdk/src on every build). -->
   <script src="../wapi.js"></script>
+  <!-- WebRTC P2P: PeerJS (global `Peer`) + the web10 RTC module (global
+        `web10rtc` = { createRTC, setPeer }). rtc.js is an IIFE build of
+        sdk/src/rtc/index.ts; peerjs.min.js is peerjs@1.5.5. Both are served
+        from /docs/ so the demo has no CDN dependency. -->
+  <script src="../peerjs.min.js"></script>
+  <script src="../rtc.js"></script>
   <script src="script.js"></script>
 </body>
 </html>
-</content>
-</invoke>

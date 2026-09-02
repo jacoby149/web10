@@ -67,9 +67,9 @@ export function DirectDealsCard({ I, onStatus }: DirectDealsCardProps) {
       setAmount('');
       onStatus(`Deal "${deal.title}" published`);
 
-      if (!I.isMock && I.wapi?.create) {
+      if (!I.isMock && I.v3?.create) {
         try {
-          await I.wapi.create('ads', {
+          await I.v3.create('ads', {
             service: 'ads',
             type: 'direct_deal',
             ...deal,

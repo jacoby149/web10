@@ -3,6 +3,8 @@
 
 # dependencies — never commit installed packages
 node_modules/
+package-lock.json
+bun.lock
 
 # python
 __pycache__/
@@ -23,6 +25,7 @@ marketing/web10-social/dist/
 # test / coverage output
 coverage/
 *.tsbuildinfo
+marketing/marketing-ui/test-results/
 
 # secrets / local config — env files never get committed
 .env

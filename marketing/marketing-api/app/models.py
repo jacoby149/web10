@@ -69,8 +69,19 @@ class FunnelEvent(str, Enum):
     APP_STORE_VIEW = "app_store_view"
     EXPORTER_VIEW = "exporter_view"
     TRENDING_VIEW = "trending_view"
+    FREEDOM_VIEW = "freedom_view"
+    EVERYTHING_VIEW = "everything_view"
     EXPORT_STARTED = "export_started"
     EXPORT_COMPLETE = "export_complete"
+    TRENDING_LOAD_MORE = "trending_load_more"
+    TRENDING_COMMENT_ATTEMPT = "trending_comment_attempt"
+    TRENDING_LIKE_ATTEMPT = "trending_like_attempt"
+    TRENDING_REPOST_ATTEMPT = "trending_repost_attempt"
+    TRENDING_PRESET = "trending_preset"
+    TRENDING_SEARCH = "trending_search"
+    TRENDING_VIEW_TOGGLE = "trending_view_toggle"
+    JOIN_VIEW = "join_view"
+    JOIN_CLICK = "join_click"
     SIGN_IN_CLICK = "sign_in_click"
     SIGN_UP_CLICK = "sign_up_click"
     GITHUB_CLICK = "github_click"
@@ -105,3 +116,70 @@ class FeedbackCreate(BaseModel):
     user_agent: Optional[str] = Field(None, max_length=500)
     console_errors: list[str] = Field(default_factory=list, description="Recent console errors captured client-side")
     stack_trace: Optional[str] = Field(None, max_length=10000, description="From error boundary catch")
+
+
+# ─── Pay (Developer Payouts) ──────────────────────────────────────────────
+
+
+class PayoutStatus(str, Enum):
+    PENDING = "pending"
+    APPROVED = "approved"
+    PAID = "paid"
+    FAILED = "failed"
+    CANCELLED = "cancelled"
+
+
+class PayoutCreate(BaseModel):
+    """Request a payout from the web10 marketplace."""
+
+    app_id: str = Field(..., description="App ID receiving the payout")
+    amount_cents: int = Field(..., gt=0, description="Payout amount in cents")
+    currency: str = Field("usd", description="Currency code (usd only for now)")
+    description: Optional[str] = Field(None, max_length=500, description="Payout description")
+    stripe_customer_id: Optional[str] = None
+    stripe_account_id: Optional[str] = None
+
+
+class PayoutResponse(BaseModel):
+    payout_id: str
+    app_id: str
+    amount_cents: int
+    currency: str
+    status: PayoutStatus
+    stripe_payment_id: Optional[str] = None
+    created_at: str
+
+
+class AffiliateCreate(BaseModel):
+    """Generate an affiliate link for a web10 product."""
+
+    target_url: str = Field(..., description="The web10 URL to affiliate-link")
+    affiliate_key: str = Field(..., description="web10 user key of the affiliate")
+    commission_pct: float = Field(10.0, ge=0, le=100, description="Commission percentage")
+
+
+class AffiliateLinkResponse(BaseModel):
+    affiliate_link: str
+    affiliate_key: str
+    target_url: str
+    commission_pct: float
+    created_at: str
+    clicks: int = 0
+    conversions: int = 0
+
+
+class AffiliateClick(BaseModel):
+    """Record an affiliate link click."""
+
+    affiliate_id: str
+    visitor_ip: Optional[str] = None
+    user_agent: Optional[str] = None
+    referrer: Optional[str] = None
+
+
+class AffiliateConversion(BaseModel):
+    """Record a conversion from an affiliate link."""
+
+    affiliate_id: str
+    revenue_cents: int
+    customer_key: Optional[str] = None

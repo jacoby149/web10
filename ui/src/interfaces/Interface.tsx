@@ -1,19 +1,105 @@
 import React from 'react';
 import web10AuthAdapterInit from './authAdapter'
-import axios from 'axios'
 import { config } from '../config';
 
-// Build a service-change update from a desired terms record: $set the changed
-// term fields, $unset cleared ones, never touching protected star fields.
-function buildSCR(service: any) {
-    const SCR: Record<string, any> = { PULL: true, $unset: {}, $set: {} };
-    const starFields = ["_id", "hashed_password", "customer_id", "business_id", "service", "credit_limit", "space_limit"];
-    for (const [key, value] of Object.entries(service)) {
-        if (key === "_id" || key === "service" || starFields.includes(key)) continue;
-        if (value === undefined || value === null) SCR["$unset"][key] = "";
-        else SCR["$set"][key] = value;
+// ── v3 API helpers (ClickHouse-backed service contracts + groups) ──────────
+
+/**
+ * Resolve the API origin from the decoded token or fall back to the configured
+ * default. Mirrors authAdapter's *.localhost / *.dev.web10.app detection.
+ */
+function v3ApiOrigin(decoded: { provider?: string } | null): string {
+    const host = window.location.hostname;
+    const isLocal = host === 'localhost' || host === '127.0.0.1' || host.endsWith('.localhost');
+    const isDev = host.endsWith('.dev.web10.app');
+    const provider = decoded?.provider || (isLocal ? 'api.localhost' : isDev ? 'api.dev.web10.app' : config.REACT_APP_DEFAULT_API);
+    // Port-aware: isolated e2e stacks (E2E_HTTP_PORT) serve *.localhost on a
+    // non-80 port; the origin must carry the same port. Empty on :80.
+    const port = window.location.port ? `:${window.location.port}` : '';
+    return `${window.location.protocol}//${provider}${port}`;
+}
+
+/**
+ * Call a v3 API endpoint. All v3 endpoints are POST with a JSON body that
+ * carries the token + parameters. Mirrors api/app/v3/models/__init__.py Token.
+ */
+async function v3Post(action: string, body: Record<string, any>) {
+    const decoded = (window.I?.v3?.readToken?.()) as { provider?: string } | null;
+    const origin = v3ApiOrigin(decoded);
+    const token = window.I?.v3?.state?.token;
+    if (!token) throw new Error('No token available for v3 API');
+    const res = await fetch(`${origin}/v3/${action}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ...body, token }),
+    });
+    if (!res.ok) {
+        const text = await res.text().catch(() => '');
+        throw new Error(`v3 ${action} failed: ${res.status} ${text}`);
     }
-    return SCR;
+    return res.json();
+}
+
+/**
+ * Call an UNAUTHENTICATED v3 endpoint (the recovery flow — the user has no
+ * token; the phone + code are the credential). Unlike v3Post, it never attaches
+ * a token and surfaces the API's `detail` as the error message.
+ */
+async function v3PostAnon(action: string, body: Record<string, any>) {
+    const decoded = (window.I?.v3?.readToken?.()) as { provider?: string } | null;
+    const origin = v3ApiOrigin(decoded);
+    const res = await fetch(`${origin}/v3/${action}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body),
+    });
+    if (!res.ok) {
+        let detail = `recovery ${action} failed: ${res.status}`;
+        try {
+            const data = await res.json();
+            if (data && data.detail) detail = data.detail;
+        } catch { /* non-JSON body — keep the status message */ }
+        throw new Error(detail);
+    }
+    return res.json();
+}
+
+/**
+ * JSON.stringify a value for logging, safely.
+ *
+ * Contract objects carry `_windowSource` — the cross-origin opener Window —
+ * so the response can be posted back to it. JSON.stringify cannot serialize a
+ * cross-origin Window: it reads `value.toJSON` BEFORE any replacer runs, and
+ * reading any property off a cross-origin Window throws a SecurityError. That
+ * SecurityError used to abort the contract message handler, so `setPendingContracts`
+ * never ran and the popup showed "You're all set" with zero contracts.
+ *
+ * Strip `_windowSource` (the only Window in the graph) before serializing.
+ */
+function toLogString(value: any): string {
+    try {
+        return JSON.stringify(value, (_key, val) =>
+            val && typeof val === 'object' && '_windowSource' in val
+                ? Object.fromEntries(Object.entries(val).filter(([k]) => k !== '_windowSource'))
+                : val,
+        );
+    } catch {
+        return '[unserializable]';
+    }
+}
+
+/**
+ * Runtime + type guard for "is this a postable Window".
+ *
+ * `instanceof Window` is false for a cross-origin opener (its prototype is
+ * from a different realm), which silently dropped the response. `postMessage`
+ * is one of the few properties readable across origins, so `typeof
+ * src.postMessage === 'function'` is the reliable runtime check; the `src is
+ * Window` signature also narrows the type for tsc (the MessageEventSource
+ * union's postMessage overload rejects a string targetOrigin).
+ */
+function isPostableWindow(src: MessageEventSource | null): src is Window {
+    return !!src && typeof (src as Window).postMessage === 'function';
 }
 
 function useInterface() {
@@ -21,23 +107,32 @@ function useInterface() {
 
     I.config = config;
 
-    // Build the SDK adapter first so auth state can be SEEDED from the token
-    // cookie via a lazy useState initializer. Setting auth mid-render (the
-    // previous approach) is a render-phase update that infinite-looped once a
-    // valid token existed. web10AuthAdapterInit calls no hooks, so running it
-    // before the useState calls keeps hook order stable.
+    // Build the v3 client — all auth goes through ClickHouse (v3).
     const adapter = web10AuthAdapterInit();
+    const v3 = adapter.v3;
 
     // Restore auth from the "token=" cookie on load. A dead (expired) token
     // must NOT present the authenticated view (B7: it used to land the user on
     // an empty "Your contracts" with no way to log in) — scrub it so routing
-    // sends them to login. Runs once, in the lazy initializer, not every render.
+    // sends them to login. Same for a token from the wrong provider (prod token
+    // on dev or vice versa) — the JWT provider must match this node. Runs once,
+    // in the lazy initializer, not every render.
     const restoreAuth = (): boolean => {
-        const t = adapter.wapi.readToken?.();
+        const t = v3.readToken?.();
         if (!t) return false;
         const expires = t.expires ? Date.parse(t.expires) : NaN;
         if (!Number.isNaN(expires) && expires < Date.now()) {
-            adapter.wapi.scrubToken?.();
+            v3.scrubToken?.();
+            return false;
+        }
+        // Provider mismatch: a prod token on dev (or vice versa) is useless —
+        // the API won't recognize it. Scrub so the user gets a login prompt.
+        const host = window.location.hostname;
+    const isDev = host === 'dev.web10.app' || host.endsWith('.dev.web10.app');
+        const isLocal = host === 'localhost' || host === '127.0.0.1' || host.endsWith('.localhost');
+        const expectedProvider = isLocal ? 'api.localhost' : isDev ? 'api.dev.web10.app' : config.REACT_APP_DEFAULT_API;
+        if (t.provider !== expectedProvider && !isLocal) {
+            v3.scrubToken?.();
             return false;
         }
         return true;
@@ -53,63 +148,207 @@ function useInterface() {
     [I.requests, I.setRequests] = React.useState([]);
     [I.phone, I.setPhone] = React.useState("");
 
+    // Phone-recovery flow (Phase 2): phone → code → pick account → sign in.
+    // The step is wizard state (default "phone"; a fresh load can't resume
+    // code/pick because the phone isn't persisted, so it always starts at phone).
+    [I.recoveryStep, I._setRecoveryStep] = React.useState("phone");
+    [I.recoveryPhone, I.setRecoveryPhone] = React.useState("");
+    [I.recoveryAccounts, I.setRecoveryAccounts] = React.useState([]);
+
     [I.auth, I.setAuth] = React.useState(restoreAuth);
     [I.isAdmin, I.setIsAdmin] = React.useState(false);
     [I.verified, I.setVerified] = React.useState(false);
     [I.status, I.setStatus] = React.useState<string | null>(null);
-    [I.SMR, I.setSMR] = React.useState({ scrs: [], sirs: [] });
+    // Pending contract requests — unified list of ACRs and GCRs.
+    // One popup, one consent screen, both types together.
+    // ACR: { allowed_origin, permissions } — app contract (what can this app do)
+    // GCR: { app_origin, action, params } — group contract (who can see my content)
+    [I.pendingContracts, I.setPendingContracts] = React.useState<any[]>([]);
+    // D42: has this popup received a contract yet? React state, NOT a plain
+    // property — `I` is recreated every render, and the contract listener
+    // (attached once, capturing the first render's `I`) would set the flag on
+    // a stale object that ConsentView never reads. The auto-complete depends
+    // on this, so it must survive the re-render that setPendingContracts causes.
+    [I._contractReceived, I.setContractReceived] = React.useState(false);
 
-    I.wapi = adapter.wapi;
-    I.wapiAuth = adapter.wapiAuth;
+    // v3 service contracts (ClickHouse-backed — simpler model: origin + service)
+    [I.v3Contracts, I.setV3Contracts] = React.useState<any[]>([]);
+    // v3 groups the user belongs to
+    [I.v3Groups, I.setV3Groups] = React.useState<any[]>([]);
+    // v3 groups the user manages (has management permissions)
+    [I.v3ManagedGroups, I.setV3ManagedGroups] = React.useState<any[]>([]);
+    // v3 pending invites (groups that invited this user)
+    [I.v3Invites, I.setV3Invites] = React.useState<any[]>([]);
 
-    I.initAuthenticator = function () {
-        I.wapiAuth.SMRListen((inSMR) => {
-            I.setSMR(inSMR);
-        });
+    I.v3 = v3;
+
+    // Normalize contract requests into a unified list (app + group contracts).
+    // contractListen delivers { contracts } where each CR is either:
+    //   V3AppCR: { kind: 'app', app_origin, permissions }
+    //   V3GroupCR: { kind: 'group', app_origin, action, name?, join_policy?, roles?, members?, group_id? }
+    function normalizeContracts(cData: any, windowSource?: MessageEventSource | null) {
+        const contracts: any[] = [];
+        // Handle unified CR format: { contracts: [...] }
+        if (Array.isArray(cData?.contracts)) {
+            for (const cr of cData.contracts) {
+                // Normalize old kind values ('acr'/'gcr') to new ('app'/'group')
+                let kind = cr.kind;
+                if (kind === 'acr') kind = 'app';
+                if (kind === 'gcr') kind = 'group';
+                if (!kind) kind = cr.permissions ? 'app' : 'group';
+
+                const entry: any = {
+                    kind,
+                    app_origin: cr.app_origin || cr.allowed_origin || '',
+                    _source: cr,
+                    _windowSource: windowSource,
+                };
+                if (kind === 'app') {
+                    entry.permissions = cr.permissions || {};
+                } else {
+                    // Group contract — typed fields, not a params bag
+                    entry.action = cr.action || 'create_group';
+                    entry.name = cr.name;
+                    entry.join_policy = cr.join_policy;
+                    entry.roles = cr.roles;
+                    entry.members = cr.members;
+                    entry.group_id = cr.group_id;
+                    // Backward compat: if sender used old params bag, flatten it
+                    if (cr.params) {
+                        entry.name = entry.name || cr.params.name;
+                        entry.join_policy = entry.join_policy || cr.params.join_policy;
+                        entry.roles = entry.roles || cr.params.roles;
+                        entry.members = entry.members || cr.params.members;
+                        entry.group_id = entry.group_id || cr.params.group_id;
+                    }
+                    // Also keep a params bag for backward compat with ConsentView.summarizeGCR
+                    entry.params = {
+                        name: entry.name,
+                        join_policy: entry.join_policy,
+                        roles: entry.roles,
+                        members: entry.members,
+                        group_id: entry.group_id,
+                    };
+                }
+                contracts.push(entry);
+            }
+            return contracts;
+        }
+        // Fallback: legacy SMR { sirs, scrs } format (app contract only)
+        const allRequests = [
+            ...(Array.isArray(cData?.sirs) ? cData.sirs : []),
+            ...(Array.isArray(cData?.scrs) ? cData.scrs : []),
+        ];
+        for (const req of allRequests) {
+            const origins = Array.isArray(req.cross_origins) ? req.cross_origins : [];
+            if (origins.length === 0) {
+                console.warn('CR: request with no cross_origins — skipped', req);
+                continue;
+            }
+            const perms = whitelistToPermissions(req.whitelist || []);
+            if (perms.length === 0) perms.push('readAll');
+            const permissions: Record<string, string[]> = { [req.service]: perms };
+            for (const origin of origins) {
+                contracts.push({
+                    kind: 'app',
+                    app_origin: origin,
+                    permissions,
+                    _source: req,
+                });
+            }
+        }
+        return contracts;
     }
+
+    // v3 contract listening — direct postMessage, no wapiAuth wrapper
+    // Guard flag — this function must only run once per page load.
+    // The contract listener needs to be active immediately (popup or not),
+    // because the app may send a contract before the user logs in.
+    let _authenticatorInitialized = false;
+    I.initAuthenticator = function () {
+        if (_authenticatorInitialized) {
+            console.log('[auth-ui] initAuthenticator — already initialized, skipping')
+            return
+        }
+        _authenticatorInitialized = true;
+        if (typeof window === 'undefined') return;
+
+        console.log('[auth-ui] initAuthenticator — initializing, window.opener:', window.opener ? 'present' : 'none')
+
+        // Set up the contract listener — always, regardless of auth state.
+        // The app sends the contract as soon as it gets auth_ready, which may
+        // be before the user logs in (if they have a session cookie).
+        window.addEventListener('message', (e) => {
+            if (!e.origin) return;
+            console.log('[auth-ui] message event — type:', e.data?.type, 'origin:', e.origin)
+            if (e.data?.type === 'acr' || e.data?.type === 'contract') {
+                console.log('[auth-ui] contract message received — raw data:', JSON.stringify(e.data))
+                const normalized = normalizeContracts(e.data, e.source);
+                console.log('[auth-ui] normalized contracts:', toLogString(normalized))
+                I.setPendingContracts(normalized);
+                // D42: a contract was sent to this popup. The auto-complete
+                // (zero-UI token + close) only fires once a contract has been
+                // received AND needs no approval — never before the contract
+                // arrives.
+                I.setContractReceived(true);
+                console.log('[auth-ui] pendingContracts state set, count:', I.pendingContracts?.length)
+            }
+            if (e.data?.type === 'close_popup') {
+                console.log('[auth-ui] close_popup received, closing')
+                window.close();
+            }
+        });
+        console.log('[auth-ui] initAuthenticator — contract listener attached')
+
+        // Signal readiness to the opener — once, not continuously.
+        // Deferred by one macrotask (setTimeout 0) so the message listener
+        // above is guaranteed to be active in the event loop before the
+        // opener receives auth_ready and fires back a contract. Without this,
+        // headless browsers can deliver the contract before the listener is
+        // ready to process it, and the popup shows "nothing to review".
+        if (window.opener) {
+            setTimeout(() => {
+                try {
+                    window.opener.postMessage({ type: 'auth_ready' }, '*');
+                    console.log('[auth-ui] auth_ready sent to opener via postMessage')
+                } catch (err) {
+                    console.error('[auth-ui] auth_ready postMessage failed:', err)
+                }
+            }, 0);
+        } else {
+            console.log('[auth-ui] no opener — not sending auth_ready (not opened as popup)')
+        }
+    }
+
+    // Debounce timers (useRef so they persist across re-renders). On load/login
+    // the services load is re-triggered several times in quick succession — by
+    // the [authTick] and [acrTick] effects AND by finishLogin — and checkAdmin
+    // is re-triggered too. Each trigger bursts a set of concurrent
+    // list/manages/profile/admin calls at the API, which serialize on the
+    // single-threaded event loop and stall the "Checking node status..." /ready
+    // probe. Collapsing each into one call (50ms window) cuts the burst.
+    const _servicesLoadTimer = React.useRef<ReturnType<typeof setTimeout> | null>(null);
+    const _checkAdminTimer = React.useRef<ReturnType<typeof setTimeout> | null>(null);
 
     I.servicesLoad = function () {
         if (!I.auth) {
             I.setServices([]);
             return;
         }
-        I.wapi
-            .read("services")
-            .then(function (response) {
-                response.data.sort((a, b) => a["_id"].localeCompare(b["_id"]));
-                // The star record carries the account phone — read it back
-                // from the server (never a local echo) so the recovery phone
-                // survives a hard refresh (B9 bite a-fix).
-                const star = response.data.find((s: any) => s["service"] === "*");
-                I.setPhone(star?.phone_number || "");
-                const currServices = response.data.map((service: any) => service["service"]);
-                const SIRS = I.SMR["sirs"]
-                    .filter((service: any) => !currServices.includes(service["service"]) && service["service"] !== "*")
-                    .map((service: any) => [service, "new"]);
+        if (_servicesLoadTimer.current) clearTimeout(_servicesLoadTimer.current);
+        _servicesLoadTimer.current = setTimeout(() => {
+            _servicesLoadTimer.current = null;
+            I.v3ContractsLoad();
+            I.v3GroupsLoad();
+            I.v3GroupsManagesLoad();
 
-                const updatedServices = response.data.map((service: any) => {
-                    const curr = service["service"];
-                    let serviceType: string | null = null;
-                    const _SIRS = I.SMR["sirs"].map((s: any) => s["service"]);
-                    if (curr === "*") serviceType = null;
-                    else if (curr in I.SMR["scrs"]) serviceType = "change";
-                    else if (_SIRS.includes(curr)) {
-                        const currOrigins = service["cross_origins"];
-                        const SIROrigins = I.SMR["sirs"].filter((s: any) => s["service"] === curr)[0]["cross_origins"];
-                        if (SIROrigins.filter((s: string) => !new Set(currOrigins).has(s)).length > 0) serviceType = "change";
-                    }
-                    return [service, serviceType];
-                });
-
-                updatedServices.push.apply(updatedServices, SIRS);
-                I.setServices(updatedServices.map(([s]: [any, any]) => s));
-
-                const hasSMRs = SIRS.length > 0 || response.data.some((s: any) => s["service"] in I.SMR["scrs"]);
-                if (hasSMRs && I._hasReferrer) {
-                    I.setMode("requests");
-                }
-            })
-            .catch(console.error);
+            I.v3.getProfile()
+                .then((profile: any) => {
+                    I.setPhone(profile?.phone || "");
+                    if (profile?.phone_verified) I.setVerified(true);
+                })
+                .catch(console.error);
+        }, 50);
     }
 
     I.verificationChange = function (value) {
@@ -118,15 +357,14 @@ function useInterface() {
 
     I.changePhoneNumber = function (password: string, newPhone: string) {
         I.setStatus("Changing phone number...");
-        I.wapiAuth
-            .changePhone(password, newPhone)
+        I.v3.changePhone(newPhone)
             .then(() => {
                 I.setStatus("Successfully changed phone number. Reloading...");
                 I.setVerified(false);
                 setTimeout(() => I.servicesLoad(), 1000);
             })
             .catch((e) => {
-                I.setStatus(e.response ? String(e.response.data.detail) : String(e));
+                I.setStatus(e.message || String(e));
             });
     }
 
@@ -160,56 +398,130 @@ function useInterface() {
     }
 
     // Ask the node whether THIS account is an admin, to show/hide Node Config.
+    // POST /am_admin is the purpose-built check (returns {admin: bool},
+    // never errors) — not /v3/apps/admin, which is the app-store admin list.
     I.checkAdmin = function () {
-        const decoded = I.wapi.readToken?.();
+        const decoded = I.v3.readToken?.();
         if (!decoded) {
             I.setIsAdmin(false);
             return;
         }
-        axios
-            .post(`${window.location.protocol}//${decoded.provider}/am_admin`, { token: I.wapi.token })
-            .then((r: any) => I.setIsAdmin(!!r.data?.admin))
-            .catch(() => I.setIsAdmin(false));
+        const origin = v3ApiOrigin(decoded);
+        const token = I.v3.state?.token ?? I.v3.readToken?.();
+        if (!token) {
+            I.setIsAdmin(false);
+            return;
+        }
+        // Debounce: re-triggered on load/login; collapse into one call.
+        if (_checkAdminTimer.current) clearTimeout(_checkAdminTimer.current);
+        _checkAdminTimer.current = setTimeout(() => {
+            _checkAdminTimer.current = null;
+            fetch(`${origin}/am_admin`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ token }),
+            })
+                .then((r) => {
+                    if (r.ok) return r.json().then((d) => I.setIsAdmin(!!d?.admin));
+                    I.setIsAdmin(false);
+                })
+                .catch(() => I.setIsAdmin(false));
+        }, 50);
     }
 
     I.finishLogin = function () {
+        console.log('[auth-ui] finishLogin — setting auth=true, mode=contracts')
         I.setAuth(true);
         I.checkAdmin();
-        I.initAuthenticator();
         I.servicesLoad();
         I.setStatus(null);
         I.setMode("contracts");
     }
 
     I.login = function (provider: string, username: string, password: string) {
+        console.log('[auth-ui] login — provider:', provider, 'username:', username)
         I.setStatus("Logging in...");
-        I.wapiAuth.logIn(provider, username, password)
-            .then(() => I.finishLogin())
+        I.v3.login(username, password, provider)
+            .then(() => {
+                console.log('[auth-ui] login — v3.login succeeded')
+                I.finishLogin()
+            })
             .catch((error: any) => {
-                // The published SDK's logIn mints a second-level token for the
-                // referring app inside its own .then; with no parent app (no
-                // document.referrer) that throws, rejecting logIn even though
-                // the auth token cookie was already set. If we're actually
-                // signed in, complete the login rather than show a false error.
-                if (I.wapi.isSignedIn?.()) I.finishLogin();
-                else I.setStatus("Failed to Log In : " + (error.response?.data?.detail || String(error)));
+                console.error('[auth-ui] login — v3.login failed:', error)
+                if (I.v3.isSignedIn()) {
+                    console.log('[auth-ui] login — already signed in from cookie, finishing login')
+                    I.finishLogin();
+                } else {
+                    I.setStatus("Failed to Log In : " + (error.message || String(error)));
+                }
             });
     }
 
     I.logout = function () {
-        I.wapi.signOut();
+        I.v3.signOut();
         I.setAuth(false);
         I.setVerified(false);
         I.setServices([]);
         I.setRequests([]);
-        I.setSMR({ scrs: [], sirs: [] });
+        I.setPendingACRs([]);
+        I.setV3Contracts([]);
+        I.setV3Groups([]);
+        I.setV3ManagedGroups([]);
+        I.setV3Invites([]);
         I.setMode("login");
     }
 
-    I.recover = function (provider: string, phone: string) {
-        axios.post(`${window.location.protocol}//${provider}/recovery_prompt`, { phone_number: phone })
-            .then(() => I.setStatus("Recovery code sent!"))
-            .catch(() => I.setStatus("Failed to send recovery code."));
+    // ── Phone recovery (Phase 2): phone → code → pick account → sign in ──────
+    // Unauthenticated — the phone + 6-digit code are the credential. The
+    // current "forgot" (setRecoveryPhone) was broken (needs a token, never
+    // sends a code); this is the net-new flow.
+
+    I.setRecoveryStep = function (step: string) {
+        I._setRecoveryStep(step);
+        // Mirror the step in the URL (the deep-link rule). The phone isn't
+        // persisted, so a fresh load always resumes at "phone" regardless.
+        try {
+            const url = new URL(window.location.href);
+            if (step === "phone") url.searchParams.delete("recovery");
+            else url.searchParams.set("recovery", step);
+            window.history.replaceState({}, "", url.toString());
+        } catch { /* non-navigable context — state still updates */ }
+    }
+
+    I.recoverRequest = function (phone: string) {
+        I.setStatus("Sending code...");
+        v3PostAnon("recovery/request", { phone })
+            .then(() => {
+                I.setRecoveryPhone(phone);
+                I.setRecoveryStep("code");
+                I.setStatus("Code sent — check your phone.");
+            })
+            .catch((e: any) => I.setStatus(e.message || String(e)));
+    }
+
+    I.recoverVerify = function (phone: string, code: string) {
+        I.setStatus("Verifying...");
+        v3PostAnon("recovery/verify", { phone, code })
+            .then((res: any) => {
+                I.setRecoveryAccounts(res.accounts || []);
+                I.setRecoveryStep("pick");
+                I.setStatus(null);
+            })
+            .catch((e: any) => I.setStatus(e.message || String(e)));
+    }
+
+    I.recoverComplete = function (phone: string, code: string, username: string, newPassword?: string) {
+        I.setStatus("Signing you in...");
+        const body: Record<string, any> = { phone, code, username };
+        if (newPassword) body.new_password = newPassword;
+        v3PostAnon("recovery/complete", body)
+            .then((res: any) => {
+                // The token is a normal login token — store it exactly the way
+                // v3.login does, then finish the sign-in.
+                I.v3.setToken(res.token);
+                I.finishLogin();
+            })
+            .catch((e: any) => I.setStatus(e.message || String(e)));
     }
 
     I.isVerified = function () {
@@ -224,138 +536,438 @@ function useInterface() {
         return !!(I.verified || (I.phone && I.phone.trim().length >= 7));
     }
 
-    I.changeTerms = function (service: any) {
-        I.setStatus("Saving service terms...");
-        I.wapi
-            .update("services", { service: service.service }, buildSCR(service))
-            .then(() => {
-                I.setStatus("Service terms saved!");
-                const newServices = I.services.map((s: any) => s.service === service.service ? service : s);
-                I.setServices(newServices);
-                // approving a modification clears it from the pending list too,
-                // and ships the token only once nothing is left to review
-                I.resolveRequest({
-                    scrs: (I.SMR["scrs"] || []).filter((s: any) => s["service"] !== service["service"]),
-                    sirs: I.SMR["sirs"],
-                });
-                setTimeout(() => I.setStatus(null), 2000);
-            })
-            .catch((e) => I.setStatus("Failed to save: " + (e.response?.data?.detail || String(e))));
-    }
+    // ── v3 App contracts (per-app with per-service permissions) ──────────────
 
-    // Approving/denying just updates the pending list now — the token is NOT
-    // auto-sent. The user explicitly returns to the app via "go to the app"
-    // (goToApp) or "continue without approving". This lets them approve some,
-    // all (approveAll), or none (withhold data) and still reach the app.
-    I.resolveRequest = function (nextSMR: any) {
-        I.setSMR(nextSMR);
-    }
-
-    I.submitSIR = function (service: any) {
-        // Never create a second terms record for a service that already has one
-        // (that's how duplicate contracts appeared). If it exists, just clear
-        // the request — the grant is already in place.
-        const exists = (I.services || []).some((s: any) => s["service"] === service["service"]);
-        if (exists) {
-            I.resolveRequest({
-                scrs: I.SMR["scrs"],
-                sirs: (I.SMR["sirs"] || []).filter((sir: any) => sir["service"] !== service["service"]),
-            });
+    // Load app contracts from the ClickHouse-backed API.
+    I.v3ContractsLoad = function () {
+        if (!I.auth) {
+            I.setV3Contracts([]);
             return;
         }
-        I.setStatus("Approving service...");
-        I.wapi
-            .create("services", service)
-            .then(() => {
-                I.setStatus(null);
-                I.servicesLoad();
-                I.resolveRequest({
-                    scrs: I.SMR["scrs"],
-                    sirs: (I.SMR["sirs"] || []).filter((sir: any) => sir["service"] !== service["service"]),
-                });
+        v3Post('app-contracts/list', {})
+            .then((contracts: any[]) => {
+                I.setV3Contracts(contracts || []);
             })
-            .catch((e) => I.setStatus("Failed to approve: " + (e.response?.data?.detail || String(e))));
+            .catch((e) => {
+                console.warn('v3 app-contracts/list failed:', e);
+                I.setV3Contracts([]);
+            });
     }
 
-    I.purgeSMR = function (service: any) {
-        // deny removes the request from whichever list it's in
-        I.resolveRequest({
-            scrs: (I.SMR["scrs"] || []).filter((s: any) => s["service"] !== service["service"]),
-            sirs: (I.SMR["sirs"] || []).filter((s: any) => s["service"] !== service["service"]),
+    // Add an app contract (one per app, with per-service permissions).
+    I.addV3Contract = function (allowedOrigin: string, permissions: Record<string, string[]>) {
+        return v3Post('app-contracts/add', {
+            allowed_origin: allowedOrigin,
+            permissions,
+        }).then(() => {
+            I.v3ContractsLoad();
         });
+    }
+
+    // Revoke an app contract (by origin) or all contracts.
+    I.revokeV3Contract = function (allowedOrigin?: string) {
+        return v3Post('app-contracts/revoke', {
+            ...(allowedOrigin && { allowed_origin: allowedOrigin }),
+        }).then(() => {
+            I.v3ContractsLoad();
+        });
+    }
+
+    // Cleanup stale contracts where allowed_origin is not a URL.
+    I.cleanupV3Contracts = function () {
+        return v3Post('app-contracts/cleanup', {}).then(() => {
+            I.v3ContractsLoad();
+        });
+    }
+
+    // Check if an app contract exists for a given origin.
+    I.hasV3Contract = function (allowedOrigin: string): boolean {
+        return (I.v3Contracts || []).some(
+            (c: any) => c.allowed_origin === allowedOrigin,
+        );
+    }
+
+    // ── v3 Groups ──────────────────────────────────────────────────────
+
+    // Load the groups the user belongs to (v3).
+    I.v3GroupsLoad = function () {
+        if (!I.auth) {
+            I.setV3Groups([]);
+            return;
+        }
+        v3Post('groups/list', {})
+            .then((groups: any[]) => {
+                I.setV3Groups(groups || []);
+            })
+            .catch((e) => {
+                console.warn('v3 groups/list failed:', e);
+                I.setV3Groups([]);
+            });
+    }
+
+    // Load groups where the user has management permissions.
+    I.v3GroupsManagesLoad = async function () {
+        if (!I.auth) {
+            I.setV3ManagedGroups([]);
+            return [];
+        }
+        try {
+            const groups = await v3Post('groups/manages', {});
+            I.setV3ManagedGroups(groups || []);
+            return groups || [];
+        } catch (e) {
+            console.warn('v3 groups/manages failed:', e);
+            I.setV3ManagedGroups([]);
+            return [];
+        }
+    }
+
+    // Create a new group.
+    I.v3CreateGroup = function (name: string, joinPolicy: string, roles: Record<string, unknown>[], members: { member_key: string; role?: string }[]) {
+        return v3Post('groups/create', { name, join_policy: joinPolicy, roles, members });
+    }
+
+    // Join a v3 group (open or request policy).
+    I.v3JoinGroup = function (groupId: string) {
+        return v3Post('groups/join', { group_id: groupId });
+    }
+
+    // Leave a v3 group.
+    I.v3LeaveGroup = function (groupId: string) {
+        return v3Post('groups/leave', { group_id: groupId });
+    }
+
+    // Delete a v3 group (requires deleteGroup permission).
+    I.v3DeleteGroup = function (groupId: string) {
+        return v3Post('groups/delete', { group_id: groupId });
+    }
+
+    // Block a user from seeing content in a v3 group.
+    I.v3BlockUserInGroup = function (blockedKey: string, groupId: string) {
+        return v3Post('groups/block', { blocked_key: blockedKey, group_id: groupId });
+    }
+
+    // Unblock a user in a v3 group.
+    I.v3UnblockUserInGroup = function (blockedKey: string, groupId: string) {
+        return v3Post('groups/unblock', { blocked_key: blockedKey, group_id: groupId });
+    }
+
+    // Get detailed info for a single group.
+    I.v3GetGroup = function (groupId: string) {
+        return v3Post('groups/get', { group_id: groupId });
+    }
+
+    // Get all members of a group.
+    I.v3GetGroupMembers = function (groupId: string) {
+        return v3Post('groups/members/list', { group_id: groupId });
+    }
+
+    // Add a member to a group with a specific role.
+    I.v3AddGroupMember = function (groupId: string, memberKey: string, role: string) {
+        return v3Post('groups/members/add', { group_id: groupId, member_key: memberKey, role });
+    }
+
+    // Remove a member from a group.
+    I.v3RemoveGroupMember = function (groupId: string, memberKey: string) {
+        return v3Post('groups/members/remove', { group_id: groupId, member_key: memberKey });
+    }
+
+    // Invite a user to a group (they receive an invite with the offered role).
+    I.v3InviteMember = function (groupId: string, memberKey: string, role: string) {
+        return v3Post('groups/invite', { group_id: groupId, member_key: memberKey, role });
+    }
+
+    // Accept an invite to a group.
+    I.v3AcceptInvite = function (groupId: string) {
+        return v3Post('groups/accept-invite', { group_id: groupId });
+    }
+
+    // Decline an invite to a group.
+    I.v3DeclineInvite = function (groupId: string) {
+        return v3Post('groups/decline-invite', { group_id: groupId });
+    }
+
+    // Update group settings (join policy, roles, discoverable).
+    I.v3UpdateGroup = function (groupId: string, opts?: { join_policy?: string; roles?: Record<string, unknown>[]; discoverable?: boolean }) {
+        const payload: Record<string, any> = { group_id: groupId };
+        if (opts?.join_policy) payload.join_policy = opts.join_policy;
+        if (opts?.roles) payload.roles = opts.roles;
+        if (opts?.discoverable !== undefined) payload.discoverable = opts.discoverable;
+        return v3Post('groups/update', payload);
+    }
+
+    // Toggle sharing for a group (pause sharing without leaving).
+    I.v3SetSharing = function (groupId: string, enabled: boolean) {
+        return v3Post('groups/sharing/set', { group_id: groupId, enabled });
+    }
+
+    // Block a user entirely (user-wide blacklist).
+    I.v3BlockUser = function (blockedKey: string) {
+        return v3Post('block', { blocked_key: blockedKey });
+    }
+
+    // Unblock a user (user-wide).
+    I.v3UnblockUser = function (blockedKey: string) {
+        return v3Post('unblock', { blocked_key: blockedKey });
+    }
+
+    // Derive v3 permissions from a whitelist.
+    // Whitelist entries are { username, provider, <action>: true } — extract
+    // the action keys (read, create, update, delete, etc.) and map them to
+    // v3 permission names (readAll, create, updateOwn, deleteOwn, ...).
+    function whitelistToPermissions(entries: any[]): string[] {
+        const actionSet = new Set<string>();
+        (Array.isArray(entries) ? entries : []).forEach((e: any) => {
+            if (!e || typeof e !== 'object') return;
+            const meta = new Set(['username', 'provider', 'anchor', 'allowed', 'denied']);
+            Object.keys(e).forEach((k) => {
+                if (!meta.has(k) && e[k] === true) actionSet.add(k);
+            });
+        });
+        const map: Record<string, string> = {
+            read: 'readAll',
+            create: 'create',
+            update: 'updateOwn',
+            updateAll: 'updateAll',
+            delete: 'deleteOwn',
+            deleteAll: 'deleteAll',
+            hide: 'hideAll',
+            manageRoles: 'manageRoles',
+            assignRoles: 'assignRoles',
+            revokeRoles: 'revokeRoles',
+        };
+        const perms: string[] = [];
+        actionSet.forEach((a) => {
+            const mapped = map[a];
+            if (mapped && !perms.includes(mapped)) perms.push(mapped);
+        });
+        if (perms.length === 0 && actionSet.size > 0) perms.push('readAll');
+        return perms;
+    }
+
+// Merge the permissions object from an app contract into an existing contract's
+// permissions (if any), then upsert the v3 contract in place.
+//
+// D42 fix: this used to do add → REVOKE (a tombstone dance) when a contract
+// already existed. After a revoke the latest row is the TOMBSTONE, so the
+// dedup-then-filter read (v3ContractsLoad — which the consent filter and the
+// auto-complete depend on) doesn't see the re-grant: the popup re-renders the
+// contract instead of settling, and the fix-access re-approve never restores
+// access. `add_app_contract` upserts in place (one row per app, latest
+// permissions win), so a re-grant is visible immediately — matching the API
+// floor path (app-contracts/add) the anti-tests drive.
+function applyACR(cr: any) {
+    const origin = cr.app_origin;
+    const newPerms: Record<string, string[]> = cr.permissions || {};
+
+    const existing = (I.v3Contracts || []).find(
+        (c: any) => c.allowed_origin === origin,
+    );
+
+    const mergedPerms: Record<string, string[]> = {};
+    if (existing) {
+        const existingPerms: Record<string, string[]> = existing.permissions || {};
+        for (const [svc, ops] of Object.entries(existingPerms)) {
+            if (!newPerms[svc]) mergedPerms[svc] = ops;
+        }
+    }
+    for (const [svc, ops] of Object.entries(newPerms)) {
+        mergedPerms[svc] = ops;
+    }
+
+    const perms = existing ? mergedPerms : newPerms;
+
+    return I.addV3Contract(origin, perms);
+}
+
+    // Execute a group contract — the authenticator is the trusted party.
+    function applyGCR(cr: any) {
+        const action = cr.action || 'create_group';
+        const decoded = I.v3?.readToken?.();
+        const username = decoded?.username || decoded?.sub || '';
+        const provider = decoded?.provider || '';
+
+        if (action === 'update_group') {
+            const groupId = cr.group_id;
+            if (!groupId) throw new Error('CR update_group: missing group_id');
+            return I.v3UpdateGroup(groupId, {
+                join_policy: cr.join_policy,
+                roles: cr.roles,
+            }).then(() => {
+                I.v3GroupsLoad?.();
+                I.v3GroupsManagesLoad?.();
+            });
+        }
+
+        const name = cr.name || `group-${Date.now()}`;
+        const groupId = `${provider}/groups/users/${username}/${name.toLowerCase().replace(/[^a-z0-9]+/g, '-')}`;
+
+        const roles = cr.roles || [
+            { name: 'owner', services: ['*'], permissions: ['readAll', 'create', 'updateOwn', 'updateAll', 'deleteOwn', 'deleteAll', 'hideAll', 'manageRoles', 'assignRoles', 'revokeRoles', 'deleteGroup'] },
+            { name: 'member', services: ['posts', 'comments'], permissions: ['readAll', 'create', 'updateOwn', 'deleteOwn'] },
+        ];
+
+        const members = cr.members || [{ member_key: username, role: 'owner' }];
+
+        return I.v3CreateGroup(
+            name,
+            cr.join_policy || 'invite_only',
+            roles,
+            members
+        ).then(() => {
+            I.v3GroupsLoad?.();
+            I.v3GroupsManagesLoad?.();
+        });
+    }
+
+    // Send contract response back to the requesting app window
+    function sendContractResponse(windowSource: MessageEventSource | null, status: string, errors?: string[]) {
+        console.log('[auth-ui] sendContractResponse — status:', status, 'errors:', errors)
+        if (!windowSource) {
+            console.warn('[auth-ui] sendContractResponse — no windowSource, cannot send response')
+            return
+        }
+        try {
+            const target = '*';
+            if (isPostableWindow(windowSource)) {
+                const payload = { type: 'contract_response', status, errors }
+                console.log('[auth-ui] sendContractResponse — posting:', JSON.stringify(payload))
+                windowSource.postMessage(payload, target);
+            } else {
+                console.warn('[auth-ui] sendContractResponse — source is not a Window:', windowSource)
+            }
+        } catch (err) {
+            console.error('[auth-ui] sendContractResponse — postMessage failed (window closed?):', err)
+        }
+    }
+
+    // Apply a single contract (app or group) and send the response back to the
+    // opener. Shared by approveContract (single) and approveAll (batch) so the
+    // two forks can't diverge — approve-all used to drop the app-contract
+    // response entirely, so the opener's callback only fired late, mis-delivered
+    // from the group's response. Re-throws on failure so the caller can react.
+    function approveOne(contract: any): Promise<void> {
+        const windowSource = contract._windowSource;
+        const apply = contract.kind === 'group' ? applyGCR(contract) : applyACR(contract);
+        return apply
+            .then(() => {
+                sendContractResponse(windowSource, 'approved');
+            })
+            .catch((e: any) => {
+                sendContractResponse(windowSource, 'error', [e.message || String(e)]);
+                throw e;
+            });
+    }
+
+    // Approve a single contract (app or group).
+    I.approveContract = function (contract: any) {
+        console.log('[auth-ui] approveContract — kind:', contract.kind, 'origin:', contract.app_origin)
+        I.setStatus(contract.kind === 'group' ? "Creating group..." : "Approving contract...");
+        approveOne(contract)
+            .then(() => {
+                console.log('[auth-ui] approveContract — applied successfully')
+                I.setStatus(contract.kind === 'group' ? "Group created!" : "Contract granted!");
+                if (contract.kind === 'app') I.v3ContractsLoad?.();
+                I.removePendingContract(contract);
+                setTimeout(() => I.setStatus(null), 2000);
+            })
+            .catch((e) => {
+                console.error('[auth-ui] approveContract — failed:', e)
+                I.setStatus((contract.kind === 'group' ? "Failed to create group: " : "Failed to approve: ") + (e.message || String(e)));
+            });
+    }
+
+    // Remove a single contract from the pending list (after approve or deny).
+    I.removePendingContract = function (contract: any) {
+        const source = contract._source;
+        I.setPendingContracts((prev: any[]) => {
+            if (source) {
+                return prev.filter((c: any) => c._source !== source);
+            }
+            if (contract.kind === 'app') {
+                return prev.filter((c: any) => c.app_origin !== contract.app_origin);
+            }
+            return prev.filter((c: any) => c.action !== contract.action || c.app_origin !== contract.app_origin);
+        });
+    }
+
+    // Deny a contract — just remove it from the pending list.
+    I.denyContract = function (contract: any) {
+        console.log('[auth-ui] denyContract — kind:', contract.kind, 'origin:', contract.app_origin)
+        const windowSource = contract._windowSource;
+        I.removePendingContract(contract);
+        sendContractResponse(windowSource, 'denied');
         I.setStatus("Request denied.");
     }
 
-    // Approve every pending request in one shot, then return to the app.
-    // Skip SIRs for services already granted — re-creating them just makes
-    // duplicate contract records.
+    // Approve every pending contract in one shot, then return to the app.
     I.approveAll = function () {
-        const granted = new Set((I.services || []).map((s: any) => s.service));
-        const sirs = (I.SMR["sirs"] || []).filter((s: any) => !granted.has(s.service));
-        const scrs = I.SMR["scrs"] || [];
-        if (sirs.length + scrs.length === 0) { I.goToApp(); return; }
+        if (!I.pendingContracts || I.pendingContracts.length === 0) { I.goToApp(); return; }
         I.setStatus("Approving all…");
-        const ops = [
-            ...sirs.map((s: any) => I.wapi.create("services", s)),
-            ...scrs.map((s: any) => I.wapi.update("services", { service: s.service }, buildSCR(s))),
-        ];
-        Promise.all(ops)
+        // approveOne sends each contract's own response (approve-all used to
+        // drop the app-contract response — see the helper's comment).
+        const ops: Promise<any>[] = I.pendingContracts.map((c: any) => approveOne(c));
+        Promise.allSettled(ops)
             .then(() => {
-                I.servicesLoad();
-                I.setSMR({ scrs: [], sirs: [] });
+                I.v3ContractsLoad?.();
+                I.v3GroupsLoad?.();
+                I.v3GroupsManagesLoad?.();
+                I.setPendingContracts([]);
                 I.setStatus(null);
                 I.goToApp();
             })
-            .catch((e: any) => I.setStatus("Failed to approve all: " + (e.response?.data?.detail || String(e))));
+            .catch((e: any) => I.setStatus("Failed to approve all: " + (e.message || String(e))));
     }
 
-    // Return to the requesting app, logging it in. Mint a FRESH scoped token
-    // for the referrer right here rather than trusting wapiAuth.oAuthToken to
-    // already be set (it's minted async at load/login and often wasn't ready,
-    // so the app never received a token). Approving nothing still logs the app
-    // in — it just has no data grants (withheld).
+    // Legacy aliases — keep old names working for tests + existing callers
+    I.pendingACRs = I.pendingContracts;
+    I.setPendingACRs = I.setPendingContracts;
+    I.approveACR = (c: any) => I.approveContract({ ...c, kind: c.kind || 'app' });
+    I.denyACR = (c: any) => I.denyContract({ ...c, kind: c.kind || 'app' });
+    I.removePendingACR = (c: any) => I.removePendingContract({ ...c, kind: c.kind || 'app' });
+
     I.goToApp = function () {
-        const decoded = I.wapi.readToken?.();
-        let host: string | null = null;
-        try { host = document.referrer ? new URL(document.referrer).hostname : null; } catch { host = null; }
-        if (decoded && host && I.wapi.getTieredToken) {
-            I.setStatus("Connecting…");
-            I.wapi.getTieredToken(host, decoded.provider)
-                .then((r: any) => { I.wapiAuth.oAuthToken = r.data.token; I.sendToken(); })
-                .catch(() => I.sendToken());
+        const token = I.v3.state?.token;
+        const handoffNone = I._handoff === 'none';
+        console.log('[auth-ui] goToApp — token:', token ? 'present' : 'none', 'handoff:', handoffNone ? 'none' : 'token', 'window.opener:', window.opener ? 'present' : 'none')
+        if (token && window.opener && !handoffNone) {
+            try {
+                const referrer = document.referrer;
+                const target = referrer ? new URL(referrer).origin : '*';
+                console.log('[auth-ui] goToApp — sending auth token to opener, target:', target, 'referrer:', referrer)
+                I.setStatus("Connecting…");
+                window.opener.postMessage({ type: 'auth', token }, target);
+                // D42: each popup is self-contained — after handing back the
+                // token, close. (The group contract, if needed, is a separate
+                // lazy popup opened from a button click.) The short delay lets
+                // the token message deliver before the window goes away.
+                console.log('[auth-ui] goToApp — auth token sent, closing popup (self-contained)')
+                setTimeout(() => window.close(), 300);
+            } catch (err) {
+                console.error('[auth-ui] goToApp — postMessage failed:', err)
+                I.setStatus("Failed to connect to app.");
+            }
+        } else if (window.opener) {
+            // handoff=none (consent-only popup, e.g. the lazy group contract)
+            // or no token — the opener already has what it needs; just close.
+            console.log('[auth-ui] goToApp — closing popup (handoff:', handoffNone ? 'none' : 'no token', ')')
+            window.close();
         } else {
-            I.sendToken();
+            console.log('[auth-ui] goToApp — no opener, not closing')
         }
     }
 
     I.sendToken = function () {
-        if (I.wapiAuth.oAuthToken && I.wapiAuth.sendToken) {
-            I.wapiAuth.sendToken();
-        } else if (window.opener) {
-            window.close();
-        }
+        I.goToApp();
     }
 
-    I.deleteService = function (serviceName: string) {
-        I.setStatus("Deleting service terms...");
-        I.wapi
-            .delete("services", { service: serviceName })
-            .then(() => {
-                I.setStatus("Service deleted!");
-                setTimeout(() => I.servicesLoad(), 1000);
-            })
-            .catch((e) => I.setStatus("Failed to delete: " + (e.response?.data?.detail || String(e))));
+    // v4 features — not available in v3
+    I.deleteService = function (_serviceName: string) {
+        I.setStatus("Service deletion is a v4 feature.");
     }
 
-    I.wipeServiceData = function (serviceName: string) {
-        I.setStatus("Wiping all service data...");
-        I.wapi
-            .delete(serviceName, {})
-            .then(() => {
-                I.setStatus("Data wiped!");
-                setTimeout(() => I.servicesLoad(), 1000);
-            })
-            .catch((e) => I.setStatus("Failed to wipe: " + (e.response?.data?.detail || String(e))));
+    I.wipeServiceData = function (_serviceName: string) {
+        I.setStatus("Data wiping is a v4 feature.");
     }
 
     I.signup = function (provider: string, username: string, password: string, retype: string, betacode: string, phone: string) {
@@ -372,19 +984,19 @@ function useInterface() {
             return;
         }
         I.setStatus("Signing Up ...");
-        I.wapiAuth
-            .signUp(provider, username, password, betacode, phone)
+        I.v3
+            .signup(username, password, phone)
             .then(() =>
                 I.login(provider, username, password)
             )
             .catch((error) =>
-                I.setStatus("Failed to Sign Up : " + (error.response?.data?.detail || String(error)))
+                I.setStatus("Failed to Sign Up : " + (error.message || String(error)))
             );
     }
 
     I.sendCode = function () {
         I.setStatus("Sending code...");
-        I.wapiAuth
+        I.v3
             .sendCode()
             .then(() => I.setStatus("Code sent!"))
             .catch(() => I.setStatus("Failed to send code."));
@@ -392,8 +1004,8 @@ function useInterface() {
 
     I.verifyCode = function (code: string) {
         I.setStatus("Verifying code...");
-        I.wapiAuth
-            .verifyCode(code)
+        I.v3
+            .verifyPhone(code)
             .then(() => {
                 I.setVerified(true);
                 I.setStatus("Phone verified! Reloading...");
@@ -411,45 +1023,45 @@ function useInterface() {
             return;
         }
         I.setStatus("Changing password...");
-        I.wapiAuth
-            .changePass(currentPass, newPass)
+        I.v3
+            .changePassword(currentPass, newPass)
             .then(() => {
                 I.setStatus("Password changed!");
                 setTimeout(() => I.setStatus(null), 2000);
             })
-            .catch((e) => I.setStatus("Failed: " + (e.response?.data?.detail || String(e))));
+            .catch((e) => I.setStatus("Failed: " + (e.message || String(e))));
     }
 
+    // v4 features — not available in v3
     I.getPlan = function () {
-        return I.wapiAuth.getPlan();
+        I.setStatus("Plan management is a v4 feature.");
     }
 
     I.manageSpace = function () {
-        I.wapiAuth.manageSpace().then((response: any) => { window.location.href = response.data; });
+        I.setStatus("Space management is a v4 feature.");
     }
 
     I.manageCredits = function () {
-        I.wapiAuth.manageCredits().then((response: any) => { window.location.href = response.data; });
+        I.setStatus("Credits management is a v4 feature.");
     }
 
     I.manageSubscriptions = function () {
-        I.wapiAuth.manageSubscriptions().then((response: any) => { window.location.href = response.data; });
+        I.setStatus("Subscription management is a v4 feature.");
     }
 
     I.manageBusiness = function () {
-        I.wapiAuth.manageBusiness().then((response: any) => { window.location.href = response.data; });
+        I.setStatus("Business management is a v4 feature.");
     }
 
     I.businessLogin = function () {
-        I.wapiAuth.businessLogin().then((response: any) => { window.location.href = response.data; });
+        I.setStatus("Business login is a v4 feature.");
     }
 
     const [, authTick] = React.useState(0);
-    const [, smrTick] = React.useState(0);
+    const [, acrTick] = React.useState(0);
 
     React.useEffect(() => {
         if (I.auth) {
-            I.initAuthenticator();
             I.servicesLoad();
         }
     }, [authTick])
@@ -458,7 +1070,7 @@ function useInterface() {
         if (I.auth) {
             I.servicesLoad();
         }
-    }, [smrTick])
+    }, [acrTick])
 
     React.useEffect(() => {
         const referrer = window.document.referrer;
@@ -477,10 +1089,10 @@ function useInterface() {
         authTick(n => n + 1);
     }
 
-    const originalSetSMR = I.setSMR.bind(I);
-    I.setSMR = function (val: any) {
-        originalSetSMR(val);
-        smrTick(n => n + 1);
+    const originalSetPendingACRs = I.setPendingACRs.bind(I);
+    I.setPendingACRs = function (val: any) {
+        originalSetPendingACRs(val);
+        acrTick(n => n + 1);
     }
 
     return I;

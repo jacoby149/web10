@@ -115,7 +115,7 @@ class TestPermissiveCors:
 
 class TestErrorResponsesHaveCors:
     def test_bare_exception_token_error_has_cors(self):
-        """`/certify` with a bad token raises a bare Exception('TOKEN') → 401.
+        """`/v3/create` with a bad token raises a bare Exception('TOKEN') → 401.
 
         This is the path that masked expired tokens as CORS errors: the response
         the browser receives must carry access-control-allow-origin so the 401 is
@@ -127,8 +127,8 @@ class TestErrorResponsesHaveCors:
         """
         client = TestClient(fastapi_app, raise_server_exceptions=False)
         resp = client.post(
-            "/certify",
-            json={"token": "garbage.not.a.jwt"},
+            "/v3/create",
+            json={"token": "garbage.not.a.jwt", "service": "posts", "body": {"text": "hello"}},
             headers={"Origin": "https://social.web10.app"},
         )
         assert resp.status_code == 401
@@ -137,9 +137,9 @@ class TestErrorResponsesHaveCors:
     def test_validation_error_has_cors(self):
         """A 422 validation error must also carry the CORS header."""
         client = TestClient(fastapi_app, raise_server_exceptions=False)
-        # A non-object body fails Token model validation → RequestValidationError.
+        # A non-object body fails Login model validation → RequestValidationError.
         resp = client.post(
-            "/certify",
+            "/v3/login",
             json=[1, 2, 3],
             headers={"Origin": "https://social.web10.app"},
         )
@@ -147,21 +147,12 @@ class TestErrorResponsesHaveCors:
         assert resp.headers.get("access-control-allow-origin") == "*"
 
     def test_unhandled_exception_self_reports(self):
-        """An unmapped exception's 500 body carries type + detail + error_id.
-
-        The profile-upload outage (CHANGELOG 1.0.128) was two unhandled
-        exceptions that both collapsed to an identical opaque
-        `{"message": "internal server error"}`, forcing an SSH into the box to
-        read the traceback. The handler now surfaces the exception class and
-        message (safe — the code is open source) plus a correlation id, so a
-        future 500 is diagnosable from the browser console. The full traceback
-        stays server-side only.
-        """
+        """An unmapped exception's 500 body carries type + detail + error_id."""
         client = TestClient(fastapi_app, raise_server_exceptions=False)
-        with patch("app.endpoints.crud.is_permitted", side_effect=RuntimeError("boom")):
-            resp = client.put(
-                "/owner/myservice",
-                json={"token": None, "query": {}, "update": {"$set": {"x": 1}}},
+        with patch("app.v3.endpoints.auth_helper.decode_token", side_effect=RuntimeError("boom")):
+            resp = client.post(
+                "/v3/create",
+                json={"token": "garbage", "service": "posts", "body": {"text": "hello"}},
                 headers={"Origin": "https://social.web10.app"},
             )
         assert resp.status_code == 500

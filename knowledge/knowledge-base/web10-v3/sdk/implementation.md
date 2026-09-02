@@ -59,16 +59,18 @@ INSERT INTO doc_groups VALUES (
 
 ### `w.read(collection, { groups: ['me'] })`
 
-Reserved group — no join. Direct author filter.
+Reserved group — `me` resolves to all groups the user belongs to, then runs the discover query. No special shortcut.
 
 ```sql
-SELECT doc_id, author_key, collection_name, body, tags, created_at, updated_at
-FROM documents
-WHERE author_key = :user
-  AND collection_name = :collection
-  AND deleted = 0
-ORDER BY created_at DESC
-LIMIT 50;
+-- Step 1: resolve `me` to group IDs
+SELECT gc.group_id
+FROM group_members gm
+JOIN group_contracts gc ON gm.group_id = gc.group_id
+WHERE gm.member_key = :user
+  AND gm.deleted = 0
+  AND gc.deleted = 0;
+
+-- Step 2: run discover query with those group IDs (same as groups read above)
 ```
 
 ### `w.read(collection, { groups: [...] })`
@@ -512,9 +514,200 @@ INSERT INTO documents VALUES (
 );
 ```
 
+The metadata body carries the `object_key` (the blob reference) — never a
+URL. The confirm response is the standard document envelope (the metadata is
+the doc's `body`), same shape as create/read.
+
 ### `w.getReadUrl(object_key)`
 
 Generate presigned GET URL. No SQL — MinIO operation.
+
+### `w.list(collection, { groups })`
+
+List media metadata for a user, filtered by group membership (same as any read).
+An optional `doc_ids` filter narrows the list to specific documents — the
+exact-ref resolution the app's avatar/banner/post media refs need (a bare
+latest-N list misses refs older than the window).
+
+```sql
+SELECT doc_id, body, created_at
+FROM documents
+WHERE author_key = :user
+  AND collection_name IN ('media_metadata', 'public_media')
+  AND deleted = 0
+  -- AND doc_id IN (:doc_ids)  -- optional exact-ref filter
+ORDER BY created_at DESC;
+```
+
+### Read-time URL resolution
+
+A media doc's blob is addressed by its `object_key`; the document never
+stores a live URL (stored URLs go stale). On read, the API mints a FRESH
+presigned URL from the `object_key`:
+
+- `media_refs` in a post body → each ref resolves to
+  `{doc_id, object_key, mime_type, filename, size_bytes, read_url}` with a
+  fresh presigned `read_url` (a legacy stored `url` is only the fallback when
+  no `object_key` exists).
+- `minio` types anywhere in a body → a fresh presigned `url` added alongside
+  the `value` (see `document-typing.md`).
+
+## Auth
+
+### `POST /v3/signup`
+
+Create a user account.
+
+```sql
+INSERT INTO users VALUES (
+    :username, :password_hash, :phone, 0, :email, 0, now(), now(), 0
+);
+```
+
+Username must be unique (`SELECT count() FROM users WHERE username = :username AND deleted = 0` must be 0).
+
+### `POST /v3/login`
+
+Verify credentials, return JWT.
+
+```sql
+SELECT password_hash FROM users
+WHERE username = :username AND deleted = 0;
+```
+
+API compares submitted password against stored hash. On match, mints JWT.
+
+### `POST /v3/change_pass`
+
+```sql
+INSERT INTO users (username, password_hash, phone, phone_verified, email, email_verified, created_at, updated_at, deleted)
+SELECT username, :new_password_hash, phone, phone_verified, email, email_verified, created_at, now(), 0
+FROM users
+WHERE username = :username AND deleted = 0;
+```
+
+### `POST /v3/change_phone`
+
+```sql
+INSERT INTO users (username, password_hash, phone, phone_verified, email, email_verified, created_at, updated_at, deleted)
+SELECT username, password_hash, :phone, 0, email, email_verified, created_at, now(), 0
+FROM users
+WHERE username = :username AND deleted = 0;
+```
+
+### `POST /v3/set_email`
+
+```sql
+INSERT INTO users (username, password_hash, phone, phone_verified, email, email_verified, created_at, updated_at, deleted)
+SELECT username, password_hash, phone, phone_verified, :email, 0, created_at, now(), 0
+FROM users
+WHERE username = :username AND deleted = 0;
+```
+
+### `POST /v3/verify_phone`
+
+```sql
+INSERT INTO users (username, password_hash, phone, phone_verified, email, email_verified, created_at, updated_at, deleted)
+SELECT username, password_hash, phone, 1, email, email_verified, created_at, now(), 0
+FROM users
+WHERE username = :username AND deleted = 0;
+```
+
+### `POST /v3/verify_email`
+
+```sql
+INSERT INTO users (username, password_hash, phone, phone_verified, email, email_verified, created_at, updated_at, deleted)
+SELECT username, password_hash, phone, phone_verified, email, 1, created_at, now(), 0
+FROM users
+WHERE username = :username AND deleted = 0;
+```
+
+### `POST /v3/send_code`
+
+Send a verification code to the user's phone. No SQL — Twilio operation. The API looks up the user's phone from `users` and sends a code via Twilio.
+
+```sql
+SELECT phone FROM users
+WHERE username = :username AND deleted = 0;
+```
+
+If no phone is set, returns `PHONE_NUMBER_MISSING`.
+
+### `POST /v3/set_recovery_phone`
+
+Set the recovery phone on the authenticated user's profile.
+
+```sql
+INSERT INTO users (username, password_hash, phone, phone_verified, email, email_verified, created_at, updated_at, deleted)
+SELECT username, password_hash, :phone, 0, email, email_verified, created_at, now(), 0
+FROM users
+WHERE username = :username AND deleted = 0;
+```
+
+Phone must match `^\+?[0-9][0-9 ()-]{5,18}[0-9]$` or returns `BAD_NUM`.
+
+### `POST /v3/get_profile`
+
+```sql
+SELECT username, phone, phone_verified, email, email_verified
+FROM users
+WHERE username = :username AND deleted = 0;
+```
+
+## App Store
+
+### `POST /v3/apps/register`
+
+Register an app.
+
+```sql
+INSERT INTO apps VALUES (
+    :url, :name, :description, :icon_url, :screenshots_json, 0, 'pending', 1, now(), now(), 0
+);
+```
+
+### `POST /v3/apps/list`
+
+List approved apps (for storefront).
+
+```sql
+SELECT url, name, description, icon_url, screenshots, metadata_version
+FROM apps
+WHERE approved = 1 AND deleted = 0
+ORDER BY url;
+```
+
+### `POST /v3/apps/rating`
+
+Submit a star rating. Upsert by (target_app_id, author).
+
+```sql
+INSERT INTO app_ratings VALUES (
+    :author, :target_app_id, :rating, :provider, now(), now(), 0
+);
+```
+
+### `POST /v3/apps/ratings`
+
+Read all ratings for an app.
+
+```sql
+SELECT author, rating, provider, created_at
+FROM app_ratings
+WHERE target_app_id = :target_app_id AND deleted = 0
+ORDER BY created_at DESC;
+```
+
+### `POST /v3/apps/approve` (admin)
+
+Approve or reject an app.
+
+```sql
+INSERT INTO apps (url, name, description, icon_url, screenshots, approved, review_state, metadata_version, created_at, updated_at, deleted)
+SELECT url, name, description, icon_url, screenshots, :approved, :review_state, metadata_version, created_at, now(), 0
+FROM apps
+WHERE url = :url AND deleted = 0;
+```
 
 ## Cross-Node Addressing
 
@@ -532,7 +725,7 @@ SELECT ... FROM documents ...
 | SDK call | ClickHouse |
 |---|---|
 | `w.create(collection, body, { groups })` | `INSERT INTO documents` + `INSERT INTO doc_groups` (N rows) |
-| `w.read(collection, { groups: ['me'] })` | `SELECT FROM documents WHERE author_key = :user` |
+| `w.read(collection, { groups: ['me'] })` | `SELECT group_ids FROM group_members WHERE member = :user`, then discover query |
 | `w.read(collection, { groups })` | `SELECT FROM documents JOIN doc_groups JOIN group_members` |
 | `w.read(collection, { groups, $sort: { type: 'powerMean' } })` | Same + ref_count subqueries on `ref_value`, power mean score in SELECT, `ORDER BY score DESC` |
 | `w.read(collection, { _id, groups })` | `SELECT FROM documents WHERE doc_id = :id` + EXISTS subquery |
@@ -554,6 +747,19 @@ SELECT ... FROM documents ...
 | `w.revokeServiceContract(...)` | Tombstone `service_contracts` |
 | `w.revokeAllServiceContracts()` | Tombstone all `service_contracts` |
 | `w.upload(...)` | MinIO presigned PUT + `INSERT INTO documents` (metadata) |
+| `POST /v3/signup` | `INSERT INTO users` |
+| `POST /v3/login` | `SELECT password_hash FROM users WHERE username` |
+| `POST /v3/change_pass` | `INSERT INTO users` (new password_hash, tombstone old) |
+| `POST /v3/change_phone` | `INSERT INTO users` (new phone) |
+| `POST /v3/set_email` | `INSERT INTO users` (new email) |
+| `POST /v3/verify_phone` | `INSERT INTO users` (phone_verified = 1) |
+| `POST /v3/verify_email` | `INSERT INTO users` (email_verified = 1) |
+| `POST /v3/send_code` | `SELECT phone FROM users` → Twilio send |
+| `POST /v3/set_recovery_phone` | `INSERT INTO users` (new phone, phone_verified = 0) |
+| `POST /v3/apps/register` | `INSERT INTO apps` |
+| `POST /v3/apps/list` | `SELECT FROM apps WHERE approved = 1` |
+| `POST /v3/apps/rating` | `INSERT INTO app_ratings` |
+| `POST /v3/apps/ratings` | `SELECT FROM app_ratings WHERE target_app_id` |
 | `w.aggregate(...)` | `SELECT ... GROUP BY ... ORDER BY ...` (pipeline stages) |
 
 Everything is append-only. Updates are new inserts with higher `updated_at`. Deletes are tombstones (`deleted = 1`). `ReplacingMergeTree` keeps the latest version. Background job compacts on schedule.

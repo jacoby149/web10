@@ -16,16 +16,16 @@ class:
 # user requirements
 
 1. A user on the internet wants to take notes.
-2. The user is privacy centric, encryption is required.
-3. The user needs to be able to back up their keys.
+2. The user wants to own their data and be able to leave with it.
+3. The user needs to be able to back up / export their data.
 4. The user wants to be "able to leave" with their data.
 
 ---
 
 # use case
 
-1. They install the web10 encryptor on their phone.
-2. They opt in for key backup via. bitwarden.
+1. They open the web10 PWA (no app install, no keychain).
+2. They can export their data to their own drive.
 3. They go on the web10 app store, and they find a notes app that they trust.
 4. They log in and take notes. 
 
@@ -33,8 +33,8 @@ class:
 
 # value added
 
-1. The user's notes are encrypted in the cloud.
-2. The user can recover their private keys with bitwarden.
+1. The user owns their notes — export them, move them, delete them.
+2. The user can take their notes to another app or node.
 3. They user can leave to another notes app with their notes.
 
 ---

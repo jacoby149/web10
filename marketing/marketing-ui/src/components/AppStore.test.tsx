@@ -228,7 +228,7 @@ describe('AppCard', () => {
     expect(screen.getByTestId('my-app-card')).toBeInTheDocument();
   });
 
-  it('navigates to product page when appId is provided', async () => {
+  it('navigates to product page when appId is provided (D52: the app URL is the key)', async () => {
     const { AppCard } = await import('@/components/AppCard');
     renderWithRouter(
       <AppCard
@@ -236,11 +236,11 @@ describe('AppCard', () => {
         description="Desc"
         href="https://test.web10.app"
         visits={10}
-        appId="app-123"
+        appId="https://test.web10.app/"
       />
     );
     const card = screen.getByTestId('app-card');
-    expect(card).toHaveAttribute('href', '/app-store/app/app-123');
+    expect(card).toHaveAttribute('href', '/app-store/app/https%3A%2F%2Ftest.web10.app%2F');
   });
 
   it('opens externally when no appId is provided', async () => {
@@ -264,15 +264,15 @@ describe('AppCard', () => {
       <AppCard
         name="Test App"
         description="Desc"
-        href="https://test.web10.app"
+        href="https://plug.web10.app"
         visits={10}
         size="plug"
         badge="Flagship"
-        appId="app-456"
+        appId="https://plug.web10.app/"
       />
     );
     const card = screen.getByTestId('app-card');
-    expect(card).toHaveAttribute('href', '/app-store/app/app-456');
+    expect(card).toHaveAttribute('href', '/app-store/app/https%3A%2F%2Fplug.web10.app%2F');
     expect(screen.getByText('Flagship')).toBeInTheDocument();
   });
 });
@@ -302,11 +302,11 @@ describe('AppStore page', () => {
     expect(screen.getByText('The web10 App Store')).toBeInTheDocument();
   });
 
-  it('renders the subtitle about sorting by visits', async () => {
+  it('renders the subtitle about sorting by active users', async () => {
     const { default: AppStore } = await import('@/pages/AppStore');
     renderWithRouter(<AppStore />);
     expect(
-      screen.getByText(/Sorted by visits/)
+      screen.getByText(/Sorted by active users/)
     ).toBeInTheDocument();
   });
 
@@ -372,5 +372,73 @@ describe('AppStore page', () => {
     await vi.waitFor(() => {
       expect(screen.getByTestId('browse-section')).toBeInTheDocument();
     });
+  });
+
+  it('renders a registered app icon from its PWA manifest — SVG preferred over raster', async () => {
+    const { default: AppStore } = await import('@/pages/AppStore');
+    // The demos carry their own icon (icon.svg + 192/512 PNGs for PWA
+    // install). The store picks the SVG — it scales crisply to any card
+    // size — and resolves it against the app's URL.
+    const fetchMock = vi.fn((input: any) => {
+      const url = String(input);
+      if (url.includes('/v3/stats')) {
+        return Promise.resolve({
+          ok: true,
+          json: () =>
+            Promise.resolve({
+              users: 3,
+              app_count: 1,
+              active_users: { users_1d: 1, users_30d: 1, users_90d: 1, users_1y: 1 },
+              storage: 1024,
+            }),
+        } as Response);
+      }
+      if (url.includes('/v3/apps/list')) {
+        return Promise.resolve({
+          ok: true,
+          json: () =>
+            Promise.resolve({
+              apps: [
+                {
+                  url: 'https://www.web10.app/docs/hello/',
+                  name: '',
+                  description: '',
+                  icon_url: '',
+                  screenshots: [],
+                  visits: 5,
+                  users_30d: 5,
+                  review_state: 'approved',
+                  web10apps_post_id: '',
+                },
+              ],
+              total: 1,
+            }),
+        } as Response);
+      }
+      if (url.includes('/pwa_listing')) {
+        return Promise.resolve({
+          ok: true,
+          json: () =>
+            Promise.resolve({
+              name: 'Hello — web10 Demo',
+              short_name: 'Hello',
+              icons: [
+                { src: 'icon.svg', sizes: 'any', type: 'image/svg+xml' },
+                { src: 'icon-192.png', sizes: '192x192', type: 'image/png' },
+                { src: 'icon-512.png', sizes: '512x512', type: 'image/png' },
+              ],
+            }),
+        } as Response);
+      }
+      return Promise.reject(new Error('offline'));
+    });
+    vi.stubGlobal('fetch', fetchMock);
+    renderWithRouter(<AppStore />);
+    await vi.waitFor(() => {
+      // short_name wins for the card label (constrained display)
+      expect(screen.getByAltText('Hello')).toBeInTheDocument();
+    });
+    const img = screen.getByAltText('Hello');
+    expect(img).toHaveAttribute('src', 'https://www.web10.app/docs/hello/icon.svg');
   });
 });

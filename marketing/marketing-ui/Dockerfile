@@ -29,6 +29,7 @@ ARG VITE_SOCIAL_URL
 ARG VITE_MARKETING_URL
 ARG VITE_HOTJAR_SITE_ID
 ARG VITE_HOTJAR_VERSION
+ARG VITE_GA4_MEASUREMENT_ID
 ARG STATUS_VERSION
 ENV VITE_API_URL=$VITE_API_URL \
     VITE_MARKETING_API=$VITE_MARKETING_API \
@@ -38,11 +39,23 @@ ENV VITE_API_URL=$VITE_API_URL \
     VITE_MARKETING_URL=$VITE_MARKETING_URL \
     VITE_HOTJAR_SITE_ID=$VITE_HOTJAR_SITE_ID \
     VITE_HOTJAR_VERSION=$VITE_HOTJAR_VERSION \
+    VITE_GA4_MEASUREMENT_ID=$VITE_GA4_MEASUREMENT_ID \
     STATUS_VERSION=$STATUS_VERSION
 
 # Copy the marketing-ui source (only) so the build context — now the
 # whole repo — does not leak e2e/api/knowledge/... into /app.
 COPY marketing/marketing-ui/ ./
+
+# Build SDK from source so wapi.js is always fresh (never stale from repo).
+COPY sdk/package.json sdk/bun.lock sdk/tsconfig.json sdk/vitest.config.ts /app/sdk/
+WORKDIR /app/sdk
+RUN bun install --frozen-lockfile || bun install
+COPY sdk/src/ /app/sdk/src/
+COPY sdk/*.json sdk/*.ts ./
+RUN bun run build:browser
+WORKDIR /app/marketing/marketing-ui
+RUN mkdir -p ./public/docs && cp /app/sdk/dist/browser.js ./public/docs/wapi.js
+
 RUN bun run build
 
 # Baked deployment status page — generated from git info + CHANGELOG at

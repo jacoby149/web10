@@ -72,6 +72,8 @@ ClickHouse is optimized for batch inserts, not row-by-row OLTP writes. But socia
 
 **The honest ceiling:** ClickHouse handles ~100k writes/sec on a single node. A social platform needs ~100 writes/sec at launch. You have margin.
 
+**The API doesn't get in ClickHouse's way:** the v3 endpoints run in a worker-thread pool (sync `def`, not `async def` calling a blocking client) with a thread-local ClickHouse client, so a burst of concurrent requests runs in parallel instead of serializing on the event loop. At 100k users the bottleneck is ClickHouse + the HTTP connection limit, not the API's loop. See D43 in `strategy/decisions.md`.
+
 ### Point Queries (The "But OLTP!" Argument)
 
 "Get me post `abc123`" — a point query. ClickHouse handles it. Primary key is `(author_key, doc_id)`. Key-range scan on sorted data. ~1ms. Not Postgres-fast (~0.1ms). Fast enough.

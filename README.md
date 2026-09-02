@@ -33,9 +33,10 @@ paid for value delivered, not for permission granted.
 | --- | --- |
 | **You own your data** | One collection per user — the record of your own life, held by you. Export it, move it, erase it. Delete means delete. |
 | **No shadow ban** | Every post reaches every follower, by construction (fan-out on write). The feed is chronological, because a feed should report — not editorialize. |
+| **Built like the best, owned like yours** | web10 tracks hard — GA4 + Hotjar, content masked — to compete with Meta and TikTok on user experience. Your content is never tracked, sold, or fed to an ad machine; the trade is stated in the terms, not hidden (D56). |
 | **Apps are just frontends** | An app earns access through a scoped, expiring, revocable token. It never owns what it touches. |
 | **Federated identity** | Identity is `(username, provider)`, like email. No central registry to petition, no account that can be taken from you. |
-| **Private, not permanent** | Unlike a blockchain, your data can be private, temporary, and deletable. E2E encryption (phone-as-keychain) is in progress — we don't claim what isn't built. |
+| **Private, not permanent** | Unlike a blockchain, your data can be private, temporary, and deletable. You set who sees it via terms — and delete means delete. |
 | **Self-hostable** | One `docker compose up` runs a node on hardware you own. The escape hatch is real, and that is what makes the ownership real. |
 
 ## Run a node locally
@@ -90,13 +91,11 @@ at the box and the certificates provision themselves. See
 | `marketing/marketing-ui/` | web10 Inc.'s site: landing page, docs, App Store, Exporter UI. |
 | `marketing/marketing-api/` | Backend for the marketing site: ZIP import pipeline (bring your Instagram/Facebook/YouTube data), analytics. |
 | `marketing/web10-cli/` | CLI tool for web10. |
-| `mobile/encryptor/` | Expo app — the seed of the phone-as-keychain (E2E encryption). |
 | `ubuntu-deployment/` | One-shot server deploy (Docker + Caddy + TLS). |
 
 ## Learn more
 
 - **[`plan.txt`](plan.txt)** — the roadmap and the why.
-- **[`GLOSSARY.md`](GLOSSARY.md)** — the vocabulary (node, provider, service, record, token…).
 - **[`decisions.md`](decisions.md)** — why the big calls were made.
 - **[`manifesto.md`](manifesto.md)** — the fan-facing pitch that ships on every node.
 - **Developer docs** — protocol spec, conventions, schemas: `marketing/marketing-ui/public/docs/`.

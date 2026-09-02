@@ -18,30 +18,47 @@ const mockI = {
     token: 'admin-token',
     readToken: () => ({ provider: 'api.localhost', username: 'admin' }),
   },
+  v3: {
+    state: { token: 'admin-token' },
+    readToken: () => ({ provider: 'api.localhost', username: 'admin' }),
+  },
 }
 
-const POST = {
-  author: 'alice',
+// The v3 public board is the node-default discover group, read anon through
+// /v3/read (the normal group-read path). Board posts are v3 documents
+// (author_key / doc_id / body.text) — ConfigPage maps them to its BoardPost
+// shape. Removed posts come from /v3/groups/hidden (the discover group's
+// hidden-doc list). Remove/restore are /v3/groups/hide and /v3/groups/unhide.
+const DISCOVER_GROUP = 'web10.app/groups/web10/discover'
+
+const BOARD_DOC = {
+  author_key: 'alice',
   service: 'public_posts',
-  post_id: 'p1',
-  body_text: 'something inappropriate',
+  doc_id: 'p1',
+  body: { text: 'something inappropriate' },
   tags: [],
   created_at: '2026-07-27T00:00:00',
 }
 
-function mockLoad({ board = [POST], removed = [] }: { board?: any[]; removed?: any[] } = {}) {
+const HIDDEN_DOC = {
+  author_key: 'alice',
+  doc_id: 'p1',
+  body: { text: 'something inappropriate' },
+  hidden_at: '2026-07-27T00:00:00',
+  moderator_key: 'admin',
+}
+
+function mockLoad({ board = [BOARD_DOC], hidden = [] }: { board?: any[]; hidden?: any[] } = {}) {
   ;(axios.post as any).mockImplementation((url: string) => {
     if (url.includes('/config')) return Promise.resolve({ data: { admins: ['admin'] } })
     if (url.includes('/apps/admin')) return Promise.resolve({ data: { apps: [] } })
-    if (url.includes('/admin/discovery/removed')) return Promise.resolve({ data: { removed } })
-    if (url.includes('/admin/discovery/remove')) return Promise.resolve({ data: { matched: 1 } })
-    if (url.includes('/admin/discovery/restore')) return Promise.resolve({ data: { matched: 1 } })
+    if (url.includes('/v3/groups/hidden')) return Promise.resolve({ data: { hidden } })
+    if (url.includes('/v3/groups/hide')) return Promise.resolve({ data: {} })
+    if (url.includes('/v3/groups/unhide')) return Promise.resolve({ data: {} })
+    if (url.includes('/v3/read')) return Promise.resolve({ data: board })
     return Promise.resolve({ data: {} })
   })
-  ;(axios.patch as any).mockImplementation((url: string) => {
-    if (url.includes('/discover/posts')) return Promise.resolve({ data: board })
-    return Promise.resolve({ data: {} })
-  })
+  ;(axios.patch as any).mockImplementation(() => Promise.resolve({ data: {} }))
 }
 
 describe('ConfigPage board moderation', () => {
@@ -58,7 +75,7 @@ describe('ConfigPage board moderation', () => {
     expect(screen.getByTestId('config-mod-remove-p1')).toBeTruthy()
   })
 
-  it('remove flow posts author/service/post_id/reason and drops the row', async () => {
+  it('remove flow posts to /v3/groups/hide and drops the row', async () => {
     mockLoad()
     render(<ConfigPage I={mockI} />)
     fireEvent.click(await screen.findByTestId('config-mod-remove-p1'))
@@ -66,33 +83,34 @@ describe('ConfigPage board moderation', () => {
     fireEvent.click(screen.getByTestId('config-mod-confirm-remove-p1'))
     await waitFor(() => {
       const calls = (axios.post as any).mock.calls
-      const removeCall = calls.find((c: any[]) => c[0].endsWith('/admin/discovery/remove'))
+      const removeCall = calls.find((c: any[]) => c[0].includes('/v3/groups/hide'))
       expect(removeCall).toBeTruthy()
       expect(removeCall[1]).toMatchObject({
         token: 'admin-token',
-        author: 'alice',
-        service: 'public_posts',
-        post_id: 'p1',
+        group_id: DISCOVER_GROUP,
+        doc_id: 'p1',
         reason: 'spam',
       })
     })
     await waitFor(() => expect(screen.queryByTestId('config-mod-row-p1')).toBeNull())
   })
 
-  it('removed posts list restores via /admin/discovery/restore', async () => {
-    mockLoad({
-      board: [],
-      removed: [{ ...POST, removed_by: 'admin', removal_reason: 'spam' }],
-    })
+  it('removed posts list (from /v3/groups/hidden) restores via /v3/groups/unhide', async () => {
+    mockLoad({ board: [], hidden: [HIDDEN_DOC] })
     render(<ConfigPage I={mockI} />)
     const row = await screen.findByTestId('config-mod-removed-row-p1')
+    expect(row.textContent).toContain('@alice')
     expect(row.textContent).toContain('removed by admin')
     fireEvent.click(screen.getByTestId('config-mod-restore-p1'))
     await waitFor(() => {
       const calls = (axios.post as any).mock.calls
-      const restoreCall = calls.find((c: any[]) => c[0].includes('/admin/discovery/restore'))
+      const restoreCall = calls.find((c: any[]) => c[0].includes('/v3/groups/unhide'))
       expect(restoreCall).toBeTruthy()
-      expect(restoreCall[1]).toMatchObject({ author: 'alice', post_id: 'p1' })
+      expect(restoreCall[1]).toMatchObject({
+        token: 'admin-token',
+        group_id: DISCOVER_GROUP,
+        doc_id: 'p1',
+      })
     })
   })
 

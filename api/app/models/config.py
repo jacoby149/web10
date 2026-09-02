@@ -52,6 +52,25 @@ class NodeConfig(BaseModel):
     # Dev pay
     dev_pay_pct: int = 98
 
+    # Telemetry (D56) — public analytics IDs, admin-set in the Node Config
+    # UI. Served to every surface at runtime via GET /telemetry. Empty = off.
+    ga4_measurement_id: str = ""
+    hotjar_site_id: str = ""
+
+    # Content moderation (D59) — sensitive-language detection + discover
+    # suppression. The blocklist is a JSON array of words (whole-word,
+    # case-insensitive). auto_moderate auto-hides matching posts from the
+    # discover board. auto_hide_users is a list of usernames whose future
+    # posts are always auto-hidden. moderation_enabled is the master switch.
+    sensitive_words: list[str] = []
+    auto_moderate: bool = True
+    moderation_enabled: bool = True
+    auto_hide_users: list[str] = []
+
+    # Node ads (D57) — percentage of posts that get a node ad attached at
+    # read time. 0 = off, 100 = every post. Default 10.
+    node_ad_percentage: int = 10
+
     # Branding
     brand_text: str = "web10"
     logo_dark: str = ""
@@ -161,6 +180,13 @@ class ConfigUpdate(BaseModel):
     stripe_live_credit_sub_id: str | None = None
     stripe_live_space_sub_id: str | None = None
     dev_pay_pct: int | None = None
+    ga4_measurement_id: str | None = None
+    hotjar_site_id: str | None = None
+    sensitive_words: list[str] | None = None
+    auto_moderate: bool | None = None
+    moderation_enabled: bool | None = None
+    auto_hide_users: list[str] | None = None
+    node_ad_percentage: int | None = None
     brand_text: str | None = None
     logo_dark: str | None = None
     logo_light: str | None = None

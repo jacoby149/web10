@@ -10,6 +10,7 @@ sys.modules["bson.objectid"] = MagicMock()
 sys.modules["boto3"] = MagicMock()
 sys.modules["botocore"] = MagicMock()
 sys.modules["botocore.config"] = MagicMock()
+sys.modules["clickhouse_connect"] = MagicMock()
 
 import jwt
 import pytest

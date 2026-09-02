@@ -9,6 +9,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { readProfile, saveProfile, readMyPosts, resolveMediaRefs, uploadMedia, countFollows, countFollowers, refreshMediaUrls, countStagingPosts } from '@/data';
 import { getWapi } from '@/data/wapi';
 import type { ProfileRecord, PostRecord, MediaRecord } from '@/data/types';
+import { mediaRefId } from '@/data/types';
 import { MapPin, Globe, Link, Camera, Edit3, Check, X, ImagePlus, Loader2, AlertTriangle, Inbox, Play } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { MARKETING_ORIGIN } from '@/lib/origins';
@@ -383,7 +384,7 @@ export default function ProfileScreen() {
           posts.length ? (
             <div className="grid grid-cols-3 gap-1">
               {posts.map((post) => {
-                const firstMedia = post.media_refs?.[0] ? mediaMap[post.media_refs[0]] : null;
+                const firstMedia = post.media_refs?.[0] ? mediaMap[mediaRefId(post.media_refs[0])] : null;
                 return (
                   <div
                     key={post._id}
@@ -459,11 +460,11 @@ export default function ProfileScreen() {
           <div className="grid grid-cols-3 gap-1">
             {mediaPosts.flatMap((post) =>
               (post.media_refs || []).map((ref) => {
-                const media = mediaMap[ref];
+                const media = mediaMap[mediaRefId(ref)];
                 if (!media) return null;
                 return (
                   <div
-                    key={ref}
+                    key={mediaRefId(ref)}
                     role="button"
                     tabIndex={0}
                     aria-label="View post"

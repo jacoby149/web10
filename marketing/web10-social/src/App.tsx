@@ -1,24 +1,41 @@
-import { useEffect, useState, useCallback, useRef } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import { Routes, Route, Navigate, useNavigate, useLocation, useParams, useSearchParams } from 'react-router-dom';
+import Peer from 'peerjs';
 import { Button } from '@/components/ui/button';
-import web10SocialAdapterInit from '@/interfaces/Web10SocialAdapter';
+import { getSocialAuth } from '@/interfaces/auth';
 import Layout from '@/components/Social/Layout';
 import FeedScreen from '@/components/Feed/FeedScreen';
 import ProfileScreen from '@/components/Bio/ProfileScreen';
 import UserProfileScreen from '@/components/Bio/UserProfileScreen';
 import DiscoverScreen from '@/components/Discover/DiscoverScreen';
+import GroupsScreen from '@/components/Groups/GroupsScreen';
+import GroupDetailScreen from '@/components/Groups/GroupDetailScreen';
 import DmsScreen from '@/components/Chat/DmsScreen';
 import StagingScreen from '@/components/Staging/StagingScreen';
 import SettingsScreen from '@/components/Settings/SettingsScreen';
 import PostComposer from '@/components/Feed/PostComposer';
 import { ErrorBoundary } from '@/components/shared/ErrorBoundary';
 import { ReportBug } from '@/components/shared/ReportBug';
-import { getWapi } from '@/data/wapi';
-import { registerDefaultSchemas } from '@/data/feed';
+import { getWapi, getV3Client, verifyAndRecover, Web10Error } from '@/data';
 import { resolveMediaRefs } from '@/data/posts';
-import { trackEvent } from '@/lib/analytics';
+import { readSettings } from '@/data/settings';
+import { initP2P, teardownP2P, setPeer } from '@/data/p2p';
+import { trackEvent, hotjarIdentify } from '@/lib/analytics';
 import { PostLightbox } from '@/components/Bio/PostLightbox';
-import type { PostRecord, MediaRecord } from '@/data/types';
+import type { PostRecord, MediaRecord, Visibility } from '@/data/types';
+
+const LOG = (...args: unknown[]) => console.log('[social]', ...args);
+const LOG_ERR = (...args: unknown[]) => console.error('[social]', ...args);
+
+// The manual "Log in again" message, keyed by the guard's needs_manual reason.
+function sessionAlertMessage(reason: string): string {
+  if (reason === 'user_not_found' || reason.startsWith('action_failed:signout')) {
+    return 'This account is no longer available. Log in again to continue.';
+  }
+  // reauth_deferred / cooldown:reauth / action_failed:reauth / not_signed_in —
+  // the session needs a re-derive; the user triggers it (or a failure will).
+  return 'Your session needs to be refreshed. Log in again to continue.';
+}
 
 function LoginScreen({ onLogin }: { onLogin: () => void }) {
   return (
@@ -109,6 +126,11 @@ function UserProfileRoute() {
   );
 }
 
+function GroupDetailRoute() {
+  const { groupId } = useParams();
+  return <GroupDetailScreen groupId={groupId!} />;
+}
+
 function UserProfilePostLinkRoute() {
   const { username, postId } = useParams();
   const [searchParams] = useSearchParams();
@@ -127,17 +149,13 @@ function UserProfilePostLinkRoute() {
         const token = getWapi().readToken();
         if (!token) return;
         // Try reading from public_posts first, then posts
-        const wapi = getWapi();
+        const w = getV3Client();
         let p: PostRecord | null = null;
-        let service = 'public_posts';
-        for (const s of ['public_posts', 'posts']) {
-          const results = await wapi.read<PostRecord>(s, { _id: postId });
-          if (results[0]) {
-            p = results[0];
-            service = s;
-            break;
-          }
-        }
+        let service = 'posts';
+        try {
+          const doc = await w.readById(postId, 'posts');
+          p = { _id: doc.doc_id, text: (doc.body.text as string) || undefined, media_refs: (doc.body.media_refs as string[]) || undefined, created_at: doc.created_at, updated_at: doc.updated_at, visibility: (doc.body.visibility as Visibility) || undefined, tags: doc.tags || (doc.body.tags as string[]) || undefined };
+        } catch { /* not found */ }
         if (!cancelled && p) {
           setPost(p);
           if (p.media_refs?.length) {
@@ -213,23 +231,72 @@ function App() {
   const [signedIn, setSignedIn] = useState(false);
   const [showReportBug, setShowReportBug] = useState(false);
   const [reportTrigger, setReportTrigger] = useState<'button' | 'error-boundary'>('button');
-  const adapterRef = useRef<ReturnType<typeof web10SocialAdapterInit> | null>(null);
+  // The access recovery's manual-fallback banner (set when a recovery is in
+  // cooldown or an action failed — the loop-breaker hands the user the wheel).
+  const [sessionAlert, setSessionAlert] = useState<string | null>(null);
   const navigate = useNavigate();
 
+  // Run the access recovery: verify access and execute the verdict's recovery
+  // actions (reauth / signout) + the app's own followers-group heal, honoring
+  // the cooldown. On mount / after a fresh token, reauth (the popup) is
+  // deferred to an actual failure; the safe local actions (heal, signout) still
+  // run.
+  const runAccessRecovery = useCallback((allowReauth: boolean) => {
+    verifyAndRecover({ allowReauth })
+      .then((res) => {
+        if (res.outcome === 'needs_manual') {
+          setSessionAlert(sessionAlertMessage(res.reason));
+        } else if (res.outcome === 'recovered') {
+          setSessionAlert(null);
+        }
+      })
+      .catch((e) => LOG_ERR('access recovery failed:', e));
+  }, []);
+
   useEffect(() => {
-    const a = web10SocialAdapterInit();
-    adapterRef.current = a;
-
-    if (a.isSignedIn()) {
+    // D42 (D46): the auth seam talks to the SDK directly — the real consent
+    // popup, the same flow the demos run. isSignedIn is cookie-first, so a
+    // return visit restores the session with no popup; authListen (D45-
+    // deduped) fires on the one-tap login.
+    const auth = getSocialAuth();
+    LOG('app mount — isSignedIn:', auth.isSignedIn());
+    if (auth.isSignedIn()) {
       setSignedIn(true);
-      registerDefaultSchemas().catch(() => {});
+      runAccessRecovery(false);
     }
-
-    a.authListen(() => {
+    auth.authListen(() => {
       setSignedIn(true);
-      registerDefaultSchemas().catch(() => {});
+      setSessionAlert(null);
       trackEvent('login');
+      const who = auth.readToken();
+      if (who) hotjarIdentify(who.username);
+      // The sign-in (or a reauth) IS the recovery — no need to re-verify here.
+      // Verifying during the sign-in transition hits a "Failed to fetch" (the
+      // session is mid-handoff). The mount + reactive-failure paths cover it.
     });
+
+    // The recovery's terminal signout (user not found) clears the cookie and
+    // signals us to show the login screen.
+    const onSignedOut = () => {
+      setSignedIn(false);
+      setSessionAlert(null);
+    };
+    window.addEventListener('session:signed-out', onSignedOut);
+
+    // Reactive path: when a data op fails with an auth-class error (401/403),
+    // re-ask the oracle (verifyAndRecover) and act on the definitive verdict —
+    // the client never guesses from the status code. The recovery's cooldown
+    // prevents a loop, and a transient 403 (a deploy window) yields an
+    // inconclusive verdict → no action (definite-NO-vs-UNKNOWN).
+    const onAuthError = (e: Event) => {
+      const err = e instanceof PromiseRejectionEvent ? e.reason : (e as ErrorEvent).error;
+      if (err instanceof Web10Error && (err.status === 401 || err.status === 403)) {
+        LOG('reactive session check — auth-class error', err.status, err.details);
+        runAccessRecovery(true);
+      }
+    };
+    window.addEventListener('unhandledrejection', onAuthError);
+    window.addEventListener('error', onAuthError);
 
     const handler = (e: Event) => {
       const customEvent = e as CustomEvent<{ username: string; provider: string }>;
@@ -237,16 +304,59 @@ function App() {
     };
     window.addEventListener('navigate-user-profile', handler);
     return () => {
+      window.removeEventListener('session:signed-out', onSignedOut);
+      window.removeEventListener('unhandledrejection', onAuthError);
+      window.removeEventListener('error', onAuthError);
       window.removeEventListener('navigate-user-profile', handler);
     };
+  }, [navigate, runAccessRecovery]);
+
+  // P2P lifecycle (real-time messages): open the peer on sign-in when the
+  // user's `p2pEnabled` setting is on, tear it down on sign-out. Re-applies
+  // when the toggle changes (SettingsScreen fires `settings-changed`). The
+  // peer connection IS the presence — online while open, offline when torn
+  // down (opted out or not signed in).
+  const applyP2P = useCallback(async () => {
+    const auth = getSocialAuth();
+    if (!auth.isSignedIn()) {
+      teardownP2P();
+      return;
+    }
+    try {
+      const s = await readSettings();
+      LOG('applyP2P — p2pEnabled:', s.p2pEnabled);
+      if (s.p2pEnabled) {
+        setPeer(Peer);
+        await initP2P();
+      } else {
+        teardownP2P();
+      }
+    } catch (e) {
+      LOG_ERR('applyP2P — failed:', e);
+    }
   }, []);
 
+  useEffect(() => {
+    if (signedIn) {
+      applyP2P();
+    } else {
+      teardownP2P();
+    }
+    const onSettingsChanged = () => {
+      if (getSocialAuth().isSignedIn()) applyP2P();
+    };
+    window.addEventListener('settings-changed', onSettingsChanged);
+    return () => {
+      window.removeEventListener('settings-changed', onSettingsChanged);
+    };
+  }, [signedIn, applyP2P]);
+
   function handleLogin() {
-    adapterRef.current?.login();
+    getSocialAuth().login();
   }
 
   function handleLogout() {
-    adapterRef.current?.signOut();
+    getSocialAuth().signOut();
     setSignedIn(false);
   }
 
@@ -275,10 +385,24 @@ function App() {
 
   return (
     <ErrorBoundary fallback={handleBoundaryFallback}>
+      {sessionAlert && (
+        <div
+          role="alert"
+          data-testid="session-alert"
+          className="flex items-center justify-between gap-3 px-4 py-2.5 bg-danger-muted border-b border-danger/30 text-sm text-danger"
+        >
+          <span>{sessionAlert}</span>
+          <Button size="sm" variant="brand" data-testid="session-relogin-button" onClick={handleLogin}>
+            Log in again
+          </Button>
+        </div>
+      )}
       <Routes>
         <Route element={<Layout onLogout={handleLogout} onReportBug={() => handleReportBug('button')} />}>
           <Route path="/feed" element={<FeedRoute onAuthorClick={handleAuthorClick} />} />
           <Route path="/discover" element={<DiscoverScreen />} />
+          <Route path="/groups" element={<GroupsScreen />} />
+          <Route path="/groups/:groupId" element={<GroupDetailRoute />} />
           <Route path="/messages/*" element={<DmsScreen />} />
           <Route path="/profile" element={<ProfileRedirectRoute />} />
           <Route path="/u/:username" element={<UserProfileRoute />} />

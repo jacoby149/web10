@@ -9,7 +9,15 @@ from fastapi.responses import JSONResponse
 
 import app.docs as docs
 import app.exceptions as exceptions
-from app.endpoints import auth, crud, discover, media, payments, public, schemas, system
+from app.endpoints import auth, system
+from app.middleware import log_requests
+from app.v3 import endpoints as v3
+
+# App loggers (web10-transcode, web10-media, ...) log at INFO — without a
+# root handler Python's last-resort handler drops everything below WARNING,
+# so the transcode worker's lifecycle (queued → ffmpeg → done) would be
+# invisible. Copious logging is a feature here (open-source project).
+logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s: %(message)s")
 
 app = FastAPI(
     title="web10",
@@ -34,16 +42,33 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+app.middleware("http")(log_requests)
+
 app.include_router(auth.router)
-app.include_router(payments.router)
 app.include_router(system.router)
-app.include_router(media.router)
-# Specific routers must be registered before crud.router, which has
-# catch-all patterns (/{user}/{service}) that would shadow these routes.
-app.include_router(discover.router)
-app.include_router(schemas.router)
-app.include_router(public.router)
-app.include_router(crud.router)
+app.include_router(v3.router)
+
+
+@app.on_event("startup")
+def _start_hls_workers():
+    # The in-process HLS transcode worker (D44). Daemon threads, bounded
+    # concurrency — started at boot so a misconfigured ffmpeg fails loudly
+    # in the boot log, not on the first upload.
+    from app.services import transcode
+
+    transcode.start_workers()
+
+    # Self-heal the v3 apps table (visits column) on pre-existing volumes —
+    # the DDL template only runs on a fresh ClickHouse.
+    from app.v3.services import clickhouse as ch
+
+    ch.ensure_apps_schema()
+
+    # The universal discover group is a node default (KB: social-contracts.md):
+    # create it if missing, enroll anon, and backfill existing users so every
+    # account is a member of the public board by default. Idempotent — safe
+    # from every gunicorn worker.
+    ch.ensure_discover_group()
 
 
 # Map bare Exception strings (raised by auth.py / services) to HTTPExceptions.
@@ -52,31 +77,17 @@ _EXCEPTION_MAP = {
     "AUTH": exceptions.AUTH,
     "TOKEN": exceptions.TOKEN,
     "CRUD": exceptions.CRUD,
-    "MINT": exceptions.MINT,
-    "STAR": exceptions.STAR,
-    "DSTAR": exceptions.DSTAR,
-    "RESERVED": exceptions.RESERVED,
     "NO_USER": exceptions.NO_USER,
-    "NO_SELLER": exceptions.NO_SELLER,
     "EXISTS": exceptions.EXISTS,
     "PHONE_NUMBER_TAKEN": exceptions.PHONE_NUMBER_TAKEN,
     "PHONE_NUMBER_MISSING": exceptions.PHONE_NUMBER_MISSING,
     "NOT_ADMIN": exceptions.NOT_ADMIN,
     "VERIFY": exceptions.VERIFY,
     "WRONG_CODE": exceptions.WRONG_CODE,
-    "PIPELINE": exceptions.PIPELINE,
-    "PIPELINE_CAP": exceptions.PIPELINE_CAP,
-    "TIME": exceptions.TIME,
-    "SPACE": exceptions.SPACE,
     "BAD_NUM": exceptions.BAD_NUM,
     "BAD_USERNAME": exceptions.BAD_USERNAME,
     "BETA": exceptions.BETA,
-    "BUSINESS_NOT_READY": exceptions.BUSINESS_NOT_READY,
     "PHONE_NUMBER_NOT_REGISTERED": exceptions.PHONE_NUMBER_NOT_REGISTERED,
-    "SCHEMA_NOT_FOUND": exceptions.SCHEMA_NOT_FOUND,
-    "NOT_AUTHOR": exceptions.NOT_AUTHOR,
-    "ENTRY_NOT_FOUND": exceptions.ENTRY_NOT_FOUND,
-    "SCHEMA_INVALID": exceptions.SCHEMA_INVALID,
 }
 
 

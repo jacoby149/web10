@@ -1,337 +1,37 @@
-import { getWapi } from './wapi';
-import { API_ORIGIN, API_HOST } from '../lib/origins';
-import type { InboxRecord, FeedSort, DiscoverSort, DiscoveryPost, RawDiscoveryPost, PublicEntry, SchemaDefinition } from './types';
+import { getV3Client } from './v3';
+import { getDiscoverGroupId, getMyGroups, getFeedGroups } from './groups';
+import { fromV3DocToPost, fromV3DocToProfile, mediaRefId, type PostRecord, type DiscoverSort } from './types';
 
-// ── Feed data layer ────────────────────────────────────────────────────────
-// The feed reads from the `inbox` service (fan-out on write).
-// Sort options: newest, oldest, most_reacted.
-// "most_reacted" uses aggregate to count reactions per post_id.
+// ── Feed / Discover data layer (v3) ──────────────────────────────────────────
+// v3 feed: read from groups, not inbox. Discover: read from discover group.
 
-// ── Schema registry cache ──────────────────────────────────────────────────
-const schemaCache = new Map<string, SchemaDefinition>();
+// ── Discover feed ────────────────────────────────────────────────────────────
 
 /**
- * Default schema definitions to register on first boot.
+ * Read the discovery feed from the discover group.
  */
-const DEFAULT_SCHEMAS: Omit<SchemaDefinition, '_id' | 'created_at'>[] = [
-  {
-    name: 'Reaction',
-    author_username: 'system',
-    author_provider: 'web10',
-    schema: {
-      type: 'object',
-      required: ['type', 'target'],
-      properties: {
-        type: { type: 'string', enum: ['like', 'comment', 'repost'] },
-        target: { type: 'string', description: 'post_id or comment_id' },
-        author_username: { type: 'string' },
-        author_provider: { type: 'string' },
-      },
-    },
-  },
-  {
-    name: 'Comment',
-    author_username: 'system',
-    author_provider: 'web10',
-    schema: {
-      type: 'object',
-      required: ['text', 'target'],
-      properties: {
-        text: { type: 'string' },
-        target: { type: 'string', description: 'post_id being commented on' },
-        parent_id: { type: 'string' },
-        author_username: { type: 'string' },
-        author_provider: { type: 'string' },
-      },
-    },
-  },
-  {
-    name: 'Follow',
-    author_username: 'system',
-    author_provider: 'web10',
-    schema: {
-      type: 'object',
-      required: ['action', 'target_username'],
-      properties: {
-        action: { type: 'string', enum: ['follow'] },
-        target_username: { type: 'string', description: 'username of the followed user' },
-        target_provider: { type: 'string' },
-        author_username: { type: 'string' },
-        author_provider: { type: 'string' },
-      },
-    },
-  },
-];
-
-/**
- * Register default schemas with the schema registry on first boot.
- * Caches schema_id locally so subsequent calls are idempotent.
- */
-export async function registerDefaultSchemas(): Promise<SchemaDefinition[]> {
-  const token = getWapi().readToken();
-  if (!token) return [];
-
-  const registered: SchemaDefinition[] = [];
-  for (const def of DEFAULT_SCHEMAS) {
-    const cached = schemaCache.get(def.name);
-    if (cached) {
-      registered.push(cached);
-      continue;
-    }
-    try {
-      const resp = await fetch(`${API_ORIGIN}/schemas/register`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${getWapi().readToken()?.site || ''}`,
-        },
-        body: JSON.stringify({
-          name: def.name,
-          schema: def.schema,
-        }),
-      });
-      if (resp.ok) {
-        const schema = await resp.json();
-        schemaCache.set(def.name, schema);
-        registered.push(schema);
-      }
-    } catch {
-      // Schema registry not available yet — non-fatal
-    }
-  }
-  return registered;
-}
-
-/**
- * Fetch a schema definition by ID from the registry.
- */
-export async function fetchSchema(id: string): Promise<SchemaDefinition | null> {
-  const cached = schemaCache.get(id);
-  if (cached) return cached;
-
+export async function readDiscoverFeed(
+  sort: DiscoverSort = 'recent',
+  limit = 50,
+): Promise<PostRecord[]> {
+  const w = getV3Client();
   try {
-    const resp = await fetch(`${API_ORIGIN}/schemas/${id}`, { method: 'PATCH' });
-    if (resp.ok) {
-      const schema = await resp.json();
-      schemaCache.set(id, schema);
-      return schema;
+    const docs = await w.read('posts', {
+      groups: [getDiscoverGroupId()],
+      limit,
+    });
+    const posts = docs.map(fromV3DocToPost);
+    // Sort: 'recent' = newest first, 'trending' = by engagement (client-side)
+    if (sort === 'recent') {
+      posts.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
     }
-  } catch {
-    // Schema registry unreachable
-  }
-  return null;
-}
-
-/**
- * Get a cached schema by name (after registerDefaultSchemas ran).
- */
-export function getCachedSchema(name: string): SchemaDefinition | undefined {
-  return schemaCache.get(name);
-}
-
-/**
- * Clear the schema cache (tests).
- */
-export function clearSchemaCache(): void {
-  schemaCache.clear();
-}
-
-// ── Discovery feed ─────────────────────────────────────────────────────────
-
-/**
- * Map a raw wire response from PATCH /discover/posts to the client
- * DiscoveryPost shape. The API returns nested engagement counts and
- * engagement_score; the client expects flat likes/comments/reposts
- * and score. The API has no `provider` field — the node's hostname
- * is the provider (the discovery index is per-node).
- */
-export function mapRawDiscoveryPost(raw: RawDiscoveryPost): DiscoveryPost {
-  return {
-    author: raw.author,
-    provider: API_HOST,
-    post_id: raw.post_id,
-    text: raw.body_text || undefined,
-    tags: raw.tags?.length ? raw.tags : undefined,
-    media_refs: raw.media_refs?.length ? raw.media_refs : undefined,
-    created_at: raw.created_at,
-    likes: raw.engagement.likes,
-    comments: raw.engagement.comments,
-    reposts: raw.engagement.reposts,
-    score: raw.engagement_score,
-  };
-}
-
-/**
- * Read the discovery feed from the public discovery API.
- * sort: 'recent' for chronological, 'trending' for engagement-scored.
- */
-export async function readDiscoverFeed(sort: DiscoverSort = 'recent', limit = 20): Promise<DiscoveryPost[]> {
-  try {
-    const resp = await fetch(
-      `${API_ORIGIN}/discover/posts?sort=${sort}&limit=${limit}&services=public_posts`,
-      { method: 'PATCH' },
-    );
-    if (!resp.ok) return [];
-    const raw = await resp.json() as RawDiscoveryPost[];
-    return raw.map(mapRawDiscoveryPost);
+    return posts;
   } catch {
     return [];
   }
 }
 
-// ── Public ledger ──────────────────────────────────────────────────────────
-
-/**
- * Write a public ledger entry (e.g., a reaction or comment).
- * POST /public/entries expects the wapi Token body shape:
- * {token: <site-token>, query: {schema_id, target, payload}}.
- */
-export async function createPublicEntry(entry: Omit<PublicEntry, '_id'>): Promise<PublicEntry> {
-  try {
-    const token = getWapi().readToken();
-    const resp = await fetch(`${API_ORIGIN}/public/entries`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        Authorization: `Bearer ${token?.site || ''}`,
-      },
-      body: JSON.stringify({
-        token: token?.site,
-        query: {
-          schema_id: entry.schema_id,
-          target: entry.target,
-          payload: entry.payload,
-        },
-      }),
-    });
-    if (!resp.ok) throw new Error(`public entry failed: ${resp.status}`);
-    return resp.json();
-  } catch (e) {
-    // If the public ledger endpoint isn't available, return a stub
-    return {
-      _id: `local-${Date.now()}`,
-      ...entry,
-      created_at: new Date().toISOString(),
-      author_username: getWapi().readToken()?.username,
-      author_provider: getWapi().readToken()?.provider,
-    };
-  }
-}
-
-/**
- * Query public ledger entries by schema_id and/or target.
- */
-export async function queryPublicEntries(params: {
-  schema_id?: string;
-  target?: string;
-  author?: string;
-  limit?: number;
-  skip?: number;
-}): Promise<PublicEntry[]> {
-  try {
-    const qs = new URLSearchParams();
-    if (params.schema_id) qs.set('schema_id', params.schema_id);
-    if (params.target) qs.set('target', params.target);
-    if (params.author) qs.set('author', params.author);
-    if (params.limit) qs.set('limit', String(params.limit));
-    if (params.skip) qs.set('skip', String(params.skip));
-    const resp = await fetch(`${API_ORIGIN}/public/entries?${qs}`, { method: 'PATCH' });
-    if (!resp.ok) return [];
-    return resp.json();
-  } catch {
-    return [];
-  }
-}
-
-/**
- * Delete a public ledger entry by ID (author-only).
- */
-export async function deletePublicEntry(entryId: string): Promise<void> {
-  try {
-    const token = getWapi().readToken();
-    const resp = await fetch(`${API_ORIGIN}/public/entries/${entryId}`, {
-      method: 'DELETE',
-      headers: {
-        Authorization: `Bearer ${token?.site || ''}`,
-      },
-    });
-    if (!resp.ok) throw new Error(`delete public entry failed: ${resp.status}`);
-  } catch (e) {
-    // non-fatal — the local record is still the source of truth
-  }
-}
-
-/**
- * Read inbox records sorted by the given order.
- * newest = descending delivered_at (chronological, newest first)
- * oldest = ascending delivered_at
- * most_reacted = sorted by reaction count (requires aggregate)
- */
-export async function readFeed(sort: FeedSort = 'newest'): Promise<InboxRecord[]> {
-  const wapi = getWapi();
-
-  if (sort === 'most_reacted') {
-    return readFeedByReactions();
-  }
-
-  const direction = sort === 'newest' ? -1 : 1;
-  const records = await wapi.read<InboxRecord>('inbox');
-
-  return records.sort((a, b) => {
-    const tA = new Date(a.delivered_at).getTime();
-    const tB = new Date(b.delivered_at).getTime();
-    return (tA - tB) * direction;
-  });
-}
-
-/**
- * Read feed sorted by reaction count (most reacted first).
- * Uses the aggregate pipeline to count reactions per post_id.
- */
-async function readFeedByReactions(): Promise<InboxRecord[]> {
-  const wapi = getWapi();
-  const records = await wapi.read<InboxRecord>('inbox');
-
-  // Build a map of post_id -> reaction count using aggregate on reactions
-  const reactionCounts = await wapi.aggregate<{ _id: string; count: number }>(
-    'reactions',
-    [
-      { $match: { target_service: 'posts' } },
-      { $group: { _id: '$target_id', count: { $sum: 1 } } },
-      { $sort: { count: -1 } },
-    ],
-  );
-
-  const countMap = new Map<string, number>();
-  for (const r of reactionCounts) {
-    countMap.set(r._id, r.count);
-  }
-
-  return records.sort((a, b) => {
-    const countA = countMap.get(a.post_id) || 0;
-    const countB = countMap.get(b.post_id) || 0;
-    return countB - countA;
-  });
-}
-
-/**
- * Mark an inbox item as read.
- */
-export async function markInboxRead(id: string): Promise<void> {
-  const wapi = getWapi();
-  await wapi.update('inbox', { _id: id }, { $set: { read: true } });
-}
-
-/**
- * Count unread inbox items.
- */
-export async function countUnread(): Promise<number> {
-  const wapi = getWapi();
-  const records = await wapi.read<InboxRecord>('inbox', { read: { $ne: true } });
-  return records.length;
-}
-
-// ── Discovery: suggested users ──────────────────────────────────────────────
+// ── Suggested users ──────────────────────────────────────────────────────────
 
 export interface SuggestedUser {
   username: string;
@@ -344,42 +44,213 @@ export interface SuggestedUser {
 }
 
 /**
- * Fetch suggested accounts from the discovery API.
- * PATCH /discover/users returns a list of accounts the current user
- * might want to follow (personas, popular creators, etc.).
+ * Fetch suggested accounts — users in discover group who aren't followed yet.
  */
 export async function fetchSuggestedUsers(limit = 20): Promise<SuggestedUser[]> {
+  const w = getV3Client();
   try {
-    const resp = await fetch(
-      `${API_ORIGIN}/discover/users?limit=${limit}&services=public_posts`,
-      { method: 'PATCH' },
+    const groups = await getMyGroups();
+    const followedUsernames = new Set(
+      groups
+        .filter((g) => g.group_id.endsWith('/followers'))
+        .map((g) => g.group_id.split('/').slice(-2, -1)[0]),
     );
-    if (!resp.ok) return [];
-    return resp.json();
+
+    // Read posts from discover, collect unique authors
+    const docs = await w.read('posts', {
+      groups: [getDiscoverGroupId()],
+      limit: limit * 3, // Oversample to find unique authors
+    });
+
+    const authorMap = new Map<string, { postIds: Set<string>; profile?: ReturnType<typeof fromV3DocToProfile> }>();
+    for (const doc of docs) {
+      const username = doc.author_key.split('/').pop() || '';
+      if (followedUsernames.has(username) || authorMap.has(username)) continue;
+
+      const entry = authorMap.get(username) || { postIds: new Set() };
+      entry.postIds.add(doc.doc_id);
+      authorMap.set(username, entry);
+    }
+
+    // Fetch profiles for suggested users
+    const suggested: SuggestedUser[] = [];
+    for (const [username, entry] of authorMap) {
+      if (suggested.length >= limit) break;
+      let profile = null;
+      try {
+        profile = await import('./profile').then((m) => m.readUserProfile(username));
+      } catch {
+        // Skip
+      }
+
+      suggested.push({
+        username,
+        provider: 'web10',
+        display_name: profile?.display_name || username,
+        bio: profile?.bio,
+        avatar_ref: profile?.avatar_ref,
+        followers_count: undefined,
+        posts_count: entry.postIds.size,
+      });
+    }
+
+    return suggested;
   } catch {
     return [];
   }
 }
 
+// ── Feed (group-based, not inbox) ────────────────────────────────────────────
+
+import type { FeedSort } from './types';
+
 /**
- * Fetch a single post from the discovery API by user/service/id.
- * This is how we read another user's public posts without direct
- * collection access (the discovery index is anon-readable).
+ * Read the feed — all groups except discover, sorted.
  */
-export async function fetchDiscoveryPost(
-  username: string,
-  service: string,
-  postId: string,
-): Promise<DiscoveryPost | null> {
-  try {
-    const resp = await fetch(
-      `${API_ORIGIN}/discover/post/${encodeURIComponent(username)}/${encodeURIComponent(service)}/${encodeURIComponent(postId)}`,
-      { method: 'PATCH' },
-    );
-    if (!resp.ok) return null;
-    const raw = await resp.json() as RawDiscoveryPost;
-    return mapRawDiscoveryPost(raw);
-  } catch {
-    return null;
+export async function readFeed(sort: FeedSort = 'newest', limit = 50): Promise<PostRecord[]> {
+  const w = getV3Client();
+  const feedGroups = await getFeedGroups();
+  console.log('[social-feed] readFeed — feed groups (minus discover):', JSON.stringify(feedGroups));
+
+  if (!feedGroups.length) {
+    console.log('[social-feed] readFeed — no feed groups yet, returning []');
+    return [];
   }
+
+  const docs = await w.read('posts', {
+    groups: feedGroups,
+    limit,
+  });
+  console.log('[social-feed] readFeed — got', docs.length, 'docs from', feedGroups.length, 'groups');
+
+  const posts = docs.map(fromV3DocToPost);
+  const direction = sort === 'newest' ? -1 : 1;
+  posts.sort((a, b) => (new Date(a.created_at).getTime() - new Date(b.created_at).getTime()) * direction);
+  console.log('[social-feed] readFeed — sorted', posts.length, 'posts by', sort);
+  return posts;
+}
+
+/**
+ * Engagement counts for the feed's posts (the ref pattern — the same one
+ * DiscoverScreen runs): one read of the `reactions` + `comments` collections
+ * over the feed's groups, counted client-side by `ref_value` (the target
+ * post's doc_id). Without this the feed's likes/comments knobs only ever
+ * see recency. Returns per-doc_id counts; a missing post is simply absent
+ * (the caller treats absent as 0).
+ */
+export async function readFeedEngagement(
+  feedGroups: string[],
+  limit = 500,
+): Promise<{ likes: Record<string, number>; comments: Record<string, number> }> {
+  const w = getV3Client();
+  console.log('[social-feed] readFeedEngagement — counting over', feedGroups.length, 'groups');
+  const [reactionDocs, commentDocs] = await Promise.all([
+    w.read('reactions', { groups: feedGroups, limit }),
+    w.read('comments', { groups: feedGroups, limit }),
+  ]);
+  const likes: Record<string, number> = {};
+  const comments: Record<string, number> = {};
+  for (const d of reactionDocs) {
+    if (d.ref_value) likes[d.ref_value] = (likes[d.ref_value] || 0) + 1;
+  }
+  for (const d of commentDocs) {
+    if (d.ref_value) comments[d.ref_value] = (comments[d.ref_value] || 0) + 1;
+  }
+  console.log(
+    '[social-feed] readFeedEngagement — counted',
+    Object.values(likes).reduce((a, b) => a + b, 0), 'reactions +',
+    Object.values(comments).reduce((a, b) => a + b, 0), 'comments',
+  );
+  return { likes, comments };
+}
+
+// ── Backward compat for discovery types ──────────────────────────────────────
+
+/** @deprecated use PostRecord for discover posts */
+export interface DiscoveryPost {
+  author: string;
+  provider: string;
+  post_id: string;
+  text?: string;
+  tags?: string[];
+  media_refs?: string[];
+  created_at: string;
+  likes: number;
+  comments: number;
+  reposts: number;
+  score?: number;
+}
+
+/** @deprecated map PostRecord to DiscoveryPost if needed */
+export function postToDiscoveryPost(post: PostRecord): DiscoveryPost {
+  return {
+    author: '',
+    provider: 'web10',
+    post_id: post._id || '',
+    text: post.text,
+    tags: post.tags,
+    media_refs: post.media_refs?.map(mediaRefId),
+    created_at: post.created_at,
+    likes: 0,
+    comments: 0,
+    reposts: 0,
+  };
+}
+
+// ── Backward compat exports (v2 → v3 migration) ─────────────────────────────
+
+/** @deprecated no-op, v3 doesn't use schema registry */
+export async function registerDefaultSchemas(): Promise<unknown[]> {
+  return [];
+}
+
+/** @deprecated no-op, v3 doesn't use schema cache */
+export function clearSchemaCache(): void {}
+
+/** @deprecated no-op, v3 doesn't use schema cache */
+export function getCachedSchema(_name: string): unknown {
+  return undefined;
+}
+
+/** @deprecated no-op, v3 doesn't use public ledger */
+export async function createPublicEntry(_entry: unknown): Promise<unknown> {
+  return {};
+}
+
+/** @deprecated no-op, v3 doesn't use public ledger */
+export async function queryPublicEntries(_params: unknown): Promise<unknown[]> {
+  return [];
+}
+
+/** @deprecated no-op, v3 doesn't use public ledger */
+export async function deletePublicEntry(_entryId: string): Promise<void> {}
+
+/** @deprecated no-op, v3 doesn't use inbox */
+export async function markInboxRead(_id: string): Promise<void> {}
+
+/** @deprecated no-op, v3 doesn't use inbox */
+export async function countUnread(): Promise<number> {
+  return 0;
+}
+
+/** @deprecated mapRawDiscoveryPost — v3 doesn't use raw discovery */
+export function mapRawDiscoveryPost(_raw: unknown): DiscoveryPost {
+  return {
+    author: '',
+    provider: 'web10',
+    post_id: '',
+    created_at: new Date().toISOString(),
+    likes: 0,
+    comments: 0,
+    reposts: 0,
+  };
+}
+
+/** @deprecated fetchDiscoveryPost — v3 uses readPostById */
+export async function fetchDiscoveryPost(
+  _username: string,
+  _service: string,
+  _postId: string,
+): Promise<DiscoveryPost | null> {
+  return null;
 }

@@ -1,435 +1,349 @@
-import { getWapi, deriveObjectKey } from './wapi';
-import { listFollowers } from './follows';
-import { API_ORIGIN } from '../lib/origins';
-import type { PostRecord, MediaRecord, MediaUploadRequest, PublicEntry, SchemaDefinition, DiscoverSort, DiscoveryPost, InboxRecord, Visibility } from './types';
+import { getV3Client } from './v3';
+import {
+  getDiscoverGroupId,
+  followersGroupId,
+  closeFriendsGroupId,
+  getMyGroups,
+  getFeedGroups,
+  ensureFollowers,
+} from './groups';
+import type { PostRecord, MediaRecord, MediaUploadRequest, Visibility, ResolvedMediaRef } from './types';
+import { fromV3DocToPost, fromV3DocToMedia, fromResolvedMediaRef } from './types';
 
-// ── Post data layer ────────────────────────────────────────────────────────
-// Post visibility is a COLLECTION, not a status field (decisions.md D30):
-//   staging_posts  — owner-only, imported/drafted content awaiting triage
-//                   (marketing-api parsers write here; imports no longer
-//                   auto-publish to the legacy anon-readable `posts`)
-//   private_posts  — owner-only, deliberately private
-//   public_posts   — anon-read, discovery-indexed
-// The composer (createPost) routes to public_posts or private_posts; the
-// wall reads both. Pubished posts come from public_posts + private_posts;
-// staged imports live in staging_posts and are NOT wall-visible until the
-// user publishes them (Phase C, a collection move). The legacy
-// anon-readable `posts` service is intentionally NOT read here — surfacing
-// it on the wall would re-publish whatever the old auto-publish bug wrote.
-
-interface LegacyPost {
-  _id?: string;
-  html: string;
-  media: Array<{ type: string; src: string }>;
-  time: string;
-  web10?: string;
-}
+// ── Post data layer (v3) ─────────────────────────────────────────────────────
+// Posts live in the `posts` collection. Visibility is controlled by GROUPS:
+//   - public posts: attached to discover group + followers group
+//   - followers-only: attached to followers group only
+//   - private: attached to close-friends group only
+// No collection split — one `posts` collection, groups define access.
 
 /**
  * Create a new post record.
  * Media files should be uploaded first via uploadMedia(), then referenced
  * through media_refs.
  *
- * Phase 5.5 / D30: visibility === 'public' writes to `public_posts`;
- * otherwise `private_posts`. Imports do NOT use this — they go through
- * the marketing-api and land in `staging_posts` for triage.
+ * `adPreference` (the v3 ad preference, ads-dissemination.md): when set, the
+ * post is created with its `ad_preference` column (`pinned` + the ad's doc_id,
+ * or `none`). The read then serves the post with the pinned ad inline.
  */
-export async function createPost(post: Omit<PostRecord, '_id'>): Promise<PostRecord> {
-  const wapi = getWapi();
-  const service = post.visibility === 'public' ? 'public_posts' : 'private_posts';
-  return wapi.create<PostRecord>(service, post);
-}
+export async function createPost(
+  post: Omit<PostRecord, '_id'>,
+  groups?: string[],
+  adPreference?: { mode: 'none' | 'pinned'; target?: string },
+): Promise<PostRecord> {
+  const w = getV3Client();
+  const token = w.readToken();
+  if (!token) throw new Error('not authenticated');
 
-/**
- * Fan-out a public post to every follower's inbox + the author's own inbox.
- * Reads the follower list from the D34 public ledger (listFollowers), then
- * writes one inbox record per follower using the shape from
- * seed_personas.py:658 deliver_to_inbox. The inbox service whitelists
- * create for everyone, so this is permitted today.
- *
- * This is client-side O(followers) — the honest v0 at demo scale (D29).
- * Server-side fan-out is a later lane-A item.
- */
-export async function fanOutToFollowers(postRecord: PostRecord): Promise<void> {
-  const wapi = getWapi();
-  const token = wapi.readToken();
-  if (!token || !postRecord._id) return;
-
-  const postBody: Record<string, unknown> = {
-    text: postRecord.text,
-    media_refs: postRecord.media_refs,
-    created_at: postRecord.created_at,
-    visibility: postRecord.visibility,
-  };
-  if (postRecord.tags?.length) postBody.tags = postRecord.tags;
-
-  const inboxRecord = {
-    author_username: token.username,
-    author_provider: token.provider,
-    post_id: postRecord._id,
-    delivered_at: new Date().toISOString(),
-    post_body: postBody,
-    origin: 'web10',
+  const body: Record<string, unknown> = {
+    text: post.text,
+    media_refs: post.media_refs,
+    origin: post.origin,
+    origin_id: post.origin_id,
+    visibility: post.visibility,
+    location: post.location,
+    mentions: post.mentions,
+    encrypted: post.encrypted,
   };
 
-  // Write to own inbox first
-  await wapi.create<InboxRecord>('inbox', inboxRecord);
+  // Default groups based on visibility
+  const visibility = post.visibility || 'public';
+  let targetGroups = groups || determinePostGroups(visibility, token.username);
 
-  // Fan-out to every follower
-  const followers = await listFollowers(token.username, token.provider);
-  await Promise.allSettled(
-    followers.map((follower) =>
-      wapi.create<InboxRecord>('inbox', inboxRecord, follower.username, follower.provider),
-    ),
-  );
-}
-
-/**
- * Read the owner's wall = `public_posts` + `private_posts`.
- *
- * D19 Phase A: the legacy anon-readable `posts` service is intentionally
- * NOT read here. Until this fix, the wall unioned `posts` +
- * `public_posts` + `private_posts` and ran an in-place migration on legacy
- * `posts` records — but Phase A redirects imports to owner-only
- * `staging_posts` (decisions.md D30), so the wall is just the two real
- * tiers. Reading `posts` (anon-readable by its sir) here would surface
- * any old auto-published imports to the user, and once we stop writing
- * new imports there the collection has no role on the wall. Staged
- * imports surface in Phase C's staging/review screen instead.
- *
- * Regression context: this used to also read `posts`. The bug it caused
- * (already-fixed) was the inverse — readMyPosts read ONLY `posts` and
- * dropped every newly composed post. The composer now writes to
- * public_posts / private_posts, so reading those two is complete.
- */
-export async function readMyPosts(): Promise<PostRecord[]> {
-  const wapi = getWapi();
-  const [publicPosts, privatePosts] = await Promise.all([
-    wapi.read<PostRecord>('public_posts'),
-    wapi.read<PostRecord>('private_posts'),
-  ]);
-  return [...publicPosts, ...privatePosts];
-}
-
-/**
- * Read posts for a specific user on a specific provider.
- */
-export async function readUserPosts(username: string, provider: string): Promise<PostRecord[]> {
-  const wapi = getWapi();
-  return wapi.read<PostRecord>('posts', {}, username, provider);
-}
-
-/**
- * Read another user's public posts DIRECTLY from their `public_posts`
- * collection (anon-read is whitelisted by the canonical term).
- *
- * This is the profile-wall read path. It deliberately does NOT go through
- * the discovery index: admin board moderation (`/admin/discovery/remove`)
- * only hides a post from discover/trending/search — it must NOT rip the
- * post off the author's profile or out of friends' feeds (operator,
- * 31.07.2026: "if moderation takes something off the discover it still
- * stays on profile and feed of friends"). The friends feed was already
- * immune (inbox fan-out copies `post_body`); the wall was not — it read
- * via `readUserPostsFromDiscovery`, so a moderated post vanished from the
- * profile too.
- */
-export async function readUserPublicPosts(username: string, provider: string): Promise<PostRecord[]> {
-  const wapi = getWapi();
-  return wapi.read<PostRecord>('public_posts', {}, username, provider);
-}
-
-/**
- * Read a specific user's posts from the discovery index via pagination.
- * The discovery API has no author filter, so we paginate through /discover/posts
- * with a large limit and filter client-side. Uses a higher limit (200, the
- * API max) to capture posts that fall outside a smaller window.
- */
-export async function readUserPostsFromDiscovery(username: string, provider: string): Promise<PostRecord[]> {
-  const posts: PostRecord[] = [];
-  const limit = 200; // API max
-  let skip = 0;
-
-  while (true) {
-    const resp = await fetch(
-      `${API_ORIGIN}/discover/posts?sort=recent&limit=${limit}&skip=${skip}&services=public_posts`,
-      { method: 'PATCH' },
-    );
-    if (!resp.ok) break;
-
-    const allPosts: DiscoveryPost[] = await resp.json();
-    if (!allPosts.length) break;
-
-    const matched = allPosts.filter(
-      (dp) => dp.author === username && dp.provider === provider,
-    );
-    for (const dp of matched) {
-      const post: PostRecord = {
-        _id: dp.post_id,
-        text: dp.text,
-        created_at: dp.created_at,
-        tags: dp.tags,
-      };
-      if (dp.media_refs?.length) {
-        post.media_refs = dp.media_refs;
-      }
-      posts.push(post);
-    }
-
-    // If we got fewer results than the limit, we've reached the end
-    if (allPosts.length < limit) break;
-    // If we found posts in this batch, continue paginating
-    if (matched.length) {
-      skip += limit;
-    } else {
-      // No matched posts in this batch - continue to next page
-      skip += limit;
+  // Public/friends posts attach to the user's OWN followers group — ensure it
+  // exists (user as owner) so the post surfaces in the user's own feed (the
+  // feed reads the user's groups minus discover). Best-effort: a failure here
+  // must not block the post (it still lands on discover for public).
+  if (!groups && visibility !== 'private') {
+    try {
+      await ensureFollowers(token.username);
+    } catch (e) {
+      console.warn('[social-feed] createPost — ensureFollowers failed (non-fatal):', e);
     }
   }
 
-  return posts;
+  console.log('[social-feed] createPost — visibility:', visibility, 'target groups:', JSON.stringify(targetGroups), 'ad_preference:', JSON.stringify(adPreference ?? null));
+
+  const doc = await w.create('posts', body, {
+    groups: targetGroups,
+    ...(adPreference ? { ad_preference: adPreference } : {}),
+  });
+  console.log('[social-feed] createPost — success, doc_id:', doc.doc_id);
+  return fromV3DocToPost(doc);
+}
+
+/**
+ * Determine which groups a post should be attached to based on visibility.
+ */
+function determinePostGroups(visibility: Visibility, username: string): string[] {
+  switch (visibility) {
+    case 'public':
+      return [getDiscoverGroupId(), followersGroupId(username)];
+    case 'friends':
+      return [followersGroupId(username)];
+    case 'private':
+      return [closeFriendsGroupId(username)];
+    default:
+      return [getDiscoverGroupId(), followersGroupId(username)];
+  }
+}
+
+/**
+ * Read posts from specific groups.
+ */
+export async function readPosts(
+  groups: string[],
+  opts?: { limit?: number; offset?: number },
+): Promise<PostRecord[]> {
+  const w = getV3Client();
+  const docs = await w.read('posts', {
+    groups,
+    limit: opts?.limit,
+    offset: opts?.offset,
+  });
+  return docs.map(fromV3DocToPost);
+}
+
+/**
+ * Read the owner's posts (from all groups they belong to).
+ */
+export async function readMyPosts(opts?: { limit?: number }): Promise<PostRecord[]> {
+  const feedGroups = await getFeedGroups();
+  if (!feedGroups.length) return [];
+  return readPosts(feedGroups, opts);
+}
+
+/**
+ * Read posts for a specific user's followers group.
+ * @param username - the user's username
+ * @param optsOrProvider - optional limit opts, or a provider string (v2 compat, ignored in v3)
+ */
+export async function readUserPosts(username: string, optsOrProvider?: { limit?: number } | string): Promise<PostRecord[]> {
+  const opts = typeof optsOrProvider === 'string' ? undefined : optsOrProvider;
+  return readPosts([followersGroupId(username)], opts);
 }
 
 /**
  * Read a single post by ID.
  */
-export async function readPost(id: string): Promise<PostRecord | null> {
-  const wapi = getWapi();
-  const posts = await wapi.read<PostRecord>('posts', { _id: id });
-  return posts[0] || null;
+export async function readPostById(docId: string): Promise<PostRecord | null> {
+  const w = getV3Client();
+  try {
+    const doc = await w.readById(docId, 'posts');
+    return fromV3DocToPost(doc);
+  } catch {
+    return null;
+  }
 }
 
 /**
  * Update a post by ID.
  */
-export async function updatePost(id: string, updates: Partial<PostRecord>): Promise<PostRecord> {
-  const wapi = getWapi();
-  return wapi.update<PostRecord>('posts', { _id: id }, { $set: updates });
+export async function updatePost(docId: string, updates: Partial<PostRecord>): Promise<PostRecord> {
+  const w = getV3Client();
+  const body: Record<string, unknown> = {};
+  if (updates.text !== undefined) body.text = updates.text;
+  if (updates.media_refs !== undefined) body.media_refs = updates.media_refs;
+  if (updates.visibility !== undefined) body.visibility = updates.visibility;
+  if (updates.tags !== undefined) body.tags = updates.tags;
+  if (updates.location !== undefined) body.location = updates.location;
+  if (updates.mentions !== undefined) body.mentions = updates.mentions;
+
+  const doc = await w.update(docId, body);
+  return fromV3DocToPost(doc);
 }
 
 /**
- * Delete a post by ID from its correct collection.
- *
- * D30: posts live in `public_posts` or `private_posts`, not the legacy
- * `posts` service. The caller must provide the post's visibility so we
- * delete from the right collection. The API's `_index_post_delete` hook
- * (crud.py:32) automatically removes the discovery-index doc for public
- * posts, so no separate un-index call is needed.
+ * Delete a post by ID (tombstone).
  */
-export async function deletePost(id: string, visibility: Visibility): Promise<void> {
-  const wapi = getWapi();
-  const service = visibility === 'public' ? 'public_posts' : 'private_posts';
-  await wapi.delete(service, { _id: id });
+export async function deletePost(docId: string): Promise<void> {
+  const w = getV3Client();
+  await w.delete(docId);
 }
 
 /**
- * Move a post between public_posts and private_posts (D30 collection move).
- * Creates the record in the target collection, deletes from the source.
- * Preserves the body; the _id changes (new record in target collection).
- *
- * This is the post-hoc visibility toggle — the published counterpart to
- * the staging moves in staging.ts.
+ * Move a post between visibility levels by updating groups.
+ * In v3, this means updating the post body visibility field.
+ * The group membership is managed by the API's hooks.
  */
 export async function movePostVisibility(post: PostRecord): Promise<PostRecord> {
-  const wapi = getWapi();
-  const sourceService = post.visibility === 'public' ? 'public_posts' : 'private_posts';
-  const targetVisibility: Visibility = post.visibility === 'public' ? 'private' : 'public';
-  const targetService = targetVisibility === 'public' ? 'public_posts' : 'private_posts';
-
-  const { _id: _sourceId, ...body } = post;
-  const targetRecord = { ...body, visibility: targetVisibility };
-  // Must use the server-created record — it carries the new _id in the
-  // target collection. Returning a local copy (without _id) caused the
-  // caller's second toggle to delete the wrong _id, leaving a duplicate.
-  const created = await wapi.create<PostRecord>(targetService, targetRecord);
-  if (_sourceId) {
-    await wapi.delete(sourceService, { _id: _sourceId });
-  }
-  return created;
+  if (!post._id) throw new Error('post has no ID');
+  const newVisibility: Visibility = post.visibility === 'public' ? 'private' : 'public';
+  return updatePost(post._id, { visibility: newVisibility });
 }
 
-// ── Media data layer ───────────────────────────────────────────────────────
+// ── Media data layer (v3) ────────────────────────────────────────────────────
 
 /**
- * Upload a media file through the API's media router presigned URLs.
- * 1. Request presigned URL
- * 2. Upload file to object storage
- * 3. Confirm upload to create the media record
- * Returns the media record with the _id to reference in posts.
- *
- * D21: if width/height/durationSeconds/thumbnailFile/altText are provided,
- * they are sent to the confirm endpoint so the media record carries real
- * dimensions, a thumbnail URL (for video posters), and alt text.
- *
- * D35: the optional `service` on MediaUploadRequest targets the confirm
- * endpoint. Public-post attachments and avatar/banner use `public_media`
- * so non-owners can presign reads. DM/private-post media defaults to
- * `media` (owner-only, legacy fallback).
+ * Upload a media file through the v3 media pipeline.
+ * 1. Request presigned POST form (via the v3 API)
+ * 2. Upload the file to object storage (MinIO) via the presigned form
+ * 3. Confirm the upload — the media document's body carries the object_key
+ *    (never a URL — the node presigns fresh read URLs on demand)
  */
 export async function uploadMedia(request: MediaUploadRequest): Promise<MediaRecord> {
-  const wapi = getWapi();
+  const w = getV3Client();
+  console.log('[social-media] uploadMedia — start, file:', request.file.name, request.file.type, request.file.size, 'service:', request.service);
 
-  // Upload the thumbnail/poster first (if provided) so we have its URL
-  let thumbnailUrl: string | null = null;
+  // Upload thumbnail/poster first if provided
+  let thumbnailObjectKey: string | null = null;
   if (request.thumbnailFile) {
     const thumbRecord = await uploadMedia({ file: request.thumbnailFile, service: request.service });
-    thumbnailUrl = thumbRecord.url;
+    thumbnailObjectKey = thumbRecord.object_key || null;
   }
 
-  // 1. Get presigned URL from the API
-  const { uploadUrl, fields, contentType, objectKey } = await wapi.getUploadUrl(
-    request.file.type || 'application/octet-stream',
-    request.file.size,
-    request.file.name,
-  );
+  // 1. Presigned POST form
+  const presigned = await w.requestMediaUploadUrl({
+    filename: request.file.name,
+    mimeType: request.file.type || 'application/octet-stream',
+    sizeBytes: request.file.size,
+  });
+  console.log('[social-media] uploadMedia — presigned form ok, object_key:', presigned.object_key);
 
-  // 2. Upload the file directly to object storage using presigned POST
+  // 2. Upload the file to object storage
   const formData = new FormData();
-  for (const [key, value] of Object.entries(fields)) {
+  for (const [key, value] of Object.entries(presigned.fields || {})) {
     formData.append(key, value);
   }
-  formData.append('file', request.file);
-
-  const uploadResp = await fetch(uploadUrl, {
-    method: 'POST',
-    body: formData,
-  });
-  if (!uploadResp.ok) {
-    throw new Error(`media upload failed: ${uploadResp.status}`);
+  formData.append('file', request.file, request.file.name);
+  const putRes = await fetch(presigned.upload_url, { method: 'POST', body: formData });
+  console.log('[social-media] uploadMedia — object storage response status:', putRes.status);
+  if (!putRes.ok) {
+    throw new Error(`Media upload failed: ${putRes.status}`);
   }
 
-  // 3. Confirm upload to create the media record in the user's collection.
-  return wapi.confirmUpload<MediaRecord>({
-    url: `${uploadUrl}/${objectKey}`,
+  // 3. Confirm — store the reference, not a URL
+  const metadata: Record<string, unknown> = {
+    object_key: presigned.object_key,
     filename: request.file.name,
-    mimeType: contentType,
-    sizeBytes: request.file.size,
+    mime_type: request.file.type || 'application/octet-stream',
+    size_bytes: request.file.size,
     width: request.width ?? null,
     height: request.height ?? null,
-    durationSeconds: request.durationSeconds ?? null,
-    thumbnailUrl,
-    altText: request.altText ?? null,
-    service: request.service,
-  });
+    duration_seconds: request.durationSeconds ?? null,
+    thumbnail_object_key: thumbnailObjectKey,
+    alt_text: request.altText ?? null,
+    service: request.service || 'media',
+  };
+  const doc = await w.confirmMediaUpload(metadata);
+  console.log('[social-media] uploadMedia — confirmed, doc_id:', doc.doc_id);
+  return fromV3DocToMedia(doc);
 }
 
 /**
  * Read media records for the current user.
  */
-export async function readMedia(query?: Record<string, unknown>): Promise<MediaRecord[]> {
-  const wapi = getWapi();
-  return wapi.read<MediaRecord>('media', query || {});
+export async function readMedia(opts?: { limit?: number; offset?: number }): Promise<MediaRecord[]> {
+  const w = getV3Client();
+  const docs = await w.listMedia(opts);
+  return docs.map(fromV3DocToMedia);
 }
 
 /**
  * Read a single media record by ID.
  */
-export async function readMediaRecord(id: string): Promise<MediaRecord | null> {
-  const wapi = getWapi();
-  const records = await wapi.read<MediaRecord>('media', { _id: id });
-  return records[0] || null;
+export async function readMediaRecord(docId: string): Promise<MediaRecord | null> {
+  const w = getV3Client();
+  try {
+    const doc = await w.readById(docId, 'media');
+    return fromV3DocToMedia(doc);
+  } catch {
+    return null;
+  }
 }
 
 /**
  * Delete a media record by ID.
  */
-export async function deleteMedia(id: string): Promise<void> {
-  const wapi = getWapi();
-  await wapi.delete('media', { _id: id });
+export async function deleteMedia(docId: string): Promise<void> {
+  const w = getV3Client();
+  await w.deleteMedia(docId);
 }
 
 /**
  * Resolve media_refs to full media records.
  *
- * D23: the stored `url` on a media record is the bare UNSIGNED object
- * URL — on a private bucket (the dev minio) every renderer that hands
- * `record.url` to an <img> 403s. So resolveMediaRefs now refreshes
- * each resolved record's `url` (and, when present, `thumbnail_url`) to
- * a fresh presigned GET via the api's `POST /media/{user}/read` (now
- * that it finally has callers). The wrapper's expiry-aware cache keeps
- * a feed's N-image re-render from becoming N round-trips. The owner
- * whose collection holds the `media` records defaults to the signed-in
- * user; pass an explicit `owner` to refresh media authored by someone
- * else (the feed's own posts resolve from the current user's media
- * collection — the cross-user avatar path is a separate concern).
- *
- * D35: the optional `service` parameter targets the correct collection.
- * For cross-user reads of public content, `public_media` must be used
- * so the presign endpoint checks the anon-readable terms instead of
- * the owner-only `media` terms. Defaults to `media` for backward
- * compatibility (owner reads, legacy records).
+ * Refs arrive in two shapes:
+ * - resolved objects — the API read path (resolve_media_urls) rewrites a
+ *   post's media_refs to {doc_id, object_key, mime_type, filename,
+ *   size_bytes, read_url} with a fresh presigned read_url. These map
+ *   straight to MediaRecord (this is the ONLY cross-user media path —
+ *   listMedia is owner-scoped).
+ * - bare doc_id strings — avatar_ref/banner_ref and write-path reads.
+ *   Resolved against the user's own media documents (doc_ids filter),
+ *   then presigned fresh.
  */
 export async function resolveMediaRefs(
-  refs: string[],
-  owner?: { username: string; provider: string },
-  service?: 'media' | 'public_media',
+  refs: (string | ResolvedMediaRef)[],
+  _owner?: { username: string; provider: string },
+  _service?: 'media' | 'public_media',
 ): Promise<MediaRecord[]> {
   if (!refs.length) return [];
-  const wapi = getWapi();
-  const targetService = service || 'media';
-  const records = await wapi.read<MediaRecord>(targetService, { _id: { $in: refs } });
-  return refreshMediaUrls(records, owner, service);
+  const w = getV3Client();
+
+  const direct = refs
+    .filter((r): r is ResolvedMediaRef => typeof r !== 'string')
+    .map(fromResolvedMediaRef);
+
+  const docIds = refs.filter((r): r is string => typeof r === 'string');
+  let fromDocs: MediaRecord[] = [];
+  if (docIds.length) {
+    console.log('[social-media] resolveMediaRefs — resolving', docIds.length, 'doc_id ref(s):', JSON.stringify(docIds));
+    const media = await w.listMedia({ limit: docIds.length, doc_ids: docIds });
+    const refSet = new Set(docIds);
+    fromDocs = media
+      .filter((m) => m.doc_id && refSet.has(m.doc_id))
+      .map(fromV3DocToMedia);
+    // Fresh presigned URLs for the records that carry an object_key
+    fromDocs = await refreshMediaUrls(fromDocs);
+  }
+  console.log('[social-media] resolveMediaRefs — resolved', direct.length, 'direct +', fromDocs.length, 'from docs');
+  return [...direct, ...fromDocs];
 }
 
 /**
- * Replace each record's unsigned `url` (and `thumbnail_url`) with a
- * fresh presigned GET. Prefers `record.object_key` (the lane-A
- * confirm-upload touch) when present; legacy records derive the key
- * from the stored URL. Records whose URL can't be resolved to a key
- * (e.g. a non-S3 legacy url) are passed through unchanged so a bad
- * derivation never breaks a render worse than before.
- *
- * D35: the optional `service` parameter is passed through to
- * `getReadUrl` so presigns check the correct terms (`public_media`
- * for cross-user public content, `media` for owner reads).
- */
-export async function refreshMediaUrls(
-  records: MediaRecord[],
-  owner?: { username: string; provider: string },
-  service?: 'media' | 'public_media',
-): Promise<MediaRecord[]> {
-  if (!records.length) return records;
-  const wapi = getWapi();
-  const refreshed = await Promise.all(
-    records.map(async (r) => {
-      const objectKey = (r.object_key as string | undefined) || deriveObjectKey(r.url);
-      if (!objectKey) return r;
-      try {
-        const { readUrl } = await wapi.getReadUrl(objectKey, owner?.username, owner?.provider, service);
-        let thumbnail_url = r.thumbnail_url ? readUrl : r.thumbnail_url;
-        if (r.thumbnail_url && r.thumbnail_url !== r.url) {
-          const thumbKey = deriveObjectKey(r.thumbnail_url);
-          if (thumbKey && thumbKey !== objectKey) {
-            try {
-              const { readUrl: thumbReadUrl } = await wapi.getReadUrl(thumbKey, owner?.username, owner?.provider, service);
-              thumbnail_url = thumbReadUrl;
-            } catch (thumbErr) {
-              console.warn(
-                `[refreshMediaUrls] thumbnail presign failed for key "${thumbKey}": ${thumbErr instanceof Error ? thumbErr.message : String(thumbErr)} — keeping stored thumbnail_url`,
-              );
-              thumbnail_url = r.thumbnail_url;
-            }
-          }
-        }
-        return { ...r, url: readUrl, thumbnail_url };
-      } catch (err) {
-        console.warn(
-          `[refreshMediaUrls] presign failed for key "${objectKey}": ${err instanceof Error ? err.message : String(err)} — falling back to stored URL`,
-        );
-        return r;
-      }
-    }),
-  );
-  return refreshed;
-}
-
-/**
- * Convenience wrapper that refreshes a single media record's URLs.
- * Another agent will use this for post-upload paths.
+ * Refresh a single media record's URLs. A record that carries an
+ * object_key gets a fresh presigned read URL (the document never stores
+ * a live URL — stored URLs go stale); records without one (legacy) are
+ * returned unchanged.
  */
 export async function refreshMediaUrl(
   record: MediaRecord,
-  owner?: { username: string; provider: string },
-  service?: 'media' | 'public_media',
+  _owner?: { username: string; provider: string },
+  _service?: 'media' | 'public_media',
 ): Promise<MediaRecord> {
-  return (await refreshMediaUrls([record], owner, service))[0];
+  if (!record.object_key) return record;
+  const w = getV3Client();
+  try {
+    const { read_url } = await w.getMediaReadUrl(record.object_key);
+    const refreshed: MediaRecord = { ...record, url: read_url };
+    if (record.thumbnail_object_key) {
+      const { read_url: thumbUrl } = await w.getMediaReadUrl(record.thumbnail_object_key);
+      refreshed.thumbnail_url = thumbUrl;
+    }
+    return refreshed;
+  } catch (e) {
+    console.error('[social-media] refreshMediaUrl — presign failed for', record.object_key, e);
+    return record;
+  }
 }
+
+/**
+ * Refresh media URLs for a batch of records.
+ */
+export async function refreshMediaUrls(
+  records: MediaRecord[],
+  _owner?: { username: string; provider: string },
+  _service?: 'media' | 'public_media',
+): Promise<MediaRecord[]> {
+  if (!records.length) return records;
+  return Promise.all(records.map((r) => refreshMediaUrl(r)));
+}
+
+// ── Backward compat aliases ──────────────────────────────────────────────────
+
+/** @deprecated use readPostById */
+export const readPost = readPostById;
+
+/** @deprecated use readUserPosts */
+export const readUserPublicPosts = readUserPosts;

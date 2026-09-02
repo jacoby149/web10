@@ -82,7 +82,8 @@ function AccountMenu({ I, username }: { I: Record<string, any>; username: string
 }
 
 const TITLES: Record<string, string> = {
-  contracts: 'Contracts',
+  contracts: 'App Contracts',
+  groups: 'Group Contracts',
   requests: 'Requests',
   studio: 'Studio',
   config: 'Node Config',
@@ -124,7 +125,7 @@ function IconButton({
 
 function TopBar({ I }: TopBarProps) {
   const authed = I.isAuthenticated?.();
-  const username = I.wapi?.readToken?.()?.username as string | undefined;
+  const username = I.v3?.readToken?.()?.username as string | undefined;
   const showSearch = authed && SEARCHABLE.has(I.mode);
 
   return (

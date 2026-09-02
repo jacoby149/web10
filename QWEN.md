@@ -1,6 +1,5 @@
 # QWEN.md
 
-Read `AGENTS.md` first, then `CLAUDE.md` — they are the orientation for
-all agents on this repo, including the check-before-you-start rule
-(don't redo tasks already ticked in `parallel execution.txt` /
-`plan.txt` / `CHANGELOG.md`).
+Read `AGENTS.md` — it is the orientation for all agents on this repo.
+Full code-word rituals (`web10web10!`, `unbrick!`, `imma rant`, dev-batch
+gate) live in `knowledge/strategy/AGENTS-RITUALS.md`.

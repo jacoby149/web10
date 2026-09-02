@@ -6,7 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Skeleton } from '@/components/ui/skeleton';
-import { Lock, UserPlus, X, Check, Store, ShieldAlert, RotateCcw } from 'lucide-react';
+import { Lock, UserPlus, X, Check, Store, ShieldAlert, RotateCcw, Ban, Plus, EyeOff } from 'lucide-react';
 
 function ToggleRow({ label, description, checked, onChange, testId }: {
   label: string; description: string; checked: boolean; onChange: () => void; testId: string;
@@ -46,10 +46,14 @@ function ConfigShell({ I, children }: { I: Record<string, any>; children: React.
 
 interface AdminApp {
   url: string;
-  visits: number;
   approved: boolean;
   name?: string;
+  description?: string;
+  icon_url?: string;
   registered_at?: string | null;
+  review_state?: string;
+  rating_average?: number | null;
+  rating_count?: number;
 }
 
 interface BoardPost {
@@ -62,6 +66,17 @@ interface BoardPost {
   removed_by?: string | null;
   removed_at?: string | null;
   removal_reason?: string;
+}
+
+// The node-default universal public board (matches the API's DISCOVER_GROUP_ID).
+// The board is a group read; moderation is a group op on this group.
+const DISCOVER_GROUP = "web10.app/groups/web10/discover";
+
+interface ModFlag {
+  username: string;
+  flag_count: number;
+  last_flagged: string;
+  matched_words: string[];
 }
 
 function ConfigPage({ I }: { I: Record<string, any> }) {
@@ -85,9 +100,16 @@ function ConfigPage({ I }: { I: Record<string, any> }) {
   const [removeReason, setRemoveReason] = React.useState("");
   const [moderatingId, setModeratingId] = React.useState<string | null>(null);
 
+  // Content moderation (D57) — the review queue + the blocklist editor.
+  const [modFlags, setModFlags] = React.useState<ModFlag[]>([]);
+  const [modFlagsLoading, setModFlagsLoading] = React.useState(true);
+  const [modFlagsError, setModFlagsError] = React.useState<string | null>(null);
+  const [newWord, setNewWord] = React.useState("");
+  const [autoHidingUser, setAutoHidingUser] = React.useState<string | null>(null);
+
   const nodePost = async (path: string, body: Record<string, any>) => {
-    const token = I.wapi.token;
-    const decoded = I.wapi.readToken();
+    const token = I.v3.state.token;
+    const decoded = I.v3.readToken();
     const provider = decoded.provider;
     const protocol = window.location.protocol;
     return axios.post(`${protocol}//${provider}${path}`, body, {
@@ -95,9 +117,17 @@ function ConfigPage({ I }: { I: Record<string, any> }) {
     });
   };
 
+  // /config/update takes TWO body models — `token: Token` (a nested object
+  // carrying the JWT) and `update: ConfigUpdate` (the field changes). FastAPI
+  // therefore expects { token: { token }, update: {...} }, NOT a flat
+  // { token, ...fields }. This helper builds the correct shape so every save
+  // path (main Save + Admins) persists instead of 422ing.
+  const configUpdate = (fields: Record<string, any>) =>
+    nodePost("/config/update", { token: { token: I.v3.state.token }, update: fields });
+
   const loadConfig = async () => {
     try {
-      const resp = await nodePost("/config", { token: I.wapi.token });
+      const resp = await nodePost("/config", { token: I.v3.state.token });
       setConfig(resp.data);
       setLoadedConfig({ ...resp.data });
     } catch (e: any) {
@@ -111,7 +141,7 @@ function ConfigPage({ I }: { I: Record<string, any> }) {
     setAppsLoading(true);
     setAppsError(null);
     try {
-      const resp = await nodePost("/apps/admin", { token: I.wapi.token });
+      const resp = await nodePost("/v3/apps/admin", { token: I.v3.state.token });
       setApps(resp.data?.apps ?? []);
     } catch (e: any) {
       setAppsError(e.response?.data?.detail || "Failed to load registered apps.");
@@ -124,12 +154,22 @@ function ConfigPage({ I }: { I: Record<string, any> }) {
     setBoardLoading(true);
     setBoardError(null);
     try {
-      const decoded = I.wapi.readToken();
-      const protocol = window.location.protocol;
-      const resp = await axios.patch(
-        `${protocol}//${decoded.provider}/discover/posts?sort=recent&limit=50`
-      );
-      setBoard(resp.data ?? []);
+      // v3: the public board is the node-default discover group, read anon
+      // through the normal group-read path (no token, no app contract).
+      // Discovery IS a group read — there is no separate discover endpoint.
+      const resp = await nodePost("/v3/read", {
+        service: "posts",
+        groups: [DISCOVER_GROUP],
+        limit: 50,
+      });
+      setBoard((resp.data ?? []).map((d: any) => ({
+        author: d.author_key,
+        service: d.service,
+        post_id: d.doc_id,
+        body_text: d.body?.text || "",
+        tags: d.tags || [],
+        created_at: d.created_at,
+      })));
     } catch (e: any) {
       setBoardError(e.response?.data?.detail || "Failed to load the public board.");
     } finally {
@@ -139,8 +179,24 @@ function ConfigPage({ I }: { I: Record<string, any> }) {
 
   const loadRemoved = async () => {
     try {
-      const resp = await nodePost("/admin/discovery/removed", { token: I.wapi.token });
-      setRemovedPosts(resp.data?.removed ?? []);
+      // Board moderation is a group op: list the docs hidden from the
+      // discover group (the public board).
+      const resp = await nodePost("/v3/groups/hidden", {
+        token: I.v3.state.token,
+        group_id: DISCOVER_GROUP,
+      });
+      const hidden: any[] = resp.data?.hidden ?? [];
+      setRemovedPosts(hidden.map((d: any) => ({
+        author: d.author_key,
+        service: "posts",
+        post_id: d.doc_id,
+        body_text: d.body?.text || "",
+        tags: d.body?.tags || [],
+        created_at: d.hidden_at,
+        removed_by: d.moderator_key,
+        removed_at: d.hidden_at,
+        removal_reason: "",
+      })));
     } catch {
       // the removed list is secondary — don't overwrite the board error
     }
@@ -150,11 +206,10 @@ function ConfigPage({ I }: { I: Record<string, any> }) {
     setModeratingId(post.post_id);
     setBoardError(null);
     try {
-      await nodePost("/admin/discovery/remove", {
-        token: I.wapi.token,
-        author: post.author,
-        service: post.service,
-        post_id: post.post_id,
+      await nodePost("/v3/groups/hide", {
+        token: I.v3.state.token,
+        group_id: DISCOVER_GROUP,
+        doc_id: post.post_id,
         reason: removeReason.trim(),
       });
       setBoard(prev => prev.filter(p => p.post_id !== post.post_id));
@@ -172,11 +227,10 @@ function ConfigPage({ I }: { I: Record<string, any> }) {
     setModeratingId(post.post_id);
     setBoardError(null);
     try {
-      await nodePost("/admin/discovery/restore", {
-        token: I.wapi.token,
-        author: post.author,
-        service: post.service,
-        post_id: post.post_id,
+      await nodePost("/v3/groups/unhide", {
+        token: I.v3.state.token,
+        group_id: DISCOVER_GROUP,
+        doc_id: post.post_id,
       });
       setRemovedPosts(prev => prev.filter(p => p.post_id !== post.post_id));
       loadBoard();
@@ -187,16 +241,67 @@ function ConfigPage({ I }: { I: Record<string, any> }) {
     }
   };
 
+  // --- Content moderation (D57) -------------------------------------------
+
+  const loadFlags = async () => {
+    setModFlagsLoading(true);
+    setModFlagsError(null);
+    try {
+      const resp = await nodePost("/v3/moderation/flags", { token: I.v3.state.token });
+      setModFlags(resp.data?.flags ?? []);
+    } catch (e: any) {
+      setModFlagsError(e.response?.data?.detail || "Failed to load the moderation queue.");
+    } finally {
+      setModFlagsLoading(false);
+    }
+  };
+
+  const sensitiveWords: string[] = config?.sensitive_words || [];
+  const autoHideUsers: string[] = config?.auto_hide_users || [];
+
+  const addWord = () => {
+    const word = newWord.trim().toLowerCase();
+    if (!word || sensitiveWords.includes(word)) return;
+    updateField("sensitive_words", [...sensitiveWords, word]);
+    setNewWord("");
+  };
+
+  const removeWord = (word: string) =>
+    updateField("sensitive_words", sensitiveWords.filter(w => w !== word));
+
+  // "Keep hiding" / "Restore" — adds or removes a username from the node's
+  // auto_hide_users list (a direct action, not a config save). Already-hidden
+  // posts are unaffected; this governs the user's FUTURE posts.
+  const toggleAutoHide = async (username: string) => {
+    const hide = !autoHideUsers.includes(username);
+    setAutoHidingUser(username);
+    setModFlagsError(null);
+    try {
+      const resp = await nodePost("/v3/moderation/auto-hide", {
+        token: I.v3.state.token,
+        username,
+        hide,
+      });
+      updateField("auto_hide_users", resp.data?.auto_hide_users ?? autoHideUsers);
+    } catch (e: any) {
+      setModFlagsError(e.response?.data?.detail || "Failed to update the auto-hide list.");
+    } finally {
+      setAutoHidingUser(null);
+    }
+  };
+
   React.useEffect(() => {
     if (I.isAdmin) {
       loadConfig();
       loadApps();
       loadBoard();
       loadRemoved();
+      loadFlags();
     } else {
       setLoading(false);
       setAppsLoading(false);
       setBoardLoading(false);
+      setModFlagsLoading(false);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [I.isAdmin]);
@@ -208,13 +313,7 @@ function ConfigPage({ I }: { I: Record<string, any> }) {
     setSaving(true);
     setError(null);
     try {
-      const decoded = I.wapi.readToken();
-      const protocol = window.location.protocol;
-      await axios.patch(
-        `${protocol}//${decoded.provider}/config`,
-        { token: I.wapi.token, admins: next },
-        { headers: { "Content-Type": "application/json" } }
-      );
+      await configUpdate({ admins: next });
       setConfig(prev => ({ ...prev, admins: next }));
       setLoadedConfig(prev => ({ ...prev, admins: next }));
     } catch (e: any) {
@@ -239,30 +338,22 @@ function ConfigPage({ I }: { I: Record<string, any> }) {
   };
 
   // Only send fields that actually changed from the loaded snapshot.
-  // The /config GET response strips secrets (private_key, s3_secret_key,
-  // twilio_auth_token, stripe keys); a naive "send everything" save would
-  // overwrite those with empty strings and wipe the node's credentials.
-  // Diffing against the loaded snapshot keeps untouched (and stripped)
-  // fields off the wire entirely.
+  // Keeps the payload to real edits — unchanged values (including the
+  // billing fields this form no longer shows) stay off the wire, so a save
+  // can never clobber a field the operator didn't touch.
   const saveConfig = async () => {
     setSaving(true);
     setError(null);
     try {
-      const payload: Record<string, any> = { token: I.wapi.token };
+      const update: Record<string, any> = {};
       for (const key of Object.keys(config || {})) {
-        if (key === "admins") continue; // admins saved via /admins above
+        if (key === "admins") continue; // admins saved via the Admins card
         const next = (config as any)[key];
         const prev = loadedConfig[key];
         if (JSON.stringify(next) === JSON.stringify(prev)) continue;
-        payload[key] = next;
+        update[key] = next;
       }
-      const decoded = I.wapi.readToken();
-      const protocol = window.location.protocol;
-      await axios.patch(
-        `${protocol}//${decoded.provider}/config`,
-        payload,
-        { headers: { "Content-Type": "application/json" } }
-      );
+      await configUpdate(update);
       setLoadedConfig({ ...config });
       setSaved(true);
       setTimeout(() => setSaved(false), 3000);
@@ -276,7 +367,7 @@ function ConfigPage({ I }: { I: Record<string, any> }) {
   const setApproval = async (url: string, approved: boolean) => {
     setApprovingUrl(url);
     try {
-      await nodePost("/apps/approve", { token: I.wapi.token, url, approved });
+      await nodePost("/v3/apps/approve", { token: I.v3.state.token, url, approved });
       setApps(prev => prev.map(a => a.url === url ? { ...a, approved } : a));
     } catch (e: any) {
       setAppsError(e.response?.data?.detail || "Failed to update approval.");
@@ -446,7 +537,8 @@ function ConfigPage({ I }: { I: Record<string, any> }) {
                           {app.name || app.url}
                         </div>
                         <div className="truncate text-xs text-muted-foreground">
-                          {app.url} · {app.visits.toLocaleString()} {app.visits === 1 ? "visit" : "visits"}
+                          {app.url}
+                          {app.rating_count ? ` · ${app.rating_average}★ (${app.rating_count})` : ''}
                         </div>
                       </div>
                       <div className="flex shrink-0 items-center gap-2">
@@ -624,6 +716,143 @@ function ConfigPage({ I }: { I: Record<string, any> }) {
             </CardContent>
           </Card>
 
+          <Card data-testid="config-content-moderation-card">
+            <CardHeader>
+              <div className="flex items-center gap-2">
+                <ShieldAlert className="h-4 w-4 text-brand-300" strokeWidth={1.5} />
+                <CardTitle>Content Moderation (D57)</CardTitle>
+              </div>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <p className="text-xs text-muted-foreground">
+                Automatic sensitive-language detection on the public board. A post
+                whose text trips the blocklist is hidden from Discover and its
+                author is added to the review queue below. The author's own copy
+                and their followers' feed are untouched — this is board curation,
+                not a ban.
+              </p>
+
+              <ToggleRow
+                label="Moderation enabled"
+                description="Master switch. Off = no detection runs at all."
+                checked={config?.moderation_enabled ?? true}
+                onChange={() => updateField("moderation_enabled", !(config?.moderation_enabled ?? true))}
+                testId="config-moderation-enabled"
+              />
+              <ToggleRow
+                label="Auto-hide on match"
+                description="When on, a matching post is hidden from Discover immediately. When off, it is only flagged for review."
+                checked={config?.auto_moderate ?? true}
+                onChange={() => updateField("auto_moderate", !(config?.auto_moderate ?? true))}
+                testId="config-moderation-auto"
+              />
+
+              <div>
+                <Label className="mb-1 block text-muted-foreground">Blocklist</Label>
+                <p className="mb-2 text-xs text-muted-foreground">
+                  Whole-word, case-insensitive. Ships with a default slur list; add
+                  or remove words. Changes apply on the next post.
+                </p>
+                <div className="flex gap-2">
+                  <Input
+                    value={newWord}
+                    onChange={e => setNewWord(e.target.value)}
+                    onKeyDown={e => e.key === "Enter" && addWord()}
+                    placeholder="add a word"
+                    aria-label="Add a word to the blocklist"
+                    data-testid="config-moderation-word-input"
+                  />
+                  <Button onClick={addWord} disabled={saving || !newWord.trim()} data-testid="config-moderation-word-add">
+                    <Plus className="mr-1.5 h-4 w-4" strokeWidth={1.5} />
+                    Add
+                  </Button>
+                </div>
+                {sensitiveWords.length === 0 ? (
+                  <p className="mt-2 text-sm text-muted-foreground">Blocklist is empty — detection is off.</p>
+                ) : (
+                  <div className="mt-2 flex flex-wrap gap-1.5" data-testid="config-moderation-words">
+                    {sensitiveWords.map(word => (
+                      <span
+                        key={word}
+                        className="inline-flex items-center gap-1 rounded-full border border-border bg-elevated px-2.5 py-1 font-mono text-xs text-foreground"
+                        data-testid={`config-moderation-word-${word}`}
+                      >
+                        {word}
+                        <button
+                          type="button"
+                          onClick={() => removeWord(word)}
+                          aria-label={`Remove ${word} from the blocklist`}
+                          className="text-muted-foreground transition-colors hover:text-danger focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                          data-testid={`config-moderation-word-remove-${word}`}
+                        >
+                          <X className="h-3 w-3" strokeWidth={2} />
+                        </button>
+                      </span>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              <div className="border-t border-border pt-3">
+                <p className="mb-2 text-xs font-medium text-muted-foreground">Review queue</p>
+                {modFlagsError && (
+                  <div className="rounded bg-danger-muted p-3 text-sm text-danger" data-testid="config-moderation-queue-error">
+                    {modFlagsError}
+                  </div>
+                )}
+                {modFlagsLoading ? (
+                  <Skeleton className="h-16 w-full" />
+                ) : modFlags.length === 0 ? (
+                  <p className="text-sm text-muted-foreground" data-testid="config-moderation-queue-empty">
+                    No flagged users.
+                  </p>
+                ) : (
+                  <div className="space-y-2" data-testid="config-moderation-queue">
+                    {modFlags.map(flag => {
+                      const isHidden = autoHideUsers.includes(flag.username);
+                      return (
+                        <div
+                          key={flag.username}
+                          className="flex items-center justify-between gap-2 rounded-sm border border-border bg-elevated px-3 py-2"
+                          data-testid={`config-moderation-flag-${flag.username}`}
+                        >
+                          <div className="min-w-0">
+                            <div className="truncate font-mono text-xs text-muted-foreground">
+                              @{flag.username} · {flag.flag_count} {flag.flag_count === 1 ? "flag" : "flags"}
+                            </div>
+                            <div className="truncate text-xs text-muted-foreground">
+                              {flag.matched_words.slice(0, 3).join(", ")}
+                            </div>
+                          </div>
+                          <Button
+                            variant={isHidden ? "outline" : "brand"}
+                            size="sm"
+                            className="shrink-0"
+                            disabled={autoHidingUser === flag.username}
+                            onClick={() => toggleAutoHide(flag.username)}
+                            data-testid={`config-moderation-flag-toggle-${flag.username}`}
+                          >
+                            {isHidden ? (
+                              <>
+                                <EyeOff className="mr-1 h-3.5 w-3.5" strokeWidth={1.5} />
+                                Hiding
+                              </>
+                            ) : (
+                              <>
+                                <Ban className="mr-1 h-3.5 w-3.5" strokeWidth={1.5} />
+                                Keep hiding
+                              </>
+                            )}
+                          </Button>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+            </CardContent>
+          </Card>
+
           <Card>
             <CardHeader>
               <CardTitle>Node Identity</CardTitle>
@@ -632,23 +861,32 @@ function ConfigPage({ I }: { I: Record<string, any> }) {
               <Field label="Provider Domain">
                 <Input value={config?.provider || ""} onChange={e => updateField("provider", e.target.value)} data-testid="config-provider" />
               </Field>
-              <Field label="Brand Name">
-                <Input value={config?.brand_text || ""} onChange={e => updateField("brand_text", e.target.value)} data-testid="config-brand-text" />
-              </Field>
-              <Field label="Logo (dark surfaces)" description="Path or URL for the logo used on dark backgrounds">
-                <Input value={config?.logo_dark || ""} onChange={e => updateField("logo_dark", e.target.value)} data-testid="config-logo-dark" />
-              </Field>
-              <Field label="Logo (light surfaces)" description="Path or URL for the logo used on light backgrounds">
-                <Input value={config?.logo_light || ""} onChange={e => updateField("logo_light", e.target.value)} data-testid="config-logo-light" />
-              </Field>
               <Field label="CORS Service Managers" description="Comma-separated list of allowed authenticator domains">
                 <Input value={config?.cors_service_managers || ""} onChange={e => updateField("cors_service_managers", e.target.value)} data-testid="config-cors" />
               </Field>
               <Field label="Token Expiry (minutes)">
                 <Input type="number" value={config?.token_expire_minutes || 87840} onChange={e => updateField("token_expire_minutes", parseInt(e.target.value) || 0)} data-testid="config-token-expiry" />
               </Field>
-              <Field label="Signing Algorithm" description="Read-only — RS256 migration is tracked separately (security invariant I1)">
-                <Input value={config?.algorithm || "HS256"} disabled data-testid="config-algorithm" />
+            </CardContent>
+          </Card>
+
+          <Card data-testid="config-telemetry-card">
+            <CardHeader>
+              <CardTitle>Telemetry (D56)</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <p className="text-xs text-muted-foreground">
+                Usage analytics for the whole platform — GA4 (pageviews + events)
+                and Hotjar (session recordings, content-masked). Set an ID to turn
+                that instrument on; leave blank to turn it off. Changes apply live
+                on the next page load — no rebuild. These are public identifiers,
+                not secrets.
+              </p>
+              <Field label="GA4 Measurement ID" description="e.g. G-XXXXXXXXXX. Blank = GA4 off.">
+                <Input value={config?.ga4_measurement_id || ""} onChange={e => updateField("ga4_measurement_id", e.target.value)} placeholder="G-XXXXXXXXXX" data-testid="config-ga4-id" />
+              </Field>
+              <Field label="Hotjar Site ID" description="e.g. 123456. Blank = Hotjar off.">
+                <Input value={config?.hotjar_site_id || ""} onChange={e => updateField("hotjar_site_id", e.target.value)} placeholder="123456" data-testid="config-hotjar-id" />
               </Field>
             </CardContent>
           </Card>
@@ -658,8 +896,8 @@ function ConfigPage({ I }: { I: Record<string, any> }) {
               <CardTitle>Database</CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
-              <Field label="MongoDB URL" description="Connection string the node uses at startup. A change here is persisted for reference, but a running node will not reconnect until restarted.">
-                <Input type="password" value={config?.db_url || ""} onChange={e => updateField("db_url", e.target.value)} data-testid="config-db-url" />
+              <Field label="ClickHouse URL" description="Connection string the node uses at startup. A change here is persisted for reference, but a running node will not reconnect until restarted.">
+                <Input value={config?.db_url || ""} onChange={e => updateField("db_url", e.target.value)} data-testid="config-db-url" />
               </Field>
               <Field label="Database Name">
                 <Input value={config?.db_name || "web10"} onChange={e => updateField("db_name", e.target.value)} data-testid="config-db-name" />
@@ -732,7 +970,7 @@ function ConfigPage({ I }: { I: Record<string, any> }) {
                 <Input value={config?.s3_access_key || ""} onChange={e => updateField("s3_access_key", e.target.value)} data-testid="config-s3-access-key" />
               </Field>
               <Field label="Secret Key">
-                <Input type="password" value={config?.s3_secret_key || ""} onChange={e => updateField("s3_secret_key", e.target.value)} data-testid="config-s3-secret-key" />
+                <Input value={config?.s3_secret_key || ""} onChange={e => updateField("s3_secret_key", e.target.value)} data-testid="config-s3-secret-key" />
               </Field>
               <Field label="Region">
                 <Input value={config?.s3_region || "us-east-1"} onChange={e => updateField("s3_region", e.target.value)} data-testid="config-s3-region" />
@@ -762,7 +1000,7 @@ function ConfigPage({ I }: { I: Record<string, any> }) {
                 <Input value={config?.twilio_account_sid || ""} onChange={e => updateField("twilio_account_sid", e.target.value)} data-testid="config-twilio-account-sid" />
               </Field>
               <Field label="Auth Token">
-                <Input type="password" value={config?.twilio_auth_token || ""} onChange={e => updateField("twilio_auth_token", e.target.value)} data-testid="config-twilio-auth-token" />
+                <Input value={config?.twilio_auth_token || ""} onChange={e => updateField("twilio_auth_token", e.target.value)} data-testid="config-twilio-auth-token" />
               </Field>
               <Field label="Phone Number">
                 <Input value={config?.twilio_number || ""} onChange={e => updateField("twilio_number", e.target.value)} data-testid="config-twilio-number" />
@@ -787,25 +1025,10 @@ function ConfigPage({ I }: { I: Record<string, any> }) {
                 </select>
               </Field>
               <Field label="Test API Key">
-                <Input type="password" value={config?.stripe_test_key || ""} onChange={e => updateField("stripe_test_key", e.target.value)} data-testid="config-stripe-test-key" />
+                <Input value={config?.stripe_test_key || ""} onChange={e => updateField("stripe_test_key", e.target.value)} data-testid="config-stripe-test-key" />
               </Field>
               <Field label="Live API Key">
-                <Input type="password" value={config?.stripe_live_key || ""} onChange={e => updateField("stripe_live_key", e.target.value)} data-testid="config-stripe-live-key" />
-              </Field>
-              <Field label="Test Subscription — Credits">
-                <Input value={config?.stripe_test_credit_sub_id || ""} onChange={e => updateField("stripe_test_credit_sub_id", e.target.value)} data-testid="config-stripe-test-credit-sub" />
-              </Field>
-              <Field label="Test Subscription — Space">
-                <Input value={config?.stripe_test_space_sub_id || ""} onChange={e => updateField("stripe_test_space_sub_id", e.target.value)} data-testid="config-stripe-test-space-sub" />
-              </Field>
-              <Field label="Live Subscription — Credits">
-                <Input value={config?.stripe_live_credit_sub_id || ""} onChange={e => updateField("stripe_live_credit_sub_id", e.target.value)} data-testid="config-stripe-live-credit-sub" />
-              </Field>
-              <Field label="Live Subscription — Space">
-                <Input value={config?.stripe_live_space_sub_id || ""} onChange={e => updateField("stripe_live_space_sub_id", e.target.value)} data-testid="config-stripe-live-space-sub" />
-              </Field>
-              <Field label="Dev Pay Split (%)" description="Percentage of revenue that goes to the developer">
-                <Input type="number" value={config?.dev_pay_pct || 98} onChange={e => updateField("dev_pay_pct", parseInt(e.target.value) || 98)} data-testid="config-dev-pay-pct" />
+                <Input value={config?.stripe_live_key || ""} onChange={e => updateField("stripe_live_key", e.target.value)} data-testid="config-stripe-live-key" />
               </Field>
             </CardContent>
           </Card>

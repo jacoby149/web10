@@ -1,0 +1,15 @@
+[
+  {
+    "id": "00a0938a-0676-416c-b4f6-54c101f43548",
+    "type": "feedback",
+    "message": "persist-test",
+    "contact": null,
+    "app": "web10-social",
+    "route": "/feed",
+    "version": null,
+    "user_agent": null,
+    "console_errors": [],
+    "stack_trace": null,
+    "timestamp": "2026-08-11T04:09:38.638846"
+  }
+]
