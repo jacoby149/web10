@@ -423,7 +423,9 @@ export async function unblockUser(blockedKey: string) {
 // POST /v3/<action> pattern doesn't cover them), so they're fetched directly
 // here — the data module keeps its API, the seam stays inside this file.
 
-/** A row from `GET /v3/groups/directory` — the minimal canonical view. */
+/** A row from `GET /v3/groups/directory` — the minimal canonical view.
+ *  D60: the directory does NOT return tags (they are app data in the
+ *  identity service) — the field is optional for forward-compat. */
 export interface GroupDirectoryEntry {
   group_id: string;
   name: string;
@@ -431,7 +433,7 @@ export interface GroupDirectoryEntry {
   slug: string;
   join_policy: string;
   member_count: number;
-  tags: string[];
+  tags?: string[];
   permission_summary: string;
 }
 

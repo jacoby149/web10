@@ -424,17 +424,19 @@ export default function GroupsScreen() {
     }
   }, [loadMyGroups]);
 
-  // Topic chips from the directory's tags
+  // Topic chips from the directory's tags (D60: the directory endpoint does
+  // not return tags — they are app data in the identity service; guard for
+  // the missing field so a group without tags doesn't crash the screen).
   const topics = useMemo(() => {
     const all = new Set<string>();
-    for (const g of directory) for (const t of g.tags) all.add(t);
+    for (const g of directory) for (const t of g.tags ?? []) all.add(t);
     return Array.from(all).sort();
   }, [directory]);
 
   const visibleDirectory = useMemo(() => {
     let filtered = directory;
     if (activeTag) {
-      filtered = filtered.filter((g) => g.tags.includes(activeTag));
+      filtered = filtered.filter((g) => (g.tags ?? []).includes(activeTag));
     }
     if (searchQuery.trim()) {
       const q = searchQuery.toLowerCase();
