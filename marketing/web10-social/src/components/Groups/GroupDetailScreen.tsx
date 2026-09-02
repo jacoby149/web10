@@ -6,10 +6,12 @@ import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 import {
   readGroupDetail,
+  readGroupIdentity,
   joinGroup,
   requestJoinGroup,
   leaveGroup,
   type GroupDetail,
+  type GroupIdentity,
 } from '@/data';
 import { fromV3DocToPost } from '@/data/types';
 import type { PostRecord } from '@/data/types';
@@ -131,6 +133,7 @@ export default function GroupDetailScreen({ groupId }: { groupId: string }) {
   const id = groupId ? decodeURIComponent(groupId) : '';
 
   const [detail, setDetail] = useState<GroupDetail | null>(null);
+  const [identity, setIdentity] = useState<GroupIdentity>({});
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
   const [notFound, setNotFound] = useState(false);
@@ -143,9 +146,13 @@ export default function GroupDetailScreen({ groupId }: { groupId: string }) {
     setNotFound(false);
     LOG('load — start', id);
     try {
-      const d = await readGroupDetail(id);
-      LOG('load — got', d.name, { is_member: d.is_member });
+      const [d, ident] = await Promise.all([
+        readGroupDetail(id),
+        readGroupIdentity(id),
+      ]);
+      LOG('load — got', d.name, { is_member: d.is_member, identity: ident.name });
       setDetail(d);
+      setIdentity(ident);
     } catch (e) {
       const status = (e as { status?: number })?.status;
       LOG('load — failed:', e);
@@ -268,6 +275,7 @@ export default function GroupDetailScreen({ groupId }: { groupId: string }) {
   const { posts } = detail;
   const postRecords: PostRecord[] = posts.map(fromV3DocToPost);
   const canJoin = !detail.is_member && detail.join_policy !== 'invite_only';
+  const displayName = identity.name || detail.name;
 
   return (
     <div className="flex flex-col min-h-full bg-background">
@@ -290,76 +298,111 @@ export default function GroupDetailScreen({ groupId }: { groupId: string }) {
         </div>
 
         <div className="px-4 py-4 md:px-0 space-y-4">
-          {/* Identity card */}
-          <div className="rounded-lg border border-border bg-card p-4" data-testid="group-detail-card">
-            <div className="flex items-start gap-4">
-              <Avatar className={cn('h-16 w-16 shrink-0', hashToColor(detail.group_id))}>
-                <AvatarFallback className="text-foreground text-2xl font-semibold">
-                  {detail.name.charAt(0).toUpperCase()}
-                </AvatarFallback>
-              </Avatar>
-              <div className="min-w-0 flex-1">
-                <div className="flex items-center gap-2">
-                  <h2 className="truncate font-display text-xl font-bold text-foreground" data-testid="group-detail-name">
-                    {detail.name}
-                  </h2>
-                  {detail.discoverable && (
-                    <Badge variant="brand" className="normal-case tracking-normal" data-testid="group-detail-listed">
-                      Listed
-                    </Badge>
-                  )}
-                </div>
-                <p className="mt-0.5 truncate text-sm text-muted-foreground">by @{detail.owner}</p>
-                <div className="mt-2 flex items-center gap-3 text-xs text-muted-foreground">
-                  <span className="flex items-center gap-1 tabular-nums">
-                    <Users className="h-3.5 w-3.5" strokeWidth={1.5} />
-                    {formatCount(detail.member_count)} members
-                  </span>
-                  <span
-                    className={cn(
-                      'rounded-full px-2 py-0.5 font-medium',
-                      detail.join_policy === 'open' && 'bg-success/15 text-success',
-                      detail.join_policy === 'request' && 'bg-warning/15 text-warning',
-                      detail.join_policy === 'invite_only' && 'bg-elevated text-muted-foreground',
-                    )}
-                  >
-                    {detail.join_policy === 'open' ? 'Open' : detail.join_policy === 'request' ? 'Request' : 'Invite only'}
-                  </span>
-                </div>
-              </div>
+          {/* Identity card — the Facebook-shaped hero */}
+          <div className="overflow-hidden rounded-lg border border-border bg-card" data-testid="group-detail-card">
+            {/* Banner (cover) — reserves space even when empty (no layout shift) */}
+            <div className="h-32 w-full bg-gradient-to-br from-brand-muted via-brand/20 to-background md:h-40" data-testid="group-detail-banner">
+              {identity.banner_ref && (
+                <img
+                  src={identity.banner_ref}
+                  alt=""
+                  className="h-full w-full object-cover"
+                  data-testid="group-detail-banner-img"
+                />
+              )}
             </div>
 
-            {detail.description && (
-              <p className="mt-4 text-sm leading-relaxed text-foreground" data-testid="group-detail-description">
-                {detail.description}
-              </p>
-            )}
-
-            {detail.tags.length > 0 && (
-              <div className="mt-3 flex flex-wrap gap-1.5">
-                {detail.tags.map((tag) => (
-                  <span
-                    key={tag}
-                    className="rounded-full border border-brand/10 bg-brand-muted/60 px-2.5 py-1 text-xs text-brand-300"
-                  >
-                    #{tag}
-                  </span>
-                ))}
+            <div className="p-4 pt-0">
+              {/* Overlapping avatar + name row */}
+              <div className="flex items-end gap-3 -mt-8 md:-mt-10">
+                <div className="rounded-full border-4 border-card">
+                  <Avatar className={cn('h-16 w-16 md:h-20 md:w-20', hashToColor(detail.group_id))}>
+                    {identity.avatar_ref ? (
+                      <img src={identity.avatar_ref} alt="" className="h-full w-full rounded-full object-cover" data-testid="group-detail-avatar-img" />
+                    ) : (
+                      <AvatarFallback className="text-foreground text-2xl font-semibold">
+                        {displayName.charAt(0).toUpperCase()}
+                      </AvatarFallback>
+                    )}
+                  </Avatar>
+                </div>
+                <div className="min-w-0 flex-1 pb-1">
+                  <div className="flex items-center gap-2">
+                    <h2 className="truncate font-display text-xl font-bold text-foreground" data-testid="group-detail-name">
+                      {displayName}
+                    </h2>
+                    {detail.discoverable && (
+                      <Badge variant="brand" className="normal-case tracking-normal" data-testid="group-detail-listed">
+                        Listed
+                      </Badge>
+                    )}
+                    {!detail.is_member && detail.posts_state === 'ok' && (
+                      <Badge variant="outline" className="normal-case tracking-normal" data-testid="group-detail-public">
+                        Public
+                      </Badge>
+                    )}
+                    {!detail.is_member && detail.posts_state === 'join_to_view' && (
+                      <Badge variant="outline" className="normal-case tracking-normal" data-testid="group-detail-private">
+                        Private
+                      </Badge>
+                    )}
+                  </div>
+                  <p className="mt-0.5 truncate text-sm text-muted-foreground">by @{detail.owner}</p>
+                </div>
               </div>
-            )}
 
-            {detail.website && (
-              <a
-                href={detail.website}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="mt-3 inline-flex items-center gap-1.5 text-sm text-brand-300 hover:text-brand-400 transition-colors duration-150"
-                data-testid="group-detail-website"
-              >
-                <Globe className="h-4 w-4" strokeWidth={1.5} />
-                {detail.website}
-              </a>
-            )}
+              {/* Stats row */}
+              <div className="mt-3 flex items-center gap-3 text-xs text-muted-foreground">
+                <span className="flex items-center gap-1 tabular-nums">
+                  <Users className="h-3.5 w-3.5" strokeWidth={1.5} />
+                  {formatCount(detail.member_count)} members
+                </span>
+                <span
+                  className={cn(
+                    'rounded-full px-2 py-0.5 font-medium',
+                    detail.join_policy === 'open' && 'bg-success/15 text-success',
+                    detail.join_policy === 'request' && 'bg-warning/15 text-warning',
+                    detail.join_policy === 'invite_only' && 'bg-elevated text-muted-foreground',
+                  )}
+                >
+                  {detail.join_policy === 'open' ? 'Open' : detail.join_policy === 'request' ? 'Request' : 'Invite only'}
+                </span>
+              </div>
+
+              {/* About (description) */}
+              {identity.description && (
+                <p className="mt-3 text-sm leading-relaxed text-foreground" data-testid="group-detail-description">
+                  {identity.description}
+                </p>
+              )}
+
+              {/* Tags */}
+              {identity.tags && identity.tags.length > 0 && (
+                <div className="mt-3 flex flex-wrap gap-1.5">
+                  {identity.tags.map((tag) => (
+                    <span
+                      key={tag}
+                      className="rounded-full border border-brand/10 bg-brand-muted/60 px-2.5 py-1 text-xs text-brand-300"
+                    >
+                      #{tag}
+                    </span>
+                  ))}
+                </div>
+              )}
+
+              {/* Website */}
+              {identity.website && (
+                <a
+                  href={identity.website}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="mt-3 inline-flex items-center gap-1.5 text-sm text-brand-300 hover:text-brand-400 transition-colors duration-150"
+                  data-testid="group-detail-website"
+                >
+                  <Globe className="h-4 w-4" strokeWidth={1.5} />
+                  {identity.website}
+                </a>
+              )}
 
             {/* Join / Leave action */}
             <div className="mt-4">
@@ -411,6 +454,7 @@ export default function GroupDetailScreen({ groupId }: { groupId: string }) {
                   Invite only — ask the owner to add you
                 </div>
               )}
+            </div>
             </div>
           </div>
 

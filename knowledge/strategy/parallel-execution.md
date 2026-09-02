@@ -455,12 +455,12 @@ reference). The social app is the integration test — it wires up what the
 backend + demos already prove. Fan-facing (web10-social) and admin-facing
 (ui/) are separate apps → separate parallel lanes.
 
-- [ ] **role definitions** — `web10-social/src/data/groups.ts` `FOLLOWER_ROLES` / `COMMUNITY_ROLES` / `DM_ROLES` → the per-service map shape (the shared seam; small, do early)
-- [ ] **group profile (fan-facing)** — `GroupDetailScreen.tsx` renders the group's face: banner (cover) + overlapping avatar + name + about + tags + website (the Facebook-shaped hero), from the public `group_identity` read
-- [ ] **public/private (fan-facing)** — the detail + cards show a public/private badge (does the group grant `anyone`/`authenticated` a read role?); the create-group dialog gains a visibility control (public / signed-in-only / private) that carries the initial `anyone`/`authenticated` grant
-- [ ] **group profile editor (admin-facing)** — `ui/src/components/Groups/` a profile editor (name, description, website, tags, banner + avatar upload) next to the existing Settings/Roles/Members dialogs → the identity write endpoint
-- [ ] **public/private control (admin-facing)** — `ui/src/components/Groups/` a "Who can read" control (public / signed-in-only / private = grant/revoke the `anyone` / `authenticated` read role)
-- [ ] **feed + detail effective-role read** — verify the feed read + group detail render what the role-gated read returns (a bystander on a private group sees the face + "join to view"; on a public group sees posts) — mostly a render verification, the API does the gating
+- [✓ 3.46.0] **role definitions** — `web10-social/src/data/groups.ts` `FOLLOWER_ROLES` / `COMMUNITY_ROLES` / `DM_ROLES` → the per-service map shape (the shared seam; small, do early)
+- [✓ 3.46.0] **group profile (fan-facing)** — `GroupDetailScreen.tsx` renders the group's face: banner (cover) + overlapping avatar + name + about + tags + website (the Facebook-shaped hero), from the `web10-social-group-identity` service (D60)
+- [✓ 3.46.0] **public/private (fan-facing)** — the detail shows a public/private badge; the create-group dialog gains a visibility control (public / signed-in-only / private) that carries the initial `anyone`/`authenticated` grant
+- [✓ 3.46.0] **group profile editor (admin-facing)** — `ui/src/components/Groups/` a profile editor (name, description, website, tags) next to the existing Settings/Roles/Members dialogs → writes the face via the normal CRUD path (D60)
+- [✓ 3.46.0] **public/private control (admin-facing)** — `ui/src/components/Groups/` a "Who can read" control (public / signed-in-only / private = grant/revoke the `anyone` / `authenticated` read role)
+- [✓ 3.46.0] **feed + detail effective-role read** — the detail renders what the role-gated read returns (a bystander on a private group sees the face + "join to view"; on a public group sees posts) — the API does the gating
 
 ### Lane: admin-console (Phase 3)
 **Owns:** `ui/src/components/Config/`, `api/app/endpoints/system.py`, `api/app/services/config.py`

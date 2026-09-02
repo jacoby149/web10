@@ -1,11 +1,12 @@
 import React from 'react';
-import { ChevronDown, ChevronRight, Users, Shield, Lock, LockOpen, MessageSquare, UserPlus, Settings, Eye, LogOut, ShieldOff, Trash2 } from 'lucide-react';
+import { ChevronDown, ChevronRight, Users, Shield, Lock, LockOpen, MessageSquare, UserPlus, Settings, Eye, LogOut, ShieldOff, Trash2, User } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { groupDisplayName } from '@/lib/group-utils';
 import GroupMembersDialog from './GroupMembersDialog';
 import GroupRolesDialog from './GroupRolesDialog';
 import GroupSettingsDialog from './GroupSettingsDialog';
+import GroupProfileDialog from './GroupProfileDialog';
 
 function joinPolicyBadge(policy: string) {
   switch (policy) {
@@ -25,6 +26,7 @@ function GroupCard({ I, group, isManaged }: { I: Record<string, any>; group: any
   const [membersOpen, setMembersOpen] = React.useState(false);
   const [rolesOpen, setRolesOpen] = React.useState(false);
   const [settingsOpen, setSettingsOpen] = React.useState(false);
+  const [profileOpen, setProfileOpen] = React.useState(false);
   const [members, setMembers] = React.useState<any[]>([]);
   const [loadingMembers, setLoadingMembers] = React.useState(false);
   const [toggling, setToggling] = React.useState(false);
@@ -230,6 +232,16 @@ function GroupCard({ I, group, isManaged }: { I: Record<string, any>; group: any
                       <Settings className="mr-1.5 h-4 w-4" strokeWidth={1.5} />
                       Settings
                     </Button>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="text-muted-foreground hover:text-foreground"
+                      onClick={() => setProfileOpen(true)}
+                      data-testid="group-profile-btn"
+                    >
+                      <User className="mr-1.5 h-4 w-4" strokeWidth={1.5} />
+                      Profile
+                    </Button>
                     {hasDeletePermission && (
                       <Button
                         variant="ghost"
@@ -299,6 +311,12 @@ function GroupCard({ I, group, isManaged }: { I: Record<string, any>; group: any
       <GroupSettingsDialog
         open={settingsOpen}
         onOpenChange={setSettingsOpen}
+        group={group}
+        I={I}
+      />
+      <GroupProfileDialog
+        open={profileOpen}
+        onOpenChange={setProfileOpen}
         group={group}
         I={I}
       />
