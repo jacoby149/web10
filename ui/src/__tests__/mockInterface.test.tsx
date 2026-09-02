@@ -63,11 +63,11 @@ describe('useMockInterface', () => {
     expect(result.current.mode).toBe('login')
   })
 
-  it('recover sets auth to true and mode to contracts', () => {
+  it('recoverComplete sets auth to true and mode to contracts', () => {
     const { result } = renderHook(() => useMockInterface())
 
     act(() => {
-      result.current.recover()
+      result.current.recoverComplete()
     })
 
     expect(result.current.auth).toBe(true)
