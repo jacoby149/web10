@@ -19,7 +19,7 @@
     "axios": "^1.2.5",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
-    "lucide-react": "^1.25.0",
+    "lucide-react": "^1.37.0",
     "react": "^19.1.0",
     "react-dom": "^19.1.0",
     "react-phone-input-2": "^2.15.1",
