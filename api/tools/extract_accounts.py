@@ -31,7 +31,7 @@ import json
 import os
 import subprocess
 import sys
-from datetime import UTC, datetime
+from datetime import datetime, timezone
 
 import pymongo
 
@@ -126,7 +126,7 @@ def _sha256_of_rows(rows):
 def build_manifest(rows, uri, db_name):
     """Assemble the manifest envelope around the extracted rows."""
     return {
-        "extracted_at": datetime.now(UTC).isoformat(),
+        "extracted_at": datetime.now(timezone.utc).isoformat(),
         "source": {"uri": uri, "db": db_name},
         "count": len(rows),
         "sha256": _sha256_of_rows(rows),
