@@ -207,9 +207,9 @@ function DiscoverGroupCard({ entry, joinState, onJoin, onOpen }: DiscoverGroupCa
         <JoinPolicyBadge policy={entry.join_policy} />
       </div>
 
-      {entry.tags.length > 0 && (
+      {(entry.tags ?? []).length > 0 && (
         <div className="mt-3 flex flex-wrap gap-1.5">
-          {entry.tags.slice(0, 3).map((tag) => (
+          {entry.tags!.slice(0, 3).map((tag) => (
             <span
               key={tag}
               className="rounded-full border border-brand/10 bg-brand-muted/60 px-2.5 py-1 text-xs text-brand-300"
