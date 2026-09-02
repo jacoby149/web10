@@ -41,7 +41,7 @@
   },
   "homepage": "https://github.com/jacoby149/web10#readme",
   "devDependencies": {
-    "typescript": "^5.7.0",
+    "typescript": "^7.0.2",
     "vitest": "^3.2.4",
     "jsdom": "^26.1.0",
     "typedoc": "^0.27.0"
