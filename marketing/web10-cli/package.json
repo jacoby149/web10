@@ -23,6 +23,6 @@
   },
   "homepage": "https://github.com/jacoby149/web10#readme",
   "dependencies": {
-    "inquirer": "^8.2.4"
+    "inquirer": "^14.2.0"
   }
 }
