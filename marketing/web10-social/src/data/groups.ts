@@ -530,7 +530,7 @@ export async function readGroupIdentity(groupId: string): Promise<GroupIdentity>
     LOG('readGroupIdentity — got', body.name, { tags: body.tags?.length });
     return body;
   } catch (e) {
-    LOG('readGroupIdentity — failed (non-fatal)', e);
+    LOG('readGroupIdentity — no access (non-fatal)', e);
     return {};
   }
 }
