@@ -66,7 +66,7 @@ jobs:
 
       - name: Build and push ${{ matrix.service.name }}
         if: matrix.service.name != 'marketing-ui'
-        uses: docker/build-push-action@v6
+        uses: docker/build-push-action@v7
         with:
           context: ${{ matrix.service.context }}
           file: ${{ matrix.service.dockerfile || format('{0}/Dockerfile', matrix.service.context) }}
@@ -80,7 +80,7 @@ jobs:
 
       - name: Build and push marketing-ui
         if: matrix.service.name == 'marketing-ui'
-        uses: docker/build-push-action@v6
+        uses: docker/build-push-action@v7
         with:
           # Repo-root context so build-status.sh can read CHANGELOG.md +
           # .git to bake status.json. (Mirrors docker-compose.ecosystem.yml
