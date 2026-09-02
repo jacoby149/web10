@@ -2535,7 +2535,17 @@ def get_node_stats() -> dict:
     """Node-level stats (D49): user/doc/group counts, storage, the approved-
     app count, and the node-wide active-user set (the store's metric, macro).
     The per-app array moved to list_store_apps (paginated)."""
-    user_result = client.query("SELECT count(DISTINCT author_key) FROM documents WHERE deleted = 0")
+    # Count ACCOUNTS (the users table), not content authors. A user can
+    # legitimately have zero documents (fresh signup, or post-migration before
+    # content is ported) — counting document authors under-reports the real
+    # account count (the v2→v3 cutover migrated logins, not content). Dedup to
+    # the latest row per username (ReplacingMergeTree) so pre-merge duplicates
+    # don't inflate the count.
+    user_result = client.query(
+        "SELECT count() FROM (SELECT username, deleted, "
+        "row_number() OVER (PARTITION BY username ORDER BY updated_at DESC, deleted DESC) AS rn "
+        "FROM users) WHERE rn = 1 AND deleted = 0"
+    )
     user_count = user_result.result_rows[0][0] if user_result.result_rows else 0
     doc_result = client.query("SELECT count() FROM documents WHERE deleted = 0")
     doc_count = doc_result.result_rows[0][0] if doc_result.result_rows else 0
