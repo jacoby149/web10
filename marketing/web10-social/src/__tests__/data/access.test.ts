@@ -1,14 +1,20 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 
-// ── SessionGuard (src/data/session.ts) ──────────────────────────────────────
-// Pins the guard's execution of the verifySession verdict: each action, the
+// ── access recovery (src/data/access.ts) ────────────────────────────────────
+// Pins the recovery's execution of the verifyAccess verdict: each action, the
 // cooldown (the loop-breaker), the inconclusive no-op (definite-NO-vs-UNKNOWN),
 // and replace-not-strand (reauth never clears the token first).
+//
+// Generic oracle, app-specific recovery (D60): the oracle checks only universal
+// legs (token, user, contract) — it does NOT know about the followers group.
+// The followers-group heal is THIS app's concern, run client-side here (the
+// social app is the one that knows what the followers group is). It runs when
+// the token is valid (verdict ok/degraded), not when it's dead (invalid).
 
 // vi.hoisted — these must exist before the hoisted vi.mock factories run.
-const { mockVerifySession, mockReadToken, mockEnsureFollowers, mockLogin, mockSignOut } =
+const { mockVerifyAccess, mockReadToken, mockEnsureFollowers, mockLogin, mockSignOut } =
   vi.hoisted(() => ({
-    mockVerifySession: vi.fn(),
+    mockVerifyAccess: vi.fn(),
     mockReadToken: vi.fn(),
     mockEnsureFollowers: vi.fn(),
     mockLogin: vi.fn(),
@@ -20,7 +26,7 @@ vi.mock('../../data/v3', async (importOriginal) => {
   return {
     ...original,
     getV3Client: vi.fn(() => ({
-      verifySession: mockVerifySession,
+      verifyAccess: mockVerifyAccess,
       readToken: mockReadToken,
     })),
   };
@@ -41,7 +47,7 @@ vi.mock('../../interfaces/auth', () => ({
   })),
 }));
 
-import { verifyAndRecover, _resetSessionGuardCooldown } from '../../data/session';
+import { verifyAndRecover, _resetRecoveryCooldown } from '../../data/access';
 
 const TOKEN = { username: 'testuser', provider: 'api.localhost' };
 
@@ -51,7 +57,6 @@ function verdict(overrides: Record<string, unknown> = {}) {
     token: 'valid',
     user: 'exists',
     contract: { state: 'granted', missing_services: [] },
-    groups: { followers: 'ok' },
     actions: [],
     username: 'testuser',
     provider: 'api.localhost',
@@ -59,10 +64,10 @@ function verdict(overrides: Record<string, unknown> = {}) {
   };
 }
 
-describe('SessionGuard — verifyAndRecover', () => {
+describe('access recovery — verifyAndRecover', () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    _resetSessionGuardCooldown();
+    _resetRecoveryCooldown();
     mockReadToken.mockReturnValue(TOKEN);
     mockEnsureFollowers.mockResolvedValue('api.localhost/groups/users/testuser/followers');
   });
@@ -71,19 +76,23 @@ describe('SessionGuard — verifyAndRecover', () => {
     vi.restoreAllMocks();
   });
 
-  it('a healthy session takes no action', async () => {
-    mockVerifySession.mockResolvedValue(verdict());
+  it('a healthy session ensures the followers group (idempotent heal)', async () => {
+    // The token is valid → the app ensures its OWN followers group (D60). The
+    // heal is idempotent (a no-op when healthy) but still runs.
+    mockVerifyAccess.mockResolvedValue(verdict());
     const res = await verifyAndRecover();
-    expect(res.outcome).toBe('ok');
+    expect(res.outcome).toBe('recovered');
+    if (res.outcome !== 'recovered') return;
+    expect(res.actions).toEqual(['heal_followers_group']);
+    expect(mockEnsureFollowers).toHaveBeenCalledWith('testuser', 'api.localhost');
     expect(mockLogin).not.toHaveBeenCalled();
-    expect(mockEnsureFollowers).not.toHaveBeenCalled();
     expect(mockSignOut).not.toHaveBeenCalled();
   });
 
   it('an inconclusive verdict (store unreadable) takes NO action', async () => {
     // definite-NO-vs-UNKNOWN: a check that couldn't run is not a missing
-    // contract — no reauth, no churn.
-    mockVerifySession.mockResolvedValue(
+    // contract — no reauth, no heal, no churn.
+    mockVerifyAccess.mockResolvedValue(
       verdict({
         status: 'inconclusive',
         contract: { state: 'unknown', missing_services: [] },
@@ -96,8 +105,8 @@ describe('SessionGuard — verifyAndRecover', () => {
     expect(mockEnsureFollowers).not.toHaveBeenCalled();
   });
 
-  it('a missing contract re-auths (reauth action)', async () => {
-    mockVerifySession.mockResolvedValue(
+  it('a missing contract heals the group + re-auths', async () => {
+    mockVerifyAccess.mockResolvedValue(
       verdict({
         status: 'degraded',
         contract: { state: 'missing', missing_services: ['posts', 'profile'] },
@@ -107,39 +116,27 @@ describe('SessionGuard — verifyAndRecover', () => {
     const res = await verifyAndRecover();
     expect(res.outcome).toBe('recovered');
     if (res.outcome !== 'recovered') return;
-    expect(res.actions).toEqual(['reauth']);
+    // heal first (the token is valid), then reauth (fix the contract).
+    expect(res.actions).toEqual(['heal_followers_group', 'reauth']);
+    expect(mockEnsureFollowers).toHaveBeenCalledTimes(1);
     expect(mockLogin).toHaveBeenCalledTimes(1);
   });
 
   it('reauth is replace-not-strand — it never signs out first', async () => {
-    mockVerifySession.mockResolvedValue(
+    mockVerifyAccess.mockResolvedValue(
       verdict({ status: 'degraded', actions: ['reauth'] }),
     );
     await verifyAndRecover();
-    // A blocked popup must not strand the user signed-out — the guard kicks
+    // A blocked popup must not strand the user signed-out — the recovery kicks
     // off the re-derive but does NOT clear the existing token.
     expect(mockSignOut).not.toHaveBeenCalled();
     expect(mockLogin).toHaveBeenCalledTimes(1);
   });
 
-  it('a broken followers group heals locally (heal_followers_group)', async () => {
-    mockVerifySession.mockResolvedValue(
-      verdict({
-        status: 'degraded',
-        groups: { followers: 'not_member' },
-        actions: ['heal_followers_group'],
-      }),
-    );
-    const res = await verifyAndRecover();
-    expect(res.outcome).toBe('recovered');
-    expect(mockEnsureFollowers).toHaveBeenCalledWith('testuser', 'api.localhost');
-    expect(mockLogin).not.toHaveBeenCalled();
-  });
-
-  it('a deleted account signs out (terminal, not reauth)', async () => {
+  it('a deleted account signs out (terminal, no heal — the token is dead)', async () => {
     const signedOut = vi.fn();
     window.addEventListener('session:signed-out', signedOut);
-    mockVerifySession.mockResolvedValue(
+    mockVerifyAccess.mockResolvedValue(
       verdict({
         status: 'invalid',
         user: 'not_found',
@@ -149,51 +146,37 @@ describe('SessionGuard — verifyAndRecover', () => {
     const res = await verifyAndRecover();
     window.removeEventListener('session:signed-out', signedOut);
     expect(res.outcome).toBe('recovered');
+    if (res.outcome !== 'recovered') return;
+    expect(res.actions).toEqual(['signout']);
     expect(mockSignOut).toHaveBeenCalledTimes(1);
     expect(mockLogin).not.toHaveBeenCalled();
+    // No heal — a dead token can't heal the group.
+    expect(mockEnsureFollowers).not.toHaveBeenCalled();
     // Signals the app to show the login screen.
     expect(signedOut).toHaveBeenCalledTimes(1);
   });
 
-  it('a dead token re-auths (not heal — the group can’t be checked)', async () => {
-    mockVerifySession.mockResolvedValue(
+  it('a dead token re-auths (no heal — the token can’t heal the group)', async () => {
+    mockVerifyAccess.mockResolvedValue(
       verdict({
         status: 'invalid',
         token: 'expired',
-        groups: { followers: 'unknown' },
         actions: ['reauth'],
       }),
     );
     const res = await verifyAndRecover();
     expect(res.outcome).toBe('recovered');
+    if (res.outcome !== 'recovered') return;
+    expect(res.actions).toEqual(['reauth']);
     expect(mockLogin).toHaveBeenCalledTimes(1);
     expect(mockEnsureFollowers).not.toHaveBeenCalled();
   });
 
-  it('executes reauth before heal when both are needed', async () => {
-    const order: string[] = [];
-    mockLogin.mockImplementation(() => order.push('reauth'));
-    mockEnsureFollowers.mockImplementation(async () => {
-      order.push('heal');
-      return 'g';
-    });
-    mockVerifySession.mockResolvedValue(
-      verdict({
-        status: 'degraded',
-        contract: { state: 'missing', missing_services: ['posts'] },
-        groups: { followers: 'not_member' },
-        actions: ['reauth', 'heal_followers_group'],
-      }),
-    );
-    const res = await verifyAndRecover();
-    expect(res.outcome).toBe('recovered');
-    expect(order).toEqual(['reauth', 'heal']);
-  });
-
-  it('on mount (allowReauth: false) a missing contract defers reauth to manual (no popup)', async () => {
-    // A popup on page load would be glitchy — the mount guard defers reauth
-    // (surfacing a soft signal) and lets an actual failure trigger it.
-    mockVerifySession.mockResolvedValue(
+  it('on mount (allowReauth: false) a missing contract heals the group but defers reauth', async () => {
+    // A popup on page load would be glitchy — the mount recovery defers reauth
+    // (surfacing a soft signal) and lets an actual failure trigger it. The heal
+    // (a safe local action) still runs on mount.
+    mockVerifyAccess.mockResolvedValue(
       verdict({
         status: 'degraded',
         contract: { state: 'missing', missing_services: ['posts'] },
@@ -201,36 +184,25 @@ describe('SessionGuard — verifyAndRecover', () => {
       }),
     );
     const res = await verifyAndRecover({ allowReauth: false });
+    expect(res.outcome).toBe('needs_manual');
     if (res.outcome !== 'needs_manual') return;
     expect(res.reason).toBe('reauth_deferred');
     expect(mockLogin).not.toHaveBeenCalled(); // no popup on mount
-  });
-
-  it('on mount (allowReauth: false) a broken group still heals locally', async () => {
-    // The safe local action (heal) runs on mount even when reauth is deferred.
-    mockVerifySession.mockResolvedValue(
-      verdict({
-        status: 'degraded',
-        groups: { followers: 'not_member' },
-        actions: ['heal_followers_group'],
-      }),
-    );
-    const res = await verifyAndRecover({ allowReauth: false });
-    expect(res.outcome).toBe('recovered');
-    expect(mockEnsureFollowers).toHaveBeenCalledTimes(1);
+    expect(mockEnsureFollowers).toHaveBeenCalledTimes(1); // the heal still ran
   });
 
   it('the cooldown defers a repeat recovery to manual (the loop-breaker)', async () => {
-    // First degraded verdict → reauth executes.
-    mockVerifySession.mockResolvedValueOnce(
+    // First degraded verdict → heal + reauth execute.
+    mockVerifyAccess.mockResolvedValueOnce(
       verdict({ status: 'degraded', actions: ['reauth'] }),
     );
     await verifyAndRecover();
     expect(mockLogin).toHaveBeenCalledTimes(1);
+    expect(mockEnsureFollowers).toHaveBeenCalledTimes(1);
 
     // Second degraded verdict (store still down / still broken) within the
     // cooldown → no second auto-reauth; hand the user the wheel.
-    mockVerifySession.mockResolvedValueOnce(
+    mockVerifyAccess.mockResolvedValueOnce(
       verdict({ status: 'degraded', actions: ['reauth'] }),
     );
     const res = await verifyAndRecover();
@@ -240,8 +212,8 @@ describe('SessionGuard — verifyAndRecover', () => {
     expect(mockLogin).toHaveBeenCalledTimes(1); // still one — the cooldown held
   });
 
-  it('a verifySession failure (transient) is inconclusive, not a recovery', async () => {
-    mockVerifySession.mockRejectedValue(new Error('network down'));
+  it('a verifyAccess failure (transient) is inconclusive, not a recovery', async () => {
+    mockVerifyAccess.mockRejectedValue(new Error('network down'));
     const res = await verifyAndRecover();
     expect(res.outcome).toBe('inconclusive');
     expect(mockLogin).not.toHaveBeenCalled();
@@ -254,18 +226,12 @@ describe('SessionGuard — verifyAndRecover', () => {
     expect(res.outcome).toBe('needs_manual');
     if (res.outcome !== 'needs_manual') return;
     expect(res.reason).toBe('not_signed_in');
-    expect(mockVerifySession).not.toHaveBeenCalled();
+    expect(mockVerifyAccess).not.toHaveBeenCalled();
   });
 
-  it('a failed action defers to manual', async () => {
+  it('a failed heal defers to manual', async () => {
     mockEnsureFollowers.mockRejectedValue(new Error('group create failed'));
-    mockVerifySession.mockResolvedValue(
-      verdict({
-        status: 'degraded',
-        groups: { followers: 'missing' },
-        actions: ['heal_followers_group'],
-      }),
-    );
+    mockVerifyAccess.mockResolvedValue(verdict());
     const res = await verifyAndRecover();
     expect(res.outcome).toBe('needs_manual');
     if (res.outcome !== 'needs_manual') return;

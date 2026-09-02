@@ -101,9 +101,9 @@ function createGroup() {
     name,
     join_policy: joinPolicy,
     roles: [
-      { name: 'owner', services: [SERVICE], permissions: ['readAll', 'create', 'updateOwn', 'deleteOwn', 'manageRoles'] },
-      { name: 'contributor', services: [SERVICE], permissions: ['readAll', 'create', 'updateOwn'] },
-      { name: 'viewer', services: [SERVICE], permissions: ['readAll'] },
+      { name: 'owner', permissions: { [SERVICE]: ['readAll', 'create', 'updateOwn', 'deleteOwn'], 'group': ['manageRoles'] } },
+      { name: 'contributor', permissions: { [SERVICE]: ['readAll', 'create', 'updateOwn'] } },
+      { name: 'viewer', permissions: { [SERVICE]: ['readAll'] } },
     ],
     members: [
       { member_key: t.username, role: 'owner' },

@@ -140,17 +140,6 @@ def ensure_apps_schema():
         # predate the column; ADD COLUMN appends it at the end, which is why
         # group inserts name their columns.
         client.command("ALTER TABLE group_contracts ADD COLUMN IF NOT EXISTS discoverable UInt8 DEFAULT 0")
-        # group_identity — public display metadata for a group (D53). The
-        # single home for how a group presents itself in the directory and its
-        # detail (name, description, banner, avatar, website, tags). Pre-existing
-        # volumes predate the table.
-        client.command(
-            "CREATE TABLE IF NOT EXISTS group_identity ("
-            "group_id String, name String DEFAULT '', description String DEFAULT '', "
-            "banner_ref String DEFAULT '', avatar_ref String DEFAULT '', website String DEFAULT '', "
-            "tags Array(String), created_at DateTime64(3), updated_at DateTime64(3), deleted UInt8 DEFAULT 0"
-            ") ENGINE = ReplacingMergeTree(updated_at) ORDER BY group_id"
-        )
         # documents.ad_mode + documents.ad_target — the v3 ad preference
         # (ads-dissemination.md): a doc's ad is `pinned` (ad_target = the ad
         # doc_id) or `none`. Pre-existing volumes predate the columns; ADD
@@ -168,7 +157,7 @@ def ensure_apps_schema():
             ") ENGINE = MergeTree ORDER BY (username, created_at)"
         )
         log.info(
-            "[v3] schema ensured (apps.visits + app_ratings.comment + node_config + app_visits + group_contracts.discoverable + group_identity + documents.ad_mode/ad_target + moderation_flags present)"
+            "[v3] schema ensured (apps.visits + app_ratings.comment + node_config + app_visits + group_contracts.discoverable + documents.ad_mode/ad_target + moderation_flags present)"
         )
         # Data migration (idempotent): re-home demo apps registered under
         # their directory-index file URLs onto their directory URLs.
@@ -176,6 +165,9 @@ def ensure_apps_schema():
         # Data migration (one-time, sentinel-gated): delist groups created
         # under the earlier discoverable-by-default rule (D53 amendment).
         _migrate_discoverable_default_flip()
+        # Data migration (one-time, sentinel-gated): re-shape pre-existing
+        # group roles from the legacy flat shape to the D58 per-service map.
+        _migrate_d58_role_shape()
     except Exception as e:
         # ClickHouse not up yet, or table missing (fresh volume mid-init).
         # The DDL template covers fresh volumes; log and move on.
@@ -303,6 +295,89 @@ def _migrate_discoverable_default_flip() -> None:
     log.info("[v3] discoverable-default flip backfill applied (pre-existing groups delisted)")
 
 
+# Sentinel config_id in node_config marking the D58 role-shape backfill as done.
+_D58_ROLE_SHAPE_SENTINEL = "migration:d58_role_shape"
+
+
+def _transform_role(role):
+    """D58: transform a role from the legacy flat shape
+    ``{services, permissions}`` to the per-service map shape
+    ``{permissions: {service: [ops]}}``. New-shape roles (``permissions`` is a
+    dict) pass through unchanged."""
+    if not isinstance(role, dict):
+        return role
+    if isinstance(role.get("permissions"), dict):
+        return role
+    return {"name": role.get("name"), "permissions": _normalize_role_perms(role)}
+
+
+def _migrate_d58_role_shape() -> None:
+    """One-time, sentinel-gated data migration (D58). Two cleanups:
+
+    1. Re-shape pre-existing group roles from the legacy flat shape
+       ``{services, permissions}`` to the per-service map shape
+       ``{permissions: {service: [ops]}}``.
+    2. Rename the discover board's legacy ``anon`` member row → ``anyone``
+       (the public principal class gets an honest name — KB access.md).
+
+    The API normalizes both role shapes on read and matches both the
+    ``anyone`` and legacy ``anon`` member keys, so this is **decoupled** — the
+    gates work before the backfill runs. This is cleanup: it makes the stored
+    data canonical so the API can eventually drop old-shape / old-key support.
+
+    Runs exactly once (a ``node_config`` sentinel marks completion). Idempotent
+    + concurrent-safe: a duplicate run appends identical rows (dedup hides all
+    but one). Only rewrites the ``roles`` JSON + the discover board's public
+    member key — join_policy / discoverable / other membership are untouched.
+    """
+    done = client.query(
+        "SELECT 1 FROM node_config WHERE config_id = %(sentinel)s AND deleted = 0 LIMIT 1",
+        {"sentinel": _D58_ROLE_SHAPE_SENTINEL},
+    )
+    if done.result_rows:
+        return
+    rows = client.query(
+        "SELECT group_id, roles, join_policy, discoverable, created_at "
+        "FROM (SELECT group_id, roles, join_policy, discoverable, created_at, updated_at, deleted, "
+        "row_number() OVER (PARTITION BY group_id ORDER BY updated_at DESC, deleted DESC) AS rn "
+        "FROM group_contracts) WHERE rn = 1 AND deleted = 0",
+    ).result_rows
+    now = _now()
+    changed = 0
+    for group_id, roles_json, join_policy, discoverable, created_at in rows:
+        roles = _parse_json(roles_json) if roles_json else []
+        if not isinstance(roles, list):
+            continue
+        # Only rewrite groups that still carry a legacy-shape role (permissions
+        # is a list, not a per-service dict) — avoid no-op rows.
+        if not any(isinstance(r, dict) and not isinstance(r.get("permissions"), dict) for r in roles):
+            continue
+        new_roles = [_transform_role(r) for r in roles]
+        client.insert(
+            "group_contracts",
+            [[group_id, _json(new_roles), join_policy, int(discoverable), created_at, now, 0]],
+            column_names=["group_id", "roles", "join_policy", "discoverable", "created_at", "updated_at", "deleted"],
+        )
+        changed += 1
+    # Rename the discover board's legacy `anon` public member row → `anyone`
+    # (D58: the public principal class gets an honest name — KB access.md).
+    # Carry the anon row's role onto the anyone row so the board's public read
+    # grant is preserved, then tombstone the anon row. No-op when there is no
+    # active anon row (already renamed, or a fresh board enrolled `anyone`).
+    anon = get_group_member(DISCOVER_GROUP_ID, "anon")
+    if anon:
+        if not get_group_member(DISCOVER_GROUP_ID, "anyone"):
+            add_group_member(DISCOVER_GROUP_ID, "anyone", anon["role"])
+        remove_group_member(DISCOVER_GROUP_ID, "anon")
+        log.info("[v3] D58 backfill: discover board anon member row → anyone")
+    client.insert(
+        "node_config",
+        [[_D58_ROLE_SHAPE_SENTINEL, _json({"done": True, "groups": changed}), _now(), 0]],
+        column_names=["config_id", "body", "updated_at", "deleted"],
+    )
+    log.info(f"[v3] D58 role-shape backfill applied ({changed} groups re-shaped)")
+
+
 # ---------------------------------------------------------------------------
 # Discover group — the node-default universal public board
 # ---------------------------------------------------------------------------
@@ -318,11 +393,14 @@ def _migrate_discoverable_default_flip() -> None:
 DISCOVER_GROUP_ID = "web10.app/groups/web10/discover"
 
 # One role. Everyone shares it (social-contracts.md §1): read the board, post
-# to it, manage your own posts. No owners, no moderators.
+# to it, manage your own posts. No owners, no moderators. The `*` wildcard
+# covers all services (posts, reactions, comments, ...) — the board is
+# anon-readable by design (D41), and engagement reads (reactions/comments via
+# the ref pattern) must work for anon too.
 DISCOVER_ROLES = [
     {
         "name": "member",
-        "services": ["posts"],
+        "services": ["*"],
         "permissions": ["readAll", "create", "updateOwn", "deleteOwn"],
     }
 ]
@@ -336,8 +414,9 @@ def _ensure_discover_group_contract() -> None:
     enrolling the new user, not the full anon + backfill pass.
     """
     if not get_group(DISCOVER_GROUP_ID):
-        # discoverable=False (D53): the board is anon-readable (anon is a
-        # member) but NOT a directory entry — it's a board, not a community.
+        # discoverable=False (D53): the board is anyone-readable (the `anyone`
+        # class is a member) but NOT a directory entry — it's a board, not a
+        # community.
         create_group(DISCOVER_GROUP_ID, DISCOVER_ROLES, "open", discoverable=False)
         log.info("[v3] discover group created: %s", DISCOVER_GROUP_ID)
 
@@ -347,10 +426,13 @@ def ensure_discover_group() -> None:
 
     Idempotent boot pass (safe from every gunicorn worker):
       1. create the group contract if missing,
-      2. ensure `anon` is a member — the public surface reads the board as
-         anon, so anon membership is what makes it anon-readable,
-      3. backfill every existing user as a member (auto-enrollment for
-         accounts created before the group existed).
+      2. heal the group's roles to the canonical DISCOVER_ROLES (the `*`
+         wildcard covers all services — engagement reads must work for anon),
+      3. ensure `anyone` is a member — the public surface reads the board as
+           the `anyone` class, so the `anyone` grant is what makes it public
+           (D58: the old `anon` member key is renamed to `anyone`),
+      4. backfill every existing user as a member (auto-enrollment for
+           accounts created before the group existed).
     New users are enrolled at signup (see create_user), so the backfill only
     adds pre-existing accounts.
 
@@ -360,11 +442,12 @@ def ensure_discover_group() -> None:
     """
     try:
         _ensure_discover_group_contract()
+        _heal_discover_group_roles()
 
         members = set(get_group_member_keys(DISCOVER_GROUP_ID))
-        if "anon" not in members:
-            add_group_member(DISCOVER_GROUP_ID, "anon", "member")
-            log.info("[v3] discover group: anon enrolled")
+        if "anyone" not in members:
+            add_group_member(DISCOVER_GROUP_ID, "anyone", "member")
+            log.info("[v3] discover group: anyone enrolled")
 
         added = 0
         for user in list_users():
@@ -375,6 +458,58 @@ def ensure_discover_group() -> None:
             log.info("[v3] discover group: backfilled %d user(s)", added)
     except Exception as e:
         log.warning(f"[v3] discover group ensure skipped: {type(e).__name__}: {e}")
+
+
+def _heal_discover_group_roles() -> None:
+    """Heal the discover group's roles to the canonical DISCOVER_ROLES.
+
+    The D58 role-shape migration re-shaped the roles but preserved the
+    original `services` list (which was `["posts"]` only). Engagement reads
+    (reactions/comments via the ref pattern) require `readAll` on those
+    services too — the `*` wildcard covers them. This idempotent heal appends
+    a new version row when the stored roles don't match the canonical shape.
+    """
+    group = get_group(DISCOVER_GROUP_ID)
+    if not group:
+        return
+    stored_roles = group.get("roles", [])
+    if not isinstance(stored_roles, list) or not stored_roles:
+        return
+    # Compare the canonical shape: one role named "member" with the `*`
+    # wildcard and the four content ops.
+    canonical = DISCOVER_ROLES[0]
+    for r in stored_roles:
+        if not isinstance(r, dict) or r.get("name") != canonical["name"]:
+            continue
+        perms = r.get("permissions", {})
+        if isinstance(perms, dict):
+            # New shape: check the `*` wildcard has the right ops.
+            if perms.get("*") == canonical["permissions"] or perms.get("*") == sorted(canonical["permissions"]):
+                return
+            if sorted(perms.get("*", [])) == sorted(canonical["permissions"]):
+                return
+        elif isinstance(perms, list):
+            # Legacy shape: check services has `*` and permissions match.
+            if "*" in r.get("services", []) and sorted(perms) == sorted(canonical["permissions"]):
+                return
+    # Mismatch — heal by appending a new version with the canonical roles.
+    now = _now()
+    client.insert(
+        "group_contracts",
+        [
+            [
+                DISCOVER_GROUP_ID,
+                _json(DISCOVER_ROLES),
+                group.get("join_policy", "open"),
+                int(group.get("discoverable", 0)),
+                group.get("created_at", now),
+                now,
+                0,
+            ]
+        ],
+        column_names=["group_id", "roles", "join_policy", "discoverable", "created_at", "updated_at", "deleted"],
+    )
+    log.info("[v3] discover group: roles healed to canonical DISCOVER_ROLES")
 
 
 # ---------------------------------------------------------------------------
@@ -820,6 +955,158 @@ def is_group_member(group_id: str, member_key: str) -> bool:
     return get_group_member(group_id, member_key) is not None
 
 
+# ---------------------------------------------------------------------------
+# D58 — effective roles (per-service permission maps + principal classes)
+# ---------------------------------------------------------------------------
+# A role's permissions are a per-service map {service: [ops]}. The legacy
+# shape {services: [...], permissions: [...]} is normalized to the map on read
+# (D58 transition — old clients keep working until they migrate). Access is
+# granted to three nested principal classes, stored as reserved group_members
+# keys: 'anyone' (every request), 'authenticated' (a valid token), and the
+# principal's own member role (if a member). A principal's effective role is
+# the UNION of the permission maps of every class they belong to. See
+# groups/access.md + D58.
+
+
+def _normalize_role_perms(role_def: dict) -> dict:
+    """Normalize a role's permissions to the per-service map shape.
+
+    Accepts both the D58 shape ``{permissions: {service: [ops]}}`` and the
+    legacy ``{services: [...], permissions: [...]}`` (the flat list applied to
+    each listed service; a missing/empty services list → the ``'*'`` wildcard
+    key). Returns ``{service: [ops]}``.
+    """
+    if not isinstance(role_def, dict):
+        return {}
+    perms = role_def.get("permissions")
+    if isinstance(perms, dict):
+        return {svc: list(ops) for svc, ops in perms.items() if ops}
+    services = role_def.get("services") or ["*"]
+    flat = list(perms or [])
+    return {svc: list(flat) for svc in services} if flat else {}
+
+
+def effective_role_perms(group_id: str, principal: str, authenticated: bool = False) -> dict:
+    """The union of the permission maps of every principal class ``principal``
+    belongs to in ``group_id`` (D58). Returns ``{service: [ops]}``.
+
+    Classes (nested, broadest first): the **public** class (every request —
+    the ``'anyone'`` reserved key, or the legacy ``'anon'`` key until the D58
+    backfill renames it), ``'authenticated'`` (if ``authenticated``), and the
+    principal's own member role (if a member). An unknown group, or a principal
+    in no class, → ``{}`` (no permissions).
+    """
+    group = get_group(group_id)
+    if not group:
+        return {}
+    roles_by_name = {r.get("name"): r for r in group.get("roles", []) if isinstance(r, dict)}
+
+    def perms_for(member_key: str) -> dict:
+        m = get_group_member(group_id, member_key)
+        if not m:
+            return {}
+        return _normalize_role_perms(roles_by_name.get(m["role"], {}))
+
+    # The public class: 'anyone' (D58) or 'anon' (legacy key, renamed by the
+    # backfill). Matching both keeps public groups readable during the
+    # transition, before the rename lands.
+    class_keys = ["anyone", "anon"]
+    if authenticated:
+        class_keys.append("authenticated")
+    if principal and principal != "anon":
+        class_keys.append(principal)
+
+    merged: dict = {}
+    for mk in class_keys:
+        for svc, ops in perms_for(mk).items():
+            bucket = merged.setdefault(svc, [])
+            for op in ops:
+                if op not in bucket:
+                    bucket.append(op)
+    return merged
+
+
+def _effective_allows(perms: dict, service: str, op: str) -> bool:
+    """Does the effective per-service map grant ``op`` on ``service``? The
+    ``'*'`` wildcard key covers every document service."""
+    if op in perms.get(service, []):
+        return True
+    return op in perms.get("*", [])
+
+
+def can_read_group(group_id: str, principal: str, service: str, authenticated: bool = False) -> bool:
+    """Can `principal` read `service` in `group_id` (D58 read gate)?
+
+    A **member** can read all services in the group (membership grants read —
+    the existing behavior; the per-service role scopes *write* access, not
+    read). A **non-member** can read if the `anyone`/`authenticated` grant
+    grants `readAll` on the service (D58: public / signed-in-only groups)."""
+    if is_group_member(group_id, principal):
+        return True
+    perms = effective_role_perms(group_id, principal, authenticated)
+    return _effective_allows(perms, service, "readAll")
+
+
+def can_write_group(group_id: str, principal: str, service: str, authenticated: bool = True) -> bool:
+    """Can `principal` create `service` content in `group_id` (D58 write gate —
+    closes the attach hole)?
+
+    A **member** can write to the group's content (membership grants write —
+    the existing behavior; the per-service role scopes fine-grained control,
+    e.g. a persona posts AND reacts on the board even though the board's member
+    role lists only `posts`). A **non-member** can write only if the
+    `anyone`/`authenticated` grant grants `create` on the service (a public
+    board where anyone can post) — a bystander of a private group writes
+    nothing (the attach hole stays closed)."""
+    if is_group_member(group_id, principal):
+        return True
+    perms = effective_role_perms(group_id, principal, authenticated)
+    return _effective_allows(perms, service, "create")
+
+
+def readable_groups(principal: str, service: str, authenticated: bool, candidate_group_ids: list[str]) -> list[str]:
+    """Filter ``candidate_group_ids`` to the groups ``principal`` can read
+    ``service`` in (D58). Order-preserving.
+
+    Note: this is one effective-role check per candidate group (a few small
+    metadata queries each). Correct first; a batched variant is the fast-follow
+    for high-fanout feed reads.
+    """
+    return [g for g in candidate_group_ids if can_read_group(g, principal, service, authenticated)]
+
+
+def has_mgmt_permission(group_id: str, principal: str, permission: str) -> bool:
+    """Does ``principal``'s effective role grant the management ``permission``
+    (D58)? Structural ops on the group itself (manageRoles, assignRoles,
+    revokeRoles, deleteGroup, the join/member ops) live under the reserved
+    ``'group'`` key in the new role shape — but in the legacy flat shape they
+    sit in the flat list, which normalizes under the ``'*'`` wildcard. Both are
+    checked during the transition (until the backfill moves them to ``'group'``).
+
+    Note: ``hideAll`` is NOT a structural op — it hides a *doc*, so it's a
+    content op scoped to the service key (see ``can_moderate_service``)."""
+    perms = effective_role_perms(group_id, principal, authenticated=True)
+    return permission in perms.get("group", []) or permission in perms.get("*", [])
+
+
+def can_moderate_service(group_id: str, principal: str, service: str) -> bool:
+    """Can ``principal`` hide/restore content of ``service`` in ``group_id``
+    (D58)? ``hideAll`` is a content op (it hides a *doc*), so it's scoped to the
+    service key (or the ``'*'`` wildcard), not the structural ``'group'`` key.
+    A moderator with ``hideAll`` on ``posts`` can hide posts but not comments."""
+    perms = effective_role_perms(group_id, principal, authenticated=True)
+    return _effective_allows(perms, service, "hideAll")
+
+
+def can_moderate_group(group_id: str, principal: str) -> bool:
+    """Can ``principal`` moderate ANY content in ``group_id`` (D58)? Checks
+    whether the effective role grants ``hideAll`` on any service (or the ``'*'``
+    wildcard). Used by the list-hidden-docs endpoint (a moderation read with no
+    specific doc/service)."""
+    perms = effective_role_perms(group_id, principal, authenticated=True)
+    return any("hideAll" in ops for ops in perms.values())
+
+
 def get_group_member_keys(group_id: str) -> list[str]:
     """All active member keys of a group (deduplicated, no limit).
 
@@ -855,69 +1142,6 @@ def _get_group_member_counts(group_ids: list[str]) -> dict[str, int]:
         {"group_ids": group_ids},
     )
     return {row[0]: row[1] for row in result.result_rows}
-
-
-# ---------------------------------------------------------------------------
-# Group identity — public display metadata (D53)
-# ---------------------------------------------------------------------------
-# The single home for how a group presents itself in the directory and its
-# detail: name, description, banner, avatar, website, tags. Public by design
-# (readable by any principal, including anon — the group's "unlisted video"
-# page), so it is a table, not an I3-gated documents collection. Append-only:
-# an update is a new row, latest wins (the house dedup-then-filter pattern).
-
-
-def get_group_identity(group_id: str) -> dict | None:
-    """Get a group's identity record (latest version). Public display metadata."""
-    result = client.query(
-        "SELECT name, description, banner_ref, avatar_ref, website, tags "
-        "FROM (SELECT name, description, banner_ref, avatar_ref, website, tags, deleted, "
-        "row_number() OVER (PARTITION BY group_id ORDER BY updated_at DESC, deleted DESC) as rn "
-        "FROM group_identity WHERE group_id = %(group_id)s) "
-        "WHERE rn = 1 AND deleted = 0",
-        {"group_id": group_id},
-    )
-    if not result.result_rows:
-        return None
-    row = result.result_rows[0]
-    return {
-        "name": row[0],
-        "description": row[1],
-        "banner_ref": row[2],
-        "avatar_ref": row[3],
-        "website": row[4],
-        "tags": list(row[5]),
-    }
-
-
-def get_group_identities(group_ids: list[str]) -> dict[str, dict]:
-    """Get identity records for a batch of groups. Returns {group_id: identity}.
-
-    One query so the directory can name its cards without an N+1. Groups with
-    no identity record are simply absent from the result (the caller falls
-    back to the slug).
-    """
-    if not group_ids:
-        return {}
-    result = client.query(
-        "SELECT group_id, name, description, banner_ref, avatar_ref, website, tags "
-        "FROM (SELECT group_id, name, description, banner_ref, avatar_ref, website, tags, deleted, "
-        "row_number() OVER (PARTITION BY group_id ORDER BY updated_at DESC, deleted DESC) as rn "
-        "FROM group_identity WHERE group_id IN %(group_ids)s) "
-        "WHERE rn = 1 AND deleted = 0",
-        {"group_ids": group_ids},
-    )
-    out: dict[str, dict] = {}
-    for row in result.result_rows:
-        out[row[0]] = {
-            "name": row[1],
-            "description": row[2],
-            "banner_ref": row[3],
-            "avatar_ref": row[4],
-            "website": row[5],
-            "tags": list(row[6]),
-        }
-    return out
 
 
 def list_discoverable_groups(limit: int = 50, offset: int = 0) -> list[dict]:
@@ -1463,14 +1687,29 @@ def _power_mean_score_sql(
     return f"pow({num} / {tw}, 1 / %(p)s)"
 
 
-def _board_base_sql(group_ids: list[str]) -> str:
+def _board_base_sql(group_ids: list[str], require_membership: bool = True) -> str:
     """Board base SQL (shared by the no-sort and ranked read paths).
 
-    documents JOIN doc_groups JOIN group_members, filtered by membership,
-    tombstones, blacklists, sharing, and hidden docs. Selects
+    documents JOIN doc_groups [JOIN group_members], filtered by tombstones,
+    blacklists, sharing, and hidden docs. Selects
     (doc_id, author_key, body, tags, created_at, ref_value, ad_mode, ad_target).
     Placeholders: %(coll)s, %(member_key)s, %(g0)s..%(gN)s.
+
+    ``require_membership`` (D58): when True (the legacy path), the read is
+    gated on the reader being a member of each group — the group_members JOIN +
+    the ``gm.member_key`` WHERE clause. When False, the caller has ALREADY
+    filtered ``group_ids`` to the readable set (the D58 effective-role gate),
+    so the membership JOIN is dropped; the blacklist/sharing/hidden filters
+    (keyed on ``member_key``) are kept.
     """
+    membership_join = (
+        "JOIN (SELECT group_id, member_key, role FROM (SELECT group_id, member_key, role, deleted, "
+        "row_number() OVER (PARTITION BY group_id, member_key ORDER BY updated_at DESC) as rn "
+        "FROM group_members) WHERE rn = 1 AND deleted = 0) gm ON pg.group_id = gm.group_id "
+        if require_membership
+        else ""
+    )
+    membership_where = "gm.member_key = %(member_key)s AND " if require_membership else ""
     return (
         "SELECT p.doc_id AS doc_id, p.author_key, p.body, p.tags, p.created_at, p.ref_value, p.ad_mode, p.ad_target "
         "FROM (SELECT doc_id, author_key, body, tags, created_at, ref_value, ad_mode, ad_target, deleted "
@@ -1480,10 +1719,8 @@ def _board_base_sql(group_ids: list[str]) -> str:
         "JOIN (SELECT doc_id, group_id FROM doc_groups WHERE deleted = 0 "
         "QUALIFY row_number() OVER (PARTITION BY doc_id, group_id ORDER BY updated_at DESC) = 1) pg "
         "ON p.doc_id = pg.doc_id "
-        "JOIN (SELECT group_id, member_key, role FROM (SELECT group_id, member_key, role, deleted, "
-        "row_number() OVER (PARTITION BY group_id, member_key ORDER BY updated_at DESC) as rn "
-        "FROM group_members) WHERE rn = 1 AND deleted = 0) gm ON pg.group_id = gm.group_id "
-        "LEFT ANTI JOIN (SELECT user_key, blocked_key FROM (SELECT user_key, blocked_key, deleted, "
+        + membership_join
+        + "LEFT ANTI JOIN (SELECT user_key, blocked_key FROM (SELECT user_key, blocked_key, deleted, "
         "row_number() OVER (PARTITION BY user_key, blocked_key ORDER BY updated_at DESC, deleted DESC) AS rn "
         "FROM user_blacklist) WHERE rn = 1 AND deleted = 0) ub "
         "ON ub.user_key = p.author_key AND ub.blocked_key = %(member_key)s "
@@ -1500,8 +1737,11 @@ def _board_base_sql(group_ids: list[str]) -> str:
         "row_number() OVER (PARTITION BY group_id, doc_id ORDER BY updated_at DESC, deleted DESC) AS rn "
         "FROM group_hidden_docs) WHERE rn = 1 AND deleted = 0) hd "
         "ON hd.doc_id = p.doc_id AND hd.group_id = pg.group_id "
-        "WHERE gm.member_key = %(member_key)s "
-        "AND pg.group_id IN (%(g0)s" + "".join(f", %(g{i})s" for i in range(1, len(group_ids))) + ")"
+        "WHERE "
+        + membership_where
+        + "pg.group_id IN (%(g0)s"
+        + "".join(f", %(g{i})s" for i in range(1, len(group_ids)))
+        + ")"
     )
 
 
@@ -1511,12 +1751,14 @@ def _group_docs_query(
     service: str,
     limit: int | None,
     offset: int,
+    require_membership: bool = True,
 ) -> list[dict]:
     """The core v3 discover query (no ranking).
 
-    documents JOIN doc_groups JOIN group_members, filtered by membership,
-    tombstones, blacklists, and hidden docs. `limit=None` fetches the full
-    membership (no LIMIT clause).
+    documents JOIN doc_groups [JOIN group_members], filtered by tombstones,
+    blacklists, and hidden docs. `limit=None` fetches the full membership (no
+    LIMIT clause). `require_membership=False` (D58) drops the membership JOIN —
+    the caller pre-filtered `group_ids` to the readable set.
     """
     limit_clause = "LIMIT %(limit)s OFFSET %(offset)s" if limit is not None else ""
     params: dict = {
@@ -1527,7 +1769,9 @@ def _group_docs_query(
     }
     if limit is not None:
         params["limit"] = limit
-    result = client.query(_board_base_sql(group_ids) + " ORDER BY p.created_at DESC " + limit_clause, params)
+    result = client.query(
+        _board_base_sql(group_ids, require_membership) + " ORDER BY p.created_at DESC " + limit_clause, params
+    )
     return [
         {
             "doc_id": row[0],
@@ -1551,6 +1795,7 @@ def _group_docs_ranked_query(
     sort: dict,
     limit: int,
     offset: int,
+    require_membership: bool = True,
 ) -> list[dict]:
     """The v3 discover query with power-mean ranking in SQL (the v1 scale-up).
 
@@ -1592,7 +1837,7 @@ def _group_docs_ranked_query(
 
     sql = (
         "SELECT b.doc_id, b.author_key, b.body, b.tags, b.created_at, b.ref_value "
-        "FROM (" + _board_base_sql(group_ids) + ") b "
+        "FROM (" + _board_base_sql(group_ids, require_membership) + ") b "
         "LEFT JOIN (SELECT ref_value, count() AS reaction_count FROM (SELECT ref_value FROM documents "
         "WHERE deleted = 0 AND collection_name = 'reactions' "
         "QUALIFY row_number() OVER (PARTITION BY doc_id, author_key ORDER BY updated_at DESC) = 1) "
@@ -1628,11 +1873,17 @@ def read_documents_in_groups(
     limit: int = 50,
     offset: int = 0,
     sort: dict | None = None,
+    require_membership: bool = True,
 ) -> list[dict]:
-    """Read documents attached to groups where the user is a member.
+    """Read documents attached to groups the reader can access.
 
-    This is the core v3 discover query: documents JOIN doc_groups JOIN group_members,
-    filtered by membership, tombstones, blacklists, and hidden docs.
+    This is the core v3 discover query: documents JOIN doc_groups [JOIN
+    group_members], filtered by tombstones, blacklists, and hidden docs.
+
+    ``require_membership`` (D58): when True (the legacy path) the read is
+    gated on the reader being a member of each group. When False, the caller
+    has pre-filtered ``group_ids`` to the readable set (the effective-role
+    gate) and the membership JOIN is dropped.
 
     Blocking/sharing enforcement (KB: security/overview.md "Blocking and
     Sharing", social/cross-app-sharing.md):
@@ -1662,9 +1913,9 @@ def read_documents_in_groups(
         # to exact engagement counts, scored in SQL (mirroring the client), and
         # paged in ClickHouse — no full membership fetch into Python
         # (feed-lens-integration.md, option B).
-        return _group_docs_ranked_query(group_ids, member_key, service, sort, limit, offset)
+        return _group_docs_ranked_query(group_ids, member_key, service, sort, limit, offset, require_membership)
 
-    return _group_docs_query(group_ids, member_key, service, limit, offset)
+    return _group_docs_query(group_ids, member_key, service, limit, offset, require_membership)
 
 
 # ---------------------------------------------------------------------------
@@ -1922,14 +2173,16 @@ def get_groups_manages(member_key: str) -> list[dict]:
         if group_id in seen:
             continue
         seen.add(group_id)
-        # Check if the user's role has manageRoles permission
-        # roles_json is a list of {name, services, permissions} — find matching role
+        # Check if the user's role has manageRoles permission (D58: under the
+        # 'group' key in the new shape, or the flat list / '*' wildcard in the
+        # legacy shape — normalize + check both).
         roles_list = _parse_json(roles_json) if roles_json else []
         if isinstance(roles_list, list):
             role_def = next((r for r in roles_list if r.get("name") == my_role), {})
         else:
             role_def = roles_list.get(my_role, {})
-        if isinstance(role_def, dict) and "manageRoles" in role_def.get("permissions", []):
+        role_perms = _normalize_role_perms(role_def)
+        if "manageRoles" in role_perms.get("group", []) or "manageRoles" in role_perms.get("*", []):
             out.append(
                 {
                     "group_id": group_id,

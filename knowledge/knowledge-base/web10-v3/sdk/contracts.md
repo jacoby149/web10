@@ -131,19 +131,23 @@ FROM group_contracts
 WHERE group_id = 'web10.app/groups/jacoby149/abacus-enthusiasts' AND deleted = 0;
 ```
 
-**Roles are JSON.** Each role defines the services it touches and the permissions it grants:
+**Roles are JSON — a per-service permission map.** Each role is a map from service to the ops it grants; the map *is* the scope (D58). Management ops live under the reserved `"group"` key:
 ```json
 {
   "roles": [
     {
       "name": "owner",
-      "services": ["*"],
-      "permissions": ["readAll", "create", "updateOwn", "updateAll", "deleteOwn", "deleteAll", "hideAll", "manageRoles", "assignRoles", "revokeRoles", "deleteGroup"]
+      "permissions": {
+        "*": ["readAll", "create", "updateOwn", "updateAll", "deleteOwn", "deleteAll", "hideAll"],
+        "group": ["manageRoles", "assignRoles", "revokeRoles", "deleteGroup"]
+      }
     },
     {
       "name": "member",
-      "services": ["posts", "comments"],
-      "permissions": ["readAll", "create", "updateOwn", "deleteOwn"]
+      "permissions": {
+        "posts": ["readAll", "create", "updateOwn", "deleteOwn"],
+        "comments": ["readAll", "create", "updateOwn", "deleteOwn"]
+      }
     }
   ]
 }
@@ -169,7 +173,7 @@ CREATE TABLE group_members (
 ORDER BY (group_id, member_key);
 ```
 
-**Multiple roles per user.** A user can hold multiple roles in the same group. The DB maps `user → group → [roles]`. Roles span different services.
+**One role per user.** A user holds exactly one role in a group (D58). The DB maps `user → group → role` (a single `role` column). The per-service map makes one role fully expressive — any (service, op) matrix fits in a single map — so there's no "stack multiple roles" escape hatch.
 
 ## Group Membership Requests
 
@@ -266,8 +270,8 @@ All contract tables follow the same patterns:
 - Background job compacts tombstones on schedule
 - No row = denied (app contracts, provider contracts)
 - Missing row = enabled (sharing toggle — default on)
-- Roles are JSON arrays with service-scoped permissions
-- Multiple roles per user in the same group
+- Roles are JSON arrays of per-service permission maps (D58)
+- One role per user in the same group
 - Open join policy = instant membership, no request queue
 - Request join policy = pending request, owner approves or denies
 

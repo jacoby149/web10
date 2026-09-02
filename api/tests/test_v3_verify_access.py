@@ -1,9 +1,11 @@
-"""Tests for POST /v3/session/verify — the confirmatory session-health oracle.
+"""Tests for POST /v3/access/verify — the confirmatory access-health oracle.
 
-Pins every verdict code and the decisive-vs-unknown rule: a store that is
-UNREADABLE yields `unknown` (no action), a store that is readable and EMPTY
-yields the decisive negative (action). This is the definite-NO-vs-UNKNOWN
-split that keeps a deploy window from churning every user into a re-auth loop.
+Generic by design (D60): checks only universal legs — token, user, contract.
+It does NOT know about any app's groups (no followers-group check). Pins every
+verdict code and the decisive-vs-unknown rule: a store that is UNREADABLE yields
+`unknown` (no action), a store that is readable and EMPTY yields the decisive
+negative (action). This is the definite-NO-vs-UNKNOWN split that keeps a deploy
+window from churning every user into a re-auth loop.
 """
 
 from datetime import datetime, timedelta
@@ -41,9 +43,6 @@ def token():
     return _make_token()
 
 
-FOLLOWERS = f"{settings.PROVIDER}/groups/users/testuser/followers"
-
-
 def _verify(client, token, services=None, operations=None, origin="http://social.localhost"):
     body = {"token": token}
     if services is not None:
@@ -51,28 +50,24 @@ def _verify(client, token, services=None, operations=None, origin="http://social
     if operations is not None:
         body["operations"] = operations
     headers = {"Origin": origin} if origin else {}
-    return client.post("/v3/session/verify", json=body, headers=headers)
+    return client.post("/v3/access/verify", json=body, headers=headers)
 
 
 _DEFAULT = object()
 
 
-def _healthy_store(get_user=_DEFAULT, get_app_permissions=_DEFAULT, get_group=_DEFAULT, is_group_member=_DEFAULT):
-    """Patch the four store checks. Omit a param for a healthy default; pass an
-    explicit value (including None) to force that state."""
+def _healthy_store(get_user=_DEFAULT, get_app_permissions=_DEFAULT):
+    """Patch the two store checks (user + contract). Omit a param for a healthy
+    default; pass an explicit value (including None) to force that state."""
     gu = {"username": "testuser"} if get_user is _DEFAULT else get_user
     gap = (
         {"posts": ["readAll", "create"], "profile": ["readAll"]}
         if get_app_permissions is _DEFAULT
         else get_app_permissions
     )
-    gg = {"group_id": FOLLOWERS} if get_group is _DEFAULT else get_group
-    igm = True if is_group_member is _DEFAULT else is_group_member
     return (
         patch("app.v3.services.clickhouse.get_user", return_value=gu),
         patch("app.v3.services.clickhouse.get_app_permissions", return_value=gap),
-        patch("app.v3.services.clickhouse.get_group", return_value=gg),
-        patch("app.v3.services.clickhouse.is_group_member", return_value=igm),
     )
 
 
@@ -125,7 +120,7 @@ class TestTokenStates:
         assert data["status"] == "invalid"
 
 
-class TestHealthySession:
+class TestHealthyAccess:
     def test_ok(self, client, token):
         p = _healthy_store()
         _enter(*p)
@@ -136,9 +131,10 @@ class TestHealthySession:
             assert data["user"] == "exists"
             assert data["contract"]["state"] == "granted"
             assert data["contract"]["missing_services"] == []
-            assert data["groups"]["followers"] == "ok"
             assert data["actions"] == []
             assert data["username"] == "testuser"
+            # no groups field — the oracle is generic (D60)
+            assert "groups" not in data
         finally:
             for x in p:
                 x.stop()
@@ -215,32 +211,6 @@ class TestContractStates:
                 x.stop()
 
 
-class TestGroupStates:
-    def test_group_not_member_is_degraded_heal(self, client, token):
-        p = _healthy_store(is_group_member=False)
-        _enter(*p)
-        try:
-            data = _verify(client, token, services=["posts"]).json()
-            assert data["groups"]["followers"] == "not_member"
-            assert data["status"] == "degraded"
-            assert data["actions"] == ["heal_followers_group"]
-        finally:
-            for x in p:
-                x.stop()
-
-    def test_group_missing_is_degraded_heal(self, client, token):
-        p = _healthy_store(get_group=None)
-        _enter(*p)
-        try:
-            data = _verify(client, token, services=["posts"]).json()
-            assert data["groups"]["followers"] == "missing"
-            assert data["status"] == "degraded"
-            assert data["actions"] == ["heal_followers_group"]
-        finally:
-            for x in p:
-                x.stop()
-
-
 class TestUnknownVsDecisive:
     """The load-bearing rule: unreadable store → unknown (no action), not the
     decisive negative. A deploy window must not look like 'contract missing'."""
@@ -249,8 +219,6 @@ class TestUnknownVsDecisive:
         p = (
             patch("app.v3.services.clickhouse.get_user", return_value={"username": "testuser"}),
             patch("app.v3.services.clickhouse.get_app_permissions", side_effect=ConnectionError("store down")),
-            patch("app.v3.services.clickhouse.get_group", return_value={"group_id": FOLLOWERS}),
-            patch("app.v3.services.clickhouse.is_group_member", return_value=True),
         )
         _enter(*p)
         try:
@@ -268,8 +236,6 @@ class TestUnknownVsDecisive:
         p = (
             patch("app.v3.services.clickhouse.get_user", side_effect=ConnectionError("store down")),
             patch("app.v3.services.clickhouse.get_app_permissions", return_value={"posts": ["readAll"]}),
-            patch("app.v3.services.clickhouse.get_group", return_value={"group_id": FOLLOWERS}),
-            patch("app.v3.services.clickhouse.is_group_member", return_value=True),
         )
         _enter(*p)
         try:
@@ -281,41 +247,9 @@ class TestUnknownVsDecisive:
             for x in p:
                 x.stop()
 
-    def test_group_store_unreadable_is_unknown(self, client, token):
-        p = (
-            patch("app.v3.services.clickhouse.get_user", return_value={"username": "testuser"}),
-            patch("app.v3.services.clickhouse.get_app_permissions", return_value={"posts": ["readAll"]}),
-            patch("app.v3.services.clickhouse.get_group", side_effect=ConnectionError("store down")),
-            patch("app.v3.services.clickhouse.is_group_member", return_value=True),
-        )
-        _enter(*p)
-        try:
-            data = _verify(client, token, services=["posts"]).json()
-            assert data["groups"]["followers"] == "unknown"
-            assert data["status"] == "inconclusive"
-            assert data["actions"] == []
-        finally:
-            for x in p:
-                x.stop()
-
 
 class TestActionOrdering:
-    def test_reauth_before_heal_when_both_needed(self, client, token):
-        # Contract missing AND group broken → reauth first (heal needs a live
-        # session), then the local heal.
-        p = _healthy_store(get_app_permissions={}, is_group_member=False)
-        _enter(*p)
-        try:
-            data = _verify(client, token, services=["posts"]).json()
-            assert data["status"] == "degraded"
-            assert data["actions"] == ["reauth", "heal_followers_group"]
-        finally:
-            for x in p:
-                x.stop()
-
-    def test_expired_token_does_not_also_heal_group(self, client):
-        # A dead token can't check the group, so no heal action is emitted —
-        # reauth first, the next verify re-checks the group.
+    def test_expired_token_is_reauth_only(self, client):
+        # A dead token can't be checked further — reauth, no other actions.
         data = _verify(client, _make_token(expired=True), services=["posts"]).json()
         assert data["actions"] == ["reauth"]
-        assert data["groups"]["followers"] == "unknown"

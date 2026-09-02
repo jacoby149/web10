@@ -1,5 +1,5 @@
 import React from 'react';
-import { Settings, Lock, LockOpen, MessageSquare } from 'lucide-react';
+import { Settings, Lock, LockOpen, MessageSquare, Globe, UserCheck, Users } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { groupDisplayName } from '@/lib/group-utils';
@@ -12,6 +12,14 @@ const JOIN_POLICIES = [
 
 type JoinPolicy = (typeof JOIN_POLICIES)[number]['value'];
 
+const VISIBILITY_OPTIONS = [
+  { value: 'public', label: 'Public', icon: Globe, hint: 'Anyone can read this group, even signed out.' },
+  { value: 'signed_in', label: 'Signed-in only', icon: UserCheck, hint: 'Any web10 user can read; signed-out can\'t.' },
+  { value: 'private', label: 'Private', icon: Lock, hint: 'Only members can read this group.' },
+] as const;
+
+type Visibility = (typeof VISIBILITY_OPTIONS)[number]['value'];
+
 function GroupSettingsDialog({ open, onOpenChange, group, I }: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
@@ -19,9 +27,9 @@ function GroupSettingsDialog({ open, onOpenChange, group, I }: {
   I: Record<string, any>;
 }) {
   const [joinPolicy, setJoinPolicy] = React.useState<JoinPolicy>('open');
+  const [visibility, setVisibility] = React.useState<Visibility>('private');
   const [saving, setSaving] = React.useState(false);
 
-  // Reset to the group's current policy each time the dialog opens.
   React.useEffect(() => {
     if (open) {
       const current = group.join_policy || 'open';
@@ -39,6 +47,30 @@ function GroupSettingsDialog({ open, onOpenChange, group, I }: {
       onOpenChange(false);
     } catch {
       I.setStatus?.('Failed to update join policy');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleVisibilityChange = async (v: Visibility) => {
+    setSaving(true);
+    try {
+      const groupId = group.group_id;
+      if (v === 'public') {
+        await I.v3AddGroupMember?.(groupId, 'anyone', 'reader');
+        await I.v3RemoveGroupMember?.(groupId, 'authenticated').catch(() => {});
+      } else if (v === 'signed_in') {
+        await I.v3AddGroupMember?.(groupId, 'authenticated', 'reader');
+        await I.v3RemoveGroupMember?.(groupId, 'anyone').catch(() => {});
+      } else {
+        await I.v3RemoveGroupMember?.(groupId, 'anyone').catch(() => {});
+        await I.v3RemoveGroupMember?.(groupId, 'authenticated').catch(() => {});
+      }
+      setVisibility(v);
+      I.setStatus?.(`Visibility set to ${v}`);
+      I.v3GroupsManagesLoad?.();
+    } catch {
+      I.setStatus?.('Failed to update visibility');
     } finally {
       setSaving(false);
     }
@@ -71,6 +103,32 @@ function GroupSettingsDialog({ open, onOpenChange, group, I }: {
                     }`}
                 >
                   <Icon className={`h-4 w-4 shrink-0 ${joinPolicy === value ? 'text-brand-300' : 'text-muted-foreground'}`} strokeWidth={1.5} />
+                  <span className="flex-1">
+                    <span className="block text-sm font-medium text-foreground">{label}</span>
+                    <span className="block text-xs text-muted-foreground">{hint}</span>
+                  </span>
+                </button>
+              ))}
+            </div>
+          </div>
+
+          <div>
+            <label className="text-sm font-medium text-muted-foreground">Who can read</label>
+            <div className="mt-1.5 space-y-2">
+              {VISIBILITY_OPTIONS.map(({ value, label, icon: Icon, hint }) => (
+                <button
+                  key={value}
+                  type="button"
+                  onClick={() => handleVisibilityChange(value)}
+                  aria-pressed={visibility === value}
+                  data-testid={`visibility-${value}`}
+                  disabled={saving}
+                  className={`flex w-full items-center gap-3 rounded border px-3 py-2.5 text-left transition-colors ${visibility === value
+                    ? 'border-brand bg-brand-muted'
+                    : 'border-border bg-elevated hover:border-brand/40'
+                    }`}
+                >
+                  <Icon className={`h-4 w-4 shrink-0 ${visibility === value ? 'text-brand-300' : 'text-muted-foreground'}`} strokeWidth={1.5} />
                   <span className="flex-1">
                     <span className="block text-sm font-medium text-foreground">{label}</span>
                     <span className="block text-xs text-muted-foreground">{hint}</span>
