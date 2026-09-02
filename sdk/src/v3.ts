@@ -117,11 +117,12 @@ export interface V3ServiceContract {
   permissions: Record<string, string[]>
 }
 
-// Group role definition — each role has a name, scope (services), and permissions.
+// Group role definition — per-service permission map (D58).
+// The map IS the scope: each key is a service name (or '*' wildcard / 'group' structural),
+// each value is the list of ops granted on that service.
 export interface V3GroupRole {
   name: string
-  services: string[]
-  permissions: string[]
+  permissions: Record<string, string[]>
 }
 
 // Group member definition
@@ -171,6 +172,57 @@ export interface V3User {
 
 export interface V3LoginResponse {
   token: string
+}
+
+// ── Access health (verifyAccess) ────────────────────────────────────────────
+// The confirmatory session verdict. Every store-backed field separates a
+// DECISIVE answer (the check ran clean) from `unknown` (the check couldn't run
+// — store unreadable). Only decisive negatives drive `actions`; `unknown`
+// never does (a failed health CHECK must not be handled like a failed health
+// ANSWER — a deploy window must not look like "contract missing").
+
+/** Overall verdict. `inconclusive` = a check couldn't run (store unreadable)
+ *  and nothing is decisively wrong — the client takes no action, retries later. */
+export type AccessStatus = 'ok' | 'degraded' | 'invalid' | 'inconclusive'
+
+/** Token state. `missing` = no token (not signed in). `expired` = the custom
+ *  `expires` claim is in the past. `invalid` = bad signature / malformed / anon. */
+export type AccessTokenState = 'valid' | 'expired' | 'invalid' | 'missing'
+
+/** User state. Only checkable with a valid token; `unknown` otherwise or when
+ *  the users store is unreadable. */
+export type AccessUserState = 'exists' | 'not_found' | 'unknown'
+
+/** Contract state. `not_checked` = the app declared no services (health
+ *  probe) — excluded from the verdict. `partial` = some declared services
+ *  granted, `missing_services` names the rest. */
+export type AccessContractState = 'granted' | 'partial' | 'missing' | 'unknown' | 'not_checked'
+
+/** Ordered recovery actions the client should execute. `reauth` = re-derive
+ *  the session through the rooted authenticator (fresh token + contract).
+ *  `signout` = terminal (a deleted account can't be re-authed) — clear the
+ *  session and show login. Generic by design (D60): no app-specific actions
+ *  (e.g. the social app's followers-group heal is the app's own job). */
+export type AccessAction = 'reauth' | 'signout'
+
+export interface AccessVerdict {
+  status: AccessStatus
+  token: AccessTokenState
+  user: AccessUserState
+  contract: { state: AccessContractState; missing_services: string[] }
+  actions: AccessAction[]
+  /** Who we verified (only when the token is valid). */
+  username: string | null
+  provider: string | null
+}
+
+export interface VerifyAccessOptions {
+  /** The services the calling app needs (it declares its own — the signal is
+   *  platform-level, the policy is per-app). Omit for a health probe. */
+  services?: string[]
+  /** The operations each service must grant to count as "granted" (all must
+   *  be permitted). Defaults to ["readAll"]. */
+  operations?: string[]
 }
 
 // ── Client factory ─────────────────────────────────────────────────────────
@@ -278,6 +330,22 @@ export function createV3Client(options: V3ClientOptions = {}): V3Client {
 
     async getProfile(): Promise<V3User> {
       return v3Post<V3User>('profile', {})
+    },
+
+    /**
+     * The confirmatory access-health check. The server runs the ACTUAL checks
+     * (token decode, user lookup, app-contract check) and returns a typed
+     * verdict + ordered recovery `actions`. Generic by design (D60): it checks
+     * only universal legs — it does NOT know about any app's groups. The app's
+     * `verifyAndRecover` executes those actions — the client never guesses from
+     * status codes. Read-only and idempotent; safe to call at mount and after
+     * any failure.
+     */
+    async verifyAccess(options: VerifyAccessOptions = {}): Promise<AccessVerdict> {
+      const body: Record<string, unknown> = {}
+      if (options.services?.length) body.services = options.services
+      if (options.operations?.length) body.operations = options.operations
+      return v3Post<AccessVerdict>('access/verify', body)
     },
 
     async changePassword(currentPassword: string, newPassword: string): Promise<{ status: string }> {
@@ -726,6 +794,7 @@ export interface V3Client {
   login(username: string, password: string, site?: string): Promise<V3LoginResponse>
   signup(username: string, password: string, phone?: string, email?: string): Promise<V3User>
   getProfile(): Promise<V3User>
+  verifyAccess(options?: VerifyAccessOptions): Promise<AccessVerdict>
   changePassword(currentPassword: string, newPassword: string): Promise<{ status: string }>
   changePhone(phone: string): Promise<{ phone: string }>
   setEmail(email: string): Promise<{ email: string }>

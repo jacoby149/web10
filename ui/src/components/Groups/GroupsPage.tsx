@@ -33,12 +33,14 @@ function EmptyGroups({ isManaged }: { isManaged: boolean }) {
 function CreateGroupDialog({ open, onOpenChange, I }: { open: boolean; onOpenChange: (open: boolean) => void; I: Record<string, any> }) {
   const [name, setName] = React.useState('');
   const [joinPolicy, setJoinPolicy] = React.useState<'open' | 'request' | 'invite_only'>('invite_only');
+  const [visibility, setVisibility] = React.useState<'public' | 'signed_in' | 'private'>('private');
   const [saving, setSaving] = React.useState(false);
 
   React.useEffect(() => {
     if (open) {
       setName('');
       setJoinPolicy('invite_only');
+      setVisibility('private');
       setSaving(false);
     }
   }, [open]);
@@ -52,10 +54,12 @@ function CreateGroupDialog({ open, onOpenChange, I }: { open: boolean; onOpenCha
     try {
       const slug = name.trim().toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '');
       const roles = [
-        { name: 'owner', services: ['*'], permissions: ['readAll', 'create', 'updateOwn', 'updateAll', 'deleteOwn', 'deleteAll', 'hideAll', 'manageRoles', 'assignRoles', 'revokeRoles', 'deleteGroup'] },
-        { name: 'member', services: ['posts', 'comments'], permissions: ['readAll', 'create', 'updateOwn', 'deleteOwn'] },
+        { name: 'owner', permissions: { '*': ['readAll', 'create', 'updateOwn', 'updateAll', 'deleteOwn', 'deleteAll', 'hideAll'], 'group': ['manageRoles', 'assignRoles', 'revokeRoles', 'deleteGroup'] } },
+        { name: 'member', permissions: { 'posts': ['readAll', 'create', 'updateOwn', 'deleteOwn'], 'comments': ['readAll', 'create', 'updateOwn', 'deleteOwn'] } },
       ];
       const members = [{ member_key: username, role: 'owner' }];
+      if (visibility === 'public') members.push({ member_key: 'anyone', role: 'reader' });
+      else if (visibility === 'signed_in') members.push({ member_key: 'authenticated', role: 'reader' });
       await I.v3CreateGroup?.(slug, joinPolicy, roles, members);
       I.setStatus?.(`Group "${name}" created`);
       setName('');
@@ -114,6 +118,29 @@ function CreateGroupDialog({ open, onOpenChange, I }: { open: boolean; onOpenCha
                     }`}
                 >
                   <Icon className="h-4 w-4" strokeWidth={1.5} />
+                  {label}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          <div>
+            <label className="text-sm font-medium text-muted-foreground">Who can read</label>
+            <div className="mt-1.5 flex gap-2">
+              {([
+                { value: 'public', label: 'Public' },
+                { value: 'signed_in', label: 'Signed-in' },
+                { value: 'private', label: 'Private' },
+              ] as const).map(({ value, label }) => (
+                <button
+                  key={value}
+                  type="button"
+                  onClick={() => setVisibility(value)}
+                  className={`flex items-center gap-1.5 rounded px-3 py-2 text-sm font-medium transition-colors ${visibility === value
+                    ? 'bg-brand-muted text-brand-300'
+                    : 'bg-elevated text-muted-foreground hover:text-foreground'
+                    }`}
+                >
                   {label}
                 </button>
               ))}

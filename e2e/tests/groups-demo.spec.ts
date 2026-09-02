@@ -24,8 +24,8 @@ const password = 'TestPass123!';
 // Owner gets full management perms (assignRoles/revokeRoles/deleteGroup) so
 // the join-policy + member-management tests can drive the state machine.
 const ROLES = [
-  { name: 'owner', services: ['*'], permissions: ['readAll', 'create', 'updateOwn', 'updateAll', 'deleteOwn', 'deleteAll', 'hideAll', 'manageRoles', 'assignRoles', 'revokeRoles', 'deleteGroup'] },
-  { name: 'member', services: ['posts'], permissions: ['readAll', 'create', 'updateOwn', 'deleteOwn'] },
+  { name: 'owner', permissions: { '*': ['readAll', 'create', 'updateOwn', 'updateAll', 'deleteOwn', 'deleteAll', 'hideAll'], 'group': ['manageRoles', 'assignRoles', 'revokeRoles', 'deleteGroup'] } },
+  { name: 'member', permissions: { 'posts': ['readAll', 'create', 'updateOwn', 'deleteOwn'] } },
 ];
 
 async function signupFreshUser(request: APIRequestContext, prefix: string): Promise<{ username: string; token: string }> {
@@ -423,13 +423,14 @@ test.describe('Groups directory + detail — API floor (D53)', () => {
     expect(ids).toContain(listedId);
     expect(ids).not.toContain(hiddenId);
 
-    // the listed group carries the minimal fields (name falls back to slug)
+    // the listed group carries the minimal fields (name = the slug, D60 — the
+    // face is app data, not in the generic directory)
     const listed = (dir.body.groups as any[]).find((g) => g.group_id === listedId);
     expect(listed.owner).toBe(a.username);
     expect(listed.name).toBeTruthy();
     expect(listed.join_policy).toBe('open');
     expect(listed.member_count).toBe(1);
-    expect(Array.isArray(listed.tags)).toBeTruthy();
+    expect(listed.tags).toBeUndefined();
   });
 
   test('detail: a non-existent group 404s', async ({ request }) => {

@@ -42,7 +42,12 @@ def token():
 
 class TestCreate:
     def test_create_with_groups(self, client, token):
-        with patch("app.v3.services.clickhouse._gen_doc_id", return_value="doc-1"):
+        with (
+            patch("app.v3.services.clickhouse._gen_doc_id", return_value="doc-1"),
+            # D58 write gate: the author can write to g1 (the gate logic is
+            # unit-tested in test_v3_access.py; here we isolate the endpoint).
+            patch("app.v3.services.clickhouse.can_write_group", return_value=True),
+        ):
             resp = client.post(
                 "/v3/create",
                 json={
@@ -101,7 +106,12 @@ class TestRead:
         mock_groups = [("g1", "open", "member")]
         mock_counts = [("g1", 3)]
         mock_docs = [("doc-1", "bob", '{"text":"mine"}', [], datetime(2026, 1, 1), "", "none", "")]
-        with patch("app.v3.services.clickhouse.client") as mock_ch:
+        with (
+            patch("app.v3.services.clickhouse.client") as mock_ch,
+            # D58 read gate: every candidate group is readable (gate logic is
+            # unit-tested in test_v3_access.py; here we isolate the endpoint).
+            patch("app.v3.services.clickhouse.readable_groups", side_effect=lambda p, s, a, c: c),
+        ):
             mock_ch.query.side_effect = [
                 MagicMock(result_rows=mock_groups),
                 MagicMock(result_rows=mock_counts),
@@ -123,7 +133,10 @@ class TestRead:
         mock_rows = [
             ("doc-1", "bob", '{"text":"shared"}', [], datetime(2026, 1, 1), "", "none", ""),
         ]
-        with patch("app.v3.services.clickhouse.client") as mock_ch:
+        with (
+            patch("app.v3.services.clickhouse.client") as mock_ch,
+            patch("app.v3.services.clickhouse.readable_groups", side_effect=lambda p, s, a, c: c),
+        ):
             mock_ch.query.return_value = MagicMock(result_rows=mock_rows)
             resp = client.post(
                 "/v3/read",
@@ -144,7 +157,10 @@ class TestRead:
         mock_groups = [("g1", "open", "member")]
         mock_counts = [("g1", 3)]
         mock_docs = [("doc-1", "bob", '{"text":"hello"}', [], datetime(2026, 1, 1), "", "none", "")]
-        with patch("app.v3.services.clickhouse.client") as mock_ch:
+        with (
+            patch("app.v3.services.clickhouse.client") as mock_ch,
+            patch("app.v3.services.clickhouse.readable_groups", side_effect=lambda p, s, a, c: c),
+        ):
             mock_ch.query.side_effect = [
                 MagicMock(result_rows=mock_groups),
                 MagicMock(result_rows=mock_counts),
@@ -180,7 +196,7 @@ class TestUpdate:
             )
         assert resp.status_code == 200
         data = resp.json()
-        assert data["created_at"] == "2026-01-01 00:00:00"
+        assert data["created_at"] == "2026-01-01T00:00:00Z"
         assert data["updated_at"] != data["created_at"]
 
     def test_update_not_found(self, client, token):
@@ -418,19 +434,6 @@ class TestGroupDirectory:
             patch(
                 "app.v3.services.clickhouse._get_group_member_counts", return_value={"web10.app/groups/alice/jazz": 42}
             ),
-            patch(
-                "app.v3.services.clickhouse.get_group_identities",
-                return_value={
-                    "web10.app/groups/alice/jazz": {
-                        "name": "Jazz Collectors",
-                        "tags": ["jazz", "vinyl"],
-                        "description": "",
-                        "banner_ref": "",
-                        "avatar_ref": "",
-                        "website": "",
-                    }
-                },
-            ),
         ):
             resp = client.get("/v3/groups/directory")
         assert resp.status_code == 200
@@ -438,29 +441,29 @@ class TestGroupDirectory:
         assert len(data["groups"]) == 1
         g = data["groups"][0]
         assert g["group_id"] == "web10.app/groups/alice/jazz"
-        assert g["name"] == "Jazz Collectors"  # from identity
+        assert g["name"] == "jazz"  # the slug (the face is app data, D60)
         assert g["owner"] == "alice"
         assert g["slug"] == "jazz"
         assert g["join_policy"] == "open"
         assert g["member_count"] == 42
-        assert g["tags"] == ["jazz", "vinyl"]
         assert "readAll" in g["permission_summary"]
+        # no face fields — the directory is generic (D60)
+        assert "tags" not in g
+        assert "description" not in g
 
-    def test_name_falls_back_to_slug(self, client):
+    def test_name_is_the_slug(self, client):
         with (
             patch(
                 "app.v3.services.clickhouse.list_discoverable_groups",
                 return_value=[{"group_id": "web10.app/groups/bob/chess", "join_policy": "request", "roles": []}],
             ),
             patch("app.v3.services.clickhouse._get_group_member_counts", return_value={}),
-            patch("app.v3.services.clickhouse.get_group_identities", return_value={}),  # no identity record
         ):
             resp = client.get("/v3/groups/directory")
         assert resp.status_code == 200
         g = resp.json()["groups"][0]
-        assert g["name"] == "chess"  # slug fallback
+        assert g["name"] == "chess"  # the slug
         assert g["owner"] == "bob"
-        assert g["tags"] == []
 
     def test_created_group_shape_parses_owner_and_slug(self, client):
         """Created groups are {provider}/groups/users/{creator}/{slug} — the
@@ -473,20 +476,18 @@ class TestGroupDirectory:
                 ],
             ),
             patch("app.v3.services.clickhouse._get_group_member_counts", return_value={}),
-            patch("app.v3.services.clickhouse.get_group_identities", return_value={}),
         ):
             resp = client.get("/v3/groups/directory")
         assert resp.status_code == 200
         g = resp.json()["groups"][0]
         assert g["owner"] == "alice123"
         assert g["slug"] == "jazz-club"
-        assert g["name"] == "jazz-club"  # slug fallback
+        assert g["name"] == "jazz-club"  # the slug
 
     def test_empty(self, client):
         with (
             patch("app.v3.services.clickhouse.list_discoverable_groups", return_value=[]),
             patch("app.v3.services.clickhouse._get_group_member_counts", return_value={}),
-            patch("app.v3.services.clickhouse.get_group_identities", return_value={}),
         ):
             resp = client.get("/v3/groups/directory")
         assert resp.status_code == 200
@@ -509,17 +510,6 @@ class TestGroupDetail:
     def _apply(self, is_member, posts=None):
         return (
             patch("app.v3.services.clickhouse.get_group", return_value=self._GROUP),
-            patch(
-                "app.v3.services.clickhouse.get_group_identity",
-                return_value={
-                    "name": "Jazz Collectors",
-                    "tags": ["jazz"],
-                    "description": "d",
-                    "banner_ref": "b",
-                    "avatar_ref": "a",
-                    "website": "w",
-                },
-            ),
             patch("app.v3.services.clickhouse._get_group_member_counts", return_value={self._ID: 7}),
             patch("app.v3.services.clickhouse.is_group_member", return_value=is_member),
             patch("app.v3.services.clickhouse.read_documents_in_groups", return_value=posts or []),
@@ -532,21 +522,21 @@ class TestGroupDetail:
 
     def test_non_discoverable_group_is_reachable(self, client):
         """Unlisted-model: a discoverable=False group does NOT 404."""
-        p1, p2, p3, p4, p5 = self._apply(is_member=False)
-        with p1, p2, p3, p4, p5:
+        p1, p2, p3, p4 = self._apply(is_member=False)
+        with p1, p2, p3, p4:
             resp = client.get("/v3/groups/detail", params={"group_id": self._ID})
         assert resp.status_code == 200
         data = resp.json()
         assert data["discoverable"] is False
-        assert data["name"] == "Jazz Collectors"
+        assert data["name"] == "jazz"  # the slug (the face is app data, D60)
         assert data["member_count"] == 7
         assert data["posts_state"] == "join_to_view"
         assert data["posts"] == []
 
     def test_member_sees_posts(self, client, token):
         posts = [{"doc_id": "p1", "author_key": "web10.app/users/alice", "body": {"text": "hi"}}]
-        p1, p2, p3, p4, p5 = self._apply(is_member=True, posts=posts)
-        with p1, p2, p3, p4, p5:
+        p1, p2, p3, p4 = self._apply(is_member=True, posts=posts)
+        with p1, p2, p3, p4:
             resp = client.get("/v3/groups/detail", params={"group_id": self._ID, "token": token})
         assert resp.status_code == 200
         data = resp.json()
@@ -556,8 +546,8 @@ class TestGroupDetail:
 
     def test_anon_reads_as_anon(self, client):
         """No token → principal is anon; a non-member anon gets "join to view"."""
-        p1, p2, p3, p4, p5 = self._apply(is_member=False)
-        with p1, p2, p3, p4, p5:
+        p1, p2, p3, p4 = self._apply(is_member=False)
+        with p1, p2, p3, p4:
             resp = client.get("/v3/groups/detail", params={"group_id": self._ID})
         assert resp.status_code == 200
         assert resp.json()["posts_state"] == "join_to_view"
@@ -647,7 +637,6 @@ class TestJoinRequests:
     """Join request approval/denial endpoints (owner/moderator only)."""
 
     def test_list_join_requests(self, client, token):
-        mock_member = [("testuser", "admin", datetime(2026, 1, 1))]
         mock_group = [
             (
                 "g1",
@@ -659,9 +648,13 @@ class TestJoinRequests:
             )
         ]
         mock_requests = [("bob", "pending", "", datetime(2026, 1, 1))]
-        with patch("app.v3.services.clickhouse.client") as mock_ch:
+        with (
+            patch("app.v3.services.clickhouse.client") as mock_ch,
+            # D58 management gate: the admin holds assignRoles (gate logic is
+            # unit-tested in test_v3_access.py; here we isolate the endpoint).
+            patch("app.v3.services.clickhouse.has_mgmt_permission", return_value=True),
+        ):
             mock_ch.query.side_effect = [
-                MagicMock(result_rows=mock_member),
                 MagicMock(result_rows=mock_group),
                 MagicMock(result_rows=mock_requests),
             ]
@@ -670,7 +663,6 @@ class TestJoinRequests:
         assert resp.json()[0]["requester_key"] == "bob"
 
     def test_list_join_requests_no_permission(self, client, token):
-        mock_member = [("testuser", "member", datetime(2026, 1, 1))]
         mock_group = [
             (
                 "g1",
@@ -681,16 +673,18 @@ class TestJoinRequests:
                 datetime(2026, 1, 1),
             )
         ]
-        with patch("app.v3.services.clickhouse.client") as mock_ch:
+        with (
+            patch("app.v3.services.clickhouse.client") as mock_ch,
+            # D58: the member role has no management op under the 'group' key.
+            patch("app.v3.services.clickhouse.has_mgmt_permission", return_value=False),
+        ):
             mock_ch.query.side_effect = [
-                MagicMock(result_rows=mock_member),
                 MagicMock(result_rows=mock_group),
             ]
             resp = client.post("/v3/groups/requests/join/list", json={"token": token, "group_id": "g1"})
         assert resp.status_code == 401
 
     def test_approve_join_request(self, client, token):
-        mock_member = [("testuser", "admin", datetime(2026, 1, 1))]
         mock_group = [
             (
                 "g1",
@@ -701,30 +695,29 @@ class TestJoinRequests:
                 datetime(2026, 1, 1),
             )
         ]
-        with patch("app.v3.services.clickhouse.client") as mock_ch:
+        with (
+            patch("app.v3.services.clickhouse.client") as mock_ch,
+            patch("app.v3.services.clickhouse.has_mgmt_permission", return_value=True),
+            patch("app.v3.services.clickhouse.has_pending_or_invited_request", return_value=True),
+            patch(
+                "app.v3.services.clickhouse.get_pending_requests",
+                return_value=[
+                    {"requester_key": "bob", "status": "invited", "role": "editor", "requested_at": "2026-01-01"}
+                ],
+            ),
+        ):
             mock_ch.query.side_effect = [
-                MagicMock(result_rows=mock_member),
                 MagicMock(result_rows=mock_group),
             ]
-            with (
-                patch("app.v3.services.clickhouse.has_pending_or_invited_request", return_value=True),
-                patch(
-                    "app.v3.services.clickhouse.get_pending_requests",
-                    return_value=[
-                        {"requester_key": "bob", "status": "invited", "role": "editor", "requested_at": "2026-01-01"}
-                    ],
-                ),
-            ):
-                resp = client.post(
-                    "/v3/groups/requests/join/approve",
-                    json={"token": token, "group_id": "g1", "requester_key": "bob"},
-                )
+            resp = client.post(
+                "/v3/groups/requests/join/approve",
+                json={"token": token, "group_id": "g1", "requester_key": "bob"},
+            )
         assert resp.status_code == 200
         assert resp.json()["status"] == "approved"
         assert resp.json()["role"] == "editor"
 
     def test_approve_no_request(self, client, token):
-        mock_member = [("testuser", "admin", datetime(2026, 1, 1))]
         mock_group = [
             (
                 "g1",
@@ -735,20 +728,21 @@ class TestJoinRequests:
                 datetime(2026, 1, 1),
             )
         ]
-        with patch("app.v3.services.clickhouse.client") as mock_ch:
+        with (
+            patch("app.v3.services.clickhouse.client") as mock_ch,
+            patch("app.v3.services.clickhouse.has_mgmt_permission", return_value=True),
+            patch("app.v3.services.clickhouse.has_pending_or_invited_request", return_value=False),
+        ):
             mock_ch.query.side_effect = [
-                MagicMock(result_rows=mock_member),
                 MagicMock(result_rows=mock_group),
             ]
-            with patch("app.v3.services.clickhouse.has_pending_or_invited_request", return_value=False):
-                resp = client.post(
-                    "/v3/groups/requests/join/approve",
-                    json={"token": token, "group_id": "g1", "requester_key": "bob"},
-                )
+            resp = client.post(
+                "/v3/groups/requests/join/approve",
+                json={"token": token, "group_id": "g1", "requester_key": "bob"},
+            )
         assert resp.status_code == 401
 
     def test_deny_join_request(self, client, token):
-        mock_member = [("testuser", "admin", datetime(2026, 1, 1))]
         mock_group = [
             (
                 "g1",
@@ -759,21 +753,22 @@ class TestJoinRequests:
                 datetime(2026, 1, 1),
             )
         ]
-        with patch("app.v3.services.clickhouse.client") as mock_ch:
+        with (
+            patch("app.v3.services.clickhouse.client") as mock_ch,
+            patch("app.v3.services.clickhouse.has_mgmt_permission", return_value=True),
+            patch("app.v3.services.clickhouse.has_pending_or_invited_request", return_value=True),
+        ):
             mock_ch.query.side_effect = [
-                MagicMock(result_rows=mock_member),
                 MagicMock(result_rows=mock_group),
             ]
-            with patch("app.v3.services.clickhouse.has_pending_or_invited_request", return_value=True):
-                resp = client.post(
-                    "/v3/groups/requests/join/deny",
-                    json={"token": token, "group_id": "g1", "requester_key": "bob"},
-                )
+            resp = client.post(
+                "/v3/groups/requests/join/deny",
+                json={"token": token, "group_id": "g1", "requester_key": "bob"},
+            )
         assert resp.status_code == 200
         assert resp.json()["status"] == "denied"
 
     def test_deny_no_request(self, client, token):
-        mock_member = [("testuser", "admin", datetime(2026, 1, 1))]
         mock_group = [
             (
                 "g1",
@@ -784,22 +779,23 @@ class TestJoinRequests:
                 datetime(2026, 1, 1),
             )
         ]
-        with patch("app.v3.services.clickhouse.client") as mock_ch:
+        with (
+            patch("app.v3.services.clickhouse.client") as mock_ch,
+            patch("app.v3.services.clickhouse.has_mgmt_permission", return_value=True),
+            patch("app.v3.services.clickhouse.has_pending_or_invited_request", return_value=False),
+        ):
             mock_ch.query.side_effect = [
-                MagicMock(result_rows=mock_member),
                 MagicMock(result_rows=mock_group),
             ]
-            with patch("app.v3.services.clickhouse.has_pending_or_invited_request", return_value=False):
-                resp = client.post(
-                    "/v3/groups/requests/join/deny",
-                    json={"token": token, "group_id": "g1", "requester_key": "bob"},
-                )
+            resp = client.post(
+                "/v3/groups/requests/join/deny",
+                json={"token": token, "group_id": "g1", "requester_key": "bob"},
+            )
         assert resp.status_code == 401
 
 
 class TestInviteMember:
     def test_invite(self, client, token):
-        mock_member = [("testuser", "admin", datetime(2026, 1, 1))]
         mock_group = [
             (
                 "g1",
@@ -810,9 +806,11 @@ class TestInviteMember:
                 datetime(2026, 1, 1),
             )
         ]
-        with patch("app.v3.services.clickhouse.client") as mock_ch:
+        with (
+            patch("app.v3.services.clickhouse.client") as mock_ch,
+            patch("app.v3.services.clickhouse.has_mgmt_permission", return_value=True),
+        ):
             mock_ch.query.side_effect = [
-                MagicMock(result_rows=mock_member),
                 MagicMock(result_rows=mock_group),
             ]
             resp = client.post(
@@ -830,13 +828,15 @@ class TestInviteMember:
         assert data["status"] == "invited"
 
     def test_invite_no_permission(self, client, token):
-        mock_member = [("testuser", "member", datetime(2026, 1, 1))]
         mock_group = [
             ("g1", '[{"name":"member","permissions":[]}]', "open", 1, datetime(2026, 1, 1), datetime(2026, 1, 1))
         ]
-        with patch("app.v3.services.clickhouse.client") as mock_ch:
+        with (
+            patch("app.v3.services.clickhouse.client") as mock_ch,
+            # D58: the member role has no management op under the 'group' key.
+            patch("app.v3.services.clickhouse.has_mgmt_permission", return_value=False),
+        ):
             mock_ch.query.side_effect = [
-                MagicMock(result_rows=mock_member),
                 MagicMock(result_rows=mock_group),
             ]
             resp = client.post(
@@ -1768,7 +1768,10 @@ class TestDiscoverBoardAnonRead:
     def test_board_anon_readable(self, client):
         """No token → reads as anon → the discover group's docs come back."""
         mock_docs = [("doc-1", "alice", '{"text":"hello"}', [], datetime(2026, 1, 1), "", "none", "")]
-        with patch("app.v3.services.clickhouse.client") as mock_ch:
+        with (
+            patch("app.v3.services.clickhouse.client") as mock_ch,
+            patch("app.v3.services.clickhouse.readable_groups", side_effect=lambda p, s, a, c: c),
+        ):
             # read_documents_in_groups is a single query
             mock_ch.query.return_value = MagicMock(result_rows=mock_docs)
             resp = client.post(
@@ -1808,6 +1811,7 @@ class TestDiscoverBoardAnonRead:
         only applies to token-less reads."""
         with (
             patch("app.v3.endpoints.documents._check_app_permission"),
+            patch("app.v3.services.clickhouse.readable_groups", side_effect=lambda p, s, a, c: c),
             patch("app.v3.services.clickhouse.read_documents_in_groups", return_value=[]) as mock_read,
             patch("app.v3.services.clickhouse.resolve_media_urls_in_docs", return_value=[]),
         ):
@@ -1930,7 +1934,7 @@ class TestPowerMeanRead:
                 "author_key": "bob",
                 "body": {"text": "x"},
                 "tags": ["t1"],
-                "created_at": str(datetime(2026, 1, 1)),
+                "created_at": "2026-01-01T00:00:00Z",
                 "ref_value": "ref-9",
                 "ad_mode": "none",
                 "ad_target": "",
@@ -1979,6 +1983,7 @@ class TestPowerMeanRead:
         # The /v3/read endpoint forwards the `sort` config to the ranking.
         with (
             patch("app.v3.endpoints.documents._check_app_permission"),
+            patch("app.v3.services.clickhouse.readable_groups", side_effect=lambda p, s, a, c: c),
             patch("app.v3.services.clickhouse.read_documents_in_groups", return_value=[]) as mock_read,
             patch("app.v3.services.clickhouse.resolve_media_urls_in_docs", return_value=[]),
         ):
@@ -2003,10 +2008,14 @@ class TestPowerMeanRead:
 
 class TestGroupModeration:
     """Board moderation as a group op — hide content from a group's discover
-    (KB: groups/overview.md "Moderation"). Gated by `hideAll` OR node admin."""
+    (KB: groups/overview.md "Moderation"). Gated by `hideAll` on the doc's
+    service (D58: a content op) OR node admin."""
+
+    _DOC = {"doc_id": "doc-1", "author_key": "alice", "service": "posts"}
 
     def test_hide(self, client, token):
         with (
+            patch("app.v3.services.clickhouse.get_document_any_author", return_value=self._DOC),
             patch("app.v3.endpoints.groups._require_moderation"),
             patch("app.v3.services.clickhouse.hide_doc_from_group") as mock_hide,
         ):
@@ -2020,6 +2029,7 @@ class TestGroupModeration:
 
     def test_unhide(self, client, token):
         with (
+            patch("app.v3.services.clickhouse.get_document_any_author", return_value=self._DOC),
             patch("app.v3.endpoints.groups._require_moderation"),
             patch("app.v3.services.clickhouse.unhide_doc_from_group") as mock_unhide,
         ):
@@ -2030,7 +2040,7 @@ class TestGroupModeration:
 
     def test_hidden_list(self, client, token):
         with (
-            patch("app.v3.endpoints.groups._require_moderation"),
+            patch("app.v3.endpoints.groups._require_moderation_any"),
             patch(
                 "app.v3.services.clickhouse.get_hidden_docs",
                 return_value=[
@@ -2054,6 +2064,7 @@ class TestGroupModeration:
     def test_hide_requires_moderation(self, client, token):
         """The gate runs before the hide — a non-moderator never reaches it."""
         with (
+            patch("app.v3.services.clickhouse.get_document_any_author", return_value=self._DOC),
             patch(
                 "app.v3.endpoints.groups._require_moderation",
                 side_effect=Exception("NOT_ADMIN"),

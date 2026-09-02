@@ -1,4 +1,5 @@
 import type { V3Document } from './v3';
+import type { KnobState } from '@/lib/powerMean';
 
 // ── V3 document mapping ────────────────────────────────────────────────────
 // The v3 API returns V3Document (doc_id, author_key, collection_name, body,
@@ -177,6 +178,10 @@ export interface ResolvedMediaRef {
   filename?: string | null;
   size_bytes?: number | null;
   read_url?: string | null;
+  width?: number | null;
+  height?: number | null;
+  duration_seconds?: number | null;
+  thumbnail_url?: string | null;
 }
 
 /** The doc_id a media ref addresses — strings are doc_ids, resolved objects carry it. */
@@ -193,6 +198,10 @@ export function fromResolvedMediaRef(r: ResolvedMediaRef): MediaRecord {
     created_at: '',
     mime_type: r.mime_type || undefined,
     size_bytes: r.size_bytes || undefined,
+    width: r.width || undefined,
+    height: r.height || undefined,
+    duration_seconds: r.duration_seconds || undefined,
+    thumbnail_url: r.thumbnail_url || undefined,
   };
 }
 
@@ -390,6 +399,17 @@ export type DiscoverSort = 'recent' | 'trending';
 
 export interface AppSettings {
   defaultVisibility?: 'public' | 'private';
+  /**
+   * Real-time messages (WebRTC P2P). When on, the app opens a P2P peer on
+   * sign-in: messages are delivered instantly over a data channel when both
+   * parties are online, and the user shows as online. When off, no P2P peer
+   * is opened — messages still work via CRUD (poll/read), but there's no
+   * instant nudge and the user shows as offline. Default: on.
+   */
+  p2pEnabled?: boolean;
+  /** The feed's knob tuning (the D36 power-mean state) — persisted so the
+   *  app remembers how the user tuned their feed across sessions/devices. */
+  feedKnobs?: KnobState;
 }
 
 // ── Legacy types (backward compat) ──────────────────────────────────────────

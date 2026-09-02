@@ -37,8 +37,8 @@ const password = 'TestPass123!';
 
 // A followers group: the creator (owner) posts; followers (member) are read-only.
 const FOLLOWERS_ROLES = [
-  { name: 'owner', services: ['*'], permissions: ['readAll', 'create', 'updateOwn', 'updateAll', 'deleteOwn', 'deleteAll', 'hideAll', 'manageRoles', 'assignRoles', 'revokeRoles', 'deleteGroup'] },
-  { name: 'member', services: [SERVICE], permissions: ['readAll'] },
+  { name: 'owner', permissions: { '*': ['readAll', 'create', 'updateOwn', 'updateAll', 'deleteOwn', 'deleteAll', 'hideAll'], 'group': ['manageRoles', 'assignRoles', 'revokeRoles', 'deleteGroup'] } },
+  { name: 'member', permissions: { [SERVICE]: ['readAll'] } },
 ];
 
 async function signupAndLogin(request: APIRequestContext, prefix: string): Promise<{ username: string; token: string }> {

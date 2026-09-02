@@ -2,12 +2,14 @@
 
 Groups are not data containers. They are policy containers — they define who gets what access to content that lives elsewhere. But they're more than that. A group is an **owned audience relationship**. The owner holds the membership list. They can see who's in it, reach out to them, and that relationship belongs to them — not the platform.
 
+> **The model is universal (D60).** Groups, services, and the per-service role model are **platform primitives** — the building blocks of "the everything app of the future," not features of one app. web10-social is the *killer app* built on them; it is not what the model is *for*. Any app can define its own services (`posts`, `notes`, `web10-social-group-identity`, a music app's `playlists`, a shop's `catalog`) and its own roles, and the platform enforces them identically. The protocol never learns an app's specifics — no app-named tables, no app-named endpoints. App concepts live in **app-named services + role grants**; the platform stays one size.
+
 ## What Groups Are
 
 A group is a collection of web10 users operating on data services. It doesn't hold posts, files, or playlists. It holds people and roles. Three things happen when a group exists:
 
-1. **Discovery** — content attached to the group is visible to members. This is how people find creators, and how creators reach their audience.
-2. **Policy** — roles define what each member can do. Service-scoped permissions control access.
+1. **Discovery** — content attached to the group is visible to those whose role grants `readAll` on the service. This is how people find creators, and how creators reach their audience.
+2. **Policy** — roles define what each principal can do. Per-service permission maps control access. The full model is in `access.md`.
 3. **Ownership** — the group owner holds the audience relationship. They can see every member's web10 identity, reach out directly, and that list is theirs.
 
 ```mermaid
@@ -47,7 +49,7 @@ Group "jazz-collectors":
 
 The group owner can query the membership list. They see web10 usernames, emails (if set), phone numbers (if set). They can text a follower, email a fan, message a member — directly, through web10, no platform gatekeeping the relationship. On legacy platforms, your followers are the platform's asset. You can't export them. You can't message them without the platform's permission. Here, the group membership is yours.
 
-**Service-scoped roles.** Each group defines its own roles. Each role lists the services it applies to and the explicit permissions it grants. One group. No parent-child chains. One role per member — if you need different permissions across services, define a richer role name (e.g., `editor` instead of stacking `reader` + `writer`).
+**Per-service roles.** Each group defines its own roles. Each role is a map from service to the explicit permissions it grants — the map *is* the scope. One group. No parent-child chains. One role per person — if a person needs a distinct permission set, define a richer role name (e.g., `editor`), not a stack of roles. The full model (principal classes `anyone`/`authenticated`/`member`, union semantics) is in `access.md`.
 
 **Roles are generic.** There are no predefined roles. A group defines whatever roles make sense for its purpose. A music group might have `curator`, `listener`, and `contributor`. A project group might have `admin`, `reviewer`, and `editor`. A followers group might have `owner` and `member`. The platform doesn't care what you call them or what they do.
 
@@ -60,13 +62,16 @@ The group owner can query the membership list. They see web10 usernames, emails 
   "roles": [
     {
       "name": "curator",
-      "services": ["playlists", "comments"],
-      "permissions": ["readAll", "create", "updateOwn", "deleteOwn", "hideAll"]
+      "permissions": {
+        "playlists": ["readAll", "create", "updateOwn", "deleteOwn", "hideAll"],
+        "comments": ["readAll"]
+      }
     },
     {
       "name": "listener",
-      "services": ["playlists"],
-      "permissions": ["readAll"]
+      "permissions": {
+        "playlists": ["readAll"]
+      }
     }
   ]
 }
@@ -117,7 +122,7 @@ provider-a:
 ```
 
 **Group contract** — People Access (Social). "Who do we want this data to reach?"
-Granular, user-controlled social policy. Roles define access, scoped to services. Content is attached to groups. Members discover it based on their role.
+Granular, user-controlled social policy. Roles are per-service permission maps held by principals (`anyone` / `authenticated` / `member` + named roles). Content is attached to groups. Principals discover it based on their effective role. See `access.md`.
 
 ```
 jazz-collectors → members: alice, dave, eve

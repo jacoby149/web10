@@ -1,6 +1,7 @@
 import { getV3Client } from './v3';
 import { followersGroupId, ensureFollowers } from './groups';
 import { type AppSettings } from './types';
+import { type KnobState } from '@/lib/powerMean';
 export type { AppSettings } from './types';
 
 // ── Settings data layer (v3) ─────────────────────────────────────────────────
@@ -20,7 +21,28 @@ const LOG_ERR = (...args: unknown[]) => console.error('[settings]', ...args);
 
 const defaultSettings: AppSettings = {
   defaultVisibility: 'public',
+  // Real-time (P2P) is on by default — instant delivery + online presence out
+  // of the box. A user opts OUT via the settings toggle.
+  p2pEnabled: true,
 };
+
+const KNOB_KEYS: (keyof KnobState)[] = ['recency', 'likes', 'comments', 'halfLife', 'character'];
+
+/** Validate a persisted knob state — every detent must be an integer 0..5,
+ *  else null (the caller falls back to the default). The settings doc is
+ *  user-owned data; a hand-edited or future-shaped body must not crash the
+ *  feed. */
+export function sanitizeFeedKnobs(raw: unknown): KnobState | null {
+  if (!raw || typeof raw !== 'object') return null;
+  const obj = raw as Record<string, unknown>;
+  const state = {} as KnobState;
+  for (const key of KNOB_KEYS) {
+    const n = obj[key];
+    if (typeof n !== 'number' || !Number.isInteger(n) || n < 0 || n > 5) return null;
+    state[key] = n;
+  }
+  return state;
+}
 
 let cachedSettings: AppSettings | null = null;
 
@@ -43,8 +65,15 @@ export async function readSettings(): Promise<AppSettings> {
     if (docs.length > 0) {
       // Reads are created_at DESC — docs[0] is the latest settings doc.
       const body = docs[0].body as Record<string, unknown>;
+      // feedKnobs stays undefined when absent/invalid — the screen falls
+      // back to its own default (the Newest preset: the feed is
+      // chronological until the user tunes it).
+      const feedKnobs = sanitizeFeedKnobs(body.feedKnobs);
       cachedSettings = {
         defaultVisibility: (body.defaultVisibility as AppSettings['defaultVisibility']) || defaultSettings.defaultVisibility,
+        // Absent field (a doc written before the toggle existed) → default on.
+        p2pEnabled: body.p2pEnabled === undefined ? defaultSettings.p2pEnabled : Boolean(body.p2pEnabled),
+        ...(feedKnobs ? { feedKnobs } : {}),
       };
       LOG('readSettings — resolved:', JSON.stringify(cachedSettings));
       return cachedSettings;
@@ -67,7 +96,13 @@ export async function saveSettings(settings: Partial<AppSettings>): Promise<AppS
 
   const body: Record<string, unknown> = {
     defaultVisibility: merged.defaultVisibility,
+    p2pEnabled: merged.p2pEnabled ?? defaultSettings.p2pEnabled,
   };
+  // Persist the feed tuning when present (a visibility-only save must not
+  // clobber a previously saved knob state — merged carries it forward).
+  if (merged.feedKnobs) {
+    body.feedKnobs = merged.feedKnobs;
+  }
 
   // The settings doc is only readable while attached to a group the user is
   // a member of — ensure the home group exists before writing (a write to a

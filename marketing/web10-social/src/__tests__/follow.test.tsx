@@ -13,6 +13,10 @@ vi.mock('@/data', async (importOriginal) => {
   return {
     ...original,
     readFeed: vi.fn().mockResolvedValue([]),
+    getFeedGroups: vi.fn().mockResolvedValue([]),
+    readFeedEngagement: vi.fn().mockResolvedValue({ likes: {}, comments: {} }),
+    readSettings: vi.fn().mockResolvedValue({ defaultVisibility: 'public' }),
+    saveSettings: vi.fn().mockResolvedValue({ defaultVisibility: 'public' }),
     readPullFeed: vi.fn().mockResolvedValue([]),
     readPost: vi.fn().mockResolvedValue(null),
     countReactions: vi.fn().mockResolvedValue(0),
@@ -431,7 +435,11 @@ describe('FeedScreen author navigation', () => {
     const { default: FeedScreen } = await import('@/components/Feed/FeedScreen');
     const onAuthorClick = vi.fn();
 
-    render(<FeedScreen onAuthorClick={onAuthorClick} />);
+    render(
+      <MemoryRouter>
+        <FeedScreen onAuthorClick={onAuthorClick} />
+      </MemoryRouter>,
+    );
 
     // The component renders without crashing
     await waitFor(() => {
@@ -445,12 +453,73 @@ describe('FeedScreen author navigation', () => {
     // postsMap was set — every card rendered null, a blank feed.
     // v3 stub: verify FeedScreen renders without crashing when profile read fails.
     const { default: FeedScreen } = await import('@/components/Feed/FeedScreen');
-    render(<FeedScreen onAuthorClick={() => {}} />);
+    render(
+      <MemoryRouter>
+        <FeedScreen onAuthorClick={() => {}} />
+      </MemoryRouter>,
+    );
 
     // The component renders without crashing — the empty state is shown
     // when no feed data is available.
     await waitFor(() => {
       expect(screen.getByTestId('feed-empty')).toBeInTheDocument();
+    });
+  });
+});
+
+describe('UserProfileScreen loadData — per-read isolation (one bad read never blanks the screen)', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    (globalThis.fetch as ReturnType<typeof vi.fn>).mockResolvedValue({
+      ok: true,
+      json: () => [],
+    });
+  });
+
+  it('a followers-group 401 on countFollows degrades the tile, not the screen', async () => {
+    // Regression (dev node, 30.08.2026): the owner path was one Promise.all —
+    // a members/list 401 (the user not a member of their own followers group,
+    // the pre-3.28.1 phantom-member state) rejected the whole loadData and the
+    // profile rendered half-dead ("Failed to load user profile" with the
+    // username fallback + zeroed stats). Now each read is isolated: the bad
+    // read degrades its own tile, the rest of the screen renders.
+    const { countFollows } = await import('@/data');
+    vi.mocked(countFollows).mockRejectedValue(new Error('Request failed: 401'));
+    const { default: UserProfileScreen } = await import('@/components/Bio/UserProfileScreen');
+
+    render(
+      <MemoryRouter>
+        <UserProfileScreen username="testuser" provider="test.localhost" />
+      </MemoryRouter>,
+    );
+
+    // The profile still renders (display name from readProfile).
+    await waitFor(() => {
+      expect(screen.getByText('Me')).toBeInTheDocument();
+    });
+    // The Following tile shows the error state (—), not a crash/blank.
+    await waitFor(() => {
+      expect(screen.getByText('—')).toBeInTheDocument();
+    });
+  });
+
+  it('a readMyPosts failure degrades the grid, not the profile', async () => {
+    const { readMyPosts } = await import('@/data');
+    vi.mocked(readMyPosts).mockRejectedValue(new Error('Request failed: 403'));
+    const { default: UserProfileScreen } = await import('@/components/Bio/UserProfileScreen');
+
+    render(
+      <MemoryRouter>
+        <UserProfileScreen username="testuser" provider="test.localhost" />
+      </MemoryRouter>,
+    );
+
+    // Profile renders; the posts grid shows the empty state.
+    await waitFor(() => {
+      expect(screen.getByText('Me')).toBeInTheDocument();
+    });
+    await waitFor(() => {
+      expect(screen.getByTestId('profile-posts-empty')).toBeInTheDocument();
     });
   });
 });
