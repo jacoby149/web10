@@ -15,7 +15,7 @@ Type something...
 📷 Add media    👥 Pick groups
 
 Groups:
-  [web10.app/groups/web10/discover] ✓
+  [{provider}/groups/web10/discover] ✓
   [web10.app/groups/jacoby149/followers] ✓
   [web10.app/groups/jacoby149/close-friends]
   [web10.app/groups/charlie/st-louis-chess-club] ✓
@@ -45,7 +45,7 @@ Three-step upload: request presigned URL, upload to MinIO, confirm. The convenie
 ```ts
 const groups = await w.getGroups({ member: 'jacoby149' })
 // → [
-//    { group_id: 'web10.app/groups/web10/discover', name: 'Discover', ... },
+//    { group_id: '{provider}/groups/web10/discover', name: 'Discover', ... },
 //    { group_id: 'web10.app/groups/jacoby149/followers', name: 'Followers', ... },
 //    { group_id: 'web10.app/groups/jacoby149/close-friends', name: 'Close Friends', ... },
 //    { group_id: 'web10.app/groups/charlie/st-louis-chess-club', name: 'Chess Club', ... },
@@ -62,7 +62,7 @@ const doc = await w.create('posts', {
   media: [{ type: 'minio', value: 'jacoby149/media/img-abc.jpg' }],
 }, {
   groups: [
-    'web10.app/groups/web10/discover',
+    '{provider}/groups/web10/discover',
     'web10.app/groups/jacoby149/followers',
     'web10.app/groups/charlie/st-louis-chess-club',
   ],

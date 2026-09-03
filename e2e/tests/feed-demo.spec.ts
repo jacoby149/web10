@@ -29,7 +29,7 @@ const PROVIDER = 'api.localhost';
 const SERVICE = 'posts';
 // The node-default discover group — a well-known constant, created at boot,
 // every user (and anon) auto-joined. Not per-user, not app-created.
-const DISCOVER_GROUP_ID = 'web10.app/groups/web10/discover';
+const DISCOVER_GROUP_ID = `${PROVIDER}/groups/web10/discover`;
 const ORIGIN = MARKETING_BASE;
 
 const uniqueUser = (prefix: string) => `${prefix}${Date.now()}-${Math.random().toString(36).slice(2, 6)}`;

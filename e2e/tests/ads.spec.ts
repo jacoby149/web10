@@ -28,7 +28,7 @@ const p = port === '80' ? '' : `:${port}`;
 const SOCIAL_BASE = `http://social.localhost${p}`;
 const AUTH_BASE = `http://auth.localhost${p}`;
 const SOCIAL_ORIGIN = `http://social.localhost${p}`;
-const DISCOVER_GROUP_ID = 'web10.app/groups/web10/discover';
+const DISCOVER_GROUP_ID = 'api.localhost/groups/web10/discover';
 const SERVICE = 'posts';
 
 // Chromium ignores /etc/hosts (it queries the container's DNS, which answers

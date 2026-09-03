@@ -29,7 +29,7 @@ const mockI = {
 // (author_key / doc_id / body.text) — ConfigPage maps them to its BoardPost
 // shape. Removed posts come from /v3/groups/hidden (the discover group's
 // hidden-doc list). Remove/restore are /v3/groups/hide and /v3/groups/unhide.
-const DISCOVER_GROUP = 'web10.app/groups/web10/discover'
+const DISCOVER_GROUP = 'api.localhost/groups/web10/discover'
 
 const BOARD_DOC = {
   author_key: 'alice',

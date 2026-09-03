@@ -1,4 +1,5 @@
 import { getV3Client } from './v3';
+import { getDiscoverGroupId } from './groups';
 import { fromV3DocToReaction, type ReactionRecord } from './types';
 
 // ── Reactions data layer (v3) ────────────────────────────────────────────────
@@ -18,7 +19,7 @@ export async function readReactions(
 ): Promise<ReactionRecord[]> {
   const actualTargetId = targetId || targetServiceOrId;
   const w = getV3Client();
-  const targetGroups = groups || ['web10.app/groups/web10/discover'];
+  const targetGroups = groups || [getDiscoverGroupId()];
   const docs = await w.read('reactions', { groups: targetGroups });
   return docs
     .filter((d) => d.ref_value === actualTargetId)
@@ -48,7 +49,7 @@ export async function createReaction(
     author_provider: token.provider,
   };
 
-  const targetGroups = Array.isArray(groupsOrPostAuthor) ? groupsOrPostAuthor : ['web10.app/groups/web10/discover'];
+  const targetGroups = Array.isArray(groupsOrPostAuthor) ? groupsOrPostAuthor : [getDiscoverGroupId()];
   const doc = await w.create('reactions', body, { groups: targetGroups });
   doc.ref_value = reaction.target_id;
   return fromV3DocToReaction(doc);

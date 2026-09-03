@@ -110,7 +110,7 @@ Unfollow is leaving the group. No separate follows table.
 The public board is a group everyone belongs to. Posts attached to it are public.
 
 ```
-web10.app/groups/web10/discover → join_policy: "open"
+{provider}/groups/web10/discover → join_policy: "open"
   → auto-enrollment on signup
   → anyone can read, you can post to it
 ```

@@ -162,7 +162,7 @@ const doc = await w.create('posts', {
 }, {
   // Metadata — API validates membership + permissions
   groups: [
-    'web10.app/groups/web10/discover',
+    '{provider}/groups/web10/discover',
     'web10.app/groups/jacoby149/followers',
   ],
 })
@@ -201,7 +201,7 @@ The API knows `me` means "documents where `author_key = :user`". No group join. 
 ```ts
 // Discover — public board
 const posts = await w.read('posts', {
-  groups: ['web10.app/groups/web10/discover'],
+  groups: ['{provider}/groups/web10/discover'],
   $sort: { created_at: -1 },
   $limit: 50,
 })
@@ -214,7 +214,7 @@ The API translates `groups` into a join against `doc_groups` → `group_members`
 ```ts
 const posts = await w.read('posts', {
   groups: [
-    'web10.app/groups/web10/discover',
+    '{provider}/groups/web10/discover',
     'web10.app/groups/alice/followers',
     'web10.app/groups/charlie/st-louis-chess-club',
   ],
@@ -287,7 +287,7 @@ Same separation. Body changes in the first arg. Group changes in the options:
 await w.update('posts', { _id: 'doc-123' }, {
   $set: { text: { type: 'text', value: 'updated content' } },
 }, {
-  $groups: ['web10.app/groups/web10/discover'],
+  $groups: ['{provider}/groups/web10/discover'],
 })
 ```
 
@@ -441,7 +441,7 @@ Group management permissions are separate from content permissions:
 // All groups the user belongs to (full details)
 const groups = await w.getGroups({ member: 'jacoby149' })
 // → [
-//    { group_id: 'web10.app/groups/web10/discover', name: 'Discover', join_policy: 'open', member_count: 1200000, my_role: null },
+//    { group_id: '{provider}/groups/web10/discover', name: 'Discover', join_policy: 'open', member_count: 1200000, my_role: null },
 //    { group_id: 'web10.app/groups/jacoby149/followers', name: 'Followers', join_policy: 'open', member_count: 342, my_role: 'admin' },
 //    { group_id: 'web10.app/groups/jacoby149/close-friends', name: 'Close Friends', join_policy: 'invite_only', member_count: 12, my_role: 'admin' },
 //    { group_id: 'web10.app/groups/charlie/st-louis-chess-club', name: 'St. Louis Chess Club', join_policy: 'invite_only', member_count: 47, my_role: 'member' }

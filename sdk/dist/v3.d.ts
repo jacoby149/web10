@@ -15,7 +15,7 @@
  * await w.login('alice', 'password')
  *
  * // CRUD with groups
- * const doc = await w.create('posts', { text: 'hello' }, { groups: ['web10.app/groups/web10/discover'] })
+ * const doc = await w.create('posts', { text: 'hello' }, { groups: ['{provider}/groups/web10/discover'] })
  * const posts = await w.read('posts', { groups: ['me'] })
  *
  * // Service contracts
