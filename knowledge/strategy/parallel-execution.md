@@ -300,6 +300,8 @@ were never built (the changelog's "the API is 3.37.0" was wrong).
 - [✓ 3.51.0] Node config flag: `require_contact` (D10) + enforced in `POST /v3/signup` (401 `CONTACT_REQUIRED`)
 - [✓ 3.51.0] Tests: `api/tests/test_recovery.py` (request/verify/complete, contact mismatch, bad code, node-config gate)
 - [✓ 3.51.0] UI: the contact input (phone OR email) + verify_token plumbing + "create a new account" option + primary-sign-in routing
+- [✓ 3.51.1] Refinement: the recovery send drops the username (the message is the console-configured Twilio Verify template — a username-less "your code is {{code}}, if you didn't request this ignore it"); `send_verification` no longer takes a username
+- [ ] E2E: the contact-anchored auth gauntlet (`e2e/tests/recovery.spec.ts`) — phone + email paths, create-on-complete, password-change, the anti-tests (contact mismatch, bad/expired/wrong-purpose verify_token, send rate-limit)
 
 ### Lane: ads (monetization)
 **Owns:** `ui/src/components/Studio/`, `api/app/v3/services/clickhouse.py` + `api/app/v3/endpoints/documents.py` + `api/tests/test_ads.py`, `e2e/tests/ads.spec.ts`, `marketing/web10-social/src/components/Feed/PostComposer.tsx` + the ad block

@@ -128,7 +128,7 @@ def request_code(data: RecoveryRequest):
     _check_send_rate_limit(data.contact)
     from app.services import twilio as mobile
 
-    mobile.send_verification(data.contact.strip(), "")
+    mobile.send_verification(data.contact.strip())
     return {"sent": True, "kind": kind}
 
 

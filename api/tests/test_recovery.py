@@ -73,14 +73,14 @@ class TestRequest:
             resp = client.post("/v3/recovery/request", json={"contact": "+15551234567"})
         assert resp.status_code == 200
         assert resp.json() == {"sent": True, "kind": "phone"}
-        m.assert_called_once_with("+15551234567", "")
+        m.assert_called_once_with("+15551234567")
 
     def test_request_email_sends_code(self, client):
         with patch("app.services.twilio.send_verification", return_value="VA123") as m:
             resp = client.post("/v3/recovery/request", json={"contact": "user@example.com"})
         assert resp.status_code == 200
         assert resp.json() == {"sent": True, "kind": "email"}
-        m.assert_called_once_with("user@example.com", "")
+        m.assert_called_once_with("user@example.com")
 
     def test_request_bad_contact(self, client):
         resp = client.post("/v3/recovery/request", json={"contact": "nope"})
