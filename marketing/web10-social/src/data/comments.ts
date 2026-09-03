@@ -1,4 +1,5 @@
 import { getV3Client } from './v3';
+import { getDiscoverGroupId } from './groups';
 import { fromV3DocToComment, type CommentRecord } from './types';
 
 // ── Comments data layer (v3) ─────────────────────────────────────────────────
@@ -11,7 +12,7 @@ import { fromV3DocToComment, type CommentRecord } from './types';
  */
 export async function readComments(postId: string, groups?: string[]): Promise<CommentRecord[]> {
   const w = getV3Client();
-  const targetGroups = groups || ['web10.app/groups/web10/discover'];
+  const targetGroups = groups || [getDiscoverGroupId()];
   const docs = await w.read('comments', { groups: targetGroups });
   return docs
     .filter((d) => d.ref_value === postId)
@@ -31,7 +32,7 @@ export async function readTopLevelComments(postId: string, groups?: string[]): P
  */
 export async function readReplies(commentId: string, groups?: string[]): Promise<CommentRecord[]> {
   const w = getV3Client();
-  const targetGroups = groups || ['web10.app/groups/web10/discover'];
+  const targetGroups = groups || [getDiscoverGroupId()];
   const docs = await w.read('comments', { groups: targetGroups });
   return docs
     .filter((d) => d.ref_value === commentId)
@@ -64,7 +65,7 @@ export async function createComment(
     origin_id: comment.origin_id,
   };
 
-  const targetGroups = groups || ['web10.app/groups/web10/discover'];
+  const targetGroups = groups || [getDiscoverGroupId()];
   const doc = await w.create('comments', body, { groups: targetGroups });
   // Set ref_value on the document body for the ref pattern
   doc.ref_value = comment.post_id;

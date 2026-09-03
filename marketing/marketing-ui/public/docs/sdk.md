@@ -22,7 +22,7 @@ const post = await w.create('posts', {
 }, {
   groups: [
     'web10.app/groups/alice/followers',
-    'web10.app/groups/web10/discover',
+    '{provider}/groups/web10/discover',
   ],
 })
 
@@ -31,7 +31,7 @@ const myPosts = await w.read('posts', { groups: ['me'] })
 
 // Read the discover board (public posts)
 const feed = await w.read('posts', {
-  groups: ['web10.app/groups/web10/discover'],
+  groups: ['{provider}/groups/web10/discover'],
   $sort: { created_at: -1 },
   $limit: 50,
 })
@@ -138,7 +138,7 @@ const doc = await w.create('posts', {
   media: [{ type: 'minio', value: 'alice/media/img-abc.jpg' }],
 }, {
   groups: [
-    'web10.app/groups/web10/discover',       // public
+    '{provider}/groups/web10/discover',       // public
     'web10.app/groups/alice/followers',       // followers
     'web10.app/groups/alice/close-friends',   // close friends
   ],
@@ -169,7 +169,7 @@ const myPosts = await w.read('posts', {
 
 ```ts
 const posts = await w.read('posts', {
-  groups: ['web10.app/groups/web10/discover'],
+  groups: ['{provider}/groups/web10/discover'],
   $sort: { created_at: -1 },
   $limit: 50,
 })
@@ -180,7 +180,7 @@ const posts = await w.read('posts', {
 ```ts
 const posts = await w.read('posts', {
   groups: [
-    'web10.app/groups/web10/discover',
+    '{provider}/groups/web10/discover',
     'web10.app/groups/alice/followers',
     'web10.app/groups/charlie/chess-club',
   ],
@@ -193,7 +193,7 @@ const posts = await w.read('posts', {
 
 ```ts
 const posts = await w.read('posts', {
-  groups: ['web10.app/groups/web10/discover'],
+  groups: ['{provider}/groups/web10/discover'],
   $match: {
     author_key: 'alice',
     tags: ['jazz'],
@@ -214,7 +214,7 @@ const posts = await w.read('posts', {
 await w.update('posts', { _id: 'doc-123' }, {
   $set: { text: { type: 'text', value: 'updated content' } },
 }, {
-  $groups: ['web10.app/groups/web10/discover'],  // replace group attachments
+  $groups: ['{provider}/groups/web10/discover'],  // replace group attachments
 })
 ```
 

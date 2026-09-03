@@ -35,12 +35,16 @@ const followBtn = document.getElementById('followBtn')
 
 let ME = null // { username, provider } — set in initApp
 
-// The discover group is a NODE DEFAULT (KB: social-contracts.md §1): a
-// well-known constant, created at boot, with every user (and anon) auto-
-// joined. There is no per-user discover group and no setup step — the board
-// just exists, and you're already a member. A post is public when its author
-// attaches it here.
-const DISCOVER_GROUP_ID = 'web10.app/groups/web10/discover'
+// The discover group is provider-derived (KB: social-contracts.md §1):
+// `{provider}/groups/web10/discover`, where `{provider}` is the node's
+// configured PROVIDER (its API host) — so each node's board has a unique
+// global id. It's a NODE DEFAULT: created at boot, with every user (and
+// anon) auto-joined. There is no per-user discover group and no setup step —
+// the board just exists, and you're already a member. A post is public when
+// its author attaches it here.
+function discoverGroupId() {
+  return `${ME.provider}/groups/web10/discover`
+}
 
 // A creator's followers group — "following" is just joining this open group.
 function followersGroupId(creator) {
@@ -148,9 +152,9 @@ async function postToDiscover() {
     return
   }
   const body = { text, date: new Date().toISOString() }
-  LOG('postToDiscover — body:', JSON.stringify(body), 'group:', DISCOVER_GROUP_ID)
+  LOG('postToDiscover — body:', JSON.stringify(body), 'group:', discoverGroupId())
   try {
-    const result = await w.create(SERVICE, body, { groups: [DISCOVER_GROUP_ID] })
+    const result = await w.create(SERVICE, body, { groups: [discoverGroupId()] })
     LOG('postToDiscover — success, doc_id:', result.doc_id)
     postText.value = ''
     loadFeed()
@@ -185,7 +189,7 @@ async function loadFeed() {
 
   // The discover group is always present (node default) — the feed is at least
   // the public board, plus every followed followers group.
-  const groups = [DISCOVER_GROUP_ID, ...followersGroups]
+  const groups = [discoverGroupId(), ...followersGroups]
   LOG('loadFeed — reading groups:', JSON.stringify(groups))
 
   try {

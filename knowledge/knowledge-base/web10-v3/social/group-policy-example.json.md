@@ -65,11 +65,11 @@ Groups are collections of web10 users operating on data services. Roles define a
 
 ## Example 2: Discover (Default)
 
-The public board. Everyone is a member by default. Replaces the `discover: true` boolean entirely.
+The public board. Everyone is a member by default. Replaces the `discover: true` boolean entirely. The board's id is provider-derived — `{provider}` is the node's configured `PROVIDER` (its API host), so each node's board has a unique global id.
 
 ```json
 {
-  "group_id": "web10.app/groups/web10/discover",
+  "group_id": "{provider}/groups/web10/discover",
   "join_policy": "open",
   "roles": [
     {

@@ -6,11 +6,13 @@ This doc maps every group contract the social app creates. Each entry is the exa
 
 | Use Case | Group ID | Join Policy | Default Role | Owner | Members |
 |---|---|---|---|---|---|
-| Discover (public board) | `web10.app/groups/web10/discover` | `open` | `member` | System | Everyone (auto-join) |
+| Discover (public board) | `{provider}/groups/web10/discover` | `open` | `member` | System | Everyone (auto-join) |
 | Followers | `web10.app/groups/{username}/followers` | `open` or `request` | `member` | `{username}` | Followers |
 | Close Friends | `web10.app/groups/{username}/close-friends` | `request` | `member` | `{username}` | Approved friends |
 | Community | `web10.app/groups/{owner}/{name}` | `open`, `request`, or `invite_only` | `member` | `{owner}` | Community members |
 | DM | `web10.app/groups/{first}/dm-{second}` | `invite_only` | `member` | None | Two participants |
+
+`{provider}` is the node's configured `PROVIDER` (its API host, e.g. `api.web10.app`) — the discover board is provider-derived so each node's board has a unique global id (federation-clean). The `web10.app` prefix on the user-group rows is shorthand for the same provider.
 
 ## Default Role
 
@@ -44,11 +46,13 @@ The public board. Every post attached here is visible to everyone. This is a
 (`ensure_discover_group()`) and grants the `anyone` principal a read role —
 that is what makes the board publicly readable (the marketing trending page,
 any public surface). Discovery IS a group read — there is no separate
-discover endpoint.
+discover endpoint. The board's id is **provider-derived**
+(`{provider}/groups/web10/discover`, provider = the node's configured
+`PROVIDER`), so each node's board has a unique global id.
 
 ```json
 {
-  "group_id": "web10.app/groups/web10/discover",
+  "group_id": "{provider}/groups/web10/discover",
   "join_policy": "open",
   "roles": [
     {

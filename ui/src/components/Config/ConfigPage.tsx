@@ -69,8 +69,11 @@ interface BoardPost {
 }
 
 // The node-default universal public board (matches the API's DISCOVER_GROUP_ID).
+// Provider-derived — the provider is the node's (the admin token's provider).
 // The board is a group read; moderation is a group op on this group.
-const DISCOVER_GROUP = "web10.app/groups/web10/discover";
+function discoverGroup(provider: string): string {
+  return `${provider}/groups/web10/discover`;
+}
 
 interface ModFlag {
   username: string;
@@ -159,7 +162,7 @@ function ConfigPage({ I }: { I: Record<string, any> }) {
       // Discovery IS a group read — there is no separate discover endpoint.
       const resp = await nodePost("/v3/read", {
         service: "posts",
-        groups: [DISCOVER_GROUP],
+        groups: [discoverGroup(I.v3.readToken().provider)],
         limit: 50,
       });
       setBoard((resp.data ?? []).map((d: any) => ({
@@ -183,7 +186,7 @@ function ConfigPage({ I }: { I: Record<string, any> }) {
       // discover group (the public board).
       const resp = await nodePost("/v3/groups/hidden", {
         token: I.v3.state.token,
-        group_id: DISCOVER_GROUP,
+        group_id: discoverGroup(I.v3.readToken().provider),
       });
       const hidden: any[] = resp.data?.hidden ?? [];
       setRemovedPosts(hidden.map((d: any) => ({
@@ -208,7 +211,7 @@ function ConfigPage({ I }: { I: Record<string, any> }) {
     try {
       await nodePost("/v3/groups/hide", {
         token: I.v3.state.token,
-        group_id: DISCOVER_GROUP,
+        group_id: discoverGroup(I.v3.readToken().provider),
         doc_id: post.post_id,
         reason: removeReason.trim(),
       });
@@ -229,7 +232,7 @@ function ConfigPage({ I }: { I: Record<string, any> }) {
     try {
       await nodePost("/v3/groups/unhide", {
         token: I.v3.state.token,
-        group_id: DISCOVER_GROUP,
+        group_id: discoverGroup(I.v3.readToken().provider),
         doc_id: post.post_id,
       });
       setRemovedPosts(prev => prev.filter(p => p.post_id !== post.post_id));

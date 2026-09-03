@@ -48,6 +48,12 @@ export interface SuggestedUser {
  */
 export async function fetchSuggestedUsers(limit = 20): Promise<SuggestedUser[]> {
   const w = getV3Client();
+  // Suggested users are authors of posts on THIS node's discover group, so they
+  // share the current user's provider (the node identity, e.g. api.web10.app).
+  // The profile route uses this to derive the followers group_id for follow —
+  // a wrong provider here 404s the follow (the group is looked up by
+  // {provider}/groups/users/{username}/followers).
+  const provider = w.readToken()?.provider || '';
   try {
     const groups = await getMyGroups();
     const followedUsernames = new Set(
@@ -85,7 +91,7 @@ export async function fetchSuggestedUsers(limit = 20): Promise<SuggestedUser[]> 
 
       suggested.push({
         username,
-        provider: 'web10',
+        provider,
         display_name: profile?.display_name || username,
         bio: profile?.bio,
         avatar_ref: profile?.avatar_ref,

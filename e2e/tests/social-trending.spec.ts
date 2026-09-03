@@ -30,7 +30,7 @@ const port = process.env.E2E_HTTP_PORT || '80';
 const p = port === '80' ? '' : `:${port}`;
 const SOCIAL_BASE = `http://social.localhost${p}`;
 const PROVIDER = 'api.localhost';
-const DISCOVER_GROUP_ID = 'web10.app/groups/web10/discover';
+const DISCOVER_GROUP_ID = `${PROVIDER}/groups/web10/discover`;
 const SERVICE = 'posts';
 
 // Mirror of SOCIAL_SERVICES / SOCIAL_OPERATIONS in
