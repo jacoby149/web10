@@ -38,3 +38,20 @@ class VerifyCode(BaseModel):
 class SetRecoveryPhone(BaseModel):
     token: str
     phone: str
+
+
+class RecoveryRequest(BaseModel):
+    phone: str
+
+
+class RecoveryVerify(BaseModel):
+    phone: str
+    code: str
+
+
+class RecoveryComplete(BaseModel):
+    phone: str
+    code: str
+    username: str
+    new_password: str | None = None
+    site: str | None = None

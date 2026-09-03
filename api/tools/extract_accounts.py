@@ -126,7 +126,7 @@ def _sha256_of_rows(rows):
 def build_manifest(rows, uri, db_name):
     """Assemble the manifest envelope around the extracted rows."""
     return {
-        "extracted_at": datetime.now(timezone.utc).isoformat(),
+        "extracted_at": datetime.now(timezone.utc).isoformat(),  # noqa: UP017 — box is Python 3.10 (no datetime.UTC); API is 3.12
         "source": {"uri": uri, "db": db_name},
         "count": len(rows),
         "sha256": _sha256_of_rows(rows),

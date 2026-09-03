@@ -1,6 +1,7 @@
 import json
 import logging
 import math
+import re
 import threading
 import time
 import uuid
@@ -2535,7 +2536,17 @@ def get_node_stats() -> dict:
     """Node-level stats (D49): user/doc/group counts, storage, the approved-
     app count, and the node-wide active-user set (the store's metric, macro).
     The per-app array moved to list_store_apps (paginated)."""
-    user_result = client.query("SELECT count(DISTINCT author_key) FROM documents WHERE deleted = 0")
+    # Count ACCOUNTS (the users table), not content authors. A user can
+    # legitimately have zero documents (fresh signup, or post-migration before
+    # content is ported) — counting document authors under-reports the real
+    # account count (the v2→v3 cutover migrated logins, not content). Dedup to
+    # the latest row per username (ReplacingMergeTree) so pre-merge duplicates
+    # don't inflate the count.
+    user_result = client.query(
+        "SELECT count() FROM (SELECT username, deleted, "
+        "row_number() OVER (PARTITION BY username ORDER BY updated_at DESC, deleted DESC) AS rn "
+        "FROM users) WHERE rn = 1 AND deleted = 0"
+    )
     user_count = user_result.result_rows[0][0] if user_result.result_rows else 0
     doc_result = client.query("SELECT count() FROM documents WHERE deleted = 0")
     doc_count = doc_result.result_rows[0][0] if doc_result.result_rows else 0
@@ -2828,6 +2839,39 @@ def get_phone_record(phone_number: str) -> dict | None:
         return None
     row = result.result_rows[0]
     return {"username": row[0], "phone": row[1]}
+
+
+def get_users_by_phone(phone_number: str) -> list[dict]:
+    """Find ALL users whose phone matches (for recovery — a phone can back several accounts).
+
+    The plural of get_phone_record. The stored phone format varies (with/without
+    a leading +, spaces, dashes), so both sides are normalized to digits before
+    comparing (replaceRegexpAll strips non-digits in SQL). Deduped to the latest
+    row per username first (the ReplacingMergeTree pattern) so a stale row from a
+    changed phone can't resurrect an old number.
+    """
+    digits = re.sub(r"\D", "", phone_number or "")
+    if not digits:
+        return []
+    result = client.query(
+        "SELECT username, phone, phone_verified, email FROM ("
+        "SELECT username, phone, phone_verified, email, deleted, "
+        "row_number() OVER (PARTITION BY username ORDER BY updated_at DESC, deleted DESC) AS rn "
+        "FROM users) "
+        "WHERE rn = 1 AND deleted = 0 "
+        "AND replaceRegexpAll(phone, '[^0-9]', '') = %(digits)s "
+        "ORDER BY username",
+        {"digits": digits},
+    )
+    return [
+        {
+            "username": row[0],
+            "phone": row[1],
+            "phone_verified": bool(row[2]),
+            "email": row[3],
+        }
+        for row in result.result_rows
+    ]
 
 
 # ---------------------------------------------------------------------------
