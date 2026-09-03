@@ -45,9 +45,13 @@ export function followersGroupId(username: string, provider?: string): string {
 
 /**
  * Get the close-friends group ID for a user.
+ *
+ * Same derivation as the followers group (a user-created group under the
+ * token's provider): `{provider}/groups/users/{username}/close-friends`.
  */
-export function closeFriendsGroupId(username: string): string {
-  return `web10.app/groups/${username}/close-friends`;
+export function closeFriendsGroupId(username: string, provider?: string): string {
+  const p = provider || currentProvider();
+  return `${p}/groups/users/${username}/close-friends`;
 }
 
 /**
@@ -186,10 +190,10 @@ export async function ensureCloseFriends(username: string): Promise<string> {
     return group.group_id;
   } catch {
     await w.createGroup(
-      `${username}/close-friends`,
+      'close-friends',
       'request',
       CLOSE_FRIENDS_ROLES,
-      [{ member_key: `web10.app/users/${username}`, role: 'owner' }],
+      [{ member_key: username, role: 'owner' }],
     );
     return groupId;
   }
