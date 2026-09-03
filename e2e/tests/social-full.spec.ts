@@ -12,7 +12,10 @@ const uniqueUser = () => `socialtest${Date.now()}`;
 // can lose the merge race). Retry to ride it out — same pattern as the
 // signup/login retry. Returns the first OK response, or the last response
 // (so the caller's assertion fails with the real status).
-async function createWithRetry(request: any, payload: Record<string, unknown>) {
+//
+// [llm-debug] every failed attempt logs its status + body so a red run is
+// self-explanatory (the seam: what actually crossed the wire).
+async function createWithRetry(request: any, payload: Record<string, unknown>, label: string) {
   let res: any = null;
   for (let attempt = 0; attempt < 5; attempt++) {
     res = await request.post(`${API_BASE}/v3/create`, {
@@ -20,8 +23,21 @@ async function createWithRetry(request: any, payload: Record<string, unknown>) {
       headers: { 'Content-Type': 'application/json' },
     });
     if (res.ok()) return res;
+    const body = await res.text().catch(() => '');
+    console.log(`[llm-debug] ${label} attempt ${attempt + 1}/5 -> ${res.status()} ${body.slice(0, 300)}`);
     await new Promise((r) => setTimeout(r, 500));
   }
+  return res;
+}
+
+// Assert a response is OK, embedding its status + body in the failure message
+// so a red run shows exactly what the API returned (not just "falsy").
+async function expectOk(res: any, label: string) {
+  const body = await res.text().catch(() => '');
+  expect(
+    res.ok(),
+    `${label} -> status=${res.status()} body=${body.slice(0, 500)}`,
+  ).toBeTruthy();
   return res;
 }
 
@@ -43,6 +59,8 @@ test.describe('social post with media -> feed -> comment -> DM', () => {
     // both to ride it out — the CI serial run is stable, but the parallel/
     // shared run needs this (same pattern as the other social specs).
     let signupOk = false;
+    let signupStatus = 0;
+    let signupBody = '';
     for (let attempt = 0; attempt < 5 && !signupOk; attempt++) {
       const signupRes = await request.post(`${API_BASE}/v3/signup`, {
         data: JSON.stringify({ username, password, phone }),
@@ -51,22 +69,30 @@ test.describe('social post with media -> feed -> comment -> DM', () => {
       if (signupRes.ok()) {
         signupOk = true;
       } else {
+        signupStatus = signupRes.status();
+        signupBody = await signupRes.text().catch(() => '');
+        console.log(`[llm-debug] signup attempt ${attempt + 1}/5 -> ${signupStatus} ${signupBody.slice(0, 300)}`);
         await new Promise((r) => setTimeout(r, 500));
       }
     }
-    expect(signupOk, `signup failed for ${username}`).toBeTruthy();
+    expect(signupOk, `signup failed for ${username} -> status=${signupStatus} body=${signupBody.slice(0, 500)}`).toBeTruthy();
 
     // Owner token: no site/target → self-access. Retry on the transient race.
     let tokenRes = null;
+    let loginStatus = 0;
+    let loginBody = '';
     for (let attempt = 0; attempt < 5; attempt++) {
       tokenRes = await request.post(`${API_BASE}/v3/login`, {
         data: JSON.stringify({ username, password }),
         headers: { 'Content-Type': 'application/json' },
       });
       if (tokenRes.ok()) break;
+      loginStatus = tokenRes.status();
+      loginBody = await tokenRes.text().catch(() => '');
+      console.log(`[llm-debug] login attempt ${attempt + 1}/5 -> ${loginStatus} ${loginBody.slice(0, 300)}`);
       await new Promise((r) => setTimeout(r, 500));
     }
-    expect(tokenRes.ok()).toBeTruthy();
+    expect(tokenRes.ok(), `login failed -> status=${loginStatus} body=${loginBody.slice(0, 500)}`).toBeTruthy();
     const body = await tokenRes.json();
     token = body.token;
   });
@@ -81,12 +107,16 @@ test.describe('social post with media -> feed -> comment -> DM', () => {
     // ref_value = the post's doc_id, and the read (filtered by ref_value) finds
     // it. Before the fix, ref_value was set client-side only, the server stored
     // '', and the ref filter never matched — the comment was orphaned.
-    const DISCOVER = 'web10.app/groups/web10/discover';
+    // Provider-derived discover group (ffcd5876): e2e's PROVIDER is
+    // api.localhost, so the real discover board is api.localhost/groups/...
+    // (not the production web10.app/... ID). The wrong ID fails the D58 write
+    // gate (can_write_group) with a 403 — the group doesn't exist in e2e.
+    const DISCOVER = 'api.localhost/groups/web10/discover';
 
     const postRes = await createWithRetry(request, {
       token, service: 'posts', body: { text: 'ref test post' }, groups: [DISCOVER],
-    });
-    expect(postRes.ok()).toBeTruthy();
+    }, 'create post (comment test)');
+    await expectOk(postRes, 'create post (comment test)');
     const post = await postRes.json();
     const postId: string = post.doc_id;
     expect(postId).toBeTruthy();
@@ -97,8 +127,8 @@ test.describe('social post with media -> feed -> comment -> DM', () => {
       body: { text: 'ref test comment', post_id: postId },
       groups: [DISCOVER],
       ref_value: postId,
-    });
-    expect(commentRes.ok()).toBeTruthy();
+    }, 'create comment');
+    await expectOk(commentRes, 'create comment');
     const comment = await commentRes.json();
     // The server persisted ref_value (not '').
     expect(comment.ref_value).toBe(postId);
@@ -116,12 +146,16 @@ test.describe('social post with media -> feed -> comment -> DM', () => {
   test('create post -> create reaction -> read reaction back by ref_value', async ({ request }) => {
     // Same ref round-trip for reactions: a like is created with ref_value = the
     // post's doc_id, and the read (filtered by ref_value) finds it.
-    const DISCOVER = 'web10.app/groups/web10/discover';
+    // Provider-derived discover group (ffcd5876): e2e's PROVIDER is
+    // api.localhost, so the real discover board is api.localhost/groups/...
+    // (not the production web10.app/... ID). The wrong ID fails the D58 write
+    // gate (can_write_group) with a 403 — the group doesn't exist in e2e.
+    const DISCOVER = 'api.localhost/groups/web10/discover';
 
     const postRes = await createWithRetry(request, {
       token, service: 'posts', body: { text: 'ref test post' }, groups: [DISCOVER],
-    });
-    expect(postRes.ok()).toBeTruthy();
+    }, 'create post (reaction test)');
+    await expectOk(postRes, 'create post (reaction test)');
     const post = await postRes.json();
     const postId: string = post.doc_id;
     expect(postId).toBeTruthy();
@@ -132,8 +166,8 @@ test.describe('social post with media -> feed -> comment -> DM', () => {
       body: { type: 'like', target_id: postId },
       groups: [DISCOVER],
       ref_value: postId,
-    });
-    expect(reactionRes.ok()).toBeTruthy();
+    }, 'create reaction');
+    await expectOk(reactionRes, 'create reaction');
     const reaction = await reactionRes.json();
     expect(reaction.ref_value).toBe(postId);
 
