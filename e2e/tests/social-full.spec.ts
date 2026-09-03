@@ -14,6 +14,11 @@ test.describe('social post with media -> feed -> comment -> DM', () => {
 
   test.beforeEach(async ({ request }) => {
     username = uniqueUser();
+    // Random phone (like the other social specs): the fixed number collided
+    // across the two tests in this block (beforeEach runs per-test, and
+    // Playwright runs them in parallel), so the second signup hit "phone
+    // already registered."
+    const phone = '+1555' + Math.floor(Math.random() * 10000000);
 
     const signupRes = await request.post(`${API_BASE}/signup`, {
       data: {
@@ -22,7 +27,7 @@ test.describe('social post with media -> feed -> comment -> DM', () => {
         password,
         new_pass: password,
         retypepass: password,
-        phone: '+15558880001',
+        phone,
         betacode: 'web10betacode',
       },
     });
