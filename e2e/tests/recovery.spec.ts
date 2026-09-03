@@ -26,10 +26,11 @@ const AUTH_BASE = `http://auth.localhost${p}`;
 
 const E2E_CODE = '123456'; // the fixed code from the API's local-Twilio mode
 const password = 'TestPass123!';
-// Cap at 30 chars (the username limit) — Date.now() is 13 digits, so a long
-// prefix + the random suffix can overflow; the slice is the safety net.
+// Cap at 30 chars (the username limit) + lowercase (usernames are lowercase
+// only) — Date.now() is 13 digits, so a long prefix + the random suffix can
+// overflow; the slice is the safety net.
 const uniqueUser = (prefix: string) =>
-  `${prefix}${Date.now()}-${Math.random().toString(36).slice(2, 6)}`.slice(0, 30);
+  `${prefix}${Date.now()}-${Math.random().toString(36).slice(2, 6)}`.toLowerCase().slice(0, 30);
 // Collision-free by construction (a counter, not a random range — a 7-digit
 // random range collided once in CI). 10-digit US body, +1 prefixed.
 let phoneCounter = Math.floor(Math.random() * 100000);

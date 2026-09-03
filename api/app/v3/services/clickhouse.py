@@ -2845,21 +2845,26 @@ def set_email(username: str, email: str):
 
 
 def verify_phone(username: str):
-    """Mark phone as verified."""
+    """Mark phone as verified.
+
+    Selects only the LATEST row — selecting every row would re-insert each one
+    (duplicating them), and the updated_at-ordered read could then pick a stale
+    row (e.g. one with an old password_hash after a change_password).
+    """
     client.command(
         "INSERT INTO users (username, password_hash, phone, phone_verified, email, email_verified, created_at, updated_at, deleted) "
         "SELECT username, password_hash, phone, 1, email, email_verified, created_at, now(), 0 "
-        "FROM users WHERE username = %(username)s AND deleted = 0",
+        "FROM (SELECT * FROM users WHERE username = %(username)s AND deleted = 0 ORDER BY updated_at DESC LIMIT 1)",
         {"username": username},
     )
 
 
 def verify_email(username: str):
-    """Mark email as verified."""
+    """Mark email as verified (latest row only — see verify_phone)."""
     client.command(
         "INSERT INTO users (username, password_hash, phone, phone_verified, email, email_verified, created_at, updated_at, deleted) "
         "SELECT username, password_hash, phone, phone_verified, email, 1, created_at, now(), 0 "
-        "FROM users WHERE username = %(username)s AND deleted = 0",
+        "FROM (SELECT * FROM users WHERE username = %(username)s AND deleted = 0 ORDER BY updated_at DESC LIMIT 1)",
         {"username": username},
     )
 
