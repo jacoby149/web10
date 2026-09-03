@@ -6,10 +6,14 @@ a new username) → signed in. Sign-up, sign-in, and password-change are the
 same flow. The `verify_token` (a short-lived signed JWT minted by `verify`) is
 the gate that lets `complete` mint a login token — a raw {contact, username}
 can't sign in without it.
+
+A thin per-contact send rate-limit backs up Twilio Verify's own limits (each
+send costs a real SMS/email); it is best-effort, per-worker.
 """
 
 import re
 import secrets
+import time
 from datetime import datetime, timedelta
 
 import jwt
@@ -30,6 +34,17 @@ _USERNAME_RE = re.compile(r"^[a-z0-9](?:[a-z0-9-]{0,28}[a-z0-9])?$")
 # The verify_token proves a code was right; it gates `complete`. Short-lived.
 _VERIFY_TTL_MINUTES = 5
 
+# Thin per-contact send rate-limit (backstop against hammering the send
+# endpoint, which costs a real SMS/email each time). Best-effort, per-worker.
+_SEND_WINDOW_S = 3600
+_MAX_PER_HOUR = 5
+_MIN_GAP_S = 60
+_send_log: dict[str, list[float]] = {}
+
+
+def _digits(s: str) -> str:
+    return re.sub(r"\D", "", s or "")
+
 
 def _contact_kind(contact: str) -> str:
     """Classify a contact as 'email' or 'phone'. Raises BAD_CONTACT if neither."""
@@ -41,6 +56,24 @@ def _contact_kind(contact: str) -> str:
     if _PHONE_RE.match(c):
         return "phone"
     raise exceptions.BAD_CONTACT
+
+
+def _contact_key(contact: str) -> str:
+    """Normalize a contact to a rate-limit key (digits for phone, lower for email)."""
+    c = (contact or "").strip()
+    if "@" in c:
+        return "e:" + c.lower()
+    return "p:" + _digits(c)
+
+
+def _check_send_rate_limit(contact: str) -> None:
+    """Thin per-contact send rate-limit. Raises RATE_LIMIT when exceeded."""
+    key = _contact_key(contact)
+    now = time.time()
+    recent = [t for t in _send_log.get(key, []) if now - t < _SEND_WINDOW_S]
+    if len(recent) >= _MAX_PER_HOUR or (recent and now - recent[-1] < _MIN_GAP_S):
+        raise exceptions.RATE_LIMIT
+    _send_log[key] = recent + [now]
 
 
 def _mint_verify_token(contact: str, kind: str) -> str:
@@ -68,7 +101,10 @@ def _check_verify_token(token: str) -> dict:
 
 def _account_has_contact(user: dict, contact: str, kind: str) -> bool:
     field = "email" if kind == "email" else "phone"
-    return (user.get(field) or "") == contact
+    stored = (user.get(field) or "")
+    if kind == "email":
+        return stored.lower() == (contact or "").lower()
+    return _digits(stored) == _digits(contact)
 
 
 def _mint_login_token(username: str, site: str = "web10") -> str:
@@ -83,8 +119,13 @@ def _mint_login_token(username: str, site: str = "web10") -> str:
 
 @router.post("/request")
 def request_code(data: RecoveryRequest):
-    """Send a 6-digit code to the contact (phone → sms, email → email)."""
+    """Send a 6-digit code to the contact (phone → sms, email → email).
+
+    No existence oracle: the response is the same whether or not the contact
+    is registered (a real send only happens for a valid contact shape).
+    """
     kind = _contact_kind(data.contact)
+    _check_send_rate_limit(data.contact)
     from app.services import twilio as mobile
 
     mobile.send_verification(data.contact.strip(), "")

@@ -127,11 +127,11 @@ A community with an owner, moderators, curators, and members. Used for topic-bas
 
 ### Discover (Public Board)
 
-The public board. Everyone is a member by default. Replaces the `discover: true` boolean.
+The public board. Everyone is a member by default. Replaces the `discover: true` boolean. The board's id is provider-derived — `{provider}` is the node's configured `PROVIDER` (its API host), so each node's board has a unique global id.
 
 ```json
 {
-  "group_id": "web10.app/groups/web10/discover",
+  "group_id": "{provider}/groups/web10/discover",
   "join_policy": "open",
   "roles": [
     { "name": "member", "permissions": { "posts": ["readAll", "create", "updateOwn", "deleteOwn"] } }

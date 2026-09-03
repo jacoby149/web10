@@ -1,4 +1,5 @@
 import { getV3Client } from './v3';
+import { followersGroupId, closeFriendsGroupId, getDiscoverGroupId } from './groups';
 import { fromV3DocToPost, type PostRecord } from './types';
 
 // ── Staging data layer (v3) ──────────────────────────────────────────────────
@@ -15,7 +16,7 @@ export async function readStagingPosts(): Promise<PostRecord[]> {
 
   try {
     const docs = await w.read('staging_posts', {
-      groups: [`web10.app/groups/${token.username}/followers`],
+      groups: [followersGroupId(token.username, token.provider)],
     });
     return docs.map(fromV3DocToPost);
   } catch {
@@ -46,9 +47,10 @@ export async function movePostToPublic(post: PostRecord): Promise<PostRecord> {
   };
 
   // Create in posts with discover + followers groups
+  const token = w.readToken();
   const groups = [
-    'web10.app/groups/web10/discover',
-    `web10.app/groups/${w.readToken()?.username}/followers`,
+    getDiscoverGroupId(),
+    followersGroupId(token?.username, token?.provider),
   ];
   const doc = await w.create('posts', body, { groups });
 
@@ -74,7 +76,8 @@ export async function movePostToPrivate(post: PostRecord): Promise<PostRecord> {
     origin_id: post.origin_id,
   };
 
-  const groups = [`web10.app/groups/${w.readToken()?.username}/close-friends`];
+  const token = w.readToken();
+  const groups = [closeFriendsGroupId(token?.username, token?.provider)];
   const doc = await w.create('posts', body, { groups });
 
   if (post._id) {

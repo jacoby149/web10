@@ -7,7 +7,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Button } from '@/components/ui/button';
 import { Flame, Heart, MessageCircle, Repeat2, Share2, Image as ImageIcon, Film, Music2, Send, Play, Volume2, VolumeX } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { SOCIAL_ORIGIN, API_ORIGIN } from '@/lib/origins';
+import { SOCIAL_ORIGIN, API_ORIGIN, API_HOST } from '@/lib/origins';
 import { trackFunnel } from '@/lib/analytics';
 import { getPublicMediaUrl, getPublicMediaThumbnailUrl, resolveMediaRef, clearMediaCache } from '@/lib/mediaPresign';
 
@@ -900,9 +900,11 @@ function TrendingSkeleton({ featured = false }: { featured?: boolean }) {
 }
 
 // The node-default universal public board (matches the API's DISCOVER_GROUP_ID
-// and the social app's DISCOVER_GROUP). In v3 discovery IS a group read — the
-// board is just this group, read anon through the normal /v3/read path.
-const DISCOVER_GROUP = 'web10.app/groups/web10/discover';
+// and the social app's getDiscoverGroupId()). Provider-derived — the marketing
+// site reads it as anon (no token), so the provider is the node's API host.
+// In v3 discovery IS a group read — the board is just this group, read anon
+// through the normal /v3/read path.
+const DISCOVER_GROUP = `${API_HOST}/groups/web10/discover`;
 
 interface V3Doc {
   doc_id: string;

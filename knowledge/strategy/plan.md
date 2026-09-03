@@ -356,18 +356,18 @@ web10.app turns it on. The 3.47.0 UI already calls the three endpoints — they
 were never built (the changelog's "the API is 3.37.0" was wrong). Lane is
 `contact-auth` in `parallel-execution.md`.
 
-- [✓ 3.48.0] **Decision: D61** (`knowledge/strategy/decisions.md`) — contact-anchored auth (phone OR email), node-config-gated (D10), one contact → many accounts, unified sign-in + password-change, the verify_token security model, age assurance as a layerable gate.
-- [✓ 3.48.0] **KB** (`knowledge/knowledge-base/web10-v3/auth/auth.md`) — the contact-anchored flow section (the three endpoints, the model, the security, the node policy).
-- [✓ 3.48.0] **API keystone** (`api/app/v3/endpoints/recovery.py`, `services/clickhouse.py`, `services/twilio.py`, `models/auth.py`) — the three endpoints (request/verify/complete) + `get_users_by_contact` (phone OR email) + Twilio channel-aware (sms/email) + the `verify_token` gate + create-on-complete (unified signup).
-- [✓ 3.48.0] **Node config flag** (`api/app/models/config.py`, `services/config.py`) — `require_contact` (D10); enforced in `POST /v3/signup` (401 `CONTACT_REQUIRED`).
-- [✓ 3.48.0] **Tests** (`api/tests/test_recovery.py`) — request sends code, verify returns accounts + verify_token, complete signs in / creates account / changes password, contact mismatch, bad code, node-config gate.
-- [✓ 3.48.0] **UI** (`ui/src/interfaces/Interface.tsx`, `ui/src/components/CredentialPage/ForgotForm.tsx`) — the contact input (phone OR email), the verify_token plumbing, the "create a new account" option, the primary-sign-in routing.
+- [✓ 3.51.0] **Decision: D61** (`knowledge/strategy/decisions.md`) — contact-anchored auth (phone OR email), node-config-gated (D10), one contact → many accounts, unified sign-in + password-change, the verify_token security model, age assurance as a layerable gate.
+- [✓ 3.51.0] **KB** (`knowledge/knowledge-base/web10-v3/auth/auth.md`) — the contact-anchored flow section (the three endpoints, the model, the security, the node policy).
+- [✓ 3.51.0] **API keystone** (`api/app/v3/endpoints/recovery.py`, `services/clickhouse.py`, `services/twilio.py`, `models/auth.py`) — the three endpoints (request/verify/complete) + `get_users_by_contact` (phone OR email) + Twilio channel-aware (sms/email) + the `verify_token` gate + create-on-complete (unified signup).
+- [✓ 3.51.0] **Node config flag** (`api/app/models/config.py`, `services/config.py`) — `require_contact` (D10); enforced in `POST /v3/signup` (401 `CONTACT_REQUIRED`).
+- [✓ 3.51.0] **Tests** (`api/tests/test_recovery.py`) — request sends code, verify returns accounts + verify_token, complete signs in / creates account / changes password, contact mismatch, bad code, node-config gate.
+- [✓ 3.51.0] **UI** (`ui/src/interfaces/Interface.tsx`, `ui/src/components/CredentialPage/ForgotForm.tsx`) — the contact input (phone OR email), the verify_token plumbing, the "create a new account" option, the primary-sign-in routing.
 
 ## Phase 4 — Production Cutover: v2 → v3, then merge to main
 
 **Where:** `knowledge/knowledge-base/web10-v3/` (migration model), `api/` (migration tooling), `ubuntu-deployment/` (prod deploy)
 
-Prod runs **v2 on real MongoDB** — the live 579-user node at web10.app,
+Prod runs **v2 on real MongoDB** — the live 580-user node at web10.app,
 data in the docker volume (D25: prod bootstraps on the host mongo, "zero
 migration risk"). v3 is a different data model, not a newer deploy: v2 is
 star records + services + terms/ACL + a discovery ledger; v3 is ClickHouse
@@ -386,6 +386,7 @@ prod runs before that gate clears. Scoping the rest of this phase (tooling,
 rehearsal, cutover steps) happens when the gate clears — one phase at a time,
 docs before code, per the rule at the top.
 
-- [ ] **KB: the v2→v3 data migration model** (`knowledge/knowledge-base/web10-v3/`) — docs first, and the only item that starts before the gate. What maps to what: v2 star records → v3 user docs; v2 services/collections → v3 collections; v2 terms/ACL → v3 group contracts; the v2 discovery ledger → dropped or re-derived (decide, with the D30/D32/D34/D35 public-by-default calls in mind); media blobs → re-pointed by object key, not copied. Name what is lossy, what is dropped, and what is re-derived. This doc is the spec the migration tooling implements — no tooling before it.
+- [✓ 3.31.1] **KB: the v2→v3 ACCOUNT migration model** (`knowledge/knowledge-base/web10-v3/migration/v2-to-v3-accounts.md`) — the safety-critical half, docs first, the only item that starts before the gate. The one-day runbook (extract → pilot → recovery → full → SMS), the field-by-field map (v2 Mongo star record → v3 ClickHouse `users`), the bcrypt carry-over (v2 `hashed_password` is a valid v3 `password_hash` — no re-hash, no forced reset), the net-new phone-recovery flow (the current "forgot" is broken; three unauthenticated `/v3/recovery/*` endpoints + a plural `get_users_by_phone`, live before the flip), and the rollback (the mongo is never written to). The spec for `extract_accounts.py` + `migrate_accounts.py` + the recovery endpoints.
+- [ ] **KB: the v2→v3 CONTENT migration model** (`knowledge/knowledge-base/web10-v3/migration/`) — the other half of the old "data migration model" item, now split out. What maps to what for the *content*: v2 services/collections → v3 `documents` + `collection_name`; v2 terms/ACL → v3 group contracts; the v2 discovery ledger → dropped or re-derived (decide, with the D30/D32/D34/D35 public-by-default calls in mind); media blobs → re-pointed by object key, not copied. Name what is lossy, what is dropped, and what is re-derived. Gated on the account migration landing (a user must be able to sign in before their content is ported into their profile).
 - [ ] (scope when the gate clears) migration tooling + a rehearsal against a staging copy of the prod mongo (docker volume), then the cutover and the dev→main merge.
-- [ ] (scope when the gate clears) SMS cutover notice — text all 579 users (phone numbers live in the v2 star records) that they were migrated, over the existing Twilio send path. Needs: the send list (deduped, verified numbers only), the message copy, and a delivery check. Runs after the data flip — the notice says "you're migrated," not "you will be." Copy can be drafted pre-gate.
+- [ ] (scope when the gate clears) SMS cutover notice — text all 580 users (phone numbers live in the v2 star records) that they were migrated, over the existing Twilio send path. Needs: the send list (deduped, verified numbers only), the message copy, and a delivery check. Runs after the data flip — the notice says "you're migrated," not "you will be." Copy can be drafted pre-gate.

@@ -1,6 +1,7 @@
 import json
 import logging
 import math
+import re
 import threading
 import time
 import uuid
@@ -386,11 +387,14 @@ def _migrate_d58_role_shape() -> None:
 # web10-v3/groups/social-contracts.md §1 — owner "System", members "Everyone
 # (auto-join)"; web10-social-v3/discover.md — "every user (including anon) is
 # a member"). It is the universal public board: a read of the group IS the
-# board, and a post is public when its author attaches it here. The group id
-# is a well-known constant (not provider-derived) so every app — and the
-# marketing site, which reads it as anon — addresses the same board.
+# board, and a post is public when its author attaches it here. The group id is
+# provider-derived (`{provider}/groups/web10/discover`, provider = the node's
+# configured PROVIDER) so each node's board is namespaced by its provider — a
+# unique global id per node (federation-clean) and consistent with the user-
+# group model. The marketing site reads it as anon on the same node, so it uses
+# the node's provider too.
 
-DISCOVER_GROUP_ID = "web10.app/groups/web10/discover"
+DISCOVER_GROUP_ID = f"{settings.PROVIDER}/groups/web10/discover"
 
 # One role. Everyone shares it (social-contracts.md §1): read the board, post
 # to it, manage your own posts. No owners, no moderators. The `*` wildcard
@@ -2535,7 +2539,17 @@ def get_node_stats() -> dict:
     """Node-level stats (D49): user/doc/group counts, storage, the approved-
     app count, and the node-wide active-user set (the store's metric, macro).
     The per-app array moved to list_store_apps (paginated)."""
-    user_result = client.query("SELECT count(DISTINCT author_key) FROM documents WHERE deleted = 0")
+    # Count ACCOUNTS (the users table), not content authors. A user can
+    # legitimately have zero documents (fresh signup, or post-migration before
+    # content is ported) — counting document authors under-reports the real
+    # account count (the v2→v3 cutover migrated logins, not content). Dedup to
+    # the latest row per username (ReplacingMergeTree) so pre-merge duplicates
+    # don't inflate the count.
+    user_result = client.query(
+        "SELECT count() FROM (SELECT username, deleted, "
+        "row_number() OVER (PARTITION BY username ORDER BY updated_at DESC, deleted DESC) AS rn "
+        "FROM users) WHERE rn = 1 AND deleted = 0"
+    )
     user_count = user_result.result_rows[0][0] if user_result.result_rows else 0
     doc_result = client.query("SELECT count() FROM documents WHERE deleted = 0")
     doc_count = doc_result.result_rows[0][0] if doc_result.result_rows else 0
@@ -2835,16 +2849,27 @@ def get_users_by_contact(contact: str) -> list[dict]:
 
     Deduped to the latest row per username (the ReplacingMergeTree current
     state), then filtered by the contact column. A contact can carry many
-    usernames (the "pick one of the users" step).
+    usernames (the "pick one of the users" step). Phones are compared by digits
+    (the stored format varies: with/without a leading +, spaces, dashes);
+    emails by exact (lowercased, trimmed) match.
     """
-    col = "email" if "@" in contact else "phone"
+    c = (contact or "").strip()
+    if "@" in c:
+        where = "email = %(contact)s"
+        norm = c.lower()
+    else:
+        digits = re.sub(r"\D", "", c)
+        if not digits:
+            return []
+        where = "replaceRegexpAll(phone, '[^0-9]', '') = %(contact)s"
+        norm = digits
     result = client.query(
         "SELECT username, phone, email, phone_verified, email_verified FROM ("
         "SELECT username, phone, email, phone_verified, email_verified, "
         "row_number() OVER (PARTITION BY username ORDER BY updated_at DESC, deleted DESC) as rn "
         "FROM users WHERE deleted = 0"
-        ") WHERE rn = 1 AND " + col + " = %(contact)s ORDER BY username",
-        {"contact": contact},
+        ") WHERE rn = 1 AND " + where,
+        {"contact": norm},
     )
     return [
         {

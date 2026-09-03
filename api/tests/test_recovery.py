@@ -25,6 +25,13 @@ def _make_verify_token(contact="+15551234567", kind="phone", minutes=5, purpose=
     )
 
 
+@pytest.fixture(autouse=True)
+def _clear_send_log():
+    recovery._send_log.clear()
+    yield
+    recovery._send_log.clear()
+
+
 @pytest.fixture
 def client():
     with patch("app.v3.services.clickhouse.client"):
@@ -79,6 +86,13 @@ class TestRequest:
         resp = client.post("/v3/recovery/request", json={"contact": "nope"})
         assert resp.status_code == 400
         assert "valid phone" in resp.json()["detail"]
+
+    def test_request_rate_limited(self, client):
+        """A second send within the 60s min-gap is rate-limited."""
+        with patch("app.services.twilio.send_verification", return_value="VA123"):
+            assert client.post("/v3/recovery/request", json={"contact": "+15551234567"}).status_code == 200
+            resp = client.post("/v3/recovery/request", json={"contact": "+15551234567"})
+            assert resp.status_code == 429
 
 
 # ---------------------------------------------------------------------------
@@ -202,6 +216,17 @@ class TestComplete:
             resp = client.post("/v3/recovery/complete", json={"verify_token": token, "username": "mallory"})
         assert resp.status_code == 401
         assert "isn't linked" in resp.json()["detail"]
+
+    def test_complete_phone_format_normalized(self, client):
+        """A stored phone without the leading + still matches the contact."""
+        token = _make_verify_token("+15551234567", "phone")
+        with patch(
+            "app.v3.services.clickhouse.get_user",
+            return_value={"username": "alice", "phone": "15551234567", "email": "", "phone_verified": False, "email_verified": False},
+        ):
+            with patch("app.v3.services.clickhouse.verify_phone"):
+                resp = client.post("/v3/recovery/complete", json={"verify_token": token, "username": "alice"})
+        assert resp.status_code == 200
 
     def test_complete_bad_verify_token(self, client):
         with patch("app.v3.services.clickhouse.get_user", return_value=None):

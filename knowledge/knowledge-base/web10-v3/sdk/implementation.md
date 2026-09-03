@@ -50,7 +50,7 @@ INSERT INTO documents VALUES (
 
 -- Group attachments (one per group)
 INSERT INTO doc_groups VALUES (
-    :doc_id, 'web10.app/groups/web10/discover', now(), now(), 0
+    :doc_id, '{provider}/groups/web10/discover', now(), now(), 0
 );
 INSERT INTO doc_groups VALUES (
     :doc_id, 'web10.app/groups/jacoby149/followers', now(), now(), 0
@@ -135,7 +135,7 @@ WHERE doc_id = :doc_id AND deleted = 0;
 
 -- New group attachments
 INSERT INTO doc_groups VALUES (
-    :doc_id, 'web10.app/groups/web10/discover', now(), now(), 0
+    :doc_id, '{provider}/groups/web10/discover', now(), now(), 0
 );
 ```
 

@@ -9,7 +9,8 @@ const LOG = (...args: unknown[]) => console.log('[social:groups]', ...args);
 // close friends, DMs, communities) is a group with different join policies
 // and roles.
 
-const DISCOVER_GROUP = 'web10.app/groups/web10/discover';
+// The discover board is provider-derived — `{provider}/groups/web10/discover`,
+// provider = the node's (the token's provider). See getDiscoverGroupId().
 
 /**
  * The provider that mints this node's group IDs. The API derives a created
@@ -45,9 +46,13 @@ export function followersGroupId(username: string, provider?: string): string {
 
 /**
  * Get the close-friends group ID for a user.
+ *
+ * Same derivation as the followers group (a user-created group under the
+ * token's provider): `{provider}/groups/users/{username}/close-friends`.
  */
-export function closeFriendsGroupId(username: string): string {
-  return `web10.app/groups/${username}/close-friends`;
+export function closeFriendsGroupId(username: string, provider?: string): string {
+  const p = provider || currentProvider();
+  return `${p}/groups/users/${username}/close-friends`;
 }
 
 /**
@@ -123,11 +128,11 @@ export async function ensureDiscover(): Promise<string> {
   // If it doesn't, the API will create it on first join.
   const w = getV3Client();
   try {
-    await w.joinGroup(DISCOVER_GROUP);
+    await w.joinGroup(getDiscoverGroupId());
   } catch {
     // Already a member — non-fatal
   }
-  return DISCOVER_GROUP;
+  return getDiscoverGroupId();
 }
 
 /**
@@ -186,10 +191,10 @@ export async function ensureCloseFriends(username: string): Promise<string> {
     return group.group_id;
   } catch {
     await w.createGroup(
-      `${username}/close-friends`,
+      'close-friends',
       'request',
       CLOSE_FRIENDS_ROLES,
-      [{ member_key: `web10.app/users/${username}`, role: 'owner' }],
+      [{ member_key: username, role: 'owner' }],
     );
     return groupId;
   }
@@ -268,7 +273,7 @@ export async function getGroupsManages(): Promise<V3Group[]> {
 export async function getFeedGroups(): Promise<string[]> {
   const groups = await getMyGroups();
   const feedGroups = groups
-    .filter((g) => g.group_id !== DISCOVER_GROUP)
+    .filter((g) => g.group_id !== getDiscoverGroupId())
     .map((g) => g.group_id);
   LOG('getFeedGroups —', groups.length, 'my groups →', feedGroups.length, 'feed groups (minus discover)');
   return feedGroups;
@@ -288,7 +293,7 @@ export async function getFollowersGroups(): Promise<string[]> {
  * Get discover group ID.
  */
 export function getDiscoverGroupId(): string {
-  return DISCOVER_GROUP;
+  return `${currentProvider()}/groups/web10/discover`;
 }
 
 // ── Group operations ─────────────────────────────────────────────────────────
@@ -551,7 +556,7 @@ export async function readGroupIdentity(groupId: string): Promise<GroupIdentity>
 
 /** The node-default discover board (a board, not a community). */
 export function isDiscoverGroup(groupId: string): boolean {
-  return groupId === DISCOVER_GROUP;
+  return groupId === getDiscoverGroupId();
 }
 
 /** A user's own followers group (the follow target, not a community). */
