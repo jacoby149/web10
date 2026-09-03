@@ -49,8 +49,10 @@ export async function createReaction(
   };
 
   const targetGroups = Array.isArray(groupsOrPostAuthor) ? groupsOrPostAuthor : ['web10.app/groups/web10/discover'];
-  const doc = await w.create('reactions', body, { groups: targetGroups });
-  doc.ref_value = reaction.target_id;
+  // ref_value (the target's doc_id) is a top-level create field — the server
+  // stores it in the ref_value column, which the ref read + counts key off.
+  // Without this the reaction is orphaned (ref_value="" → never found).
+  const doc = await w.create('reactions', body, { groups: targetGroups, ref_value: reaction.target_id });
   return fromV3DocToReaction(doc);
 }
 

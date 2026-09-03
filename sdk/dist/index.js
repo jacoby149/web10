@@ -188,6 +188,8 @@ function createV3Client(options = {}) {
         payload.groups = opts.groups;
       if (opts?.ad_preference)
         payload.ad_preference = opts.ad_preference;
+      if (opts?.ref_value)
+        payload.ref_value = opts.ref_value;
       return v3Post("create", payload);
     },
     async read(collection, opts) {

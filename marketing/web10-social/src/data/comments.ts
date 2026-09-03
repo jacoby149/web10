@@ -65,9 +65,11 @@ export async function createComment(
   };
 
   const targetGroups = groups || ['web10.app/groups/web10/discover'];
-  const doc = await w.create('comments', body, { groups: targetGroups });
-  // Set ref_value on the document body for the ref pattern
-  doc.ref_value = comment.post_id;
+  // ref_value (the target post's doc_id) is a top-level create field, not in
+  // the body — the server stores it in the ref_value column, which the read's
+  // ref filter + engagement counts key off. Without this the comment is
+  // orphaned (ref_value="" → the ref read never finds it).
+  const doc = await w.create('comments', body, { groups: targetGroups, ref_value: comment.post_id });
   return fromV3DocToComment(doc);
 }
 
