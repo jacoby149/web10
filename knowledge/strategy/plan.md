@@ -267,6 +267,22 @@ is in `web10-v3/social/ads-dissemination.md`; the ad object in `social/ads.md`
 - [✓ 3.29.0] **Composer pin control (web10-social)** — the "Pin an ad" control in `PostComposer`: pick an ad (from an album or all) to pin to the post, or none (sets the post's `ad_preference`); the ad block renders under the post (creative + offer + disclosure, disclosure never hidden). `marketing/web10-social/src/components/Feed/`.
 - [✓ 3.30.0] **E2E** — the torture gauntlet: create an ad → pin it to a post → follower sees the post with the ad block + disclosure → unpin → it's gone → non-follower never sees the ad (I3) → an ad in two albums shows in both. `e2e/tests/ads.spec.ts`.
 
+## Monetization Bootcamp (creator guide) — Docs
+
+The creator-facing ramp: a guide that takes a creator from "I have an
+audience" to "my first affiliate payout," grounded in the D55 ad model. It
+answers the two questions that come up in every onboarding — *which
+affiliate programs are worth joining* and *how the web10 ad maker turns a
+link I already have into a post that pays.* It is a **guide, not a new
+surface**: it derives from `ads.md` (the object) + `ads-catalog.md` (the
+surfaces) and points at the ad maker / catalog / composer that already
+exist. No code, no new endpoint. The affiliate shortlist (Amazon, Walmart,
+Target, eBay, TikTok Shop, Shopify, Fiverr, Semrush, HubSpot) is a map, not
+a contract — rates/cookies shift, confirm on the program's page.
+
+- [✓ 3.53.0] **KB: the bootcamp guide** (`knowledge/knowledge-base/web10-v3/social/monetization-bootcamp.md`) — the use case (creator-owned links, not a platform ad box), the one rule (an ad is a post with a link that pays), the two layers (your ads vs node ads), the affiliate shortlist table, the sign-up ramp (the website-list / 180-day rule, the node-account vs creator-account split), the ad-maker walkthrough (offer kind/partner/link/cta/disclosure), pin-to-post, albums, and the "do it genuinely" principles (only link what you'd buy, the content is the ad, disclose up top, the audience is the asset). "What this is not" (not an ad network, not a payment processor, not memberships/tips) + logistics (built now / known gap: ad-maker media attach / deferred v4).
+- [ ] **Bootcamp page (marketing-ui)** — surface the guide as a `/docs/monetization` page (or a Studio link-out) so a creator hitting the ad maker for the first time can land on it. Gated on a docs-page surface existing in marketing-ui (the `public/docs/` set is the precedent).
+
 ## Node-Level Ads (D57) — Platform
 
 The node operator's ad layer — the second layer of the two-layer ad model
