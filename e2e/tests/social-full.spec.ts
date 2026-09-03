@@ -16,27 +16,38 @@ test.describe('social post with media -> feed -> comment -> DM', () => {
     username = uniqueUser();
     // Random phone (like the other social specs): the fixed number collided
     // across the two tests in this block (beforeEach runs per-test, and
-    // Playwright runs them in parallel), so the second signup hit "phone
-    // already registered."
+    // Playwright runs them in parallel).
     const phone = '+1555' + Math.floor(Math.random() * 10000000);
 
-    const signupRes = await request.post(`${API_BASE}/signup`, {
-      data: {
-        provider: 'api.localhost',
-        username,
-        password,
-        new_pass: password,
-        retypepass: password,
-        phone,
-        betacode: 'web10betacode',
-      },
-    });
-    expect(signupRes.ok()).toBeTruthy();
+    // The e2e ClickHouse (ReplacingMergeTree) is eventually consistent and the
+    // shared multi-workspace stack can be transiently unhealthy (a signup
+    // insert or the login's authenticate query can lose the merge race). Retry
+    // both to ride it out — the CI serial run is stable, but the parallel/
+    // shared run needs this (same pattern as the other social specs).
+    let signupOk = false;
+    for (let attempt = 0; attempt < 5 && !signupOk; attempt++) {
+      const signupRes = await request.post(`${API_BASE}/v3/signup`, {
+        data: JSON.stringify({ username, password, phone }),
+        headers: { 'Content-Type': 'application/json' },
+      });
+      if (signupRes.ok()) {
+        signupOk = true;
+      } else {
+        await new Promise((r) => setTimeout(r, 500));
+      }
+    }
+    expect(signupOk, `signup failed for ${username}`).toBeTruthy();
 
-    // Owner token: no site/target → self-access
-    const tokenRes = await request.post(`${API_BASE}/v3/login`, {
-      data: { username, password },
-    });
+    // Owner token: no site/target → self-access. Retry on the transient race.
+    let tokenRes = null;
+    for (let attempt = 0; attempt < 5; attempt++) {
+      tokenRes = await request.post(`${API_BASE}/v3/login`, {
+        data: JSON.stringify({ username, password }),
+        headers: { 'Content-Type': 'application/json' },
+      });
+      if (tokenRes.ok()) break;
+      await new Promise((r) => setTimeout(r, 500));
+    }
     expect(tokenRes.ok()).toBeTruthy();
     const body = await tokenRes.json();
     token = body.token;
