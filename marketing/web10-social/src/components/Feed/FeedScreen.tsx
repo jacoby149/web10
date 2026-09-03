@@ -388,11 +388,14 @@ function PostCard({
         )}
       </div>
 
-      {post.ad && (
-        <AdBlock
-          ad={post.ad}
-          className="md:mx-4 md:mb-3 md:rounded-lg md:border md:border-border"
-        />
+      {/* Carried ads (D55 + D57): the creator's pinned ad (`post.ad`) and the
+          node's ad (`post.node_ad`) can both be present — render both, neither
+          suppressing the other. The ad block is a self-contained card. */}
+      {(post.ad || post.node_ad) && (
+        <div className="px-3 pb-3 md:px-4 md:pb-4 space-y-2">
+          {post.ad && <AdBlock ad={post.ad} />}
+          {post.node_ad && <AdBlock ad={post.node_ad} />}
+        </div>
       )}
 
       <CommentThread

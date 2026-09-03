@@ -41,7 +41,24 @@ const AD = {
     disclosure: 'I may earn a commission.',
   },
   status: 'active' as const,
+  author_username: 'alice',
+  variant: 'creator' as const,
   albums: [] as string[],
+};
+
+const NODE_AD = {
+  _id: 'node-1',
+  text: 'Try the new workflow tool.',
+  offer: {
+    kind: 'direct',
+    partner: 'WorkflowCo',
+    link: 'https://workflowco.com?ref=node',
+    cta: 'Learn more',
+    disclosure: 'Sponsored by this node.',
+  },
+  status: 'active' as const,
+  author_username: 'nodeops',
+  variant: 'node' as const,
 };
 
 describe('AdBlock', () => {
@@ -54,11 +71,12 @@ describe('AdBlock', () => {
     expect(screen.getByText('Get it')).toBeTruthy();
   });
 
-  it('always shows the disclosure (never hidden)', async () => {
+  it('always shows the disclosure (never hidden), naming who made it', async () => {
     const { AdBlock } = await import('@/components/Feed/AdBlock');
     render(<AdBlock ad={AD} />);
     expect(screen.getByTestId('ad-disclosure')).toBeTruthy();
-    expect(screen.getByText('I may earn a commission.')).toBeTruthy();
+    expect(screen.getByTestId('ad-disclosure')).toHaveTextContent('I may earn a commission.');
+    expect(screen.getByTestId('ad-disclosure')).toHaveTextContent('@alice');
   });
 
   it('the CTA links to the offer link in a new tab', async () => {
@@ -69,10 +87,27 @@ describe('AdBlock', () => {
     expect(cta.getAttribute('target')).toBe('_blank');
   });
 
-  it('falls back to "Sponsored" when there is no partner', async () => {
+  it('a creator ad is dressed as an "Ad" naming the web10 account', async () => {
+    const { AdBlock } = await import('@/components/Feed/AdBlock');
+    render(<AdBlock ad={AD} />);
+    expect(screen.getByTestId('ad-block').getAttribute('data-ad-variant')).toBe('creator');
+    expect(screen.getByTestId('ad-provenance-badge')).toHaveTextContent('Ad');
+    expect(screen.getByTestId('ad-provenance')).toHaveTextContent('@alice');
+  });
+
+  it('a node ad is dressed as "Sponsored" naming the node site', async () => {
+    const { AdBlock } = await import('@/components/Feed/AdBlock');
+    render(<AdBlock ad={NODE_AD} />);
+    expect(screen.getByTestId('ad-block').getAttribute('data-ad-variant')).toBe('node');
+    expect(screen.getByTestId('ad-provenance-badge')).toHaveTextContent('Sponsored');
+    expect(screen.getByTestId('ad-provenance')).toHaveTextContent('nodeops');
+    expect(screen.getByTestId('ad-disclosure')).toHaveTextContent('by nodeops');
+  });
+
+  it('a creator ad with no author falls back to @creator', async () => {
     const { AdBlock } = await import('@/components/Feed/AdBlock');
     render(<AdBlock ad={{ _id: 'ad-2', text: 'x', offer: { link: 'https://x', cta: 'Go', disclosure: 'd' } }} />);
-    expect(screen.getByText('Sponsored')).toBeTruthy();
+    expect(screen.getByTestId('ad-provenance')).toHaveTextContent('@creator');
   });
 });
 
