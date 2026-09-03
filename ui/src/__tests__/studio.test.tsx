@@ -197,6 +197,52 @@ describe('DirectDealsCard', () => {
   })
 })
 
+// ── AffiliateProgramsCard ──
+
+describe('AffiliateProgramsCard', () => {
+  const mockI = {
+    isMock: true,
+    setStatus: vi.fn(),
+  }
+
+  beforeEach(() => {
+    vi.clearAllMocks()
+  })
+
+  it('renders the Affiliate Programs title + START HERE badge', async () => {
+    const { AffiliateProgramsCard } = await import('../components/Studio/AffiliateProgramsCard')
+    render(<AffiliateProgramsCard I={mockI} onStatus={vi.fn()} />)
+    expect(screen.getByText(/Affiliate Programs/)).toBeTruthy()
+    expect(screen.getByText('START HERE')).toBeTruthy()
+  })
+
+  it('lists the affiliate shortlist', async () => {
+    const { AffiliateProgramsCard } = await import('../components/Studio/AffiliateProgramsCard')
+    render(<AffiliateProgramsCard I={mockI} onStatus={vi.fn()} />)
+    expect(screen.getByText('Amazon Associates')).toBeTruthy()
+    expect(screen.getByText('TikTok Shop Affiliate')).toBeTruthy()
+    expect(screen.getByText('HubSpot Affiliate')).toBeTruthy()
+  })
+
+  it('every program row is an external sign-up link (new tab, noopener)', async () => {
+    const { AffiliateProgramsCard } = await import('../components/Studio/AffiliateProgramsCard')
+    const { container } = render(<AffiliateProgramsCard I={mockI} onStatus={vi.fn()} />)
+    const links = Array.from(container.querySelectorAll('a[data-testid^="affiliate-program-"]'))
+    expect(links.length).toBeGreaterThanOrEqual(9)
+    for (const a of links) {
+      expect(a.getAttribute('target')).toBe('_blank')
+      expect(a.getAttribute('rel')).toContain('noopener')
+      expect(a.getAttribute('href')).toMatch(/^https:\/\//)
+    }
+  })
+
+  it('shows the confirm-on-the-program caveat', async () => {
+    const { AffiliateProgramsCard } = await import('../components/Studio/AffiliateProgramsCard')
+    render(<AffiliateProgramsCard I={mockI} onStatus={vi.fn()} />)
+    expect(screen.getByText(/confirm on the program/)).toBeTruthy()
+  })
+})
+
 // ── LadderCard ──
 
 describe('LadderCard', () => {
@@ -319,8 +365,20 @@ describe('StudioPage', () => {
     const { default: StudioPage } = await import('../components/Studio/StudioPage')
     render(<StudioPage I={mockI} />)
     expect(screen.getByText(/Memberships & Tips/)).toBeTruthy()
-    expect(screen.getByText(/Amazon Associates/)).toBeTruthy()
+    // "Amazon Associates" appears in both the tag card and the program list
+    expect(screen.getAllByText(/Amazon Associates/).length).toBeGreaterThanOrEqual(1)
     expect(screen.getAllByText(/Direct Deals/).length).toBeGreaterThanOrEqual(1)
+  })
+
+  it('renders the Affiliate Programs card first in Rung 0', async () => {
+    const { default: StudioPage } = await import('../components/Studio/StudioPage')
+    const { container } = render(<StudioPage I={mockI} />)
+    const aff = container.querySelector('[data-testid="studio-affiliate-programs-card"]')
+    const ads = container.querySelector('[data-testid="studio-ads-card"]')
+    expect(aff).toBeTruthy()
+    expect(ads).toBeTruthy()
+    // the bootcamp card is the entry point — it sits above the Ads card
+    expect(aff!.compareDocumentPosition(ads!) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
   })
 
   it('renders zero-friction footer', async () => {

@@ -4,6 +4,7 @@ import { MembershipsCard } from './MembershipsCard';
 import { AmazonTagCard } from './AmazonTagCard';
 import { DirectDealsCard } from './DirectDealsCard';
 import { AdsCard } from './AdsCard';
+import { AffiliateProgramsCard } from './AffiliateProgramsCard';
 import { LadderCard } from './LadderCard';
 import { LADDER_RUNGS } from './studio-data';
 
@@ -41,6 +42,7 @@ function StudioPage({ I }: { I: Record<string, any> }) {
                 Rung 0 — Available Now
               </h2>
               <div className="space-y-4">
+                <AffiliateProgramsCard I={I} onStatus={onStatus} />
                 <AdsCard I={I} onStatus={onStatus} />
                 <MembershipsCard I={I} onStatus={onStatus} />
                 <AmazonTagCard I={I} onStatus={onStatus} />
