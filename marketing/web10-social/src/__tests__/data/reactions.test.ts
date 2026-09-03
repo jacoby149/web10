@@ -43,7 +43,7 @@ describe('reactions v3 data layer', () => {
       // server stored '' and the ref read (ref_value === target_id) never
       // matched. The real createReaction must send ref_value in the create opts.
       const { createReaction } = await import('../../data/reactions');
-      const doc = { doc_id: 'r1', body: { target_id: 'p1', type: 'like' }, ref_value: 'p1' };
+      const doc = { doc_id: 'r1', author_key: 'web10.app/users/alice', body: { target_id: 'p1', type: 'like' }, ref_value: 'p1' };
       mock.create.mockResolvedValue(doc);
       await createReaction({ target_id: 'p1', target_service: 'posts', type: 'like' } as any);
       expect(mock.create).toHaveBeenCalledWith(

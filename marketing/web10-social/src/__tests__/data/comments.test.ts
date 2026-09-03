@@ -72,7 +72,7 @@ describe('comments v3 data layer', () => {
       // server stored '' and the ref read (ref_value === post_id) never
       // matched. The real createComment must send ref_value in the create opts.
       const { createComment } = await import('../../data/comments');
-      const doc = { doc_id: 'cm1', body: { post_id: 'p1', text: 'nice!' }, ref_value: 'p1' };
+      const doc = { doc_id: 'cm1', author_key: 'web10.app/users/alice', body: { post_id: 'p1', text: 'nice!' }, ref_value: 'p1' };
       mock.create.mockResolvedValue(doc);
       await createComment({ post_id: 'p1', text: 'nice!' } as any);
       expect(mock.create).toHaveBeenCalledWith(
