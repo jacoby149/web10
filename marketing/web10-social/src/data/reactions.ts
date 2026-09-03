@@ -1,4 +1,5 @@
 import { getV3Client } from './v3';
+import { getDiscoverGroupId } from './groups';
 import { fromV3DocToReaction, type ReactionRecord } from './types';
 
 // ── Reactions data layer (v3) ────────────────────────────────────────────────
@@ -18,7 +19,7 @@ export async function readReactions(
 ): Promise<ReactionRecord[]> {
   const actualTargetId = targetId || targetServiceOrId;
   const w = getV3Client();
-  const targetGroups = groups || ['web10.app/groups/web10/discover'];
+  const targetGroups = groups || [getDiscoverGroupId()];
   // The ref filter (the flexible read, phase 1): the server returns only the
   // reactions whose ref_value = targetId (via the safe-query engine), not all
   // reactions in the group. No client-side filter needed.
@@ -49,7 +50,7 @@ export async function createReaction(
     author_provider: token.provider,
   };
 
-  const targetGroups = Array.isArray(groupsOrPostAuthor) ? groupsOrPostAuthor : ['web10.app/groups/web10/discover'];
+  const targetGroups = Array.isArray(groupsOrPostAuthor) ? groupsOrPostAuthor : [getDiscoverGroupId()];
   // ref_value (the target's doc_id) is a top-level create field — the server
   // stores it in the ref_value column, which the ref read + counts key off.
   // Without this the reaction is orphaned (ref_value="" → never found).

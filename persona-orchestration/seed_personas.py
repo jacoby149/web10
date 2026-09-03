@@ -43,7 +43,8 @@ except ImportError:
 PASSWORD = "web10test!2026"
 
 # The node-default universal public board (matches the API's DISCOVER_GROUP_ID
-# and the social app's DISCOVER_GROUP).
+# and the social app's getDiscoverGroupId()). Provider-derived — set in main()
+# from the node's provider (the API host). The default below is prod.
 DISCOVER_GROUP = "web10.app/groups/web10/discover"
 
 STATE_FILE = os.path.join(os.path.dirname(os.path.abspath(__file__)), ".seed-state.json")
@@ -500,6 +501,8 @@ def main():
 
     base = args.api.rstrip("/")
     provider = args.provider or derive_provider(base)
+    global DISCOVER_GROUP
+    DISCOVER_GROUP = f"{provider}/groups/web10/discover"
     site = args.site or derive_site(base)
     state = load_state()
     print(f"Target API: {base}")

@@ -13,7 +13,7 @@ A node operator needs to keep the discover board clean. Slurs, hate speech, and 
 
 ## The Design: Use What's Already There
 
-The discover board is a group (`web10.app/groups/web10/discover`). It already has:
+The discover board is a group (`{provider}/groups/web10/discover` — `{provider}` is the node's configured `PROVIDER`, its API host, so each node's board has a unique global id). It already has:
 
 - **`group_hidden_docs`** — individual posts hidden from the group's read
 - **`POST /v3/groups/{hide,unhide,hidden}`** — gated by `hideAll` role permission OR node admin

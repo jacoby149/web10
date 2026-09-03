@@ -19,12 +19,12 @@ Feed
 
 ## Protocol Mapping
 
-**Your feed is all groups you belong to, except the discover group.** The discover group (`web10.app/groups/web10/discover`) is the public board — it has its own screen. Your feed is personal: followers, communities, close-friends.
+**Your feed is all groups you belong to, except the discover group.** The discover group (`{provider}/groups/web10/discover`) is the public board — it has its own screen. Your feed is personal: followers, communities, close-friends.
 
 ```ts
 const allGroups = await w.getGroups({ member: 'jacoby149' })
 // → [
-//    { group_id: 'web10.app/groups/web10/discover', ... },
+//    { group_id: '{provider}/groups/web10/discover', ... },
 //    { group_id: 'web10.app/groups/jacoby149/followers', ... },
 //    { group_id: 'web10.app/groups/jacoby149/close-friends', ... },
 //    { group_id: 'web10.app/groups/charlie/st-louis-chess-club', ... },
@@ -32,7 +32,7 @@ const allGroups = await w.getGroups({ member: 'jacoby149' })
 //  ]
 
 const feedGroups = allGroups
-  .filter(g => g.group_id !== 'web10.app/groups/web10/discover')
+  .filter(g => g.group_id !== '{provider}/groups/web10/discover')
   .map(g => g.group_id)
 
 const posts = await w.read('posts', {
@@ -89,7 +89,7 @@ User opens /feed
 
 | Your Feed | Discover |
 |---|---|
-| All groups you belong to, except discover | Only `web10.app/groups/web10/discover` |
+| All groups you belong to, except discover | Only `{provider}/groups/web10/discover` |
 | Personal: followers, communities, close-friends | Public board: everything posted to discover |
 | Chronological | Chronological or trending |
 | Different for every user | Same for every user |

@@ -9,5 +9,6 @@
 const env = import.meta.env as Record<string, string | undefined>
 
 export const API_ORIGIN = env.VITE_API_URL || 'https://api.web10.app'
+export const API_HOST: string = API_ORIGIN.replace(/^https?:\/\//, '')
 export const AUTH_ORIGIN = env.VITE_AUTH_URL || 'https://auth.web10.app'
 export const SOCIAL_ORIGIN = env.VITE_SOCIAL_URL || 'https://social.web10.app'

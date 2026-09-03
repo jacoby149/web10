@@ -30,7 +30,7 @@ const API_BASE = `http://api.localhost${p}`;
 const AUTH_BASE = `http://auth.localhost${p}`;
 const SOCIAL_BASE = `http://social.localhost${p}`;
 const PROVIDER = 'api.localhost';
-const DISCOVER_GROUP_ID = 'web10.app/groups/web10/discover';
+const DISCOVER_GROUP_ID = `${PROVIDER}/groups/web10/discover`;
 const SOCIAL_ORIGIN = `http://social.localhost${p}`;
 
 const uniqueUser = (prefix: string) => `${prefix}${Date.now()}-${Math.random().toString(36).slice(2, 6)}`;

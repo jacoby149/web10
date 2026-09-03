@@ -37,7 +37,7 @@ const SOCIAL_ORIGIN = `http://social.localhost${p}`;
 // The node-default discover group — a well-known constant, created at boot,
 // every user (and anon) auto-joined. The /feed read DROPS this group, but a
 // public post is attached to it (so it is the persistence check's home).
-const DISCOVER_GROUP_ID = 'web10.app/groups/web10/discover';
+const DISCOVER_GROUP_ID = 'api.localhost/groups/web10/discover';
 const SERVICE = 'posts';
 
 const password = 'TestPass123!';

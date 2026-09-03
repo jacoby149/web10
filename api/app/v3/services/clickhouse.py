@@ -387,11 +387,14 @@ def _migrate_d58_role_shape() -> None:
 # web10-v3/groups/social-contracts.md §1 — owner "System", members "Everyone
 # (auto-join)"; web10-social-v3/discover.md — "every user (including anon) is
 # a member"). It is the universal public board: a read of the group IS the
-# board, and a post is public when its author attaches it here. The group id
-# is a well-known constant (not provider-derived) so every app — and the
-# marketing site, which reads it as anon — addresses the same board.
+# board, and a post is public when its author attaches it here. The group id is
+# provider-derived (`{provider}/groups/web10/discover`, provider = the node's
+# configured PROVIDER) so each node's board is namespaced by its provider — a
+# unique global id per node (federation-clean) and consistent with the user-
+# group model. The marketing site reads it as anon on the same node, so it uses
+# the node's provider too.
 
-DISCOVER_GROUP_ID = "web10.app/groups/web10/discover"
+DISCOVER_GROUP_ID = f"{settings.PROVIDER}/groups/web10/discover"
 
 # One role. Everyone shares it (social-contracts.md §1): read the board, post
 # to it, manage your own posts. No owners, no moderators. The `*` wildcard

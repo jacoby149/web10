@@ -1,4 +1,5 @@
 import { getV3Client } from './v3';
+import { getDiscoverGroupId } from './groups';
 import { fromV3DocToComment, type CommentRecord } from './types';
 
 // ── Comments data layer (v3) ─────────────────────────────────────────────────
@@ -11,7 +12,7 @@ import { fromV3DocToComment, type CommentRecord } from './types';
  */
 export async function readComments(postId: string, groups?: string[]): Promise<CommentRecord[]> {
   const w = getV3Client();
-  const targetGroups = groups || ['web10.app/groups/web10/discover'];
+  const targetGroups = groups || [getDiscoverGroupId()];
   // The ref filter (the flexible read, phase 1): the server returns only the
   // comments whose ref_value = postId (via the safe-query engine — group
   // filter + block/sharing/hidden), not all comments in the group. No
@@ -33,7 +34,7 @@ export async function readTopLevelComments(postId: string, groups?: string[]): P
  */
 export async function readReplies(commentId: string, groups?: string[]): Promise<CommentRecord[]> {
   const w = getV3Client();
-  const targetGroups = groups || ['web10.app/groups/web10/discover'];
+  const targetGroups = groups || [getDiscoverGroupId()];
   // The ref filter: the server returns only the comments whose ref_value =
   // commentId (replies to this comment), via the safe-query engine.
   const docs = await w.read('comments', { groups: targetGroups, ref: commentId });
@@ -66,7 +67,7 @@ export async function createComment(
     origin_id: comment.origin_id,
   };
 
-  const targetGroups = groups || ['web10.app/groups/web10/discover'];
+  const targetGroups = groups || [getDiscoverGroupId()];
   // ref_value (the target post's doc_id) is a top-level create field, not in
   // the body — the server stores it in the ref_value column, which the read's
   // ref filter + engagement counts key off. Without this the comment is
