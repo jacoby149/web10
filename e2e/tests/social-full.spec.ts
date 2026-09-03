@@ -7,6 +7,24 @@ const SOCIAL_BASE = `http://social.localhost${p}`;
 
 const uniqueUser = () => `socialtest${Date.now()}`;
 
+// The e2e ClickHouse (ReplacingMergeTree) is eventually consistent and the
+// shared multi-workspace stack can be transiently unhealthy (a create insert
+// can lose the merge race). Retry to ride it out — same pattern as the
+// signup/login retry. Returns the first OK response, or the last response
+// (so the caller's assertion fails with the real status).
+async function createWithRetry(request: any, payload: Record<string, unknown>) {
+  let res: any = null;
+  for (let attempt = 0; attempt < 5; attempt++) {
+    res = await request.post(`${API_BASE}/v3/create`, {
+      data: JSON.stringify(payload),
+      headers: { 'Content-Type': 'application/json' },
+    });
+    if (res.ok()) return res;
+    await new Promise((r) => setTimeout(r, 500));
+  }
+  return res;
+}
+
 test.describe('social post with media -> feed -> comment -> DM', () => {
   let username: string;
   let token: string;
@@ -65,22 +83,20 @@ test.describe('social post with media -> feed -> comment -> DM', () => {
     // '', and the ref filter never matched — the comment was orphaned.
     const DISCOVER = 'web10.app/groups/web10/discover';
 
-    const postRes = await request.post(`${API_BASE}/v3/create`, {
-      data: { token, service: 'posts', body: { text: 'ref test post' }, groups: [DISCOVER] },
+    const postRes = await createWithRetry(request, {
+      token, service: 'posts', body: { text: 'ref test post' }, groups: [DISCOVER],
     });
     expect(postRes.ok()).toBeTruthy();
     const post = await postRes.json();
     const postId: string = post.doc_id;
     expect(postId).toBeTruthy();
 
-    const commentRes = await request.post(`${API_BASE}/v3/create`, {
-      data: {
-        token,
-        service: 'comments',
-        body: { text: 'ref test comment', post_id: postId },
-        groups: [DISCOVER],
-        ref_value: postId,
-      },
+    const commentRes = await createWithRetry(request, {
+      token,
+      service: 'comments',
+      body: { text: 'ref test comment', post_id: postId },
+      groups: [DISCOVER],
+      ref_value: postId,
     });
     expect(commentRes.ok()).toBeTruthy();
     const comment = await commentRes.json();
@@ -102,22 +118,20 @@ test.describe('social post with media -> feed -> comment -> DM', () => {
     // post's doc_id, and the read (filtered by ref_value) finds it.
     const DISCOVER = 'web10.app/groups/web10/discover';
 
-    const postRes = await request.post(`${API_BASE}/v3/create`, {
-      data: { token, service: 'posts', body: { text: 'ref test post' }, groups: [DISCOVER] },
+    const postRes = await createWithRetry(request, {
+      token, service: 'posts', body: { text: 'ref test post' }, groups: [DISCOVER],
     });
     expect(postRes.ok()).toBeTruthy();
     const post = await postRes.json();
     const postId: string = post.doc_id;
     expect(postId).toBeTruthy();
 
-    const reactionRes = await request.post(`${API_BASE}/v3/create`, {
-      data: {
-        token,
-        service: 'reactions',
-        body: { type: 'like', target_id: postId },
-        groups: [DISCOVER],
-        ref_value: postId,
-      },
+    const reactionRes = await createWithRetry(request, {
+      token,
+      service: 'reactions',
+      body: { type: 'like', target_id: postId },
+      groups: [DISCOVER],
+      ref_value: postId,
     });
     expect(reactionRes.ok()).toBeTruthy();
     const reaction = await reactionRes.json();
