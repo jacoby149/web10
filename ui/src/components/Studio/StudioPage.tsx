@@ -1,7 +1,6 @@
 import React from 'react';
 import AppShell from '../shared/AppShell';
 import { MembershipsCard } from './MembershipsCard';
-import { AmazonTagCard } from './AmazonTagCard';
 import { DirectDealsCard } from './DirectDealsCard';
 import { AdsCard } from './AdsCard';
 import { AffiliateProgramsCard } from './AffiliateProgramsCard';
@@ -45,7 +44,6 @@ function StudioPage({ I }: { I: Record<string, any> }) {
                 <AffiliateProgramsCard I={I} onStatus={onStatus} />
                 <AdsCard I={I} onStatus={onStatus} />
                 <MembershipsCard I={I} onStatus={onStatus} />
-                <AmazonTagCard I={I} onStatus={onStatus} />
                 <DirectDealsCard I={I} onStatus={onStatus} />
               </div>
             </div>

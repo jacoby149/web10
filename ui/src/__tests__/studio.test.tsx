@@ -87,56 +87,6 @@ describe('MembershipsCard', () => {
   })
 })
 
-// ── AmazonTagCard ──
-
-describe('AmazonTagCard', () => {
-  const mockI = {
-    isMock: true,
-    setStatus: vi.fn(),
-    wapi: {},
-  }
-
-  beforeEach(() => {
-    vi.clearAllMocks()
-    vi.spyOn(Storage.prototype, 'getItem').mockReturnValue(null)
-    vi.spyOn(Storage.prototype, 'setItem').mockImplementation(() => {})
-  })
-
-  afterEach(() => {
-    vi.restoreAllMocks()
-  })
-
-  it('renders with Amazon title', async () => {
-    const { AmazonTagCard } = await import('../components/Studio/AmazonTagCard')
-    render(<AmazonTagCard I={mockI} onStatus={vi.fn()} />)
-    expect(screen.getByText(/Amazon Associates/)).toBeTruthy()
-  })
-
-  it('renders compliance chips', async () => {
-    const { AmazonTagCard } = await import('../components/Studio/AmazonTagCard')
-    render(<AmazonTagCard I={mockI} onStatus={vi.fn()} />)
-    expect(screen.getByText(/Affiliate disclosure auto/)).toBeTruthy()
-    expect(screen.getByText(/No cloaking/)).toBeTruthy()
-  })
-
-  it('shows tag input and save button', async () => {
-    const { AmazonTagCard } = await import('../components/Studio/AmazonTagCard')
-    render(<AmazonTagCard I={mockI} onStatus={vi.fn()} />)
-    expect(screen.getByPlaceholderText('e.g. mysite-20')).toBeTruthy()
-    expect(screen.getByText('Save Tag')).toBeTruthy()
-  })
-
-  it('saves tag on Enter key', async () => {
-    const { AmazonTagCard } = await import('../components/Studio/AmazonTagCard')
-    const onStatus = vi.fn()
-    render(<AmazonTagCard I={mockI} onStatus={onStatus} />)
-    const input = screen.getByPlaceholderText('e.g. mysite-20')
-    fireEvent.change(input, { target: { value: 'mytag-20' } })
-    fireEvent.keyDown(input, { key: 'Enter', code: 'Enter' })
-    expect(onStatus).toHaveBeenCalled()
-  })
-})
-
 // ── DirectDealsCard ──
 
 describe('DirectDealsCard', () => {
