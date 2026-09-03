@@ -381,21 +381,30 @@ export function createV3Client(options: V3ClientOptions = {}): V3Client {
     async create(
       collection: string,
       body: Record<string, unknown>,
-      opts?: { groups?: string[]; ad_preference?: V3AdPreference },
+      opts?: { groups?: string[]; ad_preference?: V3AdPreference; ref_value?: string },
     ): Promise<V3Document> {
       const payload: V3Body = { service: collection, body }
       if (opts?.groups) payload.groups = opts.groups
       if (opts?.ad_preference) payload.ad_preference = opts.ad_preference
+      // The ref pattern: a reaction/comment points at its target post via
+      // ref_value (the target's doc_id). A top-level field on the create
+      // request (not in the body) — the server stores it in the ref_value
+      // column, which the read's ref filter + engagement counts key off.
+      if (opts?.ref_value) payload.ref_value = opts.ref_value
       return v3Post<V3Document>('create', payload)
     },
 
     async read(
       collection: string,
-      opts: { groups: string[]; limit?: number; offset?: number },
+      opts: { groups: string[]; limit?: number; offset?: number; ref?: string | string[] },
     ): Promise<V3Document[]> {
       const payload: V3Body = { service: collection, groups: opts.groups }
       if (opts.limit != null) payload.limit = opts.limit
       if (opts.offset != null) payload.offset = opts.offset
+      // The ref filter (the flexible read, phase 1): return only the docs whose
+      // ref_value matches. A single doc_id or a list (the engagement-count
+      // shape). Routed through the safe-query engine server-side.
+      if (opts.ref != null) payload.ref = opts.ref
       return v3Post<V3Document[]>('read', payload)
     },
 
@@ -804,8 +813,8 @@ export interface V3Client {
   setRecoveryPhone(phone: string): Promise<{ phone_number: string }>
 
   // CRUD with groups
-  create(collection: string, body: Record<string, unknown>, opts?: { groups?: string[]; ad_preference?: V3AdPreference }): Promise<V3Document>
-  read(collection: string, opts: { groups: string[]; limit?: number; offset?: number }): Promise<V3Document[]>
+  create(collection: string, body: Record<string, unknown>, opts?: { groups?: string[]; ad_preference?: V3AdPreference; ref_value?: string }): Promise<V3Document>
+  read(collection: string, opts: { groups: string[]; limit?: number; offset?: number; ref?: string | string[] }): Promise<V3Document[]>
   readById(docId: string, collection: string): Promise<V3Document>
   update(docId: string, body: Record<string, unknown>, opts?: { groups?: string[]; ad_preference?: V3AdPreference }): Promise<V3Document>
   delete(docId: string): Promise<{ doc_id: string; status: string }>

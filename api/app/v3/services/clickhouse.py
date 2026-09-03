@@ -1922,6 +1922,58 @@ def read_documents_in_groups(
     return _group_docs_query(group_ids, member_key, service, limit, offset, require_membership)
 
 
+def read_docs_by_ref(
+    service: str,
+    ref_values: str | list[str],
+    group_ids: list[str],
+    member_key: str,
+    limit: int = 50,
+) -> list[dict]:
+    """Read docs by ref_value, through the safe-query engine (the full
+    boundary: group filter + block/sharing/hidden anti-joins). The flexible
+    read, phase 1 — the "give me the comments/reactions for these posts"
+    shape, routed through ``build_safe_query`` so it carries the same
+    visibility rules as the existing read path (a blocked user's comment is
+    hidden, a hidden doc is hidden).
+
+    ``ref_values`` is a single doc_id or a list (the engagement-count shape).
+    ``group_ids`` is the reader's readable groups for ``service`` (the D58 read
+    gate). ``member_key`` is the reader (the anti-join key; ``"anon"`` for a
+    token-less read).
+    """
+    from app.v3.services.safe_query import build_safe_query
+
+    refs = [ref_values] if isinstance(ref_values, str) else list(ref_values)
+    if not refs:
+        return []
+    # ref values are node-generated doc_ids (never caller input); the quoting
+    # is defense-in-depth against a stray quote.
+    quoted = ", ".join(f"'{r.replace(chr(39), chr(39) * 2)}'" for r in refs)
+    ref_clause = f"ref_value = {quoted}" if len(refs) == 1 else f"ref_value IN ({quoted})"
+    query = (
+        f"SELECT doc_id, author_key, body, ref_value, tags, created_at, updated_at "
+        f"FROM {service} WHERE {ref_clause} LIMIT {int(limit)}"
+    )
+    # The engine injects the boundary CTE for `service` (group filter +
+    # anti-joins) and validates the query (rejects raw tables / table
+    # functions). `service` is a service name, not a raw table — the engine
+    # treats it as a CTE to be built.
+    compiled = build_safe_query(query, {service: group_ids}, member_key)
+    result = client.query(compiled)
+    return [
+        {
+            "doc_id": row[0],
+            "author_key": row[1],
+            "body": _parse_json(row[2]),
+            "ref_value": row[3],
+            "tags": list(row[4]),
+            "created_at": _iso_utc(row[5]),
+            "service": service,
+        }
+        for row in result.result_rows
+    ]
+
+
 # ---------------------------------------------------------------------------
 # Ref counts (engagement)
 # ---------------------------------------------------------------------------

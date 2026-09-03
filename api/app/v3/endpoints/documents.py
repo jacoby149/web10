@@ -169,6 +169,23 @@ def read_documents(request: Request, data: ReadDocuments):
                 detail="not a member of the requested group",
             )
 
+    if data.ref is not None:
+        # The ref filter (the flexible read, phase 1): "give me the
+        # comments/reactions for these posts." Routed through the safe-query
+        # engine (read_docs_by_ref → build_safe_query) so it carries the full
+        # boundary — group filter + block/sharing/hidden — not just a raw
+        # WHERE. group_ids is already the reader's readable set (above).
+        docs = ch.read_docs_by_ref(
+            service=data.service,
+            ref_values=data.ref,
+            group_ids=group_ids,
+            member_key=reader,
+            limit=data.limit,
+        )
+        docs = ch.attach_pinned_ads(docs, reader)
+        docs = ch.attach_node_ads(docs, reader)
+        return _mint_hls_manifest_urls(ch.resolve_media_urls_in_docs(docs), reader)
+
     docs = ch.read_documents_in_groups(
         group_ids=group_ids,
         member_key=reader,
