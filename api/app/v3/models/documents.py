@@ -74,6 +74,10 @@ class ReadDocuments(BaseModel):
     # safe-query engine (build_safe_query) so it carries the full boundary —
     # group filter + block/sharing/hidden — not just a raw WHERE.
     ref: str | list[str] | None = None
+    # With `ref`, return a {ref_value: count} map instead of the docs — the
+    # server-side engagement-count shape (GROUP BY ref_value through the
+    # engine). Exact for the caller's readable groups, no cap.
+    count: bool = False
 
 
 class UpdateDocument(BaseModel):
