@@ -38,3 +38,20 @@ class VerifyCode(BaseModel):
 class SetRecoveryPhone(BaseModel):
     token: str
     phone: str
+
+
+# Contact-anchored auth (D61) — unauthenticated; the contact + code are the
+# credential. `contact` is a phone number OR an email.
+class RecoveryRequest(BaseModel):
+    contact: str
+
+
+class RecoveryVerify(BaseModel):
+    contact: str
+    code: str
+
+
+class RecoveryComplete(BaseModel):
+    verify_token: str
+    username: str
+    new_password: str | None = None

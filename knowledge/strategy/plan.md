@@ -345,6 +345,24 @@ Spec'd in `knowledge-base/web10-v3/social/content-moderation.md` (the model) +
 - [ ] **E2E: moderation gauntlet** — post with a flagged word → hidden from the board → operator keeps-hiding → next post auto-hidden → operator removes → next post visible. Gated on the social-e2e stack.
 - [ ] **v1** — profile name/bio detection (flag-only), a retroactive-scan admin command, a user notification on auto-hide.
 
+## Contact-Anchored Auth (D61) — Platform
+
+The account is anchored on a **contact** (phone OR email), verified by a 6-digit
+code. The contact is the front door: enter contact → code → pick an account on
+that contact (or create a new username) → signed in. Sign-up, sign-in, and
+password-change are the same flow. A contact can carry many usernames. The
+requirement is node policy (D10): the `require_contact` node-config flag;
+web10.app turns it on. The 3.47.0 UI already calls the three endpoints — they
+were never built (the changelog's "the API is 3.37.0" was wrong). Lane is
+`contact-auth` in `parallel-execution.md`.
+
+- [✓ 3.48.0] **Decision: D61** (`knowledge/strategy/decisions.md`) — contact-anchored auth (phone OR email), node-config-gated (D10), one contact → many accounts, unified sign-in + password-change, the verify_token security model, age assurance as a layerable gate.
+- [✓ 3.48.0] **KB** (`knowledge/knowledge-base/web10-v3/auth/auth.md`) — the contact-anchored flow section (the three endpoints, the model, the security, the node policy).
+- [✓ 3.48.0] **API keystone** (`api/app/v3/endpoints/recovery.py`, `services/clickhouse.py`, `services/twilio.py`, `models/auth.py`) — the three endpoints (request/verify/complete) + `get_users_by_contact` (phone OR email) + Twilio channel-aware (sms/email) + the `verify_token` gate + create-on-complete (unified signup).
+- [✓ 3.48.0] **Node config flag** (`api/app/models/config.py`, `services/config.py`) — `require_contact` (D10); enforced in `POST /v3/signup` (401 `CONTACT_REQUIRED`).
+- [✓ 3.48.0] **Tests** (`api/tests/test_recovery.py`) — request sends code, verify returns accounts + verify_token, complete signs in / creates account / changes password, contact mismatch, bad code, node-config gate.
+- [✓ 3.48.0] **UI** (`ui/src/interfaces/Interface.tsx`, `ui/src/components/CredentialPage/ForgotForm.tsx`) — the contact input (phone OR email), the verify_token plumbing, the "create a new account" option, the primary-sign-in routing.
+
 ## Phase 4 — Production Cutover: v2 → v3, then merge to main
 
 **Where:** `knowledge/knowledge-base/web10-v3/` (migration model), `api/` (migration tooling), `ubuntu-deployment/` (prod deploy)

@@ -2830,6 +2830,34 @@ def get_phone_record(phone_number: str) -> dict | None:
     return {"username": row[0], "phone": row[1]}
 
 
+def get_users_by_contact(contact: str) -> list[dict]:
+    """All active users whose current phone OR email matches the contact (D61).
+
+    Deduped to the latest row per username (the ReplacingMergeTree current
+    state), then filtered by the contact column. A contact can carry many
+    usernames (the "pick one of the users" step).
+    """
+    col = "email" if "@" in contact else "phone"
+    result = client.query(
+        "SELECT username, phone, email, phone_verified, email_verified FROM ("
+        "SELECT username, phone, email, phone_verified, email_verified, "
+        "row_number() OVER (PARTITION BY username ORDER BY updated_at DESC, deleted DESC) as rn "
+        "FROM users WHERE deleted = 0"
+        ") WHERE rn = 1 AND " + col + " = %(contact)s ORDER BY username",
+        {"contact": contact},
+    )
+    return [
+        {
+            "username": row[0],
+            "phone": row[1],
+            "email": row[2],
+            "phone_verified": bool(row[3]),
+            "email_verified": bool(row[4]),
+        }
+        for row in result.result_rows
+    ]
+
+
 # ---------------------------------------------------------------------------
 # Media (upload confirm, list)
 # ---------------------------------------------------------------------------

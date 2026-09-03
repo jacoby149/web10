@@ -1173,14 +1173,15 @@ class TestSignup:
                 MagicMock(result_rows=[group_row]),
             ]
             with patch("app.v3.endpoints.auth.get_password_hash", return_value="hash123"):
-                resp = client.post(
-                    "/v3/signup",
-                    json={
-                        "username": "alice",
-                        "password": "secret",
-                        "phone": "+1234567890",
-                    },
-                )
+                with patch("app.v3.endpoints.auth.effective_config", return_value={"require_contact": False}):
+                    resp = client.post(
+                        "/v3/signup",
+                        json={
+                            "username": "alice",
+                            "password": "secret",
+                            "phone": "+1234567890",
+                        },
+                    )
         assert resp.status_code == 200
         assert resp.json()["username"] == "alice"
 

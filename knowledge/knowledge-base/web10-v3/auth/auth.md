@@ -140,6 +140,37 @@ Inserts into `users` table: `INSERT INTO users VALUES (username, password_hash, 
 - **Password:** must be non-empty (whitespace-only rejected). Violation → 401 `BAD_PASSWORD`, no user created. An empty password would otherwise hash fine and log in fine — the check is what keeps it out.
 - **Duplicate:** username already in `users` (non-deleted) → 401 `EXISTS`.
 
+### Contact-Anchored Auth (D61)
+
+The account is anchored on a **contact** — a phone number OR an email — verified by a 6-digit code. This is the front door: **enter contact → code → pick an account on that contact (or create a new username) → signed in.** Sign-up, sign-in, and password-change are the same flow. A contact can carry many usernames. The requirement is **node policy (D10)**: the `require_contact` node-config flag; web10.app turns it on.
+
+The three endpoints are **unauthenticated** (the contact + code are the credential):
+
+```
+POST /v3/recovery/request
+Body: { contact: "+15551234567" | "user@example.com" }
+→ { sent: true, kind: "phone" | "email" }
+```
+Sends a 6-digit code via Twilio Verify — `channel=sms` for a phone, `channel=email` for an email (one provider for both). The contact is validated (a phone matches a number shape; an email matches an email shape); an invalid contact → 401 `BAD_CONTACT`.
+
+```
+POST /v3/recovery/verify
+Body: { contact, code }
+→ { accounts: [{ username, email }], verify_token }
+```
+Checks the code (Twilio Verify). On a wrong code → 401 `WRONG_CODE`. Returns the **list of accounts** on that contact (the "pick one of the users" step) + a short-lived (5-min) signed `verify_token` — the proof the code was right. A contact on no account → 401 `CONTACT_NOT_REGISTERED`.
+
+```
+POST /v3/recovery/complete
+Body: { verify_token, username, new_password? }
+→ { token }
+```
+Validates `verify_token` (signature + 5-min expiry + `purpose:"recovery"`). Confirms the picked account actually carries the contact (defense in depth → 401 `CONTACT_NOT_LINKED`). If the username is new, **creates** the account carrying the verified contact (a random password when none is set, so the contact is the credential); if it exists, signs in. A `new_password` sets the password (the password-change path — no old password required). Marks the contact verified, mints the login JWT (the same shape the D42 popup flow mints).
+
+**Security:** the `verify_token` is the gate — `complete` cannot mint a token without a valid, unexpired `verify_token` for the contact, so a raw `{contact, username}` can't sign in. The picked account must carry the contact (a `verify_token` for phone X can't sign in to an account that doesn't have X). The contact is PII the node holds under terms (thesis: readable-by-design, data-policy not privacy) — it is not a cryptographic secret.
+
+**Node policy (D10):** when `require_contact` is on, `POST /v3/signup` requires a phone or email (401 `CONTACT_REQUIRED` otherwise). The contact flow is the front door; the old username+password login stays as a fallback for accounts without a contact.
+
 ### Account Management
 
 ```
