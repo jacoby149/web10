@@ -70,20 +70,6 @@ jobs:
         env:
           TIMEOUT: 300
 
-      - name: Dump stack logs on failure
-        if: failure()
-        run: |
-          echo "=== ClickHouse logs (stdout) ==="
-          docker compose -f e2e/docker-compose.yml logs clickhouse 2>&1 | tail -80
-          echo "=== ClickHouse err.log (via cp from stopped container) ==="
-          docker cp e2e-clickhouse-1:/var/log/clickhouse-server/clickhouse-server.err.log /tmp/ch-err.log 2>/dev/null && tail -40 /tmp/ch-err.log || echo "(could not extract)"
-          echo "=== ClickHouse main log ==="
-          docker cp e2e-clickhouse-1:/var/log/clickhouse-server/clickhouse-server.log /tmp/ch.log 2>/dev/null && tail -40 /tmp/ch.log || echo "(could not extract)"
-          echo "=== API logs ==="
-          docker compose -f e2e/docker-compose.yml logs api 2>&1 | tail -30
-          echo "=== Container status ==="
-          docker compose -f e2e/docker-compose.yml ps -a
-
       - name: Setup Playwright
         working-directory: e2e
         run: |
@@ -95,6 +81,22 @@ jobs:
         run: npx playwright test
         env:
           STRIPE_TEST_KEY: ${{ secrets.STRIPE_TEST_KEY }}
+
+      - name: Dump stack logs on failure
+        if: failure()
+        run: |
+          echo "=== ClickHouse logs (stdout) ==="
+          docker compose -f e2e/docker-compose.yml logs clickhouse 2>&1 | tail -80
+          echo "=== ClickHouse err.log (via cp from stopped container) ==="
+          docker cp e2e-clickhouse-1:/var/log/clickhouse-server/clickhouse-server.err.log /tmp/ch-err.log 2>/dev/null && tail -40 /tmp/ch-err.log || echo "(could not extract)"
+          echo "=== ClickHouse main log ==="
+          docker cp e2e-clickhouse-1:/var/log/clickhouse-server/clickhouse-server.log /tmp/ch.log 2>/dev/null && tail -40 /tmp/ch.log || echo "(could not extract)"
+          echo "=== API logs (errors + last 200) ==="
+          docker compose -f e2e/docker-compose.yml logs api 2>&1 | grep -iE "error|exception|traceback|500|refused|timeout|clickhouse" | tail -60
+          echo "--- API tail ---"
+          docker compose -f e2e/docker-compose.yml logs api 2>&1 | tail -200
+          echo "=== Container status ==="
+          docker compose -f e2e/docker-compose.yml ps -a
 
       - name: Upload Playwright traces on failure
         uses: actions/upload-artifact@v4

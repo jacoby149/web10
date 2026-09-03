@@ -211,11 +211,13 @@ export interface V3Client {
     create(collection: string, body: Record<string, unknown>, opts?: {
         groups?: string[];
         ad_preference?: V3AdPreference;
+        ref_value?: string;
     }): Promise<V3Document>;
     read(collection: string, opts: {
         groups: string[];
         limit?: number;
         offset?: number;
+        ref?: string | string[];
     }): Promise<V3Document[]>;
     readById(docId: string, collection: string): Promise<V3Document>;
     update(docId: string, body: Record<string, unknown>, opts?: {

@@ -11,6 +11,9 @@ dependencies = [
     "PyJWT>=2.9",
     "pymongo>=4.8",
     "clickhouse-connect>=0.8",
+    # The flexible-read boundary (safe_query.py) parses caller SQL into an AST
+    # and injects the group filter; sqlglot's ClickHouse dialect is the parser.
+    "sqlglot>=26",
     "uuid6>=2024.1.12",
     "boto3>=1.35",
     "passlib[bcrypt]>=1.7",
