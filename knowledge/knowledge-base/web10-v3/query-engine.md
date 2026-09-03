@@ -117,6 +117,30 @@ filter.
    self-joins, aggregations, the "do anything" power. The big one; needs the
    query-language decision below.
 
+## Group scoping (deferred)
+
+How a caller scopes *which* groups a read touches. Today: explicit group IDs,
+or the client computes the set (the feed is "my groups minus discover"). The
+`ref` filter works with that — no schema change needed.
+
+**Deferred: server-side categorical scoping** (`groups: 'communities'`,
+`groups: 'followers'`). When a real app asks for "my communities, not my
+DMs," the node must resolve a category to group IDs. Two mechanisms, both
+parked until an app needs it:
+
+- **`kind` enum on the group contract** — closed, node-known, set at creation
+  (`discover` / `followers` / `dm` / `community`). For *scoping*: exact and
+  non-gameable (`WHERE kind = 'community'`). D60-compliant if the platform
+  stores the app's label without interpreting it. Retires the fragile
+  ID-convention parsing (`isFollowersGroup`, `isDmGroup`, …) when it lands.
+- **A `group_tags` table** — open, user-set, for *discoverable-by-tag*
+  ("groups tagged #chess"). Not for scoping: an open set is fuzzy and
+  gameable (a user could tag their own group `community` to match a filter).
+
+Neither is needed for the `ref` filter. Build the `kind` enum only when the
+first app asks for categorical scoping; add tags only when an app needs
+discoverable-by-tag.
+
 ## Open Questions (the actual discussion)
 
 - **Query language.** A JSON DSL (structured spec)? A SQL subset (parse +
