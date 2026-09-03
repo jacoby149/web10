@@ -9,6 +9,19 @@ Status legend: [decided] intent set · [in-progress] · [open] still debating.
 
 ---
 
+### D61 — Engagement (comments/reactions) defaults to discover; the UI can pick groups; private accounts deferred [decided]
+Operator, 02.09.2026 — after the "can't comment/like my own post and have it persist" report: "comments being on discover is legit no problem, and reactions unless a private group setting! so not a big deal!" + "put a readme that to do private insta account type stuff, some thought has to go into that. but we arent implementing private yet, i.e. private accounts." + "we have a groups tab, so maybe it does apply, if you make a comment, well the comment can let you say what groups you want in the social ui you decide what groups the comment is going to! so if in a group and commenting can say discover + the group!"
+
+**Decided** — (1) **A comment/reaction is a document in the engager's own service** (`comments` / `reactions`), authored by the person who engaged, pointing at its target post via `ref_value` (the post's `doc_id`). **Authorship ≠ visibility**: the doc lives in the engager's data (whose it is); the group decides who can see it. That split is the model — no contradiction between "the post lives in the author's group" and "the comment lives in the commenter's service." (2) **Default group is discover** (`web10.app/groups/web10/discover`) — the universal public board. Every user is a member (auto-enroll) so the engager can always write there; it's `anyone`-readable so the public surface sees it. Correct for public posts, and the default. (3) **The group-picker is a feature** — the comment/reaction UI lets the user choose which groups to attach it to (same picker as the post composer); in a community the default is `discover` + the community group. (4) **Private accounts are deferred** — Instagram-style private accounts (posts + engagement not on the public board) are not implemented and need a design pass (the per-account "private" setting that changes the default group). Not a blocker: public accounts work with the discover default.
+
+**The concrete bug (separate from the design):** the client never sends `ref_value` to the server — `createComment`/`createReaction` set `doc.ref_value` *after* the create (client-side only), the SDK's `create` has no `ref_value` param, so the server stores `""` and the `ref_value === post_id` read filter never matches. That is why engagement "doesn't persist." Fix: the SDK's `create` accepts a `ref_value`; the client passes `ref_value = post._id`.
+
+**Rejected:** co-locating engagement in the post's own groups as the *default* (a public post sits in 2 groups → the engager needs write access to both, and the follower role grants only `readAll` on `posts`, not `create` on comments; discover is the one group everyone can always write to); a universal engagement store with a join-and-filter read (a privacy leak for private posts, and the feed reads followers-minus-discover so it wouldn't see discover-hosted engagement).
+
+Full model: `knowledge-base/web10-social-v3/engagement.md`.
+
+---
+
 ### D60 — The protocol stays universal: no app-specific tables/endpoints in the platform; app concepts live in app-named services + role grants [decided]
 Operator, 31.08.2026 — after the D58 Stage 0 identity work: "what hurts me is what if another app wants to define identity differently, we are locking it in to a name a description, a banner photo or whatever we are doing. it is very web10 social contexted is my point, we are making a universal role maker for the web" and "the marketing page is promoting web10 social as the frontier web10 killer app, but this is the new internet needs to be flexible not bespoke functions on the api to the social app, like this identity function that was added." On the session oracle: "is verify session even accurate function name? … keeping it generic to make any app robust / healthy! should be good enough to use in the demo apps."
 

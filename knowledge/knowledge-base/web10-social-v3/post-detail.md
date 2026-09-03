@@ -2,6 +2,10 @@
 
 Single post view. Content, reactions, comments, share options.
 
+> The engagement model — where comments/reactions live (discover default +
+> group-picker), the `ref_value` join, and the private-account deferral — is in
+> `engagement.md`. This doc is the screen-level protocol mapping.
+
 ## What the Screen Shows
 
 ```
