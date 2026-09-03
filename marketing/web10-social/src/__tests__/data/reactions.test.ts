@@ -37,6 +37,21 @@ describe('reactions v3 data layer', () => {
       expect(mock.create).toHaveBeenCalledWith('reactions', { target_id: 'p1', type: 'like' });
       expect(result).toEqual(doc);
     });
+
+    it('sends ref_value = target_id so the ref read can find the reaction', async () => {
+      // The regression: ref_value was set client-side AFTER create, so the
+      // server stored '' and the ref read (ref_value === target_id) never
+      // matched. The real createReaction must send ref_value in the create opts.
+      const { createReaction } = await import('../../data/reactions');
+      const doc = { doc_id: 'r1', body: { target_id: 'p1', type: 'like' }, ref_value: 'p1' };
+      mock.create.mockResolvedValue(doc);
+      await createReaction({ target_id: 'p1', target_service: 'posts', type: 'like' } as any);
+      expect(mock.create).toHaveBeenCalledWith(
+        'reactions',
+        expect.anything(),
+        expect.objectContaining({ ref_value: 'p1' }),
+      );
+    });
   });
 
   describe('readReactions (v3: read reactions for a post)', () => {

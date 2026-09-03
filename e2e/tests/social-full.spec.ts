@@ -42,16 +42,79 @@ test.describe('social post with media -> feed -> comment -> DM', () => {
     // /v3/create (service=posts) + /v3/read. v3 rewrite: service-based CRUD.
   });
 
-  test.skip('create post -> create comment on post', async () => {
-    // GUTTED (v2→v3): tested /{username}/posts + /{username}/comments (removed).
-    // Comments exist in v3 via /v3/create (service=comments, ref to the post).
-    // v3 rewrite: service-based CRUD + ref threading.
+  test('create post -> create comment -> read comment back by ref_value', async ({ request }) => {
+    // The ref round-trip (the regression this proves): a comment is created with
+    // ref_value = the post's doc_id, and the read (filtered by ref_value) finds
+    // it. Before the fix, ref_value was set client-side only, the server stored
+    // '', and the ref filter never matched — the comment was orphaned.
+    const DISCOVER = 'web10.app/groups/web10/discover';
+
+    const postRes = await request.post(`${API_BASE}/v3/create`, {
+      data: { token, service: 'posts', body: { text: 'ref test post' }, groups: [DISCOVER] },
+    });
+    expect(postRes.ok()).toBeTruthy();
+    const post = await postRes.json();
+    const postId: string = post.doc_id;
+    expect(postId).toBeTruthy();
+
+    const commentRes = await request.post(`${API_BASE}/v3/create`, {
+      data: {
+        token,
+        service: 'comments',
+        body: { text: 'ref test comment', post_id: postId },
+        groups: [DISCOVER],
+        ref_value: postId,
+      },
+    });
+    expect(commentRes.ok()).toBeTruthy();
+    const comment = await commentRes.json();
+    // The server persisted ref_value (not '').
+    expect(comment.ref_value).toBe(postId);
+
+    const readRes = await request.post(`${API_BASE}/v3/read`, {
+      data: { token, service: 'comments', groups: [DISCOVER] },
+    });
+    expect(readRes.ok()).toBeTruthy();
+    const comments: { ref_value: string; body: { text: string } }[] = await readRes.json();
+    const matching = comments.filter((c) => c.ref_value === postId);
+    expect(matching.length).toBeGreaterThanOrEqual(1);
+    expect(matching[0].body.text).toBe('ref test comment');
   });
 
-  test.skip('create reaction on post', async () => {
-    // GUTTED (v2→v3): tested /{username}/posts + /{username}/reactions (removed).
-    // Reactions exist in v3 via /v3/create (service=reactions, ref to the post).
-    // v3 rewrite: service-based CRUD + ref.
+  test('create post -> create reaction -> read reaction back by ref_value', async ({ request }) => {
+    // Same ref round-trip for reactions: a like is created with ref_value = the
+    // post's doc_id, and the read (filtered by ref_value) finds it.
+    const DISCOVER = 'web10.app/groups/web10/discover';
+
+    const postRes = await request.post(`${API_BASE}/v3/create`, {
+      data: { token, service: 'posts', body: { text: 'ref test post' }, groups: [DISCOVER] },
+    });
+    expect(postRes.ok()).toBeTruthy();
+    const post = await postRes.json();
+    const postId: string = post.doc_id;
+    expect(postId).toBeTruthy();
+
+    const reactionRes = await request.post(`${API_BASE}/v3/create`, {
+      data: {
+        token,
+        service: 'reactions',
+        body: { type: 'like', target_id: postId },
+        groups: [DISCOVER],
+        ref_value: postId,
+      },
+    });
+    expect(reactionRes.ok()).toBeTruthy();
+    const reaction = await reactionRes.json();
+    expect(reaction.ref_value).toBe(postId);
+
+    const readRes = await request.post(`${API_BASE}/v3/read`, {
+      data: { token, service: 'reactions', groups: [DISCOVER] },
+    });
+    expect(readRes.ok()).toBeTruthy();
+    const reactions: { ref_value: string; body: { type: string } }[] = await readRes.json();
+    const matching = reactions.filter((r) => r.ref_value === postId);
+    expect(matching.length).toBeGreaterThanOrEqual(1);
+    expect(matching[0].body.type).toBe('like');
   });
 
   test.skip('create DM between two users', async () => {
