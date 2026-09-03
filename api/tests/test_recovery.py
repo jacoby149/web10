@@ -107,8 +107,20 @@ class TestVerify:
             patch(
                 "app.v3.services.clickhouse.get_users_by_contact",
                 return_value=[
-                    {"username": "alice", "phone": "+15551234567", "email": "a@x.com", "phone_verified": True, "email_verified": False},
-                    {"username": "bob", "phone": "+15551234567", "email": "", "phone_verified": True, "email_verified": False},
+                    {
+                        "username": "alice",
+                        "phone": "+15551234567",
+                        "email": "a@x.com",
+                        "phone_verified": True,
+                        "email_verified": False,
+                    },
+                    {
+                        "username": "bob",
+                        "phone": "+15551234567",
+                        "email": "",
+                        "phone_verified": True,
+                        "email_verified": False,
+                    },
                 ],
             ),
         ):
@@ -150,7 +162,13 @@ class TestComplete:
         token = _make_verify_token("+15551234567", "phone")
         with patch(
             "app.v3.services.clickhouse.get_user",
-            return_value={"username": "alice", "phone": "+15551234567", "email": "", "phone_verified": False, "email_verified": False},
+            return_value={
+                "username": "alice",
+                "phone": "+15551234567",
+                "email": "",
+                "phone_verified": False,
+                "email_verified": False,
+            },
         ):
             with patch("app.v3.services.clickhouse.verify_phone") as vp:
                 resp = client.post("/v3/recovery/complete", json={"verify_token": token, "username": "alice"})
@@ -195,7 +213,13 @@ class TestComplete:
         token = _make_verify_token("+15551234567", "phone")
         with patch(
             "app.v3.services.clickhouse.get_user",
-            return_value={"username": "alice", "phone": "+15551234567", "email": "", "phone_verified": True, "email_verified": False},
+            return_value={
+                "username": "alice",
+                "phone": "+15551234567",
+                "email": "",
+                "phone_verified": True,
+                "email_verified": False,
+            },
         ):
             with patch("app.v3.services.clickhouse.change_password") as cp:
                 with patch("app.v3.services.clickhouse.verify_phone"):
@@ -211,7 +235,13 @@ class TestComplete:
         token = _make_verify_token("+15551234567", "phone")
         with patch(
             "app.v3.services.clickhouse.get_user",
-            return_value={"username": "mallory", "phone": "+19998887777", "email": "", "phone_verified": True, "email_verified": False},
+            return_value={
+                "username": "mallory",
+                "phone": "+19998887777",
+                "email": "",
+                "phone_verified": True,
+                "email_verified": False,
+            },
         ):
             resp = client.post("/v3/recovery/complete", json={"verify_token": token, "username": "mallory"})
         assert resp.status_code == 401
@@ -222,7 +252,13 @@ class TestComplete:
         token = _make_verify_token("+15551234567", "phone")
         with patch(
             "app.v3.services.clickhouse.get_user",
-            return_value={"username": "alice", "phone": "15551234567", "email": "", "phone_verified": False, "email_verified": False},
+            return_value={
+                "username": "alice",
+                "phone": "15551234567",
+                "email": "",
+                "phone_verified": False,
+                "email_verified": False,
+            },
         ):
             with patch("app.v3.services.clickhouse.verify_phone"):
                 resp = client.post("/v3/recovery/complete", json={"verify_token": token, "username": "alice"})

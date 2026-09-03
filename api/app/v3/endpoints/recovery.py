@@ -101,7 +101,7 @@ def _check_verify_token(token: str) -> dict:
 
 def _account_has_contact(user: dict, contact: str, kind: str) -> bool:
     field = "email" if kind == "email" else "phone"
-    stored = (user.get(field) or "")
+    stored = user.get(field) or ""
     if kind == "email":
         return stored.lower() == (contact or "").lower()
     return _digits(stored) == _digits(contact)
@@ -174,9 +174,7 @@ def complete(data: RecoveryComplete):
         if not _USERNAME_RE.match(data.username):
             raise exceptions.BAD_USERNAME
         pw_hash = (
-            get_password_hash(data.new_password)
-            if data.new_password
-            else get_password_hash(secrets.token_urlsafe(24))
+            get_password_hash(data.new_password) if data.new_password else get_password_hash(secrets.token_urlsafe(24))
         )
         created = ch.create_user(
             data.username,
