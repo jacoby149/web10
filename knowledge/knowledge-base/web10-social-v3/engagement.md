@@ -2,7 +2,7 @@
 
 Comments and reactions are **documents** in the `comments` / `reactions`
 services — the same CRUD + groups + refs model as posts. No special tables,
-no special endpoints. (D61.)
+no special endpoints. (D62.)
 
 ## The Model
 

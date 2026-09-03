@@ -285,6 +285,22 @@ human-in-the-loop (the operator suppresses; the machine only flags). D41 holds
 - [ ] E2E: moderation gauntlet — post with a flagged word → hidden from the board → operator keeps-hiding → next post auto-hidden → operator removes → next post visible (gated on the social-e2e stack)
 - [ ] v1: profile name/bio detection (flag-only, not scanned on the post path in v0) + a retroactive-scan admin command + a user notification on auto-hide
 
+### Lane: contact-auth (D61)
+**Owns:** `api/app/v3/endpoints/recovery.py`, `api/app/v3/endpoints/auth.py`, `api/app/v3/services/clickhouse.py` (get_users_by_contact), `api/app/services/twilio.py` (channel-aware), `api/app/v3/models/auth.py`, `api/app/models/config.py` (require_contact), `api/app/services/config.py`, `api/app/exceptions.py`, `api/tests/test_recovery.py`, `ui/src/interfaces/Interface.tsx`, `ui/src/components/CredentialPage/ForgotForm.tsx`, `ui/src/interfaces/MockInterface.tsx`, `ui/src/__tests__/recoveryFlow.test.tsx`
+
+Contact-anchored auth (D61): the account is anchored on a phone OR email,
+verified by a 6-digit code. The contact is the front door (enter contact →
+code → pick an account or create one → signed in). Sign-up, sign-in, and
+password-change are the same flow. Node-config-gated (D10): `require_contact`;
+web10.app turns it on. The 3.47.0 UI already calls the three endpoints — they
+were never built (the changelog's "the API is 3.37.0" was wrong).
+
+- [✓ 3.51.0] Decision: D61 (`knowledge/strategy/decisions.md`) + KB (`knowledge-base/web10-v3/auth/auth.md`)
+- [✓ 3.51.0] API keystone: the three endpoints (request/verify/complete) + `get_users_by_contact` (phone OR email) + Twilio channel-aware (sms/email) + the `verify_token` gate + create-on-complete (unified signup)
+- [✓ 3.51.0] Node config flag: `require_contact` (D10) + enforced in `POST /v3/signup` (401 `CONTACT_REQUIRED`)
+- [✓ 3.51.0] Tests: `api/tests/test_recovery.py` (request/verify/complete, contact mismatch, bad code, node-config gate)
+- [✓ 3.51.0] UI: the contact input (phone OR email) + verify_token plumbing + "create a new account" option + primary-sign-in routing
+
 ### Lane: ads (monetization)
 **Owns:** `ui/src/components/Studio/`, `api/app/v3/services/clickhouse.py` + `api/app/v3/endpoints/documents.py` + `api/tests/test_ads.py`, `e2e/tests/ads.spec.ts`, `marketing/web10-social/src/components/Feed/PostComposer.tsx` + the ad block
 

@@ -1,159 +1,323 @@
-"""Tests for the Phase 2 phone-recovery flow: the get_users_by_phone service
-function and the three unauthenticated /v3/recovery/* endpoints.
+"""Tests for contact-anchored auth (D61) — the recovery endpoints."""
 
-The security properties that matter:
-  - no existence oracle (request answers the same whether or not the number is
-    registered),
-  - the account list is only returned after a valid code,
-  - complete re-verifies the code AND re-checks the username against the phone
-    (a forged username can't sign in as / reset someone else),
-  - the phone match is format-insensitive (the stored format varies).
-"""
+from datetime import datetime, timedelta
+from unittest.mock import patch
 
-from unittest.mock import MagicMock, patch
-
+import jwt
 import pytest
 from fastapi.testclient import TestClient
 
-import app.exceptions as exceptions
+import app.settings as settings
 from app.main import app as fastapi_app
-from app.v3.services import clickhouse as ch
+from app.v3.endpoints import recovery
+
+
+def _make_verify_token(contact="+15551234567", kind="phone", minutes=5, purpose="recovery"):
+    return jwt.encode(
+        {
+            "contact": contact,
+            "kind": kind,
+            "purpose": purpose,
+            "exp": datetime.utcnow() + timedelta(minutes=minutes),
+        },
+        settings.PRIVATE_KEY,
+        algorithm=settings.ALGORITHM,
+    )
+
+
+@pytest.fixture(autouse=True)
+def _clear_send_log():
+    recovery._send_log.clear()
+    yield
+    recovery._send_log.clear()
 
 
 @pytest.fixture
 def client():
-    with patch.object(ch, "client"):
+    with patch("app.v3.services.clickhouse.client"):
         yield TestClient(fastapi_app)
 
 
-def _accounts(*usernames):
-    return [{"username": u, "phone": "+1555", "phone_verified": True, "email": f"{u}@x.com"} for u in usernames]
+# ---------------------------------------------------------------------------
+# _contact_kind
+# ---------------------------------------------------------------------------
 
 
-# ── get_users_by_phone (the service function) ────────────────────────────────
+class TestContactKind:
+    def test_phone(self):
+        assert recovery._contact_kind("+15551234567") == "phone"
+
+    def test_phone_no_plus(self):
+        assert recovery._contact_kind("15551234567") == "phone"
+
+    def test_email(self):
+        assert recovery._contact_kind("user@example.com") == "email"
+
+    def test_invalid_raises(self):
+        with pytest.raises(Exception):
+            recovery._contact_kind("not a contact")
+
+    def test_empty_raises(self):
+        with pytest.raises(Exception):
+            recovery._contact_kind("")
 
 
-class TestGetUsersByPhone:
-    def test_returns_all_accounts_on_the_phone(self):
-        with patch.object(ch, "client") as mock_ch:
-            mock_ch.query.return_value = MagicMock(
-                result_rows=[
-                    ("alice", "+1555111", 1, "a@x.com"),
-                    ("bob", "1555111", 0, "b@x.com"),  # different stored format
-                ]
-            )
-            rows = ch.get_users_by_phone("+1 555-111")
-        assert [r["username"] for r in rows] == ["alice", "bob"]
-        # The query normalizes the input to digits.
-        assert mock_ch.query.call_args[0][1]["digits"] == "1555111"
-
-    def test_empty_phone_returns_nothing_without_querying(self):
-        with patch.object(ch, "client") as mock_ch:
-            assert ch.get_users_by_phone("") == []
-            assert ch.get_users_by_phone("   ") == []
-            mock_ch.query.assert_not_called()
+# ---------------------------------------------------------------------------
+# /v3/recovery/request
+# ---------------------------------------------------------------------------
 
 
-# ── /v3/recovery/request ─────────────────────────────────────────────────────
-
-
-class TestRecoveryRequest:
-    def test_registered_sends_and_returns_sent(self, client):
-        with patch.object(ch, "get_users_by_phone", return_value=_accounts("alice")):
-            with patch("app.services.twilio.send_verification") as send:
-                resp = client.post("/v3/recovery/request", json={"phone": "+15551234567"})
+class TestRequest:
+    def test_request_phone_sends_code(self, client):
+        with patch("app.services.twilio.send_verification", return_value="VA123") as m:
+            resp = client.post("/v3/recovery/request", json={"contact": "+15551234567"})
         assert resp.status_code == 200
-        assert resp.json() == {"sent": True}
-        send.assert_called_once_with("15551234567", "alice")  # digits, first username
+        assert resp.json() == {"sent": True, "kind": "phone"}
+        m.assert_called_once_with("+15551234567", "")
 
-    def test_unregistered_no_send_same_response(self, client):
-        with patch.object(ch, "get_users_by_phone", return_value=[]):
-            with patch("app.services.twilio.send_verification") as send:
-                resp = client.post("/v3/recovery/request", json={"phone": "+15550000000"})
-        # No existence oracle — identical response, but no SMS was sent.
+    def test_request_email_sends_code(self, client):
+        with patch("app.services.twilio.send_verification", return_value="VA123") as m:
+            resp = client.post("/v3/recovery/request", json={"contact": "user@example.com"})
         assert resp.status_code == 200
-        assert resp.json() == {"sent": True}
-        send.assert_not_called()
+        assert resp.json() == {"sent": True, "kind": "email"}
+        m.assert_called_once_with("user@example.com", "")
 
-    def test_bad_phone(self, client):
-        resp = client.post("/v3/recovery/request", json={"phone": "not-a-number"})
+    def test_request_bad_contact(self, client):
+        resp = client.post("/v3/recovery/request", json={"contact": "nope"})
+        assert resp.status_code == 400
+        assert "valid phone" in resp.json()["detail"]
+
+    def test_request_rate_limited(self, client):
+        """A second send within the 60s min-gap is rate-limited."""
+        with patch("app.services.twilio.send_verification", return_value="VA123"):
+            assert client.post("/v3/recovery/request", json={"contact": "+15551234567"}).status_code == 200
+            resp = client.post("/v3/recovery/request", json={"contact": "+15551234567"})
+            assert resp.status_code == 429
+
+
+# ---------------------------------------------------------------------------
+# /v3/recovery/verify
+# ---------------------------------------------------------------------------
+
+
+class TestVerify:
+    def test_verify_returns_accounts_and_token(self, client):
+        with (
+            patch("app.services.twilio.check_verification", return_value="VC123"),
+            patch(
+                "app.v3.services.clickhouse.get_users_by_contact",
+                return_value=[
+                    {
+                        "username": "alice",
+                        "phone": "+15551234567",
+                        "email": "a@x.com",
+                        "phone_verified": True,
+                        "email_verified": False,
+                    },
+                    {
+                        "username": "bob",
+                        "phone": "+15551234567",
+                        "email": "",
+                        "phone_verified": True,
+                        "email_verified": False,
+                    },
+                ],
+            ),
+        ):
+            resp = client.post("/v3/recovery/verify", json={"contact": "+15551234567", "code": "123456"})
+        assert resp.status_code == 200
+        body = resp.json()
+        assert [a["username"] for a in body["accounts"]] == ["alice", "bob"]
+        assert body["verify_token"]
+        payload = jwt.decode(body["verify_token"], settings.PRIVATE_KEY, algorithms=[settings.ALGORITHM])
+        assert payload["contact"] == "+15551234567"
+        assert payload["kind"] == "phone"
+
+    def test_verify_empty_accounts_is_valid(self, client):
+        """No account on the contact yet -> empty list (the sign-up path)."""
+        with (
+            patch("app.services.twilio.check_verification", return_value="VC123"),
+            patch("app.v3.services.clickhouse.get_users_by_contact", return_value=[]),
+        ):
+            resp = client.post("/v3/recovery/verify", json={"contact": "+15550000000", "code": "123456"})
+        assert resp.status_code == 200
+        assert resp.json()["accounts"] == []
+        assert resp.json()["verify_token"]
+
+    def test_verify_wrong_code(self, client):
+        from app.exceptions import WRONG_CODE
+
+        with patch("app.services.twilio.check_verification", side_effect=WRONG_CODE):
+            resp = client.post("/v3/recovery/verify", json={"contact": "+15551234567", "code": "000000"})
         assert resp.status_code == 401
 
 
-# ── /v3/recovery/verify ──────────────────────────────────────────────────────
+# ---------------------------------------------------------------------------
+# /v3/recovery/complete
+# ---------------------------------------------------------------------------
 
 
-class TestRecoveryVerify:
-    def test_valid_code_returns_account_list(self, client):
-        with patch("app.services.twilio.check_verification") as check:
-            with patch.object(ch, "get_users_by_phone", return_value=_accounts("alice", "bob")):
-                resp = client.post("/v3/recovery/verify", json={"phone": "+15551234567", "code": "123456"})
+class TestComplete:
+    def test_complete_signs_in_existing_account(self, client):
+        token = _make_verify_token("+15551234567", "phone")
+        with patch(
+            "app.v3.services.clickhouse.get_user",
+            return_value={
+                "username": "alice",
+                "phone": "+15551234567",
+                "email": "",
+                "phone_verified": False,
+                "email_verified": False,
+            },
+        ):
+            with patch("app.v3.services.clickhouse.verify_phone") as vp:
+                resp = client.post("/v3/recovery/complete", json={"verify_token": token, "username": "alice"})
         assert resp.status_code == 200
-        assert [a["username"] for a in resp.json()["accounts"]] == ["alice", "bob"]
-        check.assert_called_once_with("15551234567", "123456")
+        assert resp.json()["token"]
+        vp.assert_called_once_with("alice")
 
-    def test_wrong_code(self, client):
-        with patch("app.services.twilio.check_verification", side_effect=exceptions.WRONG_CODE):
-            resp = client.post("/v3/recovery/verify", json={"phone": "+15551234567", "code": "000000"})
-        assert resp.status_code == 401
-
-    def test_valid_code_but_no_accounts(self, client):
-        with patch("app.services.twilio.check_verification"):
-            with patch.object(ch, "get_users_by_phone", return_value=[]):
-                resp = client.post("/v3/recovery/verify", json={"phone": "+15551234567", "code": "123456"})
-        assert resp.status_code == 401
-
-
-# ── /v3/recovery/complete ────────────────────────────────────────────────────
-
-
-class TestRecoveryComplete:
-    def _body(self, username="alice", new_password=None):
-        body = {"phone": "+15551234567", "code": "123456", "username": username}
-        if new_password is not None:
-            body["new_password"] = new_password
-        return body
-
-    def test_signs_in_with_token(self, client):
-        with patch("app.services.twilio.check_verification"):
-            with patch.object(ch, "get_users_by_phone", return_value=_accounts("alice", "bob")):
-                resp = client.post("/v3/recovery/complete", json=self._body())
+    def test_complete_creates_new_account_with_contact(self, client):
+        token = _make_verify_token("+15551234567", "phone")
+        with patch("app.v3.services.clickhouse.get_user", return_value=None):
+            with patch(
+                "app.v3.services.clickhouse.create_user",
+                return_value={"username": "newbie", "phone": "+15551234567", "email": ""},
+            ) as cu:
+                with patch("app.v3.services.clickhouse.verify_phone") as vp:
+                    resp = client.post("/v3/recovery/complete", json={"verify_token": token, "username": "newbie"})
         assert resp.status_code == 200
-        assert resp.json()["username"] == "alice"
-        assert "token" in resp.json()
+        assert resp.json()["token"]
+        assert cu.call_args[0][0] == "newbie"
+        assert cu.call_args[1]["phone"] == "+15551234567"
+        assert cu.call_args[1]["email"] == ""
+        vp.assert_called_once_with("newbie")
 
-    def test_forged_username_rejected(self, client):
-        # "eve" is not on this phone — can't sign in as / reset her.
-        with patch("app.services.twilio.check_verification"):
-            with patch.object(ch, "get_users_by_phone", return_value=_accounts("alice", "bob")):
-                resp = client.post("/v3/recovery/complete", json=self._body(username="eve"))
-        assert resp.status_code == 401
-
-    def test_wrong_code_rejected(self, client):
-        with patch("app.services.twilio.check_verification", side_effect=exceptions.WRONG_CODE):
-            resp = client.post("/v3/recovery/complete", json=self._body())
-        assert resp.status_code == 401
-
-    def test_new_password_resets(self, client):
-        with patch("app.services.twilio.check_verification"):
-            with patch.object(ch, "get_users_by_phone", return_value=_accounts("alice")):
-                with patch.object(ch, "change_password") as change:
-                    with patch("app.v3.endpoints.recovery.get_password_hash", return_value="newhash"):
-                        resp = client.post("/v3/recovery/complete", json=self._body(new_password="brand-new"))
+    def test_complete_new_account_with_password_and_email(self, client):
+        token = _make_verify_token("user@example.com", "email")
+        with patch("app.v3.services.clickhouse.get_user", return_value=None):
+            with patch(
+                "app.v3.services.clickhouse.create_user",
+                return_value={"username": "newbie", "phone": "", "email": "user@example.com"},
+            ) as cu:
+                with patch("app.v3.services.clickhouse.verify_email") as ve:
+                    resp = client.post(
+                        "/v3/recovery/complete",
+                        json={"verify_token": token, "username": "newbie", "new_password": "s3cret"},
+                    )
         assert resp.status_code == 200
-        change.assert_called_once_with("alice", "newhash")
+        assert cu.call_args[1]["email"] == "user@example.com"
+        assert cu.call_args[1]["phone"] == ""
+        ve.assert_called_once_with("newbie")
 
-    def test_empty_new_password_rejected(self, client):
-        with patch("app.services.twilio.check_verification"):
-            with patch.object(ch, "get_users_by_phone", return_value=_accounts("alice")):
-                resp = client.post("/v3/recovery/complete", json=self._body(new_password="   "))
+    def test_complete_changes_password_on_existing(self, client):
+        token = _make_verify_token("+15551234567", "phone")
+        with patch(
+            "app.v3.services.clickhouse.get_user",
+            return_value={
+                "username": "alice",
+                "phone": "+15551234567",
+                "email": "",
+                "phone_verified": True,
+                "email_verified": False,
+            },
+        ):
+            with patch("app.v3.services.clickhouse.change_password") as cp:
+                with patch("app.v3.services.clickhouse.verify_phone"):
+                    resp = client.post(
+                        "/v3/recovery/complete",
+                        json={"verify_token": token, "username": "alice", "new_password": "newpass"},
+                    )
+        assert resp.status_code == 200
+        cp.assert_called_once()
+
+    def test_complete_contact_mismatch(self, client):
+        """A verify_token for phone X can't sign in to an account without X."""
+        token = _make_verify_token("+15551234567", "phone")
+        with patch(
+            "app.v3.services.clickhouse.get_user",
+            return_value={
+                "username": "mallory",
+                "phone": "+19998887777",
+                "email": "",
+                "phone_verified": True,
+                "email_verified": False,
+            },
+        ):
+            resp = client.post("/v3/recovery/complete", json={"verify_token": token, "username": "mallory"})
+        assert resp.status_code == 401
+        assert "isn't linked" in resp.json()["detail"]
+
+    def test_complete_phone_format_normalized(self, client):
+        """A stored phone without the leading + still matches the contact."""
+        token = _make_verify_token("+15551234567", "phone")
+        with patch(
+            "app.v3.services.clickhouse.get_user",
+            return_value={
+                "username": "alice",
+                "phone": "15551234567",
+                "email": "",
+                "phone_verified": False,
+                "email_verified": False,
+            },
+        ):
+            with patch("app.v3.services.clickhouse.verify_phone"):
+                resp = client.post("/v3/recovery/complete", json={"verify_token": token, "username": "alice"})
+        assert resp.status_code == 200
+
+    def test_complete_bad_verify_token(self, client):
+        with patch("app.v3.services.clickhouse.get_user", return_value=None):
+            resp = client.post("/v3/recovery/complete", json={"verify_token": "garbage", "username": "alice"})
         assert resp.status_code == 401
 
-    def test_no_new_password_still_signs_in(self, client):
-        # The reset is an offer, not a gate — no new_password still returns a token.
-        with patch("app.services.twilio.check_verification"):
-            with patch.object(ch, "get_users_by_phone", return_value=_accounts("alice")):
-                with patch.object(ch, "change_password") as change:
-                    resp = client.post("/v3/recovery/complete", json=self._body())
+    def test_complete_wrong_purpose_token(self, client):
+        """A token minted for a different purpose can't be used as a verify_token."""
+        token = _make_verify_token("+15551234567", "phone", purpose="login")
+        with patch("app.v3.services.clickhouse.get_user", return_value=None):
+            resp = client.post("/v3/recovery/complete", json={"verify_token": token, "username": "alice"})
+        assert resp.status_code == 401
+
+    def test_complete_expired_verify_token(self, client):
+        token = _make_verify_token("+15551234567", "phone", minutes=-5)
+        with patch("app.v3.services.clickhouse.get_user", return_value=None):
+            resp = client.post("/v3/recovery/complete", json={"verify_token": token, "username": "alice"})
+        assert resp.status_code == 401
+
+    def test_complete_bad_username_on_create(self, client):
+        token = _make_verify_token("+15551234567", "phone")
+        with patch("app.v3.services.clickhouse.get_user", return_value=None):
+            resp = client.post("/v3/recovery/complete", json={"verify_token": token, "username": "Bad Username!"})
+        assert resp.status_code == 401
+        assert "username" in resp.json()["detail"]
+
+
+# ---------------------------------------------------------------------------
+# /v3/signup — the require_contact gate (D10)
+# ---------------------------------------------------------------------------
+
+
+class TestSignupContactGate:
+    def test_signup_requires_contact_when_flag_on(self, client):
+        with patch("app.v3.endpoints.auth.effective_config", return_value={"require_contact": True}):
+            resp = client.post("/v3/signup", json={"username": "newbie", "password": "s3cret"})
+        assert resp.status_code == 401
+        assert "requires a phone" in resp.json()["detail"]
+
+    def test_signup_ok_with_phone_when_flag_on(self, client):
+        with patch("app.v3.endpoints.auth.effective_config", return_value={"require_contact": True}):
+            with patch(
+                "app.v3.services.clickhouse.create_user",
+                return_value={"username": "newbie", "phone": "+15551234567", "email": ""},
+            ):
+                resp = client.post(
+                    "/v3/signup", json={"username": "newbie", "password": "s3cret", "phone": "+15551234567"}
+                )
         assert resp.status_code == 200
-        change.assert_not_called()
+
+    def test_signup_ok_without_contact_when_flag_off(self, client):
+        with patch("app.v3.endpoints.auth.effective_config", return_value={"require_contact": False}):
+            with patch(
+                "app.v3.services.clickhouse.create_user",
+                return_value={"username": "newbie", "phone": "", "email": ""},
+            ):
+                resp = client.post("/v3/signup", json={"username": "newbie", "password": "s3cret"})
+        assert resp.status_code == 200

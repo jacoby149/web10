@@ -55,6 +55,9 @@ router.include_router(moderation.router, prefix="/moderation")
 # Access health — the confirmatory verifyAccess oracle (generic: token + user + contract)
 router.include_router(access.router, prefix="/access")
 
+# Contact-anchored auth (D61) — the front door: contact → code → pick/create account
+router.include_router(recovery.router, prefix="/recovery")
+
 
 # Node stats
 @router.post("/stats", tags=["system"])

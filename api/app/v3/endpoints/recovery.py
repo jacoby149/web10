@@ -1,6 +1,22 @@
-import re
-import time
+"""Contact-anchored auth (D61) — the front door.
 
+Unauthenticated: the contact (phone OR email) + a 6-digit code are the
+credential. Enter contact → code → pick an account on that contact (or create
+a new username) → signed in. Sign-up, sign-in, and password-change are the
+same flow. The `verify_token` (a short-lived signed JWT minted by `verify`) is
+the gate that lets `complete` mint a login token — a raw {contact, username}
+can't sign in without it.
+
+A thin per-contact send rate-limit backs up Twilio Verify's own limits (each
+send costs a real SMS/email); it is best-effort, per-worker.
+"""
+
+import re
+import secrets
+import time
+from datetime import datetime, timedelta
+
+import jwt
 from fastapi import APIRouter
 
 import app.exceptions as exceptions
@@ -11,113 +27,166 @@ from app.v3.services import clickhouse as ch
 
 router = APIRouter(tags=["recovery"])
 
-# The recovery flow is unauthenticated — the phone number + the 6-digit code are
-# the credential. The "aggressive code" policy (the doc's Phase 2): 6-digit
-# length stays (phones handle it well), the aggression is in the POLICY:
-#   - 90s expiry + 3 max attempts  -> Twilio Verify SERVICE settings (console)
-#   - 1 send / 60s, 5 / hour       -> the thin in-endpoint guard below (backstop
-#     against hammering the send endpoint, which costs a real SMS each time)
 _PHONE_RE = re.compile(r"^\+?[0-9][0-9 ()-]{5,18}[0-9]$")
+_EMAIL_RE = re.compile(r"^[^@\s]+@[^@\s]+\.[^@\s]+$")
+_USERNAME_RE = re.compile(r"^[a-z0-9](?:[a-z0-9-]{0,28}[a-z0-9])?$")
+
+# The verify_token proves a code was right; it gates `complete`. Short-lived.
+_VERIFY_TTL_MINUTES = 5
+
+# Thin per-contact send rate-limit (backstop against hammering the send
+# endpoint, which costs a real SMS/email each time). Best-effort, per-worker.
 _SEND_WINDOW_S = 3600
 _MAX_PER_HOUR = 5
 _MIN_GAP_S = 60
-
-# phone -> [send timestamps within the last hour]. Best-effort, per-worker.
 _send_log: dict[str, list[float]] = {}
 
 
-def _digits(phone: str) -> str:
-    """Normalize a phone to digits (Twilio's `to` is built as '+' + digits)."""
-    return re.sub(r"\D", "", phone or "")
+def _digits(s: str) -> str:
+    return re.sub(r"\D", "", s or "")
 
 
-def _kosher_phone(phone: str) -> bool:
-    return bool(_PHONE_RE.match(phone or ""))
+def _contact_kind(contact: str) -> str:
+    """Classify a contact as 'email' or 'phone'. Raises BAD_CONTACT if neither."""
+    c = (contact or "").strip()
+    if not c:
+        raise exceptions.BAD_CONTACT
+    if _EMAIL_RE.match(c):
+        return "email"
+    if _PHONE_RE.match(c):
+        return "phone"
+    raise exceptions.BAD_CONTACT
 
 
-def _check_send_rate_limit(phone: str) -> None:
-    """Thin per-phone send rate-limit. Raises RATE_LIMIT when exceeded."""
+def _contact_key(contact: str) -> str:
+    """Normalize a contact to a rate-limit key (digits for phone, lower for email)."""
+    c = (contact or "").strip()
+    if "@" in c:
+        return "e:" + c.lower()
+    return "p:" + _digits(c)
+
+
+def _check_send_rate_limit(contact: str) -> None:
+    """Thin per-contact send rate-limit. Raises RATE_LIMIT when exceeded."""
+    key = _contact_key(contact)
     now = time.time()
-    recent = [t for t in _send_log.get(phone, []) if now - t < _SEND_WINDOW_S]
+    recent = [t for t in _send_log.get(key, []) if now - t < _SEND_WINDOW_S]
     if len(recent) >= _MAX_PER_HOUR or (recent and now - recent[-1] < _MIN_GAP_S):
         raise exceptions.RATE_LIMIT
-    _send_log[phone] = recent + [now]
+    _send_log[key] = recent + [now]
 
 
-def _mint_token(username: str, site: str | None) -> str:
-    """Mint a JWT in the exact shape /v3/login returns."""
-    from datetime import datetime, timedelta
+def _mint_verify_token(contact: str, kind: str) -> str:
+    return jwt.encode(
+        {
+            "contact": contact,
+            "kind": kind,
+            "purpose": "recovery",
+            "exp": datetime.utcnow() + timedelta(minutes=_VERIFY_TTL_MINUTES),
+        },
+        settings.PRIVATE_KEY,
+        algorithm=settings.ALGORITHM,
+    )
 
-    import jwt
 
+def _check_verify_token(token: str) -> dict:
+    try:
+        payload = jwt.decode(token, settings.PRIVATE_KEY, algorithms=[settings.ALGORITHM])
+    except Exception:
+        raise exceptions.TOKEN
+    if payload.get("purpose") != "recovery":
+        raise exceptions.TOKEN
+    return payload
+
+
+def _account_has_contact(user: dict, contact: str, kind: str) -> bool:
+    field = "email" if kind == "email" else "phone"
+    stored = user.get(field) or ""
+    if kind == "email":
+        return stored.lower() == (contact or "").lower()
+    return _digits(stored) == _digits(contact)
+
+
+def _mint_login_token(username: str, site: str = "web10") -> str:
     token_data = {
         "username": username,
         "provider": settings.PROVIDER,
-        "site": site or "web10",
+        "site": site,
         "expires": (datetime.utcnow() + timedelta(minutes=settings.TOKEN_EXPIRE_MINUTES)).isoformat(),
     }
     return jwt.encode(token_data, settings.PRIVATE_KEY, algorithm=settings.ALGORITHM)
 
 
-@router.post("/recovery/request")
-def recovery_request(data: RecoveryRequest):
-    """Send a 6-digit code to the phone. Unauthenticated.
+@router.post("/request")
+def request_code(data: RecoveryRequest):
+    """Send a 6-digit code to the contact (phone → sms, email → email).
 
-    No existence oracle: the response is the same whether or not the number is
-    registered (a real send only happens for a registered number, but that is
-    not revealed).
+    No existence oracle: the response is the same whether or not the contact
+    is registered (a real send only happens for a valid contact shape).
     """
-    if not _kosher_phone(data.phone):
-        raise exceptions.BAD_NUM
-    _check_send_rate_limit(_digits(data.phone))
-    accounts = ch.get_users_by_phone(data.phone)
-    if accounts:
-        from app.services import twilio as mobile
-
-        # The code is per-phone (not per-user); the username is only a
-        # substitution in the SMS body.
-        mobile.send_verification(_digits(data.phone), accounts[0]["username"])
-    return {"sent": True}
-
-
-@router.post("/recovery/verify")
-def recovery_verify(data: RecoveryVerify):
-    """Check the code and return every account on that phone.
-
-    This is the "which account are you signing into?" list. Gated on a valid
-    code — the username list is never returned before the code is verified.
-    """
-    if not _kosher_phone(data.phone):
-        raise exceptions.BAD_NUM
+    kind = _contact_kind(data.contact)
+    _check_send_rate_limit(data.contact)
     from app.services import twilio as mobile
 
-    mobile.check_verification(_digits(data.phone), data.code)  # raises WRONG_CODE
-    accounts = ch.get_users_by_phone(data.phone)
-    if not accounts:
-        raise exceptions.NO_USER
-    return {"accounts": accounts}
+    mobile.send_verification(data.contact.strip(), "")
+    return {"sent": True, "kind": kind}
 
 
-@router.post("/recovery/complete")
-def recovery_complete(data: RecoveryComplete):
-    """Re-verify the code, confirm the picked username is on that phone, sign in.
+@router.post("/verify")
+def verify_code(data: RecoveryVerify):
+    """Check the code; return the accounts on the contact + a verify_token.
 
-    The code is re-checked here (it is the credential for the whole flow, not a
-    one-shot from verify). The username is re-checked against the phone so a
-    forged username can't be used to sign in as / reset someone else. An
-    optional new_password resets the account; the returned token signs the user
-    in either way (the reset is an offer, not a gate).
+    An empty account list is valid — it means "no account on this contact yet,
+    create one" (the unified sign-up path). The code is the proof of control.
     """
-    if not _kosher_phone(data.phone):
-        raise exceptions.BAD_NUM
+    kind = _contact_kind(data.contact)
     from app.services import twilio as mobile
 
-    mobile.check_verification(_digits(data.phone), data.code)  # raises WRONG_CODE
-    accounts = ch.get_users_by_phone(data.phone)
-    if not any(a["username"] == data.username for a in accounts):
-        raise exceptions.TOKEN
-    if data.new_password is not None:
-        if not data.new_password.strip():
-            raise exceptions.BAD_PASSWORD
-        ch.change_password(data.username, get_password_hash(data.new_password))
-    return {"token": _mint_token(data.username, data.site), "username": data.username}
+    mobile.check_verification(data.contact.strip(), data.code)  # raises WRONG_CODE
+    users = ch.get_users_by_contact(data.contact.strip())
+    return {
+        "accounts": [{"username": u["username"], "email": u["email"]} for u in users],
+        "verify_token": _mint_verify_token(data.contact.strip(), kind),
+    }
+
+
+@router.post("/complete")
+def complete(data: RecoveryComplete):
+    """Validate the verify_token, then sign in — or create — the picked account.
+
+    A `new_password` sets the password (the password-change path — no old
+    password required). The contact is marked verified on the account.
+    """
+    payload = _check_verify_token(data.verify_token)
+    contact = payload["contact"]
+    kind = payload["kind"]
+
+    user = ch.get_user(data.username)
+    if user:
+        # Existing account — it must actually carry this contact (defense in depth).
+        if not _account_has_contact(user, contact, kind):
+            raise exceptions.CONTACT_NOT_LINKED
+        if data.new_password:
+            ch.change_password(data.username, get_password_hash(data.new_password))
+    else:
+        # New account — create it carrying the verified contact. A random
+        # password when none is set, so the contact is the credential.
+        if not _USERNAME_RE.match(data.username):
+            raise exceptions.BAD_USERNAME
+        pw_hash = (
+            get_password_hash(data.new_password) if data.new_password else get_password_hash(secrets.token_urlsafe(24))
+        )
+        created = ch.create_user(
+            data.username,
+            pw_hash,
+            phone=contact if kind == "phone" else "",
+            email=contact if kind == "email" else "",
+        )
+        if not created:
+            raise exceptions.EXISTS
+    # Mark the contact verified on the account.
+    if kind == "phone":
+        ch.verify_phone(data.username)
+    else:
+        ch.verify_email(data.username)
+    return {"token": _mint_login_token(data.username)}
