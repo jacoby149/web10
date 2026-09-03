@@ -5,8 +5,10 @@ engagement. Same for every user.
 
 ## The Discover Group is a Node Default
 
-`web10.app/groups/web10/discover` is a **node default**, not an app-created
-group. The node creates it at boot (`ensure_discover_group()`, idempotent):
+`{provider}/groups/web10/discover` is a **node default**, not an app-created
+group. The id is provider-derived — `{provider}` is the node's configured
+`PROVIDER` (its API host), so each node's board has a unique global id. The
+node creates it at boot (`ensure_discover_group()`, idempotent):
 every user — including `anon` — is a member by default (auto-enroll at
 signup, backfill for pre-existing accounts). A post is public when its author
 attaches it to the group; membership is universal, discoverability is
@@ -46,7 +48,7 @@ Discover
 
 ```ts
 const posts = await w.read('posts', {
-  groups: ['web10.app/groups/web10/discover'],
+  groups: ['{provider}/groups/web10/discover'],
   $sort: { created_at: -1 },
   $limit: 50,
 })
@@ -58,7 +60,7 @@ One SDK call. One group. No personalization. `web10/discover` is the node-defaul
 
 ```ts
 const trending = await w.aggregate('posts', [
-  { $match: { groups: 'web10.app/groups/web10/discover' } },
+  { $match: { groups: '{provider}/groups/web10/discover' } },
   { $countReactions: '$doc_id' },
   { $sort: { reaction_count: -1, created_at: -1 } },
   { $limit: 50 },
@@ -69,7 +71,7 @@ const trending = await w.aggregate('posts', [
 
 ```
 User opens /discover
-  → w.read('posts', { groups: ['web10.app/groups/web10/discover'], $sort: { created_at: -1 }, $limit: 50 })
+  → w.read('posts', { groups: ['{provider}/groups/web10/discover'], $sort: { created_at: -1 }, $limit: 50 })
   → parallel: resolve author avatars
   → render
 ```
@@ -80,7 +82,7 @@ One SDK call. Parallel avatar lookups. Cache avatars in Redis.
 
 | Discover | Feed |
 |---|---|
-| Only `web10.app/groups/web10/discover` | All groups you belong to, minus discover |
+| Only `{provider}/groups/web10/discover` | All groups you belong to, minus discover |
 | Same for every user | Personal — followers, communities, close-friends |
 | Public board | Personal feed |
 

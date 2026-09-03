@@ -32,7 +32,7 @@ const PROVIDER = 'api.localhost';
 const SERVICE = 'posts';
 // The node-default discover group — a well-known constant, NOT provider-
 // derived. The feed excludes it; followers groups are provider-derived.
-const DISCOVER_GROUP_ID = 'web10.app/groups/web10/discover';
+const DISCOVER_GROUP_ID = `${PROVIDER}/groups/web10/discover`;
 const PASSWORD = 'TestPass123!';
 
 // A followers group: the creator (owner) posts; followers (member) are read-only.

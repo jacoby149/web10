@@ -157,7 +157,7 @@ await w.create('posts', {
 ```ts
 // Fast filter on tags
 const posts = await w.read('posts', {
-  groups: ['web10.app/groups/web10/discover'],
+  groups: ['{provider}/groups/web10/discover'],
   $match: { tags: ['jazz'] },
 })
 ```

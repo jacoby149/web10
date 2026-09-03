@@ -85,7 +85,7 @@ Both are **pure reads** — a directory view writes nothing.
 
 ## Relationship to the Discover Group
 
-The discover group (`web10.app/groups/web10/discover`) is publicly readable but **not** discoverable: `discoverable: false` + an `anyone` read grant. It is the public board, not a directory entry. The boolean is what lets the board stay out of the list without a special-case UI hack.
+The discover group (`{provider}/groups/web10/discover`) is publicly readable but **not** discoverable: `discoverable: false` + an `anyone` read grant. It is the public board, not a directory entry. The boolean is what lets the board stay out of the list without a special-case UI hack. The id is provider-derived — `{provider}` is the node's configured `PROVIDER` (its API host), so each node's board has a unique global id.
 
 ## Summary
 

@@ -188,7 +188,7 @@ test.describe('Hello demo — API-level', () => {
     // A fresh user is auto-enrolled in the node-default discover group (#686)
     // — that is the ONLY group they start with.
     expect(groups1.length).toBe(1);
-    expect(groups1[0].group_id).toBe('web10.app/groups/web10/discover');
+    expect(groups1[0].group_id).toBe('api.localhost/groups/web10/discover');
 
     await request.post(`${API_BASE}/v3/groups/create`, {
       data: JSON.stringify({
