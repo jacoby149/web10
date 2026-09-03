@@ -26,14 +26,19 @@ def _channel_for(contact) -> str:
     return "email" if _is_email(contact) else "sms"
 
 
-def send_verification(contact, username=""):
+def send_verification(contact):
     """Send a 6-digit code. `contact` is a phone number OR an email — the
-    channel is chosen from it (sms vs email). One provider for both (D61)."""
+    channel is chosen from it (sms vs email). One provider for both (D61).
+
+    The message is the Twilio Verify service's template (console-configured) —
+    a generic "your code is {{code}}, if you didn't request this ignore it"
+    with NO username: a contact can back several accounts, so there's no single
+    username to name. `{{code}}` is auto-substituted by Twilio.
+    """
     try:
-        kwargs = {"to": _twilio_to(contact), "channel": _channel_for(contact)}
-        if username:
-            kwargs["channel_configuration"] = {"substitutions": {"username": username}}
-        verification = client.verify.services(settings.TWILIO_SERVICE).verifications.create(**kwargs)
+        verification = client.verify.services(settings.TWILIO_SERVICE).verifications.create(
+            to=_twilio_to(contact), channel=_channel_for(contact)
+        )
 
         return verification.sid
     except Exception:
