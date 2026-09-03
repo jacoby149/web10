@@ -179,11 +179,7 @@ def build_safe_query(
             ungranted/unknown table, non-SELECT, stacked statements, or it
             does not parse).
     """
-    allowed = (
-        frozenset(allowed_services)
-        if allowed_services is not None
-        else frozenset(readable_groups_by_service)
-    )
+    allowed = frozenset(allowed_services) if allowed_services is not None else frozenset(readable_groups_by_service)
 
     # 1. Parse into statements. The raw string is never executed.
     try:
