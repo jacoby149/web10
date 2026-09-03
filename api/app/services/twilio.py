@@ -13,11 +13,27 @@ client = Client(account_sid, auth_token)
 
 
 # send the verification code
-def send_verification(phone_number, username):
+def _is_email(contact) -> bool:
+    return "@" in str(contact)
+
+
+def _twilio_to(contact) -> str:
+    """Twilio's `to` — the bare email for the email channel, `+`-prefixed for sms."""
+    return str(contact) if _is_email(contact) else "+" + str(contact)
+
+
+def _channel_for(contact) -> str:
+    return "email" if _is_email(contact) else "sms"
+
+
+def send_verification(contact, username=""):
+    """Send a 6-digit code. `contact` is a phone number OR an email — the
+    channel is chosen from it (sms vs email). One provider for both (D61)."""
     try:
-        verification = client.verify.services(settings.TWILIO_SERVICE).verifications.create(
-            channel_configuration={"substitutions": {"username": username}}, to="+" + str(phone_number), channel="sms"
-        )
+        kwargs = {"to": _twilio_to(contact), "channel": _channel_for(contact)}
+        if username:
+            kwargs["channel_configuration"] = {"substitutions": {"username": username}}
+        verification = client.verify.services(settings.TWILIO_SERVICE).verifications.create(**kwargs)
 
         return verification.sid
     except Exception:
@@ -25,9 +41,10 @@ def send_verification(phone_number, username):
 
 
 # check the verification code
-def check_verification(phone_number, code):
+def check_verification(contact, code):
+    """Check a 6-digit code against the contact (phone or email)."""
     verification_check = client.verify.services(settings.TWILIO_SERVICE).verification_checks.create(
-        to="+" + str(phone_number), code=code
+        to=_twilio_to(contact), code=code
     )
     if verification_check.status != "approved":
         raise exceptions.WRONG_CODE

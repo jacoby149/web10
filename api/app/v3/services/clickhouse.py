@@ -2844,34 +2844,40 @@ def get_phone_record(phone_number: str) -> dict | None:
     return {"username": row[0], "phone": row[1]}
 
 
-def get_users_by_phone(phone_number: str) -> list[dict]:
-    """Find ALL users whose phone matches (for recovery — a phone can back several accounts).
+def get_users_by_contact(contact: str) -> list[dict]:
+    """All active users whose current phone OR email matches the contact (D61).
 
-    The plural of get_phone_record. The stored phone format varies (with/without
-    a leading +, spaces, dashes), so both sides are normalized to digits before
-    comparing (replaceRegexpAll strips non-digits in SQL). Deduped to the latest
-    row per username first (the ReplacingMergeTree pattern) so a stale row from a
-    changed phone can't resurrect an old number.
+    Deduped to the latest row per username (the ReplacingMergeTree current
+    state), then filtered by the contact column. A contact can carry many
+    usernames (the "pick one of the users" step). Phones are compared by digits
+    (the stored format varies: with/without a leading +, spaces, dashes);
+    emails by exact (lowercased, trimmed) match.
     """
-    digits = re.sub(r"\D", "", phone_number or "")
-    if not digits:
-        return []
+    c = (contact or "").strip()
+    if "@" in c:
+        where = "email = %(contact)s"
+        norm = c.lower()
+    else:
+        digits = re.sub(r"\D", "", c)
+        if not digits:
+            return []
+        where = "replaceRegexpAll(phone, '[^0-9]', '') = %(contact)s"
+        norm = digits
     result = client.query(
-        "SELECT username, phone, phone_verified, email FROM ("
-        "SELECT username, phone, phone_verified, email, deleted, "
-        "row_number() OVER (PARTITION BY username ORDER BY updated_at DESC, deleted DESC) AS rn "
-        "FROM users) "
-        "WHERE rn = 1 AND deleted = 0 "
-        "AND replaceRegexpAll(phone, '[^0-9]', '') = %(digits)s "
-        "ORDER BY username",
-        {"digits": digits},
+        "SELECT username, phone, email, phone_verified, email_verified FROM ("
+        "SELECT username, phone, email, phone_verified, email_verified, "
+        "row_number() OVER (PARTITION BY username ORDER BY updated_at DESC, deleted DESC) as rn "
+        "FROM users WHERE deleted = 0"
+        ") WHERE rn = 1 AND " + where,
+        {"contact": norm},
     )
     return [
         {
             "username": row[0],
             "phone": row[1],
-            "phone_verified": bool(row[2]),
-            "email": row[3],
+            "email": row[2],
+            "phone_verified": bool(row[3]),
+            "email_verified": bool(row[4]),
         }
         for row in result.result_rows
     ]

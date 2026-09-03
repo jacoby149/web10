@@ -4,6 +4,7 @@ from fastapi import APIRouter
 
 import app.exceptions as exceptions
 from app.services.auth import get_password_hash
+from app.services.config import effective_config
 from app.v3.models import Login, Signup
 from app.v3.services import clickhouse as ch
 
@@ -17,6 +18,15 @@ def kosher(s: str) -> bool:
     return bool(_USERNAME_RE.match(s))
 
 
+def _require_contact() -> bool:
+    """D10: the node's contact-requirement policy. Defensive — a config read
+    failure (pre-setup node, test env) defaults to off."""
+    try:
+        return bool(effective_config().get("require_contact", False))
+    except Exception:
+        return False
+
+
 @router.post("/signup")
 def signup(data: Signup):
     """Create a user account."""
@@ -24,6 +34,8 @@ def signup(data: Signup):
         raise exceptions.BAD_USERNAME
     if not data.password or not data.password.strip():
         raise exceptions.BAD_PASSWORD
+    if _require_contact() and not (data.phone or "").strip() and not (data.email or "").strip():
+        raise exceptions.CONTACT_REQUIRED
     password_hash = get_password_hash(data.password)
     result = ch.create_user(
         username=data.username,

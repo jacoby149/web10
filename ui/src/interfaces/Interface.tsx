@@ -148,11 +148,13 @@ function useInterface() {
     [I.requests, I.setRequests] = React.useState([]);
     [I.phone, I.setPhone] = React.useState("");
 
-    // Phone-recovery flow (Phase 2): phone → code → pick account → sign in.
-    // The step is wizard state (default "phone"; a fresh load can't resume
-    // code/pick because the phone isn't persisted, so it always starts at phone).
-    [I.recoveryStep, I._setRecoveryStep] = React.useState("phone");
-    [I.recoveryPhone, I.setRecoveryPhone] = React.useState("");
+    // Contact-anchored auth (D61): contact (phone OR email) → code → pick an
+    // account (or create one) → sign in. The step is wizard state (default
+    // "contact"; a fresh load can't resume code/pick because the contact isn't
+    // persisted, so it always starts at contact).
+    [I.recoveryStep, I._setRecoveryStep] = React.useState("contact");
+    [I.recoveryContact, I.setRecoveryContact] = React.useState("");
+    [I.recoveryVerifyToken, I.setRecoveryVerifyToken] = React.useState("");
     [I.recoveryAccounts, I.setRecoveryAccounts] = React.useState([]);
 
     [I.auth, I.setAuth] = React.useState(restoreAuth);
@@ -478,41 +480,42 @@ function useInterface() {
 
     I.setRecoveryStep = function (step: string) {
         I._setRecoveryStep(step);
-        // Mirror the step in the URL (the deep-link rule). The phone isn't
-        // persisted, so a fresh load always resumes at "phone" regardless.
+        // Mirror the step in the URL (the deep-link rule). The contact isn't
+        // persisted, so a fresh load always resumes at "contact" regardless.
         try {
             const url = new URL(window.location.href);
-            if (step === "phone") url.searchParams.delete("recovery");
+            if (step === "contact") url.searchParams.delete("recovery");
             else url.searchParams.set("recovery", step);
             window.history.replaceState({}, "", url.toString());
         } catch { /* non-navigable context — state still updates */ }
     }
 
-    I.recoverRequest = function (phone: string) {
+    I.recoverRequest = function (contact: string) {
         I.setStatus("Sending code...");
-        v3PostAnon("recovery/request", { phone })
-            .then(() => {
-                I.setRecoveryPhone(phone);
+        v3PostAnon("recovery/request", { contact })
+            .then((res: any) => {
+                I.setRecoveryContact(contact);
                 I.setRecoveryStep("code");
-                I.setStatus("Code sent — check your phone.");
+                I.setStatus(res?.kind === "email" ? "Code sent — check your inbox." : "Code sent — check your phone.");
             })
             .catch((e: any) => I.setStatus(e.message || String(e)));
     }
 
-    I.recoverVerify = function (phone: string, code: string) {
+    I.recoverVerify = function (contact: string, code: string) {
         I.setStatus("Verifying...");
-        v3PostAnon("recovery/verify", { phone, code })
+        v3PostAnon("recovery/verify", { contact, code })
             .then((res: any) => {
                 I.setRecoveryAccounts(res.accounts || []);
+                I.setRecoveryVerifyToken(res.verify_token || "");
                 I.setRecoveryStep("pick");
                 I.setStatus(null);
             })
             .catch((e: any) => I.setStatus(e.message || String(e)));
     }
 
-    I.recoverComplete = function (phone: string, code: string, username: string, newPassword?: string) {
+    I.recoverComplete = function (username: string, newPassword?: string) {
         I.setStatus("Signing you in...");
-        const body: Record<string, any> = { phone, code, username };
+        const body: Record<string, any> = { verify_token: I.recoveryVerifyToken, username };
         if (newPassword) body.new_password = newPassword;
         v3PostAnon("recovery/complete", body)
             .then((res: any) => {
