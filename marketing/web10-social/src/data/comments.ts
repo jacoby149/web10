@@ -12,10 +12,12 @@ import { fromV3DocToComment, type CommentRecord } from './types';
 export async function readComments(postId: string, groups?: string[]): Promise<CommentRecord[]> {
   const w = getV3Client();
   const targetGroups = groups || ['web10.app/groups/web10/discover'];
-  const docs = await w.read('comments', { groups: targetGroups });
-  return docs
-    .filter((d) => d.ref_value === postId)
-    .map(fromV3DocToComment);
+  // The ref filter (the flexible read, phase 1): the server returns only the
+  // comments whose ref_value = postId (via the safe-query engine — group
+  // filter + block/sharing/hidden), not all comments in the group. No
+  // client-side filter needed.
+  const docs = await w.read('comments', { groups: targetGroups, ref: postId });
+  return docs.map(fromV3DocToComment);
 }
 
 /**
@@ -32,10 +34,10 @@ export async function readTopLevelComments(postId: string, groups?: string[]): P
 export async function readReplies(commentId: string, groups?: string[]): Promise<CommentRecord[]> {
   const w = getV3Client();
   const targetGroups = groups || ['web10.app/groups/web10/discover'];
-  const docs = await w.read('comments', { groups: targetGroups });
-  return docs
-    .filter((d) => d.ref_value === commentId)
-    .map(fromV3DocToComment);
+  // The ref filter: the server returns only the comments whose ref_value =
+  // commentId (replies to this comment), via the safe-query engine.
+  const docs = await w.read('comments', { groups: targetGroups, ref: commentId });
+  return docs.map(fromV3DocToComment);
 }
 
 /**

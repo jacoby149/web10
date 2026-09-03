@@ -19,10 +19,11 @@ export async function readReactions(
   const actualTargetId = targetId || targetServiceOrId;
   const w = getV3Client();
   const targetGroups = groups || ['web10.app/groups/web10/discover'];
-  const docs = await w.read('reactions', { groups: targetGroups });
-  return docs
-    .filter((d) => d.ref_value === actualTargetId)
-    .map(fromV3DocToReaction);
+  // The ref filter (the flexible read, phase 1): the server returns only the
+  // reactions whose ref_value = targetId (via the safe-query engine), not all
+  // reactions in the group. No client-side filter needed.
+  const docs = await w.read('reactions', { groups: targetGroups, ref: actualTargetId });
+  return docs.map(fromV3DocToReaction);
 }
 
 /**

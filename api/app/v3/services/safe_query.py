@@ -94,12 +94,19 @@ def _quote_group_ids(group_ids: list[str]) -> str:
     return ", ".join(f"'{g.replace(chr(39), chr(39) * 2)}'" for g in group_ids)
 
 
-def _boundary_cte_sql(service: str, readable_groups: list[str]) -> str:
+def _boundary_cte_sql(service: str, readable_groups: list[str], member_key: str) -> str:
     """The body of the boundary CTE for ``service``: the service's docs,
     deduped (ReplacingMergeTree latest-row, not-deleted), joined to
     ``doc_groups``, filtered to ``readable_groups`` (the caller's groups where
     their role grants readAll on this service — computed by the caller via the
-    D58 read gate, passed in here).
+    D58 read gate, passed in here), with the block/sharing/hidden anti-joins
+    (ported from ``_board_base_sql``) so the engine is a *full* read path, not
+    just a group filter: a blocked user's docs, a paused-sharing author's docs,
+    and hidden docs are hidden — the same visibility rules as the existing read
+    path. Without these, a comment from a blocked user would leak through.
+
+    ``member_key`` is the reader (the person making the read; ``"anon"`` for a
+    token-less read) — the anti-joins are keyed on it.
 
     No readable groups → a shape-valid CTE that returns nothing (``1 = 0``),
     so a granted-but-empty service degrades to empty, not an error.
@@ -117,10 +124,35 @@ def _boundary_cte_sql(service: str, readable_groups: list[str]) -> str:
     )
     if not readable_groups:
         return f"SELECT {_CTE_COLUMNS} FROM ({dedup_docs}) d WHERE 1 = 0"
+    # member_key is node-generated (from the token / "anon"), never caller
+    # input; the quoting is defense-in-depth against a stray quote.
+    mk = member_key.replace(chr(39), chr(39) * 2)
+    # Block/sharing/hidden anti-joins — ported verbatim from _board_base_sql so
+    # the engine and the existing read path enforce identical visibility.
+    anti_joins = (
+        f"LEFT ANTI JOIN (SELECT user_key, blocked_key FROM (SELECT user_key, blocked_key, deleted, "
+        f"row_number() OVER (PARTITION BY user_key, blocked_key ORDER BY updated_at DESC, deleted DESC) AS rn "
+        f"FROM user_blacklist) WHERE rn = 1 AND deleted = 0) ub "
+        f"ON ub.user_key = d.author_key AND ub.blocked_key = '{mk}' "
+        f"LEFT ANTI JOIN (SELECT user_key, group_id, blocked_key FROM (SELECT user_key, group_id, blocked_key, deleted, "
+        f"row_number() OVER (PARTITION BY user_key, group_id, blocked_key ORDER BY updated_at DESC, deleted DESC) AS rn "
+        f"FROM group_blacklist) WHERE rn = 1 AND deleted = 0) gb "
+        f"ON gb.user_key = d.author_key AND gb.group_id = dg.group_id AND gb.blocked_key = '{mk}' "
+        f"LEFT ANTI JOIN (SELECT user_key, group_id, sharing_enabled FROM (SELECT user_key, group_id, sharing_enabled, deleted, "
+        f"row_number() OVER (PARTITION BY user_key, group_id ORDER BY updated_at DESC) AS rn "
+        f"FROM user_group_sharing) WHERE rn = 1 AND deleted = 0) ugs "
+        f"ON ugs.user_key = d.author_key AND ugs.group_id = dg.group_id AND ugs.sharing_enabled = 0 "
+        f"AND d.author_key != '{mk}' "
+        f"LEFT ANTI JOIN (SELECT group_id, doc_id FROM (SELECT group_id, doc_id, deleted, "
+        f"row_number() OVER (PARTITION BY group_id, doc_id ORDER BY updated_at DESC, deleted DESC) AS rn "
+        f"FROM group_hidden_docs) WHERE rn = 1 AND deleted = 0) hd "
+        f"ON hd.doc_id = d.doc_id AND hd.group_id = dg.group_id "
+    )
     return (
         f"SELECT d.doc_id, d.author_key, d.body, d.ref_value, d.tags, "
         f"d.created_at, d.updated_at FROM ({dedup_docs}) d "
         f"JOIN ({dedup_groups}) dg ON d.doc_id = dg.doc_id "
+        f"{anti_joins} "
         f"WHERE dg.group_id IN ({_quote_group_ids(readable_groups)})"
     )
 
@@ -155,6 +187,7 @@ def _validate(tree: exp.Expression, allowed: frozenset[str], caller_ctes: set[st
 def build_safe_query(
     user_sql: str,
     readable_groups_by_service: dict[str, list[str]],
+    member_key: str = "anon",
     allowed_services: frozenset[str] | set[str] | None = None,
 ) -> str:
     """Compile a caller's ClickHouse SELECT into a boundary-enforced query.
@@ -166,13 +199,18 @@ def build_safe_query(
         readable_groups_by_service: for each service, the group IDs the
             caller can read (their role grants readAll there). The API
             computes this via the D58 read gate and passes it in.
+        member_key: the reader (the person making the read; ``"anon"`` for a
+            token-less read). The boundary CTE's block/sharing/hidden
+            anti-joins are keyed on it — the same visibility rules as the
+            existing read path.
         allowed_services: the services the caller may query (from the app
             contract). Defaults to the keys of ``readable_groups_by_service``.
 
     Returns:
-        The final SQL — the boundary CTEs (API-built, group-filtered) followed
-        by the caller's query. Service CTEs are ordered first so caller CTEs
-        that reference them resolve.
+        The final SQL — the boundary CTEs (API-built, group-filtered, with the
+        block/sharing/hidden anti-joins) followed by the caller's query.
+        Service CTEs are ordered first so caller CTEs that reference them
+        resolve.
 
     Raises:
         UnsafeQueryError: the query is unsafe (raw table, table function,
@@ -203,7 +241,7 @@ def build_safe_query(
     #    first so caller CTEs that reference a service resolve.
     caller_sql = tree.sql(dialect=DIALECT).strip()
     cte_defs = ", ".join(
-        f"{service} AS ({_boundary_cte_sql(service, readable_groups_by_service.get(service, []))})"
+        f"{service} AS ({_boundary_cte_sql(service, readable_groups_by_service.get(service, []), member_key)})"
         for service in sorted(needed)
     )
     if not cte_defs:

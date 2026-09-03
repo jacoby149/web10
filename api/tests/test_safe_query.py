@@ -149,3 +149,24 @@ def test_aggregation_cannot_leak_past_the_boundary():
     # The aggregation runs over the CTE, which is already group-filtered.
     assert "FROM posts GROUP BY author_key" in out
     assert DISCOVER in out
+
+
+# ── The engine is a FULL read path (block/sharing/hidden, not just groups) ───
+
+
+def test_boundary_cte_includes_block_sharing_hidden_anti_joins():
+    # The engine must enforce the same visibility rules as the existing read
+    # path: a blocked user's docs, a paused-sharing author's docs, and hidden
+    # docs are hidden. Without these, a comment from a blocked user would leak
+    # through the ref filter.
+    reader = "web10.app/users/bob"
+    out = build_safe_query("SELECT doc_id FROM posts", {"posts": [DISCOVER]}, member_key=reader)
+    # All four anti-joins are present, keyed on the reader.
+    assert "user_blacklist" in out
+    assert "group_blacklist" in out
+    assert "user_group_sharing" in out
+    assert "group_hidden_docs" in out
+    # The reader is the anti-join key (a blocked user's docs are hidden from
+    # them; a paused-sharing author's docs are hidden from them).
+    assert reader in out
+    assert "LEFT ANTI JOIN" in out

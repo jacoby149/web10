@@ -217,6 +217,7 @@ export interface V3Client {
         groups: string[];
         limit?: number;
         offset?: number;
+        ref?: string | string[];
     }): Promise<V3Document[]>;
     readById(docId: string, collection: string): Promise<V3Document>;
     update(docId: string, body: Record<string, unknown>, opts?: {

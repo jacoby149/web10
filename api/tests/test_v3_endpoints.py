@@ -149,6 +149,40 @@ class TestRead:
         assert resp.status_code == 200
         assert len(resp.json()) == 1
 
+    def test_ref_filter_read(self, client, token):
+        # The ref filter (the flexible read, phase 1): routed through the
+        # safe-query engine. The compiled query carries the ref filter + the
+        # boundary CTE (group filter + block/sharing/hidden anti-joins).
+        mock_rows = [
+            ("cm-1", "bob", '{"text":"a comment"}', "post-1", [], datetime(2026, 1, 1), datetime(2026, 1, 1)),
+        ]
+        with (
+            patch("app.v3.services.clickhouse.client") as mock_ch,
+            patch("app.v3.services.clickhouse.readable_groups", side_effect=lambda p, s, a, c: c),
+        ):
+            mock_ch.query.return_value = MagicMock(result_rows=mock_rows)
+            resp = client.post(
+                "/v3/read",
+                json={
+                    "token": token,
+                    "service": "comments",
+                    "groups": ["g1"],
+                    "ref": "post-1",
+                },
+            )
+            compiled = next(
+                (c[0][0] for c in mock_ch.query.call_args_list if "ref_value = 'post-1'" in c[0][0]),
+                None,
+            )
+        assert resp.status_code == 200
+        assert len(resp.json()) == 1
+        # The ref-filter query was compiled and executed.
+        assert compiled is not None, "no ref-filter query reached client.query"
+        # The boundary CTE (group filter) + the anti-joins (full read path).
+        assert "comments AS (" in compiled
+        assert "user_blacklist" in compiled
+        assert "group_hidden_docs" in compiled
+
     def test_no_token(self, client):
         resp = client.post("/v3/read", json={"token": None, "groups": ["me"]})
         assert resp.status_code == 422
