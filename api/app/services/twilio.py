@@ -27,12 +27,13 @@ def _channel_for(contact) -> str:
 
 
 # E2E / local mode — when TWILIO_E2E is truthy, the recovery flow uses a
-# deterministic in-memory code store instead of calling Twilio. This lets the
-# e2e suite drive the recovery flow without real Twilio credentials (CI has
-# none). The code is fixed ("123456") so the e2e knows it. Never active in
-# prod (TWILIO_E2E is unset there).
+# deterministic code store instead of calling Twilio. This lets the e2e suite
+# drive the recovery flow without real Twilio credentials (CI has none). The
+# code is fixed ("123456") so the e2e knows it. The store is a ClickHouse table
+# (shared across the API's multiple uvicorn workers — an in-memory dict would
+# set the code in one worker and check it in another). Never active in prod
+# (TWILIO_E2E is unset there).
 _E2E_CODE = "123456"
-_local_codes: dict[str, str] = {}  # normalized contact -> code
 
 
 def _twilio_e2e() -> bool:
@@ -49,7 +50,9 @@ def send_verification(contact):
     username to name. `{{code}}` is auto-substituted by Twilio.
     """
     if _twilio_e2e():
-        _local_codes[_twilio_to(contact)] = _E2E_CODE
+        from app.v3.services import clickhouse as ch
+
+        ch.set_recovery_code(_twilio_to(contact), _E2E_CODE)
         return "e2e-verification-sid"
     try:
         verification = client.verify.services(settings.TWILIO_SERVICE).verifications.create(
@@ -65,7 +68,9 @@ def send_verification(contact):
 def check_verification(contact, code):
     """Check a 6-digit code against the contact (phone or email)."""
     if _twilio_e2e():
-        if _local_codes.get(_twilio_to(contact)) != code:
+        from app.v3.services import clickhouse as ch
+
+        if not ch.check_recovery_code(_twilio_to(contact), code):
             raise exceptions.WRONG_CODE
         return "e2e-check-sid"
     verification_check = client.verify.services(settings.TWILIO_SERVICE).verification_checks.create(

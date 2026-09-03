@@ -26,8 +26,14 @@ const AUTH_BASE = `http://auth.localhost${p}`;
 
 const E2E_CODE = '123456'; // the fixed code from the API's local-Twilio mode
 const password = 'TestPass123!';
-const uniqueUser = (prefix: string) => `${prefix}${Date.now()}-${Math.random().toString(36).slice(2, 6)}`;
-const uniquePhone = () => `+1555${Math.floor(Math.random() * 10000000)}`;
+// Cap at 30 chars (the username limit) — Date.now() is 13 digits, so a long
+// prefix + the random suffix can overflow; the slice is the safety net.
+const uniqueUser = (prefix: string) =>
+  `${prefix}${Date.now()}-${Math.random().toString(36).slice(2, 6)}`.slice(0, 30);
+// Collision-free by construction (a counter, not a random range — a 7-digit
+// random range collided once in CI). 10-digit US body, +1 prefixed.
+let phoneCounter = Math.floor(Math.random() * 100000);
+const uniquePhone = () => `+1${(5550000000 + phoneCounter++).toString()}`;
 const uniqueEmail = () => `${Math.random().toString(36).slice(2, 10)}@recovery.test`;
 
 function captureFull(page: Page): { console: string[]; errors: string[] } {
@@ -48,9 +54,10 @@ async function recoveryFlow(
   contact: string,
   username: string,
   newPassword?: string,
-): Promise<string> {
+): Promise<{ token: string; kind: string }> {
   const req = await v3Post(request, `${API_BASE}/v3/recovery/request`, { contact });
   expect(req.ok(), `recovery/request failed (${req.status})`).toBeTruthy();
+  const reqBody = await req.json();
   const ver = await v3Post(request, `${API_BASE}/v3/recovery/verify`, { contact, code: E2E_CODE });
   expect(ver.ok(), `recovery/verify failed (${ver.status})`).toBeTruthy();
   const verify_token = (await ver.json()).verify_token as string;
@@ -58,7 +65,7 @@ async function recoveryFlow(
   if (newPassword) body.new_password = newPassword;
   const comp = await v3Post(request, `${API_BASE}/v3/recovery/complete`, body);
   expect(comp.ok(), `recovery/complete failed (${comp.status})`).toBeTruthy();
-  return (await comp.json()).token as string;
+  return { token: (await comp.json()).token as string, kind: reqBody.kind as string };
 }
 
 // ---------------------------------------------------------------------------
@@ -71,7 +78,7 @@ test.describe('API floor — phone path', () => {
     const phone = uniquePhone();
     await v3Signup(request, username, password, phone);
 
-    const token = await recoveryFlow(request, phone, username);
+    const { token } = await recoveryFlow(request, phone, username);
     expect(token).toBeTruthy();
 
     // The returned token is a real login token — it authenticates.
@@ -88,12 +95,9 @@ test.describe('API floor — email path', () => {
     const su = await v3Post(request, `${API_BASE}/v3/signup`, { username, password, email });
     expect(su.ok(), `signup failed (${su.status})`).toBeTruthy();
 
-    const req = await v3Post(request, `${API_BASE}/v3/recovery/request`, { contact: email });
-    expect(req.ok()).toBeTruthy();
-    expect((await req.json()).kind).toBe('email');
-
-    const token = await recoveryFlow(request, email, username);
+    const { token, kind } = await recoveryFlow(request, email, username);
     expect(token).toBeTruthy();
+    expect(kind).toBe('email');
   });
 });
 
