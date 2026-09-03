@@ -26,6 +26,19 @@ def _channel_for(contact) -> str:
     return "email" if _is_email(contact) else "sms"
 
 
+# E2E / local mode — when TWILIO_E2E is truthy, the recovery flow uses a
+# deterministic in-memory code store instead of calling Twilio. This lets the
+# e2e suite drive the recovery flow without real Twilio credentials (CI has
+# none). The code is fixed ("123456") so the e2e knows it. Never active in
+# prod (TWILIO_E2E is unset there).
+_E2E_CODE = "123456"
+_local_codes: dict[str, str] = {}  # normalized contact -> code
+
+
+def _twilio_e2e() -> bool:
+    return str(getattr(settings, "TWILIO_E2E", "")).strip().lower() in ("1", "true", "yes")
+
+
 def send_verification(contact):
     """Send a 6-digit code. `contact` is a phone number OR an email — the
     channel is chosen from it (sms vs email). One provider for both (D61).
@@ -35,6 +48,9 @@ def send_verification(contact):
     with NO username: a contact can back several accounts, so there's no single
     username to name. `{{code}}` is auto-substituted by Twilio.
     """
+    if _twilio_e2e():
+        _local_codes[_twilio_to(contact)] = _E2E_CODE
+        return "e2e-verification-sid"
     try:
         verification = client.verify.services(settings.TWILIO_SERVICE).verifications.create(
             to=_twilio_to(contact), channel=_channel_for(contact)
@@ -48,6 +64,10 @@ def send_verification(contact):
 # check the verification code
 def check_verification(contact, code):
     """Check a 6-digit code against the contact (phone or email)."""
+    if _twilio_e2e():
+        if _local_codes.get(_twilio_to(contact)) != code:
+            raise exceptions.WRONG_CODE
+        return "e2e-check-sid"
     verification_check = client.verify.services(settings.TWILIO_SERVICE).verification_checks.create(
         to=_twilio_to(contact), code=code
     )

@@ -41,6 +41,10 @@ TWILIO_SERVICE = "VAbce...."
 TWILIO_ACCOUNT_SID = "AC3594...."
 TWILIO_AUTH_TOKEN = "460d....."
 TWILIO_NUMBER = "+12764004437"
+# E2E / local mode — when truthy, the recovery flow uses a deterministic
+# in-memory code store instead of calling Twilio (CI has no real credentials).
+# Never set in prod. See services/twilio.py.
+TWILIO_E2E = ""
 STRIPE_STATUS = "live"
 STRIPE_TEST_KEY = "sk_test_51Khy....."
 STRIPE_LIVE_KEY = "sk_live_51Khyui......"
