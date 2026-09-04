@@ -66,6 +66,10 @@ services:
       CORS_SERVICE_MANAGERS: auth.localhost,social.localhost,marketing.localhost
       STRIPE_STATUS: test
       STRIPE_TEST_KEY: ${STRIPE_TEST_KEY:-sk_test_placeholder}
+      # Local-Twilio mode for the recovery flow (D61) — a deterministic
+      # in-memory code store instead of a real Twilio call (CI has no
+      # credentials). The e2e knows the fixed code "123456". Never set in prod.
+      TWILIO_E2E: "true"
       CLICKHOUSE_HOST: clickhouse
       CLICKHOUSE_PORT: "8123"
       CLICKHOUSE_DATABASE: web10

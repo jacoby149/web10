@@ -1998,6 +1998,40 @@ def read_docs_by_ref(
     ]
 
 
+def read_ref_counts_by_ref(
+    service: str,
+    ref_values: str | list[str],
+    group_ids: list[str],
+    member_key: str,
+) -> dict[str, int]:
+    """Count docs by ref_value, through the safe-query engine (the full
+    boundary: group filter + block/sharing/hidden anti-joins). The
+    engagement-count shape: "how many comments/reactions in my readable groups
+    reference these posts." Returns ``{ref_value: count}`` — a ref with no docs
+    is absent (the caller treats absent as 0).
+
+    This is the server-side version of the feed/trending "read a capped sample,
+    count client-side" pattern. The ``GROUP BY ref_value`` runs over the
+    boundary CTE (deduped + group-filtered + anti-joined), so the count is
+    exact for the caller's readable groups and never undercounts (no cap). The
+    raw ``get_ref_counts`` is NOT used: it is a raw query with no group
+    boundary (a caller could count engagement on a post they can't see).
+    """
+    from app.v3.services.safe_query import build_safe_query
+
+    refs = [ref_values] if isinstance(ref_values, str) else list(ref_values)
+    if not refs:
+        return {}
+    # ref values are node-generated doc_ids (never caller input); the quoting
+    # is defense-in-depth against a stray quote.
+    quoted = ", ".join(f"'{r.replace(chr(39), chr(39) * 2)}'" for r in refs)
+    ref_clause = f"ref_value = {quoted}" if len(refs) == 1 else f"ref_value IN ({quoted})"
+    query = f"SELECT ref_value, count() AS n FROM {service} WHERE {ref_clause} GROUP BY ref_value"
+    compiled = build_safe_query(query, {service: group_ids}, member_key)
+    result = client.query(compiled)
+    return {row[0]: row[1] for row in result.result_rows}
+
+
 # ---------------------------------------------------------------------------
 # Ref counts (engagement)
 # ---------------------------------------------------------------------------
@@ -2869,21 +2903,26 @@ def set_email(username: str, email: str):
 
 
 def verify_phone(username: str):
-    """Mark phone as verified."""
+    """Mark phone as verified.
+
+    Selects only the LATEST row — selecting every row would re-insert each one
+    (duplicating them), and the updated_at-ordered read could then pick a stale
+    row (e.g. one with an old password_hash after a change_password).
+    """
     client.command(
         "INSERT INTO users (username, password_hash, phone, phone_verified, email, email_verified, created_at, updated_at, deleted) "
         "SELECT username, password_hash, phone, 1, email, email_verified, created_at, now(), 0 "
-        "FROM users WHERE username = %(username)s AND deleted = 0",
+        "FROM (SELECT * FROM users WHERE username = %(username)s AND deleted = 0 ORDER BY updated_at DESC LIMIT 1)",
         {"username": username},
     )
 
 
 def verify_email(username: str):
-    """Mark email as verified."""
+    """Mark email as verified (latest row only — see verify_phone)."""
     client.command(
         "INSERT INTO users (username, password_hash, phone, phone_verified, email, email_verified, created_at, updated_at, deleted) "
         "SELECT username, password_hash, phone, phone_verified, email, 1, created_at, now(), 0 "
-        "FROM users WHERE username = %(username)s AND deleted = 0",
+        "FROM (SELECT * FROM users WHERE username = %(username)s AND deleted = 0 ORDER BY updated_at DESC LIMIT 1)",
         {"username": username},
     )
 
@@ -2957,6 +2996,54 @@ def get_users_by_contact(contact: str) -> list[dict]:
         }
         for row in result.result_rows
     ]
+
+
+# ---------------------------------------------------------------------------
+# Recovery codes (D61 local-Twilio mode) — a real table, not in-memory.
+#
+# The API runs multiple uvicorn workers (WEB_CONCURRENCY), each a separate
+# process. An in-memory code store would set the code in one worker and check
+# it in another (always a miss). A ClickHouse table is shared across workers,
+# so the e2e's fixed code ("123456") survives the worker hop. Only ever used
+# when TWILIO_E2E is on (the e2e stack) — prod uses Twilio Verify.
+# ---------------------------------------------------------------------------
+
+_RECOVERY_CODES_TABLE = """
+CREATE TABLE IF NOT EXISTS recovery_codes (
+    contact String,
+    code String,
+    created_at DateTime
+) ENGINE = MergeTree()
+ORDER BY contact
+"""
+
+
+def _ensure_recovery_codes_table():
+    try:
+        client.command(_RECOVERY_CODES_TABLE)
+    except Exception:
+        pass
+
+
+def set_recovery_code(contact: str, code: str):
+    """Store a recovery code for a contact (latest wins on read)."""
+    _ensure_recovery_codes_table()
+    client.insert(
+        "recovery_codes",
+        [[contact, code, _now()]],
+    )
+
+
+def check_recovery_code(contact: str, code: str) -> bool:
+    """True if the stored code for the contact matches. False if none set."""
+    _ensure_recovery_codes_table()
+    result = client.query(
+        "SELECT code FROM recovery_codes WHERE contact = %(contact)s ORDER BY created_at DESC LIMIT 1",
+        {"contact": contact},
+    )
+    if not result.result_rows:
+        return False
+    return result.result_rows[0][0] == code
 
 
 # ---------------------------------------------------------------------------

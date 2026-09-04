@@ -247,6 +247,10 @@
           payload.ref = opts.ref;
         return v3Post("read", payload);
       },
+      async readRefCounts(collection, opts) {
+        const payload = { service: collection, groups: opts.groups, ref: opts.ref, count: true };
+        return v3Post("read", payload);
+      },
       async readById(docId, collection) {
         return v3Post("read", { doc_id: docId, service: collection });
       },
