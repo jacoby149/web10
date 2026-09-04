@@ -556,7 +556,12 @@ export default function FeedScreen({ onAuthorClick }: { onAuthorClick?: (usernam
       let engComments: Record<string, number> = {};
       if (feedGroups.length) {
         try {
-          const eng = await readFeedEngagement(feedGroups);
+          // Server-side count (the ref pattern): GROUP BY ref_value through the
+          // engine for the feed's posts — exact, no cap.
+          const eng = await readFeedEngagement(
+            feedGroups,
+            feed.map((p) => p._id).filter((id): id is string => Boolean(id)),
+          );
           engLikes = eng.likes;
           engComments = eng.comments;
         } catch (e) {

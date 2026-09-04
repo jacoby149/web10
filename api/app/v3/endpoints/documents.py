@@ -170,6 +170,17 @@ def read_documents(request: Request, data: ReadDocuments):
             )
 
     if data.ref is not None:
+        if data.count:
+            # The engagement-count shape: {ref_value: count} for these posts.
+            # GROUP BY ref_value through the safe-query engine — exact for the
+            # reader's readable groups, no cap (the feed/trending server-side
+            # count). group_ids is already the reader's readable set (above).
+            return ch.read_ref_counts_by_ref(
+                service=data.service,
+                ref_values=data.ref,
+                group_ids=group_ids,
+                member_key=reader,
+            )
         # The ref filter (the flexible read, phase 1): "give me the
         # comments/reactions for these posts." Routed through the safe-query
         # engine (read_docs_by_ref → build_safe_query) so it carries the full
