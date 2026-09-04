@@ -392,9 +392,13 @@ export function PostLightbox({ post, mediaMap, onClose, onReload, postAuthor, po
             </button>
           </div>
 
-          {/* Pinned ad (the read serves it inline on the post, I3-checked) */}
-          {currentPost.ad && (
-            <AdBlock ad={currentPost.ad} className="mt-3 -mx-1 px-4" />
+          {/* Carried ads (D55 + D57): the creator's pinned ad + the node's ad
+              can both be present — render both, neither suppressing the other. */}
+          {(currentPost.ad || currentPost.node_ad) && (
+            <div className="mt-3 -mx-1 px-4 space-y-2">
+              {currentPost.ad && <AdBlock ad={currentPost.ad} />}
+              {currentPost.node_ad && <AdBlock ad={currentPost.node_ad} />}
+            </div>
           )}
 
           {/* Comment thread */}

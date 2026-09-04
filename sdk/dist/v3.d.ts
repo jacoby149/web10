@@ -56,6 +56,7 @@ export interface V3Document {
     ad_mode?: string;
     ad_target?: string;
     ad?: V3Document;
+    node_ad?: V3Document;
 }
 export interface V3Group {
     group_id: string;

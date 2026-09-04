@@ -52,6 +52,10 @@ export interface PostRecord {
   // The v3 pinned ad (ads-dissemination.md): the read serves a pinned post with
   // its ad inline; the ad block renders it under the post.
   ad?: AdRecord;
+  // The node-level ad (D57): the read attaches an active node ad at the
+  // operator's percentage. Both `ad` and `node_ad` can be present on the
+  // same post — the renderer shows both, neither suppressing the other.
+  node_ad?: AdRecord;
   // Aliases for backward compat with DiscoveryPost
   author?: string;
   provider?: string;
@@ -81,6 +85,10 @@ export function fromV3DocToPost(doc: V3Document): PostRecord {
     // with its ad inline under `ad` (I3-checked). Mapped to an AdRecord for
     // the ad block renderer.
     ad: doc.ad ? fromV3DocToAd(doc.ad) : undefined,
+    // The node-level ad (D57): the read attaches an active node ad at the
+    // operator's percentage. Mapped the same way; the renderer dresses it
+    // as a "Sponsored" block naming the node.
+    node_ad: doc.node_ad ? fromV3DocToAd(doc.node_ad) : undefined,
     // Backward compat aliases for DiscoveryPost consumers
     author: username,
     provider,
@@ -102,13 +110,26 @@ export interface AdOffer {
   disclosure?: string;
 }
 
+/**
+ * The ad's provenance — who made it. Drives the ad block's color scheme +
+ * the disclosure line (design: ads-as-posts, creator vs node dressing).
+ * - `creator`: a web10 account's own monetization (tagged `ad`). The
+ *   disclosure names the creator's web10 account (`author_username`).
+ * - `node`: the node operator's inventory (tagged `ad` + `node_ad`, D57).
+ *   The disclosure names the node site.
+ */
+export type AdVariant = 'creator' | 'node';
+
 export interface AdRecord {
   _id?: string;
   text?: string;
-  media_refs?: string[];
+  media_refs?: (string | ResolvedMediaRef)[];
   offer?: AdOffer;
   status?: 'active' | 'paused';
+  /** The web10 account that made the ad (from author_key). */
   author_username?: string;
+  /** `creator` (default) or `node` — derived from the `node_ad` tag. */
+  variant?: AdVariant;
   /** album doc_ids this ad belongs to (from its `album:<id>` tags) */
   albums?: string[];
 }
@@ -130,7 +151,7 @@ export function fromV3DocToAd(doc: V3Document): AdRecord {
   return {
     _id: doc.doc_id,
     text: (body.text as string) || undefined,
-    media_refs: (body.media_refs as string[]) || undefined,
+    media_refs: (body.media_refs as (string | ResolvedMediaRef)[]) || undefined,
     offer: {
       kind: leafValue(offerRaw.kind),
       partner: leafValue(offerRaw.partner),
@@ -140,6 +161,9 @@ export function fromV3DocToAd(doc: V3Document): AdRecord {
     },
     status: body.status === 'paused' ? 'paused' : 'active',
     author_username: extractUsername(doc.author_key),
+    // D57: a node ad is tagged `ad` + `node_ad` — the node operator's
+    // inventory. The renderer dresses it differently + names the node.
+    variant: tags.includes('node_ad') ? 'node' : 'creator',
     albums: tags.filter((t) => t.startsWith('album:')).map((t) => t.slice('album:'.length)),
   };
 }

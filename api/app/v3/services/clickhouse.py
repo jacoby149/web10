@@ -2184,7 +2184,7 @@ def get_active_node_ads() -> list[dict]:
         discover_group = f"{cfg.get_config_field('provider', 'api.localhost')}/groups/web10/discover"
         result = client.query(
             "SELECT doc_id, author_key, body, tags "
-            "FROM (SELECT doc_id, author_key, body, tags, deleted, "
+            "FROM (SELECT doc_id, author_key, body, tags, deleted, updated_at, "
             "row_number() OVER (PARTITION BY doc_id, author_key ORDER BY updated_at DESC) AS rn "
             "FROM documents "
             "WHERE collection_name = 'posts' AND has(tags, 'node_ad') AND deleted = 0) "

@@ -339,6 +339,7 @@ export async function readGroupDetail(groupId: string): Promise<unknown> {
   };
 }
 export async function joinGroup(): Promise<unknown> { return { status: 'joined' }; }
+export async function readGroupIdentity(): Promise<unknown> { return {}; }
 export async function requestJoinGroup(): Promise<unknown> { return { status: 'pending' }; }
 export async function leaveGroup(): Promise<unknown> { return { status: 'left' }; }
 export function groupDisplayName(groupId: string, name?: string): string {
@@ -361,6 +362,34 @@ interface SeedFeedPost {
   likes: number;
   comments: number;
   reposts: number;
+  // Carried ads (D55 + D57) — the screenshot seed shows the new ad block.
+  ad?: unknown;
+  node_ad?: unknown;
+}
+
+// A self-contained SVG creative (renders offline, no network) — a gradient
+// "product shot" so the ad's media density is visible in the PR shot.
+function adCreative(label: string, from: string, to: string): unknown {
+  const svg =
+    `<svg xmlns='http://www.w3.org/2000/svg' width='800' height='450'>` +
+    `<defs><linearGradient id='g' x1='0' y1='0' x2='1' y2='1'>` +
+    `<stop offset='0' stop-color='${from}'/><stop offset='1' stop-color='${to}'/>` +
+    `</linearGradient></defs>` +
+    `<rect width='800' height='450' fill='url(#g)'/>` +
+    `<text x='40' y='250' font-family='sans-serif' font-size='44' font-weight='700' fill='white'>${label}</text>` +
+    `</svg>`;
+  return {
+    doc_id: `media-${label}`,
+    object_key: null,
+    mime_type: 'image/svg+xml',
+    filename: `${label}.svg`,
+    size_bytes: 500,
+    read_url: `data:image/svg+xml;utf8,${encodeURIComponent(svg)}`,
+    width: 800,
+    height: 450,
+    duration_seconds: null,
+    thumbnail_url: null,
+  };
 }
 
 const FEED_POSTS: SeedFeedPost[] = [
@@ -374,6 +403,22 @@ const FEED_POSTS: SeedFeedPost[] = [
     likes: 128,
     comments: 24,
     reposts: 0,
+    // A creator ad (violet "Ad" dressing) with a media creative.
+    ad: {
+      _id: 'ad-nova-1',
+      text: 'The analog synth I use for everything — linked below.',
+      media_refs: [adCreative('NOVA-1S', '#8b5cf6', '#2e1065')],
+      offer: {
+        kind: 'affiliate',
+        partner: 'SynthLab',
+        link: 'https://synthlab.example/nova-1s?ref=nova',
+        cta: 'Get it',
+        disclosure: 'I may earn a commission from this link.',
+      },
+      status: 'active',
+      author_username: 'nova',
+      variant: 'creator',
+    },
   },
   {
     _id: 'fp-2',
@@ -385,6 +430,36 @@ const FEED_POSTS: SeedFeedPost[] = [
     likes: 342,
     comments: 51,
     reposts: 0,
+    // BOTH ads present (D57): the creator's pinned ad + the node's ad.
+    ad: {
+      _id: 'ad-luna-1',
+      text: 'My favorite studio mic, on everything.',
+      media_refs: [adCreative('AERO M2', '#7c3aed', '#4c1d95')],
+      offer: {
+        kind: 'affiliate',
+        partner: 'Aero Audio',
+        link: 'https://aero.example/m2?ref=luna',
+        cta: 'Shop it',
+        disclosure: 'I may earn a commission from this link.',
+      },
+      status: 'active',
+      author_username: 'luna',
+      variant: 'creator',
+    },
+    node_ad: {
+      _id: 'node-ad-1',
+      text: 'WorkflowCo — the tool our whole node runs on.',
+      offer: {
+        kind: 'direct',
+        partner: 'WorkflowCo',
+        link: 'https://workflowco.example?ref=node',
+        cta: 'Learn more',
+        disclosure: 'Sponsored by this node.',
+      },
+      status: 'active',
+      author_username: 'nodeops',
+      variant: 'node',
+    },
   },
   {
     _id: 'fp-3',
