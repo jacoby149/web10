@@ -2873,32 +2873,52 @@ def authenticate_user(username: str, plain_password: str) -> bool:
 
 
 def change_password(username: str, new_password_hash: str):
-    """Change a user's password."""
+    """Change a user's password.
+
+    The new row's ``updated_at`` is a Python microsecond clock (the same
+    source ``create_user`` uses), not ClickHouse ``now()`` (second precision).
+    The users table is ``ReplacingMergeTree(updated_at)`` and reads dedup via
+    ``ORDER BY updated_at DESC LIMIT 1`` — that is only "always the latest"
+    when the new timestamp is strictly greater than the old row's. A
+    second-precision ``now()`` lands on ``.000`` ms and can tie or lose to the
+    old row's real milliseconds when both writes fall in the same second, so
+    the read returns the stale row (old hash) and the new password 401s.
+    """
     client.command(
         "INSERT INTO users (username, password_hash, phone, phone_verified, email, email_verified, created_at, updated_at, deleted) "
-        "SELECT username, %(new_hash)s, phone, phone_verified, email, email_verified, created_at, now(), 0 "
+        "SELECT username, %(new_hash)s, phone, phone_verified, email, email_verified, created_at, %(updated_at)s, 0 "
         "FROM users WHERE username = %(username)s AND deleted = 0",
-        {"username": username, "new_hash": new_password_hash},
+        {"username": username, "new_hash": new_password_hash, "updated_at": _now()},
     )
 
 
 def change_phone(username: str, phone: str):
-    """Change a user's phone number (unverified)."""
+    """Change a user's phone number (unverified).
+
+    ``updated_at`` is a Python microsecond clock (see ``change_password``) so
+    the new row strictly outranks the old one in the ``updated_at``-ordered
+    dedup read.
+    """
     client.command(
         "INSERT INTO users (username, password_hash, phone, phone_verified, email, email_verified, created_at, updated_at, deleted) "
-        "SELECT username, password_hash, %(phone)s, 0, email, email_verified, created_at, now(), 0 "
+        "SELECT username, password_hash, %(phone)s, 0, email, email_verified, created_at, %(updated_at)s, 0 "
         "FROM users WHERE username = %(username)s AND deleted = 0",
-        {"username": username, "phone": phone},
+        {"username": username, "phone": phone, "updated_at": _now()},
     )
 
 
 def set_email(username: str, email: str):
-    """Set a user's email (unverified)."""
+    """Set a user's email (unverified).
+
+    ``updated_at`` is a Python microsecond clock (see ``change_password``) so
+    the new row strictly outranks the old one in the ``updated_at``-ordered
+    dedup read.
+    """
     client.command(
         "INSERT INTO users (username, password_hash, phone, phone_verified, email, email_verified, created_at, updated_at, deleted) "
-        "SELECT username, password_hash, phone, phone_verified, %(email)s, 0, created_at, now(), 0 "
+        "SELECT username, password_hash, phone, phone_verified, %(email)s, 0, created_at, %(updated_at)s, 0 "
         "FROM users WHERE username = %(username)s AND deleted = 0",
-        {"username": username, "email": email},
+        {"username": username, "email": email, "updated_at": _now()},
     )
 
 
@@ -2907,13 +2927,15 @@ def verify_phone(username: str):
 
     Selects only the LATEST row — selecting every row would re-insert each one
     (duplicating them), and the updated_at-ordered read could then pick a stale
-    row (e.g. one with an old password_hash after a change_password).
+    row (e.g. one with an old password_hash after a change_password). The new
+    row's ``updated_at`` is a Python microsecond clock (see ``change_password``)
+    so it strictly outranks the row it copies.
     """
     client.command(
         "INSERT INTO users (username, password_hash, phone, phone_verified, email, email_verified, created_at, updated_at, deleted) "
-        "SELECT username, password_hash, phone, 1, email, email_verified, created_at, now(), 0 "
+        "SELECT username, password_hash, phone, 1, email, email_verified, created_at, %(updated_at)s, 0 "
         "FROM (SELECT * FROM users WHERE username = %(username)s AND deleted = 0 ORDER BY updated_at DESC LIMIT 1)",
-        {"username": username},
+        {"username": username, "updated_at": _now()},
     )
 
 
@@ -2921,9 +2943,9 @@ def verify_email(username: str):
     """Mark email as verified (latest row only — see verify_phone)."""
     client.command(
         "INSERT INTO users (username, password_hash, phone, phone_verified, email, email_verified, created_at, updated_at, deleted) "
-        "SELECT username, password_hash, phone, phone_verified, email, 1, created_at, now(), 0 "
+        "SELECT username, password_hash, phone, phone_verified, email, 1, created_at, %(updated_at)s, 0 "
         "FROM (SELECT * FROM users WHERE username = %(username)s AND deleted = 0 ORDER BY updated_at DESC LIMIT 1)",
-        {"username": username},
+        {"username": username, "updated_at": _now()},
     )
 
 
