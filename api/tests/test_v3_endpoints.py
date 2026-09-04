@@ -183,6 +183,38 @@ class TestRead:
         assert "user_blacklist" in compiled
         assert "group_hidden_docs" in compiled
 
+    def test_ref_count_read(self, client, token):
+        # The engagement-count shape: {ref_value: count} for these posts.
+        # GROUP BY ref_value through the safe-query engine — exact for the
+        # reader's readable groups, no cap (the feed/trending server-side count).
+        mock_rows = [("post-1", 3), ("post-2", 7)]
+        with (
+            patch("app.v3.services.clickhouse.client") as mock_ch,
+            patch("app.v3.services.clickhouse.readable_groups", side_effect=lambda p, s, a, c: c),
+        ):
+            mock_ch.query.return_value = MagicMock(result_rows=mock_rows)
+            resp = client.post(
+                "/v3/read",
+                json={
+                    "token": token,
+                    "service": "comments",
+                    "groups": ["g1"],
+                    "ref": ["post-1", "post-2"],
+                    "count": True,
+                },
+            )
+            compiled = next(
+                (c[0][0] for c in mock_ch.query.call_args_list if "GROUP BY ref_value" in c[0][0]),
+                None,
+            )
+        assert resp.status_code == 200
+        assert resp.json() == {"post-1": 3, "post-2": 7}
+        # The count query was compiled through the engine (boundary CTE + anti-joins).
+        assert compiled is not None, "no count query reached client.query"
+        assert "comments AS (" in compiled
+        assert "user_blacklist" in compiled
+        assert "group_hidden_docs" in compiled
+
     def test_no_token(self, client):
         resp = client.post("/v3/read", json={"token": None, "groups": ["me"]})
         assert resp.status_code == 422

@@ -408,6 +408,18 @@ export function createV3Client(options: V3ClientOptions = {}): V3Client {
       return v3Post<V3Document[]>('read', payload)
     },
 
+    // The engagement-count shape: {ref_value: count} for these posts. The
+    // server runs GROUP BY ref_value through the safe-query engine (exact for
+    // the caller's readable groups, no cap) — the feed/trending server-side
+    // count that replaces "read a capped sample, count client-side."
+    async readRefCounts(
+      collection: string,
+      opts: { groups: string[]; ref: string | string[] },
+    ): Promise<Record<string, number>> {
+      const payload: V3Body = { service: collection, groups: opts.groups, ref: opts.ref, count: true }
+      return v3Post<Record<string, number>>('read', payload)
+    },
+
     async readById(
       docId: string,
       collection: string,
@@ -815,6 +827,7 @@ export interface V3Client {
   // CRUD with groups
   create(collection: string, body: Record<string, unknown>, opts?: { groups?: string[]; ad_preference?: V3AdPreference; ref_value?: string }): Promise<V3Document>
   read(collection: string, opts: { groups: string[]; limit?: number; offset?: number; ref?: string | string[] }): Promise<V3Document[]>
+  readRefCounts(collection: string, opts: { groups: string[]; ref: string | string[] }): Promise<Record<string, number>>
   readById(docId: string, collection: string): Promise<V3Document>
   update(docId: string, body: Record<string, unknown>, opts?: { groups?: string[]; ad_preference?: V3AdPreference }): Promise<V3Document>
   delete(docId: string): Promise<{ doc_id: string; status: string }>

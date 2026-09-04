@@ -1974,6 +1974,40 @@ def read_docs_by_ref(
     ]
 
 
+def read_ref_counts_by_ref(
+    service: str,
+    ref_values: str | list[str],
+    group_ids: list[str],
+    member_key: str,
+) -> dict[str, int]:
+    """Count docs by ref_value, through the safe-query engine (the full
+    boundary: group filter + block/sharing/hidden anti-joins). The
+    engagement-count shape: "how many comments/reactions in my readable groups
+    reference these posts." Returns ``{ref_value: count}`` — a ref with no docs
+    is absent (the caller treats absent as 0).
+
+    This is the server-side version of the feed/trending "read a capped sample,
+    count client-side" pattern. The ``GROUP BY ref_value`` runs over the
+    boundary CTE (deduped + group-filtered + anti-joined), so the count is
+    exact for the caller's readable groups and never undercounts (no cap). The
+    raw ``get_ref_counts`` is NOT used: it is a raw query with no group
+    boundary (a caller could count engagement on a post they can't see).
+    """
+    from app.v3.services.safe_query import build_safe_query
+
+    refs = [ref_values] if isinstance(ref_values, str) else list(ref_values)
+    if not refs:
+        return {}
+    # ref values are node-generated doc_ids (never caller input); the quoting
+    # is defense-in-depth against a stray quote.
+    quoted = ", ".join(f"'{r.replace(chr(39), chr(39) * 2)}'" for r in refs)
+    ref_clause = f"ref_value = {quoted}" if len(refs) == 1 else f"ref_value IN ({quoted})"
+    query = f"SELECT ref_value, count() AS n FROM {service} WHERE {ref_clause} GROUP BY ref_value"
+    compiled = build_safe_query(query, {service: group_ids}, member_key)
+    result = client.query(compiled)
+    return {row[0]: row[1] for row in result.result_rows}
+
+
 # ---------------------------------------------------------------------------
 # Ref counts (engagement)
 # ---------------------------------------------------------------------------
