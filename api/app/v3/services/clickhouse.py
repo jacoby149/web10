@@ -2879,21 +2879,26 @@ def set_email(username: str, email: str):
 
 
 def verify_phone(username: str):
-    """Mark phone as verified."""
+    """Mark phone as verified.
+
+    Selects only the LATEST row — selecting every row would re-insert each one
+    (duplicating them), and the updated_at-ordered read could then pick a stale
+    row (e.g. one with an old password_hash after a change_password).
+    """
     client.command(
         "INSERT INTO users (username, password_hash, phone, phone_verified, email, email_verified, created_at, updated_at, deleted) "
         "SELECT username, password_hash, phone, 1, email, email_verified, created_at, now(), 0 "
-        "FROM users WHERE username = %(username)s AND deleted = 0",
+        "FROM (SELECT * FROM users WHERE username = %(username)s AND deleted = 0 ORDER BY updated_at DESC LIMIT 1)",
         {"username": username},
     )
 
 
 def verify_email(username: str):
-    """Mark email as verified."""
+    """Mark email as verified (latest row only — see verify_phone)."""
     client.command(
         "INSERT INTO users (username, password_hash, phone, phone_verified, email, email_verified, created_at, updated_at, deleted) "
         "SELECT username, password_hash, phone, phone_verified, email, 1, created_at, now(), 0 "
-        "FROM users WHERE username = %(username)s AND deleted = 0",
+        "FROM (SELECT * FROM users WHERE username = %(username)s AND deleted = 0 ORDER BY updated_at DESC LIMIT 1)",
         {"username": username},
     )
 
@@ -2967,6 +2972,54 @@ def get_users_by_contact(contact: str) -> list[dict]:
         }
         for row in result.result_rows
     ]
+
+
+# ---------------------------------------------------------------------------
+# Recovery codes (D61 local-Twilio mode) — a real table, not in-memory.
+#
+# The API runs multiple uvicorn workers (WEB_CONCURRENCY), each a separate
+# process. An in-memory code store would set the code in one worker and check
+# it in another (always a miss). A ClickHouse table is shared across workers,
+# so the e2e's fixed code ("123456") survives the worker hop. Only ever used
+# when TWILIO_E2E is on (the e2e stack) — prod uses Twilio Verify.
+# ---------------------------------------------------------------------------
+
+_RECOVERY_CODES_TABLE = """
+CREATE TABLE IF NOT EXISTS recovery_codes (
+    contact String,
+    code String,
+    created_at DateTime
+) ENGINE = MergeTree()
+ORDER BY contact
+"""
+
+
+def _ensure_recovery_codes_table():
+    try:
+        client.command(_RECOVERY_CODES_TABLE)
+    except Exception:
+        pass
+
+
+def set_recovery_code(contact: str, code: str):
+    """Store a recovery code for a contact (latest wins on read)."""
+    _ensure_recovery_codes_table()
+    client.insert(
+        "recovery_codes",
+        [[contact, code, _now()]],
+    )
+
+
+def check_recovery_code(contact: str, code: str) -> bool:
+    """True if the stored code for the contact matches. False if none set."""
+    _ensure_recovery_codes_table()
+    result = client.query(
+        "SELECT code FROM recovery_codes WHERE contact = %(contact)s ORDER BY created_at DESC LIMIT 1",
+        {"contact": contact},
+    )
+    if not result.result_rows:
+        return False
+    return result.result_rows[0][0] == code
 
 
 # ---------------------------------------------------------------------------
