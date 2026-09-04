@@ -82,6 +82,10 @@ export interface V3Document {
   ad_mode?: string
   ad_target?: string
   ad?: V3Document
+  // The node-level ad (D57): the read attaches an active node ad at the
+  // operator's configured percentage. Both `ad` (creator's pinned) and
+  // `node_ad` (the node's) can be present on the same doc.
+  node_ad?: V3Document
 }
 
 export interface V3Group {

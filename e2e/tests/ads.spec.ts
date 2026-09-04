@@ -407,8 +407,10 @@ test.describe('Ads gauntlet — composer pin → follower sees the ad block', ()
     await pageV.waitForLoadState('networkidle');
     await expectFeedShowsPost(pageV, myPost);
     await expect(pageV.locator('[data-testid="ad-block"]')).toBeVisible({ timeout: 20000 });
-    // The disclosure is always shown (part of the object, not a UI option).
-    await expect(pageV.locator('[data-testid="ad-disclosure"]')).toHaveText('I may earn a commission.');
+    // The disclosure is always shown (part of the object, not a UI option) —
+    // the FTC line plus who made it (the creator's web10 account).
+    await expect(pageV.locator('[data-testid="ad-disclosure"]')).toContainText('I may earn a commission.');
+    await expect(pageV.locator('[data-testid="ad-disclosure"]')).toContainText(`@${creator.username}`);
     await expect(pageV.locator('[data-testid="ad-cta"]')).toBeVisible();
 
     // --- The create carried the ad_preference (the [social-feed] log) ---
