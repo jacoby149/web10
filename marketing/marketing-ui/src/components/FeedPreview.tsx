@@ -927,24 +927,32 @@ async function readGroup(service: string, limit: number): Promise<V3Doc[]> {
   return resp.json();
 }
 
+// The engagement-count shape: {ref_value: count} for these posts. The server
+// runs GROUP BY ref_value through the safe-query engine (exact, no cap) —
+// replaces "read a capped sample, count client-side" (which undercounted past
+// the cap). Anon (no token) — the public board's engagement.
+async function readGroupRefCounts(service: string, ref: string[]): Promise<Record<string, number>> {
+  if (!ref.length) return {};
+  const resp = await fetch(`${API_ORIGIN}/v3/read`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ service, groups: [DISCOVER_GROUP], ref, count: true }),
+  });
+  if (!resp.ok) return {};
+  return resp.json();
+}
+
 async function fetchDiscoverFeed(sort: 'recent' | 'trending', limit = 6): Promise<DiscoveryPost[]> {
   // v3: the public board is the node-default discover group. Read it through
-  // the normal group-read path as anon (no token). Engagement comes from the
-  // reactions + comments groups (the ref pattern: ref_value = the post id).
-  const [posts, reactions, comments] = await Promise.all([
-    readGroup('posts', 200),
-    readGroup('reactions', 500),
-    readGroup('comments', 500),
+  // the normal group-read path as anon (no token). Engagement is the
+  // server-side count shape (GROUP BY ref_value through the engine) for the
+  // board's posts — exact, no cap.
+  const posts = await readGroup('posts', 200);
+  const postIds = posts.map((p) => p.doc_id);
+  const [likesByPost, commentsByPost] = await Promise.all([
+    readGroupRefCounts('reactions', postIds),
+    readGroupRefCounts('comments', postIds),
   ]);
-
-  const likesByPost: Record<string, number> = {};
-  for (const r of reactions) {
-    if (r.ref_value) likesByPost[r.ref_value] = (likesByPost[r.ref_value] || 0) + 1;
-  }
-  const commentsByPost: Record<string, number> = {};
-  for (const c of comments) {
-    if (c.ref_value) commentsByPost[c.ref_value] = (commentsByPost[c.ref_value] || 0) + 1;
-  }
 
   let mapped: DiscoveryPost[] = posts.map((p) => {
     // The v3 read serves media_refs pre-resolved (objects with mime_type +

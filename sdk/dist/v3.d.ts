@@ -219,6 +219,10 @@ export interface V3Client {
         offset?: number;
         ref?: string | string[];
     }): Promise<V3Document[]>;
+    readRefCounts(collection: string, opts: {
+        groups: string[];
+        ref: string | string[];
+    }): Promise<Record<string, number>>;
     readById(docId: string, collection: string): Promise<V3Document>;
     update(docId: string, body: Record<string, unknown>, opts?: {
         groups?: string[];
