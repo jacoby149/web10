@@ -13,6 +13,7 @@ sys.modules["botocore"] = MagicMock()
 sys.modules["botocore.config"] = MagicMock()
 sys.modules["clickhouse_connect"] = MagicMock()
 
+
 # clickhouse_connect.driver.exceptions — a REAL exception class, so
 # `except _ch_exceptions.Error` clauses stay valid under the mock (a bare
 # MagicMock is not a catchable class).

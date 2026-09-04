@@ -184,18 +184,15 @@ def test_boundary_cte_includes_block_sharing_hidden_filters():
 
 def test_query_services_collects_the_services_used():
     assert query_services("SELECT doc_id FROM posts") == {"posts"}
-    assert (
-        query_services("SELECT p.doc_id FROM posts p JOIN comments c ON c.ref_value = p.doc_id")
-        == {"posts", "comments"}
-    )
+    assert query_services("SELECT p.doc_id FROM posts p JOIN comments c ON c.ref_value = p.doc_id") == {
+        "posts",
+        "comments",
+    }
 
 
 def test_query_services_caller_cte_is_not_a_service():
     # A caller CTE that references a service: only the service is reported.
-    assert (
-        query_services("WITH t AS (SELECT doc_id FROM posts) SELECT * FROM t")
-        == {"posts"}
-    )
+    assert query_services("WITH t AS (SELECT doc_id FROM posts) SELECT * FROM t") == {"posts"}
 
 
 def test_query_services_no_tables_is_empty():

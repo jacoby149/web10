@@ -99,7 +99,9 @@ class TestHappyPath:
 
     def test_no_groups_means_the_readers_own_groups(self, client, token):
         with (
-            patch("app.v3.services.clickhouse.get_user_groups", return_value=[{"group_id": "g1"}, {"group_id": "g2"}]) as mock_groups,
+            patch(
+                "app.v3.services.clickhouse.get_user_groups", return_value=[{"group_id": "g1"}, {"group_id": "g2"}]
+            ) as mock_groups,
             patch("app.v3.services.clickhouse.readable_groups", return_value=["g1"]) as mock_readable,
             patch("app.v3.services.clickhouse.execute_query", return_value=([], [])),
         ):

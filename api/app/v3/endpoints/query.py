@@ -109,13 +109,14 @@ def run_query(request: Request, data: QueryRequest):
 
     log.info(
         "[query] reader=%s services=%s candidates=%d sql=%s",
-        reader, sorted(needed), len(candidates), data.sql[:200],
+        reader,
+        sorted(needed),
+        len(candidates),
+        data.sql[:200],
     )
 
     try:
-        column_names, rows = ch.execute_query(
-            compiled, settings={"max_execution_time": MAX_EXECUTION_TIME_S}
-        )
+        column_names, rows = ch.execute_query(compiled, settings={"max_execution_time": MAX_EXECUTION_TIME_S})
     except ch.QueryExecutionError as e:
         # The compiled query is structurally safe; a ClickHouse failure here
         # is the caller's SQL (a column the boundary CTE doesn't expose, a
