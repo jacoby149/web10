@@ -8,6 +8,7 @@ import uuid
 from datetime import UTC, datetime
 
 import clickhouse_connect
+from clickhouse_connect.driver import exceptions as _ch_exceptions
 from uuid6 import uuid7
 
 import app.settings as settings
@@ -1920,6 +1921,29 @@ def read_documents_in_groups(
         return _group_docs_ranked_query(group_ids, member_key, service, sort, limit, offset, require_membership)
 
     return _group_docs_query(group_ids, member_key, service, limit, offset, require_membership)
+
+
+class QueryExecutionError(Exception):
+    """A compiled (structurally safe) query failed in ClickHouse. The
+    boundary was already enforced at compile time, so a failure here is the
+    caller's SQL — a column the boundary CTE doesn't expose, a bad function
+    argument, a type mismatch — not a boundary breach."""
+
+
+def execute_query(compiled_sql: str, settings: dict | None = None) -> tuple[list[str], list[tuple]]:
+    """Run a compiled (trusted) query and return ``(column_names, rows)``.
+
+    The execution half of the flexible read: the SQL is already compiled by
+    the safe-query engine (boundary CTEs injected, everything validated), so
+    this just runs it. A ClickHouse error is re-raised as
+    ``QueryExecutionError`` (the caller's SQL is the problem); a transport /
+    node failure propagates as-is (a 500, not the caller's fault).
+    """
+    try:
+        result = client.query(compiled_sql, settings=settings)
+    except _ch_exceptions.Error as e:
+        raise QueryExecutionError(str(e)) from e
+    return list(result.column_names), list(result.result_rows)
 
 
 def read_docs_by_ref(

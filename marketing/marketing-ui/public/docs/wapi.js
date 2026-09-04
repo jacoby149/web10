@@ -198,6 +198,14 @@
       async getProfile() {
         return v3Post("profile", {});
       },
+      async verifyAccess(options2 = {}) {
+        const body = {};
+        if (options2.services?.length)
+          body.services = options2.services;
+        if (options2.operations?.length)
+          body.operations = options2.operations;
+        return v3Post("access/verify", body);
+      },
       async changePassword(currentPassword, newPassword) {
         return v3Post("change-pass", { password: currentPassword, new_pass: newPassword });
       },
@@ -223,6 +231,10 @@
         const payload = { service: collection, body };
         if (opts?.groups)
           payload.groups = opts.groups;
+        if (opts?.ad_preference)
+          payload.ad_preference = opts.ad_preference;
+        if (opts?.ref_value)
+          payload.ref_value = opts.ref_value;
         return v3Post("create", payload);
       },
       async read(collection, opts) {
@@ -231,15 +243,28 @@
           payload.limit = opts.limit;
         if (opts.offset != null)
           payload.offset = opts.offset;
+        if (opts.ref != null)
+          payload.ref = opts.ref;
         return v3Post("read", payload);
       },
       async readById(docId, collection) {
         return v3Post("read", { doc_id: docId, service: collection });
       },
+      async query(sql, opts) {
+        const payload = { sql };
+        if (opts?.groups)
+          payload.groups = opts.groups;
+        const token = state.token ?? readTokenCookie();
+        if (token)
+          payload.token = token;
+        return authPost(`${apiOrigin}/v3/query`, payload);
+      },
       async update(docId, body, opts) {
         const payload = { doc_id: docId, body };
         if (opts?.groups)
           payload.groups = opts.groups;
+        if (opts?.ad_preference)
+          payload.ad_preference = opts.ad_preference;
         return v3Post("update", payload);
       },
       async delete(docId) {
@@ -383,6 +408,8 @@
           payload.limit = opts.limit;
         if (opts?.offset != null)
           payload.offset = opts.offset;
+        if (opts?.doc_ids?.length)
+          payload.doc_ids = opts.doc_ids;
         return v3Post("media/list", payload);
       },
       async deleteMedia(docId) {

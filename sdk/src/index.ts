@@ -13,6 +13,7 @@ export type {
   V3ClientOptions,
   V3AdPreference,
   V3Document,
+  V3QueryResult,
   V3Group,
   V3GroupMember,
   V3InviteResponse,

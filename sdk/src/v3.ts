@@ -18,6 +18,9 @@
  * const doc = await w.create('posts', { text: 'hello' }, { groups: ['{provider}/groups/web10/discover'] })
  * const posts = await w.read('posts', { groups: ['me'] })
  *
+ * // The flexible read — a ClickHouse SELECT over your services (read-only)
+ * const { rows } = await w.query('SELECT p.doc_id, count() AS n FROM posts p JOIN reactions r ON r.ref_value = p.doc_id GROUP BY p.doc_id ORDER BY n DESC LIMIT 20')
+ *
  * // Service contracts
  * await w.addServiceContract('my-app', 'https://my-app.example.com')
  * const contracts = await w.listServiceContracts()
@@ -115,6 +118,14 @@ export interface V3JoinRequest {
 export interface V3ServiceContract {
   allowed_origin: string
   permissions: Record<string, string[]>
+}
+
+// The flexible read (w.query): rows keyed by the query's column names. A
+// `body` column comes back as a parsed object (like read()); datetimes are
+// ISO-8601 UTC. `count` is the number of rows returned.
+export interface V3QueryResult {
+  rows: Record<string, unknown>[]
+  count: number
 }
 
 // Group role definition — per-service permission map (D58).
@@ -415,6 +426,73 @@ export function createV3Client(options: V3ClientOptions = {}): V3Client {
       // The API merged read-by-id into read (optional doc_id param, #537) —
       // the doc_id path returns a single document, not an array.
       return v3Post<V3Document>('read', { doc_id: docId, service: collection })
+    },
+
+    /**
+     * The flexible read — write a ClickHouse SELECT over your services and
+     * the node runs it. Read-only by construction: the safe-query engine
+     * rejects anything but a single SELECT, raw node tables, and table
+     * functions before anything executes. Every service name you reference
+     * is replaced by an API-built boundary CTE filtered to the groups you
+     * can read that service in — so aggregations, self-joins, subqueries,
+     * and your own CTEs are all fair game, and none of them can leak past
+     * your groups (the raw tables are unreachable, a wall not a membrane).
+     *
+     * Each service CTE exposes: `doc_id`, `author_key`, `body` (JSON string —
+     * use `JSONExtractString(body, 'field', 'value')` for fields),
+     * `ref_value`, `tags`, `created_at`, `updated_at`.
+     *
+     * Works without a token (anon reads the public board) — the same rule as
+     * `read`. An unbounded query gets `LIMIT 1000` appended server-side; a
+     * LIMIT you write is honored as-is.
+     *
+     * @example Trending posts — cross-service self-join + aggregation:
+     * ```ts
+     * const { rows } = await w.query(`
+     *   SELECT p.doc_id, p.author_key, count() AS reactions
+     *   FROM posts p
+     *   JOIN reactions r ON r.ref_value = p.doc_id
+     *   GROUP BY p.doc_id, p.author_key
+     *   ORDER BY reactions DESC
+     *   LIMIT 20
+     * `)
+     * ```
+     *
+     * @example Reaction breakdown by type — JSON body fields:
+     * ```ts
+     * const { rows } = await w.query(`
+     *   SELECT JSONExtractString(body, 'reaction_type', 'value') AS type, count() AS n
+     *   FROM reactions
+     *   WHERE ref_value = '<the post's doc_id>'
+     *   GROUP BY type
+     * `)
+     * ```
+     *
+     * @example Your own CTEs + subqueries:
+     * ```ts
+     * const { rows } = await w.query(`
+     *   WITH hot AS (
+     *     SELECT ref_value, count() AS n FROM reactions GROUP BY ref_value HAVING n > 10
+     *   )
+     *   SELECT p.doc_id, p.body
+     *   FROM posts p
+     *   WHERE p.doc_id IN (SELECT ref_value FROM hot)
+     *   ORDER BY p.created_at DESC
+     * `)
+     * ```
+     *
+     * @param sql — a single ClickHouse SELECT over service names.
+     * @param opts.groups — scope the read to specific group IDs (default: all
+     *   the reader's groups, the "me" semantics of `read`).
+     */
+    async query(sql: string, opts?: { groups?: string[] }): Promise<V3QueryResult> {
+      const payload: Record<string, unknown> = { sql }
+      if (opts?.groups) payload.groups = opts.groups
+      // Anon-capable (like the read endpoint): the token rides along when
+      // present, but a missing token reads as the node's anon member.
+      const token = state.token ?? readTokenCookie()
+      if (token) payload.token = token
+      return authPost<V3QueryResult>(`${apiOrigin}/v3/query`, payload)
     },
 
     async update(
@@ -816,6 +894,7 @@ export interface V3Client {
   create(collection: string, body: Record<string, unknown>, opts?: { groups?: string[]; ad_preference?: V3AdPreference; ref_value?: string }): Promise<V3Document>
   read(collection: string, opts: { groups: string[]; limit?: number; offset?: number; ref?: string | string[] }): Promise<V3Document[]>
   readById(docId: string, collection: string): Promise<V3Document>
+  query(sql: string, opts?: { groups?: string[] }): Promise<V3QueryResult>
   update(docId: string, body: Record<string, unknown>, opts?: { groups?: string[]; ad_preference?: V3AdPreference }): Promise<V3Document>
   delete(docId: string): Promise<{ doc_id: string; status: string }>
 

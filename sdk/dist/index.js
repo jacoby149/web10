@@ -205,6 +205,15 @@ function createV3Client(options = {}) {
     async readById(docId, collection) {
       return v3Post("read", { doc_id: docId, service: collection });
     },
+    async query(sql, opts) {
+      const payload = { sql };
+      if (opts?.groups)
+        payload.groups = opts.groups;
+      const token = state.token ?? readTokenCookie();
+      if (token)
+        payload.token = token;
+      return authPost(`${apiOrigin}/v3/query`, payload);
+    },
     async update(docId, body, opts) {
       const payload = { doc_id: docId, body };
       if (opts?.groups)

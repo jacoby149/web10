@@ -7,7 +7,7 @@ are the security-critical ones — they are the membrane that must not leak.
 
 import pytest
 
-from app.v3.services.safe_query import UnsafeQueryError, build_safe_query
+from app.v3.services.safe_query import UnsafeQueryError, build_safe_query, query_services
 
 DISCOVER = "web10.app/groups/web10/discover"
 FOLLOWERS = "web10.app/groups/users/alice/followers"
@@ -154,19 +154,116 @@ def test_aggregation_cannot_leak_past_the_boundary():
 # ── The engine is a FULL read path (block/sharing/hidden, not just groups) ───
 
 
-def test_boundary_cte_includes_block_sharing_hidden_anti_joins():
+def test_boundary_cte_includes_block_sharing_hidden_filters():
     # The engine must enforce the same visibility rules as the existing read
     # path: a blocked user's docs, a paused-sharing author's docs, and hidden
     # docs are hidden. Without these, a comment from a blocked user would leak
     # through the ref filter.
+    #
+    # The filters are NOT IN / tuple-NOT IN subqueries, NOT LEFT ANTI JOIN —
+    # a ClickHouse 24.8 bug breaks CTE inlining when the CTE body combines a
+    # JOIN with a LEFT ANTI JOIN (the CTE's columns become unresolvable). The
+    # NOT IN forms are semantically identical and inline cleanly.
     reader = "web10.app/users/bob"
     out = build_safe_query("SELECT doc_id FROM posts", {"posts": [DISCOVER]}, member_key=reader)
-    # All four anti-joins are present, keyed on the reader.
+    # All four filter tables are present, keyed on the reader.
     assert "user_blacklist" in out
     assert "group_blacklist" in out
     assert "user_group_sharing" in out
     assert "group_hidden_docs" in out
-    # The reader is the anti-join key (a blocked user's docs are hidden from
+    # The reader is the filter key (a blocked user's docs are hidden from
     # them; a paused-sharing author's docs are hidden from them).
     assert reader in out
-    assert "LEFT ANTI JOIN" in out
+    # The filters are NOT IN / tuple-NOT IN (the CTE-inline-safe form).
+    assert "NOT IN" in out
+    assert "LEFT ANTI JOIN" not in out
+
+
+# ── query_services: the pre-flight (which services does the query touch) ─────
+
+
+def test_query_services_collects_the_services_used():
+    assert query_services("SELECT doc_id FROM posts") == {"posts"}
+    assert (
+        query_services("SELECT p.doc_id FROM posts p JOIN comments c ON c.ref_value = p.doc_id")
+        == {"posts", "comments"}
+    )
+
+
+def test_query_services_caller_cte_is_not_a_service():
+    # A caller CTE that references a service: only the service is reported.
+    assert (
+        query_services("WITH t AS (SELECT doc_id FROM posts) SELECT * FROM t")
+        == {"posts"}
+    )
+
+
+def test_query_services_no_tables_is_empty():
+    # A constant query touches no service (nothing to gate, nothing to inject).
+    assert query_services("SELECT 1") == set()
+
+
+def test_query_services_unrestricted_mode_allows_any_service_name():
+    # allowed=None (no contract gate): any non-raw, non-function table name is
+    # a service — the boundary CTE still walls it to an (empty) collection.
+    assert query_services("SELECT * FROM my_app_service", None) == {"my_app_service"}
+
+
+def test_query_services_rejects_raw_table():
+    with pytest.raises(UnsafeQueryError, match="raw table 'documents'"):
+        query_services("SELECT * FROM documents", None)
+
+
+def test_query_services_rejects_ungranted_service():
+    with pytest.raises(UnsafeQueryError, match="unknown table 'comments'"):
+        query_services("SELECT * FROM comments", {"posts"})
+
+
+def test_query_services_rejects_non_select():
+    with pytest.raises(UnsafeQueryError, match="only SELECT"):
+        query_services("INSERT INTO posts VALUES (1)", {"posts"})
+
+
+# ── max_limit: the performance bound (not a security one) ────────────────────
+
+
+def test_max_limit_appended_when_absent():
+    out = build_safe_query("SELECT doc_id FROM posts", {"posts": [DISCOVER]}, max_limit=1000)
+    assert out.rstrip().endswith("LIMIT 1000")
+
+
+def test_max_limit_not_appended_when_caller_has_one():
+    out = build_safe_query("SELECT doc_id FROM posts LIMIT 5", {"posts": [DISCOVER]}, max_limit=1000)
+    assert "LIMIT 1000" not in out
+    assert "LIMIT 5" in out
+
+
+def test_max_limit_appended_to_unbounded_union():
+    out = build_safe_query(
+        "SELECT 1 FROM posts UNION ALL SELECT 1 FROM comments",
+        {"posts": [DISCOVER], "comments": [DISCOVER]},
+        max_limit=1000,
+    )
+    assert out.rstrip().endswith("LIMIT 1000")
+
+
+def test_max_limit_not_appended_when_union_has_trailing_limit():
+    # A trailing LIMIT on a union applies to the whole set operation; sqlglot
+    # attaches it to the rightmost operand — the injector must see it.
+    out = build_safe_query(
+        "SELECT 1 FROM posts UNION ALL SELECT 1 FROM comments LIMIT 7",
+        {"posts": [DISCOVER], "comments": [DISCOVER]},
+        max_limit=1000,
+    )
+    assert "LIMIT 1000" not in out
+    assert "LIMIT 7" in out
+
+
+def test_max_limit_subquery_limit_does_not_count():
+    # A LIMIT inside a subquery doesn't bound the outer query.
+    out = build_safe_query(
+        "SELECT * FROM (SELECT doc_id FROM posts LIMIT 5) t",
+        {"posts": [DISCOVER]},
+        max_limit=1000,
+    )
+    assert out.rstrip().endswith("LIMIT 1000")
