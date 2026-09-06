@@ -43,6 +43,16 @@ const DOC_SECTIONS: { title: string; pages: DocPage[] }[] = [
       { slug: 'cli-quickstart', title: 'CLI Quickstart', file: '/docs/cli-quickstart.md' },
     ],
   },
+  {
+    title: 'For Node Operators / Influencers',
+    pages: [
+      { slug: 'start-a-node', title: 'Start a Node', file: '/docs/start-a-node.md' },
+      { slug: 'node-config', title: 'Node Config', file: '/docs/node-config.md' },
+      { slug: 'app-store', title: 'App Store', file: '/docs/app-store.md' },
+      { slug: 'your-audience', title: 'Your Audience', file: '/docs/your-audience.md' },
+      { slug: 'being-a-creator', title: 'Being a Creator', file: '/docs/being-a-creator.md' },
+    ],
+  },
 ]
 
 const DOC_PAGES = DOC_SECTIONS.flatMap(section => section.pages)
