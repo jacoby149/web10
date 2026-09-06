@@ -440,10 +440,10 @@ were never built (the changelog's "the API is 3.37.0" was wrong). Lane is
 - [✓ 3.60.7] **`import-from-other-platforms`** — expand the current `export-guidance` (a placeholder: "the operator will supply the detailed content"). **Lead with YouTube** (the first target — YouTubers, via Google Takeout; see the `YouTube Importer` section below) + the web10 **import** flow (getting your exported data onto a node) + the importer. Source: the YouTube importer + the export guidance.
 
 ### For Developers (new section)
-- [ ] **`query-engine`** (NEW) — the flexible read: `w.query(sql, {groups})`, the boundary (read-only by construction, scoped to your groups), the "go crazy" examples (self-join, aggregation, CTE, JSON body breakdown), the error surface (403 unsafe, 400 caller-SQL), the rate limit (D65). Source: `KB query-engine.md` + `safe-query.md` + the query playground demo.
-- [ ] **`app-contracts`** (NEW) — how an app gets access: the ACR flow, per-service permissions, the kill switch, the authenticator consent screen. Source: `KB auth/consent.md` + `sdk/contracts.md`.
-- [ ] **`media`** (NEW) — the upload flow (presigned URL → upload → confirm), reading media (presigned GET), the streaming/HLS layer. Source: `KB media/*`.
-- [ ] **`scaffolding`** — the CLI + the demo apps (hello, notes, query, …) as the starting point. Verify the CLI actually exists; fix the "coming soon" framing if it's aspirational. Source: the demo apps + the CLI.
+- [✓ 3.60.8] **`query-engine`** (NEW) — the flexible read: `w.query(sql, {groups})`, the boundary (read-only by construction, scoped to your groups), the "go crazy" examples (self-join, aggregation, CTE, JSON body breakdown), the error surface (403 unsafe, 400 caller-SQL), the rate limit (D65). Source: `KB query-engine.md` + `safe-query.md` + the query playground demo.
+- [✓ 3.60.8] **`app-contracts`** (NEW) — how an app gets access: the ACR flow, per-service permissions, the kill switch, the authenticator consent screen. Source: `KB auth/consent.md` + `sdk/contracts.md`.
+- [✓ 3.60.8] **`media`** (NEW) — the upload flow (presigned URL → upload → confirm), reading media (presigned GET), the streaming/HLS layer. Source: `KB media/*`.
+- [✓ 3.60.8] **`scaffolding`** — the CLI + the demo apps (hello, notes, query, …) as the starting point. Verify the CLI actually exists; fix the "coming soon" framing if it's aspirational. Source: the demo apps + the CLI.
 
 ### For Node Operators / Influencers (new section)
 - [ ] **`start-a-node`** (NEW) — `docker compose up` (the stack: ClickHouse + MinIO + api/ui/rtc/social), the setup flow (the admin), pointing at your own domain. Source: `KB setup/node-config.md` + `ubuntu-deployment/`.
