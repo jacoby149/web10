@@ -13,9 +13,7 @@ A web10 JWT carries these claims:
   "username": "alice",
   "provider": "api.web10.app",
   "site": "twitter-clone.web10.com",
-  "target": "api.web10.app",
-  "expires": "2025-12-01T00:00:00.000Z",
-  "type": "tiered"
+  "expires": "2025-12-01T00:00:00.000000"
 }
 ```
 
@@ -23,12 +21,10 @@ A web10 JWT carries these claims:
 |---|---|
 | `username` | The user's web10 username (the `user_key` used everywhere) |
 | `provider` | The node that minted the token — also the API host to address |
-| `site` | The app/site hostname the token is scoped to |
-| `target` | Target provider (for tiered/cross-node tokens) |
+| `site` | The app/site hostname the token is scoped to (defaults to `"web10"`) |
 | `expires` | ISO-8601 expiry (NOT the standard numeric `exp` claim) |
-| `type` | Token type hint (e.g., `"tiered"`) |
 
-**Note:** web10 uses `expires` (ISO string), not the standard JWT `exp` (numeric). The SDK parses `expires` with `Date.parse()`.
+**Note:** web10 uses `expires` (ISO string), not the standard JWT `exp` (numeric). The SDK parses `expires` with `Date.parse()`. `target` is a legacy optional claim on cross-node tokens — the permission check still honors it while cross-node federation (I1) is in flight, but a v3 node's minter (`auth.py` / `recovery.py`) writes only the four claims above.
 
 ## Auth Flow
 
@@ -43,10 +39,10 @@ sequenceDiagram
     App->>App: w.login()
     App->>Popup: open auth.web10.app
     Popup->>Popup: user enters credentials
-    Popup->>Auth: POST /web10token<br/>{username, password, site, target}
-    Auth->>CH: verify user, check star record
+    Popup->>Auth: POST /v3/login<br/>{username, password, site}
+    Auth->>CH: verify user
     CH-->>Auth: user valid
-    Auth->>Auth: mint JWT<br/>{username, site, target, provider, expires}
+    Auth->>Auth: mint JWT<br/>{username, provider, site, expires}
     Auth-->>Popup: { token: JWT }
     Popup->>Popup: close popup
     Popup->>App: postMessage { type: auth, token }
@@ -86,7 +82,7 @@ w.authListen((signedIn) => {
 w.isSignedIn()
 
 // Read decoded token payload
-w.readToken() // → { username, site, target, provider, expires, type }
+w.readToken() // → { username, provider, site, expires }
 
 // Logout
 w.signOut()
@@ -111,8 +107,7 @@ POST /v3/login
 Body: {
   username: "alice",
   password: "secret",
-  site: "app.example.com",
-  target: null
+  site: "app.example.com"
 }
 → { token: "eyJhbG..." }
 ```
