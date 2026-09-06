@@ -45,7 +45,7 @@
     "jsdom": "^29.1.1",
     "typescript": "~5.8.2",
     "vite": "^6.3.1",
-    "vitest": "^3.2.4"
+    "vitest": "^4.1.11"
   },
   "overrides": {
     "js-yaml": "^3.15.1",
