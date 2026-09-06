@@ -3,7 +3,7 @@ import { useParams, Link, useLocation } from 'react-router-dom'
 import { remark } from 'remark'
 import remarkGfm from 'remark-gfm'
 import remarkHtml from 'remark-html'
-import { FileText, Code, Terminal, ExternalLink, Compass, BookOpen } from 'lucide-react'
+import { FileText, Code, Terminal, ExternalLink, Compass, BookOpen, User, Radio, DollarSign } from 'lucide-react'
 import { trackFunnel } from '../lib/analytics'
 
 type DocPage = { slug: string; title: string; file: string }
@@ -66,6 +66,82 @@ const DOC_SECTIONS: { title: string; pages: DocPage[] }[] = [
 ]
 
 const DOC_PAGES = DOC_SECTIONS.flatMap(section => section.pages)
+
+// The "who are you?" landing (plan.md "Public Docs Overhaul" — the operator's
+// "asking who's on the marketing docs"). The /docs landing asks the reader
+// who they are and routes them to their section's first doc. The lines are
+// the audience model's own words (plan.md).
+const AUDIENCES = [
+  {
+    slug: 'users',
+    icon: User,
+    label: "I'm a user",
+    line: 'I follow creators, I post, I manage my data.',
+    to: '/docs/getting-started',
+  },
+  {
+    slug: 'developers',
+    icon: Code,
+    label: "I'm a developer",
+    line: "I'm writing code that reads and writes a user's data.",
+    to: '/docs/protocol-spec',
+  },
+  {
+    slug: 'operators',
+    icon: Radio,
+    label: 'I run a node / I\'m a creator',
+    line: 'I run my own node, or I\'m a creator on one.',
+    to: '/docs/start-a-node',
+  },
+  {
+    slug: 'monetizers',
+    icon: DollarSign,
+    label: 'I want to earn',
+    line: 'I have an audience and I want to make money on it.',
+    to: '/docs/ads',
+  },
+]
+
+function WhoAreYou() {
+  return (
+    <section aria-labelledby="who-are-you-heading" className="mb-10">
+      <h2
+        id="who-are-you-heading"
+        className="font-display text-xl font-medium tracking-tight text-foreground"
+      >
+        Who are you?
+      </h2>
+      <p className="mt-1 mb-4 text-sm text-muted-foreground">
+        Pick your path — each section of the docs speaks to one reader.
+      </p>
+      <div className="grid gap-3 sm:grid-cols-2">
+        {AUDIENCES.map(a => {
+          const Icon = a.icon
+          return (
+            <Link
+              key={a.slug}
+              to={a.to}
+              data-testid={`audience-card-${a.slug}`}
+              className="group flex items-start gap-3 rounded-lg border border-border bg-elevated/50 p-4 transition-colors duration-150 ease-out hover:border-brand-300/40 hover:bg-elevated focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
+            >
+              <Icon
+                className="mt-0.5 h-5 w-5 shrink-0 text-brand-300"
+                strokeWidth={1.5}
+                aria-hidden
+              />
+              <span className="flex flex-col gap-0.5">
+                <span className="text-sm font-medium text-foreground group-hover:text-brand-300">
+                  {a.label}
+                </span>
+                <span className="text-xs text-muted-foreground">{a.line}</span>
+              </span>
+            </Link>
+          )
+        })}
+      </div>
+    </section>
+  )
+}
 
 const DEMO_APPS = [
   { slug: 'hello', title: 'Hello', url: '/docs/hello/' },
@@ -144,6 +220,9 @@ function DocsContent() {
   const [content, setContent] = useState('')
   const [title, setTitle] = useState('Documentation')
   const [loading, setLoading] = useState(false)
+  // /docs with no sub-page is the Overview landing — the "who are you?"
+  // block renders there and only there.
+  const isLanding = page === undefined || page === 'overview'
 
   useEffect(() => {
     // /docs with no sub-page renders the Overview landing — never a blank
@@ -187,6 +266,8 @@ function DocsContent() {
 
   return (
     <div className="flex-1 px-4 py-10 sm:px-8 md:px-12">
+      {/* The landing asks who's reading before the pitch (the audience model). */}
+      {isLanding && <WhoAreYou />}
       {loading ? (
         <div className="docs-prose animate-pulse">
           <div className="mb-4 h-8 w-2/3 rounded bg-elevated" />

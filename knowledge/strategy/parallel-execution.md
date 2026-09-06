@@ -557,4 +557,4 @@ drift fix first (the docs are actively wrong), then the audience sections
 - [✓ 3.60.8] **For Developers** — `query-engine` (NEW), `app-contracts` (NEW), `media` (NEW), `scaffolding` (verify the CLI exists).
 - [✓ 3.60.9] **For Node Operators / Influencers** — `start-a-node` (NEW), `node-config` (NEW), `app-store` (NEW), `your-audience` (NEW), `being-a-creator` (NEW).
 - [✓ 3.60.10] **For Monetizers** — `ads` (NEW), `ad-catalog` (NEW), `affiliate-programs` (NEW), `payment-rails` (NEW), `monetization-bootcamp` (link the existing guide).
-- [ ] **Rendering / UX** — reorganize the `Docs.tsx` sidebar by audience; a "who are you?" landing that routes the reader to their section.
+- [✓ 3.61.0] **Rendering / UX** — reorganize the `Docs.tsx` sidebar by audience; a "who are you?" landing that routes the reader to their section.
