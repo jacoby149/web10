@@ -151,15 +151,14 @@ CREATE TABLE documents (
     ad_mode String DEFAULT 'none',
     ad_target String DEFAULT ''
 ) ENGINE = ReplacingMergeTree(updated_at)
-ORDER BY (author_key, doc_id)
-TTL created_at + INTERVAL 90 DAY;
+ORDER BY (author_key, doc_id);
 ```
 
 **Primary key:** `(author_key, doc_id)` — fast lookups by author and by document ID.
 
 **ReplacingMergeTree:** updates are inserts with higher `updated_at`. The engine keeps the latest version.
 
-**Tombstones:** deletes are inserts with `deleted = 1`. Queries filter `WHERE deleted = 0`. TTL physically removes old data after 90 days.
+**Tombstones:** deletes are inserts with `deleted = 1`. Queries filter `WHERE deleted = 0`. (No TTL — the `documents` table keeps data until explicitly deleted; the node is the user's data lake.)
 
 **`ref_value`:** the universal link. Comments, reactions, replies, quotes, bookmarks, votes — all just documents with a `ref`.
 
