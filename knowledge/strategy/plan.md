@@ -405,6 +405,68 @@ were never built (the changelog's "the API is 3.37.0" was wrong). Lane is
 - [✓ 3.51.0] **Tests** (`api/tests/test_recovery.py`) — request sends code, verify returns accounts + verify_token, complete signs in / creates account / changes password, contact mismatch, bad code, node-config gate.
 - [✓ 3.51.0] **UI** (`ui/src/interfaces/Interface.tsx`, `ui/src/components/CredentialPage/ForgotForm.tsx`) — the contact input (phone OR email), the verify_token plumbing, the "create a new account" option, the primary-sign-in routing.
 
+## Public Docs Overhaul (audience model) — Docs
+
+**The problem.** The public docs (`marketing/marketing-ui/public/docs/`) are thin, not organized by audience, and drifted from the implementation. The KB (`knowledge/knowledge-base/web10-v3/`) is deep and current; the public docs don't reflect it. Worst: `sdk.md` teaches a Mongo-style API (`createClient`, `w.login()`, `$sort`/`$limit`/`$match`, `$set`/`$groups`, `_id`) that doesn't match the real SDK (`createV3Client`, `openAuthPortal`+`authListen`, `read(collection, {groups, limit, offset, ref})`, `update(docId, body)`, `delete(docId)`, `w.query()`) — a developer following the docs builds the wrong app. And there's no section for the people who actually run a node or make money on it.
+
+**The reframe (operator).** "There should be sections of docs, for developers, for users, for people who want to start a node / influencer, people that want to monetize. It's not really doing a good job of asking who's on the marketing docs, then being clear to that audience." The docs need an explicit **audience model**: each section answers "who is this for?" and then speaks clearly to that reader.
+
+**The audience model.** Four readers + the pitch:
+- **Users** — fans/followers on a web10 node. "I follow creators, I post, I manage my data."
+- **Developers** — building apps on web10 data. "I'm writing code that reads/writes a user's data."
+- **Node operators / influencers** — running a node or a creator account. "I run my own node / I'm a creator here."
+- **Monetizers** — creators who want to earn. "I want to make money on web10."
+- **(The pitch)** — the curious/evaluator. "Is this legit?" (the current `overview.md`).
+
+**The structure.** Reorganize the flat doc list into audience sections (the `Docs.tsx` sidebar groups by audience; each doc names its reader up top):
+- **Overview** (the pitch) — keep, tighten. The premise, the reach gap, how it works, the principles.
+- **For Users** — `getting-started`, `groups-in-plain-terms`, `your-data` (export / kill switch / opt-out), `account-recovery` (D61), `import-from-other-platforms`.
+- **For Developers** — `sdk` (REWRITTEN to the real API), `protocol-spec` (brought current), `query-engine` (NEW), `conventions` (brought current), `groups` (the API surface), `media`, `app-contracts` (NEW), `scaffolding`.
+- **For Node Operators / Influencers** — `start-a-node` (NEW), `node-config` (NEW), `app-store` (NEW), `your-audience` (NEW), `being-a-creator` (NEW).
+- **For Monetizers** — `ads` (NEW), `ad-catalog` (NEW), `affiliate-programs` (NEW), `payment-rails` (NEW), `monetization-bootcamp`.
+
+**The deep items** (each is the audience-tuned surface of a KB doc — the KB is the source of truth):
+
+### The drift fix (highest priority — the docs are actively wrong)
+- [ ] **Rewrite `sdk.md` to the real SDK.** The current doc teaches a non-existent Mongo-style API. Rewrite every example to the actual surface: `createV3Client`; `openAuthPortal`+`authListen` (the auth popup); `readToken`/`isSignedIn`/`signOut`; `create(collection, body, {groups, tags})`; `read(collection, {groups, limit, offset, ref})`; `readRefCounts`; `readById`; `update(docId, body, {groups})`; `delete(docId)`; `query(sql, {groups})`; the group ops (`createGroup`, `joinGroup`, `requestJoin`, `inviteMember`, `getMyGroups`, `getGroupMembers`, …); the app-contract ops (`addAppContract`, `listAppContracts`, `revokeAppContract`); media (`requestUploadUrl`/`confirmUpload`/`getReadUrl`); the account ops (`signup`, `login`, `changePassword`, `setRecoveryPhone`, `verifyPhone`/`verifyEmail`). Source: `KB sdk/api.md` + `sdk/src/v3.ts` (the real signatures). **Acceptance:** every code block matches the real SDK (verified against `sdk/src/v3.ts`); a developer can copy-paste a working app.
+- [ ] **Bring `protocol-spec.md` current.** It's marked "3.0.0-draft" and missing the big recent features. Add: the query engine (`POST /v3/query`, D63), contact-anchored auth / recovery (D61), the engagement model (D62 — comments/reactions as documents in the engager's service), the ad system (D55 — a post tagged `ad`), the D58 per-service role shape, the read `ref` filter + `count` shape, the per-user rate limit (D65). Fix the token format (drop the stale `"type": "tiered"`). Un-draft it. Source: `KB auth/auth.md`, `query-engine.md`, `safe-query.md`, `groups/social-contracts.md`, `social/ads.md`, `decisions.md`.
+- [ ] **Fix the stale snippets in `conventions.md` + `groups.md`.** Replace `$match`/`$sort`/`$limit` with the real `read` opts; update the group role shape to D58 (a per-service permission map, not `services`+`permissions`); add the engagement model (D62) to `groups.md`.
+
+### For Users (new section)
+- [ ] **`getting-started`** — create an account, sign in (the authenticator), your first post, following a creator. Plain language, no code. Source: `KB auth/auth.md` + the social app.
+- [ ] **`groups-in-plain-terms`** — follows, discover, close friends, communities, DMs — what they are and when you'd use each, in user language (no roles/permissions jargon). Source: `KB groups/overview.md` + `social/overview.md`.
+- [ ] **`your-data`** — export your data, the kill switch (revoke all apps), opt-out of a group, make everything private, block someone. The ownership story in user terms. Source: `KB auth/consent.md` + `security/overview.md`.
+- [ ] **`account-recovery`** — the phone/email recovery flow (D61) in user terms: how to get back in if you're locked out. Source: `KB auth/auth.md` (the recovery section).
+- [ ] **`import-from-other-platforms`** — expand the current `export-guidance` (a placeholder: "the operator will supply the detailed content"). Add the web10 **import** flow (getting your exported data onto a node) + the importer. Source: the importer (Phase 1) + the export guidance.
+
+### For Developers (new section)
+- [ ] **`query-engine`** (NEW) — the flexible read: `w.query(sql, {groups})`, the boundary (read-only by construction, scoped to your groups), the "go crazy" examples (self-join, aggregation, CTE, JSON body breakdown), the error surface (403 unsafe, 400 caller-SQL), the rate limit (D65). Source: `KB query-engine.md` + `safe-query.md` + the query playground demo.
+- [ ] **`app-contracts`** (NEW) — how an app gets access: the ACR flow, per-service permissions, the kill switch, the authenticator consent screen. Source: `KB auth/consent.md` + `sdk/contracts.md`.
+- [ ] **`media`** (NEW) — the upload flow (presigned URL → upload → confirm), reading media (presigned GET), the streaming/HLS layer. Source: `KB media/*`.
+- [ ] **`scaffolding`** — the CLI + the demo apps (hello, notes, query, …) as the starting point. Verify the CLI actually exists; fix the "coming soon" framing if it's aspirational. Source: the demo apps + the CLI.
+
+### For Node Operators / Influencers (new section)
+- [ ] **`start-a-node`** (NEW) — `docker compose up` (the stack: ClickHouse + MinIO + api/ui/rtc/social), the setup flow (the admin), pointing at your own domain. Source: `KB setup/node-config.md` + `ubuntu-deployment/`.
+- [ ] **`node-config`** (NEW) — the node_config, admins, the `/am_admin` gate, the node policy flags (`require_contact`, …). Source: `KB setup/node-config.md`.
+- [ ] **`app-store`** (NEW) — approving/rejecting apps, the storefront, the metrics (`users_30d`, …). Source: `KB app-store/overview.md` + `endpoints.md`.
+- [ ] **`your-audience`** (NEW) — the owned audience: the followers list, reaching it directly (the differentiator). Source: `KB groups/overview.md` (the owned audience) + `groups/identity.md`.
+- [ ] **`being-a-creator`** (NEW) — posting, groups, the social app, the profile. The creator's day-to-day. Source: `KB social/overview.md`.
+
+### For Monetizers (new section)
+- [ ] **`ads`** (NEW) — creator-owned ads (a post tagged `ad`), the offer, the disclosure, pinning to a post. Source: `KB social/ads.md`.
+- [ ] **`ad-catalog`** (NEW) — the Ad Catalog (the Studio), the composer. Source: `KB social/ads-catalog.md`.
+- [ ] **`affiliate-programs`** (NEW) — the affiliate programs (the bootcamp shortlist), the creator-owned links. Source: `KB social/monetization-bootcamp.md`.
+- [ ] **`payment-rails`** (NEW) — how revenue works, the 3% rail, the metering. Source: `decisions.md` (D5, D21) + the metering.
+- [ ] **`monetization-bootcamp`** — the existing guide; link it into the monetizer section. Source: `KB social/monetization-bootcamp.md`.
+
+### The rendering / UX
+- [ ] **Reorganize the `Docs.tsx` sidebar by audience** — group the docs under "Overview / For Users / For Developers / For Node Operators / For Monetizers" (the current flat list + demo apps). Each doc page names its reader up top.
+- [ ] **A "who are you?" landing** — the `/docs` landing asks the reader who they are and routes them to their section (the "asking who's on the marketing docs" the operator wants).
+
+**Sequencing.** The drift fix first (the docs are actively wrong — `sdk.md` teaches a non-existent API). Then the audience sections (Users → Developers → Node Operators → Monetizers), each a bite. The rendering/UX last (it's the container for the content).
+
+**Cross-reference.** This is the public surface of the KB — every doc above is the audience-tuned version of a KB doc; when the KB changes, the public doc follows (the KB is the root of trust). The `Monetization Bootcamp` section (above) and the `Query Engine` section are the KB/platform halves; this section is the public-docs half. Lane: `public-docs` in `parallel-execution.md` (owns `marketing/marketing-ui/public/docs/` + `src/pages/Docs.tsx`).
+
 ## Phase 4 — Production Cutover: v2 → v3, then merge to main
 
 **Where:** `knowledge/knowledge-base/web10-v3/` (migration model), `api/` (migration tooling), `ubuntu-deployment/` (prod deploy)

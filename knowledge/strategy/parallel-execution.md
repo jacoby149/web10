@@ -535,3 +535,25 @@ stay recording-free" rule. The KB is the spec — read it first:
 - [✓ 3.27.2] Positioning realignment: the docs stop reading "anti-analytics" — thesis.md gains the "and it tracks hard (D56)" section; the manifesto's "nobody is mining you" is narrowed to content (never scanned/sold/fed to the ad machine) + the candid telemetry parenthetical; AGENTS.md gains the Telemetry (D56) operating rule; the README premise table gains the "Built like the best, owned like yours" row; design.md drops the stale "privacy-first" justifications
 - [✓ 3.27.3] Runtime-configurable IDs: the GA4/Hotjar IDs live in `node_config` (ClickHouse), set in the Node Config UI (Telemetry card), resolved at page load via a public `GET /telemetry` (node authoritative, build-time env is the dev fallback) — no rebuild to change them. Also fixed the Node Config save (flat body vs the API's `{token:{token}, update:{...}}` — every save 422'd)
 - [ ] Terms copy: the tracking disclosure on the marketing site (the "wrong platform for you if you arent ok with that" line) — gated on a terms surface existing (there is no terms page yet)
+
+### Lane: public-docs (audience model)
+**Owns:** `marketing/marketing-ui/public/docs/`, `marketing/marketing-ui/src/pages/Docs.tsx`, `marketing/marketing-ui/public/docs/schemas/`
+
+The public docs are the audience-tuned surface of the KB (the KB is the root of
+trust — `knowledge/knowledge-base/web10-v3/`). The current docs are thin, not
+organized by audience, and drifted (`sdk.md` teaches a non-existent Mongo-style
+API). The reframe: an explicit **audience model** — sections for **Users**,
+**Developers**, **Node Operators / Influencers**, **Monetizers** (+ the pitch).
+Each doc names its reader and speaks clearly to that reader. Full breakdown in
+`plan.md` → "Public Docs Overhaul (audience model) — Docs". **Sequencing:** the
+drift fix first (the docs are actively wrong), then the audience sections
+(Users → Developers → Node Operators → Monetizers), then the rendering/UX.
+
+- [ ] **Drift fix: rewrite `sdk.md` to the real SDK** — every example to the actual surface (`createV3Client`, `openAuthPortal`+`authListen`, `read(collection, {groups, limit, offset, ref})`, `update(docId, body)`, `delete(docId)`, `query(sql, {groups})`, the group/contract/media/account ops). Source: `KB sdk/api.md` + `sdk/src/v3.ts`. Acceptance: every code block matches the real SDK; copy-paste works.
+- [ ] **Drift fix: bring `protocol-spec.md` current** — add the query engine (D63), recovery (D61), engagement model (D62), ads (D55), D58 role shape, the read `ref`+`count` shape, the rate limit (D65); fix the token format; un-draft it.
+- [ ] **Drift fix: `conventions.md` + `groups.md`** — real `read` opts (drop `$match`/`$sort`/`$limit`); D58 role shape; the engagement model (D62).
+- [ ] **For Users** — `getting-started`, `groups-in-plain-terms`, `your-data` (export / kill switch / opt-out), `account-recovery` (D61), `import-from-other-platforms` (expand the placeholder `export-guidance` + the web10 import flow).
+- [ ] **For Developers** — `query-engine` (NEW), `app-contracts` (NEW), `media` (NEW), `scaffolding` (verify the CLI exists).
+- [ ] **For Node Operators / Influencers** — `start-a-node` (NEW), `node-config` (NEW), `app-store` (NEW), `your-audience` (NEW), `being-a-creator` (NEW).
+- [ ] **For Monetizers** — `ads` (NEW), `ad-catalog` (NEW), `affiliate-programs` (NEW), `payment-rails` (NEW), `monetization-bootcamp` (link the existing guide).
+- [ ] **Rendering / UX** — reorganize the `Docs.tsx` sidebar by audience; a "who are you?" landing that routes the reader to their section.
