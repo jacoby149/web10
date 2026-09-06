@@ -446,11 +446,11 @@ were never built (the changelog's "the API is 3.37.0" was wrong). Lane is
 - [✓ 3.60.8] **`scaffolding`** — the CLI + the demo apps (hello, notes, query, …) as the starting point. Verify the CLI actually exists; fix the "coming soon" framing if it's aspirational. Source: the demo apps + the CLI.
 
 ### For Node Operators / Influencers (new section)
-- [ ] **`start-a-node`** (NEW) — `docker compose up` (the stack: ClickHouse + MinIO + api/ui/rtc/social), the setup flow (the admin), pointing at your own domain. Source: `KB setup/node-config.md` + `ubuntu-deployment/`.
-- [ ] **`node-config`** (NEW) — the node_config, admins, the `/am_admin` gate, the node policy flags (`require_contact`, …). Source: `KB setup/node-config.md`.
-- [ ] **`app-store`** (NEW) — approving/rejecting apps, the storefront, the metrics (`users_30d`, …). Source: `KB app-store/overview.md` + `endpoints.md`.
-- [ ] **`your-audience`** (NEW) — the owned audience: the followers list, reaching it directly (the differentiator). Source: `KB groups/overview.md` (the owned audience) + `groups/identity.md`.
-- [ ] **`being-a-creator`** (NEW) — posting, groups, the social app, the profile. The creator's day-to-day. Source: `KB social/overview.md`.
+- [✓ 3.60.9] **`start-a-node`** (NEW) — `docker compose up` (the stack: ClickHouse + MinIO + api/ui/rtc/social), the setup flow (the admin), pointing at your own domain. Source: `KB setup/node-config.md` + `ubuntu-deployment/`.
+- [✓ 3.60.9] **`node-config`** (NEW) — the node_config, admins, the `/am_admin` gate, the node policy flags (`require_contact`, …). Source: `KB setup/node-config.md`.
+- [✓ 3.60.9] **`app-store`** (NEW) — approving/rejecting apps, the storefront, the metrics (`users_30d`, …). Source: `KB app-store/overview.md` + `endpoints.md`.
+- [✓ 3.60.9] **`your-audience`** (NEW) — the owned audience: the followers list, reaching it directly (the differentiator). Source: `KB groups/overview.md` (the owned audience) + `groups/identity.md`.
+- [✓ 3.60.9] **`being-a-creator`** (NEW) — posting, groups, the social app, the profile. The creator's day-to-day. Source: `KB social/overview.md`.
 
 ### For Monetizers (new section)
 - [ ] **`ads`** (NEW) — creator-owned ads (a post tagged `ad`), the offer, the disclosure, pinning to a post. Source: `KB social/ads.md`.
