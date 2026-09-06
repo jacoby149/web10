@@ -1,6 +1,8 @@
 # Export Guidance
 
-Step-by-step guides for exporting your data from each platform. The operator will supply the detailed content here — these are placeholder steps for now.
+Step-by-step guides for exporting your data from each platform. The exports
+are ZIP files you keep — they're what you'll upload when you
+[import to web10](/docs/import-from-other-platforms).
 
 ## Facebook
 
