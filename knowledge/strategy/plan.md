@@ -383,7 +383,9 @@ app-contract-gated, `LIMIT 1000` + `max_execution_time=10` bounds. Spec'd in
 - [✓ 3.58.0] **The ClickHouse 24.8 CTE-inlining fix** — the boundary CTE's block/sharing/hidden `LEFT ANTI JOIN`s broke CTE inlining when combined with a `JOIN` (`UNKNOWN_IDENTIFIER`), which also broke `read_docs_by_ref` + `read_ref_counts_by_ref` on a real node. Rewritten as `NOT IN` / tuple-`NOT IN` subqueries (semantically identical, verified live).
 - [✓ 3.58.0] **Tests** — API `test_query_endpoint.py` (20) + `test_safe_query.py` (+12) + `e2e/tests/query-engine.spec.ts` (the seam gauntlet: the power, I3, the contract gate, the membrane, anon).
 - [✓ 3.59.0] **v1: the query playground demo page** (`marketing-ui/public/docs/query/`) — an interactive SQL box over the signed-in user's groups (the "go crazy" showcase), five clickable example queries, a result table + loading/empty/error states.
-- [ ] **v1** — query result caching, per-node query rate limits, `EXPLAIN`-style cost hints.
+- [✓ 3.60.0] **v1: per-user query rate limiting** (D65) — `/v3/query` rate-limited per user, keyed on the verified `user_key` (not IP — D49/D64), in-memory per-worker (the recovery idiom), 429 when exceeded. No Redis (D66).
+- [ ] **v1** — query result caching, `EXPLAIN`-style cost hints. (Redis deferred to the social real-time work — D66.)
+- [ ] **v2 teardown: remove Mongo/FerretDB from the node** (D67) — the v3 stack is fully ClickHouse; delete the v2 Mongo code + drop `pymongo` + remove the FerretDB/Mongo/Postgres services. Node becomes ClickHouse + MinIO.
 
 ## Contact-Anchored Auth (D61) — Platform
 

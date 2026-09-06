@@ -1,9 +1,11 @@
 import logging
+import time
 from datetime import datetime
 from decimal import Decimal
 
 from fastapi import APIRouter, HTTPException, Request
 
+import app.exceptions as exceptions
 import app.v3.services.safe_query as sq
 from app.v3.endpoints.auth_helper import user_or_anon
 from app.v3.models import QueryRequest
@@ -17,6 +19,34 @@ log = logging.getLogger(__name__)
 # the execution time. A caller-supplied LIMIT is always honored as-is.
 MAX_ROWS = 1000
 MAX_EXECUTION_TIME_S = 10
+
+# Per-user query rate limit (D65): abuse prevention, not security. Keyed on
+# the verified user_key (not IP — the node sits behind a proxy, so XFF is
+# spoofable; D49/D64). In-memory, per-worker (the recovery idiom — a best-
+# effort backstop; N workers ≈ N× the limit). Anon has no verified user_key,
+# so it is not per-user-limited (a separate, deferred concern).
+_QUERY_WINDOW_S = 60
+_MAX_QUERIES_PER_WINDOW = 60
+_query_log: dict[str, list[float]] = {}
+
+
+def _check_query_rate_limit(reader: str) -> None:
+    """Per-user query rate limit. Raises RATE_LIMIT (429) when a user exceeds
+    the budget within the window. Anon is skipped (no verified user_key — the
+    honest key; D65)."""
+    if reader == "anon":
+        return
+    now = time.time()
+    recent = [t for t in _query_log.get(reader, []) if now - t < _QUERY_WINDOW_S]
+    if len(recent) >= _MAX_QUERIES_PER_WINDOW:
+        log.warning(
+            "[query] rate limit reader=%s: %d queries in the last %ds",
+            reader,
+            len(recent),
+            _QUERY_WINDOW_S,
+        )
+        raise exceptions.RATE_LIMIT
+    _query_log[reader] = recent + [now]
 
 
 def _serialize_value(value):
@@ -60,6 +90,10 @@ def run_query(request: Request, data: QueryRequest):
     """
     reader = user_or_anon(data)
     authenticated = reader != "anon"
+
+    # Per-user rate limit (D65) — fail fast before any contract/group/query
+    # work. Keyed on the verified user_key; anon is skipped.
+    _check_query_rate_limit(reader)
 
     # App-contract gate: the query may only touch services the app's contract
     # grants readAll on.
