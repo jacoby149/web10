@@ -9,6 +9,111 @@ Status legend: [decided] intent set · [in-progress] · [open] still debating.
 
 ---
 
+### D67 — Remove v2 Mongo/FerretDB from the node [decided]
+
+**The decision.** The node drops **Mongo + FerretDB** (and FerretDB's Postgres
+backend). The v3 stack is fully ClickHouse; Mongo is v2-only. Delete the v2
+Mongo code (`app/services/documentdb.py`, the Mongo functions in
+`app/services/auth.py`, the v2 `/recovery_bot` endpoint, the v2 `email.py`),
+carve out the no-Mongo helpers v3 still imports (`get_password_hash`,
+`decode_token`, `check_admin`, `certify`), drop `pymongo` + the `DB_URL`/`DB`
+settings, and remove the FerretDB/Mongo/Postgres services from the compose
+files. The node becomes **ClickHouse + MinIO** (+ Redis if/when D66 lands).
+
+**Why.** Operator: "definitely we should delete the ferretDB mongo, some of
+this stuff has to go that is v2!" Verified: nothing in `app/v3/` touches Mongo.
+The setup/config/admin surface is already ClickHouse (`post_setup` →
+`ch.create_user`, `check_admin` → `config_svc.is_admin`). Mongo survives only
+in the v2 auth flow, which v3 doesn't call (v3 login uses `ch.authenticate_user`,
+not the Mongo one). Keeping FerretDB + Mongo + a Postgres-for-FerretDB in the
+v3 node is three services doing nothing.
+
+**Supersedes** D3 (DocumentDB/FerretDB as the open DB backend) for the v3 node
+— D3 was the v2 call; v3 moved to ClickHouse, so FerretDB is now v2 cruft. D3
+still describes the v2→v3 migration history.
+
+**What it rejects.** Keeping FerretDB/Mongo/Postgres in the v3 node.
+
+**Execution.** A separate branch/PR (a stack-shrink refactor, not tangled with
+the rate limit). The detailed data-model doc updates land with the teardown.
+
+### D66 — Node target: lean multi-container, not one-container; no Redis for now [decided]
+
+**The decision.** The node target is a **lean multi-container compose fleet**,
+not a single container. The `docker run … web10/node` one-container goal (plan
+phase 3) is dropped as over-optimization. **Redis is not added now** — deferred
+until the social real-time work (presence / DMs / notifications) that actually
+needs it.
+
+**Why.** Operator: "one container is total bullshit actually! librechat, all
+these projects are multi container, it doesnt matter, one docker compose is
+fine." Every serious self-hosted project (LibreChat, Nextcloud, Gitea,
+Vaultwarden) ships a compose fleet; a one-container node is an over-optimization
+that fights the real-world deployment model. With multi-container accepted,
+adding a service is cheap (a compose line) — but cheap isn't the same as needed.
+Redis's value here is real-time social (presence, pub/sub for DMs/notifications)
++ a global rate limit; rate limiting doesn't need it (D65's per-worker limit
+suffices), and the social real-time work isn't next. Add Redis when that work
+starts — the one-container-vs-sidecar call becomes moot (multi-container is
+already accepted).
+
+**What it rejects.** The one-container target as a hard requirement; adding
+Redis now for rate limiting alone.
+
+### D65 — Per-user rate limiting on `/v3/query` [decided]
+
+**The decision.** `/v3/query` is rate-limited **per user**, keyed on the
+**verified `user_key`** from the token (not IP, not the raw token). In-memory,
+per-worker (the recovery idiom — a `_send_log` dict, a time-window, raises
+`RATE_LIMIT` → 429). A user who exceeds the budget gets a 429 until the window
+resets.
+
+**Why.** Operator: "ok, rate limiting per user then." Abuse prevention: an API
+(or any scripted client) can hammer `/v3/query` — origin gating doesn't stop it
+(D64). Per-user means a user can't game the limit by spinning up multiple
+tokens/apps (one `user_key` = one budget). Keying on the verified `user_key`
+(not IP) follows D49/D64 — the node sits behind a proxy, so XFF is spoofable;
+the verified token is the honest key. In-memory per-worker matches the recovery
+rate limit and adds zero deployment; the per-worker weakness (N workers ≈ N×
+the limit) is an accepted backstop tradeoff.
+
+**What it rejects.** IP-based limiting (spoofable behind the proxy — D49);
+per-token limiting (a user games it with multiple tokens); a Redis-backed global
+limit *for now* (deferred — D66).
+
+**Anon.** Anon has no verified `user_key` (the honest key), so anon is not
+per-user-limited; a shared anon budget (or no anon limit) is a separate,
+deferred concern.
+
+### D64 — Origin-based approval is curation, not a security boundary [decided]
+
+**The decision.** A node-level origin gate (approving/denying which
+websites/apps may call the node) is **curation, not a security boundary.** The
+`Origin` header is client-controlled: a browser enforces it (a web page's JS
+can't forge it — it's a forbidden header the browser sets), but a non-browser
+client (curl, a backend, a mobile app) sets whatever it wants. So an origin gate
+stops casual browser abuse and blesses sites for the store/UX, but a scripted
+caller forges `Origin` freely.
+
+**Why.** Operator, probing the model: "is that easy to spoof pretend they are
+from website, change the html of the website that is approved?" → "yeah, so can
+be abused since an api can abuse." The real security boundary in web10 is the
+**user's token + the user's app contract** — the user is the trust anchor who
+judges the origin (the user-centric model). Origin tells you which *site* a
+browser is on; it is not a proof of who's calling. This extends D49 (rejected
+IP-based limiting — "the node can only honestly key on URL + verified token"):
+origin is the honest key *in a browser*, but it's forgeable outside one, so it's
+a curation signal, not a wall. (Controlling the approved domain — owning it, a
+compromise, a lookalike, or an XSS — lets an attacker run under the real origin,
+but that's a trust problem, not a protocol flaw, and forging the header is
+easier still.)
+
+**What it rejects.** Using app/origin approval as an abuse-prevention or
+access-control gate. A "node allows this website to query" switch is fine for
+curation (which sites are blessed), but it must not be relied on to stop a
+determined caller. **Abuse prevention is rate limiting** (D65), not origin
+gating.
+
 ### D63 — The flexible read: `w.query()` / `POST /v3/query` — a caller writes a ClickHouse `SELECT` over their services; the engine is the boundary [decided]
 
 **The decision.** An app writes a ClickHouse `SELECT` over its **service

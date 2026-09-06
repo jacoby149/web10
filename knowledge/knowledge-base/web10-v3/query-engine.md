@@ -128,6 +128,13 @@ filter.
 - **The boundary CTE is the data bound.** A query can only scan the caller's
   readable groups, so the worst case is bounded by the caller's own data — not
   the whole node.
+- **Per-user rate limiting (D65, v1).** `/v3/query` is rate-limited per user,
+  keyed on the verified `user_key` from the token (not IP — the node sits behind
+  a proxy, so XFF is spoofable; D49). In-memory, per-worker (the recovery
+  idiom); a user over budget gets a 429. This is the abuse-prevention bound —
+  **origin/app approval is curation, not a security boundary** (D64): a scripted
+  caller forges `Origin` freely, so the node can't rely on it to stop abuse. The
+  real boundary is the user's token + app contract (user-centric).
 
 ## Group scoping (deferred)
 
