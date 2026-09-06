@@ -437,7 +437,7 @@ were never built (the changelog's "the API is 3.37.0" was wrong). Lane is
 - [ ] **`groups-in-plain-terms`** — follows, discover, close friends, communities, DMs — what they are and when you'd use each, in user language (no roles/permissions jargon). Source: `KB groups/overview.md` + `social/overview.md`.
 - [ ] **`your-data`** — export your data, the kill switch (revoke all apps), opt-out of a group, make everything private, block someone. The ownership story in user terms. Source: `KB auth/consent.md` + `security/overview.md`.
 - [ ] **`account-recovery`** — the phone/email recovery flow (D61) in user terms: how to get back in if you're locked out. Source: `KB auth/auth.md` (the recovery section).
-- [ ] **`import-from-other-platforms`** — expand the current `export-guidance` (a placeholder: "the operator will supply the detailed content"). Add the web10 **import** flow (getting your exported data onto a node) + the importer. Source: the importer (Phase 1) + the export guidance.
+- [ ] **`import-from-other-platforms`** — expand the current `export-guidance` (a placeholder: "the operator will supply the detailed content"). **Lead with YouTube** (the first target — YouTubers, via Google Takeout; see the `YouTube Importer` section below) + the web10 **import** flow (getting your exported data onto a node) + the importer. Source: the YouTube importer + the export guidance.
 
 ### For Developers (new section)
 - [ ] **`query-engine`** (NEW) — the flexible read: `w.query(sql, {groups})`, the boundary (read-only by construction, scoped to your groups), the "go crazy" examples (self-join, aggregation, CTE, JSON body breakdown), the error surface (403 unsafe, 400 caller-SQL), the rate limit (D65). Source: `KB query-engine.md` + `safe-query.md` + the query playground demo.
@@ -466,6 +466,25 @@ were never built (the changelog's "the API is 3.37.0" was wrong). Lane is
 **Sequencing.** The drift fix first (the docs are actively wrong — `sdk.md` teaches a non-existent API). Then the audience sections (Users → Developers → Node Operators → Monetizers), each a bite. The rendering/UX last (it's the container for the content).
 
 **Cross-reference.** This is the public surface of the KB — every doc above is the audience-tuned version of a KB doc; when the KB changes, the public doc follows (the KB is the root of trust). The `Monetization Bootcamp` section (above) and the `Query Engine` section are the KB/platform halves; this section is the public-docs half. Lane: `public-docs` in `parallel-execution.md` (owns `marketing/marketing-ui/public/docs/` + `src/pages/Docs.tsx`).
+
+## YouTube Importer (port your YouTube) — Platform
+
+**The target: YouTubers, narrowly.** Operator: "porting your youtube eventually right! want to narrowly target youtubers only since google has such a great export import thing!" The first import target is **YouTubers specifically** — not all platforms. Two reasons: (1) a YouTuber is the ideal web10 user — they have a big audience (subscribers) they don't own (it's Google's), and the web10 pitch is "own your audience" (the reach gap: 1M subs, 300k reach). Porting to web10 = they own their audience, 100% delivery, no shadow ban. (2) **Google Takeout is a great export** — the data is already easy to get (`export-guidance.md` already documents the YouTube export).
+
+**The flow:** export from YouTube via Google Takeout → import onto a web10 node.
+- **Videos** → web10 media (the HLS pipeline, D44).
+- **The channel** → a creator profile.
+- **Subscribers** → the **owned audience** — the follower/contact list the creator can reach directly (the killer angle: the subscriber list becomes the creator's data; those people become web10 users when they sign up + follow).
+- **Comments** → comments (the engagement model, D62).
+
+**The pitch:** "Port your YouTube channel. Own your audience." The reach gap is the hook — on YouTube, Google decides which 300k of your 1M subs see the next video; on web10, 100% delivery is architecture.
+
+**The "eventually" framing.** This is a future item, not the next bite. The first concrete step is the import mapping (Takeout → web10); the importer UI + the "port your YouTube" landing come after.
+
+- [ ] **The import mapping** (Takeout → web10) — parse the Google Takeout YouTube export (videos, channel, subscribers, comments) into web10: videos → media (HLS, D44), the channel → a creator profile, subscribers → the owned audience (the follower/contact list), comments → comments (D62). Source: the HLS pipeline (D44) + the engagement model (D62) + `export-guidance.md` (the YouTube export).
+- [ ] **The importer** (the node endpoint + the UI) — the "port your YouTube" flow: upload the Takeout ZIP, map the data, confirm, done. The creator's channel is on their node; their audience is theirs.
+- [ ] **The "port your YouTube" landing** — a creator-facing page: the reach gap, the owned audience, the import flow. The hook for the YouTuber. (Feeds the `For Monetizers` / `For Node Operators` doc sections above.)
+- [ ] **The docs** — the `import-from-other-platforms` doc (above) leads with YouTube as the first target, pointing at the importer + landing.
 
 ## Phase 4 — Production Cutover: v2 → v3, then merge to main
 
