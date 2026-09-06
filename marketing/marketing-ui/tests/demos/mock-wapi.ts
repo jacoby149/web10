@@ -108,6 +108,29 @@ export const MOCK_WAPI_JS = `
       mockStore.tasks = mockStore.tasks.filter(function(d) { return d.doc_id !== docId; });
       return Promise.resolve({ ok: true });
     }
+    if (path === 'query') {
+      // The flexible read (w.query). Read-only by construction: the mock
+      // mirrors the boundary — anything that isn't a SELECT is a 403, a
+      // query tagged with the sentinel is a caller-SQL 400 (the demo's error
+      // path), and a plain SELECT returns a small deterministic result set.
+      // (handleMockApi must return a Promise — the fetch override calls
+      // result.then — so every branch resolves.)
+      var raw = String(body.sql || '');
+      var up = raw.toUpperCase();
+      if (up.indexOf('SELECT') !== 0) {
+        return Promise.resolve({ __error: { status: 403, detail: 'only a single SELECT is allowed' } });
+      }
+      if (up.indexOf('BOOM') !== -1) {
+        return Promise.resolve({ __error: { status: 400, detail: "Unknown expression identifier 'boom' in scope" } });
+      }
+      return Promise.resolve({
+        rows: [
+          { doc_id: 'doc_1', author_key: 'testuser', reactions: 12, created_at: '2026-09-04T10:00:00Z' },
+          { doc_id: 'doc_2', author_key: 'testuser', reactions: 7, created_at: '2026-09-04T09:30:00Z' },
+        ],
+        count: 2,
+      });
+    }
     if (path === 'app-contracts/add') return Promise.resolve({ ok: true });
     if (path === 'apps/register') return Promise.resolve({ ok: true });
     if (path === 'groups/create') {
@@ -160,6 +183,15 @@ export const MOCK_WAPI_JS = `
       console.log('[MOCK FETCH]', path, body);
       var result = handleMockApi(path, body);
       return result.then(function(json) {
+        // An __error marker produces a non-200 Response so the SDK's error
+        // path (Web10Error with status + details) is exercised.
+        if (json && json.__error) {
+          console.log('[MOCK RESPONSE]', path, 'ERROR', json.__error.status);
+          return new Response(JSON.stringify({ detail: json.__error.detail }), {
+            status: json.__error.status,
+            headers: { 'Content-Type': 'application/json' }
+          });
+        }
         console.log('[MOCK RESPONSE]', path, json);
         return new Response(JSON.stringify(json), {
           status: 200,
@@ -196,6 +228,29 @@ export const MOCK_WAPI_JS = `
       },
       signOut: function() {
         this.scrubToken();
+      },
+      // The flexible read — mirrors the real SDK: POSTs to /v3/query (the
+      // fetch override above intercepts it and routes to handleMockApi).
+      query: function(sql, opts) {
+        var payload = { sql: sql };
+        if (opts && opts.groups) payload.groups = opts.groups;
+        var token = state.token || readTokenCookie();
+        if (token) payload.token = token;
+        return fetch(state.apiOrigin + '/v3/query', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload),
+        }).then(function(res) {
+          return res.json().then(function(json) {
+            if (!res.ok) {
+              var err = new Error('Request failed: ' + res.status);
+              err.status = res.status;
+              err.details = json && json.detail ? json.detail : '';
+              throw err;
+            }
+            return json;
+          });
+        });
       },
     };
   }
