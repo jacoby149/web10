@@ -18,6 +18,7 @@ const DOC_PAGES = [
 const DEMO_APPS = [
   { slug: 'hello', title: 'Hello', url: '/docs/hello/' },
   { slug: 'notes', title: 'Notes', url: '/docs/notes/' },
+  { slug: 'query', title: 'Query', url: '/docs/query/' },
   { slug: 'messages', title: 'Messages', url: '/docs/messages/' },
   { slug: 'groups', title: 'Groups', url: '/docs/groups/' },
   { slug: 'media', title: 'Media (HLS)', url: '/docs/media/' },

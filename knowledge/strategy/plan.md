@@ -382,7 +382,8 @@ app-contract-gated, `LIMIT 1000` + `max_execution_time=10` bounds. Spec'd in
 - [✓ 3.58.0] **`POST /v3/query` + `w.query()`** — the general flexible read: `query_services()` pre-flight, per-service D58 read gate, D42 "not a member" 403, `LIMIT 1000` + 10s timeout, caller-SQL → 400. SDK `w.query()` + `V3QueryResult` + JSDoc examples.
 - [✓ 3.58.0] **The ClickHouse 24.8 CTE-inlining fix** — the boundary CTE's block/sharing/hidden `LEFT ANTI JOIN`s broke CTE inlining when combined with a `JOIN` (`UNKNOWN_IDENTIFIER`), which also broke `read_docs_by_ref` + `read_ref_counts_by_ref` on a real node. Rewritten as `NOT IN` / tuple-`NOT IN` subqueries (semantically identical, verified live).
 - [✓ 3.58.0] **Tests** — API `test_query_endpoint.py` (20) + `test_safe_query.py` (+12) + `e2e/tests/query-engine.spec.ts` (the seam gauntlet: the power, I3, the contract gate, the membrane, anon).
-- [ ] **v1** — a query playground demo page (`marketing-ui/public/docs/query/`), query result caching, per-node query rate limits, `EXPLAIN`-style cost hints.
+- [✓ 3.59.0] **v1: the query playground demo page** (`marketing-ui/public/docs/query/`) — an interactive SQL box over the signed-in user's groups (the "go crazy" showcase), five clickable example queries, a result table + loading/empty/error states.
+- [ ] **v1** — query result caching, per-node query rate limits, `EXPLAIN`-style cost hints.
 
 ## Contact-Anchored Auth (D61) — Platform
 
