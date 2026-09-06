@@ -53,6 +53,16 @@ const DOC_SECTIONS: { title: string; pages: DocPage[] }[] = [
       { slug: 'being-a-creator', title: 'Being a Creator', file: '/docs/being-a-creator.md' },
     ],
   },
+  {
+    title: 'For Monetizers',
+    pages: [
+      { slug: 'ads', title: 'Ads', file: '/docs/ads.md' },
+      { slug: 'ad-catalog', title: 'Ad Catalog', file: '/docs/ad-catalog.md' },
+      { slug: 'affiliate-programs', title: 'Affiliate Programs', file: '/docs/affiliate-programs.md' },
+      { slug: 'payment-rails', title: 'Payment Rails', file: '/docs/payment-rails.md' },
+      { slug: 'monetization-bootcamp', title: 'Monetization Bootcamp', file: '/docs/monetization-bootcamp.md' },
+    ],
+  },
 ]
 
 const DOC_PAGES = DOC_SECTIONS.flatMap(section => section.pages)
