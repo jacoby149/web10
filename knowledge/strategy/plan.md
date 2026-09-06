@@ -453,11 +453,11 @@ were never built (the changelog's "the API is 3.37.0" was wrong). Lane is
 - [✓ 3.60.9] **`being-a-creator`** (NEW) — posting, groups, the social app, the profile. The creator's day-to-day. Source: `KB social/overview.md`.
 
 ### For Monetizers (new section)
-- [ ] **`ads`** (NEW) — creator-owned ads (a post tagged `ad`), the offer, the disclosure, pinning to a post. Source: `KB social/ads.md`.
-- [ ] **`ad-catalog`** (NEW) — the Ad Catalog (the Studio), the composer. Source: `KB social/ads-catalog.md`.
-- [ ] **`affiliate-programs`** (NEW) — the affiliate programs (the bootcamp shortlist), the creator-owned links. Source: `KB social/monetization-bootcamp.md`.
-- [ ] **`payment-rails`** (NEW) — how revenue works, the 3% rail, the metering. Source: `decisions.md` (D5, D21) + the metering.
-- [ ] **`monetization-bootcamp`** — the existing guide; link it into the monetizer section. Source: `KB social/monetization-bootcamp.md`.
+- [✓ 3.60.10] **`ads`** (NEW) — creator-owned ads (a post tagged `ad`), the offer, the disclosure, pinning to a post. Source: `KB social/ads.md`.
+- [✓ 3.60.10] **`ad-catalog`** (NEW) — the Ad Catalog (the Studio), the composer. Source: `KB social/ads-catalog.md`.
+- [✓ 3.60.10] **`affiliate-programs`** (NEW) — the affiliate programs (the bootcamp shortlist), the creator-owned links. Source: `KB social/monetization-bootcamp.md`.
+- [✓ 3.60.10] **`payment-rails`** (NEW) — how revenue works, the 3% rail, the metering. Source: `decisions.md` (D5, D21) + the metering.
+- [✓ 3.60.10] **`monetization-bootcamp`** — the existing guide; link it into the monetizer section. Source: `KB social/monetization-bootcamp.md`.
 
 ### The rendering / UX
 - [✓ 3.60.7] **Reorganize the `Docs.tsx` sidebar by audience** — group the docs under "Overview / For Users / For Developers / For Node Operators / For Monetizers" (the current flat list + demo apps). Each doc page names its reader up top.
