@@ -6,14 +6,42 @@ import remarkHtml from 'remark-html'
 import { FileText, Code, Terminal, ExternalLink, Compass, BookOpen } from 'lucide-react'
 import { trackFunnel } from '../lib/analytics'
 
-const DOC_PAGES = [
-  { slug: 'overview', title: 'Overview', file: '/docs/overview.md' },
-  { slug: 'protocol-spec', title: 'Protocol Spec', file: '/docs/protocol-spec.md' },
-  { slug: 'conventions', title: 'Conventions', file: '/docs/conventions.md' },
-  { slug: 'sdk', title: 'SDK Guide', file: '/docs/sdk.md' },
-  { slug: 'cli-quickstart', title: 'CLI Quickstart', file: '/docs/cli-quickstart.md' },
-  { slug: 'export-guidance', title: 'Export Guidance', file: '/docs/export-guidance.md' },
+type DocPage = { slug: string; title: string; file: string }
+
+// The audience model (plan.md "Public Docs Overhaul"): each section answers
+// "who is this for?" — the pitch, then one section per reader. Demo apps are
+// their own section (they're the docs made runnable).
+const DOC_SECTIONS: { title: string; pages: DocPage[] }[] = [
+  {
+    title: 'Overview',
+    pages: [
+      { slug: 'overview', title: 'Overview', file: '/docs/overview.md' },
+    ],
+  },
+  {
+    title: 'For Users',
+    pages: [
+      { slug: 'getting-started', title: 'Getting Started', file: '/docs/getting-started.md' },
+      { slug: 'groups-in-plain-terms', title: 'Groups in Plain Terms', file: '/docs/groups-in-plain-terms.md' },
+      { slug: 'your-data', title: 'Your Data', file: '/docs/your-data.md' },
+      { slug: 'account-recovery', title: 'Account Recovery', file: '/docs/account-recovery.md' },
+      { slug: 'import-from-other-platforms', title: 'Import from Other Platforms', file: '/docs/import-from-other-platforms.md' },
+      { slug: 'export-guidance', title: 'Export Guidance', file: '/docs/export-guidance.md' },
+    ],
+  },
+  {
+    title: 'For Developers',
+    pages: [
+      { slug: 'protocol-spec', title: 'Protocol Spec', file: '/docs/protocol-spec.md' },
+      { slug: 'conventions', title: 'Conventions', file: '/docs/conventions.md' },
+      { slug: 'groups', title: 'Groups', file: '/docs/groups.md' },
+      { slug: 'sdk', title: 'SDK Guide', file: '/docs/sdk.md' },
+      { slug: 'cli-quickstart', title: 'CLI Quickstart', file: '/docs/cli-quickstart.md' },
+    ],
+  },
 ]
+
+const DOC_PAGES = DOC_SECTIONS.flatMap(section => section.pages)
 
 const DEMO_APPS = [
   { slug: 'hello', title: 'Hello', url: '/docs/hello/' },
@@ -34,28 +62,32 @@ function DocsSidebar() {
 
   return (
     <aside className="w-full shrink-0 border-b border-border px-4 py-6 sm:px-6 md:w-56 md:border-b-0 md:border-r md:py-10">
-      <h3 className="mb-3 text-[0.75rem] font-medium uppercase tracking-[0.04em] text-muted-foreground">
-        Documentation
-      </h3>
-      <nav className="mb-6 flex flex-col gap-1">
-        {DOC_PAGES.map(page => {
-          const Icon = page.slug === 'overview' ? Compass : page.slug === 'export-guidance' ? BookOpen : FileText
-          return (
-            <Link
-              key={page.slug}
-              to={`/docs/${page.slug}`}
-              className={`flex items-center gap-2 rounded-md px-3 py-2 text-sm transition-colors duration-150 ease-out ${
-                currentPage === page.slug
-                  ? 'bg-brand-muted font-medium text-brand-300'
-                  : 'text-muted-foreground hover:bg-elevated hover:text-foreground'
-              }`}
-            >
-              <Icon className="h-4 w-4 shrink-0" strokeWidth={1.5} />
-              {page.title}
-            </Link>
-          )
-        })}
-      </nav>
+      {DOC_SECTIONS.map(section => (
+        <div key={section.title} className="mb-6">
+          <h3 className="mb-3 text-[0.75rem] font-medium uppercase tracking-[0.04em] text-muted-foreground">
+            {section.title}
+          </h3>
+          <nav className="flex flex-col gap-1">
+            {section.pages.map(page => {
+              const Icon = page.slug === 'overview' ? Compass : page.slug === 'export-guidance' ? BookOpen : FileText
+              return (
+                <Link
+                  key={page.slug}
+                  to={`/docs/${page.slug}`}
+                  className={`flex items-center gap-2 rounded-md px-3 py-2 text-sm transition-colors duration-150 ease-out ${
+                    currentPage === page.slug
+                      ? 'bg-brand-muted font-medium text-brand-300'
+                      : 'text-muted-foreground hover:bg-elevated hover:text-foreground'
+                  }`}
+                >
+                  <Icon className="h-4 w-4 shrink-0" strokeWidth={1.5} />
+                  {page.title}
+                </Link>
+              )
+            })}
+          </nav>
+        </div>
+      ))}
 
       <h3 className="mb-3 text-[0.75rem] font-medium uppercase tracking-[0.04em] text-muted-foreground">
         Demo Apps

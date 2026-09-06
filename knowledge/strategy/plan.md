@@ -433,11 +433,11 @@ were never built (the changelog's "the API is 3.37.0" was wrong). Lane is
 - [✓ 3.60.6] **Fix the stale snippets in `conventions.md` + `groups.md`.** Replace `$match`/`$sort`/`$limit` with the real `read` opts; update the group role shape to D58 (a per-service permission map, not `services`+`permissions`); add the engagement model (D62) to `groups.md`.
 
 ### For Users (new section)
-- [ ] **`getting-started`** — create an account, sign in (the authenticator), your first post, following a creator. Plain language, no code. Source: `KB auth/auth.md` + the social app.
-- [ ] **`groups-in-plain-terms`** — follows, discover, close friends, communities, DMs — what they are and when you'd use each, in user language (no roles/permissions jargon). Source: `KB groups/overview.md` + `social/overview.md`.
-- [ ] **`your-data`** — export your data, the kill switch (revoke all apps), opt-out of a group, make everything private, block someone. The ownership story in user terms. Source: `KB auth/consent.md` + `security/overview.md`.
-- [ ] **`account-recovery`** — the phone/email recovery flow (D61) in user terms: how to get back in if you're locked out. Source: `KB auth/auth.md` (the recovery section).
-- [ ] **`import-from-other-platforms`** — expand the current `export-guidance` (a placeholder: "the operator will supply the detailed content"). **Lead with YouTube** (the first target — YouTubers, via Google Takeout; see the `YouTube Importer` section below) + the web10 **import** flow (getting your exported data onto a node) + the importer. Source: the YouTube importer + the export guidance.
+- [✓ 3.60.7] **`getting-started`** — create an account, sign in (the authenticator), your first post, following a creator. Plain language, no code. Source: `KB auth/auth.md` + the social app.
+- [✓ 3.60.7] **`groups-in-plain-terms`** — follows, discover, close friends, communities, DMs — what they are and when you'd use each, in user language (no roles/permissions jargon). Source: `KB groups/overview.md` + `social/overview.md`.
+- [✓ 3.60.7] **`your-data`** — export your data, the kill switch (revoke all apps), opt-out of a group, make everything private, block someone. The ownership story in user terms. Source: `KB auth/consent.md` + `security/overview.md`.
+- [✓ 3.60.7] **`account-recovery`** — the phone/email recovery flow (D61) in user terms: how to get back in if you're locked out. Source: `KB auth/auth.md` (the recovery section).
+- [✓ 3.60.7] **`import-from-other-platforms`** — expand the current `export-guidance` (a placeholder: "the operator will supply the detailed content"). **Lead with YouTube** (the first target — YouTubers, via Google Takeout; see the `YouTube Importer` section below) + the web10 **import** flow (getting your exported data onto a node) + the importer. Source: the YouTube importer + the export guidance.
 
 ### For Developers (new section)
 - [ ] **`query-engine`** (NEW) — the flexible read: `w.query(sql, {groups})`, the boundary (read-only by construction, scoped to your groups), the "go crazy" examples (self-join, aggregation, CTE, JSON body breakdown), the error surface (403 unsafe, 400 caller-SQL), the rate limit (D65). Source: `KB query-engine.md` + `safe-query.md` + the query playground demo.
@@ -460,7 +460,7 @@ were never built (the changelog's "the API is 3.37.0" was wrong). Lane is
 - [ ] **`monetization-bootcamp`** — the existing guide; link it into the monetizer section. Source: `KB social/monetization-bootcamp.md`.
 
 ### The rendering / UX
-- [ ] **Reorganize the `Docs.tsx` sidebar by audience** — group the docs under "Overview / For Users / For Developers / For Node Operators / For Monetizers" (the current flat list + demo apps). Each doc page names its reader up top.
+- [✓ 3.60.7] **Reorganize the `Docs.tsx` sidebar by audience** — group the docs under "Overview / For Users / For Developers / For Node Operators / For Monetizers" (the current flat list + demo apps). Each doc page names its reader up top.
 - [ ] **A "who are you?" landing** — the `/docs` landing asks the reader who they are and routes them to their section (the "asking who's on the marketing docs" the operator wants).
 
 **Sequencing.** The drift fix first (the docs are actively wrong — `sdk.md` teaches a non-existent API). Then the audience sections (Users → Developers → Node Operators → Monetizers), each a bite. The rendering/UX last (it's the container for the content).
