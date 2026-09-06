@@ -8,6 +8,7 @@ import uuid
 from datetime import UTC, datetime
 
 import clickhouse_connect
+from clickhouse_connect.driver import exceptions as _ch_exceptions
 from uuid6 import uuid7
 
 import app.settings as settings
@@ -1922,6 +1923,29 @@ def read_documents_in_groups(
     return _group_docs_query(group_ids, member_key, service, limit, offset, require_membership)
 
 
+class QueryExecutionError(Exception):
+    """A compiled (structurally safe) query failed in ClickHouse. The
+    boundary was already enforced at compile time, so a failure here is the
+    caller's SQL — a column the boundary CTE doesn't expose, a bad function
+    argument, a type mismatch — not a boundary breach."""
+
+
+def execute_query(compiled_sql: str, settings: dict | None = None) -> tuple[list[str], list[tuple]]:
+    """Run a compiled (trusted) query and return ``(column_names, rows)``.
+
+    The execution half of the flexible read: the SQL is already compiled by
+    the safe-query engine (boundary CTEs injected, everything validated), so
+    this just runs it. A ClickHouse error is re-raised as
+    ``QueryExecutionError`` (the caller's SQL is the problem); a transport /
+    node failure propagates as-is (a 500, not the caller's fault).
+    """
+    try:
+        result = client.query(compiled_sql, settings=settings)
+    except _ch_exceptions.Error as e:
+        raise QueryExecutionError(str(e)) from e
+    return list(result.column_names), list(result.result_rows)
+
+
 def read_docs_by_ref(
     service: str,
     ref_values: str | list[str],
@@ -2849,32 +2873,52 @@ def authenticate_user(username: str, plain_password: str) -> bool:
 
 
 def change_password(username: str, new_password_hash: str):
-    """Change a user's password."""
+    """Change a user's password.
+
+    The new row's ``updated_at`` is a Python microsecond clock (the same
+    source ``create_user`` uses), not ClickHouse ``now()`` (second precision).
+    The users table is ``ReplacingMergeTree(updated_at)`` and reads dedup via
+    ``ORDER BY updated_at DESC LIMIT 1`` — that is only "always the latest"
+    when the new timestamp is strictly greater than the old row's. A
+    second-precision ``now()`` lands on ``.000`` ms and can tie or lose to the
+    old row's real milliseconds when both writes fall in the same second, so
+    the read returns the stale row (old hash) and the new password 401s.
+    """
     client.command(
         "INSERT INTO users (username, password_hash, phone, phone_verified, email, email_verified, created_at, updated_at, deleted) "
-        "SELECT username, %(new_hash)s, phone, phone_verified, email, email_verified, created_at, now(), 0 "
+        "SELECT username, %(new_hash)s, phone, phone_verified, email, email_verified, created_at, %(updated_at)s, 0 "
         "FROM users WHERE username = %(username)s AND deleted = 0",
-        {"username": username, "new_hash": new_password_hash},
+        {"username": username, "new_hash": new_password_hash, "updated_at": _now()},
     )
 
 
 def change_phone(username: str, phone: str):
-    """Change a user's phone number (unverified)."""
+    """Change a user's phone number (unverified).
+
+    ``updated_at`` is a Python microsecond clock (see ``change_password``) so
+    the new row strictly outranks the old one in the ``updated_at``-ordered
+    dedup read.
+    """
     client.command(
         "INSERT INTO users (username, password_hash, phone, phone_verified, email, email_verified, created_at, updated_at, deleted) "
-        "SELECT username, password_hash, %(phone)s, 0, email, email_verified, created_at, now(), 0 "
+        "SELECT username, password_hash, %(phone)s, 0, email, email_verified, created_at, %(updated_at)s, 0 "
         "FROM users WHERE username = %(username)s AND deleted = 0",
-        {"username": username, "phone": phone},
+        {"username": username, "phone": phone, "updated_at": _now()},
     )
 
 
 def set_email(username: str, email: str):
-    """Set a user's email (unverified)."""
+    """Set a user's email (unverified).
+
+    ``updated_at`` is a Python microsecond clock (see ``change_password``) so
+    the new row strictly outranks the old one in the ``updated_at``-ordered
+    dedup read.
+    """
     client.command(
         "INSERT INTO users (username, password_hash, phone, phone_verified, email, email_verified, created_at, updated_at, deleted) "
-        "SELECT username, password_hash, phone, phone_verified, %(email)s, 0, created_at, now(), 0 "
+        "SELECT username, password_hash, phone, phone_verified, %(email)s, 0, created_at, %(updated_at)s, 0 "
         "FROM users WHERE username = %(username)s AND deleted = 0",
-        {"username": username, "email": email},
+        {"username": username, "email": email, "updated_at": _now()},
     )
 
 
@@ -2883,13 +2927,15 @@ def verify_phone(username: str):
 
     Selects only the LATEST row — selecting every row would re-insert each one
     (duplicating them), and the updated_at-ordered read could then pick a stale
-    row (e.g. one with an old password_hash after a change_password).
+    row (e.g. one with an old password_hash after a change_password). The new
+    row's ``updated_at`` is a Python microsecond clock (see ``change_password``)
+    so it strictly outranks the row it copies.
     """
     client.command(
         "INSERT INTO users (username, password_hash, phone, phone_verified, email, email_verified, created_at, updated_at, deleted) "
-        "SELECT username, password_hash, phone, 1, email, email_verified, created_at, now(), 0 "
+        "SELECT username, password_hash, phone, 1, email, email_verified, created_at, %(updated_at)s, 0 "
         "FROM (SELECT * FROM users WHERE username = %(username)s AND deleted = 0 ORDER BY updated_at DESC LIMIT 1)",
-        {"username": username},
+        {"username": username, "updated_at": _now()},
     )
 
 
@@ -2897,9 +2943,9 @@ def verify_email(username: str):
     """Mark email as verified (latest row only — see verify_phone)."""
     client.command(
         "INSERT INTO users (username, password_hash, phone, phone_verified, email, email_verified, created_at, updated_at, deleted) "
-        "SELECT username, password_hash, phone, phone_verified, email, 1, created_at, now(), 0 "
+        "SELECT username, password_hash, phone, phone_verified, email, 1, created_at, %(updated_at)s, 0 "
         "FROM (SELECT * FROM users WHERE username = %(username)s AND deleted = 0 ORDER BY updated_at DESC LIMIT 1)",
-        {"username": username},
+        {"username": username, "updated_at": _now()},
     )
 
 

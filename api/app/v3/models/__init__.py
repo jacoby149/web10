@@ -55,6 +55,7 @@ from app.v3.models.media import (
     UploadUrlRequest,
 )
 from app.v3.models.moderation import ModerationAutoHide, ModerationFlags
+from app.v3.models.query import QueryRequest
 from app.v3.models.session import VerifySession
 
 __all__ = [
@@ -82,6 +83,8 @@ __all__ = [
     "UpdateDocument",
     "DeleteDocument",
     "AdPreference",
+    # query (the flexible read)
+    "QueryRequest",
     # groups
     "CreateGroup",
     "GetGroup",

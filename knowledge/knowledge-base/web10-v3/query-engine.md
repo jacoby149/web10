@@ -1,10 +1,13 @@
 # The Flexible Read (Query Engine)
 
-[open — design discussion] · **the security boundary itself is built** — see
+[implemented] · **the security boundary is built and wired** — see
 `safe-query.md` (how the boundary CTE + AST redirect works and why the
-guarantee holds; code in `api/app/v3/services/safe_query.py`). This doc is the
-wider discussion: how far to take the power (joins, aggregations, raw SQL),
-the query-language fork, and the phasing.
+guarantee holds; code in `api/app/v3/services/safe_query.py`). The caller
+writes a ClickHouse `SELECT` over service names; the node compiles it through
+the engine and runs it. Exposed as `POST /v3/query` + the SDK's `w.query()`.
+This doc is the wider discussion: how far to take the power (joins,
+aggregations, raw SQL), the query-language fork (resolved: SQL subset), and
+the phasing.
 
 How far do we let an app query the node? v2 let an app run any Mongo query
 inside a user's collection. v3 has one shared ClickHouse table and a group
@@ -105,17 +108,26 @@ filter.
 
 ## Phasing
 
-1. **Now — the `ref_value` filter.** Add `ref_value` / `ref_value IN (…)` to
-   the group read. Minimal, safe, and it fixes the social-app + trending-page
-   engagement reads (both are broken today because `ref_value` is never
-   persisted — see `web10-social-v3/engagement.md`). Also wire `get_ref_counts`
-   for the feed's engagement counts.
-2. **Next — structured filters.** Generalize the read to a filter spec (body
-   fields, tags, created_at) compiled to parameterized SQL, group filter always
-   injected. This is the `match` field, finally wired.
-3. **Later — joins + aggregations.** The full compilation layer: cross-service
-   self-joins, aggregations, the "do anything" power. The big one; needs the
-   query-language decision below.
+1. **Done — the `ref_value` filter.** `ref_value` / `ref_value IN (…)` on the
+   group read, routed through the engine. Fixed the social-app + trending-page
+   engagement reads.
+2. **Done — the full engine.** The caller writes a ClickHouse `SELECT` over
+   service names; the engine compiles it (boundary CTEs + block/sharing/hidden)
+   and runs it. Exposed as `POST /v3/query` + `w.query()`. Filters, joins,
+   aggregations, subqueries, and caller CTEs all work — the "do anything"
+   power, safe because the raw tables are unreachable.
+3. **Done — joins + aggregations.** The self-join power (the payoff): an app
+   joins `posts` to `comments` on `ref_value = doc_id`, aggregates, sorts — all
+   inside the group boundary.
+
+## Performance bounds (enforced)
+
+- **Max rows.** An unbounded query gets `LIMIT 1000` appended server-side
+  (`build_safe_query(max_limit=…)`); a caller-supplied `LIMIT` is honored as-is.
+- **Query timeout.** `max_execution_time = 10` is passed to ClickHouse.
+- **The boundary CTE is the data bound.** A query can only scan the caller's
+  readable groups, so the worst case is bounded by the caller's own data — not
+  the whole node.
 
 ## Group scoping (deferred)
 
@@ -141,24 +153,25 @@ Neither is needed for the `ref` filter. Build the `kind` enum only when the
 first app asks for categorical scoping; add tags only when an app needs
 discoverable-by-tag.
 
-## Open Questions (the actual discussion)
+## Resolved (the decisions that landed)
 
-- **Query language.** A JSON DSL (structured spec)? A SQL subset (parse +
-  validate ClickHouse SQL, inject the group filter)? A passthrough with a
-  query-rewriting layer? The trade is expressiveness vs. how hard it is to
-  safely validate arbitrary SQL (a rewriting layer that must catch *every* way
-  to escape the group filter is a security-critical parser).
-- **Join validation.** Which joins are allowed? Same-table self-joins only?
-  Cross-service joins on `ref_value`? How do we prove a join can't bypass the
-  group filter (each alias must carry its own filter — enforced how)?
-- **Performance bounds.** Max limit, max join depth, query timeout, max result
-  size. ClickHouse is fast, but a bad query can still DoS a shared node.
-- **App contract interaction.** The contract grants per-service `readAll`. A
-  multi-service query must have every service granted — how is that checked?
-- **The "do anything" ceiling.** Full ClickHouse SQL (rewriting layer) is the
-  max power but the hardest to keep safe. A DSL is safer but caps the power.
-  Where's the line, and does the line move as trust in the app-contract model
-  grows?
+- **Query language: a SQL subset.** The caller writes ClickHouse `SELECT`; the
+  engine parses it (sqlglot), validates every table reference, and rewrites the
+  services to boundary CTEs. Not a DSL (caps the power), not raw passthrough
+  (unsafe) — the rewriting layer is the boundary, and it's a *wall* (the raw
+  tables are unreachable), so the parser only has to be complete about table
+  refs, not about every SQL construct.
+- **Join validation: any join, each alias carries its own filter.** A join is
+  just a reference to one or more service CTEs, and each CTE is independently
+  group-filtered. A join can't reach a group the caller can't read because each
+  side of the join is already bounded. Cross-service self-joins on `ref_value`
+  are the common case.
+- **App contract interaction:** the query may only touch services the contract
+  grants `readAll` on. `query_services()` checks this before any group work —
+  an ungranted service is a 403.
+- **The "do anything" ceiling:** full ClickHouse `SELECT` (read-only). The
+  ceiling is "any read over your groups" — DML/DDL/table-functions/raw-tables
+  are rejected. The line doesn't need to move; the boundary is structural.
 
 ## The One Assumption
 

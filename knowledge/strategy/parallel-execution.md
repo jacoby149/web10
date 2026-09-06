@@ -302,6 +302,7 @@ were never built (the changelog's "the API is 3.37.0" was wrong).
 - [✓ 3.51.0] UI: the contact input (phone OR email) + verify_token plumbing + "create a new account" option + primary-sign-in routing
 - [✓ 3.51.1] Refinement: the recovery send drops the username (the message is the console-configured Twilio Verify template — a username-less "your code is {{code}}, if you didn't request this ignore it"); `send_verification` no longer takes a username
 - [✓ 3.56.1] E2E: the contact-anchored auth gauntlet (`e2e/tests/recovery.spec.ts`) — phone + email paths, create-on-complete, password-change, the anti-tests (contact mismatch, bad/expired/wrong-purpose verify_token, send rate-limit); the e2e stack runs the API in local-Twilio mode (`TWILIO_E2E`) so the fixed code "123456" completes the flow without real credentials
+- [✓ 3.58.1] Fix: the recovery password-change 401s the new password — a same-second `updated_at` race. The five users-table mutators (`change_password`/`change_phone`/`set_email`/`verify_phone`/`verify_email`) wrote `updated_at` from ClickHouse `now()` (second precision) while `create_user`/`migrate_user` used Python microsecond `_now()`; in the same second the new row's `.000` ms tied/lost to the old row's real ms, so `get_user`'s `ORDER BY updated_at DESC LIMIT 1` returned the stale old-hash row. The mutators now use `_now()` (bound `%(updated_at)s`) so the new row strictly outranks the old one
 
 ### Lane: ads (monetization)
 **Owns:** `ui/src/components/Studio/`, `api/app/v3/services/clickhouse.py` + `api/app/v3/endpoints/documents.py` + `api/tests/test_ads.py`, `e2e/tests/ads.spec.ts`, `marketing/web10-social/src/components/Feed/PostComposer.tsx` + the ad block
@@ -356,6 +357,28 @@ spec — read it first: `web10-v3/social/node-ads.md`.
 - [ ] **Ad Inventory card (authenticator)** (`ui/src/components/Studio/`) — the operator's surface: percentage slider (0-100), list of active node ads (creative preview, offer, status), create / pause / resume / retire node ads (writes `posts` docs tagged `ad` + `node_ad` to the discover group); all states designed (empty → CTA, skeleton, error)
 - [ ] **Tests: unit** (`api/tests/test_node_ads.py`) — node ad query (returns active node ads from discover group, excludes paused, excludes non-node_ad, bounded at 20); read-time attachment (percentage 0 = no node ads, percentage 100 = all posts get a node ad, percentage 10 = ~10% get one, deterministic per (doc, reader), a `pinned` post gets BOTH `doc.ad` AND `doc.node_ad`, round-robin cycles through active node ads); I3 (node ad visible to all members of discover group, which is everyone)
 - [ ] **Tests: e2e** (`e2e/tests/node-ads.spec.ts`) — API floor: operator creates a node ad → a reader's feed read returns a post with `doc.node_ad` (the `node_ad` tag present, the "Sponsored" disclosure) → a `pinned` post returns BOTH `doc.ad` (the creator's ad) AND `doc.node_ad` (the node's ad) → percentage 0 = no node ads → percentage 100 = all posts get a node ad. Browser gauntlet: operator creates a node ad via the Ad Inventory card → a follower's feed renders a post with the "Sponsored" ad block → a creator's pinned post shows BOTH the creator's ad AND the node's ad → no pageerror
+
+### Lane: query-engine (D62)
+**Owns:** `api/app/v3/services/safe_query.py`, `api/app/v3/endpoints/query.py`, `api/app/v3/models/query.py`, `api/app/v3/services/clickhouse.py` (`execute_query` + the boundary CTE), `api/tests/test_query_endpoint.py` + `test_safe_query.py`, `sdk/src/v3.ts` (`w.query`), `e2e/tests/query-engine.spec.ts`, `knowledge/knowledge-base/web10-v3/{query-engine,safe-query}.md`
+
+The **flexible read** (D62): a caller writes a ClickHouse `SELECT` over their
+services and the node runs it — read-only by construction. The safe-query
+engine rewrites each service to an API-built boundary CTE (group-filtered +
+block/sharing/hidden), so joins/aggregations/subqueries/CTEs all work and none
+can leak past the caller's groups (raw tables unreachable — a wall, not a
+membrane). Exposed as `POST /v3/query` + `w.query(sql, { groups? })`. Anon-
+capable (D41), app-contract-gated, `LIMIT 1000` + 10s timeout. KB is the spec —
+read it first: `web10-v3/query-engine.md` + `safe-query.md`.
+
+- [✓ 3.52.0] **The boundary** (`safe_query.py`) — parse → validate → rewrite to boundary CTEs; `read_docs_by_ref` is the first consumer (the `ref` filter).
+- [✓ 3.56.0] **Server-side engagement counts** (`read_ref_counts_by_ref`) — `GROUP BY ref_value` through the engine (exact, no cap).
+- [✓ 3.58.0] **`query_services()` + `max_limit`** (`safe_query.py`) — the pre-flight (which services the query touches) + the `LIMIT 1000` performance bound (a caller `LIMIT` is honored; a union's trailing limit is seen).
+- [✓ 3.58.0] **`POST /v3/query`** (`api/app/v3/endpoints/query.py` + `models/query.py`) — anon-capable, app-contract-gated (`query_services` before any group work), per-service D58 read gate, D42 "not a member" 403, caller-SQL → 400. `clickhouse.py` `execute_query()` + `QueryExecutionError`.
+- [✓ 3.58.0] **`w.query()`** (`sdk/src/v3.ts`) — `w.query(sql, { groups? })` → `{ rows, count }`; token-less (anon); JSDoc examples + the ClickHouse `LEFT JOIN` count gotcha. `dist/` + `wapi.js` rebuilt.
+- [✓ 3.58.0] **The ClickHouse 24.8 CTE-inlining fix** — the boundary CTE's block/sharing/hidden `LEFT ANTI JOIN`s broke CTE inlining when combined with a `JOIN` (`UNKNOWN_IDENTIFIER`), which also broke `read_docs_by_ref` + `read_ref_counts_by_ref` on a real node. Rewritten as `NOT IN` / tuple-`NOT IN` subqueries (semantically identical, verified live: block / group-block / sharing-pause self-exempt / hidden; empty → keep all).
+- [✓ 3.58.0] **Tests** — API `test_query_endpoint.py` (20) + `test_safe_query.py` (+12) + `e2e/tests/query-engine.spec.ts` (the seam gauntlet: the power — self-join + aggregation + CTE + JSON; I3 — a non-member reads nothing; the contract gate; the membrane; anon).
+- [ ] **v1: a query playground demo** (`marketing-ui/public/docs/query/`) — an interactive SQL box over the signed-in user's groups (the "go crazy" showcase), reusing the demo auth pattern. Cross-lane (marketing-ui owns the demos).
+- [ ] **v1: query governance** — per-node query rate limits, result caching for repeat queries, `EXPLAIN`-style cost hints in the response.
 
 ### Lane: app-store-metrics (D49)
 **Owns:** `api/app/v3/services/clickhouse.py`, `api/app/endpoints/`, `api/app/services/config.py` (n/a — D48), `sdk/src/`, `marketing/marketing-ui/src/pages/`, `clickhouse-init/`, `e2e/tests/`

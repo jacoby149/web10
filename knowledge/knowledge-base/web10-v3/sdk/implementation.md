@@ -339,76 +339,83 @@ FROM service_contracts
 WHERE user_key = :user AND deleted = 0;
 ```
 
-## Query (v2 — Coming Soon)
+## Query (the flexible read)
 
-### `w.query(sql)`
+### `w.query(sql, { groups? })`
 
-Full ClickHouse SQL. The API wraps it in a CTE to enforce permissions. **Status:** CTE-wrapping approach is being audited for escape vectors (table aliases, UNION, subquery scope). Not available in v1.
+Write a ClickHouse `SELECT` over your **services** and the node runs it.
+Read-only by construction: the safe-query engine rejects anything but a single
+`SELECT`, raw node tables, and table functions before anything executes. Every
+service name you reference is replaced by an API-built **boundary CTE**
+filtered to the groups you can read that service in — so aggregations,
+self-joins, subqueries, and your own CTEs are all fair game, and none of them
+can leak past your groups (the raw tables are unreachable — a wall, not a
+membrane). See `safe-query.md` for how the boundary works.
 
-```sql
-WITH user_docs AS (
-  SELECT d.*
-  FROM documents d
-  JOIN doc_groups dg ON d.doc_id = dg.doc_id
-  JOIN group_members gm ON dg.group_id = gm.group_id
-  WHERE d.deleted = 0
-    AND dg.deleted = 0
-    AND gm.member_key = :user
-    AND gm.deleted = 0
-    AND NOT EXISTS (
-      SELECT 1 FROM user_blacklist
-      WHERE user_key = d.author_key AND blocked_key = :user
-    )
+Each service CTE exposes: `doc_id`, `author_key`, `body` (a JSON string — use
+`JSONExtractString(body, 'field', 'value')` for fields), `ref_value`, `tags`,
+`created_at`, `updated_at`.
+
+- **Anon-capable** — works without a token (reads the public board), like
+  `w.read`.
+- **Scoped** — `{ groups: [...] }` limits the read to specific group IDs
+  (default: all the reader's groups, the "me" semantics of `read`).
+- **Bounded** — an unbounded query gets `LIMIT 1000` appended server-side; a
+  `LIMIT` you write is honored as-is. Queries time out at 10s.
+- **Returns** `{ rows: Record<string, unknown>[], count: number }`. A `body`
+  column comes back parsed (like `read`); datetimes are ISO-8601 UTC.
+
+> **ClickHouse gotcha — LEFT JOIN counts.** A `LEFT JOIN` non-match yields
+> default values (empty string for `String`), **not** `NULL`. So
+> `count(c.doc_id)` over a left join overcounts. Use
+> `countIf(c.ref_value = p.doc_id)` (or `countIf(c.doc_id != '')`) for an
+> accurate "how many comments" count.
+
+**Example: trending posts — cross-service self-join + aggregation**
+
+```ts
+const { rows } = await w.query(`
+  SELECT p.doc_id, p.author_key, countIf(c.ref_value = p.doc_id) AS reactions
+  FROM posts p
+  LEFT JOIN reactions c ON c.ref_value = p.doc_id
+  GROUP BY p.doc_id, p.author_key
+  ORDER BY reactions DESC
+  LIMIT 20
+`)
+```
+
+**Example: reaction breakdown by type — JSON body fields**
+
+```ts
+const { rows } = await w.query(`
+  SELECT JSONExtractString(body, 'reaction_type', 'value') AS type, count() AS n
+  FROM reactions
+  WHERE ref_value = '<the post's doc_id>'
+  GROUP BY type
+`)
+```
+
+**Example: your own CTEs + subqueries**
+
+```ts
+const { rows } = await w.query(`
+  WITH hot AS (
+    SELECT ref_value, count() AS n FROM reactions GROUP BY ref_value HAVING n > 10
+  )
+  SELECT p.doc_id, p.body
+  FROM posts p
+  WHERE p.doc_id IN (SELECT ref_value FROM hot)
+  ORDER BY p.created_at DESC
+`)
+```
+
+**Example: scoped to specific groups**
+
+```ts
+const { rows } = await w.query(
+  'SELECT doc_id, author_key FROM posts ORDER BY created_at DESC LIMIT 50',
+  { groups: [discoverGroupId, followersGroupId] },
 )
--- Developer's query runs here, scoped to user_docs
-SELECT doc_id, author_key, count() as reaction_count
-FROM documents
-WHERE collection_name = 'reactions'
-  AND ref_value IN (SELECT doc_id FROM user_docs)
-  AND deleted = 0
-GROUP BY doc_id, author_key
-ORDER BY reaction_count DESC
-LIMIT 50;
-```
-
-The CTE (`user_docs`) is the permission boundary. The developer's query can join against it, subquery from it, or aggregate over it — but it can never see documents outside the user's groups.
-
-**Example: count reactions for a post**
-
-```sql
-WITH user_docs AS (...)
-SELECT count()
-FROM documents
-WHERE deleted = 0
-  AND collection_name = 'reactions'
-  AND ref_value IN (SELECT doc_id FROM user_docs);
-```
-
-**Example: reaction breakdown by type**
-
-```sql
-WITH user_docs AS (...)
-SELECT extractJSONString(body, '$.reaction_type.value') AS rtype, count()
-FROM documents
-WHERE deleted = 0
-  AND collection_name = 'reactions'
-  AND ref_value IN (SELECT doc_id FROM user_docs)
-GROUP BY rtype;
-```
-
-**Example: trending posts**
-
-```sql
-WITH user_docs AS (...)
-SELECT p.doc_id, p.author_key, p.body, p.created_at,
-       (SELECT count() FROM documents r
-        WHERE r.deleted = 0
-          AND r.collection_name = 'reactions'
-          AND r.ref_value = p.doc_id
-       ) AS reaction_count
-FROM user_docs p
-ORDER BY reaction_count DESC, p.created_at DESC
-LIMIT 50;
 ```
 
 ### `w.read(collection, { groups, $sort: { type: 'powerMean' } })`

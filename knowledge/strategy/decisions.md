@@ -9,6 +9,58 @@ Status legend: [decided] intent set · [in-progress] · [open] still debating.
 
 ---
 
+### D63 — The flexible read: `w.query()` / `POST /v3/query` — a caller writes a ClickHouse `SELECT` over their services; the engine is the boundary [decided]
+
+**The decision.** An app writes a ClickHouse `SELECT` over its **service
+names** (`posts`, `comments`, …); the node compiles it through the safe-query
+engine and runs it. Read-only by construction — the engine rejects anything
+but a single `SELECT`, raw node tables, and table functions *before* anything
+executes. Each service name is rewritten to an API-built **boundary CTE**
+(group-filtered + block/sharing/hidden), so self-joins, aggregations,
+subqueries, and caller CTEs all work, and none can leak past the caller's
+groups.
+
+**Why.** v2 let an app run any Mongo query inside a user's collection — the
+collection *was* the boundary. v3 has one shared ClickHouse table and a group
+boundary; the fixed read shapes (group read, `ref` filter) didn't reach "do
+anything." The engine restores v2's query power (flexible filters, cross-
+service self-joins, aggregations) without breaking the group boundary, because
+the boundary is on the *input* (the CTEs the caller reads), not a filter on
+the *output* — the raw tables are simply unreachable.
+
+**The query language: a SQL subset, not a DSL, not raw passthrough.** A DSL
+caps the power; raw passthrough is unsafe (the caller drops the group filter).
+The rewriting layer is the boundary, and it's a *wall* (raw tables
+unreachable), so the parser only has to be complete about *table references*,
+not about every SQL construct. sqlglot (ClickHouse dialect) parses + validates;
+the round-trip re-parse is the backstop.
+
+**The ClickHouse 24.8 CTE-inlining fix (the load-bearing detail).** The
+boundary CTE's block/sharing/hidden filters are `NOT IN` / tuple-`NOT IN`
+subqueries, **not** `LEFT ANTI JOIN`. A ClickHouse 24.8 bug breaks CTE inlining
+when the CTE body combines a `JOIN` with a `LEFT ANTI JOIN` — the CTE's output
+columns become unresolvable (`UNKNOWN_IDENTIFIER`), so *any* query over the
+service 400s. That bug also broke `read_docs_by_ref` (3.52.0) and
+`read_ref_counts_by_ref` (3.56.0) on a real node. The `NOT IN` forms are the
+anti-join `ON` clauses, transposed — semantically identical (verified live)
+and they inline cleanly.
+
+**What it rejects.** A JSON DSL (caps the power); raw SQL passthrough (unsafe);
+a CTE that wraps the *output* and filters it (a membrane, not a wall — an
+aggregation inside the parens bakes everyone's data in before the filter runs).
+
+**Bounds.** An unbounded query gets `LIMIT 1000` appended (a caller `LIMIT` is
+honored); `max_execution_time = 10`. The boundary CTE is the data bound — a
+query can only scan the caller's readable groups, not the whole node.
+
+**Anon + contract.** Anon-capable (D41 — a missing token reads the public
+board). The app-contract gate: the query may only touch services the contract
+grants `readAll` on (`query_services()` checks before any group work). D42
+holds: an explicit group the reader can't read is a 403, not an empty result.
+
+Spec'd in `knowledge-base/web10-v3/query-engine.md` (the discussion) +
+`safe-query.md` (the boundary + why the guarantee holds).
+
 ### D62 — Engagement (comments/reactions) defaults to discover; the UI can pick groups; private accounts deferred [decided]
 Operator, 02.09.2026 — after the "can't comment/like my own post and have it persist" report: "comments being on discover is legit no problem, and reactions unless a private group setting! so not a big deal!" + "put a readme that to do private insta account type stuff, some thought has to go into that. but we arent implementing private yet, i.e. private accounts." + "we have a groups tab, so maybe it does apply, if you make a comment, well the comment can let you say what groups you want in the social ui you decide what groups the comment is going to! so if in a group and commenting can say discover + the group!"
 

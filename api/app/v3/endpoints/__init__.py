@@ -14,6 +14,7 @@ from . import (
     logs,
     media,
     moderation,
+    query,
     recovery,
 )
 
@@ -30,6 +31,9 @@ router.include_router(recovery.router, prefix="")
 
 # Document CRUD
 router.include_router(documents.router, prefix="")
+
+# The flexible read — caller-written SELECTs over the caller's groups (safe-query engine)
+router.include_router(query.router, prefix="")
 
 # Group contracts — groups (including group-scoped blocking/sharing)
 router.include_router(groups.router, prefix="/groups")

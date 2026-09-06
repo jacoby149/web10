@@ -2,6 +2,7 @@
 
 import datetime
 import sys
+import types
 from unittest.mock import MagicMock, patch
 
 sys.modules["pymongo"] = MagicMock()
@@ -11,6 +12,21 @@ sys.modules["boto3"] = MagicMock()
 sys.modules["botocore"] = MagicMock()
 sys.modules["botocore.config"] = MagicMock()
 sys.modules["clickhouse_connect"] = MagicMock()
+
+
+# clickhouse_connect.driver.exceptions — a REAL exception class, so
+# `except _ch_exceptions.Error` clauses stay valid under the mock (a bare
+# MagicMock is not a catchable class).
+class _ClickHouseError(Exception):
+    pass
+
+
+_ch_exceptions_mod = types.ModuleType("clickhouse_connect.driver.exceptions")
+_ch_exceptions_mod.Error = _ClickHouseError
+_ch_driver_mod = types.ModuleType("clickhouse_connect.driver")
+_ch_driver_mod.exceptions = _ch_exceptions_mod
+sys.modules["clickhouse_connect.driver"] = _ch_driver_mod
+sys.modules["clickhouse_connect.driver.exceptions"] = _ch_exceptions_mod
 
 import jwt
 import pytest

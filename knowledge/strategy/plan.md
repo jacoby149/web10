@@ -362,6 +362,28 @@ Spec'd in `knowledge-base/web10-v3/social/content-moderation.md` (the model) +
 - [ ] **E2E: moderation gauntlet** — post with a flagged word → hidden from the board → operator keeps-hiding → next post auto-hidden → operator removes → next post visible. Gated on the social-e2e stack.
 - [ ] **v1** — profile name/bio detection (flag-only), a retroactive-scan admin command, a user notification on auto-hide.
 
+## Query Engine (D62) — Platform
+
+The **flexible read**: a caller writes a ClickHouse `SELECT` over their
+**services** and the node runs it — read-only by construction. The safe-query
+engine (`safe_query.py`) parses the query (sqlglot), validates every table
+reference, and rewrites each service to an API-built **boundary CTE**
+(group-filtered + block/sharing/hidden), so self-joins, aggregations,
+subqueries, and caller CTEs all work and none can leak past the caller's groups
+(the raw tables are unreachable — a wall, not a membrane). Exposed as
+`POST /v3/query` + the SDK's `w.query(sql, { groups? })`. Anon-capable (D41),
+app-contract-gated, `LIMIT 1000` + `max_execution_time=10` bounds. Spec'd in
+`knowledge-base/web10-v3/query-engine.md` (the discussion) + `safe-query.md`
+(the boundary + why the guarantee holds). Lane is `query-engine` in
+`parallel-execution.md`.
+
+- [✓ 3.52.0] **The boundary** (`safe_query.py`) — parse → validate → rewrite to boundary CTEs; the `ref` filter (`read_docs_by_ref`) is the first consumer.
+- [✓ 3.56.0] **Server-side engagement counts** (`read_ref_counts_by_ref`) — `GROUP BY ref_value` through the engine (exact, no cap).
+- [✓ 3.58.0] **`POST /v3/query` + `w.query()`** — the general flexible read: `query_services()` pre-flight, per-service D58 read gate, D42 "not a member" 403, `LIMIT 1000` + 10s timeout, caller-SQL → 400. SDK `w.query()` + `V3QueryResult` + JSDoc examples.
+- [✓ 3.58.0] **The ClickHouse 24.8 CTE-inlining fix** — the boundary CTE's block/sharing/hidden `LEFT ANTI JOIN`s broke CTE inlining when combined with a `JOIN` (`UNKNOWN_IDENTIFIER`), which also broke `read_docs_by_ref` + `read_ref_counts_by_ref` on a real node. Rewritten as `NOT IN` / tuple-`NOT IN` subqueries (semantically identical, verified live).
+- [✓ 3.58.0] **Tests** — API `test_query_endpoint.py` (20) + `test_safe_query.py` (+12) + `e2e/tests/query-engine.spec.ts` (the seam gauntlet: the power, I3, the contract gate, the membrane, anon).
+- [ ] **v1** — a query playground demo page (`marketing-ui/public/docs/query/`), query result caching, per-node query rate limits, `EXPLAIN`-style cost hints.
+
 ## Contact-Anchored Auth (D61) — Platform
 
 The account is anchored on a **contact** (phone OR email), verified by a 6-digit
