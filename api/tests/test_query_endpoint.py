@@ -14,9 +14,11 @@ from unittest.mock import MagicMock, patch
 
 import jwt
 import pytest
+from fastapi import HTTPException
 from fastapi.testclient import TestClient
 
 import app.settings as settings
+import app.v3.endpoints.query as query_ep
 from app.main import app as fastapi_app
 from app.v3.services.clickhouse import QueryExecutionError
 
@@ -281,3 +283,50 @@ class TestExecution:
             resp = client.post("/v3/query", json={"token": token, "sql": "SELECT * FROM posts"})
         assert resp.status_code == 200
         assert mock_exec.call_args[1]["settings"] == {"max_execution_time": 10}
+
+
+class TestRateLimit:
+    """Per-user rate limiting (D65): keyed on the verified user_key, in-memory
+    per-worker, 429 when the budget is exceeded. Anon is not per-user-limited
+    (no verified user_key — the honest key)."""
+
+    def setup_method(self):
+        # The rate-limit log is module-level (per-worker) — reset it so tests
+        # don't contaminate each other.
+        query_ep._query_log.clear()
+
+    def test_exceeding_budget_raises_rate_limit(self):
+        # Patch the budget to 3 so the test doesn't need 60 iterations.
+        with patch.object(query_ep, "_MAX_QUERIES_PER_WINDOW", 3):
+            for _ in range(3):
+                query_ep._check_query_rate_limit("user")  # under budget
+            with pytest.raises(HTTPException) as exc:
+                query_ep._check_query_rate_limit("user")  # over budget
+        assert exc.value.status_code == 429
+
+    def test_anon_is_not_rate_limited(self):
+        # Anon has no verified user_key — not per-user-limited (D65).
+        with patch.object(query_ep, "_MAX_QUERIES_PER_WINDOW", 1):
+            for _ in range(5):
+                query_ep._check_query_rate_limit("anon")  # never raises
+
+    def test_users_have_independent_budgets(self):
+        with patch.object(query_ep, "_MAX_QUERIES_PER_WINDOW", 2):
+            query_ep._check_query_rate_limit("a")
+            query_ep._check_query_rate_limit("a")
+            with pytest.raises(HTTPException):
+                query_ep._check_query_rate_limit("a")  # a is over budget
+            query_ep._check_query_rate_limit("b")  # b is unaffected
+
+    def test_user_over_budget_gets_429_from_endpoint(self, client):
+        # Integration: the endpoint returns 429 once the user's budget is spent.
+        with (
+            patch.object(query_ep, "_MAX_QUERIES_PER_WINDOW", 3),
+            patch("app.v3.services.clickhouse.get_user_groups"),
+            patch("app.v3.services.clickhouse.execute_query", return_value=(["one"], [(1,)])),
+        ):
+            token = _make_token("ratelimit-user")
+            for _ in range(3):
+                assert client.post("/v3/query", json={"token": token, "sql": "SELECT 1"}).status_code == 200
+            resp = client.post("/v3/query", json={"token": token, "sql": "SELECT 1"})
+        assert resp.status_code == 429
