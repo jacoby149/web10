@@ -29,6 +29,9 @@ export function sendP2P(
 export function peerIdFor(_provider: string, _username: string): string | null {
   return null;
 }
+export function probePresence(_provider: string, _username: string): boolean {
+  return false;
+}
 export function getOnlinePeers(): ReadonlySet<string> {
   return new Set();
 }

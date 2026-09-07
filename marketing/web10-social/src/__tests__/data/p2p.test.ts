@@ -196,15 +196,33 @@ describe('p2p (WebRTC P2P seam)', () => {
       expect(p2p.getOnlinePeers().has(bobPeer)).toBe(false);
     });
 
-    it('expires a peer after the TTL with no further activity (sweep backstop)', async () => {
+    it('expires a peer after the TTL once they go unreachable (sweep backstop)', async () => {
       vi.useFakeTimers();
       await p2p.initP2P();
       p2p.sendP2P('web10.app', 'bob', { message: 'hi' });
       const bobPeer = p2p.peerIdFor('web10.app', 'bob')!;
       expect(p2p.getOnlinePeers().has(bobPeer)).toBe(true);
+      // Bob goes unreachable: from now on, the heartbeat's re-probe gets a
+      // channel that never opens (peer dropped / not on signaling), so it does
+      // NOT refresh the TTL. The sweep (15s) then expires bob past the 60s TTL.
+      const errConn = mockConnection({ open: false });
+      connector.connect.mockReturnValue(errConn as never);
       // Advance well past the TTL (60s) + a sweep interval (15s).
       vi.advanceTimersByTime(90_000);
       expect(p2p.getOnlinePeers().has(bobPeer)).toBe(false);
+    });
+
+    it('stays online while the heartbeat keeps a reachable peer warm', async () => {
+      vi.useFakeTimers();
+      await p2p.initP2P();
+      p2p.sendP2P('web10.app', 'bob', { message: 'hi' });
+      const bobPeer = p2p.peerIdFor('web10.app', 'bob')!;
+      expect(p2p.getOnlinePeers().has(bobPeer)).toBe(true);
+      // Advance well past the TTL (60s). The heartbeat (25s) re-probes bob;
+      // the mock channel is still open, so each probe refreshes the TTL and
+      // bob never flips offline — a quiet-but-online peer stays online.
+      vi.advanceTimersByTime(120_000);
+      expect(p2p.getOnlinePeers().has(bobPeer)).toBe(true);
     });
 
     it('stays online while activity keeps refreshing the TTL', async () => {
@@ -248,6 +266,56 @@ describe('p2p (WebRTC P2P seam)', () => {
       p2p.sendP2P('web10.app', 'carol', { message: 'hi' }); // new peer → re-mark
       expect(ticks).toBe(2);
       unsub();
+    });
+  });
+
+  describe('probePresence', () => {
+    it('returns false and does not open a channel when P2P is not ready', () => {
+      const ok = p2p.probePresence('web10.app', 'bob');
+      expect(ok).toBe(false);
+      expect(connector.connect).not.toHaveBeenCalled();
+    });
+
+    it('marks the peer online when the channel is already open', async () => {
+      await p2p.initP2P();
+      const ok = p2p.probePresence('web10.app', 'bob');
+      const bobPeer = p2p.peerIdFor('web10.app', 'bob')!;
+      expect(ok).toBe(true);
+      expect(p2p.getOnlinePeers().has(bobPeer)).toBe(true);
+    });
+
+    it('marks the peer online once a not-yet-open channel opens', async () => {
+      await p2p.initP2P();
+      const notOpen = mockConnection({ open: false });
+      connector._connections.push(notOpen);
+      connector.connect.mockReturnValueOnce(notOpen as never);
+      const ok = p2p.probePresence('web10.app', 'bob');
+      const bobPeer = p2p.peerIdFor('web10.app', 'bob')!;
+      expect(ok).toBe(false);
+      expect(p2p.getOnlinePeers().has(bobPeer)).toBe(false);
+      // The channel opens → the peer comes online.
+      notOpen._emit('open');
+      expect(p2p.getOnlinePeers().has(bobPeer)).toBe(true);
+    });
+
+    it('marks the peer offline when the channel errors (peer unreachable)', async () => {
+      await p2p.initP2P();
+      // First probe: channel opens → online.
+      p2p.probePresence('web10.app', 'bob');
+      const bobPeer = p2p.peerIdFor('web10.app', 'bob')!;
+      expect(p2p.getOnlinePeers().has(bobPeer)).toBe(true);
+      // The connection errors (peer dropped / not connected to signaling) → offline.
+      connector._connections[0]._emit('error');
+      expect(p2p.getOnlinePeers().has(bobPeer)).toBe(false);
+    });
+
+    it('marks the peer offline when the probed connection closes', async () => {
+      await p2p.initP2P();
+      p2p.probePresence('web10.app', 'bob');
+      const bobPeer = p2p.peerIdFor('web10.app', 'bob')!;
+      expect(p2p.getOnlinePeers().has(bobPeer)).toBe(true);
+      connector._connections[0]._emit('close');
+      expect(p2p.getOnlinePeers().has(bobPeer)).toBe(false);
     });
   });
 
