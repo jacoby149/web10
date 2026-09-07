@@ -16,6 +16,7 @@ vi.mock('@/data', async (importOriginal) => {
     readGroupDirectory: vi.fn().mockResolvedValue([]),
     readGroupDetail: vi.fn().mockResolvedValue(null),
     readGroupIdentity: vi.fn().mockResolvedValue({}),
+    resolveMediaRefs: vi.fn().mockResolvedValue([]),
     joinGroup: vi.fn().mockResolvedValue({ status: 'joined' }),
     requestJoinGroup: vi.fn().mockResolvedValue({ status: 'pending' }),
     leaveGroup: vi.fn().mockResolvedValue({ status: 'left' }),
@@ -27,6 +28,7 @@ import {
   readGroupDirectory,
   readGroupDetail,
   readGroupIdentity,
+  resolveMediaRefs,
   joinGroup,
   requestJoinGroup,
   leaveGroup,
@@ -141,6 +143,23 @@ describe('GroupsScreen', () => {
     expect(screen.getAllByTestId('groups-my-row').length).toBe(2);
     expect(screen.getByText('gaming')).toBeInTheDocument();
     expect(screen.getByText('photography')).toBeInTheDocument();
+  });
+
+  it('the New group button opens the create-group sheet', async () => {
+    const { default: GroupsScreen } = await import('@/components/Groups/GroupsScreen');
+    render(
+      <MemoryRouter initialEntries={['/groups']}>
+        <GroupsScreen />
+      </MemoryRouter>,
+    );
+    const btn = screen.getByTestId('groups-new-button');
+    expect(btn).toBeInTheDocument();
+    // The sheet is not open yet
+    expect(screen.queryByTestId('create-group-sheet')).not.toBeInTheDocument();
+    fireEvent.click(btn);
+    await waitFor(() => {
+      expect(screen.getByTestId('create-group-sheet')).toBeInTheDocument();
+    });
   });
 
   it('shows the owner badge for owned groups and a Leave button for member groups', async () => {
@@ -395,6 +414,44 @@ describe('GroupDetailScreen', () => {
     expect(screen.getByTestId('group-detail-leave')).toBeInTheDocument();
   });
 
+  it('a member sees the group composer (feed-forward)', async () => {
+    await loadDetail();
+    await waitFor(() => {
+      expect(screen.getByTestId('group-detail-posts')).toBeInTheDocument();
+    });
+    // The composer is present for a member (the feed is the dominant surface)
+    expect(screen.getByTestId('group-composer')).toBeInTheDocument();
+    expect(screen.getByTestId('group-composer-input')).toBeInTheDocument();
+    // The Post button is disabled until there's text
+    expect(screen.getByTestId('group-composer-post')).toBeDisabled();
+    fireEvent.change(screen.getByTestId('group-composer-input'), { target: { value: 'Hello group' } });
+    expect(screen.getByTestId('group-composer-post')).toBeEnabled();
+  });
+
+  it('renders post media (image) when the group feed carries media', async () => {
+    vi.mocked(readGroupDetail).mockResolvedValue({
+      ...mockDetailMember,
+      posts: [
+        {
+          doc_id: 'doc-media',
+          author_key: 'carol',
+          collection_name: 'posts',
+          body: { text: 'Look at this', media_refs: ['media-doc-1'] },
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString(),
+        },
+      ],
+    } as never);
+    vi.mocked(resolveMediaRefs).mockResolvedValue([
+      { _id: 'media-doc-1', url: 'http://x/img.png', mime_type: 'image/png', created_at: '' },
+    ] as never);
+    await loadDetail();
+    await waitFor(() => {
+      expect(screen.getByTestId('group-post-image')).toBeInTheDocument();
+    });
+    expect((screen.getByTestId('group-post-image') as HTMLImageElement).src).toBe('http://x/img.png');
+  });
+
   it('shows join-to-view for a non-member and a Join button', async () => {
     vi.mocked(readGroupDetail).mockResolvedValue(mockDetailNonMember as never);
     await loadDetail();
@@ -426,7 +483,7 @@ describe('GroupDetailScreen', () => {
     await waitFor(() => {
       expect(screen.getByTestId('group-detail-join')).toBeInTheDocument();
     });
-    expect(screen.getByText('Request to join')).toBeInTheDocument();
+    expect(screen.getByText('Request')).toBeInTheDocument();
     fireEvent.click(screen.getByTestId('group-detail-join'));
     await waitFor(() => {
       expect(requestJoinGroup).toHaveBeenCalledWith(GROUP_ID);

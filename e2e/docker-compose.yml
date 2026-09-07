@@ -121,6 +121,11 @@ services:
       # docker-compose.ecosystem.yml and cd.yml since 1.0.131/1.0.133).
       context: ..
       dockerfile: marketing/marketing-ui/Dockerfile
+      args:
+        VITE_API_URL: http://api.localhost
+        VITE_AUTH_URL: http://auth.localhost
+        VITE_SOCIAL_URL: http://social.localhost
+        VITE_MARKETING_URL: http://marketing.localhost
     environment:
       VIRTUAL_HOST: marketing.localhost
     networks:

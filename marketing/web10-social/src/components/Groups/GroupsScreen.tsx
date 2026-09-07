@@ -14,6 +14,7 @@ import {
   type GroupDirectoryEntry,
 } from '@/data';
 import type { V3Group } from '@/data';
+import { CreateGroupSheet } from './CreateGroupSheet';
 import {
   Users,
   Search,
@@ -26,6 +27,7 @@ import {
   Lock,
   AlertTriangle,
   RefreshCw,
+  Plus,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
@@ -88,52 +90,58 @@ function MyGroupRow({ group, onOpen, onLeave, leaving }: MyGroupRowProps) {
         }
       }}
       className={cn(
-        'group flex w-full items-center gap-3 rounded-lg border border-border bg-card p-3 text-left cursor-pointer transition-all duration-150',
+        'group relative w-full overflow-hidden rounded-lg border border-border bg-card text-left cursor-pointer transition-all duration-150',
         'hover:-translate-y-0.5 hover:border-brand/30 hover:shadow-[0_0_24px_-8px_var(--color-glow)]',
         'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background',
         'motion-reduce:transform-none',
       )}
     >
-      <Avatar className={cn('h-11 w-11 shrink-0', hashToColor(group.group_id))}>
-        <AvatarFallback className="text-foreground text-base font-semibold">{initial}</AvatarFallback>
-      </Avatar>
-      <div className="min-w-0 flex-1">
-        <div className="flex items-center gap-2">
-          <h3 className="truncate text-sm font-semibold text-foreground">{name}</h3>
-          {isOwner && (
-            <Badge variant="brand" className="normal-case tracking-normal" data-testid="groups-my-role-owner">
-              Owner
-            </Badge>
-          )}
+      {/* Cover strip — each group wears its own accent (the hash color) */}
+      <div className={cn('h-9 w-full opacity-50', hashToColor(group.group_id))} aria-hidden="true" />
+      <div className="flex items-center gap-3 p-3 pt-0">
+        <div className="shrink-0 rounded-full border-2 border-card">
+          <Avatar className={cn('h-12 w-12 -mt-5', hashToColor(group.group_id))}>
+            <AvatarFallback className="text-foreground text-base font-semibold">{initial}</AvatarFallback>
+          </Avatar>
         </div>
-        <p className="mt-0.5 flex items-center gap-2 text-xs text-muted-foreground">
-          <span className="tabular-nums">{formatCount(group.member_count)} members</span>
-          <span aria-hidden="true">·</span>
-          <JoinPolicyBadge policy={group.join_policy} />
-        </p>
+        <div className="min-w-0 flex-1">
+          <div className="flex items-center gap-2">
+            <h3 className="truncate text-sm font-semibold text-foreground">{name}</h3>
+            {isOwner && (
+              <Badge variant="brand" className="normal-case tracking-normal" data-testid="groups-my-role-owner">
+                Owner
+              </Badge>
+            )}
+          </div>
+          <p className="mt-0.5 flex items-center gap-2 text-xs text-muted-foreground">
+            <span className="tabular-nums">{formatCount(group.member_count)} members</span>
+            <span aria-hidden="true">·</span>
+            <JoinPolicyBadge policy={group.join_policy} />
+          </p>
+        </div>
+        {!isOwner && (
+          <Button
+            variant="ghost"
+            size="sm"
+            data-testid="groups-leave-button"
+            disabled={leaving}
+            onClick={(e) => {
+              e.stopPropagation();
+              onLeave();
+            }}
+            className="shrink-0 gap-1.5 text-muted-foreground hover:text-danger hover:bg-danger-muted"
+            aria-label={`Leave ${name}`}
+          >
+            {leaving ? (
+              <Loader2 className="h-3.5 w-3.5 animate-spin" strokeWidth={2} />
+            ) : (
+              <LogOut className="h-3.5 w-3.5" strokeWidth={1.75} />
+            )}
+            <span className="hidden sm:inline">Leave</span>
+          </Button>
+        )}
+        <ChevronRight className="h-4 w-4 shrink-0 text-muted-foreground/50 transition-transform duration-150 group-hover:translate-x-0.5" />
       </div>
-      {!isOwner && (
-        <Button
-          variant="ghost"
-          size="sm"
-          data-testid="groups-leave-button"
-          disabled={leaving}
-          onClick={(e) => {
-            e.stopPropagation();
-            onLeave();
-          }}
-          className="shrink-0 gap-1.5 text-muted-foreground hover:text-danger hover:bg-danger-muted"
-          aria-label={`Leave ${name}`}
-        >
-          {leaving ? (
-            <Loader2 className="h-3.5 w-3.5 animate-spin" strokeWidth={2} />
-          ) : (
-            <LogOut className="h-3.5 w-3.5" strokeWidth={1.75} />
-          )}
-          Leave
-        </Button>
-      )}
-      <ChevronRight className="h-4 w-4 shrink-0 text-muted-foreground/50 transition-transform duration-150 group-hover:translate-x-0.5" />
     </div>
   );
 }
@@ -334,6 +342,9 @@ export default function GroupsScreen() {
     LOG('tab —', next);
   }, [searchParams, setSearchParams]);
 
+  // Create-group sheet (the "New group" flow).
+  const [createOpen, setCreateOpen] = useState(false);
+
   // Deep-link: discover search from ?q=
   const searchQuery = searchParams.get('q') || '';
   // Deep-link: discover tag filter from ?tag=
@@ -522,6 +533,15 @@ export default function GroupsScreen() {
         {/* My Groups */}
         {tab === 'my' && (
           <div className="flex-1 px-4 py-4 md:px-0" data-testid="groups-my-view">
+            <Button
+              variant="brand"
+              className="mb-4 w-full gap-2"
+              onClick={() => setCreateOpen(true)}
+              data-testid="groups-new-button"
+            >
+              <Plus className="h-4 w-4" strokeWidth={2} />
+              New group
+            </Button>
             {myError ? (
               <GroupsErrorState onRetry={loadMyGroups} />
             ) : isMyInitialLoad ? (
@@ -682,6 +702,17 @@ export default function GroupsScreen() {
             </div>
           </div>
         )}
+
+        {/* Create-group sheet */}
+        <CreateGroupSheet
+          open={createOpen}
+          onClose={() => setCreateOpen(false)}
+          onCreated={(groupId) => {
+            setCreateOpen(false);
+            LOG('created — navigating to', groupId);
+            navigate(`/groups/${encodeURIComponent(groupId)}`);
+          }}
+        />
       </div>
     </div>
   );
