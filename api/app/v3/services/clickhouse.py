@@ -742,6 +742,40 @@ def get_document_any_author(doc_id: str) -> dict | None:
     }
 
 
+def can_read_carrier_post(media_doc_id: str, media_author: str, reader: str) -> bool:
+    """True if `reader` can read a post that carries `media_doc_id` (D68).
+
+    The cross-user feed path for HLS: a `posts` doc whose `media_refs`
+    include the media doc_id, in a group the reader is an active member of.
+    The post's groups are the access model — the media doc is owned data,
+    not a boundary (social media docs are groupless). Scoped to the media
+    doc's AUTHOR's posts: a post can only carry its own author's media
+    (resolution is author-scoped), which bounds the scan to one user's
+    posts. Dedup-then-filter on both documents and group_members (the
+    house pattern — a removed member's stale row must not grant access).
+
+    `body` is a plain String column, so `JSONExtractArrayRaw` yields the
+    RAW array elements — JSON-encoded strings, i.e. WITH their quotes.
+    The match is against the quoted form.
+    """
+    result = client.query(
+        "SELECT 1 "
+        "FROM (SELECT doc_id AS post_id FROM ("
+        "SELECT doc_id, row_number() OVER (PARTITION BY doc_id, author_key ORDER BY updated_at DESC) AS rn "
+        "FROM documents "
+        "WHERE collection_name = 'posts' AND author_key = %(author)s AND deleted = 0 "
+        "AND has(JSONExtractArrayRaw(body, 'media_refs'), %(media)s)"
+        ") WHERE rn = 1) posts "
+        "JOIN doc_groups pg ON pg.doc_id = posts.post_id AND pg.deleted = 0 "
+        "JOIN (SELECT group_id, deleted, row_number() OVER (PARTITION BY group_id ORDER BY updated_at DESC, deleted DESC) AS rn "
+        "FROM group_members WHERE member_key = %(reader)s) gm ON gm.group_id = pg.group_id "
+        "WHERE gm.rn = 1 AND gm.deleted = 0 "
+        "LIMIT 1",
+        {"media": f'"{media_doc_id}"', "author": media_author, "reader": reader},
+    )
+    return len(result.result_rows) > 0
+
+
 # ---------------------------------------------------------------------------
 # Doc Groups
 # ---------------------------------------------------------------------------
@@ -2414,6 +2448,13 @@ def resolve_media_urls(doc_body: dict, user_key: str) -> dict:
     minted from the metadata's object_key on every read (document-typing:
     the document never stores a live URL) — a legacy stored `url` is only
     used when no object_key exists.
+
+    Dedups to the LATEST version per doc (the house pattern): `documents`
+    is a ReplacingMergeTree, so a transcoded media doc has several live
+    rows (created → processing → done) until a background merge collapses
+    them. Without the dedup, the read served an arbitrary version — a
+    stale `processing` row meant the feed missed the `transcoding_settings`
+    (and the minted manifest_url) and fell back to the raw MP4.
     """
     media_refs = doc_body.get("media_refs") or []
     if not media_refs:
@@ -2424,9 +2465,13 @@ def resolve_media_urls(doc_body: dict, user_key: str) -> dict:
     params = {"author_key": user_key, **{f"r{i}": rs for i, rs in enumerate(ref_strs)}}
 
     result = client.query(
-        f"SELECT doc_id, body, collection_name FROM documents "
+        f"SELECT doc_id, body, collection_name FROM ("
+        f"SELECT doc_id, body, collection_name, "
+        f"row_number() OVER (PARTITION BY doc_id, author_key ORDER BY updated_at DESC) AS rn "
+        f"FROM documents "
         f"WHERE doc_id IN ({placeholders}) AND author_key = %(author_key)s "
-        f"AND collection_name IN ('media_metadata', 'public_media') AND deleted = 0",
+        f"AND collection_name IN ('media_metadata', 'public_media') AND deleted = 0"
+        f") WHERE rn = 1",
         params,
     )
 
@@ -3142,6 +3187,11 @@ def list_media(
     narrows the list to specific documents — the exact-ref resolution the
     app's avatar/banner/post media refs need (a bare latest-N list misses
     refs older than the window).
+
+    Dedups to the LATEST version per doc (the house pattern — `documents`
+    is a ReplacingMergeTree, so a transcoded media doc has several live
+    rows until a background merge; without the dedup the list served an
+    arbitrary version).
     """
     params: dict = {"user_key": user_key, "limit": limit, "offset": offset}
     doc_id_filter = ""
@@ -3150,10 +3200,14 @@ def list_media(
         doc_id_filter = f"AND doc_id IN ({placeholders}) "
         params.update({f"d{i}": d for i, d in enumerate(doc_ids)})
     result = client.query(
-        "SELECT doc_id, author_key, collection_name, body, ref_value, tags, created_at, updated_at FROM documents "
+        "SELECT doc_id, author_key, collection_name, body, ref_value, tags, created_at, updated_at FROM ("
+        "SELECT doc_id, author_key, collection_name, body, ref_value, tags, created_at, updated_at, "
+        "row_number() OVER (PARTITION BY doc_id, author_key ORDER BY updated_at DESC) AS rn "
+        "FROM documents "
         "WHERE author_key = %(user_key)s "
         "AND collection_name IN ('media_metadata', 'public_media') "
-        "AND deleted = 0 " + doc_id_filter + "ORDER BY created_at DESC "
+        "AND deleted = 0 " + doc_id_filter + ") "
+        "WHERE rn = 1 ORDER BY created_at DESC "
         "LIMIT %(limit)s OFFSET %(offset)s",
         params,
     )

@@ -299,6 +299,60 @@ class TestMintHlsManifestUrls:
 
 
 # ---------------------------------------------------------------------------
+# can_view_doc — the access re-check (author / media-doc group / carrier post)
+# ---------------------------------------------------------------------------
+
+
+class TestCanViewDoc:
+    def _media_doc(self):
+        return {"doc_id": "media-1", "author_key": "alice", "body": {}}
+
+    def test_author_passes_without_carrier_check(self):
+        with (
+            patch("app.services.hls.ch.get_document_any_author", return_value=self._media_doc()),
+            patch("app.services.hls.ch.get_doc_groups", return_value=[]),
+            patch("app.services.hls.ch.can_read_carrier_post") as carrier,
+        ):
+            assert hls.can_view_doc("media-1", "alice") is not None
+        carrier.assert_not_called()
+
+    def test_media_doc_group_member_passes_without_carrier_check(self):
+        with (
+            patch("app.services.hls.ch.get_document_any_author", return_value=self._media_doc()),
+            patch("app.services.hls.ch.get_doc_groups", return_value=["g/media"]),
+            patch("app.services.hls.ch.is_group_member", return_value=True),
+            patch("app.services.hls.ch.can_read_carrier_post") as carrier,
+        ):
+            assert hls.can_view_doc("media-1", "bob") is not None
+        carrier.assert_not_called()
+
+    def test_carrier_post_reader_passes(self):
+        """D68 — the cross-user feed path: a follower who can read the post
+        that carries the media may stream it (the media doc is groupless)."""
+        with (
+            patch("app.services.hls.ch.get_document_any_author", return_value=self._media_doc()),
+            patch("app.services.hls.ch.get_doc_groups", return_value=[]),
+            patch("app.services.hls.ch.can_read_carrier_post", return_value=True) as carrier,
+        ):
+            assert hls.can_view_doc("media-1", "bob") is not None
+        carrier.assert_called_once_with("media-1", "alice", "bob")
+
+    def test_stranger_without_carrier_post_denied(self):
+        """I3 at the stream layer: no authorship, no media-doc group, no
+        carrier post the reader can read → None (the endpoint 403s)."""
+        with (
+            patch("app.services.hls.ch.get_document_any_author", return_value=self._media_doc()),
+            patch("app.services.hls.ch.get_doc_groups", return_value=[]),
+            patch("app.services.hls.ch.can_read_carrier_post", return_value=False),
+        ):
+            assert hls.can_view_doc("media-1", "eve") is None
+
+    def test_missing_doc_denied(self):
+        with patch("app.services.hls.ch.get_document_any_author", return_value=None):
+            assert hls.can_view_doc("media-1", "alice") is None
+
+
+# ---------------------------------------------------------------------------
 # Endpoints — the security seams
 # ---------------------------------------------------------------------------
 
