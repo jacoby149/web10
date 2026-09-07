@@ -15,6 +15,7 @@ class NodeConfig(BaseModel):
     # Policy flags
     beta_required: bool = False
     verify_required: bool = False
+    require_contact: bool = False
     pay_required: bool = False
     beta_code: str = ""
 
@@ -156,6 +157,7 @@ class ConfigUpdate(BaseModel):
     provider: str | None = None
     beta_required: bool | None = None
     verify_required: bool | None = None
+    require_contact: bool | None = None
     pay_required: bool | None = None
     beta_code: str | None = None
     free_credits: float | None = None

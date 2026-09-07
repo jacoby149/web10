@@ -8,6 +8,7 @@ import uuid
 from datetime import UTC, datetime
 
 import clickhouse_connect
+from clickhouse_connect.driver import exceptions as _ch_exceptions
 from uuid6 import uuid7
 
 import app.settings as settings
@@ -54,7 +55,14 @@ client = _LazyClickHouse()
 
 
 def _now() -> datetime:
-    return datetime.utcnow()
+    # Timezone-AWARE UTC. A naive datetime (datetime.utcnow()) is ambiguous:
+    # clickhouse-connect's insert() treats it as the process-local wall-clock and
+    # converts it to UTC (double-shifting it on any non-UTC host), while its
+    # command() parameter binding truncates it to second precision. An aware
+    # datetime is unambiguous — every write path stores the same UTC instant.
+    # (The 3.58.1 recovery-flake fix used a naive microsecond clock, which the
+    # command() binding silently truncated to seconds, so the flake survived.)
+    return datetime.now(UTC)
 
 
 def _iso_utc(dt) -> str:
@@ -85,6 +93,22 @@ def _from_iso_utc(s) -> datetime:
     if dt.tzinfo is not None:
         dt = dt.astimezone(UTC).replace(tzinfo=None)
     return dt
+
+
+def _ch_ts(dt) -> str:
+    """Format a datetime for a ClickHouse ``DateTime64`` column WRITE.
+
+    clickhouse-connect's ``command()`` parameter binding truncates a bound
+    datetime *object* to second precision, so a timestamp that must keep
+    sub-second ordering (the ``ReplacingMergeTree(updated_at)`` dedup keys off
+    it) is bound as a string instead — in the format ClickHouse parses for
+    ``DateTime64(3)`` (space-separated, no timezone, microsecond field). An
+    aware datetime is normalized to UTC first. (``_iso_utc`` is for API return
+    values, not writes: its ``T``/``Z`` form does not parse for ``DateTime64``.)
+    """
+    if dt.tzinfo is not None:
+        dt = dt.astimezone(UTC).replace(tzinfo=None)
+    return dt.strftime("%Y-%m-%d %H:%M:%S.%f")
 
 
 def _json(body: dict) -> str:
@@ -530,9 +554,16 @@ def insert_document(
     doc_id: str | None = None,
     ad_mode: str = "none",
     ad_target: str = "",
+    created_at: datetime | None = None,
 ) -> dict:
-    """Insert a document into the documents table. Generates doc_id if not provided."""
+    """Insert a document into the documents table. Generates doc_id if not provided.
+
+    `created_at` backdates the document (the import pipeline lands a catalog
+    with its original publish dates — "take your videos exactly"). `updated_at`
+    is always now (the write time) — the ReplacingMergeTree dedup keys off it.
+    """
     now = _now()
+    created = created_at or now
     if not doc_id:
         doc_id = _gen_doc_id()
     client.insert(
@@ -545,7 +576,7 @@ def insert_document(
                 _json(body),
                 ref_value or "",
                 tags or [],
-                now,
+                created,
                 now,
                 0,
                 ad_mode or "none",
@@ -562,7 +593,7 @@ def insert_document(
         "tags": tags or [],
         "ad_mode": ad_mode or "none",
         "ad_target": ad_target or "",
-        "created_at": _iso_utc(now),
+        "created_at": _iso_utc(created),
         "updated_at": _iso_utc(now),
     }
 
@@ -732,6 +763,40 @@ def get_document_any_author(doc_id: str) -> dict | None:
         "created_at": _iso_utc(row[6]),
         "updated_at": _iso_utc(row[7]),
     }
+
+
+def can_read_carrier_post(media_doc_id: str, media_author: str, reader: str) -> bool:
+    """True if `reader` can read a post that carries `media_doc_id` (D68).
+
+    The cross-user feed path for HLS: a `posts` doc whose `media_refs`
+    include the media doc_id, in a group the reader is an active member of.
+    The post's groups are the access model — the media doc is owned data,
+    not a boundary (social media docs are groupless). Scoped to the media
+    doc's AUTHOR's posts: a post can only carry its own author's media
+    (resolution is author-scoped), which bounds the scan to one user's
+    posts. Dedup-then-filter on both documents and group_members (the
+    house pattern — a removed member's stale row must not grant access).
+
+    `body` is a plain String column, so `JSONExtractArrayRaw` yields the
+    RAW array elements — JSON-encoded strings, i.e. WITH their quotes.
+    The match is against the quoted form.
+    """
+    result = client.query(
+        "SELECT 1 "
+        "FROM (SELECT doc_id AS post_id FROM ("
+        "SELECT doc_id, row_number() OVER (PARTITION BY doc_id, author_key ORDER BY updated_at DESC) AS rn "
+        "FROM documents "
+        "WHERE collection_name = 'posts' AND author_key = %(author)s AND deleted = 0 "
+        "AND has(JSONExtractArrayRaw(body, 'media_refs'), %(media)s)"
+        ") WHERE rn = 1) posts "
+        "JOIN doc_groups pg ON pg.doc_id = posts.post_id AND pg.deleted = 0 "
+        "JOIN (SELECT group_id, deleted, row_number() OVER (PARTITION BY group_id ORDER BY updated_at DESC, deleted DESC) AS rn "
+        "FROM group_members WHERE member_key = %(reader)s) gm ON gm.group_id = pg.group_id "
+        "WHERE gm.rn = 1 AND gm.deleted = 0 "
+        "LIMIT 1",
+        {"media": f'"{media_doc_id}"', "author": media_author, "reader": reader},
+    )
+    return len(result.result_rows) > 0
 
 
 # ---------------------------------------------------------------------------
@@ -1368,10 +1433,16 @@ def insert_moderation_flag(username: str, doc_id: str, matched_words: list[str])
 
 def get_moderation_flags() -> list[dict]:
     """The review queue: one row per flagged user — the flag count, the latest
-    flag time, and a sample of the matched words. Newest first."""
+    flag time, and a sample of the matched words. Newest first.
+
+    ``arrayFlatten(groupArray(matched_words))`` collects EVERY matched word
+    across a user's flags into a single array on a single row (one row per
+    user). The earlier ``arrayJoin(groupArray(...))`` split a multi-flag user
+    into one row PER flag (duplicating the user in the queue) — the flatten
+    keeps the GROUP BY's one-row-per-user guarantee."""
     result = client.query(
         "SELECT username, count(*) AS flag_count, max(created_at) AS last_flagged, "
-        "arrayJoin(groupArray(matched_words)) AS all_words "
+        "arrayFlatten(groupArray(matched_words)) AS all_words "
         "FROM moderation_flags GROUP BY username ORDER BY last_flagged DESC"
     )
     flags = []
@@ -1922,6 +1993,115 @@ def read_documents_in_groups(
     return _group_docs_query(group_ids, member_key, service, limit, offset, require_membership)
 
 
+class QueryExecutionError(Exception):
+    """A compiled (structurally safe) query failed in ClickHouse. The
+    boundary was already enforced at compile time, so a failure here is the
+    caller's SQL — a column the boundary CTE doesn't expose, a bad function
+    argument, a type mismatch — not a boundary breach."""
+
+
+def execute_query(compiled_sql: str, settings: dict | None = None) -> tuple[list[str], list[tuple]]:
+    """Run a compiled (trusted) query and return ``(column_names, rows)``.
+
+    The execution half of the flexible read: the SQL is already compiled by
+    the safe-query engine (boundary CTEs injected, everything validated), so
+    this just runs it. A ClickHouse error is re-raised as
+    ``QueryExecutionError`` (the caller's SQL is the problem); a transport /
+    node failure propagates as-is (a 500, not the caller's fault).
+    """
+    try:
+        result = client.query(compiled_sql, settings=settings)
+    except _ch_exceptions.Error as e:
+        raise QueryExecutionError(str(e)) from e
+    return list(result.column_names), list(result.result_rows)
+
+
+def read_docs_by_ref(
+    service: str,
+    ref_values: str | list[str],
+    group_ids: list[str],
+    member_key: str,
+    limit: int = 50,
+) -> list[dict]:
+    """Read docs by ref_value, through the safe-query engine (the full
+    boundary: group filter + block/sharing/hidden anti-joins). The flexible
+    read, phase 1 — the "give me the comments/reactions for these posts"
+    shape, routed through ``build_safe_query`` so it carries the same
+    visibility rules as the existing read path (a blocked user's comment is
+    hidden, a hidden doc is hidden).
+
+    ``ref_values`` is a single doc_id or a list (the engagement-count shape).
+    ``group_ids`` is the reader's readable groups for ``service`` (the D58 read
+    gate). ``member_key`` is the reader (the anti-join key; ``"anon"`` for a
+    token-less read).
+    """
+    from app.v3.services.safe_query import build_safe_query
+
+    refs = [ref_values] if isinstance(ref_values, str) else list(ref_values)
+    if not refs:
+        return []
+    # ref values are node-generated doc_ids (never caller input); the quoting
+    # is defense-in-depth against a stray quote.
+    quoted = ", ".join(f"'{r.replace(chr(39), chr(39) * 2)}'" for r in refs)
+    ref_clause = f"ref_value = {quoted}" if len(refs) == 1 else f"ref_value IN ({quoted})"
+    query = (
+        f"SELECT doc_id, author_key, body, ref_value, tags, created_at, updated_at "
+        f"FROM {service} WHERE {ref_clause} LIMIT {int(limit)}"
+    )
+    # The engine injects the boundary CTE for `service` (group filter +
+    # anti-joins) and validates the query (rejects raw tables / table
+    # functions). `service` is a service name, not a raw table — the engine
+    # treats it as a CTE to be built.
+    compiled = build_safe_query(query, {service: group_ids}, member_key)
+    result = client.query(compiled)
+    return [
+        {
+            "doc_id": row[0],
+            "author_key": row[1],
+            "body": _parse_json(row[2]),
+            "ref_value": row[3],
+            "tags": list(row[4]),
+            "created_at": _iso_utc(row[5]),
+            "service": service,
+        }
+        for row in result.result_rows
+    ]
+
+
+def read_ref_counts_by_ref(
+    service: str,
+    ref_values: str | list[str],
+    group_ids: list[str],
+    member_key: str,
+) -> dict[str, int]:
+    """Count docs by ref_value, through the safe-query engine (the full
+    boundary: group filter + block/sharing/hidden anti-joins). The
+    engagement-count shape: "how many comments/reactions in my readable groups
+    reference these posts." Returns ``{ref_value: count}`` — a ref with no docs
+    is absent (the caller treats absent as 0).
+
+    This is the server-side version of the feed/trending "read a capped sample,
+    count client-side" pattern. The ``GROUP BY ref_value`` runs over the
+    boundary CTE (deduped + group-filtered + anti-joined), so the count is
+    exact for the caller's readable groups and never undercounts (no cap). The
+    raw ``get_ref_counts`` is NOT used: it is a raw query with no group
+    boundary (a caller could count engagement on a post they can't see).
+    """
+    from app.v3.services.safe_query import build_safe_query
+
+    refs = [ref_values] if isinstance(ref_values, str) else list(ref_values)
+    if not refs:
+        return {}
+    # ref values are node-generated doc_ids (never caller input); the quoting
+    # is defense-in-depth against a stray quote.
+    quoted = ", ".join(f"'{r.replace(chr(39), chr(39) * 2)}'" for r in refs)
+    ref_clause = f"ref_value = {quoted}" if len(refs) == 1 else f"ref_value IN ({quoted})"
+    query = f"SELECT ref_value, count() AS n FROM {service} WHERE {ref_clause} GROUP BY ref_value"
+    compiled = build_safe_query(query, {service: group_ids}, member_key)
+    result = client.query(compiled)
+    return {row[0]: row[1] for row in result.result_rows}
+
+
 # ---------------------------------------------------------------------------
 # Ref counts (engagement)
 # ---------------------------------------------------------------------------
@@ -2074,7 +2254,7 @@ def get_active_node_ads() -> list[dict]:
         discover_group = f"{cfg.get_config_field('provider', 'api.localhost')}/groups/web10/discover"
         result = client.query(
             "SELECT doc_id, author_key, body, tags "
-            "FROM (SELECT doc_id, author_key, body, tags, deleted, "
+            "FROM (SELECT doc_id, author_key, body, tags, deleted, updated_at, "
             "row_number() OVER (PARTITION BY doc_id, author_key ORDER BY updated_at DESC) AS rn "
             "FROM documents "
             "WHERE collection_name = 'posts' AND has(tags, 'node_ad') AND deleted = 0) "
@@ -2273,6 +2453,21 @@ def revoke_provider_service_contract(provider_key: str, allowed_origin: str):
 # ---------------------------------------------------------------------------
 
 
+def _hls_settings_for_ref(meta: dict) -> dict | None:
+    """The media doc's `transcoding_settings` for a resolved media ref.
+
+    Carries everything except the read-minted `manifest_url` (the endpoint's
+    mint pass injects a fresh per-reader sig — a sig minted for one reader
+    must never ride the read to another). None when the doc has no HLS
+    settings (the common case — images, untranscoded video).
+    """
+    ts = meta.get("transcoding_settings")
+    if not isinstance(ts, dict) or not ts:
+        return None
+    safe = {k: v for k, v in ts.items() if k != "manifest_url"}
+    return safe or None
+
+
 def resolve_media_urls(doc_body: dict, user_key: str) -> dict:
     """Resolve media references in a document body to presigned URLs.
 
@@ -2282,6 +2477,13 @@ def resolve_media_urls(doc_body: dict, user_key: str) -> dict:
     minted from the metadata's object_key on every read (document-typing:
     the document never stores a live URL) — a legacy stored `url` is only
     used when no object_key exists.
+
+    Dedups to the LATEST version per doc (the house pattern): `documents`
+    is a ReplacingMergeTree, so a transcoded media doc has several live
+    rows (created → processing → done) until a background merge collapses
+    them. Without the dedup, the read served an arbitrary version — a
+    stale `processing` row meant the feed missed the `transcoding_settings`
+    (and the minted manifest_url) and fell back to the raw MP4.
     """
     media_refs = doc_body.get("media_refs") or []
     if not media_refs:
@@ -2292,9 +2494,13 @@ def resolve_media_urls(doc_body: dict, user_key: str) -> dict:
     params = {"author_key": user_key, **{f"r{i}": rs for i, rs in enumerate(ref_strs)}}
 
     result = client.query(
-        f"SELECT doc_id, body, collection_name FROM documents "
+        f"SELECT doc_id, body, collection_name FROM ("
+        f"SELECT doc_id, body, collection_name, "
+        f"row_number() OVER (PARTITION BY doc_id, author_key ORDER BY updated_at DESC) AS rn "
+        f"FROM documents "
         f"WHERE doc_id IN ({placeholders}) AND author_key = %(author_key)s "
-        f"AND collection_name IN ('media_metadata', 'public_media') AND deleted = 0",
+        f"AND collection_name IN ('media_metadata', 'public_media') AND deleted = 0"
+        f") WHERE rn = 1",
         params,
     )
 
@@ -2340,6 +2546,12 @@ def resolve_media_urls(doc_body: dict, user_key: str) -> dict:
                 "height": meta.get("height"),
                 "duration_seconds": meta.get("duration_seconds"),
                 "thumbnail_url": presigned.get(thumbnail_key) if thumbnail_key else meta.get("thumbnail_url"),
+                # The media doc's transcoding_settings (D44): status +
+                # variants let the client pick the player (hls.js when
+                # done, native <video> otherwise). The read-minted
+                # manifest_url is NOT carried — the read path mints a fresh
+                # sig per reader (documents.py _mint_hls_manifest_urls).
+                "transcoding_settings": _hls_settings_for_ref(meta),
             }
         )
 
@@ -2763,52 +2975,78 @@ def authenticate_user(username: str, plain_password: str) -> bool:
 
 
 def change_password(username: str, new_password_hash: str):
-    """Change a user's password."""
+    """Change a user's password.
+
+    The new row's ``updated_at`` is bound as an ISO-8601 UTC string
+    (``_ch_ts(_now())``), the same way every other table writes it. Binding a
+    raw datetime here would let clickhouse-connect's command() parameter binding
+    truncate it to second precision — and a second-precision row can lose the
+    ``ORDER BY updated_at DESC`` dedup to the microsecond-precision row
+    ``create_user`` wrote in the same second, so the read returns the stale row
+    (old hash) and the new password 401s (the recovery password-change flake).
+    """
     client.command(
         "INSERT INTO users (username, password_hash, phone, phone_verified, email, email_verified, created_at, updated_at, deleted) "
-        "SELECT username, %(new_hash)s, phone, phone_verified, email, email_verified, created_at, now(), 0 "
+        "SELECT username, %(new_hash)s, phone, phone_verified, email, email_verified, created_at, %(updated_at)s, 0 "
         "FROM users WHERE username = %(username)s AND deleted = 0",
-        {"username": username, "new_hash": new_password_hash},
+        {"username": username, "new_hash": new_password_hash, "updated_at": _ch_ts(_now())},
     )
 
 
 def change_phone(username: str, phone: str):
-    """Change a user's phone number (unverified)."""
+    """Change a user's phone number (unverified).
+
+    ``updated_at`` is bound as an ISO-8601 UTC string (see ``change_password``)
+    so the new row strictly outranks the old one in the ``updated_at``-ordered
+    dedup read.
+    """
     client.command(
         "INSERT INTO users (username, password_hash, phone, phone_verified, email, email_verified, created_at, updated_at, deleted) "
-        "SELECT username, password_hash, %(phone)s, 0, email, email_verified, created_at, now(), 0 "
+        "SELECT username, password_hash, %(phone)s, 0, email, email_verified, created_at, %(updated_at)s, 0 "
         "FROM users WHERE username = %(username)s AND deleted = 0",
-        {"username": username, "phone": phone},
+        {"username": username, "phone": phone, "updated_at": _ch_ts(_now())},
     )
 
 
 def set_email(username: str, email: str):
-    """Set a user's email (unverified)."""
+    """Set a user's email (unverified).
+
+    ``updated_at`` is bound as an ISO-8601 UTC string (see ``change_password``)
+    so the new row strictly outranks the old one in the ``updated_at``-ordered
+    dedup read.
+    """
     client.command(
         "INSERT INTO users (username, password_hash, phone, phone_verified, email, email_verified, created_at, updated_at, deleted) "
-        "SELECT username, password_hash, phone, phone_verified, %(email)s, 0, created_at, now(), 0 "
+        "SELECT username, password_hash, phone, phone_verified, %(email)s, 0, created_at, %(updated_at)s, 0 "
         "FROM users WHERE username = %(username)s AND deleted = 0",
-        {"username": username, "email": email},
+        {"username": username, "email": email, "updated_at": _ch_ts(_now())},
     )
 
 
 def verify_phone(username: str):
-    """Mark phone as verified."""
+    """Mark phone as verified.
+
+    Selects only the LATEST row — selecting every row would re-insert each one
+    (duplicating them), and the updated_at-ordered read could then pick a stale
+    row (e.g. one with an old password_hash after a change_password). The new
+    row's ``updated_at`` is bound as an ISO-8601 UTC string (see
+    ``change_password``) so it strictly outranks the row it copies.
+    """
     client.command(
         "INSERT INTO users (username, password_hash, phone, phone_verified, email, email_verified, created_at, updated_at, deleted) "
-        "SELECT username, password_hash, phone, 1, email, email_verified, created_at, now(), 0 "
-        "FROM users WHERE username = %(username)s AND deleted = 0",
-        {"username": username},
+        "SELECT username, password_hash, phone, 1, email, email_verified, created_at, %(updated_at)s, 0 "
+        "FROM (SELECT * FROM users WHERE username = %(username)s AND deleted = 0 ORDER BY updated_at DESC LIMIT 1)",
+        {"username": username, "updated_at": _ch_ts(_now())},
     )
 
 
 def verify_email(username: str):
-    """Mark email as verified."""
+    """Mark email as verified (latest row only — see verify_phone)."""
     client.command(
         "INSERT INTO users (username, password_hash, phone, phone_verified, email, email_verified, created_at, updated_at, deleted) "
-        "SELECT username, password_hash, phone, phone_verified, email, 1, created_at, now(), 0 "
-        "FROM users WHERE username = %(username)s AND deleted = 0",
-        {"username": username},
+        "SELECT username, password_hash, phone, phone_verified, email, 1, created_at, %(updated_at)s, 0 "
+        "FROM (SELECT * FROM users WHERE username = %(username)s AND deleted = 0 ORDER BY updated_at DESC LIMIT 1)",
+        {"username": username, "updated_at": _ch_ts(_now())},
     )
 
 
@@ -2844,37 +3082,91 @@ def get_phone_record(phone_number: str) -> dict | None:
     return {"username": row[0], "phone": row[1]}
 
 
-def get_users_by_phone(phone_number: str) -> list[dict]:
-    """Find ALL users whose phone matches (for recovery — a phone can back several accounts).
+def get_users_by_contact(contact: str) -> list[dict]:
+    """All active users whose current phone OR email matches the contact (D61).
 
-    The plural of get_phone_record. The stored phone format varies (with/without
-    a leading +, spaces, dashes), so both sides are normalized to digits before
-    comparing (replaceRegexpAll strips non-digits in SQL). Deduped to the latest
-    row per username first (the ReplacingMergeTree pattern) so a stale row from a
-    changed phone can't resurrect an old number.
+    Deduped to the latest row per username (the ReplacingMergeTree current
+    state), then filtered by the contact column. A contact can carry many
+    usernames (the "pick one of the users" step). Phones are compared by digits
+    (the stored format varies: with/without a leading +, spaces, dashes);
+    emails by exact (lowercased, trimmed) match.
     """
-    digits = re.sub(r"\D", "", phone_number or "")
-    if not digits:
-        return []
+    c = (contact or "").strip()
+    if "@" in c:
+        where = "email = %(contact)s"
+        norm = c.lower()
+    else:
+        digits = re.sub(r"\D", "", c)
+        if not digits:
+            return []
+        where = "replaceRegexpAll(phone, '[^0-9]', '') = %(contact)s"
+        norm = digits
     result = client.query(
-        "SELECT username, phone, phone_verified, email FROM ("
-        "SELECT username, phone, phone_verified, email, deleted, "
-        "row_number() OVER (PARTITION BY username ORDER BY updated_at DESC, deleted DESC) AS rn "
-        "FROM users) "
-        "WHERE rn = 1 AND deleted = 0 "
-        "AND replaceRegexpAll(phone, '[^0-9]', '') = %(digits)s "
-        "ORDER BY username",
-        {"digits": digits},
+        "SELECT username, phone, email, phone_verified, email_verified FROM ("
+        "SELECT username, phone, email, phone_verified, email_verified, "
+        "row_number() OVER (PARTITION BY username ORDER BY updated_at DESC, deleted DESC) as rn "
+        "FROM users WHERE deleted = 0"
+        ") WHERE rn = 1 AND " + where,
+        {"contact": norm},
     )
     return [
         {
             "username": row[0],
             "phone": row[1],
-            "phone_verified": bool(row[2]),
-            "email": row[3],
+            "email": row[2],
+            "phone_verified": bool(row[3]),
+            "email_verified": bool(row[4]),
         }
         for row in result.result_rows
     ]
+
+
+# ---------------------------------------------------------------------------
+# Recovery codes (D61 local-Twilio mode) — a real table, not in-memory.
+#
+# The API runs multiple uvicorn workers (WEB_CONCURRENCY), each a separate
+# process. An in-memory code store would set the code in one worker and check
+# it in another (always a miss). A ClickHouse table is shared across workers,
+# so the e2e's fixed code ("123456") survives the worker hop. Only ever used
+# when TWILIO_E2E is on (the e2e stack) — prod uses Twilio Verify.
+# ---------------------------------------------------------------------------
+
+_RECOVERY_CODES_TABLE = """
+CREATE TABLE IF NOT EXISTS recovery_codes (
+    contact String,
+    code String,
+    created_at DateTime
+) ENGINE = MergeTree()
+ORDER BY contact
+"""
+
+
+def _ensure_recovery_codes_table():
+    try:
+        client.command(_RECOVERY_CODES_TABLE)
+    except Exception:
+        pass
+
+
+def set_recovery_code(contact: str, code: str):
+    """Store a recovery code for a contact (latest wins on read)."""
+    _ensure_recovery_codes_table()
+    client.insert(
+        "recovery_codes",
+        [[contact, code, _now()]],
+    )
+
+
+def check_recovery_code(contact: str, code: str) -> bool:
+    """True if the stored code for the contact matches. False if none set."""
+    _ensure_recovery_codes_table()
+    result = client.query(
+        "SELECT code FROM recovery_codes WHERE contact = %(contact)s ORDER BY created_at DESC LIMIT 1",
+        {"contact": contact},
+    )
+    if not result.result_rows:
+        return False
+    return result.result_rows[0][0] == code
 
 
 # ---------------------------------------------------------------------------
@@ -2923,6 +3215,11 @@ def list_media(
     narrows the list to specific documents — the exact-ref resolution the
     app's avatar/banner/post media refs need (a bare latest-N list misses
     refs older than the window).
+
+    Dedups to the LATEST version per doc (the house pattern — `documents`
+    is a ReplacingMergeTree, so a transcoded media doc has several live
+    rows until a background merge; without the dedup the list served an
+    arbitrary version).
     """
     params: dict = {"user_key": user_key, "limit": limit, "offset": offset}
     doc_id_filter = ""
@@ -2931,10 +3228,14 @@ def list_media(
         doc_id_filter = f"AND doc_id IN ({placeholders}) "
         params.update({f"d{i}": d for i, d in enumerate(doc_ids)})
     result = client.query(
-        "SELECT doc_id, author_key, collection_name, body, ref_value, tags, created_at, updated_at FROM documents "
+        "SELECT doc_id, author_key, collection_name, body, ref_value, tags, created_at, updated_at FROM ("
+        "SELECT doc_id, author_key, collection_name, body, ref_value, tags, created_at, updated_at, "
+        "row_number() OVER (PARTITION BY doc_id, author_key ORDER BY updated_at DESC) AS rn "
+        "FROM documents "
         "WHERE author_key = %(user_key)s "
         "AND collection_name IN ('media_metadata', 'public_media') "
-        "AND deleted = 0 " + doc_id_filter + "ORDER BY created_at DESC "
+        "AND deleted = 0 " + doc_id_filter + ") "
+        "WHERE rn = 1 ORDER BY created_at DESC "
         "LIMIT %(limit)s OFFSET %(offset)s",
         params,
     )

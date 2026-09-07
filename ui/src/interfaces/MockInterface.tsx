@@ -18,8 +18,9 @@ function useMockInterface() {
     [I.requests, I.setRequests] = React.useState(mockRequests);
     [I.phone, I.setPhone] = React.useState("13472092325");
 
-    [I.recoveryStep, I._setRecoveryStep] = React.useState("phone");
-    [I.recoveryPhone, I.setRecoveryPhone] = React.useState("13472092325");
+    [I.recoveryStep, I._setRecoveryStep] = React.useState("contact");
+    [I.recoveryContact, I.setRecoveryContact] = React.useState("13472092325");
+    [I.recoveryVerifyToken, I.setRecoveryVerifyToken] = React.useState("");
     [I.recoveryAccounts, I.setRecoveryAccounts] = React.useState<any[]>([]);
 
     [I.auth, I.setAuth] = React.useState(false);
@@ -86,19 +87,20 @@ function useMockInterface() {
         I._setRecoveryStep(step);
     }
 
-    I.recoverRequest = function (phone: string) {
-        I.setRecoveryPhone(phone);
+    I.recoverRequest = function (contact: string) {
+        I.setRecoveryContact(contact);
         I.setRecoveryStep("code");
         I.setStatus("Code sent — check your phone.");
     }
 
-    I.recoverVerify = function (_phone: string, _code: string) {
+    I.recoverVerify = function (_contact: string, _code: string) {
+        I.setRecoveryVerifyToken("mock-verify-token");
         I.setRecoveryAccounts([{ username: "creator", email: "creator@example.com" }]);
         I.setRecoveryStep("pick");
         I.setStatus(null);
     }
 
-    I.recoverComplete = function () {
+    I.recoverComplete = function (_username: string, _newPassword?: string) {
         I.setAuth(true);
         I.setMode("contracts");
     }
@@ -146,6 +148,31 @@ function useMockInterface() {
     I.businessLogin = function () { }
     I.initAuthenticator = function () { }
     I.servicesLoad = function () { }
+
+    // Import (mock) — the "port your YouTube" pipeline. Simulates the
+    // create → upload → start → poll flow without a node.
+    I.importCreate = function (_platform: string, parts: { filename: string }[]) {
+        return Promise.resolve({
+            job_id: 'mock-job',
+            platform: 'youtube',
+            job: { phase: 'pending' },
+            uploads: parts.map((p, i) => ({
+                part_index: i,
+                object_key: `imports/creator/mock-job/part-${String(i).padStart(3, '0')}`,
+                upload_url: 'https://mock.minio/upload',
+                fields: { key: `imports/creator/mock-job/part-${String(i).padStart(3, '0')}` },
+            })),
+        });
+    };
+    I.importStart = function (_jobId: string) {
+        return Promise.resolve({ job_id: _jobId, status: 'queued' });
+    };
+    I.importStatus = function (_jobId: string) {
+        return Promise.resolve({
+            job_id: _jobId,
+            job: { phase: 'complete', total_records: 42, written_records: 42, skipped_records: 0, errors: [], message: 'Import complete: 42 written, 0 skipped.' },
+        });
+    };
 
     return I;
 }

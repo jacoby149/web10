@@ -22,6 +22,7 @@ function mockV3Client() {
     readToken: vi.fn(() => ({ provider: 'web10.app', username: 'alice' })),
     create: vi.fn(),
     read: vi.fn(),
+    readRefCounts: vi.fn(),
     readById: vi.fn(),
     update: vi.fn(),
     delete: vi.fn(),
@@ -33,7 +34,7 @@ function mockV3Client() {
   return mock;
 }
 
-describe('readFeedEngagement (the ref pattern)', () => {
+describe('readFeedEngagement (the ref pattern — server-side count)', () => {
   let mock: ReturnType<typeof mockV3Client>;
 
   beforeEach(() => {
@@ -44,39 +45,37 @@ describe('readFeedEngagement (the ref pattern)', () => {
     vi.restoreAllMocks();
   });
 
-  it('counts reactions + comments by ref_value over the feed groups', async () => {
-    mock.read.mockImplementation(async (service: string) => {
-      if (service === 'reactions') {
-        return [
-          { ref_value: 'p1' },
-          { ref_value: 'p1' },
-          { ref_value: 'p2' },
-          { ref_value: undefined }, // no target — not counted
-        ];
-      }
-      if (service === 'comments') {
-        return [
-          { ref_value: 'p1' },
-          { ref_value: 'p3' },
-        ];
-      }
-      return [];
+  it('returns the server-side counts for the feed posts', async () => {
+    mock.readRefCounts.mockImplementation(async (service: string) => {
+      if (service === 'reactions') return { p1: 2, p2: 1 };
+      if (service === 'comments') return { p1: 1, p3: 1 };
+      return {};
     });
 
-    const { likes, comments } = await readFeedEngagement(['g1', 'g2']);
+    const { likes, comments } = await readFeedEngagement(['g1', 'g2'], ['p1', 'p2', 'p3']);
 
     expect(likes).toEqual({ p1: 2, p2: 1 });
     expect(comments).toEqual({ p1: 1, p3: 1 });
   });
 
-  it('reads reactions + comments in one pass over the given groups', async () => {
-    mock.read.mockResolvedValue([]);
+  it('calls readRefCounts for reactions + comments with the post ids (no cap)', async () => {
+    mock.readRefCounts.mockResolvedValue({});
 
-    await readFeedEngagement(['ga', 'gb'], 250);
+    await readFeedEngagement(['ga', 'gb'], ['p1', 'p2']);
 
-    expect(mock.read).toHaveBeenCalledTimes(2);
-    expect(mock.read).toHaveBeenCalledWith('reactions', { groups: ['ga', 'gb'], limit: 250 });
-    expect(mock.read).toHaveBeenCalledWith('comments', { groups: ['ga', 'gb'], limit: 250 });
+    expect(mock.readRefCounts).toHaveBeenCalledTimes(2);
+    expect(mock.readRefCounts).toHaveBeenCalledWith('reactions', { groups: ['ga', 'gb'], ref: ['p1', 'p2'] });
+    expect(mock.readRefCounts).toHaveBeenCalledWith('comments', { groups: ['ga', 'gb'], ref: ['p1', 'p2'] });
+  });
+
+  it('returns empty counts and makes no read when there are no posts', async () => {
+    mock.readRefCounts.mockResolvedValue({});
+
+    const { likes, comments } = await readFeedEngagement(['ga'], []);
+
+    expect(likes).toEqual({});
+    expect(comments).toEqual({});
+    expect(mock.readRefCounts).not.toHaveBeenCalled();
   });
 });
 

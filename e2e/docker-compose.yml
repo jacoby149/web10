@@ -12,24 +12,6 @@ services:
     networks:
       - e2e-net
 
-  postgres:
-    image: ghcr.io/ferretdb/postgres-documentdb:17
-    environment:
-      - POSTGRES_USER=web10
-      - POSTGRES_PASSWORD=web10
-      - POSTGRES_DB=postgres
-    networks:
-      - e2e-net
-
-  ferretdb:
-    image: ghcr.io/ferretdb/ferretdb:2
-    depends_on:
-      - postgres
-    environment:
-      - FERRETDB_POSTGRESQL_URL=postgres://web10:web10@postgres:5432/postgres
-    networks:
-      - e2e-net
-
   clickhouse:
     image: clickhouse/clickhouse-server:24.8
     user: "101:101"
@@ -48,7 +30,6 @@ services:
   api:
     build: ../api
     depends_on:
-      - ferretdb
       - minio
       - clickhouse
     volumes:
@@ -56,8 +37,6 @@ services:
     environment:
       VIRTUAL_HOST: api.localhost
       PROVIDER: api.localhost
-      DB_URL: mongodb://web10:web10@ferretdb:27017/
-      DB: web10
       S3_ENDPOINT: http://minio:9000
       # The presigned URLs the browser follows — host-reachable. Parameterized
       # so parallel workspaces' e2e stacks don't collide on host :9000
@@ -66,6 +45,10 @@ services:
       CORS_SERVICE_MANAGERS: auth.localhost,social.localhost,marketing.localhost
       STRIPE_STATUS: test
       STRIPE_TEST_KEY: ${STRIPE_TEST_KEY:-sk_test_placeholder}
+      # Local-Twilio mode for the recovery flow (D61) — a deterministic
+      # in-memory code store instead of a real Twilio call (CI has no
+      # credentials). The e2e knows the fixed code "123456". Never set in prod.
+      TWILIO_E2E: "true"
       CLICKHOUSE_HOST: clickhouse
       CLICKHOUSE_PORT: "8123"
       CLICKHOUSE_DATABASE: web10
@@ -138,6 +121,11 @@ services:
       # docker-compose.ecosystem.yml and cd.yml since 1.0.131/1.0.133).
       context: ..
       dockerfile: marketing/marketing-ui/Dockerfile
+      args:
+        VITE_API_URL: http://api.localhost
+        VITE_AUTH_URL: http://auth.localhost
+        VITE_SOCIAL_URL: http://social.localhost
+        VITE_MARKETING_URL: http://marketing.localhost
     environment:
       VIRTUAL_HOST: marketing.localhost
     networks:

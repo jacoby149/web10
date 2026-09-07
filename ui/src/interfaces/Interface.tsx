@@ -148,11 +148,13 @@ function useInterface() {
     [I.requests, I.setRequests] = React.useState([]);
     [I.phone, I.setPhone] = React.useState("");
 
-    // Phone-recovery flow (Phase 2): phone → code → pick account → sign in.
-    // The step is wizard state (default "phone"; a fresh load can't resume
-    // code/pick because the phone isn't persisted, so it always starts at phone).
-    [I.recoveryStep, I._setRecoveryStep] = React.useState("phone");
-    [I.recoveryPhone, I.setRecoveryPhone] = React.useState("");
+    // Contact-anchored auth (D61): contact (phone OR email) → code → pick an
+    // account (or create one) → sign in. The step is wizard state (default
+    // "contact"; a fresh load can't resume code/pick because the contact isn't
+    // persisted, so it always starts at contact).
+    [I.recoveryStep, I._setRecoveryStep] = React.useState("contact");
+    [I.recoveryContact, I.setRecoveryContact] = React.useState("");
+    [I.recoveryVerifyToken, I.setRecoveryVerifyToken] = React.useState("");
     [I.recoveryAccounts, I.setRecoveryAccounts] = React.useState([]);
 
     [I.auth, I.setAuth] = React.useState(restoreAuth);
@@ -181,6 +183,21 @@ function useInterface() {
     [I.v3Invites, I.setV3Invites] = React.useState<any[]>([]);
 
     I.v3 = v3;
+
+    // ── Import (the "port your YouTube" pipeline) ─────────────────────────────
+    // The node-side import: create a job + presigned upload URLs (one per
+    // export part), upload the parts straight to MinIO, start, then poll.
+    // The presigned upload itself is a raw POST to MinIO (done in the card);
+    // these three wrap the v3 endpoints.
+    I.importCreate = function (platform: string, parts: { filename: string; size_bytes?: number }[]) {
+        return v3Post('imports', { platform, parts });
+    };
+    I.importStart = function (jobId: string) {
+        return v3Post('imports/start', { job_id: jobId });
+    };
+    I.importStatus = function (jobId: string) {
+        return v3Post('imports/status', { job_id: jobId });
+    };
 
     // Normalize contract requests into a unified list (app + group contracts).
     // contractListen delivers { contracts } where each CR is either:
@@ -478,41 +495,42 @@ function useInterface() {
 
     I.setRecoveryStep = function (step: string) {
         I._setRecoveryStep(step);
-        // Mirror the step in the URL (the deep-link rule). The phone isn't
-        // persisted, so a fresh load always resumes at "phone" regardless.
+        // Mirror the step in the URL (the deep-link rule). The contact isn't
+        // persisted, so a fresh load always resumes at "contact" regardless.
         try {
             const url = new URL(window.location.href);
-            if (step === "phone") url.searchParams.delete("recovery");
+            if (step === "contact") url.searchParams.delete("recovery");
             else url.searchParams.set("recovery", step);
             window.history.replaceState({}, "", url.toString());
         } catch { /* non-navigable context — state still updates */ }
     }
 
-    I.recoverRequest = function (phone: string) {
+    I.recoverRequest = function (contact: string) {
         I.setStatus("Sending code...");
-        v3PostAnon("recovery/request", { phone })
-            .then(() => {
-                I.setRecoveryPhone(phone);
+        v3PostAnon("recovery/request", { contact })
+            .then((res: any) => {
+                I.setRecoveryContact(contact);
                 I.setRecoveryStep("code");
-                I.setStatus("Code sent — check your phone.");
+                I.setStatus(res?.kind === "email" ? "Code sent — check your inbox." : "Code sent — check your phone.");
             })
             .catch((e: any) => I.setStatus(e.message || String(e)));
     }
 
-    I.recoverVerify = function (phone: string, code: string) {
+    I.recoverVerify = function (contact: string, code: string) {
         I.setStatus("Verifying...");
-        v3PostAnon("recovery/verify", { phone, code })
+        v3PostAnon("recovery/verify", { contact, code })
             .then((res: any) => {
                 I.setRecoveryAccounts(res.accounts || []);
+                I.setRecoveryVerifyToken(res.verify_token || "");
                 I.setRecoveryStep("pick");
                 I.setStatus(null);
             })
             .catch((e: any) => I.setStatus(e.message || String(e)));
     }
 
-    I.recoverComplete = function (phone: string, code: string, username: string, newPassword?: string) {
+    I.recoverComplete = function (username: string, newPassword?: string) {
         I.setStatus("Signing you in...");
-        const body: Record<string, any> = { phone, code, username };
+        const body: Record<string, any> = { verify_token: I.recoveryVerifyToken, username };
         if (newPassword) body.new_password = newPassword;
         v3PostAnon("recovery/complete", body)
             .then((res: any) => {
@@ -803,8 +821,8 @@ function applyACR(cr: any) {
         const groupId = `${provider}/groups/users/${username}/${name.toLowerCase().replace(/[^a-z0-9]+/g, '-')}`;
 
         const roles = cr.roles || [
-            { name: 'owner', services: ['*'], permissions: ['readAll', 'create', 'updateOwn', 'updateAll', 'deleteOwn', 'deleteAll', 'hideAll', 'manageRoles', 'assignRoles', 'revokeRoles', 'deleteGroup'] },
-            { name: 'member', services: ['posts', 'comments'], permissions: ['readAll', 'create', 'updateOwn', 'deleteOwn'] },
+            { name: 'owner', permissions: { '*': ['readAll', 'create', 'updateOwn', 'updateAll', 'deleteOwn', 'deleteAll', 'hideAll'], group: ['manageRoles', 'assignRoles', 'revokeRoles', 'deleteGroup'] } },
+            { name: 'member', permissions: { posts: ['readAll', 'create', 'updateOwn', 'deleteOwn'], comments: ['readAll', 'create', 'updateOwn', 'deleteOwn'] } },
         ];
 
         const members = cr.members || [{ member_key: username, role: 'owner' }];
@@ -1035,6 +1053,11 @@ function applyACR(cr: any) {
     // v4 features — not available in v3
     I.getPlan = function () {
         I.setStatus("Plan management is a v4 feature.");
+        // The Subscription card chains .then()/.catch() on this — it must
+        // return a Promise (the MockInterface one does). Reject: the feature
+        // is unavailable, so the card's .catch swallows it and the plan/util
+        // stay at their defaults.
+        return Promise.reject(new Error("Plan management is a v4 feature."));
     }
 
     I.manageSpace = function () {

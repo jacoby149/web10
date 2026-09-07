@@ -43,8 +43,44 @@ def _moderate_post(author: str, doc_id: str, service: str, body: dict, groups: l
         log.warning("[moderation] auto-hide failed (non-fatal): %s: %s", type(e).__name__, e)
 
 
+def _mint_ref_manifest(ref, reader_key: str) -> dict:
+    """Mint a `manifest_url` into a resolved media ref that carries HLS
+    settings — the feed path, where the post's media_refs carry the media
+    doc's transcoding_settings (resolve_media_urls carries them) and the sig
+    is minted for the READER (cross-user: a follower streams the creator's
+    video; the manifest endpoint re-checks access on every fetch).
+
+    The prefix binds to the ref's object_key — for media_metadata/public_media
+    docs that IS the raw video file's key (the flat shape the social app's
+    uploadMedia writes), so it matches the worker's hls_prefix.
+    """
+    if not isinstance(ref, dict):
+        return ref
+    ts = ref.get("transcoding_settings")
+    if not isinstance(ts, dict) or not ts.get("enabled"):
+        return ref
+    doc_id = ref.get("doc_id")
+    object_key = ref.get("object_key")
+    if not doc_id or not object_key:
+        return ref
+    sig = mint_sig(reader_key, doc_id, hls_prefix(str(object_key)))
+    return {
+        **ref,
+        "transcoding_settings": {
+            **ts,
+            "manifest_url": f"/v3/media/hls/manifest?doc_id={doc_id}&sig={sig}",
+        },
+    }
+
+
 def _mint_hls_manifest_urls(docs: list[dict], reader_key: str) -> list[dict]:
-    """Inject `transcoding_settings.manifest_url` into transcoded docs.
+    """Inject `transcoding_settings.manifest_url` into transcoded media.
+
+    Two sites: (1) the doc itself — a direct read of a media doc whose body
+    carries `video` + `transcoding_settings` (the media demo's poll path);
+    (2) the doc's resolved media_refs — the feed path, where a post's
+    media_refs carry the media doc's transcoding_settings and the sig is
+    minted for the reader.
 
     The sig is bound to (reader, doc, hls prefix) with a 10-minute TTL — the
     expiry is the group-membership re-check cadence (minio-auth-bifurcated).
@@ -53,17 +89,39 @@ def _mint_hls_manifest_urls(docs: list[dict], reader_key: str) -> list[dict]:
     out = []
     for doc in docs:
         body = doc.get("body") or {}
+        doc = dict(doc)
+        body = dict(body)
+        # (1) the doc itself (a media doc read directly)
         ts = body.get("transcoding_settings") or {}
         video = body.get("video")
         if ts.get("enabled") and isinstance(video, dict) and video.get("value"):
             sig = mint_sig(reader_key, doc["doc_id"], hls_prefix(str(video["value"])))
-            body = dict(body)
             body["transcoding_settings"] = {
                 **ts,
                 "manifest_url": f"/v3/media/hls/manifest?doc_id={doc['doc_id']}&sig={sig}",
             }
-            doc = dict(doc)
-            doc["body"] = body
+        # (2) the resolved media_refs (the feed path)
+        refs = body.get("media_refs")
+        if isinstance(refs, list) and any(
+            isinstance(r, dict) and isinstance(r.get("transcoding_settings"), dict) for r in refs
+        ):
+            body["media_refs"] = [_mint_ref_manifest(r, reader_key) for r in refs]
+        doc["body"] = body
+        # (2) the inline ads too — their media_refs are resolved the same way
+        for ad_key in ("ad", "node_ad"):
+            ad = doc.get(ad_key)
+            if not isinstance(ad, dict):
+                continue
+            ad_body = ad.get("body") or {}
+            ad_refs = ad_body.get("media_refs")
+            if isinstance(ad_refs, list) and any(
+                isinstance(r, dict) and isinstance(r.get("transcoding_settings"), dict) for r in ad_refs
+            ):
+                ad = dict(ad)
+                ad_body = dict(ad_body)
+                ad_body["media_refs"] = [_mint_ref_manifest(r, reader_key) for r in ad_refs]
+                ad["body"] = ad_body
+                doc[ad_key] = ad
         out.append(doc)
     return out
 
@@ -168,6 +226,34 @@ def read_documents(request: Request, data: ReadDocuments):
                 status_code=403,
                 detail="not a member of the requested group",
             )
+
+    if data.ref is not None:
+        if data.count:
+            # The engagement-count shape: {ref_value: count} for these posts.
+            # GROUP BY ref_value through the safe-query engine — exact for the
+            # reader's readable groups, no cap (the feed/trending server-side
+            # count). group_ids is already the reader's readable set (above).
+            return ch.read_ref_counts_by_ref(
+                service=data.service,
+                ref_values=data.ref,
+                group_ids=group_ids,
+                member_key=reader,
+            )
+        # The ref filter (the flexible read, phase 1): "give me the
+        # comments/reactions for these posts." Routed through the safe-query
+        # engine (read_docs_by_ref → build_safe_query) so it carries the full
+        # boundary — group filter + block/sharing/hidden — not just a raw
+        # WHERE. group_ids is already the reader's readable set (above).
+        docs = ch.read_docs_by_ref(
+            service=data.service,
+            ref_values=data.ref,
+            group_ids=group_ids,
+            member_key=reader,
+            limit=data.limit,
+        )
+        docs = ch.attach_pinned_ads(docs, reader)
+        docs = ch.attach_node_ads(docs, reader)
+        return _mint_hls_manifest_urls(ch.resolve_media_urls_in_docs(docs), reader)
 
     docs = ch.read_documents_in_groups(
         group_ids=group_ids,

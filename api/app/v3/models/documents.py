@@ -68,6 +68,16 @@ class ReadDocuments(BaseModel):
     offset: int = 0
     match: dict | None = None
     sort: PowerMeanSort | None = None
+    # The ref filter (the flexible read, phase 1): return only the docs whose
+    # ref_value matches. A single doc_id or a list (the engagement-count shape:
+    # "give me the comments/reactions for these posts"). Routed through the
+    # safe-query engine (build_safe_query) so it carries the full boundary —
+    # group filter + block/sharing/hidden — not just a raw WHERE.
+    ref: str | list[str] | None = None
+    # With `ref`, return a {ref_value: count} map instead of the docs — the
+    # server-side engagement-count shape (GROUP BY ref_value through the
+    # engine). Exact for the caller's readable groups, no cap.
+    count: bool = False
 
 
 class UpdateDocument(BaseModel):

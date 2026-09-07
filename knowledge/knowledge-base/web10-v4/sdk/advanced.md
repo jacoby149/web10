@@ -4,28 +4,35 @@ These SDK features are beyond the core v3 architecture switch. They require the 
 
 ## w.query() — CTE-Wrapped ClickHouse SQL
 
-Full ClickHouse SQL. The API wraps it in a CTE to enforce permissions: tombstones, group membership, blacklists.
+**Implemented in v3** (the safe-query engine). Full ClickHouse `SELECT` over
+your services — the API compiles it through the safe-query engine (boundary
+CTEs + block/sharing/hidden) and runs it. Read-only by construction: raw node
+tables, table functions, and anything but a single `SELECT` are rejected before
+execution. Self-joins, aggregations, subqueries, and caller CTEs all work, and
+none can leak past your groups.
 
 ```ts
 const results = await w.query(`
-  SELECT p.doc_id, p.author_key, count() as reaction_count
-  FROM documents p
-  WHERE p.collection_name = 'reactions'
-    AND p.ref_value IN (
-      SELECT doc_id FROM documents WHERE collection_name = 'posts'
-    )
+  SELECT p.doc_id, p.author_key, countIf(c.ref_value = p.doc_id) AS reactions
+  FROM posts p
+  LEFT JOIN reactions c ON c.ref_value = p.doc_id
   GROUP BY p.doc_id, p.author_key
-  ORDER BY reaction_count DESC
+  ORDER BY reactions DESC
   LIMIT 50
 `)
 ```
 
-The API wraps your query in a CTE, then applies:
-- `WHERE deleted = 0` (tombstone filter)
-- Group membership check (you only see documents in groups you belong to)
-- Blacklist check (blocked authors excluded)
+The engine replaces each service name with an API-built boundary CTE, then
+applies:
+- `deleted = 0` (tombstone filter) + ReplacingMergeTree dedup
+- Group membership check (you only see documents in groups you can read)
+- Block/sharing/hidden filters (blocked authors, paused sharing, hidden docs)
 
-**⚠️ Design note:** the CTE-wrapping approach needs careful auditing to prevent CTE escape. Edge cases around table aliases, UNION, and subquery scope are being worked through. This is a v2 feature — not available in v1.
+**Note:** the original design wrapped the query over the raw `documents` table
+with a `user_docs` CTE. The implemented design is stronger — the caller queries
+*service names* that the engine rewrites to boundary CTEs, so the raw tables are
+unreachable (a wall, not a membrane). See
+`../web10-v3/safe-query.md` + `../web10-v3/query-engine.md`.
 
 ## PowerMean Sorting
 
@@ -127,5 +134,5 @@ A bad app floods the network → providers block it at the node level. The provi
 
 ## Summary
 
-v3 has: basic CRUD with groups, simple sorting (`created_at:desc`), weak document typing, user-level service contracts.
-v4 adds: `w.query()` with CTE wrapping, `powerMean` sorting, cross-node addressing, enforced schemas, provider-level service contracts.
+v3 has: basic CRUD with groups, `w.query()` (the flexible read), simple sorting (`created_at:desc`), weak document typing, user-level service contracts.
+v4 adds: `powerMean` sorting, cross-node addressing, enforced schemas, provider-level service contracts.

@@ -1,5 +1,38 @@
 import { test, expect, type APIRequestContext, type Page } from '@playwright/test';
+import { readFileSync } from 'fs';
+import { createHmac } from 'crypto';
+import { dirname, resolve } from 'path';
+import { fileURLToPath } from 'url';
 import { API_BASE, v3Login, v3Signup } from '../v3-helpers';
+
+// The committed 8s 720x1280 (9:16 vertical) H.264/AAC test video — the same
+// fixture the hls.spec.ts gauntlet drives through the transcode worker.
+const here = dirname(fileURLToPath(import.meta.url));
+const TEST_VIDEO = readFileSync(resolve(here, '../fixtures/test-video-vertical.mp4'));
+
+// The node's HS256 signing secret (api/app/settings.py dev default — the e2e
+// stack runs with it, and the repo is open source). Used to mint stream sigs
+// directly, including for users the read path would never mint for (the I3
+// anti-tests — same pattern as hls.spec.ts).
+const NODE_SECRET = '8cbec8.....';
+
+function b64url(buf: Buffer): string {
+  return buf.toString('base64').replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+}
+/** Mint a stream sig the way the read path does (same secret, same claims). */
+function mintSig(username: string, docId: string, prefix: string, ttlSeconds = 600): string {
+  const now = Math.floor(Date.now() / 1000);
+  const header = b64url(Buffer.from(JSON.stringify({ alg: 'HS256', typ: 'JWT' })));
+  const payload = b64url(
+    Buffer.from(JSON.stringify({ username, doc_id: docId, prefix, iat: now, exp: now + ttlSeconds })),
+  );
+  const sig = b64url(createHmac('sha256', NODE_SECRET).update(`${header}.${payload}`).digest());
+  return `${header}.${payload}.${sig}`;
+}
+/** The hls prefix for a raw object key (the worker writes HLS under {dir}/hls). */
+function hlsPrefix(objectKey: string): string {
+  return objectKey.slice(0, objectKey.lastIndexOf('/')) + '/hls';
+}
 
 /**
  * Social feed — the integration floor for web10-social's /feed surface
@@ -99,13 +132,135 @@ async function joinGroup(request: APIRequestContext, token: string, groupId: str
   expect(res.ok(), `join ${groupId} failed (${res.status})`).toBeTruthy();
 }
 
-async function postDoc(request: APIRequestContext, token: string, groupId: string, text: string): Promise<string> {
+async function postDoc(request: APIRequestContext, token: string, groupId: string, text: string, mediaRefs?: string[]): Promise<string> {
   const res = await request.post(`${API_BASE}/v3/create`, {
-    data: JSON.stringify({ token, service: SERVICE, body: { text, date: new Date().toISOString() }, groups: [groupId] }),
+    data: JSON.stringify({
+      token,
+      service: SERVICE,
+      body: { text, date: new Date().toISOString(), ...(mediaRefs ? { media_refs: mediaRefs } : {}) },
+      groups: [groupId],
+    }),
     headers: { 'Content-Type': 'application/json', Origin: SOCIAL_ORIGIN },
   });
   expect(res.ok(), `create doc failed (${res.status})`).toBeTruthy();
   return (await res.json()).doc_id as string;
+}
+
+/** Create a media group through the API (the media demo's `media-{username}` pattern — the user owns it). */
+async function createMediaGroupViaApi(request: APIRequestContext, token: string, username: string): Promise<string> {
+  const res = await request.post(`${API_BASE}/v3/groups/create`, {
+    data: JSON.stringify({
+      token,
+      name: `media-${username}`,
+      join_policy: 'invite_only',
+      roles: [
+        { name: 'owner', services: ['*'], permissions: ['readAll', 'create', 'updateOwn', 'deleteOwn', 'manageRoles'] },
+      ],
+      members: [{ member_key: username, role: 'owner' }],
+    }),
+    headers: { 'Content-Type': 'application/json' },
+  });
+  expect(res.ok(), `create media group failed (${res.status})`).toBeTruthy();
+  return (await res.json()).group_id as string;
+}
+
+// ---------------------------------------------------------------------------
+// Transcoded video setup (D44) — the same pipeline the media demo drives:
+// presigned upload → media doc with the video minio leaf → queue transcode →
+// poll the doc (it is the status surface) until done.
+// ---------------------------------------------------------------------------
+
+async function uploadVideoToMinio(request: APIRequestContext, token: string): Promise<string> {
+  const uploadRes = await request.post(`${API_BASE}/v3/media/upload-url`, {
+    data: JSON.stringify({ token, body: { filename: 'test-video-vertical.mp4', mime_type: 'video/mp4' } }),
+    headers: { 'Content-Type': 'application/json' },
+  });
+  expect(uploadRes.ok(), `upload-url failed (${uploadRes.status})`).toBeTruthy();
+  const { upload_url, fields, object_key } = (await uploadRes.json()) as any;
+  const multipart: Record<string, string | { name: string; mimeType: string; buffer: Buffer }> = {
+    ...(fields as Record<string, string>),
+    file: { name: 'test-video-vertical.mp4', mimeType: 'video/mp4', buffer: TEST_VIDEO },
+  };
+  const putRes = await request.post(upload_url, { multipart });
+  const status = putRes.status();
+  const body = await putRes.text();
+  if (status >= 300 || body.includes('<Error>')) {
+    throw new Error(`MinIO upload failed: status ${status}, body: ${body}`);
+  }
+  return object_key as string;
+}
+
+/**
+ * Create a media_metadata doc for an uploaded video, attached to a group the
+ * user can read it through (read_document_by_id is group-gated — the media
+ * demo's docs live in a `media-{username}` group the user owns).
+ * `withVideoLeaf` gives it the `video: {type:'minio', value}` ref the
+ * transcode worker reads (the social app's confirmMediaUpload writes the flat
+ * object_key shape; the leaf is what makes the doc transcodeable — both
+ * point at the same raw file).
+ */
+async function createMediaDoc(
+  request: APIRequestContext,
+  token: string,
+  objectKey: string,
+  withVideoLeaf: boolean,
+  groupId: string,
+): Promise<string> {
+  const res = await request.post(`${API_BASE}/v3/create`, {
+    data: JSON.stringify({
+      token,
+      service: 'media_metadata',
+      body: {
+        ...(withVideoLeaf ? { video: { type: 'minio', value: objectKey } } : {}),
+        object_key: objectKey,
+        filename: 'test-video-vertical.mp4',
+        mime_type: 'video/mp4',
+        size_bytes: TEST_VIDEO.length,
+        width: 720,
+        height: 1280,
+        duration_seconds: 8,
+      },
+      groups: [groupId],
+    }),
+    headers: { 'Content-Type': 'application/json' },
+  });
+  expect(res.ok(), `create media doc failed (${res.status})`).toBeTruthy();
+  return (await res.json()).doc_id as string;
+}
+
+/** Upload the vertical test video, transcode it, and wait for `done`. */
+async function uploadAndTranscodeMediaDoc(
+  request: APIRequestContext,
+  token: string,
+  username: string,
+  groupId: string,
+): Promise<{ docId: string; objectKey: string }> {
+  const objectKey = await uploadVideoToMinio(request, token);
+  const docId = await createMediaDoc(request, token, objectKey, true, groupId);
+
+  const tcRes = await request.post(`${API_BASE}/v3/media/transcode`, {
+    data: JSON.stringify({ token, doc_id: docId }),
+    headers: { 'Content-Type': 'application/json' },
+  });
+  expect(tcRes.ok(), `transcode queue failed (${tcRes.status})`).toBeTruthy();
+  expect((await tcRes.json()).status).toBe('queued');
+
+  // Poll the document — it is the status surface (processing → done|failed).
+  const deadline = Date.now() + 240_000;
+  let ts: any = null;
+  while (Date.now() < deadline) {
+    const readRes = await request.post(`${API_BASE}/v3/read`, {
+      data: JSON.stringify({ token, service: 'media_metadata', doc_id: docId }),
+      headers: { 'Content-Type': 'application/json' },
+    });
+    expect(readRes.ok()).toBeTruthy();
+    ts = (await readRes.json()).body?.transcoding_settings;
+    if (ts && (ts.status === 'done' || ts.status === 'failed')) break;
+    await sleep(2000);
+  }
+  expect(ts, 'transcoding_settings never appeared').toBeTruthy();
+  expect(ts.status, `transcode did not finish: ${JSON.stringify(ts)}`).toBe('done');
+  return { docId, objectKey };
 }
 
 /** Read one group's posts (the app's read shape, scoped to a single group). */
@@ -285,6 +440,106 @@ test.describe('Social feed — API floor (the app\'s exact read)', () => {
     expect(feedGroups).toEqual([]);
     expect(posts).toEqual([]);
   });
+
+  test('a transcoded video post\'s feed read carries transcoding_settings + a working minted manifest (D44)', async ({ request }) => {
+    test.setTimeout(300_000);
+    const viewer = await signupAndLogin(request, 'sfhls');
+    await addAppContract(request, viewer.token, SOCIAL_ORIGIN, SOCIAL_CONTRACT_PERMISSIONS);
+    const fViewer = await createFollowersGroupViaApi(request, viewer.token, viewer.username);
+    const mViewer = await createMediaGroupViaApi(request, viewer.token, viewer.username);
+
+    // The transcoded media doc (upload → transcode → done) + a post that
+    // carries it, in the viewer's own followers group (the feed's home).
+    const { docId } = await uploadAndTranscodeMediaDoc(request, viewer.token, viewer.username, mViewer);
+    await postDoc(request, viewer.token, fViewer, 'hls video post', [docId]);
+
+    // The app's exact feed read, polled until the post surfaces (ClickHouse
+    // is eventually consistent). The resolved media ref must carry the
+    // media doc's transcoding_settings (status done + variants) and a
+    // manifest_url minted for the READER (the feed's hls.js player picks on
+    // status === 'done' + manifest_url).
+    let ref: any = null;
+    await expect(async () => {
+      const { posts: feedPosts } = await appFeedRead(request, viewer.token, 'newest');
+      const post = feedPosts.find((p) => p.text === 'hls video post');
+      if (!post) throw new Error('hls video post never surfaced in the feed read');
+      // Re-read the post's resolved media refs through the same read shape.
+      const readRes = await request.post(`${API_BASE}/v3/read`, {
+        data: JSON.stringify({ token: viewer.token, service: SERVICE, groups: [fViewer], limit: 50 }),
+        headers: { 'Content-Type': 'application/json', Origin: SOCIAL_ORIGIN },
+      });
+      const docs: any[] = await readRes.json();
+      const doc = docs.find((d) => d.doc_id === post.doc_id);
+      ref = doc?.body?.media_refs?.find((m: any) => typeof m === 'object' && m.doc_id === docId);
+      if (!ref) throw new Error('media ref not resolved in the feed read');
+      const ts = ref.transcoding_settings;
+      if (!ts) throw new Error('transcoding_settings not carried into the resolved ref');
+      expect(ts.status).toBe('done');
+      expect(ts.variants.length).toBeGreaterThanOrEqual(2);
+      expect(ts.manifest_url).toContain(`/v3/media/hls/manifest?doc_id=${docId}`);
+      expect(ts.manifest_url).toContain('sig=');
+    }).toPass({ timeout: 30_000 });
+
+    // The minted manifest actually serves (sig valid + access re-check
+    // passes for the author): master manifest synthesized from the variants.
+    const manifestRes = await request.get(`${API_BASE}${ref.transcoding_settings.manifest_url}`);
+    expect(manifestRes.ok(), `manifest fetch failed (${manifestRes.status})`).toBeTruthy();
+    expect(manifestRes.headers()['content-type']).toContain('mpegurl');
+    const master = await manifestRes.text();
+    expect(master).toContain('#EXTM3U');
+    expect(master.match(/#EXT-X-STREAM-INF/g)?.length).toBe(ref.transcoding_settings.variants.length);
+  });
+
+  test('a FOLLOWER streams the creator\'s transcoded video (D68 — stream access tracks post access)', async ({ request }) => {
+    test.setTimeout(300_000);
+    const creator = await signupAndLogin(request, 'sf68c');
+    const follower = await signupAndLogin(request, 'sf68f');
+    const stranger = await signupAndLogin(request, 'sf68s');
+    for (const u of [creator, follower, stranger]) {
+      await addAppContract(request, u.token, SOCIAL_ORIGIN, SOCIAL_CONTRACT_PERMISSIONS);
+    }
+
+    // Creator: followers group + media group; upload → transcode → done; a
+    // post carrying the media doc on the followers group.
+    const fCreator = await createFollowersGroupViaApi(request, creator.token, creator.username);
+    const mCreator = await createMediaGroupViaApi(request, creator.token, creator.username);
+    const { docId, objectKey } = await uploadAndTranscodeMediaDoc(request, creator.token, creator.username, mCreator);
+    await postDoc(request, creator.token, fCreator, 'creator hls post', [docId]);
+
+    // The follower follows the creator (open join = instant).
+    await joinGroup(request, follower.token, fCreator);
+
+    // The follower's feed read mints a manifest_url for the FOLLOWER (3.67.0).
+    let ref: any = null;
+    await expect(async () => {
+      const readRes = await request.post(`${API_BASE}/v3/read`, {
+        data: JSON.stringify({ token: follower.token, service: SERVICE, groups: [fCreator], limit: 50 }),
+        headers: { 'Content-Type': 'application/json', Origin: SOCIAL_ORIGIN },
+      });
+      expect(readRes.ok()).toBeTruthy();
+      const docs: any[] = await readRes.json();
+      const doc = docs.find((d) => d.body?.text === 'creator hls post');
+      if (!doc) throw new Error('creator hls post never surfaced in the follower read');
+      ref = doc.body.media_refs?.find((m: any) => typeof m === 'object' && m.doc_id === docId);
+      if (!ref?.transcoding_settings?.manifest_url) throw new Error('follower read did not mint a manifest_url');
+    }).toPass({ timeout: 30_000 });
+    const followerSig = ref.transcoding_settings.manifest_url.split('sig=')[1];
+
+    // D68: the sig is bound to the follower, and the access re-check passes
+    // through the CARRIER POST (the media doc is groupless — the post's
+    // groups are the access model). The master manifest serves.
+    const followerRes = await request.get(`${API_BASE}/v3/media/hls/manifest?doc_id=${docId}&sig=${followerSig}`);
+    expect(followerRes.ok(), `follower manifest fetch failed (${followerRes.status})`).toBeTruthy();
+    expect(followerRes.headers()['content-type']).toContain('mpegurl');
+    expect(await followerRes.text()).toContain('#EXTM3U');
+
+    // I3 at the stream layer: a sig for a NON-follower (minted directly — the
+    // read path would never mint one: the stranger can't read the post) is
+    // 403 — no carrier post the stranger can read.
+    const strangerSig = mintSig(stranger.username, docId, hlsPrefix(objectKey));
+    const strangerRes = await request.get(`${API_BASE}/v3/media/hls/manifest?doc_id=${docId}&sig=${strangerSig}`);
+    expect(strangerRes.status()).toBe(403);
+  });
 });
 
 // ---------------------------------------------------------------------------
@@ -356,6 +611,116 @@ test.describe('Social feed gauntlet — render → post → reload persists', ()
     expect(createLog).toContain(DISCOVER_GROUP_ID);
     expect(createLog).toContain('/followers');
     // No feed/create failures in the console.
+    const errors = logs.filter((l) => l.includes('Failed') || l.includes('Error'));
+    expect(errors).toEqual([]);
+  });
+
+  test('a transcoded video post renders the hls.js player; a direct MP4 post renders native video (D44)', async ({ page, context, request }) => {
+    test.setTimeout(300_000);
+    const logs = captureConsoleLogs(page, '[social-feed]');
+    const pageErrors: string[] = [];
+    page.on('pageerror', (err) => pageErrors.push(String(err)));
+
+    // Setup (API): the viewer's own followers group + two video posts — one
+    // transcoded (the hls.js path) and one direct MP4 (the native path, the
+    // Phase-2 import shape: raw file, no transcode).
+    const viewer = await signupAndLogin(request, 'sfhui');
+    await addAppContract(request, viewer.token, SOCIAL_ORIGIN, SOCIAL_CONTRACT_PERMISSIONS);
+    const fViewer = await createFollowersGroupViaApi(request, viewer.token, viewer.username);
+    const mViewer = await createMediaGroupViaApi(request, viewer.token, viewer.username);
+
+    const { docId, objectKey } = await uploadAndTranscodeMediaDoc(request, viewer.token, viewer.username, mViewer);
+    const hlsPost = `hls feed post ${Date.now()}`;
+    await postDoc(request, viewer.token, fViewer, hlsPost, [docId]);
+
+    const rawDocId = await createMediaDoc(request, viewer.token, objectKey, false, mViewer);
+    const rawPost = `raw feed post ${Date.now()}`;
+    await postDoc(request, viewer.token, fViewer, rawPost, [rawDocId]);
+
+    await setTokenCookie(context, 'social.localhost', viewer.token);
+    await setTokenCookie(context, 'auth.localhost', viewer.token);
+
+    await page.goto(`${SOCIAL_BASE}/feed`);
+    await page.waitForLoadState('networkidle');
+
+    // --- The transcoded post: the hls.js player, not a plain <video> ---
+    await expect(page.locator('[data-testid="hls-video-player"]')).toBeVisible({ timeout: 30_000 });
+    // The quality dropdown is populated from the PARSED manifest (Auto + each
+    // level — the e2e stack transcodes the 720x1280 source to 360p + 720p),
+    // which also proves the minted sig streams (manifest → variants).
+    await expect(async () => {
+      const options = await page.locator('[data-testid="quality-select"] option').allTextContents();
+      expect(options).toContain('Auto');
+      expect(options).toContain('360p');
+      expect(options).toContain('720p');
+    }).toPass({ timeout: 30_000 });
+    // Speed + fullscreen (the player spec, video-experience.md).
+    await expect(page.locator('[data-testid="speed-select"]')).toBeVisible();
+    await expect(page.locator('[data-testid="fullscreen-button"]')).toBeVisible();
+    // 9:16 source → the phone-width column (the immersive feed feel).
+    await expect(page.locator('[data-testid="hls-video-player"] .max-w-\\[280px\\]').first()).toBeVisible();
+
+    // --- The direct MP4 post: the native <video> path (unchanged) ---
+    const nativeVideo = page.locator('[data-testid="media-video"] video');
+    await expect(nativeVideo).toHaveCount(1);
+    await expect(nativeVideo).toHaveAttribute('src', /test-video-vertical/);
+
+    // Exactly one of each in the feed.
+    await expect(page.locator('[data-testid="hls-video-player"]')).toHaveCount(1);
+    await expect(page.locator('[data-testid="media-video"]')).toHaveCount(1);
+
+    // No uncaught exceptions, no feed/player failures in the console.
+    expect(pageErrors).toEqual([]);
+    const errors = logs.filter((l) => l.includes('Failed') || l.includes('Error'));
+    expect(errors).toEqual([]);
+  });
+
+  test('a FOLLOWER\'s feed renders the creator\'s transcoded video through the hls.js player (D68)', async ({ page, context, request }) => {
+    test.setTimeout(300_000);
+    const logs = captureConsoleLogs(page, '[social-feed]');
+    const pageErrors: string[] = [];
+    page.on('pageerror', (err) => pageErrors.push(String(err)));
+
+    // Setup (API): a creator whose transcoded video post is visible to a
+    // follower (the media doc is groupless — the post's followers group is
+    // the access model, D68).
+    const creator = await signupAndLogin(request, 'sf68ui');
+    const follower = await signupAndLogin(request, 'sf68uif');
+    for (const u of [creator, follower]) {
+      await addAppContract(request, u.token, SOCIAL_ORIGIN, SOCIAL_CONTRACT_PERMISSIONS);
+    }
+    const fCreator = await createFollowersGroupViaApi(request, creator.token, creator.username);
+    const mCreator = await createMediaGroupViaApi(request, creator.token, creator.username);
+    const { docId } = await uploadAndTranscodeMediaDoc(request, creator.token, creator.username, mCreator);
+    const hlsPost = `creator hls post ${Date.now()}`;
+    await postDoc(request, creator.token, fCreator, hlsPost, [docId]);
+    await joinGroup(request, follower.token, fCreator);
+
+    // The BROWSER is the follower.
+    await setTokenCookie(context, 'social.localhost', follower.token);
+    await setTokenCookie(context, 'auth.localhost', follower.token);
+
+    await page.goto(`${SOCIAL_BASE}/feed`);
+    await page.waitForLoadState('networkidle');
+
+    // The creator's transcoded post renders the hls.js player in the
+    // FOLLOWER's feed (not the native fallback, not the error state): the
+    // minted sig streams through the carrier-post access check.
+    await expect(page.locator('[data-testid="hls-video-player"]')).toBeVisible({ timeout: 30_000 });
+    // The quality dropdown is populated from the PARSED manifest (Auto +
+    // each level) — proof the follower's hls.js fetched the master + variant
+    // manifests (the sig is valid for the follower).
+    await expect(async () => {
+      const options = await page.locator('[data-testid="quality-select"] option').allTextContents();
+      expect(options).toContain('Auto');
+      expect(options).toContain('360p');
+      expect(options).toContain('720p');
+    }).toPass({ timeout: 30_000 });
+    // The player's designed error state is NOT showing.
+    await expect(page.locator('[data-testid="hls-player-error"]')).toHaveCount(0);
+
+    // No uncaught exceptions, no feed/player failures in the console.
+    expect(pageErrors).toEqual([]);
     const errors = logs.filter((l) => l.includes('Failed') || l.includes('Error'));
     expect(errors).toEqual([]);
   });

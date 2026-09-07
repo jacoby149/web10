@@ -16,7 +16,27 @@ function LoginForm({ I, embedded = false }: { I: Record<string, any>; embedded?:
         </>
       )}
 
-      <div className={embedded ? "space-y-1" : "mt-6 space-y-1"}>
+      {/* Primary sign-in — the contact-anchored flow (D61): phone or email →
+          code → pick an account. The username+password form stays as the
+          fallback for accounts without a contact. */}
+      <Button
+        variant="brand"
+        className={embedded ? "mt-4 w-full" : "mt-6 w-full"}
+        data-testid="login-contact-cta"
+        onClick={() => I.setMode("forgot")}
+      >
+        Sign in with phone or email
+      </Button>
+
+      {!embedded && (
+        <div className="my-4 flex items-center gap-3 text-xs text-muted-foreground">
+          <div className="h-px flex-1 bg-border" />
+          <span>or username and password</span>
+          <div className="h-px flex-1 bg-border" />
+        </div>
+      )}
+
+      <div className={embedded ? "space-y-1" : "space-y-1"}>
         <Provider I={I} />
         <Username I={I} />
         <Password I={I} />

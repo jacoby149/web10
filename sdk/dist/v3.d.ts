@@ -18,6 +18,9 @@
  * const doc = await w.create('posts', { text: 'hello' }, { groups: ['{provider}/groups/web10/discover'] })
  * const posts = await w.read('posts', { groups: ['me'] })
  *
+ * // The flexible read — a ClickHouse SELECT over your services (read-only)
+ * const { rows } = await w.query('SELECT p.doc_id, count() AS n FROM posts p JOIN reactions r ON r.ref_value = p.doc_id GROUP BY p.doc_id ORDER BY n DESC LIMIT 20')
+ *
  * // Service contracts
  * await w.addServiceContract('my-app', 'https://my-app.example.com')
  * const contracts = await w.listServiceContracts()
@@ -53,6 +56,7 @@ export interface V3Document {
     ad_mode?: string;
     ad_target?: string;
     ad?: V3Document;
+    node_ad?: V3Document;
 }
 export interface V3Group {
     group_id: string;
@@ -81,6 +85,10 @@ export interface V3JoinRequest {
 export interface V3ServiceContract {
     allowed_origin: string;
     permissions: Record<string, string[]>;
+}
+export interface V3QueryResult {
+    rows: Record<string, unknown>[];
+    count: number;
 }
 export interface V3GroupRole {
     name: string;
@@ -211,13 +219,22 @@ export interface V3Client {
     create(collection: string, body: Record<string, unknown>, opts?: {
         groups?: string[];
         ad_preference?: V3AdPreference;
+        ref_value?: string;
     }): Promise<V3Document>;
     read(collection: string, opts: {
         groups: string[];
         limit?: number;
         offset?: number;
+        ref?: string | string[];
     }): Promise<V3Document[]>;
+    readRefCounts(collection: string, opts: {
+        groups: string[];
+        ref: string | string[];
+    }): Promise<Record<string, number>>;
     readById(docId: string, collection: string): Promise<V3Document>;
+    query(sql: string, opts?: {
+        groups?: string[];
+    }): Promise<V3QueryResult>;
     update(docId: string, body: Record<string, unknown>, opts?: {
         groups?: string[];
         ad_preference?: V3AdPreference;

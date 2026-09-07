@@ -3,21 +3,151 @@ import { useParams, Link, useLocation } from 'react-router-dom'
 import { remark } from 'remark'
 import remarkGfm from 'remark-gfm'
 import remarkHtml from 'remark-html'
-import { FileText, Code, Terminal, ExternalLink, Compass, BookOpen } from 'lucide-react'
+import { FileText, Code, Terminal, ExternalLink, Compass, BookOpen, User, Radio, DollarSign } from 'lucide-react'
 import { trackFunnel } from '../lib/analytics'
 
-const DOC_PAGES = [
-  { slug: 'overview', title: 'Overview', file: '/docs/overview.md' },
-  { slug: 'protocol-spec', title: 'Protocol Spec', file: '/docs/protocol-spec.md' },
-  { slug: 'conventions', title: 'Conventions', file: '/docs/conventions.md' },
-  { slug: 'sdk', title: 'SDK Guide', file: '/docs/sdk.md' },
-  { slug: 'cli-quickstart', title: 'CLI Quickstart', file: '/docs/cli-quickstart.md' },
-  { slug: 'export-guidance', title: 'Export Guidance', file: '/docs/export-guidance.md' },
+type DocPage = { slug: string; title: string; file: string }
+
+// The audience model (plan.md "Public Docs Overhaul"): each section answers
+// "who is this for?" — the pitch, then one section per reader. Demo apps are
+// their own section (they're the docs made runnable).
+const DOC_SECTIONS: { title: string; pages: DocPage[] }[] = [
+  {
+    title: 'Overview',
+    pages: [
+      { slug: 'overview', title: 'Overview', file: '/docs/overview.md' },
+    ],
+  },
+  {
+    title: 'For Users',
+    pages: [
+      { slug: 'getting-started', title: 'Getting Started', file: '/docs/getting-started.md' },
+      { slug: 'groups-in-plain-terms', title: 'Groups in Plain Terms', file: '/docs/groups-in-plain-terms.md' },
+      { slug: 'your-data', title: 'Your Data', file: '/docs/your-data.md' },
+      { slug: 'account-recovery', title: 'Account Recovery', file: '/docs/account-recovery.md' },
+      { slug: 'import-from-other-platforms', title: 'Import from Other Platforms', file: '/docs/import-from-other-platforms.md' },
+      { slug: 'export-guidance', title: 'Export Guidance', file: '/docs/export-guidance.md' },
+    ],
+  },
+  {
+    title: 'For Developers',
+    pages: [
+      { slug: 'protocol-spec', title: 'Protocol Spec', file: '/docs/protocol-spec.md' },
+      { slug: 'conventions', title: 'Conventions', file: '/docs/conventions.md' },
+      { slug: 'groups', title: 'Groups', file: '/docs/groups.md' },
+      { slug: 'sdk', title: 'SDK Guide', file: '/docs/sdk.md' },
+      { slug: 'query-engine', title: 'Query Engine', file: '/docs/query-engine.md' },
+      { slug: 'app-contracts', title: 'App Contracts', file: '/docs/app-contracts.md' },
+      { slug: 'media', title: 'Media', file: '/docs/media.md' },
+      { slug: 'scaffolding', title: 'Scaffolding', file: '/docs/scaffolding.md' },
+      { slug: 'cli-quickstart', title: 'CLI Quickstart', file: '/docs/cli-quickstart.md' },
+    ],
+  },
+  {
+    title: 'For Node Operators / Influencers',
+    pages: [
+      { slug: 'start-a-node', title: 'Start a Node', file: '/docs/start-a-node.md' },
+      { slug: 'node-config', title: 'Node Config', file: '/docs/node-config.md' },
+      { slug: 'app-store', title: 'App Store', file: '/docs/app-store.md' },
+      { slug: 'your-audience', title: 'Your Audience', file: '/docs/your-audience.md' },
+      { slug: 'being-a-creator', title: 'Being a Creator', file: '/docs/being-a-creator.md' },
+    ],
+  },
+  {
+    title: 'For Monetizers',
+    pages: [
+      { slug: 'monetization', title: 'Monetization', file: '/docs/monetization.md' },
+      { slug: 'ads', title: 'Ads', file: '/docs/ads.md' },
+      { slug: 'ad-catalog', title: 'Ad Catalog', file: '/docs/ad-catalog.md' },
+      { slug: 'affiliate-programs', title: 'Affiliate Programs', file: '/docs/affiliate-programs.md' },
+      { slug: 'payment-rails', title: 'Payment Rails', file: '/docs/payment-rails.md' },
+      { slug: 'monetization-bootcamp', title: 'Monetization Bootcamp', file: '/docs/monetization-bootcamp.md' },
+    ],
+  },
 ]
+
+const DOC_PAGES = DOC_SECTIONS.flatMap(section => section.pages)
+
+// The "who are you?" landing (plan.md "Public Docs Overhaul" — the operator's
+// "asking who's on the marketing docs"). The /docs landing asks the reader
+// who they are and routes them to their section's first doc. The lines are
+// the audience model's own words (plan.md).
+const AUDIENCES = [
+  {
+    slug: 'users',
+    icon: User,
+    label: "I'm a user",
+    line: 'I follow creators, I post, I manage my data.',
+    to: '/docs/getting-started',
+  },
+  {
+    slug: 'developers',
+    icon: Code,
+    label: "I'm a developer",
+    line: "I'm writing code that reads and writes a user's data.",
+    to: '/docs/protocol-spec',
+  },
+  {
+    slug: 'operators',
+    icon: Radio,
+    label: 'I run a node / I\'m a creator',
+    line: 'I run my own node, or I\'m a creator on one.',
+    to: '/docs/start-a-node',
+  },
+  {
+    slug: 'monetizers',
+    icon: DollarSign,
+    label: 'I want to earn',
+    line: 'I have an audience and I want to make money on it.',
+    to: '/docs/monetization',
+  },
+]
+
+function WhoAreYou() {
+  return (
+    <section aria-labelledby="who-are-you-heading" className="mb-10">
+      <h2
+        id="who-are-you-heading"
+        className="font-display text-xl font-medium tracking-tight text-foreground"
+      >
+        Who are you?
+      </h2>
+      <p className="mt-1 mb-4 text-sm text-muted-foreground">
+        Pick your path — each section of the docs speaks to one reader.
+      </p>
+      <div className="grid gap-3 sm:grid-cols-2">
+        {AUDIENCES.map(a => {
+          const Icon = a.icon
+          return (
+            <Link
+              key={a.slug}
+              to={a.to}
+              data-testid={`audience-card-${a.slug}`}
+              className="group flex items-start gap-3 rounded-lg border border-border bg-elevated/50 p-4 transition-colors duration-150 ease-out hover:border-brand-300/40 hover:bg-elevated focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
+            >
+              <Icon
+                className="mt-0.5 h-5 w-5 shrink-0 text-brand-300"
+                strokeWidth={1.5}
+                aria-hidden
+              />
+              <span className="flex flex-col gap-0.5">
+                <span className="text-sm font-medium text-foreground group-hover:text-brand-300">
+                  {a.label}
+                </span>
+                <span className="text-xs text-muted-foreground">{a.line}</span>
+              </span>
+            </Link>
+          )
+        })}
+      </div>
+    </section>
+  )
+}
 
 const DEMO_APPS = [
   { slug: 'hello', title: 'Hello', url: '/docs/hello/' },
   { slug: 'notes', title: 'Notes', url: '/docs/notes/' },
+  { slug: 'query', title: 'Query', url: '/docs/query/' },
   { slug: 'messages', title: 'Messages', url: '/docs/messages/' },
   { slug: 'groups', title: 'Groups', url: '/docs/groups/' },
   { slug: 'media', title: 'Media (HLS)', url: '/docs/media/' },
@@ -33,28 +163,32 @@ function DocsSidebar() {
 
   return (
     <aside className="w-full shrink-0 border-b border-border px-4 py-6 sm:px-6 md:w-56 md:border-b-0 md:border-r md:py-10">
-      <h3 className="mb-3 text-[0.75rem] font-medium uppercase tracking-[0.04em] text-muted-foreground">
-        Documentation
-      </h3>
-      <nav className="mb-6 flex flex-col gap-1">
-        {DOC_PAGES.map(page => {
-          const Icon = page.slug === 'overview' ? Compass : page.slug === 'export-guidance' ? BookOpen : FileText
-          return (
-            <Link
-              key={page.slug}
-              to={`/docs/${page.slug}`}
-              className={`flex items-center gap-2 rounded-md px-3 py-2 text-sm transition-colors duration-150 ease-out ${
-                currentPage === page.slug
-                  ? 'bg-brand-muted font-medium text-brand-300'
-                  : 'text-muted-foreground hover:bg-elevated hover:text-foreground'
-              }`}
-            >
-              <Icon className="h-4 w-4 shrink-0" strokeWidth={1.5} />
-              {page.title}
-            </Link>
-          )
-        })}
-      </nav>
+      {DOC_SECTIONS.map(section => (
+        <div key={section.title} className="mb-6">
+          <h3 className="mb-3 text-[0.75rem] font-medium uppercase tracking-[0.04em] text-muted-foreground">
+            {section.title}
+          </h3>
+          <nav className="flex flex-col gap-1">
+            {section.pages.map(page => {
+              const Icon = page.slug === 'overview' ? Compass : page.slug === 'export-guidance' ? BookOpen : FileText
+              return (
+                <Link
+                  key={page.slug}
+                  to={`/docs/${page.slug}`}
+                  className={`flex items-center gap-2 rounded-md px-3 py-2 text-sm transition-colors duration-150 ease-out ${
+                    currentPage === page.slug
+                      ? 'bg-brand-muted font-medium text-brand-300'
+                      : 'text-muted-foreground hover:bg-elevated hover:text-foreground'
+                  }`}
+                >
+                  <Icon className="h-4 w-4 shrink-0" strokeWidth={1.5} />
+                  {page.title}
+                </Link>
+              )
+            })}
+          </nav>
+        </div>
+      ))}
 
       <h3 className="mb-3 text-[0.75rem] font-medium uppercase tracking-[0.04em] text-muted-foreground">
         Demo Apps
@@ -87,6 +221,9 @@ function DocsContent() {
   const [content, setContent] = useState('')
   const [title, setTitle] = useState('Documentation')
   const [loading, setLoading] = useState(false)
+  // /docs with no sub-page is the Overview landing — the "who are you?"
+  // block renders there and only there.
+  const isLanding = page === undefined || page === 'overview'
 
   useEffect(() => {
     // /docs with no sub-page renders the Overview landing — never a blank
@@ -130,6 +267,8 @@ function DocsContent() {
 
   return (
     <div className="flex-1 px-4 py-10 sm:px-8 md:px-12">
+      {/* The landing asks who's reading before the pitch (the audience model). */}
+      {isLanding && <WhoAreYou />}
       {loading ? (
         <div className="docs-prose animate-pulse">
           <div className="mb-4 h-8 w-2/3 rounded bg-elevated" />

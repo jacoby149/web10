@@ -141,6 +141,16 @@ ORDER BY updated_at DESC LIMIT 1
 
 **The rule:** if you need fast reads, materialize the state at write time. Compute delta, tombstone old, insert new. Read is O(1). Always accurate.
 
+## Pattern 8: `updated_at` must be strictly increasing — and sub-second
+
+The `ORDER BY updated_at DESC LIMIT 1` dedup (Patterns 1, 3, 7) is only "always the latest" when every new row's `updated_at` is **strictly greater** than the row it supersedes. Two traps break that:
+
+**Trap 1 — second-precision writes lose to microsecond writes in the same second.** The columns are `DateTime64(3)` (millisecond). If one write stores `12:00:00.766` and the next stores `12:00:00.000` (truncated to the second), the *older* row has the higher timestamp and wins the dedup. This bit the `users` table: `create_user` (a `client.insert()` of a microsecond clock) vs `change_password` (a `client.command()` that bound a datetime object) — clickhouse-connect's **`command()` parameter binding truncates a bound datetime to second precision**, while `insert()` keeps it. A signup and a password-change in the same second → the read returned the stale row (old hash) → the new password 401'd (the recovery password-change flake; 3.58.1's "use a microsecond clock" fix was ineffective because the `command()` binding silently re-truncated it).
+
+**The rule:** when a write goes through `client.command()` (an `INSERT ... SELECT`), bind the timestamp as a **string** in the `DateTime64` format (`YYYY-MM-DD HH:MM:SS.ffffff` — `clickhouse.py`'s `_ch_ts()`), not as a datetime object. `client.insert()` keeps sub-second precision on its own, but `command()` does not.
+
+**Trap 2 — naive datetimes are ambiguous.** `client.insert()` treats a *naive* datetime as the process-local wall-clock and converts it to UTC — on any non-UTC host that double-shifts it (a UTC instant lands 4h off in a west-of-UTC container). `client.command()` treats the same naive value as UTC. The two paths disagree. **The rule:** use a **timezone-aware** UTC datetime (`datetime.now(timezone.utc)` — `clickhouse.py`'s `_now()`), which every write path stores as the same UTC instant. (`_iso_utc()` — the `T`/`Z` form — is for API *return* values only; it does not parse for a `DateTime64` write.)
+
 ## The Anti-Patterns
 
 ### Don't UPDATE

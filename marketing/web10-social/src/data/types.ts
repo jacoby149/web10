@@ -52,6 +52,10 @@ export interface PostRecord {
   // The v3 pinned ad (ads-dissemination.md): the read serves a pinned post with
   // its ad inline; the ad block renders it under the post.
   ad?: AdRecord;
+  // The node-level ad (D57): the read attaches an active node ad at the
+  // operator's percentage. Both `ad` and `node_ad` can be present on the
+  // same post — the renderer shows both, neither suppressing the other.
+  node_ad?: AdRecord;
   // Aliases for backward compat with DiscoveryPost
   author?: string;
   provider?: string;
@@ -81,6 +85,10 @@ export function fromV3DocToPost(doc: V3Document): PostRecord {
     // with its ad inline under `ad` (I3-checked). Mapped to an AdRecord for
     // the ad block renderer.
     ad: doc.ad ? fromV3DocToAd(doc.ad) : undefined,
+    // The node-level ad (D57): the read attaches an active node ad at the
+    // operator's percentage. Mapped the same way; the renderer dresses it
+    // as a "Sponsored" block naming the node.
+    node_ad: doc.node_ad ? fromV3DocToAd(doc.node_ad) : undefined,
     // Backward compat aliases for DiscoveryPost consumers
     author: username,
     provider,
@@ -102,13 +110,26 @@ export interface AdOffer {
   disclosure?: string;
 }
 
+/**
+ * The ad's provenance — who made it. Drives the ad block's color scheme +
+ * the disclosure line (design: ads-as-posts, creator vs node dressing).
+ * - `creator`: a web10 account's own monetization (tagged `ad`). The
+ *   disclosure names the creator's web10 account (`author_username`).
+ * - `node`: the node operator's inventory (tagged `ad` + `node_ad`, D57).
+ *   The disclosure names the node site.
+ */
+export type AdVariant = 'creator' | 'node';
+
 export interface AdRecord {
   _id?: string;
   text?: string;
-  media_refs?: string[];
+  media_refs?: (string | ResolvedMediaRef)[];
   offer?: AdOffer;
   status?: 'active' | 'paused';
+  /** The web10 account that made the ad (from author_key). */
   author_username?: string;
+  /** `creator` (default) or `node` — derived from the `node_ad` tag. */
+  variant?: AdVariant;
   /** album doc_ids this ad belongs to (from its `album:<id>` tags) */
   albums?: string[];
 }
@@ -130,7 +151,7 @@ export function fromV3DocToAd(doc: V3Document): AdRecord {
   return {
     _id: doc.doc_id,
     text: (body.text as string) || undefined,
-    media_refs: (body.media_refs as string[]) || undefined,
+    media_refs: (body.media_refs as (string | ResolvedMediaRef)[]) || undefined,
     offer: {
       kind: leafValue(offerRaw.kind),
       partner: leafValue(offerRaw.partner),
@@ -140,11 +161,45 @@ export function fromV3DocToAd(doc: V3Document): AdRecord {
     },
     status: body.status === 'paused' ? 'paused' : 'active',
     author_username: extractUsername(doc.author_key),
+    // D57: a node ad is tagged `ad` + `node_ad` — the node operator's
+    // inventory. The renderer dresses it differently + names the node.
+    variant: tags.includes('node_ad') ? 'node' : 'creator',
     albums: tags.filter((t) => t.startsWith('album:')).map((t) => t.slice('album:'.length)),
   };
 }
 
 // ── Media ───────────────────────────────────────────────────────────────────
+
+/**
+ * A transcoded rendition (D44 — transcoding-foundation.md). The node is
+ * ratio-agnostic: width derives from the source ratio, height is the target.
+ */
+export interface TranscodingVariant {
+  width: number;
+  height: number;
+  fps?: number;
+  bitrate_kbps?: number;
+  codec?: string;
+  duration_seconds?: number;
+  url?: { type: string; value: string };
+}
+
+/**
+ * The media doc's `transcoding_settings` — the document is the status
+ * surface (status: processing → done | failed). On a post read, the API
+ * carries it into the resolved media ref and mints a per-reader
+ * `manifest_url` (a 10-min sig bound to (reader, doc, hls prefix) — the
+ * expiry is the group-membership re-check cadence). Path-only URL: the
+ * client prepends its API origin.
+ */
+export interface TranscodingSettings {
+  enabled?: boolean;
+  status?: 'processing' | 'done' | 'failed';
+  variants?: TranscodingVariant[];
+  thumbnails?: { width: number; height: number; timestamp_seconds?: number; url?: { type: string; value: string } }[];
+  manifest_url?: string;
+  error?: string;
+}
 
 export interface MediaRecord {
   _id?: string;
@@ -158,7 +213,10 @@ export interface MediaRecord {
   duration_seconds?: number;
   thumbnail_url?: string;
   thumbnail_object_key?: string;
-  hls_manifest_url?: string;
+  /** Present on transcoded video (D44) — the hls.js player picks on
+   *  `status === 'done'` + `manifest_url`; anything else plays the
+   *  native <video> path (the Phase-2 import path plays raw MP4s). */
+  transcoding_settings?: TranscodingSettings;
   caption?: string;
   alt_text?: string;
   origin?: Origin;
@@ -182,6 +240,10 @@ export interface ResolvedMediaRef {
   height?: number | null;
   duration_seconds?: number | null;
   thumbnail_url?: string | null;
+  /** The media doc's transcoding_settings (status + variants + the
+   *  read-minted manifest_url) — carried so the feed can pick the hls.js
+   *  player for transcoded video without a second read. */
+  transcoding_settings?: TranscodingSettings;
 }
 
 /** The doc_id a media ref addresses — strings are doc_ids, resolved objects carry it. */
@@ -202,6 +264,7 @@ export function fromResolvedMediaRef(r: ResolvedMediaRef): MediaRecord {
     height: r.height || undefined,
     duration_seconds: r.duration_seconds || undefined,
     thumbnail_url: r.thumbnail_url || undefined,
+    transcoding_settings: r.transcoding_settings,
   };
 }
 
@@ -219,7 +282,7 @@ export function fromV3DocToMedia(doc: V3Document): MediaRecord {
     duration_seconds: (body.duration_seconds as number) || undefined,
     thumbnail_url: (body.thumbnail_url as string) || undefined,
     thumbnail_object_key: (body.thumbnail_object_key as string) || undefined,
-    hls_manifest_url: (body.hls_manifest_url as string) || undefined,
+    transcoding_settings: (body.transcoding_settings as TranscodingSettings) || undefined,
     caption: (body.caption as string) || undefined,
     alt_text: (body.alt_text as string) || undefined,
     origin: (body.origin as Origin) || undefined,

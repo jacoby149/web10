@@ -46,6 +46,7 @@ from app.v3.models.groups import (
     UnhideDoc,
     UpdateGroup,
 )
+from app.v3.models.imports import ImportCreate, ImportJobRef, ImportPart
 from app.v3.models.media import (
     ConfirmMedia,
     DeleteMedia,
@@ -55,6 +56,7 @@ from app.v3.models.media import (
     UploadUrlRequest,
 )
 from app.v3.models.moderation import ModerationAutoHide, ModerationFlags
+from app.v3.models.query import QueryRequest
 from app.v3.models.session import VerifySession
 
 __all__ = [
@@ -82,6 +84,8 @@ __all__ = [
     "UpdateDocument",
     "DeleteDocument",
     "AdPreference",
+    # query (the flexible read)
+    "QueryRequest",
     # groups
     "CreateGroup",
     "GetGroup",
@@ -100,6 +104,10 @@ __all__ = [
     "HideDoc",
     "UnhideDoc",
     "ListHiddenDocs",
+    # imports (the "port your YouTube" pipeline)
+    "ImportCreate",
+    "ImportJobRef",
+    "ImportPart",
     # media
     "ConfirmMedia",
     "ListMedia",

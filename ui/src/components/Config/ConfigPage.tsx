@@ -115,7 +115,11 @@ function ConfigPage({ I }: { I: Record<string, any> }) {
     const decoded = I.v3.readToken();
     const provider = decoded.provider;
     const protocol = window.location.protocol;
-    return axios.post(`${protocol}//${provider}${path}`, body, {
+    // Port-aware: isolated e2e stacks (E2E_HTTP_PORT) serve *.localhost on a
+    // non-80 port; the origin must carry the same port (mirrors v3ApiOrigin in
+    // Interface.tsx). Empty on :80 — the default CI/dev port.
+    const port = window.location.port ? `:${window.location.port}` : '';
+    return axios.post(`${protocol}//${provider}${port}${path}`, body, {
       headers: { "Content-Type": "application/json" },
     });
   };

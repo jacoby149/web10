@@ -1,6 +1,8 @@
 # Export Guidance
 
-Step-by-step guides for exporting your data from each platform. The operator will supply the detailed content here — these are placeholder steps for now.
+Step-by-step guides for exporting your data from each platform. The exports
+are archive files you keep (ZIP or TAR) — they're what you'll upload when you
+[import to web10](/docs/import-from-other-platforms).
 
 ## Facebook
 
@@ -24,9 +26,15 @@ Step-by-step guides for exporting your data from each platform. The operator wil
 
 1. Open [takeout.google.com](https://takeout.google.com)
 2. Deselect all, then check YouTube (and any other services you want)
-3. Choose export frequency and file size
+3. Choose export frequency and file size. The default — **split into ~2GB
+   `.tar` parts** — is exactly what you want: a real channel export is bigger
+   than one file, and the web10 importer takes the split parts as-is (you
+   upload every part). Switching the format to ZIP also works; the importer
+   handles both.
 4. Create the export and wait for Google to prepare it
-5. Download the ZIP file(s) when the notification arrives
+5. Download the archive when the notification arrives — for a large channel
+   that's a ZIP containing several `.tar` parts (or several ZIPs). Unpack the
+   outer ZIP if there is one; keep all the parts.
 
 ---
 

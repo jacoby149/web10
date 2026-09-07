@@ -77,7 +77,7 @@ def send_code(data: TokenOnly):
         raise exceptions.PHONE_NUMBER_MISSING
     from app.services import twilio as mobile
 
-    return mobile.send_verification(phone, user)
+    return mobile.send_verification(phone)
 
 
 @router.post("/set_recovery_phone")

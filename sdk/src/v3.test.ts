@@ -128,6 +128,7 @@ describe('v3 client', () => {
       expect(client).toHaveProperty('create')
       expect(client).toHaveProperty('read')
       expect(client).toHaveProperty('readById')
+      expect(client).toHaveProperty('query')
       expect(client).toHaveProperty('update')
       expect(client).toHaveProperty('delete')
       expect(client).toHaveProperty('addAppContract')
@@ -465,6 +466,35 @@ describe('v3 client', () => {
         'http://api.localhost/v3/read',
         expect.objectContaining({ doc_id: 'abc', service: 'notes', token: mockToken }),
       )
+    })
+
+    it('query posts the sql to /v3/query with the token', async () => {
+      const mockResponse = { rows: [{ doc_id: 'abc', n: 3 }], count: 1 }
+      vi.spyOn(http, 'authPost').mockResolvedValueOnce(mockResponse as any)
+
+      const result = await client.query('SELECT doc_id, count() AS n FROM posts GROUP BY doc_id')
+      expect(result).toEqual(mockResponse)
+      expect(http.authPost).toHaveBeenCalledWith(
+        'http://api.localhost/v3/query',
+        expect.objectContaining({ sql: 'SELECT doc_id, count() AS n FROM posts GROUP BY doc_id', token: mockToken }),
+      )
+    })
+
+    it('query passes groups when provided', async () => {
+      vi.spyOn(http, 'authPost').mockResolvedValueOnce({ rows: [], count: 0 } as any)
+
+      await client.query('SELECT doc_id FROM posts', { groups: ['g1', 'g2'] })
+      const call = (vi.mocked(http.authPost).mock.calls[0][1] as any)
+      expect(call.groups).toEqual(['g1', 'g2'])
+    })
+
+    it('query works without a token (anon reads the public board)', async () => {
+      client.scrubToken()
+      vi.spyOn(http, 'authPost').mockResolvedValueOnce({ rows: [], count: 0 } as any)
+
+      await expect(client.query('SELECT doc_id FROM posts')).resolves.toEqual({ rows: [], count: 0 })
+      const call = (vi.mocked(http.authPost).mock.calls[0][1] as any)
+      expect(call.token).toBeUndefined()
     })
 
     it('update sends doc_id and body', async () => {

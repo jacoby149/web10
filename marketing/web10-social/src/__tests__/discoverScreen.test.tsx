@@ -941,4 +941,153 @@ describe('DiscoverScreen', () => {
     // Both posts visible in grid (text + media)
     expect(screen.getAllByTestId('discover-card').length).toBe(2);
   });
+
+  // ── Video playback: the discover page must let you WATCH videos ──────────
+
+  it('grid view renders a playable <video> for a resolved video post', async () => {
+    (data.readDiscoverFeed as ReturnType<typeof vi.fn>).mockResolvedValue([
+      {
+        author: 'video-creator',
+        provider: 'api.web10.app',
+        post_id: 'p1',
+        author_username: 'video-creator',
+        author_provider: 'api.web10.app',
+        text: 'Watch this',
+        tags: ['video'],
+        media_refs: ['m1'],
+        created_at: new Date().toISOString(),
+        likes: 10,
+        comments: 2,
+        reposts: 1,
+        score: 14,
+      },
+    ]);
+    (data.resolveMediaRefs as ReturnType<typeof vi.fn>).mockResolvedValue([
+      {
+        _id: 'm1',
+        url: 'https://cdn.example/video.mp4',
+        mime_type: 'video/mp4',
+        width: 1080,
+        height: 1920,
+        duration_seconds: 42,
+        thumbnail_url: 'https://cdn.example/thumb.jpg',
+        created_at: new Date().toISOString(),
+      },
+    ]);
+
+    const { default: DiscoverScreen } = await import('@/components/Discover/DiscoverScreen');
+    render(
+      <MemoryRouter initialEntries={['/discover']}>
+        <DiscoverScreen />
+      </MemoryRouter>,
+    );
+
+    await waitFor(() => {
+      expect(screen.getByTestId('discover-media-video')).toBeInTheDocument();
+    });
+
+    // The playable video element is wired to the resolved media url
+    const video = document.querySelector('video');
+    expect(video).toBeTruthy();
+    expect(video!.getAttribute('src')).toBe('https://cdn.example/video.mp4');
+  });
+
+  it('clicking a discover card opens the post lightbox', async () => {
+    (data.readDiscoverFeed as ReturnType<typeof vi.fn>).mockResolvedValue([
+      {
+        author: 'video-creator',
+        provider: 'api.web10.app',
+        post_id: 'p1',
+        author_username: 'video-creator',
+        author_provider: 'api.web10.app',
+        text: 'Watch this',
+        tags: ['video'],
+        media_refs: ['m1'],
+        created_at: new Date().toISOString(),
+        likes: 10,
+        comments: 2,
+        reposts: 1,
+        score: 14,
+      },
+    ]);
+    (data.resolveMediaRefs as ReturnType<typeof vi.fn>).mockResolvedValue([
+      {
+        _id: 'm1',
+        url: 'https://cdn.example/video.mp4',
+        mime_type: 'video/mp4',
+        width: 1080,
+        height: 1920,
+        created_at: new Date().toISOString(),
+      },
+    ]);
+
+    const { default: DiscoverScreen } = await import('@/components/Discover/DiscoverScreen');
+    render(
+      <MemoryRouter initialEntries={['/discover']}>
+        <DiscoverScreen />
+      </MemoryRouter>,
+    );
+
+    await waitFor(() => {
+      expect(screen.getByTestId('discover-card')).toBeInTheDocument();
+    });
+
+    // No lightbox until the card is clicked
+    expect(screen.queryByTestId('post-lightbox')).not.toBeInTheDocument();
+
+    fireEvent.click(screen.getByTestId('discover-card'));
+
+    await waitFor(() => {
+      expect(screen.getByTestId('post-lightbox')).toBeInTheDocument();
+    });
+  });
+
+  it('clicking a YouTube-view card opens the post lightbox', async () => {
+    (data.readDiscoverFeed as ReturnType<typeof vi.fn>).mockResolvedValue([
+      {
+        author: 'video-creator',
+        provider: 'api.web10.app',
+        post_id: 'p1',
+        author_username: 'video-creator',
+        author_provider: 'api.web10.app',
+        text: 'Watch this',
+        tags: ['video'],
+        media_refs: ['m1'],
+        created_at: new Date().toISOString(),
+        likes: 10,
+        comments: 2,
+        reposts: 1,
+        score: 14,
+      },
+    ]);
+    (data.resolveMediaRefs as ReturnType<typeof vi.fn>).mockResolvedValue([
+      {
+        _id: 'm1',
+        url: 'https://cdn.example/video.mp4',
+        mime_type: 'video/mp4',
+        width: 1080,
+        height: 1920,
+        created_at: new Date().toISOString(),
+      },
+    ]);
+
+    const { default: DiscoverScreen } = await import('@/components/Discover/DiscoverScreen');
+    render(
+      <MemoryRouter initialEntries={['/discover?view=youtube']}>
+        <DiscoverScreen />
+      </MemoryRouter>,
+    );
+
+    await waitFor(() => {
+      expect(screen.getByTestId('discover-youtube-card')).toBeInTheDocument();
+    });
+
+    expect(screen.queryByTestId('post-lightbox')).not.toBeInTheDocument();
+
+    fireEvent.click(screen.getByTestId('discover-youtube-card'));
+
+    await waitFor(() => {
+      expect(screen.getByTestId('post-lightbox')).toBeInTheDocument();
+    });
+  });
 });

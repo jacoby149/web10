@@ -38,3 +38,6 @@ ui/public/YourOrgsLogo/*
 
 # marketing-api runtime data (feedback store, etc.)
 marketing/marketing-api/data/
+
+# yt-export
+yt-export/

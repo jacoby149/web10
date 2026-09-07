@@ -111,12 +111,16 @@ proves it.
 - [✓ 3.11.0] **Auth on v3** (`src/interfaces/auth.ts`, `src/App.tsx`) — replace the v1 `wapiInit` adapter with the SDK's D42 flow (the same one the demos run): login through the real consent popup (the LoginScreen's one-tap survives via D42 auto-complete), token in the `token=` cookie, `authListen` dedupe (D45), sign-out scrubs.
 - [✓ 3.12.0] **Data on the SDK** (`src/data/v3.ts`) — `getV3Client()` returns the SDK's `createV3Client`; retire the hand-rolled fetch client. The data modules (posts, feed, dms, comments, reactions, contacts, profile) keep their API — the swap is inside the seam.
 - [✓ 3.32.0] **Groups screen** (`src/components/Groups/`, `src/data/groups.ts`) — the "coming soon" Groups tab is now real: **My Groups** (the user's community memberships, infrastructure groups filtered out) + **Discover** (the D53 public directory, search + topic filter) + the **deep-linkable group detail** (`/groups/:id`, the D53 unlisted-model). The data layer gains `readGroupDirectory` + `readGroupDetail` (the public GET endpoints) + the community-group filter. E2E: `social-groups-directory.spec.ts` (API floor + browser gauntlet).
+- [✓ 3.67.4] **Groups screen overhaul — first-class, feed-forward** (`src/components/Groups/`, `src/data/groups.ts`) — the operator's "this groups ui is so weak" pass. (1) **My Groups only shows web10-social communities** — the community filter drops the per-user **app-storage groups** (`media-{u}` / `notes-{u}` / `sharing-{u}`, the private groups that power the other apps; `isAppStorageGroup` = slug ends with `-{username}`) on top of discover/followers/DM. (2) **Create-group flow** — a **New group** CTA opens the **CreateGroupSheet** (cover + avatar upload, name, about, Who-can-read visibility = the D58 read grant, tags, website); `createCommunityGroup` creates the group + writes the face (the `web10-social-group-identity` doc, D60), then navigates into it. (3) **Feed-forward detail** — `GroupDetailScreen` re-cut so the **feed dominates**: compact header (back + avatar + name + members + Join/Leave), slim banner (only when set), compact about (only when set — no Facebook hero), a member **composer**, and posts with **real media** (images + inline video, batch-resolved); non-members keep the I3 "join to view". My Groups cards gain a per-group cover accent. `groupsFilter.test.ts` + `createGroupSheet.test.tsx` + 3 new `groupsScreens` cases; screenshot harness gains `mediaRefId`/`resolveMediaRefs` stubs.
 - [✓ 3.38.0] **Feed knobs** (`src/components/Feed/FeedScreen.tsx`, `src/data/{feed,settings,types}.ts`) — D36 amendment (operator lifted the "knobs on the chronological feed" reject): the feed carries the same D36 rack as Discover (presets + rotary knobs, power-mean re-ranking, client-side). Default = Newest preset (chronological until tuned). Knob state deep-linkable (`?knobs=`) + persisted to the user's web10 `settings` service (`feedKnobs` on the settings doc; URL > saved > default). `readFeedEngagement` (the ref pattern) feeds the likes/comments knobs.
 - [✓ 3.39.0] **Real-time messages (WebRTC P2P) + presence** (`src/data/p2p.ts`, `src/components/Chat/DmsScreen.tsx`, `src/App.tsx`, `src/components/Settings/SettingsScreen.tsx`) — the social app adopts the messages-demo's P2P pattern (CRUD is the source of truth; P2P is the fast path). On sign-in, when the user's `p2pEnabled` setting is on (default), the app opens a PeerJS peer over the node's RTC signaling server; a sent DM is also pushed over the data channel so the recipient sees it instantly, and an inbound nudge re-reads the open conversation. Presence = the P2P peer is open: the other party shows Online/Offline (green/gray dot + label) from live connections, and a "Real-time" status chip shows the local peer state. Opt-out (Settings → Real-time Messages) tears down the peer — messages still work via CRUD, no instant nudge, shown offline. `peerjs` added as a dep; the screenshot harness aliases `@/data/p2p` to a no-op (no real signaling connection).
 - [✓ 3.40.0] **Presence offline detection** (`src/data/p2p.ts`) — the presence dot now flips to gray when a peer disconnects (3.39.0 stuck green). Two mechanisms: connection-close hooks (the send path opens the channel via `connect()` and hooks `close`; the inbound path hooks the sender's connection) for immediate offline, + a TTL backstop (per-peer `lastSeen` + a 15s sweep expiring peers idle past 60s) for missed close events. `markOffline` notifies presence subscribers so the DmsScreen dot/label flip automatically. 5 new unit tests.
 - [ ] **E2E: per-surface social specs** (`e2e/tests/`) — rewrite the retired social specs (`social-post-feed`, `social-full`, `gauntlet`) against v3, per the demo specs' pattern — **organized by surface so they parallelize across workspaces**: one spec per surface (feed, groups/follows, profiles, messages, settings, trending), each = API floor (the app's exact read pattern + a per-surface I3 anti-test; the primitive floors stay in the demo specs) + browser gauntlet (real D42 login → drive the surface → assert render/interaction/persistence, log-sequence verified). Lane: `social-e2e` in `parallel-execution.md`.
 - [ ] **E2E: capstone gauntlet** (`e2e/tests/social-gauntlet.spec.ts`) — one journey across all screens (login → feed → post → profile → DM → follow → settings → reload), log-sequence verified. Gated on the six surface specs.
-- [ ] **HLS in the feed** (`src/components/`) — adopt the media demo's hls.js player (Safari native fallback, vendored hls.js) for video posts. Moved here from the `hls` lane, which is otherwise complete.
+- [✓ 3.66.0] **Video editor before posting** (`src/lib/videoEditing.ts`, `src/components/Feed/VideoEditorSheet.tsx`, `PostComposer.tsx`) — client-side **trim** (in/out points) + **ratio crop** (9:16 / 1:1 / 4:5 / 16:9 cover-crop presets) in the composer's upload flow. The media demo's client-side reframe pattern (canvas + MediaRecorder, `video-experience.md`): the finished file is what gets uploaded, the node stays ratio-agnostic. Trim is the piece that stays (3.34.0's natural-ratio feed dissolves resize-to-fit). Built against the direct-`<video>` fallback; re-point the player once the HLS-in-the-feed item lands. 21 unit tests.
+- [✓ 3.67.0] **HLS in the feed** (`src/components/`) — adopt the media demo's hls.js player (Safari native fallback, vendored hls.js) for video posts. Moved here from the `hls` lane, which is otherwise complete. The read path carries `transcoding_settings` into resolved media refs + mints a per-reader `manifest_url`; the feed picks the player on `status === 'done'` + `manifest_url`, native `<video>` otherwise (the Phase-2 import path). Cross-user streaming (a follower's sig 403s — groupless media docs) is a filed follow-up.
+- [ ] **D44 gaps: composer upload path + lightbox player** (`src/data/posts.ts`, `src/components/Bio/PostLightbox.tsx`) — 3.67.0 left two seams: `uploadMedia` doesn't write the `video` minio leaf or queue the transcode (composer uploads never get transcoded), and the lightbox still plays raw `<video>` (the feed card got the player). Lane: `social-v3` in `parallel-execution.md`.
+- [✓ 3.68.0] **Feed drops the lightbox modal** (`src/components/Feed/FeedScreen.tsx`) — the feed is now a flat, inline surface: the card no longer opens the `PostLightbox` (it stays on the insta-style profile grids + the `/u/:username/p/:postId` deep link, where the carousel earns its keep). The video plays inline (tap toggles play/pause in place, `stopPropagation` so the tap never reaches the card — fixing the bug where a tap both played the video in the card *and* popped the modal, leaving it playing behind); comments were already inline below. Owner actions that lived in the lightbox move to a **kebab (⋯) menu** on own posts (Share / Edit-inline / Make private-public / two-tap Delete) in a small popover; `onPostUpdated` re-reads the feed after a mutation. `flatMediaMap` (fed only the lightbox) dropped. 3 new unit tests.
 
 ## App Store: Real-User Metrics (D49) — Platform
 
@@ -141,6 +145,7 @@ across all apps. Decision done (D49); lane is `app-store-metrics` in
 - [✓ 3.15.0] **Hardening** — #7 manifest byte cap in `/pwa_listing`.
 - [✓ 3.15.0] **Tests** — unit (gated ingest, anon-drop, forged-token I2 anti-test, metrics, pagination) + e2e (real signed-in user → active count; pagination boundary).
 - [✓ 3.15.0] **KB** — `app-store/overview.md` metrics section + `db/clickhouse.md` `app_visits` table.
+- [✓ 3.67.2] **web10 hub** — the Core plug slot (node console / authenticator) renamed to "web10 hub" and made to show its real `users_30d` (it registers like any app; the metric is captured before the known-host-root grid filter drops it); the grid dedupes the auth-host registration so it never renders twice. (marketing-ui `AppStore.tsx` + tests; KB + public docs aligned.)
 
 ## App Store: Product Page (D52) — Platform
 
@@ -267,6 +272,23 @@ is in `web10-v3/social/ads-dissemination.md`; the ad object in `social/ads.md`
 - [✓ 3.29.0] **Composer pin control (web10-social)** — the "Pin an ad" control in `PostComposer`: pick an ad (from an album or all) to pin to the post, or none (sets the post's `ad_preference`); the ad block renders under the post (creative + offer + disclosure, disclosure never hidden). `marketing/web10-social/src/components/Feed/`.
 - [✓ 3.30.0] **E2E** — the torture gauntlet: create an ad → pin it to a post → follower sees the post with the ad block + disclosure → unpin → it's gone → non-follower never sees the ad (I3) → an ad in two albums shows in both. `e2e/tests/ads.spec.ts`.
 
+## Monetization Bootcamp (creator guide) — Docs + Studio
+
+The creator-facing ramp: a guide that takes a creator from "I have an
+audience" to "my first affiliate payout," grounded in the D55 ad model. It
+answers the two questions that come up in every onboarding — *which
+affiliate programs are worth joining* and *how the web10 ad maker turns a
+link I already have into a post that pays.* The KB doc is the full guide;
+the Studio card is the "point people toward the programs" surface (the
+training factored into the money screen). The affiliate shortlist (Amazon,
+Walmart, Target, eBay, Shopify, Fiverr, Semrush, HubSpot) is a
+map, not a contract — rates/cookies shift, confirm on the program's page.
+
+- [✓ 3.53.0] **KB: the bootcamp guide** (`knowledge/knowledge-base/web10-v3/social/monetization-bootcamp.md`) — the use case (creator-owned links, not a platform ad box), the one rule (an ad is a post with a link that pays), the two layers (your ads vs node ads), the affiliate shortlist table, the sign-up ramp (the website-list / 180-day rule, the node-account vs creator-account split), the ad-maker walkthrough (offer kind/partner/link/cta/disclosure), pin-to-post, albums, and the "do it genuinely" principles (only link what you'd buy, the content is the ad, disclose up top, the audience is the asset). "What this is not" (not an ad network, not a payment processor, not memberships/tips) + logistics (built now / known gap: ad-maker media attach / deferred v4).
+- [✓ 3.54.0] **Studio: the Affiliate Programs card** (`ui/src/components/Studio/AffiliateProgramsCard.tsx` + `studio-data.ts` `AFFILIATE_PROGRAMS`) — the bootcamp factored into the Studio: the "START HERE" card in Rung 0 that points a creator at the programs worth joining (each row = program + niche + commission + why + an external sign-up link, new tab). The entry point that sits above the Ads card — sign up for a program, then make your first ad. The full guide stays the KB doc. 8 new Studio tests.
+- [✓ 3.55.0] **Studio: retire the AmazonTagCard** (`ui/src/components/Studio/AmazonTagCard.tsx` deleted) — the single-global-tag card was the leftover "auto-affiliate-everything" (skimlinks/sovrn) model that D55 rejected ("the platform never rewrites the link — the creator's link is the link," `ads.md:43`). The real flow is *creators make ads with the links* — the tag lives in each ad's `offer.link`, set in the ad maker. The card is removed from the Studio + its 4 tests; the Affiliate Programs card is the sign-up pointer, the Ads card is where the link goes.
+- [✓ 3.62.0] **Bootcamp page (marketing-ui)** — surface the guide as a `/docs/monetization` page (or a Studio link-out) so a creator hitting the ad maker for the first time can land on it. Gated on a docs-page surface existing in marketing-ui (the `public/docs/` set is the precedent).
+
 ## Node-Level Ads (D57) — Platform
 
 The node operator's ad layer — the second layer of the two-layer ad model
@@ -283,13 +305,13 @@ inventory to advertisers directly; web10 takes a 10-15% platform fee on the
 hosting invoice. The KB is the spec: `web10-v3/social/node-ads.md`. Lane is
 `node-ads` in `parallel-execution.md`.
 
-- [ ] **Decision: D57** (`knowledge/strategy/decisions.md`) — two-layer ad model (creator + node); v3 is ads only (no Stripe, no memberships, no tips — the payment model is v4); read-time attachment at a percentage; the third join (`doc.ad` + `doc.node_ad`, both can be present); usage-based pricing (MongoDB model); the v3/v4 split rationale (Stripe Connect = migration lock-in + onboarding friction)
-- [ ] **KB: `node-ads.md`** (`knowledge/knowledge-base/web10-v3/social/node-ads.md`) — the node ad object, the read-time attachment (the third join), the density control, the renderer (both ads on the same post), the operator's revenue model (hosting + node ad revenue 85-90%), the "what this is NOT" (not a payment processor, v3 is ads only), security invariants
+- [✓] **Decision: D57** (`knowledge/strategy/decisions.md`) — two-layer ad model (creator + node); v3 is ads only (no Stripe, no memberships, no tips — the payment model is v4); read-time attachment at a percentage; the third join (`doc.ad` + `doc.node_ad`, both can be present); usage-based pricing (MongoDB model); the v3/v4 split rationale (Stripe Connect = migration lock-in + onboarding friction)
+- [✓] **KB: `node-ads.md`** (`knowledge/knowledge-base/web10-v3/social/node-ads.md`) — the node ad object, the read-time attachment (the third join), the density control, the renderer (both ads on the same post), the operator's revenue model (hosting + node ad revenue 85-90%), the "what this is NOT" (not a payment processor, v3 is ads only), security invariants. (3.64.0: the prose drift fixed — the node ad attaches to *any* post at the percentage, both ads coexist, not "only fills the `ad_mode = 'none'` gap.")
 - [✓ 3.37.0] **`node_ad_percentage` config** — new field on `NodeConfig` + `ConfigUpdate` (integer, 0-100, default 10); the Node Config UI exposes it
 - [✓ 3.37.0] **Node ad query + read-time attachment (the third join)** (`api/app/v3/`) — `get_active_node_ads()` (bounded query); the read enriches posts with node ads at the configured percentage (deterministic hash, round-robin); the response carries both `doc.ad` and `doc.node_ad`
-- [ ] **Renderer: both ads on the same post** (`marketing/web10-social/`) — the post renders with up to two ad blocks: the creator's ad + the node's ad ("Sponsored" label + node disclosure)
-- [ ] **Ad Inventory card (authenticator)** (`ui/src/components/Studio/`) — percentage slider, list of active node ads, create/pause/resume/retire
-- [ ] **Tests** — unit (query, attachment, percentage, determinism, third join, I3) + e2e (operator creates node ad → feed shows it → pinned post shows BOTH ads → percentage 0 = off)
+- [✓ 3.57.0] **Renderer: both ads on the same post** (`marketing/web10-social/`) — the post renders with up to two ad blocks: the creator's ad + the node's ad ("Sponsored" label + node disclosure); ads render as posts (media-aware, creator violet / node amber dressing, disclosure names the author)
+- [✓ 3.64.0] **Ad Inventory card (authenticator)** (`ui/src/components/Studio/`) — percentage slider (0-100, writes `node_ad_percentage`), list of active node ads (creative, offer, status), create/pause/resume/retire (writes `posts` docs tagged `ad` + `node_ad` to the discover group); all states designed (empty → CTA, skeleton, error)
+- [✓ 3.64.0] **Tests** — unit (`api/tests/test_node_ads.py`: query + attachment, percentage 0/10/100, determinism per (doc, reader), round-robin, the third join, I3) + e2e (`e2e/tests/node-ads.spec.ts`: operator creates node ad → feed shows it → pinned post shows BOTH ads → percentage 0 = off; browser gauntlet: Ad Inventory card → "Sponsored" block → pinned post shows both)
 
 ## Platform Telemetry (D56) — Platform
 
@@ -342,8 +364,133 @@ Spec'd in `knowledge-base/web10-v3/social/content-moderation.md` (the model) +
 - [✓ 3.41.0] **Admin endpoints** — `POST /v3/moderation/flags` (the queue) + `POST /v3/moderation/auto-hide` (add/remove from `auto_hide_users`).
 - [✓ 3.41.0] **UI** — the Node Config "Content Moderation" card (master switch + auto-hide toggle, blocklist tag input, the review queue with "Keep hiding"/"Hiding").
 - [✓ 3.41.0] **Tests** — 27 API (`test_moderation.py`) + 7 UI (`configModeration.test.tsx`).
-- [ ] **E2E: moderation gauntlet** — post with a flagged word → hidden from the board → operator keeps-hiding → next post auto-hidden → operator removes → next post visible. Gated on the social-e2e stack.
+- [✓ 3.67.5] **E2E: moderation gauntlet** — post with a flagged word → hidden from the board → operator keeps-hiding → next post auto-hidden → operator removes → next post visible. `e2e/tests/moderation.spec.ts` (API floor + I3 anti-test + browser gauntlet over the Node Config "Content Moderation" card). The gauntlet caught a real bug: `get_moderation_flags`'s `arrayJoin(groupArray(...))` split a multi-flag user into one row per flag (duplicated in the queue) — fixed to `arrayFlatten` (one row per user).
 - [ ] **v1** — profile name/bio detection (flag-only), a retroactive-scan admin command, a user notification on auto-hide.
+
+## Query Engine (D62) — Platform
+
+The **flexible read**: a caller writes a ClickHouse `SELECT` over their
+**services** and the node runs it — read-only by construction. The safe-query
+engine (`safe_query.py`) parses the query (sqlglot), validates every table
+reference, and rewrites each service to an API-built **boundary CTE**
+(group-filtered + block/sharing/hidden), so self-joins, aggregations,
+subqueries, and caller CTEs all work and none can leak past the caller's groups
+(the raw tables are unreachable — a wall, not a membrane). Exposed as
+`POST /v3/query` + the SDK's `w.query(sql, { groups? })`. Anon-capable (D41),
+app-contract-gated, `LIMIT 1000` + `max_execution_time=10` bounds. Spec'd in
+`knowledge-base/web10-v3/query-engine.md` (the discussion) + `safe-query.md`
+(the boundary + why the guarantee holds). Lane is `query-engine` in
+`parallel-execution.md`.
+
+- [✓ 3.52.0] **The boundary** (`safe_query.py`) — parse → validate → rewrite to boundary CTEs; the `ref` filter (`read_docs_by_ref`) is the first consumer.
+- [✓ 3.56.0] **Server-side engagement counts** (`read_ref_counts_by_ref`) — `GROUP BY ref_value` through the engine (exact, no cap).
+- [✓ 3.58.0] **`POST /v3/query` + `w.query()`** — the general flexible read: `query_services()` pre-flight, per-service D58 read gate, D42 "not a member" 403, `LIMIT 1000` + 10s timeout, caller-SQL → 400. SDK `w.query()` + `V3QueryResult` + JSDoc examples.
+- [✓ 3.58.0] **The ClickHouse 24.8 CTE-inlining fix** — the boundary CTE's block/sharing/hidden `LEFT ANTI JOIN`s broke CTE inlining when combined with a `JOIN` (`UNKNOWN_IDENTIFIER`), which also broke `read_docs_by_ref` + `read_ref_counts_by_ref` on a real node. Rewritten as `NOT IN` / tuple-`NOT IN` subqueries (semantically identical, verified live).
+- [✓ 3.58.0] **Tests** — API `test_query_endpoint.py` (20) + `test_safe_query.py` (+12) + `e2e/tests/query-engine.spec.ts` (the seam gauntlet: the power, I3, the contract gate, the membrane, anon).
+- [✓ 3.59.0] **v1: the query playground demo page** (`marketing-ui/public/docs/query/`) — an interactive SQL box over the signed-in user's groups (the "go crazy" showcase), five clickable example queries, a result table + loading/empty/error states.
+- [✓ 3.60.0] **v1: per-user query rate limiting** (D65) — `/v3/query` rate-limited per user, keyed on the verified `user_key` (not IP — D49/D64), in-memory per-worker (the recovery idiom), 429 when exceeded. No Redis (D66).
+- [ ] **v1** — query result caching, `EXPLAIN`-style cost hints. (Redis deferred to the social real-time work — D66.)
+- [✓ 3.65.0] **v2 teardown: remove Mongo/FerretDB from the node** (D67) — the v3 stack is fully ClickHouse; delete the v2 Mongo code + drop `pymongo` + remove the FerretDB/Mongo/Postgres services. Node becomes ClickHouse + MinIO.
+
+## Contact-Anchored Auth (D61) — Platform
+
+The account is anchored on a **contact** (phone OR email), verified by a 6-digit
+code. The contact is the front door: enter contact → code → pick an account on
+that contact (or create a new username) → signed in. Sign-up, sign-in, and
+password-change are the same flow. A contact can carry many usernames. The
+requirement is node policy (D10): the `require_contact` node-config flag;
+web10.app turns it on. The 3.47.0 UI already calls the three endpoints — they
+were never built (the changelog's "the API is 3.37.0" was wrong). Lane is
+`contact-auth` in `parallel-execution.md`.
+
+- [✓ 3.51.0] **Decision: D61** (`knowledge/strategy/decisions.md`) — contact-anchored auth (phone OR email), node-config-gated (D10), one contact → many accounts, unified sign-in + password-change, the verify_token security model, age assurance as a layerable gate.
+- [✓ 3.51.0] **KB** (`knowledge/knowledge-base/web10-v3/auth/auth.md`) — the contact-anchored flow section (the three endpoints, the model, the security, the node policy).
+- [✓ 3.51.0] **API keystone** (`api/app/v3/endpoints/recovery.py`, `services/clickhouse.py`, `services/twilio.py`, `models/auth.py`) — the three endpoints (request/verify/complete) + `get_users_by_contact` (phone OR email) + Twilio channel-aware (sms/email) + the `verify_token` gate + create-on-complete (unified signup).
+- [✓ 3.51.0] **Node config flag** (`api/app/models/config.py`, `services/config.py`) — `require_contact` (D10); enforced in `POST /v3/signup` (401 `CONTACT_REQUIRED`).
+- [✓ 3.51.0] **Tests** (`api/tests/test_recovery.py`) — request sends code, verify returns accounts + verify_token, complete signs in / creates account / changes password, contact mismatch, bad code, node-config gate.
+- [✓ 3.51.0] **UI** (`ui/src/interfaces/Interface.tsx`, `ui/src/components/CredentialPage/ForgotForm.tsx`) — the contact input (phone OR email), the verify_token plumbing, the "create a new account" option, the primary-sign-in routing.
+
+## Public Docs Overhaul (audience model) — Docs
+
+**The problem.** The public docs (`marketing/marketing-ui/public/docs/`) are thin, not organized by audience, and drifted from the implementation. The KB (`knowledge/knowledge-base/web10-v3/`) is deep and current; the public docs don't reflect it. Worst: `sdk.md` teaches a Mongo-style API (`createClient`, `w.login()`, `$sort`/`$limit`/`$match`, `$set`/`$groups`, `_id`) that doesn't match the real SDK (`createV3Client`, `openAuthPortal`+`authListen`, `read(collection, {groups, limit, offset, ref})`, `update(docId, body)`, `delete(docId)`, `w.query()`) — a developer following the docs builds the wrong app. And there's no section for the people who actually run a node or make money on it.
+
+**The reframe (operator).** "There should be sections of docs, for developers, for users, for people who want to start a node / influencer, people that want to monetize. It's not really doing a good job of asking who's on the marketing docs, then being clear to that audience." The docs need an explicit **audience model**: each section answers "who is this for?" and then speaks clearly to that reader.
+
+**The audience model.** Four readers + the pitch:
+- **Users** — fans/followers on a web10 node. "I follow creators, I post, I manage my data."
+- **Developers** — building apps on web10 data. "I'm writing code that reads/writes a user's data."
+- **Node operators / influencers** — running a node or a creator account. "I run my own node / I'm a creator here."
+- **Monetizers** — creators who want to earn. "I want to make money on web10."
+- **(The pitch)** — the curious/evaluator. "Is this legit?" (the current `overview.md`).
+
+**The structure.** Reorganize the flat doc list into audience sections (the `Docs.tsx` sidebar groups by audience; each doc names its reader up top):
+- **Overview** (the pitch) — keep, tighten. The premise, the reach gap, how it works, the principles.
+- **For Users** — `getting-started`, `groups-in-plain-terms`, `your-data` (export / kill switch / opt-out), `account-recovery` (D61), `import-from-other-platforms`.
+- **For Developers** — `sdk` (REWRITTEN to the real API), `protocol-spec` (brought current), `query-engine` (NEW), `conventions` (brought current), `groups` (the API surface), `media`, `app-contracts` (NEW), `scaffolding`.
+- **For Node Operators / Influencers** — `start-a-node` (NEW), `node-config` (NEW), `app-store` (NEW), `your-audience` (NEW), `being-a-creator` (NEW).
+- **For Monetizers** — `ads` (NEW), `ad-catalog` (NEW), `affiliate-programs` (NEW), `payment-rails` (NEW), `monetization-bootcamp`.
+
+**The deep items** (each is the audience-tuned surface of a KB doc — the KB is the source of truth):
+
+### The drift fix (highest priority — the docs are actively wrong)
+- [✓] **Rewrite `sdk.md` to the real SDK.** The current doc teaches a non-existent Mongo-style API. Rewrite every example to the actual surface: `createV3Client`; `openAuthPortal`+`authListen` (the auth popup); `readToken`/`isSignedIn`/`signOut`; `create(collection, body, {groups, tags})`; `read(collection, {groups, limit, offset, ref})`; `readRefCounts`; `readById`; `update(docId, body, {groups})`; `delete(docId)`; `query(sql, {groups})`; the group ops (`createGroup`, `joinGroup`, `requestJoin`, `inviteMember`, `getMyGroups`, `getGroupMembers`, …); the app-contract ops (`addAppContract`, `listAppContracts`, `revokeAppContract`); media (`requestUploadUrl`/`confirmUpload`/`getReadUrl`); the account ops (`signup`, `login`, `changePassword`, `setRecoveryPhone`, `verifyPhone`/`verifyEmail`). Source: `KB sdk/api.md` + `sdk/src/v3.ts` (the real signatures). **Acceptance:** every code block matches the real SDK (verified against `sdk/src/v3.ts`); a developer can copy-paste a working app.
+- [✓ 3.60.5] **Bring `protocol-spec.md` current.** It's marked "3.0.0-draft" and missing the big recent features. Add: the query engine (`POST /v3/query`, D63), contact-anchored auth / recovery (D61), the engagement model (D62 — comments/reactions as documents in the engager's service), the ad system (D55 — a post tagged `ad`), the D58 per-service role shape, the read `ref` filter + `count` shape, the per-user rate limit (D65). Fix the token format (drop the stale `"type": "tiered"`). Un-draft it. Source: `KB auth/auth.md`, `query-engine.md`, `safe-query.md`, `groups/social-contracts.md`, `social/ads.md`, `decisions.md`.
+- [✓ 3.60.6] **Fix the stale snippets in `conventions.md` + `groups.md`.** Replace `$match`/`$sort`/`$limit` with the real `read` opts; update the group role shape to D58 (a per-service permission map, not `services`+`permissions`); add the engagement model (D62) to `groups.md`.
+
+### For Users (new section)
+- [✓ 3.60.7] **`getting-started`** — create an account, sign in (the authenticator), your first post, following a creator. Plain language, no code. Source: `KB auth/auth.md` + the social app.
+- [✓ 3.60.7] **`groups-in-plain-terms`** — follows, discover, close friends, communities, DMs — what they are and when you'd use each, in user language (no roles/permissions jargon). Source: `KB groups/overview.md` + `social/overview.md`.
+- [✓ 3.60.7] **`your-data`** — export your data, the kill switch (revoke all apps), opt-out of a group, make everything private, block someone. The ownership story in user terms. Source: `KB auth/consent.md` + `security/overview.md`.
+- [✓ 3.60.7] **`account-recovery`** — the phone/email recovery flow (D61) in user terms: how to get back in if you're locked out. Source: `KB auth/auth.md` (the recovery section).
+- [✓ 3.60.7] **`import-from-other-platforms`** — expand the current `export-guidance` (a placeholder: "the operator will supply the detailed content"). **Lead with YouTube** (the first target — YouTubers, via Google Takeout; see the `YouTube Importer` section below) + the web10 **import** flow (getting your exported data onto a node) + the importer. Source: the YouTube importer + the export guidance.
+
+### For Developers (new section)
+- [✓ 3.60.8] **`query-engine`** (NEW) — the flexible read: `w.query(sql, {groups})`, the boundary (read-only by construction, scoped to your groups), the "go crazy" examples (self-join, aggregation, CTE, JSON body breakdown), the error surface (403 unsafe, 400 caller-SQL), the rate limit (D65). Source: `KB query-engine.md` + `safe-query.md` + the query playground demo.
+- [✓ 3.60.8] **`app-contracts`** (NEW) — how an app gets access: the ACR flow, per-service permissions, the kill switch, the authenticator consent screen. Source: `KB auth/consent.md` + `sdk/contracts.md`.
+- [✓ 3.60.8] **`media`** (NEW) — the upload flow (presigned URL → upload → confirm), reading media (presigned GET), the streaming/HLS layer. Source: `KB media/*`.
+- [✓ 3.60.8] **`scaffolding`** — the CLI + the demo apps (hello, notes, query, …) as the starting point. Verify the CLI actually exists; fix the "coming soon" framing if it's aspirational. Source: the demo apps + the CLI.
+
+### For Node Operators / Influencers (new section)
+- [✓ 3.60.9] **`start-a-node`** (NEW) — `docker compose up` (the stack: ClickHouse + MinIO + api/ui/rtc/social), the setup flow (the admin), pointing at your own domain. Source: `KB setup/node-config.md` + `ubuntu-deployment/`.
+- [✓ 3.60.9] **`node-config`** (NEW) — the node_config, admins, the `/am_admin` gate, the node policy flags (`require_contact`, …). Source: `KB setup/node-config.md`.
+- [✓ 3.60.9] **`app-store`** (NEW) — approving/rejecting apps, the storefront, the metrics (`users_30d`, …). Source: `KB app-store/overview.md` + `endpoints.md`.
+- [✓ 3.60.9] **`your-audience`** (NEW) — the owned audience: the followers list, reaching it directly (the differentiator). Source: `KB groups/overview.md` (the owned audience) + `groups/identity.md`.
+- [✓ 3.60.9] **`being-a-creator`** (NEW) — posting, groups, the social app, the profile. The creator's day-to-day. Source: `KB social/overview.md`.
+
+### For Monetizers (new section)
+- [✓ 3.60.10] **`ads`** (NEW) — creator-owned ads (a post tagged `ad`), the offer, the disclosure, pinning to a post. Source: `KB social/ads.md`.
+- [✓ 3.60.10] **`ad-catalog`** (NEW) — the Ad Catalog (the Studio), the composer. Source: `KB social/ads-catalog.md`.
+- [✓ 3.60.10] **`affiliate-programs`** (NEW) — the affiliate programs (the bootcamp shortlist), the creator-owned links. Source: `KB social/monetization-bootcamp.md`.
+- [✓ 3.60.10] **`payment-rails`** (NEW) — how revenue works, the 3% rail, the metering. Source: `decisions.md` (D5, D21) + the metering.
+- [✓ 3.60.10] **`monetization-bootcamp`** — the existing guide; link it into the monetizer section. Source: `KB social/monetization-bootcamp.md`.
+
+### The rendering / UX
+- [✓ 3.60.7] **Reorganize the `Docs.tsx` sidebar by audience** — group the docs under "Overview / For Users / For Developers / For Node Operators / For Monetizers" (the current flat list + demo apps). Each doc page names its reader up top.
+- [✓ 3.61.0] **A "who are you?" landing** — the `/docs` landing asks the reader who they are and routes them to their section (the "asking who's on the marketing docs" the operator wants).
+
+**Sequencing.** The drift fix first (the docs are actively wrong — `sdk.md` teaches a non-existent API). Then the audience sections (Users → Developers → Node Operators → Monetizers), each a bite. The rendering/UX last (it's the container for the content).
+
+**Cross-reference.** This is the public surface of the KB — every doc above is the audience-tuned version of a KB doc; when the KB changes, the public doc follows (the KB is the root of trust). The `Monetization Bootcamp` section (above) and the `Query Engine` section are the KB/platform halves; this section is the public-docs half. Lane: `public-docs` in `parallel-execution.md` (owns `marketing/marketing-ui/public/docs/` + `src/pages/Docs.tsx`).
+
+## YouTube Importer (port your YouTube) — Platform
+
+**The target: YouTubers, narrowly.** Operator: "porting your youtube eventually right! want to narrowly target youtubers only since google has such a great export import thing!" The first import target is **YouTubers specifically** — not all platforms. Two reasons: (1) a YouTuber is the ideal web10 user — they have a big audience (subscribers) they don't own (it's Google's), and the web10 pitch is "own your audience" (the reach gap: 1M subs, 300k reach). Porting to web10 = they own their audience, 100% delivery, no shadow ban. (2) **Google Takeout is a great export** — the data is already easy to get (`export-guidance.md` already documents the YouTube export).
+
+**The flow:** export from YouTube via Google Takeout → import onto a web10 node.
+- **Videos** → `staging_posts` with the full record (title, description, publish date, duration, stats) + thumbnail. The **video files don't come over** (Takeout has no bytes) — the post carries the watch URL; the creator re-uploads for native HLS playback (D44) when they want it.
+- **The channel** → a creator profile.
+- **Subscribers** → **don't come over** (no export path exists — Google keeps the list). The audience is the people who choose to follow on web10. The import brings the catalog + commenters + profile; the audience follows.
+- **Comments** (on the creator's own videos) → comments (the engagement model, D62, joined via `ref_value`).
+
+**The pitch:** "Port your YouTube channel. Own your audience." The reach gap is the hook — on YouTube, Google decides which 300k of your 1M subs see the next video; on web10, 100% delivery is architecture.
+
+**Status:** the import mapping + the importer (node pipeline + authenticator UI) + the docs are built (3.63.0), and the parser now reads the **real Takeout CSV format** (3.63.1 — validated against a live export; the 3.63.0 parser assumed the Data-API JSON and found zero records). The video pipeline (Phase 2 — the export includes the MP4s) + the "port your YouTube" landing page are the remaining items.
+
+- [✓ 3.63.0] **The import mapping** (Takeout → web10) — the pure YouTube parser (`api/app/services/importers/youtube.py`): videos → `staging_posts` (full record + original publish date + thumbnail), comments-on-own-videos → comments (D62 `ref_value` join), channel → profile. The honest gaps (no video files, no subscriber list) are documented. Source: `knowledge/knowledge-base/web10-v3/social/import.md`.
+- [✓ 3.63.0] **The importer** (the node endpoint + the UI) — the node-side pipeline: `POST /v3/imports` (presigned per-part upload) → the in-process durable worker (`import_worker.py`, the transcode-worker idiom, no Redis per D66) extracts tar/zip, writes in order (media → posts → comments → profile) into `staging_posts` (D30, owner-only, followers group), then deletes the raw export. The authenticator's Settings → Import from YouTube card drives it.
+- [✓ 3.67.1] **The real import e2e** (`e2e/tests/yt-import.spec.ts`) — a Playwright test that ports the operator's **actual** Takeout export into a fresh account (the "real test"): the fixture (`e2e/fixtures/yt-takeout.mjs`) reads the real CSVs out of the `takeout-*.zip` parts (no 27GB extract — the pipeline never reads the MP4s), packs a small zip, and computes expected counts via the parser's own logic (a committed synthetic Takeout is the CI fallback; `YT_IMPORT_LIMIT` bounds the chunk, default 12). API floor (real Takeout → fresh account: catalog + D30 public/private split + D62 comment join + profile; idempotent re-import; I3 stranger 403) + browser gauntlet (the real Import card, default-port-gated).
+- [ ] **The "port your YouTube" landing** — a creator-facing page: the reach gap, the owned-audience reframe, the import flow. The hook for the YouTuber. (Feeds the `For Monetizers` / `For Node Operators` doc sections above.)
+- [✓ 3.63.0] **The docs** — `import-from-other-platforms.md` leads with YouTube, now with the honest mapping table (videos = metadata + thumbnail, not playable files; subscribers = don't come over) + the 2GB-tar-split instruction; `export-guidance.md` carries the same; the KB `social/import.md` is the root of trust.
 
 ## Phase 4 — Production Cutover: v2 → v3, then merge to main
 

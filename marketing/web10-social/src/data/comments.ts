@@ -13,10 +13,12 @@ import { fromV3DocToComment, type CommentRecord } from './types';
 export async function readComments(postId: string, groups?: string[]): Promise<CommentRecord[]> {
   const w = getV3Client();
   const targetGroups = groups || [getDiscoverGroupId()];
-  const docs = await w.read('comments', { groups: targetGroups });
-  return docs
-    .filter((d) => d.ref_value === postId)
-    .map(fromV3DocToComment);
+  // The ref filter (the flexible read, phase 1): the server returns only the
+  // comments whose ref_value = postId (via the safe-query engine — group
+  // filter + block/sharing/hidden), not all comments in the group. No
+  // client-side filter needed.
+  const docs = await w.read('comments', { groups: targetGroups, ref: postId });
+  return docs.map(fromV3DocToComment);
 }
 
 /**
@@ -33,10 +35,10 @@ export async function readTopLevelComments(postId: string, groups?: string[]): P
 export async function readReplies(commentId: string, groups?: string[]): Promise<CommentRecord[]> {
   const w = getV3Client();
   const targetGroups = groups || [getDiscoverGroupId()];
-  const docs = await w.read('comments', { groups: targetGroups });
-  return docs
-    .filter((d) => d.ref_value === commentId)
-    .map(fromV3DocToComment);
+  // The ref filter: the server returns only the comments whose ref_value =
+  // commentId (replies to this comment), via the safe-query engine.
+  const docs = await w.read('comments', { groups: targetGroups, ref: commentId });
+  return docs.map(fromV3DocToComment);
 }
 
 /**
@@ -66,9 +68,11 @@ export async function createComment(
   };
 
   const targetGroups = groups || [getDiscoverGroupId()];
-  const doc = await w.create('comments', body, { groups: targetGroups });
-  // Set ref_value on the document body for the ref pattern
-  doc.ref_value = comment.post_id;
+  // ref_value (the target post's doc_id) is a top-level create field, not in
+  // the body — the server stores it in the ref_value column, which the read's
+  // ref filter + engagement counts key off. Without this the comment is
+  // orphaned (ref_value="" → the ref read never finds it).
+  const doc = await w.create('comments', body, { groups: targetGroups, ref_value: comment.post_id });
   return fromV3DocToComment(doc);
 }
 

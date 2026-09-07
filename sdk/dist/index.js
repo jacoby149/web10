@@ -188,6 +188,8 @@ function createV3Client(options = {}) {
         payload.groups = opts.groups;
       if (opts?.ad_preference)
         payload.ad_preference = opts.ad_preference;
+      if (opts?.ref_value)
+        payload.ref_value = opts.ref_value;
       return v3Post("create", payload);
     },
     async read(collection, opts) {
@@ -196,10 +198,25 @@ function createV3Client(options = {}) {
         payload.limit = opts.limit;
       if (opts.offset != null)
         payload.offset = opts.offset;
+      if (opts.ref != null)
+        payload.ref = opts.ref;
+      return v3Post("read", payload);
+    },
+    async readRefCounts(collection, opts) {
+      const payload = { service: collection, groups: opts.groups, ref: opts.ref, count: true };
       return v3Post("read", payload);
     },
     async readById(docId, collection) {
       return v3Post("read", { doc_id: docId, service: collection });
+    },
+    async query(sql, opts) {
+      const payload = { sql };
+      if (opts?.groups)
+        payload.groups = opts.groups;
+      const token = state.token ?? readTokenCookie();
+      if (token)
+        payload.token = token;
+      return authPost(`${apiOrigin}/v3/query`, payload);
     },
     async update(docId, body, opts) {
       const payload = { doc_id: docId, body };

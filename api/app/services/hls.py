@@ -75,12 +75,15 @@ def verify_sig(sig: str, doc_id: str) -> dict:
 
 
 def can_view_doc(doc_id: str, username: str) -> dict | None:
-    """The document if `username` may view it — author, or a member of any
-    group the document belongs to. None otherwise (the caller 403s).
+    """The document if `username` may view it — author, a member of any
+    group the document belongs to, or a reader of a post that carries it
+    (D68 — the cross-user feed path: the post's groups are the access model,
+    the media doc is owned data, not a boundary). None otherwise (the
+    caller 403s).
 
     This is the re-check the sig expiry buys: every manifest (re)fetch
-    re-runs group membership, so a revoked membership stops the stream
-    within one sig TTL.
+    re-runs access, so a revoked membership stops the stream within one
+    sig TTL.
     """
     doc = ch.get_document_any_author(doc_id)
     if not doc:
@@ -90,6 +93,8 @@ def can_view_doc(doc_id: str, username: str) -> dict | None:
     for group_id in ch.get_doc_groups(doc_id):
         if ch.is_group_member(group_id, username):
             return doc
+    if ch.can_read_carrier_post(doc_id, doc["author_key"], username):
+        return doc
     return None
 
 

@@ -14,8 +14,6 @@ CORS_SERVICE_MANAGERS = """
     auth.web10.app,
     auth.dev.web10.app
 """
-DB = "testing"
-DB_URL = "mongodb+srv://web10:jSol....."
 # Usernames that may read/write the node config when no admins list has been
 # saved yet (bootstrap). Once an admin edits the list in the Node Config UI,
 # that saved list takes over. Override with the DEFAULT_ADMINS env (comma-sep).
@@ -41,6 +39,10 @@ TWILIO_SERVICE = "VAbce...."
 TWILIO_ACCOUNT_SID = "AC3594...."
 TWILIO_AUTH_TOKEN = "460d....."
 TWILIO_NUMBER = "+12764004437"
+# E2E / local mode — when truthy, the recovery flow uses a deterministic
+# in-memory code store instead of calling Twilio (CI has no real credentials).
+# Never set in prod. See services/twilio.py.
+TWILIO_E2E = ""
 STRIPE_STATUS = "live"
 STRIPE_TEST_KEY = "sk_test_51Khy....."
 STRIPE_LIVE_KEY = "sk_live_51Khyui......"
@@ -94,6 +96,15 @@ HLS_SIG_TTL = int(os.getenv("HLS_SIG_TTL", "600"))
 HLS_WORKER_CONCURRENCY = int(os.getenv("HLS_WORKER_CONCURRENCY", "1"))
 # Per-rendition ffmpeg wall-clock cap (seconds).
 HLS_FFMPEG_TIMEOUT = int(os.getenv("HLS_FFMPEG_TIMEOUT", "600"))
+
+# Import worker (the YouTube importer — plan "port your YouTube"). Concurrent
+# import jobs. 1 keeps a single node's disk + network from being eaten by a
+# multi-part Takeout extraction (a 2GB-split export streams + unpacks in the
+# worker thread, not the request pool).
+IMPORT_WORKER_CONCURRENCY = int(os.getenv("IMPORT_WORKER_CONCURRENCY", "1"))
+# Max export parts per job (a Takeout split into ~2GB parts; 10 parts = ~20GB,
+# far beyond any realistic channel export).
+IMPORT_MAX_PARTS = int(os.getenv("IMPORT_MAX_PARTS", "10"))
 
 # Load environment variables into settings params.
 for v in list(globals()):

@@ -20,6 +20,37 @@ import { CommentThread } from '@/components/Feed/CommentThread';
 import { TextWithLinks } from '@/components/Feed/LinkEmbed';
 import { AdBlock } from '@/components/Feed/AdBlock';
 import { cn } from '@/lib/utils';
+import { HlsVideoPlayer } from '@/components/Feed/HlsVideoPlayer';
+
+/** The lightbox's video pane — D44: transcoded video plays through the
+ *  hls.js player (the feed card's player, 3.67.0); non-transcoded video
+ *  (the Phase-2 import path) plays the native <video>. */
+function LightboxVideo({ media }: { media: MediaRecord }) {
+  const ts = media.transcoding_settings;
+  if (ts?.status === 'done' && ts.manifest_url) {
+    const v0 = ts.variants?.[0];
+    return (
+      <HlsVideoPlayer
+        manifestUrl={ts.manifest_url}
+        poster={media.thumbnail_url}
+        width={v0?.width || media.width}
+        height={v0?.height || media.height}
+        className="w-full"
+      />
+    );
+  }
+  return (
+    <video
+      key={media._id || media.url}
+      src={media.url}
+      poster={media.thumbnail_url}
+      controls
+      playsInline
+      className="max-h-[50vh] w-full object-contain sm:max-h-[88vh]"
+      data-testid="lightbox-video"
+    />
+  );
+}
 
 function formatTimeAgo(dateStr: string): string {
   const then = new Date(dateStr).getTime();
@@ -243,14 +274,7 @@ export function PostLightbox({ post, mediaMap, onClose, onReload, postAuthor, po
         {hasMedia && (
           <div className="relative flex min-h-0 flex-1 items-center justify-center bg-black">
             {current.mime_type?.startsWith('video/') ? (
-              <video
-                key={current._id || current.url}
-                src={current.url}
-                poster={current.thumbnail_url}
-                controls
-                playsInline
-                className="max-h-[50vh] w-full object-contain sm:max-h-[88vh]"
-              />
+              <LightboxVideo media={current} />
             ) : (
               <img
                 src={current.url}
@@ -392,9 +416,13 @@ export function PostLightbox({ post, mediaMap, onClose, onReload, postAuthor, po
             </button>
           </div>
 
-          {/* Pinned ad (the read serves it inline on the post, I3-checked) */}
-          {currentPost.ad && (
-            <AdBlock ad={currentPost.ad} className="mt-3 -mx-1 px-4" />
+          {/* Carried ads (D55 + D57): the creator's pinned ad + the node's ad
+              can both be present — render both, neither suppressing the other. */}
+          {(currentPost.ad || currentPost.node_ad) && (
+            <div className="mt-3 -mx-1 px-4 space-y-2">
+              {currentPost.ad && <AdBlock ad={currentPost.ad} />}
+              {currentPost.node_ad && <AdBlock ad={currentPost.node_ad} />}
+            </div>
           )}
 
           {/* Comment thread */}

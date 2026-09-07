@@ -40,18 +40,18 @@ class SetRecoveryPhone(BaseModel):
     phone: str
 
 
+# Contact-anchored auth (D61) — unauthenticated; the contact + code are the
+# credential. `contact` is a phone number OR an email.
 class RecoveryRequest(BaseModel):
-    phone: str
+    contact: str
 
 
 class RecoveryVerify(BaseModel):
-    phone: str
+    contact: str
     code: str
 
 
 class RecoveryComplete(BaseModel):
-    phone: str
-    code: str
+    verify_token: str
     username: str
     new_password: str | None = None
-    site: str | None = None

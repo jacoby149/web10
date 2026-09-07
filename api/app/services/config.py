@@ -136,6 +136,7 @@ def effective_config() -> dict:
         "token_expire_minutes": _as_int(s.TOKEN_EXPIRE_MINUTES),
         "beta_required": _as_bool(s.BETA_REQUIRED),
         "verify_required": _as_bool(s.VERIFY_REQUIRED),
+        "require_contact": False,
         "pay_required": False,
         "beta_code": s.BETA_CODE,
         "free_credits": _as_float(s.FREE_CREDITS),

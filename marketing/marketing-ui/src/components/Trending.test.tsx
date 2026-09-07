@@ -204,10 +204,10 @@ const jsonOk = (body: unknown) => ({
 // ── v3 discover-group docs (the shape /v3/read returns) ─────────────────────
 //
 // The component's fetchDiscoverFeed reads the node-default discover group
-// (web10.app/groups/web10/discover) through the normal /v3/read path as anon:
-// three service reads (posts + reactions + comments), engagement derived from
-// the ref pattern (ref_value = the target post's doc_id). The mock returns the
-// right shape per service.
+// through the normal /v3/read path as anon: one posts read + the server-side
+// engagement-count shape for reactions + comments (count: true → a
+// {ref_value: count} map, GROUP BY ref_value through the engine). The mock
+// returns the right shape per service.
 
 function v3Post(i: number, overrides: Record<string, unknown> = {}) {
   return {
@@ -254,16 +254,17 @@ function makeV3PostsResolvedMedia(n: number) {
   );
 }
 
-// Mock the discover feed fetch. The component reads posts + reactions +
-// comments from the discover group; the mock returns the right shape per
-// service (reactions/comments default to empty → zero engagement).
-function mockDiscoverFeed(posts: unknown[] = makeV3Posts(20), reactions: unknown[] = [], comments: unknown[] = []) {
+// Mock the discover feed fetch. The component reads posts (no count) + the
+// server-side engagement-count shape for reactions + comments (count: true →
+// a {ref_value: count} map). The mock returns the right shape per service
+// (reactions/comments default to {} → zero engagement).
+function mockDiscoverFeed(posts: unknown[] = makeV3Posts(20), reactions: Record<string, number> = {}, comments: Record<string, number> = {}) {
   vi.mocked(fetch).mockImplementation(async (_url, init) => {
     const body = JSON.parse(String(init?.body ?? '{}'));
     if (body?.service === 'posts') return jsonOk(posts);
     if (body?.service === 'reactions') return jsonOk(reactions);
     if (body?.service === 'comments') return jsonOk(comments);
-    return jsonOk([]);
+    return jsonOk({});
   });
 }
 
@@ -414,10 +415,7 @@ describe('Knob re-ranking', () => {
       v3Post(1, { doc_id: 'newer-post', author_key: 'newer', body: { text: 'newer low-engagement' }, tags: ['test'], created_at: new Date(now - 10 * 60_000).toISOString() }),
     ];
     // The older post has 5 reactions (high engagement); the newer post has 1.
-    const reactions = [
-      ...Array.from({ length: 5 }, () => ({ doc_id: 'r', author_key: 'x', body: {}, tags: [], created_at: new Date().toISOString(), ref_value: 'older-post', service: 'reactions' })),
-      { doc_id: 'r2', author_key: 'y', body: {}, tags: [], created_at: new Date().toISOString(), ref_value: 'newer-post', service: 'reactions' },
-    ];
+    const reactions: Record<string, number> = { 'older-post': 5, 'newer-post': 1 };
     mockDiscoverFeed(posts, reactions);
     const { default: Trending } = await import('@/pages/Trending');
     render(<Trending />);
@@ -455,7 +453,7 @@ describe('Preset behavior', () => {
       v3Post(1, { doc_id: 'new-post', author_key: 'new', body: { text: 'new post' }, tags: ['test'], created_at: new Date().toISOString() }),
     ];
     // The old post has 5 reactions (high engagement); the new post has none.
-    const reactions = Array.from({ length: 5 }, () => ({ doc_id: 'r', author_key: 'x', body: {}, tags: [], created_at: new Date().toISOString(), ref_value: 'old-post', service: 'reactions' }));
+    const reactions: Record<string, number> = { 'old-post': 5 };
     mockDiscoverFeed(posts, reactions);
     const { default: Trending } = await import('@/pages/Trending');
     render(<Trending />);
@@ -473,10 +471,7 @@ describe('Preset behavior', () => {
       v3Post(1, { doc_id: 'old-post', author_key: 'old', body: { text: 'old post' }, tags: ['test'], created_at: '2020-01-01T00:00:00Z' }),
     ];
     // The old post has 5 reactions (high engagement); the new post has 1.
-    const reactions = [
-      ...Array.from({ length: 5 }, () => ({ doc_id: 'r', author_key: 'x', body: {}, tags: [], created_at: new Date().toISOString(), ref_value: 'old-post', service: 'reactions' })),
-      { doc_id: 'r2', author_key: 'y', body: {}, tags: [], created_at: new Date().toISOString(), ref_value: 'new-post', service: 'reactions' },
-    ];
+    const reactions: Record<string, number> = { 'old-post': 5, 'new-post': 1 };
     mockDiscoverFeed(posts, reactions);
     const { default: Trending } = await import('@/pages/Trending');
     render(<Trending />);

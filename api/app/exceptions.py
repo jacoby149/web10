@@ -179,6 +179,22 @@ EMAIL_TAKEN = HTTPException(
     detail="that email is already linked to another account",
 )
 
+BAD_CONTACT = HTTPException(
+    status_code=status.HTTP_400_BAD_REQUEST,
+    detail="enter a valid phone number or email address",
+)
+
+CONTACT_REQUIRED = HTTPException(
+    status_code=status.HTTP_401_UNAUTHORIZED,
+    detail="this node requires a phone number or email address",
+)
+
+CONTACT_NOT_LINKED = HTTPException(
+    status_code=status.HTTP_401_UNAUTHORIZED,
+    detail="that account isn't linked to this phone or email",
+    headers={"WWW-Authenticate": "Basic"},
+)
+
 EXPIRED_CODE = HTTPException(
     status_code=status.HTTP_401_UNAUTHORIZED,
     detail="verification code has expired",

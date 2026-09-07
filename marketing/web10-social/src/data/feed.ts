@@ -138,30 +138,23 @@ export async function readFeed(sort: FeedSort = 'newest', limit = 50): Promise<P
 
 /**
  * Engagement counts for the feed's posts (the ref pattern — the same one
- * DiscoverScreen runs): one read of the `reactions` + `comments` collections
- * over the feed's groups, counted client-side by `ref_value` (the target
- * post's doc_id). Without this the feed's likes/comments knobs only ever
- * see recency. Returns per-doc_id counts; a missing post is simply absent
- * (the caller treats absent as 0).
+ * DiscoverScreen runs). The server-side count shape: `readRefCounts` runs
+ * `GROUP BY ref_value` through the safe-query engine for the feed's groups —
+ * exact, no cap. Replaces the old "read a capped sample, count client-side"
+ * (which undercounted past the cap). Returns per-doc_id counts; a missing post
+ * is simply absent (the caller treats absent as 0).
  */
 export async function readFeedEngagement(
   feedGroups: string[],
-  limit = 500,
+  postIds: string[],
 ): Promise<{ likes: Record<string, number>; comments: Record<string, number> }> {
   const w = getV3Client();
-  console.log('[social-feed] readFeedEngagement — counting over', feedGroups.length, 'groups');
-  const [reactionDocs, commentDocs] = await Promise.all([
-    w.read('reactions', { groups: feedGroups, limit }),
-    w.read('comments', { groups: feedGroups, limit }),
+  console.log('[social-feed] readFeedEngagement — server-side count for', postIds.length, 'posts over', feedGroups.length, 'groups');
+  if (!postIds.length) return { likes: {}, comments: {} };
+  const [likes, comments] = await Promise.all([
+    w.readRefCounts('reactions', { groups: feedGroups, ref: postIds }),
+    w.readRefCounts('comments', { groups: feedGroups, ref: postIds }),
   ]);
-  const likes: Record<string, number> = {};
-  const comments: Record<string, number> = {};
-  for (const d of reactionDocs) {
-    if (d.ref_value) likes[d.ref_value] = (likes[d.ref_value] || 0) + 1;
-  }
-  for (const d of commentDocs) {
-    if (d.ref_value) comments[d.ref_value] = (comments[d.ref_value] || 0) + 1;
-  }
   console.log(
     '[social-feed] readFeedEngagement — counted',
     Object.values(likes).reduce((a, b) => a + b, 0), 'reactions +',

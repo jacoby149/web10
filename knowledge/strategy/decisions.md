@@ -9,6 +9,232 @@ Status legend: [decided] intent set · [in-progress] · [open] still debating.
 
 ---
 
+### D68 — HLS stream access tracks post access (the carrier-post check) [decided]
+
+**The decision.** A reader may fetch the HLS manifest/segments of a media
+doc if the reader is (1) the doc's author, (2) a member of a group the media
+doc belongs to, **or (3) a reader of a post that carries the media** — a
+`posts` doc whose `media_refs` include the media doc's doc_id, in a group the
+reader can read. The check lives in `can_view_doc` (the manifest fetch's
+access re-check), so the 10-minute sig TTL re-runs it: a removed/blocked
+follower loses the stream within one TTL.
+
+**Why.** Operator: "if it isnt possible for people who should see hls
+streams to see, should be possible." 3.67.0 shipped the feed player with the
+gap declared: social media docs (confirmMediaUpload) are groupless, so a
+follower's minted sig 403'd at the manifest fetch — only the author's own
+transcoded posts streamed. The load-bearing fact: **the post read already
+grants every post reader a presigned `read_url` for the raw MP4**
+(`resolve_media_urls` mints it into the resolved media ref). The raw file is
+strictly more data than the HLS renditions — so aligning HLS access with
+post access leaks nothing new; it makes the stream consistent with access
+already granted. The KB's own model says the same
+(`minio-auth-bifurcated.md`: "You got the document (group membership
+checked), the file URL is part of it") — for video, the post is the document.
+
+**What it rejects.** Attaching media docs to their post's groups at post
+time (option a): not retroactive (pre-existing posts' media stays 403 for
+followers), needs maintenance (post update/delete desyncs the media doc's
+groups), and is partial (a post's discover-group attach depends on the
+author's role there). Also rejected: a separate media-read endpoint for the
+client to re-resolve (an extra round trip for data the read already
+carries).
+
+**The bound.** The carrier-post lookup is scoped to the media doc's AUTHOR's
+posts (a post can only carry its own author's media — resolution is
+author-scoped), dedup-then-filter, `LIMIT 1`. Manifest fetches are
+low-frequency (one per 10-min sig per viewer + rebuffer), so the cost is
+negligible at v3 scale; if it ever matters, the `media_refs` reference is
+the index to add.
+
+### D67 — Remove v2 Mongo/FerretDB from the node [decided]
+
+**The decision.** The node drops **Mongo + FerretDB** (and FerretDB's Postgres
+backend). The v3 stack is fully ClickHouse; Mongo is v2-only. Delete the v2
+Mongo code (`app/services/documentdb.py`, the Mongo functions in
+`app/services/auth.py`, the v2 `/recovery_bot` endpoint, the v2 `email.py`),
+carve out the no-Mongo helpers v3 still imports (`get_password_hash`,
+`decode_token`, `check_admin`, `certify`), drop `pymongo` + the `DB_URL`/`DB`
+settings, and remove the FerretDB/Mongo/Postgres services from the compose
+files. The node becomes **ClickHouse + MinIO** (+ Redis if/when D66 lands).
+
+**Why.** Operator: "definitely we should delete the ferretDB mongo, some of
+this stuff has to go that is v2!" Verified: nothing in `app/v3/` touches Mongo.
+The setup/config/admin surface is already ClickHouse (`post_setup` →
+`ch.create_user`, `check_admin` → `config_svc.is_admin`). Mongo survives only
+in the v2 auth flow, which v3 doesn't call (v3 login uses `ch.authenticate_user`,
+not the Mongo one). Keeping FerretDB + Mongo + a Postgres-for-FerretDB in the
+v3 node is three services doing nothing.
+
+**Supersedes** D3 (DocumentDB/FerretDB as the open DB backend) for the v3 node
+— D3 was the v2 call; v3 moved to ClickHouse, so FerretDB is now v2 cruft. D3
+still describes the v2→v3 migration history.
+
+**What it rejects.** Keeping FerretDB/Mongo/Postgres in the v3 node.
+
+**Execution.** A separate branch/PR (a stack-shrink refactor, not tangled with
+the rate limit). The detailed data-model doc updates land with the teardown.
+
+### D66 — Node target: lean multi-container, not one-container; no Redis for now [decided]
+
+**The decision.** The node target is a **lean multi-container compose fleet**,
+not a single container. The `docker run … web10/node` one-container goal (plan
+phase 3) is dropped as over-optimization. **Redis is not added now** — deferred
+until the social real-time work (presence / DMs / notifications) that actually
+needs it.
+
+**Why.** Operator: "one container is total bullshit actually! librechat, all
+these projects are multi container, it doesnt matter, one docker compose is
+fine." Every serious self-hosted project (LibreChat, Nextcloud, Gitea,
+Vaultwarden) ships a compose fleet; a one-container node is an over-optimization
+that fights the real-world deployment model. With multi-container accepted,
+adding a service is cheap (a compose line) — but cheap isn't the same as needed.
+Redis's value here is real-time social (presence, pub/sub for DMs/notifications)
++ a global rate limit; rate limiting doesn't need it (D65's per-worker limit
+suffices), and the social real-time work isn't next. Add Redis when that work
+starts — the one-container-vs-sidecar call becomes moot (multi-container is
+already accepted).
+
+**What it rejects.** The one-container target as a hard requirement; adding
+Redis now for rate limiting alone.
+
+### D65 — Per-user rate limiting on `/v3/query` [decided]
+
+**The decision.** `/v3/query` is rate-limited **per user**, keyed on the
+**verified `user_key`** from the token (not IP, not the raw token). In-memory,
+per-worker (the recovery idiom — a `_send_log` dict, a time-window, raises
+`RATE_LIMIT` → 429). A user who exceeds the budget gets a 429 until the window
+resets.
+
+**Why.** Operator: "ok, rate limiting per user then." Abuse prevention: an API
+(or any scripted client) can hammer `/v3/query` — origin gating doesn't stop it
+(D64). Per-user means a user can't game the limit by spinning up multiple
+tokens/apps (one `user_key` = one budget). Keying on the verified `user_key`
+(not IP) follows D49/D64 — the node sits behind a proxy, so XFF is spoofable;
+the verified token is the honest key. In-memory per-worker matches the recovery
+rate limit and adds zero deployment; the per-worker weakness (N workers ≈ N×
+the limit) is an accepted backstop tradeoff.
+
+**What it rejects.** IP-based limiting (spoofable behind the proxy — D49);
+per-token limiting (a user games it with multiple tokens); a Redis-backed global
+limit *for now* (deferred — D66).
+
+**Anon.** Anon has no verified `user_key` (the honest key), so anon is not
+per-user-limited; a shared anon budget (or no anon limit) is a separate,
+deferred concern.
+
+### D64 — Origin-based approval is curation, not a security boundary [decided]
+
+**The decision.** A node-level origin gate (approving/denying which
+websites/apps may call the node) is **curation, not a security boundary.** The
+`Origin` header is client-controlled: a browser enforces it (a web page's JS
+can't forge it — it's a forbidden header the browser sets), but a non-browser
+client (curl, a backend, a mobile app) sets whatever it wants. So an origin gate
+stops casual browser abuse and blesses sites for the store/UX, but a scripted
+caller forges `Origin` freely.
+
+**Why.** Operator, probing the model: "is that easy to spoof pretend they are
+from website, change the html of the website that is approved?" → "yeah, so can
+be abused since an api can abuse." The real security boundary in web10 is the
+**user's token + the user's app contract** — the user is the trust anchor who
+judges the origin (the user-centric model). Origin tells you which *site* a
+browser is on; it is not a proof of who's calling. This extends D49 (rejected
+IP-based limiting — "the node can only honestly key on URL + verified token"):
+origin is the honest key *in a browser*, but it's forgeable outside one, so it's
+a curation signal, not a wall. (Controlling the approved domain — owning it, a
+compromise, a lookalike, or an XSS — lets an attacker run under the real origin,
+but that's a trust problem, not a protocol flaw, and forging the header is
+easier still.)
+
+**What it rejects.** Using app/origin approval as an abuse-prevention or
+access-control gate. A "node allows this website to query" switch is fine for
+curation (which sites are blessed), but it must not be relied on to stop a
+determined caller. **Abuse prevention is rate limiting** (D65), not origin
+gating.
+
+### D63 — The flexible read: `w.query()` / `POST /v3/query` — a caller writes a ClickHouse `SELECT` over their services; the engine is the boundary [decided]
+
+**The decision.** An app writes a ClickHouse `SELECT` over its **service
+names** (`posts`, `comments`, …); the node compiles it through the safe-query
+engine and runs it. Read-only by construction — the engine rejects anything
+but a single `SELECT`, raw node tables, and table functions *before* anything
+executes. Each service name is rewritten to an API-built **boundary CTE**
+(group-filtered + block/sharing/hidden), so self-joins, aggregations,
+subqueries, and caller CTEs all work, and none can leak past the caller's
+groups.
+
+**Why.** v2 let an app run any Mongo query inside a user's collection — the
+collection *was* the boundary. v3 has one shared ClickHouse table and a group
+boundary; the fixed read shapes (group read, `ref` filter) didn't reach "do
+anything." The engine restores v2's query power (flexible filters, cross-
+service self-joins, aggregations) without breaking the group boundary, because
+the boundary is on the *input* (the CTEs the caller reads), not a filter on
+the *output* — the raw tables are simply unreachable.
+
+**The query language: a SQL subset, not a DSL, not raw passthrough.** A DSL
+caps the power; raw passthrough is unsafe (the caller drops the group filter).
+The rewriting layer is the boundary, and it's a *wall* (raw tables
+unreachable), so the parser only has to be complete about *table references*,
+not about every SQL construct. sqlglot (ClickHouse dialect) parses + validates;
+the round-trip re-parse is the backstop.
+
+**The ClickHouse 24.8 CTE-inlining fix (the load-bearing detail).** The
+boundary CTE's block/sharing/hidden filters are `NOT IN` / tuple-`NOT IN`
+subqueries, **not** `LEFT ANTI JOIN`. A ClickHouse 24.8 bug breaks CTE inlining
+when the CTE body combines a `JOIN` with a `LEFT ANTI JOIN` — the CTE's output
+columns become unresolvable (`UNKNOWN_IDENTIFIER`), so *any* query over the
+service 400s. That bug also broke `read_docs_by_ref` (3.52.0) and
+`read_ref_counts_by_ref` (3.56.0) on a real node. The `NOT IN` forms are the
+anti-join `ON` clauses, transposed — semantically identical (verified live)
+and they inline cleanly.
+
+**What it rejects.** A JSON DSL (caps the power); raw SQL passthrough (unsafe);
+a CTE that wraps the *output* and filters it (a membrane, not a wall — an
+aggregation inside the parens bakes everyone's data in before the filter runs).
+
+**Bounds.** An unbounded query gets `LIMIT 1000` appended (a caller `LIMIT` is
+honored); `max_execution_time = 10`. The boundary CTE is the data bound — a
+query can only scan the caller's readable groups, not the whole node.
+
+**Anon + contract.** Anon-capable (D41 — a missing token reads the public
+board). The app-contract gate: the query may only touch services the contract
+grants `readAll` on (`query_services()` checks before any group work). D42
+holds: an explicit group the reader can't read is a 403, not an empty result.
+
+Spec'd in `knowledge-base/web10-v3/query-engine.md` (the discussion) +
+`safe-query.md` (the boundary + why the guarantee holds).
+
+### D62 — Engagement (comments/reactions) defaults to discover; the UI can pick groups; private accounts deferred [decided]
+Operator, 02.09.2026 — after the "can't comment/like my own post and have it persist" report: "comments being on discover is legit no problem, and reactions unless a private group setting! so not a big deal!" + "put a readme that to do private insta account type stuff, some thought has to go into that. but we arent implementing private yet, i.e. private accounts." + "we have a groups tab, so maybe it does apply, if you make a comment, well the comment can let you say what groups you want in the social ui you decide what groups the comment is going to! so if in a group and commenting can say discover + the group!"
+
+**Decided** — (1) **A comment/reaction is a document in the engager's own service** (`comments` / `reactions`), authored by the person who engaged, pointing at its target post via `ref_value` (the post's `doc_id`). **Authorship ≠ visibility**: the doc lives in the engager's data (whose it is); the group decides who can see it. That split is the model — no contradiction between "the post lives in the author's group" and "the comment lives in the commenter's service." (2) **Default group is discover** (`web10.app/groups/web10/discover`) — the universal public board. Every user is a member (auto-enroll) so the engager can always write there; it's `anyone`-readable so the public surface sees it. Correct for public posts, and the default. (3) **The group-picker is a feature** — the comment/reaction UI lets the user choose which groups to attach it to (same picker as the post composer); in a community the default is `discover` + the community group. (4) **Private accounts are deferred** — Instagram-style private accounts (posts + engagement not on the public board) are not implemented and need a design pass (the per-account "private" setting that changes the default group). Not a blocker: public accounts work with the discover default.
+
+**The concrete bug (separate from the design):** the client never sends `ref_value` to the server — `createComment`/`createReaction` set `doc.ref_value` *after* the create (client-side only), the SDK's `create` has no `ref_value` param, so the server stores `""` and the `ref_value === post_id` read filter never matches. That is why engagement "doesn't persist." Fix: the SDK's `create` accepts a `ref_value`; the client passes `ref_value = post._id`.
+
+**Rejected:** co-locating engagement in the post's own groups as the *default* (a public post sits in 2 groups → the engager needs write access to both, and the follower role grants only `readAll` on `posts`, not `create` on comments; discover is the one group everyone can always write to); a universal engagement store with a join-and-filter read (a privacy leak for private posts, and the feed reads followers-minus-discover so it wouldn't see discover-hosted engagement).
+
+Full model: `knowledge-base/web10-social-v3/engagement.md`.
+
+### D61 — Contact-anchored auth: phone OR email is the account anchor; node-config-gated (D10); one contact → many accounts; sign-in and password-change are the same flow [decided]
+Operator, 02.09.2026 — "we need to make phone numbers mandatory to register, everyone has to be very legit i feel like. only 63 accts on web10 have phone number" → "we need phone number easy sign in with just enter your phone number, then enter a code you were texted, and pick one of the users assigned to your phone, one of the usernames, like mad easy!" → "but then once signed in change password with phone code as well!" → "can we do the same thing with email? phone is pretty personal for alot of people. like a phone OR email system, dont need to be so privatey like this. and the verification steps too." → "for this node we should require phone OR email! if we need to change the auth ui, to make it intuitive to do phone OR email! and we NEED to do verification for it!"
+
+**Decided** — the account is anchored on a **contact** (a phone number OR an email), verified by a 6-digit code. The contact is the front door: **enter contact → code → pick an account on that contact (or create a new username) → signed in.** Sign-up and sign-in are the **same flow** — the "pick one of the users" step handles both (pick an existing account = sign in; type a new username = create it, carrying the verified contact). A contact can carry **many usernames** (the operator's "pick one of the users assigned to your phone"). **Password change is the same flow with a new password** — verify the contact, set a new password, done (no old password required). The requirement is **node policy, not hardcode (D10)**: a `require_contact` node-config flag; web10.app turns it on (new accounts must carry a verified contact), a small self-hosted node can leave it off. The node stays **readable-by-design** (thesis) — the contact is PII the node holds under terms, not a cryptographic secret; "not so privatey" is the point.
+
+**The three endpoints** (unauthenticated — the contact + code are the credential; the 3.47.0 UI already calls them, they were never built — the changelog's "the API is 3.37.0" was wrong, that was node ads):
+- `POST /v3/recovery/request` `{contact}` → send a 6-digit code (Twilio Verify: `channel=sms` for a phone, `channel=email` for an email — **one provider for both**).
+- `POST /v3/recovery/verify` `{contact, code}` → check the code, return `{accounts:[{username,email}], verify_token}`. `verify_token` is a short-lived (5-min) signed JWT `{contact, kind, purpose:"recovery", exp}` — the proof the code was right, so `complete` can't be called without it.
+- `POST /v3/recovery/complete` `{verify_token, username, new_password?}` → validate `verify_token`, confirm the picked account actually carries the contact (defense in depth), create the account if new (carrying the verified contact; a random password when none is set, so the contact is the credential), optionally set the new password, mark the contact verified, mint the login JWT.
+
+**Why:** the operator wants "everyone legit" — a verified contact is the strongest single signal of a real, reachable, accountable human, which is exactly the thesis ("a real party you can sue"). Phone is the stronger legitimacy anchor (a SIM is tied to a person); email is the reach/privacy/cost default (the operator's "phone is pretty personal"). Phone OR email, node-config-gated, handles both without a global hardcode (D10). Unifying sign-in + sign-up + password-change into one contact flow is the "mad easy" the operator asked for — there is no separate "signup" vs "login," just "which account am I on this contact?"
+
+**Rejected:** phone-only (invasive, not universal, costs per SMS, SIM-swap attack vector — the operator's "phone is pretty personal"); email-only (the easiest contact to mass-fake, so the weakest anti-abuse signal); a global hardcoded phone requirement (D10 — node policy, not hardcode); re-checking the raw code in `complete` (depends on Twilio's re-check behavior; the server-side `verify_token` is the robust gate); a separate signup endpoint as the front door (the contact flow subsumes it).
+
+**What stays:** username+password login (the fallback for the ~520 existing accounts with no contact — they keep working and are prompted to add a contact; reversible); the `users` table (phone/phone_verified/email/email_verified — no schema change); the D42 consent popup (the contact flow mints the same JWT the popup flow does). **Age assurance is a separate, layerable gate** (the 2024–2026 legal wave is age verification, not phone-required; neither phone nor email proves age) — designed to bolt on per region without rearchitecting the contact model.
+
+Full model: `knowledge-base/web10-v3/auth/auth.md` (the contact-anchored flow section). Decision D10 (node policy) is the governing posture; this is its implementation for the contact/legitimacy gate.
+
+---
+
 ### D60 — The protocol stays universal: no app-specific tables/endpoints in the platform; app concepts live in app-named services + role grants [decided]
 Operator, 31.08.2026 — after the D58 Stage 0 identity work: "what hurts me is what if another app wants to define identity differently, we are locking it in to a name a description, a banner photo or whatever we are doing. it is very web10 social contexted is my point, we are making a universal role maker for the web" and "the marketing page is promoting web10 social as the frontier web10 killer app, but this is the new internet needs to be flexible not bespoke functions on the api to the social app, like this identity function that was added." On the session oracle: "is verify session even accurate function name? … keeping it generic to make any app robust / healthy! should be good enough to use in the demo apps."
 

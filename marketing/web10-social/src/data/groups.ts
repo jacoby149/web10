@@ -4,6 +4,11 @@ import { API_HOST, API_ORIGIN } from '../lib/origins';
 
 const LOG = (...args: unknown[]) => console.log('[social:groups]', ...args);
 
+// The group's face (D60) is documents in this app-named service — read/written
+// through the normal CRUD path, exactly like `posts`. Publicness is a role
+// grant on this service, not a flag.
+const GROUP_IDENTITY_SERVICE = 'web10-social-group-identity';
+
 // ── Group helpers ────────────────────────────────────────────────────────────
 // v3 groups are the core primitive. Every social pattern (follows, discover,
 // close friends, DMs, communities) is a group with different join policies
@@ -247,6 +252,125 @@ export async function ensureCommunity(
     );
     return groupId;
   }
+}
+
+// ── Group creation + face (the create-group flow) ────────────────────────────
+
+/** The group's visibility at birth — maps to the initial read grant. */
+export type GroupVisibility = 'public' | 'signed_in' | 'private';
+
+/**
+ * The community role set. Publicness is a role grant (D58): a `reader` role
+ * (read-only on posts + the face) is granted to the `anyone` principal (public)
+ * or the `authenticated` principal (signed-in-only) as a reserved member row.
+ * The `reader` role is always defined so the grant resolves; `private` simply
+ * adds no reserved member row (members only).
+ */
+const COMMUNITY_CREATE_ROLES = [
+  {
+    name: 'owner',
+    permissions: { '*': ['readAll', 'create', 'updateOwn', 'updateAll', 'deleteOwn', 'deleteAll', 'hideAll'], 'group': ['manageRoles', 'assignRoles', 'revokeRoles', 'deleteGroup'] },
+  },
+  {
+    name: 'moderator',
+    permissions: { 'posts': ['readAll', 'create', 'updateOwn', 'deleteOwn', 'hideAll'], 'comments': ['readAll', 'create', 'updateOwn', 'deleteOwn', 'hideAll'], 'group': ['assignRoles', 'revokeRoles'] },
+  },
+  {
+    name: 'page-curator',
+    permissions: { 'web10-social-group-identity': ['readAll', 'create', 'updateOwn', 'deleteOwn'] },
+  },
+  {
+    name: 'member',
+    permissions: { 'posts': ['readAll', 'create', 'updateOwn', 'deleteOwn'], 'comments': ['readAll', 'create', 'updateOwn', 'deleteOwn'] },
+  },
+  {
+    name: 'reader',
+    permissions: { 'posts': ['readAll'], 'web10-social-group-identity': ['readAll'] },
+  },
+];
+
+export interface CreateGroupInput {
+  name: string;
+  description?: string;
+  website?: string;
+  tags?: string[];
+  visibility: GroupVisibility;
+  banner_ref?: string;
+  avatar_ref?: string;
+}
+
+/** A clean URL slug for the group name (the group_id's last segment). */
+function slugify(name: string): string {
+  return name.trim().toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '');
+}
+
+/**
+ * Create a community group (the social app's create-group flow). Creates the
+ * group with the community role set + a visibility-appropriate reserved read
+ * grant, then writes the group's face (the identity doc) if any face fields
+ * were provided. The group_id uses a clean slug; the face keeps the pretty
+ * name. Returns the group_id.
+ */
+export async function createCommunityGroup(
+  input: CreateGroupInput,
+  ownerUsername: string,
+): Promise<string> {
+  const w = getV3Client();
+  const slug = slugify(input.name);
+  LOG('createCommunityGroup — start', { name: input.name, slug, visibility: input.visibility });
+  const groupId = `web10.app/groups/${ownerUsername}/${slug}`;
+  const members: { member_key: string; role: string }[] = [
+    { member_key: `web10.app/users/${ownerUsername}`, role: 'owner' },
+  ];
+  if (input.visibility === 'public') {
+    members.push({ member_key: 'anyone', role: 'reader' });
+  } else if (input.visibility === 'signed_in') {
+    members.push({ member_key: 'authenticated', role: 'reader' });
+  }
+  await w.createGroup(slug, 'open', COMMUNITY_CREATE_ROLES, members);
+  LOG('createCommunityGroup — created', groupId);
+  const face: GroupIdentity = {
+    name: input.name,
+    description: input.description || undefined,
+    website: input.website || undefined,
+    tags: input.tags && input.tags.length ? input.tags : undefined,
+    banner_ref: input.banner_ref || undefined,
+    avatar_ref: input.avatar_ref || undefined,
+  };
+  await writeGroupIdentity(groupId, face);
+  LOG('createCommunityGroup — face written', groupId);
+  return groupId;
+}
+
+/**
+ * Write (or replace) a group's face — a document in the
+ * `web10-social-group-identity` service. The detail screen reads the latest
+ * doc, so a fresh create is a "replace".
+ */
+export async function writeGroupIdentity(groupId: string, identity: GroupIdentity): Promise<void> {
+  const w = getV3Client();
+  LOG('writeGroupIdentity — start', groupId, { name: identity.name });
+  const body: Record<string, unknown> = {};
+  if (identity.name) body.name = identity.name;
+  if (identity.description) body.description = identity.description;
+  if (identity.website) body.website = identity.website;
+  if (identity.tags && identity.tags.length) body.tags = identity.tags;
+  if (identity.banner_ref) body.banner_ref = identity.banner_ref;
+  if (identity.avatar_ref) body.avatar_ref = identity.avatar_ref;
+  await w.create(GROUP_IDENTITY_SERVICE, body, { groups: [groupId] });
+  LOG('writeGroupIdentity — done', groupId);
+}
+
+/**
+ * Read a single group's posts (the group feed). The group feed is a plain
+ * group read — the same read the main feed runs, scoped to one group.
+ */
+export async function readGroupFeed(groupId: string, limit = 50): Promise<V3Document[]> {
+  const w = getV3Client();
+  LOG('readGroupFeed — start', groupId);
+  const docs = await w.read('posts', { groups: [groupId], limit });
+  LOG('readGroupFeed — got', docs.length, 'posts from', groupId);
+  return docs;
 }
 
 // ── Group queries ────────────────────────────────────────────────────────────
@@ -514,8 +638,6 @@ export async function readGroupDetail(groupId: string): Promise<GroupDetail> {
   return data;
 }
 
-const GROUP_IDENTITY_SERVICE = 'web10-social-group-identity';
-
 /**
  * Read a group's face (D60: documents in the `web10-social-group-identity`
  * service). Returns the latest identity doc's body, or an empty object if
@@ -571,12 +693,26 @@ export function isDmGroup(groupId: string): boolean {
   return /\/dm-[^/]+$/.test(groupId);
 }
 
+/**
+ * A per-user app-storage group — the private group another app (media, notes,
+ * sharing, …) creates to hold that user's data for it. The demos name these
+ * `{service}-{username}` (e.g. `media-jacoby149`), so the slug ends with the
+ * owner's username. These power other apps; they are NOT communities the
+ * social app should surface in My Groups.
+ */
+export function isAppStorageGroup(groupId: string, username?: string): boolean {
+  if (!username) return false;
+  const slug = groupId.split('/').pop() || '';
+  return slug.endsWith(`-${username}`);
+}
+
 /** True when the group is infrastructure, not a browsable community. */
 export function isInfrastructureGroup(groupId: string, username?: string): boolean {
   return (
     isDiscoverGroup(groupId) ||
     isFollowersGroup(groupId, username) ||
-    isDmGroup(groupId)
+    isDmGroup(groupId) ||
+    isAppStorageGroup(groupId, username)
   );
 }
 

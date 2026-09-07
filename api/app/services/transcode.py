@@ -88,10 +88,15 @@ def _find_video_ref(body: dict) -> dict:
     raise RuntimeError(f"document has no video minio ref (body.video={video!r})")
 
 
-def _set_transcoding_settings(doc_id: str, author_key: str, base_body: dict, ts: dict) -> None:
-    """Merge transcoding_settings into the document body (new version)."""
+def _set_transcoding_settings(doc_id: str, author_key: str, base_body: dict, ts: dict, service: str) -> None:
+    """Merge transcoding_settings into the document body (new version).
+
+    `service` is the document's OWN collection — the update must preserve it
+    (a media_metadata doc updated into `media` would split the doc across
+    collections: readers of the original collection never see the settings).
+    """
     merged = {**base_body, "transcoding_settings": ts}
-    ch.update_document(doc_id=doc_id, author_key=author_key, service="media", body=merged)
+    ch.update_document(doc_id=doc_id, author_key=author_key, service=service, body=merged)
     logger.info("[transcode] document updated — doc_id=%s status=%s", doc_id, ts.get("status"))
 
 
@@ -100,7 +105,11 @@ def _mark_failed(doc_id: str, author_key: str, error: str) -> None:
         doc = ch.get_document(doc_id, author_key)
         if doc:
             _set_transcoding_settings(
-                doc_id, author_key, doc["body"], {"enabled": False, "status": "failed", "error": error}
+                doc_id,
+                author_key,
+                doc["body"],
+                {"enabled": False, "status": "failed", "error": error},
+                doc.get("service") or "media",
             )
     except Exception:
         logger.exception("[transcode] could not mark doc failed — doc_id=%s", doc_id)
@@ -236,7 +245,13 @@ def _process_job(doc_id: str, author_key: str) -> None:
     prefix = hls_prefix(object_key)
     renditions = _parse_renditions(settings.HLS_RENDITIONS)
 
-    _set_transcoding_settings(doc_id, author_key, body, {"enabled": False, "status": "processing"})
+    _set_transcoding_settings(
+        doc_id,
+        author_key,
+        body,
+        {"enabled": False, "status": "processing"},
+        doc.get("service") or "media",
+    )
 
     s3 = media_svc.get_s3_client()
     tmp = Path(tempfile.mkdtemp(prefix="hls-"))
@@ -350,6 +365,7 @@ def _process_job(doc_id: str, author_key: str) -> None:
             author_key,
             body,
             {"enabled": True, "status": "done", "variants": variants, "thumbnails": thumbnails},
+            doc.get("service") or "media",
         )
     finally:
         shutil.rmtree(tmp, ignore_errors=True)

@@ -38,39 +38,47 @@ npm install web10-npm
 ```
 
 ```ts
-import { createClient } from 'web10-npm'
+import { createV3Client } from 'web10-npm'
 ```
 
 ## Creating a Client
 
 ```ts
-const w = createClient({ authUrl: 'https://auth.web10.app' })
+const w = createV3Client({ apiOrigin: 'https://api.web10.app' })
 ```
 
-Optional `apiOrigin` overrides the node host. Defaults to `api.web10.app`.
+`apiOrigin` is the node's API host (defaults to `api.web10.app`). `token` pre-sets a token (server-side / pre-auth scenarios); `rtcServer` sets the RTC host (for `web10-npm/rtc`).
 
 ## Auth
 
+Two ways in. **Direct login** (username + password → a token) and the **consent flow** (the auth popup, where the user signs in *and* grants the app's contracts).
+
 ```ts
-// Open popup, wait for login
-await w.login()
+// Direct login — returns a token
+const { token } = await w.login('alice', 'password')
 
-// Listen for sign-in/sign-out
-w.authListen((signedIn) => {
-  if (signedIn) {
-    const token = w.readToken()
-    console.log(token.username, token.provider)
-  }
-})
+// The consent flow — open the auth UI, send the app's contract requests
+// (ACR for app access, GCR for group ops), wait for the user's decision.
+w.contractRequest(
+  [{ kind: 'app', app_origin: 'https://myapp.com', permissions: { posts: ['readAll', 'create'] } }],
+  'https://auth.web10.app',
+  (resp) => {
+    if (resp.status === 'approved') {
+      const t = w.readToken()  // the signed-in token
+      console.log(t.username, t.provider)
+    }
+  },
+)
 
-// Check state
+// Check state / read the token
 w.isSignedIn()
+const t = w.readToken()  // → { username, provider, site, target, expires } | null
 
 // Logout
 w.signOut()
 ```
 
-`authListen` fires the callback only when the signed-in user appears or changes (D45). The popup can hand the token back more than once (every "return to app"); the SDK stores each delivery in the cookie but re-fires the callback only on a real transition (a first login). A delivery for a different user is rejected, not fired (D42).
+`contractRequest` is the unified consent protocol (ACR + GCR, one flow): it opens the authenticator in a popup, sends all the contract requests, and the callback fires with `{ status: 'approved' | 'denied' | 'error', errors? }`. `login` is the direct path (no consent UI) — for apps that manage their own auth. `readToken` decodes the JWT locally (no network); `isSignedIn` checks for a live token. The browser IIFE (`window.web10`, the self-hosted `wapi.js`) additionally exposes `openAuthPortal` + `authListen` for the sign-in transition (D45: fires on a real transition; D42: a delivery for a different user is rejected).
 
 ## App Contracts
 
@@ -182,16 +190,12 @@ Behind the scenes the API inserts one row into `documents`, then one row per gro
 
 ### Read
 
-Every read is group-filtered. You see a document because you're a member of a group it's attached to — even your own posts.
+Every read is group-filtered. You see a document because you're a member of a group it's attached to — even your own posts. The read opts are `{ groups, limit?, offset?, ref? }` — `groups` is required; `limit`/`offset` paginate; `ref` filters to docs whose `ref_value` matches (the engagement shape).
 
 **Personal read** — `me` is a reserved group that returns your own documents, regardless of group attachment:
 
 ```ts
-const myPosts = await w.read('posts', {
-  groups: ['me'],
-  $sort: { created_at: -1 },
-  $limit: 50,
-})
+const myPosts = await w.read('posts', { groups: ['me'], limit: 50 })
 ```
 
 The API knows `me` means "documents where `author_key = :user`". No group join. Same query shape. Consistent.
@@ -199,17 +203,15 @@ The API knows `me` means "documents where `author_key = :user`". No group join. 
 **Group-filtered read** — the discover query. Pass groups, get documents attached to those groups:
 
 ```ts
-// Discover — public board
 const posts = await w.read('posts', {
   groups: ['{provider}/groups/web10/discover'],
-  $sort: { created_at: -1 },
-  $limit: 50,
+  limit: 50,
 })
 ```
 
 The API translates `groups` into a join against `doc_groups` → `group_members`. You get documents where the group matches and you're a member. Blacklists are checked automatically.
 
-**Feed pattern** — read across multiple groups:
+**Feed pattern** — read across multiple groups (union):
 
 ```ts
 const posts = await w.read('posts', {
@@ -218,87 +220,51 @@ const posts = await w.read('posts', {
     'web10.app/groups/alice/followers',
     'web10.app/groups/charlie/st-louis-chess-club',
   ],
-  $sort: { created_at: -1 },
-  $limit: 50,
+  limit: 50,
+  offset: 0,
 })
 ```
 
-Union of all groups. One query.
-
-**Sorting** — `$sort` is always an object. Two types:
+**The ref filter** — return only the docs whose `ref_value` matches (a single `doc_id` or a list). This is how you read a post's comments/reactions without pulling the whole service:
 
 ```ts
-// Simple sort — priority order (dictionary-style)
-const posts = await w.read('posts', {
-  groups: feedGroups,
-  $sort: {
-    type: 'simple',
-    fields: ['created_at:desc', 'author_key:asc'],
-  },
-  $limit: 50,
-})
-
-// Power mean sort — weighted ranking (v4 feature, see `../../web10-v4/sdk/advanced.md`)
-const posts = await w.read('posts', {
-  groups: feedGroups,
-  $sort: {
-    type: 'powerMean',
-    fields: [
-      { field: 'created_at', type: 'time', weight: 0.6, half_life: 24, boost: 1 },
-      { field: 'ref_count', type: 'ref_count', collection: 'reactions', weight: 0.6, boost: 2 },
-    ],
-    balance: -1,
-  },
-  $limit: 50,
+const comments = await w.read('comments', {
+  groups: ['{provider}/groups/web10/discover'],
+  ref: postDocId,
 })
 ```
 
-`powerMean` sorting is a v4 feature — weighted ranking with configurable signals, `half_life` decay, `boost` multipliers, and `balance` to control how signals combine. See `../../web10-v4/sdk/advanced.md` for the full spec.
+**Sorting / filtering** — the read returns docs in the node's default order (newest first); there's no client-side `$sort`/`$match`. For custom sorting, filtering, aggregation, or cross-service joins, use the **flexible read** (`w.query`, below) — a ClickHouse `SELECT` over your services, scoped to your groups.
 
-**Filtering** — `$match` filters documents before sorting. Fast on indexed fields, works (but scans) on the JSON body:
+**Engagement counts** — `readRefCounts` returns `{ ref_value: count }` for a set of posts (the server runs `GROUP BY ref_value` through the safe-query engine — exact, no cap):
 
 ```ts
-const posts = await w.read('posts', {
-  groups: feedGroups,
-  $match: {
-    author_key: 'alice',
-    tags: ['jazz'],
-    'body.media.type': 'minio',
-  },
-  $limit: 50,
-})
+const counts = await w.readRefCounts('reactions', {
+  groups: ['{provider}/groups/web10/discover'],
+  ref: [postDocId1, postDocId2],
+})  // → { [postDocId1]: 12, [postDocId2]: 7 }
 ```
-
-| Field | Speed | How |
-|---|---|---|
-| `author_key`, `collection_name`, `created_at` | Fast | Indexed (primary key) |
-| `tags` | Fast | `has(tags, 'jazz')` |
-| `body.*` (JSON path) | Slow | `extractJSONString` scan |
-
-For page-sized results, JSON body filters are fine. For filtering millions of rows, use tags or dedicated columns.
-
-See `feed-lens-integration.md` in brainstorm for the full feed tuning plan (lens as user-owned config, 5-knob UI, mix codes).
 
 ### Update
 
-Same separation. Body changes in the first arg. Group changes in the options:
+Body changes in the second arg. Group changes in the options:
 
 ```ts
-await w.update('posts', { _id: 'doc-123' }, {
-  $set: { text: { type: 'text', value: 'updated content' } },
+await w.update('doc-123', {
+  text: { type: 'text', value: 'updated content' },
 }, {
-  $groups: ['{provider}/groups/web10/discover'],
+  groups: ['{provider}/groups/web10/discover'],
 })
 ```
 
-`$groups` replaces the group attachment list. API validates membership on each. Remove a group → the document disappears from that group's discover. Add a group → it appears.
+`groups` replaces the group attachment list. The API validates membership on each. Remove a group → the document disappears from that group's discover. Add a group → it appears.
 
 ### Delete
 
 Tombstone. Insert a deleted marker. The document disappears from all groups:
 
 ```ts
-await w.delete('posts', { _id: 'doc-123' })
+await w.delete('doc-123')
 ```
 
 The API tombstones the `documents` row and all `doc_groups` rows. Background job compacts on schedule.
@@ -311,7 +277,7 @@ Groups are first-class. The SDK exposes them directly.
 
 ```mermaid
 flowchart LR
-    App["w.createGroup(name, roles, members)"] -->|"1. INSERT group_contracts"| GC["group_contracts"]
+    App["w.createGroup(name, joinPolicy, roles, members)"] -->|"1. INSERT group_contracts"| GC["group_contracts"]
     App -->|"2. INSERT group_members (all members)"| GM["group_members"]
     GC -->|"3. return"| Res["{ group_id }"]
     GM --> Res
@@ -383,7 +349,7 @@ flowchart LR
 
 ```mermaid
 flowchart LR
-    App["w.removeMember(group_id, user)"] --> GM["tombstone group_members (user)"]
+    App["w.removeGroupMember(group_id, user)"] --> GM["tombstone group_members (user)"]
     GM --> Res["{ status: removed }"]
 
     style App fill:#f5f5f5,stroke:#333,color:#000
@@ -393,33 +359,31 @@ flowchart LR
 
 ### Create a Group
 
-Explicit roles. Explicit members. The API doesn't assume anything — you assign every role, including yourself.
+Explicit roles. Explicit members. The API doesn't assume anything — you assign every role, including yourself. Roles use the **D58 per-service permission map**: each role is `{ name, permissions }` where `permissions` maps a service (or the `group` structural key) to the ops granted.
 
 ```ts
-const group = await w.createGroup({
-  name: 'St. Louis Chess Club',
-  join_policy: 'invite_only',
-  roles: [
+const group = await w.createGroup(
+  'St. Louis Chess Club',
+  'invite_only',
+  [
     {
       name: 'admin',
-      services: ['*'],
-      permissions: [
-        // Content
-        'readAll', 'create', 'updateOwn', 'updateAll', 'deleteOwn', 'deleteAll', 'hideAll',
-        // Group management
-        'manageRoles', 'assignRoles', 'revokeRoles', 'deleteGroup', 'modifyJoinPolicy',
-      ],
+      permissions: {
+        posts: ['readAll', 'create', 'updateOwn', 'deleteOwn', 'hideAll'],
+        comments: ['readAll', 'create', 'updateOwn', 'deleteOwn'],
+        group: ['manageRoles', 'assignRoles', 'revokeRoles', 'deleteGroup', 'modifyJoinPolicy'],
+      },
     },
     {
       name: 'member',
-      services: ['posts', 'comments'],
-      permissions: ['readAll', 'create', 'updateOwn', 'deleteOwn'],
+      permissions: {
+        posts: ['readAll', 'create', 'updateOwn', 'deleteOwn'],
+        comments: ['readAll', 'create'],
+      },
     },
   ],
-  members: [
-    { member_key: 'jacoby149', role: 'admin' },
-  ],
-})
+  [{ member_key: 'jacoby149', role: 'admin' }],
+)
 // → { group_id: 'web10.app/groups/jacoby149/st-louis-chess-club' }
 ```
 
@@ -438,17 +402,15 @@ Group management permissions are separate from content permissions:
 ### Get Groups
 
 ```ts
-// All groups the user belongs to (full details)
-const groups = await w.getGroups({ member: 'jacoby149' })
+// All groups the user belongs to
+const groups = await w.getMyGroups()
 // → [
-//    { group_id: '{provider}/groups/web10/discover', name: 'Discover', join_policy: 'open', member_count: 1200000, my_role: null },
-//    { group_id: 'web10.app/groups/jacoby149/followers', name: 'Followers', join_policy: 'open', member_count: 342, my_role: 'admin' },
-//    { group_id: 'web10.app/groups/jacoby149/close-friends', name: 'Close Friends', join_policy: 'invite_only', member_count: 12, my_role: 'admin' },
-//    { group_id: 'web10.app/groups/charlie/st-louis-chess-club', name: 'St. Louis Chess Club', join_policy: 'invite_only', member_count: 47, my_role: 'member' }
+//    { group_id: '{provider}/groups/web10/discover', join_policy: 'open', member_count: 1200000, my_role: null },
+//    { group_id: 'web10.app/groups/jacoby149/followers', join_policy: 'open', member_count: 342, my_role: 'admin' },
 //  ]
 
 // Groups where you manage membership
-const managed = await w.getGroups({ manages: 'jacoby149' })
+const managed = await w.getGroupsManages()
 ```
 
 ### Join a Group
@@ -496,14 +458,14 @@ await w.declineInvite('web10.app/groups/jacoby149/close-friends')
 Direct remove. Only works if your role has `revokeRoles`.
 
 ```ts
-await w.removeMember('web10.app/groups/jacoby149/close-friends', 'bob')
-// → { group_id: 'web10.app/groups/jacoby149/close-friends', member_key: 'bob', status: 'removed' }
+await w.removeGroupMember('web10.app/groups/jacoby149/close-friends', 'bob')
+// → { group_id: 'web10.app/groups/jacoby149/close-friends', member_key: 'bob', ... }
 ```
 
 ### Get Members
 
 ```ts
-const members = await w.getMembers('web10.app/groups/jacoby149/followers')
+const members = await w.getGroupMembers('web10.app/groups/jacoby149/followers')
 // → [{ member_key: 'alice', role: 'admin' },
 //    { member_key: 'bob', role: 'member' },
 //    { member_key: 'charlie', role: 'member' }]
@@ -517,89 +479,126 @@ const updated = await w.updateGroup('web10.app/groups/jacoby149/close-friends', 
 })
 ```
 
-## Query (v4)
+## Query — the flexible read (v3)
 
-Full ClickHouse SQL with CTE-wrapped permissions is a v4 feature. See `../../web10-v4/sdk/advanced.md`.
+Write a ClickHouse `SELECT` over your services and the node runs it. Read-only by construction: the safe-query engine rejects anything but a single `SELECT`, raw node tables, and table functions before anything executes. Every service name is replaced by an API-built **boundary CTE** filtered to the groups you can read that service in — so aggregations, self-joins, subqueries, and your own CTEs all work, and none can leak past your groups (the raw tables are unreachable, a wall not a membrane).
+
+Each service CTE exposes: `doc_id`, `author_key`, `body` (a JSON string — use `JSONExtractString(body, 'field', 'value')` for fields), `ref_value`, `tags`, `created_at`, `updated_at`.
+
+Works without a token (anon reads the public board) — the same rule as `read`. An unbounded query gets `LIMIT 1000` appended server-side; a `LIMIT` you write is honored as-is. A caller-SQL failure (a column the CTE doesn't expose, a bad function arg) is a **400**; an unsafe query (non-SELECT, raw table, table function) is a **403**.
+
+```ts
+// Trending posts — cross-service self-join + aggregation
+const { rows, count } = await w.query(`
+  SELECT p.doc_id, p.author_key, count() AS reactions
+  FROM posts p
+  JOIN reactions r ON r.ref_value = p.doc_id
+  GROUP BY p.doc_id, p.author_key
+  ORDER BY reactions DESC
+  LIMIT 20
+`)
+
+// Reaction breakdown by type — JSON body fields
+const { rows } = await w.query(`
+  SELECT JSONExtractString(body, 'reaction_type', 'value') AS type, count() AS n
+  FROM reactions
+  WHERE ref_value = '${postDocId}'
+  GROUP BY type
+`)
+
+// Your own CTEs + subqueries
+const { rows } = await w.query(`
+  WITH hot AS (
+    SELECT ref_value, count() AS n FROM reactions GROUP BY ref_value HAVING n > 10
+  )
+  SELECT p.doc_id, p.body FROM posts p
+  WHERE p.doc_id IN (SELECT ref_value FROM hot)
+  ORDER BY p.created_at DESC
+`)
+```
+
+`rows` is keyed by the query's column names (a `body` column comes back parsed, datetimes ISO-8601 UTC); `count` is the number of rows. Scope the read to specific groups with `w.query(sql, { groups: [...] })` (default: all the reader's groups). Spec'd in `query-engine.md` + `safe-query.md`.
 
 ## Media
 
-Three-step upload: request presigned URL, upload to MinIO, confirm.
+Three-step upload: request a presigned URL, upload to object storage, confirm.
 
 ```ts
-// Convenience — does all three
-const record = await w.upload(file, {
-  filename: 'photo.jpg',
-  mimeType: 'image/jpeg',
-  altText: 'screenshot',
-})
-
-// Manual flow
-const presigned = await w.requestUploadUrl({
+// 1. Request a presigned upload URL
+const presigned = await w.requestMediaUploadUrl({
   filename: 'photo.jpg',
   mimeType: 'image/jpeg',
   sizeBytes: file.size,
 })
-// POST FormData to presigned.upload_url
-const record = await w.confirmUpload({
-  url: presigned.upload_url,
+// → { upload_url, fields, object_key, content_type }
+
+// 2. POST the file (FormData) to presigned.upload_url
+const formData = new FormData()
+for (const [k, v] of Object.entries(presigned.fields || {})) formData.append(k, v)
+formData.append('file', file, 'photo.jpg')
+await fetch(presigned.upload_url, { method: 'POST', body: formData })
+
+// 3. Confirm — store the reference (the object key), not a URL. Returns a doc.
+const record = await w.confirmMediaUpload({
+  object_key: presigned.object_key,
   filename: 'photo.jpg',
-  mimeType: 'image/jpeg',
-  sizeBytes: file.size,
+  mime_type: 'image/jpeg',
 })
 
-// Read URL (presigned GET, cached)
-const { readUrl } = await w.getReadUrl(record.object_key)
+// Read URL (presigned GET — the doc stores the object key, not a live URL)
+const { read_url } = await w.getMediaReadUrl(record.body.object_key)
+
+// List / delete your media
+const media = await w.listMedia({ limit: 50 })
+await w.deleteMedia(record.doc_id)
 ```
 
 ## Account
 
 ```ts
-// Signup
-await w.signup({
-  username: 'alice',
-  password: 'secret',
-  phone: '+1234567890',
-})
+// Signup (positional)
+await w.signup('alice', 'secret', '+1234567890', 'alice@example.com')
 
-// Login (via popup)
-await w.login()
+// Direct login (returns a token)
+const { token } = await w.login('alice', 'password')
 
 // Change password
-await w.changePass({ password: 'old', newPass: 'new' })
+await w.changePassword('old', 'new')
 
-// Change phone
-await w.changePhone({ phone: '+1987654321' })
+// Change phone / set email
+await w.changePhone('+1987654321')
+await w.setEmail('alice@example.com')
 
-// Set recovery email
-await w.setEmail({ email: 'alice@example.com' })
-
-// Verify phone/email with code
-await w.verifyPhone({ code: '123456' })
-await w.verifyEmail({ code: '654321' })
-
-// Send verification code to phone
+// Send a verification code, then verify
 await w.sendCode()
+await w.verifyPhone('123456')
+await w.verifyEmail('654321')
 
 // Set recovery phone (authenticated)
-await w.setRecoveryPhone({ phone: '+1987654321' })
+await w.setRecoveryPhone('+1987654321')
+
+// Profile
+const profile = await w.getProfile()
 ```
+
+The contact-anchored recovery flow (D61) is separate from these account methods: the unauthenticated `/v3/recovery/{request,verify,complete}` endpoints (enter contact → code → pick an account) are the front door; the SDK's `sendCode`/`verifyPhone`/`verifyEmail`/`setRecoveryPhone` manage the contact on an authenticated account.
 
 ## App Store
 
 ```ts
-// Register an app
+// Register an app (anonymous — the app identifies itself by url)
 await w.registerApp({
   url: 'https://myapp.com',
   name: 'My App',
   description: 'A web10 app',
-  iconUrl: 'https://myapp.com/icon.png',
+  icon_url: 'https://myapp.com/icon.png',
 })
 
 // List approved apps
 const apps = await w.getApps()
 
-// Rate an app (1-5 stars)
-await w.rateApp({ appId: 'https://myapp.com', rating: 5 })
+// Rate an app (1-5 stars, positional)
+await w.rateApp('https://myapp.com', 5)
 
 // Read ratings
 const ratings = await w.getAppRatings('https://myapp.com')
@@ -611,17 +610,18 @@ Each SDK call triggers specific ClickHouse operations:
 
 | SDK call | ClickHouse |
 |---|---|
-| `w.create('posts', ..., { groups })` | `INSERT INTO documents` + `INSERT INTO doc_groups` (N rows) |
+| `w.create('posts', body, { groups })` | `INSERT INTO documents` + `INSERT INTO doc_groups` (N rows) |
 | `w.read('posts', { groups: ['me'] })` | `SELECT group_ids FROM group_members WHERE member = :user`, then discover query |
 | `w.read('posts', { groups })` | `SELECT FROM documents JOIN doc_groups JOIN group_members WHERE member = :user AND group IN (...)` |
-| `w.update('posts', ..., { $groups })` | `INSERT INTO documents` (new version) + tombstone old `doc_groups` + new `doc_groups` |
-| `w.delete('posts', ...)` | `INSERT INTO documents` (tombstone) + tombstone `doc_groups` |
+| `w.query(sql)` | the safe-query engine compiles to boundary-CTE SQL, run with `max_execution_time` |
+| `w.update(docId, body, { groups })` | `INSERT INTO documents` (new version) + tombstone old `doc_groups` + new `doc_groups` |
+| `w.delete(docId)` | `INSERT INTO documents` (tombstone) + tombstone `doc_groups` |
 | `w.createGroup(...)` | `INSERT INTO group_contracts` + `INSERT INTO group_members` (all members) |
 | `w.joinGroup(...)` | `INSERT INTO group_members` (open) or `INSERT INTO group_join_requests` (request) |
 | `w.inviteMember(...)` | `INSERT INTO group_join_requests` |
 | `w.acceptInvite(...)` | `INSERT INTO group_members` |
-| `w.getGroups({ member })` | `SELECT group_id, name, member_count, my_role FROM group_contracts JOIN group_members WHERE member_key = :user` |
-| `w.getMembers(...)` | `SELECT member_key, role FROM group_members WHERE group_id = :group` |
+| `w.getMyGroups()` | `SELECT group_id, join_policy, member_count, my_role FROM group_contracts JOIN group_members WHERE member_key = :user` |
+| `w.getGroupMembers(...)` | `SELECT member_key, role FROM group_members WHERE group_id = :group` |
 
 Everything is append-only. Updates are new inserts. Deletes are tombstones. `ReplacingMergeTree` keeps the latest version. Background job compacts on schedule.
 
@@ -635,10 +635,10 @@ v3 SDK vs v2 SDK:
 
 | v2 | v3 |
 |---|---|
-| `create(service, body)` — no groups | `create(service, { body, groups: [...] })` — groups required for visibility |
-| `read(service, query)` — raw collection | `read(service, { groups: [...] })` — always group-filtered. `['me']` for your own data. |
-| `update(service, query, update)` — no groups | `update(service, query, { $set, $groups })` — group changes |
-| SMR contracts control data access | App contracts are per-app with per-service permissions. contractListen is the consent protocol. Groups control data access. |
+| `create(service, body)` — no groups | `create(service, body, { groups: [...] })` — groups required for visibility |
+| `read(service, query)` — raw collection | `read(service, { groups: [...] })` — always group-filtered. `['me']` for your own data. Plus `w.query(sql)` for the flexible read. |
+| `update(service, query, update)` — no groups | `update(docId, body, { groups })` — group changes |
+| SMR contracts control data access | App contracts are per-app with per-service permissions. `contractRequest` is the consent protocol. Groups control data access. |
 | Separate follow/friend APIs | Follow = join group. Friends = group membership. |
 | `discoverable` boolean | No boolean. Groups handle it. `web10/discover` = public board. |
 

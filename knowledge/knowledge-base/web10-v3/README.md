@@ -68,6 +68,7 @@ web10-v3/
 - **Setup & Config** — `setup/node-config.md` (node_config table, admins, /am_admin)
 - **App Store** — `app-store/overview.md` (registration, visits, PWA manifests), `app-store/endpoints.md` (the endpoint surface: product page, ratings, stats)
 - **Security** — `security/overview.md` (invariants I1–I5, two-contract model, blocking)
+- **Query Engine** — `query-engine.md` (the flexible read: how far to take the power), `safe-query.md` (the boundary CTE + why the guarantee holds; `w.query()` / `POST /v3/query`)
 - **Groups** — `groups/overview.md` (primitive), `groups/identity.md` (profiles)
 - **Social** — `social/overview.md` (implementation), `social/cross-app-sharing.md` (patterns), `social/ads.md` (the creator-owned ads — a post tagged `ad`), `social/ads-catalog.md` (the catalog + composer)
 - **Media** — `media/transcoding-foundation.md` (the model), `media/transcoding.md` (the pipeline), `media/streaming.md` (the layers), `media/minio-auth-bifurcated.md` (the auth split)
@@ -79,7 +80,7 @@ web10-v3/
 - **P2P delivery at scale** — WebRTC segment sharing, edge caching, tile-based streaming → `../web10-v4/media/`
 - **Federation** — cross-provider groups, ClickHouse `remote()` → `../web10-v4/future/`
 - **Real-time** — Redis + WebSocket push → `../web10-v4/future/`
-- **Advanced SDK** — `w.query()`, `powerMean` sorting, cross-node addressing, enforced schemas → `../web10-v4/sdk/advanced.md`
+- **Advanced SDK** — `powerMean` sorting, cross-node addressing, enforced schemas → `../web10-v4/sdk/advanced.md`
 - **Finance** — append-only ledgers, compute-on-read balances → `../web10-v4/faq/`
 - **Ad network** — the exchange layer: campaigns, targeting, DSP/SSP, revenue split, `html_template` (creator's own layout) → `../web10-v4/db/clickhouse-v4.md` (the creator-owned ads — a post tagged `ad` — are v3: `social/ads.md`)
 - **Monetization** — Pro features → v4

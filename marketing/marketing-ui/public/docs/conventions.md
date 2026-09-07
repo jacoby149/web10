@@ -64,65 +64,115 @@ Arrays and objects recurse, so nested structures work:
 
 ## The Ref Pattern
 
-Documents reference each other through the `ref` type. This is how reactions, comments, replies, and quotes work — no dedicated tables.
+Two mechanisms, both real:
 
-### Reaction
+**The `ref_value` column (the engagement join).** A top-level field on the
+document, set at create time. This is how comments, reactions, and replies
+point at their target post — the server stores it, and the read's `ref`
+filter keys off it:
 
-```json
-{
-  "ref": { "type": "ref", "value": "post-123" },
-  "reaction_type": { "type": "text", "value": "like" }
-}
+```ts
+// A comment on a post — a `comments` document authored by the commenter
+await w.create('comments', {
+  text: { type: 'text', value: 'great post!' },
+}, {
+  groups: ['{provider}/groups/web10/discover'],
+  ref_value: postDocId,        // the target post's doc_id — sent at create
+})
 ```
 
-### Comment
+```ts
+// Read back: the post's comments (the ref filter)
+const comments = await w.read('comments', {
+  groups: ['{provider}/groups/web10/discover'],
+  ref: postDocId,
+})
 
-```json
-{
-  "ref": { "type": "ref", "value": "post-123" },
-  "text": { "type": "text", "value": "great post!" }
-}
+// Or exact counts for a batch of posts (the count shape)
+const counts = await w.readRefCounts('reactions', {
+  groups: ['{provider}/groups/web10/discover'],
+  ref: [postDocId1, postDocId2],
+})  // → { "doc-1": 42, "doc-2": 7 }
 ```
 
-### Reply (threaded comment)
+A `ref_value` that was never written at create time is an orphan — it never
+matches a ref read. Send it in the create call.
 
-```json
-{
-  "ref": { "type": "ref", "value": "post-123" },
-  "parent_ref": { "type": "ref", "value": "comment-abc" },
-  "text": { "type": "text", "value": "I agree!" }
-}
+**The `ref` leaf type (app-internal references).** A typed value inside the
+JSON body, for references between a document's own fields (e.g. a post's
+`media_refs` point at media document ids). The app decides what a ref means —
+the platform doesn't interpret body-level refs.
+
+## Reading
+
+Every read is group-filtered. The real read surface:
+
+```ts
+// The group read — groups is required
+const posts = await w.read('posts', {
+  groups: ['{provider}/groups/web10/discover'],
+  limit: 50,        // default 50
+  offset: 0,
+})
+
+// The ref filter — "give me the comments/reactions for these posts"
+const comments = await w.read('comments', {
+  groups: ['{provider}/groups/web10/discover'],
+  ref: postDocId,   // or a list: [postDocId1, postDocId2]
+})
+
+// The count shape — { ref_value: count } instead of the docs (exact, no cap)
+const counts = await w.readRefCounts('reactions', {
+  groups: ['{provider}/groups/web10/discover'],
+  ref: [postDocId1, postDocId2],
+})
+
+// A single document by id
+const post = await w.readById(postDocId, 'posts')
 ```
 
-### Quote / Repost
+There are no `$match` / `$sort` / `$limit` opts — that was the v2 Mongo
+shape. Arbitrary filtering, joins, and aggregation live in the **flexible
+read** (`w.query`, a caller-written ClickHouse `SELECT` over your services):
 
-```json
-{
-  "ref": { "type": "ref", "value": "post-123" },
-  "text": { "type": "text", "value": "this is important" }
-}
+```ts
+// Tag filtering, trending, self-joins — the query engine
+const { rows } = await w.query(`
+  SELECT doc_id, author_key, created_at
+  FROM posts
+  WHERE has(tags, 'jazz')
+  ORDER BY created_at DESC
+  LIMIT 20
+`)
 ```
-
-The `ref` type is the universal pointer. Any document can reference any other document. The API resolves refs on read. The app decides what a ref means — reaction, comment, reply, quote, remix. The platform doesn't care.
 
 ## Media References
 
-Media blobs live in object storage (MinIO). Documents reference them through the `minio` type:
+Media blobs live in object storage (MinIO). Two mechanisms reference them,
+both resolved on read:
+
+**`media_refs`** — an array of media document ids (the primary mechanism the
+reference apps use). The read resolves each to `{ object_key, mime_type,
+filename, size_bytes, read_url }`:
 
 ```json
 {
   "text": { "type": "text", "value": "check this out" },
-  "media": {
-    "type": "array",
-    "value": [
-      { "type": "minio", "value": "alice/media/photo.jpg" },
-      { "type": "minio", "value": "alice/media/video.mp4" }
-    ]
-  }
+  "media_refs": ["doc-media-123", "doc-media-456"]
 }
 ```
 
-The API converts `minio` references to presigned URLs on read. If group permissions fail, the whole document is hidden.
+**The `minio` leaf type** — an object key inline in the body. The read adds a
+fresh presigned `url` alongside the `value`:
+
+```json
+{
+  "photo": { "type": "minio", "value": "alice/media/img-abc.jpg" }
+}
+```
+
+Store the reference (the doc id or the object key), not a URL — URLs are
+minted per read and expire.
 
 ## Service Names
 
@@ -146,21 +196,17 @@ The `tags` column on documents enables fast filtering. Use tags for:
 - Categories: `announcement`, `behind-the-scenes`
 
 ```ts
+// tags live in the body — the create reads body.tags into the tags column
 await w.create('posts', {
-  text: { type: 'text', 'value': 'new record drop' },
-}, {
-  groups: ['web10.app/groups/alice/followers'],
+  text: { type: 'text', value: 'new record drop' },
   tags: ['music', 'jazz', 'announcement'],
+}, {
+  groups: ['{provider}/groups/users/alice/followers'],
 })
 ```
 
-```ts
-// Fast filter on tags
-const posts = await w.read('posts', {
-  groups: ['{provider}/groups/web10/discover'],
-  $match: { tags: ['jazz'] },
-})
-```
+Tags are not a fixed read filter — filter on them with the query engine
+(`WHERE has(tags, 'jazz')`, §Reading).
 
 ## Versioning
 
@@ -169,8 +215,9 @@ Schema evolution is **additive only**: never remove or repurpose a field — onl
 ## Summary
 
 - Documents are opaque JSON with leaf-level type conventions
-- The `ref` type links documents — reactions, comments, replies all use it
-- `minio` type converts to presigned URLs on read
+- The `ref_value` column (set at create) is the engagement join — comments, reactions, replies; the `ref` leaf type is for app-internal references
+- Reads are group-filtered: `read(collection, { groups, limit?, offset?, ref? })` + the `readRefCounts` count shape; arbitrary filtering is the query engine (`w.query`)
+- `media_refs` (doc ids) and the `minio` leaf type both resolve to URLs on read
 - Services are freeform labels — no schema, no migration
-- Tags enable fast filtering
+- Tags live in `body.tags` and enable query-engine filtering
 - Additive-only evolution — the data outlives the app

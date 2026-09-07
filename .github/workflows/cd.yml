@@ -36,7 +36,7 @@ jobs:
           - name: marketing-ui
             context: marketing/marketing-ui
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       - name: Extract git info for status.json
         id: git
@@ -45,7 +45,7 @@ jobs:
           echo "version=$(head -1 knowledge/changelogs/CHANGELOG.md | sed 's/[| ].*//' | tr -d '[:space:]')" >> "$GITHUB_OUTPUT"
 
       - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v3
+        uses: docker/setup-buildx-action@v4
 
       - name: Log in to GHCR
         uses: docker/login-action@v3
@@ -111,7 +111,7 @@ jobs:
       run:
         working-directory: sdk
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       - uses: oven-sh/setup-bun@v2
         with:
@@ -143,7 +143,7 @@ jobs:
       run:
         working-directory: marketing/web10-cli
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       - uses: oven-sh/setup-bun@v2
         with:
@@ -166,7 +166,7 @@ jobs:
     if: startsWith(github.ref, 'refs/tags/v')
     needs: [images, npm-publish-web10-npm, npm-publish-web10-cli]
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       - name: Generate release notes
         id: notes

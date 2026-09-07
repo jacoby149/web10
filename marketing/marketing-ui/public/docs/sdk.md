@@ -1,20 +1,31 @@
 # web10 SDK
 
-Build apps on web10. One client. Groups are baked into every CRUD operation.
+For developers building apps on web10 data. One client. Groups are baked into every CRUD operation — no separate follow API, no discover endpoint, no inbox. Just groups.
 
 ## Quick Start
 
-```bash
-npm install web10-npm
+The browser flow (what the demo apps use). Load the SDK, open the auth popup, request your app's contract, and you're in:
+
+```html
+<script src="/docs/wapi.js"></script>
 ```
 
-```ts
-import { createClient } from 'web10-npm'
+```js
+const w = window.web10.createV3Client({ apiOrigin: 'https://api.web10.app' })
 
-const w = createClient({ authUrl: 'https://auth.web10.app' })
+// Open the auth popup and request the app's contract (what it may do with the user's data)
+window.web10.openAuthPortal('https://auth.web10.app')
+w.contractRequest(
+  [{ kind: 'app', app_origin: window.location.origin, permissions: { posts: ['readAll', 'create'] } }],
+  'https://auth.web10.app',
+  (resp) => { /* resp.status: 'approved' | 'denied' | 'error' */ },
+)
 
-// Wait for the user to log in
-await w.login()
+// When the user signs in (a real transition — not every "return to app")
+window.web10.authListen(() => {
+  const t = w.readToken()  // → { username, provider, site, target, expires }
+  console.log(`${t.provider}/${t.username}`)
+})
 
 // Create a post visible to your followers and the public discover board
 const post = await w.create('posts', {
@@ -27,75 +38,96 @@ const post = await w.create('posts', {
 })
 
 // Read your own posts
-const myPosts = await w.read('posts', { groups: ['me'] })
+const myPosts = await w.read('posts', { groups: ['me'], limit: 50 })
 
 // Read the discover board (public posts)
 const feed = await w.read('posts', {
   groups: ['{provider}/groups/web10/discover'],
-  $sort: { created_at: -1 },
-  $limit: 50,
+  limit: 50,
 })
 ```
 
-That's the core pattern: **create with groups, read filtered by groups**. Every document is attached to groups at write time. Every read filters by group membership. No separate follow API, no discover endpoint, no inbox — just groups.
+That's the core pattern: **create with groups, read filtered by groups.** Every document is attached to groups at write time. Every read filters by group membership.
+
+In a bundler (no `window.web10`), import the client:
+
+```ts
+import { createV3Client } from 'web10-npm'
+const w = createV3Client({ apiOrigin: 'https://api.web10.app' })
+```
 
 ## Creating a Client
 
 ```ts
-const w = createClient({
-  authUrl: 'https://auth.web10.app',   // auth popup host
-  apiOrigin: 'https://api.web10.app',  // optional, defaults to api.web10.app
+const w = createV3Client({
+  apiOrigin: 'https://api.web10.app',  // the node's API host (default)
+  // token: '...',            // pre-set a token (server-side / pre-auth)
+  // rtcServer: 'rtc.web10.app',  // RTC host (for web10-npm/rtc)
 })
 ```
 
 ## Auth
 
-```ts
-// Open the auth popup (resolves when the user logs in)
-await w.login()
+Two ways in. The **consent flow** (the auth popup — the user signs in *and* grants your app's contract) is what web apps use. **Direct login** (username + password → a token) is for apps that manage their own auth.
 
-// Listen for sign-in / sign-out
-w.authListen((signedIn) => {
-  if (signedIn) {
-    const token = w.readToken()
-    console.log(`${token.username}@${token.provider}`)
-  }
+### The consent flow (browser)
+
+```js
+// Open the auth popup
+window.web10.openAuthPortal('https://auth.web10.app')
+
+// Request the app's contract — the user approves or denies in the popup
+w.contractRequest(
+  [{ kind: 'app', app_origin: window.location.origin, permissions: { posts: ['readAll', 'create'] } }],
+  'https://auth.web10.app',
+  (resp) => {
+    if (resp.status === 'approved') { /* the user granted the contract */ }
+  },
+)
+
+// Listen for the sign-in transition (fires once, on a real login — not every "return to app")
+window.web10.authListen(() => {
+  const t = w.readToken()
+  // ...
 })
 
-// Check if signed in
+// Close the popup when you're done
+window.web10.closeAuthPopup()
+```
+
+`contractRequest` is the unified consent protocol: it sends all your contract requests (app access + group ops) in one batch, and the callback fires with `{ status: 'approved' | 'denied' | 'error', errors? }`. `authListen` fires only on a real sign-in transition; a delivery for a different user is rejected (it can't hijack the app's identity).
+
+### Direct login (npm / server-side)
+
+```ts
+// username + password → a token (the client stores it)
+const { token } = await w.login('alice', 'password')
+
+// Check state / read the token (decoded locally, no network)
 w.isSignedIn()
+const t = w.readToken()  // → { username, provider, site, target, expires } | null
 
 // Log out
 w.signOut()
 ```
 
-The auth popup is hosted at `auth.web10.app` (or your own node). It handles login, signup, password reset, and token minting. Your app opens the popup, receives a JWT via `postMessage`, and stores it in a cookie.
-
-### Signup
+### Account management
 
 ```ts
-await w.signup({
-  username: 'alice',
-  password: 'secret',
-  phone: '+1234567890',  // optional
-  email: 'alice@example.com',  // optional
-})
-```
-
-### Account Management
-
-```ts
-await w.changePass({ password: 'old', newPass: 'new' })
-await w.changePhone({ phone: '+1987654321' })
-await w.setEmail({ email: 'alice@example.com' })
-await w.verifyPhone({ code: '123456' })
-await w.verifyEmail({ code: '654321' })
+await w.signup('alice', 'secret', '+1234567890', 'alice@example.com')
+await w.changePassword('old', 'new')
+await w.changePhone('+1987654321')
+await w.setEmail('alice@example.com')
+await w.sendCode()               // send a verification code
+await w.verifyPhone('123456')   // verify the phone
+await w.verifyEmail('654321')   // verify the email
+await w.setRecoveryPhone('+1987654321')
 const profile = await w.getProfile()
 ```
 
-## App Contracts — User-Level IAM
+## App Contracts — user-level IAM
 
-This is the first time a user has AWS-grade control over their data. One contract per app. Per-service, per-operation permissions. The user approves or denies in the authenticator.
+One contract per app. Per-service, per-operation permissions. The user approves or denies in the authenticator.
 
 ```ts
 // App declares what it needs — one call covers all services
@@ -111,11 +143,8 @@ const contracts = await w.listAppContracts()
 // Revoke one app
 await w.revokeAppContract('music.web10.com')
 
-// Kill switch — revoke all apps
-// (done in the authenticator UI, one click)
+// Kill switch — revoke all apps (one click in the authenticator UI)
 ```
-
-**Permissions:**
 
 | Permission | What it does |
 |---|---|
@@ -124,11 +153,11 @@ await w.revokeAppContract('music.web10.com')
 | `updateOwn` | Edit your own content |
 | `deleteOwn` | Delete your own content |
 
-Services are infinite — `posts`, `playlists`, `notes`, anything an app invents. Apps are the constraint. You have three apps you use. Three contracts. The user is always in control.
+Services are infinite — `posts`, `playlists`, `notes`, anything an app invents. Apps are the constraint. The user is always in control.
 
 ## CRUD with Groups
 
-The four verbs. Groups change everything — they're not a separate API surface, they're metadata on every CRUD operation.
+The four verbs. Groups are not a separate API surface — they're metadata on every CRUD operation.
 
 ### Create
 
@@ -142,27 +171,24 @@ const doc = await w.create('posts', {
     'web10.app/groups/alice/followers',       // followers
     'web10.app/groups/alice/close-friends',   // close friends
   ],
+  // ref_value: 'doc-123',  // point at a target (a comment/reaction on a post)
 })
 ```
 
 The API checks each group: is the user a member? Does their role grant `create` on that service? If a check fails, the attachment is rejected — but the document still creates, just not attached to that group.
 
 - **No groups** = private. Only the author sees it.
-- **Multiple groups** = union of members. Anyone in any group with the right role can read it.
-- **One insert, zero fan-out.** Behind the scenes the API writes one row to `documents`, then one row per group to `doc_groups`.
+- **Multiple groups** = union of members.
+- **One insert, zero fan-out.** The API writes one row to `documents`, then one row per group to `doc_groups`.
 
 ### Read
 
-Every read is group-filtered. You see a document because you're a member of a group it's attached to.
+Every read is group-filtered. The read opts are `{ groups, limit?, offset?, ref? }` — `groups` is required; `limit`/`offset` paginate; `ref` filters to docs whose `ref_value` matches (a post's comments/reactions).
 
 **Your own posts** — `me` is a reserved group that returns your own documents regardless of group attachment:
 
 ```ts
-const myPosts = await w.read('posts', {
-  groups: ['me'],
-  $sort: { created_at: -1 },
-  $limit: 50,
-})
+const myPosts = await w.read('posts', { groups: ['me'], limit: 50 })
 ```
 
 **Discover** — read from a group:
@@ -170,8 +196,7 @@ const myPosts = await w.read('posts', {
 ```ts
 const posts = await w.read('posts', {
   groups: ['{provider}/groups/web10/discover'],
-  $sort: { created_at: -1 },
-  $limit: 50,
+  limit: 50,
 })
 ```
 
@@ -184,49 +209,84 @@ const posts = await w.read('posts', {
     'web10.app/groups/alice/followers',
     'web10.app/groups/charlie/chess-club',
   ],
-  $sort: { created_at: -1 },
-  $limit: 50,
+  limit: 50,
+  offset: 0,
 })
 ```
 
-**Filtering** — `$match` filters before sorting:
+**The ref filter** — a post's comments without pulling the whole service:
 
 ```ts
-const posts = await w.read('posts', {
+const comments = await w.read('comments', {
   groups: ['{provider}/groups/web10/discover'],
-  $match: {
-    author_key: 'alice',
-    tags: ['jazz'],
-  },
-  $limit: 50,
+  ref: postDocId,
 })
 ```
 
-| Field | Speed |
-|---|---|
-| `author_key`, `collection_name`, `created_at` | Fast (indexed) |
-| `tags` | Fast (`has()` function) |
-| `body.*` (JSON path) | Slower (JSON scan) |
+**Engagement counts** — `{ ref_value: count }` for a set of posts (exact, no cap):
+
+```ts
+const counts = await w.readRefCounts('reactions', {
+  groups: ['{provider}/groups/web10/discover'],
+  ref: [postDocId1, postDocId2],
+})  // → { [postDocId1]: 12, [postDocId2]: 7 }
+```
+
+**Single doc by id:**
+
+```ts
+const post = await w.readById('doc-123', 'posts')
+```
+
+There's no client-side `$sort`/`$match` — the read returns docs in the node's default order (newest first). For custom sorting, filtering, aggregation, or cross-service joins, use the **flexible read** below.
 
 ### Update
 
 ```ts
-await w.update('posts', { _id: 'doc-123' }, {
-  $set: { text: { type: 'text', value: 'updated content' } },
+await w.update('doc-123', {
+  text: { type: 'text', value: 'updated content' },
 }, {
-  $groups: ['{provider}/groups/web10/discover'],  // replace group attachments
+  groups: ['{provider}/groups/web10/discover'],  // replace group attachments
 })
 ```
 
-`$groups` replaces the group attachment list. Add a group → the document appears in that group's discover. Remove a group → it disappears.
+`groups` replaces the group attachment list. Add a group → the document appears in that group's discover. Remove a group → it disappears.
 
 ### Delete
 
 ```ts
-await w.delete('posts', { _id: 'doc-123' })
+await w.delete('doc-123')
 ```
 
 Tombstone pattern — the document disappears from all groups. Background cleanup compacts on schedule.
+
+## The flexible read — `w.query`
+
+Write a ClickHouse `SELECT` over your services and the node runs it. Read-only by construction: the safe-query engine rejects anything but a single `SELECT`, raw node tables, and table functions. Every service you reference is scoped to the groups you can read it in — so aggregations, self-joins, subqueries, and your own CTEs all work, and none can leak past your groups.
+
+Each service exposes: `doc_id`, `author_key`, `body` (a JSON string — `JSONExtractString(body, 'field', 'value')` for fields), `ref_value`, `tags`, `created_at`, `updated_at`.
+
+```ts
+// Trending posts — cross-service self-join + aggregation
+const { rows, count } = await w.query(`
+  SELECT p.doc_id, p.author_key, count() AS reactions
+  FROM posts p
+  JOIN reactions r ON r.ref_value = p.doc_id
+  GROUP BY p.doc_id, p.author_key
+  ORDER BY reactions DESC
+  LIMIT 20
+`)
+
+// Reaction breakdown by type — JSON body fields
+const { rows } = await w.query(`
+  SELECT JSONExtractString(body, 'reaction_type', 'value') AS type, count() AS n
+  FROM reactions
+  WHERE ref_value = '${postDocId}'
+  GROUP BY type
+`)
+```
+
+`rows` is keyed by the query's column names (a `body` column comes back parsed); `count` is the number of rows. Scope to specific groups with `w.query(sql, { groups: [...] })`. An unbounded query gets `LIMIT 1000` appended; an unsafe query is a **403**, a caller-SQL failure is a **400**.
 
 ## Group Operations
 
@@ -234,26 +294,31 @@ Groups are first-class. The SDK exposes them directly.
 
 ### Create a Group
 
+Roles use the **per-service permission map**: each role is `{ name, permissions }` where `permissions` maps a service (or the `group` structural key) to the ops granted.
+
 ```ts
-const group = await w.createGroup({
-  name: 'St. Louis Chess Club',
-  join_policy: 'invite_only',
-  roles: [
+const group = await w.createGroup(
+  'St. Louis Chess Club',
+  'invite_only',
+  [
     {
       name: 'admin',
-      services: ['*'],
-      permissions: ['readAll', 'create', 'updateOwn', 'deleteOwn', 'hideAll', 'manageRoles', 'assignRoles', 'revokeRoles', 'deleteGroup'],
+      permissions: {
+        posts: ['readAll', 'create', 'updateOwn', 'deleteOwn', 'hideAll'],
+        comments: ['readAll', 'create', 'updateOwn', 'deleteOwn'],
+        group: ['manageRoles', 'assignRoles', 'revokeRoles', 'deleteGroup', 'modifyJoinPolicy'],
+      },
     },
     {
       name: 'member',
-      services: ['posts', 'comments'],
-      permissions: ['readAll', 'create', 'updateOwn', 'deleteOwn'],
+      permissions: {
+        posts: ['readAll', 'create', 'updateOwn', 'deleteOwn'],
+        comments: ['readAll', 'create'],
+      },
     },
   ],
-  members: [
-    { member_key: 'alice', role: 'admin' },
-  ],
-})
+  [{ member_key: 'alice', role: 'admin' }],
+)
 // → { group_id: 'web10.app/groups/alice/st-louis-chess-club' }
 ```
 
@@ -281,22 +346,17 @@ await w.declineInvite('web10.app/groups/alice/close-friends')
 ### Manage
 
 ```ts
-// Get groups you belong to
-const groups = await w.getGroups({ member: 'alice' })
+// Groups you belong to / manage
+const groups = await w.getMyGroups()
+const managed = await w.getGroupsManages()
 
-// Get groups you manage
-const managed = await w.getGroups({ manages: 'alice' })
-
-// Get members
-const members = await w.getMembers('web10.app/groups/alice/followers')
-
-// Remove member
-await w.removeMember('web10.app/groups/alice/close-friends', 'bob')
+// Members
+const members = await w.getGroupMembers('web10.app/groups/alice/followers')
+await w.addGroupMember('web10.app/groups/alice/followers', 'bob', 'member')
+await w.removeGroupMember('web10.app/groups/alice/close-friends', 'bob')
 
 // Update group settings
-await w.updateGroup('web10.app/groups/alice/close-friends', {
-  join_policy: 'request',
-})
+await w.updateGroup('web10.app/groups/alice/close-friends', { join_policy: 'request' })
 ```
 
 ### Blocking
@@ -311,7 +371,7 @@ await w.blockUserInGroup('bob', 'web10.app/groups/dave/jazz-collectors')
 await w.unblockUserInGroup('bob', 'web10.app/groups/dave/jazz-collectors')
 ```
 
-### Sharing Toggle
+### Sharing toggle
 
 ```ts
 // Pause sharing with a group without leaving
@@ -321,50 +381,53 @@ await w.setSharing('web10.app/groups/dave/jazz-collectors', true)  // resume
 
 ## Media
 
-Three-step upload: request presigned URL, upload to object storage, confirm.
+Three-step upload: request a presigned URL, upload to object storage, confirm.
 
 ```ts
-// Convenience — does all three steps
-const record = await w.upload(file, {
-  filename: 'photo.jpg',
-  mimeType: 'image/jpeg',
-  altText: 'screenshot',
-})
-
-// Manual flow
-const presigned = await w.requestUploadUrl({
+// 1. Request a presigned upload URL
+const presigned = await w.requestMediaUploadUrl({
   filename: 'photo.jpg',
   mimeType: 'image/jpeg',
   sizeBytes: file.size,
-})
-// POST FormData to presigned.upload_url
-const record = await w.confirmUpload({
-  url: presigned.upload_url,
+})  // → { upload_url, fields, object_key, content_type }
+
+// 2. POST the file (FormData) to presigned.upload_url
+const formData = new FormData()
+for (const [k, v] of Object.entries(presigned.fields || {})) formData.append(k, v)
+formData.append('file', file, 'photo.jpg')
+await fetch(presigned.upload_url, { method: 'POST', body: formData })
+
+// 3. Confirm — store the reference (the object key), not a URL
+const record = await w.confirmMediaUpload({
+  object_key: presigned.object_key,
   filename: 'photo.jpg',
-  mimeType: 'image/jpeg',
-  sizeBytes: file.size,
+  mime_type: 'image/jpeg',
 })
 
-// Get a read URL (presigned GET, cached)
-const { readUrl } = await w.getReadUrl(record.object_key)
+// Read URL (presigned GET — the doc stores the object key, not a live URL)
+const { read_url } = await w.getMediaReadUrl(record.body.object_key)
+
+// List / delete your media
+const media = await w.listMedia({ limit: 50 })
+await w.deleteMedia(record.doc_id)
 ```
 
 ## App Store
 
 ```ts
-// Register an app
+// Register an app (anonymous — the app identifies itself by url)
 await w.registerApp({
   url: 'https://myapp.com',
   name: 'My App',
   description: 'A web10 app',
-  iconUrl: 'https://myapp.com/icon.png',
+  icon_url: 'https://myapp.com/icon.png',
 })
 
 // List approved apps
 const apps = await w.getApps()
 
 // Rate an app (1-5)
-await w.rateApp({ appId: 'https://myapp.com', rating: 5 })
+await w.rateApp('https://myapp.com', 5)
 
 // Read ratings
 const ratings = await w.getAppRatings('https://myapp.com')

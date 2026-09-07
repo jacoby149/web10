@@ -158,6 +158,52 @@ export function splitCatalog(docs: V3Document[]): AdsCatalogData {
   return { ads, albums, posts }
 }
 
+// ── Node ads (D57) — the operator's ad inventory ───────────────────────────
+//
+// A node ad is a `posts` doc on the discover group, tagged `ad` + `node_ad`,
+// authored by the node operator. The read attaches active node ads to posts
+// at the operator's `node_ad_percentage` (regardless of the post's ad_mode).
+// The operator manages them from the Ad Inventory card (Studio).
+
+/**
+ * The node-default discover group ID: `{provider}/groups/web10/discover`.
+ * Node ads live here (every user + anon is a member, so they're readable by
+ * all). The provider comes from the token.
+ */
+export function discoverGroupId(provider: string | null | undefined): string {
+  return `${provider || 'api.localhost'}/groups/web10/discover`
+}
+
+/** A node ad is a posts doc tagged `ad` + `node_ad`. */
+export function isNodeAd(doc: V3Document): boolean {
+  return (doc.tags || []).includes('node_ad')
+}
+
+/** Filter a feed read down to the node ads (the operator's inventory). */
+export function splitNodeAds(docs: V3Document[]): AdItem[] {
+  return docs.filter(isNodeAd).map(parseAd)
+}
+
+/**
+ * Build a node ad's body: the same leaf-typed offer as a creator ad, plus the
+ * `node_ad` tag (the marker that distinguishes it from a creator ad). No
+ * albums — node ads are the operator's inventory, not a creator's catalog.
+ */
+export function buildNodeAdBody(offer: AdOffer, text: string, status: 'active' | 'paused'): Record<string, unknown> {
+  return {
+    text,
+    tags: ['ad', 'node_ad'],
+    offer: {
+      kind: { type: 'text', value: offer.kind },
+      partner: { type: 'text', value: offer.partner },
+      link: { type: 'text', value: offer.link },
+      cta: { type: 'text', value: offer.cta },
+      disclosure: { type: 'text', value: offer.disclosure },
+    },
+    status,
+  }
+}
+
 // ── Offer builder (leaf-typed, D55) ─────────────────────────────────────────
 
 export function buildOfferBody(offer: AdOffer, text: string, status: 'active' | 'paused', albumIds: string[]): Record<string, unknown> {

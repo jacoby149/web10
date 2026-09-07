@@ -11,9 +11,11 @@ from . import (
     contracts,
     documents,
     groups,
+    imports,
     logs,
     media,
     moderation,
+    query,
     recovery,
 )
 
@@ -31,6 +33,9 @@ router.include_router(recovery.router, prefix="")
 # Document CRUD
 router.include_router(documents.router, prefix="")
 
+# The flexible read — caller-written SELECTs over the caller's groups (safe-query engine)
+router.include_router(query.router, prefix="")
+
 # Group contracts — groups (including group-scoped blocking/sharing)
 router.include_router(groups.router, prefix="/groups")
 
@@ -39,6 +44,9 @@ router.include_router(blocking.router, prefix="")
 
 # Media
 router.include_router(media.router, prefix="/media")
+
+# Imports (the "port your YouTube" pipeline — presigned upload + in-process worker)
+router.include_router(imports.router, prefix="")
 
 # App contracts
 router.include_router(contracts.router, prefix="/app-contracts")
@@ -54,6 +62,9 @@ router.include_router(moderation.router, prefix="/moderation")
 
 # Access health — the confirmatory verifyAccess oracle (generic: token + user + contract)
 router.include_router(access.router, prefix="/access")
+
+# Contact-anchored auth (D61) — the front door: contact → code → pick/create account
+router.include_router(recovery.router, prefix="/recovery")
 
 
 # Node stats

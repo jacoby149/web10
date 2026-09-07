@@ -3,19 +3,19 @@ import React from 'react'
 import { render, screen, fireEvent } from '@testing-library/react'
 import ForgotForm from '../components/CredentialPage/ForgotForm'
 
-// The Phase 2 phone-recovery flow — the ForgotForm state machine:
-// phone → 6-digit code → pick account → sign in. These tests drive the UI
-// wiring (which step renders, which function is called with what args). The
-// API calls themselves (v3PostAnon → /v3/recovery/*) are covered by the e2e
-// once the recovery API is merged.
+// Contact-anchored auth (D61) — the ForgotForm state machine:
+// contact (phone OR email) → 6-digit code → pick an account (or create one) →
+// sign in. These tests drive the UI wiring (which step renders, which function
+// is called with what args). The API calls (v3PostAnon → /v3/recovery/*) are
+// covered by the API unit tests + e2e.
 
 function makeI(over: Record<string, any> = {}) {
   return {
-    recoveryStep: 'phone',
-    recoveryPhone: '+15551234567',
+    recoveryStep: 'contact',
+    recoveryContact: '+15551234567',
+    recoveryVerifyToken: 'vt',
     recoveryAccounts: [] as any[],
-    phone: '+15551234567',
-    setPhone: vi.fn(),
+    setRecoveryContact: vi.fn(),
     setRecoveryStep: vi.fn(),
     recoverRequest: vi.fn(),
     recoverVerify: vi.fn(),
@@ -26,15 +26,15 @@ function makeI(over: Record<string, any> = {}) {
   }
 }
 
-describe('ForgotForm — phone step', () => {
-  it('renders the phone input, send code, and back-to-login', () => {
+describe('ForgotForm — contact step', () => {
+  it('renders the contact input, send code, and back-to-login', () => {
     render(<ForgotForm I={makeI()} />)
-    expect(screen.getByTestId('recovery-phone-input')).toBeTruthy()
+    expect(screen.getByTestId('recovery-contact-input')).toBeTruthy()
     expect(screen.getByTestId('recovery-send-code')).toBeTruthy()
     expect(screen.getByTestId('recovery-back-to-login')).toBeTruthy()
   })
 
-  it('send code calls recoverRequest with the phone', () => {
+  it('send code calls recoverRequest with the contact', () => {
     const I = makeI()
     render(<ForgotForm I={I} />)
     fireEvent.click(screen.getByTestId('recovery-send-code'))
@@ -48,20 +48,19 @@ describe('ForgotForm — phone step', () => {
     expect(I.setMode).toHaveBeenCalledWith('login')
   })
 
-  it('is embedded without the card chrome or phone-step headline', () => {
+  it('is embedded without the card chrome or contact-step headline', () => {
     const { container } = render(<ForgotForm I={makeI()} embedded />)
     expect(container.querySelector('[data-testid="recovery-form"]')).toBeNull()
-    expect(screen.queryByText('Recover your account')).toBeNull()
     expect(screen.getByTestId('recovery-send-code')).toBeTruthy()
   })
 })
 
 describe('ForgotForm — code step', () => {
-  it('renders the code input, verify, and change-number', () => {
+  it('renders the code input, verify, and change-contact', () => {
     render(<ForgotForm I={makeI({ recoveryStep: 'code' })} />)
     expect(screen.getByTestId('recovery-code-input')).toBeTruthy()
     expect(screen.getByTestId('recovery-verify')).toBeTruthy()
-    expect(screen.getByTestId('recovery-change-number')).toBeTruthy()
+    expect(screen.getByTestId('recovery-change-contact')).toBeTruthy()
   })
 
   it('verify is disabled until 6 digits are entered', () => {
@@ -73,7 +72,7 @@ describe('ForgotForm — code step', () => {
     expect((screen.getByTestId('recovery-verify') as HTMLButtonElement).disabled).toBe(false)
   })
 
-  it('verify calls recoverVerify with phone + code', () => {
+  it('verify calls recoverVerify with contact + code', () => {
     const I = makeI({ recoveryStep: 'code' })
     render(<ForgotForm I={I} />)
     fireEvent.change(screen.getByTestId('recovery-code-input'), { target: { value: '123456' } })
@@ -81,25 +80,26 @@ describe('ForgotForm — code step', () => {
     expect(I.recoverVerify).toHaveBeenCalledWith('+15551234567', '123456')
   })
 
-  it('change number returns to the phone step', () => {
+  it('change contact returns to the contact step', () => {
     const I = makeI({ recoveryStep: 'code' })
     render(<ForgotForm I={I} />)
-    fireEvent.click(screen.getByTestId('recovery-change-number'))
-    expect(I.setRecoveryStep).toHaveBeenCalledWith('phone')
+    fireEvent.click(screen.getByTestId('recovery-change-contact'))
+    expect(I.setRecoveryStep).toHaveBeenCalledWith('contact')
   })
 })
 
-describe('ForgotForm — pick step', () => {
+describe('ForgotForm — pick step (existing accounts)', () => {
   const accounts = [
     { username: 'alice', email: 'a@x.com' },
     { username: 'bob', email: '' },
   ]
 
-  it('renders the account list', () => {
+  it('renders the account list + the new-account option', () => {
     render(<ForgotForm I={makeI({ recoveryStep: 'pick', recoveryAccounts: accounts })} />)
     expect(screen.getByTestId('recovery-account-list')).toBeTruthy()
     expect(screen.getByTestId('recovery-account-alice')).toBeTruthy()
     expect(screen.getByTestId('recovery-account-bob')).toBeTruthy()
+    expect(screen.getByTestId('recovery-new-account')).toBeTruthy()
   })
 
   it('sign in is disabled until an account is picked', () => {
@@ -112,7 +112,7 @@ describe('ForgotForm — pick step', () => {
     render(<ForgotForm I={I} />)
     fireEvent.click(screen.getByTestId('recovery-account-alice'))
     fireEvent.click(screen.getByTestId('recovery-sign-in'))
-    expect(I.recoverComplete).toHaveBeenCalledWith('+15551234567', '', 'alice', undefined)
+    expect(I.recoverComplete).toHaveBeenCalledWith('alice', undefined)
   })
 
   it('a new password is passed through to recoverComplete', () => {
@@ -121,6 +121,35 @@ describe('ForgotForm — pick step', () => {
     fireEvent.click(screen.getByTestId('recovery-account-alice'))
     fireEvent.change(screen.getByTestId('recovery-new-password'), { target: { value: 'brand-new' } })
     fireEvent.click(screen.getByTestId('recovery-sign-in'))
-    expect(I.recoverComplete).toHaveBeenCalledWith('+15551234567', '', 'alice', 'brand-new')
+    expect(I.recoverComplete).toHaveBeenCalledWith('alice', 'brand-new')
+  })
+})
+
+describe('ForgotForm — pick step (create a new account)', () => {
+  it('no accounts on the contact → the create path is active', () => {
+    render(<ForgotForm I={makeI({ recoveryStep: 'pick', recoveryAccounts: [] })} />)
+    expect(screen.queryByTestId('recovery-account-alice')).toBeNull()
+    expect(screen.getByTestId('recovery-new-username')).toBeTruthy()
+    expect((screen.getByTestId('recovery-sign-in') as HTMLButtonElement).disabled).toBe(true)
+  })
+
+  it('typing a username enables create + calls recoverComplete with it', () => {
+    const I = makeI({ recoveryStep: 'pick', recoveryAccounts: [] })
+    render(<ForgotForm I={I} />)
+    fireEvent.change(screen.getByTestId('recovery-new-username'), { target: { value: 'newbie' } })
+    expect((screen.getByTestId('recovery-sign-in') as HTMLButtonElement).disabled).toBe(false)
+    fireEvent.click(screen.getByTestId('recovery-sign-in'))
+    expect(I.recoverComplete).toHaveBeenCalledWith('newbie', undefined)
+  })
+
+  it('picking "New account" from an existing list reveals the username input', () => {
+    const accounts = [{ username: 'alice', email: 'a@x.com' }]
+    const I = makeI({ recoveryStep: 'pick', recoveryAccounts: accounts })
+    render(<ForgotForm I={I} />)
+    fireEvent.click(screen.getByTestId('recovery-new-account'))
+    expect(screen.getByTestId('recovery-new-username')).toBeTruthy()
+    fireEvent.change(screen.getByTestId('recovery-new-username'), { target: { value: 'newbie' } })
+    fireEvent.click(screen.getByTestId('recovery-sign-in'))
+    expect(I.recoverComplete).toHaveBeenCalledWith('newbie', undefined)
   })
 })

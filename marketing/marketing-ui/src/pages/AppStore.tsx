@@ -100,6 +100,7 @@ function resolveIcon(appUrl: string, iconSrc: string): string {
 
 const KNOWN_HOSTS = ['social.web10.app', 'auth.web10.app', 'api.web10.app', 'www.web10.app', 'web10.app']
 const FLAGSHIP_HOST = 'social.web10.app'
+const FLAGSHIP_NAME = 'web10 social'
 
 interface StoreApp {
   name: string
@@ -117,7 +118,11 @@ interface PlugSlot {
   description: string
   href: string
   iconSrc?: string
-  users_30d: number
+  // The plug slots show their real user count. The flagship and the node
+  // console (web10 hub) both register like any app (the SDK auto-ping), so
+  // their metrics are real web10 users — a missing registration just reads 0.
+  users_30d?: number
+  visits?: number
   badge: string
   appId?: string
 }
@@ -150,6 +155,11 @@ function AppStore() {
   const [loading, setLoading] = useState(true)
   const [loadingMore, setLoadingMore] = useState(false)
   const [searchQuery, setSearchQuery] = useState('')
+  // The node console (web10 hub) is a known-host root, so the grid filter
+  // drops it from `apps` — but its Core plug slot needs its real user metric.
+  // Captured here from the same list fetch, before the filter, so the plug
+  // slot shows real web10 users instead of a permanent 0.
+  const [consoleMetric, setConsoleMetric] = useState<{ users_30d: number; visits: number; appId?: string } | null>(null)
 
   useEffect(() => {
     trackFunnel('app_store_view')
@@ -186,6 +196,12 @@ function AppStore() {
     const page: RegisteredApp[] = Array.isArray(data.apps) ? data.apps : []
     const api = nodeApi()
     const enriched = await Promise.all(page.map((app) => enrichWithManifest(app, api)))
+    // Capture the node console's real metric before the grid filter drops it
+    // (it's a known-host root). The Core plug slot reads this.
+    const consoleApp = enriched.find((a) => a.url && hostOf(a.url) === hostOf(AUTH_ORIGIN))
+    if (consoleApp) {
+      setConsoleMetric({ users_30d: consoleApp.users_30d ?? 0, visits: consoleApp.visits ?? 0, appId: consoleApp.url })
+    }
     const mapped: StoreApp[] = enriched
       .filter((a) => a.url && (!KNOWN_HOSTS.includes(hostOf(a.url)) || !isHostRoot(a.url)))
       .filter((a) => hostOf(a.url) !== '' && !hostOf(a.url).endsWith('.localhost'))
@@ -216,11 +232,12 @@ function AppStore() {
   // First-party plug slots (curated). Their users_30d comes from the list
   // when the app is registered; the importer is a marketing page (no metric).
   const firstParty: StoreApp[] = useMemo(() => {
-    const flagship = apps.find((a) => hostOf(a.href) === FLAGSHIP_HOST)
-    const consoleApp = apps.find((a) => hostOf(a.href) === 'auth.web10.app')
+    // The flagship's real registration may live at a different host than the
+    // canonical origin — match by display name first, then fall back to host.
+    const flagship = apps.find((a) => a.name === FLAGSHIP_NAME || hostOf(a.href) === FLAGSHIP_HOST)
     return [
       {
-        name: 'web10 social',
+        name: FLAGSHIP_NAME,
         description: 'Feed, DMs, media, streaming — your audience and your data, on a node you own.',
         href: SOCIAL_ORIGIN,
         iconSrc: ICON_PATH,
@@ -230,13 +247,13 @@ function AppStore() {
         appId: flagship?.appId,
       },
       {
-        name: 'The node console',
+        name: 'web10 hub',
         description: 'Login, consent, contracts, and the Studio — the operator surface every node runs.',
         href: AUTH_ORIGIN,
         iconSrc: ICON_PATH,
-        users_30d: consoleApp?.users_30d ?? 0,
-        visits: consoleApp?.visits ?? 0,
-        appId: consoleApp?.appId,
+        users_30d: consoleMetric?.users_30d ?? 0,
+        visits: consoleMetric?.visits ?? 0,
+        appId: consoleMetric?.appId,
       },
       {
         name: 'The importer',
@@ -247,7 +264,7 @@ function AppStore() {
         visits: 0,
       },
     ]
-  }, [apps])
+  }, [apps, consoleMetric])
 
   const allApps = useMemo(() => [...firstParty, ...apps], [firstParty, apps])
 
@@ -255,17 +272,34 @@ function AppStore() {
     const flagship = firstParty.find((a) => a.flagship)
     if (!flagship) return []
     const plugs: PlugSlot[] = [{ ...flagship, badge: 'Flagship' }]
-    // MOST POPULAR — #1 by users_30d (server-sorted) among registered apps
-    // that isn't the flagship. First-party apps (console, importer) stay in
-    // the grid, not the plug slots.
-    const mostPopular = apps.find((a) => hostOf(a.href) !== FLAGSHIP_HOST)
-    if (mostPopular) plugs.push({ ...mostPopular, badge: 'Most Popular' })
+    // CORE — web10 hub, the operator surface every node runs. The curated
+    // pair is the flagship product + the core management app (the first-party
+    // catalog, per the KB). Replaces the old "Most Popular" slot, which could
+    // surface a duplicate of the flagship when it was also registered. It
+    // carries its real user count — it registers like any app (the SDK
+    // auto-ping), so its metric is real web10 users, same as the flagship.
+    const core = firstParty.find((a) => a.href === AUTH_ORIGIN)
+    if (core) {
+      plugs.push({ name: core.name, description: core.description, href: core.href, iconSrc: core.iconSrc, users_30d: core.users_30d, visits: core.visits, badge: 'Core', appId: core.appId })
+    }
     return plugs
-  }, [firstParty, apps])
+  }, [firstParty])
 
-  // The grid shows first-party + registered apps, minus the plug slots.
+  // The grid shows first-party + registered apps, minus the plug slots. A
+  // registered copy of the flagship product (same product, different URL) is
+  // a duplicate — the flagship is curated above, so keep it out of the grid.
+  // Same for the node console (web10 hub): it registers itself (the SDK
+  // auto-ping) and would otherwise surface in the grid as its manifest name
+  // ("web10 hub") while ALSO being the curated Core plug slot — two cards for
+  // one app. The plug slot is curated above, so the registered copy stays out.
   const gridApps = useMemo(
-    () => allApps.filter((app) => !plugSlots.some((p) => p.href === app.href)),
+    () =>
+      allApps.filter((app) => {
+        if (plugSlots.some((p) => p.href === app.href)) return false
+        if (app.name === FLAGSHIP_NAME) return false
+        if (hostOf(app.href) === hostOf(AUTH_ORIGIN)) return false
+        return true
+      }),
     [allApps, plugSlots],
   )
   const filteredGrid = useMemo(
