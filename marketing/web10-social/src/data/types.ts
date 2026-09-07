@@ -170,6 +170,20 @@ export function fromV3DocToAd(doc: V3Document): AdRecord {
 
 // ── Media ───────────────────────────────────────────────────────────────────
 
+/**
+ * The D44 transcode status surface on a media doc (`transcoding_settings`).
+ * `manifest_url` is a path-only URL (the client prepends the API origin),
+ * minted per-reader on read with a 10-minute sig (minio-auth-bifurcated).
+ */
+export interface TranscodingSettings {
+  enabled?: boolean;
+  status?: 'queued' | 'processing' | 'done' | 'failed';
+  error?: string;
+  manifest_url?: string;
+  variants?: unknown[];
+  thumbnails?: unknown[];
+}
+
 export interface MediaRecord {
   _id?: string;
   url: string;
@@ -183,6 +197,7 @@ export interface MediaRecord {
   thumbnail_url?: string;
   thumbnail_object_key?: string;
   hls_manifest_url?: string;
+  transcoding_settings?: TranscodingSettings;
   caption?: string;
   alt_text?: string;
   origin?: Origin;
@@ -206,6 +221,7 @@ export interface ResolvedMediaRef {
   height?: number | null;
   duration_seconds?: number | null;
   thumbnail_url?: string | null;
+  transcoding_settings?: TranscodingSettings | null;
 }
 
 /** The doc_id a media ref addresses — strings are doc_ids, resolved objects carry it. */
@@ -226,6 +242,7 @@ export function fromResolvedMediaRef(r: ResolvedMediaRef): MediaRecord {
     height: r.height || undefined,
     duration_seconds: r.duration_seconds || undefined,
     thumbnail_url: r.thumbnail_url || undefined,
+    transcoding_settings: r.transcoding_settings || undefined,
   };
 }
 
@@ -244,6 +261,7 @@ export function fromV3DocToMedia(doc: V3Document): MediaRecord {
     thumbnail_url: (body.thumbnail_url as string) || undefined,
     thumbnail_object_key: (body.thumbnail_object_key as string) || undefined,
     hls_manifest_url: (body.hls_manifest_url as string) || undefined,
+    transcoding_settings: (body.transcoding_settings as TranscodingSettings) || undefined,
     caption: (body.caption as string) || undefined,
     alt_text: (body.alt_text as string) || undefined,
     origin: (body.origin as Origin) || undefined,

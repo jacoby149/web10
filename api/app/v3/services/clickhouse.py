@@ -2390,6 +2390,34 @@ def revoke_provider_service_contract(provider_key: str, allowed_origin: str):
 # ---------------------------------------------------------------------------
 
 
+def _hls_settings_for_ref(meta: dict, doc_id: str, reader_key: str) -> dict | None:
+    """Carry `transcoding_settings` (with a fresh manifest sig) into a resolved
+    media ref, so the feed's read path knows a video is HLS-ready.
+
+    Mirrors `_mint_hls_manifest_urls` (documents.py): the sig is bound to
+    (reader, doc, hls prefix) with a 10-minute TTL — the expiry is the
+    group-membership re-check cadence (minio-auth-bifurcated). A path-only
+    URL: the client prepends its API origin. `None` for media without a
+    video minio leaf (images) or without transcoding settings.
+    """
+    ts = meta.get("transcoding_settings") or {}
+    video = meta.get("video")
+    if not (ts and isinstance(video, dict) and video.get("value")):
+        return None
+    if not ts.get("enabled"):
+        # processing / failed — carry the status surface, no manifest (the
+        # client plays the direct read_url until a later read shows done).
+        return dict(ts)
+    # Local import: app.services.hls imports this module (cycle).
+    from app.services import hls
+
+    sig = hls.mint_sig(reader_key, doc_id, hls.hls_prefix(str(video["value"])))
+    return {
+        **ts,
+        "manifest_url": f"/v3/media/hls/manifest?doc_id={doc_id}&sig={sig}",
+    }
+
+
 def resolve_media_urls(doc_body: dict, user_key: str) -> dict:
     """Resolve media references in a document body to presigned URLs.
 
@@ -2457,6 +2485,11 @@ def resolve_media_urls(doc_body: dict, user_key: str) -> dict:
                 "height": meta.get("height"),
                 "duration_seconds": meta.get("duration_seconds"),
                 "thumbnail_url": presigned.get(thumbnail_key) if thumbnail_key else meta.get("thumbnail_url"),
+                # HLS (D44): the feed's read path carries the transcode status
+                # + a fresh manifest sig (when done) so the client plays
+                # adaptive HLS instead of the raw file. The direct read_url
+                # stays the fallback (processing / failed / no HLS support).
+                "transcoding_settings": _hls_settings_for_ref(meta, mref_str, user_key),
             }
         )
 

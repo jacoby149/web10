@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { ChevronLeft, ChevronRight, X, Heart, MessageCircle, Edit3, Trash2, Eye, EyeOff, Share2, Check } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
@@ -20,6 +20,26 @@ import { CommentThread } from '@/components/Feed/CommentThread';
 import { TextWithLinks } from '@/components/Feed/LinkEmbed';
 import { AdBlock } from '@/components/Feed/AdBlock';
 import { cn } from '@/lib/utils';
+import { useHlsVideo } from '@/lib/useHlsVideo';
+
+/** The lightbox's video pane — D44: adaptive HLS when the transcode is done
+ *  (hls.js / native Safari), the direct read_url otherwise. */
+function LightboxVideo({ media }: { media: MediaRecord }) {
+  const videoRef = useRef<HTMLVideoElement>(null);
+  const hlsManifest = useHlsVideo(videoRef, media);
+  return (
+    <video
+      ref={videoRef}
+      key={media._id || media.url}
+      src={hlsManifest ? undefined : media.url}
+      poster={media.thumbnail_url}
+      controls
+      playsInline
+      className="max-h-[50vh] w-full object-contain sm:max-h-[88vh]"
+      data-testid="lightbox-video"
+    />
+  );
+}
 
 function formatTimeAgo(dateStr: string): string {
   const then = new Date(dateStr).getTime();
@@ -243,14 +263,7 @@ export function PostLightbox({ post, mediaMap, onClose, onReload, postAuthor, po
         {hasMedia && (
           <div className="relative flex min-h-0 flex-1 items-center justify-center bg-black">
             {current.mime_type?.startsWith('video/') ? (
-              <video
-                key={current._id || current.url}
-                src={current.url}
-                poster={current.thumbnail_url}
-                controls
-                playsInline
-                className="max-h-[50vh] w-full object-contain sm:max-h-[88vh]"
-              />
+              <LightboxVideo media={current} />
             ) : (
               <img
                 src={current.url}

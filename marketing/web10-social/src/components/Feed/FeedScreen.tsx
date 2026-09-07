@@ -33,6 +33,7 @@ import {
 import { KnobRack } from '@/components/Discover/KnobRack';
 import { Heart, MessageCircle, Play, Pause, Edit3 } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { useHlsVideo } from '@/lib/useHlsVideo';
 import { MARKETING_ORIGIN } from '@/lib/origins';
 import { CommentThread } from './CommentThread';
 import { TextWithLinks } from './LinkEmbed';
@@ -100,6 +101,10 @@ function MediaItem({ media }: { media: MediaRecord }) {
   const videoRef = useRef<HTMLVideoElement>(null);
   const [measuredRatio, setMeasuredRatio] = useState<number | null>(null);
 
+  // D44: adaptive HLS when the transcode is done (hls.js / native Safari),
+  // the direct read_url otherwise (processing / failed / no HLS support).
+  const hlsManifest = useHlsVideo(videoRef, isVideo ? media : null);
+
   useEffect(() => {
     if (!playing || !videoRef.current) return;
     videoRef.current.play().catch(() => {});
@@ -146,7 +151,7 @@ function MediaItem({ media }: { media: MediaRecord }) {
       >
         <video
           ref={videoRef}
-          src={media.url}
+          src={hlsManifest ? undefined : media.url}
           poster={media.thumbnail_url}
           onLoadedMetadata={(e) => onMediaLoaded(e.currentTarget)}
           className="w-full h-full object-contain"

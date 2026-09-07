@@ -1,6 +1,7 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import * as v3 from '../../data/v3';
 import { uploadMedia, refreshMediaUrls, refreshMediaUrl, resolveMediaRefs } from '../../data/posts';
+import { API_ORIGIN } from '../../lib/origins';
 
 // A tiny valid 1x1 PNG (base64 — no Buffer in the browser tsconfig)
 const TINY_PNG_B64 =
@@ -109,6 +110,65 @@ describe('media data layer (v3) — the real functions', () => {
       const parentCall = mock.confirmMediaUpload.mock.calls[1][0] as Record<string, unknown>;
       expect(parentCall.thumbnail_object_key).toBe('alice/thumb.webp');
       expect(record.thumbnail_object_key).toBe('alice/thumb.webp');
+    });
+  });
+
+  describe('uploadMedia — video (D44 transcode queue)', () => {
+    function videoFile(name = 'clip.mp4') {
+      return new File(['x'], name, { type: 'video/mp4' });
+    }
+    function setTokenCookie(token: string | null) {
+      if (token === null) delete (window as unknown as { web10?: unknown }).web10;
+      else (window as unknown as { web10?: unknown }).web10 = { readTokenCookie: () => token };
+    }
+    function transcodeCalls() {
+      return fetchMock.mock.calls.filter(([url]) => String(url).includes('/v3/media/transcode'));
+    }
+
+    afterEach(() => {
+      setTokenCookie(null);
+    });
+
+    it('writes the video minio leaf + queues the transcode with token + doc_id', async () => {
+      setTokenCookie('tok-abc');
+      await uploadMedia({ file: videoFile(), service: 'public_media' });
+      // The confirm carries the video minio leaf (the transcode worker's input)
+      expect(mock.confirmMediaUpload).toHaveBeenCalledWith(
+        expect.objectContaining({
+          object_key: 'alice/clip.mp4',
+          video: { type: 'minio', value: 'alice/clip.mp4' },
+        }),
+      );
+      // The transcode is queued (best-effort, after the confirm)
+      expect(transcodeCalls()).toHaveLength(1);
+      const [url, init] = transcodeCalls()[0];
+      expect(String(url)).toBe(`${API_ORIGIN}/v3/media/transcode`);
+      expect(JSON.parse(init!.body as string)).toEqual({ token: 'tok-abc', doc_id: 'media-1' });
+    });
+
+    it('images get no video leaf and no transcode queue', async () => {
+      setTokenCookie('tok-abc');
+      await uploadMedia({ file: pngFile() });
+      const meta = mock.confirmMediaUpload.mock.calls[0][0] as Record<string, unknown>;
+      expect(meta.video).toBeUndefined();
+      expect(transcodeCalls()).toHaveLength(0);
+    });
+
+    it('a transcode queue failure never fails the upload', async () => {
+      setTokenCookie('tok-abc');
+      fetchMock.mockImplementation(async (url: unknown) => {
+        if (String(url).includes('/v3/media/transcode')) return new Response(null, { status: 500 });
+        return new Response(null, { status: 200 });
+      });
+      const record = await uploadMedia({ file: videoFile() });
+      expect(record._id).toBe('media-1');
+    });
+
+    it('skips the queue when there is no token cookie (still uploads)', async () => {
+      setTokenCookie(null);
+      const record = await uploadMedia({ file: videoFile() });
+      expect(record._id).toBe('media-1');
+      expect(transcodeCalls()).toHaveLength(0);
     });
   });
 

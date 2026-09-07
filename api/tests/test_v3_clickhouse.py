@@ -893,6 +893,60 @@ class TestResolveMediaUrls:
             # the legacy media has no object_key.
             assert signing.generate_presigned_url.call_count == 2
 
+    def test_resolve_media_carries_transcoding_settings(self):
+        """The read path carries `transcoding_settings` into the resolved ref
+        (D44): a done video gets a fresh manifest sig (verifiable, bound to
+        the reader + doc), a processing/failed video carries the status
+        without a manifest, and non-video media carries nothing."""
+        body = {"text": "hello", "media_refs": ["vid-done", "vid-processing", "img-1"]}
+        with _patch_client() as mock_client, patch.object(ch, "get_s3_signing_client") as mock_signing:
+            mock_client.query.return_value = _mock_result_rows(
+                [
+                    (
+                        "vid-done",
+                        '{"object_key":"alice/vid.mp4","mime_type":"video/mp4","video":{"type":"minio","value":"alice/vid.mp4"},"transcoding_settings":{"enabled":true,"status":"done","variants":[{"tag":"720p"}]}}',
+                        "media_metadata",
+                    ),
+                    (
+                        "vid-processing",
+                        '{"object_key":"alice/vid2.mp4","mime_type":"video/mp4","video":{"type":"minio","value":"alice/vid2.mp4"},"transcoding_settings":{"enabled":false,"status":"processing"}}',
+                        "media_metadata",
+                    ),
+                    (
+                        "img-1",
+                        '{"object_key":"alice/pic.png","mime_type":"image/png"}',
+                        "media_metadata",
+                    ),
+                ]
+            )
+            mock_signing.return_value = MagicMock(
+                generate_presigned_url=lambda *a, **k: "http://minio/signed"
+            )
+            result = ch.resolve_media_urls(body, "alice")
+            refs = {r["doc_id"]: r for r in result["media_refs"]}
+
+            # Done: status + variants carried, manifest_url minted for the reader.
+            ts = refs["vid-done"]["transcoding_settings"]
+            assert ts["status"] == "done"
+            assert ts["variants"] == [{"tag": "720p"}]
+            assert ts["manifest_url"].startswith("/v3/media/hls/manifest?doc_id=vid-done&sig=")
+            sig = ts["manifest_url"].rsplit("sig=", 1)[1]
+            # The sig verifies and is bound to (reader, doc, hls prefix).
+            from app.services import hls
+
+            payload = hls.verify_sig(sig, "vid-done")
+            assert payload["username"] == "alice"
+            assert payload["prefix"] == "alice/hls"
+
+            # Processing: status surface carried, no manifest (the direct
+            # read_url plays until a later read shows done).
+            ts2 = refs["vid-processing"]["transcoding_settings"]
+            assert ts2["status"] == "processing"
+            assert "manifest_url" not in ts2
+
+            # Non-video media: no transcoding settings at all.
+            assert refs["img-1"]["transcoding_settings"] is None
+
 
 class TestResolveMinioTypes:
     def test_no_minio_types_unchanged(self):
