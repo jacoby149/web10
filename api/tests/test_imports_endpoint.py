@@ -77,10 +77,14 @@ class TestRoutes:
 
 class TestCreate:
     def test_unsupported_platform(self, client, token):
-        resp = client.post("/v3/imports", json={
-            "token": token, "platform": "myspace",
-            "parts": [{"filename": "a.tar"}],
-        })
+        resp = client.post(
+            "/v3/imports",
+            json={
+                "token": token,
+                "platform": "myspace",
+                "parts": [{"filename": "a.tar"}],
+            },
+        )
         assert resp.status_code == 400
 
     def test_no_parts(self, client, token):
@@ -101,13 +105,18 @@ class TestCreate:
             patch("app.v3.services.import_worker.get_import_job", return_value=_job()),
         ):
             signer.return_value.generate_presigned_post.return_value = {
-                "url": "https://minio/upload", "fields": {"key": "k"},
+                "url": "https://minio/upload",
+                "fields": {"key": "k"},
             }
             create.return_value = _job()
-            resp = client.post("/v3/imports", json={
-                "token": token, "platform": "youtube",
-                "parts": [{"filename": "takeout-001.tar"}, {"filename": "takeout-002.tar"}],
-            })
+            resp = client.post(
+                "/v3/imports",
+                json={
+                    "token": token,
+                    "platform": "youtube",
+                    "parts": [{"filename": "takeout-001.tar"}, {"filename": "takeout-002.tar"}],
+                },
+            )
         assert resp.status_code == 200
         data = resp.json()
         assert data["platform"] == "youtube"
@@ -122,10 +131,14 @@ class TestCreate:
     def test_invalid_token(self, client):
         # A present-but-invalid token is a 401 (a missing token is a 422
         # validation error — the model requires the field).
-        resp = client.post("/v3/imports", json={
-            "token": "garbage.token.here", "platform": "youtube",
-            "parts": [{"filename": "a.tar"}],
-        })
+        resp = client.post(
+            "/v3/imports",
+            json={
+                "token": "garbage.token.here",
+                "platform": "youtube",
+                "parts": [{"filename": "a.tar"}],
+            },
+        )
         assert resp.status_code == 401
 
 
@@ -148,10 +161,12 @@ class TestStart:
     def test_missing_parts(self, client, token):
         keys = ["k1", "k2"]
         s3 = MagicMock()
+
         # k1 exists, k2 raises (missing)
         def head(Bucket, Key):
             if Key == "k2":
                 raise Exception("404")
+
         s3.head_object.side_effect = head
         with (
             patch("app.v3.services.import_worker.get_import_job", return_value=_job(keys=keys)),

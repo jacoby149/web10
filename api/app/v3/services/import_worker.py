@@ -473,8 +473,7 @@ def _existing_origin_ids(user: str) -> tuple[set[tuple[str, str]], dict[str, str
 
 def _user_has_profile(user: str) -> bool:
     result = ch.client.query(
-        "SELECT count() FROM documents "
-        "WHERE author_key = %(user)s AND collection_name = 'profile' AND deleted = 0",
+        "SELECT count() FROM documents WHERE author_key = %(user)s AND collection_name = 'profile' AND deleted = 0",
         {"user": user},
     )
     return int(result.result_rows[0][0]) > 0
@@ -488,9 +487,7 @@ def _upload_thumbnail(user: str, url: str, origin_id: str, title: str | None) ->
     data = resp.content  # thumbnails are small (tens of KB)
     filename = f"import-thumb-{uuid.uuid4().hex[:12]}.jpg"
     object_key = media_svc.make_object_key(user, filename)
-    media_svc.get_s3_client().put_object(
-        Bucket=settings.S3_BUCKET, Key=object_key, Body=data, ContentType="image/jpeg"
-    )
+    media_svc.get_s3_client().put_object(Bucket=settings.S3_BUCKET, Key=object_key, Body=data, ContentType="image/jpeg")
     metadata = {
         "object_key": object_key,
         "filename": filename,
@@ -542,7 +539,13 @@ def _write_records(job_id: str, user: str, records: list[dict], followers_group:
     if todo:
         with ThreadPoolExecutor(max_workers=8) as pool:
             futures = {
-                pool.submit(_upload_thumbnail, user, r["media_url"], r["origin_id"], (r["body"].get("text") or "").split("\n")[0]): r
+                pool.submit(
+                    _upload_thumbnail,
+                    user,
+                    r["media_url"],
+                    r["origin_id"],
+                    (r["body"].get("text") or "").split("\n")[0],
+                ): r
                 for r in todo
             }
             done = 0

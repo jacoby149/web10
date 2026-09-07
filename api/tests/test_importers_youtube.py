@@ -18,9 +18,17 @@ from app.services.importers.youtube import (
 # ---------------------------------------------------------------------------
 
 
-def _video(vid="dQw4w9WgXcQ", title="Never Gonna Give You Up", desc="A classic.\n#music #retro",
-           published="2019-05-01T12:00:00Z", duration="PT3M33S", privacy="public",
-           views="1000", likes="50", comments="7"):
+def _video(
+    vid="dQw4w9WgXcQ",
+    title="Never Gonna Give You Up",
+    desc="A classic.\n#music #retro",
+    published="2019-05-01T12:00:00Z",
+    duration="PT3M33S",
+    privacy="public",
+    views="1000",
+    likes="50",
+    comments="7",
+):
     return {
         "id": vid,
         "snippet": {
@@ -38,8 +46,14 @@ def _video(vid="dQw4w9WgXcQ", title="Never Gonna Give You Up", desc="A classic.\
     }
 
 
-def _comment(cid="c1", text="great video", video_id="dQw4w9WgXcQ",
-             published="2019-05-02T00:00:00Z", author="Some Fan", parent=None):
+def _comment(
+    cid="c1",
+    text="great video",
+    video_id="dQw4w9WgXcQ",
+    published="2019-05-02T00:00:00Z",
+    author="Some Fan",
+    parent=None,
+):
     snippet = {
         "textDisplay": text,
         "videoId": video_id,
@@ -197,11 +211,13 @@ class TestClassify:
 class TestParseYoutube:
     def _entries(self):
         videos = {"items": [_video("v1", "One"), _video("v2", "Two")]}
-        comments = {"items": [
-            _comment("c1", "on v1", video_id="v1"),
-            _comment("c2", "on v2", video_id="v2"),
-            _comment("c3", "on a stranger's video", video_id="zzz"),
-        ]}
+        comments = {
+            "items": [
+                _comment("c1", "on v1", video_id="v1"),
+                _comment("c2", "on v2", video_id="v2"),
+                _comment("c3", "on a stranger's video", video_id="zzz"),
+            ]
+        }
         channels = {"items": [_channel()]}
         return [
             ("YouTube and Google/My videos/videos.json", json.dumps(videos).encode()),

@@ -112,7 +112,9 @@ def start_import(data: ImportJobRef):
             detail=f"{len(missing)} of {len(job['object_keys'])} export parts are missing from storage — upload them, then start again",
         )
 
-    import_worker.update_import_job(job["job_id"], phase=import_worker.QUEUED, message="Queued — waiting for a worker...")
+    import_worker.update_import_job(
+        job["job_id"], phase=import_worker.QUEUED, message="Queued — waiting for a worker..."
+    )
     import_worker.submit_import_job(job["job_id"])
     return {"job_id": job["job_id"], "status": "queued"}
 

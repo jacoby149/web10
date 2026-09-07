@@ -87,10 +87,13 @@ def _make_zip(path, members):
 class TestExtractJsonEntries:
     def test_tar(self, tmp_path):
         part = tmp_path / "part-000"
-        _make_tar(part, [
-            ("YouTube and Google/My videos/videos.json", '{"items": []}'),
-            ("YouTube and Google/My videos/video.mp4", b"binary"),
-        ])
+        _make_tar(
+            part,
+            [
+                ("YouTube and Google/My videos/videos.json", '{"items": []}'),
+                ("YouTube and Google/My videos/video.mp4", b"binary"),
+            ],
+        )
         entries = iw._extract_json_entries(tmp_path)
         names = {n for n, _ in entries}
         assert names == {"YouTube and Google/My videos/videos.json"}
@@ -98,10 +101,13 @@ class TestExtractJsonEntries:
 
     def test_zip(self, tmp_path):
         part = tmp_path / "part-000"
-        _make_zip(part, [
-            ("YouTube and Google/My videos/videos.json", '{"items": []}'),
-            ("YouTube and Google/My videos/video.mp4", b"binary"),
-        ])
+        _make_zip(
+            part,
+            [
+                ("YouTube and Google/My videos/videos.json", '{"items": []}'),
+                ("YouTube and Google/My videos/video.mp4", b"binary"),
+            ],
+        )
         entries = iw._extract_json_entries(tmp_path)
         names = {n for n, _ in entries}
         assert names == {"YouTube and Google/My videos/videos.json"}
@@ -131,18 +137,41 @@ def _records():
     JSONExtractString) — the real parser writes it to both.
     """
     return [
-        {"service": "staging_posts", "origin_id": "v1", "ref_origin_id": None,
-         "media_url": "https://i.ytimg.com/vi/v1/hq720.jpg",
-         "body": {"text": "One", "created_at": "2019-01-01T00:00:00Z", "tags": ["a"], "origin_id": "v1"}},
-        {"service": "staging_posts", "origin_id": "v2", "ref_origin_id": None,
-         "media_url": None,
-         "body": {"text": "Two", "created_at": "2019-02-01T00:00:00Z", "tags": [], "origin_id": "v2"}},
-        {"service": "comments", "origin_id": "c1", "ref_origin_id": "v1",
-         "media_url": None, "body": {"text": "on v1", "created_at": "2019-01-02T00:00:00Z", "origin_id": "c1"}},
-        {"service": "comments", "origin_id": "c2", "ref_origin_id": "nope",
-         "media_url": None, "body": {"text": "orphan", "created_at": "2019-01-03T00:00:00Z", "origin_id": "c2"}},
-        {"service": "profile", "origin_id": "UC1", "ref_origin_id": None,
-         "media_url": None, "body": {"display_name": "Me", "bio": "hi", "website": None, "origin_id": "UC1"}},
+        {
+            "service": "staging_posts",
+            "origin_id": "v1",
+            "ref_origin_id": None,
+            "media_url": "https://i.ytimg.com/vi/v1/hq720.jpg",
+            "body": {"text": "One", "created_at": "2019-01-01T00:00:00Z", "tags": ["a"], "origin_id": "v1"},
+        },
+        {
+            "service": "staging_posts",
+            "origin_id": "v2",
+            "ref_origin_id": None,
+            "media_url": None,
+            "body": {"text": "Two", "created_at": "2019-02-01T00:00:00Z", "tags": [], "origin_id": "v2"},
+        },
+        {
+            "service": "comments",
+            "origin_id": "c1",
+            "ref_origin_id": "v1",
+            "media_url": None,
+            "body": {"text": "on v1", "created_at": "2019-01-02T00:00:00Z", "origin_id": "c1"},
+        },
+        {
+            "service": "comments",
+            "origin_id": "c2",
+            "ref_origin_id": "nope",
+            "media_url": None,
+            "body": {"text": "orphan", "created_at": "2019-01-03T00:00:00Z", "origin_id": "c2"},
+        },
+        {
+            "service": "profile",
+            "origin_id": "UC1",
+            "ref_origin_id": None,
+            "media_url": None,
+            "body": {"display_name": "Me", "bio": "hi", "website": None, "origin_id": "UC1"},
+        },
     ]
 
 
@@ -151,8 +180,9 @@ def _mock_ch(calls):
     empty_query = MagicMock()
     empty_query.result_rows = []
 
-    def fake_insert_document(author_key, service, body, ref_value="", tags=None,
-                             doc_id=None, ad_mode="none", ad_target="", created_at=None):
+    def fake_insert_document(
+        author_key, service, body, ref_value="", tags=None, doc_id=None, ad_mode="none", ad_target="", created_at=None
+    ):
         calls.append(("insert", service, body.get("origin_id"), ref_value, created_at))
         return {"doc_id": f"doc-{body.get('origin_id') or service}"}
 
@@ -174,6 +204,7 @@ def _mock_ch(calls):
 class TestWriteRecords:
     def _run(self, records, existing=None, has_profile=False):
         calls = []
+
         # _existing_origin_ids + _user_has_profile both call ch.client.query —
         # steer them: existing origin_ids empty, no profile (unless has_profile).
         def fake_query(sql, params=None):
@@ -238,8 +269,8 @@ class TestWriteRecords:
     def test_idempotent_rerun_skips_existing(self):
         # A re-run: v1 + c1 already exist. Only v2 + the profile are new.
         existing = [
-            ["doc-v1", "v1"],   # staging_posts v1
-            ["doc-c1", "c1"],   # comments c1
+            ["doc-v1", "v1"],  # staging_posts v1
+            ["doc-c1", "c1"],  # comments c1
             ["doc-thumb_v1", "thumb_v1"],  # media_metadata for v1's thumb
         ]
         written, skipped, errors, calls = self._run(_records(), existing=existing)
@@ -274,10 +305,17 @@ class TestUpdateJobMonotonic:
 
         def fake_get(job_id):
             return {
-                "job_id": job_id, "user_key": "u", "platform": "youtube",
-                "phase": "queued", "object_keys": [], "total_records": 0,
-                "written_records": 0, "skipped_records": 0, "errors": [],
-                "message": "m", "created_at": "2026-01-01T00:00:00",
+                "job_id": job_id,
+                "user_key": "u",
+                "platform": "youtube",
+                "phase": "queued",
+                "object_keys": [],
+                "total_records": 0,
+                "written_records": 0,
+                "skipped_records": 0,
+                "errors": [],
+                "message": "m",
+                "created_at": "2026-01-01T00:00:00",
                 "updated_at": fixed.isoformat(),
             }
 
