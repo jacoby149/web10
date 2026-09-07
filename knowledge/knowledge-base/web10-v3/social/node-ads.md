@@ -4,7 +4,8 @@
 > layer of the two-layer ad model (D57). Read `ads.md` (the ad object, D55)
 > and `ads-dissemination.md` (the v3 dissemination, `pinned` | `none`)
 > first. This doc is the operator's inventory: how the node monetizes the
-> unmonetized gap in the feed.
+> feed at a configured percentage, as a second ad layer on top of the
+> creator's own ads.
 
 ## The Two Layers (keep these straight)
 
@@ -13,14 +14,17 @@
 | who creates | the creator | the node operator |
 | where it lives | the creator's followers group | the discover group (node default) |
 | tag | `ad` | `ad` + `node_ad` |
-| attachment | `ad_mode = 'pinned'` on the creator's post | read-time attachment to `ad_mode = 'none'` posts |
+| attachment | `ad_mode = 'pinned'` on the creator's post | read-time attachment at the operator's percentage (any post) |
 | who gets the money | the creator (100%) | the node operator (85-90%) |
 | web10's cut | none (delivery only) | platform fee on the hosting invoice |
 | enforcement | none (the creator's link is external) | the node renders it (part of the product) |
 
-The creator's ad always wins. If a post has `ad_mode = 'pinned'`, the read
-serves the creator's ad. The node ad only fills the gap — posts with
-`ad_mode = 'none'` that aren't already monetized.
+The two layers are **independent revenue streams** — neither suppresses the
+other. A post with `ad_mode = 'pinned'` (the creator monetizing it with their
+own ad) **also** gets a node ad if the percentage selects it: the read serves
+the creator's ad in `doc.ad` AND the node's ad in `doc.node_ad`. The
+creator's monetization is never reduced by the node's, and the operator's
+inventory is never reduced by the creator's (D57: the non-steal principle).
 
 ## The Node Ad Object
 
@@ -95,43 +99,52 @@ active node ads, the read cycles through them: the first selected post gets
 ad 1, the second gets ad 2, the third gets ad 3, the fourth gets ad 1
 again. The operator controls the rotation by adding/removing node ads.
 
-**The node ad query is small and bounded:**
+**The node ad query is small and bounded** (the house dedup-then-filter
+pattern — `documents` is a `ReplacingMergeTree`, so the inner subquery picks
+the latest version per `(doc_id, author_key)` before the outer filter):
 
 ```sql
-SELECT doc_id, body, tags, created_at
-FROM documents
-WHERE collection_name = 'posts'
-  AND has(tags, 'node_ad')
-  AND deleted = 0
-  AND JSONExtractString(body, 'status') = 'active'
+SELECT doc_id, author_key, body, tags
+FROM (
+  SELECT doc_id, author_key, body, tags, deleted, updated_at,
+         row_number() OVER (PARTITION BY doc_id, author_key
+                            ORDER BY updated_at DESC) AS rn
+  FROM documents
+  WHERE collection_name = 'posts' AND has(tags, 'node_ad') AND deleted = 0
+)
+WHERE rn = 1
   AND doc_id IN (
-    SELECT doc_id FROM doc_groups
-    WHERE group_id = '<discover group id>'
+    SELECT pg.doc_id FROM doc_groups pg
+    WHERE pg.group_id = '<discover group id>' AND pg.deleted = 0
   )
-ORDER BY created_at DESC
+ORDER BY updated_at DESC
 LIMIT 20
 ```
 
-One query per read (cached for the duration of the read). Bounded at 20
-active node ads (the operator can't have 1000). Fast.
+The `status = 'active'` filter runs in Python after the rows come back (the
+body is JSON; a paused ad is fetched and dropped, not a SQL predicate). One
+query per read (called once for the whole read, not per doc). Bounded at 20
+active node ads (the operator can't have 1000). Fast. The query is
+defensive — any error returns `[]` (node ads are an enhancement, not a
+critical path; the feed works without them).
 
 ## The Density Control
 
 The operator sets `node_ad_percentage` in `node_config`:
 
 - **Type:** integer, 0-100
-- **Default:** 10 (10% of unmonetized posts get a node ad)
+- **Default:** 10 (10% of posts get a node ad)
 - **0 = off** (no node ads)
-- **100 = every unmonetized post gets a node ad** (aggressive; not recommended)
+- **100 = every post gets a node ad** (aggressive; not recommended)
 
-The setting lives in the Node Config panel (the authenticator's config
-surface), alongside the other node settings. A new "Ad Inventory" card in
-the Studio shows:
+The setting is a `node_config` field. The **Ad Inventory card** in the
+Studio (the operator's surface, `ui/src/components/Studio/`) is where it's
+controlled — a percentage slider (0-100) that writes `node_ad_percentage`
+to `node_config`. The same card shows:
 
-- The current percentage (slider or number input)
+- The current percentage (slider)
 - The list of active node ads (creative preview, offer, status)
 - Create / pause / resume / retire node ads
-- A revenue estimate (impressions × CPM, the operator's own number)
 ## The Renderer
 
 The app already renders ad posts (tagged `ad`) as ad blocks
@@ -200,21 +213,24 @@ Stripe), which is a separate engineering problem. See
 - **I2 holds.** The node ad is a `posts` doc. The read verifies the reader's
   token (or anon) before serving it. No unsigned decode.
 - **The creator's doc is never modified.** The node ad is a read-time
-  enrichment. The `ad_mode` column on the creator's post stays `none`. The
-  node operator cannot write to another user's doc.
+  enrichment. The `ad_mode` column on the creator's post is never written
+  (a `pinned` post keeps its `pinned` mode and its creator ad; a `none` post
+  stays `none`). The node operator cannot write to another user's doc.
 
 ## Summary
 
 A node ad is a `posts` doc on the discover group, tagged `ad` + `node_ad`,
-authored by the node operator. The read attaches active node ads to posts
-with `ad_mode = 'none'` at the operator's configured percentage
-(deterministic per reader, round-robin through active node ads). The
-creator's ad (`ad_mode = 'pinned'`) always wins — the node only fills the
-unmonetized gap. The operator sells the inventory to advertisers directly;
-web10's cut is the platform fee on the hosting invoice. The ad block
-renders under the post with a "Sponsored" label + the node's disclosure.
-No new tables, no new collection, no new contract permission, no ad
-network, no programmatic bidding. The operator is a media company.
+authored by the node operator. The read attaches active node ads to posts at
+the operator's configured percentage (deterministic per reader, round-robin
+through active node ads) — **regardless of the post's `ad_mode`**. A post
+with a creator ad (`ad_mode = 'pinned'`) gets **both**: the creator's ad in
+`doc.ad` and the node's ad in `doc.node_ad`. Neither layer suppresses the
+other (D57: the non-steal principle). The operator sells the inventory to
+advertisers directly; web10's cut is the platform fee on the hosting
+invoice. The ad block renders under the post with a "Sponsored" label + the
+node's disclosure. No new tables, no new collection, no new contract
+permission, no ad network, no programmatic bidding. The operator is a media
+company.
 
 For the ad object, see `ads.md`. For the v3 dissemination (`pinned` |
 `none`), see `ads-dissemination.md`. For the catalog + composer surfaces,
