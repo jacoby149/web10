@@ -392,31 +392,19 @@ export async function getGroupsManages(): Promise<V3Group[]> {
 }
 
 /**
- * Get feed groups — the groups whose `posts` belong on the main feed.
- *
- * The feed is posts, not messages. DMs live in the `posts` service too (a DM
- * is a `posts` doc in a 2-member `dm-…` group — see dms.ts), so a group-scoped
- * read of `posts` would pull them in and render them as empty post cards (a DM
- * body has `message`, not `text`). The group list is the only place the
- * post/DM distinction can be made (the backend read has no doc-type axis), so
- * the feed's group set excludes the non-feed groups: discover (its own feed),
- * DM groups (message threads), and app-storage groups (other apps' data).
- * Followers / close-friends / community groups stay — that's where real posts
- * attach (determinePostGroups).
+ * Get feed groups — the followers groups only (the user's own + the ones
+ * they follow). The feed is the "following" feed: it shows the user's own
+ * posts + posts from people the user follows. DM groups, community groups,
+ * and close-friends groups are NOT part of the feed — they surface in the
+ * Messages and Groups screens respectively. Including them leaked posts from
+ * people the user didn't follow (DM recipients, community members).
  */
 export async function getFeedGroups(): Promise<string[]> {
-  const token = getV3Client().readToken();
-  const username = token?.username;
   const groups = await getMyGroups();
   const feedGroups = groups
-    .filter(
-      (g) =>
-        g.group_id !== getDiscoverGroupId() &&
-        !isDmGroup(g.group_id) &&
-        !isAppStorageGroup(g.group_id, username),
-    )
+    .filter((g) => g.group_id.endsWith('/followers'))
     .map((g) => g.group_id);
-  LOG('getFeedGroups —', groups.length, 'my groups →', feedGroups.length, 'feed groups (minus discover + DMs + app-storage)');
+  LOG('getFeedGroups —', groups.length, 'my groups →', feedGroups.length, 'feed groups (followers only)');
   return feedGroups;
 }
 
