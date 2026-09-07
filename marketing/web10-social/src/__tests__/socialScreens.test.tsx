@@ -163,9 +163,81 @@ describe('FeedScreen', () => {
     await waitFor(() => {
       expect(screen.getByTestId('media-count-badge')).toBeInTheDocument();
     });
-    // Only the first item renders in the card; the rest live in the lightbox.
+    // Only the first item renders in the card; the rest are reachable from the
+    // author's profile grid (the lightbox carousel lives there, not the feed).
     expect(screen.getByTestId('media-count-badge')).toHaveTextContent('3');
     expect(screen.getAllByTestId('media-image')).toHaveLength(1);
+  });
+
+  it('tapping a video in the feed plays it inline and does NOT open the lightbox', async () => {
+    const { readFeed, resolveMediaRefs } = await import('@/data');
+    vi.mocked(readFeed).mockResolvedValueOnce([
+      { _id: 'pv1', text: 'a clip', media_refs: ['mv1'], author_username: 'someone', author_provider: 'test.localhost', created_at: new Date().toISOString() },
+    ]);
+    vi.mocked(resolveMediaRefs).mockResolvedValueOnce([
+      { _id: 'mv1', url: 'http://test.com/clip.mp4', mime_type: 'video/mp4', width: 1080, height: 1920, created_at: new Date().toISOString() },
+    ]);
+    const { default: FeedScreen } = await import('@/components/Feed/FeedScreen');
+    render(
+      <MemoryRouter>
+        <FeedScreen />
+      </MemoryRouter>,
+    );
+    const video = await screen.findByTestId('media-video');
+    // The feed is a flat, inline surface — tapping the video toggles play/pause
+    // in place and must never pop the lightbox modal (the old bug: the video
+    // started playing behind the modal).
+    expect(screen.queryByTestId('post-lightbox')).not.toBeInTheDocument();
+    fireEvent.click(video);
+    await waitFor(() => {
+      expect(video).toHaveAttribute('aria-label', 'Pause video');
+    });
+    expect(screen.queryByTestId('post-lightbox')).not.toBeInTheDocument();
+  });
+
+  it('own posts expose an owner menu (share / edit / visibility / delete) instead of a lightbox', async () => {
+    const { readFeed, resolveMediaRefs } = await import('@/data');
+    vi.mocked(readFeed).mockResolvedValueOnce([
+      { _id: 'own1', text: 'my post', author_username: 'testuser', author_provider: 'test.localhost', visibility: 'public', created_at: new Date().toISOString() },
+    ]);
+    vi.mocked(resolveMediaRefs).mockResolvedValueOnce([]);
+    const { default: FeedScreen } = await import('@/components/Feed/FeedScreen');
+    render(
+      <MemoryRouter>
+        <FeedScreen />
+      </MemoryRouter>,
+    );
+    const options = await screen.findByTestId('post-options-button');
+    expect(screen.queryByTestId('post-lightbox')).not.toBeInTheDocument();
+    fireEvent.click(options);
+    await waitFor(() => {
+      expect(screen.getByTestId('post-options-menu')).toBeInTheDocument();
+    });
+    expect(screen.getByTestId('post-option-share')).toBeInTheDocument();
+    expect(screen.getByTestId('post-option-edit')).toBeInTheDocument();
+    expect(screen.getByTestId('post-option-visibility')).toBeInTheDocument();
+    expect(screen.getByTestId('post-option-delete')).toBeInTheDocument();
+    // The menu is a popover, not the lightbox modal.
+    expect(screen.queryByTestId('post-lightbox')).not.toBeInTheDocument();
+  });
+
+  it('non-own posts have no owner menu (no lightbox, no options)', async () => {
+    const { readFeed, resolveMediaRefs } = await import('@/data');
+    vi.mocked(readFeed).mockResolvedValueOnce([
+      { _id: 'other1', text: 'their post', author_username: 'someone', author_provider: 'test.localhost', created_at: new Date().toISOString() },
+    ]);
+    vi.mocked(resolveMediaRefs).mockResolvedValueOnce([]);
+    const { default: FeedScreen } = await import('@/components/Feed/FeedScreen');
+    render(
+      <MemoryRouter>
+        <FeedScreen />
+      </MemoryRouter>,
+    );
+    await waitFor(() => {
+      expect(screen.getByTestId('post-card')).toBeInTheDocument();
+    });
+    expect(screen.queryByTestId('post-options-button')).not.toBeInTheDocument();
+    expect(screen.queryByTestId('post-lightbox')).not.toBeInTheDocument();
   });
 });
 
