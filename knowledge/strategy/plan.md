@@ -461,7 +461,7 @@ were never built (the changelog's "the API is 3.37.0" was wrong). Lane is
 
 ### The rendering / UX
 - [✓ 3.60.7] **Reorganize the `Docs.tsx` sidebar by audience** — group the docs under "Overview / For Users / For Developers / For Node Operators / For Monetizers" (the current flat list + demo apps). Each doc page names its reader up top.
-- [ ] **A "who are you?" landing** — the `/docs` landing asks the reader who they are and routes them to their section (the "asking who's on the marketing docs" the operator wants).
+- [✓ 3.61.0] **A "who are you?" landing** — the `/docs` landing asks the reader who they are and routes them to their section (the "asking who's on the marketing docs" the operator wants).
 
 **Sequencing.** The drift fix first (the docs are actively wrong — `sdk.md` teaches a non-existent API). Then the audience sections (Users → Developers → Node Operators → Monetizers), each a bite. The rendering/UX last (it's the container for the content).
 
