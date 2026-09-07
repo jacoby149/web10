@@ -5,9 +5,6 @@ import sys
 import types
 from unittest.mock import MagicMock, patch
 
-sys.modules["pymongo"] = MagicMock()
-sys.modules["bson"] = MagicMock()
-sys.modules["bson.objectid"] = MagicMock()
 sys.modules["boto3"] = MagicMock()
 sys.modules["botocore"] = MagicMock()
 sys.modules["botocore.config"] = MagicMock()
@@ -124,62 +121,6 @@ def service_manager_token_payload():
 @pytest.fixture
 def service_manager_token(service_manager_token_payload):
     return _make_token(service_manager_token_payload)
-
-
-@pytest.fixture
-def mock_star_record():
-    return {
-        "service": "*",
-        "username": "testuser",
-        "hashed_password": "__hashed__",
-        "phone_number": "+1234567890",
-        "verified": True,
-        "customer_id": None,
-        "business_id": None,
-        "credit_limit": 1000000,
-        "space_limit": 1000000,
-        "credits_spent": 0,
-        "last_replenish": datetime.datetime(1997, 12, 28),
-    }
-
-
-@pytest.fixture
-def mock_term_record():
-    return {
-        "service": "myapi",
-        "whitelist": [
-            {"username": "testuser", "provider": settings.PROVIDER, "read": True, "create": True},
-            {"username": ".*", "provider": ".*", "read": True},
-        ],
-        "blacklist": [
-            {"username": "banneduser", "provider": settings.PROVIDER, "read": True},
-        ],
-        "cross_origins": ["auth.localhost", "myapp.example.com"],
-    }
-
-
-@pytest.fixture
-def mock_db_with_star(mock_star_record):
-    with patch("app.services.documentdb.get_star", return_value=mock_star_record) as m:
-        yield m
-
-
-@pytest.fixture
-def mock_db_with_term(mock_term_record):
-    with patch("app.services.documentdb.get_term_record", return_value=mock_term_record) as m:
-        yield m
-
-
-@pytest.fixture
-def mock_db_star_none():
-    with patch("app.services.documentdb.get_star", return_value=None):
-        yield
-
-
-@pytest.fixture
-def mock_db_term_none():
-    with patch("app.services.documentdb.get_term_record", return_value=None):
-        yield
 
 
 @pytest.fixture

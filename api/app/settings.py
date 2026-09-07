@@ -14,8 +14,6 @@ CORS_SERVICE_MANAGERS = """
     auth.web10.app,
     auth.dev.web10.app
 """
-DB = "testing"
-DB_URL = "mongodb+srv://web10:jSol....."
 # Usernames that may read/write the node config when no admins list has been
 # saved yet (bootstrap). Once an admin edits the list in the Node Config UI,
 # that saved list takes over. Override with the DEFAULT_ADMINS env (comma-sep).
