@@ -9,7 +9,8 @@ idempotent (origin_id dedup), so a re-run never duplicates.
 Flow (one job):
   1. stream the export parts (tar or zip, any split size — Takeout's default
      is tar split into ~2GB parts) from MinIO to a temp dir,
-  2. parse the JSON members (the platform importer — pure),
+  2. parse the data members (CSV/JSON — Takeout exports YouTube as CSV) via the
+     platform importer (pure),
   3. ensure the user's followers group (the owner-only home for staged
      content — D19/D30),
   4. upload the thumbnails (download -> MinIO -> media_metadata),
@@ -328,7 +329,7 @@ def _process_job(job_id: str) -> None:
     tmp_dir = Path(tempfile.mkdtemp(prefix=f"import-{job_id[:8]}-"))
     try:
         _download_parts(job["object_keys"], tmp_dir)
-        entries = _extract_json_entries(tmp_dir)
+        entries = _extract_data_entries(tmp_dir)
         records = parser(entries)
         update_import_job(
             job_id,
@@ -373,23 +374,27 @@ def _is_zip(path: Path) -> bool:
         return f.read(4) == b"PK\x03\x04"
 
 
-def _extract_json_entries(tmp_dir: Path) -> list[tuple[str, bytes]]:
-    """The JSON members of every part — tar or zip (Takeout's default is tar
-    split into ~2GB parts, but the file type shouldn't matter)."""
+def _extract_data_entries(tmp_dir: Path) -> list[tuple[str, bytes]]:
+    """The data members (CSV + JSON) of every part — tar or zip. Takeout exports
+    YouTube as CSV (video metadata/videos.csv, comments/comments.csv,
+    channels/channel.csv); JSON is kept for future/other platforms. The video
+    MP4s are deliberately NOT read here (27GB) — the metadata import only.
+    Split exports are multiple parts; each is a standalone archive."""
     entries: list[tuple[str, bytes]] = []
+    exts = (".csv", ".json")
     for part in sorted(tmp_dir.iterdir()):
         if not part.is_file() or part.stat().st_size == 0:
             continue
         if _is_zip(part):
             with zipfile.ZipFile(part, "r") as zf:
                 for info in zf.infolist():
-                    if info.is_dir() or not info.filename.lower().endswith(".json"):
+                    if info.is_dir() or not info.filename.lower().endswith(exts):
                         continue
                     entries.append((info.filename, zf.read(info.filename)))
         else:
             with tarfile.open(part, "r:*") as tf:
                 for member in tf.getmembers():
-                    if not member.isfile() or not member.name.lower().endswith(".json"):
+                    if not member.isfile() or not member.name.lower().endswith(exts):
                         continue
                     f = tf.extractfile(member)
                     if f is None:

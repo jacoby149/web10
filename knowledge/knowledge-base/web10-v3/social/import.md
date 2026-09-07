@@ -14,22 +14,30 @@ surface is "port your YouTube."
 
 ## The Honest Gaps (what does NOT come over)
 
-Two things the pitch used to over-claim, now stated plainly:
+Verified against a live Takeout export ("jacobs multimedia" — 81 videos, 115
+comments, 1 channel, 80 MP4s / ~27GB). Two things stated plainly:
 
-- **The video files don't come over.** Google Takeout exports *metadata +
-  thumbnails* for your videos — never the bytes. Each imported post carries the
-  full record (title, description, publish date, duration, view/like counts)
-  plus the thumbnail and the watch URL. The creator re-uploads the file for
-  native playback when they want it (the normal media + HLS path,
-  `../media/transcoding.md`). The post is not "unplayable" — it embeds the
-  watch link until the file is re-uploaded.
+- **View/like counts don't come over.** Takeout's `video metadata/videos.csv`
+  carries no `statistics` — the view/like/comment counts stay on YouTube.
+  Everything else about each video (title, description, publish date, duration,
+  tags, privacy) does come over.
 - **The subscriber list doesn't come over.** There is no export path for it —
-  Takeout gives you the channels *you* subscribe to, not your subscribers; the
-  Data API has no subscriber-list endpoint; Studio has no export. The audience
-  is the one thing the platform keeps for itself. So the import brings your
-  **catalog** + your **commenters** + your **profile**; the *audience* is the
-  people who choose to follow you on web10. That fits the pitch better than a
-  list import would: the fans who migrate are the ones you actually own.
+  Takeout gives you the channels *you* subscribe to (`subscriptions.csv`), not
+  your subscribers; the Data API has no subscriber-list endpoint; Studio has no
+  export. The audience is the one thing the platform keeps for itself. So the
+  import brings your **catalog** + your **commenters** + your **profile** + your
+  **video files**; the *audience* is the people who choose to follow you on
+  web10. That fits the pitch better than a list import would: the fans who
+  migrate are the ones you actually own.
+
+**The video files DO come over** (correcting the earlier "no bytes" belief):
+Takeout exports the actual MP4s under `videos/*.mp4` (that's why a real export
+is multi-GB). The metadata import (the parser) brings the catalog; the **video
+pipeline** (Phase 2) streams each MP4 from the export to MinIO, creates a media
+doc, and wires it to the post. Playback is a **direct presigned MP4 read**
+(`web10-social`'s `<video src={read_url}>`), so storing the MP4 is enough for
+native playback — no HLS transcode required (the D44 transcode,
+`../media/transcoding.md`, stays available for adaptive streaming).
 
 ## Where It Runs: the Node, Not a Sidecar
 
@@ -73,8 +81,8 @@ parallelism lives (bounded `ThreadPoolExecutor`).
    to the worker.
 4. **Process** — the worker:
    1. streams the parts from MinIO to a temp dir,
-   2. extracts the JSON members (**tar or zip**, any split size — Takeout's
-      default is tar split into ~2GB parts; the file type shouldn't matter),
+    2. extracts the data members (**CSV/JSON**, tar or zip, any split size —
+       Takeout exports YouTube as CSV; the video MP4s are deliberately not read),
    3. runs the **platform parser** (pure: entries → record dicts),
    4. ensures the user's followers group (the owner-only home for staged
       content — `ensure_followers_group`, the node-side twin of the social
@@ -136,12 +144,23 @@ entries → record dicts. No I/O, no ClickHouse — the worker does the writing.
 `PARSERS` is the registry (`{"youtube": parse_youtube}`). A new platform is a
 new module + a registry entry; the worker, endpoints, and UI are unchanged.
 
-The YouTube parser maps:
-- `My videos/videos.json` → `staging_posts` (one per video).
-- `My videos/comments.json` → `comments` — **only** comments on the user's own
-  videos (a comment the user left on someone else's video would point at a post
-  that doesn't exist on this node, so it's dropped).
-- `My channels/…` → `profile`.
+The YouTube parser reads the **real Takeout CSV shape** (verified against a live
+export — Takeout exports YouTube as CSV, not the Data-API JSON):
+- `video metadata/videos.csv` → `staging_posts` (one per video). Columns:
+  `Video ID`, `Video Title (Original)`, `Video Description (Original)`,
+  `Privacy`, `Approx Duration (ms)`, `Tag 1..17`, `Video Publish Timestamp`,
+  `Video Category`. The thumbnail is derived from the video id (the public
+  `i.ytimg.com` CDN — the CSV carries none). Only `Public`-source stages public;
+  Unlisted/Private stage private (D30).
+- `comments/comments.csv` → `comments` — **only** comments on a video that's in
+  the export (a comment on a deleted video is an orphan → dropped). The
+  `Comment Text` field is a **JSON sequence** (one or more concatenated objects,
+  not an array) — the parser flattens the `text` segments.
+- `channels/channel.csv` → `profile` (`Channel Title (Original)`,
+  `Channel Description (Original)`, `Channel ID`).
+- Everything else (`playlists/*.csv`, `subscriptions/*.csv`, `video texts.csv`,
+  `videos/*.mp4`) is ignored by the metadata parser — classified by precise path
+  (a loose "video" substring would misfire on `playlists/*-videos.csv`).
 
 ## Endpoints
 
