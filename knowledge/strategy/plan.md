@@ -479,7 +479,7 @@ were never built (the changelog's "the API is 3.37.0" was wrong). Lane is
 
 **The pitch:** "Port your YouTube channel. Own your audience." The reach gap is the hook — on YouTube, Google decides which 300k of your 1M subs see the next video; on web10, 100% delivery is architecture.
 
-**Status:** the import mapping + the importer (node pipeline + authenticator UI) + the docs are built (3.63.0). The "port your YouTube" landing page is the remaining item.
+**Status:** the import mapping + the importer (node pipeline + authenticator UI) + the docs are built (3.63.0), and the parser now reads the **real Takeout CSV format** (3.63.1 — validated against a live export; the 3.63.0 parser assumed the Data-API JSON and found zero records). The video pipeline (Phase 2 — the export includes the MP4s) + the "port your YouTube" landing page are the remaining items.
 
 - [✓ 3.63.0] **The import mapping** (Takeout → web10) — the pure YouTube parser (`api/app/services/importers/youtube.py`): videos → `staging_posts` (full record + original publish date + thumbnail), comments-on-own-videos → comments (D62 `ref_value` join), channel → profile. The honest gaps (no video files, no subscriber list) are documented. Source: `knowledge/knowledge-base/web10-v3/social/import.md`.
 - [✓ 3.63.0] **The importer** (the node endpoint + the UI) — the node-side pipeline: `POST /v3/imports` (presigned per-part upload) → the in-process durable worker (`import_worker.py`, the transcode-worker idiom, no Redis per D66) extracts tar/zip, writes in order (media → posts → comments → profile) into `staging_posts` (D30, owner-only, followers group), then deletes the raw export. The authenticator's Settings → Import from YouTube card drives it.

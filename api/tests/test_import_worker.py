@@ -84,44 +84,50 @@ def _make_zip(path, members):
             zf.writestr(name, data)
 
 
-class TestExtractJsonEntries:
+class TestExtractDataEntries:
     def test_tar(self, tmp_path):
         part = tmp_path / "part-000"
         _make_tar(
             part,
             [
-                ("YouTube and Google/My videos/videos.json", '{"items": []}'),
-                ("YouTube and Google/My videos/video.mp4", b"binary"),
+                ("Takeout/YouTube and YouTube Music/video metadata/videos.csv", "Video ID\nv1\n"),
+                ("Takeout/YouTube and YouTube Music/videos/video.mp4", b"binary"),
             ],
         )
-        entries = iw._extract_json_entries(tmp_path)
+        entries = iw._extract_data_entries(tmp_path)
         names = {n for n, _ in entries}
-        assert names == {"YouTube and Google/My videos/videos.json"}
-        # non-JSON members are excluded
+        assert names == {"Takeout/YouTube and YouTube Music/video metadata/videos.csv"}
+        # the MP4 (27GB in a real export) is deliberately NOT read
 
     def test_zip(self, tmp_path):
         part = tmp_path / "part-000"
         _make_zip(
             part,
             [
-                ("YouTube and Google/My videos/videos.json", '{"items": []}'),
-                ("YouTube and Google/My videos/video.mp4", b"binary"),
+                ("Takeout/YouTube and YouTube Music/video metadata/videos.csv", "Video ID\nv1\n"),
+                ("Takeout/YouTube and YouTube Music/videos/video.mp4", b"binary"),
             ],
         )
-        entries = iw._extract_json_entries(tmp_path)
+        entries = iw._extract_data_entries(tmp_path)
         names = {n for n, _ in entries}
-        assert names == {"YouTube and Google/My videos/videos.json"}
+        assert names == {"Takeout/YouTube and YouTube Music/video metadata/videos.csv"}
+
+    def test_json_still_extracted(self, tmp_path):
+        # JSON is kept for future/other platforms.
+        _make_zip(tmp_path / "part-000", [("a/data.json", '{"items": []}')])
+        entries = iw._extract_data_entries(tmp_path)
+        assert {n for n, _ in entries} == {"a/data.json"}
 
     def test_mixed_parts(self, tmp_path):
         # A 2GB-split export is multiple parts — some tar, some zip. Both parse.
-        _make_tar(tmp_path / "part-000", [("a/videos.json", '{"items": []}')])
-        _make_zip(tmp_path / "part-001", [("a/comments.json", '{"items": []}')])
-        entries = iw._extract_json_entries(tmp_path)
+        _make_tar(tmp_path / "part-000", [("a/videos.csv", "Video ID\nv1\n")])
+        _make_zip(tmp_path / "part-001", [("a/comments.csv", "Comment ID\nc1\n")])
+        entries = iw._extract_data_entries(tmp_path)
         names = {n for n, _ in entries}
-        assert names == {"a/videos.json", "a/comments.json"}
+        assert names == {"a/videos.csv", "a/comments.csv"}
 
     def test_empty_dir(self, tmp_path):
-        assert iw._extract_json_entries(tmp_path) == []
+        assert iw._extract_data_entries(tmp_path) == []
 
 
 # ---------------------------------------------------------------------------
