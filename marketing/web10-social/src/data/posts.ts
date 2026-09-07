@@ -1,4 +1,5 @@
 import { getV3Client } from './v3';
+import { API_ORIGIN } from '../lib/origins';
 import {
   getDiscoverGroupId,
   followersGroupId,
@@ -213,6 +214,7 @@ export async function uploadMedia(request: MediaUploadRequest): Promise<MediaRec
   }
 
   // 3. Confirm — store the reference, not a URL
+  const isVideo = request.file.type.startsWith('video/');
   const metadata: Record<string, unknown> = {
     object_key: presigned.object_key,
     filename: request.file.name,
@@ -225,9 +227,48 @@ export async function uploadMedia(request: MediaUploadRequest): Promise<MediaRec
     alt_text: request.altText ?? null,
     service: request.service || 'media',
   };
+  // D44: the transcode worker reads the raw file from this leaf (the doc is
+  // the status surface — transcoding_settings goes processing → done|failed).
+  if (isVideo) {
+    metadata.video = { type: 'minio', value: presigned.object_key };
+  }
   const doc = await w.confirmMediaUpload(metadata);
   console.log('[social-media] uploadMedia — confirmed, doc_id:', doc.doc_id);
+
+  // Queue the HLS transcode (best-effort — a transcode failure must never
+  // fail the upload; the direct read_url stays the playback fallback).
+  if (isVideo) {
+    await queueTranscode(doc.doc_id);
+  }
+
   return fromV3DocToMedia(doc);
+}
+
+/**
+ * Queue a video document for HLS transcoding (D44). Best-effort: logs and
+ * swallows every failure — the post still plays through the direct read_url
+ * when the transcode never lands.
+ */
+export async function queueTranscode(docId: string): Promise<void> {
+  const web10 = (window as unknown as { web10?: { readTokenCookie?: () => string | null } }).web10;
+  const token = web10?.readTokenCookie?.();
+  if (!token) {
+    console.log('[social-media] queueTranscode — no token cookie, skipping (doc_id:', docId, ')');
+    return;
+  }
+  try {
+    const res = await fetch(`${API_ORIGIN}/v3/media/transcode`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ token, doc_id: docId }),
+    });
+    console.log('[social-media] queueTranscode — response status:', res.status, 'doc_id:', docId);
+    if (!res.ok) {
+      console.warn('[social-media] queueTranscode — non-ok (non-fatal):', res.status);
+    }
+  } catch (e) {
+    console.warn('[social-media] queueTranscode — error (non-fatal):', e);
+  }
 }
 
 /**
