@@ -360,7 +360,7 @@ Spec'd in `knowledge-base/web10-v3/social/content-moderation.md` (the model) +
 - [✓ 3.41.0] **Admin endpoints** — `POST /v3/moderation/flags` (the queue) + `POST /v3/moderation/auto-hide` (add/remove from `auto_hide_users`).
 - [✓ 3.41.0] **UI** — the Node Config "Content Moderation" card (master switch + auto-hide toggle, blocklist tag input, the review queue with "Keep hiding"/"Hiding").
 - [✓ 3.41.0] **Tests** — 27 API (`test_moderation.py`) + 7 UI (`configModeration.test.tsx`).
-- [✓ 3.66.1] **E2E: moderation gauntlet** — post with a flagged word → hidden from the board → operator keeps-hiding → next post auto-hidden → operator removes → next post visible. `e2e/tests/moderation.spec.ts` (API floor + I3 anti-test + browser gauntlet over the Node Config "Content Moderation" card). The gauntlet caught a real bug: `get_moderation_flags`'s `arrayJoin(groupArray(...))` split a multi-flag user into one row per flag (duplicated in the queue) — fixed to `arrayFlatten` (one row per user).
+- [✓ 3.67.1] **E2E: moderation gauntlet** — post with a flagged word → hidden from the board → operator keeps-hiding → next post auto-hidden → operator removes → next post visible. `e2e/tests/moderation.spec.ts` (API floor + I3 anti-test + browser gauntlet over the Node Config "Content Moderation" card). The gauntlet caught a real bug: `get_moderation_flags`'s `arrayJoin(groupArray(...))` split a multi-flag user into one row per flag (duplicated in the queue) — fixed to `arrayFlatten` (one row per user).
 - [ ] **v1** — profile name/bio detection (flag-only), a retroactive-scan admin command, a user notification on auto-hide.
 
 ## Query Engine (D62) — Platform
