@@ -16,16 +16,17 @@ const peerServer = PeerServer({
 });
 
 peerServer.on("connection", (client) => {
-  if (typeof client.token !== "string") {
-    client.socket.close();
+  const rawToken = client.getToken();
+  if (typeof rawToken !== "string") {
+    client.getSocket()?.close();
     return;
   }
 
-  const [token, label] = client.token.split("~");
+  const [token, label] = rawToken.split("~");
 
   const decoded = jwt.decode(token) as DecodedToken | false;
   if (!decoded) {
-    client.socket.close();
+    client.getSocket()?.close();
     return;
   }
 
@@ -35,17 +36,17 @@ peerServer.on("connection", (client) => {
       if (response.status === 200) {
         const id = `${decoded.provider} ${decoded.username} ${decoded.site} ${label}`
           .replaceAll(".", "_");
-        console.log(client.id);
+        console.log(client.getId());
         console.log(id);
-        if (client.id === id) {
+        if (client.getId() === id) {
           return;
         }
       }
-      client.socket.close();
+      client.getSocket()?.close();
     });
 });
 
 peerServer.on("disconnect", (client) => {
-  client.socket.close();
+  client.getSocket()?.close();
   console.log("disconnected...");
 });
