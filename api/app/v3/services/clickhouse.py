@@ -1410,10 +1410,16 @@ def insert_moderation_flag(username: str, doc_id: str, matched_words: list[str])
 
 def get_moderation_flags() -> list[dict]:
     """The review queue: one row per flagged user — the flag count, the latest
-    flag time, and a sample of the matched words. Newest first."""
+    flag time, and a sample of the matched words. Newest first.
+
+    ``arrayFlatten(groupArray(matched_words))`` collects EVERY matched word
+    across a user's flags into a single array on a single row (one row per
+    user). The earlier ``arrayJoin(groupArray(...))`` split a multi-flag user
+    into one row PER flag (duplicating the user in the queue) — the flatten
+    keeps the GROUP BY's one-row-per-user guarantee."""
     result = client.query(
         "SELECT username, count(*) AS flag_count, max(created_at) AS last_flagged, "
-        "arrayJoin(groupArray(matched_words)) AS all_words "
+        "arrayFlatten(groupArray(matched_words)) AS all_words "
         "FROM moderation_flags GROUP BY username ORDER BY last_flagged DESC"
     )
     flags = []

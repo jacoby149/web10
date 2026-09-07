@@ -821,8 +821,8 @@ function applyACR(cr: any) {
         const groupId = `${provider}/groups/users/${username}/${name.toLowerCase().replace(/[^a-z0-9]+/g, '-')}`;
 
         const roles = cr.roles || [
-            { name: 'owner', services: ['*'], permissions: ['readAll', 'create', 'updateOwn', 'updateAll', 'deleteOwn', 'deleteAll', 'hideAll', 'manageRoles', 'assignRoles', 'revokeRoles', 'deleteGroup'] },
-            { name: 'member', services: ['posts', 'comments'], permissions: ['readAll', 'create', 'updateOwn', 'deleteOwn'] },
+            { name: 'owner', permissions: { '*': ['readAll', 'create', 'updateOwn', 'updateAll', 'deleteOwn', 'deleteAll', 'hideAll'], group: ['manageRoles', 'assignRoles', 'revokeRoles', 'deleteGroup'] } },
+            { name: 'member', permissions: { posts: ['readAll', 'create', 'updateOwn', 'deleteOwn'], comments: ['readAll', 'create', 'updateOwn', 'deleteOwn'] } },
         ];
 
         const members = cr.members || [{ member_key: username, role: 'owner' }];
