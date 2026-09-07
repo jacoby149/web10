@@ -408,6 +408,7 @@ across all apps. The decision bite is done (D49); the build follows.
 - [✓ 3.17.3] D52 (build): `list_store_apps` drops the blanked `web10apps_post_id`
 - [✓ 3.17.3] D52 (build): UI — card → `/app-store/app/{urlencoded-url}`, AppDetail rewritten (metrics, reviews, rate form with token-cookie session + SDK auth popup, node context)
 - [✓ 3.17.3] D52 (build): tests — 12 API unit + AppDetail/AppCard unit rewrites + 4 e2e (detail payload, 404s, rating round-trip dedup, card → page seam)
+- [✓ 3.61.1] Plug slots back to the first-party catalog — **Flagship** (web10 social) + **Core** (node console), not "Most Popular"; the grid dedupes a registered flagship copy (no duplicate web10 social); the flagship metric matches its real registration by display name. (marketing-ui `AppStore.tsx` + tests; KB `app-store/overview.md` made precise.)
 
 ### Lane: groups-directory (D53)
 **Owns:** `api/app/v3/endpoints/groups.py`, `api/app/v3/services/clickhouse.py`, `clickhouse-init/`, `ui/src/components/` (group management), `marketing/marketing-ui/src/pages/` (or `web10-social/`), `e2e/tests/`

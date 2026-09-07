@@ -321,12 +321,80 @@ describe('AppStore page', () => {
     const { default: AppStore } = await import('@/pages/AppStore');
     renderWithRouter(<AppStore />);
     await vi.waitFor(() => {
-      // web10 social appears in the plug slot
+      // web10 social appears in the plug slot (flagship)
       expect(screen.getByTestId('plug-slot-0')).toHaveAttribute('href', 'https://social.web10.app');
     });
-    // The node console and The importer appear in the grid (plug slots only show flagship + most popular)
-    expect(screen.getByText('The node console')).toBeInTheDocument();
+    // The node console is the second plug slot (the core management app), not a grid item
+    expect(screen.getByTestId('plug-slot-1')).toHaveAttribute('href', 'https://auth.web10.app');
+    // The importer appears in the grid
     expect(screen.getByText('The importer')).toBeInTheDocument();
+  });
+
+  it('shows the node console as the core management plug slot (not Most Popular)', async () => {
+    const { default: AppStore } = await import('@/pages/AppStore');
+    renderWithRouter(<AppStore />);
+    await vi.waitFor(() => {
+      expect(screen.getByTestId('plug-slot-1')).toBeInTheDocument();
+    });
+    const core = screen.getByTestId('plug-slot-1');
+    expect(core).toHaveAttribute('href', 'https://auth.web10.app');
+    expect(core.textContent).toContain('Core');
+    expect(core.textContent).toContain('The node console');
+    // The old "Most Popular" curated slot is gone
+    expect(screen.queryByText('Most Popular')).not.toBeInTheDocument();
+  });
+
+  it('does not show a registered copy of the flagship in the grid (no duplicate web10 social)', async () => {
+    const { default: AppStore } = await import('@/pages/AppStore');
+    const fetchMock = vi.fn((input: any) => {
+      const url = String(input);
+      if (url.includes('/v3/stats')) {
+        return Promise.resolve({
+          ok: true,
+          json: () =>
+            Promise.resolve({
+              users: 1,
+              app_count: 1,
+              active_users: { users_1d: 1, users_30d: 1, users_90d: 1, users_1y: 1 },
+              storage: 1024,
+            }),
+        } as Response);
+      }
+      if (url.includes('/v3/apps/list')) {
+        return Promise.resolve({
+          ok: true,
+          json: () =>
+            Promise.resolve({
+              apps: [
+                {
+                  // The flagship product, registered at a non-canonical host —
+                  // the exact shape that used to render a second "web10 social".
+                  url: 'https://app.web10.app',
+                  name: 'web10 social',
+                  description: '',
+                  icon_url: '',
+                  screenshots: [],
+                  visits: 1,
+                  users_30d: 1,
+                  review_state: 'approved',
+                  web10apps_post_id: '',
+                },
+              ],
+              total: 1,
+            }),
+        } as Response);
+      }
+      return Promise.reject(new Error('offline'));
+    });
+    vi.stubGlobal('fetch', fetchMock);
+    renderWithRouter(<AppStore />);
+    await vi.waitFor(() => {
+      expect(screen.getByTestId('plug-slot-0')).toBeInTheDocument();
+    });
+    // Exactly one "web10 social" — the flagship plug slot. The registered
+    // copy is deduped from the grid, and the flagship picks up its real count.
+    expect(screen.getAllByText('web10 social').length).toBe(1);
+    expect(screen.getByTestId('plug-slot-0').textContent).toContain('1 users · 30d');
   });
 
   it('first-party apps have correct links', async () => {

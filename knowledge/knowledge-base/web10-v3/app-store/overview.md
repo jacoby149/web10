@@ -170,10 +170,17 @@ identity, not installability.
 The marketing site's store page (`marketing-ui`, `/app-store`) has two
 layers:
 
-**Plug slots (curated, above the grid).** The first-party catalog,
-hand-picked: the social app (flagship), the node console (authenticator),
-the importer. These are mapped from the registered list by host — their
-user counts come from the same `app_visits` rows as everything else.
+**Plug slots (curated, above the grid).** The two primary first-party
+apps, hand-picked: the social app (**Flagship**) and the node console
+(**Core** — the operator surface every node runs). The flagship's user
+count comes from its real registration, matched by display name first
+then canonical host (the flagship may be registered at a non-canonical
+origin). The node console carries no user metric — it's an operator
+surface, not a consumer app (a permanent 0 would read as a placeholder).
+The importer is first-party too but a marketing page, not a real app, so
+it lives in the grid. A registered copy of the flagship (same product,
+different URL) is deduped from the grid — the flagship is curated above,
+so it never renders twice.
 
 **The grid (everything else, sorted by `users_30d`).** Every approved
 registered app that is not a plug slot, server-paginated
