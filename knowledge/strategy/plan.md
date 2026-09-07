@@ -386,7 +386,7 @@ app-contract-gated, `LIMIT 1000` + `max_execution_time=10` bounds. Spec'd in
 - [✓ 3.59.0] **v1: the query playground demo page** (`marketing-ui/public/docs/query/`) — an interactive SQL box over the signed-in user's groups (the "go crazy" showcase), five clickable example queries, a result table + loading/empty/error states.
 - [✓ 3.60.0] **v1: per-user query rate limiting** (D65) — `/v3/query` rate-limited per user, keyed on the verified `user_key` (not IP — D49/D64), in-memory per-worker (the recovery idiom), 429 when exceeded. No Redis (D66).
 - [ ] **v1** — query result caching, `EXPLAIN`-style cost hints. (Redis deferred to the social real-time work — D66.)
-- [ ] **v2 teardown: remove Mongo/FerretDB from the node** (D67) — the v3 stack is fully ClickHouse; delete the v2 Mongo code + drop `pymongo` + remove the FerretDB/Mongo/Postgres services. Node becomes ClickHouse + MinIO.
+- [✓ 3.65.0] **v2 teardown: remove Mongo/FerretDB from the node** (D67) — the v3 stack is fully ClickHouse; delete the v2 Mongo code + drop `pymongo` + remove the FerretDB/Mongo/Postgres services. Node becomes ClickHouse + MinIO.
 
 ## Contact-Anchored Auth (D61) — Platform
 

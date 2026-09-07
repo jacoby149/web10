@@ -1,15 +1,9 @@
 # web10 node — clone the repo and `docker compose up --build`, then open
 # http://auth.localhost to see the getting-started (signup) screen.
 #
-# Everything a node needs is in here: the vhost proxy, the database
-# (FerretDB speaking the Mongo wire protocol on top of DocumentDB/postgres),
-# S3-compatible blob storage for media, the API, the admin/consent UI, the
-# RTC signaling server, and the wapi.js CDN.
-#
-# Backend choice (plan phase 1): FerretDB/DocumentDB is the default, open
-# backend. Real MongoDB stays a supported config:
-#   DB_URL=mongodb://mongo:27017 docker compose --profile mongo up
-# Atlas or any external Mongo works the same way — just set DB_URL.
+# Everything a node needs is in here: the vhost proxy, the ClickHouse OLAP
+# store, S3-compatible blob storage for media, the API, the admin/consent UI,
+# the RTC signaling server, and the wapi.js CDN.
 #
 # On a host where something else owns port 80 (e.g. the staging Caddy),
 # set WEB10_HTTP_PORT to move or free the local proxy.
@@ -22,34 +16,9 @@ services:
     volumes:
       - /var/run/docker.sock:/tmp/docker.sock:ro
 
-  postgres: # DocumentDB — postgres + the documentdb extension, the storage engine
-    image: ghcr.io/ferretdb/postgres-documentdb:17
-    environment:
-      - POSTGRES_USER=web10
-      - POSTGRES_PASSWORD=web10
-      - POSTGRES_DB=postgres
-    volumes:
-      - postgres-data:/var/lib/postgresql/data
-
-  ferretdb: # speaks the MongoDB wire protocol on top of DocumentDB
-    image: ghcr.io/ferretdb/ferretdb:2
-    depends_on:
-      - postgres
-    environment:
-      - FERRETDB_POSTGRESQL_URL=postgres://web10:web10@postgres:5432/postgres
-    ports:
-      - "27017:27017"
-
-  mongo: # optional real-MongoDB backend: --profile mongo + DB_URL=mongodb://mongo:27017
-    image: mongo:7
-    profiles: ["mongo"]
-    volumes:
-      - mongo-data:/data/db
-
   api: # The web10 API, that holds all the data.
     build: api
     depends_on:
-      - ferretdb
       - minio
       - clickhouse
     volumes:
@@ -59,8 +28,6 @@ services:
     environment:
       VIRTUAL_HOST: api.localhost
       PROVIDER: ${PROVIDER:-api.localhost}
-      DB_URL: ${DB_URL:-mongodb://web10:web10@ferretdb:27017/}
-      DB: ${DB:-web10}
       S3_ENDPOINT: http://minio.localhost:9000
       CLICKHOUSE_HOST: clickhouse
       CLICKHOUSE_PORT: 8123
@@ -140,8 +107,6 @@ services:
     command: server /data --console-address :9001
 
 volumes:
-  postgres-data:
-  mongo-data:
   rtc-node-modules:
   ui-node-modules:
   minio-data:
