@@ -117,6 +117,7 @@ proves it.
 - [ ] **E2E: per-surface social specs** (`e2e/tests/`) — rewrite the retired social specs (`social-post-feed`, `social-full`, `gauntlet`) against v3, per the demo specs' pattern — **organized by surface so they parallelize across workspaces**: one spec per surface (feed, groups/follows, profiles, messages, settings, trending), each = API floor (the app's exact read pattern + a per-surface I3 anti-test; the primitive floors stay in the demo specs) + browser gauntlet (real D42 login → drive the surface → assert render/interaction/persistence, log-sequence verified). Lane: `social-e2e` in `parallel-execution.md`.
 - [ ] **E2E: capstone gauntlet** (`e2e/tests/social-gauntlet.spec.ts`) — one journey across all screens (login → feed → post → profile → DM → follow → settings → reload), log-sequence verified. Gated on the six surface specs.
 - [ ] **HLS in the feed** (`src/components/`) — adopt the media demo's hls.js player (Safari native fallback, vendored hls.js) for video posts. Moved here from the `hls` lane, which is otherwise complete.
+- [✓ 3.66.0] **Video editor before posting** (`src/lib/videoEditing.ts`, `src/components/Feed/VideoEditorSheet.tsx`, `PostComposer.tsx`) — client-side **trim** (in/out points) + **ratio crop** (9:16 / 1:1 / 4:5 / 16:9 cover-crop presets) in the composer's upload flow. The media demo's client-side reframe pattern (canvas + MediaRecorder, `video-experience.md`): the finished file is what gets uploaded, the node stays ratio-agnostic. Trim is the piece that stays (3.34.0's natural-ratio feed dissolves resize-to-fit). Built against the direct-`<video>` fallback; re-point the player once the HLS-in-the-feed item lands. 21 unit tests.
 
 ## App Store: Real-User Metrics (D49) — Platform
 
@@ -276,7 +277,7 @@ affiliate programs are worth joining* and *how the web10 ad maker turns a
 link I already have into a post that pays.* The KB doc is the full guide;
 the Studio card is the "point people toward the programs" surface (the
 training factored into the money screen). The affiliate shortlist (Amazon,
-Walmart, Target, eBay, TikTok Shop, Shopify, Fiverr, Semrush, HubSpot) is a
+Walmart, Target, eBay, Shopify, Fiverr, Semrush, HubSpot) is a
 map, not a contract — rates/cookies shift, confirm on the program's page.
 
 - [✓ 3.53.0] **KB: the bootcamp guide** (`knowledge/knowledge-base/web10-v3/social/monetization-bootcamp.md`) — the use case (creator-owned links, not a platform ad box), the one rule (an ad is a post with a link that pays), the two layers (your ads vs node ads), the affiliate shortlist table, the sign-up ramp (the website-list / 180-day rule, the node-account vs creator-account split), the ad-maker walkthrough (offer kind/partner/link/cta/disclosure), pin-to-post, albums, and the "do it genuinely" principles (only link what you'd buy, the content is the ad, disclose up top, the audience is the asset). "What this is not" (not an ad network, not a payment processor, not memberships/tips) + logistics (built now / known gap: ad-maker media attach / deferred v4).
@@ -385,7 +386,7 @@ app-contract-gated, `LIMIT 1000` + `max_execution_time=10` bounds. Spec'd in
 - [✓ 3.59.0] **v1: the query playground demo page** (`marketing-ui/public/docs/query/`) — an interactive SQL box over the signed-in user's groups (the "go crazy" showcase), five clickable example queries, a result table + loading/empty/error states.
 - [✓ 3.60.0] **v1: per-user query rate limiting** (D65) — `/v3/query` rate-limited per user, keyed on the verified `user_key` (not IP — D49/D64), in-memory per-worker (the recovery idiom), 429 when exceeded. No Redis (D66).
 - [ ] **v1** — query result caching, `EXPLAIN`-style cost hints. (Redis deferred to the social real-time work — D66.)
-- [ ] **v2 teardown: remove Mongo/FerretDB from the node** (D67) — the v3 stack is fully ClickHouse; delete the v2 Mongo code + drop `pymongo` + remove the FerretDB/Mongo/Postgres services. Node becomes ClickHouse + MinIO.
+- [✓ 3.65.0] **v2 teardown: remove Mongo/FerretDB from the node** (D67) — the v3 stack is fully ClickHouse; delete the v2 Mongo code + drop `pymongo` + remove the FerretDB/Mongo/Postgres services. Node becomes ClickHouse + MinIO.
 
 ## Contact-Anchored Auth (D61) — Platform
 

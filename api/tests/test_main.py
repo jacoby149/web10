@@ -17,7 +17,6 @@ from app.services.auth import (
     certify,
     decode_token,
     get_password_hash,
-    is_permitted,
     pwd_context,
     verify_password,
 )
@@ -308,77 +307,6 @@ class TestCertify:
 
     def test_anon_token_certifies(self, anon_token):
         assert certify(Token(token=anon_token)) is True
-
-
-# ---------------------------------------------------------------------------
-# is_permitted
-# ---------------------------------------------------------------------------
-
-
-class TestIsPermitted:
-    def test_none_token_is_anon(self, mock_db_with_term):
-        """A request with no token acts as anon: the .* whitelist grants read."""
-        result = is_permitted(Token(token=None), "owner", "myapi", "read")
-        assert result is True
-
-    def test_valid_token_with_permission(self, valid_token, mock_db_with_term):
-        """A certified token with whitelist entry should be permitted."""
-        result = is_permitted(Token(token=valid_token), "owner", "myapi", "read")
-        assert result is True
-
-    def test_banned_user_denied(self, valid_token, mock_db_with_term):
-        """If the decoded username matches a blacklist entry, deny."""
-        import jwt as _jwt
-
-        payload = {
-            "username": "banneduser",
-            "site": "auth.localhost",
-            "target": settings.PROVIDER,
-            "provider": settings.PROVIDER,
-            "expires": (datetime.datetime.utcnow() + datetime.timedelta(hours=1)).isoformat(),
-        }
-        banned_token = _jwt.encode(payload, settings.PRIVATE_KEY, algorithm=settings.ALGORITHM)
-        result = is_permitted(Token(token=banned_token), "owner", "myapi", "read")
-        assert result is False
-
-    def test_wrong_target_denied(self, mock_db_with_term):
-        """Token not targeted to this provider should be denied."""
-        payload = {
-            "username": "u",
-            "site": "s.com",
-            "target": "wrong.provider",
-            "provider": settings.PROVIDER,
-            "expires": (datetime.datetime.utcnow() + datetime.timedelta(hours=1)).isoformat(),
-        }
-        token = jwt.encode(payload, settings.PRIVATE_KEY, algorithm=settings.ALGORITHM)
-        result = is_permitted(Token(token=token), "owner", "myapi", "read")
-        assert result is False
-
-    def test_no_target_owner_allowed(self, mock_db_with_term):
-        """If target is None and username == owner with local provider, allow."""
-        payload = {
-            "username": "owner",
-            "site": "s.com",
-            "target": None,
-            "provider": settings.PROVIDER,
-            "expires": (datetime.datetime.utcnow() + datetime.timedelta(hours=1)).isoformat(),
-        }
-        token = jwt.encode(payload, settings.PRIVATE_KEY, algorithm=settings.ALGORITHM)
-        result = is_permitted(Token(token=token), "owner", "myapi", "read")
-        assert result is True
-
-    def test_no_target_non_owner_denied(self, mock_db_with_term):
-        """If target is None and username != owner, deny."""
-        payload = {
-            "username": "someone",
-            "site": "s.com",
-            "target": None,
-            "provider": settings.PROVIDER,
-            "expires": (datetime.datetime.utcnow() + datetime.timedelta(hours=1)).isoformat(),
-        }
-        token = jwt.encode(payload, settings.PRIVATE_KEY, algorithm=settings.ALGORITHM)
-        result = is_permitted(Token(token=token), "owner", "myapi", "read")
-        assert result is False
 
 
 # ---------------------------------------------------------------------------
