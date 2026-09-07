@@ -276,7 +276,7 @@ affiliate programs are worth joining* and *how the web10 ad maker turns a
 link I already have into a post that pays.* The KB doc is the full guide;
 the Studio card is the "point people toward the programs" surface (the
 training factored into the money screen). The affiliate shortlist (Amazon,
-Walmart, Target, eBay, TikTok Shop, Shopify, Fiverr, Semrush, HubSpot) is a
+Walmart, Target, eBay, Shopify, Fiverr, Semrush, HubSpot) is a
 map, not a contract — rates/cookies shift, confirm on the program's page.
 
 - [✓ 3.53.0] **KB: the bootcamp guide** (`knowledge/knowledge-base/web10-v3/social/monetization-bootcamp.md`) — the use case (creator-owned links, not a platform ad box), the one rule (an ad is a post with a link that pays), the two layers (your ads vs node ads), the affiliate shortlist table, the sign-up ramp (the website-list / 180-day rule, the node-account vs creator-account split), the ad-maker walkthrough (offer kind/partner/link/cta/disclosure), pin-to-post, albums, and the "do it genuinely" principles (only link what you'd buy, the content is the ad, disclose up top, the audience is the asset). "What this is not" (not an ad network, not a payment processor, not memberships/tips) + logistics (built now / known gap: ad-maker media attach / deferred v4).

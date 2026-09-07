@@ -107,7 +107,7 @@ export const AFFILIATE_PROGRAMS: AffiliateProgram[] = [
     niche: 'Retail, grocery, electronics',
     commission: 'Up to 4% per sale',
     why: 'Physical-retail trust, strong conversion on everyday items.',
-    signupUrl: 'https://www.walmart.com/creator',
+    signupUrl: 'https://affiliates.walmart.com/',
   },
   {
     name: 'Target Partners',
@@ -121,14 +121,7 @@ export const AFFILIATE_PROGRAMS: AffiliateProgram[] = [
     niche: 'Used, vintage, refurbished',
     commission: '1–4% per sale',
     why: 'Inventory you can’t buy elsewhere — great for a “finds” niche.',
-    signupUrl: 'https://www.ebaypartners.com/',
-  },
-  {
-    name: 'TikTok Shop Affiliate',
-    niche: 'Viral, social-first products',
-    commission: '10–30%+ (volatile)',
-    why: 'Native in-app checkout; the highest ceiling, the least stable.',
-    signupUrl: 'https://www.tiktok.com/affiliate',
+    signupUrl: 'https://partnernetwork.ebay.com/',
   },
   {
     name: 'Shopify Affiliate',
@@ -142,7 +135,7 @@ export const AFFILIATE_PROGRAMS: AffiliateProgram[] = [
     niche: 'Freelance, digital services',
     commission: '$15–$150 CPA',
     why: 'Dozens of service categories; fits a “how I run my business” angle.',
-    signupUrl: 'https://www.fiverr.com/affiliates',
+    signupUrl: 'https://www.fiverr.com/partnerships/affiliates',
   },
   {
     name: 'Semrush Affiliate',
