@@ -244,7 +244,15 @@ function AppStore() {
         users_30d: flagship?.users_30d ?? 0,
         visits: flagship?.visits ?? 0,
         flagship: true,
-        appId: flagship?.appId,
+        // D52: the flagship links to its product page like every other app.
+        // `flagship` is the registered copy — but the canonical registration
+        // (social.web10.app at its root) is a known-host root, so the grid
+        // filter above drops it from `apps` and `flagship` is often undefined.
+        // Fall back to the canonical origin as the detail key so the card
+        // always routes to /app-store/app/{url} (the review page) instead of
+        // opening the app directly. A non-canonical registration still wins
+        // when present — its url is the real detail key.
+        appId: flagship?.appId ?? SOCIAL_ORIGIN,
       },
       {
         name: 'web10 hub',
