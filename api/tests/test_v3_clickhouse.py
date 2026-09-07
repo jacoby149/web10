@@ -3,6 +3,7 @@
 Uses mocked clickhouse-connect client — no real ClickHouse needed.
 """
 
+import re
 from datetime import datetime, timedelta
 from unittest.mock import MagicMock, patch
 
@@ -1540,6 +1541,63 @@ class TestVerifyPhone:
         with _patch_client() as mock_client:
             ch.verify_phone("alice")
             mock_client.command.assert_called_once()
+
+
+class TestUsersMutatorTimestampShape:
+    """The users-table mutators must bind ``updated_at`` as a sub-second-precision
+    STRING, not a datetime object.
+
+    clickhouse-connect's ``command()`` parameter binding truncates a bound
+    datetime to second precision. The users table is ``ReplacingMergeTree(
+    updated_at)`` and reads dedup via ``ORDER BY updated_at DESC LIMIT 1`` — so a
+    microsecond-precision ``create_user`` row can outrank a second-truncated
+    ``change_password`` row written in the same second, the read returns the
+    stale row (old hash), and the new password 401s (the recovery password-change
+    flake, 3.58.1's fix was ineffective because it bound a datetime). Binding the
+    ISO string keeps sub-second ordering. The live guard is e2e recovery.spec.ts;
+    this pins the write shape the unit layer can see.
+    """
+
+    _TS_RE = re.compile(r"^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}\.\d{6}$")
+
+    def _updated_at(self, mock_client):
+        args, _kwargs = mock_client.command.call_args
+        return args[1]["updated_at"]
+
+    def test_change_password_binds_subsecond_string(self):
+        with _patch_client() as mock_client:
+            ch.change_password("alice", "new_hash")
+            ts = self._updated_at(mock_client)
+        assert isinstance(ts, str), "updated_at must be bound as a string, not a datetime"
+        assert self._TS_RE.match(ts), f"expected 'YYYY-MM-DD HH:MM:SS.ffffff', got {ts!r}"
+
+    def test_change_phone_binds_subsecond_string(self):
+        with _patch_client() as mock_client:
+            ch.change_phone("alice", "+999")
+            ts = self._updated_at(mock_client)
+        assert isinstance(ts, str)
+        assert self._TS_RE.match(ts), f"expected 'YYYY-MM-DD HH:MM:SS.ffffff', got {ts!r}"
+
+    def test_set_email_binds_subsecond_string(self):
+        with _patch_client() as mock_client:
+            ch.set_email("alice", "a@b.com")
+            ts = self._updated_at(mock_client)
+        assert isinstance(ts, str)
+        assert self._TS_RE.match(ts), f"expected 'YYYY-MM-DD HH:MM:SS.ffffff', got {ts!r}"
+
+    def test_verify_phone_binds_subsecond_string(self):
+        with _patch_client() as mock_client:
+            ch.verify_phone("alice")
+            ts = self._updated_at(mock_client)
+        assert isinstance(ts, str)
+        assert self._TS_RE.match(ts), f"expected 'YYYY-MM-DD HH:MM:SS.ffffff', got {ts!r}"
+
+    def test_verify_email_binds_subsecond_string(self):
+        with _patch_client() as mock_client:
+            ch.verify_email("alice")
+            ts = self._updated_at(mock_client)
+        assert isinstance(ts, str)
+        assert self._TS_RE.match(ts), f"expected 'YYYY-MM-DD HH:MM:SS.ffffff', got {ts!r}"
 
 
 class TestMedia:
