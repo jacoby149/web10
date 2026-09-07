@@ -919,9 +919,7 @@ class TestResolveMediaUrls:
                     ),
                 ]
             )
-            mock_signing.return_value = MagicMock(
-                generate_presigned_url=lambda *a, **k: "http://minio/signed"
-            )
+            mock_signing.return_value = MagicMock(generate_presigned_url=lambda *a, **k: "http://minio/signed")
             result = ch.resolve_media_urls(body, "alice")
             refs = {r["doc_id"]: r for r in result["media_refs"]}
 
