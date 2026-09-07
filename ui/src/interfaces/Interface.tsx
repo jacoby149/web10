@@ -184,6 +184,21 @@ function useInterface() {
 
     I.v3 = v3;
 
+    // ── Import (the "port your YouTube" pipeline) ─────────────────────────────
+    // The node-side import: create a job + presigned upload URLs (one per
+    // export part), upload the parts straight to MinIO, start, then poll.
+    // The presigned upload itself is a raw POST to MinIO (done in the card);
+    // these three wrap the v3 endpoints.
+    I.importCreate = function (platform: string, parts: { filename: string; size_bytes?: number }[]) {
+        return v3Post('imports', { platform, parts });
+    };
+    I.importStart = function (jobId: string) {
+        return v3Post('imports/start', { job_id: jobId });
+    };
+    I.importStatus = function (jobId: string) {
+        return v3Post('imports/status', { job_id: jobId });
+    };
+
     // Normalize contract requests into a unified list (app + group contracts).
     // contractListen delivers { contracts } where each CR is either:
     //   V3AppCR: { kind: 'app', app_origin, permissions }

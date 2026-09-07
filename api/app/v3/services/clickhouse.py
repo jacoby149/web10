@@ -531,9 +531,16 @@ def insert_document(
     doc_id: str | None = None,
     ad_mode: str = "none",
     ad_target: str = "",
+    created_at: datetime | None = None,
 ) -> dict:
-    """Insert a document into the documents table. Generates doc_id if not provided."""
+    """Insert a document into the documents table. Generates doc_id if not provided.
+
+    `created_at` backdates the document (the import pipeline lands a catalog
+    with its original publish dates — "take your videos exactly"). `updated_at`
+    is always now (the write time) — the ReplacingMergeTree dedup keys off it.
+    """
     now = _now()
+    created = created_at or now
     if not doc_id:
         doc_id = _gen_doc_id()
     client.insert(
@@ -546,7 +553,7 @@ def insert_document(
                 _json(body),
                 ref_value or "",
                 tags or [],
-                now,
+                created,
                 now,
                 0,
                 ad_mode or "none",
@@ -563,7 +570,7 @@ def insert_document(
         "tags": tags or [],
         "ad_mode": ad_mode or "none",
         "ad_target": ad_target or "",
-        "created_at": _iso_utc(now),
+        "created_at": _iso_utc(created),
         "updated_at": _iso_utc(now),
     }
 

@@ -58,6 +58,14 @@ def _start_hls_workers():
 
     transcode.start_workers()
 
+    # The in-process import worker (the "port your YouTube" pipeline). Same
+    # idiom as the transcode worker, but the queue is DURABLE (the
+    # import_jobs ClickHouse table) — at boot, every non-terminal job is
+    # re-submitted, so a node restart never loses an import.
+    from app.v3.services import import_worker
+
+    import_worker.start_workers()
+
     # Self-heal the v3 apps table (visits column) on pre-existing volumes —
     # the DDL template only runs on a fresh ClickHouse.
     from app.v3.services import clickhouse as ch

@@ -11,6 +11,7 @@ from . import (
     contracts,
     documents,
     groups,
+    imports,
     logs,
     media,
     moderation,
@@ -43,6 +44,9 @@ router.include_router(blocking.router, prefix="")
 
 # Media
 router.include_router(media.router, prefix="/media")
+
+# Imports (the "port your YouTube" pipeline — presigned upload + in-process worker)
+router.include_router(imports.router, prefix="")
 
 # App contracts
 router.include_router(contracts.router, prefix="/app-contracts")
