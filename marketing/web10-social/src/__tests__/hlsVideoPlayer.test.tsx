@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { render, screen, fireEvent, waitFor, cleanup } from '@testing-library/react';
+import { render, screen, fireEvent, waitFor, cleanup, act } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import '@testing-library/jest-dom';
 
@@ -109,6 +109,123 @@ describe('HlsVideoPlayer', () => {
     // Unmount destroys the hls.js instance (no leaked MSE source).
     cleanup();
     expect(hls.destroy).toHaveBeenCalled();
+  });
+
+  it('exposes the overlaid control rack: play/pause, scrubber, time, volume', async () => {
+    installFakeHls();
+    const { HlsVideoPlayer } = await import('@/components/Feed/HlsVideoPlayer');
+    render(<HlsVideoPlayer manifestUrl="/v3/media/hls/manifest?doc_id=m1&sig=abc" />);
+
+    // The full rack is present on the overlaid control surface.
+    expect(screen.getByTestId('play-pause-button')).toBeInTheDocument();
+    expect(screen.getByTestId('scrubber')).toBeInTheDocument();
+    expect(screen.getByTestId('time-display')).toBeInTheDocument();
+    expect(screen.getByTestId('volume-toggle')).toBeInTheDocument();
+    expect(screen.getByTestId('volume-slider')).toBeInTheDocument();
+
+    // The time readout starts at 0:00 / 0:00 (no metadata yet).
+    expect(screen.getByTestId('time-display')).toHaveTextContent('0:00 / 0:00');
+
+    // The scrubber is a range input bound to the duration.
+    const scrubber = screen.getByTestId('scrubber') as HTMLInputElement;
+    expect(scrubber.type).toBe('range');
+
+    // The video is muted by default (the feed's ambient autoplay), so the
+    // mute icon is the muted variant and the volume slider reads 0.
+    const video = screen.getByTestId('hls-video') as HTMLVideoElement;
+    expect(video.muted).toBe(true);
+    expect(screen.getByTestId('volume-slider')).toHaveValue('0');
+  });
+
+  it('the play/pause button drives the video and swaps its icon', async () => {
+    installFakeHls();
+    const { HlsVideoPlayer } = await import('@/components/Feed/HlsVideoPlayer');
+    render(<HlsVideoPlayer manifestUrl="/v3/media/hls/manifest?doc_id=m1&sig=abc" />);
+
+    const video = screen.getByTestId('hls-video') as HTMLVideoElement;
+    const play = vi.spyOn(video, 'play').mockResolvedValue(undefined);
+    const pause = vi.spyOn(video, 'pause').mockImplementation(() => {});
+    const setPaused = (p: boolean) => Object.defineProperty(video, 'paused', { value: p, configurable: true });
+
+    // Starts paused (jsdom never autoplays) → clicking plays.
+    setPaused(true);
+    fireEvent.click(screen.getByTestId('play-pause-button'));
+    expect(play).toHaveBeenCalled();
+
+    // Now "playing" → clicking pauses.
+    setPaused(false);
+    fireEvent.click(screen.getByTestId('play-pause-button'));
+    expect(pause).toHaveBeenCalled();
+  });
+
+  it('the scrubber seeks the video to the dragged position', async () => {
+    installFakeHls();
+    const { HlsVideoPlayer } = await import('@/components/Feed/HlsVideoPlayer');
+    render(<HlsVideoPlayer manifestUrl="/v3/media/hls/manifest?doc_id=m1&sig=abc" />);
+
+    const video = screen.getByTestId('hls-video') as HTMLVideoElement;
+    // Give the scrubber a real range to seek within.
+    Object.defineProperty(video, 'duration', { value: 120, configurable: true });
+    fireEvent.loadedMetadata(video);
+
+    fireEvent.change(screen.getByTestId('scrubber'), { target: { value: '45' } });
+    await waitFor(() => expect(video.currentTime).toBe(45));
+    // The time readout reflects the seek.
+    expect(screen.getByTestId('time-display')).toHaveTextContent('0:45 / 2:00');
+  });
+
+  it('the volume slider sets volume and unmutes at non-zero', async () => {
+    installFakeHls();
+    const { HlsVideoPlayer } = await import('@/components/Feed/HlsVideoPlayer');
+    render(<HlsVideoPlayer manifestUrl="/v3/media/hls/manifest?doc_id=m1&sig=abc" />);
+
+    const video = screen.getByTestId('hls-video') as HTMLVideoElement;
+    fireEvent.change(screen.getByTestId('volume-slider'), { target: { value: '0.5' } });
+    await waitFor(() => {
+      expect(video.volume).toBe(0.5);
+      expect(video.muted).toBe(false);
+    });
+    expect(screen.getByTestId('volume-slider')).toHaveValue('0.5');
+  });
+
+  it('the mute toggle flips the muted state', async () => {
+    installFakeHls();
+    const { HlsVideoPlayer } = await import('@/components/Feed/HlsVideoPlayer');
+    render(<HlsVideoPlayer manifestUrl="/v3/media/hls/manifest?doc_id=m1&sig=abc" />);
+
+    const video = screen.getByTestId('hls-video') as HTMLVideoElement;
+    expect(video.muted).toBe(true);
+    fireEvent.click(screen.getByTestId('volume-toggle'));
+    await waitFor(() => expect(video.muted).toBe(false));
+    fireEvent.click(screen.getByTestId('volume-toggle'));
+    await waitFor(() => expect(video.muted).toBe(true));
+  });
+
+  it('hides the controls while playing + idle, keeps them while paused', async () => {
+    vi.useFakeTimers();
+    installFakeHls();
+    try {
+      const { HlsVideoPlayer } = await import('@/components/Feed/HlsVideoPlayer');
+      render(<HlsVideoPlayer manifestUrl="/v3/media/hls/manifest?doc_id=m1&sig=abc" />);
+      const video = screen.getByTestId('hls-video') as HTMLVideoElement;
+      const setPaused = (p: boolean) => Object.defineProperty(video, 'paused', { value: p, configurable: true });
+
+      // Playing: after the idle window the rack fades out (pointer-events off).
+      setPaused(false);
+      fireEvent.play(video);
+      await act(async () => { await vi.advanceTimersByTimeAsync(2600); });
+      const controlsAfter = screen.getByTestId('player-controls');
+      expect(controlsAfter.className).toContain('pointer-events-none');
+
+      // Pausing brings the rack back and it stays (no auto-hide while paused).
+      setPaused(true);
+      act(() => { fireEvent.pause(video); });
+      expect(controlsAfter.className).not.toContain('pointer-events-none');
+      await act(async () => { await vi.advanceTimersByTimeAsync(5000); });
+      expect(controlsAfter.className).not.toContain('pointer-events-none');
+    } finally {
+      vi.useRealTimers();
+    }
   });
 
   it('renders a vertical (9:16) video in a phone-width column', async () => {
