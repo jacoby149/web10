@@ -410,6 +410,7 @@ across all apps. The decision bite is done (D49); the build follows.
 - [✓ 3.17.3] D52 (build): UI — card → `/app-store/app/{urlencoded-url}`, AppDetail rewritten (metrics, reviews, rate form with token-cookie session + SDK auth popup, node context)
 - [✓ 3.17.3] D52 (build): tests — 12 API unit + AppDetail/AppCard unit rewrites + 4 e2e (detail payload, 404s, rating round-trip dedup, card → page seam)
 - [✓ 3.61.1] Plug slots back to the first-party catalog — **Flagship** (web10 social) + **Core** (node console), not "Most Popular"; the grid dedupes a registered flagship copy (no duplicate web10 social); the flagship metric matches its real registration by display name. (marketing-ui `AppStore.tsx` + tests; KB `app-store/overview.md` made precise.)
+- [✓ 3.67.0] **web10 hub** — the Core plug slot (the node console / authenticator) renamed "The node console" → "web10 hub" (the manifest name the operator prefers) and made to show its **real** `users_30d` (it registers like any app via the SDK auto-ping; the metric is captured from the list fetch before the known-host-root grid filter drops it). The grid dedupes the auth-host registration so web10 hub never renders twice. (marketing-ui `AppStore.tsx` + `AppStore.test.tsx`; KB `app-store/overview.md` plug-slot prose + dedup rule; public docs `app-store.md`.)
 
 ### Lane: groups-directory (D53)
 **Owns:** `api/app/v3/endpoints/groups.py`, `api/app/v3/services/clickhouse.py`, `clickhouse-init/`, `ui/src/components/` (group management), `marketing/marketing-ui/src/pages/` (or `web10-social/`), `e2e/tests/`
