@@ -4,8 +4,6 @@ import {
   getDiscoverGroupId,
   followersGroupId,
   closeFriendsGroupId,
-  getMyGroups,
-  getFeedGroups,
   ensureFollowers,
 } from './groups';
 import type { PostRecord, MediaRecord, MediaUploadRequest, Visibility, ResolvedMediaRef } from './types';
@@ -106,12 +104,23 @@ export async function readPosts(
 }
 
 /**
- * Read the owner's posts (from all groups they belong to).
+ * Read the owner's OWN posts.
+ *
+ * A post is attached to the AUTHOR's groups (determinePostGroups): public +
+ * friends posts go to the author's followers group, private posts to the
+ * author's close-friends group. So the owner's own posts are exactly the
+ * posts attached to the owner's OWN followers + close-friends groups — NOT
+ * the owner's feed (every group they belong to, which is everyone they follow
+ * + communities + DMs + app-storage groups). Reading the feed groups here was
+ * the "my profile shows everybody's posts" bug.
  */
 export async function readMyPosts(opts?: { limit?: number }): Promise<PostRecord[]> {
-  const feedGroups = await getFeedGroups();
-  if (!feedGroups.length) return [];
-  return readPosts(feedGroups, opts);
+  const w = getV3Client();
+  const token = w.readToken();
+  if (!token) return [];
+  const myGroups = [followersGroupId(token.username), closeFriendsGroupId(token.username)];
+  console.log('[social-feed] readMyPosts — own groups:', JSON.stringify(myGroups));
+  return readPosts(myGroups, opts);
 }
 
 /**
