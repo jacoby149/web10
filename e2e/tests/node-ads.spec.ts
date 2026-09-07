@@ -366,6 +366,10 @@ test.describe('Node ads gauntlet — Ad Inventory card → follower feed renders
     // Setup (API): density 100 + a regular post on the board (the target) + a
     // follower who reads the discover board.
     const admin = await adminToken(request);
+    // The operator creates node ads via the card (the authenticator's v3 client,
+    // Origin: auth.localhost). The document create is app-contract-gated, so the
+    // admin needs a contract for the authenticator origin to write posts.
+    await addAppContract(request, admin, AUTH_BASE, SOCIAL_CONTRACT_PERMISSIONS);
     const follower = await signupAndLogin(request, 'nag1');
     await addAppContract(request, follower.token, SOCIAL_ORIGIN, SOCIAL_CONTRACT_PERMISSIONS);
     const targetText = `gauntlet node ad target ${Date.now()}`;
