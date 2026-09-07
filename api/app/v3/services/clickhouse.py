@@ -1911,7 +1911,7 @@ def _group_docs_ranked_query(
     }
 
     sql = (
-        "SELECT b.doc_id, b.author_key, b.body, b.tags, b.created_at, b.ref_value "
+        "SELECT b.doc_id, b.author_key, b.body, b.tags, b.created_at, b.ref_value, b.ad_mode, b.ad_target "
         "FROM (" + _board_base_sql(group_ids, require_membership) + ") b "
         "LEFT JOIN (SELECT ref_value, count() AS reaction_count FROM (SELECT ref_value FROM documents "
         "WHERE deleted = 0 AND collection_name = 'reactions' "
