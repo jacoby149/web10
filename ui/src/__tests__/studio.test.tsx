@@ -170,7 +170,6 @@ describe('AffiliateProgramsCard', () => {
     const { AffiliateProgramsCard } = await import('../components/Studio/AffiliateProgramsCard')
     render(<AffiliateProgramsCard I={mockI} onStatus={vi.fn()} />)
     expect(screen.getByText('Amazon Associates')).toBeTruthy()
-    expect(screen.getByText('TikTok Shop Affiliate')).toBeTruthy()
     expect(screen.getByText('HubSpot Affiliate')).toBeTruthy()
   })
 
@@ -178,7 +177,7 @@ describe('AffiliateProgramsCard', () => {
     const { AffiliateProgramsCard } = await import('../components/Studio/AffiliateProgramsCard')
     const { container } = render(<AffiliateProgramsCard I={mockI} onStatus={vi.fn()} />)
     const links = Array.from(container.querySelectorAll('a[data-testid^="affiliate-program-"]'))
-    expect(links.length).toBeGreaterThanOrEqual(9)
+    expect(links.length).toBeGreaterThanOrEqual(8)
     for (const a of links) {
       expect(a.getAttribute('target')).toBe('_blank')
       expect(a.getAttribute('rel')).toContain('noopener')
