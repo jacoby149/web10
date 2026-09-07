@@ -15,9 +15,11 @@ import {
   validateVideoDuration,
 } from '@/lib/mediaProcessing';
 import type { ProcessingError as MediaProcessingError } from '@/lib/mediaProcessing';
-import { Image, X, Send, Loader2, AlertTriangle, GripVertical, Globe, Lock, Megaphone } from 'lucide-react';
+import { Image, X, Send, Loader2, AlertTriangle, GripVertical, Globe, Lock, Megaphone, Scissors } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { AdPicker } from './AdPicker';
+import { VideoEditorSheet } from './VideoEditorSheet';
+import type { VideoEditResult } from './VideoEditorSheet';
 
 let nextMediaId = 0;
 
@@ -43,6 +45,7 @@ function MediaTrayItem({
   onDragOver,
   onDrop,
   onDragEnd,
+  onEdit,
   disabled,
 }: {
   item: AttachedMedia;
@@ -54,6 +57,7 @@ function MediaTrayItem({
   onDragOver: (e: React.DragEvent, index: number) => void;
   onDrop: (e: React.DragEvent, index: number) => void;
   onDragEnd: () => void;
+  onEdit?: () => void;
   disabled: boolean;
 }) {
   const aspectRatio = item.width && item.height ? item.width / item.height : 1;
@@ -116,6 +120,20 @@ function MediaTrayItem({
         <X className="w-4 h-4" />
       </button>
 
+      {/* Edit button — videos only (trim + crop before posting) */}
+      {item.isVideo && onEdit && (
+        <button
+          onClick={onEdit}
+          disabled={disabled || item.processing || !!item.error}
+          aria-label="Edit video (trim and crop)"
+          className="absolute -top-2 -left-2 flex items-center justify-center h-8 w-8 rounded-full bg-background border border-border shadow-md z-10 hover:bg-elevated hover:text-brand transition-colors duration-150 disabled:opacity-50"
+          style={{ minWidth: 44, minHeight: 44, padding: 0 }}
+          data-testid="media-edit-button"
+        >
+          <Scissors className="w-4 h-4" />
+        </button>
+      )}
+
       {/* Drag handle — visible on hover/focus, always touchable */}
       <div className="absolute top-1 left-1 opacity-0 group-hover:opacity-100 group-focus-within:opacity-100 transition-opacity duration-150 cursor-grab active:cursor-grabbing">
         <GripVertical className="w-4 h-4 text-foreground/60" />
@@ -152,6 +170,7 @@ export default function PostComposer({ onPostCreated }: { onPostCreated?: () => 
   const [ads, setAds] = useState<AdRecord[]>([]);
   const [albums, setAlbums] = useState<AdAlbum[]>([]);
   const [loadingAds, setLoadingAds] = useState(false);
+  const [editingMediaId, setEditingMediaId] = useState<number | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const dragIdRef = useRef<number | null>(null);
 
@@ -325,6 +344,28 @@ export default function PostComposer({ onPostCreated }: { onPostCreated?: () => 
       prev.map((item) => (item.id === id ? { ...item, altText: alt } : item)),
     );
   }
+
+  // The editor's finished file replaces the original — the trimmed/cropped
+  // file is what gets uploaded, the node never sees the source.
+  const handleVideoEdited = useCallback((id: number, result: VideoEditResult) => {
+    setMediaItems((prev) =>
+      prev.map((item) => {
+        if (item.id !== id) return item;
+        const newPreviewUrl = URL.createObjectURL(result.file);
+        previewUrlsRef.current.delete(item.previewUrl);
+        previewUrlsRef.current.add(newPreviewUrl);
+        console.log('[social-composer] video edited — replacing file, new dims:', result.width, 'x', result.height);
+        return {
+          ...item,
+          file: result.file,
+          previewUrl: newPreviewUrl,
+          width: result.width,
+          height: result.height,
+        };
+      }),
+    );
+    setEditingMediaId(null);
+  }, []);
 
   function handleDragStart(e: React.DragEvent, index: number) {
     const item = mediaItems[index];
@@ -517,6 +558,7 @@ export default function PostComposer({ onPostCreated }: { onPostCreated?: () => 
                   onDragOver={handleDragOver}
                   onDrop={handleMediaDrop}
                   onDragEnd={handleDragEnd}
+                  onEdit={item.isVideo ? () => setEditingMediaId(item.id) : undefined}
                   disabled={posting || uploading}
                 />
               ))}
@@ -658,6 +700,15 @@ export default function PostComposer({ onPostCreated }: { onPostCreated?: () => 
         onClear={() => {
           setPinnedAd(null);
           setShowAdPicker(false);
+        }}
+      />
+
+      <VideoEditorSheet
+        open={editingMediaId !== null}
+        file={mediaItems.find((m) => m.id === editingMediaId)?.file ?? null}
+        onClose={() => setEditingMediaId(null)}
+        onEdited={(result) => {
+          if (editingMediaId !== null) handleVideoEdited(editingMediaId, result);
         }}
       />
     </div>
