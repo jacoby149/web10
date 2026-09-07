@@ -11,8 +11,6 @@ import {
   readProfile,
   readUserProfile,
   resolveMediaRefs,
-  countReactions,
-  countComments,
   toggleReaction,
   readSettings,
   saveSettings,
@@ -800,22 +798,6 @@ export default function FeedScreen({ onAuthorClick }: { onAuthorClick?: (usernam
         }
       }
 
-      // Resolve reaction/comment counts per post
-      const reactions: Record<string, number> = {};
-      const comments: Record<string, number> = {};
-      await Promise.all(
-        feed.map(async (post) => {
-          try {
-            const [rc, cc] = await Promise.all([
-              countReactions('posts', post._id || ''),
-              countComments(post._id || ''),
-            ]);
-            reactions[post._id || ''] = rc;
-            comments[post._id || ''] = cc;
-          } catch { /* counts stay 0 */ }
-        }),
-      );
-
       // Resolve author avatars
       const avatarByAuthor: Record<string, string> = {};
       for (const [key, profile] of Object.entries(profiles)) {
@@ -835,8 +817,14 @@ export default function FeedScreen({ onAuthorClick }: { onAuthorClick?: (usernam
       setMediaMap(mMedia);
       setProfileMap(profiles);
       setAvatarUrlMap(avatarByAuthor);
-      setReactionMap(reactions);
-      setCommentMap(comments);
+      // The displayed counts feed off the server-side engagement counts
+      // (readFeedEngagement — GROUP BY ref_value through the engine, exact,
+      // no cap). The old per-post countReactions/countComments fan-out is
+      // gone (Bite 0, D69): it re-fetched each post's full reaction/comment
+      // list and counted client-side, overwriting these exact numbers with
+      // ~100 extra requests.
+      setReactionMap(engLikes);
+      setCommentMap(engComments);
     } catch (e) {
       console.error('Failed to load feed:', e);
       setPosts([]);
