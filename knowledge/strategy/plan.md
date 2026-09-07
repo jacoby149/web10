@@ -142,7 +142,7 @@ across all apps. Decision done (D49); lane is `app-store-metrics` in
 - [✓ 3.15.0] **Hardening** — #7 manifest byte cap in `/pwa_listing`.
 - [✓ 3.15.0] **Tests** — unit (gated ingest, anon-drop, forged-token I2 anti-test, metrics, pagination) + e2e (real signed-in user → active count; pagination boundary).
 - [✓ 3.15.0] **KB** — `app-store/overview.md` metrics section + `db/clickhouse.md` `app_visits` table.
-- [✓ 3.67.0] **web10 hub** — the Core plug slot (node console / authenticator) renamed to "web10 hub" and made to show its real `users_30d` (it registers like any app; the metric is captured before the known-host-root grid filter drops it); the grid dedupes the auth-host registration so it never renders twice. (marketing-ui `AppStore.tsx` + tests; KB + public docs aligned.)
+- [✓ 3.67.2] **web10 hub** — the Core plug slot (node console / authenticator) renamed to "web10 hub" and made to show its real `users_30d` (it registers like any app; the metric is captured before the known-host-root grid filter drops it); the grid dedupes the auth-host registration so it never renders twice. (marketing-ui `AppStore.tsx` + tests; KB + public docs aligned.)
 
 ## App Store: Product Page (D52) — Platform
 
