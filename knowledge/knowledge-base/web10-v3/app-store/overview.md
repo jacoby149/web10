@@ -171,16 +171,20 @@ The marketing site's store page (`marketing-ui`, `/app-store`) has two
 layers:
 
 **Plug slots (curated, above the grid).** The two primary first-party
-apps, hand-picked: the social app (**Flagship**) and the node console
-(**Core** — the operator surface every node runs). The flagship's user
-count comes from its real registration, matched by display name first
-then canonical host (the flagship may be registered at a non-canonical
-origin). The node console carries no user metric — it's an operator
-surface, not a consumer app (a permanent 0 would read as a placeholder).
+apps, hand-picked: the social app (**Flagship**) and **web10 hub**
+(**Core** — the node console: login, consent, contracts, and the Studio;
+the operator surface every node runs). Both carry their **real user
+count** — each registers like any app (the SDK auto-ping), so the metric
+is real web10 users, not a placeholder. The flagship's count comes from
+its real registration, matched by display name first then canonical host
+(the flagship may be registered at a non-canonical origin); web10 hub's
+comes from its registration at the auth host (a known-host root, so the
+store captures its metric from the list before the grid filter drops it).
 The importer is first-party too but a marketing page, not a real app, so
-it lives in the grid. A registered copy of the flagship (same product,
-different URL) is deduped from the grid — the flagship is curated above,
-so it never renders twice.
+it lives in the grid. A registered copy of a curated plug slot (same
+product, different URL — the flagship, or web10 hub's own registration)
+is deduped from the grid — the plug slot is curated above, so it never
+renders twice.
 
 **The grid (everything else, sorted by `users_30d`).** Every approved
 registered app that is not a plug slot, server-paginated
