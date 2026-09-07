@@ -100,6 +100,7 @@ function resolveIcon(appUrl: string, iconSrc: string): string {
 
 const KNOWN_HOSTS = ['social.web10.app', 'auth.web10.app', 'api.web10.app', 'www.web10.app', 'web10.app']
 const FLAGSHIP_HOST = 'social.web10.app'
+const FLAGSHIP_NAME = 'web10 social'
 
 interface StoreApp {
   name: string
@@ -117,7 +118,10 @@ interface PlugSlot {
   description: string
   href: string
   iconSrc?: string
-  users_30d: number
+  // Optional: the flagship shows its real user count; the core management
+  // app (node console) is an operator surface, not a consumer app, so it
+  // carries no "users" metric (a permanent 0 would read as a placeholder).
+  users_30d?: number
   badge: string
   appId?: string
 }
@@ -216,11 +220,13 @@ function AppStore() {
   // First-party plug slots (curated). Their users_30d comes from the list
   // when the app is registered; the importer is a marketing page (no metric).
   const firstParty: StoreApp[] = useMemo(() => {
-    const flagship = apps.find((a) => hostOf(a.href) === FLAGSHIP_HOST)
+    // The flagship's real registration may live at a different host than the
+    // canonical origin — match by display name first, then fall back to host.
+    const flagship = apps.find((a) => a.name === FLAGSHIP_NAME || hostOf(a.href) === FLAGSHIP_HOST)
     const consoleApp = apps.find((a) => hostOf(a.href) === 'auth.web10.app')
     return [
       {
-        name: 'web10 social',
+        name: FLAGSHIP_NAME,
         description: 'Feed, DMs, media, streaming — your audience and your data, on a node you own.',
         href: SOCIAL_ORIGIN,
         iconSrc: ICON_PATH,
@@ -255,17 +261,29 @@ function AppStore() {
     const flagship = firstParty.find((a) => a.flagship)
     if (!flagship) return []
     const plugs: PlugSlot[] = [{ ...flagship, badge: 'Flagship' }]
-    // MOST POPULAR — #1 by users_30d (server-sorted) among registered apps
-    // that isn't the flagship. First-party apps (console, importer) stay in
-    // the grid, not the plug slots.
-    const mostPopular = apps.find((a) => hostOf(a.href) !== FLAGSHIP_HOST)
-    if (mostPopular) plugs.push({ ...mostPopular, badge: 'Most Popular' })
+    // CORE — the node console, the operator surface every node runs. The
+    // curated pair is the flagship product + the core management app (the
+    // first-party catalog, per the KB). Replaces the old "Most Popular" slot,
+    // which could surface a duplicate of the flagship when it was also
+    // registered. No user metric — it's an operator surface, not a consumer
+    // app (a permanent 0 would read as a placeholder).
+    const core = firstParty.find((a) => a.href === AUTH_ORIGIN)
+    if (core) {
+      plugs.push({ name: core.name, description: core.description, href: core.href, iconSrc: core.iconSrc, badge: 'Core', appId: core.appId })
+    }
     return plugs
-  }, [firstParty, apps])
+  }, [firstParty])
 
-  // The grid shows first-party + registered apps, minus the plug slots.
+  // The grid shows first-party + registered apps, minus the plug slots. A
+  // registered copy of the flagship product (same product, different URL) is
+  // a duplicate — the flagship is curated above, so keep it out of the grid.
   const gridApps = useMemo(
-    () => allApps.filter((app) => !plugSlots.some((p) => p.href === app.href)),
+    () =>
+      allApps.filter((app) => {
+        if (plugSlots.some((p) => p.href === app.href)) return false
+        if (app.name === FLAGSHIP_NAME) return false
+        return true
+      }),
     [allApps, plugSlots],
   )
   const filteredGrid = useMemo(
