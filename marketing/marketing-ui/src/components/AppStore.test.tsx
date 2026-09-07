@@ -322,8 +322,12 @@ describe('AppStore page', () => {
     const { default: AppStore } = await import('@/pages/AppStore');
     renderWithRouter(<AppStore />);
     await vi.waitFor(() => {
-      // web10 social appears in the plug slot (flagship)
-      expect(screen.getByTestId('plug-slot-0')).toHaveAttribute('href', 'https://social.web10.app');
+      // web10 social appears in the plug slot (flagship), linking to its
+      // product page (D52) — not straight to the app.
+      expect(screen.getByTestId('plug-slot-0')).toHaveAttribute(
+        'href',
+        `/app-store/app/${encodeURIComponent('https://social.web10.app')}`
+      );
     });
     // The node console is the second plug slot (the core management app), not a grid item
     expect(screen.getByTestId('plug-slot-1')).toHaveAttribute('href', 'https://auth.web10.app');
@@ -499,14 +503,86 @@ describe('AppStore page', () => {
     await vi.waitFor(() => {
       // Flagship badge appears in the plug slot for web10 social
       const plugSlot = screen.getByTestId('plug-slot-0');
-      expect(plugSlot).toHaveAttribute('href', 'https://social.web10.app');
       expect(plugSlot.textContent).toContain('Flagship');
     });
   });
 
+  it('flagship plug slot links to its product page, not straight to the app (D52)', async () => {
+    const { default: AppStore } = await import('@/pages/AppStore');
+    renderWithRouter(<AppStore />);
+    await vi.waitFor(() => {
+      expect(screen.getByTestId('plug-slot-0')).toBeInTheDocument();
+    });
+    // The canonical flagship (social.web10.app at its root) is a known-host
+    // root, so the grid filter drops it from `apps` and no registered copy is
+    // present. The card must still route to the product/review page — keyed on
+    // the canonical origin — instead of opening the app in a new tab.
+    const plugSlot = screen.getByTestId('plug-slot-0');
+    expect(plugSlot).toHaveAttribute(
+      'href',
+      `/app-store/app/${encodeURIComponent('https://social.web10.app')}`
+    );
+    expect(plugSlot).not.toHaveAttribute('target', '_blank');
+  });
+
+  it('flagship plug slot uses the registered copy as the detail key when present', async () => {
+    const { default: AppStore } = await import('@/pages/AppStore');
+    const fetchMock = vi.fn((input: any) => {
+      const url = String(input);
+      if (url.includes('/v3/stats')) {
+        return Promise.resolve({
+          ok: true,
+          json: () =>
+            Promise.resolve({
+              users: 1,
+              app_count: 1,
+              active_users: { users_1d: 1, users_30d: 1, users_90d: 1, users_1y: 1 },
+              storage: 1024,
+            }),
+        } as Response);
+      }
+      if (url.includes('/v3/apps/list')) {
+        return Promise.resolve({
+          ok: true,
+          json: () =>
+            Promise.resolve({
+              apps: [
+                {
+                  // The flagship registered at a non-canonical host (a path on
+                  // a known host survives the grid filter) — its url is the
+                  // real detail key and must win over the canonical fallback.
+                  url: 'https://www.web10.app/social/',
+                  name: 'web10 social',
+                  description: '',
+                  icon_url: '',
+                  screenshots: [],
+                  visits: 1,
+                  users_30d: 1,
+                  review_state: 'approved',
+                  web10apps_post_id: '',
+                },
+              ],
+              total: 1,
+            }),
+        } as Response);
+      }
+      return Promise.reject(new Error('offline'));
+    });
+    vi.stubGlobal('fetch', fetchMock);
+    renderWithRouter(<AppStore />);
+    await vi.waitFor(() => {
+      expect(screen.getByTestId('plug-slot-0')).toBeInTheDocument();
+    });
+    const plugSlot = screen.getByTestId('plug-slot-0');
+    expect(plugSlot).toHaveAttribute(
+      'href',
+      `/app-store/app/${encodeURIComponent('https://www.web10.app/social/')}`
+    );
+  });
+
   it('renders browse search bar', async () => {
     const { default: AppStore } = await import('@/pages/AppStore');
-    render(<AppStore />);
+    renderWithRouter(<AppStore />);
     await vi.waitFor(() => {
       expect(screen.getByTestId('browse-search')).toBeInTheDocument();
     });
