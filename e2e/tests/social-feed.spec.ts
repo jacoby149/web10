@@ -596,9 +596,11 @@ test.describe('Social feed gauntlet — render → post → reload persists', ()
     // --- Console log sequence (the real flow, in order) ---
     // 3.38.0: the group-list log moved to the shared getFeedGroups (groups.ts,
     // [social:groups] prefix); readFeed now logs the resolved feed groups.
-    const firstReadIdx = logs.findIndex((l) => l.includes('readFeed — feed groups'));
+    // D69: the feed read is readFeedPage (one request per page, cursor-paged) —
+    // it logs the resolved feed groups + the cursor.
+    const firstReadIdx = logs.findIndex((l) => l.includes('readFeedPage — feed groups'));
     const createIdx = logs.findIndex((l) => l.includes('createPost — success'));
-    const secondReadIdx = logs.findIndex((l, i) => i > createIdx && l.includes('readFeed — feed groups'));
+    const secondReadIdx = logs.findIndex((l, i) => i > createIdx && l.includes('readFeedPage — feed groups'));
     for (const idx of [firstReadIdx, createIdx, secondReadIdx]) {
       expect(idx, 'missing expected [social-feed] log line').toBeGreaterThanOrEqual(0);
     }
