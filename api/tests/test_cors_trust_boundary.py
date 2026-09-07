@@ -26,8 +26,6 @@ from fastapi.testclient import TestClient
 
 import app.settings as settings
 from app.main import app as fastapi_app
-from app.models.auth import Token
-from app.services.auth import is_permitted
 
 
 def _future_iso(minutes: int = 60) -> str:
@@ -36,32 +34,6 @@ def _future_iso(minutes: int = 60) -> str:
 
 def _token(payload: dict) -> str:
     return jwt.encode(payload, settings.PRIVATE_KEY, algorithm=settings.ALGORITHM)
-
-
-def _cross_origin_token(site: str) -> str:
-    """A certified, cross-origin-targeted token issued from `site`."""
-    return _token(
-        {
-            "username": "visitor",
-            "site": site,
-            "target": settings.PROVIDER,
-            "provider": settings.PROVIDER,
-            "expires": _future_iso(),
-        }
-    )
-
-
-# A term record whose cross_origins deliberately does NOT list the
-# service-manager host. That way a grant to the SM host can only come from the
-# CORS_SERVICE_MANAGERS bypass — never the per-service ACL — which isolates
-# exactly the privilege #191 narrowed. The `.*` whitelist means get_approved
-# would approve any user, so the ONLY gate left is the origin.
-_TERM_RECORD = {
-    "service": "myapi",
-    "cross_origins": ["listed-app.example"],
-    "whitelist": [{"username": ".*", "provider": ".*", "read": True}],
-    "blacklist": [],
-}
 
 
 # ---------------------------------------------------------------------------
@@ -161,47 +133,3 @@ class TestErrorResponsesHaveCors:
         assert body["error"] == "RuntimeError"
         assert body["detail"] == "boom"
         assert body["error_id"] and len(body["error_id"]) == 12
-
-
-# ---------------------------------------------------------------------------
-# (b) CORS_SERVICE_MANAGERS gates the is_permitted cross-origin bypass
-# ---------------------------------------------------------------------------
-
-
-class TestServiceManagerBypassGating:
-    def test_service_manager_bypasses_cross_origin_acl(self):
-        """An authenticator host on the SM list skips the per-service ACL."""
-        token = _cross_origin_token("auth.localhost")
-        with (
-            patch.object(settings, "CORS_SERVICE_MANAGERS", ["auth.localhost"]),
-            patch("app.services.documentdb.get_term_record", return_value=_TERM_RECORD),
-        ):
-            # auth.localhost is NOT in cross_origins, yet the SM bypass grants it.
-            assert is_permitted(Token(token=token), "owner", "myapi", "read") is True
-
-    def test_non_service_manager_denied_the_privilege(self):
-        """A normal app origin gets NO service-manager privilege.
-
-        Same term record, same `.*` whitelist that get_approved would honor —
-        but a non-SM origin that isn't listed in cross_origins gets no bypass,
-        so it is denied. This is the boundary #191 narrowed to auth-only.
-        """
-        token = _cross_origin_token("some-random-web10-app.example")
-        with (
-            patch.object(settings, "CORS_SERVICE_MANAGERS", ["auth.localhost"]),
-            patch("app.services.documentdb.get_term_record", return_value=_TERM_RECORD),
-        ):
-            assert is_permitted(Token(token=token), "owner", "myapi", "read") is False
-
-    def test_non_service_manager_still_allowed_via_cross_origins(self):
-        """Sanity: the denial above is the SM gate, not a broken ACL.
-
-        A non-SM origin explicitly listed in the service's cross_origins is
-        still allowed — the per-service ACL path is intact.
-        """
-        token = _cross_origin_token("listed-app.example")
-        with (
-            patch.object(settings, "CORS_SERVICE_MANAGERS", ["auth.localhost"]),
-            patch("app.services.documentdb.get_term_record", return_value=_TERM_RECORD),
-        ):
-            assert is_permitted(Token(token=token), "owner", "myapi", "read") is True

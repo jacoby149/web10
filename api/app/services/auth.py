@@ -8,7 +8,6 @@ from passlib.context import CryptContext
 
 import app.settings as settings
 from app.models.auth import Token, TokenData
-from app.services.documentdb import get_approved, get_user, is_in_cross_origins
 
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
@@ -19,15 +18,6 @@ def verify_password(plain_password: str, hashed_password: str) -> bool:
 
 def get_password_hash(password: str) -> str:
     return pwd_context.hash(password)
-
-
-def authenticate_user(username: str, password: str):
-    user = get_user(username)
-    if not user:
-        raise Exception("LOGIN")
-    if not verify_password(password, user.hashed_password):
-        raise Exception("LOGIN")
-    return user
 
 
 def decode_token(token: str, private_key: bool = False) -> TokenData:
@@ -113,35 +103,6 @@ def certify(token: Token) -> bool:
     except (jwt.exceptions.PyJWTError, ValueError, TypeError):
         raise Exception("TOKEN")
     return True
-
-
-def is_permitted(token: Token, username: str, service: str, action: str) -> bool:
-    if token.token is not None:
-        decoded = decode_token(token.token)
-    else:
-        decoded = anon_token()
-
-    if settings.PROVIDER == decoded.provider:
-        certified = certify(token)
-    else:
-        certified = certify_with_remote_provider(token)
-
-    if certified:
-        if not decoded.target:
-            if decoded.username == username and decoded.provider == settings.PROVIDER:
-                return True
-            else:
-                return False
-        elif decoded.target != settings.PROVIDER:
-            return False
-        if (
-            decoded.username == "anon"
-            or decoded.site in settings.CORS_SERVICE_MANAGERS
-            or is_in_cross_origins(decoded.site, username, service)
-        ):
-            if get_approved(decoded.username, decoded.provider, username, service, action):
-                return True
-    return False
 
 
 def check_admin(token: Token) -> bool:

@@ -12,24 +12,6 @@ services:
     networks:
       - e2e-net
 
-  postgres:
-    image: ghcr.io/ferretdb/postgres-documentdb:17
-    environment:
-      - POSTGRES_USER=web10
-      - POSTGRES_PASSWORD=web10
-      - POSTGRES_DB=postgres
-    networks:
-      - e2e-net
-
-  ferretdb:
-    image: ghcr.io/ferretdb/ferretdb:2
-    depends_on:
-      - postgres
-    environment:
-      - FERRETDB_POSTGRESQL_URL=postgres://web10:web10@postgres:5432/postgres
-    networks:
-      - e2e-net
-
   clickhouse:
     image: clickhouse/clickhouse-server:24.8
     user: "101:101"
@@ -48,7 +30,6 @@ services:
   api:
     build: ../api
     depends_on:
-      - ferretdb
       - minio
       - clickhouse
     volumes:
@@ -56,8 +37,6 @@ services:
     environment:
       VIRTUAL_HOST: api.localhost
       PROVIDER: api.localhost
-      DB_URL: mongodb://web10:web10@ferretdb:27017/
-      DB: web10
       S3_ENDPOINT: http://minio:9000
       # The presigned URLs the browser follows — host-reachable. Parameterized
       # so parallel workspaces' e2e stacks don't collide on host :9000
