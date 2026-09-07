@@ -212,6 +212,30 @@ The decision bite gated the seam bites — docs first.
 - [✓ 3.69.0] Video: **cross-user HLS streaming** (D68 — stream access tracks post access): `can_view_doc` now passes a reader of a post that carries the media (dedup-then-filter carrier-post lookup, author-scoped, 10-min sig re-check cadence preserved). The post read already grants post readers a presigned raw-URL, so this leaks nothing new. Same pass fixed a read-path bug the e2e exposed: `resolve_media_urls` + `list_media` had no version dedup on the ReplacingMergeTree — a stale `processing` row dropped the `transcoding_settings` and the feed fell back to the raw MP4.
 - [ ] Video: **composer upload path + lightbox player** — 3.67.0 left two gaps: (1) `uploadMedia` (posts.ts) doesn't write the `video: {type:'minio'}` leaf or queue the transcode, so composer uploads never get transcoded (the feed's hls.js path only fires for externally-transcoded media); (2) `PostLightbox` still renders a raw `<video>` (the feed card got `HlsVideoPlayer`, the lightbox didn't). Both are small: the leaf + a best-effort `POST /v3/media/transcode` after confirm, and pointing the lightbox at `HlsVideoPlayer`.
 
+### Lane: notifications (D69)
+**Owns:** `marketing/web10-social/src/data/notifications.ts`, `src/components/Notifications/`, `src/components/Social/Layout.tsx` (badge/bell), `src/App.tsx` (route + banner); cross-lane: `api/` + `sdk/` (the `getPendingRequests` read), `knowledge/knowledge-base/web10-social-v3/notifications.md` (the spec).
+
+The always-on signal (D69): derived events the app owns, CRUD is truth, the
+P2P data channel is the nudge (the DMs' pattern — no server push, no node
+table, no new endpoint). The substrate exists (the app-wide `onP2PInbound`
+bus, the `readRefCounts` ref-count primitive, the followers group, the
+`Layout` shell, the `sessionAlert` banner). The operator's framing: "moment
+you look at messages it should probe online guy … whatever app state they are
+in, that is when we have a notification on the screen that is always on! for
+unread messages and unread replies to your posts." The decision bite gates
+the rest — docs first.
+
+- [ ] **Decision: D69** (`knowledge/strategy/decisions.md`) — P2P nudge + CRUD re-read, app-owned `notifications` service, node stays stateless. Amends the KB's WebSocket push model (contradicts D66). **Gates the rest.**
+- [ ] **KB: amend `notifications.md`** — replace the WebSocket push model with the P2P-nudge + CRUD-re-read model (D69); fix the stale API shapes (`getPendingRequests` unbuilt, D58 group ids); add the DM-unread + reply-to-comment types; keep the "app-owned, derived events" framing.
+- [ ] **Notification store** (`src/data/notifications.ts`) — app-wide singleton (the `p2p.ts` listener-set idiom): live unread count + recent items, `onNotificationChange` + `unreadCount()`. Subscribes to `onP2PInbound` so a nudge bumps the badge from *any* screen. Seed from a CRUD read on sign-in (truth; the nudge is the fast path).
+- [ ] **Read side — derive from reads** (`src/data/notifications.ts`) — reactions/comments on my posts (ref-count minus seen), new DMs (DM-group read minus a per-conversation last-read cursor), follow requests (followers group pending — **gated on `getPendingRequests`**), group joins (membership diff). No new endpoint.
+- [ ] **Write side — the nudge** (`src/data/{reactions,comments,dms,follows,groups}.ts`) — on an action that targets someone, push a typed payload over P2P (react/comment → post author; reply → comment author; DM → recipient; request-follow → follower owner). Payload is a nudge (`{type, from, ref_doc_id}`); the recipient re-reads from CRUD. Reuses `sendP2P`.
+- [ ] **Unread state — app-owned** (`src/data/notifications.ts`) — a `notifications` service in the followers group (D60): `{type, from, ref_doc_id, read, created_at}`. Badge = unread count; mark-read on open. DM unread = a per-conversation last-read cursor (the `settings.ts` pattern).
+- [ ] **Always-on surface** (`src/components/Social/Layout.tsx`, `src/App.tsx`) — a bell with a live unread badge (desktop sidebar + mobile top-header) + an app-wide "N new" banner (the `sessionAlert` precedent). Bell → `/notifications`.
+- [ ] **The `/notifications` screen** (`src/components/Notifications/`, route in `App.tsx`) — history list (avatar + "did X" + time), deep-linkable (`/notifications`, `?item=`), mark-read on open, resolve avatars. URL-holds-state.
+- [ ] **The missing primitive — `getPendingRequests`** (`api/` + `sdk/`) — a read of the followers group's pending join requests (`requestJoin` exists, the read does not). **Gates** follow-request notifications.
+- [ ] **E2E: two-user gauntlet** (`e2e/tests/social-notifications.spec.ts`) — A posts → B reacts/comments/replies → A's badge bumps in real time + the history shows the events; A opens `/notifications` → marked read; a DM to A bumps the unread-DM count. API floor (read-side derivation + the pending-requests read) + browser gauntlet (badge + banner + screen, log-sequence verified).
+
 ### Lane: social-e2e (Phase 3)
 **Owns:** `e2e/tests/` — each bite owns its own spec file, so the bites
 parallelize across workspaces (breadth, not depth).
