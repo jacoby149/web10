@@ -7,6 +7,7 @@ vi.mock('lucide-react', () => {
   const icons: Record<string, React.FC<React.SVGProps<SVGSVGElement>>> = {
     ArrowUpRight: (props) => <svg data-testid="arrow-up-right" {...props} />,
     Search: (props) => <svg data-testid="search-icon" {...props} />,
+    ChevronDown: (props) => <svg data-testid="chevron-down" {...props} />,
   };
   return {
     ...icons,
@@ -330,7 +331,7 @@ describe('AppStore page', () => {
     expect(screen.getByText('The importer')).toBeInTheDocument();
   });
 
-  it('shows the node console as the core management plug slot (not Most Popular)', async () => {
+  it('shows web10 hub as the core management plug slot (not Most Popular)', async () => {
     const { default: AppStore } = await import('@/pages/AppStore');
     renderWithRouter(<AppStore />);
     await vi.waitFor(() => {
@@ -339,9 +340,87 @@ describe('AppStore page', () => {
     const core = screen.getByTestId('plug-slot-1');
     expect(core).toHaveAttribute('href', 'https://auth.web10.app');
     expect(core.textContent).toContain('Core');
-    expect(core.textContent).toContain('The node console');
+    // Renamed from "The node console" — the manifest name the operator prefers.
+    expect(core.textContent).toContain('web10 hub');
+    expect(core.textContent).not.toContain('The node console');
+    // It carries its real user metric (0 here — no registration in this test),
+    // not a metric-less placeholder.
+    expect(core.textContent).toContain('0 users · 30d');
     // The old "Most Popular" curated slot is gone
     expect(screen.queryByText('Most Popular')).not.toBeInTheDocument();
+  });
+
+  it('web10 hub plug slot shows its real user count, and its registered copy is deduped from the grid', async () => {
+    const { default: AppStore } = await import('@/pages/AppStore');
+    const fetchMock = vi.fn((input: any) => {
+      const url = String(input);
+      if (url.includes('/v3/stats')) {
+        return Promise.resolve({
+          ok: true,
+          json: () =>
+            Promise.resolve({
+              users: 3,
+              app_count: 2,
+              active_users: { users_1d: 1, users_30d: 3, users_90d: 3, users_1y: 3 },
+              storage: 1024,
+            }),
+        } as Response);
+      }
+      if (url.includes('/v3/apps/list')) {
+        return Promise.resolve({
+          ok: true,
+          json: () =>
+            Promise.resolve({
+              apps: [
+                {
+                  // The node console (web10 hub) registered itself — the SDK
+                  // auto-ping. Its manifest short_name is "web10 hub".
+                  url: 'https://auth.web10.app/',
+                  name: 'web10 hub',
+                  description: '',
+                  icon_url: '',
+                  screenshots: [],
+                  visits: 3,
+                  users_30d: 3,
+                  review_state: 'approved',
+                  web10apps_post_id: '',
+                },
+              ],
+              total: 1,
+            }),
+        } as Response);
+      }
+      if (url.includes('/pwa_listing')) {
+        return Promise.resolve({
+          ok: true,
+          json: () =>
+            Promise.resolve({
+              name: 'web10 hub',
+              short_name: 'web10 hub',
+              icons: [{ src: 'logo192.png', sizes: '192x192', type: 'image/png' }],
+            }),
+        } as Response);
+      }
+      return Promise.reject(new Error('offline'));
+    });
+    vi.stubGlobal('fetch', fetchMock);
+    renderWithRouter(<AppStore />);
+    await vi.waitFor(() => {
+      expect(screen.getByTestId('plug-slot-1')).toBeInTheDocument();
+    });
+    // The curated Core plug slot picks up the real registration's count.
+    const core = screen.getByTestId('plug-slot-1');
+    expect(core.textContent).toContain('web10 hub');
+    expect(core.textContent).toContain('3 users · 30d');
+    // Exactly one "web10 hub" — the plug slot. The registered copy (same
+    // product, the auth host) is deduped out of the grid, so it never renders
+    // a second card.
+    expect(screen.getAllByText('web10 hub').length).toBe(1);
+    // No browse card for the auth host.
+    const browseCards = screen.getAllByTestId(/^browse-card-/);
+    for (const card of browseCards) {
+      expect(card.textContent).not.toContain('web10 hub');
+    }
   });
 
   it('does not show a registered copy of the flagship in the grid (no duplicate web10 social)', async () => {

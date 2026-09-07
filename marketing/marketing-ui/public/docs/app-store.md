@@ -80,8 +80,9 @@ numbers are consistent by construction — same log, same windows.
 Two layers:
 
 - **Plug slots (curated, above the grid)** — the first-party catalog,
-  hand-picked: the social app (the flagship), the node console
-  (authenticator), the importer.
+  hand-picked: the social app (the flagship) and web10 hub (the node
+  console / authenticator). Both show their real user count. The importer
+  is first-party too but a marketing page, so it lives in the grid.
 - **The grid (everything else, sorted by `users_30d`)** — every approved
   app that isn't a plug slot, paginated 20 at a time. Localhost URLs are
   filtered out unconditionally — the store is a public surface, and
@@ -99,7 +100,7 @@ send any link.
 
 ## Your job: the review
 
-Apps land **pending**. You review them in the node console (the
+Apps land **pending**. You review them in web10 hub (the node console /
 authenticator, as admin):
 
 - **Approve** — it joins the public grid.

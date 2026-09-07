@@ -90,7 +90,7 @@ moderation_flags (
 ) ORDER BY (username, created_at)
 ```
 
-No `resolved` column. The queue is: `SELECT username, count(*), max(created_at), arbitrary(matched_words) FROM moderation_flags GROUP BY username HAVING count(*) > 0 ORDER BY max(created_at) DESC`. The operator's action (add to `auto_hide_users` or dismiss) is a `node_config` update, not a mutation of this table. The table is an append-only audit log.
+No `resolved` column. The queue is: `SELECT username, count(*), max(created_at), arrayFlatten(groupArray(matched_words)) FROM moderation_flags GROUP BY username ORDER BY max(created_at) DESC` — **one row per user** (the `arrayFlatten` collects every matched word across the user's flags into a single array on that one row; an `arrayJoin` here would split a multi-flag user into one row per flag, duplicating them in the queue). The operator's action (add to `auto_hide_users` or dismiss) is a `node_config` update, not a mutation of this table. The table is an append-only audit log.
 
 ### The UI surface
 
