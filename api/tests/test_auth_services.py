@@ -1,4 +1,4 @@
-"""Tests for auth service gaps: authenticate_user, certify_with_remote_provider, check_admin."""
+"""Tests for auth service: certify_with_remote_provider, check_admin."""
 
 from unittest.mock import MagicMock, patch
 
@@ -7,36 +7,12 @@ import pytest
 import app.settings as settings
 from app.models.auth import Token, TokenData
 from app.services.auth import (
-    authenticate_user,
     certify_with_remote_provider,
     check_admin,
     get_password_hash,
     pwd_context,
     verify_password,
 )
-
-
-class TestAuthenticateUser:
-    def test_valid_user(self):
-        mock_user = MagicMock()
-        mock_user.hashed_password = "__hashed__"
-        with patch("app.services.auth.get_user", return_value=mock_user):
-            with patch.object(pwd_context, "verify", return_value=True):
-                result = authenticate_user("alice", "secret")
-                assert result is mock_user
-
-    def test_user_not_found_raises(self):
-        with patch("app.services.auth.get_user", return_value=None):
-            with pytest.raises(Exception):
-                authenticate_user("nobody", "pass")
-
-    def test_wrong_password_raises(self):
-        mock_user = MagicMock()
-        mock_user.hashed_password = "__hashed__"
-        with patch("app.services.auth.get_user", return_value=mock_user):
-            with patch.object(pwd_context, "verify", return_value=False):
-                with pytest.raises(Exception):
-                    authenticate_user("alice", "wrong")
 
 
 class TestCertifyWithRemoteProvider:

@@ -1496,7 +1496,6 @@ dependencies = [
     { name = "passlib", extra = ["bcrypt"] },
     { name = "pydantic" },
     { name = "pyjwt" },
-    { name = "pymongo" },
     { name = "python-multipart" },
     { name = "requests" },
     { name = "sqlglot" },
@@ -1517,6 +1516,7 @@ test = [
 [package.dev-dependencies]
 dev = [
     { name = "httpx" },
+    { name = "pymongo" },
     { name = "pytest" },
     { name = "pytest-asyncio" },
     { name = "pytest-mock" },
@@ -1534,7 +1534,6 @@ requires-dist = [
     { name = "passlib", extras = ["bcrypt"], specifier = ">=1.7" },
     { name = "pydantic", specifier = ">=2" },
     { name = "pyjwt", specifier = ">=2.9" },
-    { name = "pymongo", specifier = ">=4.8" },
     { name = "pytest", marker = "extra == 'test'", specifier = ">=8" },
     { name = "pytest-asyncio", marker = "extra == 'test'", specifier = ">=0.24" },
     { name = "pytest-mock", marker = "extra == 'test'", specifier = ">=3.12" },
@@ -1551,6 +1550,7 @@ provides-extras = ["test"]
 [package.metadata.requires-dev]
 dev = [
     { name = "httpx", specifier = ">=0.27" },
+    { name = "pymongo", specifier = ">=4.8" },
     { name = "pytest", specifier = ">=8" },
     { name = "pytest-asyncio", specifier = ">=0.24" },
     { name = "pytest-mock", specifier = ">=3.12" },
