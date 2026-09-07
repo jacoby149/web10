@@ -351,10 +351,25 @@ UPLOAD (queued):
   3. ffmpeg transcodes → multiple HLS variants → MinIO
   4. Raw file deleted (or kept for re-encoding later)
   5. Document updated with transcoding_settings
-     (variants + thumbnails — see transcoding-foundation.md)
+     (variants + thumbnails — see transcoding-foundation.md). The update
+     preserves the doc's OWN collection (a media_metadata doc must not be
+     updated into `media` — the settings would split across collections and
+     readers of the original never see them).
 
 VIEWING (real-time):
-  6. API returns document (permission check: group membership)
+  6. API returns the document (permission check: group membership) — two
+     read paths, both mint a per-reader `manifest_url` (10-min sig bound to
+     (reader, doc, hls prefix); the expiry is the membership re-check
+     cadence):
+       a. Direct media-doc read (the media demo's poll path): the doc's body
+          carries `video` + `transcoding_settings`; the mint injects
+          `transcoding_settings.manifest_url` into the body.
+       b. Post read (the feed path): the post's resolved media_refs carry the
+          media doc's `transcoding_settings` (status + variants, minus the
+          sig) and the mint injects `manifest_url` into each resolved ref —
+          so the feed picks the hls.js player (on `status === 'done'` +
+          `manifest_url`) with zero extra reads; non-transcoded video falls
+          back to the native `<video>` on the presigned raw file.
   7. UI reads transcoding_settings → requests the signed manifest from the API
   8. hls.js fetches manifest → fetches segments (JWT-gated) → plays
      No queue. No worker. Just HTTP.
