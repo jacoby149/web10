@@ -55,7 +55,14 @@ client = _LazyClickHouse()
 
 
 def _now() -> datetime:
-    return datetime.utcnow()
+    # Timezone-AWARE UTC. A naive datetime (datetime.utcnow()) is ambiguous:
+    # clickhouse-connect's insert() treats it as the process-local wall-clock and
+    # converts it to UTC (double-shifting it on any non-UTC host), while its
+    # command() parameter binding truncates it to second precision. An aware
+    # datetime is unambiguous — every write path stores the same UTC instant.
+    # (The 3.58.1 recovery-flake fix used a naive microsecond clock, which the
+    # command() binding silently truncated to seconds, so the flake survived.)
+    return datetime.now(UTC)
 
 
 def _iso_utc(dt) -> str:
@@ -86,6 +93,22 @@ def _from_iso_utc(s) -> datetime:
     if dt.tzinfo is not None:
         dt = dt.astimezone(UTC).replace(tzinfo=None)
     return dt
+
+
+def _ch_ts(dt) -> str:
+    """Format a datetime for a ClickHouse ``DateTime64`` column WRITE.
+
+    clickhouse-connect's ``command()`` parameter binding truncates a bound
+    datetime *object* to second precision, so a timestamp that must keep
+    sub-second ordering (the ``ReplacingMergeTree(updated_at)`` dedup keys off
+    it) is bound as a string instead — in the format ClickHouse parses for
+    ``DateTime64(3)`` (space-separated, no timezone, microsecond field). An
+    aware datetime is normalized to UTC first. (``_iso_utc`` is for API return
+    values, not writes: its ``T``/``Z`` form does not parse for ``DateTime64``.)
+    """
+    if dt.tzinfo is not None:
+        dt = dt.astimezone(UTC).replace(tzinfo=None)
+    return dt.strftime("%Y-%m-%d %H:%M:%S.%f")
 
 
 def _json(body: dict) -> str:
@@ -2909,50 +2932,49 @@ def authenticate_user(username: str, plain_password: str) -> bool:
 def change_password(username: str, new_password_hash: str):
     """Change a user's password.
 
-    The new row's ``updated_at`` is a Python microsecond clock (the same
-    source ``create_user`` uses), not ClickHouse ``now()`` (second precision).
-    The users table is ``ReplacingMergeTree(updated_at)`` and reads dedup via
-    ``ORDER BY updated_at DESC LIMIT 1`` — that is only "always the latest"
-    when the new timestamp is strictly greater than the old row's. A
-    second-precision ``now()`` lands on ``.000`` ms and can tie or lose to the
-    old row's real milliseconds when both writes fall in the same second, so
-    the read returns the stale row (old hash) and the new password 401s.
+    The new row's ``updated_at`` is bound as an ISO-8601 UTC string
+    (``_ch_ts(_now())``), the same way every other table writes it. Binding a
+    raw datetime here would let clickhouse-connect's command() parameter binding
+    truncate it to second precision — and a second-precision row can lose the
+    ``ORDER BY updated_at DESC`` dedup to the microsecond-precision row
+    ``create_user`` wrote in the same second, so the read returns the stale row
+    (old hash) and the new password 401s (the recovery password-change flake).
     """
     client.command(
         "INSERT INTO users (username, password_hash, phone, phone_verified, email, email_verified, created_at, updated_at, deleted) "
         "SELECT username, %(new_hash)s, phone, phone_verified, email, email_verified, created_at, %(updated_at)s, 0 "
         "FROM users WHERE username = %(username)s AND deleted = 0",
-        {"username": username, "new_hash": new_password_hash, "updated_at": _now()},
+        {"username": username, "new_hash": new_password_hash, "updated_at": _ch_ts(_now())},
     )
 
 
 def change_phone(username: str, phone: str):
     """Change a user's phone number (unverified).
 
-    ``updated_at`` is a Python microsecond clock (see ``change_password``) so
-    the new row strictly outranks the old one in the ``updated_at``-ordered
+    ``updated_at`` is bound as an ISO-8601 UTC string (see ``change_password``)
+    so the new row strictly outranks the old one in the ``updated_at``-ordered
     dedup read.
     """
     client.command(
         "INSERT INTO users (username, password_hash, phone, phone_verified, email, email_verified, created_at, updated_at, deleted) "
         "SELECT username, password_hash, %(phone)s, 0, email, email_verified, created_at, %(updated_at)s, 0 "
         "FROM users WHERE username = %(username)s AND deleted = 0",
-        {"username": username, "phone": phone, "updated_at": _now()},
+        {"username": username, "phone": phone, "updated_at": _ch_ts(_now())},
     )
 
 
 def set_email(username: str, email: str):
     """Set a user's email (unverified).
 
-    ``updated_at`` is a Python microsecond clock (see ``change_password``) so
-    the new row strictly outranks the old one in the ``updated_at``-ordered
+    ``updated_at`` is bound as an ISO-8601 UTC string (see ``change_password``)
+    so the new row strictly outranks the old one in the ``updated_at``-ordered
     dedup read.
     """
     client.command(
         "INSERT INTO users (username, password_hash, phone, phone_verified, email, email_verified, created_at, updated_at, deleted) "
         "SELECT username, password_hash, phone, phone_verified, %(email)s, 0, created_at, %(updated_at)s, 0 "
         "FROM users WHERE username = %(username)s AND deleted = 0",
-        {"username": username, "email": email, "updated_at": _now()},
+        {"username": username, "email": email, "updated_at": _ch_ts(_now())},
     )
 
 
@@ -2962,14 +2984,14 @@ def verify_phone(username: str):
     Selects only the LATEST row — selecting every row would re-insert each one
     (duplicating them), and the updated_at-ordered read could then pick a stale
     row (e.g. one with an old password_hash after a change_password). The new
-    row's ``updated_at`` is a Python microsecond clock (see ``change_password``)
-    so it strictly outranks the row it copies.
+    row's ``updated_at`` is bound as an ISO-8601 UTC string (see
+    ``change_password``) so it strictly outranks the row it copies.
     """
     client.command(
         "INSERT INTO users (username, password_hash, phone, phone_verified, email, email_verified, created_at, updated_at, deleted) "
         "SELECT username, password_hash, phone, 1, email, email_verified, created_at, %(updated_at)s, 0 "
         "FROM (SELECT * FROM users WHERE username = %(username)s AND deleted = 0 ORDER BY updated_at DESC LIMIT 1)",
-        {"username": username, "updated_at": _now()},
+        {"username": username, "updated_at": _ch_ts(_now())},
     )
 
 
@@ -2979,7 +3001,7 @@ def verify_email(username: str):
         "INSERT INTO users (username, password_hash, phone, phone_verified, email, email_verified, created_at, updated_at, deleted) "
         "SELECT username, password_hash, phone, phone_verified, email, 1, created_at, %(updated_at)s, 0 "
         "FROM (SELECT * FROM users WHERE username = %(username)s AND deleted = 0 ORDER BY updated_at DESC LIMIT 1)",
-        {"username": username, "updated_at": _now()},
+        {"username": username, "updated_at": _ch_ts(_now())},
     )
 
 
