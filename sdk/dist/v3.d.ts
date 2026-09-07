@@ -90,6 +90,31 @@ export interface V3QueryResult {
     rows: Record<string, unknown>[];
     count: number;
 }
+export interface V3FeedPost {
+    doc_id: string;
+    author_key: string;
+    body: Record<string, unknown>;
+    tags?: string[];
+    created_at: string;
+    ref_value?: string;
+    ad_mode?: string;
+    ad_target?: string;
+    likes: number;
+    comments: number;
+    score: number;
+    ad?: V3Document;
+    node_ad?: V3Document;
+    profile?: Record<string, unknown>;
+    avatar_url?: string | null;
+}
+export interface V3FeedResult {
+    posts: V3FeedPost[];
+    has_more: boolean;
+    next_cursor: {
+        created_at?: string;
+        score?: number;
+    } | null;
+}
 export interface V3GroupRole {
     name: string;
     permissions: Record<string, string[]>;
@@ -231,6 +256,21 @@ export interface V3Client {
         groups: string[];
         ref: string | string[];
     }): Promise<Record<string, number>>;
+    feed(opts: {
+        groups: string[];
+        limit?: number;
+        cursor?: {
+            created_at?: string;
+            score?: number;
+        } | null;
+        sort?: {
+            recency?: number;
+            likes?: number;
+            comments?: number;
+            half_life_ms?: number;
+            character?: number;
+        };
+    }): Promise<V3FeedResult>;
     readById(docId: string, collection: string): Promise<V3Document>;
     query(sql: string, opts?: {
         groups?: string[];

@@ -1,4 +1,4 @@
-import type { V3Document } from './v3';
+import type { V3Document, V3FeedPost } from './v3';
 import type { KnobState } from '@/lib/powerMean';
 
 // ── V3 document mapping ────────────────────────────────────────────────────
@@ -56,6 +56,10 @@ export interface PostRecord {
   // operator's percentage. Both `ad` and `node_ad` can be present on the
   // same post — the renderer shows both, neither suppressing the other.
   node_ad?: AdRecord;
+  // The feed read (D69) carries the author's profile + resolved avatar URL
+  // inline (the server's batched author read — no per-author fan-out).
+  profile?: ProfileRecord;
+  avatar_url?: string;
   // Aliases for backward compat with DiscoveryPost
   author?: string;
   provider?: string;
@@ -93,6 +97,25 @@ export function fromV3DocToPost(doc: V3Document): PostRecord {
     author: username,
     provider,
     post_id: doc.doc_id,
+  };
+}
+
+/**
+ * Map a feed post (D69) to a PostRecord. The feed read carries everything the
+ * feed needs inline — resolved media + HLS (in `body.media_refs`), the pinned
+ * ad (`ad`) + node ad (`node_ad`), exact `likes`/`comments`, the rank `score`,
+ * and the author's `profile` + resolved `avatar_url` — so the client never
+ * re-fetches any of it (the N+1 the 267-requests diagnosis named).
+ */
+export function fromV3FeedPost(doc: V3FeedPost): PostRecord {
+  const base = fromV3DocToPost(doc as unknown as V3Document);
+  return {
+    ...base,
+    likes: doc.likes,
+    comments: doc.comments,
+    score: doc.score,
+    profile: doc.profile ? fromV3DocToProfile({ ...doc, body: doc.profile } as unknown as V3Document) : undefined,
+    avatar_url: doc.avatar_url ?? undefined,
   };
 }
 
