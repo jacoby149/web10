@@ -2396,6 +2396,21 @@ def revoke_provider_service_contract(provider_key: str, allowed_origin: str):
 # ---------------------------------------------------------------------------
 
 
+def _hls_settings_for_ref(meta: dict) -> dict | None:
+    """The media doc's `transcoding_settings` for a resolved media ref.
+
+    Carries everything except the read-minted `manifest_url` (the endpoint's
+    mint pass injects a fresh per-reader sig — a sig minted for one reader
+    must never ride the read to another). None when the doc has no HLS
+    settings (the common case — images, untranscoded video).
+    """
+    ts = meta.get("transcoding_settings")
+    if not isinstance(ts, dict) or not ts:
+        return None
+    safe = {k: v for k, v in ts.items() if k != "manifest_url"}
+    return safe or None
+
+
 def resolve_media_urls(doc_body: dict, user_key: str) -> dict:
     """Resolve media references in a document body to presigned URLs.
 
@@ -2463,6 +2478,12 @@ def resolve_media_urls(doc_body: dict, user_key: str) -> dict:
                 "height": meta.get("height"),
                 "duration_seconds": meta.get("duration_seconds"),
                 "thumbnail_url": presigned.get(thumbnail_key) if thumbnail_key else meta.get("thumbnail_url"),
+                # The media doc's transcoding_settings (D44): status +
+                # variants let the client pick the player (hls.js when
+                # done, native <video> otherwise). The read-minted
+                # manifest_url is NOT carried — the read path mints a fresh
+                # sig per reader (documents.py _mint_hls_manifest_urls).
+                "transcoding_settings": _hls_settings_for_ref(meta),
             }
         )
 
