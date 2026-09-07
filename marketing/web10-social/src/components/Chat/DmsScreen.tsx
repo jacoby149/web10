@@ -7,7 +7,7 @@ import { Input } from '@/components/ui/input';
 import { Skeleton } from '@/components/ui/skeleton';
 import { getWapi } from '@/data/wapi';
 import { listConversations, readDms, sendDm, getLastDm, readContacts, startConversation, conversationKey as deriveConversationKey, readFollows, addContact, deleteDm, updateDm, deleteConversation } from '@/data';
-import { sendP2P, onP2PInbound, isP2PReady, getOnlinePeers, peerIdFor, onPresenceChange } from '@/data/p2p';
+import { sendP2P, onP2PInbound, isP2PReady, getOnlinePeers, peerIdFor, onPresenceChange, probePresence } from '@/data/p2p';
 import type { DmRecord, ContactRecord, FollowRecord } from '@/data/types';
 import { Send, ChevronLeft, Plus, X, Search, MessageSquare, Mail, Users, MoreVertical, Edit3, Trash2, Check, Loader2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
@@ -624,15 +624,15 @@ export default function DmsScreen() {
   const onlinePeers = useOnlinePeers();
 
   // Real-time inbound: when a P2P nudge arrives (a peer sent us a message),
-  // re-read the open conversation. This is the best-effort fast path — CRUD is
-  // the source of truth, so a message that doesn't show here still lands on
-  // the next normal read. A skipped refresh (transient fetch blip, the page
-  // navigating) is NOT a real error, so it's logged informationally — never as
-  // a console.error (the e2e asserts no error logs, and a fast-path miss is
-  // expected, not a failure).
+  // re-read the open conversation AND refresh the list's last-message preview.
+  // This is the best-effort fast path — CRUD is the source of truth, so a
+  // message that doesn't show here still lands on the next normal read. A
+  // skipped refresh (transient fetch blip, the page navigating) is NOT a real
+  // error, so it's logged informationally — never as a console.error (the e2e
+  // asserts no error logs, and a fast-path miss is expected, not a failure).
   useEffect(() => {
     const unsub = onP2PInbound(() => {
-      console.log('[social-dms] p2p inbound — refreshing open conversation');
+      console.log('[social-dms] p2p inbound — refreshing open conversation + list');
       if (selectedConv) {
         readDms(selectedConv)
           .then(setMessages)
@@ -640,6 +640,18 @@ export default function DmsScreen() {
             console.log('[social-dms] inbound refresh skipped (message shows on next read)');
           });
       }
+      // Refresh the list preview (last message per conversation) so a message
+      // arriving while the list is showing updates the row — without the
+      // loading skeleton (loadData toggles `loading`, which would flash it).
+      listConversations()
+        .then(async (convs) => {
+          const lastMsgs: Record<string, DmRecord | null> = {};
+          for (const conv of convs) lastMsgs[conv] = await getLastDm(conv);
+          setLastMessages(lastMsgs);
+        })
+        .catch(() => {
+          console.log('[social-dms] inbound list refresh skipped (shows on next read)');
+        });
     });
     return unsub;
   }, [selectedConv]);
@@ -664,7 +676,11 @@ export default function DmsScreen() {
     loadData();
   }, []);
 
-  // Load messages when selectedConv changes (from URL or from UI)
+  // Load messages when selectedConv changes (from URL or from UI) + probe the
+  // other party's presence. Presence is otherwise established only by a live
+  // data-channel exchange (a send or an inbound), so two users who are both in
+  // the app but haven't messaged each other see each other as offline. Probing
+  // on open closes that gap: the channel handshake IS the presence check.
   useEffect(() => {
     if (selectedConv) {
       (async () => {
@@ -675,6 +691,10 @@ export default function DmsScreen() {
           console.error('Failed to load messages:', e);
         }
       })();
+      // Probe the other party's presence (best-effort — never blocks the read).
+      const other = getOtherUser(selectedConv);
+      const [prov, user] = other.split('/');
+      if (prov && user) probePresence(prov, user);
     }
   }, [selectedConv]);
 
@@ -726,6 +746,16 @@ export default function DmsScreen() {
       });
       setConversations(sorted);
       setContacts(contactsData);
+
+      // Probe every conversation peer the moment the list loads — presence for
+      // the whole list, not just the open conversation. The channel handshake
+      // is the presence check; the heartbeat (p2p.ts) then keeps each warm.
+      // Best-effort and fire-and-forget — never blocks the list render.
+      for (const conv of sorted) {
+        const other = getOtherUser(conv);
+        const [prov, user] = other.split('/');
+        if (prov && user) probePresence(prov, user);
+      }
     } catch (e) {
       console.error('Failed to load DMs:', e);
     }
