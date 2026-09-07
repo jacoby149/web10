@@ -282,7 +282,7 @@ function buildFromRealExport(limit) {
 // Source 2: the committed synthetic fallback
 // ---------------------------------------------------------------------------
 
-function buildFromSynthetic() {
+function buildFromSynthetic(limit) {
   const zipPath = resolve(process.cwd(), 'fixtures/yt-takeout-synthetic.zip');
   if (!existsSync(zipPath)) return null;
   const buf = readFileSync(zipPath);
