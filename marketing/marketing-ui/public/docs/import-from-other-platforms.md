@@ -22,35 +22,43 @@ web10:
 
 | Your YouTube… | Becomes on web10… |
 |---|---|
-| Videos | Your media — playable, streamable, yours |
-| Channel | Your creator profile |
-| **Subscribers** | **Your owned audience** — the follower list you can reach directly |
-| Comments | Comments on your posts |
+| Videos | Posts with the full record — title, description, publish date, duration, view/like counts, and the thumbnail. The **video files themselves don't come over** (Google never exports the bytes) — each post carries the watch link, and you can re-upload the file for native playback when you want it. |
+| Channel | Your creator profile — name, bio, and your channel URL. |
+| Comments (on your videos) | Comments on the matching posts. |
+| **Subscribers** | **Don't come over — and that's the point.** Google keeps your subscriber list; there's no export for it. On web10 your audience is the people who *choose* to follow you — the ones you actually own, who see everything you post. |
 
-The subscriber line is the killer one. On YouTube, that list is Google's —
-you can't export it as *your* audience, and you can't message those people
-without going through Google. On web10, the list is your data: those people
-become your followers, and you can reach them directly.
+The subscriber line is the honest one. On YouTube that list is Google's — you
+can't export it as *your* audience, and you can't message those people without
+going through Google. On web10 you don't import a list you don't own; you build
+an audience that's yours. The fans who migrate are the ones who stay, and
+100% delivery means every single one of them sees everything.
 
 ### How it works
 
 1. **Export** your YouTube data with Google Takeout (steps in the next
-   section).
-2. **Import** the export onto your web10 node — the "port your YouTube"
-   flow walks you through it: upload, map, confirm, done.
-3. Your channel is on your node. Your audience is yours.
+   section). The default export is fine — Takeout splits big exports into
+   ~2GB `.tar` parts, and the importer takes them as-is (multiple files are
+   expected, not a problem).
+2. **Import** in your authenticator: Settings → **Import from YouTube** →
+   choose your Takeout files → Start Import. The node stages everything under
+   your account — nothing publishes until you triage it.
+3. **Triage** in the social app's staging area: publish what you want public,
+   keep the rest private, or delete. Your catalog keeps its original dates.
 
-**Status:** the import flow is on the way — it's the first import target and
-it's being built now. If you're a YouTuber and want in early, join the node
-and keep an eye on your authenticator.
+**Status:** the YouTube import is live. Export from Takeout, open your
+authenticator's Settings, and import.
 
 ## Get your data out of the other platforms
 
 Every major platform will give you your data if you ask. The exports land as
-ZIP files you keep — then they're ready to import.
+archive files you keep (ZIP or TAR, depending on the platform) — then they're
+ready to import.
 
 - **YouTube / Google** — [Takeout](https://takeout.google.com): deselect
-  all, check YouTube, create the export, download the ZIP when it's ready.
+  all, check YouTube, create the export, download when it's ready. The
+  default is a set of ~2GB `.tar` parts — that's fine, the importer takes
+  split exports as-is. (You can switch the format to ZIP in the export
+  options if you prefer; either works.)
 - **Instagram** — Settings → Your Activity → Download your information.
 - **X (Twitter)** — Settings → Your Account → Download an archive of your
   data (arrives by email, up to 48 hours).
@@ -60,7 +68,7 @@ ZIP files you keep — then they're ready to import.
 
 Full step-by-step for each platform: [Export Guidance](/docs/export-guidance).
 
-**Keep the ZIPs.** They're your data, sitting on your machine. Nothing is
+**Keep the archives.** They're your data, sitting on your machine. Nothing is
 lost by holding onto them.
 
 ## Moving between web10 nodes

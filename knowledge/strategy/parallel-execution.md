@@ -559,3 +559,22 @@ drift fix first (the docs are actively wrong), then the audience sections
 - [✓ 3.60.9] **For Node Operators / Influencers** — `start-a-node` (NEW), `node-config` (NEW), `app-store` (NEW), `your-audience` (NEW), `being-a-creator` (NEW).
 - [✓ 3.60.10] **For Monetizers** — `ads` (NEW), `ad-catalog` (NEW), `affiliate-programs` (NEW), `payment-rails` (NEW), `monetization-bootcamp` (link the existing guide).
 - [✓ 3.61.0] **Rendering / UX** — reorganize the `Docs.tsx` sidebar by audience; a "who are you?" landing that routes the reader to their section.
+
+### Lane: import (port your YouTube)
+**Owns:** `api/app/services/importers/`, `api/app/v3/services/import_worker.py`, `api/app/v3/endpoints/imports.py`, `api/app/v3/models/imports.py`, `ui/src/components/Settings/Import.tsx`, `knowledge/knowledge-base/web10-v3/social/import.md`
+
+The first import target: port a YouTuber's catalog (via Google Takeout) onto
+their node. The pipeline runs **on the node** (not a sidecar) — an in-process
+durable worker (the transcode-worker idiom, no Redis per D66) that streams the
+export parts from MinIO, extracts tar/zip, and writes in order (media → posts →
+comments → profile) into `staging_posts` (D30, owner-only, followers group),
+then deletes the raw export. The honest gaps: no video files (Takeout has no
+bytes), no subscriber list (no export path). Root of trust:
+`KB social/import.md`. Full breakdown: `plan.md` → "YouTube Importer".
+
+- [✓ 3.62.0] **The import mapping** — the pure YouTube Takeout parser (`importers/youtube.py`): videos → `staging_posts` (full record + original publish date + thumbnail), comments-on-own-videos → comments (D62 `ref_value` join), channel → profile. Unit-tested (`test_importers_youtube.py`).
+- [✓ 3.62.0] **The node pipeline** — `POST /v3/imports` (presigned per-part upload) + `/start` + `/status`; the durable `import_jobs` ClickHouse queue + in-process worker (`import_worker.py`); `insert_document` gained a `created_at` param (backdate the catalog); ordered writes + `origin_id` idempotency + the D62 comment join. Unit-tested (`test_import_worker.py` + `test_imports_endpoint.py`).
+- [✓ 3.62.0] **The authenticator UI** — Settings → Import from YouTube card (`ui/src/components/Settings/Import.tsx`): pick Takeout files (tar/zip, multiple) → upload → start → poll; all states designed (idle/ready/uploading/processing/complete/error), tokens-only, `data-testid` hooks. Unit-tested (`import.test.tsx`).
+- [✓ 3.62.0] **The docs** — `import-from-other-platforms.md` (honest mapping table + 2GB-tar instruction), `export-guidance.md` (the 2GB-tar note), `KB social/import.md` (the root of trust).
+- [ ] **The "port your YouTube" landing** — a creator-facing marketing page (the reach gap + the owned-audience reframe + the import flow). Feeds the `For Monetizers` / `For Node Operators` doc sections.
+- [ ] **Re-pin the gutted e2e** — `e2e/tests/exporter.spec.ts` is gutted against the old marketing-api pipeline; re-point it at the node `/v3/imports` endpoints (create → upload a synthetic Takeout → start → poll → assert staged posts). Gated on the e2e docker stack.
