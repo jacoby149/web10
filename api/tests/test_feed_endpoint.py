@@ -90,10 +90,7 @@ class TestFeed:
 
     def test_feed_has_more_and_cursor(self, client, token):
         # A full page (limit + 1 rows) → has_more True + next_cursor set.
-        rows = [
-            _row(f"p{i}", "api.localhost/u", f"2026-09-07T10:0{i}:00.000", score=1.0 - i * 0.1)
-            for i in range(3)
-        ]
+        rows = [_row(f"p{i}", "api.localhost/u", f"2026-09-07T10:0{i}:00.000", score=1.0 - i * 0.1) for i in range(3)]
         with (
             patch("app.v3.services.clickhouse.readable_groups", side_effect=lambda p, s, a, c: c),
             patch("app.v3.services.clickhouse.read_feed", return_value=rows),

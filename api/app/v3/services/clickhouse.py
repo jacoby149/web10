@@ -2084,7 +2084,9 @@ def read_feed(
         "QUALIFY row_number() OVER (PARTITION BY doc_id, author_key ORDER BY updated_at DESC) = 1) "
         "WHERE ref_value != '' GROUP BY ref_value) cmt ON cmt.ref_value = b.doc_id "
         + cursor_clause
-        + "ORDER BY " + order_by + " "
+        + "ORDER BY "
+        + order_by
+        + " "
         "LIMIT %(page)s"
     )
     result = client.query(sql, params)

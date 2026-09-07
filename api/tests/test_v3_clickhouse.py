@@ -671,7 +671,10 @@ class TestReadFeed:
         with _patch_client() as mock_client:
             mock_client.query.return_value = _mock_result_rows([])
             ch.read_feed(
-                ["g1"], "alice", "posts", limit=20,
+                ["g1"],
+                "alice",
+                "posts",
+                limit=20,
                 cursor={"created_at": "2026-09-07T09:00:00.000"},
             )
             sql = mock_client.query.call_args[0][0]
@@ -683,7 +686,11 @@ class TestReadFeed:
         with _patch_client() as mock_client:
             mock_client.query.return_value = _mock_result_rows([])
             ch.read_feed(
-                ["g1"], "alice", "posts", limit=20, sort=sort,
+                ["g1"],
+                "alice",
+                "posts",
+                limit=20,
+                sort=sort,
                 cursor={"score": 0.5},
             )
             sql = mock_client.query.call_args[0][0]
@@ -746,9 +753,7 @@ class TestGetAuthorProfiles:
 
     def test_author_not_in_result_is_absent(self):
         with _patch_client() as mock_client:
-            mock_client.query.return_value = _mock_result_rows(
-                [("api.localhost/alice", '{"display_name":"Alice"}')]
-            )
+            mock_client.query.return_value = _mock_result_rows([("api.localhost/alice", '{"display_name":"Alice"}')])
             out = ch.get_author_profiles(["api.localhost/alice", "api.localhost/ghost"])
             assert "api.localhost/ghost" not in out
 

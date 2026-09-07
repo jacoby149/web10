@@ -81,9 +81,7 @@ def read_feed(request: Request, data: FeedRequest):
     next_cursor = None
     if has_more and rows:
         last = rows[-1]
-        next_cursor = (
-            {"created_at": last["created_at"]} if newest else {"score": last["score"]}
-        )
+        next_cursor = {"created_at": last["created_at"]} if newest else {"score": last["score"]}
 
     # The read-time passes (the same order as the read endpoint): the ads
     # (doc.ad + doc.node_ad — D55/D57, must be preserved), then resolved media
