@@ -893,6 +893,39 @@ class TestResolveMediaUrls:
             # the legacy media has no object_key.
             assert signing.generate_presigned_url.call_count == 2
 
+    def test_resolve_media_carries_transcoding_settings_without_manifest_url(self):
+        """The read path carries the media doc's transcoding_settings into the
+        resolved ref (the feed's hls.js player picks on status/variants) — but
+        NEVER the read-minted manifest_url: a sig minted for one reader must
+        not ride the read to another (the endpoint's mint pass mints a fresh
+        per-reader sig)."""
+        body = {"text": "hello", "media_refs": ["vid-1", "img-1"]}
+        with _patch_client() as mock_client:
+            mock_client.query.return_value = _mock_result_rows(
+                [
+                    (
+                        "vid-1",
+                        '{"object_key":"alice/vid.mp4","mime_type":"video/mp4","transcoding_settings":{"enabled":true,"status":"done","variants":[{"height":360,"width":640}],"manifest_url":"/v3/media/hls/manifest?doc_id=stale&sig=stale"}}',
+                        "media_metadata",
+                    ),
+                    (
+                        "img-1",
+                        '{"object_key":"alice/img.png","mime_type":"image/png"}',
+                        "media_metadata",
+                    ),
+                ]
+            )
+            result = ch.resolve_media_urls(body, "alice")
+            refs = {r["doc_id"]: r for r in result["media_refs"]}
+            # Transcoded video: settings carried, the stale manifest_url stripped.
+            ts = refs["vid-1"]["transcoding_settings"]
+            assert ts["enabled"] is True
+            assert ts["status"] == "done"
+            assert ts["variants"] == [{"height": 360, "width": 640}]
+            assert "manifest_url" not in ts
+            # Plain image: no settings.
+            assert refs["img-1"]["transcoding_settings"] is None
+
 
 class TestResolveMinioTypes:
     def test_no_minio_types_unchanged(self):
