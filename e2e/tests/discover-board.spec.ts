@@ -247,21 +247,32 @@ test.describe('Discover board gauntlet — marketing trending page + moderation'
     const postText = `board gauntlet post ${Date.now()}`;
     const docId = await postToDiscover(request, poster.token, postText);
 
+    // ClickHouse is eventually consistent — give the insert time to settle
+    // so the browser's read sees the row.
+    await page.waitForTimeout(3000);
+
     // --- Load the marketing trending page (anon — no auth needed) ---
     await page.goto(`${MARKETING_BASE}/trending`);
     await page.waitForLoadState('networkidle');
     await expect(page.locator('[data-testid="trending-grid"]')).toBeVisible({ timeout: 30_000 });
 
-    // The seeded post renders (contains — the board is shared).
-    {
+    // The seeded post renders (contains — the board is shared). Retry with
+    // reloads in case of ClickHouse visibility lag.
+    let visible = false;
+    for (let attempt = 0; attempt < 3 && !visible; attempt++) {
       const cards = page.locator('[data-testid="trending-card"]');
-      const count = await cards.count();
-      const found = await cards.filter({ hasText: postText }).count();
-      expect(found, `post "${postText}" not on the trending board (${count} cards)`).toBeGreaterThanOrEqual(1);
+      visible = (await cards.filter({ hasText: postText }).count()) > 0;
+      if (!visible && attempt < 2) {
+        await page.reload();
+        await page.waitForLoadState('networkidle');
+        await expect(page.locator('[data-testid="trending-grid"]')).toBeVisible({ timeout: 30_000 });
+      }
     }
+    expect(visible, `post "${postText}" not on the trending board after 3 attempts`).toBeTruthy();
 
     // --- Hide the post (node admin via API) ---
     await hideDoc(request, admin, docId);
+    await page.waitForTimeout(2000);
 
     // Reload — the post is gone.
     await page.reload();
@@ -275,16 +286,18 @@ test.describe('Discover board gauntlet — marketing trending page + moderation'
 
     // --- Unhide the post (node admin via API) ---
     await unhideDoc(request, admin, docId);
+    await page.waitForTimeout(2000);
 
-    // Reload — the post reappears.
-    await page.reload();
-    await page.waitForLoadState('networkidle');
-    await expect(page.locator('[data-testid="trending-grid"]')).toBeVisible({ timeout: 30_000 });
-    {
+    // Reload — the post reappears. Retry with reloads for ClickHouse lag.
+    let reappeared = false;
+    for (let attempt = 0; attempt < 3 && !reappeared; attempt++) {
+      await page.reload();
+      await page.waitForLoadState('networkidle');
+      await expect(page.locator('[data-testid="trending-grid"]')).toBeVisible({ timeout: 30_000 });
       const cards = page.locator('[data-testid="trending-card"]');
-      const found = await cards.filter({ hasText: postText }).count();
-      expect(found, `unhidden post "${postText}" should reappear on the board`).toBeGreaterThanOrEqual(1);
+      reappeared = (await cards.filter({ hasText: postText }).count()) > 0;
     }
+    expect(reappeared, `unhidden post "${postText}" should reappear on the board`).toBeTruthy();
 
     // No uncaught page errors.
     expect(pageErrors).toEqual([]);
