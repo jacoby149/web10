@@ -69,7 +69,6 @@ program's own page before you pitch a brand off them.
 | **Walmart Creator** | Retail, grocery, electronics | Up to 4% | Physical-retail trust, strong conversion on everyday items. |
 | **Target Partners** | Lifestyle, apparel, home | Up to 8% | 7-day cookie (vs Amazon's 24h) — more credit for the click. |
 | **eBay Partner Network** | Used, vintage, refurbished | 1–4% | Inventory you can't buy elsewhere; great for a "finds" niche. |
-| **TikTok Shop Affiliate** | Viral, social-first products | 10–30%+ (volatile) | Native in-app checkout; the highest ceiling, the least stable. |
 | **Shopify Affiliate** | E-commerce software, business tools | Up to 200% of monthly plan | High-value flat payouts for business/creator-economy traffic. |
 | **Fiverr Affiliates** | Freelance, digital services | $15–$150 CPA | Dozens of service categories; fits a "how I run my business" angle. |
 | **Semrush Affiliate** | SEO, marketing, SaaS | $200/sale + $10/trial | 120-day cookie; high-intent digital traffic converts. |
