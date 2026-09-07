@@ -441,11 +441,13 @@ test.describe('Node ads gauntlet — Ad Inventory card → follower feed renders
       const texts = await pageF.locator('[data-testid="post-card"]').allTextContents();
       expect(texts.some((t) => t.includes(targetText))).toBeTruthy();
     }).toPass({ timeout: 20000 });
-    // At density 100, the feed renders a node ad block (the "Sponsored"
-    // dressing, data-ad-variant="node").
-    await expect(pageF.locator('[data-testid="ad-block"][data-ad-variant="node"]')).toBeVisible({ timeout: 20000 });
+    // At density 100, the target post renders a node ad block (the "Sponsored"
+    // dressing). Scope to the target post's card (other posts may also get node
+    // ads — the unscoped locator would match 2+ and violate strict mode).
+    const targetCard = pageF.locator('[data-testid="post-card"]').filter({ hasText: targetText });
+    await expect(targetCard.locator('[data-testid="ad-block"][data-ad-variant="node"]')).toBeVisible({ timeout: 20000 });
     // The "Sponsored" badge is the node ad's label.
-    await expect(pageF.locator('[data-testid="ad-provenance-badge"]', { hasText: 'Sponsored' })).toBeVisible();
+    await expect(targetCard.locator('[data-testid="ad-provenance-badge"]', { hasText: 'Sponsored' })).toBeVisible();
     expect(fErrors, 'follower pageerrors').toEqual([]);
     await ctxF.close();
   });
@@ -485,9 +487,12 @@ test.describe('Node ads gauntlet — Ad Inventory card → follower feed renders
       expect(texts.some((t) => t.includes(postText))).toBeTruthy();
     }).toPass({ timeout: 20000 });
     // The third join in the UI: the creator's ad (violet) + the node's ad
-    // (amber, "Sponsored") both render on the same post.
-    await expect(pageF.locator('[data-testid="ad-block"][data-ad-variant="creator"]')).toBeVisible({ timeout: 20000 });
-    await expect(pageF.locator('[data-testid="ad-block"][data-ad-variant="node"]')).toBeVisible({ timeout: 20000 });
+    // (amber, "Sponsored") both render on the SAME post. Scope to the pinned
+    // post's card (at density 100, other posts also get node ads — the
+    // unscoped locator would match 2+ and violate strict mode).
+    const pinnedCard = pageF.locator('[data-testid="post-card"]').filter({ hasText: postText });
+    await expect(pinnedCard.locator('[data-testid="ad-block"][data-ad-variant="creator"]')).toBeVisible({ timeout: 20000 });
+    await expect(pinnedCard.locator('[data-testid="ad-block"][data-ad-variant="node"]')).toBeVisible({ timeout: 20000 });
     expect(fErrors, 'follower pageerrors').toEqual([]);
     await ctxF.close();
   });
