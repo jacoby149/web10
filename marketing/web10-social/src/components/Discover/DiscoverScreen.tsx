@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useMemo } from 'react';
+import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
@@ -42,11 +42,14 @@ import {
   Search,
   X,
   Video,
+  Play,
+  Pause,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { MARKETING_ORIGIN } from '@/lib/origins';
 import { rankPosts, PRESETS, getPreset, type PresetId, type KnobState, defaultKnobState } from '@/lib/powerMean';
 import { KnobRack } from './KnobRack';
+import { PostLightbox } from '@/components/Bio/PostLightbox';
 
 const LOG = (...args: unknown[]) => console.log('[social:discover]', ...args);
 
@@ -221,6 +224,97 @@ function MediaPlaceholder({ type }: { type: 'image' | 'video' | 'music' }) {
   );
 }
 
+// ── Playable video (the feed's MediaItem video pattern) ─────────────────────
+// The discover grid used to render a static placeholder for video posts —
+// there was no way to watch. This renders a real <video> (tap to play/pause,
+// muted loop, natural aspect ratio capped so a portrait clip can't blow up
+// the card). Full-screen watching + comments live in the PostLightbox, which
+// the card opens on click.
+
+function formatDuration(seconds: number): string {
+  const m = Math.floor(seconds / 60);
+  const s = Math.round(seconds % 60);
+  return m > 0 ? `${m}:${String(s).padStart(2, '0')}` : `${s}s`;
+}
+
+function MediaVideo({ media }: { media: MediaRecord }) {
+  const videoRef = useRef<HTMLVideoElement>(null);
+  const [playing, setPlaying] = useState(false);
+  const [measuredRatio, setMeasuredRatio] = useState<number | null>(null);
+
+  useEffect(() => {
+    if (!playing || !videoRef.current) return;
+    videoRef.current.play().catch(() => {});
+    return () => {
+      videoRef.current?.pause();
+    };
+  }, [playing]);
+
+  // The read path carries the real dimensions; measure on load only as a
+  // fallback for legacy media that predates dimension storage. Reserving the
+  // ratio up front is what keeps the card from shifting.
+  const knownRatio = media.width && media.height ? media.width / media.height : null;
+  const ratio = knownRatio ?? measuredRatio ?? 16 / 9;
+  const onMediaLoaded = (el: HTMLVideoElement) => {
+    if (knownRatio) return;
+    const w = el.videoWidth;
+    const h = el.videoHeight;
+    if (w && h) setMeasuredRatio(w / h);
+  };
+
+  // Natural aspect ratio, capped so a portrait clip can't blow up the card,
+  // object-contain so it never crops (letterboxes on the cap) — matching the
+  // feed + lightbox. The card bg (not black) shows through any letterbox.
+  const containerStyle: React.CSSProperties = { aspectRatio: `${ratio}`, maxHeight: '50vh' };
+
+  return (
+    <div
+      className="bg-elevated overflow-hidden group relative cursor-pointer"
+      style={containerStyle}
+      onClick={() => setPlaying((p) => !p)}
+      role="button"
+      tabIndex={0}
+      aria-label={playing ? 'Pause video' : 'Play video'}
+      onKeyDown={(e) => {
+        if (e.key === 'Enter' || e.key === ' ') {
+          e.preventDefault();
+          setPlaying((p) => !p);
+        }
+      }}
+      data-testid="discover-media-video"
+    >
+      <video
+        ref={videoRef}
+        src={media.url}
+        poster={media.thumbnail_url}
+        onLoadedMetadata={(e) => onMediaLoaded(e.currentTarget)}
+        className="w-full h-full object-contain"
+        preload="metadata"
+        playsInline
+        muted={!playing}
+        loop
+      />
+      {!playing && (
+        <div className="absolute inset-0 flex items-center justify-center bg-black/20 opacity-0 group-hover:opacity-100 transition-opacity duration-150">
+          <div className="flex items-center justify-center w-12 h-12 rounded-full bg-background/80 backdrop-blur-sm">
+            <Play className="w-5 h-5 text-foreground ml-0.5" strokeWidth={2} />
+          </div>
+        </div>
+      )}
+      {playing && (
+        <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+          <Pause className="w-8 h-8 text-foreground/60 animate-pulse" strokeWidth={1.5} />
+        </div>
+      )}
+      {media.duration_seconds && (
+        <div className="absolute bottom-1.5 right-1.5 bg-background/80 rounded px-1.5 text-[0.625rem] font-mono tabular-nums text-foreground">
+          {formatDuration(media.duration_seconds)}
+        </div>
+      )}
+    </div>
+  );
+}
+
 // ── Topic chips ────────────────────────────────────────────────────────────
 
 function buildTopics(tags: string[]): string[] {
@@ -344,6 +438,7 @@ interface DiscoverCardProps {
   authorAvatar?: string;
   mediaItems: MediaRecord[];
   onAuthorClick: () => void;
+  onOpenLightbox: () => void;
 }
 
 function DiscoverCard({
@@ -354,12 +449,15 @@ function DiscoverCard({
   authorAvatar,
   mediaItems,
   onAuthorClick,
+  onOpenLightbox,
 }: DiscoverCardProps) {
   const tier = heatTier(post.score ?? 0, maxScore);
   const displayName = authorName.charAt(0).toUpperCase() + authorName.slice(1);
   const initial = post.author.charAt(0).toUpperCase();
   const avatarColor = hashToColor(post.author);
   const hasMedia = mediaItems.length > 0;
+  const firstMedia = mediaItems[0];
+  const isVideoMedia = firstMedia?.mime_type?.startsWith('video/');
   const mediaType = post.tags?.includes('video')
     ? 'video'
     : post.tags?.includes('music')
@@ -375,9 +473,10 @@ function DiscoverCard({
         'group relative overflow-hidden rounded-lg border border-border bg-card transition-all duration-150',
         'hover:-translate-y-0.5 hover:border-border/80',
         'focus-within:-translate-y-0.5 focus-within:border-border/80',
-        'motion-reduce:transform-none',
+        'motion-reduce:transform-none cursor-pointer',
         HEAT_SHADOW[tier],
       )}
+      onClick={onOpenLightbox}
     >
       <div className="p-4">
         {/* Header: rank + time */}
@@ -392,7 +491,7 @@ function DiscoverCard({
         <div className="mt-3 flex items-start gap-3">
           <button
             type="button"
-            onClick={onAuthorClick}
+            onClick={(e) => { e.stopPropagation(); onAuthorClick(); }}
             className="shrink-0 rounded-full focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
             aria-label={`View ${displayName}'s profile`}
           >
@@ -409,7 +508,7 @@ function DiscoverCard({
           <div className="min-w-0 flex-1">
             <button
               type="button"
-              onClick={onAuthorClick}
+              onClick={(e) => { e.stopPropagation(); onAuthorClick(); }}
               className="flex items-center gap-1.5 truncate text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring rounded"
             >
               <span className="truncate text-sm font-semibold text-foreground">{displayName}</span>
@@ -426,7 +525,9 @@ function DiscoverCard({
         {/* Media */}
         {mediaType && (
           <div className="mt-3 overflow-hidden rounded-md">
-            {mediaType === 'image' && mediaItems.length > 0 ? (
+            {isVideoMedia && firstMedia?.url ? (
+              <MediaVideo media={firstMedia} />
+            ) : mediaType === 'image' && mediaItems.length > 0 ? (
               <div className="aspect-[4/3] w-full overflow-hidden bg-elevated">
                 <img
                   src={mediaItems[0].thumbnail_url || mediaItems[0].url}
@@ -596,6 +697,7 @@ interface DiscoverYouTubeCardProps {
   authorAvatar?: string;
   mediaItems: MediaRecord[];
   onAuthorClick: () => void;
+  onOpenLightbox: () => void;
 }
 
 function DiscoverYouTubeCard({
@@ -605,6 +707,7 @@ function DiscoverYouTubeCard({
   authorAvatar,
   mediaItems,
   onAuthorClick,
+  onOpenLightbox,
 }: DiscoverYouTubeCardProps) {
   const displayName = authorName.charAt(0).toUpperCase() + authorName.slice(1);
   const initial = post.author.charAt(0).toUpperCase();
@@ -616,6 +719,16 @@ function DiscoverYouTubeCard({
     <div
       data-testid="discover-youtube-card"
       className="group/yt cursor-pointer"
+      onClick={onOpenLightbox}
+      role="button"
+      tabIndex={0}
+      aria-label={`Watch ${displayName}'s post`}
+      onKeyDown={(e) => {
+        if (e.key === 'Enter' || e.key === ' ') {
+          e.preventDefault();
+          onOpenLightbox();
+        }
+      }}
     >
       {/* 16:9 thumbnail */}
       <div className="relative overflow-hidden rounded-xl bg-elevated">
@@ -650,7 +763,7 @@ function DiscoverYouTubeCard({
       <div className="mt-2.5 flex gap-2.5">
         <button
           type="button"
-          onClick={onAuthorClick}
+          onClick={(e) => { e.stopPropagation(); onAuthorClick(); }}
           className="shrink-0 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring rounded-full"
           aria-label={`View ${displayName}'s profile`}
         >
@@ -669,7 +782,7 @@ function DiscoverYouTubeCard({
           <div className="mt-0.5 flex items-center gap-1">
             <button
               type="button"
-              onClick={onAuthorClick}
+              onClick={(e) => { e.stopPropagation(); onAuthorClick(); }}
               className="text-xs text-muted-foreground transition-colors hover:text-foreground text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring rounded"
             >
               {displayName}
@@ -750,6 +863,8 @@ export default function DiscoverScreen() {
   const [loading, setLoading] = useState(true);
   const [profileMap, setProfileMap] = useState<Record<string, ProfileRecord>>({});
   const [mediaMap, setMediaMap] = useState<Record<string, MediaRecord[]>>({});
+  const [flatMediaMap, setFlatMediaMap] = useState<Record<string, MediaRecord>>({});
+  const [lightboxPost, setLightboxPost] = useState<PostRecord | null>(null);
 
   // Deep-link: active tag from ?tag= (refresh-safe, shareable)
   const [searchParams, setSearchParams] = useSearchParams();
@@ -941,6 +1056,15 @@ export default function DiscoverScreen() {
           }
           if (Object.keys(mMap).length) {
             setMediaMap(mMap);
+            // The lightbox keys media by a single MediaRecord (the feed's
+            // flatMediaMap pattern) — flatten the per-post arrays by _id.
+            const flat: Record<string, MediaRecord> = {};
+            for (const items of Object.values(mMap)) {
+              for (const m of items) {
+                if (m._id) flat[m._id] = m;
+              }
+            }
+            if (Object.keys(flat).length) setFlatMediaMap(flat);
           }
         } catch {
           // Media resolution failed — degrade gracefully
@@ -1284,6 +1408,7 @@ export default function DiscoverScreen() {
                     }
                     mediaItems={mediaItems}
                     onAuthorClick={() => navigateToUserProfile(post.author_username || '', post.author_provider || '')}
+                    onOpenLightbox={() => setLightboxPost(post)}
                   />
                 );
               })}
@@ -1313,6 +1438,7 @@ export default function DiscoverScreen() {
                   }
                   mediaItems={mediaItems}
                   onAuthorClick={() => navigateToUserProfile(post.author_username || '', post.author_provider || '')}
+                  onOpenLightbox={() => setLightboxPost(post)}
                 />
               );
             })}
@@ -1322,6 +1448,16 @@ export default function DiscoverScreen() {
         )}
       </div>
       </div>
+      {lightboxPost && (
+        <PostLightbox
+          post={lightboxPost}
+          mediaMap={flatMediaMap}
+          onClose={() => setLightboxPost(null)}
+          onReload={loadDiscover}
+          postAuthor={lightboxPost.author_username}
+          postService="posts"
+        />
+      )}
     </div>
   );
 }
