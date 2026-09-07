@@ -178,6 +178,127 @@ class TestThumbnailDims:
 
 
 # ---------------------------------------------------------------------------
+# The read-path mint (documents.py) — the feed's per-reader manifest_url
+# ---------------------------------------------------------------------------
+
+
+class TestMintHlsManifestUrls:
+    def test_doc_itself_mints_manifest_url(self):
+        """A direct read of a media doc (video + transcoding_settings) gets a
+        manifest_url minted for the reader (the media demo's poll path)."""
+        from app.v3.endpoints.documents import _mint_hls_manifest_urls
+
+        docs = _mint_hls_manifest_urls([_doc_with_hls()], "bob")
+        ts = docs[0]["body"]["transcoding_settings"]
+        assert ts["manifest_url"].startswith("/v3/media/hls/manifest?doc_id=doc-1&sig=")
+        payload = hls.verify_sig(ts["manifest_url"].split("sig=")[1], "doc-1")
+        assert payload["username"] == "bob"
+        assert payload["prefix"] == "alice/abc/hls"
+
+    def test_resolved_media_ref_mints_manifest_url_for_reader(self):
+        """The feed path: a post's resolved media_refs carry the media doc's
+        transcoding_settings; the mint pass injects a per-reader manifest_url
+        (the sig binds to the ref's object_key — the raw file's key)."""
+        from app.v3.endpoints.documents import _mint_hls_manifest_urls
+
+        post = {
+            "doc_id": "post-1",
+            "body": {
+                "text": "watch this",
+                "media_refs": [
+                    {
+                        "doc_id": "media-1",
+                        "object_key": "alice/abc/vacation.mp4",
+                        "mime_type": "video/mp4",
+                        "read_url": "http://minio/alice/abc/vacation.mp4?sig=x",
+                        "transcoding_settings": {
+                            "enabled": True,
+                            "status": "done",
+                            "variants": [{"height": 360, "width": 640}],
+                        },
+                    }
+                ],
+            },
+        }
+        docs = _mint_hls_manifest_urls([post], "bob")
+        ts = docs[0]["body"]["media_refs"][0]["transcoding_settings"]
+        assert ts["status"] == "done"
+        assert ts["manifest_url"].startswith("/v3/media/hls/manifest?doc_id=media-1&sig=")
+        payload = hls.verify_sig(ts["manifest_url"].split("sig=")[1], "media-1")
+        assert payload["username"] == "bob"
+        assert payload["prefix"] == "alice/abc/hls"
+
+    def test_ref_without_settings_untouched(self):
+        """Plain media (image, untranscoded video) gets no manifest_url and no
+        sig mint (no JWT churn on the common path)."""
+        from app.v3.endpoints.documents import _mint_hls_manifest_urls
+
+        post = {
+            "doc_id": "post-1",
+            "body": {
+                "media_refs": [
+                    {"doc_id": "img-1", "object_key": "alice/cat.png", "mime_type": "image/png"},
+                    {"doc_id": "vid-1", "object_key": "alice/vid.mp4", "mime_type": "video/mp4"},
+                ],
+            },
+        }
+        docs = _mint_hls_manifest_urls([post], "bob")
+        for ref in docs[0]["body"]["media_refs"]:
+            assert "transcoding_settings" not in ref
+
+    def test_ref_disabled_settings_untouched(self):
+        """A failed/processing transcode (enabled: False) is not minted — the
+        client falls back to the native <video> path."""
+        from app.v3.endpoints.documents import _mint_hls_manifest_urls
+
+        post = {
+            "doc_id": "post-1",
+            "body": {
+                "media_refs": [
+                    {
+                        "doc_id": "vid-1",
+                        "object_key": "alice/vid.mp4",
+                        "transcoding_settings": {"enabled": False, "status": "failed", "error": "boom"},
+                    }
+                ],
+            },
+        }
+        docs = _mint_hls_manifest_urls([post], "bob")
+        ref = docs[0]["body"]["media_refs"][0]
+        assert ref["transcoding_settings"]["status"] == "failed"
+        assert "manifest_url" not in ref["transcoding_settings"]
+
+    def test_inline_ad_media_ref_mints(self):
+        """The pinned ad's resolved media_refs get minted the same way (the ad
+        rides the post's read)."""
+        from app.v3.endpoints.documents import _mint_hls_manifest_urls
+
+        post = {
+            "doc_id": "post-1",
+            "body": {"text": "post"},
+            "ad": {
+                "doc_id": "ad-1",
+                "author_key": "alice",
+                "body": {
+                    "media_refs": [
+                        {
+                            "doc_id": "ad-media-1",
+                            "object_key": "alice/ad-vid.mp4",
+                            "transcoding_settings": {"enabled": True, "status": "done"},
+                        }
+                    ]
+                },
+            },
+        }
+        docs = _mint_hls_manifest_urls([post], "bob")
+        ts = docs[0]["ad"]["body"]["media_refs"][0]["transcoding_settings"]
+        assert ts["manifest_url"].startswith("/v3/media/hls/manifest?doc_id=ad-media-1&sig=")
+        payload = hls.verify_sig(ts["manifest_url"].split("sig=")[1], "ad-media-1")
+        assert payload["username"] == "bob"
+        assert payload["prefix"] == "alice/hls"
+
+
+# ---------------------------------------------------------------------------
 # Endpoints — the security seams
 # ---------------------------------------------------------------------------
 

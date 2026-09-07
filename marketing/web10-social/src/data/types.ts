@@ -171,17 +171,34 @@ export function fromV3DocToAd(doc: V3Document): AdRecord {
 // ── Media ───────────────────────────────────────────────────────────────────
 
 /**
- * The D44 transcode status surface on a media doc (`transcoding_settings`).
- * `manifest_url` is a path-only URL (the client prepends the API origin),
- * minted per-reader on read with a 10-minute sig (minio-auth-bifurcated).
+ * A transcoded rendition (D44 — transcoding-foundation.md). The node is
+ * ratio-agnostic: width derives from the source ratio, height is the target.
+ */
+export interface TranscodingVariant {
+  width: number;
+  height: number;
+  fps?: number;
+  bitrate_kbps?: number;
+  codec?: string;
+  duration_seconds?: number;
+  url?: { type: string; value: string };
+}
+
+/**
+ * The media doc's `transcoding_settings` — the document is the status
+ * surface (status: processing → done | failed). On a post read, the API
+ * carries it into the resolved media ref and mints a per-reader
+ * `manifest_url` (a 10-min sig bound to (reader, doc, hls prefix) — the
+ * expiry is the group-membership re-check cadence). Path-only URL: the
+ * client prepends its API origin.
  */
 export interface TranscodingSettings {
   enabled?: boolean;
-  status?: 'queued' | 'processing' | 'done' | 'failed';
-  error?: string;
+  status?: 'processing' | 'done' | 'failed';
+  variants?: TranscodingVariant[];
+  thumbnails?: { width: number; height: number; timestamp_seconds?: number; url?: { type: string; value: string } }[];
   manifest_url?: string;
-  variants?: unknown[];
-  thumbnails?: unknown[];
+  error?: string;
 }
 
 export interface MediaRecord {
@@ -196,7 +213,9 @@ export interface MediaRecord {
   duration_seconds?: number;
   thumbnail_url?: string;
   thumbnail_object_key?: string;
-  hls_manifest_url?: string;
+  /** Present on transcoded video (D44) — the hls.js player picks on
+   *  `status === 'done'` + `manifest_url`; anything else plays the
+   *  native <video> path (the Phase-2 import path plays raw MP4s). */
   transcoding_settings?: TranscodingSettings;
   caption?: string;
   alt_text?: string;
@@ -221,7 +240,10 @@ export interface ResolvedMediaRef {
   height?: number | null;
   duration_seconds?: number | null;
   thumbnail_url?: string | null;
-  transcoding_settings?: TranscodingSettings | null;
+  /** The media doc's transcoding_settings (status + variants + the
+   *  read-minted manifest_url) — carried so the feed can pick the hls.js
+   *  player for transcoded video without a second read. */
+  transcoding_settings?: TranscodingSettings;
 }
 
 /** The doc_id a media ref addresses — strings are doc_ids, resolved objects carry it. */
@@ -242,7 +264,7 @@ export function fromResolvedMediaRef(r: ResolvedMediaRef): MediaRecord {
     height: r.height || undefined,
     duration_seconds: r.duration_seconds || undefined,
     thumbnail_url: r.thumbnail_url || undefined,
-    transcoding_settings: r.transcoding_settings || undefined,
+    transcoding_settings: r.transcoding_settings,
   };
 }
 
@@ -260,7 +282,6 @@ export function fromV3DocToMedia(doc: V3Document): MediaRecord {
     duration_seconds: (body.duration_seconds as number) || undefined,
     thumbnail_url: (body.thumbnail_url as string) || undefined,
     thumbnail_object_key: (body.thumbnail_object_key as string) || undefined,
-    hls_manifest_url: (body.hls_manifest_url as string) || undefined,
     transcoding_settings: (body.transcoding_settings as TranscodingSettings) || undefined,
     caption: (body.caption as string) || undefined,
     alt_text: (body.alt_text as string) || undefined,

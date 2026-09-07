@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { ChevronLeft, ChevronRight, X, Heart, MessageCircle, Edit3, Trash2, Eye, EyeOff, Share2, Check } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
@@ -20,18 +20,29 @@ import { CommentThread } from '@/components/Feed/CommentThread';
 import { TextWithLinks } from '@/components/Feed/LinkEmbed';
 import { AdBlock } from '@/components/Feed/AdBlock';
 import { cn } from '@/lib/utils';
-import { useHlsVideo } from '@/lib/useHlsVideo';
+import { HlsVideoPlayer } from '@/components/Feed/HlsVideoPlayer';
 
-/** The lightbox's video pane — D44: adaptive HLS when the transcode is done
- *  (hls.js / native Safari), the direct read_url otherwise. */
+/** The lightbox's video pane — D44: transcoded video plays through the
+ *  hls.js player (the feed card's player, 3.67.0); non-transcoded video
+ *  (the Phase-2 import path) plays the native <video>. */
 function LightboxVideo({ media }: { media: MediaRecord }) {
-  const videoRef = useRef<HTMLVideoElement>(null);
-  const hlsManifest = useHlsVideo(videoRef, media);
+  const ts = media.transcoding_settings;
+  if (ts?.status === 'done' && ts.manifest_url) {
+    const v0 = ts.variants?.[0];
+    return (
+      <HlsVideoPlayer
+        manifestUrl={ts.manifest_url}
+        poster={media.thumbnail_url}
+        width={v0?.width || media.width}
+        height={v0?.height || media.height}
+        className="w-full"
+      />
+    );
+  }
   return (
     <video
-      ref={videoRef}
       key={media._id || media.url}
-      src={hlsManifest ? undefined : media.url}
+      src={media.url}
       poster={media.thumbnail_url}
       controls
       playsInline

@@ -18,9 +18,8 @@
          demos' docs/wapi.js. KEEP IN SYNC with sdk/dist/browser.js —
          the Dockerfile should rebuild it from source (see .context note). -->
     <script src="/wapi.js"></script>
-    <!-- hls.js (D44): vendored, same file as the media demo. The feed's
-         video player uses it for adaptive HLS playback (Safari native
-         fallback). Must load before the app bundle. -->
+    <!-- hls.js (vendored): adaptive-bitrate HLS playback for transcoded video
+         posts (D44 — the media demo's player is the reference). No CDN dep. -->
     <script src="/hls.min.js"></script>
     <script type="module" src="/src/main.tsx"></script>
     <script src="/registerWorker.js"></script>

@@ -33,11 +33,11 @@ import {
 import { KnobRack } from '@/components/Discover/KnobRack';
 import { Heart, MessageCircle, Play, Pause, Edit3 } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { useHlsVideo } from '@/lib/useHlsVideo';
 import { MARKETING_ORIGIN } from '@/lib/origins';
 import { CommentThread } from './CommentThread';
 import { TextWithLinks } from './LinkEmbed';
 import { AdBlock } from './AdBlock';
+import { HlsVideoPlayer } from './HlsVideoPlayer';
 import { PostLightbox } from '@/components/Bio/PostLightbox';
 
 const LOG = (...args: unknown[]) => console.log('[social:feed]', ...args);
@@ -101,10 +101,6 @@ function MediaItem({ media }: { media: MediaRecord }) {
   const videoRef = useRef<HTMLVideoElement>(null);
   const [measuredRatio, setMeasuredRatio] = useState<number | null>(null);
 
-  // D44: adaptive HLS when the transcode is done (hls.js / native Safari),
-  // the direct read_url otherwise (processing / failed / no HLS support).
-  const hlsManifest = useHlsVideo(videoRef, isVideo ? media : null);
-
   useEffect(() => {
     if (!playing || !videoRef.current) return;
     videoRef.current.play().catch(() => {});
@@ -112,6 +108,25 @@ function MediaItem({ media }: { media: MediaRecord }) {
       videoRef.current?.pause();
     };
   }, [playing]);
+
+  // Transcoded video (D44): the read carried the media doc's
+  // transcoding_settings + a per-reader manifest_url — play it through the
+  // hls.js player (the media demo's player: quality/speed/fullscreen,
+  // vertical layout for 9:16). The ratio comes from the lowest variant
+  // (the source ratio, preserved by the node).
+  const ts = media.transcoding_settings;
+  if (isVideo && ts?.status === 'done' && ts.manifest_url) {
+    const v0 = ts.variants?.[0];
+    LOG('media — transcoded video, hls.js player:', media._id, 'manifest:', ts.manifest_url, 'variants:', ts.variants?.map((v) => `${v.width}x${v.height}`).join('/'));
+    return (
+      <HlsVideoPlayer
+        manifestUrl={ts.manifest_url}
+        poster={media.thumbnail_url}
+        width={v0?.width || media.width}
+        height={v0?.height || media.height}
+      />
+    );
+  }
 
   const src = media.thumbnail_url || media.url;
 
@@ -151,7 +166,7 @@ function MediaItem({ media }: { media: MediaRecord }) {
       >
         <video
           ref={videoRef}
-          src={hlsManifest ? undefined : media.url}
+          src={media.url}
           poster={media.thumbnail_url}
           onLoadedMetadata={(e) => onMediaLoaded(e.currentTarget)}
           className="w-full h-full object-contain"
