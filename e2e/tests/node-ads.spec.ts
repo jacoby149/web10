@@ -210,19 +210,6 @@ async function readDiscoverWithAds(
   }));
 }
 
-/** Find a post by text in the discover read (polls for ClickHouse consistency). */
-async function findDiscoverPostByText(
-  request: APIRequestContext, token: string, text: string, timeout = 15000,
-): Promise<{ doc_id: string; text: string; ad_mode?: string; ad_target?: string; ad?: any; node_ad?: any }> {
-  let found: any;
-  await expect(async () => {
-    const docs = await readDiscoverWithAds(request, token);
-    found = docs.find((d) => d.text === text);
-    expect(found, `post "${text}" not in discover`).toBeTruthy();
-  }).toPass({ timeout });
-  return found;
-}
-
 function setTokenCookie(context: any, domain: string, token: string) {
   return context.addCookies([{ name: 'token', value: token, domain, path: '/', secure: false, httpOnly: false }]);
 }
@@ -274,12 +261,19 @@ test.describe('Node ads (D57)', () => {
     // Density: every post gets a node ad.
     await setNodeAdPercentage(request, admin, 100);
 
-    const post = await findDiscoverPostByText(request, reader.token, postText);
-    // The read attaches an active node ad (the third join's node side).
-    expect(post.node_ad, 'the read should attach a node ad at percentage 100').toBeTruthy();
-    expect(post.node_ad.tags).toContain('node_ad');
-    expect(post.node_ad.body.status).toBe('active');
-    expect(post.node_ad.body.offer.link.value).toBe('https://workflowco.com?ref=node');
+    // Poll until the node ad is attached (the node ad's INSERT + the config
+    // update are eventually consistent — the read may run before they're visible).
+    await expect(async () => {
+      const docs = await readDiscoverWithAds(request, reader.token);
+      const post = docs.find((d) => d.text === postText);
+      expect(post, `post "${postText}" not in discover`).toBeTruthy();
+      if (!post) throw new Error('post not found');
+      // The read attaches an active node ad (the third join's node side).
+      expect(post.node_ad, 'the read should attach a node ad at percentage 100').toBeTruthy();
+      expect(post.node_ad.tags).toContain('node_ad');
+      expect(post.node_ad.body.status).toBe('active');
+      expect(post.node_ad.body.offer.link.value).toBe('https://workflowco.com?ref=node');
+    }).toPass({ timeout: 15000 });
   });
 
   test('a pinned post returns BOTH doc.ad (the creator\'s ad) AND doc.node_ad (the node\'s ad)', async ({ request }) => {
@@ -305,15 +299,22 @@ test.describe('Node ads (D57)', () => {
     await createNodeAd(request, admin, `node ad ${Date.now()}`, makeOffer());
     await setNodeAdPercentage(request, admin, 100);
 
-    const post = await findDiscoverPostByText(request, follower.token, postText);
-    // The third join: BOTH ads on the same post. The creator's monetization is
-    // never suppressed by the node's.
-    expect(post.ad_mode).toBe('pinned');
-    expect(post.ad, 'the read should serve the creator\'s pinned ad (doc.ad)').toBeTruthy();
-    expect(post.ad.doc_id).toBe(adDocId);
-    expect(post.node_ad, 'the read should ALSO attach the node ad (doc.node_ad)').toBeTruthy();
-    expect(post.node_ad.tags).toContain('node_ad');
-    expect(post.node_ad.doc_id).not.toBe(adDocId);
+    // Poll until BOTH ads are attached (the node ad's INSERT + the config update
+    // are eventually consistent).
+    await expect(async () => {
+      const docs = await readDiscoverWithAds(request, follower.token);
+      const post = docs.find((d) => d.text === postText);
+      expect(post, `post "${postText}" not in discover`).toBeTruthy();
+      if (!post) throw new Error('post not found');
+      // The third join: BOTH ads on the same post. The creator's monetization is
+      // never suppressed by the node's.
+      expect(post.ad_mode).toBe('pinned');
+      expect(post.ad, 'the read should serve the creator\'s pinned ad (doc.ad)').toBeTruthy();
+      expect(post.ad.doc_id).toBe(adDocId);
+      expect(post.node_ad, 'the read should ALSO attach the node ad (doc.node_ad)').toBeTruthy();
+      expect(post.node_ad.tags).toContain('node_ad');
+      expect(post.node_ad.doc_id).not.toBe(adDocId);
+    }).toPass({ timeout: 15000 });
   });
 
   test('percentage 0 = no node ads (the density control off)', async ({ request }) => {
@@ -323,12 +324,28 @@ test.describe('Node ads (D57)', () => {
 
     const postText = `no node ad post ${Date.now()}`;
     await createDoc(request, reader.token, DISCOVER_GROUP_ID, { text: postText, tags: [] });
-    // An active node ad exists, but the density is off.
+    // An active node ad exists.
     await createNodeAd(request, admin, `node ad ${Date.now()}`, makeOffer());
+    // First turn density ON and confirm the node ad attaches (so the "absent"
+    // assertion below is meaningful — not a premature pass from the node ad's
+    // INSERT not being visible yet).
+    await setNodeAdPercentage(request, admin, 100);
+    await expect(async () => {
+      const docs = await readDiscoverWithAds(request, reader.token);
+      const post = docs.find((d) => d.text === postText);
+      expect(post, `post "${postText}" not in discover`).toBeTruthy();
+      if (!post) throw new Error('post not found');
+      expect(post.node_ad, 'node ad should attach at percentage 100').toBeTruthy();
+    }).toPass({ timeout: 15000 });
+    // Now turn density OFF.
     await setNodeAdPercentage(request, admin, 0);
-
-    const post = await findDiscoverPostByText(request, reader.token, postText);
-    expect(post.node_ad, 'percentage 0 must NOT attach a node ad').toBeUndefined();
+    await expect(async () => {
+      const docs = await readDiscoverWithAds(request, reader.token);
+      const post = docs.find((d) => d.text === postText);
+      expect(post, `post "${postText}" not in discover`).toBeTruthy();
+      if (!post) throw new Error('post not found');
+      expect(post.node_ad, 'percentage 0 must NOT attach a node ad').toBeUndefined();
+    }).toPass({ timeout: 15000 });
   });
 
   test('percentage 100 = every post in the feed gets a node ad', async ({ request }) => {
@@ -363,17 +380,24 @@ test.describe('Node ads (D57)', () => {
 
 test.describe('Node ads gauntlet — Ad Inventory card → follower feed renders the Sponsored block', () => {
   test('operator creates a node ad via the Ad Inventory card; the follower\'s feed renders the Sponsored node ad block', async ({ browser, request }) => {
-    // Setup (API): density 100 + a regular post on the board (the target) + a
-    // follower who reads the discover board.
+    // Setup (API): a creator with a followers group + a target post in it; a
+    // follower who follows the creator (so the target post is in their feed —
+    // the feed reads all groups EXCEPT discover, so the target must be on a
+    // followers group, not the discover board). Density 100.
     const admin = await adminToken(request);
     // The operator creates node ads via the card (the authenticator's v3 client,
     // Origin: auth.localhost). The document create is app-contract-gated, so the
     // admin needs a contract for the authenticator origin to write posts.
     await addAppContract(request, admin, AUTH_BASE, SOCIAL_CONTRACT_PERMISSIONS);
-    const follower = await signupAndLogin(request, 'nag1');
-    await addAppContract(request, follower.token, SOCIAL_ORIGIN, SOCIAL_CONTRACT_PERMISSIONS);
+    const creator = await signupAndLogin(request, 'nag1c');
+    const follower = await signupAndLogin(request, 'nag1f');
+    for (const u of [creator, follower]) {
+      await addAppContract(request, u.token, SOCIAL_ORIGIN, SOCIAL_CONTRACT_PERMISSIONS);
+    }
+    const f = await createFollowersGroupViaApi(request, creator.token, creator.username);
     const targetText = `gauntlet node ad target ${Date.now()}`;
-    await createDoc(request, follower.token, DISCOVER_GROUP_ID, { text: targetText, tags: [] });
+    await createDoc(request, creator.token, f, { text: targetText, tags: [] });
+    await joinGroup(request, follower.token, f);
     await setNodeAdPercentage(request, admin, 100);
 
     // --- The OPERATOR creates a node ad via the Ad Inventory card ---
@@ -412,7 +436,7 @@ test.describe('Node ads gauntlet — Ad Inventory card → follower feed renders
     await setTokenCookie(ctxF, 'auth.localhost', follower.token);
     await pageF.goto(`${SOCIAL_BASE}/feed`);
     await pageF.waitForLoadState('networkidle');
-    // The target post is in the follower's feed (the discover board).
+    // The target post is in the follower's feed (the creator's followers group).
     await expect(async () => {
       const texts = await pageF.locator('[data-testid="post-card"]').allTextContents();
       expect(texts.some((t) => t.includes(targetText))).toBeTruthy();
@@ -427,9 +451,10 @@ test.describe('Node ads gauntlet — Ad Inventory card → follower feed renders
   });
 
   test('a creator\'s pinned post shows BOTH the creator\'s ad AND the node\'s ad', async ({ browser, request }) => {
-    // Setup (API): a creator with a followers group + a creator ad; a post on
-    // the discover board with the creator ad pinned; a node ad; density 100; a
-    // follower who follows the creator.
+    // Setup (API): a creator with a followers group + a creator ad; a post in the
+    // followers group with the creator ad pinned (the feed reads all groups
+    // EXCEPT discover, so the post must be on a followers group); a node ad;
+    // density 100; a follower who follows the creator.
     const admin = await adminToken(request);
     const creator = await signupAndLogin(request, 'nag2c');
     const follower = await signupAndLogin(request, 'nag2f');
@@ -441,7 +466,7 @@ test.describe('Node ads gauntlet — Ad Inventory card → follower feed renders
       text: 'gauntlet creator ad', tags: ['ad'], offer: makeOffer({ partner: 'Amazon', link: 'https://amzn.to/abc?tag=gauntlet-20', disclosure: 'I may earn a commission.' }), status: 'active',
     });
     const postText = `gauntlet both ads post ${Date.now()}`;
-    const postDocId = await createDoc(request, creator.token, DISCOVER_GROUP_ID, { text: postText, tags: [] });
+    const postDocId = await createDoc(request, creator.token, f, { text: postText, tags: [] });
     await pinAdToPost(request, creator.token, postDocId, adDocId);
     await joinGroup(request, follower.token, f);
     await createNodeAd(request, admin, `gauntlet node ad ${Date.now()}`, makeOffer());
