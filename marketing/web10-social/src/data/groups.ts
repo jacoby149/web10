@@ -398,14 +398,19 @@ export async function getGroupsManages(): Promise<V3Group[]> {
 }
 
 /**
- * Get feed groups — all groups minus discover.
+ * Get feed groups — the followers groups only (the user's own + the ones
+ * they follow). The feed is the "following" feed: it shows the user's own
+ * posts + posts from people the user follows. DM groups, community groups,
+ * and close-friends groups are NOT part of the feed — they surface in the
+ * Messages and Groups screens respectively. Including them leaked posts from
+ * people the user didn't follow (DM recipients, community members).
  */
 export async function getFeedGroups(): Promise<string[]> {
   const groups = await getMyGroups();
   const feedGroups = groups
-    .filter((g) => g.group_id !== getDiscoverGroupId())
+    .filter((g) => g.group_id.endsWith('/followers'))
     .map((g) => g.group_id);
-  LOG('getFeedGroups —', groups.length, 'my groups →', feedGroups.length, 'feed groups (minus discover)');
+  LOG('getFeedGroups —', groups.length, 'my groups →', feedGroups.length, 'feed groups (followers only)');
   return feedGroups;
 }
 

@@ -4,6 +4,7 @@ import {
   isAppStorageGroup,
   isInfrastructureGroup,
   getMyCommunityGroups,
+  getFeedGroups,
   createCommunityGroup,
   readGroupFeed,
 } from '../../data/groups';
@@ -61,6 +62,44 @@ describe('app-storage group filtering', () => {
     expect(ids).toContain('api.localhost/groups/users/jacoby149/gaming-night');
     expect(ids).toContain('api.localhost/groups/users/bob/photography');
     expect(visible).toHaveLength(2);
+  });
+});
+
+describe('getFeedGroups (the following feed — followers groups only)', () => {
+  it('keeps only followers groups; drops DM / app-storage / discover / close-friends / community', async () => {
+    const mock = mockV3Client('jacoby149');
+    mock.getMyGroups.mockResolvedValue([
+      // discover board — its own feed, excluded
+      { group_id: 'api.localhost/groups/web10/discover', join_policy: 'open', my_role: 'member', member_count: 179 },
+      // my followers group — my own posts attach here, KEPT
+      { group_id: 'api.localhost/groups/users/jacoby149/followers', join_policy: 'open', my_role: 'owner', member_count: 10 },
+      // a followed user's followers group — their posts attach here, KEPT
+      { group_id: 'api.localhost/groups/users/bob/followers', join_policy: 'open', my_role: 'member', member_count: 5 },
+      // my close-friends group — NOT a following-feed group, excluded
+      { group_id: 'api.localhost/groups/users/jacoby149/close-friends', join_policy: 'request', my_role: 'owner', member_count: 3 },
+      // a DM group — messages live here (the bug: they leaked into the feed as empty posts)
+      { group_id: 'api.localhost/groups/users/jacoby149/dm-bob-jacoby149', join_policy: 'invite_only', my_role: 'member', member_count: 2 },
+      // app-storage groups — other apps' data, excluded
+      { group_id: 'api.localhost/groups/users/jacoby149/media-jacoby149', join_policy: 'invite_only', my_role: 'owner', member_count: 1 },
+      { group_id: 'api.localhost/groups/users/jacoby149/notes-jacoby149', join_policy: 'invite_only', my_role: 'owner', member_count: 1 },
+      // real community groups — NOT a following-feed group (surfaces in the Groups screen), excluded
+      { group_id: 'api.localhost/groups/users/jacoby149/gaming-night', join_policy: 'open', my_role: 'member', member_count: 42 },
+      { group_id: 'api.localhost/groups/users/bob/photography', join_policy: 'request', my_role: 'owner', member_count: 7 },
+    ]);
+    const feedGroups = await getFeedGroups();
+
+    // Only the followers groups survive — the following feed
+    expect(feedGroups).toContain('api.localhost/groups/users/jacoby149/followers');
+    expect(feedGroups).toContain('api.localhost/groups/users/bob/followers');
+    expect(feedGroups).toHaveLength(2);
+    // Everything else is dropped (the unfollowed-user leak classes)
+    expect(feedGroups).not.toContain('api.localhost/groups/web10/discover');
+    expect(feedGroups).not.toContain('api.localhost/groups/users/jacoby149/dm-bob-jacoby149');
+    expect(feedGroups).not.toContain('api.localhost/groups/users/jacoby149/media-jacoby149');
+    expect(feedGroups).not.toContain('api.localhost/groups/users/jacoby149/notes-jacoby149');
+    expect(feedGroups).not.toContain('api.localhost/groups/users/jacoby149/close-friends');
+    expect(feedGroups).not.toContain('api.localhost/groups/users/jacoby149/gaming-night');
+    expect(feedGroups).not.toContain('api.localhost/groups/users/bob/photography');
   });
 });
 
