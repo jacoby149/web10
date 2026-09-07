@@ -1,5 +1,6 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import * as v3 from '../../data/v3';
+import { readMyPosts } from '../../data/posts';
 
 function mockV3Client() {
   const mock = {
@@ -50,16 +51,27 @@ describe('posts v3 data layer', () => {
     });
   });
 
-  describe('readMyPosts (v3: read from posts collection)', () => {
-    it('reads posts from the users groups', async () => {
+  describe('readMyPosts (v3: the owner\'s OWN posts only)', () => {
+    it('reads from the owner\'s own followers + close-friends groups (not the feed)', async () => {
       const docs = [
-        { doc_id: 'p1', body: { text: 'public' }, created_at: '2026-07-19T00:00:00Z' },
-        { doc_id: 'p2', body: { text: 'private' }, created_at: '2026-07-20T00:00:00Z' },
+        { doc_id: 'p1', author_key: 'web10.app/users/alice', body: { text: 'my public post' }, created_at: '2026-07-19T00:00:00Z' },
+        { doc_id: 'p2', author_key: 'web10.app/users/alice', body: { text: 'my private post' }, created_at: '2026-07-20T00:00:00Z' },
       ];
       mock.read.mockResolvedValue(docs);
-      const result = await mock.read('posts', { groups: ['me'] });
-      expect(mock.read).toHaveBeenCalledWith('posts', { groups: ['me'] });
-      expect(result).toEqual(docs);
+      const result = await readMyPosts();
+      // The owner's own posts live in the owner's OWN followers + close-friends
+      // groups — NOT the feed groups (everyone they follow + communities + DMs).
+      expect(mock.read).toHaveBeenCalledWith('posts', {
+        groups: ['web10.app/groups/users/alice/followers', 'web10.app/groups/users/alice/close-friends'],
+      });
+      expect(result).toHaveLength(2);
+    });
+
+    it('returns [] when not signed in', async () => {
+      mock.readToken.mockReturnValue(null);
+      const result = await readMyPosts();
+      expect(result).toEqual([]);
+      expect(mock.read).not.toHaveBeenCalled();
     });
   });
 
