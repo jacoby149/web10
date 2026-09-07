@@ -22,7 +22,7 @@ web10:
 
 | Your YouTube… | Becomes on web10… |
 |---|---|
-| Videos | Posts with the full record — title, description, publish date, duration, view/like counts, and the thumbnail. The **video files themselves don't come over** (Google never exports the bytes) — each post carries the watch link, and you can re-upload the file for native playback when you want it. |
+| Videos | Posts with the full record — title, description, publish date, duration, tags, and the thumbnail. **Your export includes the video files themselves**, so the importer brings your catalog over *and* your videos for native playback — not just a link back to YouTube. |
 | Channel | Your creator profile — name, bio, and your channel URL. |
 | Comments (on your videos) | Comments on the matching posts. |
 | **Subscribers** | **Don't come over — and that's the point.** Google keeps your subscriber list; there's no export for it. On web10 your audience is the people who *choose* to follow you — the ones you actually own, who see everything you post. |
@@ -33,15 +33,20 @@ going through Google. On web10 you don't import a list you don't own; you build
 an audience that's yours. The fans who migrate are the ones who stay, and
 100% delivery means every single one of them sees everything.
 
+(Takeout doesn't export view/like counts — those numbers stay on YouTube.
+Everything else about your videos comes with you.)
+
 ### How it works
 
 1. **Export** your YouTube data with Google Takeout (steps in the next
    section). The default export is fine — Takeout splits big exports into
-   ~2GB `.tar` parts, and the importer takes them as-is (multiple files are
-   expected, not a problem).
+   ~2GB parts (`.tar` or `.zip`, your choice), and the importer takes them
+   as-is (multiple files are expected, not a problem).
 2. **Import** in your authenticator: Settings → **Import from YouTube** →
-   choose your Takeout files → Start Import. The node stages everything under
-   your account — nothing publishes until you triage it.
+   choose your Takeout files → Start Import. The node brings over your catalog
+   (every video as a post with its full record + thumbnail), your comments,
+   your profile, and your video files — staged under your account. Nothing
+   publishes until you triage it.
 3. **Triage** in the social app's staging area: publish what you want public,
    keep the rest private, or delete. Your catalog keeps its original dates.
 
