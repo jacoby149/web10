@@ -48,8 +48,19 @@ def get_s3_signing_client():
 def ensure_bucket(s3):
     try:
         s3.head_bucket(Bucket=settings.S3_BUCKET)
+        return
     except Exception:
+        pass
+    try:
         s3.create_bucket(Bucket=settings.S3_BUCKET)
+    except Exception as e:
+        # Idempotent: a concurrent caller (a parallel import / upload) may have
+        # created the bucket between our head and create. Both S3's
+        # BucketAlreadyOwnedByYou and BucketAlreadyExists mean "it exists now"
+        # — success, not an error. Anything else is a real failure.
+        code = getattr(e, "response", {}).get("Error", {}).get("Code", "")
+        if code not in ("BucketAlreadyOwnedByYou", "BucketAlreadyExists"):
+            raise
 
 
 def make_object_key(username: str, filename: str) -> str:
