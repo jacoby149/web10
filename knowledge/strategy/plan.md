@@ -301,12 +301,12 @@ hosting invoice. The KB is the spec: `web10-v3/social/node-ads.md`. Lane is
 `node-ads` in `parallel-execution.md`.
 
 - [✓] **Decision: D57** (`knowledge/strategy/decisions.md`) — two-layer ad model (creator + node); v3 is ads only (no Stripe, no memberships, no tips — the payment model is v4); read-time attachment at a percentage; the third join (`doc.ad` + `doc.node_ad`, both can be present); usage-based pricing (MongoDB model); the v3/v4 split rationale (Stripe Connect = migration lock-in + onboarding friction)
-- [✓] **KB: `node-ads.md`** (`knowledge/knowledge-base/web10-v3/social/node-ads.md`) — the node ad object, the read-time attachment (the third join), the density control, the renderer (both ads on the same post), the operator's revenue model (hosting + node ad revenue 85-90%), the "what this is NOT" (not a payment processor, v3 is ads only), security invariants. (3.63.0: the prose drift fixed — the node ad attaches to *any* post at the percentage, both ads coexist, not "only fills the `ad_mode = 'none'` gap.")
+- [✓] **KB: `node-ads.md`** (`knowledge/knowledge-base/web10-v3/social/node-ads.md`) — the node ad object, the read-time attachment (the third join), the density control, the renderer (both ads on the same post), the operator's revenue model (hosting + node ad revenue 85-90%), the "what this is NOT" (not a payment processor, v3 is ads only), security invariants. (3.64.0: the prose drift fixed — the node ad attaches to *any* post at the percentage, both ads coexist, not "only fills the `ad_mode = 'none'` gap.")
 - [✓ 3.37.0] **`node_ad_percentage` config** — new field on `NodeConfig` + `ConfigUpdate` (integer, 0-100, default 10); the Node Config UI exposes it
 - [✓ 3.37.0] **Node ad query + read-time attachment (the third join)** (`api/app/v3/`) — `get_active_node_ads()` (bounded query); the read enriches posts with node ads at the configured percentage (deterministic hash, round-robin); the response carries both `doc.ad` and `doc.node_ad`
 - [✓ 3.57.0] **Renderer: both ads on the same post** (`marketing/web10-social/`) — the post renders with up to two ad blocks: the creator's ad + the node's ad ("Sponsored" label + node disclosure); ads render as posts (media-aware, creator violet / node amber dressing, disclosure names the author)
-- [✓ 3.63.0] **Ad Inventory card (authenticator)** (`ui/src/components/Studio/`) — percentage slider (0-100, writes `node_ad_percentage`), list of active node ads (creative, offer, status), create/pause/resume/retire (writes `posts` docs tagged `ad` + `node_ad` to the discover group); all states designed (empty → CTA, skeleton, error)
-- [✓ 3.63.0] **Tests** — unit (`api/tests/test_node_ads.py`: query + attachment, percentage 0/10/100, determinism per (doc, reader), round-robin, the third join, I3) + e2e (`e2e/tests/node-ads.spec.ts`: operator creates node ad → feed shows it → pinned post shows BOTH ads → percentage 0 = off; browser gauntlet: Ad Inventory card → "Sponsored" block → pinned post shows both)
+- [✓ 3.64.0] **Ad Inventory card (authenticator)** (`ui/src/components/Studio/`) — percentage slider (0-100, writes `node_ad_percentage`), list of active node ads (creative, offer, status), create/pause/resume/retire (writes `posts` docs tagged `ad` + `node_ad` to the discover group); all states designed (empty → CTA, skeleton, error)
+- [✓ 3.64.0] **Tests** — unit (`api/tests/test_node_ads.py`: query + attachment, percentage 0/10/100, determinism per (doc, reader), round-robin, the third join, I3) + e2e (`e2e/tests/node-ads.spec.ts`: operator creates node ad → feed shows it → pinned post shows BOTH ads → percentage 0 = off; browser gauntlet: Ad Inventory card → "Sponsored" block → pinned post shows both)
 
 ## Platform Telemetry (D56) — Platform
 
@@ -472,19 +472,19 @@ were never built (the changelog's "the API is 3.37.0" was wrong). Lane is
 **The target: YouTubers, narrowly.** Operator: "porting your youtube eventually right! want to narrowly target youtubers only since google has such a great export import thing!" The first import target is **YouTubers specifically** — not all platforms. Two reasons: (1) a YouTuber is the ideal web10 user — they have a big audience (subscribers) they don't own (it's Google's), and the web10 pitch is "own your audience" (the reach gap: 1M subs, 300k reach). Porting to web10 = they own their audience, 100% delivery, no shadow ban. (2) **Google Takeout is a great export** — the data is already easy to get (`export-guidance.md` already documents the YouTube export).
 
 **The flow:** export from YouTube via Google Takeout → import onto a web10 node.
-- **Videos** → web10 media (the HLS pipeline, D44).
+- **Videos** → `staging_posts` with the full record (title, description, publish date, duration, stats) + thumbnail. The **video files don't come over** (Takeout has no bytes) — the post carries the watch URL; the creator re-uploads for native HLS playback (D44) when they want it.
 - **The channel** → a creator profile.
-- **Subscribers** → the **owned audience** — the follower/contact list the creator can reach directly (the killer angle: the subscriber list becomes the creator's data; those people become web10 users when they sign up + follow).
-- **Comments** → comments (the engagement model, D62).
+- **Subscribers** → **don't come over** (no export path exists — Google keeps the list). The audience is the people who choose to follow on web10. The import brings the catalog + commenters + profile; the audience follows.
+- **Comments** (on the creator's own videos) → comments (the engagement model, D62, joined via `ref_value`).
 
 **The pitch:** "Port your YouTube channel. Own your audience." The reach gap is the hook — on YouTube, Google decides which 300k of your 1M subs see the next video; on web10, 100% delivery is architecture.
 
-**The "eventually" framing.** This is a future item, not the next bite. The first concrete step is the import mapping (Takeout → web10); the importer UI + the "port your YouTube" landing come after.
+**Status:** the import mapping + the importer (node pipeline + authenticator UI) + the docs are built (3.63.0). The "port your YouTube" landing page is the remaining item.
 
-- [ ] **The import mapping** (Takeout → web10) — parse the Google Takeout YouTube export (videos, channel, subscribers, comments) into web10: videos → media (HLS, D44), the channel → a creator profile, subscribers → the owned audience (the follower/contact list), comments → comments (D62). Source: the HLS pipeline (D44) + the engagement model (D62) + `export-guidance.md` (the YouTube export).
-- [ ] **The importer** (the node endpoint + the UI) — the "port your YouTube" flow: upload the Takeout ZIP, map the data, confirm, done. The creator's channel is on their node; their audience is theirs.
-- [ ] **The "port your YouTube" landing** — a creator-facing page: the reach gap, the owned audience, the import flow. The hook for the YouTuber. (Feeds the `For Monetizers` / `For Node Operators` doc sections above.)
-- [ ] **The docs** — the `import-from-other-platforms` doc (above) leads with YouTube as the first target, pointing at the importer + landing.
+- [✓ 3.63.0] **The import mapping** (Takeout → web10) — the pure YouTube parser (`api/app/services/importers/youtube.py`): videos → `staging_posts` (full record + original publish date + thumbnail), comments-on-own-videos → comments (D62 `ref_value` join), channel → profile. The honest gaps (no video files, no subscriber list) are documented. Source: `knowledge/knowledge-base/web10-v3/social/import.md`.
+- [✓ 3.63.0] **The importer** (the node endpoint + the UI) — the node-side pipeline: `POST /v3/imports` (presigned per-part upload) → the in-process durable worker (`import_worker.py`, the transcode-worker idiom, no Redis per D66) extracts tar/zip, writes in order (media → posts → comments → profile) into `staging_posts` (D30, owner-only, followers group), then deletes the raw export. The authenticator's Settings → Import from YouTube card drives it.
+- [ ] **The "port your YouTube" landing** — a creator-facing page: the reach gap, the owned-audience reframe, the import flow. The hook for the YouTuber. (Feeds the `For Monetizers` / `For Node Operators` doc sections above.)
+- [✓ 3.63.0] **The docs** — `import-from-other-platforms.md` leads with YouTube, now with the honest mapping table (videos = metadata + thumbnail, not playable files; subscribers = don't come over) + the 2GB-tar-split instruction; `export-guidance.md` carries the same; the KB `social/import.md` is the root of trust.
 
 ## Phase 4 — Production Cutover: v2 → v3, then merge to main
 

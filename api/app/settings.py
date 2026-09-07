@@ -99,6 +99,15 @@ HLS_WORKER_CONCURRENCY = int(os.getenv("HLS_WORKER_CONCURRENCY", "1"))
 # Per-rendition ffmpeg wall-clock cap (seconds).
 HLS_FFMPEG_TIMEOUT = int(os.getenv("HLS_FFMPEG_TIMEOUT", "600"))
 
+# Import worker (the YouTube importer — plan "port your YouTube"). Concurrent
+# import jobs. 1 keeps a single node's disk + network from being eaten by a
+# multi-part Takeout extraction (a 2GB-split export streams + unpacks in the
+# worker thread, not the request pool).
+IMPORT_WORKER_CONCURRENCY = int(os.getenv("IMPORT_WORKER_CONCURRENCY", "1"))
+# Max export parts per job (a Takeout split into ~2GB parts; 10 parts = ~20GB,
+# far beyond any realistic channel export).
+IMPORT_MAX_PARTS = int(os.getenv("IMPORT_MAX_PARTS", "10"))
+
 # Load environment variables into settings params.
 for v in list(globals()):
     env_val = os.getenv(v)

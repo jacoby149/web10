@@ -149,6 +149,31 @@ function useMockInterface() {
     I.initAuthenticator = function () { }
     I.servicesLoad = function () { }
 
+    // Import (mock) — the "port your YouTube" pipeline. Simulates the
+    // create → upload → start → poll flow without a node.
+    I.importCreate = function (_platform: string, parts: { filename: string }[]) {
+        return Promise.resolve({
+            job_id: 'mock-job',
+            platform: 'youtube',
+            job: { phase: 'pending' },
+            uploads: parts.map((p, i) => ({
+                part_index: i,
+                object_key: `imports/creator/mock-job/part-${String(i).padStart(3, '0')}`,
+                upload_url: 'https://mock.minio/upload',
+                fields: { key: `imports/creator/mock-job/part-${String(i).padStart(3, '0')}` },
+            })),
+        });
+    };
+    I.importStart = function (_jobId: string) {
+        return Promise.resolve({ job_id: _jobId, status: 'queued' });
+    };
+    I.importStatus = function (_jobId: string) {
+        return Promise.resolve({
+            job_id: _jobId,
+            job: { phase: 'complete', total_records: 42, written_records: 42, skipped_records: 0, errors: [], message: 'Import complete: 42 written, 0 skipped.' },
+        });
+    };
+
     return I;
 }
 
