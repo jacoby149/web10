@@ -16,6 +16,10 @@ import {
   toggleReaction,
   readSettings,
   saveSettings,
+  updatePost,
+  deletePost,
+  movePostVisibility,
+  recordRepost,
 } from '@/data';
 import { getWapi } from '@/data/wapi';
 import type {
@@ -31,14 +35,14 @@ import {
   type KnobState,
 } from '@/lib/powerMean';
 import { KnobRack } from '@/components/Discover/KnobRack';
-import { Heart, MessageCircle, Play, Pause, Edit3 } from 'lucide-react';
+import { Heart, MessageCircle, Play, Pause, MoreHorizontal, Share2, Check, Edit3, Eye, EyeOff, Trash2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { MARKETING_ORIGIN } from '@/lib/origins';
+import { Textarea } from '@/components/ui/textarea';
 import { CommentThread } from './CommentThread';
 import { TextWithLinks } from './LinkEmbed';
 import { AdBlock } from './AdBlock';
 import { HlsVideoPlayer } from './HlsVideoPlayer';
-import { PostLightbox } from '@/components/Bio/PostLightbox';
 
 const LOG = (...args: unknown[]) => console.log('[social:feed]', ...args);
 
@@ -103,7 +107,10 @@ function MediaItem({ media }: { media: MediaRecord }) {
 
   useEffect(() => {
     if (!playing || !videoRef.current) return;
-    videoRef.current.play().catch(() => {});
+    // jsdom's play() is unimplemented (returns undefined, not a Promise) —
+    // guard so the inline-play toggle is testable headless.
+    const p = videoRef.current.play();
+    if (p && typeof p.catch === 'function') p.catch(() => {});
     return () => {
       videoRef.current?.pause();
     };
@@ -152,7 +159,13 @@ function MediaItem({ media }: { media: MediaRecord }) {
       <div
         className="bg-elevated overflow-hidden group relative cursor-pointer"
         style={containerStyle}
-        onClick={() => setPlaying((p) => !p)}
+        onClick={(e) => {
+          // The feed plays video inline — a tap toggles play/pause in place.
+          // stopPropagation so the tap never reaches the card (which used to
+          // pop the lightbox modal; the video then played behind it).
+          e.stopPropagation();
+          setPlaying((p) => !p);
+        }}
         role="button"
         tabIndex={0}
         aria-label={playing ? 'Pause video' : 'Play video'}
@@ -260,8 +273,8 @@ interface PostCardProps {
   onAuthorClick?: (username: string, provider: string) => void;
   postAuthor?: string;
   postService?: string;
-  onOpenLightbox?: () => void;
   isOwnPost?: boolean;
+  onPostUpdated?: () => void;
 }
 
 function PostCard({
@@ -280,13 +293,22 @@ function PostCard({
   onAuthorClick,
   postAuthor,
   postService,
-  onOpenLightbox,
   isOwnPost,
+  onPostUpdated,
 }: PostCardProps) {
   const [commentsOpen, setCommentsOpen] = useState(false);
   const [localCount, setLocalCount] = useState(commentCount);
   const [burstKey, setBurstKey] = useState(0);
   const prevLiked = useRef(liked);
+
+  // Owner actions (previously the lightbox's job — the feed is now inline).
+  const [menuOpen, setMenuOpen] = useState(false);
+  const [editing, setEditing] = useState(false);
+  const [editDraft, setEditDraft] = useState(post.text || '');
+  const [saving, setSaving] = useState(false);
+  const [deleteConfirm, setDeleteConfirm] = useState(false);
+  const [copied, setCopied] = useState(false);
+  const [togglingVisibility, setTogglingVisibility] = useState(false);
 
   useEffect(() => {
     if (liked && !prevLiked.current) {
@@ -295,15 +317,83 @@ function PostCard({
     prevLiked.current = liked;
   }, [liked]);
 
+  // Close the owner menu on Escape.
+  useEffect(() => {
+    if (!menuOpen) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setMenuOpen(false);
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [menuOpen]);
+
+  // Reset the two-tap delete confirm when the menu closes, so a dismissed
+  // delete doesn't linger as "Confirm delete" on the next open.
+  useEffect(() => {
+    if (!menuOpen) setDeleteConfirm(false);
+  }, [menuOpen]);
+
+  async function handleShare() {
+    setMenuOpen(false);
+    const url = `${window.location.origin}/u/${postAuthor || authorUsername || 'unknown'}/p/${post._id || 'unknown'}`;
+    if (postAuthor && postService) {
+      recordRepost(post._id || '', postAuthor, postService);
+    }
+    if (navigator.share) {
+      navigator.share({ title: (post.text || '').slice(0, 100) || 'Post on web10', url }).catch(() => copyUrl());
+    } else {
+      copyUrl();
+    }
+    function copyUrl() {
+      navigator.clipboard.writeText(url).then(() => {
+        setCopied(true);
+        setTimeout(() => setCopied(false), 2000);
+      });
+    }
+  }
+
+  async function handleSaveEdit() {
+    setSaving(true);
+    try {
+      await updatePost(post._id || '', { text: editDraft, updated_at: new Date().toISOString() });
+      setEditing(false);
+      onPostUpdated?.();
+    } catch (e) {
+      console.error('Failed to update post:', e);
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  async function handleDelete() {
+    try {
+      await deletePost(post._id || '');
+      onPostUpdated?.();
+    } catch (e) {
+      console.error('Failed to delete post:', e);
+    }
+  }
+
+  async function handleToggleVisibility() {
+    setTogglingVisibility(true);
+    try {
+      await movePostVisibility(post);
+      setMenuOpen(false);
+      onPostUpdated?.();
+    } catch (e) {
+      console.error('Failed to toggle visibility:', e);
+    } finally {
+      setTogglingVisibility(false);
+    }
+  }
+
   return (
     <article
       data-testid="post-card"
       className={cn(
         'bg-card border-b border-border md:border md:rounded-lg md:mb-4 overflow-hidden',
         'glow-card transition-all duration-150',
-        onOpenLightbox && 'cursor-pointer',
       )}
-      onClick={onOpenLightbox}
     >
       <div className="flex items-center gap-2.5 px-4 py-3">
         <Avatar className="h-9 w-9 ring-2 ring-transparent hover:ring-brand/20 transition-all duration-150">
@@ -335,25 +425,110 @@ function PostCard({
           <span className="text-[0.8125rem] text-muted-foreground shrink-0">· {formatTimeAgo(timestamp)}</span>
         </div>
         {isOwnPost && (
-          <button
-            type="button"
-            aria-label="Edit post"
-            data-testid="post-edit-pencil"
-            onClick={(e) => { e.stopPropagation(); onOpenLightbox?.(); }}
-            className="shrink-0 p-1.5 rounded-full text-muted-foreground hover:text-foreground hover:bg-elevated transition-all duration-150"
-          >
-            <Edit3 className="w-3.5 h-3.5" />
-          </button>
+          <div className="relative shrink-0">
+            <button
+              type="button"
+              aria-label="Post options"
+              aria-expanded={menuOpen}
+              data-testid="post-options-button"
+              onClick={(e) => { e.stopPropagation(); setMenuOpen((o) => !o); }}
+              className="p-1.5 rounded-full text-muted-foreground hover:text-foreground hover:bg-elevated transition-all duration-150"
+            >
+              <MoreHorizontal className="w-4 h-4" />
+            </button>
+            {menuOpen && (
+              <>
+                <div
+                  className="fixed inset-0 z-20"
+                  onClick={(e) => { e.stopPropagation(); setMenuOpen(false); }}
+                  aria-hidden="true"
+                />
+                <div
+                  className="absolute right-0 top-9 z-30 w-48 rounded-lg border border-border bg-popover p-1 shadow-[0_8px_30px_rgb(0_0_0/0.35)]"
+                  data-testid="post-options-menu"
+                  onClick={(e) => e.stopPropagation()}
+                >
+                  <button
+                    type="button"
+                    onClick={(e) => { e.stopPropagation(); handleShare(); }}
+                    className="flex w-full items-center gap-2 rounded-md px-3 py-2 text-left text-sm text-foreground hover:bg-elevated transition-colors"
+                    data-testid="post-option-share"
+                  >
+                    {copied ? <Check className="w-4 h-4 text-success" /> : <Share2 className="w-4 h-4" />}
+                    {copied ? 'Copied!' : 'Share'}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={(e) => { e.stopPropagation(); setMenuOpen(false); setEditing(true); setEditDraft(post.text || ''); }}
+                    className="flex w-full items-center gap-2 rounded-md px-3 py-2 text-left text-sm text-foreground hover:bg-elevated transition-colors"
+                    data-testid="post-option-edit"
+                  >
+                    <Edit3 className="w-4 h-4" />
+                    Edit post
+                  </button>
+                  <button
+                    type="button"
+                    onClick={(e) => { e.stopPropagation(); handleToggleVisibility(); }}
+                    disabled={togglingVisibility}
+                    className="flex w-full items-center gap-2 rounded-md px-3 py-2 text-left text-sm text-foreground hover:bg-elevated transition-colors disabled:opacity-50"
+                    data-testid="post-option-visibility"
+                  >
+                    {post.visibility === 'public' ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                    {togglingVisibility ? 'Updating…' : post.visibility === 'public' ? 'Make private' : 'Make public'}
+                  </button>
+                  {deleteConfirm ? (
+                    <button
+                      type="button"
+                      onClick={(e) => { e.stopPropagation(); handleDelete(); }}
+                      className="flex w-full items-center gap-2 rounded-md px-3 py-2 text-left text-sm text-danger hover:bg-danger-muted transition-colors"
+                      data-testid="post-option-delete-confirm"
+                    >
+                      <Trash2 className="w-4 h-4" />
+                      Confirm delete
+                    </button>
+                  ) : (
+                    <button
+                      type="button"
+                      onClick={(e) => { e.stopPropagation(); setDeleteConfirm(true); }}
+                      className="flex w-full items-center gap-2 rounded-md px-3 py-2 text-left text-sm text-danger hover:bg-danger-muted transition-colors"
+                      data-testid="post-option-delete"
+                    >
+                      <Trash2 className="w-4 h-4" />
+                      Delete post
+                    </button>
+                  )}
+                </div>
+              </>
+            )}
+          </div>
         )}
       </div>
 
       <MediaGrid mediaItems={mediaItems} />
 
-      {post.text && (
+      {editing ? (
+        <div className="px-4 pt-3 space-y-2">
+          <Textarea
+            value={editDraft}
+            onChange={(e) => setEditDraft(e.target.value)}
+            placeholder="Edit post…"
+            className="text-sm min-h-[80px] resize-none"
+            data-testid="post-edit-input"
+          />
+          <div className="flex gap-2">
+            <Button size="sm" variant="brand" onClick={handleSaveEdit} disabled={saving} data-testid="post-edit-save" className="text-xs">
+              {saving ? 'Saving…' : 'Save'}
+            </Button>
+            <Button size="sm" variant="ghost" onClick={() => { setEditing(false); setEditDraft(post.text || ''); }} className="text-xs">
+              Cancel
+            </Button>
+          </div>
+        </div>
+      ) : post.text ? (
         <div className="px-4 pt-3 text-sm text-foreground leading-relaxed whitespace-pre-wrap break-words">
           <TextWithLinks text={post.text} />
         </div>
-      )}
+      ) : null}
 
       {post.tags?.length ? (
         <div className="flex flex-wrap gap-1.5 px-4 pt-2">
@@ -475,13 +650,11 @@ export default function FeedScreen({ onAuthorClick }: { onAuthorClick?: (usernam
   const [posts, setPosts] = useState<PostRecord[]>([]);
   const [loading, setLoading] = useState(true);
   const [mediaMap, setMediaMap] = useState<Record<string, MediaRecord[]>>({});
-  const [flatMediaMap, setFlatMediaMap] = useState<Record<string, MediaRecord>>({});
   const [reactionMap, setReactionMap] = useState<Record<string, number>>({});
   const [commentMap, setCommentMap] = useState<Record<string, number>>({});
   const [likedMap, setLikedMap] = useState<Record<string, boolean>>({});
   const [profileMap, setProfileMap] = useState<Record<string, ProfileRecord>>({});
   const [avatarUrlMap, setAvatarUrlMap] = useState<Record<string, string>>({});
-  const [lightboxPost, setLightboxPost] = useState<PostRecord | null>(null);
   const token = getWapi().readToken();
   const isOwnPost = (p: PostRecord) =>
     token && p.author_username === token.username && p.author_provider === token.provider;
@@ -618,15 +791,11 @@ export default function FeedScreen({ onAuthorClick }: { onAuthorClick?: (usernam
 
       // Resolve media refs per post
       const mMedia: Record<string, MediaRecord[]> = {};
-      const flat: Record<string, MediaRecord> = {};
       for (const post of feed) {
         if (post.media_refs?.length) {
           try {
             const media = await resolveMediaRefs(post.media_refs);
             mMedia[post._id || ''] = media;
-            for (const m of media) {
-              if (m._id) flat[m._id] = m;
-            }
           } catch { /* skip media for this post */ }
         }
       }
@@ -664,7 +833,6 @@ export default function FeedScreen({ onAuthorClick }: { onAuthorClick?: (usernam
       }
 
       setMediaMap(mMedia);
-      setFlatMediaMap(flat);
       setProfileMap(profiles);
       setAvatarUrlMap(avatarByAuthor);
       setReactionMap(reactions);
@@ -761,22 +929,13 @@ export default function FeedScreen({ onAuthorClick }: { onAuthorClick?: (usernam
                   setCommentMap((prev) => ({ ...prev, [post._id || '']: n }))
                 }
                 onAuthorClick={onAuthorClick}
-                onOpenLightbox={() => setLightboxPost(post)}
+                onPostUpdated={loadFeed}
                 isOwnPost={isOwnPost(post)}
               />
             );
           })
         )}
       </div>
-
-      {lightboxPost && (
-        <PostLightbox
-          post={lightboxPost}
-          mediaMap={flatMediaMap}
-          onClose={() => setLightboxPost(null)}
-          isOwner={isOwnPost(lightboxPost)}
-        />
-      )}
     </div>
   );
 }
