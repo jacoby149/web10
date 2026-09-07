@@ -2,7 +2,7 @@ import React from 'react';
 import { ChevronDown, ChevronRight, Users, Shield, Lock, LockOpen, MessageSquare, UserPlus, Settings, Eye, LogOut, ShieldOff, Trash2, User } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { groupDisplayName } from '@/lib/group-utils';
+import { groupDisplayName, hasRoleOp, isRoleMap } from '@/lib/group-utils';
 import GroupMembersDialog from './GroupMembersDialog';
 import GroupRolesDialog from './GroupRolesDialog';
 import GroupSettingsDialog from './GroupSettingsDialog';
@@ -76,7 +76,7 @@ function GroupCard({ I, group, isManaged }: { I: Record<string, any>; group: any
   const hasDeletePermission = (() => {
     const roles = group.roles || [];
     const roleDef = roles.find((r: any) => r.name === myRole);
-    return roleDef?.permissions?.includes('deleteGroup') ?? false;
+    return hasRoleOp(roleDef, 'deleteGroup');
   })();
 
   const handleLeave = async () => {
@@ -160,11 +160,17 @@ function GroupCard({ I, group, isManaged }: { I: Record<string, any>; group: any
                             {role.name || role}
                           </Badge>
                           <div className="flex flex-wrap gap-1">
-                            {(role.permissions || []).map((perm: string, j: number) => (
-                              <span key={j} className="inline-flex items-center rounded px-1.5 py-0.5 text-[10px] font-medium text-muted-foreground bg-elevated">
-                                {perm}
-                              </span>
-                            ))}
+                            {isRoleMap(role.permissions)
+                              ? Object.entries(role.permissions).map(([service, ops]: [string, string[]], k: number) => (
+                                <span key={k} className="inline-flex items-center rounded px-1.5 py-0.5 text-[10px] font-medium text-muted-foreground bg-elevated">
+                                  {service}: {Array.isArray(ops) ? ops.join(', ') : ''}
+                                </span>
+                              ))
+                              : (role.permissions || []).map((perm: string, j: number) => (
+                                <span key={j} className="inline-flex items-center rounded px-1.5 py-0.5 text-[10px] font-medium text-muted-foreground bg-elevated">
+                                  {perm}
+                                </span>
+                              ))}
                           </div>
                         </div>
                       ))}

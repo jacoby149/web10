@@ -271,6 +271,48 @@ test.describe('Browser — roles editor (real UI)', () => {
 });
 
 // ---------------------------------------------------------------------------
+// Browser — D58 per-service role shape (the "Something went wrong" crash)
+// ---------------------------------------------------------------------------
+
+test.describe('Browser — D58 per-service role shape (crash regression)', () => {
+  test('a D58-shape group renders on the groups page without a pageerror', async ({ page, context, request }) => {
+    const { token, username } = await signupFreshUser(request);
+    const slug = `d58-${Math.random().toString(36).slice(2, 8)}`;
+    // The EXACT shape the UI's CreateGroupDialog (and the social app) writes —
+    // permissions is a per-service MAP, not the legacy flat list. Before the
+    // fix, rendering this group threw (permissions.map is not a function) and
+    // the error boundary showed "Something went wrong".
+    const created = await v3Post(request, `${API_BASE}/v3/groups/create`, {
+      token,
+      name: slug,
+      join_policy: 'invite_only',
+      roles: [
+        { name: 'owner', permissions: { '*': ['readAll', 'create', 'updateOwn', 'updateAll', 'deleteOwn', 'deleteAll', 'hideAll'], group: ['manageRoles', 'assignRoles', 'revokeRoles', 'deleteGroup'] } },
+        { name: 'member', permissions: { posts: ['readAll', 'create', 'updateOwn', 'deleteOwn'], comments: ['readAll', 'create', 'updateOwn', 'deleteOwn'] } },
+      ],
+      members: [{ member_key: username, role: 'owner' }],
+    });
+    expect(created.ok()).toBeTruthy();
+
+    const full = await openGroupsPage(page, context, token);
+
+    // No error boundary, the page headline is up.
+    await expect(page.getByText('Something went wrong')).toHaveCount(0);
+    await expect(page.getByTestId('groups-page').getByRole('heading', { name: 'Group Contracts' })).toBeVisible();
+
+    // The managed card renders; expanded, the per-service map shows as chips
+    // and the deleteGroup grant (under the reserved group key) shows the
+    // Delete button.
+    await expandManagedGroup(page, slug);
+    await expect(page.getByText('group: manageRoles, assignRoles, revokeRoles, deleteGroup')).toBeVisible();
+    await expect(page.getByText('posts: readAll, create, updateOwn, deleteOwn')).toBeVisible();
+    await expect(page.getByRole('button', { name: /Delete group/ })).toBeVisible();
+
+    expect(full.errors, `pageerror: ${full.errors.join('\n')}\nconsole:\n${full.console.join('\n')}`).toEqual([]);
+  });
+});
+
+// ---------------------------------------------------------------------------
 // Browser — discoverable toggle (real UI) + directory consequence
 // ---------------------------------------------------------------------------
 
