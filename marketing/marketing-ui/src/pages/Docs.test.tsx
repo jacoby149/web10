@@ -42,7 +42,7 @@ describe('Docs — the "who are you?" landing', () => {
     expect(await screen.findByTestId('audience-card-users')).toHaveAttribute('href', '/docs/getting-started');
     expect(screen.getByTestId('audience-card-developers')).toHaveAttribute('href', '/docs/protocol-spec');
     expect(screen.getByTestId('audience-card-operators')).toHaveAttribute('href', '/docs/start-a-node');
-    expect(screen.getByTestId('audience-card-monetizers')).toHaveAttribute('href', '/docs/ads');
+    expect(screen.getByTestId('audience-card-monetizers')).toHaveAttribute('href', '/docs/monetization');
   });
 
   it('speaks to the reader in the audience model\u2019s words', async () => {
@@ -67,5 +67,16 @@ describe('Docs — the "who are you?" landing', () => {
     expect(screen.getByRole('heading', { name: /for developers/i })).toBeInTheDocument();
     expect(screen.getByRole('heading', { name: /for node operators \/ influencers/i })).toBeInTheDocument();
     expect(screen.getByRole('heading', { name: /for monetizers/i })).toBeInTheDocument();
+  });
+
+  it('lists the Monetization front door first in the For Monetizers section', async () => {
+    renderDocs('/docs');
+    await screen.findByRole('heading', { name: /who are you\?/i });
+    const link = screen.getByRole('link', { name: 'Monetization' });
+    expect(link).toHaveAttribute('href', '/docs/monetization');
+    // The front door precedes the section's detail docs in the sidebar.
+    const section = screen.getByRole('heading', { name: /for monetizers/i }).closest('div')!;
+    const links = Array.from(section.querySelectorAll('a')).map(a => a.getAttribute('href'));
+    expect(links[0]).toBe('/docs/monetization');
   });
 });

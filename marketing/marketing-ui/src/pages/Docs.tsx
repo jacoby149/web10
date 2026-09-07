@@ -56,6 +56,7 @@ const DOC_SECTIONS: { title: string; pages: DocPage[] }[] = [
   {
     title: 'For Monetizers',
     pages: [
+      { slug: 'monetization', title: 'Monetization', file: '/docs/monetization.md' },
       { slug: 'ads', title: 'Ads', file: '/docs/ads.md' },
       { slug: 'ad-catalog', title: 'Ad Catalog', file: '/docs/ad-catalog.md' },
       { slug: 'affiliate-programs', title: 'Affiliate Programs', file: '/docs/affiliate-programs.md' },
@@ -98,7 +99,7 @@ const AUDIENCES = [
     icon: DollarSign,
     label: 'I want to earn',
     line: 'I have an audience and I want to make money on it.',
-    to: '/docs/ads',
+    to: '/docs/monetization',
   },
 ]
 
