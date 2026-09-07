@@ -57,6 +57,9 @@ const inboundListeners = new Set<InboundListener>();
 const onlinePeers = new Set<string>();
 // lastSeen: peerId → last live-signal timestamp. Drives the TTL sweep.
 const lastSeen = new Map<string, number>();
+// peerIdentity: peerId → {provider, username}. Lets the heartbeat re-probe a
+// tracked peer (rtc.connect needs provider+username, not the opaque peer id).
+const peerIdentity = new Map<string, { provider: string; username: string }>();
 const presenceListeners = new Set<() => void>();
 let sweepTimer: ReturnType<typeof setInterval> | null = null;
 
@@ -64,6 +67,15 @@ let sweepTimer: ReturnType<typeof setInterval> | null = null;
 // sweep runs more often than the TTL so the dot flips to gray promptly.
 const PRESENCE_TTL_MS = 60_000;
 const SWEEP_INTERVAL_MS = 15_000;
+
+// The heartbeat re-probes every tracked peer on an interval shorter than the
+// TTL. Two jobs: (1) it keeps the data channel to each peer WARM, so a send
+// goes out instantly instead of paying the WebRTC handshake on the first
+// message; (2) it refreshes the TTL, so a peer who's online but quiet (no
+// messages flowing) doesn't flip to offline after 60s of silence. This is what
+// makes presence + delivery work without the other party sending anything.
+const HEARTBEAT_INTERVAL_MS = 25_000;
+let heartbeatTimer: ReturnType<typeof setInterval> | null = null;
 
 function notifyPresence(): void {
   for (const l of presenceListeners) {
@@ -75,8 +87,9 @@ function notifyPresence(): void {
   }
 }
 
-function markOnline(peerId: string): void {
+function markOnline(peerId: string, identity?: { provider: string; username: string }): void {
   if (!peerId) return;
+  if (identity) peerIdentity.set(peerId, identity);
   lastSeen.set(peerId, Date.now());
   startSweep();
   if (onlinePeers.has(peerId)) return;
@@ -117,6 +130,30 @@ function stopSweep(): void {
   }
 }
 
+// Re-probe every tracked peer: keeps their data channel warm (instant sends)
+// and refreshes their TTL (a quiet-but-online peer doesn't flip offline). Only
+// runs while at least one peer is tracked, so it's a no-op when idle.
+function heartbeat(): void {
+  if (!p2pReady) return;
+  for (const [peerId, identity] of peerIdentity) {
+    if (!lastSeen.has(peerId)) continue; // already expired — don't resurrect
+    probePresence(identity.provider, identity.username);
+  }
+}
+
+function startHeartbeat(): void {
+  if (heartbeatTimer !== null) return;
+  heartbeatTimer = setInterval(heartbeat, HEARTBEAT_INTERVAL_MS);
+  (heartbeatTimer as { unref?: () => void }).unref?.();
+}
+
+function stopHeartbeat(): void {
+  if (heartbeatTimer !== null) {
+    clearInterval(heartbeatTimer);
+    heartbeatTimer = null;
+  }
+}
+
 /**
  * Inject the PeerJS constructor. Must be called before initP2P (the SDK's
  * rtc module keeps peerjs as an optional peer dependency).
@@ -147,8 +184,9 @@ export function onP2PInbound(listener: InboundListener): () => void {
 
 function dispatchInbound(conn: P2PInboundConn, data: unknown): void {
   LOG('inbound — from peer:', conn.peer, 'data:', JSON.stringify(data));
-  // A live inbound means the sender is online right now.
-  markOnline(conn.peer);
+  // A live inbound means the sender is online right now. Recover their
+  // identity from the peer id so the heartbeat can re-probe them later.
+  markOnline(conn.peer, identityFromPeerId(conn.peer));
   // Mark them offline the moment this connection drops (immediate, not just
   // the TTL backstop).
   conn.on?.('close', () => markOffline(conn.peer));
@@ -159,6 +197,19 @@ function dispatchInbound(conn: P2PInboundConn, data: unknown): void {
       LOG_ERR('inbound listener threw:', e);
     }
   }
+}
+
+/**
+ * Recover {provider, username} from a peer id. The peer id is
+ * `${provider} ${user} ${site} ${label}` with `.` → `_` (see the SDK's
+ * peerId), so the first two space-separated tokens are the provider (dots
+ * restored) and the username. Null when the shape doesn't parse (defensive —
+ * a malformed id just means the heartbeat can't re-probe that peer).
+ */
+function identityFromPeerId(peerId: string): { provider: string; username: string } | null {
+  const parts = peerId.split(' ');
+  if (parts.length < 2) return null;
+  return { provider: parts[0].replace(/_/g, '.'), username: parts[1] };
 }
 
 /**
@@ -192,6 +243,10 @@ export async function initP2P(): Promise<boolean> {
     const secure = API_ORIGIN.startsWith('https');
     await rtc.initP2P((conn, data) => dispatchInbound(conn as P2PInboundConn, data), P2P_LABEL, secure);
     p2pReady = true;
+    // Keep tracked peers' channels warm + their TTL fresh (instant sends, and
+    // a quiet-but-online peer doesn't flip offline). No-op until a peer is
+    // tracked (a probe/send/inbound), so it costs nothing when idle.
+    startHeartbeat();
     const id = rtc.peerId(token.provider, token.username, site, P2P_LABEL);
     LOG('initP2P — READY, peerId:', id);
     return true;
@@ -228,14 +283,14 @@ export function sendP2P(
     if (conn.open) {
       conn.send(payload);
       // A send over an open channel means the recipient answered — online.
-      markOnline(peerId);
+      markOnline(peerId, { provider: toProvider, username: toUsername });
       LOG('sendP2P — sent over open channel');
       return true;
     }
     // Channel not open yet — send once it opens (the recipient is connecting).
     conn.on('open', () => {
       conn.send(payload);
-      markOnline(peerId);
+      markOnline(peerId, { provider: toProvider, username: toUsername });
     });
     LOG('sendP2P — channel not open yet, queued on open');
     return false;
@@ -249,6 +304,52 @@ export function sendP2P(
 export function peerIdFor(provider: string, username: string): string | null {
   if (!rtc) return null;
   return rtc.peerId(provider, username, site, P2P_LABEL);
+}
+
+/**
+ * Probe a peer's presence without sending a message. Opens (or reuses) the
+ * data channel to them: if it opens, they're online (markOnline); if it errors
+ * (peer unreachable / not connected to signaling), they're offline (markOffline).
+ *
+ * Presence is otherwise established only by a live data-channel exchange (a
+ * send or an inbound), so two users who are both in the app but haven't
+ * messaged each other see each other as offline. Probing on conversation-open
+ * closes that gap: the channel handshake IS the presence check.
+ *
+ * Returns true if the probe confirmed the peer online, false otherwise (P2P
+ * not ready, or the peer is unreachable).
+ */
+export function probePresence(provider: string, username: string): boolean {
+  if (!rtc || !p2pReady) {
+    LOG('probePresence — P2P not ready, skipping');
+    return false;
+  }
+  const peerId = rtc.peerId(provider, username, site, P2P_LABEL);
+  try {
+    const conn = rtc.connect(provider, username, site, P2P_LABEL);
+    // Hook close + error up front so a connection that opens and then drops
+    // (or errors — peer unreachable) flips offline regardless of which branch
+    // handled the open.
+    conn.on('close', () => markOffline(peerId));
+    conn.on('error', () => {
+      markOffline(peerId);
+      LOG('probePresence — offline (error):', peerId);
+    });
+    if (conn.open) {
+      markOnline(peerId, { provider, username });
+      LOG('probePresence — online:', peerId);
+      return true;
+    }
+    conn.on('open', () => {
+      markOnline(peerId, { provider, username });
+      LOG('probePresence — online (on open):', peerId);
+    });
+    LOG('probePresence — channel not open yet, probing');
+    return false;
+  } catch (e) {
+    LOG_ERR('probePresence FAILED:', e);
+    return false;
+  }
 }
 
 /** The set of peer ids we've had a live P2P connection to this session. */
@@ -273,9 +374,11 @@ export function teardownP2P(): void {
   rtc = null;
   inboundListeners.clear();
   stopSweep();
+  stopHeartbeat();
   if (onlinePeers.size > 0) {
     onlinePeers.clear();
     lastSeen.clear();
+    peerIdentity.clear();
     for (const l of presenceListeners) {
       try {
         l();

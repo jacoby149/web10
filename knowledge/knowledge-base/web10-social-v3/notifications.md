@@ -1,6 +1,11 @@
 # Notifications
 
-Real-time alerts for reactions, comments, follow requests, group activity.
+Real-time alerts for reactions, comments, replies, DMs, follow requests, group
+activity. **D69:** derived events the social app owns — CRUD is the source of
+truth, the P2P data channel is the nudge. No server push, no node table, no
+new endpoint. (This doc's original "API pushes via WebSocket" model is
+retired — D66 rejects a server push channel: no Redis, no pub/sub, and
+`api/rtc` is a PeerJS *signaling* server, not a fan-out bus.)
 
 ## What the Screen Shows
 
@@ -9,128 +14,117 @@ Notifications
 ─────────────────────
 alice liked your post · 2m ago
 bob commented on your post · 15m ago
-charlie requested to follow · 1h ago
-dave joined web10.app/groups/dave/jazz-collectors · 3h ago
+carol replied to your comment · 1h ago
+dave sent you a message · 2h ago
+charlie requested to follow · 3h ago
 ```
 
-## Protocol Mapping
+## The Model (D69)
 
-Notifications are not a core protocol concept. They're events derived from writes.
+Notifications are not a core protocol concept. They're **derived events**:
+"something happened that targets me." The app derives the *list* by reading
+the writes it can already read, and the *real-time nudge* rides the existing
+P2P inbound bus (`onP2PInbound`, app-wide) — the same "CRUD is truth, P2P is
+the nudge" contract the DMs run. The nudge payload is a nudge
+(`{type, from, ref_doc_id, ...}`); the recipient **re-reads from CRUD**, it
+never trusts the payload's content.
 
-**Reaction notification:** Someone created a document in the `reactions` collection with a ref to your post.
+**Read side (source of truth) — derive from reads the app already has:**
 
-```ts
-const reactions = await w.read('reactions', {
-  groups: ['me'],  // reactions attached to groups you belong to
-  $match: { target: 'post-123' },
-  $sort: { created_at: -1 },
-})
-```
+- **Reaction / comment on my post** — the server-side ref-count pattern
+  (`readRefCounts('reactions' | 'comments', { ref: myPostIds })`, the same
+  primitive the feed's engagement knobs use), minus what I've already seen.
+- **Reply to my comment** — comments whose `parent_id` is one of my comment
+  ids. The ref filter matches `ref_value` only (not `parent_id`), so this is
+  `w.query()` (D63) or a client-side filter of the post's comment tree.
+- **New DM** — the DM group read minus a per-conversation last-read cursor
+  (the `settings.ts` app-owned pattern).
+- **Follow request** — the followers group's pending join requests
+  (**`getPendingRequests` read — the one missing primitive; `requestJoin`
+  exists, the read does not**).
+- **Group join** — a membership diff against the last-seen member list.
 
-**Comment notification:** Someone created a document in the `comments` collection with a ref to your post.
+No new API endpoint: the generic CRUD + the ref-count read + `w.query()`
+cover it.
 
-```ts
-const comments = await w.read('comments', {
-  groups: ['me'],
-  $match: { target: 'post-123' },
-  $sort: { created_at: -1 },
-})
-```
-
-**Follow request notification:** New join requests for groups you manage.
-
-```ts
-const pending = await w.getPendingRequests('web10.app/groups/jacoby149/followers')
-// → [{ requester_key: 'charlie', requested_at: '2026-01-15T10:30:00' }]
-```
-
-**Group activity:** New members in groups you manage.
-
-```ts
-const members = await w.getMembers('web10.app/groups/jacoby149/followers')
-// App compares against cached list to detect new members
-```
-
-## The Push Model
-
-Polling is wasteful. The right model is push:
-
-**On every write, the API emits a notification event:**
+**Write side (the nudge) — the actor's app pushes on a targeting action:**
 
 ```
 Bob reacts to jacoby149's post
-  → API writes reaction via w.create('reactions', ...)
-  → API: who is the post author? (read the target document)
-  → API: push notification to jacoby149 via WebSocket
-     { "type": "reaction", "from": "bob", "doc_id": "post-123", "reaction_type": "like" }
+  → Bob's app: w.create('reactions', { ref_value: 'post-123', ... })
+  → Bob's app: sendP2P(jacoby149, { type: 'reaction', from: 'bob', ref_doc_id: 'post-123' })
+  → jacoby149's app (onP2PInbound): re-read the ref-counts → append + bump the badge
 ```
 
-**On every join request:**
-
-```
-Bob requests to join web10.app/groups/jacoby149/followers
-  → API writes join request via w.requestJoin(...)
-  → API: who is the owner? (read group_members with role='owner')
-  → API: push notification to jacoby149 via WebSocket
-     { "type": "follow_request", "from": "bob", "group_id": "web10.app/groups/jacoby149/followers" }
-```
-
-The API knows about the write. It pushes the notification. No polling. No background job.
+The nudge reaches users who are online + opted in (the real-time cohort)
+instantly; everyone else gets it on their next read (CRUD is truth, so
+nothing is lost). This is the honest model available without a server push
+channel, and it is the one the DMs already run — one real-time mental model,
+not two.
 
 ## The Notification History
 
-Notifications are ephemeral by default. But the user needs a history screen.
-
-**Option 1: Query on demand.** Run the notification queries above when the user opens the screen. Accurate, but slow for large datasets.
-
-**Option 2: Notification table.** The API writes to a lightweight notifications table on every event. The social app owns it — not a core protocol table.
+Notifications are ephemeral by default, but the user needs a history screen.
+The app owns a lightweight `notifications` service in the user's own followers
+group (the D60 pattern — app concepts in app-named services + role grants, no
+platform table, no node endpoint):
 
 ```ts
-// API writes on each event
+// The app writes a notification doc when it derives an event (or on a nudge)
 await w.create('notifications', {
   type: 'reaction',
   from: 'bob',
   ref_doc_id: 'post-123',
-}, {
-  groups: ['web10.app/groups/jacoby149/notifications'],
-})
-```
+  read: false,
+}, { groups: [myFollowersGroup] })
 
-The notification screen reads from this collection:
-
-```ts
+// The screen reads the history
 const history = await w.read('notifications', {
-  groups: ['web10.app/groups/jacoby149/notifications'],
+  groups: [myFollowersGroup],
   $sort: { created_at: -1 },
   $limit: 50,
 })
 ```
 
-Option 2 is better for the app. It's a lightweight table, not a core protocol table. The social app owns it.
+Badge = the unread count (`read: false`). Mark-read on screen open. This is
+the durable history + the badge, with no node table.
 
 ## The Data Flow
 
 ```
 User opens /notifications
-  → w.read('notifications', { groups: ['web10.app/groups/jacoby149/notifications'] })
-  → parallel: resolve avatar for each "from_key"
+  → w.read('notifications', { groups: [myFollowersGroup] })
+  → parallel: resolve avatar for each "from"
   → mark as read
   → render
 
-Real-time:
-  → WebSocket: subscribe to notifications channel
-  → New notification arrives → append to list, show badge
+Real-time (app-wide, any screen):
+  → onP2PInbound: a nudge arrives → re-read from CRUD → append + bump the badge
+  → the bell (Layout) + the "N new" banner (the sessionAlert precedent) update
 ```
+
+The app-wide notification store (the `p2p.ts` listener-set idiom — module
+singleton + subscriber set) holds the live unread count + recent items and
+subscribes to `onP2PInbound`, so a nudge bumps the badge from *any* screen —
+the operator's "whatever app state they are in."
 
 ## TODO
 
-- [ ] Notification table — lightweight, social-app-owned, not core protocol
-- [ ] WebSocket push — on reaction, comment, follow request, group join
-- [ ] Read/unread state — toggle read flag on notification row
-- [ ] Notification badge — counter of unread notifications
+- [ ] **Decision: D69** — P2P nudge + CRUD re-read, app-owned, node stays stateless (retires the WebSocket push model)
+- [ ] Notification store — app-wide singleton, subscribes to `onP2PInbound`, live unread count
+- [ ] Read side — derive from reads (ref-counts, DM cursor, pending requests, membership diff)
+- [ ] Write side — the nudge on each targeting action (reuses `sendP2P`)
+- [ ] Unread state — app-owned `notifications` service in the followers group (D60)
+- [ ] Badge + bell — `Layout` (desktop sidebar + mobile top-header) + the "N new" banner
+- [ ] The `/notifications` screen — deep-linkable history, mark-read on open
+- [ ] The missing primitive — `getPendingRequests` (followers group pending join requests)
 - [ ] Notification preferences — per-type toggle (reactions on/off, comments on/off)
-- [ ] Batch notifications — "15 people liked your post" instead of 15 separate notifications
+- [ ] Batch notifications — "15 people liked your post" instead of 15 rows (a later refinement)
 
 ## Proof
 
-Notifications are derived events, not a core protocol concept. The social app owns the notification collection. The API pushes on relevant writes. No polling. No background job. The protocol enables it without defining it.
+Notifications are derived events, not a core protocol concept. The social app
+owns the notification collection (D60). The P2P data channel is the nudge,
+CRUD is the source of truth — the same model the DMs run. No server push, no
+node table, no new endpoint, no polling. The protocol enables it without
+defining it.
