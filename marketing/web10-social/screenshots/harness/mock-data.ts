@@ -342,6 +342,10 @@ export async function joinGroup(): Promise<unknown> { return { status: 'joined' 
 export async function readGroupIdentity(): Promise<unknown> { return {}; }
 export async function requestJoinGroup(): Promise<unknown> { return { status: 'pending' }; }
 export async function leaveGroup(): Promise<unknown> { return { status: 'left' }; }
+// Media ref id (the group detail maps post media refs to resolved records).
+export function mediaRefId(ref: string | { doc_id?: string }): string {
+  return typeof ref === 'string' ? ref : ref.doc_id || '';
+}
 export function groupDisplayName(groupId: string, name?: string): string {
   if (name) return name;
   const parts = groupId.split('/');
