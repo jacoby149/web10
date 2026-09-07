@@ -37,6 +37,7 @@ import { MARKETING_ORIGIN } from '@/lib/origins';
 import { CommentThread } from './CommentThread';
 import { TextWithLinks } from './LinkEmbed';
 import { AdBlock } from './AdBlock';
+import { HlsVideoPlayer } from './HlsVideoPlayer';
 import { PostLightbox } from '@/components/Bio/PostLightbox';
 
 const LOG = (...args: unknown[]) => console.log('[social:feed]', ...args);
@@ -107,6 +108,25 @@ function MediaItem({ media }: { media: MediaRecord }) {
       videoRef.current?.pause();
     };
   }, [playing]);
+
+  // Transcoded video (D44): the read carried the media doc's
+  // transcoding_settings + a per-reader manifest_url — play it through the
+  // hls.js player (the media demo's player: quality/speed/fullscreen,
+  // vertical layout for 9:16). The ratio comes from the lowest variant
+  // (the source ratio, preserved by the node).
+  const ts = media.transcoding_settings;
+  if (isVideo && ts?.status === 'done' && ts.manifest_url) {
+    const v0 = ts.variants?.[0];
+    LOG('media — transcoded video, hls.js player:', media._id, 'manifest:', ts.manifest_url, 'variants:', ts.variants?.map((v) => `${v.width}x${v.height}`).join('/'));
+    return (
+      <HlsVideoPlayer
+        manifestUrl={ts.manifest_url}
+        poster={media.thumbnail_url}
+        width={v0?.width || media.width}
+        height={v0?.height || media.height}
+      />
+    );
+  }
 
   const src = media.thumbnail_url || media.url;
 
