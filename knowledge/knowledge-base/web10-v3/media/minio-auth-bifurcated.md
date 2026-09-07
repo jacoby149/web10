@@ -39,10 +39,23 @@ HLS segments are small (270KB each), numerous (100+), and fetched continuously o
 GET /alice/video/manifest.m3u8?sig=JWT(10min)
 → manifest returns segments with sig: 720p/seg001.ts?sig=JWT(10min)
 → MinIO middleware validates JWT on every segment request
-→ token expires → viewer re-fetches manifest → API re-checks group membership
+→ token expires → viewer re-fetches manifest → API re-checks access
 ```
 
-The middleware is lightweight — JWT validation is fast, no database hit. Token expires every 10 minutes → group membership is re-checked. Shared URLs die in 10 minutes.
+The middleware is lightweight — JWT validation is fast, no database hit. Token expires every 10 minutes → access is re-checked. Shared URLs die in 10 minutes.
+
+**The access re-check (v3, D68).** The sig is bound to (reader, doc, hls
+prefix). On every manifest (re)fetch the API re-runs `can_view_doc`: the
+reader may view the media doc if they are (1) the author, (2) a member of a
+group the media doc belongs to, **or (3) a reader of a post that carries the
+media** — a `posts` doc whose `media_refs` include the media doc_id, in a
+group the reader can read. Rule (3) is the cross-user feed path: social
+media docs (confirmMediaUpload) are groupless, so a follower streams a
+creator's video through the post's groups — the post is the access model,
+the media doc is owned data, not a boundary. It leaks nothing new: the post
+read already grants every post reader a presigned `read_url` for the raw
+file (the renditions are strictly less data). A removed/blocked follower
+loses the stream within one sig TTL.
 
 ## The Middleware
 

@@ -9,6 +9,44 @@ Status legend: [decided] intent set · [in-progress] · [open] still debating.
 
 ---
 
+### D68 — HLS stream access tracks post access (the carrier-post check) [decided]
+
+**The decision.** A reader may fetch the HLS manifest/segments of a media
+doc if the reader is (1) the doc's author, (2) a member of a group the media
+doc belongs to, **or (3) a reader of a post that carries the media** — a
+`posts` doc whose `media_refs` include the media doc's doc_id, in a group the
+reader can read. The check lives in `can_view_doc` (the manifest fetch's
+access re-check), so the 10-minute sig TTL re-runs it: a removed/blocked
+follower loses the stream within one TTL.
+
+**Why.** Operator: "if it isnt possible for people who should see hls
+streams to see, should be possible." 3.67.0 shipped the feed player with the
+gap declared: social media docs (confirmMediaUpload) are groupless, so a
+follower's minted sig 403'd at the manifest fetch — only the author's own
+transcoded posts streamed. The load-bearing fact: **the post read already
+grants every post reader a presigned `read_url` for the raw MP4**
+(`resolve_media_urls` mints it into the resolved media ref). The raw file is
+strictly more data than the HLS renditions — so aligning HLS access with
+post access leaks nothing new; it makes the stream consistent with access
+already granted. The KB's own model says the same
+(`minio-auth-bifurcated.md`: "You got the document (group membership
+checked), the file URL is part of it") — for video, the post is the document.
+
+**What it rejects.** Attaching media docs to their post's groups at post
+time (option a): not retroactive (pre-existing posts' media stays 403 for
+followers), needs maintenance (post update/delete desyncs the media doc's
+groups), and is partial (a post's discover-group attach depends on the
+author's role there). Also rejected: a separate media-read endpoint for the
+client to re-resolve (an extra round trip for data the read already
+carries).
+
+**The bound.** The carrier-post lookup is scoped to the media doc's AUTHOR's
+posts (a post can only carry its own author's media — resolution is
+author-scoped), dedup-then-filter, `LIMIT 1`. Manifest fetches are
+low-frequency (one per 10-min sig per viewer + rebuffer), so the cost is
+negligible at v3 scale; if it ever matters, the `media_refs` reference is
+the index to add.
+
 ### D67 — Remove v2 Mongo/FerretDB from the node [decided]
 
 **The decision.** The node drops **Mongo + FerretDB** (and FerretDB's Postgres

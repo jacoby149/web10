@@ -1,5 +1,6 @@
 import { test, expect, type APIRequestContext, type Page } from '@playwright/test';
 import { readFileSync } from 'fs';
+import { createHmac } from 'crypto';
 import { dirname, resolve } from 'path';
 import { fileURLToPath } from 'url';
 import { API_BASE, v3Login, v3Signup } from '../v3-helpers';
@@ -8,6 +9,30 @@ import { API_BASE, v3Login, v3Signup } from '../v3-helpers';
 // fixture the hls.spec.ts gauntlet drives through the transcode worker.
 const here = dirname(fileURLToPath(import.meta.url));
 const TEST_VIDEO = readFileSync(resolve(here, '../fixtures/test-video-vertical.mp4'));
+
+// The node's HS256 signing secret (api/app/settings.py dev default — the e2e
+// stack runs with it, and the repo is open source). Used to mint stream sigs
+// directly, including for users the read path would never mint for (the I3
+// anti-tests — same pattern as hls.spec.ts).
+const NODE_SECRET = '8cbec8.....';
+
+function b64url(buf: Buffer): string {
+  return buf.toString('base64').replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+}
+/** Mint a stream sig the way the read path does (same secret, same claims). */
+function mintSig(username: string, docId: string, prefix: string, ttlSeconds = 600): string {
+  const now = Math.floor(Date.now() / 1000);
+  const header = b64url(Buffer.from(JSON.stringify({ alg: 'HS256', typ: 'JWT' })));
+  const payload = b64url(
+    Buffer.from(JSON.stringify({ username, doc_id: docId, prefix, iat: now, exp: now + ttlSeconds })),
+  );
+  const sig = b64url(createHmac('sha256', NODE_SECRET).update(`${header}.${payload}`).digest());
+  return `${header}.${payload}.${sig}`;
+}
+/** The hls prefix for a raw object key (the worker writes HLS under {dir}/hls). */
+function hlsPrefix(objectKey: string): string {
+  return objectKey.slice(0, objectKey.lastIndexOf('/')) + '/hls';
+}
 
 /**
  * Social feed — the integration floor for web10-social's /feed surface
@@ -464,6 +489,57 @@ test.describe('Social feed — API floor (the app\'s exact read)', () => {
     expect(master).toContain('#EXTM3U');
     expect(master.match(/#EXT-X-STREAM-INF/g)?.length).toBe(ref.transcoding_settings.variants.length);
   });
+
+  test('a FOLLOWER streams the creator\'s transcoded video (D68 — stream access tracks post access)', async ({ request }) => {
+    test.setTimeout(300_000);
+    const creator = await signupAndLogin(request, 'sf68c');
+    const follower = await signupAndLogin(request, 'sf68f');
+    const stranger = await signupAndLogin(request, 'sf68s');
+    for (const u of [creator, follower, stranger]) {
+      await addAppContract(request, u.token, SOCIAL_ORIGIN, SOCIAL_CONTRACT_PERMISSIONS);
+    }
+
+    // Creator: followers group + media group; upload → transcode → done; a
+    // post carrying the media doc on the followers group.
+    const fCreator = await createFollowersGroupViaApi(request, creator.token, creator.username);
+    const mCreator = await createMediaGroupViaApi(request, creator.token, creator.username);
+    const { docId, objectKey } = await uploadAndTranscodeMediaDoc(request, creator.token, creator.username, mCreator);
+    await postDoc(request, creator.token, fCreator, 'creator hls post', [docId]);
+
+    // The follower follows the creator (open join = instant).
+    await joinGroup(request, follower.token, fCreator);
+
+    // The follower's feed read mints a manifest_url for the FOLLOWER (3.67.0).
+    let ref: any = null;
+    await expect(async () => {
+      const readRes = await request.post(`${API_BASE}/v3/read`, {
+        data: JSON.stringify({ token: follower.token, service: SERVICE, groups: [fCreator], limit: 50 }),
+        headers: { 'Content-Type': 'application/json', Origin: SOCIAL_ORIGIN },
+      });
+      expect(readRes.ok()).toBeTruthy();
+      const docs: any[] = await readRes.json();
+      const doc = docs.find((d) => d.body?.text === 'creator hls post');
+      if (!doc) throw new Error('creator hls post never surfaced in the follower read');
+      ref = doc.body.media_refs?.find((m: any) => typeof m === 'object' && m.doc_id === docId);
+      if (!ref?.transcoding_settings?.manifest_url) throw new Error('follower read did not mint a manifest_url');
+    }).toPass({ timeout: 30_000 });
+    const followerSig = ref.transcoding_settings.manifest_url.split('sig=')[1];
+
+    // D68: the sig is bound to the follower, and the access re-check passes
+    // through the CARRIER POST (the media doc is groupless — the post's
+    // groups are the access model). The master manifest serves.
+    const followerRes = await request.get(`${API_BASE}/v3/media/hls/manifest?doc_id=${docId}&sig=${followerSig}`);
+    expect(followerRes.ok(), `follower manifest fetch failed (${followerRes.status})`).toBeTruthy();
+    expect(followerRes.headers()['content-type']).toContain('mpegurl');
+    expect(await followerRes.text()).toContain('#EXTM3U');
+
+    // I3 at the stream layer: a sig for a NON-follower (minted directly — the
+    // read path would never mint one: the stranger can't read the post) is
+    // 403 — no carrier post the stranger can read.
+    const strangerSig = mintSig(stranger.username, docId, hlsPrefix(objectKey));
+    const strangerRes = await request.get(`${API_BASE}/v3/media/hls/manifest?doc_id=${docId}&sig=${strangerSig}`);
+    expect(strangerRes.status()).toBe(403);
+  });
 });
 
 // ---------------------------------------------------------------------------
@@ -592,6 +668,56 @@ test.describe('Social feed gauntlet — render → post → reload persists', ()
     // Exactly one of each in the feed.
     await expect(page.locator('[data-testid="hls-video-player"]')).toHaveCount(1);
     await expect(page.locator('[data-testid="media-video"]')).toHaveCount(1);
+
+    // No uncaught exceptions, no feed/player failures in the console.
+    expect(pageErrors).toEqual([]);
+    const errors = logs.filter((l) => l.includes('Failed') || l.includes('Error'));
+    expect(errors).toEqual([]);
+  });
+
+  test('a FOLLOWER\'s feed renders the creator\'s transcoded video through the hls.js player (D68)', async ({ page, context, request }) => {
+    test.setTimeout(300_000);
+    const logs = captureConsoleLogs(page, '[social-feed]');
+    const pageErrors: string[] = [];
+    page.on('pageerror', (err) => pageErrors.push(String(err)));
+
+    // Setup (API): a creator whose transcoded video post is visible to a
+    // follower (the media doc is groupless — the post's followers group is
+    // the access model, D68).
+    const creator = await signupAndLogin(request, 'sf68ui');
+    const follower = await signupAndLogin(request, 'sf68uif');
+    for (const u of [creator, follower]) {
+      await addAppContract(request, u.token, SOCIAL_ORIGIN, SOCIAL_CONTRACT_PERMISSIONS);
+    }
+    const fCreator = await createFollowersGroupViaApi(request, creator.token, creator.username);
+    const mCreator = await createMediaGroupViaApi(request, creator.token, creator.username);
+    const { docId } = await uploadAndTranscodeMediaDoc(request, creator.token, creator.username, mCreator);
+    const hlsPost = `creator hls post ${Date.now()}`;
+    await postDoc(request, creator.token, fCreator, hlsPost, [docId]);
+    await joinGroup(request, follower.token, fCreator);
+
+    // The BROWSER is the follower.
+    await setTokenCookie(context, 'social.localhost', follower.token);
+    await setTokenCookie(context, 'auth.localhost', follower.token);
+
+    await page.goto(`${SOCIAL_BASE}/feed`);
+    await page.waitForLoadState('networkidle');
+
+    // The creator's transcoded post renders the hls.js player in the
+    // FOLLOWER's feed (not the native fallback, not the error state): the
+    // minted sig streams through the carrier-post access check.
+    await expect(page.locator('[data-testid="hls-video-player"]')).toBeVisible({ timeout: 30_000 });
+    // The quality dropdown is populated from the PARSED manifest (Auto +
+    // each level) — proof the follower's hls.js fetched the master + variant
+    // manifests (the sig is valid for the follower).
+    await expect(async () => {
+      const options = await page.locator('[data-testid="quality-select"] option').allTextContents();
+      expect(options).toContain('Auto');
+      expect(options).toContain('360p');
+      expect(options).toContain('720p');
+    }).toPass({ timeout: 30_000 });
+    // The player's designed error state is NOT showing.
+    await expect(page.locator('[data-testid="hls-player-error"]')).toHaveCount(0);
 
     // No uncaught exceptions, no feed/player failures in the console.
     expect(pageErrors).toEqual([]);
