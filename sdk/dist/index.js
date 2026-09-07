@@ -200,6 +200,8 @@ function createV3Client(options = {}) {
         payload.offset = opts.offset;
       if (opts.ref != null)
         payload.ref = opts.ref;
+      if (opts.sort != null)
+        payload.sort = opts.sort;
       return v3Post("read", payload);
     },
     async readRefCounts(collection, opts) {

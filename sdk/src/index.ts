@@ -12,6 +12,7 @@ export { createV3Client, type V3Client } from './v3'
 export type {
   V3ClientOptions,
   V3AdPreference,
+  PowerMeanSort,
   V3Document,
   V3QueryResult,
   V3Group,

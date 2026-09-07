@@ -81,6 +81,43 @@ const HALF_LIFE_LABELS = ['1h', '4h', '12h', '1d', '7d', '∞'];
 const CHARACTER_DETENTS = [-5, -2.5, -1, 0, 1, 5];
 const CHARACTER_LABELS = ['Strict', 'Tight', 'Flat', 'Mean', 'Loose', 'Extreme'];
 
+// The Character knob is gone from the rack (operator: "i dont even know what
+// that means" — the obfuscated math dial had no plain-English concept, and it
+// was the 5th knob forcing the mobile sideways scroll). The exponent is fixed
+// at the middle detent — p = 0, the weighted geometric mean: no signal
+// dominates, a post is scored on the balance of its signals. `character`
+// stays in KnobState so the ?knobs= encoding and the persisted settings doc
+// keep their 5-field shape (old deep links + saved tunings still parse).
+export const FIXED_CHARACTER_DETEENT = 3;
+
+/** The fixed power-mean exponent the node ranks with (p = 0, geometric). */
+export const FIXED_CHARACTER_P = CHARACTER_DETENTS[FIXED_CHARACTER_DETEENT];
+
+// The server-side ranking config (the SDK's PowerMeanSort shape —
+// api/app/v3/models/documents.py). The node scores every readable post with
+// the weighted power mean and returns pre-sorted results, so a knob twist is
+// a re-read, not a client-side shuffle of the same 50.
+export interface PowerMeanSortConfig {
+  recency: number;
+  likes: number;
+  comments: number;
+  half_life_ms: number;
+  character: number;
+}
+
+/** Map a knob detent state to the server's power-mean sort config.
+ *  Weights/half-life come from the detent tables; character is the fixed
+ *  middle (the knob is gone — see FIXED_CHARACTER_DETEENT). */
+export function knobStateToSort(state: KnobState): PowerMeanSortConfig {
+  return {
+    recency: WEIGHT_DETENTS[state.recency],
+    likes: WEIGHT_DETENTS[state.likes],
+    comments: WEIGHT_DETENTS[state.comments],
+    half_life_ms: HALF_LIFE_DETENTS[state.halfLife],
+    character: FIXED_CHARACTER_P,
+  };
+}
+
 // ── Knob State ──────────────────────────────────────────────────────────────
 
 interface KnobState {

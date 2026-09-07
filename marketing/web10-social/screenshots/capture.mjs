@@ -103,6 +103,9 @@ try {
         // rendered fine.
         if (view.route) {
           await page.waitForSelector(`${view.ready} >> visible=true`, { timeout: 15000 });
+          // Route views are already loaded — a toggle here expands a sub-panel
+          // (e.g. the knob rack's "Advanced" panel) after the view is ready.
+          if (view.toggle) await page.click(view.toggle);
         } else {
           await page.waitForSelector('[data-testid="messages-view-toggle"] >> visible=true', { timeout: 15000 });
           if (view.toggle) await page.click(view.toggle);

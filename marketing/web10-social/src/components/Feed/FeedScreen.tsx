@@ -28,11 +28,12 @@ import type {
   ProfileRecord,
 } from '@/data/types';
 import {
-  rankPosts,
   PRESETS,
   getPreset,
+  knobStateToSort,
   type PresetId,
   type KnobState,
+  type PowerMeanSortConfig,
 } from '@/lib/powerMean';
 import { KnobRack } from '@/components/Discover/KnobRack';
 import { Heart, MessageCircle, Play, Pause, MoreHorizontal, Share2, Check, Edit3, Eye, EyeOff, Trash2 } from 'lucide-react';
@@ -655,6 +656,11 @@ export default function FeedScreen({ onAuthorClick }: { onAuthorClick?: (usernam
   const [likedMap, setLikedMap] = useState<Record<string, boolean>>({});
   const [profileMap, setProfileMap] = useState<Record<string, ProfileRecord>>({});
   const [avatarUrlMap, setAvatarUrlMap] = useState<Record<string, string>>({});
+  // True after the first successful feed load — knob re-reads keep the
+  // previous feed on screen (no skeleton flash); only the cold start shows
+  // the skeleton. A ref (not state) so the stable `loadFeed` callback can
+  // read it without a stale closure.
+  const hasLoadedRef = useRef(false);
   const token = getWapi().readToken();
   const isOwnPost = (p: PostRecord) =>
     token && p.author_username === token.username && p.author_provider === token.provider;
@@ -733,13 +739,18 @@ export default function FeedScreen({ onAuthorClick }: { onAuthorClick?: (usernam
     }
   }, [setKnobUrl, persistKnobs]);
 
-  const loadFeed = useCallback(async () => {
-    setLoading(true);
+  const loadFeed = useCallback(async (sort: PowerMeanSortConfig | null = null) => {
+    // `loading` is the INITIAL skeleton only — a knob-triggered re-read keeps
+    // the previous feed on screen (a full skeleton flash per twist would
+    // feel like the app is resetting). The ref (not `posts`) avoids a stale
+    // closure in this stable callback.
+    if (!hasLoadedRef.current) setLoading(true);
     try {
-      // v3: readFeed returns PostRecord[] directly from group-based reads
-      // (newest first — the ranking below re-orders by the knob state).
+      // v3: the node ranks the feed (the D36 power-mean sort, server-side) —
+      // a knob twist is a re-read, not a client-side shuffle of the same 50.
+      // `sort = null` is the chronological default (the Newest preset).
       const [feed, feedGroups] = await Promise.all([
-        readFeed('newest', 50),
+        readFeed(sort, 50),
         getFeedGroups(),
       ]);
 
@@ -767,6 +778,7 @@ export default function FeedScreen({ onAuthorClick }: { onAuthorClick?: (usernam
         p.reposts = 0;
       }
       setPosts(feed);
+      hasLoadedRef.current = true;
 
       const token = getWapi().readToken();
       if (!token) {
@@ -839,30 +851,41 @@ export default function FeedScreen({ onAuthorClick }: { onAuthorClick?: (usernam
       setCommentMap(comments);
     } catch (e) {
       console.error('Failed to load feed:', e);
-      setPosts([]);
+      // A failed re-read (a knob twist) keeps the previous feed on screen —
+      // only a cold-start failure shows the empty state.
+      if (!hasLoadedRef.current) setPosts([]);
     }
     setLoading(false);
   }, []);
 
-  useEffect(() => {
-    loadFeed();
-  }, [loadFeed]);
+  // The server-side ranking config for the current knob state. The Newest
+  // preset is pure chronological — the feed's default read (no sort param),
+  // so the out-of-the-box feed costs nothing extra.
+  const sortConfig = useMemo<PowerMeanSortConfig | null>(() => {
+    if (activePreset === 'newest') return null;
+    return knobStateToSort(knobState);
+  }, [knobState, activePreset]);
 
-  // Client-side re-ranking via knob state (zero network calls per twist —
-  // the same pattern as DiscoverScreen). The Newest preset (the default)
-  // short-circuits to pure chronological in rankPosts.
-  const rankedPosts = useMemo(() => {
-    return rankPosts(
-      posts,
-      (post) => ({
-        ageMs: Date.now() - new Date(post.created_at).getTime(),
-        likes: post.likes || 0,
-        comments: post.comments || 0,
-        reposts: post.reposts || 0,
-      }),
-      knobState,
-    );
-  }, [posts, knobState]);
+  // The node ranks the feed (the D36 power-mean sort, server-side) — a knob
+  // twist is a DEBOUNCED RE-READ, not a client-side shuffle of the same 50.
+  // First load (mount) fires immediately; knob bursts (a rotary drag is a
+  // run of detent steps) settle into one fetch 400ms after the last twist.
+  // The previous feed stays on screen while the re-read is in flight —
+  // `loading` is only for the initial skeleton.
+  const firstLoad = useRef(true);
+  const refreshTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  useEffect(() => {
+    if (firstLoad.current) {
+      firstLoad.current = false;
+      LOG('load — initial, sort:', sortConfig ? JSON.stringify(sortConfig) : '(chronological)');
+      loadFeed(sortConfig);
+      return;
+    }
+    if (refreshTimer.current) clearTimeout(refreshTimer.current);
+    LOG('knob change — re-reading feed in 400ms, sort:', sortConfig ? JSON.stringify(sortConfig) : '(chronological)');
+    refreshTimer.current = setTimeout(() => loadFeed(sortConfig), 400);
+    return () => { if (refreshTimer.current) clearTimeout(refreshTimer.current); };
+  }, [sortConfig, loadFeed]);
 
   async function handleToggleLike(postId: string) {
     const token = getWapi().readToken();
@@ -904,7 +927,7 @@ export default function FeedScreen({ onAuthorClick }: { onAuthorClick?: (usernam
         {!posts.length ? (
           <FeedEmptyState />
         ) : (
-          rankedPosts.map((post) => {
+          posts.map((post) => {
             const authorKey = `${post.author_username}@${post.author_provider}`;
             const profile = profileMap[authorKey];
             const mediaItems = mediaMap[post._id || ''] || [];
@@ -929,7 +952,7 @@ export default function FeedScreen({ onAuthorClick }: { onAuthorClick?: (usernam
                   setCommentMap((prev) => ({ ...prev, [post._id || '']: n }))
                 }
                 onAuthorClick={onAuthorClick}
-                onPostUpdated={loadFeed}
+                onPostUpdated={() => loadFeed(sortConfig)}
                 isOwnPost={isOwnPost(post)}
               />
             );

@@ -43,6 +43,13 @@ export interface V3AdPreference {
     mode: 'none' | 'pinned';
     target?: string;
 }
+export interface PowerMeanSort {
+    recency?: number;
+    likes?: number;
+    comments?: number;
+    half_life_ms?: number;
+    character?: number;
+}
 export interface V3Document {
     doc_id: string;
     author_key: string;
@@ -226,6 +233,7 @@ export interface V3Client {
         limit?: number;
         offset?: number;
         ref?: string | string[];
+        sort?: PowerMeanSort;
     }): Promise<V3Document[]>;
     readRefCounts(collection: string, opts: {
         groups: string[];

@@ -69,6 +69,20 @@ export interface V3AdPreference {
   target?: string
 }
 
+// The power-mean ranking config (the feed knobs, server-side — D36). The node
+// scores every readable post with the weighted power mean and returns
+// pre-sorted results. Weights are 0..1 (0 = that signal is ignored);
+// half_life_ms is the recency decay half-life (0 = all time, no decay);
+// character is the power-mean exponent p (negative = strict, 0 = geometric,
+// positive = loose). Mirrors api/app/v3/models/documents.py PowerMeanSort.
+export interface PowerMeanSort {
+  recency?: number
+  likes?: number
+  comments?: number
+  half_life_ms?: number
+  character?: number
+}
+
 export interface V3Document {
   doc_id: string
   author_key: string
@@ -411,7 +425,7 @@ export function createV3Client(options: V3ClientOptions = {}): V3Client {
 
     async read(
       collection: string,
-      opts: { groups: string[]; limit?: number; offset?: number; ref?: string | string[] },
+      opts: { groups: string[]; limit?: number; offset?: number; ref?: string | string[]; sort?: PowerMeanSort },
     ): Promise<V3Document[]> {
       const payload: V3Body = { service: collection, groups: opts.groups }
       if (opts.limit != null) payload.limit = opts.limit
@@ -420,6 +434,10 @@ export function createV3Client(options: V3ClientOptions = {}): V3Client {
       // ref_value matches. A single doc_id or a list (the engagement-count
       // shape). Routed through the safe-query engine server-side.
       if (opts.ref != null) payload.ref = opts.ref
+      // The power-mean ranking (the feed knobs, server-side — D36): when
+      // present, the node scores every readable post and returns pre-sorted
+      // results, so a knob twist is a re-read, not a client-side shuffle.
+      if (opts.sort != null) payload.sort = opts.sort
       return v3Post<V3Document[]>('read', payload)
     },
 
@@ -908,7 +926,7 @@ export interface V3Client {
 
   // CRUD with groups
   create(collection: string, body: Record<string, unknown>, opts?: { groups?: string[]; ad_preference?: V3AdPreference; ref_value?: string }): Promise<V3Document>
-  read(collection: string, opts: { groups: string[]; limit?: number; offset?: number; ref?: string | string[] }): Promise<V3Document[]>
+  read(collection: string, opts: { groups: string[]; limit?: number; offset?: number; ref?: string | string[]; sort?: PowerMeanSort }): Promise<V3Document[]>
   readRefCounts(collection: string, opts: { groups: string[]; ref: string | string[] }): Promise<Record<string, number>>
   readById(docId: string, collection: string): Promise<V3Document>
   query(sql: string, opts?: { groups?: string[] }): Promise<V3QueryResult>

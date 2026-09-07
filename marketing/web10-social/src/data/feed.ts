@@ -1,6 +1,7 @@
 import { getV3Client } from './v3';
+import type { PowerMeanSort } from 'web10-npm';
 import { getDiscoverGroupId, getMyGroups, getFeedGroups } from './groups';
-import { fromV3DocToPost, fromV3DocToProfile, mediaRefId, type PostRecord, type DiscoverSort } from './types';
+import { fromV3DocToPost, fromV3DocToProfile, mediaRefId, type PostRecord } from './types';
 
 // ── Feed / Discover data layer (v3) ──────────────────────────────────────────
 // v3 feed: read from groups, not inbox. Discover: read from discover group.
@@ -9,9 +10,13 @@ import { fromV3DocToPost, fromV3DocToProfile, mediaRefId, type PostRecord, type 
 
 /**
  * Read the discovery feed from the discover group.
+ *
+ * `sort` (the D36 power-mean config, server-side): when present, the node
+ * scores every readable post and returns pre-sorted results — a knob twist
+ * is a re-read, not a client-side shuffle of the same 50.
  */
 export async function readDiscoverFeed(
-  sort: DiscoverSort = 'recent',
+  sort: PowerMeanSort | null = null,
   limit = 50,
 ): Promise<PostRecord[]> {
   const w = getV3Client();
@@ -19,10 +24,13 @@ export async function readDiscoverFeed(
     const docs = await w.read('posts', {
       groups: [getDiscoverGroupId()],
       limit,
+      ...(sort ? { sort } : {}),
     });
     const posts = docs.map(fromV3DocToPost);
-    // Sort: 'recent' = newest first, 'trending' = by engagement (client-side)
-    if (sort === 'recent') {
+    // Without a server sort, keep the chronological default (newest first).
+    // With a server sort the node already returned pre-sorted results —
+    // re-sorting client-side would clobber the ranking.
+    if (!sort) {
       posts.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
     }
     return posts;
@@ -108,12 +116,15 @@ export async function fetchSuggestedUsers(limit = 20): Promise<SuggestedUser[]> 
 
 // ── Feed (group-based, not inbox) ────────────────────────────────────────────
 
-import type { FeedSort } from './types';
-
 /**
  * Read the feed — all groups except discover, sorted.
+ *
+ * `sort` (the D36 power-mean config, server-side): when present, the node
+ * scores every readable post across the feed's groups and returns pre-sorted
+ * results — a knob twist is a re-read, not a client-side shuffle of the
+ * same 50. Without it, the feed is chronological (newest first).
  */
-export async function readFeed(sort: FeedSort = 'newest', limit = 50): Promise<PostRecord[]> {
+export async function readFeed(sort: PowerMeanSort | null = null, limit = 50): Promise<PostRecord[]> {
   const w = getV3Client();
   const feedGroups = await getFeedGroups();
   console.log('[social-feed] readFeed — feed groups (minus discover):', JSON.stringify(feedGroups));
@@ -126,13 +137,18 @@ export async function readFeed(sort: FeedSort = 'newest', limit = 50): Promise<P
   const docs = await w.read('posts', {
     groups: feedGroups,
     limit,
+    ...(sort ? { sort } : {}),
   });
-  console.log('[social-feed] readFeed — got', docs.length, 'docs from', feedGroups.length, 'groups');
+  console.log('[social-feed] readFeed — got', docs.length, 'docs from', feedGroups.length, 'groups', sort ? `with sort ${JSON.stringify(sort)}` : '(chronological)');
 
   const posts = docs.map(fromV3DocToPost);
-  const direction = sort === 'newest' ? -1 : 1;
-  posts.sort((a, b) => (new Date(a.created_at).getTime() - new Date(b.created_at).getTime()) * direction);
-  console.log('[social-feed] readFeed — sorted', posts.length, 'posts by', sort);
+  // Without a server sort, keep the chronological default (newest first).
+  // With a server sort the node already returned pre-sorted results —
+  // re-sorting client-side would clobber the ranking.
+  if (!sort) {
+    posts.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
+  }
+  console.log('[social-feed] readFeed —', posts.length, 'posts', sort ? '(server-ranked)' : '(newest first)');
   return posts;
 }
 
