@@ -9,7 +9,7 @@ and their followers-group posts are untouched.
 """
 
 from datetime import datetime
-from unittest.mock import patch
+from unittest.mock import MagicMock, patch
 
 import jwt
 import pytest
@@ -361,3 +361,48 @@ class TestModerationEndpoints:
                     "/v3/moderation/auto-hide", json={"token": _make_token("rando"), "username": "x", "hide": True}
                 )
         assert resp.status_code == 403
+
+
+# ---------------------------------------------------------------------------
+# get_moderation_flags — the review queue is ONE row per user
+# ---------------------------------------------------------------------------
+
+
+class TestGetModerationFlagsQuery:
+    """The review queue must return exactly one row per flagged user. The
+    matched_words column is Array(String); the query must collect every word
+    across a user's flags into a single array on a single row
+    (arrayFlatten(groupArray(...))). An arrayJoin here would split a
+    multi-flag user into one row PER flag, duplicating them in the queue
+    (caught by the e2e moderation gauntlet)."""
+
+    def _run(self):
+        import app.v3.services.clickhouse as ch
+
+        mock_client = MagicMock()
+        # Simulate the ClickHouse result: one row per user, all_words already
+        # flattened (what arrayFlatten produces).
+        mock_client.query.return_value = MagicMock(
+            result_rows=[
+                ("bad", 2, "2026-09-07 12:00:00", ["nigger", "auto_hide_users"]),
+                ("other", 1, "2026-09-07 11:00:00", ["kike"]),
+            ]
+        )
+        with patch.object(ch, "client", mock_client):
+            flags = ch.get_moderation_flags()
+        return mock_client.query.call_args[0][0], flags
+
+    def test_query_uses_array_flatten_not_array_join(self):
+        sql, _ = self._run()
+        assert "arrayFlatten(groupArray(matched_words))" in sql
+        assert "arrayJoin" not in sql  # arrayJoin splits a user into N rows
+        assert "GROUP BY username" in sql
+
+    def test_one_row_per_user_with_flattened_words(self):
+        _, flags = self._run()
+        # One row per user (no duplicates), newest first.
+        assert [f["username"] for f in flags] == ["bad", "other"]
+        # All matched words across the user's flags are collected on the one row.
+        assert flags[0]["matched_words"] == ["nigger", "auto_hide_users"]
+        assert flags[0]["flag_count"] == 2
+        assert flags[1]["matched_words"] == ["kike"]
