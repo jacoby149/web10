@@ -2,7 +2,6 @@ import logging
 
 from fastapi import APIRouter, HTTPException, Request
 
-import app.exceptions as exceptions
 from app.v3.endpoints.auth_helper import user_or_anon
 from app.v3.endpoints.documents import _check_app_permission, _mint_hls_manifest_urls
 from app.v3.models import FeedRequest
