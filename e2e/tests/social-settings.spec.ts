@@ -37,6 +37,7 @@ const SOCIAL_ORIGIN = SOCIAL_BASE;
 const SOCIAL_SERVICES = [
   'posts', 'media', 'public_media', 'profile', 'settings',
   'comments', 'reactions', 'contacts', 'staging_posts',
+  'web10-social-group-identity', 'notifications',
 ];
 const SOCIAL_OPERATIONS = ['create', 'readAll', 'updateOwn', 'deleteOwn'];
 

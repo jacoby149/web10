@@ -9,13 +9,15 @@ import {
   Lock,
   Hash,
   Link as LinkIcon,
+  LockOpen,
+  MessageSquare,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { cn } from '@/lib/utils';
 import { getV3Client } from '@/data/v3';
-import { createCommunityGroup, type GroupVisibility } from '@/data/groups';
+import { createCommunityGroup, type GroupVisibility, type GroupJoinPolicy } from '@/data/groups';
 import { uploadMedia } from '@/data/posts';
 
 const LOG = (...args: unknown[]) => console.log('[social:groups:create]', ...args);
@@ -24,6 +26,12 @@ const VISIBILITY_OPTIONS: { value: GroupVisibility; label: string; hint: string;
   { value: 'public', label: 'Public', hint: 'Anyone can read, even signed out', icon: Globe },
   { value: 'signed_in', label: 'Signed in', hint: 'Only signed-in members of the node', icon: UserCheck },
   { value: 'private', label: 'Private', hint: 'Only people you add', icon: Lock },
+];
+
+const JOIN_POLICY_OPTIONS: { value: GroupJoinPolicy; label: string; hint: string; icon: typeof Globe }[] = [
+  { value: 'open', label: 'Open', hint: 'Anyone can join immediately', icon: LockOpen },
+  { value: 'request', label: 'Request', hint: 'Joiners ask; you approve', icon: MessageSquare },
+  { value: 'invite_only', label: 'Invite only', hint: 'Only people you invite', icon: Lock },
 ];
 
 function slugify(name: string): string {
@@ -48,6 +56,7 @@ export function CreateGroupSheet({
   const [name, setName] = useState('');
   const [description, setDescription] = useState('');
   const [visibility, setVisibility] = useState<GroupVisibility>('private');
+  const [joinPolicy, setJoinPolicy] = useState<GroupJoinPolicy>('open');
   const [tags, setTags] = useState('');
   const [website, setWebsite] = useState('');
   const [bannerFile, setBannerFile] = useState<File | null>(null);
@@ -74,6 +83,7 @@ export function CreateGroupSheet({
       setName('');
       setDescription('');
       setVisibility('private');
+      setJoinPolicy('open');
       setTags('');
       setWebsite('');
       setBannerFile(null);
@@ -133,6 +143,7 @@ export function CreateGroupSheet({
           website: website.trim() || undefined,
           tags: tagList.length ? tagList : undefined,
           visibility,
+          join_policy: joinPolicy,
           banner_ref: bannerRef,
           avatar_ref: avatarRef,
         },
@@ -146,7 +157,7 @@ export function CreateGroupSheet({
     } finally {
       setSubmitting(false);
     }
-  }, [canSubmit, name, description, website, tags, visibility, bannerFile, avatarFile, username, onCreated]);
+  }, [canSubmit, name, description, website, tags, visibility, joinPolicy, bannerFile, avatarFile, username, onCreated]);
 
   if (!open) return null;
 
@@ -275,6 +286,36 @@ export function CreateGroupSheet({
                     disabled={submitting}
                     aria-pressed={active}
                     data-testid={`create-group-visibility-${value}`}
+                    className={cn(
+                      'flex flex-col items-start gap-1 rounded-lg border p-3 text-left transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
+                      active
+                        ? 'border-brand bg-brand-muted/60'
+                        : 'border-border bg-surface hover:border-brand/40',
+                    )}
+                  >
+                    <Icon className={cn('h-4 w-4', active ? 'text-brand-300' : 'text-muted-foreground')} strokeWidth={1.75} />
+                    <span className={cn('text-sm font-medium', active ? 'text-foreground' : 'text-muted-foreground')}>{label}</span>
+                    <span className="text-[0.7rem] leading-tight text-muted-foreground">{hint}</span>
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+
+          {/* Join policy */}
+          <div className="mt-4">
+            <span className="mb-1.5 block text-xs font-medium uppercase tracking-wide text-muted-foreground">How people join</span>
+            <div className="grid grid-cols-3 gap-2" data-testid="create-group-join-policy">
+              {JOIN_POLICY_OPTIONS.map(({ value, label, hint, icon: Icon }) => {
+                const active = joinPolicy === value;
+                return (
+                  <button
+                    key={value}
+                    type="button"
+                    onClick={() => setJoinPolicy(value)}
+                    disabled={submitting}
+                    aria-pressed={active}
+                    data-testid={`create-group-join-${value}`}
                     className={cn(
                       'flex flex-col items-start gap-1 rounded-lg border p-3 text-left transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
                       active
