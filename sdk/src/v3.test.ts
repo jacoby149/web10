@@ -139,6 +139,7 @@ describe('v3 client', () => {
       expect(client).toHaveProperty('getMyGroups')
       expect(client).toHaveProperty('getGroupsManages')
       expect(client).toHaveProperty('updateGroup')
+      expect(client).toHaveProperty('deleteGroup')
       expect(client).toHaveProperty('joinGroup')
       expect(client).toHaveProperty('requestJoin')
       expect(client).toHaveProperty('leaveGroup')
@@ -497,6 +498,32 @@ describe('v3 client', () => {
       expect(call.token).toBeUndefined()
     })
 
+    it('feed posts to /v3/feed with groups + limit + token (D69)', async () => {
+      const mockResponse = { posts: [{ doc_id: 'p1', likes: 3 }], has_more: true, next_cursor: { created_at: '2026-09-07T09:00:00.000' } }
+      vi.spyOn(http, 'authPost').mockResolvedValueOnce(mockResponse as any)
+
+      const result = await client.feed({ groups: ['g1'], limit: 20 })
+      expect(result).toEqual(mockResponse)
+      expect(http.authPost).toHaveBeenCalledWith(
+        'http://api.localhost/v3/feed',
+        expect.objectContaining({ groups: ['g1'], limit: 20, token: mockToken }),
+      )
+    })
+
+    it('feed passes cursor + sort for a tuned, paged read', async () => {
+      vi.spyOn(http, 'authPost').mockResolvedValueOnce({ posts: [], has_more: false, next_cursor: null } as any)
+
+      await client.feed({
+        groups: ['g1'],
+        limit: 20,
+        cursor: { score: 0.5 },
+        sort: { likes: 1.0, recency: 0.0, comments: 0.0, half_life_ms: 0, character: -1.0 },
+      })
+      const call = (vi.mocked(http.authPost).mock.calls[0][1] as any)
+      expect(call.cursor).toEqual({ score: 0.5 })
+      expect(call.sort).toEqual({ likes: 1.0, recency: 0.0, comments: 0.0, half_life_ms: 0, character: -1.0 })
+    })
+
     it('update sends doc_id and body', async () => {
       const mockResponse = { doc_id: 'abc', collection_name: 'notes', body: { text: 'updated' } }
       vi.spyOn(http, 'authPost').mockResolvedValueOnce(mockResponse as any)
@@ -637,6 +664,45 @@ describe('v3 client', () => {
       await client.updateGroup('g1', { join_policy: 'open' })
       const call = (vi.mocked(http.authPost).mock.calls[0][1] as any)
       expect(call.roles).toBeUndefined()
+    })
+
+    it('createGroup with discoverable passes the blasting flag', async () => {
+      vi.spyOn(http, 'authPost').mockResolvedValueOnce({ group_id: 'g1' } as any)
+      await client.createGroup('my-group', 'open', [], [{ member_key: 'alice', role: 'owner' }], { discoverable: true })
+      const call = (vi.mocked(http.authPost).mock.calls[0][1] as any)
+      expect(call.discoverable).toBe(true)
+    })
+
+    it('createGroup without opts omits discoverable (backward compat)', async () => {
+      vi.spyOn(http, 'authPost').mockResolvedValueOnce({ group_id: 'g1' } as any)
+      await client.createGroup('my-group', 'open', [], [{ member_key: 'alice', role: 'owner' }])
+      const call = (vi.mocked(http.authPost).mock.calls[0][1] as any)
+      expect(call.discoverable).toBeUndefined()
+    })
+
+    it('updateGroup with discoverable passes the blasting flag', async () => {
+      vi.spyOn(http, 'authPost').mockResolvedValueOnce({ group_id: 'g1', join_policy: 'open', my_role: 'owner', member_count: 5, discoverable: true } as any)
+      await client.updateGroup('g1', { discoverable: true })
+      const call = (vi.mocked(http.authPost).mock.calls[0][1] as any)
+      expect(call.group_id).toBe('g1')
+      expect(call.discoverable).toBe(true)
+    })
+
+    it('updateGroup with discoverable: false delists (not omitted)', async () => {
+      vi.spyOn(http, 'authPost').mockResolvedValueOnce({ group_id: 'g1', join_policy: 'open', my_role: 'owner', member_count: 5, discoverable: false } as any)
+      await client.updateGroup('g1', { discoverable: false })
+      const call = (vi.mocked(http.authPost).mock.calls[0][1] as any)
+      expect(call.discoverable).toBe(false)
+    })
+
+    it('deleteGroup posts groups/delete', async () => {
+      vi.spyOn(http, 'authPost').mockResolvedValueOnce({ group_id: 'g1', status: 'deleted' } as any)
+      const result = await client.deleteGroup('g1')
+      expect(result.status).toBe('deleted')
+      expect(http.authPost).toHaveBeenCalledWith(
+        'http://api.localhost/v3/groups/delete',
+        expect.objectContaining({ group_id: 'g1', token: mockToken }),
+      )
     })
 
     it('joinGroup', async () => {

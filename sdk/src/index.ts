@@ -14,6 +14,8 @@ export type {
   V3AdPreference,
   V3Document,
   V3QueryResult,
+  V3FeedPost,
+  V3FeedResult,
   V3Group,
   V3GroupMember,
   V3InviteResponse,

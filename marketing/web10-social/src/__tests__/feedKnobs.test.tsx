@@ -14,6 +14,7 @@ vi.mock('@/data', async (importOriginal) => {
   return {
     ...original,
     readFeed: vi.fn().mockResolvedValue([]),
+    readFeedPage: vi.fn().mockResolvedValue({ posts: [], has_more: false, next_cursor: null }),
     getFeedGroups: vi.fn().mockResolvedValue([]),
     readFeedEngagement: vi.fn().mockResolvedValue({ likes: {}, comments: {} }),
     readProfile: vi.fn().mockResolvedValue(null),
@@ -80,15 +81,10 @@ const NEW_POST = {
 };
 
 function mockFeed() {
-  (data.readFeed as ReturnType<typeof vi.fn>).mockResolvedValue([
-    { ...OLD_POST },
-    { ...NEW_POST },
-  ]);
-  // The ref pattern populates the engagement counts (the knobs' signal).
-  (data.getFeedGroups as ReturnType<typeof vi.fn>).mockResolvedValue(['g1']);
-  (data.readFeedEngagement as ReturnType<typeof vi.fn>).mockResolvedValue({
-    likes: { p1: 500, p2: 1 },
-    comments: { p1: 100, p2: 0 },
+  (data.readFeedPage as ReturnType<typeof vi.fn>).mockResolvedValue({
+    posts: [{ ...OLD_POST }, { ...NEW_POST }],
+    has_more: false,
+    next_cursor: null,
   });
 }
 

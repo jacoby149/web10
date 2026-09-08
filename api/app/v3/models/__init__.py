@@ -27,6 +27,7 @@ from app.v3.models.documents import (
     ReadDocuments,
     UpdateDocument,
 )
+from app.v3.models.feed import FeedRequest
 from app.v3.models.groups import (
     AcceptInvite,
     AddGroupMember,
@@ -86,6 +87,8 @@ __all__ = [
     "AdPreference",
     # query (the flexible read)
     "QueryRequest",
+    # feed (D69 — the single-round-trip feed read)
+    "FeedRequest",
     # groups
     "CreateGroup",
     "GetGroup",

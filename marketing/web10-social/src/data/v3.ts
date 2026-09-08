@@ -36,6 +36,8 @@ export type {
   TokenPayload,
   V3ClientOptions,
   V3Document,
+  V3FeedPost,
+  V3FeedResult,
   V3Group,
   V3GroupMember,
   V3InviteResponse,
