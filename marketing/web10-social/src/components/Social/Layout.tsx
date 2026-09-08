@@ -1,9 +1,11 @@
 import { useState } from 'react';
 import { useNavigate, useLocation, Outlet } from 'react-router-dom';
 import { cn } from '@/lib/utils';
-import { Home, User, MessageSquare, PlusCircle, LogOut, Bug, Compass, Users, Store, Gamepad2, Radio, Zap, Clapperboard, Settings, MoreHorizontal, X } from 'lucide-react';
+import { Home, User, MessageSquare, PlusCircle, LogOut, Bug, Compass, Users, Store, Gamepad2, Radio, Zap, Clapperboard, Settings, MoreHorizontal, X, Bell } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { getWapi } from '@/data/wapi';
+import { useNotifications } from '@/hooks/useNotifications';
+import NotificationBell from '@/components/Notifications/NotificationBell';
 
 interface LayoutProps {
   onLogout: () => void;
@@ -58,6 +60,8 @@ export default function Layout({ onLogout, onReportBug, children }: LayoutProps)
   const token = getWapi().readToken();
   const profilePath = token ? `/u/${token.username}` : '/feed';
   const [moreOpen, setMoreOpen] = useState(false);
+  const { unread } = useNotifications();
+  const isNotifications = pathname === '/notifications';
 
   const isActive = (path: string) => {
     if (path === '/profile') return pathname.startsWith('/u/');
@@ -114,6 +118,32 @@ export default function Layout({ onLogout, onReportBug, children }: LayoutProps)
             </button>
             );
           })}
+          <button
+            data-testid="nav-notifications"
+            aria-current={isNotifications ? 'page' : undefined}
+            onClick={() => navigate('/notifications')}
+            className={cn(
+              'w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all duration-150',
+              isNotifications
+                ? cn(
+                    'bg-gradient-to-r from-brand-muted to-brand/15 text-brand-300',
+                    'border border-brand/20 glow-active',
+                  )
+                : 'text-muted-foreground hover:text-foreground hover:bg-elevated/80 hover:border hover:border-border/50',
+            )}
+          >
+            <Bell className={cn('w-5 h-5 transition-colors duration-150', isNotifications && 'text-brand')} strokeWidth={isNotifications ? 2 : 1.75} />
+            Notifications
+            {unread > 0 && (
+              <span
+                data-testid="nav-notifications-badge"
+                aria-hidden="true"
+                className="ml-auto min-w-5 h-5 px-1.5 rounded-full bg-brand text-background text-[0.625rem] font-bold flex items-center justify-center animate-glow-pulse"
+              >
+                {unread > 99 ? '99+' : unread}
+              </span>
+            )}
+          </button>
           <button
             data-testid="nav-new-post"
             onClick={() => navigate('/feed')}
@@ -172,6 +202,7 @@ export default function Layout({ onLogout, onReportBug, children }: LayoutProps)
         <header className="md:hidden flex items-center justify-between px-4 h-14 border-b border-border bg-surface/95 backdrop-blur-md sticky top-0 z-20 gap-2">
           <Wordmark />
           <div className="flex items-center gap-1">
+            <NotificationBell />
             <Button
               variant="ghost"
               size="icon"
@@ -204,6 +235,24 @@ export default function Layout({ onLogout, onReportBug, children }: LayoutProps)
             </Button>
           </div>
         </header>
+
+        {/* The always-on signal (D69): a live "N new" strip above every screen.
+            It clears the moment you open /notifications (which marks all read),
+            so it's a nudge, not a permanent fixture. */}
+        {unread > 0 && !isNotifications && (
+          <button
+            type="button"
+            data-testid="notification-banner"
+            onClick={() => navigate('/notifications')}
+            className="flex items-center gap-2 px-4 py-2 bg-brand-muted/60 border-b border-brand/20 text-sm text-brand-300 hover:bg-brand-muted transition-colors duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand/50"
+          >
+            <Bell className="w-4 h-4 shrink-0" strokeWidth={2} />
+            <span className="truncate">
+              <strong className="font-semibold">{unread}</strong> new notification{unread === 1 ? '' : 's'}
+            </span>
+            <span className="ml-auto text-xs underline underline-offset-2 shrink-0">View</span>
+          </button>
+        )}
 
         <div className="flex-1 min-h-0 overflow-y-auto pb-16 md:pb-0">
           {children || <Outlet />}
