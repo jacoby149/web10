@@ -247,6 +247,16 @@ export async function fetchSuggestedUsers(): Promise<unknown[]> { return []; }
 export function getCachedSchema(): unknown { return null; }
 export async function getReactionCounts(): Promise<unknown> { return {}; }
 export function getWapi(): unknown { return null; }
+// The v3 client seam — the Discover screen's engagement count reads reactions
+// + comments through it. A minimal mock: readToken (signed-in) + read (empty).
+export function getV3Client(): unknown {
+  return {
+    readToken: () => ({ provider: 'web10', username: 'nova' }),
+    read: async () => [],
+    readRefCounts: async () => ({}),
+  };
+}
+export function getDiscoverGroupId(): string { return 'web10/groups/web10/discover'; }
 export function groupByOrigin(): unknown { return {}; }
 export async function listFollowers(): Promise<unknown[]> { return []; }
 export function mapRawDiscoveryPost(): unknown { return null; }

@@ -31,6 +31,13 @@ vi.mock('@/data/wapi', () => ({
   resetWapi: vi.fn(),
 }));
 
+// The sort config the most recent readDiscoverFeed call carried (the
+// server-side ranking the node was asked to apply).
+function lastDiscoverSort(): unknown {
+  const calls = (data.readDiscoverFeed as ReturnType<typeof vi.fn>).mock.calls;
+  return calls[calls.length - 1][0];
+}
+
 describe('DiscoverScreen', () => {
   beforeEach(() => {
     vi.clearAllMocks();
@@ -301,8 +308,10 @@ describe('DiscoverScreen', () => {
     expect(screen.getAllByTestId('icon-repeat2').length).toBeGreaterThanOrEqual(1);
   });
 
-  it('switches preset between newest, most-loved, and balanced', async () => {
-    (data.readDiscoverFeed as ReturnType<typeof vi.fn>).mockResolvedValue([
+  it('switches preset between newest, most-loved, and balanced (server-side re-read)', async () => {
+    // The node ranks the board server-side — the mock simulates it: it records
+    // the sort config each re-read carries.
+    (data.readDiscoverFeed as ReturnType<typeof vi.fn>).mockImplementation(async () => [
       {
         author: 'user1',
         provider: 'api.web10.app',
@@ -340,22 +349,28 @@ describe('DiscoverScreen', () => {
       expect(screen.getByTestId('discover-grid')).toBeInTheDocument();
     });
 
-    // Balanced is the default preset — KnobRack uses preset-{id} testids
+    // Balanced is the default preset — the initial read carries the Balanced
+    // (power-mean) sort config.
     expect(screen.getByTestId('preset-balanced').classList).toContain('border-brand');
+    const firstSort = (data.readDiscoverFeed as ReturnType<typeof vi.fn>).mock.calls[0][0];
+    expect(firstSort).toMatchObject({ recency: 0.6, likes: 0.6 });
 
-    // Click "Newest" — the newest post (p2) should move to rank #1
-    fireEvent.click(screen.getByTestId('preset-newest'));
-    await waitFor(() => {
+    vi.useFakeTimers();
+    try {
+      // Click "Newest" — a chronological re-read (no sort param).
+      fireEvent.click(screen.getByTestId('preset-newest'));
+      await vi.advanceTimersByTimeAsync(450);
       expect(screen.getByTestId('preset-newest').classList).toContain('border-brand');
-    });
-    const newestCards = screen.getAllByTestId('discover-card');
-    expect(newestCards.length).toBeGreaterThanOrEqual(2);
+      expect(lastDiscoverSort()).toBeNull();
 
-    // Click "Most loved" — the high-engagement post (p1) should move to rank #1
-    fireEvent.click(screen.getByTestId('preset-most-loved'));
-    await waitFor(() => {
+      // Click "Most loved" — a likes-weighted re-read.
+      fireEvent.click(screen.getByTestId('preset-most-loved'));
+      await vi.advanceTimersByTimeAsync(450);
       expect(screen.getByTestId('preset-most-loved').classList).toContain('border-brand');
-    });
+      expect(lastDiscoverSort()).toMatchObject({ likes: 1, recency: 0 });
+    } finally {
+      vi.useRealTimers();
+    }
   });
 
   // ── Deep-link tests: ?tag= and ?q= ──────────────────────────────────

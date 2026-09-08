@@ -38,6 +38,7 @@ export type {
   V3Document,
   V3FeedPost,
   V3FeedResult,
+  PowerMeanSort,
   V3Group,
   V3GroupMember,
   V3InviteResponse,

@@ -1,5 +1,6 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import * as v3 from '../../data/v3';
+import { readDiscoverFeed } from '../../data/feed';
 import { getFeedGroups } from '../../data/groups';
 
 function mockV3Client() {
@@ -30,15 +31,28 @@ describe('feed v3 data layer', () => {
     vi.restoreAllMocks();
   });
 
-  describe('readFeed (v3: read from all groups)', () => {
-    it('reads posts from users groups', async () => {
-      const docs = [
-        { doc_id: 'p1', body: { text: 'post1' }, created_at: '2026-07-17T00:00:00Z' },
-        { doc_id: 'p2', body: { text: 'post2' }, created_at: '2026-07-18T00:00:00Z' },
-      ];
-      mock.read.mockResolvedValue(docs);
-      const result = await mock.read('posts', { groups: ['me'] });
-      expect(result).toEqual(docs);
+  describe('readDiscoverFeed (v3: read the discover board, server-side ranking)', () => {
+    it('passes a power-mean sort config through to the node', async () => {
+      mock.read.mockResolvedValue([]);
+      const sort = { recency: 0.6, likes: 0.6, comments: 0.4, half_life_ms: 86400000, character: 0 };
+
+      await readDiscoverFeed(sort, 50);
+
+      expect(mock.read).toHaveBeenCalledWith(
+        'posts',
+        expect.objectContaining({ groups: ['web10.app/groups/web10/discover'], sort }),
+      );
+    });
+
+    it('sorts chronologically only when there is no server sort', async () => {
+      mock.read.mockResolvedValue([
+        { doc_id: 'old', author_key: 'web10.app/users/alice', body: { text: 'old' }, created_at: '2026-07-01T00:00:00Z' },
+        { doc_id: 'new', author_key: 'web10.app/users/alice', body: { text: 'new' }, created_at: '2026-07-18T00:00:00Z' },
+      ]);
+
+      const posts = await readDiscoverFeed(null, 50);
+
+      expect(posts.map((p) => p._id)).toEqual(['new', 'old']);
     });
   });
 

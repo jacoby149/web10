@@ -1864,6 +1864,29 @@ the ref pattern (one read of reactions + comments over the feed's groups,
 counted client-side by `ref_value` — the same pattern DiscoverScreen runs).
 The shared-knobs-package reject stands (the rack is still a verbatim copy).
 
+**Amendment (07.09.2026, 3.71.0):** two operator calls — "i have to scroll
+sideways, what is the character control? i dont even know what that means"
+and "the feed should re rank on api call, not client side." (1) **The
+Character knob is removed.** It was the power-mean exponent `p` (Strict→
+Extreme) — math wearing a costume with no plain-English concept, and the 5th
+knob forcing the mobile sideways scroll. The exponent is now **fixed at the
+middle (p = 0, the weighted geometric mean)**: no signal dominates, a post is
+scored on the balance of its signals. `character` stays in `KnobState` so the
+`?knobs=` encoding + the persisted settings doc keep their 5-field shape (old
+deep links + saved tunings still parse); the rack is 4 knobs. (2) **Ranking
+moves server-side.** A knob twist is now a **debounced (400ms) re-read**
+carrying the D36 power-mean `sort` config — the node (which has computed the
+power-mean score in SQL since 3.18.2/3.21.1) ranks across the **full group
+membership** and returns pre-sorted results. This is strictly better than the
+client-side shuffle: "Most loved · all time" can now surface an old post the
+top-50 chronological read never fetched. The Newest preset maps to `sort =
+null` (the plain chronological default read — the out-of-the-box feed costs
+nothing extra, the delivery pitch survives). A re-read keeps the previous feed
+on screen (no skeleton flash per twist). The SDK's `read()` gains the `sort`
+option (the API already accepted it). The "feed stays chronological by
+default" guardrail is unchanged — only the *tuned* feed is ranked, and now by
+the node, not a client shuffle.
+
 ### D35 — Public media is a COLLECTION (`public_media`), not a flag or a blanket whitelist [decided]
 Cross-user media reads are dead today: the `media` service ships with no read
 whitelist (web10-social serviceTerms.ts — owner-only), and both

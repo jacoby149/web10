@@ -8,15 +8,20 @@ import {
   PRESETS,
   WEIGHT_DETENTS,
   HALF_LIFE_LABELS,
-  CHARACTER_LABELS,
   type KnobState,
   type PresetId,
 } from '@/lib/powerMean';
 
-// KnobRack — the synth rack: preset chips + 5 rotary knobs.
+// KnobRack — the synth rack: preset chips + 4 rotary knobs.
 //
 // The rack is one piece of hardware. Preset chips at top, knobs below.
 // "Guitar-center gear you want to touch" — design.md §12.
+//
+// The Character knob (the power-mean exponent p) is gone — it was math
+// wearing a costume (no plain-English concept, the operator didn't know what
+// it meant) and the 5th knob forcing the mobile sideways scroll. The
+// exponent is fixed at the middle (p = 0, geometric — see powerMean.ts
+// FIXED_CHARACTER_DETEENT); the presets already cover the character axis.
 
 interface KnobRackProps {
   state: KnobState;
@@ -123,14 +128,6 @@ function KnobRack({ state, activePreset, onChange, onPreset }: KnobRackProps) {
               labels={HALF_LIFE_LABELS}
               onChange={v => onChange('halfLife', v)}
               dataTestId="knob-time"
-            />
-            <RotaryKnob
-              label="Character"
-              value={state.character}
-              maxValue={5}
-              labels={CHARACTER_LABELS}
-              onChange={v => onChange('character', v)}
-              dataTestId="knob-character"
             />
           </div>
         </div>

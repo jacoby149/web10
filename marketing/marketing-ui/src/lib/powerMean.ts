@@ -105,6 +105,17 @@ const HALF_LIFE_LABELS = ['1h', '4h', '12h', '1d', '7d', '∞'];
 const CHARACTER_DETENTS = [-5, -2.5, -1, 0, 1, 5];
 const CHARACTER_LABELS = ['Strict', 'Tight', 'Flat', 'Mean', 'Loose', 'Extreme'];
 
+// The Character knob is gone from the rack (parity with web10-social —
+// operator: "i dont even know what that means"). The exponent is fixed at the
+// middle detent — p = 0, the weighted geometric mean: no signal dominates, a
+// post is scored on the balance of its signals. `character` stays in KnobState
+// so the mix-code (#mix=) encoding keeps its 5-digit shape (old shared links
+// still parse); the ranking just ignores it.
+export const FIXED_CHARACTER_DETEENT = 3;
+
+/** The fixed power-mean exponent the ranking uses (p = 0, geometric). */
+export const FIXED_CHARACTER_P = CHARACTER_DETENTS[FIXED_CHARACTER_DETEENT];
+
 // ── Knob State ──────────────────────────────────────────────────────────────
 
 interface KnobState {
@@ -203,7 +214,10 @@ function scorePost(signals: PostSignals, state: KnobState): number {
   const wl = WEIGHT_DETENTS[state.likes];
   const wc = WEIGHT_DETENTS[state.comments];
   const halfLife = HALF_LIFE_DETENTS[state.halfLife];
-  const p = CHARACTER_DETENTS[state.character];
+  // The Character knob is gone — the exponent is fixed at the middle
+  // (p = 0, geometric). `state.character` is kept for mix-code compat but
+  // no longer drives the ranking.
+  const p = FIXED_CHARACTER_P;
 
   const r = normalizeRecency(signals.ageMs, halfLife);
   const l = normalizeLikes(signals.likes);
