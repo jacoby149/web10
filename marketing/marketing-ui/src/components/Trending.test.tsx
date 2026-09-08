@@ -572,6 +572,132 @@ describe('TrendingCard video media', () => {
   });
 });
 
+// ── D-trending-video-thumb: resolved-ref thumbnail + reduced-motion play badge ──
+//
+// The v3 read serves media_refs pre-resolved with a fresh presigned
+// thumbnail_url alongside read_url. The card must use that thumbnail as the
+// video poster (normal path) and the <img> source (reduced-motion path) —
+// without it the reduced-motion image pointed at the MP4 and rendered a dark
+// void, and the reduced-motion play badge was a dead <div> that did nothing.
+
+describe('TrendingMedia resolved-ref thumbnail', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    vi.stubGlobal('fetch', vi.fn());
+    vi.stubGlobal('open', vi.fn());
+    Element.prototype.scrollIntoView = vi.fn();
+    vi.stubGlobal('IntersectionObserver', class {
+      observe = vi.fn();
+      disconnect = vi.fn();
+    });
+    // Normal motion (autoplay path) — the poster assertion.
+    Object.defineProperty(window, 'matchMedia', {
+      writable: true,
+      value: (query: string) => ({
+        matches: false,
+        media: query,
+        onchange: null,
+        addListener: vi.fn(),
+        removeListener: vi.fn(),
+        addEventListener: vi.fn(),
+        removeEventListener: vi.fn(),
+        dispatchEvent: vi.fn(),
+      }),
+    });
+  });
+
+  it('uses the resolved thumbnail_url as the video poster (no presign round-trip)', async () => {
+    const readUrl = 'https://cdn.example.com/a.mp4?sig=x';
+    const thumbUrl = 'https://cdn.example.com/a-poster.jpg?sig=y';
+    const videoPost: FeedPost = {
+      ...basePost,
+      id: 'yt-thumb',
+      media: 'video',
+      mediaRefs: [{ doc_id: 'ref-1', object_key: 'u/a.mp4', mime_type: 'video/mp4', read_url: readUrl, thumbnail_url: thumbUrl }],
+      firstAttachmentMime: 'video/mp4',
+      author: 'testuser',
+    };
+    render(<TrendingCard post={videoPost} rank={1} maxScore={100} onLike={noop} onComment={noop} onRepost={noop} />);
+    await waitFor(() => expect(screen.getByTestId('trending-media')).toBeInTheDocument());
+    const video = document.querySelector('video') as HTMLVideoElement;
+    expect(video).not.toBeNull();
+    expect(video.getAttribute('src')).toBe(readUrl);
+    expect(video.getAttribute('poster')).toBe(thumbUrl);
+    // The resolved path must not hit the network for a presign / thumbnail.
+    expect(vi.mocked(fetch)).not.toHaveBeenCalled();
+  });
+});
+
+describe('TrendingMedia reduced-motion play badge', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    vi.stubGlobal('fetch', vi.fn());
+    vi.stubGlobal('open', vi.fn());
+    Element.prototype.scrollIntoView = vi.fn();
+    vi.stubGlobal('IntersectionObserver', class {
+      observe = vi.fn();
+      disconnect = vi.fn();
+    });
+    // Reduced motion — the poster + play-badge path (no autoplay).
+    Object.defineProperty(window, 'matchMedia', {
+      writable: true,
+      value: (query: string) => ({
+        matches: query === '(prefers-reduced-motion: reduce)',
+        media: query,
+        onchange: null,
+        addListener: vi.fn(),
+        removeListener: vi.fn(),
+        addEventListener: vi.fn(),
+        removeEventListener: vi.fn(),
+        dispatchEvent: vi.fn(),
+      }),
+    });
+  });
+
+  it('renders the resolved thumbnail_url as the <img> source (not the MP4)', async () => {
+    const readUrl = 'https://cdn.example.com/a.mp4?sig=x';
+    const thumbUrl = 'https://cdn.example.com/a-poster.jpg?sig=y';
+    const videoPost: FeedPost = {
+      ...basePost,
+      id: 'rm-thumb',
+      media: 'video',
+      mediaRefs: [{ doc_id: 'ref-1', object_key: 'u/a.mp4', mime_type: 'video/mp4', read_url: readUrl, thumbnail_url: thumbUrl }],
+      firstAttachmentMime: 'video/mp4',
+      author: 'testuser',
+    };
+    render(<TrendingCard post={videoPost} rank={1} maxScore={100} onLike={noop} onComment={noop} onRepost={noop} />);
+    await waitFor(() => expect(screen.getByTestId('trending-media')).toBeInTheDocument());
+    // Reduced motion renders an <img> (poster), not a <video>.
+    expect(document.querySelector('video')).toBeNull();
+    const img = document.querySelector('img');
+    expect(img).not.toBeNull();
+    expect(img!.getAttribute('src')).toBe(thumbUrl);
+  });
+
+  it('play badge is a button that opens the full view (post permalink)', async () => {
+    const readUrl = 'https://cdn.example.com/a.mp4?sig=x';
+    const thumbUrl = 'https://cdn.example.com/a-poster.jpg?sig=y';
+    const videoPost: FeedPost = {
+      ...basePost,
+      id: 'rm-play',
+      media: 'video',
+      mediaRefs: [{ doc_id: 'ref-1', object_key: 'u/a.mp4', mime_type: 'video/mp4', read_url: readUrl, thumbnail_url: thumbUrl }],
+      firstAttachmentMime: 'video/mp4',
+      author: 'testuser',
+    };
+    render(<TrendingCard post={videoPost} rank={1} maxScore={100} onLike={noop} onComment={noop} onRepost={noop} />);
+    await waitFor(() => expect(screen.getByTestId('trending-media')).toBeInTheDocument());
+    const playBtn = await screen.findByTestId('trending-media-play');
+    expect(playBtn.tagName).toBe('BUTTON');
+    expect(playBtn).toHaveAttribute('aria-label', 'Watch video');
+    fireEvent.click(playBtn);
+    expect(window.open).toHaveBeenCalledWith(
+      expect.stringMatching(/\/u\/testuser\/p\/rm-play$/),
+      '_blank',
+    );
+  });
+});
+
 // ── D-trending-views: view toggle + YouTube view ─────────────────────────────
 
 describe('Trending view toggle', () => {
