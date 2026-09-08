@@ -30,12 +30,12 @@ function signedInHarness(overrides: Record<string, any> = {}) {
     pendingContracts: [appContract],
     _contractReceived: true,
     _expectedUser: undefined, // signed-out opener by default (no ?as=)
-    _freshLogin: false,
+    _userConfirmed: false,
     rememberedAccounts: [
       { username: 'alice', provider: 'api.web10.app' },
       { username: 'bob', provider: 'api.web10.app' },
     ],
-    setFreshLogin: vi.fn(),
+    setUserConfirmed: vi.fn(),
     goToApp: vi.fn(),
     logout: vi.fn(),
     approveAll: vi.fn(),
@@ -64,11 +64,11 @@ describe('ConsentView — signed-out opener with a live session (account switch)
     expect(screen.queryByTestId('consent-approve-all')).toBeNull()
   })
 
-  it('"Continue as" confirms the session (setFreshLogin true, no password)', () => {
+  it('"Continue as" confirms the session (setUserConfirmed true, no password)', () => {
     const I = signedInHarness()
     render(<ConsentView I={I} />)
     fireEvent.click(screen.getByTestId('consent-continue-as'))
-    expect(I.setFreshLogin).toHaveBeenCalledWith(true)
+    expect(I.setUserConfirmed).toHaveBeenCalledWith(true)
   })
 
   it('picking a remembered account pre-fills provider + username', () => {
@@ -86,6 +86,18 @@ describe('ConsentView — signed-out opener with a live session (account switch)
     expect(I.goToApp).toHaveBeenCalled()
     expect(screen.queryByTestId('consent-continue-as')).toBeNull()
     expect(screen.getByTestId('consent-connecting')).toBeTruthy()
+  })
+
+  it('a signed-out opener who APPROVED the contract settles (the cold-start regression)', () => {
+    // Post-approve state: the user confirmed their identity by approving
+    // (setUserConfirmed true), the contract is now granted (filtered out), the
+    // opener is still signed out. The popup must settle (hand back the token),
+    // NOT stall on the login screen. This is the case the e2e caught.
+    const I = signedInHarness({ _userConfirmed: true })
+    render(<ConsentView I={I} />)
+    expect(I.goToApp).toHaveBeenCalled()
+    expect(screen.getByTestId('consent-connecting')).toBeTruthy()
+    expect(screen.queryByTestId('consent-continue-as')).toBeNull()
   })
 
   it('a contract that is NOT yet granted still shows the consent screen (approve)', () => {

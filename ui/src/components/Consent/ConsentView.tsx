@@ -239,7 +239,7 @@ function ConsentView({ I }: { I: Record<string, any> }) {
   // either confirms the current session ("Continue as") or picks / logs in as
   // a different account.
   const openerSignedIn = !!expectedUser;
-  const freshLogin = !!I._freshLogin;
+  const userConfirmed = !!I._userConfirmed;
 
   // An ACR is "already granted" when its origin holds every requested permission.
   const isAlreadyGranted = (c: any): boolean => {
@@ -268,23 +268,24 @@ function ConsentView({ I }: { I: Record<string, any> }) {
   // opener must NOT get a silent hand-back of the stale session.
   const nothingToShow = !!(authed && I._contractReceived && displayContracts.length === 0 && !mismatch);
   // Show the login screen (with the account picker) when: not authed (old
-  // behavior), OR the opener is signed out and the user hasn't authenticated in
-  // this session and the popup would otherwise auto-complete (the fix — the
-  // user gets a chance to switch accounts). When there ARE contracts to
-  // approve, the consent screen stays — the user is the popup's session user,
-  // approving their own contract.
-  const showLoginForm = !authed || (!openerSignedIn && !freshLogin && nothingToShow);
-  const canContinueAsCurrent = !!(authed && !openerSignedIn && !freshLogin && username && nothingToShow);
-  console.log('[consent] pendingContracts:', pendingContracts, 'grantedOrigins:', grantedOrigins, 'mismatch:', mismatch, 'expectedUser:', expectedUser || '(none)', 'openerSignedIn:', openerSignedIn, 'freshLogin:', freshLogin, 'nothingToShow:', nothingToShow, 'showLoginForm:', showLoginForm);
+  // behavior), OR the opener is signed out and the user hasn't confirmed their
+  // identity in this session and the popup would otherwise auto-complete (the
+  // fix — the user gets a chance to switch accounts). When there ARE contracts
+  // to approve, the consent screen stays — the user is the popup's session
+  // user, approving their own contract (which confirms them).
+  const showLoginForm = !authed || (!openerSignedIn && !userConfirmed && nothingToShow);
+  const canContinueAsCurrent = !!(authed && !openerSignedIn && !userConfirmed && username && nothingToShow);
+  console.log('[consent] pendingContracts:', pendingContracts, 'grantedOrigins:', grantedOrigins, 'mismatch:', mismatch, 'expectedUser:', expectedUser || '(none)', 'openerSignedIn:', openerSignedIn, 'userConfirmed:', userConfirmed, 'nothingToShow:', nothingToShow, 'showLoginForm:', showLoginForm);
 
   // D42 auto-complete: the popup would settle (nothingToShow) AND the session
   // is one the user has either come back to (opener signed in, ?as= present) or
-  // just authenticated in this popup (freshLogin). A stale restored session
-  // with a signed-out opener does NOT settle here — it shows the login screen
-  // so the user can switch accounts. This replaces the old "all set" screen +
-  // Close-window tap: the return run (already granted) and the first login
-  // (after the user approves) both settle here with zero taps.
-  const allSettled = !!(nothingToShow && (openerSignedIn || freshLogin));
+  // confirmed in this popup (logged in, approved/denied a contract, or tapped
+  // "Continue as"). A stale restored session with a signed-out opener does NOT
+  // settle here — it shows the login screen so the user can switch accounts.
+  // This replaces the old "all set" screen + Close-window tap: the return run
+  // (already granted) and the first login (after the user approves) both settle
+  // here with zero taps.
+  const allSettled = !!(nothingToShow && (openerSignedIn || userConfirmed));
   console.log('[consent] authed:', authed, 'contractReceived:', I._contractReceived, 'pending:', pendingContracts.length, 'displayContracts:', displayContracts.length, 'mismatch:', mismatch, 'username:', username || '(none)', 'allSettled:', allSettled);
 
   React.useEffect(() => {
@@ -336,7 +337,7 @@ function ConsentView({ I }: { I: Record<string, any> }) {
               <Button
                 variant="brand"
                 className="mb-4 w-full"
-                onClick={() => I.setFreshLogin(true)}
+                onClick={() => I.setUserConfirmed(true)}
                 data-testid="consent-continue-as"
               >
                 Continue as {username}
