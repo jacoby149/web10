@@ -244,13 +244,16 @@ function createV3Client(options = {}) {
         payload.allowed_origin = allowedOrigin;
       return v3Post("app-contracts/revoke", payload);
     },
-    async createGroup(name, joinPolicy, roles, members) {
-      return v3Post("groups/create", {
+    async createGroup(name, joinPolicy, roles, members, opts) {
+      const payload = {
         name,
         join_policy: joinPolicy,
         roles,
         members
-      });
+      };
+      if (opts?.discoverable !== undefined)
+        payload.discoverable = opts.discoverable;
+      return v3Post("groups/create", payload);
     },
     async getGroup(groupId) {
       return v3Post("groups/get", { group_id: groupId });
@@ -267,7 +270,12 @@ function createV3Client(options = {}) {
         payload.join_policy = opts.join_policy;
       if (opts?.roles)
         payload.roles = opts.roles;
+      if (opts?.discoverable !== undefined)
+        payload.discoverable = opts.discoverable;
       return v3Post("groups/update", payload);
+    },
+    async deleteGroup(groupId) {
+      return v3Post("groups/delete", { group_id: groupId });
     },
     async joinGroup(groupId) {
       return v3Post("groups/join", { group_id: groupId });

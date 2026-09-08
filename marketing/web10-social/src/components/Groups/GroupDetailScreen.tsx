@@ -12,6 +12,8 @@ import {
   leaveGroup,
   resolveMediaRefs,
   mediaRefId,
+  getGroupsManages,
+  deleteGroup,
   type GroupDetail,
   type GroupIdentity,
   type MediaRecord,
@@ -19,6 +21,11 @@ import {
 import { fromV3DocToPost } from '@/data/types';
 import { getV3Client } from '@/data/v3';
 import type { PostRecord } from '@/data/types';
+import ManageGroupSheet, { type ManageSection } from '@/components/Groups/ManageGroup/ManageGroupSheet';
+import ManageProfileSection from '@/components/Groups/ManageGroup/ProfileSection';
+import ManageSettingsSection from '@/components/Groups/ManageGroup/SettingsSection';
+import ManageMembersSection from '@/components/Groups/ManageGroup/MembersSection';
+import ManageRolesSection from '@/components/Groups/ManageGroup/RolesSection';
 import {
   ArrowLeft,
   Users,
@@ -31,6 +38,8 @@ import {
   RefreshCw,
   Globe,
   Send,
+  Settings,
+  ImagePlus,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
@@ -243,6 +252,11 @@ export default function GroupDetailScreen({ groupId }: { groupId: string }) {
   const [notFound, setNotFound] = useState(false);
   const [joinState, setJoinState] = useState<JoinState>('idle');
   const [mediaMap, setMediaMap] = useState<Record<string, MediaRecord>>({});
+  // Whether the current user can manage this group (owner/moderator). Gated by
+  // the same op the authenticator uses: the group appears in getGroupsManages()
+  // (the reader's role grants a management op under the 'group' key).
+  const [canManage, setCanManage] = useState(false);
+  const [manageOpen, setManageOpen] = useState(false);
 
   const load = useCallback(async () => {
     if (!id) return;
@@ -251,13 +265,15 @@ export default function GroupDetailScreen({ groupId }: { groupId: string }) {
     setNotFound(false);
     LOG('load — start', id);
     try {
-      const [d, ident] = await Promise.all([
+      const [d, ident, manages] = await Promise.all([
         readGroupDetail(id),
         readGroupIdentity(id),
+        getGroupsManages().catch(() => []),
       ]);
-      LOG('load — got', d.name, { is_member: d.is_member, identity: ident.name });
+      LOG('load — got', d.name, { is_member: d.is_member, identity: ident.name, manages: manages.length });
       setDetail(d);
       setIdentity(ident);
+      setCanManage(manages.some((g) => g.group_id === d.group_id));
       // Resolve all media (the face + every post's media) in one batch.
       const refs: string[] = [];
       if (ident.banner_ref) refs.push(ident.banner_ref);
@@ -328,6 +344,17 @@ export default function GroupDetailScreen({ groupId }: { groupId: string }) {
       setJoinState('idle');
     }
   }, [detail, load]);
+
+  const handleDeleteGroup = useCallback(async () => {
+    if (!detail) return;
+    LOG('delete —', detail.group_id);
+    try {
+      await deleteGroup(detail.group_id);
+      navigate('/groups');
+    } catch (e) {
+      LOG('delete — failed:', e);
+    }
+  }, [detail, navigate]);
 
   if (loading) {
     return (
@@ -402,153 +429,244 @@ export default function GroupDetailScreen({ groupId }: { groupId: string }) {
   const bannerUrl = identity.banner_ref ? mediaMap[identity.banner_ref]?.url : undefined;
   const avatarUrl = identity.avatar_ref ? mediaMap[identity.avatar_ref]?.url : undefined;
   const hasAbout = Boolean(identity.description || (identity.tags && identity.tags.length) || identity.website);
+  // The group has a "face" when it has any of the rich display metadata.
+  const hasFace = Boolean(bannerUrl || avatarUrl || hasAbout);
+
+  // The Manage sheet's sections. Profile + Settings are live; Members / Roles
+  // are the remaining bites that drop their content in. Until a section lands,
+  // it renders the placeholder.
+  const manageSections: ManageSection[] = [
+    { id: 'profile', label: 'Profile', icon: ImagePlus, content: <ManageProfileSection groupId={detail.group_id} onSaved={load} /> },
+    {
+      id: 'settings',
+      label: 'Settings',
+      icon: Settings,
+      content: (
+        <ManageSettingsSection
+          groupId={detail.group_id}
+          joinPolicy={detail.join_policy}
+          discoverable={Boolean(detail.discoverable)}
+          onSaved={load}
+        />
+      ),
+    },
+    { id: 'members', label: 'Members', icon: Users, content: <ManageMembersSection groupId={detail.group_id} onSaved={load} /> },
+    {
+      id: 'roles',
+      label: 'Roles',
+      icon: UserCheck,
+      content: (
+        <ManageRolesSection
+          groupId={detail.group_id}
+          roles={detail.roles || []}
+          onSaved={load}
+          onDelete={handleDeleteGroup}
+        />
+      ),
+    },
+  ];
 
   return (
     <div className="flex flex-col min-h-full bg-background">
       <div className="md:max-w-2xl md:mx-auto flex-1 flex flex-col">
-        {/* Compact header — the group's identity, feed recedes behind it */}
-        <div className="sticky top-0 z-10 bg-background/90 backdrop-blur-md border-b border-border md:static md:border-0 md:bg-transparent md:mb-3" data-testid="group-detail-card">
-          <div className="flex items-center gap-3 px-4 py-3 md:px-0">
+        {/* Sticky top bar — back + (managers) the Manage entry point */}
+        <div className="sticky top-0 z-20 flex items-center justify-between border-b border-border bg-background/90 px-2 py-2 backdrop-blur-md md:static md:border-0 md:bg-transparent md:px-0 md:py-1" data-testid="group-detail-topbar">
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={() => navigate(-1)}
+            className="h-9 w-9 shrink-0 text-muted-foreground hover:text-foreground"
+            aria-label="Back"
+            data-testid="group-detail-back"
+          >
+            <ArrowLeft className="h-5 w-5" strokeWidth={1.75} />
+          </Button>
+          {canManage && (
             <Button
-              variant="ghost"
-              size="icon"
-              onClick={() => navigate(-1)}
-              className="h-9 w-9 shrink-0 text-muted-foreground hover:text-foreground"
-              aria-label="Back"
-              data-testid="group-detail-back"
+              variant="outline"
+              size="sm"
+              className="gap-1.5"
+              onClick={() => setManageOpen(true)}
+              data-testid="group-detail-manage"
             >
-              <ArrowLeft className="h-5 w-5" strokeWidth={1.75} />
+              <Settings className="h-3.5 w-3.5" strokeWidth={1.75} />
+              <span className="hidden sm:inline">Manage</span>
             </Button>
-            <div className="shrink-0">
-              <Avatar className={cn('h-10 w-10', hashToColor(detail.group_id))}>
-                {avatarUrl ? (
-                  <img src={avatarUrl} alt="" className="h-full w-full rounded-full object-cover" data-testid="group-detail-avatar-img" />
-                ) : (
-                  <AvatarFallback className="text-foreground text-base font-semibold">
-                    {displayName.charAt(0).toUpperCase()}
-                  </AvatarFallback>
-                )}
-              </Avatar>
-            </div>
-            <div className="min-w-0 flex-1">
-              <div className="flex items-center gap-2">
-                <h1 className="truncate font-display text-base font-bold text-foreground" data-testid="group-detail-name">
-                  {displayName}
-                </h1>
-                {detail.discoverable && (
-                  <Badge variant="brand" className="normal-case tracking-normal" data-testid="group-detail-listed">
-                    Listed
-                  </Badge>
-                )}
-                {!detail.is_member && detail.posts_state === 'ok' && (
-                  <Badge variant="outline" className="normal-case tracking-normal" data-testid="group-detail-public">
-                    Public
-                  </Badge>
-                )}
-                {!detail.is_member && detail.posts_state === 'join_to_view' && (
-                  <Badge variant="outline" className="normal-case tracking-normal" data-testid="group-detail-private">
-                    Private
-                  </Badge>
-                )}
-              </div>
-              <p className="mt-0.5 flex items-center gap-1.5 text-xs text-muted-foreground">
-                <span className="tabular-nums">{formatCount(detail.member_count)} members</span>
-                <span aria-hidden="true">·</span>
-                <span>by @{detail.owner}</span>
-              </p>
-            </div>
-            {/* Join / Leave (compact) */}
-            <div className="shrink-0">
-              {detail.is_member ? (
-                <Button
-                  variant="outline"
-                  size="sm"
-                  className="gap-1.5 border-border text-muted-foreground hover:border-danger/50 hover:text-danger hover:bg-danger-muted"
-                  onClick={handleLeave}
-                  disabled={joinState === 'working'}
-                  data-testid="group-detail-leave"
-                >
-                  {joinState === 'working' ? (
-                    <Loader2 className="h-3.5 w-3.5 animate-spin" strokeWidth={2} />
-                  ) : (
-                    <LogOut className="h-3.5 w-3.5" strokeWidth={1.75} />
-                  )}
-                  <span className="hidden sm:inline">Leave</span>
-                </Button>
-              ) : canJoin ? (
-                <Button
-                  variant="brand"
-                  size="sm"
-                  className="gap-1.5"
-                  onClick={handleJoin}
-                  disabled={joinState === 'working'}
-                  data-testid="group-detail-join"
-                >
-                  {joinState === 'working' ? (
-                    <Loader2 className="h-3.5 w-3.5 animate-spin" strokeWidth={2} />
-                  ) : joinState === 'done' && detail.join_policy === 'request' ? (
-                    <>
-                      <UserCheck className="h-3.5 w-3.5" strokeWidth={1.75} />
-                      <span className="hidden sm:inline">Requested</span>
-                    </>
-                  ) : (
-                    <>
-                      <UserPlus className="h-3.5 w-3.5" strokeWidth={1.75} />
-                      <span className="hidden sm:inline">{detail.join_policy === 'request' ? 'Request' : 'Join'}</span>
-                    </>
-                  )}
-                </Button>
-              ) : (
-                <div
-                  className="flex items-center gap-1.5 rounded-md border border-border bg-elevated px-3 py-1.5 text-xs text-muted-foreground"
-                  data-testid="group-detail-invite-only"
-                >
-                  <Lock className="h-3.5 w-3.5" strokeWidth={1.5} />
-                  <span className="hidden sm:inline">Invite only</span>
-                </div>
-              )}
-            </div>
-          </div>
+          )}
         </div>
 
-        {/* Slim banner (only when the group has a cover) */}
-        {bannerUrl && (
-          <div className="h-20 w-full overflow-hidden md:h-28" data-testid="group-detail-banner">
-            <img src={bannerUrl} alt="" className="h-full w-full object-cover" data-testid="group-detail-banner-img" />
+        {/* The hero — the group's face (or a designed empty state when it has none) */}
+        {hasFace ? (
+          <div data-testid="group-detail-hero">
+            {bannerUrl && (
+              <div className="h-28 w-full overflow-hidden md:h-40" data-testid="group-detail-banner">
+                <img src={bannerUrl} alt="" className="h-full w-full object-cover" data-testid="group-detail-banner-img" />
+              </div>
+            )}
+            <div className={cn('flex items-end gap-3 px-4', bannerUrl ? '-mt-8 pb-0' : 'pt-4', 'md:px-0')}>
+              <div className="shrink-0 rounded-full border-4 border-card">
+                <Avatar className={cn('h-16 w-16', hashToColor(detail.group_id))}>
+                  {avatarUrl ? (
+                    <img src={avatarUrl} alt="" className="h-full w-full rounded-full object-cover" data-testid="group-detail-avatar-img" />
+                  ) : (
+                    <AvatarFallback className="text-foreground text-xl font-semibold">
+                      {displayName.charAt(0).toUpperCase()}
+                    </AvatarFallback>
+                  )}
+                </Avatar>
+              </div>
+              <div className="min-w-0 flex-1 pb-1">
+                <div className="flex flex-wrap items-center gap-2">
+                  <h1 className="truncate font-display text-lg font-bold text-foreground" data-testid="group-detail-name">
+                    {displayName}
+                  </h1>
+                  {detail.discoverable && (
+                    <Badge variant="brand" className="normal-case tracking-normal" data-testid="group-detail-listed">
+                      Listed
+                    </Badge>
+                  )}
+                  {!detail.is_member && detail.posts_state === 'ok' && (
+                    <Badge variant="outline" className="normal-case tracking-normal" data-testid="group-detail-public">
+                      Public
+                    </Badge>
+                  )}
+                  {!detail.is_member && detail.posts_state === 'join_to_view' && (
+                    <Badge variant="outline" className="normal-case tracking-normal" data-testid="group-detail-private">
+                      Private
+                    </Badge>
+                  )}
+                </div>
+                <p className="mt-0.5 flex items-center gap-1.5 text-xs text-muted-foreground">
+                  <span className="tabular-nums">{formatCount(detail.member_count)} members</span>
+                  <span aria-hidden="true">·</span>
+                  <span>by @{detail.owner}</span>
+                </p>
+              </div>
+            </div>
+            {hasAbout && (
+              <div className="border-b border-border px-4 py-3 md:px-0">
+                {identity.description && (
+                  <p className="text-sm leading-relaxed text-foreground" data-testid="group-detail-description">
+                    {identity.description}
+                  </p>
+                )}
+                {identity.tags && identity.tags.length > 0 && (
+                  <div className="mt-2 flex flex-wrap gap-1.5">
+                    {identity.tags.map((tag) => (
+                      <span key={tag} className="rounded-full border border-brand/10 bg-brand-muted/60 px-2.5 py-1 text-xs text-brand-300">
+                        #{tag}
+                      </span>
+                    ))}
+                  </div>
+                )}
+                {identity.website && (
+                  <a
+                    href={identity.website}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="mt-2 inline-flex items-center gap-1.5 text-sm text-brand-300 hover:text-brand-400 transition-colors duration-150"
+                    data-testid="group-detail-website"
+                  >
+                    <Globe className="h-4 w-4" strokeWidth={1.5} />
+                    {identity.website}
+                  </a>
+                )}
+              </div>
+            )}
+          </div>
+        ) : (
+          <div className="border-b border-border px-4 py-4 md:px-0" data-testid="group-detail-hero-empty">
+            <div className="flex items-center gap-3">
+              <div className="shrink-0">
+                <Avatar className={cn('h-12 w-12', hashToColor(detail.group_id))}>
+                  <AvatarFallback className="text-foreground text-lg font-semibold">
+                    {displayName.charAt(0).toUpperCase()}
+                  </AvatarFallback>
+                </Avatar>
+              </div>
+              <div className="min-w-0 flex-1">
+                <div className="flex flex-wrap items-center gap-2">
+                  <h1 className="truncate font-display text-lg font-bold text-foreground" data-testid="group-detail-name">
+                    {displayName}
+                  </h1>
+                  {detail.discoverable && (
+                    <Badge variant="brand" className="normal-case tracking-normal" data-testid="group-detail-listed">
+                      Listed
+                    </Badge>
+                  )}
+                </div>
+                <p className="mt-0.5 flex items-center gap-1.5 text-xs text-muted-foreground">
+                  <span className="tabular-nums">{formatCount(detail.member_count)} members</span>
+                  <span aria-hidden="true">·</span>
+                  <span>by @{detail.owner}</span>
+                </p>
+              </div>
+            </div>
+            {canManage && (
+              <button
+                type="button"
+                onClick={() => setManageOpen(true)}
+                className="mt-3 flex w-full items-center justify-center gap-2 rounded-lg border border-dashed border-border bg-surface px-3 py-3 text-sm font-medium text-muted-foreground transition-colors hover:border-brand/40 hover:text-brand-300 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                data-testid="group-detail-add-face"
+              >
+                <ImagePlus className="h-4 w-4" strokeWidth={1.75} />
+                Add a cover &amp; about
+              </button>
+            )}
           </div>
         )}
 
-        {/* Compact about (only when the group has a face) */}
-        {hasAbout && (
-          <div className="border-b border-border px-4 py-3 md:px-0">
-            {identity.description && (
-              <p className="text-sm leading-relaxed text-foreground" data-testid="group-detail-description">
-                {identity.description}
-              </p>
-            )}
-            {identity.tags && identity.tags.length > 0 && (
-              <div className="mt-2 flex flex-wrap gap-1.5">
-                {identity.tags.map((tag) => (
-                  <span key={tag} className="rounded-full border border-brand/10 bg-brand-muted/60 px-2.5 py-1 text-xs text-brand-300">
-                    #{tag}
-                  </span>
-                ))}
-              </div>
-            )}
-            {identity.website && (
-              <a
-                href={identity.website}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="mt-2 inline-flex items-center gap-1.5 text-sm text-brand-300 hover:text-brand-400 transition-colors duration-150"
-                data-testid="group-detail-website"
-              >
-                <Globe className="h-4 w-4" strokeWidth={1.5} />
-                {identity.website}
-              </a>
-            )}
-          </div>
-        )}
+        {/* Join / Leave — the membership action, below the hero */}
+        <div className="flex items-center justify-end gap-2 border-b border-border px-4 py-3 md:px-0" data-testid="group-detail-actions">
+          {detail.is_member ? (
+            <Button
+              variant="outline"
+              size="sm"
+              className="gap-1.5 border-border text-muted-foreground hover:border-danger/50 hover:text-danger hover:bg-danger-muted"
+              onClick={handleLeave}
+              disabled={joinState === 'working'}
+              data-testid="group-detail-leave"
+            >
+              {joinState === 'working' ? (
+                <Loader2 className="h-3.5 w-3.5 animate-spin" strokeWidth={2} />
+              ) : (
+                <LogOut className="h-3.5 w-3.5" strokeWidth={1.75} />
+              )}
+              <span className="hidden sm:inline">Leave</span>
+            </Button>
+          ) : canJoin ? (
+            <Button
+              variant="brand"
+              size="sm"
+              className="gap-1.5"
+              onClick={handleJoin}
+              disabled={joinState === 'working'}
+              data-testid="group-detail-join"
+            >
+              {joinState === 'working' ? (
+                <Loader2 className="h-3.5 w-3.5 animate-spin" strokeWidth={2} />
+              ) : joinState === 'done' && detail.join_policy === 'request' ? (
+                <>
+                  <UserCheck className="h-3.5 w-3.5" strokeWidth={1.75} />
+                  <span className="hidden sm:inline">Requested</span>
+                </>
+              ) : (
+                <>
+                  <UserPlus className="h-3.5 w-3.5" strokeWidth={1.75} />
+                  <span className="hidden sm:inline">{detail.join_policy === 'request' ? 'Request' : 'Join'}</span>
+                </>
+              )}
+            </Button>
+          ) : (
+            <div
+              className="flex items-center gap-1.5 rounded-md border border-border bg-elevated px-3 py-1.5 text-xs text-muted-foreground"
+              data-testid="group-detail-invite-only"
+            >
+              <Lock className="h-3.5 w-3.5" strokeWidth={1.5} />
+              <span className="hidden sm:inline">Invite only</span>
+            </div>
+          )}
+        </div>
 
         {/* The feed — the dominant surface */}
         <div className="flex-1 px-4 py-4 md:px-0">
@@ -597,6 +715,17 @@ export default function GroupDetailScreen({ groupId }: { groupId: string }) {
           )}
         </div>
       </div>
+
+      {/* The management surface — manager-only, mounted at the screen root */}
+      {canManage && (
+        <ManageGroupSheet
+          open={manageOpen}
+          onClose={() => setManageOpen(false)}
+          groupId={detail.group_id}
+          groupName={displayName}
+          sections={manageSections}
+        />
+      )}
     </div>
   );
 }

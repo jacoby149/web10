@@ -139,6 +139,7 @@ describe('v3 client', () => {
       expect(client).toHaveProperty('getMyGroups')
       expect(client).toHaveProperty('getGroupsManages')
       expect(client).toHaveProperty('updateGroup')
+      expect(client).toHaveProperty('deleteGroup')
       expect(client).toHaveProperty('joinGroup')
       expect(client).toHaveProperty('requestJoin')
       expect(client).toHaveProperty('leaveGroup')
@@ -637,6 +638,45 @@ describe('v3 client', () => {
       await client.updateGroup('g1', { join_policy: 'open' })
       const call = (vi.mocked(http.authPost).mock.calls[0][1] as any)
       expect(call.roles).toBeUndefined()
+    })
+
+    it('createGroup with discoverable passes the blasting flag', async () => {
+      vi.spyOn(http, 'authPost').mockResolvedValueOnce({ group_id: 'g1' } as any)
+      await client.createGroup('my-group', 'open', [], [{ member_key: 'alice', role: 'owner' }], { discoverable: true })
+      const call = (vi.mocked(http.authPost).mock.calls[0][1] as any)
+      expect(call.discoverable).toBe(true)
+    })
+
+    it('createGroup without opts omits discoverable (backward compat)', async () => {
+      vi.spyOn(http, 'authPost').mockResolvedValueOnce({ group_id: 'g1' } as any)
+      await client.createGroup('my-group', 'open', [], [{ member_key: 'alice', role: 'owner' }])
+      const call = (vi.mocked(http.authPost).mock.calls[0][1] as any)
+      expect(call.discoverable).toBeUndefined()
+    })
+
+    it('updateGroup with discoverable passes the blasting flag', async () => {
+      vi.spyOn(http, 'authPost').mockResolvedValueOnce({ group_id: 'g1', join_policy: 'open', my_role: 'owner', member_count: 5, discoverable: true } as any)
+      await client.updateGroup('g1', { discoverable: true })
+      const call = (vi.mocked(http.authPost).mock.calls[0][1] as any)
+      expect(call.group_id).toBe('g1')
+      expect(call.discoverable).toBe(true)
+    })
+
+    it('updateGroup with discoverable: false delists (not omitted)', async () => {
+      vi.spyOn(http, 'authPost').mockResolvedValueOnce({ group_id: 'g1', join_policy: 'open', my_role: 'owner', member_count: 5, discoverable: false } as any)
+      await client.updateGroup('g1', { discoverable: false })
+      const call = (vi.mocked(http.authPost).mock.calls[0][1] as any)
+      expect(call.discoverable).toBe(false)
+    })
+
+    it('deleteGroup posts groups/delete', async () => {
+      vi.spyOn(http, 'authPost').mockResolvedValueOnce({ group_id: 'g1', status: 'deleted' } as any)
+      const result = await client.deleteGroup('g1')
+      expect(result.status).toBe('deleted')
+      expect(http.authPost).toHaveBeenCalledWith(
+        'http://api.localhost/v3/groups/delete',
+        expect.objectContaining({ group_id: 'g1', token: mockToken }),
+      )
     })
 
     it('joinGroup', async () => {
