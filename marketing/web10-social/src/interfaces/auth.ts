@@ -55,6 +55,14 @@ const SOCIAL_SERVICES = [
   'reactions',
   'contacts',
   'staging_posts',
+  // The group's face (D60) — documents in an app-named service, written by
+  // the create-group flow + the face editor (writeGroupIdentity). Without it
+  // in the contract, every group create/edit 403s at the app-contract gate
+  // ("No app contract … to create on web10-social-group-identity").
+  'web10-social-group-identity',
+  // The D69 notification store — a `notifications` doc (the last_seen cursor)
+  // in the followers group, read/created/updated by the notification store.
+  'notifications',
 ] as const;
 
 // The four operations the documents endpoint enforces (create / read /

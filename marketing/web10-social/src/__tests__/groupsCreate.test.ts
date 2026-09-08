@@ -49,4 +49,22 @@ describe('createCommunityGroup — the discoverable (D53) fix', () => {
     expect(members).not.toContainEqual({ member_key: 'authenticated', role: 'reader' });
     expect(opts).toEqual({ discoverable: false });
   });
+
+  it('the join policy is threaded to createGroup (default open)', async () => {
+    await createCommunityGroup({ name: 'My Group', visibility: 'private' }, 'jacoby149');
+    const [, joinPolicy] = mockCreateGroup.mock.calls[0];
+    expect(joinPolicy).toBe('open');
+  });
+
+  it('a request join policy is threaded to createGroup', async () => {
+    await createCommunityGroup({ name: 'My Group', visibility: 'private', join_policy: 'request' }, 'jacoby149');
+    const [, joinPolicy] = mockCreateGroup.mock.calls[0];
+    expect(joinPolicy).toBe('request');
+  });
+
+  it('an invite-only join policy is threaded to createGroup', async () => {
+    await createCommunityGroup({ name: 'My Group', visibility: 'private', join_policy: 'invite_only' }, 'jacoby149');
+    const [, joinPolicy] = mockCreateGroup.mock.calls[0];
+    expect(joinPolicy).toBe('invite_only');
+  });
 });
