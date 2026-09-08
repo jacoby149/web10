@@ -43,6 +43,7 @@ describe('CreateGroupSheet', () => {
     expect(screen.getByTestId('create-group-name')).toBeInTheDocument();
     expect(screen.getByTestId('create-group-description')).toBeInTheDocument();
     expect(screen.getByTestId('create-group-visibility')).toBeInTheDocument();
+    expect(screen.getByTestId('create-group-join-policy')).toBeInTheDocument();
     expect(screen.getByTestId('create-group-tags')).toBeInTheDocument();
     expect(screen.getByTestId('create-group-website')).toBeInTheDocument();
 
@@ -88,12 +89,35 @@ describe('CreateGroupSheet', () => {
       website: 'https://x.com',
       tags: ['gaming', 'retro'],
       visibility: 'public',
+      join_policy: 'open',
       banner_ref: undefined,
       avatar_ref: undefined,
     });
     await waitFor(() => {
       expect(onCreated).toHaveBeenCalledWith('web10.app/groups/jacoby149/my-group');
     });
+  });
+
+  it('defaults to the open join policy and the selector flips the pressed state', () => {
+    renderSheet();
+    expect(screen.getByTestId('create-group-join-policy')).toBeInTheDocument();
+    expect(screen.getByTestId('create-group-join-open')).toHaveAttribute('aria-pressed', 'true');
+    fireEvent.click(screen.getByTestId('create-group-join-request'));
+    expect(screen.getByTestId('create-group-join-request')).toHaveAttribute('aria-pressed', 'true');
+    expect(screen.getByTestId('create-group-join-open')).toHaveAttribute('aria-pressed', 'false');
+  });
+
+  it('the selected join policy is passed into the create call', async () => {
+    renderSheet();
+    fireEvent.change(screen.getByTestId('create-group-name'), { target: { value: 'My Group' } });
+    fireEvent.click(screen.getByTestId('create-group-join-invite_only'));
+    fireEvent.click(screen.getByTestId('create-group-submit'));
+
+    await waitFor(() => {
+      expect(mockCreate).toHaveBeenCalledTimes(1);
+    });
+    const [input] = mockCreate.mock.calls[0];
+    expect(input.join_policy).toBe('invite_only');
   });
 
   it('uploads a banner + avatar and passes their refs into the create call', async () => {
