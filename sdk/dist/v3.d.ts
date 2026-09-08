@@ -64,6 +64,9 @@ export interface V3Group {
     my_role: string;
     member_count: number;
     roles?: Record<string, unknown>[];
+    /** The D53 "blasting" flag — whether the group is listed in the public directory.
+     *  Returned by `/manages` + `/get`; optional for forward-compat (older nodes). */
+    discoverable?: boolean;
 }
 export interface V3GroupMember {
     group_id?: string;
@@ -259,7 +262,9 @@ export interface V3Client {
     createGroup(name: string, joinPolicy: string, roles: Record<string, unknown>[], members: {
         member_key: string;
         role?: string;
-    }[]): Promise<{
+    }[], opts?: {
+        discoverable?: boolean;
+    }): Promise<{
         group_id: string;
     }>;
     getGroup(groupId: string): Promise<V3Group>;
@@ -268,7 +273,12 @@ export interface V3Client {
     updateGroup(groupId: string, opts?: {
         join_policy?: string;
         roles?: Record<string, unknown>[];
+        discoverable?: boolean;
     }): Promise<V3Group>;
+    deleteGroup(groupId: string): Promise<{
+        group_id: string;
+        status: string;
+    }>;
     joinGroup(groupId: string): Promise<V3GroupMember | {
         group_id: string;
         status: string;

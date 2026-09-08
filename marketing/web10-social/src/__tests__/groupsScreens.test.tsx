@@ -16,7 +16,18 @@ vi.mock('@/data', async (importOriginal) => {
     readGroupDirectory: vi.fn().mockResolvedValue([]),
     readGroupDetail: vi.fn().mockResolvedValue(null),
     readGroupIdentity: vi.fn().mockResolvedValue({}),
+    writeGroupIdentity: vi.fn().mockResolvedValue(undefined),
     resolveMediaRefs: vi.fn().mockResolvedValue([]),
+    getGroupsManages: vi.fn().mockResolvedValue([]),
+    updateGroup: vi.fn().mockResolvedValue({}),
+    addGroupMember: vi.fn().mockResolvedValue({}),
+    removeGroupMember: vi.fn().mockResolvedValue({}),
+    getGroupMembers: vi.fn().mockResolvedValue([]),
+    getJoinRequests: vi.fn().mockResolvedValue([]),
+    approveJoinRequest: vi.fn().mockResolvedValue({ status: 'approved' }),
+    denyJoinRequest: vi.fn().mockResolvedValue({ status: 'declined' }),
+    inviteMember: vi.fn().mockResolvedValue({ status: 'invited' }),
+    deleteGroup: vi.fn().mockResolvedValue({ status: 'deleted' }),
     joinGroup: vi.fn().mockResolvedValue({ status: 'joined' }),
     requestJoinGroup: vi.fn().mockResolvedValue({ status: 'pending' }),
     leaveGroup: vi.fn().mockResolvedValue({ status: 'left' }),
@@ -28,7 +39,18 @@ import {
   readGroupDirectory,
   readGroupDetail,
   readGroupIdentity,
+  writeGroupIdentity,
   resolveMediaRefs,
+  getGroupsManages,
+  updateGroup,
+  addGroupMember,
+  removeGroupMember,
+  getGroupMembers,
+  getJoinRequests,
+  approveJoinRequest,
+  denyJoinRequest,
+  inviteMember,
+  deleteGroup,
   joinGroup,
   requestJoinGroup,
   leaveGroup,
@@ -373,6 +395,9 @@ describe('GroupDetailScreen', () => {
     vi.clearAllMocks();
     vi.mocked(readGroupDetail).mockResolvedValue(mockDetailMember as never);
     vi.mocked(readGroupIdentity).mockResolvedValue(mockIdentity);
+    // Default: the current user manages no groups (the Manage entry point is
+    // hidden). Tests that need the manager view override this.
+    vi.mocked(getGroupsManages).mockResolvedValue([]);
   });
 
   function renderDetail(GroupDetailScreen: React.ComponentType<{ groupId: string }>) {
@@ -391,7 +416,7 @@ describe('GroupDetailScreen', () => {
   it('renders the group identity (name, owner, members, description, tags)', async () => {
     await loadDetail();
     await waitFor(() => {
-      expect(screen.getByTestId('group-detail-card')).toBeInTheDocument();
+      expect(screen.getByTestId('group-detail-hero')).toBeInTheDocument();
     });
     expect(screen.getByTestId('group-detail-name')).toHaveTextContent('Gaming Night');
     expect(screen.getByText('by @carol')).toBeInTheDocument();
@@ -531,7 +556,367 @@ describe('GroupDetailScreen', () => {
     vi.mocked(readGroupDetail).mockResolvedValue(mockDetailMember as never);
     fireEvent.click(screen.getByTestId('group-detail-error-retry'));
     await waitFor(() => {
-      expect(screen.getByTestId('group-detail-card')).toBeInTheDocument();
+      expect(screen.getByTestId('group-detail-hero')).toBeInTheDocument();
+    });
+  });
+
+  it('a manager sees the Manage entry point (the group is in getGroupsManages)', async () => {
+    vi.mocked(getGroupsManages).mockResolvedValue([
+      { group_id: GROUP_ID, join_policy: 'open', my_role: 'owner', member_count: 128 },
+    ] as never);
+    await loadDetail();
+    await waitFor(() => {
+      expect(screen.getByTestId('group-detail-manage')).toBeInTheDocument();
+    });
+  });
+
+  it('a non-manager member does NOT see the Manage entry point', async () => {
+    vi.mocked(getGroupsManages).mockResolvedValue([]);
+    await loadDetail();
+    await waitFor(() => {
+      expect(screen.getByTestId('group-detail-hero')).toBeInTheDocument();
+    });
+    expect(screen.queryByTestId('group-detail-manage')).not.toBeInTheDocument();
+  });
+
+  it('clicking Manage opens the management sheet with its tabs', async () => {
+    vi.mocked(getGroupsManages).mockResolvedValue([
+      { group_id: GROUP_ID, join_policy: 'open', my_role: 'owner', member_count: 128 },
+    ] as never);
+    await loadDetail();
+    await waitFor(() => {
+      expect(screen.getByTestId('group-detail-manage')).toBeInTheDocument();
+    });
+    fireEvent.click(screen.getByTestId('group-detail-manage'));
+    await waitFor(() => {
+      expect(screen.getByTestId('manage-group-sheet')).toBeInTheDocument();
+    });
+    expect(screen.getByTestId('manage-tab-profile')).toBeInTheDocument();
+    expect(screen.getByTestId('manage-tab-settings')).toBeInTheDocument();
+    expect(screen.getByTestId('manage-tab-members')).toBeInTheDocument();
+    expect(screen.getByTestId('manage-tab-roles')).toBeInTheDocument();
+    // The active tab (Profile) renders the face editor (it loads the current
+    // face on mount); the not-yet-built tabs (Settings/Members/Roles) show the
+    // placeholder when selected.
+    await waitFor(() => {
+      expect(screen.getByTestId('manage-profile-name')).toBeInTheDocument();
+    });
+  });
+
+  it('the Profile section loads the face and saves it (writeGroupIdentity)', async () => {
+    vi.mocked(getGroupsManages).mockResolvedValue([
+      { group_id: GROUP_ID, join_policy: 'open', my_role: 'owner', member_count: 128 },
+    ] as never);
+    await loadDetail();
+    await waitFor(() => {
+      expect(screen.getByTestId('group-detail-manage')).toBeInTheDocument();
+    });
+    fireEvent.click(screen.getByTestId('group-detail-manage'));
+    await waitFor(() => {
+      expect(screen.getByTestId('manage-group-sheet')).toBeInTheDocument();
+    });
+    // Profile is the default tab; the form loads the current face (mockIdentity)
+    await waitFor(() => {
+      expect(screen.getByTestId('manage-profile-name')).toBeInTheDocument();
+    });
+    expect((screen.getByTestId('manage-profile-name') as HTMLInputElement).value).toBe('Gaming Night');
+    expect(screen.getByTestId('manage-profile-about')).toBeInTheDocument();
+    expect(screen.getByTestId('manage-profile-website')).toBeInTheDocument();
+    expect(screen.getByTestId('manage-profile-banner-button')).toBeInTheDocument();
+    expect(screen.getByTestId('manage-profile-avatar-button')).toBeInTheDocument();
+    // Edit the name + save → writeGroupIdentity is called with the new face
+    fireEvent.change(screen.getByTestId('manage-profile-name'), { target: { value: 'Gaming Night 2.0' } });
+    fireEvent.click(screen.getByTestId('manage-profile-save'));
+    await waitFor(() => {
+      expect(writeGroupIdentity).toHaveBeenCalledWith(GROUP_ID, expect.objectContaining({ name: 'Gaming Night 2.0' }));
+    });
+  });
+
+  it('switching tabs in the Manage sheet changes the active section', async () => {
+    vi.mocked(getGroupsManages).mockResolvedValue([
+      { group_id: GROUP_ID, join_policy: 'open', my_role: 'owner', member_count: 128 },
+    ] as never);
+    await loadDetail();
+    await waitFor(() => {
+      expect(screen.getByTestId('group-detail-manage')).toBeInTheDocument();
+    });
+    fireEvent.click(screen.getByTestId('group-detail-manage'));
+    await waitFor(() => {
+      expect(screen.getByTestId('manage-group-sheet')).toBeInTheDocument();
+    });
+    expect(screen.getByTestId('manage-tab-profile')).toHaveAttribute('aria-selected', 'true');
+    fireEvent.click(screen.getByTestId('manage-tab-settings'));
+    await waitFor(() => {
+      expect(screen.getByTestId('manage-tab-settings')).toHaveAttribute('aria-selected', 'true');
+    });
+  });
+
+  it('the Settings section: flipping "List in directory" calls updateGroup with discoverable', async () => {
+    vi.mocked(getGroupsManages).mockResolvedValue([
+      { group_id: GROUP_ID, join_policy: 'open', my_role: 'owner', member_count: 128 },
+    ] as never);
+    await loadDetail();
+    await waitFor(() => {
+      expect(screen.getByTestId('group-detail-manage')).toBeInTheDocument();
+    });
+    fireEvent.click(screen.getByTestId('group-detail-manage'));
+    await waitFor(() => {
+      expect(screen.getByTestId('manage-group-sheet')).toBeInTheDocument();
+    });
+    fireEvent.click(screen.getByTestId('manage-tab-settings'));
+    await waitFor(() => {
+      expect(screen.getByTestId('manage-settings-listed-toggle')).toBeInTheDocument();
+    });
+    // mockDetail has discoverable: true → the toggle starts checked
+    expect(screen.getByTestId('manage-settings-listed-toggle')).toHaveAttribute('aria-checked', 'true');
+    fireEvent.click(screen.getByTestId('manage-settings-listed-toggle'));
+    await waitFor(() => {
+      expect(updateGroup).toHaveBeenCalledWith(GROUP_ID, { discoverable: false });
+    });
+  });
+
+  it('the Settings section: changing join policy calls updateGroup with join_policy', async () => {
+    vi.mocked(getGroupsManages).mockResolvedValue([
+      { group_id: GROUP_ID, join_policy: 'open', my_role: 'owner', member_count: 128 },
+    ] as never);
+    await loadDetail();
+    await waitFor(() => {
+      expect(screen.getByTestId('group-detail-manage')).toBeInTheDocument();
+    });
+    fireEvent.click(screen.getByTestId('group-detail-manage'));
+    await waitFor(() => {
+      expect(screen.getByTestId('manage-group-sheet')).toBeInTheDocument();
+    });
+    fireEvent.click(screen.getByTestId('manage-tab-settings'));
+    await waitFor(() => {
+      expect(screen.getByTestId('manage-settings-join-request')).toBeInTheDocument();
+    });
+    fireEvent.click(screen.getByTestId('manage-settings-join-request'));
+    await waitFor(() => {
+      expect(updateGroup).toHaveBeenCalledWith(GROUP_ID, { join_policy: 'request' });
+    });
+  });
+
+  it('the Settings section: who-can-read reflects the reserved rows and updates them', async () => {
+    vi.mocked(getGroupsManages).mockResolvedValue([
+      { group_id: GROUP_ID, join_policy: 'open', my_role: 'owner', member_count: 128 },
+    ] as never);
+    // The group is public (an `anyone` reader row)
+    vi.mocked(getGroupMembers).mockResolvedValue([
+      { member_key: 'anyone', role: 'reader' },
+      { member_key: 'carol', role: 'owner' },
+    ]);
+    await loadDetail();
+    await waitFor(() => {
+      expect(screen.getByTestId('group-detail-manage')).toBeInTheDocument();
+    });
+    fireEvent.click(screen.getByTestId('group-detail-manage'));
+    await waitFor(() => {
+      expect(screen.getByTestId('manage-group-sheet')).toBeInTheDocument();
+    });
+    fireEvent.click(screen.getByTestId('manage-tab-settings'));
+    await waitFor(() => {
+      expect(screen.getByTestId('manage-settings-visibility-public')).toBeInTheDocument();
+    });
+    // The public option is active (the `anyone` reader row)
+    expect(screen.getByTestId('manage-settings-visibility-public')).toHaveAttribute('aria-pressed', 'true');
+    // Switch to private → removes both reserved rows
+    fireEvent.click(screen.getByTestId('manage-settings-visibility-private'));
+    await waitFor(() => {
+      expect(removeGroupMember).toHaveBeenCalledWith(GROUP_ID, 'anyone');
+    });
+    await waitFor(() => {
+      expect(removeGroupMember).toHaveBeenCalledWith(GROUP_ID, 'authenticated');
+    });
+  });
+
+  it('the Members section lists members and removes one (removeGroupMember)', async () => {
+    vi.mocked(getGroupsManages).mockResolvedValue([
+      { group_id: GROUP_ID, join_policy: 'open', my_role: 'owner', member_count: 3 },
+    ] as never);
+    vi.mocked(getGroupMembers).mockResolvedValue([
+      { member_key: 'web10.app/users/carol', role: 'owner' },
+      { member_key: 'web10.app/users/bob', role: 'member' },
+    ]);
+    await loadDetail();
+    await waitFor(() => {
+      expect(screen.getByTestId('group-detail-manage')).toBeInTheDocument();
+    });
+    fireEvent.click(screen.getByTestId('group-detail-manage'));
+    await waitFor(() => {
+      expect(screen.getByTestId('manage-group-sheet')).toBeInTheDocument();
+    });
+    fireEvent.click(screen.getByTestId('manage-tab-members'));
+    await waitFor(() => {
+      expect(screen.getAllByTestId('manage-members-row').length).toBe(2);
+    });
+    expect(screen.getByText('carol')).toBeInTheDocument();
+    expect(screen.getByText('bob')).toBeInTheDocument();
+    // Remove bob → removeGroupMember is called
+    const removeBtns = screen.getAllByTestId('manage-members-remove');
+    fireEvent.click(removeBtns[1]);
+    await waitFor(() => {
+      expect(removeGroupMember).toHaveBeenCalledWith(GROUP_ID, 'web10.app/users/bob');
+    });
+  });
+
+  it('the Members section shows the join-request queue and approves one', async () => {
+    vi.mocked(getGroupsManages).mockResolvedValue([
+      { group_id: GROUP_ID, join_policy: 'request', my_role: 'owner', member_count: 3 },
+    ] as never);
+    vi.mocked(getGroupMembers).mockResolvedValue([{ member_key: 'web10.app/users/carol', role: 'owner' }]);
+    vi.mocked(getJoinRequests).mockResolvedValue([{ requester_key: 'web10.app/users/ada', status: 'pending' }] as never);
+    await loadDetail();
+    await waitFor(() => {
+      expect(screen.getByTestId('group-detail-manage')).toBeInTheDocument();
+    });
+    fireEvent.click(screen.getByTestId('group-detail-manage'));
+    await waitFor(() => {
+      expect(screen.getByTestId('manage-group-sheet')).toBeInTheDocument();
+    });
+    fireEvent.click(screen.getByTestId('manage-tab-members'));
+    await waitFor(() => {
+      expect(screen.getByTestId('manage-members-request-row')).toBeInTheDocument();
+    });
+    expect(screen.getByText('ada')).toBeInTheDocument();
+    fireEvent.click(screen.getByTestId('manage-members-request-approve'));
+    await waitFor(() => {
+      expect(approveJoinRequest).toHaveBeenCalledWith(GROUP_ID, 'web10.app/users/ada');
+    });
+  });
+
+  it('the Members section adds a member (inviteMember)', async () => {
+    vi.mocked(getGroupsManages).mockResolvedValue([
+      { group_id: GROUP_ID, join_policy: 'open', my_role: 'owner', member_count: 1 },
+    ] as never);
+    vi.mocked(getGroupMembers).mockResolvedValue([{ member_key: 'web10.app/users/carol', role: 'owner' }]);
+    await loadDetail();
+    await waitFor(() => {
+      expect(screen.getByTestId('group-detail-manage')).toBeInTheDocument();
+    });
+    fireEvent.click(screen.getByTestId('group-detail-manage'));
+    await waitFor(() => {
+      expect(screen.getByTestId('manage-group-sheet')).toBeInTheDocument();
+    });
+    fireEvent.click(screen.getByTestId('manage-tab-members'));
+    await waitFor(() => {
+      expect(screen.getByTestId('manage-members-add-input')).toBeInTheDocument();
+    });
+    fireEvent.change(screen.getByTestId('manage-members-add-input'), { target: { value: 'dave' } });
+    fireEvent.click(screen.getByTestId('manage-members-add-button'));
+    await waitFor(() => {
+      expect(inviteMember).toHaveBeenCalledWith(GROUP_ID, 'dave', 'member');
+    });
+  });
+
+  it('the Roles section renders the role maps and saves them (updateGroup roles)', async () => {
+    vi.mocked(getGroupsManages).mockResolvedValue([
+      { group_id: GROUP_ID, join_policy: 'open', my_role: 'owner', member_count: 3 },
+    ] as never);
+    vi.mocked(readGroupDetail).mockResolvedValue({
+      ...mockDetailMember,
+      roles: [
+        { name: 'owner', permissions: { '*': ['readAll', 'create'], group: ['manageRoles', 'deleteGroup'] } },
+        { name: 'member', permissions: { posts: ['readAll'] } },
+      ],
+    } as never);
+    await loadDetail();
+    await waitFor(() => {
+      expect(screen.getByTestId('group-detail-manage')).toBeInTheDocument();
+    });
+    fireEvent.click(screen.getByTestId('group-detail-manage'));
+    await waitFor(() => {
+      expect(screen.getByTestId('manage-group-sheet')).toBeInTheDocument();
+    });
+    fireEvent.click(screen.getByTestId('manage-tab-roles'));
+    await waitFor(() => {
+      expect(screen.getAllByTestId('manage-roles-role').length).toBe(2);
+    });
+    // The owner role's name is pre-filled
+    expect(screen.getByDisplayValue('owner')).toBeInTheDocument();
+    // Save → updateGroup is called with the roles
+    fireEvent.click(screen.getByTestId('manage-roles-save'));
+    await waitFor(() => {
+      expect(updateGroup).toHaveBeenCalledWith(GROUP_ID, expect.objectContaining({ roles: expect.any(Array) }));
+    });
+  });
+
+  it('the Roles section: deleting the group is a two-tap confirm (deleteGroup)', async () => {
+    vi.mocked(getGroupsManages).mockResolvedValue([
+      { group_id: GROUP_ID, join_policy: 'open', my_role: 'owner', member_count: 3 },
+    ] as never);
+    await loadDetail();
+    await waitFor(() => {
+      expect(screen.getByTestId('group-detail-manage')).toBeInTheDocument();
+    });
+    fireEvent.click(screen.getByTestId('group-detail-manage'));
+    await waitFor(() => {
+      expect(screen.getByTestId('manage-group-sheet')).toBeInTheDocument();
+    });
+    fireEvent.click(screen.getByTestId('manage-tab-roles'));
+    await waitFor(() => {
+      expect(screen.getByTestId('manage-roles-delete')).toBeInTheDocument();
+    });
+    // First tap arms the confirm (no delete yet)
+    fireEvent.click(screen.getByTestId('manage-roles-delete'));
+    expect(deleteGroup).not.toHaveBeenCalled();
+    expect(screen.getByTestId('manage-roles-delete')).toHaveTextContent('Confirm delete');
+    // Second tap deletes
+    fireEvent.click(screen.getByTestId('manage-roles-delete'));
+    await waitFor(() => {
+      expect(deleteGroup).toHaveBeenCalledWith(GROUP_ID);
+    });
+  });
+
+  it('renders the face hero (banner + about) when the group has a face', async () => {
+    vi.mocked(readGroupIdentity).mockResolvedValue({
+      name: 'Gaming Night',
+      description: 'Weekly gaming sessions.',
+      banner_ref: 'banner-1',
+      avatar_ref: 'avatar-1',
+      tags: ['gaming'],
+      website: 'https://gaming.example.com',
+    });
+    vi.mocked(resolveMediaRefs).mockResolvedValue([
+      { _id: 'banner-1', url: 'http://x/banner.png', mime_type: 'image/png', created_at: '' },
+      { _id: 'avatar-1', url: 'http://x/avatar.png', mime_type: 'image/png', created_at: '' },
+    ] as never);
+    await loadDetail();
+    await waitFor(() => {
+      expect(screen.getByTestId('group-detail-hero')).toBeInTheDocument();
+    });
+    expect(screen.getByTestId('group-detail-banner-img')).toBeInTheDocument();
+    expect(screen.getByTestId('group-detail-avatar-img')).toBeInTheDocument();
+    expect(screen.getByTestId('group-detail-description')).toBeInTheDocument();
+    // A face-present group does NOT show the empty-hero state
+    expect(screen.queryByTestId('group-detail-hero-empty')).not.toBeInTheDocument();
+  });
+
+  it('shows the empty-hero state when the group has no face', async () => {
+    vi.mocked(readGroupIdentity).mockResolvedValue({});
+    await loadDetail();
+    await waitFor(() => {
+      expect(screen.getByTestId('group-detail-hero-empty')).toBeInTheDocument();
+    });
+    expect(screen.queryByTestId('group-detail-hero')).not.toBeInTheDocument();
+    // A non-manager sees no "add a face" CTA
+    expect(screen.queryByTestId('group-detail-add-face')).not.toBeInTheDocument();
+  });
+
+  it('a manager on a face-less group sees the "Add a cover & about" CTA', async () => {
+    vi.mocked(readGroupIdentity).mockResolvedValue({});
+    vi.mocked(getGroupsManages).mockResolvedValue([
+      { group_id: GROUP_ID, join_policy: 'open', my_role: 'owner', member_count: 128 },
+    ] as never);
+    await loadDetail();
+    await waitFor(() => {
+      expect(screen.getByTestId('group-detail-hero-empty')).toBeInTheDocument();
+    });
+    expect(screen.getByTestId('group-detail-add-face')).toBeInTheDocument();
+    // Clicking it opens the Manage sheet
+    fireEvent.click(screen.getByTestId('group-detail-add-face'));
+    await waitFor(() => {
+      expect(screen.getByTestId('manage-group-sheet')).toBeInTheDocument();
     });
   });
 });
