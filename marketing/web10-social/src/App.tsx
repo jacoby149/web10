@@ -11,6 +11,7 @@ import DiscoverScreen from '@/components/Discover/DiscoverScreen';
 import GroupsScreen from '@/components/Groups/GroupsScreen';
 import GroupDetailScreen from '@/components/Groups/GroupDetailScreen';
 import DmsScreen from '@/components/Chat/DmsScreen';
+import NotificationsScreen from '@/components/Notifications/NotificationsScreen';
 import StagingScreen from '@/components/Staging/StagingScreen';
 import SettingsScreen from '@/components/Settings/SettingsScreen';
 import PostComposer from '@/components/Feed/PostComposer';
@@ -20,6 +21,7 @@ import { getWapi, getV3Client, verifyAndRecover, Web10Error } from '@/data';
 import { resolveMediaRefs } from '@/data/posts';
 import { readSettings } from '@/data/settings';
 import { initP2P, teardownP2P, setPeer } from '@/data/p2p';
+import { initNotifications, teardownNotifications } from '@/data/notifications';
 import { trackEvent, hotjarIdentify } from '@/lib/analytics';
 import { PostLightbox } from '@/components/Bio/PostLightbox';
 import type { PostRecord, MediaRecord, Visibility } from '@/data/types';
@@ -320,8 +322,13 @@ function App() {
     const auth = getSocialAuth();
     if (!auth.isSignedIn()) {
       teardownP2P();
+      teardownNotifications();
       return;
     }
+    // The notification store is app-wide (D69): init it whenever signed in,
+    // independent of the P2P toggle. It seeds from CRUD (works offline) and
+    // subscribes to the P2P bus for live nudges (no-ops when P2P is off).
+    initNotifications().catch((e) => LOG_ERR('initNotifications — failed:', e));
     try {
       const s = await readSettings();
       LOG('applyP2P — p2pEnabled:', s.p2pEnabled);
@@ -341,6 +348,7 @@ function App() {
       applyP2P();
     } else {
       teardownP2P();
+      teardownNotifications();
     }
     const onSettingsChanged = () => {
       if (getSocialAuth().isSignedIn()) applyP2P();
@@ -404,6 +412,7 @@ function App() {
           <Route path="/groups" element={<GroupsScreen />} />
           <Route path="/groups/:groupId" element={<GroupDetailRoute />} />
           <Route path="/messages/*" element={<DmsScreen />} />
+          <Route path="/notifications" element={<NotificationsScreen />} />
           <Route path="/profile" element={<ProfileRedirectRoute />} />
           <Route path="/u/:username" element={<UserProfileRoute />} />
           <Route path="/u/:username/p/:postId" element={<UserProfilePostLinkRoute />} />

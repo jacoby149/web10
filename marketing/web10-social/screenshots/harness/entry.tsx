@@ -17,11 +17,13 @@ import SettingsScreen from '@/components/Settings/SettingsScreen';
 import GroupsScreen from '@/components/Groups/GroupsScreen';
 import GroupDetailScreen from '@/components/Groups/GroupDetailScreen';
 import FeedScreen from '@/components/Feed/FeedScreen';
+import NotificationsScreen from '@/components/Notifications/NotificationsScreen';
 
 const screen = new URLSearchParams(window.location.search).get('screen');
 const initialRoute =
   screen === 'settings' ? '/settings'
   : screen === 'feed' ? '/feed'
+  : screen === 'notifications' ? '/notifications'
   : screen === 'groups' ? '/groups'
   : screen === 'groups-discover' ? '/groups?tab=discover'
   : screen === 'groups-detail' ? '/groups/web10%2Fgroups%2Fusers%2Fnova%2Fsynthwave-sessions'
@@ -32,6 +34,7 @@ createRoot(document.getElementById('root')!).render(
     <Routes>
       <Route element={<Layout onLogout={() => {}} onReportBug={() => {}} />}>
         <Route path="/feed" element={<FeedScreen />} />
+        <Route path="/notifications" element={<NotificationsScreen />} />
         <Route path="/messages/*" element={<DmsScreen />} />
         <Route path="/settings" element={<SettingsScreen onLogout={() => {}} onReportBug={() => {}} />} />
         <Route path="/groups" element={<GroupsScreen />} />
