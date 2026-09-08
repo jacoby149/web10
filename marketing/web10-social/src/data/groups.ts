@@ -259,6 +259,9 @@ export async function ensureCommunity(
 /** The group's visibility at birth — maps to the initial read grant. */
 export type GroupVisibility = 'public' | 'signed_in' | 'private';
 
+/** How a human becomes a member (the group's join policy at birth). */
+export type GroupJoinPolicy = 'open' | 'request' | 'invite_only';
+
 /**
  * The community role set. Publicness is a role grant (D58): a `reader` role
  * (read-only on posts + the face) is granted to the `anyone` principal (public)
@@ -295,6 +298,8 @@ export interface CreateGroupInput {
   website?: string;
   tags?: string[];
   visibility: GroupVisibility;
+  /** How a human becomes a member (open / request / invite-only). Defaults to `open`. */
+  join_policy?: GroupJoinPolicy;
   banner_ref?: string;
   avatar_ref?: string;
 }
@@ -333,8 +338,9 @@ export async function createCommunityGroup(
   // the manual override for every visibility). This is the fix for "my friend
   // can't find my public group" — public meant readable but never findable.
   const discoverable = input.visibility === 'public';
-  await w.createGroup(slug, 'open', COMMUNITY_CREATE_ROLES, members, { discoverable });
-  LOG('createCommunityGroup — created', groupId, { discoverable });
+  const joinPolicy = input.join_policy ?? 'open';
+  await w.createGroup(slug, joinPolicy, COMMUNITY_CREATE_ROLES, members, { discoverable });
+  LOG('createCommunityGroup — created', groupId, { discoverable, joinPolicy });
   const face: GroupIdentity = {
     name: input.name,
     description: input.description || undefined,

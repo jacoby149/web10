@@ -62,6 +62,8 @@ const SOCIAL_SERVICES = [
   'reactions',
   'contacts',
   'staging_posts',
+  'web10-social-group-identity',
+  'notifications',
 ];
 const SOCIAL_OPERATIONS = ['create', 'readAll', 'updateOwn', 'deleteOwn'];
 

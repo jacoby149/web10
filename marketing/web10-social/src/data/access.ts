@@ -28,6 +28,11 @@ const LOG_WARN = (...args: unknown[]) => console.warn('[access]', ...args);
 
 // The services the social app needs — the recovery verifies these. The signal
 // is platform-level (the node checks them); this list is the app's policy.
+// Must stay in lockstep with SOCIAL_SERVICES in src/interfaces/auth.ts (the
+// login contract): a service the app writes but the oracle doesn't verify is
+// invisible to the recovery — a partial contract (e.g. a pre-fix login missing
+// the group-identity service) would never trigger the reauth that merges the
+// missing grant in (the auth UI's applyACR merges on re-consent).
 const SOCIAL_SERVICES = [
   'posts',
   'media',
@@ -38,6 +43,8 @@ const SOCIAL_SERVICES = [
   'reactions',
   'contacts',
   'staging_posts',
+  'web10-social-group-identity',
+  'notifications',
 ];
 const SOCIAL_OPERATIONS = ['readAll', 'create'];
 

@@ -34,7 +34,7 @@ const FOLLOWER_ROLES = [
   { name: 'member', permissions: { posts: ['readAll'] } },
 ];
 
-const SOCIAL_SERVICES = ['posts', 'media', 'public_media', 'profile', 'settings', 'comments', 'reactions', 'contacts', 'staging_posts'];
+const SOCIAL_SERVICES = ['posts', 'media', 'public_media', 'profile', 'settings', 'comments', 'reactions', 'contacts', 'staging_posts', 'web10-social-group-identity', 'notifications'];
 const SOCIAL_OPERATIONS = ['create', 'readAll', 'updateOwn', 'deleteOwn'];
 
 const followersGroupId = (username: string) => `${PROVIDER}/groups/users/${username}/followers`;
