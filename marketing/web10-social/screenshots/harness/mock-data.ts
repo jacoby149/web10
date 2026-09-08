@@ -349,7 +349,43 @@ export async function readGroupDetail(groupId: string): Promise<unknown> {
   };
 }
 export async function joinGroup(): Promise<unknown> { return { status: 'joined' }; }
-export async function readGroupIdentity(): Promise<unknown> { return {}; }
+export async function readGroupIdentity(): Promise<unknown> {
+  // A face so the group-detail hero (banner + avatar + about + tags) renders
+  // in the capture — the face-present variant of the re-cut detail screen.
+  return {
+    name: 'Synthwave Sessions',
+    description: 'A shared space on your node — content you co-create with the people you choose.',
+    banner_ref: 'banner-1',
+    avatar_ref: 'avatar-1',
+    website: 'https://synthwave.example.com',
+    tags: ['music', 'synthwave'],
+  };
+}
+export async function getGroupsManages(): Promise<unknown[]> {
+  // The harness user manages the synthwave-sessions group → the detail screen
+  // shows the manager-only "Manage" entry point in the capture.
+  return [{ group_id: 'web10/groups/users/nova/synthwave-sessions', join_policy: 'open', my_role: 'owner', member_count: 128 }];
+}
+// The Manage-sheet sections import these from the @/data barrel — the harness
+// aliases @/data to this file, so every named import must exist here or the
+// page errors at module load. No-op stubs (the capture renders the detail
+// screen, not the sheet's mutations).
+export async function writeGroupIdentity(): Promise<void> { return; }
+export async function updateGroup(): Promise<unknown> { return {}; }
+export async function addGroupMember(): Promise<unknown> { return {}; }
+export async function removeGroupMember(): Promise<unknown> { return {}; }
+export async function deleteGroup(): Promise<unknown> { return { status: 'deleted' }; }
+export async function getGroupMembers(): Promise<unknown[]> {
+  return [
+    { member_key: 'web10/users/nova', role: 'owner' },
+    { member_key: 'web10/users/kai', role: 'member' },
+    { member_key: 'anyone', role: 'reader' },
+  ];
+}
+export async function getJoinRequests(): Promise<unknown[]> { return []; }
+export async function approveJoinRequest(): Promise<unknown> { return { status: 'approved' }; }
+export async function denyJoinRequest(): Promise<unknown> { return { status: 'declined' }; }
+export async function inviteMember(): Promise<unknown> { return { status: 'invited' }; }
 export async function requestJoinGroup(): Promise<unknown> { return { status: 'pending' }; }
 export async function leaveGroup(): Promise<unknown> { return { status: 'left' }; }
 // Media ref id (the group detail maps post media refs to resolved records).

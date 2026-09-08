@@ -1,7 +1,8 @@
 import { getV3Client } from './v3';
-import type { PowerMeanSort } from 'web10-npm';
+import type { V3FeedResult, PowerMeanSort } from './v3';
 import { getDiscoverGroupId, getMyGroups, getFeedGroups } from './groups';
-import { fromV3DocToPost, fromV3DocToProfile, mediaRefId, type PostRecord } from './types';
+import { fromV3DocToPost, fromV3DocToProfile, fromV3FeedPost, mediaRefId, type PostRecord } from './types';
+import { knobStateToSort } from '@/lib/powerMean';
 
 // ── Feed / Discover data layer (v3) ──────────────────────────────────────────
 // v3 feed: read from groups, not inbox. Discover: read from discover group.
@@ -116,15 +117,12 @@ export async function fetchSuggestedUsers(limit = 20): Promise<SuggestedUser[]> 
 
 // ── Feed (group-based, not inbox) ────────────────────────────────────────────
 
+import type { FeedSort } from './types';
+
 /**
  * Read the feed — all groups except discover, sorted.
- *
- * `sort` (the D36 power-mean config, server-side): when present, the node
- * scores every readable post across the feed's groups and returns pre-sorted
- * results — a knob twist is a re-read, not a client-side shuffle of the
- * same 50. Without it, the feed is chronological (newest first).
  */
-export async function readFeed(sort: PowerMeanSort | null = null, limit = 50): Promise<PostRecord[]> {
+export async function readFeed(sort: FeedSort = 'newest', limit = 50): Promise<PostRecord[]> {
   const w = getV3Client();
   const feedGroups = await getFeedGroups();
   console.log('[social-feed] readFeed — feed groups (minus discover):', JSON.stringify(feedGroups));
@@ -137,19 +135,59 @@ export async function readFeed(sort: PowerMeanSort | null = null, limit = 50): P
   const docs = await w.read('posts', {
     groups: feedGroups,
     limit,
-    ...(sort ? { sort } : {}),
   });
-  console.log('[social-feed] readFeed — got', docs.length, 'docs from', feedGroups.length, 'groups', sort ? `with sort ${JSON.stringify(sort)}` : '(chronological)');
+  console.log('[social-feed] readFeed — got', docs.length, 'docs from', feedGroups.length, 'groups');
 
   const posts = docs.map(fromV3DocToPost);
-  // Without a server sort, keep the chronological default (newest first).
-  // With a server sort the node already returned pre-sorted results —
-  // re-sorting client-side would clobber the ranking.
-  if (!sort) {
-    posts.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
-  }
-  console.log('[social-feed] readFeed —', posts.length, 'posts', sort ? '(server-ranked)' : '(newest first)');
+  const direction = sort === 'newest' ? -1 : 1;
+  posts.sort((a, b) => (new Date(a.created_at).getTime() - new Date(b.created_at).getTime()) * direction);
+  console.log('[social-feed] readFeed — sorted', posts.length, 'posts by', sort);
   return posts;
+}
+
+// ── Feed page (D69) — the single-round-trip, cursor-paged read ──────────────
+
+export interface FeedPage {
+  posts: PostRecord[];
+  has_more: boolean;
+  next_cursor: { created_at?: string; score?: number } | null;
+}
+
+/**
+ * Read one page of the feed (D69) — the single round-trip that replaces the
+ * N+1 fan-out. One `w.feed(...)` call returns posts with resolved media + HLS,
+ * the pinned + node ad joins, exact likes/comments, and the author's profile +
+ * avatar_url, plus the `has_more` / `next_cursor` pagination state.
+ *
+ * `knobState` is the feed's ranking knobs (the D36 rack). The Newest preset
+ * (no likes/comments weight) → chronological (the cursor rides on created_at);
+ * a tuned preset → ranked in SQL (the cursor rides on the score).
+ * `cursor` is the previous page's `next_cursor` (omit for page one).
+ */
+export async function readFeedPage(opts: {
+  limit?: number;
+  cursor?: { created_at?: string; score?: number } | null;
+  knobState?: import('@/lib/powerMean').KnobState;
+}): Promise<FeedPage> {
+  const w = getV3Client();
+  const feedGroups = await getFeedGroups();
+  console.log('[social-feed] readFeedPage — feed groups:', feedGroups.length, 'cursor:', JSON.stringify(opts.cursor ?? null));
+
+  if (!feedGroups.length) {
+    console.log('[social-feed] readFeedPage — no feed groups yet, returning empty page');
+    return { posts: [], has_more: false, next_cursor: null };
+  }
+
+  const sort = opts.knobState ? knobStateToSort(opts.knobState) : null;
+  const result: V3FeedResult = await w.feed({
+    groups: feedGroups,
+    limit: opts.limit ?? 20,
+    cursor: opts.cursor ?? null,
+    sort: sort ?? undefined,
+  });
+  const posts = result.posts.map(fromV3FeedPost);
+  console.log('[social-feed] readFeedPage — got', posts.length, 'posts, has_more:', result.has_more);
+  return { posts, has_more: result.has_more, next_cursor: result.next_cursor };
 }
 
 /**

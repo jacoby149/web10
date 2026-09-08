@@ -1993,6 +1993,153 @@ def read_documents_in_groups(
     return _group_docs_query(group_ids, member_key, service, limit, offset, require_membership)
 
 
+def read_feed(
+    group_ids: list[str],
+    member_key: str,
+    service: str,
+    limit: int = 20,
+    cursor: dict | None = None,
+    sort: dict | None = None,
+    require_membership: bool = False,
+) -> list[dict]:
+    """The feed read (D69): one query for a page of posts, ranked in SQL, with
+    exact engagement counts and a keyset cursor.
+
+    This is the feed's single round-trip: the board base (documents JOIN
+    doc_groups + the block/sharing/hidden anti-joins) LEFT JOINed to exact
+    reaction + comment counts (the ``_group_docs_ranked_query`` pattern — one
+    grouped scan, no per-row subquery, no counter table), scored in SQL
+    (power-mean, mirroring the client), and paged with a **keyset cursor**
+    instead of OFFSET (offset drops/duplicates items under concurrent writes;
+    a keyset never does).
+
+    The cursor is ``{"created_at": <iso>}`` for the Newest preset (chronological
+    — the cursor column is stable) or ``{"score": <float>}`` for a tuned preset
+    (the cursor is on the rank). ``limit`` is the page size; the caller passes
+    ``limit + 1`` and the endpoint drops the trailing row to compute
+    ``has_more`` (a full page means there may be more).
+
+    Each row carries ``likes`` / ``comments`` (the exact counts) + ``score``
+    (the rank) so the client never re-fetches engagement. The ads (``doc.ad`` /
+    ``doc.node_ad``), resolved media, and HLS manifest URLs are attached by the
+    caller's existing passes (``attach_pinned_ads`` + ``attach_node_ads`` +
+    ``resolve_media_urls_in_docs`` + ``_mint_hls_manifest_urls``) — this query
+    returns the raw post rows those passes enrich.
+    """
+    if not group_ids:
+        return []
+
+    wr = float((sort or {}).get("recency", 0.0))
+    wl = float((sort or {}).get("likes", 0.0))
+    wc = float((sort or {}).get("comments", 0.0))
+    # The Newest preset: no tuned ranking (all-zero, or recency-only) → the
+    # cursor is on created_at (stable). A tuned preset → the cursor is on the
+    # score (the rank).
+    newest = (wr <= 0 and wl <= 0 and wc <= 0) or (wr > 0 and wl <= 0 and wc <= 0)
+
+    score = _power_mean_score_sql(
+        "b.created_at",
+        "coalesce(eng.reaction_count, 0)",
+        "coalesce(cmt.comment_count, 0)",
+        sort or {},
+    )
+
+    params: dict = {
+        "member_key": member_key,
+        "coll": service,
+        "page": int(limit) + 1,  # +1 → the endpoint computes has_more
+        "wr": wr,
+        "wl": wl,
+        "wc": wc,
+        "hl": float((sort or {}).get("half_life_ms", 0.0)),
+        "p": float((sort or {}).get("character", -1.0)),
+        **{f"g{i}": gid for i, gid in enumerate(group_ids)},
+    }
+
+    # The keyset cursor (the WHERE that excludes everything already paged).
+    if newest:
+        order_by = "toUnixTimestamp64Milli(b.created_at) DESC"
+        cursor_clause = ""
+        if cursor and cursor.get("created_at"):
+            cursor_clause = "WHERE toUnixTimestamp64Milli(b.created_at) < toUnixTimestamp64Milli(%(cursor_ts)s) "
+            params["cursor_ts"] = cursor["created_at"]
+    else:
+        order_by = f"{score} DESC"
+        cursor_clause = ""
+        if cursor and cursor.get("score") is not None:
+            cursor_clause = f"WHERE ({score}) < %(cursor_score)s "
+            params["cursor_score"] = float(cursor["score"])
+
+    sql = (
+        "SELECT b.doc_id, b.author_key, b.body, b.tags, b.created_at, b.ref_value, b.ad_mode, b.ad_target, "
+        "coalesce(eng.reaction_count, 0) AS likes, coalesce(cmt.comment_count, 0) AS comments, "
+        f"({score}) AS score "
+        "FROM (" + _board_base_sql(group_ids, require_membership) + ") b "
+        "LEFT JOIN (SELECT ref_value, count() AS reaction_count FROM (SELECT ref_value FROM documents "
+        "WHERE deleted = 0 AND collection_name = 'reactions' "
+        "QUALIFY row_number() OVER (PARTITION BY doc_id, author_key ORDER BY updated_at DESC) = 1) "
+        "WHERE ref_value != '' GROUP BY ref_value) eng ON eng.ref_value = b.doc_id "
+        "LEFT JOIN (SELECT ref_value, count() AS comment_count FROM (SELECT ref_value FROM documents "
+        "WHERE deleted = 0 AND collection_name = 'comments' "
+        "QUALIFY row_number() OVER (PARTITION BY doc_id, author_key ORDER BY updated_at DESC) = 1) "
+        "WHERE ref_value != '' GROUP BY ref_value) cmt ON cmt.ref_value = b.doc_id "
+        + cursor_clause
+        + "ORDER BY "
+        + order_by
+        + " "
+        "LIMIT %(page)s"
+    )
+    result = client.query(sql, params)
+    return [
+        {
+            "doc_id": row[0],
+            "author_key": row[1],
+            "body": _parse_json(row[2]),
+            "tags": list(row[3]),
+            "created_at": _iso_utc(row[4]),
+            "ref_value": row[5],
+            "ad_mode": row[6] or "none",
+            "ad_target": row[7] or "",
+            "likes": int(row[8]),
+            "comments": int(row[9]),
+            "score": float(row[10]),
+            "service": service,
+        }
+        for row in result.result_rows
+    ]
+
+
+def get_author_profiles(author_keys: list[str]) -> dict[str, dict]:
+    """Batched author profile + avatar read for a feed page (D69).
+
+    One query across the ``profile`` service for the page's distinct authors
+    (dedup-then-filter, the house pattern), keyed by ``author_key``. Each value
+    is ``{"profile": <body dict>, "avatar_ref": <str|None>}`` — the avatar_ref
+    is resolved to a presigned URL by the caller (``resolve_media_urls`` on a
+    synthetic body, author-scoped). Replaces the client's per-author
+    ``readUserProfile`` + per-avatar ``resolveMediaRefs`` fan-out (the N+1 the
+    267-requests diagnosis named).
+    """
+    if not author_keys:
+        return {}
+    quoted = ", ".join(f"'{k.replace(chr(39), chr(39) * 2)}'" for k in author_keys)
+    result = client.query(
+        "SELECT author_key, body FROM ("
+        "SELECT author_key, body, deleted, "
+        "row_number() OVER (PARTITION BY doc_id, author_key ORDER BY updated_at DESC) AS rn "
+        "FROM documents WHERE collection_name = 'profile' AND author_key IN (" + quoted + ") "
+        ") WHERE rn = 1 AND deleted = 0"
+    )
+    out: dict[str, dict] = {}
+    for row in result.result_rows:
+        body = _parse_json(row[1])
+        out[row[0]] = {
+            "profile": body,
+            "avatar_ref": body.get("avatar_ref") if isinstance(body, dict) else None,
+        }
+    return out
+
+
 class QueryExecutionError(Exception):
     """A compiled (structurally safe) query failed in ClickHouse. The
     boundary was already enforced at compile time, so a failure here is the

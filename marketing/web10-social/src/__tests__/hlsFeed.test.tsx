@@ -14,6 +14,7 @@ vi.mock('@/data', async (importOriginal) => {
   return {
     ...original,
     readFeed: vi.fn().mockResolvedValue([]),
+    readFeedPage: vi.fn().mockResolvedValue({ posts: [], has_more: false, next_cursor: null }),
     readPullFeed: vi.fn().mockResolvedValue([]),
     getFeedGroups: vi.fn().mockResolvedValue([]),
     readFeedEngagement: vi.fn().mockResolvedValue({ likes: {}, comments: {} }),
@@ -82,45 +83,31 @@ beforeEach(() => {
 
 describe('FeedScreen — HLS in the feed (D44)', () => {
   it('a transcoded video post renders the hls.js player (not a plain <video>); a direct MP4 post renders native', async () => {
-    const { readFeed, resolveMediaRefs } = await import('@/data');
-    vi.mocked(readFeed).mockResolvedValueOnce([
-      { _id: 'p-hls', text: 'transcoded clip', media_refs: ['m-hls'], author_username: 'testuser', author_provider: 'test.localhost', created_at: new Date().toISOString() },
-      { _id: 'p-raw', text: 'raw clip', media_refs: ['m-raw'], author_username: 'testuser', author_provider: 'test.localhost', created_at: new Date().toISOString() },
-    ]);
-    // The read path's resolved refs: the transcoded one carries
-    // transcoding_settings + the read-minted manifest_url; the raw one has
-    // none (the Phase-2 import path plays native MP4s with no transcode).
-    vi.mocked(resolveMediaRefs).mockImplementation(async (refs: unknown[]) =>
-      refs.map((r) =>
-        r === 'm-hls'
-          ? {
-              _id: 'm-hls',
-              url: 'http://test.com/raw.mp4',
-              mime_type: 'video/mp4',
-              width: 720,
-              height: 1280,
-              thumbnail_url: 'http://test.com/poster.jpg',
-              transcoding_settings: {
-                enabled: true,
-                status: 'done',
-                variants: [
-                  { width: 360, height: 640 },
-                  { width: 720, height: 1280 },
-                ],
-                manifest_url: '/v3/media/hls/manifest?doc_id=m-hls&sig=abc',
-              },
-              created_at: new Date().toISOString(),
-            }
-          : {
-              _id: 'm-raw',
-              url: 'http://test.com/raw.mp4',
-              mime_type: 'video/mp4',
-              width: 1920,
-              height: 1080,
-              created_at: new Date().toISOString(),
+    const { readFeedPage } = await import('@/data');
+    // The feed read carries the resolved refs inline: the transcoded one
+    // carries transcoding_settings + the read-minted manifest_url; the raw one
+    // has none (the Phase-2 import path plays native MP4s with no transcode).
+    vi.mocked(readFeedPage).mockResolvedValueOnce({
+      posts: [
+        {
+          _id: 'p-hls', text: 'transcoded clip', author_username: 'testuser', author_provider: 'test.localhost', created_at: new Date().toISOString(),
+          media_refs: [{
+            doc_id: 'm-hls', read_url: 'http://test.com/raw.mp4', mime_type: 'video/mp4',
+            width: 720, height: 1280, thumbnail_url: 'http://test.com/poster.jpg',
+            transcoding_settings: {
+              enabled: true, status: 'done',
+              variants: [{ width: 360, height: 640 }, { width: 720, height: 1280 }],
+              manifest_url: '/v3/media/hls/manifest?doc_id=m-hls&sig=abc',
             },
-      ),
-    );
+          }],
+        },
+        {
+          _id: 'p-raw', text: 'raw clip', author_username: 'testuser', author_provider: 'test.localhost', created_at: new Date().toISOString(),
+          media_refs: [{ doc_id: 'm-raw', read_url: 'http://test.com/raw.mp4', mime_type: 'video/mp4', width: 1920, height: 1080 }],
+        },
+      ],
+      has_more: false, next_cursor: null,
+    });
 
     const { default: FeedScreen } = await import('@/components/Feed/FeedScreen');
     render(
@@ -156,21 +143,20 @@ describe('FeedScreen — HLS in the feed (D44)', () => {
   }, 20000);
 
   it('a processing transcode (status !== done) falls back to the native <video> path', async () => {
-    const { readFeed, resolveMediaRefs } = await import('@/data');
-    vi.mocked(readFeed).mockResolvedValueOnce([
-      { _id: 'p-proc', text: 'processing clip', media_refs: ['m-proc'], author_username: 'testuser', author_provider: 'test.localhost', created_at: new Date().toISOString() },
-    ]);
-    vi.mocked(resolveMediaRefs).mockResolvedValueOnce([
-      {
-        _id: 'm-proc',
-        url: 'http://test.com/raw.mp4',
-        mime_type: 'video/mp4',
-        width: 720,
-        height: 1280,
-        transcoding_settings: { enabled: false, status: 'processing' },
-        created_at: new Date().toISOString(),
-      },
-    ]);
+    const { readFeedPage } = await import('@/data');
+    vi.mocked(readFeedPage).mockResolvedValueOnce({
+      posts: [
+        {
+          _id: 'p-proc', text: 'processing clip', author_username: 'testuser', author_provider: 'test.localhost', created_at: new Date().toISOString(),
+          media_refs: [{
+            doc_id: 'm-proc', read_url: 'http://test.com/raw.mp4', mime_type: 'video/mp4',
+            width: 720, height: 1280,
+            transcoding_settings: { enabled: false, status: 'processing' },
+          }],
+        },
+      ],
+      has_more: false, next_cursor: null,
+    });
 
     const { default: FeedScreen } = await import('@/components/Feed/FeedScreen');
     render(

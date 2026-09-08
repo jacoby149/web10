@@ -105,19 +105,6 @@ export interface PowerMeanSortConfig {
   character: number;
 }
 
-/** Map a knob detent state to the server's power-mean sort config.
- *  Weights/half-life come from the detent tables; character is the fixed
- *  middle (the knob is gone — see FIXED_CHARACTER_DETEENT). */
-export function knobStateToSort(state: KnobState): PowerMeanSortConfig {
-  return {
-    recency: WEIGHT_DETENTS[state.recency],
-    likes: WEIGHT_DETENTS[state.likes],
-    comments: WEIGHT_DETENTS[state.comments],
-    half_life_ms: HALF_LIFE_DETENTS[state.halfLife],
-    character: FIXED_CHARACTER_P,
-  };
-}
-
 // ── Knob State ──────────────────────────────────────────────────────────────
 
 interface KnobState {
@@ -213,6 +200,32 @@ export function rankPosts<T extends { _id?: string; created_at: string }>(
 }
 
 export type { KnobState, PostSignals };
+
+// The server-side power-mean sort config (D69): the knob state's detent
+// indices resolved to the float weights the node's `_power_mean_score_sql`
+// consumes (the same normalizers, so the node ranks identically to the client).
+// `null` = the Newest preset (chronological — the node orders by created_at and
+// the cursor rides on created_at, not the score).
+export type FeedRankSort = PowerMeanSortConfig | null;
+
+export function knobStateToSort(state: KnobState): FeedRankSort {
+  const recency = WEIGHT_DETENTS[state.recency];
+  const likes = WEIGHT_DETENTS[state.likes];
+  const comments = WEIGHT_DETENTS[state.comments];
+  // The Newest preset (recency-only, no likes/comments weight) → chronological
+  // (null sort → the node orders by created_at, cursor on created_at).
+  if (likes <= 0 && comments <= 0) return null;
+  return {
+    recency,
+    likes,
+    comments,
+    half_life_ms: HALF_LIFE_DETENTS[state.halfLife],
+    // The Character knob is gone — the exponent is fixed at the middle
+    // (p = 0, geometric). `state.character` is kept for ?knobs= / mix-code
+    // compat but no longer drives the ranking.
+    character: FIXED_CHARACTER_P,
+  };
+}
 
 export {
   WEIGHT_DETENTS,
