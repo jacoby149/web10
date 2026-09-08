@@ -97,6 +97,9 @@ export interface V3Group {
   my_role: string
   member_count: number
   roles?: Record<string, unknown>[]
+  /** The D53 "blasting" flag — whether the group is listed in the public directory.
+   *  Returned by `/manages` + `/get`; optional for forward-compat (older nodes). */
+  discoverable?: boolean
 }
 
 export interface V3GroupMember {
@@ -626,13 +629,16 @@ export function createV3Client(options: V3ClientOptions = {}): V3Client {
       joinPolicy: string,
       roles: Record<string, unknown>[],
       members: { member_key: string; role?: string }[],
+      opts?: { discoverable?: boolean },
     ): Promise<{ group_id: string }> {
-      return v3Post<{ group_id: string }>('groups/create', {
+      const payload: V3Body = {
         name,
         join_policy: joinPolicy,
         roles,
         members,
-      })
+      }
+      if (opts?.discoverable !== undefined) payload.discoverable = opts.discoverable
+      return v3Post<{ group_id: string }>('groups/create', payload)
     },
 
     async getGroup(groupId: string): Promise<V3Group> {
@@ -649,12 +655,17 @@ export function createV3Client(options: V3ClientOptions = {}): V3Client {
 
     async updateGroup(
       groupId: string,
-      opts?: { join_policy?: string; roles?: Record<string, unknown>[] },
+      opts?: { join_policy?: string; roles?: Record<string, unknown>[]; discoverable?: boolean },
     ): Promise<V3Group> {
       const payload: V3Body = { group_id: groupId }
       if (opts?.join_policy) payload.join_policy = opts.join_policy
       if (opts?.roles) payload.roles = opts.roles
+      if (opts?.discoverable !== undefined) payload.discoverable = opts.discoverable
       return v3Post<V3Group>('groups/update', payload)
+    },
+
+    async deleteGroup(groupId: string): Promise<{ group_id: string; status: string }> {
+      return v3Post<{ group_id: string; status: string }>('groups/delete', { group_id: groupId })
     },
 
     async joinGroup(groupId: string): Promise<V3GroupMember | { group_id: string; status: string }> {
@@ -999,11 +1010,12 @@ export interface V3Client {
   contractOnReady(contracts: V3CR[], callback?: (response: { status: string; errors?: string[] }) => void): void
 
   // Groups
-  createGroup(name: string, joinPolicy: string, roles: Record<string, unknown>[], members: { member_key: string; role?: string }[]): Promise<{ group_id: string }>
+  createGroup(name: string, joinPolicy: string, roles: Record<string, unknown>[], members: { member_key: string; role?: string }[], opts?: { discoverable?: boolean }): Promise<{ group_id: string }>
   getGroup(groupId: string): Promise<V3Group>
   getMyGroups(): Promise<V3Group[]>
   getGroupsManages(): Promise<V3Group[]>
-  updateGroup(groupId: string, opts?: { join_policy?: string; roles?: Record<string, unknown>[] }): Promise<V3Group>
+  updateGroup(groupId: string, opts?: { join_policy?: string; roles?: Record<string, unknown>[]; discoverable?: boolean }): Promise<V3Group>
+  deleteGroup(groupId: string): Promise<{ group_id: string; status: string }>
   joinGroup(groupId: string): Promise<V3GroupMember | { group_id: string; status: string }>
   requestJoin(groupId: string): Promise<{ group_id: string; status: string }>
   leaveGroup(groupId: string): Promise<V3GroupMember>
