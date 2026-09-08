@@ -1007,6 +1007,58 @@ describe('DiscoverScreen', () => {
     expect(video!.getAttribute('src')).toBe('https://cdn.example/video.mp4');
   });
 
+  it('video tiles are a uniform 16:9 (youtubey) — portrait clips crop to fill, not letterbox', async () => {
+    // A PORTRAIT clip (9:16) — the case that used to render as a tall,
+    // letterboxed box (natural ratio + object-contain), making the grid look
+    // ragged. The youtubey layout forces a uniform 16:9 tile (object-cover).
+    (data.readDiscoverFeed as ReturnType<typeof vi.fn>).mockResolvedValue([
+      {
+        author: 'video-creator',
+        provider: 'api.web10.app',
+        post_id: 'p1',
+        author_username: 'video-creator',
+        author_provider: 'api.web10.app',
+        text: 'Vertical clip',
+        tags: ['video'],
+        media_refs: ['m1'],
+        created_at: new Date().toISOString(),
+        likes: 10,
+        comments: 2,
+        reposts: 1,
+        score: 14,
+      },
+    ]);
+    (data.resolveMediaRefs as ReturnType<typeof vi.fn>).mockResolvedValue([
+      {
+        _id: 'm1',
+        url: 'https://cdn.example/video.mp4',
+        mime_type: 'video/mp4',
+        width: 1080,
+        height: 1920, // portrait
+        duration_seconds: 42,
+        thumbnail_url: 'https://cdn.example/thumb.jpg',
+        created_at: new Date().toISOString(),
+      },
+    ]);
+
+    const { default: DiscoverScreen } = await import('@/components/Discover/DiscoverScreen');
+    render(
+      <MemoryRouter initialEntries={['/discover']}>
+        <DiscoverScreen />
+      </MemoryRouter>,
+    );
+
+    const tile = await screen.findByTestId('discover-media-video');
+    // Uniform 16:9 tile (the YouTube thumbnail ratio), regardless of the
+    // clip's natural (portrait) ratio.
+    expect(tile.className).toMatch(/aspect-video/);
+    // object-cover crops to fill the 16:9 frame (no letterbox bars).
+    const video = tile.querySelector('video');
+    expect(video).toBeTruthy();
+    expect(video!.className).toMatch(/object-cover/);
+    expect(video!.className).not.toMatch(/object-contain/);
+  });
+
   it('clicking a discover card opens the post lightbox', async () => {
     (data.readDiscoverFeed as ReturnType<typeof vi.fn>).mockResolvedValue([
       {

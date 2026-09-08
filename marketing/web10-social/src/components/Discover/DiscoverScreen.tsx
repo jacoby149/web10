@@ -240,7 +240,6 @@ function formatDuration(seconds: number): string {
 function MediaVideo({ media }: { media: MediaRecord }) {
   const videoRef = useRef<HTMLVideoElement>(null);
   const [playing, setPlaying] = useState(false);
-  const [measuredRatio, setMeasuredRatio] = useState<number | null>(null);
 
   useEffect(() => {
     if (!playing || !videoRef.current) return;
@@ -250,27 +249,16 @@ function MediaVideo({ media }: { media: MediaRecord }) {
     };
   }, [playing]);
 
-  // The read path carries the real dimensions; measure on load only as a
-  // fallback for legacy media that predates dimension storage. Reserving the
-  // ratio up front is what keeps the card from shifting.
-  const knownRatio = media.width && media.height ? media.width / media.height : null;
-  const ratio = knownRatio ?? measuredRatio ?? 16 / 9;
-  const onMediaLoaded = (el: HTMLVideoElement) => {
-    if (knownRatio) return;
-    const w = el.videoWidth;
-    const h = el.videoHeight;
-    if (w && h) setMeasuredRatio(w / h);
-  };
-
-  // Natural aspect ratio, capped so a portrait clip can't blow up the card,
-  // object-contain so it never crops (letterboxes on the cap) — matching the
-  // feed + lightbox. The card bg (not black) shows through any letterbox.
-  const containerStyle: React.CSSProperties = { aspectRatio: `${ratio}`, maxHeight: '50vh' };
-
+  // Uniform 16:9 (the YouTube thumbnail ratio) — every video card is the same
+  // size, so the grid reads as a clean video wall. This matches the marketing
+  // trending's TrendingMedia (aspect-video + object-cover), which is the
+  // "youtubey" reference. object-cover crops to fill (a portrait clip shows
+  // its center frame) instead of the old natural-ratio object-contain, which
+  // letterboxed portrait clips and made the grid look ragged. (The FEED keeps
+  // natural ratio per 3.34.0 — Discover is the uniform-tile surface.)
   return (
     <div
-      className="bg-elevated overflow-hidden group relative cursor-pointer"
-      style={containerStyle}
+      className="bg-elevated overflow-hidden group relative cursor-pointer aspect-video"
       onClick={() => setPlaying((p) => !p)}
       role="button"
       tabIndex={0}
@@ -287,17 +275,16 @@ function MediaVideo({ media }: { media: MediaRecord }) {
         ref={videoRef}
         src={media.url}
         poster={media.thumbnail_url}
-        onLoadedMetadata={(e) => onMediaLoaded(e.currentTarget)}
-        className="w-full h-full object-contain"
+        className="w-full h-full object-cover"
         preload="metadata"
         playsInline
         muted={!playing}
         loop
       />
       {!playing && (
-        <div className="absolute inset-0 flex items-center justify-center bg-black/20 opacity-0 group-hover:opacity-100 transition-opacity duration-150">
-          <div className="flex items-center justify-center w-12 h-12 rounded-full bg-background/80 backdrop-blur-sm">
-            <Play className="w-5 h-5 text-foreground ml-0.5" strokeWidth={2} />
+        <div className="absolute inset-0 flex items-center justify-center bg-black/20">
+          <div className="flex items-center justify-center w-14 h-14 rounded-full bg-background/80 backdrop-blur-sm">
+            <Play className="w-6 h-6 text-foreground ml-0.5" strokeWidth={2} fill="currentColor" />
           </div>
         </div>
       )}
