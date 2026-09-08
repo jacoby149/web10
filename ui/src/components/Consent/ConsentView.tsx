@@ -231,7 +231,15 @@ function ConsentView({ I }: { I: Record<string, any> }) {
   // On mismatch the popup must not treat "already granted" as "all set" (the
   // grant is for the wrong user) and must not auto-complete.
   const mismatch = !!(expectedUser && authed && username && username !== expectedUser);
-  console.log('[consent] pendingContracts:', pendingContracts, 'grantedOrigins:', grantedOrigins, 'mismatch:', mismatch, 'expectedUser:', expectedUser || '(none)');
+  // The opener tells the popup whether it is acting as someone. When it is
+  // signed OUT (no ?as=), the popup must NOT auto-complete on its own restored
+  // session — that is the "can't switch account" bug (sign out of the app,
+  // sign back in, and the popup silently hands back the stale account). Instead
+  // the user gets the login screen (with the remembered-accounts picker) and
+  // either confirms the current session ("Continue as") or picks / logs in as
+  // a different account.
+  const openerSignedIn = !!expectedUser;
+  const userConfirmed = !!I._userConfirmed;
 
   // An ACR is "already granted" when its origin holds every requested permission.
   const isAlreadyGranted = (c: any): boolean => {
@@ -255,13 +263,29 @@ function ConsentView({ I }: { I: Record<string, any> }) {
     ? pendingContracts
     : pendingContracts.filter((c: any) => c.kind !== 'app' || !isAlreadyGranted(c));
 
-  // D42 auto-complete: signed in, a contract was received, nothing is left to
-  // show (every contract is either already granted — filtered out — or already
-  // resolved by the user), and no identity mismatch → hand back the token and
-  // close, zero UI. This replaces the old "all set" screen + Close-window tap:
-  // the return run (already granted) and the first login (after the user
-  // approves) both settle here with zero taps.
-  const allSettled = !!(authed && I._contractReceived && displayContracts.length === 0 && !mismatch);
+  // The popup would otherwise auto-complete: signed in, a contract arrived,
+  // nothing left to show, no mismatch. This is the one case where a signed-out
+  // opener must NOT get a silent hand-back of the stale session.
+  const nothingToShow = !!(authed && I._contractReceived && displayContracts.length === 0 && !mismatch);
+  // Show the login screen (with the account picker) when: not authed (old
+  // behavior), OR the opener is signed out and the user hasn't confirmed their
+  // identity in this session and the popup would otherwise auto-complete (the
+  // fix — the user gets a chance to switch accounts). When there ARE contracts
+  // to approve, the consent screen stays — the user is the popup's session
+  // user, approving their own contract (which confirms them).
+  const showLoginForm = !authed || (!openerSignedIn && !userConfirmed && nothingToShow);
+  const canContinueAsCurrent = !!(authed && !openerSignedIn && !userConfirmed && username && nothingToShow);
+  console.log('[consent] pendingContracts:', pendingContracts, 'grantedOrigins:', grantedOrigins, 'mismatch:', mismatch, 'expectedUser:', expectedUser || '(none)', 'openerSignedIn:', openerSignedIn, 'userConfirmed:', userConfirmed, 'nothingToShow:', nothingToShow, 'showLoginForm:', showLoginForm);
+
+  // D42 auto-complete: the popup would settle (nothingToShow) AND the session
+  // is one the user has either come back to (opener signed in, ?as= present) or
+  // confirmed in this popup (logged in, approved/denied a contract, or tapped
+  // "Continue as"). A stale restored session with a signed-out opener does NOT
+  // settle here — it shows the login screen so the user can switch accounts.
+  // This replaces the old "all set" screen + Close-window tap: the return run
+  // (already granted) and the first login (after the user approves) both settle
+  // here with zero taps.
+  const allSettled = !!(nothingToShow && (openerSignedIn || userConfirmed));
   console.log('[consent] authed:', authed, 'contractReceived:', I._contractReceived, 'pending:', pendingContracts.length, 'displayContracts:', displayContracts.length, 'mismatch:', mismatch, 'username:', username || '(none)', 'allSettled:', allSettled);
 
   React.useEffect(() => {
@@ -285,35 +309,49 @@ function ConsentView({ I }: { I: Record<string, any> }) {
         </div>
 
         <div className="flex min-h-0 flex-col rounded-lg border border-border bg-card shadow-[0_8px_30px_rgb(0_0_0/0.35)]">
-          {!authed ? (
-            <div className="p-6 sm:p-8">
-              <div className="mb-6 text-center">
-                <h1 className="font-display text-xl font-semibold text-foreground">
-                  {I.mode === 'signup' ? (
-                    <>Create your node to connect <span className="text-brand-300">{host}</span></>
-                  ) : I.mode === 'forgot' ? (
-                    <>Recover your account</>
-                  ) : (
-                    <>Log in to connect <span className="text-brand-300">{host}</span></>
-                  )}
-                </h1>
-                <p className="mt-1 text-sm text-muted-foreground">
-                  {I.mode === 'signup'
-                    ? 'Own your data from the first record — then choose what to share.'
-                    : I.mode === 'forgot'
-                      ? 'Enter your web10 provider and mobile number to recover your account.'
-                      : 'Sign in to your node, then choose what to share.'}
-                </p>
-              </div>
-              {I.mode === 'signup' ? (
-                <SignupForm I={I} embedded />
-              ) : I.mode === 'forgot' ? (
-                <ForgotForm I={I} embedded />
-              ) : (
-                <LoginForm I={I} embedded />
-              )}
+        {showLoginForm ? (
+          <div className="p-6 sm:p-8">
+            <div className="mb-6 text-center">
+              <h1 className="font-display text-xl font-semibold text-foreground">
+                {I.mode === 'signup' ? (
+                  <>Create your node to connect <span className="text-brand-300">{host}</span></>
+                ) : I.mode === 'forgot' ? (
+                  <>Recover your account</>
+                ) : (
+                  <>Log in to connect <span className="text-brand-300">{host}</span></>
+                )}
+              </h1>
+              <p className="mt-1 text-sm text-muted-foreground">
+                {I.mode === 'signup'
+                  ? 'Own your data from the first record — then choose what to share.'
+                  : I.mode === 'forgot'
+                    ? 'Enter your web10 provider and mobile number to recover your account.'
+                    : 'Sign in to your node, then choose what to share.'}
+              </p>
             </div>
-          ) : allSettled ? (
+            {/* The opener is signed out and this popup holds a live session —
+                offer the no-password fast path to continue as the current
+                account. Picking a different account (the picker) or "Use
+                another account" still asks for the password. */}
+            {canContinueAsCurrent && (
+              <Button
+                variant="brand"
+                className="mb-4 w-full"
+                onClick={() => I.setUserConfirmed(true)}
+                data-testid="consent-continue-as"
+              >
+                Continue as {username}
+              </Button>
+            )}
+            {I.mode === 'signup' ? (
+              <SignupForm I={I} embedded />
+            ) : I.mode === 'forgot' ? (
+              <ForgotForm I={I} embedded />
+            ) : (
+              <LoginForm I={I} embedded />
+            )}
+          </div>
+        ) : allSettled ? (
             // D42: nothing to review, no mismatch — the auto-complete effect
             // hands back the token and closes the window. Brief "connecting"
             // state until it does. (The old "You're all set" + Close-window

@@ -416,11 +416,16 @@ test.describe('Auth popup round-trip — real consent handshake', () => {
     await page.locator('#authButton').click();
     const popup2 = await popupPromise2;
     const popup2Full = captureFull(popup2);
-    // D42: the app contract is already approved, so the popup auto-completes
-    // (token + self-close, zero UI) — it may close before reaching networkidle,
-    // so do NOT wait for its networkidle. The assertions below verify the flow.
+    await popup2.waitForLoadState('networkidle');
 
-    // D42: the app contract is already approved, so the popup auto-completes
+    // The return run now shows the login screen (the opener is signed out), NOT
+    // a silent auto-complete — the popup must not hand back its stale session
+    // without the user confirming it (that was the "can't switch account" bug).
+    // The no-password fast path is "Continue as {username}".
+    await popup2.locator('[data-testid="consent-continue-as"]').waitFor({ state: 'visible', timeout: 15000 });
+    await popup2.locator('[data-testid="consent-continue-as"]').click();
+
+    // The app contract is already approved, so confirming settles the popup
     // (token + self-close). The demo signs in and re-reads — the group already
     // exists, so the note persists.
     await expect(async () => {

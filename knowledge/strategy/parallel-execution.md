@@ -84,6 +84,7 @@ fork. This lane drives every remaining fork through the real popup.
 - [✓ 3.3.0] Mixed fork: approve app + deny group in one session (and the reverse) — each response matches its own contract
 - [✓ 3.3.0] Edge fork: approve-all with zero pending contracts → `goToApp` early return, no crash
 - [✓ 3.3.0] Fix-access fork: revoke → "Fix access" through the REAL popup (retire the `popup.close()` + raw-API workaround in `notes-demo.spec.ts` — a seam-rule violation the theory now names)
+- [✓ 3.75.0] Account switch + remembered-accounts picker (operator: "no opportunity to switch accounts … zero ui … just puts the cookie in" + "google lets you pick one from multiple emails … still asks you for password" + "lets you sign in as a new user too") — the popup stops auto-completing on a stale session when the opener is signed out (`freshLogin` + scoped `nothingToShow` override → login screen; signed-in opener still one-tap; ungranted contract still shows consent). Google-style "Choose an account" picker (last 5, localStorage, identifiers only) pre-fills the form (password still required); "Continue as {username}" = the no-password fast path; "Create a new account" untouched. Cross-lane touch: `ui/src/components/CredentialPage/LoginForm.tsx` + new `ui/src/lib/rememberedAccounts.ts` (the picker is a login-screen feature, not a consent-fork). `rememberedAccounts.test.ts` (8) + `consentAccountSwitch.test.tsx` (5) + `auth-popup-roundtrip` return-run e2e re-pinned.
 
 ### Lane: messages-demo (Phase 1)
 **Owns:** `marketing/marketing-ui/public/docs/messages/`
