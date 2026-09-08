@@ -22,6 +22,11 @@ interface ResolvedMediaRef {
   filename?: string | null;
   size_bytes?: number | null;
   read_url?: string | null;
+  // The node mints a fresh presigned thumbnail URL alongside read_url on the
+  // v3 read (resolve_media_urls: presigned[thumbnail_object_key]). Carried so
+  // the card can render a real poster / reduced-motion image instead of
+  // pointing an <img> at the MP4.
+  thumbnail_url?: string | null;
 }
 
 interface DiscoveryPost {
@@ -249,6 +254,15 @@ function TrendingMedia({ author, mediaRefs, mediaType, firstAttachmentMime, post
       if (ref.read_url) {
         console.log('[trending-media] resolved ref — using read_url directly', ref.doc_id);
         setImageUrl(ref.read_url);
+        // The v3 read mints a fresh presigned thumbnail_url alongside
+        // read_url — use it directly (no extra round-trip). It is the video
+        // poster (normal path) and the <img> source (reduced-motion path);
+        // without it the reduced-motion image pointed at the MP4 and rendered
+        // a dark void.
+        if (ref.thumbnail_url) {
+          console.log('[trending-media] resolved ref — using thumbnail_url', ref.doc_id);
+          setThumbUrl(ref.thumbnail_url);
+        }
       } else {
         console.log('[trending-media] resolved ref has no read_url — placeholder', ref.doc_id);
         setError(true);
@@ -311,6 +325,14 @@ function TrendingMedia({ author, mediaRefs, mediaType, firstAttachmentMime, post
     }
   }, [isMuted, postId, author]);
 
+  // Reduced motion: no autoplay, so the play badge is the only way in —
+  // it opens the full view (the post permalink) directly.
+  const handlePlayBadge = useCallback(() => {
+    if (postId) {
+      window.open(`${SOCIAL_ORIGIN}/u/${encodeURIComponent(author)}/p/${encodeURIComponent(postId)}`, '_blank');
+    }
+  }, [postId, author]);
+
   // Loading state: skeleton with reserved aspect
   if (!imageUrl && !error) {
     return (
@@ -351,9 +373,15 @@ function TrendingMedia({ author, mediaRefs, mediaType, firstAttachmentMime, post
           )}
           <div className="absolute inset-0 bg-gradient-to-t from-background/40 to-transparent" />
           <div className="absolute inset-0 flex items-center justify-center">
-            <div className="flex h-14 w-14 items-center justify-center rounded-full bg-foreground/15 backdrop-blur-sm transition-transform duration-150 ease-out group-hover/media:scale-110 motion-reduce:transform-none">
+            <button
+              type="button"
+              onClick={handlePlayBadge}
+              data-testid="trending-media-play"
+              aria-label="Watch video"
+              className="flex h-14 w-14 items-center justify-center rounded-full bg-foreground/15 backdrop-blur-sm transition-transform duration-150 ease-out hover:scale-110 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background motion-reduce:transform-none"
+            >
               <Play className="ml-1 h-6 w-6 text-foreground" fill="currentColor" />
-            </div>
+            </button>
           </div>
           {hasOverflow && (
             <div className="absolute bottom-2 right-2 rounded bg-background/80 px-2 py-0.5 text-xs font-medium text-foreground backdrop-blur-sm">
