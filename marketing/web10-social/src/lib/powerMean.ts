@@ -177,6 +177,35 @@ export function rankPosts<T extends { _id?: string; created_at: string }>(
 
 export type { KnobState, PostSignals };
 
+// The server-side power-mean sort config (D69): the knob state's detent
+// indices resolved to the float weights the node's `_power_mean_score_sql`
+// consumes (the same normalizers, so the node ranks identically to the client).
+// `null` = the Newest preset (chronological — the node orders by created_at and
+// the cursor rides on created_at, not the score).
+export type FeedRankSort = {
+  recency: number;
+  likes: number;
+  comments: number;
+  half_life_ms: number;
+  character: number;
+} | null;
+
+export function knobStateToSort(state: KnobState): FeedRankSort {
+  const recency = WEIGHT_DETENTS[state.recency];
+  const likes = WEIGHT_DETENTS[state.likes];
+  const comments = WEIGHT_DETENTS[state.comments];
+  // The Newest preset (recency-only, no likes/comments weight) → chronological
+  // (null sort → the node orders by created_at, cursor on created_at).
+  if (likes <= 0 && comments <= 0) return null;
+  return {
+    recency,
+    likes,
+    comments,
+    half_life_ms: HALF_LIFE_DETENTS[state.halfLife],
+    character: CHARACTER_DETENTS[state.character],
+  };
+}
+
 export {
   WEIGHT_DETENTS,
   HALF_LIFE_DETENTS,

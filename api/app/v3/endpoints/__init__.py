@@ -10,6 +10,7 @@ from . import (
     blocking,
     contracts,
     documents,
+    feed,
     groups,
     imports,
     logs,
@@ -32,6 +33,9 @@ router.include_router(recovery.router, prefix="")
 
 # Document CRUD
 router.include_router(documents.router, prefix="")
+
+# The feed read (D69) — one page of posts, ranked in SQL, cursor-paged
+router.include_router(feed.router, prefix="")
 
 # The flexible read — caller-written SELECTs over the caller's groups (safe-query engine)
 router.include_router(query.router, prefix="")
