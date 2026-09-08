@@ -1,6 +1,7 @@
 import React from 'react';
 import web10AuthAdapterInit from './authAdapter'
 import { config } from '../config';
+import { rememberAccount, getRememberedAccounts } from '../lib/rememberedAccounts';
 
 // ── v3 API helpers (ClickHouse-backed service contracts + groups) ──────────
 
@@ -172,6 +173,15 @@ function useInterface() {
     // a stale object that ConsentView never reads. The auto-complete depends
     // on this, so it must survive the re-render that setPendingContracts causes.
     [I._contractReceived, I.setContractReceived] = React.useState(false);
+    // Did the user CONFIRM their identity in THIS popup's lifetime? React state
+    // for the same reason as _contractReceived. A session restored from the
+    // popup's own cookie does NOT count — when the opener is signed out, the
+    // popup must not auto-complete on a stale session (that is the "can't switch
+    // account" bug). The user confirms by an explicit action: logging in
+    // (finishLogin), approving or denying a contract (they are acting as this
+    // account), or the "Continue as" fast path. That confirmation is what lets
+    // the popup settle.
+    [I._userConfirmed, I.setUserConfirmed] = React.useState(false);
 
     // v3 service contracts (ClickHouse-backed — simpler model: origin + service)
     [I.v3Contracts, I.setV3Contracts] = React.useState<any[]>([]);
@@ -183,6 +193,11 @@ function useInterface() {
     [I.v3Invites, I.setV3Invites] = React.useState<any[]>([]);
 
     I.v3 = v3;
+
+    // The remembered-accounts list for the login screen's picker. Read fresh
+    // every render (useInterface re-runs on each render) so a login that just
+    // recorded a new account is reflected the moment the form re-shows.
+    I.rememberedAccounts = getRememberedAccounts();
 
     // ── Import (the "port your YouTube" pipeline) ─────────────────────────────
     // The node-side import: create a job + presigned upload URLs (one per
@@ -449,6 +464,16 @@ function useInterface() {
     I.finishLogin = function () {
         console.log('[auth-ui] finishLogin — setting auth=true, mode=contracts')
         I.setAuth(true);
+        // The user just confirmed their identity (a login) — this is what lets
+        // the consent popup settle when the opener is signed out. A session
+        // restored from the popup's own cookie never sets this (that is the
+        // stale-session case the picker exists for).
+        I.setUserConfirmed(true);
+        // Remember this account for the login screen's picker (Google-style).
+        const who = I.v3.readToken?.();
+        if (who?.username && who?.provider) {
+            rememberAccount({ username: who.username, provider: who.provider });
+        }
         I.checkAdmin();
         I.servicesLoad();
         I.setStatus(null);
@@ -477,6 +502,9 @@ function useInterface() {
     I.logout = function () {
         I.v3.signOut();
         I.setAuth(false);
+        // A logout is not a confirmation — clear the flag so a stale session
+        // can't settle the consent popup after the user explicitly signed out.
+        I.setUserConfirmed(false);
         I.setVerified(false);
         I.setServices([]);
         I.setRequests([]);
@@ -869,6 +897,10 @@ function applyACR(cr: any) {
         const apply = contract.kind === 'group' ? applyGCR(contract) : applyACR(contract);
         return apply
             .then(() => {
+                // Approving a contract is an identity confirmation (the user is
+                // acting as this account) — let the popup settle once the pending
+                // list empties, even when the opener is signed out.
+                I.setUserConfirmed(true);
                 sendContractResponse(windowSource, 'approved');
             })
             .catch((e: any) => {
@@ -912,6 +944,9 @@ function applyACR(cr: any) {
     // Deny a contract — just remove it from the pending list.
     I.denyContract = function (contract: any) {
         console.log('[auth-ui] denyContract — kind:', contract.kind, 'origin:', contract.app_origin)
+        // Denying is also an identity confirmation — let the popup settle once
+        // the pending list empties (the "continue without sharing" path).
+        I.setUserConfirmed(true);
         const windowSource = contract._windowSource;
         I.removePendingContract(contract);
         sendContractResponse(windowSource, 'denied');

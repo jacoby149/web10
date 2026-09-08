@@ -15,11 +15,11 @@ import { API_BASE, v3Login, v3Signup } from '../v3-helpers';
  *
  * The browser gauntlet drives the real /settings screen: a pre-authed viewer
  * (token cookie on social.localhost + auth.localhost) → change the default
- * visibility → it persists across a reload → sign out → sign back in (the D42
- * popup auto-completes: the popup is already signed in on auth.localhost and
- * the contract already granted, so it re-hands the token with zero UI) → a
- * FRESH page load still shows the saved value (module cache can't fake it).
- * Console log-sequence verified.
+ * visibility → it persists across a reload → sign out → sign back in (the
+ * opener is signed out, so the popup shows the login screen; the contract is
+ * already granted, so the no-password "Continue as" fast path re-hands the
+ * token) → a FRESH page load still shows the saved value (module cache can't
+ * fake it). Console log-sequence verified.
  */
 
 const port = process.env.E2E_HTTP_PORT || '80';
@@ -37,6 +37,7 @@ const SOCIAL_ORIGIN = SOCIAL_BASE;
 const SOCIAL_SERVICES = [
   'posts', 'media', 'public_media', 'profile', 'settings',
   'comments', 'reactions', 'contacts', 'staging_posts',
+  'web10-social-group-identity', 'notifications',
 ];
 const SOCIAL_OPERATIONS = ['create', 'readAll', 'updateOwn', 'deleteOwn'];
 
@@ -276,9 +277,15 @@ test.describe('Social settings gauntlet — real flow + log sequence', () => {
     await page.locator('[data-testid="settings-logout-button"]').click();
     await expect(page.locator('[data-testid="login-button"]')).toBeVisible({ timeout: 10000 });
 
-    // --- Sign back in: the D42 popup auto-completes (already signed in on
-    //     auth.localhost + contract already granted → zero UI, token re-hand) ---
+    // --- Sign back in: the opener is signed out, so the popup shows the login
+    //     screen (NOT a silent auto-complete — that was the "can't switch
+    //     account" bug). The contract is already granted, so the no-password
+    //     "Continue as" fast path settles it (token re-hand). ---
+    const reloginPopupPromise = context.waitForEvent('page', { timeout: 60000 });
     await page.locator('[data-testid="login-button"]').click();
+    const reloginPopup = await reloginPopupPromise;
+    await reloginPopup.locator('[data-testid="consent-continue-as"]').waitFor({ state: 'visible', timeout: 60000 });
+    await reloginPopup.locator('[data-testid="consent-continue-as"]').click();
     await expect(page.locator('[data-testid="settings-visibility-private"]')).toBeVisible({ timeout: 60000 });
 
     // --- Still persisted: a FRESH page load (no in-memory cache) reads the

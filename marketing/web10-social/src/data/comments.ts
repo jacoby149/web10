@@ -1,6 +1,8 @@
 import { getV3Client } from './v3';
 import { getDiscoverGroupId } from './groups';
-import { fromV3DocToComment, type CommentRecord } from './types';
+import { fromV3DocToComment, extractUsername, extractProvider, type CommentRecord } from './types';
+import { sendNotification } from './notifications';
+import { readPostById } from './posts';
 
 // ── Comments data layer (v3) ─────────────────────────────────────────────────
 // Comments are documents in the `comments` collection with `ref_value` pointing
@@ -73,6 +75,33 @@ export async function createComment(
   // ref filter + engagement counts key off. Without this the comment is
   // orphaned (ref_value="" → the ref read never finds it).
   const doc = await w.create('comments', body, { groups: targetGroups, ref_value: comment.post_id });
+  // The write side (D69): nudge the right author (best-effort, fire-and-forget —
+  // a resolve failure never affects the comment). A reply (parent_id set) →
+  // the comment author; a top-level comment → the post author.
+  if (comment.parent_id) {
+    w.readById(comment.parent_id, 'comments')
+      .then((c) => {
+        const author = extractUsername(c.author_key);
+        if (author) {
+          sendNotification(
+            { username: author, provider: extractProvider(c.author_key) || token.provider },
+            { type: 'reply', from: token.username, ref_doc_id: comment.parent_id },
+          );
+        }
+      })
+      .catch(() => {});
+  } else {
+    readPostById(comment.post_id)
+      .then((post) => {
+        if (post?.author_username) {
+          sendNotification(
+            { username: post.author_username, provider: post.author_provider || token.provider },
+            { type: 'comment', from: token.username, ref_doc_id: comment.post_id },
+          );
+        }
+      })
+      .catch(() => {});
+  }
   return fromV3DocToComment(doc);
 }
 

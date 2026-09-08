@@ -1,6 +1,8 @@
 import { getV3Client } from './v3';
 import { getDiscoverGroupId } from './groups';
 import { fromV3DocToReaction, type ReactionRecord } from './types';
+import { sendNotification } from './notifications';
+import { readPostById } from './posts';
 
 // ── Reactions data layer (v3) ────────────────────────────────────────────────
 // Reactions are documents in the `reactions` collection with `ref_value`
@@ -55,6 +57,20 @@ export async function createReaction(
   // stores it in the ref_value column, which the ref read + counts key off.
   // Without this the reaction is orphaned (ref_value="" → never found).
   const doc = await w.create('reactions', body, { groups: targetGroups, ref_value: reaction.target_id });
+  // The write side (D69): nudge the post author (best-effort, fire-and-forget —
+  // a resolve failure never affects the reaction).
+  if (reaction.target_service === 'posts') {
+    readPostById(reaction.target_id)
+      .then((post) => {
+        if (post?.author_username) {
+          sendNotification(
+            { username: post.author_username, provider: post.author_provider || token.provider },
+            { type: 'reaction', from: token.username, ref_doc_id: reaction.target_id },
+          );
+        }
+      })
+      .catch(() => {});
+  }
   return fromV3DocToReaction(doc);
 }
 

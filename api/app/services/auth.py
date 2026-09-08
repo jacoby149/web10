@@ -2,22 +2,35 @@ import ipaddress
 from datetime import datetime
 from urllib.parse import urlparse
 
+import bcrypt
 import jwt
 import requests
-from passlib.context import CryptContext
 
 import app.settings as settings
 from app.models.auth import Token, TokenData
 
-pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
+# bcrypt's algorithm only ever consumes the first 72 bytes of a password.
+# bcrypt >= 4.1 enforces that limit by raising ValueError on longer input
+# instead of silently truncating, which is the correct behavior — we truncate
+# here so the API behaves identically to the old passlib path (which relied
+# on the silent truncation) and so no caller ever hits the ValueError.
+_BCRYPT_MAX_BYTES = 72
+
+
+def _to_bcrypt_bytes(value: str) -> bytes:
+    return value.encode("utf-8")[:_BCRYPT_MAX_BYTES]
 
 
 def verify_password(plain_password: str, hashed_password: str) -> bool:
-    return pwd_context.verify(plain_password, hashed_password)
+    try:
+        return bcrypt.checkpw(_to_bcrypt_bytes(plain_password), hashed_password.encode("utf-8"))
+    except ValueError:
+        # Malformed hash (not a valid bcrypt string) — treat as no match.
+        return False
 
 
 def get_password_hash(password: str) -> str:
-    return pwd_context.hash(password)
+    return bcrypt.hashpw(_to_bcrypt_bytes(password), bcrypt.gensalt()).decode("utf-8")
 
 
 def decode_token(token: str, private_key: bool = False) -> TokenData:

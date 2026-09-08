@@ -17,7 +17,6 @@ from app.services.auth import (
     certify,
     decode_token,
     get_password_hash,
-    pwd_context,
     verify_password,
 )
 from app.v3.endpoints.auth import kosher
@@ -28,21 +27,20 @@ from app.v3.endpoints.auth import kosher
 
 
 class TestPasswordHashing:
-    def test_verify_correct_password(self, mocker):
-        mocker.patch.object(pwd_context, "verify", return_value=True)
-        assert verify_password("secret123", "fake_hash") is True
+    def test_verify_correct_password(self):
+        h = get_password_hash("secret123")
+        assert verify_password("secret123", h) is True
 
-    def test_verify_wrong_password(self, mocker):
-        mocker.patch.object(pwd_context, "verify", return_value=False)
-        assert verify_password("wrong", "fake_hash") is False
+    def test_verify_wrong_password(self):
+        h = get_password_hash("secret123")
+        assert verify_password("wrong", h) is False
 
-    def test_hash_delegates_to_context(self, mocker):
-        mocker.patch.object(pwd_context, "hash", return_value="hashed")
-        assert get_password_hash("pw") == "hashed"
+    def test_hash_produces_bcrypt_string(self):
+        assert get_password_hash("pw").startswith("$2")
 
-    def test_verify_delegates_to_context(self, mocker):
-        mocker.patch.object(pwd_context, "verify", return_value=True)
-        assert verify_password("pw", "h") is True
+    def test_verify_roundtrip(self):
+        h = get_password_hash("pw")
+        assert verify_password("pw", h) is True
 
 
 # ---------------------------------------------------------------------------

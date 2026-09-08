@@ -287,13 +287,13 @@ test.describe('Cookie torture — persistent-state scenarios clean-context tests
     await page.waitForLoadState('networkidle');
     await expect(page.locator('#authButton')).toHaveText('Log in', { timeout: 15000 });
 
-    // Log back in. D42: the login popup is an automatic handshake — the app
-    // contract is already granted (previousVisit), so the popup auto-completes:
-    // it hands back the token and closes itself, zero UI (no consent row, no
-    // Close-window button). The group contract is lazy — a successful read is
-    // the confirmation, so there is no second popup. The flow settles by the
-    // demo becoming signed-in and the popup closing. If a consent row DID
-    // appear (contract not yet granted), drive it to completion instead.
+    // Log back in. The opener is signed out, so the popup shows the login
+    // screen (NOT a silent auto-complete — that was the "can't switch account"
+    // bug). The no-password fast path is "Continue as {username}"; confirming it
+    // settles the popup (the app contract is already granted from previousVisit).
+    // The group contract is lazy — a successful read is the confirmation, so
+    // there is no second popup. If a consent row DID appear (contract not yet
+    // granted, first-login path), drive it to completion instead.
     let popupsSeen = 0;
     const onPopup = () => {
       popupsSeen++;
@@ -303,17 +303,22 @@ test.describe('Cookie torture — persistent-state scenarios clean-context tests
     const popupPromise = context.waitForEvent('page', { timeout: 15000 });
     await page.locator('#authButton').click();
     const popup = await popupPromise;
-    // Do NOT wait for the popup's networkidle — the auto-complete may close the
-    // popup first, and that is the expected D42 behavior.
+    // Do NOT wait for the popup's networkidle — it may settle + close first.
 
     for (let i = 0; i < 20; i++) {
-      // Settled? (the auto-complete handed the token back — demo is signed in)
+      // Settled? (the demo is signed in)
       if ((await page.locator('#authButton').textContent().catch(() => ''))?.trim() === 'log out') break;
-      // Otherwise, is there a consent row to approve? (first-login path)
-      const row = popup.locator('[data-testid="consent-req-0"]');
-      const rowCount = await row.count().catch(() => 0);
-      if (rowCount > 0) {
-        await row.locator('[data-testid="consent-approve-0"]').click().catch(() => {});
+      // Return run: confirm the no-password "Continue as" fast path.
+      const cont = popup.locator('[data-testid="consent-continue-as"]');
+      if ((await cont.count().catch(() => 0)) > 0) {
+        await cont.click().catch(() => {});
+      } else {
+        // Otherwise, is there a consent row to approve? (first-login path)
+        const row = popup.locator('[data-testid="consent-req-0"]');
+        const rowCount = await row.count().catch(() => 0);
+        if (rowCount > 0) {
+          await row.locator('[data-testid="consent-approve-0"]').click().catch(() => {});
+        }
       }
       await page.waitForTimeout(500);
     }

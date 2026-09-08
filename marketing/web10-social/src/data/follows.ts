@@ -1,6 +1,7 @@
 import { getV3Client } from './v3';
 import { followersGroupId, getGroupMembers, blockUser, unblockUser } from './groups';
 import { extractUsername } from './types';
+import { sendNotification } from './notifications';
 
 // ── Follows data layer (v3) ──────────────────────────────────────────────────
 // Follows ARE group membership. Following a user = joining their followers group.
@@ -13,7 +14,15 @@ import { extractUsername } from './types';
  */
 export async function followUser(username: string, provider?: string): Promise<{ username: string; status: 'active' }> {
   const w = getV3Client();
+  const token = w.readToken();
   await w.joinGroup(followersGroupId(username, provider));
+  // The write side (D69): nudge the user you followed so their badge bumps.
+  if (token) {
+    sendNotification(
+      { username, provider: provider || token.provider },
+      { type: 'follow_request', from: token.username },
+    );
+  }
   return { username, status: 'active' };
 }
 

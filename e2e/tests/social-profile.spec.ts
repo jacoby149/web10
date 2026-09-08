@@ -45,7 +45,7 @@ const FOLLOWER_ROLES = [
 
 // The social app's contract (src/interfaces/auth.ts SOCIAL_SERVICES +
 // SOCIAL_OPERATIONS) — the origin that makes the API calls is granted these.
-const SOCIAL_SERVICES = ['posts', 'media', 'public_media', 'profile', 'settings', 'comments', 'reactions', 'contacts', 'staging_posts'];
+const SOCIAL_SERVICES = ['posts', 'media', 'public_media', 'profile', 'settings', 'comments', 'reactions', 'contacts', 'staging_posts', 'web10-social-group-identity', 'notifications'];
 const SOCIAL_OPERATIONS = ['create', 'readAll', 'updateOwn', 'deleteOwn'];
 
 // The app computes the followers group ID from the node provider (the token's
