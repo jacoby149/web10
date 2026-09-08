@@ -1,6 +1,7 @@
 import React from 'react';
 import web10AuthAdapterInit from './authAdapter'
 import { config } from '../config';
+import { rememberAccount, getRememberedAccounts } from '../lib/rememberedAccounts';
 
 // ── v3 API helpers (ClickHouse-backed service contracts + groups) ──────────
 
@@ -172,6 +173,13 @@ function useInterface() {
     // a stale object that ConsentView never reads. The auto-complete depends
     // on this, so it must survive the re-render that setPendingContracts causes.
     [I._contractReceived, I.setContractReceived] = React.useState(false);
+    // Did the user authenticate in THIS popup's lifetime? React state for the
+    // same reason as _contractReceived. A session restored from the popup's own
+    // cookie does NOT count — when the opener is signed out, the popup must not
+    // auto-complete on a stale session (that is the "can't switch account" bug);
+    // the user must either confirm ("Continue as") or log in. finishLogin flips
+    // this, which is what lets a fresh login (or the confirm) settle.
+    [I._freshLogin, I.setFreshLogin] = React.useState(false);
 
     // v3 service contracts (ClickHouse-backed — simpler model: origin + service)
     [I.v3Contracts, I.setV3Contracts] = React.useState<any[]>([]);
@@ -183,6 +191,11 @@ function useInterface() {
     [I.v3Invites, I.setV3Invites] = React.useState<any[]>([]);
 
     I.v3 = v3;
+
+    // The remembered-accounts list for the login screen's picker. Read fresh
+    // every render (useInterface re-runs on each render) so a login that just
+    // recorded a new account is reflected the moment the form re-shows.
+    I.rememberedAccounts = getRememberedAccounts();
 
     // ── Import (the "port your YouTube" pipeline) ─────────────────────────────
     // The node-side import: create a job + presigned upload URLs (one per
@@ -449,6 +462,16 @@ function useInterface() {
     I.finishLogin = function () {
         console.log('[auth-ui] finishLogin — setting auth=true, mode=contracts')
         I.setAuth(true);
+        // The user authenticated in this popup's lifetime — a fresh login (or a
+        // confirmed session) is what lets the consent popup settle when the
+        // opener is signed out. A session restored from the popup's own cookie
+        // never sets this (that is the stale-session case the picker exists for).
+        I.setFreshLogin(true);
+        // Remember this account for the login screen's picker (Google-style).
+        const who = I.v3.readToken?.();
+        if (who?.username && who?.provider) {
+            rememberAccount({ username: who.username, provider: who.provider });
+        }
         I.checkAdmin();
         I.servicesLoad();
         I.setStatus(null);
@@ -477,6 +500,9 @@ function useInterface() {
     I.logout = function () {
         I.v3.signOut();
         I.setAuth(false);
+        // A logout is not a fresh login — clear the flag so a stale session
+        // can't settle the consent popup after the user explicitly signed out.
+        I.setFreshLogin(false);
         I.setVerified(false);
         I.setServices([]);
         I.setRequests([]);

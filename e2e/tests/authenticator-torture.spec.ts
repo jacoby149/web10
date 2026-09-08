@@ -549,13 +549,16 @@ test.describe('Browser — consent forks (real popup)', () => {
     await page.locator('#authButton').click();
     const popup = await popupPromise;
     const popupFull = captureFull(popup);
-    // D42: the app contract is already granted, so the popup auto-completes
-    // (token + self-close, zero UI) — it may close before reaching networkidle,
-    // so do NOT wait for its networkidle. The assertions below verify the flow.
+    await popup.waitForLoadState('networkidle');
 
-    // D42: the app contract is already granted, so the popup auto-completes
-    // (token + self-close, zero UI) — no "all set" screen, no Close window.
-    // The token lands on the demo via the auto-complete.
+    // The opener is signed out, so the popup shows the login screen (NOT a
+    // silent auto-complete — that was the "can't switch account" bug). The
+    // pre-granted ACR means there's nothing to approve, so the no-password
+    // "Continue as" fast path settles it.
+    await popup.locator('[data-testid="consent-continue-as"]').waitFor({ state: 'visible', timeout: 15000 });
+    await popup.locator('[data-testid="consent-continue-as"]').click();
+
+    // The token lands on the demo after the confirm.
     await expect(async () => {
       expect(demoLogs.join('\n')).toContain('authListen fired — user is signed in');
     }).toPass({ timeout: 15000 });
