@@ -17,7 +17,6 @@ import {
 import { getWapi } from '@/data/wapi';
 import { fromResolvedMediaRef, type ResolvedMediaRef, type PostRecord, type MediaRecord } from '@/data/types';
 import {
-  rankPosts,
   PRESETS,
   getPreset,
   type PresetId,
@@ -728,10 +727,14 @@ export default function FeedScreen({ onAuthorClick }: { onAuthorClick?: (usernam
   // created_at — chronological paging, the stable keyset). The counts, media,
   // ads, and author profiles all ride in the payload — the client never
   // re-fetches any of it (the N+1 the 267-requests diagnosis named).
-  const loadFeed = useCallback(async (cursor: { created_at?: string; score?: number } | null = null) => {
+  //
+  // `knob` is the feed's ranking knobs — passed to the node so it ranks the
+  // page server-side (the D36 power-mean sort). The cursor rides on the score
+  // when ranked, created_at when chronological (the Newest preset).
+  const loadFeed = useCallback(async (cursor: { created_at?: string; score?: number } | null = null, knob: KnobState) => {
     setLoading(true);
     try {
-      const page = await readFeedPage({ limit: 20, cursor });
+      const page = await readFeedPage({ limit: 20, cursor, knobState: knob });
       setPosts(page.posts);
       setHasMore(page.has_more);
       setNextCursor(page.next_cursor);
@@ -750,7 +753,7 @@ export default function FeedScreen({ onAuthorClick }: { onAuthorClick?: (usernam
     if (!hasMore || loadingMore || loading) return;
     setLoadingMore(true);
     try {
-      const page = await readFeedPage({ limit: 20, cursor: nextCursor });
+      const page = await readFeedPage({ limit: 20, cursor: nextCursor, knobState: knobState });
       setPosts((prev) => [...prev, ...page.posts]);
       setHasMore(page.has_more);
       setNextCursor(page.next_cursor);
@@ -766,15 +769,28 @@ export default function FeedScreen({ onAuthorClick }: { onAuthorClick?: (usernam
       console.error('Failed to load more feed:', e);
     }
     setLoadingMore(false);
-  }, [hasMore, loadingMore, loading, nextCursor, searchParams, setSearchParams]);
+  }, [hasMore, loadingMore, loading, nextCursor, searchParams, setSearchParams, knobState]);
 
-  // Initial load: the ?after= deep link restores the scroll position (the
-  // cursor is the last post's created_at — chronological paging).
+  // The node ranks the feed (the D36 power-mean sort, server-side) — a knob
+  // twist is a DEBOUNCED RE-READ of page one (the cursor resets; it was
+  // computed for the old ranking). First load (mount) fires immediately,
+  // restoring the ?after= deep link. The previous feed stays on screen while
+  // the re-read is in flight (no skeleton flash per twist).
+  const firstLoad = useRef(true);
+  const refreshTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   useEffect(() => {
-    const after = searchParams.get('after');
-    loadFeed(after ? { created_at: after } : null);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+    if (firstLoad.current) {
+      firstLoad.current = false;
+      const after = searchParams.get('after');
+      LOG('load — initial, knobs:', encodeKnobState(knobState));
+      loadFeed(after ? { created_at: after } : null, knobState);
+      return;
+    }
+    if (refreshTimer.current) clearTimeout(refreshTimer.current);
+    LOG('knob change — re-reading feed (page 1) in 400ms, knobs:', encodeKnobState(knobState));
+    refreshTimer.current = setTimeout(() => loadFeed(null, knobState), 400);
+    return () => { if (refreshTimer.current) clearTimeout(refreshTimer.current); };
+  }, [knobState, loadFeed]);
 
   // Infinite scroll: a sentinel at the bottom of the feed triggers loadMore
   // when it scrolls into view (rootMargin prefetches a page early).
@@ -791,21 +807,8 @@ export default function FeedScreen({ onAuthorClick }: { onAuthorClick?: (usernam
     return () => observer.disconnect();
   }, [loadMore]);
 
-  // Client-side re-ranking via knob state (zero network calls per twist —
-  // the same pattern as DiscoverScreen). The Newest preset (the default)
-  // short-circuits to pure chronological in rankPosts.
-  const rankedPosts = useMemo(() => {
-    return rankPosts(
-      posts,
-      (post) => ({
-        ageMs: Date.now() - new Date(post.created_at).getTime(),
-        likes: post.likes || 0,
-        comments: post.comments || 0,
-        reposts: post.reposts || 0,
-      }),
-      knobState,
-    );
-  }, [posts, knobState]);
+  // The node returns the feed pre-ranked (the D36 power-mean sort,
+  // server-side) — `posts` is already in display order, no client re-rank.
 
   async function handleToggleLike(postId: string) {
     const token = getWapi().readToken();
@@ -848,7 +851,7 @@ export default function FeedScreen({ onAuthorClick }: { onAuthorClick?: (usernam
           <FeedEmptyState />
         ) : (
           <>
-            {rankedPosts.map((post) => {
+            {posts.map((post) => {
               // The feed carries everything per post (D69) — media (resolved +
               // HLS), the author's profile + avatar, and the counts. No maps,
               // no re-fetch. The counts display off the live maps (initialized
@@ -875,7 +878,7 @@ export default function FeedScreen({ onAuthorClick }: { onAuthorClick?: (usernam
                     setCommentMap((prev) => ({ ...prev, [post._id || '']: n }))
                   }
                   onAuthorClick={onAuthorClick}
-                  onPostUpdated={() => loadFeed(null)}
+                  onPostUpdated={() => loadFeed(null, knobState)}
                   isOwnPost={isOwnPost(post)}
                 />
               );

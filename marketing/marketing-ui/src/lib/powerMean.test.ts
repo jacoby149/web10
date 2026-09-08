@@ -10,6 +10,8 @@ import {
   HALF_LIFE_LABELS,
   CHARACTER_DETENTS,
   CHARACTER_LABELS,
+  FIXED_CHARACTER_DETEENT,
+  FIXED_CHARACTER_P,
   defaultKnobState,
   PRESETS,
   getPreset,
@@ -227,6 +229,22 @@ describe('mix code', () => {
 });
 
 describe('scorePost', () => {
+  it('pins the exponent at the middle detent (p = 0, geometric) — the Character knob is gone', () => {
+    // Parity with web10-social: the exponent is fixed at the middle, so a
+    // post is scored on the balance of its signals (no signal dominates).
+    expect(CHARACTER_DETENTS[FIXED_CHARACTER_DETEENT]).toBe(0);
+    expect(FIXED_CHARACTER_P).toBe(0);
+  });
+
+  it('ignores state.character (the knob is gone — the exponent is fixed)', () => {
+    // Two states identical except for `character` (Strict p=-5 vs Extreme
+    // p=+5) must score identically — the ranking no longer reads it.
+    const signals = { ageMs: 3_600_000, likes: 42, comments: 7, reposts: 0 };
+    const strict = scorePost(signals, { recency: 3, likes: 3, comments: 2, halfLife: 3, character: 0 });
+    const extreme = scorePost(signals, { recency: 3, likes: 3, comments: 2, halfLife: 3, character: 5 });
+    expect(strict).toBe(extreme);
+  });
+
   it('newest preset scores by recency only (negative age for reverse-chron)', () => {
     const newest = getPreset('newest')!.state;
     const fresh = scorePost({ ageMs: 100, likes: 0, comments: 0, reposts: 0 }, newest);

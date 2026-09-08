@@ -1976,6 +1976,12 @@ class TestPowerMeanRead:
         assert "collection_name = 'reactions'" in sql
         assert "collection_name = 'comments'" in sql
         assert "ORDER BY" in sql and "LIMIT %(limit)s OFFSET %(offset)s" in sql
+        # The outer SELECT must project ALL eight board-base columns — the row
+        # parser reads row[0]..row[7] (ad_mode/ad_target included). Projecting
+        # fewer (the old 6-column bug) makes real ClickHouse rows shorter than
+        # the parser expects → IndexError: tuple index out of range (the mock
+        # returns 8-column rows, so it only bites against a live node).
+        assert "SELECT b.doc_id, b.author_key, b.body, b.tags, b.created_at, b.ref_value, b.ad_mode, b.ad_target" in sql
         # The sort config rides as params (never interpolated into the SQL).
         assert params["wr"] == 0.0 and params["wl"] == 1.0 and params["wc"] == 0.0
         assert params["hl"] == 0 and params["p"] == 0.0
