@@ -9,6 +9,74 @@ Status legend: [decided] intent set · [in-progress] · [open] still debating.
 
 ---
 
+### D69 — Notifications: P2P nudge + CRUD re-read, app-owned, node stays stateless [decided]
+
+**The decision.** Notifications are **derived events the social app owns** —
+not a core protocol concept, not a node table, not a node endpoint. The push
+model is the one the DMs already run: **CRUD is the source of truth, the P2P
+data channel is the nudge.** A notification is "something happened that
+targets me" (a reaction/comment on my post, a reply to my comment, a new DM,
+a follow request, a group join). The app derives the *list* by reading the
+writes it can already read (ref-counts for reactions/comments, the DM group,
+the followers group's pending requests, group membership) and the *real-time
+nudge* rides the existing P2P inbound bus (`onP2PInbound`, app-wide) — the
+sender pushes a typed payload over the data channel, the recipient re-reads
+from CRUD. Unread state is **app-owned** (a `notifications` service in the
+user's own followers group, the D60 pattern — no platform table, no new
+endpoint).
+
+**Why.** The KB's original design (`notifications.md`) said "the API pushes
+via WebSocket." That infra does not exist and D66 rejects it: the node has no
+Redis, no pub/sub, and `api/rtc` is a PeerJS *signaling* server (it relays
+handshakes, it does not fan out). Building a server push channel is a
+bandwidth/infra surface we don't need at M0. The P2P nudge + CRUD re-read is
+the honest, already-built model: it reaches users who are online + opted in
+(the real-time cohort) instantly, and everyone else gets it on their next read
+(CRUD is truth, so nothing is lost). It is exactly how DMs work, so there is
+one real-time mental model, not two.
+
+**The shape.**
+- **Read side (source of truth):** the app computes notifications from reads
+  it already has permission for. Reactions/comments on my posts = the
+  server-side ref-count pattern (`readRefCounts`, already used by the feed's
+  engagement knobs) minus what I've seen. New DMs = the DM group read minus a
+  per-conversation last-read cursor. Follow requests = the followers group's
+  pending requests (**needs a `getPendingRequests` read — currently unbuilt**).
+  Group joins = membership diff. No new API endpoint; the generic CRUD +
+  ref-count + `w.query()` (D63, for "replies to my comments") cover it.
+- **Write side (the nudge):** the *actor's* app pushes a typed payload over
+  P2P when it performs an action that targets someone (react → nudge the post
+  author; comment → nudge the author; reply → nudge the comment author; send
+  DM → nudge the recipient; request follow → nudge the follower owner). The
+  payload is a nudge (`{type, from, ref_doc_id, ...}`) — the recipient
+  re-reads from CRUD, it does not trust the payload's content. This is the
+  same "payload is a nudge, CRUD is truth" contract as DMs.
+- **Unread / history:** a `notifications` service in the user's followers
+  group (D60: app concepts in app-named services + role grants, no platform
+  table). Each notification is a doc `{type, from, ref_doc_id, read, created_at}`.
+  The badge = unread count. Mark-read on screen open. This gives a durable
+  history screen (`/notifications`) without a node table.
+- **Always-on surface:** a notification store (the `p2p.ts` listener-set
+  idiom — module singleton + subscriber set) holds the live unread count +
+  recent items app-wide. A persistent badge lives in `Layout` (desktop
+  sidebar + mobile top-header bell), and an app-wide banner (the `sessionAlert`
+  precedent) surfaces "N new" without a dedicated screen. The bell →
+  `/notifications` (deep-linkable, the URL-holds-state rule).
+
+**Rejects.** (1) A server WebSocket/SSE push channel — D66 (no Redis, no
+fan-out infra; the signaling server is not a push bus). (2) A node
+`notifications` table or endpoint — D60 (app concepts stay app-owned; the
+node stays universal + stateless w.r.t. app semantics). (3) Polling as the
+primary model — wasteful; the P2P nudge is the fast path, CRUD re-read is the
+fallback (polling only as a rare backstop, if ever). (4) Batching as a v1
+requirement — "15 people liked your post" is a later refinement; v1 shows
+one row per event.
+
+**Gates / open.** The `getPendingRequests` read is the one missing primitive
+(follow-request notifications are gated on it). "Replies to my comments"
+needs `w.query()` (D63) or a client-side filter of the comment tree — the ref
+filter matches `ref_value` only, not `parent_id`.
+
 ### D68 — HLS stream access tracks post access (the carrier-post check) [decided]
 
 **The decision.** A reader may fetch the HLS manifest/segments of a media
@@ -1795,6 +1863,29 @@ the remembered one. The engagement signal for the likes/comments knobs is
 the ref pattern (one read of reactions + comments over the feed's groups,
 counted client-side by `ref_value` — the same pattern DiscoverScreen runs).
 The shared-knobs-package reject stands (the rack is still a verbatim copy).
+
+**Amendment (07.09.2026, 3.71.0):** two operator calls — "i have to scroll
+sideways, what is the character control? i dont even know what that means"
+and "the feed should re rank on api call, not client side." (1) **The
+Character knob is removed.** It was the power-mean exponent `p` (Strict→
+Extreme) — math wearing a costume with no plain-English concept, and the 5th
+knob forcing the mobile sideways scroll. The exponent is now **fixed at the
+middle (p = 0, the weighted geometric mean)**: no signal dominates, a post is
+scored on the balance of its signals. `character` stays in `KnobState` so the
+`?knobs=` encoding + the persisted settings doc keep their 5-field shape (old
+deep links + saved tunings still parse); the rack is 4 knobs. (2) **Ranking
+moves server-side.** A knob twist is now a **debounced (400ms) re-read**
+carrying the D36 power-mean `sort` config — the node (which has computed the
+power-mean score in SQL since 3.18.2/3.21.1) ranks across the **full group
+membership** and returns pre-sorted results. This is strictly better than the
+client-side shuffle: "Most loved · all time" can now surface an old post the
+top-50 chronological read never fetched. The Newest preset maps to `sort =
+null` (the plain chronological default read — the out-of-the-box feed costs
+nothing extra, the delivery pitch survives). A re-read keeps the previous feed
+on screen (no skeleton flash per twist). The SDK's `read()` gains the `sort`
+option (the API already accepted it). The "feed stays chronological by
+default" guardrail is unchanged — only the *tuned* feed is ranked, and now by
+the node, not a client shuffle.
 
 ### D35 — Public media is a COLLECTION (`public_media`), not a flag or a blanket whitelist [decided]
 Cross-user media reads are dead today: the `media` service ships with no read

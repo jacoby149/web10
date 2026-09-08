@@ -13,6 +13,7 @@ vi.mock('@/data', async (importOriginal) => {
   return {
     ...original,
     readFeed: vi.fn().mockResolvedValue([]),
+    readFeedPage: vi.fn().mockResolvedValue({ posts: [], has_more: false, next_cursor: null }),
     readPullFeed: vi.fn().mockResolvedValue([]),
     getFeedGroups: vi.fn().mockResolvedValue([]),
     readFeedEngagement: vi.fn().mockResolvedValue({ likes: {}, comments: {} }),
@@ -96,14 +97,18 @@ describe('FeedScreen', () => {
   });
 
   it('renders feed media at the natural aspect ratio (not a forced 1:1 crop)', async () => {
-    const { readFeed, resolveMediaRefs } = await import('@/data');
-    vi.mocked(readFeed).mockResolvedValueOnce([
-      { _id: 'p1', text: 'a clip', media_refs: ['m1'], author_username: 'testuser', author_provider: 'test.localhost', created_at: new Date().toISOString() },
-    ]);
-    // The read path now carries the real dimensions (16:9).
-    vi.mocked(resolveMediaRefs).mockResolvedValueOnce([
-      { _id: 'm1', url: 'http://test.com/clip.mp4', mime_type: 'video/mp4', width: 1920, height: 1080, created_at: new Date().toISOString() },
-    ]);
+    const { readFeedPage } = await import('@/data');
+    // The feed read carries the resolved media (with the real 16:9 dims) inline.
+    vi.mocked(readFeedPage).mockResolvedValueOnce({
+      posts: [
+        {
+          _id: 'p1', text: 'a clip', author_username: 'testuser', author_provider: 'test.localhost',
+          created_at: new Date().toISOString(),
+          media_refs: [{ doc_id: 'm1', read_url: 'http://test.com/clip.mp4', mime_type: 'video/mp4', width: 1920, height: 1080 }],
+        },
+      ],
+      has_more: false, next_cursor: null,
+    });
     const { default: FeedScreen } = await import('@/components/Feed/FeedScreen');
     render(
       <MemoryRouter>
@@ -122,15 +127,19 @@ describe('FeedScreen', () => {
   });
 
   it('falls back to a default ratio for legacy media with no stored dimensions', async () => {
-    const { readFeed, resolveMediaRefs } = await import('@/data');
-    vi.mocked(readFeed).mockResolvedValueOnce([
-      { _id: 'p2', text: 'old pic', media_refs: ['m2'], author_username: 'testuser', author_provider: 'test.localhost', created_at: new Date().toISOString() },
-    ]);
+    const { readFeedPage } = await import('@/data');
     // Legacy media: no width/height (jsdom won't fire onLoad, so the measure
     // fallback can't run — the default ratio is what's reserved).
-    vi.mocked(resolveMediaRefs).mockResolvedValueOnce([
-      { _id: 'm2', url: 'http://test.com/old.png', mime_type: 'image/png', created_at: new Date().toISOString() },
-    ]);
+    vi.mocked(readFeedPage).mockResolvedValueOnce({
+      posts: [
+        {
+          _id: 'p2', text: 'old pic', author_username: 'testuser', author_provider: 'test.localhost',
+          created_at: new Date().toISOString(),
+          media_refs: [{ doc_id: 'm2', read_url: 'http://test.com/old.png', mime_type: 'image/png' }],
+        },
+      ],
+      has_more: false, next_cursor: null,
+    });
     const { default: FeedScreen } = await import('@/components/Feed/FeedScreen');
     render(
       <MemoryRouter>
@@ -145,15 +154,21 @@ describe('FeedScreen', () => {
   });
 
   it('multi-media posts show the first item + a count badge (option b)', async () => {
-    const { readFeed, resolveMediaRefs } = await import('@/data');
-    vi.mocked(readFeed).mockResolvedValueOnce([
-      { _id: 'p3', text: 'three pics', media_refs: ['a', 'b', 'c'], author_username: 'testuser', author_provider: 'test.localhost', created_at: new Date().toISOString() },
-    ]);
-    vi.mocked(resolveMediaRefs).mockResolvedValueOnce([
-      { _id: 'a', url: 'http://test.com/a.png', mime_type: 'image/png', width: 800, height: 600, created_at: new Date().toISOString() },
-      { _id: 'b', url: 'http://test.com/b.png', mime_type: 'image/png', width: 800, height: 600, created_at: new Date().toISOString() },
-      { _id: 'c', url: 'http://test.com/c.png', mime_type: 'image/png', width: 800, height: 600, created_at: new Date().toISOString() },
-    ]);
+    const { readFeedPage } = await import('@/data');
+    vi.mocked(readFeedPage).mockResolvedValueOnce({
+      posts: [
+        {
+          _id: 'p3', text: 'three pics', author_username: 'testuser', author_provider: 'test.localhost',
+          created_at: new Date().toISOString(),
+          media_refs: [
+            { doc_id: 'a', read_url: 'http://test.com/a.png', mime_type: 'image/png', width: 800, height: 600 },
+            { doc_id: 'b', read_url: 'http://test.com/b.png', mime_type: 'image/png', width: 800, height: 600 },
+            { doc_id: 'c', read_url: 'http://test.com/c.png', mime_type: 'image/png', width: 800, height: 600 },
+          ],
+        },
+      ],
+      has_more: false, next_cursor: null,
+    });
     const { default: FeedScreen } = await import('@/components/Feed/FeedScreen');
     render(
       <MemoryRouter>
@@ -170,13 +185,17 @@ describe('FeedScreen', () => {
   });
 
   it('tapping a video in the feed plays it inline and does NOT open the lightbox', async () => {
-    const { readFeed, resolveMediaRefs } = await import('@/data');
-    vi.mocked(readFeed).mockResolvedValueOnce([
-      { _id: 'pv1', text: 'a clip', media_refs: ['mv1'], author_username: 'someone', author_provider: 'test.localhost', created_at: new Date().toISOString() },
-    ]);
-    vi.mocked(resolveMediaRefs).mockResolvedValueOnce([
-      { _id: 'mv1', url: 'http://test.com/clip.mp4', mime_type: 'video/mp4', width: 1080, height: 1920, created_at: new Date().toISOString() },
-    ]);
+    const { readFeedPage } = await import('@/data');
+    vi.mocked(readFeedPage).mockResolvedValueOnce({
+      posts: [
+        {
+          _id: 'pv1', text: 'a clip', author_username: 'someone', author_provider: 'test.localhost',
+          created_at: new Date().toISOString(),
+          media_refs: [{ doc_id: 'mv1', read_url: 'http://test.com/clip.mp4', mime_type: 'video/mp4', width: 1080, height: 1920 }],
+        },
+      ],
+      has_more: false, next_cursor: null,
+    });
     const { default: FeedScreen } = await import('@/components/Feed/FeedScreen');
     render(
       <MemoryRouter>
@@ -196,11 +215,13 @@ describe('FeedScreen', () => {
   });
 
   it('own posts expose an owner menu (share / edit / visibility / delete) instead of a lightbox', async () => {
-    const { readFeed, resolveMediaRefs } = await import('@/data');
-    vi.mocked(readFeed).mockResolvedValueOnce([
-      { _id: 'own1', text: 'my post', author_username: 'testuser', author_provider: 'test.localhost', visibility: 'public', created_at: new Date().toISOString() },
-    ]);
-    vi.mocked(resolveMediaRefs).mockResolvedValueOnce([]);
+    const { readFeedPage } = await import('@/data');
+    vi.mocked(readFeedPage).mockResolvedValueOnce({
+      posts: [
+        { _id: 'own1', text: 'my post', author_username: 'testuser', author_provider: 'test.localhost', visibility: 'public', created_at: new Date().toISOString() },
+      ],
+      has_more: false, next_cursor: null,
+    });
     const { default: FeedScreen } = await import('@/components/Feed/FeedScreen');
     render(
       <MemoryRouter>
@@ -222,11 +243,13 @@ describe('FeedScreen', () => {
   });
 
   it('non-own posts have no owner menu (no lightbox, no options)', async () => {
-    const { readFeed, resolveMediaRefs } = await import('@/data');
-    vi.mocked(readFeed).mockResolvedValueOnce([
-      { _id: 'other1', text: 'their post', author_username: 'someone', author_provider: 'test.localhost', created_at: new Date().toISOString() },
-    ]);
-    vi.mocked(resolveMediaRefs).mockResolvedValueOnce([]);
+    const { readFeedPage } = await import('@/data');
+    vi.mocked(readFeedPage).mockResolvedValueOnce({
+      posts: [
+        { _id: 'other1', text: 'their post', author_username: 'someone', author_provider: 'test.localhost', created_at: new Date().toISOString() },
+      ],
+      has_more: false, next_cursor: null,
+    });
     const { default: FeedScreen } = await import('@/components/Feed/FeedScreen');
     render(
       <MemoryRouter>
@@ -238,6 +261,48 @@ describe('FeedScreen', () => {
     });
     expect(screen.queryByTestId('post-options-button')).not.toBeInTheDocument();
     expect(screen.queryByTestId('post-lightbox')).not.toBeInTheDocument();
+  });
+
+  it('infinite scroll: the sentinel loads the next page and appends (D69)', async () => {
+    const { readFeedPage } = await import('@/data');
+    // Page 1: two posts, has_more true + a cursor.
+    vi.mocked(readFeedPage)
+      .mockResolvedValueOnce({
+        posts: [
+          { _id: 'pg1-a', text: 'page one a', author_username: 'testuser', author_provider: 'test.localhost', created_at: new Date().toISOString() },
+          { _id: 'pg1-b', text: 'page one b', author_username: 'testuser', author_provider: 'test.localhost', created_at: new Date().toISOString() },
+        ],
+        has_more: true,
+        next_cursor: { created_at: '2026-09-07T09:00:00.000' },
+      })
+      // Page 2: two more posts, has_more false.
+      .mockResolvedValueOnce({
+        posts: [
+          { _id: 'pg2-a', text: 'page two a', author_username: 'testuser', author_provider: 'test.localhost', created_at: new Date().toISOString() },
+          { _id: 'pg2-b', text: 'page two b', author_username: 'testuser', author_provider: 'test.localhost', created_at: new Date().toISOString() },
+        ],
+        has_more: false,
+        next_cursor: null,
+      });
+    const { default: FeedScreen } = await import('@/components/Feed/FeedScreen');
+    render(
+      <MemoryRouter>
+        <FeedScreen />
+      </MemoryRouter>,
+    );
+    await waitFor(() => {
+      expect(screen.getAllByTestId('post-card')).toHaveLength(2);
+    });
+
+    // The sentinel is visible → the observer fires → loadMore appends page 2.
+    (globalThis as unknown as Record<string, () => void>).fireIntersectionObservers();
+    await waitFor(() => {
+      expect(screen.getAllByTestId('post-card')).toHaveLength(4);
+    });
+    // The second page was fetched with page 1's cursor.
+    expect(readFeedPage).toHaveBeenLastCalledWith(
+      expect.objectContaining({ cursor: { created_at: '2026-09-07T09:00:00.000' } }),
+    );
   });
 });
 

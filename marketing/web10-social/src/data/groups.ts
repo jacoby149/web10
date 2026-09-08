@@ -327,8 +327,14 @@ export async function createCommunityGroup(
   } else if (input.visibility === 'signed_in') {
     members.push({ member_key: 'authenticated', role: 'reader' });
   }
-  await w.createGroup(slug, 'open', COMMUNITY_CREATE_ROLES, members);
-  LOG('createCommunityGroup — created', groupId);
+  // A "public" group is findable: it's listed in the public directory (the D53
+  // `discoverable` blasting flag) the moment it's created. Signed-in / private
+  // groups stay unlisted (the Settings section's "List in directory" toggle is
+  // the manual override for every visibility). This is the fix for "my friend
+  // can't find my public group" — public meant readable but never findable.
+  const discoverable = input.visibility === 'public';
+  await w.createGroup(slug, 'open', COMMUNITY_CREATE_ROLES, members, { discoverable });
+  LOG('createCommunityGroup — created', groupId, { discoverable });
   const face: GroupIdentity = {
     name: input.name,
     description: input.description || undefined,
@@ -392,14 +398,19 @@ export async function getGroupsManages(): Promise<V3Group[]> {
 }
 
 /**
- * Get feed groups — all groups minus discover.
+ * Get feed groups — the followers groups only (the user's own + the ones
+ * they follow). The feed is the "following" feed: it shows the user's own
+ * posts + posts from people the user follows. DM groups, community groups,
+ * and close-friends groups are NOT part of the feed — they surface in the
+ * Messages and Groups screens respectively. Including them leaked posts from
+ * people the user didn't follow (DM recipients, community members).
  */
 export async function getFeedGroups(): Promise<string[]> {
   const groups = await getMyGroups();
   const feedGroups = groups
-    .filter((g) => g.group_id !== getDiscoverGroupId())
+    .filter((g) => g.group_id.endsWith('/followers'))
     .map((g) => g.group_id);
-  LOG('getFeedGroups —', groups.length, 'my groups →', feedGroups.length, 'feed groups (minus discover)');
+  LOG('getFeedGroups —', groups.length, 'my groups →', feedGroups.length, 'feed groups (followers only)');
   return feedGroups;
 }
 
@@ -452,6 +463,43 @@ export async function leaveGroup(groupId: string): Promise<void> {
 export async function getGroupMembers(groupId: string) {
   const w = getV3Client();
   return w.getGroupMembers(groupId);
+}
+
+/**
+ * Update group settings (join policy, roles, discoverable). The D53 blasting
+ * flag (`discoverable`) is what lists a group in the public directory.
+ */
+export async function updateGroup(
+  groupId: string,
+  opts?: { join_policy?: string; roles?: Record<string, unknown>[]; discoverable?: boolean },
+) {
+  const w = getV3Client();
+  return w.updateGroup(groupId, opts);
+}
+
+/**
+ * Add a member (or a reserved principal-class row like `anyone` /
+ * `authenticated` — the D58 read grant).
+ */
+export async function addGroupMember(groupId: string, memberKey: string, role: string) {
+  const w = getV3Client();
+  return w.addGroupMember(groupId, memberKey, role);
+}
+
+/**
+ * Remove a member (or a reserved principal-class row).
+ */
+export async function removeGroupMember(groupId: string, memberKey: string) {
+  const w = getV3Client();
+  return w.removeGroupMember(groupId, memberKey);
+}
+
+/**
+ * Delete a group (owner only — the `deleteGroup` op under the `'group'` key).
+ */
+export async function deleteGroup(groupId: string) {
+  const w = getV3Client();
+  return w.deleteGroup(groupId);
 }
 
 /**

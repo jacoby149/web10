@@ -81,6 +81,30 @@ const HALF_LIFE_LABELS = ['1h', '4h', '12h', '1d', '7d', '∞'];
 const CHARACTER_DETENTS = [-5, -2.5, -1, 0, 1, 5];
 const CHARACTER_LABELS = ['Strict', 'Tight', 'Flat', 'Mean', 'Loose', 'Extreme'];
 
+// The Character knob is gone from the rack (operator: "i dont even know what
+// that means" — the obfuscated math dial had no plain-English concept, and it
+// was the 5th knob forcing the mobile sideways scroll). The exponent is fixed
+// at the middle detent — p = 0, the weighted geometric mean: no signal
+// dominates, a post is scored on the balance of its signals. `character`
+// stays in KnobState so the ?knobs= encoding and the persisted settings doc
+// keep their 5-field shape (old deep links + saved tunings still parse).
+export const FIXED_CHARACTER_DETEENT = 3;
+
+/** The fixed power-mean exponent the node ranks with (p = 0, geometric). */
+export const FIXED_CHARACTER_P = CHARACTER_DETENTS[FIXED_CHARACTER_DETEENT];
+
+// The server-side ranking config (the SDK's PowerMeanSort shape —
+// api/app/v3/models/documents.py). The node scores every readable post with
+// the weighted power mean and returns pre-sorted results, so a knob twist is
+// a re-read, not a client-side shuffle of the same 50.
+export interface PowerMeanSortConfig {
+  recency: number;
+  likes: number;
+  comments: number;
+  half_life_ms: number;
+  character: number;
+}
+
 // ── Knob State ──────────────────────────────────────────────────────────────
 
 interface KnobState {
@@ -176,6 +200,32 @@ export function rankPosts<T extends { _id?: string; created_at: string }>(
 }
 
 export type { KnobState, PostSignals };
+
+// The server-side power-mean sort config (D69): the knob state's detent
+// indices resolved to the float weights the node's `_power_mean_score_sql`
+// consumes (the same normalizers, so the node ranks identically to the client).
+// `null` = the Newest preset (chronological — the node orders by created_at and
+// the cursor rides on created_at, not the score).
+export type FeedRankSort = PowerMeanSortConfig | null;
+
+export function knobStateToSort(state: KnobState): FeedRankSort {
+  const recency = WEIGHT_DETENTS[state.recency];
+  const likes = WEIGHT_DETENTS[state.likes];
+  const comments = WEIGHT_DETENTS[state.comments];
+  // The Newest preset (recency-only, no likes/comments weight) → chronological
+  // (null sort → the node orders by created_at, cursor on created_at).
+  if (likes <= 0 && comments <= 0) return null;
+  return {
+    recency,
+    likes,
+    comments,
+    half_life_ms: HALF_LIFE_DETENTS[state.halfLife],
+    // The Character knob is gone — the exponent is fixed at the middle
+    // (p = 0, geometric). `state.character` is kept for ?knobs= / mix-code
+    // compat but no longer drives the ranking.
+    character: FIXED_CHARACTER_P,
+  };
+}
 
 export {
   WEIGHT_DETENTS,

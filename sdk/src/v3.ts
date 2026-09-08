@@ -69,6 +69,20 @@ export interface V3AdPreference {
   target?: string
 }
 
+// The power-mean ranking config (the feed knobs, server-side — D36). The node
+// scores every readable post with the weighted power mean and returns
+// pre-sorted results. Weights are 0..1 (0 = that signal is ignored);
+// half_life_ms is the recency decay half-life (0 = all time, no decay);
+// character is the power-mean exponent p (negative = strict, 0 = geometric,
+// positive = loose). Mirrors api/app/v3/models/documents.py PowerMeanSort.
+export interface PowerMeanSort {
+  recency?: number
+  likes?: number
+  comments?: number
+  half_life_ms?: number
+  character?: number
+}
+
 export interface V3Document {
   doc_id: string
   author_key: string
@@ -97,6 +111,9 @@ export interface V3Group {
   my_role: string
   member_count: number
   roles?: Record<string, unknown>[]
+  /** The D53 "blasting" flag — whether the group is listed in the public directory.
+   *  Returned by `/manages` + `/get`; optional for forward-compat (older nodes). */
+  discoverable?: boolean
 }
 
 export interface V3GroupMember {
@@ -130,6 +147,39 @@ export interface V3ServiceContract {
 export interface V3QueryResult {
   rows: Record<string, unknown>[]
   count: number
+}
+
+// The feed read (D69): one page of posts, ranked in SQL, cursor-paged. A post
+// carries the resolved media + HLS manifest URLs (in `body.media_refs`), the
+// pinned ad (`ad`) + node ad (`node_ad`) joins (the read-time attachment,
+// preserved), exact `likes`/`comments` counts, the rank `score`, and the
+// author's `profile` + resolved `avatar_url`.
+export interface V3FeedPost {
+  doc_id: string
+  author_key: string
+  body: Record<string, unknown>
+  tags?: string[]
+  created_at: string
+  ref_value?: string
+  ad_mode?: string
+  ad_target?: string
+  likes: number
+  comments: number
+  score: number
+  ad?: V3Document
+  node_ad?: V3Document
+  profile?: Record<string, unknown>
+  avatar_url?: string | null
+}
+
+// The feed envelope (w.feed): the page of posts + the pagination cursor.
+// `has_more` says whether another page exists; `next_cursor` is the keyset
+// cursor for the next page (`created_at` for the Newest preset, `score` for a
+// tuned preset) — pass it back as `cursor` to page forward.
+export interface V3FeedResult {
+  posts: V3FeedPost[]
+  has_more: boolean
+  next_cursor: { created_at?: string; score?: number } | null
 }
 
 // Group role definition — per-service permission map (D58).
@@ -411,7 +461,7 @@ export function createV3Client(options: V3ClientOptions = {}): V3Client {
 
     async read(
       collection: string,
-      opts: { groups: string[]; limit?: number; offset?: number; ref?: string | string[] },
+      opts: { groups: string[]; limit?: number; offset?: number; ref?: string | string[]; sort?: PowerMeanSort },
     ): Promise<V3Document[]> {
       const payload: V3Body = { service: collection, groups: opts.groups }
       if (opts.limit != null) payload.limit = opts.limit
@@ -420,6 +470,10 @@ export function createV3Client(options: V3ClientOptions = {}): V3Client {
       // ref_value matches. A single doc_id or a list (the engagement-count
       // shape). Routed through the safe-query engine server-side.
       if (opts.ref != null) payload.ref = opts.ref
+      // The power-mean ranking (the feed knobs, server-side — D36): when
+      // present, the node scores every readable post and returns pre-sorted
+      // results, so a knob twist is a re-read, not a client-side shuffle.
+      if (opts.sort != null) payload.sort = opts.sort
       return v3Post<V3Document[]>('read', payload)
     },
 
@@ -433,6 +487,44 @@ export function createV3Client(options: V3ClientOptions = {}): V3Client {
     ): Promise<Record<string, number>> {
       const payload: V3Body = { service: collection, groups: opts.groups, ref: opts.ref, count: true }
       return v3Post<Record<string, number>>('read', payload)
+    },
+
+    /**
+     * The feed read (D69): one page of posts, ranked in SQL, cursor-paged.
+     * The single round-trip that replaces the N+1 fan-out (per-author profiles,
+     * per-post media, per-avatar media, per-post counts). Returns a feed
+     * envelope: `posts` (each with resolved media + HLS, the pinned ad + node
+     * ad joins, exact likes/comments, and the author's profile + avatar_url) +
+     * `has_more` + `next_cursor`.
+     *
+     * `opts.groups` is the reader's feed groups (my groups minus discover).
+     * `opts.cursor` is the previous page's `next_cursor` (omit for page one).
+     * `opts.sort` is the power-mean knob config (omit / all-zero = the Newest
+     * preset, chronological). Anon-capable (a missing token reads the public
+     * board) — the same rule as `read`.
+     *
+     * @example First page (Newest):
+     * ```ts
+     * const { posts, has_more, next_cursor } = await w.feed({ groups: feedGroups, limit: 20 })
+     * ```
+     * @example Next page:
+     * ```ts
+     * const page2 = await w.feed({ groups: feedGroups, limit: 20, cursor: next_cursor })
+     * ```
+     */
+    async feed(opts: {
+      groups: string[]
+      limit?: number
+      cursor?: { created_at?: string; score?: number } | null
+      sort?: { recency?: number; likes?: number; comments?: number; half_life_ms?: number; character?: number }
+    }): Promise<V3FeedResult> {
+      const payload: Record<string, unknown> = { groups: opts.groups }
+      if (opts.limit != null) payload.limit = opts.limit
+      if (opts.cursor != null) payload.cursor = opts.cursor
+      if (opts.sort != null) payload.sort = opts.sort
+      const token = state.token ?? readTokenCookie()
+      if (token) payload.token = token
+      return authPost<V3FeedResult>(`${apiOrigin}/v3/feed`, payload)
     },
 
     async readById(
@@ -555,13 +647,16 @@ export function createV3Client(options: V3ClientOptions = {}): V3Client {
       joinPolicy: string,
       roles: Record<string, unknown>[],
       members: { member_key: string; role?: string }[],
+      opts?: { discoverable?: boolean },
     ): Promise<{ group_id: string }> {
-      return v3Post<{ group_id: string }>('groups/create', {
+      const payload: V3Body = {
         name,
         join_policy: joinPolicy,
         roles,
         members,
-      })
+      }
+      if (opts?.discoverable !== undefined) payload.discoverable = opts.discoverable
+      return v3Post<{ group_id: string }>('groups/create', payload)
     },
 
     async getGroup(groupId: string): Promise<V3Group> {
@@ -578,12 +673,17 @@ export function createV3Client(options: V3ClientOptions = {}): V3Client {
 
     async updateGroup(
       groupId: string,
-      opts?: { join_policy?: string; roles?: Record<string, unknown>[] },
+      opts?: { join_policy?: string; roles?: Record<string, unknown>[]; discoverable?: boolean },
     ): Promise<V3Group> {
       const payload: V3Body = { group_id: groupId }
       if (opts?.join_policy) payload.join_policy = opts.join_policy
       if (opts?.roles) payload.roles = opts.roles
+      if (opts?.discoverable !== undefined) payload.discoverable = opts.discoverable
       return v3Post<V3Group>('groups/update', payload)
+    },
+
+    async deleteGroup(groupId: string): Promise<{ group_id: string; status: string }> {
+      return v3Post<{ group_id: string; status: string }>('groups/delete', { group_id: groupId })
     },
 
     async joinGroup(groupId: string): Promise<V3GroupMember | { group_id: string; status: string }> {
@@ -908,8 +1008,9 @@ export interface V3Client {
 
   // CRUD with groups
   create(collection: string, body: Record<string, unknown>, opts?: { groups?: string[]; ad_preference?: V3AdPreference; ref_value?: string }): Promise<V3Document>
-  read(collection: string, opts: { groups: string[]; limit?: number; offset?: number; ref?: string | string[] }): Promise<V3Document[]>
+  read(collection: string, opts: { groups: string[]; limit?: number; offset?: number; ref?: string | string[]; sort?: PowerMeanSort }): Promise<V3Document[]>
   readRefCounts(collection: string, opts: { groups: string[]; ref: string | string[] }): Promise<Record<string, number>>
+  feed(opts: { groups: string[]; limit?: number; cursor?: { created_at?: string; score?: number } | null; sort?: { recency?: number; likes?: number; comments?: number; half_life_ms?: number; character?: number } }): Promise<V3FeedResult>
   readById(docId: string, collection: string): Promise<V3Document>
   query(sql: string, opts?: { groups?: string[] }): Promise<V3QueryResult>
   update(docId: string, body: Record<string, unknown>, opts?: { groups?: string[]; ad_preference?: V3AdPreference }): Promise<V3Document>
@@ -927,11 +1028,12 @@ export interface V3Client {
   contractOnReady(contracts: V3CR[], callback?: (response: { status: string; errors?: string[] }) => void): void
 
   // Groups
-  createGroup(name: string, joinPolicy: string, roles: Record<string, unknown>[], members: { member_key: string; role?: string }[]): Promise<{ group_id: string }>
+  createGroup(name: string, joinPolicy: string, roles: Record<string, unknown>[], members: { member_key: string; role?: string }[], opts?: { discoverable?: boolean }): Promise<{ group_id: string }>
   getGroup(groupId: string): Promise<V3Group>
   getMyGroups(): Promise<V3Group[]>
   getGroupsManages(): Promise<V3Group[]>
-  updateGroup(groupId: string, opts?: { join_policy?: string; roles?: Record<string, unknown>[] }): Promise<V3Group>
+  updateGroup(groupId: string, opts?: { join_policy?: string; roles?: Record<string, unknown>[]; discoverable?: boolean }): Promise<V3Group>
+  deleteGroup(groupId: string): Promise<{ group_id: string; status: string }>
   joinGroup(groupId: string): Promise<V3GroupMember | { group_id: string; status: string }>
   requestJoin(groupId: string): Promise<{ group_id: string; status: string }>
   leaveGroup(groupId: string): Promise<V3GroupMember>

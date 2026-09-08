@@ -5,14 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
 import {
-  readFeed,
-  getFeedGroups,
-  readFeedEngagement,
-  readProfile,
-  readUserProfile,
-  resolveMediaRefs,
-  countReactions,
-  countComments,
+  readFeedPage,
   toggleReaction,
   readSettings,
   saveSettings,
@@ -22,13 +15,8 @@ import {
   recordRepost,
 } from '@/data';
 import { getWapi } from '@/data/wapi';
-import type {
-  PostRecord,
-  MediaRecord,
-  ProfileRecord,
-} from '@/data/types';
+import { fromResolvedMediaRef, type ResolvedMediaRef, type PostRecord, type MediaRecord } from '@/data/types';
 import {
-  rankPosts,
   PRESETS,
   getPreset,
   type PresetId,
@@ -649,12 +637,13 @@ function FeedSkeleton() {
 export default function FeedScreen({ onAuthorClick }: { onAuthorClick?: (username: string, provider: string) => void }) {
   const [posts, setPosts] = useState<PostRecord[]>([]);
   const [loading, setLoading] = useState(true);
-  const [mediaMap, setMediaMap] = useState<Record<string, MediaRecord[]>>({});
+  const [loadingMore, setLoadingMore] = useState(false);
+  const [hasMore, setHasMore] = useState(false);
+  const [nextCursor, setNextCursor] = useState<{ created_at?: string; score?: number } | null>(null);
   const [reactionMap, setReactionMap] = useState<Record<string, number>>({});
   const [commentMap, setCommentMap] = useState<Record<string, number>>({});
   const [likedMap, setLikedMap] = useState<Record<string, boolean>>({});
-  const [profileMap, setProfileMap] = useState<Record<string, ProfileRecord>>({});
-  const [avatarUrlMap, setAvatarUrlMap] = useState<Record<string, string>>({});
+  const sentinelRef = useRef<HTMLDivElement>(null);
   const token = getWapi().readToken();
   const isOwnPost = (p: PostRecord) =>
     token && p.author_username === token.username && p.author_provider === token.provider;
@@ -733,110 +722,26 @@ export default function FeedScreen({ onAuthorClick }: { onAuthorClick?: (usernam
     }
   }, [setKnobUrl, persistKnobs]);
 
-  const loadFeed = useCallback(async () => {
+  // The feed read (D69): one request per page. `loadFeed` loads page one
+  // (resetting the feed); `loadMore` appends the next page (the cursor rides on
+  // created_at — chronological paging, the stable keyset). The counts, media,
+  // ads, and author profiles all ride in the payload — the client never
+  // re-fetches any of it (the N+1 the 267-requests diagnosis named).
+  //
+  // `knob` is the feed's ranking knobs — passed to the node so it ranks the
+  // page server-side (the D36 power-mean sort). The cursor rides on the score
+  // when ranked, created_at when chronological (the Newest preset).
+  const loadFeed = useCallback(async (cursor: { created_at?: string; score?: number } | null = null, knob: KnobState) => {
     setLoading(true);
     try {
-      // v3: readFeed returns PostRecord[] directly from group-based reads
-      // (newest first — the ranking below re-orders by the knob state).
-      const [feed, feedGroups] = await Promise.all([
-        readFeed('newest', 50),
-        getFeedGroups(),
-      ]);
-
-      // Engagement counts (the ref pattern — the same one DiscoverScreen
-      // runs): without this the likes/comments knobs only ever see recency.
-      let engLikes: Record<string, number> = {};
-      let engComments: Record<string, number> = {};
-      if (feedGroups.length) {
-        try {
-          // Server-side count (the ref pattern): GROUP BY ref_value through the
-          // engine for the feed's posts — exact, no cap.
-          const eng = await readFeedEngagement(
-            feedGroups,
-            feed.map((p) => p._id).filter((id): id is string => Boolean(id)),
-          );
-          engLikes = eng.likes;
-          engComments = eng.comments;
-        } catch (e) {
-          LOG('engagement — failed (degrading to zero counts):', e);
-        }
-      }
-      for (const p of feed) {
-        p.likes = engLikes[p._id || ''] || 0;
-        p.comments = engComments[p._id || ''] || 0;
-        p.reposts = 0;
-      }
-      setPosts(feed);
-
-      const token = getWapi().readToken();
-      if (!token) {
-        setLoading(false);
-        return;
-      }
-
-      const profiles: Record<string, ProfileRecord> = {};
-      for (const post of feed) {
-        const authorKey = `${post.author_username}@${post.author_provider}`;
-        if (!profiles[authorKey]) {
-          let profile: ProfileRecord | null = null;
-          try {
-            profile =
-              post.author_username === token.username
-                ? await readProfile()
-                : await readUserProfile(post.author_username || '');
-          } catch { /* fall through */ }
-          profiles[authorKey] = profile || { display_name: post.author_username };
-        }
-      }
-
-      // Resolve media refs per post
-      const mMedia: Record<string, MediaRecord[]> = {};
-      for (const post of feed) {
-        if (post.media_refs?.length) {
-          try {
-            const media = await resolveMediaRefs(post.media_refs);
-            mMedia[post._id || ''] = media;
-          } catch { /* skip media for this post */ }
-        }
-      }
-
-      // Resolve reaction/comment counts per post
-      const reactions: Record<string, number> = {};
-      const comments: Record<string, number> = {};
-      await Promise.all(
-        feed.map(async (post) => {
-          try {
-            const [rc, cc] = await Promise.all([
-              countReactions('posts', post._id || ''),
-              countComments(post._id || ''),
-            ]);
-            reactions[post._id || ''] = rc;
-            comments[post._id || ''] = cc;
-          } catch { /* counts stay 0 */ }
-        }),
-      );
-
-      // Resolve author avatars
-      const avatarByAuthor: Record<string, string> = {};
-      for (const [key, profile] of Object.entries(profiles)) {
-        if (profile.avatar_ref) {
-          const [u, p] = key.split('@');
-          try {
-            const avatars = await resolveMediaRefs(
-              [profile.avatar_ref],
-              { username: u, provider: p },
-              u === token.username ? 'media' : 'public_media',
-            );
-            if (avatars[0]?.url) avatarByAuthor[profile.avatar_ref] = avatars[0].url;
-          } catch { /* skip */ }
-        }
-      }
-
-      setMediaMap(mMedia);
-      setProfileMap(profiles);
-      setAvatarUrlMap(avatarByAuthor);
-      setReactionMap(reactions);
-      setCommentMap(comments);
+      const page = await readFeedPage({ limit: 20, cursor, knobState: knob });
+      setPosts(page.posts);
+      setHasMore(page.has_more);
+      setNextCursor(page.next_cursor);
+      // The counts ride in the payload (post.likes / post.comments) — no re-fetch.
+      setReactionMap(Object.fromEntries(page.posts.map((p) => [p._id || '', p.likes || 0])));
+      setCommentMap(Object.fromEntries(page.posts.map((p) => [p._id || '', p.comments || 0])));
+      LOG('loadFeed — page 1:', page.posts.length, 'posts, has_more:', page.has_more);
     } catch (e) {
       console.error('Failed to load feed:', e);
       setPosts([]);
@@ -844,25 +749,66 @@ export default function FeedScreen({ onAuthorClick }: { onAuthorClick?: (usernam
     setLoading(false);
   }, []);
 
-  useEffect(() => {
-    loadFeed();
-  }, [loadFeed]);
+  const loadMore = useCallback(async () => {
+    if (!hasMore || loadingMore || loading) return;
+    setLoadingMore(true);
+    try {
+      const page = await readFeedPage({ limit: 20, cursor: nextCursor, knobState: knobState });
+      setPosts((prev) => [...prev, ...page.posts]);
+      setHasMore(page.has_more);
+      setNextCursor(page.next_cursor);
+      setReactionMap((prev) => ({ ...prev, ...Object.fromEntries(page.posts.map((p) => [p._id || '', p.likes || 0])) }));
+      setCommentMap((prev) => ({ ...prev, ...Object.fromEntries(page.posts.map((p) => [p._id || '', p.comments || 0])) }));
+      // The cursor deep-link (the URL holds the scroll position — ?after=).
+      const params = new URLSearchParams(searchParams);
+      if (page.next_cursor?.created_at) params.set('after', page.next_cursor.created_at);
+      else params.delete('after');
+      setSearchParams(params, { replace: true });
+      LOG('loadMore — appended', page.posts.length, 'posts, has_more:', page.has_more);
+    } catch (e) {
+      console.error('Failed to load more feed:', e);
+    }
+    setLoadingMore(false);
+  }, [hasMore, loadingMore, loading, nextCursor, searchParams, setSearchParams, knobState]);
 
-  // Client-side re-ranking via knob state (zero network calls per twist —
-  // the same pattern as DiscoverScreen). The Newest preset (the default)
-  // short-circuits to pure chronological in rankPosts.
-  const rankedPosts = useMemo(() => {
-    return rankPosts(
-      posts,
-      (post) => ({
-        ageMs: Date.now() - new Date(post.created_at).getTime(),
-        likes: post.likes || 0,
-        comments: post.comments || 0,
-        reposts: post.reposts || 0,
-      }),
-      knobState,
+  // The node ranks the feed (the D36 power-mean sort, server-side) — a knob
+  // twist is a DEBOUNCED RE-READ of page one (the cursor resets; it was
+  // computed for the old ranking). First load (mount) fires immediately,
+  // restoring the ?after= deep link. The previous feed stays on screen while
+  // the re-read is in flight (no skeleton flash per twist).
+  const firstLoad = useRef(true);
+  const refreshTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  useEffect(() => {
+    if (firstLoad.current) {
+      firstLoad.current = false;
+      const after = searchParams.get('after');
+      LOG('load — initial, knobs:', encodeKnobState(knobState));
+      loadFeed(after ? { created_at: after } : null, knobState);
+      return;
+    }
+    if (refreshTimer.current) clearTimeout(refreshTimer.current);
+    LOG('knob change — re-reading feed (page 1) in 400ms, knobs:', encodeKnobState(knobState));
+    refreshTimer.current = setTimeout(() => loadFeed(null, knobState), 400);
+    return () => { if (refreshTimer.current) clearTimeout(refreshTimer.current); };
+  }, [knobState, loadFeed]);
+
+  // Infinite scroll: a sentinel at the bottom of the feed triggers loadMore
+  // when it scrolls into view (rootMargin prefetches a page early).
+  useEffect(() => {
+    const sentinel = sentinelRef.current;
+    if (!sentinel) return;
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries[0].isIntersecting) loadMore();
+      },
+      { rootMargin: '200px' },
     );
-  }, [posts, knobState]);
+    observer.observe(sentinel);
+    return () => observer.disconnect();
+  }, [loadMore]);
+
+  // The node returns the feed pre-ranked (the D36 power-mean sort,
+  // server-side) — `posts` is already in display order, no client re-rank.
 
   async function handleToggleLike(postId: string) {
     const token = getWapi().readToken();
@@ -904,36 +850,48 @@ export default function FeedScreen({ onAuthorClick }: { onAuthorClick?: (usernam
         {!posts.length ? (
           <FeedEmptyState />
         ) : (
-          rankedPosts.map((post) => {
-            const authorKey = `${post.author_username}@${post.author_provider}`;
-            const profile = profileMap[authorKey];
-            const mediaItems = mediaMap[post._id || ''] || [];
+          <>
+            {posts.map((post) => {
+              // The feed carries everything per post (D69) — media (resolved +
+              // HLS), the author's profile + avatar, and the counts. No maps,
+              // no re-fetch. The counts display off the live maps (initialized
+              // from the payload, bumped on like-toggle / comment-added).
+              const mediaItems = (post.media_refs || [])
+                .filter((r): r is ResolvedMediaRef => typeof r !== 'string')
+                .map(fromResolvedMediaRef);
 
-            return (
-              <PostCard
-                key={post._id || post.created_at}
-                post={post}
-                authorName={profile?.display_name || post.author_username || ''}
-                authorUsername={post.author_username}
-                authorProvider={post.author_provider}
-                authorAvatar={
-                  profile?.avatar_ref ? avatarUrlMap[profile.avatar_ref] : undefined
-                }
-                mediaItems={mediaItems}
-                reactionCount={reactionMap[post._id || ''] || 0}
-                commentCount={commentMap[post._id || ''] || 0}
-                liked={!!likedMap[post._id || '']}
-                timestamp={post.created_at}
-                onToggleLike={() => handleToggleLike(post._id || '')}
-                onCommentCountChange={(n) =>
-                  setCommentMap((prev) => ({ ...prev, [post._id || '']: n }))
-                }
-                onAuthorClick={onAuthorClick}
-                onPostUpdated={loadFeed}
-                isOwnPost={isOwnPost(post)}
-              />
-            );
-          })
+              return (
+                <PostCard
+                  key={post._id || post.created_at}
+                  post={post}
+                  authorName={post.profile?.display_name || post.author_username || ''}
+                  authorUsername={post.author_username}
+                  authorProvider={post.author_provider}
+                  authorAvatar={post.avatar_url}
+                  mediaItems={mediaItems}
+                  reactionCount={reactionMap[post._id || ''] || 0}
+                  commentCount={commentMap[post._id || ''] || 0}
+                  liked={!!likedMap[post._id || '']}
+                  timestamp={post.created_at}
+                  onToggleLike={() => handleToggleLike(post._id || '')}
+                  onCommentCountChange={(n) =>
+                    setCommentMap((prev) => ({ ...prev, [post._id || '']: n }))
+                  }
+                  onAuthorClick={onAuthorClick}
+                  onPostUpdated={() => loadFeed(null, knobState)}
+                  isOwnPost={isOwnPost(post)}
+                />
+              );
+            })}
+            {/* The infinite-scroll sentinel (triggers loadMore when it scrolls in) */}
+            <div ref={sentinelRef} className="h-12 flex items-center justify-center">
+              {loadingMore ? (
+                <Skeleton className="h-16 w-full" />
+              ) : hasMore ? (
+                <span className="text-xs text-muted-foreground">Loading…</span>
+              ) : null}
+            </div>
+          </>
         )}
       </div>
     </div>

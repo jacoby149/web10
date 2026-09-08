@@ -47,7 +47,7 @@ import {
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { MARKETING_ORIGIN } from '@/lib/origins';
-import { rankPosts, PRESETS, getPreset, type PresetId, type KnobState, defaultKnobState } from '@/lib/powerMean';
+import { PRESETS, getPreset, knobStateToSort, scorePost, FIXED_CHARACTER_DETEENT, type PresetId, type KnobState, type PowerMeanSortConfig, defaultKnobState } from '@/lib/powerMean';
 import { KnobRack } from './KnobRack';
 import { PostLightbox } from '@/components/Bio/PostLightbox';
 
@@ -865,6 +865,11 @@ export default function DiscoverScreen() {
   const [mediaMap, setMediaMap] = useState<Record<string, MediaRecord[]>>({});
   const [flatMediaMap, setFlatMediaMap] = useState<Record<string, MediaRecord>>({});
   const [lightboxPost, setLightboxPost] = useState<PostRecord | null>(null);
+  // True after the first successful board load — knob re-reads keep the
+  // previous grid on screen (no skeleton flash); only the cold start shows
+  // the skeleton. A ref (not state) so the stable `loadDiscover` callback
+  // can read it without a stale closure.
+  const hasLoadedRef = useRef(false);
 
   // Deep-link: active tag from ?tag= (refresh-safe, shareable)
   const [searchParams, setSearchParams] = useSearchParams();
@@ -939,13 +944,15 @@ export default function DiscoverScreen() {
   const [followStates, setFollowStates] = useState<Record<string, boolean>>({});
   const [followLoading, setFollowLoading] = useState<Record<string, boolean>>({});
 
-  const loadDiscover = useCallback(async () => {
-    setLoading(true);
-    LOG('loadDiscover — start');
+  const loadDiscover = useCallback(async (sort: PowerMeanSortConfig | null = null) => {
+    // `loading` is the INITIAL skeleton only — a knob-triggered re-read keeps
+    // the previous grid on screen (no skeleton flash per twist).
+    if (!hasLoadedRef.current) setLoading(true);
+    LOG('loadDiscover — start, sort:', sort ? JSON.stringify(sort) : '(chronological)');
     try {
-      // Fetch a large set from the API (both trending + recent merged)
-      // so client-side re-ranking has material to work with.
-      const results = await readDiscoverFeed('trending', 50);
+      // The node ranks the board (the D36 power-mean sort, server-side) — a
+      // knob twist is a re-read, not a client-side shuffle of the same 50.
+      const results = await readDiscoverFeed(sort, 50);
       LOG('loadDiscover — got', results.length, 'posts');
 
       const token = getWapi().readToken();
@@ -986,6 +993,7 @@ export default function DiscoverScreen() {
       }
 
       setPosts(results);
+      hasLoadedRef.current = true;
 
       if (!token) {
         setLoading(false);
@@ -1072,7 +1080,9 @@ export default function DiscoverScreen() {
       }
     } catch (e) {
       LOG('loadDiscover — failed:', e);
-      setPosts([]);
+      // A failed re-read (a knob twist) keeps the previous grid on screen —
+      // only a cold-start failure shows the empty state.
+      if (!hasLoadedRef.current) setPosts([]);
     } finally {
       setLoading(false);
     }
@@ -1104,9 +1114,32 @@ export default function DiscoverScreen() {
     }
   }, []);
 
+  // The server-side ranking config for the current knob state. The Newest
+  // preset is pure chronological — the board's default read (no sort param).
+  const sortConfig = useMemo<PowerMeanSortConfig | null>(() => {
+    if (activePreset === 'newest') return null;
+    return knobStateToSort(knobState);
+  }, [knobState, activePreset]);
+
+  // The node ranks the board (the D36 power-mean sort, server-side) — a knob
+  // twist is a DEBOUNCED RE-READ, not a client-side shuffle of the same 50.
+  // First load (mount) fires immediately; knob bursts (a rotary drag is a
+  // run of detent steps) settle into one fetch 400ms after the last twist.
+  // The previous grid stays on screen while the re-read is in flight.
+  const firstLoad = useRef(true);
+  const refreshTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   useEffect(() => {
-    loadDiscover();
-  }, [loadDiscover]);
+    if (firstLoad.current) {
+      firstLoad.current = false;
+      LOG('load — initial, sort:', sortConfig ? JSON.stringify(sortConfig) : '(chronological)');
+      loadDiscover(sortConfig);
+      return;
+    }
+    if (refreshTimer.current) clearTimeout(refreshTimer.current);
+    LOG('knob change — re-reading board in 400ms, sort:', sortConfig ? JSON.stringify(sortConfig) : '(chronological)');
+    refreshTimer.current = setTimeout(() => loadDiscover(sortConfig), 400);
+    return () => { if (refreshTimer.current) clearTimeout(refreshTimer.current); };
+  }, [sortConfig, loadDiscover]);
 
   useEffect(() => {
     loadSuggested();
@@ -1167,23 +1200,29 @@ export default function DiscoverScreen() {
     }
   }, [setKnobUrl]);
 
-  // Client-side re-ranking via knob state (zero network calls per twist)
-  const rankedPosts = useMemo(() => {
-    return rankPosts(posts, postToSignals, knobState);
+  // The node returns the board pre-ranked (the D36 power-mean sort,
+  // server-side) — `posts` is already in display order, no client re-rank.
+  // The heat glow still needs a per-post score, so it's computed for DISPLAY
+  // only (the fixed character — the knob is gone); it never affects order.
+  const scoredPosts = useMemo(() => {
+    return posts.map(p => ({
+      ...p,
+      score: scorePost(postToSignals(p), { ...knobState, character: FIXED_CHARACTER_DETEENT }),
+    }));
   }, [posts, knobState]);
 
   const maxScore = useMemo(
-    () => Math.max(1, ...rankedPosts.map(p => p.score ?? 0)),
-    [rankedPosts],
+    () => Math.max(1, ...scoredPosts.map(p => p.score ?? 0)),
+    [scoredPosts],
   );
 
   const topics = useMemo(
-    () => ['All', ...buildTopics(rankedPosts.flatMap(p => p.tags ?? []))],
-    [rankedPosts],
+    () => ['All', ...buildTopics(scoredPosts.flatMap(p => p.tags ?? []))],
+    [scoredPosts],
   );
 
   const visiblePosts = useMemo(() => {
-    let filtered = rankedPosts;
+    let filtered = scoredPosts;
     if (activeTag && activeTag !== 'All') {
       filtered = filtered.filter(p => p.tags?.includes(activeTag) ?? false);
     }
@@ -1196,7 +1235,7 @@ export default function DiscoverScreen() {
       );
     }
     return filtered;
-  }, [rankedPosts, activeTag, searchQuery]);
+  }, [scoredPosts, activeTag, searchQuery]);
 
   // YouTube view: media posts only (video + image)
   const mediaPosts = useMemo(
@@ -1453,7 +1492,7 @@ export default function DiscoverScreen() {
           post={lightboxPost}
           mediaMap={flatMediaMap}
           onClose={() => setLightboxPost(null)}
-          onReload={loadDiscover}
+          onReload={() => loadDiscover(sortConfig)}
           postAuthor={lightboxPost.author_username}
           postService="posts"
         />

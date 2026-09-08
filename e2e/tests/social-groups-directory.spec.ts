@@ -250,7 +250,7 @@ test.describe('social-groups-directory gauntlet — the /groups screen', () => {
     // --- The group detail deep link renders (URL holds the state) ---
     await page.goto(`${SOCIAL_BASE}/groups/${encodeURIComponent(groupId)}`);
     await page.waitForLoadState('networkidle');
-    await expect(page.locator('[data-testid="group-detail-card"]')).toBeVisible();
+    await expect(page.locator('[data-testid="group-detail-topbar"]')).toBeVisible();
     await expect(page.locator('[data-testid="group-detail-name"]')).toContainText(slug);
     // A member sees the Leave button (not Join).
     await expect(page.locator('[data-testid="group-detail-leave"]')).toBeVisible();

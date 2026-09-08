@@ -14,6 +14,7 @@ vi.mock('@/data', async (importOriginal) => {
   return {
     ...original,
     readFeed: vi.fn().mockResolvedValue([]),
+    readFeedPage: vi.fn().mockResolvedValue({ posts: [], has_more: false, next_cursor: null }),
     getFeedGroups: vi.fn().mockResolvedValue([]),
     readFeedEngagement: vi.fn().mockResolvedValue({ likes: {}, comments: {} }),
     readProfile: vi.fn().mockResolvedValue(null),
@@ -79,17 +80,21 @@ const NEW_POST = {
   reposts: 0,
 };
 
+// The node ranks the feed server-side (the D36 power-mean sort) — the mock
+// simulates the node: it inspects the knobState the feed passed to
+// readFeedPage and returns posts in the order the node would for that tuning.
+// The Newest preset (recency-only) → chronological (newest first); a
+// likes-weighted tuning (the "Most loved" preset) → high-engagement first.
 function mockFeed() {
-  (data.readFeed as ReturnType<typeof vi.fn>).mockResolvedValue([
-    { ...OLD_POST },
-    { ...NEW_POST },
-  ]);
-  // The ref pattern populates the engagement counts (the knobs' signal).
-  (data.getFeedGroups as ReturnType<typeof vi.fn>).mockResolvedValue(['g1']);
-  (data.readFeedEngagement as ReturnType<typeof vi.fn>).mockResolvedValue({
-    likes: { p1: 500, p2: 1 },
-    comments: { p1: 100, p2: 0 },
-  });
+  (data.readFeedPage as ReturnType<typeof vi.fn>).mockImplementation(
+    async (opts: { knobState?: { recency: number; likes: number; comments: number } }) => {
+      const ks = opts.knobState;
+      if (ks && ks.likes > 0 && ks.recency === 0) {
+        return { posts: [{ ...OLD_POST }, { ...NEW_POST }], has_more: false, next_cursor: null };
+      }
+      return { posts: [{ ...NEW_POST }, { ...OLD_POST }], has_more: false, next_cursor: null };
+    },
+  );
 }
 
 function cardOrder(): string[] {
@@ -98,7 +103,14 @@ function cardOrder(): string[] {
     .map((c) => c.querySelector('[data-testid="post-author-link"]')?.textContent || '');
 }
 
-describe('FeedScreen — the D36 knobs (same rack as the trending page)', () => {
+// The knobState the most recent readFeedPage call carried (the server-side
+// ranking the node was asked to apply).
+function lastReadFeedKnobState(): unknown {
+  const calls = (data.readFeedPage as ReturnType<typeof vi.fn>).mock.calls;
+  return calls[calls.length - 1][0].knobState;
+}
+
+describe('FeedScreen — the D36 knobs (server-side ranking via readFeedPage)', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     (data.readSettings as ReturnType<typeof vi.fn>).mockResolvedValue({ defaultVisibility: 'public' });
@@ -117,30 +129,45 @@ describe('FeedScreen — the D36 knobs (same rack as the trending page)', () => 
     expect(screen.getByTestId('knobs-advanced-toggle')).toBeInTheDocument();
   });
 
-  it('defaults to the Newest preset (the feed is chronological until tuned)', async () => {
+  it('defaults to the Newest preset — a chronological read', async () => {
     mockFeed();
     await renderFeed();
     await waitFor(() => {
       expect(screen.getAllByTestId('post-card').length).toBe(2);
     });
     expect(screen.getByTestId('preset-newest').classList).toContain('border-brand');
-    // Newest first: the brand-new post (user2) ranks before the week-old one.
+    // The node's chronological default: the brand-new post (user2) comes
+    // before the week-old one.
     expect(cardOrder()).toEqual(['user2', 'user1']);
+    // The default read carries the Newest knobState (recency-only).
+    expect(lastReadFeedKnobState()).toMatchObject({ recency: 5, likes: 0, comments: 0 });
   });
 
-  it('preset switch re-ranks the feed (Most loved puts the high-engagement post first)', async () => {
+  it('preset switch re-reads the feed from the node (debounced, Most loved first)', async () => {
     mockFeed();
     await renderFeed();
     await waitFor(() => {
       expect(screen.getAllByTestId('post-card').length).toBe(2);
     });
+    // The initial read is the Newest (chronological) knobState.
+    expect(lastReadFeedKnobState()).toMatchObject({ recency: 5, likes: 0 });
 
-    fireEvent.click(screen.getByTestId('preset-most-loved'));
-    await waitFor(() => {
+    vi.useFakeTimers();
+    try {
+      fireEvent.click(screen.getByTestId('preset-most-loved'));
+      // The re-read is debounced (a knob burst settles into one fetch).
+      await vi.advanceTimersByTimeAsync(400);
+      // Let the re-read's async resolution flush (fake timers: no real
+      // waiting — advance a little more so microtasks settle).
+      await vi.advanceTimersByTimeAsync(50);
       expect(screen.getByTestId('preset-most-loved').classList).toContain('border-brand');
-    });
-    // The week-old post with 500 likes now ranks first.
-    expect(cardOrder()).toEqual(['user1', 'user2']);
+      // The node re-ranked: the week-old post with 500 likes now comes first.
+      expect(cardOrder()).toEqual(['user1', 'user2']);
+      // The re-read carried the Most-loved knobState (likes-weighted).
+      expect(lastReadFeedKnobState()).toMatchObject({ likes: 5, recency: 0 });
+    } finally {
+      vi.useRealTimers();
+    }
   });
 
   it('writes the knob state to the URL (?knobs=, the deep-link rule)', async () => {
@@ -164,6 +191,9 @@ describe('FeedScreen — the D36 knobs (same rack as the trending page)', () => 
       expect(screen.getAllByTestId('post-card').length).toBe(2);
     });
     expect(screen.getByTestId('preset-most-loved').classList).toContain('border-brand');
+    // The initial read carried the Most-loved knobState (the URL held the ranking).
+    const firstCall = (data.readFeedPage as ReturnType<typeof vi.fn>).mock.calls[0][0];
+    expect(firstCall.knobState).toMatchObject({ likes: 5, recency: 0 });
     expect(cardOrder()).toEqual(['user1', 'user2']);
   });
 
@@ -177,9 +207,12 @@ describe('FeedScreen — the D36 knobs (same rack as the trending page)', () => 
     await waitFor(() => {
       expect(screen.getAllByTestId('post-card').length).toBe(2);
     });
+    // The saved tuning arrives async → the chip flips, then the re-read is
+    // debounced 400ms. Wait for the re-read to land (the knobState-carrying call).
     await waitFor(() => {
-      expect(screen.getByTestId('preset-most-loved').classList).toContain('border-brand');
-    });
+      expect(lastReadFeedKnobState()).toMatchObject({ likes: 5, recency: 0 });
+    }, { timeout: 2000 });
+    expect(screen.getByTestId('preset-most-loved').classList).toContain('border-brand');
     expect(cardOrder()).toEqual(['user1', 'user2']);
   });
 
@@ -195,6 +228,9 @@ describe('FeedScreen — the D36 knobs (same rack as the trending page)', () => 
       expect(screen.getAllByTestId('post-card').length).toBe(2);
     });
     expect(screen.getByTestId('preset-newest').classList).toContain('border-brand');
+    // The URL's Newest preset wins — the read is chronological (recency-only).
+    const firstCall = (data.readFeedPage as ReturnType<typeof vi.fn>).mock.calls[0][0];
+    expect(firstCall.knobState).toMatchObject({ recency: 5, likes: 0 });
     expect(cardOrder()).toEqual(['user2', 'user1']);
   });
 
