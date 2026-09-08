@@ -10,7 +10,6 @@ from app.services.auth import (
     certify_with_remote_provider,
     check_admin,
     get_password_hash,
-    pwd_context,
     verify_password,
 )
 
@@ -73,21 +72,30 @@ class TestCheckAdmin:
 
 
 class TestPasswordHash:
-    def test_hash_produces_string(self, mocker):
-        mocker.patch.object(pwd_context, "hash", return_value="hashed_value")
+    def test_hash_produces_bcrypt_string(self):
         h = get_password_hash("mysecret")
-        assert h == "hashed_value"
+        assert h.startswith("$2")
 
-    def test_hash_differs_for_different_passwords(self, mocker):
-        mocker.patch.object(pwd_context, "hash", side_effect=["hash1", "hash2"])
+    def test_hash_differs_for_different_passwords(self):
         h1 = get_password_hash("pass1")
         h2 = get_password_hash("pass2")
         assert h1 != h2
 
-    def test_verify_matches_hash(self, mocker):
-        mocker.patch.object(pwd_context, "verify", return_value=True)
-        assert verify_password("mysecret", "hashed") is True
+    def test_verify_matches_hash(self):
+        h = get_password_hash("mysecret")
+        assert verify_password("mysecret", h) is True
 
-    def test_verify_fails_wrong_password(self, mocker):
-        mocker.patch.object(pwd_context, "verify", return_value=False)
-        assert verify_password("wrong", "hashed") is False
+    def test_verify_fails_wrong_password(self):
+        h = get_password_hash("mysecret")
+        assert verify_password("wrong", h) is False
+
+    def test_verify_malformed_hash_returns_false(self):
+        assert verify_password("mysecret", "not-a-bcrypt-hash") is False
+
+    def test_long_password_truncates_to_72_bytes(self):
+        # bcrypt only consumes the first 72 bytes; hashing must not raise and
+        # must match a password truncated to the same prefix.
+        long_pw = "a" * 100
+        h = get_password_hash(long_pw)
+        assert verify_password(long_pw, h) is True
+        assert verify_password("a" * 72, h) is True
