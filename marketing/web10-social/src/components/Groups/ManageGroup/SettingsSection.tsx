@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { LockOpen, MessageSquare, Lock, Globe, UserCheck, Loader2, Eye } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { updateGroup, addGroupMember, removeGroupMember, getGroupMembers } from '@/data';
+import { errorMessage } from '@/components/shared/Toast';
 import { cn } from '@/lib/utils';
 
 const LOG = (...args: unknown[]) => console.log('[social:groups:manage:settings]', ...args);
@@ -82,7 +83,7 @@ export default function ManageSettingsSection({
         onSaved();
       } catch (e) {
         LOG('join policy — failed:', e);
-        setError('Could not update the join policy.');
+        setError(errorMessage(e, 'Could not update the join policy.'));
       } finally {
         setSaving(false);
       }
@@ -110,7 +111,7 @@ export default function ManageSettingsSection({
         onSaved();
       } catch (e) {
         LOG('who can read — failed:', e);
-        setError('Could not update who can read.');
+        setError(errorMessage(e, 'Could not update who can read.'));
       } finally {
         setSaving(false);
       }
@@ -130,7 +131,7 @@ export default function ManageSettingsSection({
     } catch (e) {
       LOG('list in directory — failed:', e);
       setListed(!next);
-      setError('Could not update the directory listing.');
+      setError(errorMessage(e, 'Could not update the directory listing.'));
     } finally {
       setSaving(false);
     }

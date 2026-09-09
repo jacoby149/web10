@@ -1,4 +1,4 @@
-import { getV3Client, readTokenCookie, type V3Group, type V3Document } from './v3';
+import { getV3Client, readTokenCookie, extractDetail, Web10Error, type V3Group, type V3Document } from './v3';
 import { extractUsername } from './types';
 import { API_HOST, API_ORIGIN } from '../lib/origins';
 
@@ -659,8 +659,9 @@ export async function readGroupDirectory(
     { headers: { 'Content-Type': 'application/json' } },
   );
   if (!res.ok) {
-    LOG('readGroupDirectory — failed', res.status);
-    throw new Error(`Group directory read failed: ${res.status}`);
+    const detail = await res.text().then(extractDetail).catch(() => null);
+    LOG('readGroupDirectory — failed', res.status, detail ?? '');
+    throw new Error(detail ?? `Group directory read failed: ${res.status}`);
   }
   const data = (await res.json()) as { groups: GroupDirectoryEntry[] };
   LOG('readGroupDirectory — got', data.groups.length, 'groups');
@@ -681,8 +682,12 @@ export async function readGroupDetail(groupId: string): Promise<GroupDetail> {
     headers: { 'Content-Type': 'application/json' },
   });
   if (!res.ok) {
-    LOG('readGroupDetail — failed', res.status, groupId);
-    throw new Error(`Group detail read failed: ${res.status}`);
+    const detail = await res.text().then(extractDetail).catch(() => null);
+    LOG('readGroupDetail — failed', res.status, groupId, detail ?? '');
+    // A Web10Error carries the status so the detail screen can still key its
+    // "not found" state off a 404 (a ghost group) vs. a real error; the
+    // message is the API's detail (informative) with a status fallback.
+    throw new Web10Error(detail ?? `Group detail read failed: ${res.status}`, res.status);
   }
   const data = (await res.json()) as GroupDetail;
   LOG('readGroupDetail — got', data.name, {

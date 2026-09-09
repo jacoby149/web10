@@ -182,13 +182,13 @@ describe('GroupSettingsDialog — join policy editor', () => {
     })
   })
 
-  it('save failure → error status, no successful update', async () => {
+  it('save failure → error status with the reason, no successful update', async () => {
     settingsI.v3UpdateGroup.mockRejectedValueOnce(new Error('boom'))
     render(<GroupSettingsDialog open={true} onOpenChange={vi.fn()} group={settingsGroup} I={settingsI} />)
     fireEvent.click(screen.getByTestId('join-policy-request'))
     fireEvent.click(screen.getByRole('button', { name: 'Save settings' }))
     await waitFor(() => {
-      expect(settingsI.setStatus).toHaveBeenCalledWith('Failed to update join policy')
+      expect(settingsI.setStatus).toHaveBeenCalledWith('Failed to update join policy: boom')
     })
   })
 

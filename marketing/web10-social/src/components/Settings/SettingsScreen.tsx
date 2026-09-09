@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { getWapi } from '@/data/wapi';
 import { readSettings, saveSettings, type AppSettings } from '@/data/settings';
+import { toast, errorMessage } from '@/components/shared/Toast';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { Settings as SettingsIcon, User, Database, Info, LogOut, ExternalLink, Shield, Bug, Eye, Lock, Loader2, Zap } from 'lucide-react';
@@ -194,8 +195,13 @@ export default function SettingsScreen({ onLogout, onReportBug }: { onLogout: ()
   }, []);
 
   async function handleSaveSettings(partial: Partial<AppSettings>) {
-    const saved = await saveSettings(partial);
-    setSettings(saved);
+    try {
+      const saved = await saveSettings(partial);
+      setSettings(saved);
+    } catch (e) {
+      console.error('Failed to save settings:', e);
+      toast.error(errorMessage(e, 'Could not save your settings.'));
+    }
   }
 
   return (

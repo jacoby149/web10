@@ -36,9 +36,42 @@ async function v3Post(action: string, body: Record<string, any>) {
     });
     if (!res.ok) {
         const text = await res.text().catch(() => '');
-        throw new Error(`v3 ${action} failed: ${res.status} ${text}`);
+        // Surface the API's `detail` (FastAPI `{"detail": "…"}`) as the message
+        // so the user sees exactly what went wrong, not just the status code.
+        // Falls back to the status + raw body when the body isn't JSON.
+        const detail = extractDetail(text);
+        throw new Error(detail ?? `v3 ${action} failed: ${res.status} ${text}`);
     }
     return res.json();
+}
+
+/**
+ * Extract the human-readable reason from a FastAPI error body
+ * (`{"detail": "…"}`). Returns null when the body isn't a JSON object with a
+ * usable detail (a proxy page, an empty body, …) so the caller can fall back
+ * to the status line. Mirrors the SDK's `extractDetail` (the auth UI keeps its
+ * own copy — it doesn't import the SDK's http transport).
+ */
+function extractDetail(text: string): string | null {
+    if (!text) return null;
+    let data: unknown;
+    try {
+        data = JSON.parse(text);
+    } catch {
+        return null;
+    }
+    if (typeof data !== 'object' || data === null) return null;
+    const detail = (data as { detail?: unknown }).detail;
+    if (typeof detail === 'string' && detail.trim()) return detail;
+    if (Array.isArray(detail)) {
+        const parts = detail.map((d) => {
+            const item = d as { msg?: unknown } | null;
+            return typeof item?.msg === 'string' ? item.msg : null;
+        });
+        const joined = parts.filter(Boolean).join('; ');
+        if (joined) return joined;
+    }
+    return null;
 }
 
 /**
@@ -1062,7 +1095,7 @@ function applyACR(cr: any) {
         I.v3
             .sendCode()
             .then(() => I.setStatus("Code sent!"))
-            .catch(() => I.setStatus("Failed to send code."));
+            .catch((e: any) => I.setStatus("Failed to send code: " + (e?.message || String(e))));
     }
 
     I.verifyCode = function (code: string) {
@@ -1077,7 +1110,7 @@ function applyACR(cr: any) {
                     I.setStatus(null);
                 }, 1000);
             })
-            .catch(() => I.setStatus("Wrong code."));
+            .catch((e: any) => I.setStatus("Verification failed: " + (e?.message || String(e))));
     }
 
     I.changePassword = function (currentPass: string, newPass: string, retypeNewPass: string) {
