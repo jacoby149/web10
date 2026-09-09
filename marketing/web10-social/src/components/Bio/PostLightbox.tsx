@@ -105,7 +105,12 @@ export function PostLightbox({ post, mediaMap, onClose, onReload, postAuthor, po
   const [editDraft, setEditDraft] = useState(currentPost.text || '');
   const [saving, setSaving] = useState(false);
 
-  // Delete confirm state
+  // Delete confirm state. `deleteArmed` reveals the confirm UI (type "delete"
+  // to proceed); `deleteConfirm` is the typed value that gates the confirm
+  // button. (Previously the confirm UI was gated on deleteConfirm === 'delete',
+  // which was unreachable — the input that sets it only rendered after it was
+  // already 'delete', so the delete button did nothing.)
+  const [deleteArmed, setDeleteArmed] = useState(false);
   const [deleteConfirm, setDeleteConfirm] = useState('');
 
   // Visibility toggle state
@@ -470,7 +475,7 @@ export function PostLightbox({ post, mediaMap, onClose, onReload, postAuthor, po
                 Edit post
               </Button>
 
-              {deleteConfirm === 'delete' ? (
+              {deleteArmed ? (
                 <div className="space-y-2">
                   <p className="text-xs text-danger">Type <span className="font-mono font-medium">delete</span> to confirm</p>
                   <Input
@@ -485,6 +490,7 @@ export function PostLightbox({ post, mediaMap, onClose, onReload, postAuthor, po
                       variant="destructive"
                       size="sm"
                       onClick={handleDelete}
+                      disabled={deleteConfirm !== 'delete'}
                       className="text-xs flex-1"
                       data-testid="post-delete-confirm-button"
                     >
@@ -493,7 +499,7 @@ export function PostLightbox({ post, mediaMap, onClose, onReload, postAuthor, po
                     <Button
                       variant="ghost"
                       size="sm"
-                      onClick={() => setDeleteConfirm('')}
+                      onClick={() => { setDeleteArmed(false); setDeleteConfirm(''); }}
                       className="text-xs"
                     >
                       Cancel
@@ -504,7 +510,7 @@ export function PostLightbox({ post, mediaMap, onClose, onReload, postAuthor, po
                 <Button
                   variant="ghost"
                   size="sm"
-                  onClick={() => setDeleteConfirm('')}
+                  onClick={() => { setDeleteArmed(true); setDeleteConfirm(''); }}
                   className="text-sm text-danger hover:text-danger hover:bg-danger-muted gap-1.5 w-full justify-start"
                   data-testid="post-delete-button"
                 >
