@@ -17,6 +17,7 @@ function useMockInterface() {
     [I.services, I.setServices] = React.useState(mockServices);
     [I.requests, I.setRequests] = React.useState(mockRequests);
     [I.phone, I.setPhone] = React.useState("13472092325");
+    [I.contact, I.setContact] = React.useState("13472092325");
 
     [I.recoveryStep, I._setRecoveryStep] = React.useState("contact");
     [I.recoveryContact, I.setRecoveryContact] = React.useState("13472092325");

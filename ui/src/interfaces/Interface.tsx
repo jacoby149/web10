@@ -181,6 +181,8 @@ function useInterface() {
     [I.services, I.setServices] = React.useState([]);
     [I.requests, I.setRequests] = React.useState([]);
     [I.phone, I.setPhone] = React.useState("");
+    // Registration contact (D61): phone OR email, entered on the signup form.
+    [I.contact, I.setContact] = React.useState("");
 
     // Contact-anchored auth (D61): contact (phone OR email) → code → pick an
     // account (or create one) → sign in. The step is wizard state (default
@@ -1056,7 +1058,7 @@ function applyACR(cr: any) {
         I.setStatus("Data wiping is a v4 feature.");
     }
 
-    I.signup = function (provider: string, username: string, password: string, retype: string, betacode: string, phone: string) {
+    I.signup = function (provider: string, username: string, password: string, retype: string, betacode: string, contact: string) {
         if (password !== retype) {
             I.setStatus("Failed to Sign Up : Passwords do not match.");
             return;
@@ -1065,13 +1067,21 @@ function applyACR(cr: any) {
             I.setStatus("Failed to Sign Up : Must not leave username or password blank");
             return;
         }
-        else if (phone.length < 7) {
-            I.setStatus("Must Enter Phone Number");
+        // Contact (D61): phone OR email. The node's `require_contact` config
+        // decides server-side whether one is required — the unauthenticated
+        // signup screen has no public config read, so we validate format here
+        // (a non-empty contact that looks like a phone or an email) and let
+        // the server enforce the requirement.
+        const c = (contact || "").trim();
+        const isEmail = c.includes("@");
+        const isPhone = c.replace(/[^\d]/g, "").length >= 7;
+        if (c && !isEmail && !isPhone) {
+            I.setStatus("Enter a valid phone number or email");
             return;
         }
         I.setStatus("Signing Up ...");
         I.v3
-            .signup(username, password, phone)
+            .signup(username, password, isEmail ? undefined : c || undefined, isEmail ? c || undefined : undefined)
             .then(() =>
                 I.login(provider, username, password)
             )
