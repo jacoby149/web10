@@ -11,6 +11,7 @@ import { sendP2P, onP2PInbound, isP2PReady, getOnlinePeers, peerIdFor, onPresenc
 import type { DmRecord, ContactRecord, FollowRecord } from '@/data/types';
 import { Send, ChevronLeft, Plus, X, Search, MessageSquare, Mail, Users, MoreVertical, Edit3, Trash2, Check, Loader2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { toast, errorMessage } from '@/components/shared/Toast';
 import { TextWithLinks } from '@/components/Feed/LinkEmbed';
 import { MARKETING_ORIGIN } from '@/lib/origins';
 import MailView from './MailView';
@@ -143,6 +144,7 @@ function ContactPicker({
         onSelect(person, conversation);
       } catch (e) {
         console.error('Failed to start conversation:', e);
+        toast.error(errorMessage(e, 'Could not start the conversation.'));
       } finally {
         setSending(false);
       }
@@ -179,6 +181,7 @@ function ContactPicker({
       onSelect(person, conversation);
     } catch (e) {
       console.error('Failed to compose to username:', e);
+      toast.error(errorMessage(e, 'Could not send the message.'));
     } finally {
       setSending(false);
     }
@@ -520,6 +523,7 @@ function MessageBubble({
       setEditing(false);
     } catch (e) {
       console.error('Failed to edit message:', e);
+      toast.error(errorMessage(e, 'Could not save your edit.'));
       setDraft(msg.message);
       setEditing(false);
     } finally {
@@ -800,6 +804,7 @@ export default function DmsScreen() {
       });
     } catch (e) {
       console.error('Failed to send message:', e);
+      toast.error(errorMessage(e, 'Could not send the message.'));
     } finally {
       setSending(false);
     }
@@ -818,6 +823,7 @@ export default function DmsScreen() {
           setMessages((prev) => prev.filter((m) => m._id !== id));
         } catch (e) {
           console.error('Failed to delete message:', e);
+          toast.error(errorMessage(e, 'Could not delete the message.'));
         }
         setConfirmDialog((prev) => ({ ...prev, open: false }));
       },
@@ -832,6 +838,7 @@ export default function DmsScreen() {
       setMessages((prev) => prev.map((m) => m._id === id ? updated : m));
     } catch (e) {
       console.error('Failed to edit message:', e);
+      toast.error(errorMessage(e, 'Could not save your edit.'));
     }
   }
 
@@ -849,6 +856,7 @@ export default function DmsScreen() {
           await loadData();
         } catch (e) {
           console.error('Failed to delete conversation:', e);
+          toast.error(errorMessage(e, 'Could not delete the conversation.'));
         }
         setConfirmDialog((prev) => ({ ...prev, open: false }));
       },

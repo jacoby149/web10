@@ -66,8 +66,8 @@ function CreateGroupDialog({ open, onOpenChange, I }: { open: boolean; onOpenCha
       I.v3GroupsLoad?.();
       I.v3GroupsManagesLoad?.();
       onOpenChange(false);
-    } catch {
-      I.setStatus?.('Failed to create group');
+    } catch (e: any) {
+      I.setStatus?.('Failed to create group: ' + (e?.message || String(e)));
     } finally {
       setSaving(false);
     }
@@ -181,8 +181,8 @@ function JoinGroupDialog({ open, onOpenChange, I }: { open: boolean; onOpenChang
       setGroupId('');
       I.v3GroupsLoad?.();
       onOpenChange(false);
-    } catch {
-      I.setStatus?.('Failed to join group');
+    } catch (e: any) {
+      I.setStatus?.('Failed to join group: ' + (e?.message || String(e)));
     } finally {
       setSaving(false);
     }

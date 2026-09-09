@@ -44,8 +44,8 @@ function MemberRow({ member, isManaged, I, group }: { member: any; isManaged: bo
                 await I.v3RemoveGroupMember(group.group_id, member.member_key);
                 I.setStatus?.(`${member.member_key} removed`);
                 I.v3GroupsManagesLoad?.();
-              } catch {
-                I.setStatus?.('Failed to remove member');
+              } catch (e: any) {
+                I.setStatus?.('Failed to remove member: ' + (e?.message || String(e)));
               }
             }}
           >
@@ -85,8 +85,8 @@ function AddMemberForm({ group, I }: { group: any; I: Record<string, any> }) {
       }
       setMemberKey('');
       I.v3GroupsManagesLoad?.();
-    } catch {
-      I.setStatus?.(`Failed to ${mode === 'invite' ? 'invite' : 'add'} member`);
+    } catch (e: any) {
+      I.setStatus?.(`Failed to ${mode === 'invite' ? 'invite' : 'add'} member: ` + (e?.message || String(e)));
     }
   };
 

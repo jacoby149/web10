@@ -19,6 +19,7 @@ import {
 import { CommentThread } from '@/components/Feed/CommentThread';
 import { TextWithLinks } from '@/components/Feed/LinkEmbed';
 import { AdBlock } from '@/components/Feed/AdBlock';
+import { toast, errorMessage } from '@/components/shared/Toast';
 import { cn } from '@/lib/utils';
 import { HlsVideoPlayer } from '@/components/Feed/HlsVideoPlayer';
 
@@ -176,6 +177,7 @@ export function PostLightbox({ post, mediaMap, onClose, onReload, postAuthor, po
       await toggleReaction(currentPost._id || '', 'like', token.username, token.provider);
     } catch (e) {
       console.error('Failed to toggle reaction:', e);
+      toast.error(errorMessage(e, 'Could not update your like.'));
       setLiked(wasLiked);
       setReactionCount(prev => prev + (wasLiked ? 1 : -1));
     }
@@ -190,6 +192,7 @@ export function PostLightbox({ post, mediaMap, onClose, onReload, postAuthor, po
       onReload?.();
     } catch (e) {
       console.error('Failed to update post:', e);
+      toast.error(errorMessage(e, 'Could not save your edit.'));
     } finally {
       setSaving(false);
     }
@@ -202,6 +205,7 @@ export function PostLightbox({ post, mediaMap, onClose, onReload, postAuthor, po
       onReload?.();
     } catch (e) {
       console.error('Failed to delete post:', e);
+      toast.error(errorMessage(e, 'Could not delete the post.'));
     }
   }
 
@@ -217,6 +221,7 @@ export function PostLightbox({ post, mediaMap, onClose, onReload, postAuthor, po
       onReload?.();
     } catch (e) {
       console.error('Failed to toggle visibility:', e);
+      toast.error(errorMessage(e, 'Could not change the post visibility.'));
     } finally {
       setTogglingVisibility(false);
     }

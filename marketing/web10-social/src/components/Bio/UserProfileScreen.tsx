@@ -27,6 +27,7 @@ import type { ProfileRecord, PostRecord, MediaRecord, FollowRecord } from '@/dat
 import { mediaRefId } from '@/data/types';
 import { MapPin, Globe, Link, Users, UserPlus, UserCheck, Loader2, ArrowLeft, MessageSquare, Play, Camera, Edit3, Check, X, ImagePlus, AlertTriangle, Inbox } from 'lucide-react';
 import { PostLightbox } from './PostLightbox';
+import { toast, errorMessage } from '@/components/shared/Toast';
 import { cn } from '@/lib/utils';
 import { MARKETING_ORIGIN } from '@/lib/origins';
 import { useNavigate } from 'react-router-dom';
@@ -242,7 +243,7 @@ export default function UserProfileScreen({ username, provider, onBack }: UserPr
       }
     } catch (e) {
       console.error('Failed to toggle follow:', e);
-      setFollowError('Failed to follow. Please try again.');
+      setFollowError(errorMessage(e, 'Failed to follow. Please try again.'));
       // Revert optimistic state on failure
       if (following) {
         // unfollow failed — stay following
@@ -262,6 +263,7 @@ export default function UserProfileScreen({ username, provider, onBack }: UserPr
       setEditing(false);
     } catch (e) {
       console.error('Failed to save profile:', e);
+      toast.error(errorMessage(e, 'Could not save your profile.'));
     } finally {
       setSaving(false);
     }

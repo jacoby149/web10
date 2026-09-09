@@ -8,6 +8,7 @@ import { Input } from '@/components/ui/input';
 import { Skeleton } from '@/components/ui/skeleton';
 import { readProfile, saveProfile, readMyPosts, resolveMediaRefs, uploadMedia, countFollows, countFollowers, refreshMediaUrls, countStagingPosts } from '@/data';
 import { getWapi } from '@/data/wapi';
+import { toast, errorMessage } from '@/components/shared/Toast';
 import type { ProfileRecord, PostRecord, MediaRecord } from '@/data/types';
 import { mediaRefId } from '@/data/types';
 import { MapPin, Globe, Link, Camera, Edit3, Check, X, ImagePlus, Loader2, AlertTriangle, Inbox, Play } from 'lucide-react';
@@ -97,6 +98,7 @@ export default function ProfileScreen() {
       setEditing(false);
     } catch (e) {
       console.error('Failed to save profile:', e);
+      toast.error(errorMessage(e, 'Could not save your profile.'));
     } finally {
       setSaving(false);
     }

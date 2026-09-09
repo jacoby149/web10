@@ -14,6 +14,7 @@ import {
   groupByOrigin,
 } from '@/data/staging';
 import type { PostRecord, Origin } from '@/data/types';
+import { toast, errorMessage } from '@/components/shared/Toast';
 import { cn } from '@/lib/utils';
 import {
   ArrowLeft,
@@ -251,6 +252,7 @@ function OriginGroup({
       onPublished();
     } catch (e) {
       console.error('Bulk publish failed:', e);
+      toast.error(errorMessage(e, 'Could not publish the selected posts.'));
     }
     setBulkAction('idle');
   };
@@ -262,6 +264,7 @@ function OriginGroup({
       onPublished();
     } catch (e) {
       console.error('Bulk private failed:', e);
+      toast.error(errorMessage(e, 'Could not make the selected posts private.'));
     }
     setBulkAction('idle');
   };
@@ -273,6 +276,7 @@ function OriginGroup({
       onPublished();
     } catch (e) {
       console.error('Bulk delete failed:', e);
+      toast.error(errorMessage(e, 'Could not delete the selected posts.'));
     }
     setBulkAction('idle');
   };

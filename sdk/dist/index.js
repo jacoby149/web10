@@ -9,6 +9,36 @@ class Web10Error extends Error {
     this.details = details;
   }
 }
+function extractDetail(text) {
+  if (!text)
+    return null;
+  let data;
+  try {
+    data = JSON.parse(text);
+  } catch {
+    return null;
+  }
+  if (typeof data !== "object" || data === null)
+    return null;
+  const detail = data.detail;
+  if (typeof detail === "string" && detail.trim())
+    return detail;
+  if (Array.isArray(detail)) {
+    const parts = detail.map((d) => {
+      const item = d;
+      return typeof item?.msg === "string" ? item.msg : null;
+    });
+    const joined = parts.filter(Boolean).join("; ");
+    if (joined)
+      return joined;
+  }
+  return null;
+}
+function httpError(status, statusText, body) {
+  const detail = extractDetail(body);
+  const fallback = `Request failed: ${status} ${statusText}`.trim();
+  return new Web10Error(detail ?? fallback, status, body || undefined);
+}
 async function authPost(url, body) {
   const res = await fetch(url, {
     method: "POST",
@@ -17,7 +47,7 @@ async function authPost(url, body) {
   });
   if (!res.ok) {
     const text = await res.text().catch(() => "");
-    throw new Web10Error(`Request failed: ${res.status} ${res.statusText}`, res.status, text);
+    throw httpError(res.status, res.statusText, text);
   }
   return res.json();
 }
@@ -481,6 +511,7 @@ export {
   scrubTokenCookie,
   readTokenCookie,
   isTokenExpired,
+  extractDetail,
   decodeJwt,
   createV3Client,
   cookieDict,
