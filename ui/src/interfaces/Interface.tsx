@@ -36,9 +36,42 @@ async function v3Post(action: string, body: Record<string, any>) {
     });
     if (!res.ok) {
         const text = await res.text().catch(() => '');
-        throw new Error(`v3 ${action} failed: ${res.status} ${text}`);
+        // Surface the API's `detail` (FastAPI `{"detail": "…"}`) as the message
+        // so the user sees exactly what went wrong, not just the status code.
+        // Falls back to the status + raw body when the body isn't JSON.
+        const detail = extractDetail(text);
+        throw new Error(detail ?? `v3 ${action} failed: ${res.status} ${text}`);
     }
     return res.json();
+}
+
+/**
+ * Extract the human-readable reason from a FastAPI error body
+ * (`{"detail": "…"}`). Returns null when the body isn't a JSON object with a
+ * usable detail (a proxy page, an empty body, …) so the caller can fall back
+ * to the status line. Mirrors the SDK's `extractDetail` (the auth UI keeps its
+ * own copy — it doesn't import the SDK's http transport).
+ */
+function extractDetail(text: string): string | null {
+    if (!text) return null;
+    let data: unknown;
+    try {
+        data = JSON.parse(text);
+    } catch {
+        return null;
+    }
+    if (typeof data !== 'object' || data === null) return null;
+    const detail = (data as { detail?: unknown }).detail;
+    if (typeof detail === 'string' && detail.trim()) return detail;
+    if (Array.isArray(detail)) {
+        const parts = detail.map((d) => {
+            const item = d as { msg?: unknown } | null;
+            return typeof item?.msg === 'string' ? item.msg : null;
+        });
+        const joined = parts.filter(Boolean).join('; ');
+        if (joined) return joined;
+    }
+    return null;
 }
 
 /**
@@ -148,6 +181,8 @@ function useInterface() {
     [I.services, I.setServices] = React.useState([]);
     [I.requests, I.setRequests] = React.useState([]);
     [I.phone, I.setPhone] = React.useState("");
+    // Registration contact (D61): phone OR email, entered on the signup form.
+    [I.contact, I.setContact] = React.useState("");
 
     // Contact-anchored auth (D61): contact (phone OR email) → code → pick an
     // account (or create one) → sign in. The step is wizard state (default
@@ -1023,7 +1058,7 @@ function applyACR(cr: any) {
         I.setStatus("Data wiping is a v4 feature.");
     }
 
-    I.signup = function (provider: string, username: string, password: string, retype: string, betacode: string, phone: string) {
+    I.signup = function (provider: string, username: string, password: string, retype: string, betacode: string, contact: string) {
         if (password !== retype) {
             I.setStatus("Failed to Sign Up : Passwords do not match.");
             return;
@@ -1032,13 +1067,21 @@ function applyACR(cr: any) {
             I.setStatus("Failed to Sign Up : Must not leave username or password blank");
             return;
         }
-        else if (phone.length < 7) {
-            I.setStatus("Must Enter Phone Number");
+        // Contact (D61): phone OR email. The node's `require_contact` config
+        // decides server-side whether one is required — the unauthenticated
+        // signup screen has no public config read, so we validate format here
+        // (a non-empty contact that looks like a phone or an email) and let
+        // the server enforce the requirement.
+        const c = (contact || "").trim();
+        const isEmail = c.includes("@");
+        const isPhone = c.replace(/[^\d]/g, "").length >= 7;
+        if (c && !isEmail && !isPhone) {
+            I.setStatus("Enter a valid phone number or email");
             return;
         }
         I.setStatus("Signing Up ...");
         I.v3
-            .signup(username, password, phone)
+            .signup(username, password, isEmail ? undefined : c || undefined, isEmail ? c || undefined : undefined)
             .then(() =>
                 I.login(provider, username, password)
             )
@@ -1052,7 +1095,7 @@ function applyACR(cr: any) {
         I.v3
             .sendCode()
             .then(() => I.setStatus("Code sent!"))
-            .catch(() => I.setStatus("Failed to send code."));
+            .catch((e: any) => I.setStatus("Failed to send code: " + (e?.message || String(e))));
     }
 
     I.verifyCode = function (code: string) {
@@ -1067,7 +1110,7 @@ function applyACR(cr: any) {
                     I.setStatus(null);
                 }, 1000);
             })
-            .catch(() => I.setStatus("Wrong code."));
+            .catch((e: any) => I.setStatus("Verification failed: " + (e?.message || String(e))));
     }
 
     I.changePassword = function (currentPass: string, newPass: string, retypeNewPass: string) {

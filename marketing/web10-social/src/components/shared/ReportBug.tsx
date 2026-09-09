@@ -114,7 +114,15 @@ export function ReportBug({ trigger, onClose }: ReportBugProps) {
           screenshots: screenshots,
         }),
       });
-      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      if (!res.ok) {
+        const text = await res.text().catch(() => '');
+        let detail: string | null = null;
+        try {
+          const data = JSON.parse(text);
+          if (data && typeof data.detail === 'string' && data.detail.trim()) detail = data.detail;
+        } catch { /* non-JSON body */ }
+        throw new Error(detail ?? `Report failed (${res.status})`);
+      }
       setSent(true);
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Failed to send report');
