@@ -184,8 +184,8 @@ function GroupRolesDialog({ open, onOpenChange, group, I }: {
       I.setStatus?.('Roles updated');
       I.v3GroupsManagesLoad?.();
       onOpenChange(false);
-    } catch {
-      I.setStatus?.('Failed to update roles');
+    } catch (e: any) {
+      I.setStatus?.('Failed to update roles: ' + (e?.message || String(e)));
     } finally {
       setSaving(false);
     }

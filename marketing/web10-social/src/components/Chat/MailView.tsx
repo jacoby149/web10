@@ -17,6 +17,7 @@ import {
   toggleSpamFlag,
   classifyThread,
 } from '@/data';
+import { toast, errorMessage } from '@/components/shared/Toast';
 import type { DmRecord, ContactRecord, DmRecipient } from '@/data/types';
 import {
   Search,
@@ -277,6 +278,7 @@ function ThreadDetail({
       onBack();
     } catch (e) {
       console.error('Failed to send message:', e);
+      toast.error(errorMessage(e, 'Could not send the message.'));
     } finally {
       setSending(false);
     }
@@ -353,6 +355,7 @@ function ThreadDetail({
       onBack();
     } catch (e) {
       console.error('Failed to send message:', e);
+      toast.error(errorMessage(e, 'Could not send the message.'));
     } finally {
       setSending(false);
     }
@@ -752,6 +755,7 @@ export default function MailView() {
       }
     } catch (e) {
       console.error('Failed to toggle spam flag:', e);
+      toast.error(errorMessage(e, 'Could not update the spam flag.'));
     }
   }, [selectedThread]);
 

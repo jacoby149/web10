@@ -24,6 +24,10 @@ vi.mock('@/data/v3', () => ({
 // Mock lucide-react
 vi.mock('lucide-react', () => ({
   Send: () => null,
+  AlertTriangle: () => null,
+  CheckCircle2: () => null,
+  Info: () => null,
+  X: () => null,
 }));
 
 describe('comment anchor', () => {

@@ -3,7 +3,7 @@ import Provider from "./FormInputs/Provider";
 import Username from "./FormInputs/Username";
 import Password from "./FormInputs/Password";
 import ReTypePass from "./FormInputs/ReTypePass";
-import Phone from "./FormInputs/Phone";
+import Contact from "./FormInputs/Contact";
 import BetaCode from "./FormInputs/BetaCode";
 import CredentialStatus from "./CredentialStatus";
 import { Button } from '@/components/ui/button';
@@ -26,7 +26,7 @@ function SignupForm({ I, embedded = false }: { I: Record<string, any>; embedded?
         <Username I={I} />
         <Password I={I} />
         <ReTypePass I={I} />
-        <Phone I={I} />
+        <Contact I={I} />
         <BetaCode I={I} />
       </div>
 
@@ -35,14 +35,15 @@ function SignupForm({ I, embedded = false }: { I: Record<string, any>; embedded?
         className="mt-2 w-full"
         data-testid="signup-submit"
         onClick={() => {
-          const [provider, username, password, betacode, retype] = [
+          const [provider, username, password, betacode, retype, contact] = [
             (document.getElementById("provider") as HTMLInputElement).value,
             (document.getElementById("username") as HTMLInputElement).value,
             (document.getElementById("password") as HTMLInputElement).value,
             (document.getElementById("betacode") as HTMLInputElement | null)?.value ?? "",
             (document.getElementById("retypepass") as HTMLInputElement).value,
+            (document.getElementById("contact") as HTMLInputElement).value,
           ];
-          I.signup(provider, username, password, retype, betacode, I.phone);
+          I.signup(provider, username, password, retype, betacode, contact);
         }}
       >
         Sign up

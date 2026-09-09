@@ -5,6 +5,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { Send } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { readComments, createComment } from '@/data';
+import { toast, errorMessage } from '@/components/shared/Toast';
 import type { CommentRecord } from '@/data/types';
 
 interface CommentThreadProps {
@@ -71,6 +72,7 @@ export function CommentThread({ postId, isOpen, onCountChange, postAuthor, postS
       setDraft('');
     } catch (e) {
       console.error('Failed to add comment:', e);
+      toast.error(errorMessage(e, 'Could not post your comment.'));
     } finally {
       setSending(false);
     }

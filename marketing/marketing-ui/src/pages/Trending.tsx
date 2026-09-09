@@ -125,7 +125,15 @@ async function fetchSearchResults(query: string, limit = 50): Promise<FeedPost[]
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ query: { q: query, limit, services: 'public_posts' } }),
   });
-  if (!resp.ok) throw new Error(`Search failed (${resp.status})`);
+  if (!resp.ok) {
+    const text = await resp.text().catch(() => '');
+    let detail: string | null = null;
+    try {
+      const data = JSON.parse(text);
+      if (data && typeof data.detail === 'string' && data.detail.trim()) detail = data.detail;
+    } catch { /* non-JSON body */ }
+    throw new Error(detail ?? `Search failed (${resp.status})`);
+  }
   const results = await resp.json();
   return results.map(mapDiscoveryToFeedPost);
 }

@@ -26,6 +26,7 @@ import ManageProfileSection from '@/components/Groups/ManageGroup/ProfileSection
 import ManageSettingsSection from '@/components/Groups/ManageGroup/SettingsSection';
 import ManageMembersSection from '@/components/Groups/ManageGroup/MembersSection';
 import ManageRolesSection from '@/components/Groups/ManageGroup/RolesSection';
+import { toast, errorMessage } from '@/components/shared/Toast';
 import {
   ArrowLeft,
   Users,
@@ -173,6 +174,7 @@ function GroupComposer({ groupId, onPosted }: { groupId: string; onPosted: () =>
       onPosted();
     } catch (e) {
       LOG('composer — failed:', e);
+      toast.error(errorMessage(e, 'Could not post to the group.'));
     } finally {
       setPosting(false);
     }
@@ -326,6 +328,7 @@ export default function GroupDetailScreen({ groupId }: { groupId: string }) {
       load();
     } catch (e) {
       LOG('join — failed:', e);
+      toast.error(errorMessage(e, 'Could not join the group.'));
       setJoinState('idle');
     }
   }, [detail, load]);
@@ -341,6 +344,7 @@ export default function GroupDetailScreen({ groupId }: { groupId: string }) {
       load();
     } catch (e) {
       LOG('leave — failed:', e);
+      toast.error(errorMessage(e, 'Could not leave the group.'));
       setJoinState('idle');
     }
   }, [detail, load]);
@@ -353,6 +357,7 @@ export default function GroupDetailScreen({ groupId }: { groupId: string }) {
       navigate('/groups');
     } catch (e) {
       LOG('delete — failed:', e);
+      toast.error(errorMessage(e, 'Could not delete the group.'));
     }
   }, [detail, navigate]);
 

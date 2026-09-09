@@ -45,8 +45,8 @@ function GroupSettingsDialog({ open, onOpenChange, group, I }: {
       I.setStatus?.(`Join policy set to ${joinPolicy}`);
       I.v3GroupsManagesLoad?.();
       onOpenChange(false);
-    } catch {
-      I.setStatus?.('Failed to update join policy');
+    } catch (e: any) {
+      I.setStatus?.('Failed to update join policy: ' + (e?.message || String(e)));
     } finally {
       setSaving(false);
     }
@@ -69,8 +69,8 @@ function GroupSettingsDialog({ open, onOpenChange, group, I }: {
       setVisibility(v);
       I.setStatus?.(`Visibility set to ${v}`);
       I.v3GroupsManagesLoad?.();
-    } catch {
-      I.setStatus?.('Failed to update visibility');
+    } catch (e: any) {
+      I.setStatus?.('Failed to update visibility: ' + (e?.message || String(e)));
     } finally {
       setSaving(false);
     }
