@@ -31,6 +31,7 @@ export {
   decodeJwt,
   isTokenExpired,
   Web10Error,
+  extractDetail,
 } from 'web10-npm';
 export type {
   TokenPayload,

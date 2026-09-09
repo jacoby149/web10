@@ -17,6 +17,7 @@ import {
   getDiscoverGroupId,
 } from '@/data';
 import { getWapi } from '@/data/wapi';
+import { toast, errorMessage } from '@/components/shared/Toast';
 import type {
   PostRecord,
   MediaRecord,
@@ -1151,8 +1152,9 @@ export default function DiscoverScreen() {
     try {
       await followUser(user.username, user.provider);
       setFollowStates((prev) => ({ ...prev, [key]: true }));
-    } catch {
-      // Follow failed — leave state unchanged
+    } catch (e) {
+      // Follow failed — leave state unchanged, but tell the user why.
+      toast.error(errorMessage(e, `Could not follow ${user.username}.`));
     } finally {
       setFollowLoading((prev) => ({ ...prev, [key]: false }));
     }
@@ -1164,8 +1166,9 @@ export default function DiscoverScreen() {
     try {
       await unfollowUser(user.username, user.provider);
       setFollowStates((prev) => ({ ...prev, [key]: false }));
-    } catch {
-      // Unfollow failed — leave state unchanged
+    } catch (e) {
+      // Unfollow failed — leave state unchanged, but tell the user why.
+      toast.error(errorMessage(e, `Could not unfollow ${user.username}.`));
     } finally {
       setFollowLoading((prev) => ({ ...prev, [key]: false }));
     }

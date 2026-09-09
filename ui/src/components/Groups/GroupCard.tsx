@@ -46,7 +46,7 @@ function GroupCard({ I, group, isManaged }: { I: Record<string, any>; group: any
       setMembers(Array.isArray(result) ? result : []);
     } catch (e) {
       console.error('Failed to load members:', e);
-      I.setStatus?.('Failed to load members');
+      I.setStatus?.('Failed to load members: ' + ((e as Error)?.message || String(e)));
     } finally {
       setLoadingMembers(false);
     }
@@ -58,7 +58,7 @@ function GroupCard({ I, group, isManaged }: { I: Record<string, any>; group: any
       I.v3GroupsLoad?.();
       I.v3GroupsManagesLoad?.();
     } catch (e: any) {
-      I.setStatus?.('Failed to join group');
+      I.setStatus?.('Failed to join group: ' + (e?.message || String(e)));
     }
   };
 
@@ -69,7 +69,7 @@ function GroupCard({ I, group, isManaged }: { I: Record<string, any>; group: any
       I.v3GroupsLoad?.();
       I.v3GroupsManagesLoad?.();
     } catch (e: any) {
-      I.setStatus?.('Failed to delete group');
+      I.setStatus?.('Failed to delete group: ' + (e?.message || String(e)));
     }
   };
 
@@ -85,7 +85,7 @@ function GroupCard({ I, group, isManaged }: { I: Record<string, any>; group: any
       I.v3GroupsLoad?.();
       I.v3GroupsManagesLoad?.();
     } catch (e: any) {
-      I.setStatus?.('Failed to leave group');
+      I.setStatus?.('Failed to leave group: ' + (e?.message || String(e)));
     }
   };
 
@@ -93,7 +93,7 @@ function GroupCard({ I, group, isManaged }: { I: Record<string, any>; group: any
     try {
       await I.v3SetSharing(group.group_id, enabled);
     } catch (e: any) {
-      I.setStatus?.('Failed to update sharing');
+      I.setStatus?.('Failed to update sharing: ' + (e?.message || String(e)));
     }
   };
 
@@ -108,7 +108,7 @@ function GroupCard({ I, group, isManaged }: { I: Record<string, any>; group: any
       I.setStatus?.(next ? 'Group listed in the directory' : 'Group removed from the directory');
       I.v3GroupsManagesLoad?.();
     } catch (e: any) {
-      I.setStatus?.('Failed to update directory listing');
+      I.setStatus?.('Failed to update directory listing: ' + (e?.message || String(e)));
     } finally {
       setToggling(false);
     }

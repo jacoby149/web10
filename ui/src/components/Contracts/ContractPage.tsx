@@ -31,8 +31,8 @@ function AppContractCard({ I, contract }: { I: Record<string, any>; contract: { 
     I.revokeV3Contract?.(origin).then(() => {
       I.setStatus?.(`Revoked contract for ${label}`);
       I.v3ContractsLoad?.();
-    }).catch(() => {
-      I.setStatus?.('Failed to revoke contract');
+    }).catch((e: any) => {
+      I.setStatus?.('Failed to revoke contract: ' + (e?.message || String(e)));
     }).finally(() => {
       setRevoking(false);
       setShowRevoke(false);
@@ -193,8 +193,8 @@ function AppContracts({ I }: { I: Record<string, any> }) {
     setCleaning(true);
     I.cleanupV3Contracts?.().then(() => {
       I.setStatus?.(`Cleaned ${staleCount} stale contract(s)`);
-    }).catch(() => {
-      I.setStatus?.('Cleanup failed');
+    }).catch((e: any) => {
+      I.setStatus?.('Cleanup failed: ' + (e?.message || String(e)));
     }).finally(() => setCleaning(false));
   };
 
