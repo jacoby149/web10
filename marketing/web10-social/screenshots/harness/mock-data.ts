@@ -192,7 +192,6 @@ export async function movePostVisibility(): Promise<void> {}
 export async function countFollowers(): Promise<number> { return PEERS.length; }
 export async function countFollows(): Promise<number> { return PEERS.length; }
 export async function countStagingPosts(): Promise<number> { return 0; }
-export async function readProfile(): Promise<unknown> { return {}; }
 export async function saveProfile(): Promise<void> {}
 export async function readMyPosts(): Promise<unknown[]> { return []; }
 export async function readFollowsByUser(): Promise<unknown[]> { return []; }
@@ -201,7 +200,6 @@ export async function unfollowUser(): Promise<void> {}
 export async function uploadMedia(): Promise<{ url: string }> { return { url: '' }; }
 export async function fanOutToFollowers(): Promise<void> {}
 export async function refreshMediaUrls<T>(records: T[]): Promise<T[]> { return records; }
-export async function resolveMediaRefs<T>(records: T[]): Promise<T[]> { return records; }
 export async function readComments(): Promise<unknown[]> { return []; }
 export async function createComment(): Promise<unknown> { return {}; }
 export async function deleteComment(): Promise<void> {}
@@ -243,7 +241,6 @@ export async function deleteStagingPost(): Promise<void> {}
 export function deriveObjectKey(): string { return ''; }
 export async function fetchDiscoveryPost(): Promise<unknown> { return null; }
 export async function fetchSchema(): Promise<unknown> { return {}; }
-export async function fetchSuggestedUsers(): Promise<unknown[]> { return []; }
 export function getCachedSchema(): unknown { return null; }
 export async function getReactionCounts(): Promise<unknown> { return {}; }
 export function getWapi(): unknown { return null; }
@@ -262,7 +259,6 @@ export async function listFollowers(): Promise<unknown[]> { return []; }
 export function mapRawDiscoveryPost(): unknown { return null; }
 export async function markInboxRead(): Promise<void> {}
 export async function queryPublicEntries(): Promise<unknown[]> { return []; }
-export async function readDiscoverFeed(): Promise<unknown[]> { return []; }
 export async function readFollow(): Promise<unknown> { return null; }
 export async function readFollowsByStatus(): Promise<unknown[]> { return []; }
 export async function readMedia(): Promise<unknown> { return null; }
@@ -271,7 +267,6 @@ export async function readReplies(): Promise<unknown[]> { return []; }
 export async function readStagingPosts(): Promise<unknown[]> { return []; }
 export async function readTopLevelComments(): Promise<unknown[]> { return []; }
 export async function readUserPosts(): Promise<unknown[]> { return []; }
-export async function readUserProfile(): Promise<unknown> { return null; }
 export async function recordRepost(): Promise<void> {}
 export async function refreshMediaUrl(): Promise<string> { return ''; }
 export function registerDefaultSchemas(): void {}
@@ -525,6 +520,11 @@ const FEED_POSTS: SeedFeedPost[] = [
 ];
 
 export async function readFeed(): Promise<unknown[]> { return FEED_POSTS; }
+// The cursor-paginated feed read (3.72.0) — FeedScreen's data source. Returns
+// the seeded posts as a single page (no more).
+export async function readFeedPage(): Promise<unknown> {
+  return { posts: FEED_POSTS, has_more: false, next_cursor: null };
+}
 export async function getFeedGroups(): Promise<string[]> {
   return FEED_POSTS.map((p) => `web10/groups/users/${p.author_username}/followers`);
 }
@@ -536,4 +536,124 @@ export async function readFeedEngagement(): Promise<{ likes: Record<string, numb
     comments[p._id] = p.comments;
   }
   return { likes, comments };
+}
+
+// ── Discover (screenshot seed) ───────────────────────────────────────────────
+// The Discover screen (the D36 board: knob rack + ranked posts + the YouTube
+// view toggle) reads these. Seeded so the PR shots render the real card +
+// video layouts with no backend. Media are self-contained SVG creatives
+// (offline, no network) — a landscape clip, a portrait clip (the 9:16 case
+// that stresses the layout), and an image.
+
+interface SeedDiscoverPost {
+  _id: string;
+  author: string;
+  author_username: string;
+  author_provider: string;
+  text: string;
+  created_at: string;
+  tags?: string[];
+  likes: number;
+  comments: number;
+  reposts: number;
+  media_refs?: string[];
+}
+
+function creative(label: string, w: number, h: number, from: string, to: string, mime = 'video/mp4'): Record<string, unknown> {
+  const svg =
+    `<svg xmlns='http://www.w3.org/2000/svg' width='${w}' height='${h}'>` +
+    `<defs><linearGradient id='g' x1='0' y1='0' x2='1' y2='1'>` +
+    `<stop offset='0' stop-color='${from}'/><stop offset='1' stop-color='${to}'/>` +
+    `</linearGradient></defs>` +
+    `<rect width='${w}' height='${h}' fill='url(#g)'/>` +
+    `<text x='40' y='${Math.round(h / 2)}' font-family='sans-serif' font-size='${Math.round(h / 8)}' font-weight='700' fill='white'>${label}</text>` +
+    `</svg>`;
+  const dataUrl = `data:image/svg+xml;utf8,${encodeURIComponent(svg)}`;
+  return {
+    _id: `dm-${label}`,
+    url: dataUrl,
+    object_key: null,
+    created_at: minsAgo(60),
+    mime_type: mime,
+    size_bytes: 500,
+    width: w,
+    height: h,
+    duration_seconds: mime.startsWith('video/') ? 42 : null,
+    thumbnail_url: dataUrl,
+  };
+}
+
+// Media records keyed by the doc_id the post's media_refs point at.
+const DISCOVER_MEDIA: Record<string, Record<string, unknown>> = {
+  'dm-landscape': creative('LIVE SET', 1280, 720, '#8b5cf6', '#2e1065'),
+  'dm-portrait': creative('VERTICAL', 720, 1280, '#7c3aed', '#4c1d95'),
+  'dm-clip3': creative('STILL', 1600, 900, '#a78bfa', '#1e1b4b'),
+};
+
+const DISCOVER_POSTS: SeedDiscoverPost[] = [
+  {
+    _id: 'dp-1',
+    author: 'nova',
+    author_username: 'nova',
+    author_provider: 'web10',
+    text: 'Late night synth session — the new drop is almost ready. Feedback welcome 🎧',
+    created_at: minsAgo(38),
+    tags: ['music', 'synthwave', 'video'],
+    likes: 128,
+    comments: 24,
+    reposts: 3,
+    media_refs: ['dm-landscape'],
+  },
+  {
+    _id: 'dp-2',
+    author: 'luna',
+    author_username: 'luna',
+    author_provider: 'web10',
+    text: 'Vertical cut from the studio day. The new series drops Friday — no algorithm between you and the post.',
+    created_at: minsAgo(60 * 5),
+    tags: ['creators', 'video'],
+    likes: 342,
+    comments: 51,
+    reposts: 12,
+    media_refs: ['dm-portrait'],
+  },
+  {
+    _id: 'dp-3',
+    author: 'kai',
+    author_username: 'kai',
+    author_provider: 'web10',
+    text: 'Lo-fi study room is live. Headphones on, world off.',
+    created_at: minsAgo(60 * 26),
+    tags: ['study', 'video'],
+    likes: 87,
+    comments: 12,
+    reposts: 0,
+    media_refs: ['dm-clip3'],
+  },
+];
+
+export async function readDiscoverFeed(): Promise<unknown[]> { return DISCOVER_POSTS; }
+// The Discover screen resolves a post's media_refs to MediaRecords. The mock
+// maps the seeded doc_ids to the creatives above (url + thumbnail + dims).
+export async function resolveMediaRefs<T>(refs: T[]): Promise<T[]> {
+  const out: T[] = [];
+  for (const r of refs) {
+    const id = typeof r === 'string' ? r : (r as { doc_id?: string }).doc_id || '';
+    const rec = DISCOVER_MEDIA[id];
+    if (rec) out.push(rec as T);
+  }
+  return out;
+}
+export async function readUserProfile(): Promise<unknown> {
+  return { display_name: 'Nova', username: 'nova', provider: 'web10', avatar_ref: '', bio: 'Synthwave producer' };
+}
+export async function readProfile(): Promise<unknown> {
+  return { display_name: 'Nova', username: 'nova', provider: 'web10', avatar_ref: '', bio: 'Synthwave producer' };
+}
+export async function fetchSuggestedUsers(): Promise<unknown[]> {
+  return [
+    { username: 'luna', provider: 'web10', display_name: 'Luna Reyes', followers_count: 12400, bio: 'Creator · behind the scenes' },
+    { username: 'kai', provider: 'web10', display_name: 'Kai Mori', followers_count: 5120, bio: 'Lo-fi study beats' },
+    { username: 'pixel', provider: 'web10', display_name: 'Pixel', followers_count: 25600, bio: 'Retro gaming' },
+  ];
 }
