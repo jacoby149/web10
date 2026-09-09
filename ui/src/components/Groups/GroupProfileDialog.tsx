@@ -67,8 +67,8 @@ function GroupProfileDialog({ open, onOpenChange, group, I }: {
       });
       I.setStatus?.('Group profile saved');
       onOpenChange(false);
-    } catch {
-      I.setStatus?.('Failed to save group profile');
+    } catch (e: any) {
+      I.setStatus?.('Failed to save group profile: ' + (e?.message || String(e)));
     } finally {
       setSaving(false);
     }

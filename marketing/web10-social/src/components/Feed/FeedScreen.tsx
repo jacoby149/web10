@@ -31,6 +31,7 @@ import { CommentThread } from './CommentThread';
 import { TextWithLinks } from './LinkEmbed';
 import { AdBlock } from './AdBlock';
 import { HlsVideoPlayer } from './HlsVideoPlayer';
+import { toast, errorMessage } from '@/components/shared/Toast';
 
 const LOG = (...args: unknown[]) => console.log('[social:feed]', ...args);
 
@@ -348,6 +349,7 @@ function PostCard({
       onPostUpdated?.();
     } catch (e) {
       console.error('Failed to update post:', e);
+      toast.error(errorMessage(e, 'Could not save your edit.'));
     } finally {
       setSaving(false);
     }
@@ -359,6 +361,7 @@ function PostCard({
       onPostUpdated?.();
     } catch (e) {
       console.error('Failed to delete post:', e);
+      toast.error(errorMessage(e, 'Could not delete the post.'));
     }
   }
 
@@ -370,6 +373,7 @@ function PostCard({
       onPostUpdated?.();
     } catch (e) {
       console.error('Failed to toggle visibility:', e);
+      toast.error(errorMessage(e, 'Could not change the post visibility.'));
     } finally {
       setTogglingVisibility(false);
     }
@@ -819,6 +823,7 @@ export default function FeedScreen({ onAuthorClick }: { onAuthorClick?: (usernam
       await toggleReaction(postId, 'like', token.username, token.provider);
     } catch (e) {
       console.error('Failed to toggle reaction:', e);
+      toast.error(errorMessage(e, 'Could not update your like.'));
       setLikedMap((prev) => ({ ...prev, [postId]: !prev[postId] }));
       setReactionMap((prev) => ({ ...prev, [postId]: (prev[postId] || 0) + (likedMap[postId] ? 1 : -1) }));
     }

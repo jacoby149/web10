@@ -3,6 +3,7 @@ import { Shield, Plus, Trash2, X, Loader2, AlertTriangle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { updateGroup } from '@/data';
+import { errorMessage } from '@/components/shared/Toast';
 
 const LOG = (...args: unknown[]) => console.log('[social:groups:manage:roles]', ...args);
 
@@ -201,7 +202,7 @@ export default function ManageRolesSection({
       onSaved();
     } catch (e) {
       LOG('roles — failed:', e);
-      setError('Could not update the roles.');
+      setError(errorMessage(e, 'Could not update the roles.'));
     } finally {
       setSaving(false);
     }

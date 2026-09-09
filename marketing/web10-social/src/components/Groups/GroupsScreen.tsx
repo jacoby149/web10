@@ -14,6 +14,7 @@ import {
   type GroupDirectoryEntry,
 } from '@/data';
 import type { V3Group } from '@/data';
+import { toast, errorMessage } from '@/components/shared/Toast';
 import { CreateGroupSheet } from './CreateGroupSheet';
 import {
   Users,
@@ -385,6 +386,7 @@ export default function GroupsScreen() {
       setMyGroups((prev) => prev.filter((g) => g.group_id !== groupId));
     } catch (e) {
       LOG('leave — failed:', e);
+      toast.error(errorMessage(e, 'Could not leave the group.'));
     } finally {
       setLeaving((prev) => ({ ...prev, [groupId]: false }));
     }
@@ -431,6 +433,7 @@ export default function GroupsScreen() {
       }
     } catch (e) {
       LOG('join — failed:', e);
+      toast.error(errorMessage(e, 'Could not join the group.'));
       setJoinStates((prev) => ({ ...prev, [entry.group_id]: 'idle' }));
     }
   }, [loadMyGroups]);

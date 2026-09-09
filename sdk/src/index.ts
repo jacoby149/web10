@@ -49,7 +49,7 @@ export {
 } from './token'
 
 // HTTP
-export { Web10Error } from './http'
+export { Web10Error, extractDetail } from './http'
 
 // Shared types
 export type { TokenPayload } from './types'

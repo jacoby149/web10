@@ -17,6 +17,7 @@ import {
   addContact,
   deleteContact,
 } from '@/data';
+import { toast, errorMessage } from '@/components/shared/Toast';
 import type { DmRecord, ContactRecord, CrmStatus } from '@/data/types';
 import {
   Search,
@@ -1025,6 +1026,7 @@ export default function CrmView() {
       }
     } catch (e) {
       console.error('Failed to save note:', e);
+      toast.error(errorMessage(e, 'Could not save the note.'));
     }
   }
 
@@ -1044,6 +1046,7 @@ export default function CrmView() {
       }
     } catch (e) {
       console.error('Failed to save status:', e);
+      toast.error(errorMessage(e, 'Could not save the status.'));
     }
   }
 
@@ -1076,6 +1079,7 @@ export default function CrmView() {
       }
     } catch (e) {
       console.error('Failed to save fields:', e);
+      toast.error(errorMessage(e, 'Could not save the contact fields.'));
     }
   }
 
@@ -1094,6 +1098,7 @@ export default function CrmView() {
       }
     } catch (e) {
       console.error('Failed to save custom fields:', e);
+      toast.error(errorMessage(e, 'Could not save the custom fields.'));
     }
   }
 
@@ -1143,6 +1148,7 @@ export default function CrmView() {
       setSelectedContact(entry);
     } catch (e) {
       console.error('Failed to add contact:', e);
+      toast.error(errorMessage(e, 'Could not add the contact.'));
     }
   }
 
@@ -1156,6 +1162,7 @@ export default function CrmView() {
       setSelectedContact(null);
     } catch (e) {
       console.error('Failed to delete contact:', e);
+      toast.error(errorMessage(e, 'Could not delete the contact.'));
     }
   }
 

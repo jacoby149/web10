@@ -10,6 +10,7 @@ import {
   inviteMember,
   removeGroupMember,
 } from '@/data';
+import { errorMessage } from '@/components/shared/Toast';
 
 const LOG = (...args: unknown[]) => console.log('[social:groups:manage:members]', ...args);
 
@@ -89,7 +90,7 @@ export default function ManageMembersSection({
         onSaved();
       } catch (e) {
         LOG('approve — failed:', e);
-        setError('Could not approve the request.');
+        setError(errorMessage(e, 'Could not approve the request.'));
       } finally {
         setBusy(false);
       }
@@ -108,7 +109,7 @@ export default function ManageMembersSection({
         onSaved();
       } catch (e) {
         LOG('deny — failed:', e);
-        setError('Could not deny the request.');
+        setError(errorMessage(e, 'Could not deny the request.'));
       } finally {
         setBusy(false);
       }
@@ -127,7 +128,7 @@ export default function ManageMembersSection({
         onSaved();
       } catch (e) {
         LOG('remove — failed:', e);
-        setError('Could not remove the member.');
+        setError(errorMessage(e, 'Could not remove the member.'));
       } finally {
         setBusy(false);
       }
@@ -150,7 +151,7 @@ export default function ManageMembersSection({
       onSaved();
     } catch (e) {
       LOG('add — failed:', e);
-      setError('Could not add the member.');
+      setError(errorMessage(e, 'Could not add the member.'));
     } finally {
       setBusy(false);
     }

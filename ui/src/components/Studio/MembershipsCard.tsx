@@ -46,7 +46,15 @@ export function MembershipsCard({ I, onStatus }: MembershipsCardProps) {
           setEnabled(true);
           onStatus('Memberships enabled — Stripe Connect configured');
         } else {
-          onStatus('Stripe Connect not configured on this node yet');
+          // Surface the API's reason (FastAPI `detail`) — e.g. a specific
+          // Stripe Connect error — instead of assuming "not configured".
+          const text = await resp.text().catch(() => '');
+          let detail: string | null = null;
+          try {
+            const data = JSON.parse(text);
+            if (data && typeof data.detail === 'string' && data.detail.trim()) detail = data.detail;
+          } catch { /* non-JSON body */ }
+          onStatus(detail ?? `Failed to enable memberships (${resp.status})`);
         }
       }
     } catch (e: any) {
