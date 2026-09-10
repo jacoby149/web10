@@ -3,7 +3,7 @@
   "shards": [
     {
       "name": "auth",
-      "workers": 2,
+      "workers": 1,
       "specs": [
         "authenticator-torture.spec.ts",
         "auth-popup-roundtrip.spec.ts",
