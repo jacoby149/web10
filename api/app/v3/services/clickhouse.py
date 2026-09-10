@@ -181,8 +181,20 @@ def ensure_apps_schema():
             "username String, doc_id String, matched_words Array(String), created_at DateTime64(3)"
             ") ENGINE = MergeTree ORDER BY (username, created_at)"
         )
+        # bug_reports — the bug-report store (D70). Pre-existing volumes
+        # predate the table; the DDL template covers fresh volumes.
+        client.command(
+            "CREATE TABLE IF NOT EXISTS bug_reports ("
+            "report_id String, username String DEFAULT '', email String DEFAULT '', "
+            "description String, page_url String DEFAULT '', app_version String DEFAULT '', "
+            "device_info String DEFAULT '', browser_info String DEFAULT '', "
+            "error_message String DEFAULT '', stack_trace String DEFAULT '', "
+            "screenshots String DEFAULT '', created_at DateTime64(3), updated_at DateTime64(3), "
+            "deleted UInt8 DEFAULT 0"
+            ") ENGINE = ReplacingMergeTree(updated_at) ORDER BY report_id"
+        )
         log.info(
-            "[v3] schema ensured (apps.visits + app_ratings.comment + node_config + app_visits + group_contracts.discoverable + documents.ad_mode/ad_target + moderation_flags present)"
+            "[v3] schema ensured (apps.visits + app_ratings.comment + node_config + app_visits + group_contracts.discoverable + documents.ad_mode/ad_target + moderation_flags + bug_reports present)"
         )
         # Data migration (idempotent): re-home demo apps registered under
         # their directory-index file URLs onto their directory URLs.

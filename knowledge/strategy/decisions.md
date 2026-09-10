@@ -9,6 +9,73 @@ Status legend: [decided] intent set · [in-progress] · [open] still debating.
 
 ---
 
+### D70 — Bug reports push to the node's admins as a DM from the `bugbot` user [decided]
+
+**The decision.** A submitted bug report (`POST /bug_report`, public, already
+durable in the `bug_reports` table) is **pushed to every node admin as a DM
+from a `bugbot` user** — the same DM contract every user-to-user
+conversation runs (a 2-member `dm-bugbot-{admin}` group, `posts` doc in it).
+The node mints the bot's identity server-side: `bugbot` is a real node user
+(lazy-provisioned, idempotent, random unguessable password, no contact), and
+the report becomes a `posts` document authored by `bugbot` in the
+deterministic DM group. No new table, no new endpoint, no push channel — the
+report arrives in the admin's Messages app like any other DM, and the
+`bug_reports` table stays the durable record (the DM is a pointer into it:
+`report_id` + summary + screenshot count).
+
+**Why.** The report pipeline existed end-to-end with a missing last mile:
+submission (public, wired from web10-social + marketing-ui) and admin review
+(`POST /admin/bug_reports[/{id}]`, token-gated) — but **no surface showed
+the reports**, so "did anyone report a bug?" was a token ceremony or a
+ClickHouse query. Push beats pull: the operator gets the report in the app
+they already live in (web10-social Messages), on any device, with no login to
+a console. The DM channel was validated as the right substrate by its own
+architecture: DMs are plain CRUD (a group + a `posts` doc — `dms.ts`), and
+WebRTC/P2P is only presence + the D69 nudge, so a server-side writer has
+nothing to "be online" for. The API already mints JWTs with the node's own
+private key (`/v3/login`), so acting as `bugbot` is in-protocol: the bot is a
+user, the DM is a group post, and every write goes through the same
+`insert_document` + group-attach path a human DM does (the D58 write gate
+applies to it exactly as to anyone else).
+
+**The shape.**
+- **Provisioning:** `ensure_bugbot_user()` — idempotent; creates `bugbot`
+  (random password, hashed; no phone/email) on first use. The username is
+  reserved: a real user who signs up as `bugbot` gets the normal `EXISTS`
+  (the bot is provisioned at the node level, not through `/v3/signup`).
+- **Delivery:** on `submit_bug_report`, after the ClickHouse insert lands:
+  for each `config.list_admins()` entry, ensure the `dm-bugbot-{admin}` group
+  (both creator-embedded group_id shapes checked — the admin may have DM'd
+  the bot first) and write one `posts` doc: the report summary (description,
+  page, app version, device, browser, error, reporter username/email) +
+  `report_id` + screenshot count. Screenshots stay in the table (too big for
+  a DM body; the admin detail endpoint is the fetch path).
+- **Best-effort, never blocking:** a delivery failure (any admin, any step)
+  is logged and swallowed — the report is already durable, and a DM hiccup
+  must never 500 the submitter's request. No admins configured → no delivery,
+  no error (a fresh node has no one to tell yet).
+- **Recipients:** the node's admin list (`config.admins` ∪ `DEFAULT_ADMINS`) —
+  the same list `check_admin` gates on, so "who can review reports in the
+  console" and "who gets the DM" can never drift.
+
+**Rejects.** (1) **Email** — the node has zero email infra (recovery is
+phone/Twilio, D61); adding an SMTP/Resend dependency to a self-hostable node
+for one notification channel is more surface than the DM, which reuses the
+protocol. Email can still be added later as a second channel without
+touching this. (2) **A server push channel (WebSocket/SSE)** — D66/D69: no
+fan-out infra, and the DM is already a durable, in-app, re-readable record.
+(3) **A bot that writes through the HTTP endpoint with a minted token** —
+same effect, one extra hop and a request-context the server already has;
+the in-process service call is the same write with the same gates. (4)
+**A `bug_reports` admin UI as the fix** — still pull; it stays a future
+surface (the queue view), not the delivery mechanism.
+
+**Gates / open.** The admin review queue UI (browse `bug_reports` in the
+console, fetch screenshots) is a separate surface — this decision is the
+delivery, not the review. Email as a second channel is open (needs a
+provider decision). `bugbot`'s discover-group enrollment (from
+`create_user`) is harmless noise on the board (it never posts there).
+
 ### D69 — Notifications: P2P nudge + CRUD re-read, app-owned, node stays stateless [decided]
 
 **The decision.** Notifications are **derived events the social app owns** —

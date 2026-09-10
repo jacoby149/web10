@@ -237,6 +237,32 @@ def submit_bug_report(req: dict):
         stack_trace=(req.get("stack_trace") or "").strip(),
         screenshots=req.get("screenshots") or [],
     )
+
+    # D70: push the report to the node's admins as a DM from the bugbot user.
+    # Best-effort — the row above is already durable; a delivery failure must
+    # never fail the submitter's request (deliver_bug_report swallows its own
+    # errors, this guard is belt-and-suspenders).
+    try:
+        from app.v3.services import bugbot
+
+        bugbot.deliver_bug_report(
+            {
+                "report_id": result["report_id"],
+                "username": username,
+                "email": (req.get("email") or "").strip(),
+                "description": description,
+                "page_url": (req.get("page_url") or "").strip(),
+                "app_version": (req.get("app_version") or "").strip(),
+                "device_info": (req.get("device_info") or "").strip(),
+                "browser_info": (req.get("browser_info") or "").strip(),
+                "error_message": (req.get("error_message") or "").strip(),
+                "stack_trace": (req.get("stack_trace") or "").strip(),
+                "screenshots": req.get("screenshots") or [],
+            }
+        )
+    except Exception:
+        log.exception("[bugbot] delivery hook failed (report %s is durable)", result["report_id"])
+
     return result
 
 

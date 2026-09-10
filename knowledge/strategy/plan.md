@@ -551,6 +551,28 @@ were never built (the changelog's "the API is 3.37.0" was wrong). Lane is
 - [ ] **The "port your YouTube" landing** — a creator-facing page: the reach gap, the owned-audience reframe, the import flow. The hook for the YouTuber. (Feeds the `For Monetizers` / `For Node Operators` doc sections above.)
 - [✓ 3.63.0] **The docs** — `import-from-other-platforms.md` leads with YouTube, now with the honest mapping table (videos = metadata + thumbnail, not playable files; subscribers = don't come over) + the 2GB-tar-split instruction; `export-guidance.md` carries the same; the KB `social/import.md` is the root of trust.
 
+## Bug Reports: The Bugbot (D70) — Platform
+
+The report pipeline existed with a missing last mile: `POST /bug_report`
+(public, durable in the `bug_reports` table, wired from web10-social +
+marketing-ui) and the admin review endpoints (`POST /admin/bug_reports[/{id}]`)
+— but **no surface showed the reports**, so checking was a token ceremony or a
+ClickHouse query. D70 closes it with push, not pull: on submit, the node DMs
+every admin from a `bugbot` user — the same DM contract as any conversation
+(2-member `dm-bugbot-{admin}` group, `posts` doc), minted server-side (the API
+already signs JWTs with the node's private key; the bot is a real user, the DM
+is a group post, every write goes through the normal path with the normal
+gates). Best-effort: a delivery failure logs and never blocks the submit.
+Spec'd in `knowledge-base/web10-v3/social/bug-reports.md`. Lane is `bugbot` in
+`parallel-execution.md`.
+
+- [✓ 3.79.0] **Decision: D70** (`knowledge/strategy/decisions.md`) — DM push from `bugbot` (not email, not a push channel, not a console UI); lazy idempotent bot provisioning; recipients = the node admin list; best-effort, never blocking.
+- [✓ 3.79.0] **KB** (`social/bug-reports.md`) — the model (table = the record, DM = the pointer), the bot's identity, the message shape, the invariants (the bot is a user; I1/I2/I3 hold).
+- [✓ 3.79.0] **The bot service** (`api/app/v3/services/bugbot.py`) — `ensure_bugbot_user()` (idempotent, random unguessable password, no contact) + `deliver_bug_report(report)` (per-admin: ensure the DM group — both creator-embedded id shapes, the admin may have DM'd the bot first — then the `posts` doc authored by `bugbot`, gated by `can_write_group`).
+- [✓ 3.79.0] **The hook** (`api/app/endpoints/system.py`) — `submit_bug_report` calls `deliver_bug_report` after the insert, wrapped so a failure logs + swallows (the submit is already durable; the response is unchanged).
+- [✓ 3.79.0] **Tests** (`api/tests/test_bugbot.py`) — provisioning idempotency; delivery to every admin (group contract = the DM shape, doc authored by `bugbot`, body shape, `report_id` + screenshot count present); the admin-created-first group shape is found, not re-created; no admins → no-op; delivery failure → submit still 200 + logged; the I3 boundary pinned compositionally (the doc attaches only to the DM groups; the group's members are bot + admin; the D58 read gate is conformance-pinned).
+- [ ] **v1** — the admin review queue UI (browse `bug_reports` in the console, fetch screenshots from the detail endpoint); email as a second channel (needs a provider decision).
+
 ## Phase 4 — Production Cutover: v2 → v3, then merge to main
 
 **Where:** `knowledge/knowledge-base/web10-v3/` (migration model), `api/` (migration tooling), `ubuntu-deployment/` (prod deploy)
