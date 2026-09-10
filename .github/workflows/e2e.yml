@@ -33,42 +33,24 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  build:
-    name: build e2e images (once)
-    # Build the e2e images once, shared by all 4 shards. Each shard's stack
-    # `up -d`s these (no rebuild) — 4 parallel `docker compose build` of the
-    # same tags would race on the build cache.
-    runs-on: [self-hosted, web10-e2e]
-    timeout-minutes: 20
-    steps:
-      - uses: actions/checkout@v7
-      - name: Build e2e images
-        run: docker compose -f e2e/docker-compose.yml build
-        env:
-          STRIPE_TEST_KEY: ${{ secrets.STRIPE_TEST_KEY }}
-
   e2e:
     name: e2e shard ${{ matrix.shard }}/4
-    needs: build
-    # Self-hosted runner on the web10 box (8 cores). The suite is split into 4
-    # shards, each with its OWN stack (own ports, own docker project, own
-    # ClickHouse/API/UIs) on its own docker network — so there's no shared-DB
-    # queue and the wall-clock is the slowest shard, not the sum. A self-hosted
-    # runner runs ONE job at a time, so a 4-leg matrix would serialize; instead
-    # ONE job runs all 4 shards concurrently in the background (run-all-shards.sh)
-    # — the box's 8 cores feed all 4 stacks + their browser workers. The nginx
-    # proxy only routes to same-network containers, so identical *.localhost
-    # vhost labels don't cross-route (verified on the box). `*.localhost` vhost
-    # names are forced to 127.0.0.1 in the box's /etc/hosts so the proxies are
-    # reachable.
+    # GitHub-HOSTED runners, 4-shard matrix. Each leg is its own isolated VM, so
+    # the 4 shards run in PARALLEL (no single-runner serialization) and each uses
+    # default ports (80/9000) — no port juggling, no docker-project prefixes, no
+    # /etc/hosts hacks. The spec split + per-shard worker count live in
+    # e2e/shards.json (the "global-config" shard runs workers=1 so the global
+    # node_config mutations in node-ads + moderation never race).
     #
-    # Port scheme (shard N): HTTP 80(90+(N-1)*100), MINIO 9(100+(N-1)*100) —
-    # 8090/9100, 8190/9200, 8290/9300, 8390/9400. All clear of the live
-    # dev/prod stacks (80/443/9000). The spec split + per-shard worker count
-    # live in e2e/shards.json (the "global-config" shard runs workers=1 so the
-    # global node_config mutations never race).
-    runs-on: [self-hosted, web10-e2e]
+    # To go faster: bump `runs-on` to a larger hosted runner (e.g. a 4-vCPU
+    # runner) — each shard gets more CPU for its browser workers. Standard
+    # ubuntu-latest (2 vCPU) is the baseline.
+    runs-on: ubuntu-latest
     timeout-minutes: 25
+    strategy:
+      fail-fast: false
+      matrix:
+        shard: [1, 2, 3, 4]
     env:
       STRIPE_TEST_KEY: ${{ secrets.STRIPE_TEST_KEY }}
     steps:
@@ -78,38 +60,30 @@ jobs:
         working-directory: e2e
         run: |
           npm install
-          # No --with-deps: the runner is non-root (ci-runner). The chromium
-          # system libraries are pre-installed on the box; this just ensures
-          # the browser is in the runner's cache (idempotent, no root needed).
-          npx playwright install chromium
+          npx playwright install --with-deps chromium
 
-      - name: Run all 4 shards concurrently (own stack + spec slice each)
+      - name: Run shard ${{ matrix.shard }} (own stack + spec slice)
         working-directory: e2e
-        run: bash run-all-shards.sh
+        run: bash run-shard.sh ${{ matrix.shard }}
 
       - name: Dump stack logs on failure
         if: failure()
         run: |
-          for P in e2e-s1 e2e-s2 e2e-s3 e2e-s4; do
-            echo "=== [$P] API logs (errors + last 100) ==="
-            docker compose -p "$P" -f e2e/docker-compose.yml logs api 2>&1 | grep -iE "error|exception|traceback|500|refused|timeout|clickhouse" | tail -40
-            echo "--- [$P] API tail ---"
-            docker compose -p "$P" -f e2e/docker-compose.yml logs api 2>&1 | tail -100
-            echo "=== [$P] Container status ==="
-            docker compose -p "$P" -f e2e/docker-compose.yml ps -a
-          done
+          echo "=== API logs (errors + last 100) ==="
+          docker compose -f e2e/docker-compose.yml logs api 2>&1 | grep -iE "error|exception|traceback|500|refused|timeout|clickhouse" | tail -40
+          echo "--- API tail ---"
+          docker compose -f e2e/docker-compose.yml logs api 2>&1 | tail -100
+          echo "=== Container status ==="
+          docker compose -f e2e/docker-compose.yml ps -a
 
       - name: Upload Playwright traces on failure
         uses: actions/upload-artifact@v4
         if: failure()
         with:
-          name: playwright-traces
+          name: playwright-traces-shard-${{ matrix.shard }}
           path: e2e/test-results/
           retention-days: 7
 
-      - name: Tear down all shard stacks
+      - name: Tear down stack
         if: always()
-        run: |
-          for P in e2e-s1 e2e-s2 e2e-s3 e2e-s4; do
-            docker compose -p "$P" -f e2e/docker-compose.yml down -v
-          done
+        run: docker compose -f e2e/docker-compose.yml down -v
