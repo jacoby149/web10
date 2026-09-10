@@ -8,6 +8,12 @@ TIMEOUT=${TIMEOUT:-120}
 INTERVAL=2
 ELAPSED=0
 
+# The e2e proxy port (80 on the GitHub VM default; 8090 on the self-hosted box
+# so it doesn't collide with the live stacks). Build a port suffix for the
+# *.localhost vhost URLs.
+PORT=${E2E_HTTP_PORT:-80}
+if [ "$PORT" = "80" ]; then PS=""; else PS=":$PORT"; fi
+
 echo "⏳ Waiting for e2e stack to be healthy..."
 
 check_service() {
@@ -27,32 +33,32 @@ while [ $ELAPSED -lt $TIMEOUT ]; do
   echo "--- health check at ${ELAPSED}s ---"
 
   # Check API
-  if ! check_service "api" "http://api.localhost/ready"; then
+  if ! check_service "api" "http://api.localhost${PS}/ready"; then
     ALL_UP=false
   fi
 
   # Check auth UI
-  if ! check_service "auth" "http://auth.localhost"; then
+  if ! check_service "auth" "http://auth.localhost${PS}"; then
     ALL_UP=false
   fi
 
   # Check marketing UI
-  if ! check_service "marketing" "http://marketing.localhost"; then
+  if ! check_service "marketing" "http://marketing.localhost${PS}"; then
     ALL_UP=false
   fi
 
   # Check social UI
-  if ! check_service "social" "http://social.localhost"; then
+  if ! check_service "social" "http://social.localhost${PS}"; then
     ALL_UP=false
   fi
 
   # Check SDK (serves demo apps)
-  if ! check_service "sdk" "http://sdk.localhost"; then
+  if ! check_service "sdk" "http://sdk.localhost${PS}"; then
     ALL_UP=false
   fi
 
   # Check marketing-api
-  if ! check_service "marketing-api" "http://marketing-api.localhost/v3/infra/health"; then
+  if ! check_service "marketing-api" "http://marketing-api.localhost${PS}/v3/infra/health"; then
     ALL_UP=false
   fi
 
