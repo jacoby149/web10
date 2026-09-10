@@ -35,8 +35,18 @@ concurrency:
 jobs:
   e2e:
     name: e2e smoke (playwright)
-    runs-on: ubuntu-latest
-    timeout-minutes: 15
+    # Self-hosted runner on the web10 box (8 cores) — the ubuntu-latest 2-core
+    # VM timed out the ~389-test serial suite at the 15-min cap. The box runs
+    # the e2e stack on non-default ports (8090/9100/9101) so it doesn't collide
+    # with the live dev/prod stacks (80/443/9000). `*.localhost` vhost names are
+    # forced to 127.0.0.1 in the box's /etc/hosts so the proxy is reachable.
+    runs-on: [self-hosted, web10-e2e]
+    timeout-minutes: 25
+    env:
+      E2E_HTTP_PORT: "8090"
+      E2E_MINIO_PORT: "9100"
+      E2E_MINIO_CONSOLE_PORT: "9101"
+      E2E_WORKERS: "4"
     steps:
       - uses: actions/checkout@v7
 
@@ -74,7 +84,10 @@ jobs:
         working-directory: e2e
         run: |
           npm install
-          npx playwright install --with-deps chromium
+          # No --with-deps: the runner is non-root (ci-runner). The chromium
+          # system libraries are pre-installed on the box; this just ensures
+          # the browser is in the runner's cache (idempotent, no root needed).
+          npx playwright install chromium
 
       - name: Run Playwright tests
         working-directory: e2e
