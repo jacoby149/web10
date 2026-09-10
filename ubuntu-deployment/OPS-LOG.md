@@ -3,6 +3,25 @@
 Newest at top. Format per AGENT-OPS.md §8. Read the top entries
 BEFORE doing ops work — someone may already be mid-fix.
 
+## 09.09.2026 23:40 — opencode (honolulu) — retired the box e2e self-hosted runner (dead weight after 3.77.7 moved e2e to GitHub-hosted)
+did:
+  - The `web10-e2e-box` self-hosted runner (added 3.77.3, retired when e2e
+    moved to GitHub-hosted runners in 3.77.7) was already unregistered from
+    GitHub (repo `actions/runners` total_count=0) and its systemd service
+    (`actions-runner-web10-e2e-box.service`) already stopped + disabled
+    (Sep 09 23:07). Only dead weight remained on the box.
+  - `sudo rm -rf /home/ci-runner/actions-runner` (917M of runner + cached
+    npm/playwright/docker artifacts).
+  - `sudo rm -f /etc/systemd/system/actions-runner-web10-e2e-box.service`
+    + `systemctl daemon-reload` (the orphaned unit).
+  - `sudo userdel -r ci-runner` (the dedicated runner user; it was in the
+    docker group — verified nothing else referenced it: no other systemd
+    unit, no crontab, no running process).
+state: box clean — no runner process, no runner user, no runner unit, no
+  GitHub registration. The 4-shard e2e runs on GitHub-hosted `ubuntu-latest`
+  (PR #868, ~4.5 min, green). web10-dev + web10-prod stacks untouched.
+next: none — the e2e runner loose end is fully closed.
+
 ## 12.08.2026 02:26 — opencode (amsterdam) — ClickHouse init script made resilient + web10-dev schema reset
 did:
   - Diagnosed: clickhouse-init/001-init-v3-schema.sql ran before server
