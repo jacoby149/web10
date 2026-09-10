@@ -110,4 +110,30 @@ describe('ConsentView — signed-out opener with a live session (account switch)
     expect(screen.queryByTestId('consent-continue-as')).toBeNull()
     expect(I.goToApp).not.toHaveBeenCalled()
   })
+
+  it('the tall login form scrolls inside the card — the "Signed in as" footer never overlaps it', () => {
+    // The screenshot bug: with a live session + the remembered-accounts picker,
+    // the login form is tall enough to overflow the popup. The form must scroll
+    // inside the card, and the "Signed in as … Log out" footer must stay a
+    // sibling of that scroll region — not get pushed down into the password
+    // field (the collision in the operator's screenshot).
+    const I = signedInHarness()
+    render(<ConsentView I={I} />)
+
+    // The login form is shown (the exact scenario: picker + Continue as + form).
+    const submit = screen.getByTestId('login-submit')
+
+    // The form lives in a dedicated scroll region (min-h-0 flex-1 overflow-y-auto)
+    // so a tall form scrolls inside the card instead of growing past the cap.
+    const scroll = submit.closest('[class*="overflow-y-auto"]') as HTMLElement
+    expect(scroll).toBeTruthy()
+    expect(scroll.className).toMatch(/min-h-0/)
+    expect(scroll.className).toMatch(/flex-1/)
+
+    // The footer is a sibling of the scroll region (outside the card), not a
+    // descendant of it — so it can't be pushed into the password field.
+    const footer = screen.getByTestId('consent-logout')
+    expect(footer).toBeTruthy()
+    expect(scroll.contains(footer)).toBe(false)
+  })
 })

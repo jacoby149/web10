@@ -310,7 +310,7 @@ function ConsentView({ I }: { I: Record<string, any> }) {
 
         <div className="flex min-h-0 flex-col rounded-lg border border-border bg-card shadow-[0_8px_30px_rgb(0_0_0/0.35)]">
         {showLoginForm ? (
-          <div className="p-6 sm:p-8">
+          <div className="min-h-0 flex-1 overflow-y-auto p-6 sm:p-8">
             <div className="mb-6 text-center">
               <h1 className="font-display text-xl font-semibold text-foreground">
                 {I.mode === 'signup' ? (

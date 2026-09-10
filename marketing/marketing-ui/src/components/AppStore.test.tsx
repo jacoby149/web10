@@ -480,6 +480,64 @@ describe('AppStore page', () => {
     expect(screen.getByTestId('plug-slot-0').textContent).toContain('1 users · 30d');
   });
 
+  it('flagship plug slot shows its real user count when the canonical registration is at its host root', async () => {
+    const { default: AppStore } = await import('@/pages/AppStore');
+    const fetchMock = vi.fn((input: any) => {
+      const url = String(input);
+      if (url.includes('/v3/stats')) {
+        return Promise.resolve({
+          ok: true,
+          json: () =>
+            Promise.resolve({
+              users: 5,
+              app_count: 1,
+              active_users: { users_1d: 3, users_30d: 5, users_90d: 5, users_1y: 5 },
+              storage: 1024,
+            }),
+        } as Response);
+      }
+      if (url.includes('/v3/apps/list')) {
+        return Promise.resolve({
+          ok: true,
+          json: () =>
+            Promise.resolve({
+              apps: [
+                {
+                  // The flagship's canonical registration — social.web10.app
+                  // at its root. This is a known-host root, so the grid
+                  // filter drops it from `apps`. Before the fix, the plug
+                  // slot showed 0 users because the `flagship` lookup in
+                  // `firstParty` missed (the filtered `apps` had no entry).
+                  // The fix captures the metric before the filter.
+                  url: 'https://social.web10.app/',
+                  name: 'web10 social',
+                  description: '',
+                  icon_url: '',
+                  screenshots: [],
+                  visits: 21,
+                  users_30d: 5,
+                  review_state: 'approved',
+                  web10apps_post_id: '',
+                },
+              ],
+              total: 1,
+            }),
+        } as Response);
+      }
+      return Promise.reject(new Error('offline'));
+    });
+    vi.stubGlobal('fetch', fetchMock);
+    renderWithRouter(<AppStore />);
+    await vi.waitFor(() => {
+      expect(screen.getByTestId('plug-slot-0')).toBeInTheDocument();
+    });
+    // The plug slot shows the real count (5), not 0.
+    expect(screen.getByTestId('plug-slot-0').textContent).toContain('5 users · 30d');
+    // No duplicate "web10 social" in the grid (the canonical registration
+    // is filtered out, and the plug slot is the only card).
+    expect(screen.getAllByText('web10 social').length).toBe(1);
+  });
+
   it('first-party apps have correct links', async () => {
     const { default: AppStore } = await import('@/pages/AppStore');
     renderWithRouter(<AppStore />);
