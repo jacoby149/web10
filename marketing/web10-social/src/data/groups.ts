@@ -300,6 +300,14 @@ export interface CreateGroupInput {
   visibility: GroupVisibility;
   /** How a human becomes a member (open / request / invite-only). Defaults to `open`. */
   join_policy?: GroupJoinPolicy;
+  /**
+   * The D53 blasting flag — list the group in the public Discover directory.
+   * When omitted, defaults to the visibility-derived rule (a `public` group is
+   * findable; signed-in / private are unlisted) so a caller that doesn't care
+   * keeps the old behavior. The create sheet's "List in directory" toggle sets
+   * this explicitly, overriding the default.
+   */
+  discoverable?: boolean;
   banner_ref?: string;
   avatar_ref?: string;
 }
@@ -334,10 +342,11 @@ export async function createCommunityGroup(
   }
   // A "public" group is findable: it's listed in the public directory (the D53
   // `discoverable` blasting flag) the moment it's created. Signed-in / private
-  // groups stay unlisted (the Settings section's "List in directory" toggle is
-  // the manual override for every visibility). This is the fix for "my friend
-  // can't find my public group" — public meant readable but never findable.
-  const discoverable = input.visibility === 'public';
+  // groups stay unlisted by default. The create sheet's "List in directory"
+  // toggle passes an explicit `discoverable` to override this (e.g. list a
+  // signed-in group, or unlist a public one). When omitted, the visibility
+  // decides — the original "my friend can't find my public group" fix.
+  const discoverable = input.discoverable ?? input.visibility === 'public';
   const joinPolicy = input.join_policy ?? 'open';
   await w.createGroup(slug, joinPolicy, COMMUNITY_CREATE_ROLES, members, { discoverable });
   LOG('createCommunityGroup — created', groupId, { discoverable, joinPolicy });
