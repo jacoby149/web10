@@ -74,9 +74,7 @@ class TestDmGroupName:
         assert bugbot._dm_group_name("ada", bugbot.BOT_USERNAME) == "dm-ada-bugbot"
 
     def test_symmetric(self):
-        assert bugbot._dm_group_name("ada", bugbot.BOT_USERNAME) == bugbot._dm_group_name(
-            bugbot.BOT_USERNAME, "ada"
-        )
+        assert bugbot._dm_group_name("ada", bugbot.BOT_USERNAME) == bugbot._dm_group_name(bugbot.BOT_USERNAME, "ada")
 
 
 # ---------------------------------------------------------------------------
@@ -92,9 +90,7 @@ class TestEnsureBugbotUser:
                 if "count()" in sql:
                     return _mock_result_rows([(0,)])
                 if "group_contracts" in sql:
-                    return _mock_result_rows(
-                        [("g", "[]", "open", 0, "t", "t")]
-                    )
+                    return _mock_result_rows([("g", "[]", "open", 0, "t", "t")])
                 return _mock_result_rows([])
 
             mock_client.query.side_effect = fake_query
@@ -140,9 +136,7 @@ class TestEnsureDmGroup:
             # DM'd the bot first, so the group is creator-embedded on them).
             mock_client.query.side_effect = [
                 _mock_result_rows([]),
-                _mock_result_rows(
-                    [("g-2", "[]", "invite_only", 0, "2026-01-01 00:00:00", "2026-01-01 00:00:00")]
-                ),
+                _mock_result_rows([("g-2", "[]", "invite_only", 0, "2026-01-01 00:00:00", "2026-01-01 00:00:00")]),
             ]
             group_id = bugbot._ensure_dm_group("jacoby149")
             assert group_id == f"{settings.PROVIDER}/groups/users/jacoby149/dm-bugbot-jacoby149"
@@ -156,19 +150,14 @@ class TestEnsureDmGroup:
             group_id = bugbot._ensure_dm_group("jacoby149")
             assert group_id == f"{settings.PROVIDER}/groups/users/bugbot/dm-bugbot-jacoby149"
 
-            contract_call = next(
-                c for c in mock_client.insert.call_args_list if c[0][0] == "group_contracts"
-            )
+            contract_call = next(c for c in mock_client.insert.call_args_list if c[0][0] == "group_contracts")
             contract = contract_call[0][1][0]
             assert contract[0] == group_id
             assert '"posts"' in contract[1] and "readAll" in contract[1]
             assert contract[2] == "invite_only"
             # both parties are members (one insert call per member)
             members = [
-                row[1]
-                for c in mock_client.insert.call_args_list
-                if c[0][0] == "group_members"
-                for row in c[0][1]
+                row[1] for c in mock_client.insert.call_args_list if c[0][0] == "group_members" for row in c[0][1]
             ]
             assert members == ["bugbot", "jacoby149"]
 
@@ -207,16 +196,15 @@ class TestReportMessage:
 
 class TestDeliverBugReport:
     def test_no_admins_is_a_noop(self):
-        with _patch_client() as mock_client, patch.object(
-            bugbot.config_svc, "list_admins", return_value=[]
-        ):
+        with _patch_client() as mock_client, patch.object(bugbot.config_svc, "list_admins", return_value=[]):
             delivered = bugbot.deliver_bug_report(_report())
             assert delivered == []
             mock_client.insert.assert_not_called()
 
     def test_delivers_to_every_admin(self):
-        with _patch_client() as mock_client, patch.object(
-            bugbot.config_svc, "list_admins", return_value=["jacoby149", "ada"]
+        with (
+            _patch_client() as mock_client,
+            patch.object(bugbot.config_svc, "list_admins", return_value=["jacoby149", "ada"]),
         ):
             # get_user → bot present; get_group → groups absent (create both);
             # is_group_member → member row present (the write gate passes).
@@ -247,9 +235,7 @@ class TestDeliverBugReport:
             assert attached == set(delivered)
 
     def test_body_shape_matches_senddm(self):
-        with _patch_client() as mock_client, patch.object(
-            bugbot.config_svc, "list_admins", return_value=["jacoby149"]
-        ):
+        with _patch_client() as mock_client, patch.object(bugbot.config_svc, "list_admins", return_value=["jacoby149"]):
             mock_client.query.side_effect = [
                 _mock_result_rows([("bugbot", "$2b$10$hash", "", 0, "", 0, "t")]),  # get_user
                 _mock_result_rows([]),  # get_group (bot shape)
@@ -271,9 +257,7 @@ class TestDeliverBugReport:
     def test_write_gate_blocks_a_non_member(self):
         # The D58 gate: if the bot is NOT a member (and no anyone/authenticated
         # create grant), the write is refused — no doc, logged, not raised.
-        with _patch_client() as mock_client, patch.object(
-            bugbot.config_svc, "list_admins", return_value=["jacoby149"]
-        ):
+        with _patch_client() as mock_client, patch.object(bugbot.config_svc, "list_admins", return_value=["jacoby149"]):
             mock_client.query.side_effect = [
                 _mock_result_rows([("bugbot", "$2b$10$hash", "", 0, "", 0, "t")]),  # get_user
                 _mock_result_rows([]),  # get_group (bot shape)
@@ -290,9 +274,7 @@ class TestDeliverBugReport:
         # Best-effort: a ClickHouse failure mid-delivery (inside the per-admin
         # loop) is swallowed — the report is already durable, the submit must
         # not 500.
-        with _patch_client() as mock_client, patch.object(
-            bugbot.config_svc, "list_admins", return_value=["jacoby149"]
-        ):
+        with _patch_client() as mock_client, patch.object(bugbot.config_svc, "list_admins", return_value=["jacoby149"]):
             mock_client.query.side_effect = [
                 _mock_result_rows([("bugbot", "$2b$10$hash", "", 0, "", 0, "t")]),  # get_user (ok)
                 RuntimeError("clickhouse down"),  # get_group (bot shape) — blows up
@@ -304,8 +286,9 @@ class TestDeliverBugReport:
     def test_admin_named_bugbot_is_skipped(self):
         # A pathological config (an admin literally named bugbot) must not DM
         # the bot to itself.
-        with _patch_client() as mock_client, patch.object(
-            bugbot.config_svc, "list_admins", return_value=[bugbot.BOT_USERNAME]
+        with (
+            _patch_client() as mock_client,
+            patch.object(bugbot.config_svc, "list_admins", return_value=[bugbot.BOT_USERNAME]),
         ):
             delivered = bugbot.deliver_bug_report(_report())
             assert delivered == []
@@ -319,9 +302,10 @@ class TestDeliverBugReport:
 
 class TestSubmitBugReportHook:
     def test_submit_delivers_and_still_returns_200(self, client):
-        with patch.object(ch, "submit_bug_report") as mock_submit, patch.object(
-            bugbot, "deliver_bug_report"
-        ) as mock_deliver:
+        with (
+            patch.object(ch, "submit_bug_report") as mock_submit,
+            patch.object(bugbot, "deliver_bug_report") as mock_deliver,
+        ):
             mock_submit.return_value = {"report_id": "br-9", "status": "submitted", "created_at": "t"}
             res = client.post(
                 "/bug_report",
@@ -339,8 +323,9 @@ class TestSubmitBugReportHook:
     def test_submit_succeeds_when_delivery_blows_up(self, client):
         # The hook's belt-and-suspenders: even a bug in the delivery path
         # must not fail the submitter's request.
-        with patch.object(ch, "submit_bug_report") as mock_submit, patch.object(
-            bugbot, "deliver_bug_report", side_effect=RuntimeError("boom")
+        with (
+            patch.object(ch, "submit_bug_report") as mock_submit,
+            patch.object(bugbot, "deliver_bug_report", side_effect=RuntimeError("boom")),
         ):
             mock_submit.return_value = {"report_id": "br-10", "status": "submitted", "created_at": "t"}
             res = client.post("/bug_report", json={"description": "it broke"})

@@ -175,7 +175,10 @@ def deliver_bug_report(report: dict) -> list[str]:
             delivered.append(group_id)
             log.info(
                 "[bugbot] delivered report %s to %s (doc %s in %s)",
-                report["report_id"], admin, doc["doc_id"], group_id,
+                report["report_id"],
+                admin,
+                doc["doc_id"],
+                group_id,
             )
         except Exception:
             log.exception("[bugbot] delivery to %s failed (report %s is durable)", admin, report.get("report_id"))
