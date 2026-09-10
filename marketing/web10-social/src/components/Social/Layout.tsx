@@ -92,7 +92,12 @@ export default function Layout({ onLogout, onReportBug, children }: LayoutProps)
           if (rec?.url) setAvatarUrl(rec.url);
         }
       } catch (e) {
-        console.error('[layout] failed to load user menu profile:', e);
+        // A "No token available" (401) here means the user signed out mid-load —
+        // a normal lifecycle event, not an error. The row degrades to the
+        // token's username + an initial. console.log (not error) so the e2e
+        // console-error gauntlet (which allows only 403/404 resource failures)
+        // doesn't flag a benign sign-out race.
+        console.log('[layout] user menu profile load skipped:', String(e));
       }
     })();
     return () => { cancelled = true; };

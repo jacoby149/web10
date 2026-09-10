@@ -220,8 +220,10 @@ test.describe('Access recovery — browser gauntlet (the app heals the broken gr
       .toBe(true);
 
     // After the heal, a fresh load renders the profile (the group read works).
+    // (Scoped to `main` — the username also appears in the sidebar account row,
+    // so a page-wide getByText is ambiguous; the assertion is about the profile.)
     await page.reload();
     await page.waitForLoadState('networkidle');
-    await expect(page.getByText(username)).toBeVisible({ timeout: 15000 });
+    await expect(page.locator('main').getByText(username)).toBeVisible({ timeout: 15000 });
   });
 });
