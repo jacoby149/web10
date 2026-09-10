@@ -136,6 +136,33 @@ function isPostableWindow(src: MessageEventSource | null): src is Window {
     return !!src && typeof (src as Window).postMessage === 'function';
 }
 
+// ── The authenticator's OWN app contract (first-party self-grant) ───────────
+//
+// The authenticator is the node's first-party console — the trusted origin that
+// mints tokens and writes app contracts (`/v3/app-contracts/add` is
+// authenticator-origin-gated, so it is the only origin allowed to grant one).
+// But it is ALSO a CRUD client: the Studio's ad surfaces (AdsCard,
+// AdInventoryCard) and DirectDeals read/write `posts`/`ads` docs, and those
+// calls carry `Origin: <auth origin>`. The documents endpoint enforces an app
+// contract per origin+service+operation, so without a contract for the
+// authenticator's OWN origin every one of those CRUD calls 403s with
+// "No app contract for https://auth.web10.app to readAll on posts".
+//
+// Third-party apps get their contract via the consent popup (they can't call
+// `app-contracts/add` directly). The authenticator can't open a popup to
+// itself — it IS the consent UI. So on sign-in it grants itself a contract for
+// its own origin, the way the social app requests one for its own origin. The
+// grant is per-user (user_key), scoped to the services the console's data
+// layer touches, and idempotent (`add_app_contract` upserts).
+
+// The v3 services the authenticator's own CRUD touches (Studio ad cards +
+// DirectDeals). Must stay in lockstep with the `I.v3.read/create/update/delete`
+// calls in `ui/src/components/Studio/`.
+const AUTH_SELF_SERVICES = ['posts', 'ads'] as const;
+// The four operations the documents endpoint enforces (create / read /
+// update / delete) — the same set the social app's contract requests.
+const AUTH_SELF_OPERATIONS = ['create', 'readAll', 'updateOwn', 'deleteOwn'] as const;
+
 function useInterface() {
     const I = {} as Record<string, any>;
 
@@ -406,6 +433,10 @@ function useInterface() {
         _servicesLoadTimer.current = setTimeout(() => {
             _servicesLoadTimer.current = null;
             I.v3ContractsLoad();
+            // The first-party self-grant: the authenticator needs an app
+            // contract for its own origin so its Studio CRUD (the ad cards)
+            // isn't 403'd. Best-effort, idempotent — see ensureSelfContract.
+            I.ensureSelfContract();
             I.v3GroupsLoad();
             I.v3GroupsManagesLoad();
 
@@ -642,6 +673,27 @@ function useInterface() {
             permissions,
         }).then(() => {
             I.v3ContractsLoad();
+        });
+    }
+
+    // Ensure the authenticator holds an app contract for its OWN origin — the
+    // first-party self-grant (see AUTH_SELF_SERVICES above). Called from
+    // servicesLoad so it runs on both an explicit login and a cookie session
+    // restore, before the user reaches the Studio. Idempotent: skips the write
+    // when the loaded contract list already covers this origin (a re-grant is a
+    // harmless upsert, but we avoid the write on every servicesLoad tick).
+    // Best-effort — a failure here must never block the sign-in flow; the
+    // Studio cards surface their own error + Retry if the grant didn't land.
+    I.ensureSelfContract = function () {
+        const origin = window.location.origin;
+        if (!origin) return Promise.resolve();
+        if (I.hasV3Contract(origin)) return Promise.resolve();
+        const permissions: Record<string, string[]> = Object.fromEntries(
+            AUTH_SELF_SERVICES.map((service) => [service, [...AUTH_SELF_OPERATIONS]]),
+        );
+        console.log('[auth-ui] ensuring self app-contract for', origin, JSON.stringify(permissions));
+        return I.addV3Contract(origin, permissions).catch((e) => {
+            console.warn('[auth-ui] self app-contract grant failed (non-fatal):', e);
         });
     }
 
