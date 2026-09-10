@@ -51,10 +51,10 @@ docker compose -p "$PROJECT" -f docker-compose.yml exec -T clickhouse \
   -q "CREATE USER IF NOT EXISTS web10 IDENTIFIED BY 'web10'; CREATE DATABASE IF NOT EXISTS web10; GRANT ALL ON web10.* TO web10;"
 docker compose -p "$PROJECT" -f docker-compose.yml exec -T clickhouse \
   clickhouse-client --user web10 --password web10 --database web10 \
-  < clickhouse-init/001-init-v3-schema.sql.template
+  < ../clickhouse-init/001-init-v3-schema.sql.template
 docker compose -p "$PROJECT" -f docker-compose.yml exec -T clickhouse \
   clickhouse-client --user web10 --password web10 --database web10 \
-  < clickhouse-init/002-logs-table.sql.template
+  < ../clickhouse-init/002-logs-table.sql.template
 
 # Wait for stack health.
 TIMEOUT=300 bash wait-for-stack.sh
