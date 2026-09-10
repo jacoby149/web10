@@ -439,6 +439,19 @@ function adCreative(label: string, from: string, to: string): unknown {
 
 const FEED_POSTS: SeedFeedPost[] = [
   {
+    // The signed-in user's own post (token username 'me') — renders the
+    // owner kebab menu (Share / Edit / Make private / Delete) on the card.
+    _id: 'fp-0',
+    author_username: 'me',
+    author_provider: 'web10',
+    text: 'Rack is finally quiet — swapped the PSUs and the whole thing idles cold. Server room, but make it cozy.',
+    created_at: minsAgo(12),
+    tags: ['homelab', 'server'],
+    likes: 42,
+    comments: 7,
+    reposts: 0,
+  },
+  {
     _id: 'fp-1',
     author_username: 'nova',
     author_provider: 'web10',
