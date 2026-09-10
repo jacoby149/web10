@@ -11,6 +11,7 @@ import {
   Link as LinkIcon,
   LockOpen,
   MessageSquare,
+  Eye,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -57,6 +58,8 @@ export function CreateGroupSheet({
   const [description, setDescription] = useState('');
   const [visibility, setVisibility] = useState<GroupVisibility>('private');
   const [joinPolicy, setJoinPolicy] = useState<GroupJoinPolicy>('open');
+  const [listed, setListed] = useState<boolean>(false);
+  const [listedTouched, setListedTouched] = useState<boolean>(false);
   const [tags, setTags] = useState('');
   const [website, setWebsite] = useState('');
   const [bannerFile, setBannerFile] = useState<File | null>(null);
@@ -84,6 +87,8 @@ export function CreateGroupSheet({
       setDescription('');
       setVisibility('private');
       setJoinPolicy('open');
+      setListed(false);
+      setListedTouched(false);
       setTags('');
       setWebsite('');
       setBannerFile(null);
@@ -102,6 +107,13 @@ export function CreateGroupSheet({
       if (avatarPreview) URL.revokeObjectURL(avatarPreview);
     };
   }, [bannerPreview, avatarPreview]);
+
+  // The "List in directory" default tracks the visibility (a `public` group is
+  // findable, signed-in / private are unlisted) until the operator flips the
+  // toggle themselves — after that their choice is sticky.
+  useEffect(() => {
+    if (!listedTouched) setListed(visibility === 'public');
+  }, [visibility, listedTouched]);
 
   const pickFile = useCallback((setter: (f: File | null) => void, previewSetter: (u: string | null) => void) => {
     return (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -144,6 +156,7 @@ export function CreateGroupSheet({
           tags: tagList.length ? tagList : undefined,
           visibility,
           join_policy: joinPolicy,
+          discoverable: listed,
           banner_ref: bannerRef,
           avatar_ref: avatarRef,
         },
@@ -157,7 +170,7 @@ export function CreateGroupSheet({
     } finally {
       setSubmitting(false);
     }
-  }, [canSubmit, name, description, website, tags, visibility, joinPolicy, bannerFile, avatarFile, username, onCreated]);
+  }, [canSubmit, name, description, website, tags, visibility, joinPolicy, listed, bannerFile, avatarFile, username, onCreated]);
 
   if (!open) return null;
 
@@ -329,6 +342,39 @@ export function CreateGroupSheet({
                   </button>
                 );
               })}
+            </div>
+          </div>
+
+          {/* List in directory — the D53 blasting flag */}
+          <div className="mt-4 rounded-lg border border-border bg-surface px-3 py-3" data-testid="create-group-listed">
+            <div className="flex items-center justify-between gap-3">
+              <div className="flex items-center gap-2">
+                <Eye className="h-4 w-4 text-muted-foreground" strokeWidth={1.75} />
+                <div>
+                  <p className="text-sm font-medium text-foreground">List in directory</p>
+                  <p className="text-xs text-muted-foreground">
+                    {listed ? 'Shown in the public Discover directory.' : 'Hidden from the public directory (unlisted).'}
+                  </p>
+                </div>
+              </div>
+              <button
+                type="button"
+                role="switch"
+                aria-checked={listed}
+                aria-label="List in directory"
+                onClick={() => {
+                  setListed(!listed);
+                  setListedTouched(true);
+                }}
+                disabled={submitting}
+                data-testid="create-group-listed-toggle"
+                className={cn(
+                  'relative inline-flex h-5 w-9 shrink-0 items-center rounded-full transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-50',
+                  listed ? 'bg-brand' : 'bg-elevated',
+                )}
+              >
+                <span className={cn('inline-block h-4 w-4 transform rounded-full bg-white shadow transition-transform', listed ? 'translate-x-4' : 'translate-x-0.5')} />
+              </button>
             </div>
           </div>
 
