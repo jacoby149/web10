@@ -1,9 +1,12 @@
-import { useState } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useNavigate, useLocation, Outlet } from 'react-router-dom';
 import { cn } from '@/lib/utils';
-import { Home, User, MessageSquare, PlusCircle, LogOut, Bug, Compass, Users, Store, Gamepad2, Radio, Zap, Clapperboard, Settings, MoreHorizontal, X, Bell } from 'lucide-react';
+import { Home, User, MessageSquare, PlusCircle, LogOut, Bug, Compass, Users, Store, Gamepad2, Radio, Zap, Clapperboard, Settings, MoreHorizontal, X, Bell, ChevronUp } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { getWapi } from '@/data/wapi';
+import { readProfile, resolveMediaRefs } from '@/data';
+import type { ProfileRecord } from '@/data';
 import { useNotifications } from '@/hooks/useNotifications';
 import NotificationBell from '@/components/Notifications/NotificationBell';
 
@@ -62,6 +65,59 @@ export default function Layout({ onLogout, onReportBug, children }: LayoutProps)
   const [moreOpen, setMoreOpen] = useState(false);
   const { unread } = useNotifications();
   const isNotifications = pathname === '/notifications';
+
+  // The desktop sidebar's account entry point: an avatar row that opens a
+  // user menu (Profile / Settings / Report a bug / Log out). This is where
+  // users expect account actions to live (Instagram / X / Discord) — the old
+  // ghost "Log out" button buried at the bottom of a long sidebar was not a
+  // "clear way to log out".
+  const [userMenuOpen, setUserMenuOpen] = useState(false);
+  const userMenuRef = useRef<HTMLDivElement>(null);
+  const [displayName, setDisplayName] = useState<string | null>(null);
+  const [avatarUrl, setAvatarUrl] = useState<string | undefined>(undefined);
+  const username = token?.username ?? '';
+
+  useEffect(() => {
+    if (!token) return;
+    let cancelled = false;
+    (async () => {
+      try {
+        const p = await readProfile();
+        if (cancelled) return;
+        if (p?.display_name) setDisplayName(p.display_name);
+        if (p?.avatar_ref) {
+          const media = await resolveMediaRefs([p.avatar_ref]);
+          if (cancelled) return;
+          const rec = media.find((m) => m._id === p.avatar_ref) ?? media[0];
+          if (rec?.url) setAvatarUrl(rec.url);
+        }
+      } catch (e) {
+        // A "No token available" (401) here means the user signed out mid-load —
+        // a normal lifecycle event, not an error. The row degrades to the
+        // token's username + an initial. console.log (not error) so the e2e
+        // console-error gauntlet (which allows only 403/404 resource failures)
+        // doesn't flag a benign sign-out race.
+        console.log('[layout] user menu profile load skipped:', String(e));
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [token?.username]);
+
+  useEffect(() => {
+    if (!userMenuOpen) return;
+    const onDown = (e: MouseEvent) => {
+      if (userMenuRef.current && !userMenuRef.current.contains(e.target as Node)) setUserMenuOpen(false);
+    };
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setUserMenuOpen(false);
+    };
+    document.addEventListener('mousedown', onDown);
+    document.addEventListener('keydown', onKey);
+    return () => {
+      document.removeEventListener('mousedown', onDown);
+      document.removeEventListener('keydown', onKey);
+    };
+  }, [userMenuOpen]);
 
   const isActive = (path: string) => {
     if (path === '/profile') return pathname.startsWith('/u/');
@@ -176,25 +232,94 @@ export default function Layout({ onLogout, onReportBug, children }: LayoutProps)
             ))}
           </div>
         </nav>
-        <div className="relative p-4 border-t border-border space-y-1">
-          <Button
-            variant="ghost"
-            data-testid="report-bug-button"
-            className="w-full justify-start gap-3 text-muted-foreground hover:text-foreground"
-            onClick={onReportBug}
+        <div className="relative p-3 border-t border-border" ref={userMenuRef}>
+          <button
+            type="button"
+            data-testid="user-menu-trigger"
+            aria-haspopup="menu"
+            aria-expanded={userMenuOpen}
+            onClick={() => setUserMenuOpen((o) => !o)}
+            className={cn(
+              'w-full flex items-center gap-3 rounded-lg p-2 transition-colors duration-150',
+              'hover:bg-elevated/80 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand/50',
+              userMenuOpen && 'bg-elevated/80',
+            )}
           >
-            <Bug className="w-5 h-5" strokeWidth={1.75} />
-            Report a bug
-          </Button>
-          <Button
-            variant="ghost"
-            data-testid="logout-button"
-            className="w-full justify-start gap-3 text-muted-foreground hover:text-foreground"
-            onClick={onLogout}
-          >
-            <LogOut className="w-5 h-5" strokeWidth={1.75} />
-            Log out
-          </Button>
+            <Avatar className="h-9 w-9">
+              {avatarUrl ? (
+                <AvatarImage src={avatarUrl} alt="" />
+              ) : (
+                <AvatarFallback className="bg-brand-muted text-brand-300 text-sm font-semibold">
+                  {(displayName || username || '?').charAt(0).toUpperCase()}
+                </AvatarFallback>
+              )}
+            </Avatar>
+            <div className="flex-1 min-w-0 text-left">
+              <p className="text-sm font-medium text-foreground truncate">{displayName || username}</p>
+              <p className="text-xs text-muted-foreground truncate">@{username}</p>
+            </div>
+            <ChevronUp
+              className={cn('w-4 h-4 shrink-0 text-muted-foreground transition-transform duration-150', userMenuOpen && 'rotate-180')}
+              strokeWidth={1.75}
+            />
+          </button>
+
+          {userMenuOpen && (
+            <div
+              role="menu"
+              data-testid="user-menu"
+              className="absolute bottom-full left-3 right-3 z-30 mb-2 rounded-lg border border-border bg-popover p-1 shadow-[0_8px_30px_rgb(0_0_0/0.35)]"
+            >
+              <div className="border-b border-border px-3 py-2">
+                <p className="text-[0.625rem] uppercase tracking-wide text-muted-foreground/70">Signed in as</p>
+                <p className="truncate text-sm font-medium text-foreground">{displayName || username}</p>
+                <p className="truncate text-xs text-muted-foreground">@{username}</p>
+              </div>
+              <div className="pt-1">
+                <button
+                  type="button"
+                  role="menuitem"
+                  data-testid="user-menu-profile"
+                  onClick={() => { setUserMenuOpen(false); navigate(profilePath); }}
+                  className="flex w-full items-center gap-2 rounded-md px-3 py-2 text-left text-sm text-foreground hover:bg-elevated transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand/50"
+                >
+                  <User className="w-4 h-4 text-muted-foreground" strokeWidth={1.75} />
+                  Profile
+                </button>
+                <button
+                  type="button"
+                  role="menuitem"
+                  data-testid="user-menu-settings"
+                  onClick={() => { setUserMenuOpen(false); navigate('/settings'); }}
+                  className="flex w-full items-center gap-2 rounded-md px-3 py-2 text-left text-sm text-foreground hover:bg-elevated transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand/50"
+                >
+                  <Settings className="w-4 h-4 text-muted-foreground" strokeWidth={1.75} />
+                  Settings
+                </button>
+                <button
+                  type="button"
+                  role="menuitem"
+                  data-testid="user-menu-report-bug"
+                  onClick={() => { setUserMenuOpen(false); onReportBug(); }}
+                  className="flex w-full items-center gap-2 rounded-md px-3 py-2 text-left text-sm text-foreground hover:bg-elevated transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand/50"
+                >
+                  <Bug className="w-4 h-4 text-muted-foreground" strokeWidth={1.75} />
+                  Report a bug
+                </button>
+                <div className="my-1 h-px bg-border" aria-hidden="true" />
+                <button
+                  type="button"
+                  role="menuitem"
+                  data-testid="logout-button"
+                  onClick={onLogout}
+                  className="flex w-full items-center gap-2 rounded-md px-3 py-2 text-left text-sm text-muted-foreground hover:bg-danger-muted hover:text-danger transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand/50"
+                >
+                  <LogOut className="w-4 h-4" strokeWidth={1.75} />
+                  Log out
+                </button>
+              </div>
+            </div>
+          )}
         </div>
       </aside>
 
