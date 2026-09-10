@@ -51,12 +51,16 @@ jobs:
     name: e2e shard ${{ matrix.shard }}/4
     needs: build
     # Self-hosted runner on the web10 box (8 cores). The suite is split into 4
-    # PARALLEL shards, each with its OWN stack (own ports, own docker project,
-    # own ClickHouse/API/UIs) on its own docker network — so there's no shared-DB
-    # queue and the wall-clock is the slowest shard, not the sum. The nginx proxy
-    # only routes to same-network containers, so identical *.localhost vhost
-    # labels don't cross-route (verified on the box). `*.localhost` vhost names
-    # are forced to 127.0.0.1 in the box's /etc/hosts so the proxies are reachable.
+    # shards, each with its OWN stack (own ports, own docker project, own
+    # ClickHouse/API/UIs) on its own docker network — so there's no shared-DB
+    # queue and the wall-clock is the slowest shard, not the sum. A self-hosted
+    # runner runs ONE job at a time, so a 4-leg matrix would serialize; instead
+    # ONE job runs all 4 shards concurrently in the background (run-all-shards.sh)
+    # — the box's 8 cores feed all 4 stacks + their browser workers. The nginx
+    # proxy only routes to same-network containers, so identical *.localhost
+    # vhost labels don't cross-route (verified on the box). `*.localhost` vhost
+    # names are forced to 127.0.0.1 in the box's /etc/hosts so the proxies are
+    # reachable.
     #
     # Port scheme (shard N): HTTP 80(90+(N-1)*100), MINIO 9(100+(N-1)*100) —
     # 8090/9100, 8190/9200, 8290/9300, 8390/9400. All clear of the live
@@ -65,10 +69,6 @@ jobs:
     # global node_config mutations never race).
     runs-on: [self-hosted, web10-e2e]
     timeout-minutes: 25
-    strategy:
-      fail-fast: false
-      matrix:
-        shard: [1, 2, 3, 4]
     env:
       STRIPE_TEST_KEY: ${{ secrets.STRIPE_TEST_KEY }}
     steps:
@@ -83,31 +83,33 @@ jobs:
           # the browser is in the runner's cache (idempotent, no root needed).
           npx playwright install chromium
 
-      - name: Run shard ${{ matrix.shard }} (own stack + spec slice)
+      - name: Run all 4 shards concurrently (own stack + spec slice each)
         working-directory: e2e
-        run: bash run-shard.sh ${{ matrix.shard }}
+        run: bash run-all-shards.sh
 
       - name: Dump stack logs on failure
         if: failure()
         run: |
-          P="e2e-s${{ matrix.shard }}"
-          echo "=== [$P] ClickHouse logs (stdout) ==="
-          docker compose -p "$P" -f e2e/docker-compose.yml logs clickhouse 2>&1 | tail -80
-          echo "=== [$P] API logs (errors + last 200) ==="
-          docker compose -p "$P" -f e2e/docker-compose.yml logs api 2>&1 | grep -iE "error|exception|traceback|500|refused|timeout|clickhouse" | tail -60
-          echo "--- [$P] API tail ---"
-          docker compose -p "$P" -f e2e/docker-compose.yml logs api 2>&1 | tail -200
-          echo "=== [$P] Container status ==="
-          docker compose -p "$P" -f e2e/docker-compose.yml ps -a
+          for P in e2e-s1 e2e-s2 e2e-s3 e2e-s4; do
+            echo "=== [$P] API logs (errors + last 100) ==="
+            docker compose -p "$P" -f e2e/docker-compose.yml logs api 2>&1 | grep -iE "error|exception|traceback|500|refused|timeout|clickhouse" | tail -40
+            echo "--- [$P] API tail ---"
+            docker compose -p "$P" -f e2e/docker-compose.yml logs api 2>&1 | tail -100
+            echo "=== [$P] Container status ==="
+            docker compose -p "$P" -f e2e/docker-compose.yml ps -a
+          done
 
       - name: Upload Playwright traces on failure
         uses: actions/upload-artifact@v4
         if: failure()
         with:
-          name: playwright-traces-shard-${{ matrix.shard }}
+          name: playwright-traces
           path: e2e/test-results/
           retention-days: 7
 
-      - name: Tear down shard stack
+      - name: Tear down all shard stacks
         if: always()
-        run: docker compose -p "e2e-s${{ matrix.shard }}" -f e2e/docker-compose.yml down -v
+        run: |
+          for P in e2e-s1 e2e-s2 e2e-s3 e2e-s4; do
+            docker compose -p "$P" -f e2e/docker-compose.yml down -v
+          done
