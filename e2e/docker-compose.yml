@@ -34,6 +34,10 @@ services:
       - clickhouse
     volumes:
       - ../api:/web10
+      # Named volume shadows the baked /web10/.venv so `uv run` reuses the
+      # image's venv instead of recreating it in the host checkout (root-owned,
+      # which then breaks the next run's checkout cleanup with EACCES).
+      - api-venv:/web10/.venv
     environment:
       VIRTUAL_HOST: api.localhost
       PROVIDER: api.localhost
@@ -85,6 +89,9 @@ services:
     build: ../api/rtc
     volumes:
       - ../api/rtc:/rtc
+      # Same as api-venv: keep the baked node_modules off the host checkout so
+      # `bun run dev` doesn't recreate it root-owned in ../api/rtc.
+      - rtc-node-modules:/rtc/node_modules
     command: ["bun", "run", "dev"]
     environment:
       PORT: "80"
@@ -166,6 +173,8 @@ services:
 volumes:
   minio-data:
   ui-node-modules:
+  api-venv:
+  rtc-node-modules:
 
 networks:
   e2e-net:
