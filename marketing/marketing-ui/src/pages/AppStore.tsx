@@ -160,6 +160,14 @@ function AppStore() {
   // Captured here from the same list fetch, before the filter, so the plug
   // slot shows real web10 users instead of a permanent 0.
   const [consoleMetric, setConsoleMetric] = useState<{ users_30d: number; visits: number; appId?: string } | null>(null)
+  // The flagship (web10 social) has the same problem: its canonical
+  // registration (social.web10.app at its root) is a known-host root, so
+  // the grid filter drops it from `apps` and the `flagship` lookup in
+  // `firstParty` misses → the plug slot shows 0 users. The detail page
+  // (GET /v3/apps/detail) computes the metric fresh and shows the real
+  // number, so the card and the page disagree. Captured before the filter,
+  // same pattern as consoleMetric.
+  const [flagshipMetric, setFlagshipMetric] = useState<{ users_30d: number; visits: number; appId?: string } | null>(null)
 
   useEffect(() => {
     trackFunnel('app_store_view')
@@ -202,6 +210,13 @@ function AppStore() {
     if (consoleApp) {
       setConsoleMetric({ users_30d: consoleApp.users_30d ?? 0, visits: consoleApp.visits ?? 0, appId: consoleApp.url })
     }
+    // Capture the flagship's real metric before the grid filter drops it
+    // (its canonical registration is a known-host root). The flagship plug
+    // slot reads this as a fallback when the filtered `apps` lookup misses.
+    const flagshipApp = enriched.find((a) => a.url && hostOf(a.url) === hostOf(SOCIAL_ORIGIN))
+    if (flagshipApp) {
+      setFlagshipMetric({ users_30d: flagshipApp.users_30d ?? 0, visits: flagshipApp.visits ?? 0, appId: flagshipApp.url })
+    }
     const mapped: StoreApp[] = enriched
       .filter((a) => a.url && (!KNOWN_HOSTS.includes(hostOf(a.url)) || !isHostRoot(a.url)))
       .filter((a) => hostOf(a.url) !== '' && !hostOf(a.url).endsWith('.localhost'))
@@ -241,8 +256,13 @@ function AppStore() {
         description: 'Feed, DMs, media, streaming — your audience and your data, on a node you own.',
         href: SOCIAL_ORIGIN,
         iconSrc: ICON_PATH,
-        users_30d: flagship?.users_30d ?? 0,
-        visits: flagship?.visits ?? 0,
+        // The canonical registration (social.web10.app at its root) is a
+        // known-host root, so the grid filter drops it from `apps` and
+        // `flagship` is often undefined. `flagshipMetric` was captured from
+        // the list fetch before the filter (same pattern as consoleMetric),
+        // so the plug slot shows the real count instead of a permanent 0.
+        users_30d: flagship?.users_30d ?? flagshipMetric?.users_30d ?? 0,
+        visits: flagship?.visits ?? flagshipMetric?.visits ?? 0,
         flagship: true,
         // D52: the flagship links to its product page like every other app.
         // `flagship` is the registered copy — but the canonical registration
@@ -252,7 +272,7 @@ function AppStore() {
         // always routes to /app-store/app/{url} (the review page) instead of
         // opening the app directly. A non-canonical registration still wins
         // when present — its url is the real detail key.
-        appId: flagship?.appId ?? SOCIAL_ORIGIN,
+        appId: flagship?.appId ?? flagshipMetric?.appId ?? SOCIAL_ORIGIN,
       },
       {
         name: 'web10 hub',
@@ -272,7 +292,7 @@ function AppStore() {
         visits: 0,
       },
     ]
-  }, [apps, consoleMetric])
+  }, [apps, consoleMetric, flagshipMetric])
 
   const allApps = useMemo(() => [...firstParty, ...apps], [firstParty, apps])
 
