@@ -90,6 +90,7 @@ describe('CreateGroupSheet', () => {
       tags: ['gaming', 'retro'],
       visibility: 'public',
       join_policy: 'open',
+      discoverable: true,
       banner_ref: undefined,
       avatar_ref: undefined,
     });
@@ -118,6 +119,48 @@ describe('CreateGroupSheet', () => {
     });
     const [input] = mockCreate.mock.calls[0];
     expect(input.join_policy).toBe('invite_only');
+  });
+
+  it('the List-in-directory toggle renders and defaults off for a private group', () => {
+    renderSheet();
+    const toggle = screen.getByTestId('create-group-listed-toggle');
+    expect(toggle).toHaveAttribute('aria-checked', 'false');
+    expect(screen.getByTestId('create-group-listed')).toHaveTextContent('Hidden from the public directory');
+  });
+
+  it('picking public turns the toggle on (the default tracks visibility)', () => {
+    renderSheet();
+    fireEvent.click(screen.getByTestId('create-group-visibility-public'));
+    expect(screen.getByTestId('create-group-listed-toggle')).toHaveAttribute('aria-checked', 'true');
+    expect(screen.getByTestId('create-group-listed')).toHaveTextContent('Shown in the public Discover directory');
+  });
+
+  it('a manual toggle is sticky — it survives a later visibility change', () => {
+    renderSheet();
+    // public → the default turns the toggle on
+    fireEvent.click(screen.getByTestId('create-group-visibility-public'));
+    expect(screen.getByTestId('create-group-listed-toggle')).toHaveAttribute('aria-checked', 'true');
+    // operator flips it off (unlist a public group)
+    fireEvent.click(screen.getByTestId('create-group-listed-toggle'));
+    expect(screen.getByTestId('create-group-listed-toggle')).toHaveAttribute('aria-checked', 'false');
+    // switching visibility must NOT clobber the manual choice
+    fireEvent.click(screen.getByTestId('create-group-visibility-private'));
+    expect(screen.getByTestId('create-group-listed-toggle')).toHaveAttribute('aria-checked', 'false');
+  });
+
+  it('the List-in-directory choice is passed into the create call', async () => {
+    renderSheet();
+    fireEvent.change(screen.getByTestId('create-group-name'), { target: { value: 'My Group' } });
+    // private group, but the operator opts it into the directory
+    fireEvent.click(screen.getByTestId('create-group-listed-toggle'));
+    fireEvent.click(screen.getByTestId('create-group-submit'));
+
+    await waitFor(() => {
+      expect(mockCreate).toHaveBeenCalledTimes(1);
+    });
+    const [input] = mockCreate.mock.calls[0];
+    expect(input.visibility).toBe('private');
+    expect(input.discoverable).toBe(true);
   });
 
   it('uploads a banner + avatar and passes their refs into the create call', async () => {
