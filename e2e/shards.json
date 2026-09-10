@@ -1,0 +1,66 @@
+{
+  "_comment": "Shard manifest for the parallel e2e run. Each shard = its own docker stack (own ports, own ClickHouse/API/UIs) running a slice of the specs. The box has 8 cores shared with the live dev/prod stacks, so 4 shards x 2 workers = 8 browser contexts is the ceiling. Ports: shard N -> HTTP 80(90+(N-1)*100), MINIO 9(100+(N-1)*100), MINIO_CONSOLE +1. Docker project: e2e-s<N>. The 'global-config' shard (node-ads + moderation + discover-board) runs workers=1 so the global node_config mutations (node_ad_percentage / sensitive_words / auto_hide_users) never race.",
+  "shards": [
+    {
+      "name": "auth",
+      "workers": 2,
+      "specs": [
+        "authenticator-torture.spec.ts",
+        "auth-popup-roundtrip.spec.ts",
+        "cookie-torture.spec.ts",
+        "recovery.spec.ts",
+        "ui-auth.spec.ts",
+        "access-verify.spec.ts",
+        "stripe-smoke.spec.ts"
+      ]
+    },
+    {
+      "name": "social",
+      "workers": 2,
+      "specs": [
+        "social-feed.spec.ts",
+        "social-full.spec.ts",
+        "social-profile.spec.ts",
+        "social-settings.spec.ts",
+        "social-trending.spec.ts",
+        "social-groups.spec.ts",
+        "social-groups-directory.spec.ts",
+        "social-post-feed.spec.ts",
+        "discover-board.spec.ts"
+      ]
+    },
+    {
+      "name": "groups-apps",
+      "workers": 2,
+      "specs": [
+        "groups-demo.spec.ts",
+        "group-contract-editors.spec.ts",
+        "app-store.spec.ts",
+        "sharing-demo.spec.ts",
+        "query-engine.spec.ts",
+        "feed-demo.spec.ts",
+        "hello-demo.spec.ts",
+        "notes-demo.spec.ts",
+        "exporter.spec.ts",
+        "marketing-ui.spec.ts"
+      ]
+    },
+    {
+      "name": "global-config",
+      "workers": 1,
+      "specs": [
+        "node-ads.spec.ts",
+        "moderation.spec.ts",
+        "ads.spec.ts",
+        "studio-metering.spec.ts",
+        "concurrency-torture.spec.ts",
+        "social-messages.spec.ts",
+        "messages-demo.spec.ts",
+        "hls.spec.ts",
+        "media-demo.spec.ts",
+        "yt-import.spec.ts",
+        "gauntlet.spec.ts"
+      ]
+    }
+  ]
+}
