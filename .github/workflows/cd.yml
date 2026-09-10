@@ -29,7 +29,10 @@ jobs:
           - name: api
             context: api
           - name: ui
-            context: ui
+            # Repo-root context so the Dockerfile can COPY ui/ + sdk/ (the
+            # auth app bundles the v3 SDK). Mirrors docker.yml.
+            context: .
+            dockerfile: ui/Dockerfile
             target: build
           - name: rtc
             context: api/rtc
