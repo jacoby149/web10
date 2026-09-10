@@ -632,3 +632,22 @@ bytes), no subscriber list (no export path). Root of trust:
 - [ ] **The video pipeline (Phase 2)** — the export includes the actual MP4s (`videos/*.mp4`, ~27GB for the operator's channel). Stream each from the export to MinIO (not to memory), create a media doc, wire it to the post (`media_refs` + `video: {type: minio, value: object_key}`). Playback is a direct presigned MP4 read (`web10-social`'s `<video src={read_url}>`) — **no HLS transcode required** for native playback. Gated on the operator's go-ahead (disk + upload-time implications of a multi-GB upload).
 - [ ] **The "port your YouTube" landing** — a creator-facing marketing page (the reach gap + the owned-audience reframe + the import flow). Feeds the `For Monetizers` / `For Node Operators` doc sections.
 - [✓ 3.67.1] **The real import e2e** — `e2e/tests/yt-import.spec.ts` (a dedicated spec, not a re-pin of the gutted `exporter.spec.ts`): drives the real node pipeline against the operator's **actual** Takeout export (`e2e/fixtures/yt-takeout.mjs` reads the real CSVs out of the `takeout-*.zip` parts, packs a small zip, computes expected counts via the parser's own logic; a committed synthetic Takeout is the CI fallback; `YT_IMPORT_LIMIT` bounds the chunk, default 12). API floor (real Takeout → fresh account: catalog + D30 public/private split + D62 comment join + profile; idempotent re-import; I3 stranger 403) + browser gauntlet (the real Import card, default-port-gated). Also fixed the `ensure_bucket` concurrent-create race (`BucketAlreadyOwnedByYou` → idempotent).
+
+### Lane: bugbot (D70)
+**Owns:** `api/app/v3/services/bugbot.py`, `api/app/endpoints/system.py` (the `submit_bug_report` hook), `api/tests/test_bugbot.py`, `knowledge/knowledge-base/web10-v3/social/bug-reports.md`
+
+Bug reports push to the node's admins as a DM from the `bugbot` user (D70).
+The report is already durable in the `bug_reports` table; this is the
+delivery. The bot is a real node user (lazy-provisioned, idempotent); the DM
+is the standard 2-member `dm-bugbot-{admin}` group + a `posts` doc (the
+`sendDm` body shape + `report_id` + screenshot count). Best-effort: a
+delivery failure logs and never blocks the submit. Recipients = the node
+admin list (`config.list_admins()` — the same list `check_admin` gates on).
+Spec: `knowledge/strategy/plan.md` → "Bug Reports: The Bugbot (D70)".
+
+- [✓ 3.79.0] **Decision: D70** (`knowledge/strategy/decisions.md`) — DM push from `bugbot`, not email / not a push channel / not a console UI; lazy idempotent provisioning; recipients = the admin list; best-effort never blocking.
+- [✓ 3.79.0] **KB** (`knowledge/knowledge-base/web10-v3/social/bug-reports.md`) — the model (table = the record, DM = the pointer), the bot's identity, the message shape, the invariants (the bot is a user; I1/I2/I3 hold).
+- [✓ 3.79.0] **The bot service** (`api/app/v3/services/bugbot.py`) — `ensure_bugbot_user()` (idempotent, random unguessable password, no contact) + `deliver_bug_report(report)` (per-admin: ensure the DM group — both creator-embedded id shapes, the admin may have DM'd the bot first — then the `posts` doc authored by `bugbot`, gated by `can_write_group`).
+- [✓ 3.79.0] **The hook** (`api/app/endpoints/system.py`) — `submit_bug_report` calls `deliver_bug_report` after the insert, wrapped so a failure logs + swallows (the submit is already durable; the response is unchanged).
+- [✓ 3.79.0] **Tests** (`api/tests/test_bugbot.py`, 19) — provisioning idempotency; delivery to every admin (group contract = the DM shape, doc authored by `bugbot`, body shape, `report_id` + screenshot count present); the admin-created-first group shape is found, not re-created; no admins → no-op; delivery failure → submit still 200 + logged; the I3 boundary pinned compositionally (the doc attaches only to the DM groups; the group's members are bot + admin; the D58 read gate is conformance-pinned).
+- [ ] **v1** — the admin review queue UI (console: browse `bug_reports`, fetch screenshots via the detail endpoint); email as a second channel (gated on a provider decision).
