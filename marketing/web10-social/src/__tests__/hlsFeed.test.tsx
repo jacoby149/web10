@@ -128,7 +128,12 @@ describe('FeedScreen — HLS in the feed (D44)', () => {
     expect(screen.getByTestId('speed-select')).toBeInTheDocument();
     expect(screen.getByTestId('fullscreen-button')).toBeInTheDocument();
     // The hls.js instance was wired to the minted manifest (API origin +
-    // the path-only manifest_url from the read).
+    // the path-only manifest_url from the read). The `new Hls()` runs in the
+    // player's effect (after the element commits), so wait for the instance —
+    // under CI load the element can be in the DOM before the effect runs.
+    await waitFor(() => {
+      expect(FakeHls.instances.length).toBeGreaterThan(0);
+    });
     const hls = FakeHls.instances[0];
     expect(hls.loadSource).toHaveBeenCalledWith(expect.stringContaining('/v3/media/hls/manifest?doc_id=m-hls&sig=abc'));
 

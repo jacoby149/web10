@@ -645,7 +645,7 @@ describe('Layout', () => {
     expect(within(mobileNav).queryByText('Help')).not.toBeInTheDocument();
   });
 
-  it('renders logout button', async () => {
+  it('renders logout button in the user menu', async () => {
     const { default: Layout } = await import('@/components/Social/Layout');
     const onLogout = vi.fn();
     render(
@@ -655,10 +655,31 @@ describe('Layout', () => {
         </Layout>
       </MemoryRouter>,
     );
+    // The avatar row is the account entry point; the menu is closed by default.
+    const trigger = screen.getByTestId('user-menu-trigger');
+    expect(trigger).toBeInTheDocument();
+    expect(screen.queryByText('Log out')).not.toBeInTheDocument();
+    fireEvent.click(trigger);
+    expect(screen.getByTestId('user-menu')).toBeInTheDocument();
     expect(screen.getByText('Log out')).toBeInTheDocument();
   });
 
-  it('renders report a bug button', async () => {
+  it('user menu: Log out fires onLogout', async () => {
+    const { default: Layout } = await import('@/components/Social/Layout');
+    const onLogout = vi.fn();
+    render(
+      <MemoryRouter initialEntries={['/feed']}>
+        <Layout onLogout={onLogout} onReportBug={() => {}}>
+          <div>Content</div>
+        </Layout>
+      </MemoryRouter>,
+    );
+    fireEvent.click(screen.getByTestId('user-menu-trigger'));
+    fireEvent.click(screen.getByTestId('logout-button'));
+    expect(onLogout).toHaveBeenCalledTimes(1);
+  });
+
+  it('user menu: Profile / Settings / Report a bug are reachable', async () => {
     const { default: Layout } = await import('@/components/Social/Layout');
     const onReportBug = vi.fn();
     render(
@@ -668,6 +689,43 @@ describe('Layout', () => {
         </Layout>
       </MemoryRouter>,
     );
+    fireEvent.click(screen.getByTestId('user-menu-trigger'));
+    const menu = screen.getByTestId('user-menu');
+    expect(within(menu).getByTestId('user-menu-profile')).toBeInTheDocument();
+    expect(within(menu).getByTestId('user-menu-settings')).toBeInTheDocument();
+    expect(within(menu).getByTestId('user-menu-report-bug')).toBeInTheDocument();
+    fireEvent.click(within(menu).getByTestId('user-menu-report-bug'));
+    expect(onReportBug).toHaveBeenCalledTimes(1);
+    // The menu closes after an action.
+    expect(screen.queryByTestId('user-menu')).not.toBeInTheDocument();
+  });
+
+  it('user menu: closes on outside click', async () => {
+    const { default: Layout } = await import('@/components/Social/Layout');
+    render(
+      <MemoryRouter initialEntries={['/feed']}>
+        <Layout onLogout={() => {}} onReportBug={() => {}}>
+          <div>Content</div>
+        </Layout>
+      </MemoryRouter>,
+    );
+    fireEvent.click(screen.getByTestId('user-menu-trigger'));
+    expect(screen.getByTestId('user-menu')).toBeInTheDocument();
+    fireEvent.mouseDown(document.body);
+    expect(screen.queryByTestId('user-menu')).not.toBeInTheDocument();
+  });
+
+  it('renders report a bug button in the user menu', async () => {
+    const { default: Layout } = await import('@/components/Social/Layout');
+    const onReportBug = vi.fn();
+    render(
+      <MemoryRouter initialEntries={['/feed']}>
+        <Layout onLogout={() => {}} onReportBug={onReportBug}>
+          <div>Content</div>
+        </Layout>
+      </MemoryRouter>,
+    );
+    fireEvent.click(screen.getByTestId('user-menu-trigger'));
     expect(screen.getByText('Report a bug')).toBeInTheDocument();
   });
 

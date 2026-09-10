@@ -9,7 +9,9 @@ export default defineConfig({
   fullyParallel: true,
   forbidOnly: !!process.env.CI,
   retries: process.env.CI ? 2 : 0,
-  workers: process.env.CI ? 1 : undefined,
+  // CI runs on the self-hosted box (8 cores) — parallelize. E2E_WORKERS lets a
+  // smaller runner (e.g. the 2-core GitHub VM, if ever used) dial it down.
+  workers: process.env.CI ? Number(process.env.E2E_WORKERS || 4) : undefined,
   timeout: 30_000,
   reporter: process.env.CI ? [['list'], ['html']] : 'list',
   use: {

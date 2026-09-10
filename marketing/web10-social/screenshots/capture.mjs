@@ -47,7 +47,7 @@ function parseCliViews(argv) {
     console.error('--name and --ready must be given together');
     process.exit(1);
   }
-  return [{ name, ready, route: get('--route'), toggle: get('--toggle') }];
+  return [{ name, ready, route: get('--route'), toggle: get('--toggle'), click: get('--click') }];
 }
 const VIEWS = parseCliViews(process.argv.slice(2)) ?? DEFAULT_VIEWS;
 
@@ -102,12 +102,16 @@ try {
         // matches the hidden copy first and times out even though the view
         // rendered fine.
         if (view.route) {
+          // `--click` opens a sub-view (e.g. the create-group sheet from the
+          // "New group" CTA) BEFORE we wait for its ready selector.
+          if (view.click) await page.click(view.click);
           await page.waitForSelector(`${view.ready} >> visible=true`, { timeout: 15000 });
           // Route views are already loaded — a toggle here expands a sub-panel
           // (e.g. the knob rack's "Advanced" panel) after the view is ready.
           if (view.toggle) await page.click(view.toggle);
         } else {
           await page.waitForSelector('[data-testid="messages-view-toggle"] >> visible=true', { timeout: 15000 });
+          if (view.click) await page.click(view.click);
           if (view.toggle) await page.click(view.toggle);
           await page.waitForSelector(`${view.ready} >> visible=true`, { timeout: 15000 });
         }

@@ -34,41 +34,27 @@ concurrency:
 
 jobs:
   e2e:
-    name: e2e smoke (playwright)
+    name: e2e shard ${{ matrix.shard }}/4
+    # GitHub-HOSTED runners, 4-shard matrix. Each leg is its own isolated VM, so
+    # the 4 shards run in PARALLEL (no single-runner serialization) and each uses
+    # default ports (80/9000) — no port juggling, no docker-project prefixes, no
+    # /etc/hosts hacks. The spec split + per-shard worker count live in
+    # e2e/shards.json (the "global-config" shard runs workers=1 so the global
+    # node_config mutations in node-ads + moderation never race).
+    #
+    # To go faster: bump `runs-on` to a larger hosted runner (e.g. a 4-vCPU
+    # runner) — each shard gets more CPU for its browser workers. Standard
+    # ubuntu-latest (2 vCPU) is the baseline.
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 25
+    strategy:
+      fail-fast: false
+      matrix:
+        shard: [1, 2, 3, 4]
+    env:
+      STRIPE_TEST_KEY: ${{ secrets.STRIPE_TEST_KEY }}
     steps:
       - uses: actions/checkout@v7
-
-      - name: Build & start e2e stack
-        run: docker compose -f e2e/docker-compose.yml up --build -d
-        env:
-          STRIPE_TEST_KEY: ${{ secrets.STRIPE_TEST_KEY }}
-
-      - name: Initialize ClickHouse schema
-        run: |
-          # Wait for CH to accept connections (bypassed entrypoint, so no auto-init)
-          for i in $(seq 1 60); do
-            if docker compose -f e2e/docker-compose.yml exec -T clickhouse clickhouse-client --user default --password "" -q "SELECT 1" 2>/dev/null; then
-              echo "ClickHouse ready (attempt $i)"
-              break
-            fi
-            sleep 2
-          done
-          # Create user + database
-          docker compose -f e2e/docker-compose.yml exec -T clickhouse clickhouse-client --user default --password "" \
-            -q "CREATE USER IF NOT EXISTS web10 IDENTIFIED BY 'web10'; CREATE DATABASE IF NOT EXISTS web10; GRANT ALL ON web10.* TO web10;"
-          # Apply schema
-          docker compose -f e2e/docker-compose.yml exec -T clickhouse clickhouse-client --user web10 --password web10 --database web10 \
-            < clickhouse-init/001-init-v3-schema.sql.template
-          docker compose -f e2e/docker-compose.yml exec -T clickhouse clickhouse-client --user web10 --password web10 --database web10 \
-            < clickhouse-init/002-logs-table.sql.template
-          echo "Schema initialized."
-
-      - name: Wait for stack health
-        run: bash e2e/wait-for-stack.sh
-        env:
-          TIMEOUT: 300
 
       - name: Setup Playwright
         working-directory: e2e
@@ -76,25 +62,17 @@ jobs:
           npm install
           npx playwright install --with-deps chromium
 
-      - name: Run Playwright tests
+      - name: Run shard ${{ matrix.shard }} (own stack + spec slice)
         working-directory: e2e
-        run: npx playwright test
-        env:
-          STRIPE_TEST_KEY: ${{ secrets.STRIPE_TEST_KEY }}
+        run: bash run-shard.sh ${{ matrix.shard }}
 
       - name: Dump stack logs on failure
         if: failure()
         run: |
-          echo "=== ClickHouse logs (stdout) ==="
-          docker compose -f e2e/docker-compose.yml logs clickhouse 2>&1 | tail -80
-          echo "=== ClickHouse err.log (via cp from stopped container) ==="
-          docker cp e2e-clickhouse-1:/var/log/clickhouse-server/clickhouse-server.err.log /tmp/ch-err.log 2>/dev/null && tail -40 /tmp/ch-err.log || echo "(could not extract)"
-          echo "=== ClickHouse main log ==="
-          docker cp e2e-clickhouse-1:/var/log/clickhouse-server/clickhouse-server.log /tmp/ch.log 2>/dev/null && tail -40 /tmp/ch.log || echo "(could not extract)"
-          echo "=== API logs (errors + last 200) ==="
-          docker compose -f e2e/docker-compose.yml logs api 2>&1 | grep -iE "error|exception|traceback|500|refused|timeout|clickhouse" | tail -60
+          echo "=== API logs (errors + last 100) ==="
+          docker compose -f e2e/docker-compose.yml logs api 2>&1 | grep -iE "error|exception|traceback|500|refused|timeout|clickhouse" | tail -40
           echo "--- API tail ---"
-          docker compose -f e2e/docker-compose.yml logs api 2>&1 | tail -200
+          docker compose -f e2e/docker-compose.yml logs api 2>&1 | tail -100
           echo "=== Container status ==="
           docker compose -f e2e/docker-compose.yml ps -a
 
@@ -102,7 +80,7 @@ jobs:
         uses: actions/upload-artifact@v4
         if: failure()
         with:
-          name: playwright-traces
+          name: playwright-traces-shard-${{ matrix.shard }}
           path: e2e/test-results/
           retention-days: 7
 

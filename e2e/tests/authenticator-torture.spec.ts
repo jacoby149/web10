@@ -279,7 +279,7 @@ test.describe('Browser — signup (real SignupForm)', () => {
     await page.locator('#username').fill(username);
     await page.locator('#password').fill(password);
     await page.locator('#retypepass').fill(password);
-    await page.locator('#phone').fill('5551234567');
+    await page.locator('#contact').fill('5551234567');
     await page.locator('[data-testid="signup-submit"]').click();
 
     // Signup chains into login — the console (contracts) renders signed-in.
@@ -309,7 +309,7 @@ test.describe('Browser — signup (real SignupForm)', () => {
     await page.locator('#username').fill('BadUser!');
     await page.locator('#password').fill(password);
     await page.locator('#retypepass').fill(password);
-    await page.locator('#phone').fill('5551234567');
+    await page.locator('#contact').fill('5551234567');
     await page.locator('[data-testid="signup-submit"]').click();
 
     await expect(page.locator('[data-testid="credential-status"]')).toContainText('Failed to Sign Up');
@@ -332,7 +332,7 @@ test.describe('Browser — signup (real SignupForm)', () => {
     await page.locator('#username').fill(username);
     await page.locator('#password').fill(password);
     await page.locator('#retypepass').fill(password);
-    await page.locator('#phone').fill('5551234567');
+    await page.locator('#contact').fill('5551234567');
     await page.locator('[data-testid="signup-submit"]').click();
 
     await expect(page.locator('[data-testid="credential-status"]')).toContainText('Failed to Sign Up');
