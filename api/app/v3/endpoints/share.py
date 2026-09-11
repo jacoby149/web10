@@ -97,7 +97,7 @@ def _render(
     og_type = "video.other" if is_video else "article"
     head = []
     head.append(_meta_tag("charset", "utf-8"))
-    head.append(f'    <meta name="viewport" content="width=device-width, initial-scale=1" />\n')
+    head.append('    <meta name="viewport" content="width=device-width, initial-scale=1" />\n')
     # Open Graph
     head.append(_meta_tag("og:type", og_type, prop=True))
     head.append(_meta_tag("og:site_name", site_name, prop=True))
@@ -181,8 +181,6 @@ def share_post_preview(username: str, post_id: str):
 
     profiles = ch.get_author_profiles([author_key])
     info = profiles.get(author_key, {}) or {}
-    profile = info.get("profile") or {}
-    display_name = profile.get("display_name") if isinstance(profile, dict) else None
     avatar_ref = info.get("avatar_ref")
     avatar_url = None
     if avatar_ref:
