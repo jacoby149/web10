@@ -48,7 +48,7 @@ def _pick_thumbnail(resolved_refs: list, author_avatar_url: str | None) -> tuple
     for ref in resolved_refs:
         if not isinstance(ref, dict):
             continue
-        mime = (ref.get("mime_type") or "")
+        mime = ref.get("mime_type") or ""
         is_video = mime.startswith("video/")
         if is_video:
             thumb = ref.get("thumbnail_url")
@@ -121,13 +121,11 @@ def _render(
     return (
         "<!DOCTYPE html>\n"
         '<html lang="en">\n'
-        "  <head>\n"
-        + "".join(head)
-        + f"    <title>{html.escape(title)}</title>\n"
+        "  <head>\n" + "".join(head) + f"    <title>{html.escape(title)}</title>\n"
         "  </head>\n"
-        "  <body style=\"font-family:system-ui,sans-serif;padding:2rem;color:#09090b;\">\n"
-        f"    <h1 style=\"font-size:1.25rem;margin:0 0 .5rem;\">{html.escape(title)}</h1>\n"
-        f"    <p style=\"color:#52525b;margin:0 0 1rem;\">{html.escape(description)}</p>\n"
+        '  <body style="font-family:system-ui,sans-serif;padding:2rem;color:#09090b;">\n'
+        f'    <h1 style="font-size:1.25rem;margin:0 0 .5rem;">{html.escape(title)}</h1>\n'
+        f'    <p style="color:#52525b;margin:0 0 1rem;">{html.escape(description)}</p>\n'
         f"{body_link}\n"
         "  </body>\n"
         "</html>\n"
@@ -201,7 +199,11 @@ def share_post_preview(username: str, post_id: str):
 
     log.info(
         "[share] public post preview post_id=%s author=%s title=%r image=%s is_video=%s",
-        post_id, author_key, title, image, is_video,
+        post_id,
+        author_key,
+        title,
+        image,
+        is_video,
     )
     return _render(
         url=canonical_url,

@@ -48,7 +48,12 @@ class TestSharePostPreview:
         resolved = {
             "text": "check out this clip",
             "media_refs": [
-                {"doc_id": "m1", "mime_type": "image/png", "read_url": "https://minio.web10.app/img.png", "thumbnail_url": None},
+                {
+                    "doc_id": "m1",
+                    "mime_type": "image/png",
+                    "read_url": "https://minio.web10.app/img.png",
+                    "thumbnail_url": None,
+                },
             ],
         }
         with (
@@ -80,7 +85,12 @@ class TestSharePostPreview:
         resolved = {
             "text": "new drop",
             "media_refs": [
-                {"doc_id": "v1", "mime_type": "video/mp4", "read_url": "https://minio.web10.app/v.mp4", "thumbnail_url": "https://minio.web10.app/v-poster.jpg"},
+                {
+                    "doc_id": "v1",
+                    "mime_type": "video/mp4",
+                    "read_url": "https://minio.web10.app/v.mp4",
+                    "thumbnail_url": "https://minio.web10.app/v-poster.jpg",
+                },
             ],
         }
         with (
@@ -108,8 +118,14 @@ class TestSharePostPreview:
             patch("app.v3.services.clickhouse.can_read_group", return_value=False),
             # If the endpoint (wrongly) tried to resolve media for a private
             # post, this would mint a URL — the anti-test asserts it never does.
-            patch("app.v3.services.clickhouse.resolve_media_urls", side_effect=AssertionError("private post must not resolve media")),
-            patch("app.v3.services.clickhouse.get_author_profiles", side_effect=AssertionError("private post must not read the profile")),
+            patch(
+                "app.v3.services.clickhouse.resolve_media_urls",
+                side_effect=AssertionError("private post must not resolve media"),
+            ),
+            patch(
+                "app.v3.services.clickhouse.get_author_profiles",
+                side_effect=AssertionError("private post must not read the profile"),
+            ),
         ):
             resp = client.get("/v3/share/post/nova/abc123")
         assert resp.status_code == 200
