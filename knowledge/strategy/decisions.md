@@ -1954,6 +1954,26 @@ option (the API already accepted it). The "feed stays chronological by
 default" guardrail is unchanged — only the *tuned* feed is ranked, and now by
 the node, not a client shuffle.
 
+**Amendment (11.09.2026, 3.83.0):** operator: "the tune your own feed and
+discover should be just recency likes, and comments! the time knob is too
+complex… we should just set that to something sensible for the user!" **The
+Time knob (the recency half-life) is removed** — the same move as the
+Character knob (3.71.0): it was the obfuscated math dial with no plain-English
+concept (1h / 4h / 12h / 1d / 7d / ∞). The half-life is now **fixed at the
+middle detent — 1 day** (`FIXED_HALF_LIFE_DETEENT` / `FIXED_HALF_LIFE_MS`):
+recent posts are weighted but not exclusively, the sensible default for a
+social feed. `halfLife` stays in `KnobState` so the `?knobs=` encoding + the
+persisted settings doc keep their 5-field shape (old deep links + saved
+tunings still parse); the ranking just ignores it (both the client's
+`scorePost` and `knobStateToSort` pin it to the fixed value — the same
+pattern as `FIXED_CHARACTER_P`). The rack is now the **three signals a user
+actually understands: Recency, Likes, Comments** (no mobile sideways scroll).
+"Most loved · all time" is unaffected: "all time" is achieved by the recency
+**weight** being 0 (no recency signal), not by the half-life — so fixing the
+half-life changes nothing for that preset. The node's `PowerMeanSort`
+contract is unchanged (`half_life_ms` is still sent, now always 1 day); the
+server-side `_power_mean_score` / `_power_mean_score_sql` are untouched.
+
 ### D35 — Public media is a COLLECTION (`public_media`), not a flag or a blanket whitelist [decided]
 Cross-user media reads are dead today: the `media` service ships with no read
 whitelist (web10-social serviceTerms.ts — owner-only), and both

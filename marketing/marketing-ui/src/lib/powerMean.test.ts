@@ -12,6 +12,8 @@ import {
   CHARACTER_LABELS,
   FIXED_CHARACTER_DETEENT,
   FIXED_CHARACTER_P,
+  FIXED_HALF_LIFE_DETEENT,
+  FIXED_HALF_LIFE_MS,
   defaultKnobState,
   PRESETS,
   getPreset,
@@ -243,6 +245,22 @@ describe('scorePost', () => {
     const strict = scorePost(signals, { recency: 3, likes: 3, comments: 2, halfLife: 3, character: 0 });
     const extreme = scorePost(signals, { recency: 3, likes: 3, comments: 2, halfLife: 3, character: 5 });
     expect(strict).toBe(extreme);
+  });
+
+  it('pins the recency half-life at the middle detent (1 day) — the Time knob is gone', () => {
+    // Parity with web10-social: the half-life is fixed at the middle (1 day),
+    // so recent posts are weighted but not exclusively.
+    expect(HALF_LIFE_DETENTS[FIXED_HALF_LIFE_DETEENT]).toBe(86_400_000); // 1d
+    expect(FIXED_HALF_LIFE_MS).toBe(86_400_000);
+  });
+
+  it('ignores state.halfLife (the knob is gone — the half-life is fixed)', () => {
+    // Two states identical except for `halfLife` (∞ vs 1h) must score
+    // identically — the ranking no longer reads it.
+    const signals = { ageMs: 3_600_000, likes: 42, comments: 7, reposts: 0 };
+    const allTime = scorePost(signals, { recency: 3, likes: 3, comments: 2, halfLife: 5, character: 0 });
+    const oneHour = scorePost(signals, { recency: 3, likes: 3, comments: 2, halfLife: 0, character: 0 });
+    expect(allTime).toBe(oneHour);
   });
 
   it('newest preset scores by recency only (negative age for reverse-chron)', () => {
