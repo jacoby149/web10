@@ -153,7 +153,7 @@ describe('FeedScreen', () => {
     expect(ar).toBeCloseTo(4 / 3, 5);
   });
 
-  it('multi-media posts show the first item + a count badge (option b)', async () => {
+  it('multi-media posts render an inline carousel with a position indicator (all items reachable)', async () => {
     const { readFeedPage } = await import('@/data');
     vi.mocked(readFeedPage).mockResolvedValueOnce({
       posts: [
@@ -175,13 +175,15 @@ describe('FeedScreen', () => {
         <FeedScreen />
       </MemoryRouter>,
     );
+    // All three items render in the carousel (the old dead count badge is gone).
     await waitFor(() => {
-      expect(screen.getByTestId('media-count-badge')).toBeInTheDocument();
+      expect(screen.getByTestId('media-carousel')).toBeInTheDocument();
     });
-    // Only the first item renders in the card; the rest are reachable from the
-    // author's profile grid (the lightbox carousel lives there, not the feed).
-    expect(screen.getByTestId('media-count-badge')).toHaveTextContent('3');
-    expect(screen.getAllByTestId('media-image')).toHaveLength(1);
+    expect(screen.getByTestId('media-carousel-image-0')).toBeInTheDocument();
+    expect(screen.getByTestId('media-carousel-image-1')).toBeInTheDocument();
+    expect(screen.getByTestId('media-carousel-image-2')).toBeInTheDocument();
+    // The position indicator shows 1/3 where the old "3" badge was.
+    expect(screen.getByTestId('media-carousel-position')).toHaveTextContent('1/3');
   });
 
   it('tapping a video in the feed plays it inline and does NOT open the lightbox', async () => {
@@ -240,6 +242,33 @@ describe('FeedScreen', () => {
     expect(screen.getByTestId('post-option-delete')).toBeInTheDocument();
     // The menu is a popover, not the lightbox modal.
     expect(screen.queryByTestId('post-lightbox')).not.toBeInTheDocument();
+  });
+
+  it('own posts expose the owner menu when author_provider is the v2 fallback (v3 author_key is a bare username)', async () => {
+    // v3 writes author_key = the bare username, so extractProvider returns the
+    // 'web10' fallback — which never equals the token's real provider. The
+    // owner menu must key off the username alone (the regression: the provider
+    // check hid the menu on every own post in the feed).
+    const { readFeedPage } = await import('@/data');
+    vi.mocked(readFeedPage).mockResolvedValueOnce({
+      posts: [
+        { _id: 'own2', text: 'my post (v3 author_key)', author_username: 'testuser', author_provider: 'web10', visibility: 'public', created_at: new Date().toISOString() },
+      ],
+      has_more: false, next_cursor: null,
+    });
+    const { default: FeedScreen } = await import('@/components/Feed/FeedScreen');
+    render(
+      <MemoryRouter>
+        <FeedScreen />
+      </MemoryRouter>,
+    );
+    const options = await screen.findByTestId('post-options-button');
+    fireEvent.click(options);
+    await waitFor(() => {
+      expect(screen.getByTestId('post-options-menu')).toBeInTheDocument();
+    });
+    expect(screen.getByTestId('post-option-edit')).toBeInTheDocument();
+    expect(screen.getByTestId('post-option-delete')).toBeInTheDocument();
   });
 
   it('non-own posts have no owner menu (no lightbox, no options)', async () => {

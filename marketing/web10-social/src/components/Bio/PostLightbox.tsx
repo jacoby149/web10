@@ -21,34 +21,20 @@ import { TextWithLinks } from '@/components/Feed/LinkEmbed';
 import { AdBlock } from '@/components/Feed/AdBlock';
 import { toast, errorMessage } from '@/components/shared/Toast';
 import { cn } from '@/lib/utils';
-import { HlsVideoPlayer } from '@/components/Feed/HlsVideoPlayer';
+import { VideoPlayer, sourceFromMedia } from '@/components/Feed/VideoPlayer';
 
-/** The lightbox's video pane — D44: transcoded video plays through the
- *  hls.js player (the feed card's player, 3.67.0); non-transcoded video
- *  (the Phase-2 import path) plays the native <video>. */
+/** The lightbox's video pane — the modal modality (video-player.md): the full
+ *  player. Transcoded plays the hls.js rack; non-transcoded plays native
+ *  controls. Both route through the shared <VideoPlayer>. */
 function LightboxVideo({ media }: { media: MediaRecord }) {
-  const ts = media.transcoding_settings;
-  if (ts?.status === 'done' && ts.manifest_url) {
-    const v0 = ts.variants?.[0];
-    return (
-      <HlsVideoPlayer
-        manifestUrl={ts.manifest_url}
-        poster={media.thumbnail_url}
-        width={v0?.width || media.width}
-        height={v0?.height || media.height}
-        className="w-full"
-      />
-    );
-  }
+  const source = sourceFromMedia(media);
   return (
-    <video
-      key={media._id || media.url}
-      src={media.url}
-      poster={media.thumbnail_url}
-      controls
-      playsInline
-      className="max-h-[50vh] w-full object-contain sm:max-h-[88vh]"
-      data-testid="lightbox-video"
+    <VideoPlayer
+      source={source}
+      mode="full"
+      fit="contain"
+      testId={source.type === 'file' ? 'lightbox-video' : undefined}
+      className={source.type === 'file' ? 'max-h-[50vh] sm:max-h-[88vh]' : 'w-full'}
     />
   );
 }
@@ -119,9 +105,14 @@ export function PostLightbox({ post, mediaMap, onClose, onReload, postAuthor, po
   // Share state
   const [copied, setCopied] = useState(false);
 
-  // Check ownership: explicit prop wins, otherwise fall back to token presence (profile view)
+  // Check ownership: explicit prop wins, otherwise derive it from the post's
+  // author (v3: author_key is the bare username, so compare usernames — the
+  // same rule as the feed's isOwnPost). The old `token !== null` fallback
+  // showed the owner menu on every post while signed in (the discover bug).
   const token = getWapi().readToken();
-  const isOwner = isOwnerProp !== undefined ? isOwnerProp : token !== null;
+  const isOwner = isOwnerProp !== undefined
+    ? isOwnerProp
+    : token !== null && post.author_username === token.username;
 
   const prev = useCallback(() => {
     setIndex(i => (i - 1 + media.length) % media.length);

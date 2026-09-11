@@ -23,14 +23,15 @@ import {
   type KnobState,
 } from '@/lib/powerMean';
 import { KnobRack } from '@/components/Discover/KnobRack';
-import { Heart, MessageCircle, Play, Pause, MoreHorizontal, Share2, Check, Edit3, Eye, EyeOff, Trash2 } from 'lucide-react';
+import { Heart, MessageCircle, MoreHorizontal, Share2, Check, Edit3, Eye, EyeOff, Trash2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { MARKETING_ORIGIN } from '@/lib/origins';
 import { Textarea } from '@/components/ui/textarea';
 import { CommentThread } from './CommentThread';
 import { TextWithLinks } from './LinkEmbed';
 import { AdBlock } from './AdBlock';
-import { HlsVideoPlayer } from './HlsVideoPlayer';
+import { VideoPlayer, sourceFromMedia } from './VideoPlayer';
+import { MediaCarousel } from './MediaCarousel';
 import { toast, errorMessage } from '@/components/shared/Toast';
 
 const LOG = (...args: unknown[]) => console.log('[social:feed]', ...args);
@@ -90,113 +91,36 @@ function formatTimeAgo(dateStr: string): string {
 
 function MediaItem({ media }: { media: MediaRecord }) {
   const isVideo = media.mime_type?.startsWith('video/');
-  const [playing, setPlaying] = useState(false);
-  const videoRef = useRef<HTMLVideoElement>(null);
   const [measuredRatio, setMeasuredRatio] = useState<number | null>(null);
 
-  useEffect(() => {
-    if (!playing || !videoRef.current) return;
-    // jsdom's play() is unimplemented (returns undefined, not a Promise) —
-    // guard so the inline-play toggle is testable headless.
-    const p = videoRef.current.play();
-    if (p && typeof p.catch === 'function') p.catch(() => {});
-    return () => {
-      videoRef.current?.pause();
-    };
-  }, [playing]);
-
-  // Transcoded video (D44): the read carried the media doc's
-  // transcoding_settings + a per-reader manifest_url — play it through the
-  // hls.js player (the media demo's player: quality/speed/fullscreen,
-  // vertical layout for 9:16). The ratio comes from the lowest variant
-  // (the source ratio, preserved by the node).
-  const ts = media.transcoding_settings;
-  if (isVideo && ts?.status === 'done' && ts.manifest_url) {
-    const v0 = ts.variants?.[0];
-    LOG('media — transcoded video, hls.js player:', media._id, 'manifest:', ts.manifest_url, 'variants:', ts.variants?.map((v) => `${v.width}x${v.height}`).join('/'));
+  // Video (D44): the shared <VideoPlayer> — transcoded plays the hls.js rack,
+  // non-transcoded plays the shared inline tap-to-play. The feed is the inline
+  // modality: natural ratio, object-contain, capped so a portrait clip can't
+  // blow up the card. (video-player.md)
+  if (isVideo) {
+    const source = sourceFromMedia(media);
     return (
-      <HlsVideoPlayer
-        manifestUrl={ts.manifest_url}
-        poster={media.thumbnail_url}
-        width={v0?.width || media.width}
-        height={v0?.height || media.height}
+      <VideoPlayer
+        source={source}
+        mode={source.type === 'hls' ? 'full' : 'inline'}
+        fit="contain"
+        maxHeight="60vh"
+        testId={source.type === 'file' ? 'media-video' : undefined}
       />
     );
   }
 
+  // Image: natural ratio, object-contain, lazy. Measure on load only as a
+  // fallback for legacy media that predates dimension storage — reserving the
+  // ratio up front is what keeps the feed from shifting.
   const src = media.thumbnail_url || media.url;
-
-  // The read path now carries the real dimensions; measure on load only as a
-  // fallback for legacy media that predates dimension storage. Reserving the
-  // ratio up front (known or measured) is what keeps the feed from shifting.
   const knownRatio = media.width && media.height ? media.width / media.height : null;
   const ratio = knownRatio ?? measuredRatio ?? 4 / 3;
-  const onMediaLoaded = (el: HTMLVideoElement | HTMLImageElement) => {
+  const onMediaLoaded = (el: HTMLImageElement) => {
     if (knownRatio) return;
-    const w = 'videoWidth' in el ? el.videoWidth : el.naturalWidth;
-    const h = 'videoHeight' in el ? el.videoHeight : el.naturalHeight;
-    if (w && h) setMeasuredRatio(w / h);
+    if (el.naturalWidth && el.naturalHeight) setMeasuredRatio(el.naturalWidth / el.naturalHeight);
   };
-
-  // Natural aspect ratio, capped so a portrait clip can't blow up the feed,
-  // object-contain so it never crops (letterboxes on the cap) — matching the
-  // lightbox. The card bg (not black) shows through any letterbox.
   const containerStyle: React.CSSProperties = { aspectRatio: `${ratio}`, maxHeight: '60vh' };
-
-  if (isVideo) {
-    return (
-      <div
-        className="bg-elevated overflow-hidden group relative cursor-pointer"
-        style={containerStyle}
-        onClick={(e) => {
-          // The feed plays video inline — a tap toggles play/pause in place.
-          // stopPropagation so the tap never reaches the card (which used to
-          // pop the lightbox modal; the video then played behind it).
-          e.stopPropagation();
-          setPlaying((p) => !p);
-        }}
-        role="button"
-        tabIndex={0}
-        aria-label={playing ? 'Pause video' : 'Play video'}
-        onKeyDown={(e) => {
-          if (e.key === 'Enter' || e.key === ' ') {
-            e.preventDefault();
-            setPlaying((p) => !p);
-          }
-        }}
-        data-testid="media-video"
-      >
-        <video
-          ref={videoRef}
-          src={media.url}
-          poster={media.thumbnail_url}
-          onLoadedMetadata={(e) => onMediaLoaded(e.currentTarget)}
-          className="w-full h-full object-contain"
-          preload="metadata"
-          playsInline
-          muted={!playing}
-          loop
-        />
-        {!playing && (
-          <div className="absolute inset-0 flex items-center justify-center bg-black/20 opacity-0 group-hover:opacity-100 transition-opacity duration-150">
-            <div className="flex items-center justify-center w-12 h-12 rounded-full bg-background/80 backdrop-blur-sm">
-              <Play className="w-5 h-5 text-foreground ml-0.5" strokeWidth={2} />
-            </div>
-          </div>
-        )}
-        {playing && (
-          <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-            <Pause className="w-8 h-8 text-foreground/60 animate-pulse" strokeWidth={1.5} />
-          </div>
-        )}
-        {media.duration_seconds && (
-          <div className="absolute bottom-1.5 right-1.5 bg-background/80 rounded px-1.5 text-[0.625rem] font-mono tabular-nums text-foreground">
-            {formatDuration(media.duration_seconds)}
-          </div>
-        )}
-      </div>
-    );
-  }
 
   return (
     <div
@@ -216,34 +140,18 @@ function MediaItem({ media }: { media: MediaRecord }) {
   );
 }
 
-function formatDuration(seconds: number): string {
-  const m = Math.floor(seconds / 60);
-  const s = Math.round(seconds % 60);
-  return m > 0 ? `${m}:${String(s).padStart(2, '0')}` : `${s}s`;
-}
-
 function MediaGrid({ mediaItems }: { mediaItems: MediaRecord[] }) {
   if (!mediaItems.length) return null;
   const count = mediaItems.length;
   const first = mediaItems[0];
 
-  // Option (b): the first item renders at its natural aspect ratio; the rest
-  // live behind a count badge — tapping the card opens the lightbox, which
-  // already has a working carousel for the full set.
-  return (
-    <div className="relative">
-      <MediaItem media={first} />
-      {count > 1 && (
-        <div
-          className="absolute top-2 right-2 flex items-center justify-center min-w-6 h-6 px-2 rounded-full bg-background/70 backdrop-blur-sm text-xs font-semibold text-foreground tabular-nums pointer-events-none"
-          data-testid="media-count-badge"
-          aria-label={`${count} items`}
-        >
-          {count}
-        </div>
-      )}
-    </div>
-  );
+  // Single item: the natural-ratio MediaItem (unchanged). Multi-item: the
+  // shared inline carousel (video-player.md) — all items swipe in a fixed
+  // frame, with a position indicator where the old dead count badge was.
+  if (count === 1) {
+    return <MediaItem media={first} />;
+  }
+  return <MediaCarousel items={mediaItems} fit="contain" maxHeight="60vh" testId="media-carousel" />;
 }
 
 interface PostCardProps {
@@ -649,8 +557,12 @@ export default function FeedScreen({ onAuthorClick }: { onAuthorClick?: (usernam
   const [likedMap, setLikedMap] = useState<Record<string, boolean>>({});
   const sentinelRef = useRef<HTMLDivElement>(null);
   const token = getWapi().readToken();
+  // v3 ownership is by username alone: a post's author_key is the bare
+  // username (the node's provider is implicit — every local user shares it),
+  // so `author_provider` is the v2 fallback ('web10') and never equals the
+  // token's real provider. Comparing it hid the owner menu on every own post.
   const isOwnPost = (p: PostRecord) =>
-    token && p.author_username === token.username && p.author_provider === token.provider;
+    token && p.author_username === token.username;
 
   // ── Knob state: URL > saved settings > Newest preset ──────────────────────
   const [searchParams, setSearchParams] = useSearchParams();

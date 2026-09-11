@@ -439,6 +439,19 @@ function adCreative(label: string, from: string, to: string): unknown {
 
 const FEED_POSTS: SeedFeedPost[] = [
   {
+    // The signed-in user's own post (token username 'me') — renders the
+    // owner kebab menu (Share / Edit / Make private / Delete) on the card.
+    _id: 'fp-0',
+    author_username: 'me',
+    author_provider: 'web10',
+    text: 'Rack is finally quiet — swapped the PSUs and the whole thing idles cold. Server room, but make it cozy.',
+    created_at: minsAgo(12),
+    tags: ['homelab', 'server'],
+    likes: 42,
+    comments: 7,
+    reposts: 0,
+  },
+  {
     _id: 'fp-1',
     author_username: 'nova',
     author_provider: 'web10',
@@ -583,11 +596,13 @@ function creative(label: string, w: number, h: number, from: string, to: string,
   };
 }
 
-// Media records keyed by the doc_id the post's media_refs point at.
+// Media records keyed by the doc_id the post's media_refs point at. The _id
+// must match the key (and the post's ref) — the discover screen filters
+// resolved media by `m._id === the post's ref doc_id`.
 const DISCOVER_MEDIA: Record<string, Record<string, unknown>> = {
-  'dm-landscape': creative('LIVE SET', 1280, 720, '#8b5cf6', '#2e1065'),
-  'dm-portrait': creative('VERTICAL', 720, 1280, '#7c3aed', '#4c1d95'),
-  'dm-clip3': creative('STILL', 1600, 900, '#a78bfa', '#1e1b4b'),
+  'dm-landscape': { ...creative('LIVE SET', 1280, 720, '#8b5cf6', '#2e1065'), _id: 'dm-landscape' },
+  'dm-portrait': { ...creative('VERTICAL', 720, 1280, '#7c3aed', '#4c1d95'), _id: 'dm-portrait' },
+  'dm-clip3': { ...creative('STILL', 1600, 900, '#a78bfa', '#1e1b4b'), _id: 'dm-clip3' },
 };
 
 const DISCOVER_POSTS: SeedDiscoverPost[] = [
@@ -629,6 +644,19 @@ const DISCOVER_POSTS: SeedDiscoverPost[] = [
     comments: 12,
     reposts: 0,
     media_refs: ['dm-clip3'],
+  },
+  {
+    _id: 'dp-4',
+    author: 'nova',
+    author_username: 'nova',
+    author_provider: 'web10',
+    text: 'Three frames from the set — swipe through the full run.',
+    created_at: minsAgo(12),
+    tags: ['synthwave', 'video'],
+    likes: 210,
+    comments: 33,
+    reposts: 8,
+    media_refs: ['dm-landscape', 'dm-portrait', 'dm-clip3'],
   },
 ];
 

@@ -115,3 +115,37 @@ describe('PostLightbox — delete flow (type "delete" to confirm)', () => {
     expect(deletePost).not.toHaveBeenCalled();
   });
 });
+
+describe('PostLightbox — ownership fallback (no isOwner prop)', () => {
+  // The token is { provider: 'test.localhost', username: 'testuser' }. When a
+  // call site omits isOwner (the discover lightbox), ownership must be derived
+  // from the post's author — not from "a token exists" (the old fallback that
+  // showed the owner menu on every post while signed in).
+  it('shows owner actions for a post authored by the signed-in user', () => {
+    render(
+      <PostLightbox
+        post={{ _id: 'own', text: 'mine', author_username: 'testuser', author_provider: 'web10', created_at: new Date().toISOString(), visibility: 'public' }}
+        mediaMap={{}}
+        onClose={vi.fn()}
+        onReload={vi.fn()}
+      />,
+    );
+    expect(screen.getByTestId('post-edit-button')).toBeTruthy();
+    expect(screen.getByTestId('post-delete-button')).toBeTruthy();
+    expect(screen.getByTestId('post-visibility-toggle-button')).toBeTruthy();
+  });
+
+  it('hides owner actions for a post authored by someone else', () => {
+    render(
+      <PostLightbox
+        post={{ _id: 'theirs', text: 'theirs', author_username: 'someone', author_provider: 'web10', created_at: new Date().toISOString(), visibility: 'public' }}
+        mediaMap={{}}
+        onClose={vi.fn()}
+        onReload={vi.fn()}
+      />,
+    );
+    expect(screen.queryByTestId('post-edit-button')).toBeNull();
+    expect(screen.queryByTestId('post-delete-button')).toBeNull();
+    expect(screen.queryByTestId('post-visibility-toggle-button')).toBeNull();
+  });
+});
