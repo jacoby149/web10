@@ -129,6 +129,22 @@ describe('FeedScreen — the D36 knobs (server-side ranking via readFeedPage)', 
     expect(screen.getByTestId('knobs-advanced-toggle')).toBeInTheDocument();
   });
 
+  it('the rack is the three signals a user understands - the Time knob is gone', async () => {
+    mockFeed();
+    await renderFeed();
+    await waitFor(() => {
+      expect(screen.getAllByTestId('post-card').length).toBe(2);
+    });
+    // The three user-facing signals stay (the knobs are always mounted — the
+    // advanced panel only animates height, so they're in the DOM collapsed).
+    expect(screen.getByTestId('knob-recency')).toBeInTheDocument();
+    expect(screen.getByTestId('knob-likes')).toBeInTheDocument();
+    expect(screen.getByTestId('knob-comments')).toBeInTheDocument();
+    // The Time knob (the recency half-life) is gone — the half-life is fixed
+    // at the middle (1 day).
+    expect(screen.queryByTestId('knob-time')).not.toBeInTheDocument();
+  });
+
   it('defaults to the Newest preset — a chronological read', async () => {
     mockFeed();
     await renderFeed();
