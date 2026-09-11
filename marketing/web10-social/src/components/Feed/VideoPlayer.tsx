@@ -70,12 +70,14 @@ export interface VideoPlayerProps {
   maxHeight?: string;
   /** Hide the inline duration badge (a surface that shows its own time badge). */
   showDuration?: boolean;
+  /** Fill a parent frame (w-full h-full, no own aspect-ratio) — for carousel slides. */
+  fill?: boolean;
   /** testid for the outer container — surfaces keep their existing testids. */
   testId?: string;
   className?: string;
 }
 
-export function VideoPlayer({ source, mode = 'inline', fit = 'contain', ratio, maxHeight, showDuration = true, testId, className }: VideoPlayerProps) {
+export function VideoPlayer({ source, mode = 'inline', fit = 'contain', ratio, maxHeight, showDuration = true, fill = false, testId, className }: VideoPlayerProps) {
   LOG('video player — source:', source.type, 'mode:', mode, 'fit:', fit, 'ratio:', ratio ?? 'natural');
 
   // hls → the full rack (the existing HlsVideoPlayer, kept as-is).
@@ -124,6 +126,7 @@ export function VideoPlayer({ source, mode = 'inline', fit = 'contain', ratio, m
       ratio={ratio}
       maxHeight={maxHeight}
       showDuration={showDuration}
+      fill={fill}
       testId={testId}
       className={className}
     />
@@ -146,6 +149,7 @@ interface InlineVideoProps {
   ratio?: number;
   maxHeight?: string;
   showDuration?: boolean;
+  fill?: boolean;
   testId?: string;
   className?: string;
 }
@@ -157,7 +161,7 @@ interface InlineVideoProps {
  * once, and the invariant is a property of the component: **a tap toggles
  * play/pause in place and never reaches the card.**
  */
-export function InlineVideo({ url, poster, width, height, durationSeconds, fit = 'contain', ratio, maxHeight, showDuration = true, testId, className }: InlineVideoProps) {
+export function InlineVideo({ url, poster, width, height, durationSeconds, fit = 'contain', ratio, maxHeight, showDuration = true, fill = false, testId, className }: InlineVideoProps) {
   const videoRef = useRef<HTMLVideoElement>(null);
   const [playing, setPlaying] = useState(false);
 
@@ -177,15 +181,17 @@ export function InlineVideo({ url, poster, width, height, durationSeconds, fit =
   const effectiveRatio = ratio ?? (width && height ? width / height : 4 / 3);
   // 16:9 cover → the Tailwind aspect-video class (the discover/youtube tile);
   // everything else → an inline aspect-ratio (the feed's natural ratio).
-  const isAspectVideo = cover && Math.abs(effectiveRatio - 16 / 9) < 0.001;
-  const containerStyle: React.CSSProperties = isAspectVideo ? {} : { aspectRatio: effectiveRatio, maxHeight };
+  // `fill` (a carousel slide) takes its size from the parent frame — no own
+  // aspect-ratio, just w-full h-full.
+  const isAspectVideo = !fill && cover && Math.abs(effectiveRatio - 16 / 9) < 0.001;
+  const containerStyle: React.CSSProperties = fill ? {} : isAspectVideo ? {} : { aspectRatio: effectiveRatio, maxHeight };
 
   return (
     <div
       data-testid={testId}
       className={cn(
         'bg-elevated overflow-hidden group relative cursor-pointer',
-        isAspectVideo && 'aspect-video',
+        fill ? 'h-full w-full' : isAspectVideo && 'aspect-video',
         className,
       )}
       style={containerStyle}
