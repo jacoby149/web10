@@ -242,6 +242,33 @@ describe('FeedScreen', () => {
     expect(screen.queryByTestId('post-lightbox')).not.toBeInTheDocument();
   });
 
+  it('own posts expose the owner menu when author_provider is the v2 fallback (v3 author_key is a bare username)', async () => {
+    // v3 writes author_key = the bare username, so extractProvider returns the
+    // 'web10' fallback — which never equals the token's real provider. The
+    // owner menu must key off the username alone (the regression: the provider
+    // check hid the menu on every own post in the feed).
+    const { readFeedPage } = await import('@/data');
+    vi.mocked(readFeedPage).mockResolvedValueOnce({
+      posts: [
+        { _id: 'own2', text: 'my post (v3 author_key)', author_username: 'testuser', author_provider: 'web10', visibility: 'public', created_at: new Date().toISOString() },
+      ],
+      has_more: false, next_cursor: null,
+    });
+    const { default: FeedScreen } = await import('@/components/Feed/FeedScreen');
+    render(
+      <MemoryRouter>
+        <FeedScreen />
+      </MemoryRouter>,
+    );
+    const options = await screen.findByTestId('post-options-button');
+    fireEvent.click(options);
+    await waitFor(() => {
+      expect(screen.getByTestId('post-options-menu')).toBeInTheDocument();
+    });
+    expect(screen.getByTestId('post-option-edit')).toBeInTheDocument();
+    expect(screen.getByTestId('post-option-delete')).toBeInTheDocument();
+  });
+
   it('non-own posts have no owner menu (no lightbox, no options)', async () => {
     const { readFeedPage } = await import('@/data');
     vi.mocked(readFeedPage).mockResolvedValueOnce({

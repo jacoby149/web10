@@ -105,9 +105,14 @@ export function PostLightbox({ post, mediaMap, onClose, onReload, postAuthor, po
   // Share state
   const [copied, setCopied] = useState(false);
 
-  // Check ownership: explicit prop wins, otherwise fall back to token presence (profile view)
+  // Check ownership: explicit prop wins, otherwise derive it from the post's
+  // author (v3: author_key is the bare username, so compare usernames — the
+  // same rule as the feed's isOwnPost). The old `token !== null` fallback
+  // showed the owner menu on every post while signed in (the discover bug).
   const token = getWapi().readToken();
-  const isOwner = isOwnerProp !== undefined ? isOwnerProp : token !== null;
+  const isOwner = isOwnerProp !== undefined
+    ? isOwnerProp
+    : token !== null && post.author_username === token.username;
 
   const prev = useCallback(() => {
     setIndex(i => (i - 1 + media.length) % media.length);

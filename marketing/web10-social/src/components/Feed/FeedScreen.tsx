@@ -566,8 +566,12 @@ export default function FeedScreen({ onAuthorClick }: { onAuthorClick?: (usernam
   const [likedMap, setLikedMap] = useState<Record<string, boolean>>({});
   const sentinelRef = useRef<HTMLDivElement>(null);
   const token = getWapi().readToken();
+  // v3 ownership is by username alone: a post's author_key is the bare
+  // username (the node's provider is implicit — every local user shares it),
+  // so `author_provider` is the v2 fallback ('web10') and never equals the
+  // token's real provider. Comparing it hid the owner menu on every own post.
   const isOwnPost = (p: PostRecord) =>
-    token && p.author_username === token.username && p.author_provider === token.provider;
+    token && p.author_username === token.username;
 
   // ── Knob state: URL > saved settings > Newest preset ──────────────────────
   const [searchParams, setSearchParams] = useSearchParams();
