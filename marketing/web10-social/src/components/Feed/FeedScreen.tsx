@@ -556,6 +556,12 @@ export default function FeedScreen({ onAuthorClick }: { onAuthorClick?: (usernam
   const [commentMap, setCommentMap] = useState<Record<string, number>>({});
   const [likedMap, setLikedMap] = useState<Record<string, boolean>>({});
   const sentinelRef = useRef<HTMLDivElement>(null);
+  // The in-flight like toggles, per post. A tap while a toggle is in flight
+  // is a no-op — without the guard, three rapid taps fire three concurrent
+  // toggleReaction calls, each reads before any create lands, and all three
+  // create → the same user's like is stored N times (the node counts docs,
+  // not distinct users, so the count inflates by N).
+  const pendingLikes = useRef<Set<string>>(new Set());
   const token = getWapi().readToken();
   // v3 ownership is by username alone: a post's author_key is the bare
   // username (the node's provider is implicit — every local user shares it),
@@ -729,6 +735,15 @@ export default function FeedScreen({ onAuthorClick }: { onAuthorClick?: (usernam
   async function handleToggleLike(postId: string) {
     const token = getWapi().readToken();
     if (!token) return;
+    // A like toggle is already in flight for this post — ignore the tap.
+    // (Three rapid taps must not fire three concurrent toggles: each would
+    // read before any create lands and all three would create, storing the
+    // same user's like N times. The node counts docs, not distinct users.)
+    if (pendingLikes.current.has(postId)) {
+      LOG('like toggle — ignored, one already in flight for', postId);
+      return;
+    }
+    pendingLikes.current.add(postId);
     setLikedMap((prev) => ({ ...prev, [postId]: !prev[postId] }));
     setReactionMap((prev) => ({ ...prev, [postId]: (prev[postId] || 0) + (likedMap[postId] ? -1 : 1) }));
     try {
@@ -738,6 +753,8 @@ export default function FeedScreen({ onAuthorClick }: { onAuthorClick?: (usernam
       toast.error(errorMessage(e, 'Could not update your like.'));
       setLikedMap((prev) => ({ ...prev, [postId]: !prev[postId] }));
       setReactionMap((prev) => ({ ...prev, [postId]: (prev[postId] || 0) + (likedMap[postId] ? 1 : -1) }));
+    } finally {
+      pendingLikes.current.delete(postId);
     }
   }
 

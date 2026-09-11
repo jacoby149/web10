@@ -77,6 +77,12 @@ export async function createReaction(
 /**
  * Toggle a reaction: add if not present, remove if already reacted.
  * Returns true if added, false if removed.
+ *
+ * The invariant: **at most one reaction per (author, type, target).** The
+ * toggle enforces it — and it is self-healing: if duplicate reaction docs
+ * already exist (a pre-fix rapid-tap race created N copies before the read
+ * could see the first write), the toggle removes ALL of them, so one
+ * unlike+re-like repairs the count.
  * Signature supports both v2 (targetService, targetId, type, authorUsername, authorProvider, postAuthor, postService)
  * and v3 (targetId, type, authorUsername, authorProvider, groups)
  */
@@ -97,14 +103,15 @@ export async function toggleReaction(
     const actualAuthorUsername = authorProviderOrAuthorProvider!;
     const actualAuthorProvider = postAuthor || '';
     const existing = await readReactions(targetServiceOrId, actualTargetId);
-    const mine = existing.find(
+    const mine = existing.filter(
       (r) =>
         r.author_username === actualAuthorUsername &&
         r.author_provider === actualAuthorProvider &&
         r.type === actualType,
     );
-    if (mine?._id) {
-      await deleteReaction(mine._id);
+    if (mine.length) {
+      // Remove every copy — a duplicate is a bug, and this is where it heals.
+      await Promise.all(mine.map((r) => deleteReaction(r._id!)));
       return false;
     }
     await createReaction({
@@ -123,14 +130,15 @@ export async function toggleReaction(
   const actualAuthorUsername = typeOrAuthorUsername!;
   const actualAuthorProvider = authorProviderOrAuthorProvider!;
   const existing = await readReactions(actualTargetId, undefined, groups);
-  const mine = existing.find(
+  const mine = existing.filter(
     (r) =>
       r.author_username === actualAuthorUsername &&
       r.author_provider === actualAuthorProvider &&
       r.type === actualType,
   );
-  if (mine?._id) {
-    await deleteReaction(mine._id);
+  if (mine.length) {
+    // Remove every copy — a duplicate is a bug, and this is where it heals.
+    await Promise.all(mine.map((r) => deleteReaction(r._id!)));
     return false;
   }
   await createReaction({

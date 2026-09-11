@@ -22,6 +22,7 @@ vi.mock('@/data', async (importOriginal) => {
     readPost: vi.fn().mockResolvedValue(null),
     countReactions: vi.fn().mockResolvedValue(0),
     countComments: vi.fn().mockResolvedValue(0),
+    toggleReaction: vi.fn().mockResolvedValue(true),
     resolveMediaRefs: vi.fn().mockResolvedValue([]),
     readUserProfile: vi.fn().mockResolvedValue(null),
     readProfile: vi.fn().mockResolvedValue(null),
@@ -332,6 +333,49 @@ describe('FeedScreen', () => {
     expect(readFeedPage).toHaveBeenLastCalledWith(
       expect.objectContaining({ cursor: { created_at: '2026-09-07T09:00:00.000' } }),
     );
+  });
+
+  it('rapid like taps do not race: one toggle in flight at a time (like is a toggle, not a counter)', async () => {
+    // The reported bug: liking a post three times stored three likes. Without
+    // the in-flight guard, three rapid taps fire three concurrent
+    // toggleReaction calls, each reads before any create lands, and all three
+    // create — the node counts docs, not distinct users, so the count inflates.
+    const { readFeedPage, toggleReaction } = await import('@/data');
+    // mockResolvedValue (not Once): the saved-knobs load re-reads page one,
+    // and every read must return the post.
+    vi.mocked(readFeedPage).mockResolvedValue({
+      posts: [
+        { _id: 'like1', text: 'like me', author_username: 'someone', author_provider: 'test.localhost', created_at: new Date().toISOString() },
+      ],
+      has_more: false, next_cursor: null,
+    });
+    // The first toggle stays in flight until we resolve it.
+    let resolveToggle: (v: boolean) => void = () => {};
+    vi.mocked(toggleReaction).mockImplementationOnce(
+      () => new Promise<boolean>((resolve) => { resolveToggle = resolve; }),
+    );
+    const { default: FeedScreen } = await import('@/components/Feed/FeedScreen');
+    render(
+      <MemoryRouter>
+        <FeedScreen />
+      </MemoryRouter>,
+    );
+    // Wait for the settled feed (the saved-knobs load re-reads page one —
+    // the like button only exists once the second read has rendered).
+    const like = await screen.findByTestId('like-button');
+    // Three rapid taps while the first toggle is still in flight. (Re-query
+    // each time — the button remounts on the burst animation.)
+    fireEvent.click(like);
+    fireEvent.click(screen.getByTestId('like-button'));
+    fireEvent.click(screen.getByTestId('like-button'));
+    expect(vi.mocked(toggleReaction)).toHaveBeenCalledTimes(1);
+    // The heart reflects exactly one toggle (liked), not three.
+    expect(screen.getByTestId('like-button')).toHaveAttribute('aria-pressed', 'true');
+    // Once it settles, the guard releases — the next tap is a real toggle.
+    resolveToggle(true);
+    await waitFor(() => expect(vi.mocked(toggleReaction)).toHaveBeenCalledTimes(1));
+    fireEvent.click(screen.getByTestId('like-button'));
+    expect(vi.mocked(toggleReaction)).toHaveBeenCalledTimes(2);
   });
 });
 

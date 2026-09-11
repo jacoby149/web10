@@ -64,21 +64,71 @@ describe('reactions v3 data layer', () => {
   });
 
   describe('toggleReaction (v3: create or delete)', () => {
-    it('creates reaction when none exists', async () => {
-      mock.read.mockResolvedValue([]);
-      mock.create.mockResolvedValue({ doc_id: 'r1', body: { target_id: 'p1', type: 'like' } });
-      // No existing reaction → create
-      const existing = await mock.read('reactions', { groups: ['me'] });
-      expect(existing).toEqual([]);
-      await mock.create('reactions', { target_id: 'p1', type: 'like' });
+    // A tiny in-memory reactions store so the real toggleReaction drives the
+    // real seam (read → find mine → create/delete) instead of the test
+    // pre-acting on the mock.
+    function storeReactions() {
+      const store: { doc_id: string; author_key: string; body: Record<string, unknown>; ref_value: string }[] = [];
+      let n = 0;
+      mock.read.mockImplementation(async (_c: string, opts: { ref?: string }) =>
+        store.filter((d) => d.ref_value === opts.ref),
+      );
+      mock.create.mockImplementation(async (_c: string, body: Record<string, unknown>, opts: { ref_value?: string }) => {
+        const doc = { doc_id: `r${++n}`, author_key: 'web10.app/users/alice', body, ref_value: opts.ref_value || '' };
+        store.push(doc);
+        return doc;
+      });
+      mock.delete.mockImplementation(async (id: string) => {
+        const i = store.findIndex((d) => d.doc_id === id);
+        if (i >= 0) store.splice(i, 1);
+        return { doc_id: id, status: 'deleted' };
+      });
+      return store;
+    }
+
+    it('creates a reaction when the user has none', async () => {
+      const store = storeReactions();
+      const { toggleReaction } = await import('../../data/reactions');
+      const added = await toggleReaction('p1', 'like', 'alice', 'web10.app');
+      expect(added).toBe(true);
+      expect(store).toHaveLength(1);
+      expect(store[0].body.type).toBe('like');
+      expect(store[0].ref_value).toBe('p1');
     });
 
-    it('deletes reaction when already present', async () => {
-      mock.read.mockResolvedValue([{ doc_id: 'r1', body: { target_id: 'p1', type: 'like' } }]);
-      mock.delete.mockResolvedValue({ doc_id: 'r1', status: 'deleted' });
-      const existing = await mock.read('reactions', { groups: ['me'] });
-      expect(existing.length).toBe(1);
-      await mock.delete('r1');
+    it('deletes the reaction when the user already has one', async () => {
+      const store = storeReactions();
+      const { toggleReaction } = await import('../../data/reactions');
+      await toggleReaction('p1', 'like', 'alice', 'web10.app');
+      const removed = await toggleReaction('p1', 'like', 'alice', 'web10.app');
+      expect(removed).toBe(false);
+      expect(store).toHaveLength(0);
+    });
+
+    it('self-heals duplicates: a user with N duplicate likes ends at zero after one unlike', async () => {
+      // The reported bug: rapid taps raced and stored the same user's like
+      // three times. The toggle must remove EVERY copy, not just the first —
+      // otherwise one unlike leaves N-1 phantom likes inflating the count.
+      const store = storeReactions();
+      store.push(
+        { doc_id: 'r1', author_key: 'web10.app/users/alice', body: { type: 'like' }, ref_value: 'p1' },
+        { doc_id: 'r2', author_key: 'web10.app/users/alice', body: { type: 'like' }, ref_value: 'p1' },
+        { doc_id: 'r3', author_key: 'web10.app/users/alice', body: { type: 'like' }, ref_value: 'p1' },
+      );
+      const { toggleReaction } = await import('../../data/reactions');
+      const removed = await toggleReaction('p1', 'like', 'alice', 'web10.app');
+      expect(removed).toBe(false);
+      expect(store).toHaveLength(0);
+    });
+
+    it('leaves other users reactions untouched', async () => {
+      const store = storeReactions();
+      store.push({ doc_id: 'rb1', author_key: 'web10.app/users/bob', body: { type: 'like' }, ref_value: 'p1' });
+      const { toggleReaction } = await import('../../data/reactions');
+      await toggleReaction('p1', 'like', 'alice', 'web10.app');
+      await toggleReaction('p1', 'like', 'alice', 'web10.app');
+      expect(store).toHaveLength(1);
+      expect(store[0].doc_id).toBe('rb1');
     });
   });
 
