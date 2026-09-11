@@ -115,11 +115,10 @@ The invariant that makes the inline modality feel right: **in `inline` mode, a t
 
 ## Open questions
 
-Decided and built: the two modalities; the one-component / two-axes shape; the inline `stopPropagation` invariant; the Discover fix (inline video plus inline `CommentThread`, no lightbox); the Discover YouTube view (web10 video posts render inline in the 16:9 tile — the TikTok/Shorts wall, no lightbox); Groups (unified to `<VideoPlayer mode="inline">`).
+Decided and built: the two modalities; the one-component / two-axes shape; the inline `stopPropagation` invariant; the Discover fix (inline video plus inline `CommentThread`, no lightbox); the Discover YouTube view (web10 video posts render inline in the 16:9 tile — the TikTok/Shorts wall, no lightbox); Groups (unified to `<VideoPlayer mode="inline">`); **multi-media posts** (the shared `MediaCarousel` — a fixed frame + scroll-snap strip of all the post's media + a `1/N` position indicator where the old dead count badge was; video slides render through `<VideoPlayer fill>`, image slides through `<img>`; composed by both the feed's `MediaGrid` and Discover's card).
 
 Still open:
 
-- **Multi-media posts** — the feed's `MediaGrid` shows only the first item; the old lightbox carousel that reached the rest is gone. In the all-inline world the card needs an inline swipe carousel (or a count-tap that expands the set in place). Affects Feed and Discover.
 - **Real YouTube embeds (Shorts)** — the `youtube` source case (an `<iframe>`) is wired into `<VideoPlayer>` but no surface uses it yet. Landing it is a data-model question first (how a post references an external YouTube id) before a rendering one.
 
 ## Reference
@@ -129,3 +128,4 @@ Still open:
 - The visual bar (tokens, states, the screenshot test): `../../../strategy/design.md`
 - The current full-rack implementation (becomes `FullControls`): `../../../../marketing/web10-social/src/components/Feed/HlsVideoPlayer.tsx`
 - The inline comment pattern the inline modality reuses: `../../../../marketing/web10-social/src/components/Feed/CommentThread.tsx`
+- The shared multi-media carousel: `../../../../marketing/web10-social/src/components/Feed/MediaCarousel.tsx`

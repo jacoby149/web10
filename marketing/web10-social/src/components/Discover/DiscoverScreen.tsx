@@ -49,6 +49,7 @@ import { MARKETING_ORIGIN } from '@/lib/origins';
 import { PRESETS, getPreset, knobStateToSort, scorePost, FIXED_CHARACTER_DETEENT, type PresetId, type KnobState, type PowerMeanSortConfig, defaultKnobState } from '@/lib/powerMean';
 import { KnobRack } from './KnobRack';
 import { VideoPlayer, sourceFromMedia } from '@/components/Feed/VideoPlayer';
+import { MediaCarousel } from '@/components/Feed/MediaCarousel';
 import { CommentThread } from '@/components/Feed/CommentThread';
 
 const LOG = (...args: unknown[]) => console.log('[social:discover]', ...args);
@@ -441,7 +442,14 @@ function DiscoverCard({
         {/* Media */}
         {mediaType && (
           <div className="mt-3 overflow-hidden rounded-md">
-            {isVideoMedia && firstMedia?.url ? (
+            {mediaItems.length > 1 ? (
+              <MediaCarousel
+                items={mediaItems}
+                fit="cover"
+                ratio={16 / 9}
+                testId="discover-media-carousel"
+              />
+            ) : isVideoMedia && firstMedia?.url ? (
               <VideoPlayer
                 source={sourceFromMedia(firstMedia)}
                 mode="inline"

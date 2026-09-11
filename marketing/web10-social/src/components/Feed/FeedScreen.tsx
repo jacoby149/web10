@@ -31,6 +31,7 @@ import { CommentThread } from './CommentThread';
 import { TextWithLinks } from './LinkEmbed';
 import { AdBlock } from './AdBlock';
 import { VideoPlayer, sourceFromMedia } from './VideoPlayer';
+import { MediaCarousel } from './MediaCarousel';
 import { toast, errorMessage } from '@/components/shared/Toast';
 
 const LOG = (...args: unknown[]) => console.log('[social:feed]', ...args);
@@ -144,23 +145,13 @@ function MediaGrid({ mediaItems }: { mediaItems: MediaRecord[] }) {
   const count = mediaItems.length;
   const first = mediaItems[0];
 
-  // Option (b): the first item renders at its natural aspect ratio; the rest
-  // live behind a count badge — tapping the card opens the lightbox, which
-  // already has a working carousel for the full set.
-  return (
-    <div className="relative">
-      <MediaItem media={first} />
-      {count > 1 && (
-        <div
-          className="absolute top-2 right-2 flex items-center justify-center min-w-6 h-6 px-2 rounded-full bg-background/70 backdrop-blur-sm text-xs font-semibold text-foreground tabular-nums pointer-events-none"
-          data-testid="media-count-badge"
-          aria-label={`${count} items`}
-        >
-          {count}
-        </div>
-      )}
-    </div>
-  );
+  // Single item: the natural-ratio MediaItem (unchanged). Multi-item: the
+  // shared inline carousel (video-player.md) — all items swipe in a fixed
+  // frame, with a position indicator where the old dead count badge was.
+  if (count === 1) {
+    return <MediaItem media={first} />;
+  }
+  return <MediaCarousel items={mediaItems} fit="contain" maxHeight="60vh" testId="media-carousel" />;
 }
 
 interface PostCardProps {
