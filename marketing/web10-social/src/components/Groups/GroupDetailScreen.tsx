@@ -43,6 +43,7 @@ import {
   ImagePlus,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { VideoPlayer, sourceFromMedia } from '@/components/Feed/VideoPlayer';
 
 const LOG = (...args: unknown[]) => console.log('[social:groups:detail]', ...args);
 
@@ -90,14 +91,14 @@ function PostMedia({ media }: { media: MediaRecord[] }) {
         const isImage = (m.mime_type || '').startsWith('image/');
         if (isVideo) {
           return (
-            <video
+            <VideoPlayer
               key={m._id || i}
-              src={m.url}
-              controls
-              playsInline
-              preload="metadata"
-              className="w-full rounded-lg bg-background object-contain ring-1 ring-border max-h-[60vh]"
-              data-testid="group-post-video"
+              source={sourceFromMedia(m)}
+              mode="inline"
+              fit="contain"
+              maxHeight="60vh"
+              testId="group-post-video"
+              className="rounded-lg ring-1 ring-border"
             />
           );
         }

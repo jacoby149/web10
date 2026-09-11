@@ -43,14 +43,13 @@ import {
   Search,
   X,
   Video,
-  Play,
-  Pause,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { MARKETING_ORIGIN } from '@/lib/origins';
 import { PRESETS, getPreset, knobStateToSort, scorePost, FIXED_CHARACTER_DETEENT, type PresetId, type KnobState, type PowerMeanSortConfig, defaultKnobState } from '@/lib/powerMean';
 import { KnobRack } from './KnobRack';
-import { PostLightbox } from '@/components/Bio/PostLightbox';
+import { VideoPlayer, sourceFromMedia } from '@/components/Feed/VideoPlayer';
+import { CommentThread } from '@/components/Feed/CommentThread';
 
 const LOG = (...args: unknown[]) => console.log('[social:discover]', ...args);
 
@@ -225,83 +224,10 @@ function MediaPlaceholder({ type }: { type: 'image' | 'video' | 'music' }) {
   );
 }
 
-// ── Playable video (the feed's MediaItem video pattern) ─────────────────────
-// The discover grid used to render a static placeholder for video posts —
-// there was no way to watch. This renders a real <video> (tap to play/pause,
-// muted loop, natural aspect ratio capped so a portrait clip can't blow up
-// the card). Full-screen watching + comments live in the PostLightbox, which
-// the card opens on click.
-
-function formatDuration(seconds: number): string {
-  const m = Math.floor(seconds / 60);
-  const s = Math.round(seconds % 60);
-  return m > 0 ? `${m}:${String(s).padStart(2, '0')}` : `${s}s`;
-}
-
-function MediaVideo({ media }: { media: MediaRecord }) {
-  const videoRef = useRef<HTMLVideoElement>(null);
-  const [playing, setPlaying] = useState(false);
-
-  useEffect(() => {
-    if (!playing || !videoRef.current) return;
-    videoRef.current.play().catch(() => {});
-    return () => {
-      videoRef.current?.pause();
-    };
-  }, [playing]);
-
-  // Uniform 16:9 (the YouTube thumbnail ratio) — every video card is the same
-  // size, so the grid reads as a clean video wall. This matches the marketing
-  // trending's TrendingMedia (aspect-video + object-cover), which is the
-  // "youtubey" reference. object-cover crops to fill (a portrait clip shows
-  // its center frame) instead of the old natural-ratio object-contain, which
-  // letterboxed portrait clips and made the grid look ragged. (The FEED keeps
-  // natural ratio per 3.34.0 — Discover is the uniform-tile surface.)
-  return (
-    <div
-      className="bg-elevated overflow-hidden group relative cursor-pointer aspect-video"
-      onClick={() => setPlaying((p) => !p)}
-      role="button"
-      tabIndex={0}
-      aria-label={playing ? 'Pause video' : 'Play video'}
-      onKeyDown={(e) => {
-        if (e.key === 'Enter' || e.key === ' ') {
-          e.preventDefault();
-          setPlaying((p) => !p);
-        }
-      }}
-      data-testid="discover-media-video"
-    >
-      <video
-        ref={videoRef}
-        src={media.url}
-        poster={media.thumbnail_url}
-        className="w-full h-full object-cover"
-        preload="metadata"
-        playsInline
-        muted={!playing}
-        loop
-      />
-      {!playing && (
-        <div className="absolute inset-0 flex items-center justify-center bg-black/20">
-          <div className="flex items-center justify-center w-14 h-14 rounded-full bg-background/80 backdrop-blur-sm">
-            <Play className="w-6 h-6 text-foreground ml-0.5" strokeWidth={2} fill="currentColor" />
-          </div>
-        </div>
-      )}
-      {playing && (
-        <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-          <Pause className="w-8 h-8 text-foreground/60 animate-pulse" strokeWidth={1.5} />
-        </div>
-      )}
-      {media.duration_seconds && (
-        <div className="absolute bottom-1.5 right-1.5 bg-background/80 rounded px-1.5 text-[0.625rem] font-mono tabular-nums text-foreground">
-          {formatDuration(media.duration_seconds)}
-        </div>
-      )}
-    </div>
-  );
-}
+// Video posts render through the shared <VideoPlayer> (video-player.md) — the
+// discover grid is the inline modality: a uniform 16:9 tile (object-cover),
+// tap-to-play in place, comments expand inline in the card. There is no
+// lightbox here; that is the profile's modal modality.
 
 // ── Topic chips ────────────────────────────────────────────────────────────
 
@@ -426,7 +352,6 @@ interface DiscoverCardProps {
   authorAvatar?: string;
   mediaItems: MediaRecord[];
   onAuthorClick: () => void;
-  onOpenLightbox: () => void;
 }
 
 function DiscoverCard({
@@ -437,7 +362,6 @@ function DiscoverCard({
   authorAvatar,
   mediaItems,
   onAuthorClick,
-  onOpenLightbox,
 }: DiscoverCardProps) {
   const tier = heatTier(post.score ?? 0, maxScore);
   const displayName = authorName.charAt(0).toUpperCase() + authorName.slice(1);
@@ -454,6 +378,11 @@ function DiscoverCard({
         ? 'image'
         : undefined;
 
+  // The inline modality (video-player.md): the comment count toggles the
+  // thread in-card (no lightbox); the video plays inline via <VideoPlayer>.
+  const [commentsOpen, setCommentsOpen] = useState(false);
+  const [commentCount, setCommentCount] = useState(post.comments ?? 0);
+
   return (
     <article
       data-testid="discover-card"
@@ -461,10 +390,9 @@ function DiscoverCard({
         'group relative overflow-hidden rounded-lg border border-border bg-card transition-all duration-150',
         'hover:-translate-y-0.5 hover:border-border/80',
         'focus-within:-translate-y-0.5 focus-within:border-border/80',
-        'motion-reduce:transform-none cursor-pointer',
+        'motion-reduce:transform-none',
         HEAT_SHADOW[tier],
       )}
-      onClick={onOpenLightbox}
     >
       <div className="p-4">
         {/* Header: rank + time */}
@@ -514,7 +442,13 @@ function DiscoverCard({
         {mediaType && (
           <div className="mt-3 overflow-hidden rounded-md">
             {isVideoMedia && firstMedia?.url ? (
-              <MediaVideo media={firstMedia} />
+              <VideoPlayer
+                source={sourceFromMedia(firstMedia)}
+                mode="inline"
+                fit="cover"
+                ratio={16 / 9}
+                testId="discover-media-video"
+              />
             ) : mediaType === 'image' && mediaItems.length > 0 ? (
               <div className="aspect-[4/3] w-full overflow-hidden bg-elevated">
                 <img
@@ -556,13 +490,19 @@ function DiscoverCard({
             <Heart className="h-4 w-4" strokeWidth={1.5} />
             <span className="text-xs tabular-nums">{formatCount(post.likes ?? 0)}</span>
           </span>
-          <span
-            className="flex items-center gap-1.5 text-muted-foreground"
-            aria-label={`${post.comments ?? 0} comments`}
+          <button
+            type="button"
+            onClick={(e) => { e.stopPropagation(); setCommentsOpen((o) => !o); }}
+            aria-expanded={commentsOpen}
+            className={cn(
+              'flex items-center gap-1.5 rounded transition-colors',
+              commentsOpen ? 'text-foreground' : 'text-muted-foreground hover:text-foreground',
+            )}
+            aria-label={`${commentCount} comments${commentsOpen ? ', hide' : ', show'}`}
           >
             <MessageCircle className="h-4 w-4" strokeWidth={1.5} />
-            <span className="text-xs tabular-nums">{formatCount(post.comments ?? 0)}</span>
-          </span>
+            <span className="text-xs tabular-nums">{formatCount(commentCount)}</span>
+          </button>
           <span
             className="flex items-center gap-1.5 text-muted-foreground"
             aria-label={`${post.reposts ?? 0} reposts`}
@@ -575,6 +515,14 @@ function DiscoverCard({
           </span>
         </div>
       </div>
+      <CommentThread
+        postId={post._id || ''}
+        isOpen={commentsOpen}
+        count={commentCount}
+        onCountChange={setCommentCount}
+        postAuthor={post.author_username}
+        postService="posts"
+      />
     </article>
   );
 }
@@ -685,7 +633,6 @@ interface DiscoverYouTubeCardProps {
   authorAvatar?: string;
   mediaItems: MediaRecord[];
   onAuthorClick: () => void;
-  onOpenLightbox: () => void;
 }
 
 function DiscoverYouTubeCard({
@@ -695,32 +642,33 @@ function DiscoverYouTubeCard({
   authorAvatar,
   mediaItems,
   onAuthorClick,
-  onOpenLightbox,
 }: DiscoverYouTubeCardProps) {
   const displayName = authorName.charAt(0).toUpperCase() + authorName.slice(1);
   const initial = post.author.charAt(0).toUpperCase();
   const avatarColor = hashToColor(post.author);
+  const firstMedia = mediaItems[0];
   const hasImage = mediaItems.length > 0 && mediaItems[0].url;
+  const isVideoMedia = firstMedia?.mime_type?.startsWith('video/');
   const isVideo = post.tags?.includes('video');
 
   return (
     <div
       data-testid="discover-youtube-card"
-      className="group/yt cursor-pointer"
-      onClick={onOpenLightbox}
-      role="button"
-      tabIndex={0}
-      aria-label={`Watch ${displayName}'s post`}
-      onKeyDown={(e) => {
-        if (e.key === 'Enter' || e.key === ' ') {
-          e.preventDefault();
-          onOpenLightbox();
-        }
-      }}
+      className="group/yt"
     >
-      {/* 16:9 thumbnail */}
+      {/* 16:9 tile — video posts play inline (the TikTok/Shorts wall), images
+          show a thumbnail, unresolved media show a placeholder. */}
       <div className="relative overflow-hidden rounded-xl bg-elevated">
-        {hasImage ? (
+        {isVideoMedia && firstMedia?.url ? (
+          <VideoPlayer
+            source={sourceFromMedia(firstMedia)}
+            mode="inline"
+            fit="cover"
+            ratio={16 / 9}
+            showDuration={false}
+            testId="discover-youtube-video"
+          />
+        ) : hasImage ? (
           <img
             src={mediaItems[0].thumbnail_url || mediaItems[0].url}
             alt={mediaItems[0].alt_text || ''}
@@ -851,8 +799,6 @@ export default function DiscoverScreen() {
   const [loading, setLoading] = useState(true);
   const [profileMap, setProfileMap] = useState<Record<string, ProfileRecord>>({});
   const [mediaMap, setMediaMap] = useState<Record<string, MediaRecord[]>>({});
-  const [flatMediaMap, setFlatMediaMap] = useState<Record<string, MediaRecord>>({});
-  const [lightboxPost, setLightboxPost] = useState<PostRecord | null>(null);
   // True after the first successful board load — knob re-reads keep the
   // previous grid on screen (no skeleton flash); only the cold start shows
   // the skeleton. A ref (not state) so the stable `loadDiscover` callback
@@ -1052,15 +998,6 @@ export default function DiscoverScreen() {
           }
           if (Object.keys(mMap).length) {
             setMediaMap(mMap);
-            // The lightbox keys media by a single MediaRecord (the feed's
-            // flatMediaMap pattern) — flatten the per-post arrays by _id.
-            const flat: Record<string, MediaRecord> = {};
-            for (const items of Object.values(mMap)) {
-              for (const m of items) {
-                if (m._id) flat[m._id] = m;
-              }
-            }
-            if (Object.keys(flat).length) setFlatMediaMap(flat);
           }
         } catch {
           // Media resolution failed — degrade gracefully
@@ -1437,7 +1374,6 @@ export default function DiscoverScreen() {
                     }
                     mediaItems={mediaItems}
                     onAuthorClick={() => navigateToUserProfile(post.author_username || '', post.author_provider || '')}
-                    onOpenLightbox={() => setLightboxPost(post)}
                   />
                 );
               })}
@@ -1467,7 +1403,6 @@ export default function DiscoverScreen() {
                   }
                   mediaItems={mediaItems}
                   onAuthorClick={() => navigateToUserProfile(post.author_username || '', post.author_provider || '')}
-                  onOpenLightbox={() => setLightboxPost(post)}
                 />
               );
             })}
@@ -1477,16 +1412,6 @@ export default function DiscoverScreen() {
         )}
       </div>
       </div>
-      {lightboxPost && (
-        <PostLightbox
-          post={lightboxPost}
-          mediaMap={flatMediaMap}
-          onClose={() => setLightboxPost(null)}
-          onReload={() => loadDiscover(sortConfig)}
-          postAuthor={lightboxPost.author_username}
-          postService="posts"
-        />
-      )}
     </div>
   );
 }

@@ -17,6 +17,7 @@ vi.mock('@/data', async (importOriginal) => {
     readProfile: vi.fn().mockResolvedValue(null),
     readUserProfile: vi.fn().mockResolvedValue(null),
     resolveMediaRefs: vi.fn().mockResolvedValue([]),
+    readComments: vi.fn().mockResolvedValue([]),
   };
 });
 
@@ -1059,7 +1060,7 @@ describe('DiscoverScreen', () => {
     expect(video!.className).not.toMatch(/object-contain/);
   });
 
-  it('clicking a discover card opens the post lightbox', async () => {
+  it('the discover card is inline — no lightbox; the comment count toggles the thread', async () => {
     (data.readDiscoverFeed as ReturnType<typeof vi.fn>).mockResolvedValue([
       {
         author: 'video-creator',
@@ -1099,17 +1100,21 @@ describe('DiscoverScreen', () => {
       expect(screen.getByTestId('discover-card')).toBeInTheDocument();
     });
 
-    // No lightbox until the card is clicked
+    // The inline modality (video-player.md): clicking the card opens NO
+    // lightbox — the video plays inline and comments expand in the card.
+    fireEvent.click(screen.getByTestId('discover-card'));
     expect(screen.queryByTestId('post-lightbox')).not.toBeInTheDocument();
 
-    fireEvent.click(screen.getByTestId('discover-card'));
-
+    // The comment count toggles the inline thread (the feed's pattern).
+    const commentButton = screen.getByRole('button', { name: /comments/ });
+    expect(screen.queryByTestId('comment-thread')).not.toBeInTheDocument();
+    fireEvent.click(commentButton);
     await waitFor(() => {
-      expect(screen.getByTestId('post-lightbox')).toBeInTheDocument();
+      expect(screen.getByTestId('comment-thread')).toBeInTheDocument();
     });
   });
 
-  it('clicking a YouTube-view card opens the post lightbox', async () => {
+  it('the YouTube-view card is inline — a video post plays in the tile, no lightbox', async () => {
     (data.readDiscoverFeed as ReturnType<typeof vi.fn>).mockResolvedValue([
       {
         author: 'video-creator',
@@ -1149,12 +1154,10 @@ describe('DiscoverScreen', () => {
       expect(screen.getByTestId('discover-youtube-card')).toBeInTheDocument();
     });
 
-    expect(screen.queryByTestId('post-lightbox')).not.toBeInTheDocument();
-
+    // The inline modality: a video post renders the video inline in the tile
+    // (the TikTok/Shorts wall) — clicking the card opens no lightbox.
+    expect(screen.getByTestId('discover-youtube-video')).toBeInTheDocument();
     fireEvent.click(screen.getByTestId('discover-youtube-card'));
-
-    await waitFor(() => {
-      expect(screen.getByTestId('post-lightbox')).toBeInTheDocument();
-    });
+    expect(screen.queryByTestId('post-lightbox')).not.toBeInTheDocument();
   });
 });

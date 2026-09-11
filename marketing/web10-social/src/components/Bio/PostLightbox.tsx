@@ -21,34 +21,20 @@ import { TextWithLinks } from '@/components/Feed/LinkEmbed';
 import { AdBlock } from '@/components/Feed/AdBlock';
 import { toast, errorMessage } from '@/components/shared/Toast';
 import { cn } from '@/lib/utils';
-import { HlsVideoPlayer } from '@/components/Feed/HlsVideoPlayer';
+import { VideoPlayer, sourceFromMedia } from '@/components/Feed/VideoPlayer';
 
-/** The lightbox's video pane — D44: transcoded video plays through the
- *  hls.js player (the feed card's player, 3.67.0); non-transcoded video
- *  (the Phase-2 import path) plays the native <video>. */
+/** The lightbox's video pane — the modal modality (video-player.md): the full
+ *  player. Transcoded plays the hls.js rack; non-transcoded plays native
+ *  controls. Both route through the shared <VideoPlayer>. */
 function LightboxVideo({ media }: { media: MediaRecord }) {
-  const ts = media.transcoding_settings;
-  if (ts?.status === 'done' && ts.manifest_url) {
-    const v0 = ts.variants?.[0];
-    return (
-      <HlsVideoPlayer
-        manifestUrl={ts.manifest_url}
-        poster={media.thumbnail_url}
-        width={v0?.width || media.width}
-        height={v0?.height || media.height}
-        className="w-full"
-      />
-    );
-  }
+  const source = sourceFromMedia(media);
   return (
-    <video
-      key={media._id || media.url}
-      src={media.url}
-      poster={media.thumbnail_url}
-      controls
-      playsInline
-      className="max-h-[50vh] w-full object-contain sm:max-h-[88vh]"
-      data-testid="lightbox-video"
+    <VideoPlayer
+      source={source}
+      mode="full"
+      fit="contain"
+      testId={source.type === 'file' ? 'lightbox-video' : undefined}
+      className={source.type === 'file' ? 'max-h-[50vh] sm:max-h-[88vh]' : 'w-full'}
     />
   );
 }
