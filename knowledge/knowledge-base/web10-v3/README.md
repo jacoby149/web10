@@ -42,7 +42,8 @@ web10-v3/
 │   ├── cross-app-sharing.md ← mailer pattern, DMs, comments
 │   ├── group-policy-example.json.md ← concrete role/permission examples
 │   ├── ads.md             ← the creator-owned ads: a post tagged `ad` (the locked object, feed read, dissemination)
-│   └── ads-catalog.md     ← the Ad Catalog (Studio) + the composer integration (attach by ref, round-robin)
+│   ├── ads-catalog.md     ← the Ad Catalog (Studio) + the composer integration (attach by ref, round-robin)
+│   └── video-player.md    ← the client's one shared video surface: <VideoPlayer>, two modalities (inline vs modal), the source union
   ├── telemetry.md           ← why web10 tracks hard (GA4 + masked Hotjar, platform-wide) and the line it doesn't cross
   ├── migration/             ← the v2 → v3 production cutover
   │   └── v2-to-v3-accounts.md ← the 580-account migration: one-day runbook, bcrypt carry-over, phone-recovery flow
@@ -70,7 +71,7 @@ web10-v3/
 - **Security** — `security/overview.md` (invariants I1–I5, two-contract model, blocking)
 - **Query Engine** — `query-engine.md` (the flexible read: how far to take the power), `safe-query.md` (the boundary CTE + why the guarantee holds; `w.query()` / `POST /v3/query`)
 - **Groups** — `groups/overview.md` (primitive), `groups/identity.md` (profiles)
-- **Social** — `social/overview.md` (implementation), `social/cross-app-sharing.md` (patterns), `social/ads.md` (the creator-owned ads — a post tagged `ad`), `social/ads-catalog.md` (the catalog + composer)
+- **Social** — `social/overview.md` (implementation), `social/cross-app-sharing.md` (patterns), `social/ads.md` (the creator-owned ads — a post tagged `ad`), `social/ads-catalog.md` (the catalog + composer), `social/video-player.md` (the client's one shared video surface — `<VideoPlayer>`, the two modalities)
 - **Media** — `media/transcoding-foundation.md` (the model), `media/transcoding.md` (the pipeline), `media/streaming.md` (the layers), `media/minio-auth-bifurcated.md` (the auth split)
 - **Telemetry** — `telemetry.md` (why web10 tracks hard: GA4 + masked Hotjar, the content line, the terms trade — D56)
 - **Migration** — `migration/v2-to-v3-accounts.md` (the 580-account v2→v3 cutover: the one-day runbook, the bcrypt carry-over, the phone-recovery flow)
