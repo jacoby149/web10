@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { ChevronLeft, ChevronRight, X, Heart, MessageCircle, Edit3, Trash2, Eye, EyeOff, Share2, Check } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
@@ -161,8 +161,14 @@ export function PostLightbox({ post, mediaMap, onClose, onReload, postAuthor, po
     }
   }, [highlightedCommentId, commentsOpen]);
 
+  // Like toggle in flight — a tap while the previous toggle is still
+  // resolving is a no-op (three rapid taps must not store the like N times).
+  const likeInFlight = useRef(false);
+
   async function handleToggleLike() {
     if (!token) return;
+    if (likeInFlight.current) return;
+    likeInFlight.current = true;
     const wasLiked = liked;
     setLiked(!wasLiked);
     setReactionCount(prev => prev + (wasLiked ? -1 : 1));
@@ -176,6 +182,8 @@ export function PostLightbox({ post, mediaMap, onClose, onReload, postAuthor, po
       toast.error(errorMessage(e, 'Could not update your like.'));
       setLiked(wasLiked);
       setReactionCount(prev => prev + (wasLiked ? 1 : -1));
+    } finally {
+      likeInFlight.current = false;
     }
   }
 

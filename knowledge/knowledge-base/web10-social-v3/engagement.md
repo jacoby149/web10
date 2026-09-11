@@ -42,6 +42,23 @@ group set in one call — a doc attached to 2 of the requested groups comes back
 once per group (a read-time JOIN artifact, **not** storage duplication: the
 doc is stored once in `documents`; `doc_groups` is just the bridge).
 
+## The Like Toggle (app-level invariant)
+
+A **like is a toggle, not a counter**: at most **one** `like` reaction per
+**(author, target)** — liking again unlikes, unliking again likes. The node
+stays a stateless CRUD store (D60 — no app-specific uniqueness rule on the
+platform); the invariant is enforced by the **client's toggle**
+(`src/data/reactions.ts` `toggleReaction`): read the target's reactions, and
+- **none of mine** → create one;
+- **one or more of mine** → delete **every** copy.
+
+The delete-all branch is also the **self-heal**: if duplicate like docs exist
+(a pre-fix rapid-tap race stored N copies — the UI's in-flight guard now
+prevents new ones), the next unlike removes all of them and the count repairs.
+Counts are reaction **docs** (`read_ref_counts_by_ref`), so a duplicate doc
+inflates the count until healed — which is why the write path, not the count,
+owns the invariant.
+
 ## The Bug (why it "doesn't persist" today)
 
 The client **never sends `ref_value` to the server.** `createComment` /
