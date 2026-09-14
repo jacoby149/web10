@@ -492,8 +492,8 @@ function DiscoverCard({
 
       {/* Engagement bar (post-actions.md): the shared row (display like +
           inline comments) + Discover's own repost/share signal (trailing).
-          Outside the p-4 wrapper so the bar's divider spans the card and the
-          thread's padding is the card's own. */}
+          Outside the p-4 wrapper so the bar's divider spans the card; the
+          bar's own px-4/pb-3 pad its edges to match the card content. */}
       <PostActions
         postId={post._id || ''}
         liked={false}
