@@ -191,14 +191,16 @@ export async function deletePost(): Promise<void> {}
 export async function movePostVisibility(): Promise<void> {}
 export async function countFollowers(): Promise<number> { return PEERS.length; }
 export async function countFollows(): Promise<number> { return PEERS.length; }
+export async function countUserFollowing(): Promise<number> { return PEERS.length; }
+export async function readUserPublicPosts(): Promise<unknown[]> { return []; }
 export async function countStagingPosts(): Promise<number> { return 0; }
 export async function saveProfile(): Promise<void> {}
-export async function readMyPosts(): Promise<unknown[]> { return []; }
 export async function readFollowsByUser(): Promise<unknown[]> { return []; }
 export async function followUser(): Promise<unknown> { return {}; }
 export async function unfollowUser(): Promise<void> {}
 export async function uploadMedia(): Promise<{ url: string }> { return { url: '' }; }
 export async function fanOutToFollowers(): Promise<void> {}
+export async function readMyAds(): Promise<{ ads: unknown[]; albums: unknown[] }> { return { ads: [], albums: [] }; }
 export async function refreshMediaUrls<T>(records: T[]): Promise<T[]> { return records; }
 export async function readComments(): Promise<unknown[]> { return []; }
 export async function createComment(): Promise<unknown> { return {}; }
@@ -609,6 +611,17 @@ const DISCOVER_MEDIA: Record<string, Record<string, unknown>> = {
   'dm-portrait3': { ...creative('BACKSTAGE', 720, 1280, '#f59e0b', '#78350f'), _id: 'dm-portrait3' },
 };
 
+// Profile face media (avatar + banner + the owner's posts' media) — the
+// profile face lightbox's pick-from-your-posts grid. Image creatives (the
+// picker renders <img> for image mime types).
+const FACE_MEDIA: Record<string, Record<string, unknown>> = {
+  'face-avatar': { ...creative('NOVA', 640, 640, '#8b5cf6', '#2e1065', 'image/png'), _id: 'face-avatar' },
+  'face-banner': { ...creative('BANNER', 1600, 400, '#7c3aed', '#4c1d95', 'image/png'), _id: 'face-banner' },
+  'face-post-1': { ...creative('DROP', 1280, 720, '#a78bfa', '#1e1b4b', 'image/png'), _id: 'face-post-1' },
+  'face-post-2': { ...creative('STUDIO', 720, 1280, '#8b5cf6', '#3b0764', 'image/png'), _id: 'face-post-2' },
+  'face-post-3': { ...creative('SET', 1600, 900, '#c4b5fd', '#312e81', 'image/png'), _id: 'face-post-3' },
+};
+
 const DISCOVER_POSTS: SeedDiscoverPost[] = [
   {
     _id: 'dp-1',
@@ -714,7 +727,7 @@ export async function resolveMediaRefs<T>(refs: T[]): Promise<T[]> {
   const out: T[] = [];
   for (const r of refs) {
     const id = typeof r === 'string' ? r : (r as { doc_id?: string }).doc_id || '';
-    const rec = DISCOVER_MEDIA[id];
+    const rec = DISCOVER_MEDIA[id] ?? FACE_MEDIA[id];
     if (rec) out.push(rec as T);
   }
   return out;
@@ -723,7 +736,28 @@ export async function readUserProfile(): Promise<unknown> {
   return { display_name: 'Nova', username: 'nova', provider: 'web10', avatar_ref: '', bio: 'Synthwave producer' };
 }
 export async function readProfile(): Promise<unknown> {
-  return { display_name: 'Nova', username: 'nova', provider: 'web10', avatar_ref: '', bio: 'Synthwave producer' };
+  // The owner's profile carries an avatar + banner (media doc_ids the
+  // resolveMediaRefs mock below knows) so the profile face lightbox renders
+  // with a real face + a pick-from-your-posts grid.
+  return {
+    display_name: 'Nova',
+    username: 'nova',
+    provider: 'web10',
+    avatar_ref: 'face-avatar',
+    banner_ref: 'face-banner',
+    bio: 'Synthwave producer — your audience, your node.',
+    website: 'https://nova.example.com',
+    location: 'Berlin',
+  };
+}
+// The owner's own posts (the pick-from-your-posts source). Each carries a
+// media ref the resolveMediaRefs mock resolves to a creative.
+export async function readMyPosts(): Promise<unknown[]> {
+  return [
+    { _id: 'fp-nova-1', author_username: 'nova', author_provider: 'web10', text: 'Late night synth session — the new drop is almost ready. Feedback welcome 🎧', media_refs: ['face-post-1'], created_at: minsAgo(38) },
+    { _id: 'fp-nova-2', author_username: 'nova', author_provider: 'web10', text: 'Vertical cut from the studio day.', media_refs: ['face-post-2'], created_at: minsAgo(60 * 5) },
+    { _id: 'fp-nova-3', author_username: 'nova', author_provider: 'web10', text: 'Three frames from the set — swipe through the full run.', media_refs: ['face-post-3'], created_at: minsAgo(12) },
+  ];
 }
 export async function fetchSuggestedUsers(): Promise<unknown[]> {
   return [

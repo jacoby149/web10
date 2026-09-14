@@ -614,12 +614,12 @@ client-asserted `short` tag (MinIO returns the *declared* Content-Type;
 `confirm_media_upload` stores client dims as-is — so a faked short is dropped at
 render). Spec'd in `knowledge-base/web10-v3/social/shorts.md`.
 
-- [✓ 3.88.0] **KB** (`social/shorts.md`) — the design (a short is a post, the feed is a filtered view), the write (one-line `tags`), the read + the render-time gate, the "can you fake a short?" trust-boundary table, the SDK/API check findings, the v1.5 server-filter follow-up.
-- [✓ 3.88.0] **The write** — `createPost` writes `tags` (`posts.ts`); the composer sets `['short']` on a 9:16 video (`PostComposer.tsx`, auto-detect, no toggle).
-- [✓ 3.88.0] **The read + gate** (`feed.ts` `readShortsFeed`) — read discover, resolve media, keep only genuine single 9:16 videos (the anti-hack seam).
-- [✓ 3.88.0] **The surface** (`ShortsScreen.tsx`, `/shorts` + `/shorts/:postId`) — full-screen vertical scroll-snap feed, `<VideoPlayer>` per slide, author/caption overlay, like/comment/share rail, deep-link scroll-to-post.
-- [✓ 3.88.0] **Nav** — Shorts promoted from coming-soon to a real destination (desktop sidebar + the mobile More sheet; the bottom bar stays at five).
-- [✓ 3.88.0] **Tests** — `feed.test.ts` +2 driving the gate (real 9:16 kept; faked image / lying-ratio / multi-media dropped; untagged 9:16 kept) + `socialScreens.test.tsx` re-pinned.
+- [✓ 3.90.0] **KB** (`social/shorts.md`) — the design (a short is a post, the feed is a filtered view), the write (one-line `tags`), the read + the render-time gate, the "can you fake a short?" trust-boundary table, the SDK/API check findings, the v1.5 server-filter follow-up.
+- [✓ 3.90.0] **The write** — `createPost` writes `tags` (`posts.ts`); the composer sets `['short']` on a 9:16 video (`PostComposer.tsx`, auto-detect, no toggle).
+- [✓ 3.90.0] **The read + gate** (`feed.ts` `readShortsFeed`) — read discover, resolve media, keep only genuine single 9:16 videos (the anti-hack seam).
+- [✓ 3.90.0] **The surface** (`ShortsScreen.tsx`, `/shorts` + `/shorts/:postId`) — full-screen vertical scroll-snap feed, `<VideoPlayer>` per slide, author/caption overlay, like/comment/share rail, deep-link scroll-to-post.
+- [✓ 3.90.0] **Nav** — Shorts promoted from coming-soon to a real destination (desktop sidebar + the mobile More sheet; the bottom bar stays at five).
+- [✓ 3.90.0] **Tests** — `feed.test.ts` +2 driving the gate (real 9:16 kept; faked image / lying-ratio / multi-media dropped; untagged 9:16 kept) + `socialScreens.test.tsx` re-pinned.
 - [ ] **v1.5** — the server-side `has(tags, 'short')` filter on `read`/`feed` (the idiom the node-ad read already uses, `clickhouse.py:2419`) so the feed pulls only shorts; optional ffmpeg-stamped dimension verification in the transcode worker (the truly bulletproof version).
 
 ## Phase 4 — Production Cutover: v2 → v3, then merge to main
