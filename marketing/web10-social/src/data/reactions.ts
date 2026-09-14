@@ -179,9 +179,14 @@ export async function setReaction(
 
   const existing = await readReactions(targetId, undefined, groups);
   const mine = existing.find(
+    // v3 ownership is by username alone: a reaction's author_key is the bare
+    // username (the node's provider is implicit), so author_provider is the
+    // v2 fallback ('web10') and never equals the token's real provider —
+    // comparing it made "mine" unfindable, so every tap CREATED a new
+    // reaction instead of toggling (the 28-likes bug; same class as the
+    // feed's isOwnPost fix, 3.79.3).
     (r) =>
       r.author_username === token.username &&
-      r.author_provider === token.provider &&
       (r.type === 'like' || r.type === 'dislike'),
   );
 
@@ -221,9 +226,9 @@ export async function toggleReactionKind(
 
   const existing = await readReactions(targetId, undefined, groups);
   const mine = existing.find(
+    // Username-only — the v3 ownership rule (see setReaction above).
     (r) =>
       r.author_username === token.username &&
-      r.author_provider === token.provider &&
       (r.type === 'like' || r.type === 'dislike'),
   );
 
