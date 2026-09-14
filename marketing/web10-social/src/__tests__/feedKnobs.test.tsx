@@ -250,6 +250,39 @@ describe('FeedScreen — the D36 knobs (server-side ranking via readFeedPage)', 
     expect(cardOrder()).toEqual(['user2', 'user1']);
   });
 
+  it('clicking Newest clears the saved tuning so the chip lights up (the click wins)', async () => {
+    (data.readSettings as ReturnType<typeof vi.fn>).mockResolvedValue({
+      defaultVisibility: 'public',
+      feedKnobs: { recency: 0, likes: 5, comments: 0, halfLife: 5, character: 0 }, // most-loved
+    });
+    mockFeed();
+    await renderFeed();
+    await waitFor(() => {
+      expect(screen.getAllByTestId('post-card').length).toBe(2);
+    });
+    // The saved tuning (most-loved) is active on load.
+    await waitFor(() => {
+      expect(screen.getByTestId('preset-most-loved').classList).toContain('border-brand');
+    }, { timeout: 2000 });
+
+    vi.useFakeTimers();
+    try {
+      // Click Newest — the feed default. setKnobUrl omits the ?knobs= param for
+      // the default, so without the fix the saved tuning would win and the
+      // Newest chip would never light up. The fix clears the saved tuning so
+      // the explicit click takes effect.
+      fireEvent.click(screen.getByTestId('preset-newest'));
+      await vi.advanceTimersByTimeAsync(450);
+      expect(screen.getByTestId('preset-newest').classList).toContain('border-brand');
+      expect(screen.getByTestId('preset-most-loved').classList).not.toContain('border-brand');
+      // The re-read is chronological (recency-only) — the Newest tuning won.
+      expect(lastReadFeedKnobState()).toMatchObject({ recency: 5, likes: 0 });
+      expect(cardOrder()).toEqual(['user2', 'user1']);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
   it('persists the tuning to the settings service (debounced)', async () => {
     mockFeed();
     await renderFeed();
