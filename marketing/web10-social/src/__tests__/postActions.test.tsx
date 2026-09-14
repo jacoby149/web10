@@ -76,11 +76,15 @@ describe('PostActions — the shared engagement bar (post-actions.md)', () => {
     expect(screen.queryByTestId('comment-thread')).not.toBeInTheDocument();
   });
 
-  it('layout="bar": the row gets the border-t engagement-bar chrome', async () => {
+  it('layout="bar": the row gets the border-t engagement-bar chrome, padded to the card edges', async () => {
     const { PostActions } = await import('@/components/Feed/PostActions');
     render(<PostActions {...base} layout="bar" />);
     const bar = screen.getByTestId('post-actions').firstElementChild as HTMLElement;
     expect(bar.className).toMatch(/border-t/);
+    // the bar spans the card edge-to-edge (border-t) but its content is
+    // padded — flush icons against the card border are the 3.86.0 regression
+    expect(bar.className).toMatch(/px-4/);
+    expect(bar.className).toMatch(/pb-3/);
   });
 
   it('tapping the heart reports onToggleReaction("like")', async () => {
