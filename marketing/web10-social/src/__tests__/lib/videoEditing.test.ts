@@ -252,4 +252,22 @@ describe('editVideo', () => {
     // The element was seeked to the in-point (the setter records it).
     expect(created[0].seekedTo).toBe(3);
   });
+
+  it('reports encode progress 0 → 1 via onProgress (the real-time % the tray shows)', async () => {
+    const fractions: number[] = [];
+    await editVideo(file, { startTime: 2, endTime: 6, onProgress: (f) => fractions.push(f) });
+
+    // The first report is at the in-point (0), the last is the forced 1.
+    expect(fractions.length).toBeGreaterThanOrEqual(2);
+    expect(fractions[0]).toBe(0);
+    expect(fractions[fractions.length - 1]).toBe(1);
+    // Monotonic non-decreasing, bounded to [0, 1]
+    for (let i = 1; i < fractions.length; i++) {
+      expect(fractions[i]).toBeGreaterThanOrEqual(fractions[i - 1]);
+    }
+    for (const f of fractions) {
+      expect(f).toBeGreaterThanOrEqual(0);
+      expect(f).toBeLessThanOrEqual(1);
+    }
+  });
 });

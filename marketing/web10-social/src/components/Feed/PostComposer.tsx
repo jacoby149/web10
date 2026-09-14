@@ -20,6 +20,7 @@ import { cn } from '@/lib/utils';
 import { AdPicker } from './AdPicker';
 import { VideoEditorSheet } from './VideoEditorSheet';
 import type { VideoEditResult } from './VideoEditorSheet';
+import { editVideo } from '@/lib/videoEditing';
 
 let nextMediaId = 0;
 
@@ -32,6 +33,15 @@ interface AttachedMedia {
   height: number;
   altText: string;
   processing: boolean;
+  /** True once the user has run the video through the editor (the file is the
+   *  finished re-encode). Videos that were never edited get a default encode
+   *  (Original ratio, full duration) at post time — the node never sees the
+   *  raw original (video-experience.md: "the node never sees the original"). */
+  edited?: boolean;
+  /** The in-flight post phase for this item (encode → upload). */
+  postPhase?: 'encoding' | 'uploading';
+  /** 0 → 1 progress for the current postPhase. */
+  postProgress?: number;
   error?: MediaProcessingError;
 }
 
@@ -90,9 +100,14 @@ function MediaTrayItem({
         />
       )}
 
-      {item.processing && (
-        <div className="absolute inset-0 flex items-center justify-center bg-background/60 rounded-lg">
+      {(item.processing || item.postPhase) && (
+        <div className="absolute inset-0 flex flex-col items-center justify-center gap-1 bg-background/60 rounded-lg">
           <Loader2 className="w-5 h-5 animate-spin text-brand" />
+          {item.postPhase && (
+            <span className="font-mono text-[0.6875rem] tabular-nums text-foreground" data-testid="media-post-progress">
+              {item.postPhase === 'encoding' ? 'Encoding' : 'Uploading'} {Math.round((item.postProgress ?? 0) * 100)}%
+            </span>
+          )}
         </div>
       )}
 
@@ -361,10 +376,16 @@ export default function PostComposer({ onPostCreated }: { onPostCreated?: () => 
           previewUrl: newPreviewUrl,
           width: result.width,
           height: result.height,
+          edited: true,
         };
       }),
     );
     setEditingMediaId(null);
+  }, []);
+
+  /** Patch one tray item by id (used for the encode/upload progress). */
+  const patchItem = useCallback((id: number, patch: Partial<AttachedMedia>) => {
+    setMediaItems((prev) => prev.map((item) => (item.id === id ? { ...item, ...patch } : item)));
   }, []);
 
   function handleDragStart(e: React.DragEvent, index: number) {
@@ -419,21 +440,50 @@ export default function PostComposer({ onPostCreated }: { onPostCreated?: () => 
         let record: MediaRecord;
 
         if (item.isVideo) {
-          // Capture poster frame
-          const poster = await captureVideoPoster(item.file);
+          // The node never sees the raw original (video-experience.md). A video
+          // the user ran through the editor is already the finished re-encode;
+          // one they never touched gets the DEFAULT edit (Original ratio, full
+          // duration) right here, so every upload is a browser-produced webm
+          // at a known bitrate — the raw camera file (often HEVC, often too
+          // large for the presigned POST) never reaches the network.
+          let fileToUpload = item.file;
+          if (!item.edited) {
+            console.log('[social-composer] video not edited — default encode before upload:', item.file.name);
+            patchItem(item.id, { postPhase: 'encoding', postProgress: 0 });
+            const result = await editVideo(item.file, {
+              onProgress: (f) => patchItem(item.id, { postProgress: f }),
+            });
+            fileToUpload = new File(
+              [result.blob],
+              `${item.file.name.replace(/\.[^.]+$/, '') || 'video'}-upload.webm`,
+              { type: result.mimeType },
+            );
+            console.log(
+              '[social-composer] default encode done —',
+              result.width,
+              'x',
+              result.height,
+              fileToUpload.size,
+              'bytes',
+            );
+          }
+
+          // Capture poster frame (from the finished file — matches what ships)
+          const poster = await captureVideoPoster(fileToUpload);
           const posterFile = new File([poster.blob], `poster-${Date.now()}.webp`, { type: poster.mimeType });
 
           // Get video info
-          const info = await getVideoInfo(item.file);
+          const info = await getVideoInfo(fileToUpload);
 
           record = await uploadMedia({
-            file: item.file,
+            file: fileToUpload,
             thumbnailFile: posterFile,
             width: info.width,
             height: info.height,
             durationSeconds: Math.round(info.duration * 100) / 100,
             altText: item.altText || undefined,
             service: mediaService,
+            onProgress: (p) => patchItem(item.id, { postPhase: 'uploading', postProgress: p }),
           });
         } else {
           // Generate thumbnail for images
@@ -484,6 +534,9 @@ export default function PostComposer({ onPostCreated }: { onPostCreated?: () => 
       onPostCreated?.();
     } catch (e) {
       console.error('Failed to create post:', e);
+      // Drop the in-flight phase so the tray returns to a retryable state
+      // (a stuck "Uploading 45%" spinner would read as still working).
+      setMediaItems((prev) => prev.map((item) => (item.postPhase ? { ...item, postPhase: undefined, postProgress: undefined } : item)));
       setError(e instanceof Error ? e.message : 'Something went wrong. Try again.');
     } finally {
       setUploading(false);

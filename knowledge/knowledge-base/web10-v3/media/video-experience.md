@@ -39,6 +39,8 @@ Plus **trim** — cut start/end before posting. Instagram, TikTok, YouTube all d
 - The node's contract doesn't change at all — with the aspect-ratio policy, whatever ratio arrives gets correct renditions automatically
 - The upload story: **client edits (trim / reframe / preset) → upload finished file → node transcodes to AR-correct HLS**
 
+**The default edit is enforced, not optional.** "Original" (source ratio, full duration) is the default preset — and it is still an *edit*: the browser re-encodes the source to a webm at a known bitrate before the upload. There is no raw-file fast path. The reason is architectural, not cosmetic: a raw camera file (often HEVC in an MP4, often far larger than the re-encode) is exactly the file that fails the presigned POST to object storage — the re-encode is what makes the upload reliable. The editor is the opt-in refinement (trim / crop); the encode is the default. Both show progress (the encode is real-time — as long as the clip — and the upload is a byte-count), so the user is never left in the dark.
+
 The document records which style was used (`body.style`) so the feed can lay the card out the way the post was meant to be seen.
 
 ## Player Spec
