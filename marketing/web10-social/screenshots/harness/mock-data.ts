@@ -630,6 +630,17 @@ const DISCOVER_MEDIA: Record<string, Record<string, unknown>> = {
   'dm-clip3': { ...creative('STILL', 1600, 900, '#a78bfa', '#1e1b4b'), _id: 'dm-clip3' },
 };
 
+// Profile face media (avatar + banner + the owner's posts' media) — the
+// profile face lightbox's pick-from-your-posts grid. Image creatives (the
+// picker renders <img> for image mime types).
+const FACE_MEDIA: Record<string, Record<string, unknown>> = {
+  'face-avatar': { ...creative('NOVA', 640, 640, '#8b5cf6', '#2e1065', 'image/png'), _id: 'face-avatar' },
+  'face-banner': { ...creative('BANNER', 1600, 400, '#7c3aed', '#4c1d95', 'image/png'), _id: 'face-banner' },
+  'face-post-1': { ...creative('DROP', 1280, 720, '#a78bfa', '#1e1b4b', 'image/png'), _id: 'face-post-1' },
+  'face-post-2': { ...creative('STUDIO', 720, 1280, '#8b5cf6', '#3b0764', 'image/png'), _id: 'face-post-2' },
+  'face-post-3': { ...creative('SET', 1600, 900, '#c4b5fd', '#312e81', 'image/png'), _id: 'face-post-3' },
+};
+
 const DISCOVER_POSTS: SeedDiscoverPost[] = [
   {
     _id: 'dp-1',
@@ -692,9 +703,10 @@ export async function resolveMediaRefs<T>(refs: T[]): Promise<T[]> {
   const out: T[] = [];
   for (const r of refs) {
     const id = typeof r === 'string' ? r : (r as { doc_id?: string }).doc_id || '';
-    // PROFILE_MEDIA is declared later in the module (the profile seed section)
-    // — safe: the lookup runs at call time, after the module is evaluated.
-    const rec = DISCOVER_MEDIA[id] ?? PROFILE_MEDIA[id];
+    // PROFILE_MEDIA / FACE_MEDIA are declared later in the module (the profile
+    // seed sections) — safe: the lookup runs at call time, after the module is
+    // evaluated.
+    const rec = DISCOVER_MEDIA[id] ?? PROFILE_MEDIA[id] ?? FACE_MEDIA[id];
     if (rec) out.push(rec as T);
   }
   return out;
@@ -705,6 +717,8 @@ export async function readUserProfile(): Promise<unknown> {
 export async function readProfile(): Promise<unknown> {
   // The profile screen's owner path (the harness user is 'me') — a creator
   // page with a face + bio so the banner/avatar/stats render in the capture.
+  // The face refs + the posts' media refs (PROFILE_POSTS) also feed the face
+  // lightbox's pick-from-your-posts grid (dev 3.88.0) — one seed, both features.
   return {
     display_name: 'Nova',
     username: 'me',

@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
@@ -9,12 +9,13 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { readProfile, saveProfile, readMyPosts, resolveMediaRefs, uploadMedia, countFollows, countFollowers, refreshMediaUrls, countStagingPosts } from '@/data';
 import { getWapi } from '@/data/wapi';
 import { toast, errorMessage } from '@/components/shared/Toast';
-import type { ProfileRecord, PostRecord, MediaRecord } from '@/data/types';
+import type { ProfileRecord, PostRecord, MediaRecord, ResolvedMediaRef } from '@/data/types';
 import { mediaRefId } from '@/data/types';
 import { MapPin, Globe, Link, Camera, Edit3, Check, X, ImagePlus, Loader2, AlertTriangle, Inbox, Play } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { MARKETING_ORIGIN } from '@/lib/origins';
 import { PostLightbox } from './PostLightbox';
+import { ProfileMediaLightbox, type ProfileMediaOption } from './ProfileMediaLightbox';
 
 function ProfileSkeleton() {
   return (
@@ -47,6 +48,10 @@ export default function ProfileScreen() {
   const [draft, setDraft] = useState<Partial<ProfileRecord>>({});
   const [activeTab, setActiveTab] = useState<'posts' | 'media'>('posts');
   const [lightboxPost, setLightboxPost] = useState<PostRecord | null>(null);
+  // The profile face lightbox (avatar/banner): enlarged view + pick-from-your-
+  // posts (the Facebook-like "your profile picture is a post you selected").
+  const [faceLightbox, setFaceLightbox] = useState<'avatar' | 'banner' | null>(null);
+  const [faceSaving, setFaceSaving] = useState(false);
   const [followingCount, setFollowingCount] = useState<number>(0);
   const [followerCount, setFollowerCount] = useState<number>(0);
   const [stagingCount, setStagingCount] = useState<number>(0);
@@ -137,19 +142,72 @@ export default function ProfileScreen() {
 
   const mediaPosts = posts.filter((p) => p.media_refs?.length);
 
+  // The owner's pick-from-your-posts source (the Facebook-like "your profile
+  // picture is a post you selected"): every resolved media ref across the
+  // owner's own posts. The ref carries the url the lightbox renders AND the
+  // doc_id saveProfile persists as avatar/banner_ref.
+  // (A hook — must run before the `if (loading) return` early return.)
+  const faceOptions = useMemo<ProfileMediaOption[]>(() => {
+    const out: ProfileMediaOption[] = [];
+    const seen = new Set<string>();
+    for (const post of posts) {
+      for (const ref of post.media_refs || []) {
+        const id = mediaRefId(ref);
+        if (!id || seen.has(id)) continue;
+        seen.add(id);
+        const m = mediaMap[id];
+        if (!m) continue;
+        // Store a ResolvedMediaRef (doc_id + read url) — NOT the MediaRecord.
+        out.push({ post, ref: { doc_id: id, read_url: m.url, mime_type: m.mime_type } });
+      }
+    }
+    return out;
+  }, [posts, mediaMap]);
+
   if (loading) {
     return <ProfileSkeleton />;
   }
 
   const bannerMedia = profile?.banner_ref ? mediaMap[profile.banner_ref] : undefined;
+  const avatarMedia = profile?.avatar_ref ? mediaMap[profile.avatar_ref] : undefined;
+
+  async function handleFaceSelect(field: 'avatar' | 'banner', ref: string | ResolvedMediaRef) {
+    setFaceSaving(true);
+    try {
+      const refId = mediaRefId(ref);
+      const updated = { ...(profile || {}), [field === 'avatar' ? 'avatar_ref' : 'banner_ref']: refId };
+      const saved = await saveProfile(updated);
+      setProfile(saved);
+      setDraft(saved);
+      setFaceLightbox(null);
+    } catch (e) {
+      console.error('Failed to set profile picture/banner:', e);
+      toast.error(errorMessage(e, 'Could not update your profile picture.'));
+    } finally {
+      setFaceSaving(false);
+    }
+  }
 
   return (
     <div>
-      {/* Banner — creator page with vibrant gradient */}
-      <div className={cn(
-        'relative h-32 sm:h-44 w-full group overflow-hidden',
-        'bg-gradient-to-br from-brand/40 via-brand-muted to-background',
-      )}>
+      {/* Banner — click to view it enlarged (the face lightbox). The hover
+          "Banner" button still opens the upload picker (stopPropagation). */}
+      <div
+        role="button"
+        tabIndex={0}
+        aria-label="View banner"
+        data-testid="profile-banner"
+        onClick={() => setFaceLightbox('banner')}
+        onKeyDown={(e) => {
+          if (e.key === 'Enter' || e.key === ' ') {
+            e.preventDefault();
+            setFaceLightbox('banner');
+          }
+        }}
+        className={cn(
+          'relative h-32 sm:h-44 w-full group overflow-hidden cursor-pointer outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset',
+          'bg-gradient-to-br from-brand/40 via-brand-muted to-background',
+        )}>
         {/* Ambient glow layer */}
         <div
           className="absolute inset-0 bg-gradient-to-t from-background/60 via-transparent to-brand/10"
@@ -159,7 +217,7 @@ export default function ProfileScreen() {
           <img src={bannerMedia.url} alt="" className="absolute inset-0 w-full h-full object-cover" />
         )}
         <button
-          onClick={() => handleUpload('banner_ref')}
+          onClick={(e) => { e.stopPropagation(); handleUpload('banner_ref'); }}
           disabled={uploading}
           aria-label="Change banner"
           data-testid="edit-banner-button"
@@ -173,13 +231,26 @@ export default function ProfileScreen() {
       {/* Header */}
       <div className="px-4 pt-4 pb-4">
         <div className="flex items-start justify-between gap-6 -mt-14">
-          <div className="relative group">
+          <div
+            role="button"
+            tabIndex={0}
+            aria-label="View profile picture"
+            data-testid="profile-avatar"
+            onClick={() => setFaceLightbox('avatar')}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter' || e.key === ' ') {
+                e.preventDefault();
+                setFaceLightbox('avatar');
+              }
+            }}
+            className="group relative cursor-pointer outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset rounded-full"
+          >
             <Avatar className={cn(
               'h-20 w-20 border-4 border-background transition-shadow duration-150',
               'ring-2 ring-brand/20 hover:ring-brand/40',
             )}>
-              {profile?.avatar_ref && mediaMap[profile.avatar_ref] ? (
-                <AvatarImage src={mediaMap[profile.avatar_ref].url} alt={profile.display_name || ''} />
+              {avatarMedia ? (
+                <AvatarImage data-testid="avatar-image" src={avatarMedia.url} alt={profile?.display_name || ''} />
               ) : (
                 <AvatarFallback className="bg-gradient-to-br from-brand to-brand-600 text-white text-2xl font-bold">
                   {profile?.display_name?.charAt(0)?.toUpperCase() || '?'}
@@ -191,7 +262,7 @@ export default function ProfileScreen() {
               aria-label="Change avatar"
               data-testid="edit-avatar-button"
               disabled={uploading}
-              onClick={() => handleUpload('avatar_ref')}
+              onClick={(e) => { e.stopPropagation(); handleUpload('avatar_ref'); }}
             >
               {uploading ? (
                 <Loader2 className="w-3.5 h-3.5 text-foreground animate-spin" />
@@ -526,6 +597,19 @@ export default function ProfileScreen() {
           postAuthor={getWapi().readToken()?.username}
           postService={'public_posts'}
           isOwner={true}
+        />
+      )}
+
+      {faceLightbox && (
+        <ProfileMediaLightbox
+          media={faceLightbox === 'avatar' ? avatarMedia : bannerMedia}
+          field={faceLightbox}
+          onClose={() => setFaceLightbox(null)}
+          isOwner
+          options={faceOptions}
+          onSelect={(ref) => handleFaceSelect(faceLightbox, ref)}
+          saving={faceSaving}
+          displayName={profile?.display_name}
         />
       )}
     </div>
