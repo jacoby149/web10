@@ -8,6 +8,7 @@ import FeedScreen from '@/components/Feed/FeedScreen';
 import ProfileScreen from '@/components/Bio/ProfileScreen';
 import UserProfileScreen from '@/components/Bio/UserProfileScreen';
 import DiscoverScreen from '@/components/Discover/DiscoverScreen';
+import ShortsScreen from '@/components/Shorts/ShortsScreen';
 import GroupsScreen from '@/components/Groups/GroupsScreen';
 import GroupDetailScreen from '@/components/Groups/GroupDetailScreen';
 import DmsScreen from '@/components/Chat/DmsScreen';
@@ -410,6 +411,8 @@ function App() {
         <Route element={<Layout onLogout={handleLogout} onReportBug={() => handleReportBug('button')} />}>
           <Route path="/feed" element={<FeedRoute onAuthorClick={handleAuthorClick} />} />
           <Route path="/discover" element={<DiscoverScreen />} />
+          <Route path="/shorts" element={<ShortsScreen />} />
+          <Route path="/shorts/:postId" element={<ShortsScreen />} />
           <Route path="/groups" element={<GroupsScreen />} />
           <Route path="/groups/:groupId" element={<GroupDetailRoute />} />
           <Route path="/messages/*" element={<DmsScreen />} />
