@@ -673,3 +673,16 @@ Permalinks (D71)".
 - [✓ 3.83.0] **The edge split** (`nginx.conf` → template, `Dockerfile` → `/etc/nginx/templates/`, `API_PROXY_TARGET` in the deploy compose, `resolver 127.0.0.11`) + static `og:`/`twitter:` tags in `index.html` for the app root / non-post routes.
 - [✓ 3.83.0] **Tests** (`api/tests/test_share_endpoint.py`, 8) — public → og tags + thumbnail; video → `video.other` + poster; **private → generic, no leak** (I3 anti-test); ghost / non-post → 404; text-only → brand image; truncation; avatar fallback. 986 api + 494 social green, `tsc --noEmit` clean; nginx split verified via `nginx -t` + a docker e2e (crawler → proxied, browser → SPA, non-post never proxied).
 - [ ] **Follow-up** — group + profile permalinks (same endpoint pattern: the group's face / the profile's avatar as the image). The post permalink is the one the Share button emits, so it ships first.
+
+### Lane: ci-infra (cross-cutting)
+**Owns:** `.github/workflows/` (ghcr-mirror.yml, e2e.yml, docker.yml, cd.yml), `e2e/mirror-images.json`, the `FROM` base-image lines in every `Dockerfile`, the runtime `image:` lines in the compose files, `ubuntu-deployment/docker-compose.ecosystem.yml`
+
+CI + deploy pull every external image from our own GHCR namespace
+(`ghcr.io/jacoby149/base-*`) so Docker Hub's anonymous pull rate limit
+(100/6h per shared runner IP) and third-party registry availability are out of
+the runtime path. `e2e/mirror-images.json` is the single source of truth;
+`ghcr-mirror.yml` republishes each source → target (manifest copy, retry on the
+source pull). To bump an image: edit its `source` in the manifest, re-run the
+mirror.
+
+- [✓ 3.84.0] **GHCR mirror + repoint** (`ghcr-mirror.yml`, `e2e/mirror-images.json`, 8 Dockerfiles, 3 compose files, e2e.yml + docker.yml GHCR login) — the e2e shards flaked on `pull access denied for minio/minio` (Docker Hub anonymous rate limit on shared runner IPs; probe PR #887). Mirror every external image (minio, clickhouse 24.8/24.3/latest, nginx-proxy, bun, nginx, python, static-web-server, uv) to `ghcr.io/jacoby149/base-*`; repoint every `FROM` + runtime `image:`; authenticated pulls (GITHUB_TOKEN, 1000/h). No `docker login`, no Artifactory — GHCR is the built-in lightweight registry.

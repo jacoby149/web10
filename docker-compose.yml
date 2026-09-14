@@ -10,7 +10,8 @@
 
 services:
   proxy: # routes the *.localhost vhosts so the browser experience just works
-    image: nginxproxy/nginx-proxy:1.6
+    # Mirrored to our GHCR namespace (ghcr-mirror.yml) — see e2e/mirror-images.json.
+    image: ghcr.io/jacoby149/base-nginx-proxy:1.6
     ports:
       - "${WEB10_HTTP_PORT:-80}:80"
     volumes:
@@ -77,7 +78,8 @@ services:
       VIRTUAL_HOST: sdk.localhost,docs.localhost
 
   clickhouse: # v3 OLAP store — ClickHouse with v3 schema init
-    image: clickhouse/clickhouse-server:24.3
+    # Mirrored to our GHCR namespace (ghcr-mirror.yml) — see e2e/mirror-images.json.
+    image: ghcr.io/jacoby149/base-clickhouse:24.3
     volumes:
       - clickhouse-data:/var/lib/clickhouse
       - ./clickhouse-init:/docker-entrypoint-initdb.d:ro
@@ -90,7 +92,8 @@ services:
       - CLICKHOUSE_PASSWORD=web10
 
   minio: # S3-compatible object storage for media blobs (Phase 5)
-    image: minio/minio:latest
+    # Mirrored to our GHCR namespace (ghcr-mirror.yml) — see e2e/mirror-images.json.
+    image: ghcr.io/jacoby149/base-minio:latest
     networks:
       default:
         aliases:
