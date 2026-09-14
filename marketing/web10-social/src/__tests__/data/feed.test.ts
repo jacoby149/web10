@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import * as v3 from '../../data/v3';
-import { readDiscoverFeed } from '../../data/feed';
+import { readDiscoverFeed, readShortsFeed } from '../../data/feed';
 import { getFeedGroups } from '../../data/groups';
 
 function mockV3Client() {
@@ -14,6 +14,7 @@ function mockV3Client() {
     readById: vi.fn(),
     update: vi.fn(),
     delete: vi.fn(),
+    listMedia: vi.fn(),
     getMyGroups: vi.fn(),
   };
   vi.spyOn(v3, 'getV3Client').mockReturnValue(mock as any);
@@ -53,6 +54,67 @@ describe('feed v3 data layer', () => {
       const posts = await readDiscoverFeed(null, 50);
 
       expect(posts.map((p) => p._id)).toEqual(['new', 'old']);
+    });
+  });
+
+  describe('readShortsFeed (the render-time gate — shorts.md)', () => {
+    // The security seam: a short is a post whose single media is a REAL 9:16
+    // video, re-derived from the resolved media — NOT trusted from the
+    // client-asserted `short` tag. A direct API caller can tag an image or a
+    // lying-ratio file as `short`; the gate must drop it.
+    function discoverPost(id: string, mediaRefs: string[], tags: string[], author = 'alice') {
+      return {
+        doc_id: id,
+        author_key: `web10.app/users/${author}`,
+        body: { media_refs: mediaRefs, tags },
+        created_at: '2026-07-18T00:00:00Z',
+      };
+    }
+    function mediaDoc(id: string, mime: string, width: number, height: number) {
+      return { doc_id: id, created_at: '2026-07-18T00:00:00Z', body: { mime_type: mime, width, height } };
+    }
+
+    it('keeps a real 9:16 video and drops a faked one (image / lying ratio / multi-media)', async () => {
+      // p1: 9:16 video, tagged short        → SHORT
+      // p2: image, tagged short             → NOT (the anti-hack: image faked as short)
+      // p3: 16:9 video, tagged short        → NOT (lying ratio)
+      // p4: 9:16 video, NOT tagged          → SHORT (the tag is not required)
+      // p5: 9:16 video + image              → NOT (a short is a single video)
+      mock.read.mockResolvedValue([
+        discoverPost('p1', ['m1'], ['short']),
+        discoverPost('p2', ['m2'], ['short']),
+        discoverPost('p3', ['m3'], ['short']),
+        discoverPost('p4', ['m4'], []),
+        discoverPost('p5', ['m5', 'm6'], ['short']),
+      ]);
+      mock.listMedia.mockResolvedValue([
+        mediaDoc('m1', 'video/mp4', 1080, 1920), // 9:16 video
+        mediaDoc('m2', 'image/jpeg', 1080, 1920), // image (faked short)
+        mediaDoc('m3', 'video/mp4', 1920, 1080), // 16:9 video (lying ratio)
+        mediaDoc('m4', 'video/mp4', 1080, 1920), // 9:16 video (untagged)
+        mediaDoc('m5', 'video/mp4', 1080, 1920), // 9:16 video
+        mediaDoc('m6', 'image/jpeg', 1080, 1080), // image
+      ]);
+
+      const shorts = await readShortsFeed(50);
+      const ids = shorts.map((s) => s.post._id).sort();
+
+      expect(ids).toEqual(['p1', 'p4']);
+      // The kept short carries its resolved 9:16 media.
+      const p1 = shorts.find((s) => s.post._id === 'p1')!;
+      expect(p1.media.mime_type).toBe('video/mp4');
+      expect(p1.media.width!).toBeLessThan(p1.media.height!);
+    });
+
+    it('returns an empty list when no post is a genuine short', async () => {
+      mock.read.mockResolvedValue([
+        discoverPost('p1', ['m1'], ['short']), // image faked as short
+        discoverPost('p2', [], []), // no media
+      ]);
+      mock.listMedia.mockResolvedValue([mediaDoc('m1', 'image/png', 800, 600)]);
+
+      const shorts = await readShortsFeed(50);
+      expect(shorts).toEqual([]);
     });
   });
 
