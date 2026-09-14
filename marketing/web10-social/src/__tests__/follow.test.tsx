@@ -288,6 +288,46 @@ describe('UserProfileScreen', () => {
     });
   });
 
+  it('deep-links the active tab (?tab=media restores the media tab; switching updates the URL)', async () => {
+    const { default: UserProfileScreen } = await import('@/components/Bio/UserProfileScreen');
+    const { useLocation } = await import('react-router-dom');
+    function UrlProbe() {
+      const { search } = useLocation();
+      return <div data-testid="url-probe">{search}</div>;
+    }
+
+    render(
+      <MemoryRouter initialEntries={['/u/noodle-empress?tab=media']}>
+        <UserProfileScreen
+          username="noodle-empress"
+          provider="test.localhost"
+        />
+        <UrlProbe />
+      </MemoryRouter>,
+    );
+
+    // ?tab=media restores the media tab on load (refresh-safe, shareable).
+    await waitFor(() => {
+      expect(screen.getByTestId('profile-tab-media')).toHaveAttribute('aria-current', 'true');
+    });
+    expect(screen.getByTestId('url-probe')).toHaveTextContent('tab=media');
+
+    // Switching back to Posts drops the param (the default tab is the bare URL).
+    fireEvent.click(screen.getByTestId('profile-tab-posts'));
+    await waitFor(() => {
+      expect(screen.getByTestId('profile-tab-posts')).toHaveAttribute('aria-current', 'true');
+    });
+    await waitFor(() => {
+      expect(screen.getByTestId('url-probe')).not.toHaveTextContent('tab=');
+    });
+
+    // And the media tab puts it back.
+    fireEvent.click(screen.getByTestId('profile-tab-media'));
+    await waitFor(() => {
+      expect(screen.getByTestId('url-probe')).toHaveTextContent('tab=media');
+    });
+  });
+
   it('post grid cells are clickable and open the lightbox (own profile)', async () => {
     const { readMyPosts } = await import('@/data');
     vi.mocked(readMyPosts).mockResolvedValueOnce([
