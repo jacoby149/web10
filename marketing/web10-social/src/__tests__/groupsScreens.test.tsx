@@ -31,6 +31,9 @@ vi.mock('@/data', async (importOriginal) => {
     joinGroup: vi.fn().mockResolvedValue({ status: 'joined' }),
     requestJoinGroup: vi.fn().mockResolvedValue({ status: 'pending' }),
     leaveGroup: vi.fn().mockResolvedValue({ status: 'left' }),
+    countComments: vi.fn().mockResolvedValue(0),
+    readReactions: vi.fn().mockResolvedValue([]),
+    toggleReactionKind: vi.fn().mockResolvedValue('like'),
   };
 });
 
@@ -435,6 +438,12 @@ describe('GroupDetailScreen', () => {
     });
     expect(screen.getByTestId('group-post-card')).toBeInTheDocument();
     expect(screen.getByText('Who is in for Friday?')).toBeInTheDocument();
+    // The engagement row (post-actions.md): group posts get the reaction pair
+    // + comment entry (they had none before — the gap this closes).
+    expect(screen.getByTestId('group-post-actions')).toBeInTheDocument();
+    expect(screen.getByTestId('like-button')).toBeInTheDocument();
+    expect(screen.getByTestId('dislike-button')).toBeInTheDocument();
+    expect(screen.getByTestId('comment-button')).toBeInTheDocument();
     // A member sees the Leave button, not Join
     expect(screen.getByTestId('group-detail-leave')).toBeInTheDocument();
   });
