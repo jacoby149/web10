@@ -1,7 +1,9 @@
 import { getV3Client } from './v3';
 import type { V3FeedResult, PowerMeanSort } from './v3';
 import { getDiscoverGroupId, getMyGroups, getFeedGroups } from './groups';
-import { fromV3DocToPost, fromV3DocToProfile, fromV3FeedPost, mediaRefId, type PostRecord } from './types';
+import { fromV3DocToPost, fromV3DocToProfile, fromV3FeedPost, mediaRefId, type PostRecord, type ResolvedMediaRef } from './types';
+import { resolveMediaRefs } from './posts';
+import type { MediaRecord } from './types';
 import { knobStateToSort } from '@/lib/powerMean';
 
 // ── Feed / Discover data layer (v3) ──────────────────────────────────────────
@@ -38,6 +40,83 @@ export async function readDiscoverFeed(
   } catch {
     return [];
   }
+}
+
+// ── Shorts feed (shorts.md) ──────────────────────────────────────────────────
+
+/** A short: a discover post whose single media is a real 9:16 video. */
+export interface ShortPost {
+  post: PostRecord;
+  /** The one resolved media record (the vertical video). */
+  media: MediaRecord;
+}
+
+/**
+ * Read the Shorts feed: the discover board filtered to genuine shorts.
+ *
+ * A short is a post with exactly one media that is a **real 9:16 video** —
+ * `mime_type` starts with `video/` AND `width < height`. This is the
+ * render-time gate (shorts.md): the `short` tag is client-asserted and can be
+ * faked by a direct API caller, so the feed re-derives 9:16 from the resolved
+ * media rather than trusting the tag. A post tagged `short` whose media is an
+ * image, or a lying ratio, simply does not render as a short.
+ *
+ * v1 reads the discover group and filters client-side (zero API change); the
+ * server-side `has(tags, 'short')` filter is the v1.5 follow-up.
+ */
+export async function readShortsFeed(limit = 50): Promise<ShortPost[]> {
+  const posts = await readDiscoverFeed(null, limit);
+  const withMedia = posts.filter((p) => p.media_refs?.length);
+  if (!withMedia.length) return [];
+
+  const token = getV3Client().readToken();
+  const byAuthor = new Map<string, { posts: PostRecord[]; refs: (string | ResolvedMediaRef)[] }>();
+  for (const p of withMedia) {
+    const key = `${p.author_username}@${p.author_provider}`;
+    const entry = byAuthor.get(key);
+    if (entry) {
+      entry.posts.push(p);
+      entry.refs.push(...(p.media_refs || []));
+    } else {
+      byAuthor.set(key, { posts: [p], refs: [...(p.media_refs || [])] });
+    }
+  }
+
+  const mediaByPost: Record<string, MediaRecord[]> = {};
+  for (const [key, entry] of byAuthor) {
+    const [username, provider] = key.split('@');
+    const isOwn = token && username === token.username && provider === token.provider;
+    const seen = new Set<string>();
+    const uniqueRefs = entry.refs.filter((r) => {
+      const id = mediaRefId(r);
+      if (!id || seen.has(id)) return false;
+      seen.add(id);
+      return true;
+    });
+    if (!uniqueRefs.length) continue;
+    try {
+      const media = await resolveMediaRefs(uniqueRefs, { username, provider }, isOwn ? 'media' : 'public_media');
+      for (const p of entry.posts) {
+        const refIds = new Set((p.media_refs || []).map(mediaRefId));
+        mediaByPost[p._id || ''] = media.filter((m) => m._id && refIds.has(m._id));
+      }
+    } catch {
+      // Media resolution failed for this author — degrade (no shorts from them).
+    }
+  }
+
+  const shorts: ShortPost[] = [];
+  for (const p of withMedia) {
+    // The render-time gate (shorts.md): a real 9:16 video, re-derived from the
+    // resolved media — not trusted from the client-asserted `short` tag.
+    const vertical = (mediaByPost[p._id || ''] || []).filter(
+      (m) => m.mime_type?.startsWith('video/') && m.width && m.height && m.width < m.height,
+    );
+    if (vertical.length === 1 && (p.media_refs?.length ?? 0) === 1) {
+      shorts.push({ post: p, media: vertical[0] });
+    }
+  }
+  return shorts;
 }
 
 // ── Suggested users ──────────────────────────────────────────────────────────

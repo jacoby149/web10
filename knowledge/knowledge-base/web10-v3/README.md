@@ -44,6 +44,7 @@ web10-v3/
 │   ├── ads.md             ← the creator-owned ads: a post tagged `ad` (the locked object, feed read, dissemination)
 │   ├── ads-catalog.md     ← the Ad Catalog (Studio) + the composer integration (attach by ref, round-robin)
 │   ├── video-player.md    ← the client's one shared video surface: <VideoPlayer>, two modalities (inline vs modal), the source union
+│   ├── shorts.md          ← the vertical short-form feed: a short is a 9:16 post on the discover group, the /shorts swipe surface, the "can you fake a short?" trust boundaries
 │   ├── post-actions.md    ← the client's one shared engagement bar: <PostActions>, the like/dislike pair (one reaction per user), the comment thread mount
 │   └── share-preview.md   ← the post permalink, rich when shared: the node renders OG/Twitter tags for crawlers, the browser gets the SPA
   ├── telemetry.md           ← why web10 tracks hard (GA4 + masked Hotjar, platform-wide) and the line it doesn't cross
