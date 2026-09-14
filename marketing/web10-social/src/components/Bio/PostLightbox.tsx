@@ -147,11 +147,16 @@ export function PostLightbox({ post, mediaMap, onClose, onReload, postAuthor, po
     ]).then(([count, reactions, cCount]) => {
       if (cancelled) return;
       setReactionCount(count);
+      // v3 ownership is by username alone: a reaction's author_key is the
+      // bare username, so author_provider is the v2 fallback ('web10') and
+      // never equals the token's real provider — comparing it left the
+      // heart un-filled on a post the user had already liked (same class as
+      // the feed's isOwnPost fix, 3.79.3).
       setLiked(!!reactions.find(
-        r => r.author_username === token.username && r.author_provider === token.provider && r.type === 'like',
+        r => r.author_username === token.username && r.type === 'like',
       ));
       setDisliked(!!reactions.find(
-        r => r.author_username === token.username && r.author_provider === token.provider && r.type === 'dislike',
+        r => r.author_username === token.username && r.type === 'dislike',
       ));
       setCommentCount(cCount);
     }).catch(console.error);
