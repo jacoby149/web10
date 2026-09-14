@@ -30,7 +30,7 @@ import { PostLightbox } from './PostLightbox';
 import { toast, errorMessage } from '@/components/shared/Toast';
 import { cn } from '@/lib/utils';
 import { MARKETING_ORIGIN } from '@/lib/origins';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 
 function UserProfileSkeleton() {
   return (
@@ -78,7 +78,6 @@ export default function UserProfileScreen({ username, provider, onBack }: UserPr
   const [isOwnProfile, setIsOwnProfile] = useState(false);
   const [followerCount, setFollowerCount] = useState<number | null>(null);
   const [followingCount, setFollowingCount] = useState<number | null>(null);
-  const [activeTab, setActiveTab] = useState<'posts' | 'media'>('posts');
   const [followLoading, setFollowLoading] = useState(false);
   const [followError, setFollowError] = useState<string | null>(null);
   const [followingCountError, setFollowingCountError] = useState(false);
@@ -96,6 +95,29 @@ export default function UserProfileScreen({ username, provider, onBack }: UserPr
   const fileInputRef = useRef<HTMLInputElement>(null);
   const pendingFieldRef = useRef<'avatar_ref' | 'banner_ref' | null>(null);
   const navigate = useNavigate();
+  // Deep-link: the active tab from ?tab= (refresh-safe, shareable) — the
+  // address bar holds the screen state (the deep-link rule).
+  const [searchParams, setSearchParams] = useSearchParams();
+  const [activeTab, setActiveTab] = useState<'posts' | 'media'>(
+    () => (searchParams.get('tab') === 'media' ? 'media' : 'posts'),
+  );
+
+  const selectTab = useCallback((tab: 'posts' | 'media') => {
+    setActiveTab(tab);
+    const params = new URLSearchParams(searchParams);
+    if (tab === 'media') {
+      params.set('tab', 'media');
+    } else {
+      params.delete('tab');
+    }
+    setSearchParams(params, { replace: true });
+  }, [searchParams, setSearchParams]);
+
+  // Sync activeTab with ?tab= (back/forward + a shared link landing on a tab).
+  useEffect(() => {
+    const current = searchParams.get('tab') === 'media' ? 'media' : 'posts';
+    if (activeTab !== current) setActiveTab(current);
+  }, [searchParams]);
 
   useEffect(() => {
     loadData();
@@ -616,7 +638,7 @@ export default function UserProfileScreen({ username, provider, onBack }: UserPr
               ? 'text-foreground'
               : 'text-muted-foreground hover:text-foreground',
           )}
-          onClick={() => setActiveTab('posts')}
+          onClick={() => selectTab('posts')}
         >
           Posts
           {activeTab === 'posts' && (
@@ -632,7 +654,7 @@ export default function UserProfileScreen({ username, provider, onBack }: UserPr
               ? 'text-foreground'
               : 'text-muted-foreground hover:text-foreground',
           )}
-          onClick={() => setActiveTab('media')}
+          onClick={() => selectTab('media')}
         >
           Media
           {activeTab === 'media' && (

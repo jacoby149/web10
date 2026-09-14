@@ -116,6 +116,20 @@ export const FIXED_CHARACTER_DETEENT = 3;
 /** The fixed power-mean exponent the ranking uses (p = 0, geometric). */
 export const FIXED_CHARACTER_P = CHARACTER_DETENTS[FIXED_CHARACTER_DETEENT];
 
+// The Time knob is gone from the rack (parity with web10-social — operator:
+// "the time knob is too complex … we should just set that to something
+// sensible for the user"). It was the recency half-life — the window over
+// which a post's "newness" decays — and it was the obfuscated math dial with
+// no plain-English concept (1h / 4h / 12h / 1d / 7d / ∞). The half-life is
+// now fixed at the middle detent — 1 day: recent posts are weighted but not
+// exclusively, the sensible default for a social feed. `halfLife` stays in
+// KnobState so the mix-code (#mix=) encoding keeps its 5-digit shape (old
+// shared links still parse); the ranking just ignores it.
+export const FIXED_HALF_LIFE_DETEENT = 3;
+
+/** The fixed recency half-life the ranking uses (1 day). */
+export const FIXED_HALF_LIFE_MS = HALF_LIFE_DETENTS[FIXED_HALF_LIFE_DETEENT];
+
 // ── Knob State ──────────────────────────────────────────────────────────────
 
 interface KnobState {
@@ -213,7 +227,10 @@ function scorePost(signals: PostSignals, state: KnobState): number {
   const wr = WEIGHT_DETENTS[state.recency];
   const wl = WEIGHT_DETENTS[state.likes];
   const wc = WEIGHT_DETENTS[state.comments];
-  const halfLife = HALF_LIFE_DETENTS[state.halfLife];
+  // The Time knob is gone — the recency half-life is fixed at the middle
+  // (1 day). `state.halfLife` is kept for mix-code compat but no longer
+  // drives the ranking.
+  const halfLife = FIXED_HALF_LIFE_MS;
   // The Character knob is gone — the exponent is fixed at the middle
   // (p = 0, geometric). `state.character` is kept for mix-code compat but
   // no longer drives the ranking.

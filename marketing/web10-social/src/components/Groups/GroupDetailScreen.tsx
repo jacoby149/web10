@@ -14,6 +14,10 @@ import {
   mediaRefId,
   getGroupsManages,
   deleteGroup,
+  countComments,
+  readReactions,
+  toggleReactionKind,
+  type ReactionKind,
   type GroupDetail,
   type GroupIdentity,
   type MediaRecord,
@@ -44,6 +48,7 @@ import {
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { VideoPlayer, sourceFromMedia } from '@/components/Feed/VideoPlayer';
+import { PostActions } from '@/components/Feed/PostActions';
 
 const LOG = (...args: unknown[]) => console.log('[social:groups:detail]', ...args);
 
@@ -124,9 +129,60 @@ function PostMedia({ media }: { media: MediaRecord[] }) {
 
 // ── Post card (member view) ────────────────────────────────────────────────
 
-function GroupPostCard({ post, media }: { post: PostRecord; media: MediaRecord[] }) {
+function GroupPostCard({ post, media, groupId }: { post: PostRecord; media: MediaRecord[]; groupId: string }) {
   const author = post.author_username || post.author || 'unknown';
   const displayName = author.charAt(0).toUpperCase() + author.slice(1);
+
+  // Engagement state (post-actions.md): the reaction pair + comment count,
+  // scoped to the group (reactions/comments attach to the group, not the
+  // discover board). Loaded on mount — the group feed is a short list, not a
+  // paginated feed, so a per-card read is fine (the lightbox's pattern).
+  const [liked, setLiked] = useState(false);
+  const [disliked, setDisliked] = useState(false);
+  const [reactionCount, setReactionCount] = useState(0);
+  const [commentCount, setCommentCount] = useState(0);
+  const token = getV3Client().readToken();
+
+  useEffect(() => {
+    let cancelled = false;
+    Promise.all([
+      countComments(post._id || '', [groupId]),
+      token ? readReactions(post._id || '', undefined, [groupId]) : Promise.resolve([]),
+    ]).then(([cCount, reactions]) => {
+      if (cancelled) return;
+      setCommentCount(cCount);
+      if (!token) return;
+      setLiked(!!reactions.find(
+        r => r.author_username === token.username && r.author_provider === token.provider && r.type === 'like',
+      ));
+      setDisliked(!!reactions.find(
+        r => r.author_username === token.username && r.author_provider === token.provider && r.type === 'dislike',
+      ));
+      setReactionCount(reactions.filter(r => r.type === 'like').length);
+    }).catch((e) => console.error('Failed to load group post engagement:', e));
+    return () => { cancelled = true; };
+  }, [post._id, groupId, token]);
+
+  async function handleToggleReaction(kind: ReactionKind) {
+    if (!token) return;
+    const wasLiked = liked;
+    const wasDisliked = disliked;
+    const nextLiked = kind === 'like' ? !wasLiked : false;
+    const nextDisliked = kind === 'dislike' ? !wasDisliked : false;
+    const delta = (nextLiked ? 1 : 0) - (wasLiked ? 1 : 0);
+    setLiked(nextLiked);
+    setDisliked(nextDisliked);
+    setReactionCount(prev => Math.max(0, prev + delta));
+    try {
+      await toggleReactionKind(post._id || '', kind, [groupId]);
+    } catch (e) {
+      console.error('Failed to toggle reaction:', e);
+      toast.error(errorMessage(e, 'Could not update your reaction.'));
+      setLiked(wasLiked);
+      setDisliked(wasDisliked);
+      setReactionCount(prev => Math.max(0, prev - delta));
+    }
+  }
 
   return (
     <article data-testid="group-post-card" className="rounded-lg border border-border bg-card p-4">
@@ -145,6 +201,19 @@ function GroupPostCard({ post, media }: { post: PostRecord; media: MediaRecord[]
         <p className="mt-3 whitespace-pre-wrap text-sm leading-relaxed text-foreground">{post.text}</p>
       )}
       <PostMedia media={media} />
+      <PostActions
+        postId={post._id || ''}
+        liked={liked}
+        disliked={disliked}
+        reactionCount={reactionCount}
+        commentCount={commentCount}
+        onToggleReaction={handleToggleReaction}
+        onCommentCountChange={setCommentCount}
+        postAuthor={author}
+        groups={[groupId]}
+        dislike="interactive"
+        testId="group-post-actions"
+      />
     </article>
   );
 }
@@ -686,6 +755,7 @@ export default function GroupDetailScreen({ groupId }: { groupId: string }) {
                       key={p._id || p.created_at}
                       post={p}
                       media={(p.media_refs || []).map((r) => mediaMap[mediaRefId(r)]).filter(Boolean)}
+                      groupId={detail.group_id}
                     />
                   ))
                 ) : (

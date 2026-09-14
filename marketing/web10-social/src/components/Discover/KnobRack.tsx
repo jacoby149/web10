@@ -7,21 +7,27 @@ import { RotaryKnob } from './RotaryKnob';
 import {
   PRESETS,
   WEIGHT_DETENTS,
-  HALF_LIFE_LABELS,
   type KnobState,
   type PresetId,
 } from '@/lib/powerMean';
 
-// KnobRack — the synth rack: preset chips + 4 rotary knobs.
+// KnobRack — the synth rack: preset chips + 3 rotary knobs.
 //
 // The rack is one piece of hardware. Preset chips at top, knobs below.
 // "Guitar-center gear you want to touch" — design.md §12.
 //
 // The Character knob (the power-mean exponent p) is gone — it was math
 // wearing a costume (no plain-English concept, the operator didn't know what
-// it meant) and the 5th knob forcing the mobile sideways scroll. The
-// exponent is fixed at the middle (p = 0, geometric — see powerMean.ts
+// it meant) and the 5th knob forcing the mobile sideways scroll. The exponent
+// is fixed at the middle (p = 0, geometric — see powerMean.ts
 // FIXED_CHARACTER_DETEENT); the presets already cover the character axis.
+//
+// The Time knob (the recency half-life) is gone too — it was the obfuscated
+// math dial with no plain-English concept (1h / 4h / 12h / 1d / 7d / ∞). The
+// half-life is fixed at the middle (1 day — see powerMean.ts
+// FIXED_HALF_LIFE_DETEENT); the presets already cover the time axis. The rack
+// is now the three signals a user actually understands: Recency, Likes,
+// Comments.
 
 interface KnobRackProps {
   state: KnobState;
@@ -120,14 +126,6 @@ function KnobRack({ state, activePreset, onChange, onPreset }: KnobRackProps) {
               labels={weightLabels}
               onChange={v => onChange('comments', v)}
               dataTestId="knob-comments"
-            />
-            <RotaryKnob
-              label="Time"
-              value={state.halfLife}
-              maxValue={5}
-              labels={HALF_LIFE_LABELS}
-              onChange={v => onChange('halfLife', v)}
-              dataTestId="knob-time"
             />
           </div>
         </div>

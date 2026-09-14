@@ -1,0 +1,94 @@
+name: ghcr-mirror
+
+# Republish every EXTERNAL image the web10 build/run stack pulls into our own
+# GHCR namespace (ghcr.io/jacoby149/base-*), so CI (e2e / docker / cd) and the
+# deploy NEVER pull from Docker Hub (or a third-party registry) at runtime.
+#
+# WHY: Docker Hub's anonymous pull rate limit (100/6h per shared runner IP)
+# flaked the e2e shards — "pull access denied for minio/minio" — and a
+# third-party GHCR (astral-sh/uv) is the same class of dependency. Mirroring
+# to our own namespace + pulling with GITHUB_TOKEN (1000 pulls/h) removes the
+# whole failure class. The manifest (e2e/mirror-images.json) is the single
+# source of truth; to bump an image, edit its `source` there and re-run this.
+#
+# `docker buildx imagetools create` is a manifest+layer COPY (no build), so a
+# full mirror is a few minutes. It copies the source's full multi-arch manifest
+# (no --platform flag), which is fine — every consumer is amd64 and picks its
+# platform from the index.
+
+on:
+  workflow_dispatch:
+  schedule:
+    # Weekly refresh so `:latest`-sourced images (minio, static-web-server)
+    # track upstream. Manual dispatch is the primary path.
+    - cron: "17 4 * * 1"
+
+permissions:
+  contents: read
+  packages: write
+
+concurrency:
+  group: ghcr-mirror
+  cancel-in-progress: false
+
+env:
+  REGISTRY: ghcr.io
+  OWNER: jacoby149
+
+jobs:
+  mirror:
+    name: mirror external images to GHCR
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v4
+
+      - name: Log in to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Mirror every image in the manifest
+        run: |
+          set -euo pipefail
+          MANIFEST=e2e/mirror-images.json
+
+          # Emit "<source>\t<target>" lines from the manifest.
+          mapfile -t PAIRS < <(python3 -c "
+          import json
+          m = json.load(open('$MANIFEST'))
+          for i in m['images']:
+              print(i['source'] + '\t' + i['target'])
+          ")
+
+          if [ "${#PAIRS[@]}" -eq 0 ]; then
+            echo "No images in $MANIFEST — nothing to mirror."
+            exit 0
+          fi
+
+          for pair in "${PAIRS[@]}"; do
+            src="${pair%%$'\t'*}"
+            dst="${pair##*$'\t'}"
+            echo "=== mirroring $src -> $dst ==="
+            # Retry: the SOURCE pull (Docker Hub) can hit the anonymous rate
+            # limit even here; back off and retry rather than fail the run.
+            attempt=1
+            until docker buildx imagetools create -t "$dst" "$src"; do
+              if [ "$attempt" -ge 5 ]; then
+                echo "::error::mirroring $src -> $dst failed after 5 attempts"
+                exit 1
+              fi
+              wait=$(( attempt * 30 ))
+              echo "attempt $attempt failed — retrying in ${wait}s"
+              sleep "$wait"
+              attempt=$(( attempt + 1 ))
+            done
+          done
+
+          echo "=== all images mirrored ==="
+          docker buildx imagetools inspect "${REGISTRY}/${OWNER}/base-minio:latest" | head -3 || true

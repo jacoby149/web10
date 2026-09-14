@@ -21,8 +21,8 @@
 
 import { getV3Client } from './v3';
 import { followersGroupId, ensureFollowers, getMyGroups } from './groups';
-import { extractUsername } from './types';
-import { listConversations, getLastDm } from './dms';
+import { extractUsername, fromV3DocToComment, fromV3DocToPost } from './types';
+import { listConversations, getLastDm, conversationKey } from './dms';
 import { onP2PInbound, sendP2P, type P2PInboundConn } from './p2p';
 
 const LOG = (...args: unknown[]) => console.log('[notifications]', ...args);
@@ -62,6 +62,95 @@ interface NudgePayload {
   from: string;
   ref_doc_id?: string;
   sent_at?: string;
+}
+
+// ── Deep links: where a notification points ──────────────────────────────────
+// The address bar is the destination (the app's deep-link rule): every
+// notification row navigates to the place in the app the event is about —
+// the post permalink, the conversation, the profile. `me` is the signed-in
+// user (the recipient — notifications only ever target the signed-in user).
+
+/**
+ * The URL a notification points at, or null when there is no resolvable
+ * destination (the row stays non-clickable). Synchronous for the types whose
+ * target is known from the row itself; `reply` needs a CRUD re-read (the
+ * parent comment's post) — use `resolveReplyHref` for that one.
+ */
+export function notificationHref(
+  n: Notification,
+  me: { username: string; provider: string },
+): string | null {
+  switch (n.type) {
+    case 'reaction':
+    case 'comment': {
+      // The event targets my post (the nudge + the derivation only fire for
+      // posts I authored) — the post permalink on my profile.
+      if (!n.ref_doc_id) return null;
+      let href = `/u/${encodeURIComponent(me.username)}/p/${encodeURIComponent(n.ref_doc_id)}`;
+      // A comment notification can carry the comment's own doc id (the
+      // derived row's id is `comment:{from}:{docId}`) — highlight it.
+      if (n.type === 'comment') {
+        const commentId = commentDocIdFromRow(n);
+        if (commentId) href += `?comment=${encodeURIComponent(commentId)}`;
+      }
+      return href;
+    }
+    case 'dm': {
+      // The conversation with the sender. v3 DMs are same-node (member keys
+      // are bare usernames — see classifyThread), so the sender's provider is
+      // the recipient's own.
+      if (!n.from) return null;
+      const conv = conversationKey(
+        { provider: me.provider, username: me.username },
+        { provider: me.provider, username: n.from },
+      );
+      return `/messages/${encodeURIComponent(conv)}`;
+    }
+    case 'follow_request':
+      // The follower's profile (the follow surface).
+      return n.from ? `/u/${encodeURIComponent(n.from)}` : null;
+    case 'group_join':
+      // The group the join happened in (the row's ref is the group id when
+      // present) — falls back to the groups tab.
+      return n.ref_doc_id ? `/groups/${encodeURIComponent(n.ref_doc_id)}` : '/groups';
+    default:
+      return null;
+  }
+}
+
+// The comment's own doc id, when the row id carries it. The derived row's id
+// is `comment:{from}:{docId}` (3 segments). A live nudge's id is
+// `comment:{from}:{postId}:{timestamp}` (4 segments — the 3rd is the POST id,
+// not a comment id), so only the exact 3-segment shape yields a highlight.
+function commentDocIdFromRow(n: Notification): string | null {
+  if (n.type !== 'comment') return null;
+  const parts = n.id.split(':');
+  if (parts.length !== 3 || parts[0] !== 'comment') return null;
+  return parts[2] || null;
+}
+
+/**
+ * The URL a `reply` notification points at: the post the replied-to comment
+ * lives on, with that comment highlighted. Needs a CRUD re-read (parent
+ * comment → its post → the post's author, which owns the permalink). Best-
+ * effort — null when the chain breaks (a deleted comment/post).
+ */
+export async function resolveReplyHref(
+  n: Notification,
+  me: { username: string; provider: string },
+): Promise<string | null> {
+  if (n.type !== 'reply' || !n.ref_doc_id) return null;
+  const w = getV3Client();
+  try {
+    const parent = fromV3DocToComment(await w.readById(n.ref_doc_id, 'comments'));
+    if (!parent.post_id) return null;
+    const post = fromV3DocToPost(await w.readById(parent.post_id, 'posts'));
+    const author = post.author_username || me.username;
+    return `/u/${encodeURIComponent(author)}/p/${encodeURIComponent(parent.post_id)}?comment=${encodeURIComponent(n.ref_doc_id)}`;
+  } catch (e) {
+    LOG('resolveReplyHref — chain broke, no deep link:', String(e));
+    return null;
+  }
 }
 
 /**

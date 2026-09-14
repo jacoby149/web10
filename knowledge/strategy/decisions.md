@@ -9,6 +9,24 @@ Status legend: [decided] intent set · [in-progress] · [open] still debating.
 
 ---
 
+### D71 — The post permalink is rich when shared: the node renders the preview, the browser gets the SPA [decided]
+
+**The decision.** When a post's permalink (`social.web10.app/u/:username/p/:postId`) is fetched by a **social crawler** (Facebook, iMessage/Apple, X, Slack, WhatsApp, Telegram, Discord, LinkedIn, …), the **node** answers it with an HTML document carrying the post's **Open Graph + Twitter Card** tags — title, description, and a **thumbnail** (the post's first image, or the video's D44 poster frame). When fetched by a **browser**, the SPA is served exactly as today. The split is decided at the edge: the social app's nginx proxies the post-permalink path to the node (`GET /v3/share/post/{username}/{post_id}`) **only when the User-Agent is a known crawler**; everything else gets the SPA. The node target is injected at deploy time (`API_PROXY_TARGET`), so one image serves dev and prod.
+
+**Why.** The Share button already emits the post permalink, but web10-social is a client-rendered PWA — the permalink is a *route*, and nginx serves the static `index.html` for every path. A crawler does not run JavaScript, so it reads no post-specific meta and renders a bare link. That kills the pitch at the moment it matters most: the friend who is *being shown* the post. The preview card is the whole value proposition in miniature. The node is the right party to render it — it is the source of truth for the post and already has every primitive (read-by-doc_id, the group read gate, media resolution with fresh presigned thumbnails, author profiles). The fix is a thin, public, read-only endpoint + an edge split; no SSR framework, no build-time coupling between the API and the social bundle.
+
+**The shape.**
+- **Endpoint:** `GET /v3/share/post/{username}/{post_id}` — public, no token, no app contract. Reads the post by `doc_id` (`get_document_any_author` — the URL's `post_id`; the `username` is the display author for the canonical URL, not the read key, so a reshared link still resolves), reads its groups, and decides **public-readability**: the post previews-with-content only if *any* of its groups grants `readAll` on `posts` to the public class (`can_read_group(group, "anon", "posts", authenticated=False)`). A public post is in the discover group (public by design, D41); a followers-only / private post is not.
+- **Thumbnail:** the first media item with an image — an image's presigned `read_url`, a video's presigned `thumbnail_url` (from `thumbnail_object_key`), else the author's avatar, else the web10 brand mark. Presigned fresh per request over the public MinIO host (the document-typing rule; crawlers fetch over HTTPS).
+- **Tags:** `og:type`/`og:title`/`og:description`/`og:image`/`og:image:alt`/`og:url`/`og:site_name` + `twitter:card=summary_large_image` + the `twitter:*` mirror. `og:url` is the canonical permalink (`{SOCIAL_ORIGIN}/u/{username}/p/{post_id}`).
+- **Edge:** nginx `location ~ ^/u/[^/]+/p/[^/]+$` with a case-insensitive User-Agent match on the standard crawler set → `proxy_pass` to the node; the default (browser) path is unchanged (`try_files … /index.html`). Browser-default: an unknown agent gets the working app, never a broken preview.
+
+**The privacy floor (I3 / D41).** A post that is *not* publicly readable never leaks. The endpoint renders a **generic** web10 card — brand mark, `web10` site name, a neutral title/description — with **no** post text, **no** media URL, **no** author-specific data. "Readable by an authenticated member" is not "readable by anyone," and the preview respects that line. A ghost (nonexistent / tombstoned) `doc_id` → `404` (a deleted post does not preview).
+
+**Rejects.** (1) **Server-side rendering of the app** — the node renders a *preview document* for crawlers, not the SPA; the browser keeps the client-rendered app. No SSR framework, no hydration, no API↔bundle build coupling. (2) **A dedicated preview host / a crawler-only domain** — the permalink must stay the shareable, in-app URL; the edge split keeps one canonical URL. (3) **Serving the preview for every request** (no UA split) — a logged-in user clicking their own post link would land on the preview page, not the app. (4) **Loosening the read to always show content** — that would leak followers-only / private posts to strangers via the preview; the public-readability gate is the whole point.
+
+**Gates / open.** Group permalinks (`/groups/:id`) and profile permalinks (`/u/:username`) are natural follow-ups (same endpoint pattern; the group's face / the profile's avatar as the image). A static brand card for the app root is covered by static `index.html` tags. The crawler UA list is the standard set and is intentionally browser-default (an unmatched crawler degrades to "no card," never worse than today).
+
 ### D70 — Bug reports push to the node's admins as a DM from the `bugbot` user [decided]
 
 **The decision.** A submitted bug report (`POST /bug_report`, public, already
@@ -1953,6 +1971,26 @@ on screen (no skeleton flash per twist). The SDK's `read()` gains the `sort`
 option (the API already accepted it). The "feed stays chronological by
 default" guardrail is unchanged — only the *tuned* feed is ranked, and now by
 the node, not a client shuffle.
+
+**Amendment (11.09.2026, 3.83.0):** operator: "the tune your own feed and
+discover should be just recency likes, and comments! the time knob is too
+complex… we should just set that to something sensible for the user!" **The
+Time knob (the recency half-life) is removed** — the same move as the
+Character knob (3.71.0): it was the obfuscated math dial with no plain-English
+concept (1h / 4h / 12h / 1d / 7d / ∞). The half-life is now **fixed at the
+middle detent — 1 day** (`FIXED_HALF_LIFE_DETEENT` / `FIXED_HALF_LIFE_MS`):
+recent posts are weighted but not exclusively, the sensible default for a
+social feed. `halfLife` stays in `KnobState` so the `?knobs=` encoding + the
+persisted settings doc keep their 5-field shape (old deep links + saved
+tunings still parse); the ranking just ignores it (both the client's
+`scorePost` and `knobStateToSort` pin it to the fixed value — the same
+pattern as `FIXED_CHARACTER_P`). The rack is now the **three signals a user
+actually understands: Recency, Likes, Comments** (no mobile sideways scroll).
+"Most loved · all time" is unaffected: "all time" is achieved by the recency
+**weight** being 0 (no recency signal), not by the half-life — so fixing the
+half-life changes nothing for that preset. The node's `PowerMeanSort`
+contract is unchanged (`half_life_ms` is still sent, now always 1 day); the
+server-side `_power_mean_score` / `_power_mean_score_sql` are untouched.
 
 ### D35 — Public media is a COLLECTION (`public_media`), not a flag or a blanket whitelist [decided]
 Cross-user media reads are dead today: the `media` service ships with no read

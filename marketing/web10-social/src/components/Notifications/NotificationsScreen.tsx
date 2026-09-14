@@ -1,9 +1,11 @@
 import { useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { BellOff, CheckCheck } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { useNotifications } from '@/hooks/useNotifications';
-import { markAllRead, type Notification } from '@/data/notifications';
+import { markAllRead, notificationHref, resolveReplyHref, type Notification } from '@/data/notifications';
+import { getWapi } from '@/data/wapi';
 import { cn } from '@/lib/utils';
 
 // The "did X" line for each notification type (the KB's screen shape:
@@ -44,14 +46,33 @@ function timeAgo(iso: string): string {
 }
 
 function NotificationRow({ n, unread }: { n: Notification; unread: boolean }) {
-  return (
-    <li
-      data-testid="notification-row"
-      className={cn(
-        'flex items-center gap-3 px-4 py-3 border-b border-border/40',
-        unread && 'bg-brand-muted/20',
-      )}
-    >
+  const navigate = useNavigate();
+  const me = getWapi().readToken();
+
+  // The row's deep link: the place in the app the event is about (the post
+  // permalink, the conversation, the profile). A `reply` needs a CRUD
+  // re-read (parent comment → post → author), so it resolves on click.
+  const href = me ? notificationHref(n, me) : null;
+  const clickable = !!href || n.type === 'reply';
+
+  const open = () => {
+    if (n.type === 'reply') {
+      if (!me) return;
+      resolveReplyHref(n, me)
+        .then((r) => { if (r) navigate(r); })
+        .catch(() => {});
+      return;
+    }
+    if (href) navigate(href);
+  };
+
+  const rowClasses = cn(
+    'flex items-center gap-3 px-4 py-3 border-b border-border/40 w-full text-left',
+    unread && 'bg-brand-muted/20',
+    clickable && 'cursor-pointer transition-colors duration-150 hover:bg-elevated/80 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand/50 focus-visible:ring-inset',
+  );
+  const rowInner = (
+    <>
       <div className="relative shrink-0">
         <Avatar className="h-10 w-10">
           <AvatarFallback className="bg-brand-muted text-brand-300 text-sm font-semibold">
@@ -77,6 +98,27 @@ function NotificationRow({ n, unread }: { n: Notification; unread: boolean }) {
           New
         </span>
       )}
+    </>
+  );
+
+  if (!clickable) {
+    return (
+      <li data-testid="notification-row" className={rowClasses}>
+        {rowInner}
+      </li>
+    );
+  }
+  return (
+    <li>
+      <button
+        type="button"
+        data-testid="notification-row"
+        aria-label={`${describe(n)} — open`}
+        onClick={open}
+        className={rowClasses}
+      >
+        {rowInner}
+      </button>
     </li>
   );
 }
