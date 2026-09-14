@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { X, Check, Loader2, ImagePlus, Play } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import type { MediaRecord, PostRecord, ResolvedMediaRef } from '@/data/types';
-import { mediaRefId } from '@/data/types';
+import { mediaRefId, fromResolvedMediaRef } from '@/data/types';
 import { cn } from '@/lib/utils';
 
 /**
@@ -62,17 +62,20 @@ export function ProfileMediaLightbox({
   const label = field === 'avatar' ? 'Profile picture' : 'Banner';
 
   // The picker's media, resolved (deduped by doc_id, resolved records only —
-  // an unresolvable ref has no url to render or set).
+  // an unresolvable ref has no url to render or set). Only image media are
+  // pickable: a profile face is an image (the upload path accepts image/*).
   const pickable = useMemo(() => {
     const seen = new Set<string>();
-    const out: { id: string; media: MediaRecord }[] = [];
+    const out: { id: string; ref: string | ResolvedMediaRef; media: MediaRecord }[] = [];
     for (const opt of options) {
       const id = mediaRefId(opt.ref);
       if (!id || seen.has(id)) continue;
-      seen.add(id);
       const rec = typeof opt.ref === 'string' ? null : opt.ref;
       if (!rec) continue; // unresolvable (bare string) — nothing to render
-      out.push({ id, media: rec as MediaRecord });
+      const media = fromResolvedMediaRef(rec);
+      if (!media.mime_type?.startsWith('image/')) continue;
+      seen.add(id);
+      out.push({ id, ref: opt.ref, media });
     }
     return out;
   }, [options]);
@@ -168,7 +171,7 @@ export function ProfileMediaLightbox({
               </div>
               {pickable.length ? (
                 <div className="grid grid-cols-3 gap-1.5 sm:grid-cols-4">
-                  {pickable.map(({ id, media: m }) => {
+                  {pickable.map(({ id, ref, media: m }) => {
                     const busy = savingId === id;
                     const isVideoTile = m.mime_type?.startsWith('video/');
                     return (
@@ -176,7 +179,7 @@ export function ProfileMediaLightbox({
                         key={id}
                         type="button"
                         disabled={saving || busy}
-                        onClick={() => handlePick(id, m)}
+                        onClick={() => handlePick(id, ref)}
                         aria-label={`Set as ${label.toLowerCase()}`}
                         data-testid="profile-media-pick"
                         className="group relative aspect-square overflow-hidden rounded-md bg-elevated outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset disabled:opacity-60"
@@ -220,7 +223,7 @@ export function ProfileMediaLightbox({
                 </div>
               ) : (
                 <p className="text-sm text-muted-foreground">
-                  Post a photo or video first, then pick it as your {label.toLowerCase()}.
+                  Post a photo first, then pick it as your {label.toLowerCase()}.
                 </p>
               )}
             </div>
