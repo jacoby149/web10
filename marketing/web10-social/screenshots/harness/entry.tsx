@@ -4,8 +4,9 @@
 // for PR screenshots without the docker stack. See README.md.
 // ?screen=settings renders the Settings screen; ?screen=feed renders the
 // Feed (knob rack + follower feed); ?screen=groups /
-// groups-discover / groups-detail render the Groups surface; default is
-// /messages.
+// groups-discover / groups-detail render the Groups surface; ?screen=profile /
+// profile-feed render the profile (grid view / facebook-shaped feed view);
+// default is /messages.
 import { createRoot } from 'react-dom/client';
 import { MemoryRouter, Routes, Route } from 'react-router-dom';
 import '@fontsource-variable/inter/standard.css';
@@ -36,6 +37,7 @@ const initialRoute =
   : screen === 'groups-discover' ? '/groups?tab=discover'
   : screen === 'groups-detail' ? '/groups/web10%2Fgroups%2Fusers%2Fnova%2Fsynthwave-sessions'
   : screen === 'profile' ? '/u/me'
+  : screen === 'profile-feed' ? '/u/me?view=feed'
   : '/messages';
 
 createRoot(document.getElementById('root')!).render(

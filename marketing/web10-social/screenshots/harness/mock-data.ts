@@ -192,9 +192,10 @@ export async function movePostVisibility(): Promise<void> {}
 export async function countFollowers(): Promise<number> { return PEERS.length; }
 export async function countFollows(): Promise<number> { return PEERS.length; }
 export async function countUserFollowing(): Promise<number> { return PEERS.length; }
-export async function readUserPublicPosts(): Promise<unknown[]> { return []; }
+export async function readUserPublicPosts(): Promise<unknown[]> { return PROFILE_POSTS; }
 export async function countStagingPosts(): Promise<number> { return 0; }
 export async function saveProfile(): Promise<void> {}
+export async function readMyPosts(): Promise<unknown[]> { return PROFILE_POSTS; }
 export async function readFollowsByUser(): Promise<unknown[]> { return []; }
 export async function followUser(): Promise<unknown> { return {}; }
 export async function unfollowUser(): Promise<void> {}
@@ -206,9 +207,29 @@ export async function readComments(): Promise<unknown[]> { return []; }
 export async function createComment(): Promise<unknown> { return {}; }
 export async function deleteComment(): Promise<void> {}
 export async function countReactions(): Promise<number> { return 0; }
-export async function countComments(): Promise<number> { return 0; }
+export async function countComments(postId?: string): Promise<number> {
+  // The profile's feed view seeds real counts for its first two posts.
+  if (postId === 'pp-1') return 3;
+  if (postId === 'pp-2') return 1;
+  return 0;
+}
 export async function toggleReaction(): Promise<unknown> { return {}; }
-export async function readReactions(): Promise<unknown[]> { return []; }
+export async function readReactions(postId?: string): Promise<unknown[]> {
+  // The profile's feed view seeds likes (incl. the reader's own — the filled
+  // heart) for its first two posts; other ids (feed/discover) stay empty.
+  if (postId === 'pp-1') {
+    return [
+      { _id: 'pr-1', type: 'like', author_username: 'alina', author_provider: 'web10', target_service: 'posts', target_id: 'pp-1', created_at: minsAgo(30) },
+      { _id: 'pr-2', type: 'like', author_username: 'me', author_provider: 'web10', target_service: 'posts', target_id: 'pp-1', created_at: minsAgo(20) },
+    ];
+  }
+  if (postId === 'pp-2') {
+    return [
+      { _id: 'pr-3', type: 'like', author_username: 'priya', author_provider: 'web10', target_service: 'posts', target_id: 'pp-2', created_at: minsAgo(100) },
+    ];
+  }
+  return [];
+}
 export async function readServiceTerms(): Promise<unknown> { return {}; }
 export async function grantSelfTerms(): Promise<void> {}
 export async function readStaging(): Promise<unknown[]> { return []; }
@@ -727,7 +748,10 @@ export async function resolveMediaRefs<T>(refs: T[]): Promise<T[]> {
   const out: T[] = [];
   for (const r of refs) {
     const id = typeof r === 'string' ? r : (r as { doc_id?: string }).doc_id || '';
-    const rec = DISCOVER_MEDIA[id] ?? FACE_MEDIA[id];
+    // PROFILE_MEDIA / FACE_MEDIA are declared later in the module (the profile
+    // seed sections) — safe: the lookup runs at call time, after the module is
+    // evaluated.
+    const rec = DISCOVER_MEDIA[id] ?? PROFILE_MEDIA[id] ?? FACE_MEDIA[id];
     if (rec) out.push(rec as T);
   }
   return out;
@@ -736,28 +760,20 @@ export async function readUserProfile(): Promise<unknown> {
   return { display_name: 'Nova', username: 'nova', provider: 'web10', avatar_ref: '', bio: 'Synthwave producer' };
 }
 export async function readProfile(): Promise<unknown> {
-  // The owner's profile carries an avatar + banner (media doc_ids the
-  // resolveMediaRefs mock below knows) so the profile face lightbox renders
-  // with a real face + a pick-from-your-posts grid.
+  // The profile screen's owner path (the harness user is 'me') — a creator
+  // page with a face + bio so the banner/avatar/stats render in the capture.
+  // The face refs + the posts' media refs (PROFILE_POSTS) also feed the face
+  // lightbox's pick-from-your-posts grid (dev 3.88.0) — one seed, both features.
   return {
     display_name: 'Nova',
-    username: 'nova',
+    username: 'me',
     provider: 'web10',
-    avatar_ref: 'face-avatar',
-    banner_ref: 'face-banner',
-    bio: 'Synthwave producer — your audience, your node.',
-    website: 'https://nova.example.com',
+    avatar_ref: 'pf-avatar',
+    banner_ref: 'pf-banner',
+    bio: 'Synthwave producer — new series drops Friday. No algorithm between you and the post.',
     location: 'Berlin',
+    website: 'nova.example.com',
   };
-}
-// The owner's own posts (the pick-from-your-posts source). Each carries a
-// media ref the resolveMediaRefs mock resolves to a creative.
-export async function readMyPosts(): Promise<unknown[]> {
-  return [
-    { _id: 'fp-nova-1', author_username: 'nova', author_provider: 'web10', text: 'Late night synth session — the new drop is almost ready. Feedback welcome 🎧', media_refs: ['face-post-1'], created_at: minsAgo(38) },
-    { _id: 'fp-nova-2', author_username: 'nova', author_provider: 'web10', text: 'Vertical cut from the studio day.', media_refs: ['face-post-2'], created_at: minsAgo(60 * 5) },
-    { _id: 'fp-nova-3', author_username: 'nova', author_provider: 'web10', text: 'Three frames from the set — swipe through the full run.', media_refs: ['face-post-3'], created_at: minsAgo(12) },
-  ];
 }
 export async function fetchSuggestedUsers(): Promise<unknown[]> {
   return [
@@ -766,3 +782,48 @@ export async function fetchSuggestedUsers(): Promise<unknown[]> {
     { username: 'pixel', provider: 'web10', display_name: 'Pixel', followers_count: 25600, bio: 'Retro gaming' },
   ];
 }
+
+// ── Profile (screenshot seed) ────────────────────────────────────────────────
+// The profile screen (the creator page: banner + stats + the posts tab with
+// its grid | feed view lens) reads these. Seeded so the PR shots render with
+// realistic content and no backend — the feed view shows the facebook-shaped
+// card stream (text + media + the engagement bar), the grid the insta tiles.
+// The stubs above (readMyPosts / readReactions / countComments /
+// resolveMediaRefs) read these seeds.
+
+const PROFILE_MEDIA: Record<string, Record<string, unknown>> = {
+  'pf-avatar': { ...creative('NOVA', 400, 400, '#8b5cf6', '#2e1065', 'image/png'), _id: 'pf-avatar' },
+  'pf-banner': { ...creative('SYNTHWAVE', 1600, 500, '#7c3aed', '#1e1b4b', 'image/png'), _id: 'pf-banner' },
+  'pf-media-1': { ...creative('LIVE SET', 1280, 720, '#8b5cf6', '#2e1065', 'image/png'), _id: 'pf-media-1' },
+  'pf-media-2': { ...creative('VERTICAL', 720, 1280, '#7c3aed', '#4c1d95'), _id: 'pf-media-2' },
+  'pf-media-3': { ...creative('STILL', 1000, 1000, '#a78bfa', '#1e1b4b', 'image/png'), _id: 'pf-media-3' },
+};
+
+const PROFILE_POSTS = [
+  {
+    _id: 'pp-1',
+    author_username: 'me',
+    author_provider: 'web10',
+    text: 'Late night synth session — the new drop is almost ready. Feedback welcome 🎧',
+    created_at: minsAgo(38),
+    tags: ['music', 'synthwave'],
+    media_refs: ['pf-media-1'],
+  },
+  {
+    _id: 'pp-2',
+    author_username: 'me',
+    author_provider: 'web10',
+    text: 'Vertical cut from the studio day. No algorithm between you and the post — it just arrives.',
+    created_at: minsAgo(60 * 5),
+    tags: ['creators', 'behind-the-scenes'],
+    media_refs: ['pf-media-2', 'pf-media-3'],
+  },
+  {
+    _id: 'pp-3',
+    author_username: 'me',
+    author_provider: 'web10',
+    text: 'Headphones on, world off. Lo-fi study room is live.',
+    created_at: minsAgo(60 * 26),
+    tags: ['music', 'study'],
+  },
+];
