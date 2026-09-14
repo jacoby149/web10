@@ -9,6 +9,25 @@ Status legend: [decided] intent set · [in-progress] · [open] still debating.
 
 ---
 
+### D72 — web10-social is a serious PWA: a real service worker + an install prompt, at the moment of value [decided]
+
+Operator, 14.09.2026 — "i feel like we could be at the point where the web experience could seriously lack right? with the tik tok style reel stuff, should the pwa download part be much more aggressive? on the phone?" → "yeah lets do this this sounds like firming up the pwa side of things, making it a serious pwa."
+
+**The decision.** web10-social stops being a *technically-installable* PWA and becomes a *serious* one. D41 already made the call that the client is a PWA, not a native app ("we are making the PWA the thing") — this decision is what makes that true for the one surface where the web gap is widest, the vertical short-form feed (`/shorts`, 3.90.0). On a phone browser the reel experience genuinely lacks: the browser chrome eats the viewport, autoplay-with-audio is blocked until the first tap, the back button yanks you out of the scroll-snap feed, and there is no offline. A PWA is the closest you can get to native without an app store — but only if it is *actually installed*. Today it can't really be: `public/serviceWorker.js` is a **stub** (`const assets = []`, no real caching, no offline) and there is **no `beforeinstallprompt` handling anywhere** in the app, so the only install path is the user finding the browser's buried "Add to Home Screen" menu (a ~2% funnel). Two parts:
+
+1. **Make install real (the enabling work).** Turn the stub service worker into a real one — app-shell precache, an offline fallback route, and an update flow — and wire `beforeinstallprompt` → a custom install surface. The browser only fires `beforeinstallprompt` when the PWA meets the installability bar (valid manifest + a *registered, functioning* service worker + served over HTTPS); the manifest is already fine (`display: standalone`, 192/512 icons), the SW is the missing tooth.
+2. **Prompt at the moment of value, not on a timer.** Do *not* nag on load — that is the "aggressive" anti-pattern and it reads as jank (it fails the screenshot test, design.md §1). Prompt *contextually*: when someone opens Shorts on a phone, or after they like/follow a creator (they've just signalled "this is my place"). One tasteful, dismissible surface — "install to keep your feed + go offline" — never a modal wall. That is the Meta-grade move: aggressive about *retention*, not about *interruption*.
+
+**Why.** The D20 test — does it make the creator platform better? Yes. A fan who installs the PWA is a fan who comes back, which is the whole "own your audience" pitch in practice (thesis.md). The reel/shorts surface is the one where the web-vs-native gap is widest, so this is where installability pays off most. It also closes the gap D47 left open ("installability, per-app, later") for the first-party killer app specifically.
+
+**Rejects:** a native app (D41 — the client is a PWA, no app store) · an aggressive on-load install modal (jank, fails the screenshot test, trains users to dismiss) · a timer-based prompt (not tied to value, reads as an ad) · leaving the SW a stub and only adding a prompt (the browser won't fire `beforeinstallprompt` without a functioning SW — the prompt is downstream of the SW) · gating the prompt behind a consent/privacy popup (the install prompt is a UX affordance, not a data-collection event; D56's content-blind telemetry already covers the "did they install" signal via a content-free GA4 event).
+
+**The line it does not cross (D56):** the "installed" event is a content-free GA4 action (a count + the trigger context — `shorts` / `engagement`), never the user's content. The offline cache stores the *app shell* (JS/CSS/HTML), not user content — the feed is always re-read from the node, so caching the shell never means serving a fan stale or another creator's data.
+
+Full model: `knowledge/knowledge-base/web10-v3/social/pwa.md` (the spec). Execution: `plan.md` "PWA: make web10-social a serious installable app" + the `pwa-install` lane in `parallel-execution.md`.
+
+---
+
 ### D71 — The post permalink is rich when shared: the node renders the preview, the browser gets the SPA [decided]
 
 **The decision.** When a post's permalink (`social.web10.app/u/:username/p/:postId`) is fetched by a **social crawler** (Facebook, iMessage/Apple, X, Slack, WhatsApp, Telegram, Discord, LinkedIn, …), the **node** answers it with an HTML document carrying the post's **Open Graph + Twitter Card** tags — title, description, and a **thumbnail** (the post's first image, or the video's D44 poster frame). When fetched by a **browser**, the SPA is served exactly as today. The split is decided at the edge: the social app's nginx proxies the post-permalink path to the node (`GET /v3/share/post/{username}/{post_id}`) **only when the User-Agent is a known crawler**; everything else gets the SPA. The node target is injected at deploy time (`API_PROXY_TARGET`), so one image serves dev and prod.
