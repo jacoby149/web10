@@ -46,3 +46,48 @@ export async function markAllRead(): Promise<void> {
 export async function initNotifications(): Promise<void> {}
 export function teardownNotifications(): void {}
 export async function recordNotification(_n: unknown): Promise<void> {}
+
+// The deep-link resolvers (the screen imports them for the clickable rows).
+// Same mapping as the real module — the harness rows render clickable.
+export function notificationHref(
+  n: Notification,
+  me: { username: string; provider: string },
+): string | null {
+  switch (n.type) {
+    case 'reaction':
+    case 'comment': {
+      if (!n.ref_doc_id) return null;
+      let href = `/u/${encodeURIComponent(me.username)}/p/${encodeURIComponent(n.ref_doc_id)}`;
+      if (n.type === 'comment') {
+        const parts = n.id.split(':');
+        if (parts.length === 3 && parts[0] === 'comment' && parts[2]) {
+          href += `?comment=${encodeURIComponent(parts[2])}`;
+        }
+      }
+      return href;
+    }
+    case 'dm': {
+      if (!n.from) return null;
+      const idA = `${me.provider}/${me.username}`;
+      const idB = `${me.provider}/${n.from}`;
+      const [first, second] = [idA, idB].sort();
+      return `/messages/${encodeURIComponent(`${first}--${second}`)}`;
+    }
+    case 'follow_request':
+      return n.from ? `/u/${encodeURIComponent(n.from)}` : null;
+    case 'group_join':
+      return n.ref_doc_id ? `/groups/${encodeURIComponent(n.ref_doc_id)}` : '/groups';
+    default:
+      return null;
+  }
+}
+
+export async function resolveReplyHref(
+  n: Notification,
+  me: { username: string; provider: string },
+): Promise<string | null> {
+  if (n.type !== 'reply' || !n.ref_doc_id) return null;
+  // The harness has no backend — the chain can't resolve.
+  void me;
+  return null;
+}

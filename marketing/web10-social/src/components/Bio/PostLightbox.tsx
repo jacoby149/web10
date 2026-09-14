@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
-import { ChevronLeft, ChevronRight, X, Heart, MessageCircle, Edit3, Trash2, Eye, EyeOff, Share2, Check } from 'lucide-react';
+import { ChevronLeft, ChevronRight, X, Edit3, Trash2, Eye, EyeOff, Share2, Check } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { Input } from '@/components/ui/input';
@@ -7,7 +7,8 @@ import type { PostRecord, MediaRecord } from '@/data/types';
 import { mediaRefId } from '@/data/types';
 import { getWapi } from '@/data/wapi';
 import {
-  toggleReaction,
+  toggleReactionKind,
+  type ReactionKind,
   countReactions,
   readReactions,
   countComments,
@@ -16,7 +17,7 @@ import {
   deletePost,
   movePostVisibility,
 } from '@/data';
-import { CommentThread } from '@/components/Feed/CommentThread';
+import { PostActions } from '@/components/Feed/PostActions';
 import { TextWithLinks } from '@/components/Feed/LinkEmbed';
 import { AdBlock } from '@/components/Feed/AdBlock';
 import { toast, errorMessage } from '@/components/shared/Toast';
@@ -77,13 +78,12 @@ export function PostLightbox({ post, mediaMap, onClose, onReload, postAuthor, po
   const hasMedia = media.length > 0;
   const multiple = media.length > 1;
 
-  // Like state
+  // Like state (post-actions.md: the reaction pair — like XOR dislike)
   const [liked, setLiked] = useState(false);
+  const [disliked, setDisliked] = useState(false);
   const [reactionCount, setReactionCount] = useState(0);
-  const [burstKey, setBurstKey] = useState(0);
 
-  // Comment state
-  const [commentsOpen, setCommentsOpen] = useState(false);
+  // Comment state (the thread's open/closed state lives in <PostActions>)
   const [commentCount, setCommentCount] = useState(0);
 
   // Edit state
@@ -136,7 +136,8 @@ export function PostLightbox({ post, mediaMap, onClose, onReload, postAuthor, po
     };
   }, [onClose, prev, next, multiple]);
 
-  // Load like state
+  // Load reaction + comment state (the lightbox reads fresh — it's a modal,
+  // not a feed; the count is the like count, the pair derives liked/disliked)
   useEffect(() => {
     let cancelled = false;
     Promise.all([
@@ -149,33 +150,35 @@ export function PostLightbox({ post, mediaMap, onClose, onReload, postAuthor, po
       setLiked(!!reactions.find(
         r => r.author_username === token.username && r.author_provider === token.provider && r.type === 'like',
       ));
+      setDisliked(!!reactions.find(
+        r => r.author_username === token.username && r.author_provider === token.provider && r.type === 'dislike',
+      ));
       setCommentCount(cCount);
     }).catch(console.error);
     return () => { cancelled = true; };
   }, [currentPost._id, token]);
 
-  // Auto-open comments when a comment anchor is present
-  useEffect(() => {
-    if (highlightedCommentId && !commentsOpen) {
-      setCommentsOpen(true);
-    }
-  }, [highlightedCommentId, commentsOpen]);
-
-  async function handleToggleLike() {
+  // The reaction pair (post-actions.md): like XOR dislike. Optimistic update
+  // of both flags + the like count, rollback on error. The data layer
+  // (toggleReactionKind) enforces the mutual exclusion server-side.
+  async function handleToggleReaction(kind: ReactionKind) {
     if (!token) return;
     const wasLiked = liked;
-    setLiked(!wasLiked);
-    setReactionCount(prev => prev + (wasLiked ? -1 : 1));
-    if (!wasLiked) {
-      setBurstKey(k => k + 1);
-    }
+    const wasDisliked = disliked;
+    const nextLiked = kind === 'like' ? !wasLiked : false;
+    const nextDisliked = kind === 'dislike' ? !wasDisliked : false;
+    const delta = (nextLiked ? 1 : 0) - (wasLiked ? 1 : 0);
+    setLiked(nextLiked);
+    setDisliked(nextDisliked);
+    setReactionCount(prev => Math.max(0, prev + delta));
     try {
-      await toggleReaction(currentPost._id || '', 'like', token.username, token.provider);
+      await toggleReactionKind(currentPost._id || '', kind);
     } catch (e) {
       console.error('Failed to toggle reaction:', e);
-      toast.error(errorMessage(e, 'Could not update your like.'));
+      toast.error(errorMessage(e, 'Could not update your reaction.'));
       setLiked(wasLiked);
-      setReactionCount(prev => prev + (wasLiked ? 1 : -1));
+      setDisliked(wasDisliked);
+      setReactionCount(prev => Math.max(0, prev - delta));
     }
   }
 
@@ -359,83 +362,52 @@ export function PostLightbox({ post, mediaMap, onClose, onReload, postAuthor, po
             )
           )}
 
-          {/* Actions bar */}
-          <div className="flex items-center gap-1 mt-3">
-            {/* Like */}
-            <button
-              key={burstKey}
-              data-testid="like-button"
-              aria-pressed={liked}
-              onClick={handleToggleLike}
-              className={cn(
-                'flex items-center gap-1.5 px-2.5 py-2 rounded-lg min-h-10 text-sm transition-all duration-150',
-                liked
-                  ? 'text-danger'
-                  : 'text-muted-foreground hover:text-foreground hover:bg-elevated/80',
-                liked && 'animate-heart-burst',
-              )}
-            >
-              <Heart
+          {/* Actions bar (post-actions.md): the shared reaction pair +
+              comment entry, with the lightbox's share button trailing. */}
+          <PostActions
+            postId={currentPost._id || ''}
+            liked={liked}
+            disliked={disliked}
+            reactionCount={reactionCount}
+            commentCount={commentCount}
+            onToggleReaction={handleToggleReaction}
+            onCommentCountChange={setCommentCount}
+            postAuthor={postAuthor}
+            postService={postService}
+            highlightedCommentId={highlightedCommentId}
+            defaultOpen={!!highlightedCommentId}
+            dislike="interactive"
+            testId="lightbox-post-actions"
+            trailing={
+              <button
+                data-testid="share-button"
+                onClick={handleShare}
+                aria-label={copied ? 'Copied!' : 'Share'}
                 className={cn(
-                  'w-[18px] h-[18px] transition-all duration-150',
-                  liked && 'drop-shadow-[0_0_6px_rgba(239,68,68,0.4)]',
+                  'flex items-center gap-1.5 px-2.5 py-2 rounded-lg min-h-10 text-sm transition-all duration-150',
+                  copied
+                    ? 'text-success'
+                    : 'text-muted-foreground hover:text-foreground hover:bg-elevated/80',
                 )}
-                strokeWidth={1.75}
-                fill={liked ? 'currentColor' : 'none'}
-              />
-              <span className="tabular-nums">{reactionCount || ''}</span>
-            </button>
-
-            {/* Comment */}
-            <button
-              data-testid="comment-button"
-              aria-expanded={commentsOpen}
-              onClick={() => setCommentsOpen((o) => !o)}
-              className="flex items-center gap-1.5 px-2.5 py-2 rounded-lg min-h-10 text-sm text-muted-foreground hover:text-foreground hover:bg-elevated/80 transition-all duration-150"
-            >
-              <MessageCircle className="w-[18px] h-[18px]" strokeWidth={1.75} />
-              <span className="tabular-nums">{commentCount || ''}</span>
-            </button>
-
-            {/* Share */}
-            <button
-              data-testid="share-button"
-              onClick={handleShare}
-              aria-label={copied ? 'Copied!' : 'Share'}
-              className={cn(
-                'flex items-center gap-1.5 px-2.5 py-2 rounded-lg min-h-10 text-sm transition-all duration-150',
-                copied
-                  ? 'text-success'
-                  : 'text-muted-foreground hover:text-foreground hover:bg-elevated/80',
-              )}
-            >
-              {copied ? (
-                <Check className="w-[18px] h-[18px]" strokeWidth={1.75} />
-              ) : (
-                <Share2 className="w-[18px] h-[18px]" strokeWidth={1.75} />
-              )}
-            </button>
-          </div>
+              >
+                {copied ? (
+                  <Check className="w-[18px] h-[18px]" strokeWidth={1.75} />
+                ) : (
+                  <Share2 className="w-[18px] h-[18px]" strokeWidth={1.75} />
+                )}
+              </button>
+            }
+          />
 
           {/* Carried ads (D55 + D57): the creator's pinned ad + the node's ad
-              can both be present — render both, neither suppressing the other. */}
+               can both be present — render both, neither suppressing the other.
+               The comment thread mounts with the actions bar above (PostActions). */}
           {(currentPost.ad || currentPost.node_ad) && (
             <div className="mt-3 -mx-1 px-4 space-y-2">
               {currentPost.ad && <AdBlock ad={currentPost.ad} />}
               {currentPost.node_ad && <AdBlock ad={currentPost.node_ad} />}
             </div>
           )}
-
-          {/* Comment thread */}
-          <CommentThread
-            postId={currentPost._id || ''}
-            isOpen={commentsOpen}
-            count={commentCount}
-            postAuthor={postAuthor}
-            postService={postService}
-            onCountChange={setCommentCount}
-            highlightedCommentId={highlightedCommentId}
-          />
 
           {/* Owner actions */}
           {isOwner && !editing && (

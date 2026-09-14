@@ -50,7 +50,7 @@ import { PRESETS, getPreset, knobStateToSort, scorePost, FIXED_CHARACTER_DETEENT
 import { KnobRack } from './KnobRack';
 import { VideoPlayer, sourceFromMedia } from '@/components/Feed/VideoPlayer';
 import { MediaCarousel } from '@/components/Feed/MediaCarousel';
-import { CommentThread } from '@/components/Feed/CommentThread';
+import { PostActions } from '@/components/Feed/PostActions';
 
 const LOG = (...args: unknown[]) => console.log('[social:discover]', ...args);
 
@@ -379,10 +379,10 @@ function DiscoverCard({
         ? 'image'
         : undefined;
 
-  // The inline modality (video-player.md): the comment count toggles the
-  // thread in-card (no lightbox); the video plays inline via <VideoPlayer>.
-  const [commentsOpen, setCommentsOpen] = useState(false);
-  const [commentCount, setCommentCount] = useState(post.comments ?? 0);
+  // The inline modality (video-player.md): the video plays inline via
+  // <VideoPlayer>; the engagement row (like count + comments) is the shared
+  // <PostActions> (post-actions.md) — Discover is the `display` case (the
+  // public board: the like is a signal, not a tap target).
 
   return (
     <article
@@ -488,48 +488,37 @@ function DiscoverCard({
               ))}
           </div>
         ) : null}
-
-        {/* Engagement bar */}
-        <div className="mt-3 flex items-center gap-6 border-t border-border pt-3">
-          <span
-            className="flex items-center gap-1.5 text-muted-foreground"
-            aria-label={`${post.likes ?? 0} likes`}
-          >
-            <Heart className="h-4 w-4" strokeWidth={1.5} />
-            <span className="text-xs tabular-nums">{formatCount(post.likes ?? 0)}</span>
-          </span>
-          <button
-            type="button"
-            onClick={(e) => { e.stopPropagation(); setCommentsOpen((o) => !o); }}
-            aria-expanded={commentsOpen}
-            className={cn(
-              'flex items-center gap-1.5 rounded transition-colors',
-              commentsOpen ? 'text-foreground' : 'text-muted-foreground hover:text-foreground',
-            )}
-            aria-label={`${commentCount} comments${commentsOpen ? ', hide' : ', show'}`}
-          >
-            <MessageCircle className="h-4 w-4" strokeWidth={1.5} />
-            <span className="text-xs tabular-nums">{formatCount(commentCount)}</span>
-          </button>
-          <span
-            className="flex items-center gap-1.5 text-muted-foreground"
-            aria-label={`${post.reposts ?? 0} reposts`}
-          >
-            <Repeat2 className="h-4 w-4" strokeWidth={1.5} />
-            <span className="text-xs tabular-nums">{formatCount(post.reposts ?? 0)}</span>
-          </span>
-          <span className="ml-auto text-muted-foreground" aria-label="Share">
-            <Share2 className="h-4 w-4" strokeWidth={1.5} />
-          </span>
-        </div>
       </div>
-      <CommentThread
+
+      {/* Engagement bar (post-actions.md): the shared row (display like +
+          inline comments) + Discover's own repost/share signal (trailing).
+          Outside the p-4 wrapper so the bar's divider spans the card and the
+          thread's padding is the card's own. */}
+      <PostActions
         postId={post._id || ''}
-        isOpen={commentsOpen}
-        count={commentCount}
-        onCountChange={setCommentCount}
+        liked={false}
+        disliked={false}
+        reactionCount={post.likes ?? 0}
+        commentCount={post.comments ?? 0}
+        like="display"
+        layout="bar"
+        testId="discover-post-actions"
         postAuthor={post.author_username}
         postService="posts"
+        trailing={
+          <>
+            <span
+              className="flex items-center gap-1.5 text-muted-foreground"
+              aria-label={`${post.reposts ?? 0} reposts`}
+            >
+              <Repeat2 className="h-4 w-4" strokeWidth={1.5} />
+              <span className="text-xs tabular-nums">{formatCount(post.reposts ?? 0)}</span>
+            </span>
+            <span className="ml-auto text-muted-foreground" aria-label="Share">
+              <Share2 className="h-4 w-4" strokeWidth={1.5} />
+            </span>
+          </>
+        }
       />
     </article>
   );
@@ -972,7 +961,7 @@ export default function DiscoverScreen() {
             } else {
               byAuthor.set(key, {
                 posts: [p],
-                refs: p.media_refs || [],
+                refs: [...(p.media_refs || [])],
               });
             }
           }

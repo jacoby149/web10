@@ -381,7 +381,7 @@ describe('Knob rack renders', () => {
     Element.prototype.scrollIntoView = vi.fn();
   });
 
-  it('shows the knob rack with 4 knobs and 3 presets after load', async () => {
+  it('shows the knob rack with 3 knobs and 3 presets after load', async () => {
     mockDiscoverFeed(makeV3Posts(10));
     const { default: Trending } = await import('@/pages/Trending');
     render(<Trending />);
@@ -389,10 +389,12 @@ describe('Knob rack renders', () => {
     expect(screen.getByTestId('knob-recency')).toBeInTheDocument();
     expect(screen.getByTestId('knob-likes')).toBeInTheDocument();
     expect(screen.getByTestId('knob-comments')).toBeInTheDocument();
-    expect(screen.getByTestId('knob-time')).toBeInTheDocument();
     // The Character knob (the power-mean exponent) is gone — parity with the
     // social app; the exponent is fixed at the middle (p = 0).
     expect(screen.queryByTestId('knob-character')).not.toBeInTheDocument();
+    // The Time knob (the recency half-life) is gone too — the half-life is
+    // fixed at the middle (1 day).
+    expect(screen.queryByTestId('knob-time')).not.toBeInTheDocument();
     expect(screen.getByTestId('preset-newest')).toBeInTheDocument();
     expect(screen.getByTestId('preset-most-loved')).toBeInTheDocument();
     expect(screen.getByTestId('preset-balanced')).toBeInTheDocument();

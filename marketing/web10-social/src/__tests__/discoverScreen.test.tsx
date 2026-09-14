@@ -1160,4 +1160,87 @@ describe('DiscoverScreen', () => {
     fireEvent.click(screen.getByTestId('discover-youtube-card'));
     expect(screen.queryByTestId('post-lightbox')).not.toBeInTheDocument();
   });
+
+  // ── Media isolation: one author, multiple posts ──────────────────────────
+
+  it('each post keeps only its own media when one author has multiple posts (no cross-post leak)', async () => {
+    // The regression: the per-author ref accumulator aliased the first post's
+    // media_refs array and pushed the later posts' refs into it, so the first
+    // post's per-ref filter matched ALL of the author's media — the video
+    // post rendered a carousel of the other post's media (the "blacked out"
+    // trending tile: a transcoded video's raw source file, unplayable).
+    const videoPost = {
+      _id: 'p1',
+      author: 'creator',
+      provider: 'api.web10.app',
+      post_id: 'p1',
+      author_username: 'creator',
+      author_provider: 'api.web10.app',
+      text: 'Watch this',
+      tags: ['video'],
+      media_refs: ['m1'],
+      created_at: new Date().toISOString(),
+      likes: 10,
+      comments: 2,
+      reposts: 1,
+      score: 14,
+    };
+    const imagePost = {
+      _id: 'p2',
+      author: 'creator',
+      provider: 'api.web10.app',
+      post_id: 'p2',
+      author_username: 'creator',
+      author_provider: 'api.web10.app',
+      text: 'A photo',
+      tags: ['photography'],
+      media_refs: ['m2'],
+      created_at: new Date(Date.now() - 60000).toISOString(),
+      likes: 5,
+      comments: 1,
+      reposts: 0,
+      score: 7,
+    };
+    (data.readDiscoverFeed as ReturnType<typeof vi.fn>).mockResolvedValue([videoPost, imagePost]);
+    // The real resolver returns a record per requested ref — mirror that so
+    // the leak is observable (the buggy code requests BOTH refs for the
+    // author and the filter then matches both against the first post).
+    (data.resolveMediaRefs as ReturnType<typeof vi.fn>).mockImplementation(async (refs: (string | { doc_id?: string })[]) =>
+      refs.map((r) => {
+        const id = typeof r === 'string' ? r : r.doc_id || '';
+        return {
+          _id: id,
+          url: `https://cdn.example/${id}`,
+          mime_type: id === 'm1' ? 'video/mp4' : 'image/jpeg',
+          width: 1080,
+          height: 1920,
+          created_at: new Date().toISOString(),
+        };
+      }),
+    );
+
+    const { default: DiscoverScreen } = await import('@/components/Discover/DiscoverScreen');
+    render(
+      <MemoryRouter initialEntries={['/discover']}>
+        <DiscoverScreen />
+      </MemoryRouter>,
+    );
+
+    await waitFor(() => {
+      expect(screen.getAllByTestId('discover-card').length).toBe(2);
+    });
+
+    // The video post: its own single video, inline — NO carousel.
+    expect(screen.getByTestId('discover-media-video')).toBeInTheDocument();
+    expect(screen.queryByTestId('discover-media-carousel')).not.toBeInTheDocument();
+    const video = document.querySelector('video');
+    expect(video!.getAttribute('src')).toBe('https://cdn.example/m1');
+
+    // The image post: its own image.
+    const img = document.querySelector('img[src="https://cdn.example/m2"]');
+    expect(img).toBeTruthy();
+
+    // The first post's media_refs array is never mutated by the grouping.
+    expect(videoPost.media_refs).toEqual(['m1']);
+  });
 });

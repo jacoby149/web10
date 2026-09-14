@@ -22,6 +22,7 @@ vi.mock('@/data', async (importOriginal) => {
     readPost: vi.fn().mockResolvedValue(null),
     countReactions: vi.fn().mockResolvedValue(0),
     countComments: vi.fn().mockResolvedValue(0),
+    toggleReactionKind: vi.fn().mockResolvedValue('like'),
     resolveMediaRefs: vi.fn().mockResolvedValue([]),
     readUserProfile: vi.fn().mockResolvedValue(null),
     readProfile: vi.fn().mockResolvedValue(null),
@@ -290,6 +291,34 @@ describe('FeedScreen', () => {
     });
     expect(screen.queryByTestId('post-options-button')).not.toBeInTheDocument();
     expect(screen.queryByTestId('post-lightbox')).not.toBeInTheDocument();
+  });
+
+  it('the feed post card renders the reaction pair (like + dislike) and taps report to the data layer', async () => {
+    const { readFeedPage, toggleReactionKind } = await import('@/data');
+    vi.mocked(readFeedPage).mockResolvedValueOnce({
+      posts: [
+        { _id: 'p1', text: 'a post', author_username: 'someone', author_provider: 'test.localhost', created_at: new Date().toISOString(), likes: 3, comments: 1 },
+      ],
+      has_more: false, next_cursor: null,
+    });
+    const { default: FeedScreen } = await import('@/components/Feed/FeedScreen');
+    render(
+      <MemoryRouter>
+        <FeedScreen />
+      </MemoryRouter>,
+    );
+    await waitFor(() => {
+      expect(screen.getByTestId('post-card')).toBeInTheDocument();
+    });
+    // The reaction pair (post-actions.md): both the heart and the thumb render.
+    expect(screen.getByTestId('like-button')).toBeInTheDocument();
+    expect(screen.getByTestId('dislike-button')).toBeInTheDocument();
+    // Tapping the thumb reports 'dislike' to the data layer (the mutual-exclusion
+    // swap lives there, not in the surface).
+    fireEvent.click(screen.getByTestId('dislike-button'));
+    await waitFor(() => {
+      expect(toggleReactionKind).toHaveBeenCalledWith('p1', 'dislike');
+    });
   });
 
   it('infinite scroll: the sentinel loads the next page and appends (D69)', async () => {
