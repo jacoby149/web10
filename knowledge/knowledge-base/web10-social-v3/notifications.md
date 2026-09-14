@@ -19,6 +19,22 @@ dave sent you a message · 2h ago
 charlie requested to follow · 3h ago
 ```
 
+**Every row deep-links to the place the event is about** (the address bar is
+the destination — the app's deep-link rule). Clicking a row navigates:
+
+| Type | Destination |
+|---|---|
+| reaction / comment | the post permalink on my profile — `/u/{me}/p/{post}` (a comment carries `?comment={docId}` when the row id has it — the derived row `comment:{from}:{docId}`; a live nudge's id has a timestamp tail, so it lands on the post without a highlight) |
+| reply | the post the replied-to comment lives on, that comment highlighted — `/u/{postAuthor}/p/{post}?comment={parentComment}` (a CRUD re-read on click: parent comment → its post → the post's author; a broken chain — deleted comment/post — leaves the row non-navigating) |
+| dm | the conversation — `/messages/{conversationKey}` (same-node: the sender's provider is the recipient's own) |
+| follow_request | the follower's profile — `/u/{from}` (the follow surface) |
+| group_join | the group — `/groups/{groupId}` (falls back to the groups tab when the row has no ref) |
+
+The resolver is `notificationHref(n, me)` (synchronous, pure — the row is a
+button only when it resolves; `reply` is the async exception, resolved on
+click via `resolveReplyHref`). A row with no resolvable destination renders
+as a plain list item, not a dead button.
+
 ## The Model (D69)
 
 Notifications are not a core protocol concept. They're **derived events**:
@@ -117,6 +133,7 @@ the operator's "whatever app state they are in."
 - [ ] Unread state — app-owned `notifications` service in the followers group (D60)
 - [ ] Badge + bell — `Layout` (desktop sidebar + mobile top-header) + the "N new" banner
 - [ ] The `/notifications` screen — deep-linkable history, mark-read on open
+- [✓] Row deep links — every row navigates to the place the event is about (`notificationHref` + `resolveReplyHref`; the table in "What the Screen Shows")
 - [ ] The missing primitive — `getPendingRequests` (followers group pending join requests)
 - [ ] Notification preferences — per-type toggle (reactions on/off, comments on/off)
 - [ ] Batch notifications — "15 people liked your post" instead of 15 rows (a later refinement)
