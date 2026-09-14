@@ -250,6 +250,13 @@ export function HlsVideoPlayer({ manifestUrl, poster, width, height, className }
           playsInline
           preload="auto"
           onClick={togglePlay}
+          onError={() => {
+            // The native-HLS path (iOS Safari — no MSE, so hls.js is skipped):
+            // a failed manifest/segment load fires `error` on the <video>.
+            // Without this the player sat as a silent black box.
+            LOG_ERR('hls player — native video error, code:', videoRef.current?.error?.code, 'msg:', videoRef.current?.error?.message);
+            setFailed(true);
+          }}
         />
 
         {/* Tap / hover reveals the rack; it fades out while playing + idle. */}

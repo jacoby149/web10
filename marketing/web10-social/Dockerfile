@@ -2,7 +2,8 @@
 # — the social service needs `context: ..`, like the ui service). The context
 # must be the repo root because web10-npm is a local `file:../../sdk`
 # dependency: bun install needs sdk/ in the context (same pattern as ui/).
-FROM oven/bun:1-alpine AS build
+# Mirrored to our GHCR namespace (ghcr-mirror.yml) — see e2e/mirror-images.json.
+FROM ghcr.io/jacoby149/base-bun:1-alpine AS build
 WORKDIR /app
 
 COPY marketing/web10-social/package.json marketing/web10-social/bun.lock* ./
@@ -34,8 +35,13 @@ ENV VITE_API_ORIGIN=$VITE_API_ORIGIN \
 
 RUN bun run build
 
-FROM nginx:alpine
+FROM ghcr.io/jacoby149/base-nginx:alpine
 COPY --from=build /app/dist /usr/share/nginx/html
-COPY marketing/web10-social/nginx.conf /etc/nginx/conf.d/default.conf
+# The nginx config is a TEMPLATE (the share-preview edge split, D71): the
+# nginx:alpine entrypoint envsubst's /etc/nginx/templates/*.template into
+# /etc/nginx/conf.d/ at boot, filling ${API_PROXY_TARGET} from the container
+# env (injected per env by the deploy compose). A plain conf.d copy would ship
+# the literal ${API_PROXY_TARGET} and the crawler proxy would never resolve.
+COPY marketing/web10-social/nginx.conf /etc/nginx/templates/default.conf.template
 EXPOSE 80
 CMD ["nginx", "-g", "daemon off;"]

@@ -262,6 +262,20 @@ describe('HlsVideoPlayer', () => {
     vi.restoreAllMocks();
   });
 
+  it('the native HLS path (iOS Safari) surfaces the designed error when the <video> fails', async () => {
+    uninstallHls();
+    vi.spyOn(HTMLMediaElement.prototype, 'canPlayType').mockReturnValue('probably');
+    const { HlsVideoPlayer } = await import('@/components/Feed/HlsVideoPlayer');
+    render(<HlsVideoPlayer manifestUrl="/v3/media/hls/manifest?doc_id=m1&sig=abc" />);
+    const video = screen.getByTestId('hls-video') as HTMLVideoElement;
+    // iOS Safari has no MSE → hls.js is skipped → the native <video> loads the
+    // manifest. A failed fetch (expired sig / 403 / network) fires `error`;
+    // without the handler the player sat as a silent black box.
+    fireEvent.error(video);
+    expect(await screen.findByTestId('hls-player-error')).toBeInTheDocument();
+    vi.restoreAllMocks();
+  });
+
   it('shows a designed error state when no HLS support exists', async () => {
     uninstallHls();
     vi.spyOn(HTMLMediaElement.prototype, 'canPlayType').mockReturnValue('');

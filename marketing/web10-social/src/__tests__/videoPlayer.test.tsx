@@ -76,6 +76,18 @@ describe('VideoPlayer — the shared video surface (video-player.md)', () => {
     expect(video.getAttribute('src')).toBe('http://x/v.mp4');
   });
 
+  it('file source + full surfaces the designed error when the native load fails', async () => {
+    const { VideoPlayer } = await import('@/components/Feed/VideoPlayer');
+    render(<VideoPlayer source={{ type: 'file', url: 'http://x/v.mp4' }} mode="full" testId="vp-full" />);
+    const video = screen.getByTestId('vp-full') as HTMLVideoElement;
+    // A failed load (403/404/expired presigned URL, undecodable codec) fires
+    // `error` on the <video> — the player must degrade to the designed state,
+    // not a silent black box (the iOS Safari gap).
+    fireEvent.error(video);
+    expect(await screen.findByTestId('video-error')).toBeInTheDocument();
+    expect(screen.queryByTestId('vp-full')).toBeNull();
+  });
+
   it('youtube source renders an iframe (the Shorts path — a source case, not a component)', async () => {
     const { VideoPlayer } = await import('@/components/Feed/VideoPlayer');
     render(<VideoPlayer source={{ type: 'youtube', id: 'abc123' }} mode="inline" testId="vp-yt" />);

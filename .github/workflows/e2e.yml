@@ -56,6 +56,17 @@ jobs:
     steps:
       - uses: actions/checkout@v7
 
+      # Pull the mirrored base + runtime images (base-minio, base-clickhouse,
+      # base-nginx-proxy, base-bun, ...) from OUR GHCR namespace with a token —
+      # authenticated pulls get 1000/h vs the 100/6h anonymous Docker Hub limit
+      # that was flaking these shards. See e2e/mirror-images.json + ghcr-mirror.yml.
+      - name: Log in to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
       - name: Setup Playwright
         working-directory: e2e
         run: |
