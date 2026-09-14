@@ -155,7 +155,7 @@ function MediaGrid({ mediaItems }: { mediaItems: MediaRecord[] }) {
   return <MediaCarousel items={mediaItems} fit="contain" maxHeight="60vh" testId="media-carousel" />;
 }
 
-interface PostCardProps {
+export interface PostCardProps {
   post: PostRecord;
   authorName: string;
   authorUsername?: string;
@@ -174,9 +174,12 @@ interface PostCardProps {
   postService?: string;
   isOwnPost?: boolean;
   onPostUpdated?: () => void;
+  testId?: string;
 }
 
-function PostCard({
+// Exported so other surfaces (the profile's feed view) can compose the same
+// card — the feed is the reference renderer, no surface re-implements it.
+export function PostCard({
   post,
   authorName,
   authorUsername,
@@ -195,6 +198,7 @@ function PostCard({
   postService,
   isOwnPost,
   onPostUpdated,
+  testId = 'post-card',
 }: PostCardProps) {
   // Owner actions (previously the lightbox's job — the feed is now inline).
   const [menuOpen, setMenuOpen] = useState(false);
@@ -280,7 +284,7 @@ function PostCard({
 
   return (
     <article
-      data-testid="post-card"
+      data-testid={testId}
       className={cn(
         'bg-card border-b border-border md:border md:rounded-lg md:mb-4 overflow-hidden',
         'glow-card transition-all duration-150',
