@@ -1,9 +1,10 @@
-FROM python:3.12-slim AS build
+# Mirrored to our GHCR namespace (ghcr-mirror.yml) — see e2e/mirror-images.json.
+FROM ghcr.io/jacoby149/base-python:3.12-slim AS build
 WORKDIR /app
 COPY pyproject.toml uv.lock ./
 RUN pip install --no-cache-dir uv && uv sync --frozen
 
-FROM python:3.12-slim
+FROM ghcr.io/jacoby149/base-python:3.12-slim
 WORKDIR /app
 COPY --from=build /app/.venv /app/.venv
 COPY app ./app
