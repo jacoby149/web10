@@ -111,6 +111,90 @@ describe('media data layer (v3) — the real functions', () => {
       expect(parentCall.thumbnail_object_key).toBe('alice/thumb.webp');
       expect(record.thumbnail_object_key).toBe('alice/thumb.webp');
     });
+
+    describe('onProgress — the XHR upload path', () => {
+      // fetch() can't report upload progress, so uploadMedia switches to XHR
+      // when onProgress is provided. This mock records the progress events.
+      class MockXHR {
+        upload: { onprogress: ((e: { lengthComputable: boolean; loaded: number; total: number }) => void) | null } = {
+          onprogress: null,
+        };
+        onload: (() => void) | null = null;
+        onerror: (() => void) | null = null;
+        status = 200;
+        url = '';
+        sentBody: FormData | null = null;
+        open(_method: string, url: string) {
+          this.url = url;
+        }
+        send(body: FormData) {
+          this.sentBody = body;
+          this.upload.onprogress?.({ lengthComputable: true, loaded: 25, total: 100 });
+          this.upload.onprogress?.({ lengthComputable: true, loaded: 100, total: 100 });
+          this.onload?.();
+        }
+      }
+      let lastXhr: MockXHR;
+
+      beforeEach(() => {
+        vi.stubGlobal(
+          'XMLHttpRequest',
+          class extends MockXHR {
+            constructor() {
+              super();
+              lastXhr = this;
+            }
+          },
+        );
+      });
+
+      it('reports the upload fraction via onProgress (XHR, not fetch)', async () => {
+        const onProgress = vi.fn();
+        await uploadMedia({ file: pngFile(), onProgress });
+        // The progress callback saw the fractions, ending at 1
+        expect(onProgress).toHaveBeenCalledWith(0.25);
+        expect(onProgress).toHaveBeenLastCalledWith(1);
+        // The file went out over the XHR to the presigned URL
+        expect(lastXhr.url).toBe('https://minio.example.com/bucket');
+        expect(lastXhr.sentBody).toBeInstanceOf(FormData);
+        expect((lastXhr.sentBody as FormData).get('file')).toBeInstanceOf(File);
+        // fetch was NOT used for the upload (only the transcode queue, which
+        // is skipped here — no token cookie)
+        expect(fetchMock).not.toHaveBeenCalled();
+      });
+
+      it('throws when the XHR upload returns a non-2xx status', async () => {
+        vi.stubGlobal(
+          'XMLHttpRequest',
+          class extends MockXHR {
+            status = 413;
+            constructor() {
+              super();
+              lastXhr = this;
+            }
+          },
+        );
+        await expect(uploadMedia({ file: pngFile(), onProgress: vi.fn() })).rejects.toThrow(
+          'Media upload failed: 413',
+        );
+        expect(mock.confirmMediaUpload).not.toHaveBeenCalled();
+      });
+
+      it('throws a network error when the XHR fails (the "Failed to fetch" class)', async () => {
+        vi.stubGlobal(
+          'XMLHttpRequest',
+          class extends MockXHR {
+            send(_body: FormData) {
+              this.onerror?.();
+            }
+          },
+        );
+        await expect(uploadMedia({ file: pngFile(), onProgress: vi.fn() })).rejects.toThrow(
+          'Media upload failed: network error',
+        );
+        expect(mock.confirmMediaUpload).not.toHaveBeenCalled();
+      });
+    });
   });
 
   describe('uploadMedia — video (D44 transcode queue)', () => {

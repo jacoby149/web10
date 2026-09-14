@@ -201,6 +201,7 @@ export async function followUser(): Promise<unknown> { return {}; }
 export async function unfollowUser(): Promise<void> {}
 export async function uploadMedia(): Promise<{ url: string }> { return { url: '' }; }
 export async function fanOutToFollowers(): Promise<void> {}
+export async function readMyAds(): Promise<{ ads: unknown[]; albums: unknown[] }> { return { ads: [], albums: [] }; }
 export async function refreshMediaUrls<T>(records: T[]): Promise<T[]> { return records; }
 export async function readComments(): Promise<unknown[]> { return []; }
 export async function createComment(): Promise<unknown> { return {}; }
