@@ -274,6 +274,8 @@ export function resetWapi(): void {}
 export async function sendDmMulti(): Promise<unknown> { return {}; }
 export async function updateComment(): Promise<void> {}
 export async function updateFollowNotify(): Promise<void> {}
+export async function setReaction(): Promise<null> { return null; }
+export async function toggleReactionKind(): Promise<null> { return null; }
 
 // ── Groups (screenshot seed) ───────────────────────────────────────────────
 // The Groups screen (My Groups + Discover) and its detail read these. Seeded

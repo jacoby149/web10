@@ -6,7 +6,8 @@ import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
 import {
   readFeedPage,
-  toggleReaction,
+  toggleReactionKind,
+  type ReactionKind,
   readSettings,
   saveSettings,
   updatePost,
@@ -23,11 +24,11 @@ import {
   type KnobState,
 } from '@/lib/powerMean';
 import { KnobRack } from '@/components/Discover/KnobRack';
-import { Heart, MessageCircle, MoreHorizontal, Share2, Check, Edit3, Eye, EyeOff, Trash2 } from 'lucide-react';
+import { MoreHorizontal, Share2, Check, Edit3, Eye, EyeOff, Trash2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { MARKETING_ORIGIN } from '@/lib/origins';
 import { Textarea } from '@/components/ui/textarea';
-import { CommentThread } from './CommentThread';
+import { PostActions } from './PostActions';
 import { TextWithLinks } from './LinkEmbed';
 import { AdBlock } from './AdBlock';
 import { VideoPlayer, sourceFromMedia } from './VideoPlayer';
@@ -164,8 +165,9 @@ interface PostCardProps {
   reactionCount: number;
   commentCount: number;
   liked: boolean;
+  disliked: boolean;
   timestamp: string;
-  onToggleLike: () => void;
+  onToggleReaction: (kind: ReactionKind) => void;
   onCommentCountChange: (n: number) => void;
   onAuthorClick?: (username: string, provider: string) => void;
   postAuthor?: string;
@@ -184,8 +186,9 @@ function PostCard({
   reactionCount,
   commentCount,
   liked,
+  disliked,
   timestamp,
-  onToggleLike,
+  onToggleReaction,
   onCommentCountChange,
   onAuthorClick,
   postAuthor,
@@ -193,11 +196,6 @@ function PostCard({
   isOwnPost,
   onPostUpdated,
 }: PostCardProps) {
-  const [commentsOpen, setCommentsOpen] = useState(false);
-  const [localCount, setLocalCount] = useState(commentCount);
-  const [burstKey, setBurstKey] = useState(0);
-  const prevLiked = useRef(liked);
-
   // Owner actions (previously the lightbox's job — the feed is now inline).
   const [menuOpen, setMenuOpen] = useState(false);
   const [editing, setEditing] = useState(false);
@@ -206,13 +204,6 @@ function PostCard({
   const [deleteConfirm, setDeleteConfirm] = useState(false);
   const [copied, setCopied] = useState(false);
   const [togglingVisibility, setTogglingVisibility] = useState(false);
-
-  useEffect(() => {
-    if (liked && !prevLiked.current) {
-      setBurstKey((k) => k + 1);
-    }
-    prevLiked.current = liked;
-  }, [liked]);
 
   // Close the owner menu on Escape.
   useEffect(() => {
@@ -443,41 +434,23 @@ function PostCard({
         </div>
       ) : null}
 
-      <div className="flex items-center gap-1 px-2 py-2">
-        <button
-          key={burstKey}
-          data-testid="like-button"
-          aria-pressed={liked}
-          onClick={(e) => { e.stopPropagation(); onToggleLike(); }}
-          className={cn(
-            'flex items-center gap-1.5 px-2.5 py-2 rounded-lg min-h-10 text-sm transition-all duration-150',
-            liked
-              ? 'text-danger'
-              : 'text-muted-foreground hover:text-foreground hover:bg-elevated/80',
-            liked && 'animate-heart-burst',
-          )}
-        >
-          <Heart
-            className={cn(
-              'w-[18px] h-[18px] transition-all duration-150',
-              liked && 'drop-shadow-[0_0_6px_rgba(239,68,68,0.4)]',
-            )}
-            strokeWidth={1.75}
-            fill={liked ? 'currentColor' : 'none'}
+      <div className="flex items-center">
+        <div className="flex-1 min-w-0">
+          <PostActions
+            postId={post._id || ''}
+            liked={liked}
+            disliked={disliked}
+            reactionCount={reactionCount}
+            commentCount={commentCount}
+            onToggleReaction={onToggleReaction}
+            onCommentCountChange={onCommentCountChange}
+            postAuthor={postAuthor}
+            postService={postService}
+            dislike="interactive"
           />
-          <span className="tabular-nums">{reactionCount || ''}</span>
-        </button>
-        <button
-          data-testid="comment-button"
-          aria-expanded={commentsOpen}
-          onClick={(e) => { e.stopPropagation(); setCommentsOpen((o) => !o); }}
-          className="flex items-center gap-1.5 px-2.5 py-2 rounded-lg min-h-10 text-sm text-muted-foreground hover:text-foreground hover:bg-elevated/80 transition-all duration-150"
-        >
-          <MessageCircle className="w-[18px] h-[18px]" strokeWidth={1.75} />
-          <span className="tabular-nums">{localCount || ''}</span>
-        </button>
+        </div>
         {(post.origin || 'web10') !== 'web10' && (
-          <Badge variant="brand_glow" className="ml-auto mr-2">
+          <Badge variant="brand_glow" className="ml-auto mr-2 shrink-0">
             {post.origin}
           </Badge>
         )}
@@ -492,18 +465,6 @@ function PostCard({
           {post.node_ad && <AdBlock ad={post.node_ad} />}
         </div>
       )}
-
-      <CommentThread
-        postId={post._id || ''}
-        isOpen={commentsOpen}
-        count={localCount}
-        postAuthor={postAuthor}
-        postService={postService}
-        onCountChange={(n) => {
-          setLocalCount(n);
-          onCommentCountChange(n);
-        }}
-      />
     </article>
   );
 }
@@ -555,6 +516,7 @@ export default function FeedScreen({ onAuthorClick }: { onAuthorClick?: (usernam
   const [reactionMap, setReactionMap] = useState<Record<string, number>>({});
   const [commentMap, setCommentMap] = useState<Record<string, number>>({});
   const [likedMap, setLikedMap] = useState<Record<string, boolean>>({});
+  const [dislikedMap, setDislikedMap] = useState<Record<string, boolean>>({});
   const sentinelRef = useRef<HTMLDivElement>(null);
   const token = getWapi().readToken();
   // v3 ownership is by username alone: a post's author_key is the bare
@@ -726,18 +688,29 @@ export default function FeedScreen({ onAuthorClick }: { onAuthorClick?: (usernam
   // The node returns the feed pre-ranked (the D36 power-mean sort,
   // server-side) — `posts` is already in display order, no client re-rank.
 
-  async function handleToggleLike(postId: string) {
+  // The reaction pair (post-actions.md): like XOR dislike, one reaction per
+  // user. Optimistic update of BOTH maps (a swap moves the count, a clear
+  // drops it), rollback on error. The data layer (toggleReactionKind)
+  // enforces the mutual exclusion server-side.
+  async function handleToggleReaction(postId: string, kind: ReactionKind) {
     const token = getWapi().readToken();
     if (!token) return;
-    setLikedMap((prev) => ({ ...prev, [postId]: !prev[postId] }));
-    setReactionMap((prev) => ({ ...prev, [postId]: (prev[postId] || 0) + (likedMap[postId] ? -1 : 1) }));
+    const wasLiked = !!likedMap[postId];
+    const wasDisliked = !!dislikedMap[postId];
+    const nextLiked = kind === 'like' ? !wasLiked : false;
+    const nextDisliked = kind === 'dislike' ? !wasDisliked : false;
+    const delta = (nextLiked ? 1 : 0) - (wasLiked ? 1 : 0);
+    setLikedMap((prev) => ({ ...prev, [postId]: nextLiked }));
+    setDislikedMap((prev) => ({ ...prev, [postId]: nextDisliked }));
+    setReactionMap((prev) => ({ ...prev, [postId]: Math.max(0, (prev[postId] || 0) + delta) }));
     try {
-      await toggleReaction(postId, 'like', token.username, token.provider);
+      await toggleReactionKind(postId, kind);
     } catch (e) {
       console.error('Failed to toggle reaction:', e);
-      toast.error(errorMessage(e, 'Could not update your like.'));
-      setLikedMap((prev) => ({ ...prev, [postId]: !prev[postId] }));
-      setReactionMap((prev) => ({ ...prev, [postId]: (prev[postId] || 0) + (likedMap[postId] ? 1 : -1) }));
+      toast.error(errorMessage(e, 'Could not update your reaction.'));
+      setLikedMap((prev) => ({ ...prev, [postId]: wasLiked }));
+      setDislikedMap((prev) => ({ ...prev, [postId]: wasDisliked }));
+      setReactionMap((prev) => ({ ...prev, [postId]: Math.max(0, (prev[postId] || 0) - delta) }));
     }
   }
 
@@ -789,8 +762,9 @@ export default function FeedScreen({ onAuthorClick }: { onAuthorClick?: (usernam
                   reactionCount={reactionMap[post._id || ''] || 0}
                   commentCount={commentMap[post._id || ''] || 0}
                   liked={!!likedMap[post._id || '']}
+                  disliked={!!dislikedMap[post._id || '']}
                   timestamp={post.created_at}
-                  onToggleLike={() => handleToggleLike(post._id || '')}
+                  onToggleReaction={(kind) => handleToggleReaction(post._id || '', kind)}
                   onCommentCountChange={(n) =>
                     setCommentMap((prev) => ({ ...prev, [post._id || '']: n }))
                   }

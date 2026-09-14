@@ -152,6 +152,85 @@ export async function deleteReaction(id: string): Promise<void> {
   await w.delete(id);
 }
 
+export type ReactionKind = 'like' | 'dislike';
+
+/**
+ * Set the user's reaction on a target to exactly `kind` ('like' | 'dislike')
+ * or clear it (null). Enforces the one-reaction-per-user invariant (like XOR
+ * dislike, post-actions.md): reads the user's existing reaction on the target,
+ * deletes whichever of the two is present, and creates the new one when
+ * kind !== null.
+ *
+ * `toggleReaction` stays for the single-type case — it only toggles the type
+ * you pass and would let a user hold a like AND a dislike. This composes
+ * readReactions + deleteReaction + createReaction so the mutual exclusion is
+ * a property of the data layer, not a per-surface discipline.
+ *
+ * Returns the reaction the user holds after the call (kind, or null).
+ */
+export async function setReaction(
+  targetId: string,
+  kind: ReactionKind | null,
+  groups?: string[],
+): Promise<ReactionKind | null> {
+  const w = getV3Client();
+  const token = w.readToken();
+  if (!token) throw new Error('not authenticated');
+
+  const existing = await readReactions(targetId, undefined, groups);
+  const mine = existing.find(
+    (r) =>
+      r.author_username === token.username &&
+      r.author_provider === token.provider &&
+      (r.type === 'like' || r.type === 'dislike'),
+  );
+
+  if (mine && mine.type !== kind) {
+    await deleteReaction(mine._id!);
+  }
+  if (kind && (!mine || mine.type !== kind)) {
+    await createReaction({
+      target_service: 'posts',
+      target_id: targetId,
+      type: kind,
+      created_at: new Date().toISOString(),
+      author_username: token.username,
+      author_provider: token.provider,
+    }, groups);
+  }
+  return kind;
+}
+
+/**
+ * Toggle the user's reaction of `kind` on a target: if the user already holds
+ * `kind`, clear it (null); otherwise set it (swapping out the other kind —
+ * like XOR dislike, post-actions.md). This is the tap handler's call: the
+ * component says "the user tapped the heart" / "the user tapped the thumb",
+ * and the data layer resolves it against the user's current reaction.
+ *
+ * Returns the reaction the user holds after the call (kind, or null).
+ */
+export async function toggleReactionKind(
+  targetId: string,
+  kind: ReactionKind,
+  groups?: string[],
+): Promise<ReactionKind | null> {
+  const w = getV3Client();
+  const token = w.readToken();
+  if (!token) throw new Error('not authenticated');
+
+  const existing = await readReactions(targetId, undefined, groups);
+  const mine = existing.find(
+    (r) =>
+      r.author_username === token.username &&
+      r.author_provider === token.provider &&
+      (r.type === 'like' || r.type === 'dislike'),
+  );
+
+  const next: ReactionKind | null = mine?.type === kind ? null : kind;
+  return setReaction(targetId, next, groups);
+}
+
 /**
  * Count reactions on a target.
  * @param targetServiceOrId - target service or targetId (v2 compat)

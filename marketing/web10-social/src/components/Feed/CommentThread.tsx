@@ -16,9 +16,12 @@ interface CommentThreadProps {
   postAuthor?: string;
   postService?: string;
   highlightedCommentId?: string;
+  /** The group the post lives in (group posts — comments attach to the group,
+   *  not the discover board). */
+  groups?: string[];
 }
 
-export function CommentThread({ postId, isOpen, onCountChange, postAuthor, postService, highlightedCommentId }: CommentThreadProps) {
+export function CommentThread({ postId, isOpen, onCountChange, postAuthor, postService, highlightedCommentId, groups }: CommentThreadProps) {
   const [comments, setComments] = useState<CommentRecord[]>([]);
   const [loading, setLoading] = useState(true);
   const [draft, setDraft] = useState('');
@@ -30,7 +33,7 @@ export function CommentThread({ postId, isOpen, onCountChange, postAuthor, postS
     if (!isOpen) return;
     let cancelled = false;
     setLoading(true);
-    readComments(postId)
+    readComments(postId, groups)
       .then((list) => {
         if (!cancelled) setComments(list);
       })
@@ -41,7 +44,7 @@ export function CommentThread({ postId, isOpen, onCountChange, postAuthor, postS
     return () => {
       cancelled = true;
     };
-  }, [isOpen, postId]);
+  }, [isOpen, postId, groups]);
 
   // Scroll to + flash the anchored comment once comments are loaded
   useEffect(() => {
@@ -65,7 +68,7 @@ export function CommentThread({ postId, isOpen, onCountChange, postAuthor, postS
         post_id: postId,
         text: draft.trim(),
         created_at: new Date().toISOString(),
-      }, postAuthor, postService);
+      }, groups ?? postAuthor, postService);
       const next = [...comments, created];
       setComments(next);
       onCountChange(next.length);
