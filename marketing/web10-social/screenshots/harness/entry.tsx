@@ -19,11 +19,13 @@ import GroupDetailScreen from '@/components/Groups/GroupDetailScreen';
 import FeedScreen from '@/components/Feed/FeedScreen';
 import NotificationsScreen from '@/components/Notifications/NotificationsScreen';
 import DiscoverScreen from '@/components/Discover/DiscoverScreen';
+import PostComposer from '@/components/Feed/PostComposer';
 
 const screen = new URLSearchParams(window.location.search).get('screen');
 const initialRoute =
   screen === 'settings' ? '/settings'
   : screen === 'feed' ? '/feed'
+  : screen === 'composer' ? '/composer'
   : screen === 'notifications' ? '/notifications'
    : screen === 'discover' ? '/discover'
    : screen === 'discover-youtube' ? '/discover?view=youtube'
@@ -37,6 +39,7 @@ createRoot(document.getElementById('root')!).render(
     <Routes>
       <Route element={<Layout onLogout={() => {}} onReportBug={() => {}} />}>
         <Route path="/feed" element={<FeedScreen />} />
+        <Route path="/composer" element={<PostComposer />} />
         <Route path="/notifications" element={<NotificationsScreen />} />
         <Route path="/discover" element={<DiscoverScreen />} />
         <Route path="/messages/*" element={<DmsScreen />} />
