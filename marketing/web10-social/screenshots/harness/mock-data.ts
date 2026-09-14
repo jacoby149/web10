@@ -605,6 +605,8 @@ const DISCOVER_MEDIA: Record<string, Record<string, unknown>> = {
   'dm-landscape': { ...creative('LIVE SET', 1280, 720, '#8b5cf6', '#2e1065'), _id: 'dm-landscape' },
   'dm-portrait': { ...creative('VERTICAL', 720, 1280, '#7c3aed', '#4c1d95'), _id: 'dm-portrait' },
   'dm-clip3': { ...creative('STILL', 1600, 900, '#a78bfa', '#1e1b4b'), _id: 'dm-clip3' },
+  'dm-portrait2': { ...creative('STUDIO', 720, 1280, '#0ea5e9', '#0c4a6e'), _id: 'dm-portrait2' },
+  'dm-portrait3': { ...creative('BACKSTAGE', 720, 1280, '#f59e0b', '#78350f'), _id: 'dm-portrait3' },
 };
 
 const DISCOVER_POSTS: SeedDiscoverPost[] = [
@@ -660,9 +662,52 @@ const DISCOVER_POSTS: SeedDiscoverPost[] = [
     reposts: 8,
     media_refs: ['dm-landscape', 'dm-portrait', 'dm-clip3'],
   },
+  {
+    _id: 'dp-5',
+    author: 'luna',
+    author_username: 'luna',
+    author_provider: 'web10',
+    text: 'Studio b-roll — the way it actually looks between takes.',
+    created_at: minsAgo(90),
+    tags: ['short', 'video'],
+    likes: 156,
+    comments: 19,
+    reposts: 4,
+    media_refs: ['dm-portrait2'],
+  },
+  {
+    _id: 'dp-6',
+    author: 'kai',
+    author_username: 'kai',
+    author_provider: 'web10',
+    text: 'Backstage before the stream. 3… 2… 1…',
+    created_at: minsAgo(200),
+    tags: ['short', 'video'],
+    likes: 98,
+    comments: 11,
+    reposts: 2,
+    media_refs: ['dm-portrait3'],
+  },
 ];
 
 export async function readDiscoverFeed(): Promise<unknown[]> { return DISCOVER_POSTS; }
+// The Shorts feed (shorts.md): the discover board filtered to genuine shorts —
+// a post whose single media is a REAL 9:16 video, re-derived from the resolved
+// media (the render-time gate), not the client-asserted `short` tag.
+export async function readShortsFeed(): Promise<{ post: unknown; media: unknown }[]> {
+  const shorts: { post: unknown; media: unknown }[] = [];
+  for (const p of DISCOVER_POSTS) {
+    if (!p.media_refs?.length) continue;
+    const media = p.media_refs.map((id) => DISCOVER_MEDIA[id]).filter(Boolean);
+    const vertical = media.filter(
+      (m) => (m.mime_type as string)?.startsWith('video/') && m.width && m.height && m.width < m.height,
+    );
+    if (vertical.length === 1 && p.media_refs.length === 1) {
+      shorts.push({ post: p, media: vertical[0] });
+    }
+  }
+  return shorts;
+}
 // The Discover screen resolves a post's media_refs to MediaRecords. The mock
 // maps the seeded doc_ids to the creatives above (url + thumbnail + dims).
 export async function resolveMediaRefs<T>(refs: T[]): Promise<T[]> {

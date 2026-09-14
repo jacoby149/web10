@@ -601,6 +601,27 @@ Spec'd in `knowledge-base/web10-v3/social/bug-reports.md`. Lane is `bugbot` in
 - [✓ 3.79.0] **Tests** (`api/tests/test_bugbot.py`) — provisioning idempotency; delivery to every admin (group contract = the DM shape, doc authored by `bugbot`, body shape, `report_id` + screenshot count present); the admin-created-first group shape is found, not re-created; no admins → no-op; delivery failure → submit still 200 + logged; the I3 boundary pinned compositionally (the doc attaches only to the DM groups; the group's members are bot + admin; the D58 read gate is conformance-pinned).
 - [ ] **v1** — the admin review queue UI (browse `bug_reports` in the console, fetch screenshots from the detail endpoint); email as a second channel (needs a provider decision).
 
+## Shorts: The Vertical Short-Form Feed — web10-social
+
+The TikTok answer, built on the existing spine: a short is a `posts` doc on the
+discover group whose single media is a **real 9:16 video** — no new collection,
+no new group (a post appears in a feed because it's attached to a group the
+reader can read, so the Shorts feed is a *view* over the discover group,
+filtered to shorts). The load-bearing security property: the feed applies a
+**render-time gate** — a post is a short only if its single media is `video/*`
+AND `width < height`, re-derived from the *resolved* media, not trusted from the
+client-asserted `short` tag (MinIO returns the *declared* Content-Type;
+`confirm_media_upload` stores client dims as-is — so a faked short is dropped at
+render). Spec'd in `knowledge-base/web10-v3/social/shorts.md`.
+
+- [✓ 3.88.0] **KB** (`social/shorts.md`) — the design (a short is a post, the feed is a filtered view), the write (one-line `tags`), the read + the render-time gate, the "can you fake a short?" trust-boundary table, the SDK/API check findings, the v1.5 server-filter follow-up.
+- [✓ 3.88.0] **The write** — `createPost` writes `tags` (`posts.ts`); the composer sets `['short']` on a 9:16 video (`PostComposer.tsx`, auto-detect, no toggle).
+- [✓ 3.88.0] **The read + gate** (`feed.ts` `readShortsFeed`) — read discover, resolve media, keep only genuine single 9:16 videos (the anti-hack seam).
+- [✓ 3.88.0] **The surface** (`ShortsScreen.tsx`, `/shorts` + `/shorts/:postId`) — full-screen vertical scroll-snap feed, `<VideoPlayer>` per slide, author/caption overlay, like/comment/share rail, deep-link scroll-to-post.
+- [✓ 3.88.0] **Nav** — Shorts promoted from coming-soon to a real destination (desktop sidebar + the mobile More sheet; the bottom bar stays at five).
+- [✓ 3.88.0] **Tests** — `feed.test.ts` +2 driving the gate (real 9:16 kept; faked image / lying-ratio / multi-media dropped; untagged 9:16 kept) + `socialScreens.test.tsx` re-pinned.
+- [ ] **v1.5** — the server-side `has(tags, 'short')` filter on `read`/`feed` (the idiom the node-ad read already uses, `clickhouse.py:2419`) so the feed pulls only shorts; optional ffmpeg-stamped dimension verification in the transcode worker (the truly bulletproof version).
+
 ## Phase 4 — Production Cutover: v2 → v3, then merge to main
 
 **Where:** `knowledge/knowledge-base/web10-v3/` (migration model), `api/` (migration tooling), `ubuntu-deployment/` (prod deploy)

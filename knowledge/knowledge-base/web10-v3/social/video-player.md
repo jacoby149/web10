@@ -110,7 +110,7 @@ The invariant that makes the inline modality feel right: **in `inline` mode, a t
 ## What this is not
 
 - **Not a rewrite of the player.** `HlsVideoPlayer` is kept as-is and is the `hls` source renderer — `<VideoPlayer>` delegates to it for transcoded video (it is the full-rack implementation). The behavior is preserved; only *when* it's used moves (the surface says `source={{type:'hls'}}`, the component picks the player).
-- **Not the immersive vertical feed.** The full-screen swipe-between-posts Reels surface is a separate, later surface. It composes the same `<VideoPlayer mode="inline">`, but the swipe container is its own thing.
+- **Not the immersive vertical feed.** The full-screen swipe-between-posts surface is specified in `shorts.md` — it composes the same `<VideoPlayer mode="inline">`, and the swipe container is its own thing.
 - **Not a change to the node.** The ratio policy, the renditions, the manifest minting — all untouched. This is client-side only.
 
 ## Open questions

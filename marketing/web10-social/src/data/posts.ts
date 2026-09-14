@@ -43,6 +43,10 @@ export async function createPost(
     location: post.location,
     mentions: post.mentions,
     encrypted: post.encrypted,
+    // Tags are a first-class column the read side already maps (fromV3DocToPost).
+    // The composer sets ['short'] for a 9:16 video post (shorts.md) — the
+    // server-side feed filter keys off has(tags, 'short').
+    tags: post.tags,
   };
 
   // Default groups based on visibility

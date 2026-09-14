@@ -21,6 +21,7 @@ interface LayoutProps {
 // icons — room to grow as surfaces ship.
 const feedItem = { path: '/feed', icon: Home, label: 'Feed', testId: 'nav-feed' };
 const discoverItem = { path: '/discover', icon: Compass, label: 'Discover', testId: 'nav-discover' };
+const shortsItem = { path: '/shorts', icon: Clapperboard, label: 'Shorts', testId: 'nav-shorts' };
 const messagesItem = { path: '/messages', icon: MessageSquare, label: 'Messages', testId: 'nav-messages' };
 const profileItem = { path: '/profile', icon: User, label: 'Profile', testId: 'nav-profile' };
 // Real destinations demoted from the bottom bar into the "More" sheet (and
@@ -32,15 +33,15 @@ const settingsItem = { path: '/settings', icon: Settings, label: 'Settings', tes
 const bottomNavItems = [feedItem, discoverItem, messagesItem, profileItem];
 // Desktop sidebar keeps its historical order (Feed, Discover, Groups,
 // Profile, Messages, Settings) — the bottom bar reorders for thumb-reach,
-// the sidebar doesn't need to follow it.
-const sidebarNavItems = [feedItem, discoverItem, groupsItem, profileItem, messagesItem, settingsItem];
+// the sidebar doesn't need to follow it. Shorts sits after Discover (the
+// video surfaces group together).
+const sidebarNavItems = [feedItem, discoverItem, shortsItem, groupsItem, profileItem, messagesItem, settingsItem];
 
-// Provisional, non-infringing names for the ephemeral-post and short-video
-// surfaces (Flares ≈ stories, a brief bright signal you send up; Takes ≈
-// reels, a film take). Names are placeholders pending operator sign-off.
+// Provisional, non-infringing names for the surfaces not yet built. Shorts is
+// now a real surface (shorts.md) — it lives in the sidebar + the More sheet,
+// not here. Names are placeholders pending operator sign-off.
 const comingSoonItems = [
-  { icon: Zap, label: 'Flares', testId: 'nav-flares' },
-  { icon: Clapperboard, label: 'Takes', testId: 'nav-takes' },
+  { icon: Zap, label: 'Stories', testId: 'nav-stories' },
   { icon: Radio, label: 'Livestream', testId: 'nav-livestream' },
   { icon: Gamepad2, label: 'Games', testId: 'nav-games' },
   { icon: Store, label: 'Marketplace', testId: 'nav-marketplace' },
@@ -446,6 +447,17 @@ export default function Layout({ onLogout, onReportBug, children }: LayoutProps)
               </div>
 
               <div className="space-y-1">
+                <button
+                  data-testid="nav-shorts-mobile"
+                  onClick={() => go(shortsItem.path)}
+                  className={cn(
+                    'w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors duration-150',
+                    isActive(shortsItem.path) ? 'bg-brand-muted text-brand-300' : 'text-foreground hover:bg-elevated',
+                  )}
+                >
+                  <Clapperboard className="w-5 h-5" strokeWidth={1.75} />
+                  {shortsItem.label}
+                </button>
                 <button
                   data-testid="nav-settings-mobile"
                   onClick={() => go(settingsItem.path)}
