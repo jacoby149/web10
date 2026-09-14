@@ -12,6 +12,7 @@ const AVATAR_REF = { doc_id: 'avatar-doc', read_url: 'https://cdn/avatar.png', m
 const BANNER_REF = { doc_id: 'banner-doc', read_url: 'https://cdn/banner.png', mime_type: 'image/png', object_key: 'obj/bn' };
 const POST_MEDIA_1 = { doc_id: 'pm1', read_url: 'https://cdn/pm1.png', mime_type: 'image/png', object_key: 'obj/pm1' };
 const POST_MEDIA_2 = { doc_id: 'pm2', read_url: 'https://cdn/pm2.png', mime_type: 'image/png', object_key: 'obj/pm2' };
+const VIDEO_REF = { doc_id: 'vid1', read_url: 'https://cdn/vid1.mp4', mime_type: 'video/mp4', thumbnail_url: 'https://cdn/vid1-thumb.jpg' };
 
 const mockReadProfile = vi.fn().mockResolvedValue({
   _id: 'profile-1',
@@ -40,6 +41,7 @@ const mockResolveMediaRefs = vi.fn().mockImplementation((refs: (string | { doc_i
       if (id === BANNER_REF.doc_id) return { _id: id, url: BANNER_REF.read_url, created_at: '', mime_type: 'image/png' };
       if (id === POST_MEDIA_1.doc_id) return { _id: id, url: POST_MEDIA_1.read_url, created_at: '', mime_type: 'image/png' };
       if (id === POST_MEDIA_2.doc_id) return { _id: id, url: POST_MEDIA_2.read_url, created_at: '', mime_type: 'image/png' };
+      if (id === VIDEO_REF.doc_id) return { _id: id, url: VIDEO_REF.read_url, created_at: '', mime_type: 'video/mp4', thumbnail_url: VIDEO_REF.thumbnail_url };
       return { _id: id, url: `https://cdn/${id}.png`, created_at: '', mime_type: 'image/png' };
     }),
   ),
@@ -202,6 +204,36 @@ describe('Profile face lightbox — the Facebook-like "your profile picture is a
     fireEvent.click(screen.getByTestId('profile-avatar'));
     await screen.findByTestId('profile-media-picker');
     expect(screen.queryByTestId('profile-media-pick')).not.toBeInTheDocument();
-    expect(screen.getByText(/Post a photo or video first/i)).toBeInTheDocument();
+    expect(screen.getByText(/Post a photo first/i)).toBeInTheDocument();
+  });
+
+  it('pick tiles render the actual image src (not undefined / greyed out)', async () => {
+    await renderOwnProfile();
+    fireEvent.click(screen.getByTestId('profile-avatar'));
+    await screen.findByTestId('profile-media-picker');
+    const tiles = await screen.findAllByTestId('profile-media-pick');
+    // Each image tile must have an <img> with a real src (read_url mapped to url)
+    for (const tile of tiles) {
+      const img = tile.querySelector('img');
+      expect(img).not.toBeNull();
+      expect(img!.getAttribute('src')).toBeTruthy();
+      expect(img!.getAttribute('src')).not.toBe('');
+    }
+  });
+
+  it('video media is NOT offered as a pickable face option', async () => {
+    mockReadMyPosts.mockResolvedValueOnce([
+      { _id: 'p1', text: 'A photo post', media_refs: [POST_MEDIA_1], created_at: new Date().toISOString() },
+      { _id: 'p3', text: 'A video post', media_refs: [VIDEO_REF], created_at: new Date().toISOString() },
+    ]);
+    await renderOwnProfile();
+    fireEvent.click(screen.getByTestId('profile-avatar'));
+    await screen.findByTestId('profile-media-picker');
+    const tiles = await screen.findAllByTestId('profile-media-pick');
+    // Only the image post is pickable; the video is excluded.
+    expect(tiles).toHaveLength(1);
+    const img = tiles[0].querySelector('img');
+    expect(img).not.toBeNull();
+    expect(img!.getAttribute('src')).toBe(POST_MEDIA_1.read_url);
   });
 });
