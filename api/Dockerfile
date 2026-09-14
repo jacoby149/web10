@@ -1,4 +1,6 @@
-FROM ghcr.io/astral-sh/uv:python3.12-bookworm-slim
+# Mirrored to our GHCR namespace (ghcr-mirror.yml) so the build never pulls
+# from a third-party registry at runtime — see e2e/mirror-images.json.
+FROM ghcr.io/jacoby149/base-uv:python3.12-bookworm-slim
 
 # ffmpeg + ffprobe — the in-process HLS transcode worker (D44) shells out to
 # them. --no-install-recommends keeps the image lean.

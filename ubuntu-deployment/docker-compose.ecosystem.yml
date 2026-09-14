@@ -38,7 +38,8 @@
 
 services:
   clickhouse:
-    image: clickhouse/clickhouse-server:latest
+    # Mirrored to our GHCR namespace (ghcr-mirror.yml) — see e2e/mirror-images.json.
+    image: ghcr.io/jacoby149/base-clickhouse:latest
     environment:
       CLICKHOUSE_DB: web10
       CLICKHOUSE_USER: web10
@@ -53,7 +54,8 @@ services:
           - ${STACK}-clickhouse
 
   minio:
-    image: minio/minio:latest
+    # Mirrored to our GHCR namespace (ghcr-mirror.yml) — see e2e/mirror-images.json.
+    image: ghcr.io/jacoby149/base-minio:latest
     volumes:
       - minio-data:/data
     environment:

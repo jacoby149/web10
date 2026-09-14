@@ -90,4 +90,149 @@ describe('reactions v3 data layer', () => {
       expect(result).toEqual(doc);
     });
   });
+
+  // The one-reaction-per-user invariant (post-actions.md): like XOR dislike.
+  // `setReaction` is the primitive; `toggleReactionKind` is the tap handler.
+  // readReactions reads via w.read('reactions', { ref: targetId }) and maps
+  // the docs — author comes from author_key, type from body.type.
+  function seedMine(type: 'like' | 'dislike' | null, docId = 'r-mine') {
+    const docs = type
+      ? [{ doc_id: docId, author_key: 'web10.app/users/alice', body: { target_id: 'p1', type } }]
+      : [];
+    // a stranger's reaction must never be touched by the swap
+    docs.push({ doc_id: 'r-bob', author_key: 'web10.app/users/bob', body: { target_id: 'p1', type: 'like' } });
+    mock.read.mockResolvedValue(docs);
+    mock.create.mockResolvedValue({ doc_id: 'r-new', author_key: 'web10.app/users/alice', body: { target_id: 'p1', type: 'like' } });
+    mock.delete.mockResolvedValue({ status: 'deleted' });
+  }
+
+  describe('setReaction (like XOR dislike)', () => {
+    it('none → like: creates the like, deletes nothing', async () => {
+      seedMine(null);
+      const { setReaction } = await import('../../data/reactions');
+      const result = await setReaction('p1', 'like');
+      expect(result).toBe('like');
+      expect(mock.delete).not.toHaveBeenCalled();
+      expect(mock.create).toHaveBeenCalledWith(
+        'reactions',
+        expect.objectContaining({ type: 'like', target_id: 'p1' }),
+        expect.anything(),
+      );
+    });
+
+    it('none → dislike: creates the dislike', async () => {
+      seedMine(null);
+      const { setReaction } = await import('../../data/reactions');
+      const result = await setReaction('p1', 'dislike');
+      expect(result).toBe('dislike');
+      expect(mock.delete).not.toHaveBeenCalled();
+      expect(mock.create).toHaveBeenCalledWith(
+        'reactions',
+        expect.objectContaining({ type: 'dislike', target_id: 'p1' }),
+        expect.anything(),
+      );
+    });
+
+    it('like → dislike: deletes the like, creates the dislike (the swap)', async () => {
+      seedMine('like');
+      const { setReaction } = await import('../../data/reactions');
+      const result = await setReaction('p1', 'dislike');
+      expect(result).toBe('dislike');
+      expect(mock.delete).toHaveBeenCalledWith('r-mine');
+      expect(mock.create).toHaveBeenCalledWith(
+        'reactions',
+        expect.objectContaining({ type: 'dislike', target_id: 'p1' }),
+        expect.anything(),
+      );
+    });
+
+    it('dislike → like: deletes the dislike, creates the like (the swap)', async () => {
+      seedMine('dislike');
+      const { setReaction } = await import('../../data/reactions');
+      const result = await setReaction('p1', 'like');
+      expect(result).toBe('like');
+      expect(mock.delete).toHaveBeenCalledWith('r-mine');
+      expect(mock.create).toHaveBeenCalledWith(
+        'reactions',
+        expect.objectContaining({ type: 'like', target_id: 'p1' }),
+        expect.anything(),
+      );
+    });
+
+    it('like → like: idempotent no-op (no delete, no create)', async () => {
+      seedMine('like');
+      const { setReaction } = await import('../../data/reactions');
+      const result = await setReaction('p1', 'like');
+      expect(result).toBe('like');
+      expect(mock.delete).not.toHaveBeenCalled();
+      expect(mock.create).not.toHaveBeenCalled();
+    });
+
+    it('like → null: deletes the like, creates nothing', async () => {
+      seedMine('like');
+      const { setReaction } = await import('../../data/reactions');
+      const result = await setReaction('p1', null);
+      expect(result).toBeNull();
+      expect(mock.delete).toHaveBeenCalledWith('r-mine');
+      expect(mock.create).not.toHaveBeenCalled();
+    });
+
+    it('dislike → null: deletes the dislike', async () => {
+      seedMine('dislike');
+      const { setReaction } = await import('../../data/reactions');
+      const result = await setReaction('p1', null);
+      expect(result).toBeNull();
+      expect(mock.delete).toHaveBeenCalledWith('r-mine');
+      expect(mock.create).not.toHaveBeenCalled();
+    });
+
+    it('never touches a stranger\'s reaction on the same post', async () => {
+      seedMine('like');
+      const { setReaction } = await import('../../data/reactions');
+      await setReaction('p1', 'dislike');
+      // only the user's own doc (r-mine) is deleted — bob's r-bob is intact
+      expect(mock.delete).toHaveBeenCalledTimes(1);
+      expect(mock.delete).toHaveBeenCalledWith('r-mine');
+    });
+
+    it('throws when signed out', async () => {
+      mock.readToken.mockReturnValue(null);
+      const { setReaction } = await import('../../data/reactions');
+      await expect(setReaction('p1', 'like')).rejects.toThrow('not authenticated');
+    });
+  });
+
+  describe('toggleReactionKind (the tap handler)', () => {
+    it('none → tap like → like', async () => {
+      seedMine(null);
+      const { toggleReactionKind } = await import('../../data/reactions');
+      await expect(toggleReactionKind('p1', 'like')).resolves.toBe('like');
+    });
+
+    it('like → tap like → null (the active one clears)', async () => {
+      seedMine('like');
+      const { toggleReactionKind } = await import('../../data/reactions');
+      await expect(toggleReactionKind('p1', 'like')).resolves.toBeNull();
+      expect(mock.delete).toHaveBeenCalledWith('r-mine');
+      expect(mock.create).not.toHaveBeenCalled();
+    });
+
+    it('like → tap dislike → dislike (the swap)', async () => {
+      seedMine('like');
+      const { toggleReactionKind } = await import('../../data/reactions');
+      await expect(toggleReactionKind('p1', 'dislike')).resolves.toBe('dislike');
+    });
+
+    it('dislike → tap like → like (the swap)', async () => {
+      seedMine('dislike');
+      const { toggleReactionKind } = await import('../../data/reactions');
+      await expect(toggleReactionKind('p1', 'like')).resolves.toBe('like');
+    });
+
+    it('dislike → tap dislike → null (the active one clears)', async () => {
+      seedMine('dislike');
+      const { toggleReactionKind } = await import('../../data/reactions');
+      await expect(toggleReactionKind('p1', 'dislike')).resolves.toBeNull();
+    });
+  });
 });
