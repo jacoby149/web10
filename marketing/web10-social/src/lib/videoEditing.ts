@@ -12,6 +12,13 @@ export interface VideoEditOptions {
   cropRatio?: number | null;
   /** Output video bitrate. Default 2.5 Mbps. */
   videoBitsPerSecond?: number;
+  /**
+   * Progress callback, called on every animation frame with the fraction of
+   * the trim window encoded so far (0 → 1). The encode is real-time (canvas +
+   * MediaRecorder), so this is the only way the caller can show the user how
+   * much is left instead of a bare spinner.
+   */
+  onProgress?: (fraction: number) => void;
 }
 
 export interface VideoEditResult {
@@ -188,6 +195,9 @@ export async function editVideo(file: File, opts: VideoEditOptions = {}): Promis
       ctx.drawImage(video, geo.sourceX, geo.sourceY, geo.sourceW, geo.sourceH, 0, 0, geo.outW, geo.outH);
     const draw = () => {
       drawFrame();
+      if (opts.onProgress && outDuration > 0) {
+        opts.onProgress(Math.max(0, Math.min(1, (video.currentTime - start) / outDuration)));
+      }
       if (video.currentTime < end - 0.03 && !video.ended) {
         rafId = requestAnimationFrame(draw);
       }
@@ -234,6 +244,7 @@ export async function editVideo(file: File, opts: VideoEditOptions = {}): Promis
     });
     // One final frame at the out-point so the last moment is captured.
     drawFrame();
+    if (opts.onProgress) opts.onProgress(1);
     recorder.stop();
     await stopped;
     if (audioCtx) await audioCtx.close().catch(() => {});
