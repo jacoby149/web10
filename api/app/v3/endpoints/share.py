@@ -92,9 +92,10 @@ def _render(
     image_type: str | None,
     is_video: bool,
     site_name: str = "web10",
+    og_type: str | None = None,
 ) -> str:
     """Render the preview HTML document (the crawler reads only the <head>)."""
-    og_type = "video.other" if is_video else "article"
+    og_type = og_type or ("video.other" if is_video else "article")
     head = []
     head.append(_meta_tag("charset", "utf-8"))
     head.append('    <meta name="viewport" content="width=device-width, initial-scale=1" />\n')
@@ -213,4 +214,72 @@ def share_post_preview(username: str, post_id: str):
         image_alt=image_alt,
         image_type=None,
         is_video=is_video,
+    )
+
+
+@router.get("/share/profile/{username}", response_class=HTMLResponse)
+def share_profile_preview(username: str):
+    """Render a profile's link-preview (Open Graph + Twitter Card) for crawlers.
+
+    Public, no token, no app contract — the profile permalink
+    (`/u/:username`) is a SPA route; when a crawler fetches it, the node
+    renders the profile's face (avatar, display name, bio) as the preview.
+    The browser gets the SPA exactly as today (the nginx User-Agent split).
+
+    Unlike a post (which can be private/followers-only), a profile's face is
+    the account's **public identity** — the avatar + display name are already
+    on the discover board (the feed carries the author's avatar inline), and
+    there are no private accounts — so there is **no anon-read gate** here.
+    The node is readable by design (D41); the face is the one thing a profile
+    is *for*. A user with no profile doc previews as a generic
+    `@username on web10` card (the brand mark) — never a broken preview, the
+    browser-default posture.
+    """
+    profiles = ch.get_author_profiles([username])
+    info = profiles.get(username, {}) or {}
+    profile_body = info.get("profile") or {}
+    if not isinstance(profile_body, dict):
+        profile_body = {}
+    display_name = profile_body.get("display_name")
+    bio = profile_body.get("bio")
+    avatar_ref = info.get("avatar_ref")
+
+    # Resolve the avatar to a fresh presigned URL (the document-typing rule —
+    # the document never stores a live URL), author-scoped, the same pass the
+    # post preview uses for the author's avatar.
+    avatar_url = None
+    if avatar_ref:
+        try:
+            av = ch.resolve_media_urls({"media_refs": [avatar_ref]}, username)
+            av_refs = av.get("media_refs") or []
+            if av_refs and isinstance(av_refs[0], dict):
+                avatar_url = av_refs[0].get("read_url")
+        except Exception as e:
+            log.warning("[share] profile avatar resolve failed user=%s ref=%s: %s", username, avatar_ref, e)
+
+    image = avatar_url
+    if image and not image.startswith("http"):
+        image = f"{settings.SOCIAL_ORIGIN.rstrip('/')}{image}"
+    if not image:
+        image = f"{settings.SOCIAL_ORIGIN.rstrip('/')}{_BRAND_IMAGE}"
+
+    canonical_url = f"{settings.SOCIAL_ORIGIN.rstrip('/')}/u/{username}"
+    title = _truncate(display_name, _TITLE_LIMIT) or f"@{username} on web10"
+    description = _truncate(bio, _DESC_LIMIT) or "A profile on web10"
+
+    log.info(
+        "[share] profile preview user=%s title=%r image=%s",
+        username,
+        title,
+        image,
+    )
+    return _render(
+        url=canonical_url,
+        title=title,
+        description=description,
+        image=image,
+        image_alt=display_name or title,
+        image_type=None,
+        is_video=False,
+        og_type="profile",
     )

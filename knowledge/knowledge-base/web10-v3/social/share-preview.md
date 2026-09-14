@@ -87,6 +87,14 @@ The node target is injected at deploy time (an `API_PROXY_TARGET` env var, e.g. 
 4. The node returns an HTML document: `og:image` = the poster frame, `og:title` = the caption, `og:description` = the caption, `og:url` = the permalink, `twitter:card` = `summary_large_image`.
 5. iMessage renders the card — the poster frame, the caption, "web10." The friend taps it and lands on the permalink in the app, signed in or not.
 
+## The profile permalink
+
+The profile permalink (`/u/:username`) is the same edge split, one level up. `GET /v3/share/profile/{username}` — public, no token, no app contract — renders the profile's **face** for a crawler: the avatar as `og:image`, the display name as `og:title`, the bio as `og:description`, and `og:type` = `profile` (the Open Graph type for a person). The nginx edge proxies `/u/:username` (the path that ends right after the username — mutually exclusive with the post permalink's `/u/:username/p/:postId`) to it for known link-preview bots; everyone else gets the SPA.
+
+**No anon-read gate (unlike a post).** A post can be private or followers-only, so the post preview checks `_is_publicly_readable`. A profile's face is the account's **public identity** — the avatar and display name are already on the discover board (the feed carries the author's avatar inline, resolved server-side for every reader), and there are no private accounts — so the profile preview renders the face directly, reading it via `get_author_profiles` (a node-internal read; I3 binds the read API, not the node's own queries). The avatar is resolved to a fresh presigned URL the same way the post preview resolves the author's avatar.
+
+**A user with no profile doc** (never saved one, or an unknown username) previews as a **generic** `@{username} on web10` card with the brand mark — never a broken preview, the browser-default posture. (A profile has no "deleted" state that matters to a crawler, so there is no 404 here, unlike a ghost post.)
+
 ## What this is not
 
 - **Not server-side rendering of the app.** The node renders a *preview document* for crawlers, not the SPA. The browser still gets the client-rendered app. There is no SSR framework, no hydration, no build-time coupling between the API and the social bundle.
@@ -95,11 +103,11 @@ The node target is injected at deploy time (an `API_PROXY_TARGET` env var, e.g. 
 
 ## Open questions
 
-Decided and built: the endpoint; the public-readability gate; the thumbnail selection; the generic-card privacy floor; the nginx User-Agent split; the deploy-time node target.
+Decided and built: the endpoint; the public-readability gate; the thumbnail selection; the generic-card privacy floor; the nginx User-Agent split; the deploy-time node target; the **profile permalink** (`GET /v3/share/profile/{username}`, the profile's face, no anon-read gate).
 
 Still open:
 
-- **Group + profile permalinks.** This covers the post permalink (the one the Share button emits). Group permalinks (`/groups/:id`) and profile permalinks (`/u/:username`) are natural follow-ups — the same endpoint pattern, the group's face / the profile's avatar as the image.
+- **Group permalink.** `/groups/:id` — the same endpoint pattern, the group's face (cover + avatar) as the image. The group's face is a `web10-social-group-identity` doc (D60); the preview would read it the same way the profile preview reads the profile.
 - **A preview for the app's own root** (`social.web10.app/`) — a static brand card. Cheap; the `index.html` static tags cover it.
 
 ## Reference

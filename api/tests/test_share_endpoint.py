@@ -209,3 +209,77 @@ class TestSharePostPreview:
             resp = client.get("/v3/share/post/nova/abc123")
         body = resp.text
         assert 'property="og:image" content="https://minio.web10.app/avatar.png"' in body
+
+
+class TestShareProfilePreview:
+    """The profile permalink (/u/:username) — the profile's face as the
+    preview. The avatar is the og:image, the display name the title, the bio
+    the description. Unlike a post, a profile's face is public identity (no
+    anon-read gate); a user with no profile doc previews as a generic card."""
+
+    def test_profile_renders_og_tags(self, client):
+        with (
+            patch(
+                "app.v3.services.clickhouse.get_author_profiles",
+                return_value={"nova": {"profile": {"display_name": "Nova", "bio": "Synthwave producer"}, "avatar_ref": "av-1"}},
+            ),
+            patch(
+                "app.v3.services.clickhouse.resolve_media_urls",
+                return_value={"media_refs": [{"read_url": "https://minio.web10.app/avatar.png"}]},
+            ),
+        ):
+            resp = client.get("/v3/share/profile/nova")
+        assert resp.status_code == 200
+        assert "text/html" in resp.headers["content-type"]
+        body = resp.text
+        # A profile is typed as og:type=profile.
+        assert 'property="og:type" content="profile"' in body
+        # The display name is the title, the bio the description.
+        assert 'property="og:title" content="Nova"' in body
+        assert 'property="og:description" content="Synthwave producer"' in body
+        # The avatar is the og:image (presigned).
+        assert 'property="og:image" content="https://minio.web10.app/avatar.png"' in body
+        # The canonical profile permalink is og:url.
+        assert 'property="og:url" content="https://social.localhost/u/nova"' in body
+        # Twitter card mirrors.
+        assert 'name="twitter:card" content="summary_large_image"' in body
+        assert 'name="twitter:image" content="https://minio.web10.app/avatar.png"' in body
+
+    def test_profile_no_avatar_falls_back_to_brand_mark(self, client):
+        # A profile with no avatar → the brand mark is the og:image.
+        with (
+            patch(
+                "app.v3.services.clickhouse.get_author_profiles",
+                return_value={"nova": {"profile": {"display_name": "Nova"}, "avatar_ref": None}},
+            ),
+        ):
+            resp = client.get("/v3/share/profile/nova")
+        body = resp.text
+        assert 'property="og:image" content="https://social.localhost/keys-mark.png"' in body
+        assert 'property="og:title" content="Nova"' in body
+
+    def test_unknown_user_renders_generic_card(self, client):
+        # A user with no profile doc → a generic `@username on web10` card
+        # (the brand mark), never a broken preview.
+        with patch("app.v3.services.clickhouse.get_author_profiles", return_value={}):
+            resp = client.get("/v3/share/profile/ghost")
+        assert resp.status_code == 200
+        body = resp.text
+        assert 'property="og:type" content="profile"' in body
+        assert 'property="og:title" content="@ghost on web10"' in body
+        assert 'property="og:image" content="https://social.localhost/keys-mark.png"' in body
+        assert 'property="og:url" content="https://social.localhost/u/ghost"' in body
+
+    def test_profile_bio_truncated(self, client):
+        long_bio = "word " * 100  # 500 chars, well over the 200-char desc cap
+        with (
+            patch(
+                "app.v3.services.clickhouse.get_author_profiles",
+                return_value={"nova": {"profile": {"display_name": "Nova", "bio": long_bio.strip()}, "avatar_ref": None}},
+            ),
+        ):
+            resp = client.get("/v3/share/profile/nova")
+        body = resp.text
+        desc = body.split('property="og:description" content="')[1].split('"')[0]
+        assert len(desc) <= 200
+        assert desc.endswith("…")
