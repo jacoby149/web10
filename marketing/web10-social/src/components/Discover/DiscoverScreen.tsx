@@ -972,7 +972,7 @@ export default function DiscoverScreen() {
             } else {
               byAuthor.set(key, {
                 posts: [p],
-                refs: p.media_refs || [],
+                refs: [...(p.media_refs || [])],
               });
             }
           }
