@@ -152,11 +152,13 @@ function GroupPostCard({ post, media, groupId }: { post: PostRecord; media: Medi
       if (cancelled) return;
       setCommentCount(cCount);
       if (!token) return;
+      // v3 ownership is by username alone (a reaction's author_key is the
+      // bare username — the provider compare was the v2 rule, 3.79.3 class).
       setLiked(!!reactions.find(
-        r => r.author_username === token.username && r.author_provider === token.provider && r.type === 'like',
+        r => r.author_username === token.username && r.type === 'like',
       ));
       setDisliked(!!reactions.find(
-        r => r.author_username === token.username && r.author_provider === token.provider && r.type === 'dislike',
+        r => r.author_username === token.username && r.type === 'dislike',
       ));
       setReactionCount(reactions.filter(r => r.type === 'like').length);
     }).catch((e) => console.error('Failed to load group post engagement:', e));
