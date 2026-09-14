@@ -4,8 +4,9 @@
   "platform": "linux/amd64",
   "images": [
     {
-      "source": "minio/minio:latest",
+      "source": "quay.io/minio/minio:latest",
       "target": "ghcr.io/jacoby149/base-minio:latest",
+      "_note": "sourced from Quay, not Docker Hub — minio/minio is the most-pulled image on Docker Hub and its anonymous rate-limit bucket (100/6h per shared runner IP) is chronically exhausted, which is what flaked the e2e shards. Quay has no such shared-IP limit.",
       "used_by": ["e2e/docker-compose.yml", "docker-compose.yml", "ubuntu-deployment/docker-compose.ecosystem.yml"]
     },
     {
