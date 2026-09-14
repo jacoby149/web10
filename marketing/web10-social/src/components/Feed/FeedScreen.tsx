@@ -531,11 +531,16 @@ export default function FeedScreen({ onAuthorClick }: { onAuthorClick?: (usernam
 
   // The persisted tuning (the web10 `settings` service) — loaded once.
   const [savedKnobs, setSavedKnobs] = useState<KnobState | null>(null);
+  // A ref mirror so the (useCallback-captured) preset handler reads the latest
+  // saved tuning without a stale closure.
+  const savedKnobsRef = useRef<KnobState | null>(null);
   useEffect(() => {
     readSettings()
       .then((s) => {
-        setSavedKnobs(s.feedKnobs ?? null);
-        if (s.feedKnobs) LOG('saved knobs — restored from settings service:', encodeKnobState(s.feedKnobs));
+        const saved = s.feedKnobs ?? null;
+        savedKnobsRef.current = saved;
+        setSavedKnobs(saved);
+        if (saved) LOG('saved knobs — restored from settings service:', encodeKnobState(saved));
       })
       .catch((e) => LOG('saved knobs — failed to load settings:', e));
   }, []);
@@ -595,6 +600,16 @@ export default function FeedScreen({ onAuthorClick }: { onAuthorClick?: (usernam
   const handlePreset = useCallback((id: PresetId) => {
     const presetDef = getPreset(id);
     if (presetDef) {
+      // An explicit preset click always wins. When the clicked preset IS the
+      // feed default (Newest), setKnobUrl omits the ?knobs= param (to keep the
+      // default URL clean) — so knobState would fall back to the saved tuning
+      // and the Newest chip would never light up. Clear the saved tuning so the
+      // click takes effect (the feed is chronological until the user re-tunes).
+      if (encodeKnobState(presetDef.state) === FEED_DEFAULT_ENCODING && savedKnobsRef.current) {
+        savedKnobsRef.current = null;
+        setSavedKnobs(null);
+        LOG('preset — Newest clicked, cleared saved tuning so the default wins');
+      }
       setKnobUrl(presetDef.state);
       persistKnobs(presetDef.state);
     }
