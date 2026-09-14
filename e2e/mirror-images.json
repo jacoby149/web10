@@ -1,0 +1,57 @@
+{
+  "_comment": "GHCR mirror manifest — the single source of truth for every EXTERNAL image the web10 build/run stack pulls. We republish each to ghcr.io/jacoby149/ so CI (e2e, docker, cd) and the deploy never touch Docker Hub (or any third-party registry) at runtime: Docker Hub's anonymous pull rate limit (100/6h per shared runner IP) was flaking the e2e shards (minio/minio 'pull access denied'), and a third-party GHCR (astral-sh/uv) is the same class of dependency. The ghcr-mirror.yml workflow reads this file and `docker buildx imagetools create`s each source -> target (manifest copy, no build). To bump an image: change its `source` here, re-run the mirror workflow, done. Target tags are STABLE (pinned) — CI pulls them by tag, so an upstream `:latest` move never silently changes what we run. All images are mirrored for linux/amd64 only (every consumer — ubuntu-latest runners, the box — is amd64).",
+  "registry": "ghcr.io/jacoby149",
+  "platform": "linux/amd64",
+  "images": [
+    {
+      "source": "minio/minio:latest",
+      "target": "ghcr.io/jacoby149/base-minio:latest",
+      "used_by": ["e2e/docker-compose.yml", "docker-compose.yml", "ubuntu-deployment/docker-compose.ecosystem.yml"]
+    },
+    {
+      "source": "clickhouse/clickhouse-server:24.8",
+      "target": "ghcr.io/jacoby149/base-clickhouse:24.8",
+      "used_by": ["e2e/docker-compose.yml"]
+    },
+    {
+      "source": "clickhouse/clickhouse-server:24.3",
+      "target": "ghcr.io/jacoby149/base-clickhouse:24.3",
+      "used_by": ["docker-compose.yml"]
+    },
+    {
+      "source": "clickhouse/clickhouse-server:latest",
+      "target": "ghcr.io/jacoby149/base-clickhouse:latest",
+      "used_by": ["ubuntu-deployment/docker-compose.ecosystem.yml"]
+    },
+    {
+      "source": "nginxproxy/nginx-proxy:1.6",
+      "target": "ghcr.io/jacoby149/base-nginx-proxy:1.6",
+      "used_by": ["e2e/docker-compose.yml", "docker-compose.yml"]
+    },
+    {
+      "source": "oven/bun:1-alpine",
+      "target": "ghcr.io/jacoby149/base-bun:1-alpine",
+      "used_by": ["ui/Dockerfile", "api/rtc/Dockerfile", "sdk/Dockerfile", "marketing/marketing-ui/Dockerfile", "marketing/web10-social/Dockerfile", "e2e/Dockerfile.social"]
+    },
+    {
+      "source": "nginx:alpine",
+      "target": "ghcr.io/jacoby149/base-nginx:alpine",
+      "used_by": ["marketing/marketing-ui/Dockerfile", "marketing/web10-social/Dockerfile"]
+    },
+    {
+      "source": "python:3.12-slim",
+      "target": "ghcr.io/jacoby149/base-python:3.12-slim",
+      "used_by": ["marketing/marketing-api/Dockerfile"]
+    },
+    {
+      "source": "joseluisq/static-web-server:latest",
+      "target": "ghcr.io/jacoby149/base-static-web-server:latest",
+      "used_by": ["ui/Dockerfile", "sdk/Dockerfile"]
+    },
+    {
+      "source": "ghcr.io/astral-sh/uv:python3.12-bookworm-slim",
+      "target": "ghcr.io/jacoby149/base-uv:python3.12-bookworm-slim",
+      "used_by": ["api/Dockerfile"]
+    }
+  ]
+}

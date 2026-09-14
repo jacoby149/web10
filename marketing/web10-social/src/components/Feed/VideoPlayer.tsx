@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { Play, Pause } from 'lucide-react';
+import { Play, Pause, TriangleAlert } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { HlsVideoPlayer } from './HlsVideoPlayer';
 import type { MediaRecord } from '@/data/types';
@@ -101,17 +101,7 @@ export function VideoPlayer({ source, mode = 'inline', fit = 'contain', ratio, m
 
   // file + full → native controls (the lightbox's non-transcoded path).
   if (mode === 'full') {
-    return (
-      <video
-        key={source.url}
-        src={source.url}
-        poster={source.poster}
-        controls
-        playsInline
-        data-testid={testId}
-        className={cn('w-full object-contain', className)}
-      />
-    );
+    return <NativeVideo url={source.url} poster={source.poster} testId={testId} className={className} />;
   }
 
   // file + inline → the shared tap-to-play (the feed/discover/groups path).
@@ -129,6 +119,50 @@ export function VideoPlayer({ source, mode = 'inline', fit = 'contain', ratio, m
       fill={fill}
       testId={testId}
       className={className}
+    />
+  );
+}
+
+/**
+ * The designed "can't play" state — the same one HlsVideoPlayer renders on a
+ * fatal hls.js error. The native/file paths had none: a failed load (a
+ * 403/404/expired presigned URL, a codec the browser can't decode) left a
+ * silent black box. Now every video surface degrades to this.
+ */
+function VideoError({ className }: { className?: string }) {
+  return (
+    <div
+      data-testid="video-error"
+      className={cn('bg-elevated flex flex-col items-center justify-center gap-2 py-10 px-4 text-center', className)}
+    >
+      <TriangleAlert className="w-6 h-6 text-warning" strokeWidth={1.75} />
+      <p className="text-sm text-muted-foreground">This video can’t be played in your browser.</p>
+    </div>
+  );
+}
+
+/**
+ * The native <video> with controls (the lightbox's non-transcoded path).
+ * Owns a failed state so a load error surfaces the designed error instead of
+ * a silent black box — the gap that left iOS Safari users staring at nothing
+ * when a direct file wouldn't play.
+ */
+function NativeVideo({ url, poster, testId, className }: { url: string; poster?: string; testId?: string; className?: string }) {
+  const [failed, setFailed] = useState(false);
+  if (failed) return <VideoError className={className} />;
+  return (
+    <video
+      key={url}
+      src={url}
+      poster={poster}
+      controls
+      playsInline
+      onError={() => {
+        LOG('video — native load failed, url:', url);
+        setFailed(true);
+      }}
+      data-testid={testId}
+      className={cn('w-full object-contain', className)}
     />
   );
 }

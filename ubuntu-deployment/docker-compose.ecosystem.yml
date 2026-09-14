@@ -38,7 +38,8 @@
 
 services:
   clickhouse:
-    image: clickhouse/clickhouse-server:latest
+    # Mirrored to our GHCR namespace (ghcr-mirror.yml) — see e2e/mirror-images.json.
+    image: ghcr.io/jacoby149/base-clickhouse:latest
     environment:
       CLICKHOUSE_DB: web10
       CLICKHOUSE_USER: web10
@@ -53,7 +54,8 @@ services:
           - ${STACK}-clickhouse
 
   minio:
-    image: minio/minio:latest
+    # Mirrored to our GHCR namespace (ghcr-mirror.yml) — see e2e/mirror-images.json.
+    image: ghcr.io/jacoby149/base-minio:latest
     volumes:
       - minio-data:/data
     environment:
@@ -161,6 +163,13 @@ services:
         # D56: full-platform telemetry (empty = tracking off for this env)
         VITE_GA4_MEASUREMENT_ID: ${GA4_MEASUREMENT_ID:-}
         VITE_HOTJAR_SITE_ID: ${HOTJAR_SITE_ID:-}
+    environment:
+      # Share-preview edge split (D71): the social nginx proxies a post
+      # permalink to the node for known link-preview crawlers. The node target
+      # is the same-stack api alias over the shared proxy network (the social
+      # and api containers both join "proxy"). envsubst'd into the nginx
+      # template at boot (see marketing/web10-social/Dockerfile).
+      API_PROXY_TARGET: http://${STACK}-api:80
     restart: unless-stopped
     networks:
       proxy:

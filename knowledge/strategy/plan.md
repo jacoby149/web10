@@ -125,6 +125,29 @@ proves it.
 - [✓ 3.70.0] **D44 gaps: composer upload path + lightbox player** (`src/data/posts.ts`, `src/components/Bio/PostLightbox.tsx`) — both seams closed: `uploadMedia` writes the `video` minio leaf + queues the best-effort transcode (3.70.0, `media.test.ts`), and the lightbox plays transcoded video through `HlsVideoPlayer` (3.70.0) with the overlaid control rack (3.71.0). Lane: `social-v3` in `parallel-execution.md`.
 - [✓ 3.68.0] **Feed drops the lightbox modal** (`src/components/Feed/FeedScreen.tsx`) — the feed is now a flat, inline surface: the card no longer opens the `PostLightbox` (it stays on the insta-style profile grids + the `/u/:username/p/:postId` deep link, where the carousel earns its keep). The video plays inline (tap toggles play/pause in place, `stopPropagation` so the tap never reaches the card — fixing the bug where a tap both played the video in the card *and* popped the modal, leaving it playing behind); comments were already inline below. Owner actions that lived in the lightbox move to a **kebab (⋯) menu** on own posts (Share / Edit-inline / Make private-public / two-tap Delete) in a small popover; `onPostUpdated` re-reads the feed after a mutation. `flatMediaMap` (fed only the lightbox) dropped. 3 new unit tests.
 
+## Share Preview: Rich Post Permalinks (D71)
+
+**Where:** `api/app/v3/endpoints/share.py` (the preview renderer), `marketing/web10-social/nginx.conf` + `Dockerfile` (the edge split), `ubuntu-deployment/docker-compose.ecosystem.yml` (the node target), `knowledge/knowledge-base/web10-v3/social/share-preview.md` (the spec).
+
+The Share button emits the post permalink, but web10-social is a client-rendered
+PWA — the permalink is a *route*, and a link-preview crawler (Facebook, iMessage,
+X, Slack, WhatsApp, Telegram, Discord) does not run JS, so a shared link rendered
+a bare URL. D71 makes the **node** render the post's Open Graph / Twitter Card
+tags (title, description, **thumbnail**) for crawlers, while the **browser**
+keeps the SPA. The split is at the edge: the social nginx proxies the
+post-permalink path to the node only for known crawler User-Agents. The node is
+the right party — it is the source of truth for the post and already has every
+primitive (read-by-doc_id, the D58 read gate, media resolution with fresh
+presigned thumbnails, author profiles). "Done" = a shared post link shows a
+rich card (the post's first image / the video's poster) in the receiving app,
+and a private / followers-only post never leaks (a generic card instead).
+
+- [✓ 3.83.0] **Decision + KB** (`knowledge/strategy/decisions.md` D71, `social/share-preview.md`) — the node renders the preview, the browser gets the SPA; the edge split is a browser-default User-Agent match; the privacy floor is the D58 read gate (only what an anon visitor could already read may preview).
+- [✓ 3.83.0] **The endpoint** (`api/app/v3/endpoints/share.py`, `GET /v3/share/post/{username}/{post_id}`) — public, no token. Reads the post by `doc_id` (`get_document_any_author`), decides public-readability (`can_read_group(group, "anon", "posts", False)` on any of the post's groups), and renders the tags: a public post previews with content (text → title/description, first-media-with-image → `og:image`, canonical permalink → `og:url`); a non-public post renders a **generic** web10 card (no text, no media, no author data — I3/D41); a ghost `doc_id` → 404. `SOCIAL_ORIGIN` setting added for the canonical URL.
+- [✓ 3.83.0] **The edge split** (`marketing/web10-social/nginx.conf` → nginx *template*, `Dockerfile` copies it to `/etc/nginx/templates/`, `API_PROXY_TARGET` env in the deploy compose) — the post-permalink location proxies to the node for known link-preview crawlers (a `map` over the standard bot list; `resolver 127.0.0.11` for the Docker service name), everyone else gets the SPA. `index.html` gains static `og:`/`twitter:` tags (the brand mark) for the app root + non-post routes.
+- [✓ 3.83.0] **Tests** (`api/tests/test_share_endpoint.py`, 8) — public post → og:title/description/image/url + twitter mirror; video lead → `video.other` + poster; **private → generic card, no leak** (the I3 anti-test: `resolve_media_urls`/`get_author_profiles` never called, no media URL minted); ghost → 404; non-post doc → 404; text-only → brand image; long text truncated; author-avatar fallback. 986 api + 494 social tests green, `tsc --noEmit` clean.
+- [ ] **Follow-up: group + profile permalinks** — the same endpoint pattern for `/groups/:id` (the group's face as the image) and `/u/:username` (the profile's avatar). The post permalink is the one the Share button emits, so it ships first.
+
 ## Notifications: The Always-On Signal (D69)
 
 **Where:** `marketing/web10-social/` (store + screen + badge + banner), `api/` + `sdk/` (the one missing primitive: a pending-requests read), `knowledge/knowledge-base/web10-social-v3/notifications.md` (the spec, amended).

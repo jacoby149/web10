@@ -1,4 +1,5 @@
-FROM oven/bun:1-alpine
+# Mirrored to our GHCR namespace (ghcr-mirror.yml) — see e2e/mirror-images.json.
+FROM ghcr.io/jacoby149/base-bun:1-alpine
 
 RUN mkdir /rtc
 WORKDIR /rtc

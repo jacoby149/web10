@@ -5,6 +5,12 @@ import os
 #################################
 
 PROVIDER = "api.localhost"
+# The public origin of the web10-social app (the killer app). Used to build
+# canonical permalinks (og:url / twitter:url) in the share-preview endpoint
+# (D71) — the node renders the post's Open Graph tags for link-preview
+# crawlers, and og:url must be the shareable in-app permalink. Override per
+# env (e.g. https://social.web10.app / https://social.dev.web10.app).
+SOCIAL_ORIGIN = os.getenv("SOCIAL_ORIGIN", "https://social.localhost")
 # The authenticator trust list: sites that may handle consent and mint
 # tokens for other apps (see services/auth.py). This is a real trust
 # boundary and must stay narrow — authenticators only, never all frontends.
