@@ -1,4 +1,5 @@
-FROM oven/bun:1-alpine AS build
+# Mirrored to our GHCR namespace (ghcr-mirror.yml) — see e2e/mirror-images.json.
+FROM ghcr.io/jacoby149/base-bun:1-alpine AS build
 
 # git is needed so build-status.sh can read the live commit SHA + date at
 # build time (a fallback for redeploys that don't surface GIT_COMMIT — e.g.
@@ -72,7 +73,7 @@ RUN --mount=type=bind,source=.,target=/repo \
     git config --global --add safe.directory '*' && \
     STATUS_REPO_ROOT=/repo /usr/local/bin/build-status.sh
 
-FROM nginx:alpine
+FROM ghcr.io/jacoby149/base-nginx:alpine
 COPY --from=build /app/marketing/marketing-ui/dist /usr/share/nginx/html
 COPY marketing/marketing-ui/nginx.conf /etc/nginx/conf.d/default.conf
 EXPOSE 80
