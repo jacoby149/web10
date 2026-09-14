@@ -18,6 +18,7 @@ from . import (
     moderation,
     query,
     recovery,
+    share,
 )
 
 router = APIRouter(prefix="/v3")
@@ -36,6 +37,11 @@ router.include_router(documents.router, prefix="")
 
 # The feed read (D69) — one page of posts, ranked in SQL, cursor-paged
 router.include_router(feed.router, prefix="")
+
+# Share preview (D71) — the post permalink's Open Graph / Twitter Card tags,
+# rendered for link-preview crawlers (public, no token). The social nginx
+# proxies the post-permalink path here for known crawler User-Agents only.
+router.include_router(share.router, prefix="")
 
 # The flexible read — caller-written SELECTs over the caller's groups (safe-query engine)
 router.include_router(query.router, prefix="")

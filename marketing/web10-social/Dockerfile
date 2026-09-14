@@ -36,6 +36,11 @@ RUN bun run build
 
 FROM nginx:alpine
 COPY --from=build /app/dist /usr/share/nginx/html
-COPY marketing/web10-social/nginx.conf /etc/nginx/conf.d/default.conf
+# The nginx config is a TEMPLATE (the share-preview edge split, D71): the
+# nginx:alpine entrypoint envsubst's /etc/nginx/templates/*.template into
+# /etc/nginx/conf.d/ at boot, filling ${API_PROXY_TARGET} from the container
+# env (injected per env by the deploy compose). A plain conf.d copy would ship
+# the literal ${API_PROXY_TARGET} and the crawler proxy would never resolve.
+COPY marketing/web10-social/nginx.conf /etc/nginx/templates/default.conf.template
 EXPOSE 80
 CMD ["nginx", "-g", "daemon off;"]

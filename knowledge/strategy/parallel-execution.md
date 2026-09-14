@@ -654,3 +654,21 @@ Spec: `knowledge/strategy/plan.md` → "Bug Reports: The Bugbot (D70)".
 - [✓ 3.79.0] **The hook** (`api/app/endpoints/system.py`) — `submit_bug_report` calls `deliver_bug_report` after the insert, wrapped so a failure logs + swallows (the submit is already durable; the response is unchanged).
 - [✓ 3.79.0] **Tests** (`api/tests/test_bugbot.py`, 19) — provisioning idempotency; delivery to every admin (group contract = the DM shape, doc authored by `bugbot`, body shape, `report_id` + screenshot count present); the admin-created-first group shape is found, not re-created; no admins → no-op; delivery failure → submit still 200 + logged; the I3 boundary pinned compositionally (the doc attaches only to the DM groups; the group's members are bot + admin; the D58 read gate is conformance-pinned).
 - [ ] **v1** — the admin review queue UI (console: browse `bug_reports`, fetch screenshots via the detail endpoint); email as a second channel (gated on a provider decision).
+
+### Lane: share-preview (D71)
+**Owns:** `api/app/v3/endpoints/share.py`, `api/tests/test_share_endpoint.py`, `marketing/web10-social/nginx.conf` + `Dockerfile` (the edge split), `marketing/web10-social/index.html` (static tags), `ubuntu-deployment/docker-compose.ecosystem.yml` (the `API_PROXY_TARGET` env), `api/app/settings.py` (`SOCIAL_ORIGIN`), `knowledge/knowledge-base/web10-v3/social/share-preview.md`
+
+A shared post link is rich: the node renders the post's Open Graph / Twitter
+Card tags (title, description, **thumbnail**) for link-preview crawlers, while
+the browser keeps the SPA. The edge split (the social nginx proxies the
+post-permalink to the node for known crawler User-Agents only) is the seam.
+The privacy floor is the D58 read gate — only what an anon visitor could
+already read may preview; a private / followers-only post renders a generic
+card. Spec: `knowledge/strategy/plan.md` → "Share Preview: Rich Post
+Permalinks (D71)".
+
+- [✓ 3.83.0] **Decision + KB** (`knowledge/strategy/decisions.md` D71, `social/share-preview.md`) — the node renders the preview, the browser gets the SPA; browser-default User-Agent split; the D58 read gate is the privacy floor.
+- [✓ 3.83.0] **The endpoint** (`api/app/v3/endpoints/share.py`, `GET /v3/share/post/{username}/{post_id}`) — public, no token; read-by-doc_id + the public-readability gate + the thumbnail selection (first-media-with-image → image `read_url` / video `thumbnail_url` / author avatar / brand mark) + the generic-card floor + ghost → 404. `SOCIAL_ORIGIN` setting for the canonical `og:url`.
+- [✓ 3.83.0] **The edge split** (`nginx.conf` → template, `Dockerfile` → `/etc/nginx/templates/`, `API_PROXY_TARGET` in the deploy compose, `resolver 127.0.0.11`) + static `og:`/`twitter:` tags in `index.html` for the app root / non-post routes.
+- [✓ 3.83.0] **Tests** (`api/tests/test_share_endpoint.py`, 8) — public → og tags + thumbnail; video → `video.other` + poster; **private → generic, no leak** (I3 anti-test); ghost / non-post → 404; text-only → brand image; truncation; avatar fallback. 986 api + 494 social green, `tsc --noEmit` clean; nginx split verified via `nginx -t` + a docker e2e (crawler → proxied, browser → SPA, non-post never proxied).
+- [ ] **Follow-up** — group + profile permalinks (same endpoint pattern: the group's face / the profile's avatar as the image). The post permalink is the one the Share button emits, so it ships first.
