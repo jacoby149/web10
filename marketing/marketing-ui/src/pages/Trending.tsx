@@ -22,6 +22,7 @@ import {
   decodeMix,
   getPreset,
   rankPosts,
+  PRESETS,
   type KnobState,
   type PresetId,
   type PostSignals,
@@ -152,13 +153,30 @@ function postToSignals(post: FeedPost): PostSignals {
   };
 }
 
+// The preset whose state matches exactly, or null (a custom tuning). The
+// mix-code hash carries the knob state, not the preset id — so on a
+// hashchange round-trip (a preset click writes #mix=..., the browser fires
+// hashchange, we re-read) we must match the decoded state back to its preset,
+// or the just-clicked chip's highlight is clobbered (activePreset → null).
+function presetIdForState(state: KnobState): PresetId | null {
+  const match = PRESETS.find(
+    p =>
+      p.state.recency === state.recency &&
+      p.state.likes === state.likes &&
+      p.state.comments === state.comments &&
+      p.state.halfLife === state.halfLife &&
+      p.state.character === state.character,
+  );
+  return match ? match.id : null;
+}
+
 function readMixFromHash(): { state: KnobState; preset: PresetId | null } {
   const hash = window.location.hash.slice(1);
   const match = hash.match(/^mix=(\d{5})/);
   if (match) {
     const state = decodeMix(match[1]);
     if (state) {
-      return { state, preset: null };
+      return { state, preset: presetIdForState(state) };
     }
   }
   return { state: defaultKnobState(), preset: 'balanced' };

@@ -486,6 +486,36 @@ describe('Preset behavior', () => {
       expect(cards[0]).toHaveAttribute('id', 'trending-card-old-post');
     });
   });
+
+  it('a single preset click keeps its chip lit (survives the hashchange round-trip)', async () => {
+    // Regression pin (trending-sort-double-click): a preset click calls
+    // writeMixToHash, which sets window.location.hash and fires hashchange.
+    // The hashchange listener re-reads the mix and used to return
+    // `preset: null` (it never matched the decoded state back to a preset),
+    // so setActivePreset(null) clobbered the just-clicked chip's highlight —
+    // the user had to click TWICE for the chip to light up. readMixFromHash
+    // now matches the decoded state to its preset, so the highlight survives.
+    window.location.hash = '';
+    mockDiscoverFeed();
+    const { default: Trending } = await import('@/pages/Trending');
+    render(<Trending />);
+    await waitFor(() => expect(screen.getByTestId('knob-rack')).toBeInTheDocument());
+
+    // Balanced is the default — lit before any click.
+    expect(screen.getByTestId('preset-balanced').classList).toContain('border-brand');
+
+    // SINGLE click on "Newest".
+    fireEvent.click(screen.getByTestId('preset-newest'));
+    // Wait for the chip to light, then let the async hashchange round-trip
+    // settle and assert the highlight PERSISTS (this is the part that used
+    // to be clobbered — the chip went dark ~100ms after the click).
+    await waitFor(() => expect(screen.getByTestId('preset-newest').classList).toContain('border-brand'));
+    await waitFor(() => expect(screen.getByTestId('preset-balanced').classList).not.toContain('border-brand'));
+    // Give the hashchange event time to fire and (pre-fix) clobber the state.
+    await new Promise((r) => setTimeout(r, 150));
+    await waitFor(() => expect(screen.getByTestId('preset-newest').classList).toContain('border-brand'));
+    expect(screen.getByTestId('preset-balanced').classList).not.toContain('border-brand');
+  });
 });
 
 describe('Mix code URL round-trip', () => {
