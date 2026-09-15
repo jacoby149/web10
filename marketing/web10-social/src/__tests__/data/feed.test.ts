@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import * as v3 from '../../data/v3';
-import { readDiscoverFeed, readShortsFeed } from '../../data/feed';
+import { readDiscoverFeed, readShortsFeed, readFeedReactions } from '../../data/feed';
 import { getFeedGroups } from '../../data/groups';
 
 function mockV3Client() {
@@ -155,6 +155,64 @@ describe('feed v3 data layer', () => {
       expect(feedGroups).not.toContain('web10.app/groups/users/bob/chess-club');
       expect(feedGroups).not.toContain('web10.app/groups/users/alice/close-friends');
       expect(feedGroups).not.toContain('web10.app/groups/users/alice/media-alice');
+    });
+  });
+
+  describe('readFeedReactions (the reader\'s own like/dislike — the feed\'s initial-state load)', () => {
+    // The mock token is alice (see mockV3Client). A reaction doc's author_key
+    // is the bare username; only alice's docs count as "mine".
+    function reactionDoc(id: string, author: string, type: string, ref: string) {
+      return { doc_id: id, author_key: `web10.app/users/${author}`, body: { type, target_id: ref }, ref_value: ref };
+    }
+
+    it('returns the reader\'s own liked/disliked posts, ignoring other users\' reactions', async () => {
+      // getFeedGroups reads the followers groups off getMyGroups.
+      mock.getMyGroups.mockResolvedValue([
+        { group_id: 'web10.app/groups/users/alice/followers', join_policy: 'open', my_role: 'owner', member_count: 10 },
+        { group_id: 'web10.app/groups/users/bob/followers', join_policy: 'open', my_role: 'member', member_count: 50 },
+      ]);
+      // The batched ref read returns reactions from alice (mine) + bob (not mine).
+      mock.read.mockResolvedValue([
+        reactionDoc('r1', 'alice', 'like', 'p1'),    // mine → liked p1
+        reactionDoc('r2', 'alice', 'dislike', 'p2'), // mine → disliked p2
+        reactionDoc('r3', 'bob', 'like', 'p1'),      // not mine → ignored
+        reactionDoc('r4', 'bob', 'like', 'p3'),      // not mine → ignored
+      ]);
+
+      const { liked, disliked } = await readFeedReactions(['p1', 'p2', 'p3']);
+
+      expect(liked).toEqual({ p1: true });
+      expect(disliked).toEqual({ p2: true });
+      // The read is scoped to the feed (followers) groups, batched over the post ids.
+      expect(mock.read).toHaveBeenCalledWith(
+        'reactions',
+        expect.objectContaining({ groups: expect.any(Array), ref: ['p1', 'p2', 'p3'] }),
+      );
+    });
+
+    it('returns empty maps when there are no posts', async () => {
+      const { liked, disliked } = await readFeedReactions([]);
+      expect(liked).toEqual({});
+      expect(disliked).toEqual({});
+      expect(mock.read).not.toHaveBeenCalled();
+    });
+
+    it('returns empty maps when signed out (no token)', async () => {
+      mock.readToken.mockReturnValue(null);
+      const { liked, disliked } = await readFeedReactions(['p1']);
+      expect(liked).toEqual({});
+      expect(disliked).toEqual({});
+      expect(mock.read).not.toHaveBeenCalled();
+    });
+
+    it('degrades to empty maps on a read failure (never throws)', async () => {
+      mock.getMyGroups.mockResolvedValue([
+        { group_id: 'web10.app/groups/users/alice/followers', join_policy: 'open', my_role: 'owner', member_count: 10 },
+      ]);
+      mock.read.mockRejectedValue(new Error('boom'));
+      const { liked, disliked } = await readFeedReactions(['p1']);
+      expect(liked).toEqual({});
+      expect(disliked).toEqual({});
     });
   });
 
