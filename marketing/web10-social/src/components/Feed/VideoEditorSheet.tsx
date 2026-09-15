@@ -3,6 +3,7 @@ import { X, Scissors, RotateCcw, Loader2, AlertTriangle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import { editVideo, formatTimecode } from '@/lib/videoEditing';
+import { loadFFmpeg } from '@/lib/ffmpegEngine';
 
 export interface VideoEditResult {
   file: File;
@@ -23,9 +24,14 @@ const MIN_TRIM_SECONDS = 0.5;
 
 /**
  * The pre-post video editor — a bottom sheet with trim (in/out points) and
- * ratio crop (cover-crop presets). The edit runs client-side (canvas +
- * MediaRecorder, video-experience.md); the finished file is what gets
- * uploaded, the node never sees the original.
+ * ratio crop (cover-crop presets). The edit runs client-side through
+ * ffmpeg.wasm (a deterministic file-to-file op in a Web Worker — no real-time
+ * capture, no A/V drift, no pitch shift); the finished file is what gets
+ * uploaded, and the node re-transcodes it to HLS.
+ *
+ * The ffmpeg core (~32MB) is lazy-loaded the moment the sheet opens (the
+ * intent signal) so the download runs in the background while the user adjusts
+ * trim/crop — by the time they hit Apply it's usually ready.
  *
  * The controls are live: the preview shows the cropped frame the moment a
  * ratio is picked (object-cover in a ratio-locked frame — the same center
@@ -52,6 +58,10 @@ export function VideoEditorSheet({
   const [ratio, setRatio] = useState<number | null>(null);
   const [processing, setProcessing] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  // True while the ffmpeg.wasm core is still downloading (first open only —
+  // it's cached afterward). The Apply button waits on it so the user never
+  // hits "Editing…" mid-download.
+  const [preparing, setPreparing] = useState(false);
   const videoRef = useRef<HTMLVideoElement>(null);
   const timelineRef = useRef<HTMLDivElement>(null);
   const playheadRef = useRef<HTMLDivElement>(null);
@@ -77,6 +87,27 @@ export function VideoEditorSheet({
       setError(null);
     }
   }, [open, file]);
+
+  // Pre-warm the ffmpeg.wasm core the moment the sheet opens (the intent
+  // signal) — the ~32MB download runs in the background while the user adjusts
+  // trim/crop, so by the time they hit Apply it's usually ready. It's a
+  // singleton (cached after the first load), so this is cheap on re-opens.
+  useEffect(() => {
+    if (!open) return;
+    let cancelled = false;
+    setPreparing(true);
+    loadFFmpeg()
+      .catch((e) => {
+        console.error('[video-editor] ffmpeg core failed to load:', e);
+        if (!cancelled) setError('Could not prepare the video editor. Check your connection and try again.');
+      })
+      .finally(() => {
+        if (!cancelled) setPreparing(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [open]);
 
   // End the video when the sheet closes (stops playback + audio).
   useEffect(() => {
@@ -202,7 +233,7 @@ export function VideoEditorSheet({
   const hasEdits = trimmed || ratio !== null;
 
   const handleApply = useCallback(async () => {
-    if (!file || !duration || processing) return;
+    if (!file || !duration || processing || preparing) return;
     setProcessing(true);
     setError(null);
     try {
@@ -212,7 +243,8 @@ export function VideoEditorSheet({
         cropRatio: ratio,
       });
       const baseName = file.name.replace(/\.[^.]+$/, '') || 'video';
-      const edited = new File([result.blob], `${baseName}-edited.webm`, { type: result.mimeType });
+      // The engine outputs MP4 (H.264/AAC) — the node re-transcodes it to HLS.
+      const edited = new File([result.blob], `${baseName}-edited.mp4`, { type: result.mimeType });
       console.log('[video-editor] apply — edited file ready:', edited.name, edited.size, 'bytes');
       onEdited({ file: edited, width: result.width, height: result.height, duration: result.duration });
     } catch (e) {
@@ -221,7 +253,7 @@ export function VideoEditorSheet({
     } finally {
       setProcessing(false);
     }
-  }, [file, duration, processing, startTime, endTime, ratio, onEdited]);
+  }, [file, duration, processing, preparing, startTime, endTime, ratio, onEdited]);
 
   if (!open || !file) return null;
 
@@ -407,14 +439,14 @@ export function VideoEditorSheet({
         )}
 
         <div className="mt-4 flex items-center gap-2">
-          <Button variant="outline" className="flex-1" onClick={onClose} disabled={processing} data-testid="video-editor-cancel">
+          <Button variant="outline" className="flex-1" onClick={onClose} disabled={processing || preparing} data-testid="video-editor-cancel">
             Cancel
           </Button>
           <Button
             variant="brand"
             className="flex-1"
             onClick={handleApply}
-            disabled={processing || !hasEdits || !duration}
+            disabled={processing || preparing || !hasEdits || !duration}
             data-testid="video-editor-apply"
           >
             {processing ? (
@@ -422,14 +454,24 @@ export function VideoEditorSheet({
                 <Loader2 className="w-4 h-4 animate-spin" />
                 Editing…
               </>
+            ) : preparing ? (
+              <>
+                <Loader2 className="w-4 h-4 animate-spin" />
+                Preparing…
+              </>
             ) : (
               'Apply'
             )}
           </Button>
         </div>
+        {preparing && (
+          <p className="mt-2 text-center text-xs text-muted-foreground" data-testid="video-editor-preparing">
+            Preparing the editor — one-time download, cached for next time.
+          </p>
+        )}
         {processing && (
           <p className="mt-2 text-center text-xs text-muted-foreground" data-testid="video-editor-progress">
-            Editing in real time — this takes as long as the clip.
+            Editing — frame-accurate, this takes a few seconds.
           </p>
         )}
       </div>
