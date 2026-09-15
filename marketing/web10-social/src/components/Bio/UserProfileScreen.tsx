@@ -157,7 +157,15 @@ export default function UserProfileScreen({ username, provider, onBack }: UserPr
     setLoading(true);
     try {
       const token = getWapi().readToken();
-      const isOwn = token && token.username === username && token.provider === provider;
+      // v3 ownership is by username alone: a post's/author's `author_key` is
+      // the bare username (the node's provider is implicit — every local user
+      // shares it), so a profile reached via a post author carries the v2
+      // `'web10'` fallback provider in `location.state`, never the token's
+      // real provider. Comparing `token.provider === provider` hid the owner
+      // affordances (Edit profile / camera / banner) on the user's OWN profile
+      // whenever they arrived via a feed/discover author click — the same class
+      // as the feed's `isOwnPost` fix (3.79.3) + the reactions fix (3.87.2).
+      const isOwn = token && token.username === username;
       setIsOwnProfile(!!isOwn);
 
       let profile: ProfileRecord | null = null;
