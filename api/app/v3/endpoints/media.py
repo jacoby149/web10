@@ -137,10 +137,7 @@ def get_thumbnail(data: ThumbnailRequest):
     service = doc["service"]
     # I3: the reader must be able to read the doc's service in one of its
     # groups (the same gate the read path + the social preview server use).
-    if not any(
-        ch.can_read_group(gid, reader, service, authenticated)
-        for gid in ch.get_doc_groups(data.doc_id)
-    ):
+    if not any(ch.can_read_group(gid, reader, service, authenticated) for gid in ch.get_doc_groups(data.doc_id)):
         raise HTTPException(status_code=404, detail="not found")
     body = doc.get("body", {}) or {}
     # A media doc IS the picture — resolve its own object_key to a fresh

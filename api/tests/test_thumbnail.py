@@ -39,7 +39,11 @@ class TestPickThumbnail:
 
     def test_video_with_poster_uses_the_poster(self):
         media = [
-            {"mime_type": "video/mp4", "read_url": "https://minio/v.mp4", "thumbnail_url": "https://minio/v-poster.jpg"},
+            {
+                "mime_type": "video/mp4",
+                "read_url": "https://minio/v.mp4",
+                "thumbnail_url": "https://minio/v-poster.jpg",
+            },
         ]
         result = thumbnail.pick_thumbnail(media)
         assert result is not None
@@ -121,7 +125,16 @@ class TestThumbnailEndpoint:
 
     def test_video_doc_returns_the_poster(self, client):
         doc = _doc(media_refs=["v1"])
-        resolved = {"media_refs": [{"doc_id": "v1", "mime_type": "video/mp4", "read_url": "https://minio/v.mp4", "thumbnail_url": "https://minio/v-poster.jpg"}]}
+        resolved = {
+            "media_refs": [
+                {
+                    "doc_id": "v1",
+                    "mime_type": "video/mp4",
+                    "read_url": "https://minio/v.mp4",
+                    "thumbnail_url": "https://minio/v-poster.jpg",
+                }
+            ]
+        }
         with (
             patch("app.v3.services.clickhouse.get_document_any_author", return_value=doc),
             patch("app.v3.services.clickhouse.get_doc_groups", return_value=["web10.app/groups/web10/discover"]),
@@ -188,7 +201,17 @@ class TestThumbnailEndpoint:
         # the same generic endpoint (the social preview server's fallback).
         doc = _doc(doc_id="avatar-1", service="public_media", media_refs=None)
         doc["body"] = {"object_key": "nova/avatar.png", "mime_type": "image/png"}
-        resolved = {"media_refs": [{"doc_id": "avatar-1", "mime_type": "image/png", "read_url": "https://minio/nova/avatar.png", "width": 400, "height": 400}]}
+        resolved = {
+            "media_refs": [
+                {
+                    "doc_id": "avatar-1",
+                    "mime_type": "image/png",
+                    "read_url": "https://minio/nova/avatar.png",
+                    "width": 400,
+                    "height": 400,
+                }
+            ]
+        }
         with (
             patch("app.v3.services.clickhouse.get_document_any_author", return_value=doc),
             patch("app.v3.services.clickhouse.get_doc_groups", return_value=["web10.app/groups/web10/discover"]),
