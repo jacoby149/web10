@@ -29,18 +29,37 @@ flowchart TD
 
 ## The endpoint
 
-`GET /v3/share/post/{username}/{post_id}` — public, no token, no app contract. It is the one surface where the node answers a crawler on behalf of the app.
+The social card is **the social app's own preview server** — not a platform
+endpoint. The platform's `share.py` is deleted (D60: the node has zero social
+concepts). The split (KB: `../media/thumbnailing.md`):
 
-**The read is the same as the app's, minus the token.** The node:
+- **The platform (100% generic)** provides two universal primitives:
+  - `POST /v3/media/thumbnail {doc_id}` — "what's the picture for this doc?"
+    (anon-capable, access-checked I3).
+  - `POST /v3/preview/render {title, description, image, url, og_type, …}` —
+    "render a card from this spec" (the OG/Twitter HTML; schema-free, no social
+    knowledge).
+- **The social app** (`marketing/web10-social/preview/`) is a small Node preview
+  server that runs in the social container alongside nginx. It maps the social
+  permalink → a doc, reads the doc via the generic read (anon-capable), picks
+  the thumbnail via the generic `media/thumbnail`, applies the social fallback
+  (author avatar → brand mark), and asks the generic `preview/render` for the
+  card HTML. The social nginx User-Agent split proxies crawler requests to it
+  (same container, localhost); browsers get the SPA.
 
-1. Reads the post by `doc_id` (`get_document_any_author` — the doc the URL names; the `username` in the path is the *display* author, used for the canonical URL, not the read — the read is by `doc_id` so a reshared link still resolves).
-2. Reads the post's groups (`get_doc_groups`).
-3. **Decides public-readability:** the post is shareable-with-content if **any** of its groups grants `readAll` on `posts` to the public class (`anyone`/`anon`) — `can_read_group(group, "anon", "posts", authenticated=False)`. A public post is in the discover group (public by design, D41); a followers-only or private post is in a group that does not grant anon read.
-4. If public: resolves the post's media (`resolve_media_urls`, author-scoped — the same pass the feed and the app's read use) to get the **thumbnail**, and reads the author's profile (`get_author_profiles`) for the display name.
-5. Renders the HTML.
+**The read is the same as the app's, minus the token.** The preview server:
+
+1. Reads the post by `doc_id` (the generic read, anon-capable — a public post
+   reads token-less; the `username` in the path is the *display* author, used
+   for the canonical URL, not the read — the read is by `doc_id` so a reshared
+   link still resolves).
+2. **Decides public-readability:** a post that isn't anon-readable (private /
+   followers-only) → a generic card, no content (the I3/D41 privacy floor).
+3. If public: gets the **thumbnail** via the generic `media/thumbnail`, and
+   reads the author's profile for the display name + the avatar fallback.
+4. Renders the card via the generic `preview/render`.
 
 **The thumbnail is the first media item that has an image.** Selection, in order:
-
 | Post media | `og:image` |
 |---|---|
 | First item is an **image** | that image's presigned `read_url` |
@@ -49,6 +68,8 @@ flowchart TD
 | No media at all | the author's avatar, else the web10 brand mark |
 
 The presigned URL is minted fresh on every request (the document-typing rule — the document never stores a live URL; `resolve_media_urls` already does this). Crawlers fetch the image over HTTPS from the public MinIO vhost, so the URL must be the public one (`S3_PUBLIC_ENDPOINT`), which the signing client already uses.
+
+> **The selection is the generic primitive.** The "first image, else the video's poster" table above is the universal `pickThumbnail` (KB: `../media/thumbnailing.md`) — a pure function over resolved media, delivered by the SDK and exposed as `POST /v3/media/thumbnail`. The social card (the social app's preview server) calls the generic primitive for the selection and the generic renderer for the card, and adds only the social parts (the `/u/:username` permalink, the title/description, and the author-avatar → brand-mark fallback). The platform owns the universal primitives; the card is the social app's tailoring — not platform debt.
 
 **The tags rendered** (a public post):
 
@@ -87,26 +108,36 @@ The node target is injected at deploy time (an `API_PROXY_TARGET` env var, e.g. 
 4. The node returns an HTML document: `og:image` = the poster frame, `og:title` = the caption, `og:description` = the caption, `og:url` = the permalink, `twitter:card` = `summary_large_image`.
 5. iMessage renders the card — the poster frame, the caption, "web10." The friend taps it and lands on the permalink in the app, signed in or not.
 
+## The profile permalink
+
+The profile permalink (`/u/:username`) is the same edge split, one level up. The social app's preview server renders the profile's **face** for a crawler: the avatar as `og:image`, the display name as `og:title`, the bio as `og:description`, and `og:type` = `profile` (the Open Graph type for a person). The nginx edge proxies `/u/:username` (the path that ends right after the username — mutually exclusive with the post permalink's `/u/:username/p/:postId`) to the preview server for known link-preview bots; everyone else gets the SPA.
+
+**No anon-read gate (unlike a post).** A post can be private or followers-only, so the post preview degrades to a generic card when it isn't anon-readable. A profile's face is the account's **public identity** — the avatar and display name are already on the discover board (the feed carries the author's avatar inline, resolved server-side for every reader), and there are no private accounts — so the profile preview renders the face directly, reading the author's profile via the generic read (anon-capable for a public profile). The avatar is resolved to a fresh presigned URL via the generic `media/thumbnail` (a media doc → its own image).
+
+**A user with no profile doc** (never saved one, or an unknown username) previews as a **generic** `@{username} on web10` card with the brand mark — never a broken preview, the browser-default posture. (A profile has no "deleted" state that matters to a crawler, so there is no 404 here, unlike a ghost post.)
+
 ## What this is not
 
-- **Not server-side rendering of the app.** The node renders a *preview document* for crawlers, not the SPA. The browser still gets the client-rendered app. There is no SSR framework, no hydration, no build-time coupling between the API and the social bundle.
-- **Not a change to the post read.** The app's read path (the SDK's `readById`, the feed, the lightbox) is untouched. The share endpoint is a *new*, thin, public read that reuses the existing primitives (`get_document_any_author`, `get_doc_groups`, `can_read_group`, `resolve_media_urls`, `get_author_profiles`).
+- **Not server-side rendering of the app.** The social app's preview server renders a *preview document* for crawlers, not the SPA. The browser still gets the client-rendered app. There is no SSR framework, no hydration, no build-time coupling between the node and the social bundle.
+- **Not a platform endpoint.** The card is the social app's preview server (the social-specific tail). The platform provides only the generic primitives (the `media/thumbnail` + the `preview/render` card renderer) — it knows nothing about posts, profiles, or the `/u/:username` permalink (D60).
 - **Not a privacy loosening.** The preview is *narrower* than the app: it only shows what an anonymous visitor could already read (the public board). Private and followers-only content never appears in a preview.
 
 ## Open questions
 
-Decided and built: the endpoint; the public-readability gate; the thumbnail selection; the generic-card privacy floor; the nginx User-Agent split; the deploy-time node target.
+Decided and built: the social app's preview server (the card); the generic card renderer (`POST /v3/preview/render`); the public-readability floor (a non-anon-readable post → generic card); the thumbnail via the generic `media/thumbnail`; the nginx User-Agent split (crawlers → the preview server, browsers → the SPA); the **profile permalink** (the profile's face, no anon-read gate). The platform's `share.py` is deleted.
 
 Still open:
 
-- **Group + profile permalinks.** This covers the post permalink (the one the Share button emits). Group permalinks (`/groups/:id`) and profile permalinks (`/u/:username`) are natural follow-ups — the same endpoint pattern, the group's face / the profile's avatar as the image.
+- **Group permalink.** `/groups/:id` — the same preview-server pattern, the group's face (cover + avatar) as the image. The group's face is a `web10-social-group-identity` doc (D60); the preview server would read it the same way the profile preview reads the profile.
 - **A preview for the app's own root** (`social.web10.app/`) — a static brand card. Cheap; the `index.html` static tags cover it.
 
 ## Reference
 
 - The read gate the public check reuses (D58): `../groups/access.md`
 - The readable-by-design posture the preview respects (D41): `../security/overview.md`
+- The generic thumbnailing primitive + the card's home (this doc's tail): `../media/thumbnailing.md`
 - The media model the thumbnail comes from (`thumbnail_object_key`, the presigned read): `../media/transcoding-foundation.md`
 - The post + media document shapes: `../db/clickhouse.md`
-- The endpoint: `../../../../api/app/v3/endpoints/share.py`
+- The social app's preview server (the card): `../../../../marketing/web10-social/preview/`
+- The generic card renderer: `../../../../api/app/v3/endpoints/preview.py`
 - The nginx split: `../../../../marketing/web10-social/nginx.conf`

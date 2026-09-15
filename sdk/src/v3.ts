@@ -116,6 +116,83 @@ export interface V3Group {
   discoverable?: boolean
 }
 
+// A resolved media ref — the shape the platform read produces
+// (`resolve_media_urls`): a fresh presigned `read_url` (and `thumbnail_url` for
+// video posters), the mime type, and the natural dimensions. The thumbnail
+// primitive (`pickThumbnail`) operates on this shape.
+export interface V3ResolvedMedia {
+  doc_id?: string
+  object_key?: string | null
+  mime_type?: string | null
+  filename?: string | null
+  size_bytes?: number | null
+  read_url?: string | null
+  width?: number | null
+  height?: number | null
+  duration_seconds?: number | null
+  thumbnail_url?: string | null
+  alt_text?: string | null
+  transcoding_settings?: Record<string, unknown>
+}
+
+// The thumbnail for a document (KB: media/thumbnailing.md) — the picture that
+// represents it. `null` from the platform means "no picture of its own"; the
+// app decides the fallback (author avatar, a brand mark, nothing).
+export interface V3Thumbnail {
+  url: string
+  alt?: string | null
+  is_video: boolean
+  width?: number | null
+  height?: number | null
+  mime_type?: string | null
+}
+
+/**
+ * Pick the best thumbnail from a list of resolved media refs (KB:
+ * media/thumbnailing.md). **Pure** — no I/O, no schema knowledge; it runs on
+ * the resolved media the app already has from a doc read. Selection, in order:
+ * the first item that is an image (its `read_url`), else a video's poster
+ * (`thumbnail_url`), else `null`. A video with no poster yet falls through to
+ * the next item.
+ *
+ * The **fallback is not here.** "No picture → author avatar → brand mark" is an
+ * *app* decision (the social app knows what an author's avatar is; a marketplace
+ * does not). The primitive returns `null` and lets the app decide — that split
+ * is what keeps it universal (D60).
+ */
+export function pickThumbnail(resolvedMedia: V3ResolvedMedia[]): V3Thumbnail | null {
+  for (const ref of resolvedMedia ?? []) {
+    if (!ref || typeof ref !== 'object') continue
+    const mime = ref.mime_type ?? ''
+    const isVideo = mime.startsWith('video/')
+    if (isVideo) {
+      if (ref.thumbnail_url) {
+        return {
+          url: ref.thumbnail_url,
+          alt: ref.alt_text ?? null,
+          is_video: true,
+          width: ref.width ?? null,
+          height: ref.height ?? null,
+          mime_type: mime,
+        }
+      }
+      // No poster yet (transcode pending) — fall through to the next item.
+      continue
+    }
+    if (ref.read_url) {
+      return {
+        url: ref.read_url,
+        alt: ref.alt_text ?? null,
+        is_video: false,
+        width: ref.width ?? null,
+        height: ref.height ?? null,
+        mime_type: mime,
+      }
+    }
+  }
+  return null
+}
+
 export interface V3GroupMember {
   group_id?: string
   member_key: string
@@ -848,6 +925,10 @@ export function createV3Client(options: V3ClientOptions = {}): V3Client {
       return v3Post<{ doc_id: string; status: string }>('media/delete', { doc_id: docId })
     },
 
+    async getThumbnail(docId: string): Promise<{ thumbnail: V3Thumbnail | null }> {
+      return v3Post<{ thumbnail: V3Thumbnail | null }>('media/thumbnail', { doc_id: docId })
+    },
+
     // ── Node stats ────────────────────────────────────────────────────────
 
     async getNodeStats(): Promise<{ users: number; documents: number; groups: number }> {
@@ -1066,6 +1147,10 @@ export interface V3Client {
   confirmMediaUpload(metadata: Record<string, unknown>): Promise<V3Document>
   listMedia(opts?: { limit?: number; offset?: number; doc_ids?: string[] }): Promise<V3Document[]>
   deleteMedia(docId: string): Promise<{ doc_id: string; status: string }>
+  /** Generic thumbnail (KB: media/thumbnailing.md) — the doc's own picture,
+   *  access-checked (I3). `null` when the doc has no usable media; the app
+   *  decides the fallback. */
+  getThumbnail(docId: string): Promise<{ thumbnail: V3Thumbnail | null }>
 
   // Stats
   getNodeStats(): Promise<{ users: number; documents: number; groups: number }>

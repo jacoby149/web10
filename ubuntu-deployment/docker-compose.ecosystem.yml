@@ -164,12 +164,26 @@ services:
         VITE_GA4_MEASUREMENT_ID: ${GA4_MEASUREMENT_ID:-}
         VITE_HOTJAR_SITE_ID: ${HOTJAR_SITE_ID:-}
     environment:
-      # Share-preview edge split (D71): the social nginx proxies a post
-      # permalink to the node for known link-preview crawlers. The node target
-      # is the same-stack api alias over the shared proxy network (the social
-      # and api containers both join "proxy"). envsubst'd into the nginx
-      # template at boot (see marketing/web10-social/Dockerfile).
-      API_PROXY_TARGET: http://${STACK}-api:80
+      # Link-preview edge split (KB: media/thumbnailing.md): the social nginx
+      # proxies a social permalink to the SOCIAL APP'S OWN preview server (a
+      # small Node process in this same container) for known link-preview
+      # crawlers. The node stays 100% generic (D60) — it answers
+      # "what's the picture for this doc?" (media/thumbnail) and "render a card
+      # from this spec" (preview/render); the preview server is the social part
+      # (permalink → doc → card content).
+      # PREVIEW_TARGET — the nginx template's proxy target (the preview server,
+      # same container, localhost). envsubst'd into the nginx template at boot.
+      PREVIEW_TARGET: http://127.0.0.1:3001
+      # API_ORIGIN — the preview server's origin for the node (the same-stack
+      # api alias over the shared proxy network). This is the container's
+      # RUNTIME env (internal origin); the VITE build arg VITE_API_ORIGIN above
+      # is the public origin (a separate variable) — no conflict.
+      API_ORIGIN: http://${STACK}-api:80
+      # SOCIAL_ORIGIN — the social app's public origin (the canonical og:url
+      # the preview server puts in the card).
+      SOCIAL_ORIGIN: ${SOCIAL_ORIGIN:-http://social.localhost}
+      # PREVIEW_PORT — the preview server's port (matches PREVIEW_TARGET).
+      PREVIEW_PORT: "3001"
     restart: unless-stopped
     networks:
       proxy:
