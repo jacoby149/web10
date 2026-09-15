@@ -75,6 +75,42 @@ export interface V3Group {
      *  Returned by `/manages` + `/get`; optional for forward-compat (older nodes). */
     discoverable?: boolean;
 }
+export interface V3ResolvedMedia {
+    doc_id?: string;
+    object_key?: string | null;
+    mime_type?: string | null;
+    filename?: string | null;
+    size_bytes?: number | null;
+    read_url?: string | null;
+    width?: number | null;
+    height?: number | null;
+    duration_seconds?: number | null;
+    thumbnail_url?: string | null;
+    alt_text?: string | null;
+    transcoding_settings?: Record<string, unknown>;
+}
+export interface V3Thumbnail {
+    url: string;
+    alt?: string | null;
+    is_video: boolean;
+    width?: number | null;
+    height?: number | null;
+    mime_type?: string | null;
+}
+/**
+ * Pick the best thumbnail from a list of resolved media refs (KB:
+ * media/thumbnailing.md). **Pure** — no I/O, no schema knowledge; it runs on
+ * the resolved media the app already has from a doc read. Selection, in order:
+ * the first item that is an image (its `read_url`), else a video's poster
+ * (`thumbnail_url`), else `null`. A video with no poster yet falls through to
+ * the next item.
+ *
+ * The **fallback is not here.** "No picture → author avatar → brand mark" is an
+ * *app* decision (the social app knows what an author's avatar is; a marketplace
+ * does not). The primitive returns `null` and lets the app decide — that split
+ * is what keeps it universal (D60).
+ */
+export declare function pickThumbnail(resolvedMedia: V3ResolvedMedia[]): V3Thumbnail | null;
 export interface V3GroupMember {
     group_id?: string;
     member_key: string;
@@ -262,6 +298,7 @@ export interface V3Client {
         offset?: number;
         ref?: string | string[];
         sort?: PowerMeanSort;
+        tags?: string[];
     }): Promise<V3Document[]>;
     readRefCounts(collection: string, opts: {
         groups: string[];
@@ -402,6 +439,12 @@ export interface V3Client {
     deleteMedia(docId: string): Promise<{
         doc_id: string;
         status: string;
+    }>;
+    /** Generic thumbnail (KB: media/thumbnailing.md) — the doc's own picture,
+     *  access-checked (I3). `null` when the doc has no usable media; the app
+     *  decides the fallback. */
+    getThumbnail(docId: string): Promise<{
+        thumbnail: V3Thumbnail | null;
     }>;
     getNodeStats(): Promise<{
         users: number;

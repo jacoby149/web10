@@ -55,13 +55,40 @@ describe('feed v3 data layer', () => {
 
       expect(posts.map((p) => p._id)).toEqual(['new', 'old']);
     });
+
+    it('omits the tag filter by default (the Discover board read is unchanged)', async () => {
+      mock.read.mockResolvedValue([]);
+
+      await readDiscoverFeed(null, 50);
+
+      expect(mock.read).toHaveBeenCalledWith(
+        'posts',
+        expect.objectContaining({ groups: ['web10.app/groups/web10/discover'] }),
+      );
+      expect((mock.read.mock.calls[0][1] as Record<string, unknown>).tags).toBeUndefined();
+    });
+
+    it('passes a tag filter through to the node (the generic has(tags, …) read)', async () => {
+      mock.read.mockResolvedValue([]);
+
+      await readDiscoverFeed(null, 50, ['short']);
+
+      expect(mock.read).toHaveBeenCalledWith(
+        'posts',
+        expect.objectContaining({ groups: ['web10.app/groups/web10/discover'], tags: ['short'] }),
+      );
+    });
   });
 
-  describe('readShortsFeed (the render-time gate — shorts.md)', () => {
-    // The security seam: a short is a post whose single media is a REAL 9:16
-    // video, re-derived from the resolved media — NOT trusted from the
-    // client-asserted `short` tag. A direct API caller can tag an image or a
-    // lying-ratio file as `short`; the gate must drop it.
+  describe('readShortsFeed (the two-layer filter — shorts.md v1.5)', () => {
+    // The filter is two-layered (defense in depth):
+    //   1. SERVER — readDiscoverFeed(…, ["short"]) sends has(tags, 'short'), so
+    //      the node pulls only tagged shorts (cheap + indexable).
+    //   2. RENDER — the gate re-derives 9:16 from the resolved media and drops
+    //      fakes (a doc tagged `short` whose media isn't a real vertical video).
+    // The mock simulates the server's tag filter so the test drives the real
+    // two-layer seam (an untagged 9:16 video is dropped server-side, not by
+    // the gate).
     function discoverPost(id: string, mediaRefs: string[], tags: string[], author = 'alice') {
       return {
         doc_id: id,
@@ -73,25 +100,46 @@ describe('feed v3 data layer', () => {
     function mediaDoc(id: string, mime: string, width: number, height: number) {
       return { doc_id: id, created_at: '2026-07-18T00:00:00Z', body: { mime_type: mime, width, height } };
     }
+    // A `read` mock that honors the server-side tag filter (has(tags, …)): it
+    // returns only the seeded posts carrying every requested tag.
+    function serverFilteredRead(posts: unknown[]) {
+      mock.read.mockImplementation(async (_coll: string, opts: { tags?: string[] }) => {
+        const all = posts as { body: { tags: string[] } }[];
+        if (!opts.tags?.length) return all;
+        return all.filter((p) => opts.tags!.every((t) => p.body.tags.includes(t)));
+      });
+    }
 
-    it('keeps a real 9:16 video and drops a faked one (image / lying ratio / multi-media)', async () => {
+    it('sends the server-side tag filter (["short"]) so the node pulls only shorts', async () => {
+      serverFilteredRead([discoverPost('p1', ['m1'], ['short'])]);
+      mock.listMedia.mockResolvedValue([mediaDoc('m1', 'video/mp4', 1080, 1920)]);
+
+      await readShortsFeed(50);
+
+      expect(mock.read).toHaveBeenCalledWith(
+        'posts',
+        expect.objectContaining({ groups: ['web10.app/groups/web10/discover'], tags: ['short'] }),
+      );
+    });
+
+    it('the render-time gate still drops fakes among the tagged posts (image / lying ratio / multi-media)', async () => {
+      // The server already filtered to `short`-tagged posts (the mock simulates
+      // that). The gate re-derives 9:16 from the resolved media and drops the
+      // fakes:
       // p1: 9:16 video, tagged short        → SHORT
-      // p2: image, tagged short             → NOT (the anti-hack: image faked as short)
+      // p2: image, tagged short             → NOT (image faked as short)
       // p3: 16:9 video, tagged short        → NOT (lying ratio)
-      // p4: 9:16 video, NOT tagged          → SHORT (the tag is not required)
-      // p5: 9:16 video + image              → NOT (a short is a single video)
-      mock.read.mockResolvedValue([
+      // p5: 9:16 video + image, tagged      → NOT (a short is a single video)
+      serverFilteredRead([
         discoverPost('p1', ['m1'], ['short']),
         discoverPost('p2', ['m2'], ['short']),
         discoverPost('p3', ['m3'], ['short']),
-        discoverPost('p4', ['m4'], []),
         discoverPost('p5', ['m5', 'm6'], ['short']),
       ]);
       mock.listMedia.mockResolvedValue([
         mediaDoc('m1', 'video/mp4', 1080, 1920), // 9:16 video
         mediaDoc('m2', 'image/jpeg', 1080, 1920), // image (faked short)
         mediaDoc('m3', 'video/mp4', 1920, 1080), // 16:9 video (lying ratio)
-        mediaDoc('m4', 'video/mp4', 1080, 1920), // 9:16 video (untagged)
         mediaDoc('m5', 'video/mp4', 1080, 1920), // 9:16 video
         mediaDoc('m6', 'image/jpeg', 1080, 1080), // image
       ]);
@@ -99,17 +147,40 @@ describe('feed v3 data layer', () => {
       const shorts = await readShortsFeed(50);
       const ids = shorts.map((s) => s.post._id).sort();
 
-      expect(ids).toEqual(['p1', 'p4']);
+      expect(ids).toEqual(['p1']);
       // The kept short carries its resolved 9:16 media.
       const p1 = shorts.find((s) => s.post._id === 'p1')!;
       expect(p1.media.mime_type).toBe('video/mp4');
       expect(p1.media.width!).toBeLessThan(p1.media.height!);
     });
 
+    it('an untagged 9:16 video is not a short (the server tag filter is the inclusion rule)', async () => {
+      // v1 (client-only) kept an untagged 9:16 video. v1.5 makes the tag the
+      // server-side inclusion rule: the node filters it out, so it never
+      // reaches the gate. Simulate the server: the tagged read returns only
+      // tagged posts — the untagged p4 is absent.
+      serverFilteredRead([
+        discoverPost('p1', ['m1'], ['short']), // tagged 9:16 → SHORT
+        discoverPost('p4', ['m4'], []), // untagged 9:16 → dropped server-side
+      ]);
+      mock.listMedia.mockResolvedValue([
+        mediaDoc('m1', 'video/mp4', 1080, 1920),
+        mediaDoc('m4', 'video/mp4', 1080, 1920),
+      ]);
+
+      const shorts = await readShortsFeed(50);
+      const ids = shorts.map((s) => s.post._id).sort();
+
+      // p4 (untagged) was filtered server-side; only p1 remains.
+      expect(ids).toEqual(['p1']);
+      // And the read did send the tag filter.
+      expect(mock.read).toHaveBeenCalledWith('posts', expect.objectContaining({ tags: ['short'] }));
+    });
+
     it('returns an empty list when no post is a genuine short', async () => {
-      mock.read.mockResolvedValue([
+      serverFilteredRead([
         discoverPost('p1', ['m1'], ['short']), // image faked as short
-        discoverPost('p2', [], []), // no media
+        discoverPost('p2', [], ['short']), // no media
       ]);
       mock.listMedia.mockResolvedValue([mediaDoc('m1', 'image/png', 800, 600)]);
 
