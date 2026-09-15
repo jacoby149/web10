@@ -51,7 +51,7 @@ jobs:
       # (ghcr-mirror.yml) — log in so the build pulls them authenticated
       # (1000/h) instead of hitting a registry rate limit. See e2e/mirror-images.json.
       - name: Log in to GHCR
-        uses: docker/login-action@v3
+        uses: docker/login-action@v4
         with:
           registry: ghcr.io
           username: ${{ github.actor }}
