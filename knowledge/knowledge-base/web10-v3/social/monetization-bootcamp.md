@@ -73,6 +73,7 @@ program's own page before you pitch a brand off them.
 | **Fiverr Affiliates** | Freelance, digital services | $15–$150 CPA | Dozens of service categories; fits a "how I run my business" angle. |
 | **Semrush Affiliate** | SEO, marketing, SaaS | $200/sale + $10/trial | 120-day cookie; high-intent digital traffic converts. |
 | **HubSpot Affiliate** | B2B software, CRM | 30% recurring for 1 year | Sticky software = predictable recurring payouts. |
+| **PartnerStack** | SaaS / B2B software marketplace | Varies by program (often 20–50% recurring) | One signup, one dashboard, hundreds of SaaS programs. The network — not a single brand — so it's a catalog, like Amazon, but for software. |
 
 A note on the shape of these: they are all the **same primitive** on web10.
 An Amazon tag, a Semrush link, your own merch store — each is just an
@@ -87,8 +88,9 @@ the object being "locked in what it is."
 Don't join everything. Pick the 1–2 programs that match what you actually
 post about. A tech creator: Amazon (gear) + Semrush or Shopify (tools). A
 lifestyle creator: Amazon + Target + eBay. A service creator: Fiverr +
-HubSpot. The match between your content and the catalog is what makes the
-link feel genuine instead of slathered on.
+HubSpot, or PartnerStack (one signup, then pick the SaaS programs you
+actually use from its marketplace). The match between your content and the
+catalog is what makes the link feel genuine instead of slathered on.
 
 ### Step 1 — Sign up for the program(s)
 

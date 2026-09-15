@@ -151,4 +151,11 @@ export const AFFILIATE_PROGRAMS: AffiliateProgram[] = [
     why: 'Sticky software = predictable recurring payouts.',
     signupUrl: 'https://www.hubspot.com/affiliates',
   },
+  {
+    name: 'PartnerStack',
+    niche: 'SaaS / B2B software marketplace',
+    commission: 'Varies by program (often 20–50% recurring)',
+    why: 'One signup, one dashboard, hundreds of SaaS programs — a catalog, like Amazon, but for software.',
+    signupUrl: 'https://dash.partnerstack.com/marketplace',
+  },
 ];
