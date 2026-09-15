@@ -84,6 +84,26 @@ export function passthroughGeometry(vw: number, vh: number): CropGeometry {
   };
 }
 
+/**
+ * True when the edit is a no-op — no trim (full duration) and no crop (source
+ * ratio). The `canvas.captureStream` + `MediaRecorder` re-encode is a
+ * real-time capture: it plays the source and records each frame + the audio in
+ * wall-clock time. When the main thread stutters (frame draws, React work),
+ * the audio capture drops or mis-times samples, producing a pitch/timbre
+ * distortion (the "Darth Vader" effect). A no-op edit re-encodes nothing — it
+ * just re-wraps the same pixels + sound through a lossy real-time path for no
+ * benefit. Callers should skip the re-encode and upload the original file
+ * directly (the node transcodes it to clean HLS — the node's ffmpeg is the
+ * deterministic path, not the browser's real-time capture).
+ */
+export function isNoopEdit(opts: VideoEditOptions, duration: number): boolean {
+  const start = opts.startTime ?? 0;
+  const end = opts.endTime ?? duration;
+  const noTrim = start <= 0.05 && end >= duration - 0.05;
+  const noCrop = opts.cropRatio == null;
+  return noTrim && noCrop;
+}
+
 function pickMime(): string {
   return (
     ['video/webm;codecs=vp9,opus', 'video/webm;codecs=vp8,opus', 'video/webm'].find(

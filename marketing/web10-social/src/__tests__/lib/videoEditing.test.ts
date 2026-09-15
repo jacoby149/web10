@@ -3,6 +3,7 @@ import {
   computeCropGeometry,
   passthroughGeometry,
   editVideo,
+  isNoopEdit,
   formatTimecode,
 } from '@/lib/videoEditing';
 
@@ -86,7 +87,40 @@ describe('formatTimecode', () => {
   });
 });
 
-// ── editVideo: the re-encode flow (mocked browser APIs) ─────────────────────
+describe('isNoopEdit', () => {
+  it('is a no-op with no opts (full duration, source ratio) — the default edit', () => {
+    expect(isNoopEdit({}, 10)).toBe(true);
+  });
+
+  it('is a no-op when start=0 and end=duration (explicit full window)', () => {
+    expect(isNoopEdit({ startTime: 0, endTime: 10 }, 10)).toBe(true);
+  });
+
+  it('is NOT a no-op when trimmed (start > 0)', () => {
+    expect(isNoopEdit({ startTime: 2, endTime: 10 }, 10)).toBe(false);
+  });
+
+  it('is NOT a no-op when trimmed (end < duration)', () => {
+    expect(isNoopEdit({ startTime: 0, endTime: 5 }, 10)).toBe(false);
+  });
+
+  it('is NOT a no-op when cropped (cropRatio set)', () => {
+    expect(isNoopEdit({ cropRatio: 9 / 16 }, 10)).toBe(false);
+  });
+
+  it('is a no-op when cropRatio is explicitly null', () => {
+    expect(isNoopEdit({ cropRatio: null }, 10)).toBe(true);
+  });
+
+  it('tolerates a tiny end-point rounding (within 50ms of duration)', () => {
+    // A caller that computes end = duration - 0.01 (floating-point) is still a no-op.
+    expect(isNoopEdit({ startTime: 0, endTime: 9.99 }, 10)).toBe(true);
+  });
+
+  it('is NOT a no-op when the trim window is meaningfully smaller', () => {
+    expect(isNoopEdit({ startTime: 0, endTime: 9.0 }, 10)).toBe(false);
+  });
+});
 
 class MockVideoElement extends HTMLElement {
   duration = 10;

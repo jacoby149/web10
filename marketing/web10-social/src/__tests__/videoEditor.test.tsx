@@ -216,14 +216,14 @@ describe('PostComposer video edit step', () => {
   });
 });
 
-// ── Always encode before upload (video-experience.md: "the node never sees
-//    the original"). The raw camera file — often HEVC, often too large for
-//    the presigned POST — used to be uploaded directly when the user skipped
-//    the editor, and that upload failed with "Failed to fetch". Now every
-//    video goes through the re-encode: the editor's output when the user
-//    edited, the DEFAULT edit (Original ratio, full duration) otherwise. ────
+// ── The upload path. The default edit (no trim, no crop) is a NO-OP — the
+//    lossy real-time canvas.captureStream + MediaRecorder re-encode distorts
+//    the audio (the "Darth Vader" pitch effect), so an unedited video uploads
+//    the original file directly and the node's ffmpeg transcodes it (the
+//    deterministic path). Only a real edit (trim/crop, from the editor) runs
+//    the re-encode. ──────────────────────────────────────────────────────────
 
-describe('PostComposer always encodes before upload', () => {
+describe('PostComposer upload path (no-op fast path + editor re-encode)', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     editVideoMock.mockResolvedValue({
@@ -235,25 +235,21 @@ describe('PostComposer always encodes before upload', () => {
     });
   });
 
-  it('an unedited video gets the default encode at post time — the raw file never uploads', async () => {
+  it('an unedited video is a no-op edit — the original uploads directly, no re-encode', async () => {
     await attachVideo();
     // No editor interaction — straight to Post.
     fireEvent.click(screen.getByTestId('post-submit'));
 
-    // The default encode ran (Original ratio, full duration — no trim/crop opts).
-    await waitFor(() => expect(editVideoMock).toHaveBeenCalledTimes(1));
-    const [fileArg, opts] = editVideoMock.mock.calls[0];
-    expect(fileArg).toBe(VIDEO_FILE); // the original, unedited file
-    expect(opts.startTime ?? 0).toBe(0);
-    expect(opts.endTime).toBeUndefined();
-    expect(opts.cropRatio ?? null).toBeNull();
-
-    // uploadMedia got the RE-ENCODED file, not the original.
+    // The default edit is a no-op (no trim, no crop) — the lossy real-time
+    // canvas.captureStream + MediaRecorder re-encode is skipped (it distorts
+    // the audio), and the original file uploads directly for the node to
+    // transcode.
     await waitFor(() => expect(uploadMediaMock).toHaveBeenCalled());
+    expect(editVideoMock).not.toHaveBeenCalled();
     const uploadReq = uploadMediaMock.mock.calls[0][0] as { file: File };
-    expect(uploadReq.file).not.toBe(VIDEO_FILE);
-    expect(uploadReq.file.name).toBe('clip-upload.webm');
-    expect(uploadReq.file.type).toBe('video/webm');
+    expect(uploadReq.file).toBe(VIDEO_FILE); // the original, unedited file
+    expect(uploadReq.file.name).toBe('clip.mp4');
+    expect(uploadReq.file.type).toBe('video/mp4');
   });
 
   it('an edited video is NOT encoded twice — the editor output uploads as-is', async () => {
@@ -281,42 +277,18 @@ describe('PostComposer always encodes before upload', () => {
     expect(uploadReq.file.name).toBe('clip-edited.webm');
   });
 
-  it('the tray shows the encode progress while the default encode runs', async () => {
-    // Hold the encode open so the progress state is observable.
-    let resolveEncode!: () => void;
-    editVideoMock.mockImplementation(
-      (_file: unknown, opts: { onProgress?: (f: number) => void }) =>
-        new Promise((res) => {
-          opts.onProgress?.(0.4);
-          resolveEncode = () =>
-            res({ blob: new Blob(['edited-bytes']), mimeType: 'video/webm', width: 608, height: 1080, duration: 5 });
-        }),
-    );
-
+  it('the no-op path shows no "Encoding" phase — it goes straight to upload', async () => {
     await attachVideo();
     fireEvent.click(screen.getByTestId('post-submit'));
 
-    // The tray item shows "Encoding 40%" while the encode is in flight.
-    const progress = await screen.findByTestId('media-post-progress');
-    expect(progress).toHaveTextContent('Encoding 40%');
-
-    resolveEncode();
+    // The no-op edit skips the re-encode, so the tray never shows an
+    // "Encoding N%" phase — it goes straight to the upload. (The upload
+    // progress is driven by uploadMedia's onProgress, which the mock doesn't
+    // call, so no progress badge at all — the key assertion is that the
+    // encode phase never appears.)
     await waitFor(() => expect(uploadMediaMock).toHaveBeenCalled());
-  });
-
-  it('a failed default encode surfaces the error and the tray is retryable', async () => {
-    editVideoMock.mockRejectedValueOnce(new Error('This browser does not support in-browser video editing.'));
-    await attachVideo();
-    fireEvent.click(screen.getByTestId('post-submit'));
-
-    const err = await screen.findByTestId('composer-error');
-    expect(err).toHaveTextContent('This browser does not support in-browser video editing.');
-    // The in-flight phase is cleared (no stuck "Encoding" spinner) and the
-    // Post button is enabled again.
-    expect(screen.queryByTestId('media-post-progress')).toBeNull();
-    expect(screen.getByTestId('post-submit')).toBeEnabled();
-    // Nothing was uploaded.
-    expect(uploadMediaMock).not.toHaveBeenCalled();
+    // The badge is absent (no phase) or shows the upload phase — never "Encoding".
+    expect(screen.queryByTestId('media-post-progress')?.textContent ?? '').not.toMatch(/Encoding/);
   });
 });
 
