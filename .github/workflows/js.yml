@@ -29,7 +29,7 @@ jobs:
           bun-version: latest
 
       - name: Cache bun install
-        uses: actions/cache@v4
+        uses: actions/cache@v6
         with:
           path: |
             ${{ inputs.package }}/node_modules
