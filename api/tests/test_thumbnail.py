@@ -19,7 +19,6 @@ from fastapi.testclient import TestClient
 from app.main import app as fastapi_app
 from app.v3.services import thumbnail
 
-
 # ── pickThumbnail — the pure selection ──────────────────────────────────────
 
 
