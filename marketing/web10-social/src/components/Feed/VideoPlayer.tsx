@@ -2,6 +2,8 @@ import { useEffect, useRef, useState } from 'react';
 import { Play, Pause, TriangleAlert } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { HlsVideoPlayer } from './HlsVideoPlayer';
+import { API_ORIGIN } from '@/lib/origins';
+import type { HlsInstance } from '@/types/hls';
 import type { MediaRecord } from '@/data/types';
 
 const LOG = (...args: unknown[]) => console.log('[social:video]', ...args);
@@ -21,8 +23,15 @@ const LOG = (...args: unknown[]) => console.log('[social:video]', ...args);
  *   mode    — how it presents: `inline` (tap-to-play ambient) | `full`
  *             (the hls.js control rack).
  *
+ * Plus a layout axis: `immersive` (default off). Off, the player reserves its
+ * own box (the source's ratio). On, the video fills the frame the surface
+ * gives it (the slide IS the 9:16 frame on Shorts) — no own aspect-ratio, no
+ * phone-width column, and for the `hls` source no control rack (video only).
+ *
  * `hls` always renders the full rack (hls.js gives ABR/quality, and the rack
- * is built for it) — that is the existing `HlsVideoPlayer`, kept as-is.
+ * is built for it) — that is the existing `HlsVideoPlayer`, kept as-is —
+ * EXCEPT in `immersive`, where the surface owns the frame + the overlay chrome
+ * and the player is the video only (the Shorts slide, shorts.md).
  */
 
 export type VideoSource =
@@ -72,16 +81,44 @@ export interface VideoPlayerProps {
   showDuration?: boolean;
   /** Fill a parent frame (w-full h-full, no own aspect-ratio) — for carousel slides. */
   fill?: boolean;
+  /**
+   * The video fills the frame the surface gives it (the slide IS the 9:16
+   * frame on Shorts): no own aspect-ratio, no phone-width column, and for the
+   * `hls` source no control rack (video only — the surface draws its own
+   * overlay chrome on top). The surface owns the frame; the player fills it.
+   */
+  immersive?: boolean;
+  /**
+   * The ambient-autoplay seam (with `immersive`): the surface tells the player
+   * when this is the active slide. Active → play muted; inactive → pause.
+   * Ignored outside immersive (the inline tap-to-play owns its own state).
+   */
+  active?: boolean;
   /** testid for the outer container — surfaces keep their existing testids. */
   testId?: string;
   className?: string;
 }
 
-export function VideoPlayer({ source, mode = 'inline', fit = 'contain', ratio, maxHeight, showDuration = true, fill = false, testId, className }: VideoPlayerProps) {
-  LOG('video player — source:', source.type, 'mode:', mode, 'fit:', fit, 'ratio:', ratio ?? 'natural');
+export function VideoPlayer({ source, mode = 'inline', fit = 'contain', ratio, maxHeight, showDuration = true, fill = false, immersive = false, active = false, testId, className }: VideoPlayerProps) {
+  LOG('video player — source:', source.type, 'mode:', mode, 'fit:', fit, 'ratio:', ratio ?? 'natural', 'immersive:', immersive, 'active:', active);
 
-  // hls → the full rack (the existing HlsVideoPlayer, kept as-is).
+  // hls → the full rack (the existing HlsVideoPlayer, kept as-is) — or, in
+  // immersive, the video-only fill (the Shorts slide: the surface owns the
+  // frame + the overlay chrome, so no rack, no phone-width column).
   if (source.type === 'hls') {
+    if (immersive) {
+      return (
+        <ImmersiveHls
+          manifestUrl={source.manifestUrl}
+          poster={source.poster}
+          width={source.width}
+          height={source.height}
+          active={active}
+          testId={testId}
+          className={className}
+        />
+      );
+    }
     return (
       <HlsVideoPlayer
         manifestUrl={source.manifestUrl}
@@ -117,6 +154,8 @@ export function VideoPlayer({ source, mode = 'inline', fit = 'contain', ratio, m
       maxHeight={maxHeight}
       showDuration={showDuration}
       fill={fill}
+      immersive={immersive}
+      active={active}
       testId={testId}
       className={className}
     />
@@ -173,6 +212,142 @@ function formatDuration(seconds: number): string {
   return m > 0 ? `${m}:${String(s).padStart(2, '0')}` : `${s}s`;
 }
 
+/**
+ * The immersive hls renderer (the Shorts slide, shorts.md): hls.js attached,
+ * the video fills the frame the surface gives it (`absolute inset-0
+ * object-cover`), muted + autoplay + loop — and NO control rack. The rack
+ * (scrubber/quality/speed/fullscreen) is the `mode="full"`/lightbox surface;
+ * on a Shorts slide it would collide with the author/caption overlay + the
+ * like/comment/share rail the surface draws on top. The full-rack
+ * `HlsVideoPlayer` stays exactly as-is for feed/lightbox; this is the
+ * video-only sibling for the frame the surface owns.
+ *
+ * `active` is the ambient-autoplay seam: the slide is the active one → play
+ * muted; off-screen → pause (the screen's IntersectionObserver is the source
+ * of truth). A tap toggles in place and never escapes the slide.
+ */
+export function ImmersiveHls({ manifestUrl, poster, width, height, active = false, testId, className }: {
+  manifestUrl: string;
+  poster?: string;
+  width?: number;
+  height?: number;
+  active?: boolean;
+  testId?: string;
+  className?: string;
+}) {
+  const videoRef = useRef<HTMLVideoElement>(null);
+  const hlsRef = useRef<HlsInstance | null>(null);
+  const [failed, setFailed] = useState(false);
+  const [tapped, setTapped] = useState(false);
+  const playing = (active && !tapped) || (!active && tapped);
+
+  // ── Attach the source (hls.js first, native HLS fallback — the same rule
+  //    as HlsVideoPlayer, video-experience.md). ─────────────────────────────
+  useEffect(() => {
+    const el = videoRef.current;
+    if (!el) return;
+    const manifestHref = `${API_ORIGIN}${manifestUrl}`;
+    LOG('immersive hls — attach, manifest:', manifestHref);
+
+    if (window.Hls && window.Hls.isSupported()) {
+      const Hls = window.Hls;
+      const hls = new Hls();
+      hlsRef.current = hls;
+      hls.on(Hls.Events.ERROR, (_e, data) => {
+        LOG('immersive hls — error, type:', data.type, 'details:', data.details, 'fatal:', data.fatal);
+        if (data.fatal) setFailed(true);
+      });
+      hls.loadSource(manifestHref);
+      hls.attachMedia(el);
+      return () => {
+        LOG('immersive hls — destroy');
+        hls.destroy();
+        hlsRef.current = null;
+      };
+    }
+
+    if (el.canPlayType('application/vnd.apple.mpegurl')) {
+      LOG('immersive hls — native HLS (Safari)');
+      el.src = manifestHref;
+      return;
+    }
+
+    LOG('immersive hls — no HLS support in this browser');
+    setFailed(true);
+  }, [manifestUrl]);
+
+  // ── The ambient loop: play muted while the slide is active, pause off-screen.
+  useEffect(() => {
+    const el = videoRef.current;
+    if (!el) return;
+    if (playing) {
+      el.muted = true;
+      const p = el.play();
+      if (p && typeof p.catch === 'function') p.catch(() => {});
+    } else {
+      el.pause();
+    }
+  }, [playing]);
+
+  if (failed) {
+    return <VideoError className={cn('h-full w-full', className)} />;
+  }
+
+  return (
+    <div
+      data-testid={testId}
+      className={cn('bg-black overflow-hidden relative cursor-pointer h-full w-full', className)}
+      onClick={(e) => {
+        // The inline invariant: a tap toggles play/pause in place and NEVER
+        // escapes the slide (video-player.md).
+        e.stopPropagation();
+        setTapped((t) => !t);
+      }}
+      role="button"
+      tabIndex={0}
+      aria-label={playing ? 'Pause video' : 'Play video'}
+      onKeyDown={(e) => {
+        if (e.key === 'Enter' || e.key === ' ') {
+          e.preventDefault();
+          setTapped((t) => !t);
+        }
+      }}
+    >
+      <video
+        ref={videoRef}
+        data-testid="immersive-hls-video"
+        poster={poster}
+        width={width}
+        height={height}
+        className="absolute inset-0 w-full h-full object-cover"
+        muted
+        autoPlay
+        loop
+        playsInline
+        preload="auto"
+        onError={() => {
+          // The native-HLS path (iOS Safari — no MSE, so hls.js is skipped):
+          // a failed manifest/segment load fires `error` on the <video>.
+          LOG('immersive hls — native video error, code:', videoRef.current?.error?.code, 'msg:', videoRef.current?.error?.message);
+          setFailed(true);
+        }}
+      />
+      {!playing && (
+        <div className="absolute inset-0 flex items-center justify-center bg-black/20">
+          <div className="flex items-center justify-center w-14 h-14 rounded-full bg-background/80 backdrop-blur-sm">
+            <Play className="w-6 h-6 text-foreground ml-0.5" strokeWidth={2} fill="currentColor" />
+          </div>
+        </div>
+      )}
+      {playing && (
+        <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+          <Pause className="w-8 h-8 text-foreground/60 animate-pulse" strokeWidth={1.5} />
+        </div>
+      )}
+    </div>
+  );
+}
+
 interface InlineVideoProps {
   url: string;
   poster?: string;
@@ -184,6 +359,14 @@ interface InlineVideoProps {
   maxHeight?: string;
   showDuration?: boolean;
   fill?: boolean;
+  /** The video fills the frame the surface gives it (the Shorts slide). */
+  immersive?: boolean;
+  /**
+   * The ambient-autoplay seam (the Shorts slide): the surface tells the player
+   * when the slide is the active one. Active → play muted (the browser's
+   * autoplay policy); inactive → pause. A tap still toggles in place.
+   */
+  active?: boolean;
   testId?: string;
   className?: string;
 }
@@ -195,9 +378,12 @@ interface InlineVideoProps {
  * once, and the invariant is a property of the component: **a tap toggles
  * play/pause in place and never reaches the card.**
  */
-export function InlineVideo({ url, poster, width, height, durationSeconds, fit = 'contain', ratio, maxHeight, showDuration = true, fill = false, testId, className }: InlineVideoProps) {
+export function InlineVideo({ url, poster, width, height, durationSeconds, fit = 'contain', ratio, maxHeight, showDuration = true, fill = false, immersive = false, active = false, testId, className }: InlineVideoProps) {
   const videoRef = useRef<HTMLVideoElement>(null);
-  const [playing, setPlaying] = useState(false);
+  const [tapped, setTapped] = useState(false);
+  // The ambient loop (the Shorts slide): the slide is active AND the user has
+  // not tapped to pause → play muted. Inactive → pause, always.
+  const playing = (active && !tapped) || (!active && tapped);
 
   useEffect(() => {
     if (!playing || !videoRef.current) return;
@@ -210,22 +396,22 @@ export function InlineVideo({ url, poster, width, height, durationSeconds, fit =
     };
   }, [playing]);
 
-  const cover = fit === 'cover';
+  const cover = fit === 'cover' || immersive;
   // An explicit ratio wins; else the source's natural ratio; else 4/3.
   const effectiveRatio = ratio ?? (width && height ? width / height : 4 / 3);
   // 16:9 cover → the Tailwind aspect-video class (the discover/youtube tile);
   // everything else → an inline aspect-ratio (the feed's natural ratio).
-  // `fill` (a carousel slide) takes its size from the parent frame — no own
-  // aspect-ratio, just w-full h-full.
-  const isAspectVideo = !fill && cover && Math.abs(effectiveRatio - 16 / 9) < 0.001;
-  const containerStyle: React.CSSProperties = fill ? {} : isAspectVideo ? {} : { aspectRatio: effectiveRatio, maxHeight };
+  // `fill` (a carousel slide) + `immersive` (the Shorts slide) take their size
+  // from the parent frame — no own aspect-ratio, just w-full h-full.
+  const isAspectVideo = !fill && !immersive && cover && Math.abs(effectiveRatio - 16 / 9) < 0.001;
+  const containerStyle: React.CSSProperties = fill || immersive ? {} : isAspectVideo ? {} : { aspectRatio: effectiveRatio, maxHeight };
 
   return (
     <div
       data-testid={testId}
       className={cn(
         'bg-elevated overflow-hidden group relative cursor-pointer',
-        fill ? 'h-full w-full' : isAspectVideo && 'aspect-video',
+        fill || immersive ? 'h-full w-full' : isAspectVideo && 'aspect-video',
         className,
       )}
       style={containerStyle}
@@ -234,7 +420,7 @@ export function InlineVideo({ url, poster, width, height, durationSeconds, fit =
         // reaches the card (the card's job is navigation + comments). This is
         // the invariant that kills the discover modal-yank (video-player.md).
         e.stopPropagation();
-        setPlaying((p) => !p);
+        setTapped((t) => !t);
       }}
       role="button"
       tabIndex={0}
@@ -242,7 +428,7 @@ export function InlineVideo({ url, poster, width, height, durationSeconds, fit =
       onKeyDown={(e) => {
         if (e.key === 'Enter' || e.key === ' ') {
           e.preventDefault();
-          setPlaying((p) => !p);
+          setTapped((t) => !t);
         }
       }}
     >
@@ -250,7 +436,11 @@ export function InlineVideo({ url, poster, width, height, durationSeconds, fit =
         ref={videoRef}
         src={url}
         poster={poster}
-        className={cn('w-full h-full', cover ? 'object-cover' : 'object-contain')}
+        className={cn(
+          'w-full h-full',
+          cover ? 'object-cover' : 'object-contain',
+          immersive && 'absolute inset-0',
+        )}
         preload="metadata"
         playsInline
         muted={!playing}

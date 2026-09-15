@@ -623,6 +623,7 @@ render). Spec'd in `knowledge-base/web10-v3/social/shorts.md`.
 - [✓ 3.90.0] **The surface** (`ShortsScreen.tsx`, `/shorts` + `/shorts/:postId`) — full-screen vertical scroll-snap feed, `<VideoPlayer>` per slide, author/caption overlay, like/comment/share rail, deep-link scroll-to-post.
 - [✓ 3.90.0] **Nav** — Shorts promoted from coming-soon to a real destination (desktop sidebar + the mobile More sheet; the bottom bar stays at five).
 - [✓ 3.90.0] **Tests** — `feed.test.ts` +2 driving the gate (real 9:16 kept; faked image / lying-ratio / multi-media dropped; untagged 9:16 kept) + `socialScreens.test.tsx` re-pinned.
+- [✓ 3.94.0] **The surface plays like a short** — the video fills the screen (the `immersive` player mode: the video-only hls fill, no control rack, no phone-width column; the desktop slide is a centered 9:16 column that fills the viewport height — the designed letterbox), the active slide autoplays muted + off-screen slides pause, and the TikTok swipe works (native scroll-snap + `ArrowUp`/`ArrowDown`/`PageUp`/`PageDown`). `shorts.md` gains the frame/playback/swipe spec (decision #6); `video-player.md` gains the `immersive` layout prop.
 - [ ] **v1.5** — the server-side `has(tags, 'short')` filter on `read`/`feed` (the idiom the node-ad read already uses, `clickhouse.py:2419`) so the feed pulls only shorts; optional ffmpeg-stamped dimension verification in the transcode worker (the truly bulletproof version).
 
 ## PWA: make web10-social a serious installable app — web10-social

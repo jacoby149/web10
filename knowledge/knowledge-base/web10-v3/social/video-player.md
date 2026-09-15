@@ -58,7 +58,9 @@ flowchart LR
 | `inline` | `InlineControls` | muted, loop, tap-to-play/pause, minimal overlay, duration badge. The feed / Discover / Groups behavior. |
 | `full` | `FullControls` | the current `HlsVideoPlayer` rack: scrubber, quality, speed, volume, fullscreen. The lightbox / "watch" behavior. |
 
-Plus two layout props: `fit` (`contain` — never crops, letterboxes; `cover` — fills the frame, crops) and `ratio` (or `width`/`height`). The vertical (9:16) phone-width column the feed uses is derived from the ratio, exactly as it is today.
+Plus three layout props: `fit` (`contain` — never crops, letterboxes; `cover` — fills the frame, crops), `ratio` (or `width`/`height`), and `immersive` (default `false`). The vertical (9:16) phone-width column the feed uses is derived from the ratio, exactly as it is today.
+
+**`immersive` — the video fills the frame the surface gives it.** Off (the default), the player reserves its own box (the source's ratio, or the `ratio` prop) and the surface sizes it. On, the player takes the size of its parent frame and the `<video>` fills it (`absolute inset-0 w-full h-full object-cover`): no own aspect-ratio, no phone-width column, and — for the `hls` source — **video only, no control rack** (the scrubber/quality/speed/fullscreen rack is the `mode="full"`/lightbox surface; on an immersive slide it would collide with the overlay chrome the surface draws on top). The surface that owns the frame is `ShortsScreen` (the slide IS the 9:16 frame — see `shorts.md`); the prop is what lets the one shared player serve it without a second `<video>` implementation.
 
 A surface is therefore a one-liner:
 
@@ -67,7 +69,7 @@ Feed:      <VideoPlayer source={hlsOrFile} mode="inline" fit="contain" />
 Discover:  <VideoPlayer source={hlsOrFile} mode="inline" fit="cover"  ratio={16/9} />
 Groups:    <VideoPlayer source={file}      mode="inline" fit="contain" />
 Lightbox:  <VideoPlayer source={hlsOrFile} mode="full" />
-Shorts:    <VideoPlayer source={{type:'youtube',id}} mode="inline" fit="cover" ratio={9/16} />
+Shorts:    <VideoPlayer source={hlsOrFile} mode="inline" fit="cover"  immersive />
 ```
 
 ## The two modalities (where, not how)
@@ -106,6 +108,7 @@ The invariant that makes the inline modality feel right: **in `inline` mode, a t
 | Groups | file | inline | contain | natural | inline |
 | Profile grid cell | — (static poster) | — | — | — | modal (cell → lightbox) |
 | Lightbox / deep-link | hls \| file | full | contain | natural | modal |
+| Shorts slide | hls \| file | inline | cover | the slide's frame (9:16, `immersive`) | immersive (the swipe surface, `shorts.md`) |
 
 ## What this is not
 
