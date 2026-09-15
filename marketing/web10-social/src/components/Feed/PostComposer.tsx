@@ -506,12 +506,23 @@ export default function PostComposer({ onPostCreated }: { onPostCreated?: () => 
       }
 
       setPosting(true);
+      // A short (shorts.md): exactly one video, 9:16 (width < height). The
+      // creator already signaled it by shooting/cropping vertical — auto-detect,
+      // no toggle. The tag is the server-side feed filter; the Shorts feed also
+      // re-derives 9:16 at render (the tag alone is client-asserted).
+      const isShort =
+        mediaItems.length === 1 &&
+        mediaItems[0].isVideo &&
+        mediaItems[0].width > 0 &&
+        mediaItems[0].height > 0 &&
+        mediaItems[0].width < mediaItems[0].height;
       const postRecord = await createPost(
         {
           text: text.trim(),
           media_refs: mediaRecords.map((m) => m._id!).filter(Boolean),
           visibility,
           created_at: new Date().toISOString(),
+          tags: isShort ? ['short'] : undefined,
         },
         undefined,
         pinnedAd ? { mode: 'pinned', target: pinnedAd._id } : undefined,

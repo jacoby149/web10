@@ -648,9 +648,10 @@ describe('Layout', () => {
         </Layout>
       </MemoryRouter>,
     );
-    // Desktop sidebar keeps the coming-soon section.
-    expect(screen.getByTestId('nav-flares')).toBeInTheDocument();
-    expect(screen.getByTestId('nav-takes')).toBeInTheDocument();
+    // Desktop sidebar: Shorts is a real destination; Stories is still
+    // coming-soon. Both render in the sidebar.
+    expect(screen.getByTestId('nav-stories')).toBeInTheDocument();
+    expect(screen.getByTestId('nav-shorts')).toBeInTheDocument();
 
     // The mobile bottom bar is exactly four core tabs + the More tab.
     const mobileNav = screen.getByLabelText('Primary mobile');
@@ -663,8 +664,8 @@ describe('Layout', () => {
     expect(within(mobileNav).queryByTestId('nav-settings-mobile')).not.toBeInTheDocument();
     expect(within(mobileNav).queryByTestId('nav-groups-mobile')).not.toBeInTheDocument();
     // …and none of the coming-soon icons are crammed into the bar.
-    expect(within(mobileNav).queryByTestId('nav-flares-mobile')).not.toBeInTheDocument();
-    expect(within(mobileNav).queryByTestId('nav-takes-mobile')).not.toBeInTheDocument();
+    expect(within(mobileNav).queryByTestId('nav-stories-mobile')).not.toBeInTheDocument();
+    expect(within(mobileNav).queryByTestId('nav-shorts-mobile')).not.toBeInTheDocument();
     expect(within(mobileNav).queryByTestId('nav-livestream-mobile')).not.toBeInTheDocument();
     expect(within(mobileNav).queryByTestId('nav-games-mobile')).not.toBeInTheDocument();
     expect(within(mobileNav).queryByTestId('nav-marketplace-mobile')).not.toBeInTheDocument();
@@ -672,15 +673,16 @@ describe('Layout', () => {
     // The More sheet is closed by default.
     expect(screen.queryByTestId('more-sheet')).not.toBeInTheDocument();
 
-    // Tapping More opens the sheet: Settings + Groups (real destinations) +
-    // the coming-soon list.
+    // Tapping More opens the sheet: Shorts + Settings + Groups (real
+    // destinations) + the coming-soon list (Stories, Livestream, Games,
+    // Marketplace). Shorts is a real surface (shorts.md), not coming-soon.
     fireEvent.click(screen.getByTestId('nav-more-mobile'));
     const sheet = screen.getByTestId('more-sheet');
     expect(sheet).toBeInTheDocument();
+    expect(within(sheet).getByTestId('nav-shorts-mobile')).toBeInTheDocument();
     expect(within(sheet).getByTestId('nav-settings-mobile')).toBeInTheDocument();
     expect(within(sheet).getByTestId('nav-groups-mobile')).toBeInTheDocument();
-    expect(within(sheet).getByTestId('nav-flares-mobile')).toBeInTheDocument();
-    expect(within(sheet).getByTestId('nav-takes-mobile')).toBeInTheDocument();
+    expect(within(sheet).getByTestId('nav-stories-mobile')).toBeInTheDocument();
     expect(within(sheet).getByTestId('nav-livestream-mobile')).toBeInTheDocument();
     expect(within(sheet).getByTestId('nav-games-mobile')).toBeInTheDocument();
     expect(within(sheet).getByTestId('nav-marketplace-mobile')).toBeInTheDocument();

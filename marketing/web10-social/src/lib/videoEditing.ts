@@ -120,7 +120,6 @@ export async function editVideo(file: File, opts: VideoEditOptions = {}): Promis
 
   const url = URL.createObjectURL(file);
   const video = document.createElement('video');
-  video.muted = true;
   video.playsInline = true;
   video.src = url;
 
@@ -157,11 +156,18 @@ export async function editVideo(file: File, opts: VideoEditOptions = {}): Promis
     const stream = canvas.captureStream(30);
 
     // Audio: route the source element's audio through an AudioContext into
-    // the recorded stream. A muted <video> still produces audio in the
-    // WebAudio graph (muted only affects the element's own output).
+    // the recorded stream. The <video> is NOT muted: once
+    // createMediaElementSource() is called, the element's audio is
+    // disconnected from the speakers and flows only into this WebAudio
+    // graph (we never connect to audioCtx.destination), so the user hears
+    // nothing — but muting the element would ALSO silence the
+    // MediaElementSourceNode and ship a silent webm.
     let audioCtx: AudioContext | null = null;
     try {
       audioCtx = new AudioContext();
+      // An AudioContext created without a fresh user gesture can boot
+      // "suspended" and produce no audio — resume it before recording.
+      await audioCtx.resume();
       const srcNode = audioCtx.createMediaElementSource(video);
       const dest = audioCtx.createMediaStreamDestination();
       srcNode.connect(dest);
@@ -173,6 +179,9 @@ export async function editVideo(file: File, opts: VideoEditOptions = {}): Promis
         console.log('[video-editor] editVideo — source has no audio track');
       }
     } catch (e) {
+      // Routing failed — fall back to a silent encode, but mute the element
+      // so the user doesn't hear the raw clip play during the encode.
+      video.muted = true;
       console.log('[video-editor] editVideo — no audio (silent edit):', (e as Error).message);
     }
 

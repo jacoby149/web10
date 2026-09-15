@@ -27,6 +27,8 @@ import type { ProfileRecord, PostRecord, MediaRecord, FollowRecord, ResolvedMedi
 import { mediaRefId } from '@/data/types';
 import { MapPin, Globe, Link, Users, UserPlus, UserCheck, Loader2, ArrowLeft, MessageSquare, Play, Camera, Edit3, Check, X, ImagePlus, AlertTriangle, Inbox } from 'lucide-react';
 import { PostLightbox } from './PostLightbox';
+import { ProfileFeed } from './ProfileFeed';
+import { ProfileViewToggle, type ProfileViewMode } from './ProfileViewToggle';
 import { ProfileMediaLightbox, type ProfileMediaOption } from './ProfileMediaLightbox';
 import { toast, errorMessage } from '@/components/shared/Toast';
 import { cn } from '@/lib/utils';
@@ -107,6 +109,13 @@ export default function UserProfileScreen({ username, provider, onBack }: UserPr
   const [activeTab, setActiveTab] = useState<'posts' | 'media'>(
     () => (searchParams.get('tab') === 'media' ? 'media' : 'posts'),
   );
+  // The posts tab's view lens (the "view lenses" idea — rendering only, never
+  // ranking): the insta-shaped grid (the default) or the facebook-shaped feed
+  // of full cards. Screen state, so the URL holds it (?view=feed — refresh
+  // restores it, a shared link carries it; the default grid is the bare URL).
+  const [viewMode, setViewMode] = useState<ProfileViewMode>(
+    () => (searchParams.get('view') === 'feed' ? 'feed' : 'grid'),
+  );
 
   const selectTab = useCallback((tab: 'posts' | 'media') => {
     setActiveTab(tab);
@@ -119,11 +128,25 @@ export default function UserProfileScreen({ username, provider, onBack }: UserPr
     setSearchParams(params, { replace: true });
   }, [searchParams, setSearchParams]);
 
-  // Sync activeTab with ?tab= (back/forward + a shared link landing on a tab).
+  const selectView = useCallback((mode: ProfileViewMode) => {
+    setViewMode(mode);
+    const params = new URLSearchParams(searchParams);
+    if (mode === 'feed') {
+      params.set('view', 'feed');
+    } else {
+      params.delete('view');
+    }
+    setSearchParams(params, { replace: true });
+  }, [searchParams, setSearchParams]);
+
+  // Sync activeTab + viewMode with the URL (back/forward + a shared link
+  // landing on a tab/view).
   useEffect(() => {
     const current = searchParams.get('tab') === 'media' ? 'media' : 'posts';
     if (activeTab !== current) setActiveTab(current);
-  }, [searchParams]);
+    const currentView = searchParams.get('view') === 'feed' ? 'feed' : 'grid';
+    if (viewMode !== currentView) setViewMode(currentView);
+  }, [searchParams, activeTab, viewMode]);
 
   useEffect(() => {
     loadData();
@@ -706,8 +729,8 @@ export default function UserProfileScreen({ username, provider, onBack }: UserPr
         )}
       </div>
 
-      {/* Tabs */}
-      <div className="flex border-b border-border">
+      {/* Tabs (+ the posts tab's view lens: grid | feed) */}
+      <div className="flex items-end border-b border-border">
         <button
           data-testid="profile-tab-posts"
           aria-current={activeTab === 'posts' ? 'true' : undefined}
@@ -740,12 +763,29 @@ export default function UserProfileScreen({ username, provider, onBack }: UserPr
             <div className="absolute bottom-0 inset-x-0 h-0.5 bg-gradient-to-r from-brand to-brand-600" />
           )}
         </button>
+        {activeTab === 'posts' && (
+          <div className="flex items-center shrink-0 pr-2 pb-2">
+            <ProfileViewToggle value={viewMode} onChange={selectView} />
+          </div>
+        )}
       </div>
 
-      {/* Grid */}
+      {/* Posts: the insta-shaped grid (default) or the facebook-shaped feed */}
       <div className="p-1">
         {activeTab === 'posts' ? (
           posts.length ? (
+            viewMode === 'feed' ? (
+              <ProfileFeed
+                posts={posts}
+                mediaMap={mediaMap}
+                authorName={profile?.display_name || username}
+                authorUsername={username}
+                authorProvider={provider}
+                authorAvatar={avatarMedia?.url}
+                isOwnProfile={isOwnProfile}
+                onPostUpdated={loadData}
+              />
+            ) : (
             <div className="grid grid-cols-3 gap-1">
               {posts.map((post) => {
                 const firstMedia = post.media_refs?.[0] ? mediaMap[mediaRefId(post.media_refs[0])] : null;
@@ -805,6 +845,7 @@ export default function UserProfileScreen({ username, provider, onBack }: UserPr
                 );
               })}
             </div>
+            )
           ) : (
             <div className="py-16 text-center" data-testid="profile-posts-empty">
               <p className="text-sm text-muted-foreground mb-2">No posts yet</p>

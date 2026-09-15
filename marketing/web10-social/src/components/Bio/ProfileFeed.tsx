@@ -1,0 +1,186 @@
+import { useEffect, useRef, useState } from 'react';
+import {
+  countComments,
+  readReactions,
+  toggleReactionKind,
+  type ReactionKind,
+} from '@/data';
+import { getWapi } from '@/data/wapi';
+import {
+  fromResolvedMediaRef,
+  type MediaRecord,
+  type PostRecord,
+} from '@/data/types';
+import { PostCard } from '@/components/Feed/FeedScreen';
+import { toast, errorMessage } from '@/components/shared/Toast';
+
+const LOG = (...args: unknown[]) => console.log('[social:profile-feed]', ...args);
+
+interface ProfileFeedProps {
+  posts: PostRecord[];
+  mediaMap: Record<string, MediaRecord>;
+  authorName: string;
+  authorUsername?: string;
+  authorProvider?: string;
+  authorAvatar?: string;
+  isOwnProfile?: boolean;
+  onPostUpdated?: () => void;
+}
+
+// The profile's facebook-shaped feed view (the "view lenses" idea — rendering
+// only, never ranking): the profile's posts as a vertical stream of the feed's
+// own PostCard (text + media + the shared engagement bar), instead of the
+// insta-shaped 3-column grid. The data is the same `posts` the grid renders —
+// the lens only changes the rendering.
+//
+// Engagement (like counts + the reader's own reaction) is not in the profile
+// read, so it is loaded per post here (isolated — one bad read degrades that
+// card to zero, never the whole view), the feed's optimistic-toggle pattern.
+export function ProfileFeed({
+  posts,
+  mediaMap,
+  authorName,
+  authorUsername,
+  authorProvider,
+  authorAvatar,
+  isOwnProfile = false,
+  onPostUpdated,
+}: ProfileFeedProps) {
+  const [reactionMap, setReactionMap] = useState<Record<string, number>>({});
+  const [commentMap, setCommentMap] = useState<Record<string, number>>({});
+  const [likedMap, setLikedMap] = useState<Record<string, boolean>>({});
+  const [dislikedMap, setDislikedMap] = useState<Record<string, boolean>>({});
+  const [engagementReady, setEngagementReady] = useState(false);
+  // Re-key the engagement read when the post set changes (a new post after an
+  // edit/delete, a profile switch) — without re-reading on every mediaMap
+  // update (media resolution lands after the posts).
+  const postsKey = posts.map((p) => p._id || '').join('|');
+  const token = getWapi().readToken();
+  const tokenUsername = token?.username;
+
+  useEffect(() => {
+    let cancelled = false;
+    if (!posts.length) {
+      setEngagementReady(true);
+      return;
+    }
+    LOG('load engagement for', posts.length, 'posts');
+    (async () => {
+      // Per-post isolation: one rejected read degrades that card's counts to
+      // zero (the feed's 3.25.x pattern), it never blanks the view.
+      await Promise.all(
+        posts.map(async (post) => {
+          const id = post._id || '';
+          if (!id) return;
+          try {
+            const reactions = await readReactions(id);
+            if (cancelled) return;
+            const likeCount = reactions.filter((r) => r.type === 'like').length;
+            const mine = tokenUsername
+              ? reactions.find(
+                  (r) => r.author_username === tokenUsername && (r.type === 'like' || r.type === 'dislike'),
+                )
+              : undefined;
+            setReactionMap((prev) => ({ ...prev, [id]: likeCount }));
+            setLikedMap((prev) => ({ ...prev, [id]: mine?.type === 'like' }));
+            setDislikedMap((prev) => ({ ...prev, [id]: mine?.type === 'dislike' }));
+          } catch (e) {
+            console.error('[social:profile-feed] reaction read failed:', e);
+          }
+          try {
+            const n = await countComments(id);
+            if (!cancelled) setCommentMap((prev) => ({ ...prev, [id]: n }));
+          } catch (e) {
+            console.error('[social:profile-feed] comment count failed:', e);
+          }
+        }),
+      );
+      if (!cancelled) {
+        setEngagementReady(true);
+        LOG('engagement ready');
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [postsKey, tokenUsername]);
+
+  // Reset the engagement maps when the post set changes (a profile switch must
+  // not show the previous profile's counts on the new cards for a frame).
+  const lastPostsKey = useRef(postsKey);
+  if (lastPostsKey.current !== postsKey) {
+    lastPostsKey.current = postsKey;
+    setReactionMap({});
+    setCommentMap({});
+    setLikedMap({});
+    setDislikedMap({});
+    setEngagementReady(false);
+  }
+
+  async function handleToggleReaction(postId: string, kind: ReactionKind) {
+    const wasLiked = !!likedMap[postId];
+    const wasDisliked = !!dislikedMap[postId];
+    const nextLiked = kind === 'like' ? !wasLiked : false;
+    const nextDisliked = kind === 'dislike' ? !wasDisliked : false;
+    const delta = (nextLiked ? 1 : 0) - (wasLiked ? 1 : 0);
+    setLikedMap((prev) => ({ ...prev, [postId]: nextLiked }));
+    setDislikedMap((prev) => ({ ...prev, [postId]: nextDisliked }));
+    setReactionMap((prev) => ({ ...prev, [postId]: Math.max(0, (prev[postId] || 0) + delta) }));
+    try {
+      await toggleReactionKind(postId, kind);
+    } catch (e) {
+      console.error('Failed to toggle reaction:', e);
+      toast.error(errorMessage(e, 'Could not update your reaction.'));
+      setLikedMap((prev) => ({ ...prev, [postId]: wasLiked }));
+      setDislikedMap((prev) => ({ ...prev, [postId]: wasDisliked }));
+      setReactionMap((prev) => ({ ...prev, [postId]: Math.max(0, (prev[postId] || 0) - delta) }));
+    }
+  }
+
+  function mediaItemsFor(post: PostRecord): MediaRecord[] {
+    const items: MediaRecord[] = [];
+    for (const ref of post.media_refs || []) {
+      if (typeof ref === 'string') {
+        const m = mediaMap[ref];
+        if (m) items.push(m);
+      } else {
+        items.push(fromResolvedMediaRef(ref));
+      }
+    }
+    return items;
+  }
+
+  return (
+    <div className="md:px-4 md:py-4" data-testid="profile-feed">
+      {posts.map((post) => {
+        const id = post._id || '';
+        return (
+          <PostCard
+            key={id || post.created_at}
+            post={post}
+            authorName={authorName}
+            authorUsername={authorUsername}
+            authorProvider={authorProvider}
+            authorAvatar={authorAvatar}
+            mediaItems={mediaItemsFor(post)}
+            reactionCount={reactionMap[id] || 0}
+            commentCount={commentMap[id] || 0}
+            liked={!!likedMap[id]}
+            disliked={!!dislikedMap[id]}
+            timestamp={post.created_at}
+            onToggleReaction={(kind) => handleToggleReaction(id, kind)}
+            onCommentCountChange={(n) => setCommentMap((prev) => ({ ...prev, [id]: n }))}
+            postAuthor={authorUsername}
+            postService="public_posts"
+            isOwnPost={isOwnProfile}
+            onPostUpdated={onPostUpdated}
+          />
+        );
+      })}
+      {/* engagementReady is consumed by tests; the cards render immediately
+          with zero counts and fill in as the per-post reads land. */}
+      <span data-testid="profile-feed-engagement-ready" hidden={!engagementReady} />
+    </div>
+  );
+}
