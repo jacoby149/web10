@@ -9,13 +9,13 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { readProfile, saveProfile, readMyPosts, resolveMediaRefs, uploadMedia, countFollows, countFollowers, refreshMediaUrls, countStagingPosts } from '@/data';
 import { getWapi } from '@/data/wapi';
 import { toast, errorMessage } from '@/components/shared/Toast';
-import type { ProfileRecord, PostRecord, MediaRecord, ResolvedMediaRef } from '@/data/types';
+import type { ProfileRecord, PostRecord, MediaRecord } from '@/data/types';
 import { mediaRefId } from '@/data/types';
 import { MapPin, Globe, Link, Camera, Edit3, Check, X, ImagePlus, Loader2, AlertTriangle, Inbox, Play } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { MARKETING_ORIGIN } from '@/lib/origins';
 import { PostLightbox } from './PostLightbox';
-import { ProfileMediaLightbox, type ProfileMediaOption } from './ProfileMediaLightbox';
+import { ProfileMediaLightbox, type ProfileMediaOption, type FaceCropResult } from './ProfileMediaLightbox';
 
 function ProfileSkeleton() {
   return (
@@ -171,11 +171,16 @@ export default function ProfileScreen() {
   const bannerMedia = profile?.banner_ref ? mediaMap[profile.banner_ref] : undefined;
   const avatarMedia = profile?.avatar_ref ? mediaMap[profile.avatar_ref] : undefined;
 
-  async function handleFaceSelect(field: 'avatar' | 'banner', ref: string | ResolvedMediaRef) {
+  // The owner confirmed a crop in the face lightbox → make it the face.
+  // The crop ships as a NEW media doc (the same upload path as the file
+  // picker) and the profile points at that doc — the face IS the crop.
+  async function handleFaceCrop(field: 'avatar' | 'banner', result: FaceCropResult) {
     setFaceSaving(true);
     try {
-      const refId = mediaRefId(ref);
-      const updated = { ...(profile || {}), [field === 'avatar' ? 'avatar_ref' : 'banner_ref']: refId };
+      const ext = result.mimeType === 'image/png' ? 'png' : 'jpg';
+      const file = new File([result.blob], `face-crop-${Date.now()}.${ext}`, { type: result.mimeType });
+      const media = await uploadMedia({ file, service: 'public_media', width: result.width, height: result.height });
+      const updated = { ...(profile || {}), [field === 'avatar' ? 'avatar_ref' : 'banner_ref']: media._id || '' };
       const saved = await saveProfile(updated);
       setProfile(saved);
       setDraft(saved);
@@ -607,7 +612,7 @@ export default function ProfileScreen() {
           onClose={() => setFaceLightbox(null)}
           isOwner
           options={faceOptions}
-          onSelect={(ref) => handleFaceSelect(faceLightbox, ref)}
+          onCrop={(result) => handleFaceCrop(faceLightbox, result)}
           saving={faceSaving}
           displayName={profile?.display_name}
         />

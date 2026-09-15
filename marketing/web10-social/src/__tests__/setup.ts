@@ -36,3 +36,28 @@ class MockIntersectionObserver {
 (globalThis as unknown as Record<string, FireFn>).fireIntersectionObservers = () => {
   MockIntersectionObserver.instances.forEach((o) => o.fire());
 };
+
+// jsdom has no ResizeObserver (the face-crop frame tracks its rendered width
+// with one). A no-op mock: observe/disconnect do nothing, the callback is
+// captured so a test can fire it. By default it never fires — the component's
+// initial getBoundingClientRect read is enough for the tests (jsdom reports
+// 0, and the component falls back to the frame's max width).
+class MockResizeObserver {
+  static instances: MockResizeObserver[] = [];
+  callback: ResizeObserverCallback;
+  constructor(callback: ResizeObserverCallback) {
+    this.callback = callback;
+    MockResizeObserver.instances.push(this);
+  }
+  observe() {}
+  unobserve() {}
+  disconnect() {}
+  takeRecords() {
+    return [];
+  }
+  fire(entries: ResizeObserverEntry[] = []) {
+    this.callback(entries, this);
+  }
+}
+
+(globalThis as Record<string, unknown>).ResizeObserver = MockResizeObserver;
