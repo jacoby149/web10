@@ -563,3 +563,60 @@ describe('UserProfileScreen loadData — per-read isolation (one bad read never 
     });
   });
 });
+
+describe('UserProfileScreen — own profile is recognized regardless of the provider that reached it', () => {
+  // Regression (operator: "sometimes entering my profile i cant edit my pfp …
+  // hitting the profile button then app knows my profile link is editable by
+  // me"). A profile reached via a feed/discover author click carries the v2
+  // `'web10'` fallback provider in `location.state` (the v3 `author_key` is a
+  // bare username, so `extractProvider` returns `'web10'`, never the token's
+  // real provider). The old `isOwn` compared `token.provider === provider`, so
+  // the user's OWN profile rendered as someone else's (Follow/Message buttons,
+  // no Edit profile / camera / banner) on exactly those arrivals — while the
+  // profile button (no state.provider) fell back to the token's provider and
+  // worked. Ownership is by username alone (the KB's v3 rule — the same fix as
+  // the feed's isOwnPost 3.79.3 + reactions 3.87.2).
+  beforeEach(() => {
+    vi.clearAllMocks();
+    (globalThis.fetch as ReturnType<typeof vi.fn>).mockResolvedValue({
+      ok: true,
+      json: () => [],
+    });
+  });
+
+  it('renders the owner affordances (not Follow/Message) when reached with the v2-fallback provider', async () => {
+    const { default: UserProfileScreen } = await import('@/components/Bio/UserProfileScreen');
+
+    // username matches the token's username; provider is the v2 fallback
+    // ('web10') — the value a feed/discover author click puts in location.state.
+    render(
+      <MemoryRouter initialEntries={['/u/testuser']}>
+        <UserProfileScreen username="testuser" provider="web10" />
+      </MemoryRouter>,
+    );
+
+    // The owner affordance is present (Edit profile), not the viewer buttons.
+    await waitFor(() => {
+      expect(screen.getByTestId('edit-profile-button')).toBeInTheDocument();
+    });
+    expect(screen.queryByTestId('follow-button')).not.toBeInTheDocument();
+    expect(screen.queryByTestId('message-button')).not.toBeInTheDocument();
+  });
+
+  it('still renders the viewer buttons for someone else (username mismatch)', async () => {
+    const { default: UserProfileScreen } = await import('@/components/Bio/UserProfileScreen');
+
+    // username does NOT match the token's username → someone else's profile,
+    // even though the provider happens to match the token's real provider.
+    render(
+      <MemoryRouter initialEntries={['/u/noodle-empress']}>
+        <UserProfileScreen username="noodle-empress" provider="test.localhost" />
+      </MemoryRouter>,
+    );
+
+    await waitFor(() => {
+      expect(screen.getByTestId('follow-button')).toBeInTheDocument();
+    });
+    expect(screen.queryByTestId('edit-profile-button')).not.toBeInTheDocument();
+  });
+});
