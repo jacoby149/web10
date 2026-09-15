@@ -233,7 +233,7 @@ export function PostActions({
       {layout === 'row' ? (
         <div className="flex items-center gap-1 px-2 py-2">{bar}</div>
       ) : (
-        <div className="mt-3 flex items-center gap-6 border-t border-border pt-3">{bar}</div>
+        <div className="flex items-center gap-6 border-t border-border px-4 pt-3 pb-3">{bar}</div>
       )}
       {thread}
     </div>

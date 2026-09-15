@@ -178,17 +178,54 @@ export async function setReaction(
   if (!token) throw new Error('not authenticated');
 
   const existing = await readReactions(targetId, undefined, groups);
-  const mine = existing.find(
+  // v3 ownership is by username alone: a reaction's author_key is the bare
+  // username (the node's provider is implicit), so author_provider is the
+  // v2 fallback ('web10') and never equals the token's real provider —
+  // comparing it made "mine" unfindable, so every tap CREATED a new
+  // reaction instead of toggling (the 28-likes bug; same class as the
+  // feed's isOwnPost fix, 3.79.3).
+  //
+  // filter, not find: the 28-likes bug stacked N reaction docs for the same
+  // user on the same target. find() would see the first one and leave the
+  // rest; filter() sees all of them so the self-heal below can collapse the
+  // duplicates to one.
+  const mine = existing.filter(
     (r) =>
       r.author_username === token.username &&
-      r.author_provider === token.provider &&
       (r.type === 'like' || r.type === 'dislike'),
   );
 
-  if (mine && mine.type !== kind) {
-    await deleteReaction(mine._id!);
+  // Self-heal: collapse duplicate reactions for the same user + type down to
+  // the single newest doc. The 28-likes bug (pre-3.87.2) stacked N docs per
+  // tap; the fix prevents new stacking, but docs already in the DB survive
+  // until the user next interacts with the post. This is that interaction:
+  // the moment setReaction runs, the duplicates are gone. Idempotent — with
+  // zero or one doc per type the filter is a no-op.
+  const byType = new Map<ReactionKind, typeof mine>();
+  for (const r of mine) {
+    const k = r.type as ReactionKind;
+    const arr = byType.get(k) || [];
+    arr.push(r);
+    byType.set(k, arr);
   }
-  if (kind && (!mine || mine.type !== kind)) {
+  const toDelete: string[] = [];
+  for (const arr of byType.values()) {
+    if (arr.length > 1) {
+      arr.sort((a, b) => (b.created_at || '').localeCompare(a.created_at || ''));
+      for (let i = 1; i < arr.length; i++) {
+        if (arr[i]._id) toDelete.push(arr[i]._id);
+      }
+    }
+  }
+  if (toDelete.length > 0) {
+    await Promise.all(toDelete.map((id) => deleteReaction(id)));
+  }
+
+  const primary = mine[0];
+  if (primary && primary.type !== kind) {
+    await deleteReaction(primary._id!);
+  }
+  if (kind && (!primary || primary.type !== kind)) {
     await createReaction({
       target_service: 'posts',
       target_id: targetId,
@@ -220,14 +257,16 @@ export async function toggleReactionKind(
   if (!token) throw new Error('not authenticated');
 
   const existing = await readReactions(targetId, undefined, groups);
-  const mine = existing.find(
+  // filter, not find — same self-heal rationale as setReaction: with
+  // duplicates the first match might be the wrong type, and the toggle
+  // decision (clear vs set) must see the full picture.
+  const mine = existing.filter(
     (r) =>
       r.author_username === token.username &&
-      r.author_provider === token.provider &&
       (r.type === 'like' || r.type === 'dislike'),
   );
 
-  const next: ReactionKind | null = mine?.type === kind ? null : kind;
+  const next: ReactionKind | null = mine.length > 0 && mine[0].type === kind ? null : kind;
   return setReaction(targetId, next, groups);
 }
 

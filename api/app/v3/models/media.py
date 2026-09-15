@@ -31,3 +31,10 @@ class ReadUrlRequest(BaseModel):
 class TranscodeRequest(BaseModel):
     token: str
     doc_id: str
+
+
+class ThumbnailRequest(BaseModel):
+    # Optional — a missing token reads as `anon` (public docs thumbnail for a
+    # crawler; a doc the reader can't read 404s, I3).
+    token: str | None = None
+    doc_id: str

@@ -43,6 +43,10 @@ export async function createPost(
     location: post.location,
     mentions: post.mentions,
     encrypted: post.encrypted,
+    // Tags are a first-class column the read side already maps (fromV3DocToPost).
+    // The composer sets ['short'] for a 9:16 video post (shorts.md) — the
+    // server-side feed filter keys off has(tags, 'short').
+    tags: post.tags,
   };
 
   // Default groups based on visibility
@@ -216,10 +220,27 @@ export async function uploadMedia(request: MediaUploadRequest): Promise<MediaRec
     formData.append(key, value);
   }
   formData.append('file', request.file, request.file.name);
-  const putRes = await fetch(presigned.upload_url, { method: 'POST', body: formData });
-  console.log('[social-media] uploadMedia — object storage response status:', putRes.status);
-  if (!putRes.ok) {
-    throw new Error(`Media upload failed: ${putRes.status}`);
+  let putStatus: number;
+  if (request.onProgress) {
+    // fetch() cannot report upload progress — XHR is the standard way to get
+    // xhr.upload.onprogress (the per-file % the composer's tray shows).
+    putStatus = await new Promise<number>((resolve, reject) => {
+      const xhr = new XMLHttpRequest();
+      xhr.open('POST', presigned.upload_url);
+      xhr.upload.onprogress = (e) => {
+        if (e.lengthComputable) request.onProgress!(e.loaded / e.total);
+      };
+      xhr.onload = () => resolve(xhr.status);
+      xhr.onerror = () => reject(new Error('Media upload failed: network error'));
+      xhr.send(formData);
+    });
+  } else {
+    const putRes = await fetch(presigned.upload_url, { method: 'POST', body: formData });
+    putStatus = putRes.status;
+  }
+  console.log('[social-media] uploadMedia — object storage response status:', putStatus);
+  if (putStatus < 200 || putStatus >= 300) {
+    throw new Error(`Media upload failed: ${putStatus}`);
   }
 
   // 3. Confirm — store the reference, not a URL

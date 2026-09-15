@@ -252,4 +252,127 @@ describe('editVideo', () => {
     // The element was seeked to the in-point (the setter records it).
     expect(created[0].seekedTo).toBe(3);
   });
+
+  it('reports encode progress 0 → 1 via onProgress (the real-time % the tray shows)', async () => {
+    const fractions: number[] = [];
+    await editVideo(file, { startTime: 2, endTime: 6, onProgress: (f) => fractions.push(f) });
+
+    // The first report is at the in-point (0), the last is the forced 1.
+    expect(fractions.length).toBeGreaterThanOrEqual(2);
+    expect(fractions[0]).toBe(0);
+    expect(fractions[fractions.length - 1]).toBe(1);
+    // Monotonic non-decreasing, bounded to [0, 1]
+    for (let i = 1; i < fractions.length; i++) {
+      expect(fractions[i]).toBeGreaterThanOrEqual(fractions[i - 1]);
+    }
+    for (const f of fractions) {
+      expect(f).toBeGreaterThanOrEqual(0);
+      expect(f).toBeLessThanOrEqual(1);
+    }
+  });
+});
+
+// ── editVideo audio: the source sound must survive the re-encode ─────────────
+//
+// The silent-webm bug: `video.muted = true` was set unconditionally, and in
+// Chrome a muted element silences its MediaElementSourceNode too — so the
+// re-encoded webm shipped with no audio. The fix: never mute the element when
+// audio routing succeeds (createMediaElementSource already diverts the element
+// out of the speakers), and only mute as a fallback when routing fails.
+
+describe('editVideo audio', () => {
+  const file = new File(['x'], 'clip.mp4', { type: 'video/mp4' });
+
+  type Track = { kind?: string; id?: string };
+
+  function installAudioMocks(opts: { audioContextFails?: boolean }) {
+    const addedTracks: Track[] = [];
+    const fakeAudioTrack: Track = { kind: 'audio', id: 'a1' };
+
+    class RichMediaStream {
+      private _tracks: Track[] = [];
+      addTrack(t: Track) {
+        this._tracks.push(t);
+        addedTracks.push(t);
+      }
+      getAudioTracks() {
+        return this._tracks.filter((t) => t.kind === 'audio');
+      }
+      getVideoTracks() {
+        return this._tracks.filter((t) => t.kind === 'video');
+      }
+    }
+
+    class MockAudioContext {
+      state = 'running';
+      resume() {
+        this.state = 'running';
+        return Promise.resolve();
+      }
+      close() {
+        return Promise.resolve();
+      }
+      createMediaElementSource() {
+        return { connect: () => {} };
+      }
+      createMediaStreamDestination() {
+        return { stream: { getAudioTracks: () => [fakeAudioTrack] } };
+      }
+    }
+
+    class FailingAudioContext {
+      constructor() {
+        throw new Error('no webaudio');
+      }
+    }
+
+    vi.stubGlobal('MediaStream', RichMediaStream);
+    vi.stubGlobal('AudioContext', opts.audioContextFails ? FailingAudioContext : MockAudioContext);
+
+    // Capture the <video> element editVideo creates so we can assert on its
+    // `muted` state (the actual thing the fix changes).
+    const createdVideos: { muted: boolean }[] = [];
+    const doc = globalThis.document as unknown as { createElement: (t: string) => unknown };
+    const realCreate = doc.createElement.bind(doc);
+    doc.createElement = (tag: string) => {
+      const el = realCreate(tag);
+      if (tag === 'video') createdVideos.push(el as { muted: boolean });
+      return el;
+    };
+
+    return { addedTracks, createdVideos };
+  }
+
+  beforeEach(() => {
+    vi.restoreAllMocks();
+    installBrowserMocks();
+  });
+
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
+  it('routes the source audio into the recorded stream and does NOT mute the element', async () => {
+    const { addedTracks, createdVideos } = installAudioMocks({});
+
+    await editVideo(file, { startTime: 0, endTime: 2 });
+
+    expect(createdVideos.length).toBe(1);
+    // The core fix: the element is not muted when audio routing succeeds.
+    expect(createdVideos[0].muted).toBe(false);
+    // And the audio track actually made it into the recorded stream.
+    expect(addedTracks.some((t) => t.kind === 'audio')).toBe(true);
+  });
+
+  it('mutes the element only when audio routing fails (silent fallback, no audio track)', async () => {
+    const { addedTracks, createdVideos } = installAudioMocks({ audioContextFails: true });
+
+    await editVideo(file, { startTime: 0, endTime: 2 });
+
+    expect(createdVideos.length).toBe(1);
+    // Routing threw → the element is muted so the user doesn't hear the raw
+    // clip, and no (silent) audio track is attached to the stream.
+    expect(createdVideos[0].muted).toBe(true);
+    expect(addedTracks.some((t) => t.kind === 'audio')).toBe(false);
+  });
 });

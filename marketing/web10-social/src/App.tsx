@@ -8,6 +8,7 @@ import FeedScreen from '@/components/Feed/FeedScreen';
 import ProfileScreen from '@/components/Bio/ProfileScreen';
 import UserProfileScreen from '@/components/Bio/UserProfileScreen';
 import DiscoverScreen from '@/components/Discover/DiscoverScreen';
+import ShortsScreen from '@/components/Shorts/ShortsScreen';
 import GroupsScreen from '@/components/Groups/GroupsScreen';
 import GroupDetailScreen from '@/components/Groups/GroupDetailScreen';
 import DmsScreen from '@/components/Chat/DmsScreen';
@@ -18,6 +19,7 @@ import PostComposer from '@/components/Feed/PostComposer';
 import { ErrorBoundary } from '@/components/shared/ErrorBoundary';
 import { ReportBug } from '@/components/shared/ReportBug';
 import { Toaster } from '@/components/shared/Toast';
+import { InstallPrompt } from '@/components/shared/InstallPrompt';
 import { getWapi, getV3Client, verifyAndRecover, Web10Error } from '@/data';
 import { resolveMediaRefs } from '@/data/posts';
 import { readSettings } from '@/data/settings';
@@ -410,6 +412,8 @@ function App() {
         <Route element={<Layout onLogout={handleLogout} onReportBug={() => handleReportBug('button')} />}>
           <Route path="/feed" element={<FeedRoute onAuthorClick={handleAuthorClick} />} />
           <Route path="/discover" element={<DiscoverScreen />} />
+          <Route path="/shorts" element={<ShortsScreen />} />
+          <Route path="/shorts/:postId" element={<ShortsScreen />} />
           <Route path="/groups" element={<GroupsScreen />} />
           <Route path="/groups/:groupId" element={<GroupDetailRoute />} />
           <Route path="/messages/*" element={<DmsScreen />} />
@@ -423,6 +427,9 @@ function App() {
         </Route>
       </Routes>
       <Toaster />
+      {/* D72: the PWA install surface — one dismissible card at the moment of
+          value (Shorts on a phone, a follow), fired by requestInstallPrompt. */}
+      <InstallPrompt />
       {showReportBug && (
         <ReportBug
           trigger={reportTrigger}

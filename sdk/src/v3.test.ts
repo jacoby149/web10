@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
-import { createV3Client, type V3Client } from './v3'
+import { createV3Client, pickThumbnail, type V3Client } from './v3'
 import * as http from './http'
 import * as token from './token'
 import { decodeJwt, isTokenExpired, readTokenCookie, setTokenCookie, scrubTokenCookie } from './token'
@@ -971,6 +971,57 @@ describe('v3 client', () => {
         'http://api.localhost/v3/media/delete',
         expect.objectContaining({ doc_id: 'abc', token: mockToken }),
       )
+    })
+
+    it('getThumbnail posts doc_id to /v3/media/thumbnail (generic, D60)', async () => {
+      const mockResponse = { thumbnail: { url: 'https://s3.example.com/img.png', alt: null, is_video: false } }
+      vi.spyOn(http, 'authPost').mockResolvedValueOnce(mockResponse as any)
+      const result = await client.getThumbnail('abc')
+      expect(result.thumbnail?.url).toBe('https://s3.example.com/img.png')
+      expect(http.authPost).toHaveBeenCalledWith(
+        'http://api.localhost/v3/media/thumbnail',
+        expect.objectContaining({ doc_id: 'abc', token: mockToken }),
+      )
+    })
+
+    it('getThumbnail surfaces a null thumbnail (no picture of its own)', async () => {
+      vi.spyOn(http, 'authPost').mockResolvedValueOnce({ thumbnail: null } as any)
+      const result = await client.getThumbnail('abc')
+      expect(result.thumbnail).toBeNull()
+    })
+  })
+
+  // ── pickThumbnail — the pure selection (KB: media/thumbnailing.md) ──────
+
+  describe('pickThumbnail (pure)', () => {
+    it('picks the first image read_url', () => {
+      const result = pickThumbnail([{ mime_type: 'image/png', read_url: 'https://s3/img.png', width: 100, height: 80 }])
+      expect(result).toEqual({ url: 'https://s3/img.png', alt: null, is_video: false, width: 100, height: 80, mime_type: 'image/png' })
+    })
+
+    it('picks a video poster (thumbnail_url) over the raw file', () => {
+      const result = pickThumbnail([{ mime_type: 'video/mp4', read_url: 'https://s3/v.mp4', thumbnail_url: 'https://s3/v-poster.jpg' }])
+      expect(result?.url).toBe('https://s3/v-poster.jpg')
+      expect(result?.is_video).toBe(true)
+    })
+
+    it('falls through a poster-less video to the next item', () => {
+      const result = pickThumbnail([
+        { mime_type: 'video/mp4', read_url: 'https://s3/v.mp4', thumbnail_url: null },
+        { mime_type: 'image/jpeg', read_url: 'https://s3/next.jpg' },
+      ])
+      expect(result?.url).toBe('https://s3/next.jpg')
+      expect(result?.is_video).toBe(false)
+    })
+
+    it('returns null when there is no usable media', () => {
+      expect(pickThumbnail([])).toBeNull()
+      expect(pickThumbnail([{ mime_type: 'video/mp4', read_url: 'https://s3/v.mp4', thumbnail_url: null }])).toBeNull()
+    })
+
+    it('carries alt_text when present', () => {
+      const result = pickThumbnail([{ mime_type: 'image/png', read_url: 'https://s3/img.png', alt_text: 'a cat' }])
+      expect(result?.alt).toBe('a cat')
     })
   })
 

@@ -18,15 +18,18 @@ from app.services.media import (
     make_object_key,
 )
 from app.v3.endpoints.auth_helper import user as _user
+from app.v3.endpoints.auth_helper import user_or_anon
 from app.v3.models import (
     ConfirmMedia,
     DeleteMedia,
     ListMedia,
     ReadUrlRequest,
+    ThumbnailRequest,
     TranscodeRequest,
     UploadUrlRequest,
 )
 from app.v3.services import clickhouse as ch
+from app.v3.services import thumbnail
 
 router = APIRouter(tags=["media"])
 
@@ -100,6 +103,67 @@ def delete_media(data: DeleteMedia):
     user = _user(data)
     ch.delete_media(user, data.doc_id)
     return {"doc_id": data.doc_id, "status": "deleted"}
+
+
+@router.post("/thumbnail")
+def get_thumbnail(data: ThumbnailRequest):
+    """Generic thumbnail (KB: media/thumbnailing.md) — "what's the picture for
+    this doc?" Universal: any doc, any app. No knowledge of posts, profiles, or
+    permalinks.
+
+    Access-checked (I3): a doc the reader cannot read does not thumbnail for
+    them (a missing token reads as `anon`; a private doc → 404, not 403, so the
+    endpoint is not an enumeration surface). The thumbnail is the doc's OWN
+    picture — `null` when there is none. The fallback (author avatar, a brand
+    mark) is the *app's* decision, not the platform's.
+
+    Two shapes, both generic:
+    - A doc **with media** (a post, an ad): the thumbnail is picked from its
+      resolved `media_refs` (the pure ``pick_thumbnail`` selection).
+    - A **media doc** itself (an avatar, a cover — `media_metadata` /
+      `public_media`): the thumbnail is the doc's own image (its `object_key`
+      resolved to a fresh presigned `read_url`). This is what lets an app ask
+      "what's the picture for this avatar?" through the same endpoint.
+
+    A thin wrapper over the existing generic primitives: read the doc by id,
+    check the reader's access to its groups, resolve its media (fresh presigned
+    URLs, the document-typing rule), and run the pure ``pick_thumbnail``.
+    """
+    reader = user_or_anon(data)
+    authenticated = reader != "anon"
+    doc = ch.get_document_any_author(data.doc_id)
+    if not doc:
+        raise HTTPException(status_code=404, detail="not found")
+    service = doc["service"]
+    # I3: the reader must be able to read the doc's service in one of its
+    # groups (the same gate the read path + the social preview server use).
+    if not any(ch.can_read_group(gid, reader, service, authenticated) for gid in ch.get_doc_groups(data.doc_id)):
+        raise HTTPException(status_code=404, detail="not found")
+    body = doc.get("body", {}) or {}
+    # A media doc IS the picture — resolve its own object_key to a fresh
+    # presigned read_url (treat the doc as a single-element media_refs list so
+    # the existing resolution path mints the URL the same way a post's media
+    # is resolved).
+    if service in ("media_metadata", "public_media"):
+        resolved = ch.resolve_media_urls({"media_refs": [data.doc_id]}, doc["author_key"])
+        refs = resolved.get("media_refs") or []
+        if refs and isinstance(refs[0], dict) and refs[0].get("read_url"):
+            ref = refs[0]
+            return {
+                "thumbnail": {
+                    "url": ref.get("read_url"),
+                    "alt": ref.get("alt_text"),
+                    "is_video": (ref.get("mime_type") or "").startswith("video/"),
+                    "width": ref.get("width"),
+                    "height": ref.get("height"),
+                    "mime_type": ref.get("mime_type"),
+                }
+            }
+        return {"thumbnail": None}
+    # A doc with media — pick the thumbnail from its resolved media_refs.
+    resolved = ch.resolve_media_urls(body, doc["author_key"])
+    thumb = thumbnail.pick_thumbnail(resolved.get("media_refs") or [])
+    return {"thumbnail": thumb}
 
 
 # ---------------------------------------------------------------------------

@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useRef } from 'react';
+import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -23,13 +23,17 @@ import {
   readUserPublicPosts,
 } from '@/data';
 import { getWapi } from '@/data/wapi';
-import type { ProfileRecord, PostRecord, MediaRecord, FollowRecord } from '@/data/types';
+import type { ProfileRecord, PostRecord, MediaRecord, FollowRecord, ResolvedMediaRef } from '@/data/types';
 import { mediaRefId } from '@/data/types';
 import { MapPin, Globe, Link, Users, UserPlus, UserCheck, Loader2, ArrowLeft, MessageSquare, Play, Camera, Edit3, Check, X, ImagePlus, AlertTriangle, Inbox } from 'lucide-react';
 import { PostLightbox } from './PostLightbox';
+import { ProfileFeed } from './ProfileFeed';
+import { ProfileViewToggle, type ProfileViewMode } from './ProfileViewToggle';
+import { ProfileMediaLightbox, type ProfileMediaOption } from './ProfileMediaLightbox';
 import { toast, errorMessage } from '@/components/shared/Toast';
 import { cn } from '@/lib/utils';
 import { MARKETING_ORIGIN } from '@/lib/origins';
+import { requestInstallPrompt, isMobile } from '@/lib/pwa';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 
 function UserProfileSkeleton() {
@@ -82,6 +86,11 @@ export default function UserProfileScreen({ username, provider, onBack }: UserPr
   const [followError, setFollowError] = useState<string | null>(null);
   const [followingCountError, setFollowingCountError] = useState(false);
   const [lightboxPost, setLightboxPost] = useState<PostRecord | null>(null);
+  // The profile face lightbox (avatar/banner): enlarged view for everyone,
+  // pick-from-your-posts for the owner (the Facebook-like "your profile picture
+  // is a post you selected"). `field` drives which face is open.
+  const [faceLightbox, setFaceLightbox] = useState<'avatar' | 'banner' | null>(null);
+  const [faceSaving, setFaceSaving] = useState(false);
   // Owner-edit state
   const [editing, setEditing] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -101,6 +110,13 @@ export default function UserProfileScreen({ username, provider, onBack }: UserPr
   const [activeTab, setActiveTab] = useState<'posts' | 'media'>(
     () => (searchParams.get('tab') === 'media' ? 'media' : 'posts'),
   );
+  // The posts tab's view lens (the "view lenses" idea — rendering only, never
+  // ranking): the insta-shaped grid (the default) or the facebook-shaped feed
+  // of full cards. Screen state, so the URL holds it (?view=feed — refresh
+  // restores it, a shared link carries it; the default grid is the bare URL).
+  const [viewMode, setViewMode] = useState<ProfileViewMode>(
+    () => (searchParams.get('view') === 'feed' ? 'feed' : 'grid'),
+  );
 
   const selectTab = useCallback((tab: 'posts' | 'media') => {
     setActiveTab(tab);
@@ -113,11 +129,25 @@ export default function UserProfileScreen({ username, provider, onBack }: UserPr
     setSearchParams(params, { replace: true });
   }, [searchParams, setSearchParams]);
 
-  // Sync activeTab with ?tab= (back/forward + a shared link landing on a tab).
+  const selectView = useCallback((mode: ProfileViewMode) => {
+    setViewMode(mode);
+    const params = new URLSearchParams(searchParams);
+    if (mode === 'feed') {
+      params.set('view', 'feed');
+    } else {
+      params.delete('view');
+    }
+    setSearchParams(params, { replace: true });
+  }, [searchParams, setSearchParams]);
+
+  // Sync activeTab + viewMode with the URL (back/forward + a shared link
+  // landing on a tab/view).
   useEffect(() => {
     const current = searchParams.get('tab') === 'media' ? 'media' : 'posts';
     if (activeTab !== current) setActiveTab(current);
-  }, [searchParams]);
+    const currentView = searchParams.get('view') === 'feed' ? 'feed' : 'grid';
+    if (viewMode !== currentView) setViewMode(currentView);
+  }, [searchParams, activeTab, viewMode]);
 
   useEffect(() => {
     loadData();
@@ -262,6 +292,9 @@ export default function UserProfileScreen({ username, provider, onBack }: UserPr
         setFollowRecord({ ...rec, provider, username });
         setFollowing(true);
         console.log('[social] handleFollow — now following', username);
+        // D72: following is the strongest "this is my place" signal — the
+        // install prompt fires here (mobile only; dismissal remembered).
+        if (isMobile()) requestInstallPrompt('engagement');
       }
     } catch (e) {
       console.error('Failed to toggle follow:', e);
@@ -328,6 +361,30 @@ export default function UserProfileScreen({ username, provider, onBack }: UserPr
     }
   }
 
+  // The owner's pick-from-your-posts source (the Facebook-like "your profile
+  // picture is a post you selected"): every resolved media ref across the
+  // owner's own posts. The ref is the resolved object — it carries the url the
+  // lightbox renders AND the doc_id saveProfile persists as avatar/banner_ref.
+  // (A hook — must run before the `if (loading) return` early return.)
+  const faceOptions = useMemo<ProfileMediaOption[]>(() => {
+    const out: ProfileMediaOption[] = [];
+    const seen = new Set<string>();
+    for (const post of posts) {
+      for (const ref of post.media_refs || []) {
+        const id = mediaRefId(ref);
+        if (!id || seen.has(id)) continue;
+        seen.add(id);
+        const m = mediaMap[id];
+        if (!m) continue; // unresolvable — nothing to render or set
+        // Store a ResolvedMediaRef (doc_id + read url) — NOT the MediaRecord
+        // (keyed by _id, no doc_id). mediaRefId reads doc_id, and saveProfile
+        // persists the doc_id as avatar/banner_ref.
+        out.push({ post, ref: { doc_id: id, read_url: m.url, mime_type: m.mime_type } });
+      }
+    }
+    return out;
+  }, [posts, mediaMap]);
+
   if (loading) {
     return <UserProfileSkeleton />;
   }
@@ -335,6 +392,26 @@ export default function UserProfileScreen({ username, provider, onBack }: UserPr
   const mediaPosts = posts.filter((p) => p.media_refs?.length);
   const bannerMedia = profile?.banner_ref ? mediaMap[profile.banner_ref] : undefined;
   const avatarMedia = profile?.avatar_ref ? mediaMap[profile.avatar_ref] : undefined;
+
+  // The owner tapped a post's media in the face lightbox → make it the face.
+  // Persists avatar_ref / banner_ref (the same field the upload path writes),
+  // then closes the lightbox. The face re-renders from the saved ref.
+  async function handleFaceSelect(field: 'avatar' | 'banner', ref: string | ResolvedMediaRef) {
+    setFaceSaving(true);
+    try {
+      const refId = mediaRefId(ref);
+      const updated = { ...(profile || {}), [field === 'avatar' ? 'avatar_ref' : 'banner_ref']: refId };
+      const saved = await saveProfile(updated);
+      setProfile(saved);
+      setDraft(saved);
+      setFaceLightbox(null);
+    } catch (e) {
+      console.error('Failed to set profile picture/banner:', e);
+      toast.error(errorMessage(e, 'Could not update your profile picture.'));
+    } finally {
+      setFaceSaving(false);
+    }
+  }
 
   return (
     <div className="mx-auto max-w-3xl">
@@ -361,11 +438,25 @@ export default function UserProfileScreen({ username, provider, onBack }: UserPr
         </div>
       )}
 
-      {/* Banner */}
-      <div className={cn(
-        'relative h-32 sm:h-44 w-full group overflow-hidden',
-        'bg-gradient-to-br from-brand/40 via-brand-muted to-background',
-      )}>
+      {/* Banner — click to view it enlarged (the face lightbox). The owner's
+          hover "Banner" button still opens the upload picker (stopPropagation
+          so it doesn't also open the lightbox). */}
+      <div
+        role="button"
+        tabIndex={0}
+        aria-label="View banner"
+        data-testid="profile-banner"
+        onClick={() => setFaceLightbox('banner')}
+        onKeyDown={(e) => {
+          if (e.key === 'Enter' || e.key === ' ') {
+            e.preventDefault();
+            setFaceLightbox('banner');
+          }
+        }}
+        className={cn(
+          'relative h-32 sm:h-44 w-full group overflow-hidden cursor-pointer outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset',
+          'bg-gradient-to-br from-brand/40 via-brand-muted to-background',
+        )}>
         <div
           className="absolute inset-0 bg-gradient-to-t from-background/60 via-transparent to-brand/10"
           aria-hidden="true"
@@ -375,7 +466,7 @@ export default function UserProfileScreen({ username, provider, onBack }: UserPr
         )}
         {isOwnProfile && (
           <button
-            onClick={() => startUpload('banner_ref')}
+            onClick={(e) => { e.stopPropagation(); startUpload('banner_ref'); }}
             disabled={uploading}
             aria-label="Change banner"
             data-testid="edit-banner-button"
@@ -390,7 +481,22 @@ export default function UserProfileScreen({ username, provider, onBack }: UserPr
       {/* Header */}
       <div className="px-4 pt-4 pb-4">
         <div className="flex items-start justify-between gap-6 -mt-14">
-          <div className={cn(isOwnProfile ? 'relative group' : 'flex-shrink-0')}>
+          <div
+            role="button"
+            tabIndex={0}
+            aria-label="View profile picture"
+            data-testid="profile-avatar"
+            onClick={() => setFaceLightbox('avatar')}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter' || e.key === ' ') {
+                e.preventDefault();
+                setFaceLightbox('avatar');
+              }
+            }}
+            className={cn(
+              'group cursor-pointer outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset rounded-full',
+              isOwnProfile ? 'relative' : 'flex-shrink-0',
+            )}>
             <Avatar className={cn(
               'h-20 w-20 border-4 border-background',
               isOwnProfile ? 'ring-2 ring-brand/20 hover:ring-brand/40 transition-shadow duration-150' : '',
@@ -409,7 +515,7 @@ export default function UserProfileScreen({ username, provider, onBack }: UserPr
                 aria-label="Change avatar"
                 data-testid="edit-avatar-button"
                 disabled={uploading}
-                onClick={() => startUpload('avatar_ref')}
+                onClick={(e) => { e.stopPropagation(); startUpload('avatar_ref'); }}
               >
                 {uploading ? (
                   <Loader2 className="w-3.5 h-3.5 text-foreground animate-spin" />
@@ -627,8 +733,8 @@ export default function UserProfileScreen({ username, provider, onBack }: UserPr
         )}
       </div>
 
-      {/* Tabs */}
-      <div className="flex border-b border-border">
+      {/* Tabs (+ the posts tab's view lens: grid | feed) */}
+      <div className="flex items-end border-b border-border">
         <button
           data-testid="profile-tab-posts"
           aria-current={activeTab === 'posts' ? 'true' : undefined}
@@ -661,12 +767,29 @@ export default function UserProfileScreen({ username, provider, onBack }: UserPr
             <div className="absolute bottom-0 inset-x-0 h-0.5 bg-gradient-to-r from-brand to-brand-600" />
           )}
         </button>
+        {activeTab === 'posts' && (
+          <div className="flex items-center shrink-0 pr-2 pb-2">
+            <ProfileViewToggle value={viewMode} onChange={selectView} />
+          </div>
+        )}
       </div>
 
-      {/* Grid */}
+      {/* Posts: the insta-shaped grid (default) or the facebook-shaped feed */}
       <div className="p-1">
         {activeTab === 'posts' ? (
           posts.length ? (
+            viewMode === 'feed' ? (
+              <ProfileFeed
+                posts={posts}
+                mediaMap={mediaMap}
+                authorName={profile?.display_name || username}
+                authorUsername={username}
+                authorProvider={provider}
+                authorAvatar={avatarMedia?.url}
+                isOwnProfile={isOwnProfile}
+                onPostUpdated={loadData}
+              />
+            ) : (
             <div className="grid grid-cols-3 gap-1">
               {posts.map((post) => {
                 const firstMedia = post.media_refs?.[0] ? mediaMap[mediaRefId(post.media_refs[0])] : null;
@@ -726,6 +849,7 @@ export default function UserProfileScreen({ username, provider, onBack }: UserPr
                 );
               })}
             </div>
+            )
           ) : (
             <div className="py-16 text-center" data-testid="profile-posts-empty">
               <p className="text-sm text-muted-foreground mb-2">No posts yet</p>
@@ -811,6 +935,19 @@ export default function UserProfileScreen({ username, provider, onBack }: UserPr
           postAuthor={username}
           postService={'public_posts'}
           isOwner={isOwnProfile}
+        />
+      )}
+
+      {faceLightbox && (
+        <ProfileMediaLightbox
+          media={faceLightbox === 'avatar' ? avatarMedia : bannerMedia}
+          field={faceLightbox}
+          onClose={() => setFaceLightbox(null)}
+          isOwner={isOwnProfile}
+          options={isOwnProfile ? faceOptions : []}
+          onSelect={(ref) => handleFaceSelect(faceLightbox, ref)}
+          saving={faceSaving}
+          displayName={profile?.display_name || username}
         />
       )}
     </div>

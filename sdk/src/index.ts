@@ -8,7 +8,7 @@
  */
 
 // V3 client
-export { createV3Client, type V3Client } from './v3'
+export { createV3Client, pickThumbnail, type V3Client } from './v3'
 export type {
   V3ClientOptions,
   V3AdPreference,
@@ -29,6 +29,8 @@ export type {
   V3GroupMemberCR,
   V3User,
   V3LoginResponse,
+  V3ResolvedMedia,
+  V3Thumbnail,
   AccessVerdict,
   VerifyAccessOptions,
   AccessStatus,

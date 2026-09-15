@@ -53,10 +53,12 @@ from app.v3.models.media import (
     DeleteMedia,
     ListMedia,
     ReadUrlRequest,
+    ThumbnailRequest,
     TranscodeRequest,
     UploadUrlRequest,
 )
 from app.v3.models.moderation import ModerationAutoHide, ModerationFlags
+from app.v3.models.preview import PreviewRender
 from app.v3.models.query import QueryRequest
 from app.v3.models.session import VerifySession
 
@@ -118,6 +120,7 @@ __all__ = [
     "UploadUrlRequest",
     "ReadUrlRequest",
     "TranscodeRequest",
+    "ThumbnailRequest",
     # session
     "VerifySession",
     # appstore
@@ -130,4 +133,6 @@ __all__ = [
     # moderation
     "ModerationFlags",
     "ModerationAutoHide",
+    # preview (the generic link-preview card renderer)
+    "PreviewRender",
 ]

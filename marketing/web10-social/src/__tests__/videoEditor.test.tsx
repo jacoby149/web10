@@ -7,6 +7,7 @@ import { lucideMock } from './helpers/lucideMock';
 vi.mock('lucide-react', () => lucideMock);
 
 // Mock data layer (same shape as socialScreens.test.tsx)
+const uploadMediaMock = vi.fn().mockResolvedValue({ _id: 'media-1', url: 'http://test.com/clip.mp4' });
 vi.mock('@/data', async (importOriginal) => {
   const original = await importOriginal() as Record<string, unknown>;
   return {
@@ -15,7 +16,7 @@ vi.mock('@/data', async (importOriginal) => {
     readSettings: vi.fn().mockResolvedValue({ defaultVisibility: 'public' }),
     readProfile: vi.fn().mockResolvedValue(null),
     resolveMediaRefs: vi.fn().mockResolvedValue([]),
-    uploadMedia: vi.fn().mockResolvedValue({ _id: 'media-1', url: 'http://test.com/clip.mp4' }),
+    uploadMedia: (...args: unknown[]) => uploadMediaMock(...args),
     createPost: vi.fn().mockResolvedValue({ _id: 'post-1' }),
     readMyAds: vi.fn().mockResolvedValue({ ads: [], albums: [] }),
     fanOutToFollowers: vi.fn().mockResolvedValue(undefined),
@@ -212,6 +213,110 @@ describe('PostComposer video edit step', () => {
     expect(err).toHaveTextContent('recorder exploded');
     // Sheet stays open, original file untouched (tray still shows source dims).
     expect(screen.getByTestId('video-editor')).toBeInTheDocument();
+  });
+});
+
+// ── Always encode before upload (video-experience.md: "the node never sees
+//    the original"). The raw camera file — often HEVC, often too large for
+//    the presigned POST — used to be uploaded directly when the user skipped
+//    the editor, and that upload failed with "Failed to fetch". Now every
+//    video goes through the re-encode: the editor's output when the user
+//    edited, the DEFAULT edit (Original ratio, full duration) otherwise. ────
+
+describe('PostComposer always encodes before upload', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    editVideoMock.mockResolvedValue({
+      blob: new Blob(['edited-bytes']),
+      mimeType: 'video/webm',
+      width: 608,
+      height: 1080,
+      duration: 5,
+    });
+  });
+
+  it('an unedited video gets the default encode at post time — the raw file never uploads', async () => {
+    await attachVideo();
+    // No editor interaction — straight to Post.
+    fireEvent.click(screen.getByTestId('post-submit'));
+
+    // The default encode ran (Original ratio, full duration — no trim/crop opts).
+    await waitFor(() => expect(editVideoMock).toHaveBeenCalledTimes(1));
+    const [fileArg, opts] = editVideoMock.mock.calls[0];
+    expect(fileArg).toBe(VIDEO_FILE); // the original, unedited file
+    expect(opts.startTime ?? 0).toBe(0);
+    expect(opts.endTime).toBeUndefined();
+    expect(opts.cropRatio ?? null).toBeNull();
+
+    // uploadMedia got the RE-ENCODED file, not the original.
+    await waitFor(() => expect(uploadMediaMock).toHaveBeenCalled());
+    const uploadReq = uploadMediaMock.mock.calls[0][0] as { file: File };
+    expect(uploadReq.file).not.toBe(VIDEO_FILE);
+    expect(uploadReq.file.name).toBe('clip-upload.webm');
+    expect(uploadReq.file.type).toBe('video/webm');
+  });
+
+  it('an edited video is NOT encoded twice — the editor output uploads as-is', async () => {
+    await attachVideo();
+    fireEvent.click(screen.getByTestId('media-edit-button'));
+    const sheet = await screen.findByTestId('video-editor');
+
+    const videoEl = within(sheet).getByTestId('video-editor-preview') as HTMLVideoElement;
+    Object.defineProperty(videoEl, 'duration', { value: 10, configurable: true });
+    fireEvent.loadedMetadata(videoEl);
+    fireEvent.click(within(sheet).getByTestId('video-editor-ratio-vertical'));
+
+    const apply = within(sheet).getByTestId('video-editor-apply');
+    await waitFor(() => expect(apply).not.toBeDisabled());
+    fireEvent.click(apply);
+    await waitFor(() => expect(editVideoMock).toHaveBeenCalledTimes(1));
+
+    fireEvent.click(screen.getByTestId('post-submit'));
+    await waitFor(() => expect(uploadMediaMock).toHaveBeenCalled());
+
+    // Still exactly ONE encode (the editor's) — no second default encode.
+    expect(editVideoMock).toHaveBeenCalledTimes(1);
+    // The upload carries the editor's output (the -edited.webm the sheet makes).
+    const uploadReq = uploadMediaMock.mock.calls[0][0] as { file: File };
+    expect(uploadReq.file.name).toBe('clip-edited.webm');
+  });
+
+  it('the tray shows the encode progress while the default encode runs', async () => {
+    // Hold the encode open so the progress state is observable.
+    let resolveEncode!: () => void;
+    editVideoMock.mockImplementation(
+      (_file: unknown, opts: { onProgress?: (f: number) => void }) =>
+        new Promise((res) => {
+          opts.onProgress?.(0.4);
+          resolveEncode = () =>
+            res({ blob: new Blob(['edited-bytes']), mimeType: 'video/webm', width: 608, height: 1080, duration: 5 });
+        }),
+    );
+
+    await attachVideo();
+    fireEvent.click(screen.getByTestId('post-submit'));
+
+    // The tray item shows "Encoding 40%" while the encode is in flight.
+    const progress = await screen.findByTestId('media-post-progress');
+    expect(progress).toHaveTextContent('Encoding 40%');
+
+    resolveEncode();
+    await waitFor(() => expect(uploadMediaMock).toHaveBeenCalled());
+  });
+
+  it('a failed default encode surfaces the error and the tray is retryable', async () => {
+    editVideoMock.mockRejectedValueOnce(new Error('This browser does not support in-browser video editing.'));
+    await attachVideo();
+    fireEvent.click(screen.getByTestId('post-submit'));
+
+    const err = await screen.findByTestId('composer-error');
+    expect(err).toHaveTextContent('This browser does not support in-browser video editing.');
+    // The in-flight phase is cleared (no stuck "Encoding" spinner) and the
+    // Post button is enabled again.
+    expect(screen.queryByTestId('media-post-progress')).toBeNull();
+    expect(screen.getByTestId('post-submit')).toBeEnabled();
+    // Nothing was uploaded.
+    expect(uploadMediaMock).not.toHaveBeenCalled();
   });
 });
 
