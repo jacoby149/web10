@@ -46,6 +46,7 @@ web10-v3/
 │   ├── video-player.md    ← the client's one shared video surface: <VideoPlayer>, two modalities (inline vs modal), the source union
 │   ├── shorts.md          ← the vertical short-form feed: a short is a 9:16 post on the discover group, the /shorts swipe surface, the "can you fake a short?" trust boundaries
 │   ├── post-actions.md    ← the client's one shared engagement bar: <PostActions>, the like/dislike pair (one reaction per user), the comment thread mount
+│   ├── pwa.md             ← making web10-social a serious installable app: the real service worker (the keystone) + the install prompt at the moment of value (D72)
 │   └── share-preview.md   ← the post permalink, rich when shared: the node renders OG/Twitter tags for crawlers, the browser gets the SPA
   ├── telemetry.md           ← why web10 tracks hard (GA4 + masked Hotjar, platform-wide) and the line it doesn't cross
   ├── migration/             ← the v2 → v3 production cutover
@@ -75,7 +76,7 @@ web10-v3/
 - **Security** — `security/overview.md` (invariants I1–I5, two-contract model, blocking)
 - **Query Engine** — `query-engine.md` (the flexible read: how far to take the power), `safe-query.md` (the boundary CTE + why the guarantee holds; `w.query()` / `POST /v3/query`)
 - **Groups** — `groups/overview.md` (primitive), `groups/identity.md` (profiles)
-- **Social** — `social/overview.md` (implementation), `social/cross-app-sharing.md` (patterns), `social/ads.md` (the creator-owned ads — a post tagged `ad`), `social/ads-catalog.md` (the catalog + composer), `social/video-player.md` (the client's one shared video surface — `<VideoPlayer>`, the two modalities), `social/post-actions.md` (the client's one shared engagement bar — `<PostActions>`, the like/dislike pair, the `<CommentThread>` mount)
+- **Social** — `social/overview.md` (implementation), `social/cross-app-sharing.md` (patterns), `social/ads.md` (the creator-owned ads — a post tagged `ad`), `social/ads-catalog.md` (the catalog + composer), `social/video-player.md` (the client's one shared video surface — `<VideoPlayer>`, the two modalities), `social/post-actions.md` (the client's one shared engagement bar — `<PostActions>`, the like/dislike pair, the `<CommentThread>` mount), `social/pwa.md` (making web10-social a serious installable app — the real service worker + the install prompt at the moment of value, D72)
 - **Media** — `media/transcoding-foundation.md` (the model), `media/transcoding.md` (the pipeline), `media/streaming.md` (the layers), `media/minio-auth-bifurcated.md` (the auth split), `media/thumbnailing.md` (the generic "picture for this doc" — `pickThumbnail` + the access-checked endpoint; the social card refactored onto it)
 - **Telemetry** — `telemetry.md` (why web10 tracks hard: GA4 + masked Hotjar, the content line, the terms trade — D56)
 - **Migration** — `migration/v2-to-v3-accounts.md` (the 580-account v2→v3 cutover: the one-day runbook, the bcrypt carry-over, the phone-recovery flow)

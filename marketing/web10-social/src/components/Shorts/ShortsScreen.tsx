@@ -7,6 +7,7 @@ import { readShortsFeed, toggleReactionKind, type ShortPost } from '@/data';
 import { VideoPlayer, sourceFromMedia } from '@/components/Feed/VideoPlayer';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
+import { requestInstallPrompt, isMobile } from '@/lib/pwa';
 
 export default function ShortsScreen() {
   const { postId } = useParams<{ postId: string }>();
@@ -36,6 +37,16 @@ export default function ShortsScreen() {
   useEffect(() => {
     load();
   }, [load]);
+
+  // D72: the install prompt fires at the moment of value — a phone user who
+  // opens Shorts and stays ~3s has signaled "this is the thing I'm here for."
+  // Mobile only (a desktop user gets the explicit affordance, not a nag). The
+  // dismissal is remembered in requestInstallPrompt, so it never re-nags.
+  useEffect(() => {
+    if (!isMobile()) return;
+    const t = setTimeout(() => requestInstallPrompt('shorts'), 3000);
+    return () => clearTimeout(t);
+  }, []);
 
   // Deep link: scroll to the specific short when ?postId= is present
   useEffect(() => {

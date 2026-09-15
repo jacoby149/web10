@@ -33,6 +33,7 @@ import { ProfileMediaLightbox, type ProfileMediaOption } from './ProfileMediaLig
 import { toast, errorMessage } from '@/components/shared/Toast';
 import { cn } from '@/lib/utils';
 import { MARKETING_ORIGIN } from '@/lib/origins';
+import { requestInstallPrompt, isMobile } from '@/lib/pwa';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 
 function UserProfileSkeleton() {
@@ -291,6 +292,9 @@ export default function UserProfileScreen({ username, provider, onBack }: UserPr
         setFollowRecord({ ...rec, provider, username });
         setFollowing(true);
         console.log('[social] handleFollow — now following', username);
+        // D72: following is the strongest "this is my place" signal — the
+        // install prompt fires here (mobile only; dismissal remembered).
+        if (isMobile()) requestInstallPrompt('engagement');
       }
     } catch (e) {
       console.error('Failed to toggle follow:', e);

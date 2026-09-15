@@ -4,7 +4,8 @@ import { readSettings, saveSettings, type AppSettings } from '@/data/settings';
 import { toast, errorMessage } from '@/components/shared/Toast';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
-import { Settings as SettingsIcon, User, Database, Info, LogOut, ExternalLink, Shield, Bug, Eye, Lock, Loader2, Zap } from 'lucide-react';
+import { requestInstallPrompt } from '@/lib/pwa';
+import { Settings as SettingsIcon, User, Database, Info, LogOut, ExternalLink, Shield, Bug, Eye, Lock, Loader2, Zap, Download } from 'lucide-react';
 
 const APP_VERSION = import.meta.env?.VITE_GIT_COMMIT || '0.1.0';
 const AUTH_ORIGIN = import.meta.env?.VITE_AUTH_ORIGIN || 'https://auth.web10.app';
@@ -275,6 +276,15 @@ export default function SettingsScreen({ onLogout, onReportBug }: { onLogout: ()
           value={APP_VERSION}
         />
         <div className="px-4 py-3 space-y-2">
+          <Button
+            variant="outline"
+            data-testid="settings-install-app-button"
+            className="w-full gap-2 text-muted-foreground hover:text-foreground"
+            onClick={() => requestInstallPrompt('manual')}
+          >
+            <Download className="w-4 h-4" strokeWidth={1.75} />
+            Install app
+          </Button>
           <Button
             variant="outline"
             data-testid="settings-report-bug-button"

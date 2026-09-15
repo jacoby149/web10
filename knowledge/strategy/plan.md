@@ -625,6 +625,28 @@ render). Spec'd in `knowledge-base/web10-v3/social/shorts.md`.
 - [✓ 3.90.0] **Tests** — `feed.test.ts` +2 driving the gate (real 9:16 kept; faked image / lying-ratio / multi-media dropped; untagged 9:16 kept) + `socialScreens.test.tsx` re-pinned.
 - [ ] **v1.5** — the server-side `has(tags, 'short')` filter on `read`/`feed` (the idiom the node-ad read already uses, `clickhouse.py:2419`) so the feed pulls only shorts; optional ffmpeg-stamped dimension verification in the transcode worker (the truly bulletproof version).
 
+## PWA: make web10-social a serious installable app — web10-social
+
+**Decision: D72.** The reel/shorts surface (`/shorts`, 3.90.0) is where the web
+experience genuinely lacks on a phone (browser chrome eats the viewport,
+autoplay-with-audio is blocked until the first tap, back yanks you out of the
+scroll-snap feed, no offline). A PWA is the closest you can get to native
+without an app store (D41: "we are making the PWA the thing") — but only if it
+is *actually installed*. The browser only offers to install a PWA that meets
+the installability bar (valid manifest + HTTPS + a *registered, functioning*
+service worker) — the manifest was already fine, the SW was the missing tooth.
+This makes it a serious PWA: a real service worker + an install prompt, fired
+at the moment of value, never on a timer. Spec'd in
+`knowledge/knowledge-base/web10-v3/social/pwa.md`.
+
+- [✓ 3.92.0] **KB** (`knowledge/knowledge-base/web10-v3/social/pwa.md`) — the installability bar (manifest + functioning SW + HTTPS), the service-worker design (app-shell precache, offline fallback route, update flow — and the line it does not cross: the cache is the *shell*, never user content, the feed is always re-read from the node), the `beforeinstallprompt` → custom-surface wiring, the trigger policy (Shorts-on-phone / post-engagement, one dismissible surface, never a modal wall, never on a timer), and the D56 line (the "installed" event is a content-free GA4 action; the trigger context is the only payload).
+- [✓ 3.92.0] **The service worker** (`marketing/web10-social/public/serviceWorker.js`) — the stub is replaced with a real worker: app-shell precache (the known files + the hashed Vite assets discovered by parsing `/index.html` at install), an offline fallback for the SPA's `index.html` route (a deep link like `/shorts` loads offline to the shell), and an update flow (versioned cache name + `skipWaiting`/`clients.claim`). The shell-only cache is the invariant: no user content, no feed data, ever. Registration moves into `main.tsx` (prod-only); the dead `registerWorker.js` is deleted.
+- [✓ 3.92.0] **The install prompt** (`src/components/shared/InstallPrompt.tsx` + `src/lib/pwa.ts` `useInstallPrompt`) — the hook intercepts `beforeinstallprompt` (module-level), stashes the event, and exposes `canInstall` / `isIOS` / `promptInstall()` / `dismiss()`. The surface is one tasteful, dismissible card (a bottom sheet on mobile, a floating card on desktop) that says "install to keep your feed + go offline"; on iOS it shows Share → Add to Home Screen instructions (Safari can't be triggered in code). Dismissal is remembered (a `localStorage` flag) so it never re-nags.
+- [✓ 3.92.0] **The trigger policy** (wired into `ShortsScreen.tsx` + the follow handlers + Settings) — the surface shows when (a) a phone user opens `/shorts` and stays ~3s, or (b) a user follows a creator (they've signalled "this is my place"), or (c) the user taps the explicit "Install app" affordance in Settings. Never on page load, never on a timer, never more than the one remembered dismissal. The automatic triggers are mobile-only; desktop gets the explicit affordance.
+- [✓ 3.92.0] **Telemetry (the D56 line)** — a content-free GA4 `pwa_install_prompt_shown` + `pwa_installed` action (a count + the trigger context: `shorts` / `engagement` / `manual`), through the existing `src/lib/analytics.ts`. No user content, no PII.
+- [✓ 3.92.0] **Tests** — `pwa.test.ts` (11) + `installPrompt.test.tsx` (6): the hook's `canInstall` transition + `promptInstall` outcome + dismissal persistence, `requestInstallPrompt`'s no-op-when-not-installable / dispatch+track-when-installable / no-op-when-dismissed / no-op-when-installed, the surface's render-on-trigger / dismiss-remembers / iOS-instructions variants. Screenshot harness: the install surface on a 375px Shorts view + desktop (`install-prompt-{desktop,375}.png`).
+- [ ] **E2E** (`e2e/tests/social-pwa.spec.ts`) — the installability bar holds on a live node (manifest served, SW registered + controlling, `beforeinstallprompt` fires in an installable Chromium context), the offline fallback loads the shell with the network offline, and the prompt appears on the Shorts trigger + is remembered after dismissal. API floor (manifest + SW + shell assets served) + browser gauntlet (installability + offline + prompt, log-sequence verified).
+
 ## Phase 4 — Production Cutover: v2 → v3, then merge to main
 
 **Where:** `knowledge/knowledge-base/web10-v3/` (migration model), `api/` (migration tooling), `ubuntu-deployment/` (prod deploy)

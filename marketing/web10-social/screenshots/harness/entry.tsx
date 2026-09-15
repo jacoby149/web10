@@ -23,8 +23,15 @@ import DiscoverScreen from '@/components/Discover/DiscoverScreen';
 import ShortsScreen from '@/components/Shorts/ShortsScreen';
 import UserProfileScreen from '@/components/Bio/UserProfileScreen';
 import PostComposer from '@/components/Feed/PostComposer';
+import { InstallPrompt } from '@/components/shared/InstallPrompt';
 
-const screen = new URLSearchParams(window.location.search).get('screen');
+const params = new URLSearchParams(window.location.search);
+const screen = params.get('screen');
+// The install-prompt capture: render over Shorts and force the surface open
+// (?pwa-prompt=1) so the shot shows the real card without a live beforeinstallprompt.
+if (screen === 'install-prompt') {
+  window.history.replaceState({}, '', '?pwa-prompt=1');
+}
 const initialRoute =
   screen === 'settings' ? '/settings'
   : screen === 'feed' ? '/feed'
@@ -32,7 +39,7 @@ const initialRoute =
   : screen === 'notifications' ? '/notifications'
   : screen === 'discover' ? '/discover'
   : screen === 'discover-youtube' ? '/discover?view=youtube'
-  : screen === 'shorts' ? '/shorts'
+  : screen === 'shorts' || screen === 'install-prompt' ? '/shorts'
   : screen === 'groups' ? '/groups'
   : screen === 'groups-discover' ? '/groups?tab=discover'
   : screen === 'groups-detail' ? '/groups/web10%2Fgroups%2Fusers%2Fnova%2Fsynthwave-sessions'
@@ -57,5 +64,7 @@ createRoot(document.getElementById('root')!).render(
         <Route path="/u/:username" element={<UserProfileScreen username={'me'} provider={'web10'} />} />
       </Route>
     </Routes>
+    {/* D72: the install surface — forced open by ?pwa-prompt=1 for the capture. */}
+    <InstallPrompt />
   </MemoryRouter>,
 );
