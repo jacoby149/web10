@@ -68,6 +68,13 @@ vi.mock('@/lib/videoEditing', async (importOriginal) => {
   };
 });
 
+// The ffmpeg.wasm engine is mocked too — the real core needs a Web Worker +
+// WebAssembly (jsdom has neither), and the editor sheet pre-warms it on open.
+vi.mock('@/lib/ffmpegEngine', () => ({
+  loadFFmpeg: vi.fn().mockResolvedValue({}),
+  transcodeWithFFmpeg: vi.fn(),
+}));
+
 const VIDEO_FILE = new File(['x'], 'clip.mp4', { type: 'video/mp4' });
 const IMAGE_FILE = new File(['x'], 'photo.jpg', { type: 'image/jpeg' });
 
@@ -272,9 +279,10 @@ describe('PostComposer upload path (no-op fast path + editor re-encode)', () => 
 
     // Still exactly ONE encode (the editor's) — no second default encode.
     expect(editVideoMock).toHaveBeenCalledTimes(1);
-    // The upload carries the editor's output (the -edited.webm the sheet makes).
+    // The upload carries the editor's output (the -edited.mp4 the sheet makes —
+    // the ffmpeg.wasm engine outputs H.264/AAC MP4).
     const uploadReq = uploadMediaMock.mock.calls[0][0] as { file: File };
-    expect(uploadReq.file.name).toBe('clip-edited.webm');
+    expect(uploadReq.file.name).toBe('clip-edited.mp4');
   });
 
   it('the no-op path shows no "Encoding" phase — it goes straight to upload', async () => {
