@@ -20,7 +20,7 @@ import { cn } from '@/lib/utils';
 import { AdPicker } from './AdPicker';
 import { VideoEditorSheet } from './VideoEditorSheet';
 import type { VideoEditResult } from './VideoEditorSheet';
-import { editVideo } from '@/lib/videoEditing';
+import { editVideo, isNoopEdit } from '@/lib/videoEditing';
 
 let nextMediaId = 0;
 
@@ -440,15 +440,28 @@ export default function PostComposer({ onPostCreated }: { onPostCreated?: () => 
         let record: MediaRecord;
 
         if (item.isVideo) {
-          // The node never sees the raw original (video-experience.md). A video
-          // the user ran through the editor is already the finished re-encode;
-          // one they never touched gets the DEFAULT edit (Original ratio, full
-          // duration) right here, so every upload is a browser-produced webm
-          // at a known bitrate — the raw camera file (often HEVC, often too
-          // large for the presigned POST) never reaches the network.
+          // The node transcodes every upload to HLS. A video the user ran
+          // through the editor is already the finished re-encode; one they
+          // never touched gets the DEFAULT edit (Original ratio, full
+          // duration) right here.
+          //
+          // The default edit is a NO-OP (no trim, no crop) — the common case.
+          // The `canvas.captureStream` + `MediaRecorder` re-encode is a
+          // real-time capture: it plays the source and records each frame +
+          // the audio in wall-clock time, and when the main thread stutters
+          // the audio capture distorts (the "Darth Vader" pitch effect). A
+          // no-op edit re-encodes nothing, so we skip the lossy real-time
+          // path and upload the original file directly — the node's ffmpeg is
+          // the deterministic transcode, not the browser's real-time capture.
+          // (An unedited item is always a no-op: the editor is the only place
+          // a trim/crop is set, and that marks the item `edited`.)
           let fileToUpload = item.file;
-          if (!item.edited) {
-            console.log('[social-composer] video not edited — default encode before upload:', item.file.name);
+          let info = await getVideoInfo(item.file);
+          if (!item.edited && !isNoopEdit({}, info.duration)) {
+            // A real default edit (defensive — an unedited item is a no-op;
+            // this only runs if a future caller sets a trim/crop without
+            // marking `edited`). Re-encode through the editor path.
+            console.log('[social-composer] video default edit (trim/crop) — re-encoding:', item.file.name);
             patchItem(item.id, { postPhase: 'encoding', postProgress: 0 });
             const result = await editVideo(item.file, {
               onProgress: (f) => patchItem(item.id, { postProgress: f }),
@@ -458,6 +471,7 @@ export default function PostComposer({ onPostCreated }: { onPostCreated?: () => 
               `${item.file.name.replace(/\.[^.]+$/, '') || 'video'}-upload.webm`,
               { type: result.mimeType },
             );
+            info = await getVideoInfo(fileToUpload);
             console.log(
               '[social-composer] default encode done —',
               result.width,
@@ -466,14 +480,13 @@ export default function PostComposer({ onPostCreated }: { onPostCreated?: () => 
               fileToUpload.size,
               'bytes',
             );
+          } else if (!item.edited) {
+            console.log('[social-composer] video not edited — no-op edit, uploading original (no re-encode):', item.file.name);
           }
 
           // Capture poster frame (from the finished file — matches what ships)
           const poster = await captureVideoPoster(fileToUpload);
           const posterFile = new File([poster.blob], `poster-${Date.now()}.webp`, { type: poster.mimeType });
-
-          // Get video info
-          const info = await getVideoInfo(fileToUpload);
 
           record = await uploadMedia({
             file: fileToUpload,
