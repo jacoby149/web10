@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen, waitFor } from '@testing-library/react';
+import { render, screen, waitFor, fireEvent } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import '@testing-library/jest-dom';
 
@@ -15,6 +15,8 @@ vi.mock('@/data', async (importOriginal) => {
     ...original,
     readFeed: vi.fn().mockResolvedValue([]),
     readFeedPage: vi.fn().mockResolvedValue({ posts: [], has_more: false, next_cursor: null }),
+    readFeedReactions: vi.fn().mockResolvedValue({ liked: {}, disliked: {} }),
+    toggleReactionKind: vi.fn().mockResolvedValue('like'),
     readPullFeed: vi.fn().mockResolvedValue([]),
     getFeedGroups: vi.fn().mockResolvedValue([]),
     readFeedEngagement: vi.fn().mockResolvedValue({ likes: {}, comments: {} }),
@@ -174,5 +176,80 @@ describe('FeedScreen — HLS in the feed (D44)', () => {
       expect(screen.getByTestId('media-video')).toBeInTheDocument();
     });
     expect(screen.queryByTestId('hls-video-player')).toBeNull();
+  }, 20000);
+});
+
+describe('FeedScreen — the reader\'s own like survives a reload (the "forgot my like" bug)', () => {
+  // A text post with one like already on it (the reader's own). The feed
+  // payload carries the COUNT (likes: 1) but not whether *I* liked it — the
+  // reader's own reaction comes from readFeedReactions.
+  const LIKED_POST = {
+    _id: 'p-liked', text: 'how i be cookin on ai', author_username: 'nova',
+    author_provider: 'test.localhost', created_at: new Date().toISOString(), likes: 1,
+  };
+
+  it('shows a filled heart on load when the reader already liked the post (the feed remembers)', async () => {
+    const { readFeedPage, readFeedReactions } = await import('@/data');
+    vi.mocked(readFeedPage).mockResolvedValueOnce({ posts: [LIKED_POST], has_more: false, next_cursor: null });
+    // The reader (testuser) already liked this post — the initial-state read says so.
+    vi.mocked(readFeedReactions).mockResolvedValueOnce({ liked: { 'p-liked': true }, disliked: {} });
+
+    const { default: FeedScreen } = await import('@/components/Feed/FeedScreen');
+    render(
+      <MemoryRouter>
+        <FeedScreen />
+      </MemoryRouter>,
+    );
+
+    // The like button renders with the heart FILLED (aria-pressed=true) once the
+    // reader's own reaction lands — the feed "remembers" the like across reload.
+    // Pre-fix: likedMap was never seeded, so the heart stayed empty (aria-pressed
+    // = false) even though the count showed 1.
+    await waitFor(() => {
+      const likeButton = screen.getByTestId('like-button');
+      expect(likeButton).toHaveAttribute('aria-pressed', 'true');
+    });
+    // The count still shows the payload's 1.
+    expect(screen.getByTestId('like-button')).toHaveTextContent('1');
+  }, 20000);
+
+  it('tapping a post the reader already liked CLEARS it (no stacked second doc)', async () => {
+    const { readFeedPage, readFeedReactions, toggleReactionKind } = await import('@/data');
+    vi.mocked(readFeedPage).mockResolvedValueOnce({ posts: [LIKED_POST], has_more: false, next_cursor: null });
+    vi.mocked(readFeedReactions).mockResolvedValueOnce({ liked: { 'p-liked': true }, disliked: {} });
+    // Tapping the heart on an already-liked post → the data layer clears it
+    // (returns null), it does NOT create a second doc.
+    vi.mocked(toggleReactionKind).mockResolvedValueOnce(null);
+
+    const { default: FeedScreen } = await import('@/components/Feed/FeedScreen');
+    render(
+      <MemoryRouter>
+        <FeedScreen />
+      </MemoryRouter>,
+    );
+
+    // Wait for the initial-state read to fill the heart.
+    await waitFor(() => {
+      expect(screen.getByTestId('like-button')).toHaveAttribute('aria-pressed', 'true');
+    });
+
+    // Tap the heart. Because the feed now KNOWS the reader already liked it
+    // (likedMap seeded from readFeedReactions), the optimistic update CLEARS
+    // the like (count 1 → 0) and the data layer is told to clear — not create.
+    // Pre-fix: likedMap was empty, so the tap was treated as a fresh like
+    // (count 1 → 2, a stacked second doc).
+    fireEvent.click(screen.getByTestId('like-button'));
+
+    await waitFor(() => {
+      expect(toggleReactionKind).toHaveBeenCalledWith('p-liked', 'like');
+    });
+    // Optimistic clear: the heart un-fills and the count drops (1 → 0). The
+    // count renders as an empty string at 0 (`{reactionCount || ''}`), so
+    // assert the "1" is gone rather than a literal "0".
+    await waitFor(() => {
+      const likeButton = screen.getByTestId('like-button');
+      expect(likeButton).toHaveAttribute('aria-pressed', 'false');
+      expect(likeButton).not.toHaveTextContent('1');
+    });
   }, 20000);
 });

@@ -1,7 +1,7 @@
 import { getV3Client } from './v3';
 import type { V3FeedResult, PowerMeanSort } from './v3';
 import { getDiscoverGroupId, getMyGroups, getFeedGroups } from './groups';
-import { fromV3DocToPost, fromV3DocToProfile, fromV3FeedPost, mediaRefId, type PostRecord, type ResolvedMediaRef } from './types';
+import { fromV3DocToPost, fromV3DocToProfile, fromV3FeedPost, extractUsername, mediaRefId, type PostRecord, type ResolvedMediaRef } from './types';
 import { resolveMediaRefs } from './posts';
 import type { MediaRecord } from './types';
 import { knobStateToSort } from '@/lib/powerMean';
@@ -294,6 +294,66 @@ export async function readFeedEngagement(
     Object.values(comments).reduce((a, b) => a + b, 0), 'comments',
   );
   return { likes, comments };
+}
+
+/**
+ * Read the READER'S OWN reactions on a set of feed posts — the initial-state
+ * load the feed's like/dislike maps need. The feed payload (D69) carries the
+ * like COUNT (`likes`) but not whether the *reader* liked the post, so on a
+ * cold load every heart rendered empty even on a post the reader had already
+ * liked — and the next tap created a second doc (the "liked it, it shows 2,
+ * refresh shows 0" bug). This closes that gap: one batched ref read over the
+ * feed's groups (the same groups the feed's posts come from), filtered to the
+ * reader's own docs.
+ *
+ * v3 ownership is by username alone: a reaction's author_key is the bare
+ * username (the node's provider is implicit), so `author_provider` is the v2
+ * fallback ('web10') and never equals the token's real provider — matching it
+ * made "mine" unfindable (the 28-likes bug, 3.87.2). We match username only.
+ *
+ * A failure degrades to empty maps (the feed's 3.25.x pattern: one bad read
+ * degrades to zero, never the whole view) — the hearts just stay unfilled
+ * rather than the feed failing to load.
+ */
+export async function readFeedReactions(
+  postIds: string[],
+): Promise<{ liked: Record<string, boolean>; disliked: Record<string, boolean> }> {
+  const empty = { liked: {}, disliked: {} };
+  if (!postIds.length) return empty;
+  const w = getV3Client();
+  const token = w.readToken();
+  if (!token) return empty;
+  // The reactions live in the same followers groups the feed's posts come
+  // from (the feed is followers-minus-discover) — read over those groups.
+  const groups = await getFeedGroups();
+  if (!groups.length) return empty;
+  try {
+    // The batched ref read (the engagement-count shape): one request returns
+    // every reaction whose ref_value is one of the feed's posts. The reader is
+    // a member of every feed group (followers groups), so the read sees their
+    // own reactions on each post.
+    const docs = await w.read('reactions', { groups, ref: postIds });
+    const liked: Record<string, boolean> = {};
+    const disliked: Record<string, boolean> = {};
+    for (const doc of docs) {
+      // v3 ownership — username alone (see above).
+      if (extractUsername(doc.author_key) !== token.username) continue;
+      const type = ((doc.body as Record<string, unknown>).type as string) || 'like';
+      const ref = doc.ref_value;
+      if (!ref) continue;
+      if (type === 'like') liked[ref] = true;
+      else if (type === 'dislike') disliked[ref] = true;
+    }
+    console.log(
+      '[social-feed] readFeedReactions —',
+      Object.keys(liked).length, 'liked +',
+      Object.keys(disliked).length, 'disliked of', postIds.length, 'posts',
+    );
+    return { liked, disliked };
+  } catch (e) {
+    console.error('[social-feed] readFeedReactions — failed, degrading to empty:', e);
+    return empty;
+  }
 }
 
 // ── Backward compat for discovery types ──────────────────────────────────────
