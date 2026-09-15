@@ -1,8 +1,13 @@
-// hls.js (vendored at /hls.min.js — the same file the media demo ships,
-// no CDN dep). The script attaches its class to window.Hls. This is a
-// minimal structural type for the API surface the feed player uses
-// (isSupported / loadSource / attachMedia / on / levels / currentLevel /
-// destroy) — not the full hls.js type surface.
+// hls.js 1.7.3 (vendored at /hls.min.js — no CDN dep). The script attaches
+// its class to window.Hls. This is a minimal structural type for the API
+// surface the feed player uses (isSupported / loadSource / attachMedia / on /
+// levels / currentLevel / destroy) — not the full hls.js type surface.
+//
+// Version pin: 1.7.3 is the minimum that plays the node's HLS cleanly on
+// desktop (MSE). 1.5.x bound initPTS per-track, which let the audio and video
+// tracks get negative/mismatched timestamps → choppy audio in hls.js while
+// native HLS (mobile Safari) tolerated it. Fixed in 1.6.18 ("bind initPTS to
+// the lowest DTS across tracks"); 1.7.x adds smoother audio handling.
 
 export interface HlsLevel {
   height: number;
