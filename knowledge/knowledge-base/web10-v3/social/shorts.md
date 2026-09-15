@@ -43,10 +43,21 @@ This kills three of the four "how do we do this" questions at once:
 A full-screen vertical swipe container. Each slide composes the existing player — the one-liner `video-player.md:70` already anticipated:
 
 ```
-Shorts:  <VideoPlayer source={hlsOrFile} mode="inline" fit="cover" ratio={9/16} />
+Shorts:  <VideoPlayer source={hlsOrFile} mode="inline" fit="cover" immersive />
 ```
 
-The 9:16 phone-width column is already handled at the player level (`HlsVideoPlayer.tsx:65-69`), and the composer already offers a 9:16 crop preset (`VideoEditorSheet.tsx:16`). The genuinely new code is the **swipe container** (scroll-snap / full-page vertical), which `video-player.md:113` explicitly called "a separate, later surface" — this is that surface.
+The genuinely new code is the **swipe container** (scroll-snap / full-page vertical), which `video-player.md:113` explicitly called "a separate, later surface" — this is that surface.
+
+**The frame (the video IS the screen):** a slide is the full viewport height (`h-full` of the snap container), and the video **fills the slide** — `fit="cover"`, no card chrome, no control rack. The 9:16 phone-width column the feed uses (`HlsVideoPlayer`'s `max-w-[280px]`) is a *feed* layout, not a Shorts one: on the Shorts surface the video must occupy the whole slide, or the surface reads as "a small video on a black page" instead of "the screen is a video." Concretely:
+
+- **Mobile (a 9:16 viewport):** the slide is already ~9:16, so the video is full-bleed — edge to edge, top to bottom. The author/caption overlay + the like/comment/share rail sit on top of the video (the TikTok shape).
+- **Desktop (a wide viewport):** the slide is a **centered 9:16 column that fills the viewport height** (`aspect-[9/16] h-full mx-auto`), the rest of the slide black. That is the designed letterbox — the same shape YouTube Shorts uses. The video fills the column (`object-cover`); it never renders as a small box floating in a void.
+
+The `immersive` prop is what makes the player fill the frame instead of reserving its own ratio box: the `<video>` is `absolute inset-0 w-full h-full object-cover` inside the slide, and — for the `hls` source — the player renders the **video only** (hls.js attached, muted, autoplay, loop) with **no control rack** (no scrubber/quality/speed/fullscreen: those belong to the lightbox's `mode="full"`, and on Shorts they would collide with the author/caption overlay + action rail). The full-rack `HlsVideoPlayer` stays exactly as-is for feed/lightbox; `immersive` is a layout axis on `<VideoPlayer>`, not a rewrite of the player.
+
+**Playback (the ambient loop):** the **active slide autoplays** (muted — the browser's autoplay policy + the feed's ambient idiom); **off-screen slides pause** (the IntersectionObserver the deep-link sync already uses is the source of truth for "active"; a slide that drops below the ~60% threshold pauses its video and resets to the poster). Tap the video = play/pause in place (the `InlineVideo` invariant: the tap never escapes the slide). No audio by default — Shorts is a muted-autoplay surface; the operator's "keep sound" rule (3.90.1) is about *uploads not shipping silent files*, not about this surface playing with sound.
+
+**The swipe (TikTok-style):** native CSS scroll-snap (`snap-y snap-mandatory`, one slide per viewport) — the decision already made (operator sign-off #5: "Swipe container = native CSS scroll-snap, no dep"). The container is the **only** scroller on the screen: the slide fills it exactly, so a swipe always lands on the next short. Keyboard: `ArrowUp` / `ArrowDown` (and `PageUp` / `PageDown`) scroll one slide — the desktop equivalent of the swipe.
 
 **Deep link (the address-bar rule):** `/shorts` for the feed, `/shorts/:postId` to land on a specific short. Refresh restores the position; the link is shareable (shorts are public).
 
@@ -104,6 +115,7 @@ The honest framing, in line with D41 (the node is readable by design; trust is *
 3. **Worker verification** of dimensions/duration is a follow-up — v1 ships the render-time gate only.
 4. **The "Shorts" name collision** with `video-player.md`'s YouTube-embed "Shorts" is accepted as a known wart — this doc's Shorts are the native vertical feed; the YouTube-embed path stays a separate, still-open data-model question.
 5. **Swipe container** = native CSS scroll-snap (no dep).
+6. **The video fills the slide** (operator, 14.09.2026: "definitely some work to be done how shorts are being displayed, if video component needs some special treatment for these cases, + allowing the tik tok swiping to happen too") — the `immersive` layout prop on `<VideoPlayer>` (the video is `absolute inset-0 object-cover`, the `hls` source renders video-only with no control rack, no phone-width column); the desktop slide is a centered 9:16 column that fills the viewport height (the designed letterbox, the YouTube-Shorts shape); the active slide autoplays muted, off-screen slides pause; the swipe is the native scroll-snap + `ArrowUp`/`ArrowDown`/`PageUp`/`PageDown` keyboard nav.
 
 ## Reference
 
