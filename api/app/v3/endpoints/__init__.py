@@ -10,7 +10,6 @@ from . import (
     blocking,
     contracts,
     documents,
-    feed,
     groups,
     imports,
     logs,
@@ -34,9 +33,6 @@ router.include_router(recovery.router, prefix="")
 
 # Document CRUD
 router.include_router(documents.router, prefix="")
-
-# The feed read (D69) — one page of posts, ranked in SQL, cursor-paged
-router.include_router(feed.router, prefix="")
 
 # Link-preview card renderer (KB: media/thumbnailing.md) — the generic
 # "render an OG/Twitter card from a spec" primitive. Zero social knowledge:

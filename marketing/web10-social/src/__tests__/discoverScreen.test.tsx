@@ -18,6 +18,12 @@ vi.mock('@/data', async (importOriginal) => {
     readUserProfile: vi.fn().mockResolvedValue(null),
     resolveMediaRefs: vi.fn().mockResolvedValue([]),
     readComments: vi.fn().mockResolvedValue([]),
+    // The v3 client (the discover board's reaction/comment read) — controllable
+    // per test so a test can seed the reader's own reaction on a post.
+    getV3Client: vi.fn(),
+    // The reaction tap handler (post-actions.md) — spied to assert the like
+    // is wired to the data layer.
+    toggleReactionKind: vi.fn().mockResolvedValue('like'),
   };
 });
 
@@ -42,6 +48,13 @@ function lastDiscoverSort(): unknown {
 describe('DiscoverScreen', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    // Default v3 client: the discover board's reaction/comment read resolves
+    // to nothing (the screen degrades to the payload counts). A test that
+    // needs to seed the reader's own reaction overrides this.
+    (data.getV3Client as ReturnType<typeof vi.fn>).mockReturnValue({
+      read: vi.fn().mockResolvedValue([]),
+      readToken: vi.fn().mockReturnValue({ provider: 'test.localhost', username: 'testuser' }),
+    });
   });
 
   it('renders skeleton while loading', async () => {
@@ -1242,5 +1255,87 @@ describe('DiscoverScreen', () => {
 
     // The first post's media_refs array is never mutated by the grouping.
     expect(videoPost.media_refs).toEqual(['m1']);
+  });
+});
+
+describe('DiscoverScreen — the engagement bar is interactive (post-actions.md)', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    (data.getV3Client as ReturnType<typeof vi.fn>).mockReturnValue({
+      read: vi.fn().mockResolvedValue([]),
+      readToken: vi.fn().mockReturnValue({ provider: 'test.localhost', username: 'testuser' }),
+    });
+  });
+
+  function renderDiscover(posts: unknown[]) {
+    (data.readDiscoverFeed as ReturnType<typeof vi.fn>).mockResolvedValue(posts);
+    return import('@/components/Discover/DiscoverScreen').then(({ default: DiscoverScreen }) => {
+      render(
+        <MemoryRouter initialEntries={['/discover']}>
+          <DiscoverScreen />
+        </MemoryRouter>,
+      );
+    });
+  }
+
+  it('the discover card renders an interactive like button (not a display span)', async () => {
+    await renderDiscover([
+      { _id: 'p1', author: 'creator', author_username: 'creator', author_provider: 'api.web10.app', text: 'A post', created_at: new Date().toISOString(), likes: 3, comments: 1, reposts: 0, score: 5 },
+    ]);
+    await waitFor(() => {
+      expect(screen.getAllByTestId('discover-card').length).toBe(1);
+    });
+    // The like is a real button (the feed's behavior), not the old display <span>.
+    const card = screen.getAllByTestId('discover-card')[0];
+    const likeButton = card.querySelector('[data-testid="like-button"]');
+    expect(likeButton).not.toBeNull();
+    expect(likeButton!.tagName).toBe('BUTTON');
+    expect(likeButton).toHaveAttribute('aria-pressed', 'false');
+    // The dislike pair is interactive too (parity with the feed).
+    expect(card.querySelector('[data-testid="dislike-button"]')).not.toBeNull();
+  });
+
+  it('liking from discover calls toggleReactionKind and fills the heart optimistically', async () => {
+    const { toggleReactionKind } = await import('@/data');
+    await renderDiscover([
+      { _id: 'p1', author: 'creator', author_username: 'creator', author_provider: 'api.web10.app', text: 'A post', created_at: new Date().toISOString(), likes: 3, comments: 1, reposts: 0, score: 5 },
+    ]);
+    await waitFor(() => {
+      expect(screen.getAllByTestId('discover-card').length).toBe(1);
+    });
+    const card = screen.getAllByTestId('discover-card')[0];
+    fireEvent.click(card.querySelector('[data-testid="like-button"]')!);
+
+    await waitFor(() => {
+      expect(toggleReactionKind).toHaveBeenCalledWith('p1', 'like');
+    });
+    // Optimistic: the heart fills before the write resolves. Re-query each poll
+    // — the heart-burst re-keys the button when the like lands.
+    await waitFor(() => {
+      expect(card.querySelector('[data-testid="like-button"]')).toHaveAttribute('aria-pressed', 'true');
+    });
+  });
+
+  it('a post the reader already liked shows a filled heart on load', async () => {
+    // Seed the reader's own like from the discover-group reaction read (the
+    // screen reads it via getV3Client().read('reactions')).
+    (data.getV3Client as ReturnType<typeof vi.fn>).mockReturnValue({
+      read: vi.fn().mockImplementation(async (service: string) =>
+        service === 'reactions'
+          ? [{ doc_id: 'r1', author_key: 'test.localhost/testuser', body: { type: 'like' }, ref_value: 'p1', created_at: new Date().toISOString() }]
+          : []
+      ),
+      readToken: vi.fn().mockReturnValue({ provider: 'test.localhost', username: 'testuser' }),
+    });
+    await renderDiscover([
+      { _id: 'p1', author: 'creator', author_username: 'creator', author_provider: 'api.web10.app', text: 'A post', created_at: new Date().toISOString(), likes: 3, comments: 1, reposts: 0, score: 5 },
+    ]);
+    await waitFor(() => {
+      expect(screen.getAllByTestId('discover-card').length).toBe(1);
+    });
+    const card = screen.getAllByTestId('discover-card')[0];
+    await waitFor(() => {
+      expect(card.querySelector('[data-testid="like-button"]')).toHaveAttribute('aria-pressed', 'true');
+    });
   });
 });

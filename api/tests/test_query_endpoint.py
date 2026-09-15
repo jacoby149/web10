@@ -285,6 +285,114 @@ class TestExecution:
         assert mock_exec.call_args[1]["settings"] == {"max_execution_time": 10}
 
 
+class TestPrepare:
+    """The prepare pass (D73): mint media + HLS + ads + face on the result
+    rows so a single ``w.query()`` returns render-ready rows. These pin the
+    orchestration — the order (ads before media, so the ads' media is resolved
+    by the media pass), the args, and the face resolution. The passes
+    themselves are pinned in their own tests; here they're mocked to verify the
+    wiring. The row is doc-shaped (the feed-as-query shape): ``body`` is parsed
+    by the row serializer, ``profile_body`` (an aliased body column) stays a
+    JSON string the face pass must parse."""
+
+    def _doc_rows(self):
+        return (
+            ["doc_id", "author_key", "body", "ad_mode", "ad_target", "profile_body"],
+            [
+                ("d1", "alice", '{"media_refs": ["m1"]}', "none", "", '{"avatar_ref": "av1"}'),
+            ],
+        )
+
+    def _post(self, client, token, prepare):
+        payload = {"token": token, "sql": "SELECT doc_id, author_key, body, ad_mode, ad_target, profile_body FROM posts"}
+        if prepare is not None:
+            payload["prepare"] = prepare
+        with (
+            patch("app.v3.services.clickhouse.get_user_groups", return_value=[{"group_id": "g1"}]),
+            patch("app.v3.services.clickhouse.readable_groups", return_value=["g1"]),
+            patch("app.v3.services.clickhouse.execute_query", return_value=self._doc_rows()),
+        ):
+            return client.post("/v3/query", json=payload)
+
+    def test_no_prepare_is_a_noop(self, client, token):
+        resp = self._post(client, token, None)
+        assert resp.status_code == 200
+        row = resp.json()["rows"][0]
+        assert row["body"] == {"media_refs": ["m1"]}  # parsed, untouched
+        assert "avatar_url" not in row  # no face minting
+
+    def test_prepare_media_mints_media_and_hls(self, client, token):
+        with (
+            patch(
+                "app.v3.services.clickhouse.resolve_media_urls_in_docs",
+                side_effect=lambda docs: [dict(d, body={**d["body"], "media_refs": [{"read_url": "https://cdn/m1"}]}) for d in docs],
+            ) as mock_resolve,
+            patch("app.v3.endpoints.query._mint_hls_manifest_urls", side_effect=lambda docs, reader: docs) as mock_hls,
+        ):
+            resp = self._post(client, token, {"media": True})
+        assert resp.status_code == 200
+        mock_resolve.assert_called_once()
+        mock_hls.assert_called_once()
+        assert resp.json()["rows"][0]["body"]["media_refs"][0]["read_url"] == "https://cdn/m1"
+
+    def test_prepare_ads_runs_before_media(self, client, token):
+        # Order matters: ads first (so their media is resolved by the media
+        # pass), then media + HLS. Pin the call order.
+        calls = []
+        with (
+            patch("app.v3.services.clickhouse.attach_pinned_ads", side_effect=lambda d, r: (calls.append("pinned"), d)[1]),
+            patch("app.v3.services.clickhouse.attach_node_ads", side_effect=lambda d, r: (calls.append("node"), d)[1]),
+            patch("app.v3.services.clickhouse.resolve_media_urls_in_docs", side_effect=lambda d: (calls.append("media"), d)[1]),
+            patch("app.v3.endpoints.query._mint_hls_manifest_urls", side_effect=lambda d, r: (calls.append("hls"), d)[1]),
+        ):
+            resp = self._post(client, token, {"media": True, "ads": True})
+        assert resp.status_code == 200
+        assert calls == ["pinned", "node", "media", "hls"]
+
+    def test_prepare_face_resolves_the_avatar(self, client, token):
+        # The face: presign profile_body.avatar_ref (author-scoped to the row's
+        # author_key), set avatar_url. profile_body is a JSON string (an
+        # aliased body column the row serializer doesn't parse) — the face
+        # pass parses it.
+        with patch(
+            "app.v3.services.clickhouse.resolve_media_urls",
+            return_value={"media_refs": [{"read_url": "https://cdn/av1"}]},
+        ) as mock_resolve:
+            resp = self._post(
+                client,
+                token,
+                {"face": {"bodyField": "profile_body", "mediaField": "avatar_ref", "authorColumn": "author_key", "urlField": "avatar_url"}},
+            )
+        assert resp.status_code == 200
+        # Author-scoped to the row's author (alice), not the reader.
+        mock_resolve.assert_called_once_with({"media_refs": ["av1"]}, "alice")
+        assert resp.json()["rows"][0]["avatar_url"] == "https://cdn/av1"
+
+    def test_prepare_face_degrades_when_the_author_has_no_face(self, client, token):
+        # A row with no face media (no avatar_ref) → no avatar_url, no error.
+        with (
+            patch("app.v3.services.clickhouse.get_user_groups", return_value=[{"group_id": "g1"}]),
+            patch("app.v3.services.clickhouse.readable_groups", return_value=["g1"]),
+            patch(
+                "app.v3.services.clickhouse.execute_query",
+                return_value=(
+                    ["doc_id", "author_key", "body", "profile_body"],
+                    [("d1", "alice", '{"text": "hi"}', '{"bio": "no avatar"}')],
+                ),
+            ),
+        ):
+            resp = client.post(
+                "/v3/query",
+                json={
+                    "token": token,
+                    "sql": "SELECT doc_id, author_key, body, profile_body FROM posts",
+                    "prepare": {"face": {"bodyField": "profile_body", "mediaField": "avatar_ref"}},
+                },
+            )
+        assert resp.status_code == 200
+        assert "avatar_url" not in resp.json()["rows"][0]
+
+
 class TestRateLimit:
     """Per-user rate limiting (D65): keyed on the verified user_key, in-memory
     per-worker, 429 when the budget is exceeded. Anon is not per-user-limited

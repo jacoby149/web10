@@ -8,7 +8,8 @@ from fastapi import APIRouter, HTTPException, Request
 import app.exceptions as exceptions
 import app.v3.services.safe_query as sq
 from app.v3.endpoints.auth_helper import user_or_anon
-from app.v3.models import QueryRequest
+from app.v3.endpoints.documents import _mint_hls_manifest_urls
+from app.v3.models import PrepareFace, PrepareSpec, QueryRequest
 from app.v3.services import clickhouse as ch
 
 router = APIRouter(tags=["query"])
@@ -72,6 +73,70 @@ def _serialize_row(row: dict) -> dict:
                 pass  # a non-JSON body passes through as-is
         out[key] = _serialize_value(value)
     return out
+
+
+def _prepare_face(docs: list[dict], face: PrepareFace) -> list[dict]:
+    """Mint the author's face media (D73): presign ``<bodyField>.<mediaField>``,
+    author-scoped to ``<authorColumn>``, set on ``<urlField>``.
+
+    For a query that JOINs the author's profile service, this is the avatar
+    (``profile_body.avatar_ref`` → ``avatar_url``). The face body may be a
+    parsed dict or a JSON string (an aliased ``body`` column the row serializer
+    doesn't parse) — both are handled. A resolve failure degrades to no face
+    (the client renders the fallback initials) — the face is an enhancement.
+    """
+    author_col = face.authorColumn or "author_key"
+    out = []
+    for doc in docs:
+        doc = dict(doc)
+        raw = doc.get(face.bodyField)
+        face_body = raw
+        if isinstance(raw, str):
+            try:
+                face_body = ch._parse_json(raw)
+            except (ValueError, TypeError):
+                face_body = None
+        if not isinstance(face_body, dict):
+            out.append(doc)
+            continue
+        media_ref = face_body.get(face.mediaField)
+        author = doc.get(author_col) or ""
+        if media_ref and author:
+            try:
+                resolved = ch.resolve_media_urls({"media_refs": [media_ref]}, author)
+                refs = resolved.get("media_refs") or []
+                if refs and isinstance(refs[0], dict) and refs[0].get("read_url"):
+                    doc[face.urlField] = refs[0]["read_url"]
+            except Exception as e:
+                log.warning("[query] face resolve failed author=%s: %s", author, e)
+        out.append(doc)
+    return out
+
+
+def _prepare_rows(rows: list[dict], reader: str, prepare: PrepareSpec) -> list[dict]:
+    """The prepare pass (D73): mint the result rows so a single ``w.query()``
+    returns render-ready rows. Reuses the read path's passes verbatim
+    (``attach_pinned_ads`` + ``attach_node_ads`` + ``resolve_media_urls_in_docs``
+    + ``_mint_hls_manifest_urls``), applied to the query's rows.
+
+    Order matches the read path: ads first (so their media is resolved by the
+    media pass), then media + HLS. The boundary CTEs already proved the reader
+    can read every row, so minting capabilities for them is no escalation.
+    Non-doc rows (aggregates, join columns without ``body``) no-op through the
+    passes (they check ``body`` / ``ad_mode`` and skip).
+    """
+    if not rows:
+        return rows
+    docs = rows
+    if prepare.ads:
+        docs = ch.attach_pinned_ads(docs, reader)
+        docs = ch.attach_node_ads(docs, reader)
+    if prepare.media:
+        docs = ch.resolve_media_urls_in_docs(docs)
+        docs = _mint_hls_manifest_urls(docs, reader)
+    if prepare.face:
+        docs = _prepare_face(docs, prepare.face)
+    return docs
 
 
 @router.post("/query")
@@ -159,4 +224,10 @@ def run_query(request: Request, data: QueryRequest):
         raise HTTPException(status_code=400, detail=f"query execution failed: {e}")
 
     out = [_serialize_row(dict(zip(column_names, row))) for row in rows]
+    # The prepare pass (D73): mint media + HLS + ads + face on the result rows
+    # so the query returns render-ready rows in one round-trip (the feed-as-
+    # query pattern). The boundary CTEs already gated the rows (I3); the mint
+    # only touches docs in the result.
+    if data.prepare:
+        out = _prepare_rows(out, reader, data.prepare)
     return {"rows": out, "count": len(out)}

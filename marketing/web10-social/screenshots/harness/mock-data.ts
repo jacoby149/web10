@@ -262,6 +262,12 @@ export async function deletePublicEntry(): Promise<void> {}
 export async function deleteReaction(): Promise<void> {}
 export async function deleteStagingPost(): Promise<void> {}
 export function deriveObjectKey(): string { return ''; }
+// The v3 author_key → username helper (the Discover screen's own-reaction read
+// matches the reader's reaction on this). Last path segment of the key.
+export function extractUsername(authorKey: string): string {
+  const parts = (authorKey || '').split('/');
+  return parts[parts.length - 1] || authorKey;
+}
 export async function fetchDiscoveryPost(): Promise<unknown> { return null; }
 export async function fetchSchema(): Promise<unknown> { return {}; }
 export function getCachedSchema(): unknown { return null; }
