@@ -19,6 +19,7 @@ import PostComposer from '@/components/Feed/PostComposer';
 import { ErrorBoundary } from '@/components/shared/ErrorBoundary';
 import { ReportBug } from '@/components/shared/ReportBug';
 import { Toaster } from '@/components/shared/Toast';
+import { InstallPrompt } from '@/components/shared/InstallPrompt';
 import { getWapi, getV3Client, verifyAndRecover, Web10Error } from '@/data';
 import { resolveMediaRefs } from '@/data/posts';
 import { readSettings } from '@/data/settings';
@@ -426,6 +427,9 @@ function App() {
         </Route>
       </Routes>
       <Toaster />
+      {/* D72: the PWA install surface — one dismissible card at the moment of
+          value (Shorts on a phone, a follow), fired by requestInstallPrompt. */}
+      <InstallPrompt />
       {showReportBug && (
         <ReportBug
           trigger={reportTrigger}

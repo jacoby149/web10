@@ -155,12 +155,28 @@ export function trackPageview(path: string) {
  * Track a content-free analytics event.
  *
  * Events are aggregate-only: no post text, no media URLs, no PII.
- * Allowed events: login, logout, post_created, follow, unfollow.
- * All metadata is structural (visibility, screen, etc.), never content.
+ * Allowed events: login, logout, post_created, follow, unfollow,
+ * pwa_install_prompt_shown, pwa_installed.
+ * All metadata is structural (visibility, screen, trigger), never content.
+ *
+ * The PWA events (D72) carry only the **trigger context** — where the prompt
+ * fired (`shorts` / `engagement` / `manual`) — which is the signal that tunes
+ * the trigger policy. No user content, no PII, no post text, no media URL.
  */
 export function trackEvent(
-  event: 'login' | 'logout' | 'post_created' | 'follow' | 'unfollow',
-  params?: { visibility?: 'public' | 'private'; screen?: string },
+  event:
+    | 'login'
+    | 'logout'
+    | 'post_created'
+    | 'follow'
+    | 'unfollow'
+    | 'pwa_install_prompt_shown'
+    | 'pwa_installed',
+  params?: {
+    visibility?: 'public' | 'private';
+    screen?: string;
+    trigger?: 'shorts' | 'engagement' | 'manual';
+  },
 ) {
   if (!window.gtag) return;
   window.gtag('event', event, params || {});

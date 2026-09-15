@@ -46,6 +46,7 @@ import {
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { MARKETING_ORIGIN } from '@/lib/origins';
+import { requestInstallPrompt, isMobile } from '@/lib/pwa';
 import { PRESETS, getPreset, knobStateToSort, scorePost, FIXED_CHARACTER_DETEENT, type PresetId, type KnobState, type PowerMeanSortConfig, defaultKnobState } from '@/lib/powerMean';
 import { KnobRack } from './KnobRack';
 import { VideoPlayer, sourceFromMedia } from '@/components/Feed/VideoPlayer';
@@ -1073,6 +1074,9 @@ export default function DiscoverScreen() {
     try {
       await followUser(user.username, user.provider);
       setFollowStates((prev) => ({ ...prev, [key]: true }));
+      // D72: following is the strongest "this is my place" signal — the
+      // install prompt fires here (mobile only; dismissal remembered).
+      if (isMobile()) requestInstallPrompt('engagement');
     } catch (e) {
       // Follow failed — leave state unchanged, but tell the user why.
       toast.error(errorMessage(e, `Could not follow ${user.username}.`));

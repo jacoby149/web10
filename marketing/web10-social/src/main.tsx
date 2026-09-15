@@ -12,6 +12,19 @@ import { installTelemetry, trackPageview } from './lib/analytics';
 // resolved at runtime from the node (GET /telemetry), env fallback in dev.
 installTelemetry();
 
+// D72: the PWA service worker — the keystone that makes the app installable
+// (the browser only fires beforeinstallprompt for a functioning SW). Prod
+// only: a dev-server SW would cache the app and fight HMR. The SW is the
+// app shell only — never user content (pwa.md).
+if (import.meta.env.PROD && 'serviceWorker' in navigator) {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker
+      .register('/serviceWorker.js')
+      .then((reg) => console.log('[pwa] service worker registered:', reg.scope))
+      .catch((err) => console.error('[pwa] service worker registration failed:', err));
+  });
+}
+
 function AnalyticsTracker() {
   const location = useLocation();
   useEffect(() => {
