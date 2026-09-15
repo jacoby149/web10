@@ -304,7 +304,10 @@ class TestPrepare:
         )
 
     def _post(self, client, token, prepare):
-        payload = {"token": token, "sql": "SELECT doc_id, author_key, body, ad_mode, ad_target, profile_body FROM posts"}
+        payload = {
+            "token": token,
+            "sql": "SELECT doc_id, author_key, body, ad_mode, ad_target, profile_body FROM posts",
+        }
         if prepare is not None:
             payload["prepare"] = prepare
         with (
@@ -325,7 +328,9 @@ class TestPrepare:
         with (
             patch(
                 "app.v3.services.clickhouse.resolve_media_urls_in_docs",
-                side_effect=lambda docs: [dict(d, body={**d["body"], "media_refs": [{"read_url": "https://cdn/m1"}]}) for d in docs],
+                side_effect=lambda docs: [
+                    dict(d, body={**d["body"], "media_refs": [{"read_url": "https://cdn/m1"}]}) for d in docs
+                ],
             ) as mock_resolve,
             patch("app.v3.endpoints.query._mint_hls_manifest_urls", side_effect=lambda docs, reader: docs) as mock_hls,
         ):
@@ -340,10 +345,17 @@ class TestPrepare:
         # pass), then media + HLS. Pin the call order.
         calls = []
         with (
-            patch("app.v3.services.clickhouse.attach_pinned_ads", side_effect=lambda d, r: (calls.append("pinned"), d)[1]),
+            patch(
+                "app.v3.services.clickhouse.attach_pinned_ads", side_effect=lambda d, r: (calls.append("pinned"), d)[1]
+            ),
             patch("app.v3.services.clickhouse.attach_node_ads", side_effect=lambda d, r: (calls.append("node"), d)[1]),
-            patch("app.v3.services.clickhouse.resolve_media_urls_in_docs", side_effect=lambda d: (calls.append("media"), d)[1]),
-            patch("app.v3.endpoints.query._mint_hls_manifest_urls", side_effect=lambda d, r: (calls.append("hls"), d)[1]),
+            patch(
+                "app.v3.services.clickhouse.resolve_media_urls_in_docs",
+                side_effect=lambda d: (calls.append("media"), d)[1],
+            ),
+            patch(
+                "app.v3.endpoints.query._mint_hls_manifest_urls", side_effect=lambda d, r: (calls.append("hls"), d)[1]
+            ),
         ):
             resp = self._post(client, token, {"media": True, "ads": True})
         assert resp.status_code == 200
@@ -361,7 +373,14 @@ class TestPrepare:
             resp = self._post(
                 client,
                 token,
-                {"face": {"bodyField": "profile_body", "mediaField": "avatar_ref", "authorColumn": "author_key", "urlField": "avatar_url"}},
+                {
+                    "face": {
+                        "bodyField": "profile_body",
+                        "mediaField": "avatar_ref",
+                        "authorColumn": "author_key",
+                        "urlField": "avatar_url",
+                    }
+                },
             )
         assert resp.status_code == 200
         # Author-scoped to the row's author (alice), not the reader.
