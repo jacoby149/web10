@@ -58,6 +58,12 @@ class ReadDocuments(BaseModel):
     `sort` (optional): a power-mean ranking config. When present, the read is
     ranked by the feed knobs over the full group membership and returned
     pre-sorted (the discover board's "your algorithm" — D36).
+
+    `tags` (optional): a generic server-side tag filter — return only docs
+    that carry EVERY given tag (``has(tags, …)``, the idiom the node-ad read
+    already uses). A platform primitive, not a social concept: any service's
+    read can filter by its own tags. The Shorts feed is the first consumer
+    (``["short"]``); the render-time gate on the client stays the backstop.
     """
 
     token: str | None = None
@@ -68,6 +74,7 @@ class ReadDocuments(BaseModel):
     offset: int = 0
     match: dict | None = None
     sort: PowerMeanSort | None = None
+    tags: list[str] | None = None
     # The ref filter (the flexible read, phase 1): return only the docs whose
     # ref_value matches. A single doc_id or a list (the engagement-count shape:
     # "give me the comments/reactions for these posts"). Routed through the

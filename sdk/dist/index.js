@@ -116,6 +116,38 @@ function isTokenExpired(token) {
 }
 
 // src/v3.ts
+function pickThumbnail(resolvedMedia) {
+  for (const ref of resolvedMedia ?? []) {
+    if (!ref || typeof ref !== "object")
+      continue;
+    const mime = ref.mime_type ?? "";
+    const isVideo = mime.startsWith("video/");
+    if (isVideo) {
+      if (ref.thumbnail_url) {
+        return {
+          url: ref.thumbnail_url,
+          alt: ref.alt_text ?? null,
+          is_video: true,
+          width: ref.width ?? null,
+          height: ref.height ?? null,
+          mime_type: mime
+        };
+      }
+      continue;
+    }
+    if (ref.read_url) {
+      return {
+        url: ref.read_url,
+        alt: ref.alt_text ?? null,
+        is_video: false,
+        width: ref.width ?? null,
+        height: ref.height ?? null,
+        mime_type: mime
+      };
+    }
+  }
+  return null;
+}
 function createV3Client(options = {}) {
   const apiOrigin = options.apiOrigin ?? "https://api.web10.app";
   const rtcServer = options.rtcServer ?? "rtc.web10.app";
@@ -232,6 +264,8 @@ function createV3Client(options = {}) {
         payload.ref = opts.ref;
       if (opts.sort != null)
         payload.sort = opts.sort;
+      if (opts.tags != null)
+        payload.tags = opts.tags;
       return v3Post("read", payload);
     },
     async readRefCounts(collection, opts) {
@@ -427,6 +461,9 @@ function createV3Client(options = {}) {
     async deleteMedia(docId) {
       return v3Post("media/delete", { doc_id: docId });
     },
+    async getThumbnail(docId) {
+      return v3Post("media/thumbnail", { doc_id: docId });
+    },
     async getNodeStats() {
       return v3Post("stats", {});
     },
@@ -510,6 +547,7 @@ export {
   setTokenCookie,
   scrubTokenCookie,
   readTokenCookie,
+  pickThumbnail,
   isTokenExpired,
   extractDetail,
   decodeJwt,
