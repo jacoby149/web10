@@ -36,12 +36,27 @@ ENV VITE_API_ORIGIN=$VITE_API_ORIGIN \
 RUN bun run build
 
 FROM ghcr.io/jacoby149/base-nginx:alpine
+# The link-preview server (the social-specific tail of the generic
+# thumbnailing primitive, KB: media/thumbnailing.md) is a small Node process
+# that runs alongside nginx in this same container — the social app stays ONE
+# service (the card deploys with the app it represents). nginx:alpine has no
+# Node runtime, so install it (Alpine's nodejs package).
+RUN apk add --no-cache nodejs
 COPY --from=build /app/dist /usr/share/nginx/html
-# The nginx config is a TEMPLATE (the share-preview edge split, D71): the
+# The preview server (the social-specific card logic + the thin HTTP server).
+COPY marketing/web10-social/preview/ /app/preview/
+# The container entrypoint: starts the preview server, then runs the original
+# nginx entrypoint (which envsubs the templates + serves the SPA + proxies
+# crawlers to the preview server).
+COPY marketing/web10-social/docker-entrypoint.sh /app/docker-entrypoint.sh
+RUN chmod +x /app/docker-entrypoint.sh
+# The nginx config is a TEMPLATE (the link-preview edge split): the
 # nginx:alpine entrypoint envsubst's /etc/nginx/templates/*.template into
-# /etc/nginx/conf.d/ at boot, filling ${API_PROXY_TARGET} from the container
-# env (injected per env by the deploy compose). A plain conf.d copy would ship
-# the literal ${API_PROXY_TARGET} and the crawler proxy would never resolve.
+# /etc/nginx/conf.d/ at boot, filling ${PREVIEW_TARGET} from the container
+# env (default http://127.0.0.1:3001, the preview server's port). A plain
+# conf.d copy would ship the literal ${PREVIEW_TARGET} and the crawler proxy
+# would never resolve.
 COPY marketing/web10-social/nginx.conf /etc/nginx/templates/default.conf.template
 EXPOSE 80
+ENTRYPOINT ["/app/docker-entrypoint.sh"]
 CMD ["nginx", "-g", "daemon off;"]
