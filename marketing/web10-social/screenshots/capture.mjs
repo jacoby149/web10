@@ -33,12 +33,22 @@ const DEFAULT_VIEWS = [
   { name: 'settings', route: '/settings', ready: 'h1' },
 ];
 
-// CLI: --name X --ready SEL [--route /settings] [--toggle SEL] captures just
-// that one view (no VIEWS edit needed for a one-off PR screenshot).
+// CLI: --name X --ready SEL [--route /settings] [--toggle SEL] [--click SEL]
+// captures just that one view (no VIEWS edit needed for a one-off PR
+// screenshot). --click may be repeated — the clicks fire in order BEFORE the
+// ready wait (a two-step sub-view, e.g. open the face lightbox then tap a
+// pick tile, is two --click flags).
 function parseCliViews(argv) {
   const get = (flag) => {
     const i = argv.indexOf(flag);
     return i === -1 ? null : argv[i + 1];
+  };
+  const getMany = (flag) => {
+    const out = [];
+    for (let i = 0; i < argv.length - 1; i++) {
+      if (argv[i] === flag) out.push(argv[i + 1]);
+    }
+    return out;
   };
   const name = get('--name');
   const ready = get('--ready');
@@ -47,7 +57,7 @@ function parseCliViews(argv) {
     console.error('--name and --ready must be given together');
     process.exit(1);
   }
-  return [{ name, ready, route: get('--route'), toggle: get('--toggle'), click: get('--click') }];
+  return [{ name, ready, route: get('--route'), toggle: get('--toggle'), clicks: getMany('--click') }];
 }
 const VIEWS = parseCliViews(process.argv.slice(2)) ?? DEFAULT_VIEWS;
 
@@ -102,16 +112,17 @@ try {
         // matches the hidden copy first and times out even though the view
         // rendered fine.
         if (view.route) {
-          // `--click` opens a sub-view (e.g. the create-group sheet from the
-          // "New group" CTA) BEFORE we wait for its ready selector.
-          if (view.click) await page.click(view.click);
+          // `--click` (repeatable) opens a sub-view (e.g. the create-group
+          // sheet from the "New group" CTA, or the face lightbox → a pick
+          // tile → the crop step) BEFORE we wait for its ready selector.
+          for (const click of view.clicks ?? []) await page.click(click);
           await page.waitForSelector(`${view.ready} >> visible=true`, { timeout: 15000 });
           // Route views are already loaded — a toggle here expands a sub-panel
           // (e.g. the knob rack's "Advanced" panel) after the view is ready.
           if (view.toggle) await page.click(view.toggle);
         } else {
           await page.waitForSelector('[data-testid="messages-view-toggle"] >> visible=true', { timeout: 15000 });
-          if (view.click) await page.click(view.click);
+          for (const click of view.clicks ?? []) await page.click(click);
           if (view.toggle) await page.click(view.toggle);
           await page.waitForSelector(`${view.ready} >> visible=true`, { timeout: 15000 });
         }
