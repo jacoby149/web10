@@ -6,6 +6,7 @@ import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
 import {
   readFeedPage,
+  readFeedReactions,
   toggleReactionKind,
   type ReactionKind,
   readSettings,
@@ -638,6 +639,16 @@ export default function FeedScreen({ onAuthorClick }: { onAuthorClick?: (usernam
       // The counts ride in the payload (post.likes / post.comments) — no re-fetch.
       setReactionMap(Object.fromEntries(page.posts.map((p) => [p._id || '', p.likes || 0])));
       setCommentMap(Object.fromEntries(page.posts.map((p) => [p._id || '', p.comments || 0])));
+      // The reader's OWN reaction is NOT in the payload (D69 carries the like
+      // count, not whether *I* liked it) — seed the liked/disliked maps so a
+      // post the reader already liked shows a filled heart on load. Without
+      // this the feed "forgot" every like on refresh and the next tap stacked
+      // a second doc (the "liked it, shows 2, refresh shows 0" bug).
+      const { liked, disliked } = await readFeedReactions(
+        page.posts.map((p) => p._id || '').filter(Boolean),
+      );
+      setLikedMap(liked);
+      setDislikedMap(disliked);
       LOG('loadFeed — page 1:', page.posts.length, 'posts, has_more:', page.has_more);
     } catch (e) {
       console.error('Failed to load feed:', e);
@@ -656,6 +667,13 @@ export default function FeedScreen({ onAuthorClick }: { onAuthorClick?: (usernam
       setNextCursor(page.next_cursor);
       setReactionMap((prev) => ({ ...prev, ...Object.fromEntries(page.posts.map((p) => [p._id || '', p.likes || 0])) }));
       setCommentMap((prev) => ({ ...prev, ...Object.fromEntries(page.posts.map((p) => [p._id || '', p.comments || 0])) }));
+      // Seed the reader's own reaction for the new page's posts (same gap as
+      // loadFeed — the payload carries the count, not whether *I* liked it).
+      const { liked, disliked } = await readFeedReactions(
+        page.posts.map((p) => p._id || '').filter(Boolean),
+      );
+      setLikedMap((prev) => ({ ...prev, ...liked }));
+      setDislikedMap((prev) => ({ ...prev, ...disliked }));
       // The cursor deep-link (the URL holds the scroll position — ?after=).
       const params = new URLSearchParams(searchParams);
       if (page.next_cursor?.created_at) params.set('after', page.next_cursor.created_at);
