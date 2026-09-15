@@ -1804,11 +1804,7 @@ def _board_base_sql(group_ids: list[str], require_membership: bool = True, tags:
         else ""
     )
     membership_where = "gm.member_key = %(member_key)s AND " if require_membership else ""
-    tag_where = (
-        " AND (" + " AND ".join(f"has(p.tags, %(tag{i})s)" for i in range(len(tags))) + ")"
-        if tags
-        else ""
-    )
+    tag_where = " AND (" + " AND ".join(f"has(p.tags, %(tag{i})s)" for i in range(len(tags))) + ")" if tags else ""
     return (
         "SELECT p.doc_id AS doc_id, p.author_key, p.body, p.tags, p.created_at, p.ref_value, p.ad_mode, p.ad_target "
         "FROM (SELECT doc_id, author_key, body, tags, created_at, ref_value, ad_mode, ad_target, deleted "
