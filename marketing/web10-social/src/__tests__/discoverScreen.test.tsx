@@ -1021,10 +1021,11 @@ describe('DiscoverScreen', () => {
     expect(video!.getAttribute('src')).toBe('https://cdn.example/video.mp4');
   });
 
-  it('video tiles are a uniform 16:9 (youtubey) — portrait clips crop to fill, not letterbox', async () => {
-    // A PORTRAIT clip (9:16) — the case that used to render as a tall,
-    // letterboxed box (natural ratio + object-contain), making the grid look
-    // ragged. The youtubey layout forces a uniform 16:9 tile (object-cover).
+  it('video renders at natural ratio like the feed — a portrait clip is object-contain, not a cropped 16:9 tile', async () => {
+    // A PORTRAIT clip (9:16). Discover renders video the SAME way the feed
+    // does (video-player.md): natural ratio + object-contain (never crops),
+    // so a 9:16 clip shows as a tall 9:16 box — no letterbox borders, no
+    // center-crop. (The old uniform-16:9 youtubey tile is retired.)
     (data.readDiscoverFeed as ReturnType<typeof vi.fn>).mockResolvedValue([
       {
         author: 'video-creator',
@@ -1063,14 +1064,13 @@ describe('DiscoverScreen', () => {
     );
 
     const tile = await screen.findByTestId('discover-media-video');
-    // Uniform 16:9 tile (the YouTube thumbnail ratio), regardless of the
-    // clip's natural (portrait) ratio.
-    expect(tile.className).toMatch(/aspect-video/);
-    // object-cover crops to fill the 16:9 frame (no letterbox bars).
+    // Natural ratio (the clip's 9:16), NOT a forced 16:9 tile.
+    expect(tile.className).not.toMatch(/aspect-video/);
+    // object-contain (never crops) — the feed's behavior, no letterbox bars.
     const video = tile.querySelector('video');
     expect(video).toBeTruthy();
-    expect(video!.className).toMatch(/object-cover/);
-    expect(video!.className).not.toMatch(/object-contain/);
+    expect(video!.className).toMatch(/object-contain/);
+    expect(video!.className).not.toMatch(/object-cover/);
   });
 
   it('the discover card is inline — no lightbox; the comment count toggles the thread', async () => {

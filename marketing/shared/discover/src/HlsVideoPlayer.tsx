@@ -45,6 +45,12 @@ export function HlsVideoPlayer({ manifestUrl, poster, width, height, className }
   const hlsRef = useRef<HlsInstance | null>(null);
   const hideTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const playingRef = useRef(false);
+  // Whether the pointer is currently over the player. The auto-hide must never
+  // fire while the pointer is here — reaching for a control (volume,
+  // fullscreen) that sits near the edge of the video would otherwise hide the
+  // rack mid-reach (the 9:16 discover bug: the cursor crossed the letterbox
+  // border → mouseleave → the rack vanished before the click landed).
+  const pointerOverRef = useRef(false);
 
   const [levels, setLevels] = useState<{ height: number }[]>([]);
   const [quality, setQuality] = useState('-1');
@@ -60,6 +66,9 @@ export function HlsVideoPlayer({ manifestUrl, poster, width, height, className }
   // Controls are visible on mount (the poster moment) and whenever the pointer
   // moves or the video is paused; they fade out after ~2.5s of playing + idle.
   const [controlsVisible, setControlsVisible] = useState(true);
+  // True while the pointer is over the player. The rack is held visible for as
+  // long as this is set, independent of the auto-hide timer (see pointerOverRef).
+  const [pointerOver, setPointerOver] = useState(false);
 
   // The ratio comes from the lowest variant (the source ratio, preserved by
   // the node). Vertical (< 0.8) gets the phone-width column — the immersive
@@ -158,9 +167,11 @@ export function HlsVideoPlayer({ manifestUrl, poster, width, height, className }
     setControlsVisible(true);
     if (hideTimer.current) clearTimeout(hideTimer.current);
     hideTimer.current = setTimeout(() => {
-      // Only hide while actively playing — a paused video keeps its controls.
-      // Read the ref (not state) so the timer never races a stale closure.
-      if (playingRef.current) setControlsVisible(false);
+      // Only hide while actively playing AND the pointer has left the player.
+      // A paused video keeps its controls; a video the pointer is still over
+      // keeps them too (reaching for a control must not hide the rack).
+      // Read the refs (not state) so the timer never races a stale closure.
+      if (playingRef.current && !pointerOverRef.current) setControlsVisible(false);
     }, 2500);
   }, []);
 
@@ -235,8 +246,18 @@ export function HlsVideoPlayer({ manifestUrl, poster, width, height, className }
       <div
         className={cn('group relative', isVertical && 'mx-auto max-w-[280px]')}
         style={{ aspectRatio: ratio }}
+        onMouseEnter={() => { pointerOverRef.current = true; setPointerOver(true); showControls(); }}
         onMouseMove={showControls}
-        onMouseLeave={() => { if (playing) setControlsVisible(false); }}
+        onMouseLeave={() => {
+          // The pointer left: drop the hold, then arm the idle window so a
+          // playing video's rack fades out on its own (a paused one keeps it).
+          pointerOverRef.current = false;
+          setPointerOver(false);
+          if (hideTimer.current) clearTimeout(hideTimer.current);
+          hideTimer.current = setTimeout(() => {
+            if (playingRef.current && !pointerOverRef.current) setControlsVisible(false);
+          }, 2500);
+        }}
       >
         <video
           ref={videoRef}
@@ -264,7 +285,7 @@ export function HlsVideoPlayer({ manifestUrl, poster, width, height, className }
           className={cn(
             'absolute inset-x-0 bottom-0 flex flex-col gap-1 px-3 pb-2 pt-8 transition-opacity duration-200',
             'bg-gradient-to-t from-black/70 via-black/25 to-transparent',
-            controlsVisible ? 'opacity-100' : 'opacity-0 pointer-events-none',
+            controlsVisible || pointerOver ? 'opacity-100' : 'opacity-0 pointer-events-none',
           )}
         >
           {/* Scrubber */}
