@@ -37,6 +37,16 @@ class TestSig:
         assert payload["username"] == "alice"
         assert payload["doc_id"] == "doc-1"
         assert payload["prefix"] == "alice/abc/hls"
+        # The D58 principal-class flag rides in the sig (default: anon read).
+        assert payload["authenticated"] is False
+
+    def test_mint_carries_authenticated_flag(self):
+        """The re-check must evaluate the same D58 principal classes the read
+        used — an authenticated read mints a sig that says so (an anon-minted
+        sig must not unlock authenticated-only grants on re-check)."""
+        sig = hls.mint_sig("bob", "doc-1", "alice/abc/hls", authenticated=True)
+        payload = hls.verify_sig(sig, "doc-1")
+        assert payload["authenticated"] is True
 
     def test_verify_rejects_wrong_doc(self):
         sig = hls.mint_sig("alice", "doc-1", "alice/abc/hls")
@@ -228,6 +238,55 @@ class TestMintHlsManifestUrls:
         assert payload["username"] == "bob"
         assert payload["prefix"] == "alice/abc/hls"
 
+    def test_anon_read_mints_anon_sig(self):
+        """The marketing /trending path: an anon board read mints a sig for
+        `anon` (authenticated=False) — the manifest re-check must run as the
+        same principal, through the group's `anyone` grant, not a membership
+        row the D58 backfill renamed away."""
+        from app.v3.endpoints.documents import _mint_hls_manifest_urls
+
+        post = {
+            "doc_id": "post-1",
+            "body": {
+                "media_refs": [
+                    {
+                        "doc_id": "media-1",
+                        "object_key": "alice/abc/vacation.mp4",
+                        "transcoding_settings": {"enabled": True, "status": "done"},
+                    }
+                ],
+            },
+        }
+        docs = _mint_hls_manifest_urls([post], "anon")
+        ts = docs[0]["body"]["media_refs"][0]["transcoding_settings"]
+        payload = hls.verify_sig(ts["manifest_url"].split("sig=")[1], "media-1")
+        assert payload["username"] == "anon"
+        assert payload["authenticated"] is False
+
+    def test_authenticated_read_mints_authenticated_sig(self):
+        """A token-bearing read mints a sig that carries authenticated=True —
+        the re-check may then evaluate the `authenticated` principal class
+        (and only that: an anon sig can never upgrade to it)."""
+        from app.v3.endpoints.documents import _mint_hls_manifest_urls
+
+        post = {
+            "doc_id": "post-1",
+            "body": {
+                "media_refs": [
+                    {
+                        "doc_id": "media-1",
+                        "object_key": "alice/abc/vacation.mp4",
+                        "transcoding_settings": {"enabled": True, "status": "done"},
+                    }
+                ],
+            },
+        }
+        docs = _mint_hls_manifest_urls([post], "bob", authenticated=True)
+        ts = docs[0]["body"]["media_refs"][0]["transcoding_settings"]
+        payload = hls.verify_sig(ts["manifest_url"].split("sig=")[1], "media-1")
+        assert payload["username"] == "bob"
+        assert payload["authenticated"] is True
+
     def test_ref_without_settings_untouched(self):
         """Plain media (image, untranscoded video) gets no manifest_url and no
         sig mint (no JWT churn on the common path)."""
@@ -335,7 +394,36 @@ class TestCanViewDoc:
             patch("app.services.hls.ch.can_read_carrier_post", return_value=True) as carrier,
         ):
             assert hls.can_view_doc("media-1", "bob") is not None
-        carrier.assert_called_once_with("media-1", "alice", "bob")
+        carrier.assert_called_once_with("media-1", "alice", "bob", False)
+
+    def test_anon_carrier_post_reader_passes(self):
+        """The marketing /trending bug — the public board's reader is `anon`
+        (no token). The carrier-post rule must use the read path's D58
+        effective-role gate (the group's `anyone` grant), not a literal
+        membership row: the D58 backfill renamed the discover board's `anon`
+        row to `anyone`, so a membership check 403'd every anon-minted sig
+        and the player degraded to 'can't be played'. The re-check runs as
+        the sig's principal (anon → authenticated=False)."""
+        with (
+            patch("app.services.hls.ch.get_document_any_author", return_value=self._media_doc()),
+            patch("app.services.hls.ch.get_doc_groups", return_value=[]),
+            patch("app.services.hls.ch.can_read_carrier_post", return_value=True) as carrier,
+        ):
+            assert hls.can_view_doc("media-1", "anon") is not None
+        carrier.assert_called_once_with("media-1", "alice", "anon", False)
+
+    def test_authenticated_flag_rides_to_the_carrier_check(self):
+        """The sig's `authenticated` flag selects the D58 principal classes —
+        an authenticated read re-checks with the `authenticated` class, an
+        anon read does not (the re-check can only confirm what the read
+        granted, never more)."""
+        with (
+            patch("app.services.hls.ch.get_document_any_author", return_value=self._media_doc()),
+            patch("app.services.hls.ch.get_doc_groups", return_value=[]),
+            patch("app.services.hls.ch.can_read_carrier_post", return_value=True) as carrier,
+        ):
+            assert hls.can_view_doc("media-1", "bob", authenticated=True) is not None
+        carrier.assert_called_once_with("media-1", "alice", "bob", True)
 
     def test_stranger_without_carrier_post_denied(self):
         """I3 at the stream layer: no authorship, no media-doc group, no
@@ -398,6 +486,21 @@ class TestHlsManifestEndpoint:
         assert res.headers["content-type"].startswith("application/vnd.apple.mpegurl")
         assert "#EXTM3U" in res.text
         assert "RESOLUTION=640x360" in res.text
+
+    def test_recheck_runs_as_the_sig_principal(self, client):
+        """The manifest re-check evaluates the sig's principal classes — the
+        `authenticated` flag minted at read time rides sig → can_view_doc.
+        An anon-minted sig re-checks as anon (the /trending bug's seam)."""
+        with patch("app.v3.endpoints.media.can_view_doc", return_value=_doc_with_hls()) as cvd:
+            anon_sig = hls.mint_sig("anon", "doc-1", "alice/abc/hls")
+            res = client.get(f"/v3/media/hls/manifest?doc_id=doc-1&sig={anon_sig}")
+        assert res.status_code == 200
+        cvd.assert_called_once_with("doc-1", "anon", False)
+        with patch("app.v3.endpoints.media.can_view_doc", return_value=_doc_with_hls()) as cvd:
+            auth_sig = hls.mint_sig("bob", "doc-1", "alice/abc/hls", authenticated=True)
+            res = client.get(f"/v3/media/hls/manifest?doc_id=doc-1&sig={auth_sig}")
+        assert res.status_code == 200
+        cvd.assert_called_once_with("doc-1", "bob", True)
 
     def test_403_without_sig(self, client):
         res = client.get("/v3/media/hls/manifest?doc_id=doc-1")

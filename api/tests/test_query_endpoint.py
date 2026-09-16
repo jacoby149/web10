@@ -332,12 +332,20 @@ class TestPrepare:
                     dict(d, body={**d["body"], "media_refs": [{"read_url": "https://cdn/m1"}]}) for d in docs
                 ],
             ) as mock_resolve,
-            patch("app.v3.endpoints.query._mint_hls_manifest_urls", side_effect=lambda docs, reader: docs) as mock_hls,
+            patch(
+                "app.v3.endpoints.query._mint_hls_manifest_urls",
+                side_effect=lambda docs, reader, authenticated=False: docs,
+            ) as mock_hls,
         ):
             resp = self._post(client, token, {"media": True})
         assert resp.status_code == 200
         mock_resolve.assert_called_once()
         mock_hls.assert_called_once()
+        # The sig's D58 principal flag rides from the query's reader (a token
+        # here → authenticated=True — the re-check can't upgrade an anon read).
+        minted_docs, minted_reader, minted_auth = mock_hls.call_args.args
+        assert minted_reader == "testuser"
+        assert minted_auth is True
         assert resp.json()["rows"][0]["body"]["media_refs"][0]["read_url"] == "https://cdn/m1"
 
     def test_prepare_ads_runs_before_media(self, client, token):
@@ -354,7 +362,8 @@ class TestPrepare:
                 side_effect=lambda d: (calls.append("media"), d)[1],
             ),
             patch(
-                "app.v3.endpoints.query._mint_hls_manifest_urls", side_effect=lambda d, r: (calls.append("hls"), d)[1]
+                "app.v3.endpoints.query._mint_hls_manifest_urls",
+                side_effect=lambda d, r, authenticated=False: (calls.append("hls"), d)[1],
             ),
         ):
             resp = self._post(client, token, {"media": True, "ads": True})

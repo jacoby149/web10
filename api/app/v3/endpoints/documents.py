@@ -43,7 +43,7 @@ def _moderate_post(author: str, doc_id: str, service: str, body: dict, groups: l
         log.warning("[moderation] auto-hide failed (non-fatal): %s: %s", type(e).__name__, e)
 
 
-def _mint_ref_manifest(ref, reader_key: str) -> dict:
+def _mint_ref_manifest(ref, reader_key: str, authenticated: bool = False) -> dict:
     """Mint a `manifest_url` into a resolved media ref that carries HLS
     settings — the feed path, where the post's media_refs carry the media
     doc's transcoding_settings (resolve_media_urls carries them) and the sig
@@ -63,7 +63,7 @@ def _mint_ref_manifest(ref, reader_key: str) -> dict:
     object_key = ref.get("object_key")
     if not doc_id or not object_key:
         return ref
-    sig = mint_sig(reader_key, doc_id, hls_prefix(str(object_key)))
+    sig = mint_sig(reader_key, doc_id, hls_prefix(str(object_key)), authenticated)
     return {
         **ref,
         "transcoding_settings": {
@@ -73,7 +73,7 @@ def _mint_ref_manifest(ref, reader_key: str) -> dict:
     }
 
 
-def _mint_hls_manifest_urls(docs: list[dict], reader_key: str) -> list[dict]:
+def _mint_hls_manifest_urls(docs: list[dict], reader_key: str, authenticated: bool = False) -> list[dict]:
     """Inject `transcoding_settings.manifest_url` into transcoded media.
 
     Two sites: (1) the doc itself — a direct read of a media doc whose body
@@ -84,7 +84,9 @@ def _mint_hls_manifest_urls(docs: list[dict], reader_key: str) -> list[dict]:
 
     The sig is bound to (reader, doc, hls prefix) with a 10-minute TTL — the
     expiry is the group-membership re-check cadence (minio-auth-bifurcated).
-    A path-only URL: the client prepends its API origin.
+    `authenticated` (the reader held a valid token at read time) rides in the
+    sig so the manifest re-check evaluates the same D58 principal classes the
+    read did. A path-only URL: the client prepends its API origin.
     """
     out = []
     for doc in docs:
@@ -95,7 +97,7 @@ def _mint_hls_manifest_urls(docs: list[dict], reader_key: str) -> list[dict]:
         ts = body.get("transcoding_settings") or {}
         video = body.get("video")
         if ts.get("enabled") and isinstance(video, dict) and video.get("value"):
-            sig = mint_sig(reader_key, doc["doc_id"], hls_prefix(str(video["value"])))
+            sig = mint_sig(reader_key, doc["doc_id"], hls_prefix(str(video["value"])), authenticated)
             body["transcoding_settings"] = {
                 **ts,
                 "manifest_url": f"/v3/media/hls/manifest?doc_id={doc['doc_id']}&sig={sig}",
@@ -105,7 +107,7 @@ def _mint_hls_manifest_urls(docs: list[dict], reader_key: str) -> list[dict]:
         if isinstance(refs, list) and any(
             isinstance(r, dict) and isinstance(r.get("transcoding_settings"), dict) for r in refs
         ):
-            body["media_refs"] = [_mint_ref_manifest(r, reader_key) for r in refs]
+            body["media_refs"] = [_mint_ref_manifest(r, reader_key, authenticated) for r in refs]
         doc["body"] = body
         # (2) the inline ads too — their media_refs are resolved the same way
         for ad_key in ("ad", "node_ad"):
@@ -119,7 +121,7 @@ def _mint_hls_manifest_urls(docs: list[dict], reader_key: str) -> list[dict]:
             ):
                 ad = dict(ad)
                 ad_body = dict(ad_body)
-                ad_body["media_refs"] = [_mint_ref_manifest(r, reader_key) for r in ad_refs]
+                ad_body["media_refs"] = [_mint_ref_manifest(r, reader_key, authenticated) for r in ad_refs]
                 ad["body"] = ad_body
                 doc[ad_key] = ad
         out.append(doc)
@@ -200,7 +202,7 @@ def read_documents(request: Request, data: ReadDocuments):
         doc = ch.attach_pinned_ads([doc], reader)[0]
         # D57: node ad attachment (the third join — doc.ad + doc.node_ad).
         doc = ch.attach_node_ads([doc], reader)[0]
-        return _mint_hls_manifest_urls(ch.resolve_media_urls_in_docs([doc]), reader)[0]
+        return _mint_hls_manifest_urls(ch.resolve_media_urls_in_docs([doc]), reader, authenticated)[0]
 
     if not data.groups:
         raise exceptions.CRUD
@@ -253,7 +255,7 @@ def read_documents(request: Request, data: ReadDocuments):
         )
         docs = ch.attach_pinned_ads(docs, reader)
         docs = ch.attach_node_ads(docs, reader)
-        return _mint_hls_manifest_urls(ch.resolve_media_urls_in_docs(docs), reader)
+        return _mint_hls_manifest_urls(ch.resolve_media_urls_in_docs(docs), reader, authenticated)
 
     docs = ch.read_documents_in_groups(
         group_ids=group_ids,
@@ -274,7 +276,7 @@ def read_documents(request: Request, data: ReadDocuments):
     docs = ch.attach_pinned_ads(docs, reader)
     # D57: node ad attachment (the third join — doc.ad + doc.node_ad).
     docs = ch.attach_node_ads(docs, reader)
-    return _mint_hls_manifest_urls(ch.resolve_media_urls_in_docs(docs), reader)
+    return _mint_hls_manifest_urls(ch.resolve_media_urls_in_docs(docs), reader, authenticated)
 
 
 @router.post("/update")

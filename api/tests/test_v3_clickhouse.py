@@ -944,13 +944,16 @@ class TestResolvePinnedAdsServiceAgnostic:
 
 
 class TestCanReadCarrierPost:
-    def test_true_when_reader_has_a_carrier_post_group(self):
+    def test_true_when_reader_can_read_a_carrier_post_group(self):
         """D68 — the cross-user feed path: a post (by the media's author)
-        carries the media doc and the reader is an active member of one of
-        the post's groups."""
+        carries the media doc and the reader can read one of the post's
+        groups. Readability is the D58 effective-role gate (`can_read_group`)
+        — the SAME predicate the read path uses, so a public board's reader
+        (not a member; reads through the group's `anyone` grant) passes."""
         with _patch_client() as mock_client:
-            mock_client.query.return_value = _mock_result_rows([(1,)])
-            assert ch.can_read_carrier_post("media-1", "alice", "bob") is True
+            mock_client.query.return_value = _mock_result_rows([("api.web10.app/groups/web10/discover",)])
+            with patch.object(ch, "can_read_group", return_value=True) as crg:
+                assert ch.can_read_carrier_post("media-1", "alice", "bob") is True
         sql = mock_client.query.call_args[0][0]
         params = mock_client.query.call_args[0][1]
         # D75 — service-agnostic: the node does NOT vet the carrier's
@@ -962,16 +965,41 @@ class TestCanReadCarrierPost:
         # its own author's media — resolution is author-scoped).
         assert "author_key = %(author)s" in sql
         assert "has(JSONExtractArrayRaw(body, 'media_refs'), %(media)s)" in sql
-        # The house dedup pattern on both sides (stale rows must not grant).
-        assert sql.count("row_number() OVER") == 2
-        # body is a plain String column: JSONExtractArrayRaw yields the RAW
-        # (JSON-quoted) elements, so the match is against the quoted form.
-        assert params == {"media": '"media-1"', "author": "alice", "reader": "bob"}
+        # The house dedup pattern (latest version of the carrier doc).
+        assert "row_number() OVER" in sql
+        # The reader is NOT a SQL parameter anymore — readability is decided
+        # by the effective-role gate in Python (the D58 model), not a
+        # group_members JOIN (the pre-D58 model that 403'd anon).
+        assert params == {"media": '"media-1"', "author": "alice"}
+        assert "group_members" not in sql
+        crg.assert_called_once_with("api.web10.app/groups/web10/discover", "bob", "posts", False)
 
     def test_false_when_no_carrier_post(self):
         with _patch_client() as mock_client:
             mock_client.query.return_value = _mock_result_rows([])
-            assert ch.can_read_carrier_post("media-1", "alice", "bob") is False
+            with patch.object(ch, "can_read_group") as crg:
+                assert ch.can_read_carrier_post("media-1", "alice", "bob") is False
+            crg.assert_not_called()
+
+    def test_false_when_reader_cannot_read_the_carrier_group(self):
+        """I3 at the stream layer: the carrier exists, but the reader's
+        effective role grants no read on its group → no stream."""
+        with _patch_client() as mock_client:
+            mock_client.query.return_value = _mock_result_rows([("api.web10.app/groups/web10/private",)])
+            with patch.object(ch, "can_read_group", return_value=False):
+                assert ch.can_read_carrier_post("media-1", "alice", "bob") is False
+
+    def test_anon_reads_through_the_effective_role_gate(self):
+        """The marketing /trending bug — `anon` (no token) reads the public
+        board through the group's `anyone` grant, not a membership row (the
+        D58 backfill renamed the board's `anon` row to `anyone`). The carrier
+        check must hand `anon` to the same gate the read path uses, with
+        authenticated=False (the sig's mint-time flag)."""
+        with _patch_client() as mock_client:
+            mock_client.query.return_value = _mock_result_rows([("api.web10.app/groups/web10/discover",)])
+            with patch.object(ch, "can_read_group", return_value=True) as crg:
+                assert ch.can_read_carrier_post("media-1", "alice", "anon", False) is True
+        crg.assert_called_once_with("api.web10.app/groups/web10/discover", "anon", "posts", False)
 
 
 class TestResolveMinioTypes:
