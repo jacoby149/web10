@@ -67,8 +67,8 @@ Plus three layout props: `fit` (`contain` — never crops, letterboxes; `cover` 
 A surface is therefore a one-liner:
 
 ```
-Feed:      <VideoPlayer source={hlsOrFile} mode="inline" fit="contain" />
-Discover:  <VideoPlayer source={hlsOrFile} mode="inline" fit="cover"  ratio={16/9} />
+Feed:      <VideoPlayer source={hlsOrFile} mode="inline" fit="contain" />   (hls → mode="full")
+Discover:  <VideoPlayer source={hlsOrFile} mode="inline" fit="contain" />   (hls → mode="full"; feed parity, 3.100.2)
 Groups:    <VideoPlayer source={file}      mode="inline" fit="contain" />
 Lightbox:  <VideoPlayer source={hlsOrFile} mode="full" />
 Shorts:    <VideoPlayer source={hlsOrFile} mode="inline" fit="cover"  immersive />
@@ -104,9 +104,9 @@ The invariant that makes the inline modality feel right: **in `inline` mode, a t
 
 | Surface | Source | Mode | Fit | Ratio | Modality |
 |---|---|---|---|---|---|
-| Feed | hls \| file | inline | contain | natural (≤60vh) | inline |
-| Discover grid | hls \| file | inline | cover | 16:9 (uniform tile) | inline |
-| Discover YouTube view | hls \| file | inline | cover | 16:9 (TikTok wall) | inline |
+| Feed | hls \| file | inline (hls = full) | contain | natural (≤60vh) | inline |
+| Discover grid | hls \| file | inline (hls = full) | contain | natural (≤60vh) — feed parity (3.100.2) | inline |
+| Discover / trending "Video" view | hls \| file | inline (hls = full) | contain | natural (≤60vh) — feed parity (3.100.2) | inline |
 | Groups | file | inline | contain | natural | inline |
 | Profile grid cell | — (static poster) | — | — | — | modal (cell → lightbox) |
 | Lightbox / deep-link | hls \| file | full | contain | natural | modal |
