@@ -123,9 +123,16 @@ owned by the creator, so there's nothing to block.
   named, manageable entity (the UI); each ad carries a tag-like field listing
   the albums it's in (the query filters ads by album); an ad in a few albums.
 - **The read returns the docs *and* the ads inline** — no ref.
-- **Catalogs/albums** → kept (the structure + the authenticator Ads tab), so v4
-  is an enum expansion, not a rebuild.
+- **Catalogs/albums** → kept (the structure + the web10-social Monetization
+  surface, D75), so v4 is an enum expansion, not a rebuild.
 
-**Still open (v3):**
+**Resolved (D75, 15.09.2026):**
 
-1. **Scope.** v3 on `posts`; the universal-documents vision is later.
+1. **Scope.** The node's ad mechanism is **service-agnostic** — it does not vet
+   the ad's `collection_name` (the `ad`/`node_ad` tag + the `ad_preference`
+   pointer + group membership (I3) are the whole model). "An ad is a post" is a
+   **web10-social shape** (the app owns its catalog), not a protocol rule. The
+   ad catalog + monetization onboarding moved from the authenticator to
+   **web10-social** (the Monetization surface, [monetization.md](./monetization.md));
+   the authenticator keeps identity/contracts/groups/node-config. A non-social
+   app can now pin an ad that is any doc it references, with no node change.

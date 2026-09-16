@@ -1,6 +1,6 @@
 # Web10 Ads: The Catalog + Composer (D54, D55)
 
-`ads.md` defines what an ad is (a `posts` document tagged `ad` — a piece of content + a link that pays) and how it reaches a viewer (group delivery + the feed read). This doc defines the two surfaces a creator actually touches: the **Ad Catalog** in the authenticator (the inventory of *their* ads) and the **composer integration** in web10-social (attaching an ad to a post, or letting the creator's own ads rotate).
+`ads.md` defines what an ad is (a `posts` document tagged `ad` — a piece of content + a link that pays) and how it reaches a viewer (group delivery + the feed read). This doc defines the two surfaces a creator actually touches: the **Ad Catalog** in web10-social's Monetization surface (the inventory of *their* ads — D75 moved it out of the authenticator) and the **composer integration** in web10-social (attaching an ad to a post, or letting the creator's own ads rotate).
 
 ## The Use Case
 
@@ -8,14 +8,16 @@ A creator has offers — an Amazon tag, a brand deal, their own store. They buil
 
 Here the creator's ads are *their posts*. So they need a place to see them, manage them, and use them:
 
-1. **The Ad Catalog** (the authenticator's Studio) — the creator's inventory. Every ad they've made, its offer, its status. Add one, edit one, pause one. This is the "torture" surface: the catalog is where the ad object gets exercised end to end, by its owner, in the app they already trust for everything else.
+1. **The Ad Catalog** (web10-social's Monetization surface, D75) — the creator's inventory. Every ad they've made, its offer, its status. Add one, edit one, pause one. This is the "torture" surface: the catalog is where the ad object gets exercised end to end, by its owner, in the app they already trust for everything else.
 2. **The Composer** (web10-social) — when the creator makes a post, the post can *carry* an ad from the catalog (pick one explicitly), or the creator can turn on **round-robin** so their ads rotate onto their posts automatically.
 
 Both surfaces are reads and writes of the same `posts` documents, through the same SDK calls the rest of the app uses. No new endpoint, no new collection — the catalog is a tag-filtered read of the creator's own posts, and the composer attachment is a `ref_value` link between two posts.
 
-## The Ad Catalog (the authenticator)
+## The Ad Catalog (web10-social's Monetization surface)
 
-**Where:** the Studio (`ui/src/components/Studio/`), the monetization screen. The Partner Links card (D50) is the **ingest**: offers live there. The **Ad Catalog** is the **inventory**: the ads built from those offers.
+**Where:** web10-social's `/monetize` screen (the Creator section, D75 — moved
+out of the authenticator's Studio). The **Ad Catalog** is the **inventory**:
+the ads the creator built.
 
 The catalog is the creator's own posts, filtered to the ones tagged `ad`:
 
@@ -41,13 +43,13 @@ That is the whole read. The creator's own token reads their own posts through th
 - **Pause / resume** — flip `body.status`. A paused ad is skipped by curation (`curateAds` filters on `status === 'active'`) and by the feed renderer, but stays in the catalog.
 - **Retire** — tombstone the doc. It falls out of the catalog and of every feed.
 
-**States, all designed** (design.md §12): empty catalog (no ads yet — the CTA is "create your first ad", which opens the ingest), loading (skeleton rows), error (read failed — retry), and the per-row states (active / paused). The catalog is a section of the Studio (the Studio is the monetization surface and the catalog is its inventory view), not a new mode.
+**States, all designed** (design.md §12): empty catalog (no ads yet — the CTA is "create your first ad", which opens the ingest), loading (skeleton rows), error (read failed — retry), and the per-row states (active / paused). The catalog is a section of the Monetization surface (the surface is the monetization screen and the catalog is its inventory view), not a new mode.
 
 ## The Composer Integration (web10-social)
 
 The post composer (`marketing/web10-social/src/components/Feed/PostComposer.tsx`) gains one control next to the media attach + visibility: **Attach ad**.
 
-**The picker.** Tap it → a sheet listing the creator's catalog (the same read as the catalog screen: the creator's posts filtered to `ad`, active first). Each entry: the creative's thumbnail/headline + the offer's partner + kind badge. Selecting one attaches it to the post being composed. The sheet has an empty state (no ads yet — a link out to the Studio catalog) and a loading state.
+**The picker.** Tap it → a sheet listing the creator's catalog (the same read as the catalog screen: the creator's posts filtered to `ad`, active first). Each entry: the creative's thumbnail/headline + the offer's partner + kind badge. Selecting one attaches it to the post being composed. The sheet has an empty state (no ads yet — a link out to the Monetization catalog) and a loading state.
 
 **What attaching does.** The post document is written with the ad preference in its `ad_preference` column (the `pinned` | `none` + `target` column on `documents`, `ads-dissemination.md`):
 
@@ -91,7 +93,7 @@ No new tables. No new collection. No new endpoints. One new column on `documents
 ## Logistics
 
 - **Spec'd, not built.** The build bites are in the `ads` lane (`parallel-execution.md`), gated on the lane's foundation items (the tagged-post ad conformance, the `curateAds` helper) — the catalog and the composer both read the catalog read, and the composer's rotation calls the curation helper.
-- **The Partner Links card** (the ingest, D50) is the catalog's sibling in the Studio — offers in one card, ads in the other. The "New ad" flow starts from an offer.
+- **The Affiliate Programs card** (the onboarding, the "get started" pointer) is the catalog's sibling in the Monetization surface — programs in one card, ads in the other. The "New ad" flow starts from an offer.
 - **v0 scope:** status is `active`/`paused` only (no scheduled ads, no per-ad targeting — targeting is the audience, by architecture); no `stats` counters in the doc (v4); the round-robin state is app-local (memory/localStorage) per D51; the creative is data and the HTML is the app's renderer (`html_template` — the creator's own layout — is a v4 enforced-schema thing). Revenue settlement, impression verification, and the v4 ad-network exchange are out of scope (`ads.md`, two-layer note).
 
 For the ad object + the feed read + dissemination, see `ads.md`. For the universal link (`ref_value`), see `../db/clickhouse.md`. For the UI standard (states, tokens, screenshots), see `../../../strategy/design.md`.

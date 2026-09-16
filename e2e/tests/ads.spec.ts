@@ -5,7 +5,8 @@ import { API_BASE, v3Login, v3Signup } from '../v3-helpers';
 /**
  * Ads — the end-to-end gauntlet for the creator-owned ad layer (D55, the v3
  * `pinned` | `none` model). The read serves a pinned post WITH its ad inline
- * (I3-checked, 3.27.4); the Studio's Ads tab creates the ads/albums (3.28.0);
+ * (I3-checked, 3.27.4); web10-social's Monetization surface creates the
+ * ads/albums (D75, 3.99.0);
  * the composer's pin control + the ad block render it (3.29.0).
  *
  * The API floor pins the data model + the read's ad-serving, fast +

@@ -79,4 +79,4 @@ looks the way it does.
 ---
 
 *The full license text is in [`LICENSE`](https://github.com/jacoby149/web10/blob/main/LICENSE)
-(SSPL-1.0, verbatim). The internal decision record is D75.*
+(SSPL-1.0, verbatim). The internal decision record is D76.*

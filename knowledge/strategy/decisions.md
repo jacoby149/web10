@@ -9,7 +9,7 @@ Status legend: [decided] intent set · [in-progress] · [open] still debating.
 
 ---
 
-### D75 — Node licensing: SSPL-1.0, free core, no gate — the "next WordPress" model [decided]
+### D76 — Node licensing: SSPL-1.0, free core, no gate — the "next WordPress" model [decided]
 
 Operator, 16.09.2026 — after a licensing thread that started as "put a Gumroad on the marketing page, buy a license key to activate your web10, detect active users, require a license size, warn 'upgrade your license' when the server gets too poppin" and ended at: "i get it so no gumroad! just sspl it! no gating it!"
 
@@ -29,11 +29,33 @@ Operator, 16.09.2026 — after a licensing thread that started as "put a Gumroad
 
 **The line, in one sentence:** the landlord owns the *building service*, never the *software*. Free core, unlimited, no key. Money in hosting + node ads + enterprise.
 
-**Rejects.** (1) **A Gumroad license key to activate the node** — gates the software; kills the ownership thesis + the open-platform flywheel. (2) **A usage/registration cap on the free core** — trial-ifies the core, caps the lighthouses, reads as "not really free." (3) **A "you need a license" pester banner** — sours the no-landlord brand; a demand, not an offer. (4) **Rebranding the SSPL text to "web10"** (the prior `LICENSE-Community.txt` state) — the SSPL forbids altering its text, the license text is copyrighted by MongoDB, and a tampered license is a legal nullity that undermines the §13 protection it was meant to provide; fixed in 3.98.3 (verbatim SSPL v1 restored, file renamed to `LICENSE`). (5) **MIT / permissive** — no service-layer moat; a competitor could close-source and resell.
+**Rejects.** (1) **A Gumroad license key to activate the node** — gates the software; kills the ownership thesis + the open-platform flywheel. (2) **A usage/registration cap on the free core** — trial-ifies the core, caps the lighthouses, reads as "not really free." (3) **A "you need a license" pester banner** — sours the no-landlord brand; a demand, not an offer. (4) **Rebranding the SSPL text to "web10"** (the prior `LICENSE-Community.txt` state) — the SSPL forbids altering its text, the license text is copyrighted by MongoDB, and a tampered license is a legal nullity that undermines the §13 protection it was meant to provide; fixed in 3.99.1 (verbatim SSPL v1 restored, file renamed to `LICENSE`). (5) **MIT / permissive** — no service-layer moat; a competitor could close-source and resell.
 
 **The honest costs + the one gray area.** SSPL is **source-available, not OSI open source** — a small loss of the "open source" halo and some reflexive adoption friction, accepted because the audience is creators (not infra devs) and the service moat is worth more. The **SDK-embedding gray area**: if web10's data layer / auth is ever embedded inside a *third party's* closed product, §13's "offering the Program as a service" gets murky (is their app offering the Program?). For the node-as-a-platform model this is a non-issue; if the embed-SDK story becomes important, get a lawyer's read on §13 scope *before* it matters — do not assume.
 
-**Files (docs only, no code):** D75 here; the `LICENSE` fix + README License section (3.98.3); the open follow-up is a `knowledge/knowledge-base/web10-v3/licensing.md` KB doc (the full model: why SSPL, what §13 protects, what it doesn't, the tier→service mapping, the soft-wall nudge, the SDK gray area) — to be written when the operator wants the KB spec locked.
+**Files (docs only, no code):** D76 here; the `LICENSE` fix + README License section (3.99.1); the open follow-up is a `knowledge/knowledge-base/web10-v3/licensing.md` KB doc (the full model: why SSPL, what §13 protects, what it doesn't, the tier→service mapping, the soft-wall nudge, the SDK gray area) — to be written when the operator wants the KB spec locked.
+---
+
+### D75 — Monetization is app-owned: the ad catalog + onboarding move to web10-social; the node's ad mechanism is service-agnostic [decided]
+
+Operator, 15.09.2026 — the v2-straggler audit surfaced that the node hardcodes `collection_name = 'posts'` in the ad path (`resolve_pinned_ads` D55, `get_active_node_ads` D57, `can_read_carrier_post` D68) and the KB's own open item (`ads-dissemination.md:131` — "v3 on `posts`; the universal-documents vision is later"). Operator: "this should be generalized if its not, the idea is someone else could easily make a web10 app with ads. doesnt need to be posts" → then, on the tension: "at a basic level we want to make a killer social app product, so ads as a post make tons of sense actually. but making it where you can make any data type that makes the ad catalog ridiculous kind of" → the resolution: "the solution is move the ad catalog + monetization out of the authenticator… the affiliate marketing onboarding should live in the social app. the ad catalog maker should live in the social app. all made possible with web10. this separates well, then web10 is the data layer the everything app protocol, web10 social is the proof you could make a killer app that monetizes like mad good… the ad catalog is posts, specific to web10 social, makes it clear it is web10 social ads, that is the shape" → then: "web10 social should have some kind of admin acct on the node detection where you can configure node ads if in web10 social as the node admin, you see an extra choice in the menu that is node monetization" → "ads dont have to be posts now! they can be generic, since web10 social shapes them as posts!"
+
+**The decision.** The ad *mechanism* is a node primitive and is **service-agnostic**; the ad *catalog* + monetization *onboarding* are **app-owned**, and web10-social is the first (and for now only) app that builds them. Two separations, one move:
+
+1. **The node stops vetting the ad's service.** The `collection_name = 'posts'` filter is dropped from `resolve_pinned_ads` (D55), `get_active_node_ads` (D57), and `can_read_carrier_post` (D68). An ad is identified by its **tag** (`ad` / `node_ad`) + the **`ad_preference` pointer** (`ad_target`) + **group membership (I3)** — not by its collection. The read path was already service-generic (`w.read('notes', …)` works; `attach_node_ads` already sprinkles node ads onto whatever docs a read returns); the collection filter was the only thing forcing `posts`. Backward-compatible: `posts` ads keep working identically; a non-social app can now pin an ad that is any doc it references.
+2. **The catalog + onboarding move to web10-social.** The authenticator's Studio monetization cards (`AdsCard` the ad catalog, `AffiliateProgramsCard`, `DirectDealsCard`, `LadderCard`, `AdInventoryCard` node ads, `MembershipsCard`) are **removed** from `ui/` and **re-homed** in `web10-social` as a deep-linked **Monetization** surface. "An ad is a post tagged `ad`" is now explicitly a **web10-social shape** (the app owns its catalog), not a protocol rule. The authenticator keeps identity / contracts / groups / node-config — no monetization.
+3. **Node monetization is admin-gated in the social app.** web10-social detects the node admin via the existing `POST /am_admin` (no new endpoint). When the current user is the node admin, an extra **"Node Monetization"** icon appears in the nav (a sibling of Groups — the desktop sidebar + the mobile "More" sheet) where the operator configures node ads (the `AdInventoryCard` logic: the `node_ad`-tagged docs on the discover group + the `node_ad_percentage` node-config toggle). Non-admins never see it.
+
+**Why.** D60 — the protocol stays one size; the app owns the schema. The `posts` hardcode was the same class of leak D60 reversed for the group identity + the session oracle: the node learning "an ad is a post" is the node learning an app's specifics. But the operator's pushback is the load-bearing fact: **the killer product is social, and for social, an ad IS a post** — so the catalog being posts-shaped is *correct*, it just wasn't *labeled* as a social decision. The move makes that labeling structural: the node provides the service-agnostic mechanism (any app can monetize), and web10-social shapes the catalog as posts because that's what a social ad is. The "ridiculous generic catalog" never gets built — the catalog is social's, so it's allowed to be posts-shaped without claiming to be the protocol's. And it resolves the KB's own open item (`ads-dissemination.md:131`) to: *"the ad's creative is service-agnostic at the node (any doc can be a pinned ad target / node ad / HLS carrier); the ad catalog is app-owned, and web10-social's is posts."*
+
+**The shape.**
+- **Node (`api/app/v3/services/clickhouse.py`):** drop `collection_name = 'posts'` in the three functions. `resolve_pinned_ads` serves whatever `ad_target` references (I3-checked by the ad's group membership); `get_active_node_ads` reads `node_ad`-tagged docs in the discover group from any service; `can_read_carrier_post` checks any doc whose `media_refs` carry the media, in a group the reader can read.
+- **web10-social (`marketing/web10-social/`):** a new `/monetize` surface (deep-linked, URL holds state) with two sections — **Creator** (all users: the ad catalog maker + affiliate onboarding, moved from the authenticator) and **Node** (node admin only: node ads). Node-admin detection: call `/am_admin` with the current token, cache the result, gate the "Node Monetization" nav icon (a sibling of the Groups icon in the sidebar + "More" sheet) on it.
+- **Authenticator (`ui/`):** the six Studio monetization cards + their data (`ads-data.ts` / the monetization parts of `studio-data.ts`) are deleted. `MembershipsCard` (the dead `/payments/stripe/connect` caller) is deleted, not moved.
+
+**Rejects.** (1) **Full any-doc ads with a generic node-side catalog** — the "ridiculous" option: a generic document-picker catalog the node owns. The node doesn't own a catalog at all; the app does. (2) **Leave the `posts` filter and just fix the KB framing** — it keeps the node vetting an app's specifics (the D60 smell) and leaves a non-social app unable to pin a non-post ad. (3) **Keep monetization in the authenticator** — the authenticator is the identity/consent surface; a creator's ad catalog + affiliate onboarding is product surface, and it belongs where the product (the social app) is. (4) **A new node endpoint for admin detection** — `POST /am_admin` already exists and is what the authenticator's `I.checkAdmin()` uses; the social app reuses it.
+
+**Gates / open.** The node-ads *percentage* toggle reads/writes node config (`/config`, admin) — the social app's Node Monetization section is the first non-authenticator consumer of the admin config surface. The `ad_album` / catalog structure (D55) is unchanged — it's still posts-shaped in social, just now *owned* by social. Content moderation's separate `posts` hardcode (`documents.py:27`, D59 — only posts-on-discover auto-hide) is **out of scope** here (a different coupling, not ads). Full model: `knowledge-base/web10-v3/social/ads.md` + `ads-dissemination.md` + `node-ads.md` (the "app-owned" framing) + D68 (the carrier check). Execution: a new `monetization` lane in `parallel-execution.md`.
 
 ---
 
@@ -259,11 +281,13 @@ filter matches `ref_value` only, not `parent_id`.
 
 **The decision.** A reader may fetch the HLS manifest/segments of a media
 doc if the reader is (1) the doc's author, (2) a member of a group the media
-doc belongs to, **or (3) a reader of a post that carries the media** — a
-`posts` doc whose `media_refs` include the media doc's doc_id, in a group the
-reader can read. The check lives in `can_view_doc` (the manifest fetch's
-access re-check), so the 10-minute sig TTL re-runs it: a removed/blocked
-follower loses the stream within one TTL.
+doc belongs to, **or (3) a reader of a doc that carries the media** — a doc
+whose `media_refs` include the media doc's doc_id, in a group the reader can
+read. Service-agnostic (D75): the node does not vet the carrier's
+`collection_name` (for web10-social the carrier is a `posts` doc; the node
+doesn't need to know that). The check lives in `can_view_doc` (the manifest
+fetch's access re-check), so the 10-minute sig TTL re-runs it: a
+removed/blocked follower loses the stream within one TTL.
 
 **Why.** Operator: "if it isnt possible for people who should see hls
 streams to see, should be possible." 3.67.0 shipped the feed player with the

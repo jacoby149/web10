@@ -41,8 +41,9 @@ web10-v3/
 │   ├── overview.md        ← how social uses groups: discover, follows, communities
 │   ├── cross-app-sharing.md ← mailer pattern, DMs, comments
 │   ├── group-policy-example.json.md ← concrete role/permission examples
-│   ├── ads.md             ← the creator-owned ads: a post tagged `ad` (the locked object, feed read, dissemination)
-│   ├── ads-catalog.md     ← the Ad Catalog (Studio) + the composer integration (attach by ref, round-robin)
+ │   ├── ads.md             ← the creator-owned ads: a post tagged `ad` (the locked object, feed read, dissemination)
+ │   ├── ads-catalog.md     ← the Ad Catalog (web10-social Monetization) + the composer integration (attach by ref, round-robin)
+ │   ├── monetization.md    ← the app-owned ad surface (D75): the ad catalog + affiliate onboarding + node-ad inventory, all in web10-social; node-admin detection
 │   ├── video-player.md    ← the client's one shared video surface: <VideoPlayer>, two modalities (inline vs modal), the source union
 │   ├── shorts.md          ← the vertical short-form feed: a short is a 9:16 post on the discover group, the /shorts swipe surface, the "can you fake a short?" trust boundaries
 │   ├── post-actions.md    ← the client's one shared engagement bar: <PostActions>, the like/dislike pair (one reaction per user), the comment thread mount
@@ -77,7 +78,7 @@ web10-v3/
 - **Security** — `security/overview.md` (invariants I1–I5, two-contract model, blocking)
 - **Query Engine** — `query-engine.md` (the flexible read: how far to take the power), `safe-query.md` (the boundary CTE + why the guarantee holds; `w.query()` / `POST /v3/query`)
 - **Groups** — `groups/overview.md` (primitive), `groups/identity.md` (profiles)
-- **Social** — `social/overview.md` (implementation), `social/cross-app-sharing.md` (patterns), `social/ads.md` (the creator-owned ads — a post tagged `ad`), `social/ads-catalog.md` (the catalog + composer), `social/video-player.md` (the client's one shared video surface — `<VideoPlayer>`, the two modalities), `social/post-actions.md` (the client's one shared engagement bar — `<PostActions>`, the like/dislike pair, the `<CommentThread>` mount), `social/pwa.md` (making web10-social a serious installable app — the real service worker + the install prompt at the moment of value, D72)
+- **Social** — `social/overview.md` (implementation), `social/cross-app-sharing.md` (patterns), `social/ads.md` (the creator-owned ads — a post tagged `ad`), `social/ads-catalog.md` (the catalog + composer), `social/monetization.md` (the app-owned ad surface, D75 — the catalog + onboarding + node-ad inventory in web10-social, node-admin gated), `social/video-player.md` (the client's one shared video surface — `<VideoPlayer>`, the two modalities), `social/post-actions.md` (the client's one shared engagement bar — `<PostActions>`, the like/dislike pair, the `<CommentThread>` mount), `social/pwa.md` (making web10-social a serious installable app — the real service worker + the install prompt at the moment of value, D72)
 - **Media** — `media/transcoding-foundation.md` (the model), `media/transcoding.md` (the pipeline), `media/streaming.md` (the layers), `media/minio-auth-bifurcated.md` (the auth split), `media/thumbnailing.md` (the generic "picture for this doc" — `pickThumbnail` + the access-checked endpoint; the social card refactored onto it)
 - **Telemetry** — `telemetry.md` (why web10 tracks hard: GA4 + masked Hotjar, the content line, the terms trade — D56)
 - **Licensing** — `licensing.md` (why web10 is SSPL with a free, ungated core: the §13 service moat, tiers-as-services, the no-gate line, the SDK-embedding gray area — D75)

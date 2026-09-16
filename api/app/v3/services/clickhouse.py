@@ -778,15 +778,16 @@ def get_document_any_author(doc_id: str) -> dict | None:
 
 
 def can_read_carrier_post(media_doc_id: str, media_author: str, reader: str) -> bool:
-    """True if `reader` can read a post that carries `media_doc_id` (D68).
+    """True if `reader` can read a doc that carries `media_doc_id` (D68).
 
-    The cross-user feed path for HLS: a `posts` doc whose `media_refs`
-    include the media doc_id, in a group the reader is an active member of.
-    The post's groups are the access model — the media doc is owned data,
-    not a boundary (social media docs are groupless). Scoped to the media
-    doc's AUTHOR's posts: a post can only carry its own author's media
-    (resolution is author-scoped), which bounds the scan to one user's
-    posts. Dedup-then-filter on both documents and group_members (the
+    The cross-user feed path for HLS: a doc whose `media_refs` include the
+    media doc_id, in a group the reader is an active member of. Service-agnostic
+    (D75): the node does not vet the carrier's `collection_name` — any doc that
+    carries the media in a readable group grants the stream (for web10-social
+    the carrier is a `posts` doc; the node doesn't need to know that). The
+    check is scoped to the media doc's AUTHOR's docs: a doc can only carry its
+    own author's media (resolution is author-scoped), which bounds the scan to
+    one user's docs. Dedup-then-filter on both documents and group_members (the
     house pattern — a removed member's stale row must not grant access).
 
     `body` is a plain String column, so `JSONExtractArrayRaw` yields the
@@ -798,7 +799,7 @@ def can_read_carrier_post(media_doc_id: str, media_author: str, reader: str) -> 
         "FROM (SELECT doc_id AS post_id FROM ("
         "SELECT doc_id, row_number() OVER (PARTITION BY doc_id, author_key ORDER BY updated_at DESC) AS rn "
         "FROM documents "
-        "WHERE collection_name = 'posts' AND author_key = %(author)s AND deleted = 0 "
+        "WHERE author_key = %(author)s AND deleted = 0 "
         "AND has(JSONExtractArrayRaw(body, 'media_refs'), %(media)s)"
         ") WHERE rn = 1) posts "
         "JOIN doc_groups pg ON pg.doc_id = posts.post_id AND pg.deleted = 0 "
@@ -2192,8 +2193,12 @@ def resolve_pinned_ads(docs: list[dict], reader: str) -> dict[str, dict]:
     pinned ad (by doc_id) — but ONLY if the reader is a member of the ad's group
     (I3: the ad rides the reader's access, not just the doc's). A pinned ad the
     reader can't see is simply not returned (the doc comes back with no ad).
-    An ad is a `posts` doc (D55) — a target in any other collection is not an
-    ad and is not served.
+
+    Service-agnostic (D75): the ad is whatever doc `ad_target` references — the
+    node does not vet its `collection_name`. The `ad` tag + the `ad_preference`
+    pointer + group membership (I3) are the whole model; "an ad is a post" is a
+    web10-social shape (the app's catalog), not a protocol rule. A non-social
+    app can pin an ad that is any doc it references.
     Returns a map of ad_target -> the ad dict, for the ads the reader can see.
     """
     targets = sorted({d["ad_target"] for d in docs if d.get("ad_mode") == "pinned" and d.get("ad_target")})
@@ -2203,10 +2208,10 @@ def resolve_pinned_ads(docs: list[dict], reader: str) -> dict[str, dict]:
     params = {**{f"t{i}": t for i, t in enumerate(targets)}, "reader": reader}
     result = client.query(
         "SELECT ad.doc_id, ad.author_key, ad.body, ad.tags "
-        "FROM (SELECT doc_id, author_key, body, tags, deleted, collection_name, "
+        "FROM (SELECT doc_id, author_key, body, tags, deleted, "
         "row_number() OVER (PARTITION BY doc_id, author_key ORDER BY updated_at DESC) AS rn "
         f"FROM documents WHERE doc_id IN ({placeholders})) ad "
-        "WHERE ad.rn = 1 AND ad.deleted = 0 AND ad.collection_name = 'posts' "
+        "WHERE ad.rn = 1 AND ad.deleted = 0 "
         "AND ad.doc_id IN (SELECT pg.doc_id FROM doc_groups pg "
         "JOIN group_members gm ON pg.group_id = gm.group_id "
         "WHERE gm.member_key = %(reader)s AND pg.deleted = 0 AND gm.deleted = 0)",
@@ -2246,10 +2251,12 @@ def attach_pinned_ads(docs: list[dict], reader: str) -> list[dict]:
 def get_active_node_ads() -> list[dict]:
     """Fetch active node ads from the discover group (bounded, D57).
 
-    A node ad is a `posts` doc tagged `ad` + `node_ad`, on the discover
-    group, with `status = 'active'` in the body. Bounded at 20 (the
-    operator can't have 1000 active node ads). Returns [] on any error
-    (node ads are an enhancement, not a critical path — the feed works
+    A node ad is a doc tagged `ad` + `node_ad`, on the discover group, with
+    `status = 'active'` in the body. Service-agnostic (D75): the node does not
+    vet the ad's `collection_name` — the `node_ad` tag + the discover-group
+    attachment are the whole model, so any app's doc can be a node ad. Bounded
+    at 20 (the operator can't have 1000 active node ads). Returns [] on any
+    error (node ads are an enhancement, not a critical path — the feed works
     without them).
     """
     from app.services import config as cfg
@@ -2261,7 +2268,7 @@ def get_active_node_ads() -> list[dict]:
             "FROM (SELECT doc_id, author_key, body, tags, deleted, updated_at, "
             "row_number() OVER (PARTITION BY doc_id, author_key ORDER BY updated_at DESC) AS rn "
             "FROM documents "
-            "WHERE collection_name = 'posts' AND has(tags, 'node_ad') AND deleted = 0) "
+            "WHERE has(tags, 'node_ad') AND deleted = 0) "
             "WHERE rn = 1 "
             "AND doc_id IN (SELECT pg.doc_id FROM doc_groups pg "
             "WHERE pg.group_id = %(discover)s AND pg.deleted = 0) "
@@ -2634,8 +2641,9 @@ def resolve_media_urls_in_docs(docs: list[dict]) -> list[dict]:
         body = resolve_minio_types(body)
         doc_with_media = dict(doc)
         doc_with_media["body"] = body
-        # The v3 pinned ad (inline, `doc["ad"]`) is a posts doc too — resolve
-        # its media the same way so the ad's creative renders.
+        # The v3 pinned ad (inline, `doc["ad"]`) — resolve its media the same
+        # way so the ad's creative renders. Service-agnostic (D75): the ad is
+        # whatever doc `ad_target` references, not necessarily a posts doc.
         ad = doc.get("ad")
         if ad:
             ad_body = ad.get("body", {})
@@ -2643,8 +2651,7 @@ def resolve_media_urls_in_docs(docs: list[dict]) -> list[dict]:
                 ad_body = resolve_media_urls(ad_body, ad.get("author_key", ""))
             ad_body = resolve_minio_types(ad_body)
             doc_with_media["ad"] = {**ad, "body": ad_body}
-        # The node ad (D57, `doc["node_ad"]`) is also a posts doc — resolve
-        # its media the same way.
+        # The node ad (D57, `doc["node_ad"]`) — resolve its media the same way.
         node_ad = doc.get("node_ad")
         if node_ad:
             na_body = node_ad.get("body", {})

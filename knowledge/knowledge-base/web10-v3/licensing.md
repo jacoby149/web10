@@ -5,7 +5,7 @@ License v1** with a **free, ungated core** — and the line it does not
 cross (no license key, no usage cap, no "you need a license" pester).
 Read this before touching the `LICENSE`, before adding any activation /
 gating / metering to the node, or before "simplifying" the license to MIT.
-The decision record is **D75** (`knowledge/strategy/decisions.md`).
+The decision record is **D76** (`knowledge/strategy/decisions.md`).
 
 ## the abstract use case
 
@@ -51,8 +51,8 @@ that is the copyright in the *license text itself* (SSPL was authored by
 MongoDB). web10's copyright is asserted on the **web10 source code**, not
 on the license document. The SSPL forbids altering its own text ("changing
 it is not allowed"), so it is kept verbatim; rebranding it to "web10"
-would void it as valid SSPL (the prior `LICENSE-Community.txt` state,
-fixed in 3.98.3).
+ would void it as valid SSPL (the prior `LICENSE-Community.txt` state,
+ fixed in 3.99.1).
 
 **What SSPL grants (the free part).** Run the unmodified node, modify it
 for your own use, build apps on it, self-host it for a personal or a
@@ -125,10 +125,10 @@ cap. Capping it would cap web10's own marketing.
 
 ## logistics
 
-- **Built (3.98.3):** `LICENSE` restored to verbatim SSPL-1.0 (the
+- **Built (3.99.1):** `LICENSE` restored to verbatim SSPL-1.0 (the
   rebranded "web10" copyright line reverted), `LICENSE-Community.txt`
   renamed to `LICENSE`, README License section added.
-- **Decided (D75, 3.98.4):** the full model — SSPL, free core, no gate,
+- **Decided (D76, 3.99.2):** the full model — SSPL, free core, no gate,
   tiers-as-services, the soft-wall nudge, the MIT reject, the §13
   moat. `knowledge/strategy/decisions.md`.
 - **Customer-facing:** `marketing/marketing-ui/public/docs/licensing.md`

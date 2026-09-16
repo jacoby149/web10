@@ -28,8 +28,10 @@ inventory is never reduced by the creator's (D57: the non-steal principle).
 
 ## The Node Ad Object
 
-A node ad is a `posts` document. Same shape as a creator ad (`ads.md`), with
-two differences:
+A node ad is a `posts` document **in web10-social** (the operator's catalog
+shapes it as a post; the node is service-agnostic — D75, it does not vet the
+ad's `collection_name`). Same shape as a creator ad (`ads.md`), with two
+differences:
 
 1. **`tags` includes `node_ad`** (in addition to `ad`). This is the marker
    that distinguishes a node ad from a creator ad. The renderer checks for
@@ -109,8 +111,8 @@ FROM (
   SELECT doc_id, author_key, body, tags, deleted, updated_at,
          row_number() OVER (PARTITION BY doc_id, author_key
                             ORDER BY updated_at DESC) AS rn
-  FROM documents
-  WHERE collection_name = 'posts' AND has(tags, 'node_ad') AND deleted = 0
+   FROM documents
+   WHERE has(tags, 'node_ad') AND deleted = 0
 )
 WHERE rn = 1
   AND doc_id IN (
@@ -137,10 +139,11 @@ The operator sets `node_ad_percentage` in `node_config`:
 - **0 = off** (no node ads)
 - **100 = every post gets a node ad** (aggressive; not recommended)
 
-The setting is a `node_config` field. The **Ad Inventory card** in the
-Studio (the operator's surface, `ui/src/components/Studio/`) is where it's
-controlled — a percentage slider (0-100) that writes `node_ad_percentage`
-to `node_config`. The same card shows:
+The setting is a `node_config` field. The **Node Monetization** section of
+web10-social's Monetization surface (the operator's surface, D75 — visible
+only to the node admin, `marketing/web10-social/`) is where it's controlled —
+a percentage slider (0-100) that writes `node_ad_percentage` to `node_config`.
+The same section shows:
 
 - The current percentage (slider)
 - The list of active node ads (creative preview, offer, status)
@@ -219,8 +222,9 @@ Stripe), which is a separate engineering problem. See
 
 ## Summary
 
-A node ad is a `posts` doc on the discover group, tagged `ad` + `node_ad`,
-authored by the node operator. The read attaches active node ads to posts at
+A node ad is a doc on the discover group, tagged `ad` + `node_ad`, authored by
+the node operator (web10-social shapes it as a `posts` doc; the node is
+service-agnostic — D75). The read attaches active node ads to posts at
 the operator's configured percentage (deterministic per reader, round-robin
 through active node ads) — **regardless of the post's `ad_mode`**. A post
 with a creator ad (`ad_mode = 'pinned'`) gets **both**: the creator's ad in
