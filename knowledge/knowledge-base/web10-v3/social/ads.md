@@ -1,6 +1,16 @@
 # Web10 Ads
 
-An ad is a **post that carries a monetizable link**. That is the whole thing: a piece of content (the post's own text + media) plus a link that pays the creator (the `offer`). It is not a service, not a collection, not an ad network — it is a `posts` document tagged `ad`, delivered to the creator's followers by the same architecture that delivers every other post.
+An ad is a **post that carries a monetizable link**. That is the whole thing: a piece of content (the post's own text + media) plus a link that pays the creator (the `offer`). It is not a service, not a collection, not an ad network — in **web10-social** it is a `posts` document tagged `ad`, delivered to the creator's followers by the same architecture that delivers every other post.
+
+> **D75 — the node is service-agnostic; the catalog is app-owned.** The *ad
+> mechanism* (the `ad_preference` columns, the I3-checked inline serve, the
+> node-ad attachment, the `ad`/`node_ad` tags) is a **node primitive that does
+> not vet the ad's `collection_name`** — any app's doc can be a pinned ad
+> target, a node ad, or an HLS carrier. "An ad is a post" is a **web10-social
+> shape** (the app owns its catalog), not a protocol rule. The ad catalog +
+> monetization onboarding live in **web10-social**, not the authenticator — see
+> [Monetization](./monetization.md). This doc describes the mechanism + the
+> social app's posts-shaped catalog.
 
 This is the **creator-owned** ad layer. It is not an ad network — no exchange, no bidding, no third-party targeting. The only sponsors a viewer sees are the ones the creator chose. The ad-network layer (campaigns, targeting, DSP/SSP, revenue split) is a separate v4 concern — see the two-layer note at the bottom.
 
@@ -61,7 +71,7 @@ There is no `html` leaf type in the protocol (`document-typing.md`: `text | mini
 
 | Field | Value | Why |
 |---|---|---|
-| `collection_name` | `posts` | an ad is a post — the feed read already returns it |
+| `collection_name` | `posts` (in web10-social) | the social app's catalog shapes an ad as a post — the feed read already returns it. **The node does not enforce this** (D75): the ad's collection is the app's choice; the node serves whatever `ad_target` references. |
 | `author_key` | the creator | the creator owns the ad, scoped to them |
 | `tags` | includes `ad` | the marker. `has(tags, 'ad')` — the catalog filter, the renderer's style check |
 | `doc_groups` | the creator's followers group (and/or discover) | delivery by architecture — followers see it |

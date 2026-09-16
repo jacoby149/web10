@@ -15,6 +15,7 @@ import DmsScreen from '@/components/Chat/DmsScreen';
 import NotificationsScreen from '@/components/Notifications/NotificationsScreen';
 import StagingScreen from '@/components/Staging/StagingScreen';
 import SettingsScreen from '@/components/Settings/SettingsScreen';
+import MonetizationScreen from '@/components/Monetization/MonetizationScreen';
 import PostComposer from '@/components/Feed/PostComposer';
 import { ErrorBoundary } from '@/components/shared/ErrorBoundary';
 import { ReportBug } from '@/components/shared/ReportBug';
@@ -422,6 +423,7 @@ function App() {
           <Route path="/u/:username" element={<UserProfileRoute />} />
           <Route path="/u/:username/p/:postId" element={<UserProfilePostLinkRoute />} />
           <Route path="/staging" element={<StagingScreen />} />
+          <Route path="/monetize" element={<MonetizationScreen />} />
           <Route path="/settings" element={<SettingsScreen onLogout={handleLogout} onReportBug={() => handleReportBug('button')} />} />
           <Route path="*" element={<Navigate to="/feed" replace />} />
         </Route>

@@ -1,13 +1,14 @@
 import { useState, useEffect, useRef } from 'react';
 import { useNavigate, useLocation, Outlet } from 'react-router-dom';
 import { cn } from '@/lib/utils';
-import { Home, User, MessageSquare, PlusCircle, LogOut, Bug, Compass, Users, Store, Gamepad2, Radio, Zap, Clapperboard, Settings, MoreHorizontal, X, Bell, ChevronUp } from 'lucide-react';
+import { Home, User, MessageSquare, PlusCircle, LogOut, Bug, Compass, Users, Store, Gamepad2, Radio, Zap, Clapperboard, Settings, MoreHorizontal, X, Bell, ChevronUp, DollarSign } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { getWapi } from '@/data/wapi';
 import { readProfile, resolveMediaRefs } from '@/data';
 import type { ProfileRecord } from '@/data';
 import { useNotifications } from '@/hooks/useNotifications';
+import { useNodeAdmin } from '@/components/Monetization/useNodeAdmin';
 import NotificationBell from '@/components/Notifications/NotificationBell';
 
 interface LayoutProps {
@@ -28,6 +29,10 @@ const profileItem = { path: '/profile', icon: User, label: 'Profile', testId: 'n
 // the desktop sidebar).
 const groupsItem = { path: '/groups', icon: Users, label: 'Groups', testId: 'nav-groups' };
 const settingsItem = { path: '/settings', icon: Settings, label: 'Settings', testId: 'nav-settings' };
+// Node Monetization (D75) — a sibling of Groups, rendered ONLY for the node
+// admin (the useNodeAdmin gate). Deep-links to the Monetization surface's Node
+// tab.
+const nodeMonetizationItem = { path: '/monetize?tab=node', icon: DollarSign, label: 'Node Monetization', testId: 'nav-node-monetization' };
 
 // Mobile bottom bar: the four core tabs in thumb-reach order.
 const bottomNavItems = [feedItem, discoverItem, messagesItem, profileItem];
@@ -65,6 +70,7 @@ export default function Layout({ onLogout, onReportBug, children }: LayoutProps)
   const profilePath = token ? `/u/${token.username}` : '/feed';
   const [moreOpen, setMoreOpen] = useState(false);
   const { unread } = useNotifications();
+  const { isAdmin: isNodeAdmin } = useNodeAdmin();
   const isNotifications = pathname === '/notifications';
 
   // The desktop sidebar's account entry point: an avatar row that opens a
@@ -175,6 +181,32 @@ export default function Layout({ onLogout, onReportBug, children }: LayoutProps)
             </button>
             );
           })}
+          {isNodeAdmin && (
+            <button
+              key={nodeMonetizationItem.path}
+              data-testid={nodeMonetizationItem.testId}
+              aria-current={isActive('/monetize') ? 'page' : undefined}
+              onClick={() => navigate(nodeMonetizationItem.path)}
+              className={cn(
+                'w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all duration-150',
+                isActive('/monetize')
+                  ? cn(
+                      'bg-gradient-to-r from-brand-muted to-brand/15 text-brand-300',
+                      'border border-brand/20 glow-active',
+                    )
+                  : 'text-muted-foreground hover:text-foreground hover:bg-elevated/80 hover:border hover:border-border/50',
+              )}
+            >
+              <DollarSign className={cn('w-5 h-5 transition-colors duration-150', isActive('/monetize') && 'text-brand')} strokeWidth={isActive('/monetize') ? 2 : 1.75} />
+              {nodeMonetizationItem.label}
+              {isActive('/monetize') && (
+                <div
+                  className="ml-auto w-1.5 h-1.5 rounded-full bg-brand animate-glow-pulse"
+                  aria-hidden="true"
+                />
+              )}
+            </button>
+          )}
           <button
             data-testid="nav-notifications"
             aria-current={isNotifications ? 'page' : undefined}
@@ -480,6 +512,19 @@ export default function Layout({ onLogout, onReportBug, children }: LayoutProps)
                   <Users className="w-5 h-5" strokeWidth={1.75} />
                   {groupsItem.label}
                 </button>
+                {isNodeAdmin && (
+                  <button
+                    data-testid="nav-node-monetization-mobile"
+                    onClick={() => go(nodeMonetizationItem.path)}
+                    className={cn(
+                      'w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors duration-150',
+                      isActive('/monetize') ? 'bg-brand-muted text-brand-300' : 'text-foreground hover:bg-elevated',
+                    )}
+                  >
+                    <DollarSign className="w-5 h-5" strokeWidth={1.75} />
+                    {nodeMonetizationItem.label}
+                  </button>
+                )}
               </div>
 
               <div className="mt-4 pt-3 border-t border-border/60">

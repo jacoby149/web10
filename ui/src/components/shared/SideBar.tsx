@@ -1,7 +1,6 @@
 import {
   FileText,
   Inbox,
-  LineChart,
   SlidersHorizontal,
   Settings as SettingsIcon,
   LogOut,
@@ -27,7 +26,6 @@ export const NAV_ITEMS: { mode: string; label: string; icon: LucideIcon; adminOn
   { mode: 'contracts', label: 'App Contracts', icon: FileText },
   { mode: 'groups', label: 'Group Contracts', icon: Users },
   { mode: 'requests', label: 'Requests', icon: Inbox },
-  { mode: 'studio', label: 'Studio', icon: LineChart },
   { mode: 'config', label: 'Node Config', icon: SlidersHorizontal, adminOnly: true },
 ];
 

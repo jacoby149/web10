@@ -975,6 +975,28 @@ class TestResolveMediaUrls:
         assert "WHERE rn = 1" in sql
 
 
+class TestResolvePinnedAdsServiceAgnostic:
+    def test_no_collection_filter_on_the_ad_target(self):
+        """D75 — the node does NOT vet the pinned ad's collection. The ad is
+        whatever doc `ad_target` references (I3-checked by the ad's group
+        membership); "an ad is a post" is a web10-social shape, not a protocol
+        rule. A non-social app can pin an ad that is any doc it references."""
+        with _patch_client() as mock_client:
+            mock_client.query.return_value = _mock_result_rows([])
+            ch.resolve_pinned_ads(
+                [{"ad_mode": "pinned", "ad_target": "ad-1"}], "bob"
+            )
+            sql = mock_client.query.call_args[0][0]
+            # The collection filter is gone — the ad target is not vetted.
+            assert "collection_name = 'posts'" not in sql
+            # The I3 boundary is still there: the ad is served only if the
+            # reader is a member of the ad's group.
+            assert "gm.member_key = %(reader)s" in sql
+            assert "ad.deleted = 0" in sql
+            # The dedup (latest version of the ad doc) is still there.
+            assert "row_number() OVER" in sql
+
+
 class TestCanReadCarrierPost:
     def test_true_when_reader_has_a_carrier_post_group(self):
         """D68 — the cross-user feed path: a post (by the media's author)
@@ -985,9 +1007,13 @@ class TestCanReadCarrierPost:
             assert ch.can_read_carrier_post("media-1", "alice", "bob") is True
         sql = mock_client.query.call_args[0][0]
         params = mock_client.query.call_args[0][1]
-        # Scoped to the media doc's AUTHOR's posts (a post can only carry its
-        # own author's media — resolution is author-scoped).
-        assert "collection_name = 'posts'" in sql
+        # D75 — service-agnostic: the node does NOT vet the carrier's
+        # collection (any doc that carries the media in a readable group
+        # grants the stream). "A carrier is a post" is a web10-social shape,
+        # not a protocol rule.
+        assert "collection_name = 'posts'" not in sql
+        # Still scoped to the media doc's AUTHOR's docs (a doc can only carry
+        # its own author's media — resolution is author-scoped).
         assert "author_key = %(author)s" in sql
         assert "has(JSONExtractArrayRaw(body, 'media_refs'), %(media)s)" in sql
         # The house dedup pattern on both sides (stale rows must not grant).
