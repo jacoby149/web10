@@ -983,9 +983,7 @@ class TestResolvePinnedAdsServiceAgnostic:
         rule. A non-social app can pin an ad that is any doc it references."""
         with _patch_client() as mock_client:
             mock_client.query.return_value = _mock_result_rows([])
-            ch.resolve_pinned_ads(
-                [{"ad_mode": "pinned", "ad_target": "ad-1"}], "bob"
-            )
+            ch.resolve_pinned_ads([{"ad_mode": "pinned", "ad_target": "ad-1"}], "bob")
             sql = mock_client.query.call_args[0][0]
             # The collection filter is gone — the ad target is not vetted.
             assert "collection_name = 'posts'" not in sql
