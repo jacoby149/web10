@@ -581,6 +581,16 @@ export async function readFeedEngagement(): Promise<{ likes: Record<string, numb
   }
   return { likes, comments };
 }
+// The reader's own like/dislike per feed post (the feed's initial-state load).
+// Seeded so the PR shot shows a filled heart on the first post.
+export async function readFeedReactions(postIds: string[]): Promise<{ liked: Record<string, boolean>; disliked: Record<string, boolean> }> {
+  const liked: Record<string, boolean> = {};
+  const disliked: Record<string, boolean> = {};
+  for (const id of postIds) {
+    if (id === 'fp-1') liked[id] = true;
+  }
+  return { liked, disliked };
+}
 
 // ── Discover (screenshot seed) ───────────────────────────────────────────────
 // The Discover screen (the D36 board: knob rack + ranked posts + the YouTube

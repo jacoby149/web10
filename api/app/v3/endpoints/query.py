@@ -113,7 +113,7 @@ def _prepare_face(docs: list[dict], face: PrepareFace) -> list[dict]:
     return out
 
 
-def _prepare_rows(rows: list[dict], reader: str, prepare: PrepareSpec) -> list[dict]:
+def _prepare_rows(rows: list[dict], reader: str, prepare: PrepareSpec, authenticated: bool = False) -> list[dict]:
     """The prepare pass (D73): mint the result rows so a single ``w.query()``
     returns render-ready rows. Reuses the read path's passes verbatim
     (``attach_pinned_ads`` + ``attach_node_ads`` + ``resolve_media_urls_in_docs``
@@ -133,7 +133,7 @@ def _prepare_rows(rows: list[dict], reader: str, prepare: PrepareSpec) -> list[d
         docs = ch.attach_node_ads(docs, reader)
     if prepare.media:
         docs = ch.resolve_media_urls_in_docs(docs)
-        docs = _mint_hls_manifest_urls(docs, reader)
+        docs = _mint_hls_manifest_urls(docs, reader, authenticated)
     if prepare.face:
         docs = _prepare_face(docs, prepare.face)
     return docs
@@ -242,5 +242,5 @@ def run_query(request: Request, data: QueryRequest):
     # query pattern). The boundary CTEs already gated the rows (I3); the mint
     # only touches docs in the result.
     if data.prepare:
-        out = _prepare_rows(out, reader, data.prepare)
+        out = _prepare_rows(out, reader, data.prepare, authenticated)
     return {"rows": out, "count": len(out)}
