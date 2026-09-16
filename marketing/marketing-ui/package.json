@@ -31,7 +31,8 @@
     "remark-gfm": "^4.0.1",
     "remark-html": "^16.0.1",
     "tailwind-merge": "^3.6.0",
-    "tailwindcss": "^4.3.3"
+    "tailwindcss": "^4.3.3",
+    "@web10/discover": "file:../shared/discover"
   },
   "devDependencies": {
     "@tailwindcss/vite": "^4.3.3",

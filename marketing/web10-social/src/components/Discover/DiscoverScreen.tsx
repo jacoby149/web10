@@ -55,6 +55,10 @@ import { KnobRack } from './KnobRack';
 import { VideoPlayer, sourceFromMedia } from '@/components/Feed/VideoPlayer';
 import { MediaCarousel } from '@/components/Feed/MediaCarousel';
 import { PostActions } from '@/components/Feed/PostActions';
+// D74: the shared discover card (one source, both apps). The social app's grid
+// + youtube cards now wrap it — the same card the marketing /trending uses.
+import { DiscoverCard as SharedDiscoverCard, type DiscoverPost, type CreateComment } from '@web10/discover';
+import { readComments, createComment as wapiCreateComment } from '@/data';
 
 const LOG = (...args: unknown[]) => console.log('[social:discover]', ...args);
 
@@ -349,6 +353,34 @@ function SuggestedUserSkeleton() {
 
 // ── DiscoverCard (trending post) ─────────────────────────────────────────────
 
+// D74: adapt the wapi createComment to the shared card's injected CreateComment.
+const discoverCreateComment: CreateComment = async ({ postId, text, groups, postAuthor, postService }) => {
+  const created = await wapiCreateComment(
+    { post_id: postId, text, created_at: new Date().toISOString() },
+    groups ?? postAuthor,
+    postService,
+  );
+  return created;
+};
+
+// Map a social PostRecord + its resolved media to the shared DiscoverPost.
+function postRecordToDiscoverPost(post: PostRecord, mediaItems: MediaRecord[], displayName?: string): DiscoverPost {
+  return {
+    id: post._id || '',
+    author: post.author_username || '',
+    author_username: post.author_username || '',
+    display_name: displayName,
+    text: post.text,
+    tags: post.tags,
+    created_at: post.created_at,
+    likes: post.likes,
+    comments: post.comments,
+    reposts: post.reposts,
+    score: post.score,
+    media: mediaItems,
+  };
+}
+
 interface DiscoverCardProps {
   post: PostRecord;
   rank: number;
@@ -377,171 +409,28 @@ function DiscoverCard({
   disliked,
   onToggleReaction,
 }: DiscoverCardProps) {
-  const tier = heatTier(post.score ?? 0, maxScore);
-  const displayName = authorName.charAt(0).toUpperCase() + authorName.slice(1);
-  const initial = post.author.charAt(0).toUpperCase();
-  const avatarColor = hashToColor(post.author);
-  const hasMedia = mediaItems.length > 0;
-  const firstMedia = mediaItems[0];
-  const isVideoMedia = firstMedia?.mime_type?.startsWith('video/');
-  const mediaType = post.tags?.includes('video')
-    ? 'video'
-    : post.tags?.includes('music')
-      ? 'music'
-      : hasMedia
-        ? 'image'
-        : undefined;
-
-  // The inline modality (video-player.md): the video plays inline via
-  // <VideoPlayer>; the engagement row (like + comments) is the shared
-  // <PostActions> (post-actions.md). Discover is the `interactive` case —
-  // the board takes live reactions, the same way of reacting as the feed
-  // (post-actions.md: "one post, one way of reacting, everywhere it shows").
-
+  // D74: the social discover card is now the SHARED discover card (the same one
+  // the marketing /trending uses) — one source, both apps. The data seam (wapi
+  // readComments / createComment) is injected; onAuthorClick navigates in-app.
+  // The board takes live reactions (the interactive like/dislike pair) — the
+  // same way of reacting as the feed (post-actions.md).
   return (
-    <article
-      data-testid="discover-card"
-      className={cn(
-        'group relative overflow-hidden rounded-lg border border-border bg-card transition-all duration-150',
-        'hover:-translate-y-0.5 hover:border-border/80',
-        'focus-within:-translate-y-0.5 focus-within:border-border/80',
-        'motion-reduce:transform-none',
-        HEAT_SHADOW[tier],
-      )}
-    >
-      <div className="p-4">
-        {/* Header: rank + time */}
-        <div className="flex items-center justify-between gap-2">
-          <RankBadge rank={rank} />
-          <span className="text-xs uppercase tracking-wide text-muted-foreground">
-            {formatTimeAgo(post.created_at)}
-          </span>
-        </div>
+    <SharedDiscoverCard
+      post={postRecordToDiscoverPost(post, mediaItems, authorName)}
+      rank={rank}
+      maxScore={maxScore}
+      authorAvatar={authorAvatar}
+      onAuthorClick={onAuthorClick}
+      liked={liked}
+      disliked={disliked}
+      onToggleReaction={onToggleReaction}
+      readComments={readComments}
+      createComment={discoverCreateComment}
+      testId="discover-card"
+    />
 
-        {/* Author row */}
-        <div className="mt-3 flex items-start gap-3">
-          <button
-            type="button"
-            onClick={(e) => { e.stopPropagation(); onAuthorClick(); }}
-            className="shrink-0 rounded-full focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-            aria-label={`View ${displayName}'s profile`}
-          >
-            <Avatar className={cn('h-9 w-9', avatarColor)}>
-              {authorAvatar ? (
-                <img src={authorAvatar} alt={displayName} className="h-full w-full object-cover" />
-              ) : (
-                <AvatarFallback className="text-foreground text-sm font-semibold">
-                  {initial}
-                </AvatarFallback>
-              )}
-            </Avatar>
-          </button>
-          <div className="min-w-0 flex-1">
-            <button
-              type="button"
-              onClick={(e) => { e.stopPropagation(); onAuthorClick(); }}
-              className="flex items-center gap-1.5 truncate text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring rounded"
-            >
-              <span className="truncate text-sm font-semibold text-foreground">{displayName}</span>
-              <span className="truncate text-sm text-muted-foreground">@{post.author}</span>
-            </button>
-            {post.text && (
-              <p className="mt-1 line-clamp-3 text-sm leading-relaxed text-foreground">
-                {post.text}
-              </p>
-            )}
-          </div>
-        </div>
-
-        {/* Media */}
-        {mediaType && (
-          <div className="mt-3 overflow-hidden rounded-md">
-            {mediaItems.length > 1 ? (
-              <MediaCarousel
-                items={mediaItems}
-                fit="cover"
-                ratio={16 / 9}
-                testId="discover-media-carousel"
-              />
-            ) : isVideoMedia && firstMedia?.url ? (
-              <VideoPlayer
-                source={sourceFromMedia(firstMedia)}
-                mode="inline"
-                fit="cover"
-                ratio={16 / 9}
-                testId="discover-media-video"
-              />
-            ) : mediaType === 'image' && mediaItems.length > 0 ? (
-              <div className="aspect-[4/3] w-full overflow-hidden bg-elevated">
-                <img
-                  src={mediaItems[0].thumbnail_url || mediaItems[0].url}
-                  alt={mediaItems[0].alt_text || ''}
-                  className="h-full w-full object-cover transition-transform duration-150 group-hover:scale-105"
-                  loading="lazy"
-                />
-              </div>
-            ) : (
-              <MediaPlaceholder type={mediaType} />
-            )}
-          </div>
-        )}
-
-        {/* Tags */}
-        {post.tags && post.tags.filter(t => !['image', 'video', 'music'].includes(t)).length ? (
-          <div className="mt-3 flex flex-wrap gap-1.5">
-            {post.tags
-              .filter(t => !['image', 'video', 'music'].includes(t))
-              .slice(0, 4)
-              .map(tag => (
-                <span
-                  key={tag}
-                  className="text-xs px-2.5 py-1 rounded-full bg-brand-muted/60 text-brand-300 border border-brand/10"
-                >
-                  #{tag}
-                </span>
-              ))}
-          </div>
-        ) : null}
-      </div>
-
-      {/* Engagement bar (post-actions.md): the shared row (interactive
-          like/dislike pair + inline comments) + Discover's own repost/share
-          signal (trailing). Outside the p-4 wrapper so the bar's divider
-          spans the card; the bar's own px-4/pb-3 pad its edges to match the
-          card content. */}
-      <PostActions
-        postId={post._id || ''}
-        liked={liked}
-        disliked={disliked}
-        reactionCount={post.likes ?? 0}
-        commentCount={post.comments ?? 0}
-        onToggleReaction={onToggleReaction}
-        like="interactive"
-        dislike="interactive"
-        layout="bar"
-        testId="discover-post-actions"
-        postAuthor={post.author_username}
-        postService="posts"
-        trailing={
-          <>
-            <span
-              className="flex items-center gap-1.5 text-muted-foreground"
-              aria-label={`${post.reposts ?? 0} reposts`}
-            >
-              <Repeat2 className="h-4 w-4" strokeWidth={1.5} />
-              <span className="text-xs tabular-nums">{formatCount(post.reposts ?? 0)}</span>
-            </span>
-            <span className="ml-auto text-muted-foreground" aria-label="Share">
-              <Share2 className="h-4 w-4" strokeWidth={1.5} />
-            </span>
-          </>
-        }
-      />
-    </article>
   );
 }
-
-// ── Skeleton ───────────────────────────────────────────────────────────────
 
 function DiscoverSkeleton() {
   return (
@@ -634,8 +523,15 @@ function postToSignals(post: PostRecord) {
 
 type DiscoverView = 'grid' | 'youtube';
 
-function postHasMedia(post: PostRecord): boolean {
-  return !!(post.tags?.includes('video') || post.tags?.includes('image') || post.media_refs?.length);
+function postHasVideo(post: PostRecord): boolean {
+  // The video view is videos-only (competing with YouTube — photos don't
+  // belong here). A post is a video if it's tagged video OR its first resolved
+  // media is a video (the render-time gate, not the client-asserted tag).
+  const refs = post.media_refs || [];
+  const hasVideoRef = refs.some(
+    (r) => typeof r === 'object' && r !== null && (r as { mime_type?: string }).mime_type?.startsWith('video/'),
+  );
+  return !!(post.tags?.includes('video') || hasVideoRef);
 }
 
 // ── YouTubeCard (Discover parity with marketing-ui YouTubeCard) ─────────────
@@ -657,102 +553,20 @@ function DiscoverYouTubeCard({
   mediaItems,
   onAuthorClick,
 }: DiscoverYouTubeCardProps) {
-  const displayName = authorName.charAt(0).toUpperCase() + authorName.slice(1);
-  const initial = post.author.charAt(0).toUpperCase();
-  const avatarColor = hashToColor(post.author);
-  const firstMedia = mediaItems[0];
-  const hasImage = mediaItems.length > 0 && mediaItems[0].url;
-  const isVideoMedia = firstMedia?.mime_type?.startsWith('video/');
-  const isVideo = post.tags?.includes('video');
-
+  // D74: the social video-view card is now the SHARED discover card (the same
+  // one the marketing /trending youtube view uses) — one source, both apps.
+  // The video view is videos-only (competing with YouTube).
   return (
-    <div
-      data-testid="discover-youtube-card"
-      className="group/yt"
-    >
-      {/* 16:9 tile — video posts play inline (the TikTok/Shorts wall), images
-          show a thumbnail, unresolved media show a placeholder. */}
-      <div className="relative overflow-hidden rounded-xl bg-elevated">
-        {isVideoMedia && firstMedia?.url ? (
-          <VideoPlayer
-            source={sourceFromMedia(firstMedia)}
-            mode="inline"
-            fit="cover"
-            ratio={16 / 9}
-            showDuration={false}
-            testId="discover-youtube-video"
-          />
-        ) : hasImage ? (
-          <img
-            src={mediaItems[0].thumbnail_url || mediaItems[0].url}
-            alt={mediaItems[0].alt_text || ''}
-            className="aspect-video w-full object-cover transition-transform duration-150 group-hover/yt:scale-105"
-            loading="lazy"
-          />
-        ) : isVideo ? (
-          <div className="aspect-video w-full flex items-center justify-center bg-elevated">
-            <Film className="h-8 w-8 text-muted-foreground/40" />
-          </div>
-        ) : (
-          <div className="aspect-video w-full flex items-center justify-center bg-elevated">
-            <ImageIcon className="h-8 w-8 text-muted-foreground/40" />
-          </div>
-        )}
-        {/* Time badge */}
-        <div className="absolute bottom-2 right-2 rounded bg-background/90 px-1.5 py-0.5 text-[10px] font-medium text-foreground backdrop-blur-sm">
-          {formatTimeAgo(post.created_at)}
-        </div>
-        {rank !== undefined && rank <= 3 && (
-          <div className="absolute top-2 left-2">
-            <RankBadge rank={rank} />
-          </div>
-        )}
-      </div>
-
-      {/* Metadata row: avatar + title + author + engagement */}
-      <div className="mt-2.5 flex gap-2.5">
-        <button
-          type="button"
-          onClick={(e) => { e.stopPropagation(); onAuthorClick(); }}
-          className="shrink-0 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring rounded-full"
-          aria-label={`View ${displayName}'s profile`}
-        >
-          <Avatar className={cn(avatarColor, 'h-9 w-9')}>
-            {authorAvatar ? (
-              <img src={authorAvatar} alt={displayName} className="h-full w-full object-cover" />
-            ) : (
-              <AvatarFallback className="text-foreground">{initial}</AvatarFallback>
-            )}
-          </Avatar>
-        </button>
-        <div className="min-w-0 flex-1">
-          <p className="line-clamp-2 text-sm font-medium leading-snug text-foreground transition-colors group-hover/yt:text-brand-400">
-            {post.text || `${displayName}'s post`}
-          </p>
-          <div className="mt-0.5 flex items-center gap-1">
-            <button
-              type="button"
-              onClick={(e) => { e.stopPropagation(); onAuthorClick(); }}
-              className="text-xs text-muted-foreground transition-colors hover:text-foreground text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring rounded"
-            >
-              {displayName}
-            </button>
-            <span className="text-xs text-muted-foreground">·</span>
-            <span className="text-xs text-muted-foreground">{formatTimeAgo(post.created_at)} ago</span>
-          </div>
-          <div className="mt-0.5 flex items-center gap-3 text-xs text-muted-foreground">
-            <span className="flex items-center gap-1">
-              <Heart className="h-3 w-3" strokeWidth={1.5} />
-              {formatCount(post.likes ?? 0)}
-            </span>
-            <span className="flex items-center gap-1">
-              <MessageCircle className="h-3 w-3" strokeWidth={1.5} />
-              {formatCount(post.comments ?? 0)}
-            </span>
-          </div>
-        </div>
-      </div>
-    </div>
+    <SharedDiscoverCard
+      post={postRecordToDiscoverPost(post, mediaItems, authorName)}
+      rank={rank}
+      maxScore={1}
+      authorAvatar={authorAvatar}
+      onAuthorClick={onAuthorClick}
+      readComments={readComments}
+      createComment={discoverCreateComment}
+      testId="discover-youtube-card"
+    />
   );
 }
 
@@ -786,10 +600,10 @@ function DiscoverYouTubeEmptyState({ onSwitchToGrid }: { onSwitchToGrid: () => v
         <Video className="h-8 w-8 text-brand-400" strokeWidth={1.5} />
       </div>
       <h2 className="font-display text-xl font-semibold text-foreground">
-        No media posts yet
+        No videos yet
       </h2>
       <p className="mt-2 text-sm text-muted-foreground max-w-sm">
-        The video view shows posts with videos and images.
+        The video view shows trending video posts.
         Switch to Hot Gossip to see all trending posts.
       </p>
       <Button
@@ -1238,7 +1052,7 @@ export default function DiscoverScreen() {
 
   // YouTube view: media posts only (video + image)
   const mediaPosts = useMemo(
-    () => visiblePosts.filter(p => postHasMedia(p)),
+    () => visiblePosts.filter(p => postHasVideo(p)),
     [visiblePosts],
   );
 
