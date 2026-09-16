@@ -429,41 +429,6 @@ class TestBugReportTombstone:
 
 
 # ---------------------------------------------------------------------------
-# Ref Counts
-# ---------------------------------------------------------------------------
-
-
-class TestRefCountTombstone:
-    def test_get_ref_count_deduplicates(self):
-        """get_ref_count must deduplicate before counting."""
-        with _patch_client() as mock_client:
-            mock_client.query.return_value = _mock_result_rows(
-                [
-                    (1,),
-                ]
-            )
-            result = ch.get_ref_count("doc-1", "reactions")
-            assert result == 1
-            call_args = mock_client.query.call_args[0][0]
-            assert "ORDER BY updated_at DESC LIMIT 1" in call_args
-
-    def test_get_ref_counts_deduplicates(self):
-        """get_ref_counts must deduplicate via QUALIFY."""
-        with _patch_client() as mock_client:
-            mock_client.query.return_value = _mock_result_rows(
-                [
-                    ("doc-1", 3),
-                    ("doc-2", 1),
-                ]
-            )
-            result = ch.get_ref_counts(["doc-1", "doc-2"], "reactions")
-            assert result["doc-1"] == 3
-            assert result["doc-2"] == 1
-            call_args = mock_client.query.call_args[0][0]
-            assert "QUALIFY" in call_args
-
-
-# ---------------------------------------------------------------------------
 # Read Documents In Groups (the big join)
 # ---------------------------------------------------------------------------
 

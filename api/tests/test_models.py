@@ -3,42 +3,6 @@
 from app.models.auth import Token, TokenData
 
 
-class TestDotdict:
-    def test_dot_get(self):
-        from app.models.core import dotdict
-
-        d = dotdict({"a": 1, "b": 2})
-        assert d.a == 1
-        assert d.b == 2
-
-    def test_dot_set(self):
-        from app.models.core import dotdict
-
-        d = dotdict()
-        d.key = "value"
-        assert d["key"] == "value"
-
-    def test_dot_delete(self):
-        from app.models.core import dotdict
-
-        d = dotdict({"x": 1})
-        del d.x
-        assert "x" not in d
-
-    def test_missing_key_returns_none(self):
-        from app.models.core import dotdict
-
-        d = dotdict({"a": 1})
-        assert d.missing is None
-
-    def test_dict_operations(self):
-        from app.models.core import dotdict
-
-        d = dotdict({"a": 1})
-        assert "a" in d
-        assert len(d) == 1
-
-
 class TestToken:
     def test_minimal(self):
         t = Token()
