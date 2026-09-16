@@ -529,6 +529,60 @@ const { rows } = await w.query(`
 
 `rows` is keyed by the query's column names (a `body` column comes back parsed, datetimes ISO-8601 UTC); `count` is the number of rows. Scope the read to specific groups with `w.query(sql, { groups: [...] })` (default: all the reader's groups). Spec'd in `query-engine.md` + `safe-query.md`.
 
+### The prepare pass — mint the rows in the same call (D73)
+
+`w.query(sql, { groups, prepare })` takes an optional `prepare` spec. After the SELECT, the engine **mints** the result rows — resolves media, attaches ads, and resolves the author's face — so a whole feed is **one round-trip** instead of a read + N media reads + N profile reads (the 267→1). The mint reuses the read path's passes verbatim and only touches docs the boundary CTE already proved you can read — **no escalation**.
+
+```ts
+type V3Prepare = {
+  media?: true,   // presign the row's body.media_refs (author-scoped) + mint
+                  // per-reader HLS sigs for transcoded video
+  ads?:   true,   // attach the pinned ad (ad_mode/ad_target) + the node ad
+  face?:  { bodyField: string, mediaField: string,
+            authorColumn?: string, urlField?: string }
+          // mint the author's face: presign <bodyField>.<mediaField>,
+          // author-scoped to <authorColumn>, set <urlField> (default
+          // 'avatar_url'). For a query that JOINs the author's profile
+          // service, this is the avatar.
+}
+```
+
+**How the engine finds what to mint.** Two rules, in order:
+
+1. **Duck-type default.** A row carrying `doc_id` + `author_key` + `body` gets its `body.media_refs` / `ad_mode` / `ad_target` minted by the `media` / `ads` passes. That's the common case (`SELECT p.*, …counts…`) and needs zero config. A row without those keys (an aggregate, a non-doc join column) is skipped — the pass no-ops on it.
+2. **Explicit `face` spec.** The author's face lives in a *different* body (the JOINed profile), not the row's `body`. You declare where: `face: { bodyField: 'profile_body', mediaField: 'avatar_ref', … }`. Generic (any app's face service) and explicit (no magic).
+
+```ts
+// The following feed — one query, the prepare pass mints media + HLS + ads + face
+const { rows } = await w.query(`
+  SELECT p.doc_id, p.author_key, p.body, p.tags, p.created_at, p.ref_value,
+         p.ad_mode, p.ad_target,
+         coalesce(eng.reaction_count, 0) AS likes,
+         coalesce(cmt.comment_count, 0)  AS comments,
+         pr.body AS profile_body
+  FROM posts p
+  LEFT JOIN (SELECT ref_value, count() AS reaction_count
+             FROM reactions WHERE ref_value != '' GROUP BY ref_value) eng
+         ON eng.ref_value = p.doc_id
+  LEFT JOIN (SELECT ref_value, count() AS comment_count
+             FROM comments WHERE ref_value != '' GROUP BY ref_value) cmt
+         ON cmt.ref_value = p.doc_id
+  LEFT JOIN profile pr ON pr.author_key = p.author_key
+  ORDER BY toUnixTimestamp64Milli(p.created_at) DESC
+  LIMIT 21
+`, {
+  groups: feedGroups,
+  prepare: {
+    media: true,
+    ads: true,
+    face: { bodyField: 'profile_body', mediaField: 'avatar_ref',
+            authorColumn: 'author_key', urlField: 'avatar_url' },
+  },
+})
+```
+
+The reference example (the social feed as a query) is spec'd in `query-engine.md` → "The Feed as a Query". This is why `w.feed` / `V3FeedResult` are gone: the feed is a query the app writes, run through the engine, with the prepare pass minting the result — the node hardcodes nothing.
+
 ## Media
 
 Three-step upload: request a presigned URL, upload to object storage, confirm.

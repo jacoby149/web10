@@ -21,6 +21,8 @@ Feed
 
 **Your feed is all groups you belong to, except the discover group.** The discover group (`{provider}/groups/web10/discover`) is the public board — it has its own screen. Your feed is personal: followers, communities, close-friends.
 
+The feed is **one query** the app writes, run through the safe-query engine, with the **prepare pass** minting media + ads + the author's face in the same round-trip (D73 — the old `POST /v3/feed` endpoint is retired). Get your groups, filter out discover, and the query's boundary CTEs are scoped to the rest:
+
 ```ts
 const allGroups = await w.getGroups({ member: 'jacoby149' })
 // → [
@@ -35,14 +37,34 @@ const feedGroups = allGroups
   .filter(g => g.group_id !== '{provider}/groups/web10/discover')
   .map(g => g.group_id)
 
-const posts = await w.read('posts', {
+const { rows } = await w.query(`
+  SELECT p.doc_id, p.author_key, p.body, p.tags, p.created_at, p.ref_value,
+         p.ad_mode, p.ad_target,
+         coalesce(eng.reaction_count, 0) AS likes,
+         coalesce(cmt.comment_count, 0)  AS comments,
+         pr.body AS profile_body
+  FROM posts p
+  LEFT JOIN (SELECT ref_value, count() AS reaction_count
+             FROM reactions WHERE ref_value != '' GROUP BY ref_value) eng
+         ON eng.ref_value = p.doc_id
+  LEFT JOIN (SELECT ref_value, count() AS comment_count
+             FROM comments WHERE ref_value != '' GROUP BY ref_value) cmt
+         ON cmt.ref_value = p.doc_id
+  LEFT JOIN profile pr ON pr.author_key = p.author_key
+  ORDER BY toUnixTimestamp64Milli(p.created_at) DESC
+  LIMIT 51
+`, {
   groups: feedGroups,
-  $sort: { created_at: -1 },
-  $limit: 50,
+  prepare: {
+    media: true,
+    ads: true,
+    face: { bodyField: 'profile_body', mediaField: 'avatar_ref',
+            authorColumn: 'author_key', urlField: 'avatar_url' },
+  },
 })
 ```
 
-Two SDK calls. Get your groups, filter out discover, read across the rest.
+One query + the prepare pass. The groups scope the read; the engine mints the media, ads, and the author's face so there is no second round of per-post reads. The reference example (the feed as a query) is spec'd in `../web10-v3/query-engine.md` → "The Feed as a Query".
 
 **Narrowing to followers only:**
 
@@ -51,27 +73,17 @@ const followersGroups = allGroups
   .filter(g => g.group_id.endsWith('/followers'))
   .map(g => g.group_id)
 
-const feed = await w.read('posts', {
-  groups: followersGroups,
-  $sort: { created_at: -1 },
-  $limit: 50,
-})
+// same query, groups: followersGroups
 ```
 
 **Narrowing to a specific group.** Profile pages and group pages:
 
 ```ts
 // Alice's profile — only her followers group
-const profilePosts = await w.read('posts', {
-  groups: ['web10.app/groups/alice/followers'],
-  $sort: { created_at: -1 },
-})
+// same query, groups: ['web10.app/groups/alice/followers']
 
 // Chess club page — only that group
-const clubPosts = await w.read('posts', {
-  groups: ['web10.app/groups/charlie/st-louis-chess-club'],
-  $sort: { created_at: -1 },
-})
+// same query, groups: ['web10.app/groups/charlie/st-louis-chess-club']
 ```
 
 ## The Data Flow
@@ -80,8 +92,7 @@ const clubPosts = await w.read('posts', {
 User opens /feed
   → w.getGroups({ member: 'jacoby149' })
   → filter out web10/discover
-  → w.read('posts', { groups: feedGroups, $sort: { created_at: -1 }, $limit: 50 })
-  → parallel: resolve author avatars
+  → w.query(feedSQL, { groups: feedGroups, prepare: { media, ads, face } })
   → render
 ```
 
@@ -104,4 +115,4 @@ User opens /feed
 
 ## Proof
 
-Your feed is two SDK calls. Get groups, filter out discover, read across the rest. No feed table. No fan-out on write. No "compute feed" job. The groups define what's in your feed. The protocol handles it.
+Your feed is one query. Get groups, filter out discover, and the safe-query engine's boundary CTEs scope the read to the rest — the prepare pass mints the media, ads, and the author's face in the same round-trip. No feed table. No fan-out on write. No "compute feed" job. The groups define what's in your feed. The protocol handles it.

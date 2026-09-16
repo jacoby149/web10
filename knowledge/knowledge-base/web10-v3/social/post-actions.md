@@ -77,7 +77,7 @@ A surface is therefore a one-liner (as built):
 
 ```
 Feed:      <PostActions post liked disliked reactionCount commentCount onToggleReaction layout="row" />
-Discover:  <PostActions post like="display" reactionCount commentCount layout="bar" trailing={repost+share} />
+Discover:  <PostActions post liked disliked reactionCount commentCount onToggleReaction layout="bar" trailing={repost+share} />
 Lightbox:  <PostActions post liked disliked reactionCount commentCount onToggleReaction defaultOpen={!!anchor} trailing={share} />
 Groups:    <PostActions post liked disliked reactionCount commentCount onToggleReaction groups={[groupId]} />
 ```

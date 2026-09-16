@@ -8,18 +8,18 @@ A creator posts a clip. A fan taps Share and sends it to a friend in iMessage. T
 
 ## The problem: the permalink is a SPA route
 
-web10-social is a client-side-rendered PWA. The permalink `/u/:username/p/:postId` is a **route**, not a page — nginx serves the static `index.html` for every path, and the app hydrates over it in the browser. A crawler does not run JavaScript. It fetches the URL, reads the `<head>`, and finds no post-specific meta tags — so it renders nothing. The fix is to make the **node** (the FastAPI API, the source of truth for the post) render the preview for the crawler, while the browser keeps getting the SPA.
+web10-social is a client-side-rendered PWA. The permalink `/u/:username/p/:postId` is a **route**, not a page — nginx serves the static `index.html` for every path, and the app hydrates over it in the browser. A crawler does not run JavaScript. It fetches the URL, reads the `<head>`, and finds no post-specific meta tags — so it renders nothing. The fix is to make the **social app's preview server** (a small Node server in the social container, reading the post via the node's generic read) render the preview for the crawler, while the browser keeps getting the SPA.
 
 ## The rule
 
-> **The node renders the preview; the browser gets the app.** The post permalink, when fetched by a social crawler, is answered by the node with an HTML document carrying the post's Open Graph + Twitter Card tags. When fetched by a browser, it is answered by the SPA exactly as today. The split is decided at the edge (nginx), by User-Agent.
+> **The social app's preview server renders the preview; the browser gets the app.** The post permalink, when fetched by a social crawler, is answered by the social app's preview server (a small Node server in the social container) with an HTML document carrying the post's Open Graph + Twitter Card tags. When fetched by a browser, it is answered by the SPA exactly as today. The split is decided at the edge (nginx), by User-Agent.
 
 ```mermaid
 flowchart TD
     L["POST PERMALINK<br/>social.web10.app/u/:u/p/:id"] --> N["social nginx"]
-    N -->|User-Agent is a known crawler| P["proxy → node<br/>GET /v3/share/post/:u/:id"]
+    N -->|User-Agent is a known crawler| P["proxy → preview server<br/>GET /u/:u/p/:id (localhost)"]
     N -->|anything else — a browser| S["serve the SPA<br/>(index.html, unchanged)"]
-    P --> R["node reads the post<br/>+ its groups + its media"]
+    P --> R["preview server reads the post<br/>+ its groups + its media"]
     R --> G{"publicly readable?<br/>(any group grants anon readAll on posts)"}
     G -->|yes| T["render OG + Twitter tags<br/>title · description · thumbnail · url"]
     G -->|no| P2["render a GENERIC web10 card<br/>(no post content, no media)"]
@@ -93,19 +93,19 @@ The presigned URL is minted fresh on every request (the document-typing rule —
 
 The social app's nginx is the only thing that sees the permalink before the SPA. It splits on User-Agent:
 
-- **Known social crawlers** → `proxy_pass` to the node's share endpoint. The crawler list is the standard set: `facebookexternalhit`, `Twitterbot` / `Twitterbot/1.1`, `LinkedInBot`, `Slackbot`, `WhatsApp`, `TelegramBot`, `Discordbot`, `Slack-ImgProxy`, `TelegramBot`, `Pinterest`, `WhatsApp`, `Telegram`, `WhatsApp`, `QQ`, `Line`, `YandexBot` (the long tail of link-preview bots). The match is a case-insensitive substring check on `$http_user_agent`.
+- **Known social crawlers** → `proxy_pass` to the social app's preview server. The crawler list is the standard set: `facebookexternalhit`, `Twitterbot` / `Twitterbot/1.1`, `LinkedInBot`, `Slackbot`, `WhatsApp`, `TelegramBot`, `Discordbot`, `Slack-ImgProxy`, `TelegramBot`, `Pinterest`, `WhatsApp`, `Telegram`, `WhatsApp`, `QQ`, `Line`, `YandexBot` (the long tail of link-preview bots). The match is a case-insensitive substring check on `$http_user_agent`.
 - **Everything else** → the SPA, exactly as today (`try_files … /index.html`).
 
 The split is deliberately **browser-default**: an unknown agent gets the working app, never a broken preview. The only failure mode is a crawler with an unmatchable User-Agent, which degrades to "no preview card" — the same as today, never worse.
 
-The node target is injected at deploy time (an `API_PROXY_TARGET` env var, e.g. `http://web10-prod-api:80`), so the same image works in dev and prod. The nginx config is a **template** (`/etc/nginx/templates/default.conf.template`) that the `nginx:alpine` image `envsubst`s at boot — the same env-var pattern the rest of the stack already uses.
+The preview-server target is injected at deploy time (a `PREVIEW_TARGET` env var, default `http://127.0.0.1:3001` — the preview server's port, same container, localhost), so the same image works in dev and prod. The nginx config is a **template** that the `nginx:alpine` image `envsubst`s at boot — the same env-var pattern the rest of the stack already uses.
 
 ## Trace: a fan shares a video post
 
 1. The fan taps Share on a video post. `navigator.share` (or the copy-link fallback) sends `https://social.web10.app/u/nova/p/abc123` to iMessage.
-2. Apple's link-preview crawler fetches that URL. Its User-Agent matches the list → the social nginx proxies to `http://web10-prod-api:80/v3/share/post/nova/abc123`.
-3. The node reads the post by `abc123`, sees it is in the discover group (anon `readAll` on `posts`) → public. It resolves the media: the first item is a video with a `thumbnail_object_key` → it mints a fresh presigned `thumbnail_url` over the public MinIO host. It reads the author's profile for the display name.
-4. The node returns an HTML document: `og:image` = the poster frame, `og:title` = the caption, `og:description` = the caption, `og:url` = the permalink, `twitter:card` = `summary_large_image`.
+2. Apple's link-preview crawler fetches that URL. Its User-Agent matches the list → the social nginx proxies to the preview server (`${PREVIEW_TARGET}/u/nova/p/abc123`, default `http://127.0.0.1:3001`).
+3. The preview server reads the post by `abc123` (the generic read, anon-capable), sees it is in the discover group (anon `readAll` on `posts`) → public. It resolves the media: the first item is a video with a `thumbnail_object_key` → it mints a fresh presigned `thumbnail_url` over the public MinIO host. It reads the author's profile for the display name.
+4. The preview server returns an HTML document: `og:image` = the poster frame, `og:title` = the caption, `og:description` = the caption, `og:url` = the permalink, `twitter:card` = `summary_large_image`.
 5. iMessage renders the card — the poster frame, the caption, "web10." The friend taps it and lands on the permalink in the app, signed in or not.
 
 ## The profile permalink

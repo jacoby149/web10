@@ -96,6 +96,12 @@ The subquery on every row is expensive. Options:
 
 **What shipped (v1, 3.18.3): option 4.** The operator picked it over the counter table — "this is clickhouse." It is exact (no staleness), race-free (a read-modify-write counter is not atomic in ClickHouse → lost updates), needs no backfill, and touches no write path — and it matches the house's own 3.15.0 "metric-as-query, no maintained counters" precedent. The cost is a read-time grouped scan of the reactions + comments collections; for board scale that is cheap. **The counter table (option 3) is the v2 trigger** — adopt it only if the board grows large enough that the read-time scan actually hurts.
 
+## The Card and the Like
+
+**The card is one shared component (D74).** The discover card — the ranked post card with the video, the engagement bar, the comments, the rank badge, and the heat glow — is **one shared component** (`@web10/discover`, `marketing/shared/discover/`) consumed by both `web10-social` and `marketing-ui`. One source, two apps: the discover feature is the same on both, so it can't drift. The data seam is injected (wapi for social, the public ledger for marketing); two modes — `interactive` (web10-social, logged in) and `remote` (marketing-ui, anon, with link-outs). Spec'd in `../web10-v3/social/discover-card.md`.
+
+**The board takes live reactions (3.98.2).** The card's engagement bar is `interactive` for like + dislike on the board — the same way of reacting as the feed (the `display`-only heart from the 3.86.0 build is gone). A like on the board writes to the discover group by default (D62) — the same group the board reads — so a like on the board is the same reaction as one from the feed. The reader's own reaction is seeded from the discover-group reaction read the screen already performs (matched on `author_username === token.username` alone — the v3 ownership rule). Spec'd in `../web10-v3/social/post-actions.md`.
+
 ## TODO
 
 - [ ] Sort toggle — newest vs. trending
