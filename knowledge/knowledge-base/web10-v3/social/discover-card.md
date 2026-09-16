@@ -1,6 +1,6 @@
 # The Shared Discover Card
 
-The discover card — the ranked post card with the video, the engagement bar, the comments, the rank badge, and the heat glow — is **one shared component** consumed by both `web10-social` and `marketing-ui` (D73). One source, two apps: the discover feature is the same on both, so it can't drift.
+The discover card — the ranked post card with the video, the engagement bar, the comments, the rank badge, and the heat glow — is **one shared component** consumed by both `web10-social` and `marketing-ui` (D74). One source, two apps: the discover feature is the same on both, so it can't drift.
 
 ## Why shared
 

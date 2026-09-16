@@ -16,7 +16,7 @@ WORKDIR /app
 
 # Install deps first for cache reuse on a code-only change.
 COPY marketing/marketing-ui/package.json marketing/marketing-ui/bun.lock* ./marketing/marketing-ui/
-# D73: the shared discover card is a local `file:../shared/discover` dep —
+# D74: the shared discover card is a local `file:../shared/discover` dep —
 # bun install needs marketing/shared/ in the context (same pattern as the
 # sdk/ COPY below). Resolves to /app/marketing/shared/discover.
 COPY marketing/shared/ ./marketing/shared/

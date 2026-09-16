@@ -10,7 +10,7 @@ import { cn } from '@/lib/utils';
 import { SOCIAL_ORIGIN, API_ORIGIN, API_HOST } from '@/lib/origins';
 import { trackFunnel } from '@/lib/analytics';
 import { getPublicMediaUrl, getPublicMediaThumbnailUrl, resolveMediaRef, clearMediaCache } from '@/lib/mediaPresign';
-// D73: the shared discover card + video player (one source, both apps). The
+// D74: the shared discover card + video player (one source, both apps). The
 // marketing /trending card is now the SAME card the social app's Discover uses
 // — in `remote` mode (anon, click-through to web10 social).
 import {
@@ -292,7 +292,7 @@ function TrendingCard({
   className,
   cardRef,
 }: TrendingCardProps) {
-  // D73: the marketing /trending card is now the SHARED discover card (the same
+  // D74: the marketing /trending card is now the SHARED discover card (the same
   // one the social app's Discover uses), in `remote` mode — anon, so the like
   // is display-only and the comment compose is a link-out to web10 social.
   const author = post.author || post.handle.replace(/^@/, '');
@@ -464,7 +464,7 @@ interface YouTubeCardProps {
 }
 
 function YouTubeCard({ post, rank }: YouTubeCardProps) {
-  // D73: the YouTube view's card is now the SHARED discover card (the same one
+  // D74: the YouTube view's card is now the SHARED discover card (the same one
   // the social app's Discover uses), in `remote` mode. The youtubey 16:9 media
   // + author + meta is the shared card's layout — one card, both apps.
   const author = post.author || post.handle.replace(/^@/, '');

@@ -135,11 +135,11 @@ What *is* copied, on purpose: the rule's shape ("no surface owns X; every surfac
 | Surface | Like | Dislike | Comments | Layout |
 |---|---|---|---|---|
 | Feed | interactive | interactive | inline | row |
-| Discover | display | display | inline | bar |
+| Discover | interactive | interactive | inline | bar |
 | Lightbox / deep-link | interactive | interactive | inline | row |
 | Groups | interactive | interactive | inline | row |
 
-Discover is `display` for both reactions *today* — it's the public board, the engagement is a signal for ranking, not a tap target. Flipping it to `interactive` later is a prop change, not a reimplementation. (Whether the public board should take reactions at all is an open question, not a rendering one.)
+Every surface is `interactive` for both reactions — the board takes live reactions, the same way of reacting as the feed (the use case's "one post, one way of reacting, everywhere it shows"). Discover was `display`-only at the 3.86.0 build (the public board as a read-only ranking signal); the operator's "liking isn't working on discover" report (3.94.0) resolved the open question in favor of parity, and the flip was the prop change this doc predicted. The reader's own reaction on a board post is seeded from the discover-group reaction read the screen already performs (matched on `author_username === token.username` alone — the v3 ownership rule), so the heart renders filled on load.
 
 ## What this is not
 
@@ -154,8 +154,11 @@ Decided and built: the one-component / three-axes shape; the like/dislike mutual
 
 Still open:
 
-- **Discover reactivity** — should the public board take live reactions, or stay a read-only signal? A prop flip if the answer is yes.
 - **Reactions on comments** — `ReactionRecord.target_service` already allows `'comments'`; the bar doesn't render a reaction pair on individual comments yet. A later surface, same component.
+
+Resolved:
+
+- **Discover reactivity** — the public board takes live reactions (3.94.0). The operator's "liking isn't working on discover" report settled it: the board is `interactive` for like + dislike, the same way of reacting as the feed. The flip was the prop change this doc predicted; the reader's own reaction is seeded from the discover-group read the screen already performs.
 
 ## Reference
 

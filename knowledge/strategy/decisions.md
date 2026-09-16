@@ -9,7 +9,7 @@ Status legend: [decided] intent set · [in-progress] · [open] still debating.
 
 ---
 
-### D73 — The discover card is one shared component: `@web10/discover`, consumed by both apps [decided]
+### D74 — The discover card is one shared component: `@web10/discover`, consumed by both apps [decided]
 
 Operator, 15.09.2026 — "on the social apps discover and seeing photos in the video view… should have been only videos" + "the marketing uis video trending looks more youtubey as intended" + "i want this to be like they are both a sick discover page with great features, shared features can do everything on both, see comments on both!" (after the greyed-out-video bug: "the videos are still greyed out… on the chrome mobile app on pixel 9… in the social app the discover and the feed the videos display just fine").
 
@@ -31,6 +31,27 @@ Operator, 15.09.2026 — "on the social apps discover and seeing photos in the v
 **Gates / open.** The social app's `DiscoverScreen` still owns its screen-level chrome (the knob rack, the suggested-users row, the profile map) — that's app-specific and stays. The shared package is the *card*, not the *screen*. Follow-up: the social app's in-app Discover and the marketing /trending could share the *screen* chrome too (the knob rack is already a verbatim copy) if the drift there becomes a problem — but the card (the high-churn surface) is now shared.
 
 Full model: `knowledge/knowledge-base/web10-v3/social/discover-card.md` (the spec). Execution: the `discover-board` lane in `parallel-execution.md`.
+
+---
+
+### D73 — The feed is a query, not an endpoint: the query engine gains a prepare pass (read + resolve), `POST /v3/feed` is retired [decided]
+
+Operator, 15.09.2026 — after the "liking isn't working on discover" + "reposts should work everywhere" thread surfaced that the node's `POST /v3/feed` (`feed.py`) hardcodes the social read (power-mean ranked page of `posts` + the node reading the `profile` service + resolving the `avatar_ref`): "i dont think there should be a feed.py… breaks the kb standards" → "we added the general query engine to do something like this 267 requests in one… for any app to get this, and for the social app to do this in the general query engine? then you dont need an endpoint, that query engine is secure, and lets devs do that 267 → 1 type stuff, and the social app serves as an example" → "could you bake it into the query? the prepare step? so improve the engine?" → "i just hope it does the exact same thing but using the engine! lets write to the knowledge base how we are going to do it! then implement this!"
+
+**Decided** — the platform exposes **no bespoke feed endpoint**. The social app's following feed is a **query the app writes** over the flexible-read engine (`POST /v3/query`, `w.query()`), and the engine gains a **prepare pass** so the one query returns **render-ready** rows. `POST /v3/feed` (`feed.py`) + the SDK's `w.feed` are **retired**.
+
+1. **The data read is the query engine.** The feed's board base + power-mean ranking + keyset cursor + exact reaction/comment counts + the author's face are expressible as one safe `SELECT` over the service names (`posts` / `reactions` / `comments` / `profile`). The boundary CTEs (safe-query.md) are *exactly* the board base per service — the group filter + block/sharing/hidden — so the query is I3-gated by construction. The app's query names the `profile` service (the app knows its own face); the node hardcodes nothing.
+2. **The prepare pass (the engine improvement).** After the SELECT, the engine optionally **mints** the result rows: `media` (presign `body.media_refs` author-scoped + per-reader HLS sigs for transcoded video), `ads` (attach pinned + node ad from `ad_mode`/`ad_target`), `face` (presign the author's face media from a caller-declared field, e.g. the JOINed profile's `avatar_ref`). It reuses the existing `resolve_media_urls_in_docs` / `_mint_hls_manifest_urls` / `attach_pinned_ads` / `attach_node_ads` verbatim — a thin orchestration over them, applied to the query's rows. One round-trip, render-ready.
+3. **Safety (why a capability-minter on a query surface is OK).** The boundary CTEs already proved the reader can read every doc in the result; the prepare pass only touches docs *already in the result* (no escalation). Each pass is access-bound (author-scoped presign, per-reader HLS sig, I3-checked ads). Media/HLS/ads/face are **universal** primitives (D44/D49/D55/D57) — baking them in keeps the engine generic, not social.
+4. **Engine change:** the boundary CTE's exposed columns gain `ad_mode` + `ad_target` (the ad-attach pass reads them off the row).
+5. **Behavior-preserved (the bar: exact same thing, via the engine).** The query reproduces `read_feed`'s output (same ranking, cursor, counts, ads/media/HLS, face). Two places the engine is *more correct* and both match in practice for the following feed: engagement counts + the author face are now **group-scoped** (readable groups) instead of global — reactions/comments default to the discover group (D62) and the following feed's authors are followed (followers-group members), so identical in practice, and a doc/face the reader genuinely can't read no longer leaks.
+
+**Why:** D60 — the protocol stays universal; the node exposes only universal primitives (the safe query + the prepare pass), never app-specific concepts. The moment the platform grew a `/feed` endpoint that reads the social `profile` service + resolves the `avatar_ref`, it stopped being universal (the same class of leak D60 reversed for the group identity + the session oracle). The query engine already *is* the universal "267 → 1" primitive — the social app should use it and serve as the example, not get a bespoke endpoint. The prepare pass closes the one gap (a SELECT can't mint a presigned URL / HLS sig), so the engine becomes the complete **flexible read**: safe query over your groups + optional resolve/mint.
+
+**Rejected:** keeping `feed.py` as-is (a D60 leak — the node knows the social face); a separate `POST /v3/prepare` endpoint (two round-trips + passing doc_ids between calls — the prepare belongs on the query that produced the rows); moving the minting fully client-side (re-introduces the N+1 the feed read exists to kill — the presigner/sig-minter/ad-catalog are node capabilities); a per-app "face" table/endpoint (D60 — the face is an app-named service the app's query reads).
+
+**Files (docs only, no code):** D73 here; `knowledge-base/web10-v3/query-engine.md` (the prepare pass + the feed-as-query reference, Phasing 4); the `query-engine` lane in `parallel-execution.md` (engine keystone → SDK → client → retire `feed.py`). **Fixes the D69 numbering collision:** the feed read was mislabeled "D69" in the changelog (D69 is Notifications); it has no decision of its own and is now subsumed by D73 (the feed-as-query pattern under the query engine). Full model: `knowledge-base/web10-v3/query-engine.md` + `safe-query.md`.
+
 
 ---
 

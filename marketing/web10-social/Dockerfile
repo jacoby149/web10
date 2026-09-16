@@ -9,7 +9,7 @@ WORKDIR /app
 COPY marketing/web10-social/package.json marketing/web10-social/bun.lock* ./
 COPY sdk/package.json /sdk/package.json
 COPY sdk/dist/ /sdk/dist/
-# D73: the shared discover card is a local `file:../shared/discover` dep —
+# D74: the shared discover card is a local `file:../shared/discover` dep —
 # bun install (run in /app) resolves it to /shared/discover, so COPY
 # marketing/shared/ there (same pattern as the sdk/ COPY above).
 COPY marketing/shared/ /shared/

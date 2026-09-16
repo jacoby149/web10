@@ -27,7 +27,6 @@ from app.v3.models.documents import (
     ReadDocuments,
     UpdateDocument,
 )
-from app.v3.models.feed import FeedRequest
 from app.v3.models.groups import (
     AcceptInvite,
     AddGroupMember,
@@ -59,7 +58,7 @@ from app.v3.models.media import (
 )
 from app.v3.models.moderation import ModerationAutoHide, ModerationFlags
 from app.v3.models.preview import PreviewRender
-from app.v3.models.query import QueryRequest
+from app.v3.models.query import PrepareFace, PrepareSpec, QueryRequest
 from app.v3.models.session import VerifySession
 
 __all__ = [
@@ -89,8 +88,8 @@ __all__ = [
     "AdPreference",
     # query (the flexible read)
     "QueryRequest",
-    # feed (D69 — the single-round-trip feed read)
-    "FeedRequest",
+    "PrepareSpec",
+    "PrepareFace",
     # groups
     "CreateGroup",
     "GetGroup",

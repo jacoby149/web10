@@ -15,6 +15,9 @@ import {
   readFollow,
   getV3Client,
   getDiscoverGroupId,
+  toggleReactionKind,
+  extractUsername,
+  type ReactionKind,
 } from '@/data';
 import { getWapi } from '@/data/wapi';
 import { toast, errorMessage } from '@/components/shared/Toast';
@@ -52,7 +55,7 @@ import { KnobRack } from './KnobRack';
 import { VideoPlayer, sourceFromMedia } from '@/components/Feed/VideoPlayer';
 import { MediaCarousel } from '@/components/Feed/MediaCarousel';
 import { PostActions } from '@/components/Feed/PostActions';
-// D73: the shared discover card (one source, both apps). The social app's grid
+// D74: the shared discover card (one source, both apps). The social app's grid
 // + youtube cards now wrap it — the same card the marketing /trending uses.
 import { DiscoverCard as SharedDiscoverCard, type DiscoverPost, type CreateComment } from '@web10/discover';
 import { readComments, createComment as wapiCreateComment } from '@/data';
@@ -350,7 +353,7 @@ function SuggestedUserSkeleton() {
 
 // ── DiscoverCard (trending post) ─────────────────────────────────────────────
 
-// D73: adapt the wapi createComment to the shared card's injected CreateComment.
+// D74: adapt the wapi createComment to the shared card's injected CreateComment.
 const discoverCreateComment: CreateComment = async ({ postId, text, groups, postAuthor, postService }) => {
   const created = await wapiCreateComment(
     { post_id: postId, text, created_at: new Date().toISOString() },
@@ -386,6 +389,12 @@ interface DiscoverCardProps {
   authorAvatar?: string;
   mediaItems: MediaRecord[];
   onAuthorClick: () => void;
+  /** Whether the reader has liked this post (the heart fills). */
+  liked: boolean;
+  /** Whether the reader has disliked this post (the thumb fills). */
+  disliked: boolean;
+  /** The reader's tap on the like/dislike pair (post-actions.md). */
+  onToggleReaction: (kind: ReactionKind) => void;
 }
 
 function DiscoverCard({
@@ -396,10 +405,15 @@ function DiscoverCard({
   authorAvatar,
   mediaItems,
   onAuthorClick,
+  liked,
+  disliked,
+  onToggleReaction,
 }: DiscoverCardProps) {
-  // D73: the social discover card is now the SHARED discover card (the same one
+  // D74: the social discover card is now the SHARED discover card (the same one
   // the marketing /trending uses) — one source, both apps. The data seam (wapi
   // readComments / createComment) is injected; onAuthorClick navigates in-app.
+  // The board takes live reactions (the interactive like/dislike pair) — the
+  // same way of reacting as the feed (post-actions.md).
   return (
     <SharedDiscoverCard
       post={postRecordToDiscoverPost(post, mediaItems, authorName)}
@@ -407,10 +421,14 @@ function DiscoverCard({
       maxScore={maxScore}
       authorAvatar={authorAvatar}
       onAuthorClick={onAuthorClick}
+      liked={liked}
+      disliked={disliked}
+      onToggleReaction={onToggleReaction}
       readComments={readComments}
       createComment={discoverCreateComment}
       testId="discover-card"
     />
+
   );
 }
 
@@ -535,7 +553,7 @@ function DiscoverYouTubeCard({
   mediaItems,
   onAuthorClick,
 }: DiscoverYouTubeCardProps) {
-  // D73: the social video-view card is now the SHARED discover card (the same
+  // D74: the social video-view card is now the SHARED discover card (the same
   // one the marketing /trending youtube view uses) — one source, both apps.
   // The video view is videos-only (competing with YouTube).
   return (
@@ -609,6 +627,12 @@ export default function DiscoverScreen() {
   const [loading, setLoading] = useState(true);
   const [profileMap, setProfileMap] = useState<Record<string, ProfileRecord>>({});
   const [mediaMap, setMediaMap] = useState<Record<string, MediaRecord[]>>({});
+  // The reader's own reaction per post (post-actions.md): which posts they've
+  // liked / disliked, so the heart/thumb render filled on load. Seeded from
+  // the discover-group reaction read in loadDiscover; flipped optimistically
+  // on a tap (handleToggleReaction).
+  const [likedMap, setLikedMap] = useState<Record<string, boolean>>({});
+  const [dislikedMap, setDislikedMap] = useState<Record<string, boolean>>({});
   // True after the first successful board load — knob re-reads keep the
   // previous grid on screen (no skeleton flash); only the cold start shows
   // the skeleton. A ref (not state) so the stable `loadDiscover` callback
@@ -715,8 +739,20 @@ export default function DiscoverScreen() {
           ]);
           const likesByPost: Record<string, number> = {};
           const commentsByPost: Record<string, number> = {};
+          // The reader's own reaction per post (v3 ownership is by username
+          // alone — the reaction's author_key is the bare username, the
+          // provider implicit, so match on username, not provider).
+          const likedByPost: Record<string, boolean> = {};
+          const dislikedByPost: Record<string, boolean> = {};
           for (const d of reactionDocs) {
-            if (d.ref_value) likesByPost[d.ref_value] = (likesByPost[d.ref_value] || 0) + 1;
+            if (d.ref_value) {
+              likesByPost[d.ref_value] = (likesByPost[d.ref_value] || 0) + 1;
+              if (extractUsername(d.author_key) === token.username) {
+                const type = (d.body as Record<string, unknown>)?.type as string | undefined;
+                if (type === 'like') likedByPost[d.ref_value] = true;
+                else if (type === 'dislike') dislikedByPost[d.ref_value] = true;
+              }
+            }
           }
           for (const d of commentDocs) {
             if (d.ref_value) commentsByPost[d.ref_value] = (commentsByPost[d.ref_value] || 0) + 1;
@@ -726,6 +762,8 @@ export default function DiscoverScreen() {
             p.comments = commentsByPost[p._id || ''] || 0;
             p.reposts = 0;
           }
+          setLikedMap(likedByPost);
+          setDislikedMap(dislikedByPost);
           LOG(
             'engagement — counted',
             Object.values(likesByPost).reduce((a, b) => a + b, 0), 'reactions +',
@@ -910,6 +948,41 @@ export default function DiscoverScreen() {
       setFollowLoading((prev) => ({ ...prev, [key]: false }));
     }
   }, []);
+
+  // The reaction pair (post-actions.md): like XOR dislike, one reaction per
+  // user. Optimistic update of the own-reaction maps + the post's like count,
+  // rollback on error. The data layer (toggleReactionKind) enforces the
+  // mutual exclusion server-side. A plain function (not useCallback) so it
+  // always reads the latest maps — the feed's handleToggleReaction pattern.
+  async function handleToggleReaction(postId: string, kind: ReactionKind) {
+    const token = getWapi().readToken();
+    if (!token) return;
+    const wasLiked = !!likedMap[postId];
+    const wasDisliked = !!dislikedMap[postId];
+    const nextLiked = kind === 'like' ? !wasLiked : false;
+    const nextDisliked = kind === 'dislike' ? !wasDisliked : false;
+    const delta = (nextLiked ? 1 : 0) - (wasLiked ? 1 : 0);
+    setLikedMap((prev) => ({ ...prev, [postId]: nextLiked }));
+    setDislikedMap((prev) => ({ ...prev, [postId]: nextDisliked }));
+    setPosts((prev) =>
+      prev.map((p) =>
+        p._id === postId ? { ...p, likes: Math.max(0, (p.likes || 0) + delta) } : p,
+      ),
+    );
+    try {
+      await toggleReactionKind(postId, kind);
+    } catch (e) {
+      console.error('Failed to toggle reaction:', e);
+      toast.error(errorMessage(e, 'Could not update your reaction.'));
+      setLikedMap((prev) => ({ ...prev, [postId]: wasLiked }));
+      setDislikedMap((prev) => ({ ...prev, [postId]: wasDisliked }));
+      setPosts((prev) =>
+        prev.map((p) =>
+          p._id === postId ? { ...p, likes: Math.max(0, (p.likes || 0) - delta) } : p,
+        ),
+      );
+    }
+  }
 
   // Write a knob state to the URL (the deep-linkable ranking). The param is
   // omitted when the state is the default, so the default URL stays clean.
@@ -1216,6 +1289,9 @@ export default function DiscoverScreen() {
                   }
                   mediaItems={mediaItems}
                   onAuthorClick={() => navigateToUserProfile(post.author_username || '', post.author_provider || '')}
+                  liked={!!likedMap[post._id || '']}
+                  disliked={!!dislikedMap[post._id || '']}
+                  onToggleReaction={(kind) => handleToggleReaction(post._id || '', kind)}
                 />
               );
             })}

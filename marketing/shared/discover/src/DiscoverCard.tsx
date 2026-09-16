@@ -310,16 +310,20 @@ export function DiscoverCard({
         ) : null}
       </div>
 
-      {/* Engagement bar (post-actions.md): the shared row (display like +
-          inline comments) + Discover's own repost/share signal (trailing).
-          Outside the p-4 wrapper so the bar's divider spans the card. */}
+      {/* Engagement bar (post-actions.md): the shared row + Discover's own
+          repost/share signal (trailing). Interactive mode (web10-social): the
+          board takes live reactions (the like/dislike pair, the same way of
+          reacting as the feed). Remote mode (marketing-ui, anon): the like is
+          display-only (an anon visitor can't like) + no dislike. Outside the
+          p-4 wrapper so the bar's divider spans the card. */}
       <PostActions
         postId={post.id}
         liked={liked}
         disliked={disliked}
         reactionCount={post.likes ?? 0}
         commentCount={post.comments ?? 0}
-        like="display"
+        like={remote ? 'display' : 'interactive'}
+        dislike={remote ? 'none' : 'interactive'}
         layout="bar"
         testId="discover-post-actions"
         postAuthor={post.author_username || post.author}

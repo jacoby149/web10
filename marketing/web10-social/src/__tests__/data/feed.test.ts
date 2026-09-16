@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import * as v3 from '../../data/v3';
-import { readDiscoverFeed, readShortsFeed, readFeedReactions } from '../../data/feed';
+import { readDiscoverFeed, readShortsFeed, readFeedPage, readFeedReactions } from '../../data/feed';
 import { getFeedGroups } from '../../data/groups';
 
 function mockV3Client() {
@@ -16,6 +16,7 @@ function mockV3Client() {
     delete: vi.fn(),
     listMedia: vi.fn(),
     getMyGroups: vi.fn(),
+    query: vi.fn(),
   };
   vi.spyOn(v3, 'getV3Client').mockReturnValue(mock as any);
   return mock;
@@ -77,6 +78,99 @@ describe('feed v3 data layer', () => {
         'posts',
         expect.objectContaining({ groups: ['web10.app/groups/web10/discover'], tags: ['short'] }),
       );
+    });
+  });
+
+  describe('readFeedPage (D73: the feed as a query over the engine)', () => {
+    // A prepared feed row (the shape the engine returns after the prepare pass).
+    function feedRow(overrides: Record<string, unknown> = {}) {
+      return {
+        doc_id: 'p1',
+        author_key: 'web10.app/users/bob',
+        body: { text: 'a post', media_refs: [{ read_url: 'https://cdn/m1' }] },
+        tags: [],
+        created_at: '2026-09-15T12:00:00Z',
+        ref_value: '',
+        ad_mode: 'none',
+        ad_target: '',
+        likes: 5,
+        comments: 2,
+        score: 0.7,
+        profile_body: JSON.stringify({ display_name: 'Bob', avatar_ref: 'av1' }),
+        avatar_url: 'https://cdn/av1',
+        ...overrides,
+      };
+    }
+
+    beforeEach(async () => {
+      // readFeedPage reads the feed groups (followers groups only).
+      mock.getMyGroups.mockResolvedValue([
+        { group_id: 'web10.app/groups/users/alice/followers', join_policy: 'open', my_role: 'owner', member_count: 1 },
+        { group_id: 'web10.app/groups/users/bob/followers', join_policy: 'open', my_role: 'member', member_count: 5 },
+      ]);
+    });
+
+    it('runs the feed as one w.query with the prepare pass (media + ads + face)', async () => {
+      mock.query.mockResolvedValue({ rows: [feedRow()], count: 1 });
+
+      const page = await readFeedPage({ limit: 20 });
+
+      expect(mock.query).toHaveBeenCalledTimes(1);
+      const [sql, opts] = mock.query.mock.calls[0];
+      expect(opts.groups).toEqual(['web10.app/groups/users/alice/followers', 'web10.app/groups/users/bob/followers']);
+      expect(opts.prepare).toEqual({
+        media: true,
+        ads: true,
+        face: { bodyField: 'profile_body', mediaField: 'avatar_ref', authorColumn: 'author_key', urlField: 'avatar_url' },
+      });
+      // The query is the feed shape: the posts board + the engagement joins +
+      // the profile join + the keyset limit (page + 1).
+      expect(sql).toContain('FROM posts p');
+      expect(sql).toContain('FROM reactions');
+      expect(sql).toContain('FROM comments');
+      expect(sql).toContain('FROM profile');
+      expect(sql).toContain('LIMIT 21');
+      // The Newest preset (no knobState) → chronological, cursor on created_at.
+      expect(sql).toContain('ORDER BY toUnixTimestamp64Milli(p.created_at) DESC');
+      expect(page.posts).toHaveLength(1);
+    });
+
+    it('maps the prepared rows to PostRecords (counts + profile + avatar)', async () => {
+      mock.query.mockResolvedValue({ rows: [feedRow()], count: 1 });
+
+      const page = await readFeedPage({ limit: 20 });
+
+      const post = page.posts[0];
+      expect(post._id).toBe('p1');
+      expect(post.likes).toBe(5);
+      expect(post.comments).toBe(2);
+      expect(post.score).toBe(0.7);
+      expect(post.avatar_url).toBe('https://cdn/av1');
+      expect(post.profile?.display_name).toBe('Bob');
+      expect(post.author_username).toBe('bob');
+    });
+
+    it('computes has_more from the +1 row and the next cursor on created_at (Newest)', async () => {
+      // 21 rows for a limit of 20 → has_more, cursor on the 20th row's created_at.
+      const rows = Array.from({ length: 21 }, (_, i) =>
+        feedRow({ doc_id: `p${i}`, created_at: `2026-09-15T12:00:${String(i).padStart(2, '0')}Z` }),
+      );
+      mock.query.mockResolvedValue({ rows, count: 21 });
+
+      const page = await readFeedPage({ limit: 20 });
+
+      expect(page.has_more).toBe(true);
+      expect(page.posts).toHaveLength(20);
+      expect(page.next_cursor).toEqual({ created_at: '2026-09-15T12:00:19Z' });
+    });
+
+    it('returns an empty page when there are no feed groups', async () => {
+      mock.getMyGroups.mockResolvedValue([
+        { group_id: 'web10.app/groups/web10/discover', join_policy: 'open', my_role: 'member', member_count: 1 },
+      ]);
+      const page = await readFeedPage({ limit: 20 });
+      expect(page).toEqual({ posts: [], has_more: false, next_cursor: null });
+      expect(mock.query).not.toHaveBeenCalled();
     });
   });
 
