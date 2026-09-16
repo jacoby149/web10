@@ -1181,27 +1181,6 @@ function applyACR(cr: any) {
     }
 
     // v4 features — not available in v3
-    I.getPlan = function () {
-        I.setStatus("Plan management is a v4 feature.");
-        // The Subscription card chains .then()/.catch() on this — it must
-        // return a Promise (the MockInterface one does). Reject: the feature
-        // is unavailable, so the card's .catch swallows it and the plan/util
-        // stay at their defaults.
-        return Promise.reject(new Error("Plan management is a v4 feature."));
-    }
-
-    I.manageSpace = function () {
-        I.setStatus("Space management is a v4 feature.");
-    }
-
-    I.manageCredits = function () {
-        I.setStatus("Credits management is a v4 feature.");
-    }
-
-    I.manageSubscriptions = function () {
-        I.setStatus("Subscription management is a v4 feature.");
-    }
-
     I.manageBusiness = function () {
         I.setStatus("Business management is a v4 feature.");
     }

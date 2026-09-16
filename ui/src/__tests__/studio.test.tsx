@@ -47,46 +47,6 @@ describe('LADDER_RUNGS data', () => {
   })
 })
 
-// ── MembershipsCard ──
-
-describe('MembershipsCard', () => {
-  const mockI = {
-    isMock: true,
-    setStatus: vi.fn(),
-  }
-
-  beforeEach(() => {
-    vi.clearAllMocks()
-  })
-
-  it('renders with "Enable Memberships" button', async () => {
-    const { MembershipsCard } = await import('../components/Studio/MembershipsCard')
-    render(<MembershipsCard I={mockI} onStatus={vi.fn()} />)
-    expect(screen.getByText('Enable Memberships')).toBeTruthy()
-  })
-
-  it('renders membership description', async () => {
-    const { MembershipsCard } = await import('../components/Studio/MembershipsCard')
-    render(<MembershipsCard I={mockI} onStatus={vi.fn()} />)
-    expect(screen.getByText(/Memberships & Tips/)).toBeTruthy()
-  })
-
-  it('shows ~97% payout chip', async () => {
-    const { MembershipsCard } = await import('../components/Studio/MembershipsCard')
-    render(<MembershipsCard I={mockI} onStatus={vi.fn()} />)
-    expect(screen.getByText('~97% payout')).toBeTruthy()
-  })
-
-  it('enables memberships on click in mock mode', async () => {
-    const { MembershipsCard } = await import('../components/Studio/MembershipsCard')
-    const onStatus = vi.fn()
-    render(<MembershipsCard I={mockI} onStatus={onStatus} />)
-    fireEvent.click(screen.getByText('Enable Memberships'))
-    expect(onStatus).toHaveBeenCalled()
-    expect(screen.getByText('Memberships Active')).toBeTruthy()
-  })
-})
-
 // ── DirectDealsCard ──
 
 describe('DirectDealsCard', () => {
@@ -310,13 +270,13 @@ describe('StudioPage', () => {
     expect(screen.getByText(/Rung 0 — Available Now/)).toBeTruthy()
   })
 
-  it('renders all three rung-0 cards', async () => {
+  it('renders the rung-0 cards', async () => {
     const { default: StudioPage } = await import('../components/Studio/StudioPage')
-    render(<StudioPage I={mockI} />)
-    expect(screen.getByText(/Memberships & Tips/)).toBeTruthy()
-    // "Amazon Associates" appears in both the tag card and the program list
-    expect(screen.getAllByText(/Amazon Associates/).length).toBeGreaterThanOrEqual(1)
-    expect(screen.getAllByText(/Direct Deals/).length).toBeGreaterThanOrEqual(1)
+    const { container } = render(<StudioPage I={mockI} />)
+    expect(container.querySelector('[data-testid="studio-affiliate-programs-card"]')).toBeTruthy()
+    expect(container.querySelector('[data-testid="studio-ads-card"]')).toBeTruthy()
+    expect(container.querySelector('[data-testid="studio-direct-deals-card"]')).toBeTruthy()
+    expect(screen.getByText('Ad Inventory')).toBeTruthy()
   })
 
   it('renders the Affiliate Programs card first in Rung 0', async () => {

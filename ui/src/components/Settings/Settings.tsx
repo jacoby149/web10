@@ -3,7 +3,6 @@ import AppShell from '../shared/AppShell';
 import ChangePhone from './ChangePhone';
 import ChangePass from './ChangePassword';
 import VerifyPhone from './VerifyPhone';
-import Subscription from './Subscription';
 import DevPay from './DevPay';
 import Changelog from './Changelog';
 import RecoveryContact from './RecoveryContact';
@@ -54,7 +53,6 @@ function Settings({ I }: { I: Record<string, any> }) {
         <div className="space-y-4">
           <RecoveryContact I={I} />
           <Import I={I} />
-          <Subscription I={I} />
           {I.isVerified() ? <ChangePhone I={I} /> : <VerifyPhone I={I} />}
           <ChangePass I={I} />
           <DevPay I={I} />

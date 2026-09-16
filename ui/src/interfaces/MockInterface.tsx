@@ -141,10 +141,6 @@ function useMockInterface() {
     I.sendCode = function () { I.setStatus("Mock: code sent"); }
     I.verifyCode = function () { I.setVerified(true); I.setStatus("Mock: verified"); }
     I.changePassword = function () { I.setStatus("Mock: password changed"); }
-    I.getPlan = function () { return Promise.resolve({ data: { space: 100, credits: 2, used_space: 87.24 } }); }
-    I.manageSpace = function () { }
-    I.manageCredits = function () { }
-    I.manageSubscriptions = function () { }
     I.manageBusiness = function () { }
     I.businessLogin = function () { }
     I.initAuthenticator = function () { }
