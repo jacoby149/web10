@@ -107,6 +107,18 @@ at the box and the certificates provision themselves. See
 - Discord: https://discord.gg/Dbd4VEDznU
 - Live node: https://web10.app
 
+## License
+
+The web10 node is licensed under the **Server Side Public License v1 (SSPL-1.0)** — see [`LICENSE`](LICENSE).
+
+SSPL is a strong copyleft license. In plain terms:
+
+- **Run it, self-host it, build on it — free.** You may run an unmodified web10 node, modify it for your own use, and build apps on top of it. No license key, no fee, no cap.
+- **The one condition (Section 13):** if you offer a *modified* web10 to others **as a service**, you must release your Service Source Code under the same license. Running your own node — even a big one, even commercially — does not trigger this; you're *running* the software, not *conveying* a modified version.
+- **The copyright line in `LICENSE` says "MongoDB, Inc."** on purpose. That line is the copyright in the *license text itself* (SSPL was authored by MongoDB). web10's copyright is asserted on the web10 source code, not on the license document. The SSPL forbids altering the license text, so it is reproduced verbatim.
+
+SSPL is **source-available**, not OSI-approved open source — the same category MongoDB's own server sits in. web10's hosted-node offering is the commercial service; the software stays free to run and extend.
+
 web10 is built for people whose work carries their name. If the idea
 earns your respect, star the repo. Better — run a node, and build
 something you'd sign.
