@@ -777,39 +777,45 @@ def get_document_any_author(doc_id: str) -> dict | None:
     }
 
 
-def can_read_carrier_post(media_doc_id: str, media_author: str, reader: str) -> bool:
+def can_read_carrier_post(media_doc_id: str, media_author: str, reader: str, authenticated: bool = False) -> bool:
     """True if `reader` can read a doc that carries `media_doc_id` (D68).
 
     The cross-user feed path for HLS: a doc whose `media_refs` include the
-    media doc_id, in a group the reader is an active member of. Service-agnostic
+    media doc_id, in a group the reader can read. Service-agnostic
     (D75): the node does not vet the carrier's `collection_name` — any doc that
     carries the media in a readable group grants the stream (for web10-social
     the carrier is a `posts` doc; the node doesn't need to know that). The
     check is scoped to the media doc's AUTHOR's docs: a doc can only carry its
     own author's media (resolution is author-scoped), which bounds the scan to
-    one user's docs. Dedup-then-filter on both documents and group_members (the
-    house pattern — a removed member's stale row must not grant access).
+    one user's docs.
+
+    Readability is the D58 effective-role gate (`can_read_group`) — the SAME
+    predicate the read path uses to decide which groups the reader sees.
+    Membership alone would be wrong: the public board's reader is not a
+    member, it reads through the group's `anyone`/`authenticated` grant (the
+    D58 backfill renamed the discover board's `anon` member row to `anyone`,
+    so a literal-membership check 403'd every anon-minted HLS sig — the
+    marketing /trending "can't be played" bug). `authenticated` mirrors the
+    read path's principal-class selection (the sig carries it from mint time,
+    so the re-check can't upgrade an anon read to authenticated grants).
 
     `body` is a plain String column, so `JSONExtractArrayRaw` yields the
     RAW array elements — JSON-encoded strings, i.e. WITH their quotes.
     The match is against the quoted form.
     """
     result = client.query(
-        "SELECT 1 "
+        "SELECT DISTINCT pg.group_id "
         "FROM (SELECT doc_id AS post_id FROM ("
         "SELECT doc_id, row_number() OVER (PARTITION BY doc_id, author_key ORDER BY updated_at DESC) AS rn "
         "FROM documents "
         "WHERE author_key = %(author)s AND deleted = 0 "
         "AND has(JSONExtractArrayRaw(body, 'media_refs'), %(media)s)"
         ") WHERE rn = 1) posts "
-        "JOIN doc_groups pg ON pg.doc_id = posts.post_id AND pg.deleted = 0 "
-        "JOIN (SELECT group_id, deleted, row_number() OVER (PARTITION BY group_id ORDER BY updated_at DESC, deleted DESC) AS rn "
-        "FROM group_members WHERE member_key = %(reader)s) gm ON gm.group_id = pg.group_id "
-        "WHERE gm.rn = 1 AND gm.deleted = 0 "
-        "LIMIT 1",
-        {"media": f'"{media_doc_id}"', "author": media_author, "reader": reader},
+        "JOIN doc_groups pg ON pg.doc_id = posts.post_id AND pg.deleted = 0",
+        {"media": f'"{media_doc_id}"', "author": media_author},
     )
-    return len(result.result_rows) > 0
+    group_ids = [row[0] for row in result.result_rows]
+    return any(can_read_group(g, reader, "posts", authenticated) for g in group_ids)
 
 
 # ---------------------------------------------------------------------------

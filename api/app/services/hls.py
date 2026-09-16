@@ -45,11 +45,25 @@ def hls_prefix(video_object_key: str) -> str:
     return f"{base}/hls" if base else "hls"
 
 
-def mint_sig(username: str, doc_id: str, prefix: str) -> str:
-    """Mint the 10-minute stream token bound to (reader, doc, hls prefix)."""
+def mint_sig(username: str, doc_id: str, prefix: str, authenticated: bool = False) -> str:
+    """Mint the 10-minute stream token bound to (reader, doc, hls prefix).
+
+    ``authenticated`` records whether the reader held a valid token at mint
+    time. The manifest re-check (`can_view_doc`) needs it to select the same
+    D58 principal classes the original read used — a sig minted for an anon
+    read must not unlock `authenticated`-only grants on re-check (the re-check
+    can only confirm what the read already granted, never more).
+    """
     now = int(time.time())
     return jwt.encode(
-        {"username": username, "doc_id": doc_id, "prefix": prefix, "iat": now, "exp": now + settings.HLS_SIG_TTL},
+        {
+            "username": username,
+            "doc_id": doc_id,
+            "prefix": prefix,
+            "authenticated": bool(authenticated),
+            "iat": now,
+            "exp": now + settings.HLS_SIG_TTL,
+        },
         settings.PRIVATE_KEY,
         algorithm=settings.ALGORITHM,
     )
@@ -74,7 +88,7 @@ def verify_sig(sig: str, doc_id: str) -> dict:
     return payload
 
 
-def can_view_doc(doc_id: str, username: str) -> dict | None:
+def can_view_doc(doc_id: str, username: str, authenticated: bool = False) -> dict | None:
     """The document if `username` may view it — author, a member of any
     group the document belongs to, or a reader of a post that carries it
     (D68 — the cross-user feed path: the post's groups are the access model,
@@ -84,6 +98,16 @@ def can_view_doc(doc_id: str, username: str) -> dict | None:
     This is the re-check the sig expiry buys: every manifest (re)fetch
     re-runs access, so a revoked membership stops the stream within one
     sig TTL.
+
+    The carrier-post rule uses the read path's D58 effective-role gate
+    (`can_read_carrier_post` → `can_read_group`), NOT a literal membership
+    row: the public board's reader reads through the group's
+    `anyone`/`authenticated` grant and is not a member (the D58 backfill
+    renamed the discover board's `anon` row to `anyone`). A literal
+    membership check 403'd every anon-minted sig — the marketing /trending
+    "can't be played" bug. `authenticated` comes from the sig (minted at
+    read time), so the re-check evaluates the same principal classes the
+    original read did.
     """
     doc = ch.get_document_any_author(doc_id)
     if not doc:
@@ -93,7 +117,7 @@ def can_view_doc(doc_id: str, username: str) -> dict | None:
     for group_id in ch.get_doc_groups(doc_id):
         if ch.is_group_member(group_id, username):
             return doc
-    if ch.can_read_carrier_post(doc_id, doc["author_key"], username):
+    if ch.can_read_carrier_post(doc_id, doc["author_key"], username, authenticated):
         return doc
     return None
 
