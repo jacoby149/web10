@@ -32,7 +32,8 @@
     "react-router-dom": "^7.18.2",
     "tailwind-merge": "^3.6.0",
     "tailwindcss": "^4.3.3",
-    "web10-npm": "file:../../sdk"
+    "web10-npm": "file:../../sdk",
+    "@web10/discover": "file:../shared/discover"
   },
   "devDependencies": {
     "@tailwindcss/vite": "^4.3.3",

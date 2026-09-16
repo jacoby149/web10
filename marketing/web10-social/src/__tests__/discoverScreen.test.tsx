@@ -838,7 +838,7 @@ describe('DiscoverScreen', () => {
       expect(screen.getByTestId('discover-youtube-empty')).toBeInTheDocument();
     });
 
-    expect(screen.getByText('No media posts yet')).toBeInTheDocument();
+    expect(screen.getByText('No videos yet')).toBeInTheDocument();
     expect(screen.getByTestId('discover-youtube-empty-cta')).toBeInTheDocument();
   });
 
@@ -1155,8 +1155,9 @@ describe('DiscoverScreen', () => {
     });
 
     // The inline modality: a video post renders the video inline in the tile
-    // (the TikTok/Shorts wall) — clicking the card opens no lightbox.
-    expect(screen.getByTestId('discover-youtube-video')).toBeInTheDocument();
+    // (the TikTok/Shorts wall) — clicking the card opens no lightbox. The
+    // shared discover card renders the video at discover-media-video (D73).
+    expect(screen.getByTestId('discover-media-video')).toBeInTheDocument();
     fireEvent.click(screen.getByTestId('discover-youtube-card'));
     expect(screen.queryByTestId('post-lightbox')).not.toBeInTheDocument();
   });

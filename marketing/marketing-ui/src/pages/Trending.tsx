@@ -378,11 +378,12 @@ function Trending() {
     [ranked, topic],
   );
 
-  // YouTube view: media posts only (video + image), filtered by topic
+  // YouTube view: videos only (competing with YouTube — photos don't belong
+  // in the video view). Filtered by topic.
   const mediaPosts = useMemo(
     () => {
-      const mediaOnly = visible.filter(p => p.media === 'video' || p.media === 'image');
-      return topic === 'All' ? mediaOnly : mediaOnly.filter(p => p.tags?.includes(topic) ?? false);
+      const videoOnly = visible.filter(p => p.media === 'video');
+      return topic === 'All' ? videoOnly : videoOnly.filter(p => p.tags?.includes(topic) ?? false);
     },
     [visible, topic],
   );

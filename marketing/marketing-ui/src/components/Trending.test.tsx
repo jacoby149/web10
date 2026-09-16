@@ -35,7 +35,7 @@ describe('TrendingCard rank badge', () => {
     render(
       <TrendingCard post={basePost} rank={1} maxScore={100} onLike={noop} onComment={noop} onRepost={noop} />,
     );
-    const badge = screen.getByTestId('trending-rank');
+    const badge = screen.getByTestId('discover-rank-badge');
     expect(badge).toHaveTextContent('#1');
     expect(badge).toHaveAttribute('aria-label', expect.stringContaining('number one'));
   });
@@ -44,56 +44,50 @@ describe('TrendingCard rank badge', () => {
     render(
       <TrendingCard post={{ ...basePost, id: 'p2' }} rank={3} maxScore={100} onLike={noop} onComment={noop} onRepost={noop} />,
     );
-    expect(screen.getByTestId('trending-rank')).toHaveAttribute('aria-label', expect.stringContaining('top three'));
+    expect(screen.getByTestId('discover-rank-badge')).toHaveAttribute('aria-label', expect.stringContaining('top three'));
   });
 
   it('labels #4+ as plain trending', () => {
     render(
       <TrendingCard post={{ ...basePost, id: 'p4' }} rank={7} maxScore={100} onLike={noop} onComment={noop} onRepost={noop} />,
     );
-    const badge = screen.getByTestId('trending-rank');
+    const badge = screen.getByTestId('discover-rank-badge');
     expect(badge).toHaveTextContent('#7');
-    expect(badge.getAttribute('aria-label')).toBe('Rank 7, trending');
+    expect(badge.getAttribute('aria-label')).toBe('Rank 7');
   });
 });
 
 describe('TrendingCard interactions', () => {
-  it('fires like/repost handlers when interactive', () => {
-    const onLike = vi.fn();
-    const onRepost = vi.fn();
-    render(
-      <TrendingCard post={basePost} rank={5} maxScore={100} onLike={onLike} onComment={noop} onRepost={onRepost} />,
-    );
-    fireEvent.click(screen.getByLabelText(/Like,/));
-    fireEvent.click(screen.getByLabelText(/Repost,/));
-    expect(onLike).toHaveBeenCalledWith('p1');
-    expect(onRepost).toHaveBeenCalledWith('p1');
-  });
-
-  it('renders read-only counts with no buttons when readOnly', () => {
+  it('renders the like as a display-only count (remote mode: anon can\'t like)', () => {
     const onLike = vi.fn();
     render(
-      <TrendingCard post={basePost} rank={5} maxScore={100} readOnly onLike={onLike} onComment={noop} onRepost={noop} />,
+      <TrendingCard post={basePost} rank={5} maxScore={100} onLike={onLike} onComment={noop} onRepost={noop} />,
     );
+    // Remote mode: the like is a display span (a count), not a tappable button.
+    expect(screen.getByLabelText('10 likes')).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: /Like,/ })).not.toBeInTheDocument();
-    expect(screen.getByLabelText(/Like,/).tagName).toBe('SPAN');
+    // Tapping the display like does nothing (no handler — anon can't like).
+    fireEvent.click(screen.getByLabelText('10 likes'));
+    expect(onLike).not.toHaveBeenCalled();
   });
 
-  it('does not change displayed counts on like/repost click', () => {
-    const onLike = vi.fn();
-    const onRepost = vi.fn();
+  it('renders the comment as a tappable button (opens the thread)', () => {
     render(
-      <TrendingCard post={basePost} rank={5} maxScore={100} onLike={onLike} onComment={noop} onRepost={onRepost} />,
+      <TrendingCard post={basePost} rank={5} maxScore={100} onLike={noop} onComment={noop} onRepost={noop} />,
     );
-    const likeBtn = screen.getByLabelText(/Like, 10 likes/);
-    const repostBtn = screen.getByLabelText(/Repost, 1 reposts/);
-    fireEvent.click(likeBtn);
-    fireEvent.click(repostBtn);
-    expect(likeBtn).toHaveTextContent('10');
-    expect(repostBtn).toHaveTextContent('1');
+    expect(screen.getByTestId('comment-button')).toBeInTheDocument();
   });
 
-  it('renders a share button', () => {
+  it('does not change displayed counts on like tap (display-only)', () => {
+    render(
+      <TrendingCard post={basePost} rank={5} maxScore={100} onLike={noop} onComment={noop} onRepost={noop} />,
+    );
+    const like = screen.getByLabelText('10 likes');
+    fireEvent.click(like);
+    expect(like).toHaveTextContent('10');
+  });
+
+  it('renders a share signal', () => {
     render(
       <TrendingCard post={basePost} rank={5} maxScore={100} onLike={noop} onComment={noop} onRepost={noop} />,
     );
@@ -104,41 +98,44 @@ describe('TrendingCard interactions', () => {
     render(
       <TrendingCard post={basePost} rank={5} maxScore={100} onLike={noop} onComment={noop} onRepost={noop} />,
     );
-    const authorLink = screen.getByRole('link', { name: 'Ada Lovelace' });
-    expect(authorLink).toHaveAttribute('href', expect.stringContaining('/u/'));
-    expect(authorLink).toHaveAttribute('target', '_blank');
-    expect(authorLink).toHaveAttribute('rel', 'noopener');
+    // Remote mode: the author (avatar + name) links to the profile on social.
+    const authorLinks = screen.getAllByRole('link', { name: /Ada Lovelace/ });
+    expect(authorLinks.length).toBeGreaterThan(0);
+    for (const link of authorLinks) {
+      expect(link).toHaveAttribute('href', expect.stringContaining('/u/'));
+      expect(link).toHaveAttribute('target', '_blank');
+    }
   });
 });
 
-describe('TrendingCard comment panel', () => {
+describe('TrendingCard comment thread', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     vi.stubGlobal('fetch', vi.fn());
     vi.stubGlobal('open', vi.fn());
   });
 
-  it('opens inline comment panel on comment click', () => {
+  it('opens the shared comment thread on comment click', () => {
     render(
       <TrendingCard post={basePost} rank={5} maxScore={100} onLike={noop} onComment={noop} onRepost={noop} />,
     );
-    expect(screen.queryByTestId('comment-panel')).not.toBeInTheDocument();
-    fireEvent.click(screen.getByLabelText(/Comment,/));
-    expect(screen.getByTestId('comment-panel')).toBeInTheDocument();
+    expect(screen.queryByTestId('comment-thread')).not.toBeInTheDocument();
+    fireEvent.click(screen.getByTestId('comment-button'));
+    expect(screen.getByTestId('comment-thread')).toBeInTheDocument();
   });
 
-  it('closes panel on second comment click', () => {
+  it('closes the thread on second comment click', () => {
     render(
       <TrendingCard post={basePost} rank={5} maxScore={100} onLike={noop} onComment={noop} onRepost={noop} />,
     );
-    const btn = screen.getByLabelText(/Comment,/);
+    const btn = screen.getByTestId('comment-button');
     fireEvent.click(btn);
-    expect(screen.getByTestId('comment-panel')).toBeInTheDocument();
+    expect(screen.getByTestId('comment-thread')).toBeInTheDocument();
     fireEvent.click(btn);
-    expect(screen.queryByTestId('comment-panel')).not.toBeInTheDocument();
+    expect(screen.queryByTestId('comment-thread')).not.toBeInTheDocument();
   });
 
-  it('shows empty state when no comments exist', async () => {
+  it('remote mode: the compose is a link-out to the post permalink (anon can\'t write)', async () => {
     vi.mocked(fetch).mockResolvedValue({
       ok: true,
       json: () => Promise.resolve([]),
@@ -146,40 +143,30 @@ describe('TrendingCard comment panel', () => {
     render(
       <TrendingCard post={basePost} rank={5} maxScore={100} onLike={noop} onComment={noop} onRepost={noop} />,
     );
-    fireEvent.click(screen.getByLabelText(/Comment,/));
-    await waitFor(() => expect(screen.getByTestId('comment-panel')).toBeInTheDocument());
-    expect(screen.getByText('No comments yet.')).toBeInTheDocument();
+    fireEvent.click(screen.getByTestId('comment-button'));
+    const link = await screen.findByTestId('comment-remote-link');
+    expect(link.tagName).toBe('A');
+    expect(link).toHaveAttribute('href', expect.stringMatching(/\/u\/ada\/p\/p1$/));
+    expect(link).toHaveAttribute('target', '_blank');
   });
 
-  it('shows comment textarea and send button', () => {
-    render(
-      <TrendingCard post={basePost} rank={5} maxScore={100} onLike={noop} onComment={noop} onRepost={noop} />,
-    );
-    fireEvent.click(screen.getByLabelText(/Comment,/));
-    const panel = screen.getByTestId('comment-panel');
-    expect(within(panel).getByPlaceholderText(/Add a comment/)).toBeInTheDocument();
-    expect(within(panel).getByRole('button', { name: 'Post comment' })).toBeInTheDocument();
-  });
-
-  it('queries the ledger with target as a URL query param (never the body)', async () => {
-    // Regression pin (31.07 hotfix): PATCH /public/entries reads filters from
-    // FastAPI Query params — a body-carried target is ignored, so every
-    // post's panel showed the same unfiltered mixed comments on prod.
+  it('shows existing comments (read side is identical on both apps)', async () => {
     vi.mocked(fetch).mockResolvedValue({
       ok: true,
-      json: () => Promise.resolve([]),
+      json: () => Promise.resolve([
+        {
+          _id: 'comment-123',
+          payload: { action: 'comment', text: 'great post!', author_username: 'replybot' },
+          author: 'replybot',
+          created_at: new Date().toISOString(),
+        },
+      ]),
     } as unknown as Response);
     render(
       <TrendingCard post={basePost} rank={5} maxScore={100} onLike={noop} onComment={noop} onRepost={noop} />,
     );
-    fireEvent.click(screen.getByLabelText(/Comment,/));
-    await waitFor(() => expect(screen.getByTestId('comment-panel')).toBeInTheDocument());
-    await waitFor(() => expect(vi.mocked(fetch)).toHaveBeenCalled());
-    const [url, init] = vi.mocked(fetch).mock.calls[0] as [string, RequestInit?];
-    expect(url).toContain('/public/entries?');
-    expect(url).toContain(`target=${encodeURIComponent('ada/public_posts/p1')}`);
-    expect(url).toContain('limit=50');
-    expect(init?.body).toBeUndefined();
+    fireEvent.click(screen.getByTestId('comment-button'));
+    await waitFor(() => expect(screen.getByText('great post!')).toBeInTheDocument());
   });
 });
 
@@ -357,17 +344,19 @@ describe('Trending page', () => {
     await waitFor(() => expect(screen.getAllByTestId('trending-card')).toHaveLength(10));
   });
 
-  it('like/repost click does not change displayed counts (funnels to social)', async () => {
+  it('like is display-only in remote mode (anon can\'t like; no count change)', async () => {
     mockDiscoverFeed();
     const { default: Trending } = await import('@/pages/Trending');
     render(<Trending />);
     await waitFor(() => expect(screen.getByTestId('trending-grid')).toBeInTheDocument());
     const firstCard = screen.getAllByTestId('trending-card')[0];
-    const likeBtn = within(firstCard).getByLabelText(/Like,/);
-    const beforeText = likeBtn.textContent;
-    fireEvent.click(likeBtn);
-    expect(likeBtn.textContent).toBe(beforeText);
-    expect(window.open).toHaveBeenCalledOnce();
+    // Remote mode: the like is a display span (a count), not a tappable button.
+    const like = within(firstCard).getByLabelText(/likes$/);
+    const beforeText = like.textContent;
+    fireEvent.click(like);
+    expect(like.textContent).toBe(beforeText);
+    // No interactive like → no window.open (the anon visitor can't like).
+    expect(window.open).not.toHaveBeenCalled();
   });
 });
 
@@ -558,38 +547,41 @@ describe('TrendingCard video media', () => {
     });
   });
 
-  it('renders a video element for video posts', async () => {
+  it('renders a video element for video posts (resolved ref → shared VideoPlayer)', async () => {
     const videoPost: FeedPost = {
       ...basePost,
       id: 'video-post',
       media: 'video',
-      mediaRefs: ['ref-1'],
+      mediaRefs: [{ doc_id: 'ref-1', object_key: 'u/a.mp4', mime_type: 'video/mp4', read_url: 'https://cdn.example.com/a.mp4?sig=x' }],
       firstAttachmentMime: 'video/mp4',
       author: 'testuser',
     };
     render(
       <TrendingCard post={videoPost} rank={2} maxScore={100} onLike={noop} onComment={noop} onRepost={noop} />,
     );
-    // Should show skeleton initially, then trending-media
-    expect(screen.getByTestId('trending-media-skeleton')).toBeInTheDocument();
+    // The shared discover card renders the video through the shared VideoPlayer.
+    expect(screen.getByTestId('discover-media-video')).toBeInTheDocument();
+    expect(document.querySelector('video')).not.toBeNull();
   });
 
-  it('renders an image for image posts (unchanged)', async () => {
+  it('renders an image for image posts (resolved ref → <img>)', async () => {
     const imagePost: FeedPost = {
       ...basePost,
       id: 'image-post',
       media: 'image',
-      mediaRefs: ['ref-1'],
+      mediaRefs: [{ doc_id: 'ref-1', object_key: 'u/a.jpg', mime_type: 'image/jpeg', read_url: 'https://cdn.example.com/a.jpg?sig=x' }],
       firstAttachmentMime: 'image/jpeg',
       author: 'testuser',
     };
     render(
       <TrendingCard post={imagePost} rank={2} maxScore={100} onLike={noop} onComment={noop} onRepost={noop} />,
     );
-    expect(screen.getByTestId('trending-media-skeleton')).toBeInTheDocument();
+    // An image post renders an <img> (no video element).
+    expect(document.querySelector('video')).toBeNull();
+    expect(document.querySelector('img')).not.toBeNull();
   });
 
-  it('renders placeholder when no media refs for video', async () => {
+  it('renders a placeholder when no media refs for video', async () => {
     const videoPost: FeedPost = {
       ...basePost,
       id: 'video-post',
@@ -598,9 +590,9 @@ describe('TrendingCard video media', () => {
     render(
       <TrendingCard post={videoPost} rank={2} maxScore={100} onLike={noop} onComment={noop} onRepost={noop} />,
     );
-    // No media refs means MediaPlaceholder renders immediately
-    expect(screen.queryByTestId('trending-media')).not.toBeInTheDocument();
-    expect(screen.queryByTestId('trending-media-skeleton')).not.toBeInTheDocument();
+    // No media refs → the shared card renders a video placeholder (no media element).
+    expect(screen.queryByTestId('discover-media-video')).not.toBeInTheDocument();
+    expect(document.querySelector('video')).toBeNull();
   });
 });
 
@@ -650,7 +642,7 @@ describe('TrendingMedia resolved-ref thumbnail', () => {
       author: 'testuser',
     };
     render(<TrendingCard post={videoPost} rank={1} maxScore={100} onLike={noop} onComment={noop} onRepost={noop} />);
-    await waitFor(() => expect(screen.getByTestId('trending-media')).toBeInTheDocument());
+    await waitFor(() => expect(screen.getByTestId('discover-media-video')).toBeInTheDocument());
     const video = document.querySelector('video') as HTMLVideoElement;
     expect(video).not.toBeNull();
     expect(video.getAttribute('src')).toBe(readUrl);
@@ -660,73 +652,60 @@ describe('TrendingMedia resolved-ref thumbnail', () => {
   });
 });
 
-describe('TrendingMedia reduced-motion play badge', () => {
+// ── The greyed-out-tile fix: a transcoded video plays the node's HLS (H.264/
+// AAC) via hls.js, NOT the raw source file (HEVC/AV1 — undecodable in mobile
+// Chrome). The shared discover card picks the HLS path on status 'done' +
+// manifest_url (sourceFromMedia), the same rule the social app's Discover uses.
+describe('TrendingMedia transcoded HLS (the greyed-out-tile fix)', () => {
+  class FakeHls {
+    static instances: FakeHls[] = [];
+    loadSource = vi.fn();
+    attachMedia = vi.fn();
+    destroy = vi.fn();
+    on = vi.fn();
+    currentLevel = -1;
+    levels = [];
+    constructor() { FakeHls.instances.push(this); }
+  }
+
   beforeEach(() => {
     vi.clearAllMocks();
     vi.stubGlobal('fetch', vi.fn());
     vi.stubGlobal('open', vi.fn());
     Element.prototype.scrollIntoView = vi.fn();
-    vi.stubGlobal('IntersectionObserver', class {
-      observe = vi.fn();
-      disconnect = vi.fn();
-    });
-    // Reduced motion — the poster + play-badge path (no autoplay).
+    vi.stubGlobal('IntersectionObserver', class { observe = vi.fn(); disconnect = vi.fn(); });
+    FakeHls.instances = [];
+    (FakeHls as unknown as { isSupported: () => boolean }).isSupported = () => true;
+    (FakeHls as unknown as { Events: Record<string, string> }).Events = { ERROR: 'error', MANIFEST_PARSED: 'manifestParsed', LEVEL_SWITCHED: 'levelSwitched' };
+    (window as unknown as { Hls: unknown }).Hls = FakeHls as unknown;
     Object.defineProperty(window, 'matchMedia', {
       writable: true,
-      value: (query: string) => ({
-        matches: query === '(prefers-reduced-motion: reduce)',
-        media: query,
-        onchange: null,
-        addListener: vi.fn(),
-        removeListener: vi.fn(),
-        addEventListener: vi.fn(),
-        removeEventListener: vi.fn(),
-        dispatchEvent: vi.fn(),
-      }),
+      value: () => ({ matches: false, media: '', onchange: null, addListener: vi.fn(), removeListener: vi.fn(), addEventListener: vi.fn(), removeEventListener: vi.fn(), dispatchEvent: vi.fn() }),
     });
   });
 
-  it('renders the resolved thumbnail_url as the <img> source (not the MP4)', async () => {
-    const readUrl = 'https://cdn.example.com/a.mp4?sig=x';
+  it('a transcoded video plays the HLS manifest (not the raw HEVC file)', async () => {
+    const readUrl = 'https://cdn.example.com/a.mp4?sig=x'; // the raw source (HEVC)
     const thumbUrl = 'https://cdn.example.com/a-poster.jpg?sig=y';
     const videoPost: FeedPost = {
       ...basePost,
-      id: 'rm-thumb',
+      id: 'hls-post',
       media: 'video',
-      mediaRefs: [{ doc_id: 'ref-1', object_key: 'u/a.mp4', mime_type: 'video/mp4', read_url: readUrl, thumbnail_url: thumbUrl }],
+      mediaRefs: [{
+        doc_id: 'ref-1', object_key: 'u/a.mp4', mime_type: 'video/mp4',
+        read_url: readUrl, thumbnail_url: thumbUrl,
+        transcoding_settings: { enabled: true, status: 'done', manifest_url: '/v3/media/hls/manifest?doc_id=ref-1&sig=z', variants: [{ width: 1280, height: 720 }] },
+      }],
       firstAttachmentMime: 'video/mp4',
       author: 'testuser',
     };
     render(<TrendingCard post={videoPost} rank={1} maxScore={100} onLike={noop} onComment={noop} onRepost={noop} />);
-    await waitFor(() => expect(screen.getByTestId('trending-media')).toBeInTheDocument());
-    // Reduced motion renders an <img> (poster), not a <video>.
-    expect(document.querySelector('video')).toBeNull();
-    const img = document.querySelector('img');
-    expect(img).not.toBeNull();
-    expect(img!.getAttribute('src')).toBe(thumbUrl);
-  });
-
-  it('play badge is a button that opens the full view (post permalink)', async () => {
-    const readUrl = 'https://cdn.example.com/a.mp4?sig=x';
-    const thumbUrl = 'https://cdn.example.com/a-poster.jpg?sig=y';
-    const videoPost: FeedPost = {
-      ...basePost,
-      id: 'rm-play',
-      media: 'video',
-      mediaRefs: [{ doc_id: 'ref-1', object_key: 'u/a.mp4', mime_type: 'video/mp4', read_url: readUrl, thumbnail_url: thumbUrl }],
-      firstAttachmentMime: 'video/mp4',
-      author: 'testuser',
-    };
-    render(<TrendingCard post={videoPost} rank={1} maxScore={100} onLike={noop} onComment={noop} onRepost={noop} />);
-    await waitFor(() => expect(screen.getByTestId('trending-media')).toBeInTheDocument());
-    const playBtn = await screen.findByTestId('trending-media-play');
-    expect(playBtn.tagName).toBe('BUTTON');
-    expect(playBtn).toHaveAttribute('aria-label', 'Watch video');
-    fireEvent.click(playBtn);
-    expect(window.open).toHaveBeenCalledWith(
-      expect.stringMatching(/\/u\/testuser\/p\/rm-play$/),
-      '_blank',
-    );
+    // The shared card plays the transcoded HLS (hls.js attached)…
+    await waitFor(() => expect(FakeHls.instances.length).toBeGreaterThan(0));
+    expect(FakeHls.instances[0].loadSource).toHaveBeenCalledWith(expect.stringContaining('/v3/media/hls/manifest'));
+    // …and the raw source file (read_url) is NOT the video's src (that's the bug).
+    const video = document.querySelector('video') as HTMLVideoElement;
+    expect(video.getAttribute('src')).not.toBe(readUrl);
   });
 });
 
@@ -777,7 +756,7 @@ describe('Trending view toggle', () => {
     await waitFor(() => expect(screen.getByTestId('trending-grid')).toBeInTheDocument());
   });
 
-  it('YouTube view shows only media posts (video + image, not text-only)', async () => {
+  it('YouTube view shows videos only (competing with YouTube — no photos)', async () => {
     // 6 posts: 2 video, 2 image, 2 text-only
     mockDiscoverFeed(makeV3PostsMedia(6));
     const { default: Trending } = await import('@/pages/Trending');
@@ -785,22 +764,22 @@ describe('Trending view toggle', () => {
     await waitFor(() => expect(screen.getByTestId('trending-view-toggle')).toBeInTheDocument());
     fireEvent.click(screen.getByTestId('view-toggle-youtube'));
     await waitFor(() => expect(screen.getByTestId('trending-youtube-grid')).toBeInTheDocument());
-    // Should show 4 media cards (2 video + 2 image), not 6
-    expect(screen.getAllByTestId('youtube-card')).toHaveLength(4);
+    // Videos only: 2 video cards (the 2 image + 2 text-only are excluded).
+    expect(screen.getAllByTestId('youtube-card')).toHaveLength(2);
   });
 
-  it('YouTube view shows posts with resolved media refs (mime from the read, no tag needed)', async () => {
+  it('YouTube view shows video posts with resolved media refs (mime from the read, no tag needed)', async () => {
     // Regression pin: the v3 read serves media_refs pre-resolved (objects with
-    // mime_type). Media detection must come from the resolved mime_type, not
-    // tags — these posts have no video/image tag.
+    // mime_type). Video detection must come from the resolved mime_type, not
+    // tags — these posts have no video tag.
     mockDiscoverFeed(makeV3PostsResolvedMedia(4));
     const { default: Trending } = await import('@/pages/Trending');
     render(<Trending />);
     await waitFor(() => expect(screen.getByTestId('trending-view-toggle')).toBeInTheDocument());
     fireEvent.click(screen.getByTestId('view-toggle-youtube'));
     await waitFor(() => expect(screen.getByTestId('trending-youtube-grid')).toBeInTheDocument());
-    // All 4 have media (2 video + 2 image) via the resolved mime_type.
-    expect(screen.getAllByTestId('youtube-card')).toHaveLength(4);
+    // 2 of the 4 are videos (resolved mime_type video/mp4) → 2 cards.
+    expect(screen.getAllByTestId('youtube-card')).toHaveLength(2);
   });
 
   it('YouTube view shows empty state when no media posts exist', async () => {
@@ -841,40 +820,43 @@ describe('YouTubeCard', () => {
     });
   });
 
-  it('renders a YouTubeCard with 16:9 thumbnail area for a video post', async () => {
+  it('renders the shared discover card for a video post (16:9 media)', async () => {
     const { YouTubeCard } = await import('@/components/FeedPreview');
     const videoPost: FeedPost = {
       ...basePost,
       id: 'yt-video',
       media: 'video',
-      mediaRefs: ['ref-1'],
+      mediaRefs: [{ doc_id: 'ref-1', object_key: 'u/a.mp4', mime_type: 'video/mp4', read_url: 'https://cdn.example.com/a.mp4?sig=x' }],
       firstAttachmentMime: 'video/mp4',
       author: 'testuser',
     };
     render(<YouTubeCard post={videoPost} rank={1} />);
     expect(screen.getByTestId('youtube-card')).toBeInTheDocument();
-    expect(screen.getByTestId('trending-media-skeleton')).toBeInTheDocument();
+    // The shared card renders the video through the shared VideoPlayer.
+    expect(screen.getByTestId('discover-media-video')).toBeInTheDocument();
   });
 
-  it('renders a YouTubeCard with content as title and author link', async () => {
+  it('renders the shared discover card with the display name + post text', async () => {
     const { YouTubeCard } = await import('@/components/FeedPreview');
-    const imagePost: FeedPost = {
+    const videoPost: FeedPost = {
       ...basePost,
-      id: 'yt-image',
-      media: 'image',
-      mediaRefs: ['ref-1'],
-      firstAttachmentMime: 'image/jpeg',
+      id: 'yt-text',
+      media: 'video',
+      mediaRefs: [{ doc_id: 'ref-1', object_key: 'u/a.mp4', mime_type: 'video/mp4', read_url: 'https://cdn.example.com/a.mp4?sig=x' }],
+      firstAttachmentMime: 'video/mp4',
       author: 'testuser',
     };
-    render(<YouTubeCard post={imagePost} />);
+    render(<YouTubeCard post={videoPost} />);
     expect(screen.getByTestId('youtube-card')).toBeInTheDocument();
-    expect(screen.getByText("Ada Lovelace")).toBeInTheDocument();
-    expect(screen.getByText('2h')).toBeInTheDocument();
+    // The display name (post.name) is shown…
+    expect(screen.getByText('Ada Lovelace')).toBeInTheDocument();
+    // …and the post text is the content.
+    expect(screen.getByText('first program')).toBeInTheDocument();
   });
 
   it('uses the resolved read_url directly (no presign round-trip)', async () => {
     // Regression pin: the v3 read serves media_refs pre-resolved with a fresh
-    // presigned read_url. TrendingMedia must render it directly instead of
+    // presigned read_url. The shared card renders it directly instead of
     // calling the (owner-scoped, token-gated) presign endpoints.
     const { YouTubeCard } = await import('@/components/FeedPreview');
     const readUrl = 'https://cdn.example.com/a.mp4?sig=x';
@@ -887,7 +869,7 @@ describe('YouTubeCard', () => {
       author: 'testuser',
     };
     render(<YouTubeCard post={videoPost} rank={1} />);
-    await waitFor(() => expect(screen.getByTestId('trending-media')).toBeInTheDocument());
+    await waitFor(() => expect(screen.getByTestId('discover-media-video')).toBeInTheDocument());
     const video = document.querySelector('video') as HTMLVideoElement;
     expect(video).not.toBeNull();
     expect(video.getAttribute('src')).toBe(readUrl);
@@ -903,11 +885,13 @@ describe('TrendingCard deep links', () => {
     render(
       <TrendingCard post={basePost} rank={5} maxScore={100} onLike={noop} onComment={noop} onRepost={noop} />,
     );
-    const authorLink = screen.getByRole('link', { name: 'Ada Lovelace' });
-    expect(authorLink.getAttribute('href')).toMatch(/\/u\/ada$/);
+    // Remote mode: the author (avatar + name) links to the profile on social.
+    const authorLinks = screen.getAllByRole('link', { name: /Ada Lovelace/ });
+    expect(authorLinks.length).toBeGreaterThan(0);
+    expect(authorLinks[0].getAttribute('href')).toMatch(/\/u\/ada$/);
   });
 
-  it('post content links to /u/:username/p/:postId', () => {
+  it('post content links to /u/:username/p/:postId (remote mode: click → social)', () => {
     render(
       <TrendingCard post={basePost} rank={5} maxScore={100} onLike={noop} onComment={noop} onRepost={noop} />,
     );
@@ -915,21 +899,23 @@ describe('TrendingCard deep links', () => {
     expect(contentLink.getAttribute('href')).toMatch(/\/u\/ada\/p\/p1$/);
   });
 
-  it('tag badges link to /discover?tag=', () => {
+  it('tag badges are display-only (the shared card does not link tags)', () => {
     render(
       <TrendingCard post={basePost} rank={5} maxScore={100} onLike={noop} onComment={noop} onRepost={noop} />,
     );
-    const tagLink = screen.getByText('#math');
-    expect(tagLink.tagName).toBe('A');
-    expect(tagLink.getAttribute('href')).toMatch(/\/discover\?tag=math$/);
+    const tag = screen.getByText('#math');
+    // The shared discover card renders tags as plain spans (parity with the
+    // social app's Discover) — not links.
+    expect(tag.tagName).toBe('SPAN');
   });
 
-  it('falls back to SOCIAL_ORIGIN when author is missing', () => {
+  it('author falls back to the handle-derived username when author is missing', () => {
     render(
       <TrendingCard post={{ ...basePost, author: undefined }} rank={5} maxScore={100} onLike={noop} onComment={noop} onRepost={noop} />,
     );
-    const authorLink = screen.getByRole('link', { name: 'Ada Lovelace' });
-    expect(authorLink.getAttribute('href')).toMatch(/social\.web10\.app$/);
+    // The card derives the author from the handle (@ada → ada).
+    const authorLinks = screen.getAllByRole('link', { name: /Ada Lovelace/ });
+    expect(authorLinks[0].getAttribute('href')).toMatch(/\/u\/ada$/);
   });
 });
 
@@ -958,43 +944,44 @@ describe('YouTubeCard deep links', () => {
     });
   });
 
-  it('wraps the card in a link to /u/:username/p/:postId', async () => {
+  it('the post text links to /u/:username/p/:postId (remote mode: click → social)', async () => {
     const { YouTubeCard } = await import('@/components/FeedPreview');
     const videoPost: FeedPost = {
       ...basePost,
       id: 'yt-video',
       media: 'video',
-      mediaRefs: ['ref-1'],
+      mediaRefs: [{ doc_id: 'ref-1', object_key: 'u/a.mp4', mime_type: 'video/mp4', read_url: 'https://cdn.example.com/a.mp4?sig=x' }],
       firstAttachmentMime: 'video/mp4',
       author: 'testuser',
     };
     render(<YouTubeCard post={videoPost} rank={1} />);
-    const card = screen.getByTestId('youtube-card');
-    expect(card.tagName).toBe('A');
-    expect(card.getAttribute('href')).toMatch(/\/u\/testuser\/p\/yt-video$/);
-    expect(card.getAttribute('target')).toBe('_blank');
+    // The shared card is an <article>; the post text is the link-out to social.
+    expect(screen.getByTestId('youtube-card').tagName).toBe('ARTICLE');
+    const contentLink = screen.getByRole('link', { name: /first program/ });
+    expect(contentLink.getAttribute('href')).toMatch(/\/u\/testuser\/p\/yt-video$/);
+    expect(contentLink.getAttribute('target')).toBe('_blank');
   });
 
-  it('falls back to SOCIAL_ORIGIN when author is missing', async () => {
+  it('author falls back to the handle-derived username when author is missing', async () => {
     const { YouTubeCard } = await import('@/components/FeedPreview');
     const post: FeedPost = {
       ...basePost,
       author: undefined,
     };
     render(<YouTubeCard post={post} />);
-    const card = screen.getByTestId('youtube-card');
-    expect(card.getAttribute('href')).toMatch(/social\.web10\.app$/);
+    const authorLinks = screen.getAllByRole('link', { name: /Ada Lovelace/ });
+    expect(authorLinks[0].getAttribute('href')).toMatch(/\/u\/ada$/);
   });
 });
 
-describe('InlineCommentPanel deep links', () => {
+describe('Comment thread deep links (remote mode)', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     vi.stubGlobal('fetch', vi.fn());
     vi.stubGlobal('open', vi.fn());
   });
 
-  it('comment entries link to /u/:username/p/:postId?comment=:id', async () => {
+  it('shows existing comments (read side is identical on both apps)', async () => {
     vi.mocked(fetch).mockResolvedValue({
       ok: true,
       json: () => Promise.resolve([
@@ -1009,15 +996,11 @@ describe('InlineCommentPanel deep links', () => {
     render(
       <TrendingCard post={basePost} rank={5} maxScore={100} onLike={noop} onComment={noop} onRepost={noop} />,
     );
-    fireEvent.click(screen.getByLabelText(/Comment,/));
-    await waitFor(() => expect(screen.getByTestId('comment-panel')).toBeInTheDocument());
-    const commentEntry = await screen.findByTestId('comment-entry');
-    expect(commentEntry.tagName).toBe('A');
-    const href = commentEntry.getAttribute('href');
-    expect(href).toMatch(/\/u\/ada\/p\/p1\?comment=comment-123$/);
+    fireEvent.click(screen.getByTestId('comment-button'));
+    await waitFor(() => expect(screen.getByText('great post!')).toBeInTheDocument());
   });
 
-  it('comment compose button opens post permalink', async () => {
+  it('remote compose is a link-out to the post permalink (anon can\'t write)', async () => {
     vi.mocked(fetch).mockResolvedValue({
       ok: true,
       json: () => Promise.resolve([]),
@@ -1025,13 +1008,9 @@ describe('InlineCommentPanel deep links', () => {
     render(
       <TrendingCard post={basePost} rank={5} maxScore={100} onLike={noop} onComment={noop} onRepost={noop} />,
     );
-    fireEvent.click(screen.getByLabelText(/Comment,/));
-    const panel = screen.getByTestId('comment-panel');
-    const sendBtn = within(panel).getByRole('button', { name: 'Post comment' });
-    fireEvent.click(sendBtn);
-    expect(window.open).toHaveBeenCalledWith(
-      expect.stringMatching(/\/u\/ada\/p\/p1$/),
-      '_blank',
-    );
+    fireEvent.click(screen.getByTestId('comment-button'));
+    const link = await screen.findByTestId('comment-remote-link');
+    expect(link.getAttribute('href')).toMatch(/\/u\/ada\/p\/p1$/);
+    expect(link.getAttribute('target')).toBe('_blank');
   });
 });

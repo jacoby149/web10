@@ -16,6 +16,11 @@
   </head>
   <body>
     <div id="root"></div>
+    <!-- hls.js (vendored): adaptive-bitrate HLS playback for transcoded video
+         on the /trending cards (D44 — the node transcodes every upload to
+         H.264/AAC HLS; the raw source file is HEVC/AV1 that mobile Chrome
+         can't decode). No CDN dep. -->
+    <script src="/hls.min.js"></script>
     <script type="module" src="/src/main.tsx"></script>
   </body>
 </html>
