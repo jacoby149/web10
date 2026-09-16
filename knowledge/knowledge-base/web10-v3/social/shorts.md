@@ -33,20 +33,33 @@ This kills three of the four "how do we do this" questions at once:
 
 ### Read (the new part)
 
-`ShortsScreen` (`/shorts`) reads the discover group and keeps the shorts:
+`ShortsScreen` (`/shorts`) reads the discover group and keeps the shorts. The filter is **two-layered** (defense in depth):
 
-- **v1 (ship now, zero API change):** `w.read('posts', { groups: [discoverGroup], limit })`, filter client-side to posts whose single media is `video/*` **and** `width < height` (9:16). The read primitives all exist; the only new thing is the surface.
-- **v1.5 (server-side, clean):** filter on the server so the feed pulls *only* shorts. The idiom already exists in the API — the node-ad read does `WHERE … AND has(tags, 'node_ad') AND deleted = 0` (`clickhouse.py:2419`). The equivalent is `has(tags, 'short')`. Two ways to expose it: (a) a `tags` param on the `read`/`feed` endpoint threading into `read_documents_in_groups` / `read_feed`, or (b) the flexible read — `w.query("SELECT … FROM posts WHERE has(tags,'short')")`, which is already I3-safe by construction (the boundary CTE) and needs no endpoint change.
+- **Server-side (the inclusion rule):** `w.read('posts', { groups: [discoverGroup], limit, tags: ['short'] })` — the generic `tags` param on the `read` endpoint threads into `read_documents_in_groups` → `_board_base_sql`, which appends `has(p.tags, %(tagN)s)` (the idiom the node-ad read already uses, `clickhouse.py:2419`, generalized to N tags). The node pulls *only* tagged shorts instead of the whole board — cheap + indexable. **The tag filter is a platform primitive, not a social concept:** `tags` is a first-class column on the universal `documents` table (every service carries it), so any app can filter its own reads by its own tags with zero new infra. The `feed` endpoint (the following feed) was left unchanged — it has no tag-filter consumer.
+- **Render-time (the backstop that drops fakes):** the feed re-derives 9:16 from the *resolved* media — a post is a short only if its single media is `video/*` **and** `width < height`. The `short` tag is client-asserted and can be faked by a direct API caller, so a doc tagged `short` whose media is an image, or a lying ratio, simply does not render as a short. No server-side file decoding required.
+
+The two layers divide the job: **the tag is the server-side filter (cheap, indexable); the aspect-ratio + mime check is the render-time gate (drops the fakes).** v1 shipped client-side only (zero API change); v1.5 added the server-side `tags` filter (option (a) above).
 
 ### The surface
 
 A full-screen vertical swipe container. Each slide composes the existing player — the one-liner `video-player.md:70` already anticipated:
 
 ```
-Shorts:  <VideoPlayer source={hlsOrFile} mode="inline" fit="cover" ratio={9/16} />
+Shorts:  <VideoPlayer source={hlsOrFile} mode="inline" fit="cover" immersive />
 ```
 
-The 9:16 phone-width column is already handled at the player level (`HlsVideoPlayer.tsx:65-69`), and the composer already offers a 9:16 crop preset (`VideoEditorSheet.tsx:16`). The genuinely new code is the **swipe container** (scroll-snap / full-page vertical), which `video-player.md:113` explicitly called "a separate, later surface" — this is that surface.
+The genuinely new code is the **swipe container** (scroll-snap / full-page vertical), which `video-player.md:113` explicitly called "a separate, later surface" — this is that surface.
+
+**The frame (the video IS the screen):** a slide is the full viewport height (`h-full` of the snap container), and the video **fills the slide** — `fit="cover"`, no card chrome, no control rack. The 9:16 phone-width column the feed uses (`HlsVideoPlayer`'s `max-w-[280px]`) is a *feed* layout, not a Shorts one: on the Shorts surface the video must occupy the whole slide, or the surface reads as "a small video on a black page" instead of "the screen is a video." Concretely:
+
+- **Mobile (a 9:16 viewport):** the slide is already ~9:16, so the video is full-bleed — edge to edge, top to bottom. The author/caption overlay + the like/comment/share rail sit on top of the video (the TikTok shape).
+- **Desktop (a wide viewport):** the slide is a **centered 9:16 column that fills the viewport height** (`aspect-[9/16] h-full mx-auto`), the rest of the slide black. That is the designed letterbox — the same shape YouTube Shorts uses. The video fills the column (`object-cover`); it never renders as a small box floating in a void.
+
+The `immersive` prop is what makes the player fill the frame instead of reserving its own ratio box: the `<video>` is `absolute inset-0 w-full h-full object-cover` inside the slide, and — for the `hls` source — the player renders the **video only** (hls.js attached, muted, autoplay, loop) with **no control rack** (no scrubber/quality/speed/fullscreen: those belong to the lightbox's `mode="full"`, and on Shorts they would collide with the author/caption overlay + action rail). The full-rack `HlsVideoPlayer` stays exactly as-is for feed/lightbox; `immersive` is a layout axis on `<VideoPlayer>`, not a rewrite of the player.
+
+**Playback (the ambient loop):** the **active slide autoplays** (muted — the browser's autoplay policy + the feed's ambient idiom); **off-screen slides pause** (the IntersectionObserver the deep-link sync already uses is the source of truth for "active"; a slide that drops below the ~60% threshold pauses its video and resets to the poster). Tap the video = play/pause in place (the `InlineVideo` invariant: the tap never escapes the slide). No audio by default — Shorts is a muted-autoplay surface; the operator's "keep sound" rule (3.90.1) is about *uploads not shipping silent files*, not about this surface playing with sound.
+
+**The swipe (TikTok-style):** native CSS scroll-snap (`snap-y snap-mandatory`, one slide per viewport) — the decision already made (operator sign-off #5: "Swipe container = native CSS scroll-snap, no dep"). The container is the **only** scroller on the screen: the slide fills it exactly, so a swipe always lands on the next short. Keyboard: `ArrowUp` / `ArrowDown` (and `PageUp` / `PageDown`) scroll one slide — the desktop equivalent of the swipe.
 
 **Deep link (the address-bar rule):** `/shorts` for the feed, `/shorts/:postId` to land on a specific short. Refresh restores the position; the link is shareable (shorts are public).
 
@@ -86,7 +99,7 @@ The honest framing, in line with D41 (the node is readable by design; trust is *
 
 | Claim | Who asserts it | Verified by |
 |---|---|---|
-| `short` tag present | client (composer) | server stores it; feed filters on it |
+| `short` tag present | client (composer) | server stores it; the `read` endpoint filters on it (`has(tags,'short')`, the inclusion rule) |
 | media is `video/*` | client (declared Content-Type) | S3 enforces the *declared* type on upload; render re-checks the stored `mime_type` |
 | media is 9:16 | client (asserted `width`/`height`) | **not** server-verified → render-time gate re-derives `width < height`; optional worker verification stamps the truth |
 | duration ≤ 180s | client | **not** server-verified → optional worker verification |
@@ -100,10 +113,11 @@ The honest framing, in line with D41 (the node is readable by design; trust is *
 ## Decisions (operator sign-off, 14.09.2026)
 
 1. **Auto-detect** (one 9:16 video ⇒ short), no toggle. Shipped.
-2. **v1 client-side filter** (zero API change). The server-side `has(tags,'short')` filter is the v1.5 follow-up.
-3. **Worker verification** of dimensions/duration is a follow-up — v1 ships the render-time gate only.
+2. **Two-layered read.** v1 shipped the client-side render-time gate (zero API change). v1.5 (shipped) added the **server-side `tags` filter** on the `read` endpoint (the generic `has(tags, …)` primitive — the tag is the inclusion rule, the gate stays the backstop that drops fakes). The `feed` endpoint is unchanged (no consumer).
+3. **Worker verification** of dimensions/duration is a follow-up — the render-time gate is the backstop today.
 4. **The "Shorts" name collision** with `video-player.md`'s YouTube-embed "Shorts" is accepted as a known wart — this doc's Shorts are the native vertical feed; the YouTube-embed path stays a separate, still-open data-model question.
 5. **Swipe container** = native CSS scroll-snap (no dep).
+6. **The video fills the slide** (operator, 14.09.2026: "definitely some work to be done how shorts are being displayed, if video component needs some special treatment for these cases, + allowing the tik tok swiping to happen too") — the `immersive` layout prop on `<VideoPlayer>` (the video is `absolute inset-0 object-cover`, the `hls` source renders video-only with no control rack, no phone-width column); the desktop slide is a centered 9:16 column that fills the viewport height (the designed letterbox, the YouTube-Shorts shape); the active slide autoplays muted, off-screen slides pause; the swipe is the native scroll-snap + `ArrowUp`/`ArrowDown`/`PageUp`/`PageDown` keyboard nav.
 
 ## Reference
 

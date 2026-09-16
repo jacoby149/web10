@@ -218,13 +218,6 @@ def get_jwt_key() -> dict | None:
     return ch.get_latest_jwt_key()
 
 
-def get_latest_jwt_key() -> dict | None:
-    """Returns the most recently saved JWT signing key."""
-    from app.v3.services import clickhouse as ch
-
-    return ch.get_latest_jwt_key()
-
-
 def list_admins() -> list:
     """Usernames allowed to read/write this node's config.
 

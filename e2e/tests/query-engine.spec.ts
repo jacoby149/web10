@@ -175,6 +175,64 @@ test.describe('Query engine — the power (real ClickHouse, member reads own gro
     expect(data.rows[0].text).toBe('hello');
     expect(data.rows[0].comments).toBe(2);
   });
+
+  test('result column names stay unqualified when joins expose same-named columns (the feed shape)', async ({ request }) => {
+    const { username, token } = await signupAndLogin(request, 'qecols');
+    await addAppContract(request, token, {
+      posts: ['readAll', 'create'],
+      reactions: ['readAll', 'create'],
+      comments: ['readAll', 'create'],
+      profile: ['readAll', 'create'],
+    });
+    const groupId = await createGroup(request, token, 'qe-cols', [{ member_key: username, role: 'owner' }]);
+
+    const p1 = await createDoc(request, token, 'posts', { text: 'one' }, [groupId]);
+    await createDoc(request, token, 'reactions', { type: 'like' }, [groupId], p1.doc_id);
+    await createDoc(request, token, 'profile', { display_name: 'Col User' }, [groupId]);
+    await settle();
+
+    // The D73 feed shape: a qualified SELECT (p.author_key / p.body /
+    // p.ref_value) LEFT JOINed to subqueries that EXPOSE same-named columns
+    // (the count subqueries expose `ref_value`, the profile subquery exposes
+    // `author_key` + `body`). ClickHouse then qualifies the result column
+    // names (`p.body` instead of `body`) to disambiguate — and the row→client
+    // contract (the prepare pass + the client duck-type on `body` /
+    // `author_key`) silently breaks: an empty feed, no error anywhere. The
+    // fix is explicit aliases (`p.body AS body`) in the caller's query; this
+    // pins the contract end to end so the shape stays render-ready.
+    const res = await query(
+      request,
+      token,
+      `SELECT p.doc_id AS doc_id, p.author_key AS author_key, p.body AS body,
+              p.ref_value AS ref_value,
+              coalesce(eng.reaction_count, 0) AS likes,
+              pr.body AS profile_body
+       FROM posts p
+       LEFT JOIN (SELECT ref_value, count() AS reaction_count
+                  FROM reactions WHERE ref_value != '' GROUP BY ref_value) eng
+              ON eng.ref_value = p.doc_id
+       LEFT JOIN (SELECT author_key, body FROM profile
+                  QUALIFY row_number() OVER (PARTITION BY author_key ORDER BY updated_at DESC) = 1) pr
+              ON pr.author_key = p.author_key
+       LIMIT 10`,
+      [groupId],
+    );
+    expect(res.ok(), `query failed (${res.status}) ${await res.text().catch(() => '')}`).toBeTruthy();
+    const data = (await res.json()) as { rows: Record<string, unknown>[]; count: number };
+    expect(data.count).toBe(1);
+    const row = data.rows[0];
+    // The contract: unqualified keys, no `p.*`-mangled ones.
+    for (const key of ['doc_id', 'author_key', 'body', 'ref_value', 'likes', 'profile_body']) {
+      expect(Object.keys(row), `row missing unqualified key '${key}'`).toContain(key);
+    }
+    expect(Object.keys(row)).not.toContain('p.body');
+    expect(Object.keys(row)).not.toContain('p.author_key');
+    expect(Object.keys(row)).not.toContain('p.ref_value');
+    // And the values are usable, not just named: body is a parsed object.
+    expect((row.body as Record<string, unknown>).text).toBe('one');
+    expect(row.author_key).toBe(username);
+    expect(row.likes).toBe(1);
+  });
 });
 
 // ---------------------------------------------------------------------------

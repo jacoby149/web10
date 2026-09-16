@@ -23,13 +23,13 @@ import {
   readUserPublicPosts,
 } from '@/data';
 import { getWapi } from '@/data/wapi';
-import type { ProfileRecord, PostRecord, MediaRecord, FollowRecord, ResolvedMediaRef } from '@/data/types';
+import type { ProfileRecord, PostRecord, MediaRecord, FollowRecord } from '@/data/types';
 import { mediaRefId } from '@/data/types';
 import { MapPin, Globe, Link, Users, UserPlus, UserCheck, Loader2, ArrowLeft, MessageSquare, Play, Camera, Edit3, Check, X, ImagePlus, AlertTriangle, Inbox } from 'lucide-react';
 import { PostLightbox } from './PostLightbox';
 import { ProfileFeed } from './ProfileFeed';
 import { ProfileViewToggle, type ProfileViewMode } from './ProfileViewToggle';
-import { ProfileMediaLightbox, type ProfileMediaOption } from './ProfileMediaLightbox';
+import { ProfileMediaLightbox, type ProfileMediaOption, type FaceCropResult } from './ProfileMediaLightbox';
 import { toast, errorMessage } from '@/components/shared/Toast';
 import { cn } from '@/lib/utils';
 import { MARKETING_ORIGIN } from '@/lib/origins';
@@ -157,7 +157,15 @@ export default function UserProfileScreen({ username, provider, onBack }: UserPr
     setLoading(true);
     try {
       const token = getWapi().readToken();
-      const isOwn = token && token.username === username && token.provider === provider;
+      // v3 ownership is by username alone: a post's/author's `author_key` is
+      // the bare username (the node's provider is implicit — every local user
+      // shares it), so a profile reached via a post author carries the v2
+      // `'web10'` fallback provider in `location.state`, never the token's
+      // real provider. Comparing `token.provider === provider` hid the owner
+      // affordances (Edit profile / camera / banner) on the user's OWN profile
+      // whenever they arrived via a feed/discover author click — the same class
+      // as the feed's `isOwnPost` fix (3.79.3) + the reactions fix (3.87.2).
+      const isOwn = token && token.username === username;
       setIsOwnProfile(!!isOwn);
 
       let profile: ProfileRecord | null = null;
@@ -393,14 +401,21 @@ export default function UserProfileScreen({ username, provider, onBack }: UserPr
   const bannerMedia = profile?.banner_ref ? mediaMap[profile.banner_ref] : undefined;
   const avatarMedia = profile?.avatar_ref ? mediaMap[profile.avatar_ref] : undefined;
 
-  // The owner tapped a post's media in the face lightbox → make it the face.
-  // Persists avatar_ref / banner_ref (the same field the upload path writes),
-  // then closes the lightbox. The face re-renders from the saved ref.
-  async function handleFaceSelect(field: 'avatar' | 'banner', ref: string | ResolvedMediaRef) {
+  // The owner confirmed a crop in the face lightbox → make it the face.
+  // The crop is a client-side re-encode of a post's media (the Facebook-like
+  // "your profile picture is a photo you picked, framed how it displays"), so
+  // it ships as a NEW media doc (the same upload path as the file picker) and
+  // the profile points at that doc — the face IS the crop, every surface
+  // shows the framed image. Then the lightbox closes.
+  async function handleFaceCrop(field: 'avatar' | 'banner', result: FaceCropResult) {
     setFaceSaving(true);
     try {
-      const refId = mediaRefId(ref);
-      const updated = { ...(profile || {}), [field === 'avatar' ? 'avatar_ref' : 'banner_ref']: refId };
+      const ext = result.mimeType === 'image/png' ? 'png' : 'jpg';
+      const file = new File([result.blob], `face-crop-${Date.now()}.${ext}`, { type: result.mimeType });
+      console.log('[social] handleFaceCrop — uploading crop for', field, result.width, 'x', result.height, result.blob.size, 'bytes');
+      const media = await uploadMedia({ file, service: 'public_media', width: result.width, height: result.height });
+      console.log('[social] handleFaceCrop — uploaded, media _id:', media._id);
+      const updated = { ...(profile || {}), [field === 'avatar' ? 'avatar_ref' : 'banner_ref']: media._id || '' };
       const saved = await saveProfile(updated);
       setProfile(saved);
       setDraft(saved);
@@ -945,7 +960,7 @@ export default function UserProfileScreen({ username, provider, onBack }: UserPr
           onClose={() => setFaceLightbox(null)}
           isOwner={isOwnProfile}
           options={isOwnProfile ? faceOptions : []}
-          onSelect={(ref) => handleFaceSelect(faceLightbox, ref)}
+          onCrop={(result) => handleFaceCrop(faceLightbox, result)}
           saving={faceSaving}
           displayName={profile?.display_name || username}
         />

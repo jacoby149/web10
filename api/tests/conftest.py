@@ -124,12 +124,6 @@ def service_manager_token(service_manager_token_payload):
 
 
 @pytest.fixture
-def mock_stripe():
-    with patch("app.services.stripe.stripe") as m:
-        yield m
-
-
-@pytest.fixture
 def mock_twilio():
     with patch("app.services.twilio.Client") as m:
         yield m

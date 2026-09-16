@@ -55,8 +55,9 @@ The disclosure is not optional. The FTC line shows on every ad, always. Say
 Don't join everything. Pick the 1–2 programs that match what you actually
 post about. A tech creator: Amazon (gear) + Semrush or Shopify (tools). A
 lifestyle creator: Amazon + Target + eBay. A service creator: Fiverr +
-HubSpot. The match between your content and the catalog is what makes the
-link feel genuine instead of slathered on.
+HubSpot, or PartnerStack (one signup, then pick the SaaS programs you
+actually use from its marketplace). The match between your content and the
+catalog is what makes the link feel genuine instead of slathered on.
 
 The shortlist, with sign-up links: [Affiliate
 Programs](/docs/affiliate-programs).

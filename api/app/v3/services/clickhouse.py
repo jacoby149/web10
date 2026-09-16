@@ -778,15 +778,16 @@ def get_document_any_author(doc_id: str) -> dict | None:
 
 
 def can_read_carrier_post(media_doc_id: str, media_author: str, reader: str) -> bool:
-    """True if `reader` can read a post that carries `media_doc_id` (D68).
+    """True if `reader` can read a doc that carries `media_doc_id` (D68).
 
-    The cross-user feed path for HLS: a `posts` doc whose `media_refs`
-    include the media doc_id, in a group the reader is an active member of.
-    The post's groups are the access model — the media doc is owned data,
-    not a boundary (social media docs are groupless). Scoped to the media
-    doc's AUTHOR's posts: a post can only carry its own author's media
-    (resolution is author-scoped), which bounds the scan to one user's
-    posts. Dedup-then-filter on both documents and group_members (the
+    The cross-user feed path for HLS: a doc whose `media_refs` include the
+    media doc_id, in a group the reader is an active member of. Service-agnostic
+    (D75): the node does not vet the carrier's `collection_name` — any doc that
+    carries the media in a readable group grants the stream (for web10-social
+    the carrier is a `posts` doc; the node doesn't need to know that). The
+    check is scoped to the media doc's AUTHOR's docs: a doc can only carry its
+    own author's media (resolution is author-scoped), which bounds the scan to
+    one user's docs. Dedup-then-filter on both documents and group_members (the
     house pattern — a removed member's stale row must not grant access).
 
     `body` is a plain String column, so `JSONExtractArrayRaw` yields the
@@ -798,7 +799,7 @@ def can_read_carrier_post(media_doc_id: str, media_author: str, reader: str) -> 
         "FROM (SELECT doc_id AS post_id FROM ("
         "SELECT doc_id, row_number() OVER (PARTITION BY doc_id, author_key ORDER BY updated_at DESC) AS rn "
         "FROM documents "
-        "WHERE collection_name = 'posts' AND author_key = %(author)s AND deleted = 0 "
+        "WHERE author_key = %(author)s AND deleted = 0 "
         "AND has(JSONExtractArrayRaw(body, 'media_refs'), %(media)s)"
         ") WHERE rn = 1) posts "
         "JOIN doc_groups pg ON pg.doc_id = posts.post_id AND pg.deleted = 0 "
@@ -1774,13 +1775,13 @@ def _power_mean_score_sql(
     return f"pow({num} / {tw}, 1 / %(p)s)"
 
 
-def _board_base_sql(group_ids: list[str], require_membership: bool = True) -> str:
+def _board_base_sql(group_ids: list[str], require_membership: bool = True, tags: list[str] | None = None) -> str:
     """Board base SQL (shared by the no-sort and ranked read paths).
 
     documents JOIN doc_groups [JOIN group_members], filtered by tombstones,
     blacklists, sharing, and hidden docs. Selects
     (doc_id, author_key, body, tags, created_at, ref_value, ad_mode, ad_target).
-    Placeholders: %(coll)s, %(member_key)s, %(g0)s..%(gN)s.
+    Placeholders: %(coll)s, %(member_key)s, %(g0)s..%(gN)s, %(tag0)s..%(tagN)s.
 
     ``require_membership`` (D58): when True (the legacy path), the read is
     gated on the reader being a member of each group — the group_members JOIN +
@@ -1788,6 +1789,13 @@ def _board_base_sql(group_ids: list[str], require_membership: bool = True) -> st
     filtered ``group_ids`` to the readable set (the D58 effective-role gate),
     so the membership JOIN is dropped; the blacklist/sharing/hidden filters
     (keyed on ``member_key``) are kept.
+
+    ``tags`` (optional): a server-side tag filter — the doc must carry EVERY
+    given tag (``has(p.tags, %(tagN)s)`` ANDed). The idiom the node-ad read
+    already uses (``has(tags, 'node_ad')``, below); generalized to N tags. The
+    Shorts feed uses it to pull only ``short``-tagged posts (shorts.md) — the
+    tag is the cheap, indexable server filter; the render-time 9:16 gate on
+    the client stays the backstop that drops fakes.
     """
     membership_join = (
         "JOIN (SELECT group_id, member_key, role FROM (SELECT group_id, member_key, role, deleted, "
@@ -1797,6 +1805,7 @@ def _board_base_sql(group_ids: list[str], require_membership: bool = True) -> st
         else ""
     )
     membership_where = "gm.member_key = %(member_key)s AND " if require_membership else ""
+    tag_where = " AND (" + " AND ".join(f"has(p.tags, %(tag{i})s)" for i in range(len(tags))) + ")" if tags else ""
     return (
         "SELECT p.doc_id AS doc_id, p.author_key, p.body, p.tags, p.created_at, p.ref_value, p.ad_mode, p.ad_target "
         "FROM (SELECT doc_id, author_key, body, tags, created_at, ref_value, ad_mode, ad_target, deleted "
@@ -1829,6 +1838,7 @@ def _board_base_sql(group_ids: list[str], require_membership: bool = True) -> st
         + "pg.group_id IN (%(g0)s"
         + "".join(f", %(g{i})s" for i in range(1, len(group_ids)))
         + ")"
+        + tag_where
     )
 
 
@@ -1839,13 +1849,15 @@ def _group_docs_query(
     limit: int | None,
     offset: int,
     require_membership: bool = True,
+    tags: list[str] | None = None,
 ) -> list[dict]:
     """The core v3 discover query (no ranking).
 
     documents JOIN doc_groups [JOIN group_members], filtered by tombstones,
     blacklists, and hidden docs. `limit=None` fetches the full membership (no
     LIMIT clause). `require_membership=False` (D58) drops the membership JOIN —
-    the caller pre-filtered `group_ids` to the readable set.
+    the caller pre-filtered `group_ids` to the readable set. `tags` filters to
+    docs carrying every given tag (the server-side tag filter, shorts.md).
     """
     limit_clause = "LIMIT %(limit)s OFFSET %(offset)s" if limit is not None else ""
     params: dict = {
@@ -1853,11 +1865,12 @@ def _group_docs_query(
         "coll": service,
         "offset": offset,
         **{f"g{i}": gid for i, gid in enumerate(group_ids)},
+        **{f"tag{i}": t for i, t in enumerate(tags or [])},
     }
     if limit is not None:
         params["limit"] = limit
     result = client.query(
-        _board_base_sql(group_ids, require_membership) + " ORDER BY p.created_at DESC " + limit_clause, params
+        _board_base_sql(group_ids, require_membership, tags) + " ORDER BY p.created_at DESC " + limit_clause, params
     )
     return [
         {
@@ -1883,16 +1896,18 @@ def _group_docs_ranked_query(
     limit: int,
     offset: int,
     require_membership: bool = True,
+    tags: list[str] | None = None,
 ) -> list[dict]:
     """The v3 discover query with power-mean ranking in SQL (the v1 scale-up).
 
     The board base (documents JOIN doc_groups JOIN group_members + the
     block/share/hidden anti-joins) is joined to EXACT engagement counts — one
     grouped scan of the reactions and comments collections, no per-row
-    subquery, no maintained counter table (feed-lens-integration.md, option
-    B). The power-mean score is computed in SQL (mirroring
+    subquery, no maintained counter table (feed-lens-integration.md, option B).
+    The power-mean score is computed in SQL (mirroring
     `_power_mean_score`), and ORDER BY + LIMIT/OFFSET happen in ClickHouse —
-    no full membership fetch into Python, no in-process sort.
+    no full membership fetch into Python, no in-process sort. `tags` filters to
+    docs carrying every given tag (the server-side tag filter, shorts.md).
     """
     wr = float(sort.get("recency", 0.0))
     wl = float(sort.get("likes", 0.0))
@@ -1920,11 +1935,12 @@ def _group_docs_ranked_query(
         "hl": float(sort.get("half_life_ms", 0.0)),
         "p": float(sort.get("character", -1.0)),
         **{f"g{i}": gid for i, gid in enumerate(group_ids)},
+        **{f"tag{i}": t for i, t in enumerate(tags or [])},
     }
 
     sql = (
         "SELECT b.doc_id, b.author_key, b.body, b.tags, b.created_at, b.ref_value, b.ad_mode, b.ad_target "
-        "FROM (" + _board_base_sql(group_ids, require_membership) + ") b "
+        "FROM (" + _board_base_sql(group_ids, require_membership, tags) + ") b "
         "LEFT JOIN (SELECT ref_value, count() AS reaction_count FROM (SELECT ref_value FROM documents "
         "WHERE deleted = 0 AND collection_name = 'reactions' "
         "QUALIFY row_number() OVER (PARTITION BY doc_id, author_key ORDER BY updated_at DESC) = 1) "
@@ -1961,6 +1977,7 @@ def read_documents_in_groups(
     offset: int = 0,
     sort: dict | None = None,
     require_membership: bool = True,
+    tags: list[str] | None = None,
 ) -> list[dict]:
     """Read documents attached to groups the reader can access.
 
@@ -1971,6 +1988,12 @@ def read_documents_in_groups(
     gated on the reader being a member of each group. When False, the caller
     has pre-filtered ``group_ids`` to the readable set (the effective-role
     gate) and the membership JOIN is dropped.
+
+    ``tags`` (optional): a generic server-side tag filter — the doc must carry
+    EVERY given tag (``has(tags, …)``, the idiom the node-ad read already uses).
+    It is a platform primitive, not a social concept: any service's read can
+    filter by its own tags. The Shorts feed is the first consumer (``['short']``);
+    the render-time 9:16 gate on the client stays the backstop that drops fakes.
 
     Blocking/sharing enforcement (KB: security/overview.md "Blocking and
     Sharing", social/cross-app-sharing.md):
@@ -2000,156 +2023,9 @@ def read_documents_in_groups(
         # to exact engagement counts, scored in SQL (mirroring the client), and
         # paged in ClickHouse — no full membership fetch into Python
         # (feed-lens-integration.md, option B).
-        return _group_docs_ranked_query(group_ids, member_key, service, sort, limit, offset, require_membership)
+        return _group_docs_ranked_query(group_ids, member_key, service, sort, limit, offset, require_membership, tags)
 
-    return _group_docs_query(group_ids, member_key, service, limit, offset, require_membership)
-
-
-def read_feed(
-    group_ids: list[str],
-    member_key: str,
-    service: str,
-    limit: int = 20,
-    cursor: dict | None = None,
-    sort: dict | None = None,
-    require_membership: bool = False,
-) -> list[dict]:
-    """The feed read (D69): one query for a page of posts, ranked in SQL, with
-    exact engagement counts and a keyset cursor.
-
-    This is the feed's single round-trip: the board base (documents JOIN
-    doc_groups + the block/sharing/hidden anti-joins) LEFT JOINed to exact
-    reaction + comment counts (the ``_group_docs_ranked_query`` pattern — one
-    grouped scan, no per-row subquery, no counter table), scored in SQL
-    (power-mean, mirroring the client), and paged with a **keyset cursor**
-    instead of OFFSET (offset drops/duplicates items under concurrent writes;
-    a keyset never does).
-
-    The cursor is ``{"created_at": <iso>}`` for the Newest preset (chronological
-    — the cursor column is stable) or ``{"score": <float>}`` for a tuned preset
-    (the cursor is on the rank). ``limit`` is the page size; the caller passes
-    ``limit + 1`` and the endpoint drops the trailing row to compute
-    ``has_more`` (a full page means there may be more).
-
-    Each row carries ``likes`` / ``comments`` (the exact counts) + ``score``
-    (the rank) so the client never re-fetches engagement. The ads (``doc.ad`` /
-    ``doc.node_ad``), resolved media, and HLS manifest URLs are attached by the
-    caller's existing passes (``attach_pinned_ads`` + ``attach_node_ads`` +
-    ``resolve_media_urls_in_docs`` + ``_mint_hls_manifest_urls``) — this query
-    returns the raw post rows those passes enrich.
-    """
-    if not group_ids:
-        return []
-
-    wr = float((sort or {}).get("recency", 0.0))
-    wl = float((sort or {}).get("likes", 0.0))
-    wc = float((sort or {}).get("comments", 0.0))
-    # The Newest preset: no tuned ranking (all-zero, or recency-only) → the
-    # cursor is on created_at (stable). A tuned preset → the cursor is on the
-    # score (the rank).
-    newest = (wr <= 0 and wl <= 0 and wc <= 0) or (wr > 0 and wl <= 0 and wc <= 0)
-
-    score = _power_mean_score_sql(
-        "b.created_at",
-        "coalesce(eng.reaction_count, 0)",
-        "coalesce(cmt.comment_count, 0)",
-        sort or {},
-    )
-
-    params: dict = {
-        "member_key": member_key,
-        "coll": service,
-        "page": int(limit) + 1,  # +1 → the endpoint computes has_more
-        "wr": wr,
-        "wl": wl,
-        "wc": wc,
-        "hl": float((sort or {}).get("half_life_ms", 0.0)),
-        "p": float((sort or {}).get("character", -1.0)),
-        **{f"g{i}": gid for i, gid in enumerate(group_ids)},
-    }
-
-    # The keyset cursor (the WHERE that excludes everything already paged).
-    if newest:
-        order_by = "toUnixTimestamp64Milli(b.created_at) DESC"
-        cursor_clause = ""
-        if cursor and cursor.get("created_at"):
-            cursor_clause = "WHERE toUnixTimestamp64Milli(b.created_at) < toUnixTimestamp64Milli(%(cursor_ts)s) "
-            params["cursor_ts"] = cursor["created_at"]
-    else:
-        order_by = f"{score} DESC"
-        cursor_clause = ""
-        if cursor and cursor.get("score") is not None:
-            cursor_clause = f"WHERE ({score}) < %(cursor_score)s "
-            params["cursor_score"] = float(cursor["score"])
-
-    sql = (
-        "SELECT b.doc_id, b.author_key, b.body, b.tags, b.created_at, b.ref_value, b.ad_mode, b.ad_target, "
-        "coalesce(eng.reaction_count, 0) AS likes, coalesce(cmt.comment_count, 0) AS comments, "
-        f"({score}) AS score "
-        "FROM (" + _board_base_sql(group_ids, require_membership) + ") b "
-        "LEFT JOIN (SELECT ref_value, count() AS reaction_count FROM (SELECT ref_value FROM documents "
-        "WHERE deleted = 0 AND collection_name = 'reactions' "
-        "QUALIFY row_number() OVER (PARTITION BY doc_id, author_key ORDER BY updated_at DESC) = 1) "
-        "WHERE ref_value != '' GROUP BY ref_value) eng ON eng.ref_value = b.doc_id "
-        "LEFT JOIN (SELECT ref_value, count() AS comment_count FROM (SELECT ref_value FROM documents "
-        "WHERE deleted = 0 AND collection_name = 'comments' "
-        "QUALIFY row_number() OVER (PARTITION BY doc_id, author_key ORDER BY updated_at DESC) = 1) "
-        "WHERE ref_value != '' GROUP BY ref_value) cmt ON cmt.ref_value = b.doc_id "
-        + cursor_clause
-        + "ORDER BY "
-        + order_by
-        + " "
-        "LIMIT %(page)s"
-    )
-    result = client.query(sql, params)
-    return [
-        {
-            "doc_id": row[0],
-            "author_key": row[1],
-            "body": _parse_json(row[2]),
-            "tags": list(row[3]),
-            "created_at": _iso_utc(row[4]),
-            "ref_value": row[5],
-            "ad_mode": row[6] or "none",
-            "ad_target": row[7] or "",
-            "likes": int(row[8]),
-            "comments": int(row[9]),
-            "score": float(row[10]),
-            "service": service,
-        }
-        for row in result.result_rows
-    ]
-
-
-def get_author_profiles(author_keys: list[str]) -> dict[str, dict]:
-    """Batched author profile + avatar read for a feed page (D69).
-
-    One query across the ``profile`` service for the page's distinct authors
-    (dedup-then-filter, the house pattern), keyed by ``author_key``. Each value
-    is ``{"profile": <body dict>, "avatar_ref": <str|None>}`` — the avatar_ref
-    is resolved to a presigned URL by the caller (``resolve_media_urls`` on a
-    synthetic body, author-scoped). Replaces the client's per-author
-    ``readUserProfile`` + per-avatar ``resolveMediaRefs`` fan-out (the N+1 the
-    267-requests diagnosis named).
-    """
-    if not author_keys:
-        return {}
-    quoted = ", ".join(f"'{k.replace(chr(39), chr(39) * 2)}'" for k in author_keys)
-    result = client.query(
-        "SELECT author_key, body FROM ("
-        "SELECT author_key, body, deleted, "
-        "row_number() OVER (PARTITION BY doc_id, author_key ORDER BY updated_at DESC) AS rn "
-        "FROM documents WHERE collection_name = 'profile' AND author_key IN (" + quoted + ") "
-        ") WHERE rn = 1 AND deleted = 0"
-    )
-    out: dict[str, dict] = {}
-    for row in result.result_rows:
-        body = _parse_json(row[1])
-        out[row[0]] = {
-            "profile": body,
-            "avatar_ref": body.get("avatar_ref") if isinstance(body, dict) else None,
-        }
-    return out
+    return _group_docs_query(group_ids, member_key, service, limit, offset, require_membership, tags)
 
 
 class QueryExecutionError(Exception):
@@ -2242,9 +2118,8 @@ def read_ref_counts_by_ref(
     This is the server-side version of the feed/trending "read a capped sample,
     count client-side" pattern. The ``GROUP BY ref_value`` runs over the
     boundary CTE (deduped + group-filtered + anti-joined), so the count is
-    exact for the caller's readable groups and never undercounts (no cap). The
-    raw ``get_ref_counts`` is NOT used: it is a raw query with no group
-    boundary (a caller could count engagement on a post they can't see).
+    exact for the caller's readable groups and never undercounts (no cap) —
+    and a caller can never count engagement on a post they can't see.
     """
     from app.v3.services.safe_query import build_safe_query
 
@@ -2258,35 +2133,6 @@ def read_ref_counts_by_ref(
     query = f"SELECT ref_value, count() AS n FROM {service} WHERE {ref_clause} GROUP BY ref_value"
     compiled = build_safe_query(query, {service: group_ids}, member_key)
     result = client.query(compiled)
-    return {row[0]: row[1] for row in result.result_rows}
-
-
-# ---------------------------------------------------------------------------
-# Ref counts (engagement)
-# ---------------------------------------------------------------------------
-
-
-def get_ref_count(doc_id: str, service: str = "reactions") -> int:
-    """Count documents referencing a given doc_id."""
-    result = client.query(
-        "SELECT count() FROM (SELECT 1 FROM documents WHERE deleted = 0 AND collection_name = %(coll)s AND ref_value = %(doc_id)s "
-        "ORDER BY updated_at DESC LIMIT 1)",
-        {"coll": service, "doc_id": doc_id},
-    )
-    return result.result_rows[0][0]
-
-
-def get_ref_counts(doc_ids: list[str], service: str = "reactions") -> dict[str, int]:
-    """Count references for multiple documents."""
-    if not doc_ids:
-        return {}
-    placeholders = ", ".join(f"%(d{i})s" for i in range(len(doc_ids)))
-    params = {"coll": service, **{f"d{i}": did for i, did in enumerate(doc_ids)}}
-    result = client.query(
-        f"SELECT ref_value, count() FROM (SELECT ref_value FROM documents WHERE deleted = 0 AND collection_name = %(coll)s AND ref_value IN ({placeholders}) "
-        "QUALIFY row_number() OVER (PARTITION BY doc_id, author_key ORDER BY updated_at DESC) = 1) GROUP BY ref_value",
-        params,
-    )
     return {row[0]: row[1] for row in result.result_rows}
 
 
@@ -2347,8 +2193,12 @@ def resolve_pinned_ads(docs: list[dict], reader: str) -> dict[str, dict]:
     pinned ad (by doc_id) — but ONLY if the reader is a member of the ad's group
     (I3: the ad rides the reader's access, not just the doc's). A pinned ad the
     reader can't see is simply not returned (the doc comes back with no ad).
-    An ad is a `posts` doc (D55) — a target in any other collection is not an
-    ad and is not served.
+
+    Service-agnostic (D75): the ad is whatever doc `ad_target` references — the
+    node does not vet its `collection_name`. The `ad` tag + the `ad_preference`
+    pointer + group membership (I3) are the whole model; "an ad is a post" is a
+    web10-social shape (the app's catalog), not a protocol rule. A non-social
+    app can pin an ad that is any doc it references.
     Returns a map of ad_target -> the ad dict, for the ads the reader can see.
     """
     targets = sorted({d["ad_target"] for d in docs if d.get("ad_mode") == "pinned" and d.get("ad_target")})
@@ -2358,10 +2208,10 @@ def resolve_pinned_ads(docs: list[dict], reader: str) -> dict[str, dict]:
     params = {**{f"t{i}": t for i, t in enumerate(targets)}, "reader": reader}
     result = client.query(
         "SELECT ad.doc_id, ad.author_key, ad.body, ad.tags "
-        "FROM (SELECT doc_id, author_key, body, tags, deleted, collection_name, "
+        "FROM (SELECT doc_id, author_key, body, tags, deleted, "
         "row_number() OVER (PARTITION BY doc_id, author_key ORDER BY updated_at DESC) AS rn "
         f"FROM documents WHERE doc_id IN ({placeholders})) ad "
-        "WHERE ad.rn = 1 AND ad.deleted = 0 AND ad.collection_name = 'posts' "
+        "WHERE ad.rn = 1 AND ad.deleted = 0 "
         "AND ad.doc_id IN (SELECT pg.doc_id FROM doc_groups pg "
         "JOIN group_members gm ON pg.group_id = gm.group_id "
         "WHERE gm.member_key = %(reader)s AND pg.deleted = 0 AND gm.deleted = 0)",
@@ -2401,10 +2251,12 @@ def attach_pinned_ads(docs: list[dict], reader: str) -> list[dict]:
 def get_active_node_ads() -> list[dict]:
     """Fetch active node ads from the discover group (bounded, D57).
 
-    A node ad is a `posts` doc tagged `ad` + `node_ad`, on the discover
-    group, with `status = 'active'` in the body. Bounded at 20 (the
-    operator can't have 1000 active node ads). Returns [] on any error
-    (node ads are an enhancement, not a critical path — the feed works
+    A node ad is a doc tagged `ad` + `node_ad`, on the discover group, with
+    `status = 'active'` in the body. Service-agnostic (D75): the node does not
+    vet the ad's `collection_name` — the `node_ad` tag + the discover-group
+    attachment are the whole model, so any app's doc can be a node ad. Bounded
+    at 20 (the operator can't have 1000 active node ads). Returns [] on any
+    error (node ads are an enhancement, not a critical path — the feed works
     without them).
     """
     from app.services import config as cfg
@@ -2416,7 +2268,7 @@ def get_active_node_ads() -> list[dict]:
             "FROM (SELECT doc_id, author_key, body, tags, deleted, updated_at, "
             "row_number() OVER (PARTITION BY doc_id, author_key ORDER BY updated_at DESC) AS rn "
             "FROM documents "
-            "WHERE collection_name = 'posts' AND has(tags, 'node_ad') AND deleted = 0) "
+            "WHERE has(tags, 'node_ad') AND deleted = 0) "
             "WHERE rn = 1 "
             "AND doc_id IN (SELECT pg.doc_id FROM doc_groups pg "
             "WHERE pg.group_id = %(discover)s AND pg.deleted = 0) "
@@ -2789,8 +2641,9 @@ def resolve_media_urls_in_docs(docs: list[dict]) -> list[dict]:
         body = resolve_minio_types(body)
         doc_with_media = dict(doc)
         doc_with_media["body"] = body
-        # The v3 pinned ad (inline, `doc["ad"]`) is a posts doc too — resolve
-        # its media the same way so the ad's creative renders.
+        # The v3 pinned ad (inline, `doc["ad"]`) — resolve its media the same
+        # way so the ad's creative renders. Service-agnostic (D75): the ad is
+        # whatever doc `ad_target` references, not necessarily a posts doc.
         ad = doc.get("ad")
         if ad:
             ad_body = ad.get("body", {})
@@ -2798,8 +2651,7 @@ def resolve_media_urls_in_docs(docs: list[dict]) -> list[dict]:
                 ad_body = resolve_media_urls(ad_body, ad.get("author_key", ""))
             ad_body = resolve_minio_types(ad_body)
             doc_with_media["ad"] = {**ad, "body": ad_body}
-        # The node ad (D57, `doc["node_ad"]`) is also a posts doc — resolve
-        # its media the same way.
+        # The node ad (D57, `doc["node_ad"]`) — resolve its media the same way.
         node_ad = doc.get("node_ad")
         if node_ad:
             na_body = node_ad.get("body", {})

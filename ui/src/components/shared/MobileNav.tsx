@@ -1,4 +1,4 @@
-import { FileText, Inbox, Settings as SettingsIcon, SlidersHorizontal, LineChart, Users } from 'lucide-react';
+import { FileText, Inbox, Settings as SettingsIcon, SlidersHorizontal, Users } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 interface MobileNavProps {
@@ -12,7 +12,6 @@ const ITEMS = [
   { mode: 'contracts', label: 'App Contracts', icon: FileText },
   { mode: 'groups', label: 'Group Contracts', icon: Users },
   { mode: 'requests', label: 'Requests', icon: Inbox },
-  { mode: 'studio', label: 'Studio', icon: LineChart },
   { mode: 'config', label: 'Config', icon: SlidersHorizontal, adminOnly: true },
   { mode: 'settings', label: 'Settings', icon: SettingsIcon },
 ] as const;

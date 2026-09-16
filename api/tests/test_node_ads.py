@@ -51,6 +51,22 @@ class TestGetActiveNodeAds:
             assert "has(tags, 'node_ad')" in query
             assert mock_client.query.call_args[0][1]["discover"] == "api.localhost/groups/web10/discover"
 
+    def test_service_agnostic_no_collection_filter(self):
+        """D75 — the node does NOT vet the node ad's collection. The `node_ad`
+        tag + the discover-group attachment are the whole model, so any app's
+        doc can be a node ad (a non-`posts` doc included)."""
+        with (
+            _patch_client() as mock_client,
+            patch("app.services.config.get_config_field", return_value="api.localhost"),
+        ):
+            mock_client.query.return_value = _mock_result_rows([])
+            ch.get_active_node_ads()
+            query = mock_client.query.call_args[0][0]
+            assert "collection_name = 'posts'" not in query
+            # The tag + the discover-group scope are what identify a node ad.
+            assert "has(tags, 'node_ad')" in query
+            assert "%(discover)s" in query
+
     def test_excludes_paused_ads(self):
         with (
             _patch_client() as mock_client,

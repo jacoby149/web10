@@ -140,5 +140,9 @@ your [app store](/docs/app-store), and you're liable for the data you host
 theirs, not yours: they can export it, revoke every app, and take it to
 another node. That's the whole operating posture.
 
+The software you're running is free to run and extend — no key, no cap.
+[Licensing](/docs/licensing) covers what that means in practice (it's
+SSPL, the same license MongoDB uses).
+
 Next: [Node Config](/docs/node-config) — what the admin can actually
 touch.

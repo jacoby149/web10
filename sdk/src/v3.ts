@@ -226,6 +226,31 @@ export interface V3QueryResult {
   count: number
 }
 
+// The prepare pass (D73): which post-query minting passes the engine runs on
+// the result rows, so a single `query()` returns render-ready rows. The passes
+// operate on the rows the SELECT returned (the boundary CTEs already proved the
+// reader can read them) — they mint capabilities only for docs in the result.
+// All universal primitives (media/HLS/ads/face — D44/D49/D55/D57).
+export interface V3PrepareFace {
+  /** The column holding the (JOINed) face body, e.g. `profile_body`. */
+  bodyField: string
+  /** The field in it that is a media ref, e.g. `avatar_ref`. */
+  mediaField: string
+  /** The author to scope the presign to (default: the row's `author_key`). */
+  authorColumn?: string
+  /** The row field to set with the presigned URL (default: `avatar_url`). */
+  urlField?: string
+}
+
+export interface V3Prepare {
+  /** Presign `body.media_refs` (author-scoped) + mint per-reader HLS sigs. */
+  media?: boolean
+  /** Attach the pinned ad (`ad_mode`/`ad_target`) + the node ad. */
+  ads?: boolean
+  /** Resolve the author's face media (e.g. the JOINed profile's avatar). */
+  face?: V3PrepareFace
+}
+
 // The feed read (D69): one page of posts, ranked in SQL, cursor-paged. A post
 // carries the resolved media + HLS manifest URLs (in `body.media_refs`), the
 // pinned ad (`ad`) + node ad (`node_ad`) joins (the read-time attachment,
@@ -247,16 +272,6 @@ export interface V3FeedPost {
   node_ad?: V3Document
   profile?: Record<string, unknown>
   avatar_url?: string | null
-}
-
-// The feed envelope (w.feed): the page of posts + the pagination cursor.
-// `has_more` says whether another page exists; `next_cursor` is the keyset
-// cursor for the next page (`created_at` for the Newest preset, `score` for a
-// tuned preset) — pass it back as `cursor` to page forward.
-export interface V3FeedResult {
-  posts: V3FeedPost[]
-  has_more: boolean
-  next_cursor: { created_at?: string; score?: number } | null
 }
 
 // Group role definition — per-service permission map (D58).
@@ -538,7 +553,7 @@ export function createV3Client(options: V3ClientOptions = {}): V3Client {
 
     async read(
       collection: string,
-      opts: { groups: string[]; limit?: number; offset?: number; ref?: string | string[]; sort?: PowerMeanSort },
+      opts: { groups: string[]; limit?: number; offset?: number; ref?: string | string[]; sort?: PowerMeanSort; tags?: string[] },
     ): Promise<V3Document[]> {
       const payload: V3Body = { service: collection, groups: opts.groups }
       if (opts.limit != null) payload.limit = opts.limit
@@ -551,6 +566,10 @@ export function createV3Client(options: V3ClientOptions = {}): V3Client {
       // present, the node scores every readable post and returns pre-sorted
       // results, so a knob twist is a re-read, not a client-side shuffle.
       if (opts.sort != null) payload.sort = opts.sort
+      // The generic server-side tag filter (has(tags, …)): return only docs
+      // that carry EVERY given tag. A platform primitive — any service's read
+      // can filter by its own tags (the Shorts feed passes ["short"]).
+      if (opts.tags != null) payload.tags = opts.tags
       return v3Post<V3Document[]>('read', payload)
     },
 
@@ -564,44 +583,6 @@ export function createV3Client(options: V3ClientOptions = {}): V3Client {
     ): Promise<Record<string, number>> {
       const payload: V3Body = { service: collection, groups: opts.groups, ref: opts.ref, count: true }
       return v3Post<Record<string, number>>('read', payload)
-    },
-
-    /**
-     * The feed read (D69): one page of posts, ranked in SQL, cursor-paged.
-     * The single round-trip that replaces the N+1 fan-out (per-author profiles,
-     * per-post media, per-avatar media, per-post counts). Returns a feed
-     * envelope: `posts` (each with resolved media + HLS, the pinned ad + node
-     * ad joins, exact likes/comments, and the author's profile + avatar_url) +
-     * `has_more` + `next_cursor`.
-     *
-     * `opts.groups` is the reader's feed groups (my groups minus discover).
-     * `opts.cursor` is the previous page's `next_cursor` (omit for page one).
-     * `opts.sort` is the power-mean knob config (omit / all-zero = the Newest
-     * preset, chronological). Anon-capable (a missing token reads the public
-     * board) — the same rule as `read`.
-     *
-     * @example First page (Newest):
-     * ```ts
-     * const { posts, has_more, next_cursor } = await w.feed({ groups: feedGroups, limit: 20 })
-     * ```
-     * @example Next page:
-     * ```ts
-     * const page2 = await w.feed({ groups: feedGroups, limit: 20, cursor: next_cursor })
-     * ```
-     */
-    async feed(opts: {
-      groups: string[]
-      limit?: number
-      cursor?: { created_at?: string; score?: number } | null
-      sort?: { recency?: number; likes?: number; comments?: number; half_life_ms?: number; character?: number }
-    }): Promise<V3FeedResult> {
-      const payload: Record<string, unknown> = { groups: opts.groups }
-      if (opts.limit != null) payload.limit = opts.limit
-      if (opts.cursor != null) payload.cursor = opts.cursor
-      if (opts.sort != null) payload.sort = opts.sort
-      const token = state.token ?? readTokenCookie()
-      if (token) payload.token = token
-      return authPost<V3FeedResult>(`${apiOrigin}/v3/feed`, payload)
     },
 
     async readById(
@@ -626,6 +607,14 @@ export function createV3Client(options: V3ClientOptions = {}): V3Client {
      * Each service CTE exposes: `doc_id`, `author_key`, `body` (JSON string —
      * use `JSONExtractString(body, 'field', 'value')` for fields),
      * `ref_value`, `tags`, `created_at`, `updated_at`.
+     *
+     * **Alias every table-qualified column you SELECT** (`p.body AS body`,
+     * `p.author_key AS author_key`, …). ClickHouse names a result column after
+     * the qualified expression (`p.body`) whenever another joined table in
+     * scope exposes a same-named column — and the row keys are the contract
+     * the `prepare` pass and your code read (`body` / `author_key` /
+     * `ad_mode`). Unaliased, a JOINed same-named column silently mangles the
+     * keys (no error — the row just looks empty).
      *
      * Works without a token (anon reads the public board) — the same rule as
      * `read`. An unbounded query gets `LIMIT 1000` appended server-side; a
@@ -670,9 +659,12 @@ export function createV3Client(options: V3ClientOptions = {}): V3Client {
      * @param opts.groups — scope the read to specific group IDs (default: all
      *   the reader's groups, the "me" semantics of `read`).
      */
-    async query(sql: string, opts?: { groups?: string[] }): Promise<V3QueryResult> {
+    async query(sql: string, opts?: { groups?: string[]; prepare?: V3Prepare }): Promise<V3QueryResult> {
       const payload: Record<string, unknown> = { sql }
       if (opts?.groups) payload.groups = opts.groups
+      // The prepare pass (D73): the engine mints the result rows (media + HLS
+      // + ads + face) so the query returns render-ready rows in one round-trip.
+      if (opts?.prepare) payload.prepare = opts.prepare
       // Anon-capable (like the read endpoint): the token rides along when
       // present, but a missing token reads as the node's anon member.
       const token = state.token ?? readTokenCookie()
@@ -1089,11 +1081,10 @@ export interface V3Client {
 
   // CRUD with groups
   create(collection: string, body: Record<string, unknown>, opts?: { groups?: string[]; ad_preference?: V3AdPreference; ref_value?: string }): Promise<V3Document>
-  read(collection: string, opts: { groups: string[]; limit?: number; offset?: number; ref?: string | string[]; sort?: PowerMeanSort }): Promise<V3Document[]>
+  read(collection: string, opts: { groups: string[]; limit?: number; offset?: number; ref?: string | string[]; sort?: PowerMeanSort; tags?: string[] }): Promise<V3Document[]>
   readRefCounts(collection: string, opts: { groups: string[]; ref: string | string[] }): Promise<Record<string, number>>
-  feed(opts: { groups: string[]; limit?: number; cursor?: { created_at?: string; score?: number } | null; sort?: { recency?: number; likes?: number; comments?: number; half_life_ms?: number; character?: number } }): Promise<V3FeedResult>
   readById(docId: string, collection: string): Promise<V3Document>
-  query(sql: string, opts?: { groups?: string[] }): Promise<V3QueryResult>
+  query(sql: string, opts?: { groups?: string[]; prepare?: V3Prepare }): Promise<V3QueryResult>
   update(docId: string, body: Record<string, unknown>, opts?: { groups?: string[]; ad_preference?: V3AdPreference }): Promise<V3Document>
   delete(docId: string): Promise<{ doc_id: string; status: string }>
 

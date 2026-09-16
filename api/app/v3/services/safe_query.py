@@ -78,8 +78,10 @@ RAW_TABLES = frozenset(
 )
 
 # The columns a boundary CTE exposes. A caller can only select from these;
-# asking for anything else is a (safe) column-not-found error.
-_CTE_COLUMNS = "doc_id, author_key, body, ref_value, tags, created_at, updated_at"
+# asking for anything else is a (safe) column-not-found error. `ad_mode` +
+# `ad_target` are exposed so a caller's query (and the engine's prepare pass)
+# can read the doc's ad preference off the row (D73: the feed-as-query).
+_CTE_COLUMNS = "doc_id, author_key, body, ref_value, tags, created_at, updated_at, ad_mode, ad_target"
 
 
 class UnsafeQueryError(Exception):
@@ -173,7 +175,7 @@ def _boundary_cte_sql(service: str, readable_groups: list[str], member_key: str)
     )
     return (
         f"SELECT d.doc_id, d.author_key, d.body, d.ref_value, d.tags, "
-        f"d.created_at, d.updated_at FROM ({dedup_docs}) d "
+        f"d.created_at, d.updated_at, d.ad_mode, d.ad_target FROM ({dedup_docs}) d "
         f"JOIN ({dedup_groups}) dg ON d.doc_id = dg.doc_id "
         f"WHERE dg.group_id IN ({_quote_group_ids(readable_groups)}) "
         f"AND {filters}"

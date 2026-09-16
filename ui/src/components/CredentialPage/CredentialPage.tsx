@@ -6,7 +6,7 @@ import SignupForm from './SignupForm';
 // Auth screens are the narrative surface ("this is your node") — design.md
 // direction for ui/: one column, generous space, zero clutter. No
 // TopBar/SideBar app-shell chrome here; just a centered brand mark and
-// the form. (Studio/Contracts keep the full shell; this page doesn't.)
+// the form. (The console pages keep the full shell; this page doesn't.)
 function CredentialForm({ I }: { I: Record<string, any> }) {
   switch (I.mode) {
     case "login": return <LoginForm I={I} />;

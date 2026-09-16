@@ -130,4 +130,110 @@ describe('VideoPlayer — the shared video surface (video-player.md)', () => {
     fireEvent.click(screen.getByTestId('vp-stop'));
     expect(parentClicks).not.toHaveBeenCalled();
   });
+
+  // ── immersive (the Shorts slide — the video fills the frame the surface
+  //    gives it; no own ratio box, no phone-width column, no control rack) ──
+
+  it('hls + immersive renders the video-only fill (no rack, no phone-width column)', async () => {
+    const { VideoPlayer } = await import('@/components/Feed/VideoPlayer');
+    const { container } = render(
+      <VideoPlayer
+        source={{ type: 'hls', manifestUrl: '/v3/media/hls/manifest?doc_id=m1&sig=abc', width: 720, height: 1280 }}
+        mode="inline"
+        fit="cover"
+        immersive
+        active
+        testId="vp-imm-hls"
+      />,
+    );
+    // The hls.js source is attached…
+    expect(FakeHls.instances.length).toBeGreaterThan(0);
+    // …the video fills the frame (absolute inset-0, object-cover)…
+    const video = screen.getByTestId('immersive-hls-video') as HTMLVideoElement;
+    expect(video.className).toMatch(/object-cover/);
+    // …there is NO full rack (the scrubber/quality/speed belong to the
+    // lightbox's mode="full")…
+    expect(screen.queryByTestId('player-controls')).toBeNull();
+    expect(screen.queryByTestId('quality-select')).toBeNull();
+    expect(screen.queryByTestId('scrubber')).toBeNull();
+    // …and NO phone-width column (the feed's max-w-[280px] is a feed layout).
+    expect(container.querySelector('.max-w-\\[280px\\]')).toBeNull();
+  });
+
+  it('file + immersive fills the frame (no own aspect-ratio, video absolute + cover)', async () => {
+    const { VideoPlayer } = await import('@/components/Feed/VideoPlayer');
+    const { container } = render(
+      <VideoPlayer
+        source={{ type: 'file', url: 'http://x/v.mp4', width: 720, height: 1280 }}
+        mode="inline"
+        fit="cover"
+        immersive
+        testId="vp-imm-file"
+      />,
+    );
+    const frame = screen.getByTestId('vp-imm-file');
+    // No own aspect-ratio — the frame takes the size the surface gives it.
+    expect(frame.style.aspectRatio).toBe('');
+    const video = frame.querySelector('video')!;
+    expect(video.className).toMatch(/object-cover/);
+    expect(video.className).toMatch(/absolute/);
+    // No duration badge on the immersive slide (the surface shows its own).
+    expect(frame.textContent).not.toContain('42s');
+  });
+
+  it('immersive + active autoplays muted; inactive pauses (the ambient loop)', async () => {
+    const { VideoPlayer } = await import('@/components/Feed/VideoPlayer');
+    const { rerender } = render(
+      <VideoPlayer
+        source={{ type: 'file', url: 'http://x/v.mp4', width: 720, height: 1280 }}
+        mode="inline"
+        fit="cover"
+        immersive
+        active
+        testId="vp-imm-loop"
+      />,
+    );
+    const video = screen.getByTestId('vp-imm-loop').querySelector('video')!;
+    // Active → playing (the effect calls play(); jsdom leaves `paused` true,
+    // but the muted flag is the observable seam: playing ⇒ unmuted intent).
+    expect(video.muted).toBe(false);
+
+    // The slide scrolls off-screen (active → false) → paused + muted again.
+    rerender(
+      <VideoPlayer
+        source={{ type: 'file', url: 'http://x/v.mp4', width: 720, height: 1280 }}
+        mode="inline"
+        fit="cover"
+        immersive
+        active={false}
+        testId="vp-imm-loop"
+      />,
+    );
+    expect(video.muted).toBe(true);
+  });
+
+  it('immersive: a tap toggles play/pause in place and never escapes the slide', async () => {
+    const { VideoPlayer } = await import('@/components/Feed/VideoPlayer');
+    const slideClicks = vi.fn();
+    render(
+      <div onClick={slideClicks}>
+        <VideoPlayer
+          source={{ type: 'file', url: 'http://x/v.mp4', width: 720, height: 1280 }}
+          mode="inline"
+          fit="cover"
+          immersive
+          active
+          testId="vp-imm-tap"
+        />
+      </div>,
+    );
+    const frame = screen.getByTestId('vp-imm-tap');
+    const video = frame.querySelector('video')!;
+    expect(video.muted).toBe(false); // active → playing
+    fireEvent.click(frame);
+    expect(video.muted).toBe(true); // tapped → paused
+    expect(slideClicks).not.toHaveBeenCalled(); // the tap never escapes
+    fireEvent.click(frame);
+    expect(video.muted).toBe(false); // tapped again → playing
+  });
 });

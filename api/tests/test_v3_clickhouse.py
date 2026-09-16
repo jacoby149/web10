@@ -606,159 +606,6 @@ class TestReadDocumentsInGroups:
 
 
 # ---------------------------------------------------------------------------
-# Ref Counts
-# ---------------------------------------------------------------------------
-
-
-class TestRefCounts:
-    def test_ref_count(self):
-        with _patch_client() as mock_client:
-            mock_client.query.return_value = _mock_result_rows([(5,)])
-            count = ch.get_ref_count("doc-1")
-            assert count == 5
-
-    def test_ref_counts_multiple(self):
-        with _patch_client() as mock_client:
-            mock_client.query.return_value = _mock_result_rows(
-                [
-                    ("doc-1", 3),
-                    ("doc-2", 7),
-                ]
-            )
-            counts = ch.get_ref_counts(["doc-1", "doc-2"])
-            assert counts["doc-1"] == 3
-            assert counts["doc-2"] == 7
-
-    def test_ref_counts_empty(self):
-        assert ch.get_ref_counts([]) == {}
-
-
-# ---------------------------------------------------------------------------
-# Feed read (D69) — one query, ranked in SQL, keyset-cursor paged
-# ---------------------------------------------------------------------------
-
-
-class TestReadFeed:
-    def _row(self, i=0):
-        return (
-            f"p{i}",
-            "api.localhost/alice",
-            '{"text":"hi"}',
-            ["tag"],
-            datetime(2026, 9, 7, 10, 0, 0),
-            "",
-            "none",
-            "",
-            3,  # likes
-            1,  # comments
-            0.75,  # score
-        )
-
-    def test_empty_groups(self):
-        assert ch.read_feed([], "alice", "posts") == []
-
-    def test_newest_orders_by_created_at(self):
-        # The Newest preset (no sort) → ORDER BY created_at, cursor on created_at.
-        with _patch_client() as mock_client:
-            mock_client.query.return_value = _mock_result_rows([self._row()])
-            ch.read_feed(["g1"], "alice", "posts", limit=20)
-            sql = mock_client.query.call_args[0][0]
-            assert "ORDER BY toUnixTimestamp64Milli(b.created_at) DESC" in sql
-            # No cursor on the first page.
-            assert "cursor_ts" not in sql
-
-    def test_newest_cursor_on_created_at(self):
-        with _patch_client() as mock_client:
-            mock_client.query.return_value = _mock_result_rows([])
-            ch.read_feed(
-                ["g1"],
-                "alice",
-                "posts",
-                limit=20,
-                cursor={"created_at": "2026-09-07T09:00:00.000"},
-            )
-            sql = mock_client.query.call_args[0][0]
-            assert "toUnixTimestamp64Milli(b.created_at) < toUnixTimestamp64Milli(%(cursor_ts)s)" in sql
-
-    def test_tuned_orders_by_score_and_cursor_on_score(self):
-        # A tuned preset (likes weight) → ORDER BY the score, cursor on the score.
-        sort = {"recency": 0.0, "likes": 1.0, "comments": 0.0, "half_life_ms": 0, "character": -1.0}
-        with _patch_client() as mock_client:
-            mock_client.query.return_value = _mock_result_rows([])
-            ch.read_feed(
-                ["g1"],
-                "alice",
-                "posts",
-                limit=20,
-                sort=sort,
-                cursor={"score": 0.5},
-            )
-            sql = mock_client.query.call_args[0][0]
-            assert "%(cursor_score)s" in sql
-            # The score is computed in SQL (the power-mean expression).
-            assert "pow(" in sql
-
-    def test_engagement_joins(self):
-        # The exact engagement counts (reactions + comments) are LEFT JOINed —
-        # one grouped scan each, no per-row subquery, no counter table.
-        with _patch_client() as mock_client:
-            mock_client.query.return_value = _mock_result_rows([])
-            ch.read_feed(["g1"], "alice", "posts", limit=20)
-            sql = mock_client.query.call_args[0][0]
-            assert "collection_name = 'reactions'" in sql
-            assert "collection_name = 'comments'" in sql
-            assert "GROUP BY ref_value" in sql
-            assert "coalesce(eng.reaction_count, 0) AS likes" in sql
-            assert "coalesce(cmt.comment_count, 0) AS comments" in sql
-
-    def test_limit_is_page_plus_one(self):
-        # The node fetches limit + 1 (the endpoint drops the trailing row to
-        # compute has_more).
-        with _patch_client() as mock_client:
-            mock_client.query.return_value = _mock_result_rows([])
-            ch.read_feed(["g1"], "alice", "posts", limit=20)
-            params = mock_client.query.call_args[0][1]
-            assert params["page"] == 21
-
-    def test_returns_rows_with_counts_and_score(self):
-        with _patch_client() as mock_client:
-            mock_client.query.return_value = _mock_result_rows([self._row()])
-            rows = ch.read_feed(["g1"], "alice", "posts", limit=20)
-            assert len(rows) == 1
-            r = rows[0]
-            assert r["doc_id"] == "p0"
-            assert r["likes"] == 3
-            assert r["comments"] == 1
-            assert r["score"] == 0.75
-            assert r["ad_mode"] == "none"
-            assert r["body"] == {"text": "hi"}
-
-
-class TestGetAuthorProfiles:
-    def test_empty(self):
-        assert ch.get_author_profiles([]) == {}
-
-    def test_returns_profiles_keyed_by_author(self):
-        with _patch_client() as mock_client:
-            mock_client.query.return_value = _mock_result_rows(
-                [
-                    ("api.localhost/alice", '{"display_name":"Alice","avatar_ref":"av-1"}'),
-                    ("api.localhost/bob", '{"display_name":"Bob"}'),
-                ]
-            )
-            out = ch.get_author_profiles(["api.localhost/alice", "api.localhost/bob"])
-            assert out["api.localhost/alice"]["profile"]["display_name"] == "Alice"
-            assert out["api.localhost/alice"]["avatar_ref"] == "av-1"
-            assert out["api.localhost/bob"]["avatar_ref"] is None
-
-    def test_author_not_in_result_is_absent(self):
-        with _patch_client() as mock_client:
-            mock_client.query.return_value = _mock_result_rows([("api.localhost/alice", '{"display_name":"Alice"}')])
-            out = ch.get_author_profiles(["api.localhost/alice", "api.localhost/ghost"])
-            assert "api.localhost/ghost" not in out
-
-
-# ---------------------------------------------------------------------------
 # Read by doc_id
 # ---------------------------------------------------------------------------
 
@@ -1076,6 +923,26 @@ class TestResolveMediaUrls:
         assert "WHERE rn = 1" in sql
 
 
+class TestResolvePinnedAdsServiceAgnostic:
+    def test_no_collection_filter_on_the_ad_target(self):
+        """D75 — the node does NOT vet the pinned ad's collection. The ad is
+        whatever doc `ad_target` references (I3-checked by the ad's group
+        membership); "an ad is a post" is a web10-social shape, not a protocol
+        rule. A non-social app can pin an ad that is any doc it references."""
+        with _patch_client() as mock_client:
+            mock_client.query.return_value = _mock_result_rows([])
+            ch.resolve_pinned_ads([{"ad_mode": "pinned", "ad_target": "ad-1"}], "bob")
+            sql = mock_client.query.call_args[0][0]
+            # The collection filter is gone — the ad target is not vetted.
+            assert "collection_name = 'posts'" not in sql
+            # The I3 boundary is still there: the ad is served only if the
+            # reader is a member of the ad's group.
+            assert "gm.member_key = %(reader)s" in sql
+            assert "ad.deleted = 0" in sql
+            # The dedup (latest version of the ad doc) is still there.
+            assert "row_number() OVER" in sql
+
+
 class TestCanReadCarrierPost:
     def test_true_when_reader_has_a_carrier_post_group(self):
         """D68 — the cross-user feed path: a post (by the media's author)
@@ -1086,9 +953,13 @@ class TestCanReadCarrierPost:
             assert ch.can_read_carrier_post("media-1", "alice", "bob") is True
         sql = mock_client.query.call_args[0][0]
         params = mock_client.query.call_args[0][1]
-        # Scoped to the media doc's AUTHOR's posts (a post can only carry its
-        # own author's media — resolution is author-scoped).
-        assert "collection_name = 'posts'" in sql
+        # D75 — service-agnostic: the node does NOT vet the carrier's
+        # collection (any doc that carries the media in a readable group
+        # grants the stream). "A carrier is a post" is a web10-social shape,
+        # not a protocol rule.
+        assert "collection_name = 'posts'" not in sql
+        # Still scoped to the media doc's AUTHOR's docs (a doc can only carry
+        # its own author's media — resolution is author-scoped).
         assert "author_key = %(author)s" in sql
         assert "has(JSONExtractArrayRaw(body, 'media_refs'), %(media)s)" in sql
         # The house dedup pattern on both sides (stale rows must not grant).
@@ -2079,3 +1950,85 @@ class TestGetAppDetail:
         with _patch_client() as mock_client:
             mock_client.query.return_value = _mock_result_rows([row])
             assert ch.get_app_detail("https://a.com") is None
+
+
+# ---------------------------------------------------------------------------
+# The generic server-side tag filter (has(tags, …)) — the read path
+# ---------------------------------------------------------------------------
+
+
+class TestReadTagFilter:
+    """`read_documents_in_groups(tags=…)` filters to docs carrying EVERY given
+    tag — the generic platform primitive (the idiom the node-ad read already
+    uses). The Shorts feed is the first consumer (["short"]); the render-time
+    9:16 gate on the client stays the backstop that drops fakes.
+
+    The mock returns whatever rows we seed — the assertion is on the SQL the
+    service builds (the `has(p.tags, …)` clause) + the bound params, not on
+    the (mocked) result set.
+    """
+
+    _ROW = ("doc-1", "alice", '{"text":"hi"}', ["short"], datetime(2026, 1, 1), "", "none", "")
+
+    def test_single_tag_adds_has_clause_and_param(self):
+        with _patch_client() as mock_client:
+            mock_client.query.return_value = _mock_result_rows([self._ROW])
+            ch.read_documents_in_groups(
+                group_ids=["api.localhost/groups/web10/discover"],
+                member_key="anon",
+                service="posts",
+                require_membership=False,
+                tags=["short"],
+            )
+        sql, params = mock_client.query.call_args[0]
+        assert "has(p.tags, %(tag0)s)" in sql
+        assert params["tag0"] == "short"
+
+    def test_multiple_tags_are_anded(self):
+        """A doc must carry EVERY given tag (AND) — the predictable
+        'filter by these tags' semantics. Single-tag is the common case."""
+        with _patch_client() as mock_client:
+            mock_client.query.return_value = _mock_result_rows([self._ROW])
+            ch.read_documents_in_groups(
+                group_ids=["api.localhost/groups/web10/discover"],
+                member_key="anon",
+                service="posts",
+                require_membership=False,
+                tags=["short", "vertical"],
+            )
+        sql, params = mock_client.query.call_args[0]
+        assert "has(p.tags, %(tag0)s) AND has(p.tags, %(tag1)s)" in sql
+        assert params["tag0"] == "short"
+        assert params["tag1"] == "vertical"
+
+    def test_no_tags_is_the_unfiltered_read(self):
+        """Absent/None tags → no `has(p.tags` clause (the board read is
+        unchanged — the ad-agnostic pin in test_ads.py holds)."""
+        with _patch_client() as mock_client:
+            mock_client.query.return_value = _mock_result_rows([self._ROW])
+            ch.read_documents_in_groups(
+                group_ids=["api.localhost/groups/web10/discover"],
+                member_key="anon",
+                service="posts",
+                require_membership=False,
+            )
+        sql, _ = mock_client.query.call_args[0]
+        assert "has(p.tags" not in sql
+
+    def test_ranked_path_also_filters_by_tag(self):
+        """The power-mean (sort) path shares the board base — the tag filter
+        applies there too, so a tuned Shorts read still pulls only shorts."""
+        sort = {"recency": 1.0, "likes": 0.5, "comments": 0.5, "half_life_ms": 86400000, "character": 0.0}
+        with _patch_client() as mock_client:
+            mock_client.query.return_value = _mock_result_rows([self._ROW])
+            ch.read_documents_in_groups(
+                group_ids=["api.localhost/groups/web10/discover"],
+                member_key="anon",
+                service="posts",
+                sort=sort,
+                require_membership=False,
+                tags=["short"],
+            )
+        sql, params = mock_client.query.call_args[0]
+        assert "has(p.tags, %(tag0)s)" in sql
+        assert params["tag0"] == "short"

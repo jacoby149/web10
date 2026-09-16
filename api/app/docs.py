@@ -34,10 +34,6 @@ tags_metadata = [
         "description": "App store — register, list approved, ratings.",
     },
     {
-        "name": "payments",
-        "description": "Payments — business management, dev pay, verify, cancel.",
-    },
-    {
         "name": "system",
         "description": "Node system — stats, setup wizard, config, health check.",
     },

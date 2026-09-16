@@ -3,6 +3,7 @@ import {
   computeCropGeometry,
   passthroughGeometry,
   editVideo,
+  isNoopEdit,
   formatTimecode,
 } from '@/lib/videoEditing';
 
@@ -86,57 +87,70 @@ describe('formatTimecode', () => {
   });
 });
 
-// ── editVideo: the re-encode flow (mocked browser APIs) ─────────────────────
+describe('isNoopEdit', () => {
+  it('is a no-op with no opts (full duration, source ratio) — the default edit', () => {
+    expect(isNoopEdit({}, 10)).toBe(true);
+  });
 
+  it('is a no-op when start=0 and end=duration (explicit full window)', () => {
+    expect(isNoopEdit({ startTime: 0, endTime: 10 }, 10)).toBe(true);
+  });
+
+  it('is NOT a no-op when trimmed (start > 0)', () => {
+    expect(isNoopEdit({ startTime: 2, endTime: 10 }, 10)).toBe(false);
+  });
+
+  it('is NOT a no-op when trimmed (end < duration)', () => {
+    expect(isNoopEdit({ startTime: 0, endTime: 5 }, 10)).toBe(false);
+  });
+
+  it('is NOT a no-op when cropped (cropRatio set)', () => {
+    expect(isNoopEdit({ cropRatio: 9 / 16 }, 10)).toBe(false);
+  });
+
+  it('is a no-op when cropRatio is explicitly null', () => {
+    expect(isNoopEdit({ cropRatio: null }, 10)).toBe(true);
+  });
+
+  it('tolerates a tiny end-point rounding (within 50ms of duration)', () => {
+    // A caller that computes end = duration - 0.01 (floating-point) is still a no-op.
+    expect(isNoopEdit({ startTime: 0, endTime: 9.99 }, 10)).toBe(true);
+  });
+
+  it('is NOT a no-op when the trim window is meaningfully smaller', () => {
+    expect(isNoopEdit({ startTime: 0, endTime: 9.0 }, 10)).toBe(false);
+  });
+});
+
+// ── editVideo: the re-encode is the ffmpeg.wasm engine's job ──────────────────
+//
+// editVideo reads the source metadata, computes the trim window + crop geometry,
+// builds the ffmpeg -vf filter, and delegates the actual transcode to
+// transcodeWithFFmpeg (the engine). The engine is mocked here — the real
+// ffmpeg.wasm needs a Web Worker + WebAssembly, which jsdom doesn't provide.
+// The tests pin that editVideo hands the engine the right trim + filter.
+
+const transcodeMock = vi.fn();
+vi.mock('@/lib/ffmpegEngine', () => ({
+  transcodeWithFFmpeg: (...args: unknown[]) => transcodeMock(...args),
+}));
+
+// A minimal <video> element for readVideoMetadata (metadata only, no playback).
 class MockVideoElement extends HTMLElement {
   duration = 10;
   videoWidth = 1920;
   videoHeight = 1080;
   muted = false;
-  playsInline = false;
-  ended = false;
   private _src = '';
-  private _currentTime = 0;
-  private _playReject: ((e: Error) => void) | null = null;
-
   set src(value: string) {
     this._src = value;
-    // A detached <video> with a src loads metadata in a real browser —
-    // mirror that (connectedCallback would never fire, the element is
-    // never appended).
+    // A detached <video> with a src loads metadata in a real browser — mirror
+    // that (the element is never appended, so connectedCallback never fires).
     queueMicrotask(() => this.dispatchEvent(new Event('loadedmetadata')));
   }
   get src() {
     return this._src;
   }
-
-  set currentTime(value: number) {
-    this._currentTime = value;
-    this.seekedTo = value;
-    // A real element fires 'seeked' when the seek completes.
-    queueMicrotask(() => this.dispatchEvent(new Event('seeked')));
-  }
-  get currentTime() {
-    return this._currentTime;
-  }
-  seekedTo: number | null = null;
-
-  play(): Promise<void> {
-    return new Promise((_, reject) => {
-      this._playReject = reject;
-      // Simulate playback crossing the out-point (timeupdate fires ~4Hz).
-      queueMicrotask(() => {
-        this._currentTime = this.duration;
-        this.dispatchEvent(new Event('timeupdate'));
-      });
-      queueMicrotask(() => {
-        this.ended = true;
-        this.dispatchEvent(new Event('ended'));
-      });
-    });
-  }
-
-  pause() {}
   remove() {}
 }
 
@@ -145,84 +159,61 @@ if (!customElements.get('mock-video')) {
   customElements.define('mock-video', MockVideoElement);
 }
 
-class MockMediaRecorder {
-  static isTypeSupported = vi.fn((m: string) => m === 'video/webm;codecs=vp9,opus');
-  mimeType = 'video/webm;codecs=vp9,opus';
-  ondataavailable: ((e: { data: Blob }) => void) | null = null;
-  onstop: (() => void) | null = null;
-  constructor(public stream: MediaStream, public options: MediaRecorderOptions) {}
-  start() {
-    queueMicrotask(() => this.ondataavailable?.({ data: new Blob(['mock-video-bytes']) }));
-  }
-  stop() {
-    queueMicrotask(() => this.onstop?.());
-  }
-}
-
-class MockMediaStream {
-  getAudioTracks() {
-    return [];
-  }
-  addTrack() {}
-}
-
-function installBrowserMocks() {
-  class MockCanvas {
-    width = 0;
-    height = 0;
-    getContext() {
-      return { drawImage: vi.fn() };
-    }
-  }
-  (MockCanvas.prototype as unknown as HTMLCanvasElement).captureStream = vi.fn(() => new MediaStream());
-
-  // Capture the real document BEFORE stubbing (the stub delegates to it).
+function installVideoMock() {
   const realDocument = globalThis.document;
-  vi.stubGlobal('HTMLCanvasElement', MockCanvas);
-  vi.stubGlobal('MediaStream', MockMediaStream);
   vi.stubGlobal(
     'document',
     {
       createElement: (tag: string) => {
-        if (tag === 'video') {
-          return new MockVideoElement();
-        }
-        if (tag === 'canvas') {
-          return new MockCanvas() as unknown as HTMLCanvasElement;
-        }
+        if (tag === 'video') return new MockVideoElement();
         return realDocument.createElement(tag);
       },
     } as unknown as Document,
   );
-  vi.stubGlobal('MediaRecorder', MockMediaRecorder);
-  vi.stubGlobal('AudioContext', undefined); // force the silent-edit path
 }
 
 describe('editVideo', () => {
   const file = new File(['x'], 'clip.mp4', { type: 'video/mp4' });
 
   beforeEach(() => {
-    vi.restoreAllMocks();
-    installBrowserMocks();
+    vi.clearAllMocks();
+    transcodeMock.mockResolvedValue(new Blob(['edited-bytes'], { type: 'video/mp4' }));
+    installVideoMock();
   });
 
   afterEach(() => {
     vi.unstubAllGlobals();
   });
 
-  it('re-encodes a trimmed + cropped window and returns the finished blob', async () => {
+  it('trims + crops via the engine and returns the finished blob', async () => {
     const result = await editVideo(file, { startTime: 2, endTime: 5, cropRatio: 9 / 16 });
 
+    // The engine was called with the trim window + a crop filter.
+    expect(transcodeMock).toHaveBeenCalledTimes(1);
+    const [fileArg, opts] = transcodeMock.mock.calls[0];
+    expect(fileArg).toBe(file);
+    expect(opts.startTime).toBe(2);
+    expect(opts.endTime).toBe(5);
+    // A crop filter: crop=outW:outH:x:y (the cover-crop window at even dims).
+    expect(opts.filter).toMatch(/^crop=\d+:\d+:\d+:\d+$/);
+
+    // The result carries the engine's blob + the cropped dims.
     expect(result.blob).toBeInstanceOf(Blob);
-    expect(result.mimeType).toBe('video/webm;codecs=vp9,opus');
+    expect(result.mimeType).toBe('video/mp4');
     expect(result.width).toBe(606); // 1080 * 9/16 = 607.5, floored to even
     expect(result.height).toBe(1080);
     expect(result.duration).toBeCloseTo(3);
-    expect(result.blob.size).toBeGreaterThan(0);
   });
 
-  it('full-duration passthrough (no trim, no crop) keeps source dims', async () => {
+  it('full-duration passthrough (no trim, no crop) scales to even source dims', async () => {
     const result = await editVideo(file);
+
+    expect(transcodeMock).toHaveBeenCalledTimes(1);
+    const [, opts] = transcodeMock.mock.calls[0];
+    expect(opts.startTime).toBe(0);
+    expect(opts.endTime).toBe(10);
+    // No crop → a scale to the even source dims (a safety net for odd dims).
+    expect(opts.filter).toBe('scale=1920:1080');
     expect(result.width).toBe(1920);
     expect(result.height).toBe(1080);
     expect(result.duration).toBeCloseTo(10);
@@ -230,149 +221,26 @@ describe('editVideo', () => {
 
   it('clamps the trim window inside the source', async () => {
     // start past the end → clamped; end before start → widened to 0.1s min
-    const result = await editVideo(file, { startTime: 9.95, endTime: 0 });
+    await editVideo(file, { startTime: 9.95, endTime: 0 });
+
+    const [, opts] = transcodeMock.mock.calls[0];
     // start clamped to duration - 0.1 = 9.9, end widened to start + 0.1 = 10
-    expect(result.duration).toBeGreaterThan(0);
-    expect(result.duration).toBeLessThanOrEqual(0.2);
+    expect(opts.startTime).toBeCloseTo(9.9);
+    expect(opts.endTime).toBe(10);
   });
 
-  it('seeks to the in-point before recording', async () => {
-    const created: MockVideoElement[] = [];
-    const stubbed = globalThis.document as unknown as { createElement: (t: string) => unknown };
-    const originalCreate = stubbed.createElement.bind(globalThis.document);
-    stubbed.createElement = (tag: string) => {
-      const el = originalCreate(tag);
-      if (tag === 'video') created.push(el as MockVideoElement);
-      return el;
-    };
+  it('passes the onProgress callback through to the engine', async () => {
+    const onProgress = vi.fn();
+    await editVideo(file, { startTime: 2, endTime: 6, onProgress });
 
-    await editVideo(file, { startTime: 3 });
-
-    expect(created.length).toBe(1);
-    // The element was seeked to the in-point (the setter records it).
-    expect(created[0].seekedTo).toBe(3);
+    const [, , progressArg] = transcodeMock.mock.calls[0];
+    expect(progressArg).toBe(onProgress);
   });
 
-  it('reports encode progress 0 → 1 via onProgress (the real-time % the tray shows)', async () => {
-    const fractions: number[] = [];
-    await editVideo(file, { startTime: 2, endTime: 6, onProgress: (f) => fractions.push(f) });
-
-    // The first report is at the in-point (0), the last is the forced 1.
-    expect(fractions.length).toBeGreaterThanOrEqual(2);
-    expect(fractions[0]).toBe(0);
-    expect(fractions[fractions.length - 1]).toBe(1);
-    // Monotonic non-decreasing, bounded to [0, 1]
-    for (let i = 1; i < fractions.length; i++) {
-      expect(fractions[i]).toBeGreaterThanOrEqual(fractions[i - 1]);
-    }
-    for (const f of fractions) {
-      expect(f).toBeGreaterThanOrEqual(0);
-      expect(f).toBeLessThanOrEqual(1);
-    }
-  });
-});
-
-// ── editVideo audio: the source sound must survive the re-encode ─────────────
-//
-// The silent-webm bug: `video.muted = true` was set unconditionally, and in
-// Chrome a muted element silences its MediaElementSourceNode too — so the
-// re-encoded webm shipped with no audio. The fix: never mute the element when
-// audio routing succeeds (createMediaElementSource already diverts the element
-// out of the speakers), and only mute as a fallback when routing fails.
-
-describe('editVideo audio', () => {
-  const file = new File(['x'], 'clip.mp4', { type: 'video/mp4' });
-
-  type Track = { kind?: string; id?: string };
-
-  function installAudioMocks(opts: { audioContextFails?: boolean }) {
-    const addedTracks: Track[] = [];
-    const fakeAudioTrack: Track = { kind: 'audio', id: 'a1' };
-
-    class RichMediaStream {
-      private _tracks: Track[] = [];
-      addTrack(t: Track) {
-        this._tracks.push(t);
-        addedTracks.push(t);
-      }
-      getAudioTracks() {
-        return this._tracks.filter((t) => t.kind === 'audio');
-      }
-      getVideoTracks() {
-        return this._tracks.filter((t) => t.kind === 'video');
-      }
-    }
-
-    class MockAudioContext {
-      state = 'running';
-      resume() {
-        this.state = 'running';
-        return Promise.resolve();
-      }
-      close() {
-        return Promise.resolve();
-      }
-      createMediaElementSource() {
-        return { connect: () => {} };
-      }
-      createMediaStreamDestination() {
-        return { stream: { getAudioTracks: () => [fakeAudioTrack] } };
-      }
-    }
-
-    class FailingAudioContext {
-      constructor() {
-        throw new Error('no webaudio');
-      }
-    }
-
-    vi.stubGlobal('MediaStream', RichMediaStream);
-    vi.stubGlobal('AudioContext', opts.audioContextFails ? FailingAudioContext : MockAudioContext);
-
-    // Capture the <video> element editVideo creates so we can assert on its
-    // `muted` state (the actual thing the fix changes).
-    const createdVideos: { muted: boolean }[] = [];
-    const doc = globalThis.document as unknown as { createElement: (t: string) => unknown };
-    const realCreate = doc.createElement.bind(doc);
-    doc.createElement = (tag: string) => {
-      const el = realCreate(tag);
-      if (tag === 'video') createdVideos.push(el as { muted: boolean });
-      return el;
-    };
-
-    return { addedTracks, createdVideos };
-  }
-
-  beforeEach(() => {
-    vi.restoreAllMocks();
-    installBrowserMocks();
-  });
-
-  afterEach(() => {
-    vi.unstubAllGlobals();
-  });
-
-  it('routes the source audio into the recorded stream and does NOT mute the element', async () => {
-    const { addedTracks, createdVideos } = installAudioMocks({});
-
-    await editVideo(file, { startTime: 0, endTime: 2 });
-
-    expect(createdVideos.length).toBe(1);
-    // The core fix: the element is not muted when audio routing succeeds.
-    expect(createdVideos[0].muted).toBe(false);
-    // And the audio track actually made it into the recorded stream.
-    expect(addedTracks.some((t) => t.kind === 'audio')).toBe(true);
-  });
-
-  it('mutes the element only when audio routing fails (silent fallback, no audio track)', async () => {
-    const { addedTracks, createdVideos } = installAudioMocks({ audioContextFails: true });
-
-    await editVideo(file, { startTime: 0, endTime: 2 });
-
-    expect(createdVideos.length).toBe(1);
-    // Routing threw → the element is muted so the user doesn't hear the raw
-    // clip, and no (silent) audio track is attached to the stream.
-    expect(createdVideos[0].muted).toBe(true);
-    expect(addedTracks.some((t) => t.kind === 'audio')).toBe(false);
+  it('throws when the engine fails', async () => {
+    transcodeMock.mockRejectedValueOnce(new Error('ffmpeg exited with code 1'));
+    await expect(editVideo(file, { startTime: 2, endTime: 5 })).rejects.toThrow(
+      'ffmpeg exited with code 1',
+    );
   });
 });

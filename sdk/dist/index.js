@@ -116,6 +116,38 @@ function isTokenExpired(token) {
 }
 
 // src/v3.ts
+function pickThumbnail(resolvedMedia) {
+  for (const ref of resolvedMedia ?? []) {
+    if (!ref || typeof ref !== "object")
+      continue;
+    const mime = ref.mime_type ?? "";
+    const isVideo = mime.startsWith("video/");
+    if (isVideo) {
+      if (ref.thumbnail_url) {
+        return {
+          url: ref.thumbnail_url,
+          alt: ref.alt_text ?? null,
+          is_video: true,
+          width: ref.width ?? null,
+          height: ref.height ?? null,
+          mime_type: mime
+        };
+      }
+      continue;
+    }
+    if (ref.read_url) {
+      return {
+        url: ref.read_url,
+        alt: ref.alt_text ?? null,
+        is_video: false,
+        width: ref.width ?? null,
+        height: ref.height ?? null,
+        mime_type: mime
+      };
+    }
+  }
+  return null;
+}
 function createV3Client(options = {}) {
   const apiOrigin = options.apiOrigin ?? "https://api.web10.app";
   const rtcServer = options.rtcServer ?? "rtc.web10.app";
@@ -232,24 +264,13 @@ function createV3Client(options = {}) {
         payload.ref = opts.ref;
       if (opts.sort != null)
         payload.sort = opts.sort;
+      if (opts.tags != null)
+        payload.tags = opts.tags;
       return v3Post("read", payload);
     },
     async readRefCounts(collection, opts) {
       const payload = { service: collection, groups: opts.groups, ref: opts.ref, count: true };
       return v3Post("read", payload);
-    },
-    async feed(opts) {
-      const payload = { groups: opts.groups };
-      if (opts.limit != null)
-        payload.limit = opts.limit;
-      if (opts.cursor != null)
-        payload.cursor = opts.cursor;
-      if (opts.sort != null)
-        payload.sort = opts.sort;
-      const token = state.token ?? readTokenCookie();
-      if (token)
-        payload.token = token;
-      return authPost(`${apiOrigin}/v3/feed`, payload);
     },
     async readById(docId, collection) {
       return v3Post("read", { doc_id: docId, service: collection });
@@ -258,6 +279,8 @@ function createV3Client(options = {}) {
       const payload = { sql };
       if (opts?.groups)
         payload.groups = opts.groups;
+      if (opts?.prepare)
+        payload.prepare = opts.prepare;
       const token = state.token ?? readTokenCookie();
       if (token)
         payload.token = token;
@@ -427,6 +450,9 @@ function createV3Client(options = {}) {
     async deleteMedia(docId) {
       return v3Post("media/delete", { doc_id: docId });
     },
+    async getThumbnail(docId) {
+      return v3Post("media/thumbnail", { doc_id: docId });
+    },
     async getNodeStats() {
       return v3Post("stats", {});
     },
@@ -510,6 +536,7 @@ export {
   setTokenCookie,
   scrubTokenCookie,
   readTokenCookie,
+  pickThumbnail,
   isTokenExpired,
   extractDetail,
   decodeJwt,

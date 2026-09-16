@@ -51,10 +51,23 @@ async function signupAndLogin(request: APIRequestContext, prefix: string): Promi
 }
 
 async function addAppContract(request: APIRequestContext, token: string) {
+  // The D73 feed is a query over posts + reactions + comments + profile (the
+  // engine's prepare pass mints the counts + the author's face), so the
+  // contract must grant readAll on all four — a posts-only contract 403s the
+  // whole query and the feed renders empty. Same set as the other feed-
+  // exercising specs (social-feed / ads / node-ads).
   await v3Post(request, `${API_BASE}/v3/app-contracts/add`, {
     token,
     allowed_origin: SOCIAL_ORIGIN,
-    permissions: { [SERVICE]: ['create', 'readAll', 'updateOwn', 'deleteOwn'] },
+    permissions: {
+      posts: ['create', 'readAll', 'updateOwn', 'deleteOwn'],
+      profile: ['readAll', 'create', 'updateOwn'],
+      settings: ['readAll', 'create', 'updateOwn'],
+      reactions: ['readAll', 'create', 'updateOwn', 'deleteOwn'],
+      comments: ['readAll', 'create', 'updateOwn', 'deleteOwn'],
+      media: ['readAll'],
+      public_media: ['readAll'],
+    },
   });
 }
 

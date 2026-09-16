@@ -262,6 +262,12 @@ export async function deletePublicEntry(): Promise<void> {}
 export async function deleteReaction(): Promise<void> {}
 export async function deleteStagingPost(): Promise<void> {}
 export function deriveObjectKey(): string { return ''; }
+// The v3 author_key → username helper (the Discover screen's own-reaction read
+// matches the reader's reaction on this). Last path segment of the key.
+export function extractUsername(authorKey: string): string {
+  const parts = (authorKey || '').split('/');
+  return parts[parts.length - 1] || authorKey;
+}
 export async function fetchDiscoveryPost(): Promise<unknown> { return null; }
 export async function fetchSchema(): Promise<unknown> { return {}; }
 export function getCachedSchema(): unknown { return null; }
@@ -628,7 +634,19 @@ const DISCOVER_MEDIA: Record<string, Record<string, unknown>> = {
   'dm-landscape': { ...creative('LIVE SET', 1280, 720, '#8b5cf6', '#2e1065'), _id: 'dm-landscape' },
   'dm-portrait': { ...creative('VERTICAL', 720, 1280, '#7c3aed', '#4c1d95'), _id: 'dm-portrait' },
   'dm-clip3': { ...creative('STILL', 1600, 900, '#a78bfa', '#1e1b4b'), _id: 'dm-clip3' },
-  'dm-portrait2': { ...creative('STUDIO', 720, 1280, '#0ea5e9', '#0c4a6e'), _id: 'dm-portrait2' },
+  'dm-portrait2': {
+    ...creative('STUDIO', 720, 1280, '#0ea5e9', '#0c4a6e'),
+    _id: 'dm-portrait2',
+    // Transcoded (D44) — the source the node serves for real uploads
+    // (status done + a minted manifest_url → the hls path). The Shorts
+    // capture must exercise this: it is the path that used to render the
+    // full control rack in a 280px column instead of filling the slide.
+    transcoding_settings: {
+      status: 'done',
+      manifest_url: '/v3/media/hls/manifest?doc_id=dm-portrait2&sig=harness',
+      variants: [{ width: 540, height: 960 }],
+    },
+  },
   'dm-portrait3': { ...creative('BACKSTAGE', 720, 1280, '#f59e0b', '#78350f'), _id: 'dm-portrait3' },
 };
 

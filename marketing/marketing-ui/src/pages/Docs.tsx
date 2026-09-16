@@ -47,6 +47,7 @@ const DOC_SECTIONS: { title: string; pages: DocPage[] }[] = [
     title: 'For Node Operators / Influencers',
     pages: [
       { slug: 'start-a-node', title: 'Start a Node', file: '/docs/start-a-node.md' },
+      { slug: 'licensing', title: 'Licensing', file: '/docs/licensing.md' },
       { slug: 'node-config', title: 'Node Config', file: '/docs/node-config.md' },
       { slug: 'app-store', title: 'App Store', file: '/docs/app-store.md' },
       { slug: 'your-audience', title: 'Your Audience', file: '/docs/your-audience.md' },

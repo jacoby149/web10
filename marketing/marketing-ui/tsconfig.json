@@ -19,6 +19,16 @@
     "noUncheckedSideEffectImports": true,
     "paths": {
       "@/*": ["./src/*"],
+      // D73: the shared @web10/discover package has no node_modules of its own;
+      // its bare imports resolve to this app's deps (single react instance).
+      // Listed before the `*` catch-all so they win.
+      "react": ["./node_modules/@types/react"],
+      "react/*": ["./node_modules/@types/react/*"],
+      "react-dom": ["./node_modules/@types/react-dom"],
+      "react-dom/*": ["./node_modules/@types/react-dom/*"],
+      "lucide-react": ["./node_modules/lucide-react"],
+      "clsx": ["./node_modules/clsx"],
+      "tailwind-merge": ["./node_modules/tailwind-merge"],
       "*": ["./*"]
     }
   },
