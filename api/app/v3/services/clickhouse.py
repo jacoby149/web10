@@ -2028,37 +2028,6 @@ def read_documents_in_groups(
     return _group_docs_query(group_ids, member_key, service, limit, offset, require_membership, tags)
 
 
-def get_author_profiles(author_keys: list[str]) -> dict[str, dict]:
-    """Batched author profile + avatar read for a feed page (D69).
-
-    One query across the ``profile`` service for the page's distinct authors
-    (dedup-then-filter, the house pattern), keyed by ``author_key``. Each value
-    is ``{"profile": <body dict>, "avatar_ref": <str|None>}`` — the avatar_ref
-    is resolved to a presigned URL by the caller (``resolve_media_urls`` on a
-    synthetic body, author-scoped). Replaces the client's per-author
-    ``readUserProfile`` + per-avatar ``resolveMediaRefs`` fan-out (the N+1 the
-    267-requests diagnosis named).
-    """
-    if not author_keys:
-        return {}
-    quoted = ", ".join(f"'{k.replace(chr(39), chr(39) * 2)}'" for k in author_keys)
-    result = client.query(
-        "SELECT author_key, body FROM ("
-        "SELECT author_key, body, deleted, "
-        "row_number() OVER (PARTITION BY doc_id, author_key ORDER BY updated_at DESC) AS rn "
-        "FROM documents WHERE collection_name = 'profile' AND author_key IN (" + quoted + ") "
-        ") WHERE rn = 1 AND deleted = 0"
-    )
-    out: dict[str, dict] = {}
-    for row in result.result_rows:
-        body = _parse_json(row[1])
-        out[row[0]] = {
-            "profile": body,
-            "avatar_ref": body.get("avatar_ref") if isinstance(body, dict) else None,
-        }
-    return out
-
-
 class QueryExecutionError(Exception):
     """A compiled (structurally safe) query failed in ClickHouse. The
     boundary was already enforced at compile time, so a failure here is the
@@ -2149,9 +2118,8 @@ def read_ref_counts_by_ref(
     This is the server-side version of the feed/trending "read a capped sample,
     count client-side" pattern. The ``GROUP BY ref_value`` runs over the
     boundary CTE (deduped + group-filtered + anti-joined), so the count is
-    exact for the caller's readable groups and never undercounts (no cap). The
-    raw ``get_ref_counts`` is NOT used: it is a raw query with no group
-    boundary (a caller could count engagement on a post they can't see).
+    exact for the caller's readable groups and never undercounts (no cap) —
+    and a caller can never count engagement on a post they can't see.
     """
     from app.v3.services.safe_query import build_safe_query
 
@@ -2165,35 +2133,6 @@ def read_ref_counts_by_ref(
     query = f"SELECT ref_value, count() AS n FROM {service} WHERE {ref_clause} GROUP BY ref_value"
     compiled = build_safe_query(query, {service: group_ids}, member_key)
     result = client.query(compiled)
-    return {row[0]: row[1] for row in result.result_rows}
-
-
-# ---------------------------------------------------------------------------
-# Ref counts (engagement)
-# ---------------------------------------------------------------------------
-
-
-def get_ref_count(doc_id: str, service: str = "reactions") -> int:
-    """Count documents referencing a given doc_id."""
-    result = client.query(
-        "SELECT count() FROM (SELECT 1 FROM documents WHERE deleted = 0 AND collection_name = %(coll)s AND ref_value = %(doc_id)s "
-        "ORDER BY updated_at DESC LIMIT 1)",
-        {"coll": service, "doc_id": doc_id},
-    )
-    return result.result_rows[0][0]
-
-
-def get_ref_counts(doc_ids: list[str], service: str = "reactions") -> dict[str, int]:
-    """Count references for multiple documents."""
-    if not doc_ids:
-        return {}
-    placeholders = ", ".join(f"%(d{i})s" for i in range(len(doc_ids)))
-    params = {"coll": service, **{f"d{i}": did for i, did in enumerate(doc_ids)}}
-    result = client.query(
-        f"SELECT ref_value, count() FROM (SELECT ref_value FROM documents WHERE deleted = 0 AND collection_name = %(coll)s AND ref_value IN ({placeholders}) "
-        "QUALIFY row_number() OVER (PARTITION BY doc_id, author_key ORDER BY updated_at DESC) = 1) GROUP BY ref_value",
-        params,
-    )
     return {row[0]: row[1] for row in result.result_rows}
 
 

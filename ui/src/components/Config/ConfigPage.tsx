@@ -1014,31 +1014,6 @@ function ConfigPage({ I }: { I: Record<string, any> }) {
               </Field>
             </CardContent>
           </Card>
-
-          <Card>
-            <CardHeader>
-              <CardTitle>Stripe (Payments)</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <Field label="Mode">
-                <select
-                  className="flex h-9 w-full rounded-sm border border-input bg-transparent px-3 py-1 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50"
-                  value={config?.stripe_status || "test"}
-                  onChange={e => updateField("stripe_status", e.target.value)}
-                  data-testid="config-stripe-mode"
-                >
-                  <option value="test">Test</option>
-                  <option value="live">Live</option>
-                </select>
-              </Field>
-              <Field label="Test API Key">
-                <Input value={config?.stripe_test_key || ""} onChange={e => updateField("stripe_test_key", e.target.value)} data-testid="config-stripe-test-key" />
-              </Field>
-              <Field label="Live API Key">
-                <Input value={config?.stripe_live_key || ""} onChange={e => updateField("stripe_live_key", e.target.value)} data-testid="config-stripe-live-key" />
-              </Field>
-            </CardContent>
-          </Card>
         </div>
       </div>
     </ConfigShell>

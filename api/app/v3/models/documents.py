@@ -21,7 +21,7 @@ class CreateDocument(BaseModel):
     body: dict
     groups: list[str] | None = None
     # The ref pattern: a reaction/comment points at its target post via
-    # ref_value (the target's doc_id). Discovery engagement (get_ref_counts)
+    # ref_value (the target's doc_id). Discovery engagement (read_ref_counts_by_ref)
     # and the social app's reaction/comment reads both key off this column.
     ref_value: str | None = None
     # The v3 ad preference (pinned | none). Stored in the ad_mode/ad_target

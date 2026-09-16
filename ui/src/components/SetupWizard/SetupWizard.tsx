@@ -338,20 +338,6 @@ function StorageStep({ data, onChange, onNext, onBack }: {
               </div>
             </div>
           </details>
-
-          <details className="mt-2">
-            <summary className="cursor-pointer text-sm font-medium text-brand-300" data-testid="wizard-advanced-stripe">Advanced: Stripe (Payments)</summary>
-            <div className="mt-2 space-y-3">
-              <div>
-                <Label className="mb-1 block text-muted-foreground">Test API Key</Label>
-                <Input type="password" value={data.stripe_test_key} onChange={e => onChange("stripe_test_key", e.target.value)} data-testid="wizard-stripe-test-key" />
-              </div>
-              <div>
-                <Label className="mb-1 block text-muted-foreground">Live API Key</Label>
-                <Input type="password" value={data.stripe_live_key} onChange={e => onChange("stripe_live_key", e.target.value)} data-testid="wizard-stripe-live-key" />
-              </div>
-            </div>
-          </details>
         </div>
       </div>
       <div className="mt-8 flex justify-center gap-2">
@@ -418,8 +404,6 @@ const SetupWizard = ({ I }: { I: Record<string, any> }) => {
     twilio_account_sid: "",
     twilio_auth_token: "",
     twilio_number: "",
-    stripe_test_key: "",
-    stripe_live_key: "",
   });
 
   const onChange = (key: string, value: any) => setFormData(prev => ({ ...prev, [key]: value }));
@@ -471,8 +455,6 @@ const SetupWizard = ({ I }: { I: Record<string, any> }) => {
         twilio_account_sid: formData.twilio_account_sid,
         twilio_auth_token: formData.twilio_auth_token,
         twilio_number: formData.twilio_number,
-        stripe_test_key: formData.stripe_test_key,
-        stripe_live_key: formData.stripe_live_key,
       });
 
       setDone(true);

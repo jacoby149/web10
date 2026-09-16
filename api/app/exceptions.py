@@ -48,44 +48,9 @@ CRUD = HTTPException(
     headers={"WWW-Authenticate": "Basic"},
 )
 
-MINT = HTTPException(
-    status_code=status.HTTP_401_UNAUTHORIZED,
-    detail="submitted token can't mint desired token",
-    headers={"WWW-Authenticate": "Basic"},
-)
-
-STAR = HTTPException(
-    status_code=status.HTTP_401_UNAUTHORIZED,
-    detail="can't modify the star service",
-    headers={"WWW-Authenticate": "Basic"},
-)
-
-DSTAR = HTTPException(
-    status_code=status.HTTP_401_UNAUTHORIZED,
-    detail="can't duplicate the star service",
-    headers={"WWW-Authenticate": "Basic"},
-)
-
-DUPLICATE_SERVICE = HTTPException(
-    status_code=status.HTTP_409_CONFLICT,
-    detail="a terms record for this service already exists — update it instead of creating a duplicate",
-)
-
-RESERVED = HTTPException(
-    status_code=status.HTTP_401_UNAUTHORIZED,
-    detail="the username 'web10' is reserved",
-    headers={"WWW-Authenticate": "Basic"},
-)
-
 NO_USER = HTTPException(
     status_code=status.HTTP_401_UNAUTHORIZED,
     detail="the user doesn't exist",
-    headers={"WWW-Authenticate": "Basic"},
-)
-
-NO_SELLER = HTTPException(
-    status_code=status.HTTP_401_UNAUTHORIZED,
-    detail="the seller doesn't exist",
     headers={"WWW-Authenticate": "Basic"},
 )
 
@@ -122,22 +87,6 @@ VERIFY = HTTPException(
 WRONG_CODE = HTTPException(
     status_code=status.HTTP_401_UNAUTHORIZED,
     detail="entered verification code is wrong",
-    headers={"WWW-Authenticate": "Basic"},
-)
-
-PIPELINE = HTTPException(
-    status_code=status.HTTP_400_BAD_REQUEST,
-    detail="aggregation pipeline uses a stage or operator that isn't allowed",
-)
-
-PIPELINE_CAP = HTTPException(
-    status_code=status.HTTP_400_BAD_REQUEST,
-    detail="aggregation pipeline exceeds a resource cap",
-)
-
-TIME = HTTPException(
-    status_code=status.HTTP_401_UNAUTHORIZED,
-    detail="ran out of credits",
     headers={"WWW-Authenticate": "Basic"},
 )
 

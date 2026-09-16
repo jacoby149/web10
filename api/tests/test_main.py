@@ -10,10 +10,9 @@ import jwt
 import pytest
 
 import app.settings as settings
-from app.models.auth import Token, TokenData
+from app.models.auth import Token
 from app.services.auth import (
     anon_token,
-    can_mint,
     certify,
     decode_token,
     get_password_hash,
@@ -164,109 +163,6 @@ class TestDecodeToken:
         token = jwt.encode({"sub": "x"}, "wrong-key", algorithm="HS256")
         with pytest.raises(Exception):
             decode_token(token, private_key=True)
-
-
-# ---------------------------------------------------------------------------
-# can_mint
-# ---------------------------------------------------------------------------
-
-
-class TestCanMint:
-    def test_same_username_service_manager(self, service_manager_token):
-        sub_data = decode_token(service_manager_token)
-        mint_data = TokenData(
-            username="testuser",
-            site="myapp.example.com",
-            target=settings.PROVIDER,
-            provider=settings.PROVIDER,
-        )
-        assert can_mint(sub_data, mint_data) is True
-
-    def test_same_username_same_site(self):
-        sub = TokenData(
-            username="u",
-            site="same.com",
-            target=settings.PROVIDER,
-            provider=settings.PROVIDER,
-        )
-        mint = TokenData(
-            username="u",
-            site="same.com",
-            target=settings.PROVIDER,
-            provider=settings.PROVIDER,
-        )
-        assert can_mint(sub, mint) is True
-
-    def test_different_username_raises(self):
-        sub = TokenData(
-            username="alice",
-            site="auth.localhost",
-            target=settings.PROVIDER,
-            provider=settings.PROVIDER,
-        )
-        mint = TokenData(
-            username="bob",
-            site="auth.localhost",
-            target=settings.PROVIDER,
-            provider=settings.PROVIDER,
-        )
-        with pytest.raises(Exception):
-            can_mint(sub, mint)
-
-    def test_no_site_raises(self):
-        sub_data = decode_token(
-            jwt.encode(
-                {
-                    "username": "u",
-                    "site": None,
-                    "target": settings.PROVIDER,
-                    "provider": settings.PROVIDER,
-                    "expires": "2099-01-01T00:00:00",
-                },
-                settings.PRIVATE_KEY,
-                algorithm=settings.ALGORITHM,
-            )
-        )
-        mint = TokenData(
-            username="u",
-            site="x.com",
-            target=settings.PROVIDER,
-            provider=settings.PROVIDER,
-        )
-        with pytest.raises(Exception):
-            can_mint(sub_data, mint)
-
-    def test_different_site_not_manager_raises(self):
-        sub = TokenData(
-            username="u",
-            site="other.com",
-            target=settings.PROVIDER,
-            provider=settings.PROVIDER,
-        )
-        mint = TokenData(
-            username="u",
-            site="different.com",
-            target=settings.PROVIDER,
-            provider=settings.PROVIDER,
-        )
-        with pytest.raises(Exception):
-            can_mint(sub, mint)
-
-    def test_remote_provider_raises(self):
-        sub = TokenData(
-            username="u",
-            site="auth.localhost",
-            target=settings.PROVIDER,
-            provider="remote.provider",
-        )
-        mint = TokenData(
-            username="u",
-            site="x.com",
-            target=settings.PROVIDER,
-            provider=settings.PROVIDER,
-        )
-        with pytest.raises(Exception):
-            can_mint(sub, mint)
 
 
 # ---------------------------------------------------------------------------

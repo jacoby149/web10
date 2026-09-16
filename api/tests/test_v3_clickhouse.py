@@ -606,58 +606,6 @@ class TestReadDocumentsInGroups:
 
 
 # ---------------------------------------------------------------------------
-# Ref Counts
-# ---------------------------------------------------------------------------
-
-
-class TestRefCounts:
-    def test_ref_count(self):
-        with _patch_client() as mock_client:
-            mock_client.query.return_value = _mock_result_rows([(5,)])
-            count = ch.get_ref_count("doc-1")
-            assert count == 5
-
-    def test_ref_counts_multiple(self):
-        with _patch_client() as mock_client:
-            mock_client.query.return_value = _mock_result_rows(
-                [
-                    ("doc-1", 3),
-                    ("doc-2", 7),
-                ]
-            )
-            counts = ch.get_ref_counts(["doc-1", "doc-2"])
-            assert counts["doc-1"] == 3
-            assert counts["doc-2"] == 7
-
-    def test_ref_counts_empty(self):
-        assert ch.get_ref_counts([]) == {}
-
-
-class TestGetAuthorProfiles:
-    def test_empty(self):
-        assert ch.get_author_profiles([]) == {}
-
-    def test_returns_profiles_keyed_by_author(self):
-        with _patch_client() as mock_client:
-            mock_client.query.return_value = _mock_result_rows(
-                [
-                    ("api.localhost/alice", '{"display_name":"Alice","avatar_ref":"av-1"}'),
-                    ("api.localhost/bob", '{"display_name":"Bob"}'),
-                ]
-            )
-            out = ch.get_author_profiles(["api.localhost/alice", "api.localhost/bob"])
-            assert out["api.localhost/alice"]["profile"]["display_name"] == "Alice"
-            assert out["api.localhost/alice"]["avatar_ref"] == "av-1"
-            assert out["api.localhost/bob"]["avatar_ref"] is None
-
-    def test_author_not_in_result_is_absent(self):
-        with _patch_client() as mock_client:
-            mock_client.query.return_value = _mock_result_rows([("api.localhost/alice", '{"display_name":"Alice"}')])
-            out = ch.get_author_profiles(["api.localhost/alice", "api.localhost/ghost"])
-            assert "api.localhost/ghost" not in out
-
-
-# ---------------------------------------------------------------------------
 # Read by doc_id
 # ---------------------------------------------------------------------------
 

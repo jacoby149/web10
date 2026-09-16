@@ -43,22 +43,6 @@ def decode_token(token: str, private_key: bool = False) -> TokenData:
     return token_data
 
 
-def can_mint(submission_token: TokenData, mint_token: TokenData) -> bool:
-    if submission_token.username != mint_token.username:
-        raise Exception("MINT")
-    if not submission_token.site:
-        raise Exception("MINT")
-    elif submission_token.site not in settings.CORS_SERVICE_MANAGERS:
-        if submission_token.site != mint_token.site:
-            raise Exception("MINT")
-    if submission_token.provider == settings.PROVIDER:
-        if submission_token.provider != mint_token.provider:
-            raise Exception("MINT")
-    else:
-        raise Exception("MINT")
-    return True
-
-
 def _is_private_ip(host: str) -> bool:
     """Return True if host resolves to a private, loopback, or link-local address."""
     try:
