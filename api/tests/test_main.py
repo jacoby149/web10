@@ -10,7 +10,7 @@ import jwt
 import pytest
 
 import app.settings as settings
-from app.models.auth import Token, TokenData
+from app.models.auth import Token
 from app.services.auth import (
     anon_token,
     certify,
