@@ -4,6 +4,7 @@ export * from './types';
 export * from './groups';
 export * from './posts';
 export * from './ads';
+export * from './ads-catalog';
 export * from './comments';
 export * from './reactions';
 export * from './follows';

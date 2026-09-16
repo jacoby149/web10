@@ -85,7 +85,6 @@ const TITLES: Record<string, string> = {
   contracts: 'App Contracts',
   groups: 'Group Contracts',
   requests: 'Requests',
-  studio: 'Studio',
   config: 'Node Config',
   settings: 'Settings',
 };
