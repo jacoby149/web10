@@ -507,6 +507,23 @@ describe('v3 client', () => {
       expect(call.groups).toEqual(['g1', 'g2'])
     })
 
+    it('query passes the prepare spec (D73: the engine mints the result rows)', async () => {
+      vi.spyOn(http, 'authPost').mockResolvedValueOnce({ rows: [], count: 0 } as any)
+
+      const prepare = { media: true, ads: true, face: { bodyField: 'profile_body', mediaField: 'avatar_ref' } }
+      await client.query('SELECT p.doc_id, pr.body AS profile_body FROM posts p', { prepare })
+      const call = (vi.mocked(http.authPost).mock.calls[0][1] as any)
+      expect(call.prepare).toEqual(prepare)
+    })
+
+    it('query omits prepare when not provided', async () => {
+      vi.spyOn(http, 'authPost').mockResolvedValueOnce({ rows: [], count: 0 } as any)
+
+      await client.query('SELECT doc_id FROM posts')
+      const call = (vi.mocked(http.authPost).mock.calls[0][1] as any)
+      expect(call.prepare).toBeUndefined()
+    })
+
     it('query works without a token (anon reads the public board)', async () => {
       client.scrubToken()
       vi.spyOn(http, 'authPost').mockResolvedValueOnce({ rows: [], count: 0 } as any)
@@ -514,32 +531,6 @@ describe('v3 client', () => {
       await expect(client.query('SELECT doc_id FROM posts')).resolves.toEqual({ rows: [], count: 0 })
       const call = (vi.mocked(http.authPost).mock.calls[0][1] as any)
       expect(call.token).toBeUndefined()
-    })
-
-    it('feed posts to /v3/feed with groups + limit + token (D69)', async () => {
-      const mockResponse = { posts: [{ doc_id: 'p1', likes: 3 }], has_more: true, next_cursor: { created_at: '2026-09-07T09:00:00.000' } }
-      vi.spyOn(http, 'authPost').mockResolvedValueOnce(mockResponse as any)
-
-      const result = await client.feed({ groups: ['g1'], limit: 20 })
-      expect(result).toEqual(mockResponse)
-      expect(http.authPost).toHaveBeenCalledWith(
-        'http://api.localhost/v3/feed',
-        expect.objectContaining({ groups: ['g1'], limit: 20, token: mockToken }),
-      )
-    })
-
-    it('feed passes cursor + sort for a tuned, paged read', async () => {
-      vi.spyOn(http, 'authPost').mockResolvedValueOnce({ posts: [], has_more: false, next_cursor: null } as any)
-
-      await client.feed({
-        groups: ['g1'],
-        limit: 20,
-        cursor: { score: 0.5 },
-        sort: { likes: 1.0, recency: 0.0, comments: 0.0, half_life_ms: 0, character: -1.0 },
-      })
-      const call = (vi.mocked(http.authPost).mock.calls[0][1] as any)
-      expect(call.cursor).toEqual({ score: 0.5 })
-      expect(call.sort).toEqual({ likes: 1.0, recency: 0.0, comments: 0.0, half_life_ms: 0, character: -1.0 })
     })
 
     it('update sends doc_id and body', async () => {

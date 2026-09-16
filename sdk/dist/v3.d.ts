@@ -136,6 +136,24 @@ export interface V3QueryResult {
     rows: Record<string, unknown>[];
     count: number;
 }
+export interface V3PrepareFace {
+    /** The column holding the (JOINed) face body, e.g. `profile_body`. */
+    bodyField: string;
+    /** The field in it that is a media ref, e.g. `avatar_ref`. */
+    mediaField: string;
+    /** The author to scope the presign to (default: the row's `author_key`). */
+    authorColumn?: string;
+    /** The row field to set with the presigned URL (default: `avatar_url`). */
+    urlField?: string;
+}
+export interface V3Prepare {
+    /** Presign `body.media_refs` (author-scoped) + mint per-reader HLS sigs. */
+    media?: boolean;
+    /** Attach the pinned ad (`ad_mode`/`ad_target`) + the node ad. */
+    ads?: boolean;
+    /** Resolve the author's face media (e.g. the JOINed profile's avatar). */
+    face?: V3PrepareFace;
+}
 export interface V3FeedPost {
     doc_id: string;
     author_key: string;
@@ -152,14 +170,6 @@ export interface V3FeedPost {
     node_ad?: V3Document;
     profile?: Record<string, unknown>;
     avatar_url?: string | null;
-}
-export interface V3FeedResult {
-    posts: V3FeedPost[];
-    has_more: boolean;
-    next_cursor: {
-        created_at?: string;
-        score?: number;
-    } | null;
 }
 export interface V3GroupRole {
     name: string;
@@ -304,24 +314,10 @@ export interface V3Client {
         groups: string[];
         ref: string | string[];
     }): Promise<Record<string, number>>;
-    feed(opts: {
-        groups: string[];
-        limit?: number;
-        cursor?: {
-            created_at?: string;
-            score?: number;
-        } | null;
-        sort?: {
-            recency?: number;
-            likes?: number;
-            comments?: number;
-            half_life_ms?: number;
-            character?: number;
-        };
-    }): Promise<V3FeedResult>;
     readById(docId: string, collection: string): Promise<V3Document>;
     query(sql: string, opts?: {
         groups?: string[];
+        prepare?: V3Prepare;
     }): Promise<V3QueryResult>;
     update(docId: string, body: Record<string, unknown>, opts?: {
         groups?: string[];

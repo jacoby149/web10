@@ -1,5 +1,5 @@
 import { getV3Client } from './v3';
-import type { V3FeedResult, PowerMeanSort } from './v3';
+import type { PowerMeanSort } from './v3';
 import { getDiscoverGroupId, getMyGroups, getFeedGroups } from './groups';
 import { fromV3DocToPost, fromV3DocToProfile, fromV3FeedPost, extractUsername, mediaRefId, type PostRecord, type ResolvedMediaRef } from './types';
 import { resolveMediaRefs } from './posts';
@@ -235,7 +235,13 @@ export async function readFeed(sort: FeedSort = 'newest', limit = 50): Promise<P
   return posts;
 }
 
-// ── Feed page (D69) — the single-round-trip, cursor-paged read ──────────────
+// ── Feed page (D73) — the feed as a query over the flexible-read engine ──────
+//
+// The feed is no longer a bespoke node endpoint: it is a query the app writes
+// over the query engine (`w.query`), with the engine's prepare pass minting the
+// result rows (media + HLS + ads + the author's face). The node hardcodes
+// nothing — the app's query names the `profile` service (the app knows its own
+// face). Same output as the retired `POST /v3/feed` (query-engine.md, D73).
 
 export interface FeedPage {
   posts: PostRecord[];
@@ -243,11 +249,123 @@ export interface FeedPage {
   next_cursor: { created_at?: string; score?: number } | null;
 }
 
+type FeedRanking = { recency: number; likes: number; comments: number; half_life_ms: number; character: number };
+
 /**
- * Read one page of the feed (D69) — the single round-trip that replaces the
- * N+1 fan-out. One `w.feed(...)` call returns posts with resolved media + HLS,
- * the pinned + node ad joins, exact likes/comments, and the author's profile +
- * avatar_url, plus the `has_more` / `next_cursor` pagination state.
+ * The power-mean score as a ClickHouse SQL expression — mirrors the node's
+ * `_power_mean_score_sql` exactly (the same saturating normalizers, epsilon
+ * floor, p=0 geometric mean, recency-only reverse-chron shortcut) so the query
+ * ranks identically to the old `/v3/feed`. The values are inlined (the engine
+ * runs raw SQL, no named params). `createdMs` / `reactions` / `comments` are
+ * SQL expressions for the post's created_at, reaction count, comment count.
+ */
+function powerMeanScoreSql(createdMs: string, reactions: string, comments: string, sort: FeedRanking): string {
+  const wr = sort.recency;
+  const wl = sort.likes;
+  const wc = sort.comments;
+  const p = sort.character;
+  const hl = sort.half_life_ms;
+  const age = `greatest(0, toUnixTimestamp64Milli(now64(3)) - toUnixTimestamp64Milli(${createdMs}))`;
+  // Recency-only shortcut: the "Newest" preset → pure reverse-chron.
+  if (wr > 0 && wl <= 0 && wc <= 0) return `-(${age})`;
+  // No weighted signal at all → score 0 (the caller falls back to chronological).
+  if (wr <= 0 && wl <= 0 && wc <= 0) return '0';
+  const eps = 1e-12;
+  const r = `least(1, greatest(${eps}, if(${hl} <= 0, 1, exp(-(${age}) / ${hl}))))`;
+  const likesN = `least(1, greatest(${eps}, ln(1 + (${reactions})) / (1 + ln(1 + (${reactions})))))`;
+  const c = `least(1, greatest(${eps}, 0.5 * ln(1 + (${comments})) / (1 + 0.5 * ln(1 + (${comments})))))`;
+  const tw = `(if(${wr} > 0, ${wr}, 0) + if(${wl} > 0, ${wl}, 0) + if(${wc} > 0, ${wc}, 0))`;
+  if (Math.abs(p) < 1e-9) {
+    const num = `(if(${wr} > 0, ${wr} * ln(${r}), 0) + if(${wl} > 0, ${wl} * ln(${likesN}), 0) + if(${wc} > 0, ${wc} * ln(${c}), 0))`;
+    return `exp(${num} / ${tw})`;
+  }
+  const num = `(if(${wr} > 0, ${wr} * pow(${r}, ${p}), 0) + if(${wl} > 0, ${wl} * pow(${likesN}, ${p}), 0) + if(${wc} > 0, ${wc} * pow(${c}, ${p}), 0))`;
+  return `pow(${num} / ${tw}, 1 / ${p})`;
+}
+
+/**
+ * The feed query (D73): a page of posts, ranked in SQL, keyset-cursor paged,
+ * with exact reaction + comment counts and the author's profile body. The
+ * engine wraps `posts` / `reactions` / `comments` / `profile` in boundary CTEs
+ * (the group filter + block/sharing/hidden) — the same visibility as the old
+ * board base. `sort` is null for the Newest preset (chronological, cursor on
+ * created_at); a tuned sort ranks in SQL (cursor on the score).
+ */
+function buildFeedQuery(sort: FeedRanking | null, cursor: { created_at?: string; score?: number } | null, limit: number): string {
+  const s: FeedRanking = sort ?? { recency: 0, likes: 0, comments: 0, half_life_ms: 0, character: -1 };
+  const score = powerMeanScoreSql('p.created_at', 'coalesce(eng.reaction_count, 0)', 'coalesce(cmt.comment_count, 0)', s);
+  // Newest (all-zero, or recency-only) → the cursor rides on created_at; a
+  // tuned sort → the cursor rides on the score.
+  const newest = (s.recency <= 0 && s.likes <= 0 && s.comments <= 0) || (s.recency > 0 && s.likes <= 0 && s.comments <= 0);
+  let cursorClause = '';
+  if (newest) {
+    if (cursor?.created_at) cursorClause = `WHERE toUnixTimestamp64Milli(p.created_at) < toUnixTimestamp64Milli('${cursor.created_at}') `;
+  } else if (cursor?.score != null) {
+    cursorClause = `WHERE (${score}) < ${cursor.score} `;
+  }
+  const orderBy = newest ? 'toUnixTimestamp64Milli(p.created_at) DESC' : `${score} DESC`;
+  // Every selected column carries an explicit alias. ClickHouse names a
+  // result column after the qualified expression (`p.body`) whenever another
+  // joined table in scope exposes a same-named column (the `eng`/`cmt`
+  // subqueries expose `ref_value`, the `pr` subquery exposes `author_key` +
+  // `body`) — the row keys would arrive as `p.body` and the prepare pass +
+  // the client (which duck-type on `body` / `author_key`) would silently see
+  // nothing. An explicit `AS body` pins the name regardless of scope.
+  return (
+    'SELECT p.doc_id AS doc_id, p.author_key AS author_key, p.body AS body, p.tags AS tags, ' +
+    'p.created_at AS created_at, p.ref_value AS ref_value, p.ad_mode AS ad_mode, p.ad_target AS ad_target, ' +
+    'coalesce(eng.reaction_count, 0) AS likes, coalesce(cmt.comment_count, 0) AS comments, ' +
+    `(${score}) AS score, pr.body AS profile_body ` +
+    'FROM posts p ' +
+    "LEFT JOIN (SELECT ref_value, count() AS reaction_count FROM reactions WHERE ref_value != '' GROUP BY ref_value) eng ON eng.ref_value = p.doc_id " +
+    "LEFT JOIN (SELECT ref_value, count() AS comment_count FROM comments WHERE ref_value != '' GROUP BY ref_value) cmt ON cmt.ref_value = p.doc_id " +
+    'LEFT JOIN (SELECT author_key, body FROM profile QUALIFY row_number() OVER (PARTITION BY author_key ORDER BY updated_at DESC) = 1) pr ON pr.author_key = p.author_key ' +
+    cursorClause +
+    'ORDER BY ' + orderBy + ' ' +
+    `LIMIT ${limit + 1}`
+  );
+}
+
+/**
+ * Map a prepared feed-query row to a PostRecord. The row carries the post doc
+ * (doc_id/author_key/body/tags/created_at/ref_value/ad_mode/ad_target — `body`
+ * parsed, media resolved + ads attached by the prepare pass), the computed
+ * `likes`/`comments`/`score`, the author's `profile_body` (a JSON string — an
+ * aliased body column the row serializer doesn't parse), and `avatar_url`
+ * (minted by the prepare pass). Reuses `fromV3FeedPost` by shaping the row into
+ * a V3FeedPost.
+ */
+function fromFeedQueryRow(row: Record<string, unknown>): PostRecord {
+  const profileBody =
+    typeof row.profile_body === 'string' && row.profile_body
+      ? (JSON.parse(row.profile_body) as Record<string, unknown>)
+      : (row.profile_body as Record<string, unknown> | undefined);
+  const feedPost = {
+    doc_id: row.doc_id,
+    author_key: row.author_key,
+    body: row.body,
+    tags: row.tags,
+    created_at: row.created_at,
+    ref_value: row.ref_value,
+    ad_mode: row.ad_mode,
+    ad_target: row.ad_target,
+    ad: row.ad,
+    node_ad: row.node_ad,
+    likes: row.likes,
+    comments: row.comments,
+    score: row.score,
+    profile: profileBody,
+    avatar_url: row.avatar_url,
+  };
+  return fromV3FeedPost(feedPost as unknown as import('./v3').V3FeedPost);
+}
+
+/**
+ * Read one page of the feed (D73) — one `w.query()` over the flexible-read
+ * engine, with the prepare pass minting the rows. Same output as the retired
+ * `POST /v3/feed`: ranked posts with resolved media + HLS, the pinned + node ad
+ * joins, exact likes/comments, the author's profile + avatar_url, plus the
+ * `has_more` / `next_cursor` pagination state.
  *
  * `knobState` is the feed's ranking knobs (the D36 rack). The Newest preset
  * (no likes/comments weight) → chronological (the cursor rides on created_at);
@@ -269,15 +387,29 @@ export async function readFeedPage(opts: {
   }
 
   const sort = opts.knobState ? knobStateToSort(opts.knobState) : null;
-  const result: V3FeedResult = await w.feed({
+  const limit = opts.limit ?? 20;
+  const sql = buildFeedQuery(sort, opts.cursor ?? null, limit);
+  // The prepare pass (D73): mint media + HLS + ads + the author's face so the
+  // query returns render-ready rows in one round-trip.
+  const result = await w.query(sql, {
     groups: feedGroups,
-    limit: opts.limit ?? 20,
-    cursor: opts.cursor ?? null,
-    sort: sort ?? undefined,
+    prepare: {
+      media: true,
+      ads: true,
+      face: { bodyField: 'profile_body', mediaField: 'avatar_ref', authorColumn: 'author_key', urlField: 'avatar_url' },
+    },
   });
-  const posts = result.posts.map(fromV3FeedPost);
-  console.log('[social-feed] readFeedPage — got', posts.length, 'posts, has_more:', result.has_more);
-  return { posts, has_more: result.has_more, next_cursor: result.next_cursor };
+  const posts = result.rows.map(fromFeedQueryRow);
+  const has_more = posts.length > limit;
+  const page = posts.slice(0, limit);
+  // The next cursor rides on the last row: created_at (Newest) or score (tuned).
+  let next_cursor: { created_at?: string; score?: number } | null = null;
+  if (has_more && page.length) {
+    const last = page[page.length - 1];
+    next_cursor = sort ? { score: last.score ?? undefined } : { created_at: last.created_at };
+  }
+  console.log('[social-feed] readFeedPage — got', page.length, 'posts, has_more:', has_more);
+  return { posts: page, has_more, next_cursor };
 }
 
 /**
