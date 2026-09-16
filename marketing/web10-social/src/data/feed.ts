@@ -17,10 +17,16 @@ import { knobStateToSort } from '@/lib/powerMean';
  * `sort` (the D36 power-mean config, server-side): when present, the node
  * scores every readable post and returns pre-sorted results — a knob twist
  * is a re-read, not a client-side shuffle of the same 50.
+ *
+ * `tags` (the generic server-side tag filter, `has(tags, …)`): when present,
+ * the node returns only docs carrying every given tag. A platform primitive —
+ * the Shorts feed passes `["short"]` so the read pulls only shorts (shorts.md
+ * v1.5). The render-time 9:16 gate stays the backstop that drops fakes.
  */
 export async function readDiscoverFeed(
   sort: PowerMeanSort | null = null,
   limit = 50,
+  tags?: string[],
 ): Promise<PostRecord[]> {
   const w = getV3Client();
   try {
@@ -28,6 +34,7 @@ export async function readDiscoverFeed(
       groups: [getDiscoverGroupId()],
       limit,
       ...(sort ? { sort } : {}),
+      ...(tags ? { tags } : {}),
     });
     const posts = docs.map(fromV3DocToPost);
     // Without a server sort, keep the chronological default (newest first).
@@ -61,11 +68,15 @@ export interface ShortPost {
  * media rather than trusting the tag. A post tagged `short` whose media is an
  * image, or a lying ratio, simply does not render as a short.
  *
- * v1 reads the discover group and filters client-side (zero API change); the
- * server-side `has(tags, 'short')` filter is the v1.5 follow-up.
+ * The read is two-layered (shorts.md, defense in depth):
+ *   1. **Server-side** — `readDiscoverFeed(…, ["short"])` sends the generic
+ *      tag filter (`has(tags, 'short')`), so the node pulls only tagged shorts
+ *      instead of the whole board (the v1.5 follow-up — cheap + indexable).
+ *   2. **Render-time** — the 9:16 re-derive below (the backstop that drops
+ *      fakes: a doc tagged `short` whose media isn't a real vertical video).
  */
 export async function readShortsFeed(limit = 50): Promise<ShortPost[]> {
-  const posts = await readDiscoverFeed(null, limit);
+  const posts = await readDiscoverFeed(null, limit, ['short']);
   const withMedia = posts.filter((p) => p.media_refs?.length);
   if (!withMedia.length) return [];
 

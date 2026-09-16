@@ -277,6 +277,8 @@
           payload.ref = opts.ref;
         if (opts.sort != null)
           payload.sort = opts.sort;
+        if (opts.tags != null)
+          payload.tags = opts.tags;
         return v3Post("read", payload);
       },
       async readRefCounts(collection, opts) {
@@ -471,6 +473,9 @@
       },
       async deleteMedia(docId) {
         return v3Post("media/delete", { doc_id: docId });
+      },
+      async getThumbnail(docId) {
+        return v3Post("media/thumbnail", { doc_id: docId });
       },
       async getNodeStats() {
         return v3Post("stats", {});

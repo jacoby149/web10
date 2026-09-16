@@ -190,7 +190,7 @@ Behind the scenes the API inserts one row into `documents`, then one row per gro
 
 ### Read
 
-Every read is group-filtered. You see a document because you're a member of a group it's attached to — even your own posts. The read opts are `{ groups, limit?, offset?, ref? }` — `groups` is required; `limit`/`offset` paginate; `ref` filters to docs whose `ref_value` matches (the engagement shape).
+Every read is group-filtered. You see a document because you're a member of a group it's attached to — even your own posts. The read opts are `{ groups, limit?, offset?, ref?, sort?, tags? }` — `groups` is required; `limit`/`offset` paginate; `ref` filters to docs whose `ref_value` matches (the engagement shape); `sort` is the power-mean ranking config (D36); `tags` is the generic server-side tag filter (below).
 
 **Personal read** — `me` is a reserved group that returns your own documents, regardless of group attachment:
 
@@ -231,6 +231,16 @@ const posts = await w.read('posts', {
 const comments = await w.read('comments', {
   groups: ['{provider}/groups/web10/discover'],
   ref: postDocId,
+})
+```
+
+**The tag filter** — return only the docs that carry **every** given tag (`has(tags, …)` in SQL). A generic platform primitive: `tags` is a first-class column on the universal `documents` table (every service carries it), so any app can filter its own reads by its own tags with zero new infra. The node-ad read uses the same idiom server-side (`has(tags, 'node_ad')`); this exposes it on the `read` endpoint. The Shorts feed is the first consumer (`tags: ['short']` — the server-side inclusion rule; the render-time 9:16 gate stays the backstop that drops fakes):
+
+```ts
+const shorts = await w.read('posts', {
+  groups: ['{provider}/groups/web10/discover'],
+  tags: ['short'],
+  limit: 50,
 })
 ```
 

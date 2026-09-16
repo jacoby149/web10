@@ -553,7 +553,7 @@ export function createV3Client(options: V3ClientOptions = {}): V3Client {
 
     async read(
       collection: string,
-      opts: { groups: string[]; limit?: number; offset?: number; ref?: string | string[]; sort?: PowerMeanSort },
+      opts: { groups: string[]; limit?: number; offset?: number; ref?: string | string[]; sort?: PowerMeanSort; tags?: string[] },
     ): Promise<V3Document[]> {
       const payload: V3Body = { service: collection, groups: opts.groups }
       if (opts.limit != null) payload.limit = opts.limit
@@ -566,6 +566,10 @@ export function createV3Client(options: V3ClientOptions = {}): V3Client {
       // present, the node scores every readable post and returns pre-sorted
       // results, so a knob twist is a re-read, not a client-side shuffle.
       if (opts.sort != null) payload.sort = opts.sort
+      // The generic server-side tag filter (has(tags, …)): return only docs
+      // that carry EVERY given tag. A platform primitive — any service's read
+      // can filter by its own tags (the Shorts feed passes ["short"]).
+      if (opts.tags != null) payload.tags = opts.tags
       return v3Post<V3Document[]>('read', payload)
     },
 
@@ -1077,7 +1081,7 @@ export interface V3Client {
 
   // CRUD with groups
   create(collection: string, body: Record<string, unknown>, opts?: { groups?: string[]; ad_preference?: V3AdPreference; ref_value?: string }): Promise<V3Document>
-  read(collection: string, opts: { groups: string[]; limit?: number; offset?: number; ref?: string | string[]; sort?: PowerMeanSort }): Promise<V3Document[]>
+  read(collection: string, opts: { groups: string[]; limit?: number; offset?: number; ref?: string | string[]; sort?: PowerMeanSort; tags?: string[] }): Promise<V3Document[]>
   readRefCounts(collection: string, opts: { groups: string[]; ref: string | string[] }): Promise<Record<string, number>>
   readById(docId: string, collection: string): Promise<V3Document>
   query(sql: string, opts?: { groups?: string[]; prepare?: V3Prepare }): Promise<V3QueryResult>

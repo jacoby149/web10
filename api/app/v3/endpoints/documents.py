@@ -265,6 +265,10 @@ def read_documents(request: Request, data: ReadDocuments):
         # D58: group_ids is already filtered to the readable set — drop the
         # membership JOIN (a public group's reader is not a member).
         require_membership=False,
+        # The generic server-side tag filter (has(tags, …)): the doc must
+        # carry every given tag. A platform primitive — the Shorts feed is the
+        # first consumer (["short"]); the render-time gate stays the backstop.
+        tags=data.tags,
     )
     # v3 ad preference: serve each pinned doc with its ad inline (I3-checked).
     docs = ch.attach_pinned_ads(docs, reader)

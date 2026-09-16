@@ -1978,3 +1978,85 @@ class TestGetAppDetail:
         with _patch_client() as mock_client:
             mock_client.query.return_value = _mock_result_rows([row])
             assert ch.get_app_detail("https://a.com") is None
+
+
+# ---------------------------------------------------------------------------
+# The generic server-side tag filter (has(tags, …)) — the read path
+# ---------------------------------------------------------------------------
+
+
+class TestReadTagFilter:
+    """`read_documents_in_groups(tags=…)` filters to docs carrying EVERY given
+    tag — the generic platform primitive (the idiom the node-ad read already
+    uses). The Shorts feed is the first consumer (["short"]); the render-time
+    9:16 gate on the client stays the backstop that drops fakes.
+
+    The mock returns whatever rows we seed — the assertion is on the SQL the
+    service builds (the `has(p.tags, …)` clause) + the bound params, not on
+    the (mocked) result set.
+    """
+
+    _ROW = ("doc-1", "alice", '{"text":"hi"}', ["short"], datetime(2026, 1, 1), "", "none", "")
+
+    def test_single_tag_adds_has_clause_and_param(self):
+        with _patch_client() as mock_client:
+            mock_client.query.return_value = _mock_result_rows([self._ROW])
+            ch.read_documents_in_groups(
+                group_ids=["api.localhost/groups/web10/discover"],
+                member_key="anon",
+                service="posts",
+                require_membership=False,
+                tags=["short"],
+            )
+        sql, params = mock_client.query.call_args[0]
+        assert "has(p.tags, %(tag0)s)" in sql
+        assert params["tag0"] == "short"
+
+    def test_multiple_tags_are_anded(self):
+        """A doc must carry EVERY given tag (AND) — the predictable
+        'filter by these tags' semantics. Single-tag is the common case."""
+        with _patch_client() as mock_client:
+            mock_client.query.return_value = _mock_result_rows([self._ROW])
+            ch.read_documents_in_groups(
+                group_ids=["api.localhost/groups/web10/discover"],
+                member_key="anon",
+                service="posts",
+                require_membership=False,
+                tags=["short", "vertical"],
+            )
+        sql, params = mock_client.query.call_args[0]
+        assert "has(p.tags, %(tag0)s) AND has(p.tags, %(tag1)s)" in sql
+        assert params["tag0"] == "short"
+        assert params["tag1"] == "vertical"
+
+    def test_no_tags_is_the_unfiltered_read(self):
+        """Absent/None tags → no `has(p.tags` clause (the board read is
+        unchanged — the ad-agnostic pin in test_ads.py holds)."""
+        with _patch_client() as mock_client:
+            mock_client.query.return_value = _mock_result_rows([self._ROW])
+            ch.read_documents_in_groups(
+                group_ids=["api.localhost/groups/web10/discover"],
+                member_key="anon",
+                service="posts",
+                require_membership=False,
+            )
+        sql, _ = mock_client.query.call_args[0]
+        assert "has(p.tags" not in sql
+
+    def test_ranked_path_also_filters_by_tag(self):
+        """The power-mean (sort) path shares the board base — the tag filter
+        applies there too, so a tuned Shorts read still pulls only shorts."""
+        sort = {"recency": 1.0, "likes": 0.5, "comments": 0.5, "half_life_ms": 86400000, "character": 0.0}
+        with _patch_client() as mock_client:
+            mock_client.query.return_value = _mock_result_rows([self._ROW])
+            ch.read_documents_in_groups(
+                group_ids=["api.localhost/groups/web10/discover"],
+                member_key="anon",
+                service="posts",
+                sort=sort,
+                require_membership=False,
+                tags=["short"],
+            )
+        sql, params = mock_client.query.call_args[0]
+        assert "has(p.tags, %(tag0)s)" in sql
+        assert params["tag0"] == "short"

@@ -458,6 +458,24 @@ describe('v3 client', () => {
       expect(call.limit).toBe(20)
     })
 
+    it('read with tags sends the generic server-side tag filter (has(tags, …))', async () => {
+      const mockResponse = [{ doc_id: 'abc', collection_name: 'posts', body: {} }]
+      vi.spyOn(http, 'authPost').mockResolvedValueOnce(mockResponse as any)
+
+      await client.read('posts', { groups: ['g'], tags: ['short'] })
+      const call = (vi.mocked(http.authPost).mock.calls[0][1] as any)
+      expect(call.tags).toEqual(['short'])
+    })
+
+    it('read without tags omits the field (the unfiltered board read)', async () => {
+      const mockResponse = [{ doc_id: 'abc', collection_name: 'posts', body: {} }]
+      vi.spyOn(http, 'authPost').mockResolvedValueOnce(mockResponse as any)
+
+      await client.read('posts', { groups: ['g'] })
+      const call = (vi.mocked(http.authPost).mock.calls[0][1] as any)
+      expect(call.tags).toBeUndefined()
+    })
+
     it('readById posts to read with doc_id (the API merged read-by-id into read, #537)', async () => {
       const mockResponse = { doc_id: 'abc', collection_name: 'notes', body: {} }
       vi.spyOn(http, 'authPost').mockResolvedValueOnce(mockResponse as any)

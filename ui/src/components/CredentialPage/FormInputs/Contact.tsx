@@ -1,4 +1,3 @@
-import { useState } from 'react';
 import { Info } from 'lucide-react';
 import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
@@ -8,12 +7,10 @@ import { Input } from '@/components/ui/input';
 // whether a contact is required (the unauthenticated signup screen has no
 // public config read, so it always offers both, like the D61 recovery flow).
 // Uncontrolled like the other signup fields (the form reads the DOM value at
-// submit); local state only tracks the value so inputMode can flip to email
-// when it looks like an address.
+// submit). No inputMode: the field accepts a phone OR an email, so a forced
+// "tel" keypad (the old default) was useless for typing an address — the
+// regular full keyboard is the only one that works for both.
 function Contact({ I }: { I: Record<string, any> }) {
-  const [value, setValue] = useState("");
-  const isEmail = value.includes("@");
-
   return (
     <div className="mb-4">
       <Label htmlFor="contact" className="mb-1.5 block text-muted-foreground">
@@ -24,11 +21,9 @@ function Contact({ I }: { I: Record<string, any> }) {
           <Input
             id="contact"
             type="text"
-            inputMode={isEmail ? "email" : "tel"}
             autoComplete="off"
             placeholder="+1 555 123 4567 or you@example.com"
             onChange={(e) => {
-              setValue(e.target.value);
               if (I.setContact) I.setContact(e.target.value);
             }}
             data-testid="contact-input"

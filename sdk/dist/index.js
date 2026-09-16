@@ -264,6 +264,8 @@ function createV3Client(options = {}) {
         payload.ref = opts.ref;
       if (opts.sort != null)
         payload.sort = opts.sort;
+      if (opts.tags != null)
+        payload.tags = opts.tags;
       return v3Post("read", payload);
     },
     async readRefCounts(collection, opts) {

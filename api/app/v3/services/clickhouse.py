@@ -1774,13 +1774,13 @@ def _power_mean_score_sql(
     return f"pow({num} / {tw}, 1 / %(p)s)"
 
 
-def _board_base_sql(group_ids: list[str], require_membership: bool = True) -> str:
+def _board_base_sql(group_ids: list[str], require_membership: bool = True, tags: list[str] | None = None) -> str:
     """Board base SQL (shared by the no-sort and ranked read paths).
 
     documents JOIN doc_groups [JOIN group_members], filtered by tombstones,
     blacklists, sharing, and hidden docs. Selects
     (doc_id, author_key, body, tags, created_at, ref_value, ad_mode, ad_target).
-    Placeholders: %(coll)s, %(member_key)s, %(g0)s..%(gN)s.
+    Placeholders: %(coll)s, %(member_key)s, %(g0)s..%(gN)s, %(tag0)s..%(tagN)s.
 
     ``require_membership`` (D58): when True (the legacy path), the read is
     gated on the reader being a member of each group — the group_members JOIN +
@@ -1788,6 +1788,13 @@ def _board_base_sql(group_ids: list[str], require_membership: bool = True) -> st
     filtered ``group_ids`` to the readable set (the D58 effective-role gate),
     so the membership JOIN is dropped; the blacklist/sharing/hidden filters
     (keyed on ``member_key``) are kept.
+
+    ``tags`` (optional): a server-side tag filter — the doc must carry EVERY
+    given tag (``has(p.tags, %(tagN)s)`` ANDed). The idiom the node-ad read
+    already uses (``has(tags, 'node_ad')``, below); generalized to N tags. The
+    Shorts feed uses it to pull only ``short``-tagged posts (shorts.md) — the
+    tag is the cheap, indexable server filter; the render-time 9:16 gate on
+    the client stays the backstop that drops fakes.
     """
     membership_join = (
         "JOIN (SELECT group_id, member_key, role FROM (SELECT group_id, member_key, role, deleted, "
@@ -1797,6 +1804,7 @@ def _board_base_sql(group_ids: list[str], require_membership: bool = True) -> st
         else ""
     )
     membership_where = "gm.member_key = %(member_key)s AND " if require_membership else ""
+    tag_where = " AND (" + " AND ".join(f"has(p.tags, %(tag{i})s)" for i in range(len(tags))) + ")" if tags else ""
     return (
         "SELECT p.doc_id AS doc_id, p.author_key, p.body, p.tags, p.created_at, p.ref_value, p.ad_mode, p.ad_target "
         "FROM (SELECT doc_id, author_key, body, tags, created_at, ref_value, ad_mode, ad_target, deleted "
@@ -1829,6 +1837,7 @@ def _board_base_sql(group_ids: list[str], require_membership: bool = True) -> st
         + "pg.group_id IN (%(g0)s"
         + "".join(f", %(g{i})s" for i in range(1, len(group_ids)))
         + ")"
+        + tag_where
     )
 
 
@@ -1839,13 +1848,15 @@ def _group_docs_query(
     limit: int | None,
     offset: int,
     require_membership: bool = True,
+    tags: list[str] | None = None,
 ) -> list[dict]:
     """The core v3 discover query (no ranking).
 
     documents JOIN doc_groups [JOIN group_members], filtered by tombstones,
     blacklists, and hidden docs. `limit=None` fetches the full membership (no
     LIMIT clause). `require_membership=False` (D58) drops the membership JOIN —
-    the caller pre-filtered `group_ids` to the readable set.
+    the caller pre-filtered `group_ids` to the readable set. `tags` filters to
+    docs carrying every given tag (the server-side tag filter, shorts.md).
     """
     limit_clause = "LIMIT %(limit)s OFFSET %(offset)s" if limit is not None else ""
     params: dict = {
@@ -1853,11 +1864,12 @@ def _group_docs_query(
         "coll": service,
         "offset": offset,
         **{f"g{i}": gid for i, gid in enumerate(group_ids)},
+        **{f"tag{i}": t for i, t in enumerate(tags or [])},
     }
     if limit is not None:
         params["limit"] = limit
     result = client.query(
-        _board_base_sql(group_ids, require_membership) + " ORDER BY p.created_at DESC " + limit_clause, params
+        _board_base_sql(group_ids, require_membership, tags) + " ORDER BY p.created_at DESC " + limit_clause, params
     )
     return [
         {
@@ -1883,16 +1895,18 @@ def _group_docs_ranked_query(
     limit: int,
     offset: int,
     require_membership: bool = True,
+    tags: list[str] | None = None,
 ) -> list[dict]:
     """The v3 discover query with power-mean ranking in SQL (the v1 scale-up).
 
     The board base (documents JOIN doc_groups JOIN group_members + the
     block/share/hidden anti-joins) is joined to EXACT engagement counts — one
     grouped scan of the reactions and comments collections, no per-row
-    subquery, no maintained counter table (feed-lens-integration.md, option
-    B). The power-mean score is computed in SQL (mirroring
+    subquery, no maintained counter table (feed-lens-integration.md, option B).
+    The power-mean score is computed in SQL (mirroring
     `_power_mean_score`), and ORDER BY + LIMIT/OFFSET happen in ClickHouse —
-    no full membership fetch into Python, no in-process sort.
+    no full membership fetch into Python, no in-process sort. `tags` filters to
+    docs carrying every given tag (the server-side tag filter, shorts.md).
     """
     wr = float(sort.get("recency", 0.0))
     wl = float(sort.get("likes", 0.0))
@@ -1920,11 +1934,12 @@ def _group_docs_ranked_query(
         "hl": float(sort.get("half_life_ms", 0.0)),
         "p": float(sort.get("character", -1.0)),
         **{f"g{i}": gid for i, gid in enumerate(group_ids)},
+        **{f"tag{i}": t for i, t in enumerate(tags or [])},
     }
 
     sql = (
         "SELECT b.doc_id, b.author_key, b.body, b.tags, b.created_at, b.ref_value, b.ad_mode, b.ad_target "
-        "FROM (" + _board_base_sql(group_ids, require_membership) + ") b "
+        "FROM (" + _board_base_sql(group_ids, require_membership, tags) + ") b "
         "LEFT JOIN (SELECT ref_value, count() AS reaction_count FROM (SELECT ref_value FROM documents "
         "WHERE deleted = 0 AND collection_name = 'reactions' "
         "QUALIFY row_number() OVER (PARTITION BY doc_id, author_key ORDER BY updated_at DESC) = 1) "
@@ -1961,6 +1976,7 @@ def read_documents_in_groups(
     offset: int = 0,
     sort: dict | None = None,
     require_membership: bool = True,
+    tags: list[str] | None = None,
 ) -> list[dict]:
     """Read documents attached to groups the reader can access.
 
@@ -1971,6 +1987,12 @@ def read_documents_in_groups(
     gated on the reader being a member of each group. When False, the caller
     has pre-filtered ``group_ids`` to the readable set (the effective-role
     gate) and the membership JOIN is dropped.
+
+    ``tags`` (optional): a generic server-side tag filter — the doc must carry
+    EVERY given tag (``has(tags, …)``, the idiom the node-ad read already uses).
+    It is a platform primitive, not a social concept: any service's read can
+    filter by its own tags. The Shorts feed is the first consumer (``['short']``);
+    the render-time 9:16 gate on the client stays the backstop that drops fakes.
 
     Blocking/sharing enforcement (KB: security/overview.md "Blocking and
     Sharing", social/cross-app-sharing.md):
@@ -2000,9 +2022,9 @@ def read_documents_in_groups(
         # to exact engagement counts, scored in SQL (mirroring the client), and
         # paged in ClickHouse — no full membership fetch into Python
         # (feed-lens-integration.md, option B).
-        return _group_docs_ranked_query(group_ids, member_key, service, sort, limit, offset, require_membership)
+        return _group_docs_ranked_query(group_ids, member_key, service, sort, limit, offset, require_membership, tags)
 
-    return _group_docs_query(group_ids, member_key, service, limit, offset, require_membership)
+    return _group_docs_query(group_ids, member_key, service, limit, offset, require_membership, tags)
 
 
 def get_author_profiles(author_keys: list[str]) -> dict[str, dict]:
