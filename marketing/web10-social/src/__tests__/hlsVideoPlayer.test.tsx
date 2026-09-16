@@ -228,6 +228,40 @@ describe('HlsVideoPlayer', () => {
     }
   });
 
+  it('keeps the controls visible while the pointer is over the player (reaching for a control must not hide the rack)', async () => {
+    vi.useFakeTimers();
+    installFakeHls();
+    try {
+      const { HlsVideoPlayer } = await import('@/components/Feed/HlsVideoPlayer');
+      const { container } = render(<HlsVideoPlayer manifestUrl="/v3/media/hls/manifest?doc_id=m1&sig=abc" />);
+      const video = screen.getByTestId('hls-video') as HTMLVideoElement;
+      const setPaused = (p: boolean) => Object.defineProperty(video, 'paused', { value: p, configurable: true });
+      // The player box is the div that carries the mouse handlers (the
+      // aspect-ratio frame, capped to a phone column for vertical video).
+      const box = container.querySelector('[data-testid="hls-video-player"] > div') as HTMLElement;
+      const controls = screen.getByTestId('player-controls');
+
+      // Playing + pointer over the player: the idle window elapses but the
+      // rack stays up (the pointer is still here, mid-reach for a control).
+      setPaused(false);
+      fireEvent.play(video);
+      fireEvent.mouseEnter(box);
+      await act(async () => { await vi.advanceTimersByTimeAsync(3000); });
+      expect(controls.className).not.toContain('pointer-events-none');
+
+      // Pointer leaves the player while playing: now the rack may auto-hide.
+      fireEvent.mouseLeave(box);
+      await act(async () => { await vi.advanceTimersByTimeAsync(3000); });
+      expect(controls.className).toContain('pointer-events-none');
+
+      // Pointer returns: the rack is immediately reachable again.
+      fireEvent.mouseEnter(box);
+      expect(controls.className).not.toContain('pointer-events-none');
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
   it('renders a vertical (9:16) video in a phone-width column', async () => {
     installFakeHls();
     const { HlsVideoPlayer } = await import('@/components/Feed/HlsVideoPlayer');
