@@ -57,6 +57,22 @@ read already grants every post reader a presigned `read_url` for the raw
 file (the renditions are strictly less data). A removed/blocked follower
 loses the stream within one sig TTL.
 
+**Rule (3) is the read path's own gate — not a second model.** "Can read the
+group" means the D58 effective-role check (`can_read_group`): membership OR
+the group's `anyone`/`authenticated` grant. The public board's reader is NOT
+a member — it reads through the `anyone` grant (the D58 backfill renamed the
+discover board's `anon` member row to `anyone`). A literal-membership check
+here would 403 every anon-minted sig: the marketing `/trending` board reads
+anon, the read granted the post, but the manifest re-check said no → the
+player degraded to "can't be played in your browser" while the same video
+played fine in the social app (a real user, a real membership row). The
+re-check and the read must answer "can this reader see this?" the same way —
+the re-check exists to make revocation work within one sig TTL, not to be a
+stricter second gate. The sig carries an `authenticated` flag (minted at
+read time) so the re-check evaluates the same principal classes the read
+did: an anon read re-checks as anon and can never upgrade to
+`authenticated`-only grants.
+
 ## The Middleware
 
 The middleware sits in front of MinIO for **HLS paths only**:

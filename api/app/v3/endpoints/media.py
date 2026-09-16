@@ -200,13 +200,15 @@ def _hls_doc(doc_id: str, sig: str) -> dict:
 
     The sig check is the fast path (JWT, no DB); the access re-check is what
     the 10-minute expiry buys — group membership re-verified on every
-    manifest (re)fetch.
+    manifest (re)fetch. `authenticated` rides in the sig (minted at read
+    time) so the re-check evaluates the same D58 principal classes the
+    original read did — an anon read re-checks as anon.
     """
     try:
         payload = verify_sig(sig, doc_id)
     except ValueError as e:
         raise HTTPException(status_code=403, detail=str(e))
-    doc = can_view_doc(doc_id, payload["username"])
+    doc = can_view_doc(doc_id, payload["username"], payload.get("authenticated", False))
     if not doc:
         raise HTTPException(status_code=403, detail="not a member of the requested group")
     return doc
