@@ -293,8 +293,16 @@ function buildFeedQuery(sort: FeedRanking | null, cursor: { created_at?: string;
     cursorClause = `WHERE (${score}) < ${cursor.score} `;
   }
   const orderBy = newest ? 'toUnixTimestamp64Milli(p.created_at) DESC' : `${score} DESC`;
+  // Every selected column carries an explicit alias. ClickHouse names a
+  // result column after the qualified expression (`p.body`) whenever another
+  // joined table in scope exposes a same-named column (the `eng`/`cmt`
+  // subqueries expose `ref_value`, the `pr` subquery exposes `author_key` +
+  // `body`) — the row keys would arrive as `p.body` and the prepare pass +
+  // the client (which duck-type on `body` / `author_key`) would silently see
+  // nothing. An explicit `AS body` pins the name regardless of scope.
   return (
-    'SELECT p.doc_id, p.author_key, p.body, p.tags, p.created_at, p.ref_value, p.ad_mode, p.ad_target, ' +
+    'SELECT p.doc_id AS doc_id, p.author_key AS author_key, p.body AS body, p.tags AS tags, ' +
+    'p.created_at AS created_at, p.ref_value AS ref_value, p.ad_mode AS ad_mode, p.ad_target AS ad_target, ' +
     'coalesce(eng.reaction_count, 0) AS likes, coalesce(cmt.comment_count, 0) AS comments, ' +
     `(${score}) AS score, pr.body AS profile_body ` +
     'FROM posts p ' +

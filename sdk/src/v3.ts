@@ -604,6 +604,14 @@ export function createV3Client(options: V3ClientOptions = {}): V3Client {
      * use `JSONExtractString(body, 'field', 'value')` for fields),
      * `ref_value`, `tags`, `created_at`, `updated_at`.
      *
+     * **Alias every table-qualified column you SELECT** (`p.body AS body`,
+     * `p.author_key AS author_key`, …). ClickHouse names a result column after
+     * the qualified expression (`p.body`) whenever another joined table in
+     * scope exposes a same-named column — and the row keys are the contract
+     * the `prepare` pass and your code read (`body` / `author_key` /
+     * `ad_mode`). Unaliased, a JOINed same-named column silently mangles the
+     * keys (no error — the row just looks empty).
+     *
      * Works without a token (anon reads the public board) — the same rule as
      * `read`. An unbounded query gets `LIMIT 1000` appended server-side; a
      * LIMIT you write is honored as-is.

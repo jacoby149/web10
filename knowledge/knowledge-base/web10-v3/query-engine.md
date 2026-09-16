@@ -306,6 +306,23 @@ the face field — lives in the **app's query**, not the node. Any app writes it
 own feed query the same way; the social app is the example. `feed.py` is gone;
 the node knows no "feed," no "profile," no "avatar."
 
+**The column-name contract (alias every selected column).** The row→client
+contract is the *result column names*: the prepare pass and the client
+duck-type on `body` / `author_key` / `ad_mode` / `ad_target` (a row without a
+`body` key is a non-doc row — the passes skip it). ClickHouse names a result
+column after the qualified expression — `p.body` — **whenever any other table
+in the join scope exposes a same-named column** (the feed's count subqueries
+expose `ref_value`; a JOINed profile subquery exposes `author_key` + `body`).
+With no name clash the unqualified name comes through (`doc_id`, `tags`,
+`created_at`), which is what makes the failure *partial* and silent: some keys
+mangle, some don't, and nothing errors — the feed just renders empty. The rule
+is therefore: **a caller query that SELECTs table-qualified columns must alias
+them** (`p.body AS body`, `p.author_key AS author_key`, …). The feed query does
+this for every column; `query-engine.spec.ts` pins it end to end (a JOINed
+same-named-column shape must return unqualified keys). The endpoint logs the
+result column names (`[query] … columns=[…]`) so a mangled contract is visible
+at the source, not as an empty feed downstream.
+
 ## Resolved (the decisions that landed)
 
 - **Query language: a SQL subset.** The caller writes ClickHouse `SELECT`; the

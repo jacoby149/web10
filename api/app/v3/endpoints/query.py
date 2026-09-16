@@ -207,11 +207,12 @@ def run_query(request: Request, data: QueryRequest):
         raise HTTPException(status_code=403, detail=str(e))
 
     log.info(
-        "[query] reader=%s services=%s candidates=%d sql=%s",
+        "[query] reader=%s services=%s candidates=%d sql=%s compiled=%s",
         reader,
         sorted(needed),
         len(candidates),
         data.sql[:200],
+        compiled[:400],
     )
 
     try:
@@ -224,6 +225,18 @@ def run_query(request: Request, data: QueryRequest):
         raise HTTPException(status_code=400, detail=f"query execution failed: {e}")
 
     out = [_serialize_row(dict(zip(column_names, row))) for row in rows]
+    # The result column names are the row→client contract: the prepare pass
+    # and the client duck-type on `body` / `author_key` / `ad_mode`. A mangled
+    # name (ClickHouse qualifies a result column `p.body` when another joined
+    # table in scope exposes a same-named column) fails SILENTLY downstream —
+    # empty feed, no error anywhere. Logging the names makes that class of
+    # bug visible at the source.
+    log.info(
+        "[query] reader=%s rows=%d columns=%s",
+        reader,
+        len(rows),
+        column_names,
+    )
     # The prepare pass (D73): mint media + HLS + ads + face on the result rows
     # so the query returns render-ready rows in one round-trip (the feed-as-
     # query pattern). The boundary CTEs already gated the rows (I3); the mint
