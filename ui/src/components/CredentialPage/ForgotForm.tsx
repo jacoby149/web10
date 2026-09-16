@@ -70,7 +70,6 @@ function ForgotForm({ I, embedded = false }: { I: Record<string, any>; embedded?
               id="recovery-contact"
               data-testid="recovery-contact-input"
               type="text"
-              inputMode={isEmail ? "email" : "tel"}
               autoComplete="off"
               value={I.recoveryContact || ""}
               onChange={(e) => I.setRecoveryContact(e.target.value)}

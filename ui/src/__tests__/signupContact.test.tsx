@@ -50,11 +50,14 @@ describe('SignupForm — phone OR email contact (D61)', () => {
     )
   })
 
-  it('the contact inputMode flips to email when the value looks like an address', () => {
+  it('the contact field uses the regular keyboard (no forced tel/email inputMode)', () => {
     render(<SignupForm I={harness()} />)
     const input = screen.getByTestId('contact-input') as HTMLInputElement
-    expect(input.inputMode).toBe('tel')
+    // No inputMode: the field takes a phone OR an email, so a forced "tel"
+    // keypad (the old default) was useless for typing an address. The regular
+    // full keyboard is the only one that works for both.
+    expect(input.inputMode).toBe('')
     fireEvent.change(input, { target: { value: 'you@' } })
-    expect(input.inputMode).toBe('email')
+    expect(input.inputMode).toBe('')
   })
 })
