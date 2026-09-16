@@ -29,6 +29,10 @@ const profileItem = { path: '/profile', icon: User, label: 'Profile', testId: 'n
 // the desktop sidebar).
 const groupsItem = { path: '/groups', icon: Users, label: 'Groups', testId: 'nav-groups' };
 const settingsItem = { path: '/settings', icon: Settings, label: 'Settings', testId: 'nav-settings' };
+// Monetization (D75) — every signed-in user: the creator's ad catalog +
+// affiliate onboarding. Deep-links to the Monetization surface's default
+// (Creator) tab.
+const monetizationItem = { path: '/monetize', icon: DollarSign, label: 'Monetization', testId: 'nav-monetization' };
 // Node Monetization (D75) — a sibling of Groups, rendered ONLY for the node
 // admin (the useNodeAdmin gate). Deep-links to the Monetization surface's Node
 // tab.
@@ -181,6 +185,30 @@ export default function Layout({ onLogout, onReportBug, children }: LayoutProps)
             </button>
             );
           })}
+          <button
+            key={monetizationItem.path}
+            data-testid={monetizationItem.testId}
+            aria-current={isActive('/monetize') ? 'page' : undefined}
+            onClick={() => navigate(monetizationItem.path)}
+            className={cn(
+              'w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all duration-150',
+              isActive('/monetize')
+                ? cn(
+                    'bg-gradient-to-r from-brand-muted to-brand/15 text-brand-300',
+                    'border border-brand/20 glow-active',
+                  )
+                : 'text-muted-foreground hover:text-foreground hover:bg-elevated/80 hover:border hover:border-border/50',
+            )}
+          >
+            <DollarSign className={cn('w-5 h-5 transition-colors duration-150', isActive('/monetize') && 'text-brand')} strokeWidth={isActive('/monetize') ? 2 : 1.75} />
+            {monetizationItem.label}
+            {isActive('/monetize') && (
+              <div
+                className="ml-auto w-1.5 h-1.5 rounded-full bg-brand animate-glow-pulse"
+                aria-hidden="true"
+              />
+            )}
+          </button>
           {isNodeAdmin && (
             <button
               key={nodeMonetizationItem.path}
@@ -511,6 +539,17 @@ export default function Layout({ onLogout, onReportBug, children }: LayoutProps)
                 >
                   <Users className="w-5 h-5" strokeWidth={1.75} />
                   {groupsItem.label}
+                </button>
+                <button
+                  data-testid="nav-monetization-mobile"
+                  onClick={() => go(monetizationItem.path)}
+                  className={cn(
+                    'w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors duration-150',
+                    isActive('/monetize') ? 'bg-brand-muted text-brand-300' : 'text-foreground hover:bg-elevated',
+                  )}
+                >
+                  <DollarSign className="w-5 h-5" strokeWidth={1.75} />
+                  {monetizationItem.label}
                 </button>
                 {isNodeAdmin && (
                   <button

@@ -79,6 +79,15 @@ vi.mock('@/data/wapi', () => ({
 // auth seam lives in src/interfaces/auth and reads window.web10, which only
 // App-level tests need to install.)
 
+// Mock the ads-catalog data layer (the seam useNodeAdmin talks to) so the
+// Layout's node-admin gate is controllable in tests.
+const { checkNodeAdmin } = vi.hoisted(() => ({
+  checkNodeAdmin: vi.fn().mockResolvedValue(false),
+}));
+vi.mock('@/data/ads-catalog', () => ({
+  checkNodeAdmin: (...a: unknown[]) => checkNodeAdmin(...a),
+}));
+
 describe('FeedScreen', () => {
   beforeEach(() => {
     vi.clearAllMocks();
@@ -686,6 +695,69 @@ describe('Layout', () => {
     expect(within(sheet).getByTestId('nav-livestream-mobile')).toBeInTheDocument();
     expect(within(sheet).getByTestId('nav-games-mobile')).toBeInTheDocument();
     expect(within(sheet).getByTestId('nav-marketplace-mobile')).toBeInTheDocument();
+  });
+
+  it('Monetization nav renders for every user; Node Monetization only for the node admin', async () => {
+    const { default: Layout } = await import('@/components/Social/Layout');
+    // Non-admin: the "Monetization" entry (the creator's ad catalog +
+    // affiliate onboarding) is visible; "Node Monetization" is not.
+    checkNodeAdmin.mockResolvedValue(false);
+    const first = render(
+      <MemoryRouter initialEntries={['/feed']}>
+        <Layout onLogout={() => {}} onReportBug={() => {}}>
+          <div>Content</div>
+        </Layout>
+      </MemoryRouter>,
+    );
+    expect(await screen.findByTestId('nav-monetization')).toBeInTheDocument();
+    // The admin check has settled — the node entry never appears.
+    await waitFor(() => expect(checkNodeAdmin).toHaveBeenCalled());
+    expect(screen.queryByTestId('nav-node-monetization')).not.toBeInTheDocument();
+    first.unmount();
+
+    // Node admin: both entries render.
+    checkNodeAdmin.mockResolvedValue(true);
+    render(
+      <MemoryRouter initialEntries={['/feed']}>
+        <Layout onLogout={() => {}} onReportBug={() => {}}>
+          <div>Content</div>
+        </Layout>
+      </MemoryRouter>,
+    );
+    expect(await screen.findByTestId('nav-monetization')).toBeInTheDocument();
+    expect(await screen.findByTestId('nav-node-monetization')).toBeInTheDocument();
+  });
+
+  it('mobile More sheet: Monetization for every user, Node Monetization only for the node admin', async () => {
+    const { default: Layout } = await import('@/components/Social/Layout');
+    checkNodeAdmin.mockResolvedValue(false);
+    const first = render(
+      <MemoryRouter initialEntries={['/feed']}>
+        <Layout onLogout={() => {}} onReportBug={() => {}}>
+          <div>Content</div>
+        </Layout>
+      </MemoryRouter>,
+    );
+    fireEvent.click(screen.getByTestId('nav-more-mobile'));
+    const sheet = screen.getByTestId('more-sheet');
+    expect(await within(sheet).findByTestId('nav-monetization-mobile')).toBeInTheDocument();
+    await waitFor(() => expect(checkNodeAdmin).toHaveBeenCalled());
+    expect(within(sheet).queryByTestId('nav-node-monetization-mobile')).not.toBeInTheDocument();
+    first.unmount();
+
+    // Node admin: the sheet carries both.
+    checkNodeAdmin.mockResolvedValue(true);
+    render(
+      <MemoryRouter initialEntries={['/feed']}>
+        <Layout onLogout={() => {}} onReportBug={() => {}}>
+          <div>Content</div>
+        </Layout>
+      </MemoryRouter>,
+    );
+    fireEvent.click(screen.getByTestId('nav-more-mobile'));
+    const adminSheet = screen.getByTestId('more-sheet');
+    expect(await within(adminSheet).findByTestId('nav-monetization-mobile')).toBeInTheDocument();
+    expect(await within(adminSheet).findByTestId('nav-node-monetization-mobile')).toBeInTheDocument();
   });
 
   it('Help (report a bug) moves to the mobile top header, not the bottom bar', async () => {

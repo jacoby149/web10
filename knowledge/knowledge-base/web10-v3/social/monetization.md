@@ -77,11 +77,13 @@ POST /am_admin  { token }  →  { admin: boolean }   (never errors)
 
 ## The Nav
 
-The "Node Monetization" icon is a **sibling of Groups** — it lives in the same
-places Groups does (the desktop sidebar + the mobile "More" sheet), and it
-renders **only for the node admin** (non-admins never see it). It deep-links to
-`/monetize?tab=node`. The Creator section is reachable from the same screen
-(`?tab=creator`, the default) for every signed-in user.
+Two entries, both siblings of Groups (the desktop sidebar + the mobile "More"
+sheet):
+
+- **Monetization** — every signed-in user. Deep-links to `/monetize` (the
+  Creator tab, the default): the creator's ad catalog + affiliate onboarding.
+- **Node Monetization** — the node admin only (non-admins never see it).
+  Deep-links to `/monetize?tab=node`: the node-ad inventory + density.
 
 ## What Moved Out of the Authenticator
 
