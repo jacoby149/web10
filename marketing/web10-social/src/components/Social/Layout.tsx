@@ -174,7 +174,7 @@ export default function Layout({ onLogout, onReportBug, children }: LayoutProps)
                   : 'text-muted-foreground hover:text-foreground hover:bg-elevated/80 hover:border hover:border-border/50',
               )}
             >
-              <Icon className={cn('w-5 h-5 transition-colors duration-150', isActive(path) && 'text-brand')} strokeWidth={isActive(path) ? 2 : 1.75} />
+              <Icon className={cn('w-6 h-6 transition-colors duration-150', isActive(path) && 'text-brand')} strokeWidth={isActive(path) ? 2 : 1.75} />
               {label}
               {isActive(path) && (
                 <div
@@ -200,7 +200,7 @@ export default function Layout({ onLogout, onReportBug, children }: LayoutProps)
                 : 'text-muted-foreground hover:text-foreground hover:bg-elevated/80 hover:border hover:border-border/50',
             )}
           >
-            <DollarSign className={cn('w-5 h-5 transition-colors duration-150', isActive('/monetize') && 'text-brand')} strokeWidth={isActive('/monetize') ? 2 : 1.75} />
+            <DollarSign className={cn('w-6 h-6 transition-colors duration-150', isActive('/monetize') && 'text-brand')} strokeWidth={isActive('/monetize') ? 2 : 1.75} />
             {monetizationItem.label}
             {isActive('/monetize') && (
               <div
@@ -225,7 +225,7 @@ export default function Layout({ onLogout, onReportBug, children }: LayoutProps)
                   : 'text-muted-foreground hover:text-foreground hover:bg-elevated/80 hover:border hover:border-border/50',
               )}
             >
-              <DollarSign className={cn('w-5 h-5 transition-colors duration-150', isActive('/monetize') && 'text-brand')} strokeWidth={isActive('/monetize') ? 2 : 1.75} />
+              <DollarSign className={cn('w-6 h-6 transition-colors duration-150', isActive('/monetize') && 'text-brand')} strokeWidth={isActive('/monetize') ? 2 : 1.75} />
               {nodeMonetizationItem.label}
               {isActive('/monetize') && (
                 <div
@@ -249,7 +249,7 @@ export default function Layout({ onLogout, onReportBug, children }: LayoutProps)
                 : 'text-muted-foreground hover:text-foreground hover:bg-elevated/80 hover:border hover:border-border/50',
             )}
           >
-            <Bell className={cn('w-5 h-5 transition-colors duration-150', isNotifications && 'text-brand')} strokeWidth={isNotifications ? 2 : 1.75} />
+            <Bell className={cn('w-6 h-6 transition-colors duration-150', isNotifications && 'text-brand')} strokeWidth={isNotifications ? 2 : 1.75} />
             Notifications
             {unread > 0 && (
               <span
@@ -269,7 +269,7 @@ export default function Layout({ onLogout, onReportBug, children }: LayoutProps)
               'text-muted-foreground hover:text-foreground hover:bg-elevated/80 hover:border hover:border-border/50',
             )}
           >
-            <PlusCircle className="w-5 h-5" strokeWidth={1.75} />
+            <PlusCircle className="w-6 h-6" strokeWidth={1.75} />
             New post
           </button>
 
@@ -284,7 +284,7 @@ export default function Layout({ onLogout, onReportBug, children }: LayoutProps)
                 aria-disabled="true"
                 className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium text-muted-foreground/50 cursor-not-allowed select-none"
               >
-                <Icon className="w-5 h-5" strokeWidth={1.75} />
+                <Icon className="w-6 h-6" strokeWidth={1.75} />
                 {label}
                 <span className="ml-auto text-[0.5625rem] font-semibold uppercase tracking-wide text-brand-300/80 bg-brand-muted/50 border border-brand/15 rounded-full px-1.5 py-0.5">
                   Soon
