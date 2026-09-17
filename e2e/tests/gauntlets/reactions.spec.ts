@@ -111,16 +111,16 @@ test.describe('reactions — API floor', () => {
       await addAppContract(request, u.token);
       likers.push(u);
     }
-    await Promise.all(likers.map((u) => createReaction(request, u.token, postId, 'like')));
-
-    await assertReactionAggregate(request, creator.token, postId, 100, 0);
-
     // 50 of them unlike → the count is 50 (the tombstone dedup picks the
-    // tombstones, the 50 live likes remain).
-    await Promise.all(likers.slice(0, 50).map(async (u) => {
-      const docs = await readReactionsByRef(request, u.token, postId);
-      for (const d of docs) await deleteReaction(request, u.token, d.doc_id);
-    }));
+    // tombstones, the 50 live likes remain). Each user deletes their OWN
+    // reaction (the doc_id the create returned — the delete's get_document
+    // lookup is by (doc_id, author_key), so the creator's token can't delete
+    // a liker's doc).
+    const createdIds = await Promise.all(likers.map((u) => createReaction(request, u.token, postId, 'like')));
+    await assertReactionAggregate(request, creator.token, postId, 100, 0);
+    await Promise.all(
+      likers.slice(0, 50).map((u, i) => deleteReaction(request, u.token, createdIds[i])),
+    );
     await assertReactionAggregate(request, creator.token, postId, 50, 0);
   });
 });

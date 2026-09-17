@@ -114,6 +114,7 @@ export function fromV3FeedPost(doc: V3FeedPost): PostRecord {
     ...base,
     likes: doc.likes,
     dislikes: (doc as { dislikes?: number }).dislikes,
+    reposts: (doc as { reposts?: number }).reposts,
     comments: doc.comments,
     score: doc.score,
     profile: doc.profile ? fromV3DocToProfile({ ...doc, body: doc.profile } as unknown as V3Document) : undefined,

@@ -25,13 +25,19 @@ class FakeHls {
 }
 
 // Mock data layer — the Shorts feed (the render-time gate output: a post +
-// its one resolved 9:16 video).
+// its one resolved 9:16 video) + the engagement read the screen runs to
+// populate like/comment counts (the ref pattern, the same one DiscoverScreen
+// runs). `getV3Client` is faked so the screen's `w.read('reactions'/'comments')`
+// returns controlled docs instead of hitting the network. `fakeV3Read` is
+// hoisted (the vi.mock factory runs before any top-level const).
+const { fakeV3Read } = vi.hoisted(() => ({ fakeV3Read: vi.fn() }));
 vi.mock('@/data', async (importOriginal) => {
   const original = await importOriginal() as Record<string, unknown>;
   return {
     ...original,
     readShortsFeed: vi.fn().mockResolvedValue([]),
     toggleReactionKind: vi.fn().mockResolvedValue(undefined),
+    getV3Client: vi.fn().mockReturnValue({ read: fakeV3Read }),
   };
 });
 
@@ -51,6 +57,18 @@ vi.mock('@/data/wapi', () => ({
 vi.mock('@/lib/pwa', () => ({
   requestInstallPrompt: vi.fn(),
   isMobile: vi.fn().mockReturnValue(false),
+}));
+
+// The comment thread (the data seam reads the discover group over the network)
+// — stub it so the comment test asserts the open/close behavior, not the
+// thread's own read.
+vi.mock('@/components/Feed/CommentThread', () => ({
+  CommentThread: (props: { postId: string; isOpen: boolean }) =>
+    props.isOpen ? (
+      <div data-testid="shorts-test-comment-thread" data-postid={props.postId}>
+        thread:{props.postId}
+      </div>
+    ) : null,
 }));
 
 // A short: a discover post whose single media is a real 9:16 video.
@@ -103,11 +121,32 @@ async function renderShorts(initialEntries: string[] = ['/shorts']) {
   );
 }
 
+// Seed the fake v3 client's `read` with the engagement docs the screen reads
+// (reactions + comments over the discover group). `reactions` is an array of
+// { ref, type, author }; `comments` is an array of ref ids.
+function seedEngagement(
+  reactions: { ref: string; type?: string; author?: string }[],
+  comments: string[] = [],
+) {
+  const reactionDocs = reactions.map((r) => ({
+    ref_value: r.ref,
+    author_key: r.author ?? 'someone',
+    body: { type: r.type ?? 'like' },
+  }));
+  const commentDocs = comments.map((ref) => ({ ref_value: ref }));
+  fakeV3Read.mockImplementation(async (collection: string) =>
+    collection === 'reactions' ? reactionDocs : commentDocs,
+  );
+}
+
 describe('ShortsScreen — the vertical short-form feed (shorts.md)', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     FakeHls.instances = [];
     window.Hls = FakeHls as unknown as typeof window.Hls;
+    // Default: the engagement read returns nothing (zero counts) unless a test
+    // seeds it.
+    fakeV3Read.mockResolvedValue([]);
   });
 
   it('renders one snap slide per short, the video filling the slide', async () => {
@@ -283,6 +322,110 @@ describe('ShortsScreen — the vertical short-form feed (shorts.md)', () => {
 
     await waitFor(() => {
       expect(screen.getByText('No shorts yet')).toBeInTheDocument();
+    });
+  });
+
+  it('displays the like count from the engagement read (the ref pattern)', async () => {
+    (data.readShortsFeed as ReturnType<typeof vi.fn>).mockResolvedValue([
+      shortPost({ id: 's1', author: 'luna' }),
+    ]);
+    // Two likes + one dislike on s1 → the heart shows 2 (likes only — the
+    // 3.101.0 doctrine: the heart and the thumb each show their own tally).
+    seedEngagement(
+      [
+        { ref: 's1', type: 'like', author: 'fan1' },
+        { ref: 's1', type: 'like', author: 'fan2' },
+        { ref: 's1', type: 'dislike', author: 'fan3' },
+      ],
+      ['s1', 's1'],
+    );
+    await renderShorts();
+
+    await waitFor(() => {
+      expect(screen.getByTestId('short-like-0')).toBeInTheDocument();
+    });
+    // The heart's tally (likes only) + the comment bubble's tally. The count
+    // span is the one that is NOT the lucide icon span (the mock renders icons
+    // as <span data-testid="icon-*">).
+    const likeCount = screen.getByTestId('short-like-0').querySelectorAll('span');
+    expect(likeCount[likeCount.length - 1].textContent).toBe('2');
+    const commentCount = screen.getByTestId('short-comment-0').querySelectorAll('span');
+    expect(commentCount[commentCount.length - 1].textContent).toBe('2');
+  });
+
+  it('liking a short increments from the loaded count, not from zero', async () => {
+    (data.readShortsFeed as ReturnType<typeof vi.fn>).mockResolvedValue([
+      shortPost({ id: 's1', author: 'luna' }),
+    ]);
+    seedEngagement([{ ref: 's1', type: 'like', author: 'fan1' }]);
+    await renderShorts();
+
+    await waitFor(() => {
+      expect(screen.getByTestId('short-like-0')).toBeInTheDocument();
+    });
+    const likeCountSpan = () => {
+      const spans = screen.getByTestId('short-like-0').querySelectorAll('span');
+      return spans[spans.length - 1].textContent;
+    };
+    // Loaded count is 1…
+    expect(likeCountSpan()).toBe('1');
+    // …liking bumps it to 2 (not 1 → the old blank-0 bug).
+    fireEvent.click(screen.getByTestId('short-like-0'));
+    expect(likeCountSpan()).toBe('2');
+  });
+
+  it('the comment button opens the inline thread (it works)', async () => {
+    (data.readShortsFeed as ReturnType<typeof vi.fn>).mockResolvedValue([
+      shortPost({ id: 's1', author: 'luna' }),
+    ]);
+    seedEngagement([], ['s1']);
+    await renderShorts();
+
+    await waitFor(() => {
+      expect(screen.getByTestId('short-comment-0')).toBeInTheDocument();
+    });
+
+    // Closed by default…
+    expect(screen.queryByTestId('short-comments-0')).toBeNull();
+    // …tapping the comment button opens the thread for that short.
+    fireEvent.click(screen.getByTestId('short-comment-0'));
+    await waitFor(() => {
+      expect(screen.getByTestId('short-comments-0')).toBeInTheDocument();
+    });
+    // The thread is mounted for the tapped short (the data seam's read target).
+    expect(screen.getByTestId('shorts-test-comment-thread')).toHaveAttribute('data-postid', 's1');
+    // Tapping again (or the close button) closes it.
+    fireEvent.click(screen.getByLabelText('Close comments'));
+    expect(screen.queryByTestId('short-comments-0')).toBeNull();
+  });
+
+  it('the share button gives clear "Copied!" feedback', async () => {
+    (data.readShortsFeed as ReturnType<typeof vi.fn>).mockResolvedValue([
+      shortPost({ id: 's1', author: 'luna' }),
+    ]);
+    await renderShorts();
+
+    await waitFor(() => {
+      expect(screen.getByTestId('short-share-0')).toBeInTheDocument();
+    });
+
+    // No native share sheet in jsdom → the clipboard path. Stub it.
+    const writeText = vi.fn().mockResolvedValue(undefined);
+    Object.defineProperty(window.navigator, 'clipboard', {
+      value: { writeText },
+      configurable: true,
+    });
+    const share = screen.getByTestId('short-share-0');
+    const shareLabel = () => {
+      const spans = share.querySelectorAll('span');
+      return spans[spans.length - 1].textContent;
+    };
+    expect(shareLabel()).toBe('Share');
+    fireEvent.click(share);
+    expect(writeText).toHaveBeenCalledWith(expect.stringContaining('/shorts/s1'));
+    // The label flips to "Copied!" (the clear feedback).
+    await waitFor(() => {
+      expect(shareLabel()).toBe('Copied!');
     });
   });
 });

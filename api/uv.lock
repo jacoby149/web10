@@ -1300,19 +1300,6 @@ wheels = [
 ]
 
 [[package]]
-name = "stripe"
-version = "15.3.0"
-source = { registry = "https://pypi.org/simple" }
-dependencies = [
-    { name = "requests" },
-    { name = "typing-extensions" },
-]
-sdist = { url = "https://files.pythonhosted.org/packages/eb/07/aed5656b3fd89a36e80835fe62c668692ee4ebf3a935095933d03f67a47b/stripe-15.3.0.tar.gz", hash = "sha256:ff05524255f51bf7df0e5bc4a99dbd0f737afd05587b7657c82e0d99c7fc45a4", size = 1514134, upload-time = "2026-06-24T22:49:40.276Z" }
-wheels = [
-    { url = "https://files.pythonhosted.org/packages/54/f4/0dcf5bc464941132e3b109d26086a8a0aae7e4ed7e0243a1c47084b4de4b/stripe-15.3.0-py3-none-any.whl", hash = "sha256:99c427d306d9348123e73da3f4f2cae0a5732cac9b703155dba0418e32d3cf1c", size = 2172165, upload-time = "2026-06-24T22:49:38.18Z" },
-]
-
-[[package]]
 name = "twilio"
 version = "9.10.9"
 source = { registry = "https://pypi.org/simple" }
@@ -1531,7 +1518,6 @@ dependencies = [
     { name = "python-multipart" },
     { name = "requests" },
     { name = "sqlglot" },
-    { name = "stripe" },
     { name = "twilio" },
     { name = "uuid6" },
     { name = "uvicorn", extra = ["standard"] },
@@ -1571,7 +1557,6 @@ requires-dist = [
     { name = "python-multipart", specifier = ">=0.0.10" },
     { name = "requests", specifier = ">=2.32" },
     { name = "sqlglot", specifier = ">=26" },
-    { name = "stripe", specifier = ">=11" },
     { name = "twilio", specifier = ">=9" },
     { name = "uuid6", specifier = ">=2024.1.12" },
     { name = "uvicorn", extras = ["standard"], specifier = ">=0.32" },

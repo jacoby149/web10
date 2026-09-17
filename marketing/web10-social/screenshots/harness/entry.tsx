@@ -17,12 +17,14 @@ import DmsScreen from '@/components/Chat/DmsScreen';
 import SettingsScreen from '@/components/Settings/SettingsScreen';
 import GroupsScreen from '@/components/Groups/GroupsScreen';
 import GroupDetailScreen from '@/components/Groups/GroupDetailScreen';
+import PeopleScreen from '@/components/People/PeopleScreen';
 import FeedScreen from '@/components/Feed/FeedScreen';
 import NotificationsScreen from '@/components/Notifications/NotificationsScreen';
 import DiscoverScreen from '@/components/Discover/DiscoverScreen';
 import ShortsScreen from '@/components/Shorts/ShortsScreen';
 import UserProfileScreen from '@/components/Bio/UserProfileScreen';
 import PostComposer from '@/components/Feed/PostComposer';
+import MonetizationScreen from '@/components/Monetization/MonetizationScreen';
 import { InstallPrompt } from '@/components/shared/InstallPrompt';
 
 const params = new URLSearchParams(window.location.search);
@@ -43,8 +45,11 @@ const initialRoute =
   : screen === 'groups' ? '/groups'
   : screen === 'groups-discover' ? '/groups?tab=discover'
   : screen === 'groups-detail' ? '/groups/web10%2Fgroups%2Fusers%2Fnova%2Fsynthwave-sessions'
+  : screen === 'people' ? '/people'
   : screen === 'profile' ? '/u/me'
   : screen === 'profile-feed' ? '/u/me?view=feed'
+  : screen === 'monetize' ? '/monetize'
+  : screen === 'monetize-node' ? '/monetize?tab=node'
   : '/messages';
 
 createRoot(document.getElementById('root')!).render(
@@ -61,7 +66,9 @@ createRoot(document.getElementById('root')!).render(
         <Route path="/settings" element={<SettingsScreen onLogout={() => {}} onReportBug={() => {}} />} />
         <Route path="/groups" element={<GroupsScreen />} />
         <Route path="/groups/:groupId" element={<GroupDetailScreen groupId={'web10/groups/users/nova/synthwave-sessions'} />} />
+        <Route path="/people" element={<PeopleScreen />} />
         <Route path="/u/:username" element={<UserProfileScreen username={'me'} provider={'web10'} />} />
+        <Route path="/monetize" element={<MonetizationScreen />} />
       </Route>
     </Routes>
     {/* D72: the install surface — forced open by ?pwa-prompt=1 for the capture. */}

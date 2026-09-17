@@ -121,16 +121,27 @@ def _boundary_cte_sql(service: str, readable_groups: list[str], member_key: str)
     No readable groups → a shape-valid CTE that returns nothing (``1 = 0``),
     so a granted-but-empty service degrades to empty, not an error.
     """
+    # The tombstone read invariant (KB: db/clickhouse.md "Critical: Tombstone
+    # Read Invariant"): dedup-then-filter, never filter-then-dedup. The
+    # ReplacingMergeTree keeps the latest row per (doc_id, author_key) — a
+    # tombstone (deleted=1, higher updated_at) is the latest row for a deleted
+    # doc. Dedup FIRST (pick the latest, including the tombstone), then filter
+    # (deleted=0 excludes it). Filter-then-dedup (WHERE deleted=0 before the
+    # row_number) is wrong: the tombstone is invisible, the original (deleted=0)
+    # is still picked, and the delete never takes effect in the read.
     dedup_docs = (
-        f"SELECT {_CTE_COLUMNS} FROM documents "
-        f"WHERE collection_name = '{service}' AND deleted = 0 "
-        f"QUALIFY row_number() OVER (PARTITION BY doc_id, author_key "
-        f"ORDER BY updated_at DESC) = 1"
+        f"SELECT {_CTE_COLUMNS} FROM ("
+        f"SELECT {_CTE_COLUMNS}, deleted, "
+        f"row_number() OVER (PARTITION BY doc_id, author_key ORDER BY updated_at DESC) AS rn "
+        f"FROM documents WHERE collection_name = '{service}'"
+        f") WHERE rn = 1 AND deleted = 0"
     )
     dedup_groups = (
-        "SELECT doc_id, group_id FROM doc_groups WHERE deleted = 0 "
-        "QUALIFY row_number() OVER (PARTITION BY doc_id, group_id "
-        "ORDER BY updated_at DESC) = 1"
+        "SELECT doc_id, group_id FROM ("
+        "SELECT doc_id, group_id, deleted, "
+        "row_number() OVER (PARTITION BY doc_id, group_id ORDER BY updated_at DESC) AS rn "
+        "FROM doc_groups"
+        ") WHERE rn = 1 AND deleted = 0"
     )
     if not readable_groups:
         return f"SELECT {_CTE_COLUMNS} FROM ({dedup_docs}) d WHERE 1 = 0"

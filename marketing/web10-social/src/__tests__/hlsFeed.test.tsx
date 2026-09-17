@@ -15,8 +15,9 @@ vi.mock('@/data', async (importOriginal) => {
     ...original,
     readFeed: vi.fn().mockResolvedValue([]),
     readFeedPage: vi.fn().mockResolvedValue({ posts: [], has_more: false, next_cursor: null }),
-    readFeedReactions: vi.fn().mockResolvedValue({ liked: {}, disliked: {} }),
+    readFeedReactions: vi.fn().mockResolvedValue({ liked: {}, disliked: {}, reposted: {} }),
     toggleReactionKind: vi.fn().mockResolvedValue('like'),
+    toggleRepost: vi.fn().mockResolvedValue(true),
     readPullFeed: vi.fn().mockResolvedValue([]),
     getFeedGroups: vi.fn().mockResolvedValue([]),
     readFeedEngagement: vi.fn().mockResolvedValue({ likes: {}, comments: {} }),
@@ -192,7 +193,7 @@ describe('FeedScreen — the reader\'s own like survives a reload (the "forgot m
     const { readFeedPage, readFeedReactions } = await import('@/data');
     vi.mocked(readFeedPage).mockResolvedValueOnce({ posts: [LIKED_POST], has_more: false, next_cursor: null });
     // The reader (testuser) already liked this post — the initial-state read says so.
-    vi.mocked(readFeedReactions).mockResolvedValueOnce({ liked: { 'p-liked': true }, disliked: {} });
+    vi.mocked(readFeedReactions).mockResolvedValueOnce({ liked: { 'p-liked': true }, disliked: {}, reposted: {} });
 
     const { default: FeedScreen } = await import('@/components/Feed/FeedScreen');
     render(
@@ -216,7 +217,7 @@ describe('FeedScreen — the reader\'s own like survives a reload (the "forgot m
   it('tapping a post the reader already liked CLEARS it (no stacked second doc)', async () => {
     const { readFeedPage, readFeedReactions, toggleReactionKind } = await import('@/data');
     vi.mocked(readFeedPage).mockResolvedValueOnce({ posts: [LIKED_POST], has_more: false, next_cursor: null });
-    vi.mocked(readFeedReactions).mockResolvedValueOnce({ liked: { 'p-liked': true }, disliked: {} });
+    vi.mocked(readFeedReactions).mockResolvedValueOnce({ liked: { 'p-liked': true }, disliked: {}, reposted: {} });
     // Tapping the heart on an already-liked post → the data layer clears it
     // (returns null), it does NOT create a second doc.
     vi.mocked(toggleReactionKind).mockResolvedValueOnce(null);

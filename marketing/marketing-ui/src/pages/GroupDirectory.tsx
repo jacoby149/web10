@@ -14,6 +14,19 @@ function nodeApi(): string {
   return (import.meta as any).env?.VITE_API_URL || 'https://api.web10.app'
 }
 
+// D60: the directory is generic contract metadata (name = slug, no face).
+// The group's face (rich name, tags) is app data in the social app's identity
+// service — public for groups that grant `anyone` read. The surface reads it
+// anon and composes it with the directory row (KB: groups/discoverability.md).
+const GROUP_IDENTITY_SERVICE = 'web10-social-group-identity'
+
+interface GroupFace {
+  name?: string
+  description?: string
+  website?: string
+  tags?: string[]
+}
+
 interface DirectoryGroup {
   group_id: string
   name: string
@@ -21,11 +34,35 @@ interface DirectoryGroup {
   slug: string
   join_policy: string
   member_count: number
+  permission_summary?: string
+}
+
+// A directory row + the face composed client-side (tags is always an array).
+interface ListedGroup extends DirectoryGroup {
+  displayName: string
   tags: string[]
 }
 
+async function readGroupFace(groupId: string): Promise<GroupFace> {
+  try {
+    const resp = await fetch(`${nodeApi()}/v3/read`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      // No token — anon reads the face of public groups (the `anyone` grant).
+      body: JSON.stringify({ service: GROUP_IDENTITY_SERVICE, groups: [groupId], limit: 5 }),
+    })
+    if (!resp.ok) return {}
+    const docs = await resp.json()
+    if (!Array.isArray(docs) || docs.length === 0) return {}
+    // The face is a replace-on-write doc stream — the latest doc wins.
+    return (docs[docs.length - 1].body || {}) as GroupFace
+  } catch {
+    return {}
+  }
+}
+
 function GroupDirectory() {
-  const [groups, setGroups] = useState<DirectoryGroup[]>([])
+  const [groups, setGroups] = useState<ListedGroup[]>([])
   const [loading, setLoading] = useState(true)
   const [searchQuery, setSearchQuery] = useState('')
   const [activeTag, setActiveTag] = useState<string | null>(null)
@@ -36,8 +73,22 @@ function GroupDirectory() {
       method: 'GET',
     })
       .then((r) => (r.ok ? r.json() : Promise.reject(new Error(String(r.status)))))
-      .then((data) => {
-        if (alive) setGroups(Array.isArray(data.groups) ? data.groups : [])
+      .then(async (data) => {
+        const rows: DirectoryGroup[] = Array.isArray(data.groups) ? data.groups : []
+        // Compose each group's face — settled independently, so one 403/empty
+        // face (a non-public group) degrades to the generic row, never the list.
+        const faces = await Promise.allSettled(rows.map((g) => readGroupFace(g.group_id)))
+        if (!alive) return
+        setGroups(
+          rows.map((g, i) => {
+            const face = faces[i].status === 'fulfilled' ? faces[i].value : {}
+            return {
+              ...g,
+              displayName: face.name || g.name,
+              tags: Array.isArray(face.tags) ? face.tags : [],
+            }
+          }),
+        )
       })
       .catch(() => { /* directory renders empty on failure */ })
       .finally(() => alive && setLoading(false))
@@ -58,7 +109,7 @@ function GroupDirectory() {
       groups.filter((g) => {
         const q = searchQuery.toLowerCase()
         const matchesQuery =
-          !q || g.name.toLowerCase().includes(q) || g.owner.toLowerCase().includes(q) || g.slug.toLowerCase().includes(q)
+          !q || g.displayName.toLowerCase().includes(q) || g.owner.toLowerCase().includes(q) || g.slug.toLowerCase().includes(q)
         const matchesTag = !activeTag || g.tags.includes(activeTag)
         return matchesQuery && matchesTag
       }),
@@ -129,18 +180,18 @@ function GroupDirectory() {
                     data-testid={`directory-card-skeleton-${i}`}
                   />
                 ))
-              : filtered.map((g, i) => (
-                  <GroupCard
-                    key={g.group_id}
-                    groupId={g.group_id}
-                    name={g.name}
-                    owner={g.owner}
-                    joinPolicy={g.join_policy}
-                    memberCount={g.member_count}
-                    tags={g.tags}
-                    data-testid={`directory-card-${i}`}
-                  />
-                ))}
+                : filtered.map((g, i) => (
+                    <GroupCard
+                      key={g.group_id}
+                      groupId={g.group_id}
+                      name={g.displayName}
+                      owner={g.owner}
+                      joinPolicy={g.join_policy}
+                      memberCount={g.member_count}
+                      tags={g.tags}
+                      data-testid={`directory-card-${i}`}
+                    />
+                  ))}
           </div>
 
           {!loading && filtered.length === 0 && (
