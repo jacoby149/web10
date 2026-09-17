@@ -24,6 +24,7 @@ import DiscoverScreen from '@/components/Discover/DiscoverScreen';
 import ShortsScreen from '@/components/Shorts/ShortsScreen';
 import UserProfileScreen from '@/components/Bio/UserProfileScreen';
 import PostComposer from '@/components/Feed/PostComposer';
+import MonetizationScreen from '@/components/Monetization/MonetizationScreen';
 import { InstallPrompt } from '@/components/shared/InstallPrompt';
 
 const params = new URLSearchParams(window.location.search);
@@ -47,6 +48,8 @@ const initialRoute =
   : screen === 'people' ? '/people'
   : screen === 'profile' ? '/u/me'
   : screen === 'profile-feed' ? '/u/me?view=feed'
+  : screen === 'monetize' ? '/monetize'
+  : screen === 'monetize-node' ? '/monetize?tab=node'
   : '/messages';
 
 createRoot(document.getElementById('root')!).render(
@@ -65,6 +68,7 @@ createRoot(document.getElementById('root')!).render(
         <Route path="/groups/:groupId" element={<GroupDetailScreen groupId={'web10/groups/users/nova/synthwave-sessions'} />} />
         <Route path="/people" element={<PeopleScreen />} />
         <Route path="/u/:username" element={<UserProfileScreen username={'me'} provider={'web10'} />} />
+        <Route path="/monetize" element={<MonetizationScreen />} />
       </Route>
     </Routes>
     {/* D72: the install surface — forced open by ?pwa-prompt=1 for the capture. */}

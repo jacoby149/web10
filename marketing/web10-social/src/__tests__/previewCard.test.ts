@@ -41,12 +41,14 @@ function json(data: unknown) {
 describe('web10-social link-preview card logic (KB: media/thumbnailing.md)', () => {
   let postCard: (u: string, p: string) => Promise<string>
   let profileCard: (u: string) => Promise<string>
+  let groupCard: (g: string) => Promise<string>
   let truncate: (s: string, n: number) => string | null
 
   beforeEach(async () => {
     const mod = await import('../../preview/card.mjs')
     postCard = mod.postCard
     profileCard = mod.profileCard
+    groupCard = mod.groupCard
     truncate = mod.truncate
   })
 
@@ -148,5 +150,70 @@ describe('web10-social link-preview card logic (KB: media/thumbnailing.md)', () 
     expect(html).toContain('@ghost on web10')
     expect(html).toContain('http://social.test/keys-mark.png')
     expect(html).toContain('http://social.test/u/ghost')
+  })
+
+  const GROUP_ID = 'api.web10.app/groups/users/alice/jazz'
+
+  it('groupCard: a public group with a face renders the name + about + the cover', async () => {
+    mockPlatform({
+      'read:groups:["api.web10.app/groups/users/alice/jazz"]': [
+        {
+          author_key: 'alice',
+          body: {
+            name: 'Jazz Collectors',
+            description: 'A vinyl-first jazz community.',
+            banner_ref: 'banner-1',
+            avatar_ref: 'avatar-1',
+          },
+        },
+      ],
+      'thumb:banner-1': { thumbnail: { url: 'http://minio.test/jazz/cover.png', alt: null, is_video: false } },
+    })
+    const html = await groupCard(GROUP_ID)
+    expect(html).toContain('Jazz Collectors')
+    expect(html).toContain('A vinyl-first jazz community.')
+    // The cover (banner) is the image, not the avatar.
+    expect(html).toContain('http://minio.test/jazz/cover.png')
+    expect(html).not.toContain('avatar-1')
+    // The canonical URL encodes the group id (it contains slashes).
+    expect(html).toContain(`http://social.test/groups/${encodeURIComponent(GROUP_ID)}`)
+    // A group card is og:type=website.
+    expect(html).toContain('"og_type":"website"')
+  })
+
+  it('groupCard: a face with no cover falls back to the avatar', async () => {
+    mockPlatform({
+      'read:groups:["api.web10.app/groups/users/alice/jazz"]': [
+        { author_key: 'alice', body: { name: 'Jazz Collectors', avatar_ref: 'avatar-1' } },
+      ],
+      'thumb:avatar-1': { thumbnail: { url: 'http://minio.test/jazz/avatar.png', alt: null, is_video: false } },
+    })
+    const html = await groupCard(GROUP_ID)
+    expect(html).toContain('Jazz Collectors')
+    expect(html).toContain('http://minio.test/jazz/avatar.png')
+  })
+
+  it('groupCard: a face with no cover and no avatar falls back to the brand mark', async () => {
+    mockPlatform({
+      'read:groups:["api.web10.app/groups/users/alice/jazz"]': [
+        { author_key: 'alice', body: { name: 'Jazz Collectors' } },
+      ],
+    })
+    const html = await groupCard(GROUP_ID)
+    expect(html).toContain('Jazz Collectors')
+    expect(html).toContain('http://social.test/keys-mark.png')
+  })
+
+  it('groupCard: a group with no readable face renders a generic card with no content', async () => {
+    mockPlatform({
+      // The face read 403s (a non-public group) → null → the generic card.
+      'read:groups:["api.web10.app/groups/users/bob/secret"]': null,
+    })
+    const html = await groupCard('api.web10.app/groups/users/bob/secret')
+    expect(html).toContain('A group on web10')
+    expect(html).toContain('http://social.test/keys-mark.png')
+    expect(html).toContain(`http://social.test/groups/${encodeURIComponent('api.web10.app/groups/users/bob/secret')}`)
+    // The face must not leak.
+    expect(html).not.toContain('secret club name')
   })
 })
