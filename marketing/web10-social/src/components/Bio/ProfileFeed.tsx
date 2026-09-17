@@ -46,7 +46,8 @@ export function ProfileFeed({
   isOwnProfile = false,
   onPostUpdated,
 }: ProfileFeedProps) {
-  const [reactionMap, setReactionMap] = useState<Record<string, number>>({});
+  const [likeMap, setLikeMap] = useState<Record<string, number>>({});
+  const [dislikeCountMap, setDislikeCountMap] = useState<Record<string, number>>({});
   const [commentMap, setCommentMap] = useState<Record<string, number>>({});
   const [likedMap, setLikedMap] = useState<Record<string, boolean>>({});
   const [dislikedMap, setDislikedMap] = useState<Record<string, boolean>>({});
@@ -75,13 +76,17 @@ export function ProfileFeed({
           try {
             const reactions = await readReactions(id);
             if (cancelled) return;
+            // Likes and dislikes are counted separately (the heart and the
+            // thumb each show their own tally — post-actions.md).
             const likeCount = reactions.filter((r) => r.type === 'like').length;
+            const dislikeCount = reactions.filter((r) => r.type === 'dislike').length;
             const mine = tokenUsername
               ? reactions.find(
                   (r) => r.author_username === tokenUsername && (r.type === 'like' || r.type === 'dislike'),
                 )
               : undefined;
-            setReactionMap((prev) => ({ ...prev, [id]: likeCount }));
+            setLikeMap((prev) => ({ ...prev, [id]: likeCount }));
+            setDislikeCountMap((prev) => ({ ...prev, [id]: dislikeCount }));
             setLikedMap((prev) => ({ ...prev, [id]: mine?.type === 'like' }));
             setDislikedMap((prev) => ({ ...prev, [id]: mine?.type === 'dislike' }));
           } catch (e) {
@@ -111,7 +116,8 @@ export function ProfileFeed({
   const lastPostsKey = useRef(postsKey);
   if (lastPostsKey.current !== postsKey) {
     lastPostsKey.current = postsKey;
-    setReactionMap({});
+    setLikeMap({});
+    setDislikeCountMap({});
     setCommentMap({});
     setLikedMap({});
     setDislikedMap({});
@@ -123,10 +129,15 @@ export function ProfileFeed({
     const wasDisliked = !!dislikedMap[postId];
     const nextLiked = kind === 'like' ? !wasLiked : false;
     const nextDisliked = kind === 'dislike' ? !wasDisliked : false;
-    const delta = (nextLiked ? 1 : 0) - (wasLiked ? 1 : 0);
+    // Per-tally delta from the CURRENT flags (a like↔dislike swap moves the
+    // reaction: like -1, dislike +1) — the old single `delta` was wrong on a
+    // swap (the "0 1 0 1" flicker).
+    const likeDelta = (nextLiked ? 1 : 0) - (wasLiked ? 1 : 0);
+    const dislikeDelta = (nextDisliked ? 1 : 0) - (wasDisliked ? 1 : 0);
     setLikedMap((prev) => ({ ...prev, [postId]: nextLiked }));
     setDislikedMap((prev) => ({ ...prev, [postId]: nextDisliked }));
-    setReactionMap((prev) => ({ ...prev, [postId]: Math.max(0, (prev[postId] || 0) + delta) }));
+    setLikeMap((prev) => ({ ...prev, [postId]: Math.max(0, (prev[postId] || 0) + likeDelta) }));
+    setDislikeCountMap((prev) => ({ ...prev, [postId]: Math.max(0, (prev[postId] || 0) + dislikeDelta) }));
     try {
       await toggleReactionKind(postId, kind);
     } catch (e) {
@@ -134,7 +145,8 @@ export function ProfileFeed({
       toast.error(errorMessage(e, 'Could not update your reaction.'));
       setLikedMap((prev) => ({ ...prev, [postId]: wasLiked }));
       setDislikedMap((prev) => ({ ...prev, [postId]: wasDisliked }));
-      setReactionMap((prev) => ({ ...prev, [postId]: Math.max(0, (prev[postId] || 0) - delta) }));
+      setLikeMap((prev) => ({ ...prev, [postId]: Math.max(0, (prev[postId] || 0) - likeDelta) }));
+      setDislikeCountMap((prev) => ({ ...prev, [postId]: Math.max(0, (prev[postId] || 0) - dislikeDelta) }));
     }
   }
 
@@ -164,7 +176,8 @@ export function ProfileFeed({
             authorProvider={authorProvider}
             authorAvatar={authorAvatar}
             mediaItems={mediaItemsFor(post)}
-            reactionCount={reactionMap[id] || 0}
+            reactionCount={likeMap[id] || 0}
+            dislikeCount={dislikeCountMap[id] || 0}
             commentCount={commentMap[id] || 0}
             liked={!!likedMap[id]}
             disliked={!!dislikedMap[id]}

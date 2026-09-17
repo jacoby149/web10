@@ -314,10 +314,11 @@ function buildFeedQuery(sort: FeedRanking | null, cursor: { created_at?: string;
   return (
     'SELECT p.doc_id AS doc_id, p.author_key AS author_key, p.body AS body, p.tags AS tags, ' +
     'p.created_at AS created_at, p.ref_value AS ref_value, p.ad_mode AS ad_mode, p.ad_target AS ad_target, ' +
-    'coalesce(eng.reaction_count, 0) AS likes, coalesce(cmt.comment_count, 0) AS comments, ' +
+    'coalesce(eng.like_count, 0) AS likes, coalesce(eng.dislike_count, 0) AS dislikes, coalesce(cmt.comment_count, 0) AS comments, ' +
     `(${score}) AS score, pr.body AS profile_body ` +
     'FROM posts p ' +
-    "LEFT JOIN (SELECT ref_value, count() AS reaction_count FROM reactions WHERE ref_value != '' GROUP BY ref_value) eng ON eng.ref_value = p.doc_id " +
+    "LEFT JOIN (SELECT ref_value, countIf(JSONExtractString(body, 'type') = 'like') AS like_count, " +
+    "countIf(JSONExtractString(body, 'type') = 'dislike') AS dislike_count FROM reactions WHERE ref_value != '' GROUP BY ref_value) eng ON eng.ref_value = p.doc_id " +
     "LEFT JOIN (SELECT ref_value, count() AS comment_count FROM comments WHERE ref_value != '' GROUP BY ref_value) cmt ON cmt.ref_value = p.doc_id " +
     'LEFT JOIN (SELECT author_key, body FROM profile QUALIFY row_number() OVER (PARTITION BY author_key ORDER BY updated_at DESC) = 1) pr ON pr.author_key = p.author_key ' +
     cursorClause +
@@ -352,6 +353,7 @@ function fromFeedQueryRow(row: Record<string, unknown>): PostRecord {
     ad: row.ad,
     node_ad: row.node_ad,
     likes: row.likes,
+    dislikes: row.dislikes,
     comments: row.comments,
     score: row.score,
     profile: profileBody,
@@ -466,9 +468,15 @@ export async function readFeedReactions(
   const w = getV3Client();
   const token = w.readToken();
   if (!token) return empty;
-  // The reactions live in the same followers groups the feed's posts come
-  // from (the feed is followers-minus-discover) — read over those groups.
-  const groups = await getFeedGroups();
+  // The reactions live in the discover group (the default reaction group —
+  // createReaction writes there), NOT in the followers groups the feed's posts
+  // come from. The feed is followers-minus-discover, but a reaction on a feed
+  // post is attached to the discover group (the board), so the "did I like
+  // this?" read must look at the discover group — otherwise a like made in the
+  // feed is invisible on refresh (the "refresh my like is gone" bug). The
+  // reader is a member of the discover group (auto-joined on signup), so the
+  // read sees their own reactions there.
+  const groups = [...(await getFeedGroups()), getDiscoverGroupId()];
   if (!groups.length) return empty;
   try {
     // The batched ref read (the engagement-count shape): one request returns

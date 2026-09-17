@@ -337,6 +337,7 @@ export function DiscoverCard({
         liked={liked}
         disliked={disliked}
         reactionCount={post.likes ?? 0}
+        dislikeCount={post.dislikes ?? 0}
         commentCount={post.comments ?? 0}
         like={remote ? 'display' : 'interactive'}
         dislike={remote ? 'none' : 'interactive'}

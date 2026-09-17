@@ -139,7 +139,8 @@ function GroupPostCard({ post, media, groupId }: { post: PostRecord; media: Medi
   // paginated feed, so a per-card read is fine (the lightbox's pattern).
   const [liked, setLiked] = useState(false);
   const [disliked, setDisliked] = useState(false);
-  const [reactionCount, setReactionCount] = useState(0);
+  const [likeCount, setLikeCount] = useState(0);
+  const [dislikeCount, setDislikeCount] = useState(0);
   const [commentCount, setCommentCount] = useState(0);
   const token = getV3Client().readToken();
 
@@ -160,7 +161,10 @@ function GroupPostCard({ post, media, groupId }: { post: PostRecord; media: Medi
       setDisliked(!!reactions.find(
         r => r.author_username === token.username && r.type === 'dislike',
       ));
-      setReactionCount(reactions.filter(r => r.type === 'like').length);
+      // Likes and dislikes are counted separately (the heart and the thumb
+      // each show their own tally — post-actions.md).
+      setLikeCount(reactions.filter((r) => r.type === 'like').length);
+      setDislikeCount(reactions.filter((r) => r.type === 'dislike').length);
     }).catch((e) => console.error('Failed to load group post engagement:', e));
     return () => { cancelled = true; };
   }, [post._id, groupId, token]);
@@ -171,10 +175,15 @@ function GroupPostCard({ post, media, groupId }: { post: PostRecord; media: Medi
     const wasDisliked = disliked;
     const nextLiked = kind === 'like' ? !wasLiked : false;
     const nextDisliked = kind === 'dislike' ? !wasDisliked : false;
-    const delta = (nextLiked ? 1 : 0) - (wasLiked ? 1 : 0);
+    // Per-tally delta from the CURRENT flags (a like↔dislike swap moves the
+    // reaction: like -1, dislike +1) — the old single `delta` was wrong on a
+    // swap (the "0 1 0 1" flicker).
+    const likeDelta = (nextLiked ? 1 : 0) - (wasLiked ? 1 : 0);
+    const dislikeDelta = (nextDisliked ? 1 : 0) - (wasDisliked ? 1 : 0);
     setLiked(nextLiked);
     setDisliked(nextDisliked);
-    setReactionCount(prev => Math.max(0, prev + delta));
+    setLikeCount(prev => Math.max(0, prev + likeDelta));
+    setDislikeCount(prev => Math.max(0, prev + dislikeDelta));
     try {
       await toggleReactionKind(post._id || '', kind, [groupId]);
     } catch (e) {
@@ -182,7 +191,8 @@ function GroupPostCard({ post, media, groupId }: { post: PostRecord; media: Medi
       toast.error(errorMessage(e, 'Could not update your reaction.'));
       setLiked(wasLiked);
       setDisliked(wasDisliked);
-      setReactionCount(prev => Math.max(0, prev - delta));
+      setLikeCount(prev => Math.max(0, prev - likeDelta));
+      setDislikeCount(prev => Math.max(0, prev - dislikeDelta));
     }
   }
 
@@ -207,7 +217,8 @@ function GroupPostCard({ post, media, groupId }: { post: PostRecord; media: Medi
         postId={post._id || ''}
         liked={liked}
         disliked={disliked}
-        reactionCount={reactionCount}
+        reactionCount={likeCount}
+        dislikeCount={dislikeCount}
         commentCount={commentCount}
         onToggleReaction={handleToggleReaction}
         onCommentCountChange={setCommentCount}
