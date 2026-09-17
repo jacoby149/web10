@@ -29,9 +29,9 @@ Three implementations of "the row under a post," and they disagreed on the one t
 
 That single rule is what kills the drift. A surface says *what* it wants — which post, whether the like is tappable, whether comments expand inline, which layout — and does not say *how* the heart gets its burst. When the like logic changes, it changes in one place, and every surface gets it at once.
 
-## The component: three axes
+## The component: four axes
 
-`<PostActions>` is factored along the axes that actually vary. Not one mega-component with an `if` for everything, and not N copies — one thin component that renders the **reaction pair**, the **comment entry**, and the **counts**, then delegates the thread to the already-shared `<CommentThread>`.
+`<PostActions>` is factored along the axes that actually vary. Not one mega-component with an `if` for everything, and not N copies — one thin component that renders the **reaction pair**, the **repost**, the **comment entry**, and the **counts**, then delegates the thread to the already-shared `<CommentThread>`.
 
 ```mermaid
 flowchart LR
@@ -43,6 +43,10 @@ flowchart LR
     DK -->|interactive| DI["DislikeButton<br/>mutually exclusive with like"]
     DK -->|display| DD["DislikeCount"]
     DK -->|none| DN["—"]
+    S -->|repost| RP{"repost"}
+    RP -->|interactive| RI["RepostButton<br/>independent of like/dislike"]
+    RP -->|display| RD["RepostCount"]
+    RP -->|none| RN["—"]
     S -->|comments| CM{"comments"}
     CM -->|inline| CI["CommentButton + &lt;CommentThread&gt;"]
     CM -->|none| CN["—"]
@@ -65,21 +69,29 @@ flowchart LR
 | `inline` | `CommentButton` + `<CommentThread>` | the count toggles the thread open/closed inline. The feed / Discover / lightbox behavior. |
 | `none` | — | the slot is absent. |
 
-Plus one layout prop: `layout` (`row` — the feed card's compact row; `bar` — Discover's border-t engagement bar; `bare` — just the slots, `display:contents`, no container chrome — for a surface that provides its own bar). The counts themselves come from the surface (in-payload `post.likes` / `post.comments`, or a ref-count read) — the component formats and displays, it doesn't fetch.
+**Axis 4 — `repost`** (the repeat icon): the same three values, a `Repeat2` button + the repost count, filled (brand) when the reader has reposted. **Independent of `like` / `dislike`** — a user can like *and* repost the same post; the two are separate axes (the full model in `reposts.md`). The data layer's `toggleRepost` enforces the "one repost per user" + self-heal, so the mutual-exclusion-free independence is a property of the data layer, not a per-surface discipline.
+
+| `repost` | Renders | Behavior |
+|---|---|---|
+| `interactive` | `RepostButton` | optimistic toggle + rollback on error. The feed / Discover / lightbox / profile / groups behavior. |
+| `display` | `RepostCount` | a `<span>` with the count. No handler. The `remote` (marketing, anon) behavior. |
+| `none` | — | the slot is absent. The default — a surface that does not wire it is unaffected. |
+
+Plus one layout prop: `layout` (`row` — the feed card's compact row; `bar` — Discover's border-t engagement bar; `bare` — just the slots, `display:contents`, no container chrome — for a surface that provides its own bar). The counts themselves come from the surface (in-payload `post.likes` / `post.comments` / `post.reposts`, or a ref-count read) — the component formats and displays, it doesn't fetch.
 
 Three seams the surfaces needed beyond the axes:
 
-- **`trailing`** — extra bar slots the surface owns, rendered after the shared ones in the same bar (Discover's repost/share signal). The bar stays one shared component; the surface just contributes its own slots.
-- **`groups`** — the group the post lives in. Group posts pass `[groupId]` so reactions + comments attach to the group, not the discover board (the data layer's `groups` param, threaded through `CommentThread` + `toggleReactionKind`).
+- **`trailing`** — extra bar slots the surface owns, rendered after the shared ones in the same bar (Discover's share signal — the repost is now a first-class axis, not a trailing slot). The bar stays one shared component; the surface just contributes its own slots.
+- **`groups`** — the group the post lives in. Group posts pass `[groupId]` so reactions + comments (and the repost) attach to the group, not the discover board (the data layer's `groups` param, threaded through `CommentThread` + `toggleReactionKind` + `toggleRepost`).
 - **`defaultOpen`** — start the thread open (the lightbox's `?comment=` deep link auto-opens + anchors the comment).
 
 A surface is therefore a one-liner (as built):
 
 ```
-Feed:      <PostActions post liked disliked reactionCount commentCount onToggleReaction layout="row" />
-Discover:  <PostActions post liked disliked reactionCount commentCount onToggleReaction layout="bar" trailing={repost+share} />
-Lightbox:  <PostActions post liked disliked reactionCount commentCount onToggleReaction defaultOpen={!!anchor} trailing={share} />
-Groups:    <PostActions post liked disliked reactionCount commentCount onToggleReaction groups={[groupId]} />
+Feed:      <PostActions post liked disliked reposted reactionCount repostCount commentCount onToggleReaction onToggleRepost layout="row" />
+Discover:  <PostActions post liked disliked reposted reactionCount repostCount commentCount onToggleReaction onToggleRepost layout="bar" trailing={share} />
+Lightbox:  <PostActions post liked disliked reposted reactionCount repostCount commentCount onToggleReaction onToggleRepost defaultOpen={!!anchor} trailing={share} />
+Groups:    <PostActions post liked disliked reposted reactionCount repostCount commentCount onToggleReaction onToggleRepost groups={[groupId]} />
 ```
 
 ## The like/dislike invariant (one reaction per user)
@@ -132,12 +144,12 @@ What *is* copied, on purpose: the rule's shape ("no surface owns X; every surfac
 
 ## Surface map
 
-| Surface | Like | Dislike | Comments | Layout |
-|---|---|---|---|---|
-| Feed | interactive | interactive | inline | row |
-| Discover | interactive | interactive | inline | bar |
-| Lightbox / deep-link | interactive | interactive | inline | row |
-| Groups | interactive | interactive | inline | row |
+| Surface | Like | Dislike | Repost | Comments | Layout |
+|---|---|---|---|---|---|
+| Feed | interactive | interactive | interactive | inline | row |
+| Discover | interactive | interactive | interactive | inline | bar |
+| Lightbox / deep-link | interactive | interactive | interactive | inline | row |
+| Groups | interactive | interactive | interactive | inline | row |
 
 Every surface is `interactive` for both reactions — the board takes live reactions, the same way of reacting as the feed (the use case's "one post, one way of reacting, everywhere it shows"). Discover was `display`-only at the 3.86.0 build (the public board as a read-only ranking signal); the operator's "liking isn't working on discover" report (3.94.0) resolved the open question in favor of parity, and the flip was the prop change this doc predicted. The reader's own reaction on a board post is seeded from the discover-group reaction read the screen already performs (matched on `author_username === token.username` alone — the v3 ownership rule), so the heart renders filled on load.
 
@@ -150,7 +162,7 @@ Every surface is `interactive` for both reactions — the board takes live react
 
 ## Open questions
 
-Decided and built: the one-component / three-axes shape; the like/dislike mutual-exclusion invariant (one reaction per user, enforced in the data layer via `setReaction` + the tap-handler `toggleReactionKind`); the `display` vs `interactive` split (Discover's dead-like became an explicit prop); Groups gaining the full row (group-scoped via `groups`); the dislike count staying off the bar; the `trailing` / `defaultOpen` / `bare` seams. The four surfaces (Feed, Discover, PostLightbox, Groups) compose it; the optimistic toggle + burst + rollback lives once in the component.
+Decided and built: the one-component / four-axes shape; the like/dislike mutual-exclusion invariant (one reaction per user, enforced in the data layer via `setReaction` + the tap-handler `toggleReactionKind`); the **repost axis** (independent of like/dislike, its own `toggleRepost` data-layer primitive — the full model in `reposts.md`); the `display` vs `interactive` split (Discover's dead-like became an explicit prop); Groups gaining the full row (group-scoped via `groups`); the dislike count staying off the bar; the `trailing` / `defaultOpen` / `bare` seams. The four surfaces (Feed, Discover, PostLightbox, Groups) + the profile feed compose it; the optimistic toggle + burst + rollback lives once in the component.
 
 Still open:
 

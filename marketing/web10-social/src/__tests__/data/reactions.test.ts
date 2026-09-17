@@ -82,12 +82,91 @@ describe('reactions v3 data layer', () => {
     });
   });
 
-  describe('recordRepost (v3: create repost document)', () => {
-    it('creates a repost document', async () => {
-      const doc = { doc_id: 'rp1', body: { target_id: 'p1', type: 'repost' } };
-      mock.create.mockResolvedValue(doc);
-      const result = await mock.create('reactions', { target_id: 'p1', type: 'repost' });
-      expect(result).toEqual(doc);
+  // The repost (reposts.md): independent of like/dislike. A repost is a
+  // type:'repost' reaction; toggleRepost matches "mine" on username alone +
+  // type==='repost', self-heals duplicates, and toggles. A stranger's repost
+  // and the reader's own like are always present and must never be touched.
+  function seedRepost(count: number, docIdPrefix = 'rp') {
+    const docs = [];
+    for (let i = 0; i < count; i++) {
+      docs.push({
+        doc_id: `${docIdPrefix}-${i}`,
+        author_key: 'alice',
+        created_at: `2026-09-14T10:0${i}:00.000Z`,
+        body: { target_id: 'p1', type: 'repost' },
+      });
+    }
+    // a stranger's repost must never be touched
+    docs.push({ doc_id: 'rp-bob', author_key: 'bob', body: { target_id: 'p1', type: 'repost' } });
+    // the reader's own like must be left alone (repost is independent of like)
+    docs.push({ doc_id: 'r-like', author_key: 'alice', body: { target_id: 'p1', type: 'like' } });
+    mock.read.mockResolvedValue(docs);
+    mock.create.mockResolvedValue({ doc_id: 'rp-new', author_key: 'alice', body: { target_id: 'p1', type: 'repost' } });
+    mock.delete.mockResolvedValue({ status: 'deleted' });
+  }
+
+  describe('toggleRepost (reposts.md — independent of like/dislike)', () => {
+    it('none → repost: creates the repost doc (ref_value = target)', async () => {
+      seedRepost(0);
+      const { toggleRepost } = await import('../../data/reactions');
+      const result = await toggleRepost('p1');
+      expect(result).toBe(true);
+      expect(mock.create).toHaveBeenCalledWith(
+        'reactions',
+        expect.objectContaining({ type: 'repost', target_id: 'p1' }),
+        expect.objectContaining({ ref_value: 'p1' }),
+      );
+      expect(mock.delete).not.toHaveBeenCalled();
+    });
+
+    it('repost → none: deletes the repost doc', async () => {
+      seedRepost(1);
+      const { toggleRepost } = await import('../../data/reactions');
+      const result = await toggleRepost('p1');
+      expect(result).toBe(false);
+      expect(mock.delete).toHaveBeenCalledTimes(1);
+      expect(mock.delete).toHaveBeenCalledWith('rp-0');
+      expect(mock.create).not.toHaveBeenCalled();
+    });
+
+    it('is independent of like: a repost never touches the like', async () => {
+      seedRepost(0);
+      const { toggleRepost } = await import('../../data/reactions');
+      await toggleRepost('p1');
+      // only the repost is created; the like (r-like) and the stranger's
+      // repost (rp-bob) are untouched
+      expect(mock.create).toHaveBeenCalledTimes(1);
+      expect(mock.delete).not.toHaveBeenCalled();
+    });
+
+    it('self-heal: 3 stacked reposts → repost → all 3 deleted (net 0)', async () => {
+      seedRepost(3);
+      const { toggleRepost } = await import('../../data/reactions');
+      await expect(toggleRepost('p1')).resolves.toBe(false);
+      // 2 duplicates self-healed + 1 primary cleared = 3 deletes
+      expect(mock.delete).toHaveBeenCalledTimes(3);
+      expect(mock.create).not.toHaveBeenCalled();
+      // the stranger's repost + the like are never touched
+      expect(mock.delete).not.toHaveBeenCalledWith('rp-bob');
+      expect(mock.delete).not.toHaveBeenCalledWith('r-like');
+    });
+
+    it('matches "mine" by username alone (a v2-shaped key still matches)', async () => {
+      const docs = [
+        { doc_id: 'rp-v2', author_key: 'web10.app/users/alice', body: { target_id: 'p1', type: 'repost' } },
+      ];
+      mock.read.mockResolvedValue(docs);
+      mock.delete.mockResolvedValue({ status: 'deleted' });
+      const { toggleRepost } = await import('../../data/reactions');
+      await expect(toggleRepost('p1')).resolves.toBe(false);
+      expect(mock.delete).toHaveBeenCalledWith('rp-v2');
+      expect(mock.create).not.toHaveBeenCalled();
+    });
+
+    it('throws when signed out', async () => {
+      mock.readToken.mockReturnValue(null);
+      const { toggleRepost } = await import('../../data/reactions');
+      await expect(toggleRepost('p1')).rejects.toThrow('not authenticated');
     });
   });
 

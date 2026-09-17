@@ -17,6 +17,7 @@ import {
   countComments,
   readReactions,
   toggleReactionKind,
+  toggleRepost,
   type ReactionKind,
   type GroupDetail,
   type GroupIdentity,
@@ -141,6 +142,8 @@ function GroupPostCard({ post, media, groupId }: { post: PostRecord; media: Medi
   const [disliked, setDisliked] = useState(false);
   const [likeCount, setLikeCount] = useState(0);
   const [dislikeCount, setDislikeCount] = useState(0);
+  const [reposted, setReposted] = useState(false);
+  const [repostCount, setRepostCount] = useState(0);
   const [commentCount, setCommentCount] = useState(0);
   const token = getV3Client().readToken();
 
@@ -161,10 +164,17 @@ function GroupPostCard({ post, media, groupId }: { post: PostRecord; media: Medi
       setDisliked(!!reactions.find(
         r => r.author_username === token.username && r.type === 'dislike',
       ));
+      // Repost (reposts.md): independent of like/dislike, group-scoped like the
+      // rest of the engagement.
+      setReposted(!!reactions.find(
+        r => r.author_username === token.username && r.type === 'repost',
+      ));
       // Likes and dislikes are counted separately (the heart and the thumb
-      // each show their own tally — post-actions.md).
+      // each show their own tally — post-actions.md). The repost is a separate
+      // tally too.
       setLikeCount(reactions.filter((r) => r.type === 'like').length);
       setDislikeCount(reactions.filter((r) => r.type === 'dislike').length);
+      setRepostCount(reactions.filter((r) => r.type === 'repost').length);
     }).catch((e) => console.error('Failed to load group post engagement:', e));
     return () => { cancelled = true; };
   }, [post._id, groupId, token]);
@@ -193,6 +203,26 @@ function GroupPostCard({ post, media, groupId }: { post: PostRecord; media: Medi
       setDisliked(wasDisliked);
       setLikeCount(prev => Math.max(0, prev - likeDelta));
       setDislikeCount(prev => Math.max(0, prev - dislikeDelta));
+    }
+  }
+
+  // Repost (reposts.md): independent of like/dislike, group-scoped. Optimistic
+  // update of the reader's own repost flag + the repost count, rollback on
+  // error. The data layer (toggleRepost) enforces one-repost-per-user.
+  async function handleToggleRepost() {
+    if (!token) return;
+    const wasReposted = reposted;
+    const nextReposted = !wasReposted;
+    const delta = nextReposted ? 1 : -1;
+    setReposted(nextReposted);
+    setRepostCount(prev => Math.max(0, prev + delta));
+    try {
+      await toggleRepost(post._id || '', [groupId]);
+    } catch (e) {
+      console.error('Failed to toggle repost:', e);
+      toast.error(errorMessage(e, 'Could not update your repost.'));
+      setReposted(wasReposted);
+      setRepostCount(prev => Math.max(0, prev - delta));
     }
   }
 
@@ -225,6 +255,10 @@ function GroupPostCard({ post, media, groupId }: { post: PostRecord; media: Medi
         postAuthor={author}
         groups={[groupId]}
         dislike="interactive"
+        repost="interactive"
+        reposted={reposted}
+        repostCount={repostCount}
+        onToggleRepost={handleToggleRepost}
         testId="group-post-actions"
       />
     </article>

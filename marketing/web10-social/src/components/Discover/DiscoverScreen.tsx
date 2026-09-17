@@ -16,6 +16,7 @@ import {
   getV3Client,
   getDiscoverGroupId,
   toggleReactionKind,
+  toggleRepost,
   extractUsername,
   type ReactionKind,
 } from '@/data';
@@ -394,8 +395,12 @@ interface DiscoverCardProps {
   liked: boolean;
   /** Whether the reader has disliked this post (the thumb fills). */
   disliked: boolean;
+  /** Whether the reader has reposted this post (the repeat icon fills). */
+  reposted: boolean;
   /** The reader's tap on the like/dislike pair (post-actions.md). */
   onToggleReaction: (kind: ReactionKind) => void;
+  /** The reader's tap on the repost (reposts.md — independent of like). */
+  onToggleRepost: () => void;
 }
 
 function DiscoverCard({
@@ -408,13 +413,16 @@ function DiscoverCard({
   onAuthorClick,
   liked,
   disliked,
+  reposted,
   onToggleReaction,
+  onToggleRepost,
 }: DiscoverCardProps) {
   // D74: the social discover card is now the SHARED discover card (the same one
   // the marketing /trending uses) — one source, both apps. The data seam (wapi
   // readComments / createComment) is injected; onAuthorClick navigates in-app.
   // The board takes live reactions (the interactive like/dislike pair) — the
-  // same way of reacting as the feed (post-actions.md).
+  // same way of reacting as the feed (post-actions.md) — and the repost
+  // (reposts.md, independent of like).
   return (
     <SharedDiscoverCard
       post={postRecordToDiscoverPost(post, mediaItems, authorName)}
@@ -424,7 +432,9 @@ function DiscoverCard({
       onAuthorClick={onAuthorClick}
       liked={liked}
       disliked={disliked}
+      reposted={reposted}
       onToggleReaction={onToggleReaction}
+      onToggleRepost={onToggleRepost}
       readComments={readComments}
       createComment={discoverCreateComment}
       testId="discover-card"
@@ -634,6 +644,7 @@ export default function DiscoverScreen() {
   // on a tap (handleToggleReaction).
   const [likedMap, setLikedMap] = useState<Record<string, boolean>>({});
   const [dislikedMap, setDislikedMap] = useState<Record<string, boolean>>({});
+  const [repostedMap, setRepostedMap] = useState<Record<string, boolean>>({});
   // True after the first successful board load — knob re-reads keep the
   // previous grid on screen (no skeleton flash); only the cold start shows
   // the skeleton. A ref (not state) so the stable `loadDiscover` callback
@@ -740,22 +751,28 @@ export default function DiscoverScreen() {
           ]);
           const likesByPost: Record<string, number> = {};
           const dislikesByPost: Record<string, number> = {};
+          const repostsByPost: Record<string, number> = {};
           const commentsByPost: Record<string, number> = {};
           // The reader's own reaction per post (v3 ownership is by username
           // alone — the reaction's author_key is the bare username, the
           // provider implicit, so match on username, not provider).
           const likedByPost: Record<string, boolean> = {};
           const dislikedByPost: Record<string, boolean> = {};
+          const repostedByPost: Record<string, boolean> = {};
           for (const d of reactionDocs) {
             if (d.ref_value) {
-              // Likes and dislikes are counted separately (the heart and the
-              // thumb each show their own tally — post-actions.md).
+              // Each reaction type is counted separately (the heart, the thumb,
+              // and the repeat icon each show their own tally — post-actions.md /
+              // reposts.md). The old `else likesByPost` branch counted reposts
+              // as likes; now each type has its own tally.
               const type = (d.body as Record<string, unknown>)?.type as string | undefined;
-              if (type === 'dislike') dislikesByPost[d.ref_value] = (dislikesByPost[d.ref_value] || 0) + 1;
-              else likesByPost[d.ref_value] = (likesByPost[d.ref_value] || 0) + 1;
+              if (type === 'like') likesByPost[d.ref_value] = (likesByPost[d.ref_value] || 0) + 1;
+              else if (type === 'dislike') dislikesByPost[d.ref_value] = (dislikesByPost[d.ref_value] || 0) + 1;
+              else if (type === 'repost') repostsByPost[d.ref_value] = (repostsByPost[d.ref_value] || 0) + 1;
               if (extractUsername(d.author_key) === token.username) {
                 if (type === 'like') likedByPost[d.ref_value] = true;
                 else if (type === 'dislike') dislikedByPost[d.ref_value] = true;
+                else if (type === 'repost') repostedByPost[d.ref_value] = true;
               }
             }
           }
@@ -765,11 +782,12 @@ export default function DiscoverScreen() {
           for (const p of results) {
             p.likes = likesByPost[p._id || ''] || 0;
             p.dislikes = dislikesByPost[p._id || ''] || 0;
+            p.reposts = repostsByPost[p._id || ''] || 0;
             p.comments = commentsByPost[p._id || ''] || 0;
-            p.reposts = 0;
           }
           setLikedMap(likedByPost);
           setDislikedMap(dislikedByPost);
+          setRepostedMap(repostedByPost);
           LOG(
             'engagement — counted',
             Object.values(likesByPost).reduce((a, b) => a + b, 0), 'reactions +',
@@ -993,6 +1011,39 @@ export default function DiscoverScreen() {
         prev.map((p) =>
           p._id === postId
             ? { ...p, likes: Math.max(0, (p.likes || 0) - likeDelta), dislikes: Math.max(0, (p.dislikes || 0) - dislikeDelta) }
+            : p,
+        ),
+      );
+    }
+  }
+
+  // Repost (reposts.md): independent of like/dislike. Optimistic update of the
+  // reader's own repost flag + the post's repost count, rollback on error. The
+  // data layer (toggleRepost) enforces one-repost-per-user + self-heal.
+  async function handleToggleRepost(postId: string) {
+    const token = getWapi().readToken();
+    if (!token) return;
+    const wasReposted = !!repostedMap[postId];
+    const nextReposted = !wasReposted;
+    const delta = nextReposted ? 1 : -1;
+    setRepostedMap((prev) => ({ ...prev, [postId]: nextReposted }));
+    setPosts((prev) =>
+      prev.map((p) =>
+        p._id === postId
+          ? { ...p, reposts: Math.max(0, (p.reposts || 0) + delta) }
+          : p,
+      ),
+    );
+    try {
+      await toggleRepost(postId);
+    } catch (e) {
+      console.error('Failed to toggle repost:', e);
+      toast.error(errorMessage(e, 'Could not update your repost.'));
+      setRepostedMap((prev) => ({ ...prev, [postId]: wasReposted }));
+      setPosts((prev) =>
+        prev.map((p) =>
+          p._id === postId
+            ? { ...p, reposts: Math.max(0, (p.reposts || 0) - delta) }
             : p,
         ),
       );
@@ -1306,7 +1357,9 @@ export default function DiscoverScreen() {
                   onAuthorClick={() => navigateToUserProfile(post.author_username || '', post.author_provider || '')}
                   liked={!!likedMap[post._id || '']}
                   disliked={!!dislikedMap[post._id || '']}
+                  reposted={!!repostedMap[post._id || '']}
                   onToggleReaction={(kind) => handleToggleReaction(post._id || '', kind)}
+                  onToggleRepost={() => handleToggleRepost(post._id || '')}
                 />              );
             })}
           </div>

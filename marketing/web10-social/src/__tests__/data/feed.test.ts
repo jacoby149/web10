@@ -340,14 +340,16 @@ describe('feed v3 data layer', () => {
       mock.read.mockResolvedValue([
         reactionDoc('r1', 'alice', 'like', 'p1'),    // mine → liked p1
         reactionDoc('r2', 'alice', 'dislike', 'p2'), // mine → disliked p2
+        reactionDoc('r5', 'alice', 'repost', 'p3'),  // mine → reposted p3
         reactionDoc('r3', 'bob', 'like', 'p1'),      // not mine → ignored
         reactionDoc('r4', 'bob', 'like', 'p3'),      // not mine → ignored
       ]);
 
-      const { liked, disliked } = await readFeedReactions(['p1', 'p2', 'p3']);
+      const { liked, disliked, reposted } = await readFeedReactions(['p1', 'p2', 'p3']);
 
       expect(liked).toEqual({ p1: true });
       expect(disliked).toEqual({ p2: true });
+      expect(reposted).toEqual({ p3: true });
       // The read is scoped to the feed (followers) groups, batched over the post ids.
       expect(mock.read).toHaveBeenCalledWith(
         'reactions',
