@@ -1,9 +1,80 @@
 import { useCallback, useEffect, useRef, useState, type ChangeEvent } from 'react';
-import { Maximize2, TriangleAlert, Play, Pause, Volume2, VolumeX } from 'lucide-react';
+import { Maximize2, TriangleAlert, Play, Pause, Volume2, VolumeX, Gauge } from 'lucide-react';
 import { cn } from './utils';
-import { Select, IconBtn } from './ui';
+import { IconBtn } from './ui';
 import { API_ORIGIN } from './config';
 import type { HlsInstance } from './hls';
+
+/**
+ * The control-rack menu (speed / quality) — a designed popover, not a native
+ * <select>. The native select is OS-styled (a lopsided, non-token widget that
+ * breaks the flagship bar), so the rack uses a button + a small menu of
+ * options. `value` is the selected index into `options`; `onPick` fires with
+ * the picked index. Closes on pick, on outside click, and on Escape.
+ */
+export function RackMenu({ label, value, options, onPick, testId }: {
+  label: string;
+  value: number;
+  options: string[];
+  onPick: (i: number) => void;
+  testId: string;
+}) {
+  const [open, setOpen] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (!open) return;
+    const onDown = (e: MouseEvent) => {
+      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
+    };
+    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') setOpen(false); };
+    document.addEventListener('mousedown', onDown);
+    document.addEventListener('keydown', onKey);
+    return () => {
+      document.removeEventListener('mousedown', onDown);
+      document.removeEventListener('keydown', onKey);
+    };
+  }, [open]);
+  const current = options[value] ?? options[0] ?? '';
+  return (
+    <div ref={ref} className="relative">
+      <IconBtn
+        aria-label={label}
+        aria-expanded={open}
+        data-testid={testId}
+        onClick={() => setOpen((o) => !o)}
+        className="h-8 w-8"
+      >
+        <Gauge className="w-4 h-4" strokeWidth={2} />
+      </IconBtn>
+      {open && (
+        <div
+          data-testid={`${testId}-menu`}
+          role="menu"
+          aria-label={label}
+          className="absolute bottom-full right-0 z-10 mb-1.5 min-w-20 overflow-hidden rounded-md border border-white/10 bg-black/85 py-1 backdrop-blur-md"
+        >
+          {options.map((opt, i) => (
+            <button
+              key={opt}
+              type="button"
+              role="menuitemradio"
+              aria-checked={i === value}
+              data-testid={`${testId}-option-${i}`}
+              onClick={() => { onPick(i); setOpen(false); }}
+              className={cn(
+                'flex w-full items-center justify-between px-3 py-1.5 text-left text-xs transition-colors',
+                i === value ? 'text-brand-300' : 'text-foreground/80 hover:bg-white/10 hover:text-foreground',
+              )}
+            >
+              {opt}
+              {i === value && <span aria-hidden className="text-brand-300">✓</span>}
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
 
 const LOG = (...args: unknown[]) => console.log('[discover:hls]', ...args);
 const LOG_ERR = (...args: unknown[]) => console.error('[discover:hls]', ...args);
@@ -26,6 +97,9 @@ function fmtTime(s: number): string {
   const sec = Math.floor(s % 60);
   return `${m}:${String(sec).padStart(2, '0')}`;
 }
+
+/** The playback-speed options (the rack's speed menu). Index → rate. */
+const SPEEDS = ['1x', '1.5x', '2x'] as const;
 
 /**
  * The feed's HLS player (D44) — the media demo's player, React-ified.
@@ -53,8 +127,11 @@ export function HlsVideoPlayer({ manifestUrl, poster, width, height, className }
   const pointerOverRef = useRef(false);
 
   const [levels, setLevels] = useState<{ height: number }[]>([]);
-  const [quality, setQuality] = useState('-1');
-  const [speed, setSpeed] = useState('1');
+  // Index into the quality options (0 = Auto, then each level). The menu is
+  // index-driven; the effect below maps the index to hls.currentLevel.
+  const [quality, setQuality] = useState(0);
+  // Index into SPEEDS (0 = 1x, 1 = 1.5x, 2 = 2x).
+  const [speed, setSpeed] = useState(0);
   const [failed, setFailed] = useState(false);
 
   // Playback state (drives the overlay + the play/pause icon).
@@ -71,10 +148,10 @@ export function HlsVideoPlayer({ manifestUrl, poster, width, height, className }
   const [pointerOver, setPointerOver] = useState(false);
 
   // The ratio comes from the lowest variant (the source ratio, preserved by
-  // the node). Vertical (< 0.8) gets the phone-width column — the immersive
-  // feed feel; landscape goes full width.
+  // the node). The frame reserves this ratio and the video fills it
+  // (object-contain) — a portrait clip is a tall full-width box, landscape is
+  // full-width 16:9. No phone-width column: the video is full-bleed in the card.
   const ratio = width && height ? width / height : 16 / 9;
-  const isVertical = ratio < 0.8;
   const manifestHref = `${API_ORIGIN}${manifestUrl}`;
 
   // ── Attach the source (hls.js first, native HLS fallback) ─────────────────
@@ -150,16 +227,17 @@ export function HlsVideoPlayer({ manifestUrl, poster, width, height, className }
   useEffect(() => {
     const el = videoRef.current;
     if (!el) return;
-    el.playbackRate = parseFloat(speed);
+    el.playbackRate = parseFloat(SPEEDS[speed]);
     LOG('hls player — speed set to', el.playbackRate);
   }, [speed]);
 
-  // ── Manual quality selection (the YouTube gear menu): -1 = auto (ABR). ────
+  // ── Manual quality selection (the YouTube gear menu): index 0 = auto (ABR). ─
   useEffect(() => {
     const hls = hlsRef.current;
     if (!hls) return;
-    hls.currentLevel = parseInt(quality, 10);
-    LOG('hls player — quality set to level', hls.currentLevel, '(-1 = auto)');
+    // Index 0 = Auto (ABR, -1); index i = level i-1.
+    hls.currentLevel = quality === 0 ? -1 : quality - 1;
+    LOG('hls player — quality set to level', hls.currentLevel, '(0 = auto)');
   }, [quality]);
 
   // ── Auto-hide the controls while playing + idle ───────────────────────────
@@ -242,9 +320,9 @@ export function HlsVideoPlayer({ manifestUrl, poster, width, height, className }
   const progress = duration > 0 ? (current / duration) * 100 : 0;
 
   return (
-    <div data-testid="hls-video-player" className={cn('bg-elevated', className)}>
+    <div data-testid="hls-video-player" className={cn('relative overflow-hidden bg-black', className)}>
       <div
-        className={cn('group relative', isVertical && 'mx-auto max-w-[280px]')}
+        className="group relative w-full"
         style={{ aspectRatio: ratio }}
         onMouseEnter={() => { pointerOverRef.current = true; setPointerOver(true); showControls(); }}
         onMouseMove={showControls}
@@ -283,14 +361,13 @@ export function HlsVideoPlayer({ manifestUrl, poster, width, height, className }
         <div
           data-testid="player-controls"
           className={cn(
-            'absolute inset-x-0 bottom-0 flex flex-col gap-1 px-3 pb-2 pt-8 transition-opacity duration-200',
-            'bg-gradient-to-t from-black/70 via-black/25 to-transparent',
+            'absolute inset-x-0 bottom-0 flex flex-col gap-1.5 px-3 pb-2.5 pt-8 transition-opacity duration-200',
+            'bg-gradient-to-t from-black/80 via-black/30 to-transparent',
             controlsVisible || pointerOver ? 'opacity-100' : 'opacity-0 pointer-events-none',
           )}
         >
-          {/* Scrubber */}
-          <div className="relative flex h-4 items-center">
-            {/* Track + played fill */}
+          {/* Scrubber — full-width, the only horizontal element. */}
+          <div className="group/scrub relative flex h-4 items-center">
             <div className="absolute inset-x-0 h-1 rounded-full bg-white/25" />
             <div
               className="absolute h-1 rounded-full bg-brand"
@@ -309,14 +386,14 @@ export function HlsVideoPlayer({ manifestUrl, poster, width, height, className }
               className="relative w-full cursor-pointer appearance-none bg-transparent
                 [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:h-3 [&::-webkit-slider-thumb]:w-3
                 [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:bg-foreground
-                [&::-webkit-slider-thumb]:opacity-0 group-hover:[&::-webkit-slider-thumb]:opacity-100
+                [&::-webkit-slider-thumb]:opacity-0 group-hover/scrub:[&::-webkit-slider-thumb]:opacity-100 group-hover:[&::-webkit-slider-thumb]:opacity-100
                 [&::-moz-range-thumb]:h-3 [&::-moz-range-thumb]:w-3 [&::-moz-range-thumb]:rounded-full
                 [&::-moz-range-thumb]:border-0 [&::-moz-range-thumb]:bg-foreground"
             />
           </div>
 
-          {/* Button row */}
-          <div className="flex items-center gap-1.5">
+          {/* The control row — one line, evenly spaced, no text labels. */}
+          <div className="flex items-center gap-1">
             <IconBtn
               aria-label={playing ? 'Pause' : 'Play'}
               data-testid="play-pause-button"
@@ -326,7 +403,7 @@ export function HlsVideoPlayer({ manifestUrl, poster, width, height, className }
               {playing ? (
                 <Pause className="w-4 h-4" strokeWidth={2} />
               ) : (
-                <Play className="w-4 h-4 ml-0.5" strokeWidth={2} />
+                <Play className="w-4 h-4 ml-0.5" strokeWidth={2} fill="currentColor" />
               )}
             </IconBtn>
 
@@ -352,44 +429,32 @@ export function HlsVideoPlayer({ manifestUrl, poster, width, height, className }
               step={0.05}
               value={muted ? 0 : volume}
               onChange={changeVolume}
-              className="hidden w-14 cursor-pointer accent-brand sm:block"
+              className="hidden w-12 cursor-pointer accent-brand sm:block"
             />
 
             <span
               data-testid="time-display"
-              className="ml-1 text-[0.6875rem] font-mono tabular-nums text-foreground/90"
+              className="ml-1 text-xs font-mono tabular-nums text-foreground/90"
             >
-              {fmtTime(current)} / {fmtTime(duration)}
+              {fmtTime(current)}
+              <span className="text-foreground/50"> / {fmtTime(duration)}</span>
             </span>
 
-            <div className="ml-auto flex items-center gap-1.5">
-              <span className="text-[0.6875rem] text-foreground/70">speed</span>
-              <Select
-                data-testid="speed-select"
-                aria-label="speed"
+            <div className="ml-auto flex items-center gap-1">
+              <RackMenu
+                label="Playback speed"
+                testId="speed-select"
                 value={speed}
-                onChange={(e) => setSpeed(e.target.value)}
-                className="h-7 w-auto min-w-14 border-white/20 bg-black/40"
-              >
-                <option value="1">1x</option>
-                <option value="1.5">1.5x</option>
-                <option value="2">2x</option>
-              </Select>
-              <span className="text-[0.6875rem] text-foreground/70">quality</span>
-              <Select
-                data-testid="quality-select"
-                aria-label="quality"
+                options={[...SPEEDS]}
+                onPick={setSpeed}
+              />
+              <RackMenu
+                label="Quality"
+                testId="quality-select"
                 value={quality}
-                onChange={(e) => setQuality(e.target.value)}
-                className="h-7 w-auto min-w-16 border-white/20 bg-black/40"
-              >
-                <option value="-1">Auto</option>
-                {levels.map((l, i) => (
-                  <option key={i} value={String(i)}>
-                    {l.height}p
-                  </option>
-                ))}
-              </Select>
+                options={['Auto', ...levels.map((l) => `${l.height}p`)]}
+                onPick={setQuality}
+              />
               <IconBtn
                 aria-label="Fullscreen"
                 data-testid="fullscreen-button"

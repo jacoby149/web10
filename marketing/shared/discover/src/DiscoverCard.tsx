@@ -70,11 +70,12 @@ function MediaPlaceholder({ type }: MediaPlaceholderProps) {
 /**
  * The discover card's single-video media — rendered the SAME way the feed
  * renders a video (video-player.md): natural ratio, `object-contain` (never
- * crops), capped so a portrait clip can't blow up the card. Transcoded (hls)
- * video gets the full control rack (`mode="full"`); the direct-file fallback
- * keeps the tap-to-play inline surface. This is what makes a 9:16 clip on
- * Discover look like the same product as one in the feed — no letterbox
- * borders, no center-crop.
+ * crops), full-bleed in the card (no letterbox gutters, no phone-width
+ * column). Transcoded (hls) video gets the full control rack (`mode="full"`);
+ * the direct-file fallback keeps the tap-to-play inline surface (with the same
+ * rack, so both paths show controls). This is what makes a 9:16 clip on
+ * Discover look like the same product as one in the feed — no borders, no
+ * center-crop, controls on both.
  */
 function DiscoverVideo({ media }: { media: MediaItem }) {
   const source = sourceFromMedia(media);
@@ -83,7 +84,6 @@ function DiscoverVideo({ media }: { media: MediaItem }) {
       source={source}
       mode={source.type === 'hls' ? 'full' : 'inline'}
       fit="contain"
-      maxHeight="60vh"
       testId="discover-media-video"
     />
   );
