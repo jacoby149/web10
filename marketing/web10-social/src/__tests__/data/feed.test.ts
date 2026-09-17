@@ -110,12 +110,21 @@ describe('feed v3 data layer', () => {
       ]);
     });
 
-    it('runs the feed as one w.query with the prepare pass (media + ads + face)', async () => {
-      mock.query.mockResolvedValue({ rows: [feedRow()], count: 1 });
+    it('runs the feed as a w.query with the prepare pass (media + ads + face), then reads engagement counts from the discover group', async () => {
+      // The feed query returns the prepared post rows; the two follow-up
+      // queries (reactions / comments, scoped to the discover group where the
+      // engagement docs actually live) return the tallies.
+      mock.query.mockImplementation(async (sql: string) => {
+        if (sql.includes('FROM posts p')) return { rows: [feedRow()], count: 1 };
+        if (sql.includes('FROM reactions')) return { rows: [{ ref_value: 'p1', like_count: 5, dislike_count: 0 }], count: 1 };
+        if (sql.includes('FROM comments')) return { rows: [{ ref_value: 'p1', comment_count: 2 }], count: 1 };
+        return { rows: [], count: 0 };
+      });
 
       const page = await readFeedPage({ limit: 20 });
 
-      expect(mock.query).toHaveBeenCalledTimes(1);
+      // One feed query + one reactions-count query + one comments-count query.
+      expect(mock.query).toHaveBeenCalledTimes(3);
       const [sql, opts] = mock.query.mock.calls[0];
       expect(opts.groups).toEqual(['web10.app/groups/users/alice/followers', 'web10.app/groups/users/bob/followers']);
       expect(opts.prepare).toEqual({
@@ -133,16 +142,33 @@ describe('feed v3 data layer', () => {
       // The Newest preset (no knobState) → chronological, cursor on created_at.
       expect(sql).toContain('ORDER BY toUnixTimestamp64Milli(p.created_at) DESC');
       expect(page.posts).toHaveLength(1);
+      // The engagement-count queries are scoped to the feed groups + discover
+      // (the group the reactions / comments are written to).
+      const [, reactionOpts] = mock.query.mock.calls[1];
+      expect(reactionOpts.groups).toEqual([
+        'web10.app/groups/users/alice/followers',
+        'web10.app/groups/users/bob/followers',
+        'web10.app/groups/web10/discover',
+      ]);
     });
 
-    it('maps the prepared rows to PostRecords (counts + profile + avatar)', async () => {
-      mock.query.mockResolvedValue({ rows: [feedRow()], count: 1 });
+    it('maps the prepared rows to PostRecords (counts from the discover group + profile + avatar)', async () => {
+      mock.query.mockImplementation(async (sql: string) => {
+        if (sql.includes('FROM posts p')) return { rows: [feedRow()], count: 1 };
+        if (sql.includes('FROM reactions')) return { rows: [{ ref_value: 'p1', like_count: 5, dislike_count: 1 }], count: 1 };
+        if (sql.includes('FROM comments')) return { rows: [{ ref_value: 'p1', comment_count: 2 }], count: 1 };
+        return { rows: [], count: 0 };
+      });
 
       const page = await readFeedPage({ limit: 20 });
 
       const post = page.posts[0];
       expect(post._id).toBe('p1');
+      // The like / dislike / comment tallies come from the discover-group count
+      // queries (the in-query joins are scoped to the follower groups and see
+      // nothing), not from the feed row.
       expect(post.likes).toBe(5);
+      expect(post.dislikes).toBe(1);
       expect(post.comments).toBe(2);
       expect(post.score).toBe(0.7);
       expect(post.avatar_url).toBe('https://cdn/av1');
@@ -171,6 +197,34 @@ describe('feed v3 data layer', () => {
       const page = await readFeedPage({ limit: 20 });
       expect(page).toEqual({ posts: [], has_more: false, next_cursor: null });
       expect(mock.query).not.toHaveBeenCalled();
+    });
+
+    it('a tuned (non-Newest) preset scores on total reactions, not a stale reaction_count column', async () => {
+      // Regression: 3.101.0 split the reactions join into like_count / dislike_count
+      // but left the power-mean score referencing the old `eng.reaction_count`
+      // column. Any preset with a likes weight (e.g. Most loved) emitted a feed
+      // query referencing a non-existent column → ClickHouse error → empty feed.
+      const captured: string[] = [];
+      mock.query.mockImplementation(async (sql: string) => {
+        captured.push(sql);
+        if (sql.includes('FROM posts p')) return { rows: [feedRow()], count: 1 };
+        return { rows: [], count: 0 };
+      });
+
+      // "Most loved · all time": recency 0, likes 5, comments 0 → a tuned sort.
+      await readFeedPage({
+        limit: 20,
+        knobState: { recency: 0, likes: 5, comments: 0, halfLife: 5, character: 0 },
+      });
+
+      const feedSql = captured.find((s) => s.includes('FROM posts p'))!;
+      // The score must use the split columns (total = likes + dislikes), not the
+      // pre-split column name that no longer exists in the join.
+      expect(feedSql).not.toContain('eng.reaction_count');
+      expect(feedSql).toContain('eng.like_count');
+      expect(feedSql).toContain('eng.dislike_count');
+      // A tuned sort orders by the score, not by created_at.
+      expect(feedSql).not.toContain('ORDER BY toUnixTimestamp64Milli(p.created_at) DESC');
     });
   });
 

@@ -293,7 +293,12 @@ function powerMeanScoreSql(createdMs: string, reactions: string, comments: strin
  */
 function buildFeedQuery(sort: FeedRanking | null, cursor: { created_at?: string; score?: number } | null, limit: number): string {
   const s: FeedRanking = sort ?? { recency: 0, likes: 0, comments: 0, half_life_ms: 0, character: -1 };
-  const score = powerMeanScoreSql('p.created_at', 'coalesce(eng.reaction_count, 0)', 'coalesce(cmt.comment_count, 0)', s);
+  // The score's "reactions" signal is the TOTAL reaction count (likes + dislikes)
+  // — the pre-3.101.0 `reaction_count`. 3.101.0 split the join into like_count /
+  // dislike_count but left this reference pointing at the old column name, so any
+  // tuned preset with a likes weight emitted a query referencing a non-existent
+  // `eng.reaction_count` → ClickHouse error → the whole feed failed to load.
+  const score = powerMeanScoreSql('p.created_at', '(coalesce(eng.like_count, 0) + coalesce(eng.dislike_count, 0))', 'coalesce(cmt.comment_count, 0)', s);
   // Newest (all-zero, or recency-only) → the cursor rides on created_at; a
   // tuned sort → the cursor rides on the score.
   const newest = (s.recency <= 0 && s.likes <= 0 && s.comments <= 0) || (s.recency > 0 && s.likes <= 0 && s.comments <= 0);
@@ -363,6 +368,73 @@ function fromFeedQueryRow(row: Record<string, unknown>): PostRecord {
 }
 
 /**
+ * Read the real engagement tallies (likes, dislikes, comments) for a page of
+ * feed posts.
+ *
+ * Why a separate query: the feed query's `reactions` / `comments` joins are
+ * filtered to the feed's follower groups (the `groups` the query runs with),
+ * but reactions and comments are WRITTEN to the discover group (the default
+ * reaction/comment group — createReaction / createComment write there). So the
+ * in-query joins see no data and return 0, and every feed post rendered with
+ * blank like / dislike / comment counts (the "like counts didn't even load"
+ * bug). This reads the discover group — where the data actually lives — the
+ * same place the DiscoverScreen counts from.
+ *
+ * The group list is `[...feedGroups, discover]` (the same union
+ * readFeedReactions uses) so a reaction / comment that landed in either place
+ * is counted. `ref_value` keys the tally to the post's doc_id, which is stable
+ * regardless of which group the post lives in. The `GROUP BY ref_value` runs
+ * through the safe-query engine, so the count is exact for the readable groups
+ * (no cap) and scoped to the page's posts only.
+ */
+async function readFeedEngagementCounts(
+  postIds: string[],
+  feedGroups: string[],
+): Promise<{
+  likes: Record<string, number>;
+  dislikes: Record<string, number>;
+  comments: Record<string, number>;
+}> {
+  const empty = { likes: {}, dislikes: {}, comments: {} };
+  if (!postIds.length) return empty;
+  const w = getV3Client();
+  const groups = [...feedGroups, getDiscoverGroupId()];
+  const quoted = postIds.map((id) => `'${id.replace(/'/g, "''")}'`).join(', ');
+  const [reactionRows, commentRows] = await Promise.all([
+    w.query(
+      'SELECT ref_value, ' +
+        "countIf(JSONExtractString(body, 'type') = 'like') AS like_count, " +
+        "countIf(JSONExtractString(body, 'type') = 'dislike') AS dislike_count " +
+        `FROM reactions WHERE ref_value IN (${quoted}) GROUP BY ref_value`,
+      { groups },
+    ),
+    w.query(
+      'SELECT ref_value, count() AS comment_count ' +
+        `FROM comments WHERE ref_value IN (${quoted}) GROUP BY ref_value`,
+      { groups },
+    ),
+  ]);
+  const likes: Record<string, number> = {};
+  const dislikes: Record<string, number> = {};
+  for (const row of reactionRows.rows) {
+    const ref = String(row.ref_value);
+    likes[ref] = Number(row.like_count) || 0;
+    dislikes[ref] = Number(row.dislike_count) || 0;
+  }
+  const comments: Record<string, number> = {};
+  for (const row of commentRows.rows) {
+    comments[String(row.ref_value)] = Number(row.comment_count) || 0;
+  }
+  console.log(
+    '[social-feed] readFeedEngagementCounts —',
+    Object.values(likes).reduce((a, b) => a + b, 0), 'likes +',
+    Object.values(dislikes).reduce((a, b) => a + b, 0), 'dislikes +',
+    Object.values(comments).reduce((a, b) => a + b, 0), 'comments',
+  );
+  return { likes, dislikes, comments };
+}
+
+/**
  * Read one page of the feed (D73) — one `w.query()` over the flexible-read
  * engine, with the prepare pass minting the rows. Same output as the retired
  * `POST /v3/feed`: ranked posts with resolved media + HLS, the pinned + node ad
@@ -402,6 +474,20 @@ export async function readFeedPage(opts: {
     },
   });
   const posts = result.rows.map(fromFeedQueryRow);
+  // The in-query reaction / comment joins are filtered to the feed's follower
+  // groups, but the data lives in the discover group — so they return 0. Read
+  // the real tallies from the discover group and merge them over the posts
+  // (the same place the DiscoverScreen counts from).
+  const postIds = posts.map((p) => p._id || '').filter(Boolean);
+  if (postIds.length) {
+    const counts = await readFeedEngagementCounts(postIds, feedGroups);
+    for (const p of posts) {
+      const id = p._id || '';
+      p.likes = counts.likes[id] ?? 0;
+      p.dislikes = counts.dislikes[id] ?? 0;
+      p.comments = counts.comments[id] ?? 0;
+    }
+  }
   const has_more = posts.length > limit;
   const page = posts.slice(0, limit);
   // The next cursor rides on the last row: created_at (Newest) or score (tuned).
