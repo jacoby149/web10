@@ -46,6 +46,7 @@ export interface PostRecord {
   author_provider?: string;
   // Engagement counts (populated by discover/feed queries)
   likes?: number;
+  dislikes?: number;
   comments?: number;
   reposts?: number;
   score?: number;
@@ -112,6 +113,7 @@ export function fromV3FeedPost(doc: V3FeedPost): PostRecord {
   return {
     ...base,
     likes: doc.likes,
+    dislikes: (doc as { dislikes?: number }).dislikes,
     comments: doc.comments,
     score: doc.score,
     profile: doc.profile ? fromV3DocToProfile({ ...doc, body: doc.profile } as unknown as V3Document) : undefined,

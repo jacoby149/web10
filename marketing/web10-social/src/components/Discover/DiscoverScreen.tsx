@@ -374,6 +374,7 @@ function postRecordToDiscoverPost(post: PostRecord, mediaItems: MediaRecord[], d
     tags: post.tags,
     created_at: post.created_at,
     likes: post.likes,
+    dislikes: post.dislikes,
     comments: post.comments,
     reposts: post.reposts,
     score: post.score,
@@ -738,6 +739,7 @@ export default function DiscoverScreen() {
             w.read('comments', { groups: [discoverId], limit: 500 }),
           ]);
           const likesByPost: Record<string, number> = {};
+          const dislikesByPost: Record<string, number> = {};
           const commentsByPost: Record<string, number> = {};
           // The reader's own reaction per post (v3 ownership is by username
           // alone — the reaction's author_key is the bare username, the
@@ -746,9 +748,12 @@ export default function DiscoverScreen() {
           const dislikedByPost: Record<string, boolean> = {};
           for (const d of reactionDocs) {
             if (d.ref_value) {
-              likesByPost[d.ref_value] = (likesByPost[d.ref_value] || 0) + 1;
+              // Likes and dislikes are counted separately (the heart and the
+              // thumb each show their own tally — post-actions.md).
+              const type = (d.body as Record<string, unknown>)?.type as string | undefined;
+              if (type === 'dislike') dislikesByPost[d.ref_value] = (dislikesByPost[d.ref_value] || 0) + 1;
+              else likesByPost[d.ref_value] = (likesByPost[d.ref_value] || 0) + 1;
               if (extractUsername(d.author_key) === token.username) {
-                const type = (d.body as Record<string, unknown>)?.type as string | undefined;
                 if (type === 'like') likedByPost[d.ref_value] = true;
                 else if (type === 'dislike') dislikedByPost[d.ref_value] = true;
               }
@@ -759,6 +764,7 @@ export default function DiscoverScreen() {
           }
           for (const p of results) {
             p.likes = likesByPost[p._id || ''] || 0;
+            p.dislikes = dislikesByPost[p._id || ''] || 0;
             p.comments = commentsByPost[p._id || ''] || 0;
             p.reposts = 0;
           }
@@ -950,10 +956,14 @@ export default function DiscoverScreen() {
   }, []);
 
   // The reaction pair (post-actions.md): like XOR dislike, one reaction per
-  // user. Optimistic update of the own-reaction maps + the post's like count,
-  // rollback on error. The data layer (toggleReactionKind) enforces the
-  // mutual exclusion server-side. A plain function (not useCallback) so it
+  // user. Optimistic update of the own-reaction maps + the post's like/dislike
+  // counts, rollback on error. The data layer (toggleReactionKind) enforces
+  // the mutual exclusion server-side. A plain function (not useCallback) so it
   // always reads the latest maps — the feed's handleToggleReaction pattern.
+  //
+  // The delta is computed per-tally from the CURRENT flags (a like↔dislike
+  // swap moves the reaction: like -1, dislike +1) — the old single `delta`
+  // was wrong on a swap (the "0 1 0 1" flicker).
   async function handleToggleReaction(postId: string, kind: ReactionKind) {
     const token = getWapi().readToken();
     if (!token) return;
@@ -961,12 +971,15 @@ export default function DiscoverScreen() {
     const wasDisliked = !!dislikedMap[postId];
     const nextLiked = kind === 'like' ? !wasLiked : false;
     const nextDisliked = kind === 'dislike' ? !wasDisliked : false;
-    const delta = (nextLiked ? 1 : 0) - (wasLiked ? 1 : 0);
+    const likeDelta = (nextLiked ? 1 : 0) - (wasLiked ? 1 : 0);
+    const dislikeDelta = (nextDisliked ? 1 : 0) - (wasDisliked ? 1 : 0);
     setLikedMap((prev) => ({ ...prev, [postId]: nextLiked }));
     setDislikedMap((prev) => ({ ...prev, [postId]: nextDisliked }));
     setPosts((prev) =>
       prev.map((p) =>
-        p._id === postId ? { ...p, likes: Math.max(0, (p.likes || 0) + delta) } : p,
+        p._id === postId
+          ? { ...p, likes: Math.max(0, (p.likes || 0) + likeDelta), dislikes: Math.max(0, (p.dislikes || 0) + dislikeDelta) }
+          : p,
       ),
     );
     try {
@@ -978,7 +991,9 @@ export default function DiscoverScreen() {
       setDislikedMap((prev) => ({ ...prev, [postId]: wasDisliked }));
       setPosts((prev) =>
         prev.map((p) =>
-          p._id === postId ? { ...p, likes: Math.max(0, (p.likes || 0) - delta) } : p,
+          p._id === postId
+            ? { ...p, likes: Math.max(0, (p.likes || 0) - likeDelta), dislikes: Math.max(0, (p.dislikes || 0) - dislikeDelta) }
+            : p,
         ),
       );
     }
@@ -1292,8 +1307,7 @@ export default function DiscoverScreen() {
                   liked={!!likedMap[post._id || '']}
                   disliked={!!dislikedMap[post._id || '']}
                   onToggleReaction={(kind) => handleToggleReaction(post._id || '', kind)}
-                />
-              );
+                />              );
             })}
           </div>
         ) : (

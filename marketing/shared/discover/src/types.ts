@@ -72,6 +72,7 @@ export interface DiscoverPost {
   tags?: string[];
   created_at: string;
   likes?: number;
+  dislikes?: number;
   comments?: number;
   reposts?: number;
   score?: number;

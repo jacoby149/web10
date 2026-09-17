@@ -164,6 +164,7 @@ export interface PostCardProps {
   authorAvatar?: string;
   mediaItems: MediaRecord[];
   reactionCount: number;
+  dislikeCount?: number;
   commentCount: number;
   liked: boolean;
   disliked: boolean;
@@ -188,6 +189,7 @@ export function PostCard({
   authorAvatar,
   mediaItems,
   reactionCount,
+  dislikeCount,
   commentCount,
   liked,
   disliked,
@@ -446,6 +448,7 @@ export function PostCard({
             liked={liked}
             disliked={disliked}
             reactionCount={reactionCount}
+            dislikeCount={dislikeCount}
             commentCount={commentCount}
             onToggleReaction={onToggleReaction}
             onCommentCountChange={onCommentCountChange}
@@ -518,7 +521,8 @@ export default function FeedScreen({ onAuthorClick }: { onAuthorClick?: (usernam
   const [loadingMore, setLoadingMore] = useState(false);
   const [hasMore, setHasMore] = useState(false);
   const [nextCursor, setNextCursor] = useState<{ created_at?: string; score?: number } | null>(null);
-  const [reactionMap, setReactionMap] = useState<Record<string, number>>({});
+  const [likeMap, setLikeMap] = useState<Record<string, number>>({});
+  const [dislikeCountMap, setDislikeCountMap] = useState<Record<string, number>>({});
   const [commentMap, setCommentMap] = useState<Record<string, number>>({});
   const [likedMap, setLikedMap] = useState<Record<string, boolean>>({});
   const [dislikedMap, setDislikedMap] = useState<Record<string, boolean>>({});
@@ -636,8 +640,11 @@ export default function FeedScreen({ onAuthorClick }: { onAuthorClick?: (usernam
       setPosts(page.posts);
       setHasMore(page.has_more);
       setNextCursor(page.next_cursor);
-      // The counts ride in the payload (post.likes / post.comments) — no re-fetch.
-      setReactionMap(Object.fromEntries(page.posts.map((p) => [p._id || '', p.likes || 0])));
+      // The counts ride in the payload (post.likes / post.dislikes / post.comments) — no re-fetch.
+      // Likes and dislikes are counted separately (the feed query counts each type), so the
+      // heart and the thumb each show their own tally.
+      setLikeMap(Object.fromEntries(page.posts.map((p) => [p._id || '', p.likes || 0])));
+      setDislikeCountMap(Object.fromEntries(page.posts.map((p) => [p._id || '', p.dislikes || 0])));
       setCommentMap(Object.fromEntries(page.posts.map((p) => [p._id || '', p.comments || 0])));
       // The reader's OWN reaction is NOT in the payload (D69 carries the like
       // count, not whether *I* liked it) — seed the liked/disliked maps so a
@@ -665,7 +672,8 @@ export default function FeedScreen({ onAuthorClick }: { onAuthorClick?: (usernam
       setPosts((prev) => [...prev, ...page.posts]);
       setHasMore(page.has_more);
       setNextCursor(page.next_cursor);
-      setReactionMap((prev) => ({ ...prev, ...Object.fromEntries(page.posts.map((p) => [p._id || '', p.likes || 0])) }));
+      setLikeMap((prev) => ({ ...prev, ...Object.fromEntries(page.posts.map((p) => [p._id || '', p.likes || 0])) }));
+      setDislikeCountMap((prev) => ({ ...prev, ...Object.fromEntries(page.posts.map((p) => [p._id || '', p.dislikes || 0])) }));
       setCommentMap((prev) => ({ ...prev, ...Object.fromEntries(page.posts.map((p) => [p._id || '', p.comments || 0])) }));
       // Seed the reader's own reaction for the new page's posts (same gap as
       // loadFeed — the payload carries the count, not whether *I* liked it).
@@ -726,9 +734,15 @@ export default function FeedScreen({ onAuthorClick }: { onAuthorClick?: (usernam
   // server-side) — `posts` is already in display order, no client re-rank.
 
   // The reaction pair (post-actions.md): like XOR dislike, one reaction per
-  // user. Optimistic update of BOTH maps (a swap moves the count, a clear
-  // drops it), rollback on error. The data layer (toggleReactionKind)
-  // enforces the mutual exclusion server-side.
+  // user. Optimistic update of BOTH counts (a like↔dislike swap moves the
+  // reaction from one tally to the other — like -1, dislike +1; a clear drops
+  // it), rollback on error. The data layer (toggleReactionKind) enforces the
+  // mutual exclusion server-side.
+  //
+  // The delta is computed from the CURRENT flags, not a single "wasLiked" —
+  // the old `delta = nextLiked - wasLiked` was wrong on a swap (dislike→like
+  // computed 0, so the heart showed 0 instead of 1 — the "0 1 0 1" flicker).
+  // Each tally changes by (next flag − old flag) for its own kind.
   async function handleToggleReaction(postId: string, kind: ReactionKind) {
     const token = getWapi().readToken();
     if (!token) return;
@@ -736,10 +750,12 @@ export default function FeedScreen({ onAuthorClick }: { onAuthorClick?: (usernam
     const wasDisliked = !!dislikedMap[postId];
     const nextLiked = kind === 'like' ? !wasLiked : false;
     const nextDisliked = kind === 'dislike' ? !wasDisliked : false;
-    const delta = (nextLiked ? 1 : 0) - (wasLiked ? 1 : 0);
+    const likeDelta = (nextLiked ? 1 : 0) - (wasLiked ? 1 : 0);
+    const dislikeDelta = (nextDisliked ? 1 : 0) - (wasDisliked ? 1 : 0);
     setLikedMap((prev) => ({ ...prev, [postId]: nextLiked }));
     setDislikedMap((prev) => ({ ...prev, [postId]: nextDisliked }));
-    setReactionMap((prev) => ({ ...prev, [postId]: Math.max(0, (prev[postId] || 0) + delta) }));
+    setLikeMap((prev) => ({ ...prev, [postId]: Math.max(0, (prev[postId] || 0) + likeDelta) }));
+    setDislikeCountMap((prev) => ({ ...prev, [postId]: Math.max(0, (prev[postId] || 0) + dislikeDelta) }));
     try {
       await toggleReactionKind(postId, kind);
     } catch (e) {
@@ -747,7 +763,8 @@ export default function FeedScreen({ onAuthorClick }: { onAuthorClick?: (usernam
       toast.error(errorMessage(e, 'Could not update your reaction.'));
       setLikedMap((prev) => ({ ...prev, [postId]: wasLiked }));
       setDislikedMap((prev) => ({ ...prev, [postId]: wasDisliked }));
-      setReactionMap((prev) => ({ ...prev, [postId]: Math.max(0, (prev[postId] || 0) - delta) }));
+      setLikeMap((prev) => ({ ...prev, [postId]: Math.max(0, (prev[postId] || 0) - likeDelta) }));
+      setDislikeCountMap((prev) => ({ ...prev, [postId]: Math.max(0, (prev[postId] || 0) - dislikeDelta) }));
     }
   }
 
@@ -796,7 +813,8 @@ export default function FeedScreen({ onAuthorClick }: { onAuthorClick?: (usernam
                   authorProvider={post.author_provider}
                   authorAvatar={post.avatar_url}
                   mediaItems={mediaItems}
-                  reactionCount={reactionMap[post._id || ''] || 0}
+                  reactionCount={likeMap[post._id || ''] || 0}
+                  dislikeCount={dislikeCountMap[post._id || ''] || 0}
                   commentCount={commentMap[post._id || ''] || 0}
                   liked={!!likedMap[post._id || '']}
                   disliked={!!dislikedMap[post._id || '']}
