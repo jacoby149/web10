@@ -14,7 +14,7 @@
 //   PREVIEW_PORT  — the port to listen on (default 3001).
 
 import http from 'node:http'
-import { postCard, profileCard } from './card.mjs'
+import { postCard, profileCard, groupCard } from './card.mjs'
 
 const PORT = Number(process.env.PREVIEW_PORT || 3001)
 
@@ -42,12 +42,18 @@ const server = http.createServer(async (req, res) => {
     const postMatch = path.match(/^\/u\/([^/]+)\/p\/([^/]+)$/)
     // /u/:username — the profile permalink (no /p/:postId).
     const profileMatch = path.match(/^\/u\/([^/]+)$/)
+    // /groups/:groupId — the group permalink. The SPA encodes the group id
+    // (which contains slashes) into a single path segment, so the raw path
+    // has no literal slash in it; decodeURIComponent restores the group id.
+    const groupMatch = path.match(/^\/groups\/([^/]+)$/)
 
     let html = null
     if (postMatch) {
       html = await postCard(decodeURIComponent(postMatch[1]), decodeURIComponent(postMatch[2]))
     } else if (profileMatch) {
       html = await profileCard(decodeURIComponent(profileMatch[1]))
+    } else if (groupMatch) {
+      html = await groupCard(decodeURIComponent(groupMatch[1]))
     }
 
     if (!html) {

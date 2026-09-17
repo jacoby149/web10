@@ -812,6 +812,68 @@ export async function fetchSuggestedUsers(): Promise<unknown[]> {
   ];
 }
 
+// ── People (screenshot seed) ─────────────────────────────────────────────────
+// The People screen (find profiles, sorted by mutuals) reads fetchPeople.
+// Seeded with a mix of face states so the capture shows: banner+avatar,
+// avatar-only (gradient banner), no-face (initial fallback), and the
+// Following vs Follow button states.
+export async function fetchPeople(_limit = 20): Promise<unknown[]> {
+  return [
+    {
+      username: 'luna', provider: 'web10', display_name: 'Luna Reyes',
+      bio: 'Creator · behind the scenes',
+      avatar_ref: 'pp-avatar-luna', banner_ref: 'pp-banner-luna',
+      avatar_url: creative('LUNA', 400, 400, '#8b5cf6', '#2e1065', 'image/png').url,
+      banner_url: creative('LUNA BANNER', 1600, 400, '#7c3aed', '#4c1d95', 'image/png').url,
+      followers_count: 12400, mutuals: 5, is_following: true,
+    },
+    {
+      username: 'kai', provider: 'web10', display_name: 'Kai Mori',
+      bio: 'Lo-fi study beats',
+      avatar_ref: 'pp-avatar-kai',
+      avatar_url: creative('KAI', 400, 400, '#0ea5e9', '#0c4a6e', 'image/png').url,
+      followers_count: 5120, mutuals: 3, is_following: false,
+    },
+    {
+      username: 'marco', provider: 'web10', display_name: 'Marco Silva',
+      followers_count: 167, mutuals: 2, is_following: false,
+    },
+    {
+      username: 'vera', provider: 'web10', display_name: 'Vera Costa',
+      bio: 'Street photography',
+      banner_ref: 'pp-banner-vera',
+      banner_url: creative('VERA BANNER', 1600, 400, '#f59e0b', '#78350f', 'image/png').url,
+      followers_count: 24, mutuals: 1, is_following: true,
+    },
+    {
+      username: 'pixel', provider: 'web10', display_name: 'Pixel',
+      bio: 'Retro gaming',
+      avatar_ref: 'pp-avatar-pixel', banner_ref: 'pp-banner-pixel',
+      avatar_url: creative('PIXEL', 400, 400, '#22c55e', '#14532d', 'image/png').url,
+      banner_url: creative('PIXEL BANNER', 1600, 400, '#16a34a', '#052e16', 'image/png').url,
+      followers_count: 25600, mutuals: 0, is_following: false,
+    },
+  ];
+}
+
+// The People screen imports sortPeople from the @/data barrel — provide a
+// working implementation so the harness renders the correct sort order.
+export function sortPeople(people: any[], sort: string): any[] {
+  const arr = [...people];
+  switch (sort) {
+    case 'popular':
+      arr.sort((a, b) => (b.followers_count - a.followers_count) || a.username.localeCompare(b.username));
+      break;
+    case 'az':
+      arr.sort((a, b) => a.username.localeCompare(b.username));
+      break;
+    default:
+      arr.sort((a, b) => (b.mutuals - a.mutuals) || (b.followers_count - a.followers_count) || a.username.localeCompare(b.username));
+      break;
+  }
+  return arr;
+}
+
 // ── Profile (screenshot seed) ────────────────────────────────────────────────
 // The profile screen (the creator page: banner + stats + the posts tab with
 // its grid | feed view lens) reads these. Seeded so the PR shots render with
