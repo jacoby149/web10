@@ -35,8 +35,31 @@ function renderDetail() {
 // Resolved lazily so the fetch stub is in place before the component mounts.
 let DetailUnderTest: React.ComponentType = () => null;
 
-function mockDetail(data: any, status = 200) {
-  const fetchMock = vi.fn((input: any) => {
+// Real /v3/groups/detail response (D60): generic contract metadata only —
+// no description, avatar_ref, website, or tags. The face comes from the
+// identity read, mocked separately.
+const BASE = {
+  group_id: GROUP_ID,
+  name: 'jazz',
+  owner: 'alice',
+  slug: 'jazz',
+  join_policy: 'open',
+  discoverable: true,
+  member_count: 42,
+  permission_summary: 'reader: readAll',
+  is_member: false,
+  posts_state: 'join_to_view' as const,
+  posts: [] as any[],
+};
+
+const FACE = {
+  name: 'Jazz Collectors',
+  description: 'A vinyl-first jazz community.',
+  tags: ['jazz', 'vinyl'],
+};
+
+function mockDetail(data: any, status = 200, face: any = FACE) {
+  const fetchMock = vi.fn((input: any, init?: any) => {
     const url = String(input);
     if (url.includes('/v3/groups/detail')) {
       return Promise.resolve({
@@ -45,29 +68,17 @@ function mockDetail(data: any, status = 200) {
         json: () => Promise.resolve(data),
       } as Response);
     }
+    if (url.includes('/v3/read')) {
+      return Promise.resolve({
+        ok: true,
+        json: () => Promise.resolve(face ? [{ doc_id: 'id-1', body: face }] : []),
+      } as Response);
+    }
     return Promise.reject(new Error('offline'));
   });
   vi.stubGlobal('fetch', fetchMock);
   return fetchMock;
 }
-
-const BASE = {
-  group_id: GROUP_ID,
-  name: 'Jazz Collectors',
-  owner: 'alice',
-  slug: 'jazz',
-  join_policy: 'open',
-  discoverable: true,
-  member_count: 42,
-  permission_summary: 'member: readAll, create',
-  description: 'A vinyl-first jazz community.',
-  avatar_ref: '',
-  website: '',
-  tags: ['jazz', 'vinyl'],
-  is_member: false,
-  posts_state: 'join_to_view' as const,
-  posts: [] as any[],
-};
 
 describe('GroupDetail page', () => {
   beforeEach(async () => {
@@ -89,6 +100,19 @@ describe('GroupDetail page', () => {
     expect(screen.getByText('#jazz')).toBeInTheDocument();
     expect(screen.getByText('#vinyl')).toBeInTheDocument();
     expect(screen.getByText(/42 members/)).toBeInTheDocument();
+  });
+
+  it('renders without crashing when the group has no face (D60 generic detail)', async () => {
+    // Regression: the API never returns `tags`; a missing face must not throw
+    // `Cannot read properties of undefined (reading 'length')` on render.
+    mockDetail(BASE, 200, null);
+    renderDetail();
+    await vi.waitFor(() => {
+      // No face -> slug fallback name, no description, no tags.
+      expect(screen.getByTestId('group-detail-name')).toHaveTextContent('jazz');
+    });
+    expect(screen.queryByTestId('group-detail-description')).not.toBeInTheDocument();
+    expect(screen.queryByTestId('group-detail-tags')).not.toBeInTheDocument();
   });
 
   it('shows posts when the reader is a member (posts_state ok)', async () => {
