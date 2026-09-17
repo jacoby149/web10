@@ -728,6 +728,58 @@ describe('Layout', () => {
     expect(await screen.findByTestId('nav-node-monetization')).toBeInTheDocument();
   });
 
+  it('Monetization nav: only the matching row highlights (never both)', async () => {
+    const { default: Layout } = await import('@/components/Social/Layout');
+    checkNodeAdmin.mockResolvedValue(true);
+
+    // On /monetize (Creator): only Monetization is highlighted.
+    render(
+      <MemoryRouter initialEntries={['/monetize']}>
+        <Layout onLogout={() => {}} onReportBug={() => {}}>
+          <div>Content</div>
+        </Layout>
+      </MemoryRouter>,
+    );
+    // The Node row appears only once the async admin check resolves.
+    const nodeRow = await screen.findByTestId('nav-node-monetization');
+    expect(screen.getByTestId('nav-monetization')).toHaveAttribute('aria-current', 'page');
+    expect(nodeRow).not.toHaveAttribute('aria-current');
+  });
+
+  it('Monetization nav: on /monetize?tab=node only Node Monetization highlights', async () => {
+    const { default: Layout } = await import('@/components/Social/Layout');
+    checkNodeAdmin.mockResolvedValue(true);
+    render(
+      <MemoryRouter initialEntries={['/monetize?tab=node']}>
+        <Layout onLogout={() => {}} onReportBug={() => {}}>
+          <div>Content</div>
+        </Layout>
+      </MemoryRouter>,
+    );
+    expect(await screen.findByTestId('nav-node-monetization')).toHaveAttribute('aria-current', 'page');
+    expect(screen.getByTestId('nav-monetization')).not.toHaveAttribute('aria-current');
+  });
+
+  it('mobile More sheet: only the matching monetization row highlights', async () => {
+    const { default: Layout } = await import('@/components/Social/Layout');
+    checkNodeAdmin.mockResolvedValue(true);
+    render(
+      <MemoryRouter initialEntries={['/monetize?tab=node']}>
+        <Layout onLogout={() => {}} onReportBug={() => {}}>
+          <div>Content</div>
+        </Layout>
+      </MemoryRouter>,
+    );
+    fireEvent.click(screen.getByTestId('nav-more-mobile'));
+    const sheet = screen.getByTestId('more-sheet');
+    // The mobile rows use a class-based highlight, not aria-current; assert the
+    // active styling (bg-brand-muted) is on the Node row only.
+    const nodeRow = await within(sheet).findByTestId('nav-node-monetization-mobile');
+    const creatorRow = within(sheet).getByTestId('nav-monetization-mobile');
+    expect(nodeRow.className).toContain('bg-brand-muted');
+    expect(creatorRow.className).not.toContain('bg-brand-muted');
+  });
+
   it('mobile More sheet: Monetization for every user, Node Monetization only for the node admin', async () => {
     const { default: Layout } = await import('@/components/Social/Layout');
     checkNodeAdmin.mockResolvedValue(false);

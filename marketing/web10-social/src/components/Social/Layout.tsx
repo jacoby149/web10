@@ -69,13 +69,21 @@ function Wordmark({ className }: { className?: string }) {
 
 export default function Layout({ onLogout, onReportBug, children }: LayoutProps) {
   const navigate = useNavigate();
-  const { pathname } = useLocation();
+  const { pathname, search } = useLocation();
   const token = getWapi().readToken();
   const profilePath = token ? `/u/${token.username}` : '/feed';
   const [moreOpen, setMoreOpen] = useState(false);
   const { unread } = useNotifications();
   const { isAdmin: isNodeAdmin } = useNodeAdmin();
   const isNotifications = pathname === '/notifications';
+
+  // The Monetization surface holds its section in the URL (`?tab=node`). The
+  // two nav entries are the switcher — each must highlight on its OWN section,
+  // never both — so the active state reads the query string, not just the
+  // pathname (a pathname-only match lit up both rows on `/monetize`).
+  const monetizeTab = new URLSearchParams(search).get('tab');
+  const isMonetizeCreator = pathname === '/monetize' && monetizeTab !== 'node';
+  const isMonetizeNode = pathname === '/monetize' && monetizeTab === 'node';
 
   // The desktop sidebar's account entry point: an avatar row that opens a
   // user menu (Profile / Settings / Report a bug / Log out). This is where
@@ -174,7 +182,7 @@ export default function Layout({ onLogout, onReportBug, children }: LayoutProps)
                   : 'text-muted-foreground hover:text-foreground hover:bg-elevated/80 hover:border hover:border-border/50',
               )}
             >
-              <Icon className={cn('w-5 h-5 transition-colors duration-150', isActive(path) && 'text-brand')} strokeWidth={isActive(path) ? 2 : 1.75} />
+              <Icon className={cn('w-6 h-6 transition-colors duration-150', isActive(path) && 'text-brand')} strokeWidth={isActive(path) ? 2 : 1.75} />
               {label}
               {isActive(path) && (
                 <div
@@ -188,11 +196,11 @@ export default function Layout({ onLogout, onReportBug, children }: LayoutProps)
           <button
             key={monetizationItem.path}
             data-testid={monetizationItem.testId}
-            aria-current={isActive('/monetize') ? 'page' : undefined}
+            aria-current={isMonetizeCreator ? 'page' : undefined}
             onClick={() => navigate(monetizationItem.path)}
             className={cn(
               'w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all duration-150',
-              isActive('/monetize')
+              isMonetizeCreator
                 ? cn(
                     'bg-gradient-to-r from-brand-muted to-brand/15 text-brand-300',
                     'border border-brand/20 glow-active',
@@ -200,9 +208,9 @@ export default function Layout({ onLogout, onReportBug, children }: LayoutProps)
                 : 'text-muted-foreground hover:text-foreground hover:bg-elevated/80 hover:border hover:border-border/50',
             )}
           >
-            <DollarSign className={cn('w-5 h-5 transition-colors duration-150', isActive('/monetize') && 'text-brand')} strokeWidth={isActive('/monetize') ? 2 : 1.75} />
+            <DollarSign className={cn('w-6 h-6 transition-colors duration-150', isMonetizeCreator && 'text-brand')} strokeWidth={isMonetizeCreator ? 2 : 1.75} />
             {monetizationItem.label}
-            {isActive('/monetize') && (
+            {isMonetizeCreator && (
               <div
                 className="ml-auto w-1.5 h-1.5 rounded-full bg-brand animate-glow-pulse"
                 aria-hidden="true"
@@ -213,11 +221,11 @@ export default function Layout({ onLogout, onReportBug, children }: LayoutProps)
             <button
               key={nodeMonetizationItem.path}
               data-testid={nodeMonetizationItem.testId}
-              aria-current={isActive('/monetize') ? 'page' : undefined}
+              aria-current={isMonetizeNode ? 'page' : undefined}
               onClick={() => navigate(nodeMonetizationItem.path)}
               className={cn(
                 'w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all duration-150',
-                isActive('/monetize')
+                isMonetizeNode
                   ? cn(
                       'bg-gradient-to-r from-brand-muted to-brand/15 text-brand-300',
                       'border border-brand/20 glow-active',
@@ -225,9 +233,9 @@ export default function Layout({ onLogout, onReportBug, children }: LayoutProps)
                   : 'text-muted-foreground hover:text-foreground hover:bg-elevated/80 hover:border hover:border-border/50',
               )}
             >
-              <DollarSign className={cn('w-5 h-5 transition-colors duration-150', isActive('/monetize') && 'text-brand')} strokeWidth={isActive('/monetize') ? 2 : 1.75} />
+              <DollarSign className={cn('w-6 h-6 transition-colors duration-150', isMonetizeNode && 'text-brand')} strokeWidth={isMonetizeNode ? 2 : 1.75} />
               {nodeMonetizationItem.label}
-              {isActive('/monetize') && (
+              {isMonetizeNode && (
                 <div
                   className="ml-auto w-1.5 h-1.5 rounded-full bg-brand animate-glow-pulse"
                   aria-hidden="true"
@@ -249,7 +257,7 @@ export default function Layout({ onLogout, onReportBug, children }: LayoutProps)
                 : 'text-muted-foreground hover:text-foreground hover:bg-elevated/80 hover:border hover:border-border/50',
             )}
           >
-            <Bell className={cn('w-5 h-5 transition-colors duration-150', isNotifications && 'text-brand')} strokeWidth={isNotifications ? 2 : 1.75} />
+            <Bell className={cn('w-6 h-6 transition-colors duration-150', isNotifications && 'text-brand')} strokeWidth={isNotifications ? 2 : 1.75} />
             Notifications
             {unread > 0 && (
               <span
@@ -269,7 +277,7 @@ export default function Layout({ onLogout, onReportBug, children }: LayoutProps)
               'text-muted-foreground hover:text-foreground hover:bg-elevated/80 hover:border hover:border-border/50',
             )}
           >
-            <PlusCircle className="w-5 h-5" strokeWidth={1.75} />
+            <PlusCircle className="w-6 h-6" strokeWidth={1.75} />
             New post
           </button>
 
@@ -284,7 +292,7 @@ export default function Layout({ onLogout, onReportBug, children }: LayoutProps)
                 aria-disabled="true"
                 className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium text-muted-foreground/50 cursor-not-allowed select-none"
               >
-                <Icon className="w-5 h-5" strokeWidth={1.75} />
+                <Icon className="w-6 h-6" strokeWidth={1.75} />
                 {label}
                 <span className="ml-auto text-[0.5625rem] font-semibold uppercase tracking-wide text-brand-300/80 bg-brand-muted/50 border border-brand/15 rounded-full px-1.5 py-0.5">
                   Soon
@@ -545,7 +553,7 @@ export default function Layout({ onLogout, onReportBug, children }: LayoutProps)
                   onClick={() => go(monetizationItem.path)}
                   className={cn(
                     'w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors duration-150',
-                    isActive('/monetize') ? 'bg-brand-muted text-brand-300' : 'text-foreground hover:bg-elevated',
+                    isMonetizeCreator ? 'bg-brand-muted text-brand-300' : 'text-foreground hover:bg-elevated',
                   )}
                 >
                   <DollarSign className="w-5 h-5" strokeWidth={1.75} />
@@ -557,7 +565,7 @@ export default function Layout({ onLogout, onReportBug, children }: LayoutProps)
                     onClick={() => go(nodeMonetizationItem.path)}
                     className={cn(
                       'w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors duration-150',
-                      isActive('/monetize') ? 'bg-brand-muted text-brand-300' : 'text-foreground hover:bg-elevated',
+                      isMonetizeNode ? 'bg-brand-muted text-brand-300' : 'text-foreground hover:bg-elevated',
                     )}
                   >
                     <DollarSign className="w-5 h-5" strokeWidth={1.75} />

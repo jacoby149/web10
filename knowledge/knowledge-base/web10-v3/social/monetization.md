@@ -29,7 +29,10 @@ protocol's.
 ## The Surface
 
 A deep-linked **`/monetize`** screen in web10-social (the URL holds the state —
-refresh restores it, it's shareable). Two sections:
+refresh restores it, it's shareable). Two sections, selected by the URL's
+`?tab` param — **there is no in-page Creator/Node tab switcher**; the nav IS
+the switcher (see "The Nav" below), so the screen just renders whichever
+section the URL points at:
 
 ### Creator (every signed-in user)
 
@@ -78,12 +81,17 @@ POST /am_admin  { token }  →  { admin: boolean }   (never errors)
 ## The Nav
 
 Two entries, both siblings of Groups (the desktop sidebar + the mobile "More"
-sheet):
+sheet). The nav **is** the section switcher — there is no in-page Creator/Node
+tab on the surface; each entry deep-links to its own section and **only that
+entry highlights** (the active state reads the URL's `?tab` param, not just the
+pathname — a pathname-only match lit up both rows at once):
 
 - **Monetization** — every signed-in user. Deep-links to `/monetize` (the
-  Creator tab, the default): the creator's ad catalog + affiliate onboarding.
+  Creator section, the default): the creator's ad catalog + affiliate
+  onboarding. Highlights when on `/monetize` **without** `?tab=node`.
 - **Node Monetization** — the node admin only (non-admins never see it).
   Deep-links to `/monetize?tab=node`: the node-ad inventory + density.
+  Highlights only when on `/monetize?tab=node`.
 
 ## What Moved Out of the Authenticator
 
