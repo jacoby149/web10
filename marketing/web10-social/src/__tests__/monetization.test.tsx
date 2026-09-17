@@ -54,33 +54,28 @@ describe('MonetizationScreen', () => {
     checkNodeAdmin.mockResolvedValue(false);
     renderAt('/monetize');
     expect(await screen.findByTestId('creator-monetization')).toBeInTheDocument();
-    // The Node tab is hidden from a non-admin.
-    expect(screen.queryByTestId('monetization-tab-node')).not.toBeInTheDocument();
-    expect(screen.getByTestId('monetization-tab-creator')).toBeInTheDocument();
+    // The Node section is never rendered for a non-admin.
+    expect(screen.queryByTestId('node-monetization')).not.toBeInTheDocument();
+    // There is no in-page tab switcher — the nav is the switcher.
+    expect(screen.queryByTestId('monetization-tabs')).not.toBeInTheDocument();
   });
 
-  it('shows the Node tab for a node admin', async () => {
+  it('renders the Creator section by default for a node admin too', async () => {
     checkNodeAdmin.mockResolvedValue(true);
     renderAt('/monetize');
-    expect(await screen.findByTestId('monetization-tab-node')).toBeInTheDocument();
-    // Default tab is still Creator.
-    expect(screen.getByTestId('creator-monetization')).toBeInTheDocument();
-  });
-
-  it('switches to the Node section when the admin taps the Node tab', async () => {
-    checkNodeAdmin.mockResolvedValue(true);
-    renderAt('/monetize');
-    const nodeTab = await screen.findByTestId('monetization-tab-node');
-    fireEvent.click(nodeTab);
-    expect(await screen.findByTestId('node-monetization')).toBeInTheDocument();
-    // The density control (the node-ad percentage slider) is present.
-    expect(screen.getByTestId('node-ads-density')).toBeInTheDocument();
+    expect(await screen.findByTestId('creator-monetization')).toBeInTheDocument();
+    expect(screen.queryByTestId('node-monetization')).not.toBeInTheDocument();
+    // No in-page switcher — an admin reaches the Node section via the nav
+    // (deep-link to ?tab=node), not a tab on this screen.
+    expect(screen.queryByTestId('monetization-tabs')).not.toBeInTheDocument();
   });
 
   it('lands on the Node section when deep-linked to ?tab=node as an admin', async () => {
     checkNodeAdmin.mockResolvedValue(true);
     renderAt('/monetize?tab=node');
     expect(await screen.findByTestId('node-monetization')).toBeInTheDocument();
+    // The density control (the node-ad percentage slider) is present.
+    expect(screen.getByTestId('node-ads-density')).toBeInTheDocument();
   });
 
   it('falls back to Creator when a non-admin is deep-linked to ?tab=node', async () => {

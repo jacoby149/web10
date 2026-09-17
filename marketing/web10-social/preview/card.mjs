@@ -101,6 +101,72 @@ export async function authorAvatarUrl(authorKey) {
   return thumb?.url ?? null
 }
 
+// Read a group's face (D60: documents in the `web10-social-group-identity`
+// service, group-keyed). The face is a replace-on-write doc stream — the
+// LATEST doc wins. Anon-capable for a public group (the group's `anyone` read
+// grant); a non-public group 403s → null (the card degrades to generic, the
+// I3 floor). Returns the latest identity doc (body = the face) or null.
+async function readGroupFace(groupId) {
+  const res = await fetch(`${API_ORIGIN}/v3/read`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ service: 'web10-social-group-identity', groups: [groupId] }),
+  })
+  if (!res.ok) return null
+  const docs = await res.json()
+  if (!Array.isArray(docs) || docs.length === 0) return null
+  return docs[docs.length - 1] ?? null
+}
+
+// The group permalink: /groups/:groupId (the SPA encodes the group id, which
+// contains slashes, into a single path segment). The card shows the group's
+// face (D60): the cover (banner) as the image, else the avatar, else the brand
+// mark; the face's name + description as the title/description. A group with no
+// readable face (non-public, or never set) renders a generic card — the I3 floor.
+export async function groupCard(groupId) {
+  const canonicalUrl = `${SOCIAL_ORIGIN}/groups/${encodeURIComponent(groupId)}`
+  const faceDoc = await readGroupFace(groupId)
+  const face = faceDoc?.body ?? null
+  if (!face) {
+    // No readable face (non-public group, or no face doc) → a generic card, no
+    // group content (the I3/D41 privacy floor — same posture as a private post).
+    return renderCardAnon({
+      title: 'A group on web10',
+      description: 'Open web10 to view this group.',
+      image: BRAND_IMAGE,
+      image_alt: 'web10',
+      url: canonicalUrl,
+      og_type: 'website',
+    })
+  }
+  // The image is the group's cover (banner), else its avatar, else the brand
+  // mark. Both are bare media doc_ids — resolved via the generic thumbnail
+  // (a media doc → its own image), the same as the author-avatar fallback.
+  let image = null
+  let imageAlt = null
+  for (const ref of [face.banner_ref, face.avatar_ref]) {
+    if (!ref) continue
+    const thumb = await getThumbnailAnon(ref)
+    if (thumb?.url) {
+      image = thumb.url
+      imageAlt = thumb.alt ?? null
+      break
+    }
+  }
+  if (!image) image = BRAND_IMAGE
+  const name = face.name ?? null
+  const title = truncate(name, TITLE_LIMIT) ?? 'A group on web10'
+  const description = truncate(face.description, DESC_LIMIT) ?? 'A group on web10'
+  return renderCardAnon({
+    title,
+    description,
+    image,
+    image_alt: imageAlt ?? name ?? title,
+    url: canonicalUrl,
+    og_type: 'website',
+  })
+}
+
 // The post permalink: /u/:username/p/:postId
 export async function postCard(username, postId) {
   const canonicalUrl = `${SOCIAL_ORIGIN}/u/${encodeURIComponent(username)}/p/${encodeURIComponent(postId)}`

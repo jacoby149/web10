@@ -116,6 +116,16 @@ The profile permalink (`/u/:username`) is the same edge split, one level up. The
 
 **A user with no profile doc** (never saved one, or an unknown username) previews as a **generic** `@{username} on web10` card with the brand mark — never a broken preview, the browser-default posture. (A profile has no "deleted" state that matters to a crawler, so there is no 404 here, unlike a ghost post.)
 
+## The group permalink
+
+The group permalink (`/groups/:groupId`) is the same edge split, one level out. The social app's preview server renders the group's **face** for a crawler: the cover (banner) as `og:image` (else the avatar, else the brand mark), the face's name as `og:title`, the face's about as `og:description`, and `og:type` = `website`. The nginx edge proxies `/groups/:groupId` to the preview server for known link-preview bots; everyone else gets the SPA.
+
+**The group id is a single path segment.** A group id contains slashes (`{provider}/groups/users/{creator}/{slug}`), but the SPA encodes it into the URL (`encodeURIComponent`), so the raw path is `/groups/<one-segment>` with no literal slash. The nginx regex `^/groups/([^/]+)$` and the preview server's route both capture that one segment and `decodeURIComponent` restores the group id. This is mutually exclusive with the `/u/` permalinks (different first path segment).
+
+**The face is read the way the profile is — via the generic read, anon-capable.** The group's face is a doc in the app-named `web10-social-group-identity` service, group-keyed (D60). The preview server reads it with `POST /v3/read {service: 'web10-social-group-identity', groups: [groupId]}` and takes the **latest** doc (the face is a replace-on-write doc stream). A **public** group grants `anyone` read on that service, so the face reads token-less. The cover and avatar are bare media doc_ids — resolved to fresh presigned URLs via the generic `media/thumbnail` (a media doc → its own image), the same as the author-avatar fallback.
+
+**The privacy floor (I3 / D41).** A group whose face is *not* anon-readable (a non-public group — no `anyone` grant on the identity service) or that has **no face doc** renders a **generic** web10 card — the brand mark, a neutral title/description ("A group on web10") — and **no** group name, **no** about, **no** media. Same posture as a private post: the preview never leaks what an anonymous visitor can't already read.
+
 ## What this is not
 
 - **Not server-side rendering of the app.** The social app's preview server renders a *preview document* for crawlers, not the SPA. The browser still gets the client-rendered app. There is no SSR framework, no hydration, no build-time coupling between the node and the social bundle.
@@ -124,11 +134,10 @@ The profile permalink (`/u/:username`) is the same edge split, one level up. The
 
 ## Open questions
 
-Decided and built: the social app's preview server (the card); the generic card renderer (`POST /v3/preview/render`); the public-readability floor (a non-anon-readable post → generic card); the thumbnail via the generic `media/thumbnail`; the nginx User-Agent split (crawlers → the preview server, browsers → the SPA); the **profile permalink** (the profile's face, no anon-read gate). The platform's `share.py` is deleted.
+Decided and built: the social app's preview server (the card); the generic card renderer (`POST /v3/preview/render`); the public-readability floor (a non-anon-readable post → generic card); the thumbnail via the generic `media/thumbnail`; the nginx User-Agent split (crawlers → the preview server, browsers → the SPA); the **profile permalink** (the profile's face, no anon-read gate); the **group permalink** (the group's face — cover → avatar → brand mark — read from the `web10-social-group-identity` doc, generic card when the face isn't anon-readable). The platform's `share.py` is deleted.
 
 Still open:
 
-- **Group permalink.** `/groups/:id` — the same preview-server pattern, the group's face (cover + avatar) as the image. The group's face is a `web10-social-group-identity` doc (D60); the preview server would read it the same way the profile preview reads the profile.
 - **A preview for the app's own root** (`social.web10.app/`) — a static brand card. Cheap; the `index.html` static tags cover it.
 
 ## Reference
