@@ -9,7 +9,6 @@ import { getWapi } from '@/data/wapi';
 import {
   toggleReactionKind,
   type ReactionKind,
-  countReactions,
   readReactions,
   countComments,
   recordRepost,
@@ -78,10 +77,13 @@ export function PostLightbox({ post, mediaMap, onClose, onReload, postAuthor, po
   const hasMedia = media.length > 0;
   const multiple = media.length > 1;
 
-  // Like state (post-actions.md: the reaction pair — like XOR dislike)
+  // Like state (post-actions.md: the reaction pair — like XOR dislike). The
+  // like and dislike counts are tracked separately (each tally shows its own
+  // number — the heart and the thumb are the same).
   const [liked, setLiked] = useState(false);
   const [disliked, setDisliked] = useState(false);
-  const [reactionCount, setReactionCount] = useState(0);
+  const [likeCount, setLikeCount] = useState(0);
+  const [dislikeCount, setDislikeCount] = useState(0);
 
   // Comment state (the thread's open/closed state lives in <PostActions>)
   const [commentCount, setCommentCount] = useState(0);
@@ -137,16 +139,17 @@ export function PostLightbox({ post, mediaMap, onClose, onReload, postAuthor, po
   }, [onClose, prev, next, multiple]);
 
   // Load reaction + comment state (the lightbox reads fresh — it's a modal,
-  // not a feed; the count is the like count, the pair derives liked/disliked)
+  // not a feed). The like and dislike counts are derived from the reactions
+  // read (each type counted separately — the heart and the thumb are the same).
   useEffect(() => {
     let cancelled = false;
     Promise.all([
-      countReactions('posts', currentPost._id || ''),
       token ? readReactions('posts', currentPost._id || '') : Promise.resolve([]),
       countComments(currentPost._id || ''),
-    ]).then(([count, reactions, cCount]) => {
+    ]).then(([reactions, cCount]) => {
       if (cancelled) return;
-      setReactionCount(count);
+      setLikeCount(reactions.filter((r) => r.type === 'like').length);
+      setDislikeCount(reactions.filter((r) => r.type === 'dislike').length);
       // v3 ownership is by username alone: a reaction's author_key is the
       // bare username, so author_provider is the v2 fallback ('web10') and
       // never equals the token's real provider — comparing it left the
@@ -164,18 +167,23 @@ export function PostLightbox({ post, mediaMap, onClose, onReload, postAuthor, po
   }, [currentPost._id, token]);
 
   // The reaction pair (post-actions.md): like XOR dislike. Optimistic update
-  // of both flags + the like count, rollback on error. The data layer
-  // (toggleReactionKind) enforces the mutual exclusion server-side.
+  // of both flags + both counts, rollback on error. The data layer
+  // (toggleReactionKind) enforces the mutual exclusion server-side. The delta
+  // is computed per-tally from the CURRENT flags (a like↔dislike swap moves
+  // the reaction: like -1, dislike +1) — the old single `delta` was wrong on
+  // a swap (the "0 1 0 1" flicker).
   async function handleToggleReaction(kind: ReactionKind) {
     if (!token) return;
     const wasLiked = liked;
     const wasDisliked = disliked;
     const nextLiked = kind === 'like' ? !wasLiked : false;
     const nextDisliked = kind === 'dislike' ? !wasDisliked : false;
-    const delta = (nextLiked ? 1 : 0) - (wasLiked ? 1 : 0);
+    const likeDelta = (nextLiked ? 1 : 0) - (wasLiked ? 1 : 0);
+    const dislikeDelta = (nextDisliked ? 1 : 0) - (wasDisliked ? 1 : 0);
     setLiked(nextLiked);
     setDisliked(nextDisliked);
-    setReactionCount(prev => Math.max(0, prev + delta));
+    setLikeCount(prev => Math.max(0, prev + likeDelta));
+    setDislikeCount(prev => Math.max(0, prev + dislikeDelta));
     try {
       await toggleReactionKind(currentPost._id || '', kind);
     } catch (e) {
@@ -183,7 +191,8 @@ export function PostLightbox({ post, mediaMap, onClose, onReload, postAuthor, po
       toast.error(errorMessage(e, 'Could not update your reaction.'));
       setLiked(wasLiked);
       setDisliked(wasDisliked);
-      setReactionCount(prev => Math.max(0, prev - delta));
+      setLikeCount(prev => Math.max(0, prev - likeDelta));
+      setDislikeCount(prev => Math.max(0, prev - dislikeDelta));
     }
   }
 
@@ -373,7 +382,8 @@ export function PostLightbox({ post, mediaMap, onClose, onReload, postAuthor, po
             postId={currentPost._id || ''}
             liked={liked}
             disliked={disliked}
-            reactionCount={reactionCount}
+            reactionCount={likeCount}
+            dislikeCount={dislikeCount}
             commentCount={commentCount}
             onToggleReaction={handleToggleReaction}
             onCommentCountChange={setCommentCount}

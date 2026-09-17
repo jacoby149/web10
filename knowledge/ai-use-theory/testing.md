@@ -260,3 +260,17 @@ The main theory's test ladder says "build tests from the easy floor up." This do
 The main theory says "logs are the gradient." This doc adds: **the gradient is captured locally, against the real stack — not discovered in CI. Local gives the full two-sided dump and same-run probes (seconds per iteration); CI is the clean-environment altitude check you confirm against, not the place you read the break.**
 
 All five additions come from the same root: the LLM is shy about scope. It fixes the thing that failed and stops. It doesn't naturally ask "is this broken elsewhere?", "did I test the other button?", "what does this look like the second time?", or "where is the actual signal?" The process has to force it. AGENTS.md says: "when you find a bug pattern, check the rest of the subsystem." The anti-test suite says: "here are the invariants that must hold. If any of them fail, the repair isn't done." The fork rule says: "here are the paths this feature has. If one of them has no test, the feature isn't done." The state rule says: "here are the states this feature lives in. If the return run has no test, the feature isn't done." The local-gradient rule says: "the break is in the local two-sided log, not in the CI artifact — go read it there."
+
+## The Gauntlet: the rules, applied to a whole surface
+
+The seam/fork/state rules above are for *one affordance*. A **gauntlet** is those
+rules, combined, applied to a *whole surface* of the social app — and it adds the
+fourth rule the theory implies but doesn't name: the **truth rule** (assert the
+UI matches the backend truth at every step, not just "the UI changed"). The
+gauntlet doctrine, the per-surface plans, and the code space live in
+[`strategy/gauntlets/`](../strategy/gauntlets/README.md) — one plan per surface
+(reactions, comments, posts, feed, discover, groups, messages, profile, media),
+each defining the state machine, the forks, the truth fields, the anti-tests, and
+the bites. The like button's four "fixed but still untrustworthy" bugs are the
+reason the gauntlet space exists: each fix was correct and tested, in isolation,
+on the happy path — and each was missed by the flow.

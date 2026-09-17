@@ -67,6 +67,28 @@ function MediaPlaceholder({ type }: MediaPlaceholderProps) {
   );
 }
 
+/**
+ * The discover card's single-video media — rendered the SAME way the feed
+ * renders a video (video-player.md): natural ratio, `object-contain` (never
+ * crops), capped so a portrait clip can't blow up the card. Transcoded (hls)
+ * video gets the full control rack (`mode="full"`); the direct-file fallback
+ * keeps the tap-to-play inline surface. This is what makes a 9:16 clip on
+ * Discover look like the same product as one in the feed — no letterbox
+ * borders, no center-crop.
+ */
+function DiscoverVideo({ media }: { media: MediaItem }) {
+  const source = sourceFromMedia(media);
+  return (
+    <VideoPlayer
+      source={source}
+      mode={source.type === 'hls' ? 'full' : 'inline'}
+      fit="contain"
+      maxHeight="60vh"
+      testId="discover-media-video"
+    />
+  );
+}
+
 export interface DiscoverCardProps {
   post: DiscoverPost;
   rank: number;
@@ -270,13 +292,7 @@ export function DiscoverCard({
                 testId="discover-media-carousel"
               />
             ) : isVideoMedia && firstMedia?.url ? (
-              <VideoPlayer
-                source={sourceFromMedia(firstMedia)}
-                mode="inline"
-                fit="cover"
-                ratio={16 / 9}
-                testId="discover-media-video"
-              />
+              <DiscoverVideo media={firstMedia} />
             ) : mediaType === 'image' && mediaItems.length > 0 ? (
               <div className="aspect-[4/3] w-full overflow-hidden bg-elevated">
                 <img
@@ -321,6 +337,7 @@ export function DiscoverCard({
         liked={liked}
         disliked={disliked}
         reactionCount={post.likes ?? 0}
+        dislikeCount={post.dislikes ?? 0}
         commentCount={post.comments ?? 0}
         like={remote ? 'display' : 'interactive'}
         dislike={remote ? 'none' : 'interactive'}

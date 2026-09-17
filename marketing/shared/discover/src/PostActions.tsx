@@ -34,6 +34,10 @@ export interface PostActionsProps {
   disliked: boolean;
   /** The like count (the heart's number). */
   reactionCount: number;
+  /** The dislike count (the thumb's number) — rendered the same way the like
+   *  count renders on the heart (post-actions.md: likes and dislikes are the
+   *  same, each shows its own tally). */
+  dislikeCount?: number;
   /** The comment count (seed — the thread's live count wins once open). */
   commentCount: number;
   /** The surface's reaction writer (optimistic + rollback on the surface). */
@@ -77,6 +81,7 @@ export function PostActions({
   liked,
   disliked,
   reactionCount,
+  dislikeCount = 0,
   commentCount,
   onToggleReaction,
   like = 'interactive',
@@ -168,7 +173,7 @@ export function PostActions({
       type="button"
       data-testid="dislike-button"
       aria-pressed={disliked}
-      aria-label="Dislike"
+      aria-label={`Dislike, ${dislikeCount} dislikes`}
       onClick={(e) => { e.stopPropagation(); onToggleReaction?.('dislike'); }}
       className={cn(
         'flex items-center gap-1.5 px-2.5 py-2 rounded-lg min-h-10 text-sm transition-all duration-150',
@@ -185,6 +190,7 @@ export function PostActions({
         strokeWidth={1.75}
         fill={disliked ? 'currentColor' : 'none'}
       />
+      <span className="tabular-nums">{dislikeCount || ''}</span>
     </button>
   );
 

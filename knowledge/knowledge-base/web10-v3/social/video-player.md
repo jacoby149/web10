@@ -58,6 +58,8 @@ flowchart LR
 | `inline` | `InlineControls` | muted, loop, tap-to-play/pause, minimal overlay, duration badge. The feed / Discover / Groups behavior. |
 | `full` | `FullControls` | the current `HlsVideoPlayer` rack: scrubber, quality, speed, volume, fullscreen. The lightbox / "watch" behavior. |
 
+**The rack's visibility (auto-hide + pointer hold).** The `full` rack overlays the video (not a bar below it) and auto-hides ~2.5s after the video is playing + idle, so the feed stays media-forward; it returns on hover and stays up while paused. The hide must never fire while the pointer is **over the player** — the rack is held visible for as long as the pointer is in the frame, independent of the idle timer. This is load-bearing for a 9:16 clip in a wide card (Discover, `/trending`): the aspect box is the full-width 9:16 frame while the video is the centered phone column, so the rack's right half (quality + fullscreen) sits over the letterbox border. Reaching for fullscreen crosses that border; if the rack hid on `mouseleave` it would vanish mid-reach before the click landed (the 3.100.1 bug). The pointer-hold makes the border harmless.
+
 Plus three layout props: `fit` (`contain` — never crops, letterboxes; `cover` — fills the frame, crops), `ratio` (or `width`/`height`), and `immersive` (default `false`). The vertical (9:16) phone-width column the feed uses is derived from the ratio, exactly as it is today.
 
 **`immersive` — the video fills the frame the surface gives it.** Off (the default), the player reserves its own box (the source's ratio, or the `ratio` prop) and the surface sizes it. On, the player takes the size of its parent frame and the `<video>` fills it (`absolute inset-0 w-full h-full object-cover`): no own aspect-ratio, no phone-width column, and — for the `hls` source — **video only, no control rack** (the scrubber/quality/speed/fullscreen rack is the `mode="full"`/lightbox surface; on an immersive slide it would collide with the overlay chrome the surface draws on top). The surface that owns the frame is `ShortsScreen` (the slide IS the 9:16 frame — see `shorts.md`); the prop is what lets the one shared player serve it without a second `<video>` implementation.
@@ -65,8 +67,8 @@ Plus three layout props: `fit` (`contain` — never crops, letterboxes; `cover` 
 A surface is therefore a one-liner:
 
 ```
-Feed:      <VideoPlayer source={hlsOrFile} mode="inline" fit="contain" />
-Discover:  <VideoPlayer source={hlsOrFile} mode="inline" fit="cover"  ratio={16/9} />
+Feed:      <VideoPlayer source={hlsOrFile} mode="inline" fit="contain" />   (hls → mode="full")
+Discover:  <VideoPlayer source={hlsOrFile} mode="inline" fit="contain" />   (hls → mode="full"; feed parity, 3.100.2)
 Groups:    <VideoPlayer source={file}      mode="inline" fit="contain" />
 Lightbox:  <VideoPlayer source={hlsOrFile} mode="full" />
 Shorts:    <VideoPlayer source={hlsOrFile} mode="inline" fit="cover"  immersive />
@@ -102,9 +104,9 @@ The invariant that makes the inline modality feel right: **in `inline` mode, a t
 
 | Surface | Source | Mode | Fit | Ratio | Modality |
 |---|---|---|---|---|---|
-| Feed | hls \| file | inline | contain | natural (≤60vh) | inline |
-| Discover grid | hls \| file | inline | cover | 16:9 (uniform tile) | inline |
-| Discover YouTube view | hls \| file | inline | cover | 16:9 (TikTok wall) | inline |
+| Feed | hls \| file | inline (hls = full) | contain | natural (≤60vh) | inline |
+| Discover grid | hls \| file | inline (hls = full) | contain | natural (≤60vh) — feed parity (3.100.2) | inline |
+| Discover / trending "Video" view | hls \| file | inline (hls = full) | contain | natural (≤60vh) — feed parity (3.100.2) | inline |
 | Groups | file | inline | contain | natural | inline |
 | Profile grid cell | — (static poster) | — | — | — | modal (cell → lightbox) |
 | Lightbox / deep-link | hls \| file | full | contain | natural | modal |

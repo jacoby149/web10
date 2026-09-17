@@ -105,12 +105,24 @@ describe('PostActions — the shared engagement bar (post-actions.md)', () => {
     expect(onToggleReaction).toHaveBeenCalledWith('dislike');
   });
 
-  it('the like count renders on the heart; the dislike count never does', async () => {
+  it('the like count renders on the heart; the dislike count renders on the thumb (the same)', async () => {
     const { PostActions } = await import('@/components/Feed/PostActions');
-    render(<PostActions {...base} reactionCount={42} dislike="interactive" />);
+    render(<PostActions {...base} reactionCount={42} dislikeCount={7} dislike="interactive" />);
     expect(screen.getByTestId('like-button')).toHaveTextContent('42');
-    // the thumb has no number — the tally stays off the bar (post-actions.md)
-    expect(screen.getByTestId('dislike-button').textContent).not.toMatch(/\d/);
+    // the thumb shows its own tally, the same way the heart shows the like count
+    expect(screen.getByTestId('dislike-button')).toHaveTextContent('7');
+    // the aria-labels carry the counts (the same as the like's "Like, N likes")
+    expect(screen.getByTestId('like-button')).toHaveAttribute('aria-label', 'Like, 42 likes');
+    expect(screen.getByTestId('dislike-button')).toHaveAttribute('aria-label', 'Dislike, 7 dislikes');
+  });
+
+  it('a zero dislike count renders empty on the thumb (the {count || ""} idiom, same as the heart)', async () => {
+    const { PostActions } = await import('@/components/Feed/PostActions');
+    render(<PostActions {...base} reactionCount={42} dislikeCount={0} dislike="interactive" />);
+    const thumb = screen.getByTestId('dislike-button');
+    // the number span is present but empty (0 → ''), matching the heart's behavior
+    expect(thumb).toHaveAttribute('aria-label', 'Dislike, 0 dislikes');
+    expect(thumb.textContent).not.toMatch(/\b0\b/);
   });
 
   it('the comment button toggles the thread open/closed', async () => {
