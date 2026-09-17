@@ -68,13 +68,6 @@ export async function countUnread(): Promise<number> {
   return 0;
 }
 
-/** @deprecated no-op, v3 doesn't use repost ledger */
-export async function recordRepost(
-  _targetId: string,
-  _postAuthor: string,
-  _postService: string,
-): Promise<void> {}
-
 /** @deprecated no-op, v3 doesn't use inbox fan-out */
 export async function fanOutToFollowers(_post: PostRecord): Promise<void> {}
 

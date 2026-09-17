@@ -271,6 +271,71 @@ export async function toggleReactionKind(
 }
 
 /**
+ * Toggle the user's repost on a target: if the user has already reposted,
+ * clear it; otherwise create it. Returns true if the user now has the post
+ * reposted, false if it was cleared.
+ *
+ * Independent of like / dislike (reposts.md): a user can like AND repost the
+ * same post, so this looks only at `type === 'repost'` docs — never the
+ * like/dislike pair. That is why it is a separate primitive from
+ * `toggleReactionKind` (which only considers `type === 'like' | 'dislike'`
+ * when deciding "is this mine?").
+ *
+ * The "mine" match is username-alone (the v3 ownership rule, the 3.87.2
+ * class): a reaction's author_key is the bare username and author_provider is
+ * the v2 fallback, so matching on provider would make "mine" unfindable and
+ * every tap would stack a new repost doc.
+ *
+ * Self-heal: collapse stacked duplicate reposts (a pre-fix artifact) to the
+ * single newest doc — a filter, not a find, so the toggle decision sees the
+ * full picture. Idempotent with zero or one doc.
+ *
+ * No author nudge: a repost is a silent amplification signal (a "X reposted
+ * your post" notification is an open follow-up — see reposts.md). The doc is
+ * written directly, not through `createReaction` (which fires the D69
+ * reaction nudge).
+ */
+export async function toggleRepost(
+  targetId: string,
+  groups?: string[],
+): Promise<boolean> {
+  const w = getV3Client();
+  const token = w.readToken();
+  if (!token) throw new Error('not authenticated');
+
+  const existing = await readReactions(targetId, undefined, groups);
+  const mine = existing.filter(
+    (r) => r.author_username === token.username && r.type === 'repost',
+  );
+
+  // Self-heal: keep the newest, delete the rest (the 28-likes class).
+  if (mine.length > 1) {
+    mine.sort((a, b) => (b.created_at || '').localeCompare(a.created_at || ''));
+    const toDelete = mine.slice(1).map((r) => r._id).filter((id): id is string => !!id);
+    await Promise.all(toDelete.map((id) => deleteReaction(id)));
+  }
+
+  if (mine.length > 0) {
+    await deleteReaction(mine[0]._id!);
+    return false;
+  }
+
+  const targetGroups = groups || [getDiscoverGroupId()];
+  await w.create(
+    'reactions',
+    {
+      type: 'repost',
+      target_service: 'posts',
+      target_id: targetId,
+      author_username: token.username,
+      author_provider: token.provider,
+    },
+    { groups: targetGroups, ref_value: targetId },
+  );
+  return true;
+}
+
+/**
  * Count reactions on a target.
  * @param targetServiceOrId - target service or targetId (v2 compat)
  * @param targetId - target ID (v2 compat)

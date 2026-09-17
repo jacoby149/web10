@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState, type ReactNode } from 'react';
-import { Heart, ThumbsDown, MessageCircle } from 'lucide-react';
+import { Heart, ThumbsDown, MessageCircle, Repeat2 } from 'lucide-react';
 import { cn } from './utils';
 import { CommentThread } from './CommentThread';
 import type { ReadComments, CreateComment } from './types';
@@ -42,8 +42,16 @@ export interface PostActionsProps {
   commentCount: number;
   /** The surface's reaction writer (optimistic + rollback on the surface). */
   onToggleReaction?: (kind: ReactionKind) => void;
+  /** The surface's repost writer (optimistic + rollback on the surface). */
+  onToggleRepost?: () => void;
+  /** Whether the reader has reposted this post (the repeat icon fills). */
+  reposted?: boolean;
+  /** The repost count (the repeat icon's number). */
+  repostCount?: number;
   like?: PostActionMode;
   dislike?: PostActionMode;
+  /** The repost axis (reposts.md): independent of like/dislike, default none. */
+  repost?: PostActionMode;
   comments?: 'inline' | 'none';
   layout?: 'row' | 'bar' | 'bare';
   /** The post author's username (the comment nudge target). */
@@ -84,8 +92,12 @@ export function PostActions({
   dislikeCount = 0,
   commentCount,
   onToggleReaction,
+  onToggleRepost,
+  reposted = false,
+  repostCount = 0,
   like = 'interactive',
   dislike = 'none',
+  repost = 'none',
   comments = 'inline',
   layout = 'row',
   postAuthor,
@@ -103,8 +115,10 @@ export function PostActions({
   testId = 'post-actions',
 }: PostActionsProps) {
   // Remote (marketing) mode: an anon visitor can't like, so the like is
-  // display-only (a dead tap target is worse than a count).
+  // display-only (a dead tap target is worse than a count). Same for the
+  // repost — an anon visitor can't repost, so it is display-only too.
   const effectiveLike: PostActionMode = remote ? 'display' : like;
+  const effectiveRepost: PostActionMode = remote ? 'display' : repost;
 
   // The heart-burst: re-key the button when the like is added.
   const [burstKey, setBurstKey] = useState(0);
@@ -213,11 +227,51 @@ export function PostActions({
     </button>
   );
 
+  // The repost (reposts.md): independent of like/dislike. Filled (brand) when
+  // the reader has reposted; toggles on tap. The repeat icon is stroke-only —
+  // a filled Repeat2 reads as noise, so the active state is color + a subtle
+  // scale (the dislike button's idiom).
+  const repostButton = effectiveRepost === 'interactive' && (
+    <button
+      type="button"
+      data-testid="repost-button"
+      aria-pressed={reposted}
+      aria-label={`Repost, ${repostCount} reposts`}
+      onClick={(e) => { e.stopPropagation(); onToggleRepost?.(); }}
+      className={cn(
+        'flex items-center gap-1.5 px-2.5 py-2 rounded-lg min-h-10 text-sm transition-all duration-150',
+        reposted
+          ? 'text-brand-300'
+          : 'text-muted-foreground hover:text-foreground hover:bg-elevated/80',
+      )}
+    >
+      <Repeat2
+        className={cn(
+          'w-[18px] h-[18px] transition-all duration-150',
+          reposted && 'scale-110',
+        )}
+        strokeWidth={1.75}
+      />
+      <span className="tabular-nums">{repostCount || ''}</span>
+    </button>
+  );
+
+  const repostDisplay = effectiveRepost === 'display' && (
+    <span
+      className="flex items-center gap-1.5 text-muted-foreground"
+      aria-label={`${repostCount} reposts`}
+    >
+      <Repeat2 className="h-4 w-4" strokeWidth={1.5} />
+      <span className="text-xs tabular-nums">{repostCount}</span>
+    </span>
+  );
+
   const bar = (
     <>
       {showLike && (likeButton || likeDisplay)}
       {dislikeButton}
       {commentButton}
+      {repostButton || repostDisplay}
       {trailing}
     </>
   );

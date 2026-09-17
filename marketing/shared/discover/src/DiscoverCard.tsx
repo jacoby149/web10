@@ -1,6 +1,6 @@
 import type { ReactNode } from 'react';
-import { Repeat2, Share2, Image as ImageIcon, Film, Music2 } from 'lucide-react';
-import { cn, hashToColor, formatCount, timeAgo } from './utils';
+import { Share2, Image as ImageIcon, Film, Music2 } from 'lucide-react';
+import { cn, hashToColor, timeAgo } from './utils';
 import { Avatar, AvatarFallback, Badge } from './ui';
 import { RankBadge, heatTier, HEAT_SHADOW } from './RankBadge';
 import { VideoPlayer, sourceFromMedia } from './VideoPlayer';
@@ -105,6 +105,10 @@ export interface DiscoverCardProps {
   /** Interactive mode: the reader's own like state. */
   liked?: boolean;
   disliked?: boolean;
+  /** Interactive mode: the reader's own repost state (the repeat icon fills). */
+  reposted?: boolean;
+  /** Interactive mode: the repost writer (reposts.md — independent of like). */
+  onToggleRepost?: () => void;
   /** The comment reader (injected — the data seam). */
   readComments?: ReadComments;
   /** The comment writer (injected; absent in remote mode). */
@@ -135,6 +139,8 @@ export function DiscoverCard({
   onToggleReaction,
   liked = false,
   disliked = false,
+  reposted = false,
+  onToggleRepost,
   readComments,
   createComment,
   onError,
@@ -341,6 +347,10 @@ export function DiscoverCard({
         commentCount={post.comments ?? 0}
         like={remote ? 'display' : 'interactive'}
         dislike={remote ? 'none' : 'interactive'}
+        repost="interactive"
+        reposted={reposted}
+        repostCount={post.reposts ?? 0}
+        onToggleRepost={onToggleRepost}
         layout="bar"
         testId="discover-post-actions"
         postAuthor={post.author_username || post.author}
@@ -353,18 +363,9 @@ export function DiscoverCard({
         onError={onError}
         onToggleReaction={onToggleReaction}
         trailing={
-          <>
-            <span
-              className="flex items-center gap-1.5 text-muted-foreground"
-              aria-label={`${post.reposts ?? 0} reposts`}
-            >
-              <Repeat2 className="h-4 w-4" strokeWidth={1.5} />
-              <span className="text-xs tabular-nums">{formatCount(post.reposts ?? 0)}</span>
-            </span>
-            <span className="ml-auto text-muted-foreground" aria-label="Share">
-              <Share2 className="h-4 w-4" strokeWidth={1.5} />
-            </span>
-          </>
+          <span className="ml-auto text-muted-foreground" aria-label="Share">
+            <Share2 className="h-4 w-4" strokeWidth={1.5} />
+          </span>
         }
       />
     </article>

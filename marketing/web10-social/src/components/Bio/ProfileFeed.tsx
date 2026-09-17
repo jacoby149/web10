@@ -3,6 +3,7 @@ import {
   countComments,
   readReactions,
   toggleReactionKind,
+  toggleRepost,
   type ReactionKind,
 } from '@/data';
 import { getWapi } from '@/data/wapi';
@@ -48,9 +49,11 @@ export function ProfileFeed({
 }: ProfileFeedProps) {
   const [likeMap, setLikeMap] = useState<Record<string, number>>({});
   const [dislikeCountMap, setDislikeCountMap] = useState<Record<string, number>>({});
+  const [repostCountMap, setRepostCountMap] = useState<Record<string, number>>({});
   const [commentMap, setCommentMap] = useState<Record<string, number>>({});
   const [likedMap, setLikedMap] = useState<Record<string, boolean>>({});
   const [dislikedMap, setDislikedMap] = useState<Record<string, boolean>>({});
+  const [repostedMap, setRepostedMap] = useState<Record<string, boolean>>({});
   const [engagementReady, setEngagementReady] = useState(false);
   // Re-key the engagement read when the post set changes (a new post after an
   // edit/delete, a profile switch) — without re-reading on every mediaMap
@@ -77,18 +80,25 @@ export function ProfileFeed({
             const reactions = await readReactions(id);
             if (cancelled) return;
             // Likes and dislikes are counted separately (the heart and the
-            // thumb each show their own tally — post-actions.md).
+            // thumb each show their own tally — post-actions.md). The repost is
+            // a separate tally too (reposts.md — independent of like/dislike).
             const likeCount = reactions.filter((r) => r.type === 'like').length;
             const dislikeCount = reactions.filter((r) => r.type === 'dislike').length;
+            const repostCount = reactions.filter((r) => r.type === 'repost').length;
             const mine = tokenUsername
               ? reactions.find(
                   (r) => r.author_username === tokenUsername && (r.type === 'like' || r.type === 'dislike'),
                 )
               : undefined;
+            const mineRepost = tokenUsername
+              ? reactions.find((r) => r.author_username === tokenUsername && r.type === 'repost')
+              : undefined;
             setLikeMap((prev) => ({ ...prev, [id]: likeCount }));
             setDislikeCountMap((prev) => ({ ...prev, [id]: dislikeCount }));
+            setRepostCountMap((prev) => ({ ...prev, [id]: repostCount }));
             setLikedMap((prev) => ({ ...prev, [id]: mine?.type === 'like' }));
             setDislikedMap((prev) => ({ ...prev, [id]: mine?.type === 'dislike' }));
+            setRepostedMap((prev) => ({ ...prev, [id]: !!mineRepost }));
           } catch (e) {
             console.error('[social:profile-feed] reaction read failed:', e);
           }
@@ -118,9 +128,11 @@ export function ProfileFeed({
     lastPostsKey.current = postsKey;
     setLikeMap({});
     setDislikeCountMap({});
+    setRepostCountMap({});
     setCommentMap({});
     setLikedMap({});
     setDislikedMap({});
+    setRepostedMap({});
     setEngagementReady(false);
   }
 
@@ -147,6 +159,24 @@ export function ProfileFeed({
       setDislikedMap((prev) => ({ ...prev, [postId]: wasDisliked }));
       setLikeMap((prev) => ({ ...prev, [postId]: Math.max(0, (prev[postId] || 0) - likeDelta) }));
       setDislikeCountMap((prev) => ({ ...prev, [postId]: Math.max(0, (prev[postId] || 0) - dislikeDelta) }));
+    }
+  }
+
+  // Repost (reposts.md): independent of like/dislike. Optimistic update of the
+  // reader's own repost flag + the repost count, rollback on error.
+  async function handleToggleRepost(postId: string) {
+    const wasReposted = !!repostedMap[postId];
+    const nextReposted = !wasReposted;
+    const delta = nextReposted ? 1 : -1;
+    setRepostedMap((prev) => ({ ...prev, [postId]: nextReposted }));
+    setRepostCountMap((prev) => ({ ...prev, [postId]: Math.max(0, (prev[postId] || 0) + delta) }));
+    try {
+      await toggleRepost(postId);
+    } catch (e) {
+      console.error('Failed to toggle repost:', e);
+      toast.error(errorMessage(e, 'Could not update your repost.'));
+      setRepostedMap((prev) => ({ ...prev, [postId]: wasReposted }));
+      setRepostCountMap((prev) => ({ ...prev, [postId]: Math.max(0, (prev[postId] || 0) - delta) }));
     }
   }
 
@@ -178,11 +208,14 @@ export function ProfileFeed({
             mediaItems={mediaItemsFor(post)}
             reactionCount={likeMap[id] || 0}
             dislikeCount={dislikeCountMap[id] || 0}
+            repostCount={repostCountMap[id] || 0}
             commentCount={commentMap[id] || 0}
             liked={!!likedMap[id]}
             disliked={!!dislikedMap[id]}
+            reposted={!!repostedMap[id]}
             timestamp={post.created_at}
             onToggleReaction={(kind) => handleToggleReaction(id, kind)}
+            onToggleRepost={() => handleToggleRepost(id)}
             onCommentCountChange={(n) => setCommentMap((prev) => ({ ...prev, [id]: n }))}
             postAuthor={authorUsername}
             postService="public_posts"
