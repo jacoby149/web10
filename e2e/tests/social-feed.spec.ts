@@ -647,11 +647,14 @@ test.describe('Social feed gauntlet — render → post → reload persists', ()
 
     // --- The transcoded post: the hls.js player, not a plain <video> ---
     await expect(page.locator('[data-testid="hls-video-player"]')).toBeVisible({ timeout: 30_000 });
-    // The quality dropdown is populated from the PARSED manifest (Auto + each
+    // The quality menu is populated from the PARSED manifest (Auto + each
     // level — the e2e stack transcodes the 720x1280 source to 360p + 720p),
-    // which also proves the minted sig streams (manifest → variants).
+    // which also proves the minted sig streams (manifest → variants). The rack
+    // is a RackMenu (3.102.0): hover reveals it, the button opens the popover.
+    await page.locator('[data-testid="hls-video-player"]').hover();
+    await page.locator('[data-testid="quality-select"]').click();
     await expect(async () => {
-      const options = await page.locator('[data-testid="quality-select"] option').allTextContents();
+      const options = await page.locator('[data-testid="quality-select-menu"]').allTextContents();
       expect(options).toContain('Auto');
       expect(options).toContain('360p');
       expect(options).toContain('720p');
@@ -659,8 +662,10 @@ test.describe('Social feed gauntlet — render → post → reload persists', ()
     // Speed + fullscreen (the player spec, video-experience.md).
     await expect(page.locator('[data-testid="speed-select"]')).toBeVisible();
     await expect(page.locator('[data-testid="fullscreen-button"]')).toBeVisible();
-    // 9:16 source → the phone-width column (the immersive feed feel).
-    await expect(page.locator('[data-testid="hls-video-player"] .max-w-\\[280px\\]').first()).toBeVisible();
+    // 9:16 source → full-bleed frame (3.102.0): no phone-width column, the
+    // video fills the card width (object-contain, never crops).
+    await expect(page.locator('[data-testid="hls-video-player"] .max-w-\\[280px\\]')).toHaveCount(0);
+    await expect(page.locator('[data-testid="hls-video"]')).toHaveClass(/object-contain/);
 
     // --- The direct MP4 post: the native <video> path (unchanged) ---
     const nativeVideo = page.locator('[data-testid="media-video"] video');
@@ -709,11 +714,14 @@ test.describe('Social feed gauntlet — render → post → reload persists', ()
     // FOLLOWER's feed (not the native fallback, not the error state): the
     // minted sig streams through the carrier-post access check.
     await expect(page.locator('[data-testid="hls-video-player"]')).toBeVisible({ timeout: 30_000 });
-    // The quality dropdown is populated from the PARSED manifest (Auto +
-    // each level) — proof the follower's hls.js fetched the master + variant
-    // manifests (the sig is valid for the follower).
+    // The quality menu is populated from the PARSED manifest (Auto + each
+    // level) — proof the follower's hls.js fetched the master + variant
+    // manifests (the sig is valid for the follower). The rack is a RackMenu
+    // (3.102.0): hover reveals it, the button opens the popover.
+    await page.locator('[data-testid="hls-video-player"]').hover();
+    await page.locator('[data-testid="quality-select"]').click();
     await expect(async () => {
-      const options = await page.locator('[data-testid="quality-select"] option').allTextContents();
+      const options = await page.locator('[data-testid="quality-select-menu"]').allTextContents();
       expect(options).toContain('Auto');
       expect(options).toContain('360p');
       expect(options).toContain('720p');
