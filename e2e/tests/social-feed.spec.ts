@@ -654,10 +654,10 @@ test.describe('Social feed gauntlet — render → post → reload persists', ()
     await page.locator('[data-testid="hls-video-player"]').hover();
     await page.locator('[data-testid="quality-select"]').click();
     await expect(async () => {
-      const options = await page.locator('[data-testid="quality-select-menu"]').allTextContents();
-      expect(options).toContain('Auto');
-      expect(options).toContain('360p');
-      expect(options).toContain('720p');
+      const menuText = (await page.locator('[data-testid="quality-select-menu"]').textContent()) ?? '';
+      expect(menuText).toContain('Auto');
+      expect(menuText).toContain('360p');
+      expect(menuText).toContain('720p');
     }).toPass({ timeout: 30_000 });
     // Speed + fullscreen (the player spec, video-experience.md).
     await expect(page.locator('[data-testid="speed-select"]')).toBeVisible();
@@ -721,10 +721,10 @@ test.describe('Social feed gauntlet — render → post → reload persists', ()
     await page.locator('[data-testid="hls-video-player"]').hover();
     await page.locator('[data-testid="quality-select"]').click();
     await expect(async () => {
-      const options = await page.locator('[data-testid="quality-select-menu"]').allTextContents();
-      expect(options).toContain('Auto');
-      expect(options).toContain('360p');
-      expect(options).toContain('720p');
+      const menuText = (await page.locator('[data-testid="quality-select-menu"]').textContent()) ?? '';
+      expect(menuText).toContain('Auto');
+      expect(menuText).toContain('360p');
+      expect(menuText).toContain('720p');
     }).toPass({ timeout: 30_000 });
     // The player's designed error state is NOT showing.
     await expect(page.locator('[data-testid="hls-player-error"]')).toHaveCount(0);
