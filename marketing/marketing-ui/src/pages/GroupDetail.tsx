@@ -21,6 +21,19 @@ interface GroupPost {
   created_at: string
 }
 
+// D60: the platform detail is generic contract metadata (name = slug, no
+// face). The group's face (rich name, description, tags) is app data in the
+// social app's identity service — public for groups that grant `anyone` read.
+// The surface reads it anon and composes it (KB: groups/detail.md).
+const GROUP_IDENTITY_SERVICE = 'web10-social-group-identity'
+
+interface GroupFace {
+  name?: string
+  description?: string
+  website?: string
+  tags?: string[]
+}
+
 interface GroupDetailData {
   group_id: string
   name: string
@@ -30,13 +43,27 @@ interface GroupDetailData {
   discoverable: boolean
   member_count: number
   permission_summary: string
-  description: string
-  avatar_ref: string
-  website: string
-  tags: string[]
   is_member: boolean
   posts_state: 'ok' | 'join_to_view'
   posts: GroupPost[]
+}
+
+async function readGroupFace(groupId: string): Promise<GroupFace> {
+  try {
+    const resp = await fetch(`${nodeApi()}/v3/read`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      // No token — anon reads the face of public groups (the `anyone` grant).
+      body: JSON.stringify({ service: GROUP_IDENTITY_SERVICE, groups: [groupId], limit: 5 }),
+    })
+    if (!resp.ok) return {}
+    const docs = await resp.json()
+    if (!Array.isArray(docs) || docs.length === 0) return {}
+    // The face is a replace-on-write doc stream — the latest doc wins.
+    return (docs[docs.length - 1].body || {}) as GroupFace
+  } catch {
+    return {}
+  }
 }
 
 function joinPolicyBadge(policy: string) {
@@ -71,18 +98,28 @@ function GroupDetail() {
   const groupId = id ? decodeURIComponent(id) : ''
 
   const [group, setGroup] = useState<GroupDetailData | null>(null)
+  const [face, setFace] = useState<GroupFace>({})
   const [loading, setLoading] = useState(true)
   const [notFound, setNotFound] = useState(false)
 
   useEffect(() => {
     let alive = true
-    fetch(`${nodeApi()}/v3/groups/detail?group_id=${encodeURIComponent(groupId)}`)
-      .then((r) => {
+    Promise.all([
+      fetch(`${nodeApi()}/v3/groups/detail?group_id=${encodeURIComponent(groupId)}`).then((r) => {
         if (r.status === 404) throw new Error('not found')
         if (!r.ok) throw new Error(String(r.status))
         return r.json()
+      }),
+      // The face read never rejects (it degrades to {}), so a 403 on a
+      // non-public group only costs the rich display, not the page.
+      readGroupFace(groupId),
+    ])
+      .then(([data, f]) => {
+        if (alive) {
+          setGroup(data)
+          setFace(f)
+        }
       })
-      .then((data) => alive && setGroup(data))
       .catch((err) => {
         if (alive && err.message === 'not found') setNotFound(true)
       })
@@ -94,8 +131,8 @@ function GroupDetail() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-background px-4 py-16 sm:px-6 sm:py-24">
-        <div className="mx-auto max-w-2xl">
+    <div className="min-h-screen bg-background px-4 py-16 sm:px-6 sm:py-24">
+      <div className="mx-auto max-w-2xl">
           <Link to="/groups" className="inline-flex items-center gap-1.5 text-sm text-muted-foreground transition-colors duration-150 ease-out hover:text-foreground" data-testid="back-to-directory">
             <ArrowLeft className="h-4 w-4" strokeWidth={1.75} />
             Back to Directory
@@ -133,6 +170,10 @@ function GroupDetail() {
     )
   }
 
+  const displayName = face.name || group.name
+  const description = face.description
+  const tags = Array.isArray(face.tags) ? face.tags : []
+
   return (
     <div className="min-h-screen bg-background px-4 py-16 text-foreground sm:px-6 sm:py-24">
       <div className="mx-auto max-w-2xl">
@@ -144,24 +185,21 @@ function GroupDetail() {
         {/* Header */}
         <div className="mt-8 flex flex-col items-center gap-6 text-center sm:flex-row sm:text-left sm:gap-8">
           <div className="relative flex h-24 w-24 shrink-0 items-center justify-center overflow-hidden rounded-2xl bg-elevated">
-            {group.avatar_ref ? (
-              <img src={group.avatar_ref} alt={group.name} className="h-full w-full object-cover" />
-            ) : null}
             <div
               data-fallback="true"
-              className={cn('absolute inset-0 flex items-center justify-center text-4xl font-semibold text-muted-foreground', group.avatar_ref ? 'hidden' : '')}
+              className="absolute inset-0 flex items-center justify-center text-4xl font-semibold text-muted-foreground"
             >
-              {group.name.charAt(0).toUpperCase()}
+              {displayName.charAt(0).toUpperCase()}
             </div>
           </div>
 
           <div className="flex min-w-0 flex-1 flex-col gap-3">
             <h1 className="font-display text-2xl font-bold tracking-[-0.02em] text-foreground sm:text-3xl" data-testid="group-detail-name">
-              {group.name}
+              {displayName}
             </h1>
             <span className="text-sm text-muted-foreground">@{group.owner}</span>
-            {group.description ? (
-              <p className="text-muted-foreground" data-testid="group-detail-description">{group.description}</p>
+            {description ? (
+              <p className="text-muted-foreground" data-testid="group-detail-description">{description}</p>
             ) : null}
             <div className="flex flex-wrap items-center gap-2">
               {joinPolicyBadge(group.join_policy)}
@@ -170,9 +208,9 @@ function GroupDetail() {
                 {group.member_count.toLocaleString()} members
               </span>
             </div>
-            {group.tags.length > 0 ? (
+            {tags.length > 0 ? (
               <div className="flex flex-wrap gap-1.5" data-testid="group-detail-tags">
-                {group.tags.map((t) => (
+                {tags.map((t) => (
                   <span key={t} className="rounded-full bg-elevated px-2.5 py-0.5 text-xs font-medium text-muted-foreground">#{t}</span>
                 ))}
               </div>
