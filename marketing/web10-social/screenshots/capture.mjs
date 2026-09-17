@@ -57,7 +57,7 @@ function parseCliViews(argv) {
     console.error('--name and --ready must be given together');
     process.exit(1);
   }
-  return [{ name, ready, route: get('--route'), toggle: get('--toggle'), clicks: getMany('--click') }];
+  return [{ name, ready, route: get('--route'), toggle: get('--toggle'), clicks: getMany('--click'), hover: get('--hover') }];
 }
 const VIEWS = parseCliViews(process.argv.slice(2)) ?? DEFAULT_VIEWS;
 
@@ -125,6 +125,13 @@ try {
           for (const click of view.clicks ?? []) await page.click(click);
           if (view.toggle) await page.click(view.toggle);
           await page.waitForSelector(`${view.ready} >> visible=true`, { timeout: 15000 });
+        }
+        // `--hover` reveals a hover-only surface (e.g. the video control rack)
+        // before the shot: move the pointer over the selector so the
+        // mouseenter/mousemove handlers fire and the overlay becomes visible.
+        if (view.hover) {
+          await page.hover(view.hover);
+          await page.waitForTimeout(300);
         }
       } catch (err) {
         console.error(`\n=== CAPTURE FAILED: ${view.name}-${label} ===`);

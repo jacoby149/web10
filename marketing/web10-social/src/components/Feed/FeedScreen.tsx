@@ -14,7 +14,7 @@ import {
   updatePost,
   deletePost,
   movePostVisibility,
-  recordRepost,
+  toggleRepost,
 } from '@/data';
 import { getWapi } from '@/data/wapi';
 import { fromResolvedMediaRef, type ResolvedMediaRef, type PostRecord, type MediaRecord } from '@/data/types';
@@ -168,6 +168,12 @@ export interface PostCardProps {
   commentCount: number;
   liked: boolean;
   disliked: boolean;
+  /** Whether the reader has reposted this post (the repeat icon fills). */
+  reposted?: boolean;
+  /** The repost count (the repeat icon's number). */
+  repostCount?: number;
+  /** The reader's tap on the repost (reposts.md — independent of like). */
+  onToggleRepost?: () => void;
   timestamp: string;
   onToggleReaction: (kind: ReactionKind) => void;
   onCommentCountChange: (n: number) => void;
@@ -193,6 +199,9 @@ export function PostCard({
   commentCount,
   liked,
   disliked,
+  reposted = false,
+  repostCount = 0,
+  onToggleRepost,
   timestamp,
   onToggleReaction,
   onCommentCountChange,
@@ -231,9 +240,8 @@ export function PostCard({
   async function handleShare() {
     setMenuOpen(false);
     const url = `${window.location.origin}/u/${postAuthor || authorUsername || 'unknown'}/p/${post._id || 'unknown'}`;
-    if (postAuthor && postService) {
-      recordRepost(post._id || '', postAuthor, postService);
-    }
+    // Share is a link (navigator.share / clipboard) — not a data write. The
+    // repost is a separate, tappable signal on the engagement row (reposts.md).
     if (navigator.share) {
       navigator.share({ title: (post.text || '').slice(0, 100) || 'Post on web10', url }).catch(() => copyUrl());
     } else {
@@ -455,6 +463,10 @@ export function PostCard({
             postAuthor={postAuthor}
             postService={postService}
             dislike="interactive"
+            repost="interactive"
+            reposted={reposted}
+            repostCount={repostCount}
+            onToggleRepost={onToggleRepost}
           />
         </div>
         {(post.origin || 'web10') !== 'web10' && (
@@ -523,9 +535,11 @@ export default function FeedScreen({ onAuthorClick }: { onAuthorClick?: (usernam
   const [nextCursor, setNextCursor] = useState<{ created_at?: string; score?: number } | null>(null);
   const [likeMap, setLikeMap] = useState<Record<string, number>>({});
   const [dislikeCountMap, setDislikeCountMap] = useState<Record<string, number>>({});
+  const [repostCountMap, setRepostCountMap] = useState<Record<string, number>>({});
   const [commentMap, setCommentMap] = useState<Record<string, number>>({});
   const [likedMap, setLikedMap] = useState<Record<string, boolean>>({});
   const [dislikedMap, setDislikedMap] = useState<Record<string, boolean>>({});
+  const [repostedMap, setRepostedMap] = useState<Record<string, boolean>>({});
   const sentinelRef = useRef<HTMLDivElement>(null);
   const token = getWapi().readToken();
   // v3 ownership is by username alone: a post's author_key is the bare
@@ -645,17 +659,20 @@ export default function FeedScreen({ onAuthorClick }: { onAuthorClick?: (usernam
       // heart and the thumb each show their own tally.
       setLikeMap(Object.fromEntries(page.posts.map((p) => [p._id || '', p.likes || 0])));
       setDislikeCountMap(Object.fromEntries(page.posts.map((p) => [p._id || '', p.dislikes || 0])));
+      setRepostCountMap(Object.fromEntries(page.posts.map((p) => [p._id || '', p.reposts || 0])));
       setCommentMap(Object.fromEntries(page.posts.map((p) => [p._id || '', p.comments || 0])));
       // The reader's OWN reaction is NOT in the payload (D69 carries the like
-      // count, not whether *I* liked it) — seed the liked/disliked maps so a
-      // post the reader already liked shows a filled heart on load. Without
-      // this the feed "forgot" every like on refresh and the next tap stacked
-      // a second doc (the "liked it, shows 2, refresh shows 0" bug).
-      const { liked, disliked } = await readFeedReactions(
+      // count, not whether *I* liked it) — seed the liked/disliked/reposted
+      // maps so a post the reader already liked/reposted shows a filled
+      // icon on load. Without this the feed "forgot" every like on refresh
+      // and the next tap stacked a second doc (the "liked it, shows 2,
+      // refresh shows 0" bug).
+      const { liked, disliked, reposted } = await readFeedReactions(
         page.posts.map((p) => p._id || '').filter(Boolean),
       );
       setLikedMap(liked);
       setDislikedMap(disliked);
+      setRepostedMap(reposted);
       LOG('loadFeed — page 1:', page.posts.length, 'posts, has_more:', page.has_more);
     } catch (e) {
       console.error('Failed to load feed:', e);
@@ -674,14 +691,16 @@ export default function FeedScreen({ onAuthorClick }: { onAuthorClick?: (usernam
       setNextCursor(page.next_cursor);
       setLikeMap((prev) => ({ ...prev, ...Object.fromEntries(page.posts.map((p) => [p._id || '', p.likes || 0])) }));
       setDislikeCountMap((prev) => ({ ...prev, ...Object.fromEntries(page.posts.map((p) => [p._id || '', p.dislikes || 0])) }));
+      setRepostCountMap((prev) => ({ ...prev, ...Object.fromEntries(page.posts.map((p) => [p._id || '', p.reposts || 0])) }));
       setCommentMap((prev) => ({ ...prev, ...Object.fromEntries(page.posts.map((p) => [p._id || '', p.comments || 0])) }));
       // Seed the reader's own reaction for the new page's posts (same gap as
       // loadFeed — the payload carries the count, not whether *I* liked it).
-      const { liked, disliked } = await readFeedReactions(
+      const { liked, disliked, reposted } = await readFeedReactions(
         page.posts.map((p) => p._id || '').filter(Boolean),
       );
       setLikedMap((prev) => ({ ...prev, ...liked }));
       setDislikedMap((prev) => ({ ...prev, ...disliked }));
+      setRepostedMap((prev) => ({ ...prev, ...reposted }));
       // The cursor deep-link (the URL holds the scroll position — ?after=).
       const params = new URLSearchParams(searchParams);
       if (page.next_cursor?.created_at) params.set('after', page.next_cursor.created_at);
@@ -768,6 +787,27 @@ export default function FeedScreen({ onAuthorClick }: { onAuthorClick?: (usernam
     }
   }
 
+  // Repost (reposts.md): independent of like/dislike. Optimistic update of
+  // the reader's own repost flag + the repost count, rollback on error. The
+  // data layer (toggleRepost) enforces one-repost-per-user + self-heal.
+  async function handleToggleRepost(postId: string) {
+    const token = getWapi().readToken();
+    if (!token) return;
+    const wasReposted = !!repostedMap[postId];
+    const nextReposted = !wasReposted;
+    const delta = nextReposted ? 1 : -1;
+    setRepostedMap((prev) => ({ ...prev, [postId]: nextReposted }));
+    setRepostCountMap((prev) => ({ ...prev, [postId]: Math.max(0, (prev[postId] || 0) + delta) }));
+    try {
+      await toggleRepost(postId);
+    } catch (e) {
+      console.error('Failed to toggle repost:', e);
+      toast.error(errorMessage(e, 'Could not update your repost.'));
+      setRepostedMap((prev) => ({ ...prev, [postId]: wasReposted }));
+      setRepostCountMap((prev) => ({ ...prev, [postId]: Math.max(0, (prev[postId] || 0) - delta) }));
+    }
+  }
+
   if (loading) {
     return <FeedSkeleton />;
   }
@@ -815,11 +855,14 @@ export default function FeedScreen({ onAuthorClick }: { onAuthorClick?: (usernam
                   mediaItems={mediaItems}
                   reactionCount={likeMap[post._id || ''] || 0}
                   dislikeCount={dislikeCountMap[post._id || ''] || 0}
+                  repostCount={repostCountMap[post._id || ''] || 0}
                   commentCount={commentMap[post._id || ''] || 0}
                   liked={!!likedMap[post._id || '']}
                   disliked={!!dislikedMap[post._id || '']}
+                  reposted={!!repostedMap[post._id || '']}
                   timestamp={post.created_at}
                   onToggleReaction={(kind) => handleToggleReaction(post._id || '', kind)}
+                  onToggleRepost={() => handleToggleRepost(post._id || '')}
                   onCommentCountChange={(n) =>
                     setCommentMap((prev) => ({ ...prev, [post._id || '']: n }))
                   }

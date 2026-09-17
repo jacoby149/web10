@@ -116,6 +116,13 @@ export async function assertReactionTruth(
  * exactly the expected like + dislike counts. No UI — this is the API floor's
  * data-integrity check (the like storm, the race). A count that's off by one
  * (a lost update) or doubled (a duplicate row) fails here.
+ *
+ * The assertion RETRIES (polls until the count settles, up to `timeoutMs`)
+ * because ClickHouse is eventually consistent: a burst of parallel creates/
+ * deletes returns 200 before every row is committed, so a single read right
+ * after the burst can undercount. The retry waits for the commit to land
+ * (the count converges to the expected value) — a lost update (the count never
+ * reaches the expected value) still fails, but a transient undercount doesn't.
  */
 export async function assertReactionAggregate(
   request: APIRequestContext,
@@ -124,15 +131,24 @@ export async function assertReactionAggregate(
   expectedLike: number,
   expectedDislike: number,
   groups: string[] = [DISCOVER_GROUP_ID],
+  timeoutMs = 30_000,
 ): Promise<ReactionTruth> {
-  const truth = await reactionTruth(request, token, postId, 'nobody', groups);
+  const deadline = Date.now() + timeoutMs;
+  let truth = await reactionTruth(request, token, postId, 'nobody', groups);
+  while (
+    (truth.likeCount !== expectedLike || truth.dislikeCount !== expectedDislike) &&
+    Date.now() < deadline
+  ) {
+    await new Promise((r) => setTimeout(r, 500));
+    truth = await reactionTruth(request, token, postId, 'nobody', groups);
+  }
   expect(
     truth.likeCount,
-    `DB likeCount=${truth.likeCount} but expected ${expectedLike}`,
+    `DB likeCount=${truth.likeCount} but expected ${expectedLike} (after ${timeoutMs}ms)`,
   ).toBe(expectedLike);
   expect(
     truth.dislikeCount,
-    `DB dislikeCount=${truth.dislikeCount} but expected ${expectedDislike}`,
+    `DB dislikeCount=${truth.dislikeCount} but expected ${expectedDislike} (after ${timeoutMs}ms)`,
   ).toBe(expectedDislike);
   return truth;
 }

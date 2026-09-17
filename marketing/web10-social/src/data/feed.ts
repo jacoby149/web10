@@ -319,11 +319,12 @@ function buildFeedQuery(sort: FeedRanking | null, cursor: { created_at?: string;
   return (
     'SELECT p.doc_id AS doc_id, p.author_key AS author_key, p.body AS body, p.tags AS tags, ' +
     'p.created_at AS created_at, p.ref_value AS ref_value, p.ad_mode AS ad_mode, p.ad_target AS ad_target, ' +
-    'coalesce(eng.like_count, 0) AS likes, coalesce(eng.dislike_count, 0) AS dislikes, coalesce(cmt.comment_count, 0) AS comments, ' +
+    'coalesce(eng.like_count, 0) AS likes, coalesce(eng.dislike_count, 0) AS dislikes, coalesce(eng.repost_count, 0) AS reposts, coalesce(cmt.comment_count, 0) AS comments, ' +
     `(${score}) AS score, pr.body AS profile_body ` +
     'FROM posts p ' +
     "LEFT JOIN (SELECT ref_value, countIf(JSONExtractString(body, 'type') = 'like') AS like_count, " +
-    "countIf(JSONExtractString(body, 'type') = 'dislike') AS dislike_count FROM reactions WHERE ref_value != '' GROUP BY ref_value) eng ON eng.ref_value = p.doc_id " +
+    "countIf(JSONExtractString(body, 'type') = 'dislike') AS dislike_count, " +
+    "countIf(JSONExtractString(body, 'type') = 'repost') AS repost_count FROM reactions WHERE ref_value != '' GROUP BY ref_value) eng ON eng.ref_value = p.doc_id " +
     "LEFT JOIN (SELECT ref_value, count() AS comment_count FROM comments WHERE ref_value != '' GROUP BY ref_value) cmt ON cmt.ref_value = p.doc_id " +
     'LEFT JOIN (SELECT author_key, body FROM profile QUALIFY row_number() OVER (PARTITION BY author_key ORDER BY updated_at DESC) = 1) pr ON pr.author_key = p.author_key ' +
     cursorClause +
@@ -359,6 +360,7 @@ function fromFeedQueryRow(row: Record<string, unknown>): PostRecord {
     node_ad: row.node_ad,
     likes: row.likes,
     dislikes: row.dislikes,
+    reposts: row.reposts,
     comments: row.comments,
     score: row.score,
     profile: profileBody,
@@ -548,8 +550,8 @@ export async function readFeedEngagement(
  */
 export async function readFeedReactions(
   postIds: string[],
-): Promise<{ liked: Record<string, boolean>; disliked: Record<string, boolean> }> {
-  const empty = { liked: {}, disliked: {} };
+): Promise<{ liked: Record<string, boolean>; disliked: Record<string, boolean>; reposted: Record<string, boolean> }> {
+  const empty = { liked: {}, disliked: {}, reposted: {} };
   if (!postIds.length) return empty;
   const w = getV3Client();
   const token = w.readToken();
@@ -572,6 +574,7 @@ export async function readFeedReactions(
     const docs = await w.read('reactions', { groups, ref: postIds });
     const liked: Record<string, boolean> = {};
     const disliked: Record<string, boolean> = {};
+    const reposted: Record<string, boolean> = {};
     for (const doc of docs) {
       // v3 ownership — username alone (see above).
       if (extractUsername(doc.author_key) !== token.username) continue;
@@ -580,13 +583,15 @@ export async function readFeedReactions(
       if (!ref) continue;
       if (type === 'like') liked[ref] = true;
       else if (type === 'dislike') disliked[ref] = true;
+      else if (type === 'repost') reposted[ref] = true;
     }
     console.log(
       '[social-feed] readFeedReactions —',
       Object.keys(liked).length, 'liked +',
-      Object.keys(disliked).length, 'disliked of', postIds.length, 'posts',
+      Object.keys(disliked).length, 'disliked +',
+      Object.keys(reposted).length, 'reposted of', postIds.length, 'posts',
     );
-    return { liked, disliked };
+    return { liked, disliked, reposted };
   } catch (e) {
     console.error('[social-feed] readFeedReactions — failed, degrading to empty:', e);
     return empty;

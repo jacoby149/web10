@@ -8,10 +8,10 @@ import { mediaRefId } from '@/data/types';
 import { getWapi } from '@/data/wapi';
 import {
   toggleReactionKind,
+  toggleRepost,
   type ReactionKind,
   readReactions,
   countComments,
-  recordRepost,
   updatePost,
   deletePost,
   movePostVisibility,
@@ -84,6 +84,9 @@ export function PostLightbox({ post, mediaMap, onClose, onReload, postAuthor, po
   const [disliked, setDisliked] = useState(false);
   const [likeCount, setLikeCount] = useState(0);
   const [dislikeCount, setDislikeCount] = useState(0);
+  // Repost state (reposts.md: independent of like/dislike).
+  const [reposted, setReposted] = useState(false);
+  const [repostCount, setRepostCount] = useState(0);
 
   // Comment state (the thread's open/closed state lives in <PostActions>)
   const [commentCount, setCommentCount] = useState(0);
@@ -161,6 +164,12 @@ export function PostLightbox({ post, mediaMap, onClose, onReload, postAuthor, po
       setDisliked(!!reactions.find(
         r => r.author_username === token.username && r.type === 'dislike',
       ));
+      // Repost (reposts.md): independent of like/dislike, counted from the
+      // same reactions read.
+      setReposted(!!reactions.find(
+        r => r.author_username === token.username && r.type === 'repost',
+      ));
+      setRepostCount(reactions.filter((r) => r.type === 'repost').length);
       setCommentCount(cCount);
     }).catch(console.error);
     return () => { cancelled = true; };
@@ -193,6 +202,26 @@ export function PostLightbox({ post, mediaMap, onClose, onReload, postAuthor, po
       setDisliked(wasDisliked);
       setLikeCount(prev => Math.max(0, prev - likeDelta));
       setDislikeCount(prev => Math.max(0, prev - dislikeDelta));
+    }
+  }
+
+  // Repost (reposts.md): independent of like/dislike. Optimistic update of the
+  // reader's own repost flag + the repost count, rollback on error. The data
+  // layer (toggleRepost) enforces one-repost-per-user + self-heal.
+  async function handleToggleRepost() {
+    if (!token) return;
+    const wasReposted = reposted;
+    const nextReposted = !wasReposted;
+    const delta = nextReposted ? 1 : -1;
+    setReposted(nextReposted);
+    setRepostCount(prev => Math.max(0, prev + delta));
+    try {
+      await toggleRepost(currentPost._id || '');
+    } catch (e) {
+      console.error('Failed to toggle repost:', e);
+      toast.error(errorMessage(e, 'Could not update your repost.'));
+      setReposted(wasReposted);
+      setRepostCount(prev => Math.max(0, prev - delta));
     }
   }
 
@@ -242,10 +271,8 @@ export function PostLightbox({ post, mediaMap, onClose, onReload, postAuthor, po
 
   async function handleShare() {
     const url = `${window.location.origin}/u/${postAuthor || 'unknown'}/p/${currentPost._id || 'unknown'}${highlightedCommentId ? `?comment=${highlightedCommentId}` : ''}`;
-    // Record the share in the public ledger so the engagement count increments
-    if (postAuthor && postService) {
-      recordRepost(currentPost._id || '', postAuthor, postService);
-    }
+    // Share is a link (navigator.share / clipboard) — not a data write. The
+    // repost is a separate, tappable signal on the engagement row (reposts.md).
     if (navigator.share) {
       navigator.share({ title: currentPost.text?.slice(0, 100) || 'Post on web10', url }).catch(() => {
         copyUrl();
@@ -392,6 +419,10 @@ export function PostLightbox({ post, mediaMap, onClose, onReload, postAuthor, po
             highlightedCommentId={highlightedCommentId}
             defaultOpen={!!highlightedCommentId}
             dislike="interactive"
+            repost="interactive"
+            reposted={reposted}
+            repostCount={repostCount}
+            onToggleRepost={handleToggleRepost}
             testId="lightbox-post-actions"
             trailing={
               <button

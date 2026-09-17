@@ -1,12 +1,24 @@
-import { useEffect, useRef, useState, type CSSProperties } from 'react';
-import { Play, Pause, TriangleAlert } from 'lucide-react';
+import { useEffect, useRef, useState, type CSSProperties, type ChangeEvent } from 'react';
+import { Play, Pause, TriangleAlert, Volume2, VolumeX, Maximize2 } from 'lucide-react';
 import { cn } from './utils';
-import { HlsVideoPlayer } from './HlsVideoPlayer';
+import { HlsVideoPlayer, RackMenu } from './HlsVideoPlayer';
+import { IconBtn } from './ui';
 import { API_ORIGIN } from './config';
 import type { HlsInstance } from './hls';
 import type { MediaItem } from './types';
 
 const LOG = (...args: unknown[]) => console.log('[discover:video]', ...args);
+
+/** m:ss — the time readout (current / total). */
+function fmtTime(s: number): string {
+  if (!Number.isFinite(s) || s < 0) s = 0;
+  const m = Math.floor(s / 60);
+  const sec = Math.floor(s % 60);
+  return `${m}:${String(sec).padStart(2, '0')}`;
+}
+
+/** The playback-speed options (the rack's speed menu). Index → rate. */
+const SPEEDS = ['1x', '1.5x', '2x'] as const;
 
 /**
  * The shared video surface (video-player.md) — the one both apps' discover
@@ -328,6 +340,18 @@ export function InlineVideo({ url, poster, width, height, durationSeconds, fit =
   const [tapped, setTapped] = useState(false);
   const playing = (active && !tapped) || (!active && tapped);
 
+  // ── Control-rack state (the file path gets the same rack as the hls path) ──
+  const hideTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const playingRef = useRef(false);
+  const pointerOverRef = useRef(false);
+  const [controlsVisible, setControlsVisible] = useState(false);
+  const [pointerOver, setPointerOver] = useState(false);
+  const [current, setCurrent] = useState(0);
+  const [duration, setDuration] = useState(0);
+  const [volume, setVolume] = useState(1);
+  const [muted, setMuted] = useState(true);
+  const [speed, setSpeed] = useState(0);
+
   useEffect(() => {
     if (!playing || !videoRef.current) return;
     const p = videoRef.current.play();
@@ -337,16 +361,89 @@ export function InlineVideo({ url, poster, width, height, durationSeconds, fit =
     };
   }, [playing]);
 
+  // Keep the DOM in sync with playback events + drive the rack's auto-hide.
+  useEffect(() => {
+    const el = videoRef.current;
+    if (!el) return;
+    const show = () => {
+      setControlsVisible(true);
+      if (hideTimer.current) clearTimeout(hideTimer.current);
+      hideTimer.current = setTimeout(() => {
+        if (playingRef.current && !pointerOverRef.current) setControlsVisible(false);
+      }, 2500);
+    };
+    const onPlay = () => { playingRef.current = true; show(); };
+    const onPause = () => { playingRef.current = false; setControlsVisible(true); };
+    const onTime = () => setCurrent(el.currentTime);
+    const onMeta = () => setDuration(el.duration || 0);
+    const onVol = () => { setVolume(el.volume); setMuted(el.muted); };
+    const onEnd = () => setControlsVisible(true);
+    el.addEventListener('play', onPlay);
+    el.addEventListener('pause', onPause);
+    el.addEventListener('timeupdate', onTime);
+    el.addEventListener('loadedmetadata', onMeta);
+    el.addEventListener('durationchange', onMeta);
+    el.addEventListener('volumechange', onVol);
+    el.addEventListener('ended', onEnd);
+    return () => {
+      el.removeEventListener('play', onPlay);
+      el.removeEventListener('pause', onPause);
+      el.removeEventListener('timeupdate', onTime);
+      el.removeEventListener('loadedmetadata', onMeta);
+      el.removeEventListener('durationchange', onMeta);
+      el.removeEventListener('volumechange', onVol);
+      el.removeEventListener('ended', onEnd);
+      if (hideTimer.current) clearTimeout(hideTimer.current);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  useEffect(() => {
+    const el = videoRef.current;
+    if (el) el.playbackRate = parseFloat(SPEEDS[speed]);
+  }, [speed]);
+
+  function togglePlay() {
+    setTapped((t) => !t);
+  }
+  function seek(e: ChangeEvent<HTMLInputElement>) {
+    const el = videoRef.current;
+    if (!el) return;
+    const t = parseFloat(e.target.value);
+    el.currentTime = t;
+    setCurrent(t);
+  }
+  function changeVolume(e: ChangeEvent<HTMLInputElement>) {
+    const el = videoRef.current;
+    if (!el) return;
+    const v = parseFloat(e.target.value);
+    el.volume = v;
+    el.muted = v === 0;
+  }
+  function toggleMute() {
+    const el = videoRef.current;
+    if (!el) return;
+    el.muted = !el.muted;
+  }
+  function toggleFullscreen() {
+    const el = videoRef.current;
+    if (!el) return;
+    if (document.fullscreenElement) document.exitFullscreen().catch(() => {});
+    else el.requestFullscreen().catch(() => {});
+  }
+
   const cover = fit === 'cover' || immersive;
   const effectiveRatio = ratio ?? (width && height ? width / height : 4 / 3);
   const isAspectVideo = !fill && !immersive && cover && Math.abs(effectiveRatio - 16 / 9) < 0.001;
   const containerStyle: CSSProperties = fill || immersive ? {} : isAspectVideo ? {} : { aspectRatio: effectiveRatio, maxHeight };
+  const progress = duration > 0 ? (current / duration) * 100 : 0;
+  const rackVisible = controlsVisible || pointerOver;
 
   return (
     <div
       data-testid={testId}
       className={cn(
-        'bg-elevated overflow-hidden group relative cursor-pointer',
+        'overflow-hidden group relative cursor-pointer bg-black',
         fill || immersive ? 'h-full w-full' : isAspectVideo && 'aspect-video',
         className,
       )}
@@ -364,6 +461,9 @@ export function InlineVideo({ url, poster, width, height, durationSeconds, fit =
           setTapped((t) => !t);
         }
       }}
+      onMouseEnter={() => { pointerOverRef.current = true; setPointerOver(true); setControlsVisible(true); }}
+      onMouseMove={() => { setControlsVisible(true); if (hideTimer.current) clearTimeout(hideTimer.current); hideTimer.current = setTimeout(() => { if (playingRef.current && !pointerOverRef.current) setControlsVisible(false); }, 2500); }}
+      onMouseLeave={() => { pointerOverRef.current = false; setPointerOver(false); if (hideTimer.current) clearTimeout(hideTimer.current); hideTimer.current = setTimeout(() => { if (playingRef.current && !pointerOverRef.current) setControlsVisible(false); }, 2500); }}
     >
       <video
         ref={videoRef}
@@ -386,12 +486,74 @@ export function InlineVideo({ url, poster, width, height, durationSeconds, fit =
           </div>
         </div>
       )}
-      {playing && (
+      {playing && !rackVisible && (
         <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
           <Pause className="w-8 h-8 text-foreground/60 animate-pulse" strokeWidth={1.5} />
         </div>
       )}
-      {showDuration && durationSeconds && (
+      {/* The control rack — the same surface as the hls path (consistency). */}
+      {playing && (
+        <div
+          data-testid="player-controls"
+          className={cn(
+            'absolute inset-x-0 bottom-0 flex flex-col gap-1.5 px-3 pb-2.5 pt-8 transition-opacity duration-200',
+            'bg-gradient-to-t from-black/80 via-black/30 to-transparent',
+            rackVisible ? 'opacity-100' : 'opacity-0 pointer-events-none',
+          )}
+        >
+          <div className="group/scrub relative flex h-4 items-center">
+            <div className="absolute inset-x-0 h-1 rounded-full bg-white/25" />
+            <div className="absolute h-1 rounded-full bg-brand" style={{ width: `${progress}%` }} aria-hidden />
+            <input
+              type="range"
+              data-testid="scrubber"
+              aria-label="Seek"
+              min={0}
+              max={duration || 0}
+              step={0.1}
+              value={current}
+              onChange={seek}
+              onClick={(e) => e.stopPropagation()}
+              className="relative w-full cursor-pointer appearance-none bg-transparent
+                [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:h-3 [&::-webkit-slider-thumb]:w-3
+                [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:bg-foreground
+                [&::-webkit-slider-thumb]:opacity-0 group-hover/scrub:[&::-webkit-slider-thumb]:opacity-100
+                [&::-moz-range-thumb]:h-3 [&::-moz-range-thumb]:w-3 [&::-moz-range-thumb]:rounded-full
+                [&::-moz-range-thumb]:border-0 [&::-moz-range-thumb]:bg-foreground"
+            />
+          </div>
+          <div className="flex items-center gap-1">
+            <IconBtn aria-label={playing ? 'Pause' : 'Play'} data-testid="play-pause-button" onClick={(e) => { e.stopPropagation(); togglePlay(); }} className="h-8 w-8">
+              {playing ? <Pause className="w-4 h-4" strokeWidth={2} /> : <Play className="w-4 h-4 ml-0.5" strokeWidth={2} fill="currentColor" />}
+            </IconBtn>
+            <IconBtn aria-label={muted ? 'Unmute' : 'Mute'} data-testid="volume-toggle" onClick={(e) => { e.stopPropagation(); toggleMute(); }} className="h-8 w-8">
+              {muted || volume === 0 ? <VolumeX className="w-4 h-4" strokeWidth={2} /> : <Volume2 className="w-4 h-4" strokeWidth={2} />}
+            </IconBtn>
+            <input
+              type="range"
+              data-testid="volume-slider"
+              aria-label="Volume"
+              min={0}
+              max={1}
+              step={0.05}
+              value={muted ? 0 : volume}
+              onChange={changeVolume}
+              onClick={(e) => e.stopPropagation()}
+              className="hidden w-12 cursor-pointer accent-brand sm:block"
+            />
+            <span data-testid="time-display" className="ml-1 text-xs font-mono tabular-nums text-foreground/90">
+              {fmtTime(current)}<span className="text-foreground/50"> / {fmtTime(duration)}</span>
+            </span>
+            <div className="ml-auto flex items-center gap-1">
+              <RackMenu label="Playback speed" testId="speed-select" value={speed} options={[...SPEEDS]} onPick={setSpeed} />
+              <IconBtn aria-label="Fullscreen" data-testid="fullscreen-button" onClick={(e) => { e.stopPropagation(); toggleFullscreen(); }} className="h-8 w-8">
+                <Maximize2 className="w-4 h-4" strokeWidth={2} />
+              </IconBtn>
+            </div>
+          </div>
+        </div>
+      )}
+      {showDuration && durationSeconds && !playing && (
         <div className="absolute bottom-1.5 right-1.5 bg-background/80 rounded px-1.5 text-[0.625rem] font-mono tabular-nums text-foreground">
           {formatDuration(durationSeconds)}
         </div>

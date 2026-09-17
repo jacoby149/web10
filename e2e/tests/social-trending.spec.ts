@@ -109,7 +109,11 @@ async function addReaction(request: APIRequestContext, token: string, targetDocI
   const res = await v3Post(request, `${API_BASE}/v3/create`, {
     token,
     service: 'reactions',
-    body: { type: '\u2764\ufe0f', target_service: 'posts', target_id: targetDocId },
+    // type must be 'like' (the real data model — the app's toggleReactionKind
+    // writes 'like'/'dislike'/'repost', and the Discover engagement loop + the
+    // feed query count type === 'like'). An arbitrary type (the old '❤️') is
+    // not counted as a like.
+    body: { type: 'like', target_service: 'posts', target_id: targetDocId },
     groups: [DISCOVER_GROUP_ID],
     ref_value: targetDocId,
   });

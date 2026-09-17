@@ -69,6 +69,53 @@ describe('PostActions — the shared engagement bar (post-actions.md)', () => {
     expect(screen.queryByTestId('dislike-button')).not.toBeInTheDocument();
   });
 
+  it('repost default (none): no repost slot (a surface that does not wire it is unaffected)', async () => {
+    const { PostActions } = await import('@/components/Feed/PostActions');
+    render(<PostActions {...base} />);
+    expect(screen.queryByTestId('repost-button')).not.toBeInTheDocument();
+    expect(screen.queryByLabelText(/reposts/)).not.toBeInTheDocument();
+  });
+
+  it('repost="interactive": the repeat icon is a real button, aria-pressed tracks state', async () => {
+    const { PostActions } = await import('@/components/Feed/PostActions');
+    const { rerender } = render(<PostActions {...base} repost="interactive" />);
+    const btn = screen.getByTestId('repost-button');
+    expect(btn).toHaveAttribute('aria-pressed', 'false');
+    rerender(<PostActions {...base} reposted repost="interactive" />);
+    expect(screen.getByTestId('repost-button')).toHaveAttribute('aria-pressed', 'true');
+  });
+
+  it('repost="display": the repost is a non-interactive span with the count (the remote/anon case)', async () => {
+    const { PostActions } = await import('@/components/Feed/PostActions');
+    render(<PostActions {...base} repost="display" repostCount={5} />);
+    expect(screen.queryByTestId('repost-button')).not.toBeInTheDocument();
+    const span = screen.getByLabelText('5 reposts');
+    expect(span.tagName).toBe('SPAN');
+  });
+
+  it('tapping the repeat icon reports onToggleRepost()', async () => {
+    const { PostActions } = await import('@/components/Feed/PostActions');
+    const onToggleRepost = vi.fn();
+    render(<PostActions {...base} repost="interactive" onToggleRepost={onToggleRepost} />);
+    fireEvent.click(screen.getByTestId('repost-button'));
+    expect(onToggleRepost).toHaveBeenCalledTimes(1);
+  });
+
+  it('the repost count renders on the repeat icon (the same as the like count on the heart)', async () => {
+    const { PostActions } = await import('@/components/Feed/PostActions');
+    render(<PostActions {...base} repost="interactive" repostCount={12} />);
+    expect(screen.getByTestId('repost-button')).toHaveTextContent('12');
+    expect(screen.getByTestId('repost-button')).toHaveAttribute('aria-label', 'Repost, 12 reposts');
+  });
+
+  it('a zero repost count renders empty on the repeat icon (the {count || ""} idiom)', async () => {
+    const { PostActions } = await import('@/components/Feed/PostActions');
+    render(<PostActions {...base} repost="interactive" repostCount={0} />);
+    const btn = screen.getByTestId('repost-button');
+    expect(btn).toHaveAttribute('aria-label', 'Repost, 0 reposts');
+    expect(btn.textContent).not.toMatch(/\b0\b/);
+  });
+
   it('comments="none": no comment button, no thread', async () => {
     const { PostActions } = await import('@/components/Feed/PostActions');
     render(<PostActions {...base} comments="none" />);
