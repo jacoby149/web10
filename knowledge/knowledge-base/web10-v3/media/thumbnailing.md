@@ -181,16 +181,18 @@ with it). The node never learns what a "post" or a "profile" is.
 
 Decided: the pure `pickThumbnail` primitive (the selection table); the SDK
 delivery; the access-checked convenience endpoint; the "the app decides the
-fallback" split; the generic card renderer (`POST /v3/preview/render`); and the
-card's home — **Option A** (the social card lives in the social app's preview
-server; the platform's `share.py` is deleted; the platform keeps only the
-generic thumbnail + the generic renderer).
+fallback" split; the generic card renderer (`POST /v3/preview/render`); and
+the card's home — **Option A** (the social card lives in the social app's
+preview server; the platform's `share.py` is deleted; the platform keeps only
+the generic thumbnail + the generic renderer). The **group permalink's card**
+is built on the same server (a new `/groups/:groupId` route) — the group's
+face (cover → avatar → brand mark) read from the `web10-social-group-identity`
+doc (D60), the same generic primitives, a different doc.
 
 Still open:
 
-- **The group permalink's card** — the group's face (cover + avatar) as the
-  image, from the `web10-social-group-identity` service (D60). Same primitive +
-  the same social preview server (a new route), a different doc.
+- **A preview for the app's own root** (`social.web10.app/`) — a static brand
+  card. Cheap; the `index.html` static tags cover it.
 
 ## Reference
 
