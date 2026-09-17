@@ -120,7 +120,7 @@ export function TextInput({ className, ...props }: InputHTMLAttributes<HTMLInput
   );
 }
 
-// ── Select (the player's speed/quality menus) ────────────────────────────────
+// ── Select (a styled native select for consuming apps) ──────────────────────
 
 export function Select({ className, ...props }: SelectHTMLAttributes<HTMLSelectElement>) {
   return (

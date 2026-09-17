@@ -85,22 +85,34 @@ describe('HlsVideoPlayer', () => {
     expect(video.hasAttribute('autoplay')).toBe(true);
     expect(video.hasAttribute('loop')).toBe(true);
 
-    // MANIFEST_PARSED populates the quality dropdown (Auto + each level).
+    // MANIFEST_PARSED populates the quality menu (Auto + each level).
     hls.fire('manifestParsed', { levels: [{ height: 360 }, { height: 720 }] });
     await waitFor(() => {
-      const quality = screen.getByTestId('quality-select') as HTMLSelectElement;
-      expect(quality.options.length).toBe(3);
+      expect(screen.getByTestId('quality-select')).toBeInTheDocument();
     });
-    expect(screen.getByTestId('quality-select')).toHaveTextContent('Auto');
-    expect(screen.getByTestId('quality-select')).toHaveTextContent('360p');
-    expect(screen.getByTestId('quality-select')).toHaveTextContent('720p');
 
-    // Picking a level sets hls.currentLevel (the YouTube gear menu).
-    fireEvent.change(screen.getByTestId('quality-select'), { target: { value: '1' } });
+    // The quality menu is a designed popover (RackMenu), not a native <select>:
+    // opening it reveals the options (Auto + 360p + 720p).
+    fireEvent.click(screen.getByTestId('quality-select'));
+    await waitFor(() => {
+      const menu = screen.getByTestId('quality-select-menu');
+      expect(menu).toBeInTheDocument();
+      expect(menu).toHaveTextContent('Auto');
+      expect(menu).toHaveTextContent('360p');
+      expect(menu).toHaveTextContent('720p');
+    });
+
+    // Picking a level sets hls.currentLevel (the YouTube gear menu). Index 2
+    // = the second level (720p) → currentLevel 1.
+    fireEvent.click(screen.getByTestId('quality-select-option-2'));
     await waitFor(() => expect(hls.currentLevel).toBe(1));
 
-    // Speed control drives playbackRate.
-    fireEvent.change(screen.getByTestId('speed-select'), { target: { value: '2' } });
+    // Speed menu drives playbackRate: open it, pick 2x (index 2).
+    fireEvent.click(screen.getByTestId('speed-select'));
+    await waitFor(() => {
+      expect(screen.getByTestId('speed-select-menu')).toBeInTheDocument();
+    });
+    fireEvent.click(screen.getByTestId('speed-select-option-2'));
     await waitFor(() => expect(video.playbackRate).toBe(2));
 
     // The fullscreen button is present (the player spec).
@@ -262,18 +274,20 @@ describe('HlsVideoPlayer', () => {
     }
   });
 
-  it('renders a vertical (9:16) video in a phone-width column', async () => {
+  it('renders a vertical (9:16) video full-bleed — no phone-width column, the frame reserves the source ratio', async () => {
     installFakeHls();
     const { HlsVideoPlayer } = await import('@/components/Feed/HlsVideoPlayer');
     const { container } = render(
       <HlsVideoPlayer manifestUrl="/v3/media/hls/manifest?doc_id=m1&sig=abc" width={720} height={1280} />,
     );
-    // The video column is capped at phone width (the immersive feed feel);
-    // the controls row follows the same column.
-    const column = container.querySelector('.max-w-\\[280px\\]');
-    expect(column).toBeTruthy();
-    // …and it reserves the source ratio (9:16 = 0.5625).
-    const ar = parseFloat((column as HTMLElement).style.aspectRatio);
+    // The redesign: no phone-width column (the old `max-w-[280px]` gutter is
+    // gone) — the video is full-bleed in the card.
+    expect(container.querySelector('.max-w-\\[280px\\]')).toBeNull();
+    // The frame reserves the source ratio (9:16 = 0.5625) and fills the width.
+    const frame = container.querySelector('[data-testid="hls-video-player"] > div') as HTMLElement;
+    expect(frame).toBeTruthy();
+    expect(frame.className).toMatch(/w-full/);
+    const ar = parseFloat(frame.style.aspectRatio);
     expect(ar).toBeCloseTo(720 / 1280, 5);
   });
 
