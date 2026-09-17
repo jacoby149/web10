@@ -1,10 +1,11 @@
 import { useEffect, useRef, useState, useCallback } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
-import { Heart, MessageCircle, Share2 } from 'lucide-react';
+import { useParams } from 'react-router-dom';
+import { Heart, MessageCircle, Share2, X } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { getWapi } from '@/data/wapi';
-import { readShortsFeed, toggleReactionKind, type ShortPost } from '@/data';
+import { readShortsFeed, toggleReactionKind, getV3Client, getDiscoverGroupId, extractUsername, type ShortPost } from '@/data';
 import { VideoPlayer, sourceFromMedia } from '@/components/Feed/VideoPlayer';
+import { CommentThread } from '@/components/Feed/CommentThread';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
 import { requestInstallPrompt, isMobile } from '@/lib/pwa';
@@ -31,13 +32,16 @@ const LOG = (...args: unknown[]) => console.log('[shorts]', ...args);
  */
 export default function ShortsScreen() {
   const { postId } = useParams<{ postId: string }>();
-  const navigate = useNavigate();
   const [shorts, setShorts] = useState<ShortPost[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [likedMap, setLikedMap] = useState<Record<string, boolean>>({});
   const [reactionMap, setReactionMap] = useState<Record<string, number>>({});
   const [activeIndex, setActiveIndex] = useState(0);
+  // The slide whose comment thread is open (one at a time — the active short's
+  // comments, the TikTok "tap comments → overlay" behavior).
+  const [commentsOpenFor, setCommentsOpenFor] = useState<string | null>(null);
+  const [copiedFor, setCopiedFor] = useState<string | null>(null);
   const containerRef = useRef<HTMLDivElement>(null);
 
   const load = useCallback(async () => {
@@ -46,6 +50,58 @@ export default function ShortsScreen() {
     try {
       const result = await readShortsFeed(50);
       LOG('loaded', result.length, 'shorts');
+
+      // Engagement counts (the ref pattern — the same one DiscoverScreen runs):
+      // `readShortsFeed` maps through `fromV3DocToPost`, which never populates
+      // `likes`/`comments` (those come from the feed query or a client-side
+      // count). Without this the heart and the comment bubble render blank —
+      // the "shorts show the wrong number of likes" bug. One read of the
+      // reactions + comments collections over the discover group, counted
+      // client-side by ref_value. Likes and dislikes are counted separately
+      // (the heart shows likes only — the 3.101.0 doctrine). The reader's own
+      // reaction per short is captured too, so a like made earlier renders
+      // filled on load (the "refresh my like is gone" class of bug).
+      const token = getWapi().readToken();
+      if (token && result.length) {
+        try {
+          const w = getV3Client();
+          const discoverId = getDiscoverGroupId();
+          const [reactionDocs, commentDocs] = await Promise.all([
+            w.read('reactions', { groups: [discoverId], limit: 500 }),
+            w.read('comments', { groups: [discoverId], limit: 500 }),
+          ]);
+          const likesByPost: Record<string, number> = {};
+          const commentsByPost: Record<string, number> = {};
+          const likedByPost: Record<string, boolean> = {};
+          for (const d of reactionDocs) {
+            if (!d.ref_value) continue;
+            const type = (d.body as Record<string, unknown>)?.type as string | undefined;
+            if (type !== 'dislike') {
+              likesByPost[d.ref_value] = (likesByPost[d.ref_value] || 0) + 1;
+            }
+            if (extractUsername(d.author_key) === token.username && type === 'like') {
+              likedByPost[d.ref_value] = true;
+            }
+          }
+          for (const d of commentDocs) {
+            if (d.ref_value) commentsByPost[d.ref_value] = (commentsByPost[d.ref_value] || 0) + 1;
+          }
+          for (const s of result) {
+            const id = s.post._id || '';
+            s.post.likes = likesByPost[id] || 0;
+            s.post.comments = commentsByPost[id] || 0;
+          }
+          setLikedMap(likedByPost);
+          LOG(
+            'engagement — counted',
+            Object.values(likesByPost).reduce((a, b) => a + b, 0), 'likes +',
+            Object.values(commentsByPost).reduce((a, b) => a + b, 0), 'comments',
+          );
+        } catch (e) {
+          console.error('[shorts] engagement count failed (degrading to zero counts):', e);
+        }
+      }
+
       setShorts(result);
     } catch (e) {
       console.error('[shorts] load failed:', e);
@@ -126,20 +182,50 @@ export default function ShortsScreen() {
     const wasLiked = !!likedMap[shortId];
     const nextLiked = !wasLiked;
     const delta = nextLiked ? 1 : -1;
+    // Base the optimistic count on the CURRENT displayed count (the loaded
+    // server tally, or the last optimistic value) — not a blank 0. Without
+    // this a like on a short that already had N likes would show 1, not N+1.
+    const base = reactionMap[shortId] ?? shorts.find((s) => s.post._id === shortId)?.post.likes ?? 0;
     setLikedMap((prev) => ({ ...prev, [shortId]: nextLiked }));
-    setReactionMap((prev) => ({ ...prev, [shortId]: Math.max(0, (prev[shortId] || 0) + delta) }));
+    setReactionMap((prev) => ({ ...prev, [shortId]: Math.max(0, base + delta) }));
     try {
       await toggleReactionKind(shortId, 'like');
     } catch (e) {
       console.error('[shorts] toggle like failed:', e);
       setLikedMap((prev) => ({ ...prev, [shortId]: wasLiked }));
-      setReactionMap((prev) => ({ ...prev, [shortId]: Math.max(0, (prev[shortId] || 0) - delta) }));
+      setReactionMap((prev) => ({ ...prev, [shortId]: Math.max(0, base - delta) }));
     }
   }
 
   function handleShare(shortId: string) {
     const url = `${window.location.origin}/shorts/${shortId}`;
-    navigator.clipboard.writeText(url).catch(() => {});
+    // The native share sheet where available (mobile); the clipboard is the
+    // universal fallback. Either way the user gets clear "copied" feedback —
+    // the old fire-and-forget `writeText().catch(() => {})` gave none.
+    const markCopied = () => {
+      setCopiedFor(shortId);
+      window.setTimeout(() => setCopiedFor((cur) => (cur === shortId ? null : cur)), 2000);
+    };
+    const copy = () => {
+      if (navigator.clipboard?.writeText) {
+        navigator.clipboard.writeText(url).then(markCopied).catch(() => markCopied());
+      } else {
+        markCopied();
+      }
+    };
+    if (typeof navigator.share === 'function') {
+      navigator.share({ title: 'web10 short', url }).catch((e: unknown) => {
+        // The user dismissed the share sheet (AbortError) — no feedback needed.
+        if ((e as { name?: string })?.name === 'AbortError') return;
+        copy();
+      });
+    } else {
+      copy();
+    }
+  }
+
+  function handleToggleComments(shortId: string) {
+    setCommentsOpenFor((cur) => (cur === shortId ? null : shortId));
   }
 
   if (loading) {
@@ -254,9 +340,14 @@ export default function ShortsScreen() {
                 </span>
               </button>
               <button
-                onClick={() => navigate(`/u/${short.post.author_username}/p/${short.post._id}`)}
-                className="flex flex-col items-center gap-1 text-white/90 hover:text-white transition-colors"
+                data-testid={`short-comment-${i}`}
+                onClick={() => handleToggleComments(short.post._id!)}
+                className={cn(
+                  'flex flex-col items-center gap-1 transition-colors',
+                  commentsOpenFor === short.post._id ? 'text-white' : 'text-white/90 hover:text-white',
+                )}
                 aria-label="View comments"
+                aria-expanded={commentsOpenFor === short.post._id}
               >
                 <MessageCircle className="w-6 h-6" strokeWidth={1.75} />
                 <span className="text-[0.625rem] font-medium">
@@ -264,14 +355,52 @@ export default function ShortsScreen() {
                 </span>
               </button>
               <button
+                data-testid={`short-share-${i}`}
                 onClick={() => handleShare(short.post._id!)}
                 className="flex flex-col items-center gap-1 text-white/90 hover:text-white transition-colors"
                 aria-label="Share"
               >
                 <Share2 className="w-6 h-6" strokeWidth={1.75} />
-                <span className="text-[0.625rem] font-medium">Share</span>
+                <span className="text-[0.625rem] font-medium">
+                  {copiedFor === short.post._id ? 'Copied!' : 'Share'}
+                </span>
               </button>
             </div>
+
+            {/* Comment thread — a bottom sheet over the active short (the
+                TikTok "tap comments → overlay"). One at a time; it reads the
+                thread from the discover group (the short's board). */}
+            {commentsOpenFor === short.post._id && (
+              <div
+                data-testid={`short-comments-${i}`}
+                className="absolute inset-x-0 bottom-0 z-10 max-h-[60%] overflow-y-auto rounded-t-2xl bg-background/95 backdrop-blur border-t border-border"
+              >
+                <div className="sticky top-0 flex items-center justify-between px-4 py-2.5 bg-background/95 backdrop-blur border-b border-border">
+                  <span className="text-sm font-medium text-foreground">
+                    {short.post.comments || 0} comments
+                  </span>
+                  <button
+                    onClick={() => setCommentsOpenFor(null)}
+                    aria-label="Close comments"
+                    className="p-1 rounded-md text-muted-foreground hover:text-foreground hover:bg-elevated/80 transition-colors"
+                  >
+                    <X className="w-4 h-4" />
+                  </button>
+                </div>
+                <CommentThread
+                  postId={short.post._id!}
+                  isOpen
+                  count={short.post.comments || 0}
+                  onCountChange={(n) => {
+                    setShorts((prev) =>
+                      prev.map((s) => (s.post._id === short.post._id ? { ...s, post: { ...s.post, comments: n } } : s)),
+                    );
+                  }}
+                  postAuthor={short.post.author_username}
+                  postService="posts"
+                />
+              </div>
+            )}
           </div>
         </div>
       ))}
