@@ -296,7 +296,6 @@ export async function readReplies(): Promise<unknown[]> { return []; }
 export async function readStagingPosts(): Promise<unknown[]> { return []; }
 export async function readTopLevelComments(): Promise<unknown[]> { return []; }
 export async function readUserPosts(): Promise<unknown[]> { return []; }
-export async function recordRepost(): Promise<void> {}
 export async function refreshMediaUrl(): Promise<string> { return ''; }
 export function registerDefaultSchemas(): void {}
 export function resetWapi(): void {}
@@ -305,6 +304,7 @@ export async function updateComment(): Promise<void> {}
 export async function updateFollowNotify(): Promise<void> {}
 export async function setReaction(): Promise<null> { return null; }
 export async function toggleReactionKind(): Promise<null> { return null; }
+export async function toggleRepost(): Promise<boolean> { return true; }
 
 // ── Groups (screenshot seed) ───────────────────────────────────────────────
 // The Groups screen (My Groups + Discover) and its detail read these. Seeded
@@ -583,13 +583,14 @@ export async function readFeedEngagement(): Promise<{ likes: Record<string, numb
 }
 // The reader's own like/dislike per feed post (the feed's initial-state load).
 // Seeded so the PR shot shows a filled heart on the first post.
-export async function readFeedReactions(postIds: string[]): Promise<{ liked: Record<string, boolean>; disliked: Record<string, boolean> }> {
+export async function readFeedReactions(postIds: string[]): Promise<{ liked: Record<string, boolean>; disliked: Record<string, boolean>; reposted: Record<string, boolean> }> {
   const liked: Record<string, boolean> = {};
   const disliked: Record<string, boolean> = {};
+  const reposted: Record<string, boolean> = {};
   for (const id of postIds) {
     if (id === 'fp-1') liked[id] = true;
   }
-  return { liked, disliked };
+  return { liked, disliked, reposted };
 }
 
 // ── Discover (screenshot seed) ───────────────────────────────────────────────

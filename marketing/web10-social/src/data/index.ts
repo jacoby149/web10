@@ -42,7 +42,6 @@ export {
   deriveObjectKey,
   buildReactionTarget,
   buildCommentTarget,
-  recordRepost,
   createWapiWrapper,
   buildSocialServiceSirs,
   fanOutToFollowers,
