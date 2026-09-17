@@ -8,6 +8,7 @@ export * from './ads-catalog';
 export * from './comments';
 export * from './reactions';
 export * from './follows';
+export * from './people';
 export * from './profile';
 export * from './dms';
 export * from './settings';
