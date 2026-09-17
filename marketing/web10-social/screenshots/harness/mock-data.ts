@@ -273,12 +273,30 @@ export async function fetchSchema(): Promise<unknown> { return {}; }
 export function getCachedSchema(): unknown { return null; }
 export async function getReactionCounts(): Promise<unknown> { return {}; }
 export function getWapi(): unknown { return null; }
-// The v3 client seam — the Discover screen's engagement count reads reactions
-// + comments through it. A minimal mock: readToken (signed-in) + read (empty).
+// The v3 client seam — the Discover + Shorts screens' engagement count reads
+// reactions + comments through it. Synthesizes the docs from the seeded
+// discover posts (each post's `likes` → that many like reactions, `comments`
+// → that many comment docs) so the heart/comment tallies render the seed.
 export function getV3Client(): unknown {
   return {
     readToken: () => ({ provider: 'web10', username: 'nova' }),
-    read: async () => [],
+    read: async (collection: string) => {
+      const docs: unknown[] = [];
+      for (const p of DISCOVER_POSTS) {
+        const id = p._id as string;
+        const authorKey = `web10/groups/users/${p.author_username}/profile`;
+        if (collection === 'reactions') {
+          for (let i = 0; i < ((p.likes as number) || 0); i++) {
+            docs.push({ ref_value: id, author_key: authorKey, body: { type: 'like' } });
+          }
+        } else if (collection === 'comments') {
+          for (let i = 0; i < ((p.comments as number) || 0); i++) {
+            docs.push({ ref_value: id, author_key: authorKey, body: { text: 'seeded comment' } });
+          }
+        }
+      }
+      return docs;
+    },
     readRefCounts: async () => ({}),
   };
 }
