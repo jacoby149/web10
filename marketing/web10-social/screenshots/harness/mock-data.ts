@@ -241,6 +241,19 @@ export async function readMyAds(): Promise<{ ads: unknown[]; albums: unknown[] }
  export async function countRepliesByComment(): Promise<Record<string, number>> { return {}; }
  export async function createThreadComment(): Promise<unknown> { return {}; }
 export async function deleteComment(): Promise<void> {}
+// Photos in comments (3.113.0) — the harness has no upload pipeline; the stub
+// returns a fake doc_id + url so the comment thread's attach control degrades
+// cleanly offline.
+export async function uploadCommentPhoto(_file: File): Promise<{
+  docId: string;
+  url: string;
+  thumbUrl?: string;
+  width?: number;
+  height?: number;
+  mimeType?: string;
+}> {
+  return { docId: 'mock-comment-photo', url: 'http://x/mock-comment-photo.jpg', mimeType: 'image/jpeg' };
+}
 export async function countReactions(): Promise<number> { return 0; }
 export async function countComments(postId?: string): Promise<number> {
   // The profile's feed view seeds real counts for its first two posts.
