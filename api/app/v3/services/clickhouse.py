@@ -2108,13 +2108,11 @@ def read_docs_by_ref(
         cur_doc = cur_doc.replace("'", "''")
         if direction == "ASC":
             cursor_clause = (
-                f" AND (created_at > '{cur_created}' "
-                f"OR (created_at = '{cur_created}' AND doc_id > '{cur_doc}'))"
+                f" AND (created_at > '{cur_created}' OR (created_at = '{cur_created}' AND doc_id > '{cur_doc}'))"
             )
         else:
             cursor_clause = (
-                f" AND (created_at < '{cur_created}' "
-                f"OR (created_at = '{cur_created}' AND doc_id < '{cur_doc}'))"
+                f" AND (created_at < '{cur_created}' OR (created_at = '{cur_created}' AND doc_id < '{cur_doc}'))"
             )
 
     query = (
