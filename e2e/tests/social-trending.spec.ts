@@ -369,7 +369,7 @@ test.describe('Social trending gauntlet — /discover board + D36 knobs + deep l
     // --- Console log sequence (the real flow, in order) ---
     const start1 = logs.findIndex((l) => l.includes('loadDiscover — start'));
     const eng1 = logs.findIndex((l) => l.includes('engagement — counted'));
-    const knobNewest = logs.findIndex((l) => l.includes('knob state — 5,0,0,0,0 (preset: newest)'));
+    const knobNewest = logs.findIndex((l) => l.includes('knob state — 5,0,0,0,0 (preset: most-recent)'));
     const deepLink = logs.findIndex((l) => l.includes('deep-link — knob state restored from URL: 5,0,0,0,0'));
     const start2 = indexOfAfter(logs, 'loadDiscover — start', deepLink);
     const knobCustom = logs.findIndex((l) => l.includes('knob state — 5,5,0,0,0 (custom)'));
@@ -377,7 +377,7 @@ test.describe('Social trending gauntlet — /discover board + D36 knobs + deep l
     for (const [name, i] of [
       ['loadDiscover start', start1],
       ['engagement counted', eng1],
-      ['knob newest', knobNewest],
+      ['knob most-recent', knobNewest],
       ['deep-link restore', deepLink],
       ['loadDiscover start (after reload)', start2],
       ['knob custom', knobCustom],
