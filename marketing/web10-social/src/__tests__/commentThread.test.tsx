@@ -247,8 +247,8 @@ describe('CommentThread — paged threaded replies (comments.md, the Facebook mo
         author_username: 'alice',
         created_at: '2026-01-01T00:00:00Z',
         media: [
-          { url: 'https://cdn/m1', mime_type: 'image/png' },
-          { url: 'https://cdn/m2', mime_type: 'image/jpeg' },
+          { url: 'https://cdn/m1', mime_type: 'image/png', created_at: '' },
+          { url: 'https://cdn/m2', mime_type: 'image/jpeg', created_at: '' },
         ],
       };
       vi.mocked(readThreadComments).mockResolvedValueOnce({
