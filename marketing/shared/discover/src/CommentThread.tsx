@@ -85,6 +85,9 @@ export interface CommentThreadProps {
   remoteHref?: string;
   /** Error sink (the app wires its toast); the package stays toast-free. */
   onError?: (message: string) => void;
+  /** The author-click handler (in-app profile navigation). When present, a
+   *  comment's author username is a tappable link to their profile. */
+  onAuthorClick?: (username: string, provider?: string) => void;
 }
 
 export function CommentThread({
@@ -102,6 +105,7 @@ export function CommentThread({
   remote = false,
   remoteHref,
   onError,
+  onAuthorClick,
 }: CommentThreadProps) {
   const [topLevel, setTopLevel] = useState<CommentNode[]>([]);
   const [topCursor, setTopCursor] = useState<string | null>(null);
@@ -340,6 +344,7 @@ export function CommentThread({
               onReply={handleReply}
               onToggleLike={onToggleCommentLike}
               onViewMoreReplies={readReplies ? handleViewMoreReplies : undefined}
+              onAuthorClick={onAuthorClick}
             />
           ))}
         </ul>
@@ -451,9 +456,12 @@ interface CommentNodeRowProps {
   onToggleLike?: (commentId: string) => void;
   /** "View more replies" for this comment (absent → no pager). */
   onViewMoreReplies?: (parentId: string) => void;
+  /** The author-click handler (in-app profile navigation) — the comment's
+   *  author is a tappable profile link when wired. */
+  onAuthorClick?: (username: string, provider?: string) => void;
 }
 
-function CommentNodeRow({ node, depth, highlightedCommentId, canWrite, setRef, onReply, onToggleLike, onViewMoreReplies }: CommentNodeRowProps) {
+function CommentNodeRow({ node, depth, highlightedCommentId, canWrite, setRef, onReply, onToggleLike, onViewMoreReplies, onAuthorClick }: CommentNodeRowProps) {
   const id = node._id || '';
   const highlighted = !!id && id === highlightedCommentId;
   const showLike = onToggleLike !== undefined || node.likeCount !== undefined;
@@ -475,7 +483,28 @@ function CommentNodeRow({ node, depth, highlightedCommentId, canWrite, setRef, o
         )}
         <div className="min-w-0 flex-1">
           <div className="flex items-center gap-2">
-            <span className="text-sm font-medium text-brand-300">{node.author_username || 'you'}</span>
+            <span className="text-sm font-medium text-brand-300">
+              {node.author_username ? (
+                onAuthorClick ? (
+                  <button
+                    type="button"
+                    data-testid={id ? `comment-author-${id}` : undefined}
+                    aria-label={`View ${node.author_username}'s profile`}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      onAuthorClick(node.author_username!, node.author_provider);
+                    }}
+                    className="rounded focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring hover:underline"
+                  >
+                    {node.author_username}
+                  </button>
+                ) : (
+                  node.author_username
+                )
+              ) : (
+                'you'
+              )}
+            </span>
             <span className="text-sm leading-relaxed text-foreground break-words">{node.text}</span>
           </div>
           <div className="mt-1 flex items-center gap-3">
@@ -541,6 +570,7 @@ function CommentNodeRow({ node, depth, highlightedCommentId, canWrite, setRef, o
               onReply={onReply}
               onToggleLike={onToggleLike}
               onViewMoreReplies={onViewMoreReplies}
+              onAuthorClick={onAuthorClick}
             />
           ))}
         </ul>

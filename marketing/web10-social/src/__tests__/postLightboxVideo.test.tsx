@@ -1,6 +1,7 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { render, screen, cleanup } from '@testing-library/react';
 import '@testing-library/jest-dom';
+import { MemoryRouter } from 'react-router-dom';
 
 // Mock lucide-react icons as simple span elements (any icon, no manual list)
 import { lucideMock } from './helpers/lucideMock';
@@ -65,7 +66,9 @@ describe('PostLightbox — portrait (9:16) video frame cap', () => {
       media_refs: ['ref-1'],
     };
     return render(
-      <PostLightbox post={post} mediaMap={{ 'ref-1': media }} onClose={vi.fn()} onReload={vi.fn()} />,
+      <MemoryRouter>
+        <PostLightbox post={post} mediaMap={{ 'ref-1': media }} onClose={vi.fn()} onReload={vi.fn()} />
+      </MemoryRouter>,
     );
   }
 

@@ -1,6 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import '@testing-library/jest-dom';
+import { MemoryRouter } from 'react-router-dom';
 
 // Mock lucide-react icons as simple span elements (any icon, no manual list)
 import { lucideMock } from './helpers/lucideMock';
@@ -49,13 +50,15 @@ const post: PostRecord = {
 
 function renderLightbox() {
   return render(
-    <PostLightbox
-      post={post}
-      mediaMap={{}}
-      onClose={vi.fn()}
-      onReload={vi.fn()}
-      isOwner={true}
-    />,
+    <MemoryRouter>
+      <PostLightbox
+        post={post}
+        mediaMap={{}}
+        onClose={vi.fn()}
+        onReload={vi.fn()}
+        isOwner={true}
+      />
+    </MemoryRouter>,
   );
 }
 
@@ -94,7 +97,9 @@ describe('PostLightbox — delete flow (type "delete" to confirm)', () => {
   it('confirming calls deletePost with the post id', async () => {
     const onClose = vi.fn();
     render(
-      <PostLightbox post={post} mediaMap={{}} onClose={onClose} onReload={vi.fn()} isOwner={true} />,
+      <MemoryRouter>
+        <PostLightbox post={post} mediaMap={{}} onClose={onClose} onReload={vi.fn()} isOwner={true} />
+      </MemoryRouter>,
     );
     fireEvent.click(screen.getByTestId('post-delete-button'));
     fireEvent.change(screen.getByTestId('post-delete-confirm-input'), { target: { value: 'delete' } });
@@ -123,12 +128,14 @@ describe('PostLightbox — ownership fallback (no isOwner prop)', () => {
   // showed the owner menu on every post while signed in).
   it('shows owner actions for a post authored by the signed-in user', () => {
     render(
-      <PostLightbox
-        post={{ _id: 'own', text: 'mine', author_username: 'testuser', author_provider: 'web10', created_at: new Date().toISOString(), visibility: 'public' }}
-        mediaMap={{}}
-        onClose={vi.fn()}
-        onReload={vi.fn()}
-      />,
+      <MemoryRouter>
+        <PostLightbox
+          post={{ _id: 'own', text: 'mine', author_username: 'testuser', author_provider: 'web10', created_at: new Date().toISOString(), visibility: 'public' }}
+          mediaMap={{}}
+          onClose={vi.fn()}
+          onReload={vi.fn()}
+        />
+      </MemoryRouter>,
     );
     expect(screen.getByTestId('post-edit-button')).toBeTruthy();
     expect(screen.getByTestId('post-delete-button')).toBeTruthy();
@@ -137,12 +144,14 @@ describe('PostLightbox — ownership fallback (no isOwner prop)', () => {
 
   it('hides owner actions for a post authored by someone else', () => {
     render(
-      <PostLightbox
-        post={{ _id: 'theirs', text: 'theirs', author_username: 'someone', author_provider: 'web10', created_at: new Date().toISOString(), visibility: 'public' }}
-        mediaMap={{}}
-        onClose={vi.fn()}
-        onReload={vi.fn()}
-      />,
+      <MemoryRouter>
+        <PostLightbox
+          post={{ _id: 'theirs', text: 'theirs', author_username: 'someone', author_provider: 'web10', created_at: new Date().toISOString(), visibility: 'public' }}
+          mediaMap={{}}
+          onClose={vi.fn()}
+          onReload={vi.fn()}
+        />
+      </MemoryRouter>,
     );
     expect(screen.queryByTestId('post-edit-button')).toBeNull();
     expect(screen.queryByTestId('post-delete-button')).toBeNull();
