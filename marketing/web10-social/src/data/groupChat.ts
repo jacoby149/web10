@@ -1,7 +1,7 @@
 import { getV3Client } from './v3';
 import {
   getMyGroups,
-  isInfrastructureGroup,
+  GROUP_TAG,
   readGroupIdentity,
   writeGroupIdentity,
   groupDisplayName,
@@ -75,7 +75,7 @@ export async function createGroupChat(
       .map((u) => ({ member_key: u, role: 'member' })),
   ];
   LOG('createGroupChat — creating', { name, slug, members: members.length });
-  const res = await w.createGroup(slug, 'invite_only', CHAT_ROLES, members);
+  const res = await w.createGroup(slug, 'invite_only', CHAT_ROLES, members, { tags: [GROUP_TAG.chat] });
   const groupId = res.group_id;
   await writeGroupIdentity(groupId, { kind: 'chat', name });
   LOG('createGroupChat — created', groupId);
@@ -83,31 +83,30 @@ export async function createGroupChat(
 }
 
 /**
- * The current user's group chats — `getMyGroups()` minus infrastructure
- * (discover / followers / DM / app-storage), then read each remaining group's
- * face and keep the ones with `kind: 'chat'`. Per-group identity reads (the
- * list is small; batching is a later optimization).
+ * The current user's group chats — selected by the `web10-social-chat` tag
+ * (D78, server-side), then read each group's face for the name + avatar. The
+ * tag is the authoritative classifier (a chat is a chat); the face's `kind` is
+ * a render hint. Per-group identity reads (the list is small; batching is a
+ * later optimization).
  */
 export async function getMyGroupChats(): Promise<GroupChatSummary[]> {
   const w = getV3Client();
   const token = w.readToken();
   if (!token) return [];
-  const groups = await getMyGroups();
-  const candidates = groups.filter(
-    (g) => !isInfrastructureGroup(g.group_id, token.username),
-  );
+  // D78: select chats by the platform tag (server-side) — the tag is the
+  // authoritative classifier (a `web10-social-chat` group is a chat). Read each
+  // face for the name + avatar (the render data).
+  const groups = await getMyGroups({ tags: [GROUP_TAG.chat] });
   const chats: GroupChatSummary[] = [];
-  for (const g of candidates) {
+  for (const g of groups) {
     const identity = await readGroupIdentity(g.group_id).catch((): GroupIdentity => ({}));
-    if (identity.kind === 'chat') {
-      chats.push({
-        groupId: g.group_id,
-        name: identity.name || groupDisplayName(g.group_id),
-        avatarRef: identity.avatar_ref,
-      });
-    }
+    chats.push({
+      groupId: g.group_id,
+      name: identity.name || groupDisplayName(g.group_id),
+      avatarRef: identity.avatar_ref,
+    });
   }
-  LOG('getMyGroupChats —', groups.length, 'total,', candidates.length, 'candidates,', chats.length, 'chats');
+  LOG('getMyGroupChats —', groups.length, 'chats (by tag)');
   return chats;
 }
 

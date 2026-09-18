@@ -265,19 +265,104 @@ class TestCreateGroup:
             assert "column_names" in kwargs
             assert "discoverable" in kwargs["column_names"]
 
+    def test_create_with_tags(self):
+        # D78: the group's generic label set is stored + returned.
+        with _patch_client() as mock_client:
+            result = ch.create_group("g", [{"name": "member"}], "open", tags=["web10-social-group"])
+            assert result["tags"] == ["web10-social-group"]
+            args, kwargs = mock_client.insert.call_args
+            assert "tags" in kwargs["column_names"]
+
+    def test_create_default_tags_empty(self):
+        with _patch_client():
+            assert ch.create_group("g", [{"name": "member"}], "open")["tags"] == []
+
+
+class TestUpdateGroup:
+    def test_update_with_tags(self):
+        # D78: update_group replaces the tag set.
+        with _patch_client() as mock_client:
+            mock_client.query.return_value = _mock_result_rows(
+                [
+                    ("g1", '{"roles":[]}', "open", 0, ["web10-social-group"], datetime(2026, 1, 1), datetime(2026, 1, 1)),
+                ]
+            )
+            result = ch.update_group("g1", tags=["web10-social-chat"])
+            assert result["tags"] == ["web10-social-chat"]
+
+    def test_update_tags_none_preserves(self):
+        # D78: tags=None leaves the existing set unchanged.
+        with _patch_client() as mock_client:
+            mock_client.query.return_value = _mock_result_rows(
+                [
+                    ("g1", '{"roles":[]}', "open", 0, ["web10-social-group"], datetime(2026, 1, 1), datetime(2026, 1, 1)),
+                ]
+            )
+            result = ch.update_group("g1")
+            assert result["tags"] == ["web10-social-group"]
+
+
+class TestGroupTagsMigration:
+    def test_infer_followers(self):
+        assert ch._infer_group_tag("api.localhost/groups/users/alice/followers") == ["web10-social-followers"]
+
+    def test_infer_dm(self):
+        assert ch._infer_group_tag("web10.app/groups/alice/dm-bob") == ["web10-social-dm"]
+
+    def test_infer_discover_board_untagged(self):
+        assert ch._infer_group_tag("web10.app/groups/web10/discover") == []
+
+    def test_infer_app_storage_untagged(self):
+        # media-alice under users/alice — another app's private group.
+        assert ch._infer_group_tag("api.localhost/groups/users/alice/media-alice") == []
+
+    def test_infer_community(self):
+        assert ch._infer_group_tag("web10.app/groups/alice/jazz-collectors") == ["web10-social-group"]
+
+    def test_backfill_seeds_untagged_only(self):
+        # D78: the backfill seeds untagged live groups from the id shape and
+        # skips groups already tagged at creation.
+        with _patch_client() as mock_client:
+            mock_client.query.side_effect = [
+                _mock_result_rows([]),  # sentinel check — not done
+                _mock_result_rows(
+                    [
+                        # untagged followers group → seeded
+                        ("api.localhost/groups/users/alice/followers", "[]", "open", 0, datetime(2026, 1, 1), []),
+                        # already tagged → left alone
+                        ("web10.app/groups/alice/jazz", "[]", "open", 0, datetime(2026, 1, 1), ["web10-social-group"]),
+                        # discover board → no social tag
+                        ("web10.app/groups/web10/discover", "[]", "open", 0, datetime(2026, 1, 1), []),
+                    ]
+                ),
+            ]
+            ch._migrate_group_tags_backfill()
+            inserts = [c for c in mock_client.insert.call_args_list if c[0][0] == "group_contracts"]
+            assert len(inserts) == 1
+            row = inserts[0][0][1][0]
+            assert row[0] == "api.localhost/groups/users/alice/followers"
+            assert row[7] == ["web10-social-followers"]
+
+    def test_backfill_skips_when_sentinel_set(self):
+        with _patch_client() as mock_client:
+            mock_client.query.return_value = _mock_result_rows([(1,)])  # sentinel present
+            ch._migrate_group_tags_backfill()
+            mock_client.insert.assert_not_called()
+
 
 class TestGetGroup:
     def test_found(self):
         with _patch_client() as mock_client:
             mock_client.query.return_value = _mock_result_rows(
                 [
-                    ("g1", '{"roles":[]}', "open", 1, datetime(2026, 1, 1), datetime(2026, 1, 1)),
+                    ("g1", '{"roles":[]}', "open", 1, ["web10-social-group"], datetime(2026, 1, 1), datetime(2026, 1, 1)),
                 ]
             )
             result = ch.get_group("g1")
             assert result["group_id"] == "g1"
             assert result["join_policy"] == "open"
             assert result["discoverable"] is True
+            assert result["tags"] == ["web10-social-group"]
 
     def test_not_found(self):
         with _patch_client() as mock_client:
@@ -339,7 +424,7 @@ class TestGetUserGroups:
             mock_client.query.side_effect = [
                 _mock_result_rows(
                     [
-                        ("g1", "open", "admin"),
+                        ("g1", "open", ["web10-social-group"], "admin"),
                     ]
                 ),
                 _mock_result_rows(
@@ -352,7 +437,30 @@ class TestGetUserGroups:
             assert len(groups) == 1
             assert groups[0]["group_id"] == "g1"
             assert groups[0]["my_role"] == "admin"
+            assert groups[0]["tags"] == ["web10-social-group"]
             assert groups[0]["member_count"] == 5
+
+    def test_user_groups_tag_filter_builds_has_clause(self):
+        # D78: the server-side tag filter — has(gc.tags, %(tagN)s) ANDed, one
+        # placeholder per tag.
+        with _patch_client() as mock_client:
+            mock_client.query.side_effect = [
+                _mock_result_rows([]),
+            ]
+            ch.get_user_groups("alice", ["web10-social-group", "web10-social-chat"])
+            sql, params = mock_client.query.call_args[0]
+            assert "has(gc.tags, %(tag0)s) AND has(gc.tags, %(tag1)s)" in sql
+            assert params["tag0"] == "web10-social-group"
+            assert params["tag1"] == "web10-social-chat"
+
+    def test_user_groups_no_tag_omits_filter(self):
+        with _patch_client() as mock_client:
+            mock_client.query.side_effect = [
+                _mock_result_rows([]),
+            ]
+            ch.get_user_groups("alice")
+            sql, _ = mock_client.query.call_args[0]
+            assert "has(gc.tags" not in sql
 
 
 # ---------------------------------------------------------------------------
@@ -1172,6 +1280,7 @@ class TestCreateUser:
                 "[]",
                 "open",
                 0,
+                [],
                 datetime(2026, 1, 1),
                 datetime(2026, 1, 1),
             )
@@ -1462,6 +1571,7 @@ class TestEnsureDiscoverGroup:
                 "[]",
                 "open",
                 0,
+                [],
                 datetime(2026, 1, 1),
                 datetime(2026, 1, 1),
             )

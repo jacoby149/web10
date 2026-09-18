@@ -165,6 +165,12 @@ def ensure_apps_schema():
         # predate the column; ADD COLUMN appends it at the end, which is why
         # group inserts name their columns.
         client.command("ALTER TABLE group_contracts ADD COLUMN IF NOT EXISTS discoverable UInt8 DEFAULT 0")
+        # group_contracts.tags — the generic group label set (D78): the
+        # group-primitive analog of documents.tags. The platform stores +
+        # matches them (has(tags, …)); the app decides what they mean.
+        # Pre-existing volumes predate the column; ADD COLUMN appends it at the
+        # end, which is why group inserts name their columns.
+        client.command("ALTER TABLE group_contracts ADD COLUMN IF NOT EXISTS tags Array(String) DEFAULT []")
         # documents.ad_mode + documents.ad_target — the v3 ad preference
         # (ads-dissemination.md): a doc's ad is `pinned` (ad_target = the ad
         # doc_id) or `none`. Pre-existing volumes predate the columns; ADD
@@ -205,6 +211,9 @@ def ensure_apps_schema():
         # Data migration (one-time, sentinel-gated): re-shape pre-existing
         # group roles from the legacy flat shape to the D58 per-service map.
         _migrate_d58_role_shape()
+        # Data migration (one-time, sentinel-gated): seed legacy groups' tags
+        # from their id shape (D78) — groups created before the tags column.
+        _migrate_group_tags_backfill()
     except Exception as e:
         # ClickHouse not up yet, or table missing (fresh volume mid-init).
         # The DDL template covers fresh volumes; log and move on.
@@ -330,6 +339,90 @@ def _migrate_discoverable_default_flip() -> None:
         column_names=["config_id", "body", "updated_at", "deleted"],
     )
     log.info("[v3] discoverable-default flip backfill applied (pre-existing groups delisted)")
+
+
+# Sentinel config_id in node_config marking the group-tags backfill as done (D78).
+_GROUP_TAGS_SENTINEL = "migration:group_tags_backfill"
+
+
+def _infer_group_tag(group_id: str) -> list[str]:
+    """D78: infer a legacy group's tag from its id shape (one-time backfill only).
+
+    Used solely by the backfill migration to seed groups created before the
+    ``tags`` column existed. New groups are tagged at creation; after the
+    backfill the tag is authoritative and this inference retires. Returns ``[]``
+    for groups that carry no web10-social tag (the discover board, another
+    app's storage group).
+    """
+    parts = group_id.split("/")
+    slug = parts[-1]
+    # The discover board — a board, not a social group. No tag.
+    if "discover" in parts:
+        return []
+    # A followers group: the slug is literally 'followers'.
+    if slug == "followers":
+        return ["web10-social-followers"]
+    # A DM group: the slug starts with 'dm-'.
+    if slug.startswith("dm-"):
+        return ["web10-social-dm"]
+    # App-storage group: under /groups/users/{owner}/ and the slug ends with
+    # '-{owner}' (e.g. media-jacoby149 under users/jacoby149). Another app's
+    # private group — leave untagged.
+    if "users" in parts:
+        idx = parts.index("users")
+        if idx + 2 < len(parts) and slug.endswith("-" + parts[idx + 1]):
+            return []
+    # Everything else is a community.
+    return ["web10-social-group"]
+
+
+def _migrate_group_tags_backfill() -> None:
+    """One-time, sentinel-gated data migration (D78).
+
+    Groups created before the ``group_contracts.tags`` column have
+    ``tags = []``. Seed each untagged live group with its tag, inferred from the
+    id shape (followers / dm / discover / app-storage / community). Appends a
+    new group_contracts row per group (ReplacingMergeTree dedup picks the newer
+    row). Only touches groups whose latest row has empty tags — a group an app
+    has already tagged at creation is left alone.
+
+    Runs exactly once: a node_config sentinel marks completion. Safe under
+    concurrent workers (a duplicate run appends identical rows + the sentinel;
+    dedup hides all but one). Caveat: a legacy group chat shares a community's
+    id shape, so it is seeded as a community here — rare (chats post-date most
+    groups) and the app re-tags on its next write.
+    """
+    done = client.query(
+        "SELECT 1 FROM node_config WHERE config_id = %(sentinel)s AND deleted = 0 LIMIT 1",
+        {"sentinel": _GROUP_TAGS_SENTINEL},
+    )
+    if done.result_rows:
+        return
+    result = client.query(
+        "SELECT group_id, roles, join_policy, discoverable, created_at, tags "
+        "FROM (SELECT group_id, roles, join_policy, discoverable, created_at, tags, deleted, "
+        "row_number() OVER (PARTITION BY group_id ORDER BY updated_at DESC, deleted DESC) AS rn "
+        "FROM group_contracts) "
+        "WHERE rn = 1 AND deleted = 0"
+    )
+    for group_id, roles, join_policy, discoverable, created_at, tags in result.result_rows:
+        if tags:  # already tagged at creation — leave alone
+            continue
+        inferred = _infer_group_tag(group_id)
+        if not inferred:  # discover board / app-storage — no social tag
+            continue
+        client.insert(
+            "group_contracts",
+            [[group_id, roles, join_policy, discoverable, created_at, _now(), 0, inferred]],
+            column_names=["group_id", "roles", "join_policy", "discoverable", "created_at", "updated_at", "deleted", "tags"],
+        )
+    # Set the sentinel so this never runs again.
+    client.insert(
+        "node_config",
+        [[_GROUP_TAGS_SENTINEL, _json({"done": True}), _now(), 0]],
+        column_names=["config_id", "body", "updated_at", "deleted"],
+    )
+    log.info("[v3] group-tags backfill applied (legacy groups seeded by id shape)")
 
 
 # Sentinel config_id in node_config marking the D58 role-shape backfill as done.
@@ -862,27 +955,34 @@ def get_doc_groups(doc_id: str) -> list[str]:
 # ---------------------------------------------------------------------------
 
 
-def create_group(group_id: str, roles: list[dict], join_policy: str, discoverable: bool | None = None) -> dict:
+def create_group(group_id: str, roles: list[dict], join_policy: str, discoverable: bool | None = None, tags: list[str] | None = None) -> dict:
     """Create a group contract.
 
     ``discoverable`` (D53, amended) lists the group in the public directory.
     It defaults to ``False`` — groups are NOT discoverable by default; listing
     is an opt-in the owner makes explicitly. Pass ``discoverable=True`` to list
     the group in the directory.
+
+    ``tags`` (D78) is the group's generic label set — the platform stores and
+    matches them (``has(tags, …)``); the app decides what they mean (e.g.
+    ``web10-social-group``). Defaults to ``[]``.
     """
     if discoverable is None:
         discoverable = False
+    if tags is None:
+        tags = []
     now = _now()
     client.insert(
         "group_contracts",
-        [[group_id, _json(roles), join_policy, int(discoverable), now, now, 0]],
-        column_names=["group_id", "roles", "join_policy", "discoverable", "created_at", "updated_at", "deleted"],
+        [[group_id, _json(roles), join_policy, int(discoverable), now, now, 0, tags]],
+        column_names=["group_id", "roles", "join_policy", "discoverable", "created_at", "updated_at", "deleted", "tags"],
     )
     return {
         "group_id": group_id,
         "roles": roles,
         "join_policy": join_policy,
         "discoverable": discoverable,
+        "tags": list(tags),
         "created_at": _iso_utc(now),
     }
 
@@ -894,8 +994,8 @@ def get_group(group_id: str) -> dict | None:
     a deleted group must not be found by its stale active row.
     """
     result = client.query(
-        "SELECT group_id, roles, join_policy, discoverable, created_at, updated_at "
-        "FROM (SELECT group_id, roles, join_policy, discoverable, created_at, updated_at, deleted, "
+        "SELECT group_id, roles, join_policy, discoverable, tags, created_at, updated_at "
+        "FROM (SELECT group_id, roles, join_policy, discoverable, tags, created_at, updated_at, deleted, "
         "row_number() OVER (PARTITION BY group_id ORDER BY updated_at DESC, deleted DESC) as rn "
         "FROM group_contracts WHERE group_id = %(group_id)s) "
         "WHERE rn = 1 AND deleted = 0",
@@ -909,8 +1009,9 @@ def get_group(group_id: str) -> dict | None:
         "roles": _parse_json(row[1]),
         "join_policy": row[2],
         "discoverable": bool(row[3]),
-        "created_at": _iso_utc(row[4]),
-        "updated_at": _iso_utc(row[5]),
+        "tags": list(row[4]),
+        "created_at": _iso_utc(row[5]),
+        "updated_at": _iso_utc(row[6]),
     }
 
 
@@ -947,17 +1048,20 @@ def update_group(group_id: str, **kwargs):
     roles = kwargs.get("roles", existing["roles"])
     join_policy = kwargs.get("join_policy", existing["join_policy"])
     discoverable = kwargs.get("discoverable", existing["discoverable"])
+    # tags (D78): None = leave unchanged; a list = replace.
+    tags = kwargs.get("tags", existing.get("tags", []))
     now = _now()
     client.insert(
         "group_contracts",
-        [[group_id, _json(roles), join_policy, int(discoverable), existing["created_at"], now, 0]],
-        column_names=["group_id", "roles", "join_policy", "discoverable", "created_at", "updated_at", "deleted"],
+        [[group_id, _json(roles), join_policy, int(discoverable), existing["created_at"], now, 0, tags]],
+        column_names=["group_id", "roles", "join_policy", "discoverable", "created_at", "updated_at", "deleted", "tags"],
     )
     return {
         "group_id": group_id,
         "roles": roles,
         "join_policy": join_policy,
         "discoverable": discoverable,
+        "tags": list(tags),
         "updated_at": _iso_utc(now),
     }
 
@@ -1248,23 +1352,35 @@ def list_discoverable_groups(limit: int = 50, offset: int = 0) -> list[dict]:
     return [{"group_id": row[0], "join_policy": row[1], "roles": _parse_json(row[2])} for row in result.result_rows]
 
 
-def get_user_groups(member_key: str) -> list[dict]:
+def get_user_groups(member_key: str, tags: list[str] | None = None) -> list[dict]:
     """Get all groups a user belongs to (deduplicated by latest version).
 
     Dedup first (latest row wins, tombstones included) then filter deleted=0
     on both sides — a left group's stale active row must not linger here.
+
+    ``tags`` (D78): an optional server-side tag filter — only groups that carry
+    EVERY given tag are returned (``has(gc.tags, %(tagN)s)`` ANDed, the same
+    idiom as the doc read). This is how a surface selects its groups (My Groups
+    = ``tags=['web10-social-group']``) without client-side id-pattern matching.
     """
+    params: dict = {"member_key": member_key}
+    tag_where = ""
+    if tags:
+        tag_where = " AND (" + " AND ".join(f"has(gc.tags, %(tag{i})s)" for i in range(len(tags))) + ")"
+        for i, t in enumerate(tags):
+            params[f"tag{i}"] = t
     result = client.query(
-        "SELECT gc.group_id, gc.join_policy, gm.role AS my_role "
+        "SELECT gc.group_id, gc.join_policy, gc.tags, gm.role AS my_role "
         "FROM (SELECT group_id, member_key, role, deleted, "
         "row_number() OVER (PARTITION BY group_id, member_key ORDER BY updated_at DESC, deleted DESC) as rn "
         "FROM group_members) gm "
-        "JOIN (SELECT group_id, join_policy, deleted, "
+        "JOIN (SELECT group_id, join_policy, tags, deleted, "
         "row_number() OVER (PARTITION BY group_id ORDER BY updated_at DESC, deleted DESC) as rn "
         "FROM group_contracts) gc "
         "ON gm.group_id = gc.group_id "
-        "WHERE gm.rn = 1 AND gc.rn = 1 AND gm.deleted = 0 AND gc.deleted = 0 AND gm.member_key = %(member_key)s",
-        {"member_key": member_key},
+        "WHERE gm.rn = 1 AND gc.rn = 1 AND gm.deleted = 0 AND gc.deleted = 0 AND gm.member_key = %(member_key)s"
+        + tag_where,
+        params,
     )
     # Collect group ids for member-count lookup
     group_ids = [row[0] for row in result.result_rows]
@@ -1279,7 +1395,8 @@ def get_user_groups(member_key: str) -> list[dict]:
                 {
                     "group_id": row[0],
                     "join_policy": row[1],
-                    "my_role": row[2],
+                    "tags": list(row[2]),
+                    "my_role": row[3],
                     "member_count": counts.get(row[0], 0),
                 }
             )

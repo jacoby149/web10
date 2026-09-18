@@ -11,6 +11,9 @@ class CreateGroup(BaseModel):
     # (NOT discoverable by default — listing is an opt-in). None = use the
     # default.
     discoverable: bool | None = None
+    # D78: the group's generic label set (the platform stores/matches them; the
+    # app decides what they mean, e.g. `web10-social-group`). Defaults to [].
+    tags: list[str] | None = None
 
 
 class GetGroup(BaseModel):
@@ -25,6 +28,15 @@ class UpdateGroup(BaseModel):
     join_policy: str | None = None
     # D53: None = leave unchanged; True/False = set.
     discoverable: bool | None = None
+    # D78: None = leave unchanged; a list = replace the group's tags.
+    tags: list[str] | None = None
+
+
+class ListMyGroups(BaseModel):
+    token: str
+    # D78: optional server-side tag filter — only groups carrying EVERY given
+    # tag are returned (My Groups = `["web10-social-group"]`). None = all.
+    tags: list[str] | None = None
 
 
 class ListGroupMembers(BaseModel):

@@ -56,6 +56,10 @@ describe('groupChat v3 data layer (group-chat.md, D77)', () => {
         expect.objectContaining({ kind: 'chat', name: 'Test Crew' }),
         { groups: ['api.localhost/groups/users/me/chat-test-crew'] },
       );
+      // D78: the group is tagged as a chat (the Messages surface selection key).
+      expect(mock.createGroup.mock.calls[0][4]).toEqual(
+        expect.objectContaining({ tags: ['web10-social-chat'] }),
+      );
     });
 
     it('excludes the creator from the added members (no duplicate owner row)', async () => {
@@ -71,41 +75,38 @@ describe('groupChat v3 data layer (group-chat.md, D77)', () => {
   });
 
   describe('getMyGroupChats', () => {
-    it('returns only the groups whose face has kind:chat (not communities / DMs / infra)', async () => {
-      mock.getMyGroups.mockResolvedValue([
-        // a group chat (kind:chat)
-        { group_id: 'api.localhost/groups/users/me/chat-crew', join_policy: 'invite_only', my_role: 'owner', member_count: 3 },
-        // a community (no kind)
-        { group_id: 'api.localhost/groups/users/bob/synthwave', join_policy: 'open', my_role: 'member', member_count: 42 },
-        // a DM (infra — filtered before the identity read)
-        { group_id: 'api.localhost/groups/users/me/dm-alice-me', join_policy: 'invite_only', my_role: 'member', member_count: 2 },
-        // my followers group (infra)
-        { group_id: 'api.localhost/groups/users/me/followers', join_policy: 'open', my_role: 'owner', member_count: 10 },
-      ]);
-      // readGroupIdentity reads the identity service per group; return the face
-      // keyed by the group in the request.
+    it('selects by the chat tag (server-side, D78) + reads each face for the name', async () => {
+      // The server does the tag filter — the mock simulates it: only the
+      // web10-social-chat-tagged groups come back. Communities / DMs /
+      // followers are tagged differently and never reach the list.
+      const all = [
+        { group_id: 'api.localhost/groups/users/me/chat-crew', tags: ['web10-social-chat'], join_policy: 'invite_only', my_role: 'owner', member_count: 3 },
+        { group_id: 'api.localhost/groups/users/bob/synthwave', tags: ['web10-social-group'], join_policy: 'open', my_role: 'member', member_count: 42 },
+        { group_id: 'api.localhost/groups/users/me/dm-alice-me', tags: ['web10-social-dm'], join_policy: 'invite_only', my_role: 'member', member_count: 2 },
+        { group_id: 'api.localhost/groups/users/me/followers', tags: ['web10-social-followers'], join_policy: 'open', my_role: 'owner', member_count: 10 },
+      ];
+      mock.getMyGroups.mockImplementation(async (opts?: { tags?: string[] }) => {
+        if (!opts?.tags) return all;
+        return all.filter((g: { tags?: string[] }) => opts.tags!.every((t) => g.tags?.includes(t)));
+      });
+      // readGroupIdentity reads the identity service per group for the name.
       mock.read.mockImplementation(async (_service: string, opts: { groups: string[] }) => {
         const g = opts.groups[0];
         if (g === 'api.localhost/groups/users/me/chat-crew') {
           return [{ doc_id: 'id1', body: { kind: 'chat', name: 'The Crew' } }];
         }
-        if (g === 'api.localhost/groups/users/bob/synthwave') {
-          return [{ doc_id: 'id2', body: { name: 'Synthwave Sessions' } }];
-        }
         return [];
       });
 
       const chats = await getMyGroupChats();
+      // The selection is the server-side tag filter, not a client-side blocklist.
+      expect(mock.getMyGroups).toHaveBeenCalledWith({ tags: ['web10-social-chat'] });
       expect(chats).toHaveLength(1);
       expect(chats[0].groupId).toBe('api.localhost/groups/users/me/chat-crew');
       expect(chats[0].name).toBe('The Crew');
-      // The identity read is only attempted for non-infra groups (the chat + the
-      // community) — never the DM or followers group.
+      // The identity read is only for the chat (the tag already excluded the rest).
       const readGroups = mock.read.mock.calls.map((c) => (c[1] as { groups: string[] }).groups[0]);
-      expect(readGroups).toContain('api.localhost/groups/users/me/chat-crew');
-      expect(readGroups).toContain('api.localhost/groups/users/bob/synthwave');
-      expect(readGroups).not.toContain('api.localhost/groups/users/me/dm-alice-me');
-      expect(readGroups).not.toContain('api.localhost/groups/users/me/followers');
+      expect(readGroups).toEqual(['api.localhost/groups/users/me/chat-crew']);
     });
   });
 
