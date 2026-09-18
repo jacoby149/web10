@@ -1,17 +1,20 @@
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
-import { Avatar, AvatarFallback } from '@/components/ui/avatar';
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 import {
   getMyCommunityGroups,
   readGroupDirectory,
+  readGroupIdentity,
+  resolveMediaRefs,
   joinGroup,
   requestJoinGroup,
   leaveGroup,
   groupDisplayName,
   type GroupDirectoryEntry,
+  type MediaRecord,
 } from '@/data';
 import type { V3Group } from '@/data';
 import { toast, errorMessage } from '@/components/shared/Toast';
@@ -36,17 +39,34 @@ const LOG = (...args: unknown[]) => console.log('[social:groups]', ...args);
 
 // ── Helpers ────────────────────────────────────────────────────────────────
 
-function hashToColor(str: string): string {
-  const colors = [
-    'bg-rose-500', 'bg-sky-500', 'bg-amber-500', 'bg-emerald-500',
-    'bg-violet-500', 'bg-pink-500', 'bg-indigo-500', 'bg-orange-500',
-    'bg-teal-500', 'bg-red-500',
+// Deterministic rich gradient per entity — the fallback "face" when a group
+// or person has no uploaded cover/avatar. Gradients read as designed, not as
+// a flat color strip (design.md §1: the screenshot test).
+function hashToGradient(str: string): string {
+  const gradients = [
+    'bg-gradient-to-br from-rose-600 to-pink-900',
+    'bg-gradient-to-br from-sky-600 to-indigo-900',
+    'bg-gradient-to-br from-amber-600 to-orange-900',
+    'bg-gradient-to-br from-emerald-600 to-teal-900',
+    'bg-gradient-to-br from-violet-600 to-purple-900',
+    'bg-gradient-to-br from-pink-600 to-rose-900',
+    'bg-gradient-to-br from-indigo-600 to-violet-900',
+    'bg-gradient-to-br from-orange-600 to-red-900',
+    'bg-gradient-to-br from-teal-600 to-cyan-900',
+    'bg-gradient-to-br from-red-600 to-rose-900',
   ];
   let hash = 0;
   for (let i = 0; str.length > i; i++) {
     hash = str.charCodeAt(i) + ((hash << 5) - hash);
   }
-  return colors[Math.abs(hash) % colors.length];
+  return gradients[Math.abs(hash) % gradients.length];
+}
+
+// The resolved face of a group for the list card (D60 identity doc).
+interface GroupFace {
+  banner_url?: string;
+  avatar_url?: string;
+  name?: string;
 }
 
 function formatCount(n: number): string {
@@ -68,15 +88,17 @@ function JoinPolicyBadge({ policy }: { policy: string }) {
 
 interface MyGroupRowProps {
   group: V3Group;
+  face?: GroupFace;
   onOpen: () => void;
   onLeave: () => void;
   leaving: boolean;
 }
 
-function MyGroupRow({ group, onOpen, onLeave, leaving }: MyGroupRowProps) {
-  const name = groupDisplayName(group.group_id);
+function MyGroupRow({ group, face, onOpen, onLeave, leaving }: MyGroupRowProps) {
+  const name = face?.name || groupDisplayName(group.group_id);
   const initial = name.charAt(0).toUpperCase();
   const isOwner = group.my_role === 'owner' || group.my_role === 'admin';
+  const gradient = hashToGradient(group.group_id);
 
   return (
     <div
@@ -91,32 +113,49 @@ function MyGroupRow({ group, onOpen, onLeave, leaving }: MyGroupRowProps) {
         }
       }}
       className={cn(
-        'group relative w-full overflow-hidden rounded-lg border border-border bg-card text-left cursor-pointer transition-all duration-150',
-        'hover:-translate-y-0.5 hover:border-brand/30 hover:shadow-[0_0_24px_-8px_var(--color-glow)]',
+        'group relative w-full overflow-hidden rounded-xl border border-border bg-card text-left cursor-pointer transition-all duration-200',
+        'hover:-translate-y-1 hover:border-brand/40 hover:shadow-[0_8px_32px_-8px_var(--color-glow-intense)]',
         'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background',
         'motion-reduce:transform-none',
       )}
     >
-      {/* Cover strip — each group wears its own accent (the hash color) */}
-      <div className={cn('h-9 w-full opacity-50', hashToColor(group.group_id))} aria-hidden="true" />
-      <div className="flex items-center gap-3 p-3 pt-0">
-        <div className="shrink-0 rounded-full border-2 border-card">
-          <Avatar className={cn('h-12 w-12 -mt-5', hashToColor(group.group_id))}>
-            <AvatarFallback className="text-foreground text-base font-semibold">{initial}</AvatarFallback>
+      {/* Cover — the group's real banner (D60 face) or its gradient */}
+      <div className="h-24 w-full overflow-hidden" aria-hidden="true">
+        {face?.banner_url ? (
+          <img
+            src={face.banner_url}
+            alt=""
+            loading="lazy"
+            className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-105 motion-reduce:transform-none"
+          />
+        ) : (
+          <div className={cn('h-full w-full', gradient)} />
+        )}
+      </div>
+      <div className="flex items-end gap-3 p-4 pt-0">
+        {/* Avatar overlapping the cover — the group's real face or its initial */}
+        <div className="shrink-0 -mt-8 rounded-full border-4 border-card">
+          <Avatar className={cn('h-16 w-16', !face?.avatar_url && gradient)}>
+            {face?.avatar_url ? (
+              <AvatarImage src={face.avatar_url} alt={name} />
+            ) : (
+              <AvatarFallback className="text-foreground text-xl font-semibold">{initial}</AvatarFallback>
+            )}
           </Avatar>
         </div>
-        <div className="min-w-0 flex-1">
+        <div className="min-w-0 flex-1 pb-1">
           <div className="flex items-center gap-2">
-            <h3 className="truncate text-sm font-semibold text-foreground">{name}</h3>
+            <h3 className="truncate text-base font-semibold text-foreground">{name}</h3>
             {isOwner && (
               <Badge variant="brand" className="normal-case tracking-normal" data-testid="groups-my-role-owner">
                 Owner
               </Badge>
             )}
           </div>
-          <p className="mt-0.5 flex items-center gap-2 text-xs text-muted-foreground">
+          <p className="mt-1 flex items-center gap-1.5 text-xs text-muted-foreground">
+            <Users className="h-3 w-3 shrink-0" strokeWidth={2} aria-hidden="true" />
             <span className="tabular-nums">{formatCount(group.member_count)} members</span>
-            <span aria-hidden="true">·</span>
+            <span aria-hidden="true" className="text-muted-foreground/40">·</span>
             <JoinPolicyBadge policy={group.join_policy} />
           </p>
         </div>
@@ -149,13 +188,18 @@ function MyGroupRow({ group, onOpen, onLeave, leaving }: MyGroupRowProps) {
 
 function MyGroupRowSkeleton() {
   return (
-    <div className="flex w-full items-center gap-3 rounded-lg border border-border bg-card p-3">
-      <Skeleton className="h-11 w-11 shrink-0 rounded-full" />
-      <div className="min-w-0 flex-1 space-y-2">
-        <Skeleton className="h-4 w-32" />
-        <Skeleton className="h-3 w-40" />
+    <div className="w-full overflow-hidden rounded-xl border border-border bg-card">
+      <Skeleton className="h-24 w-full" />
+      <div className="flex items-end gap-3 p-4 pt-0">
+        <div className="shrink-0 -mt-8 rounded-full border-4 border-card">
+          <Skeleton className="h-16 w-16 rounded-full" />
+        </div>
+        <div className="min-w-0 flex-1 space-y-2 pb-1">
+          <Skeleton className="h-4 w-36" />
+          <Skeleton className="h-3 w-40" />
+        </div>
+        <Skeleton className="h-8 w-16 rounded-md" />
       </div>
-      <Skeleton className="h-8 w-16 rounded-md" />
     </div>
   );
 }
@@ -174,13 +218,14 @@ interface DiscoverGroupCardProps {
 function DiscoverGroupCard({ entry, joinState, onJoin, onOpen }: DiscoverGroupCardProps) {
   const initial = entry.name.charAt(0).toUpperCase();
   const canJoin = entry.join_policy !== 'invite_only';
+  const gradient = hashToGradient(entry.group_id);
 
   return (
     <div
       data-testid="groups-discover-card"
       className={cn(
-        'group relative flex flex-col rounded-lg border border-border bg-card p-4 transition-all duration-150',
-        'hover:-translate-y-0.5 hover:border-brand/30 hover:shadow-[0_0_24px_-8px_var(--color-glow)]',
+        'group relative flex flex-col rounded-xl border border-border bg-card p-4 transition-all duration-200',
+        'hover:-translate-y-1 hover:border-brand/40 hover:shadow-[0_8px_32px_-8px_var(--color-glow-intense)]',
         'motion-reduce:transform-none',
       )}
     >
@@ -191,15 +236,15 @@ function DiscoverGroupCard({ entry, joinState, onJoin, onOpen }: DiscoverGroupCa
           className="shrink-0 rounded-full focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
           aria-label={`View ${entry.name}`}
         >
-          <Avatar className={cn('h-11 w-11', hashToColor(entry.group_id))}>
-            <AvatarFallback className="text-foreground text-base font-semibold">{initial}</AvatarFallback>
+          <Avatar className={cn('h-14 w-14', gradient)}>
+            <AvatarFallback className="text-foreground text-lg font-semibold">{initial}</AvatarFallback>
           </Avatar>
         </button>
         <div className="min-w-0 flex-1">
           <button
             type="button"
             onClick={onOpen}
-            className="block w-full truncate text-left text-sm font-semibold text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring rounded"
+            className="block w-full truncate text-left text-base font-semibold text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring rounded"
             data-testid="groups-discover-card-name"
           >
             {entry.name}
@@ -208,7 +253,8 @@ function DiscoverGroupCard({ entry, joinState, onJoin, onOpen }: DiscoverGroupCa
         </div>
       </div>
 
-      <div className="mt-3 flex items-center gap-2">
+      <div className="mt-3 flex items-center gap-1.5">
+        <Users className="h-3 w-3 shrink-0 text-muted-foreground" strokeWidth={2} aria-hidden="true" />
         <span className="text-xs text-muted-foreground tabular-nums">
           {formatCount(entry.member_count)} members
         </span>
@@ -282,9 +328,9 @@ function DiscoverGroupCard({ entry, joinState, onJoin, onOpen }: DiscoverGroupCa
 
 function DiscoverGroupCardSkeleton() {
   return (
-    <div className="rounded-lg border border-border bg-card p-4">
+    <div className="rounded-xl border border-border bg-card p-4">
       <div className="flex items-start gap-3">
-        <Skeleton className="h-11 w-11 shrink-0 rounded-full" />
+        <Skeleton className="h-14 w-14 shrink-0 rounded-full" />
         <div className="min-w-0 flex-1 space-y-2">
           <Skeleton className="h-4 w-28" />
           <Skeleton className="h-3 w-16" />
@@ -356,6 +402,7 @@ export default function GroupsScreen() {
   const [myLoading, setMyLoading] = useState(true);
   const [myError, setMyError] = useState(false);
   const [leaving, setLeaving] = useState<Record<string, boolean>>({});
+  const [groupFaces, setGroupFaces] = useState<Record<string, GroupFace>>({});
 
   const loadMyGroups = useCallback(async () => {
     setMyLoading(true);
@@ -365,6 +412,32 @@ export default function GroupsScreen() {
       const groups = await getMyCommunityGroups();
       LOG('loadMyGroups — got', groups.length, 'community groups');
       setMyGroups(groups);
+      // Resolve each group's face (D60 identity) so the card can show a real
+      // cover + avatar. A per-group failure just leaves that card faceless.
+      const faceEntries = await Promise.all(
+        groups.map(async (g): Promise<[string, GroupFace]> => {
+          try {
+            const identity = await readGroupIdentity(g.group_id);
+            const refs: string[] = [];
+            if (identity.banner_ref) refs.push(identity.banner_ref);
+            if (identity.avatar_ref) refs.push(identity.avatar_ref);
+            let banner_url: string | undefined;
+            let avatar_url: string | undefined;
+            if (refs.length) {
+              const resolved = await resolveMediaRefs(refs);
+              const map: Record<string, MediaRecord> = {};
+              for (const m of resolved) if (m._id) map[m._id] = m;
+              if (identity.banner_ref) banner_url = map[identity.banner_ref]?.url;
+              if (identity.avatar_ref) avatar_url = map[identity.avatar_ref]?.url;
+            }
+            return [g.group_id, { banner_url, avatar_url, name: identity.name }];
+          } catch (e) {
+            LOG('loadMyGroups — face failed for', g.group_id, ':', e);
+            return [g.group_id, {}];
+          }
+        }),
+      );
+      setGroupFaces(Object.fromEntries(faceEntries));
     } catch (e) {
       LOG('loadMyGroups — failed:', e);
       setMyError(true);
@@ -559,6 +632,7 @@ export default function GroupsScreen() {
                   <MyGroupRow
                     key={g.group_id}
                     group={g}
+                    face={groupFaces[g.group_id]}
                     onOpen={() => openGroup(g.group_id)}
                     onLeave={() => handleLeave(g.group_id)}
                     leaving={!!leaving[g.group_id]}

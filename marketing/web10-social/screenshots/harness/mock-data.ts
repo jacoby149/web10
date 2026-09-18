@@ -428,17 +428,34 @@ export async function readGroupDetail(groupId: string): Promise<unknown> {
   };
 }
 export async function joinGroup(): Promise<unknown> { return { status: 'joined' }; }
-export async function readGroupIdentity(): Promise<unknown> {
-  // A face so the group-detail hero (banner + avatar + about + tags) renders
-  // in the capture — the face-present variant of the re-cut detail screen.
-  return {
-    name: 'Synthwave Sessions',
-    description: 'A shared space on your node — content you co-create with the people you choose.',
-    banner_ref: 'banner-1',
-    avatar_ref: 'avatar-1',
-    website: 'https://synthwave.example.com',
-    tags: ['music', 'synthwave'],
+export async function readGroupIdentity(groupId: string): Promise<unknown> {
+  // Per-group faces so the My Groups list capture shows a mix of face states:
+  // nova → banner + avatar, luna → banner only, kai → no face (gradient fallback).
+  const faces: Record<string, unknown> = {
+    'web10/groups/users/nova/synthwave-sessions': {
+      name: 'Synthwave Sessions',
+      description: 'A shared space on your node — content you co-create with the people you choose.',
+      banner_ref: 'grp-banner-nova',
+      avatar_ref: 'grp-avatar-nova',
+      website: 'https://synthwave.example.com',
+      tags: ['music', 'synthwave'],
+    },
+    'web10/groups/users/luna/creator-backstage': {
+      name: 'Creator Backstage',
+      description: 'Behind the scenes with the creators.',
+      banner_ref: 'grp-banner-luna',
+      avatar_ref: '',
+      tags: ['creators', 'behind-the-scenes'],
+    },
+    'web10/groups/users/kai/lofi-study-room': {
+      name: 'Lo-fi Study Room',
+      description: 'Lo-fi beats for studying.',
+      banner_ref: '',
+      avatar_ref: '',
+      tags: ['music', 'study'],
+    },
   };
+  return faces[groupId] ?? {};
 }
 export async function getGroupsManages(): Promise<unknown[]> {
   // The harness user manages the synthwave-sessions group → the detail screen
@@ -788,6 +805,12 @@ const FACE_MEDIA: Record<string, Record<string, unknown>> = {
   'face-post-1': { ...creative('DROP', 1280, 720, '#a78bfa', '#1e1b4b', 'image/png'), _id: 'face-post-1' },
   'face-post-2': { ...creative('STUDIO', 720, 1280, '#8b5cf6', '#3b0764', 'image/png'), _id: 'face-post-2' },
   'face-post-3': { ...creative('SET', 1600, 900, '#c4b5fd', '#312e81', 'image/png'), _id: 'face-post-3' },
+  // Group faces (D60) for the My Groups list capture — a mix of face states so
+  // the shot shows real cover+avatar, banner-only, and the gradient fallback.
+  'grp-banner-nova': { ...creative('SYNTHWAVE', 1600, 400, '#7c3aed', '#1e1b4b', 'image/png'), _id: 'grp-banner-nova' },
+  'grp-avatar-nova': { ...creative('SYNTH', 640, 640, '#8b5cf6', '#2e1065', 'image/png'), _id: 'grp-avatar-nova' },
+  'grp-banner-luna': { ...creative('CREATOR', 1600, 400, '#f59e0b', '#78350f', 'image/png'), _id: 'grp-banner-luna' },
+  'grp-banner-kai': { ...creative('LO-FI', 1600, 400, '#0ea5e9', '#0c4a6e', 'image/png'), _id: 'grp-banner-kai' },
 };
 
 const DISCOVER_POSTS: SeedDiscoverPost[] = [
