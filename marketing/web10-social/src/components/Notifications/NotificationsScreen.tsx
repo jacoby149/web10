@@ -22,7 +22,7 @@ function describe(n: Notification): string {
     case 'dm':
       return `${who} sent you a message`;
     case 'follow_request':
-      return `${who} requested to follow you`;
+      return `${who} followed you`;
     case 'group_join':
       return `${who} joined a group`;
     default:
