@@ -126,12 +126,21 @@ function NotificationRow({ n, unread }: { n: Notification; unread: boolean }) {
 export default function NotificationsScreen() {
   const { unread, items } = useNotifications();
 
-  // Mark all read on open — clears the badge + banner (the "you looked" state).
+  // Mark all read while the screen is open — clears the badge + banner (the
+  // "you looked" state). Reacts to `unread`, not just mount: the seed
+  // (initNotifications → seed) is async and can still be in flight when the
+  // screen opens, so a one-shot on-mount mark-read would no-op on an empty
+  // store (items.every(read) is true on []) and the badge would stay lit when
+  // the seed lands. Watching `unread` re-runs the mark-read the moment the seed
+  // (or a new nudge) bumps it. `markAllRead` is a no-op when everything is
+  // already read, so this never loops.
   useEffect(() => {
-    markAllRead().catch(() => {
-      // Best-effort — a persist failure still cleared the local badge.
-    });
-  }, []);
+    if (unread > 0) {
+      markAllRead().catch(() => {
+        // Best-effort — a persist failure still cleared the local badge.
+      });
+    }
+  }, [unread]);
 
   return (
     <div className="max-w-2xl mx-auto w-full">
