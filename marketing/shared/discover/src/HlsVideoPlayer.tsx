@@ -100,6 +100,16 @@ interface HlsVideoPlayerProps {
    * (the feed/discover behavior, unchanged).
    */
   maxWidth?: string;
+  /**
+   * Cap the frame's height (the feed's portrait case, 3.34.0). A 9:16 clip
+   * in the feed reserves a full-width 9:16 box — ~1.78× the card tall, which
+   * buries the control rack below the fold. Capping the height (and centering
+   * the shrunken frame in a full-width black letterbox) keeps the whole clip
+   * + the rack in view. Only a portrait clip (`width < height`) is affected:
+   * a landscape clip at a height cap is already shorter than full-width, so
+   * the cap is a no-op for it. Absent → uncapped (unchanged).
+   */
+  maxHeight?: string;
 }
 
 /** m:ss — the time readout (current / total). */
@@ -126,7 +136,7 @@ const SPEEDS = ['1x', '1.5x', '2x'] as const;
  * component serves the feed card and the lightbox, so both surfaces get the
  * identical controls.
  */
-export function HlsVideoPlayer({ manifestUrl, poster, width, height, className, maxWidth }: HlsVideoPlayerProps) {
+export function HlsVideoPlayer({ manifestUrl, poster, width, height, className, maxWidth, maxHeight }: HlsVideoPlayerProps) {
   const videoRef = useRef<HTMLVideoElement>(null);
   const hlsRef = useRef<HlsInstance | null>(null);
   const hideTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -343,6 +353,13 @@ export function HlsVideoPlayer({ manifestUrl, poster, width, height, className, 
 
   const progress = duration > 0 ? (current / duration) * 100 : 0;
 
+  // A height cap only bites for a portrait clip (ratio < 1): a landscape clip
+  // at full width is already shorter than the cap, so the cap is a no-op for
+  // it (no centering, no visual change). A portrait clip's frame shrinks to
+  // fit the capped height and is centered in the full-width black letterbox —
+  // the same shape the maxWidth cap produces (the feed's "looks great" ref).
+  const heightCapped = !!maxHeight && ratio < 1;
+
   return (
     <div
       data-testid="hls-video-player"
@@ -364,8 +381,8 @@ export function HlsVideoPlayer({ manifestUrl, poster, width, height, className, 
       }}
     >
       <div
-        className={cn('group relative w-full', maxWidth && 'mx-auto')}
-        style={{ aspectRatio: ratio, maxWidth }}
+        className={cn('group relative w-full', (maxWidth || heightCapped) && 'mx-auto')}
+        style={{ aspectRatio: ratio, maxWidth, ...(heightCapped ? { maxHeight } : {}) }}
       >
         <video
           ref={videoRef}

@@ -514,6 +514,9 @@ interface SeedFeedPost {
   // Carried ads (D55 + D57) — the screenshot seed shows the new ad block.
   ad?: unknown;
   node_ad?: unknown;
+  // Media refs (doc_ids resolved against DISCOVER_MEDIA) — the feed's video
+  // layout (the 9:16 cap) is exercised by fp-vid's portrait clip.
+  media_refs?: string[];
 }
 
 // A self-contained SVG creative (renders offline, no network) — a gradient
@@ -542,6 +545,22 @@ function adCreative(label: string, from: string, to: string): unknown {
 }
 
 const FEED_POSTS: SeedFeedPost[] = [
+  {
+    // A PORTRAIT (9:16) video post — the transcoded (hls) path, the case that
+    // used to render a full-width 9:16 box in the feed (~1.78× the card tall).
+    // The feed caps it to ≤60vh + centers it in a black letterbox (the PR shot
+    // verifies the cap).
+    _id: 'fp-vid',
+    author_username: 'luna',
+    author_provider: 'web10',
+    text: 'Studio b-roll — the way it actually looks between takes.',
+    created_at: minsAgo(2),
+    tags: ['video'],
+    likes: 156,
+    comments: 19,
+    reposts: 4,
+    media_refs: ['dm-portrait2'],
+  },
   {
     // A REPOST (reposts.md): the signed-in user ('me') amplifying luna's post
     // with a comment. Renders the "reposted" badge + the quote + the embedded
@@ -652,9 +671,38 @@ const FEED_POSTS: SeedFeedPost[] = [
 
 export async function readFeed(): Promise<unknown[]> { return FEED_POSTS; }
 // The cursor-paginated feed read (3.72.0) — FeedScreen's data source. Returns
-// the seeded posts as a single page (no more).
+// the seeded posts as a single page (no more). The real read serves
+// media_refs PRE-RESOLVED (objects with read_url + dims + transcoding_settings
+// — the feed filters out bare string refs), so the harness resolves string
+// refs against DISCOVER_MEDIA here, the same way the node's read does.
 export async function readFeedPage(): Promise<unknown> {
-  return { posts: FEED_POSTS, has_more: false, next_cursor: null };
+  const posts = FEED_POSTS.map((p) => {
+    if (!p.media_refs?.length) return p;
+    // The real read serves media_refs as ResolvedMediaRef objects (doc_id +
+    // read_url + dims + transcoding_settings) — the feed's
+    // fromResolvedMediaRef expects that shape, so map the media records
+    // (which key on _id/url) onto it.
+    const resolved = p.media_refs
+      .map((id) => {
+        const m = DISCOVER_MEDIA[id];
+        if (!m) return null;
+        return {
+          doc_id: m._id,
+          object_key: m.object_key ?? null,
+          mime_type: m.mime_type,
+          size_bytes: m.size_bytes ?? null,
+          read_url: m.url,
+          width: m.width ?? null,
+          height: m.height ?? null,
+          duration_seconds: m.duration_seconds ?? null,
+          thumbnail_url: m.thumbnail_url ?? null,
+          transcoding_settings: m.transcoding_settings ?? null,
+        };
+      })
+      .filter(Boolean);
+    return { ...p, media_refs: resolved };
+  });
+  return { posts, has_more: false, next_cursor: null };
 }
 export async function getFeedGroups(): Promise<string[]> {
   return FEED_POSTS.map((p) => `web10/groups/users/${p.author_username}/followers`);
