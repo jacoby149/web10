@@ -36,6 +36,10 @@ function feedPostToMediaItems(mediaRefs?: (string | ResolvedMediaRef)[]): MediaI
       mime_type: r.mime_type || undefined,
       size_bytes: r.size_bytes || undefined,
       thumbnail_url: r.thumbnail_url || undefined,
+      // The source dims — the player reserves the natural ratio (a 9:16 clip is
+      // a tall box, not a squashed 16:9) and the card caps a portrait frame.
+      width: r.width || undefined,
+      height: r.height || undefined,
       transcoding_settings: r.transcoding_settings || undefined,
     }));
 }
@@ -90,6 +94,11 @@ interface ResolvedMediaRef {
   filename?: string | null;
   size_bytes?: number | null;
   read_url?: string | null;
+  // The source dims (the v3 read carries width/height/duration_seconds) — the
+  // player reserves the natural ratio + the card caps a portrait frame.
+  width?: number | null;
+  height?: number | null;
+  duration_seconds?: number | null;
   // The node mints a fresh presigned thumbnail URL alongside read_url on the
   // v3 read (resolve_media_urls: presigned[thumbnail_object_key]). Carried so
   // the card can render a real poster / reduced-motion image instead of
@@ -314,6 +323,12 @@ function TrendingCard({
       id={`trending-card-${post.id}`}
       className={className}
       testId="trending-card"
+      // The trending grid is a card wall — a full-width 9:16 box (~1.78× the
+      // card tall) dwarfs the card and buries the video's control rack at its
+      // bottom. Cap the portrait frame to a square-ish box (centered in a black
+      // letterbox) so the whole clip + the rack stay in view. The social app's
+      // single-column Discover leaves this unset (full-bleed, unchanged).
+      videoMaxWidth="min(50vh, 100%)"
     />
   );
 }

@@ -1,5 +1,5 @@
-import { useCallback, useEffect, useRef, useState, type ChangeEvent } from 'react';
-import { Maximize2, TriangleAlert, Play, Pause, Volume2, VolumeX, Gauge } from 'lucide-react';
+import { useCallback, useEffect, useRef, useState, type ChangeEvent, type ReactNode } from 'react';
+import { Maximize2, TriangleAlert, Play, Pause, Volume2, VolumeX, Gauge, MonitorPlay } from 'lucide-react';
 import { cn } from './utils';
 import { IconBtn } from './ui';
 import { API_ORIGIN } from './config';
@@ -12,12 +12,15 @@ import type { HlsInstance } from './hls';
  * options. `value` is the selected index into `options`; `onPick` fires with
  * the picked index. Closes on pick, on outside click, and on Escape.
  */
-export function RackMenu({ label, value, options, onPick, testId }: {
+export function RackMenu({ label, value, options, onPick, testId, icon }: {
   label: string;
   value: number;
   options: string[];
   onPick: (i: number) => void;
   testId: string;
+  /** The trigger icon — speed and quality need distinct glyphs (two identical
+    *  dials read as one control). */
+  icon: ReactNode;
 }) {
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
@@ -44,7 +47,7 @@ export function RackMenu({ label, value, options, onPick, testId }: {
         onClick={() => setOpen((o) => !o)}
         className="h-8 w-8"
       >
-        <Gauge className="w-4 h-4" strokeWidth={2} />
+        {icon}
       </IconBtn>
       {open && (
         <div
@@ -84,10 +87,19 @@ interface HlsVideoPlayerProps {
   manifestUrl: string;
   poster?: string;
   /** The source ratio (lowest variant's width/height) — the node preserves
-   *  it across renditions, so the first variant IS the source ratio. */
+    *  it across renditions, so the first variant IS the source ratio. */
   width?: number;
   height?: number;
   className?: string;
+  /**
+   * Cap the frame's width (the lightbox's portrait case). A 9:16 clip in the
+   * lightbox reserves a full-width 9:16 frame — a box ~1.78× the viewport
+   * tall, clipped by the modal, with the control rack stranded off-screen at
+   * its bottom. Capping the frame (and centering it in a full-width black
+   * letterbox) keeps the whole clip + the rack in view. Absent → full-width
+   * (the feed/discover behavior, unchanged).
+   */
+  maxWidth?: string;
 }
 
 /** m:ss — the time readout (current / total). */
@@ -114,7 +126,7 @@ const SPEEDS = ['1x', '1.5x', '2x'] as const;
  * component serves the feed card and the lightbox, so both surfaces get the
  * identical controls.
  */
-export function HlsVideoPlayer({ manifestUrl, poster, width, height, className }: HlsVideoPlayerProps) {
+export function HlsVideoPlayer({ manifestUrl, poster, width, height, className, maxWidth }: HlsVideoPlayerProps) {
   const videoRef = useRef<HTMLVideoElement>(null);
   const hlsRef = useRef<HlsInstance | null>(null);
   const hideTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -235,9 +247,21 @@ export function HlsVideoPlayer({ manifestUrl, poster, width, height, className }
   useEffect(() => {
     const hls = hlsRef.current;
     if (!hls) return;
+    const el = videoRef.current;
     // Index 0 = Auto (ABR, -1); index i = level i-1.
     hls.currentLevel = quality === 0 ? -1 : quality - 1;
     LOG('hls player — quality set to level', hls.currentLevel, '(0 = auto)');
+    // A mid-playback level switch re-buffers the new rendition's segments. If
+    // the current buffer drains before the new level's first segment lands, the
+    // <video> stalls and never resumes on its own (the "changing resolution in
+    // the middle of playing is broken" bug). Nudge it: resume if it was
+    // playing, and make sure hls.js is actively loading (a paused-then-switched
+    // player can leave autoStartLoad disengaged).
+    if (el && !el.paused) el.play().catch(() => {});
+    if (typeof (hls as unknown as { startLoad?: unknown }).startLoad === 'function') {
+      const h = hls as unknown as { autoStartLoad?: boolean; startLoad: () => void };
+      if (h.autoStartLoad === false) h.startLoad();
+    }
   }, [quality]);
 
   // ── Auto-hide the controls while playing + idle ───────────────────────────
@@ -320,22 +344,28 @@ export function HlsVideoPlayer({ manifestUrl, poster, width, height, className }
   const progress = duration > 0 ? (current / duration) * 100 : 0;
 
   return (
-    <div data-testid="hls-video-player" className={cn('relative overflow-hidden bg-black', className)}>
+    <div
+      data-testid="hls-video-player"
+      className={cn('relative overflow-hidden bg-black', className)}
+      onMouseEnter={() => { pointerOverRef.current = true; setPointerOver(true); showControls(); }}
+      onMouseMove={showControls}
+      onMouseLeave={() => {
+        // The pointer left the whole player (video + letterbox): drop the hold,
+        // then arm the idle window so a playing video's rack fades out on its
+        // own (a paused one keeps it). The handlers live on the OUTER box so
+        // reaching across the letterbox border (a capped portrait frame) never
+        // hides the rack mid-reach.
+        pointerOverRef.current = false;
+        setPointerOver(false);
+        if (hideTimer.current) clearTimeout(hideTimer.current);
+        hideTimer.current = setTimeout(() => {
+          if (playingRef.current && !pointerOverRef.current) setControlsVisible(false);
+        }, 2500);
+      }}
+    >
       <div
-        className="group relative w-full"
-        style={{ aspectRatio: ratio }}
-        onMouseEnter={() => { pointerOverRef.current = true; setPointerOver(true); showControls(); }}
-        onMouseMove={showControls}
-        onMouseLeave={() => {
-          // The pointer left: drop the hold, then arm the idle window so a
-          // playing video's rack fades out on its own (a paused one keeps it).
-          pointerOverRef.current = false;
-          setPointerOver(false);
-          if (hideTimer.current) clearTimeout(hideTimer.current);
-          hideTimer.current = setTimeout(() => {
-            if (playingRef.current && !pointerOverRef.current) setControlsVisible(false);
-          }, 2500);
-        }}
+        className={cn('group relative w-full', maxWidth && 'mx-auto')}
+        style={{ aspectRatio: ratio, maxWidth }}
       >
         <video
           ref={videoRef}
@@ -447,6 +477,7 @@ export function HlsVideoPlayer({ manifestUrl, poster, width, height, className }
                 value={speed}
                 options={[...SPEEDS]}
                 onPick={setSpeed}
+                icon={<Gauge className="w-4 h-4" strokeWidth={2} />}
               />
               <RackMenu
                 label="Quality"
@@ -454,6 +485,7 @@ export function HlsVideoPlayer({ manifestUrl, poster, width, height, className }
                 value={quality}
                 options={['Auto', ...levels.map((l) => `${l.height}p`)]}
                 onPick={setQuality}
+                icon={<MonitorPlay className="w-4 h-4" strokeWidth={2} />}
               />
               <IconBtn
                 aria-label="Fullscreen"
