@@ -215,6 +215,101 @@ class TestRead:
         assert "user_blacklist" in compiled
         assert "group_hidden_docs" in compiled
 
+    def test_ref_read_cursor_paging_asc(self, client, token):
+        # The comment thread (comments.md): a ref read pages by a keyset
+        # cursor on (created_at, doc_id), ordered by created_at. The cursor is
+        # "created_at|doc_id" of the previous page's last row.
+        mock_rows = [
+            ("cm-2", "bob", '{"text":"b"}', "post-1", [], datetime(2026, 1, 2), datetime(2026, 1, 2)),
+        ]
+        with (
+            patch("app.v3.services.clickhouse.client") as mock_ch,
+            patch("app.v3.services.clickhouse.readable_groups", side_effect=lambda p, s, a, c: c),
+        ):
+            mock_ch.query.return_value = MagicMock(result_rows=mock_rows)
+            resp = client.post(
+                "/v3/read",
+                json={
+                    "token": token,
+                    "service": "comments",
+                    "groups": ["g1"],
+                    "ref": "post-1",
+                    "limit": 20,
+                    "cursor": "2026-01-01T00:00:00.000|cm-1",
+                    "order": "asc",
+                },
+            )
+            compiled = next(
+                (c[0][0] for c in mock_ch.query.call_args_list if "ref_value = 'post-1'" in c[0][0]),
+                None,
+            )
+        assert resp.status_code == 200
+        assert compiled is not None, "no ref-filter query reached client.query"
+        # Ordered by created_at (tie-broken by doc_id), ascending.
+        assert "ORDER BY created_at ASC, doc_id ASC" in compiled
+        # The keyset cursor: rows after (2026-01-01, cm-1).
+        assert "created_at > '2026-01-01T00:00:00.000'" in compiled
+        assert "doc_id > 'cm-1'" in compiled
+
+    def test_ref_read_cursor_paging_desc(self, client, token):
+        # order=desc pages newest-first (the reverse keyset).
+        mock_rows = []
+        with (
+            patch("app.v3.services.clickhouse.client") as mock_ch,
+            patch("app.v3.services.clickhouse.readable_groups", side_effect=lambda p, s, a, c: c),
+        ):
+            mock_ch.query.return_value = MagicMock(result_rows=mock_rows)
+            resp = client.post(
+                "/v3/read",
+                json={
+                    "token": token,
+                    "service": "comments",
+                    "groups": ["g1"],
+                    "ref": "post-1",
+                    "limit": 20,
+                    "cursor": "2026-01-01T00:00:00.000|cm-1",
+                    "order": "desc",
+                },
+            )
+            compiled = next(
+                (c[0][0] for c in mock_ch.query.call_args_list if "ref_value = 'post-1'" in c[0][0]),
+                None,
+            )
+        assert resp.status_code == 200
+        assert compiled is not None
+        assert "ORDER BY created_at DESC, doc_id DESC" in compiled
+        assert "created_at < '2026-01-01T00:00:00.000'" in compiled
+        assert "doc_id < 'cm-1'" in compiled
+
+    def test_ref_read_no_cursor_first_page(self, client, token):
+        # No cursor = first page: ordered, but no keyset WHERE clause.
+        mock_rows = []
+        with (
+            patch("app.v3.services.clickhouse.client") as mock_ch,
+            patch("app.v3.services.clickhouse.readable_groups", side_effect=lambda p, s, a, c: c),
+        ):
+            mock_ch.query.return_value = MagicMock(result_rows=mock_rows)
+            resp = client.post(
+                "/v3/read",
+                json={
+                    "token": token,
+                    "service": "comments",
+                    "groups": ["g1"],
+                    "ref": "post-1",
+                    "limit": 20,
+                },
+            )
+            compiled = next(
+                (c[0][0] for c in mock_ch.query.call_args_list if "ref_value = 'post-1'" in c[0][0]),
+                None,
+            )
+        assert resp.status_code == 200
+        assert compiled is not None
+        assert "ORDER BY created_at ASC, doc_id ASC" in compiled
+        # No keyset clause on the first page.
+        assert "created_at >" not in compiled
+        assert "created_at <" not in compiled
+
     def test_no_token(self, client):
         resp = client.post("/v3/read", json={"token": None, "groups": ["me"]})
         assert resp.status_code == 422
