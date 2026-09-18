@@ -166,23 +166,33 @@ describe('defaultKnobState', () => {
 });
 
 describe('presets', () => {
-  it('has 3 presets', () => {
-    expect(PRESETS).toHaveLength(3);
+  it('has 4 presets', () => {
+    expect(PRESETS).toHaveLength(4);
   });
 
-  it('newest has only recency weight, all-time half-life', () => {
-    const p = getPreset('newest');
+  it('most-recent has only recency weight, all-time half-life', () => {
+    const p = getPreset('most-recent');
     expect(p).toBeDefined();
     expect(p!.state.recency).toBe(5); // max weight
     expect(p!.state.likes).toBe(0);
     expect(p!.state.comments).toBe(0);
   });
 
-  it('most-loved has only likes weight, infinite half-life', () => {
-    const p = getPreset('most-loved');
+  it('most-liked has only likes weight, infinite half-life', () => {
+    const p = getPreset('most-liked');
     expect(p).toBeDefined();
     expect(p!.state.recency).toBe(0);
     expect(p!.state.likes).toBe(5);
+    expect(p!.state.comments).toBe(0);
+    expect(p!.state.halfLife).toBe(5); // ∞
+  });
+
+  it('most-commented has only comments weight, infinite half-life', () => {
+    const p = getPreset('most-commented');
+    expect(p).toBeDefined();
+    expect(p!.state.recency).toBe(0);
+    expect(p!.state.likes).toBe(0);
+    expect(p!.state.comments).toBe(5);
     expect(p!.state.halfLife).toBe(5); // ∞
   });
 
@@ -226,7 +236,7 @@ describe('mix code', () => {
 
   it('preset codes are distinct', () => {
     const codes = new Set(PRESETS.map(p => encodeMix(p.state)));
-    expect(codes.size).toBe(3);
+    expect(codes.size).toBe(4);
   });
 });
 
@@ -263,16 +273,16 @@ describe('scorePost', () => {
     expect(allTime).toBe(oneHour);
   });
 
-  it('newest preset scores by recency only (negative age for reverse-chron)', () => {
-    const newest = getPreset('newest')!.state;
+  it('most-recent preset scores by recency only (negative age for reverse-chron)', () => {
+    const newest = getPreset('most-recent')!.state;
     const fresh = scorePost({ ageMs: 100, likes: 0, comments: 0, reposts: 0 }, newest);
     const old = scorePost({ ageMs: 1_000_000, likes: 1000, comments: 500, reposts: 100 }, newest);
     // Negative age: -100 > -1_000_000, so fresh wins
     expect(fresh).toBeGreaterThan(old);
   });
 
-  it('most-loved preset ignores age', () => {
-    const ml = getPreset('most-loved')!.state;
+  it('most-liked preset ignores age', () => {
+    const ml = getPreset('most-liked')!.state;
     const freshLow = scorePost({ ageMs: 0, likes: 1, comments: 0, reposts: 0 }, ml);
     const oldHigh = scorePost({ ageMs: 1_000_000_000, likes: 1000, comments: 0, reposts: 0 }, ml);
     expect(oldHigh).toBeGreaterThan(freshLow);
@@ -299,12 +309,12 @@ describe('rankPosts', () => {
     expect(posts).toEqual(orig);
   });
 
-  it('newest preset sorts by age ascending (newest first)', () => {
+  it('most-recent preset sorts by age ascending (newest first)', () => {
     const posts = [
       { id: 'old', ageMs: 1_000_000, likes: 999, comments: 999, reposts: 999 },
       { id: 'new', ageMs: 100, likes: 0, comments: 0, reposts: 0 },
     ];
-    const ranked = rankPosts(posts, p => p, getPreset('newest')!.state);
+    const ranked = rankPosts(posts, p => p, getPreset('most-recent')!.state);
     expect(ranked[0].id).toBe('new');
   });
 });

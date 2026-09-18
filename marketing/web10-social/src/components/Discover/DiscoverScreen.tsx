@@ -925,7 +925,7 @@ export default function DiscoverScreen() {
   // The server-side ranking config for the current knob state. The Newest
   // preset is pure chronological — the board's default read (no sort param).
   const sortConfig = useMemo<PowerMeanSortConfig | null>(() => {
-    if (activePreset === 'newest') return null;
+    if (activePreset === 'most-recent') return null;
     return knobStateToSort(knobState);
   }, [knobState, activePreset]);
 
