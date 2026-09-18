@@ -564,6 +564,47 @@ describe('TrendingCard video media', () => {
     expect(document.querySelector('video')).not.toBeNull();
   });
 
+  it('caps a portrait (9:16) video to a square-ish frame (the card-grid case — the rack is not buried)', () => {
+    const videoPost: FeedPost = {
+      ...basePost,
+      id: 'portrait-post',
+      media: 'video',
+      mediaRefs: [{ doc_id: 'ref-1', object_key: 'u/a.mp4', mime_type: 'video/mp4', read_url: 'https://cdn.example.com/a.mp4?sig=x', width: 720, height: 1280 }],
+      firstAttachmentMime: 'video/mp4',
+      author: 'testuser',
+    };
+    render(
+      <TrendingCard post={videoPost} rank={2} maxScore={100} onLike={noop} onComment={noop} onRepost={noop} />,
+    );
+    // The trending grid is a card wall — a full-width 9:16 box is ~1.78× the
+    // card tall and buries the control rack at its bottom. The card caps the
+    // portrait frame (maxWidth) + centers it (mx-auto) in a black letterbox.
+    // (Non-transcoded → the file path's InlineVideo; the frame IS the
+    // discover-media-video element.)
+    const frame = document.querySelector('[data-testid="discover-media-video"]') as HTMLElement;
+    expect(frame).toBeTruthy();
+    expect(frame.style.maxWidth).toBe('min(50vh, 100%)');
+    expect(frame.className).toMatch(/mx-auto/);
+  });
+
+  it('leaves a landscape video full-width in the card (no cap — only portrait is too tall)', () => {
+    const videoPost: FeedPost = {
+      ...basePost,
+      id: 'landscape-post',
+      media: 'video',
+      mediaRefs: [{ doc_id: 'ref-1', object_key: 'u/a.mp4', mime_type: 'video/mp4', read_url: 'https://cdn.example.com/a.mp4?sig=x', width: 1280, height: 720 }],
+      firstAttachmentMime: 'video/mp4',
+      author: 'testuser',
+    };
+    render(
+      <TrendingCard post={videoPost} rank={2} maxScore={100} onLike={noop} onComment={noop} onRepost={noop} />,
+    );
+    const frame = document.querySelector('[data-testid="discover-media-video"]') as HTMLElement;
+    expect(frame).toBeTruthy();
+    expect(frame.style.maxWidth).toBe('');
+    expect(frame.className).not.toMatch(/mx-auto/);
+  });
+
   it('renders an image for image posts (resolved ref → <img>)', async () => {
     const imagePost: FeedPost = {
       ...basePost,

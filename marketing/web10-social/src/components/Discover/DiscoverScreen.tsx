@@ -440,6 +440,11 @@ function DiscoverCard({
       readReplies={readThreadReplies}
       createComment={discoverCreateComment}
       testId="discover-card"
+      // A full-width 9:16 box is ~1.78× the card tall — too big on desktop,
+      // and it buries the control rack at its bottom. Cap the portrait frame
+      // (centered in a black letterbox), consistent with the marketing
+      // /trending card. Landscape is unaffected (only portrait is capped).
+      videoMaxWidth="min(50vh, 100%)"
     />
 
   );
@@ -580,6 +585,9 @@ function DiscoverYouTubeCard({
       readReplies={readThreadReplies}
       createComment={discoverCreateComment}
       testId="discover-youtube-card"
+      // Same portrait cap as the board card (a 9:16 clip in the video view is
+      // too big on desktop + buries the rack). Landscape is unaffected.
+      videoMaxWidth="min(50vh, 100%)"
     />
   );
 }
