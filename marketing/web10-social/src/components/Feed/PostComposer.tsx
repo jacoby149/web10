@@ -245,6 +245,7 @@ export default function PostComposer({
   onPostCreated,
   repostingTo,
   onRepostCancel,
+  groups,
 }: {
   onPostCreated?: () => void;
   /**
@@ -255,6 +256,11 @@ export default function PostComposer({
    */
   repostingTo?: PostRecord | null;
   onRepostCancel?: () => void;
+  /**
+   * The group the post is created in (group composer — the post attaches to
+   * the group, not the reader's followers groups). Threaded to createPost.
+   */
+  groups?: string[];
 }) {
   const [text, setText] = useState('');
   const [mediaItems, setMediaItems] = useState<AttachedMedia[]>([]);
@@ -649,7 +655,7 @@ export default function PostComposer({
           created_at: new Date().toISOString(),
           tags: isShort ? ['short'] : undefined,
         },
-        undefined,
+        groups,
         pinnedAd ? { mode: 'pinned', target: pinnedAd._id } : undefined,
       );
 

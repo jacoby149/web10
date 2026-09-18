@@ -82,7 +82,7 @@ Plus one layout prop: `layout` (`row` — the feed card's compact row; `bar` —
 Three seams the surfaces needed beyond the axes:
 
 - **`trailing`** — extra bar slots the surface owns, rendered after the shared ones in the same bar (Discover's share signal — the repost is now a first-class axis, not a trailing slot). The bar stays one shared component; the surface just contributes its own slots.
-- **`groups`** — the group the post lives in. Group posts pass `[groupId]` so reactions + comments (and the repost) attach to the group, not the discover board (the data layer's `groups` param, threaded through `CommentThread` + `toggleReactionKind` + `toggleRepost`).
+- **`groups`** — the group the post lives in. Group posts pass `[groupId]` so reactions + comments (and the repost) attach to the group, not the discover board (the data layer's `groups` param, threaded through `CommentThread` + `toggleReactionKind` + `toggleRepost`). The reference `PostCard` (the feed card) accepts the same `groups` prop and threads it to its `<PostActions>` — the group feed composes the reference card, not a re-implementation.
 - **`defaultOpen`** — start the thread open (the lightbox's `?comment=` deep link auto-opens + anchors the comment).
 
 A surface is therefore a one-liner (as built):
@@ -91,7 +91,7 @@ A surface is therefore a one-liner (as built):
 Feed:      <PostActions post liked disliked reposted reactionCount repostCount commentCount onToggleReaction onToggleRepost layout="row" />
 Discover:  <PostActions post liked disliked reposted reactionCount repostCount commentCount onToggleReaction onToggleRepost layout="bar" trailing={share} />
 Lightbox:  <PostActions post liked disliked reposted reactionCount repostCount commentCount onToggleReaction onToggleRepost defaultOpen={!!anchor} trailing={share} />
-Groups:    <PostActions post liked disliked reposted reactionCount repostCount commentCount onToggleReaction onToggleRepost groups={[groupId]} />
+Groups:    <PostCard … groups={[groupId]} />  (the reference card; the wrapper owns the group-scoped engagement state)
 ```
 
 ## The like/dislike invariant (one reaction per user)
