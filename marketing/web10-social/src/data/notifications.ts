@@ -406,6 +406,36 @@ async function deriveNotifications(): Promise<Notification[]> {
     }
   }
 
+  // Replies to my comments (from others). A reply's ref_value is the parent
+  // comment's doc_id, so I first collect my comment ids, then find comments
+  // that reference them.
+  try {
+    const allComments = await w.read('comments', { groups: groupIds });
+    const myCommentIds = new Set(
+      allComments
+        .filter((c) => extractUsername(c.author_key) === me)
+        .map((c) => c.doc_id),
+    );
+    if (myCommentIds.size > 0) {
+      for (const c of allComments) {
+        const author = extractUsername(c.author_key);
+        if (author === me) continue;
+        if (!c.ref_value || !myCommentIds.has(c.ref_value)) continue;
+        const b = c.body as Record<string, unknown>;
+        out.push({
+          id: `reply:${author}:${c.doc_id}`,
+          type: 'reply',
+          from: author,
+          ref_doc_id: c.ref_value,
+          read: false,
+          created_at: (b.created_at as string) || new Date().toISOString(),
+        });
+      }
+    }
+  } catch {
+    // Best-effort.
+  }
+
   // DMs: the latest message FROM the other party in each conversation.
   try {
     const convs = await listConversations();
