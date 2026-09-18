@@ -1,5 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen, fireEvent } from '@testing-library/react';
+import { useState, useEffect } from 'react';
+import { render, screen, fireEvent, act } from '@testing-library/react';
 import { MemoryRouter, Routes, Route, useLocation } from 'react-router-dom';
 import '@testing-library/jest-dom';
 import { lucideMock } from './helpers/lucideMock';
@@ -7,13 +8,29 @@ import { lucideMock } from './helpers/lucideMock';
 vi.mock('lucide-react', () => lucideMock);
 
 // Controllable notification state for the hook (the bell + banner + screen all
-// read through useNotifications).
+// read through useNotifications). The mock re-renders on emitMockState, so a
+// test can simulate the seed landing AFTER the screen opened (the mark-read
+// race) — the one-shot on-mount code would never see it.
 let mockState: { unread: number; items: import('@/data/notifications').Notification[] } = {
   unread: 0,
   items: [],
 };
+const mockSubs = new Set<() => void>();
+function emitMockState(): void {
+  mockSubs.forEach((f) => f());
+}
 vi.mock('@/hooks/useNotifications', () => ({
-  useNotifications: () => mockState,
+  useNotifications: () => {
+    const [, force] = useState(0);
+    useEffect(() => {
+      const sub = () => force((v) => v + 1);
+      mockSubs.add(sub);
+      return () => {
+        mockSubs.delete(sub);
+      };
+    }, []);
+    return mockState;
+  },
 }));
 
 // The screen calls markAllRead on open — spy on it. The rest of the module
@@ -135,6 +152,30 @@ describe('NotificationsScreen', () => {
     };
     renderWithRouter(<NotificationsScreen />, '/notifications');
     // The on-open effect marks all read.
+    await vi.waitFor(() => expect(markAllReadMock).toHaveBeenCalled());
+  });
+
+  it('re-marks read when the seed lands after the screen opened (the race)', async () => {
+    // The screen opens while the seed (initNotifications → seed) is still in
+    // flight — no notifications yet. The new code must NOT call markAllRead on
+    // an empty store (the old one-shot code called it unconditionally on mount,
+    // where it no-opped and never advanced the cursor).
+    mockState = { unread: 0, items: [] };
+    renderWithRouter(<NotificationsScreen />, '/notifications');
+    expect(markAllReadMock).not.toHaveBeenCalled();
+    // The seed lands: two unread notifications. The reactive effect must
+    // re-run markAllRead so the badge clears (the operator's "viewed but still
+    // says new" bug).
+    mockState = {
+      unread: 2,
+      items: [
+        { id: 'n1', type: 'dm', from: 'bob', read: false, created_at: new Date().toISOString() },
+        { id: 'n2', type: 'reaction', from: 'carol', read: false, created_at: new Date().toISOString() },
+      ],
+    };
+    await act(async () => {
+      emitMockState();
+    });
     await vi.waitFor(() => expect(markAllReadMock).toHaveBeenCalled());
   });
 
