@@ -146,7 +146,7 @@ function defaultKnobState(): KnobState {
 
 // ── Presets ─────────────────────────────────────────────────────────────────
 
-type PresetId = 'newest' | 'most-loved' | 'balanced';
+type PresetId = 'most-recent' | 'most-liked' | 'most-commented' | 'balanced';
 
 interface Preset {
   id: PresetId;
@@ -156,14 +156,19 @@ interface Preset {
 
 const PRESETS: Preset[] = [
   {
-    id: 'newest',
-    label: 'Newest',
+    id: 'most-recent',
+    label: 'Most recent',
     state: { recency: 5, likes: 0, comments: 0, halfLife: 0, character: 0 },
   },
   {
-    id: 'most-loved',
-    label: 'Most loved · all time',
+    id: 'most-liked',
+    label: 'Most liked',
     state: { recency: 0, likes: 5, comments: 0, halfLife: 5, character: 0 },
+  },
+  {
+    id: 'most-commented',
+    label: 'Most commented',
+    state: { recency: 0, likes: 0, comments: 5, halfLife: 5, character: 0 },
   },
   {
     id: 'balanced',

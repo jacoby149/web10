@@ -124,8 +124,8 @@ describe('DiscoverScreen', () => {
 
     expect(screen.getByRole('heading', { name: 'Discover' })).toBeInTheDocument();
     // KnobRack preset chips (testids: preset-{id})
-    expect(screen.getByTestId('preset-newest')).toBeInTheDocument();
-    expect(screen.getByTestId('preset-most-loved')).toBeInTheDocument();
+    expect(screen.getByTestId('preset-most-recent')).toBeInTheDocument();
+    expect(screen.getByTestId('preset-most-liked')).toBeInTheDocument();
     expect(screen.getByTestId('preset-balanced')).toBeInTheDocument();
   });
 
@@ -322,7 +322,7 @@ describe('DiscoverScreen', () => {
     expect(screen.getAllByTestId('icon-repeat2').length).toBeGreaterThanOrEqual(1);
   });
 
-  it('switches preset between newest, most-loved, and balanced (server-side re-read)', async () => {
+  it('switches preset between most-recent, most-liked, and balanced (server-side re-read)', async () => {
     // The node ranks the board server-side — the mock simulates it: it records
     // the sort config each re-read carries.
     (data.readDiscoverFeed as ReturnType<typeof vi.fn>).mockImplementation(async () => [
@@ -372,15 +372,15 @@ describe('DiscoverScreen', () => {
     vi.useFakeTimers();
     try {
       // Click "Newest" — a chronological re-read (no sort param).
-      fireEvent.click(screen.getByTestId('preset-newest'));
+      fireEvent.click(screen.getByTestId('preset-most-recent'));
       await vi.advanceTimersByTimeAsync(450);
-      expect(screen.getByTestId('preset-newest').classList).toContain('border-brand');
+      expect(screen.getByTestId('preset-most-recent').classList).toContain('border-brand');
       expect(lastDiscoverSort()).toBeNull();
 
-      // Click "Most loved" — a likes-weighted re-read.
-      fireEvent.click(screen.getByTestId('preset-most-loved'));
+      // Click "Most liked" — a likes-weighted re-read.
+      fireEvent.click(screen.getByTestId('preset-most-liked'));
       await vi.advanceTimersByTimeAsync(450);
-      expect(screen.getByTestId('preset-most-loved').classList).toContain('border-brand');
+      expect(screen.getByTestId('preset-most-liked').classList).toContain('border-brand');
       expect(lastDiscoverSort()).toMatchObject({ likes: 1, recency: 0 });
     } finally {
       vi.useRealTimers();

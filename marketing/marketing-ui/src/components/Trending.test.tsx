@@ -384,8 +384,9 @@ describe('Knob rack renders', () => {
     // The Time knob (the recency half-life) is gone too — the half-life is
     // fixed at the middle (1 day).
     expect(screen.queryByTestId('knob-time')).not.toBeInTheDocument();
-    expect(screen.getByTestId('preset-newest')).toBeInTheDocument();
-    expect(screen.getByTestId('preset-most-loved')).toBeInTheDocument();
+    expect(screen.getByTestId('preset-most-recent')).toBeInTheDocument();
+    expect(screen.getByTestId('preset-most-liked')).toBeInTheDocument();
+    expect(screen.getByTestId('preset-most-commented')).toBeInTheDocument();
     expect(screen.getByTestId('preset-balanced')).toBeInTheDocument();
   });
 });
@@ -419,7 +420,7 @@ describe('Knob re-ranking', () => {
       c => String(c[0]).includes('/v3/read'),
     ).length;
     // Click the "Newest" preset — should reorder to put the newer post first
-    fireEvent.click(screen.getByTestId('preset-newest'));
+    fireEvent.click(screen.getByTestId('preset-most-recent'));
     await waitFor(() => {
       const newCards = screen.getAllByTestId('trending-card');
       const newOrder = newCards.map(c => c.id);
@@ -440,7 +441,7 @@ describe('Preset behavior', () => {
     Element.prototype.scrollIntoView = vi.fn();
   });
 
-  it('Newest preset sorts newest first regardless of engagement', async () => {
+  it('Most recent preset sorts newest first regardless of engagement', async () => {
     const posts = [
       v3Post(0, { doc_id: 'old-post', author_key: 'old', body: { text: 'old post' }, tags: ['test'], created_at: '2020-01-01T00:00:00Z' }),
       v3Post(1, { doc_id: 'new-post', author_key: 'new', body: { text: 'new post' }, tags: ['test'], created_at: new Date().toISOString() }),
@@ -451,14 +452,14 @@ describe('Preset behavior', () => {
     const { default: Trending } = await import('@/pages/Trending');
     render(<Trending />);
     await waitFor(() => expect(screen.getByTestId('trending-grid')).toBeInTheDocument());
-    fireEvent.click(screen.getByTestId('preset-newest'));
+    fireEvent.click(screen.getByTestId('preset-most-recent'));
     await waitFor(() => {
       const cards = screen.getAllByTestId('trending-card');
       expect(cards[0]).toHaveAttribute('id', 'trending-card-new-post');
     });
   });
 
-  it('Most loved preset ignores age', async () => {
+  it('Most liked preset ignores age', async () => {
     const posts = [
       v3Post(0, { doc_id: 'new-post', author_key: 'new', body: { text: 'new post' }, tags: ['test'], created_at: new Date().toISOString() }),
       v3Post(1, { doc_id: 'old-post', author_key: 'old', body: { text: 'old post' }, tags: ['test'], created_at: '2020-01-01T00:00:00Z' }),
@@ -469,7 +470,7 @@ describe('Preset behavior', () => {
     const { default: Trending } = await import('@/pages/Trending');
     render(<Trending />);
     await waitFor(() => expect(screen.getByTestId('trending-grid')).toBeInTheDocument());
-    fireEvent.click(screen.getByTestId('preset-most-loved'));
+    fireEvent.click(screen.getByTestId('preset-most-liked'));
     await waitFor(() => {
       const cards = screen.getAllByTestId('trending-card');
       expect(cards[0]).toHaveAttribute('id', 'trending-card-old-post');
@@ -494,15 +495,15 @@ describe('Preset behavior', () => {
     expect(screen.getByTestId('preset-balanced').classList).toContain('border-brand');
 
     // SINGLE click on "Newest".
-    fireEvent.click(screen.getByTestId('preset-newest'));
+    fireEvent.click(screen.getByTestId('preset-most-recent'));
     // Wait for the chip to light, then let the async hashchange round-trip
     // settle and assert the highlight PERSISTS (this is the part that used
     // to be clobbered — the chip went dark ~100ms after the click).
-    await waitFor(() => expect(screen.getByTestId('preset-newest').classList).toContain('border-brand'));
+    await waitFor(() => expect(screen.getByTestId('preset-most-recent').classList).toContain('border-brand'));
     await waitFor(() => expect(screen.getByTestId('preset-balanced').classList).not.toContain('border-brand'));
     // Give the hashchange event time to fire and (pre-fix) clobber the state.
     await new Promise((r) => setTimeout(r, 150));
-    await waitFor(() => expect(screen.getByTestId('preset-newest').classList).toContain('border-brand'));
+    await waitFor(() => expect(screen.getByTestId('preset-most-recent').classList).toContain('border-brand'));
     expect(screen.getByTestId('preset-balanced').classList).not.toContain('border-brand');
   });
 });
