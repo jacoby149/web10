@@ -85,6 +85,15 @@ class ReadDocuments(BaseModel):
     # server-side engagement-count shape (GROUP BY ref_value through the
     # engine). Exact for the caller's readable groups, no cap.
     count: bool = False
+    # Cursor paging for the ref read (the comment thread, comments.md): a
+    # keyset cursor — the `created_at`/`doc_id` of the last row of the
+    # previous page, encoded by the caller. The server orders by
+    # `created_at` (tie-broken by `doc_id`) and returns the next page after
+    # the cursor. Absent = the first page.
+    cursor: str | None = None
+    # Page order for the ref read: "asc" (oldest first — the thread's
+    # "most recent" reading order) or "desc" (newest first). Default "asc".
+    order: str = "asc"
 
 
 class UpdateDocument(BaseModel):

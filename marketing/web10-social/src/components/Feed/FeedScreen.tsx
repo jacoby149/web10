@@ -74,9 +74,9 @@ function presetIdForState(state: KnobState): PresetId | null {
   return match ? match.id : null;
 }
 
-// The feed's default tuning: Newest (pure chronological — "no algorithm" is
-// the delivery pitch; the knobs are opt-in).
-const FEED_DEFAULT_STATE = () => getPreset('newest')!.state;
+// The feed's default tuning: Most recent (pure chronological — "no algorithm"
+// is the delivery pitch; the knobs are opt-in).
+const FEED_DEFAULT_STATE = () => getPreset('most-recent')!.state;
 const FEED_DEFAULT_ENCODING = encodeKnobState(FEED_DEFAULT_STATE());
 
 function formatTimeAgo(dateStr: string): string {
@@ -624,14 +624,15 @@ export default function FeedScreen({ onAuthorClick }: { onAuthorClick?: (usernam
     const presetDef = getPreset(id);
     if (presetDef) {
       // An explicit preset click always wins. When the clicked preset IS the
-      // feed default (Newest), setKnobUrl omits the ?knobs= param (to keep the
-      // default URL clean) — so knobState would fall back to the saved tuning
-      // and the Newest chip would never light up. Clear the saved tuning so the
-      // click takes effect (the feed is chronological until the user re-tunes).
+      // feed default (Most recent), setKnobUrl omits the ?knobs= param (to keep
+      // the default URL clean) — so knobState would fall back to the saved
+      // tuning and the Most recent chip would never light up. Clear the saved
+      // tuning so the click takes effect (the feed is chronological until the
+      // user re-tunes).
       if (encodeKnobState(presetDef.state) === FEED_DEFAULT_ENCODING && savedKnobsRef.current) {
         savedKnobsRef.current = null;
         setSavedKnobs(null);
-        LOG('preset — Newest clicked, cleared saved tuning so the default wins');
+        LOG('preset — Most recent clicked, cleared saved tuning so the default wins');
       }
       setKnobUrl(presetDef.state);
       persistKnobs(presetDef.state);
