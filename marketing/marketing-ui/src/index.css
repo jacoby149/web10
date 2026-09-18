@@ -1,5 +1,13 @@
 @import "tailwindcss";
 
+/* D74: the shared @web10/discover package (the discover card + video player)
+   lives OUTSIDE this app's directory, so Tailwind v4's automatic content
+   detection never scans it — any class that appears ONLY in the package (the
+   player's control rack: inset-x-0 / bottom-0 / the gradient scrim / the
+   RackMenu popover / the volume slider) is missing from this build and the
+   rack renders unpositioned + unstyled. Scan it explicitly. */
+@source "../../shared/discover/src";
+
 /* self-hosted type — never a font CDN (design.md §5) */
 @import "@fontsource-variable/inter";
 @import "@fontsource-variable/space-grotesk";

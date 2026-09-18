@@ -201,7 +201,7 @@ describe('ShortsScreen — the vertical short-form feed (shorts.md)', () => {
     expect(video.className).toMatch(/object-cover/);
   });
 
-  it('the active slide autoplays muted; the off-screen slide does not (the ambient loop)', async () => {
+  it('the active slide autoplays muted by default; the off-screen slide does not (the ambient loop)', async () => {
     (data.readShortsFeed as ReturnType<typeof vi.fn>).mockResolvedValue([
       shortPost({ id: 's1', author: 'luna' }),
       shortPost({ id: 's2', author: 'kai' }),
@@ -213,11 +213,51 @@ describe('ShortsScreen — the vertical short-form feed (shorts.md)', () => {
     });
 
     // The first slide is the active one (activeIndex starts at 0) → its video
-    // plays (unmuted intent); the second slide's video is paused (muted).
+    // plays; Shorts autoplays MUTED (the browser's autoplay policy — the
+    // speaker icon is the escape hatch, the next test). The second slide's
+    // video is paused (off-screen).
     const v0 = screen.getByTestId('short-video-0').querySelector('video')!;
     const v1 = screen.getByTestId('short-video-1').querySelector('video')!;
-    expect(v0.muted).toBe(false);
+    expect(v0.muted).toBe(true);
     expect(v1.muted).toBe(true);
+  });
+
+  it('the speaker icon un-mutes the lens (the TikTok escape hatch) and re-mutes', async () => {
+    (data.readShortsFeed as ReturnType<typeof vi.fn>).mockResolvedValue([
+      shortPost({ id: 's1', author: 'luna' }),
+      shortPost({ id: 's2', author: 'kai' }),
+    ]);
+    await renderShorts();
+
+    await waitFor(() => {
+      expect(screen.getByTestId('short-mute-0')).toBeInTheDocument();
+    });
+
+    const v0 = screen.getByTestId('short-video-0').querySelector('video')!;
+    const v1 = screen.getByTestId('short-video-1').querySelector('video')!;
+    // Muted by default (autoplay policy)…
+    expect(v0.muted).toBe(true);
+    const muteBtn = screen.getByTestId('short-mute-0');
+    expect(muteBtn).toHaveAttribute('aria-label', 'Unmute');
+    expect(muteBtn.querySelector('[data-testid="icon-volumex"]')).not.toBeNull();
+
+    // …the speaker icon un-mutes the WHOLE lens (screen-level state, the
+    // TikTok model): the active slide plays with sound, and the choice
+    // carries to the next slide (its element is already at the right volume).
+    fireEvent.click(muteBtn);
+    await waitFor(() => {
+      expect(v0.muted).toBe(false);
+    });
+    expect(v1.muted).toBe(false);
+    expect(screen.getByTestId('short-mute-0')).toHaveAttribute('aria-label', 'Mute');
+    expect(screen.getByTestId('short-mute-0').querySelector('[data-testid="icon-volume2"]')).not.toBeNull();
+
+    // Tapping again re-mutes (the icon flips back).
+    fireEvent.click(screen.getByTestId('short-mute-0'));
+    await waitFor(() => {
+      expect(v0.muted).toBe(true);
+    });
+    expect(screen.getByTestId('short-mute-0')).toHaveAttribute('aria-label', 'Unmute');
   });
 
   it('swiping to the next slide (the IntersectionObserver fires) hands autoplay over', async () => {
@@ -233,8 +273,15 @@ describe('ShortsScreen — the vertical short-form feed (shorts.md)', () => {
 
     const v0 = screen.getByTestId('short-video-0').querySelector('video')!;
     const v1 = screen.getByTestId('short-video-1').querySelector('video')!;
-    expect(v0.muted).toBe(false); // slide 0 active
-    expect(v1.muted).toBe(true); // slide 1 off-screen
+    // Both start muted (the autoplay policy — the speaker icon is the
+    // escape hatch); the ambient loop's play/pause handover is observed via
+    // the elements' play/pause calls, not the mute flag.
+    expect(v0.muted).toBe(true);
+    expect(v1.muted).toBe(true);
+
+    const play0 = vi.spyOn(v0, 'play').mockResolvedValue(undefined);
+    const pause0 = vi.spyOn(v0, 'pause').mockImplementation(() => {});
+    const play1 = vi.spyOn(v1, 'play').mockResolvedValue(undefined);
 
     // The user swipes: slide 1 becomes the ≥60%-visible slide. The
     // screen's IntersectionObserver callback fires with slide 1 intersecting
@@ -248,9 +295,13 @@ describe('ShortsScreen — the vertical short-form feed (shorts.md)', () => {
     const slide1 = screen.getByTestId('short-slide-1');
     slideObserver.callback([{ isIntersecting: true, target: slide1 } as unknown as IntersectionObserverEntry], slideObserver);
 
+    // Autoplay hands over: the new active slide plays…
     await waitFor(() => {
-      expect(v1.muted).toBe(false); // slide 1 now active → playing
-      expect(v0.muted).toBe(true); // slide 0 off-screen → paused
+      expect(play1).toHaveBeenCalled();
+    });
+    // …and the off-screen slide pauses.
+    await waitFor(() => {
+      expect(pause0).toHaveBeenCalled();
     });
   });
 
