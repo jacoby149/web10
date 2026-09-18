@@ -380,6 +380,11 @@ export interface CommentRecord {
   author_provider?: string;
   origin?: Origin;
   origin_id?: string;
+  /** The comment's photos (comments.md "Photos in comments") — media doc_ids
+   *  on the write path, resolved `{read_url, …}` objects on the read path (the
+   *  node's `resolve_media_urls_in_docs` rewrites them, the post's own
+   *  convention). */
+  media_refs?: (string | ResolvedMediaRef)[];
 }
 
 export function fromV3DocToComment(doc: V3Document): CommentRecord {
@@ -395,6 +400,7 @@ export function fromV3DocToComment(doc: V3Document): CommentRecord {
     author_provider: extractProvider(doc.author_key),
     origin: (body.origin as Origin) || undefined,
     origin_id: (body.origin_id as string) || undefined,
+    media_refs: (body.media_refs as (string | ResolvedMediaRef)[]) || undefined,
   };
 }
 

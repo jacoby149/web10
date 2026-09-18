@@ -1,8 +1,9 @@
 import { getV3Client } from './v3';
 import { getDiscoverGroupId } from './groups';
-import { fromV3DocToComment, extractUsername, extractProvider, type CommentRecord } from './types';
+import { fromV3DocToComment, fromResolvedMediaRef, extractUsername, extractProvider, type CommentRecord, type MediaRecord, type ResolvedMediaRef } from './types';
 import { sendNotification } from './notifications';
-import { readPostById } from './posts';
+import { readPostById, uploadMedia } from './posts';
+import { processImage, generateThumbnail, validateMedia } from '@/lib/mediaProcessing';
 
 // ── Comments data layer (v3) ─────────────────────────────────────────────────
 // The threading model (comments.md) — the Facebook/Instagram shape:
@@ -141,6 +142,9 @@ export async function createComment(
     author_provider: token.provider,
     origin: comment.origin,
     origin_id: comment.origin_id,
+    // The comment's photos (comments.md): media doc_ids, the post's own
+    // convention. The node's read path resolves them to presigned URLs.
+    media_refs: comment.media_refs?.length ? comment.media_refs : undefined,
   };
 
   const targetGroups = groups || [getDiscoverGroupId()];
@@ -239,6 +243,23 @@ export async function deleteComment(
 export interface ThreadComment extends CommentRecord {
   likeCount?: number;
   likedByMe?: boolean;
+  /** The comment's photos, resolved to displayable media for the shared thread
+   *  (the node's read path resolves `media_refs`; we map them to `MediaRecord`,
+   *  which is structurally the shared package's `MediaItem`). */
+  media?: MediaRecord[];
+}
+
+/** Map a comment's resolved `media_refs` to displayable media for the shared
+ *  thread. The node's read path rewrites `media_refs` to resolved objects
+ *  (with a fresh presigned `read_url`); bare doc_ids (a write-path read) are
+ *  dropped — they have no URL to render. */
+function commentMedia(comment: CommentRecord): MediaRecord[] | undefined {
+  const refs = comment.media_refs;
+  if (!refs?.length) return undefined;
+  const items = refs
+    .filter((r): r is ResolvedMediaRef => typeof r !== 'string' && !!r.read_url)
+    .map((r) => fromResolvedMediaRef(r));
+  return items.length ? items : undefined;
 }
 
 /** Enrich a page of comments with likeCount + likedByMe (degrading reads). */
@@ -317,7 +338,9 @@ export async function readThreadComments(
       return {} as Record<string, number>;
     }),
   ]);
-  return { comments, nextCursor: page.nextCursor, replyCounts };
+  // Attach each comment's resolved photos for the shared thread to render.
+  const withMedia = comments.map((c) => ({ ...c, media: commentMedia(c) }));
+  return { comments: withMedia, nextCursor: page.nextCursor, replyCounts };
 }
 
 /**
@@ -332,13 +355,15 @@ export async function readThreadReplies(
   const targetGroups = groups || [getDiscoverGroupId()];
   const page = await readReplies(commentId, targetGroups, opts);
   const comments = await enrichLikes(page.comments, targetGroups);
-  return { comments, nextCursor: page.nextCursor };
+  const withMedia = comments.map((c) => ({ ...c, media: commentMedia(c) }));
+  return { comments: withMedia, nextCursor: page.nextCursor };
 }
 
 /**
  * Create a comment (top-level) or a reply (`parentId` set) — the shared
  * thread's write seam. A reply refs its parent (comments.md); a top-level
- * comment refs the post.
+ * comment refs the post. `mediaRefs` = the doc_ids of photos the thread
+ * already uploaded (the app's `uploadMedia` seam).
  */
 export async function createThreadComment(args: {
   postId: string;
@@ -347,15 +372,66 @@ export async function createThreadComment(args: {
   groups?: string[];
   postAuthor?: string;
   postService?: string;
+  mediaRefs?: string[];
 }): Promise<ThreadComment> {
   return createComment(
     {
       post_id: args.postId,
       text: args.text,
       parent_id: args.parentId,
+      media_refs: args.mediaRefs,
       created_at: new Date().toISOString(),
     },
     args.groups ?? args.postAuthor,
     args.postService,
   );
+}
+
+// ── Comment photo upload (comments.md "Photos in comments") ──────────────────
+
+/**
+ * Upload one comment photo through the standard media pipeline and return its
+ * doc_id + a displayable preview (the shared thread's `uploadMedia` seam).
+ *
+ * Images only (video in a comment is a separate build). The photo is downscaled
+ * + recompressed client-side (`processImage`, the composer idiom), a thumbnail
+ * is generated, and it uploads to `public_media` (the public-post convention —
+ * the node resolves it cross-user by the comment's author, so the collection
+ * is just metadata). Returns the doc_id the comment body references.
+ */
+export async function uploadCommentPhoto(file: File): Promise<{
+  docId: string;
+  url: string;
+  thumbUrl?: string;
+  width?: number;
+  height?: number;
+  mimeType?: string;
+}> {
+  if (!file.type.startsWith('image/')) {
+    throw new Error('Only photos are supported in comments.');
+  }
+  const validation = validateMedia(file);
+  if (validation) throw new Error(validation.message);
+
+  const processed = await processImage(file);
+  const processedFile = new File([processed.blob], file.name, { type: processed.mimeType });
+  const thumb = await generateThumbnail(processedFile);
+  const thumbFile = new File([thumb.blob], `thumb-${Date.now()}.webp`, { type: thumb.mimeType });
+
+  const record = await uploadMedia({
+    file: processedFile,
+    thumbnailFile: thumbFile,
+    width: processed.width,
+    height: processed.height,
+    service: 'public_media',
+  });
+  if (!record._id) throw new Error('Photo upload failed: no document id');
+  return {
+    docId: record._id,
+    url: record.url,
+    thumbUrl: record.thumbnail_url,
+    width: record.width,
+    height: record.height,
+    mimeType: record.mime_type,
+  };
 }

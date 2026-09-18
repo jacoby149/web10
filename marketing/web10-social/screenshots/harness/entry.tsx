@@ -27,6 +27,36 @@ import PostComposer from '@/components/Feed/PostComposer';
 import MonetizationScreen from '@/components/Monetization/MonetizationScreen';
 import { InstallPrompt } from '@/components/shared/InstallPrompt';
 
+// Fake hls.js — the harness has no backend, so the seeded manifest sigs are
+// not valid against the production API (a real hls.js would 403 → the
+// player's error state). Stub window.Hls with the same surface the player
+// uses (isSupported / loadSource / attachMedia / on / destroy) and fire
+// MANIFEST_PARSED with fake levels, so the hls path renders its real frame
+// (poster + control rack) deterministically, offline. The vendored
+// /hls.min.js script tag is left in place for the native-HLS fallback path;
+// this assignment wins (the entry module runs after the classic script).
+class HarnessHls {
+  static Events = { MANIFEST_PARSED: 'manifestParsed', LEVEL_SWITCHED: 'levelSwitched', ERROR: 'error' };
+  static isSupported = () => true;
+  levels: { height: number }[] = [{ height: 360 }, { height: 720 }];
+  currentLevel = -1;
+  private listeners: Record<string, ((e: unknown, d: unknown) => void)[]> = {};
+  loadSource = (_url: string) => {
+    // The manifest "parses" — the quality menu fills (Auto + 360p + 720p).
+    queueMicrotask(() => this.emit(HarnessHls.Events.MANIFEST_PARSED, { levels: this.levels }));
+  };
+  attachMedia = (_el: HTMLVideoElement) => {};
+  destroy = () => {};
+  on = (event: string, cb: (e: unknown, d: unknown) => void) => {
+    (this.listeners[event] ||= []).push(cb);
+  };
+  off = () => {};
+  private emit(event: string, data: unknown) {
+    for (const cb of this.listeners[event] || []) cb(event, data);
+  }
+}
+(window as unknown as { Hls: unknown }).Hls = HarnessHls;
+
 const params = new URLSearchParams(window.location.search);
 const screen = params.get('screen');
 // The install-prompt capture: render over Shorts and force the surface open

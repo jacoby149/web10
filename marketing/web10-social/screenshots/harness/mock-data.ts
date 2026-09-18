@@ -428,17 +428,34 @@ export async function readGroupDetail(groupId: string): Promise<unknown> {
   };
 }
 export async function joinGroup(): Promise<unknown> { return { status: 'joined' }; }
-export async function readGroupIdentity(): Promise<unknown> {
-  // A face so the group-detail hero (banner + avatar + about + tags) renders
-  // in the capture — the face-present variant of the re-cut detail screen.
-  return {
-    name: 'Synthwave Sessions',
-    description: 'A shared space on your node — content you co-create with the people you choose.',
-    banner_ref: 'banner-1',
-    avatar_ref: 'avatar-1',
-    website: 'https://synthwave.example.com',
-    tags: ['music', 'synthwave'],
+export async function readGroupIdentity(groupId: string): Promise<unknown> {
+  // Per-group faces so the My Groups list capture shows a mix of face states:
+  // nova → banner + avatar, luna → banner only, kai → no face (gradient fallback).
+  const faces: Record<string, unknown> = {
+    'web10/groups/users/nova/synthwave-sessions': {
+      name: 'Synthwave Sessions',
+      description: 'A shared space on your node — content you co-create with the people you choose.',
+      banner_ref: 'grp-banner-nova',
+      avatar_ref: 'grp-avatar-nova',
+      website: 'https://synthwave.example.com',
+      tags: ['music', 'synthwave'],
+    },
+    'web10/groups/users/luna/creator-backstage': {
+      name: 'Creator Backstage',
+      description: 'Behind the scenes with the creators.',
+      banner_ref: 'grp-banner-luna',
+      avatar_ref: '',
+      tags: ['creators', 'behind-the-scenes'],
+    },
+    'web10/groups/users/kai/lofi-study-room': {
+      name: 'Lo-fi Study Room',
+      description: 'Lo-fi beats for studying.',
+      banner_ref: '',
+      avatar_ref: '',
+      tags: ['music', 'study'],
+    },
   };
+  return faces[groupId] ?? {};
 }
 export async function getGroupsManages(): Promise<unknown[]> {
   // The harness user manages the synthwave-sessions group → the detail screen
@@ -460,6 +477,31 @@ export async function getGroupMembers(): Promise<unknown[]> {
     { member_key: 'web10/users/kai', role: 'member' },
     { member_key: 'anyone', role: 'reader' },
   ];
+}
+// ── Group chat (group-chat.md, D77) ──────────────────────────────────────────
+// A seeded group chat so the Messages list + thread render with content. The
+// harness user is 'nova' (the mock-wapi token).
+const GROUP_CHAT_ID = 'web10/groups/users/nova/chat-the-crew';
+export async function getMyGroupChats(): Promise<unknown[]> {
+  return [{ groupId: GROUP_CHAT_ID, name: 'The Crew', avatarRef: undefined }];
+}
+export async function readGroupChatFace(): Promise<unknown> {
+  return { name: 'The Crew', avatarRef: undefined };
+}
+export async function readGroupChatMessages(): Promise<unknown[]> {
+  return [
+    { _id: 'gc-1', message: 'crew — the new drop is almost ready', sent_at: minsAgo(90), sender_username: 'kai', sender_provider: 'web10', recipient_username: '', recipient_provider: '' },
+    { _id: 'gc-2', message: 'sending you the rate card now', sent_at: minsAgo(42), sender_username: 'nova', sender_provider: 'web10', recipient_username: '', recipient_provider: '' },
+    { _id: 'gc-3', message: 'the reach on that reel was unreal 🔥', sent_at: minsAgo(6), sender_username: 'luna', sender_provider: 'web10', recipient_username: '', recipient_provider: '' },
+  ];
+}
+export async function sendGroupChatMessage(): Promise<unknown> {
+  return { _id: 'gc-new', message: '', sent_at: new Date().toISOString(), sender_username: 'nova', sender_provider: 'web10', recipient_username: '', recipient_provider: '' };
+}
+export async function createGroupChat(): Promise<string> { return GROUP_CHAT_ID; }
+export function groupChatRouteKey(groupId: string): string { return `group/${groupId}`; }
+export function groupIdFromRouteKey(key: string): string | null {
+  return key.startsWith('group/') ? key.slice('group/'.length) : null;
 }
 export async function getJoinRequests(): Promise<unknown[]> { return []; }
 export async function approveJoinRequest(): Promise<unknown> { return { status: 'approved' }; }
@@ -497,6 +539,9 @@ interface SeedFeedPost {
   // Carried ads (D55 + D57) — the screenshot seed shows the new ad block.
   ad?: unknown;
   node_ad?: unknown;
+  // Media refs (doc_ids resolved against DISCOVER_MEDIA) — the feed's video
+  // layout (the 9:16 cap) is exercised by fp-vid's portrait clip.
+  media_refs?: string[];
 }
 
 // A self-contained SVG creative (renders offline, no network) — a gradient
@@ -525,6 +570,22 @@ function adCreative(label: string, from: string, to: string): unknown {
 }
 
 const FEED_POSTS: SeedFeedPost[] = [
+  {
+    // A PORTRAIT (9:16) video post — the transcoded (hls) path, the case that
+    // used to render a full-width 9:16 box in the feed (~1.78× the card tall).
+    // The feed caps it to ≤60vh + centers it in a black letterbox (the PR shot
+    // verifies the cap).
+    _id: 'fp-vid',
+    author_username: 'luna',
+    author_provider: 'web10',
+    text: 'Studio b-roll — the way it actually looks between takes.',
+    created_at: minsAgo(2),
+    tags: ['video'],
+    likes: 156,
+    comments: 19,
+    reposts: 4,
+    media_refs: ['dm-portrait2'],
+  },
   {
     // A REPOST (reposts.md): the signed-in user ('me') amplifying luna's post
     // with a comment. Renders the "reposted" badge + the quote + the embedded
@@ -635,9 +696,38 @@ const FEED_POSTS: SeedFeedPost[] = [
 
 export async function readFeed(): Promise<unknown[]> { return FEED_POSTS; }
 // The cursor-paginated feed read (3.72.0) — FeedScreen's data source. Returns
-// the seeded posts as a single page (no more).
+// the seeded posts as a single page (no more). The real read serves
+// media_refs PRE-RESOLVED (objects with read_url + dims + transcoding_settings
+// — the feed filters out bare string refs), so the harness resolves string
+// refs against DISCOVER_MEDIA here, the same way the node's read does.
 export async function readFeedPage(): Promise<unknown> {
-  return { posts: FEED_POSTS, has_more: false, next_cursor: null };
+  const posts = FEED_POSTS.map((p) => {
+    if (!p.media_refs?.length) return p;
+    // The real read serves media_refs as ResolvedMediaRef objects (doc_id +
+    // read_url + dims + transcoding_settings) — the feed's
+    // fromResolvedMediaRef expects that shape, so map the media records
+    // (which key on _id/url) onto it.
+    const resolved = p.media_refs
+      .map((id) => {
+        const m = DISCOVER_MEDIA[id];
+        if (!m) return null;
+        return {
+          doc_id: m._id,
+          object_key: m.object_key ?? null,
+          mime_type: m.mime_type,
+          size_bytes: m.size_bytes ?? null,
+          read_url: m.url,
+          width: m.width ?? null,
+          height: m.height ?? null,
+          duration_seconds: m.duration_seconds ?? null,
+          thumbnail_url: m.thumbnail_url ?? null,
+          transcoding_settings: m.transcoding_settings ?? null,
+        };
+      })
+      .filter(Boolean);
+    return { ...p, media_refs: resolved };
+  });
+  return { posts, has_more: false, next_cursor: null };
 }
 export async function getFeedGroups(): Promise<string[]> {
   return FEED_POSTS.map((p) => `web10/groups/users/${p.author_username}/followers`);
@@ -740,6 +830,12 @@ const FACE_MEDIA: Record<string, Record<string, unknown>> = {
   'face-post-1': { ...creative('DROP', 1280, 720, '#a78bfa', '#1e1b4b', 'image/png'), _id: 'face-post-1' },
   'face-post-2': { ...creative('STUDIO', 720, 1280, '#8b5cf6', '#3b0764', 'image/png'), _id: 'face-post-2' },
   'face-post-3': { ...creative('SET', 1600, 900, '#c4b5fd', '#312e81', 'image/png'), _id: 'face-post-3' },
+  // Group faces (D60) for the My Groups list capture — a mix of face states so
+  // the shot shows real cover+avatar, banner-only, and the gradient fallback.
+  'grp-banner-nova': { ...creative('SYNTHWAVE', 1600, 400, '#7c3aed', '#1e1b4b', 'image/png'), _id: 'grp-banner-nova' },
+  'grp-avatar-nova': { ...creative('SYNTH', 640, 640, '#8b5cf6', '#2e1065', 'image/png'), _id: 'grp-avatar-nova' },
+  'grp-banner-luna': { ...creative('CREATOR', 1600, 400, '#f59e0b', '#78350f', 'image/png'), _id: 'grp-banner-luna' },
+  'grp-banner-kai': { ...creative('LO-FI', 1600, 400, '#0ea5e9', '#0c4a6e', 'image/png'), _id: 'grp-banner-kai' },
 };
 
 const DISCOVER_POSTS: SeedDiscoverPost[] = [
@@ -857,6 +953,20 @@ export async function resolveMediaRefs<T>(refs: T[]): Promise<T[]> {
 }
 export async function readUserProfile(): Promise<unknown> {
   return { display_name: 'Nova', username: 'nova', provider: 'web10', avatar_ref: '', bio: 'Synthwave producer' };
+}
+export async function lookupUserProfile(username?: string): Promise<unknown> {
+  // Return a face for the seeded peers so the DM compose preview renders.
+  const peer = PEERS.find((p) => p.username === username);
+  if (peer) {
+    return {
+      username: peer.username,
+      provider: peer.provider,
+      display_name: peer.display_name,
+      bio: 'Creator on web10',
+      avatar_url: creative(peer.display_name.split(' ')[0].toUpperCase(), 400, 400, '#8b5cf6', '#2e1065', 'image/png').url,
+    };
+  }
+  return null;
 }
 // A repost's embed (reposts.md) reads the original by doc_id. The harness
 // returns the seeded feed post that the repost references (fp-2 = luna's post),

@@ -1,12 +1,12 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { useSearchParams, Link, useParams, useNavigate } from 'react-router-dom';
-import { Avatar, AvatarFallback } from '@/components/ui/avatar';
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Skeleton } from '@/components/ui/skeleton';
 import { getWapi } from '@/data/wapi';
-import { listConversations, readDms, sendDm, getLastDm, readContacts, startConversation, conversationKey as deriveConversationKey, readFollows, addContact, deleteDm, updateDm, deleteConversation } from '@/data';
+import { listConversations, readDms, sendDm, getLastDm, readContacts, startConversation, conversationKey as deriveConversationKey, readFollows, addContact, deleteDm, updateDm, deleteConversation, lookupUserProfile, type UserFace, getMyGroupChats, readGroupChatFace, readGroupChatMessages, sendGroupChatMessage, createGroupChat, groupChatRouteKey, groupIdFromRouteKey, getGroupMembers, type GroupChatSummary } from '@/data';
 import { sendP2P, onP2PInbound, isP2PReady, getOnlinePeers, peerIdFor, onPresenceChange, probePresence } from '@/data/p2p';
 import type { DmRecord, ContactRecord, FollowRecord } from '@/data/types';
 import { Send, ChevronLeft, Plus, X, Search, MessageSquare, Mail, Users, MoreVertical, Edit3, Trash2, Check, Loader2 } from 'lucide-react';
@@ -52,6 +52,100 @@ interface PickerPerson {
   source: 'contact' | 'follow' | 'search';
 }
 
+// Debounced "who am I messaging?" preview — as the recipient username is typed,
+// the account's face (avatar + name + bio) is pulled up so the sender can
+// confirm it's the right, existing account before hitting send. CRUD is the
+// source of truth; a failed lookup just shows "no profile found" and never
+// blocks the send.
+function ProfilePreview({
+  username,
+  searching,
+  searched,
+  face,
+}: {
+  username: string;
+  searching: boolean;
+  searched: boolean;
+  face: UserFace | null;
+}) {
+  const q = username.trim();
+  if (!q) return null;
+  const initial = q.charAt(0).toUpperCase();
+
+  // Debounce pending — reserve the card's space so nothing shifts.
+  if (searching) {
+    return (
+      <div
+        className="flex items-center gap-3 rounded-lg border border-border bg-elevated/40 px-3 py-2.5"
+        data-testid="dm-compose-profile-preview"
+      >
+        <Skeleton className="h-11 w-11 shrink-0 rounded-full" />
+        <div className="flex-1 space-y-1.5">
+          <Skeleton className="h-3.5 w-28" />
+          <Skeleton className="h-2.5 w-20" />
+        </div>
+      </div>
+    );
+  }
+
+  // Account found — the confirmation card.
+  if (face) {
+    const name = face.display_name || face.username;
+    return (
+      <div
+        className="flex items-center gap-3 rounded-lg border border-brand/30 bg-brand-muted/30 px-3 py-2.5"
+        data-testid="dm-compose-profile-preview"
+      >
+        <Avatar className="h-11 w-11 shrink-0" data-testid="dm-compose-profile-avatar">
+          {face.avatar_url ? (
+            <AvatarImage src={face.avatar_url} alt={`${name}'s profile picture`} />
+          ) : (
+            <AvatarFallback className="bg-brand-muted text-brand-300 font-semibold">{initial}</AvatarFallback>
+          )}
+        </Avatar>
+        <div className="min-w-0 flex-1">
+          <p className="truncate text-sm font-semibold text-foreground" data-testid="dm-compose-profile-name">
+            {name}
+          </p>
+          <p className="truncate text-xs text-muted-foreground" data-testid="dm-compose-profile-handle">
+            @{face.username}
+          </p>
+          {face.bio && (
+            <p className="mt-0.5 truncate text-xs text-muted-foreground/80" data-testid="dm-compose-profile-bio">
+              {face.bio}
+            </p>
+          )}
+        </div>
+        <Check className="h-4 w-4 shrink-0 text-success" aria-hidden="true" />
+      </div>
+    );
+  }
+
+  // Searched, no profile — honest "couldn't find their profile" (still sendable).
+  if (searched) {
+    return (
+      <div
+        className="flex items-center gap-3 rounded-lg border border-border bg-elevated/40 px-3 py-2.5"
+        data-testid="dm-compose-profile-preview"
+      >
+        <Avatar className="h-11 w-11 shrink-0">
+          <AvatarFallback className="bg-elevated text-muted-foreground font-semibold">{initial}</AvatarFallback>
+        </Avatar>
+        <div className="min-w-0 flex-1">
+          <p className="truncate text-sm font-medium text-muted-foreground" data-testid="dm-compose-profile-handle">
+            @{q}
+          </p>
+          <p className="text-xs text-muted-foreground/70" data-testid="dm-compose-profile-notfound">
+            No profile found — you can still message them.
+          </p>
+        </div>
+      </div>
+    );
+  }
+
+  return null;
+}
+
 function ContactPicker({
   onClose,
   onSelect,
@@ -70,6 +164,10 @@ function ContactPicker({
   const [composeMessage, setComposeMessage] = useState('');
   const [sending, setSending] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
+  const [profileFace, setProfileFace] = useState<UserFace | null>(null);
+  const [profileSearching, setProfileSearching] = useState(false);
+  const [profileSearched, setProfileSearched] = useState(false);
+  const lookupSeq = useRef(0);
 
   useEffect(() => {
     loadPeople();
@@ -78,6 +176,38 @@ function ContactPicker({
   useEffect(() => {
     inputRef.current?.focus();
   }, []);
+
+  // Debounced "who am I messaging?" lookup: as the recipient username is typed,
+  // pull up that account's face so the sender can confirm it's the right,
+  // existing account. A failed lookup degrades to "no profile found" and never
+  // blocks the send. A sequence counter drops stale in-flight results.
+  useEffect(() => {
+    const q = composeUsername.trim().toLowerCase();
+    if (!q) {
+      setProfileFace(null);
+      setProfileSearching(false);
+      setProfileSearched(false);
+      return;
+    }
+    const seq = ++lookupSeq.current;
+    setProfileSearching(true);
+    const t = setTimeout(async () => {
+      try {
+        const face = await lookupUserProfile(q, composeProvider.trim() || undefined);
+        if (seq !== lookupSeq.current) return; // stale — a newer lookup replaced this one
+        setProfileFace(face);
+        setProfileSearched(true);
+      } catch (e) {
+        console.log('[social-dms] profile preview lookup failed:', e);
+        if (seq !== lookupSeq.current) return;
+        setProfileFace(null);
+        setProfileSearched(true);
+      } finally {
+        if (seq === lookupSeq.current) setProfileSearching(false);
+      }
+    }, 400);
+    return () => clearTimeout(t);
+  }, [composeUsername, composeProvider]);
 
   async function loadPeople() {
     setLoading(true);
@@ -233,6 +363,12 @@ function ContactPicker({
             placeholder="Username"
             data-testid="dm-compose-username"
             className="w-full h-9 px-3 rounded-sm border border-input bg-transparent text-sm placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-brand/50 transition-colors duration-150"
+          />
+          <ProfilePreview
+            username={composeUsername}
+            searching={profileSearching}
+            searched={profileSearched}
+            face={profileFace}
           />
           <input
             value={composeProvider}
@@ -505,11 +641,17 @@ function MessageBubble({
   isMe,
   onDelete,
   onEdit,
+  senderName,
+  showSender,
 }: {
   msg: DmRecord;
   isMe: boolean;
   onDelete: (id: string) => void;
   onEdit: (id: string) => void;
+  /** Group chat (group-chat.md): the sender's display name, shown above the
+   *  bubble for inbound messages (a DM hides it — the sender is implicit). */
+  senderName?: string;
+  showSender?: boolean;
 }) {
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState(msg.message);
@@ -541,17 +683,23 @@ function MessageBubble({
       data-testid="dm-message"
       className={cn('flex items-end gap-1.5', isMe ? 'justify-end' : 'justify-start')}
     >
-      <div
-        className={cn(
-          'group max-w-[75%] px-4 py-2.5 rounded-2xl text-sm leading-relaxed transition-shadow duration-150 relative',
-          isMe
-            ? cn(
-                'bg-gradient-to-br from-brand to-brand-600 text-brand-foreground rounded-br-md',
-                'shadow-md shadow-brand/10',
-              )
-            : 'bg-elevated text-foreground rounded-bl-md',
+      <div className={cn('flex flex-col max-w-[75%]', isMe ? 'items-end' : 'items-start')}>
+        {showSender && !isMe && senderName && (
+          <span className="text-xs font-medium text-muted-foreground mb-0.5 px-1" data-testid="dm-message-sender">
+            {senderName}
+          </span>
         )}
-      >
+        <div
+          className={cn(
+            'group px-4 py-2.5 rounded-2xl text-sm leading-relaxed transition-shadow duration-150 relative',
+            isMe
+              ? cn(
+                  'bg-gradient-to-br from-brand to-brand-600 text-brand-foreground rounded-br-md',
+                  'shadow-md shadow-brand/10',
+                )
+              : 'bg-elevated text-foreground rounded-bl-md',
+          )}
+        >
         {editing ? (
           <div className="flex flex-col gap-1.5">
             <textarea
@@ -591,6 +739,7 @@ function MessageBubble({
             </p>
           </>
         )}
+        </div>
       </div>
       {isMe && !editing && (
         <MessageContextMenu
@@ -598,6 +747,165 @@ function MessageBubble({
           onDelete={() => onDelete(msg._id!)}
         />
       )}
+    </div>
+  );
+}
+
+// New-group sheet (group-chat.md): name the chat + pick members (the same
+// contact/follow source as the DM picker). Create → `createGroupChat` → the
+// caller navigates into the new chat.
+function CreateGroupChatSheet({
+  onClose,
+  onCreated,
+}: {
+  onClose: () => void;
+  onCreated: (groupId: string) => void;
+}) {
+  const [name, setName] = useState('');
+  const [people, setPeople] = useState<PickerPerson[]>([]);
+  const [selected, setSelected] = useState<Set<string>>(new Set());
+  const [creating, setCreating] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const token = getWapi().readToken();
+
+  useEffect(() => {
+    (async () => {
+      try {
+        const [contacts, follows] = await Promise.all([readContacts(), readFollows()]);
+        const map = new Map<string, PickerPerson>();
+        contacts.forEach((c) => {
+          map.set(`${c.provider}/${c.username}`, {
+            username: c.username,
+            provider: c.provider,
+            display_name: c.display_name,
+            source: 'contact',
+          });
+        });
+        follows
+          .filter((f) => f.status === 'active')
+          .forEach((f) => {
+            const key = `${f.provider}/${f.username}`;
+            if (!map.has(key)) {
+              map.set(key, { username: f.username, provider: f.provider, source: 'follow' });
+            }
+          });
+        const myKey = token ? `${token.provider}/${token.username}` : '';
+        setPeople([...map.values()].filter((p) => `${p.provider}/${p.username}` !== myKey));
+      } catch (e) {
+        console.error('Failed to load people for group chat:', e);
+      }
+      setLoading(false);
+    })();
+  }, []);
+
+  function toggle(username: string) {
+    setSelected((prev) => {
+      const next = new Set(prev);
+      if (next.has(username)) next.delete(username);
+      else next.add(username);
+      return next;
+    });
+  }
+
+  async function handleCreate() {
+    if (!name.trim() || selected.size === 0) return;
+    setCreating(true);
+    try {
+      const groupId = await createGroupChat(name.trim(), [...selected]);
+      onCreated(groupId);
+    } catch (e) {
+      console.error('Failed to create group chat:', e);
+      toast.error(errorMessage(e, 'Could not create the group.'));
+    } finally {
+      setCreating(false);
+    }
+  }
+
+  return (
+    <div className="fixed inset-0 z-[100] flex items-end sm:items-center justify-center" data-testid="create-group-chat-sheet">
+      <div className="absolute inset-0 bg-black/60" onClick={onClose} />
+      <div className="relative bg-surface border border-border rounded-t-lg sm:rounded-lg shadow-lg w-full sm:max-w-md max-h-[85vh] flex flex-col">
+        <div className="flex items-center justify-between px-4 py-3 border-b border-border">
+          <h2 className="font-display text-sm font-semibold text-foreground">New group</h2>
+          <button
+            onClick={onClose}
+            className="flex items-center justify-center h-8 w-8 hover:bg-elevated rounded-lg transition-colors duration-150"
+            aria-label="Close"
+            data-testid="create-group-chat-close"
+          >
+            <X className="w-4 h-4" />
+          </button>
+        </div>
+        <div className="flex-1 overflow-y-auto px-4 py-3 space-y-3">
+          <input
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+            placeholder="Group name"
+            data-testid="create-group-chat-name"
+            className="w-full h-9 px-3 rounded-sm border border-input bg-transparent text-sm placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-brand/50 transition-colors duration-150"
+          />
+          <p className="text-xs text-muted-foreground">Add members</p>
+          {loading ? (
+            <div className="space-y-2">
+              {Array.from({ length: 3 }).map((_, i) => (
+                <Skeleton key={i} className="h-10 w-full" />
+              ))}
+            </div>
+          ) : (
+            <div className="space-y-1">
+              {people.map((p) => {
+                const isSel = selected.has(p.username);
+                return (
+                  <button
+                    key={`${p.provider}/${p.username}`}
+                    onClick={() => toggle(p.username)}
+                    className={cn(
+                      'w-full flex items-center gap-3 px-3 py-2 rounded-lg text-left transition-colors duration-150',
+                      isSel ? 'bg-brand-muted/40' : 'hover:bg-elevated',
+                    )}
+                    data-testid={`create-group-chat-member-${p.username}`}
+                  >
+                    <div
+                      className={cn(
+                        'h-4 w-4 rounded border flex items-center justify-center shrink-0',
+                        isSel ? 'bg-brand border-brand' : 'border-border',
+                      )}
+                    >
+                      {isSel && <Check className="w-3 h-3 text-brand-foreground" />}
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <p className="text-sm font-medium text-foreground truncate">{p.display_name || p.username}</p>
+                      <p className="text-xs text-muted-foreground truncate">@{p.username}</p>
+                    </div>
+                  </button>
+                );
+              })}
+              {people.length === 0 && (
+                <p className="text-xs text-muted-foreground py-2">
+                  No contacts or follows yet — message someone first, then add them here.
+                </p>
+              )}
+            </div>
+          )}
+        </div>
+        <div className="px-4 py-3 border-t border-border">
+          <Button
+            variant="brand"
+            size="sm"
+            className="w-full"
+            disabled={!name.trim() || selected.size === 0 || creating}
+            onClick={handleCreate}
+            data-testid="create-group-chat-create"
+          >
+            {creating ? (
+              <Loader2 className="w-4 h-4 animate-spin" />
+            ) : (
+              <Users className="w-3.5 h-3.5 mr-1.5" />
+            )}
+            Create group
+          </Button>
+        </div>
+      </div>
     </div>
   );
 }
@@ -627,6 +935,39 @@ export default function DmsScreen() {
   const token = getWapi().readToken();
   const onlinePeers = useOnlinePeers();
 
+  // ── Group chat (group-chat.md, D77) ────────────────────────────────────────
+  // The open conversation is either a DM (`provider/user--provider/user`) or a
+  // group chat (`group/{groupId}` — the `group/` prefix is the discriminator).
+  // Group chats are N-member groups with `kind:'chat'` on their face; messages
+  // are posts in the group, each carrying sender_username so the thread can
+  // attribute every bubble. Real-time is CRUD-only in v1 (no P2P fan-out).
+  const isGroupChat = !!selectedConv && selectedConv.startsWith('group/');
+  const openGroupId = isGroupChat ? groupIdFromRouteKey(selectedConv!) : null;
+  const [groupChats, setGroupChats] = useState<GroupChatSummary[]>([]);
+  const [groupFace, setGroupFace] = useState<{ name: string; avatarRef?: string } | null>(null);
+  const [groupMembers, setGroupMembers] = useState<string[]>([]);
+  const [showCreateGroup, setShowCreateGroup] = useState(false);
+
+  // The unified conversation list (DMs + group chats), sorted by last-message
+  // recency (group-chat.md). Each item carries its route key + type so the list
+  // renders the right row (a DM row has a presence dot; a group row doesn't).
+  const convItems: { key: string; type: 'dm' | 'group'; name: string; lastMsg: DmRecord | null }[] = [
+    ...conversations.map((key) => ({
+      key,
+      type: 'dm' as const,
+      name: getDisplayName(getOtherUser(key)),
+      lastMsg: lastMessages[key] || null,
+    })),
+    ...groupChats.map((c) => {
+      const key = groupChatRouteKey(c.groupId);
+      return { key, type: 'group' as const, name: c.name, lastMsg: lastMessages[key] || null };
+    }),
+  ].sort((a, b) => {
+    const aTime = a.lastMsg ? new Date(a.lastMsg.sent_at).getTime() : 0;
+    const bTime = b.lastMsg ? new Date(b.lastMsg.sent_at).getTime() : 0;
+    return bTime - aTime;
+  });
+
   // Real-time inbound: when a P2P nudge arrives (a peer sent us a message),
   // re-read the open conversation AND refresh the list's last-message preview.
   // This is the best-effort fast path — CRUD is the source of truth, so a
@@ -637,7 +978,10 @@ export default function DmsScreen() {
   useEffect(() => {
     const unsub = onP2PInbound(() => {
       console.log('[social-dms] p2p inbound — refreshing open conversation + list');
-      if (selectedConv) {
+      // Only DMs have a P2P fast path (group chats are CRUD-only in v1) — a DM
+      // nudge while a group chat is open must not re-read it via readDms (which
+      // would return empty and clear the thread).
+      if (selectedConv && !isGroupChat) {
         readDms(selectedConv)
           .then(setMessages)
           .catch(() => {
@@ -680,26 +1024,46 @@ export default function DmsScreen() {
     loadData();
   }, []);
 
-  // Load messages when selectedConv changes (from URL or from UI) + probe the
-  // other party's presence. Presence is otherwise established only by a live
-  // data-channel exchange (a send or an inbound), so two users who are both in
-  // the app but haven't messaged each other see each other as offline. Probing
-  // on open closes that gap: the channel handshake IS the presence check.
+  // Load messages when selectedConv changes (from URL or from UI). For a DM,
+  // also probe the other party's presence (presence is otherwise established
+  // only by a live data-channel exchange — the channel handshake IS the check).
+  // For a group chat, load the face (name + avatar) + the member list (the
+  // header shows "N members"); no presence (that's a 1:1 concept).
   useEffect(() => {
-    if (selectedConv) {
+    if (!selectedConv) {
+      setGroupFace(null);
+      setGroupMembers([]);
+      return;
+    }
+    if (isGroupChat && openGroupId) {
       (async () => {
         try {
-          const msgs = await readDms(selectedConv);
+          const [msgs, face, members] = await Promise.all([
+            readGroupChatMessages(openGroupId),
+            readGroupChatFace(openGroupId),
+            getGroupMembers(openGroupId).catch(() => [] as { member_key: string }[]),
+          ]);
           setMessages(msgs);
+          setGroupFace(face);
+          setGroupMembers(members.map((m) => m.member_key));
         } catch (e) {
-          console.error('Failed to load messages:', e);
+          console.error('Failed to load group chat:', e);
         }
       })();
-      // Probe the other party's presence (best-effort — never blocks the read).
-      const other = getOtherUser(selectedConv);
-      const [prov, user] = other.split('/');
-      if (prov && user) probePresence(prov, user);
+      return;
     }
+    (async () => {
+      try {
+        const msgs = await readDms(selectedConv);
+        setMessages(msgs);
+      } catch (e) {
+        console.error('Failed to load messages:', e);
+      }
+    })();
+    // Probe the other party's presence (best-effort — never blocks the read).
+    const other = getOtherUser(selectedConv);
+    const [prov, user] = other.split('/');
+    if (prov && user) probePresence(prov, user);
   }, [selectedConv]);
 
   // Handle ?to=<username> deep link from profile Message button
@@ -727,7 +1091,11 @@ export default function DmsScreen() {
   async function loadData() {
     setLoading(true);
     try {
-      const [convs, contactsData] = await Promise.all([listConversations(), readContacts()]);
+      const [convs, contactsData, chats] = await Promise.all([
+        listConversations(),
+        readContacts(),
+        getMyGroupChats().catch(() => [] as GroupChatSummary[]),
+      ]);
 
       const cMap: Record<string, ContactRecord> = {};
       contactsData.forEach((c) => {
@@ -739,7 +1107,14 @@ export default function DmsScreen() {
       for (const conv of convs) {
         lastMsgs[conv] = await getLastDm(conv);
       }
+      // Group chats: their last message (the list preview) under the route key.
+      for (const chat of chats) {
+        const key = groupChatRouteKey(chat.groupId);
+        const msgs = await readGroupChatMessages(chat.groupId).catch(() => [] as DmRecord[]);
+        lastMsgs[key] = msgs[msgs.length - 1] || null;
+      }
       setLastMessages(lastMsgs);
+      setGroupChats(chats);
 
       // Sort conversations by last-message recency, newest first
       // (operator, 29.07: the list was in insertion order — oldest on top).
@@ -770,6 +1145,14 @@ export default function DmsScreen() {
     navigate(`/messages/${conv}`);
   }
 
+  // Group chat created (group-chat.md): close the sheet, open the new chat,
+  // and refresh the list so it appears.
+  function handleGroupCreated(groupId: string) {
+    setShowCreateGroup(false);
+    navigate(`/messages/${groupChatRouteKey(groupId)}`);
+    loadData();
+  }
+
   const handlePickerSelect = useCallback(
     async (person: PickerPerson, existingConv?: string) => {
       setShowPicker(false);
@@ -787,6 +1170,14 @@ export default function DmsScreen() {
     if (!selectedConv || !input.trim() || !token) return;
     setSending(true);
     try {
+      // Group chat (group-chat.md): a posts doc in the group, CRUD-only real-time
+      // in v1 (no P2P fan-out — the nudge is pairwise and doesn't generalize to N).
+      if (isGroupChat && openGroupId) {
+        const msg = await sendGroupChatMessage(openGroupId, input.trim());
+        setMessages((prev) => [...prev, msg]);
+        setInput('');
+        return;
+      }
       const msg = await sendDm(selectedConv, input.trim());
       setMessages((prev) => [...prev, msg]);
       setInput('');
@@ -874,6 +1265,17 @@ export default function DmsScreen() {
     const contact = contactMap[userKey];
     if (contact) return contact.display_name || contact.username;
     return userKey.split('/')[1] || userKey;
+  }
+
+  // Group chat (group-chat.md): resolve a bare sender username to a display
+  // name for the per-sender bubble label. The contact map is keyed by
+  // `provider/username`, so match on the username segment; fall back to the
+  // username (the @handle) when there's no contact record.
+  function senderDisplayName(username: string): string {
+    for (const key of Object.keys(contactMap)) {
+      if (key.split('/')[1] === username) return contactMap[key].display_name || username;
+    }
+    return username;
   }
 
   function switchView(view: MessagesView) {
@@ -981,67 +1383,95 @@ export default function DmsScreen() {
 
     return (
       <div className="flex flex-col h-full" data-testid="dm-conversation">
-        {/* Header */}
-        <div className="flex items-center gap-3 px-2 py-2 border-b border-border">
-          <button
-            className="flex items-center justify-center h-11 w-11 hover:bg-elevated rounded-lg transition-colors duration-150"
-            onClick={() => navigate('/messages', { replace: true })}
-            aria-label="Back to messages"
-            data-testid="dm-back-button"
-          >
-            <ChevronLeft className="w-5 h-5" />
-          </button>
-          <Link
-            to={`/u/${otherUser.split('/')[1]}`}
-            className="flex items-center gap-3 flex-1 min-w-0"
-          >
-            <div className="relative flex-shrink-0">
+        {/* Header — group chat (name + member count, no presence) vs DM (peer + presence) */}
+        {isGroupChat ? (
+          <div className="flex items-center gap-3 px-2 py-2 border-b border-border">
+            <button
+              className="flex items-center justify-center h-11 w-11 hover:bg-elevated rounded-lg transition-colors duration-150"
+              onClick={() => navigate('/messages', { replace: true })}
+              aria-label="Back to messages"
+              data-testid="dm-back-button"
+            >
+              <ChevronLeft className="w-5 h-5" />
+            </button>
+            <div className="flex items-center gap-3 flex-1 min-w-0">
               <Avatar className="h-8 w-8">
                 <AvatarFallback className="bg-brand-muted text-brand-300 text-xs font-semibold">
-                  {displayName.charAt(0).toUpperCase()}
+                  {(groupFace?.name || 'G').charAt(0).toUpperCase()}
                 </AvatarFallback>
               </Avatar>
-              <div
-                className={cn(
-                  'absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 rounded-full border-2 border-background',
-                  otherOnline ? 'bg-success animate-glow-pulse' : 'bg-muted-foreground/40',
-                )}
-                data-testid="dm-peer-presence-dot"
-              />
+              <div className="min-w-0">
+                <span className="font-medium text-sm text-foreground truncate block" data-testid="group-chat-name">
+                  {groupFace?.name || '…'}
+                </span>
+                <span className="text-xs text-muted-foreground/60 truncate block" data-testid="group-chat-members">
+                  {groupMembers.length} member{groupMembers.length === 1 ? '' : 's'}
+                </span>
+              </div>
             </div>
-            <div className="min-w-0">
-              <span className="font-medium text-sm text-foreground truncate block">{displayName}</span>
-              <span
-                className={cn(
-                  'text-xs truncate block',
-                  otherOnline ? 'text-success' : 'text-muted-foreground/60',
-                )}
-                data-testid="dm-peer-presence-label"
-              >
-                {otherOnline ? 'Online' : 'Offline'}
-              </span>
-            </div>
-          </Link>
-          <div
-            className={cn(
-              'flex items-center gap-1.5 shrink-0 px-2 py-1 rounded-full text-xs font-medium border',
-              p2pOn ? 'border-success/30 text-success bg-success/10' : 'border-border text-muted-foreground',
-            )}
-            title={p2pOn ? 'Real-time delivery is on' : 'Real-time delivery is off (Settings → Real-time messages)'}
-            data-testid="dm-p2p-status"
-          >
-            <span className={cn('w-1.5 h-1.5 rounded-full', p2pOn ? 'bg-success' : 'bg-muted-foreground/40')} />
-            <span className="hidden sm:inline">{p2pOn ? 'Real-time' : 'Offline'}</span>
           </div>
-          <button
-            onClick={() => handleDeleteConversation(selectedConv)}
-            className="flex items-center justify-center h-11 w-11 hover:bg-danger-muted rounded-lg transition-colors duration-150 text-muted-foreground hover:text-danger"
-            aria-label="Delete conversation"
-            data-testid="dm-delete-conversation-btn"
-          >
-            <Trash2 className="w-4 h-4" />
-          </button>
-        </div>
+        ) : (
+          <div className="flex items-center gap-3 px-2 py-2 border-b border-border">
+            <button
+              className="flex items-center justify-center h-11 w-11 hover:bg-elevated rounded-lg transition-colors duration-150"
+              onClick={() => navigate('/messages', { replace: true })}
+              aria-label="Back to messages"
+              data-testid="dm-back-button"
+            >
+              <ChevronLeft className="w-5 h-5" />
+            </button>
+            <Link
+              to={`/u/${otherUser.split('/')[1]}`}
+              className="flex items-center gap-3 flex-1 min-w-0"
+            >
+              <div className="relative flex-shrink-0">
+                <Avatar className="h-8 w-8">
+                  <AvatarFallback className="bg-brand-muted text-brand-300 text-xs font-semibold">
+                    {displayName.charAt(0).toUpperCase()}
+                  </AvatarFallback>
+                </Avatar>
+                <div
+                  className={cn(
+                    'absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 rounded-full border-2 border-background',
+                    otherOnline ? 'bg-success animate-glow-pulse' : 'bg-muted-foreground/40',
+                  )}
+                  data-testid="dm-peer-presence-dot"
+                />
+              </div>
+              <div className="min-w-0">
+                <span className="font-medium text-sm text-foreground truncate block">{displayName}</span>
+                <span
+                  className={cn(
+                    'text-xs truncate block',
+                    otherOnline ? 'text-success' : 'text-muted-foreground/60',
+                  )}
+                  data-testid="dm-peer-presence-label"
+                >
+                  {otherOnline ? 'Online' : 'Offline'}
+                </span>
+              </div>
+            </Link>
+            <div
+              className={cn(
+                'flex items-center gap-1.5 shrink-0 px-2 py-1 rounded-full text-xs font-medium border',
+                p2pOn ? 'border-success/30 text-success bg-success/10' : 'border-border text-muted-foreground',
+              )}
+              title={p2pOn ? 'Real-time delivery is on' : 'Real-time delivery is off (Settings → Real-time messages)'}
+              data-testid="dm-p2p-status"
+            >
+              <span className={cn('w-1.5 h-1.5 rounded-full', p2pOn ? 'bg-success' : 'bg-muted-foreground/40')} />
+              <span className="hidden sm:inline">{p2pOn ? 'Real-time' : 'Offline'}</span>
+            </div>
+            <button
+              onClick={() => handleDeleteConversation(selectedConv)}
+              className="flex items-center justify-center h-11 w-11 hover:bg-danger-muted rounded-lg transition-colors duration-150 text-muted-foreground hover:text-danger"
+              aria-label="Delete conversation"
+              data-testid="dm-delete-conversation-btn"
+            >
+              <Trash2 className="w-4 h-4" />
+            </button>
+          </div>
+        )}
 
         {/* Messages */}
         <div className="flex-1 overflow-y-auto px-4 py-4 space-y-3">
@@ -1066,6 +1496,9 @@ export default function DmsScreen() {
                 }
                 onDelete={handleDeleteMessage}
                 onEdit={handleEditMessage}
+                // Group chat: attribute every inbound bubble to its sender.
+                showSender={isGroupChat}
+                senderName={isGroupChat ? senderDisplayName(msg.sender_username) : undefined}
               />
             ))
           )}
@@ -1098,7 +1531,7 @@ export default function DmsScreen() {
     );
   }
 
-  if (!conversations.length) {
+  if (!conversations.length && !groupChats.length) {
     return (
       <div className="flex flex-col h-full">
         <div className="flex items-center border-b border-border" data-testid="messages-view-toggle">
@@ -1128,17 +1561,31 @@ export default function DmsScreen() {
         </div>
         <div className="px-4 py-4 border-b border-border flex items-center justify-between">
           <h1 className="font-display text-lg font-bold text-foreground">Messages</h1>
-          <Button
-            variant="brand"
-            size="sm"
-            onClick={() => setShowPicker(true)}
-            data-testid="dm-new-message-btn"
-          >
-            <Plus className="w-3.5 h-3.5 mr-1.5" />
-            New message
-          </Button>
+          <div className="flex items-center gap-2">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setShowCreateGroup(true)}
+              data-testid="dm-new-group-btn"
+            >
+              <Users className="w-3.5 h-3.5 mr-1.5" />
+              New group
+            </Button>
+            <Button
+              variant="brand"
+              size="sm"
+              onClick={() => setShowPicker(true)}
+              data-testid="dm-new-message-btn"
+            >
+              <Plus className="w-3.5 h-3.5 mr-1.5" />
+              New message
+            </Button>
+          </div>
         </div>
         <DmsEmptyState />
+        {showCreateGroup && (
+          <CreateGroupChatSheet onClose={() => setShowCreateGroup(false)} onCreated={handleGroupCreated} />
+        )}
       </div>
     );
   }
@@ -1172,49 +1619,72 @@ export default function DmsScreen() {
       </div>
       <div className="px-4 py-4 border-b border-border flex items-center justify-between">
         <h1 className="font-display text-lg font-bold text-foreground">Messages</h1>
-        <Button
-          variant="brand"
-          size="sm"
-          onClick={() => setShowPicker(true)}
-          data-testid="dm-new-message-btn"
-        >
-          <Plus className="w-3.5 h-3.5 mr-1.5" />
-          New message
-        </Button>
+        <div className="flex items-center gap-2">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => setShowCreateGroup(true)}
+            data-testid="dm-new-group-btn"
+          >
+            <Users className="w-3.5 h-3.5 mr-1.5" />
+            New group
+          </Button>
+          <Button
+            variant="brand"
+            size="sm"
+            onClick={() => setShowPicker(true)}
+            data-testid="dm-new-message-btn"
+          >
+            <Plus className="w-3.5 h-3.5 mr-1.5" />
+            New message
+          </Button>
+        </div>
       </div>
       <div className="flex-1 overflow-y-auto">
-        {conversations.map((conv) => {
-          const otherUser = getOtherUser(conv);
-          const displayName = getDisplayName(otherUser);
-          const lastMsg = lastMessages[conv];
-          const [cProv, cUser] = otherUser.split('/');
-          const cPeerId = peerIdFor(cProv || token?.provider || '', cUser || otherUser);
-          const cOnline = !!cPeerId && onlinePeers.has(cPeerId);
-
+        {convItems.map((item) => {
+          const isDm = item.type === 'dm';
+          const lastMsg = item.lastMsg;
+          // Presence is a 1:1 concept — only DM rows get the online dot.
+          let cOnline = false;
+          if (isDm) {
+            const otherUser = getOtherUser(item.key);
+            const [cProv, cUser] = otherUser.split('/');
+            const cPeerId = peerIdFor(cProv || token?.provider || '', cUser || otherUser);
+            cOnline = !!cPeerId && onlinePeers.has(cPeerId);
+          }
           return (
-            <div className="group relative" key={conv}>
+            <div className="group relative" key={item.key}>
               <button
-                data-testid="dm-conversation-item"
+                data-testid={isDm ? 'dm-conversation-item' : 'group-chat-item'}
                 className="w-full flex items-center gap-3 px-4 py-3 min-h-[44px] hover:bg-elevated/80 transition-all duration-150 text-left border-b border-border/30"
-                onClick={() => openConversation(conv)}
+                onClick={() => openConversation(item.key)}
               >
                 <div className="relative shrink-0">
                   <Avatar className="h-12 w-12">
                     <AvatarFallback className="bg-brand-muted text-brand-300 font-semibold">
-                      {displayName.charAt(0).toUpperCase()}
+                      {item.name.charAt(0).toUpperCase()}
                     </AvatarFallback>
                   </Avatar>
-                  <div
-                    className={cn(
-                      'absolute -bottom-0.5 -right-0.5 w-3 h-3 rounded-full border-2 border-background',
-                      cOnline ? 'bg-success' : 'bg-muted-foreground/40',
-                    )}
-                    data-testid="dm-conversation-presence-dot"
-                  />
+                  {isDm ? (
+                    <div
+                      className={cn(
+                        'absolute -bottom-0.5 -right-0.5 w-3 h-3 rounded-full border-2 border-background',
+                        cOnline ? 'bg-success' : 'bg-muted-foreground/40',
+                      )}
+                      data-testid="dm-conversation-presence-dot"
+                    />
+                  ) : (
+                    <div
+                      className="absolute -bottom-0.5 -right-0.5 w-4 h-4 rounded-full border-2 border-background bg-elevated flex items-center justify-center"
+                      data-testid="group-chat-badge"
+                    >
+                      <Users className="w-2.5 h-2.5 text-muted-foreground" />
+                    </div>
+                  )}
                 </div>
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center justify-between">
-                    <span className="font-medium text-sm text-foreground truncate">{displayName}</span>
+                    <span className="font-medium text-sm text-foreground truncate">{item.name}</span>
                     <span className="text-xs text-muted-foreground ml-2 shrink-0">
                       {lastMsg ? formatTime(lastMsg.sent_at) : ''}
                     </span>
@@ -1224,17 +1694,19 @@ export default function DmsScreen() {
                   </p>
                 </div>
               </button>
-              <button
-                onClick={(e) => {
-                  e.stopPropagation();
-                  handleDeleteConversation(conv);
-                }}
-                className="absolute right-2 top-1/2 -translate-y-1/2 opacity-0 group-hover:opacity-100 flex items-center justify-center h-8 w-8 hover:bg-danger-muted rounded-lg transition-all duration-150 text-muted-foreground hover:text-danger"
-                aria-label={`Delete conversation with ${displayName}`}
-                data-testid="dm-delete-conversation-list-btn"
-              >
-                <Trash2 className="w-4 h-4" />
-              </button>
+              {isDm && (
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    handleDeleteConversation(item.key);
+                  }}
+                  className="absolute right-2 top-1/2 -translate-y-1/2 opacity-0 group-hover:opacity-100 flex items-center justify-center h-8 w-8 hover:bg-danger-muted rounded-lg transition-all duration-150 text-muted-foreground hover:text-danger"
+                  aria-label={`Delete conversation with ${item.name}`}
+                  data-testid="dm-delete-conversation-list-btn"
+                >
+                  <Trash2 className="w-4 h-4" />
+                </button>
+              )}
             </div>
           );
         })}
@@ -1249,6 +1721,9 @@ export default function DmsScreen() {
         onConfirm={confirmDialog.onConfirm}
         onCancel={() => setConfirmDialog((prev) => ({ ...prev, open: false }))}
       />
+      {showCreateGroup && (
+        <CreateGroupChatSheet onClose={() => setShowCreateGroup(false)} onCreated={handleGroupCreated} />
+      )}
     </div>
   );
 }

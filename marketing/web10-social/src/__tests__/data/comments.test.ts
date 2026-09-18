@@ -228,4 +228,78 @@ describe('comments v3 data layer (the Facebook model, comments.md)', () => {
       );
     });
   });
+
+  describe('photos in comments (comments.md "Photos in comments")', () => {
+    it('createComment writes media_refs to the body when present', async () => {
+      const { createComment } = await import('../../data/comments');
+      mock.create.mockResolvedValue({ doc_id: 'cm1', author_key: 'alice', body: { post_id: 'p1', text: 'top', media_refs: ['m1', 'm2'] }, ref_value: 'p1' });
+      await createComment({ post_id: 'p1', text: 'top', media_refs: ['m1', 'm2'] } as any);
+      const body = mock.create.mock.calls[0][1] as Record<string, unknown>;
+      expect(body.media_refs).toEqual(['m1', 'm2']);
+    });
+
+    it('createComment omits media_refs when there are no photos', async () => {
+      const { createComment } = await import('../../data/comments');
+      mock.create.mockResolvedValue({ doc_id: 'cm1', author_key: 'alice', body: { post_id: 'p1', text: 'top' }, ref_value: 'p1' });
+      await createComment({ post_id: 'p1', text: 'top' } as any);
+      const body = mock.create.mock.calls[0][1] as Record<string, unknown>;
+      expect(body.media_refs).toBeUndefined();
+    });
+
+    it('createThreadComment threads mediaRefs through to the write', async () => {
+      const { createThreadComment } = await import('../../data/comments');
+      mock.create.mockResolvedValue({ doc_id: 'cm1', author_key: 'alice', body: { post_id: 'p1', text: 'top', media_refs: ['m1'] }, ref_value: 'p1' });
+      await createThreadComment({ postId: 'p1', text: 'top', mediaRefs: ['m1'], groups: ['me'] });
+      const body = mock.create.mock.calls[0][1] as Record<string, unknown>;
+      expect(body.media_refs).toEqual(['m1']);
+    });
+
+    it('readThreadComments maps resolved media_refs to displayable media items', async () => {
+      const { readThreadComments } = await import('../../data/comments');
+      mock.read.mockImplementation(async (service: string) => {
+        if (service === 'reactions') return [];
+        return [
+          {
+            doc_id: 'cm1',
+            author_key: 'bob',
+            body: {
+              post_id: 'p1',
+              text: 'look',
+              media_refs: [
+                { doc_id: 'm1', object_key: 'bob/m1', mime_type: 'image/png', read_url: 'https://cdn/m1', width: 800, height: 600, thumbnail_url: 'https://cdn/m1-t' },
+                { doc_id: 'm2', object_key: 'bob/m2', mime_type: 'image/jpeg', read_url: 'https://cdn/m2', width: 400, height: 400, thumbnail_url: null },
+              ],
+            },
+            ref_value: 'p1',
+            created_at: '2026-01-01T00:00:00Z',
+          },
+        ];
+      });
+      mock.query.mockResolvedValue({ rows: [], count: 0 });
+      mock.readRefCounts.mockResolvedValue({});
+      const page = await readThreadComments('p1', ['me']);
+      expect(page.comments).toHaveLength(1);
+      expect(page.comments[0].media).toHaveLength(2);
+      expect(page.comments[0].media?.[0]).toMatchObject({ url: 'https://cdn/m1', mime_type: 'image/png', width: 800 });
+      expect(page.comments[0].media?.[1]).toMatchObject({ url: 'https://cdn/m2', mime_type: 'image/jpeg' });
+    });
+
+    it('readThreadComments drops bare doc_id refs (no URL to render) + leaves media undefined when none', async () => {
+      const { readThreadComments } = await import('../../data/comments');
+      mock.read.mockImplementation(async (service: string) => {
+        if (service === 'reactions') return [];
+        return [
+          // a write-path read: bare doc_ids (no resolved URL)
+          { doc_id: 'cm1', author_key: 'bob', body: { post_id: 'p1', text: 'a', media_refs: ['m1'] }, ref_value: 'p1', created_at: '2026-01-01T00:00:00Z' },
+          // no media at all
+          { doc_id: 'cm2', author_key: 'bob', body: { post_id: 'p1', text: 'b' }, ref_value: 'p1', created_at: '2026-01-01T01:00:00Z' },
+        ];
+      });
+      mock.query.mockResolvedValue({ rows: [], count: 0 });
+      mock.readRefCounts.mockResolvedValue({});
+      const page = await readThreadComments('p1', ['me']);
+      expect(page.comments[0].media).toBeUndefined();
+      expect(page.comments[1].media).toBeUndefined();
+    });
+  });
 });

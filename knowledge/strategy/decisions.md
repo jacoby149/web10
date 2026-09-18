@@ -9,6 +9,24 @@ Status legend: [decided] intent set · [in-progress] · [open] still debating.
 
 ---
 
+### D77 — Group chat is an N-member group with `kind:'chat'` on its face, rendered in Messages [decided]
+
+Operator, 17.09.2026 — "do we have group messaging or no? group would have a name some kind of chat name. group chat is pretty major thing i feel to just basic cover then our messaging is straight up golden. straight up flagship messaging after that."
+
+**The decision.** Group chat is **not a new primitive** — it is the existing **group**, the same one a DM is (a DM is a 2-member `dm-` group; a group chat is an N-member group), distinguished by a **`kind: 'chat'` field on the group's face** (the `web10-social-group-identity` doc, D60) and rendered in the **Messages** surface, not the Groups surface. A group chat has a **user-chosen name** (the face's `name`), a **member list** (bare-username members, invite_only), and **per-sender messages** (`posts` docs in the group, each carrying `sender_username`/`sender_provider` so every bubble says who said it). Zero node changes — groups, roles, the identity service, and `posts`-in-a-group all exist; this is a client-side composition + one new `kind` field.
+
+**Why `kind` on the face, and not a group_id prefix.** A `chat-{slug}` prefix collides with a community someone legitimately names "Chat Room" (slug `chat-room`), and the group_id is an internal id the user never sees. The `kind` field is explicit, collision-free, and lives on the face the app already reads for the name. Classification = read the identity, check `kind`; a group with no `kind:'chat'` is a community (backward compatible — every pre-existing community has no `kind`).
+
+**Why the two surfaces stay disjoint.** Messages = DMs + group chats (conversations). Groups = communities (content feeds). A group chat is a *conversation* (named, per-sender, invite_only); a community is a *feed* (posts with author, optionally public/discoverable). Same group primitive, different surface + `kind`. v1 finds chats via `getMyGroupChats` (an identity `kind` read); excluding them from My Groups is a small follow-up (a chat may also show in My Groups for v1).
+
+**Real-time: CRUD-only in v1.** The DM P2P fast path is pairwise; fanning a nudge to N members (and handling offline ones) is a real design question. v1 ships CRUD-only — a group message lands when the recipient opens/refreshes (the same guarantee a DM has with P2P off). The group nudge is a follow-up. This is explicitly shippable: the message is durable in the group regardless of the nudge.
+
+**Rejects.** (1) **A new node "group message" primitive** — unnecessary; the group + `posts`-in-group already does it. (2) **A group_id `chat-` prefix** — collides with real community names. (3) **Reusing the community feed as the group chat** — wrong surface + wrong render (a feed is not a per-sender conversation). (4) **Real-time P2P fan-out in v1** — the pairwise nudge doesn't generalize to N; ship CRUD-only, add fan-out later.
+
+**Files:** `social/group-chat.md` (the model); the build is `src/data/groupChat.ts` + the Messages surface (create flow, list, thread view) — lane `social-v3`.
+
+---
+
 ### D76 — Node licensing: SSPL-1.0, free core, no gate — the "next WordPress" model [decided]
 
 Operator, 16.09.2026 — after a licensing thread that started as "put a Gumroad on the marketing page, buy a license key to activate your web10, detect active users, require a license size, warn 'upgrade your license' when the server gets too poppin" and ended at: "i get it so no gumroad! just sspl it! no gating it!"

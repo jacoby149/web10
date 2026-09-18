@@ -3,7 +3,7 @@
 // consumer API (no data props) by injecting the wapi-backed thread seams
 // (comments.md): readThreadComments (the whole conversation + comment likes),
 // createThreadComment (top-level or reply), and the comment-like writer.
-import { readThreadComments, readThreadReplies, createThreadComment, toggleReactionKind } from '@/data';
+import { readThreadComments, readThreadReplies, createThreadComment, uploadCommentPhoto, toggleReactionKind } from '@/data';
 import { CommentThread as SharedCommentThread } from '@web10/discover';
 
 interface CommentThreadProps {
@@ -29,6 +29,7 @@ export function CommentThread(props: CommentThreadProps) {
       readComments={readThreadComments}
       readReplies={readThreadReplies}
       createComment={createThreadComment}
+      uploadMedia={uploadCommentPhoto}
       onToggleCommentLike={(commentId) => {
         // The comment-like tap: the data layer resolves it against the
         // reader's current reaction (like XOR dislike, self-heal,

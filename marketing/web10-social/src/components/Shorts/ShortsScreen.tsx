@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { Heart, MessageCircle, Share2, X } from 'lucide-react';
+import { Heart, MessageCircle, Share2, X, Volume2, VolumeX } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { getWapi } from '@/data/wapi';
 import { readShortsFeed, toggleReactionKind, getV3Client, getDiscoverGroupId, extractUsername, type ShortPost } from '@/data';
@@ -11,6 +11,14 @@ import { Button } from '@/components/ui/button';
 import { requestInstallPrompt, isMobile } from '@/lib/pwa';
 
 const LOG = (...args: unknown[]) => console.log('[shorts]', ...args);
+
+// The sound choice is a SESSION choice (the TikTok model): muted by default
+// (the browser's autoplay policy requires it), and once the user un-mutes in
+// the lens, every short — now and after leaving + returning to Shorts —
+// plays with sound until they re-mute. A module-level flag survives the
+// screen unmount within the session (no storage: a page reload is a fresh
+// lens, back to muted).
+let sessionMuted = true;
 
 /**
  * The Shorts surface (shorts.md) — the full-screen, vertical, swipe-between-
@@ -43,7 +51,21 @@ export default function ShortsScreen() {
   // comments, the TikTok "tap comments → overlay" behavior).
   const [commentsOpenFor, setCommentsOpenFor] = useState<string | null>(null);
   const [copiedFor, setCopiedFor] = useState<string | null>(null);
+  // The screen-level sound state (shorts.md): one toggle for the whole lens,
+  // seeded from the session flag so the choice survives leaving + returning.
+  // Muted by default — the browser's autoplay policy requires it for the
+  // ambient loop; the speaker icon is the escape hatch (the TikTok model).
+  const [muted, setMuted] = useState<boolean>(sessionMuted);
   const containerRef = useRef<HTMLDivElement>(null);
+
+  function handleToggleMute() {
+    setMuted((cur) => {
+      const next = !cur;
+      sessionMuted = next;
+      LOG('sound →', next ? 'muted' : 'unmuted');
+      return next;
+    });
+  }
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -295,6 +317,7 @@ export default function ShortsScreen() {
               fit="cover"
               immersive
               active={i === activeIndex}
+              muted={muted}
               testId={`short-video-${i}`}
               className="absolute inset-0 w-full h-full"
               showDuration={false}
@@ -326,6 +349,24 @@ export default function ShortsScreen() {
 
             {/* Action rail */}
             <div className="absolute bottom-6 right-3 flex flex-col items-center gap-4">
+              {/* The sound toggle (shorts.md): Shorts autoplays muted (the
+                  browser's autoplay policy), but the user must be able to HEAR
+                  the video — one speaker icon for the whole lens (the TikTok
+                  model), above the heart. The tap never reaches the video
+                  (no play/pause toggle from a sound tap). */}
+              <button
+                data-testid={`short-mute-${i}`}
+                onClick={(e) => { e.stopPropagation(); handleToggleMute(); }}
+                className="flex flex-col items-center gap-1 text-white/90 hover:text-white transition-colors"
+                aria-label={muted ? 'Unmute' : 'Mute'}
+                aria-pressed={!muted}
+              >
+                {muted ? (
+                  <VolumeX className="w-6 h-6" strokeWidth={1.75} />
+                ) : (
+                  <Volume2 className="w-6 h-6" strokeWidth={1.75} />
+                )}
+              </button>
               <button
                 data-testid={`short-like-${i}`}
                 onClick={() => handleToggleLike(short.post._id!)}

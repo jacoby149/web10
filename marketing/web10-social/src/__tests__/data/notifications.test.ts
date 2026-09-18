@@ -177,6 +177,60 @@ describe('notifications (app-wide store, D69)', () => {
       expect(carol?.read).toBe(false);
       expect(bob?.read).toBe(true);
     });
+    it('derives a reply notification for replies to my comments (offline recovery)', async () => {
+      // alice authored post-1 and commented on it (c-alice-1); bob replied to
+      // that comment (c-bob-1, ref_value = c-alice-1). No live nudge fired
+      // (alice was offline), so the reply must be recovered from the CRUD read.
+      client.read = vi.fn(async (collection: string, opts?: { ref?: string | string[] }) => {
+        if (collection === 'posts') {
+          return [{ doc_id: 'post-1', author_key: 'web10.app/alice', body: { text: 'hi' } }];
+        }
+        if (collection === 'comments') {
+          const all = [
+            { doc_id: 'c-alice-1', author_key: 'web10.app/alice', ref_value: 'post-1', body: { text: 'my comment', post_id: 'post-1', created_at: '2026-01-01T00:00:00Z' } },
+            { doc_id: 'c-bob-1', author_key: 'web10.app/bob', ref_value: 'c-alice-1', body: { text: 'a reply', post_id: 'post-1', parent_id: 'c-alice-1', created_at: '2026-01-02T00:00:00Z' } },
+          ];
+          if (opts?.ref) {
+            const refSet = new Set(Array.isArray(opts.ref) ? opts.ref : [opts.ref]);
+            return all.filter((c) => refSet.has(c.ref_value));
+          }
+          return all;
+        }
+        return [];
+      }) as never;
+      await notifications.initNotifications();
+      const replies = notifications.getNotifications().filter((n) => n.type === 'reply');
+      expect(replies).toHaveLength(1);
+      expect(replies[0]).toMatchObject({ type: 'reply', from: 'bob', ref_doc_id: 'c-alice-1', read: false });
+      // The self-comment (c-alice-1) must not surface as a comment or reply.
+      expect(notifications.getNotifications().some((n) => n.type === 'comment')).toBe(false);
+    });
+
+    it('does not derive a reply when the reply targets someone else\'s comment', async () => {
+      // carol commented (c-carol-1) and bob replied to carol's comment
+      // (c-bob-1, ref_value = c-carol-1). alice is not the parent author, so
+      // no reply notification for alice.
+      client.read = vi.fn(async (collection: string, opts?: { ref?: string | string[] }) => {
+        if (collection === 'posts') {
+          return [{ doc_id: 'post-1', author_key: 'web10.app/alice', body: { text: 'hi' } }];
+        }
+        if (collection === 'comments') {
+          const all = [
+            { doc_id: 'c-carol-1', author_key: 'web10.app/carol', ref_value: 'post-1', body: { text: 'carol comment', post_id: 'post-1', created_at: '2026-01-01T00:00:00Z' } },
+            { doc_id: 'c-bob-1', author_key: 'web10.app/bob', ref_value: 'c-carol-1', body: { text: 'a reply', post_id: 'post-1', parent_id: 'c-carol-1', created_at: '2026-01-02T00:00:00Z' } },
+          ];
+          if (opts?.ref) {
+            const refSet = new Set(Array.isArray(opts.ref) ? opts.ref : [opts.ref]);
+            return all.filter((c) => refSet.has(c.ref_value));
+          }
+          return all;
+        }
+        return [];
+      }) as never;
+      await notifications.initNotifications();
+      const replies = notifications.getNotifications().filter((n) => n.type === 'reply');
+      expect(replies).toHaveLength(0);
+    });
   });
 
   describe('live nudge (the fast path)', () => {
