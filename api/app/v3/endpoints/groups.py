@@ -23,6 +23,7 @@ from app.v3.models import (
     ListGroupMembers,
     ListHiddenDocs,
     ListJoinRequests,
+    ListMyGroups,
     RemoveGroupMember,
     SetSharing,
     UnhideDoc,
@@ -128,7 +129,7 @@ def create_group(data: CreateGroup):
     group_id = f"{decoded.provider}/groups/users/{creator}/{group_id}"
 
     if not ch.get_group(group_id):
-        ch.create_group(group_id, data.roles, data.join_policy, data.discoverable)
+        ch.create_group(group_id, data.roles, data.join_policy, data.discoverable, data.tags)
 
     for m in data.members:
         if not ch.get_group_member(group_id, m["member_key"]):
@@ -147,10 +148,14 @@ def create_group(data: CreateGroup):
 
 
 @router.post("/list")
-def get_my_groups(data: TokenOnly):
-    """Get all groups the user belongs to."""
+def get_my_groups(data: ListMyGroups):
+    """Get all groups the user belongs to.
+
+    ``tags`` (D78): an optional server-side tag filter — only groups carrying
+    every given tag are returned (My Groups = ``["web10-social-group"]``).
+    """
     user = _user(data)
-    return ch.get_user_groups(user)
+    return ch.get_user_groups(user, data.tags)
 
 
 @router.post("/get")
@@ -178,11 +183,13 @@ def update_group(data: UpdateGroup):
     # discoverable follows the same gate as the rest of the update (a member);
     # None leaves it unchanged.
     discoverable = data.discoverable if data.discoverable is not None else existing["discoverable"]
+    # tags (D78): None leaves it unchanged; a list replaces.
     result = ch.update_group(
         data.group_id,
         roles=data.roles or existing["roles"],
         join_policy=data.join_policy or existing["join_policy"],
         discoverable=discoverable,
+        tags=data.tags if data.tags is not None else existing.get("tags", []),
     )
     return result
 

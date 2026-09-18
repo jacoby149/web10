@@ -103,7 +103,7 @@ class TestCreate:
 
 class TestRead:
     def test_personal_read(self, client, token):
-        mock_groups = [("g1", "open", "member")]
+        mock_groups = [("g1", "open", [], "member")]
         mock_counts = [("g1", 3)]
         mock_docs = [("doc-1", "bob", '{"text":"mine"}', [], datetime(2026, 1, 1), "", "none", "")]
         with (
@@ -315,7 +315,7 @@ class TestRead:
         assert resp.status_code == 422
 
     def test_me_shorthand(self, client, token):
-        mock_groups = [("g1", "open", "member")]
+        mock_groups = [("g1", "open", [], "member")]
         mock_counts = [("g1", 3)]
         mock_docs = [("doc-1", "bob", '{"text":"hello"}', [], datetime(2026, 1, 1), "", "none", "")]
         with (
@@ -716,7 +716,7 @@ class TestGroupDetail:
 
 class TestJoinGroup:
     def test_open_join(self, client, token):
-        mock_rows = [("g1", '{"roles":[]}', "open", 1, datetime(2026, 1, 1), datetime(2026, 1, 1))]
+        mock_rows = [("g1", '{"roles":[]}', "open", 1, [], datetime(2026, 1, 1), datetime(2026, 1, 1))]
         with patch("app.v3.services.clickhouse.client") as mock_ch:
             mock_ch.query.return_value = MagicMock(result_rows=mock_rows)
             resp = client.post("/v3/groups/join", json={"token": token, "group_id": "g1"})
@@ -724,7 +724,7 @@ class TestJoinGroup:
         assert resp.json()["role"] == "member"
 
     def test_request_join(self, client, token):
-        mock_rows = [("g1", '{"roles":[]}', "request", 1, datetime(2026, 1, 1), datetime(2026, 1, 1))]
+        mock_rows = [("g1", '{"roles":[]}', "request", 1, [], datetime(2026, 1, 1), datetime(2026, 1, 1))]
         with patch("app.v3.services.clickhouse.client") as mock_ch:
             mock_ch.query.return_value = MagicMock(result_rows=mock_rows)
             resp = client.post("/v3/groups/join", json={"token": token, "group_id": "g1"})
@@ -732,7 +732,7 @@ class TestJoinGroup:
         assert resp.json()["status"] == "pending"
 
     def test_invite_only_join(self, client, token):
-        mock_rows = [("g1", '{"roles":[]}', "invite_only", 0, datetime(2026, 1, 1), datetime(2026, 1, 1))]
+        mock_rows = [("g1", '{"roles":[]}', "invite_only", 0, [], datetime(2026, 1, 1), datetime(2026, 1, 1))]
         with patch("app.v3.services.clickhouse.client") as mock_ch:
             mock_ch.query.return_value = MagicMock(result_rows=mock_rows)
             resp = client.post("/v3/groups/join", json={"token": token, "group_id": "g1"})
@@ -804,6 +804,7 @@ class TestJoinRequests:
                 '[{"name":"admin","permissions":["assignRoles"]}]',
                 "open",
                 1,
+                [],
                 datetime(2026, 1, 1),
                 datetime(2026, 1, 1),
             )
@@ -830,6 +831,7 @@ class TestJoinRequests:
                 '[{"name":"member","permissions":["readAll"]}]',
                 "open",
                 1,
+                [],
                 datetime(2026, 1, 1),
                 datetime(2026, 1, 1),
             )
@@ -852,6 +854,7 @@ class TestJoinRequests:
                 '[{"name":"admin","permissions":["assignRoles"]}]',
                 "open",
                 1,
+                [],
                 datetime(2026, 1, 1),
                 datetime(2026, 1, 1),
             )
@@ -885,6 +888,7 @@ class TestJoinRequests:
                 '[{"name":"admin","permissions":["assignRoles"]}]',
                 "open",
                 1,
+                [],
                 datetime(2026, 1, 1),
                 datetime(2026, 1, 1),
             )
@@ -910,6 +914,7 @@ class TestJoinRequests:
                 '[{"name":"admin","permissions":["assignRoles"]}]',
                 "open",
                 1,
+                [],
                 datetime(2026, 1, 1),
                 datetime(2026, 1, 1),
             )
@@ -936,6 +941,7 @@ class TestJoinRequests:
                 '[{"name":"admin","permissions":["assignRoles"]}]',
                 "open",
                 1,
+                [],
                 datetime(2026, 1, 1),
                 datetime(2026, 1, 1),
             )
@@ -963,6 +969,7 @@ class TestInviteMember:
                 '[{"name":"admin","permissions":["assignRoles"]}]',
                 "open",
                 1,
+                [],
                 datetime(2026, 1, 1),
                 datetime(2026, 1, 1),
             )
@@ -990,7 +997,7 @@ class TestInviteMember:
 
     def test_invite_no_permission(self, client, token):
         mock_group = [
-            ("g1", '[{"name":"member","permissions":[]}]', "open", 1, datetime(2026, 1, 1), datetime(2026, 1, 1))
+            ("g1", '[{"name":"member","permissions":[]}]', "open", 1, [], datetime(2026, 1, 1), datetime(2026, 1, 1))
         ]
         with (
             patch("app.v3.services.clickhouse.client") as mock_ch,
@@ -1326,6 +1333,7 @@ class TestSignup:
                 "[]",
                 "open",
                 1,
+                [],
                 datetime(2026, 1, 1),
                 datetime(2026, 1, 1),
             )

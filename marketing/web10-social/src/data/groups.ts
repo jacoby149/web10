@@ -9,6 +9,19 @@ const LOG = (...args: unknown[]) => console.log('[social:groups]', ...args);
 // grant on this service, not a flag.
 const GROUP_IDENTITY_SERVICE = 'web10-social-group-identity';
 
+// ── Group tags (D78) ─────────────────────────────────────────────────────────
+// The platform stores a generic `tags` set on every group (group_contracts.tags)
+// and filters on it server-side (has(tags, …)). The app decides what the tags
+// mean; web10-social namespaces them `web10-social-*` so they never collide with
+// another app's tags on a shared node. A surface selects its groups by tag —
+// My Groups = the `web10-social-group` tag — instead of matching id shapes.
+export const GROUP_TAG = {
+  community: 'web10-social-group',
+  followers: 'web10-social-followers',
+  dm: 'web10-social-dm',
+  chat: 'web10-social-chat',
+} as const;
+
 // ── Group helpers ────────────────────────────────────────────────────────────
 // v3 groups are the core primitive. Every social pattern (follows, discover,
 // close friends, DMs, communities) is a group with different join policies
@@ -166,12 +179,14 @@ export async function ensureFollowers(username: string, provider?: string): Prom
   try {
     await w.getGroup(groupId);
   } catch {
-    // Group doesn't exist — create it (the creator is the owner member)
+    // Group doesn't exist — create it (the creator is the owner member), tagged
+    // as a followers group (D78) so the feed + My Groups select it by tag.
     await w.createGroup(
       'followers',
       'open',
       FOLLOWER_ROLES,
       [{ member_key: username, role: 'owner' }],
+      { tags: [GROUP_TAG.followers] },
     );
     return groupId;
   }
@@ -225,6 +240,7 @@ export async function ensureDmGroup(usernameA: string, usernameB: string): Promi
         { member_key: `web10.app/users/${usernameA}`, role: 'member' },
         { member_key: `web10.app/users/${usernameB}`, role: 'member' },
       ],
+      { tags: [GROUP_TAG.dm] },
     );
     return groupId;
   }
@@ -348,7 +364,10 @@ export async function createCommunityGroup(
   // decides — the original "my friend can't find my public group" fix.
   const discoverable = input.discoverable ?? input.visibility === 'public';
   const joinPolicy = input.join_policy ?? 'open';
-  await w.createGroup(slug, joinPolicy, COMMUNITY_CREATE_ROLES, members, { discoverable });
+  await w.createGroup(slug, joinPolicy, COMMUNITY_CREATE_ROLES, members, {
+    discoverable,
+    tags: [GROUP_TAG.community],
+  });
   LOG('createCommunityGroup — created', groupId, { discoverable, joinPolicy });
   const face: GroupIdentity = {
     name: input.name,
@@ -399,10 +418,15 @@ export async function readGroupFeed(groupId: string, limit = 50): Promise<V3Docu
 
 /**
  * Get all groups the current user belongs to.
+ *
+ * ``opts.tags`` (D78): an optional server-side tag filter — only groups
+ * carrying every given tag are returned. This is how a surface selects its
+ * groups (My Groups = the community tag) without client-side id-pattern
+ * matching.
  */
-export async function getMyGroups(): Promise<V3Group[]> {
+export async function getMyGroups(opts?: { tags?: string[] }): Promise<V3Group[]> {
   const w = getV3Client();
-  return w.getMyGroups();
+  return w.getMyGroups(opts);
 }
 
 /**
@@ -757,11 +781,9 @@ export function isDiscoverGroup(groupId: string): boolean {
   return groupId === getDiscoverGroupId();
 }
 
-/** A user's own followers group (the follow target, not a community). */
-export function isFollowersGroup(groupId: string, username?: string): boolean {
-  if (!groupId.endsWith('/followers')) return false;
-  if (username && !groupId.includes(`/users/${username}/`)) return false;
-  return true;
+/** Any followers group (yours or someone you follow) — infrastructure, not a community. */
+export function isFollowersGroup(groupId: string): boolean {
+  return groupId.endsWith('/followers');
 }
 
 /** A DM group (the message threads live here). */
@@ -786,24 +808,23 @@ export function isAppStorageGroup(groupId: string, username?: string): boolean {
 export function isInfrastructureGroup(groupId: string, username?: string): boolean {
   return (
     isDiscoverGroup(groupId) ||
-    isFollowersGroup(groupId, username) ||
+    isFollowersGroup(groupId) ||
     isDmGroup(groupId) ||
     isAppStorageGroup(groupId, username)
   );
 }
 
 /**
- * The user's community groups — `getMyGroups()` minus the infrastructure
- * (discover board, followers groups, DM groups).
+ * The user's community groups — selected by the platform tag (D78), not by a
+ * client-side id-pattern blocklist. A group shows in My Groups only if it
+ * carries the `web10-social-group` tag; followers / DM / chat / app-storage
+ * groups are tagged differently (or not at all) and are excluded by
+ * construction. One server-side read, I3-scoped to the user's memberships.
  */
 export async function getMyCommunityGroups(): Promise<V3Group[]> {
-  const token = getV3Client().readToken();
-  const groups = await getMyGroups();
-  const visible = groups.filter(
-    (g) => !isInfrastructureGroup(g.group_id, token?.username),
-  );
-  LOG('getMyCommunityGroups —', groups.length, 'total,', visible.length, 'visible');
-  return visible;
+  const groups = await getMyGroups({ tags: [GROUP_TAG.community] });
+  LOG('getMyCommunityGroups —', groups.length, 'community groups (by tag)');
+  return groups;
 }
 
 /**

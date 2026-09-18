@@ -325,13 +325,18 @@ function createV3Client(options = {}) {
       };
       if (opts?.discoverable !== undefined)
         payload.discoverable = opts.discoverable;
+      if (opts?.tags)
+        payload.tags = opts.tags;
       return v3Post("groups/create", payload);
     },
     async getGroup(groupId) {
       return v3Post("groups/get", { group_id: groupId });
     },
-    async getMyGroups() {
-      return v3Post("groups/list", {});
+    async getMyGroups(opts) {
+      const payload = {};
+      if (opts?.tags)
+        payload.tags = opts.tags;
+      return v3Post("groups/list", payload);
     },
     async getGroupsManages() {
       return v3Post("groups/manages", {});
@@ -344,6 +349,8 @@ function createV3Client(options = {}) {
         payload.roles = opts.roles;
       if (opts?.discoverable !== undefined)
         payload.discoverable = opts.discoverable;
+      if (opts?.tags)
+        payload.tags = opts.tags;
       return v3Post("groups/update", payload);
     },
     async deleteGroup(groupId) {

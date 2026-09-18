@@ -39,28 +39,34 @@ describe('app-storage group filtering', () => {
     expect(isInfrastructureGroup('api.localhost/groups/users/jacoby149/gaming-night', 'jacoby149')).toBe(false);
   });
 
-  it('getMyCommunityGroups filters out app-storage + infra groups, keeps communities', async () => {
+  it('getMyCommunityGroups selects by the community tag (server-side, D78)', async () => {
     const mock = mockV3Client('jacoby149');
-    mock.getMyGroups.mockResolvedValue([
-      { group_id: 'api.localhost/groups/web10/discover', join_policy: 'open', my_role: 'member', member_count: 179 },
-      { group_id: 'api.localhost/groups/users/jacoby149/followers', join_policy: 'open', my_role: 'owner', member_count: 10 },
-      { group_id: 'api.localhost/groups/users/jacoby149/media-jacoby149', join_policy: 'invite_only', my_role: 'owner', member_count: 1 },
-      { group_id: 'api.localhost/groups/users/jacoby149/notes-jacoby149', join_policy: 'invite_only', my_role: 'owner', member_count: 1 },
-      { group_id: 'api.localhost/groups/users/jacoby149/sharing-jacoby149', join_policy: 'invite_only', my_role: 'owner', member_count: 1 },
-      { group_id: 'api.localhost/groups/users/jacoby149/gaming-night', join_policy: 'open', my_role: 'member', member_count: 42 },
-      { group_id: 'api.localhost/groups/users/bob/photography', join_policy: 'request', my_role: 'owner', member_count: 7 },
-    ]);
+    // The server does the tag filter — the mock simulates it: only the
+    // web10-social-group-tagged groups come back. Followers / app-storage /
+    // discover are tagged differently (or not at all) and never reach the list.
+    const all = [
+      { group_id: 'api.localhost/groups/web10/discover', tags: [], join_policy: 'open', my_role: 'member', member_count: 179 },
+      { group_id: 'api.localhost/groups/users/jacoby149/followers', tags: ['web10-social-followers'], join_policy: 'open', my_role: 'owner', member_count: 10 },
+      // A followed user's followers group — a follow target, not a community.
+      { group_id: 'api.localhost/groups/users/bob/followers', tags: ['web10-social-followers'], join_policy: 'open', my_role: 'member', member_count: 2 },
+      { group_id: 'api.localhost/groups/users/jacoby149/media-jacoby149', tags: [], join_policy: 'invite_only', my_role: 'owner', member_count: 1 },
+      { group_id: 'api.localhost/groups/users/jacoby149/gaming-night', tags: ['web10-social-group'], join_policy: 'open', my_role: 'member', member_count: 42 },
+      { group_id: 'api.localhost/groups/users/bob/photography', tags: ['web10-social-group'], join_policy: 'request', my_role: 'owner', member_count: 7 },
+    ];
+    mock.getMyGroups.mockImplementation(async (opts?: { tags?: string[] }) => {
+      if (!opts?.tags) return all;
+      return all.filter((g) => opts.tags!.every((t) => g.tags?.includes(t)));
+    });
     const visible = await getMyCommunityGroups();
+    // The selection is the server-side tag filter, not a client-side blocklist.
+    expect(mock.getMyGroups).toHaveBeenCalledWith({ tags: ['web10-social-group'] });
     const ids = visible.map((g) => g.group_id);
-    // App-storage + discover + followers are filtered out
-    expect(ids).not.toContain('api.localhost/groups/web10/discover');
-    expect(ids).not.toContain('api.localhost/groups/users/jacoby149/followers');
-    expect(ids).not.toContain('api.localhost/groups/users/jacoby149/media-jacoby149');
-    expect(ids).not.toContain('api.localhost/groups/users/jacoby149/notes-jacoby149');
-    expect(ids).not.toContain('api.localhost/groups/users/jacoby149/sharing-jacoby149');
-    // Real communities remain
     expect(ids).toContain('api.localhost/groups/users/jacoby149/gaming-night');
     expect(ids).toContain('api.localhost/groups/users/bob/photography');
+    expect(ids).not.toContain('api.localhost/groups/web10/discover');
+    expect(ids).not.toContain('api.localhost/groups/users/jacoby149/followers');
+    expect(ids).not.toContain('api.localhost/groups/users/bob/followers');
+    expect(ids).not.toContain('api.localhost/groups/users/jacoby149/media-jacoby149');
     expect(visible).toHaveLength(2);
   });
 });
@@ -130,6 +136,10 @@ describe('createCommunityGroup', () => {
       { member_key: 'web10.app/users/jacoby149', role: 'owner' },
       { member_key: 'anyone', role: 'reader' },
     ]);
+    // D78: the group is tagged as a community (the My Groups selection key).
+    expect(mock.createGroup.mock.calls[0][4]).toEqual(
+      expect.objectContaining({ tags: ['web10-social-group'] }),
+    );
     // The face is written to the identity service
     expect(mock.create).toHaveBeenCalledWith(
       'web10-social-group-identity',
