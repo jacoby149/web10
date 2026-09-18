@@ -1,6 +1,8 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { render, waitFor } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
+import { lucideMock } from './helpers/lucideMock';
+vi.mock('lucide-react', () => lucideMock);
 import { CommentThread } from '@/components/Feed/CommentThread';
 
 // Mock v3 client at module level so the import chain picks it up
@@ -19,15 +21,6 @@ vi.mock('@/data/v3', () => ({
   setTokenCookie: vi.fn(),
   scrubTokenCookie: vi.fn(),
   decodeJwt: vi.fn().mockReturnValue(null),
-}));
-
-// Mock lucide-react
-vi.mock('lucide-react', () => ({
-  Send: () => null,
-  AlertTriangle: () => null,
-  CheckCircle2: () => null,
-  Info: () => null,
-  X: () => null,
 }));
 
 describe('comment anchor', () => {
