@@ -2,7 +2,7 @@
 
 A repost is a fan saying "this deserves more eyes" — and saying it *from themselves*. A repost resurfaces someone else's post in the reposter's own feed, optionally with the reposter's own comment on top (a quote). This doc defines what a repost *is* on the wire, how the composer creates one, how the feed renders it, and how it is counted. The feed / discover / groups docs define *where* a post shows; `post-actions.md` defines *how the engagement row renders*.
 
-> **Model change (3.109.0):** a repost is **a post, not a reaction.** The pre-3.109.0 model (a `reactions` doc with `type: 'repost'`, a countable signal on the target) is retired as the primary mechanism. A repost now creates a real `posts` doc that references the original by `repost_of` and carries the reposter's comment in `text`. That is what makes it show up in the reposter's feed as "reposted" — a reaction never appears in a feed. (The legacy `type: 'repost'` reaction still reads as a "reposted" fill for old data, and the other surfaces' repeat icon still writes it as a lightweight boost signal — unifying those surfaces onto the post model is an open follow-up.)
+> **Model change (3.110.0):** a repost is **a post, not a reaction.** The pre-3.110.0 model (a `reactions` doc with `type: 'repost'`, a countable signal on the target) is retired as the primary mechanism. A repost now creates a real `posts` doc that references the original by `repost_of` and carries the reposter's comment in `text`. That is what makes it show up in the reposter's feed as "reposted" — a reaction never appears in a feed. (The legacy `type: 'repost'` reaction still reads as a "reposted" fill for old data, and the other surfaces' repeat icon still writes it as a lightweight boost signal — unifying those surfaces onto the post model is an open follow-up.)
 
 ## The use case
 
@@ -67,7 +67,7 @@ A repost is a separate axis from the like/dislike pair. A user can like *and* re
 ## What this is not
 
 - **Not the share / link action.** "Share" (the `Share2` icon, `navigator.share` / clipboard of the permalink) is a separate, surface-owned action. Repost is a data write (a new post); share is a link.
-- **Not a reaction (anymore).** The pre-3.109.0 `type: 'repost'` reaction is retired as the primary mechanism. It still reads as a "reposted" fill for old data and still backs the other surfaces' lightweight boost signal.
+- **Not a reaction (anymore).** The pre-3.110.0 `type: 'repost'` reaction is retired as the primary mechanism. It still reads as a "reposted" fill for old data and still backs the other surfaces' lightweight boost signal.
 - **Not a ranking signal (yet).** The power-mean scorer normalizes a `reposts` signal but weights it `0`. Wiring it into the ranking (a knob or a fixed weight) is a separate decision.
 
 ## Follow-ups (open)

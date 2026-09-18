@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState, useCallback } from 'react';
-import { useParams } from 'react-router-dom';
+import { useParams, useNavigate } from 'react-router-dom';
 import { Heart, MessageCircle, Share2, X } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { getWapi } from '@/data/wapi';
@@ -32,6 +32,7 @@ const LOG = (...args: unknown[]) => console.log('[shorts]', ...args);
  */
 export default function ShortsScreen() {
   const { postId } = useParams<{ postId: string }>();
+  const navigate = useNavigate();
   const [shorts, setShorts] = useState<ShortPost[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -398,6 +399,7 @@ export default function ShortsScreen() {
                   }}
                   postAuthor={short.post.author_username}
                   postService="posts"
+                  onAuthorClick={(username) => navigate(`/u/${username}`)}
                 />
               </div>
             )}

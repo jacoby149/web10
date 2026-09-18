@@ -611,6 +611,7 @@ export function PostCard({
             onCommentCountChange={onCommentCountChange}
             postAuthor={postAuthor}
             postService={postService}
+            onAuthorClick={onAuthorClick}
             dislike="interactive"
             repost="interactive"
             reposted={reposted}

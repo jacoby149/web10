@@ -87,6 +87,9 @@ export interface PostActionsProps {
   remoteHref?: string;
   /** Error sink (the app wires its toast). */
   onError?: (message: string) => void;
+  /** The author-click handler (in-app profile navigation) — passed to the
+   *  comment thread so a comment's author is a tappable profile link. */
+  onAuthorClick?: (username: string, provider?: string) => void;
   testId?: string;
 }
 
@@ -120,6 +123,7 @@ export function PostActions({
   remote = false,
   remoteHref,
   onError,
+  onAuthorClick,
   testId = 'post-actions',
 }: PostActionsProps) {
   // Remote (marketing) mode: an anon visitor can't like, so the like is
@@ -301,6 +305,7 @@ export function PostActions({
       remote={remote}
       remoteHref={remoteHref}
       onError={onError}
+      onAuthorClick={onAuthorClick}
     />
   );
 
