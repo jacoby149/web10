@@ -284,7 +284,15 @@ class TestUpdateGroup:
         with _patch_client() as mock_client:
             mock_client.query.return_value = _mock_result_rows(
                 [
-                    ("g1", '{"roles":[]}', "open", 0, ["web10-social-group"], datetime(2026, 1, 1), datetime(2026, 1, 1)),
+                    (
+                        "g1",
+                        '{"roles":[]}',
+                        "open",
+                        0,
+                        ["web10-social-group"],
+                        datetime(2026, 1, 1),
+                        datetime(2026, 1, 1),
+                    ),
                 ]
             )
             result = ch.update_group("g1", tags=["web10-social-chat"])
@@ -295,7 +303,15 @@ class TestUpdateGroup:
         with _patch_client() as mock_client:
             mock_client.query.return_value = _mock_result_rows(
                 [
-                    ("g1", '{"roles":[]}', "open", 0, ["web10-social-group"], datetime(2026, 1, 1), datetime(2026, 1, 1)),
+                    (
+                        "g1",
+                        '{"roles":[]}',
+                        "open",
+                        0,
+                        ["web10-social-group"],
+                        datetime(2026, 1, 1),
+                        datetime(2026, 1, 1),
+                    ),
                 ]
             )
             result = ch.update_group("g1")
@@ -355,7 +371,15 @@ class TestGetGroup:
         with _patch_client() as mock_client:
             mock_client.query.return_value = _mock_result_rows(
                 [
-                    ("g1", '{"roles":[]}', "open", 1, ["web10-social-group"], datetime(2026, 1, 1), datetime(2026, 1, 1)),
+                    (
+                        "g1",
+                        '{"roles":[]}',
+                        "open",
+                        1,
+                        ["web10-social-group"],
+                        datetime(2026, 1, 1),
+                        datetime(2026, 1, 1),
+                    ),
                 ]
             )
             result = ch.get_group("g1")

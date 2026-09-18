@@ -414,7 +414,16 @@ def _migrate_group_tags_backfill() -> None:
         client.insert(
             "group_contracts",
             [[group_id, roles, join_policy, discoverable, created_at, _now(), 0, inferred]],
-            column_names=["group_id", "roles", "join_policy", "discoverable", "created_at", "updated_at", "deleted", "tags"],
+            column_names=[
+                "group_id",
+                "roles",
+                "join_policy",
+                "discoverable",
+                "created_at",
+                "updated_at",
+                "deleted",
+                "tags",
+            ],
         )
     # Set the sentinel so this never runs again.
     client.insert(
@@ -955,7 +964,9 @@ def get_doc_groups(doc_id: str) -> list[str]:
 # ---------------------------------------------------------------------------
 
 
-def create_group(group_id: str, roles: list[dict], join_policy: str, discoverable: bool | None = None, tags: list[str] | None = None) -> dict:
+def create_group(
+    group_id: str, roles: list[dict], join_policy: str, discoverable: bool | None = None, tags: list[str] | None = None
+) -> dict:
     """Create a group contract.
 
     ``discoverable`` (D53, amended) lists the group in the public directory.
@@ -975,7 +986,16 @@ def create_group(group_id: str, roles: list[dict], join_policy: str, discoverabl
     client.insert(
         "group_contracts",
         [[group_id, _json(roles), join_policy, int(discoverable), now, now, 0, tags]],
-        column_names=["group_id", "roles", "join_policy", "discoverable", "created_at", "updated_at", "deleted", "tags"],
+        column_names=[
+            "group_id",
+            "roles",
+            "join_policy",
+            "discoverable",
+            "created_at",
+            "updated_at",
+            "deleted",
+            "tags",
+        ],
     )
     return {
         "group_id": group_id,
@@ -1054,7 +1074,16 @@ def update_group(group_id: str, **kwargs):
     client.insert(
         "group_contracts",
         [[group_id, _json(roles), join_policy, int(discoverable), existing["created_at"], now, 0, tags]],
-        column_names=["group_id", "roles", "join_policy", "discoverable", "created_at", "updated_at", "deleted", "tags"],
+        column_names=[
+            "group_id",
+            "roles",
+            "join_policy",
+            "discoverable",
+            "created_at",
+            "updated_at",
+            "deleted",
+            "tags",
+        ],
     )
     return {
         "group_id": group_id,
