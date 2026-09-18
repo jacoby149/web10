@@ -1,5 +1,6 @@
 import { getV3Client } from './v3';
 import { followersGroupId, ensureFollowers } from './groups';
+import { resolveMediaRefs } from './posts';
 import { fromV3DocToProfile, type ProfileRecord } from './types';
 
 // ── Profile data layer (v3) ──────────────────────────────────────────────────
@@ -90,11 +91,11 @@ export async function saveProfile(profile: Partial<ProfileRecord>): Promise<Prof
 /**
  * Read another user's profile record.
  */
-export async function readUserProfile(username: string): Promise<ProfileRecord | null> {
+export async function readUserProfile(username: string, provider?: string): Promise<ProfileRecord | null> {
   const w = getV3Client();
   try {
     const docs = await w.read('profile', {
-      groups: [followersGroupId(username)],
+      groups: [followersGroupId(username, provider)],
     });
     if (docs.length > 0) {
       return fromV3DocToProfile(docs[0]);
@@ -111,4 +112,63 @@ export async function readUserProfile(username: string): Promise<ProfileRecord |
 export async function getAuthProfile() {
   const w = getV3Client();
   return w.getProfile();
+}
+
+/**
+ * A user's public "face" — the minimum a recipient-preview needs to confirm
+ * "this is the account I'm about to message": name, handle, bio, and
+ * presigned avatar/banner URLs.
+ */
+export interface UserFace {
+  username: string;
+  provider: string;
+  display_name?: string;
+  bio?: string;
+  avatar_url?: string;
+  banner_url?: string;
+}
+
+/**
+ * Look up a user's public face by username (the DM composer's "who am I
+ * messaging" preview). Reads the user's profile doc and resolves their
+ * avatar/banner refs to presigned URLs (the same cross-user `public_media`
+ * path the profile screen uses). Returns `null` when the account has no
+ * readable profile — either the username doesn't exist or the account has
+ * never set a profile; callers treat both as "no preview" and never block
+ * the send on it.
+ */
+export async function lookupUserProfile(
+  username: string,
+  provider?: string,
+): Promise<UserFace | null> {
+  const w = getV3Client();
+  const token = w.readToken();
+  const prov = provider || token?.provider || 'web10';
+  const profile = await readUserProfile(username, prov).catch((e) => {
+    LOG('lookupUserProfile — profile read failed for', username, ':', e);
+    return null;
+  });
+  if (!profile) return null;
+
+  const face: UserFace = {
+    username,
+    provider: prov,
+    display_name: profile.display_name,
+    bio: profile.bio,
+  };
+
+  const refs = [profile.avatar_ref, profile.banner_ref].filter(Boolean) as string[];
+  if (refs.length) {
+    try {
+      const media = await resolveMediaRefs(refs, { username, provider: prov }, 'public_media');
+      for (const m of media) {
+        if (m._id === profile.avatar_ref) face.avatar_url = m.url;
+        else if (m._id === profile.banner_ref) face.banner_url = m.url;
+      }
+    } catch (e) {
+      LOG('lookupUserProfile — media resolution failed (degraded) for', username, ':', e);
+    }
+  }
+  LOG('lookupUserProfile —', username, '→', face.display_name || '(no display name)', 'avatar:', !!face.avatar_url);
+  return face;
 }
