@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState, type CSSProperties, type ChangeEvent } from 'react';
-import { Play, Pause, TriangleAlert, Volume2, VolumeX, Maximize2 } from 'lucide-react';
+import { Play, Pause, TriangleAlert, Volume2, VolumeX, Maximize2, Gauge } from 'lucide-react';
 import { cn } from './utils';
 import { HlsVideoPlayer, RackMenu } from './HlsVideoPlayer';
 import { IconBtn } from './ui';
@@ -82,6 +82,10 @@ export interface VideoPlayerProps {
   ratio?: number;
   /** Cap the height (contain only) so a portrait clip can't blow up a card. */
   maxHeight?: string;
+  /** Cap the frame width (the lightbox's portrait case) — a 9:16 clip in a
+    *  wide modal reserves a box ~1.78× the viewport tall; capping + centering
+    *  it in a black letterbox keeps the whole clip + the rack in view. */
+  maxWidth?: string;
   /** Hide the inline duration badge (a surface that shows its own time badge). */
   showDuration?: boolean;
   /** Fill a parent frame (w-full h-full, no own aspect-ratio) — carousel slides. */
@@ -101,7 +105,7 @@ export interface VideoPlayerProps {
   className?: string;
 }
 
-export function VideoPlayer({ source, mode = 'inline', fit = 'contain', ratio, maxHeight, showDuration = true, fill = false, immersive = false, active = false, testId, className }: VideoPlayerProps) {
+export function VideoPlayer({ source, mode = 'inline', fit = 'contain', ratio, maxHeight, maxWidth, showDuration = true, fill = false, immersive = false, active = false, testId, className }: VideoPlayerProps) {
   LOG('video player — source:', source.type, 'mode:', mode, 'fit:', fit, 'ratio:', ratio ?? 'natural', 'immersive:', immersive, 'active:', active);
 
   if (source.type === 'hls') {
@@ -125,6 +129,7 @@ export function VideoPlayer({ source, mode = 'inline', fit = 'contain', ratio, m
         width={source.width}
         height={source.height}
         className={className}
+        maxWidth={maxWidth}
       />
     );
   }
@@ -149,6 +154,7 @@ export function VideoPlayer({ source, mode = 'inline', fit = 'contain', ratio, m
       fit={fit}
       ratio={ratio}
       maxHeight={maxHeight}
+      maxWidth={maxWidth}
       showDuration={showDuration}
       fill={fill}
       immersive={immersive}
@@ -327,6 +333,8 @@ interface InlineVideoProps {
   fit?: 'contain' | 'cover';
   ratio?: number;
   maxHeight?: string;
+  /** Cap the frame width (the portrait case) + center it in a black letterbox. */
+  maxWidth?: string;
   showDuration?: boolean;
   fill?: boolean;
   immersive?: boolean;
@@ -335,7 +343,7 @@ interface InlineVideoProps {
   className?: string;
 }
 
-export function InlineVideo({ url, poster, width, height, durationSeconds, fit = 'contain', ratio, maxHeight, showDuration = true, fill = false, immersive = false, active = false, testId, className }: InlineVideoProps) {
+export function InlineVideo({ url, poster, width, height, durationSeconds, fit = 'contain', ratio, maxHeight, maxWidth, showDuration = true, fill = false, immersive = false, active = false, testId, className }: InlineVideoProps) {
   const videoRef = useRef<HTMLVideoElement>(null);
   const [tapped, setTapped] = useState(false);
   const playing = (active && !tapped) || (!active && tapped);
@@ -435,7 +443,8 @@ export function InlineVideo({ url, poster, width, height, durationSeconds, fit =
   const cover = fit === 'cover' || immersive;
   const effectiveRatio = ratio ?? (width && height ? width / height : 4 / 3);
   const isAspectVideo = !fill && !immersive && cover && Math.abs(effectiveRatio - 16 / 9) < 0.001;
-  const containerStyle: CSSProperties = fill || immersive ? {} : isAspectVideo ? {} : { aspectRatio: effectiveRatio, maxHeight };
+  const capped = !fill && !immersive && !!maxWidth;
+  const containerStyle: CSSProperties = fill || immersive ? {} : isAspectVideo ? {} : { aspectRatio: effectiveRatio, maxHeight, ...(capped ? { maxWidth } : {}) };
   const progress = duration > 0 ? (current / duration) * 100 : 0;
   const rackVisible = controlsVisible || pointerOver;
 
@@ -445,6 +454,7 @@ export function InlineVideo({ url, poster, width, height, durationSeconds, fit =
       className={cn(
         'overflow-hidden group relative cursor-pointer bg-black',
         fill || immersive ? 'h-full w-full' : isAspectVideo && 'aspect-video',
+        capped && 'mx-auto',
         className,
       )}
       style={containerStyle}
@@ -545,7 +555,7 @@ export function InlineVideo({ url, poster, width, height, durationSeconds, fit =
               {fmtTime(current)}<span className="text-foreground/50"> / {fmtTime(duration)}</span>
             </span>
             <div className="ml-auto flex items-center gap-1">
-              <RackMenu label="Playback speed" testId="speed-select" value={speed} options={[...SPEEDS]} onPick={setSpeed} />
+              <RackMenu label="Playback speed" testId="speed-select" value={speed} options={[...SPEEDS]} onPick={setSpeed} icon={<Gauge className="w-4 h-4" strokeWidth={2} />} />
               <IconBtn aria-label="Fullscreen" data-testid="fullscreen-button" onClick={(e) => { e.stopPropagation(); toggleFullscreen(); }} className="h-8 w-8">
                 <Maximize2 className="w-4 h-4" strokeWidth={2} />
               </IconBtn>

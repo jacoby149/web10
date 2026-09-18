@@ -341,4 +341,67 @@ describe('HlsVideoPlayer', () => {
     hls.fire('error', { type: 'networkError', details: 'manifestLoadError', fatal: true });
     expect(await screen.findByTestId('hls-player-error')).toBeInTheDocument();
   });
+
+  it('speed and quality menus carry distinct icons (two identical dials read as one control)', async () => {
+    installFakeHls();
+    const { HlsVideoPlayer } = await import('@/components/Feed/HlsVideoPlayer');
+    render(<HlsVideoPlayer manifestUrl="/v3/media/hls/manifest?doc_id=m1&sig=abc" />);
+    // The speed trigger is a speedometer (Gauge); the quality trigger is a
+    // screen (MonitorPlay) — distinct glyphs, so a user can tell "speed" from
+    // "resolution" at a glance.
+    const speedBtn = screen.getByTestId('speed-select');
+    const qualityBtn = screen.getByTestId('quality-select');
+    expect(speedBtn.querySelector('[data-testid="icon-gauge"]')).not.toBeNull();
+    expect(qualityBtn.querySelector('[data-testid="icon-monitorplay"]')).not.toBeNull();
+    // And they are NOT the same glyph (the old bug: both were Gauge).
+    expect(speedBtn.querySelector('[data-testid="icon-monitorplay"]')).toBeNull();
+    expect(qualityBtn.querySelector('[data-testid="icon-gauge"]')).toBeNull();
+  });
+
+  it('switching quality mid-playback resumes the video (a level switch re-buffers; without a nudge it stalls)', async () => {
+    installFakeHls();
+    const { HlsVideoPlayer } = await import('@/components/Feed/HlsVideoPlayer');
+    render(<HlsVideoPlayer manifestUrl="/v3/media/hls/manifest?doc_id=m1&sig=abc" />);
+    const hls = FakeHls.instances[0];
+    const video = screen.getByTestId('hls-video') as HTMLVideoElement;
+    const play = vi.spyOn(video, 'play').mockResolvedValue(undefined);
+    // The video is playing (not paused) when the user picks a new level.
+    Object.defineProperty(video, 'paused', { value: false, configurable: true });
+    hls.fire('manifestParsed', { levels: [{ height: 360 }, { height: 720 }] });
+    await waitFor(() => expect(screen.getByTestId('quality-select')).toBeInTheDocument());
+    fireEvent.click(screen.getByTestId('quality-select'));
+    await waitFor(() => expect(screen.getByTestId('quality-select-menu')).toBeInTheDocument());
+    fireEvent.click(screen.getByTestId('quality-select-option-1'));
+    // The level switch set currentLevel AND nudged playback (the resume fix).
+    await waitFor(() => expect(hls.currentLevel).toBe(0));
+    expect(play).toHaveBeenCalled();
+  });
+
+  it('a maxWidth cap centers a square-ish frame (the lightbox/grid portrait case)', async () => {
+    installFakeHls();
+    const { HlsVideoPlayer } = await import('@/components/Feed/HlsVideoPlayer');
+    const { container } = render(
+      <HlsVideoPlayer manifestUrl="/v3/media/hls/manifest?doc_id=m1&sig=abc" width={720} height={1280} maxWidth="min(50vh, 100%)" />,
+    );
+    // The frame is capped to the maxWidth + centered (mx-auto) in the
+    // full-width black letterbox — the 9:16 box no longer runs the full card
+    // width (which made it ~1.78× the card tall, burying the rack).
+    const frame = container.querySelector('[data-testid="hls-video-player"] > div') as HTMLElement;
+    expect(frame).toBeTruthy();
+    expect(frame.style.maxWidth).toBe('min(50vh, 100%)');
+    expect(frame.className).toMatch(/mx-auto/);
+    // The source ratio is still reserved (9:16).
+    expect(parseFloat(frame.style.aspectRatio)).toBeCloseTo(720 / 1280, 5);
+  });
+
+  it('no maxWidth → the frame is full-width (the feed/discover default, unchanged)', async () => {
+    installFakeHls();
+    const { HlsVideoPlayer } = await import('@/components/Feed/HlsVideoPlayer');
+    const { container } = render(
+      <HlsVideoPlayer manifestUrl="/v3/media/hls/manifest?doc_id=m1&sig=abc" width={720} height={1280} />,
+    );
+    const frame = container.querySelector('[data-testid="hls-video-player"] > div') as HTMLElement;
+    expect(frame.style.maxWidth).toBe('');
+    expect(frame.className).not.toMatch(/mx-auto/);
+  });
 });
