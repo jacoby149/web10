@@ -6,7 +6,7 @@ import { RankBadge, heatTier, HEAT_SHADOW } from './RankBadge';
 import { VideoPlayer, sourceFromMedia } from './VideoPlayer';
 import { MediaCarousel } from './MediaCarousel';
 import { PostActions, type ReactionKind } from './PostActions';
-import type { DiscoverPost, MediaItem, ReadComments, CreateComment } from './types';
+import type { DiscoverPost, MediaItem, ReadComments, ReadReplies, CreateComment } from './types';
 
 /**
  * The shared discover card (D73) — the one both apps' discover surfaces
@@ -76,14 +76,21 @@ function MediaPlaceholder({ type }: MediaPlaceholderProps) {
  * rack, so both paths show controls). This is what makes a 9:16 clip on
  * Discover look like the same product as one in the feed — no borders, no
  * center-crop, controls on both.
+ *
+ * A portrait (9:16) clip is capped to a square-ish frame (`maxWidth`) and
+ * centered in a black letterbox — a full-width 9:16 box is ~1.78× the card
+ * tall, which in a card grid (marketing /trending) dwarfs the card and buries
+ * the control rack at its bottom. The cap keeps the whole clip + the rack in
+ * view. Absent (the social single-column feed) → full-bleed, unchanged.
  */
-function DiscoverVideo({ media }: { media: MediaItem }) {
+function DiscoverVideo({ media, maxWidth }: { media: MediaItem; maxWidth?: string }) {
   const source = sourceFromMedia(media);
   return (
     <VideoPlayer
       source={source}
       mode={source.type === 'hls' ? 'full' : 'inline'}
       fit="contain"
+      maxWidth={maxWidth}
       testId="discover-media-video"
     />
   );
@@ -109,8 +116,10 @@ export interface DiscoverCardProps {
   reposted?: boolean;
   /** Interactive mode: the repost writer (reposts.md — independent of like). */
   onToggleRepost?: () => void;
-  /** The comment reader (injected — the data seam). */
+  /** The comment reader (injected — the data seam). Paged (comments.md). */
   readComments?: ReadComments;
+  /** The reply reader for "view more replies" (injected; paged). */
+  readReplies?: ReadReplies;
   /** The comment writer (injected; absent in remote mode). */
   createComment?: CreateComment;
   /** Error sink (the app wires its toast). */
@@ -122,10 +131,20 @@ export interface DiscoverCardProps {
   /** Interactive mode: the author-click handler (in-app profile navigation).
    *  In remote mode the author is a link-out to web10 social instead. */
   onAuthorClick?: () => void;
+  /** The comment-author-click handler (in-app profile navigation) — a comment's
+   *  author is a tappable profile link, distinct from the card's own author. */
+  onCommentAuthorClick?: (username: string, provider?: string) => void;
   /** A DOM id for the card (the marketing page uses it for card ordering). */
   id?: string;
   className?: string;
   testId?: string;
+  /**
+   * Cap a portrait (9:16) video's frame width (the card-grid case). A full-
+   * width 9:16 box is ~1.78× the card tall and buries the control rack; the
+   * cap centers a square-ish frame in a black letterbox. The social single-
+   * column feed leaves this unset (full-bleed, unchanged).
+   */
+  videoMaxWidth?: string;
 }
 
 export function DiscoverCard({
@@ -142,14 +161,17 @@ export function DiscoverCard({
   reposted = false,
   onToggleRepost,
   readComments,
+  readReplies,
   createComment,
   onError,
   groups,
   postService = 'posts',
   onAuthorClick,
+  onCommentAuthorClick,
   id,
   className,
   testId = 'discover-card',
+  videoMaxWidth,
 }: DiscoverCardProps) {
   const tier = heatTier(post.score ?? 0, maxScore);
   const derivedName = (post.author_username || post.author).replace(/[-_]/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase());
@@ -298,7 +320,14 @@ export function DiscoverCard({
                 testId="discover-media-carousel"
               />
             ) : isVideoMedia && firstMedia?.url ? (
-              <DiscoverVideo media={firstMedia} />
+              <DiscoverVideo
+                media={firstMedia}
+                maxWidth={
+                  videoMaxWidth && firstMedia.width && firstMedia.height && firstMedia.width < firstMedia.height
+                    ? videoMaxWidth
+                    : undefined
+                }
+              />
             ) : mediaType === 'image' && mediaItems.length > 0 ? (
               <div className="aspect-[4/3] w-full overflow-hidden bg-elevated">
                 <img
@@ -357,11 +386,13 @@ export function DiscoverCard({
         postService={postService}
         groups={groups}
         readComments={readComments}
+        readReplies={readReplies}
         createComment={createComment}
         remote={remote}
         remoteHref={postHref}
         onError={onError}
         onToggleReaction={onToggleReaction}
+        onAuthorClick={onCommentAuthorClick}
         trailing={
           <span className="ml-auto text-muted-foreground" aria-label="Share">
             <Share2 className="h-4 w-4" strokeWidth={1.5} />

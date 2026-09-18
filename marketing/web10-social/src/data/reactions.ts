@@ -167,11 +167,18 @@ export type ReactionKind = 'like' | 'dislike';
  * a property of the data layer, not a per-surface discipline.
  *
  * Returns the reaction the user holds after the call (kind, or null).
+ *
+ * `targetService` (default `'posts'`) is written to the doc's
+ * `target_service` field so it is honest: `'comments'` for a comment like
+ * (comments.md), `'posts'` for a post like. The read + the "is this mine?"
+ * match key off `ref_value` + username alone, so the field is metadata, not
+ * a boundary.
  */
 export async function setReaction(
   targetId: string,
   kind: ReactionKind | null,
   groups?: string[],
+  targetService: 'posts' | 'comments' = 'posts',
 ): Promise<ReactionKind | null> {
   const w = getV3Client();
   const token = w.readToken();
@@ -227,7 +234,7 @@ export async function setReaction(
   }
   if (kind && (!primary || primary.type !== kind)) {
     await createReaction({
-      target_service: 'posts',
+      target_service: targetService,
       target_id: targetId,
       type: kind,
       created_at: new Date().toISOString(),
@@ -251,6 +258,7 @@ export async function toggleReactionKind(
   targetId: string,
   kind: ReactionKind,
   groups?: string[],
+  targetService: 'posts' | 'comments' = 'posts',
 ): Promise<ReactionKind | null> {
   const w = getV3Client();
   const token = w.readToken();
@@ -267,7 +275,7 @@ export async function toggleReactionKind(
   );
 
   const next: ReactionKind | null = mine.length > 0 && mine[0].type === kind ? null : kind;
-  return setReaction(targetId, next, groups);
+  return setReaction(targetId, next, groups, targetService);
 }
 
 /**

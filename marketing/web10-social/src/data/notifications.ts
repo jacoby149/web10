@@ -425,6 +425,32 @@ async function deriveNotifications(): Promise<Notification[]> {
     // Best-effort.
   }
 
+  // Follows: following a user is joining their followers group (open join
+  // policy — the follow is immediate, there is no pending request). So a
+  // "new follower" is simply a member of MY followers group. Derive one
+  // notification per follower (excluding myself). `joined_at` is the follow
+  // time, which the last-seen cursor uses to mark read/unread. This is the
+  // durable record the P2P nudge (follows.ts) cannot guarantee when I was
+  // offline — without it, a follow made while I was away is never seen.
+  try {
+    const myFollowersGroup = followersGroupId(me, token.provider);
+    const members = await w.getGroupMembers(myFollowersGroup);
+    for (const m of members) {
+      const follower = extractUsername(m.member_key);
+      if (!follower || follower === me) continue; // skip self + non-user keys
+      if (follower === 'anyone' || follower === 'authenticated') continue; // reserved principals
+      out.push({
+        id: `follow_request:${follower}`,
+        type: 'follow_request',
+        from: follower,
+        read: false,
+        created_at: m.joined_at || new Date().toISOString(),
+      });
+    }
+  } catch {
+    // Best-effort.
+  }
+
   return out;
 }
 

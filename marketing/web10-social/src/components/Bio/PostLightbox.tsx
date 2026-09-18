@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { ChevronLeft, ChevronRight, X, Edit3, Trash2, Eye, EyeOff, Share2, Check } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
@@ -25,15 +26,26 @@ import { VideoPlayer, sourceFromMedia } from '@/components/Feed/VideoPlayer';
 
 /** The lightbox's video pane — the modal modality (video-player.md): the full
  *  player. Transcoded plays the hls.js rack; non-transcoded plays native
- *  controls. Both route through the shared <VideoPlayer>. */
+ *  controls. Both route through the shared <VideoPlayer>.
+ *
+ *  A portrait (9:16) clip is capped to a square-ish frame (`maxWidth`) and
+ *  centered in a black letterbox — the full-width 9:16 frame would be ~1.78×
+ *  the viewport tall (clipped by the modal, the rack stranded off-screen).
+ *  The operator liked the square frame; the cap restores it for vertical video. */
 function LightboxVideo({ media }: { media: MediaRecord }) {
   const source = sourceFromMedia(media);
+  // width/height exist on the hls + file variants (not the youtube embed, which
+  // the lightbox never renders). A portrait clip (width < height) gets the
+  // square-ish cap.
+  const dims = source.type === 'youtube' ? null : { w: source.width, h: source.height };
+  const portrait = !!dims && !!dims.w && !!dims.h && dims.w < dims.h;
   return (
     <VideoPlayer
       source={source}
       mode="full"
       fit="contain"
       testId={source.type === 'file' ? 'lightbox-video' : undefined}
+      maxWidth={portrait ? 'min(50vh, 100%)' : undefined}
       className={source.type === 'file' ? 'max-h-[50vh] sm:max-h-[88vh]' : 'w-full'}
     />
   );
@@ -65,6 +77,7 @@ interface PostLightboxProps {
 }
 
 export function PostLightbox({ post, mediaMap, onClose, onReload, postAuthor, postService, isOwner: isOwnerProp, highlightedCommentId }: PostLightboxProps) {
+  const navigate = useNavigate();
   // Track the live post — initialized from the prop but updated in-place
   // after mutations (visibility toggle, edit) so a re-toggle uses the fresh
   // _id + visibility, not the stale prop. Without this, public→private→public
@@ -418,6 +431,7 @@ export function PostLightbox({ post, mediaMap, onClose, onReload, postAuthor, po
             postService={postService}
             highlightedCommentId={highlightedCommentId}
             defaultOpen={!!highlightedCommentId}
+            onAuthorClick={(username) => navigate(`/u/${username}`)}
             dislike="interactive"
             repost="interactive"
             reposted={reposted}

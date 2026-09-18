@@ -34,6 +34,10 @@ export interface HlsInstance {
   off(event: HlsEventType, listener: (event: string, data: any) => void): void;
   levels: HlsLevel[];
   currentLevel: number;
+  /** Whether hls.js is actively loading segments (a paused-then-level-switched
+    *  player can leave this disengaged → the switch stalls; startLoad re-arms). */
+  autoStartLoad: boolean;
+  startLoad(startPosition?: number): void;
 }
 
 export interface HlsStatic {

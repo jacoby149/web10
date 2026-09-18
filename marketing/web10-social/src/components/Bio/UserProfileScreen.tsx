@@ -803,6 +803,7 @@ export default function UserProfileScreen({ username, provider, onBack }: UserPr
                 authorAvatar={avatarMedia?.url}
                 isOwnProfile={isOwnProfile}
                 onPostUpdated={loadData}
+                onAuthorClick={(u) => navigate(`/u/${u}`)}
               />
             ) : (
             <div className="grid grid-cols-3 gap-1">

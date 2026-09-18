@@ -14,7 +14,8 @@ import {
   updatePost,
   deletePost,
   movePostVisibility,
-  toggleRepost,
+  readPostById,
+  resolveMediaRefs,
 } from '@/data';
 import { getWapi } from '@/data/wapi';
 import { fromResolvedMediaRef, type ResolvedMediaRef, type PostRecord, type MediaRecord } from '@/data/types';
@@ -25,7 +26,7 @@ import {
   type KnobState,
 } from '@/lib/powerMean';
 import { KnobRack } from '@/components/Discover/KnobRack';
-import { MoreHorizontal, Share2, Check, Edit3, Eye, EyeOff, Trash2 } from 'lucide-react';
+import { MoreHorizontal, Share2, Check, Edit3, Eye, EyeOff, Trash2, Repeat2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { MARKETING_ORIGIN } from '@/lib/origins';
 import { Textarea } from '@/components/ui/textarea';
@@ -74,9 +75,9 @@ function presetIdForState(state: KnobState): PresetId | null {
   return match ? match.id : null;
 }
 
-// The feed's default tuning: Newest (pure chronological — "no algorithm" is
-// the delivery pitch; the knobs are opt-in).
-const FEED_DEFAULT_STATE = () => getPreset('newest')!.state;
+// The feed's default tuning: Most recent (pure chronological — "no algorithm"
+// is the delivery pitch; the knobs are opt-in).
+const FEED_DEFAULT_STATE = () => getPreset('most-recent')!.state;
 const FEED_DEFAULT_ENCODING = encodeKnobState(FEED_DEFAULT_STATE());
 
 function formatTimeAgo(dateStr: string): string {
@@ -154,6 +155,132 @@ function MediaGrid({ mediaItems }: { mediaItems: MediaRecord[] }) {
     return <MediaItem media={first} />;
   }
   return <MediaCarousel items={mediaItems} fit="contain" maxHeight="60vh" testId="media-carousel" />;
+}
+
+/**
+ * The embedded original post inside a repost card (reposts.md). Fetches the
+ * original by doc_id and renders it as a nested, read-only card (author,
+ * text, media). I3: the reader must be able to read the original — a post the
+ * reader can't read degrades to an "unavailable" placeholder (a repost never
+ * grants access to the original).
+ */
+function RepostedEmbed({
+  repostOf,
+  onAuthorClick,
+}: {
+  repostOf: string;
+  onAuthorClick?: (username: string, provider: string) => void;
+}) {
+  const [original, setOriginal] = useState<PostRecord | null>(null);
+  const [mediaItems, setMediaItems] = useState<MediaRecord[]>([]);
+  const [state, setState] = useState<'loading' | 'ready' | 'unavailable'>('loading');
+
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const p = await readPostById(repostOf);
+        if (cancelled) return;
+        if (!p) {
+          setState('unavailable');
+          return;
+        }
+        setOriginal(p);
+        // Resolve the original's media (cross-user path — the API read path).
+        const refs = (p.media_refs || []).filter(Boolean);
+        if (refs.length) {
+          try {
+            const media = await resolveMediaRefs(refs);
+            if (!cancelled) setMediaItems(media);
+          } catch {
+            // Media resolution failed — degrade (text-only embed).
+          }
+        }
+        if (!cancelled) setState('ready');
+      } catch {
+        if (!cancelled) setState('unavailable');
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [repostOf]);
+
+  if (state === 'loading') {
+    return (
+      <div className="mx-4 mb-3 rounded-lg border border-border bg-elevated/40 p-3" data-testid="repost-embed-loading">
+        <div className="flex items-center gap-2.5">
+          <Skeleton className="h-9 w-9 rounded-full" />
+          <Skeleton className="h-3 w-32" />
+        </div>
+        <Skeleton className="mt-3 h-3 w-full" />
+        <Skeleton className="mt-2 h-3 w-2/3" />
+      </div>
+    );
+  }
+
+  if (state === 'unavailable' || !original) {
+    return (
+      <div
+        className="mx-4 mb-3 rounded-lg border border-border bg-elevated/40 px-3 py-2.5 text-sm text-muted-foreground"
+        data-testid="repost-embed-unavailable"
+      >
+        Original post unavailable
+      </div>
+    );
+  }
+
+  const authorName = original.profile?.display_name || original.author_username || 'Original author';
+  return (
+    <div className="mx-4 mb-3 rounded-lg border border-border bg-elevated/30 overflow-hidden" data-testid="repost-embed">
+      <div className="flex items-center gap-2.5 px-3 py-2.5">
+        <Avatar className="h-8 w-8">
+          {original.avatar_url ? (
+            <AvatarImage src={original.avatar_url} alt={authorName} />
+          ) : (
+            <AvatarFallback className="bg-brand-muted text-brand-300 text-xs font-semibold">
+              {authorName.charAt(0).toUpperCase()}
+            </AvatarFallback>
+          )}
+        </Avatar>
+        <div className="flex-1 min-w-0 flex items-baseline gap-1.5">
+          {original.author_username && onAuthorClick ? (
+            <button
+              type="button"
+              className="font-medium text-sm text-foreground truncate hover:text-brand-300 transition-colors duration-150"
+              onClick={() => onAuthorClick(original.author_username!, original.author_provider || '')}
+              aria-label={`View ${authorName}'s profile`}
+              data-testid="repost-embed-author-link"
+            >
+              {authorName}
+            </button>
+          ) : (
+            <span className="font-medium text-sm text-foreground truncate">{authorName}</span>
+          )}
+          <span className="text-[0.8125rem] text-muted-foreground shrink-0">· {formatTimeAgo(original.created_at)}</span>
+        </div>
+      </div>
+      {original.text ? (
+        <div className="px-3 pb-2.5 text-sm text-foreground leading-relaxed whitespace-pre-wrap break-words line-clamp-6">
+          <TextWithLinks text={original.text} />
+        </div>
+      ) : null}
+      <div className="pb-2">
+        <MediaGrid mediaItems={mediaItems} />
+      </div>
+      {/* The original's creator-pinned ad (D55) renders inside the embed — the
+          repost resurfaces the original's content AND its monetization, so the
+          original creator earns from the reach the repost gives them. Only the
+          creator's pinned ad (`original.ad`), never a node ad (`original.node_ad`)
+          — a node ad on the repost post itself already covers the node's
+          inventory, and two ads in a compact embed is too much. */}
+      {original.ad ? (
+        <div className="px-2 pb-2" data-testid="repost-embed-ad">
+          <AdBlock ad={original.ad} />
+        </div>
+      ) : null}
+    </div>
+  );
 }
 
 export interface PostCardProps {
@@ -329,6 +456,15 @@ export function PostCard({
             <span className="font-medium text-sm text-foreground truncate">{authorName}</span>
           )}
           <span className="text-[0.8125rem] text-muted-foreground shrink-0">· {formatTimeAgo(timestamp)}</span>
+          {post.repost_of && (
+            <span
+              className="flex items-center gap-1 shrink-0 text-[0.8125rem] text-brand-300"
+              data-testid="repost-badge"
+            >
+              <Repeat2 className="w-3.5 h-3.5" strokeWidth={2} />
+              reposted
+            </span>
+          )}
         </div>
         {isOwnPost && (
           <div className="relative shrink-0">
@@ -410,6 +546,19 @@ export function PostCard({
         )}
       </div>
 
+      {/* Repost (reposts.md): the reposter's comment (the quote) sits above the
+          embedded original post — the X/Twitter quote-tweet layout. A repost
+          carries no media of its own; the original's media lives in the embed. */}
+      {post.repost_of && !editing && post.text ? (
+        <div className="px-4 pt-3 text-sm text-foreground leading-relaxed whitespace-pre-wrap break-words">
+          <TextWithLinks text={post.text} />
+        </div>
+      ) : null}
+
+      {post.repost_of && (
+        <RepostedEmbed repostOf={post.repost_of} onAuthorClick={onAuthorClick} />
+      )}
+
       <MediaGrid mediaItems={mediaItems} />
 
       {editing ? (
@@ -430,7 +579,7 @@ export function PostCard({
             </Button>
           </div>
         </div>
-      ) : post.text ? (
+      ) : post.text && !post.repost_of ? (
         <div className="px-4 pt-3 text-sm text-foreground leading-relaxed whitespace-pre-wrap break-words">
           <TextWithLinks text={post.text} />
         </div>
@@ -462,6 +611,7 @@ export function PostCard({
             onCommentCountChange={onCommentCountChange}
             postAuthor={postAuthor}
             postService={postService}
+            onAuthorClick={onAuthorClick}
             dislike="interactive"
             repost="interactive"
             reposted={reposted}
@@ -527,7 +677,7 @@ function FeedSkeleton() {
   );
 }
 
-export default function FeedScreen({ onAuthorClick }: { onAuthorClick?: (username: string, provider: string) => void }) {
+export default function FeedScreen({ onAuthorClick, onRepost }: { onAuthorClick?: (username: string, provider: string) => void; onRepost?: (post: PostRecord) => void }) {
   const [posts, setPosts] = useState<PostRecord[]>([]);
   const [loading, setLoading] = useState(true);
   const [loadingMore, setLoadingMore] = useState(false);
@@ -624,14 +774,15 @@ export default function FeedScreen({ onAuthorClick }: { onAuthorClick?: (usernam
     const presetDef = getPreset(id);
     if (presetDef) {
       // An explicit preset click always wins. When the clicked preset IS the
-      // feed default (Newest), setKnobUrl omits the ?knobs= param (to keep the
-      // default URL clean) — so knobState would fall back to the saved tuning
-      // and the Newest chip would never light up. Clear the saved tuning so the
-      // click takes effect (the feed is chronological until the user re-tunes).
+      // feed default (Most recent), setKnobUrl omits the ?knobs= param (to keep
+      // the default URL clean) — so knobState would fall back to the saved
+      // tuning and the Most recent chip would never light up. Clear the saved
+      // tuning so the click takes effect (the feed is chronological until the
+      // user re-tunes).
       if (encodeKnobState(presetDef.state) === FEED_DEFAULT_ENCODING && savedKnobsRef.current) {
         savedKnobsRef.current = null;
         setSavedKnobs(null);
-        LOG('preset — Newest clicked, cleared saved tuning so the default wins');
+        LOG('preset — Most recent clicked, cleared saved tuning so the default wins');
       }
       setKnobUrl(presetDef.state);
       persistKnobs(presetDef.state);
@@ -787,25 +938,13 @@ export default function FeedScreen({ onAuthorClick }: { onAuthorClick?: (usernam
     }
   }
 
-  // Repost (reposts.md): independent of like/dislike. Optimistic update of
-  // the reader's own repost flag + the repost count, rollback on error. The
-  // data layer (toggleRepost) enforces one-repost-per-user + self-heal.
-  async function handleToggleRepost(postId: string) {
-    const token = getWapi().readToken();
-    if (!token) return;
-    const wasReposted = !!repostedMap[postId];
-    const nextReposted = !wasReposted;
-    const delta = nextReposted ? 1 : -1;
-    setRepostedMap((prev) => ({ ...prev, [postId]: nextReposted }));
-    setRepostCountMap((prev) => ({ ...prev, [postId]: Math.max(0, (prev[postId] || 0) + delta) }));
-    try {
-      await toggleRepost(postId);
-    } catch (e) {
-      console.error('Failed to toggle repost:', e);
-      toast.error(errorMessage(e, 'Could not update your repost.'));
-      setRepostedMap((prev) => ({ ...prev, [postId]: wasReposted }));
-      setRepostCountMap((prev) => ({ ...prev, [postId]: Math.max(0, (prev[postId] || 0) - delta) }));
-    }
+  // Repost (reposts.md): a repost is a real post, not a reaction toggle.
+  // Tapping the repeat icon opens the composer in repost mode (the app-level
+  // composer above the feed) with this post as the context. The composer
+  // creates the repost post; the feed remounts on onPostCreated so the new
+  // repost shows up + the repost count / filled state re-derive.
+  function handleRepost(post: PostRecord) {
+    onRepost?.(post);
   }
 
   if (loading) {
@@ -862,7 +1001,7 @@ export default function FeedScreen({ onAuthorClick }: { onAuthorClick?: (usernam
                   reposted={!!repostedMap[post._id || '']}
                   timestamp={post.created_at}
                   onToggleReaction={(kind) => handleToggleReaction(post._id || '', kind)}
-                  onToggleRepost={() => handleToggleRepost(post._id || '')}
+                  onToggleRepost={() => handleRepost(post)}
                   onCommentCountChange={(n) =>
                     setCommentMap((prev) => ({ ...prev, [post._id || '']: n }))
                   }

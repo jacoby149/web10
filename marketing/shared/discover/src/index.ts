@@ -20,6 +20,8 @@ export type {
   TranscodingSettings,
   TranscodingVariant,
   CommentItem,
+  CommentPageResult,
   ReadComments,
+  ReadReplies,
   CreateComment,
 } from './types';

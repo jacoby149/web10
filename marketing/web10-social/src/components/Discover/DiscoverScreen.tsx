@@ -59,7 +59,7 @@ import { PostActions } from '@/components/Feed/PostActions';
 // D74: the shared discover card (one source, both apps). The social app's grid
 // + youtube cards now wrap it — the same card the marketing /trending uses.
 import { DiscoverCard as SharedDiscoverCard, type DiscoverPost, type CreateComment } from '@web10/discover';
-import { readComments, createComment as wapiCreateComment } from '@/data';
+import { readThreadComments, readThreadReplies, createComment as wapiCreateComment } from '@/data';
 
 const LOG = (...args: unknown[]) => console.log('[social:discover]', ...args);
 
@@ -355,9 +355,10 @@ function SuggestedUserSkeleton() {
 // ── DiscoverCard (trending post) ─────────────────────────────────────────────
 
 // D74: adapt the wapi createComment to the shared card's injected CreateComment.
-const discoverCreateComment: CreateComment = async ({ postId, text, groups, postAuthor, postService }) => {
+// `parentId` present = a reply (refs the parent, comments.md); absent = top-level.
+const discoverCreateComment: CreateComment = async ({ postId, text, parentId, groups, postAuthor, postService }) => {
   const created = await wapiCreateComment(
-    { post_id: postId, text, created_at: new Date().toISOString() },
+    { post_id: postId, text, parent_id: parentId, created_at: new Date().toISOString() },
     groups ?? postAuthor,
     postService,
   );
@@ -391,6 +392,8 @@ interface DiscoverCardProps {
   authorAvatar?: string;
   mediaItems: MediaRecord[];
   onAuthorClick: () => void;
+  /** A comment's author is a tappable profile link (in-app navigation). */
+  onCommentAuthorClick?: (username: string, provider?: string) => void;
   /** Whether the reader has liked this post (the heart fills). */
   liked: boolean;
   /** Whether the reader has disliked this post (the thumb fills). */
@@ -411,6 +414,7 @@ function DiscoverCard({
   authorAvatar,
   mediaItems,
   onAuthorClick,
+  onCommentAuthorClick,
   liked,
   disliked,
   reposted,
@@ -430,14 +434,21 @@ function DiscoverCard({
       maxScore={maxScore}
       authorAvatar={authorAvatar}
       onAuthorClick={onAuthorClick}
+      onCommentAuthorClick={onCommentAuthorClick}
       liked={liked}
       disliked={disliked}
       reposted={reposted}
       onToggleReaction={onToggleReaction}
       onToggleRepost={onToggleRepost}
-      readComments={readComments}
+      readComments={readThreadComments}
+      readReplies={readThreadReplies}
       createComment={discoverCreateComment}
       testId="discover-card"
+      // A full-width 9:16 box is ~1.78× the card tall — too big on desktop,
+      // and it buries the control rack at its bottom. Cap the portrait frame
+      // (centered in a black letterbox), consistent with the marketing
+      // /trending card. Landscape is unaffected (only portrait is capped).
+      videoMaxWidth="min(50vh, 100%)"
     />
 
   );
@@ -554,6 +565,8 @@ interface DiscoverYouTubeCardProps {
   authorAvatar?: string;
   mediaItems: MediaRecord[];
   onAuthorClick: () => void;
+  /** A comment's author is a tappable profile link (in-app navigation). */
+  onCommentAuthorClick?: (username: string, provider?: string) => void;
 }
 
 function DiscoverYouTubeCard({
@@ -563,6 +576,7 @@ function DiscoverYouTubeCard({
   authorAvatar,
   mediaItems,
   onAuthorClick,
+  onCommentAuthorClick,
 }: DiscoverYouTubeCardProps) {
   // D74: the social video-view card is now the SHARED discover card (the same
   // one the marketing /trending youtube view uses) — one source, both apps.
@@ -574,9 +588,14 @@ function DiscoverYouTubeCard({
       maxScore={1}
       authorAvatar={authorAvatar}
       onAuthorClick={onAuthorClick}
-      readComments={readComments}
+      onCommentAuthorClick={onCommentAuthorClick}
+      readComments={readThreadComments}
+      readReplies={readThreadReplies}
       createComment={discoverCreateComment}
       testId="discover-youtube-card"
+      // Same portrait cap as the board card (a 9:16 clip in the video view is
+      // too big on desktop + buries the rack). Landscape is unaffected.
+      videoMaxWidth="min(50vh, 100%)"
     />
   );
 }
@@ -914,7 +933,7 @@ export default function DiscoverScreen() {
   // The server-side ranking config for the current knob state. The Newest
   // preset is pure chronological — the board's default read (no sort param).
   const sortConfig = useMemo<PowerMeanSortConfig | null>(() => {
-    if (activePreset === 'newest') return null;
+    if (activePreset === 'most-recent') return null;
     return knobStateToSort(knobState);
   }, [knobState, activePreset]);
 
@@ -1326,6 +1345,7 @@ export default function DiscoverScreen() {
                     }
                     mediaItems={mediaItems}
                     onAuthorClick={() => navigateToUserProfile(post.author_username || '', post.author_provider || '')}
+                    onCommentAuthorClick={(username, provider) => navigateToUserProfile(username, provider || '')}
                   />
                 );
               })}
@@ -1355,6 +1375,7 @@ export default function DiscoverScreen() {
                   }
                   mediaItems={mediaItems}
                   onAuthorClick={() => navigateToUserProfile(post.author_username || '', post.author_provider || '')}
+                  onCommentAuthorClick={(username, provider) => navigateToUserProfile(username, provider || '')}
                   liked={!!likedMap[post._id || '']}
                   disliked={!!dislikedMap[post._id || '']}
                   reposted={!!repostedMap[post._id || '']}

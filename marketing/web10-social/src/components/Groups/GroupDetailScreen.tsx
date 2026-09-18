@@ -131,6 +131,7 @@ function PostMedia({ media }: { media: MediaRecord[] }) {
 // ── Post card (member view) ────────────────────────────────────────────────
 
 function GroupPostCard({ post, media, groupId }: { post: PostRecord; media: MediaRecord[]; groupId: string }) {
+  const navigate = useNavigate();
   const author = post.author_username || post.author || 'unknown';
   const displayName = author.charAt(0).toUpperCase() + author.slice(1);
 
@@ -254,6 +255,7 @@ function GroupPostCard({ post, media, groupId }: { post: PostRecord; media: Medi
         onCommentCountChange={setCommentCount}
         postAuthor={author}
         groups={[groupId]}
+        onAuthorClick={(username) => navigate(`/u/${username}`)}
         dislike="interactive"
         repost="interactive"
         reposted={reposted}

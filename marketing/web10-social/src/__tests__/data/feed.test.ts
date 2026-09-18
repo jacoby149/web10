@@ -139,7 +139,7 @@ describe('feed v3 data layer', () => {
       expect(sql).toContain('FROM comments');
       expect(sql).toContain('FROM profile');
       expect(sql).toContain('LIMIT 21');
-      // The Newest preset (no knobState) → chronological, cursor on created_at.
+      // The Most recent preset (no knobState) → chronological, cursor on created_at.
       expect(sql).toContain('ORDER BY toUnixTimestamp64Milli(p.created_at) DESC');
       expect(page.posts).toHaveLength(1);
       // The engagement-count queries are scoped to the feed groups + discover
@@ -199,10 +199,10 @@ describe('feed v3 data layer', () => {
       expect(mock.query).not.toHaveBeenCalled();
     });
 
-    it('a tuned (non-Newest) preset scores on total reactions, not a stale reaction_count column', async () => {
+    it('a tuned (non-Most recent) preset scores on total reactions, not a stale reaction_count column', async () => {
       // Regression: 3.101.0 split the reactions join into like_count / dislike_count
       // but left the power-mean score referencing the old `eng.reaction_count`
-      // column. Any preset with a likes weight (e.g. Most loved) emitted a feed
+      // column. Any preset with a likes weight (e.g. Most liked) emitted a feed
       // query referencing a non-existent column → ClickHouse error → empty feed.
       const captured: string[] = [];
       mock.query.mockImplementation(async (sql: string) => {
@@ -211,7 +211,7 @@ describe('feed v3 data layer', () => {
         return { rows: [], count: 0 };
       });
 
-      // "Most loved · all time": recency 0, likes 5, comments 0 → a tuned sort.
+      // "Most liked": recency 0, likes 5, comments 0 → a tuned sort.
       await readFeedPage({
         limit: 20,
         knobState: { recency: 0, likes: 5, comments: 0, halfLife: 5, character: 0 },
@@ -225,6 +225,26 @@ describe('feed v3 data layer', () => {
       expect(feedSql).toContain('eng.dislike_count');
       // A tuned sort orders by the score, not by created_at.
       expect(feedSql).not.toContain('ORDER BY toUnixTimestamp64Milli(p.created_at) DESC');
+    });
+
+    it('counts reposts as posts with repost_of (not type=repost reactions, reposts.md)', async () => {
+      const captured: string[] = [];
+      mock.query.mockImplementation(async (sql: string) => {
+        captured.push(sql);
+        if (sql.includes('FROM posts p')) return { rows: [feedRow()], count: 1 };
+        return { rows: [], count: 0 };
+      });
+      await readFeedPage({ limit: 20 });
+      const feedSql = captured.find((s) => s.includes('FROM posts p'))!;
+      // A repost is a real post doc (reposts.md) — the count is the number of
+      // posts whose body.repost_of points at the post, NOT a `type='repost'`
+      // reaction (the pre-3.106.0 model). The reactions join keeps like/dislike
+      // only.
+      expect(feedSql).toContain("JSONExtractString(body, 'repost_of')");
+      expect(feedSql).not.toContain("countIf(JSONExtractString(body, 'type') = 'repost')");
+      // The repost count column is still selected + coalesced into `reposts`.
+      expect(feedSql).toContain('repost_count');
+      expect(feedSql).toContain('AS reposts');
     });
   });
 
@@ -390,25 +410,50 @@ describe('feed v3 data layer', () => {
         { group_id: 'web10.app/groups/users/alice/followers', join_policy: 'open', my_role: 'owner', member_count: 10 },
         { group_id: 'web10.app/groups/users/bob/followers', join_policy: 'open', my_role: 'member', member_count: 50 },
       ]);
-      // The batched ref read returns reactions from alice (mine) + bob (not mine).
-      mock.read.mockResolvedValue([
-        reactionDoc('r1', 'alice', 'like', 'p1'),    // mine → liked p1
-        reactionDoc('r2', 'alice', 'dislike', 'p2'), // mine → disliked p2
-        reactionDoc('r5', 'alice', 'repost', 'p3'),  // mine → reposted p3
-        reactionDoc('r3', 'bob', 'like', 'p1'),      // not mine → ignored
-        reactionDoc('r4', 'bob', 'like', 'p3'),      // not mine → ignored
-      ]);
+      // Two reads: (1) the batched reactions ref read, (2) the reader's own
+      // posts (to find their reposts — a repost is a post, reposts.md). The
+      // mock routes by service.
+      mock.read.mockImplementation(async (service: string) => {
+        if (service === 'reactions') {
+          return [
+            reactionDoc('r1', 'alice', 'like', 'p1'),    // mine → liked p1
+            reactionDoc('r2', 'alice', 'dislike', 'p2'), // mine → disliked p2
+            reactionDoc('r3', 'bob', 'like', 'p1'),      // not mine → ignored
+            reactionDoc('r4', 'bob', 'like', 'p3'),      // not mine → ignored
+          ];
+        }
+        // posts — alice's own posts (no reposts in this case).
+        return [];
+      });
 
       const { liked, disliked, reposted } = await readFeedReactions(['p1', 'p2', 'p3']);
 
       expect(liked).toEqual({ p1: true });
       expect(disliked).toEqual({ p2: true });
-      expect(reposted).toEqual({ p3: true });
-      // The read is scoped to the feed (followers) groups, batched over the post ids.
+      expect(reposted).toEqual({});
+      // The reactions read is scoped to the feed (followers) groups, batched over the post ids.
       expect(mock.read).toHaveBeenCalledWith(
         'reactions',
         expect.objectContaining({ groups: expect.any(Array), ref: ['p1', 'p2', 'p3'] }),
       );
+    });
+
+    it('marks a post as reposted when the reader has a repost post for it (reposts.md)', async () => {
+      mock.getMyGroups.mockResolvedValue([
+        { group_id: 'web10.app/groups/users/alice/followers', join_policy: 'open', my_role: 'owner', member_count: 10 },
+      ]);
+      mock.read.mockImplementation(async (service: string) => {
+        if (service === 'reactions') return [];
+        // posts — alice's own posts, one of which is a repost of p9.
+        return [
+          { doc_id: 'my1', author_key: 'web10.app/users/alice', body: { text: 'normal' } },
+          { doc_id: 'my2', author_key: 'web10.app/users/alice', body: { text: 'quote', repost_of: 'p9' } },
+        ];
+      });
+
+      const { reposted } = await readFeedReactions(['p9']);
+      // The reader's repost post (repost_of: 'p9') marks p9 as reposted.
+      expect(reposted).toEqual({ p9: true });
     });
 
     it('returns empty maps when there are no posts', async () => {

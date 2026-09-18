@@ -3,8 +3,8 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { Input } from '@/components/ui/input';
-import { createPost, uploadMedia, readProfile, resolveMediaRefs, fanOutToFollowers, readMyAds } from '@/data';
-import type { MediaRecord, ProfileRecord, Visibility, AdRecord, AdAlbum } from '@/data';
+import { createPost, createRepost, uploadMedia, readProfile, resolveMediaRefs, fanOutToFollowers, readMyAds } from '@/data';
+import type { MediaRecord, ProfileRecord, Visibility, AdRecord, AdAlbum, PostRecord, ResolvedMediaRef } from '@/data';
 import { readSettings } from '@/data/settings';
 import {
   validateMedia,
@@ -15,7 +15,7 @@ import {
   validateVideoDuration,
 } from '@/lib/mediaProcessing';
 import type { ProcessingError as MediaProcessingError } from '@/lib/mediaProcessing';
-import { Image, X, Send, Loader2, AlertTriangle, GripVertical, Globe, Lock, Megaphone, Scissors } from 'lucide-react';
+import { Image, X, Send, Loader2, AlertTriangle, GripVertical, Globe, Lock, Megaphone, Scissors, Repeat2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { AdPicker } from './AdPicker';
 import { VideoEditorSheet } from './VideoEditorSheet';
@@ -169,7 +169,93 @@ function MediaTrayItem({
   );
 }
 
-export default function PostComposer({ onPostCreated }: { onPostCreated?: () => void }) {
+/**
+ * The repost context block (reposts.md): shown at the top of the composer when
+ * it is in repost mode. It renders the ORIGINAL post being reposted — the
+ * author, the text (truncated), and the first media item — so the user knows
+ * exactly what they're amplifying. The X cancels the repost. Tokens only
+ * (design.md): no hardcoded colors.
+ */
+function RepostContext({ post, onCancel }: { post: PostRecord; onCancel: () => void }) {
+  // The original's media: resolved refs (the feed passes them) render a
+  // preview; bare doc_ids (a pre-resolution read) show a placeholder.
+  const firstRef = (post.media_refs || []).find(Boolean);
+  const firstMedia =
+    firstRef && typeof firstRef !== 'string' ? (firstRef as ResolvedMediaRef) : null;
+  const isVideo = firstMedia?.mime_type?.startsWith('video/');
+  const authorName = post.profile?.display_name || post.author_username || 'Original author';
+
+  return (
+    <div
+      className="mb-3 rounded-lg border border-border bg-elevated/40 overflow-hidden"
+      data-testid="repost-context"
+    >
+      <div className="flex items-center justify-between px-3 py-2 border-b border-border">
+        <span className="flex items-center gap-1.5 text-xs font-medium text-brand-300">
+          <Repeat2 className="w-3.5 h-3.5" strokeWidth={2} />
+          Reposting
+        </span>
+        <button
+          type="button"
+          onClick={onCancel}
+          aria-label="Cancel repost"
+          data-testid="repost-cancel"
+          className="p-1.5 -mr-1 rounded-md text-muted-foreground hover:text-foreground hover:bg-elevated transition-colors duration-150"
+          style={{ minWidth: 32, minHeight: 32 }}
+        >
+          <X className="w-4 h-4" />
+        </button>
+      </div>
+      <div className="px-3 py-2.5">
+        <p className="text-sm font-medium text-foreground truncate">{authorName}</p>
+        {post.text ? (
+          <p className="mt-1 text-sm text-muted-foreground leading-relaxed line-clamp-3 whitespace-pre-wrap break-words">
+            {post.text}
+          </p>
+        ) : null}
+        {firstMedia ? (
+          <div className="mt-2 rounded-md overflow-hidden bg-background">
+            {isVideo ? (
+              <video
+                src={firstMedia.read_url || undefined}
+                poster={firstMedia.thumbnail_url || undefined}
+                className="w-full max-h-48 object-cover"
+                muted
+                playsInline
+                preload="metadata"
+              />
+            ) : (
+              <img
+                src={firstMedia.thumbnail_url || firstMedia.read_url || ''}
+                alt=""
+                className="w-full max-h-48 object-cover"
+                loading="lazy"
+              />
+            )}
+          </div>
+        ) : firstRef ? (
+          <p className="mt-1.5 text-xs text-muted-foreground/70">Media attached</p>
+        ) : null}
+      </div>
+    </div>
+  );
+}
+
+export default function PostComposer({
+  onPostCreated,
+  repostingTo,
+  onRepostCancel,
+}: {
+  onPostCreated?: () => void;
+  /**
+   * When set, the composer is in REPOST mode (reposts.md): it shows the
+   * original post as a context block and the user's text becomes the repost's
+   * comment. Submitting creates a repost post (createRepost) instead of a
+   * normal post. `onRepostCancel` clears the state (the X on the context block).
+   */
+  repostingTo?: PostRecord | null;
+  onRepostCancel?: () => void;
+}) {
   const [text, setText] = useState('');
   const [mediaItems, setMediaItems] = useState<AttachedMedia[]>([]);
   const [uploading, setUploading] = useState(false);
@@ -419,8 +505,34 @@ export default function PostComposer({ onPostCreated }: { onPostCreated?: () => 
   }
 
   async function handleSubmit() {
-    if (!text.trim() && !mediaItems.length) return;
+    if (!text.trim() && !mediaItems.length && !repostingTo) return;
     setError(null);
+
+    // Repost (reposts.md): a repost is a real post doc referencing the
+    // original — no media upload of the user's own (the original's media is
+    // referenced by the original post, not copied). The comment rides in text.
+    if (repostingTo) {
+      setPosting(true);
+      try {
+        await createRepost(repostingTo, text);
+        // Fan-out to followers' inboxes (a repost is a public post).
+        try {
+          await fanOutToFollowers({ _id: repostingTo._id, text: text.trim() || undefined, created_at: new Date().toISOString() });
+        } catch (fanOutErr) {
+          console.warn('Fan-out to followers failed (non-fatal):', fanOutErr);
+        }
+        setText('');
+        setMediaItems([]);
+        onRepostCancel?.();
+        onPostCreated?.();
+      } catch (e) {
+        console.error('Failed to create repost:', e);
+        setError(e instanceof Error ? e.message : 'Something went wrong. Try again.');
+      } finally {
+        setPosting(false);
+      }
+      return;
+    }
 
     // Check for items with errors
     const erroredItems = mediaItems.filter((item) => item.error);
@@ -568,7 +680,9 @@ export default function PostComposer({ onPostCreated }: { onPostCreated?: () => 
     }
   }
 
-  const canPost = (text.trim() || mediaItems.length) && !uploading && !posting;
+  // A plain repost (no comment, no media) is valid — the repost itself is the
+  // content. Otherwise the post needs text or media.
+  const canPost = (text.trim() || mediaItems.length || !!repostingTo) && !uploading && !posting;
   const hasErroredMedia = mediaItems.some((item) => item.error);
   const initials = (profile?.display_name || '?').charAt(0).toUpperCase();
 
@@ -605,14 +719,25 @@ export default function PostComposer({ onPostCreated }: { onPostCreated?: () => 
         </Avatar>
 
         <div className="flex-1 min-w-0">
+          {repostingTo && (
+            <RepostContext
+              post={repostingTo}
+              onCancel={() => {
+                setText('');
+                setMediaItems([]);
+                onRepostCancel?.();
+              }}
+            />
+          )}
           <Textarea
             value={text}
             onChange={(e) => setText(e.target.value)}
             onFocus={() => setFocused(true)}
             onBlur={() => setFocused(false)}
-            placeholder="What's on your mind?"
+            placeholder={repostingTo ? 'Add a comment…' : "What's on your mind?"}
             disabled={posting}
             className="resize-none min-h-[72px] bg-elevated border-0 text-foreground placeholder:text-muted-foreground text-[0.9375rem]"
+            data-testid="composer-textarea"
           />
 
           {dragOver && (
@@ -750,12 +875,12 @@ export default function PostComposer({ onPostCreated }: { onPostCreated?: () => 
               {posting ? (
                 <>
                   <Loader2 className="w-4 h-4 animate-spin" />
-                  Posting…
+                  {repostingTo ? 'Reposting…' : 'Posting…'}
                 </>
               ) : (
                 <>
-                  <Send className="w-3.5 h-3.5" />
-                  Post
+                  {repostingTo ? <Repeat2 className="w-3.5 h-3.5" strokeWidth={2} /> : <Send className="w-3.5 h-3.5" />}
+                  {repostingTo ? 'Repost' : 'Post'}
                 </>
               )}
             </Button>
