@@ -334,7 +334,7 @@ test.describe('Social trending gauntlet — /discover board + D36 knobs + deep l
     await expectBefore(page, postA, postB);
 
     // --- The "Newest" preset re-ranks: the newer post comes first ---
-    await page.locator('[data-testid="preset-newest"]').click();
+    await page.locator('[data-testid="preset-most-recent"]').click();
     expect(new URL(page.url()).searchParams.get('knobs')).toBe('5,0,0,0,0');
     await expectBefore(page, postB, postA);
 
@@ -347,7 +347,7 @@ test.describe('Social trending gauntlet — /discover board + D36 knobs + deep l
     expect(new URL(page.url()).searchParams.get('knobs')).toBe('5,0,0,0,0');
     await expectBefore(page, postB, postA);
     // The preset chip reflects the restored state.
-    await expect(page.locator('[data-testid="preset-newest"]')).toHaveClass(/border-brand/);
+    await expect(page.locator('[data-testid="preset-most-recent"]')).toHaveClass(/border-brand/);
 
     // --- A rotary knob re-ranks: crank Likes to max (the synth rack) ---
     await page.locator('[data-testid="knobs-advanced-toggle"]').click();
