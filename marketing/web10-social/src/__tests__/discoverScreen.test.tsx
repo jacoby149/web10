@@ -1073,6 +1073,57 @@ describe('DiscoverScreen', () => {
     expect(video!.className).not.toMatch(/object-cover/);
   });
 
+  it('a portrait (9:16) clip is capped to a square-ish frame (consistent with the marketing /trending card)', async () => {
+    // A full-width 9:16 box is ~1.78× the card tall — too big on desktop and it
+    // buries the control rack at its bottom. The discover card caps the portrait
+    // frame (maxWidth) + centers it (mx-auto) in a black letterbox, the same as
+    // the marketing /trending card (3.105.2).
+    (data.readDiscoverFeed as ReturnType<typeof vi.fn>).mockResolvedValue([
+      {
+        author: 'video-creator',
+        provider: 'api.web10.app',
+        post_id: 'p1',
+        author_username: 'video-creator',
+        author_provider: 'api.web10.app',
+        text: 'Vertical clip',
+        tags: ['video'],
+        media_refs: ['m1'],
+        created_at: new Date().toISOString(),
+        likes: 10,
+        comments: 2,
+        reposts: 1,
+        score: 14,
+      },
+    ]);
+    (data.resolveMediaRefs as ReturnType<typeof vi.fn>).mockResolvedValue([
+      {
+        _id: 'm1',
+        url: 'https://cdn.example/video.mp4',
+        mime_type: 'video/mp4',
+        width: 1080,
+        height: 1920, // portrait
+        duration_seconds: 42,
+        thumbnail_url: 'https://cdn.example/thumb.jpg',
+        created_at: new Date().toISOString(),
+      },
+    ]);
+
+    const { default: DiscoverScreen } = await import('@/components/Discover/DiscoverScreen');
+    render(
+      <MemoryRouter initialEntries={['/discover']}>
+        <DiscoverScreen />
+      </MemoryRouter>,
+    );
+
+    const tile = await screen.findByTestId('discover-media-video');
+    // The frame is capped to the maxWidth + centered in the letterbox.
+    expect(tile.style.maxWidth).toBe('min(50vh, 100%)');
+    expect(tile.className).toMatch(/mx-auto/);
+    // The source ratio is still reserved (9:16) — the cap shrinks the box, it
+    // does not squash the video.
+    expect(parseFloat(tile.style.aspectRatio)).toBeCloseTo(1080 / 1920, 5);
+  });
+
   it('the discover card is inline — no lightbox; the comment count toggles the thread', async () => {
     (data.readDiscoverFeed as ReturnType<typeof vi.fn>).mockResolvedValue([
       {
