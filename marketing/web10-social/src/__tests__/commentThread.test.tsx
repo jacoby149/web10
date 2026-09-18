@@ -4,76 +4,97 @@ import '@testing-library/jest-dom';
 import { lucideMock } from './helpers/lucideMock';
 vi.mock('lucide-react', () => lucideMock);
 
-// The thread seams are the app's job — stub the read (the whole conversation)
-// + write + like writer. The shared thread is presentational.
+// The thread seams are the app's job — stub the paged read (top-level +
+// replyCounts), the paged reply read, the write, + the like writer.
 vi.mock('@/data', async (importOriginal) => {
   const original = await importOriginal() as Record<string, unknown>;
   return {
     ...original,
-    readThreadComments: vi.fn().mockResolvedValue([]),
+    readThreadComments: vi.fn(),
+    readThreadReplies: vi.fn(),
     createThreadComment: vi.fn().mockResolvedValue(null),
     toggleReactionKind: vi.fn().mockResolvedValue('like'),
   };
 });
 
-// A conversation: two top-level comments, one of which has two replies, and
-// one orphan reply (its parent is not in the read — it must render
-// top-level, not vanish).
-const CONVERSATION = [
-  { _id: 'c1', text: 'first', author_username: 'alice', created_at: '2026-01-01T00:00:00Z', likeCount: 2, likedByMe: false },
-  { _id: 'c2', text: 'second', author_username: 'bob', created_at: '2026-01-01T01:00:00Z', likeCount: 0, likedByMe: true },
-  { _id: 'c3', text: 'reply to first', author_username: 'carol', created_at: '2026-01-01T02:00:00Z', parent_id: 'c1', likeCount: 1, likedByMe: false },
-  { _id: 'c4', text: 'nested reply', author_username: 'dave', created_at: '2026-01-01T03:00:00Z', parent_id: 'c3', likeCount: 0, likedByMe: false },
-  { _id: 'c5', text: 'orphan reply', author_username: 'erin', created_at: '2026-01-01T04:00:00Z', parent_id: 'ghost', likeCount: 0, likedByMe: false },
-];
+// The conversation: two top-level comments. c1 has 7 replies (the first page
+// of 5 loads, "view more replies" loads the rest); c2 has none.
+const C1 = { _id: 'c1', post_id: 'p1', text: 'first', author_username: 'alice', created_at: '2026-01-01T00:00:00Z', likeCount: 2, likedByMe: false };
+const C2 = { _id: 'c2', post_id: 'p1', text: 'second', author_username: 'bob', created_at: '2026-01-01T01:00:00Z', likeCount: 0, likedByMe: true };
+const C3 = { _id: 'c3', post_id: 'p1', text: 'third (page 2)', author_username: 'carol', created_at: '2026-01-01T06:00:00Z', likeCount: 0, likedByMe: false };
+const reply = (id: string, n: number) => ({
+  _id: id,
+  post_id: 'p1',
+  text: `reply ${n}`,
+  author_username: 'dave',
+  created_at: `2026-01-01T0${n}:00:00Z`,
+  parent_id: 'c1',
+  likeCount: 0,
+  likedByMe: false,
+});
+const C1_REPLIES_PAGE1 = [reply('r1', 1), reply('r2', 2), reply('r3', 3), reply('r4', 4), reply('r5', 5)];
+const C1_REPLIES_PAGE2 = [reply('r6', 6), reply('r7', 7)];
 
-describe('CommentThread — threaded replies + comment likes (comments.md)', () => {
+describe('CommentThread — paged threaded replies (comments.md, the Facebook model)', () => {
   beforeEach(() => {
     vi.clearAllMocks();
   });
 
-  async function renderThread(props: Record<string, unknown> = {}) {
+  async function renderThread() {
     const { CommentThread } = await import('@/components/Feed/CommentThread');
-    const { readThreadComments } = await import('@/data');
-    vi.mocked(readThreadComments).mockResolvedValue(CONVERSATION as never);
-    render(
-      <CommentThread
-        postId="p1"
-        isOpen
-        count={CONVERSATION.length}
-        onCountChange={() => {}}
-        {...props}
-      />,
-    );
+    const { readThreadComments, readThreadReplies } = await import('@/data');
+    // top-level: page 1 (c1 + c2), more available (nextCursor set)
+    vi.mocked(readThreadComments).mockImplementation(async (_postId, _groups, opts) => {
+      if (opts?.cursor) {
+        return { comments: [C3], nextCursor: null, replyCounts: { c3: 0 } };
+      }
+      return { comments: [C1, C2], nextCursor: 'top-2', replyCounts: { c1: 7, c2: 0 } };
+    });
+    // c1's replies: first page (5) then the rest (2)
+    vi.mocked(readThreadReplies).mockImplementation(async (id, _groups, opts) => {
+      if (id !== 'c1') return { comments: [], nextCursor: null };
+      if (opts?.cursor) return { comments: C1_REPLIES_PAGE2, nextCursor: null };
+      return { comments: C1_REPLIES_PAGE1, nextCursor: 'r-5' };
+    });
+    render(<CommentThread postId="p1" isOpen count={0} onCountChange={() => {}} />);
     await waitFor(() => expect(screen.getByTestId('comment-list')).toBeInTheDocument());
   }
 
-  it('renders the conversation as a tree (top-level + nested replies)', async () => {
+  it('loads the first top-level page + pre-fetches each comment first reply page', async () => {
     await renderThread();
-    // every comment renders
-    for (const c of CONVERSATION) {
-      expect(screen.getByTestId(`comment-${c._id}`)).toBeInTheDocument();
-    }
-    // the orphan reply (parent not in the read) still renders
-    expect(screen.getByTestId('comment-c5')).toBeInTheDocument();
+    // both top-level comments render
+    expect(screen.getByTestId('comment-c1')).toBeInTheDocument();
+    expect(screen.getByTestId('comment-c2')).toBeInTheDocument();
+    // c1's first reply page (5) is nested under it
+    expect(screen.getByTestId('comment-r1')).toBeInTheDocument();
+    expect(screen.getByTestId('comment-r5')).toBeInTheDocument();
+    // c1 has 7 replies, 5 loaded → "view more replies" shows
+    expect(screen.getByTestId('view-more-replies-c1')).toBeInTheDocument();
+    // c2 has no replies → no pager
+    expect(screen.queryByTestId('view-more-replies-c2')).not.toBeInTheDocument();
+    // the live count = 2 top-level + 5 loaded replies = 7
+    // (asserted via the comment button in a separate test; here assert the tree)
+    expect(screen.getByTestId('comment-c1').contains(screen.getByTestId('comment-r1'))).toBe(true);
   });
 
-  it('a reply nests under its parent (the parent renders before its replies)', async () => {
+  it('"View more comments" loads the next top-level page + appends', async () => {
     await renderThread();
-    const c1 = screen.getByTestId('comment-c1');
-    const c3 = screen.getByTestId('comment-c3');
-    // c3 (a reply to c1) is a DOM descendant of c1's <li>
-    expect(c1.contains(c3)).toBe(true);
-    // c4 (a reply to c3) nests under c3
-    expect(c3.contains(screen.getByTestId('comment-c4'))).toBe(true);
+    expect(screen.queryByTestId('comment-c3')).not.toBeInTheDocument();
+    expect(screen.getByTestId('view-more-comments')).toBeInTheDocument();
+    fireEvent.click(screen.getByTestId('view-more-comments'));
+    await waitFor(() => expect(screen.getByTestId('comment-c3')).toBeInTheDocument());
+    // exhausted → the pager disappears
+    await waitFor(() => expect(screen.queryByTestId('view-more-comments')).not.toBeInTheDocument());
   });
 
-  it('top-level comments sort by created_at (oldest first)', async () => {
+  it('"View more replies" loads the next reply page for that comment', async () => {
     await renderThread();
-    const list = screen.getByTestId('comment-list');
-    const children = Array.from(list.children).map((el) => el.getAttribute('data-testid'));
-    // c1 (00:00) before c2 (01:00) before the orphan c5 (04:00)
-    expect(children).toEqual(['comment-c1', 'comment-c2', 'comment-c5']);
+    expect(screen.queryByTestId('comment-r6')).not.toBeInTheDocument();
+    fireEvent.click(screen.getByTestId('view-more-replies-c1'));
+    await waitFor(() => expect(screen.getByTestId('comment-r6')).toBeInTheDocument());
+    expect(screen.getByTestId('comment-r7')).toBeInTheDocument();
+    // exhausted (7/7) → the pager disappears
+    await waitFor(() => expect(screen.queryByTestId('view-more-replies-c1')).not.toBeInTheDocument());
   });
 
   it('each comment shows its like count + a tappable like (filled when likedByMe)', async () => {
@@ -85,11 +106,10 @@ describe('CommentThread — threaded replies + comment likes (comments.md)', () 
     expect(likeC2).toHaveAttribute('aria-pressed', 'true');
   });
 
-  it('tapping a comment like calls onToggleCommentLike with the comment id', async () => {
+  it('tapping a comment like calls toggleReactionKind(id, like, groups, comments)', async () => {
     const { toggleReactionKind } = await import('@/data');
     await renderThread();
     fireEvent.click(screen.getByTestId('comment-like-c1'));
-    // the social wrapper wires the like to toggleReactionKind(id, 'like', groups, 'comments')
     expect(vi.mocked(toggleReactionKind)).toHaveBeenCalledWith('c1', 'like', undefined, 'comments');
   });
 
@@ -97,84 +117,72 @@ describe('CommentThread — threaded replies + comment likes (comments.md)', () 
     await renderThread();
     expect(screen.queryByTestId('comment-reply-target')).not.toBeInTheDocument();
     fireEvent.click(screen.getByTestId('comment-reply-c1'));
-    const target = screen.getByTestId('comment-reply-target');
-    expect(target).toHaveTextContent('alice');
-    // the input placeholder flips to the reply state
+    expect(screen.getByTestId('comment-reply-target')).toHaveTextContent('alice');
     expect(screen.getByTestId('comment-input')).toHaveAttribute('placeholder', 'Write a reply…');
-    // cancel returns to the post-level compose
     fireEvent.click(screen.getByTestId('comment-reply-cancel'));
     expect(screen.queryByTestId('comment-reply-target')).not.toBeInTheDocument();
     expect(screen.getByTestId('comment-input')).toHaveAttribute('placeholder', 'Add a comment…');
   });
 
-  it('sending a reply writes parent_id + bumps the live count', async () => {
+  it('sending a reply writes parentId + nests under the parent', async () => {
     const { createThreadComment } = await import('@/data');
     vi.mocked(createThreadComment).mockResolvedValueOnce({
-      _id: 'c6',
+      _id: 'r8',
       text: 'my reply',
       author_username: 'me',
-      created_at: '2026-01-01T05:00:00Z',
+      created_at: '2026-01-01T09:00:00Z',
       parent_id: 'c1',
     } as never);
-    const onCountChange = vi.fn();
-    await renderThread({ onCountChange });
+    await renderThread();
     fireEvent.click(screen.getByTestId('comment-reply-c1'));
-    const input = screen.getByTestId('comment-input');
-    fireEvent.change(input, { target: { value: 'my reply' } });
+    fireEvent.change(screen.getByTestId('comment-input'), { target: { value: 'my reply' } });
     fireEvent.click(screen.getByTestId('comment-send'));
     await waitFor(() => {
       expect(vi.mocked(createThreadComment)).toHaveBeenCalledWith(
         expect.objectContaining({ postId: 'p1', text: 'my reply', parentId: 'c1' }),
       );
     });
-    // the live count ticks (5 → 6) and the reply target clears
-    expect(onCountChange).toHaveBeenCalledWith(6);
-    expect(screen.queryByTestId('comment-reply-target')).not.toBeInTheDocument();
-    // the new reply renders nested under c1
-    expect(screen.getByTestId('comment-c1').contains(screen.getByTestId('comment-c6'))).toBe(true);
+    // the new reply nests under c1
+    expect(screen.getByTestId('comment-c1').contains(screen.getByTestId('comment-r8'))).toBe(true);
   });
 
   it('sending a top-level comment omits parentId', async () => {
     const { createThreadComment } = await import('@/data');
     vi.mocked(createThreadComment).mockResolvedValueOnce({
-      _id: 'c7',
+      _id: 'c9',
       text: 'top',
       author_username: 'me',
-      created_at: '2026-01-01T06:00:00Z',
+      created_at: '2026-01-01T10:00:00Z',
     } as never);
     await renderThread();
-    const input = screen.getByTestId('comment-input');
-    fireEvent.change(input, { target: { value: 'top' } });
+    fireEvent.change(screen.getByTestId('comment-input'), { target: { value: 'top' } });
     fireEvent.click(screen.getByTestId('comment-send'));
     await waitFor(() => {
       expect(vi.mocked(createThreadComment)).toHaveBeenCalledWith(
         expect.objectContaining({ postId: 'p1', text: 'top' }),
       );
     });
-    const arg = vi.mocked(createThreadComment).mock.calls[0][0];
-    expect(arg.parentId).toBeUndefined();
+    expect(vi.mocked(createThreadComment).mock.calls[0][0].parentId).toBeUndefined();
   });
 
-  it('remote mode (shared thread, no like writer): compose is a link-out, the like is display-only', async () => {
+  it('remote mode (shared thread, no writer): compose is a link-out, the like is display-only', async () => {
     const { CommentThread: SharedThread } = await import('@web10/discover');
     render(
       <SharedThread
         postId="p1"
         isOpen
-        count={5}
+        count={0}
         onCountChange={() => {}}
-        readComments={async () => CONVERSATION}
+        readComments={async () => ({ comments: [C1, C2], nextCursor: null })}
         remote
         remoteHref="https://web10.app/u/alice/p/p1"
       />,
     );
     await waitFor(() => expect(screen.getByTestId('comment-list')).toBeInTheDocument());
     expect(screen.getByTestId('comment-remote-link')).toHaveAttribute('href', 'https://web10.app/u/alice/p/p1');
-    // no compose input in remote mode
     expect(screen.queryByTestId('comment-input')).not.toBeInTheDocument();
     // the like renders (likeCount present) but is not a tap target (no writer)
-    const likeC1 = screen.getByTestId('comment-like-c1');
-    expect(likeC1).toBeDisabled();
+    expect(screen.getByTestId('comment-like-c1')).toBeDisabled();
     // no Reply action in remote mode (can't write)
     expect(screen.queryByTestId('comment-reply-c1')).not.toBeInTheDocument();
   });

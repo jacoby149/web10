@@ -2,7 +2,7 @@ import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { Heart, ThumbsDown, MessageCircle, Repeat2 } from 'lucide-react';
 import { cn } from './utils';
 import { CommentThread } from './CommentThread';
-import type { ReadComments, CreateComment } from './types';
+import type { ReadComments, ReadReplies, CreateComment } from './types';
 
 /**
  * The shared engagement row (post-actions.md): the like/dislike pair, the
@@ -71,9 +71,11 @@ export interface PostActionsProps {
    *  rendered after the shared slots in the bar. */
   trailing?: ReactNode;
   // ── The comment-thread data seam (injected by the app) ────────────────────
-  /** The comment reader (required when comments are inline). Returns the
-   *  whole conversation (top-level + replies) in one read (comments.md). */
+  /** The top-level comment reader (required when comments are inline). Paged:
+   *  returns one page + a `nextCursor` for "view more comments" (comments.md). */
   readComments?: ReadComments;
+  /** The reply reader for "view more replies" (injected; paged). */
+  readReplies?: ReadReplies;
   /** The comment writer (absent in `remote` mode). */
   createComment?: CreateComment;
   /** The comment-like writer (absent in `remote` mode). The app owns the
@@ -112,6 +114,7 @@ export function PostActions({
   defaultOpen = false,
   trailing,
   readComments,
+  readReplies,
   createComment,
   onToggleCommentLike,
   remote = false,
@@ -292,6 +295,7 @@ export function PostActions({
       highlightedCommentId={highlightedCommentId}
       groups={groups}
       readComments={readComments}
+      readReplies={readReplies}
       createComment={createComment}
       onToggleCommentLike={onToggleCommentLike}
       remote={remote}

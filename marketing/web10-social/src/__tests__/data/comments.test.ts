@@ -10,6 +10,7 @@ function mockV3Client() {
     create: vi.fn(),
     read: vi.fn(),
     readById: vi.fn(),
+    readRefCounts: vi.fn().mockResolvedValue({}),
     update: vi.fn(),
     delete: vi.fn(),
     query: vi.fn().mockResolvedValue({ rows: [], count: 0 }),
@@ -19,7 +20,7 @@ function mockV3Client() {
   return mock;
 }
 
-describe('comments v3 data layer', () => {
+describe('comments v3 data layer (the Facebook model, comments.md)', () => {
   let mock: ReturnType<typeof mockV3Client>;
 
   beforeEach(() => {
@@ -30,173 +31,191 @@ describe('comments v3 data layer', () => {
     vi.restoreAllMocks();
   });
 
-  describe('readComments (v3: read comments for a post)', () => {
-    it('reads all comments for a post', async () => {
-      const docs = [{ doc_id: 'cm1', body: { post_id: 'p1', text: 'nice!' } }];
-      mock.read.mockResolvedValue(docs);
-      const result = await mock.read('comments', { groups: ['me'] });
-      expect(result).toEqual(docs);
-    });
-  });
-
-  describe('readTopLevelComments (v3: read comments without parent_id)', () => {
-    it('reads top-level comments only', async () => {
-      const docs = [
-        { doc_id: 'cm1', body: { post_id: 'p1', text: 'top level' } },
-        { doc_id: 'cm2', body: { post_id: 'p1', text: 'another top' } },
-      ];
-      mock.read.mockResolvedValue(docs);
-      const result = await mock.read('comments', { groups: ['me'] });
-      expect(result.length).toBe(2);
-    });
-  });
-
-  describe('readReplies (v3: a reply ref_values the post, so the read resolves the parent then filters)', () => {
-    it('reads replies to a specific comment (parent post → filter parent_id)', async () => {
-      const { readReplies } = await import('../../data/comments');
-      // The parent comment: ref_value is the post (comments.md), so the reply
-      // read resolves the post from the parent, reads the whole conversation,
-      // and filters to the replies in memory.
-      mock.readById.mockResolvedValue({ doc_id: 'cm1', ref_value: 'p1', body: { post_id: 'p1', text: 'top' } });
+  describe('readComments (top-level page, ref = post, keyset cursor)', () => {
+    it('reads a page of top-level comments with the cursor + order', async () => {
+      const { readComments } = await import('../../data/comments');
       mock.read.mockResolvedValue([
-        { doc_id: 'cm1', author_key: 'bob', body: { post_id: 'p1', text: 'top' } },
-        { doc_id: 'cm3', author_key: 'carol', body: { post_id: 'p1', parent_id: 'cm1', text: 'reply' } },
-        { doc_id: 'cm4', author_key: 'dave', body: { post_id: 'p1', parent_id: 'cm1', text: 'reply 2' } },
-        { doc_id: 'cm5', author_key: 'erin', body: { post_id: 'p1', parent_id: 'cm9', text: 'other reply' } },
+        { doc_id: 'cm1', author_key: 'bob', body: { post_id: 'p1', text: 'top' }, ref_value: 'p1', created_at: '2026-01-01T00:00:00Z' },
       ]);
-      const result = await readReplies('cm1', ['me']);
-      expect(result.map((c) => c._id)).toEqual(['cm3', 'cm4']);
-      // it read the parent (to get the post) + the post's conversation
-      expect(mock.readById).toHaveBeenCalledWith('cm1', 'comments');
-      expect(mock.read).toHaveBeenCalledWith('comments', { groups: ['me'], ref: 'p1' });
+      const page = await readComments('p1', ['me'], { cursor: 'cur-1', limit: 20 });
+      // the ref read keys on the post + carries the cursor + order
+      expect(mock.read).toHaveBeenCalledWith('comments', {
+        groups: ['me'],
+        ref: 'p1',
+        limit: 20,
+        cursor: 'cur-1',
+        order: 'asc',
+      });
+      expect(page.comments).toHaveLength(1);
+      expect(page.comments[0]._id).toBe('cm1');
     });
 
-    it('returns [] when the parent has no post ref', async () => {
-      const { readReplies } = await import('../../data/comments');
-      mock.readById.mockResolvedValue({ doc_id: 'cm1', body: { text: 'orphan' } });
-      const result = await readReplies('cm1', ['me']);
-      expect(result).toEqual([]);
+    it('nextCursor is null when the page is short of the limit (exhausted)', async () => {
+      const { readComments } = await import('../../data/comments');
+      mock.read.mockResolvedValue([
+        { doc_id: 'cm1', author_key: 'bob', body: { post_id: 'p1', text: 'top' }, ref_value: 'p1', created_at: '2026-01-01T00:00:00Z' },
+      ]);
+      const page = await readComments('p1', ['me'], { limit: 20 });
+      // 1 row < limit 20 → no more
+      expect(page.nextCursor).toBeNull();
+    });
+
+    it('nextCursor is "created_at|doc_id" of the last row when the page is full', async () => {
+      const { readComments } = await import('../../data/comments');
+      mock.read.mockResolvedValue([
+        { doc_id: 'cm1', author_key: 'bob', body: { post_id: 'p1', text: 'a' }, ref_value: 'p1', created_at: '2026-01-01T00:00:00Z' },
+        { doc_id: 'cm2', author_key: 'carol', body: { post_id: 'p1', text: 'b' }, ref_value: 'p1', created_at: '2026-01-01T01:00:00Z' },
+      ]);
+      const page = await readComments('p1', ['me'], { limit: 2 });
+      // 2 rows = limit 2 → more; cursor is the last row's created_at|doc_id
+      expect(page.nextCursor).toBe('2026-01-01T01:00:00Z|cm2');
     });
   });
 
-  describe('createComment (v3: create in comments collection)', () => {
-    it('creates a comment document', async () => {
-      const doc = { doc_id: 'cm1', body: { post_id: 'p1', text: 'nice!' } };
-      mock.create.mockResolvedValue(doc);
-      const result = await mock.create('comments', { post_id: 'p1', text: 'nice!' });
-      expect(result).toEqual(doc);
+  describe('readReplies (a comment reply page, ref = commentId)', () => {
+    it('reads a page of a comment replies (ref = the comment id)', async () => {
+      const { readReplies } = await import('../../data/comments');
+      mock.read.mockResolvedValue([
+        { doc_id: 'cm3', author_key: 'carol', body: { post_id: 'p1', parent_id: 'cm1', text: 'reply' }, ref_value: 'cm1', created_at: '2026-01-01T02:00:00Z' },
+      ]);
+      const page = await readReplies('cm1', ['me'], { limit: 5 });
+      // the reply read keys on the PARENT comment (the Facebook model)
+      expect(mock.read).toHaveBeenCalledWith('comments', {
+        groups: ['me'],
+        ref: 'cm1',
+        limit: 5,
+        cursor: undefined,
+        order: 'asc',
+      });
+      expect(page.comments).toHaveLength(1);
+      expect(page.comments[0]._id).toBe('cm3');
+    });
+  });
+
+  describe('countComments (top-level count via readRefCounts)', () => {
+    it('counts a post top-level comments (GROUP BY ref_value)', async () => {
+      const { countComments } = await import('../../data/comments');
+      mock.readRefCounts.mockResolvedValue({ 'p1': 7 });
+      const n = await countComments('p1', ['me']);
+      expect(mock.readRefCounts).toHaveBeenCalledWith('comments', { groups: ['me'], ref: 'p1' });
+      expect(n).toBe(7);
     });
 
-    it('sends ref_value = post_id so the ref read can find the comment', async () => {
-      // The regression: ref_value was set client-side AFTER create, so the
-      // server stored '' and the ref read (ref_value === post_id) never
-      // matched. The real createComment must send ref_value in the create opts.
+    it('returns 0 when the post has no top-level comments', async () => {
+      const { countComments } = await import('../../data/comments');
+      mock.readRefCounts.mockResolvedValue({});
+      const n = await countComments('p1', ['me']);
+      expect(n).toBe(0);
+    });
+  });
+
+  describe('countRepliesByComment (reply counts for a set of comments)', () => {
+    it('counts replies for each comment (GROUP BY ref_value over the ids)', async () => {
+      const { countRepliesByComment } = await import('../../data/comments');
+      mock.readRefCounts.mockResolvedValue({ 'cm1': 3, 'cm2': 0 });
+      const counts = await countRepliesByComment(['cm1', 'cm2'], ['me']);
+      expect(mock.readRefCounts).toHaveBeenCalledWith('comments', { groups: ['me'], ref: ['cm1', 'cm2'] });
+      expect(counts).toEqual({ 'cm1': 3, 'cm2': 0 });
+    });
+
+    it('returns {} for an empty id set (no read issued)', async () => {
+      const { countRepliesByComment } = await import('../../data/comments');
+      const counts = await countRepliesByComment([], ['me']);
+      expect(counts).toEqual({});
+      expect(mock.readRefCounts).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('createComment (the write model: ref_value = the parent)', () => {
+    it('a top-level comment refs the post', async () => {
       const { createComment } = await import('../../data/comments');
-      const doc = { doc_id: 'cm1', author_key: 'web10.app/users/alice', body: { post_id: 'p1', text: 'nice!' }, ref_value: 'p1' };
-      mock.create.mockResolvedValue(doc);
-      await createComment({ post_id: 'p1', text: 'nice!' } as any);
+      mock.create.mockResolvedValue({ doc_id: 'cm1', author_key: 'alice', body: { post_id: 'p1', text: 'top' }, ref_value: 'p1' });
+      await createComment({ post_id: 'p1', text: 'top' } as any);
       expect(mock.create).toHaveBeenCalledWith(
         'comments',
-        expect.anything(),
+        expect.objectContaining({ post_id: 'p1' }),
         expect.objectContaining({ ref_value: 'p1' }),
+      );
+    });
+
+    it('a reply refs the PARENT comment (the Facebook model)', async () => {
+      const { createComment } = await import('../../data/comments');
+      // the reply nudge reads the parent comment's author (fire-and-forget)
+      mock.readById.mockResolvedValue({ doc_id: 'cm1', author_key: 'bob', body: { text: 'top' } });
+      mock.create.mockResolvedValue({ doc_id: 'cm2', author_key: 'alice', body: { post_id: 'p1', parent_id: 'cm1', text: 're' }, ref_value: 'cm1' });
+      await createComment({ post_id: 'p1', text: 're', parent_id: 'cm1' } as any);
+      // ref_value is the parent comment, NOT the post
+      expect(mock.create).toHaveBeenCalledWith(
+        'comments',
+        expect.objectContaining({ parent_id: 'cm1', post_id: 'p1' }),
+        expect.objectContaining({ ref_value: 'cm1' }),
       );
     });
   });
 
-  describe('updateComment (v3: update comment document)', () => {
-    it('updates a comment document', async () => {
-      const updated = { doc_id: 'cm1', body: { post_id: 'p1', text: 'updated!' } };
-      mock.update.mockResolvedValue(updated);
-      const result = await mock.update('cm1', { text: 'updated!' });
-      expect(result).toEqual(updated);
-    });
-  });
-
-  describe('deleteComment (v3: delete comment document)', () => {
-    it('deletes a comment by doc_id', async () => {
-      mock.delete.mockResolvedValue({ doc_id: 'cm1', status: 'deleted' });
-      const result = await mock.delete('cm1');
-      expect(result).toEqual({ doc_id: 'cm1', status: 'deleted' });
-    });
-  });
-
-  describe('readThreadComments (comments.md: the whole conversation + comment likes)', () => {
-    it('enriches each comment with likeCount + likedByMe', async () => {
+  describe('readThreadComments (the thread seam: page + likes + replyCounts)', () => {
+    it('returns a page enriched with likeCount/likedByMe + replyCounts', async () => {
       const { readThreadComments } = await import('../../data/comments');
-      mock.read.mockResolvedValue([
-        { doc_id: 'cm1', author_key: 'bob', body: { post_id: 'p1', text: 'top' }, ref_value: 'p1', created_at: '2026-01-01T00:00:00Z' },
-        { doc_id: 'cm2', author_key: 'carol', body: { post_id: 'p1', parent_id: 'cm1', text: 'reply' }, ref_value: 'p1', created_at: '2026-01-01T01:00:00Z' },
-      ]);
-      // the server-side count: cm1 has 2 likes, cm2 has 0
-      mock.query.mockResolvedValue({
-        rows: [{ ref_value: 'cm1', like_count: 2 }],
-        count: 1,
-      });
-      // the reader's own reactions: alice liked cm1
+      // the top-level read (ref = post)
       mock.read.mockImplementation(async (service: string, opts: { ref?: unknown }) => {
         if (service === 'reactions') {
           return [{ doc_id: 'r1', author_key: 'alice', body: { type: 'like' }, ref_value: 'cm1' }];
         }
         return [
           { doc_id: 'cm1', author_key: 'bob', body: { post_id: 'p1', text: 'top' }, ref_value: 'p1', created_at: '2026-01-01T00:00:00Z' },
-          { doc_id: 'cm2', author_key: 'carol', body: { post_id: 'p1', parent_id: 'cm1', text: 'reply' }, ref_value: 'p1', created_at: '2026-01-01T01:00:00Z' },
         ];
       });
-      const result = await readThreadComments('p1', ['me']);
-      expect(result).toHaveLength(2);
-      const cm1 = result.find((c) => c._id === 'cm1');
-      const cm2 = result.find((c) => c._id === 'cm2');
-      expect(cm1?.likeCount).toBe(2);
-      expect(cm1?.likedByMe).toBe(true);
-      expect(cm2?.likeCount).toBe(0);
-      expect(cm2?.likedByMe).toBe(false);
+      // the like count (GROUP BY over the page's comments)
+      mock.query.mockResolvedValue({ rows: [{ ref_value: 'cm1', like_count: 2 }], count: 1 });
+      // the reply counts (cm1 has 3 replies)
+      mock.readRefCounts.mockResolvedValue({ 'cm1': 3 });
+      const page = await readThreadComments('p1', ['me']);
+      expect(page.comments).toHaveLength(1);
+      expect(page.comments[0].likeCount).toBe(2);
+      expect(page.comments[0].likedByMe).toBe(true);
+      expect(page.replyCounts).toEqual({ 'cm1': 3 });
     });
 
-    it('degrades to no like fields when the count query fails (the thread still renders)', async () => {
+    it('degrades to no like fields + empty replyCounts when the enrichment fails', async () => {
       const { readThreadComments } = await import('../../data/comments');
-      mock.read.mockResolvedValue([
-        { doc_id: 'cm1', author_key: 'bob', body: { post_id: 'p1', text: 'top' }, ref_value: 'p1', created_at: '2026-01-01T00:00:00Z' },
-      ]);
+      mock.read.mockImplementation(async (service: string) => {
+        if (service === 'reactions') throw new Error('boom');
+        return [
+          { doc_id: 'cm1', author_key: 'bob', body: { post_id: 'p1', text: 'top' }, ref_value: 'p1', created_at: '2026-01-01T00:00:00Z' },
+        ];
+      });
       mock.query.mockRejectedValue(new Error('boom'));
-      mock.read.mockRejectedValue(new Error('boom'));
-      // readComments (the first read) must still succeed — only the like
-      // enrichment degrades. Re-mock read to succeed for the comments read.
-      mock.read.mockResolvedValue([
-        { doc_id: 'cm1', author_key: 'bob', body: { post_id: 'p1', text: 'top' }, ref_value: 'p1', created_at: '2026-01-01T00:00:00Z' },
-      ]);
-      const result = await readThreadComments('p1', ['me']);
-      expect(result).toHaveLength(1);
-      expect(result[0]._id).toBe('cm1');
-      // like fields degrade to 0 / false (the thread renders, like UI empty)
-      expect(result[0].likeCount).toBe(0);
-      expect(result[0].likedByMe).toBe(false);
+      mock.readRefCounts.mockRejectedValue(new Error('boom'));
+      const page = await readThreadComments('p1', ['me']);
+      expect(page.comments).toHaveLength(1);
+      expect(page.comments[0].likeCount).toBe(0);
+      expect(page.comments[0].likedByMe).toBe(false);
+      expect(page.replyCounts).toEqual({});
     });
 
-    it('returns comments as-is when there are none', async () => {
+    it('returns an empty page when there are no comments', async () => {
       const { readThreadComments } = await import('../../data/comments');
       mock.read.mockResolvedValue([]);
-      const result = await readThreadComments('p1', ['me']);
-      expect(result).toEqual([]);
-      // no like reads issued for an empty conversation
-      expect(mock.query).not.toHaveBeenCalled();
+      const page = await readThreadComments('p1', ['me']);
+      expect(page.comments).toEqual([]);
+      expect(page.replyCounts).toEqual({});
     });
   });
 
-  describe('createThreadComment (comments.md: top-level or reply)', () => {
-    it('writes parent_id in the body for a reply (ref_value stays the post)', async () => {
+  describe('createThreadComment (top-level or reply)', () => {
+    it('a reply writes parent_id + refs the parent', async () => {
       const { createThreadComment } = await import('../../data/comments');
-      // the reply nudge reads the parent comment's author (fire-and-forget)
       mock.readById.mockResolvedValue({ doc_id: 'cm1', author_key: 'bob', body: { text: 'top' } });
-      mock.create.mockResolvedValue({ doc_id: 'cm2', author_key: 'alice', body: { post_id: 'p1', parent_id: 'cm1', text: 're' }, ref_value: 'p1' });
+      mock.create.mockResolvedValue({ doc_id: 'cm2', author_key: 'alice', body: { post_id: 'p1', parent_id: 'cm1', text: 're' }, ref_value: 'cm1' });
       await createThreadComment({ postId: 'p1', text: 're', parentId: 'cm1', groups: ['me'] });
       expect(mock.create).toHaveBeenCalledWith(
         'comments',
         expect.objectContaining({ parent_id: 'cm1', post_id: 'p1' }),
-        expect.objectContaining({ ref_value: 'p1', groups: ['me'] }),
+        expect.objectContaining({ ref_value: 'cm1', groups: ['me'] }),
       );
     });
 
-    it('omits parent_id for a top-level comment', async () => {
+    it('a top-level comment omits parent_id + refs the post', async () => {
       const { createThreadComment } = await import('../../data/comments');
       mock.create.mockResolvedValue({ doc_id: 'cm1', author_key: 'alice', body: { post_id: 'p1', text: 'top' }, ref_value: 'p1' });
       await createThreadComment({ postId: 'p1', text: 'top', groups: ['me'] });

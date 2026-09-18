@@ -1,23 +1,33 @@
-import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { Send, ExternalLink, Heart, X } from 'lucide-react';
 import { cn } from './utils';
 import { TextInput, IconBtn, Skeleton } from './ui';
-import type { CommentItem, ReadComments, CreateComment } from './types';
+import type {
+  CommentItem,
+  CommentPageResult,
+  ReadComments,
+  ReadReplies,
+  CreateComment,
+} from './types';
 
 /**
- * The shared comment thread (comments.md) — threaded replies + comment
- * likes, the read side identical on both apps; the write side is the seam.
+ * The shared comment thread (comments.md) — the Facebook/Instagram model:
+ * threaded replies + comment likes, **paged** at both levels. The read side
+ * is identical on both apps; the write side is the seam.
  *
- * The data layer is injected (`readComments` / `createComment` /
- * `onToggleCommentLike`) so the thread runs on web10-social's wapi-backed
- * data AND marketing-ui's public-ledger reader without the package knowing
- * about either.
+ * The data layer is injected (`readComments` / `readReplies` /
+ * `createComment` / `onToggleCommentLike`) so the thread runs on
+ * web10-social's wapi-backed data AND marketing-ui's public-ledger reader
+ * without the package knowing about either.
  *
- * The threading model (comments.md): the reader returns the whole
- * conversation (top-level + replies) in ONE read — every comment's
- * `ref_value` is the post, a reply carries `parent_id`. The thread groups
- * by `parent_id` client-side (`buildCommentTree`); there is no per-comment
- * fetch and no "show more replies" pager.
+ * Paging (the load-bearing part): a comment's `ref_value` is its PARENT — the
+ * post for a top-level comment, the parent comment for a reply. So the server
+ * pages each level independently (keyset cursor on `created_at`):
+ *   - the thread opens with the first page of TOP-LEVEL comments;
+ *   - "View more comments" loads the next top-level page and appends;
+ *   - each comment shows its first few replies; "View more replies (N)" loads
+ *     that comment's next reply page.
+ * A 10k-comment post opens in one bounded read and grows on demand.
  *
  * Comment likes: a `reactions` doc on the comment (same shape as a post
  * like). The app resolves `likeCount` / `likedByMe` per comment and wires
@@ -31,53 +41,23 @@ import type { CommentItem, ReadComments, CreateComment } from './types';
  * `remote` mode (the marketing context, no session): the compose box becomes
  * a "Comment on web10 →" link-out to the post permalink — an anon visitor
  * can't write, so a dead tap target is worse than a link. The read side
- * (the comment list, the thread shape, the like counts) still renders.
+ * (the comment list, the thread shape, the like counts, the paging) still
+ * renders.
  */
 
-// ── The tree ────────────────────────────────────────────────────────────────
+// ── The tree node ────────────────────────────────────────────────────────────
 
 export interface CommentNode extends CommentItem {
+  /** The replies loaded so far (the thread appends as "view more replies"
+   *  pages arrive). */
   replies: CommentNode[];
+  /** Cursor for the next reply page (null = no more, or not fetched). */
+  replyCursor: string | null;
+  /** The comment has more replies than are loaded ("view more replies" shows). */
+  hasMoreReplies: boolean;
 }
 
-/**
- * Build the comment tree from a flat conversation (comments.md).
- * Top-level comments (no `parent_id`) come first, `created_at` order;
- * replies nest under their parent, `created_at` order. A reply whose parent
- * is not in the read (deleted, or in a group the reader can't read) renders
- * as top-level — the thread degrades, it never drops content.
- */
-export function buildCommentTree(comments: CommentItem[]): CommentNode[] {
-  const nodes = new Map<string, CommentNode>();
-  for (const c of comments) {
-    if (c._id) nodes.set(c._id, { ...c, replies: [] });
-  }
-  const topLevel: CommentNode[] = [];
-  for (const c of comments) {
-    const node: CommentNode = c._id ? (nodes.get(c._id) as CommentNode) : { ...c, replies: [] };
-    const parent = c.parent_id ? nodes.get(c.parent_id) : undefined;
-    if (parent) {
-      parent.replies.push(node);
-    } else {
-      topLevel.push(node);
-    }
-  }
-  const byTime = (a: CommentItem, b: CommentItem) =>
-    (a.created_at || '').localeCompare(b.created_at || '');
-  const sortTree = (list: CommentNode[]) => {
-    list.sort(byTime);
-    for (const n of list) sortTree(n.replies);
-  };
-  sortTree(topLevel);
-  return topLevel;
-}
-
-/** Count every comment in the tree (top-level + all replies). */
-export function countCommentTree(nodes: CommentNode[]): number {
-  return nodes.reduce((sum, n) => sum + 1 + countCommentTree(n.replies), 0);
-}
-
-// ── The thread ──────────────────────────────────────────────────────────────
+// ── The thread ───────────────────────────────────────────────────────────────
 
 export interface CommentThreadProps {
   postId: string;
@@ -89,9 +69,11 @@ export interface CommentThreadProps {
   highlightedCommentId?: string;
   /** The group the post lives in (group posts — comments attach to the group). */
   groups?: string[];
-  /** The comment reader (injected by the app — the data seam). Returns the
-   *  whole conversation (top-level + replies) in one read. */
+  /** The top-level comment reader (injected by the app — the data seam).
+   *  Paged: returns one page + a `nextCursor` for "view more comments". */
   readComments: ReadComments;
+  /** The reply reader for "view more replies" (injected). Paged. */
+  readReplies?: ReadReplies;
   /** The comment writer (injected; absent in `remote` mode). */
   createComment?: CreateComment;
   /** The comment-like writer (injected; absent in `remote` mode). The app
@@ -114,14 +96,17 @@ export function CommentThread({
   highlightedCommentId,
   groups,
   readComments,
+  readReplies,
   createComment,
   onToggleCommentLike,
   remote = false,
   remoteHref,
   onError,
 }: CommentThreadProps) {
-  const [comments, setComments] = useState<CommentItem[]>([]);
+  const [topLevel, setTopLevel] = useState<CommentNode[]>([]);
+  const [topCursor, setTopCursor] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
+  const [loadingMore, setLoadingMore] = useState(false);
   const [draft, setDraft] = useState('');
   const [sending, setSending] = useState(false);
   /** The comment the compose box is replying to (absent = post-level). */
@@ -129,15 +114,91 @@ export function CommentThread({
   const commentRefs = useRef<Record<string, HTMLLIElement | null>>({});
   const hasScrolled = useRef(false);
 
-  const tree = useMemo(() => buildCommentTree(comments), [comments]);
+  const toNode = useCallback((c: CommentItem): CommentNode => ({
+    ...c,
+    replies: [],
+    replyCursor: null,
+    hasMoreReplies: false,
+  }), []);
 
+  // Count every node in the tree (top-level + all loaded replies) — the live
+  // count reported to the comment button.
+  const countTree = useCallback((nodes: CommentNode[]): number =>
+    nodes.reduce((sum, n) => sum + 1 + countTree(n.replies), 0), []);
+
+  // Build a tree from a FLAT list of comments (the marketing mode — the
+  // reader returns the whole conversation, top-level + replies). A reply
+  // whose parent is not in the list renders top-level (degrade, never drop).
+  const buildTree = useCallback((list: CommentItem[]): CommentNode[] => {
+    const nodes = new Map<string, CommentNode>();
+    for (const c of list) if (c._id) nodes.set(c._id, toNode(c));
+    const topLevel: CommentNode[] = [];
+    for (const c of list) {
+      const node = c._id ? (nodes.get(c._id) as CommentNode) : toNode(c);
+      const parent = c.parent_id ? nodes.get(c.parent_id) : undefined;
+      if (parent) parent.replies.push(node);
+      else topLevel.push(node);
+    }
+    const byTime = (a: CommentItem, b: CommentItem) =>
+      (a.created_at || '').localeCompare(b.created_at || '');
+    const sortTree = (list: CommentNode[]) => {
+      list.sort(byTime);
+      for (const n of list) sortTree(n.replies);
+    };
+    sortTree(topLevel);
+    return topLevel;
+  }, [toNode]);
+
+  // Pre-fetch the first reply page for each top-level comment that has
+  // replies (the social mode — `replyCounts` tells us which). Bounded +
+  // parallel (one small page per comment).
+  const prefetchReplies = useCallback(async (nodes: CommentNode[], replyCounts: Record<string, number>) => {
+    const withReplies = nodes.filter((n) => n._id && (replyCounts[n._id] || 0) > 0);
+    if (!withReplies.length || !readReplies) return nodes;
+    const pages = await Promise.all(
+      withReplies.map((n) =>
+        readReplies(n._id!, groups, { limit: 5 })
+          .then((page) => ({ id: n._id!, page }))
+          .catch((e) => {
+            console.error('[discover:comments] reply prefetch failed:', e);
+            return null;
+          }),
+      ),
+    );
+    const byId = new Map(pages.filter(Boolean).map((p) => [p!.id, p!.page]));
+    return nodes.map((n) => {
+      const page = byId.get(n._id || '');
+      const total = replyCounts[n._id || ''] || 0;
+      if (!page) return n;
+      return {
+        ...n,
+        replies: page.comments.map(toNode),
+        replyCursor: page.nextCursor,
+        hasMoreReplies: total > page.comments.length,
+      };
+    });
+  }, [readReplies, groups, toNode]);
+
+  // Initial load: the first page of top-level comments (+ their first reply
+  // pages, when the reader provides replyCounts).
   useEffect(() => {
     if (!isOpen) return;
     let cancelled = false;
     setLoading(true);
     readComments(postId, groups)
-      .then((list) => {
-        if (!cancelled) setComments(list);
+      .then(async (page) => {
+        if (cancelled) return;
+        let nodes: CommentNode[];
+        if (page.replyCounts) {
+          // Social mode: top-level page + pre-fetched first reply pages.
+          nodes = await prefetchReplies(page.comments.map(toNode), page.replyCounts);
+        } else {
+          // Marketing mode: the whole flat conversation — build the tree.
+          nodes = buildTree(page.comments);
+        }
+        setTopLevel(nodes);
+        setTopCursor(page.nextCursor);
+        onCountChange(countTree(nodes));
       })
       .catch((e) => console.error('[discover:comments] failed to load:', e))
       .finally(() => {
@@ -146,17 +207,18 @@ export function CommentThread({
     return () => {
       cancelled = true;
     };
-  }, [isOpen, postId, groups, readComments]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isOpen, postId, groups]);
 
   // Scroll to + flash the anchored comment once comments are loaded
   useEffect(() => {
-    if (!highlightedCommentId || hasScrolled.current || !comments.length || loading) return;
+    if (!highlightedCommentId || hasScrolled.current || !topLevel.length || loading) return;
     const el = commentRefs.current[highlightedCommentId];
     if (el && typeof el.scrollIntoView === 'function') {
       hasScrolled.current = true;
       el.scrollIntoView({ behavior: 'smooth', block: 'center' });
     }
-  }, [highlightedCommentId, comments, loading]);
+  }, [highlightedCommentId, topLevel, loading]);
 
   const setCommentRef = useCallback((id: string) => (el: HTMLLIElement | null) => {
     if (el) commentRefs.current[id] = el;
@@ -164,6 +226,60 @@ export function CommentThread({
 
   function handleReply(target: CommentItem) {
     setReplyingTo(target);
+  }
+
+  // "View more comments" — load the next top-level page and append.
+  async function handleViewMoreComments() {
+    if (!topCursor || loadingMore) return;
+    setLoadingMore(true);
+    try {
+      const page = await readComments(postId, groups, { cursor: topCursor });
+      let nodes: CommentNode[];
+      if (page.replyCounts) {
+        nodes = await prefetchReplies(page.comments.map(toNode), page.replyCounts);
+      } else {
+        nodes = page.comments.map(toNode);
+      }
+      setTopLevel((prev) => {
+        const next = [...prev, ...nodes];
+        onCountChange(countTree(next));
+        return next;
+      });
+      setTopCursor(page.nextCursor);
+    } catch (e) {
+      console.error('[discover:comments] failed to load more:', e);
+      onError?.('Could not load more comments.');
+    } finally {
+      setLoadingMore(false);
+    }
+  }
+
+  // "View more replies" — load the next reply page for one comment + append.
+  async function handleViewMoreReplies(parentId: string) {
+    if (!readReplies) return;
+    const parent = findNode(topLevel, parentId);
+    if (!parent || !parent.replyCursor || parent.hasMoreReplies === false) return;
+    try {
+      const page = await readReplies(parentId, groups, { cursor: parent.replyCursor });
+      const nodes = page.comments.map(toNode);
+      setTopLevel((prev) => {
+        const next = prev.map((n) =>
+          n._id === parentId
+            ? {
+                ...n,
+                replies: [...n.replies, ...nodes],
+                replyCursor: page.nextCursor,
+                hasMoreReplies: page.nextCursor !== null,
+              }
+            : n,
+        );
+        onCountChange(countTree(next));
+        return next;
+      });
+    } catch (e) {
+      console.error('[discover:comments] failed to load replies:', e);
+      onError?.('Could not load more replies.');
+    }
   }
 
   async function handleSend() {
@@ -179,9 +295,18 @@ export function CommentThread({
         groups,
       });
       if (created) {
-        const next = [...comments, created];
-        setComments(next);
-        onCountChange(countCommentTree(buildCommentTree(next)));
+        const node = toNode(created);
+        setTopLevel((prev) => {
+          let next: CommentNode[];
+          if (created.parent_id) {
+            // A reply: nest under its parent (if loaded), else top-level.
+            next = prev.map((n) => (n._id === created.parent_id ? { ...n, replies: [...n.replies, node] } : n));
+          } else {
+            next = [...prev, node];
+          }
+          onCountChange(countTree(next));
+          return next;
+        });
         setDraft('');
         setReplyingTo(null);
       }
@@ -202,9 +327,9 @@ export function CommentThread({
           <Skeleton className="h-4 w-3/4" />
           <Skeleton className="h-4 w-1/2" />
         </div>
-      ) : tree.length ? (
+      ) : topLevel.length ? (
         <ul className="space-y-2" data-testid="comment-list">
-          {tree.map((c) => (
+          {topLevel.map((c) => (
             <CommentNodeRow
               key={c._id || c.text}
               node={c}
@@ -214,11 +339,25 @@ export function CommentThread({
               setRef={setCommentRef}
               onReply={handleReply}
               onToggleLike={onToggleCommentLike}
+              onViewMoreReplies={readReplies ? handleViewMoreReplies : undefined}
             />
           ))}
         </ul>
       ) : (
         <p className="text-sm text-muted-foreground">No comments yet. Be the first.</p>
+      )}
+
+      {/* "View more comments" — the top-level pager (the Facebook model). */}
+      {topCursor && !loading && (
+        <button
+          type="button"
+          data-testid="view-more-comments"
+          onClick={handleViewMoreComments}
+          disabled={loadingMore}
+          className="block w-full rounded-md border border-border px-3 py-2 text-center text-sm text-brand-300 transition-colors duration-150 hover:bg-elevated/60 hover:text-brand-400 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-50"
+        >
+          {loadingMore ? 'Loading…' : 'View more comments'}
+        </button>
       )}
 
       {remote ? (
@@ -287,6 +426,18 @@ export function CommentThread({
   );
 }
 
+// ── Find a node in the tree (for reply-append + view-more-replies) ───────────
+
+function findNode(nodes: CommentNode[], id: string | undefined): CommentNode | undefined {
+  if (!id) return undefined;
+  for (const n of nodes) {
+    if (n._id === id) return n;
+    const found = findNode(n.replies, id);
+    if (found) return found;
+  }
+  return undefined;
+}
+
 // ── One comment row (recursive) ─────────────────────────────────────────────
 
 interface CommentNodeRowProps {
@@ -298,9 +449,11 @@ interface CommentNodeRowProps {
   setRef: (id: string) => (el: HTMLLIElement | null) => void;
   onReply: (target: CommentItem) => void;
   onToggleLike?: (commentId: string) => void;
+  /** "View more replies" for this comment (absent → no pager). */
+  onViewMoreReplies?: (parentId: string) => void;
 }
 
-function CommentNodeRow({ node, depth, highlightedCommentId, canWrite, setRef, onReply, onToggleLike }: CommentNodeRowProps) {
+function CommentNodeRow({ node, depth, highlightedCommentId, canWrite, setRef, onReply, onToggleLike, onViewMoreReplies }: CommentNodeRowProps) {
   const id = node._id || '';
   const highlighted = !!id && id === highlightedCommentId;
   const showLike = onToggleLike !== undefined || node.likeCount !== undefined;
@@ -387,9 +540,24 @@ function CommentNodeRow({ node, depth, highlightedCommentId, canWrite, setRef, o
               setRef={setRef}
               onReply={onReply}
               onToggleLike={onToggleLike}
+              onViewMoreReplies={onViewMoreReplies}
             />
           ))}
         </ul>
+      )}
+      {/* "View more replies" — the per-comment pager (the Facebook model). */}
+      {node.hasMoreReplies && onViewMoreReplies && (
+        <button
+          type="button"
+          data-testid={id ? `view-more-replies-${id}` : 'view-more-replies'}
+          onClick={(e) => {
+            e.stopPropagation();
+            if (id) onViewMoreReplies(id);
+          }}
+          className="mt-1.5 ml-4 rounded px-1.5 py-0.5 text-xs text-brand-300 transition-colors duration-150 hover:text-brand-400 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+        >
+          View more replies
+        </button>
       )}
     </li>
   );

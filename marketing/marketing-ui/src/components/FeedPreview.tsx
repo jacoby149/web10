@@ -60,14 +60,21 @@ function feedPostToDiscover(post: FeedPost): DiscoverPost {
 
 // The marketing comment reader (the public ledger) — injected into the shared
 // card's comment thread. Maps the ledger entries to the package's CommentItem.
+// The public ledger returns the WHOLE flat conversation (top-level + replies),
+// so this is a single page (nextCursor null, no replyCounts) — the thread
+// builds the tree by grouping on parent_id (the marketing mode, comments.md).
 const marketingReadComments: ReadComments = async (postId) => {
   const entries = await fetchComments(postId, undefined, 'public_posts');
-  return entries.map((e) => ({
-    _id: e._id,
-    text: e.payload.text,
-    author_username: e.payload.author_username || e.author,
-    created_at: e.created_at,
-  }));
+  return {
+    comments: entries.map((e) => ({
+      _id: e._id,
+      text: e.payload.text,
+      author_username: e.payload.author_username || e.author,
+      created_at: e.created_at,
+      parent_id: (e.payload as { parent_id?: string }).parent_id,
+    })),
+    nextCursor: null,
+  };
 };
 
 // A media ref as the v3 read path serves it: resolve_media_urls rewrites a

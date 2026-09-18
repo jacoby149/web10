@@ -2063,6 +2063,8 @@ def read_docs_by_ref(
     group_ids: list[str],
     member_key: str,
     limit: int = 50,
+    cursor: str | None = None,
+    order: str = "asc",
 ) -> list[dict]:
     """Read docs by ref_value, through the safe-query engine (the full
     boundary: group filter + block/sharing/hidden anti-joins). The flexible
@@ -2075,6 +2077,15 @@ def read_docs_by_ref(
     ``group_ids`` is the reader's readable groups for ``service`` (the D58 read
     gate). ``member_key`` is the reader (the anti-join key; ``"anon"`` for a
     token-less read).
+
+    Cursor paging (the comment thread, comments.md): results are ordered by
+    ``created_at`` (tie-broken by ``doc_id``) and ``cursor`` is a keyset
+    cursor — the ``"<created_at>|<doc_id>"`` of the last row of the previous
+    page. The server returns the next page after the cursor (``created_at > c``
+    / ``doc_id > d`` for the same ``created_at``, ascending; the reverse for
+    descending). ``cursor=None`` is the first page. A composite keyset is what
+    makes paging exact when many rows share a ``created_at`` (a bare
+    ``created_at > c`` would skip them).
     """
     from app.v3.services.safe_query import build_safe_query
 
@@ -2085,9 +2096,31 @@ def read_docs_by_ref(
     # is defense-in-depth against a stray quote.
     quoted = ", ".join(f"'{r.replace(chr(39), chr(39) * 2)}'" for r in refs)
     ref_clause = f"ref_value = {quoted}" if len(refs) == 1 else f"ref_value IN ({quoted})"
+
+    direction = "DESC" if str(order).lower() == "desc" else "ASC"
+    # The keyset cursor: "created_at|doc_id" of the previous page's last row.
+    # Both halves are node-generated (created_at is the server's now64, doc_id
+    # is the server's id) — the split + re-quote is defense-in-depth.
+    cursor_clause = ""
+    if cursor:
+        cur_created, _, cur_doc = str(cursor).partition("|")
+        cur_created = cur_created.replace("'", "''")
+        cur_doc = cur_doc.replace("'", "''")
+        if direction == "ASC":
+            cursor_clause = (
+                f" AND (created_at > '{cur_created}' "
+                f"OR (created_at = '{cur_created}' AND doc_id > '{cur_doc}'))"
+            )
+        else:
+            cursor_clause = (
+                f" AND (created_at < '{cur_created}' "
+                f"OR (created_at = '{cur_created}' AND doc_id < '{cur_doc}'))"
+            )
+
     query = (
         f"SELECT doc_id, author_key, body, ref_value, tags, created_at, updated_at "
-        f"FROM {service} WHERE {ref_clause} LIMIT {int(limit)}"
+        f"FROM {service} WHERE {ref_clause}{cursor_clause} "
+        f"ORDER BY created_at {direction}, doc_id {direction} LIMIT {int(limit)}"
     )
     # The engine injects the boundary CTE for `service` (group filter +
     # anti-joins) and validates the query (rejects raw tables / table
@@ -2103,6 +2136,7 @@ def read_docs_by_ref(
             "ref_value": row[3],
             "tags": list(row[4]),
             "created_at": _iso_utc(row[5]),
+            "updated_at": _iso_utc(row[6]),
             "service": service,
         }
         for row in result.result_rows

@@ -252,6 +252,8 @@ def read_documents(request: Request, data: ReadDocuments):
             group_ids=group_ids,
             member_key=reader,
             limit=data.limit,
+            cursor=data.cursor,
+            order=data.order,
         )
         docs = ch.attach_pinned_ads(docs, reader)
         docs = ch.attach_node_ads(docs, reader)

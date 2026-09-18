@@ -20,43 +20,71 @@ untouched. That is the whole feature.
 
 A comment is a `comments` doc. The shape is fixed by two rules:
 
-1. **`ref_value` is always the post's `doc_id`** — for top-level comments
-   *and* for replies.
-2. **A reply carries `body.parent_id`** — the parent comment's `doc_id`. A
-   top-level comment has no `parent_id`.
+1. **`ref_value` is the comment's PARENT** — the post's `doc_id` for a
+   top-level comment, the parent comment's `doc_id` for a reply. This is the
+   Facebook/Instagram model: a reply is queryable by its parent, which is what
+   makes "view more replies" a clean server page.
+2. **A reply also carries `body.parent_id`** — the parent comment's `doc_id`
+   (redundant with `ref_value` on a reply, kept for the client + the nudge
+   path). A top-level comment has no `parent_id`.
 
 ```
 top-level:  ref_value = post-123        body = { text, post_id, author_username, … }
-reply:      ref_value = post-123        body = { text, post_id, parent_id: cm-456, author_username, … }
+reply:      ref_value = cm-456          body = { text, post_id, parent_id: cm-456, author_username, … }
 ```
 
-### Why `ref_value` stays the post, even for replies
+### Why `ref_value` is the parent (the Facebook model)
 
-This is the load-bearing decision, and it is not a preference — it is what
-keeps every existing count true:
+A hot post has thousands of comments. You cannot read them all in one call —
+the thread must **page**. Paging needs the server to be able to pull "page N
+of X" for two different X's: the post's top-level comments, and one comment's
+replies. `ref_value` is the column the server filters on, so it must point at
+the thing being paged:
 
-- **The post's comment count** is a server-side `GROUP BY ref_value` over
-  `comments WHERE ref_value IN (postIds)` (the D73 feed query's engagement
-  join, the feed's `readFeedEngagementCounts`, the discover board's client
-  tally). If a reply's `ref_value` pointed at the parent comment, the reply
-  would vanish from the post's count the moment it was written — the feed
-  would show "2 comments" under a post with a 12-deep conversation.
-- **The thread read is one call.** `readComments(postId)` (the safe-query
-  `ref` filter) returns the *entire* conversation — top-level and replies —
-  in a single read, because every doc in it shares the post as its
-  `ref_value`. The client groups by `parent_id` and builds the tree. No
-  per-comment fetch, no N+1, no second read to "expand" a thread.
-- **The convention is already in the data.** The YouTube import pipeline
-  (D62 comment join) writes imported replies exactly this way:
-  `ref_value = post_id`, `body.parent_id = <parent comment id>`
-  (`api/app/services/importers/youtube.py`). This doc is the spec the
-  importer was already following.
+- **Top-level comments** page on `ref_value = post_id` (cursor on
+  `created_at`). "View more comments."
+- **A comment's replies** page on `ref_value = comment_id` (cursor on
+  `created_at`). "View more replies."
 
-`body.post_id` is kept as a convenience (the nudge path resolves the post
-author from it), but `ref_value` is the join key — the read's `ref` filter,
-the counts, and the I3 boundary all key off `ref_value`.
+If a reply's `ref_value` pointed at the post instead, "view more replies"
+could not be a server page — you'd have to read the post's *entire*
+conversation and slice it client-side, which is exactly the unbounded read
+this model exists to avoid. So replies ref their parent. That is the whole
+reason, and it is the same call Facebook and Instagram made.
+
+### The cost: the post's comment count is no longer one `GROUP BY`
+
+Because replies no longer ref the post, `GROUP BY ref_value` over
+`ref_value = post_id` counts only top-level comments. The post's **total**
+comment count (the "N comments" badge) is now **top-level count + the sum of
+each top-level comment's reply count**. Two ways to compute it:
+
+- **Derived (what we ship):** the feed/board count stays a `GROUP BY
+  ref_value` over the post (top-level only — cheap, exact, and the number the
+  ranking knobs care about). The thread's *total* (top-level + replies) is
+  computed by the client from the pages it has loaded + a per-comment reply
+  count, or by a single recursive/summed query when the exact total is needed
+  for the badge. At node scale a summed count is affordable; this is the seam
+  where a **maintained counter** (Facebook's eventual answer at their scale)
+  slots in later without a client change.
+- **Maintained counter (the scale answer):** increment a counter on the post
+  doc on every comment/reply write. Facebook runs this because a `COUNT(*)`
+  per render is too expensive at their volume. We do not need it yet — the
+  derived count is exact and cheap at node scale — but the model is shaped so
+  the swap is a data-layer change, not a protocol change.
+
+The load-bearing invariant is unchanged: **the count is decoupled from the
+read.** The badge number never blocks on reading the thread, and the thread
+never blocks on computing the badge.
 
 ### The reply write
+
+A reply writes `ref_value = parent_id` (the parent comment's doc_id) *and*
+`body.parent_id = parent_id` + `body.post_id = <the post>`. The `post_id` in
+the body is what keeps the reply attributable to the post (the nudge path, the
+import join, and any future "all comments on this post" query key off it). The
+D69 nudge targets the **comment author** for a reply, the **post author** for
+a top-level comment — unchanged.
 
 `createComment` writes `ref_value = comment.post_id` and `parent_id` in the
 body (a reply passes `parent_id`; a top-level comment does not). The D69
@@ -91,7 +119,7 @@ that reads a post's likes (the ref filter does the scoping).
 
 ## The thread render
 
-The thread is a tree, rendered from the one read:
+The thread is a tree, rendered from **paged reads** (not one big read):
 
 ```
 top-level comment
@@ -100,16 +128,26 @@ top-level comment
    ├─ like · reply
    └─ reply
       └─ …
+"View more replies"          ← a comment with more replies than shown
+…
+"View more comments"         ← the post has more top-level comments
 ```
 
 Rules:
 
 - **Top-level first, replies nested under their parent.** A reply whose
-  parent is not in the read (deleted, or in a group the reader can't read)
-  renders as top-level — the thread degrades, it never drops content.
+  parent is not in the loaded set (deleted, or in a group the reader can't
+  read) renders as top-level — the thread degrades, it never drops content.
 - **One level of visual indent.** Replies render indented under their
   parent; a reply-to-a-reply nests one level deeper. The indent is the
   thread — no connector lines, no collapse-by-default.
+- **Paged, with the two "view more" affordances (the Facebook model).**
+  The thread opens with the first page of top-level comments (a bounded
+  read). A hyperlink-style **"View more comments"** at the bottom loads the
+  next top-level page and appends. Each comment shows its first few replies;
+  if it has more, a **"View more replies (N)"** link under it loads that
+  comment's next reply page. Both are server cursor pages — a 10k-comment
+  post opens in one bounded read and grows on demand.
 - **Every comment has the same row:** author, text, a like button (count +
   filled when the reader liked it), and a Reply action. The reply action
   opens the compose box *targeting that comment* (the box shows who it
@@ -118,29 +156,36 @@ Rules:
   of the thread. "Reply" retargets it (it shows `Replying to @name —` with a
   cancel); it does not spawn a per-comment input. The post-level compose and
   a reply compose are the same box in two states.
-- **Counts are live.** The thread's comment count (the number on the
-  comment button) counts every doc in the read — top-level *and* replies —
-  so a reply ticks the count.
+- **Counts are live.** A newly posted comment/reply appends to the loaded
+  tree and ticks the visible count; the badge total is the decoupled count
+  (see above), not a re-read of the thread.
 
 ## The data seam
 
 The shared thread (`@web10/discover`) is presentational — the data is
-injected, the same way the discover card injects its data (D74). The seam
-grows two seams:
+injected, the same way the discover card injects its data (D74). The seam is
+**paged**:
 
-- `readComments(postId, groups)` — unchanged: returns the whole
-  conversation (top-level + replies), each item carrying `parent_id` when it
-  is a reply.
-- `createComment({ postId, text, parentId?, … })` — gains `parentId?`:
-  absent = top-level, present = a reply to that comment.
+- `readComments(postId, groups, { cursor?, limit? })` — one page of
+  **top-level** comments (the server filters `ref_value = postId`, orders by
+  `created_at`, applies the keyset cursor). Returns the page + a
+  `next_cursor` (null when exhausted).
+- `readReplies(commentId, groups, { cursor?, limit? })` — one page of a
+  comment's **replies** (the server filters `ref_value = commentId`, same
+  cursor). Returns the page + a `next_cursor`. This is the "view more
+  replies" page.
+- `createComment({ postId, text, parentId?, … })` — `parentId` absent =
+  top-level (`ref_value = postId`), present = a reply (`ref_value =
+  parentId`).
 - `onToggleCommentLike?(commentId)` — the app's comment-like writer
   (optimistic + rollback on the app, the same pattern as the post like).
   Absent (e.g. `remote` mode) → the like renders display-only (count, no
   tap target), the same rule as the post like in remote mode.
 
-The read seam returns `likeCount` + `likedByMe` per comment when the app
-resolves them (web10-social does, from the reactions read); the thread
-renders what it is given and degrades to no like UI when a seam is absent.
+Each page's comments carry `likeCount` + `likedByMe` when the app resolves
+them (web10-social does, from the reactions read — over the *loaded*
+comments only, never the whole thread); the thread renders what it is given
+and degrades to no like UI when a seam is absent.
 
 ## Security invariants
 
@@ -157,11 +202,15 @@ renders what it is given and degrades to no like UI when a seam is absent.
 
 ## What this is not
 
-- **Not infinite-expand.** The thread renders the whole conversation in one
-  read (the safe-query `ref` filter returns every doc with the post as its
-  `ref_value`). There is no "show more replies" pager — a post's
-  conversation is one read, and a post with 10,000 replies is a
-  moderation problem, not a pagination problem.
+- **Not a maintained counter (yet).** The post's total comment count is
+  derived (top-level `GROUP BY` + summed reply counts), not a write-time
+  counter. That is the Facebook model at *their* scale; at node scale the
+  derived count is exact and cheap. The model is shaped so a counter slots
+  in later as a data-layer change, not a protocol change.
+- **Not "Top comments" ranking (yet).** The thread pages chronologically
+  (`created_at`). Facebook's default is engagement-ranked "Top comments";
+  we don't have a comment-ranking signal yet, so we ship "Most recent"
+  order. Ranking is a separate decision (see the ranking note below).
 - **Not a notification change.** The reply nudge (D69) already targets the
   comment author; the notification row already deep-links to the post with
   the comment highlighted (`?comment=`). Nothing new here.
