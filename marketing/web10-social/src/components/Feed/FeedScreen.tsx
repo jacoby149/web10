@@ -307,6 +307,10 @@ export interface PostCardProps {
   onAuthorClick?: (username: string, provider: string) => void;
   postAuthor?: string;
   postService?: string;
+  /** The group the post lives in (group posts — reactions + comments attach
+   *  to the group, not the discover board; post-actions.md). Threaded to the
+   *  card's <PostActions>. */
+  groups?: string[];
   isOwnPost?: boolean;
   onPostUpdated?: () => void;
   testId?: string;
@@ -335,6 +339,7 @@ export function PostCard({
   onAuthorClick,
   postAuthor,
   postService,
+  groups,
   isOwnPost,
   onPostUpdated,
   testId = 'post-card',
@@ -611,6 +616,7 @@ export function PostCard({
             onCommentCountChange={onCommentCountChange}
             postAuthor={postAuthor}
             postService={postService}
+            groups={groups}
             onAuthorClick={onAuthorClick}
             dislike="interactive"
             repost="interactive"

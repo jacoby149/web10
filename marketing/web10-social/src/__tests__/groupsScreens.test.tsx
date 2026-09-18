@@ -7,6 +7,16 @@ import '@testing-library/jest-dom';
 import { lucideMock } from './helpers/lucideMock';
 vi.mock('lucide-react', () => lucideMock);
 
+// Mock the v3 client seam (the screen reads the token for ownership + the
+// group-scoped engagement writes). A signed-in reader ("me") so the like tap
+// path is driven.
+vi.mock('@/data/v3', () => ({
+  getV3Client: () => ({
+    readToken: () => ({ provider: 'api.localhost', username: 'me' }),
+  }),
+  resetV3Client: () => {},
+}));
+
 // Mock data layer
 vi.mock('@/data', async (importOriginal) => {
   const original = await importOriginal() as Record<string, unknown>;
@@ -54,9 +64,10 @@ import {
   denyJoinRequest,
   inviteMember,
   deleteGroup,
-  joinGroup,
-  requestJoinGroup,
-  leaveGroup,
+    joinGroup,
+    requestJoinGroup,
+    leaveGroup,
+    toggleReactionKind,
 } from '@/data';
 
 const mockMyGroups = [
@@ -439,8 +450,8 @@ describe('GroupDetailScreen', () => {
     expect(screen.getByTestId('group-post-card')).toBeInTheDocument();
     expect(screen.getByText('Who is in for Friday?')).toBeInTheDocument();
     // The engagement row (post-actions.md): group posts get the reaction pair
-    // + comment entry (they had none before — the gap this closes).
-    expect(screen.getByTestId('group-post-actions')).toBeInTheDocument();
+    // + comment entry via the reference PostCard (group-scoped via `groups`).
+    expect(screen.getByTestId('post-actions')).toBeInTheDocument();
     expect(screen.getByTestId('like-button')).toBeInTheDocument();
     expect(screen.getByTestId('dislike-button')).toBeInTheDocument();
     expect(screen.getByTestId('comment-button')).toBeInTheDocument();
@@ -448,18 +459,33 @@ describe('GroupDetailScreen', () => {
     expect(screen.getByTestId('group-detail-leave')).toBeInTheDocument();
   });
 
-  it('a member sees the group composer (feed-forward)', async () => {
+  it('liking a group post writes the reaction to the group (group-scoped engagement)', async () => {
+    await loadDetail();
+    await waitFor(() => {
+      expect(screen.getByTestId('group-post-card')).toBeInTheDocument();
+    });
+    fireEvent.click(screen.getByTestId('like-button'));
+    await waitFor(() => {
+      // The reaction attaches to the group, not the discover board
+      // (post-actions.md) — the reference PostCard threads `groups` through.
+      expect(toggleReactionKind).toHaveBeenCalledWith('doc-1', 'like', [GROUP_ID]);
+    });
+  });
+
+  it('a member sees the group composer (the feed composer, group-scoped)', async () => {
     await loadDetail();
     await waitFor(() => {
       expect(screen.getByTestId('group-detail-posts')).toBeInTheDocument();
     });
-    // The composer is present for a member (the feed is the dominant surface)
+    // The composer is the feed's PostComposer (the group feed looks like the
+    // feed) — present for a member, absent for non-members.
     expect(screen.getByTestId('group-composer')).toBeInTheDocument();
-    expect(screen.getByTestId('group-composer-input')).toBeInTheDocument();
+    expect(screen.getByTestId('post-composer')).toBeInTheDocument();
+    expect(screen.getByTestId('composer-textarea')).toBeInTheDocument();
     // The Post button is disabled until there's text
-    expect(screen.getByTestId('group-composer-post')).toBeDisabled();
-    fireEvent.change(screen.getByTestId('group-composer-input'), { target: { value: 'Hello group' } });
-    expect(screen.getByTestId('group-composer-post')).toBeEnabled();
+    expect(screen.getByTestId('post-submit')).toBeDisabled();
+    fireEvent.change(screen.getByTestId('composer-textarea'), { target: { value: 'Hello group' } });
+    expect(screen.getByTestId('post-submit')).toBeEnabled();
   });
 
   it('renders post media (image) when the group feed carries media', async () => {
@@ -481,9 +507,11 @@ describe('GroupDetailScreen', () => {
     ] as never);
     await loadDetail();
     await waitFor(() => {
-      expect(screen.getByTestId('group-post-image')).toBeInTheDocument();
+      // The reference PostCard renders media through the feed's MediaGrid
+      // (media-image), not a group-specific img.
+      expect(screen.getByTestId('media-image')).toBeInTheDocument();
     });
-    expect((screen.getByTestId('group-post-image') as HTMLImageElement).src).toBe('http://x/img.png');
+    expect((screen.getByTestId('media-image').querySelector('img') as HTMLImageElement).src).toBe('http://x/img.png');
   });
 
   it('shows join-to-view for a non-member and a Join button', async () => {
@@ -759,8 +787,11 @@ describe('GroupDetailScreen', () => {
     await waitFor(() => {
       expect(screen.getAllByTestId('manage-members-row').length).toBe(2);
     });
-    expect(screen.getByText('carol')).toBeInTheDocument();
-    expect(screen.getByText('bob')).toBeInTheDocument();
+    // Scoped to the sheet — the group feed's post card (author "carol") is
+    // still mounted behind it.
+    const sheet = screen.getByTestId('manage-group-sheet');
+    expect(within(sheet).getByText('carol')).toBeInTheDocument();
+    expect(within(sheet).getByText('bob')).toBeInTheDocument();
     // Remove bob → removeGroupMember is called
     const removeBtns = screen.getAllByTestId('manage-members-remove');
     fireEvent.click(removeBtns[1]);
@@ -897,17 +928,23 @@ describe('GroupDetailScreen', () => {
     expect(screen.getByTestId('group-detail-banner-img')).toBeInTheDocument();
     expect(screen.getByTestId('group-detail-avatar-img')).toBeInTheDocument();
     expect(screen.getByTestId('group-detail-description')).toBeInTheDocument();
-    // A face-present group does NOT show the empty-hero state
-    expect(screen.queryByTestId('group-detail-hero-empty')).not.toBeInTheDocument();
+    // A face-present group does NOT show the "add a face" CTA
+    expect(screen.queryByTestId('group-detail-add-face')).not.toBeInTheDocument();
   });
 
-  it('shows the empty-hero state when the group has no face', async () => {
+  it('the hero is profile-shaped even when the group has no face (banner + avatar fallbacks)', async () => {
     vi.mocked(readGroupIdentity).mockResolvedValue({});
     await loadDetail();
     await waitFor(() => {
-      expect(screen.getByTestId('group-detail-hero-empty')).toBeInTheDocument();
+      expect(screen.getByTestId('group-detail-hero')).toBeInTheDocument();
     });
-    expect(screen.queryByTestId('group-detail-hero')).not.toBeInTheDocument();
+    // The banner is always present (the brand gradient fallback) — the page
+    // never collapses to a bare header.
+    expect(screen.getByTestId('group-detail-banner')).toBeInTheDocument();
+    expect(screen.queryByTestId('group-detail-banner-img')).not.toBeInTheDocument();
+    // The avatar is always present (the hash-color initial fallback)
+    expect(screen.queryByTestId('group-detail-avatar-img')).not.toBeInTheDocument();
+    expect(screen.getByTestId('group-detail-name')).toHaveTextContent('Gaming Night');
     // A non-manager sees no "add a face" CTA
     expect(screen.queryByTestId('group-detail-add-face')).not.toBeInTheDocument();
   });
@@ -919,7 +956,7 @@ describe('GroupDetailScreen', () => {
     ] as never);
     await loadDetail();
     await waitFor(() => {
-      expect(screen.getByTestId('group-detail-hero-empty')).toBeInTheDocument();
+      expect(screen.getByTestId('group-detail-hero')).toBeInTheDocument();
     });
     expect(screen.getByTestId('group-detail-add-face')).toBeInTheDocument();
     // Clicking it opens the Manage sheet
