@@ -59,7 +59,7 @@ import { PostActions } from '@/components/Feed/PostActions';
 // D74: the shared discover card (one source, both apps). The social app's grid
 // + youtube cards now wrap it — the same card the marketing /trending uses.
 import { DiscoverCard as SharedDiscoverCard, type DiscoverPost, type CreateComment } from '@web10/discover';
-import { readComments, createComment as wapiCreateComment } from '@/data';
+import { readThreadComments, readThreadReplies, createComment as wapiCreateComment } from '@/data';
 
 const LOG = (...args: unknown[]) => console.log('[social:discover]', ...args);
 
@@ -355,9 +355,10 @@ function SuggestedUserSkeleton() {
 // ── DiscoverCard (trending post) ─────────────────────────────────────────────
 
 // D74: adapt the wapi createComment to the shared card's injected CreateComment.
-const discoverCreateComment: CreateComment = async ({ postId, text, groups, postAuthor, postService }) => {
+// `parentId` present = a reply (refs the parent, comments.md); absent = top-level.
+const discoverCreateComment: CreateComment = async ({ postId, text, parentId, groups, postAuthor, postService }) => {
   const created = await wapiCreateComment(
-    { post_id: postId, text, created_at: new Date().toISOString() },
+    { post_id: postId, text, parent_id: parentId, created_at: new Date().toISOString() },
     groups ?? postAuthor,
     postService,
   );
@@ -435,9 +436,15 @@ function DiscoverCard({
       reposted={reposted}
       onToggleReaction={onToggleReaction}
       onToggleRepost={onToggleRepost}
-      readComments={readComments}
+      readComments={readThreadComments}
+      readReplies={readThreadReplies}
       createComment={discoverCreateComment}
       testId="discover-card"
+      // A full-width 9:16 box is ~1.78× the card tall — too big on desktop,
+      // and it buries the control rack at its bottom. Cap the portrait frame
+      // (centered in a black letterbox), consistent with the marketing
+      // /trending card. Landscape is unaffected (only portrait is capped).
+      videoMaxWidth="min(50vh, 100%)"
     />
 
   );
@@ -574,9 +581,13 @@ function DiscoverYouTubeCard({
       maxScore={1}
       authorAvatar={authorAvatar}
       onAuthorClick={onAuthorClick}
-      readComments={readComments}
+      readComments={readThreadComments}
+      readReplies={readThreadReplies}
       createComment={discoverCreateComment}
       testId="discover-youtube-card"
+      // Same portrait cap as the board card (a 9:16 clip in the video view is
+      // too big on desktop + buries the rack). Landscape is unaffected.
+      videoMaxWidth="min(50vh, 100%)"
     />
   );
 }

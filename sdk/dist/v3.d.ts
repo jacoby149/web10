@@ -309,6 +309,8 @@ export interface V3Client {
         ref?: string | string[];
         sort?: PowerMeanSort;
         tags?: string[];
+        cursor?: string;
+        order?: "asc" | "desc";
     }): Promise<V3Document[]>;
     readRefCounts(collection: string, opts: {
         groups: string[];

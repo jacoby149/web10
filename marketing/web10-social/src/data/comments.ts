@@ -5,49 +5,123 @@ import { sendNotification } from './notifications';
 import { readPostById } from './posts';
 
 // ── Comments data layer (v3) ─────────────────────────────────────────────────
-// Comments are documents in the `comments` collection with `ref_value` pointing
-// to the parent post or comment. No public ledger mirror needed — v3 uses
-// direct reads with groups for engagement counts.
+// The threading model (comments.md) — the Facebook/Instagram shape:
+//
+//   top-level:  ref_value = post-123   body = { text, post_id, … }
+//   reply:      ref_value = cm-456     body = { text, post_id, parent_id: cm-456, … }
+//
+// A comment's `ref_value` is its PARENT — the post for a top-level comment,
+// the parent comment for a reply. That is what makes each level an independent
+// server page: top-level comments page on `ref = post_id`, a comment's replies
+// page on `ref = comment_id`. Both are keyset-cursor paged on `created_at`
+// (tie-broken by `doc_id`), so a 10k-comment post opens in one bounded read
+// and grows on demand ("view more comments" / "view more replies").
+//
+// The cost (comments.md): the post's TOTAL comment count is no longer one
+// `GROUP BY ref_value` (replies don't ref the post). The top-level count is
+// still exact + cheap; the total is top-level + summed reply counts, or a
+// maintained counter at scale. The count is decoupled from the read.
+
+/** A keyset cursor page of comments + the cursor for the next page (null when
+ *  the page returned fewer than `limit` rows — the thread is exhausted). */
+export interface CommentPage {
+  comments: CommentRecord[];
+  nextCursor: string | null;
+}
+
+/** Build the keyset cursor from a page's last row: "created_at|doc_id". */
+function pageCursor(last: CommentRecord | undefined, page: CommentRecord[], limit: number): string | null {
+  if (!page.length || page.length < limit) return null;
+  const tail = last ?? page[page.length - 1];
+  if (!tail._id || !tail.created_at) return null;
+  return `${tail.created_at}|${tail._id}`;
+}
 
 /**
- * Read all comments for a post.
+ * Read one page of a post's TOP-LEVEL comments (the server filters
+ * `ref_value = postId`, orders by `created_at`, applies the keyset cursor).
  */
-export async function readComments(postId: string, groups?: string[]): Promise<CommentRecord[]> {
+export async function readComments(
+  postId: string,
+  groups?: string[],
+  opts: { cursor?: string; limit?: number; order?: 'asc' | 'desc' } = {},
+): Promise<CommentPage> {
   const w = getV3Client();
   const targetGroups = groups || [getDiscoverGroupId()];
-  // The ref filter (the flexible read, phase 1): the server returns only the
-  // comments whose ref_value = postId (via the safe-query engine — group
-  // filter + block/sharing/hidden), not all comments in the group. No
-  // client-side filter needed.
-  const docs = await w.read('comments', { groups: targetGroups, ref: postId });
-  return docs.map(fromV3DocToComment);
+  const limit = opts.limit ?? 20;
+  const docs = await w.read('comments', {
+    groups: targetGroups,
+    ref: postId,
+    limit,
+    cursor: opts.cursor,
+    order: opts.order ?? 'asc',
+  });
+  const comments = docs.map(fromV3DocToComment);
+  return { comments, nextCursor: pageCursor(undefined, comments, limit) };
 }
 
 /**
- * Read top-level comments (no parent_id).
+ * Read one page of a comment's REPLIES (the server filters
+ * `ref_value = commentId` — the Facebook "view more replies" page).
  */
-export async function readTopLevelComments(postId: string, groups?: string[]): Promise<CommentRecord[]> {
-  const comments = await readComments(postId, groups);
-  return comments.filter((c) => !c.parent_id);
-}
-
-/**
- * Read replies to a specific comment.
- */
-export async function readReplies(commentId: string, groups?: string[]): Promise<CommentRecord[]> {
+export async function readReplies(
+  commentId: string,
+  groups?: string[],
+  opts: { cursor?: string; limit?: number; order?: 'asc' | 'desc' } = {},
+): Promise<CommentPage> {
   const w = getV3Client();
   const targetGroups = groups || [getDiscoverGroupId()];
-  // The ref filter: the server returns only the comments whose ref_value =
-  // commentId (replies to this comment), via the safe-query engine.
-  const docs = await w.read('comments', { groups: targetGroups, ref: commentId });
-  return docs.map(fromV3DocToComment);
+  const limit = opts.limit ?? 5;
+  const docs = await w.read('comments', {
+    groups: targetGroups,
+    ref: commentId,
+    limit,
+    cursor: opts.cursor,
+    order: opts.order ?? 'asc',
+  });
+  const comments = docs.map(fromV3DocToComment);
+  return { comments, nextCursor: pageCursor(undefined, comments, limit) };
 }
 
 /**
- * Create a new comment on a post.
- * @param comment - the comment body
- * @param groupsOrPostAuthor - groups array, or postAuthor string (v2 compat)
- * @param postService - v2 compat, ignored
+ * Count a post's TOP-LEVEL comments (the server's `GROUP BY ref_value` —
+ * exact, no cap). The post's TOTAL (top-level + replies) is this plus the
+ * sum of each comment's reply count; the thread computes it from the pages it
+ * has loaded (comments.md: the count is decoupled from the read).
+ */
+export async function countComments(postId: string, groups?: string[]): Promise<number> {
+  const w = getV3Client();
+  const targetGroups = groups || [getDiscoverGroupId()];
+  const counts = await w.readRefCounts('comments', { groups: targetGroups, ref: postId });
+  return counts[postId] || 0;
+}
+
+/**
+ * Count replies for a set of comments in one server call (`GROUP BY
+ * ref_value` over the comments' doc_ids — a reply's `ref_value` is its
+ * parent). The thread uses this to know which loaded comments have replies
+ * (so it fetches their first page + shows "view more replies" only where
+ * there is more). Returns `{ commentId: replyCount }`.
+ */
+export async function countRepliesByComment(
+  commentIds: string[],
+  groups?: string[],
+): Promise<Record<string, number>> {
+  if (!commentIds.length) return {};
+  const w = getV3Client();
+  const targetGroups = groups || [getDiscoverGroupId()];
+  const counts = await w.readRefCounts('comments', { groups: targetGroups, ref: commentIds });
+  return counts;
+}
+
+/**
+ * Create a new comment on a post, or a reply to a comment.
+ *
+ * The write model (comments.md): a top-level comment writes
+ * `ref_value = post_id`; a reply (`parent_id` set) writes
+ * `ref_value = parent_id` (the parent comment) so "view more replies" is a
+ * clean server page. Both keep `body.post_id` (attribution + the nudge path)
+ * and a reply keeps `body.parent_id` (the client tree + the nudge target).
  */
 export async function createComment(
   comment: Omit<CommentRecord, '_id'>,
@@ -70,11 +144,11 @@ export async function createComment(
   };
 
   const targetGroups = groups || [getDiscoverGroupId()];
-  // ref_value (the target post's doc_id) is a top-level create field, not in
-  // the body — the server stores it in the ref_value column, which the read's
-  // ref filter + engagement counts key off. Without this the comment is
-  // orphaned (ref_value="" → the ref read never finds it).
-  const doc = await w.create('comments', body, { groups: targetGroups, ref_value: comment.post_id });
+  // ref_value is the PARENT (comments.md): the post for a top-level comment,
+  // the parent comment for a reply. Without it the comment is orphaned
+  // (ref_value="" → the ref read never finds it).
+  const refValue = comment.parent_id || comment.post_id;
+  const doc = await w.create('comments', body, { groups: targetGroups, ref_value: refValue });
   // The write side (D69): nudge the right author (best-effort, fire-and-forget —
   // a resolve failure never affects the comment). A reply (parent_id set) →
   // the comment author; a top-level comment → the post author.
@@ -142,10 +216,146 @@ export async function deleteComment(
   await w.delete(id);
 }
 
+// ── The thread seam (comments.md) ────────────────────────────────────────────
+// The shared @web10/discover thread is presentational — the app injects the
+// paged read + write + like seams. These are the social app's:
+//
+//   readThreadComments(postId, groups, {cursor, limit})
+//     → one page of TOP-LEVEL comments, each enriched with likeCount +
+//       likedByMe (over the loaded page only, never the whole thread).
+//   readThreadReplies(commentId, groups, {cursor, limit})
+//     → one page of a comment's replies, like-enriched.
+//   createThreadComment({postId, text, parentId?, …})
+//     → top-level (ref = post) or reply (ref = parent).
+//
+// The like enrichment is two parallel, independently-degrading reads: a
+// server-side `GROUP BY ref_value` count over the page's comments' reaction
+// docs + a batched ref read of the reader's own reactions (username-alone
+// match, the 3.87.2 rule). A failure degrades to no like fields (the thread
+// renders, the like UI just stays empty — the 3.25.x pattern).
+
+/** A comment as the shared thread renders it (the package's CommentItem,
+ *  enriched with the like state the app resolves). */
+export interface ThreadComment extends CommentRecord {
+  likeCount?: number;
+  likedByMe?: boolean;
+}
+
+/** Enrich a page of comments with likeCount + likedByMe (degrading reads). */
+async function enrichLikes(comments: CommentRecord[], groups: string[]): Promise<ThreadComment[]> {
+  const ids = comments.map((c) => c._id).filter((id): id is string => !!id);
+  if (!ids.length) return comments as ThreadComment[];
+
+  const w = getV3Client();
+  const token = w.readToken();
+  const quoted = ids.map((id) => `'${id.replace(/'/g, "''")}'`).join(', ');
+
+  const [countRows, ownDocs] = await Promise.all([
+    w.query(
+      'SELECT ref_value, ' +
+        "countIf(JSONExtractString(body, 'type') = 'like') AS like_count " +
+        `FROM reactions WHERE ref_value IN (${quoted}) GROUP BY ref_value`,
+      { groups },
+    ).catch((e) => {
+      console.error('[comments] like-count query failed, degrading:', e);
+      return { rows: [] as Record<string, unknown>[], count: 0 };
+    }),
+    w.read('reactions', { groups, ref: ids }).catch((e) => {
+      console.error('[comments] own-reactions read failed, degrading:', e);
+      return [] as Awaited<ReturnType<typeof w.read>>;
+    }),
+  ]);
+
+  const likeCount: Record<string, number> = {};
+  for (const row of countRows.rows) {
+    likeCount[String(row.ref_value)] = Number(row.like_count) || 0;
+  }
+  const likedByMe: Record<string, boolean> = {};
+  if (token) {
+    for (const doc of ownDocs) {
+      if (extractUsername(doc.author_key) !== token.username) continue;
+      const type = ((doc.body as Record<string, unknown>).type as string) || 'like';
+      if (type === 'like' && doc.ref_value) likedByMe[doc.ref_value] = true;
+    }
+  }
+
+  console.log(
+    '[comments] enrichLikes —',
+    comments.length, 'comments,',
+    Object.values(likeCount).reduce((a, b) => a + b, 0), 'likes,',
+    Object.keys(likedByMe).length, 'by me',
+  );
+
+  return comments.map((c) => ({
+    ...c,
+    likeCount: c._id ? likeCount[c._id] ?? 0 : 0,
+    likedByMe: c._id ? !!likedByMe[c._id] : false,
+  }));
+}
+
 /**
- * Count comments on a post.
+ * Read one page of a post's top-level comments, like-enriched. The thread's
+ * initial load + "view more comments" both call this (with the cursor for
+ * subsequent pages). Also returns `replyCounts` (each top-level comment's
+ * total reply count) so the thread can pre-fetch each comment's first reply
+ * page + show "view more replies" only where there is more.
  */
-export async function countComments(postId: string, groups?: string[]): Promise<number> {
-  const comments = await readComments(postId, groups);
-  return comments.length;
+export async function readThreadComments(
+  postId: string,
+  groups?: string[],
+  opts: { cursor?: string; limit?: number } = {},
+): Promise<CommentPage & { comments: ThreadComment[]; replyCounts: Record<string, number> }> {
+  const targetGroups = groups || [getDiscoverGroupId()];
+  const page = await readComments(postId, targetGroups, opts);
+  const [comments, replyCounts] = await Promise.all([
+    enrichLikes(page.comments, targetGroups),
+    countRepliesByComment(
+      page.comments.map((c) => c._id).filter((id): id is string => !!id),
+      targetGroups,
+    ).catch((e) => {
+      console.error('[comments] reply-count read failed, degrading:', e);
+      return {} as Record<string, number>;
+    }),
+  ]);
+  return { comments, nextCursor: page.nextCursor, replyCounts };
+}
+
+/**
+ * Read one page of a comment's replies, like-enriched. The thread's
+ * "view more replies" calls this.
+ */
+export async function readThreadReplies(
+  commentId: string,
+  groups?: string[],
+  opts: { cursor?: string; limit?: number } = {},
+): Promise<CommentPage & { comments: ThreadComment[] }> {
+  const targetGroups = groups || [getDiscoverGroupId()];
+  const page = await readReplies(commentId, targetGroups, opts);
+  const comments = await enrichLikes(page.comments, targetGroups);
+  return { comments, nextCursor: page.nextCursor };
+}
+
+/**
+ * Create a comment (top-level) or a reply (`parentId` set) — the shared
+ * thread's write seam. A reply refs its parent (comments.md); a top-level
+ * comment refs the post.
+ */
+export async function createThreadComment(args: {
+  postId: string;
+  text: string;
+  parentId?: string;
+  groups?: string[];
+  postAuthor?: string;
+  postService?: string;
+}): Promise<ThreadComment> {
+  return createComment(
+    {
+      post_id: args.postId,
+      text: args.text,
+      parent_id: args.parentId,
+      created_at: new Date().toISOString(),
+    },
+    args.groups ?? args.postAuthor,
+    args.postService,
+  );
 }

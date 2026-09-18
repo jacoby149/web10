@@ -16,7 +16,7 @@ alice liked your post · 2m ago
 bob commented on your post · 15m ago
 carol replied to your comment · 1h ago
 dave sent you a message · 2h ago
-charlie requested to follow · 3h ago
+charlie followed you · 3h ago
 ```
 
 **Every row deep-links to the place the event is about** (the address bar is
@@ -55,9 +55,15 @@ never trusts the payload's content.
   `w.query()` (D63) or a client-side filter of the post's comment tree.
 - **New DM** — the DM group read minus a per-conversation last-read cursor
   (the `settings.ts` app-owned pattern).
-- **Follow request** — the followers group's pending join requests
-  (**`getPendingRequests` read — the one missing primitive; `requestJoin`
-  exists, the read does not**).
+- **Follow** — the followers group is **open join** (following is immediate,
+  there is no pending request), so a new follower is simply a **member of my
+  followers group**. Derived from the group member list
+  (`getGroupMembers(followersGroupId(me))`), one row per follower, `joined_at`
+  as the event time (the last-seen cursor marks it read/unread). This is the
+  durable record: the P2P nudge (`followUser` in `follows.ts`) is the fast
+  path, but a follow made while the recipient is offline is recovered from
+  this read on their next sign-in. (`getPendingRequests` is only relevant to
+  **request-join** groups such as close-friends — not to follows.)
 - **Group join** — a membership diff against the last-seen member list.
 
 No new API endpoint: the generic CRUD + the ref-count read + `w.query()`
@@ -134,7 +140,7 @@ the operator's "whatever app state they are in."
 - [ ] Badge + bell — `Layout` (desktop sidebar + mobile top-header) + the "N new" banner
 - [ ] The `/notifications` screen — deep-linkable history, mark-read on open
 - [✓] Row deep links — every row navigates to the place the event is about (`notificationHref` + `resolveReplyHref`; the table in "What the Screen Shows")
-- [ ] The missing primitive — `getPendingRequests` (followers group pending join requests)
+- [ ] The missing primitive — `getPendingRequests` (pending join requests for **request-join** groups such as close-friends; NOT needed for follows, which are open-join and derived from the member list)
 - [ ] Notification preferences — per-type toggle (reactions on/off, comments on/off)
 - [ ] Batch notifications — "15 people liked your post" instead of 15 rows (a later refinement)
 
