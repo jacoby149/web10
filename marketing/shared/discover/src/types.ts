@@ -48,14 +48,73 @@ export interface MediaItem {
   transcoding_settings?: TranscodingSettings;
 }
 
-/** A comment as the thread renders it (the social app's CommentRecord shape). */
+/** A comment as the thread renders it (the social app's CommentRecord shape).
+ *
+ * The threading model (comments.md, the Facebook shape): `parent_id` is set on
+ * a reply (the parent comment's doc_id); a top-level comment has none. The
+ * reader is PAGED — it returns one page of top-level comments (the server
+ * filters `ref_value = postId`, orders by `created_at`, applies the keyset
+ * cursor) + a `nextCursor` for "view more comments". A comment's replies are
+ * a separate paged read (`readReplies`, the "view more replies" page).
+ * `likeCount` / `likedByMe` are resolved by the app from the reactions read;
+ * absent → the thread renders no like UI.
+ */
 export interface CommentItem {
   _id?: string;
   text: string;
   author_username?: string;
   author_provider?: string;
   created_at: string;
+  /** Set on a reply: the parent comment's doc_id. */
+  parent_id?: string;
+  /** The comment's like count (the app resolves it; absent → no like UI). */
+  likeCount?: number;
+  /** Whether the reader liked this comment (the app resolves it). */
+  likedByMe?: boolean;
 }
+
+/** One keyset-cursor page of comments + the cursor for the next page (null
+ *  when the thread is exhausted). `replyCounts` (optional, the social app
+ *  provides it) maps each top-level comment's doc_id to its total reply
+ *  count — the thread uses it to pre-fetch each comment's first reply page
+ *  and to show "view more replies" only where there is more. Absent (e.g.
+ *  the marketing public-ledger reader, which returns the whole flat
+ *  conversation) → the thread builds the tree from the returned comments
+ *  alone. */
+export interface CommentPageResult {
+  comments: CommentItem[];
+  nextCursor: string | null;
+  replyCounts?: Record<string, number>;
+}
+
+/** The top-level comment reader the thread calls (injected by the app — the
+ *  data seam). Paged: returns one page + a `nextCursor` for "view more
+ *  comments". */
+export type ReadComments = (
+  postId: string,
+  groups?: string[],
+  opts?: { cursor?: string; limit?: number },
+) => Promise<CommentPageResult>;
+
+/** The reply reader the thread calls for "view more replies" (injected; the
+ *  server filters `ref_value = commentId`). Paged like ReadComments. */
+export type ReadReplies = (
+  commentId: string,
+  groups?: string[],
+  opts?: { cursor?: string; limit?: number },
+) => Promise<CommentPageResult>;
+
+/** The comment writer the thread calls (injected; absent in `remote` mode).
+ * `parentId` present = a reply to that comment (refs the parent); absent =
+ * top-level (refs the post). */
+export type CreateComment = (args: {
+  postId: string;
+  text: string;
+  parentId?: string;
+  postAuthor?: string;
+  postService?: string;
+  groups?: string[];
+}) => Promise<CommentItem | null>;
 
 /**
  * The discover card's post. The apps map their feed/discover records onto this.
@@ -79,14 +138,3 @@ export interface DiscoverPost {
   media?: MediaItem[];
 }
 
-/** The comment reader the thread calls (injected by the app — the data seam). */
-export type ReadComments = (postId: string, groups?: string[]) => Promise<CommentItem[]>;
-
-/** The comment writer the thread calls (injected; absent in `remote` mode). */
-export type CreateComment = (args: {
-  postId: string;
-  text: string;
-  postAuthor?: string;
-  postService?: string;
-  groups?: string[];
-}) => Promise<CommentItem | null>;

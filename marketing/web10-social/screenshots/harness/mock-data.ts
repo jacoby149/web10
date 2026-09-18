@@ -203,9 +203,43 @@ export async function unfollowUser(): Promise<void> {}
 export async function uploadMedia(): Promise<{ url: string }> { return { url: '' }; }
 export async function fanOutToFollowers(): Promise<void> {}
 export async function readMyAds(): Promise<{ ads: unknown[]; albums: unknown[] }> { return { ads: [], albums: [] }; }
-export async function refreshMediaUrls<T>(records: T[]): Promise<T[]> { return records; }
-export async function readComments(): Promise<unknown[]> { return []; }
-export async function createComment(): Promise<unknown> { return {}; }
+ export async function refreshMediaUrls<T>(records: T[]): Promise<T[]> { return records; }
+ export async function readComments(): Promise<unknown[]> { return []; }
+ export async function createComment(): Promise<unknown> { return {}; }
+ // The thread seams (comments.md, the Facebook model): the shared thread reads
+ // a PAGED top-level page (+ per-comment replyCounts) and a PAGED reply page
+ // ("view more replies"), and writes top-level comments or replies (parentId).
+ // Seed a small threaded conversation so the screenshot shows the thread shape.
+ export async function readThreadComments(postId?: string): Promise<unknown> {
+   if (postId === 'fp-0' || postId === 'fp-1' || postId === 'pp-1') {
+     return {
+       comments: [
+         { _id: 'tc-1', post_id: postId, text: 'This is a great post!', author_username: 'alice', created_at: '2026-01-01T00:00:00Z', likeCount: 3, likedByMe: false },
+         { _id: 'tc-2', post_id: postId, text: 'Another take on the mix.', author_username: 'carol', created_at: '2026-01-01T02:00:00Z', likeCount: 5, likedByMe: false },
+       ],
+       nextCursor: null,
+       // tc-1 has 7 replies; the first page loads 5 → "view more replies" shows
+       replyCounts: { 'tc-1': 7, 'tc-2': 0 },
+     };
+   }
+   return { comments: [], nextCursor: null, replyCounts: {} };
+ }
+ export async function readThreadReplies(commentId?: string): Promise<unknown> {
+   if (commentId === 'tc-1') {
+     const r = (id: string, n: number, user: string) => ({
+       _id: id, post_id: 'p', text: `Reply ${n} to the thread.`, author_username: user,
+       created_at: `2026-01-01T01:0${n}:00Z`, parent_id: 'tc-1', likeCount: n, likedByMe: n === 2,
+     });
+     // first page of 5 (of 7) → nextCursor set → "view more replies" shows
+     return {
+       comments: [r('tr-1', 1, 'bob'), r('tr-2', 2, 'nova'), r('tr-3', 3, 'luna'), r('tr-4', 4, 'me'), r('tr-5', 5, 'zoe')],
+       nextCursor: 'tr-5',
+     };
+   }
+   return { comments: [], nextCursor: null };
+ }
+ export async function countRepliesByComment(): Promise<Record<string, number>> { return {}; }
+ export async function createThreadComment(): Promise<unknown> { return {}; }
 export async function deleteComment(): Promise<void> {}
 export async function countReactions(): Promise<number> { return 0; }
 export async function countComments(postId?: string): Promise<number> {

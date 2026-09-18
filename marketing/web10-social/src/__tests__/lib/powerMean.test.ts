@@ -78,7 +78,7 @@ describe('knobStateToSort (detent state → server PowerMeanSort)', () => {
     });
   });
 
-  it('maps the Most-loved preset (likes-only) — half-life still fixed at 1 day', () => {
+  it('maps the Most-liked preset (likes-only) — half-life still fixed at 1 day', () => {
     // "All time" is achieved by the recency weight being 0 (no recency
     // signal), not by the half-life — the half-life is now fixed at 1 day.
     const state: KnobState = { recency: 0, likes: 5, comments: 0, halfLife: 5, character: 0 };

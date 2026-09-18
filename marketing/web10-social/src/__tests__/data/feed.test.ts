@@ -139,7 +139,7 @@ describe('feed v3 data layer', () => {
       expect(sql).toContain('FROM comments');
       expect(sql).toContain('FROM profile');
       expect(sql).toContain('LIMIT 21');
-      // The Newest preset (no knobState) → chronological, cursor on created_at.
+      // The Most recent preset (no knobState) → chronological, cursor on created_at.
       expect(sql).toContain('ORDER BY toUnixTimestamp64Milli(p.created_at) DESC');
       expect(page.posts).toHaveLength(1);
       // The engagement-count queries are scoped to the feed groups + discover
@@ -199,10 +199,10 @@ describe('feed v3 data layer', () => {
       expect(mock.query).not.toHaveBeenCalled();
     });
 
-    it('a tuned (non-Newest) preset scores on total reactions, not a stale reaction_count column', async () => {
+    it('a tuned (non-Most recent) preset scores on total reactions, not a stale reaction_count column', async () => {
       // Regression: 3.101.0 split the reactions join into like_count / dislike_count
       // but left the power-mean score referencing the old `eng.reaction_count`
-      // column. Any preset with a likes weight (e.g. Most loved) emitted a feed
+      // column. Any preset with a likes weight (e.g. Most liked) emitted a feed
       // query referencing a non-existent column → ClickHouse error → empty feed.
       const captured: string[] = [];
       mock.query.mockImplementation(async (sql: string) => {
@@ -211,7 +211,7 @@ describe('feed v3 data layer', () => {
         return { rows: [], count: 0 };
       });
 
-      // "Most loved · all time": recency 0, likes 5, comments 0 → a tuned sort.
+      // "Most liked": recency 0, likes 5, comments 0 → a tuned sort.
       await readFeedPage({
         limit: 20,
         knobState: { recency: 0, likes: 5, comments: 0, halfLife: 5, character: 0 },

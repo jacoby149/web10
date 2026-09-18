@@ -5,13 +5,15 @@ import { lucideMock } from './helpers/lucideMock';
 vi.mock('lucide-react', () => lucideMock);
 
 // The data layer is the surface's job (the component is controlled) — but the
-// thread it mounts reads comments, so stub the read.
+// thread it mounts reads comments, so stub the thread read + write seams
+// (comments.md: readThreadComments returns the whole conversation + likes;
+// createThreadComment takes parentId for a reply).
 vi.mock('@/data', async (importOriginal) => {
   const original = await importOriginal() as Record<string, unknown>;
   return {
     ...original,
-    readComments: vi.fn().mockResolvedValue([]),
-    createComment: vi.fn().mockResolvedValue({ _id: 'c1', text: 'hi' }),
+    readThreadComments: vi.fn().mockResolvedValue([]),
+    createThreadComment: vi.fn().mockResolvedValue({ _id: 'c1', text: 'hi' }),
   };
 });
 
@@ -185,8 +187,8 @@ describe('PostActions — the shared engagement bar (post-actions.md)', () => {
   });
 
   it('a posted comment bumps the live count + reports onCommentCountChange', async () => {
-    const { createComment } = await import('@/data');
-    vi.mocked(createComment).mockResolvedValueOnce({
+    const { createThreadComment } = await import('@/data');
+    vi.mocked(createThreadComment).mockResolvedValueOnce({
       _id: 'c1',
       post_id: 'p1',
       text: 'first!',

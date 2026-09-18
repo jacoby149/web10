@@ -378,3 +378,109 @@ node scale instead of hairballing every account; (3) an e2e or
 smoke assertion that the page renders real nodes on prod data, not
 just mocked fetches. promotion bar: after M2 revenue, per the
 operator.
+
+
+## real-time notification fan-out (post → followers, the "web10 notifications system")
+
+the idea (operator, 17.09 — "the notifications should all get delivered
+web10 rtc, i.e. everyone that follows you" → "you could serve celebrities
+with graph hops! 65k * 65k * 65k easy!" → "lets call this web10
+notifications system!"): real-time delivery of a notification to EVERY
+follower when a creator posts. today only DMs are real-time (the D69 P2P
+nudge, 1:1); a post → followers is CRUD re-read only, so a follower sees
+it on next open, not live. the question is how to fan a nudge out to N
+followers scalably (100k+), and whether the node should pay for it or the
+mesh should.
+
+the firehose split (operator, 17.09 — "notifications are only for regular
+people with like <100000, celebs, notifications are a firehose"): the
+volume problem is BIMODAL and it's the load-bearing insight. a regular
+(<100k followers) has manageable volume in BOTH directions (receives a few
+hundred; a post fans out to a few hundred). a celeb is a firehose in BOTH
+directions — inbound (1M followers reacting = millions of "X liked your
+post" /day) and outbound (1 post → 1M nudges). the part that actually NEEDS
+real-time is the bounded "select people" set — DMs + the follows/close-circle
+you care about (hundreds to low thousands). the firehose (celeb inbound +
+mass fan-out) is BATCHABLE/AGGREGATABLE and does not need real-time ("1,234
+liked your post", read-on-open). so the real-time problem is small and
+bounded; the firehose is a batching problem, not a push problem.
+
+the two shapes (both FOR LATER, neither built):
+- (a) server-websocket nudge + burst queue. each online user holds ONE ws to
+  the api (o(1) per user, not o(audience)); on a write, enqueue "fan-out:
+  followers of c", a worker computes the online followers and pushes a
+  COALESCED per-user "bump" (the payload is a no-op "reload", never content);
+  the client re-reads (crud is truth, D69). the write stays o(1) w.r.t.
+  audience. cost is linear in CONCURRENT-ONLINE sockets (~30kb ram each,
+  mostly the tunable socket buffer), NOT total users: 10k concurrent ≈ 300mb
+  (1 vm), 100k ≈ 3gb (1-2 vms), 1m ≈ 30gb (small cluster). cheap well past
+  web10's scale. needs a stateful push-gateway service (+ redis pub/sub only
+  at multi-replica) — amends D66 (no redis) + D69 (transport).
+- (b) p2p gossip mesh ("web10 notifications system"). each {user,device}
+  holds ~8 live webrtc connections to other active pairs (a bounded-degree
+  self-healing overlay, kademlia-shaped); on a peer drop it reconnects to
+  more. the server hands out per-follower paths (one row per follower:
+  u1→u2→u3); on a post the creator's client SEEDS the flood to its 8 peers
+  and the MESH amplifies hop-by-hop (each intermediate node forwards — the
+  creator does o(8), not o(audience), which is what makes it reach celebs).
+  the nudge is "reload from the api", so UNTRUSTED relays are harmless by
+  construction: a forged nudge = one wasted read, a dropped nudge = next
+  manual reload, a flood = rate-limited no-ops. the payload carries no data,
+  so a stranger tampering with it does nothing.
+
+why it's good:
+- the "nudge = reload" move is the key and it's genuinely clever: it defuses
+  the whole untrusted-relay / metadata-leak objection (the thing that
+  normally kills p2p routing of social traffic) because the message is a
+  trigger, not data. "untrusted" becomes a feature.
+- at scale it's the real money-saver, and the cost model shows WHERE: the
+  saving is proportional to payload × fan-out, so it's ~zero for a 20-byte
+  nudge (the server is already cheap) but ENORMOUS for media (50mb video ×
+  100k = petabytes of egress). that's why every video platform runs a
+  p2p/cdn hybrid.
+- prebuilt primitives exist, so it's not from-scratch: gun (closest
+  off-the-shelf shape — verify maintenance before betting), libp2p+gossipsub
+  (the precise named primitive — bounded self-healing mesh + epidemic gossip
+  + peer-scoring that ejects bad relays; heavy in-browser), trystero (lighter
+  mesh), yjs+y-webrtc / automerge-repo (crdt mesh, overkill for a nudge),
+  nostr/atproto/matrix (right "untrusted, you-can-refetch" philosophy,
+  relay/server topology not p2p).
+
+why it's parked:
+- the current model is fine for now (operator, 17.09 — "notifications can be
+  implemented how they already are, this is fine for now"). D69 already
+  covers the real-time case that matters: DMs ride the P2P nudge (1:1, the
+  bounded "select people" set), everything else is CRUD re-read, and
+  batching/aggregation is the declared later-refinement (D69 reject #4). the
+  "you got 1 new message!" toast works on top of all of it, transport-agnostic.
+- the firehose is a BATCHING problem, not a push problem — and batching is
+  already the parked D69 refinement. no new infra is needed to make celeb
+  notifications tolerable; you aggregate + read-on-open.
+- shape (b) has a critical-mass threshold: a gossip mesh only reaches people
+  in the current ONLINE connected component, so reliability scales with the
+  concurrent-online fraction. great at 100k+ concurrent (the bitTorrent
+  regime), flaky at M0 (the mesh fragments; a chunk of online followers sit
+  in a different component and only get it on next reload). a regime problem,
+  not a design flaw — the right endgame, below its threshold today.
+- shape (b) is also a hard distributed build (self-healing mesh + peer-
+  scoring + path management + non-deterministic "why didn't X get it"
+  debugging) for a small team that needs to ship; "free infra" is paid in
+  engineer-months + users' battery (every phone runs the relay — a
+  trust/consent cost for a data-ownership product).
+- building it now amends two [decided] entries (D66 no-redis, D69 transport)
+  for a feature the current model already serves adequately.
+
+the payload-size split (the load-bearing conclusion): server-ws for SIGNALS
+(tiny payload → server cost already ~zero → the cheap, reliable, debuggable
+floor), p2p gossip for MEDIA (huge payload → where it actually saves the
+infra bill). they compose, don't compete: server = the reliability floor at
+any scale, mesh = free amplification once concurrent-online is high enough
+to keep it connected.
+
+promotion bar (on top of the file-wide bar): (1) the product wants real-time
+post→follower delivery (not just DMs) → build shape (a), the server-ws floor,
+first; (2) concurrent-online users reach critical mass (tens of thousands+)
+→ switch on shape (b) as free amplification; (3) media delivery at scale →
+p2p/cdn (gossipsub), the actual money-saver, a separate decision from
+notifications. none of these are felt pain at M0; the current D69 model
+stands until one is.

@@ -266,6 +266,10 @@ function createV3Client(options = {}) {
         payload.sort = opts.sort;
       if (opts.tags != null)
         payload.tags = opts.tags;
+      if (opts.cursor != null)
+        payload.cursor = opts.cursor;
+      if (opts.order != null)
+        payload.order = opts.order;
       return v3Post("read", payload);
     },
     async readRefCounts(collection, opts) {

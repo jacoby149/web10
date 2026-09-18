@@ -553,7 +553,7 @@ export function createV3Client(options: V3ClientOptions = {}): V3Client {
 
     async read(
       collection: string,
-      opts: { groups: string[]; limit?: number; offset?: number; ref?: string | string[]; sort?: PowerMeanSort; tags?: string[] },
+      opts: { groups: string[]; limit?: number; offset?: number; ref?: string | string[]; sort?: PowerMeanSort; tags?: string[]; cursor?: string; order?: "asc" | "desc" },
     ): Promise<V3Document[]> {
       const payload: V3Body = { service: collection, groups: opts.groups }
       if (opts.limit != null) payload.limit = opts.limit
@@ -568,8 +568,15 @@ export function createV3Client(options: V3ClientOptions = {}): V3Client {
       if (opts.sort != null) payload.sort = opts.sort
       // The generic server-side tag filter (has(tags, …)): return only docs
       // that carry EVERY given tag. A platform primitive — any service's read
-      // can filter by its own tags (the Shorts feed passes ["short"]).
+      // can filter by its own tags. The Shorts feed is the first consumer
+      // (["short"]); the render-time gate on the client stays the backstop.
       if (opts.tags != null) payload.tags = opts.tags
+      // Cursor paging for the ref read (the comment thread, comments.md): a
+      // keyset cursor ("created_at|doc_id" of the previous page's last row) +
+      // the page order. The server orders by created_at (tie-broken by doc_id)
+      // and returns the next page after the cursor.
+      if (opts.cursor != null) payload.cursor = opts.cursor
+      if (opts.order != null) payload.order = opts.order
       return v3Post<V3Document[]>('read', payload)
     },
 
@@ -1081,7 +1088,7 @@ export interface V3Client {
 
   // CRUD with groups
   create(collection: string, body: Record<string, unknown>, opts?: { groups?: string[]; ad_preference?: V3AdPreference; ref_value?: string }): Promise<V3Document>
-  read(collection: string, opts: { groups: string[]; limit?: number; offset?: number; ref?: string | string[]; sort?: PowerMeanSort; tags?: string[] }): Promise<V3Document[]>
+  read(collection: string, opts: { groups: string[]; limit?: number; offset?: number; ref?: string | string[]; sort?: PowerMeanSort; tags?: string[]; cursor?: string; order?: "asc" | "desc" }): Promise<V3Document[]>
   readRefCounts(collection: string, opts: { groups: string[]; ref: string | string[] }): Promise<Record<string, number>>
   readById(docId: string, collection: string): Promise<V3Document>
   query(sql: string, opts?: { groups?: string[]; prepare?: V3Prepare }): Promise<V3QueryResult>

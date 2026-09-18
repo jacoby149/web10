@@ -476,6 +476,33 @@ describe('v3 client', () => {
       expect(call.tags).toBeUndefined()
     })
 
+    it('read with cursor + order sends the keyset paging (the comment thread, comments.md)', async () => {
+      const mockResponse = [{ doc_id: 'cm-2', collection_name: 'comments', body: {} }]
+      vi.spyOn(http, 'authPost').mockResolvedValueOnce(mockResponse as any)
+
+      await client.read('comments', {
+        groups: ['g'],
+        ref: 'post-1',
+        limit: 20,
+        cursor: '2026-01-01T00:00:00.000|cm-1',
+        order: 'asc',
+      })
+      const call = (vi.mocked(http.authPost).mock.calls[0][1] as any)
+      expect(call.ref).toBe('post-1')
+      expect(call.cursor).toBe('2026-01-01T00:00:00.000|cm-1')
+      expect(call.order).toBe('asc')
+    })
+
+    it('read without cursor omits the paging fields (the first page)', async () => {
+      const mockResponse = [{ doc_id: 'cm-1', collection_name: 'comments', body: {} }]
+      vi.spyOn(http, 'authPost').mockResolvedValueOnce(mockResponse as any)
+
+      await client.read('comments', { groups: ['g'], ref: 'post-1', limit: 20 })
+      const call = (vi.mocked(http.authPost).mock.calls[0][1] as any)
+      expect(call.cursor).toBeUndefined()
+      expect(call.order).toBeUndefined()
+    })
+
     it('readById posts to read with doc_id (the API merged read-by-id into read, #537)', async () => {
       const mockResponse = { doc_id: 'abc', collection_name: 'notes', body: {} }
       vi.spyOn(http, 'authPost').mockResolvedValueOnce(mockResponse as any)

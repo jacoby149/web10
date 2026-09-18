@@ -6,7 +6,7 @@ import { RankBadge, heatTier, HEAT_SHADOW } from './RankBadge';
 import { VideoPlayer, sourceFromMedia } from './VideoPlayer';
 import { MediaCarousel } from './MediaCarousel';
 import { PostActions, type ReactionKind } from './PostActions';
-import type { DiscoverPost, MediaItem, ReadComments, CreateComment } from './types';
+import type { DiscoverPost, MediaItem, ReadComments, ReadReplies, CreateComment } from './types';
 
 /**
  * The shared discover card (D73) — the one both apps' discover surfaces
@@ -116,8 +116,10 @@ export interface DiscoverCardProps {
   reposted?: boolean;
   /** Interactive mode: the repost writer (reposts.md — independent of like). */
   onToggleRepost?: () => void;
-  /** The comment reader (injected — the data seam). */
+  /** The comment reader (injected — the data seam). Paged (comments.md). */
   readComments?: ReadComments;
+  /** The reply reader for "view more replies" (injected; paged). */
+  readReplies?: ReadReplies;
   /** The comment writer (injected; absent in remote mode). */
   createComment?: CreateComment;
   /** Error sink (the app wires its toast). */
@@ -156,6 +158,7 @@ export function DiscoverCard({
   reposted = false,
   onToggleRepost,
   readComments,
+  readReplies,
   createComment,
   onError,
   groups,
@@ -379,6 +382,7 @@ export function DiscoverCard({
         postService={postService}
         groups={groups}
         readComments={readComments}
+        readReplies={readReplies}
         createComment={createComment}
         remote={remote}
         remoteHref={postHref}
