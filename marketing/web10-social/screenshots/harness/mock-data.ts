@@ -205,6 +205,21 @@ export async function readMyAds(): Promise<{ ads: unknown[]; albums: unknown[] }
 export async function refreshMediaUrls<T>(records: T[]): Promise<T[]> { return records; }
 export async function readComments(): Promise<unknown[]> { return []; }
 export async function createComment(): Promise<unknown> { return {}; }
+// The thread seams (comments.md): the shared thread reads the whole
+// conversation (top-level + replies) + comment likes in one call, and writes
+// top-level comments or replies (parentId). Seed a small threaded
+// conversation so the screenshot shows the thread shape.
+export async function readThreadComments(postId?: string): Promise<unknown[]> {
+  if (postId === 'fp-0' || postId === 'fp-1' || postId === 'pp-1') {
+    return [
+      { _id: 'tc-1', post_id: postId, text: 'This is a great post!', author_username: 'alice', created_at: '2026-01-01T00:00:00Z', likeCount: 3, likedByMe: false },
+      { _id: 'tc-2', post_id: postId, text: 'Agreed, loved the edit.', author_username: 'bob', created_at: '2026-01-01T01:00:00Z', parent_id: 'tc-1', likeCount: 1, likedByMe: true },
+      { _id: 'tc-3', post_id: postId, text: 'Thanks both — dropping the stem pack tonight.', author_username: 'nova', created_at: '2026-01-01T02:00:00Z', likeCount: 5, likedByMe: false },
+    ];
+  }
+  return [];
+}
+export async function createThreadComment(): Promise<unknown> { return {}; }
 export async function deleteComment(): Promise<void> {}
 export async function countReactions(): Promise<number> { return 0; }
 export async function countComments(postId?: string): Promise<number> {

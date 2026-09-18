@@ -71,10 +71,14 @@ export interface PostActionsProps {
    *  rendered after the shared slots in the bar. */
   trailing?: ReactNode;
   // ── The comment-thread data seam (injected by the app) ────────────────────
-  /** The comment reader (required when comments are inline). */
+  /** The comment reader (required when comments are inline). Returns the
+   *  whole conversation (top-level + replies) in one read (comments.md). */
   readComments?: ReadComments;
   /** The comment writer (absent in `remote` mode). */
   createComment?: CreateComment;
+  /** The comment-like writer (absent in `remote` mode). The app owns the
+   *  optimistic toggle + rollback (the post-like pattern). */
+  onToggleCommentLike?: (commentId: string) => void;
   /** Remote (marketing) mode: like is display-only, compose is a link-out. */
   remote?: boolean;
   /** The post permalink the remote compose links to (web10 social). */
@@ -109,6 +113,7 @@ export function PostActions({
   trailing,
   readComments,
   createComment,
+  onToggleCommentLike,
   remote = false,
   remoteHref,
   onError,
@@ -288,6 +293,7 @@ export function PostActions({
       groups={groups}
       readComments={readComments}
       createComment={createComment}
+      onToggleCommentLike={onToggleCommentLike}
       remote={remote}
       remoteHref={remoteHref}
       onError={onError}

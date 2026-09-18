@@ -48,13 +48,26 @@ export interface MediaItem {
   transcoding_settings?: TranscodingSettings;
 }
 
-/** A comment as the thread renders it (the social app's CommentRecord shape). */
+/** A comment as the thread renders it (the social app's CommentRecord shape).
+ *
+ * The threading model (comments.md): `parent_id` is set on a reply (the
+ * parent comment's doc_id); a top-level comment has none. The reader returns
+ * the whole conversation (top-level + replies) in one call — the thread
+ * builds the tree client-side. `likeCount` / `likedByMe` are resolved by the
+ * app from the reactions read; absent → the thread renders no like UI.
+ */
 export interface CommentItem {
   _id?: string;
   text: string;
   author_username?: string;
   author_provider?: string;
   created_at: string;
+  /** Set on a reply: the parent comment's doc_id. */
+  parent_id?: string;
+  /** The comment's like count (the app resolves it; absent → no like UI). */
+  likeCount?: number;
+  /** Whether the reader liked this comment (the app resolves it). */
+  likedByMe?: boolean;
 }
 
 /**
@@ -82,10 +95,12 @@ export interface DiscoverPost {
 /** The comment reader the thread calls (injected by the app — the data seam). */
 export type ReadComments = (postId: string, groups?: string[]) => Promise<CommentItem[]>;
 
-/** The comment writer the thread calls (injected; absent in `remote` mode). */
+/** The comment writer the thread calls (injected; absent in `remote` mode).
+ * `parentId` present = a reply to that comment; absent = top-level. */
 export type CreateComment = (args: {
   postId: string;
   text: string;
+  parentId?: string;
   postAuthor?: string;
   postService?: string;
   groups?: string[];
