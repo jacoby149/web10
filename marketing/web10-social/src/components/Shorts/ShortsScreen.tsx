@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { Heart, MessageCircle, Share2, X, Volume2, VolumeX } from 'lucide-react';
+import { Heart, MessageCircle, Share2, X, Volume2, VolumeX, ChevronLeft } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { getWapi } from '@/data/wapi';
 import { readShortsFeed, toggleReactionKind, getV3Client, getDiscoverGroupId, extractUsername, type ShortPost } from '@/data';
@@ -57,6 +57,19 @@ export default function ShortsScreen() {
   // ambient loop; the speaker icon is the escape hatch (the TikTok model).
   const [muted, setMuted] = useState<boolean>(sessionMuted);
   const containerRef = useRef<HTMLDivElement>(null);
+
+  // The slides, in order — the container's children filtered to the snap
+  // slides. The back arrow is also a child of the container (it sits above the
+  // slides), so anything that indexes the slides by position must use this,
+  // not `container.children` directly (the button would shift every index by
+  // one and break the keyboard swipe + the active-slide observer).
+  function slideEls(): HTMLElement[] {
+    const c = containerRef.current;
+    if (!c) return [];
+    return Array.from(
+      c.querySelectorAll<HTMLElement>('[data-testid^="short-slide-"]'),
+    );
+  }
 
   function handleToggleMute() {
     setMuted((cur) => {
@@ -153,7 +166,7 @@ export default function ShortsScreen() {
     if (!postId || shorts.length === 0) return;
     const idx = shorts.findIndex((s) => s.post._id === postId);
     if (idx >= 0 && containerRef.current) {
-      const el = containerRef.current.children[idx] as HTMLElement;
+      const el = slideEls()[idx];
       el?.scrollIntoView({ behavior: 'instant' });
       LOG('deep link — scrolled to short', idx, postId);
     }
@@ -169,7 +182,7 @@ export default function ShortsScreen() {
       (entries) => {
         for (const entry of entries) {
           if (entry.isIntersecting) {
-            const idx = Array.from(container.children).indexOf(entry.target);
+            const idx = slideEls().indexOf(entry.target as HTMLElement);
             if (idx !== activeIndex) {
               LOG('active slide →', idx);
               setActiveIndex(idx);
@@ -180,7 +193,7 @@ export default function ShortsScreen() {
       },
       { root: container, threshold: 0.6 },
     );
-    Array.from(container.children).forEach((child) => observer.observe(child));
+    slideEls().forEach((child) => observer.observe(child));
     return () => observer.disconnect();
   }, [shorts, activeIndex]);
 
@@ -190,11 +203,11 @@ export default function ShortsScreen() {
   function handleKeyDown(e: React.KeyboardEvent<HTMLDivElement>) {
     if (e.key === 'ArrowDown' || e.key === 'PageDown') {
       e.preventDefault();
-      containerRef.current?.children[Math.min(activeIndex + 1, shorts.length - 1)]
+      slideEls()[Math.min(activeIndex + 1, shorts.length - 1)]
         ?.scrollIntoView({ behavior: 'smooth' });
     } else if (e.key === 'ArrowUp' || e.key === 'PageUp') {
       e.preventDefault();
-      containerRef.current?.children[Math.max(activeIndex - 1, 0)]
+      slideEls()[Math.max(activeIndex - 1, 0)]
         ?.scrollIntoView({ behavior: 'smooth' });
     }
   }
@@ -293,8 +306,21 @@ export default function ShortsScreen() {
       tabIndex={0}
       onKeyDown={handleKeyDown}
       aria-label="Shorts feed"
-      className="h-full overflow-y-auto snap-y snap-mandatory scroll-smooth outline-none [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+      className="relative h-full overflow-y-auto snap-y snap-mandatory scroll-smooth outline-none [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
     >
+      {/* The exit (the TikTok back arrow): the bottom tab bar is hidden on the
+          lens (Layout), so this is the way out — pinned top-left over the
+          video, stays put while you swipe. Lands on /feed (the home base). */}
+      <button
+        data-testid="shorts-back"
+        type="button"
+        aria-label="Back to feed"
+        onClick={() => navigate('/feed')}
+        className="sticky top-4 left-4 z-30 flex h-11 w-11 items-center justify-center rounded-full bg-black/40 text-white backdrop-blur-md transition-colors hover:bg-black/60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand"
+      >
+        <ChevronLeft className="w-6 h-6" strokeWidth={2} />
+      </button>
+
       {shorts.map((short, i) => (
         // The slide: full viewport height, one per swipe (snap-y mandatory).
         // The frame: on a phone the slide IS the 9:16 frame (full-bleed); on a

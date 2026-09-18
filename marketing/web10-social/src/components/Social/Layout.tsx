@@ -79,6 +79,13 @@ export default function Layout({ onLogout, onReportBug, children }: LayoutProps)
   const { unread } = useNotifications();
   const { isAdmin: isNodeAdmin } = useNodeAdmin();
   const isNotifications = pathname === '/notifications';
+  // Shorts is a full-screen immersive lens (the TikTok model): the bottom tab
+  // bar would overlap the action rail + the comment sheet, so it is hidden on
+  // the lens. The exit is the back arrow the lens renders itself (top-left →
+  // /feed); the mobile top header stays so the account actions remain
+  // reachable. Dropping the `pb-16` reserve too makes the lens truly
+  // full-bleed (the video runs edge to edge, no dead band under the bar).
+  const isShorts = pathname.startsWith('/shorts');
 
   // The Monetization surface holds its section in the URL (`?tab=node`). The
   // two nav entries are the switcher — each must highlight on its OWN section,
@@ -451,13 +458,16 @@ export default function Layout({ onLogout, onReportBug, children }: LayoutProps)
           </button>
         )}
 
-        <div className="flex-1 min-h-0 overflow-y-auto pb-16 md:pb-0">
+        <div className={cn('flex-1 min-h-0 overflow-y-auto md:pb-0', isShorts ? '' : 'pb-16')}>
           {children || <Outlet />}
         </div>
 
         <nav
           aria-label="Primary mobile"
-          className="md:hidden fixed bottom-0 inset-x-0 z-20 flex items-stretch border-t border-border bg-surface/95 backdrop-blur-md"
+          className={cn(
+            'md:hidden fixed bottom-0 inset-x-0 z-20 flex items-stretch border-t border-border bg-surface/95 backdrop-blur-md',
+            isShorts && 'hidden',
+          )}
         >
           {bottomNavItems.map(({ path, icon: Icon, label, testId }) => {
             return (
