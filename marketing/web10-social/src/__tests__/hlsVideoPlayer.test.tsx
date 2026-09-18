@@ -404,4 +404,37 @@ describe('HlsVideoPlayer', () => {
     expect(frame.style.maxWidth).toBe('');
     expect(frame.className).not.toMatch(/mx-auto/);
   });
+
+  it('a maxHeight cap shrinks + centers a portrait frame (the feed case — a 9:16 clip must not blow up the card)', async () => {
+    installFakeHls();
+    const { HlsVideoPlayer } = await import('@/components/Feed/HlsVideoPlayer');
+    const { container } = render(
+      <HlsVideoPlayer manifestUrl="/v3/media/hls/manifest?doc_id=m1&sig=abc" width={720} height={1280} maxHeight="60vh" />,
+    );
+    // The frame keeps the source ratio (9:16) AND is capped to the height —
+    // the width shrinks to fit (the aspect-ratio box honors max-height), and
+    // the shrunken frame is centered (mx-auto) in the full-width black
+    // letterbox. Without this the feed rendered a full-width 9:16 box
+    // (~1.78× the card tall) with the rack buried below the fold.
+    const frame = container.querySelector('[data-testid="hls-video-player"] > div') as HTMLElement;
+    expect(frame).toBeTruthy();
+    expect(parseFloat(frame.style.aspectRatio)).toBeCloseTo(720 / 1280, 5);
+    expect(frame.style.maxHeight).toBe('60vh');
+    expect(frame.className).toMatch(/mx-auto/);
+  });
+
+  it('a maxHeight cap is a no-op for a landscape clip (already shorter than full-width)', async () => {
+    installFakeHls();
+    const { HlsVideoPlayer } = await import('@/components/Feed/HlsVideoPlayer');
+    const { container } = render(
+      <HlsVideoPlayer manifestUrl="/v3/media/hls/manifest?doc_id=m1&sig=abc" width={1280} height={720} maxHeight="60vh" />,
+    );
+    // Landscape (ratio ≥ 1): the cap is not applied — the frame stays
+    // full-width 16:9, no centering (the feed's landscape look is unchanged).
+    const frame = container.querySelector('[data-testid="hls-video-player"] > div') as HTMLElement;
+    expect(frame).toBeTruthy();
+    expect(parseFloat(frame.style.aspectRatio)).toBeCloseTo(1280 / 720, 5);
+    expect(frame.style.maxHeight).toBe('');
+    expect(frame.className).not.toMatch(/mx-auto/);
+  });
 });
