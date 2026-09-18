@@ -215,4 +215,35 @@ describe('PostActions — the shared engagement bar (post-actions.md)', () => {
     expect(btn).toHaveAttribute('aria-pressed', 'true');
     expect(btn.className).toMatch(/animate-heart-burst/);
   });
+
+  it('a comment author is a tappable profile link when onAuthorClick is wired', async () => {
+    const { readComments } = await import('@/data');
+    vi.mocked(readComments).mockResolvedValueOnce([
+      { _id: 'c1', text: 'nice post', author_username: 'alice', created_at: new Date().toISOString() } as never,
+    ]);
+    const { PostActions } = await import('@/components/Feed/PostActions');
+    const onAuthorClick = vi.fn();
+    render(<PostActions {...base} commentCount={1} onAuthorClick={onAuthorClick} />);
+    fireEvent.click(screen.getByTestId('comment-button'));
+    // the thread reads comments async — wait for the author to render
+    const authorBtn = await vi.waitFor(() => screen.getByTestId('comment-author-c1'));
+    expect(authorBtn.tagName).toBe('BUTTON');
+    expect(authorBtn).toHaveTextContent('alice');
+    expect(authorBtn).toHaveAttribute('aria-label', "View alice's profile");
+    fireEvent.click(authorBtn);
+    expect(onAuthorClick).toHaveBeenCalledWith('alice', undefined);
+  });
+
+  it('a comment author is a plain span when onAuthorClick is not wired (remote/anon)', async () => {
+    const { readComments } = await import('@/data');
+    vi.mocked(readComments).mockResolvedValueOnce([
+      { _id: 'c1', text: 'nice post', author_username: 'alice', created_at: new Date().toISOString() } as never,
+    ]);
+    const { PostActions } = await import('@/components/Feed/PostActions');
+    render(<PostActions {...base} commentCount={1} />);
+    fireEvent.click(screen.getByTestId('comment-button'));
+    // the comment renders (async read) but the author is plain text, not a button
+    await vi.waitFor(() => expect(screen.getByText('alice')).toBeInTheDocument());
+    expect(screen.queryByTestId('comment-author-c1')).not.toBeInTheDocument();
+  });
 });

@@ -37,6 +37,9 @@ export interface CommentThreadProps {
   remoteHref?: string;
   /** Error sink (the app wires its toast); the package stays toast-free. */
   onError?: (message: string) => void;
+  /** The author-click handler (in-app profile navigation). When present, a
+   *  comment's author username is a tappable link to their profile. */
+  onAuthorClick?: (username: string, provider?: string) => void;
 }
 
 export function CommentThread({
@@ -52,6 +55,7 @@ export function CommentThread({
   remote = false,
   remoteHref,
   onError,
+  onAuthorClick,
 }: CommentThreadProps) {
   const [comments, setComments] = useState<CommentItem[]>([]);
   const [loading, setLoading] = useState(true);
@@ -139,7 +143,28 @@ export function CommentThread({
                   : '',
               )}
             >
-              <span className="font-medium text-brand-300">{c.author_username || 'you'}</span>{' '}
+              <span className="font-medium text-brand-300">
+                {c.author_username ? (
+                  onAuthorClick ? (
+                    <button
+                      type="button"
+                      data-testid={`comment-author-${c._id}`}
+                      aria-label={`View ${c.author_username}'s profile`}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        onAuthorClick(c.author_username!, c.author_provider);
+                      }}
+                      className="rounded focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring hover:underline"
+                    >
+                      {c.author_username}
+                    </button>
+                  ) : (
+                    c.author_username
+                  )
+                ) : (
+                  'you'
+                )}
+              </span>{' '}
               <span className="text-foreground">{c.text}</span>
             </li>
           ))}

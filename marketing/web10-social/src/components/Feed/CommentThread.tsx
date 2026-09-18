@@ -17,6 +17,9 @@ interface CommentThreadProps {
   /** The group the post lives in (group posts — comments attach to the group,
    *  not the discover board). */
   groups?: string[];
+  /** The author-click handler (in-app profile navigation) — a comment's author
+   *  is a tappable profile link. */
+  onAuthorClick?: (username: string, provider?: string) => void;
 }
 
 /** Adapt the wapi createComment to the package's injected CreateComment shape. */

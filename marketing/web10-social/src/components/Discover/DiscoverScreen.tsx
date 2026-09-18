@@ -391,6 +391,8 @@ interface DiscoverCardProps {
   authorAvatar?: string;
   mediaItems: MediaRecord[];
   onAuthorClick: () => void;
+  /** A comment's author is a tappable profile link (in-app navigation). */
+  onCommentAuthorClick?: (username: string, provider?: string) => void;
   /** Whether the reader has liked this post (the heart fills). */
   liked: boolean;
   /** Whether the reader has disliked this post (the thumb fills). */
@@ -411,6 +413,7 @@ function DiscoverCard({
   authorAvatar,
   mediaItems,
   onAuthorClick,
+  onCommentAuthorClick,
   liked,
   disliked,
   reposted,
@@ -430,6 +433,7 @@ function DiscoverCard({
       maxScore={maxScore}
       authorAvatar={authorAvatar}
       onAuthorClick={onAuthorClick}
+      onCommentAuthorClick={onCommentAuthorClick}
       liked={liked}
       disliked={disliked}
       reposted={reposted}
@@ -554,6 +558,8 @@ interface DiscoverYouTubeCardProps {
   authorAvatar?: string;
   mediaItems: MediaRecord[];
   onAuthorClick: () => void;
+  /** A comment's author is a tappable profile link (in-app navigation). */
+  onCommentAuthorClick?: (username: string, provider?: string) => void;
 }
 
 function DiscoverYouTubeCard({
@@ -563,6 +569,7 @@ function DiscoverYouTubeCard({
   authorAvatar,
   mediaItems,
   onAuthorClick,
+  onCommentAuthorClick,
 }: DiscoverYouTubeCardProps) {
   // D74: the social video-view card is now the SHARED discover card (the same
   // one the marketing /trending youtube view uses) — one source, both apps.
@@ -574,6 +581,7 @@ function DiscoverYouTubeCard({
       maxScore={1}
       authorAvatar={authorAvatar}
       onAuthorClick={onAuthorClick}
+      onCommentAuthorClick={onCommentAuthorClick}
       readComments={readComments}
       createComment={discoverCreateComment}
       testId="discover-youtube-card"
@@ -1326,6 +1334,7 @@ export default function DiscoverScreen() {
                     }
                     mediaItems={mediaItems}
                     onAuthorClick={() => navigateToUserProfile(post.author_username || '', post.author_provider || '')}
+                    onCommentAuthorClick={(username, provider) => navigateToUserProfile(username, provider || '')}
                   />
                 );
               })}
@@ -1355,6 +1364,7 @@ export default function DiscoverScreen() {
                   }
                   mediaItems={mediaItems}
                   onAuthorClick={() => navigateToUserProfile(post.author_username || '', post.author_provider || '')}
+                  onCommentAuthorClick={(username, provider) => navigateToUserProfile(username, provider || '')}
                   liked={!!likedMap[post._id || '']}
                   disliked={!!dislikedMap[post._id || '']}
                   reposted={!!repostedMap[post._id || '']}

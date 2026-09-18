@@ -26,6 +26,9 @@ interface ProfileFeedProps {
   authorAvatar?: string;
   isOwnProfile?: boolean;
   onPostUpdated?: () => void;
+  /** The author-click handler (in-app profile navigation) — a comment's author
+   *  is a tappable profile link. */
+  onAuthorClick?: (username: string, provider?: string) => void;
 }
 
 // The profile's facebook-shaped feed view (the "view lenses" idea — rendering
@@ -46,6 +49,7 @@ export function ProfileFeed({
   authorAvatar,
   isOwnProfile = false,
   onPostUpdated,
+  onAuthorClick,
 }: ProfileFeedProps) {
   const [likeMap, setLikeMap] = useState<Record<string, number>>({});
   const [dislikeCountMap, setDislikeCountMap] = useState<Record<string, number>>({});
@@ -217,6 +221,7 @@ export function ProfileFeed({
             onToggleReaction={(kind) => handleToggleReaction(id, kind)}
             onToggleRepost={() => handleToggleRepost(id)}
             onCommentCountChange={(n) => setCommentMap((prev) => ({ ...prev, [id]: n }))}
+            onAuthorClick={onAuthorClick}
             postAuthor={authorUsername}
             postService="public_posts"
             isOwnPost={isOwnProfile}

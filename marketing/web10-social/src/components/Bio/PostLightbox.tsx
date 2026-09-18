@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { ChevronLeft, ChevronRight, X, Edit3, Trash2, Eye, EyeOff, Share2, Check } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
@@ -76,6 +77,7 @@ interface PostLightboxProps {
 }
 
 export function PostLightbox({ post, mediaMap, onClose, onReload, postAuthor, postService, isOwner: isOwnerProp, highlightedCommentId }: PostLightboxProps) {
+  const navigate = useNavigate();
   // Track the live post — initialized from the prop but updated in-place
   // after mutations (visibility toggle, edit) so a re-toggle uses the fresh
   // _id + visibility, not the stale prop. Without this, public→private→public
@@ -429,6 +431,7 @@ export function PostLightbox({ post, mediaMap, onClose, onReload, postAuthor, po
             postService={postService}
             highlightedCommentId={highlightedCommentId}
             defaultOpen={!!highlightedCommentId}
+            onAuthorClick={(username) => navigate(`/u/${username}`)}
             dislike="interactive"
             repost="interactive"
             reposted={reposted}

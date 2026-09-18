@@ -129,6 +129,9 @@ export interface DiscoverCardProps {
   /** Interactive mode: the author-click handler (in-app profile navigation).
    *  In remote mode the author is a link-out to web10 social instead. */
   onAuthorClick?: () => void;
+  /** The comment-author-click handler (in-app profile navigation) — a comment's
+   *  author is a tappable profile link, distinct from the card's own author. */
+  onCommentAuthorClick?: (username: string, provider?: string) => void;
   /** A DOM id for the card (the marketing page uses it for card ordering). */
   id?: string;
   className?: string;
@@ -161,6 +164,7 @@ export function DiscoverCard({
   groups,
   postService = 'posts',
   onAuthorClick,
+  onCommentAuthorClick,
   id,
   className,
   testId = 'discover-card',
@@ -384,6 +388,7 @@ export function DiscoverCard({
         remoteHref={postHref}
         onError={onError}
         onToggleReaction={onToggleReaction}
+        onAuthorClick={onCommentAuthorClick}
         trailing={
           <span className="ml-auto text-muted-foreground" aria-label="Share">
             <Share2 className="h-4 w-4" strokeWidth={1.5} />
