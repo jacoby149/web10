@@ -24,4 +24,5 @@ export type {
   ReadComments,
   ReadReplies,
   CreateComment,
+  UploadCommentMedia,
 } from './types';

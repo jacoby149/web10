@@ -5,7 +5,8 @@ import { lucideMock } from './helpers/lucideMock';
 vi.mock('lucide-react', () => lucideMock);
 
 // The thread seams are the app's job — stub the paged read (top-level +
-// replyCounts), the paged reply read, the write, + the like writer.
+// replyCounts), the paged reply read, the write, the photo uploader, + the
+// like writer.
 vi.mock('@/data', async (importOriginal) => {
   const original = await importOriginal() as Record<string, unknown>;
   return {
@@ -13,9 +14,16 @@ vi.mock('@/data', async (importOriginal) => {
     readThreadComments: vi.fn(),
     readThreadReplies: vi.fn(),
     createThreadComment: vi.fn().mockResolvedValue(null),
+    uploadCommentPhoto: vi.fn(),
     toggleReactionKind: vi.fn().mockResolvedValue('like'),
   };
 });
+
+// jsdom has no object-URL API (the compose tray previews picked photos with
+// URL.createObjectURL). Mock it to return a stable fake URL.
+let objectUrlCounter = 0;
+URL.createObjectURL = vi.fn(() => `blob:mock-${objectUrlCounter++}`);
+URL.revokeObjectURL = vi.fn();
 
 // The conversation: two top-level comments. c1 has 7 replies (the first page
 // of 5 loads, "view more replies" loads the rest); c2 has none.
@@ -185,5 +193,82 @@ describe('CommentThread — paged threaded replies (comments.md, the Facebook mo
     expect(screen.getByTestId('comment-like-c1')).toBeDisabled();
     // no Reply action in remote mode (can't write)
     expect(screen.queryByTestId('comment-reply-c1')).not.toBeInTheDocument();
+  });
+
+  describe('photos in comments (comments.md "Photos in comments")', () => {
+    it('shows the photo-attach control when the uploader seam is wired', async () => {
+      await renderThread();
+      expect(screen.getByTestId('comment-attach-photo')).toBeInTheDocument();
+    });
+
+    it('picking a photo adds a removable preview + enables a photo-only send', async () => {
+      await renderThread();
+      const file = new File(['x'], 'a.png', { type: 'image/png' });
+      fireEvent.change(screen.getByTestId('comment-photo-input'), { target: { files: [file] } });
+      expect(screen.getByTestId('comment-photo-tray')).toBeInTheDocument();
+      expect(screen.getByTestId('comment-photo-preview')).toBeInTheDocument();
+      // a photo-only comment is sendable (no text required)
+      expect(screen.getByTestId('comment-send')).not.toBeDisabled();
+      // removing the photo drops the preview
+      fireEvent.click(screen.getByTestId('comment-photo-remove'));
+      await waitFor(() => expect(screen.queryByTestId('comment-photo-tray')).not.toBeInTheDocument());
+    });
+
+    it('sending a comment with a photo uploads it + writes the doc_id', async () => {
+      const { createThreadComment, uploadCommentPhoto } = await import('@/data');
+      vi.mocked(uploadCommentPhoto).mockResolvedValueOnce({ docId: 'm1', url: 'blob:mock-0' });
+      vi.mocked(createThreadComment).mockResolvedValueOnce({
+        _id: 'c9',
+        text: 'with photo',
+        author_username: 'me',
+        created_at: '2026-01-01T10:00:00Z',
+      } as never);
+      await renderThread();
+      const file = new File(['x'], 'a.png', { type: 'image/png' });
+      fireEvent.change(screen.getByTestId('comment-photo-input'), { target: { files: [file] } });
+      fireEvent.change(screen.getByTestId('comment-input'), { target: { value: 'with photo' } });
+      fireEvent.click(screen.getByTestId('comment-send'));
+      await waitFor(() => {
+        expect(vi.mocked(uploadCommentPhoto)).toHaveBeenCalledWith(file);
+      });
+      await waitFor(() => {
+        expect(vi.mocked(createThreadComment)).toHaveBeenCalledWith(
+          expect.objectContaining({ postId: 'p1', text: 'with photo', mediaRefs: ['m1'] }),
+        );
+      });
+    });
+
+    it('a comment with photos renders its image grid', async () => {
+      const { readThreadComments } = await import('@/data');
+      const C_WITH_MEDIA = {
+        _id: 'cm1',
+        post_id: 'p1',
+        text: 'look',
+        author_username: 'alice',
+        created_at: '2026-01-01T00:00:00Z',
+        media: [
+          { url: 'https://cdn/m1', mime_type: 'image/png' },
+          { url: 'https://cdn/m2', mime_type: 'image/jpeg' },
+        ],
+      };
+      vi.mocked(readThreadComments).mockResolvedValueOnce({
+        comments: [C_WITH_MEDIA],
+        nextCursor: null,
+        replyCounts: { cm1: 0 },
+      });
+      const { CommentThread } = await import('@/components/Feed/CommentThread');
+      render(<CommentThread postId="p1" isOpen count={0} onCountChange={() => {}} />);
+      await waitFor(() => expect(screen.getByTestId('comment-cm1')).toBeInTheDocument());
+      expect(screen.getByTestId('comment-media-cm1')).toBeInTheDocument();
+      const imgs = screen.getAllByTestId(/^comment-media-item-cm1-/);
+      expect(imgs).toHaveLength(2);
+      expect(imgs[0]).toHaveAttribute('src', 'https://cdn/m1');
+      expect(imgs[1]).toHaveAttribute('src', 'https://cdn/m2');
+    });
+
+    it('a comment with no photos renders no media grid', async () => {
+      await renderThread();
+      expect(screen.queryByTestId(/^comment-media-/)).not.toBeInTheDocument();
+    });
   });
 });
