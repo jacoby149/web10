@@ -37,7 +37,9 @@ const DEFAULT_VIEWS = [
 // captures just that one view (no VIEWS edit needed for a one-off PR
 // screenshot). --click may be repeated — the clicks fire in order BEFORE the
 // ready wait (a two-step sub-view, e.g. open the face lightbox then tap a
-// pick tile, is two --click flags).
+// pick tile, is two --click flags). --fill SEL VALUE (repeatable) types into
+// an input before the ready wait (e.g. a DM compose username → the debounced
+// profile preview resolves and --ready can target the preview card).
 function parseCliViews(argv) {
   const get = (flag) => {
     const i = argv.indexOf(flag);
@@ -50,6 +52,13 @@ function parseCliViews(argv) {
     }
     return out;
   };
+  const getPairs = (flag) => {
+    const out = [];
+    for (let i = 0; i < argv.length - 2; i++) {
+      if (argv[i] === flag) out.push([argv[i + 1], argv[i + 2]]);
+    }
+    return out;
+  };
   const name = get('--name');
   const ready = get('--ready');
   if (!name && !ready) return null;
@@ -57,7 +66,7 @@ function parseCliViews(argv) {
     console.error('--name and --ready must be given together');
     process.exit(1);
   }
-  return [{ name, ready, route: get('--route'), toggle: get('--toggle'), clicks: getMany('--click'), hover: get('--hover') }];
+  return [{ name, ready, route: get('--route'), toggle: get('--toggle'), clicks: getMany('--click'), fills: getPairs('--fill'), hover: get('--hover') }];
 }
 const VIEWS = parseCliViews(process.argv.slice(2)) ?? DEFAULT_VIEWS;
 
@@ -124,6 +133,7 @@ try {
           await page.waitForSelector('[data-testid="messages-view-toggle"] >> visible=true', { timeout: 15000 });
           for (const click of view.clicks ?? []) await page.click(click);
           if (view.toggle) await page.click(view.toggle);
+          for (const [sel, val] of view.fills ?? []) await page.fill(sel, val);
           await page.waitForSelector(`${view.ready} >> visible=true`, { timeout: 15000 });
         }
         // `--hover` reveals a hover-only surface (e.g. the video control rack)

@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, fireEvent, waitFor, within } from '@testing-library/react';
-import { MemoryRouter } from 'react-router-dom';
+import { MemoryRouter, Routes, Route } from 'react-router-dom';
 import '@testing-library/jest-dom';
 
 // Mock lucide-react icons as simple span elements (any icon, no manual list)
@@ -25,6 +25,7 @@ vi.mock('@/data', async (importOriginal) => {
     toggleReactionKind: vi.fn().mockResolvedValue('like'),
     resolveMediaRefs: vi.fn().mockResolvedValue([]),
     readUserProfile: vi.fn().mockResolvedValue(null),
+    lookupUserProfile: vi.fn().mockResolvedValue(null),
     readProfile: vi.fn().mockResolvedValue(null),
     saveProfile: vi.fn().mockResolvedValue({}),
     readMyPosts: vi.fn().mockResolvedValue([]),
@@ -40,6 +41,13 @@ vi.mock('@/data', async (importOriginal) => {
     addContact: vi.fn().mockResolvedValue({}),
     conversationKey: vi.fn().mockReturnValue('test.localhost/testuser--test.localhost/other'),
     countStagingPosts: vi.fn().mockResolvedValue(0),
+    // Group chat (group-chat.md, D77)
+    getMyGroupChats: vi.fn().mockResolvedValue([]),
+    readGroupChatFace: vi.fn().mockResolvedValue({ name: 'The Crew' }),
+    readGroupChatMessages: vi.fn().mockResolvedValue([]),
+    sendGroupChatMessage: vi.fn().mockResolvedValue({ _id: 'gm-1', message: '', sent_at: new Date().toISOString(), sender_username: 'testuser', sender_provider: 'test.localhost', recipient_username: '', recipient_provider: '' }),
+    createGroupChat: vi.fn().mockResolvedValue('test.localhost/groups/users/testuser/chat-crew'),
+    getGroupMembers: vi.fn().mockResolvedValue([]),
   };
 });
 
@@ -396,6 +404,8 @@ describe('ProfileScreen', () => {
 describe('DmsScreen', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    // jsdom doesn't implement scrollIntoView (the thread's auto-scroll effect).
+    Element.prototype.scrollIntoView = vi.fn();
   });
 
   it('renders empty state with subtle import link', async () => {
@@ -421,6 +431,87 @@ describe('DmsScreen', () => {
     await waitFor(() => {
       expect(screen.getByTestId('dm-new-message-btn')).toBeInTheDocument();
     });
+  });
+
+  it('shows a debounced profile preview card when typing a recipient username', async () => {
+    const { lookupUserProfile } = await import('@/data');
+    vi.mocked(lookupUserProfile).mockResolvedValue({
+      username: 'coolguy',
+      provider: 'test.localhost',
+      display_name: 'Cool Guy',
+      bio: 'streamer',
+      avatar_url: 'http://test.com/coolguy.png',
+    });
+
+    const { default: DmsScreen } = await import('@/components/Chat/DmsScreen');
+    render(
+      <MemoryRouter>
+        <DmsScreen />
+      </MemoryRouter>,
+    );
+
+    // Open the new-message picker, then the compose-by-username mode.
+    await waitFor(() => {
+      expect(screen.getByTestId('dm-new-message-btn')).toBeInTheDocument();
+    });
+    fireEvent.click(screen.getByTestId('dm-new-message-btn'));
+    await waitFor(() => {
+      expect(screen.getByTestId('dm-contact-picker')).toBeInTheDocument();
+    });
+    fireEvent.click(screen.getByTestId('dm-compose-username-btn'));
+    await waitFor(() => {
+      expect(screen.getByTestId('dm-compose-username')).toBeInTheDocument();
+    });
+
+    // Type the username; the debounced lookup (400ms) fires and resolves the face.
+    fireEvent.change(screen.getByTestId('dm-compose-username'), {
+      target: { value: 'coolguy' },
+    });
+
+    await waitFor(
+      () => {
+        expect(screen.getByTestId('dm-compose-profile-name')).toHaveTextContent('Cool Guy');
+      },
+      { timeout: 2000 },
+    );
+    expect(screen.getByTestId('dm-compose-profile-avatar')).toBeInTheDocument();
+    expect(screen.getByTestId('dm-compose-profile-handle')).toHaveTextContent('@coolguy');
+    expect(screen.getByTestId('dm-compose-profile-bio')).toHaveTextContent('streamer');
+    expect(lookupUserProfile).toHaveBeenCalledWith('coolguy', undefined);
+  });
+
+  it('shows a "no profile found" card when the typed username has no profile', async () => {
+    const { lookupUserProfile } = await import('@/data');
+    vi.mocked(lookupUserProfile).mockResolvedValue(null);
+
+    const { default: DmsScreen } = await import('@/components/Chat/DmsScreen');
+    render(
+      <MemoryRouter>
+        <DmsScreen />
+      </MemoryRouter>,
+    );
+    await waitFor(() => {
+      expect(screen.getByTestId('dm-new-message-btn')).toBeInTheDocument();
+    });
+    fireEvent.click(screen.getByTestId('dm-new-message-btn'));
+    await waitFor(() => {
+      expect(screen.getByTestId('dm-contact-picker')).toBeInTheDocument();
+    });
+    fireEvent.click(screen.getByTestId('dm-compose-username-btn'));
+    await waitFor(() => {
+      expect(screen.getByTestId('dm-compose-username')).toBeInTheDocument();
+    });
+
+    fireEvent.change(screen.getByTestId('dm-compose-username'), {
+      target: { value: 'ghost' },
+    });
+
+    await waitFor(
+      () => {
+        expect(screen.getByTestId('dm-compose-profile-notfound')).toBeInTheDocument();
+      },
+      { timeout: 2000 },
+    );
   });
 
   it('renders view toggle with all three views', async () => {
@@ -523,6 +614,60 @@ describe('DmsScreen', () => {
     await waitFor(() => {
       expect(screen.getByTestId('dms-empty')).toBeInTheDocument();
     });
+  });
+
+  it('shows a group chat in the conversation list (group-chat.md)', async () => {
+    const { getMyGroupChats, readGroupChatMessages } = await import('@/data');
+    vi.mocked(getMyGroupChats).mockResolvedValue([
+      { groupId: 'test.localhost/groups/users/testuser/chat-crew', name: 'The Crew', avatarRef: undefined },
+    ]);
+    vi.mocked(readGroupChatMessages).mockResolvedValue([
+      { _id: 'gm-1', message: 'hey crew', sent_at: new Date().toISOString(), sender_username: 'alice', sender_provider: 'test.localhost', recipient_username: '', recipient_provider: '' },
+    ]);
+
+    const { default: DmsScreen } = await import('@/components/Chat/DmsScreen');
+    render(
+      <MemoryRouter initialEntries={['/messages']}>
+        <DmsScreen />
+      </MemoryRouter>,
+    );
+    await waitFor(() => {
+      expect(screen.getByTestId('group-chat-item')).toBeInTheDocument();
+    });
+    expect(screen.getByTestId('group-chat-item')).toHaveTextContent('The Crew');
+    // A group row carries the group badge (not a presence dot).
+    expect(screen.getByTestId('group-chat-badge')).toBeInTheDocument();
+  });
+
+  it('renders the group thread view — name header, member count, per-sender attribution (group-chat.md)', async () => {
+    const { readGroupChatMessages, readGroupChatFace, getGroupMembers } = await import('@/data');
+    vi.mocked(readGroupChatFace).mockResolvedValue({ name: 'The Crew' });
+    vi.mocked(getGroupMembers).mockResolvedValue([
+      { member_key: 'testuser', role: 'owner' },
+      { member_key: 'alice', role: 'member' },
+      { member_key: 'bob', role: 'member' },
+    ]);
+    vi.mocked(readGroupChatMessages).mockResolvedValue([
+      { _id: 'gm-1', message: 'first', sent_at: '2026-01-01T01:00:00Z', sender_username: 'alice', sender_provider: 'test.localhost', recipient_username: '', recipient_provider: '' },
+      { _id: 'gm-2', message: 'second', sent_at: '2026-01-01T02:00:00Z', sender_username: 'testuser', sender_provider: 'test.localhost', recipient_username: '', recipient_provider: '' },
+    ]);
+
+    const { default: DmsScreen } = await import('@/components/Chat/DmsScreen');
+    render(
+      <MemoryRouter initialEntries={['/messages/group/test.localhost/groups/users/testuser/chat-crew']}>
+        <Routes>
+          <Route path="/messages/*" element={<DmsScreen />} />
+        </Routes>
+      </MemoryRouter>,
+    );
+    await waitFor(() => {
+      expect(screen.getByTestId('group-chat-name')).toBeInTheDocument();
+    });
+    expect(screen.getByTestId('group-chat-name')).toHaveTextContent('The Crew');
+    expect(screen.getByTestId('group-chat-members')).toHaveTextContent('3 members');
+    // Per-sender attribution: the inbound message (alice) shows the sender name;
+    // my own message (testuser) does not (isMe). Exactly one sender label.
+    expect(screen.getByTestId('dm-message-sender')).toHaveTextContent('alice');
   });
 });
 

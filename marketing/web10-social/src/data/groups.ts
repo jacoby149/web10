@@ -313,7 +313,7 @@ export interface CreateGroupInput {
 }
 
 /** A clean URL slug for the group name (the group_id's last segment). */
-function slugify(name: string): string {
+export function slugify(name: string): string {
   return name.trim().toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '');
 }
 
@@ -378,6 +378,7 @@ export async function writeGroupIdentity(groupId: string, identity: GroupIdentit
   if (identity.tags && identity.tags.length) body.tags = identity.tags;
   if (identity.banner_ref) body.banner_ref = identity.banner_ref;
   if (identity.avatar_ref) body.avatar_ref = identity.avatar_ref;
+  if (identity.kind) body.kind = identity.kind;
   await w.create(GROUP_IDENTITY_SERVICE, body, { groups: [groupId] });
   LOG('writeGroupIdentity — done', groupId);
 }
@@ -653,6 +654,13 @@ export interface GroupIdentity {
   avatar_ref?: string;
   website?: string;
   tags?: string[];
+  /**
+   * The surface kind (group-chat.md, D77). `'chat'` marks a group as a group
+   * chat (rendered in the Messages surface, per-sender bubbles); absent (or
+   * `'community'`) means a community (the Groups surface feed). Backward
+   * compatible — every pre-existing community has no `kind`.
+   */
+  kind?: 'chat' | 'community';
 }
 
 /**

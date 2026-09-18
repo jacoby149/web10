@@ -461,6 +461,31 @@ export async function getGroupMembers(): Promise<unknown[]> {
     { member_key: 'anyone', role: 'reader' },
   ];
 }
+// ── Group chat (group-chat.md, D77) ──────────────────────────────────────────
+// A seeded group chat so the Messages list + thread render with content. The
+// harness user is 'nova' (the mock-wapi token).
+const GROUP_CHAT_ID = 'web10/groups/users/nova/chat-the-crew';
+export async function getMyGroupChats(): Promise<unknown[]> {
+  return [{ groupId: GROUP_CHAT_ID, name: 'The Crew', avatarRef: undefined }];
+}
+export async function readGroupChatFace(): Promise<unknown> {
+  return { name: 'The Crew', avatarRef: undefined };
+}
+export async function readGroupChatMessages(): Promise<unknown[]> {
+  return [
+    { _id: 'gc-1', message: 'crew — the new drop is almost ready', sent_at: minsAgo(90), sender_username: 'kai', sender_provider: 'web10', recipient_username: '', recipient_provider: '' },
+    { _id: 'gc-2', message: 'sending you the rate card now', sent_at: minsAgo(42), sender_username: 'nova', sender_provider: 'web10', recipient_username: '', recipient_provider: '' },
+    { _id: 'gc-3', message: 'the reach on that reel was unreal 🔥', sent_at: minsAgo(6), sender_username: 'luna', sender_provider: 'web10', recipient_username: '', recipient_provider: '' },
+  ];
+}
+export async function sendGroupChatMessage(): Promise<unknown> {
+  return { _id: 'gc-new', message: '', sent_at: new Date().toISOString(), sender_username: 'nova', sender_provider: 'web10', recipient_username: '', recipient_provider: '' };
+}
+export async function createGroupChat(): Promise<string> { return GROUP_CHAT_ID; }
+export function groupChatRouteKey(groupId: string): string { return `group/${groupId}`; }
+export function groupIdFromRouteKey(key: string): string | null {
+  return key.startsWith('group/') ? key.slice('group/'.length) : null;
+}
 export async function getJoinRequests(): Promise<unknown[]> { return []; }
 export async function approveJoinRequest(): Promise<unknown> { return { status: 'approved' }; }
 export async function denyJoinRequest(): Promise<unknown> { return { status: 'declined' }; }
@@ -857,6 +882,20 @@ export async function resolveMediaRefs<T>(refs: T[]): Promise<T[]> {
 }
 export async function readUserProfile(): Promise<unknown> {
   return { display_name: 'Nova', username: 'nova', provider: 'web10', avatar_ref: '', bio: 'Synthwave producer' };
+}
+export async function lookupUserProfile(username?: string): Promise<unknown> {
+  // Return a face for the seeded peers so the DM compose preview renders.
+  const peer = PEERS.find((p) => p.username === username);
+  if (peer) {
+    return {
+      username: peer.username,
+      provider: peer.provider,
+      display_name: peer.display_name,
+      bio: 'Creator on web10',
+      avatar_url: creative(peer.display_name.split(' ')[0].toUpperCase(), 400, 400, '#8b5cf6', '#2e1065', 'image/png').url,
+    };
+  }
+  return null;
 }
 // A repost's embed (reposts.md) reads the original by doc_id. The harness
 // returns the seeded feed post that the repost references (fp-2 = luna's post),
