@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
-import { Send, ExternalLink, Heart, X } from 'lucide-react';
+import { Send, ExternalLink, Heart, X, Image as ImageIcon } from 'lucide-react';
 import { cn } from './utils';
 import { TextInput, IconBtn, Skeleton } from './ui';
 import type {
@@ -8,6 +8,8 @@ import type {
   ReadComments,
   ReadReplies,
   CreateComment,
+  UploadCommentMedia,
+  MediaItem,
 } from './types';
 
 /**
@@ -47,6 +49,18 @@ import type {
 
 // ── The tree node ────────────────────────────────────────────────────────────
 
+/** A photo picked for the draft: kept locally until send uploads it. */
+interface AttachedPhoto {
+  id: number;
+  file: File;
+  previewUrl: string;
+}
+
+let nextPhotoId = 0;
+
+/** The cap on photos per comment (X/Twitter parity). */
+const MAX_COMMENT_PHOTOS = 4;
+
 export interface CommentNode extends CommentItem {
   /** The replies loaded so far (the thread appends as "view more replies"
    *  pages arrive). */
@@ -76,6 +90,8 @@ export interface CommentThreadProps {
   readReplies?: ReadReplies;
   /** The comment writer (injected; absent in `remote` mode). */
   createComment?: CreateComment;
+  /** The comment-photo uploader (injected; absent → no attach control, text-only). */
+  uploadMedia?: UploadCommentMedia;
   /** The comment-like writer (injected; absent in `remote` mode). The app
    *  owns the optimistic toggle + rollback (the post-like pattern). */
   onToggleCommentLike?: (commentId: string) => void;
@@ -101,6 +117,7 @@ export function CommentThread({
   readComments,
   readReplies,
   createComment,
+  uploadMedia,
   onToggleCommentLike,
   remote = false,
   remoteHref,
@@ -115,8 +132,18 @@ export function CommentThread({
   const [sending, setSending] = useState(false);
   /** The comment the compose box is replying to (absent = post-level). */
   const [replyingTo, setReplyingTo] = useState<CommentItem | null>(null);
+  /** Photos picked for the draft (local previews; uploaded on send). */
+  const [attached, setAttached] = useState<AttachedPhoto[]>([]);
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const commentRefs = useRef<Record<string, HTMLLIElement | null>>({});
   const hasScrolled = useRef(false);
+  // Live object-URL previews, revoked on unmount (the PostComposer idiom).
+  const previewUrlsRef = useRef(new Set<string>());
+  useEffect(() => {
+    return () => {
+      previewUrlsRef.current.forEach((url) => URL.revokeObjectURL(url));
+    };
+  }, []);
 
   const toNode = useCallback((c: CommentItem): CommentNode => ({
     ...c,
@@ -286,20 +313,70 @@ export function CommentThread({
     }
   }
 
+  // Pick photos for the draft (local previews; uploaded on send). Capped at
+  // MAX_COMMENT_PHOTOS — the attach control is hidden once the tray is full.
+  function handleFileSelect(e: React.ChangeEvent<HTMLInputElement>) {
+    const files = Array.from(e.target.files || []);
+    e.target.value = '';
+    const room = MAX_COMMENT_PHOTOS - attached.length;
+    if (!files.length || room <= 0) return;
+    const items: AttachedPhoto[] = files.slice(0, room).map((file) => {
+      const previewUrl = URL.createObjectURL(file);
+      previewUrlsRef.current.add(previewUrl);
+      return { id: nextPhotoId++, file, previewUrl };
+    });
+    setAttached((prev) => [...prev, ...items]);
+  }
+
+  function removePhoto(id: number) {
+    setAttached((prev) => {
+      const item = prev.find((p) => p.id === id);
+      if (item) previewUrlsRef.current.delete(item.previewUrl);
+      return prev.filter((p) => p.id !== id);
+    });
+  }
+
+  function clearAttached() {
+    setAttached((prev) => {
+      prev.forEach((a) => previewUrlsRef.current.delete(a.previewUrl));
+      return [];
+    });
+  }
+
   async function handleSend() {
-    if (!draft.trim() || !createComment) return;
+    const text = draft.trim();
+    if ((!text && attached.length === 0) || !createComment) return;
     setSending(true);
     try {
+      // Upload the picked photos first (the app's seam), then write the comment
+      // with the returned doc_ids. A photo-only comment is valid (text may be
+      // empty). A failed upload aborts the send — the photo is part of the comment.
+      let mediaRefs: string[] | undefined;
+      if (attached.length && uploadMedia) {
+        const docIds: string[] = [];
+        for (const item of attached) {
+          const r = await uploadMedia(item.file);
+          if (r?.docId) docIds.push(r.docId);
+        }
+        mediaRefs = docIds.length ? docIds : undefined;
+      }
       const created = await createComment({
         postId,
-        text: draft.trim(),
+        text,
         parentId: replyingTo?._id,
         postAuthor,
         postService,
         groups,
+        mediaRefs,
       });
       if (created) {
-        const node = toNode(created);
+        // Show the new comment's photos immediately from the local previews —
+        // the write path returns bare doc_ids, not resolved URLs.
+        const previewMedia: MediaItem[] = attached.map((a) => ({
+          url: a.previewUrl,
+          mime_type: a.file.type,
+        }));
+        const node = toNode({ ...created, media: previewMedia.length ? previewMedia : undefined });
         setTopLevel((prev) => {
           let next: CommentNode[];
           if (created.parent_id) {
@@ -311,6 +388,7 @@ export function CommentThread({
           onCountChange(countTree(next));
           return next;
         });
+        clearAttached();
         setDraft('');
         setReplyingTo(null);
       }
@@ -406,7 +484,42 @@ export function CommentThread({
               </button>
             </div>
           )}
+          {attached.length > 0 && (
+            <div className="flex flex-wrap gap-2" data-testid="comment-photo-tray">
+              {attached.map((p) => (
+                <div key={p.id} className="relative h-16 w-16 shrink-0" data-testid="comment-photo-preview">
+                  <img
+                    src={p.previewUrl}
+                    alt=""
+                    className="h-full w-full rounded-md object-cover ring-1 ring-border"
+                  />
+                  <button
+                    type="button"
+                    aria-label="Remove photo"
+                    data-testid="comment-photo-remove"
+                    onClick={() => removePhoto(p.id)}
+                    disabled={sending}
+                    className="absolute -top-2 -right-2 flex h-5 w-5 items-center justify-center rounded-full border border-border bg-background shadow-sm transition-colors duration-150 hover:bg-elevated disabled:opacity-50"
+                  >
+                    <X className="w-3 h-3" />
+                  </button>
+                </div>
+              ))}
+            </div>
+          )}
           <div className="flex items-center gap-2">
+            {uploadMedia && attached.length < MAX_COMMENT_PHOTOS && (
+              <IconBtn
+                type="button"
+                data-testid="comment-attach-photo"
+                aria-label="Attach a photo"
+                onClick={() => fileInputRef.current?.click()}
+                disabled={sending}
+                className="h-9 w-9"
+              >
+                <ImageIcon className="w-4 h-4" />
+              </IconBtn>
+            )}
             <TextInput
               value={draft}
               onChange={(e) => setDraft(e.target.value)}
@@ -418,13 +531,22 @@ export function CommentThread({
             <IconBtn
               type="submit"
               data-testid="comment-send"
-              disabled={sending || !draft.trim()}
+              disabled={sending || (!draft.trim() && attached.length === 0)}
               aria-label={replyingTo ? 'Send reply' : 'Send comment'}
               className="h-9 w-9"
             >
               <Send className="w-4 h-4" />
             </IconBtn>
           </div>
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept="image/*"
+            multiple
+            className="hidden"
+            onChange={handleFileSelect}
+            data-testid="comment-photo-input"
+          />
         </form>
       )}
     </div>
@@ -507,6 +629,9 @@ function CommentNodeRow({ node, depth, highlightedCommentId, canWrite, setRef, o
             </span>
             <span className="text-sm leading-relaxed text-foreground break-words">{node.text}</span>
           </div>
+          {node.media && node.media.length > 0 && (
+            <CommentMedia media={node.media} id={id} />
+          )}
           <div className="mt-1 flex items-center gap-3">
             {showLike && (
               <button
@@ -590,5 +715,42 @@ function CommentNodeRow({ node, depth, highlightedCommentId, canWrite, setRef, o
         </button>
       )}
     </li>
+  );
+}
+
+// ── Comment photos (the compact grid, comments.md "Photos in comments") ──────
+
+/**
+ * Renders a comment's photos as a compact grid below the text:
+ *  - 1 photo → single image, full width, capped height (object-cover).
+ *  - 2–4 photos → 2-column grid of square cells (object-cover).
+ * A missing/unresolvable URL is dropped, never a broken-image icon.
+ */
+function CommentMedia({ media, id }: { media: MediaItem[]; id: string }) {
+  const items = media.slice(0, MAX_COMMENT_PHOTOS).filter((m) => m.url);
+  if (!items.length) return null;
+  const single = items.length === 1;
+  return (
+    <div
+      className={cn(
+        'mt-2 grid gap-1 overflow-hidden rounded-md',
+        single ? 'grid-cols-1' : 'grid-cols-2',
+      )}
+      data-testid={id ? `comment-media-${id}` : 'comment-media'}
+    >
+      {items.map((m, i) => (
+        <img
+          key={m._id || i}
+          src={m.url}
+          alt={m.alt_text || ''}
+          loading="lazy"
+          className={cn(
+            'w-full bg-elevated object-cover',
+            single ? 'max-h-64' : 'aspect-square',
+          )}
+          data-testid={id ? `comment-media-item-${id}-${i}` : `comment-media-item-${i}`}
+        />
+      ))}
+    </div>
   );
 }

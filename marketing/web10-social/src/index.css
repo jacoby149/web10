@@ -1,5 +1,13 @@
 @import "tailwindcss";
 
+/* D74: the shared @web10/discover package (the discover card + video player)
+   lives OUTSIDE this app's directory, so Tailwind v4's automatic content
+   detection never scans it — any class that appears ONLY in the package (the
+   player's control rack: the gradient scrim / RackMenu popover / icon hover)
+   is missing from this build and the rack renders unstyled. Scan it
+   explicitly. */
+@source "../../shared/discover/src";
+
 /* SOURCE OF TRUTH: /design.md §13 — sync, don't fork */
 @theme {
   /* neutrals — zinc, dark-first (§4) */

@@ -50,9 +50,13 @@ never trusts the payload's content.
 - **Reaction / comment on my post** — the server-side ref-count pattern
   (`readRefCounts('reactions' | 'comments', { ref: myPostIds })`, the same
   primitive the feed's engagement knobs use), minus what I've already seen.
-- **Reply to my comment** — comments whose `parent_id` is one of my comment
-  ids. The ref filter matches `ref_value` only (not `parent_id`), so this is
-  `w.query()` (D63) or a client-side filter of the post's comment tree.
+- **Reply to my comment** — comments whose `ref_value` (the parent pointer) is
+  one of my comment ids. The ref filter matches `ref_value` only (not
+  `parent_id`), so the derive reads the comments in my groups, collects the
+  doc_ids I authored, and keeps the comments whose `ref_value` is in that set
+  (a client-side filter over the group's comment read — no `w.query()` needed).
+  `ref_doc_id` is the parent comment's doc_id, matching the write-side nudge so
+  a live nudge dedupes against its derived row.
 - **New DM** — the DM group read minus a per-conversation last-read cursor
   (the `settings.ts` app-owned pattern).
 - **Follow** — the followers group is **open join** (following is immediate,

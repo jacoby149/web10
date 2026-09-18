@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen, fireEvent } from '@testing-library/react';
+import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import '@testing-library/jest-dom';
 import { lucideMock } from './helpers/lucideMock';
 vi.mock('lucide-react', () => lucideMock);
@@ -181,7 +181,7 @@ describe('VideoPlayer — the shared video surface (video-player.md)', () => {
     expect(frame.textContent).not.toContain('42s');
   });
 
-  it('immersive + active autoplays muted; inactive pauses (the ambient loop)', async () => {
+  it('immersive + active autoplays (muted by default); inactive pauses (the ambient loop)', async () => {
     const { VideoPlayer } = await import('@/components/Feed/VideoPlayer');
     const { rerender } = render(
       <VideoPlayer
@@ -194,11 +194,12 @@ describe('VideoPlayer — the shared video surface (video-player.md)', () => {
       />,
     );
     const video = screen.getByTestId('vp-imm-loop').querySelector('video')!;
-    // Active → playing (the effect calls play(); jsdom leaves `paused` true,
-    // but the muted flag is the observable seam: playing ⇒ unmuted intent).
-    expect(video.muted).toBe(false);
+    // Immersive is muted by default (the browser's autoplay policy — the
+    // surface's speaker toggle is the escape hatch, the `muted` seam).
+    expect(video.muted).toBe(true);
 
-    // The slide scrolls off-screen (active → false) → paused + muted again.
+    // The slide scrolls off-screen (active → false) → paused.
+    const pause = vi.spyOn(video, 'pause').mockImplementation(() => {});
     rerender(
       <VideoPlayer
         source={{ type: 'file', url: 'http://x/v.mp4', width: 720, height: 1280 }}
@@ -209,6 +210,9 @@ describe('VideoPlayer — the shared video surface (video-player.md)', () => {
         testId="vp-imm-loop"
       />,
     );
+    await waitFor(() => {
+      expect(pause).toHaveBeenCalled();
+    });
     expect(video.muted).toBe(true);
   });
 
@@ -229,11 +233,51 @@ describe('VideoPlayer — the shared video surface (video-player.md)', () => {
     );
     const frame = screen.getByTestId('vp-imm-tap');
     const video = frame.querySelector('video')!;
-    expect(video.muted).toBe(false); // active → playing
+    // Muted by default (autoplay policy) — the tap toggles PLAY, observed via
+    // the element's pause/play calls. The spies install after the initial
+    // autoplay, so they count only the tap-driven calls.
+    expect(video.muted).toBe(true);
+    const pause = vi.spyOn(video, 'pause').mockImplementation(() => {});
+    const play = vi.spyOn(video, 'play').mockResolvedValue(undefined);
     fireEvent.click(frame);
-    expect(video.muted).toBe(true); // tapped → paused
+    await waitFor(() => {
+      expect(pause).toHaveBeenCalledTimes(1); // tapped → paused
+    });
     expect(slideClicks).not.toHaveBeenCalled(); // the tap never escapes
     fireEvent.click(frame);
-    expect(video.muted).toBe(false); // tapped again → playing
+    await waitFor(() => {
+      expect(play).toHaveBeenCalledTimes(1); // tapped again → playing
+    });
+  });
+
+  it('immersive: the muted seam un-mutes (the surface speaker toggle)', async () => {
+    const { VideoPlayer } = await import('@/components/Feed/VideoPlayer');
+    const { rerender } = render(
+      <VideoPlayer
+        source={{ type: 'file', url: 'http://x/v.mp4', width: 720, height: 1280 }}
+        mode="inline"
+        fit="cover"
+        immersive
+        active
+        testId="vp-imm-mute"
+      />,
+    );
+    const video = screen.getByTestId('vp-imm-mute').querySelector('video')!;
+    expect(video.muted).toBe(true); // default: muted autoplay
+    // The surface flips the seam (Shorts' speaker icon) → the element follows.
+    rerender(
+      <VideoPlayer
+        source={{ type: 'file', url: 'http://x/v.mp4', width: 720, height: 1280 }}
+        mode="inline"
+        fit="cover"
+        immersive
+        active
+        muted={false}
+        testId="vp-imm-mute"
+      />,
+    );
+    await waitFor(() => {
+      expect(video.muted).toBe(false);
+    });
   });
 });

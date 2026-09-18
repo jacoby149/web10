@@ -71,6 +71,9 @@ export interface CommentItem {
   likeCount?: number;
   /** Whether the reader liked this comment (the app resolves it). */
   likedByMe?: boolean;
+  /** The comment's photos, resolved to displayable media (the app maps its
+   *  resolved `media_refs` onto `MediaItem`). Absent/empty → no media renders. */
+  media?: MediaItem[];
 }
 
 /** One keyset-cursor page of comments + the cursor for the next page (null
@@ -106,7 +109,8 @@ export type ReadReplies = (
 
 /** The comment writer the thread calls (injected; absent in `remote` mode).
  * `parentId` present = a reply to that comment (refs the parent); absent =
- * top-level (refs the post). */
+ * top-level (refs the post). `mediaRefs` = the doc_ids of photos the app
+ * already uploaded (the thread uploads them through `uploadMedia` first). */
 export type CreateComment = (args: {
   postId: string;
   text: string;
@@ -114,7 +118,24 @@ export type CreateComment = (args: {
   postAuthor?: string;
   postService?: string;
   groups?: string[];
+  mediaRefs?: string[];
 }) => Promise<CommentItem | null>;
+
+/**
+ * Uploads one comment photo and returns its doc_id + a displayable preview.
+ * The app owns the upload (presigned form + confirm, the same `uploadMedia` a
+ * post uses); the shared thread only needs the resulting `docId` (for the
+ * write) and a `url` (the local preview, for the tray). Absent → the thread
+ * hides the attach control and degrades to text-only.
+ */
+export type UploadCommentMedia = (file: File) => Promise<{
+  docId: string;
+  url: string;
+  thumbUrl?: string;
+  width?: number;
+  height?: number;
+  mimeType?: string;
+}>;
 
 /**
  * The discover card's post. The apps map their feed/discover records onto this.

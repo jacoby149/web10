@@ -18,20 +18,27 @@ const LOG = (...args: unknown[]) => console.log('[social:people]', ...args);
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
 
-// Same deterministic accent the group cards use — each person wears their own
-// color when they haven't set a banner yet (kept local, mirroring the
-// Groups/Discover convention).
-function hashToColor(str: string): string {
-  const colors = [
-    'bg-rose-500', 'bg-sky-500', 'bg-amber-500', 'bg-emerald-500',
-    'bg-violet-500', 'bg-pink-500', 'bg-indigo-500', 'bg-orange-500',
-    'bg-teal-500', 'bg-red-500',
+// Deterministic rich gradient per entity — the fallback "face" when a person
+// has no uploaded banner/avatar. Gradients read as designed, not as a flat
+// color strip (design.md §1: the screenshot test).
+function hashToGradient(str: string): string {
+  const gradients = [
+    'bg-gradient-to-br from-rose-600 to-pink-900',
+    'bg-gradient-to-br from-sky-600 to-indigo-900',
+    'bg-gradient-to-br from-amber-600 to-orange-900',
+    'bg-gradient-to-br from-emerald-600 to-teal-900',
+    'bg-gradient-to-br from-violet-600 to-purple-900',
+    'bg-gradient-to-br from-pink-600 to-rose-900',
+    'bg-gradient-to-br from-indigo-600 to-violet-900',
+    'bg-gradient-to-br from-orange-600 to-red-900',
+    'bg-gradient-to-br from-teal-600 to-cyan-900',
+    'bg-gradient-to-br from-red-600 to-rose-900',
   ];
   let hash = 0;
   for (let i = 0; str.length > i; i++) {
     hash = str.charCodeAt(i) + ((hash << 5) - hash);
   }
-  return colors[Math.abs(hash) % colors.length];
+  return gradients[Math.abs(hash) % gradients.length];
 }
 
 function formatCount(n: number): string {
@@ -52,6 +59,7 @@ interface PersonCardProps {
 function PersonCardRow({ person, followLoading, onFollow, onUnfollow, onOpen }: PersonCardProps) {
   const name = person.display_name || person.username;
   const initial = name.charAt(0).toUpperCase();
+  const gradient = hashToGradient(person.username);
 
   return (
     <div
@@ -67,46 +75,47 @@ function PersonCardRow({ person, followLoading, onFollow, onUnfollow, onOpen }: 
       }}
       aria-label={`View ${name}'s profile`}
       className={cn(
-        'group relative w-full overflow-hidden rounded-lg border border-border bg-card text-left cursor-pointer transition-all duration-150',
-        'hover:-translate-y-0.5 hover:border-brand/30 hover:shadow-[0_0_24px_-8px_var(--color-glow)]',
+        'group relative w-full overflow-hidden rounded-xl border border-border bg-card text-left cursor-pointer transition-all duration-200',
+        'hover:-translate-y-1 hover:border-brand/40 hover:shadow-[0_8px_32px_-8px_var(--color-glow-intense)]',
         'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background',
         'motion-reduce:transform-none',
       )}
     >
-      {/* Banner — the person's real banner, or their accent when unset */}
-      <div className="h-20 w-full overflow-hidden" aria-hidden="true">
+      {/* Banner — the person's real banner or their gradient */}
+      <div className="h-24 w-full overflow-hidden" aria-hidden="true">
         {person.banner_url ? (
           <img
             src={person.banner_url}
             alt=""
-            className="h-full w-full object-cover"
+            className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-105 motion-reduce:transform-none"
             loading="lazy"
           />
         ) : (
-          <div className={cn('h-full w-full opacity-50', hashToColor(person.username))} />
+          <div className={cn('h-full w-full', gradient)} />
         )}
       </div>
 
-      <div className="flex items-end gap-3 p-3 pt-0">
+      <div className="flex items-end gap-3 p-4 pt-0">
         {/* Avatar overlapping the banner — the profile pic preview */}
-        <div className="shrink-0 -mt-7 rounded-full border-4 border-card">
-          <Avatar className={cn('h-14 w-14', !person.avatar_url && hashToColor(person.username))}>
+        <div className="shrink-0 -mt-8 rounded-full border-4 border-card">
+          <Avatar className={cn('h-16 w-16', !person.avatar_url && gradient)}>
             {person.avatar_url ? (
               <AvatarImage src={person.avatar_url} alt={`${name}'s profile picture`} />
             ) : (
-              <AvatarFallback className="text-foreground text-lg font-semibold">{initial}</AvatarFallback>
+              <AvatarFallback className="text-foreground text-xl font-semibold">{initial}</AvatarFallback>
             )}
           </Avatar>
         </div>
 
         <div className="min-w-0 flex-1 pb-1">
-          <h3 className="truncate text-sm font-semibold text-foreground">{name}</h3>
+          <h3 className="truncate text-base font-semibold text-foreground">{name}</h3>
           <p className="truncate text-xs text-muted-foreground">@{person.username}</p>
-          <p className="mt-0.5 flex items-center gap-2 text-xs text-muted-foreground tabular-nums">
+          <p className="mt-1 flex items-center gap-1.5 text-xs text-muted-foreground tabular-nums">
+            <Users className="h-3 w-3 shrink-0" strokeWidth={2} aria-hidden="true" />
             <span data-testid="people-mutuals">
               {person.mutuals} mutual{person.mutuals === 1 ? '' : 's'}
             </span>
-            <span aria-hidden="true">·</span>
+            <span aria-hidden="true" className="text-muted-foreground/40">·</span>
             <span>{formatCount(person.followers_count)} followers</span>
           </p>
         </div>
@@ -151,11 +160,11 @@ function PersonCardRow({ person, followLoading, onFollow, onUnfollow, onOpen }: 
 
 function PersonCardSkeleton() {
   return (
-    <div className="w-full overflow-hidden rounded-lg border border-border bg-card">
-      <Skeleton className="h-20 w-full" />
-      <div className="flex items-end gap-3 p-3 pt-0">
-        <div className="shrink-0 -mt-7 rounded-full border-4 border-card">
-          <Skeleton className="h-14 w-14 rounded-full" />
+    <div className="w-full overflow-hidden rounded-xl border border-border bg-card">
+      <Skeleton className="h-24 w-full" />
+      <div className="flex items-end gap-3 p-4 pt-0">
+        <div className="shrink-0 -mt-8 rounded-full border-4 border-card">
+          <Skeleton className="h-16 w-16 rounded-full" />
         </div>
         <div className="min-w-0 flex-1 space-y-2 pb-1">
           <Skeleton className="h-4 w-36" />

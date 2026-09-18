@@ -117,6 +117,67 @@ The comment's like count is the number of `type: 'like'` reactions whose
 `ref_value` is the comment's `doc_id` — read with the same `readReactions`
 that reads a post's likes (the ref filter does the scoping).
 
+## Photos in comments
+
+A comment can carry up to **four photos** (the X/Twitter parity — a reply is a
+text + a small photo grid, not a second post). The photos are **images only**
+for v1; video in a comment is a separate, larger build (transcode + a player
+in a compact thread row) and is deliberately out of scope.
+
+### The wire: `media_refs`, the post's own convention
+
+A comment's photos ride in `body.media_refs` — an array of **media doc_ids**,
+exactly the convention a post already uses for its own media. There is no new
+field vocabulary and **zero node changes**:
+
+- **Write.** The composer uploads each photo through the standard media
+  pipeline (presigned form → object storage → `confirm`, the same `uploadMedia`
+  a post uses) and stores the returned doc_ids in `body.media_refs`. The media
+  doc lands in `media_metadata` (where every upload lands); the comment body
+  only ever carries the doc_id, never a URL (the document-typing rule).
+- **Read.** The node's read path already runs `resolve_media_urls_in_docs` on
+  **every** doc it serves — a post's `media_refs` are rewritten to resolved
+  objects (`{doc_id, object_key, mime_type, width, height, read_url,
+  thumbnail_url, …}`) with a fresh presigned `read_url`, keyed on the doc's
+  **author** (the media owner). A comment is just another doc, so its
+  `media_refs` are resolved by the same pass, for the same author. A reader who
+  can read the comment gets the photos; the resolution is gated by the same
+  group read that gated the comment (I3 holds — see below). No new endpoint, no
+  new collection, no schema.
+
+The client maps the resolved refs onto the shared thread's `MediaItem[]` (the
+`read_url` → `url` rename) so the thread renders what it is given, the same way
+it renders the injected like state.
+
+### The render: a compact grid, not a carousel
+
+A comment's photos render **below the text** as a bounded grid — a comment is a
+dense row, not a media card:
+
+- **1 photo** → a single image, full thread width, capped in height
+  (`object-cover`, rounded, `loading="lazy"`).
+- **2–4 photos** → a 2-column grid of square cells (`object-cover`).
+- Every image carries its `alt_text` (or an empty alt when decorative); a
+  missing/unresolvable ref is dropped, never a broken-image icon.
+
+The compose box gets a photo-attach control (an image icon) that opens the OS
+file picker (`accept="image/*"`, multiple), shows a removable preview tray
+(capped at 4), and uploads the picked files **on send** (the `PostComposer`
+idiom: preview locally, upload at submit) through an injected `uploadMedia`
+seam. The seam is app-owned — the shared thread knows nothing about wapi; it
+only needs the resulting doc_ids (for the write) and a local preview (for the
+tray). Absent the seam (e.g. `remote` marketing mode) the attach control is
+hidden and the thread degrades to text-only, exactly as it does today.
+
+### The data seam (the write side)
+
+`createComment` gains `mediaRefs?: string[]` (the uploaded doc_ids) and writes
+them to `body.media_refs`. The shared `CreateComment` seam carries the same
+optional `mediaRefs`; the social app's `createThreadComment` threads it through.
+The read side needs no new seam — the resolved refs arrive on the comment doc
+itself and the app maps them to `MediaItem[]` before handing the page to the
+shared thread.
+
 ## The thread render
 
 The thread is a tree, rendered from **paged reads** (not one big read):
