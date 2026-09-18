@@ -47,6 +47,9 @@ export async function createPost(
     // The composer sets ['short'] for a 9:16 video post (shorts.md) — the
     // server-side feed filter keys off has(tags, 'short').
     tags: post.tags,
+    // A repost (reposts.md): the doc_id of the post this one reposts. Only set
+    // by createRepost — a normal post never carries it.
+    repost_of: post.repost_of,
   };
 
   // Default groups based on visibility
@@ -73,6 +76,34 @@ export async function createPost(
   });
   console.log('[social-feed] createPost — success, doc_id:', doc.doc_id);
   return fromV3DocToPost(doc);
+}
+
+/**
+ * Create a repost of `original` (reposts.md).
+ *
+ * A repost is a REAL post doc — not a reaction. It lands in the reposter's
+ * followers group (the same groups a normal public post uses) so it shows up
+ * in the reposter's followers' feed, rendered as a "reposted" card with the
+ * original embedded. The reposter's optional comment rides in `text`; the
+ * original is referenced by `repost_of` (its doc_id) — the repost carries no
+ * copy of the original's content (I3: reading a repost never grants access to
+ * the original beyond what the reader can already read).
+ *
+ * `comment` is optional — an empty comment is a plain repost (the X/Twitter
+ * "retweet" without a quote).
+ */
+export async function createRepost(
+  original: { _id?: string },
+  comment: string,
+): Promise<PostRecord> {
+  if (!original._id) throw new Error('cannot repost a post without an id');
+  return createPost({
+    text: comment.trim() || undefined,
+    media_refs: [],
+    created_at: new Date().toISOString(),
+    visibility: 'public',
+    repost_of: original._id,
+  });
 }
 
 /**

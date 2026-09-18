@@ -41,6 +41,15 @@ export interface PostRecord {
   tags?: string[];
   mentions?: PostMention[];
   encrypted?: boolean;
+  /**
+   * A repost (reposts.md): when set, this post is a REPOST of the post whose
+   * doc_id is `repost_of`. It is a real post doc (in the reposter's followers
+   * group) that carries the reposter's optional comment in `text` and
+   * references the original by doc_id. The feed renders it as a "reposted"
+   * card with the original embedded. The original's repost count is the number
+   * of posts whose `repost_of` points at it.
+   */
+  repost_of?: string;
   // Author info extracted from V3Document.author_key — needed by DiscoverScreen, FeedScreen, etc.
   author_username?: string;
   author_provider?: string;
@@ -84,6 +93,9 @@ export function fromV3DocToPost(doc: V3Document): PostRecord {
     tags: doc.tags || (body.tags as string[]) || undefined,
     mentions: (body.mentions as PostMention[]) || undefined,
     encrypted: body.encrypted as boolean,
+    // A repost (reposts.md): the doc_id of the post this one reposts. Absent
+    // on a normal post.
+    repost_of: (body.repost_of as string) || undefined,
     author_username: username,
     author_provider: provider,
     // The v3 pinned ad (ads-dissemination.md): the read serves a pinned post

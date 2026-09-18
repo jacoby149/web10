@@ -1,6 +1,6 @@
 import { getV3Client } from './v3';
 import type { PowerMeanSort } from './v3';
-import { getDiscoverGroupId, getMyGroups, getFeedGroups } from './groups';
+import { getDiscoverGroupId, getMyGroups, getFeedGroups, followersGroupId } from './groups';
 import { fromV3DocToPost, fromV3DocToProfile, fromV3FeedPost, extractUsername, mediaRefId, type PostRecord, type ResolvedMediaRef } from './types';
 import { resolveMediaRefs } from './posts';
 import type { MediaRecord } from './types';
@@ -319,12 +319,16 @@ function buildFeedQuery(sort: FeedRanking | null, cursor: { created_at?: string;
   return (
     'SELECT p.doc_id AS doc_id, p.author_key AS author_key, p.body AS body, p.tags AS tags, ' +
     'p.created_at AS created_at, p.ref_value AS ref_value, p.ad_mode AS ad_mode, p.ad_target AS ad_target, ' +
-    'coalesce(eng.like_count, 0) AS likes, coalesce(eng.dislike_count, 0) AS dislikes, coalesce(eng.repost_count, 0) AS reposts, coalesce(cmt.comment_count, 0) AS comments, ' +
+    'coalesce(eng.like_count, 0) AS likes, coalesce(eng.dislike_count, 0) AS dislikes, coalesce(rp.repost_count, 0) AS reposts, coalesce(cmt.comment_count, 0) AS comments, ' +
     `(${score}) AS score, pr.body AS profile_body ` +
     'FROM posts p ' +
     "LEFT JOIN (SELECT ref_value, countIf(JSONExtractString(body, 'type') = 'like') AS like_count, " +
-    "countIf(JSONExtractString(body, 'type') = 'dislike') AS dislike_count, " +
-    "countIf(JSONExtractString(body, 'type') = 'repost') AS repost_count FROM reactions WHERE ref_value != '' GROUP BY ref_value) eng ON eng.ref_value = p.doc_id " +
+    "countIf(JSONExtractString(body, 'type') = 'dislike') AS dislike_count FROM reactions WHERE ref_value != '' GROUP BY ref_value) eng ON eng.ref_value = p.doc_id " +
+    // A repost (reposts.md) is a real post doc whose body.repost_of points at
+    // the original — the count is the number of such posts the reader can read
+    // (I3: scoped to the reader's groups, so a private post's repost tally is
+    // not visible to non-members).
+    "LEFT JOIN (SELECT JSONExtractString(body, 'repost_of') AS repost_of, count() AS repost_count FROM posts WHERE JSONExtractString(body, 'repost_of') != '' GROUP BY repost_of) rp ON rp.repost_of = p.doc_id " +
     "LEFT JOIN (SELECT ref_value, count() AS comment_count FROM comments WHERE ref_value != '' GROUP BY ref_value) cmt ON cmt.ref_value = p.doc_id " +
     'LEFT JOIN (SELECT author_key, body FROM profile QUALIFY row_number() OVER (PARTITION BY author_key ORDER BY updated_at DESC) = 1) pr ON pr.author_key = p.author_key ' +
     cursorClause +
@@ -583,7 +587,24 @@ export async function readFeedReactions(
       if (!ref) continue;
       if (type === 'like') liked[ref] = true;
       else if (type === 'dislike') disliked[ref] = true;
+      // A legacy `type: 'repost'` reaction (pre-3.106.0) still counts as a
+      // repost so an old repost keeps its filled icon. New reposts are posts
+      // (checked below).
       else if (type === 'repost') reposted[ref] = true;
+    }
+    // A repost (reposts.md) is a real post doc the reader authored whose
+    // body.repost_of points at the feed's posts. Read the reader's own posts
+    // and mark each original they've reposted. Scoped to the reader's own
+    // followers group (where their posts live).
+    try {
+      const myPosts = await w.read('posts', { groups: [followersGroupId(token.username)] });
+      for (const doc of myPosts) {
+        if (extractUsername(doc.author_key) !== token.username) continue;
+        const repostOf = (doc.body as Record<string, unknown>).repost_of as string | undefined;
+        if (repostOf) reposted[repostOf] = true;
+      }
+    } catch (e) {
+      console.warn('[social-feed] readFeedReactions — own-post repost read failed (non-fatal):', e);
     }
     console.log(
       '[social-feed] readFeedReactions —',

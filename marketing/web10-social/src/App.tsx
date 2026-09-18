@@ -221,15 +221,31 @@ function UserProfilePostLinkRoute() {
 // /feed route: composing a post bumps `version`, which remounts FeedScreen
 // so a fresh post shows up immediately instead of only after a manual
 // refresh (the post is delivered to the author's own inbox on create).
+//
+// Repost (reposts.md): tapping the repeat icon on a feed post opens the
+// composer in REPOST mode (the composer is app-level, above the feed). The
+// reposted post rides in `repostingTo`; the composer shows it as a context
+// block + a comment field. Submitting creates a repost post; the feed
+// remounts (version bump) so the new repost shows up.
 function FeedRoute({ onAuthorClick }: { onAuthorClick: (username: string, provider: string) => void }) {
   const [version, setVersion] = useState(0);
+  const [repostingTo, setRepostingTo] = useState<PostRecord | null>(null);
   return (
     <>
-      <PostComposer onPostCreated={() => {
-        setVersion((v) => v + 1);
-        trackEvent('post_created');
-      }} />
-      <FeedScreen key={version} onAuthorClick={onAuthorClick} />
+      <PostComposer
+        repostingTo={repostingTo}
+        onRepostCancel={() => setRepostingTo(null)}
+        onPostCreated={() => {
+          setRepostingTo(null);
+          setVersion((v) => v + 1);
+          trackEvent('post_created');
+        }}
+      />
+      <FeedScreen
+        key={version}
+        onAuthorClick={onAuthorClick}
+        onRepost={(post) => setRepostingTo(post)}
+      />
     </>
   );
 }

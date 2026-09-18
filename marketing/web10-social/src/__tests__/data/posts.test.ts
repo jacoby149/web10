@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import * as v3 from '../../data/v3';
-import { readMyPosts } from '../../data/posts';
+import { readMyPosts, createRepost } from '../../data/posts';
 
 function mockV3Client() {
   const mock = {
@@ -48,6 +48,37 @@ describe('posts v3 data layer', () => {
       const result = await mock.create('posts', { text: 'Hello world' }, { groups: ['web10.app/groups/web10/discover'] });
       expect(mock.create).toHaveBeenCalledWith('posts', { text: 'Hello world' }, { groups: ['web10.app/groups/web10/discover'] });
       expect(result).toEqual(doc);
+    });
+  });
+
+  describe('createRepost (reposts.md: a real post doc referencing the original)', () => {
+    it('creates a post with repost_of set to the original doc_id + the comment as text', async () => {
+      const doc = { doc_id: 'rp1', author_key: 'web10.app/users/alice', body: { text: 'great take', repost_of: 'orig1' }, created_at: '2026-07-18T00:00:00Z' };
+      mock.create.mockResolvedValue(doc);
+      await createRepost({ _id: 'orig1' }, 'great take');
+      // The body carries repost_of + the comment; a repost is a public post
+      // (discover + the reposter's followers group).
+      expect(mock.create).toHaveBeenCalledWith(
+        'posts',
+        expect.objectContaining({ text: 'great take', repost_of: 'orig1', media_refs: [] }),
+        expect.objectContaining({ groups: expect.arrayContaining(['web10.app/groups/web10/discover', 'web10.app/groups/users/alice/followers']) }),
+      );
+    });
+
+    it('a plain repost (no comment) creates a post with empty text + repost_of', async () => {
+      const doc = { doc_id: 'rp2', author_key: 'web10.app/users/alice', body: { repost_of: 'orig2' }, created_at: '2026-07-18T00:00:00Z' };
+      mock.create.mockResolvedValue(doc);
+      await createRepost({ _id: 'orig2' }, '   ');
+      expect(mock.create).toHaveBeenCalledWith(
+        'posts',
+        expect.objectContaining({ text: undefined, repost_of: 'orig2' }),
+        expect.anything(),
+      );
+    });
+
+    it('throws when the original has no id', async () => {
+      await expect(createRepost({}, 'comment')).rejects.toThrow(/without an id/);
+      expect(mock.create).not.toHaveBeenCalled();
     });
   });
 

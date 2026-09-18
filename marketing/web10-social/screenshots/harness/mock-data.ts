@@ -186,6 +186,7 @@ export async function deleteContact(): Promise<void> {}
 export async function readPost(): Promise<unknown> { return {}; }
 export async function readPosts(): Promise<unknown[]> { return []; }
 export async function createPost(): Promise<unknown> { return {}; }
+export async function createRepost(): Promise<unknown> { return {}; }
 export async function updatePost(): Promise<unknown> { return {}; }
 export async function deletePost(): Promise<void> {}
 export async function movePostVisibility(): Promise<void> {}
@@ -490,6 +491,9 @@ interface SeedFeedPost {
   likes: number;
   comments: number;
   reposts: number;
+  // A repost (reposts.md): the doc_id of the post this one reposts. The feed
+  // renders it as a "reposted" card with the original embedded.
+  repost_of?: string;
   // Carried ads (D55 + D57) — the screenshot seed shows the new ad block.
   ad?: unknown;
   node_ad?: unknown;
@@ -521,6 +525,20 @@ function adCreative(label: string, from: string, to: string): unknown {
 }
 
 const FEED_POSTS: SeedFeedPost[] = [
+  {
+    // A REPOST (reposts.md): the signed-in user ('me') amplifying luna's post
+    // with a comment. Renders the "reposted" badge + the quote + the embedded
+    // original (readPostById('fp-2')).
+    _id: 'fp-repost',
+    author_username: 'me',
+    author_provider: 'web10',
+    text: 'This is the pitch in one post. No algorithm between the creator and the fan — that is the whole thing.',
+    created_at: minsAgo(4),
+    repost_of: 'fp-2',
+    likes: 12,
+    comments: 3,
+    reposts: 0,
+  },
   {
     // The signed-in user's own post (token username 'me') — renders the
     // owner kebab menu (Share / Edit / Make private / Delete) on the card.
@@ -839,6 +857,25 @@ export async function resolveMediaRefs<T>(refs: T[]): Promise<T[]> {
 }
 export async function readUserProfile(): Promise<unknown> {
   return { display_name: 'Nova', username: 'nova', provider: 'web10', avatar_ref: '', bio: 'Synthwave producer' };
+}
+// A repost's embed (reposts.md) reads the original by doc_id. The harness
+// returns the seeded feed post that the repost references (fp-2 = luna's post),
+// so the "reposted" card renders the embedded original.
+export async function readPostById(docId: string): Promise<unknown> {
+  const p = FEED_POSTS.find((x) => x._id === docId);
+  if (!p) return null;
+  return {
+    _id: p._id,
+    text: p.text,
+    created_at: p.created_at,
+    author_username: p.author_username,
+    author_provider: p.author_provider,
+    profile: { display_name: p.author_username === 'luna' ? 'Luna Reyes' : p.author_username },
+    media_refs: [],
+    // The original's creator-pinned ad (D55) rides into the repost embed — the
+    // seed shows the ad-in-embed path (luna's post fp-2 carries a creator ad).
+    ad: p.ad,
+  };
 }
 export async function readProfile(): Promise<unknown> {
   // The profile screen's owner path (the harness user is 'me') — a creator

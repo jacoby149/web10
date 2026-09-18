@@ -1,69 +1,86 @@
-# Repost — a post's amplification signal
+# Repost — amplifying a post into your own feed
 
-A repost is a fan saying "this deserves more eyes." It is the third signal on the engagement row, alongside the like/dislike pair and comments. This doc defines what a repost *is* on the wire, how it is counted, and how the client renders it. The engagement model (D62) defines what a reaction *is*; the feed / discover / groups docs define *where* a post shows; `post-actions.md` defines *how the engagement row renders*. This doc fills in the one signal that was left as a dead icon: the repost.
+A repost is a fan saying "this deserves more eyes" — and saying it *from themselves*. A repost resurfaces someone else's post in the reposter's own feed, optionally with the reposter's own comment on top (a quote). This doc defines what a repost *is* on the wire, how the composer creates one, how the feed renders it, and how it is counted. The feed / discover / groups docs define *where* a post shows; `post-actions.md` defines *how the engagement row renders*.
+
+> **Model change (3.110.0):** a repost is **a post, not a reaction.** The pre-3.110.0 model (a `reactions` doc with `type: 'repost'`, a countable signal on the target) is retired as the primary mechanism. A repost now creates a real `posts` doc that references the original by `repost_of` and carries the reposter's comment in `text`. That is what makes it show up in the reposter's feed as "reposted" — a reaction never appears in a feed. (The legacy `type: 'repost'` reaction still reads as a "reposted" fill for old data, and the other surfaces' repeat icon still writes it as a lightweight boost signal — unifying those surfaces onto the post model is an open follow-up.)
 
 ## The use case
 
-A fan sees a post they want to amplify. They tap the repeat icon. The post's repost count goes up, the icon fills, and the author can see it is spreading. If they change their mind, they tap again and it goes back. That is the whole feature.
+A fan sees a post they want to amplify. They tap the repeat icon. The composer opens with the original post shown as a context block and a comment field ("why are you reposting this?"). They add a comment (or none — a plain repost) and hit Repost. A new post lands in their followers' feed, rendered as a "reposted" card with the original embedded. If they change their mind, they delete their own repost post (the owner menu) and it's gone.
 
 ## What a repost is on the wire
 
-A repost is a `reactions` doc with `type: 'repost'` and `ref_value` pointing at the target post's `doc_id`. It is the same shape as a like or a dislike — the engagement model (D62) already defines reactions as documents in the engager's own service, joined to their target by `ref_value`. `ReactionRecord.type` is a free string, so `'repost'` needed **zero node changes**: no new collection, no new endpoint, no schema.
+A repost is a **`posts` doc** in the reposter's followers group (the same groups a normal public post uses) whose body carries:
 
-This is the load-bearing decision. A repost is **a reaction, not a post**. It does not create new content, does not resurface the post in the reposter's feed, and carries no quote. It is a countable signal on the target post, exactly like a like. (A true "boost" — resurfacing the post in your own feed — is a different, larger feature and is explicitly out of scope here. See "What this is not.")
+- `repost_of` — the `doc_id` of the original post. This is the reference; the repost carries **no copy** of the original's content.
+- `text` — the reposter's optional comment (the quote). Empty for a plain repost.
 
-## Independent of like / dislike
+It is created by `createRepost(original, comment)` in `src/data/posts.ts`, which calls `createPost` with `repost_of` set. A repost is a public post: it attaches to the discover group + the reposter's followers group, so it surfaces in the reposter's followers' feed.
 
-The like/dislike pair is mutually exclusive (one reaction per user — `like` XOR `dislike`, enforced in the data layer by `setReaction` / `toggleReactionKind`). A repost is **not** part of that invariant. A user can like *and* repost the same post; the two are independent axes. Liking does not clear a repost, and reposting does not touch the like.
+This is the load-bearing decision. A repost is **a post, not a reaction**: it creates new content (the reposter's voice + the reference), it resurfaces the original in the reposter's feed, and it carries a quote. That is exactly what the operator asked for ("it should let you add some kind of comment, where it shows up in your feed as reposted").
 
-This is why the data layer has a separate `toggleRepost` rather than overloading `toggleReactionKind`: `toggleReactionKind` only considers `type === 'like' || 'dislike'` when it decides "is this mine?", so a `type: 'repost'` doc is invisible to it. `toggleRepost` matches on `author_username === token.username && type === 'repost'` alone.
+## The composer: repost mode
 
-## The "mine" match is username-alone (the v3 ownership rule)
+The composer (`src/components/Feed/PostComposer.tsx`) is app-level (above the feed, in `App.tsx`'s `FeedRoute`). It takes a `repostingTo?: PostRecord` prop. When set, it is in **repost mode**:
 
-Same rule as likes (3.87.2): the node writes `author_key = token.username` — a bare username, the provider implicit — so a reaction's derived `author_provider` is the v2 fallback (`'web10'`) and never equals the token's real provider. Matching "is this my repost?" on `author_username === token.username` alone. A v2-shaped `provider/username` key still matches (the username is the last segment either way).
+- A **repost context block** (`RepostContext`) renders at the top: the original author, the original text (truncated), and the original's first media item — so the user knows exactly what they're amplifying. An **X** cancels the repost (`onRepostCancel`).
+- The textarea placeholder becomes **"Add a comment…"** (the comment is the quote).
+- The submit button reads **"Repost"**.
+- A **plain repost is postable** with no comment and no media (the repost itself is the content).
+- Submitting calls `createRepost(repostingTo, text)` — it never uploads the user's own media (the original's media is referenced by the original post, not copied). On success it clears the repost state and fires `onPostCreated` (the feed remounts so the new repost shows up).
 
-## Self-heal (no stacking)
+The feed's repeat icon (`onToggleRepost` on `<PostActions>`) is wired to open the composer in repost mode: `FeedScreen` reports the tapped post up via `onRepost`, and `FeedRoute` sets `repostingTo`.
 
-Same as likes: `toggleRepost` reads the user's existing reposts (a `filter`, not a `find`) and, if duplicates are stacked (a pre-fix artifact), collapses them to the single newest doc. Idempotent — with zero or one doc it is a no-op.
+## The feed render: the "reposted" card
+
+A post whose body has `repost_of` renders as a **reposted card** (`PostCard` in `FeedScreen.tsx`):
+
+- A **"reposted" badge** (a `Repeat2` icon + the word "reposted") in the header, next to the reposter's name + timestamp.
+- The **reposter's comment** (the repost post's own `text`) — the quote, above the original.
+- The **embedded original post** (`RepostedEmbed`) — fetched by `repost_of` doc_id (`readPostById`), rendered as a nested read-only card (author, text, media). This is the X/Twitter quote-tweet layout: the quote above, the original below.
+- The engagement row (likes / comments) is on the **repost post itself**, not the original.
+
+`RepostedEmbed` is I3-scoped: it reads the original by doc_id, and a post the reader **cannot** read degrades to an "Original post unavailable" placeholder. A repost never grants access to the original beyond what the reader can already read.
+
+**The original's ad rides along (D55).** The embed's `readPostById` runs the single-doc read, which attaches the original's creator-pinned ad (`attach_pinned_ads`) — so `original.ad` is populated. `RepostedEmbed` renders that ad (`<AdBlock>`) inside the embed: the repost resurfaces the original's content **and** its monetization, so the original creator earns from the reach the repost gives them (the positive-sum loop the creator platform is built on). Only the **creator's pinned ad** (`original.ad`) renders — never a **node ad** (`original.node_ad`): the repost post's own node ad (D57, attached at read time) already covers the node's inventory, and two ads in a compact embed is too much. A repost post itself carries no creator-pinned ad (`createRepost` sets no `ad_preference`).
 
 ## The count is real
 
-The repost count is the number of `type: 'repost'` reactions on the post, counted the same way likes and dislikes are:
+The repost count on a post is the number of **posts whose `repost_of` points at it**:
 
-- **Feed** — the D73 feed query's `eng` subquery counts each reaction type (`countIf(JSONExtractString(body, 'type') = 'repost')`), so `post.reposts` rides in the payload (the same path as `likes` / `dislikes`).
-- **Discover** — the board's engagement read counts `type === 'repost'` client-side by `ref_value` (the same loop that counts likes).
-- **Lightbox / profile / groups** — the per-post `readReactions` read counts `type === 'repost'` (the same read that derives the like count).
+- **Feed** — the D73 feed query joins `posts` on `JSONExtractString(body, 'repost_of') = p.doc_id` and counts, so `post.reposts` rides in the payload (the same path as `likes` / `dislikes` / `comments`). The join is scoped to the reader's groups (I3), so a private post's repost tally is not visible to non-members.
+- **Discover / Lightbox / Profile / Groups** — these surfaces still count the legacy `type: 'repost'` reaction (the lightweight boost signal). Unifying them onto the post-based count is an open follow-up.
 
-Before this, the count was hardcoded `0` in the feed row mapper and the discover loop, and the icon was a dead `<span>`. Now it is a real tally.
+## The "I reposted this" state (the filled icon)
 
-## The UI: a fourth axis on `<PostActions>`
+`readFeedReactions` (the feed's initial-state load) marks a post as `reposted` when the reader has **either** (a) a legacy `type: 'repost'` reaction on it, **or** (b) their own post whose `repost_of` points at it (read from the reader's followers group). The repeat icon fills (brand) for those posts.
 
-`post-actions.md` defines the engagement row as three axes (`like` / `dislike` / `comments`). A repost is a fourth: `repost` (`interactive` | `display` | `none`, default `none`). It renders a `Repeat2` icon + the repost count, filled (brand) when the reader has reposted, and toggles on tap. The surface owns `reposted` (the reader's own state) + `repostCount` and reports intent via `onToggleRepost` — the same controlled pattern as the like pair.
+## Independent of like / dislike
 
-The axis defaults to `none` so a surface that does not wire it is unaffected. Every surface that renders the engagement row wires it `interactive` (feed, discover, lightbox, profile feed, groups) — one post, one way of reposting, everywhere it shows. In `remote` mode (marketing-ui, anon) the repost is `display` (a count, not a tap target — an anon visitor cannot repost).
+A repost is a separate axis from the like/dislike pair. A user can like *and* repost the same post; the two are independent. Liking does not clear a repost, and reposting does not touch the like.
 
 ## Security invariants
 
-- **I3 holds** — a repost attaches to the same group as the post's other reactions. For a group post, writing a repost requires membership in that group (the same gate as a like). The repost count on any post only reflects reactions in groups the reader can read, so a private post's repost tally is not visible to non-members. A repost doc carries no content from the target (it references it by `ref_value` only), so reading a repost never grants access to the target post.
-- **No escalation** — a repost is a content-free `reactions` doc. It is a signal, not a copy; it cannot be used to read or exfiltrate the target.
+- **I3 holds** — a repost is a normal post in the reposter's followers group; reading it is gated by the same group membership as any post. The embedded original is read by doc_id and degrades to "unavailable" when the reader can't read it. The repost count is scoped to the reader's groups, so a private post's tally is not visible to non-members.
+- **No escalation** — a repost carries no content from the original (it references it by `repost_of` only). Reading a repost never grants access to the original post.
 
 ## What this is not
 
-- **Not a boost / resurface.** A repost does not put the post in the reposter's feed and does not create a new post doc. It is a signal on the target, not a copy. (Resurfacing is a future feature — it needs its own data model: a new post doc that references the original, with attribution + a "reposted from" render + deletion semantics when the original is removed.)
-- **Not a quote.** There is no attached comment. (A quote-repost is also a future feature.)
-- **Not the share / link action.** "Share" (the `Share2` icon, `navigator.share` / clipboard of the permalink) is a separate, surface-owned action in the bar's `trailing` slot. Repost is a data write; share is a link. They were previously conflated (the feed / lightbox "Share" called a no-op `recordRepost`); they are now distinct.
-- **Not a ranking signal (yet).** The power-mean scorer already normalizes a `reposts` signal but weights it `0` ("not a knob yet"). This build makes the count real; wiring it into the ranking (a knob or a fixed weight) is a separate decision.
+- **Not the share / link action.** "Share" (the `Share2` icon, `navigator.share` / clipboard of the permalink) is a separate, surface-owned action. Repost is a data write (a new post); share is a link.
+- **Not a reaction (anymore).** The pre-3.110.0 `type: 'repost'` reaction is retired as the primary mechanism. It still reads as a "reposted" fill for old data and still backs the other surfaces' lightweight boost signal.
+- **Not a ranking signal (yet).** The power-mean scorer normalizes a `reposts` signal but weights it `0`. Wiring it into the ranking (a knob or a fixed weight) is a separate decision.
 
 ## Follow-ups (open)
 
-- **Author nudge** — a repost currently does not notify the post's author (the D69 nudge fires for likes / comments, not reposts). A "X reposted your post" notification is a new notification type + a destination in `notifications.md`.
-- **Resurface / boost** — putting a repost in the reposter's feed (the true "amplify" behavior).
+- **Unify the other surfaces** — Discover / Lightbox / Profile / Groups still write the legacy `type: 'repost'` reaction and count it. Route their repeat icon to the composer (the post-based repost) and count `repost_of` posts, so there is one repost everywhere.
+- **Author nudge** — a repost does not yet notify the original's author. A "X reposted your post" notification is a new notification type + a destination in `notifications.md`.
 - **Ranking weight** — giving the repost signal a non-zero weight in the power-mean (a knob or a fixed value).
 
 ## Reference
 
-- The engagement model (reactions as docs, the `ref_value` join): `../overview.md` + `../../decisions.md` (D62)
-- The shared engagement bar this composes: `./post-actions.md`
-- The reaction data layer this builds on: `../../../../marketing/web10-social/src/data/reactions.ts`
-- The notification a like fires (the repost nudge is the open follow-up): `./notifications.md`
+- The shared engagement bar (the repeat icon axis): `./post-actions.md`
+- The post data layer (`createRepost`): `../../../../marketing/web10-social/src/data/posts.ts`
+- The composer (repost mode): `../../../../marketing/web10-social/src/components/Feed/PostComposer.tsx`
+- The feed render (the reposted card): `../../../../marketing/web10-social/src/components/Feed/FeedScreen.tsx`
+- The notification a like fires (the repost nudge is an open follow-up): `./notifications.md`
 - The visual bar (tokens, states, the screenshot test): `../../../strategy/design.md`
