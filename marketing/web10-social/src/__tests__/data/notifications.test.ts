@@ -24,6 +24,7 @@ function mockClient(overrides: {
   reactions?: unknown[];
   comments?: unknown[];
   cursor?: unknown[];
+  followers?: unknown[];
 } = {}) {
   return {
     readToken: vi.fn(() =>
@@ -36,6 +37,11 @@ function mockClient(overrides: {
       if (collection === 'reactions') return overrides.reactions ?? [];
       if (collection === 'comments') return overrides.comments ?? [];
       if (collection === 'notifications') return overrides.cursor ?? [];
+      return [];
+    }),
+    getGroupMembers: vi.fn(async (groupId: string) => {
+      // Only the test user's own followers group returns members.
+      if (groupId === 'web10.app/groups/users/alice/followers') return overrides.followers ?? [];
       return [];
     }),
     create: vi.fn(async () => ({ doc_id: 'new-doc', author_key: 'alice', body: {} })),
@@ -124,6 +130,52 @@ describe('notifications (app-wide store, D69)', () => {
       // The reaction (Jan 1) predates the cursor (Jan 2) → read.
       expect(notifications.getNotifications()).toHaveLength(1);
       expect(notifications.unreadCount()).toBe(0);
+    });
+
+    it('derives a follow notification for each new follower (excluding self)', async () => {
+      client.getGroupMembers = vi.fn(async (groupId: string) => {
+        if (groupId === 'web10.app/groups/users/alice/followers') {
+          return [
+            { member_key: 'alice', role: 'owner', joined_at: '2026-01-01T00:00:00Z' }, // self (owner)
+            { member_key: 'web10.app/bob', role: 'member', joined_at: '2026-01-03T00:00:00Z' }, // a follower
+            { member_key: 'web10.app/carol', role: 'member', joined_at: '2026-01-04T00:00:00Z' }, // a follower
+          ];
+        }
+        return [];
+      }) as never;
+      await notifications.initNotifications();
+      const follows = notifications.getNotifications().filter((n) => n.type === 'follow_request');
+      // bob + carol — not self (alice, the owner).
+      expect(follows).toHaveLength(2);
+      expect(follows.map((n) => n.from).sort()).toEqual(['bob', 'carol']);
+      // No last_seen cursor → both are unread.
+      expect(notifications.unreadCount()).toBe(2);
+    });
+
+    it('marks a follow read when it predates the last-seen cursor', async () => {
+      client.read = vi.fn(async (collection: string) => {
+        if (collection === 'notifications') return [{ doc_id: 'cursor', author_key: 'web10.app/alice', body: { last_seen: '2026-01-05T00:00:00Z' } }];
+        return [];
+      }) as never;
+      client.getGroupMembers = vi.fn(async (groupId: string) => {
+        if (groupId === 'web10.app/groups/users/alice/followers') {
+          return [
+            { member_key: 'alice', role: 'owner', joined_at: '2026-01-01T00:00:00Z' },
+            { member_key: 'web10.app/bob', role: 'member', joined_at: '2026-01-03T00:00:00Z' }, // before cursor → read
+            { member_key: 'web10.app/carol', role: 'member', joined_at: '2026-01-06T00:00:00Z' }, // after cursor → unread
+          ];
+        }
+        return [];
+      }) as never;
+      await notifications.initNotifications();
+      const follows = notifications.getNotifications().filter((n) => n.type === 'follow_request');
+      expect(follows).toHaveLength(2);
+      // bob (Jan 3) predates the cursor (Jan 5) → read; carol (Jan 6) is after → unread.
+      expect(notifications.unreadCount()).toBe(1);
+      const carol = follows.find((n) => n.from === 'carol');
+      const bob = follows.find((n) => n.from === 'bob');
+      expect(carol?.read).toBe(false);
+      expect(bob?.read).toBe(true);
     });
   });
 
