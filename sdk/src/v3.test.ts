@@ -731,6 +731,36 @@ describe('v3 client', () => {
       expect(call.discoverable).toBe(false)
     })
 
+    it('createGroup with tags passes the label set (D78)', async () => {
+      vi.spyOn(http, 'authPost').mockResolvedValueOnce({ group_id: 'g1' } as any)
+      await client.createGroup('my-group', 'open', [], [{ member_key: 'alice', role: 'owner' }], { tags: ['web10-social-group'] })
+      const call = (vi.mocked(http.authPost).mock.calls[0][1] as any)
+      expect(call.tags).toEqual(['web10-social-group'])
+    })
+
+    it('getMyGroups with tags sends the server-side filter (D78)', async () => {
+      vi.spyOn(http, 'authPost').mockResolvedValueOnce([] as any)
+      await client.getMyGroups({ tags: ['web10-social-group'] })
+      expect(http.authPost).toHaveBeenCalledWith(
+        'http://api.localhost/v3/groups/list',
+        expect.objectContaining({ tags: ['web10-social-group'], token: mockToken }),
+      )
+    })
+
+    it('getMyGroups without tags omits the filter (backward compat)', async () => {
+      vi.spyOn(http, 'authPost').mockResolvedValueOnce([] as any)
+      await client.getMyGroups()
+      const call = (vi.mocked(http.authPost).mock.calls[0][1] as any)
+      expect(call.tags).toBeUndefined()
+    })
+
+    it('updateGroup with tags passes the label set (D78)', async () => {
+      vi.spyOn(http, 'authPost').mockResolvedValueOnce({ group_id: 'g1', join_policy: 'open', my_role: 'owner', member_count: 5, tags: ['web10-social-chat'] } as any)
+      await client.updateGroup('g1', { tags: ['web10-social-chat'] })
+      const call = (vi.mocked(http.authPost).mock.calls[0][1] as any)
+      expect(call.tags).toEqual(['web10-social-chat'])
+    })
+
     it('deleteGroup posts groups/delete', async () => {
       vi.spyOn(http, 'authPost').mockResolvedValueOnce({ group_id: 'g1', status: 'deleted' } as any)
       const result = await client.deleteGroup('g1')

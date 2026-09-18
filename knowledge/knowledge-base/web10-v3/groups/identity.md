@@ -78,6 +78,14 @@ whatever schema + access level it wants. The platform's directory/detail
 endpoints stay **generic** (the name falls back to the group's slug; the app
 renders the full face from its own service).
 
+**Group tags vs. the face `kind`.** A group's *type* — which surface it belongs
+to (a community, a follow target, a DM, a chat) — is a **platform group tag** on
+`group_contracts` (see `overview.md` "Group Tags"), *not* a field on the face.
+The face's `kind` (`'chat'` / `'community'`, D77) is a *render* hint — how to
+render a group once a surface has selected it. The tag selects; `kind` renders.
+The tag is the source of truth for surface routing; `kind` is retained for
+backward compatibility with pre-tag groups and as a render hint.
+
 ## Group Collections
 
 Each group holds collections:

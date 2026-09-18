@@ -9,6 +9,26 @@ Status legend: [decided] intent set · [in-progress] · [open] still debating.
 
 ---
 
+### D78 — Groups carry a platform-level `tags` column; web10-social classifies its groups by tag [decided]
+
+Operator, 18.09.2026 — after the "followers groups showing in My Groups" bug: "is this a fundamental protocol flaw? should groups themselves have tags? … this would be an issue for any app architecture not just social media. we could add tags to the groups in clickhouse, make a clickhouse upgrade right?" Tag scheme: "web10-social-group web10-social-dm web10-social-followers."
+
+**The decision.** `group_contracts` gains a **`tags` column** (`Array(String)`, default `[]`) — a generic, app-agnostic label set on the group primitive, symmetric with the existing `documents.tags` column + `has(tags, …)` read filter. Set at `createGroup(…, { tags })` / `updateGroup(…, { tags })`; selected server-side by a "my groups by tag" read (`group_members` ⋈ `group_contracts` WHERE `has(tags, …)`), I3-scoped to the reader's memberships. The **platform stores + matches tags; the app decides what they mean** — exactly the doc-tag model. web10-social's scheme (namespaced to avoid cross-app collision on a shared node): `web10-social-group` (a community — the Groups surface feed), `web10-social-followers` (a follow target — the following feed), `web10-social-dm` (a 2-member conversation), `web10-social-chat` (an N-member conversation — the Messages surface).
+
+**Why a platform column, and not an identity doc "out of the gate."** The group *face* lives in an **app-named** service (`web10-social-group-identity`, D60). A universal platform can't mandate an app-named service for every group — that bakes a social concept into the protocol. A generic `tags` column is app-agnostic (a music app tags `web10-music-playlist`, a shop `web10-shop-catalog`), so it generalizes to every app, which is the point. The precedent is already in the schema: `group_contracts.discoverable` (UInt8) is a platform-level group attribute added via `ALTER TABLE … ADD COLUMN IF NOT EXISTS` — `tags` is the identical move, one type wider.
+
+**Why it beats the client-side id-pattern blocklist.** My Groups was a blocklist of id shapes (`/followers`, `dm-`, `-{username}`, exact discover id). Blocklists are brittle: they leaked followed users' followers groups (the reported bug) and group chats (a known v1 gap), and any new infra group type leaks too. A tag **whitelist** inverts it: a group shows in a surface only if it carries that surface's tag. Infra groups are excluded by construction (tagged `…-followers` / `…-dm`), a new group type just gets a new tag, and selection is one server-side read — no client-side pattern matching, no "remember every infra shape."
+
+**Relationship to the face `kind` (D77).** The group **tag** is the *selection* classifier (which surface a group belongs to); the face **`kind`** is a *render* hint (how to render it once selected). The tag supersedes `kind` for surface routing (a `web10-social-chat` group is a chat; a `web10-social-group` group is a community); `kind` is retained on the face for backward compatibility with pre-tag groups and as a render hint.
+
+**Backward compatibility / migration.** New groups are tagged at creation. Legacy groups (`tags = []`) are seeded by a **one-time migration** from the current id patterns (followers / dm / discover / app-storage / community), used once, after which the tag is authoritative and the patterns retire — the same shape as the `discoverable` default-flip migration.
+
+**Rejects.** (1) **An identity doc on every group** — the identity service is app-named; a universal platform can't mandate it, so it doesn't generalize. (2) **A group_id prefix/suffix convention** (`chat-`, `/followers`) — collides with real names and is exactly the brittleness being removed. (3) **Client-side id-pattern filtering** — the blocklist that caused the bug. (4) **A platform `kind`/`type` enum** — would bake app concepts (community/chat/followers) into the protocol; a generic `tags` column keeps the platform one size.
+
+**Files:** `groups/overview.md` (the primitive), `groups/identity.md` (tag vs face `kind`), `social/group-chat.md` (the v1 gap is closed); the build is the `group_contracts.tags` column + `createGroup`/`updateGroup`/`getMyGroups({tags})` (API + SDK) + the social app tagging at creation + the one-time migration.
+
+---
+
 ### D77 — Group chat is an N-member group with `kind:'chat'` on its face, rendered in Messages [decided]
 
 Operator, 17.09.2026 — "do we have group messaging or no? group would have a name some kind of chat name. group chat is pretty major thing i feel to just basic cover then our messaging is straight up golden. straight up flagship messaging after that."

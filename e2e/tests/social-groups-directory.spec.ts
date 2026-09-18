@@ -57,7 +57,9 @@ async function addAppContract(request: APIRequestContext, token: string) {
 /**
  * Create a community group. The API derives the deterministic ID `{provider}/
  * groups/users/{creator}/{slug}`. `discoverable` opts the group into the public
- * directory (D53 — NOT discoverable by default).
+ * directory (D53 — NOT discoverable by default). The group is tagged
+ * `web10-social-group` (D78) — the same tag the app's `createCommunityGroup`
+ * writes — so it surfaces in My Groups (which selects by that tag).
  */
 async function createGroup(
   request: APIRequestContext,
@@ -72,6 +74,7 @@ async function createGroup(
     join_policy: opts.joinPolicy ?? 'open',
     roles: COMMUNITY_ROLES,
     members: [{ member_key: creator, role: 'owner' }],
+    tags: ['web10-social-group'],
     ...(opts.discoverable !== undefined ? { discoverable: opts.discoverable } : {}),
   });
   expect(res.ok(), `create group failed (${res.status})`).toBeTruthy();

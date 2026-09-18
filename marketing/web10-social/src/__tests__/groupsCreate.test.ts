@@ -31,14 +31,14 @@ describe('createCommunityGroup — the discoverable (D53) fix', () => {
     // The public read grant (the `anyone` reader row)
     expect(members).toContainEqual({ member_key: 'anyone', role: 'reader' });
     // The D53 blasting flag — public means findable
-    expect(opts).toEqual({ discoverable: true });
+    expect(opts).toEqual({ discoverable: true, tags: ['web10-social-group'] });
   });
 
   it('a signed-in group is NOT listed (discoverable: false)', async () => {
     await createCommunityGroup({ name: 'My Group', visibility: 'signed_in' }, 'jacoby149');
     const [, , , members, opts] = mockCreateGroup.mock.calls[0];
     expect(members).toContainEqual({ member_key: 'authenticated', role: 'reader' });
-    expect(opts).toEqual({ discoverable: false });
+    expect(opts).toEqual({ discoverable: false, tags: ['web10-social-group'] });
   });
 
   it('a private group is NOT listed (discoverable: false)', async () => {
@@ -47,7 +47,7 @@ describe('createCommunityGroup — the discoverable (D53) fix', () => {
     // No reserved reader row for private
     expect(members).not.toContainEqual({ member_key: 'anyone', role: 'reader' });
     expect(members).not.toContainEqual({ member_key: 'authenticated', role: 'reader' });
-    expect(opts).toEqual({ discoverable: false });
+    expect(opts).toEqual({ discoverable: false, tags: ['web10-social-group'] });
   });
 
   it('an explicit discoverable: true lists a private group (override the default)', async () => {
@@ -56,7 +56,7 @@ describe('createCommunityGroup — the discoverable (D53) fix', () => {
     // Still private (no reserved reader row) but listed in the directory
     expect(members).not.toContainEqual({ member_key: 'anyone', role: 'reader' });
     expect(members).not.toContainEqual({ member_key: 'authenticated', role: 'reader' });
-    expect(opts).toEqual({ discoverable: true });
+    expect(opts).toEqual({ discoverable: true, tags: ['web10-social-group'] });
   });
 
   it('an explicit discoverable: false unlists a public group (override the default)', async () => {
@@ -64,7 +64,7 @@ describe('createCommunityGroup — the discoverable (D53) fix', () => {
     const [, , , members, opts] = mockCreateGroup.mock.calls[0];
     // Still public (the `anyone` reader row) but hidden from the directory
     expect(members).toContainEqual({ member_key: 'anyone', role: 'reader' });
-    expect(opts).toEqual({ discoverable: false });
+    expect(opts).toEqual({ discoverable: false, tags: ['web10-social-group'] });
   });
 
   it('the join policy is threaded to createGroup (default open)', async () => {

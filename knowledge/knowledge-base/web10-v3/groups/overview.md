@@ -180,6 +180,23 @@ Groups have three join policies:
 
 **Invite only** — only people the owner explicitly adds can join. Used for close friends, private circles, invited communities.
 
+## Group Tags
+
+A group carries a **`tags`** column — a set of generic string labels, the group-primitive analog of the `documents.tags` column. The platform stores and matches them; **the app decides what they mean.** It is the same model as doc tags: the protocol never learns an app's specifics (D60) — it just stores labels and filters on them with `has(tags, …)`.
+
+```
+group_contracts:
+  group_id, join_policy, roles, discoverable, tags
+```
+
+**Why it exists.** A group is a policy container, but a surface also needs to *select* groups — "give me the communities I'm in," "give me my conversations," "give me my follows." Before tags, an app did that by matching group_id shapes (`…/followers`, `…/dm-…`, `…-{username}`), a brittle blocklist that leaks any group type it doesn't already know about. Tags invert it: a group is selected by the tag a surface looks for, not by the absence of an infra pattern. A new group type just gets a new tag; nothing to "remember."
+
+**Set + read.** Tags are set at creation (`createGroup(name, policy, roles, members, { tags })`) and updated with `updateGroup`. They're read server-side by a "my groups by tag" query — `group_members` ⋈ `group_contracts` filtered by `has(tags, …)`, scoped to the reader's memberships (I3). The `discoverable` flag is the precedent: a platform-level group attribute, added non-destructively via `ALTER TABLE … ADD COLUMN IF NOT EXISTS`.
+
+**Namespacing.** Because a node hosts many apps, app tags are namespaced (`web10-social-group`, `web10-music-playlist`, `web10-shop-catalog`) so they never collide. The platform is indifferent to the value; the namespace is a convention between the app and its surface.
+
+**web10-social's scheme.** `web10-social-group` (a community — the Groups surface feed), `web10-social-followers` (a follow target — the following feed), `web10-social-dm` (a 2-member conversation), `web10-social-chat` (an N-member conversation — the Messages surface). My Groups is `getMyGroups({ tags: ['web10-social-group'] })` — one server-side read, no client-side pattern matching.
+
 ## Default Role
 
 Every group contract declares a `default_role` — the role assigned when:

@@ -273,6 +273,32 @@ identity query). The **detail** is a flexible, principal-based read
 - [✓] **UI: the directory screen** (`marketing/marketing-ui/`) — the browse surface: `/groups` (grid of discoverable groups from `GET /v3/groups/directory`, search by name/owner + topic filter by tag chips) + `/groups/:id` (deep-linkable detail from `GET /v3/groups/detail` — metadata always, posts when the reader is a member else "join to view", 404 not-found state). `GroupCard` component + Navbar "Groups" link. 14 new UI tests (card render/link/skeleton, directory headline/cards/empty/search/tag-filter, detail name/posts/join-to-view/404/skeleton).
 - [✓] **Tests** — unit (identity read + slug fallback, directory query filters `discoverable=1`, directory endpoint shape, detail: non-existent 404s / non-discoverable reachable / member sees posts / non-member "join to view" / anon reads as anon) + e2e (`groups-demo.spec.ts`: directory lists discoverable + excludes non-discoverable; detail 404s ghost / reaches non-discoverable; member sees posts, non-member "join to view").
 
+## Groups: Tags (D78) — Platform
+
+Groups carry a **`tags`** column (`group_contracts.tags`, `Array(String)`,
+default `[]`) — the group-primitive analog of `documents.tags`. The platform
+stores + matches them (`has(tags, …)`); the app decides what they mean. This is
+the group-side of the existing doc-tag primitive: both primitives carry generic
+string labels, the platform filters on them, the app assigns meaning. It makes
+group *selection* a server-side tag read instead of a client-side id-pattern
+blocklist (which leaked followed users' followers groups + group chats). The
+`discoverable` flag is the precedent (a platform-level group attribute added via
+`ALTER TABLE … ADD COLUMN IF NOT EXISTS`). web10-social's scheme (namespaced to
+avoid cross-app collision): `web10-social-group` (community / Groups surface),
+`web10-social-followers` (follow target / following feed), `web10-social-dm`
+(2-member conversation), `web10-social-chat` (N-member conversation / Messages
+surface). My Groups = `getMyGroups({ tags: ['web10-social-group'] })`. The group
+**tag** is the *selection* classifier (which surface); the face **`kind`** (D77)
+is a *render* hint — the tag supersedes `kind` for surface routing.
+
+- [✓ 3.116.1] **Schema: `tags` column** (`api/app/v3/services/clickhouse.py`) — `group_contracts.tags Array(String) DEFAULT []` (boot `ALTER ... ADD COLUMN IF NOT EXISTS`); `create_group`/`update_group`/`get_group` carry tags (named-column insert); `get_user_groups(member, tags)` adds the server-side `has(gc.tags, %(tagN)s)` filter (ANDed, I3-scoped to the reader's memberships).
+- [✓ 3.116.1] **API: create/update/list wire tags** (`api/app/v3/models/groups.py`, `endpoints/groups.py`) — `CreateGroup`/`UpdateGroup` gain `tags`; new `ListMyGroups` model (token + optional `tags`) drives `POST /v3/groups/list`; the create/update endpoints pass tags through.
+- [✓ 3.116.1] **SDK: tag threading** (`sdk/src/v3.ts`) — `V3Group.tags`; `createGroup(…, { tags })`, `updateGroup(…, { tags })`, `getMyGroups({ tags })` (the server-side filter).
+- [✓ 3.116.1] **web10-social: tag at creation + select by tag** (`src/data/groups.ts`, `groupChat.ts`) — `GROUP_TAG` constants; `ensureFollowers`→`-followers`, `ensureDmGroup`→`-dm`, `createCommunityGroup`→`-group`, `createGroupChat`→`-chat`; `getMyCommunityGroups` = `getMyGroups({ tags: ['web10-social-group'] })`, `getMyGroupChats` = `getMyGroups({ tags: ['web10-social-chat'] })` — both server-side tag reads, no client-side pattern matching (supersedes the 3.115.1 `isFollowersGroup` fix for the Groups surface).
+- [✓ 3.116.1] **Migration (one-time, sentinel-gated)** (`api/app/v3/services/clickhouse.py`) — `_migrate_group_tags_backfill` seeds legacy (untagged) live groups from their id shape (`_infer_group_tag`: followers / dm / discover / app-storage / community); skips groups already tagged at creation; runs exactly once (`node_config` sentinel `migration:group_tags_backfill`); the tag is authoritative after it runs.
+- [✓ 3.116.1] **Tests** — API: `create_group`/`update_group` with tags, `get_user_groups` tag filter (`has` clause), the migration (`_infer_group_tag` + backfill seeds-untagged-only + sentinel skip) — 961 green. SDK: `createGroup`/`getMyGroups({tags})`/`updateGroup` tag threading — 125 green. web10-social: `getMyCommunityGroups` + `getMyGroupChats` select by tag, create functions tag correctly — 818 green, `tsc` clean.
+- [✓ 3.116.1] **KB** (`groups/overview.md` "Group Tags", `groups/identity.md` tag-vs-`kind`, `social/group-chat.md` the v1 gap is closed, `decisions.md` D78).
+
 ## Groups: Access Model (D58) — Platform
 
 D58 replaces the group permission model the KB described but the code never

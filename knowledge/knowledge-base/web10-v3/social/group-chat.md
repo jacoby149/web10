@@ -95,11 +95,13 @@ New module `src/data/groupChat.ts` (sibling to `dms.ts`):
   with `body = { message, sender_username, sender_provider, … }`. The write
   gate (D58) requires membership; a non-member 403s (I3).
 
-`getMyCommunityGroups()` is unchanged in v1 — a group chat is a non-infra group, so it
-may **also** appear in the Groups surface's My Groups (a known v1 duplication; the
-`kind: 'chat'` filter there is a small follow-up). The two surfaces are intended to be
-disjoint (Messages = DMs + chats, Groups = communities); v1 just doesn't enforce it on
-the Groups side yet.
+**Surface disjointness (D78).** A group chat carries the platform tag
+`web10-social-chat`; a community carries `web10-social-group`. My Groups selects
+by the `web10-social-group` tag (a server-side `getMyGroups({ tags })` read), so a
+chat is excluded from the Groups surface by construction — the two surfaces are
+disjoint (Messages = DMs + chats, Groups = communities) with no client-side
+pattern matching. (Pre-D78 this was a known v1 duplication, filtered by the face
+`kind` client-side; the tag makes it structural.)
 
 ### Per-sender attribution (why the message body carries the sender)
 
