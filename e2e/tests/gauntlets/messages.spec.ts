@@ -23,10 +23,12 @@ import { dmTruth, assertDmTruth } from './helpers/truth-messages';
  *   - Multi-user: the DM isolation at scale (3 users, A↔B and A↔C) — the
  *     "does the message leak across conversations" test.
  *
- * STRETCH (the KB plan's bites 3-4): the P2P (WebRTC) push and the presence
- * dot (Online/Offline) are timing-sensitive and hard to test reliably on a
- * runner. They are NOT covered here — the CRUD source of truth is. The P2P
- * fast path and the presence flip are left as a stretch.
+ * STRETCH (the KB plan's bites 3-4): the presence dot (Online/Offline) is
+ * timing-sensitive and hard to test reliably on a runner — NOT covered here,
+ * the CRUD source of truth is. The P2P (WebRTC) fast path (the real-time
+ * nudge, no reload) IS now covered by the standalone social-p2p.spec.ts
+ * (3.130.0) — two live accounts, the DM lands in the open thread + the
+ * notification badge pops, witnessed in the DOM with no reload.
  */
 
 const uniqueText = () => `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
