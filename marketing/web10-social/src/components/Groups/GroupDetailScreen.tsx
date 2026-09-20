@@ -50,7 +50,7 @@ import {
   AlertTriangle,
   RefreshCw,
   Globe,
-  Settings,
+  MoreHorizontal,
   ImagePlus,
   Play,
   Pencil,
@@ -588,10 +588,10 @@ export default function GroupDetailScreen({ groupId }: { groupId: string }) {
   // The group has a "face" when it has any of the rich display metadata.
   const hasFace = Boolean(bannerUrl || avatarUrl || hasAbout);
 
-  // The Manage sheet's sections (G2): Profile + Settings are RETIRED — they
-  // fold into the inline edit mode (the "Edit" pencil). The sheet is now the
-  // secondary surface for the list ops that don't fit inline editing:
-  // Members + Roles (G3 formalizes this as the kebab).
+  // The kebab's sections (G3): Profile + Settings are RETIRED — they fold into
+  // the inline edit mode (the "Edit" pencil). The kebab (secondary to the
+  // pencil) is the secondary surface for the list ops that don't fit inline
+  // editing: Members + Roles + the published-delete two-tap confirm.
   const manageSections: ManageSection[] = [
     { id: 'members', label: 'Members', icon: Users, content: <ManageMembersSection groupId={detail.group_id} onSaved={load} /> },
     {
@@ -612,7 +612,7 @@ export default function GroupDetailScreen({ groupId }: { groupId: string }) {
   return (
     <div className="flex flex-col min-h-full bg-background">
       <div className="md:max-w-2xl md:mx-auto flex-1 flex flex-col">
-        {/* Sticky top bar — back + (managers) the Manage entry point */}
+        {/* Sticky top bar — back + (managers) the kebab entry point (G3) */}
         <div className="sticky top-0 z-20 flex items-center justify-between border-b border-border bg-background/90 px-2 py-2 backdrop-blur-md md:static md:border-0 md:bg-transparent md:px-0 md:py-1" data-testid="group-detail-topbar">
           <Button
             variant="ghost"
@@ -626,14 +626,14 @@ export default function GroupDetailScreen({ groupId }: { groupId: string }) {
           </Button>
           {canManage && (
             <Button
-              variant="outline"
-              size="sm"
-              className="gap-1.5"
+              variant="ghost"
+              size="icon"
+              className="h-9 w-9 shrink-0 text-muted-foreground hover:text-foreground"
               onClick={() => setManageOpen(true)}
-              data-testid="group-detail-manage"
+              aria-label="Manage group"
+              data-testid="group-detail-kebab"
             >
-              <Settings className="h-3.5 w-3.5" strokeWidth={1.75} />
-              <span className="hidden sm:inline">Manage</span>
+              <MoreHorizontal className="h-5 w-5" strokeWidth={1.75} />
             </Button>
           )}
         </div>

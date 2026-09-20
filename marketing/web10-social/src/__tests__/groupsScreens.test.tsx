@@ -671,34 +671,34 @@ describe('GroupDetailScreen', () => {
     });
   });
 
-  it('a manager sees the Manage entry point (the group is in getGroupsManages)', async () => {
+  it('a manager sees the kebab entry point (the group is in getGroupsManages)', async () => {
     vi.mocked(getGroupsManages).mockResolvedValue([
       { group_id: GROUP_ID, join_policy: 'open', my_role: 'owner', member_count: 128 },
     ] as never);
     await loadDetail();
     await waitFor(() => {
-      expect(screen.getByTestId('group-detail-manage')).toBeInTheDocument();
+      expect(screen.getByTestId('group-detail-kebab')).toBeInTheDocument();
     });
   });
 
-  it('a non-manager member does NOT see the Manage entry point', async () => {
+  it('a non-manager member does NOT see the kebab entry point', async () => {
     vi.mocked(getGroupsManages).mockResolvedValue([]);
     await loadDetail();
     await waitFor(() => {
       expect(screen.getByTestId('group-detail-hero')).toBeInTheDocument();
     });
-    expect(screen.queryByTestId('group-detail-manage')).not.toBeInTheDocument();
+    expect(screen.queryByTestId('group-detail-kebab')).not.toBeInTheDocument();
   });
 
-  it('clicking Manage opens the management sheet with its tabs (Members + Roles — Profile/Settings retired)', async () => {
+  it('clicking the kebab opens the management sheet with its tabs (Members + Roles — Profile/Settings retired)', async () => {
     vi.mocked(getGroupsManages).mockResolvedValue([
       { group_id: GROUP_ID, join_policy: 'open', my_role: 'owner', member_count: 128 },
     ] as never);
     await loadDetail();
     await waitFor(() => {
-      expect(screen.getByTestId('group-detail-manage')).toBeInTheDocument();
+      expect(screen.getByTestId('group-detail-kebab')).toBeInTheDocument();
     });
-    fireEvent.click(screen.getByTestId('group-detail-manage'));
+    fireEvent.click(screen.getByTestId('group-detail-kebab'));
     await waitFor(() => {
       expect(screen.getByTestId('manage-group-sheet')).toBeInTheDocument();
     });
@@ -878,9 +878,9 @@ describe('GroupDetailScreen', () => {
     ]);
     await loadDetail();
     await waitFor(() => {
-      expect(screen.getByTestId('group-detail-manage')).toBeInTheDocument();
+      expect(screen.getByTestId('group-detail-kebab')).toBeInTheDocument();
     });
-    fireEvent.click(screen.getByTestId('group-detail-manage'));
+    fireEvent.click(screen.getByTestId('group-detail-kebab'));
     await waitFor(() => {
       expect(screen.getByTestId('manage-group-sheet')).toBeInTheDocument();
     });
@@ -909,9 +909,9 @@ describe('GroupDetailScreen', () => {
     vi.mocked(getJoinRequests).mockResolvedValue([{ requester_key: 'web10.app/users/ada', status: 'pending' }] as never);
     await loadDetail();
     await waitFor(() => {
-      expect(screen.getByTestId('group-detail-manage')).toBeInTheDocument();
+      expect(screen.getByTestId('group-detail-kebab')).toBeInTheDocument();
     });
-    fireEvent.click(screen.getByTestId('group-detail-manage'));
+    fireEvent.click(screen.getByTestId('group-detail-kebab'));
     await waitFor(() => {
       expect(screen.getByTestId('manage-group-sheet')).toBeInTheDocument();
     });
@@ -933,9 +933,9 @@ describe('GroupDetailScreen', () => {
     vi.mocked(getGroupMembers).mockResolvedValue([{ member_key: 'web10.app/users/carol', role: 'owner' }]);
     await loadDetail();
     await waitFor(() => {
-      expect(screen.getByTestId('group-detail-manage')).toBeInTheDocument();
+      expect(screen.getByTestId('group-detail-kebab')).toBeInTheDocument();
     });
-    fireEvent.click(screen.getByTestId('group-detail-manage'));
+    fireEvent.click(screen.getByTestId('group-detail-kebab'));
     await waitFor(() => {
       expect(screen.getByTestId('manage-group-sheet')).toBeInTheDocument();
     });
@@ -963,9 +963,9 @@ describe('GroupDetailScreen', () => {
     } as never);
     await loadDetail();
     await waitFor(() => {
-      expect(screen.getByTestId('group-detail-manage')).toBeInTheDocument();
+      expect(screen.getByTestId('group-detail-kebab')).toBeInTheDocument();
     });
-    fireEvent.click(screen.getByTestId('group-detail-manage'));
+    fireEvent.click(screen.getByTestId('group-detail-kebab'));
     await waitFor(() => {
       expect(screen.getByTestId('manage-group-sheet')).toBeInTheDocument();
     });
@@ -988,9 +988,9 @@ describe('GroupDetailScreen', () => {
     ] as never);
     await loadDetail();
     await waitFor(() => {
-      expect(screen.getByTestId('group-detail-manage')).toBeInTheDocument();
+      expect(screen.getByTestId('group-detail-kebab')).toBeInTheDocument();
     });
-    fireEvent.click(screen.getByTestId('group-detail-manage'));
+    fireEvent.click(screen.getByTestId('group-detail-kebab'));
     await waitFor(() => {
       expect(screen.getByTestId('manage-group-sheet')).toBeInTheDocument();
     });
