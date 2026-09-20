@@ -416,7 +416,7 @@ Lane: `discover-reorg` in `parallel-execution.md`.
 - [✓ 3.129.0] **G2: the inline edit mode** (`GroupDetailScreen.tsx` + `ManageGroup/GroupEditMode.tsx`) — the manager "Edit" pencil → the page flips to edit mode (face + settings inline, Save / Cancel); auto-save writes the face doc only (decision 2); no auto-save mid-upload + a nav-away upload warning (decision 3); the name-taken error blocks Save/Publish (decision 1); the Manage sheet's Profile + Settings sections fold in and are retired.
 - [✓ 3.131.0] **G3: the members/roles secondary surface** — the manager **kebab** (secondary to the pencil) opens the existing Members + Roles sections + the **published-delete** two-tap confirm (distinct from the lightweight draft-delete).
 - [✓ 3.134.0] **G4: create = the group page in edit mode (draft)** (`GroupsScreen.tsx`, `GroupDetailScreen.tsx`, `groups.ts`) — "New group" opens the page in edit mode for a draft; changes auto-save (the face doc); **Publish group** / **Delete** (the lightweight draft-delete); the name-taken guard is live; the `CreateGroupSheet` is retired. Gated on G0, G2.
-- [ ] **G5: the screenshot pass** — every state at desktop + 375px, the screenshot test, harness seeds. Gated on G1–G4.
+- [✓ 3.136.0] **G5: the screenshot pass** — every state at desktop + 375px, the screenshot test, harness seeds. Gated on G1–G4.
 
 Lane: `group-as-profile` in `parallel-execution.md`.
 

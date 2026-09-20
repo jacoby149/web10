@@ -729,7 +729,7 @@ export default function GroupDetailScreen({ groupId }: { groupId: string }) {
             )}
           </div>
           <div className="px-4 sm:px-6">
-            <div className="flex items-end justify-between gap-4 -mt-14">
+            <div className="relative flex items-end justify-between gap-4 -mt-14">
               <div className="shrink-0 rounded-full border-4 border-background">
                 <Avatar className={cn('h-20 w-20', hashToColor(detail.group_id))}>
                   {avatarUrl ? (
