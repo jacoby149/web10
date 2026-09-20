@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { useNavigate, useLocation, Outlet } from 'react-router-dom';
 import { cn } from '@/lib/utils';
-import { Home, User, MessageSquare, PlusCircle, LogOut, Bug, Compass, Users, Store, Gamepad2, Radio, Zap, Clapperboard, Settings, MoreHorizontal, X, Bell, ChevronUp, DollarSign } from 'lucide-react';
+import { Home, User, MessageSquare, PlusCircle, LogOut, Bug, Compass, Users, Store, Gamepad2, Radio, Zap, Clapperboard, Settings, MoreHorizontal, X, Bell, ChevronDown, DollarSign } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { getWapi } from '@/data/wapi';
@@ -42,10 +42,11 @@ const nodeMonetizationItem = { path: '/monetize?tab=node', icon: DollarSign, lab
 // Mobile bottom bar: the four core tabs in thumb-reach order.
 const bottomNavItems = [feedItem, discoverItem, messagesItem, profileItem];
 // Desktop sidebar keeps its historical order (Feed, Discover, Groups,
-// Profile, Messages, Settings) — the bottom bar reorders for thumb-reach,
-// the sidebar doesn't need to follow it. Shorts sits after Discover (the
-// video surfaces group together).
-const sidebarNavItems = [feedItem, discoverItem, shortsItem, groupsItem, profileItem, messagesItem, settingsItem];
+// Profile, Messages) — the bottom bar reorders for thumb-reach, the sidebar
+// doesn't need to follow it. Shorts sits after Discover (the video surfaces
+// group together). Settings is NOT a sidebar row — it lives only in the
+// account menu (top bar), so it isn't duplicated in the nav.
+const sidebarNavItems = [feedItem, discoverItem, shortsItem, groupsItem, profileItem, messagesItem];
 
 // Provisional, non-infringing names for the surfaces not yet built. Shorts is
 // now a real surface (shorts.md) — it lives in the sidebar + the More sheet,
@@ -100,6 +101,11 @@ export default function Layout({ onLogout, onReportBug, children }: LayoutProps)
   // "clear way to log out".
   const [userMenuOpen, setUserMenuOpen] = useState(false);
   const userMenuRef = useRef<HTMLDivElement>(null);
+  // The desktop "More" popover — the coming-soon surfaces, tucked out of the
+  // permanent nav (they're not real destinations yet, so they don't hold a
+  // nav row; the popover keeps the roadmap discoverable).
+  const [moreMenuOpen, setMoreMenuOpen] = useState(false);
+  const moreMenuRef = useRef<HTMLDivElement>(null);
   const [displayName, setDisplayName] = useState<string | null>(null);
   const [avatarUrl, setAvatarUrl] = useState<string | undefined>(undefined);
   const username = token?.username ?? '';
@@ -145,6 +151,22 @@ export default function Layout({ onLogout, onReportBug, children }: LayoutProps)
       document.removeEventListener('keydown', onKey);
     };
   }, [userMenuOpen]);
+
+  useEffect(() => {
+    if (!moreMenuOpen) return;
+    const onDown = (e: MouseEvent) => {
+      if (moreMenuRef.current && !moreMenuRef.current.contains(e.target as Node)) setMoreMenuOpen(false);
+    };
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setMoreMenuOpen(false);
+    };
+    document.addEventListener('mousedown', onDown);
+    document.addEventListener('keydown', onKey);
+    return () => {
+      document.removeEventListener('mousedown', onDown);
+      document.removeEventListener('keydown', onKey);
+    };
+  }, [moreMenuOpen]);
 
   const isActive = (path: string) => {
     if (path === '/profile') return pathname.startsWith('/u/');
@@ -289,115 +311,53 @@ export default function Layout({ onLogout, onReportBug, children }: LayoutProps)
             New post
           </button>
 
-          <div className="mt-6 pt-4 border-t border-border/60" aria-label="Coming soon">
-            <p className="px-3 pb-1 text-[0.625rem] font-medium uppercase tracking-wider text-muted-foreground/50">
-              Coming soon
-            </p>
-            {comingSoonItems.map(({ icon: Icon, label, testId }) => (
+          {/* More — the coming-soon surfaces in a popover. They're not real
+              destinations yet, so they don't hold permanent nav rows; the
+              popover keeps the roadmap discoverable without the dead weight. */}
+          <div className="relative mt-4" ref={moreMenuRef}>
+            <button
+              type="button"
+              data-testid="nav-more-desktop"
+              aria-haspopup="menu"
+              aria-expanded={moreMenuOpen}
+              onClick={() => setMoreMenuOpen((o) => !o)}
+              className={cn(
+                'w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all duration-150',
+                moreMenuOpen
+                  ? 'bg-elevated/80 text-foreground'
+                  : 'text-muted-foreground hover:text-foreground hover:bg-elevated/80 hover:border hover:border-border/50',
+              )}
+            >
+              <MoreHorizontal className="w-6 h-6" strokeWidth={1.75} />
+              More
+            </button>
+            {moreMenuOpen && (
               <div
-                key={testId}
-                data-testid={testId}
-                aria-disabled="true"
-                className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium text-muted-foreground/50 cursor-not-allowed select-none"
+                role="menu"
+                data-testid="more-menu"
+                className="absolute left-0 right-0 top-full mt-1 z-30 rounded-lg border border-border bg-popover p-1 shadow-[0_8px_30px_rgb(0,0,0/0.35)]"
               >
-                <Icon className="w-6 h-6" strokeWidth={1.75} />
-                {label}
-                <span className="ml-auto text-[0.5625rem] font-semibold uppercase tracking-wide text-brand-300/80 bg-brand-muted/50 border border-brand/15 rounded-full px-1.5 py-0.5">
-                  Soon
-                </span>
+                <p className="px-3 py-1.5 text-[0.625rem] font-medium uppercase tracking-wider text-muted-foreground/50">
+                  Coming soon
+                </p>
+                {comingSoonItems.map(({ icon: Icon, label, testId }) => (
+                  <div
+                    key={testId}
+                    data-testid={testId}
+                    aria-disabled="true"
+                    className="w-full flex items-center gap-3 px-3 py-2 rounded-md text-sm font-medium text-muted-foreground/50 cursor-not-allowed select-none"
+                  >
+                    <Icon className="w-5 h-5" strokeWidth={1.75} />
+                    {label}
+                    <span className="ml-auto text-[0.5625rem] font-semibold uppercase tracking-wide text-brand-300/80 bg-brand-muted/50 border border-brand/15 rounded-full px-1.5 py-0.5">
+                      Soon
+                    </span>
+                  </div>
+                ))}
               </div>
-            ))}
+            )}
           </div>
         </nav>
-        <div className="relative p-3 border-t border-border" ref={userMenuRef}>
-          <button
-            type="button"
-            data-testid="user-menu-trigger"
-            aria-haspopup="menu"
-            aria-expanded={userMenuOpen}
-            onClick={() => setUserMenuOpen((o) => !o)}
-            className={cn(
-              'w-full flex items-center gap-3 rounded-lg p-2 transition-colors duration-150',
-              'hover:bg-elevated/80 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand/50',
-              userMenuOpen && 'bg-elevated/80',
-            )}
-          >
-            <Avatar className="h-9 w-9">
-              {avatarUrl ? (
-                <AvatarImage src={avatarUrl} alt="" />
-              ) : (
-                <AvatarFallback className="bg-brand-muted text-brand-300 text-sm font-semibold">
-                  {(displayName || username || '?').charAt(0).toUpperCase()}
-                </AvatarFallback>
-              )}
-            </Avatar>
-            <div className="flex-1 min-w-0 text-left">
-              <p className="text-sm font-medium text-foreground truncate">{displayName || username}</p>
-              <p className="text-xs text-muted-foreground truncate">@{username}</p>
-            </div>
-            <ChevronUp
-              className={cn('w-4 h-4 shrink-0 text-muted-foreground transition-transform duration-150', userMenuOpen && 'rotate-180')}
-              strokeWidth={1.75}
-            />
-          </button>
-
-          {userMenuOpen && (
-            <div
-              role="menu"
-              data-testid="user-menu"
-              className="absolute bottom-full left-3 right-3 z-30 mb-2 rounded-lg border border-border bg-popover p-1 shadow-[0_8px_30px_rgb(0_0_0/0.35)]"
-            >
-              <div className="border-b border-border px-3 py-2">
-                <p className="text-[0.625rem] uppercase tracking-wide text-muted-foreground/70">Signed in as</p>
-                <p className="truncate text-sm font-medium text-foreground">{displayName || username}</p>
-                <p className="truncate text-xs text-muted-foreground">@{username}</p>
-              </div>
-              <div className="pt-1">
-                <button
-                  type="button"
-                  role="menuitem"
-                  data-testid="user-menu-profile"
-                  onClick={() => { setUserMenuOpen(false); navigate(profilePath); }}
-                  className="flex w-full items-center gap-2 rounded-md px-3 py-2 text-left text-sm text-foreground hover:bg-elevated transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand/50"
-                >
-                  <User className="w-4 h-4 text-muted-foreground" strokeWidth={1.75} />
-                  Profile
-                </button>
-                <button
-                  type="button"
-                  role="menuitem"
-                  data-testid="user-menu-settings"
-                  onClick={() => { setUserMenuOpen(false); navigate('/settings'); }}
-                  className="flex w-full items-center gap-2 rounded-md px-3 py-2 text-left text-sm text-foreground hover:bg-elevated transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand/50"
-                >
-                  <Settings className="w-4 h-4 text-muted-foreground" strokeWidth={1.75} />
-                  Settings
-                </button>
-                <button
-                  type="button"
-                  role="menuitem"
-                  data-testid="user-menu-report-bug"
-                  onClick={() => { setUserMenuOpen(false); onReportBug(); }}
-                  className="flex w-full items-center gap-2 rounded-md px-3 py-2 text-left text-sm text-foreground hover:bg-elevated transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand/50"
-                >
-                  <Bug className="w-4 h-4 text-muted-foreground" strokeWidth={1.75} />
-                  Report a bug
-                </button>
-                <div className="my-1 h-px bg-border" aria-hidden="true" />
-                <button
-                  type="button"
-                  role="menuitem"
-                  data-testid="logout-button"
-                  onClick={onLogout}
-                  className="flex w-full items-center gap-2 rounded-md px-3 py-2 text-left text-sm text-muted-foreground hover:bg-danger-muted hover:text-danger transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand/50"
-                >
-                  <LogOut className="w-4 h-4" strokeWidth={1.75} />
-                  Log out
-                </button>
-              </div>
-            </div>
-          )}
-        </div>
       </aside>
 
       <main className="flex-1 flex flex-col min-w-0 min-h-0">
@@ -442,6 +402,8 @@ export default function Layout({ onLogout, onReportBug, children }: LayoutProps)
         {/* Desktop top bar (global-search S1): the everything-search lives in
             the chrome — slim at rest (just the search icon, so it never
             crowds a per-screen sticky header), the field expands in place.
+            The account entry point (avatar → user menu) sits on the right —
+            moved here from the bottom of the sidebar, where it was buried.
             Hidden on the Shorts lens (the immersive surface keeps its
             full-bleed frame, like the bottom bar already does). */}
         {!isShorts && (
@@ -450,6 +412,95 @@ export default function Layout({ onLogout, onReportBug, children }: LayoutProps)
             className="hidden md:flex items-center border-b border-border bg-surface/95 backdrop-blur-md z-20"
           >
             <GlobalSearch variant="desktop" />
+            <div className="relative shrink-0 pr-3" ref={userMenuRef}>
+              <button
+                type="button"
+                data-testid="user-menu-trigger"
+                aria-haspopup="menu"
+                aria-expanded={userMenuOpen}
+                onClick={() => setUserMenuOpen((o) => !o)}
+                className={cn(
+                  'flex items-center gap-2.5 rounded-lg pl-1.5 pr-2 py-1.5 transition-colors duration-150',
+                  'hover:bg-elevated/80 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand/50',
+                  userMenuOpen && 'bg-elevated/80',
+                )}
+              >
+                <Avatar className="h-8 w-8">
+                  {avatarUrl ? (
+                    <AvatarImage src={avatarUrl} alt="" />
+                  ) : (
+                    <AvatarFallback className="bg-brand-muted text-brand-300 text-sm font-semibold">
+                      {(displayName || username || '?').charAt(0).toUpperCase()}
+                    </AvatarFallback>
+                  )}
+                </Avatar>
+                <div className="hidden lg:block text-left min-w-0">
+                  <p className="text-sm font-medium text-foreground truncate leading-tight">{displayName || username}</p>
+                  <p className="text-xs text-muted-foreground truncate leading-tight">@{username}</p>
+                </div>
+                <ChevronDown
+                  className={cn('w-4 h-4 shrink-0 text-muted-foreground transition-transform duration-150', userMenuOpen && 'rotate-180')}
+                  strokeWidth={1.75}
+                />
+              </button>
+
+              {userMenuOpen && (
+                <div
+                  role="menu"
+                  data-testid="user-menu"
+                  className="absolute right-0 top-full mt-2 w-64 rounded-lg border border-border bg-popover p-1 shadow-[0_8px_30px_rgb(0,0,0/0.35)] z-30"
+                >
+                  <div className="border-b border-border px-3 py-2">
+                    <p className="text-[0.625rem] uppercase tracking-wide text-muted-foreground/70">Signed in as</p>
+                    <p className="truncate text-sm font-medium text-foreground">{displayName || username}</p>
+                    <p className="truncate text-xs text-muted-foreground">@{username}</p>
+                  </div>
+                  <div className="pt-1">
+                    <button
+                      type="button"
+                      role="menuitem"
+                      data-testid="user-menu-profile"
+                      onClick={() => { setUserMenuOpen(false); navigate(profilePath); }}
+                      className="flex w-full items-center gap-2 rounded-md px-3 py-2 text-left text-sm text-foreground hover:bg-elevated transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand/50"
+                    >
+                      <User className="w-4 h-4 text-muted-foreground" strokeWidth={1.75} />
+                      Profile
+                    </button>
+                    <button
+                      type="button"
+                      role="menuitem"
+                      data-testid="user-menu-settings"
+                      onClick={() => { setUserMenuOpen(false); navigate('/settings'); }}
+                      className="flex w-full items-center gap-2 rounded-md px-3 py-2 text-left text-sm text-foreground hover:bg-elevated transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand/50"
+                    >
+                      <Settings className="w-4 h-4 text-muted-foreground" strokeWidth={1.75} />
+                      Settings
+                    </button>
+                    <button
+                      type="button"
+                      role="menuitem"
+                      data-testid="user-menu-report-bug"
+                      onClick={() => { setUserMenuOpen(false); onReportBug(); }}
+                      className="flex w-full items-center gap-2 rounded-md px-3 py-2 text-left text-sm text-foreground hover:bg-elevated transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand/50"
+                    >
+                      <Bug className="w-4 h-4 text-muted-foreground" strokeWidth={1.75} />
+                      Report a bug
+                    </button>
+                    <div className="my-1 h-px bg-border" aria-hidden="true" />
+                    <button
+                      type="button"
+                      role="menuitem"
+                      data-testid="logout-button"
+                      onClick={onLogout}
+                      className="flex w-full items-center gap-2 rounded-md px-3 py-2 text-left text-sm text-muted-foreground hover:bg-danger-muted hover:text-danger transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand/50"
+                    >
+                      <LogOut className="w-4 h-4" strokeWidth={1.75} />
+                      Log out
+                    </button>
+                  </div>
+                </div>
+              )}
+            </div>
           </header>
         )}
 
