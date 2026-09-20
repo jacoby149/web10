@@ -228,7 +228,12 @@ shape, but the passes need to find the doc's `body.media_refs` + `author_key`
    (any app's face service) and explicit (no magic).
 
 **Engine change:** the boundary CTE's exposed columns gain `ad_mode` +
-`ad_target` (the ad-attach pass reads them off the row). Everything else —
+`ad_target` (the ad-attach pass reads them off the row) and `group_id` (the
+group the doc row belongs to — the join key for group metadata; a doc in N
+readable groups surfaces N rows, one per group, each carrying that
+`group_id` — the multi-group shape is inherent to the doc_groups JOIN, and
+every exposed group is one the reader can already read, so no I3 leak).
+Everything else —
 `resolve_media_urls_in_docs`, `_mint_hls_manifest_urls`, `attach_pinned_ads`,
 `attach_node_ads` — is reused verbatim; the prepare pass is a thin orchestration
 over the existing functions, applied to the query's rows.
