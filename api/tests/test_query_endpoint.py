@@ -176,6 +176,35 @@ class TestHappyPath:
         assert row["body"] == {"text": "hi"}  # parsed, like the read path
         assert row["created_at"] == "2026-09-03T12:00:00Z"  # ISO-8601 UTC
 
+    def test_group_id_column_carries_through_serialization(self, client, token):
+        # QE-A0: the boundary CTE now exposes group_id; the row serializer must
+        # carry it through to the client. A doc in 2 readable groups returns 2
+        # rows, each with its own group_id (the join key for group metadata).
+        with (
+            patch(
+                "app.v3.services.clickhouse.get_user_groups",
+                return_value=[{"group_id": "g1"}, {"group_id": "g2"}],
+            ),
+            patch("app.v3.services.clickhouse.readable_groups", return_value=["g1", "g2"]),
+            patch(
+                "app.v3.services.clickhouse.execute_query",
+                return_value=(
+                    ["doc_id", "author_key", "group_id"],
+                    [("d1", "alice", "g1"), ("d1", "alice", "g2")],
+                ),
+            ),
+        ):
+            resp = client.post(
+                "/v3/query",
+                json={"token": token, "sql": "SELECT doc_id, author_key, group_id FROM posts"},
+            )
+        assert resp.status_code == 200
+        rows = resp.json()["rows"]
+        assert rows == [
+            {"doc_id": "d1", "author_key": "alice", "group_id": "g1"},
+            {"doc_id": "d1", "author_key": "alice", "group_id": "g2"},
+        ]
+
 
 class TestAppContractGate:
     def test_ungranted_service_is_403(self, client, token):

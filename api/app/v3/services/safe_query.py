@@ -77,10 +77,16 @@ RAW_TABLES = frozenset(
     }
 )
 
-# The columns a boundary CTE exposes. A caller can only select from these;
+# The documents columns a boundary CTE exposes. A caller can only select from
+# these (plus `group_id`, from the doc_groups JOIN — see `_boundary_cte_sql`);
 # asking for anything else is a (safe) column-not-found error. `ad_mode` +
 # `ad_target` are exposed so a caller's query (and the engine's prepare pass)
 # can read the doc's ad preference off the row (D73: the feed-as-query).
+#
+# `group_id` is the join key for group metadata (engine-group-metadata.md):
+# a doc in N readable groups surfaces N rows, each carrying that group_id. It
+# is NOT a documents column (it lives in doc_groups), so it is added in the
+# CTE's outer SELECT, not here.
 _CTE_COLUMNS = "doc_id, author_key, body, ref_value, tags, created_at, updated_at, ad_mode, ad_target"
 
 
@@ -120,6 +126,15 @@ def _boundary_cte_sql(service: str, readable_groups: list[str], member_key: str)
 
     No readable groups → a shape-valid CTE that returns nothing (``1 = 0``),
     so a granted-but-empty service degrades to empty, not an error.
+
+    **The CTE exposes ``group_id``** (from the ``doc_groups`` JOIN) as its last
+    column — the join key for group metadata (engine-group-metadata.md). A doc
+    in N readable groups surfaces N rows, one per (doc, group) pair, each
+    carrying that ``group_id``. The multi-group row shape is inherent to the
+    JOIN; exposing the key makes it meaningful. This is safe (no I3 leak): the
+    CTE is already filtered to ``readable_groups`` (``WHERE dg.group_id IN
+    (readable_groups)``), so every exposed ``group_id`` is a group the reader
+    can already read.
     """
     # The tombstone read invariant (KB: db/clickhouse.md "Critical: Tombstone
     # Read Invariant"): dedup-then-filter, never filter-then-dedup. The
@@ -144,7 +159,9 @@ def _boundary_cte_sql(service: str, readable_groups: list[str], member_key: str)
         ") WHERE rn = 1 AND deleted = 0"
     )
     if not readable_groups:
-        return f"SELECT {_CTE_COLUMNS} FROM ({dedup_docs}) d WHERE 1 = 0"
+        # Shape-valid (same columns as the JOIN case, incl. group_id) but
+        # empty: there are no readable groups, so group_id is NULL.
+        return f"SELECT {_CTE_COLUMNS}, CAST(NULL AS String) AS group_id FROM ({dedup_docs}) d WHERE 1 = 0"
     # member_key is node-generated (from the token / "anon"), never caller
     # input; the quoting is defense-in-depth against a stray quote.
     mk = member_key.replace(chr(39), chr(39) * 2)
@@ -186,7 +203,7 @@ def _boundary_cte_sql(service: str, readable_groups: list[str], member_key: str)
     )
     return (
         f"SELECT d.doc_id, d.author_key, d.body, d.ref_value, d.tags, "
-        f"d.created_at, d.updated_at, d.ad_mode, d.ad_target FROM ({dedup_docs}) d "
+        f"d.created_at, d.updated_at, d.ad_mode, d.ad_target, dg.group_id FROM ({dedup_docs}) d "
         f"JOIN ({dedup_groups}) dg ON d.doc_id = dg.doc_id "
         f"WHERE dg.group_id IN ({_quote_group_ids(readable_groups)}) "
         f"AND {filters}"
