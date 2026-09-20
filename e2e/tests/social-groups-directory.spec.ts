@@ -16,8 +16,8 @@ import { v3Post, v3Login, v3Signup } from '../v3-helpers';
  *
  * The API floor pins the app's exact read pattern + the I3 anti-test (a
  * non-member's detail read returns NO posts). The browser gauntlet drives the
- * real /groups screen: Discover tab → join an open group → it appears in My
- * Groups → the detail deep link renders.
+ * real Discover/Groups browser (the directory's home, D3): join an open group
+ * → it appears in My Groups (/groups) → the detail deep link renders.
  *
  * The group_identity write path is a fast-follow (not built), so directory
  * names fall back to the slug — the floor asserts on group_id, not name.
@@ -204,14 +204,17 @@ test.describe('social-groups-directory — API floor (D53 directory + detail)', 
 });
 
 // ---------------------------------------------------------------------------
-// Browser gauntlet — the real /groups screen: Discover → join → My Groups →
-// detail deep link. (Runs on the CI e2e stack, which builds the PR branch.)
+// Browser gauntlet — the Discover/Groups browser (the directory's home, D3) +
+// /groups (My Groups only) + the detail deep link. (Runs on the CI e2e stack,
+// which builds the PR branch.)
 // ---------------------------------------------------------------------------
 
-test.describe('social-groups-directory gauntlet — the /groups screen', () => {
-  test('Discover → join an open group → it appears in My Groups → detail deep link', async ({ page, context, request }) => {
+test.describe('social-groups-directory gauntlet — the Discover/Groups browser + /groups', () => {
+  test('Discover/Groups → join an open group → it appears in My Groups → detail deep link', async ({ page, context, request }) => {
     test.setTimeout(60_000);
-    const logs = captureConsoleLogs(page, '[social:groups]');
+    // Capture both the Discover/Groups browser (`[social:groups-tab]`) and the
+    // /groups My Groups screen (`[social:groups]`) — the open bracket matches both.
+    const logs = captureConsoleLogs(page, '[social:groups');
 
     // Viewer (pre-authed via the token cookie — no login popup).
     const viewer = await signupAndLogin(request, 'sggu');
@@ -228,13 +231,9 @@ test.describe('social-groups-directory gauntlet — the /groups screen', () => {
     const slug = uniqueUser('gauntlet');
     const groupId = await createGroup(request, owner.token, owner.username, slug, { joinPolicy: 'open', discoverable: true });
 
-    // --- Viewer opens /groups (defaults to the My Groups tab) ---
-    await page.goto(`${SOCIAL_BASE}/groups`);
+    // --- Viewer opens the Discover/Groups browser (the directory's new home, D3) ---
+    await page.goto(`${SOCIAL_BASE}/discover?tab=groups`);
     await page.waitForLoadState('networkidle');
-    await expect(page.locator('[data-testid="groups-tab-my"]')).toHaveAttribute('aria-selected', 'true');
-
-    // --- Switch to the Discover tab (deep-linkable ?tab=discover) ---
-    await page.click('[data-testid="groups-tab-discover"]');
     await expect(page.locator('[data-testid="groups-discover-grid"]')).toBeVisible();
 
     // The owner's discoverable group is in the directory.
@@ -245,8 +244,9 @@ test.describe('social-groups-directory gauntlet — the /groups screen', () => {
     await card.locator('[data-testid="groups-join-button"]').click();
     await expect(card.locator('[data-testid="groups-join-button"]')).toContainText('Joined', { timeout: 10000 });
 
-    // --- It now appears in My Groups ---
-    await page.click('[data-testid="groups-tab-my"]');
+    // --- It now appears in My Groups (/groups is My Groups only, D3) ---
+    await page.goto(`${SOCIAL_BASE}/groups`);
+    await page.waitForLoadState('networkidle');
     await expect(page.locator('[data-testid="groups-my-list"]')).toBeVisible();
     await expect(page.locator('[data-testid="groups-my-row"]').filter({ hasText: slug })).toBeVisible();
 
@@ -259,9 +259,10 @@ test.describe('social-groups-directory gauntlet — the /groups screen', () => {
     await expect(page.locator('[data-testid="group-detail-leave"]')).toBeVisible();
 
     // --- Verify console logs (the real flow, in order) ---
-    // `getMyCommunityGroups —` logs on mount AND again after the join (the
-    // reload), so assert on the LAST occurrence — the post-join one.
-    const dirIdx = logs.findIndex((l) => l.includes('loadDirectory — got'));
+    // The directory read logs `loadPage — got` (the Discover/Groups browser),
+    // the join logs `join —`, and My Groups logs `getMyCommunityGroups —` (the
+    // /groups screen, navigated to after the join).
+    const dirIdx = logs.findIndex((l) => l.includes('loadPage — got'));
     const joinIdx = logs.findIndex((l) => l.includes('join —') && l.includes(groupId));
     let myIdx = -1;
     logs.forEach((l, i) => { if (l.includes('getMyCommunityGroups —')) myIdx = i; });
