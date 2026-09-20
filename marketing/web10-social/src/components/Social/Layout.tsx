@@ -10,6 +10,7 @@ import type { ProfileRecord } from '@/data';
 import { useNotifications } from '@/hooks/useNotifications';
 import { useNodeAdmin } from '@/components/Monetization/useNodeAdmin';
 import NotificationBell from '@/components/Notifications/NotificationBell';
+import GlobalSearch from '@/components/Search/GlobalSearch';
 
 interface LayoutProps {
   onLogout: () => void;
@@ -406,6 +407,7 @@ export default function Layout({ onLogout, onReportBug, children }: LayoutProps)
         <header className="md:hidden flex items-center justify-between px-4 h-14 border-b border-border bg-surface/95 backdrop-blur-md sticky top-0 z-20 gap-2">
           <Wordmark />
           <div className="flex items-center gap-1">
+            <GlobalSearch variant="mobile" />
             <NotificationBell />
             <Button
               variant="ghost"
@@ -439,6 +441,20 @@ export default function Layout({ onLogout, onReportBug, children }: LayoutProps)
             </Button>
           </div>
         </header>
+
+        {/* Desktop top bar (global-search S1): the everything-search lives in
+            the chrome — slim at rest (just the search icon, so it never
+            crowds a per-screen sticky header), the field expands in place.
+            Hidden on the Shorts lens (the immersive surface keeps its
+            full-bleed frame, like the bottom bar already does). */}
+        {!isShorts && (
+          <header
+            data-testid="topbar-desktop"
+            className="hidden md:flex items-center border-b border-border bg-surface/95 backdrop-blur-md z-20"
+          >
+            <GlobalSearch variant="desktop" />
+          </header>
+        )}
 
         {/* The always-on signal (D69): a live "N new" strip above every screen.
             It clears the moment you open /notifications (which marks all read),
