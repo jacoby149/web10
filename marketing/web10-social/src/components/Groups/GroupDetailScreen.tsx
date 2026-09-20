@@ -255,11 +255,18 @@ export default function GroupDetailScreen({ groupId }: { groupId: string }) {
   // Edit mode STAGES the changes — the live group is frozen at the last commit;
   // Save/Publish is the atomic commit, Cancel discards.
   const [editing, setEditing] = useState(false);
+  // A draft is being created right now (G4: the "New group" flow lands here
+  // with ?edit=1) — the draft-delete in the action row is lightweight
+  // (one-tap, no confirm): the group is inert, discarding it frees the slug.
+  const [deletingDraft, setDeletingDraft] = useState(false);
   // A banner/avatar upload is in flight (reported by GroupEditMode, decision 3).
   // Gates the save (no auto-save mid-upload) + the nav-away warning.
   const [uploading, setUploading] = useState(false);
   // The nav-away-mid-upload warning is showing (decision 3).
   const [uploadWarning, setUploadWarning] = useState(false);
+  // The create-time slug guard (G4, decision 1): true while an active group
+  // exists at the draft's slug. Gates Publish (the guard is live in edit mode).
+  const [slugTaken, setSlugTaken] = useState(false);
 
   // The tabs (G1): Feed (default, bare URL) | Media (?tab=media). The URL holds
   // the active tab (the deep-link rule) — refresh restores it, back/forward
@@ -341,6 +348,24 @@ export default function GroupDetailScreen({ groupId }: { groupId: string }) {
   useEffect(() => {
     load();
   }, [load]);
+
+  // G4: a draft opens in edit mode — the create flow lands here with ?edit=1,
+  // and a draft with no staged name yet is still being configured. The page IS
+  // the form (the operator's "profile looking page come up in the edit mode").
+  // The flag is cleared on entry so a refresh mid-create doesn't re-flip a
+  // named draft into edit mode (it re-opens via the pencil like any group).
+  useEffect(() => {
+    if (loading || editing || identity.status !== 'draft') return;
+    const wantsEdit = searchParams.get('edit') === '1' || !identity.name;
+    if (!wantsEdit) return;
+    LOG('draft — auto-opening edit mode', id);
+    setEditing(true);
+    if (searchParams.get('edit') === '1') {
+      const params = new URLSearchParams(searchParams);
+      params.delete('edit');
+      setSearchParams(params, { replace: true });
+    }
+  }, [loading, editing, identity.status, identity.name, id, searchParams, setSearchParams]);
 
   // ── Media tab (G1): the paged insta grid ──────────────────────────────────
   // `loadMediaPage` reads one page (limit/offset) of the group's media posts +
@@ -482,6 +507,12 @@ export default function GroupDetailScreen({ groupId }: { groupId: string }) {
     async (staged: GroupCommitInput) => {
       if (!detail) return;
       const isDraft = identity.status === 'draft';
+      // The create-time slug guard (decision 1) is live in edit mode: a draft
+      // can't publish onto a slug another active group owns.
+      if (isDraft && slugTaken) {
+        LOG('edit save — blocked: slug taken', detail.group_id);
+        return;
+      }
       LOG('edit save — atomic commit', detail.group_id, { isDraft });
       if (isDraft) {
         await publishGroup(detail.group_id, staged);
@@ -491,7 +522,7 @@ export default function GroupDetailScreen({ groupId }: { groupId: string }) {
       setEditing(false);
       await load();
     },
-    [detail, identity.status, load],
+    [detail, identity.status, slugTaken, load],
   );
 
   // Cancel discards the stage (decision 2) — the live state was never touched,
@@ -500,6 +531,26 @@ export default function GroupDetailScreen({ groupId }: { groupId: string }) {
     LOG('edit cancel — discarding stage');
     setEditing(false);
   }, []);
+
+  // The lightweight draft-delete (G4): only reachable on a draft (the create
+  // flow's action row). One tap — the group is inert (unlisted, owner-only),
+  // so discarding it can't kill a live community; the tombstone frees the slug
+  // (delete-then-recreate is safe, G0). The published-delete two-tap confirm
+  // lives in the kebab (G3) and is a different path.
+  const handleDeleteDraft = useCallback(async () => {
+    if (!detail || deletingDraft) return;
+    LOG('draft delete —', detail.group_id);
+    setDeletingDraft(true);
+    try {
+      await deleteGroup(detail.group_id);
+      LOG('draft delete — done, back to groups');
+      navigate('/groups');
+    } catch (e) {
+      LOG('draft delete — failed:', e);
+      toast.error(errorMessage(e, 'Could not delete the draft.'));
+      setDeletingDraft(false);
+    }
+  }, [detail, deletingDraft, navigate]);
 
   // The back button (decision 3): a nav-away while an upload is in flight shows
   // the warning (stay / leave) instead of leaving immediately.
@@ -654,6 +705,10 @@ export default function GroupDetailScreen({ groupId }: { groupId: string }) {
                 onUploadingChange={setUploading}
                 onSave={handleEditSave}
                 onCancel={handleEditCancel}
+                slugTaken={slugTaken}
+                onSlugTakenChange={setSlugTaken}
+                onDelete={handleDeleteDraft}
+                deleting={deletingDraft}
               />
             </div>
           ) : (
@@ -691,6 +746,11 @@ export default function GroupDetailScreen({ groupId }: { groupId: string }) {
                   <h1 className="truncate font-display text-xl font-bold text-foreground" data-testid="group-detail-name">
                     {displayName}
                   </h1>
+                  {identity.status === 'draft' && (
+                    <Badge variant="outline" className="normal-case tracking-normal" data-testid="group-detail-draft">
+                      Draft
+                    </Badge>
+                  )}
                   {detail.discoverable && (
                     <Badge variant="brand" className="normal-case tracking-normal" data-testid="group-detail-listed">
                       Listed
@@ -759,7 +819,7 @@ export default function GroupDetailScreen({ groupId }: { groupId: string }) {
             {!hasFace && canManage && (
               <button
                 type="button"
-                onClick={() => setManageOpen(true)}
+                onClick={() => (identity.status === 'draft' ? setEditing(true) : setManageOpen(true))}
                 className="mt-3 flex w-full items-center justify-center gap-2 rounded-lg border border-dashed border-border bg-surface px-3 py-3 text-sm font-medium text-muted-foreground transition-colors hover:border-brand/40 hover:text-brand-300 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                 data-testid="group-detail-add-face"
               >

@@ -86,6 +86,40 @@ render a group once a surface has selected it. The tag selects; `kind` renders.
 The tag is the source of truth for surface routing; `kind` is retained for
 backward compatibility with pre-tag groups and as a render hint.
 
+## The draft state (group-as-profile, G0/G4)
+
+The face carries a `status` field: `'draft' | 'published'` (absent =
+`published` — every pre-existing group is live). A **draft** is a group that
+exists but is not live:
+
+- **Inert by construction.** A draft is created `discoverable=false` with the
+  owner as the *only* member (no reserved read-grant row). The directory
+  filters `discoverable=1` and everyone's list is membership-scoped, so a
+  draft is invisible to the directory and to every list but the owner's. No
+  leak — the two existing gates do the work.
+- **The face is the stage.** While a draft is being configured, edits are
+  written to the face doc freely (the social app auto-saves the stage,
+  debounced — "always save the group as draft"). Nothing is live, so writing
+  the stage is safe. The face also carries the **staged settings**
+  (`visibility` / `join_policy` / `discoverable`) — they ride in the face
+  during edit and are applied to the group contract **only on the atomic
+  commit** (Publish), never continuously.
+- **The atomic commit is the only write to live.** Publish (a draft going
+  live) and Save (a published group updating in place) are the same ordered
+  sequence: face `status → 'published'` → `update_group` (join_policy +
+  discoverable) → the D58 read-grant member rows reconciled to the
+  who-can-read. Name + profile + settings land in one go — never a partial
+  live state.
+- **The slug is the identity, the display name is free.** The group_id's last
+  segment (the slug) is checked against `get_group` at create time — the node's
+  `create_group` is a bare INSERT with no collision guard (latest-row-wins), so
+  the client guards it. A tombstoned group does not count (delete-then-recreate
+  is safe). After create the slug is fixed (the group's "domain name"); the
+  display name in the face can change freely.
+- **Two deletes, never conflated.** A draft is discarded with a lightweight
+  delete (one tap — it's inert, and the tombstone frees the slug). A published
+  group is deleted with the two-tap confirm (it's a live community).
+
 ## Group Collections
 
 Each group holds collections:
