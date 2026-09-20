@@ -18,6 +18,7 @@ from . import (
     preview,
     query,
     recovery,
+    users,
 )
 
 router = APIRouter(prefix="/v3")
@@ -46,6 +47,9 @@ router.include_router(query.router, prefix="")
 
 # Group contracts — groups (including group-scoped blocking/sharing)
 router.include_router(groups.router, prefix="/groups")
+
+# People directory (D0) — the public people read
+router.include_router(users.router, prefix="/users")
 
 # User-wide blocking
 router.include_router(blocking.router, prefix="")
