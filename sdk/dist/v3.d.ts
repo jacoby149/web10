@@ -218,6 +218,16 @@ export interface V3User {
 export interface V3LoginResponse {
     token: string;
 }
+export interface V3DirectoryUser {
+    username: string;
+    follower_count: number;
+    profile: Record<string, unknown>;
+}
+export interface V3PeoplePage {
+    users: V3DirectoryUser[];
+    limit: number;
+    offset: number;
+}
 /** Overall verdict. `inconclusive` = a check couldn't run (store unreadable)
  *  and nothing is decisively wrong — the client takes no action, retries later. */
 export type AccessStatus = 'ok' | 'degraded' | 'invalid' | 'inconclusive';
@@ -325,6 +335,10 @@ export interface V3Client {
         groups?: string[];
         prepare?: V3Prepare;
     }): Promise<V3QueryResult>;
+    listPeopleDirectory(opts?: {
+        limit?: number;
+        offset?: number;
+    }): Promise<V3PeoplePage>;
     update(docId: string, body: Record<string, unknown>, opts?: {
         groups?: string[];
         ad_preference?: V3AdPreference;
