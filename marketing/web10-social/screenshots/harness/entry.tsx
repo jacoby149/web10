@@ -79,6 +79,8 @@ const initialRoute =
   : screen === 'notifications' ? '/notifications'
   : screen === 'discover' ? '/discover'
   : screen === 'discover-youtube' ? '/discover?view=youtube'
+  : screen === 'discover-people' ? '/discover?tab=people'
+  : screen === 'discover-groups' ? '/discover?tab=groups'
   : screen === 'shorts' || screen === 'install-prompt' ? '/shorts'
   : screen === 'groups' ? '/groups'
   : screen === 'groups-discover' ? '/groups?tab=discover'

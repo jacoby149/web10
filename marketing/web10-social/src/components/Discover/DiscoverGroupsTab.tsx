@@ -1,0 +1,40 @@
+import { Layers, Search } from 'lucide-react';
+
+// D1 (discover-reorg.md): the Discover/Groups subtab — a DESIGNED PLACEHOLDER
+// until D3 lands the real Groups browser (the D53 directory cards + ?tag= +
+// pagination + the ?q= filter). The shell (DiscoverScreen) owns ?tab= and ?q=
+// and hands the query down as a prop — the subtab has NO search field of its
+// own (search is the top bar, S1/S2). D3 replaces the body of this file; the
+// prop contract stays.
+
+interface DiscoverGroupsTabProps {
+  /** The active query from ?q= (set by the top bar's "see more groups"). */
+  query: string;
+}
+
+export default function DiscoverGroupsTab({ query }: DiscoverGroupsTabProps) {
+  const q = query.trim();
+  return (
+    <div
+      data-testid="discover-groups-tab"
+      className="flex flex-col items-center justify-center px-8 py-16 text-center"
+    >
+      <div className="mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-brand-muted/50">
+        <Layers className="h-8 w-8 text-brand-400" strokeWidth={1.5} />
+      </div>
+      <h2 className="font-display text-xl font-semibold text-foreground">Groups</h2>
+      <p className="mt-2 max-w-sm text-sm text-muted-foreground">
+        Discover the communities on your node and join the ones you like.
+      </p>
+      {q && (
+        <span
+          data-testid="discover-groups-tab-query"
+          className="mt-4 inline-flex items-center gap-1.5 rounded-full border border-brand/40 bg-brand-muted/40 px-3 py-1 text-xs text-brand-300"
+        >
+          <Search className="h-3.5 w-3.5" strokeWidth={1.75} />
+          {q}
+        </span>
+      )}
+    </div>
+  );
+}
