@@ -143,6 +143,15 @@ CANNOT_CONVERT_TYPE.
 p.group_id = gm.group_id` — a doc in N readable groups has N rows, each
 joining the metadata of its own group.
 
+**The I3 proof is pinned end to end** (QE-C, the seatbelt):
+`e2e/tests/query-engine.spec.ts` runs the compiled SQL against a real
+ClickHouse with real membership data and pins the semantics the unit tests
+can't — a private group's metadata is NULL (not zero) to a non-reader and
+present to a member; `ORDER BY … NULLS LAST` puts unreadable groups last with
+no rank signal; private groups of different sizes are indistinguishable to a
+non-reader (no count leak); and the raw tables 403 in every shape (top-level,
+caller CTE, subquery) even with the opt-in on.
+
 ## Why the guarantee holds
 
 **The boundary is on the input, not the output.** This is the whole thing. If
@@ -192,8 +201,9 @@ membrane that must not leak:
 | unknown / system / ungranted table rejected | `test_unknown_table_rejected`, `test_system_table_rejected`, `test_ungranted_service_rejected` |
 | group_meta rejected without opt-in / injected with it | `test_group_meta_rejected_without_opt_in`, `test_group_meta_cte_injected_with_opt_in` |
 | group_meta CASE-NULLs unreadable groups (no WHERE-filter) | `test_group_meta_nulls_unreadable_groups_not_filters_them` |
-| raw tables still rejected with group_meta on | `test_group_meta_raw_tables_still_blocked_with_opt_in`, `test_group_meta_raw_table_in_caller_cte_rejected_with_opt_in` |
+| raw tables still rejected with group_meta on (top / caller CTE / subquery) | `test_group_meta_raw_tables_still_blocked_with_opt_in`, `test_group_meta_raw_table_in_caller_cte_rejected_with_opt_in`, `test_group_meta_raw_table_in_subquery_rejected_with_opt_in` |
 | group_meta edge shapes (no candidates / no readable) | `test_group_meta_empty_candidates_shape_valid`, `test_group_meta_empty_readable_all_null` |
+| group_meta I3 semantics on live data (value NULL, no rank leak, no count leak, wall holds) | `e2e/tests/query-engine.spec.ts` — the `group_meta (QE-C: the I3 anti-tests)` block (the seatbelt: real ClickHouse, real membership data) |
 | non-SELECT rejected | `test_non_select_rejected` |
 | unparseable rejected | `test_unparseable_rejected` |
 | aggregation can't leak past the boundary | `test_aggregation_cannot_leak_past_the_boundary` |

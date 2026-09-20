@@ -143,6 +143,18 @@ def test_group_meta_raw_table_in_caller_cte_rejected_with_opt_in():
         )
 
 
+def test_group_meta_raw_table_in_subquery_rejected_with_opt_in():
+    # Completeness (QE-C): a raw-table reference inside a subquery is caught
+    # even when the opt-in is on — the AST walk visits every Table node, and
+    # the opt-in only whitelists the reserved `group_meta` name.
+    with pytest.raises(UnsafeQueryError, match="raw table 'group_members'"):
+        build_safe_query(
+            "SELECT * FROM posts WHERE doc_id IN (SELECT doc_id FROM group_members)",
+            {"posts": [DISCOVER]},
+            group_meta=([DISCOVER], [DISCOVER]),
+        )
+
+
 def test_group_meta_join_with_content_cte_compiles_and_reparses():
     # The reference shape: join content to group metadata on the group_id key.
     out = build_safe_query(

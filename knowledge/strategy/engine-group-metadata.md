@@ -271,7 +271,7 @@ the sort I3-honest, and a WHERE-filter would quietly break it.
 - [✓ 3.126.0] **QE-B: the SDK change** (`sdk/src/v3.ts`) — `w.query(sql, { groups,
   prepare, withGroupMeta })` + the `V3Prepare`/query types. `dist/` +
   `public/wapi.js` rebuilt + re-synced.
-- [ ] **QE-C: the I3 anti-tests** (the seatbelt — the most important bite) — a
+- [✓ 3.127.0] **QE-C: the I3 anti-tests** (the seatbelt — the most important bite) — a
   reader can't see/infer a group's metadata they can't read: the value is NULL;
   the sort doesn't reveal the rank; the NULL pattern doesn't reveal the count; a
   private group's `member_count` is absent to a non-reader but present to a
