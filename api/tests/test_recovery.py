@@ -192,6 +192,20 @@ class TestComplete:
         assert cu.call_args[1]["email"] == ""
         vp.assert_called_once_with("newbie")
 
+    def test_complete_lowercases_new_account_username(self, client):
+        """Uppercase input is lowercased before create (case-insensitive)."""
+        token = _make_verify_token("+15551234567", "phone")
+        with patch("app.v3.services.clickhouse.get_user", return_value=None):
+            with patch(
+                "app.v3.services.clickhouse.create_user",
+                return_value={"username": "newbie", "phone": "+15551234567", "email": ""},
+            ) as cu:
+                with patch("app.v3.services.clickhouse.verify_phone") as vp:
+                    resp = client.post("/v3/recovery/complete", json={"verify_token": token, "username": "Newbie"})
+        assert resp.status_code == 200
+        assert cu.call_args[0][0] == "newbie"
+        vp.assert_called_once_with("newbie")
+
     def test_complete_new_account_with_password_and_email(self, client):
         token = _make_verify_token("user@example.com", "email")
         with patch("app.v3.services.clickhouse.get_user", return_value=None):
