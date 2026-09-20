@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
-import { MemoryRouter } from 'react-router-dom';
+import { MemoryRouter, useLocation } from 'react-router-dom';
 import '@testing-library/jest-dom';
 import * as data from '@/data';
 
@@ -1389,5 +1389,164 @@ describe('DiscoverScreen — the engagement bar is interactive (post-actions.md)
     await waitFor(() => {
       expect(card.querySelector('[data-testid="like-button"]')).toHaveAttribute('aria-pressed', 'true');
     });
+  });
+});
+
+// ── D1: the Discover subtab shell (Posts | People | Groups) ─────────────────
+// The shell owns ?tab= (posts is the bare URL) and ?q= (passed to the active
+// subtab). The subtabs have no search field of their own — search is the
+// top bar (a different lane). The Posts view is a no-regression.
+
+describe('DiscoverScreen — subtab shell (D1)', () => {
+  // A probe that captures the router location (MemoryRouter keeps its own
+  // history — window.location never moves).
+  let lastSearch = '';
+  function LocationProbe() {
+    const location = useLocation();
+    lastSearch = location.search;
+    return null;
+  }
+
+  async function renderDiscoverAt(path: string) {
+    const { default: DiscoverScreen } = await import('@/components/Discover/DiscoverScreen');
+    lastSearch = '';
+    return render(
+      <MemoryRouter initialEntries={[path]}>
+        <LocationProbe />
+        <DiscoverScreen />
+      </MemoryRouter>,
+    );
+  }
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+    (data.readDiscoverFeed as ReturnType<typeof vi.fn>).mockResolvedValue([
+      {
+        _id: 'p1',
+        author: 'user1',
+        author_username: 'user1',
+        author_provider: 'api.web10.app',
+        text: 'A trending post',
+        tags: ['trending'],
+        created_at: new Date().toISOString(),
+        likes: 10,
+        comments: 2,
+        reposts: 1,
+        score: 13,
+      },
+    ]);
+    (data.getV3Client as ReturnType<typeof vi.fn>).mockReturnValue({
+      read: vi.fn().mockResolvedValue([]),
+      readToken: vi.fn().mockReturnValue({ provider: 'test.localhost', username: 'testuser' }),
+    });
+  });
+
+  it('renders the Posts | People | Groups tab row with Posts active by default', async () => {
+    await renderDiscoverAt('/discover');
+    await waitFor(() => {
+      expect(screen.getByTestId('discover-tab-row')).toBeInTheDocument();
+    });
+    expect(screen.getByTestId('discover-tab-posts')).toHaveAttribute('aria-selected', 'true');
+    expect(screen.getByTestId('discover-tab-people')).toHaveAttribute('aria-selected', 'false');
+    expect(screen.getByTestId('discover-tab-groups')).toHaveAttribute('aria-selected', 'false');
+  });
+
+  it('switches to the People placeholder and hides the Posts board', async () => {
+    await renderDiscoverAt('/discover');
+    await waitFor(() => {
+      expect(screen.getByTestId('discover-grid')).toBeInTheDocument();
+    });
+
+    fireEvent.click(screen.getByTestId('discover-tab-people'));
+
+    await waitFor(() => {
+      expect(screen.getByTestId('discover-people-tab')).toBeInTheDocument();
+    });
+    expect(screen.getByTestId('discover-tab-people')).toHaveAttribute('aria-selected', 'true');
+    // The Posts board + its search field are gone on the People subtab.
+    expect(screen.queryByTestId('discover-grid')).not.toBeInTheDocument();
+    expect(screen.queryByTestId('discover-search')).not.toBeInTheDocument();
+  });
+
+  it('switches to the Groups placeholder and back to Posts', async () => {
+    await renderDiscoverAt('/discover');
+    await waitFor(() => {
+      expect(screen.getByTestId('discover-grid')).toBeInTheDocument();
+    });
+
+    fireEvent.click(screen.getByTestId('discover-tab-groups'));
+    await waitFor(() => {
+      expect(screen.getByTestId('discover-groups-tab')).toBeInTheDocument();
+    });
+    expect(screen.queryByTestId('discover-grid')).not.toBeInTheDocument();
+
+    // Back to Posts restores the board.
+    fireEvent.click(screen.getByTestId('discover-tab-posts'));
+    await waitFor(() => {
+      expect(screen.getByTestId('discover-grid')).toBeInTheDocument();
+    });
+    expect(screen.queryByTestId('discover-groups-tab')).not.toBeInTheDocument();
+  });
+
+  it('restores the People subtab from ?tab=people on initial render', async () => {
+    await renderDiscoverAt('/discover?tab=people');
+    await waitFor(() => {
+      expect(screen.getByTestId('discover-people-tab')).toBeInTheDocument();
+    });
+    expect(screen.getByTestId('discover-tab-people')).toHaveAttribute('aria-selected', 'true');
+    expect(screen.queryByTestId('discover-grid')).not.toBeInTheDocument();
+  });
+
+  it('restores the Groups subtab from ?tab=groups on initial render', async () => {
+    await renderDiscoverAt('/discover?tab=groups');
+    await waitFor(() => {
+      expect(screen.getByTestId('discover-groups-tab')).toBeInTheDocument();
+    });
+    expect(screen.getByTestId('discover-tab-groups')).toHaveAttribute('aria-selected', 'true');
+    expect(screen.queryByTestId('discover-grid')).not.toBeInTheDocument();
+  });
+
+  it('treats an unknown ?tab= value as Posts (the bare-URL default)', async () => {
+    await renderDiscoverAt('/discover?tab=bogus');
+    await waitFor(() => {
+      expect(screen.getByTestId('discover-grid')).toBeInTheDocument();
+    });
+    expect(screen.getByTestId('discover-tab-posts')).toHaveAttribute('aria-selected', 'true');
+  });
+
+  it('passes ?q= through to the active People subtab', async () => {
+    await renderDiscoverAt('/discover?tab=people&q=lofi');
+    await waitFor(() => {
+      expect(screen.getByTestId('discover-people-tab')).toBeInTheDocument();
+    });
+    expect(screen.getByTestId('discover-people-tab-query')).toHaveTextContent('lofi');
+  });
+
+  it('passes ?q= through to the active Groups subtab', async () => {
+    await renderDiscoverAt('/discover?tab=groups&q=study');
+    await waitFor(() => {
+      expect(screen.getByTestId('discover-groups-tab')).toBeInTheDocument();
+    });
+    expect(screen.getByTestId('discover-groups-tab-query')).toHaveTextContent('study');
+  });
+
+  it('writes ?tab= to the URL on switch and clears it for Posts (bare URL)', async () => {
+    await renderDiscoverAt('/discover');
+    await waitFor(() => {
+      expect(screen.getByTestId('discover-grid')).toBeInTheDocument();
+    });
+
+    fireEvent.click(screen.getByTestId('discover-tab-people'));
+    await waitFor(() => {
+      expect(screen.getByTestId('discover-people-tab')).toBeInTheDocument();
+    });
+    expect(lastSearch).toBe('?tab=people');
+
+    fireEvent.click(screen.getByTestId('discover-tab-posts'));
+    await waitFor(() => {
+      expect(screen.getByTestId('discover-grid')).toBeInTheDocument();
+    });
+    // posts is the bare URL — the ?tab= param is removed.
+    expect(lastSearch).toBe('');
   });
 });
