@@ -416,6 +416,24 @@ export async function readGroupDirectory(): Promise<SeedDirectoryEntry[]> {
   return DIRECTORY;
 }
 export async function readGroupDetail(groupId: string): Promise<unknown> {
+  // The G4 create-flow capture: a draft group (inert — unlisted, owner-only,
+  // face status:'draft'). The harness user ('me') owns it.
+  if (groupId === 'web10/groups/users/me/new-group') {
+    return {
+      group_id: 'web10/groups/users/me/new-group',
+      name: 'new-group',
+      owner: 'me',
+      slug: 'new-group',
+      join_policy: 'open',
+      discoverable: false,
+      member_count: 1,
+      roles: [],
+      permission_summary: 'member: readAll, create',
+      is_member: true,
+      posts_state: 'ok',
+      posts: [],
+    };
+  }
   const entry = DIRECTORY.find((g) => g.group_id === groupId) ?? DIRECTORY[0];
   return {
     group_id: entry.group_id,
@@ -445,6 +463,19 @@ export async function readGroupIdentity(groupId: string): Promise<unknown> {
   // Per-group faces so the My Groups list capture shows a mix of face states:
   // nova → banner + avatar, luna → banner only, kai → no face (gradient fallback).
   const faces: Record<string, unknown> = {
+    // The G4 create-flow capture: the draft's face (status:'draft', staged
+    // settings in the face — decision 2).
+    'web10/groups/users/me/new-group': {
+      name: 'New group',
+      description: '',
+      banner_ref: '',
+      avatar_ref: '',
+      tags: [],
+      status: 'draft',
+      visibility: 'private',
+      join_policy: 'open',
+      discoverable: false,
+    },
     'web10/groups/users/nova/synthwave-sessions': {
       name: 'Synthwave Sessions',
       description: 'A shared space on your node — content you co-create with the people you choose.',
@@ -472,8 +503,12 @@ export async function readGroupIdentity(groupId: string): Promise<unknown> {
 }
 export async function getGroupsManages(): Promise<unknown[]> {
   // The harness user manages the synthwave-sessions group → the detail screen
-  // shows the manager-only "Manage" entry point in the capture.
-  return [{ group_id: 'web10/groups/users/nova/synthwave-sessions', join_policy: 'open', my_role: 'owner', member_count: 128 }];
+  // shows the manager-only "Manage" entry point in the capture. The draft
+  // (the G4 create-flow capture) is owned by the harness user too.
+  return [
+    { group_id: 'web10/groups/users/nova/synthwave-sessions', join_policy: 'open', my_role: 'owner', member_count: 128 },
+    { group_id: 'web10/groups/users/me/new-group', join_policy: 'open', my_role: 'owner', member_count: 1 },
+  ];
 }
 // The Manage-sheet sections import these from the @/data barrel — the harness
 // aliases @/data to this file, so every named import must exist here or the
@@ -484,6 +519,23 @@ export async function updateGroup(): Promise<unknown> { return {}; }
 export async function addGroupMember(): Promise<unknown> { return {}; }
 export async function removeGroupMember(): Promise<unknown> { return {}; }
 export async function deleteGroup(): Promise<unknown> { return { status: 'deleted' }; }
+// G4: the create entry point + the atomic commit + the slug guard — the
+// group detail / edit mode import these from the @/data barrel.
+export async function createDraftGroup(): Promise<string> { return 'web10/groups/users/me/new-group'; }
+export async function saveGroup(): Promise<void> { return; }
+export async function publishGroup(): Promise<void> { return; }
+export async function slugTaken(): Promise<boolean> { return false; }
+// G1: the Media tab's paged read + page size (GroupDetailScreen imports both
+// from the @/data barrel).
+export const GROUP_MEDIA_PAGE_SIZE = 24;
+export async function readGroupMediaPage(): Promise<unknown> {
+  return { posts: [], hasMore: false, total: 0 };
+}
+// The slug helper (GroupEditMode's slug preview) — same derivation as the real
+// data layer.
+export function slugify(name: string): string {
+  return name.trim().toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '');
+}
 export async function getGroupMembers(): Promise<unknown[]> {
   return [
     { member_key: 'web10/users/nova', role: 'owner' },
