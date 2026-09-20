@@ -198,7 +198,7 @@ Deep-linkable (`?tab=`), refresh-safe. The hero (3.116.0) stays above the tabs.
   (unchanged components, new home) + the **published-delete** two-tap confirm.
   `groupsScreens.test.tsx` (the kebab is manager-only; it opens the sections;
   the published-delete is two-tap).
-- [✓ 3.132.0] **G4: create = the group page in edit mode (draft)** (`GroupsScreen.tsx`
+- [✓ 3.134.0] **G4: create = the group page in edit mode (draft)** (`GroupsScreen.tsx`
   + `GroupDetailScreen.tsx` + `groups.ts`) — "New group" opens the group page
   in edit mode for a **draft** (G0); changes **auto-save** (the face doc); the
   action row is **Publish group** / **Delete** (the lightweight draft-delete);
