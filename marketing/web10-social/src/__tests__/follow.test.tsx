@@ -197,8 +197,7 @@ describe('Follow button -> followUser call', () => {
     });
   });
 
-  it('discover screen follow button calls followUser', async () => {
-    const { followUser } = await import('@/data');
+  it('the "People to follow" rail is retired from the Posts view (D1: it moves to the People subtab)', async () => {
     const { default: DiscoverScreen } = await import('@/components/Discover/DiscoverScreen');
 
     render(
@@ -207,37 +206,18 @@ describe('Follow button -> followUser call', () => {
       </MemoryRouter>,
     );
 
+    // Let the screen settle (posts load / empty state shown) so any rail would
+    // have rendered by now.
     await waitFor(() => {
-      expect(screen.getAllByTestId('discover-user-card').length).toBeGreaterThan(0);
+      expect(screen.getByTestId('discover-empty')).toBeInTheDocument();
     });
 
-    // Find the follow button for the first user
-    const followButtons = screen.getAllByTestId('discover-follow-button');
-    expect(followButtons.length).toBeGreaterThan(0);
-
-    fireEvent.click(followButtons[0]);
-
-    await waitFor(() => {
-      expect(followUser).toHaveBeenCalled();
-    });
-  });
-
-  it('discover screen shows suggested users', async () => {
-    const { default: DiscoverScreen } = await import('@/components/Discover/DiscoverScreen');
-
-    render(
-      <MemoryRouter initialEntries={['/discover']}>
-        <DiscoverScreen />
-      </MemoryRouter>,
-    );
-
-    await waitFor(() => {
-      const cards = screen.getAllByTestId('discover-user-card');
-      expect(cards.length).toBeGreaterThan(0);
-    });
-
-    // Should show discover title
-    expect(screen.getByText('Discover')).toBeInTheDocument();
+    // D1 retires the suggested-users rail from the Posts view — the People
+    // subtab (D2) takes it over. No user cards / follow buttons on the Posts
+    // tab anymore (the follow flow itself is still covered by the profile
+    // tests above).
+    expect(screen.queryAllByTestId('discover-user-card').length).toBe(0);
+    expect(screen.queryAllByTestId('discover-follow-button').length).toBe(0);
   });
 });
 
