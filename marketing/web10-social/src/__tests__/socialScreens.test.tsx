@@ -842,6 +842,25 @@ describe('Layout', () => {
     expect(within(sheet).getByTestId('nav-marketplace-mobile')).toBeInTheDocument();
   });
 
+  it('People is retired from the nav (D4) — the Discover/People subtab is the home now', async () => {
+    const { default: Layout } = await import('@/components/Social/Layout');
+    render(
+      <MemoryRouter initialEntries={['/feed']}>
+        <Layout onLogout={() => {}} onReportBug={() => {}}>
+          <div>Content</div>
+        </Layout>
+      </MemoryRouter>,
+    );
+    // The People nav item is gone from the desktop sidebar…
+    expect(screen.queryByTestId('nav-people')).not.toBeInTheDocument();
+    // …and the mobile More sheet.
+    fireEvent.click(screen.getByTestId('nav-more-mobile'));
+    const sheet = screen.getByTestId('more-sheet');
+    expect(within(sheet).queryByTestId('nav-people-mobile')).not.toBeInTheDocument();
+    // Discover (the People subtab's home) is still in the nav.
+    expect(screen.getByTestId('nav-discover')).toBeInTheDocument();
+  });
+
   it('Monetization nav renders for every user; Node Monetization only for the node admin', async () => {
     const { default: Layout } = await import('@/components/Social/Layout');
     // Non-admin: the "Monetization" entry (the creator's ad catalog +
