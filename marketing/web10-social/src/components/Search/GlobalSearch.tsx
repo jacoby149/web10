@@ -1,15 +1,17 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
-import { useLocation } from 'react-router-dom';
-import { Search, X } from 'lucide-react';
+import { useLocation, useNavigate } from 'react-router-dom';
+import { Search, X, Users } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { searchPeople, searchGroups, searchPosts } from '@/data/search';
+import type { PersonCard } from '@/data/people';
+import type { GroupDirectoryEntry } from '@/data/groups';
+import type { PostRecord } from '@/data/types';
 
 // S1 (global-search.md): the top-bar everything-search surface — the
 // expanding-icon state machine: icon (rest) → expanded field → results →
-// collapse. This is the SHELL only: the debounced query state, the results
-// container (dropdown on desktop / full-screen view on mobile), and the
-// "type to search" idle state. The three-way fan-out (people/groups/posts)
-// and result rows land in S2 (src/data/search.ts + this component).
+// collapse. S2 adds the three-way fan-out (people/groups/posts) + result
+// rows + "see more" deep links into the Discover browsers.
 
 // The app's debounce idiom (feed/discover knob re-reads settle at 400ms).
 const SEARCH_DEBOUNCE_MS = 400;
@@ -28,6 +30,119 @@ interface GlobalSearchProps {
   variant: GlobalSearchVariant;
 }
 
+// ── Result row components ─────────────────────────────────────────────────────
+
+function PersonRow({ person }: { person: PersonCard }) {
+  const navigate = useNavigate();
+  const initial = (person.display_name || person.username).charAt(0).toUpperCase();
+  return (
+    <button
+      type="button"
+      data-testid={`global-search-person-${person.username}`}
+      onClick={() => navigate(`/u/${person.username}`)}
+      className="w-full flex items-center gap-3 px-4 py-2 text-left hover:bg-elevated transition-colors duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand/50"
+    >
+      {person.avatar_url ? (
+        <img src={person.avatar_url} alt="" className="h-8 w-8 rounded-full object-cover shrink-0" />
+      ) : (
+        <div className="h-8 w-8 rounded-full bg-brand-muted text-brand-300 text-xs font-semibold flex items-center justify-center shrink-0">
+          {initial}
+        </div>
+      )}
+      <div className="flex-1 min-w-0">
+        <p className="text-sm font-medium text-foreground truncate">{person.display_name || person.username}</p>
+        <p className="text-xs text-muted-foreground truncate">@{person.username}</p>
+      </div>
+    </button>
+  );
+}
+
+function GroupRow({ group }: { group: GroupDirectoryEntry }) {
+  const navigate = useNavigate();
+  return (
+    <button
+      type="button"
+      data-testid={`global-search-group-${group.group_id}`}
+      onClick={() => navigate(`/groups/${encodeURIComponent(group.group_id)}`)}
+      className="w-full flex items-center gap-3 px-4 py-2 text-left hover:bg-elevated transition-colors duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand/50"
+    >
+      <div className="h-8 w-8 rounded-lg bg-brand-muted text-brand-300 flex items-center justify-center shrink-0">
+        <Users className="w-4 h-4" strokeWidth={1.75} />
+      </div>
+      <div className="flex-1 min-w-0">
+        <p className="text-sm font-medium text-foreground truncate">{group.name}</p>
+        <p className="text-xs text-muted-foreground truncate">
+          @{group.owner} · {group.member_count} member{group.member_count === 1 ? '' : 's'}
+        </p>
+      </div>
+    </button>
+  );
+}
+
+function PostRow({ post }: { post: PostRecord }) {
+  const navigate = useNavigate();
+  const author = post.author_username || 'unknown';
+  const href = post._id ? `/u/${author}/p/${post._id}` : `/u/${author}`;
+  return (
+    <button
+      type="button"
+      data-testid={`global-search-post-${post._id || 'unknown'}`}
+      onClick={() => navigate(href)}
+      className="w-full flex items-start gap-3 px-4 py-2 text-left hover:bg-elevated transition-colors duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand/50"
+    >
+      <div className="h-8 w-8 rounded-lg bg-elevated border border-border flex items-center justify-center shrink-0">
+        <Search className="w-3.5 h-3.5 text-muted-foreground" strokeWidth={1.75} />
+      </div>
+      <div className="flex-1 min-w-0">
+        <p className="text-sm text-foreground truncate">{post.text || '(no text)'}</p>
+        <p className="text-xs text-muted-foreground truncate">@{author}</p>
+      </div>
+    </button>
+  );
+}
+
+function SectionSkeleton({ label }: { label: string }) {
+  return (
+    <div className="px-4 py-2" aria-hidden="true">
+      <p className="text-[0.625rem] font-semibold uppercase tracking-wide text-muted-foreground/70 mb-1.5">{label}</p>
+      <div className="skeleton-shimmer h-10 rounded-lg" />
+      <div className="skeleton-shimmer h-10 rounded-lg mt-2" />
+    </div>
+  );
+}
+
+function SearchSection({
+  label,
+  seeMoreHref,
+  seeMoreTestId,
+  children,
+}: {
+  label: string;
+  seeMoreHref: string;
+  seeMoreTestId: string;
+  children: React.ReactNode;
+}) {
+  const navigate = useNavigate();
+  return (
+    <div className="py-1" data-testid={`global-search-section-${label.toLowerCase()}`}>
+      <div className="flex items-center justify-between px-4 py-1">
+        <p className="text-[0.625rem] font-semibold uppercase tracking-wide text-muted-foreground/70">{label}</p>
+        <button
+          type="button"
+          data-testid={seeMoreTestId}
+          onClick={() => navigate(seeMoreHref)}
+          className="text-xs text-brand-300 hover:text-brand-400 transition-colors duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand/50 rounded px-1 py-0.5"
+        >
+          See more
+        </button>
+      </div>
+      {children}
+    </div>
+  );
+}
+
+// ── Main component ────────────────────────────────────────────────────────────
+
 export default function GlobalSearch({ variant }: GlobalSearchProps) {
   const [open, setOpen] = useState(false);
   const [closing, setClosing] = useState(false);
@@ -39,6 +154,13 @@ export default function GlobalSearch({ variant }: GlobalSearchProps) {
   const collapseTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const wasOpen = useRef(false);
   const { pathname } = useLocation();
+
+  // S2: the three search sections. null = loading, [] = loaded (empty),
+  // [...] = loaded (has results). Per-section loading: the slowest read
+  // never blocks the others.
+  const [people, setPeople] = useState<PersonCard[] | null>(null);
+  const [groups, setGroups] = useState<GroupDirectoryEntry[] | null>(null);
+  const [posts, setPosts] = useState<PostRecord[] | null>(null);
 
   const clearCollapseTimer = () => {
     if (collapseTimer.current) {
@@ -56,6 +178,9 @@ export default function GlobalSearch({ variant }: GlobalSearchProps) {
       setClosing(false);
       setQuery('');
       setDebouncedQuery('');
+      setPeople(null);
+      setGroups(null);
+      setPosts(null);
       collapseTimer.current = null;
     }, COLLAPSE_MS);
   }, []);
@@ -92,6 +217,27 @@ export default function GlobalSearch({ variant }: GlobalSearchProps) {
     const t = setTimeout(() => setDebouncedQuery(query), SEARCH_DEBOUNCE_MS);
     return () => clearTimeout(t);
   }, [query, open]);
+
+  // S2: fire the three-way fan-out when the debounced query changes.
+  // Per-section loading: each read resolves independently.
+  useEffect(() => {
+    if (!open) return;
+    setPeople(null);
+    setGroups(null);
+    setPosts(null);
+    if (!debouncedQuery) return;
+    let cancelled = false;
+    searchPeople(debouncedQuery)
+      .then((r) => { if (!cancelled) setPeople(r); })
+      .catch(() => { if (!cancelled) setPeople([]); });
+    searchGroups(debouncedQuery)
+      .then((r) => { if (!cancelled) setGroups(r); })
+      .catch(() => { if (!cancelled) setGroups([]); });
+    searchPosts(debouncedQuery)
+      .then((r) => { if (!cancelled) setPosts(r); })
+      .catch(() => { if (!cancelled) setPosts([]); });
+    return () => { cancelled = true; };
+  }, [debouncedQuery, open]);
 
   // Navigate → collapse (the state machine's fourth exit).
   useEffect(() => {
@@ -135,10 +281,11 @@ export default function GlobalSearch({ variant }: GlobalSearchProps) {
     />
   );
 
-  // The results container content (S1: the shell's designed states — the
-  // "type to search" idle + a skeleton slot the S2 fan-out fills).
+  // The results container content: the "type to search" idle state, or the
+  // three sections (People/Groups/Posts) with per-section loading.
+  const q = debouncedQuery;
   const resultsContent =
-    debouncedQuery === '' ? (
+    q === '' ? (
       <div
         data-testid="global-search-type-to-search"
         className="flex items-center gap-3 px-4 py-8 text-sm text-muted-foreground"
@@ -147,12 +294,62 @@ export default function GlobalSearch({ variant }: GlobalSearchProps) {
         <span>Type to search people, groups, and posts</span>
       </div>
     ) : (
-      // S2 replaces this with the People/Groups/Posts sections (per-section
-      // loading). Skeletons are the designed loading state in the meantime.
-      <div data-testid="global-search-results-placeholder" className="px-4 py-3 space-y-3" aria-hidden="true">
-        <div className="skeleton-shimmer h-10 rounded-lg" />
-        <div className="skeleton-shimmer h-10 rounded-lg" />
-        <div className="skeleton-shimmer h-10 rounded-lg" />
+      <div className="py-1">
+        {/* People */}
+        {people === null ? (
+          <SectionSkeleton label="People" />
+        ) : people.length > 0 ? (
+          <SearchSection
+            label="People"
+            seeMoreHref={`/discover?tab=people&q=${encodeURIComponent(q)}`}
+            seeMoreTestId="global-search-see-more-people"
+          >
+            {people.map((p) => (
+              <PersonRow key={p.username} person={p} />
+            ))}
+          </SearchSection>
+        ) : null}
+
+        {/* Groups */}
+        {groups === null ? (
+          <SectionSkeleton label="Groups" />
+        ) : groups.length > 0 ? (
+          <SearchSection
+            label="Groups"
+            seeMoreHref={`/discover?tab=groups&q=${encodeURIComponent(q)}`}
+            seeMoreTestId="global-search-see-more-groups"
+          >
+            {groups.map((g) => (
+              <GroupRow key={g.group_id} group={g} />
+            ))}
+          </SearchSection>
+        ) : null}
+
+        {/* Posts */}
+        {posts === null ? (
+          <SectionSkeleton label="Posts" />
+        ) : posts.length > 0 ? (
+          <SearchSection
+            label="Posts"
+            seeMoreHref={`/discover?q=${encodeURIComponent(q)}`}
+            seeMoreTestId="global-search-see-more-posts"
+          >
+            {posts.map((p) => (
+              <PostRow key={p._id || p.created_at} post={p} />
+            ))}
+          </SearchSection>
+        ) : null}
+
+        {/* No results (all three sections loaded, all empty) */}
+        {people !== null && groups !== null && posts !== null &&
+         people.length === 0 && groups.length === 0 && posts.length === 0 && (
+          <div
+            data-testid="global-search-no-results"
+            className="px-4 py-8 text-center text-sm text-muted-foreground"
+          >
+            No matches for &ldquo;{q}&rdquo;
+          </div>
+        )}
       </div>
     );
 
