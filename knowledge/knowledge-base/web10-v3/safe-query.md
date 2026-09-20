@@ -46,11 +46,11 @@ The boundary CTE for a service looks like:
 
 ```sql
 posts AS (
-  SELECT d.doc_id, d.author_key, d.body, d.ref_value, d.tags, d.created_at, d.updated_at
+  SELECT d.doc_id, d.author_key, d.body, d.ref_value, d.tags, d.created_at, d.updated_at, d.ad_mode, d.ad_target, dg.group_id
   FROM (
-    SELECT doc_id, author_key, body, ref_value, tags, created_at, updated_at
+    SELECT doc_id, author_key, body, ref_value, tags, created_at, updated_at, ad_mode, ad_target, deleted
     FROM documents
-    WHERE collection_name = 'posts' AND deleted = 0
+    WHERE collection_name = 'posts'
     QUALIFY row_number() OVER (PARTITION BY doc_id, author_key ORDER BY updated_at DESC) = 1
   ) d
   JOIN (
@@ -68,7 +68,9 @@ posts AS (
 ```
 
 The caller's `SELECT … FROM posts` now reads that CTE. `posts` is no longer the
-raw table — it is the caller's own groups, and nothing else.
+raw table — it is the caller's own groups, and nothing else. A doc in N readable
+groups surfaces N rows (one per group); `group_id` is the join key for group
+metadata (QE-A0).
 
 **Why `NOT IN`, not `LEFT ANTI JOIN`.** The block/sharing/hidden filters are
 `NOT IN` / tuple-`NOT IN` subqueries, not `LEFT ANTI JOIN`. A ClickHouse 24.8
