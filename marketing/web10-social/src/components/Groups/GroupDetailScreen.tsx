@@ -1,5 +1,5 @@
-import { useState, useEffect, useCallback } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useState, useEffect, useCallback, useRef } from 'react';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -7,6 +7,8 @@ import { Skeleton } from '@/components/ui/skeleton';
 import {
   readGroupDetail,
   readGroupIdentity,
+  readGroupMediaPage,
+  GROUP_MEDIA_PAGE_SIZE,
   joinGroup,
   requestJoinGroup,
   leaveGroup,
@@ -34,6 +36,7 @@ import ManageRolesSection from '@/components/Groups/ManageGroup/RolesSection';
 import { toast, errorMessage } from '@/components/shared/Toast';
 import { PostCard } from '@/components/Feed/FeedScreen';
 import PostComposer from '@/components/Feed/PostComposer';
+import { PostLightbox } from '@/components/Bio/PostLightbox';
 import {
   ArrowLeft,
   Users,
@@ -47,6 +50,7 @@ import {
   Globe,
   Settings,
   ImagePlus,
+  Play,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
@@ -243,6 +247,35 @@ export default function GroupDetailScreen({ groupId }: { groupId: string }) {
   const [canManage, setCanManage] = useState(false);
   const [manageOpen, setManageOpen] = useState(false);
 
+  // The tabs (G1): Feed (default, bare URL) | Media (?tab=media). The URL holds
+  // the active tab (the deep-link rule) — refresh restores it, back/forward
+  // work, and a shared link carries it. The group page is the profile page with
+  // the tab order flipped (feed first, media second).
+  const [searchParams, setSearchParams] = useSearchParams();
+  const tab: 'feed' | 'media' = searchParams.get('tab') === 'media' ? 'media' : 'feed';
+  const selectTab = useCallback((next: 'feed' | 'media') => {
+    const params = new URLSearchParams(searchParams);
+    if (next === 'media') params.set('tab', 'media');
+    else params.delete('tab');
+    setSearchParams(params, { replace: true });
+    LOG('tab —', next);
+  }, [searchParams, setSearchParams]);
+
+  // The Media tab (G1): a PAGED insta grid of the group's media posts —
+  // infinite scroll appends the next page (not "pull everything") — plus a
+  // total count ("N photos", the exhaustion signal). Media is resolved into
+  // mediaGridMap (doc_id → MediaRecord) as each page lands.
+  const [mediaPosts, setMediaPosts] = useState<PostRecord[]>([]);
+  const [mediaTotal, setMediaTotal] = useState(0);
+  const [mediaHasMore, setMediaHasMore] = useState(false);
+  const [mediaLoading, setMediaLoading] = useState(false);
+  const [mediaLoadingMore, setMediaLoadingMore] = useState(false);
+  const [mediaGridMap, setMediaGridMap] = useState<Record<string, MediaRecord>>({});
+  const [mediaLightboxPost, setMediaLightboxPost] = useState<PostRecord | null>(null);
+  const mediaOffsetRef = useRef(0);
+  const mediaInitializedRef = useRef(false);
+  const mediaSentinelRef = useRef<HTMLDivElement>(null);
+
   const load = useCallback(async () => {
     if (!id) return;
     setLoading(true);
@@ -294,6 +327,89 @@ export default function GroupDetailScreen({ groupId }: { groupId: string }) {
   useEffect(() => {
     load();
   }, [load]);
+
+  // ── Media tab (G1): the paged insta grid ──────────────────────────────────
+  // `loadMediaPage` reads one page (limit/offset) of the group's media posts +
+  // the total count, resolves the page's media refs into mediaGridMap, and
+  // appends (or replaces, for page one) the grid. `loadMoreMedia` is the
+  // infinite-scroll trigger (the sentinel's IntersectionObserver).
+  const loadMediaPage = useCallback(async (offset: number, append: boolean) => {
+    if (!id) return;
+    if (append) setMediaLoadingMore(true);
+    else setMediaLoading(true);
+    LOG('loadMediaPage — start', id, { offset, append });
+    try {
+      const page = await readGroupMediaPage(id, GROUP_MEDIA_PAGE_SIZE, offset);
+      // Resolve the page's media refs (the grid renders from the resolved map —
+      // the same resolveMediaRefs path the hero + feed use).
+      const refs: string[] = [];
+      for (const p of page.posts) {
+        for (const r of p.media_refs || []) {
+          const refId = mediaRefId(r);
+          if (refId) refs.push(refId);
+        }
+      }
+      if (refs.length) {
+        const resolved = await resolveMediaRefs([...new Set(refs)]);
+        const map: Record<string, MediaRecord> = {};
+        for (const m of resolved) if (m._id) map[m._id] = m;
+        setMediaGridMap((prev) => ({ ...prev, ...map }));
+      }
+      setMediaPosts((prev) => (append ? [...prev, ...page.posts] : page.posts));
+      setMediaTotal(page.total);
+      setMediaHasMore(page.hasMore);
+      mediaOffsetRef.current = offset + page.posts.length;
+      LOG('loadMediaPage — got', page.posts.length, 'posts, total:', page.total, 'hasMore:', page.hasMore);
+    } catch (e) {
+      LOG('loadMediaPage — failed:', e);
+    } finally {
+      setMediaLoading(false);
+      setMediaLoadingMore(false);
+    }
+  }, [id]);
+
+  const loadMoreMedia = useCallback(() => {
+    if (!mediaHasMore || mediaLoadingMore || mediaLoading) return;
+    loadMediaPage(mediaOffsetRef.current, true);
+  }, [mediaHasMore, mediaLoadingMore, mediaLoading, loadMediaPage]);
+
+  // Reset the media grid when the group changes (the route param can change
+  // without a remount). Fresh group → fresh grid.
+  useEffect(() => {
+    mediaInitializedRef.current = false;
+    mediaOffsetRef.current = 0;
+    setMediaPosts([]);
+    setMediaTotal(0);
+    setMediaHasMore(false);
+    setMediaGridMap({});
+    setMediaLightboxPost(null);
+  }, [id]);
+
+  // Load page one when the Media tab is active (and not yet loaded). The feed
+  // is the default tab, so the media read is deferred until the tab is opened.
+  useEffect(() => {
+    if (tab === 'media' && !mediaInitializedRef.current && !mediaLoading) {
+      mediaInitializedRef.current = true;
+      loadMediaPage(0, false);
+    }
+  }, [tab, mediaLoading, loadMediaPage]);
+
+  // Infinite scroll: a sentinel at the bottom of the grid triggers loadMoreMedia
+  // when it scrolls into view (rootMargin prefetches a page early) — the feed's
+  // exact pattern.
+  useEffect(() => {
+    if (tab !== 'media') return;
+    const sentinel = mediaSentinelRef.current;
+    if (!sentinel) return;
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries[0].isIntersecting) loadMoreMedia();
+      },
+      { rootMargin: '200px' },
+    );
+    observer.observe(sentinel);
+    return () => observer.disconnect();
+  }, [tab, loadMoreMedia]);
 
   const handleJoin = useCallback(async () => {
     if (!detail) return;
@@ -641,57 +757,194 @@ export default function GroupDetailScreen({ groupId }: { groupId: string }) {
           )}
         </div>
 
+        {/* The tabs (G1): Feed (default, bare URL) | Media (?tab=media) — the
+            profile's tab row with the order flipped (feed front and center,
+            media second). The URL holds the active tab (deep-link rule). */}
+        <div className="flex items-end border-b border-border" data-testid="group-detail-tabs">
+          <button
+            data-testid="group-tab-feed"
+            aria-current={tab === 'feed' ? 'true' : undefined}
+            className={cn(
+              'flex-1 min-h-11 py-3 text-sm font-medium text-center transition-all duration-150 relative',
+              tab === 'feed' ? 'text-foreground' : 'text-muted-foreground hover:text-foreground',
+            )}
+            onClick={() => selectTab('feed')}
+          >
+            Feed
+            {tab === 'feed' && (
+              <div className="absolute bottom-0 inset-x-0 h-0.5 bg-gradient-to-r from-brand to-brand-600" />
+            )}
+          </button>
+          <button
+            data-testid="group-tab-media"
+            aria-current={tab === 'media' ? 'true' : undefined}
+            className={cn(
+              'flex-1 min-h-11 py-3 text-sm font-medium text-center transition-all duration-150 relative',
+              tab === 'media' ? 'text-foreground' : 'text-muted-foreground hover:text-foreground',
+            )}
+            onClick={() => selectTab('media')}
+          >
+            Media
+            {tab === 'media' && (
+              <div className="absolute bottom-0 inset-x-0 h-0.5 bg-gradient-to-r from-brand to-brand-600" />
+            )}
+          </button>
+        </div>
+
         {/* The feed — the dominant surface (the reference feed card + composer) */}
-        <div className="flex-1 px-4 py-4 md:px-0">
-          {detail.posts_state === 'ok' ? (
-            <>
-              {detail.is_member && (
-                <div data-testid="group-composer" className="mb-4">
-                  <PostComposer groups={[detail.group_id]} onPostCreated={load} />
-                </div>
-              )}
-              <div data-testid="group-detail-posts">
-                {postRecords.length > 0 ? (
-                  postRecords.map((p) => (
-                    <GroupFeedPost
-                      key={p._id || p.created_at}
-                      post={p}
-                      media={(p.media_refs || []).map((r) => mediaMap[mediaRefId(r)]).filter(Boolean)}
-                      groupId={detail.group_id}
-                    />
-                  ))
-                ) : (
-                  <div
-                    data-testid="group-detail-posts-empty"
-                    className="flex flex-col items-center justify-center py-12 px-8 text-center rounded-lg border border-border bg-card"
-                  >
-                    <div className="mb-3 flex h-12 w-12 items-center justify-center rounded-full bg-brand-muted/50">
-                      <Users className="h-6 w-6 text-brand-400" strokeWidth={1.5} />
-                    </div>
-                    <p className="text-sm font-medium text-foreground">No posts yet</p>
-                    <p className="mt-1 text-xs text-muted-foreground">
-                      Be the first to share something with the group.
-                    </p>
+        {tab === 'feed' && (
+          <div className="flex-1 px-4 py-4 md:px-0">
+            {detail.posts_state === 'ok' ? (
+              <>
+                {detail.is_member && (
+                  <div data-testid="group-composer" className="mb-4">
+                    <PostComposer groups={[detail.group_id]} onPostCreated={load} />
                   </div>
                 )}
+                <div data-testid="group-detail-posts">
+                  {postRecords.length > 0 ? (
+                    postRecords.map((p) => (
+                      <GroupFeedPost
+                        key={p._id || p.created_at}
+                        post={p}
+                        media={(p.media_refs || []).map((r) => mediaMap[mediaRefId(r)]).filter(Boolean)}
+                        groupId={detail.group_id}
+                      />
+                    ))
+                  ) : (
+                    <div
+                      data-testid="group-detail-posts-empty"
+                      className="flex flex-col items-center justify-center py-12 px-8 text-center rounded-lg border border-border bg-card"
+                    >
+                      <div className="mb-3 flex h-12 w-12 items-center justify-center rounded-full bg-brand-muted/50">
+                        <Users className="h-6 w-6 text-brand-400" strokeWidth={1.5} />
+                      </div>
+                      <p className="text-sm font-medium text-foreground">No posts yet</p>
+                      <p className="mt-1 text-xs text-muted-foreground">
+                        Be the first to share something with the group.
+                      </p>
+                    </div>
+                  )}
+                </div>
+              </>
+            ) : (
+              <div
+                data-testid="group-detail-join-to-view"
+                className="flex flex-col items-center justify-center py-12 px-8 text-center rounded-lg border border-border bg-card"
+              >
+                <div className="mb-3 flex h-12 w-12 items-center justify-center rounded-full bg-brand-muted/50">
+                  <Lock className="h-6 w-6 text-brand-400" strokeWidth={1.5} />
+                </div>
+                <p className="text-sm font-medium text-foreground">Join to view posts</p>
+                <p className="mt-1 max-w-xs text-xs text-muted-foreground">
+                  This group's content is only visible to members. Join the group
+                  to see what's being shared.
+                </p>
               </div>
-            </>
-          ) : (
-            <div
-              data-testid="group-detail-join-to-view"
-              className="flex flex-col items-center justify-center py-12 px-8 text-center rounded-lg border border-border bg-card"
-            >
-              <div className="mb-3 flex h-12 w-12 items-center justify-center rounded-full bg-brand-muted/50">
-                <Lock className="h-6 w-6 text-brand-400" strokeWidth={1.5} />
+            )}
+          </div>
+        )}
+
+        {/* The media tab (G1): the paged insta grid of the group's media posts —
+            infinite scroll appends the next page; the count shows "N photos". */}
+        {tab === 'media' && (
+          <div className="flex-1 px-4 py-4 md:px-0" data-testid="group-detail-media">
+            {detail.posts_state === 'ok' ? (
+              mediaLoading ? (
+                <div className="grid grid-cols-3 gap-1" data-testid="group-media-skeleton">
+                  {Array.from({ length: 9 }).map((_, i) => (
+                    <Skeleton key={i} className="aspect-square rounded-none" />
+                  ))}
+                </div>
+              ) : mediaPosts.length > 0 ? (
+                <>
+                  <div className="mb-3 flex items-center justify-between" data-testid="group-media-count">
+                    <span className="text-sm text-muted-foreground tabular-nums">
+                      {mediaTotal} {mediaTotal === 1 ? 'photo' : 'photos'}
+                    </span>
+                  </div>
+                  <div className="grid grid-cols-3 gap-1" data-testid="group-media-grid">
+                    {mediaPosts.flatMap((post) =>
+                      (post.media_refs || []).map((ref) => {
+                        const media = mediaGridMap[mediaRefId(ref)];
+                        if (!media) return null;
+                        return (
+                          <div
+                            key={mediaRefId(ref)}
+                            role="button"
+                            tabIndex={0}
+                            aria-label="View post"
+                            data-testid="group-media-cell"
+                            onClick={() => setMediaLightboxPost(post)}
+                            onKeyDown={(e) => {
+                              if (e.key === 'Enter' || e.key === ' ') {
+                                e.preventDefault();
+                                setMediaLightboxPost(post);
+                              }
+                            }}
+                            className="aspect-square bg-elevated overflow-hidden relative group cursor-pointer outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset"
+                          >
+                            {media.mime_type?.startsWith('video/') ? (
+                              <div className="w-full h-full relative">
+                                <video
+                                  src={media.url}
+                                  poster={media.thumbnail_url}
+                                  className="w-full h-full object-cover transition-transform duration-150 group-hover:scale-110"
+                                  preload="metadata"
+                                  playsInline
+                                  muted
+                                />
+                                <div className="absolute inset-0 flex items-center justify-center bg-black/20 opacity-0 group-hover:opacity-100 transition-opacity duration-150">
+                                  <div className="flex items-center justify-center w-9 h-9 rounded-full bg-background/80 backdrop-blur-sm">
+                                    <Play className="w-4 h-4 text-foreground ml-0.5" strokeWidth={2} />
+                                  </div>
+                                </div>
+                              </div>
+                            ) : (
+                              <img
+                                src={media.url}
+                                alt={media.alt_text || ''}
+                                className="w-full h-full object-cover transition-transform duration-150 group-hover:scale-110"
+                                loading="lazy"
+                              />
+                            )}
+                            <div className="absolute inset-0 bg-gradient-to-t from-black/30 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-150" />
+                          </div>
+                        );
+                      }),
+                    )}
+                  </div>
+                  {/* The infinite-scroll sentinel (triggers loadMoreMedia when it scrolls in) */}
+                  <div ref={mediaSentinelRef} className="flex items-center justify-center py-4" data-testid="group-media-sentinel">
+                    {mediaLoadingMore ? (
+                      <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
+                    ) : mediaHasMore ? (
+                      <span className="text-xs text-muted-foreground">Loading more…</span>
+                    ) : null}
+                  </div>
+                </>
+              ) : (
+                <div className="py-16 text-center" data-testid="group-media-empty">
+                  <p className="text-sm text-muted-foreground">No media yet</p>
+                </div>
+              )
+            ) : (
+              <div
+                data-testid="group-detail-join-to-view"
+                className="flex flex-col items-center justify-center py-12 px-8 text-center rounded-lg border border-border bg-card"
+              >
+                <div className="mb-3 flex h-12 w-12 items-center justify-center rounded-full bg-brand-muted/50">
+                  <Lock className="h-6 w-6 text-brand-400" strokeWidth={1.5} />
+                </div>
+                <p className="text-sm font-medium text-foreground">Join to view posts</p>
+                <p className="mt-1 max-w-xs text-xs text-muted-foreground">
+                  This group's content is only visible to members. Join the group
+                  to see what's being shared.
+                </p>
               </div>
-              <p className="text-sm font-medium text-foreground">Join to view posts</p>
-              <p className="mt-1 max-w-xs text-xs text-muted-foreground">
-                This group's content is only visible to members. Join the group
-                to see what's being shared.
-              </p>
-            </div>
-          )}
-        </div>
+            )}
+          </div>
+        )}
       </div>
 
       {/* The management surface — manager-only, mounted at the screen root */}
@@ -702,6 +955,19 @@ export default function GroupDetailScreen({ groupId }: { groupId: string }) {
           groupId={detail.group_id}
           groupName={displayName}
           sections={manageSections}
+        />
+      )}
+
+      {/* The media lightbox (G1): the tapped media post, the profile's lightbox */}
+      {mediaLightboxPost && (
+        <PostLightbox
+          post={mediaLightboxPost}
+          mediaMap={mediaGridMap}
+          onClose={() => setMediaLightboxPost(null)}
+          onReload={load}
+          postAuthor={mediaLightboxPost.author_username}
+          postService="posts"
+          isOwner={getV3Client().readToken()?.username === mediaLightboxPost.author_username}
         />
       )}
     </div>
