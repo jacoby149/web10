@@ -243,6 +243,32 @@ mint are one call). Not a way to mint capabilities for docs outside the result
 (the boundary is the wall). Not social-specific (the passes are universal; the
 `face` spec is caller-supplied).
 
+## Group metadata (QE-A)
+
+The engine now supports an opt-in `group_meta` boundary CTE that exposes group
+metadata — `member_count`, `join_policy`, `discoverable` — alongside content.
+The caller references `group_meta` in its SQL (e.g. `JOIN group_meta gm ON
+p.group_id = gm.group_id`) and sets `withGroupMeta: true` on the request.
+
+**Visibility.** The endpoint computes the reader's readable set via the
+existing D58 gate (`readable_groups` / `can_read_group`) and passes it to the
+CTE builder. The CTE full-scans all candidate groups and CASE-NULLs the
+metadata of unreadable ones (NULL-out-and-sort-last). This is the I3 pattern:
+unreadable groups are present as NULLs, so they sort to the bottom and reveal
+nothing beyond their existence. The raw tables (`group_members`,
+`group_contracts`) remain in the blocklist — the wall extends, it does not
+weaken.
+
+**Opt-in.** Without `withGroupMeta`, `group_meta` is an unknown table and the
+query is rejected. The flag is a bare boolean for now; the follow-up (QE-6)
+replaces it with an app-contract grant so group-metadata access is
+contract-governed.
+
+**Join key.** The content CTEs expose `group_id` (QE-A0), so a doc in N
+readable groups surfaces N rows, each joining the metadata of its own group.
+
+Full design: `strategy/engine-group-metadata.md`.
+
 ## The Feed as a Query (the reference example)
 
 The social app's following feed is the reference for "an app's whole feed as

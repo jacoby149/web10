@@ -63,9 +63,16 @@ class QueryRequest(BaseModel):
     mint HLS sigs + attach ads + resolve the author's face on the result rows,
     so the query returns render-ready rows in one round-trip (the feed-as-query
     pattern; retires the bespoke ``/v3/feed``).
+
+    `withGroupMeta` (optional, QE-A): opt-in to the ``group_meta`` boundary
+    CTE. When true the query may reference ``group_meta`` (group metadata —
+    ``member_count``, ``join_policy``, ``discoverable``) and join it on the
+    content CTE's ``group_id``. When false (default) ``group_meta`` is an
+    unknown table and the query is rejected.
     """
 
     token: str | None = None
     sql: str = Field(min_length=1)
     groups: list[str] | None = None
     prepare: PrepareSpec | None = None
+    withGroupMeta: bool = False
