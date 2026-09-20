@@ -5,12 +5,14 @@ const mockReadToken = vi.fn().mockReturnValue({ provider: 'api.localhost', usern
 const mockGetMyGroups = vi.fn();
 const mockRead = vi.fn();
 const mockGetGroupMembers = vi.fn();
+const mockListPeopleDirectory = vi.fn();
 
 vi.mock('@/data/v3', () => ({
   getV3Client: () => ({
     readToken: () => mockReadToken(),
     getMyGroups: (...args: unknown[]) => mockGetMyGroups(...args),
     read: (...args: unknown[]) => mockRead(...args),
+    listPeopleDirectory: (...args: unknown[]) => mockListPeopleDirectory(...args),
   }),
 }));
 
@@ -42,7 +44,7 @@ vi.mock('@/data/types', () => ({
   extractUsername: (key: string) => key.split('/').pop() || key,
 }));
 
-import { fetchPeople, computeMutuals, sortPeople, type PersonCard } from '@/data/people';
+import { fetchPeople, fetchPeoplePage, computeMutuals, sortPeople, type PersonCard } from '@/data/people';
 
 describe('computeMutuals', () => {
   it('counts intersection of their followers and my following', () => {
@@ -240,5 +242,116 @@ describe('fetchPeople', () => {
     expect(result.length).toBe(1);
     expect(result[0].username).toBe('ghost');
     expect(result[0].display_name).toBe('ghost');
+  });
+});
+
+describe('fetchPeoplePage (D2 — the D0 read as the data source)', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    mockReadToken.mockReturnValue({ provider: 'api.localhost', username: 'me' });
+    mockResolveMediaRefs.mockResolvedValue([]);
+    mockGetGroupMembers.mockResolvedValue([]);
+    mockListPeopleDirectory.mockResolvedValue({ users: [], limit: 20, offset: 0 });
+  });
+
+  it('returns empty array when the D0 read returns no users', async () => {
+    mockListPeopleDirectory.mockResolvedValue({ users: [], limit: 20, offset: 0 });
+    const result = await fetchPeoplePage(0, 20);
+    expect(result).toEqual([]);
+  });
+
+  it('maps the D0 read rows to PersonCards (face + unspoofable count)', async () => {
+    mockListPeopleDirectory.mockResolvedValue({
+      users: [
+        { username: 'alice', follower_count: 42, profile: { display_name: 'Alice', bio: 'hi', avatar_ref: 'av-1' } },
+        { username: 'bob', follower_count: 10, profile: {} },
+      ],
+      limit: 20,
+      offset: 0,
+    });
+    const result = await fetchPeoplePage(0, 20);
+    expect(result).toHaveLength(2);
+    const alice = result.find((p) => p.username === 'alice');
+    expect(alice?.display_name).toBe('Alice');
+    expect(alice?.bio).toBe('hi');
+    expect(alice?.avatar_ref).toBe('av-1');
+    // follower_count is the D0 read's unspoofable count, not a recomputed length.
+    expect(alice?.followers_count).toBe(42);
+    expect(result.find((p) => p.username === 'bob')?.followers_count).toBe(10);
+  });
+
+  it('passes offset and limit through to the D0 read', async () => {
+    mockListPeopleDirectory.mockResolvedValue({ users: [], limit: 20, offset: 20 });
+    await fetchPeoplePage(20, 20);
+    expect(mockListPeopleDirectory).toHaveBeenCalledWith({ offset: 20, limit: 20 });
+  });
+
+  it('computes mutuals + is_following from my-following ∩ their followers', async () => {
+    mockListPeopleDirectory.mockResolvedValue({
+      users: [
+        { username: 'alice', follower_count: 5, profile: {} },
+        { username: 'bob', follower_count: 3, profile: {} },
+      ],
+      limit: 20,
+      offset: 0,
+    });
+    // I follow alice + bob.
+    mockGetMyGroups.mockResolvedValue([
+      { group_id: 'api.localhost/groups/users/alice/followers', join_policy: 'open', my_role: 'member', member_count: 1 },
+      { group_id: 'api.localhost/groups/users/bob/followers', join_policy: 'open', my_role: 'member', member_count: 1 },
+    ]);
+    // alice's followers: me, bob, dave → mutuals = 1 (bob).
+    // bob's followers: me, alice, eve → mutuals = 1 (alice).
+    mockGetGroupMembers.mockImplementation(async (groupId: string) => {
+      if (groupId.includes('/alice/followers')) {
+        return [{ member_key: 'me', role: 'member' }, { member_key: 'bob', role: 'member' }, { member_key: 'dave', role: 'member' }];
+      }
+      if (groupId.includes('/bob/followers')) {
+        return [{ member_key: 'me', role: 'member' }, { member_key: 'alice', role: 'member' }, { member_key: 'eve', role: 'member' }];
+      }
+      return [];
+    });
+
+    const result = await fetchPeoplePage(0, 20);
+    const alice = result.find((p) => p.username === 'alice');
+    const bob = result.find((p) => p.username === 'bob');
+    expect(alice?.mutuals).toBe(1);
+    expect(bob?.mutuals).toBe(1);
+    expect(alice?.is_following).toBe(true);
+    expect(bob?.is_following).toBe(true);
+  });
+
+  it('degrades to zero mutuals when a followers read fails', async () => {
+    mockListPeopleDirectory.mockResolvedValue({
+      users: [{ username: 'ghost', follower_count: 0, profile: {} }],
+      limit: 20,
+      offset: 0,
+    });
+    mockGetMyGroups.mockResolvedValue([]);
+    mockGetGroupMembers.mockRejectedValue(new Error('404'));
+
+    const result = await fetchPeoplePage(0, 20);
+    expect(result).toHaveLength(1);
+    expect(result[0].mutuals).toBe(0);
+    expect(result[0].is_following).toBe(false);
+  });
+
+  it('resolves the face media (avatar + banner) from the D0 read profile', async () => {
+    mockListPeopleDirectory.mockResolvedValue({
+      users: [
+        { username: 'testuser', follower_count: 1, profile: { display_name: 'Test User', avatar_ref: 'av-1', banner_ref: 'bn-1' } },
+      ],
+      limit: 20,
+      offset: 0,
+    });
+    mockGetMyGroups.mockResolvedValue([]);
+    mockResolveMediaRefs.mockResolvedValue([
+      { _id: 'av-1', url: 'http://x/avatar.png' },
+      { _id: 'bn-1', url: 'http://x/banner.png' },
+    ]);
+
+    const result = await fetchPeoplePage(0, 20);
+    expect(result[0].avatar_url).toBe('http://x/avatar.png');
+    expect(result[0].banner_url).toBe('http://x/banner.png');
   });
 });

@@ -208,3 +208,90 @@ export async function fetchPeople(limit = 20): Promise<PersonCard[]> {
   LOG('fetchPeople — returned', cards.length, 'person card(s)');
   return cards;
 }
+
+/**
+ * Fetch a page of the public people directory (D2, discover-reorg) — the D0
+ * node read (`listPeopleDirectory`) as the data source, not the client-side
+ * pool. One round-trip returns a paged, follower-ranked list of the users
+ * whose profile face the reader can read (I3: anon = the public subset,
+ * signed-in = more). Each card is enriched client-side with `mutuals` (read
+ * their followers group ∩ my-following) and the resolved face media.
+ *
+ * `follower_count` is the node's unspoofable membership aggregate (the D0
+ * read's `count(group_members)`), not a client-recomputed length.
+ */
+export async function fetchPeoplePage(offset = 0, limit = 20): Promise<PersonCard[]> {
+  const w = getV3Client();
+  const token = w.readToken();
+  const provider = token?.provider || 'web10.app';
+
+  // 1. The D0 read — paged, follower-ranked, I3-gated (faces + counts).
+  const page = await w.listPeopleDirectory({ offset, limit });
+  LOG('fetchPeoplePage — D0 read returned', page.users.length, 'user(s) @ offset', offset);
+  if (!page.users.length) return [];
+
+  // 2. My following set (for mutuals + is_following). Anon = empty (no mutuals).
+  let myFollowing = new Set<string>();
+  if (token) {
+    try {
+      const myGroups = await w.getMyGroups();
+      myFollowing = new Set(
+        myGroups
+          .filter((g) => g.group_id.endsWith('/followers'))
+          .map((g) => g.group_id.split('/').slice(-2, -1)[0]),
+      );
+    } catch (e) {
+      LOG('fetchPeoplePage — my-following read failed (no mutuals):', e);
+    }
+  }
+
+  // 3. Per user: mutuals (read their followers group) — the face + count come
+  //    from the D0 read. Each read degrades independently (one bad follower
+  //    list never blanks the card).
+  const cards = await Promise.all(
+    page.users.map(async (u): Promise<PersonCard> => {
+      const profile = (u.profile ?? {}) as Record<string, string | undefined>;
+      let followers: string[] = [];
+      try {
+        const members = await getGroupMembers(followersGroupId(u.username, provider));
+        followers = members.map((m) => extractUsername(m.member_key));
+      } catch {
+        // No followers group (or unreadable) — zero mutuals.
+      }
+      return {
+        username: u.username,
+        provider,
+        display_name: profile.display_name || u.username,
+        bio: profile.bio,
+        avatar_ref: profile.avatar_ref,
+        banner_ref: profile.banner_ref,
+        followers_count: u.follower_count,
+        mutuals: computeMutuals(followers, myFollowing),
+        is_following: myFollowing.has(u.username),
+      };
+    }),
+  );
+
+  // 4. Resolve the face media (avatar + banner) per user — owner-scoped reads.
+  //    Failures degrade to the initial fallback in the card.
+  for (const card of cards) {
+    const refs = [card.avatar_ref, card.banner_ref].filter(Boolean) as string[];
+    if (!refs.length) continue;
+    try {
+      const media = await resolveMediaRefs(
+        refs,
+        { username: card.username, provider: card.provider },
+        'public_media',
+      );
+      for (const m of media) {
+        if (m._id === card.avatar_ref) card.avatar_url = m.url;
+        else if (m._id === card.banner_ref) card.banner_url = m.url;
+      }
+    } catch (e) {
+      LOG('fetchPeoplePage — face media failed for', card.username, ':', e);
+    }
+  }
+
+  LOG('fetchPeoplePage — returned', cards.length, 'person card(s)');
+  return cards;
+}
