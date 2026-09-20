@@ -54,6 +54,36 @@
       this.details = details;
     }
   }
+  function extractDetail(text) {
+    if (!text)
+      return null;
+    let data;
+    try {
+      data = JSON.parse(text);
+    } catch {
+      return null;
+    }
+    if (typeof data !== "object" || data === null)
+      return null;
+    const detail = data.detail;
+    if (typeof detail === "string" && detail.trim())
+      return detail;
+    if (Array.isArray(detail)) {
+      const parts = detail.map((d) => {
+        const item = d;
+        return typeof item?.msg === "string" ? item.msg : null;
+      });
+      const joined = parts.filter(Boolean).join("; ");
+      if (joined)
+        return joined;
+    }
+    return null;
+  }
+  function httpError(status, statusText, body) {
+    const detail = extractDetail(body);
+    const fallback = `Request failed: ${status} ${statusText}`.trim();
+    return new Web10Error(detail ?? fallback, status, body || undefined);
+  }
   async function authPost(url, body) {
     const res = await fetch(url, {
       method: "POST",
@@ -62,7 +92,7 @@
     });
     if (!res.ok) {
       const text = await res.text().catch(() => "");
-      throw new Web10Error(`Request failed: ${res.status} ${res.statusText}`, res.status, text);
+      throw httpError(res.status, res.statusText, text);
     }
     return res.json();
   }
@@ -140,10 +170,28 @@
       rtcServer
     };
     async function v3Post(action, body) {
-      if (!state.token) {
+      const token = state.token ?? readTokenCookie();
+      if (!token) {
         throw new Web10Error("No token available. Call login() or setToken() first.", 401);
       }
-      return authPost(`${apiOrigin}/v3/${action}`, { ...body, token: state.token });
+      return authPost(`${apiOrigin}/v3/${action}`, { ...body, token });
+    }
+    function pingAppRegister() {
+      if (typeof window === "undefined" || typeof window.location?.href !== "string")
+        return;
+      try {
+        const token = state.token ?? readTokenCookie();
+        const rawUrl = window.location.href.split(/[?#]/)[0];
+        const url = rawUrl.replace(/\/index\.html$/, "/");
+        const body = { url };
+        if (token)
+          body.token = token;
+        fetch(`${apiOrigin}/v3/apps/register`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ body })
+        }).catch(() => {});
+      } catch {}
     }
     const client = {
       get state() {
@@ -152,6 +200,7 @@
       setToken(token) {
         state.token = token;
         setTokenCookie(token);
+        pingAppRegister();
       },
       scrubToken() {
         state.token = null;
@@ -179,6 +228,14 @@
       async getProfile() {
         return v3Post("profile", {});
       },
+      async verifyAccess(options2 = {}) {
+        const body = {};
+        if (options2.services?.length)
+          body.services = options2.services;
+        if (options2.operations?.length)
+          body.operations = options2.operations;
+        return v3Post("access/verify", body);
+      },
       async changePassword(currentPassword, newPassword) {
         return v3Post("change-pass", { password: currentPassword, new_pass: newPassword });
       },
@@ -201,26 +258,70 @@
         return v3Post("set_recovery_phone", { query: { phone } });
       },
       async create(collection, body, opts) {
-        const payload = { collection, body };
+        const payload = { service: collection, body };
         if (opts?.groups)
           payload.groups = opts.groups;
+        if (opts?.ad_preference)
+          payload.ad_preference = opts.ad_preference;
+        if (opts?.ref_value)
+          payload.ref_value = opts.ref_value;
         return v3Post("create", payload);
       },
       async read(collection, opts) {
-        const payload = { collection, groups: opts.groups };
+        const payload = { service: collection, groups: opts.groups };
         if (opts.limit != null)
           payload.limit = opts.limit;
         if (opts.offset != null)
           payload.offset = opts.offset;
+        if (opts.ref != null)
+          payload.ref = opts.ref;
+        if (opts.sort != null)
+          payload.sort = opts.sort;
+        if (opts.tags != null)
+          payload.tags = opts.tags;
+        if (opts.cursor != null)
+          payload.cursor = opts.cursor;
+        if (opts.order != null)
+          payload.order = opts.order;
+        return v3Post("read", payload);
+      },
+      async readRefCounts(collection, opts) {
+        const payload = { service: collection, groups: opts.groups, ref: opts.ref, count: true };
         return v3Post("read", payload);
       },
       async readById(docId, collection) {
-        return v3Post("read-by-id", { doc_id: docId, collection });
+        return v3Post("read", { doc_id: docId, service: collection });
+      },
+      async query(sql, opts) {
+        const payload = { sql };
+        if (opts?.groups)
+          payload.groups = opts.groups;
+        if (opts?.withGroupMeta)
+          payload.withGroupMeta = true;
+        if (opts?.prepare)
+          payload.prepare = opts.prepare;
+        const token = state.token ?? readTokenCookie();
+        if (token)
+          payload.token = token;
+        return authPost(`${apiOrigin}/v3/query`, payload);
+      },
+      async listPeopleDirectory(opts) {
+        const payload = {};
+        if (opts?.limit != null)
+          payload.limit = opts.limit;
+        if (opts?.offset != null)
+          payload.offset = opts.offset;
+        const token = state.token ?? readTokenCookie();
+        if (token)
+          payload.token = token;
+        return authPost(`${apiOrigin}/v3/users/directory`, payload);
       },
       async update(docId, body, opts) {
         const payload = { doc_id: docId, body };
         if (opts?.groups)
           payload.groups = opts.groups;
+        if (opts?.ad_preference)
+          payload.ad_preference = opts.ad_preference;
         return v3Post("update", payload);
       },
       async delete(docId) {
@@ -241,19 +342,27 @@
           payload.allowed_origin = allowedOrigin;
         return v3Post("app-contracts/revoke", payload);
       },
-      async createGroup(name, joinPolicy, roles, members) {
-        return v3Post("groups/create", {
+      async createGroup(name, joinPolicy, roles, members, opts) {
+        const payload = {
           name,
           join_policy: joinPolicy,
           roles,
           members
-        });
+        };
+        if (opts?.discoverable !== undefined)
+          payload.discoverable = opts.discoverable;
+        if (opts?.tags)
+          payload.tags = opts.tags;
+        return v3Post("groups/create", payload);
       },
       async getGroup(groupId) {
         return v3Post("groups/get", { group_id: groupId });
       },
-      async getMyGroups() {
-        return v3Post("groups/list", {});
+      async getMyGroups(opts) {
+        const payload = {};
+        if (opts?.tags)
+          payload.tags = opts.tags;
+        return v3Post("groups/list", payload);
       },
       async getGroupsManages() {
         return v3Post("groups/manages", {});
@@ -264,7 +373,14 @@
           payload.join_policy = opts.join_policy;
         if (opts?.roles)
           payload.roles = opts.roles;
+        if (opts?.discoverable !== undefined)
+          payload.discoverable = opts.discoverable;
+        if (opts?.tags)
+          payload.tags = opts.tags;
         return v3Post("groups/update", payload);
+      },
+      async deleteGroup(groupId) {
+        return v3Post("groups/delete", { group_id: groupId });
       },
       async joinGroup(groupId) {
         return v3Post("groups/join", { group_id: groupId });
@@ -364,16 +480,21 @@
           payload.limit = opts.limit;
         if (opts?.offset != null)
           payload.offset = opts.offset;
+        if (opts?.doc_ids?.length)
+          payload.doc_ids = opts.doc_ids;
         return v3Post("media/list", payload);
       },
       async deleteMedia(docId) {
         return v3Post("media/delete", { doc_id: docId });
       },
+      async getThumbnail(docId) {
+        return v3Post("media/thumbnail", { doc_id: docId });
+      },
       async getNodeStats() {
         return v3Post("stats", {});
       },
       async registerApp(app) {
-        return v3Post("apps/register", { body: app });
+        return authPost(`${apiOrigin}/v3/apps/register`, { body: app });
       },
       async getApps() {
         return v3Post("apps/list", {});
@@ -445,21 +566,55 @@
         window.opener.postMessage({ type: "contract", contracts }, "*");
       }
     };
+    pingAppRegister();
     return client;
   }
 
   // src/browser.ts
   var _authPopup = null;
-  function openAuthPortal(authOrigin) {
-    const url = `${authOrigin}?redirect=${encodeURIComponent(window.location.href)}`;
-    _authPopup = window.open(url, "web10-auth", "width=480,height=720,scrollbars=yes");
+  var _popupReady = false;
+  var _readyListener = null;
+  function openAuthPortal(authOrigin, options = {}) {
+    const token = readTokenCookie();
+    const decoded = token ? decodeJwt(token) : null;
+    const as = decoded?.username ? `&as=${encodeURIComponent(decoded.username)}` : "";
+    const handoff = options.handoff === "none" ? "&handoff=none" : "";
+    const url = `${authOrigin}?redirect=${encodeURIComponent(window.location.href)}${as}${handoff}`;
+    console.log("[wapi] openAuthPortal — opening popup:", url, "as:", decoded?.username || "(none)", "handoff:", options.handoff || "token");
+    const winName = `web10-auth-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`;
+    _authPopup = window.open(url, winName, "width=480,height=720,scrollbars=yes");
+    console.log("[wapi] openAuthPortal — popup returned:", _authPopup ? "open" : "blocked/null");
+    _popupReady = false;
+    if (_readyListener) {
+      window.removeEventListener("message", _readyListener);
+      console.log("[wapi] openAuthPortal — removed old auth_ready listener");
+    }
+    _readyListener = (e) => {
+      if (e.data?.type === "auth_ready") {
+        console.log("[wapi] message event received — type: auth_ready, source:", e.source, "origin:", e.origin);
+        _popupReady = true;
+        console.log("[wapi] auth_ready — popup is ready, flag set");
+      }
+    };
+    window.addEventListener("message", _readyListener);
+    console.log("[wapi] openAuthPortal — auth_ready listener attached");
     return _authPopup;
   }
   function authListen(onSignedIn) {
     const handler = (e) => {
       if (e.data?.type === "auth" && e.data?.token) {
+        const incoming = decodeJwt(e.data.token);
+        const current = readTokenCookie();
+        const currentDecoded = current ? decodeJwt(current) : null;
+        if (currentDecoded?.username && incoming?.username && currentDecoded.username !== incoming.username) {
+          console.warn("[wapi] auth event — token user mismatch (current:", currentDecoded.username, ", incoming:", incoming.username, ") — rejecting to prevent identity hijack");
+          return;
+        }
+        const sameUser = !!currentDecoded?.username && !!incoming?.username && currentDecoded.username === incoming.username;
+        console.log("[wapi] auth event received from popup, setting token cookie" + (sameUser ? " (same user — skipping signed-in callback)" : ""));
         setTokenCookie(e.data.token);
-        onSignedIn(true);
+        if (!sameUser)
+          onSignedIn(true);
       }
     };
     window.addEventListener("message", handler);
@@ -469,37 +624,128 @@
     const client = createV3Client(options);
     const originalContractRequest = client.contractRequest;
     client.contractRequest = function(contracts, authOrigin, callback) {
-      const popup = _authPopup;
-      if (popup && !popup.closed) {
-        const responseHandler = (e) => {
-          if (e.data?.type === "contract_response") {
-            window.removeEventListener("message", responseHandler);
-            clearTimeout(timeoutId);
-            callback?.(e.data);
+      console.log("[wapi] contractRequest — called with", contracts.length, "contract(s):", JSON.stringify(contracts));
+      const token = readTokenCookie();
+      if (token && !(_authPopup && !_authPopup.closed)) {
+        checkExistingContracts(client, contracts, token).then((allExist) => {
+          if (allExist) {
+            console.log("[wapi] contractRequest — all contracts already exist, skipping popup");
+            callback?.({ status: "approved" });
+            return;
           }
-        };
-        window.addEventListener("message", responseHandler);
-        try {
-          popup.postMessage({ type: "contract", contracts }, "*");
-        } catch {
-          window.removeEventListener("message", responseHandler);
-          callback?.({ status: "error", errors: ["Failed to send contract to auth UI"] });
-          return;
-        }
-        const timeoutId = setTimeout(() => {
-          window.removeEventListener("message", responseHandler);
-          callback?.({ status: "error", errors: ["Auth popup closed — request cancelled"] });
-        }, 30000);
+          doContractRequest();
+        }).catch(() => {
+          doContractRequest();
+        });
         return;
       }
-      originalContractRequest.call(this, contracts, authOrigin, callback);
+      doContractRequest();
+      function doContractRequest() {
+        const popup = _authPopup;
+        if (popup && !popup.closed) {
+          console.log("[wapi] contractRequest — reusing existing popup (not closed)");
+          let contractSent = false;
+          let readyHandler = null;
+          let timeoutId = null;
+          const responseHandler = (e) => {
+            if (e.data?.type === "contract_response") {
+              console.log("[wapi] contract_response received:", e.data);
+              window.removeEventListener("message", responseHandler);
+              if (readyHandler)
+                window.removeEventListener("message", readyHandler);
+              if (timeoutId)
+                clearTimeout(timeoutId);
+              callback?.(e.data);
+            }
+          };
+          window.addEventListener("message", responseHandler);
+          console.log("[wapi] contractRequest — contract_response listener attached");
+          const sendContract = () => {
+            contractSent = true;
+            if (readyHandler) {
+              const eh = readyHandler;
+              window.removeEventListener("message", eh);
+            }
+            if (timeoutId)
+              clearTimeout(timeoutId);
+            console.log("[wapi] contractRequest — sending contract to popup");
+            try {
+              popup.postMessage({ type: "contract", contracts }, "*");
+              console.log("[wapi] contractRequest — contract sent via postMessage");
+            } catch (err) {
+              console.error("[wapi] postMessage to popup failed:", err);
+              window.removeEventListener("message", responseHandler);
+              callback?.({ status: "error", errors: ["Failed to send contract to auth UI"] });
+            }
+          };
+          if (_popupReady) {
+            console.log("[wapi] contractRequest — popup already ready, sending immediately");
+            sendContract();
+            return;
+          }
+          readyHandler = (e) => {
+            if (e.data?.type === "auth_ready" && !contractSent) {
+              console.log("[wapi] auth_ready received, sending contract to popup");
+              sendContract();
+            }
+          };
+          window.addEventListener("message", readyHandler);
+          console.log("[wapi] contractRequest — auth_ready listener attached, waiting for popup signal");
+          timeoutId = setTimeout(() => {
+            console.warn("[wapi] contractRequest — 30s timeout reached, contractSent:", contractSent);
+            window.removeEventListener("message", responseHandler);
+            if (readyHandler) {
+              const eh = readyHandler;
+              window.removeEventListener("message", eh);
+            }
+            if (!contractSent) {
+              callback?.({ status: "error", errors: ["Auth popup closed — request cancelled"] });
+            }
+          }, 30000);
+          return;
+        }
+        console.log("[wapi] contractRequest — no existing popup, opening new one");
+        originalContractRequest(contracts, authOrigin, callback);
+      }
     };
     return client;
+  }
+  async function checkExistingContracts(client, contracts, _token) {
+    for (const c of contracts) {
+      if (c.kind === "app") {
+        const list = await client.listAppContracts();
+        const origin = c.app_origin;
+        if (!list.some((ac) => ac.allowed_origin === origin))
+          return false;
+      } else if (c.kind === "group") {
+        const token = readTokenCookie();
+        const decoded = token ? decodeJwt(token) : null;
+        const username = decoded?.username;
+        const provider = decoded?.provider;
+        if (!username || !provider)
+          return false;
+        const groupName = c.name;
+        const groupId = `${provider}/groups/users/${username}/${groupName.toLowerCase().replace(/ /g, "-")}`;
+        try {
+          await client.getGroup(groupId);
+        } catch {
+          return false;
+        }
+      }
+    }
+    return true;
+  }
+  function closeAuthPopup() {
+    if (_authPopup && !_authPopup.closed) {
+      console.log("[wapi] closeAuthPopup — sending close_popup to popup");
+      _authPopup.postMessage({ type: "close_popup" }, "*");
+    }
   }
   var web10 = {
     createV3Client: createV3Client2,
     openAuthPortal,
     authListen,
+    closeAuthPopup,
     cookieDict,
     readTokenCookie,
     setTokenCookie,

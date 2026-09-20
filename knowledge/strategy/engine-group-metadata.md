@@ -268,7 +268,7 @@ the sort I3-honest, and a WHERE-filter would quietly break it.
   the app contract's readAll services, so the opt-in must inject `group_meta`
   into the allowed set; **keep the raw tables blocked**). The compiled query must
   re-parse (the existing backstop).
-- [ ] **QE-B: the SDK change** (`sdk/src/v3.ts`) — `w.query(sql, { groups,
+- [✓ 3.126.0] **QE-B: the SDK change** (`sdk/src/v3.ts`) — `w.query(sql, { groups,
   prepare, withGroupMeta })` + the `V3Prepare`/query types. `dist/` +
   `public/wapi.js` rebuilt + re-synced.
 - [ ] **QE-C: the I3 anti-tests** (the seatbelt — the most important bite) — a
