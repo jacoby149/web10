@@ -2525,11 +2525,14 @@ def get_active_node_ads() -> list[dict]:
     at 20 (the operator can't have 1000 active node ads). Returns [] on any
     error (node ads are an enhancement, not a critical path — the feed works
     without them).
-    """
-    from app.services import config as cfg
 
+    The discover group id is the canonical ``DISCOVER_GROUP_ID`` (derived from
+    ``settings.PROVIDER``) — the same source that creates the group and that
+    every other read uses. (It was previously derived from the editable
+    node_config ``provider`` field, which drifts from ``settings.PROVIDER`` on
+    deployed nodes → the query matched nothing → node ads never attached.)
+    """
     try:
-        discover_group = f"{cfg.get_config_field('provider', 'api.localhost')}/groups/web10/discover"
         result = client.query(
             "SELECT doc_id, author_key, body, tags "
             "FROM (SELECT doc_id, author_key, body, tags, deleted, updated_at, "
@@ -2540,7 +2543,7 @@ def get_active_node_ads() -> list[dict]:
             "AND doc_id IN (SELECT pg.doc_id FROM doc_groups pg "
             "WHERE pg.group_id = %(discover)s AND pg.deleted = 0) "
             "ORDER BY updated_at DESC LIMIT 20",
-            {"discover": discover_group},
+            {"discover": DISCOVER_GROUP_ID},
         )
         ads = []
         for row in result.result_rows:
@@ -2577,9 +2580,18 @@ def attach_node_ads(docs: list[dict], reader: str) -> list[dict]:
     For each doc, if the deterministic hash of (doc_id, reader) is below the
     configured `node_ad_percentage`, attach a node ad as `doc['node_ad']`
     (round-robin through active node ads). The creator's `ad_mode` column is
-    never modified. Both `doc['ad']` (creator's pinned ad) and `doc['node_ad']`
-    (node's ad) can be present on the same post. Returns docs unchanged on
-    any error (node ads are an enhancement, not a critical path).
+    never modified. By default both `doc['ad']` (creator's pinned ad) and
+    `doc['node_ad']` (node's ad) can be present on the same post (the D57
+    non-steal principle — the creator's monetization is never suppressed).
+
+    `node_ad_overwrite` (ad-improvements.md): when true, a node ad that fires on
+    a post that already has a creator's `ad` DROPS the creator's ad (sets
+    `doc['ad']` empty) so only the node ad shows. When false (default), both
+    attach. Format-agnostic — it doesn't matter if the ads are inline or post
+    format; the node ad simply replaces the creator's in the `ad` slot.
+
+    Returns docs unchanged on any error (node ads are an enhancement, not a
+    critical path).
     """
     try:
         from app.services import config as cfg
@@ -2588,12 +2600,17 @@ def attach_node_ads(docs: list[dict], reader: str) -> list[dict]:
         if not percentage or percentage <= 0:
             return docs
 
+        overwrite = bool(cfg.get_config_field("node_ad_overwrite", False))
+
         node_ads = get_active_node_ads()
         if not node_ads:
             return docs
 
         for i, doc in enumerate(docs):
             if _node_ad_hash(doc.get("doc_id", ""), reader) < percentage:
+                if overwrite and doc.get("ad"):
+                    # The node ad overwrites the creator's ad on this post.
+                    doc["ad"] = None
                 doc["node_ad"] = node_ads[i % len(node_ads)]
         return docs
     except Exception:

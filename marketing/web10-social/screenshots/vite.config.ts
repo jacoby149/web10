@@ -23,6 +23,7 @@ export default defineConfig({
       { find: /^@\/data\/p2p$/, replacement: path.resolve(here, './harness/mock-p2p.ts') },
       { find: /^@\/data\/notifications$/, replacement: path.resolve(here, './harness/mock-notifications.ts') },
       { find: /^@\/data\/search$/, replacement: path.resolve(here, './harness/mock-search.ts') },
+      { find: /^@\/data\/ads-catalog$/, replacement: path.resolve(here, './harness/mock-ads-catalog.ts') },
       { find: /^@\/data$/, replacement: path.resolve(here, './harness/mock-data.ts') },
       { find: '@', replacement: path.resolve(root, './src') },
     ],

@@ -16,9 +16,11 @@ import {
   movePostVisibility,
   readPostById,
   resolveMediaRefs,
+  readMyAds,
+  type AdAlbum,
 } from '@/data';
 import { getWapi } from '@/data/wapi';
-import { fromResolvedMediaRef, type ResolvedMediaRef, type PostRecord, type MediaRecord } from '@/data/types';
+import { fromResolvedMediaRef, type ResolvedMediaRef, type PostRecord, type MediaRecord, type AdRecord } from '@/data/types';
 import {
   PRESETS,
   getPreset,
@@ -26,13 +28,15 @@ import {
   type KnobState,
 } from '@/lib/powerMean';
 import { KnobRack } from '@/components/Discover/KnobRack';
-import { MoreHorizontal, Share2, Check, Edit3, Eye, EyeOff, Trash2, Repeat2 } from 'lucide-react';
+import { MoreHorizontal, Share2, Check, Edit3, Eye, EyeOff, Trash2, Repeat2, Megaphone } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { MARKETING_ORIGIN } from '@/lib/origins';
 import { Textarea } from '@/components/ui/textarea';
 import { PostActions } from './PostActions';
 import { TextWithLinks } from './LinkEmbed';
 import { AdBlock } from './AdBlock';
+import { AttachedAd } from './AttachedAd';
+import { AdPicker } from './AdPicker';
 import { VideoPlayer, sourceFromMedia } from './VideoPlayer';
 import { MediaCarousel } from './MediaCarousel';
 import { toast, errorMessage } from '@/components/shared/Toast';
@@ -353,6 +357,32 @@ export function PostCard({
   const [copied, setCopied] = useState(false);
   const [togglingVisibility, setTogglingVisibility] = useState(false);
 
+  // The edit flow's "Pin an ad" (ad-improvements.md): swap / clear the post's
+  // pinned ad. `pinnedAdId` is the ad's doc_id (null = no ad); the picker
+  // lazy-loads the creator's ads (the PostComposer pattern).
+  const [pinnedAdId, setPinnedAdId] = useState<string | null>(post.ad_target || null);
+  const [showAdPicker, setShowAdPicker] = useState(false);
+  const [ads, setAds] = useState<AdRecord[]>([]);
+  const [albums, setAlbums] = useState<AdAlbum[]>([]);
+  const [loadingAds, setLoadingAds] = useState(false);
+
+  const openAdPicker = useCallback(async () => {
+    setPinnedAdId(post.ad_target || null);
+    setShowAdPicker(true);
+    if (!ads.length && !loadingAds) {
+      setLoadingAds(true);
+      try {
+        const { ads: myAds, albums: myAlbums } = await readMyAds();
+        setAds(myAds);
+        setAlbums(myAlbums);
+      } catch (e) {
+        console.warn('[social-feed] readMyAds failed:', e);
+      } finally {
+        setLoadingAds(false);
+      }
+    }
+  }, [post.ad_target, ads.length, loadingAds]);
+
   // Close the owner menu on Escape.
   useEffect(() => {
     if (!menuOpen) return;
@@ -390,8 +420,13 @@ export function PostCard({
   async function handleSaveEdit() {
     setSaving(true);
     try {
-      await updatePost(post._id || '', { text: editDraft, updated_at: new Date().toISOString() });
+      // The edit can also swap / clear the pinned ad (ad-improvements.md).
+      const adPreference = pinnedAdId
+        ? { mode: 'pinned' as const, target: pinnedAdId }
+        : { mode: 'none' as const };
+      await updatePost(post._id || '', { text: editDraft, updated_at: new Date().toISOString() }, adPreference);
       setEditing(false);
+      setShowAdPicker(false);
       onPostUpdated?.();
     } catch (e) {
       console.error('Failed to update post:', e);
@@ -575,12 +610,16 @@ export function PostCard({
             className="text-sm min-h-[80px] resize-none"
             data-testid="post-edit-input"
           />
-          <div className="flex gap-2">
+          <div className="flex flex-wrap items-center gap-2">
             <Button size="sm" variant="brand" onClick={handleSaveEdit} disabled={saving} data-testid="post-edit-save" className="text-xs">
               {saving ? 'Saving…' : 'Save'}
             </Button>
-            <Button size="sm" variant="ghost" onClick={() => { setEditing(false); setEditDraft(post.text || ''); }} className="text-xs">
+            <Button size="sm" variant="ghost" onClick={() => { setEditing(false); setEditDraft(post.text || ''); setShowAdPicker(false); }} className="text-xs">
               Cancel
+            </Button>
+            <Button size="sm" variant="ghost" onClick={openAdPicker} data-testid="post-edit-pin-ad" className="text-xs gap-1.5 text-muted-foreground hover:text-foreground">
+              <Megaphone className="h-3.5 w-3.5" />
+              {pinnedAdId ? 'Change ad' : 'Pin an ad'}
             </Button>
           </div>
         </div>
@@ -634,13 +673,26 @@ export function PostCard({
 
       {/* Carried ads (D55 + D57): the creator's pinned ad (`post.ad`) and the
           node's ad (`post.node_ad`) can both be present — render both, neither
-          suppressing the other. The ad block is a self-contained card. */}
+          suppressing the other (unless node_ad_overwrite dropped the creator's).
+          Each renders per its format (inline AdBlock / full PostAdCard). */}
       {(post.ad || post.node_ad) && (
         <div className="px-3 pb-3 md:px-4 md:pb-4 space-y-2">
-          {post.ad && <AdBlock ad={post.ad} />}
-          {post.node_ad && <AdBlock ad={post.node_ad} />}
+          {post.ad && <AttachedAd ad={post.ad} />}
+          {post.node_ad && <AttachedAd ad={post.node_ad} />}
         </div>
       )}
+
+      {/* The edit flow's "Pin an ad" picker (ad-improvements.md). */}
+      <AdPicker
+        open={showAdPicker}
+        ads={ads}
+        albums={albums}
+        selectedAdId={pinnedAdId || undefined}
+        loading={loadingAds}
+        onClose={() => setShowAdPicker(false)}
+        onSelect={(ad) => setPinnedAdId(ad._id || null)}
+        onClear={() => setPinnedAdId(null)}
+      />
     </article>
   );
 }

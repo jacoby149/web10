@@ -1,10 +1,10 @@
 import { useCallback, useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ChevronLeft, ChevronRight, X, Edit3, Trash2, Eye, EyeOff, Share2, Check } from 'lucide-react';
+import { ChevronLeft, ChevronRight, X, Edit3, Trash2, Eye, EyeOff, Share2, Check, Megaphone } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { Input } from '@/components/ui/input';
-import type { PostRecord, MediaRecord } from '@/data/types';
+import type { PostRecord, MediaRecord, AdRecord } from '@/data/types';
 import { mediaRefId } from '@/data/types';
 import { getWapi } from '@/data/wapi';
 import {
@@ -16,10 +16,13 @@ import {
   updatePost,
   deletePost,
   movePostVisibility,
+  readMyAds,
+  type AdAlbum,
 } from '@/data';
 import { PostActions } from '@/components/Feed/PostActions';
 import { TextWithLinks } from '@/components/Feed/LinkEmbed';
 import { AdBlock } from '@/components/Feed/AdBlock';
+import { AdPicker } from '@/components/Feed/AdPicker';
 import { toast, errorMessage } from '@/components/shared/Toast';
 import { cn } from '@/lib/utils';
 import { VideoPlayer, sourceFromMedia } from '@/components/Feed/VideoPlayer';
@@ -108,6 +111,32 @@ export function PostLightbox({ post, mediaMap, onClose, onReload, postAuthor, po
   const [editing, setEditing] = useState(false);
   const [editDraft, setEditDraft] = useState(currentPost.text || '');
   const [saving, setSaving] = useState(false);
+
+  // The edit flow's "Pin an ad" (ad-improvements.md): swap / clear the post's
+  // pinned ad. `pinnedAdId` is the ad's doc_id (null = no ad); the picker
+  // lazy-loads the creator's ads (the PostComposer pattern).
+  const [pinnedAdId, setPinnedAdId] = useState<string | null>(currentPost.ad_target || null);
+  const [showAdPicker, setShowAdPicker] = useState(false);
+  const [ads, setAds] = useState<AdRecord[]>([]);
+  const [albums, setAlbums] = useState<AdAlbum[]>([]);
+  const [loadingAds, setLoadingAds] = useState(false);
+
+  const openAdPicker = useCallback(async () => {
+    setPinnedAdId(currentPost.ad_target || null);
+    setShowAdPicker(true);
+    if (!ads.length && !loadingAds) {
+      setLoadingAds(true);
+      try {
+        const { ads: myAds, albums: myAlbums } = await readMyAds();
+        setAds(myAds);
+        setAlbums(myAlbums);
+      } catch (e) {
+        console.warn('[social-lightbox] readMyAds failed:', e);
+      } finally {
+        setLoadingAds(false);
+      }
+    }
+  }, [currentPost.ad_target, ads.length, loadingAds]);
 
   // Delete confirm state. `deleteArmed` reveals the confirm UI (type "delete"
   // to proceed); `deleteConfirm` is the typed value that gates the confirm
@@ -241,8 +270,13 @@ export function PostLightbox({ post, mediaMap, onClose, onReload, postAuthor, po
   async function handleSaveEdit() {
     setSaving(true);
     try {
-      await updatePost(currentPost._id || '', { text: editDraft, updated_at: new Date().toISOString() });
+      // The edit can also swap / clear the pinned ad (ad-improvements.md).
+      const adPreference = pinnedAdId
+        ? { mode: 'pinned' as const, target: pinnedAdId }
+        : { mode: 'none' as const };
+      await updatePost(currentPost._id || '', { text: editDraft, updated_at: new Date().toISOString() }, adPreference);
       setEditing(false);
+      setShowAdPicker(false);
       onClose();
       onReload?.();
     } catch (e) {
@@ -385,7 +419,7 @@ export function PostLightbox({ post, mediaMap, onClose, onReload, postAuthor, po
                 className="text-sm min-h-[80px] resize-none"
                 data-testid="post-edit-input"
               />
-              <div className="flex gap-2">
+              <div className="flex flex-wrap items-center gap-2">
                 <Button
                   size="sm"
                   variant="brand"
@@ -399,10 +433,20 @@ export function PostLightbox({ post, mediaMap, onClose, onReload, postAuthor, po
                 <Button
                   size="sm"
                   variant="ghost"
-                  onClick={() => { setEditing(false); setEditDraft(currentPost.text || ''); }}
+                  onClick={() => { setEditing(false); setEditDraft(currentPost.text || ''); setShowAdPicker(false); }}
                   className="text-xs"
                 >
                   Cancel
+                </Button>
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  onClick={openAdPicker}
+                  data-testid="post-edit-pin-ad"
+                  className="text-xs gap-1.5 text-muted-foreground hover:text-foreground"
+                >
+                  <Megaphone className="h-3.5 w-3.5" />
+                  {pinnedAdId ? 'Change ad' : 'Pin an ad'}
                 </Button>
               </div>
             </div>
@@ -468,6 +512,18 @@ export function PostLightbox({ post, mediaMap, onClose, onReload, postAuthor, po
               {currentPost.node_ad && <AdBlock ad={currentPost.node_ad} />}
             </div>
           )}
+
+          {/* The edit flow's "Pin an ad" picker (ad-improvements.md). */}
+          <AdPicker
+            open={showAdPicker}
+            ads={ads}
+            albums={albums}
+            selectedAdId={pinnedAdId || undefined}
+            loading={loadingAds}
+            onClose={() => setShowAdPicker(false)}
+            onSelect={(ad) => setPinnedAdId(ad._id || null)}
+            onClear={() => setPinnedAdId(null)}
+          />
 
           {/* Owner actions */}
           {isOwner && !editing && (
