@@ -138,6 +138,34 @@ export type UploadCommentMedia = (file: File) => Promise<{
 }>;
 
 /**
+ * An ad attached to a post (the `ad_preference` / node read-time attach). The
+ * apps map their ad records onto this; the card renders it via the injected
+ * `renderAd` seam (the shared package is presentational and doesn't know the
+ * app's ad components). Structurally compatible with the social app's
+ * `AdRecord`. `format` is how the attached ad renders (`inline` = the compact
+ * block, `post` = a full post-like card) — the app's `renderAd` decides.
+ */
+export interface DiscoverAd {
+  _id?: string;
+  text?: string;
+  media_refs?: unknown[];
+  offer?: {
+    kind?: string;
+    partner?: string;
+    link?: string;
+    cta?: string;
+    disclosure?: string;
+  };
+  status?: string;
+  author_username?: string;
+  /** `creator` (default) or `node` — drives the provenance dressing. */
+  variant?: 'creator' | 'node';
+  /** `inline` (default) or `post` — how the attached ad renders. */
+  format?: 'inline' | 'post';
+  albums?: string[];
+}
+
+/**
  * The discover card's post. The apps map their feed/discover records onto this.
  * `id` is the post's doc_id (the comment/reaction target).
  */
@@ -157,5 +185,9 @@ export interface DiscoverPost {
   reposts?: number;
   score?: number;
   media?: MediaItem[];
+  /** The creator's pinned ad (the read serves it inline, I3-checked). */
+  ad?: DiscoverAd;
+  /** The node's ad (attached at the operator's percentage, D57). */
+  node_ad?: DiscoverAd;
 }
 

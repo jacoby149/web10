@@ -1,5 +1,5 @@
-import { useState, useEffect, useCallback } from 'react';
-import { Megaphone, Plus, Pause, Play, Trash2, Pin, FolderPlus, AlertTriangle, RefreshCw, GraduationCap, ArrowUpRight, X } from 'lucide-react';
+import { useState, useEffect, useCallback, useRef } from 'react';
+import { Megaphone, Plus, Pause, Play, Trash2, Pin, FolderPlus, AlertTriangle, RefreshCw, GraduationCap, ArrowUpRight, X, Pencil, ImagePlus } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -11,14 +11,24 @@ import {
   readMyCatalog,
   ensureFollowersGroup,
   buildOfferBody,
+  updateAd,
   type AdsCatalogData,
   type AdItem,
   type AlbumItem,
   type PostItem,
 } from '@/data/ads-catalog';
-import { getV3Client, type AdOffer } from '@/data';
+import { getV3Client, type AdOffer, type AdFormat } from '@/data';
+import { uploadMedia, resolveMediaRefs } from '@/data';
+import { processImage, generateThumbnail, captureVideoPoster, getVideoInfo } from '@/lib/mediaProcessing';
+import type { MediaRecord } from '@/data';
 
-const OFFER_KINDS = ['affiliate', 'direct', 'own_store'] as const;
+// `none` is the default (self-promo — most creator ads aren't affiliate).
+// `partner` only makes sense for affiliate/direct, so it's hidden for `none`.
+const OFFER_KINDS = ['none', 'affiliate', 'direct', 'own_store'] as const;
+// Quick-pick CTA suggestions (ad-improvements.md) — the CTA is free-text; these
+// just fill the field. "Check it out" / "Learn more" fit services + buzz, not
+// just products.
+const CTA_SUGGESTIONS = ['Check it out', 'Learn more', 'Shop now', 'Sign up', 'Book now', 'Get it'];
 const EMPTY: AdsCatalogData = { ads: [], albums: [], posts: [] };
 
 // The monetization bootcamp shortlist (KB: monetization-bootcamp.md). The
@@ -55,10 +65,15 @@ export function CreatorMonetization() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  const [showNewAd, setShowNewAd] = useState(false);
+  const [adFormOpen, setAdFormOpen] = useState(false);
+  const [editingAd, setEditingAd] = useState<AdItem | null>(null);
   const [showNewAlbum, setShowNewAlbum] = useState(false);
   const [pinAd, setPinAd] = useState<AdItem | null>(null);
   const [filterAlbum, setFilterAlbum] = useState<string | null>(null);
+
+  const openNewAd = () => { setEditingAd(null); setAdFormOpen(true); };
+  const openEditAd = (ad: AdItem) => { setEditingAd(ad); setAdFormOpen(true); };
+  const closeAdForm = () => { setAdFormOpen(false); setEditingAd(null); };
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -88,10 +103,29 @@ export function CreatorMonetization() {
   const username = () => getV3Client().readToken()?.username || '';
   const provider = () => getV3Client().readToken()?.provider;
 
-  const createAd = async (offer: AdOffer, text: string, status: 'active' | 'paused', albumIds: string[]) => {
+  const createAd = async (
+    offer: AdOffer,
+    text: string,
+    status: 'active' | 'paused',
+    albumIds: string[],
+    mediaRefs?: string[],
+    format: AdFormat = 'inline',
+  ) => {
     const w = getV3Client();
     const group = await ensureFollowersGroup(username(), provider());
-    await w.create('posts', buildOfferBody(offer, text, status, albumIds), { groups: [group] });
+    await w.create('posts', buildOfferBody(offer, text, status, albumIds, mediaRefs, format), { groups: [group] });
+  };
+
+  const editAd = async (
+    ad: AdItem,
+    offer: AdOffer,
+    text: string,
+    status: 'active' | 'paused',
+    albumIds: string[],
+    mediaRefs?: string[],
+    format: AdFormat = 'inline',
+  ) => {
+    await updateAd(ad, offer, text, status, albumIds, mediaRefs, format);
   };
 
   const createAlbum = async (name: string) => {
@@ -174,17 +208,26 @@ export function CreatorMonetization() {
               Your ads, albums, and the posts they run on. Pin an ad to a post and it shows with that post, every time.
             </p>
           </div>
-          <Button variant="brand" size="sm" onClick={() => setShowNewAd((v) => !v)} data-testid="ads-new-ad" disabled={loading}>
+          <Button variant="brand" size="sm" onClick={openNewAd} data-testid="ads-new-ad" disabled={loading}>
             <Plus className="mr-1 h-4 w-4" /> New Ad
           </Button>
         </div>
 
-        {showNewAd && (
+        {adFormOpen && (
           <div className="mt-4">
-            <NewAdForm
+            <AdForm
+              initial={editingAd}
               albums={data?.albums || []}
-              onSubmit={(offer, text, status, albumIds) => run(() => createAd(offer, text, status, albumIds), 'Ad created')}
-              onCancel={() => setShowNewAd(false)}
+              onSubmit={(offer, text, status, albumIds, mediaRefs, format) =>
+                run(
+                  () =>
+                    editingAd
+                      ? editAd(editingAd, offer, text, status, albumIds, mediaRefs, format)
+                      : createAd(offer, text, status, albumIds, mediaRefs, format),
+                  editingAd ? 'Ad updated' : 'Ad created',
+                )
+              }
+              onCancel={closeAdForm}
             />
           </div>
         )}
@@ -195,7 +238,7 @@ export function CreatorMonetization() {
           ) : error ? (
             <ErrorState message={error} onRetry={load} />
           ) : data && data.ads.length === 0 && data.albums.length === 0 ? (
-            <EmptyState onNewAd={() => setShowNewAd(true)} />
+            <EmptyState onNewAd={openNewAd} />
           ) : data ? (
             <>
               <CatalogSection
@@ -203,6 +246,7 @@ export function CreatorMonetization() {
                 albums={data.albums}
                 filterAlbum={filterAlbum}
                 onFilterAlbum={setFilterAlbum}
+                onEdit={openEditAd}
                 onPin={(ad) => setPinAd(ad)}
                 onPause={(ad) => run(() => setStatus(ad, 'paused'), 'Ad paused')}
                 onResume={(ad) => run(() => setStatus(ad, 'active'), 'Ad active')}
@@ -311,6 +355,7 @@ function CatalogSection({
   albums,
   filterAlbum,
   onFilterAlbum,
+  onEdit,
   onPin,
   onPause,
   onResume,
@@ -320,6 +365,7 @@ function CatalogSection({
   albums: AlbumItem[];
   filterAlbum: string | null;
   onFilterAlbum: (albumId: string | null) => void;
+  onEdit: (ad: AdItem) => void;
   onPin: (ad: AdItem) => void;
   onPause: (ad: AdItem) => void;
   onResume: (ad: AdItem) => void;
@@ -353,6 +399,7 @@ function CatalogSection({
             <AdRow
               key={ad.doc.doc_id}
               ad={ad}
+              onEdit={() => onEdit(ad)}
               onPin={() => onPin(ad)}
               onPause={() => onPause(ad)}
               onResume={() => onResume(ad)}
@@ -386,8 +433,9 @@ function FilterChip({ label, active, onClick, count }: {
   );
 }
 
-function AdRow({ ad, onPin, onPause, onResume, onRetire }: {
+function AdRow({ ad, onEdit, onPin, onPause, onResume, onRetire }: {
   ad: AdItem;
+  onEdit: () => void;
   onPin: () => void;
   onPause: () => void;
   onResume: () => void;
@@ -404,6 +452,7 @@ function AdRow({ ad, onPin, onPause, onResume, onRetire }: {
           <div className="flex flex-wrap items-center gap-2">
             <span className="truncate text-sm font-medium text-foreground">{ad.text || 'Untitled ad'}</span>
             <Badge variant={active ? 'success' : 'default'}>{active ? 'ACTIVE' : 'PAUSED'}</Badge>
+            <Badge variant="outline">{ad.format === 'post' ? 'POST AD' : 'INLINE'}</Badge>
             {ad.offer.kind && <Badge variant="outline">{ad.offer.kind}</Badge>}
           </div>
           {ad.offer.partner && (
@@ -413,6 +462,9 @@ function AdRow({ ad, onPin, onPause, onResume, onRetire }: {
           )}
         </div>
         <div className="flex flex-shrink-0 items-center gap-1.5">
+          <Button variant="outline" size="sm" onClick={onEdit} data-testid={`ads-edit-${ad.doc.doc_id}`} aria-label="Edit ad">
+            <Pencil className="h-3.5 w-3.5" /> Edit
+          </Button>
           <Button variant="outline" size="sm" onClick={onPin} data-testid={`ads-pin-${ad.doc.doc_id}`} aria-label="Pin ad to a post">
             <Pin className="h-3.5 w-3.5" /> Pin
           </Button>
@@ -522,39 +574,102 @@ function AlbumRow({ album, ads, onAddAd }: {
   );
 }
 
-function NewAdForm({ albums, onSubmit, onCancel }: {
+/**
+ * The ad form — create AND edit (ad-improvements.md). Edit mode pre-fills from
+ * `initial`; the save keeps the same doc_id (so pins survive). Adds the CTA
+ * suggestion chips, the optional `kind` (partner hidden for `none`), the media
+ * attach (image/video, one item), and the format toggle (inline / post).
+ */
+function AdForm({ initial, albums, onSubmit, onCancel }: {
+  initial: AdItem | null;
   albums: AlbumItem[];
-  onSubmit: (offer: AdOffer, text: string, status: 'active' | 'paused', albumIds: string[]) => void;
+  onSubmit: (
+    offer: AdOffer,
+    text: string,
+    status: 'active' | 'paused',
+    albumIds: string[],
+    mediaRefs: string[],
+    format: AdFormat,
+  ) => void;
   onCancel: () => void;
 }) {
-  const [text, setText] = useState('');
-  const [kind, setKind] = useState<string>('affiliate');
-  const [partner, setPartner] = useState('');
-  const [link, setLink] = useState('');
-  const [cta, setCta] = useState('');
-  const [disclosure, setDisclosure] = useState('');
-  const [status, setStatus] = useState<'active' | 'paused'>('active');
-  const [albumIds, setAlbumIds] = useState<string[]>([]);
+  const editing = !!initial;
+  const [text, setText] = useState(initial?.text || '');
+  const [kind, setKind] = useState<string>(initial?.offer.kind || 'none');
+  const [partner, setPartner] = useState(initial?.offer.partner || '');
+  const [link, setLink] = useState(initial?.offer.link || '');
+  const [cta, setCta] = useState(initial?.offer.cta || '');
+  const [disclosure, setDisclosure] = useState(initial?.offer.disclosure || '');
+  const [status, setStatus] = useState<'active' | 'paused'>(initial?.status || 'active');
+  const [albumIds, setAlbumIds] = useState<string[]>(initial?.albums || []);
+  const [format, setFormat] = useState<AdFormat>(initial?.format || 'inline');
   const [saving, setSaving] = useState(false);
 
-  const submit = () => {
+  // The ad's creative media — one item (image or video). `file` = a newly
+  // picked file (uploaded on submit); `existingDocId` = the current media kept
+  // (edit mode); `previewUrl` = what to show.
+  const [media, setMedia] = useState<{
+    file?: File;
+    previewUrl?: string;
+    isVideo?: boolean;
+    existingDocId?: string;
+  } | null>(null);
+  const mediaInputRef = useRef<HTMLInputElement>(null);
+
+  // Edit mode: resolve the existing media to a preview URL.
+  useEffect(() => {
+    let live = true;
+    const refs = initial?.media_refs;
+    if (refs && refs.length) {
+      const first = refs[0];
+      const docId = typeof first === 'string' ? first : (first as { doc_id?: string }).doc_id;
+      if (docId) {
+        setMedia({ existingDocId: docId, isVideo: false });
+        resolveMediaRefs([docId])
+          .then((m) => {
+            if (!live) return;
+            const rec = m[0];
+            setMedia((prev) =>
+              prev && prev.existingDocId === docId
+                ? { ...prev, previewUrl: rec?.thumbnail_url || rec?.url, isVideo: rec?.mime_type?.startsWith('video/') }
+                : prev,
+            );
+          })
+          .catch(() => {});
+      }
+    }
+    return () => { live = false; };
+  }, [initial]);
+
+  const pickMedia = (file: File) => {
+    const isVideo = file.type.startsWith('video/');
+    setMedia({ file, previewUrl: URL.createObjectURL(file), isVideo });
+  };
+
+  const submit = async () => {
     if (!link.trim()) return;
     setSaving(true);
-    const offer: AdOffer = { kind, partner: partner.trim(), link: link.trim(), cta: cta.trim(), disclosure: disclosure.trim() };
-    Promise.resolve(onSubmit(offer, text.trim() || 'Untitled ad', status, albumIds))
-      .catch(() => {})
-      .finally(() => {
-        setSaving(false);
-        setText(''); setKind('affiliate'); setPartner(''); setLink(''); setCta('');
-        setDisclosure(''); setStatus('active'); setAlbumIds([]);
-        onCancel();
-      });
+    try {
+      let mediaRefs: string[] = [];
+      if (media?.file) {
+        const record = await uploadAdMedia(media.file);
+        if (record._id) mediaRefs = [record._id];
+      } else if (media?.existingDocId) {
+        mediaRefs = [media.existingDocId];
+      }
+      const offer: AdOffer = { kind, partner: partner.trim(), link: link.trim(), cta: cta.trim(), disclosure: disclosure.trim() };
+      onSubmit(offer, text.trim() || 'Untitled ad', status, albumIds, mediaRefs, format);
+      onCancel();
+    } catch (e) {
+      toast.error(errorMessage(e, 'Failed to upload media'));
+      setSaving(false);
+    }
   };
 
   return (
-    <div className="rounded border border-border bg-elevated/30 p-4" data-testid="ad-new-form">
+    <div className="rounded border border-border bg-elevated/30 p-4" data-testid={editing ? 'ad-edit-form' : 'ad-new-form'}>
       <div className="mb-3 flex items-center justify-between">
-        <h4 className="text-sm font-medium text-foreground">New ad</h4>
+        <h4 className="text-sm font-medium text-foreground">{editing ? 'Edit ad' : 'New ad'}</h4>
         <Button variant="ghost" size="sm" onClick={onCancel} aria-label="Cancel">
           <X className="h-4 w-4" />
         </Button>
@@ -567,6 +682,65 @@ function NewAdForm({ albums, onSubmit, onCancel }: {
           <Label htmlFor="ad-text">Copy</Label>
           <Input id="ad-text" placeholder="Everything I use, linked." value={text} onChange={(e) => setText(e.target.value)} data-testid="ad-text" />
         </div>
+
+        {/* Format — inline (compact block) vs post (a full post). */}
+        <div className="grid gap-1.5">
+          <Label>Format</Label>
+          <div className="flex gap-2" data-testid="ad-format-toggle">
+            {(['inline', 'post'] as AdFormat[]).map((f) => (
+              <button
+                key={f}
+                type="button"
+                onClick={() => setFormat(f)}
+                className={cn(
+                  'flex-1 rounded-md border px-3 py-2 text-left text-xs transition-colors',
+                  format === f ? 'border-brand bg-brand-muted text-brand-300' : 'border-border text-muted-foreground hover:border-brand/50',
+                )}
+                data-testid={`ad-format-${f}`}
+              >
+                <span className="block font-medium capitalize">{f}</span>
+                <span className="block text-[0.6875rem] opacity-80">
+                  {f === 'inline' ? 'compact block under the post' : 'a full post (media, likes)'}
+                </span>
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {/* Media — one image or video (the creative). */}
+        <div className="grid gap-1.5">
+          <Label>Media (image or video)</Label>
+          <input
+            ref={mediaInputRef}
+            type="file"
+            accept="image/*,video/*"
+            className="hidden"
+            onChange={(e) => { const f = e.target.files?.[0]; if (f) pickMedia(f); e.target.value = ''; }}
+            data-testid="ad-media-input"
+          />
+          {media ? (
+            <div className="relative overflow-hidden rounded-md border border-border" data-testid="ad-media-preview">
+              {media.isVideo ? (
+                <video src={media.previewUrl} className="max-h-48 w-full object-contain bg-elevated" muted playsInline />
+              ) : (
+                <img src={media.previewUrl} alt="" className="max-h-48 w-full object-contain bg-elevated" />
+              )}
+              <div className="absolute right-2 top-2 flex gap-1">
+                <Button variant="ghost" size="sm" className="h-7 w-7 p-0 bg-background/70" onClick={() => mediaInputRef.current?.click()} aria-label="Replace media" data-testid="ad-media-replace">
+                  <ImagePlus className="h-3.5 w-3.5" />
+                </Button>
+                <Button variant="ghost" size="sm" className="h-7 w-7 p-0 bg-background/70 hover:text-danger" onClick={() => setMedia(null)} aria-label="Remove media" data-testid="ad-media-remove">
+                  <X className="h-3.5 w-3.5" />
+                </Button>
+              </div>
+            </div>
+          ) : (
+            <Button variant="outline" size="sm" onClick={() => mediaInputRef.current?.click()} data-testid="ad-media-add">
+              <ImagePlus className="mr-1 h-3.5 w-3.5" /> Add media
+            </Button>
+          )}
+        </div>
+
         <div className="grid grid-cols-2 gap-3">
           <div className="grid gap-1.5">
             <Label htmlFor="ad-kind">Offer kind</Label>
@@ -577,23 +751,44 @@ function NewAdForm({ albums, onSubmit, onCancel }: {
               className="h-9 w-full rounded-md border border-input bg-elevated px-3 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-ring"
               data-testid="ad-kind"
             >
-              {OFFER_KINDS.map((k) => <option key={k} value={k}>{k}</option>)}
+              {OFFER_KINDS.map((k) => <option key={k} value={k}>{k === 'none' ? 'none (self-promo)' : k}</option>)}
             </select>
           </div>
-          <div className="grid gap-1.5">
-            <Label htmlFor="ad-partner">Partner</Label>
-            <Input id="ad-partner" placeholder="e.g. Amazon" value={partner} onChange={(e) => setPartner(e.target.value)} data-testid="ad-partner" />
-          </div>
+          {kind !== 'none' && (
+            <div className="grid gap-1.5">
+              <Label htmlFor="ad-partner">Partner</Label>
+              <Input id="ad-partner" placeholder="e.g. Amazon (optional)" value={partner} onChange={(e) => setPartner(e.target.value)} data-testid="ad-partner" />
+            </div>
+          )}
         </div>
+
         <div className="grid gap-1.5">
           <Label htmlFor="ad-link">Link (the one that pays)</Label>
           <Input id="ad-link" placeholder="https://amzn.to/abc?tag=you-20" value={link} onChange={(e) => setLink(e.target.value)} data-testid="ad-link" />
         </div>
-        <div className="grid grid-cols-2 gap-3">
-          <div className="grid gap-1.5">
-            <Label htmlFor="ad-cta">CTA</Label>
-            <Input id="ad-cta" placeholder="Get it" value={cta} onChange={(e) => setCta(e.target.value)} data-testid="ad-cta" />
+
+        <div className="grid gap-1.5">
+          <Label htmlFor="ad-cta">CTA</Label>
+          <Input id="ad-cta" placeholder="e.g. Check it out" value={cta} onChange={(e) => setCta(e.target.value)} data-testid="ad-cta" />
+          <div className="flex flex-wrap gap-1.5">
+            {CTA_SUGGESTIONS.map((s) => (
+              <button
+                key={s}
+                type="button"
+                onClick={() => setCta(s)}
+                className={cn(
+                  'rounded-full border px-2.5 py-0.5 text-[0.6875rem] transition-colors',
+                  cta === s ? 'border-brand bg-brand-muted text-brand-300' : 'border-border text-muted-foreground hover:border-brand/50',
+                )}
+                data-testid={`ad-cta-suggest-${s.toLowerCase().replace(/\s+/g, '-')}`}
+              >
+                {s}
+              </button>
+            ))}
           </div>
+        </div>
+
+        <div className="grid grid-cols-2 gap-3">
           <div className="grid gap-1.5">
             <Label htmlFor="ad-status">Status</Label>
             <select
@@ -607,11 +802,12 @@ function NewAdForm({ albums, onSubmit, onCancel }: {
               <option value="paused">paused</option>
             </select>
           </div>
+          <div className="grid gap-1.5">
+            <Label htmlFor="ad-disclosure">Disclosure</Label>
+            <Input id="ad-disclosure" placeholder="I may earn a commission." value={disclosure} onChange={(e) => setDisclosure(e.target.value)} data-testid="ad-disclosure" />
+          </div>
         </div>
-        <div className="grid gap-1.5">
-          <Label htmlFor="ad-disclosure">Disclosure</Label>
-          <Input id="ad-disclosure" placeholder="I may earn a commission." value={disclosure} onChange={(e) => setDisclosure(e.target.value)} data-testid="ad-disclosure" />
-        </div>
+
         {albums.length > 0 && (
           <div className="grid gap-1.5">
             <Label>Albums</Label>
@@ -640,11 +836,39 @@ function NewAdForm({ albums, onSubmit, onCancel }: {
       <div className="mt-4 flex justify-end gap-2">
         <Button variant="outline" size="sm" onClick={onCancel}>Cancel</Button>
         <Button variant="brand" size="sm" onClick={submit} disabled={saving || !link.trim()} data-testid="ad-save">
-          {saving ? 'Creating…' : 'Create Ad'}
+          {saving ? 'Saving…' : editing ? 'Save Ad' : 'Create Ad'}
         </Button>
       </div>
     </div>
   );
+}
+
+/** Upload an ad's creative media (image or video) → a MediaRecord. */
+async function uploadAdMedia(file: File): Promise<MediaRecord> {
+  if (file.type.startsWith('video/')) {
+    const info = await getVideoInfo(file);
+    const poster = await captureVideoPoster(file);
+    const posterFile = new File([poster.blob], `poster-${Date.now()}.webp`, { type: poster.mimeType });
+    return uploadMedia({
+      file,
+      thumbnailFile: posterFile,
+      width: info.width,
+      height: info.height,
+      durationSeconds: Math.round(info.duration * 100) / 100,
+      service: 'public_media',
+    });
+  }
+  const processed = await processImage(file);
+  const processedFile = new File([processed.blob], file.name, { type: processed.mimeType });
+  const thumb = await generateThumbnail(processedFile);
+  const thumbFile = new File([thumb.blob], `thumb-${Date.now()}.webp`, { type: thumb.mimeType });
+  return uploadMedia({
+    file: processedFile,
+    thumbnailFile: thumbFile,
+    width: processed.width,
+    height: processed.height,
+    service: 'public_media',
+  });
 }
 
 function NewAlbumForm({ onSubmit, onCancel }: {

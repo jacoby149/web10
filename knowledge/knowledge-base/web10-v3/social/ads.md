@@ -67,6 +67,34 @@ There is no `html` leaf type in the protocol (`document-typing.md`: `text | mini
 
 **`html_template` is the v4 escape hatch** (operator: *"the ad object could have html_template eventually! :) but not this iteration, that could be a v4 thing"*). In the enforced-schema era (v4's `$schema` per doc, validation at write), a creator can bring their own layout — a template the node validates and the app renders in a sandbox. Not now. The object stays locked.
 
+## Two Formats (inline / post)
+
+An ad's body carries a **`format`** field — `inline` (default) or `post`. The
+**attachment is the same for both** (the post's `ad_preference` for a creator ad,
+the node's read-time attach for a node ad — see `ads-dissemination.md`); only the
+**rendering** differs. This is app-owned (D75) — the node stores the field but
+doesn't read it.
+
+- **`inline`** — the compact **AdBlock** under the post it's attached to: a
+  (square) thumbnail + the offer CTA + the disclosure. The original, restricted
+  form.
+- **`post`** — a **full post-like card** under the post it's attached to: the
+  creative media (image/video, everything a post has), the copy, the offer CTA,
+  the disclosure, the provenance badge (Ad / Sponsored), and a like. It "looks
+  like a post" — the Meta/Instagram "sponsored post."
+
+**Key: a post ad is ATTACHED, not a standalone feed post.** It is served with the
+post it's attached to (the `ad_preference` / `attach_node_ads` join), rendered
+under that post. It is **never** a free-floating post in the feed, so it is
+**never subject to ranking/trending** — an ad doesn't need to be popular to show;
+it's attached. (The feed/discover read drops `ad`-tagged docs from the standalone
+list so ad docs don't leak in as plain, ranked posts.)
+
+Both **creator** and **node** ads support both formats — a node ad and a creator
+ad "work the same exact way" (same object, same attachment, same formats); they
+differ only in provenance (the Ad/Sponsored badge) and the node-level knobs
+(`node_ad_percentage`, `node_ad_overwrite` — see `monetization.md`).
+
 ## How It Maps to the Data Model
 
 | Field | Value | Why |

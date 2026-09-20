@@ -139,6 +139,30 @@ The operator sets `node_ad_percentage` in `node_config`:
 - **0 = off** (no node ads)
 - **100 = every post gets a node ad** (aggressive; not recommended)
 
+### The Overwrite Knob (`node_ad_overwrite`)
+
+A second node-config toggle, `node_ad_overwrite` (boolean, default **false**),
+decides what happens when a node ad fires on a post that **also** has a
+creator's ad:
+
+- **false (default)** — the D57 non-steal principle: **both show**. The
+  creator's monetization is never suppressed by the node's.
+- **true** — the node ad **replaces** the creator's ad: `attach_node_ads` drops
+  `doc.ad` (sets it empty) before attaching `doc.node_ad`, so only the node ad
+  shows. Format-agnostic (a node post ad overwrites a creator inline ad, and
+  vice versa).
+
+The toggle lives in the Node Monetization surface (next to the density slider)
+and writes via `/config/update`.
+
+**The discover group id is canonical.** `get_active_node_ads` scopes its query
+to the **canonical `DISCOVER_GROUP_ID`** (derived from `settings.PROVIDER` — the
+same source that creates the group and that every other read uses). It must NOT
+derive the id from the editable `node_config.provider` field: that field drifts
+from `settings.PROVIDER` on deployed nodes, and a mismatched id makes the query
+match nothing → node ads silently never attach (the "node ads show up nowhere"
+bug). Pinned by `test_node_ads.py::test_uses_canonical_discover_id_not_config_provider`.
+
 The setting is a `node_config` field. The **Node Monetization** section of
 web10-social's Monetization surface (the operator's surface, D75 — visible
 only to the node admin, `marketing/web10-social/`) is where it's controlled —

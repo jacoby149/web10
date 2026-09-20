@@ -33,10 +33,7 @@ def _body(status="active"):
 
 class TestGetActiveNodeAds:
     def test_returns_active_node_ads_from_discover_group(self):
-        with (
-            _patch_client() as mock_client,
-            patch("app.services.config.get_config_field", return_value="api.localhost"),
-        ):
+        with _patch_client() as mock_client:
             mock_client.query.return_value = _mock_result_rows(
                 [
                     ("doc-1", "nodeops@web10", _body("active"), ["ad", "node_ad"]),
@@ -49,16 +46,35 @@ class TestGetActiveNodeAds:
             # The query targets node_ad-tagged posts on the discover group.
             query = mock_client.query.call_args[0][0]
             assert "has(tags, 'node_ad')" in query
-            assert mock_client.query.call_args[0][1]["discover"] == "api.localhost/groups/web10/discover"
+            # The discover group is the CANONICAL DISCOVER_GROUP_ID (derived from
+            # settings.PROVIDER) — the same source that creates the group.
+            assert mock_client.query.call_args[0][1]["discover"] == ch.DISCOVER_GROUP_ID
+
+    def test_uses_canonical_discover_id_not_config_provider(self):
+        """Regression (ad-improvements.md): the discover group id must come from
+        the canonical ``DISCOVER_GROUP_ID`` (settings.PROVIDER), NOT the editable
+        node_config ``provider`` field. The old code derived it from
+        ``get_config_field('provider', …)``, which drifts from settings.PROVIDER
+        on deployed nodes → the query matched nothing → node ads never attached.
+        Here the config provider is deliberately DIFFERENT from settings.PROVIDER;
+        the query must still target DISCOVER_GROUP_ID (and never call the config)."""
+        with (
+            _patch_client() as mock_client,
+            patch("app.services.config.get_config_field") as mock_cfg,
+        ):
+            mock_client.query.return_value = _mock_result_rows([])
+            ch.get_active_node_ads()
+            # The query targets the canonical discover id, not the (different)
+            # config provider.
+            assert mock_client.query.call_args[0][1]["discover"] == ch.DISCOVER_GROUP_ID
+            # …and it does NOT consult the node_config provider for the group id.
+            mock_cfg.assert_not_called()
 
     def test_service_agnostic_no_collection_filter(self):
         """D75 — the node does NOT vet the node ad's collection. The `node_ad`
         tag + the discover-group attachment are the whole model, so any app's
         doc can be a node ad (a non-`posts` doc included)."""
-        with (
-            _patch_client() as mock_client,
-            patch("app.services.config.get_config_field", return_value="api.localhost"),
-        ):
+        with _patch_client() as mock_client:
             mock_client.query.return_value = _mock_result_rows([])
             ch.get_active_node_ads()
             query = mock_client.query.call_args[0][0]
@@ -68,10 +84,7 @@ class TestGetActiveNodeAds:
             assert "%(discover)s" in query
 
     def test_excludes_paused_ads(self):
-        with (
-            _patch_client() as mock_client,
-            patch("app.services.config.get_config_field", return_value="api.localhost"),
-        ):
+        with _patch_client() as mock_client:
             mock_client.query.return_value = _mock_result_rows(
                 [
                     ("doc-1", "nodeops@web10", _body("active"), ["ad", "node_ad"]),
@@ -82,10 +95,7 @@ class TestGetActiveNodeAds:
             assert [a["doc_id"] for a in ads] == ["doc-1"]
 
     def test_bounded_at_20(self):
-        with (
-            _patch_client() as mock_client,
-            patch("app.services.config.get_config_field", return_value="api.localhost"),
-        ):
+        with _patch_client() as mock_client:
             mock_client.query.return_value = _mock_result_rows([])
             ch.get_active_node_ads()
             query = mock_client.query.call_args[0][0]
@@ -98,10 +108,7 @@ class TestGetActiveNodeAds:
         # window. Before the fix it was only in the window, so ClickHouse threw
         # `Unknown expression identifier 'updated_at'` and the try/except
         # returned [] — node ads silently never attached.
-        with (
-            _patch_client() as mock_client,
-            patch("app.services.config.get_config_field", return_value="api.localhost"),
-        ):
+        with _patch_client() as mock_client:
             mock_client.query.return_value = _mock_result_rows([])
             ch.get_active_node_ads()
             query = mock_client.query.call_args[0][0]
@@ -116,10 +123,7 @@ class TestGetActiveNodeAds:
             )
 
     def test_returns_empty_on_error(self):
-        with (
-            _patch_client() as mock_client,
-            patch("app.services.config.get_config_field", return_value="api.localhost"),
-        ):
+        with _patch_client() as mock_client:
             mock_client.query.side_effect = Exception("boom")
             assert ch.get_active_node_ads() == []
 
@@ -225,10 +229,23 @@ class TestAttachNodeAds:
             "node-ad-1",
         ]
 
+    def _config(self, field, default=None):
+        # Field-aware mock: the percentage is what the test sets; the overwrite
+        # flag defaults to off (the D57 non-steal principle) unless a test opts
+        # in. (A blanket `return_value` would leak the percentage into
+        # `node_ad_overwrite` and flip overwrite on.)
+        if field == "node_ad_percentage":
+            return getattr(self, "_pct", 100)
+        if field == "node_ad_overwrite":
+            return getattr(self, "_overwrite", False)
+        return default
+
     def test_third_join_pinned_post_gets_both_ads(self):
         # The non-steal principle: a pinned post (doc['ad'] already resolved by
         # attach_pinned_ads) STILL gets doc['node_ad']. The node ad never
-        # suppresses the creator's ad.
+        # suppresses the creator's ad (overwrite off by default).
+        self._pct = 100
+        self._overwrite = False
         doc = {
             "doc_id": "post-1",
             "author_key": "alice",
@@ -243,12 +260,58 @@ class TestAttachNodeAds:
             },
         }
         with (
-            patch("app.services.config.get_config_field", return_value=100),
+            patch("app.services.config.get_config_field", side_effect=self._config),
             patch.object(ch, "get_active_node_ads", return_value=[self._node_ad()]),
         ):
             result = ch.attach_node_ads([doc], "reader-1")
         assert result[0]["ad"]["doc_id"] == "creator-ad-1"  # creator's ad intact
         assert result[0]["node_ad"]["doc_id"] == "node-ad-1"  # node ad attached
+
+    def test_overwrite_on_drops_the_creators_ad(self):
+        # `node_ad_overwrite` on: a node ad that fires on a post with a creator's
+        # ad drops the creator's ad (only the node ad shows). Format-agnostic.
+        self._pct = 100
+        self._overwrite = True
+        doc = {
+            "doc_id": "post-1",
+            "author_key": "alice",
+            "body": {"text": "a post"},
+            "ad_mode": "pinned",
+            "ad_target": "creator-ad-1",
+            "ad": {
+                "doc_id": "creator-ad-1",
+                "author_key": "alice",
+                "body": {"text": "creator ad"},
+                "tags": ["ad"],
+            },
+        }
+        with (
+            patch("app.services.config.get_config_field", side_effect=self._config),
+            patch.object(ch, "get_active_node_ads", return_value=[self._node_ad()]),
+        ):
+            result = ch.attach_node_ads([doc], "reader-1")
+        assert result[0]["ad"] is None  # creator's ad dropped
+        assert result[0]["node_ad"]["doc_id"] == "node-ad-1"  # node ad shows
+
+    def test_overwrite_off_keeps_both_even_at_100(self):
+        # Overwrite off (default) at 100%: both ads present (the non-steal rule).
+        self._pct = 100
+        self._overwrite = False
+        doc = {
+            "doc_id": "post-1",
+            "author_key": "alice",
+            "body": {"text": "a post"},
+            "ad_mode": "pinned",
+            "ad_target": "creator-ad-1",
+            "ad": {"doc_id": "creator-ad-1", "author_key": "alice", "body": {}, "tags": ["ad"]},
+        }
+        with (
+            patch("app.services.config.get_config_field", side_effect=self._config),
+            patch.object(ch, "get_active_node_ads", return_value=[self._node_ad()]),
+        ):
+            result = ch.attach_node_ads([doc], "reader-1")
+        assert result[0]["ad"]["doc_id"] == "creator-ad-1"
+        assert result[0]["node_ad"]["doc_id"] == "node-ad-1"
 
     def test_no_active_node_ads_no_attachment(self):
         with (
