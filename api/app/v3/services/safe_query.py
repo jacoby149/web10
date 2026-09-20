@@ -89,6 +89,13 @@ RAW_TABLES = frozenset(
 # CTE's outer SELECT, not here.
 _CTE_COLUMNS = "doc_id, author_key, body, ref_value, tags, created_at, updated_at, ad_mode, ad_target"
 
+# The reserved name of the group-metadata boundary CTE (QE-A,
+# engine-group-metadata.md). It is NOT a service: it is an API-built CTE the
+# caller may reference only when it opts in (``withGroupMeta``). The raw
+# tables it is built from (``group_members``, ``group_contracts``) stay in
+# ``RAW_TABLES`` — the wall extends, it does not weaken.
+GROUP_META = "group_meta"
+
 
 class UnsafeQueryError(Exception):
     """A caller's query references something it must not. The query is
@@ -212,6 +219,85 @@ def _boundary_cte_sql(service: str, readable_groups: list[str], member_key: str)
     )
 
 
+def _group_meta_cte_sql(readable_group_ids: list[str], candidate_group_ids: list[str]) -> str:
+    """The body of the ``group_meta`` boundary CTE (QE-A,
+    engine-group-metadata.md): group metadata (``member_count`` from
+    ``group_members``, ``join_policy`` + ``discoverable`` from
+    ``group_contracts``) for the query's candidate groups, with
+    **CASE-based NULLing on the readable set**.
+
+    **Do NOT copy the service CTE's WHERE-filter.** The service CTEs *exclude*
+    unreadable groups (``WHERE group_id IN (readable_groups)``). This CTE must
+    *include all* candidate groups and *NULL the unreadable ones* — the
+    NULL-out-and-sort-last design (the I3 pattern): an unreadable group is
+    present (as NULLs), so it sorts to the bottom and the caller sees "there
+    are groups I can't read" without learning their metadata. A WHERE-filter
+    would silently drop the unreadable groups and break the honest signal.
+
+    ``readable_group_ids`` is the reader's readable set (computed by the
+    endpoint via the D58 read gate — ``readable_groups`` / ``can_read_group``).
+    The per-row visibility check is a set-membership test (``group_id IN
+    (readable_set)``), not a correlated function, so it vectorizes.
+
+    The member count is pre-aggregated (the same shape as
+    ``_get_group_member_counts``) and LEFT JOINed to the deduped contracts
+    (latest row, not-deleted — the tombstone read invariant), so a group with
+    no members still appears (count 0).
+
+    No candidate groups → a shape-valid CTE that returns nothing (``1 = 0``).
+    No readable groups → every metadata column is NULL (all candidates are
+    unreadable).
+    """
+    if not candidate_group_ids:
+        # Shape-valid (same 4 columns) but empty: there are no candidate
+        # groups. The casts must be Nullable — ClickHouse 24.8 rejects
+        # CAST(NULL AS String) with CANNOT_CONVERT_TYPE (the same catch as the
+        # service CTE's no-readable-groups case).
+        return (
+            "SELECT CAST(NULL AS String) AS group_id, "
+            "CAST(NULL AS Nullable(UInt64)) AS member_count, "
+            "CAST(NULL AS Nullable(String)) AS join_policy, "
+            "CAST(NULL AS Nullable(UInt8)) AS discoverable "
+            "FROM (SELECT 1) WHERE 1 = 0"
+        )
+    candidates_in = _quote_group_ids(candidate_group_ids)
+    # The tombstone read invariant (KB: db/clickhouse.md): dedup FIRST (pick
+    # the latest row, including the tombstone), then filter (deleted=0). The
+    # same ordering as _get_group_member_counts / list_discoverable_groups.
+    dedup_contracts = (
+        "SELECT group_id, join_policy, discoverable FROM ("
+        "SELECT group_id, join_policy, discoverable, deleted, "
+        "row_number() OVER (PARTITION BY group_id ORDER BY updated_at DESC, deleted DESC) AS rn "
+        f"FROM group_contracts WHERE group_id IN ({candidates_in})"
+        ") WHERE rn = 1 AND deleted = 0"
+    )
+    member_counts = (
+        "SELECT group_id, count() AS member_count FROM ("
+        "SELECT group_id, member_key, deleted "
+        f"FROM group_members WHERE group_id IN ({candidates_in}) "
+        "QUALIFY row_number() OVER (PARTITION BY group_id, member_key ORDER BY updated_at DESC, deleted DESC) = 1"
+        ") WHERE deleted = 0 "
+        "GROUP BY group_id"
+    )
+    if not readable_group_ids:
+        # No readable groups: every candidate is unreadable → all NULL.
+        member_count_expr = "CAST(NULL AS Nullable(UInt64))"
+        join_policy_expr = "CAST(NULL AS Nullable(String))"
+        discoverable_expr = "CAST(NULL AS Nullable(UInt8))"
+    else:
+        readable_in = _quote_group_ids(readable_group_ids)
+        cond = f"gc.group_id IN ({readable_in})"
+        member_count_expr = f"CASE WHEN {cond} THEN gm.member_count ELSE NULL END"
+        join_policy_expr = f"CASE WHEN {cond} THEN gc.join_policy ELSE NULL END"
+        discoverable_expr = f"CASE WHEN {cond} THEN gc.discoverable ELSE NULL END"
+    return (
+        f"SELECT gc.group_id, {member_count_expr} AS member_count, "
+        f"{join_policy_expr} AS join_policy, {discoverable_expr} AS discoverable "
+        f"FROM ({dedup_contracts}) gc "
+        f"LEFT JOIN ({member_counts}) gm ON gc.group_id = gm.group_id"
+    )
+
+
 def _caller_cte_names(tree: exp.Expression) -> set[str]:
     """The names of CTEs the caller defines in its own WITH clause."""
     return {cte.alias_or_name for cte in tree.find_all(exp.CTE) if cte.alias_or_name}
@@ -221,16 +307,25 @@ def _validate(
     tree: exp.Expression,
     allowed: frozenset[str] | None,
     caller_ctes: set[str],
+    group_meta: bool = False,
 ) -> set[str]:
     """Walk every table reference in the caller's query. Reject raw tables,
     table functions (empty name), ungranted services, and unknown tables.
-    Return the set of services the query actually uses (for CTE injection).
+    Return the set of tables the query actually uses (services, and
+    ``GROUP_META`` when opted in and referenced — for CTE injection).
 
     ``allowed=None`` is the unrestricted mode (no app-contract gate — the
     same-origin / direct-call path): any table that is not a raw node table
     and not a table function is treated as a service. The boundary CTE is
     still the wall — an unknown service name just degrades to an empty
-    collection, it never reaches a raw table."""
+    collection, it never reaches a raw table.
+
+    ``group_meta`` (QE-A): when True, the reserved name ``group_meta`` is
+    recognized as an API-built boundary CTE (not a service) and added to the
+    returned set so the caller can inject it. When False, ``group_meta`` is
+    rejected as an unknown table — the opt-in is required. The raw tables
+    (``group_members``, ``group_contracts``) stay in ``RAW_TABLES`` and are
+    rejected regardless of the flag: the wall extends, it does not weaken."""
     needed: set[str] = set()
     for table in tree.find_all(exp.Table):
         name = table.name
@@ -240,6 +335,11 @@ def _validate(
             raise UnsafeQueryError("table functions are not allowed")
         if name in RAW_TABLES:
             raise UnsafeQueryError(f"query references raw table '{name}'")
+        if name == GROUP_META:
+            if not group_meta:
+                raise UnsafeQueryError(f"query references unknown table '{name}'")
+            needed.add(name)
+            continue
         if allowed is not None and name in allowed:
             needed.add(name)
         elif name in caller_ctes:
@@ -268,6 +368,7 @@ def _has_limit(tree: exp.Expression) -> bool:
 def query_services(
     user_sql: str,
     allowed_services: frozenset[str] | set[str] | None = None,
+    group_meta: bool = False,
 ) -> set[str]:
     """Parse + validate a caller query and return the services it references.
 
@@ -281,6 +382,10 @@ def query_services(
     any non-raw, non-function table name is a service. With a contract, only
     granted services pass — an ungranted reference raises before any group
     work happens.
+
+    ``group_meta`` (QE-A): when True, the reserved name ``group_meta`` is
+    recognized as an API-built CTE (not a service) and excluded from the
+    returned set.
 
     Raises:
         UnsafeQueryError: the query is unsafe (raw table, table function,
@@ -305,7 +410,9 @@ def query_services(
 
     # 3. Validate every table reference; collect the services the query uses.
     caller_ctes = _caller_cte_names(tree)
-    return _validate(tree, allowed, caller_ctes)
+    needed = _validate(tree, allowed, caller_ctes, group_meta)
+    needed.discard(GROUP_META)
+    return needed
 
 
 def build_safe_query(
@@ -314,6 +421,7 @@ def build_safe_query(
     member_key: str = "anon",
     allowed_services: frozenset[str] | set[str] | None = None,
     max_limit: int | None = None,
+    group_meta: tuple[list[str], list[str]] | None = None,
 ) -> str:
     """Compile a caller's ClickHouse SELECT into a boundary-enforced query.
 
@@ -335,6 +443,12 @@ def build_safe_query(
             of its own, ``LIMIT <max_limit>`` is appended so an unbounded
             ``SELECT *`` cannot drag a shared node's whole boundary into a
             single response. A caller-supplied LIMIT is always honored as-is.
+        group_meta: (QE-A) when set to ``(readable_group_ids,
+            candidate_group_ids)``, the query may reference the API-built
+            ``group_meta`` CTE (group metadata, visibility-enforced via
+            CASE-based NULLing on the readable set). When None, ``group_meta``
+            is rejected as an unknown table. The raw tables stay blocked
+            regardless.
 
     Returns:
         The final SQL — the boundary CTEs (API-built, group-filtered, with the
@@ -363,9 +477,9 @@ def build_safe_query(
     if not isinstance(tree, (exp.Select, exp.Union, exp.Intersect, exp.Except)):
         raise UnsafeQueryError(f"only SELECT queries are allowed, got {type(tree).__name__}")
 
-    # 3. Validate every table reference; collect the services the query uses.
+    # 3. Validate every table reference; collect the tables the query uses.
     caller_ctes = _caller_cte_names(tree)
-    needed = _validate(tree, allowed, caller_ctes)
+    needed = _validate(tree, allowed, caller_ctes, group_meta is not None)
 
     # 4. Re-emit the (validated) caller query, then inject the boundary CTEs
     #    first so caller CTEs that reference a service resolve.
@@ -374,16 +488,19 @@ def build_safe_query(
         # A trailing LIMIT is valid on both a SELECT and a set operation in
         # ClickHouse; the round-trip re-parse below rejects a malformed result.
         caller_sql = f"{caller_sql} LIMIT {int(max_limit)}"
-    cte_defs = ", ".join(
+    cte_defs = [
         f"{service} AS ({_boundary_cte_sql(service, readable_groups_by_service.get(service, []), member_key)})"
-        for service in sorted(needed)
-    )
+        for service in sorted(s for s in needed if s != GROUP_META)
+    ]
+    if GROUP_META in needed and group_meta is not None:
+        readable_ids, candidate_ids = group_meta
+        cte_defs.append(f"{GROUP_META} AS ({_group_meta_cte_sql(readable_ids, candidate_ids)})")
     if not cte_defs:
         final_sql = caller_sql
     elif caller_sql.upper().startswith("WITH "):
-        final_sql = f"WITH {cte_defs}, {caller_sql[5:].strip()}"
+        final_sql = f"WITH {', '.join(cte_defs)}, {caller_sql[5:].strip()}"
     else:
-        final_sql = f"WITH {cte_defs} {caller_sql}"
+        final_sql = f"WITH {', '.join(cte_defs)} {caller_sql}"
 
     # 5. Round-trip backstop: the result must re-parse as exactly one
     #    statement (a malformed injection would break this).
