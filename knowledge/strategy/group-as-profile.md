@@ -155,7 +155,7 @@ Deep-linkable (`?tab=`), refresh-safe. The hero (3.116.0) stays above the tabs.
 
 ## Bite sizing (small, one owner each)
 
-- [ ] **G0: the draft state + slug guard** (keystone, `src/data/groups.ts` +
+- [✓ 3.117.0] **G0: the draft state + slug guard** (keystone, `src/data/groups.ts` +
   the D60 identity doc) — `GroupIdentity` gains `status?: 'draft'|'published'`
   (default `published` for existing) **and staging-setting fields** (who-can-read
   / how-join / list-in-directory staged in the face during edit — decision 2);
