@@ -20,8 +20,11 @@ import { v3Login, v3Signup, API_BASE } from '../v3-helpers';
  * the message in the thread, B replies, A's reload sees the reply. Console
  * log sequence verified on both sides ([social-dms] seam logs).
  *
- * The social app has no P2P — CRUD is the delivery path, so "receive" is the
- * recipient's group read (list load / conversation open / reload), not a push.
+ * The social app HAS a P2P (WebRTC) fast path — but this spec pins the CRUD
+ * source of truth (the delivery path that always works), so "receive" here is
+ * the recipient's group read (list load / conversation open / reload). The P2P
+ * fast path itself (the real-time nudge, no reload) is e2e-proven by
+ * social-p2p.spec.ts (3.130.0).
  */
 
 const port = process.env.E2E_HTTP_PORT || '80';

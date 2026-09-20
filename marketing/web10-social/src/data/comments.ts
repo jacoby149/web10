@@ -1,6 +1,6 @@
 import { getV3Client } from './v3';
 import { getDiscoverGroupId } from './groups';
-import { fromV3DocToComment, fromResolvedMediaRef, extractUsername, extractProvider, type CommentRecord, type MediaRecord, type ResolvedMediaRef } from './types';
+import { fromV3DocToComment, fromResolvedMediaRef, extractUsername, type CommentRecord, type MediaRecord, type ResolvedMediaRef } from './types';
 import { sendNotification } from './notifications';
 import { readPostById, uploadMedia } from './posts';
 import { processImage, generateThumbnail, validateMedia } from '@/lib/mediaProcessing';
@@ -155,14 +155,18 @@ export async function createComment(
   const doc = await w.create('comments', body, { groups: targetGroups, ref_value: refValue });
   // The write side (D69): nudge the right author (best-effort, fire-and-forget —
   // a resolve failure never affects the comment). A reply (parent_id set) →
-  // the comment author; a top-level comment → the post author.
+  // the comment author; a top-level comment → the post author. The target
+  // provider is the NODE's provider (token.provider), NOT the derived
+  // author_provider: v3 author_keys are bare usernames, so extractProvider
+  // falls back to the 'web10' default — a peer id that doesn't exist, and the
+  // nudge silently never lands. v3 is same-node, so the author is on this node.
   if (comment.parent_id) {
     w.readById(comment.parent_id, 'comments')
       .then((c) => {
         const author = extractUsername(c.author_key);
         if (author) {
           sendNotification(
-            { username: author, provider: extractProvider(c.author_key) || token.provider },
+            { username: author, provider: token.provider },
             { type: 'reply', from: token.username, ref_doc_id: comment.parent_id },
           );
         }
@@ -173,7 +177,7 @@ export async function createComment(
       .then((post) => {
         if (post?.author_username) {
           sendNotification(
-            { username: post.author_username, provider: post.author_provider || token.provider },
+            { username: post.author_username, provider: token.provider },
             { type: 'comment', from: token.username, ref_doc_id: comment.post_id },
           );
         }

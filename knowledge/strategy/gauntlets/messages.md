@@ -101,3 +101,17 @@ Note: the P2P tests are the slowest and most timing-sensitive in the suite. They
 run with a longer timeout and are the first to flake under CI load — the
 diagnostic dump (the two-sided console + the P2P connection log) is essential
 here.
+
+## The P2P fast path (now covered)
+
+The P2P (WebRTC) fast path — the one the gauntlet's `messages.spec.ts` originally
+left as a "stretch" (timing-sensitive, "NOT covered here") — is now e2e-proven by
+the standalone [`social-p2p.spec.ts`](../../../e2e/tests/social-p2p.spec.ts)
+(3.130.0). It drives the REAL app (not the demo) with two live accounts in two
+separate browser instances + the mDNS flag, and witnesses, in the DOM with no
+reload on the recipient: a send → the recipient's notification badge pops to 1
+(the D69 nudge) + the message lands in the recipient's open thread (the
+`onP2PInbound` re-read). The "no reload" is the load-bearing assertion — the app
+has no polling, so P2P is the only mechanism that can update the recipient's DOM
+after a send. The presence dot + the real-time-off (CRUD-only) forks remain the
+gauntlet's own territory (bites 3-4).

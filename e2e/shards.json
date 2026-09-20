@@ -56,6 +56,8 @@
         "concurrency-torture.spec.ts",
         "social-messages.spec.ts",
         "messages-demo.spec.ts",
+        "social-p2p.spec.ts",
+        "social-notifications.spec.ts",
         "hls.spec.ts",
         "media-demo.spec.ts",
         "yt-import.spec.ts",
