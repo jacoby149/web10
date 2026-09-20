@@ -244,6 +244,98 @@ class TestAppContractGate:
         assert resp.status_code == 200
 
 
+class TestGroupMeta:
+    """QE-A: the group_meta boundary CTE (opt-in via ``withGroupMeta``).
+
+    Pins the endpoint wiring: the opt-in flag threads to the engine, the
+    readable set is computed (union across services, or memberships for a
+    standalone query), and the raw tables stay rejected (the wall holds)."""
+
+    def test_with_group_meta_injects_cte(self, client, token):
+        # Standalone group_meta query (no service): the readable set falls back
+        # to the reader's own memberships among the candidates.
+        with (
+            patch(
+                "app.v3.services.clickhouse.get_user_groups",
+                return_value=[{"group_id": "g1"}, {"group_id": "g2"}],
+            ),
+            patch("app.v3.services.clickhouse.readable_groups", return_value=["g1"]),
+            patch(
+                "app.v3.services.clickhouse.execute_query",
+                return_value=(["group_id", "member_count"], [("g1", 3)]),
+            ) as mock_exec,
+        ):
+            resp = client.post(
+                "/v3/query",
+                json={
+                    "token": token,
+                    "sql": "SELECT gm.group_id, gm.member_count FROM group_meta gm",
+                    "withGroupMeta": True,
+                },
+            )
+        assert resp.status_code == 200
+        assert resp.json()["rows"] == [{"group_id": "g1", "member_count": 3}]
+        compiled = mock_exec.call_args[0][0]
+        assert "group_meta AS (" in compiled
+        mock_exec.assert_called_once()
+
+    def test_group_meta_without_flag_is_403(self, client, token):
+        # No opt-in → group_meta is an unknown table → 403, nothing executes.
+        with patch("app.v3.services.clickhouse.execute_query") as mock_exec:
+            resp = client.post(
+                "/v3/query",
+                json={"token": token, "sql": "SELECT * FROM group_meta"},
+            )
+        assert resp.status_code == 403
+        assert "group_meta" in resp.json()["detail"]
+        mock_exec.assert_not_called()
+
+    def test_group_meta_join_passes_readable_set(self, client, token):
+        # The reference shape: content JOIN group_meta on the group_id key.
+        # The readable set (union across services = [g1]) is CASE-NULLed; the
+        # candidates ([g1, g2]) are full-scanned.
+        with (
+            patch(
+                "app.v3.services.clickhouse.get_user_groups",
+                return_value=[{"group_id": "g1"}, {"group_id": "g2"}],
+            ),
+            patch("app.v3.services.clickhouse.readable_groups", return_value=["g1"]),
+            patch(
+                "app.v3.services.clickhouse.execute_query", return_value=(["doc_id", "member_count"], [])
+            ) as mock_exec,
+        ):
+            resp = client.post(
+                "/v3/query",
+                json={
+                    "token": token,
+                    "sql": "SELECT p.doc_id, gm.member_count FROM posts p JOIN group_meta gm ON p.group_id = gm.group_id",
+                    "withGroupMeta": True,
+                },
+            )
+        assert resp.status_code == 200
+        compiled = mock_exec.call_args[0][0]
+        assert "group_meta AS (" in compiled
+        # Readable set is CASE-NULLed (only g1); candidates are full-scanned.
+        assert "IN ('g1')" in compiled
+        assert "'g1', 'g2'" in compiled
+
+    def test_group_meta_raw_table_still_403_with_flag(self, client, token):
+        # The wall holds end to end: a raw table reference is rejected even
+        # with the opt-in on.
+        with patch("app.v3.services.clickhouse.execute_query") as mock_exec:
+            resp = client.post(
+                "/v3/query",
+                json={
+                    "token": token,
+                    "sql": "SELECT * FROM group_members",
+                    "withGroupMeta": True,
+                },
+            )
+        assert resp.status_code == 403
+        assert "group_members" in resp.json()["detail"]
+        mock_exec.assert_not_called()
+
+
 class TestUnsafeQueries:
     @pytest.mark.parametrize(
         "sql",

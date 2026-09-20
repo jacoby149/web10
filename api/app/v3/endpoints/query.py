@@ -172,7 +172,7 @@ def run_query(request: Request, data: QueryRequest):
     # Which services does the query touch? Parse + validate first — an unsafe
     # query is rejected before any group lookup happens.
     try:
-        needed = sq.query_services(data.sql, allowed)
+        needed = sq.query_services(data.sql, allowed, group_meta=bool(data.withGroupMeta))
     except sq.UnsafeQueryError as e:
         raise HTTPException(status_code=403, detail=str(e))
 
@@ -185,6 +185,24 @@ def run_query(request: Request, data: QueryRequest):
 
     # The D58 read gate, per service the query actually uses.
     readable = {svc: ch.readable_groups(reader, svc, authenticated, candidates) for svc in needed}
+
+    # QE-A: the group_meta readable set. When the caller opts in, the endpoint
+    # computes the reader's readable groups for the metadata CTE (parallel to
+    # readable_groups_by_service). It is the union of the readable groups
+    # across the services the query touches (the same D58 gate the service
+    # CTEs use). A standalone group_meta query (no services) falls back to the
+    # reader's own memberships among the candidates (membership is
+    # service-agnostic). build_safe_query injects the CTE only if the query
+    # actually references group_meta, so this is a no-op for queries that opt
+    # in but don't join it.
+    group_meta = None
+    if data.withGroupMeta:
+        if readable:
+            readable_meta = sorted({g for groups in readable.values() for g in groups})
+        else:
+            my_groups = {g["group_id"] for g in ch.get_user_groups(reader)}
+            readable_meta = [g for g in candidates if g in my_groups]
+        group_meta = (readable_meta, candidates)
 
     # D42 (the read endpoint's rule, generalized): an explicit group request
     # that the reader's effective role grants read on NONE of (for every
@@ -201,15 +219,21 @@ def run_query(request: Request, data: QueryRequest):
 
     try:
         compiled = sq.build_safe_query(
-            data.sql, readable, member_key=reader, allowed_services=allowed, max_limit=MAX_ROWS
+            data.sql,
+            readable,
+            member_key=reader,
+            allowed_services=allowed,
+            max_limit=MAX_ROWS,
+            group_meta=group_meta,
         )
     except sq.UnsafeQueryError as e:
         raise HTTPException(status_code=403, detail=str(e))
 
     log.info(
-        "[query] reader=%s services=%s candidates=%d sql=%s compiled=%s",
+        "[query] reader=%s services=%s group_meta=%s candidates=%d sql=%s compiled=%s",
         reader,
         sorted(needed),
+        bool(data.withGroupMeta),
         len(candidates),
         data.sql[:200],
         compiled[:400],

@@ -80,6 +80,115 @@ def test_boundary_cte_group_id_null_when_no_readable_groups():
     assert "CAST(NULL AS Nullable(String)) AS group_id" in out
 
 
+# ── group_meta boundary CTE (the group-metadata join — engine-group-metadata QE-A) ──
+
+
+def test_group_meta_rejected_without_opt_in():
+    # Without the opt-in, `group_meta` is an unknown table (rejected).
+    with pytest.raises(UnsafeQueryError, match="unknown table 'group_meta'"):
+        build_safe_query("SELECT * FROM group_meta", {"posts": [DISCOVER]})
+
+
+def test_group_meta_cte_injected_with_opt_in():
+    out = build_safe_query(
+        "SELECT * FROM group_meta",
+        {"posts": [DISCOVER]},
+        group_meta=([DISCOVER], [DISCOVER, FOLLOWERS]),
+    )
+    assert "group_meta AS (" in out
+    # The CTE exposes the metadata columns.
+    assert "member_count" in out
+    assert "join_policy" in out
+    assert "discoverable" in out
+    # It scans the candidate groups (full-scan, not a WHERE-filter).
+    assert f"'{DISCOVER}', '{FOLLOWERS}'" in out
+
+
+def test_group_meta_nulls_unreadable_groups_not_filters_them():
+    # The readable set is [DISCOVER]; FOLLOWERS is a candidate but unreadable.
+    # The CTE must INCLUDE FOLLOWERS (full-scan) and CASE-NULL it — NOT drop it
+    # with a WHERE-filter (that would break the NULL-out-and-sort-last design).
+    out = build_safe_query(
+        "SELECT * FROM group_meta",
+        {"posts": [DISCOVER]},
+        group_meta=([DISCOVER], [DISCOVER, FOLLOWERS]),
+    )
+    # Both candidates are scanned (the candidate IN-list has both).
+    assert f"'{DISCOVER}', '{FOLLOWERS}'" in out
+    # The readable CASE-condition references only the readable group.
+    assert f"IN ('{DISCOVER}')" in out
+    # It is a CASE-based NULLing, not a WHERE group filter on the CTE.
+    assert "CASE WHEN" in out
+
+
+def test_group_meta_raw_tables_still_blocked_with_opt_in():
+    # The wall holds: even with the opt-in on, the raw tables stay rejected.
+    for raw in ("group_members", "group_contracts"):
+        with pytest.raises(UnsafeQueryError, match=f"raw table '{raw}'"):
+            build_safe_query(
+                f"SELECT * FROM {raw}",
+                {"posts": [DISCOVER]},
+                group_meta=([DISCOVER], [DISCOVER]),
+            )
+
+
+def test_group_meta_raw_table_in_caller_cte_rejected_with_opt_in():
+    # Completeness: a raw-table reference hidden in a caller CTE is still
+    # caught even when the group_meta opt-in is on.
+    with pytest.raises(UnsafeQueryError, match="raw table 'group_members'"):
+        build_safe_query(
+            "WITH t AS (SELECT * FROM group_members) SELECT * FROM t",
+            {"posts": [DISCOVER]},
+            group_meta=([DISCOVER], [DISCOVER]),
+        )
+
+
+def test_group_meta_join_with_content_cte_compiles_and_reparses():
+    # The reference shape: join content to group metadata on the group_id key.
+    out = build_safe_query(
+        "SELECT p.doc_id, gm.member_count FROM posts p JOIN group_meta gm ON p.group_id = gm.group_id",
+        {"posts": [DISCOVER]},
+        group_meta=([DISCOVER], [DISCOVER]),
+        max_limit=1000,
+    )
+    assert "posts AS (" in out and "group_meta AS (" in out
+    assert out.rstrip().endswith("LIMIT 1000")
+
+
+def test_group_meta_not_injected_when_not_referenced():
+    # Opt-in on but the query doesn't reference group_meta → no CTE injected.
+    out = build_safe_query(
+        "SELECT doc_id FROM posts",
+        {"posts": [DISCOVER]},
+        group_meta=([DISCOVER], [DISCOVER]),
+    )
+    assert "group_meta AS (" not in out
+    assert "posts AS (" in out
+
+
+def test_group_meta_empty_candidates_shape_valid():
+    out = build_safe_query(
+        "SELECT * FROM group_meta",
+        {"posts": [DISCOVER]},
+        group_meta=([DISCOVER], []),
+    )
+    assert "1 = 0" in out
+    assert "CAST(NULL AS Nullable(UInt64)) AS member_count" in out
+
+
+def test_group_meta_empty_readable_all_null():
+    # Candidates present but none readable → every metadata column is NULL
+    # (no CASE — the whole column is a NULL cast).
+    out = build_safe_query(
+        "SELECT * FROM group_meta",
+        {"posts": [DISCOVER]},
+        group_meta=([], [DISCOVER, FOLLOWERS]),
+    )
+    assert "CAST(NULL AS Nullable(String)) AS join_policy" in out
+    assert "CAST(NULL AS Nullable(UInt8)) AS discoverable" in out
+    assert "CASE WHEN" not in out
+
+
 # ── The membrane: every escape attempt is rejected ───────────────────────────
 
 
@@ -241,6 +350,23 @@ def test_query_services_rejects_ungranted_service():
 def test_query_services_rejects_non_select():
     with pytest.raises(UnsafeQueryError, match="only SELECT"):
         query_services("INSERT INTO posts VALUES (1)", {"posts"})
+
+
+def test_query_services_group_meta_is_not_a_service():
+    # With the opt-in, group_meta is recognized but is NOT a service — it is
+    # excluded from the returned set (the endpoint computes its readable set
+    # separately, not via the per-service D58 gate loop).
+    assert query_services("SELECT * FROM group_meta", None, group_meta=True) == set()
+    assert query_services(
+        "SELECT p.doc_id, gm.member_count FROM posts p JOIN group_meta gm ON p.group_id = gm.group_id",
+        None,
+        group_meta=True,
+    ) == {"posts"}
+
+
+def test_query_services_group_meta_rejected_without_opt_in():
+    with pytest.raises(UnsafeQueryError, match="unknown table 'group_meta'"):
+        query_services("SELECT * FROM group_meta", None)
 
 
 # ── max_limit: the performance bound (not a security one) ────────────────────

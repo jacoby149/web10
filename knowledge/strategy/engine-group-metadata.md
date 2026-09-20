@@ -249,7 +249,7 @@ the sort I3-honest, and a WHERE-filter would quietly break it.
 
 ## Bite sizing (small, one owner each)
 
-- [ ] **QE-A0: expose `group_id` on the content CTEs** (the join key — the
+- [✓ 3.121.0] **QE-A0: expose `group_id` on the content CTEs** (the join key — the
   prerequisite, `api/app/v3/services/safe_query.py`) — add `dg.group_id` to the
   boundary CTE's outer SELECT (the one that JOINs `doc_groups`), so a doc in N
   readable groups surfaces N rows (one per group, each with that `group_id`) —
@@ -258,7 +258,7 @@ the sort I3-honest, and a WHERE-filter would quietly break it.
   (the `WHERE dg.group_id IN (readable_groups)` filter), so no I3 leak. Update
   the prepare pass / row serialization to carry the new column. **Gates QE-A**
   (the `group_meta` join is unusable without the key).
-- [ ] **QE-A: the node change** (`api/app/v3/services/safe_query.py` + the query
+- [✓ 3.122.0] **QE-A: the node change** (`api/app/v3/services/safe_query.py` + the query
   endpoint) — the `_group_meta_cte_sql` builder (pre-aggregated counts + deduped
   contracts + CASE-based NULLing on the readable set — **NOT** the service CTE's
   WHERE-filter); the opt-in flag on the query; the endpoint computes the readable
