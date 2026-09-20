@@ -102,7 +102,7 @@ existing idiom). No second data path.
   `layout.test.tsx` / a new `globalSearch.test.tsx` (the icon is on every
   screen; tap expands the field; Escape/X collapses; the query is debounced;
   mobile renders the full-screen results view, not a dropdown).
-- [ ] **S2: the fan-out + results + "see more"** (`src/data/search.ts` new +
+- [✓] **S2: the fan-out + results + "see more"** (`src/data/search.ts` new +
   `GlobalSearch.tsx`) — `globalSearch(query)` (the three-way fan-out +
   merge, top ~5 each, **per-section loading** so the slowest read doesn't
   block the whole dropdown); the result sections (People/Groups/Posts); tap →

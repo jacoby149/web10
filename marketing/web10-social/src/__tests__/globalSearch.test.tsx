@@ -38,6 +38,19 @@ vi.mock('@/data/ads-catalog', () => ({
   checkNodeAdmin: (...a: unknown[]) => checkNodeAdmin(...a),
 }));
 
+// Mock the search data layer (S2) so the component test controls the results.
+// Default: all three sections resolve to [] (the "no results" state).
+const { searchPeople, searchGroups, searchPosts } = vi.hoisted(() => ({
+  searchPeople: vi.fn().mockResolvedValue([]),
+  searchGroups: vi.fn().mockResolvedValue([]),
+  searchPosts: vi.fn().mockResolvedValue([]),
+}));
+vi.mock('@/data/search', () => ({
+  searchPeople: (...a: unknown[]) => searchPeople(...a),
+  searchGroups: (...a: unknown[]) => searchGroups(...a),
+  searchPosts: (...a: unknown[]) => searchPosts(...a),
+}));
+
 function renderDesktopSearch() {
   return render(
     <MemoryRouter initialEntries={['/feed']}>
@@ -88,10 +101,10 @@ describe('GlobalSearch — desktop (dropdown)', () => {
     fireEvent.change(field, { target: { value: 'john' } });
     // Immediately: still the idle "type to search" state (debounce pending).
     expect(screen.getByTestId('global-search-type-to-search')).toBeInTheDocument();
-    expect(screen.queryByTestId('global-search-results-placeholder')).not.toBeInTheDocument();
-    // After the 400ms debounce settles, the results slot shows the (S2) placeholder.
+    // After the 400ms debounce settles, the fan-out fires. With the default
+    // mock (all sections empty) the results slot shows the "no results" state.
     await waitFor(
-      () => expect(screen.getByTestId('global-search-results-placeholder')).toBeInTheDocument(),
+      () => expect(screen.getByTestId('global-search-no-results')).toBeInTheDocument(),
       { timeout: 1500 },
     );
   });
@@ -169,6 +182,145 @@ describe('GlobalSearch — mobile (full-screen view, not a dropdown)', () => {
     fireEvent.keyDown(field, { key: 'Escape' });
     await waitFor(() => expect(screen.queryByTestId('global-search-fullscreen')).not.toBeInTheDocument());
     expect(screen.getByTestId('global-search-trigger')).toBeInTheDocument();
+  });
+});
+
+describe('GlobalSearch — S2 results (fan-out + rows + see more)', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    // Reset to the default empty results.
+    vi.mocked(searchPeople).mockResolvedValue([]);
+    vi.mocked(searchGroups).mockResolvedValue([]);
+    vi.mocked(searchPosts).mockResolvedValue([]);
+  });
+
+  it('renders the People section with rows when people match', async () => {
+    vi.mocked(searchPeople).mockResolvedValue([
+      { username: 'alice', provider: 'web10', display_name: 'Alice Smith', followers_count: 100, mutuals: 5, is_following: false },
+    ] as any);
+    renderDesktopSearch();
+    fireEvent.click(screen.getByTestId('global-search-trigger'));
+    const field = await screen.findByTestId('global-search-field');
+    fireEvent.change(field, { target: { value: 'alice' } });
+    // The People section appears with the row.
+    const section = await screen.findByTestId('global-search-section-people');
+    expect(section).toBeInTheDocument();
+    const row = screen.getByTestId('global-search-person-alice');
+    expect(row).toBeInTheDocument();
+    expect(row).toHaveTextContent('Alice Smith');
+    expect(row).toHaveTextContent('@alice');
+    // "See more" for people links to the pinned Discover URL shape.
+    const seeMore = screen.getByTestId('global-search-see-more-people');
+    expect(seeMore).toBeInTheDocument();
+  });
+
+  it('renders the Groups section with rows when groups match', async () => {
+    vi.mocked(searchGroups).mockResolvedValue([
+      { group_id: 'g1', name: 'Synthwave Sessions', owner: 'nova', slug: 'synthwave', join_policy: 'open', member_count: 50, tags: ['music'], permission_summary: 'public' },
+    ] as any);
+    renderDesktopSearch();
+    fireEvent.click(screen.getByTestId('global-search-trigger'));
+    const field = await screen.findByTestId('global-search-field');
+    fireEvent.change(field, { target: { value: 'synthwave' } });
+    const section = await screen.findByTestId('global-search-section-groups');
+    expect(section).toBeInTheDocument();
+    const row = screen.getByTestId('global-search-group-g1');
+    expect(row).toBeInTheDocument();
+    expect(row).toHaveTextContent('Synthwave Sessions');
+    expect(row).toHaveTextContent('@nova');
+    expect(screen.getByTestId('global-search-see-more-groups')).toBeInTheDocument();
+  });
+
+  it('renders the Posts section with rows when posts match', async () => {
+    vi.mocked(searchPosts).mockResolvedValue([
+      { _id: 'p1', text: 'Check out this synthwave mix', author_username: 'alice', created_at: '2026-01-01T00:00:00Z' },
+    ] as any);
+    renderDesktopSearch();
+    fireEvent.click(screen.getByTestId('global-search-trigger'));
+    const field = await screen.findByTestId('global-search-field');
+    fireEvent.change(field, { target: { value: 'synthwave' } });
+    const section = await screen.findByTestId('global-search-section-posts');
+    expect(section).toBeInTheDocument();
+    const row = screen.getByTestId('global-search-post-p1');
+    expect(row).toBeInTheDocument();
+    expect(row).toHaveTextContent('Check out this synthwave mix');
+    expect(screen.getByTestId('global-search-see-more-posts')).toBeInTheDocument();
+  });
+
+  it('shows the "no results" state when all three sections are empty', async () => {
+    renderDesktopSearch();
+    fireEvent.click(screen.getByTestId('global-search-trigger'));
+    const field = await screen.findByTestId('global-search-field');
+    fireEvent.change(field, { target: { value: 'zzz-no-match' } });
+    await waitFor(
+      () => expect(screen.getByTestId('global-search-no-results')).toBeInTheDocument(),
+      { timeout: 1500 },
+    );
+    expect(screen.queryByTestId('global-search-section-people')).not.toBeInTheDocument();
+    expect(screen.queryByTestId('global-search-section-groups')).not.toBeInTheDocument();
+    expect(screen.queryByTestId('global-search-section-posts')).not.toBeInTheDocument();
+  });
+
+  it('per-section loading: a slow section does not block the fast ones', async () => {
+    // People resolves immediately; groups + posts are pending.
+    let resolveGroups: (v: unknown) => void = () => {};
+    let resolvePosts: (v: unknown) => void = () => {};
+    vi.mocked(searchPeople).mockResolvedValue([
+      { username: 'alice', provider: 'web10', display_name: 'Alice', followers_count: 1, mutuals: 0, is_following: false },
+    ] as any);
+    vi.mocked(searchGroups).mockReturnValue(new Promise((r) => { resolveGroups = r; }));
+    vi.mocked(searchPosts).mockReturnValue(new Promise((r) => { resolvePosts = r; }));
+
+    renderDesktopSearch();
+    fireEvent.click(screen.getByTestId('global-search-trigger'));
+    const field = await screen.findByTestId('global-search-field');
+    fireEvent.change(field, { target: { value: 'alice' } });
+
+    // People section appears (it resolved), while groups + posts are still loading
+    // (their skeletons are present, their sections are not).
+    await screen.findByTestId('global-search-section-people');
+    expect(screen.queryByTestId('global-search-section-groups')).not.toBeInTheDocument();
+    expect(screen.queryByTestId('global-search-section-posts')).not.toBeInTheDocument();
+    // The "no results" state is NOT shown (sections are still loading).
+    expect(screen.queryByTestId('global-search-no-results')).not.toBeInTheDocument();
+
+    // Resolve the slow sections — they appear, and the "no results" state
+    // still does not show (people has a result).
+    resolveGroups([]);
+    resolvePosts([]);
+    await waitFor(() => {
+      expect(screen.queryByTestId('global-search-section-groups')).not.toBeInTheDocument();
+      expect(screen.queryByTestId('global-search-section-posts')).not.toBeInTheDocument();
+    });
+    expect(screen.getByTestId('global-search-section-people')).toBeInTheDocument();
+    expect(screen.queryByTestId('global-search-no-results')).not.toBeInTheDocument();
+  });
+
+  it('tapping a person row navigates to /u/:username', async () => {
+    vi.mocked(searchPeople).mockResolvedValue([
+      { username: 'alice', provider: 'web10', display_name: 'Alice', followers_count: 1, mutuals: 0, is_following: false },
+    ] as any);
+    renderDesktopSearch();
+    fireEvent.click(screen.getByTestId('global-search-trigger'));
+    const field = await screen.findByTestId('global-search-field');
+    fireEvent.change(field, { target: { value: 'alice' } });
+    const row = await screen.findByTestId('global-search-person-alice');
+    fireEvent.click(row);
+    // Navigation triggers the collapse (pathname change).
+    await waitFor(() => expect(screen.queryByTestId('global-search-field')).not.toBeInTheDocument());
+  });
+
+  it('tapping a group row navigates to /groups/:groupId', async () => {
+    vi.mocked(searchGroups).mockResolvedValue([
+      { group_id: 'web10/groups/users/nova/synthwave', name: 'Synthwave', owner: 'nova', slug: 'synthwave', join_policy: 'open', member_count: 5, tags: [], permission_summary: 'public' },
+    ] as any);
+    renderDesktopSearch();
+    fireEvent.click(screen.getByTestId('global-search-trigger'));
+    const field = await screen.findByTestId('global-search-field');
+    fireEvent.change(field, { target: { value: 'synthwave' } });
+    const row = await screen.findByTestId('global-search-group-web10/groups/users/nova/synthwave');
+    fireEvent.click(row);
+    await waitFor(() => expect(screen.queryByTestId('global-search-field')).not.toBeInTheDocument());
   });
 });
 
