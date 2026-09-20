@@ -22,8 +22,10 @@ import type {
   MediaRecord,
   ProfileRecord,
   ResolvedMediaRef,
+  AdRecord,
 } from '@/data';
 import { mediaRefId } from '@/data';
+import { AttachedAd } from '@/components/Feed/AttachedAd';
 import {
   Compass,
   Flame,
@@ -249,6 +251,10 @@ function postRecordToDiscoverPost(post: PostRecord, mediaItems: MediaRecord[], d
     reposts: post.reposts,
     score: post.score,
     media: mediaItems,
+    // The attached ads (ad-improvements.md) — the creator's pinned ad + the
+    // node's ad, rendered per format via the card's renderAd seam.
+    ad: post.ad,
+    node_ad: post.node_ad,
   };
 }
 
@@ -311,6 +317,10 @@ function DiscoverCard({
       readComments={readThreadComments}
       readReplies={readThreadReplies}
       createComment={discoverCreateComment}
+      // The attached-ad renderer (ad-improvements.md): each attached ad renders
+      // per its format (inline AdBlock / full PostAdCard). The shared card is
+      // presentational, so the app injects its ad components here.
+      renderAd={(ad) => <AttachedAd ad={ad as unknown as AdRecord} />}
       testId="discover-card"
       // A full-width 9:16 box is ~1.78× the card tall — too big on desktop,
       // and it buries the control rack at its bottom. Cap the portrait frame

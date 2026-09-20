@@ -66,6 +66,10 @@ export interface PostRecord {
   // operator's percentage. Both `ad` and `node_ad` can be present on the
   // same post — the renderer shows both, neither suppressing the other.
   node_ad?: AdRecord;
+  // The post's pinned-ad target (the ad's doc_id) — the raw `ad_preference`
+  // pointer. Exposed so the edit flow's "Pin an ad" picker can pre-select the
+  // current pin even when the ad body isn't resolved for the reader.
+  ad_target?: string;
   // The feed read (D69) carries the author's profile + resolved avatar URL
   // inline (the server's batched author read — no per-author fan-out).
   profile?: ProfileRecord;
@@ -106,6 +110,9 @@ export function fromV3DocToPost(doc: V3Document): PostRecord {
     // operator's percentage. Mapped the same way; the renderer dresses it
     // as a "Sponsored" block naming the node.
     node_ad: doc.node_ad ? fromV3DocToAd(doc.node_ad) : undefined,
+    // The raw ad_preference pointer (the pinned ad's doc_id) — for the edit
+    // flow's pin picker to pre-select the current pin.
+    ad_target: doc.ad_target || undefined,
     // Backward compat aliases for DiscoveryPost consumers
     author: username,
     provider,
@@ -158,6 +165,18 @@ export interface AdOffer {
  */
 export type AdVariant = 'creator' | 'node';
 
+/**
+ * The ad's format (ad-improvements.md) — how an attached ad RENDERS. The
+ * attachment is the same for both (the post's `ad_preference` / the node's
+ * read-time attach); only the rendering differs:
+ * - `inline` (default): the compact `AdBlock` under the post (square thumbnail
+ *   + offer CTA + disclosure).
+ * - `post`: a full post card (media, likes, comments) + ad dressing, under the
+ *   post it's attached to.
+ * App-owned rendering shape (D75) — the node doesn't read it.
+ */
+export type AdFormat = 'inline' | 'post';
+
 export interface AdRecord {
   _id?: string;
   text?: string;
@@ -168,6 +187,8 @@ export interface AdRecord {
   author_username?: string;
   /** `creator` (default) or `node` — derived from the `node_ad` tag. */
   variant?: AdVariant;
+  /** `inline` (default) or `post` — how the attached ad renders. */
+  format?: AdFormat;
   /** album doc_ids this ad belongs to (from its `album:<id>` tags) */
   albums?: string[];
 }
@@ -202,6 +223,9 @@ export function fromV3DocToAd(doc: V3Document): AdRecord {
     // D57: a node ad is tagged `ad` + `node_ad` — the node operator's
     // inventory. The renderer dresses it differently + names the node.
     variant: tags.includes('node_ad') ? 'node' : 'creator',
+    // The ad's format (ad-improvements.md): `inline` (default) renders as the
+    // compact AdBlock; `post` renders as a full post. App-owned (D75).
+    format: body.format === 'post' ? 'post' : 'inline',
     albums: tags.filter((t) => t.startsWith('album:')).map((t) => t.slice('album:'.length)),
   };
 }

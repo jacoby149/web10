@@ -170,6 +170,10 @@ def effective_config() -> dict:
         "moderation_enabled": True,
         "auto_hide_users": [],
         "node_ad_percentage": 10,
+        # When true, a node ad that fires on a post with a creator's ad drops
+        # the creator's ad (only the node ad shows). Default false — the D57
+        # non-steal principle (both show, the creator's is never suppressed).
+        "node_ad_overwrite": False,
         "brand_text": "web10",
         "logo_dark": "",
         "logo_light": "",

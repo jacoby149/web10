@@ -6,7 +6,7 @@ import { RankBadge, heatTier, HEAT_SHADOW } from './RankBadge';
 import { VideoPlayer, sourceFromMedia } from './VideoPlayer';
 import { MediaCarousel } from './MediaCarousel';
 import { PostActions, type ReactionKind } from './PostActions';
-import type { DiscoverPost, MediaItem, ReadComments, ReadReplies, CreateComment } from './types';
+import type { DiscoverPost, MediaItem, ReadComments, ReadReplies, CreateComment, DiscoverAd } from './types';
 
 /**
  * The shared discover card (D73) — the one both apps' discover surfaces
@@ -134,6 +134,14 @@ export interface DiscoverCardProps {
   /** The comment-author-click handler (in-app profile navigation) — a comment's
    *  author is a tappable profile link, distinct from the card's own author. */
   onCommentAuthorClick?: (username: string, provider?: string) => void;
+  /**
+   * The attached-ad renderer (ad-improvements.md). When present, the card
+   * renders the post's attached ads (`post.ad` / `post.node_ad`) via this seam,
+   * each per its `format` (the app decides inline block vs full post). Absent
+   * (e.g. marketing-ui's anon surface) → no ads render. The shared package is
+   * presentational and doesn't know the app's ad components.
+   */
+  renderAd?: (ad: DiscoverAd) => ReactNode;
   /** A DOM id for the card (the marketing page uses it for card ordering). */
   id?: string;
   className?: string;
@@ -168,6 +176,7 @@ export function DiscoverCard({
   postService = 'posts',
   onAuthorClick,
   onCommentAuthorClick,
+  renderAd,
   id,
   className,
   testId = 'discover-card',
@@ -359,6 +368,17 @@ export function DiscoverCard({
               ))}
           </div>
         ) : null}
+
+        {/* Attached ads (ad-improvements.md): the creator's pinned ad + the
+            node's ad, each rendered per its format via the injected seam. Both
+            can be present (neither suppresses the other, unless the node
+            overwrote the creator's). Absent `renderAd` → no ads (marketing). */}
+        {renderAd && (post.ad || post.node_ad) && (
+          <div className="mt-3 space-y-2" data-testid="discover-card-ads">
+            {post.ad && renderAd(post.ad)}
+            {post.node_ad && renderAd(post.node_ad)}
+          </div>
+        )}
       </div>
 
       {/* Engagement bar (post-actions.md): the shared row + Discover's own

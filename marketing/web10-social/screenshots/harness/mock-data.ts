@@ -441,6 +441,13 @@ export async function readGroupDetail(groupId: string): Promise<unknown> {
   };
 }
 export async function joinGroup(): Promise<unknown> { return { status: 'joined' }; }
+// Group edit-mode seams (group-as-profile) — the GroupDetailScreen imports these
+// from the @/data barrel; the harness mock must export them or the module errors.
+export async function readGroupMediaPage(): Promise<unknown> {
+  return { posts: [], hasMore: false, total: 0 };
+}
+export async function saveGroup(): Promise<unknown> { return { status: 'saved' }; }
+export async function publishGroup(): Promise<unknown> { return { status: 'published' }; }
 export async function readGroupIdentity(groupId: string): Promise<unknown> {
   // Per-group faces so the My Groups list capture shows a mix of face states:
   // nova → banner + avatar, luna → banner only, kai → no face (gradient fallback).
@@ -1113,6 +1120,9 @@ export async function fetchPeoplePage(_opts: { limit: number; offset: number }):
 // from the @/data barrel — provide working implementations so the harness
 // renders the correct order + filter.
 export const DEFAULT_PEOPLE_SORT = 'popular';
+// The group media grid's page size (GroupDetailScreen imports it from the
+// @/data barrel — the harness mock must export it or the module errors).
+export const GROUP_MEDIA_PAGE_SIZE = 24;
 export function sortPeople(people: any[], sort: string): any[] {
   const arr = [...people];
   switch (sort) {

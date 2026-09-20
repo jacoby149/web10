@@ -24,6 +24,10 @@ export interface AdItem {
   text: string;
   offer: AdOffer;
   status: 'active' | 'paused';
+  /** The ad's creative media (doc_ids, or resolved refs on a read). */
+  media_refs?: (string | Record<string, unknown>)[];
+  /** `inline` (default) or `post` — how the attached ad renders. */
+  format: 'inline' | 'post';
   /** album doc_ids this ad belongs to (from `album:<id>` tags) */
   albums: string[];
 }
@@ -73,6 +77,8 @@ export function parseAd(doc: V3Document): AdItem {
       disclosure: leaf(offerRaw.disclosure),
     },
     status: body.status === 'paused' ? 'paused' : 'active',
+    media_refs: (body.media_refs as (string | Record<string, unknown>)[]) || undefined,
+    format: body.format === 'post' ? 'post' : 'inline',
     albums: tags.filter((t) => t.startsWith('album:')).map((t) => t.slice('album:'.length)),
   };
 }
@@ -120,7 +126,23 @@ export function splitCatalog(docs: V3Document[]): AdsCatalogData {
 
 // ── Offer builders (leaf-typed, D55) ────────────────────────────────────────
 
-export function buildOfferBody(offer: AdOffer, text: string, status: 'active' | 'paused', albumIds: string[]): Record<string, unknown> {
+/**
+ * Build an ad's body (the `posts` doc tagged `ad`).
+ *
+ * `mediaRefs` — the ad's creative media (doc_ids). Present for a post-format
+ * ad (full post, everything a post has) and optional for an inline ad (a
+ * square thumbnail). Absent/empty → no `media_refs` key (a text-only ad).
+ * `format` — `inline` (default) or `post`. Written to the body so the renderer
+ * knows how to render the attached ad (app-owned, D75).
+ */
+export function buildOfferBody(
+  offer: AdOffer,
+  text: string,
+  status: 'active' | 'paused',
+  albumIds: string[],
+  mediaRefs?: string[],
+  format: 'inline' | 'post' = 'inline',
+): Record<string, unknown> {
   const tags = ['ad', ...albumIds.map((id) => `album:${id}`)];
   return {
     text,
@@ -133,6 +155,10 @@ export function buildOfferBody(offer: AdOffer, text: string, status: 'active' | 
       disclosure: { type: 'text', value: offer.disclosure },
     },
     status,
+    format,
+    // Always emitted (default `[]`) so an UPDATE can remove media — the node's
+    // update merges the body, so an absent key would keep the old media_refs.
+    media_refs: mediaRefs ?? [],
   };
 }
 
@@ -148,8 +174,18 @@ export function splitNodeAds(docs: V3Document[]): AdItem[] {
   return docs.filter(isNodeAd).map(parseAd);
 }
 
-/** Build a node ad's body: the leaf-typed offer + the `node_ad` tag. */
-export function buildNodeAdBody(offer: AdOffer, text: string, status: 'active' | 'paused'): Record<string, unknown> {
+/**
+ * Build a node ad's body: the leaf-typed offer + the `node_ad` tag.
+ * `mediaRefs` / `format` — same as `buildOfferBody` (a node ad can be inline
+ * or post format, with media, exactly like a creator ad).
+ */
+export function buildNodeAdBody(
+  offer: AdOffer,
+  text: string,
+  status: 'active' | 'paused',
+  mediaRefs?: string[],
+  format: 'inline' | 'post' = 'inline',
+): Record<string, unknown> {
   return {
     text,
     tags: ['ad', 'node_ad'],
@@ -161,7 +197,29 @@ export function buildNodeAdBody(offer: AdOffer, text: string, status: 'active' |
       disclosure: { type: 'text', value: offer.disclosure },
     },
     status,
+    format,
+    // Always emitted (default `[]`) so an UPDATE can remove media.
+    media_refs: mediaRefs ?? [],
   };
+}
+
+/**
+ * Update an existing ad (the Edit flow, ad-improvements.md). Same `doc_id` —
+ * an update is a new version, so any post that has this ad pinned keeps
+ * pointing at it and the new creative/offer/format shows immediately.
+ */
+export async function updateAd(
+  ad: AdItem,
+  offer: AdOffer,
+  text: string,
+  status: 'active' | 'paused',
+  albumIds: string[],
+  mediaRefs?: string[],
+  format: 'inline' | 'post' = 'inline',
+): Promise<V3Document> {
+  const w = getV3Client();
+  const body = buildOfferBody(offer, text, status, albumIds, mediaRefs, format);
+  return w.update(ad.doc.doc_id, body);
 }
 
 // ── The creator's catalog (the owner's own posts over their followers group) ─
@@ -263,6 +321,29 @@ export async function saveNodeAdPercentage(pct: number): Promise<void> {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ token: { token: raw }, update: { node_ad_percentage: pct } }),
+  });
+  if (!resp.ok) {
+    let detail = `config/update ${resp.status}`;
+    try {
+      const d = (await resp.json()) as { detail?: string };
+      if (d?.detail) detail = d.detail;
+    } catch { /* keep the status */ }
+    throw new Error(detail);
+  }
+}
+
+/**
+ * Set the node-ad overwrite flag (admin). Writes `node_ad_overwrite` to
+ * node_config — when true, a node ad replaces the creator's ad on the same post
+ * (instead of both showing). The companion to `saveNodeAdPercentage`.
+ */
+export async function saveNodeAdOverwrite(overwrite: boolean): Promise<void> {
+  const raw = readRawToken();
+  if (!raw) throw new Error('not signed in');
+  const resp = await fetch(`${API_ORIGIN}/config/update`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ token: { token: raw }, update: { node_ad_overwrite: overwrite } }),
   });
   if (!resp.ok) {
     let detail = `config/update ${resp.status}`;

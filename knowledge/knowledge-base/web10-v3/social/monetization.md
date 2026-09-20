@@ -40,8 +40,14 @@ The creator's own monetization:
 
 - **The ad catalog** — the creator's ads (posts tagged `ad` in their followers
   group) + albums (posts tagged `ad_album`) + the posts they're pinned to.
-  Create / pause / resume / retire an ad; make an album; pin an ad to a post.
-  This is the authenticator's old `AdsCard`, re-homed.
+  Create / **edit** / pause / resume / retire an ad; make an album; pin an ad to
+  a post. This is the authenticator's old `AdsCard`, re-homed. **Edit** keeps the
+  same `doc_id` (an update is a new version), so a post that has the ad pinned
+  keeps pointing at it and the new creative/offer/format shows immediately.
+- **The ad form** — create **and** edit. It carries the **format toggle**
+  (`inline` / `post` — see `ads.md` "Two Formats"), a **media attach** (one
+  image or video, the creative), CTA suggestion chips, and an optional `kind`
+  (`none` = self-promo hides the partner field).
 - **Affiliate onboarding** — the "get started" pointer to the affiliate
   programs worth joining (external sign-up links) + the direct-deals surface.
   This is the old `AffiliateProgramsCard` / `DirectDealsCard`, re-homed. The
@@ -49,19 +55,27 @@ The creator's own monetization:
 
 The data is the owner's own posts over their followers group, filtered
 client-side (a creator's own posts are a small, bounded set) — the house
-pattern. `readMyAds` / `splitCatalog` in `src/data/ads-catalog.ts`.
+pattern. `readMyAds` / `splitCatalog` / `updateAd` in `src/data/ads-catalog.ts`.
 
 ### Node (node admin only)
 
 The operator's ad inventory (D57, the second layer):
 
 - **Node ads** — the `node_ad`-tagged docs on the discover group. Create /
-  pause / resume / retire.
-- **Ad density** — the `node_ad_percentage` node-config slider (0-100).
+  pause / resume / retire. A node ad supports **both formats** (`inline` /
+  `post`) + media, exactly like a creator ad — "node ads and post ads work the
+  same exact way."
+- **Ad density** — the `node_ad_percentage` node-config slider (0-100): how
+  often node ads attach to posts.
+- **Overwrite the creator's ad?** — the `node_ad_overwrite` node-config toggle
+  (default **off**). When a node ad fires on a post that also has a creator's
+  ad: **off** (default, the D57 non-steal principle) → both show, the creator's
+  monetization is never suppressed; **on** → the node ad **replaces** the
+  creator's ad (only the node ad shows). Format-agnostic.
 
 This is the old `AdInventoryCard`, re-homed. It reads the discover group + the
-admin node config (`/config`), and writes `node_ad_percentage` via
-`/config/update`.
+admin node config (`/config`), and writes `node_ad_percentage` +
+`node_ad_overwrite` via `/config/update`.
 
 ## Node-Admin Detection
 
