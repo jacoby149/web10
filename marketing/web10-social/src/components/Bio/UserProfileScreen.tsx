@@ -638,7 +638,7 @@ export default function UserProfileScreen({ username, provider, onBack }: UserPr
             </div>
           ) : (
             <>
-              <h1 className="font-display text-xl font-bold text-foreground truncate">
+              <h1 className="font-display text-xl font-bold text-foreground truncate" data-testid="profile-name">
                 {profile?.display_name || username}
               </h1>
               {!isOwnProfile && (
