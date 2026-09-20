@@ -258,7 +258,7 @@ the sort I3-honest, and a WHERE-filter would quietly break it.
   (the `WHERE dg.group_id IN (readable_groups)` filter), so no I3 leak. Update
   the prepare pass / row serialization to carry the new column. **Gates QE-A**
   (the `group_meta` join is unusable without the key).
-- [✓ 3.122.0] **QE-A: the node change** (`api/app/v3/services/safe_query.py` + the query
+- [✓ 3.123.0] **QE-A: the node change** (`api/app/v3/services/safe_query.py` + the query
   endpoint) — the `_group_meta_cte_sql` builder (pre-aggregated counts + deduped
   contracts + CASE-based NULLing on the readable set — **NOT** the service CTE's
   WHERE-filter); the opt-in flag on the query; the endpoint computes the readable
