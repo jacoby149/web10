@@ -45,6 +45,17 @@ vi.mock('@/data', async (importOriginal) => {
     countComments: vi.fn().mockResolvedValue(0),
     readReactions: vi.fn().mockResolvedValue([]),
     toggleReactionKind: vi.fn().mockResolvedValue('like'),
+    saveGroup: vi.fn().mockResolvedValue(undefined),
+    publishGroup: vi.fn().mockResolvedValue(undefined),
+  };
+});
+
+// Mock the media upload seam (the edit mode's cover/avatar upload, decision 3).
+vi.mock('@/data/posts', async (importOriginal) => {
+  const original = await importOriginal() as Record<string, unknown>;
+  return {
+    ...original,
+    uploadMedia: vi.fn().mockResolvedValue({ _id: 'uploaded-media-1' }),
   };
 });
 
@@ -70,7 +81,10 @@ import {
     requestJoinGroup,
     leaveGroup,
     toggleReactionKind,
+    saveGroup,
+    publishGroup,
 } from '@/data';
+import { uploadMedia } from '@/data/posts';
 
 const mockMyGroups = [
   {
@@ -618,7 +632,7 @@ describe('GroupDetailScreen', () => {
     expect(screen.queryByTestId('group-detail-manage')).not.toBeInTheDocument();
   });
 
-  it('clicking Manage opens the management sheet with its tabs', async () => {
+  it('clicking Manage opens the management sheet with its tabs (Members + Roles — Profile/Settings retired)', async () => {
     vi.mocked(getGroupsManages).mockResolvedValue([
       { group_id: GROUP_ID, join_policy: 'open', my_role: 'owner', member_count: 128 },
     ] as never);
@@ -630,143 +644,170 @@ describe('GroupDetailScreen', () => {
     await waitFor(() => {
       expect(screen.getByTestId('manage-group-sheet')).toBeInTheDocument();
     });
-    expect(screen.getByTestId('manage-tab-profile')).toBeInTheDocument();
-    expect(screen.getByTestId('manage-tab-settings')).toBeInTheDocument();
+    // G2: Profile + Settings fold into the inline edit mode — the sheet is now
+    // the secondary surface for the list ops (Members + Roles).
+    expect(screen.queryByTestId('manage-tab-profile')).not.toBeInTheDocument();
+    expect(screen.queryByTestId('manage-tab-settings')).not.toBeInTheDocument();
     expect(screen.getByTestId('manage-tab-members')).toBeInTheDocument();
     expect(screen.getByTestId('manage-tab-roles')).toBeInTheDocument();
-    // The active tab (Profile) renders the face editor (it loads the current
-    // face on mount); the not-yet-built tabs (Settings/Members/Roles) show the
-    // placeholder when selected.
-    await waitFor(() => {
-      expect(screen.getByTestId('manage-profile-name')).toBeInTheDocument();
-    });
+    // The active tab is Members (the first section now that Profile is retired).
+    expect(screen.getByTestId('manage-tab-members')).toHaveAttribute('aria-selected', 'true');
   });
 
-  it('the Profile section loads the face and saves it (writeGroupIdentity)', async () => {
+  it('the Edit pencil (manager-only) opens the inline edit mode with face + settings', async () => {
     vi.mocked(getGroupsManages).mockResolvedValue([
       { group_id: GROUP_ID, join_policy: 'open', my_role: 'owner', member_count: 128 },
     ] as never);
     await loadDetail();
     await waitFor(() => {
-      expect(screen.getByTestId('group-detail-manage')).toBeInTheDocument();
+      expect(screen.getByTestId('group-detail-edit')).toBeInTheDocument();
     });
-    fireEvent.click(screen.getByTestId('group-detail-manage'));
+    fireEvent.click(screen.getByTestId('group-detail-edit'));
     await waitFor(() => {
-      expect(screen.getByTestId('manage-group-sheet')).toBeInTheDocument();
+      expect(screen.getByTestId('group-edit-mode')).toBeInTheDocument();
     });
-    // Profile is the default tab; the form loads the current face (mockIdentity)
-    await waitFor(() => {
-      expect(screen.getByTestId('manage-profile-name')).toBeInTheDocument();
-    });
-    expect((screen.getByTestId('manage-profile-name') as HTMLInputElement).value).toBe('Gaming Night');
-    expect(screen.getByTestId('manage-profile-about')).toBeInTheDocument();
-    expect(screen.getByTestId('manage-profile-website')).toBeInTheDocument();
-    expect(screen.getByTestId('manage-profile-banner-button')).toBeInTheDocument();
-    expect(screen.getByTestId('manage-profile-avatar-button')).toBeInTheDocument();
-    // Edit the name + save → writeGroupIdentity is called with the new face
-    fireEvent.change(screen.getByTestId('manage-profile-name'), { target: { value: 'Gaming Night 2.0' } });
-    fireEvent.click(screen.getByTestId('manage-profile-save'));
-    await waitFor(() => {
-      expect(writeGroupIdentity).toHaveBeenCalledWith(GROUP_ID, expect.objectContaining({ name: 'Gaming Night 2.0' }));
-    });
+    // The face fields load the current face (mockIdentity).
+    expect((screen.getByTestId('group-edit-name') as HTMLInputElement).value).toBe('Gaming Night');
+    expect(screen.getByTestId('group-edit-about')).toBeInTheDocument();
+    expect(screen.getByTestId('group-edit-website')).toBeInTheDocument();
+    expect(screen.getByTestId('group-edit-banner-button')).toBeInTheDocument();
+    expect(screen.getByTestId('group-edit-avatar-button')).toBeInTheDocument();
+    // The settings (who-can-read / how-join / list-in-directory) are inline too.
+    expect(screen.getByTestId('group-edit-visibility')).toBeInTheDocument();
+    expect(screen.getByTestId('group-edit-join-policy')).toBeInTheDocument();
+    expect(screen.getByTestId('group-edit-listed-toggle')).toBeInTheDocument();
   });
 
-  it('switching tabs in the Manage sheet changes the active section', async () => {
+  it('a non-manager does NOT see the Edit pencil', async () => {
+    vi.mocked(getGroupsManages).mockResolvedValue([]);
+    await loadDetail();
+    await waitFor(() => {
+      expect(screen.getByTestId('group-detail-hero')).toBeInTheDocument();
+    });
+    expect(screen.queryByTestId('group-detail-edit')).not.toBeInTheDocument();
+  });
+
+  it('the edit mode commit is atomic — face + settings land together (saveGroup)', async () => {
     vi.mocked(getGroupsManages).mockResolvedValue([
       { group_id: GROUP_ID, join_policy: 'open', my_role: 'owner', member_count: 128 },
     ] as never);
     await loadDetail();
     await waitFor(() => {
-      expect(screen.getByTestId('group-detail-manage')).toBeInTheDocument();
+      expect(screen.getByTestId('group-detail-edit')).toBeInTheDocument();
     });
-    fireEvent.click(screen.getByTestId('group-detail-manage'));
+    fireEvent.click(screen.getByTestId('group-detail-edit'));
     await waitFor(() => {
-      expect(screen.getByTestId('manage-group-sheet')).toBeInTheDocument();
+      expect(screen.getByTestId('group-edit-mode')).toBeInTheDocument();
     });
-    expect(screen.getByTestId('manage-tab-profile')).toHaveAttribute('aria-selected', 'true');
-    fireEvent.click(screen.getByTestId('manage-tab-settings'));
+    // Stage a face change + a settings change.
+    fireEvent.change(screen.getByTestId('group-edit-name'), { target: { value: 'Gaming Night 2.0' } });
+    fireEvent.click(screen.getByTestId('group-edit-join-request'));
+    // Save → the atomic commit: saveGroup is called with BOTH the face and the settings.
+    fireEvent.click(screen.getByTestId('group-edit-save'));
     await waitFor(() => {
-      expect(screen.getByTestId('manage-tab-settings')).toHaveAttribute('aria-selected', 'true');
+      expect(saveGroup).toHaveBeenCalledWith(
+        GROUP_ID,
+        expect.objectContaining({
+          face: expect.objectContaining({ name: 'Gaming Night 2.0' }),
+          joinPolicy: 'request',
+        }),
+      );
     });
   });
 
-  it('the Settings section: flipping "List in directory" calls updateGroup with discoverable', async () => {
+  it('a draft group commits via publishGroup (the same atomic commit)', async () => {
     vi.mocked(getGroupsManages).mockResolvedValue([
       { group_id: GROUP_ID, join_policy: 'open', my_role: 'owner', member_count: 128 },
     ] as never);
+    // The group is a draft (G0: status:'draft' on the face).
+    vi.mocked(readGroupIdentity).mockResolvedValue({ ...mockIdentity, status: 'draft' });
     await loadDetail();
     await waitFor(() => {
-      expect(screen.getByTestId('group-detail-manage')).toBeInTheDocument();
+      expect(screen.getByTestId('group-detail-edit')).toBeInTheDocument();
     });
-    fireEvent.click(screen.getByTestId('group-detail-manage'));
+    fireEvent.click(screen.getByTestId('group-detail-edit'));
     await waitFor(() => {
-      expect(screen.getByTestId('manage-group-sheet')).toBeInTheDocument();
+      expect(screen.getByTestId('group-edit-mode')).toBeInTheDocument();
     });
-    fireEvent.click(screen.getByTestId('manage-tab-settings'));
+    // The save button reads "Publish group" for a draft.
+    expect(screen.getByTestId('group-edit-save')).toHaveTextContent('Publish group');
+    fireEvent.click(screen.getByTestId('group-edit-save'));
     await waitFor(() => {
-      expect(screen.getByTestId('manage-settings-listed-toggle')).toBeInTheDocument();
+      expect(publishGroup).toHaveBeenCalledWith(
+        GROUP_ID,
+        expect.objectContaining({ face: expect.objectContaining({ name: 'Gaming Night' }) }),
+      );
     });
-    // mockDetail has discoverable: true → the toggle starts checked
-    expect(screen.getByTestId('manage-settings-listed-toggle')).toHaveAttribute('aria-checked', 'true');
-    fireEvent.click(screen.getByTestId('manage-settings-listed-toggle'));
+    // A published group uses saveGroup, not publishGroup.
+    expect(saveGroup).not.toHaveBeenCalled();
+  });
+
+  it('nav-away mid-upload shows the warning (decision 3)', async () => {
+    vi.mocked(getGroupsManages).mockResolvedValue([
+      { group_id: GROUP_ID, join_policy: 'open', my_role: 'owner', member_count: 128 },
+    ] as never);
+    // The upload never resolves (in flight).
+    vi.mocked(uploadMedia).mockImplementation(
+      () => new Promise(() => {}) as unknown as ReturnType<typeof uploadMedia>,
+    );
+    await loadDetail();
     await waitFor(() => {
-      expect(updateGroup).toHaveBeenCalledWith(GROUP_ID, { discoverable: false });
+      expect(screen.getByTestId('group-detail-edit')).toBeInTheDocument();
+    });
+    fireEvent.click(screen.getByTestId('group-detail-edit'));
+    await waitFor(() => {
+      expect(screen.getByTestId('group-edit-mode')).toBeInTheDocument();
+    });
+    // Pick a cover → the upload starts (in flight).
+    fireEvent.change(screen.getByTestId('group-edit-banner-input'), {
+      target: { files: [new File(['x'], 'cover.png', { type: 'image/png' })] },
+    });
+    // Nav away (back) while the upload is in flight → the warning shows.
+    fireEvent.click(screen.getByTestId('group-detail-back'));
+    await waitFor(() => {
+      expect(screen.getByTestId('group-upload-warning')).toBeInTheDocument();
+    });
+    expect(screen.getByText('Your upload will be canceled if you leave.')).toBeInTheDocument();
+    // "Stay" dismisses the warning (no navigation).
+    fireEvent.click(screen.getByTestId('group-upload-warning-stay'));
+    await waitFor(() => {
+      expect(screen.queryByTestId('group-upload-warning')).not.toBeInTheDocument();
     });
   });
 
-  it('the Settings section: changing join policy calls updateGroup with join_policy', async () => {
+  it('no auto-save mid-upload (Save disabled) + Cancel restores the live state', async () => {
     vi.mocked(getGroupsManages).mockResolvedValue([
       { group_id: GROUP_ID, join_policy: 'open', my_role: 'owner', member_count: 128 },
     ] as never);
+    vi.mocked(uploadMedia).mockImplementation(
+      () => new Promise(() => {}) as unknown as ReturnType<typeof uploadMedia>,
+    );
     await loadDetail();
     await waitFor(() => {
-      expect(screen.getByTestId('group-detail-manage')).toBeInTheDocument();
+      expect(screen.getByTestId('group-detail-edit')).toBeInTheDocument();
     });
-    fireEvent.click(screen.getByTestId('group-detail-manage'));
+    fireEvent.click(screen.getByTestId('group-detail-edit'));
     await waitFor(() => {
-      expect(screen.getByTestId('manage-group-sheet')).toBeInTheDocument();
+      expect(screen.getByTestId('group-edit-mode')).toBeInTheDocument();
     });
-    fireEvent.click(screen.getByTestId('manage-tab-settings'));
-    await waitFor(() => {
-      expect(screen.getByTestId('manage-settings-join-request')).toBeInTheDocument();
-    });
-    fireEvent.click(screen.getByTestId('manage-settings-join-request'));
-    await waitFor(() => {
-      expect(updateGroup).toHaveBeenCalledWith(GROUP_ID, { join_policy: 'request' });
-    });
-  });
-
-  it('the Settings section: who-can-read reflects the reserved rows and updates them', async () => {
-    vi.mocked(getGroupsManages).mockResolvedValue([
-      { group_id: GROUP_ID, join_policy: 'open', my_role: 'owner', member_count: 128 },
-    ] as never);
-    // The group is public (an `anyone` reader row)
-    vi.mocked(getGroupMembers).mockResolvedValue([
-      { member_key: 'anyone', role: 'reader' },
-      { member_key: 'carol', role: 'owner' },
-    ]);
-    await loadDetail();
-    await waitFor(() => {
-      expect(screen.getByTestId('group-detail-manage')).toBeInTheDocument();
-    });
-    fireEvent.click(screen.getByTestId('group-detail-manage'));
-    await waitFor(() => {
-      expect(screen.getByTestId('manage-group-sheet')).toBeInTheDocument();
-    });
-    fireEvent.click(screen.getByTestId('manage-tab-settings'));
-    await waitFor(() => {
-      expect(screen.getByTestId('manage-settings-visibility-public')).toBeInTheDocument();
-    });
-    // The public option is active (the `anyone` reader row)
-    expect(screen.getByTestId('manage-settings-visibility-public')).toHaveAttribute('aria-pressed', 'true');
-    // Switch to private → removes both reserved rows
-    fireEvent.click(screen.getByTestId('manage-settings-visibility-private'));
-    await waitFor(() => {
-      expect(removeGroupMember).toHaveBeenCalledWith(GROUP_ID, 'anyone');
+    // Pick a cover → the upload is in flight → Save is disabled (no auto-save mid-upload).
+    fireEvent.change(screen.getByTestId('group-edit-banner-input'), {
+      target: { files: [new File(['x'], 'cover.png', { type: 'image/png' })] },
     });
     await waitFor(() => {
-      expect(removeGroupMember).toHaveBeenCalledWith(GROUP_ID, 'authenticated');
+      expect(screen.getByTestId('group-edit-save')).toBeDisabled();
     });
+    // Stage a name change, then Cancel → the live state is restored (the hero
+    // shows the original name; the stage is discarded).
+    fireEvent.change(screen.getByTestId('group-edit-name'), { target: { value: 'Changed Name' } });
+    fireEvent.click(screen.getByTestId('group-edit-cancel'));
+    await waitFor(() => {
+      expect(screen.queryByTestId('group-edit-mode')).not.toBeInTheDocument();
+    });
+    expect(screen.getByTestId('group-detail-name')).toHaveTextContent('Gaming Night');
+    // Cancel never commits.
+    expect(saveGroup).not.toHaveBeenCalled();
+    expect(publishGroup).not.toHaveBeenCalled();
   });
 
   it('the Members section lists members and removes one (removeGroupMember)', async () => {
