@@ -90,7 +90,7 @@ existing idiom). No second data path.
 
 ## Bite sizing (small, one owner each)
 
-- [ ] **S1: the search surface in the chrome** (`Layout.tsx` + a new
+- [✓] **S1: the search surface in the chrome** (`Layout.tsx` + a new
   `src/components/Search/GlobalSearch.tsx`) — the **expanding-icon** state
   machine (`icon (rest) → expanded field → results → collapse`): the slim
   search icon in the top bar / header (always there, like the logout), the
