@@ -416,6 +416,24 @@ export async function readGroupDirectory(): Promise<SeedDirectoryEntry[]> {
   return DIRECTORY;
 }
 export async function readGroupDetail(groupId: string): Promise<unknown> {
+  // The G4 create-flow capture: a draft group (inert — unlisted, owner-only,
+  // face status:'draft'). The harness user ('me') owns it.
+  if (groupId === 'web10/groups/users/me/new-group') {
+    return {
+      group_id: 'web10/groups/users/me/new-group',
+      name: 'new-group',
+      owner: 'me',
+      slug: 'new-group',
+      join_policy: 'open',
+      discoverable: false,
+      member_count: 1,
+      roles: [],
+      permission_summary: 'member: readAll, create',
+      is_member: true,
+      posts_state: 'ok',
+      posts: [],
+    };
+  }
   const entry = DIRECTORY.find((g) => g.group_id === groupId) ?? DIRECTORY[0];
   return {
     group_id: entry.group_id,
@@ -452,6 +470,19 @@ export async function readGroupIdentity(groupId: string): Promise<unknown> {
   // Per-group faces so the My Groups list capture shows a mix of face states:
   // nova → banner + avatar, luna → banner only, kai → no face (gradient fallback).
   const faces: Record<string, unknown> = {
+    // The G4 create-flow capture: the draft's face (status:'draft', staged
+    // settings in the face — decision 2).
+    'web10/groups/users/me/new-group': {
+      name: 'New group',
+      description: '',
+      banner_ref: '',
+      avatar_ref: '',
+      tags: [],
+      status: 'draft',
+      visibility: 'private',
+      join_policy: 'open',
+      discoverable: false,
+    },
     'web10/groups/users/nova/synthwave-sessions': {
       name: 'Synthwave Sessions',
       description: 'A shared space on your node — content you co-create with the people you choose.',
@@ -479,8 +510,12 @@ export async function readGroupIdentity(groupId: string): Promise<unknown> {
 }
 export async function getGroupsManages(): Promise<unknown[]> {
   // The harness user manages the synthwave-sessions group → the detail screen
-  // shows the manager-only "Manage" entry point in the capture.
-  return [{ group_id: 'web10/groups/users/nova/synthwave-sessions', join_policy: 'open', my_role: 'owner', member_count: 128 }];
+  // shows the manager-only "Manage" entry point in the capture. The draft
+  // (the G4 create-flow capture) is owned by the harness user too.
+  return [
+    { group_id: 'web10/groups/users/nova/synthwave-sessions', join_policy: 'open', my_role: 'owner', member_count: 128 },
+    { group_id: 'web10/groups/users/me/new-group', join_policy: 'open', my_role: 'owner', member_count: 1 },
+  ];
 }
 // The Manage-sheet sections import these from the @/data barrel — the harness
 // aliases @/data to this file, so every named import must exist here or the
@@ -491,6 +526,39 @@ export async function updateGroup(): Promise<unknown> { return {}; }
 export async function addGroupMember(): Promise<unknown> { return {}; }
 export async function removeGroupMember(): Promise<unknown> { return {}; }
 export async function deleteGroup(): Promise<unknown> { return { status: 'deleted' }; }
+// G4: the create entry point + the atomic commit + the slug guard — the
+// group detail / edit mode import these from the @/data barrel.
+export async function createDraftGroup(): Promise<string> { return 'web10/groups/users/me/new-group'; }
+export async function saveGroup(): Promise<void> { return; }
+export async function publishGroup(): Promise<void> { return; }
+export async function slugTaken(): Promise<boolean> { return false; }
+// G1: the Media tab's paged read + page size (GroupDetailScreen imports both
+// from the @/data barrel).
+export const GROUP_MEDIA_PAGE_SIZE = 24;
+export async function readGroupMediaPage(groupId: string): Promise<unknown> {
+  // G5: the Media tab's insta grid capture — the synthwave-sessions group's
+  // media posts (one media_ref each → one grid cell each). Other groups have
+  // no media (the empty state).
+  if (groupId === 'web10/groups/users/nova/synthwave-sessions') {
+    const posts = ['grp-med-1', 'grp-med-2', 'grp-med-3', 'grp-med-4', 'grp-med-5', 'grp-med-6'].map(
+      (ref, i) => ({
+        _id: `gm-${i + 1}`,
+        text: i === 5 ? 'Latest clip from the live set' : 'From the session',
+        author_username: i % 2 === 0 ? 'nova' : 'kai',
+        author_provider: 'web10',
+        created_at: minsAgo(60 * (i + 1)),
+        media_refs: [ref],
+      }),
+    );
+    return { posts, hasMore: false, total: posts.length };
+  }
+  return { posts: [], hasMore: false, total: 0 };
+}
+// The slug helper (GroupEditMode's slug preview) — same derivation as the real
+// data layer.
+export function slugify(name: string): string {
+  return name.trim().toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '');
+}
 export async function getGroupMembers(): Promise<unknown[]> {
   return [
     { member_key: 'web10/users/nova', role: 'owner' },
@@ -858,6 +926,19 @@ const FACE_MEDIA: Record<string, Record<string, unknown>> = {
   'grp-banner-kai': { ...creative('LO-FI', 1600, 400, '#0ea5e9', '#0c4a6e', 'image/png'), _id: 'grp-banner-kai' },
 };
 
+// Group media posts (G5: the Media tab's insta grid capture) — the seeded
+// grid for the synthwave-sessions group. A mix of image + video cells so the
+// shot shows both the plain image cell and the video cell with the play
+// overlay. The grid renders one cell per media_ref (flattened).
+const GROUP_MEDIA: Record<string, Record<string, unknown>> = {
+  'grp-med-1': { ...creative('LIVE SET', 1280, 1280, '#8b5cf6', '#2e1065', 'image/png'), _id: 'grp-med-1' },
+  'grp-med-2': { ...creative('STUDIO', 1280, 1280, '#7c3aed', '#4c1d95', 'image/png'), _id: 'grp-med-2' },
+  'grp-med-3': { ...creative('DROP', 1280, 1280, '#a78bfa', '#1e1b4b', 'image/png'), _id: 'grp-med-3' },
+  'grp-med-4': { ...creative('SET', 1280, 1280, '#c4b5fd', '#312e81', 'image/png'), _id: 'grp-med-4' },
+  'grp-med-5': { ...creative('BACKSTAGE', 1280, 1280, '#f59e0b', '#78350f', 'image/png'), _id: 'grp-med-5' },
+  'grp-med-6': { ...creative('CLIP', 1280, 1280, '#0ea5e9', '#0c4a6e'), _id: 'grp-med-6' },
+};
+
 const DISCOVER_POSTS: SeedDiscoverPost[] = [
   {
     _id: 'dp-1',
@@ -966,7 +1047,7 @@ export async function resolveMediaRefs<T>(refs: T[]): Promise<T[]> {
     // PROFILE_MEDIA / FACE_MEDIA are declared later in the module (the profile
     // seed sections) — safe: the lookup runs at call time, after the module is
     // evaluated.
-    const rec = DISCOVER_MEDIA[id] ?? PROFILE_MEDIA[id] ?? FACE_MEDIA[id];
+    const rec = DISCOVER_MEDIA[id] ?? PROFILE_MEDIA[id] ?? FACE_MEDIA[id] ?? GROUP_MEDIA[id];
     if (rec) out.push(rec as T);
   }
   return out;

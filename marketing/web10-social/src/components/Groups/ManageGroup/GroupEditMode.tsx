@@ -11,11 +11,22 @@ import {
   UserCheck,
   Eye,
   Check,
+  Trash2,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
-import { getGroupMembers, type GroupIdentity, type GroupCommitInput, type GroupVisibility, type GroupJoinPolicy } from '@/data';
+import {
+  getGroupMembers,
+  writeGroupIdentity,
+  slugTaken as slugTakenCheck,
+  slugify,
+  type GroupIdentity,
+  type GroupCommitInput,
+  type GroupVisibility,
+  type GroupJoinPolicy,
+} from '@/data';
+import { getV3Client } from '@/data/v3';
 import { uploadMedia } from '@/data/posts';
 import { errorMessage } from '@/components/shared/Toast';
 import { cn } from '@/lib/utils';
@@ -47,6 +58,18 @@ const VISIBILITY_OPTIONS = [
  * calls `saveGroup` / `publishGroup` — face + settings land together).
  * **Cancel** discards the stage (the live state is never touched).
  *
+ * **Drafts auto-save (G4).** When `isDraft`, every staged change is written to
+ * the face doc (debounced) as you type — "always save the group as draft."
+ * Nothing is live (the draft is inert), so auto-saving the stage is safe; the
+ * settings still only reach the contract on the atomic commit. Published
+ * groups never auto-save (the live face is frozen until Save).
+ *
+ * **The slug guard is live (G4, decision 1).** For a draft, the slug preview
+ * (derived from the display name) is checked against `get_group` as you type;
+ * an active group at that slug shows "name already taken" and blocks Publish.
+ * After create the slug is the group's identity — the display name stays free
+ * (decision 4), so the guard is create-time only.
+ *
  * **Uploads (decision 3):** picking a cover / avatar starts an async upload;
  * the ref is written to the stage only when it resolves, and **no save while an
  * upload is in flight** (you can't commit a `banner_ref` that hasn't resolved).
@@ -61,6 +84,10 @@ export default function GroupEditMode({
   onUploadingChange,
   onSave,
   onCancel,
+  slugTaken,
+  onSlugTakenChange,
+  onDelete,
+  deleting,
 }: {
   groupId: string;
   identity: GroupIdentity;
@@ -70,6 +97,12 @@ export default function GroupEditMode({
   onUploadingChange: (uploading: boolean) => void;
   onSave: (staged: GroupCommitInput) => Promise<void>;
   onCancel: () => void;
+  /** The create-time slug guard (G4): true while an active group owns the slug. */
+  slugTaken: boolean;
+  onSlugTakenChange: (taken: boolean) => void;
+  /** The lightweight draft-delete (G4) — only wired for drafts. */
+  onDelete?: () => void;
+  deleting?: boolean;
 }) {
   const [name, setName] = useState(identity.name || '');
   const [description, setDescription] = useState(identity.description || '');
@@ -90,9 +123,19 @@ export default function GroupEditMode({
   const [uploading, setUploading] = useState(false);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  // The draft auto-save status (G4): idle → saving → saved.
+  const [autoSave, setAutoSave] = useState<'idle' | 'saving' | 'saved'>('idle');
 
   const bannerInputRef = useRef<HTMLInputElement>(null);
   const avatarInputRef = useRef<HTMLInputElement>(null);
+  // The draft auto-save (G4): the first render is the loaded face, not a
+  // change — skip it so opening edit mode doesn't rewrite the doc.
+  const autoSaveFirstRef = useRef(true);
+  const autoSaveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  // The slug guard (G4, decision 1): a debounce for the get_group check.
+  const slugCheckTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  // The slug the guard last checked (skip redundant checks).
+  const slugCheckedRef = useRef<string | null>(null);
 
   // Derive the current who-can-read from the group's reserved member rows
   // (the D58 read grant — the same derivation the retired Settings section used).
@@ -120,6 +163,83 @@ export default function GroupEditMode({
       if (avatarPreview) URL.revokeObjectURL(avatarPreview);
     };
   }, [bannerPreview, avatarPreview]);
+
+  // ── Draft auto-save (G4) ──────────────────────────────────────────────────
+  // "When you make changes it could always save the group as draft." For a
+  // draft, every staged change (face AND settings) is written to the face doc
+  // debounced as you type — the draft is inert (unlisted, owner-only), so
+  // nothing is live and the stage can be persisted freely. The atomic commit
+  // (Publish) is still the only thing that touches the group contract.
+  // Published groups never auto-save (the live face is frozen until Save).
+  // No auto-save while an upload is in flight (decision 3) or a commit is
+  // running — the stage is kept and the timer re-fires when they settle.
+  useEffect(() => {
+    if (!isDraft) return;
+    if (autoSaveFirstRef.current) {
+      autoSaveFirstRef.current = false;
+      return;
+    }
+    if (uploading || saving) return;
+    setAutoSave('saving');
+    if (autoSaveTimerRef.current) clearTimeout(autoSaveTimerRef.current);
+    autoSaveTimerRef.current = setTimeout(async () => {
+      LOG('auto-save — writing draft face', { name: name.trim(), visibility, policy, listed });
+      try {
+        await writeGroupIdentity(groupId, {
+          ...identity,
+          name: name.trim() || undefined,
+          description: description.trim() || undefined,
+          website: website.trim() || undefined,
+          tags: tags.length ? tags : undefined,
+          banner_ref: bannerRef,
+          avatar_ref: avatarRef,
+          status: 'draft',
+          visibility,
+          join_policy: policy,
+          discoverable: listed,
+        });
+        setAutoSave('saved');
+        LOG('auto-save — saved');
+      } catch (e) {
+        LOG('auto-save — failed:', e);
+        setAutoSave('idle');
+      }
+    }, 600);
+    return () => {
+      if (autoSaveTimerRef.current) clearTimeout(autoSaveTimerRef.current);
+    };
+  }, [isDraft, name, description, website, tags, bannerRef, avatarRef, visibility, policy, listed, uploading, saving, groupId, identity]);
+
+  // ── The slug guard, live in edit mode (G4, decision 1) ────────────────────
+  // For a draft, the slug (derived from the display name) is checked against
+  // get_group as you type (debounced). An active group at that slug →
+  // "name already taken" + Publish blocked. A tombstone doesn't count (G0).
+  // The check only runs when the derived slug is non-empty and changed.
+  useEffect(() => {
+    if (!isDraft) return;
+    const slug = slugify(name);
+    if (!slug) {
+      if (slugCheckedRef.current !== null) {
+        slugCheckedRef.current = null;
+        onSlugTakenChange(false);
+      }
+      return;
+    }
+    if (slug === slugCheckedRef.current) return;
+    if (slugCheckTimerRef.current) clearTimeout(slugCheckTimerRef.current);
+    slugCheckTimerRef.current = setTimeout(async () => {
+      slugCheckedRef.current = slug;
+      const owner = getV3Client().readToken()?.username || '';
+      const taken = await slugTakenCheck(slug, owner).catch(() => false);
+      // A newer slug was checked while this one was in flight — stale, drop it.
+      if (slugCheckedRef.current !== slug) return;
+      LOG('slug guard —', slug, taken ? 'TAKEN' : 'free');
+      onSlugTakenChange(taken);
+    }, 400);
+    return () => {
+      if (slugCheckTimerRef.current) clearTimeout(slugCheckTimerRef.current);
+    };
+  }, [isDraft, name, onSlugTakenChange]);
 
   // Pick a cover / avatar → start the async upload (decision 3). The ref lands
   // in the stage only when the upload resolves; `uploading` gates the save.
@@ -196,10 +316,10 @@ export default function GroupEditMode({
   );
 
   const handleSave = useCallback(async () => {
-    if (saving || uploading) return;
+    if (saving || uploading || (isDraft && slugTaken)) return;
     setSaving(true);
     setError(null);
-    LOG('save — start (atomic commit)', { isDraft });
+    LOG('save — start (atomic commit)', { isDraft, slugBlocked: isDraft && slugTaken });
     try {
       await onSave(buildStaged());
       LOG('save — committed');
@@ -209,7 +329,7 @@ export default function GroupEditMode({
     } finally {
       setSaving(false);
     }
-  }, [saving, uploading, isDraft, onSave, buildStaged]);
+  }, [saving, uploading, isDraft, slugTaken, onSave, buildStaged]);
 
   const busy = saving || uploading;
 
@@ -275,6 +395,24 @@ export default function GroupEditMode({
           data-testid="group-edit-name"
           className="bg-surface"
         />
+        {/* The slug guard (G4, decision 1): the draft's slug is its identity —
+            shown live as you type, with the create-time collision check. */}
+        {isDraft && (
+          <p
+            className={cn(
+              'mt-1.5 truncate font-mono text-xs',
+              slugTaken ? 'text-danger' : 'text-muted-foreground',
+            )}
+            data-testid="group-edit-slug"
+          >
+            {slugify(name) ? `web10.app/groups/…/${slugify(name)}` : 'web10.app/groups/…/…'}
+            {slugTaken && (
+              <span className="ml-2 font-sans" data-testid="group-edit-slug-taken">
+                — name already taken
+              </span>
+            )}
+          </p>
+        )}
       </div>
 
       {/* About */}
@@ -443,22 +581,68 @@ export default function GroupEditMode({
         </div>
       )}
 
-      {/* Save / Cancel — the profile's footer. Save is the atomic commit
-          (disabled while an upload is in flight — decision 3). */}
-      <div className="flex items-center justify-end gap-2 border-t border-border pt-3">
-        <Button variant="ghost" size="sm" onClick={onCancel} disabled={saving} data-testid="group-edit-cancel">
-          <X className="h-3.5 w-3.5" strokeWidth={1.75} />
-          Cancel
-        </Button>
-        <Button variant="brand" size="sm" onClick={handleSave} disabled={busy} data-testid="group-edit-save" className="gap-1.5">
-          {saving ? (
-            <Loader2 className="h-3.5 w-3.5 animate-spin" strokeWidth={2} />
-          ) : (
-            <Check className="h-3.5 w-3.5" strokeWidth={2} />
-          )}
-          {isDraft ? 'Publish group' : 'Save'}
-        </Button>
-      </div>
+      {isDraft ? (
+        /* The create flow's action row (G4): Publish group / Delete — the
+           lightweight draft-delete (one tap; the group is inert, so discarding
+           it can't kill a live community). The auto-save status sits with the
+           primary action ("always save the group as draft"). */
+        <div className="flex items-center justify-between gap-2 border-t border-border pt-3" data-testid="group-edit-actions">
+          <Button
+            variant="ghost"
+            size="sm"
+            className="gap-1.5 text-danger hover:text-danger hover:bg-danger-muted"
+            onClick={onDelete}
+            disabled={deleting || busy}
+            data-testid="group-edit-delete"
+          >
+            {deleting ? (
+              <Loader2 className="h-3.5 w-3.5 animate-spin" strokeWidth={2} />
+            ) : (
+              <Trash2 className="h-3.5 w-3.5" strokeWidth={1.75} />
+            )}
+            {deleting ? 'Deleting…' : 'Delete'}
+          </Button>
+          <div className="flex items-center gap-3">
+            {autoSave !== 'idle' && (
+              <span className="text-xs text-muted-foreground" data-testid="group-edit-autosave">
+                {autoSave === 'saving' ? 'Saving…' : 'All changes saved'}
+              </span>
+            )}
+            <Button
+              variant="brand"
+              size="sm"
+              onClick={handleSave}
+              disabled={busy || slugTaken}
+              data-testid="group-edit-save"
+              className="gap-1.5"
+            >
+              {saving ? (
+                <Loader2 className="h-3.5 w-3.5 animate-spin" strokeWidth={2} />
+              ) : (
+                <Check className="h-3.5 w-3.5" strokeWidth={2} />
+              )}
+              Publish group
+            </Button>
+          </div>
+        </div>
+      ) : (
+        /* Save / Cancel — the profile's footer. Save is the atomic commit
+           (disabled while an upload is in flight — decision 3). */
+        <div className="flex items-center justify-end gap-2 border-t border-border pt-3">
+          <Button variant="ghost" size="sm" onClick={onCancel} disabled={saving} data-testid="group-edit-cancel">
+            <X className="h-3.5 w-3.5" strokeWidth={1.75} />
+            Cancel
+          </Button>
+          <Button variant="brand" size="sm" onClick={handleSave} disabled={busy} data-testid="group-edit-save" className="gap-1.5">
+            {saving ? (
+              <Loader2 className="h-3.5 w-3.5 animate-spin" strokeWidth={2} />
+            ) : (
+              <Check className="h-3.5 w-3.5" strokeWidth={2} />
+            )}
+            Save
+          </Button>
+        </div>
+      )}
 
       {/* Hidden file inputs (e2e-drivable) */}
       <input ref={bannerInputRef} type="file" accept="image/*" className="hidden" onChange={handleBannerPick} data-testid="group-edit-banner-input" />

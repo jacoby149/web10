@@ -198,7 +198,7 @@ Deep-linkable (`?tab=`), refresh-safe. The hero (3.116.0) stays above the tabs.
   (unchanged components, new home) + the **published-delete** two-tap confirm.
   `groupsScreens.test.tsx` (the kebab is manager-only; it opens the sections;
   the published-delete is two-tap).
-- [ ] **G4: create = the group page in edit mode (draft)** (`GroupsScreen.tsx`
+- [✓ 3.134.0] **G4: create = the group page in edit mode (draft)** (`GroupsScreen.tsx`
   + `GroupDetailScreen.tsx` + `groups.ts`) — "New group" opens the group page
   in edit mode for a **draft** (G0); changes **auto-save** (the face doc); the
   action row is **Publish group** / **Delete** (the lightweight draft-delete);
@@ -207,7 +207,7 @@ Deep-linkable (`?tab=`), refresh-safe. The hero (3.116.0) stays above the tabs.
   re-cut (a new group is a draft — absent from the directory until Publish;
   auto-save persists the face; name-taken blocks; Publish flips it live +
   listed; Delete discards). **Gated on G0, G2.**
-- [ ] **G5: the screenshot pass** (`screenshots/`) — `group-{feed,media}-
+- [✓ 3.136.0] **G5: the screenshot pass** (`screenshots/`) — `group-{feed,media}-
   {desktop,375}.png`, `group-edit-{desktop,375}.png`, `group-create-{desktop,
   375}.png` (the draft edit-mode page); the screenshot test on every state;
   the harness seeds (a group with media posts, a manager for the pencil, a
