@@ -290,6 +290,17 @@ function createV3Client(options = {}) {
         payload.token = token;
       return authPost(`${apiOrigin}/v3/query`, payload);
     },
+    async listPeopleDirectory(opts) {
+      const payload = {};
+      if (opts?.limit != null)
+        payload.limit = opts.limit;
+      if (opts?.offset != null)
+        payload.offset = opts.offset;
+      const token = state.token ?? readTokenCookie();
+      if (token)
+        payload.token = token;
+      return authPost(`${apiOrigin}/v3/users/directory`, payload);
+    },
     async update(docId, body, opts) {
       const payload = { doc_id: docId, body };
       if (opts?.groups)
