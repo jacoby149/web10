@@ -11,7 +11,6 @@ import DiscoverScreen from '@/components/Discover/DiscoverScreen';
 import ShortsScreen from '@/components/Shorts/ShortsScreen';
 import GroupsScreen from '@/components/Groups/GroupsScreen';
 import GroupDetailScreen from '@/components/Groups/GroupDetailScreen';
-import PeopleScreen from '@/components/People/PeopleScreen';
 import DmsScreen from '@/components/Chat/DmsScreen';
 import NotificationsScreen from '@/components/Notifications/NotificationsScreen';
 import StagingScreen from '@/components/Staging/StagingScreen';
@@ -434,7 +433,7 @@ function App() {
           <Route path="/shorts/:postId" element={<ShortsScreen />} />
           <Route path="/groups" element={<GroupsScreen />} />
           <Route path="/groups/:groupId" element={<GroupDetailRoute />} />
-          <Route path="/people" element={<PeopleScreen />} />
+          <Route path="/people" element={<Navigate to="/discover?tab=people" replace />} />
           <Route path="/messages/*" element={<DmsScreen />} />
           <Route path="/notifications" element={<NotificationsScreen />} />
           <Route path="/profile" element={<ProfileRedirectRoute />} />

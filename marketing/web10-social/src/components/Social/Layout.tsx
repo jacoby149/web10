@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { useNavigate, useLocation, Outlet } from 'react-router-dom';
 import { cn } from '@/lib/utils';
-import { Home, User, MessageSquare, PlusCircle, LogOut, Bug, Compass, Users, Store, Gamepad2, Radio, Zap, Clapperboard, Settings, MoreHorizontal, X, Bell, ChevronUp, DollarSign, UserSearch } from 'lucide-react';
+import { Home, User, MessageSquare, PlusCircle, LogOut, Bug, Compass, Users, Store, Gamepad2, Radio, Zap, Clapperboard, Settings, MoreHorizontal, X, Bell, ChevronUp, DollarSign } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { getWapi } from '@/data/wapi';
@@ -29,9 +29,6 @@ const profileItem = { path: '/profile', icon: User, label: 'Profile', testId: 'n
 // Real destinations demoted from the bottom bar into the "More" sheet (and
 // the desktop sidebar).
 const groupsItem = { path: '/groups', icon: Users, label: 'Groups', testId: 'nav-groups' };
-// People (find profiles) — the mutual-follow discovery surface. A sibling of
-// Groups in the sidebar + the mobile More sheet (NOT a bottom-bar core tab).
-const peopleItem = { path: '/people', icon: UserSearch, label: 'People', testId: 'nav-people' };
 const settingsItem = { path: '/settings', icon: Settings, label: 'Settings', testId: 'nav-settings' };
 // Monetization (D75) — every signed-in user: the creator's ad catalog +
 // affiliate onboarding. Deep-links to the Monetization surface's default
@@ -48,7 +45,7 @@ const bottomNavItems = [feedItem, discoverItem, messagesItem, profileItem];
 // Profile, Messages, Settings) — the bottom bar reorders for thumb-reach,
 // the sidebar doesn't need to follow it. Shorts sits after Discover (the
 // video surfaces group together).
-const sidebarNavItems = [feedItem, discoverItem, shortsItem, groupsItem, peopleItem, profileItem, messagesItem, settingsItem];
+const sidebarNavItems = [feedItem, discoverItem, shortsItem, groupsItem, profileItem, messagesItem, settingsItem];
 
 // Provisional, non-infringing names for the surfaces not yet built. Shorts is
 // now a real surface (shorts.md) — it lives in the sidebar + the More sheet,
@@ -576,17 +573,6 @@ export default function Layout({ onLogout, onReportBug, children }: LayoutProps)
                 >
                   <Users className="w-5 h-5" strokeWidth={1.75} />
                   {groupsItem.label}
-                </button>
-                <button
-                  data-testid="nav-people-mobile"
-                  onClick={() => go(peopleItem.path)}
-                  className={cn(
-                    'w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors duration-150',
-                    isActive(peopleItem.path) ? 'bg-brand-muted text-brand-300' : 'text-foreground hover:bg-elevated',
-                  )}
-                >
-                  <UserSearch className="w-5 h-5" strokeWidth={1.75} />
-                  {peopleItem.label}
                 </button>
                 <button
                   data-testid="nav-monetization-mobile"
