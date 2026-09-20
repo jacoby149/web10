@@ -283,6 +283,8 @@ function createV3Client(options = {}) {
       const payload = { sql };
       if (opts?.groups)
         payload.groups = opts.groups;
+      if (opts?.withGroupMeta)
+        payload.withGroupMeta = true;
       if (opts?.prepare)
         payload.prepare = opts.prepare;
       const token = state.token ?? readTokenCookie();

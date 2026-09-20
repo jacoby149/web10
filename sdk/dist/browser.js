@@ -279,24 +279,15 @@
           payload.sort = opts.sort;
         if (opts.tags != null)
           payload.tags = opts.tags;
+        if (opts.cursor != null)
+          payload.cursor = opts.cursor;
+        if (opts.order != null)
+          payload.order = opts.order;
         return v3Post("read", payload);
       },
       async readRefCounts(collection, opts) {
         const payload = { service: collection, groups: opts.groups, ref: opts.ref, count: true };
         return v3Post("read", payload);
-      },
-      async feed(opts) {
-        const payload = { groups: opts.groups };
-        if (opts.limit != null)
-          payload.limit = opts.limit;
-        if (opts.cursor != null)
-          payload.cursor = opts.cursor;
-        if (opts.sort != null)
-          payload.sort = opts.sort;
-        const token = state.token ?? readTokenCookie();
-        if (token)
-          payload.token = token;
-        return authPost(`${apiOrigin}/v3/feed`, payload);
       },
       async readById(docId, collection) {
         return v3Post("read", { doc_id: docId, service: collection });
@@ -305,10 +296,25 @@
         const payload = { sql };
         if (opts?.groups)
           payload.groups = opts.groups;
+        if (opts?.withGroupMeta)
+          payload.withGroupMeta = true;
+        if (opts?.prepare)
+          payload.prepare = opts.prepare;
         const token = state.token ?? readTokenCookie();
         if (token)
           payload.token = token;
         return authPost(`${apiOrigin}/v3/query`, payload);
+      },
+      async listPeopleDirectory(opts) {
+        const payload = {};
+        if (opts?.limit != null)
+          payload.limit = opts.limit;
+        if (opts?.offset != null)
+          payload.offset = opts.offset;
+        const token = state.token ?? readTokenCookie();
+        if (token)
+          payload.token = token;
+        return authPost(`${apiOrigin}/v3/users/directory`, payload);
       },
       async update(docId, body, opts) {
         const payload = { doc_id: docId, body };
@@ -345,13 +351,18 @@
         };
         if (opts?.discoverable !== undefined)
           payload.discoverable = opts.discoverable;
+        if (opts?.tags)
+          payload.tags = opts.tags;
         return v3Post("groups/create", payload);
       },
       async getGroup(groupId) {
         return v3Post("groups/get", { group_id: groupId });
       },
-      async getMyGroups() {
-        return v3Post("groups/list", {});
+      async getMyGroups(opts) {
+        const payload = {};
+        if (opts?.tags)
+          payload.tags = opts.tags;
+        return v3Post("groups/list", payload);
       },
       async getGroupsManages() {
         return v3Post("groups/manages", {});
@@ -364,6 +375,8 @@
           payload.roles = opts.roles;
         if (opts?.discoverable !== undefined)
           payload.discoverable = opts.discoverable;
+        if (opts?.tags)
+          payload.tags = opts.tags;
         return v3Post("groups/update", payload);
       },
       async deleteGroup(groupId) {

@@ -632,9 +632,10 @@ export function createV3Client(options: V3ClientOptions = {}): V3Client {
      * and your own CTEs are all fair game, and none of them can leak past
      * your groups (the raw tables are unreachable, a wall not a membrane).
      *
-     * Each service CTE exposes: `doc_id`, `author_key`, `body` (JSON string —
-     * use `JSONExtractString(body, 'field', 'value')` for fields),
-     * `ref_value`, `tags`, `created_at`, `updated_at`.
+      * Each service CTE exposes: `doc_id`, `author_key`, `body` (JSON string —
+      * use `JSONExtractString(body, 'field', 'value')` for fields),
+      * `ref_value`, `tags`, `created_at`, `updated_at`, `group_id` (the group
+      * the doc row belongs to — a doc in N readable groups returns N rows).
      *
      * **Alias every table-qualified column you SELECT** (`p.body AS body`,
      * `p.author_key AS author_key`, …). ClickHouse names a result column after
@@ -683,13 +684,30 @@ export function createV3Client(options: V3ClientOptions = {}): V3Client {
      * `)
      * ```
      *
-     * @param sql — a single ClickHouse SELECT over service names.
-     * @param opts.groups — scope the read to specific group IDs (default: all
-     *   the reader's groups, the "me" semantics of `read`).
-     */
-    async query(sql: string, opts?: { groups?: string[]; prepare?: V3Prepare }): Promise<V3QueryResult> {
+      * @param sql — a single ClickHouse SELECT over service names.
+      * @param opts.groups — scope the read to specific group IDs (default: all
+      *   the reader's groups, the "me" semantics of `read`).
+      * @param opts.withGroupMeta — opt in to the `group_meta` boundary CTE so
+      *   the query can `JOIN group_meta gm ON <svc>.group_id = gm.group_id`
+      *   and read `gm.member_count`, `gm.join_policy`, `gm.discoverable`.
+      *   Groups the reader can't read are present but NULLed out (sort them
+      *   last; they reveal nothing but existence). Without this flag
+      *   `group_meta` is rejected as an unknown table.
+      *
+      * @example Sort groups by legit audience size:
+      * ```ts
+      * const { rows } = await w.query(`
+      *   SELECT gm.group_id, gm.member_count, gm.join_policy, gm.discoverable
+      *   FROM group_meta gm
+      *   ORDER BY gm.member_count DESC
+      *   LIMIT 20
+      * `, { withGroupMeta: true })
+      * ```
+      */
+    async query(sql: string, opts?: { groups?: string[]; prepare?: V3Prepare; withGroupMeta?: boolean }): Promise<V3QueryResult> {
       const payload: Record<string, unknown> = { sql }
       if (opts?.groups) payload.groups = opts.groups
+      if (opts?.withGroupMeta) payload.withGroupMeta = true
       // The prepare pass (D73): the engine mints the result rows (media + HLS
       // + ads + face) so the query returns render-ready rows in one round-trip.
       if (opts?.prepare) payload.prepare = opts.prepare
@@ -1132,7 +1150,7 @@ export interface V3Client {
   read(collection: string, opts: { groups: string[]; limit?: number; offset?: number; ref?: string | string[]; sort?: PowerMeanSort; tags?: string[]; cursor?: string; order?: "asc" | "desc" }): Promise<V3Document[]>
   readRefCounts(collection: string, opts: { groups: string[]; ref: string | string[] }): Promise<Record<string, number>>
   readById(docId: string, collection: string): Promise<V3Document>
-  query(sql: string, opts?: { groups?: string[]; prepare?: V3Prepare }): Promise<V3QueryResult>
+  query(sql: string, opts?: { groups?: string[]; prepare?: V3Prepare; withGroupMeta?: boolean }): Promise<V3QueryResult>
   listPeopleDirectory(opts?: { limit?: number; offset?: number }): Promise<V3PeoplePage>
   update(docId: string, body: Record<string, unknown>, opts?: { groups?: string[]; ad_preference?: V3AdPreference }): Promise<V3Document>
   delete(docId: string): Promise<{ doc_id: string; status: string }>

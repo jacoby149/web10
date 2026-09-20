@@ -552,6 +552,22 @@ describe('v3 client', () => {
       expect(call.prepare).toBeUndefined()
     })
 
+    it('query passes withGroupMeta when set (QE-A: opt-in to the group_meta CTE)', async () => {
+      vi.spyOn(http, 'authPost').mockResolvedValueOnce({ rows: [], count: 0 } as any)
+
+      await client.query('SELECT gm.group_id, gm.member_count FROM group_meta gm', { withGroupMeta: true })
+      const call = (vi.mocked(http.authPost).mock.calls[0][1] as any)
+      expect(call.withGroupMeta).toBe(true)
+    })
+
+    it('query omits withGroupMeta when not provided', async () => {
+      vi.spyOn(http, 'authPost').mockResolvedValueOnce({ rows: [], count: 0 } as any)
+
+      await client.query('SELECT doc_id FROM posts')
+      const call = (vi.mocked(http.authPost).mock.calls[0][1] as any)
+      expect(call.withGroupMeta).toBeUndefined()
+    })
+
     it('query works without a token (anon reads the public board)', async () => {
       client.scrubToken()
       vi.spyOn(http, 'authPost').mockResolvedValueOnce({ rows: [], count: 0 } as any)

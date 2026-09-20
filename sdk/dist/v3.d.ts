@@ -334,6 +334,7 @@ export interface V3Client {
     query(sql: string, opts?: {
         groups?: string[];
         prepare?: V3Prepare;
+        withGroupMeta?: boolean;
     }): Promise<V3QueryResult>;
     listPeopleDirectory(opts?: {
         limit?: number;
