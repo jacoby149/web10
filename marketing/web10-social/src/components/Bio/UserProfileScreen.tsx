@@ -573,7 +573,9 @@ export default function UserProfileScreen({ username, provider, onBack }: UserPr
                   size="sm"
                   className="gap-1.5 min-w-[100px] border-border hover:bg-elevated"
                   data-testid="message-button"
-                  onClick={() => navigate(`/messages?to=${username}`)}
+                  onClick={() =>
+                    navigate(`/messages?to=${username}&provider=${provider}`)
+                  }
                 >
                   <MessageSquare className="w-3.5 h-3.5" />
                   Message

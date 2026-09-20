@@ -669,6 +669,23 @@ describe('DmsScreen', () => {
     // my own message (testuser) does not (isMe). Exactly one sender label.
     expect(screen.getByTestId('dm-message-sender')).toHaveTextContent('alice');
   });
+
+  it('a profile ?to=+?provider= deep link goes straight to the DM thread (no compose picker)', async () => {
+    const { default: DmsScreen } = await import('@/components/Chat/DmsScreen');
+    render(
+      <MemoryRouter initialEntries={['/messages?to=otheruser&provider=test.localhost']}>
+        <Routes>
+          <Route path="/messages/*" element={<DmsScreen />} />
+        </Routes>
+      </MemoryRouter>,
+    );
+    // The provider is present, so the handler derives the conversation key and
+    // navigates straight to the DM thread — the compose picker never opens.
+    await waitFor(() => {
+      expect(screen.getByTestId('dm-conversation')).toBeInTheDocument();
+    }, { timeout: 2000 });
+    expect(screen.queryByTestId('dm-contact-picker')).not.toBeInTheDocument();
+  });
 });
 
 describe('MailView', () => {
