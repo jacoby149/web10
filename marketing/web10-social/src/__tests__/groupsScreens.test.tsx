@@ -1238,6 +1238,20 @@ describe('GroupDetailScreen', () => {
     expect(screen.getByText('No media yet')).toBeInTheDocument();
   });
 
+  it('the hero name row sits above the banner (the Edit pencil must be clickable — G5 hit-test fix)', async () => {
+    await loadDetail();
+    await waitFor(() => {
+      expect(screen.getByTestId('group-detail-hero')).toBeInTheDocument();
+    });
+    // The name row overlaps the banner (-mt-14). It must be positioned
+    // (relative) so it paints ABOVE the banner's absolute <img> — otherwise
+    // the img intercepts pointer events and the Edit pencil is unclickable in
+    // a real browser (fireEvent doesn't hit-test, so only the Playwright
+    // capture catches this).
+    const nameRow = screen.getByTestId('group-detail-name').closest('[class*="-mt-14"]');
+    expect(nameRow).toHaveClass('relative');
+  });
+
   // ── G4: create = the group page in edit mode (draft) ──────────────────────
 
   // A draft detail render with the manager view (the draft's owner manages it).

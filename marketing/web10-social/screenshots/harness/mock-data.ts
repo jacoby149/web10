@@ -528,7 +528,23 @@ export async function slugTaken(): Promise<boolean> { return false; }
 // G1: the Media tab's paged read + page size (GroupDetailScreen imports both
 // from the @/data barrel).
 export const GROUP_MEDIA_PAGE_SIZE = 24;
-export async function readGroupMediaPage(): Promise<unknown> {
+export async function readGroupMediaPage(groupId: string): Promise<unknown> {
+  // G5: the Media tab's insta grid capture — the synthwave-sessions group's
+  // media posts (one media_ref each → one grid cell each). Other groups have
+  // no media (the empty state).
+  if (groupId === 'web10/groups/users/nova/synthwave-sessions') {
+    const posts = ['grp-med-1', 'grp-med-2', 'grp-med-3', 'grp-med-4', 'grp-med-5', 'grp-med-6'].map(
+      (ref, i) => ({
+        _id: `gm-${i + 1}`,
+        text: i === 5 ? 'Latest clip from the live set' : 'From the session',
+        author_username: i % 2 === 0 ? 'nova' : 'kai',
+        author_provider: 'web10',
+        created_at: minsAgo(60 * (i + 1)),
+        media_refs: [ref],
+      }),
+    );
+    return { posts, hasMore: false, total: posts.length };
+  }
   return { posts: [], hasMore: false, total: 0 };
 }
 // The slug helper (GroupEditMode's slug preview) — same derivation as the real
@@ -903,6 +919,19 @@ const FACE_MEDIA: Record<string, Record<string, unknown>> = {
   'grp-banner-kai': { ...creative('LO-FI', 1600, 400, '#0ea5e9', '#0c4a6e', 'image/png'), _id: 'grp-banner-kai' },
 };
 
+// Group media posts (G5: the Media tab's insta grid capture) — the seeded
+// grid for the synthwave-sessions group. A mix of image + video cells so the
+// shot shows both the plain image cell and the video cell with the play
+// overlay. The grid renders one cell per media_ref (flattened).
+const GROUP_MEDIA: Record<string, Record<string, unknown>> = {
+  'grp-med-1': { ...creative('LIVE SET', 1280, 1280, '#8b5cf6', '#2e1065', 'image/png'), _id: 'grp-med-1' },
+  'grp-med-2': { ...creative('STUDIO', 1280, 1280, '#7c3aed', '#4c1d95', 'image/png'), _id: 'grp-med-2' },
+  'grp-med-3': { ...creative('DROP', 1280, 1280, '#a78bfa', '#1e1b4b', 'image/png'), _id: 'grp-med-3' },
+  'grp-med-4': { ...creative('SET', 1280, 1280, '#c4b5fd', '#312e81', 'image/png'), _id: 'grp-med-4' },
+  'grp-med-5': { ...creative('BACKSTAGE', 1280, 1280, '#f59e0b', '#78350f', 'image/png'), _id: 'grp-med-5' },
+  'grp-med-6': { ...creative('CLIP', 1280, 1280, '#0ea5e9', '#0c4a6e'), _id: 'grp-med-6' },
+};
+
 const DISCOVER_POSTS: SeedDiscoverPost[] = [
   {
     _id: 'dp-1',
@@ -1011,7 +1040,7 @@ export async function resolveMediaRefs<T>(refs: T[]): Promise<T[]> {
     // PROFILE_MEDIA / FACE_MEDIA are declared later in the module (the profile
     // seed sections) — safe: the lookup runs at call time, after the module is
     // evaluated.
-    const rec = DISCOVER_MEDIA[id] ?? PROFILE_MEDIA[id] ?? FACE_MEDIA[id];
+    const rec = DISCOVER_MEDIA[id] ?? PROFILE_MEDIA[id] ?? FACE_MEDIA[id] ?? GROUP_MEDIA[id];
     if (rec) out.push(rec as T);
   }
   return out;

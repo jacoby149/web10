@@ -1354,6 +1354,15 @@ class TestSignup:
         assert resp.status_code == 200
         assert resp.json()["username"] == "alice"
 
+    def test_signup_lowercases_username(self, client):
+        """Uppercase input is lowercased before validation + storage (case-insensitive)."""
+        with patch("app.v3.services.clickhouse.create_user") as cu:
+            cu.return_value = {"username": "alice", "phone": "", "email": ""}
+            with patch("app.v3.endpoints.auth.effective_config", return_value={"require_contact": False}):
+                resp = client.post("/v3/signup", json={"username": "Alice", "password": "secret"})
+        assert resp.status_code == 200
+        assert cu.call_args.kwargs["username"] == "alice"
+
     def test_signup_no_password(self, client):
         resp = client.post(
             "/v3/signup",
@@ -1376,6 +1385,14 @@ class TestLogin:
                     )
         assert resp.status_code == 200
         assert "token" in resp.json()
+
+    def test_login_lowercases_username(self, client):
+        """Uppercase input is lowercased before authentication (case-insensitive)."""
+        with patch("app.v3.services.clickhouse.authenticate_user", return_value=True) as au:
+            resp = client.post("/v3/login", json={"username": "Alice", "password": "test123"})
+        assert resp.status_code == 200
+        assert "token" in resp.json()
+        au.assert_called_once_with("alice", "test123")
 
 
 class TestChangePass:
