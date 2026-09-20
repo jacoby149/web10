@@ -178,7 +178,7 @@ Deep-linkable (`?tab=`), refresh-safe. The hero (3.116.0) stays above the tabs.
   `offset` + count) — verify the detail read is paged enough, else add it.
   Hero + feed unchanged (no regression). `groupsScreens.test.tsx` (tab switch
   + `?tab=` deep link + the media grid pages on scroll + the count).
-- [ ] **G2: the inline edit mode** (`GroupDetailScreen.tsx` + a new
+ - [✓ 3.129.0] **G2: the inline edit mode** (`GroupDetailScreen.tsx` + a new
   `ManageGroup/GroupEditMode.tsx`) — the manager **"Edit" pencil** in the hero
   → the page flips to edit mode: face fields (name/about/website/tags/
   banner/avatar) **and** settings (who-can-read / how-join / list-in-directory)

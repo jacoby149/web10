@@ -20,17 +20,19 @@ import {
   readReactions,
   toggleReactionKind,
   toggleRepost,
+  saveGroup,
+  publishGroup,
   type ReactionKind,
   type GroupDetail,
   type GroupIdentity,
+  type GroupCommitInput,
   type MediaRecord,
 } from '@/data';
 import { fromV3DocToPost } from '@/data/types';
 import { getV3Client } from '@/data/v3';
 import type { PostRecord } from '@/data/types';
 import ManageGroupSheet, { type ManageSection } from '@/components/Groups/ManageGroup/ManageGroupSheet';
-import ManageProfileSection from '@/components/Groups/ManageGroup/ProfileSection';
-import ManageSettingsSection from '@/components/Groups/ManageGroup/SettingsSection';
+import GroupEditMode from '@/components/Groups/ManageGroup/GroupEditMode';
 import ManageMembersSection from '@/components/Groups/ManageGroup/MembersSection';
 import ManageRolesSection from '@/components/Groups/ManageGroup/RolesSection';
 import { toast, errorMessage } from '@/components/shared/Toast';
@@ -51,6 +53,7 @@ import {
   Settings,
   ImagePlus,
   Play,
+  Pencil,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
@@ -246,6 +249,17 @@ export default function GroupDetailScreen({ groupId }: { groupId: string }) {
   // (the reader's role grants a management op under the 'group' key).
   const [canManage, setCanManage] = useState(false);
   const [manageOpen, setManageOpen] = useState(false);
+
+  // The inline edit mode (G2, decision 2): the manager's "Edit" pencil flips
+  // the page into edit mode (the hero's fields become inputs + the settings).
+  // Edit mode STAGES the changes — the live group is frozen at the last commit;
+  // Save/Publish is the atomic commit, Cancel discards.
+  const [editing, setEditing] = useState(false);
+  // A banner/avatar upload is in flight (reported by GroupEditMode, decision 3).
+  // Gates the save (no auto-save mid-upload) + the nav-away warning.
+  const [uploading, setUploading] = useState(false);
+  // The nav-away-mid-upload warning is showing (decision 3).
+  const [uploadWarning, setUploadWarning] = useState(false);
 
   // The tabs (G1): Feed (default, bare URL) | Media (?tab=media). The URL holds
   // the active tab (the deep-link rule) — refresh restores it, back/forward
@@ -460,6 +474,44 @@ export default function GroupDetailScreen({ groupId }: { groupId: string }) {
     }
   }, [detail, navigate]);
 
+  // The atomic commit (G2, decision 2): the staged face AND settings land
+  // together via G0's saveGroup (published) / publishGroup (draft). On success
+  // the live state re-reads and edit mode exits; on failure the error surfaces
+  // in the edit form (the stage is kept so the user can retry).
+  const handleEditSave = useCallback(
+    async (staged: GroupCommitInput) => {
+      if (!detail) return;
+      const isDraft = identity.status === 'draft';
+      LOG('edit save — atomic commit', detail.group_id, { isDraft });
+      if (isDraft) {
+        await publishGroup(detail.group_id, staged);
+      } else {
+        await saveGroup(detail.group_id, staged);
+      }
+      setEditing(false);
+      await load();
+    },
+    [detail, identity.status, load],
+  );
+
+  // Cancel discards the stage (decision 2) — the live state was never touched,
+  // so exiting edit mode restores it.
+  const handleEditCancel = useCallback(() => {
+    LOG('edit cancel — discarding stage');
+    setEditing(false);
+  }, []);
+
+  // The back button (decision 3): a nav-away while an upload is in flight shows
+  // the warning (stay / leave) instead of leaving immediately.
+  const handleBack = useCallback(() => {
+    if (uploading) {
+      LOG('back — upload in flight, showing warning');
+      setUploadWarning(true);
+      return;
+    }
+    navigate(-1);
+  }, [uploading, navigate]);
+
   if (loading) {
     return (
       <div className="flex flex-col min-h-full bg-background">
@@ -536,24 +588,11 @@ export default function GroupDetailScreen({ groupId }: { groupId: string }) {
   // The group has a "face" when it has any of the rich display metadata.
   const hasFace = Boolean(bannerUrl || avatarUrl || hasAbout);
 
-  // The Manage sheet's sections. Profile + Settings are live; Members / Roles
-  // are the remaining bites that drop their content in. Until a section lands,
-  // it renders the placeholder.
+  // The Manage sheet's sections (G2): Profile + Settings are RETIRED — they
+  // fold into the inline edit mode (the "Edit" pencil). The sheet is now the
+  // secondary surface for the list ops that don't fit inline editing:
+  // Members + Roles (G3 formalizes this as the kebab).
   const manageSections: ManageSection[] = [
-    { id: 'profile', label: 'Profile', icon: ImagePlus, content: <ManageProfileSection groupId={detail.group_id} onSaved={load} /> },
-    {
-      id: 'settings',
-      label: 'Settings',
-      icon: Settings,
-      content: (
-        <ManageSettingsSection
-          groupId={detail.group_id}
-          joinPolicy={detail.join_policy}
-          discoverable={Boolean(detail.discoverable)}
-          onSaved={load}
-        />
-      ),
-    },
     { id: 'members', label: 'Members', icon: Users, content: <ManageMembersSection groupId={detail.group_id} onSaved={load} /> },
     {
       id: 'roles',
@@ -578,7 +617,7 @@ export default function GroupDetailScreen({ groupId }: { groupId: string }) {
           <Button
             variant="ghost"
             size="icon"
-            onClick={() => navigate(-1)}
+            onClick={handleBack}
             className="h-9 w-9 shrink-0 text-muted-foreground hover:text-foreground"
             aria-label="Back"
             data-testid="group-detail-back"
@@ -604,6 +643,21 @@ export default function GroupDetailScreen({ groupId }: { groupId: string }) {
             banner is ALWAYS present (the brand gradient when the group has
             no cover) so the page never collapses to a bare header. */}
         <div data-testid="group-detail-hero">
+          {editing ? (
+            <div className="px-4 py-4 sm:px-6" data-testid="group-detail-editing">
+              <GroupEditMode
+                groupId={detail.group_id}
+                identity={identity}
+                joinPolicy={detail.join_policy}
+                discoverable={Boolean(detail.discoverable)}
+                isDraft={identity.status === 'draft'}
+                onUploadingChange={setUploading}
+                onSave={handleEditSave}
+                onCancel={handleEditCancel}
+              />
+            </div>
+          ) : (
+          <>
           <div
             className={cn(
               'relative h-32 w-full overflow-hidden sm:h-44',
@@ -651,6 +705,18 @@ export default function GroupDetailScreen({ groupId }: { groupId: string }) {
                     <Badge variant="outline" className="normal-case tracking-normal" data-testid="group-detail-private">
                       Private
                     </Badge>
+                  )}
+                  {canManage && (
+                    <button
+                      type="button"
+                      onClick={() => setEditing(true)}
+                      aria-label="Edit group"
+                      className="ml-auto inline-flex items-center gap-1.5 rounded-md border border-border bg-elevated px-2.5 py-1.5 text-xs font-medium text-foreground transition-colors hover:border-brand/40 hover:text-brand-300 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                      data-testid="group-detail-edit"
+                    >
+                      <Pencil className="h-3.5 w-3.5" strokeWidth={1.75} />
+                      <span className="hidden sm:inline">Edit</span>
+                    </button>
                   )}
                 </div>
                 <p className="mt-0.5 flex items-center gap-1.5 text-xs text-muted-foreground">
@@ -703,6 +769,8 @@ export default function GroupDetailScreen({ groupId }: { groupId: string }) {
             )}
             {!hasAbout && <div className="pb-4" />}
           </div>
+          </>
+          )}
         </div>
 
         {/* Join / Leave — the membership action, below the hero */}
@@ -969,6 +1037,44 @@ export default function GroupDetailScreen({ groupId }: { groupId: string }) {
           postService="posts"
           isOwner={getV3Client().readToken()?.username === mediaLightboxPost.author_username}
         />
+      )}
+
+      {/* The nav-away-mid-upload warning (G2, decision 3): leaving while a
+          cover/avatar upload is in flight would cancel it. Stay / Leave. */}
+      {uploadWarning && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center px-4"
+          role="dialog"
+          aria-modal="true"
+          aria-label="Upload in progress"
+        >
+          <div className="absolute inset-0 bg-background/80 backdrop-blur-sm" aria-hidden="true" />
+          <div className="relative w-full max-w-sm rounded-lg border border-border bg-card p-5 shadow-[0_8px_30px_rgb(0,0,0,0.35)]" data-testid="group-upload-warning">
+            <div className="mb-3 flex h-10 w-10 items-center justify-center rounded-full bg-warning/15">
+              <AlertTriangle className="h-5 w-5 text-warning" strokeWidth={1.75} />
+            </div>
+            <h3 className="font-display text-base font-semibold text-foreground">Upload in progress</h3>
+            <p className="mt-1 text-sm text-muted-foreground">
+              Your upload will be canceled if you leave.
+            </p>
+            <div className="mt-4 flex justify-end gap-2">
+              <Button variant="ghost" size="sm" onClick={() => setUploadWarning(false)} data-testid="group-upload-warning-stay">
+                Stay
+              </Button>
+              <Button
+                variant="brand"
+                size="sm"
+                onClick={() => {
+                  setUploadWarning(false);
+                  navigate(-1);
+                }}
+                data-testid="group-upload-warning-leave"
+              >
+                Leave
+              </Button>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );
