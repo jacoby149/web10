@@ -58,6 +58,28 @@ def test_group_ids_are_quoted_into_the_filter():
     assert f"'{DISCOVER}', '{FOLLOWERS}'" in out
 
 
+# ── group_id on the content CTEs (the join key — engine-group-metadata QE-A0) ──
+
+
+def test_boundary_cte_exposes_group_id():
+    # The CTE's outer SELECT must carry dg.group_id (the join key for group
+    # metadata), so a doc in N readable groups surfaces N rows, one per group,
+    # each with that group_id. It is the last column (after ad_target).
+    out = build_safe_query("SELECT doc_id, group_id FROM posts", {"posts": [DISCOVER]})
+    assert "d.ad_target, dg.group_id" in out
+    # The I3 group filter is unchanged — only readable groups are exposed.
+    assert f"WHERE dg.group_id IN ('{DISCOVER}')" in out
+
+
+def test_boundary_cte_group_id_null_when_no_readable_groups():
+    # No readable groups → shape-valid empty CTE that STILL exposes group_id
+    # (as NULL), so the column shape matches the JOIN case. Nullable(String)
+    # is required: ClickHouse 24.8 rejects CAST(NULL AS String) (CANNOT_CONVERT_TYPE).
+    out = build_safe_query("SELECT doc_id, group_id FROM posts", {"posts": []})
+    assert "1 = 0" in out
+    assert "CAST(NULL AS Nullable(String)) AS group_id" in out
+
+
 # ── The membrane: every escape attempt is rejected ───────────────────────────
 
 
