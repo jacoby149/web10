@@ -58,13 +58,17 @@ export async function createReaction(
   // Without this the reaction is orphaned (ref_value="" → never found).
   const doc = await w.create('reactions', body, { groups: targetGroups, ref_value: reaction.target_id });
   // The write side (D69): nudge the post author (best-effort, fire-and-forget —
-  // a resolve failure never affects the reaction).
+  // a resolve failure never affects the reaction). The target provider is the
+  // NODE's provider (token.provider), NOT post.author_provider: v3 author_keys
+  // are bare usernames, so extractProvider falls back to the 'web10' default —
+  // a peer id that doesn't exist, and the nudge silently never lands. v3 is
+  // same-node, so the post author is on this node (the actor's provider).
   if (reaction.target_service === 'posts') {
     readPostById(reaction.target_id)
       .then((post) => {
         if (post?.author_username) {
           sendNotification(
-            { username: post.author_username, provider: post.author_provider || token.provider },
+            { username: post.author_username, provider: token.provider },
             { type: 'reaction', from: token.username, ref_doc_id: reaction.target_id },
           );
         }

@@ -88,6 +88,19 @@ nothing is lost). This is the honest model available without a server push
 channel, and it is the one the DMs already run — one real-time mental model,
 not two.
 
+**The target provider is the node's provider, not the derived `author_provider`.**
+The nudge's target peer id is `peerId(provider, username, site, label)`, and it
+must match the recipient's *actual* peer id (minted from their token's provider).
+v3 `author_key`s are **bare usernames** (no provider prefix), so
+`extractProvider(author_key)` falls back to the `'web10'` default — a peer id
+that doesn't exist, and the nudge silently never lands (the channel is "queued on
+open" and never opens). The write side therefore targets `token.provider` (the
+actor's provider = the node's provider, since v3 is same-node), never the
+derived `author_provider`. The DM nudge is the reference: it uses the provider
+from the conversation key (the node's provider), which is why DMs worked while
+the reaction/comment nudges (which used the derived provider) did not — caught by
+the two-user notifications gauntlet (`e2e/tests/social-notifications.spec.ts`).
+
 ## The Notification History
 
 Notifications are ephemeral by default, but the user needs a history screen.
