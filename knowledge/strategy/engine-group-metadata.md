@@ -279,10 +279,15 @@ the sort I3-honest, and a WHERE-filter would quietly break it.
   reference is rejected even with `withGroupMeta` set — the wall holds); the
   completeness guarantee (the AST walk catches a raw-table reference inside a
   caller CTE / subquery, with the opt-in on).
-- [ ] **QE-D: the migration** — the D0 people read + the D3 groups browser
+- [~] **QE-D: the migration** — the D0 people read + the D3 groups browser
   expressed as queries using `group_meta` (sort by legit follower/member count).
   The node-function versions (if shipped first) are replaced by the query
-  versions (same semantics, now app-writable). **Gated on QE-A/B/C.**
+  versions (same semantics, now app-writable). **Gated on QE-A/B/C (done).**
+  **Handed off to the `discover-reorg` lane** (this lane owns the query engine +
+  SDK, not the social data layer the migration rewires) — filed there as
+  **QE-D1 (groups browser, clean) + QE-D2 (people read, blocked on a
+  group-scoping design decision: the query engine scopes to the reader's groups,
+  but D0 needs all public users)**.
 
 ---
 
