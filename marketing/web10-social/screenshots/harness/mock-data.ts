@@ -206,7 +206,7 @@ export async function readMyAds(): Promise<{ ads: unknown[]; albums: unknown[] }
  export async function refreshMediaUrls<T>(records: T[]): Promise<T[]> { return records; }
  export async function readComments(): Promise<unknown[]> { return []; }
   export async function createComment(): Promise<unknown> { return {}; }
- // The thread seams (comments.md, the Facebook model): the shared thread reads
+  // The thread seams (comments.md, the Facebook model): the shared thread reads
  // a PAGED top-level page (+ per-comment replyCounts) and a PAGED reply page
  // ("view more replies"), and writes top-level comments or replies (parentId).
  // Seed a small threaded conversation so the screenshot shows the thread shape.

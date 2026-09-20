@@ -1,4 +1,4 @@
-import { getV3Client, readTokenCookie, extractDetail, Web10Error, type V3Group, type V3Document } from './v3';
+import { getV3Client, readTokenCookie, extractDetail, Web10Error, type V3Group, type V3Document, type V3Client } from './v3';
 import { extractUsername } from './types';
 import { API_HOST, API_ORIGIN } from '../lib/origins';
 
@@ -326,6 +326,44 @@ export interface CreateGroupInput {
   discoverable?: boolean;
   banner_ref?: string;
   avatar_ref?: string;
+  /**
+   * Create as a draft (group-as-profile, decision 2): the group is inert —
+   * `discoverable=false` and the face carries `status:'draft'`. No reserved
+   * read grant is added at create time; the staged settings (who-can-read /
+   * how-join / list-in-directory) ride in the face and are applied to the
+   * contract by `publishGroup` on the atomic commit.
+   */
+  draft?: boolean;
+}
+
+/**
+ * The deterministic group_id for a community group: the slug namespaced under
+ * the owner (`web10.app/groups/{owner}/{slug}`). The slug is the group's public
+ * identity (decision 4); the display name is free to change later.
+ */
+export function communityGroupId(ownerUsername: string, slug: string): string {
+  return `web10.app/groups/${ownerUsername}/${slug}`;
+}
+
+/**
+ * The create-time slug guard (group-as-profile, decision 1). The node's
+ * `create_group` is a bare INSERT with no collision guard (latest-row-wins),
+ * so the client must check before creating: if an ACTIVE group already exists
+ * at this slug, the name is taken. A tombstoned (deleted) group does not count
+ * — `get_group` filters `deleted=0`, so delete-then-recreate is safe.
+ */
+export async function slugTaken(slug: string, ownerUsername: string): Promise<boolean> {
+  const w = getV3Client();
+  const groupId = communityGroupId(ownerUsername, slug);
+  try {
+    const group = await w.getGroup(groupId);
+    LOG('slugTaken — TAKEN', { slug, groupId });
+    return !!group;
+  } catch (e) {
+    // 404 / not found (or tombstoned) → the slug is free.
+    LOG('slugTaken — free', { slug, groupId, err: (e as Error)?.message });
+    return false;
+  }
 }
 
 /** A clean URL slug for the group name (the group_id's last segment). */
@@ -346,29 +384,39 @@ export async function createCommunityGroup(
 ): Promise<string> {
   const w = getV3Client();
   const slug = slugify(input.name);
-  LOG('createCommunityGroup — start', { name: input.name, slug, visibility: input.visibility });
-  const groupId = `web10.app/groups/${ownerUsername}/${slug}`;
+  const draft = !!input.draft;
+  LOG('createCommunityGroup — start', { name: input.name, slug, visibility: input.visibility, draft });
+  const groupId = communityGroupId(ownerUsername, slug);
+  const joinPolicy = input.join_policy ?? 'open';
   const members: { member_key: string; role: string }[] = [
     { member_key: `web10.app/users/${ownerUsername}`, role: 'owner' },
   ];
-  if (input.visibility === 'public') {
-    members.push({ member_key: 'anyone', role: 'reader' });
-  } else if (input.visibility === 'signed_in') {
-    members.push({ member_key: 'authenticated', role: 'reader' });
+  let discoverable: boolean;
+  if (draft) {
+    // A draft is inert: unlisted, and the owner is the ONLY member — no
+    // reserved read grant yet. The read grant + discoverable are applied by
+    // publishGroup on the atomic commit (decision 2).
+    discoverable = false;
+  } else {
+    // A "public" group is findable: it's listed in the public directory (the
+    // D53 `discoverable` blasting flag) the moment it's created. Signed-in /
+    // private groups stay unlisted by default. The create sheet's "List in
+    // directory" toggle passes an explicit `discoverable` to override this
+    // (e.g. list a signed-in group, or unlist a public one). When omitted, the
+    // visibility decides — the original "my friend can't find my public group"
+    // fix.
+    if (input.visibility === 'public') {
+      members.push({ member_key: 'anyone', role: 'reader' });
+    } else if (input.visibility === 'signed_in') {
+      members.push({ member_key: 'authenticated', role: 'reader' });
+    }
+    discoverable = input.discoverable ?? input.visibility === 'public';
   }
-  // A "public" group is findable: it's listed in the public directory (the D53
-  // `discoverable` blasting flag) the moment it's created. Signed-in / private
-  // groups stay unlisted by default. The create sheet's "List in directory"
-  // toggle passes an explicit `discoverable` to override this (e.g. list a
-  // signed-in group, or unlist a public one). When omitted, the visibility
-  // decides — the original "my friend can't find my public group" fix.
-  const discoverable = input.discoverable ?? input.visibility === 'public';
-  const joinPolicy = input.join_policy ?? 'open';
   await w.createGroup(slug, joinPolicy, COMMUNITY_CREATE_ROLES, members, {
     discoverable,
     tags: [GROUP_TAG.community],
   });
-  LOG('createCommunityGroup — created', groupId, { discoverable, joinPolicy });
+  LOG('createCommunityGroup — created', groupId, { discoverable, joinPolicy, draft });
   const face: GroupIdentity = {
     name: input.name,
     description: input.description || undefined,
@@ -376,6 +424,12 @@ export async function createCommunityGroup(
     tags: input.tags && input.tags.length ? input.tags : undefined,
     banner_ref: input.banner_ref || undefined,
     avatar_ref: input.avatar_ref || undefined,
+    // The staged settings (decision 2) ride in the face; the atomic commit
+    // (publishGroup / saveGroup) applies them to the group contract.
+    status: draft ? 'draft' : 'published',
+    visibility: input.visibility,
+    join_policy: joinPolicy,
+    discoverable,
   };
   await writeGroupIdentity(groupId, face);
   LOG('createCommunityGroup — face written', groupId);
@@ -389,7 +443,7 @@ export async function createCommunityGroup(
  */
 export async function writeGroupIdentity(groupId: string, identity: GroupIdentity): Promise<void> {
   const w = getV3Client();
-  LOG('writeGroupIdentity — start', groupId, { name: identity.name });
+  LOG('writeGroupIdentity — start', groupId, { name: identity.name, status: identity.status });
   const body: Record<string, unknown> = {};
   if (identity.name) body.name = identity.name;
   if (identity.description) body.description = identity.description;
@@ -398,8 +452,86 @@ export async function writeGroupIdentity(groupId: string, identity: GroupIdentit
   if (identity.banner_ref) body.banner_ref = identity.banner_ref;
   if (identity.avatar_ref) body.avatar_ref = identity.avatar_ref;
   if (identity.kind) body.kind = identity.kind;
+  if (identity.status) body.status = identity.status;
+  if (identity.visibility) body.visibility = identity.visibility;
+  if (identity.join_policy) body.join_policy = identity.join_policy;
+  if (identity.discoverable !== undefined) body.discoverable = identity.discoverable;
   await w.create(GROUP_IDENTITY_SERVICE, body, { groups: [groupId] });
   LOG('writeGroupIdentity — done', groupId);
+}
+
+/**
+ * The staged-settings commit input (group-as-profile, decision 2). The face is
+ * the profile fields; the three settings are the who-can-read / how-join /
+ * list-in-directory the owner staged in edit mode.
+ */
+export interface GroupCommitInput {
+  /** The staged face (name, description, website, tags, banner/avatar refs). */
+  face: GroupIdentity;
+  /** Who-can-read — the D58 read grant (public / signed-in / private). */
+  visibility: GroupVisibility;
+  /** How-join — the group's join policy (open / request / invite-only). */
+  joinPolicy: GroupJoinPolicy;
+  /** List-in-directory — the D53 `discoverable` blasting flag. */
+  discoverable: boolean;
+}
+
+/**
+ * Reconcile the group's reserved read-grant member rows to a visibility (D58):
+ * `public` → an `anyone` reader row, `signed_in` → an `authenticated` reader
+ * row, `private` → no reserved reader row. Adds the target row if missing and
+ * removes the other if present, so the grant always matches the who-can-read.
+ */
+async function applyReadGrant(w: V3Client, groupId: string, visibility: GroupVisibility): Promise<void> {
+  const target = visibility === 'public' ? 'anyone' : visibility === 'signed_in' ? 'authenticated' : null;
+  const members = await w.getGroupMembers(groupId);
+  const keys = new Set(members.map((m) => m.member_key));
+  for (const reserved of ['anyone', 'authenticated'] as const) {
+    if (reserved === target) {
+      if (!keys.has(reserved)) {
+        LOG('applyReadGrant — add', groupId, reserved);
+        await w.addGroupMember(groupId, reserved, 'reader');
+      }
+    } else if (keys.has(reserved)) {
+      LOG('applyReadGrant — remove', groupId, reserved);
+      await w.removeGroupMember(groupId, reserved);
+    }
+  }
+}
+
+/**
+ * The atomic commit (group-as-profile, decision 2) — the "atomic go". The
+ * staged face AND the staged settings land together, in one ordered sequence:
+ * (1) the face goes live with `status → 'published'`, (2) the group contract
+ * gets the join policy + directory listing, (3) the read-grant member rows are
+ * reconciled to the who-can-read. The live state is frozen at the last commit
+ * while you edit; this is the only write to live, and it is never partial.
+ * Saving a published group and publishing a draft are the same commit.
+ */
+export async function saveGroup(groupId: string, input: GroupCommitInput): Promise<void> {
+  const w = getV3Client();
+  LOG('saveGroup — atomic commit start', groupId, {
+    visibility: input.visibility,
+    joinPolicy: input.joinPolicy,
+    discoverable: input.discoverable,
+  });
+  // 1) The face goes live with status → published (the staged face, frozen until now).
+  await writeGroupIdentity(groupId, { ...input.face, status: 'published' });
+  // 2) The group contract: join policy + directory listing.
+  await updateGroup(groupId, { join_policy: input.joinPolicy, discoverable: input.discoverable });
+  // 3) The read-grant member rows (D58) — reconciled to the staged who-can-read.
+  await applyReadGrant(w, groupId, input.visibility);
+  LOG('saveGroup — atomic commit done', groupId);
+}
+
+/**
+ * Publish a draft (group-as-profile). The same atomic commit as `saveGroup` —
+ * face `status → 'published'` + settings land together. The only difference is
+ * the starting state: a draft was created `discoverable=false` / owner-only,
+ * so this commit is what makes it live + listed.
+ */
+export async function publishGroup(groupId: string, input: GroupCommitInput): Promise<void> {
+  return saveGroup(groupId, input);
 }
 
 /**
@@ -685,6 +817,26 @@ export interface GroupIdentity {
    * compatible — every pre-existing community has no `kind`.
    */
   kind?: 'chat' | 'community';
+  /**
+   * The draft/published state (group-as-profile, decision 2). Absent means
+   * `published` — every pre-existing group is live. A `draft` group is inert:
+   * created `discoverable=false` + owner-only, so it is invisible to the
+   * directory and to everyone's list but the owner's.
+   */
+  status?: 'draft' | 'published';
+  /**
+   * Staged settings (group-as-profile, decision 2) — the who-can-read /
+   * how-join / list-in-directory the owner is editing, staged in the face
+   * during edit mode. They are applied to the group contract on the atomic
+   * commit (`publishGroup` / `saveGroup`), never continuously. Absent until
+   * the first create/edit stages them.
+   */
+  /** Who-can-read — the D58 read grant (public / signed-in / private). */
+  visibility?: GroupVisibility;
+  /** How-join — the group's join policy (open / request / invite-only). */
+  join_policy?: GroupJoinPolicy;
+  /** List-in-directory — the D53 `discoverable` blasting flag. */
+  discoverable?: boolean;
 }
 
 /**
