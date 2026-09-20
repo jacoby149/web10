@@ -1296,6 +1296,89 @@ def readable_groups(principal: str, service: str, authenticated: bool, candidate
     return [g for g in candidate_group_ids if can_read_group(g, principal, service, authenticated)]
 
 
+def readable_groups_batched(
+    principal: str, service: str, authenticated: bool, candidate_group_ids: list[str]
+) -> list[str]:
+    """Batched version of :func:`readable_groups` for high-fanout reads (the
+    people directory — every user's followers group at once).
+
+    Identical semantics to :func:`readable_groups` (order-preserving; a group
+    is readable iff the principal is a member, or — for a real principal — the
+    group's ``anyone``/``authenticated`` grant allows ``readAll`` on
+    ``service``), but it resolves the whole candidate set in three batched
+    queries instead of a handful of point queries per group.
+
+    Membership is deduped the same way the read path dedupes (latest row per
+    (group, member) wins, tombstones included, then ``deleted = 0``) so a
+    removed/left member does not count. Unknown groups (no live contract row)
+    are never readable — matching :func:`effective_role_perms` returning ``{}``
+    for them.
+    """
+    if not candidate_group_ids:
+        return []
+
+    gids = list(dict.fromkeys(candidate_group_ids))  # dedupe, preserve order
+    params: dict = {f"g{i}": g for i, g in enumerate(gids)}
+    in_clause = ", ".join(f"%(g{i})s" for i in range(len(gids)))
+
+    # 1. The principal's own active memberships among the candidates.
+    result = client.query(
+        "SELECT group_id FROM (SELECT group_id, deleted, "
+        "row_number() OVER (PARTITION BY group_id, member_key ORDER BY updated_at DESC, deleted DESC) as rn "
+        f"FROM group_members WHERE member_key = %(member_key)s AND group_id IN ({in_clause})) "
+        "WHERE rn = 1 AND deleted = 0",
+        {"member_key": principal, **params},
+    )
+    member_groups = {row[0] for row in result.result_rows}
+
+    # 2. The reserved public-class member rows among the candidates.
+    class_keys = ["anyone", "anon"]
+    if authenticated:
+        class_keys.append("authenticated")
+    class_params = {f"k{i}": k for i, k in enumerate(class_keys)}
+    class_in = ", ".join(f"%(k{i})s" for i in range(len(class_keys)))
+    result = client.query(
+        "SELECT group_id, member_key, role FROM (SELECT group_id, member_key, role, deleted, "
+        "row_number() OVER (PARTITION BY group_id, member_key ORDER BY updated_at DESC, deleted DESC) as rn "
+        f"FROM group_members WHERE member_key IN ({class_in}) AND group_id IN ({in_clause})) "
+        "WHERE rn = 1 AND deleted = 0",
+        {**class_params, **params},
+    )
+    class_roles: dict[str, dict[str, str]] = {}
+    for group_id, member_key, role in result.result_rows:
+        class_roles.setdefault(group_id, {})[member_key] = role
+
+    # 3. The role definitions for the candidate groups.
+    result = client.query(
+        "SELECT group_id, roles FROM (SELECT group_id, roles, deleted, "
+        "row_number() OVER (PARTITION BY group_id ORDER BY updated_at DESC, deleted DESC) as rn "
+        f"FROM group_contracts WHERE group_id IN ({in_clause})) "
+        "WHERE rn = 1 AND deleted = 0",
+        params,
+    )
+    roles_by_group: dict[str, list[dict]] = {row[0]: _parse_json(row[1]) for row in result.result_rows}
+
+    readable: set[str] = set(member_groups)
+    for gid in gids:
+        if gid in readable:
+            continue
+        roles = roles_by_group.get(gid)
+        if not roles:
+            continue
+        roles_by_name = {r.get("name"): r for r in roles if isinstance(r, dict)}
+        merged: dict[str, list[str]] = {}
+        for member_key, role_name in class_roles.get(gid, {}).items():
+            for svc, ops in _normalize_role_perms(roles_by_name.get(role_name, {})).items():
+                bucket = merged.setdefault(svc, [])
+                for op in ops:
+                    if op not in bucket:
+                        bucket.append(op)
+        if _effective_allows(merged, service, "readAll"):
+            readable.add(gid)
+
+    return [g for g in candidate_group_ids if g in readable]
+
+
 def has_mgmt_permission(group_id: str, principal: str, permission: str) -> bool:
     """Does ``principal``'s effective role grant the management ``permission``
     (D58)? Structural ops on the group itself (manageRoles, assignRoles,
@@ -2125,7 +2208,7 @@ def read_documents_in_groups(
     group_ids: list[str],
     member_key: str,
     service: str,
-    limit: int = 50,
+    limit: int | None = 50,
     offset: int = 0,
     sort: dict | None = None,
     require_membership: bool = True,
@@ -3135,6 +3218,78 @@ def list_users() -> list[dict]:
         "FROM users) WHERE rn = 1 AND deleted = 0",
     )
     return [{"username": row[0]} for row in result.result_rows]
+
+
+def list_public_users(reader: str, authenticated: bool, limit: int = 20, offset: int = 0) -> list[dict]:
+    """The public people directory (D0, discover-reorg): one server-side
+    composition returning a page of user cards ranked by follower count.
+
+    Pipeline: ``list_users()`` -> derive each user's followers group ->
+    :func:`readable_groups_batched` (the D58 I3 read gate on the ``profile``
+    service) -> batch-read the profile faces from the readable followers
+    groups -> :func:`_get_group_member_counts` (the unspoofable membership
+    aggregate, ``count(group_members)`` — not a stored field) -> rank by
+    follower count desc -> ``limit``/``offset``.
+
+    Principal-based: ``anon`` sees the public subset (followers groups whose
+    ``anyone``/``anon`` grant allows reading ``profile``); a signed-in reader
+    sees more (their follows + ``authenticated`` grants). A user with no
+    readable profile face is ABSENT, not shown-with-fallback (I3).
+    """
+    users = list_users()
+    if not users:
+        return []
+
+    # Each user's followers group (the deterministic id the node and the social
+    # app derive: {provider}/groups/users/{username}/followers).
+    user_to_group = {u["username"]: f"{settings.PROVIDER}/groups/users/{u['username']}/followers" for u in users}
+    group_ids = list(user_to_group.values())
+
+    # I3 read gate: which followers groups can the reader read `profile` in?
+    readable = readable_groups_batched(reader, "profile", authenticated, group_ids)
+    if not readable:
+        return []
+    readable_set = set(readable)
+
+    # Batch the profile faces for the readable users in one query.
+    # require_membership=False is safe: `readable` is already the D58-gated set,
+    # and the block/sharing/hidden anti-joins still apply (a user who blocked
+    # the reader, or paused sharing, drops out — same as any group read).
+    faces = read_documents_in_groups(
+        group_ids=readable,
+        member_key=reader,
+        service="profile",
+        limit=None,
+        require_membership=False,
+    )
+    # One profile doc per user; if stale duplicates exist, the latest wins.
+    face_by_user: dict[str, dict] = {}
+    for doc in faces:
+        current = face_by_user.get(doc["author_key"])
+        if current is None or doc["updated_at"] > current["updated_at"]:
+            face_by_user[doc["author_key"]] = doc["body"]
+
+    # The unspoofable follower count: count(group_members) per followers group.
+    counts = _get_group_member_counts(readable)
+
+    rows = []
+    for username, gid in user_to_group.items():
+        if gid not in readable_set:
+            continue
+        face = face_by_user.get(username)
+        if face is None:
+            continue  # no readable profile face -> absent (I3)
+        rows.append(
+            {
+                "username": username,
+                "follower_count": counts.get(gid, 0),
+                "profile": face,
+            }
+        )
+
+    # Rank by follower count desc; stable tie-break by username.
+    rows.sort(key=lambda r: (-r["follower_count"], r["username"]))
+    return rows[offset : offset + limit]
 
 
 def get_user(username: str) -> dict | None:

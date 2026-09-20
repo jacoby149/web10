@@ -335,6 +335,23 @@ export interface V3LoginResponse {
   token: string
 }
 
+// The public people directory (D0, discover-reorg): one row per user whose
+// profile face the reader can read (I3). `follower_count` is the unspoofable
+// membership aggregate (count of the user's followers group), not a stored
+// field. `profile` is the user's face (display_name, bio, avatar_ref,
+// banner_ref, …) — the same shape the social app's profile read returns.
+export interface V3DirectoryUser {
+  username: string
+  follower_count: number
+  profile: Record<string, unknown>
+}
+
+export interface V3PeoplePage {
+  users: V3DirectoryUser[]
+  limit: number
+  offset: number
+}
+
 // ── Access health (verifyAccess) ────────────────────────────────────────────
 // The confirmatory session verdict. Every store-backed field separates a
 // DECISIVE answer (the check ran clean) from `unknown` (the check couldn't run
@@ -681,6 +698,22 @@ export function createV3Client(options: V3ClientOptions = {}): V3Client {
       const token = state.token ?? readTokenCookie()
       if (token) payload.token = token
       return authPost<V3QueryResult>(`${apiOrigin}/v3/query`, payload)
+    },
+
+    /**
+     * The public people directory (D0, discover-reorg): a paged,
+     * follower-ranked list of users whose profile face the reader can read.
+     * Anon-capable (like `query` / `read`): the token rides along when present,
+     * but a missing token reads as the node's anon member (the public subset).
+     * A signed-in reader sees more (their follows + the public subset).
+     */
+    async listPeopleDirectory(opts?: { limit?: number; offset?: number }): Promise<V3PeoplePage> {
+      const payload: Record<string, unknown> = {}
+      if (opts?.limit != null) payload.limit = opts.limit
+      if (opts?.offset != null) payload.offset = opts.offset
+      const token = state.token ?? readTokenCookie()
+      if (token) payload.token = token
+      return authPost<V3PeoplePage>(`${apiOrigin}/v3/users/directory`, payload)
     },
 
     async update(
@@ -1100,6 +1133,7 @@ export interface V3Client {
   readRefCounts(collection: string, opts: { groups: string[]; ref: string | string[] }): Promise<Record<string, number>>
   readById(docId: string, collection: string): Promise<V3Document>
   query(sql: string, opts?: { groups?: string[]; prepare?: V3Prepare }): Promise<V3QueryResult>
+  listPeopleDirectory(opts?: { limit?: number; offset?: number }): Promise<V3PeoplePage>
   update(docId: string, body: Record<string, unknown>, opts?: { groups?: string[]; ad_preference?: V3AdPreference }): Promise<V3Document>
   delete(docId: string): Promise<{ doc_id: string; status: string }>
 

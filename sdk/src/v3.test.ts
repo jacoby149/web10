@@ -129,6 +129,7 @@ describe('v3 client', () => {
       expect(client).toHaveProperty('read')
       expect(client).toHaveProperty('readById')
       expect(client).toHaveProperty('query')
+      expect(client).toHaveProperty('listPeopleDirectory')
       expect(client).toHaveProperty('update')
       expect(client).toHaveProperty('delete')
       expect(client).toHaveProperty('addAppContract')
@@ -556,6 +557,49 @@ describe('v3 client', () => {
       vi.spyOn(http, 'authPost').mockResolvedValueOnce({ rows: [], count: 0 } as any)
 
       await expect(client.query('SELECT doc_id FROM posts')).resolves.toEqual({ rows: [], count: 0 })
+      const call = (vi.mocked(http.authPost).mock.calls[0][1] as any)
+      expect(call.token).toBeUndefined()
+    })
+
+    it('listPeopleDirectory posts to /v3/users/directory with the token', async () => {
+      const mockResponse = {
+        users: [{ username: 'bob', follower_count: 10, profile: { display_name: 'Bob' } }],
+        limit: 20,
+        offset: 0,
+      }
+      vi.spyOn(http, 'authPost').mockResolvedValueOnce(mockResponse as any)
+
+      const result = await client.listPeopleDirectory()
+      expect(result).toEqual(mockResponse)
+      expect(http.authPost).toHaveBeenCalledWith(
+        'http://api.localhost/v3/users/directory',
+        expect.objectContaining({ token: mockToken }),
+      )
+    })
+
+    it('listPeopleDirectory passes limit and offset', async () => {
+      vi.spyOn(http, 'authPost').mockResolvedValueOnce({ users: [], limit: 5, offset: 10 } as any)
+
+      await client.listPeopleDirectory({ limit: 5, offset: 10 })
+      const call = (vi.mocked(http.authPost).mock.calls[0][1] as any)
+      expect(call.limit).toBe(5)
+      expect(call.offset).toBe(10)
+    })
+
+    it('listPeopleDirectory omits limit/offset when not provided', async () => {
+      vi.spyOn(http, 'authPost').mockResolvedValueOnce({ users: [], limit: 20, offset: 0 } as any)
+
+      await client.listPeopleDirectory()
+      const call = (vi.mocked(http.authPost).mock.calls[0][1] as any)
+      expect(call.limit).toBeUndefined()
+      expect(call.offset).toBeUndefined()
+    })
+
+    it('listPeopleDirectory works without a token (anon reads the public subset)', async () => {
+      client.scrubToken()
+      vi.spyOn(http, 'authPost').mockResolvedValueOnce({ users: [], limit: 20, offset: 0 } as any)
+
+      await expect(client.listPeopleDirectory()).resolves.toEqual({ users: [], limit: 20, offset: 0 })
       const call = (vi.mocked(http.authPost).mock.calls[0][1] as any)
       expect(call.token).toBeUndefined()
     })
