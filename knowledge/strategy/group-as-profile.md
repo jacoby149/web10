@@ -169,7 +169,7 @@ Deep-linkable (`?tab=`), refresh-safe. The hero (3.116.0) stays above the tabs.
   absent from the directory + others' lists, present to the owner; `slugTaken`
   true on an active group / false on a tombstone; the commit flips it live +
   listed atomically; delete discards). **Gates G2, G4.**
-- [ ] **G1: the group page tabs** (`GroupDetailScreen.tsx`) — the **Feed**
+ - [✓ 3.121.0] **G1: the group page tabs** (`GroupDetailScreen.tsx`) — the **Feed**
   (default) | **Media** (`?tab=media`) tab row, feed first; the Media tab is a
   **paged** insta grid of the group's media posts (**infinite scroll** — next
   page as you scroll, not "pull everything") **+ a count** (total media posts,
