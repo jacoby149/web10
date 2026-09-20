@@ -73,10 +73,11 @@ def test_boundary_cte_exposes_group_id():
 
 def test_boundary_cte_group_id_null_when_no_readable_groups():
     # No readable groups → shape-valid empty CTE that STILL exposes group_id
-    # (as NULL), so the column shape matches the JOIN case.
+    # (as NULL), so the column shape matches the JOIN case. Nullable(String)
+    # is required: ClickHouse 24.8 rejects CAST(NULL AS String) (CANNOT_CONVERT_TYPE).
     out = build_safe_query("SELECT doc_id, group_id FROM posts", {"posts": []})
     assert "1 = 0" in out
-    assert "CAST(NULL AS String) AS group_id" in out
+    assert "CAST(NULL AS Nullable(String)) AS group_id" in out
 
 
 # ── The membrane: every escape attempt is rejected ───────────────────────────

@@ -160,8 +160,10 @@ def _boundary_cte_sql(service: str, readable_groups: list[str], member_key: str)
     )
     if not readable_groups:
         # Shape-valid (same columns as the JOIN case, incl. group_id) but
-        # empty: there are no readable groups, so group_id is NULL.
-        return f"SELECT {_CTE_COLUMNS}, CAST(NULL AS String) AS group_id FROM ({dedup_docs}) d WHERE 1 = 0"
+        # empty: there are no readable groups, so group_id is NULL. The cast
+        # must be Nullable(String) — ClickHouse 24.8 rejects CAST(NULL AS
+        # String) with CANNOT_CONVERT_TYPE (verified on the e2e node).
+        return f"SELECT {_CTE_COLUMNS}, CAST(NULL AS Nullable(String)) AS group_id FROM ({dedup_docs}) d WHERE 1 = 0"
     # member_key is node-generated (from the token / "anon"), never caller
     # input; the quoting is defense-in-depth against a stray quote.
     mk = member_key.replace(chr(39), chr(39) * 2)
