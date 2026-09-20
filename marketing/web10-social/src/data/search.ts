@@ -1,4 +1,4 @@
-import { fetchPeople, type PersonCard } from './people';
+import { fetchPeoplePage, filterPeople, type PersonCard } from './people';
 import { readGroupDirectory, type GroupDirectoryEntry } from './groups';
 import { readDiscoverFeed } from './feed';
 import type { PostRecord } from './types';
@@ -25,20 +25,17 @@ function normalize(query: string): string {
 /**
  * Search people by username or display name.
  *
- * v1 floor: `fetchPeople` builds a candidate pool (discover-board authors +
- * community members), and we filter it client-side. This is NOT a node-wide
- * search — it only covers the candidate pool. The node multi-entity search
- * endpoint is the scale fix (follow-up, not v1).
+ * Data source: the node's public people directory (D0, discover-reorg) via
+ * `fetchPeoplePage` — a paged, follower-ranked, I3-gated read. We pull one
+ * pool page and filter it client-side with the D2 canonical `filterPeople`
+ * (name or handle). The node multi-entity search endpoint is the scale fix
+ * (follow-up, not v1).
  */
 export async function searchPeople(query: string, limit = DEFAULT_LIMIT): Promise<PersonCard[]> {
-  const q = normalize(query);
+  const q = query.trim();
   if (!q) return [];
-  const pool = await fetchPeople(POOL_SIZE);
-  const filtered = pool.filter(
-    (p) =>
-      p.username.toLowerCase().includes(q) ||
-      (p.display_name && p.display_name.toLowerCase().includes(q)),
-  );
+  const { people: pool } = await fetchPeoplePage({ limit: POOL_SIZE, offset: 0 });
+  const filtered = filterPeople(pool, q);
   LOG('searchPeople —', q, '→', filtered.length, 'of', pool.length, 'pool');
   return filtered.slice(0, limit);
 }

@@ -7,8 +7,8 @@ const HAS_RESULTS = (q: string) => q.toLowerCase().includes('synth');
 export async function searchPeople(query: string, _limit = 5) {
   if (!HAS_RESULTS(query)) return [];
   return [
-    { username: 'alice', provider: 'web10', display_name: 'Alice Smith', bio: 'Synthwave producer', avatar_url: '', followers_count: 128, mutuals: 3, is_following: false },
-    { username: 'nova', provider: 'web10', display_name: 'Nova', bio: 'Lofi artist', avatar_url: '', followers_count: 542, mutuals: 7, is_following: true },
+    { username: 'alice', provider: 'web10', display_name: 'Alice Smith', bio: 'Synthwave producer', avatar_url: '', followers_count: 128, is_following: false },
+    { username: 'nova', provider: 'web10', display_name: 'Nova', bio: 'Lofi artist', avatar_url: '', followers_count: 542, is_following: true },
   ];
 }
 

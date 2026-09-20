@@ -196,7 +196,7 @@ describe('GlobalSearch — S2 results (fan-out + rows + see more)', () => {
 
   it('renders the People section with rows when people match', async () => {
     vi.mocked(searchPeople).mockResolvedValue([
-      { username: 'alice', provider: 'web10', display_name: 'Alice Smith', followers_count: 100, mutuals: 5, is_following: false },
+      { username: 'alice', provider: 'web10', display_name: 'Alice Smith', followers_count: 100, is_following: false },
     ] as any);
     renderDesktopSearch();
     fireEvent.click(screen.getByTestId('global-search-trigger'));
@@ -266,7 +266,7 @@ describe('GlobalSearch — S2 results (fan-out + rows + see more)', () => {
     let resolveGroups: (v: unknown) => void = () => {};
     let resolvePosts: (v: unknown) => void = () => {};
     vi.mocked(searchPeople).mockResolvedValue([
-      { username: 'alice', provider: 'web10', display_name: 'Alice', followers_count: 1, mutuals: 0, is_following: false },
+      { username: 'alice', provider: 'web10', display_name: 'Alice', followers_count: 1, is_following: false },
     ] as any);
     vi.mocked(searchGroups).mockReturnValue(new Promise((r) => { resolveGroups = r; }));
     vi.mocked(searchPosts).mockReturnValue(new Promise((r) => { resolvePosts = r; }));
@@ -298,7 +298,7 @@ describe('GlobalSearch — S2 results (fan-out + rows + see more)', () => {
 
   it('tapping a person row navigates to /u/:username', async () => {
     vi.mocked(searchPeople).mockResolvedValue([
-      { username: 'alice', provider: 'web10', display_name: 'Alice', followers_count: 1, mutuals: 0, is_following: false },
+      { username: 'alice', provider: 'web10', display_name: 'Alice', followers_count: 1, is_following: false },
     ] as any);
     renderDesktopSearch();
     fireEvent.click(screen.getByTestId('global-search-trigger'));

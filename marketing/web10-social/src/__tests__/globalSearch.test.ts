@@ -1,9 +1,15 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 
 // Mock the three data reads that search.ts fans out to.
-vi.mock('@/data/people', () => ({
-  fetchPeople: vi.fn(),
-}));
+// For people, keep the REAL `filterPeople` (the D2 canonical filter) and mock
+// only `fetchPeoplePage` (the D0 read) so the test exercises the real filter.
+vi.mock('@/data/people', async (importOriginal) => {
+  const original = await importOriginal() as Record<string, unknown>;
+  return {
+    ...original,
+    fetchPeoplePage: vi.fn(),
+  };
+});
 vi.mock('@/data/groups', () => ({
   readGroupDirectory: vi.fn(),
 }));
@@ -12,18 +18,18 @@ vi.mock('@/data/feed', () => ({
 }));
 
 import { globalSearch, searchPeople, searchGroups, searchPosts } from '@/data/search';
-import { fetchPeople } from '@/data/people';
+import { fetchPeoplePage } from '@/data/people';
 import { readGroupDirectory } from '@/data/groups';
 import { readDiscoverFeed } from '@/data/feed';
 
 // ── Fixtures ──────────────────────────────────────────────────────────────────
 
 const peoplePool = [
-  { username: 'alice', provider: 'web10', display_name: 'Alice Smith', followers_count: 100, mutuals: 5, is_following: false },
-  { username: 'bob', provider: 'web10', display_name: 'Bob Jones', followers_count: 50, mutuals: 3, is_following: true },
-  { username: 'charlie', provider: 'web10', display_name: 'Charlie Brown', followers_count: 200, mutuals: 10, is_following: false },
-  { username: 'alicia', provider: 'web10', display_name: 'Alicia Keys', followers_count: 300, mutuals: 1, is_following: false },
-  { username: 'dave', provider: 'web10', display_name: 'Dave', followers_count: 10, mutuals: 0, is_following: false },
+  { username: 'alice', provider: 'web10', display_name: 'Alice Smith', followers_count: 100, is_following: false },
+  { username: 'bob', provider: 'web10', display_name: 'Bob Jones', followers_count: 50, is_following: true },
+  { username: 'charlie', provider: 'web10', display_name: 'Charlie Brown', followers_count: 200, is_following: false },
+  { username: 'alicia', provider: 'web10', display_name: 'Alicia Keys', followers_count: 300, is_following: false },
+  { username: 'dave', provider: 'web10', display_name: 'Dave', followers_count: 10, is_following: false },
 ];
 
 const groupsPool = [
@@ -47,7 +53,7 @@ describe('searchPeople', () => {
   beforeEach(() => vi.clearAllMocks());
 
   it('filters by username (case-insensitive)', async () => {
-    vi.mocked(fetchPeople).mockResolvedValue(peoplePool as any);
+    vi.mocked(fetchPeoplePage).mockResolvedValue({ people: peoplePool, hasMore: false } as any);
     const results = await searchPeople('ALICE');
     // Matches 'alice' (username) + 'alicia' (username contains 'alic'... no, 'alicia' doesn't contain 'alice')
     // Actually 'alice' matches username 'alice'. 'alicia' does NOT contain 'alice'.
@@ -57,7 +63,7 @@ describe('searchPeople', () => {
   });
 
   it('filters by display name', async () => {
-    vi.mocked(fetchPeople).mockResolvedValue(peoplePool as any);
+    vi.mocked(fetchPeoplePage).mockResolvedValue({ people: peoplePool, hasMore: false } as any);
     const results = await searchPeople('smith');
     expect(results).toHaveLength(1);
     expect(results[0].username).toBe('alice');
@@ -72,7 +78,7 @@ describe('searchPeople', () => {
       mutuals: 0,
       is_following: false,
     }));
-    vi.mocked(fetchPeople).mockResolvedValue(largePool as any);
+    vi.mocked(fetchPeoplePage).mockResolvedValue({ people: largePool, hasMore: false } as any);
     const results = await searchPeople('user');
     expect(results).toHaveLength(5);
   });
@@ -86,19 +92,19 @@ describe('searchPeople', () => {
       mutuals: 0,
       is_following: false,
     }));
-    vi.mocked(fetchPeople).mockResolvedValue(largePool as any);
+    vi.mocked(fetchPeoplePage).mockResolvedValue({ people: largePool, hasMore: false } as any);
     const results = await searchPeople('user', 3);
     expect(results).toHaveLength(3);
   });
 
-  it('returns [] for empty/whitespace query without calling fetchPeople', async () => {
+  it('returns [] for empty/whitespace query without calling fetchPeoplePage', async () => {
     const results = await searchPeople('   ');
     expect(results).toHaveLength(0);
-    expect(fetchPeople).not.toHaveBeenCalled();
+    expect(fetchPeoplePage).not.toHaveBeenCalled();
   });
 
   it('returns [] when no one matches', async () => {
-    vi.mocked(fetchPeople).mockResolvedValue(peoplePool as any);
+    vi.mocked(fetchPeoplePage).mockResolvedValue({ people: peoplePool, hasMore: false } as any);
     const results = await searchPeople('zzz-not-a-user');
     expect(results).toHaveLength(0);
   });
@@ -195,7 +201,7 @@ describe('globalSearch', () => {
   beforeEach(() => vi.clearAllMocks());
 
   it('fans out to all three reads and merges the results', async () => {
-    vi.mocked(fetchPeople).mockResolvedValue(peoplePool as any);
+    vi.mocked(fetchPeoplePage).mockResolvedValue({ people: peoplePool, hasMore: false } as any);
     vi.mocked(readGroupDirectory).mockResolvedValue(groupsPool as any);
     vi.mocked(readDiscoverFeed).mockResolvedValue(postsPool as any);
     const results = await globalSearch('a');
@@ -203,7 +209,7 @@ describe('globalSearch', () => {
     expect(results.people.length).toBeGreaterThan(0);
     expect(results.groups.length).toBeGreaterThan(0);
     expect(results.posts.length).toBeGreaterThan(0);
-    expect(fetchPeople).toHaveBeenCalledTimes(1);
+    expect(fetchPeoplePage).toHaveBeenCalledTimes(1);
     expect(readGroupDirectory).toHaveBeenCalledTimes(1);
     expect(readDiscoverFeed).toHaveBeenCalledTimes(1);
   });
@@ -218,7 +224,7 @@ describe('globalSearch', () => {
     const largePosts = Array.from({ length: 20 }, (_, i) => ({
       _id: `p${i}`, text: `Post gamma ${i}`, author_username: `a${i}`, created_at: `2026-01-0${(i % 9) + 1}T00:00:00Z`,
     }));
-    vi.mocked(fetchPeople).mockResolvedValue(largePeople as any);
+    vi.mocked(fetchPeoplePage).mockResolvedValue({ people: largePeople, hasMore: false } as any);
     vi.mocked(readGroupDirectory).mockResolvedValue(largeGroups as any);
     vi.mocked(readDiscoverFeed).mockResolvedValue(largePosts as any);
     const results = await globalSearch('gamma');
@@ -229,7 +235,7 @@ describe('globalSearch', () => {
   });
 
   it('degrades a failed section to [] without blanking the others', async () => {
-    vi.mocked(fetchPeople).mockRejectedValue(new Error('people read failed'));
+    vi.mocked(fetchPeoplePage).mockRejectedValue(new Error('people read failed'));
     vi.mocked(readGroupDirectory).mockResolvedValue(groupsPool as any);
     vi.mocked(readDiscoverFeed).mockResolvedValue(postsPool as any);
     // 'synthwave' matches groups (g1) and posts (p1, p3) but people is mocked to fail.
@@ -242,7 +248,7 @@ describe('globalSearch', () => {
   it('returns all-empty for an empty query without calling any read', async () => {
     const results = await globalSearch('');
     expect(results).toEqual({ people: [], groups: [], posts: [] });
-    expect(fetchPeople).not.toHaveBeenCalled();
+    expect(fetchPeoplePage).not.toHaveBeenCalled();
     expect(readGroupDirectory).not.toHaveBeenCalled();
     expect(readDiscoverFeed).not.toHaveBeenCalled();
   });
