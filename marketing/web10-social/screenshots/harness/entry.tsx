@@ -86,6 +86,7 @@ const initialRoute =
   : screen === 'groups-discover' ? '/groups?tab=discover'
   : screen === 'groups-detail' ? '/groups/web10%2Fgroups%2Fusers%2Fnova%2Fsynthwave-sessions'
   : screen === 'groups-detail-noface' ? '/groups/web10%2Fgroups%2Fusers%2Fkai%2Flofi-study-room'
+  : screen === 'groups-create' ? '/groups/web10%2Fgroups%2Fusers%2Fme%2Fnew-group?edit=1'
   : screen === 'people' ? '/people'
   : screen === 'profile' ? '/u/me'
   : screen === 'profile-feed' ? '/u/me?view=feed'

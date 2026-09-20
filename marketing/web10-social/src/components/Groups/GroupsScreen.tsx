@@ -10,11 +10,12 @@ import {
   resolveMediaRefs,
   leaveGroup,
   groupDisplayName,
+  createDraftGroup,
   type MediaRecord,
 } from '@/data';
+import { getV3Client } from '@/data/v3';
 import type { V3Group } from '@/data';
 import { toast, errorMessage } from '@/components/shared/Toast';
-import { CreateGroupSheet } from './CreateGroupSheet';
 import {
   Users,
   LogOut,
@@ -235,8 +236,28 @@ export default function GroupsScreen() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
 
-  // Create-group sheet (the "New group" flow).
-  const [createOpen, setCreateOpen] = useState(false);
+  // The "New group" flow (group-as-profile G4): creating a group is
+  // configuring a page, not a form. The button creates a DRAFT group (inert —
+  // unlisted, owner-only, face status:'draft') and opens the group page in
+  // edit mode for it (?edit=1). Changes auto-save; Publish goes live, Delete
+  // discards.
+  const [creating, setCreating] = useState(false);
+
+  const handleNewGroup = useCallback(async () => {
+    if (creating) return;
+    setCreating(true);
+    LOG('new group — creating draft');
+    try {
+      const username = getV3Client().readToken()?.username || '';
+      const groupId = await createDraftGroup(username);
+      LOG('new group — draft created, opening edit mode', groupId);
+      navigate(`/groups/${encodeURIComponent(groupId)}?edit=1`);
+    } catch (e) {
+      LOG('new group — failed:', e);
+      toast.error(errorMessage(e, 'Could not create the group. Try again.'));
+      setCreating(false);
+    }
+  }, [creating, navigate]);
 
   // ── My groups ────────────────────────────────────────────────────────────
   const [myGroups, setMyGroups] = useState<V3Group[]>([]);
@@ -351,11 +372,16 @@ export default function GroupsScreen() {
           <Button
             variant="brand"
             className="mb-4 w-full gap-2"
-            onClick={() => setCreateOpen(true)}
+            onClick={handleNewGroup}
+            disabled={creating}
             data-testid="groups-new-button"
           >
-            <Plus className="h-4 w-4" strokeWidth={2} />
-            New group
+            {creating ? (
+              <Loader2 className="h-4 w-4 animate-spin" strokeWidth={2} />
+            ) : (
+              <Plus className="h-4 w-4" strokeWidth={2} />
+            )}
+            {creating ? 'Creating…' : 'New group'}
           </Button>
           {myError ? (
             <GroupsErrorState onRetry={loadMyGroups} />
@@ -406,17 +432,6 @@ export default function GroupsScreen() {
             </div>
           )}
         </div>
-
-        {/* Create-group sheet */}
-        <CreateGroupSheet
-          open={createOpen}
-          onClose={() => setCreateOpen(false)}
-          onCreated={(groupId) => {
-            setCreateOpen(false);
-            LOG('created — navigating to', groupId);
-            navigate(`/groups/${encodeURIComponent(groupId)}`);
-          }}
-        />
       </div>
     </div>
   );

@@ -327,6 +327,13 @@ export interface CreateGroupInput {
   banner_ref?: string;
   avatar_ref?: string;
   /**
+   * An explicit slug override (the group_id's last segment). Defaults to
+   * `slugify(name)`. The create entry point (G4) passes the collision-checked
+   * slug here when the derived one is taken (decision 1) — the display name
+   * stays free (decision 4).
+   */
+  slug?: string;
+  /**
    * Create as a draft (group-as-profile, decision 2): the group is inert —
    * `discoverable=false` and the face carries `status:'draft'`. No reserved
    * read grant is added at create time; the staged settings (who-can-read /
@@ -383,7 +390,7 @@ export async function createCommunityGroup(
   ownerUsername: string,
 ): Promise<string> {
   const w = getV3Client();
-  const slug = slugify(input.name);
+  const slug = input.slug || slugify(input.name);
   const draft = !!input.draft;
   LOG('createCommunityGroup — start', { name: input.name, slug, visibility: input.visibility, draft });
   const groupId = communityGroupId(ownerUsername, slug);
@@ -433,6 +440,34 @@ export async function createCommunityGroup(
   };
   await writeGroupIdentity(groupId, face);
   LOG('createCommunityGroup — face written', groupId);
+  return groupId;
+}
+
+/**
+ * The create entry point (group-as-profile G4): "New group" creates a DRAFT
+ * group and returns its id so the caller can open the group page in edit mode
+ * for it. The draft is inert (G0: `discoverable=false`, owner-only, face
+ * `status:'draft'`) — nothing is live until Publish.
+ *
+ * The slug is derived from the placeholder name ("New group" → `new-group`)
+ * and checked with the create-time slug guard (decision 1): if an active group
+ * already owns the slug, a numeric suffix is tried (`new-group-2`, `-3`, …)
+ * until a free one is found. The display name is free to change in edit mode
+ * (decision 4) — the slug is the group's identity, not its name.
+ */
+export async function createDraftGroup(ownerUsername: string): Promise<string> {
+  LOG('createDraftGroup — start', ownerUsername);
+  const base = slugify('New group');
+  let slug = base;
+  for (let i = 2; await slugTaken(slug, ownerUsername); i++) {
+    slug = `${base}-${i}`;
+    LOG('createDraftGroup — slug taken, trying', slug);
+  }
+  const groupId = await createCommunityGroup(
+    { name: 'New group', slug, visibility: 'private', join_policy: 'open', draft: true },
+    ownerUsername,
+  );
+  LOG('createDraftGroup — created', groupId, { slug });
   return groupId;
 }
 

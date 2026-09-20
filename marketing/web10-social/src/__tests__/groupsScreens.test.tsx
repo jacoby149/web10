@@ -47,6 +47,11 @@ vi.mock('@/data', async (importOriginal) => {
     toggleReactionKind: vi.fn().mockResolvedValue('like'),
     saveGroup: vi.fn().mockResolvedValue(undefined),
     publishGroup: vi.fn().mockResolvedValue(undefined),
+    // G4: the create entry point (the "New group" button creates a draft and
+    // navigates to the group page in edit mode).
+    createDraftGroup: vi.fn().mockResolvedValue('web10.app/groups/me/new-group'),
+    // G4: the create-time slug guard (live in edit mode for a draft).
+    slugTaken: vi.fn().mockResolvedValue(false),
   };
 });
 
@@ -83,6 +88,8 @@ import {
     toggleReactionKind,
     saveGroup,
     publishGroup,
+    createDraftGroup,
+    slugTaken,
 } from '@/data';
 import { uploadMedia } from '@/data/posts';
 
@@ -205,21 +212,50 @@ describe('GroupsScreen', () => {
     expect(screen.getByText('photography')).toBeInTheDocument();
   });
 
-  it('the New group button opens the create-group sheet', async () => {
+  it('the New group button creates a draft and opens the group page in edit mode (G4)', async () => {
     const { default: GroupsScreen } = await import('@/components/Groups/GroupsScreen');
     render(
       <MemoryRouter initialEntries={['/groups']}>
-        <GroupsScreen />
+        <Routes>
+          <Route path="/groups" element={<GroupsScreen />} />
+          <Route path="/groups/:groupId" element={<LocationProbe />} />
+        </Routes>
       </MemoryRouter>,
     );
     const btn = screen.getByTestId('groups-new-button');
     expect(btn).toBeInTheDocument();
-    // The sheet is not open yet
+    // The create sheet is retired — creating a group is configuring a page.
     expect(screen.queryByTestId('create-group-sheet')).not.toBeInTheDocument();
     fireEvent.click(btn);
+    // The draft is created for the token's owner…
     await waitFor(() => {
-      expect(screen.getByTestId('create-group-sheet')).toBeInTheDocument();
+      expect(createDraftGroup).toHaveBeenCalledWith('me');
     });
+    // …and the group page opens in edit mode (?edit=1).
+    await waitFor(() => {
+      expect(screen.getByTestId('location-probe')).toHaveTextContent(
+        '/groups/web10.app%2Fgroups%2Fme%2Fnew-group?edit=1',
+      );
+    });
+  });
+
+  it('a failed draft create shows an error and stays on the list (G4)', async () => {
+    vi.mocked(createDraftGroup).mockRejectedValueOnce(new Error('boom'));
+    const { default: GroupsScreen } = await import('@/components/Groups/GroupsScreen');
+    render(
+      <MemoryRouter initialEntries={['/groups']}>
+        <Routes>
+          <Route path="/groups" element={<GroupsScreen />} />
+          <Route path="/groups/:groupId" element={<LocationProbe />} />
+        </Routes>
+      </MemoryRouter>,
+    );
+    fireEvent.click(screen.getByTestId('groups-new-button'));
+    // No navigation — the list stays.
+    await waitFor(() => {
+      expect(createDraftGroup).toHaveBeenCalled();
+    });
+    expect(screen.queryByTestId('location-probe')).not.toBeInTheDocument();
   });
 
   it('shows the owner badge for owned groups and a Leave button for member groups', async () => {
@@ -1200,5 +1236,161 @@ describe('GroupDetailScreen', () => {
       expect(screen.getByTestId('group-media-empty')).toBeInTheDocument();
     });
     expect(screen.getByText('No media yet')).toBeInTheDocument();
+  });
+
+  // ── G4: create = the group page in edit mode (draft) ──────────────────────
+
+  // A draft detail render with the manager view (the draft's owner manages it).
+  // The detail is inert like a real draft: unlisted, owner-only.
+  function renderDraftAt(path: string) {
+    vi.mocked(readGroupDetail).mockResolvedValue({
+      ...mockDetailMember,
+      discoverable: false,
+      member_count: 1,
+    } as never);
+    vi.mocked(readGroupIdentity).mockResolvedValue({ ...mockIdentity, status: 'draft' });
+    vi.mocked(getGroupsManages).mockResolvedValue([
+      { group_id: GROUP_ID, join_policy: 'open', my_role: 'owner', member_count: 1 },
+    ] as never);
+    return renderDetailAt(path);
+  }
+
+  it('a draft opens in edit mode with ?edit=1 (the create flow)', async () => {
+    await renderDraftAt('/groups/x?edit=1');
+    await waitFor(() => {
+      expect(screen.getByTestId('group-edit-mode')).toBeInTheDocument();
+    });
+    // The draft's face loads into the form.
+    expect((screen.getByTestId('group-edit-name') as HTMLInputElement).value).toBe('Gaming Night');
+    // The create flow's action row: Publish group / Delete (no Cancel — the
+    // draft auto-saves, so leaving loses nothing).
+    expect(screen.getByTestId('group-edit-save')).toHaveTextContent('Publish group');
+    expect(screen.getByTestId('group-edit-delete')).toBeInTheDocument();
+    expect(screen.queryByTestId('group-edit-cancel')).not.toBeInTheDocument();
+  });
+
+  it('a draft with no staged name opens in edit mode even without ?edit=1', async () => {
+    vi.mocked(readGroupIdentity).mockResolvedValue({ status: 'draft' });
+    vi.mocked(getGroupsManages).mockResolvedValue([
+      { group_id: GROUP_ID, join_policy: 'open', my_role: 'owner', member_count: 1 },
+    ] as never);
+    await renderDetailAt('/groups/x');
+    await waitFor(() => {
+      expect(screen.getByTestId('group-edit-mode')).toBeInTheDocument();
+    });
+  });
+
+  it('a named draft WITHOUT ?edit=1 opens in view mode (Draft badge + Edit pencil)', async () => {
+    await renderDraftAt('/groups/x');
+    await waitFor(() => {
+      expect(screen.getByTestId('group-detail-hero')).toBeInTheDocument();
+    });
+    // Not in edit mode — the page is the profile, marked Draft.
+    expect(screen.queryByTestId('group-edit-mode')).not.toBeInTheDocument();
+    expect(screen.getByTestId('group-detail-draft')).toHaveTextContent('Draft');
+    // The pencil re-opens edit mode.
+    fireEvent.click(screen.getByTestId('group-detail-edit'));
+    await waitFor(() => {
+      expect(screen.getByTestId('group-edit-mode')).toBeInTheDocument();
+    });
+  });
+
+  it('draft auto-save: typing the name persists the face (status stays draft)', async () => {
+    await renderDraftAt('/groups/x?edit=1');
+    await waitFor(() => {
+      expect(screen.getByTestId('group-edit-mode')).toBeInTheDocument();
+    });
+    fireEvent.change(screen.getByTestId('group-edit-name'), { target: { value: 'My New Group' } });
+    // The auto-save is debounced (600ms) — the face doc is written with the
+    // staged name and status still 'draft' (nothing is live).
+    await waitFor(() => {
+      expect(writeGroupIdentity).toHaveBeenCalledWith(
+        GROUP_ID,
+        expect.objectContaining({ name: 'My New Group', status: 'draft' }),
+      );
+    }, { timeout: 3000 });
+    // The auto-save status shows the draft was saved.
+    await waitFor(() => {
+      expect(screen.getByTestId('group-edit-autosave')).toHaveTextContent('All changes saved');
+    });
+  });
+
+  it('published groups do NOT auto-save (the live face is frozen until Save)', async () => {
+    vi.mocked(getGroupsManages).mockResolvedValue([
+      { group_id: GROUP_ID, join_policy: 'open', my_role: 'owner', member_count: 128 },
+    ] as never);
+    await loadDetail();
+    await waitFor(() => {
+      expect(screen.getByTestId('group-detail-edit')).toBeInTheDocument();
+    });
+    fireEvent.click(screen.getByTestId('group-detail-edit'));
+    await waitFor(() => {
+      expect(screen.getByTestId('group-edit-mode')).toBeInTheDocument();
+    });
+    fireEvent.change(screen.getByTestId('group-edit-name'), { target: { value: 'Changed' } });
+    // Give any (wrong) auto-save a chance to fire — it must not.
+    await new Promise((r) => setTimeout(r, 900));
+    expect(writeGroupIdentity).not.toHaveBeenCalled();
+  });
+
+  it('the name-taken guard blocks Publish (decision 1, live in edit mode)', async () => {
+    vi.mocked(slugTaken).mockResolvedValue(true);
+    await renderDraftAt('/groups/x?edit=1');
+    await waitFor(() => {
+      expect(screen.getByTestId('group-edit-mode')).toBeInTheDocument();
+    });
+    // The slug guard resolves (debounced) → the "name already taken" state.
+    await waitFor(() => {
+      expect(screen.getByTestId('group-edit-slug-taken')).toBeInTheDocument();
+    });
+    // Publish is blocked while the slug is taken.
+    expect(screen.getByTestId('group-edit-save')).toBeDisabled();
+    expect(publishGroup).not.toHaveBeenCalled();
+  });
+
+  it('a free slug shows the slug preview and Publish stays enabled', async () => {
+    vi.mocked(slugTaken).mockResolvedValue(false);
+    await renderDraftAt('/groups/x?edit=1');
+    await waitFor(() => {
+      expect(screen.getByTestId('group-edit-mode')).toBeInTheDocument();
+    });
+    // The slug preview shows the derived slug (the group's identity).
+    await waitFor(() => {
+      expect(screen.getByTestId('group-edit-slug')).toHaveTextContent('gaming-night');
+    });
+    expect(screen.queryByTestId('group-edit-slug-taken')).not.toBeInTheDocument();
+    expect(screen.getByTestId('group-edit-save')).toBeEnabled();
+  });
+
+  it('draft delete discards the draft (lightweight, one tap) and leaves the page', async () => {
+    vi.mocked(readGroupDetail).mockResolvedValue({
+      ...mockDetailMember,
+      discoverable: false,
+      member_count: 1,
+    } as never);
+    vi.mocked(readGroupIdentity).mockResolvedValue({ ...mockIdentity, status: 'draft' });
+    vi.mocked(getGroupsManages).mockResolvedValue([
+      { group_id: GROUP_ID, join_policy: 'open', my_role: 'owner', member_count: 1 },
+    ] as never);
+    const { default: GroupDetailScreen } = await import('@/components/Groups/GroupDetailScreen');
+    render(
+      <MemoryRouter initialEntries={['/groups/x?edit=1']}>
+        <Routes>
+          <Route path="/groups" element={<LocationProbe />} />
+          <Route path="/groups/:groupId" element={<GroupDetailScreen groupId={GROUP_ID} />} />
+        </Routes>
+      </MemoryRouter>,
+    );
+    await waitFor(() => {
+      expect(screen.getByTestId('group-edit-delete')).toBeInTheDocument();
+    });
+    // One tap — the lightweight draft-delete has no confirm (the group is inert).
+    fireEvent.click(screen.getByTestId('group-edit-delete'));
+    await waitFor(() => {
+      expect(deleteGroup).toHaveBeenCalledWith(GROUP_ID);
+    });
+    await waitFor(() => {
+      expect(screen.getByTestId('location-probe')).toHaveTextContent('/groups');
+    });
   });
 });
