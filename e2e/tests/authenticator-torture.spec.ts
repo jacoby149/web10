@@ -128,7 +128,7 @@ test.describe('API floor — signup', () => {
   });
 
   test('invalid usernames rejected, no user created', async ({ request }) => {
-    const bad = ['Alice', '-leading', 'a'.repeat(31), 'has_underscore', 'trailing-'];
+    const bad = ['-leading', 'a'.repeat(31), 'has_underscore', 'trailing-'];
     for (const name of bad) {
       const res = await request.post(`${API_BASE}/v3/signup`, {
         data: JSON.stringify({ username: name, password }),
@@ -142,6 +142,27 @@ test.describe('API floor — signup', () => {
         headers: { 'Content-Type': 'application/json' },
       });
       expect(login.status(), `login "${name}" must fail — no user was created`).toBe(401);
+    }
+  });
+
+  test('uppercase username is lowercased, not rejected (case-insensitive)', async ({ request }) => {
+    // "Alice…" (mixed case) is NOT rejected — it is stored lowercased as "alice…".
+    const raw = uniqueUser('Alice');
+    const res = await request.post(`${API_BASE}/v3/signup`, {
+      data: JSON.stringify({ username: raw, password, phone: '+1555' + Math.floor(Math.random() * 10000000) }),
+      headers: { 'Content-Type': 'application/json' },
+    });
+    expect(res.status(), 'signup with uppercase should be accepted (lowercased)').toBe(200);
+    const stored = (await res.json()).username as string;
+    expect(stored, 'stored username should be the lowercased input').toBe(raw.toLowerCase());
+
+    // The credential is case-insensitive: original, stored, and all-caps casings all log in.
+    for (const name of [raw, stored, raw.toUpperCase()]) {
+      const login = await request.post(`${API_BASE}/v3/login`, {
+        data: JSON.stringify({ username: name, password }),
+        headers: { 'Content-Type': 'application/json' },
+      });
+      expect(login.status(), `login "${name}" should succeed — stored as "${stored}"`).toBe(200);
     }
   });
 

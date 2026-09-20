@@ -30,7 +30,8 @@ def _require_contact() -> bool:
 @router.post("/signup")
 def signup(data: Signup):
     """Create a user account."""
-    if not kosher(data.username):
+    username = data.username.lower()
+    if not kosher(username):
         raise exceptions.BAD_USERNAME
     if not data.password or not data.password.strip():
         raise exceptions.BAD_PASSWORD
@@ -38,7 +39,7 @@ def signup(data: Signup):
         raise exceptions.CONTACT_REQUIRED
     password_hash = get_password_hash(data.password)
     result = ch.create_user(
-        username=data.username,
+        username=username,
         password_hash=password_hash,
         phone=data.phone or "",
         email=data.email or "",
@@ -51,7 +52,8 @@ def signup(data: Signup):
 @router.post("/login")
 def login(data: Login):
     """Verify credentials, return JWT."""
-    if not ch.authenticate_user(data.username, data.password):
+    username = data.username.lower()
+    if not ch.authenticate_user(username, data.password):
         raise exceptions.LOGIN
     from datetime import datetime, timedelta
 
@@ -60,7 +62,7 @@ def login(data: Login):
     import app.settings as settings
 
     token_data = {
-        "username": data.username,
+        "username": username,
         "provider": settings.PROVIDER,
         "site": data.site or "web10",
         "expires": (datetime.utcnow() + timedelta(minutes=settings.TOKEN_EXPIRE_MINUTES)).isoformat(),
