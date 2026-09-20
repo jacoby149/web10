@@ -67,6 +67,8 @@ interface GroupFace {
   banner_url?: string;
   avatar_url?: string;
   name?: string;
+  /** Draft state (group-as-profile G0): the owner's drafts are marked "Draft". */
+  status?: 'draft' | 'published';
 }
 
 function formatCount(n: number): string {
@@ -146,6 +148,11 @@ function MyGroupRow({ group, face, onOpen, onLeave, leaving }: MyGroupRowProps) 
         <div className="min-w-0 flex-1 pb-1">
           <div className="flex items-center gap-2">
             <h3 className="truncate text-base font-semibold text-foreground">{name}</h3>
+            {face?.status === 'draft' && (
+              <Badge variant="outline" className="normal-case tracking-normal" data-testid="groups-my-draft">
+                Draft
+              </Badge>
+            )}
             {isOwner && (
               <Badge variant="brand" className="normal-case tracking-normal" data-testid="groups-my-role-owner">
                 Owner
@@ -430,7 +437,7 @@ export default function GroupsScreen() {
               if (identity.banner_ref) banner_url = map[identity.banner_ref]?.url;
               if (identity.avatar_ref) avatar_url = map[identity.avatar_ref]?.url;
             }
-            return [g.group_id, { banner_url, avatar_url, name: identity.name }];
+            return [g.group_id, { banner_url, avatar_url, name: identity.name, status: identity.status }];
           } catch (e) {
             LOG('loadMyGroups — face failed for', g.group_id, ':', e);
             return [g.group_id, {}];
