@@ -197,8 +197,7 @@ describe('Follow button -> followUser call', () => {
     });
   });
 
-  it('discover screen follow button calls followUser', async () => {
-    const { followUser } = await import('@/data');
+  it('the discover Posts view no longer has the suggested-user follow rail (retired in D1; the People browser re-homes it in D2)', async () => {
     const { default: DiscoverScreen } = await import('@/components/Discover/DiscoverScreen');
 
     render(
@@ -208,21 +207,18 @@ describe('Follow button -> followUser call', () => {
     );
 
     await waitFor(() => {
-      expect(screen.getAllByTestId('discover-user-card').length).toBeGreaterThan(0);
+      expect(screen.getByTestId('discover-tabs')).toBeInTheDocument();
     });
 
-    // Find the follow button for the first user
-    const followButtons = screen.getAllByTestId('discover-follow-button');
-    expect(followButtons.length).toBeGreaterThan(0);
-
-    fireEvent.click(followButtons[0]);
-
-    await waitFor(() => {
-      expect(followUser).toHaveBeenCalled();
-    });
+    // The "People to follow" rail is retired from the Posts view — no
+    // suggested-user cards or follow buttons there. The People subtab is a
+    // placeholder until D2 builds the real browser (which re-homes follow).
+    expect(screen.queryByTestId('discover-user-card')).not.toBeInTheDocument();
+    expect(screen.queryByTestId('discover-follow-button')).not.toBeInTheDocument();
+    expect(screen.getByTestId('discover-tab-people')).toBeInTheDocument();
   });
 
-  it('discover screen shows suggested users', async () => {
+  it('the discover screen shows the subtab shell (Posts | People | Groups), not the suggested rail', async () => {
     const { default: DiscoverScreen } = await import('@/components/Discover/DiscoverScreen');
 
     render(
@@ -232,9 +228,14 @@ describe('Follow button -> followUser call', () => {
     );
 
     await waitFor(() => {
-      const cards = screen.getAllByTestId('discover-user-card');
-      expect(cards.length).toBeGreaterThan(0);
+      expect(screen.getByTestId('discover-tabs')).toBeInTheDocument();
     });
+
+    // The subtab shell is the discovery surface now — the old suggested rail is gone.
+    expect(screen.getByTestId('discover-tab-posts')).toBeInTheDocument();
+    expect(screen.getByTestId('discover-tab-people')).toBeInTheDocument();
+    expect(screen.getByTestId('discover-tab-groups')).toBeInTheDocument();
+    expect(screen.queryByTestId('discover-suggested')).not.toBeInTheDocument();
 
     // Should show discover title
     expect(screen.getByText('Discover')).toBeInTheDocument();

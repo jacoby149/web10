@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { useSearchParams } from 'react-router-dom';
-import { Avatar, AvatarFallback } from '@/components/ui/avatar';
+import { Avatar } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -9,10 +9,6 @@ import {
   readProfile,
   readUserProfile,
   resolveMediaRefs,
-  fetchSuggestedUsers,
-  followUser,
-  unfollowUser,
-  readFollow,
   getV3Client,
   getDiscoverGroupId,
   toggleReactionKind,
@@ -26,7 +22,6 @@ import type {
   PostRecord,
   MediaRecord,
   ProfileRecord,
-  SuggestedUser,
   ResolvedMediaRef,
 } from '@/data';
 import { mediaRefId } from '@/data';
@@ -41,18 +36,17 @@ import {
   Film,
   Music2,
   Users,
-  UserPlus,
-  UserX,
-  Loader2,
+  Hash,
   Search,
   X,
   Video,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { MARKETING_ORIGIN } from '@/lib/origins';
-import { requestInstallPrompt, isMobile } from '@/lib/pwa';
 import { PRESETS, getPreset, knobStateToSort, scorePost, FIXED_CHARACTER_DETEENT, type PresetId, type KnobState, type PowerMeanSortConfig, defaultKnobState } from '@/lib/powerMean';
 import { KnobRack } from './KnobRack';
+import { DiscoverPeopleTab } from './DiscoverPeopleTab';
+import { DiscoverGroupsTab } from './DiscoverGroupsTab';
 import { VideoPlayer, sourceFromMedia } from '@/components/Feed/VideoPlayer';
 import { MediaCarousel } from '@/components/Feed/MediaCarousel';
 import { PostActions } from '@/components/Feed/PostActions';
@@ -62,6 +56,20 @@ import { DiscoverCard as SharedDiscoverCard, type DiscoverPost, type CreateComme
 import { readThreadComments, readThreadReplies, createComment as wapiCreateComment } from '@/data';
 
 const LOG = (...args: unknown[]) => console.log('[social:discover]', ...args);
+
+// ── Subtabs (discover-reorg D1) ─────────────────────────────────────────────
+// Discover is the discovery surface: Posts | People | Groups subtabs, each a
+// paged/sortable browser. The URL holds the active tab (?tab=, deep-link
+// rule); Posts is the bare URL — ?tab= is omitted (or 'posts') for the board.
+// Search is NOT per-subtab (it's the top bar, global-search); the shell holds
+// ?q= and passes it to the active subtab.
+type DiscoverTab = 'posts' | 'people' | 'groups';
+
+const DISCOVER_TABS: { id: DiscoverTab; label: string; Icon: typeof Flame }[] = [
+  { id: 'posts', label: 'Posts', Icon: Flame },
+  { id: 'people', label: 'People', Icon: Users },
+  { id: 'groups', label: 'Groups', Icon: Hash },
+];
 
 // ── Knob state ↔ URL (the deep-linkable ranking, D36) ───────────────────────
 // The knob state is screen state, so the URL holds it (the deep-link rule:
@@ -109,25 +117,6 @@ function formatTimeAgo(dateStr: string): string {
   const days = Math.floor(hrs / 24);
   if (days < 7) return `${days}d`;
   return new Date(dateStr).toLocaleDateString();
-}
-
-function formatCount(n: number): string {
-  if (n >= 10000) return `${(n / 1000).toFixed(1)}k`;
-  if (n >= 1000) return `${(n / 1000).toFixed(1)}k`;
-  return String(n);
-}
-
-function hashToColor(str: string): string {
-  const colors = [
-    'bg-rose-500', 'bg-sky-500', 'bg-amber-500', 'bg-emerald-500',
-    'bg-violet-500', 'bg-pink-500', 'bg-indigo-500', 'bg-orange-500',
-    'bg-teal-500', 'bg-red-500',
-  ];
-  let hash = 0;
-  for (let i = 0; i < str.length; i++) {
-    hash = str.charCodeAt(i) + ((hash << 5) - hash);
-  }
-  return colors[Math.abs(hash) % colors.length];
 }
 
 // ── Heat glow tiers ────────────────────────────────────────────────────────
@@ -244,112 +233,6 @@ function MediaPlaceholder({ type }: { type: 'image' | 'video' | 'music' }) {
 function buildTopics(tags: string[]): string[] {
   const unique = Array.from(new Set(tags)).sort();
   return unique.slice(0, 12);
-}
-
-// ── Suggested user card ────────────────────────────────────────────────────
-
-interface DiscoverUserCardProps {
-  user: SuggestedUser;
-  isFollowing: boolean;
-  onFollow: () => void;
-  onUnfollow: () => void;
-  onViewProfile: () => void;
-  followLoading: boolean;
-}
-
-function DiscoverUserCard({
-  user,
-  isFollowing,
-  onFollow,
-  onUnfollow,
-  onViewProfile,
-  followLoading,
-}: DiscoverUserCardProps) {
-  const name = user.display_name || user.username;
-  const handleFollowToggle = (e: React.MouseEvent) => {
-    e.stopPropagation();
-    if (isFollowing) {
-      onUnfollow();
-    } else {
-      onFollow();
-    }
-  };
-
-  return (
-    <div
-      data-testid="discover-user-card"
-      className={cn(
-        'group relative flex w-44 shrink-0 flex-col items-center rounded-lg border border-border bg-card p-4 text-center cursor-pointer transition-all duration-150',
-        'hover:-translate-y-0.5 hover:border-brand/30 motion-reduce:transform-none',
-        isFollowing && 'border-brand/30',
-      )}
-      onClick={onViewProfile}
-      role="button"
-      tabIndex={0}
-      onKeyDown={(e) => {
-        if (e.key === 'Enter' || e.key === ' ') {
-          e.preventDefault();
-          onViewProfile();
-        }
-      }}
-      aria-label={`View ${name}'s profile`}
-    >
-      <Avatar
-        className={cn('h-16 w-16 ring-2 ring-transparent transition-all duration-150', hashToColor(user.username), isFollowing && 'ring-brand/40')}
-        onClick={(e) => e.stopPropagation()}
-      >
-        <AvatarFallback className="text-foreground text-xl font-semibold">
-          {name.charAt(0).toUpperCase()}
-        </AvatarFallback>
-      </Avatar>
-      <h3 className="mt-3 w-full truncate text-sm font-semibold text-foreground">{name}</h3>
-      <p className="w-full truncate text-xs text-muted-foreground">@{user.username}</p>
-      {typeof user.followers_count === 'number' && (
-        <p className="mt-1 text-xs text-muted-foreground tabular-nums">
-          {formatCount(user.followers_count)} followers
-        </p>
-      )}
-      {user.bio && (
-        <p className="mt-1 line-clamp-2 text-xs text-muted-foreground/80">{user.bio}</p>
-      )}
-      <Button
-        variant={isFollowing ? 'outline' : 'brand'}
-        size="sm"
-        data-testid="discover-follow-button"
-        onClick={handleFollowToggle}
-        disabled={followLoading}
-        className={cn(
-          'mt-3 w-full gap-1.5',
-          isFollowing && 'border-border hover:border-danger/50 hover:text-danger hover:bg-danger-muted',
-        )}
-      >
-        {followLoading ? (
-          <Loader2 className="h-3.5 w-3.5 animate-spin" strokeWidth={2} />
-        ) : isFollowing ? (
-          <>
-            <UserX className="h-3.5 w-3.5" strokeWidth={1.75} />
-            Following
-          </>
-        ) : (
-          <>
-            <UserPlus className="h-3.5 w-3.5" strokeWidth={1.75} />
-            Follow
-          </>
-        )}
-      </Button>
-    </div>
-  );
-}
-
-function SuggestedUserSkeleton() {
-  return (
-    <div className="flex w-44 shrink-0 flex-col items-center rounded-lg border border-border bg-card p-4">
-      <Skeleton className="h-16 w-16 rounded-full" />
-      <Skeleton className="mt-3 h-4 w-24" />
-      <Skeleton className="mt-2 h-3 w-16" />
-      <Skeleton className="mt-3 h-8 w-full rounded-md" />
-    </div>
-  );
 }
 
 // ── DiscoverCard (trending post) ─────────────────────────────────────────────
@@ -695,6 +578,24 @@ export default function DiscoverScreen() {
     setSearchParams(params);
   }, [searchParams, setSearchParams]);
 
+  // Deep-link: the active subtab from ?tab= (refresh-safe, shareable). Posts is
+  // the bare URL — ?tab= is omitted (or 'posts') for the board.
+  const tab: DiscoverTab = (() => {
+    const t = searchParams.get('tab');
+    return t === 'people' || t === 'groups' ? t : 'posts';
+  })();
+
+  const setTabUrl = useCallback((t: DiscoverTab) => {
+    const params = new URLSearchParams(searchParams);
+    if (t === 'posts') {
+      params.delete('tab');
+    } else {
+      params.set('tab', t);
+    }
+    LOG('tab —', t);
+    setSearchParams(params);
+  }, [searchParams, setSearchParams]);
+
   // Sync activeTag with ?tag= search param
   useEffect(() => {
     const current = searchParams.get('tag') || 'All';
@@ -736,12 +637,6 @@ export default function DiscoverScreen() {
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
-
-  // People-to-follow rail
-  const [suggested, setSuggested] = useState<SuggestedUser[]>([]);
-  const [suggestedLoading, setSuggestedLoading] = useState(true);
-  const [followStates, setFollowStates] = useState<Record<string, boolean>>({});
-  const [followLoading, setFollowLoading] = useState<Record<string, boolean>>({});
 
   const loadDiscover = useCallback(async (sort: PowerMeanSortConfig | null = null) => {
     // `loading` is the INITIAL skeleton only — a knob-triggered re-read keeps
@@ -904,32 +799,6 @@ export default function DiscoverScreen() {
     }
   }, []);
 
-  const loadSuggested = useCallback(async () => {
-    setSuggestedLoading(true);
-    try {
-      const users = await fetchSuggestedUsers(20);
-      setSuggested(users);
-
-      const states: Record<string, boolean> = {};
-      await Promise.all(
-        users.map(async (user) => {
-          const key = `${user.username}@${user.provider}`;
-          try {
-            const follow = await readFollow(user.username, user.provider);
-            states[key] = follow?.status === 'active';
-          } catch {
-            states[key] = false;
-          }
-        }),
-      );
-      setFollowStates(states);
-    } catch {
-      setSuggested([]);
-    } finally {
-      setSuggestedLoading(false);
-    }
-  }, []);
-
   // The server-side ranking config for the current knob state. The Newest
   // preset is pure chronological — the board's default read (no sort param).
   const sortConfig = useMemo<PowerMeanSortConfig | null>(() => {
@@ -956,41 +825,6 @@ export default function DiscoverScreen() {
     refreshTimer.current = setTimeout(() => loadDiscover(sortConfig), 400);
     return () => { if (refreshTimer.current) clearTimeout(refreshTimer.current); };
   }, [sortConfig, loadDiscover]);
-
-  useEffect(() => {
-    loadSuggested();
-  }, [loadSuggested]);
-
-  const handleFollow = useCallback(async (user: SuggestedUser) => {
-    const key = `${user.username}@${user.provider}`;
-    setFollowLoading((prev) => ({ ...prev, [key]: true }));
-    try {
-      await followUser(user.username, user.provider);
-      setFollowStates((prev) => ({ ...prev, [key]: true }));
-      // D72: following is the strongest "this is my place" signal — the
-      // install prompt fires here (mobile only; dismissal remembered).
-      if (isMobile()) requestInstallPrompt('engagement');
-    } catch (e) {
-      // Follow failed — leave state unchanged, but tell the user why.
-      toast.error(errorMessage(e, `Could not follow ${user.username}.`));
-    } finally {
-      setFollowLoading((prev) => ({ ...prev, [key]: false }));
-    }
-  }, []);
-
-  const handleUnfollow = useCallback(async (user: SuggestedUser) => {
-    const key = `${user.username}@${user.provider}`;
-    setFollowLoading((prev) => ({ ...prev, [key]: true }));
-    try {
-      await unfollowUser(user.username, user.provider);
-      setFollowStates((prev) => ({ ...prev, [key]: false }));
-    } catch (e) {
-      // Unfollow failed — leave state unchanged, but tell the user why.
-      toast.error(errorMessage(e, `Could not unfollow ${user.username}.`));
-    } finally {
-      setFollowLoading((prev) => ({ ...prev, [key]: false }));
-    }
-  }, []);
 
   // The reaction pair (post-actions.md): like XOR dislike, one reaction per
   // user. Optimistic update of the own-reaction maps + the post's like/dislike
@@ -1142,7 +976,6 @@ export default function DiscoverScreen() {
   );
 
   const isInitialLoad = loading && posts.length === 0;
-  const showSuggested = suggestedLoading || suggested.length > 0;
 
   function handleSearchChange(e: React.ChangeEvent<HTMLInputElement>) {
     const val = e.target.value;
@@ -1198,6 +1031,34 @@ export default function DiscoverScreen() {
         </div>
       </div>
 
+      {/* Subtabs: Posts | People | Groups (?tab=, posts = the bare URL) */}
+      <div className="px-4 py-2 md:px-0" data-testid="discover-tabs">
+        <div className="flex items-center gap-1" role="tablist" aria-label="Discover sections">
+          {DISCOVER_TABS.map(({ id, label, Icon }) => (
+            <button
+              key={id}
+              type="button"
+              role="tab"
+              aria-selected={tab === id}
+              data-testid={`discover-tab-${id}`}
+              onClick={() => setTabUrl(id)}
+              className={cn(
+                'flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-sm font-medium transition-colors',
+                'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background',
+                tab === id
+                  ? 'bg-brand-muted text-brand-300'
+                  : 'text-muted-foreground hover:text-foreground hover:bg-elevated',
+              )}
+            >
+              <Icon className="h-4 w-4" strokeWidth={1.75} />
+              <span>{label}</span>
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {tab === 'posts' ? (
+        <>
       {/* Controls: presets + knobs */}
       <div className="px-4 py-3 md:px-0">
         <KnobRack
@@ -1207,38 +1068,6 @@ export default function DiscoverScreen() {
           onPreset={handlePreset}
         />
       </div>
-
-      {/* People to follow rail */}
-      {showSuggested && (
-        <section
-          data-testid="discover-suggested"
-          className="px-4 py-3 md:px-0"
-          aria-label="People to follow"
-        >
-          <div className="mb-3 flex items-center gap-2">
-            <Users className="h-4 w-4 text-brand-400" strokeWidth={1.75} />
-            <h2 className="font-display text-sm font-semibold text-foreground">People to follow</h2>
-          </div>
-          <div className="flex gap-3 overflow-x-auto pb-2 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
-            {suggestedLoading
-              ? Array.from({ length: 4 }).map((_, i) => <SuggestedUserSkeleton key={i} />)
-              : suggested.map((user) => {
-                  const key = `${user.username}@${user.provider}`;
-                  return (
-                    <DiscoverUserCard
-                      key={key}
-                      user={user}
-                      isFollowing={!!followStates[key]}
-                      followLoading={!!followLoading[key]}
-                      onFollow={() => handleFollow(user)}
-                      onUnfollow={() => handleUnfollow(user)}
-                      onViewProfile={() => navigateToUserProfile(user.username, user.provider)}
-                    />
-                  );
-                })}
-          </div>
-        </section>
-      )}
 
       {/* Topic filter chips */}
       {topics.length > 1 && (
@@ -1388,6 +1217,16 @@ export default function DiscoverScreen() {
           <DiscoverEmptyState />
         )}
       </div>
+        </>
+      ) : (
+        <div className="flex-1">
+          {tab === 'people' ? (
+            <DiscoverPeopleTab q={searchQuery} />
+          ) : (
+            <DiscoverGroupsTab q={searchQuery} />
+          )}
+        </div>
+      )}
       </div>
     </div>
   );
