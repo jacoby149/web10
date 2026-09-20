@@ -1296,7 +1296,9 @@ def readable_groups(principal: str, service: str, authenticated: bool, candidate
     return [g for g in candidate_group_ids if can_read_group(g, principal, service, authenticated)]
 
 
-def readable_groups_batched(principal: str, service: str, authenticated: bool, candidate_group_ids: list[str]) -> list[str]:
+def readable_groups_batched(
+    principal: str, service: str, authenticated: bool, candidate_group_ids: list[str]
+) -> list[str]:
     """Batched version of :func:`readable_groups` for high-fanout reads (the
     people directory — every user's followers group at once).
 
@@ -3240,9 +3242,7 @@ def list_public_users(reader: str, authenticated: bool, limit: int = 20, offset:
 
     # Each user's followers group (the deterministic id the node and the social
     # app derive: {provider}/groups/users/{username}/followers).
-    user_to_group = {
-        u["username"]: f"{settings.PROVIDER}/groups/users/{u['username']}/followers" for u in users
-    }
+    user_to_group = {u["username"]: f"{settings.PROVIDER}/groups/users/{u['username']}/followers" for u in users}
     group_ids = list(user_to_group.values())
 
     # I3 read gate: which followers groups can the reader read `profile` in?

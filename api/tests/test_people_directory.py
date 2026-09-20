@@ -102,10 +102,7 @@ def _dispatch(reader: str, authenticated: bool):
             return _rows([(fgid(u), COUNTS[u]) for u in COUNTS])
         if "p.doc_id AS doc_id" in sql:
             return _rows(
-                [
-                    (f"doc-{u}", u, json.dumps(FACES[u]), [], "2026-01-01T00:00:00", "", "none", "")
-                    for u in FACES
-                ]
+                [(f"doc-{u}", u, json.dumps(FACES[u]), [], "2026-01-01T00:00:00", "", "none", "") for u in FACES]
             )
         if "FROM group_members WHERE member_key = %(member_key)s" in sql:
             return _rows([(g,) for g in member_groups])
