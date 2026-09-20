@@ -1,27 +1,20 @@
 import { getV3Client } from './v3';
-import {
-  followersGroupId,
-  getGroupMembers,
-  getDiscoverGroupId,
-  isInfrastructureGroup,
-} from './groups';
-import { readUserProfile } from './profile';
 import { resolveMediaRefs } from './posts';
-import { extractUsername } from './types';
 
 const LOG = (...args: unknown[]) => console.log('[social:people]', ...args);
 
-// ── People discovery (find profiles) ─────────────────────────────────────────
-// There is no user directory on the node, so candidates are derived from the
-// social graph the client can already read:
-//   1. authors of posts on the discover board (people actively publishing),
-//   2. members of the communities the current user belongs to.
-// "How much in common" is the mutual-follow count: for a candidate X,
-// mutuals(X) = |followers(X) ∩ my-following| — people you follow who also
-// follow them (the "N mutuals" signal). Follows ARE group membership, so a
-// candidate's follower list is just the member list of their followers group
-// (the same read the profile screen uses for follower counts) — no node
-// changes are needed.
+// ── People browser (discover-reorg D2) ───────────────────────────────────────
+// The data source is the node's public people directory (D0): one server-side
+// composition that returns a paged, follower-ranked list of the users whose
+// profile face the reader can read (I3). `follower_count` is the unspoofable
+// membership aggregate (count of the user's followers group) — not a stored
+// field, so a user can't fake it. Principal-based: anon sees the public
+// subset, a signed-in reader sees more (their follows + the public subset).
+//
+// The client's only job on top of the D0 read is per-card enrichment: the
+// reader's own follow flag (is the person in my following set?) and the
+// presigned face media (avatar/banner). No per-user profile reads — D0
+// returns the face, so the client never fans out to N profile reads.
 
 /** One row in the People list. */
 export interface PersonCard {
@@ -35,52 +28,33 @@ export interface PersonCard {
   /** Presigned URLs for the card's face media (may be undefined). */
   avatar_url?: string;
   banner_url?: string;
+  /** The unspoofable follower count (D0: count of the followers group). */
   followers_count: number;
-  /** People you follow who also follow this user. */
-  mutuals: number;
+  /** Whether the reader follows this person. */
   is_following: boolean;
 }
 
-export type PeopleSort = 'mutuals' | 'popular' | 'az';
+export type PeopleSort = 'popular' | 'az';
+
+/** The default sort (the server's follower ranking). */
+export const DEFAULT_PEOPLE_SORT: PeopleSort = 'popular';
 
 /**
- * How many of the candidate's followers you also follow (the "N mutuals").
- * Pure — unit-testable without a client.
- */
-export function computeMutuals(
-  theirFollowers: string[],
-  myFollowing: ReadonlySet<string>,
-): number {
-  let n = 0;
-  for (const u of theirFollowers) {
-    if (myFollowing.has(u)) n += 1;
-  }
-  return n;
-}
-
-/**
- * Order a people list for display. Non-mutating; ties break by follower
- * count, then username, so the order is stable across reloads.
+ * Order a people list for display. Non-mutating; ties break by username so the
+ * order is stable across reloads. `popular` is the server's follower ranking
+ * (the D0 order); `az` is alphabetical.
  */
 export function sortPeople(people: PersonCard[], sort: PeopleSort): PersonCard[] {
   const arr = [...people];
   switch (sort) {
-    case 'popular':
-      arr.sort(
-        (a, b) =>
-          b.followers_count - a.followers_count || a.username.localeCompare(b.username),
-      );
-      break;
     case 'az':
       arr.sort((a, b) => a.username.localeCompare(b.username));
       break;
-    case 'mutuals':
+    case 'popular':
     default:
       arr.sort(
         (a, b) =>
-          b.mutuals - a.mutuals ||
-          b.followers_count - a.followers_count ||
-          a.username.localeCompare(b.username),
+          b.followers_count - a.followers_count || a.username.localeCompare(b.username),
       );
       break;
   }
@@ -88,123 +62,103 @@ export function sortPeople(people: PersonCard[], sort: PeopleSort): PersonCard[]
 }
 
 /**
- * Fetch the people list for the current user.
- *
- * Candidate pool (deduped, self excluded, capped at `limit`):
- *   - authors of posts on the discover board, then
- *   - members of the current user's community groups.
- * Each candidate gets their profile face (display name, bio, avatar/banner),
- * their follower list, and the derived mutuals / is_following flags.
+ * Client-side `?q=` filter (name or handle, case-insensitive). The D0 read is
+ * server-paged + follower-ranked and takes no query, so the query filters the
+ * loaded pages; "view more" reveals more.
  */
-export async function fetchPeople(limit = 20): Promise<PersonCard[]> {
+export function filterPeople(people: PersonCard[], query: string): PersonCard[] {
+  const q = query.trim().toLowerCase();
+  if (!q) return people;
+  return people.filter(
+    (p) =>
+      p.display_name?.toLowerCase().includes(q) || p.username.toLowerCase().includes(q),
+  );
+}
+
+export interface PeoplePage {
+  people: PersonCard[];
+  /** True when the page came back full — there may be another page. */
+  hasMore: boolean;
+}
+
+/**
+ * Fetch one page of the People browser from the node's public directory (D0).
+ *
+ * The D0 read returns `{ username, follower_count, profile }` per user, paged
+ * + follower-ranked + I3-gated. This wraps it with the per-card enrichment the
+ * card needs: the reader's own follow flag (one my-follows read, shared across
+ * the page) and the presigned face media (avatar/banner).
+ */
+export async function fetchPeoplePage(opts: {
+  limit: number;
+  offset: number;
+}): Promise<PeoplePage> {
   const w = getV3Client();
   const token = w.readToken();
-  if (!token) {
-    LOG('fetchPeople — no token, returning []');
-    return [];
-  }
-  const me = token.username;
-  const provider = token.provider;
+  const provider = token?.provider || 'web10';
 
-  // 1. My following set — follows are group membership, so it is exactly the
-  //    set of `/followers` groups I belong to (same rule as readFollows).
-  const myGroups = await w.getMyGroups();
-  const myFollowing = new Set<string>(
-    myGroups
-      .filter((g) => g.group_id.endsWith('/followers'))
-      .map((g) => g.group_id.split('/').slice(-2, -1)[0]),
-  );
-  LOG('fetchPeople — following', myFollowing.size, 'user(s)');
+  LOG('fetchPeoplePage — start, limit:', opts.limit, 'offset:', opts.offset);
+  const page = await w.listPeopleDirectory({
+    limit: opts.limit,
+    offset: opts.offset,
+  });
+  LOG('fetchPeoplePage — got', page.users.length, 'user(s)');
 
-  // 2. Candidate pool: discover-board authors first (active publishers),
-  //    then members of my community groups.
-  const candidates: string[] = [];
-  const seen = new Set<string>([me]);
-  const add = (u?: string | null): void => {
-    if (!u || seen.has(u)) return;
-    seen.add(u);
-    candidates.push(u);
-  };
-
-  try {
-    const docs = await w.read('posts', {
-      groups: [getDiscoverGroupId()],
-      limit: limit * 3,
-    });
-    for (const d of docs) add(extractUsername(d.author_key));
-    LOG('fetchPeople — discover authors seen:', candidates.length);
-  } catch (e) {
-    LOG('fetchPeople — discover authors read failed (continuing):', e);
-  }
-
-  const communityGroups = myGroups.filter(
-    (g) => !isInfrastructureGroup(g.group_id, me),
-  );
-  for (const g of communityGroups) {
+  // My following set — follows are group membership, so it is exactly the set
+  // of `/followers` groups I belong to (one read, shared across the page).
+  // Anon (no token) has no following set — every card is is_following: false.
+  let myFollowing = new Set<string>();
+  if (token) {
     try {
-      const members = await getGroupMembers(g.group_id);
-      for (const m of members) add(extractUsername(m.member_key));
+      const myGroups = await w.getMyGroups();
+      myFollowing = new Set(
+        myGroups
+          .filter((g) => g.group_id.endsWith('/followers'))
+          .map((g) => g.group_id.split('/').slice(-2, -1)[0]),
+      );
     } catch (e) {
-      LOG('fetchPeople — community members failed for', g.group_id, ':', e);
+      LOG('fetchPeoplePage — my-follows read failed (degrading to no follows):', e);
     }
   }
 
-  const pool = candidates.slice(0, limit);
-  LOG('fetchPeople — pool size', pool.length, 'of', candidates.length, 'candidates');
-  if (!pool.length) return [];
+  const people: PersonCard[] = page.users.map((u) => {
+    const profile = (u.profile || {}) as Record<string, unknown>;
+    return {
+      username: u.username,
+      provider,
+      display_name: (profile.display_name as string) || u.username,
+      bio: (profile.bio as string) || undefined,
+      avatar_ref: (profile.avatar_ref as string) || undefined,
+      banner_ref: (profile.banner_ref as string) || undefined,
+      followers_count: u.follower_count,
+      is_following: myFollowing.has(u.username),
+    };
+  });
 
-  // 3. Per candidate: profile face + follower list (parallel; each read
-  //    degrades independently so one bad profile never blanks the list).
-  const cards = await Promise.all(
-    pool.map(async (username): Promise<PersonCard> => {
-      let profile: Awaited<ReturnType<typeof readUserProfile>> = null;
+  // Resolve the face media (avatar + banner) per person — owner-scoped reads,
+  // so one call per person. Failures degrade to the card's fallback face.
+  await Promise.all(
+    people.map(async (card) => {
+      const refs = [card.avatar_ref, card.banner_ref].filter(Boolean) as string[];
+      if (!refs.length) return;
       try {
-        profile = await readUserProfile(username);
-      } catch {
-        // No profile doc yet — the card renders from the username alone.
+        const media = await resolveMediaRefs(
+          refs,
+          { username: card.username, provider: card.provider },
+          'public_media',
+        );
+        for (const m of media) {
+          if (m._id === card.avatar_ref) card.avatar_url = m.url;
+          else if (m._id === card.banner_ref) card.banner_url = m.url;
+        }
+      } catch (e) {
+        LOG('fetchPeoplePage — face media failed for', card.username, ':', e);
       }
-      let followers: string[] = [];
-      try {
-        const members = await getGroupMembers(followersGroupId(username, provider));
-        followers = members.map((m) => extractUsername(m.member_key));
-      } catch {
-        // No followers group yet (or unreadable) — treat as zero followers.
-      }
-      return {
-        username,
-        provider,
-        display_name: profile?.display_name || username,
-        bio: profile?.bio,
-        avatar_ref: profile?.avatar_ref,
-        banner_ref: profile?.banner_ref,
-        followers_count: followers.length,
-        mutuals: computeMutuals(followers, myFollowing),
-        is_following: myFollowing.has(username),
-      };
     }),
   );
 
-  // 4. Resolve the face media (avatar + banner) per author — owner-scoped
-  //    reads, so one call per candidate. Failures degrade to the initial
-  //    fallback in the card.
-  for (const card of cards) {
-    const refs = [card.avatar_ref, card.banner_ref].filter(Boolean) as string[];
-    if (!refs.length) continue;
-    try {
-      const media = await resolveMediaRefs(
-        refs,
-        { username: card.username, provider: card.provider },
-        'public_media',
-      );
-      for (const m of media) {
-        if (m._id === card.avatar_ref) card.avatar_url = m.url;
-        else if (m._id === card.banner_ref) card.banner_url = m.url;
-      }
-    } catch (e) {
-      LOG('fetchPeople — face media failed for', card.username, ':', e);
-    }
-  }
-
-  LOG('fetchPeople — returned', cards.length, 'person card(s)');
-  return cards;
+  // A full page means there may be another; a short page is the last one.
+  const hasMore = page.users.length >= opts.limit;
+  LOG('fetchPeoplePage — returned', people.length, 'card(s), hasMore:', hasMore);
+  return { people, hasMore };
 }
