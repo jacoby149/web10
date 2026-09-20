@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useMemo } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
@@ -32,6 +32,8 @@ import ManageSettingsSection from '@/components/Groups/ManageGroup/SettingsSecti
 import ManageMembersSection from '@/components/Groups/ManageGroup/MembersSection';
 import ManageRolesSection from '@/components/Groups/ManageGroup/RolesSection';
 import { toast, errorMessage } from '@/components/shared/Toast';
+import { PostCard } from '@/components/Feed/FeedScreen';
+import PostComposer from '@/components/Feed/PostComposer';
 import {
   ArrowLeft,
   Users,
@@ -43,13 +45,10 @@ import {
   AlertTriangle,
   RefreshCw,
   Globe,
-  Send,
   Settings,
   ImagePlus,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { VideoPlayer, sourceFromMedia } from '@/components/Feed/VideoPlayer';
-import { PostActions } from '@/components/Feed/PostActions';
 
 const LOG = (...args: unknown[]) => console.log('[social:groups:detail]', ...args);
 
@@ -73,72 +72,21 @@ function formatCount(n: number): string {
   return String(n);
 }
 
-function formatTimeAgo(dateStr: string): string {
-  const diff = Date.now() - new Date(dateStr).getTime();
-  const mins = Math.floor(diff / 60000);
-  if (mins < 1) return 'now';
-  if (mins < 60) return `${mins}m`;
-  const hrs = Math.floor(mins / 60);
-  if (hrs < 24) return `${hrs}h`;
-  const days = Math.floor(hrs / 24);
-  if (days < 7) return `${days}d`;
-  return new Date(dateStr).toLocaleDateString();
-}
+// ── Group feed post (the reference PostCard, group-scoped) ─────────────────
+// The feed is the reference renderer (FeedScreen's PostCard) — no surface
+// re-implements the card. This wrapper owns the per-post engagement state
+// (the reaction pair + comment count, scoped to the group — reactions and
+// comments attach to the group, not the discover board, post-actions.md) and
+// hands the card the group via `groups` so every engagement write lands in
+// the group.
 
-// ── Media renderer (images + video, natural ratio) ─────────────────────────
-
-function PostMedia({ media }: { media: MediaRecord[] }) {
-  if (!media.length) return null;
-  const single = media.length === 1;
-  return (
-    <div className={cn('mt-3 grid gap-1.5', single ? 'grid-cols-1' : 'grid-cols-2')}>
-      {media.map((m, i) => {
-        const isVideo = (m.mime_type || '').startsWith('video/');
-        const isImage = (m.mime_type || '').startsWith('image/');
-        if (isVideo) {
-          return (
-            <VideoPlayer
-              key={m._id || i}
-              source={sourceFromMedia(m)}
-              mode="inline"
-              fit="contain"
-              maxHeight="60vh"
-              testId="group-post-video"
-              className="rounded-lg ring-1 ring-border"
-            />
-          );
-        }
-        if (isImage) {
-          return (
-            <img
-              key={m._id || i}
-              src={m.url}
-              alt=""
-              className={cn(
-                'w-full rounded-lg object-cover ring-1 ring-border',
-                single ? 'max-h-[60vh]' : 'aspect-square',
-              )}
-              data-testid="group-post-image"
-            />
-          );
-        }
-        return null;
-      })}
-    </div>
-  );
-}
-
-// ── Post card (member view) ────────────────────────────────────────────────
-
-function GroupPostCard({ post, media, groupId }: { post: PostRecord; media: MediaRecord[]; groupId: string }) {
+function GroupFeedPost({ post, media, groupId }: { post: PostRecord; media: MediaRecord[]; groupId: string }) {
   const navigate = useNavigate();
   const author = post.author_username || post.author || 'unknown';
-  const displayName = author.charAt(0).toUpperCase() + author.slice(1);
 
   // Engagement state (post-actions.md): the reaction pair + comment count,
-  // scoped to the group (reactions/comments attach to the group, not the
-  // discover board). Loaded on mount — the group feed is a short list, not a
-  // paginated feed, so a per-card read is fine (the lightbox's pattern).
+  // scoped to the group. Loaded on mount — the group feed is a short list,
+  // not a paginated feed, so a per-card read is fine (the lightbox's pattern).
   const [liked, setLiked] = useState(false);
   const [disliked, setDisliked] = useState(false);
   const [likeCount, setLikeCount] = useState(0);
@@ -228,114 +176,30 @@ function GroupPostCard({ post, media, groupId }: { post: PostRecord; media: Medi
   }
 
   return (
-    <article data-testid="group-post-card" className="rounded-lg border border-border bg-card p-4">
-      <div className="flex items-center gap-3">
-        <Avatar className={cn('h-9 w-9 shrink-0', hashToColor(author))}>
-          <AvatarFallback className="text-foreground text-sm font-semibold">
-            {author.charAt(0).toUpperCase()}
-          </AvatarFallback>
-        </Avatar>
-        <div className="min-w-0 flex-1">
-          <p className="truncate text-sm font-semibold text-foreground">{displayName}</p>
-          <p className="text-xs text-muted-foreground">{formatTimeAgo(post.created_at)}</p>
-        </div>
-      </div>
-      {post.text && (
-        <p className="mt-3 whitespace-pre-wrap text-sm leading-relaxed text-foreground">{post.text}</p>
-      )}
-      <PostMedia media={media} />
-      <PostActions
-        postId={post._id || ''}
-        liked={liked}
-        disliked={disliked}
-        reactionCount={likeCount}
-        dislikeCount={dislikeCount}
-        commentCount={commentCount}
-        onToggleReaction={handleToggleReaction}
-        onCommentCountChange={setCommentCount}
-        postAuthor={author}
-        groups={[groupId]}
-        onAuthorClick={(username) => navigate(`/u/${username}`)}
-        dislike="interactive"
-        repost="interactive"
-        reposted={reposted}
-        repostCount={repostCount}
-        onToggleRepost={handleToggleRepost}
-        testId="group-post-actions"
-      />
-    </article>
-  );
-}
-
-// ── Composer (member only) ─────────────────────────────────────────────────
-
-function GroupComposer({ groupId, onPosted }: { groupId: string; onPosted: () => void }) {
-  const [text, setText] = useState('');
-  const [posting, setPosting] = useState(false);
-  const username = useMemo(() => {
-    try {
-      return getV3Client().readToken()?.username || 'you';
-    } catch {
-      return 'you';
-    }
-  }, []);
-
-  const handlePost = useCallback(async () => {
-    const body = text.trim();
-    if (!body || posting) return;
-    setPosting(true);
-    LOG('composer — posting to', groupId);
-    try {
-      const w = getV3Client();
-      await w.create('posts', { text: body }, { groups: [groupId] });
-      LOG('composer — posted');
-      setText('');
-      onPosted();
-    } catch (e) {
-      LOG('composer — failed:', e);
-      toast.error(errorMessage(e, 'Could not post to the group.'));
-    } finally {
-      setPosting(false);
-    }
-  }, [text, posting, groupId, onPosted]);
-
-  return (
-    <div className="mb-4 flex items-start gap-3" data-testid="group-composer">
-      <Avatar className={cn('h-9 w-9 shrink-0', hashToColor(username))}>
-        <AvatarFallback className="text-foreground text-sm font-semibold">{username.charAt(0).toUpperCase()}</AvatarFallback>
-      </Avatar>
-      <div className="flex-1">
-        <textarea
-          value={text}
-          onChange={(e) => setText(e.target.value)}
-          onKeyDown={(e) => {
-            if ((e.metaKey || e.ctrlKey) && e.key === 'Enter') handlePost();
-          }}
-          placeholder="Share with the group…"
-          rows={2}
-          disabled={posting}
-          data-testid="group-composer-input"
-          className="w-full resize-none rounded-lg border border-input bg-surface px-3 py-2 text-sm placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-brand/50 transition-colors duration-150"
-        />
-        <div className="mt-2 flex justify-end">
-          <Button
-            variant="brand"
-            size="sm"
-            onClick={handlePost}
-            disabled={posting || !text.trim()}
-            className="gap-1.5"
-            data-testid="group-composer-post"
-          >
-            {posting ? (
-              <Loader2 className="h-3.5 w-3.5 animate-spin" strokeWidth={2} />
-            ) : (
-              <Send className="h-3.5 w-3.5" strokeWidth={1.75} />
-            )}
-            Post
-          </Button>
-        </div>
-      </div>
-    </div>
+    <PostCard
+      post={post}
+      authorName={author}
+      authorUsername={post.author_username}
+      authorProvider={post.author_provider}
+      mediaItems={media}
+      reactionCount={likeCount}
+      dislikeCount={dislikeCount}
+      commentCount={commentCount}
+      liked={liked}
+      disliked={disliked}
+      reposted={reposted}
+      repostCount={repostCount}
+      onToggleRepost={handleToggleRepost}
+      timestamp={post.created_at}
+      onToggleReaction={handleToggleReaction}
+      onCommentCountChange={setCommentCount}
+      onAuthorClick={(username) => navigate(`/u/${username}`)}
+      postAuthor={post.author_username}
+      groups={[groupId]}
+      isOwnPost={token ? post.author_username === token.username : false}
+      onPostUpdated={() => {}}
+      testId="group-post-card"
+    />
   );
 }
 
@@ -619,21 +483,34 @@ export default function GroupDetailScreen({ groupId }: { groupId: string }) {
           )}
         </div>
 
-        {/* The hero — the group's face (or a designed empty state when it has none) */}
-        {hasFace ? (
-          <div data-testid="group-detail-hero">
-            {bannerUrl && (
-              <div className="h-28 w-full overflow-hidden md:h-40" data-testid="group-detail-banner">
-                <img src={bannerUrl} alt="" className="h-full w-full object-cover" data-testid="group-detail-banner-img" />
-              </div>
+        {/* The hero — the group's face, profile-shaped (banner + overlapping
+            avatar + name + about), the same shape as a user profile. The
+            banner is ALWAYS present (the brand gradient when the group has
+            no cover) so the page never collapses to a bare header. */}
+        <div data-testid="group-detail-hero">
+          <div
+            className={cn(
+              'relative h-32 w-full overflow-hidden sm:h-44',
+              'bg-gradient-to-br from-brand/40 via-brand-muted to-background',
             )}
-            <div className={cn('flex items-end gap-3 px-4', bannerUrl ? '-mt-8 pb-0' : 'pt-4', 'md:px-0')}>
-              <div className="shrink-0 rounded-full border-4 border-card">
-                <Avatar className={cn('h-16 w-16', hashToColor(detail.group_id))}>
+            data-testid="group-detail-banner"
+          >
+            <div
+              className="absolute inset-0 bg-gradient-to-t from-background/60 via-transparent to-brand/10"
+              aria-hidden="true"
+            />
+            {bannerUrl && (
+              <img src={bannerUrl} alt="" className="absolute inset-0 h-full w-full object-cover" data-testid="group-detail-banner-img" />
+            )}
+          </div>
+          <div className="px-4 sm:px-6">
+            <div className="flex items-end justify-between gap-4 -mt-14">
+              <div className="shrink-0 rounded-full border-4 border-background">
+                <Avatar className={cn('h-20 w-20', hashToColor(detail.group_id))}>
                   {avatarUrl ? (
                     <img src={avatarUrl} alt="" className="h-full w-full rounded-full object-cover" data-testid="group-detail-avatar-img" />
                   ) : (
-                    <AvatarFallback className="text-foreground text-xl font-semibold">
+                    <AvatarFallback className="text-foreground text-3xl font-semibold">
                       {displayName.charAt(0).toUpperCase()}
                     </AvatarFallback>
                   )}
@@ -641,7 +518,7 @@ export default function GroupDetailScreen({ groupId }: { groupId: string }) {
               </div>
               <div className="min-w-0 flex-1 pb-1">
                 <div className="flex flex-wrap items-center gap-2">
-                  <h1 className="truncate font-display text-lg font-bold text-foreground" data-testid="group-detail-name">
+                  <h1 className="truncate font-display text-xl font-bold text-foreground" data-testid="group-detail-name">
                     {displayName}
                   </h1>
                   {detail.discoverable && (
@@ -668,7 +545,7 @@ export default function GroupDetailScreen({ groupId }: { groupId: string }) {
               </div>
             </div>
             {hasAbout && (
-              <div className="border-b border-border px-4 py-3 md:px-0">
+              <div className="mt-3 pb-4">
                 {identity.description && (
                   <p className="text-sm leading-relaxed text-foreground" data-testid="group-detail-description">
                     {identity.description}
@@ -697,36 +574,7 @@ export default function GroupDetailScreen({ groupId }: { groupId: string }) {
                 )}
               </div>
             )}
-          </div>
-        ) : (
-          <div className="border-b border-border px-4 py-4 md:px-0" data-testid="group-detail-hero-empty">
-            <div className="flex items-center gap-3">
-              <div className="shrink-0">
-                <Avatar className={cn('h-12 w-12', hashToColor(detail.group_id))}>
-                  <AvatarFallback className="text-foreground text-lg font-semibold">
-                    {displayName.charAt(0).toUpperCase()}
-                  </AvatarFallback>
-                </Avatar>
-              </div>
-              <div className="min-w-0 flex-1">
-                <div className="flex flex-wrap items-center gap-2">
-                  <h1 className="truncate font-display text-lg font-bold text-foreground" data-testid="group-detail-name">
-                    {displayName}
-                  </h1>
-                  {detail.discoverable && (
-                    <Badge variant="brand" className="normal-case tracking-normal" data-testid="group-detail-listed">
-                      Listed
-                    </Badge>
-                  )}
-                </div>
-                <p className="mt-0.5 flex items-center gap-1.5 text-xs text-muted-foreground">
-                  <span className="tabular-nums">{formatCount(detail.member_count)} members</span>
-                  <span aria-hidden="true">·</span>
-                  <span>by @{detail.owner}</span>
-                </p>
-              </div>
-            </div>
-            {canManage && (
+            {!hasFace && canManage && (
               <button
                 type="button"
                 onClick={() => setManageOpen(true)}
@@ -737,8 +585,9 @@ export default function GroupDetailScreen({ groupId }: { groupId: string }) {
                 Add a cover &amp; about
               </button>
             )}
+            {!hasAbout && <div className="pb-4" />}
           </div>
-        )}
+        </div>
 
         {/* Join / Leave — the membership action, below the hero */}
         <div className="flex items-center justify-end gap-2 border-b border-border px-4 py-3 md:px-0" data-testid="group-detail-actions">
@@ -792,15 +641,19 @@ export default function GroupDetailScreen({ groupId }: { groupId: string }) {
           )}
         </div>
 
-        {/* The feed — the dominant surface */}
+        {/* The feed — the dominant surface (the reference feed card + composer) */}
         <div className="flex-1 px-4 py-4 md:px-0">
           {detail.posts_state === 'ok' ? (
             <>
-              {detail.is_member && <GroupComposer groupId={detail.group_id} onPosted={load} />}
-              <div className="space-y-3" data-testid="group-detail-posts">
+              {detail.is_member && (
+                <div data-testid="group-composer" className="mb-4">
+                  <PostComposer groups={[detail.group_id]} onPostCreated={load} />
+                </div>
+              )}
+              <div data-testid="group-detail-posts">
                 {postRecords.length > 0 ? (
                   postRecords.map((p) => (
-                    <GroupPostCard
+                    <GroupFeedPost
                       key={p._id || p.created_at}
                       post={p}
                       media={(p.media_refs || []).map((r) => mediaMap[mediaRefId(r)]).filter(Boolean)}
