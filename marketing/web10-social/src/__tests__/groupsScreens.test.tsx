@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, fireEvent, waitFor, within } from '@testing-library/react';
-import { MemoryRouter } from 'react-router-dom';
+import { MemoryRouter, Routes, Route, useLocation } from 'react-router-dom';
 import '@testing-library/jest-dom';
 
 // Mock lucide-react icons as simple span elements (any icon, no manual list)
@@ -158,14 +158,20 @@ const mockDetailNonMember = {
   posts: [],
 };
 
+// A location probe — renders the current pathname + search so a redirect can
+// be asserted (the /groups?tab=discover → /discover?tab=groups hand-off).
+function LocationProbe() {
+  const location = useLocation();
+  return <div data-testid="location-probe">{location.pathname}{location.search}</div>;
+}
+
 describe('GroupsScreen', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     vi.mocked(getMyCommunityGroups).mockResolvedValue(mockMyGroups as never);
-    vi.mocked(readGroupDirectory).mockResolvedValue(mockDirectory as never);
   });
 
-  it('defaults to the My Groups tab and renders the community groups', async () => {
+  it('renders the My Groups list (the Discover tab is gone)', async () => {
     const { default: GroupsScreen } = await import('@/components/Groups/GroupsScreen');
     render(
       <MemoryRouter initialEntries={['/groups']}>
@@ -175,7 +181,9 @@ describe('GroupsScreen', () => {
     await waitFor(() => {
       expect(screen.getByTestId('groups-my-list')).toBeInTheDocument();
     });
-    expect(screen.getByTestId('groups-tab-my')).toHaveAttribute('aria-selected', 'true');
+    // No tab toggle anymore — /groups is My Groups only.
+    expect(screen.queryByTestId('groups-tab-my')).not.toBeInTheDocument();
+    expect(screen.queryByTestId('groups-tab-discover')).not.toBeInTheDocument();
     expect(screen.getAllByTestId('groups-my-row').length).toBe(2);
     expect(screen.getByText('gaming')).toBeInTheDocument();
     expect(screen.getByText('photography')).toBeInTheDocument();
@@ -238,39 +246,80 @@ describe('GroupsScreen', () => {
     const { default: GroupsScreen } = await import('@/components/Groups/GroupsScreen');
     render(
       <MemoryRouter initialEntries={['/groups']}>
-        <GroupsScreen />
+        <Routes>
+          <Route path="/groups" element={<GroupsScreen />} />
+          <Route path="/discover" element={<LocationProbe />} />
+        </Routes>
       </MemoryRouter>,
     );
     await waitFor(() => {
       expect(screen.getByTestId('groups-my-empty')).toBeInTheDocument();
     });
     expect(screen.getByText(/not in any groups yet/i)).toBeInTheDocument();
+    // The CTA now points at the Discover/Groups subtab (the directory's new home).
     fireEvent.click(screen.getByTestId('groups-my-empty-cta'));
     await waitFor(() => {
-      expect(screen.getByTestId('groups-discover-view')).toBeInTheDocument();
+      expect(screen.getByTestId('location-probe')).toHaveTextContent('/discover?tab=groups');
     });
   });
 
-  it('restores the Discover tab from ?tab=discover (deep link)', async () => {
+  it('redirects /groups?tab=discover to /discover?tab=groups (carrying the filters)', async () => {
+    vi.mocked(getMyCommunityGroups).mockResolvedValue([]);
     const { default: GroupsScreen } = await import('@/components/Groups/GroupsScreen');
     render(
-      <MemoryRouter initialEntries={['/groups?tab=discover']}>
-        <GroupsScreen />
+      <MemoryRouter initialEntries={['/groups?tab=discover&q=photo&tag=retro']}>
+        <Routes>
+          <Route path="/groups" element={<GroupsScreen />} />
+          <Route path="/discover" element={<LocationProbe />} />
+        </Routes>
       </MemoryRouter>,
     );
     await waitFor(() => {
-      expect(screen.getByTestId('groups-discover-view')).toBeInTheDocument();
+      expect(screen.getByTestId('location-probe')).toHaveTextContent('/discover?tab=groups&q=photo&tag=retro');
     });
-    expect(screen.getByTestId('groups-tab-discover')).toHaveAttribute('aria-selected', 'true');
+    // The my-groups fetch is skipped while redirecting.
+    expect(getMyCommunityGroups).not.toHaveBeenCalled();
+  });
+});
+
+describe('DiscoverGroupsTab', () => {
+  // 25 groups — more than one PAGE_SIZE (20) so "view more" has a second page
+  // to append, then a short final page that exhausts the directory.
+  const ALL_GROUPS = Array.from({ length: 25 }, (_, i) => ({
+    group_id: `api.localhost/groups/users/user${i}/group${i}`,
+    name: `Group ${i}`,
+    owner: `user${i}`,
+    slug: `group${i}`,
+    join_policy: 'open',
+    member_count: i,
+    tags: i % 2 === 0 ? ['even'] : ['odd'],
+    permission_summary: 'member: readAll',
+  }));
+
+  function pagedDirectory(limit: number, offset: number) {
+    return ALL_GROUPS.slice(offset, offset + limit);
+  }
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+    vi.mocked(readGroupDirectory).mockImplementation(
+      (limit: number, offset: number) => Promise.resolve(pagedDirectory(limit, offset) as never),
+    );
   });
 
-  it('renders the directory grid with names, owners, and member counts', async () => {
-    const { default: GroupsScreen } = await import('@/components/Groups/GroupsScreen');
-    render(
-      <MemoryRouter initialEntries={['/groups?tab=discover']}>
-        <GroupsScreen />
-      </MemoryRouter>,
+  function renderTab(initialEntry = '/discover?tab=groups', query = '') {
+    return import('@/components/Discover/DiscoverGroupsTab').then(({ default: DiscoverGroupsTab }) =>
+      render(
+        <MemoryRouter initialEntries={[initialEntry]}>
+          <DiscoverGroupsTab query={query} />
+        </MemoryRouter>,
+      ),
     );
+  }
+
+  it('renders the directory grid with names, owners, and member counts', async () => {
+    vi.mocked(readGroupDirectory).mockResolvedValue(mockDirectory as never);
+    await renderTab();
     await waitFor(() => {
       expect(screen.getByTestId('groups-discover-grid')).toBeInTheDocument();
     });
@@ -281,12 +330,8 @@ describe('GroupsScreen', () => {
   });
 
   it('joining an open group calls joinGroup and flips the button to Joined', async () => {
-    const { default: GroupsScreen } = await import('@/components/Groups/GroupsScreen');
-    render(
-      <MemoryRouter initialEntries={['/groups?tab=discover']}>
-        <GroupsScreen />
-      </MemoryRouter>,
-    );
+    vi.mocked(readGroupDirectory).mockResolvedValue(mockDirectory as never);
+    await renderTab();
     await waitFor(() => {
       expect(screen.getByTestId('groups-discover-grid')).toBeInTheDocument();
     });
@@ -302,12 +347,8 @@ describe('GroupsScreen', () => {
   });
 
   it('requesting a request-policy group calls requestJoinGroup and flips to Requested', async () => {
-    const { default: GroupsScreen } = await import('@/components/Groups/GroupsScreen');
-    render(
-      <MemoryRouter initialEntries={['/groups?tab=discover']}>
-        <GroupsScreen />
-      </MemoryRouter>,
-    );
+    vi.mocked(readGroupDirectory).mockResolvedValue(mockDirectory as never);
+    await renderTab();
     await waitFor(() => {
       expect(screen.getByTestId('groups-discover-grid')).toBeInTheDocument();
     });
@@ -323,12 +364,8 @@ describe('GroupsScreen', () => {
   });
 
   it('invite-only groups show a disabled Invite only button', async () => {
-    const { default: GroupsScreen } = await import('@/components/Groups/GroupsScreen');
-    render(
-      <MemoryRouter initialEntries={['/groups?tab=discover']}>
-        <GroupsScreen />
-      </MemoryRouter>,
-    );
+    vi.mocked(readGroupDirectory).mockResolvedValue(mockDirectory as never);
+    await renderTab();
     await waitFor(() => {
       expect(screen.getByTestId('groups-discover-grid')).toBeInTheDocument();
     });
@@ -339,28 +376,22 @@ describe('GroupsScreen', () => {
     expect(btn).toHaveTextContent('Invite only');
   });
 
-  it('filters the directory by search query (?q= deep link)', async () => {
-    const { default: GroupsScreen } = await import('@/components/Groups/GroupsScreen');
-    render(
-      <MemoryRouter initialEntries={['/groups?tab=discover&q=photo']}>
-        <GroupsScreen />
-      </MemoryRouter>,
-    );
+  it('filters the directory by the ?q= query (name/owner/tags) and shows the chip', async () => {
+    vi.mocked(readGroupDirectory).mockResolvedValue(mockDirectory as never);
+    await renderTab('/discover?tab=groups', 'photo');
     await waitFor(() => {
       expect(screen.getByTestId('groups-discover-grid')).toBeInTheDocument();
     });
-    // Only Photography Club matches "photo"
+    // The active query chip is shown (no search field of its own).
+    expect(screen.getByTestId('discover-groups-tab-query')).toHaveTextContent('photo');
+    // Only Photography Club matches "photo" (name + tag)
     expect(screen.getAllByTestId('groups-discover-card').length).toBe(1);
     expect(screen.getByText('Photography Club')).toBeInTheDocument();
   });
 
   it('filters the directory by tag chip (?tag= deep link)', async () => {
-    const { default: GroupsScreen } = await import('@/components/Groups/GroupsScreen');
-    render(
-      <MemoryRouter initialEntries={['/groups?tab=discover&tag=retro']}>
-        <GroupsScreen />
-      </MemoryRouter>,
-    );
+    vi.mocked(readGroupDirectory).mockResolvedValue(mockDirectory as never);
+    await renderTab('/discover?tab=groups&tag=retro');
     await waitFor(() => {
       expect(screen.getByTestId('groups-discover-grid')).toBeInTheDocument();
     });
@@ -369,27 +400,27 @@ describe('GroupsScreen', () => {
     expect(screen.getByText('Gaming Night')).toBeInTheDocument();
   });
 
-  it('shows the no-match empty state when a search filters everything out', async () => {
-    const { default: GroupsScreen } = await import('@/components/Groups/GroupsScreen');
-    render(
-      <MemoryRouter initialEntries={['/groups?tab=discover&q=zzzzz']}>
-        <GroupsScreen />
-      </MemoryRouter>,
-    );
+  it('shows the no-match state when a query filters everything out', async () => {
+    vi.mocked(readGroupDirectory).mockResolvedValue(mockDirectory as never);
+    await renderTab('/discover?tab=groups', 'zzzzz');
     await waitFor(() => {
-      expect(screen.getByTestId('groups-discover-empty')).toBeInTheDocument();
+      expect(screen.getByTestId('groups-discover-no-results')).toBeInTheDocument();
     });
     expect(screen.getByText('No groups match')).toBeInTheDocument();
   });
 
+  it('shows the empty state when the directory has no groups', async () => {
+    vi.mocked(readGroupDirectory).mockResolvedValue([]);
+    await renderTab();
+    await waitFor(() => {
+      expect(screen.getByTestId('groups-discover-empty')).toBeInTheDocument();
+    });
+    expect(screen.getByText('No groups listed yet')).toBeInTheDocument();
+  });
+
   it('shows the error state with retry when the directory read fails', async () => {
     vi.mocked(readGroupDirectory).mockRejectedValue(new Error('boom'));
-    const { default: GroupsScreen } = await import('@/components/Groups/GroupsScreen');
-    render(
-      <MemoryRouter initialEntries={['/groups?tab=discover']}>
-        <GroupsScreen />
-      </MemoryRouter>,
-    );
+    await renderTab();
     await waitFor(() => {
       expect(screen.getByTestId('groups-error')).toBeInTheDocument();
     });
@@ -399,6 +430,33 @@ describe('GroupsScreen', () => {
     await waitFor(() => {
       expect(screen.getByTestId('groups-discover-grid')).toBeInTheDocument();
     });
+  });
+
+  it('"view more" appends the next page (offset threaded) and hides when exhausted', async () => {
+    await renderTab();
+    // First page: a full PAGE_SIZE (20) → "view more" is visible.
+    await waitFor(() => {
+      expect(screen.getAllByTestId('groups-discover-card').length).toBe(20);
+    });
+    expect(screen.getByTestId('groups-view-more')).toBeInTheDocument();
+    // Click "view more" → the next page (offset 20) appends the final 5.
+    fireEvent.click(screen.getByTestId('groups-view-more'));
+    await waitFor(() => {
+      expect(screen.getAllByTestId('groups-discover-card').length).toBe(25);
+    });
+    // The read was called with the threaded offset.
+    expect(readGroupDirectory).toHaveBeenLastCalledWith(20, 20);
+    // A short final page exhausts the directory → "view more" hides.
+    expect(screen.queryByTestId('groups-view-more')).not.toBeInTheDocument();
+  });
+
+  it('hides "view more" when the directory is a single short page', async () => {
+    vi.mocked(readGroupDirectory).mockResolvedValue(mockDirectory as never);
+    await renderTab();
+    await waitFor(() => {
+      expect(screen.getAllByTestId('groups-discover-card').length).toBe(3);
+    });
+    expect(screen.queryByTestId('groups-view-more')).not.toBeInTheDocument();
   });
 });
 
