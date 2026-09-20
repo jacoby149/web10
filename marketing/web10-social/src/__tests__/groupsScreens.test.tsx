@@ -26,6 +26,7 @@ vi.mock('@/data', async (importOriginal) => {
     readGroupDirectory: vi.fn().mockResolvedValue([]),
     readGroupDetail: vi.fn().mockResolvedValue(null),
     readGroupIdentity: vi.fn().mockResolvedValue({}),
+    readGroupMediaPage: vi.fn().mockResolvedValue({ posts: [], hasMore: false, total: 0 }),
     writeGroupIdentity: vi.fn().mockResolvedValue(undefined),
     resolveMediaRefs: vi.fn().mockResolvedValue([]),
     getGroupsManages: vi.fn().mockResolvedValue([]),
@@ -52,6 +53,7 @@ import {
   readGroupDirectory,
   readGroupDetail,
   readGroupIdentity,
+  readGroupMediaPage,
   writeGroupIdentity,
   resolveMediaRefs,
   getGroupsManages,
@@ -964,5 +966,140 @@ describe('GroupDetailScreen', () => {
     await waitFor(() => {
       expect(screen.getByTestId('manage-group-sheet')).toBeInTheDocument();
     });
+  });
+
+  // ── G1: the group page tabs (Feed | Media) ────────────────────────────────
+
+  function renderDetailAt(path: string) {
+    return import('@/components/Groups/GroupDetailScreen').then(({ default: GroupDetailScreen }) =>
+      render(
+        <MemoryRouter initialEntries={[path]}>
+          <GroupDetailScreen groupId={GROUP_ID} />
+        </MemoryRouter>,
+      ),
+    );
+  }
+
+  it('renders the Feed tab by default (bare URL) with the tab row', async () => {
+    await loadDetail();
+    await waitFor(() => {
+      expect(screen.getByTestId('group-detail-tabs')).toBeInTheDocument();
+    });
+    // Feed is the default (bare URL) — the media tab is not current.
+    expect(screen.getByTestId('group-tab-feed')).toHaveAttribute('aria-current', 'true');
+    expect(screen.getByTestId('group-tab-media')).not.toHaveAttribute('aria-current');
+    // The feed is the default surface.
+    expect(screen.getByTestId('group-detail-posts')).toBeInTheDocument();
+    expect(screen.queryByTestId('group-detail-media')).not.toBeInTheDocument();
+  });
+
+  it('clicking the Media tab switches to the media grid and sets ?tab=media', async () => {
+    vi.mocked(readGroupMediaPage).mockResolvedValue({
+      posts: [
+        { _id: 'mp1', text: 'p1', author_username: 'carol', created_at: new Date().toISOString(), media_refs: ['m1'] },
+      ],
+      hasMore: false,
+      total: 1,
+    } as never);
+    vi.mocked(resolveMediaRefs).mockResolvedValue([
+      { _id: 'm1', url: 'http://x/m1.png', mime_type: 'image/png', created_at: '' },
+    ] as never);
+    await loadDetail();
+    await waitFor(() => {
+      expect(screen.getByTestId('group-tab-media')).toBeInTheDocument();
+    });
+    fireEvent.click(screen.getByTestId('group-tab-media'));
+    await waitFor(() => {
+      expect(screen.getByTestId('group-detail-media')).toBeInTheDocument();
+    });
+    expect(screen.getByTestId('group-tab-media')).toHaveAttribute('aria-current', 'true');
+    // The media read fired for the group (page one, offset 0).
+    expect(readGroupMediaPage).toHaveBeenCalledWith(GROUP_ID, 24, 0);
+  });
+
+  it('restores the Media tab from ?tab=media (deep link)', async () => {
+    vi.mocked(readGroupMediaPage).mockResolvedValue({
+      posts: [
+        { _id: 'mp1', text: 'p1', author_username: 'carol', created_at: new Date().toISOString(), media_refs: ['m1'] },
+      ],
+      hasMore: false,
+      total: 1,
+    } as never);
+    vi.mocked(resolveMediaRefs).mockResolvedValue([
+      { _id: 'm1', url: 'http://x/m1.png', mime_type: 'image/png', created_at: '' },
+    ] as never);
+    await renderDetailAt('/groups/x?tab=media');
+    await waitFor(() => {
+      expect(screen.getByTestId('group-detail-media')).toBeInTheDocument();
+    });
+    expect(screen.getByTestId('group-tab-media')).toHaveAttribute('aria-current', 'true');
+    expect(screen.queryByTestId('group-detail-posts')).not.toBeInTheDocument();
+  });
+
+  it('the media grid renders media cells + the total count', async () => {
+    vi.mocked(readGroupMediaPage).mockResolvedValue({
+      posts: [
+        { _id: 'mp1', text: 'p1', author_username: 'carol', created_at: new Date().toISOString(), media_refs: ['m1'] },
+        { _id: 'mp2', text: 'p2', author_username: 'carol', created_at: new Date().toISOString(), media_refs: ['m2'] },
+      ],
+      hasMore: false,
+      total: 2,
+    } as never);
+    vi.mocked(resolveMediaRefs).mockResolvedValue([
+      { _id: 'm1', url: 'http://x/m1.png', mime_type: 'image/png', created_at: '' },
+      { _id: 'm2', url: 'http://x/m2.png', mime_type: 'image/png', created_at: '' },
+    ] as never);
+    await renderDetailAt('/groups/x?tab=media');
+    await waitFor(() => {
+      expect(screen.getAllByTestId('group-media-cell').length).toBe(2);
+    });
+    // The count shows the total media posts.
+    expect(screen.getByTestId('group-media-count')).toHaveTextContent('2 photos');
+  });
+
+  it('infinite scroll: the sentinel loads the next page and appends', async () => {
+    vi.mocked(readGroupMediaPage)
+      .mockResolvedValueOnce({
+        posts: [
+          { _id: 'mp1', text: 'p1', author_username: 'carol', created_at: new Date().toISOString(), media_refs: ['m1'] },
+          { _id: 'mp2', text: 'p2', author_username: 'carol', created_at: new Date().toISOString(), media_refs: ['m2'] },
+        ],
+        hasMore: true,
+        total: 4,
+      } as never)
+      .mockResolvedValueOnce({
+        posts: [
+          { _id: 'mp3', text: 'p3', author_username: 'carol', created_at: new Date().toISOString(), media_refs: ['m3'] },
+          { _id: 'mp4', text: 'p4', author_username: 'carol', created_at: new Date().toISOString(), media_refs: ['m4'] },
+        ],
+        hasMore: false,
+        total: 4,
+      } as never);
+    vi.mocked(resolveMediaRefs).mockResolvedValue([
+      { _id: 'm1', url: 'http://x/m1.png', mime_type: 'image/png', created_at: '' },
+      { _id: 'm2', url: 'http://x/m2.png', mime_type: 'image/png', created_at: '' },
+      { _id: 'm3', url: 'http://x/m3.png', mime_type: 'image/png', created_at: '' },
+      { _id: 'm4', url: 'http://x/m4.png', mime_type: 'image/png', created_at: '' },
+    ] as never);
+    await renderDetailAt('/groups/x?tab=media');
+    await waitFor(() => {
+      expect(screen.getAllByTestId('group-media-cell').length).toBe(2);
+    });
+    // The sentinel is visible → the observer fires → loadMoreMedia appends page 2.
+    (globalThis as unknown as Record<string, () => void>).fireIntersectionObservers();
+    await waitFor(() => {
+      expect(screen.getAllByTestId('group-media-cell').length).toBe(4);
+    });
+    // Page 2 was fetched at offset 2 (page one's length).
+    expect(readGroupMediaPage).toHaveBeenLastCalledWith(GROUP_ID, 24, 2);
+  });
+
+  it('the media grid shows the empty state when the group has no media posts', async () => {
+    vi.mocked(readGroupMediaPage).mockResolvedValue({ posts: [], hasMore: false, total: 0 } as never);
+    await renderDetailAt('/groups/x?tab=media');
+    await waitFor(() => {
+      expect(screen.getByTestId('group-media-empty')).toBeInTheDocument();
+    });
+    expect(screen.getByText('No media yet')).toBeInTheDocument();
   });
 });

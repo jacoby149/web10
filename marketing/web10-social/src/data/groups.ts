@@ -1,5 +1,5 @@
 import { getV3Client, readTokenCookie, extractDetail, Web10Error, type V3Group, type V3Document, type V3Client } from './v3';
-import { extractUsername } from './types';
+import { extractUsername, fromV3DocToPost, type PostRecord } from './types';
 import { API_HOST, API_ORIGIN } from '../lib/origins';
 
 const LOG = (...args: unknown[]) => console.log('[social:groups]', ...args);
@@ -544,6 +544,54 @@ export async function readGroupFeed(groupId: string, limit = 50): Promise<V3Docu
   const docs = await w.read('posts', { groups: [groupId], limit });
   LOG('readGroupFeed — got', docs.length, 'posts from', groupId);
   return docs;
+}
+
+/** The Media tab's page size (the insta grid, G1). */
+export const GROUP_MEDIA_PAGE_SIZE = 24;
+
+/**
+ * One page of a group's media posts (the Media tab's insta grid, G1).
+ *
+ * The group feed (`readGroupFeed`) is a plain group read, but the Media tab
+ * needs a PAGED read of MEDIA posts only (posts whose `body.media_refs` is
+ * non-empty) + a TOTAL count (the grid shows "N photos" and knows when it's
+ * exhausted). The query engine does both server-side, I3-scoped to the group
+ * (the boundary CTE filters to the reader's readable groups) — no "pull
+ * everything". `limit`/`offset` page the grid (infinite scroll appends).
+ */
+export interface GroupMediaPage {
+  posts: PostRecord[];
+  hasMore: boolean;
+  total: number;
+}
+
+export async function readGroupMediaPage(
+  groupId: string,
+  limit: number = GROUP_MEDIA_PAGE_SIZE,
+  offset: number = 0,
+): Promise<GroupMediaPage> {
+  const w = getV3Client();
+  LOG('readGroupMediaPage — start', groupId, { limit, offset });
+  // Media posts only: body.media_refs is a non-empty array. The column names
+  // are aliased explicitly (the query engine's row serializer + the client
+  // duck-type on `body` / `author_key` — an unaliased `p.body` would arrive as
+  // `p.body` when another in-scope table exposes a same-named column).
+  const mediaFilter = "length(JSONExtractArrayRaw(p.body, 'media_refs')) > 0";
+  const pageSql =
+    'SELECT p.doc_id AS doc_id, p.author_key AS author_key, p.body AS body, p.tags AS tags, ' +
+    'p.created_at AS created_at, p.ref_value AS ref_value, p.ad_mode AS ad_mode, p.ad_target AS ad_target ' +
+    `FROM posts p WHERE ${mediaFilter} ` +
+    'ORDER BY toUnixTimestamp64Milli(p.created_at) DESC ' +
+    `LIMIT ${limit} OFFSET ${offset}`;
+  const pageRes = await w.query(pageSql, { groups: [groupId] });
+  const posts = pageRes.rows.map((row) => fromV3DocToPost(row as unknown as V3Document));
+  // The total media-post count (the grid's "N photos" + exhaustion signal).
+  const countSql = `SELECT count() AS n FROM posts p WHERE ${mediaFilter}`;
+  const countRes = await w.query(countSql, { groups: [groupId] });
+  const total = Number(countRes.rows[0]?.n ?? 0);
+  const hasMore = offset + posts.length < total;
+  LOG('readGroupMediaPage — got', posts.length, 'media posts, total:', total, 'hasMore:', hasMore);
+  return { posts, hasMore, total };
 }
 
 // ── Group queries ────────────────────────────────────────────────────────────
