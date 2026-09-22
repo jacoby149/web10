@@ -417,6 +417,7 @@ Lane: `discover-reorg` in `parallel-execution.md`.
 - [✓ 3.131.0] **G3: the members/roles secondary surface** — the manager **kebab** (secondary to the pencil) opens the existing Members + Roles sections + the **published-delete** two-tap confirm (distinct from the lightweight draft-delete).
 - [✓ 3.134.0] **G4: create = the group page in edit mode (draft)** (`GroupsScreen.tsx`, `GroupDetailScreen.tsx`, `groups.ts`) — "New group" opens the page in edit mode for a draft; changes auto-save (the face doc); **Publish group** / **Delete** (the lightweight draft-delete); the name-taken guard is live; the `CreateGroupSheet` is retired. Gated on G0, G2.
 - [✓ 3.136.0] **G5: the screenshot pass** — every state at desktop + 375px, the screenshot test, harness seeds. Gated on G1–G4.
+- [✓ 3.136.1] **G6: the group page reads as a profile — the hero shape + the desktop width** (`GroupDetailScreen.tsx` + `GroupsScreen.tsx`) — the hero is re-cut to the profile's exact shape (the name + badges + meta *below* the avatar, full width; the membership action + the manager's Edit pencil top-right, the profile's Follow/Message position; the orphaned action row dropped) and the detail + the list widen from `md:max-w-2xl` (672px) to `w-full md:max-w-3xl md:mx-auto` (768px, the profile's `max-w-3xl`) so the desktop uses the real estate like the profile. Gated on G5.
 
 Lane: `group-as-profile` in `parallel-execution.md`.
 

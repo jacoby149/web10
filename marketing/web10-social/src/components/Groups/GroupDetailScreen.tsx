@@ -566,7 +566,7 @@ export default function GroupDetailScreen({ groupId }: { groupId: string }) {
   if (loading) {
     return (
       <div className="flex flex-col min-h-full bg-background">
-        <div className="md:max-w-2xl md:mx-auto px-4 py-4 md:px-0">
+        <div className="w-full md:max-w-3xl md:mx-auto px-4 py-4 md:px-0">
           <DetailSkeleton />
         </div>
       </div>
@@ -576,7 +576,7 @@ export default function GroupDetailScreen({ groupId }: { groupId: string }) {
   if (notFound) {
     return (
       <div className="flex flex-col min-h-full bg-background">
-        <div className="md:max-w-2xl md:mx-auto px-4 py-4 md:px-0">
+        <div className="w-full md:max-w-3xl md:mx-auto px-4 py-4 md:px-0">
           <div
             data-testid="group-detail-notfound"
             className="flex flex-col items-center justify-center py-16 px-8 text-center"
@@ -601,7 +601,7 @@ export default function GroupDetailScreen({ groupId }: { groupId: string }) {
   if (error || !detail) {
     return (
       <div className="flex flex-col min-h-full bg-background">
-        <div className="md:max-w-2xl md:mx-auto px-4 py-4 md:px-0">
+        <div className="w-full md:max-w-3xl md:mx-auto px-4 py-4 md:px-0">
           <div
             data-testid="group-detail-error"
             className="flex flex-col items-center justify-center py-16 px-8 text-center"
@@ -662,7 +662,7 @@ export default function GroupDetailScreen({ groupId }: { groupId: string }) {
 
   return (
     <div className="flex flex-col min-h-full bg-background">
-      <div className="md:max-w-2xl md:mx-auto flex-1 flex flex-col">
+      <div className="w-full md:max-w-3xl md:mx-auto flex-1 flex flex-col">
         {/* Sticky top bar — back + (managers) the kebab entry point (G3) */}
         <div className="sticky top-0 z-20 flex items-center justify-between border-b border-border bg-background/90 px-2 py-2 backdrop-blur-md md:static md:border-0 md:bg-transparent md:px-0 md:py-1" data-testid="group-detail-topbar">
           <Button
@@ -729,7 +729,12 @@ export default function GroupDetailScreen({ groupId }: { groupId: string }) {
             )}
           </div>
           <div className="px-4 sm:px-6">
-            <div className="relative flex items-end justify-between gap-4 -mt-14">
+            {/* The avatar row — the avatar overlaps the banner (-mt-14); the
+                membership action (Join/Leave) + the manager's Edit pencil sit
+                top-right, aligned with the avatar's bottom (the profile's
+                exact shape). The row is relative so anything interactive in
+                it paints above the banner's absolute <img> (G5 hit-test). */}
+            <div className="relative flex items-start justify-between gap-4 -mt-14" data-testid="group-detail-avatar-row">
               <div className="shrink-0 rounded-full border-4 border-background">
                 <Avatar className={cn('h-20 w-20', hashToColor(detail.group_id))}>
                   {avatarUrl ? (
@@ -741,50 +746,102 @@ export default function GroupDetailScreen({ groupId }: { groupId: string }) {
                   )}
                 </Avatar>
               </div>
-              <div className="min-w-0 flex-1 pb-1">
-                <div className="flex flex-wrap items-center gap-2">
-                  <h1 className="truncate font-display text-xl font-bold text-foreground" data-testid="group-detail-name">
-                    {displayName}
-                  </h1>
-                  {identity.status === 'draft' && (
-                    <Badge variant="outline" className="normal-case tracking-normal" data-testid="group-detail-draft">
-                      Draft
-                    </Badge>
-                  )}
-                  {detail.discoverable && (
-                    <Badge variant="brand" className="normal-case tracking-normal" data-testid="group-detail-listed">
-                      Listed
-                    </Badge>
-                  )}
-                  {!detail.is_member && detail.posts_state === 'ok' && (
-                    <Badge variant="outline" className="normal-case tracking-normal" data-testid="group-detail-public">
-                      Public
-                    </Badge>
-                  )}
-                  {!detail.is_member && detail.posts_state === 'join_to_view' && (
-                    <Badge variant="outline" className="normal-case tracking-normal" data-testid="group-detail-private">
-                      Private
-                    </Badge>
-                  )}
-                  {canManage && (
-                    <button
-                      type="button"
-                      onClick={() => setEditing(true)}
-                      aria-label="Edit group"
-                      className="ml-auto inline-flex items-center gap-1.5 rounded-md border border-border bg-elevated px-2.5 py-1.5 text-xs font-medium text-foreground transition-colors hover:border-brand/40 hover:text-brand-300 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-                      data-testid="group-detail-edit"
-                    >
-                      <Pencil className="h-3.5 w-3.5" strokeWidth={1.75} />
-                      <span className="hidden sm:inline">Edit</span>
-                    </button>
-                  )}
-                </div>
-                <p className="mt-0.5 flex items-center gap-1.5 text-xs text-muted-foreground">
-                  <span className="tabular-nums">{formatCount(detail.member_count)} members</span>
-                  <span aria-hidden="true">·</span>
-                  <span>by @{detail.owner}</span>
-                </p>
+              <div className="mt-14 flex items-center gap-2">
+                {detail.is_member ? (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="gap-1.5 border-border text-muted-foreground hover:border-danger/50 hover:text-danger hover:bg-danger-muted"
+                    onClick={handleLeave}
+                    disabled={joinState === 'working'}
+                    data-testid="group-detail-leave"
+                  >
+                    {joinState === 'working' ? (
+                      <Loader2 className="h-3.5 w-3.5 animate-spin" strokeWidth={2} />
+                    ) : (
+                      <LogOut className="h-3.5 w-3.5" strokeWidth={1.75} />
+                    )}
+                    <span className="hidden sm:inline">Leave</span>
+                  </Button>
+                ) : canJoin ? (
+                  <Button
+                    variant="brand"
+                    size="sm"
+                    className="gap-1.5"
+                    onClick={handleJoin}
+                    disabled={joinState === 'working'}
+                    data-testid="group-detail-join"
+                  >
+                    {joinState === 'working' ? (
+                      <Loader2 className="h-3.5 w-3.5 animate-spin" strokeWidth={2} />
+                    ) : joinState === 'done' && detail.join_policy === 'request' ? (
+                      <>
+                        <UserCheck className="h-3.5 w-3.5" strokeWidth={1.75} />
+                        <span className="hidden sm:inline">Requested</span>
+                      </>
+                    ) : (
+                      <>
+                        <UserPlus className="h-3.5 w-3.5" strokeWidth={1.75} />
+                        <span className="hidden sm:inline">{detail.join_policy === 'request' ? 'Request' : 'Join'}</span>
+                      </>
+                    )}
+                  </Button>
+                ) : (
+                  <div
+                    className="flex items-center gap-1.5 rounded-md border border-border bg-elevated px-3 py-1.5 text-xs text-muted-foreground"
+                    data-testid="group-detail-invite-only"
+                  >
+                    <Lock className="h-3.5 w-3.5" strokeWidth={1.5} />
+                    <span className="hidden sm:inline">Invite only</span>
+                  </div>
+                )}
+                {canManage && (
+                  <button
+                    type="button"
+                    onClick={() => setEditing(true)}
+                    aria-label="Edit group"
+                    className="inline-flex items-center gap-1.5 rounded-md border border-border bg-elevated px-2.5 py-1.5 text-xs font-medium text-foreground transition-colors hover:border-brand/40 hover:text-brand-300 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                    data-testid="group-detail-edit"
+                  >
+                    <Pencil className="h-3.5 w-3.5" strokeWidth={1.75} />
+                    <span className="hidden sm:inline">Edit</span>
+                  </button>
+                )}
               </div>
+            </div>
+            {/* The name + badges — below the avatar, full width (the profile's
+                shape: the name is not cramped beside the avatar). */}
+            <div className="mt-3">
+              <div className="flex flex-wrap items-center gap-2">
+                <h1 className="truncate font-display text-xl font-bold text-foreground" data-testid="group-detail-name">
+                  {displayName}
+                </h1>
+                {identity.status === 'draft' && (
+                  <Badge variant="outline" className="normal-case tracking-normal" data-testid="group-detail-draft">
+                    Draft
+                  </Badge>
+                )}
+                {detail.discoverable && (
+                  <Badge variant="brand" className="normal-case tracking-normal" data-testid="group-detail-listed">
+                    Listed
+                  </Badge>
+                )}
+                {!detail.is_member && detail.posts_state === 'ok' && (
+                  <Badge variant="outline" className="normal-case tracking-normal" data-testid="group-detail-public">
+                    Public
+                  </Badge>
+                )}
+                {!detail.is_member && detail.posts_state === 'join_to_view' && (
+                  <Badge variant="outline" className="normal-case tracking-normal" data-testid="group-detail-private">
+                    Private
+                  </Badge>
+                )}
+              </div>
+              <p className="mt-0.5 flex items-center gap-1.5 text-xs text-muted-foreground">
+                <span className="tabular-nums">{formatCount(detail.member_count)} members</span>
+                <span aria-hidden="true">·</span>
+                <span>by @{detail.owner}</span>
+              </p>
             </div>
             {hasAbout && (
               <div className="mt-3 pb-4">
@@ -830,58 +887,6 @@ export default function GroupDetailScreen({ groupId }: { groupId: string }) {
             {!hasAbout && <div className="pb-4" />}
           </div>
           </>
-          )}
-        </div>
-
-        {/* Join / Leave — the membership action, below the hero */}
-        <div className="flex items-center justify-end gap-2 border-b border-border px-4 py-3 md:px-0" data-testid="group-detail-actions">
-          {detail.is_member ? (
-            <Button
-              variant="outline"
-              size="sm"
-              className="gap-1.5 border-border text-muted-foreground hover:border-danger/50 hover:text-danger hover:bg-danger-muted"
-              onClick={handleLeave}
-              disabled={joinState === 'working'}
-              data-testid="group-detail-leave"
-            >
-              {joinState === 'working' ? (
-                <Loader2 className="h-3.5 w-3.5 animate-spin" strokeWidth={2} />
-              ) : (
-                <LogOut className="h-3.5 w-3.5" strokeWidth={1.75} />
-              )}
-              <span className="hidden sm:inline">Leave</span>
-            </Button>
-          ) : canJoin ? (
-            <Button
-              variant="brand"
-              size="sm"
-              className="gap-1.5"
-              onClick={handleJoin}
-              disabled={joinState === 'working'}
-              data-testid="group-detail-join"
-            >
-              {joinState === 'working' ? (
-                <Loader2 className="h-3.5 w-3.5 animate-spin" strokeWidth={2} />
-              ) : joinState === 'done' && detail.join_policy === 'request' ? (
-                <>
-                  <UserCheck className="h-3.5 w-3.5" strokeWidth={1.75} />
-                  <span className="hidden sm:inline">Requested</span>
-                </>
-              ) : (
-                <>
-                  <UserPlus className="h-3.5 w-3.5" strokeWidth={1.75} />
-                  <span className="hidden sm:inline">{detail.join_policy === 'request' ? 'Request' : 'Join'}</span>
-                </>
-              )}
-            </Button>
-          ) : (
-            <div
-              className="flex items-center gap-1.5 rounded-md border border-border bg-elevated px-3 py-1.5 text-xs text-muted-foreground"
-              data-testid="group-detail-invite-only"
-            >
-              <Lock className="h-3.5 w-3.5" strokeWidth={1.5} />
-              <span className="hidden sm:inline">Invite only</span>
-            </div>
           )}
         </div>
 
