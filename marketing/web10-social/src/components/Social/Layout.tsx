@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { useNavigate, useLocation, Outlet } from 'react-router-dom';
 import { cn } from '@/lib/utils';
-import { Home, User, MessageSquare, PlusCircle, LogOut, Bug, Compass, Users, Store, Gamepad2, Radio, Zap, Clapperboard, Settings, MoreHorizontal, X, Bell, ChevronDown, DollarSign } from 'lucide-react';
+import { Home, User, MessageSquare, PlusCircle, LogOut, Bug, Compass, Store, Gamepad2, Radio, Zap, Clapperboard, Settings, MoreHorizontal, X, Bell, ChevronDown, DollarSign } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { getWapi } from '@/data/wapi';
@@ -22,13 +22,13 @@ interface LayoutProps {
 // and Groups move into the "More" sheet so the bottom bar never exceeds five
 // icons — room to grow as surfaces ship.
 const feedItem = { path: '/feed', icon: Home, label: 'Feed', testId: 'nav-feed' };
-const discoverItem = { path: '/discover', icon: Compass, label: 'Discover', testId: 'nav-discover' };
+const discoverItem = { path: '/discover', icon: Compass, label: 'Explorer', testId: 'nav-discover' };
 const shortsItem = { path: '/shorts', icon: Clapperboard, label: 'Shorts', testId: 'nav-shorts' };
 const messagesItem = { path: '/messages', icon: MessageSquare, label: 'Messages', testId: 'nav-messages' };
 const profileItem = { path: '/profile', icon: User, label: 'Profile', testId: 'nav-profile' };
-// Real destinations demoted from the bottom bar into the "More" sheet (and
-// the desktop sidebar).
-const groupsItem = { path: '/groups', icon: Users, label: 'Groups', testId: 'nav-groups' };
+// Real destinations demoted from the bottom bar into the "More" sheet.
+// (Groups is retired from the nav entirely — it lives in the Explorer/Groups
+// subtab, discover-reorg D3 — so it no longer holds a nav row.)
 const settingsItem = { path: '/settings', icon: Settings, label: 'Settings', testId: 'nav-settings' };
 // Monetization (D75) — every signed-in user: the creator's ad catalog +
 // affiliate onboarding. Deep-links to the Monetization surface's default
@@ -41,12 +41,13 @@ const nodeMonetizationItem = { path: '/monetize?tab=node', icon: DollarSign, lab
 
 // Mobile bottom bar: the four core tabs in thumb-reach order.
 const bottomNavItems = [feedItem, discoverItem, messagesItem, profileItem];
-// Desktop sidebar keeps its historical order (Feed, Discover, Groups,
+// Desktop sidebar keeps its historical order (Feed, Explorer, Shorts,
 // Profile, Messages) — the bottom bar reorders for thumb-reach, the sidebar
-// doesn't need to follow it. Shorts sits after Discover (the video surfaces
+// doesn't need to follow it. Shorts sits after Explorer (the video surfaces
 // group together). Settings is NOT a sidebar row — it lives only in the
-// account menu (top bar), so it isn't duplicated in the nav.
-const sidebarNavItems = [feedItem, discoverItem, shortsItem, groupsItem, profileItem, messagesItem];
+// account menu (top bar), so it isn't duplicated in the nav. Groups is retired
+// from the nav — it lives in the Explorer/Groups subtab (discover-reorg D3).
+const sidebarNavItems = [feedItem, discoverItem, shortsItem, profileItem, messagesItem];
 
 // Provisional, non-infringing names for the surfaces not yet built. Shorts is
 // now a real surface (shorts.md) — it lives in the sidebar + the More sheet,
@@ -613,17 +614,6 @@ export default function Layout({ onLogout, onReportBug, children }: LayoutProps)
                 >
                   <Settings className="w-5 h-5" strokeWidth={1.75} />
                   {settingsItem.label}
-                </button>
-                <button
-                  data-testid="nav-groups-mobile"
-                  onClick={() => go(groupsItem.path)}
-                  className={cn(
-                    'w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors duration-150',
-                    isActive(groupsItem.path) ? 'bg-brand-muted text-brand-300' : 'text-foreground hover:bg-elevated',
-                  )}
-                >
-                  <Users className="w-5 h-5" strokeWidth={1.75} />
-                  {groupsItem.label}
                 </button>
                 <button
                   data-testid="nav-monetization-mobile"

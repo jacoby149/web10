@@ -1013,7 +1013,7 @@ export default function DiscoverScreen() {
         <div className="flex items-center justify-between px-4 py-3 md:px-0 gap-3">
           <div className="flex items-center gap-2 shrink-0">
             <Compass className="h-5 w-5 text-brand-400" strokeWidth={1.75} />
-            <h1 className="font-display text-lg font-bold text-foreground">Discover</h1>
+            <h1 className="font-display text-lg font-bold text-foreground">Explorer</h1>
           </div>
           {tab === 'posts' && (
             <div className="relative flex-1 max-w-xs">
@@ -1045,7 +1045,7 @@ export default function DiscoverScreen() {
       {/* Subtabs: Posts | People | Groups (?tab=, posts is the bare URL) */}
       <div className="border-b border-border bg-surface/50" data-testid="discover-tab-row">
         <div className="px-4 md:px-0">
-          <div className="flex items-center gap-1 py-1.5" role="tablist" aria-label="Discover sections">
+          <div className="flex items-center gap-1 py-1.5" role="tablist" aria-label="Explorer sections">
             {DISCOVER_TABS.map(({ id, label, icon: TabIcon }) => (
               <button
                 key={id}
