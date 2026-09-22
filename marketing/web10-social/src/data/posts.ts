@@ -183,8 +183,17 @@ export async function readPostById(docId: string): Promise<PostRecord | null> {
 
 /**
  * Update a post by ID.
+ *
+ * `adPreference` (the v3 ad preference, ads-dissemination.md): when set, the
+ * post's `ad_preference` column is updated (`pinned` + the ad's doc_id, or
+ * `none`). This is what lets the edit flow swap / clear the pinned ad. Absent
+ * → the existing ad preference is preserved (the node's update default).
  */
-export async function updatePost(docId: string, updates: Partial<PostRecord>): Promise<PostRecord> {
+export async function updatePost(
+  docId: string,
+  updates: Partial<PostRecord>,
+  adPreference?: { mode: 'none' | 'pinned'; target?: string },
+): Promise<PostRecord> {
   const w = getV3Client();
   const body: Record<string, unknown> = {};
   if (updates.text !== undefined) body.text = updates.text;
@@ -194,7 +203,7 @@ export async function updatePost(docId: string, updates: Partial<PostRecord>): P
   if (updates.location !== undefined) body.location = updates.location;
   if (updates.mentions !== undefined) body.mentions = updates.mentions;
 
-  const doc = await w.update(docId, body);
+  const doc = await w.update(docId, body, adPreference ? { ad_preference: adPreference } : undefined);
   return fromV3DocToPost(doc);
 }
 

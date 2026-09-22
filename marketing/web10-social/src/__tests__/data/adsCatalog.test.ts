@@ -109,6 +109,76 @@ describe('buildOfferBody / buildNodeAdBody', () => {
     expect(body.tags).toEqual(['ad', 'node_ad']);
     expect(body.status).toBe('active');
   });
+
+  it('buildOfferBody writes the format + media_refs (ad-improvements.md)', () => {
+    // A post-format ad with media: the format + media_refs are written to the body.
+    const body = adsCatalog.buildOfferBody(
+      { kind: 'none', partner: '', link: 'https://x.com', cta: 'Check it out', disclosure: '' },
+      'My post ad',
+      'active',
+      [],
+      ['media-1'],
+      'post',
+    );
+    expect(body.format).toBe('post');
+    expect(body.media_refs).toEqual(['media-1']);
+    // An inline ad with no media: format inline, media_refs [] (so an update can
+    // remove media — the node merges the body).
+    const inline = adsCatalog.buildOfferBody(
+      { kind: 'none', partner: '', link: 'https://x.com', cta: '', disclosure: '' },
+      'My inline ad',
+      'active',
+      [],
+    );
+    expect(inline.format).toBe('inline');
+    expect(inline.media_refs).toEqual([]);
+  });
+
+  it('parseAd reads the format + media_refs', () => {
+    const doc = {
+      ...AD_DOC,
+      body: {
+        ...AD_DOC.body,
+        format: 'post',
+        media_refs: ['media-1'],
+      },
+    };
+    const ad = adsCatalog.parseAd(doc as any);
+    expect(ad.format).toBe('post');
+    expect(ad.media_refs).toEqual(['media-1']);
+    // Absent format defaults to inline (backwards compat — every existing ad).
+    const legacy = adsCatalog.parseAd(AD_DOC as any);
+    expect(legacy.format).toBe('inline');
+    expect(legacy.media_refs).toBeUndefined();
+  });
+});
+
+describe('updateAd', () => {
+  beforeEach(mockV3Client);
+
+  it('updates the same doc_id with the new body (pins survive the edit)', async () => {
+    const mock = v3.getV3Client() as any;
+    const ad = adsCatalog.parseAd(AD_DOC as any);
+    await adsCatalog.updateAd(
+      ad,
+      { kind: 'none', partner: '', link: 'https://new.com', cta: 'Check it out', disclosure: '' },
+      'Updated copy',
+      'active',
+      [],
+      ['media-2'],
+      'post',
+    );
+    // Same doc_id (an update is a new version, not a new doc).
+    expect(mock.update).toHaveBeenCalledWith(
+      'ad-1',
+      expect.objectContaining({
+        text: 'Updated copy',
+        format: 'post',
+        media_refs: ['media-2'],
+        tags: ['ad'],
+      }),
+    );
+  });
 });
 
 describe('isNodeAd / splitNodeAds', () => {

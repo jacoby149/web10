@@ -38,8 +38,17 @@ That is the whole read. The creator's own token reads their own posts through th
 
 **Actions:**
 
-- **New ad** — the ingest flow: pick an offer (from the Partner Links card, or define one inline), attach content (media upload through the existing media pipeline, or text), set status. Writes one `posts` document tagged `ad`, attached to the creator's followers group.
-- **Edit** — update the doc (tombstone + new insert, the house write path). Editing the offer re-points the link; editing the creative re-uploads media.
+- **New ad** — the ingest flow: the **format toggle** (`inline` / `post` — see
+  `ads.md` "Two Formats"), attach content (one image or video through the media
+  pipeline, or text), the offer (kind / partner / link / CTA / disclosure — CTA
+  has suggestion chips; `kind` is optional, `none` = self-promo hides partner),
+  set status. Writes one `posts` document tagged `ad` (with `format` +
+  `media_refs` in the body), attached to the creator's followers group.
+- **Edit** — the same form, pre-filled, on an existing ad. It keeps the **same
+  `doc_id`** (an update is a new version, not a new doc), so a post that has the
+  ad pinned keeps pointing at it and the new creative/offer/format shows
+  immediately. Editing the creative re-uploads media; editing the format flips
+  inline ↔ post.
 - **Pause / resume** — flip `body.status`. A paused ad is skipped by curation (`curateAds` filters on `status === 'active'`) and by the feed renderer, but stays in the catalog.
 - **Retire** — tombstone the doc. It falls out of the catalog and of every feed.
 

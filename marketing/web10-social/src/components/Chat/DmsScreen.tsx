@@ -1066,10 +1066,25 @@ export default function DmsScreen() {
     if (prov && user) probePresence(prov, user);
   }, [selectedConv]);
 
-  // Handle ?to=<username> deep link from profile Message button
+  // Handle ?to=<username>[&provider=<p>] deep link from the profile Message
+  // button. The profile always knows the recipient's provider, so when it's
+  // present we derive the canonical conversation key and drop straight into
+  // the DM view — even an empty chat for a first message — with no compose /
+  // picker in between. A bare ?to= (no provider) keeps the old fallback:
+  // open the existing conversation if there is one, else the prefilled picker.
   useEffect(() => {
     const to = searchParams.get('to');
+    const toProvider = searchParams.get('provider');
     if (!to || !token || loading) return;
+
+    if (toProvider) {
+      const conv = deriveConversationKey(
+        { provider: token.provider, username: token.username },
+        { provider: toProvider, username: to },
+      );
+      navigate(`/messages/${conv}`, { replace: true });
+      return;
+    }
 
     const existingConv = conversations.find((conv) => {
       const other = conv.split('--').find((p) => p !== `${token.provider}/${token.username}`);

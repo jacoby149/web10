@@ -669,6 +669,23 @@ describe('DmsScreen', () => {
     // my own message (testuser) does not (isMe). Exactly one sender label.
     expect(screen.getByTestId('dm-message-sender')).toHaveTextContent('alice');
   });
+
+  it('a profile ?to=+?provider= deep link goes straight to the DM thread (no compose picker)', async () => {
+    const { default: DmsScreen } = await import('@/components/Chat/DmsScreen');
+    render(
+      <MemoryRouter initialEntries={['/messages?to=otheruser&provider=test.localhost']}>
+        <Routes>
+          <Route path="/messages/*" element={<DmsScreen />} />
+        </Routes>
+      </MemoryRouter>,
+    );
+    // The provider is present, so the handler derives the conversation key and
+    // navigates straight to the DM thread — the compose picker never opens.
+    await waitFor(() => {
+      expect(screen.getByTestId('dm-conversation')).toBeInTheDocument();
+    }, { timeout: 2000 });
+    expect(screen.queryByTestId('dm-contact-picker')).not.toBeInTheDocument();
+  });
 });
 
 describe('MailView', () => {
@@ -802,10 +819,19 @@ describe('Layout', () => {
         </Layout>
       </MemoryRouter>,
     );
-    // Desktop sidebar: Shorts is a real destination; Stories is still
-    // coming-soon. Both render in the sidebar.
-    expect(screen.getByTestId('nav-stories')).toBeInTheDocument();
+    // Desktop sidebar: Shorts is a real destination (a nav row). The
+    // coming-soon surfaces (Stories, …) live in the "More" popover — they're
+    // not permanent nav rows, so they don't hold sidebar space.
     expect(screen.getByTestId('nav-shorts')).toBeInTheDocument();
+    expect(screen.getByTestId('nav-more-desktop')).toBeInTheDocument();
+    // The popover is closed by default — the coming-soon items aren't in the doc.
+    expect(screen.queryByTestId('nav-stories')).not.toBeInTheDocument();
+    // Opening More reveals the coming-soon list.
+    fireEvent.click(screen.getByTestId('nav-more-desktop'));
+    expect(screen.getByTestId('nav-stories')).toBeInTheDocument();
+    expect(screen.getByTestId('nav-livestream')).toBeInTheDocument();
+    expect(screen.getByTestId('nav-games')).toBeInTheDocument();
+    expect(screen.getByTestId('nav-marketplace')).toBeInTheDocument();
 
     // The mobile bottom bar is exactly four core tabs + the More tab.
     const mobileNav = screen.getByLabelText('Primary mobile');

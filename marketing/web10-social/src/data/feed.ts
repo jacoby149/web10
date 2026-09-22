@@ -9,6 +9,17 @@ import { knobStateToSort } from '@/lib/powerMean';
 // ── Feed / Discover data layer (v3) ──────────────────────────────────────────
 // v3 feed: read from groups, not inbox. Discover: read from discover group.
 
+/**
+ * Ad docs (tagged `ad` — creator or `node_ad`) are ad inventory, not feed
+ * content. They show only when ATTACHED to a post via the read-time join
+ * (`doc.ad` / `doc.node_ad`), never as standalone ranked posts (ad-improvements
+ * .md — an ad doesn't need to be popular to show; it's attached). Drop them from
+ * the standalone list so they don't leak in as plain, ranked posts.
+ */
+function dropAdPosts(posts: PostRecord[]): PostRecord[] {
+  return posts.filter((p) => !p.tags?.includes('ad'));
+}
+
 // ── Discover feed ────────────────────────────────────────────────────────────
 
 /**
@@ -43,7 +54,8 @@ export async function readDiscoverFeed(
     if (!sort) {
       posts.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
     }
-    return posts;
+    // Ad docs are attached to posts via the join, not standalone feed posts.
+    return dropAdPosts(posts);
   } catch {
     return [];
   }
@@ -232,7 +244,8 @@ export async function readFeed(sort: FeedSort = 'newest', limit = 50): Promise<P
   const direction = sort === 'newest' ? -1 : 1;
   posts.sort((a, b) => (new Date(a.created_at).getTime() - new Date(b.created_at).getTime()) * direction);
   console.log('[social-feed] readFeed — sorted', posts.length, 'posts by', sort);
-  return posts;
+  // Ad docs are attached to posts via the join, not standalone feed posts.
+  return dropAdPosts(posts);
 }
 
 // ── Feed page (D73) — the feed as a query over the flexible-read engine ──────
@@ -479,7 +492,7 @@ export async function readFeedPage(opts: {
       face: { bodyField: 'profile_body', mediaField: 'avatar_ref', authorColumn: 'author_key', urlField: 'avatar_url' },
     },
   });
-  const posts = result.rows.map(fromFeedQueryRow);
+  const posts = dropAdPosts(result.rows.map(fromFeedQueryRow));
   // The in-query reaction / comment joins are filtered to the feed's follower
   // groups, but the data lives in the discover group — so they return 0. Read
   // the real tallies from the discover group and merge them over the posts
