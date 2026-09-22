@@ -893,7 +893,8 @@ describe('Layout', () => {
   it('Monetization nav renders for every user; Node Monetization only for the node admin', async () => {
     const { default: Layout } = await import('@/components/Social/Layout');
     // Non-admin: the "Monetization" entry (the creator's ad catalog +
-    // affiliate onboarding) is visible; "Node Monetization" is not.
+    // affiliate onboarding) is visible in the More popover; "Node
+    // Monetization" is not.
     checkNodeAdmin.mockResolvedValue(false);
     const first = render(
       <MemoryRouter initialEntries={['/feed']}>
@@ -902,13 +903,15 @@ describe('Layout', () => {
         </Layout>
       </MemoryRouter>,
     );
+    // Open the More popover (monetization lives there now).
+    fireEvent.click(screen.getByTestId('nav-more-desktop'));
     expect(await screen.findByTestId('nav-monetization')).toBeInTheDocument();
     // The admin check has settled — the node entry never appears.
     await waitFor(() => expect(checkNodeAdmin).toHaveBeenCalled());
     expect(screen.queryByTestId('nav-node-monetization')).not.toBeInTheDocument();
     first.unmount();
 
-    // Node admin: both entries render.
+    // Node admin: both entries render in the More popover.
     checkNodeAdmin.mockResolvedValue(true);
     render(
       <MemoryRouter initialEntries={['/feed']}>
@@ -917,6 +920,7 @@ describe('Layout', () => {
         </Layout>
       </MemoryRouter>,
     );
+    fireEvent.click(screen.getByTestId('nav-more-desktop'));
     expect(await screen.findByTestId('nav-monetization')).toBeInTheDocument();
     expect(await screen.findByTestId('nav-node-monetization')).toBeInTheDocument();
   });
@@ -933,6 +937,8 @@ describe('Layout', () => {
         </Layout>
       </MemoryRouter>,
     );
+    // Open the More popover (monetization lives there now).
+    fireEvent.click(screen.getByTestId('nav-more-desktop'));
     // The Node row appears only once the async admin check resolves.
     const nodeRow = await screen.findByTestId('nav-node-monetization');
     expect(screen.getByTestId('nav-monetization')).toHaveAttribute('aria-current', 'page');
@@ -949,6 +955,8 @@ describe('Layout', () => {
         </Layout>
       </MemoryRouter>,
     );
+    // Open the More popover (monetization lives there now).
+    fireEvent.click(screen.getByTestId('nav-more-desktop'));
     expect(await screen.findByTestId('nav-node-monetization')).toHaveAttribute('aria-current', 'page');
     expect(screen.getByTestId('nav-monetization')).not.toHaveAttribute('aria-current');
   });
@@ -1117,6 +1125,39 @@ describe('Layout', () => {
     );
     expect(screen.getAllByText('web').length).toBeGreaterThanOrEqual(1);
     expect(screen.getAllByText('10').length).toBeGreaterThanOrEqual(1);
+  });
+
+  it('notifications bell is in the desktop top bar (not the sidebar)', async () => {
+    const { default: Layout } = await import('@/components/Social/Layout');
+    render(
+      <MemoryRouter initialEntries={['/feed']}>
+        <Layout onLogout={() => {}} onReportBug={() => {}}>
+          <div>Content</div>
+        </Layout>
+      </MemoryRouter>,
+    );
+    // The notifications bell is in the top bar.
+    const bell = await screen.findByTestId('nav-notifications');
+    expect(bell).toBeInTheDocument();
+    // It's inside the top bar (the desktop top bar testid).
+    const topbar = screen.getByTestId('topbar-desktop');
+    expect(topbar.contains(bell)).toBe(true);
+  });
+
+  it('the "New post" button is NOT in the sidebar or the mobile top bar', async () => {
+    const { default: Layout } = await import('@/components/Social/Layout');
+    render(
+      <MemoryRouter initialEntries={['/feed']}>
+        <Layout onLogout={() => {}} onReportBug={() => {}}>
+          <div>Content</div>
+        </Layout>
+      </MemoryRouter>,
+    );
+    await screen.findByTestId('topbar-desktop');
+    // The sidebar "New post" row is gone.
+    expect(screen.queryByTestId('nav-new-post')).not.toBeInTheDocument();
+    // The mobile top bar "New post" button is gone.
+    expect(screen.queryByTestId('new-post-button-mobile')).not.toBeInTheDocument();
   });
 });
 

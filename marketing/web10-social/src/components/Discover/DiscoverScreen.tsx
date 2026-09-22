@@ -51,6 +51,7 @@ import DiscoverGroupsTab from './DiscoverGroupsTab';
 import { VideoPlayer, sourceFromMedia } from '@/components/Feed/VideoPlayer';
 import { MediaCarousel } from '@/components/Feed/MediaCarousel';
 import { PostActions } from '@/components/Feed/PostActions';
+import PostComposer from '@/components/Feed/PostComposer';
 // D74: the shared discover card (one source, both apps). The social app's grid
 // + youtube cards now wrap it — the same card the marketing /trending uses.
 import { DiscoverCard as SharedDiscoverCard, type DiscoverPost, type CreateComment } from '@web10/discover';
@@ -1072,6 +1073,13 @@ export default function DiscoverScreen() {
 
       {tab === 'posts' ? (
         <>
+          {/* The composer — the operator: "you can make a new post from the
+              explorer too". Posts from the explorer go to the reader's
+              followers groups (the same as the feed's composer). */}
+          <div data-testid="discover-composer" className="border-b border-border">
+            <PostComposer onPostCreated={() => loadDiscover(sortConfig)} />
+          </div>
+
           {/* Controls: presets + knobs */}
           <div className="px-4 py-3 md:px-0">
             <KnobRack

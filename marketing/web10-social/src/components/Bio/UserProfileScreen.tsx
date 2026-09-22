@@ -30,6 +30,7 @@ import { PostLightbox } from './PostLightbox';
 import { ProfileFeed } from './ProfileFeed';
 import { ProfileViewToggle, type ProfileViewMode } from './ProfileViewToggle';
 import { ProfileMediaLightbox, type ProfileMediaOption, type FaceCropResult } from './ProfileMediaLightbox';
+import PostComposer from '@/components/Feed/PostComposer';
 import { toast, errorMessage } from '@/components/shared/Toast';
 import { cn } from '@/lib/utils';
 import { MARKETING_ORIGIN } from '@/lib/origins';
@@ -797,7 +798,15 @@ export default function UserProfileScreen({ username, provider, onBack }: UserPr
       {/* Posts: the insta-shaped grid (default) or the facebook-shaped feed */}
       <div className="p-1">
         {activeTab === 'posts' ? (
-          posts.length ? (
+          <>
+          {/* The composer — the owner can post from their profile (the
+              operator: "you can make a new post from your profile"). */}
+          {isOwnProfile && (
+            <div data-testid="profile-composer" className="mb-3">
+              <PostComposer onPostCreated={loadData} />
+            </div>
+          )}
+          {posts.length ? (
             viewMode === 'feed' ? (
               <ProfileFeed
                 posts={posts}
@@ -887,7 +896,8 @@ export default function UserProfileScreen({ username, provider, onBack }: UserPr
                 </p>
               )}
             </div>
-          )
+          )}
+          </>
         ) : mediaPosts.length ? (
           <div className="grid grid-cols-3 gap-1">
             {mediaPosts.flatMap((post) =>
