@@ -252,7 +252,7 @@ export default function Layout({ onLogout, onReportBug, children }: LayoutProps)
               <div
                 role="menu"
                 data-testid="more-menu"
-                className="absolute left-0 right-0 top-full mt-1 z-30 rounded-lg border border-border bg-popover p-1 shadow-[0_8px_30px_rgb(0,0,0/0.35)]"
+                className="absolute left-0 right-0 bottom-full mb-1 z-30 rounded-lg border border-border bg-popover p-1 shadow-[0_8px_30px_rgb(0,0,0/0.35)] max-h-[min(70vh,420px)] overflow-y-auto"
               >
                 {/* Monetization (D75) — a real destination, demoted from the
                     sidebar into the More popover (the operator: "the
