@@ -1056,3 +1056,141 @@ describe('Comment thread deep links (remote mode)', () => {
     expect(link.getAttribute('target')).toBe('_blank');
   });
 });
+
+// ── M1: the People + Groups subtabs ─────────────────────────────────────────
+
+describe('TrendingPeople (M1)', () => {
+  it('renders the people grid from the D0 read', async () => {
+    const { TrendingPeople } = await import('@/components/TrendingPeople');
+    vi.mocked(fetch).mockResolvedValue({
+      ok: true,
+      json: () => Promise.resolve({
+        users: [
+          { username: 'nova', follower_count: 128, profile: { display_name: 'Nova' } },
+          { username: 'kai', follower_count: 512, profile: { display_name: 'Kai' } },
+        ],
+        limit: 24,
+        offset: 0,
+      }),
+    } as unknown as Response);
+    render(<TrendingPeople />);
+    await waitFor(() => {
+      expect(screen.getByTestId('trending-people-grid')).toBeInTheDocument();
+    });
+    expect(screen.getAllByTestId('trending-person-card')).toHaveLength(2);
+    expect(screen.getByText('Nova')).toBeInTheDocument();
+    expect(screen.getByText('Kai')).toBeInTheDocument();
+  });
+
+  it('shows the quiet state when the D0 read returns no users', async () => {
+    const { TrendingPeople } = await import('@/components/TrendingPeople');
+    vi.mocked(fetch).mockResolvedValue({
+      ok: true,
+      json: () => Promise.resolve({ users: [], limit: 24, offset: 0 }),
+    } as unknown as Response);
+    render(<TrendingPeople />);
+    await waitFor(() => {
+      expect(screen.getByTestId('trending-people-empty')).toBeInTheDocument();
+    });
+  });
+
+  it('shows the error state when the D0 read fails', async () => {
+    const { TrendingPeople } = await import('@/components/TrendingPeople');
+    // A network error (fetch throws) triggers the error state. A non-ok
+    // response is treated as an empty list (the component degrades gracefully).
+    vi.mocked(fetch).mockRejectedValue(new Error('network error'));
+    render(<TrendingPeople />);
+    await waitFor(() => {
+      expect(screen.getByTestId('trending-people-error')).toBeInTheDocument();
+    });
+  });
+});
+
+describe('TrendingGroups (M1)', () => {
+  it('renders the groups grid from the D53 read', async () => {
+    const { TrendingGroups } = await import('@/components/TrendingGroups');
+    vi.mocked(fetch).mockResolvedValue({
+      ok: true,
+      json: () => Promise.resolve({
+        groups: [
+          { group_id: 'web10/groups/users/nova/synthwave', name: 'synthwave', owner: 'nova', slug: 'synthwave', join_policy: 'open', member_count: 128, permission_summary: 'member: readAll' },
+          { group_id: 'web10/groups/users/kai/lofi', name: 'lofi', owner: 'kai', slug: 'lofi', join_policy: 'request', member_count: 512, permission_summary: 'member: readAll' },
+        ],
+        limit: 24,
+        offset: 0,
+      }),
+    } as unknown as Response);
+    render(<TrendingGroups />);
+    await waitFor(() => {
+      expect(screen.getByTestId('trending-groups-grid')).toBeInTheDocument();
+    });
+    expect(screen.getAllByTestId('trending-group-card')).toHaveLength(2);
+    const names = screen.getAllByTestId('trending-group-name');
+    expect(names[0]).toHaveTextContent('Synthwave');
+    expect(names[1]).toHaveTextContent('Lofi');
+  });
+
+  it('shows the empty state when the D53 read returns no groups', async () => {
+    const { TrendingGroups } = await import('@/components/TrendingGroups');
+    vi.mocked(fetch).mockResolvedValue({
+      ok: true,
+      json: () => Promise.resolve({ groups: [], limit: 24, offset: 0 }),
+    } as unknown as Response);
+    render(<TrendingGroups />);
+    await waitFor(() => {
+      expect(screen.getByTestId('trending-groups-empty')).toBeInTheDocument();
+    });
+  });
+});
+
+describe('Trending subtab row (M1)', () => {
+  it('renders the Posts | People | Groups tabs with Posts active by default', async () => {
+    const { default: Trending } = await import('@/pages/Trending');
+    // Mock the posts feed read (the existing /v3/read call).
+    vi.mocked(fetch).mockResolvedValue({
+      ok: true,
+      json: () => Promise.resolve([]),
+    } as unknown as Response);
+    render(<Trending />);
+    await waitFor(() => {
+      expect(screen.getByTestId('trending-tab-row')).toBeInTheDocument();
+    });
+    expect(screen.getByTestId('trending-tab-posts')).toHaveAttribute('aria-selected', 'true');
+    expect(screen.getByTestId('trending-tab-people')).toHaveAttribute('aria-selected', 'false');
+    expect(screen.getByTestId('trending-tab-groups')).toHaveAttribute('aria-selected', 'false');
+  });
+
+  it('switches to the People subtab on click', async () => {
+    const { default: Trending } = await import('@/pages/Trending');
+    vi.mocked(fetch).mockResolvedValue({
+      ok: true,
+      json: () => Promise.resolve({ users: [], limit: 24, offset: 0 }),
+    } as unknown as Response);
+    render(<Trending />);
+    await waitFor(() => {
+      expect(screen.getByTestId('trending-tab-row')).toBeInTheDocument();
+    });
+    fireEvent.click(screen.getByTestId('trending-tab-people'));
+    await waitFor(() => {
+      expect(screen.getByTestId('trending-people-view')).toBeInTheDocument();
+    });
+    expect(screen.getByTestId('trending-tab-people')).toHaveAttribute('aria-selected', 'true');
+  });
+
+  it('switches to the Groups subtab on click', async () => {
+    const { default: Trending } = await import('@/pages/Trending');
+    vi.mocked(fetch).mockResolvedValue({
+      ok: true,
+      json: () => Promise.resolve({ groups: [], limit: 24, offset: 0 }),
+    } as unknown as Response);
+    render(<Trending />);
+    await waitFor(() => {
+      expect(screen.getByTestId('trending-tab-row')).toBeInTheDocument();
+    });
+    fireEvent.click(screen.getByTestId('trending-tab-groups'));
+    await waitFor(() => {
+      expect(screen.getByTestId('trending-groups-view')).toBeInTheDocument();
+    });
+    expect(screen.getByTestId('trending-tab-groups')).toHaveAttribute('aria-selected', 'true');
+  });
+});

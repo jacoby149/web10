@@ -51,6 +51,7 @@ import DiscoverGroupsTab from './DiscoverGroupsTab';
 import { VideoPlayer, sourceFromMedia } from '@/components/Feed/VideoPlayer';
 import { MediaCarousel } from '@/components/Feed/MediaCarousel';
 import { PostActions } from '@/components/Feed/PostActions';
+import PostComposer from '@/components/Feed/PostComposer';
 // D74: the shared discover card (one source, both apps). The social app's grid
 // + youtube cards now wrap it — the same card the marketing /trending uses.
 import { DiscoverCard as SharedDiscoverCard, type DiscoverPost, type CreateComment } from '@web10/discover';
@@ -1013,7 +1014,7 @@ export default function DiscoverScreen() {
         <div className="flex items-center justify-between px-4 py-3 md:px-0 gap-3">
           <div className="flex items-center gap-2 shrink-0">
             <Compass className="h-5 w-5 text-brand-400" strokeWidth={1.75} />
-            <h1 className="font-display text-lg font-bold text-foreground">Discover</h1>
+            <h1 className="font-display text-lg font-bold text-foreground">Explorer</h1>
           </div>
           {tab === 'posts' && (
             <div className="relative flex-1 max-w-xs">
@@ -1045,7 +1046,7 @@ export default function DiscoverScreen() {
       {/* Subtabs: Posts | People | Groups (?tab=, posts is the bare URL) */}
       <div className="border-b border-border bg-surface/50" data-testid="discover-tab-row">
         <div className="px-4 md:px-0">
-          <div className="flex items-center gap-1 py-1.5" role="tablist" aria-label="Discover sections">
+          <div className="flex items-center gap-1 py-1.5" role="tablist" aria-label="Explorer sections">
             {DISCOVER_TABS.map(({ id, label, icon: TabIcon }) => (
               <button
                 key={id}
@@ -1072,6 +1073,13 @@ export default function DiscoverScreen() {
 
       {tab === 'posts' ? (
         <>
+          {/* The composer — the operator: "you can make a new post from the
+              explorer too". Posts from the explorer go to the reader's
+              followers groups (the same as the feed's composer). */}
+          <div data-testid="discover-composer" className="border-b border-border">
+            <PostComposer onPostCreated={() => loadDiscover(sortConfig)} />
+          </div>
+
           {/* Controls: presets + knobs */}
           <div className="px-4 py-3 md:px-0">
             <KnobRack

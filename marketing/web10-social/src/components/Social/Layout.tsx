@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { useNavigate, useLocation, Outlet } from 'react-router-dom';
 import { cn } from '@/lib/utils';
-import { Home, User, MessageSquare, PlusCircle, LogOut, Bug, Compass, Users, Store, Gamepad2, Radio, Zap, Clapperboard, Settings, MoreHorizontal, X, Bell, ChevronDown, DollarSign } from 'lucide-react';
+import { Home, User, MessageSquare, LogOut, Bug, Compass, Store, Gamepad2, Radio, Zap, Clapperboard, Settings, MoreHorizontal, X, Bell, ChevronDown, DollarSign } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { getWapi } from '@/data/wapi';
@@ -22,13 +22,13 @@ interface LayoutProps {
 // and Groups move into the "More" sheet so the bottom bar never exceeds five
 // icons — room to grow as surfaces ship.
 const feedItem = { path: '/feed', icon: Home, label: 'Feed', testId: 'nav-feed' };
-const discoverItem = { path: '/discover', icon: Compass, label: 'Discover', testId: 'nav-discover' };
+const discoverItem = { path: '/discover', icon: Compass, label: 'Explorer', testId: 'nav-discover' };
 const shortsItem = { path: '/shorts', icon: Clapperboard, label: 'Shorts', testId: 'nav-shorts' };
 const messagesItem = { path: '/messages', icon: MessageSquare, label: 'Messages', testId: 'nav-messages' };
 const profileItem = { path: '/profile', icon: User, label: 'Profile', testId: 'nav-profile' };
-// Real destinations demoted from the bottom bar into the "More" sheet (and
-// the desktop sidebar).
-const groupsItem = { path: '/groups', icon: Users, label: 'Groups', testId: 'nav-groups' };
+// Real destinations demoted from the bottom bar into the "More" sheet.
+// (Groups is retired from the nav entirely — it lives in the Explorer/Groups
+// subtab, discover-reorg D3 — so it no longer holds a nav row.)
 const settingsItem = { path: '/settings', icon: Settings, label: 'Settings', testId: 'nav-settings' };
 // Monetization (D75) — every signed-in user: the creator's ad catalog +
 // affiliate onboarding. Deep-links to the Monetization surface's default
@@ -41,12 +41,13 @@ const nodeMonetizationItem = { path: '/monetize?tab=node', icon: DollarSign, lab
 
 // Mobile bottom bar: the four core tabs in thumb-reach order.
 const bottomNavItems = [feedItem, discoverItem, messagesItem, profileItem];
-// Desktop sidebar keeps its historical order (Feed, Discover, Groups,
+// Desktop sidebar keeps its historical order (Feed, Explorer, Shorts,
 // Profile, Messages) — the bottom bar reorders for thumb-reach, the sidebar
-// doesn't need to follow it. Shorts sits after Discover (the video surfaces
+// doesn't need to follow it. Shorts sits after Explorer (the video surfaces
 // group together). Settings is NOT a sidebar row — it lives only in the
-// account menu (top bar), so it isn't duplicated in the nav.
-const sidebarNavItems = [feedItem, discoverItem, shortsItem, groupsItem, profileItem, messagesItem];
+// account menu (top bar), so it isn't duplicated in the nav. Groups is retired
+// from the nav — it lives in the Explorer/Groups subtab (discover-reorg D3).
+const sidebarNavItems = [feedItem, discoverItem, shortsItem, profileItem, messagesItem];
 
 // Provisional, non-infringing names for the surfaces not yet built. Shorts is
 // now a real surface (shorts.md) — it lives in the sidebar + the More sheet,
@@ -223,97 +224,13 @@ export default function Layout({ onLogout, onReportBug, children }: LayoutProps)
             </button>
             );
           })}
-          <button
-            key={monetizationItem.path}
-            data-testid={monetizationItem.testId}
-            aria-current={isMonetizeCreator ? 'page' : undefined}
-            onClick={() => navigate(monetizationItem.path)}
-            className={cn(
-              'w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all duration-150',
-              isMonetizeCreator
-                ? cn(
-                    'bg-gradient-to-r from-brand-muted to-brand/15 text-brand-300',
-                    'border border-brand/20 glow-active',
-                  )
-                : 'text-muted-foreground hover:text-foreground hover:bg-elevated/80 hover:border hover:border-border/50',
-            )}
-          >
-            <DollarSign className={cn('w-6 h-6 transition-colors duration-150', isMonetizeCreator && 'text-brand')} strokeWidth={isMonetizeCreator ? 2 : 1.75} />
-            {monetizationItem.label}
-            {isMonetizeCreator && (
-              <div
-                className="ml-auto w-1.5 h-1.5 rounded-full bg-brand animate-glow-pulse"
-                aria-hidden="true"
-              />
-            )}
-          </button>
-          {isNodeAdmin && (
-            <button
-              key={nodeMonetizationItem.path}
-              data-testid={nodeMonetizationItem.testId}
-              aria-current={isMonetizeNode ? 'page' : undefined}
-              onClick={() => navigate(nodeMonetizationItem.path)}
-              className={cn(
-                'w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all duration-150',
-                isMonetizeNode
-                  ? cn(
-                      'bg-gradient-to-r from-brand-muted to-brand/15 text-brand-300',
-                      'border border-brand/20 glow-active',
-                    )
-                  : 'text-muted-foreground hover:text-foreground hover:bg-elevated/80 hover:border hover:border-border/50',
-              )}
-            >
-              <DollarSign className={cn('w-6 h-6 transition-colors duration-150', isMonetizeNode && 'text-brand')} strokeWidth={isMonetizeNode ? 2 : 1.75} />
-              {nodeMonetizationItem.label}
-              {isMonetizeNode && (
-                <div
-                  className="ml-auto w-1.5 h-1.5 rounded-full bg-brand animate-glow-pulse"
-                  aria-hidden="true"
-                />
-              )}
-            </button>
-          )}
-          <button
-            data-testid="nav-notifications"
-            aria-current={isNotifications ? 'page' : undefined}
-            onClick={() => navigate('/notifications')}
-            className={cn(
-              'w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all duration-150',
-              isNotifications
-                ? cn(
-                    'bg-gradient-to-r from-brand-muted to-brand/15 text-brand-300',
-                    'border border-brand/20 glow-active',
-                  )
-                : 'text-muted-foreground hover:text-foreground hover:bg-elevated/80 hover:border hover:border-border/50',
-            )}
-          >
-            <Bell className={cn('w-6 h-6 transition-colors duration-150', isNotifications && 'text-brand')} strokeWidth={isNotifications ? 2 : 1.75} />
-            Notifications
-            {unread > 0 && (
-              <span
-                data-testid="nav-notifications-badge"
-                aria-hidden="true"
-                className="ml-auto min-w-5 h-5 px-1.5 rounded-full bg-brand text-background text-[0.625rem] font-bold flex items-center justify-center animate-glow-pulse"
-              >
-                {unread > 99 ? '99+' : unread}
-              </span>
-            )}
-          </button>
-          <button
-            data-testid="nav-new-post"
-            onClick={() => navigate('/feed')}
-            className={cn(
-              'w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all duration-150 mt-4',
-              'text-muted-foreground hover:text-foreground hover:bg-elevated/80 hover:border hover:border-border/50',
-            )}
-          >
-            <PlusCircle className="w-6 h-6" strokeWidth={1.75} />
-            New post
-          </button>
-
-          {/* More — the coming-soon surfaces in a popover. They're not real
-              destinations yet, so they don't hold permanent nav rows; the
-              popover keeps the roadmap discoverable without the dead weight. */}
+          {/* More — the coming-soon surfaces + monetization in a popover.
+              Monetization (D75) is a real destination but not a core nav item,
+              so it lives in the More popover (the operator: "the monetization
+              stuff could go in the more tabs"). The coming-soon surfaces are
+              not real destinations yet, so they don't hold permanent nav rows;
+              the popover keeps the roadmap discoverable without the dead
+              weight. */}
           <div className="relative mt-4" ref={moreMenuRef}>
             <button
               type="button"
@@ -335,8 +252,42 @@ export default function Layout({ onLogout, onReportBug, children }: LayoutProps)
               <div
                 role="menu"
                 data-testid="more-menu"
-                className="absolute left-0 right-0 top-full mt-1 z-30 rounded-lg border border-border bg-popover p-1 shadow-[0_8px_30px_rgb(0,0,0/0.35)]"
+                className="absolute left-0 right-0 bottom-full mb-1 z-30 rounded-lg border border-border bg-popover p-1 shadow-[0_8px_30px_rgb(0,0,0/0.35)] max-h-[min(70vh,420px)] overflow-y-auto"
               >
+                {/* Monetization (D75) — a real destination, demoted from the
+                    sidebar into the More popover (the operator: "the
+                    monetization stuff could go in the more tabs"). */}
+                <button
+                  type="button"
+                  role="menuitem"
+                  data-testid={monetizationItem.testId}
+                  aria-current={isMonetizeCreator ? 'page' : undefined}
+                  onClick={() => { setMoreMenuOpen(false); navigate(monetizationItem.path); }}
+                  className={cn(
+                    'w-full flex items-center gap-3 px-3 py-2 rounded-md text-sm font-medium transition-colors',
+                    isMonetizeCreator ? 'bg-brand-muted text-brand-300' : 'text-foreground hover:bg-elevated',
+                  )}
+                >
+                  <DollarSign className="w-5 h-5" strokeWidth={1.75} />
+                  {monetizationItem.label}
+                </button>
+                {isNodeAdmin && (
+                  <button
+                    type="button"
+                    role="menuitem"
+                    data-testid={nodeMonetizationItem.testId}
+                    aria-current={isMonetizeNode ? 'page' : undefined}
+                    onClick={() => { setMoreMenuOpen(false); navigate(nodeMonetizationItem.path); }}
+                    className={cn(
+                      'w-full flex items-center gap-3 px-3 py-2 rounded-md text-sm font-medium transition-colors',
+                      isMonetizeNode ? 'bg-brand-muted text-brand-300' : 'text-foreground hover:bg-elevated',
+                    )}
+                  >
+                    <DollarSign className="w-5 h-5" strokeWidth={1.75} />
+                    {nodeMonetizationItem.label}
+                  </button>
+                )}
+                <div className="my-1 h-px bg-border" aria-hidden="true" />
                 <p className="px-3 py-1.5 text-[0.625rem] font-medium uppercase tracking-wider text-muted-foreground/50">
                   Coming soon
                 </p>
@@ -366,16 +317,6 @@ export default function Layout({ onLogout, onReportBug, children }: LayoutProps)
           <div className="flex items-center gap-1">
             <GlobalSearch variant="mobile" />
             <NotificationBell />
-            <Button
-              variant="ghost"
-              size="icon"
-              data-testid="new-post-button-mobile"
-              className="h-11 w-11 text-muted-foreground hover:text-foreground"
-              aria-label="New post"
-              onClick={() => navigate('/feed')}
-            >
-              <PlusCircle className="w-5 h-5" strokeWidth={1.75} />
-            </Button>
             <Button
               variant="ghost"
               size="icon"
@@ -412,6 +353,32 @@ export default function Layout({ onLogout, onReportBug, children }: LayoutProps)
             className="hidden md:flex items-center border-b border-border bg-surface/95 backdrop-blur-md z-20"
           >
             <GlobalSearch variant="desktop" />
+            {/* Notifications — the bell lives in the top bar next to the
+                account row (the operator: "notifications could go in the top
+                right next to the other thing on the top right"). The unread
+                badge mirrors the sidebar's (retired from the sidebar). */}
+            <button
+              type="button"
+              data-testid="nav-notifications"
+              aria-label="Notifications"
+              onClick={() => navigate('/notifications')}
+              className={cn(
+                'relative flex items-center justify-center h-9 w-9 rounded-lg transition-colors duration-150',
+                'hover:bg-elevated/80 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand/50',
+                isNotifications ? 'text-brand' : 'text-muted-foreground',
+              )}
+            >
+              <Bell className="w-5 h-5" strokeWidth={isNotifications ? 2 : 1.75} />
+              {unread > 0 && (
+                <span
+                  data-testid="nav-notifications-badge"
+                  aria-hidden="true"
+                  className="absolute -top-0.5 -right-0.5 min-w-4.5 h-4.5 px-1 rounded-full bg-brand text-background text-[0.5625rem] font-bold flex items-center justify-center animate-glow-pulse"
+                >
+                  {unread > 99 ? '99+' : unread}
+                </span>
+              )}
+            </button>
             <div className="relative shrink-0 pr-3" ref={userMenuRef}>
               <button
                 type="button"
@@ -613,17 +580,6 @@ export default function Layout({ onLogout, onReportBug, children }: LayoutProps)
                 >
                   <Settings className="w-5 h-5" strokeWidth={1.75} />
                   {settingsItem.label}
-                </button>
-                <button
-                  data-testid="nav-groups-mobile"
-                  onClick={() => go(groupsItem.path)}
-                  className={cn(
-                    'w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors duration-150',
-                    isActive(groupsItem.path) ? 'bg-brand-muted text-brand-300' : 'text-foreground hover:bg-elevated',
-                  )}
-                >
-                  <Users className="w-5 h-5" strokeWidth={1.75} />
-                  {groupsItem.label}
                 </button>
                 <button
                   data-testid="nav-monetization-mobile"

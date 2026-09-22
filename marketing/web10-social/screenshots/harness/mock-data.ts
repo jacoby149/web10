@@ -461,9 +461,6 @@ export async function readGroupDetail(groupId: string): Promise<unknown> {
 export async function joinGroup(): Promise<unknown> { return { status: 'joined' }; }
 // Group edit-mode seams (group-as-profile) — the GroupDetailScreen imports these
 // from the @/data barrel; the harness mock must export them or the module errors.
-export async function readGroupMediaPage(): Promise<unknown> {
-  return { posts: [], hasMore: false, total: 0 };
-}
 export async function saveGroup(): Promise<unknown> { return { status: 'saved' }; }
 export async function publishGroup(): Promise<unknown> { return { status: 'published' }; }
 export async function readGroupIdentity(groupId: string): Promise<unknown> {
@@ -526,11 +523,10 @@ export async function updateGroup(): Promise<unknown> { return {}; }
 export async function addGroupMember(): Promise<unknown> { return {}; }
 export async function removeGroupMember(): Promise<unknown> { return {}; }
 export async function deleteGroup(): Promise<unknown> { return { status: 'deleted' }; }
-// G4: the create entry point + the atomic commit + the slug guard — the
-// group detail / edit mode import these from the @/data barrel.
+// G4: the create entry point + the slug guard — the group detail / edit mode
+// import these from the @/data barrel. (saveGroup / publishGroup — the atomic
+// commit — are stubbed above with the other group fns.)
 export async function createDraftGroup(): Promise<string> { return 'web10/groups/users/me/new-group'; }
-export async function saveGroup(): Promise<void> { return; }
-export async function publishGroup(): Promise<void> { return; }
 export async function slugTaken(): Promise<boolean> { return false; }
 // G1: the Media tab's paged read + page size (GroupDetailScreen imports both
 // from the @/data barrel).
@@ -1201,9 +1197,6 @@ export async function fetchPeoplePage(_opts: { limit: number; offset: number }):
 // from the @/data barrel — provide working implementations so the harness
 // renders the correct order + filter.
 export const DEFAULT_PEOPLE_SORT = 'popular';
-// The group media grid's page size (GroupDetailScreen imports it from the
-// @/data barrel — the harness mock must export it or the module errors).
-export const GROUP_MEDIA_PAGE_SIZE = 24;
 export function sortPeople(people: any[], sort: string): any[] {
   const arr = [...people];
   switch (sort) {
