@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
-import { Avatar, AvatarFallback } from '@/components/ui/avatar';
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -8,8 +8,15 @@ import {
   readGroupDirectory,
   joinGroup,
   requestJoinGroup,
+  getMyCommunityGroups,
+  readGroupIdentity,
+  resolveMediaRefs,
+  groupDisplayName,
+  leaveGroup,
   type GroupDirectoryEntry,
+  type MediaRecord,
 } from '@/data';
+import type { V3Group } from '@/data';
 import { toast, errorMessage } from '@/components/shared/Toast';
 import {
   Users,
@@ -21,6 +28,8 @@ import {
   RefreshCw,
   Search,
   X,
+  LogOut,
+  ChevronRight,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
@@ -210,6 +219,136 @@ function DiscoverGroupCardSkeleton() {
   );
 }
 
+// ── My Groups row (the groups you're a member of) ────────────────────────────
+
+interface MyGroupFace {
+  banner_url?: string;
+  avatar_url?: string;
+  name?: string;
+  status?: 'draft' | 'published';
+}
+
+interface MyGroupRowProps {
+  group: V3Group;
+  face?: MyGroupFace;
+  onOpen: () => void;
+  onLeave: () => void;
+  leaving: boolean;
+}
+
+function MyGroupRow({ group, face, onOpen, onLeave, leaving }: MyGroupRowProps) {
+  const name = face?.name || groupDisplayName(group.group_id);
+  const initial = name.charAt(0).toUpperCase();
+  const isOwner = group.my_role === 'owner' || group.my_role === 'admin';
+  const gradient = hashToGradient(group.group_id);
+
+  return (
+    <div
+      data-testid="groups-my-row"
+      role="button"
+      tabIndex={0}
+      onClick={onOpen}
+      onKeyDown={(e) => {
+        if (e.key === 'Enter' || e.key === ' ') {
+          e.preventDefault();
+          onOpen();
+        }
+      }}
+      className={cn(
+        'group relative w-full overflow-hidden rounded-xl border border-border bg-card text-left cursor-pointer transition-all duration-200',
+        'hover:-translate-y-1 hover:border-brand/40 hover:shadow-[0_8px_32px_-8px_var(--color-glow-intense)]',
+        'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background',
+        'motion-reduce:transform-none',
+      )}
+    >
+      <div className="h-24 w-full overflow-hidden" aria-hidden="true">
+        {face?.banner_url ? (
+          <img
+            src={face.banner_url}
+            alt=""
+            loading="lazy"
+            className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-105 motion-reduce:transform-none"
+          />
+        ) : (
+          <div className={cn('h-full w-full', gradient)} />
+        )}
+      </div>
+      <div className="flex items-end gap-3 p-4 pt-0">
+        <div className="shrink-0 -mt-8 rounded-full border-4 border-card">
+          <Avatar className={cn('h-16 w-16', !face?.avatar_url && gradient)}>
+            {face?.avatar_url ? (
+              <AvatarImage src={face.avatar_url} alt={name} />
+            ) : (
+              <AvatarFallback className="text-foreground text-xl font-semibold">{initial}</AvatarFallback>
+            )}
+          </Avatar>
+        </div>
+        <div className="min-w-0 flex-1 pb-1">
+          <div className="flex items-center gap-2">
+            <h3 className="truncate text-base font-semibold text-foreground">{name}</h3>
+            {face?.status === 'draft' && (
+              <Badge variant="outline" className="normal-case tracking-normal" data-testid="groups-my-draft">
+                Draft
+              </Badge>
+            )}
+            {isOwner && (
+              <Badge variant="brand" className="normal-case tracking-normal" data-testid="groups-my-role-owner">
+                Owner
+              </Badge>
+            )}
+          </div>
+          <p className="mt-1 flex items-center gap-1.5 text-xs text-muted-foreground">
+            <Users className="h-3 w-3 shrink-0" strokeWidth={2} aria-hidden="true" />
+            <span className="tabular-nums">{formatCount(group.member_count)} members</span>
+            <span aria-hidden="true" className="text-muted-foreground/40">·</span>
+            <JoinPolicyBadge policy={group.join_policy} />
+          </p>
+        </div>
+        {!isOwner && (
+          <Button
+            variant="ghost"
+            size="sm"
+            data-testid="groups-leave-button"
+            disabled={leaving}
+            onClick={(e) => {
+              e.stopPropagation();
+              onLeave();
+            }}
+            className="shrink-0 gap-1.5 text-muted-foreground hover:text-danger hover:bg-danger-muted"
+            aria-label={`Leave ${name}`}
+          >
+            {leaving ? (
+              <Loader2 className="h-3.5 w-3.5 animate-spin" strokeWidth={2} />
+            ) : (
+              <LogOut className="h-3.5 w-3.5" strokeWidth={1.75} />
+            )}
+            <span className="hidden sm:inline">Leave</span>
+          </Button>
+        )}
+        <ChevronRight className="h-4 w-4 shrink-0 text-muted-foreground/50 transition-transform duration-150 group-hover:translate-x-0.5" />
+      </div>
+    </div>
+  );
+}
+
+function MyGroupRowSkeleton() {
+  return (
+    <div className="w-full overflow-hidden rounded-xl border border-border bg-card">
+      <Skeleton className="h-24 w-full" />
+      <div className="flex items-end gap-3 p-4 pt-0">
+        <div className="shrink-0 -mt-8 rounded-full border-4 border-card">
+          <Skeleton className="h-16 w-16 rounded-full" />
+        </div>
+        <div className="min-w-0 flex-1 space-y-2 pb-1">
+          <Skeleton className="h-4 w-36" />
+          <Skeleton className="h-3 w-40" />
+        </div>
+        <Skeleton className="h-8 w-16 rounded-md" />
+      </div>
+    </div>
+  );
+}
+
 // ── Error state ─────────────────────────────────────────────────────────────
 
 function GroupsErrorState({ onRetry }: { onRetry: () => void }) {
@@ -324,6 +463,71 @@ export default function DiscoverGroupsTab({ query }: DiscoverGroupsTabProps) {
   // loadPage callback reads the latest without a stale closure.
   const nextOffsetRef = useRef(0);
 
+  // ── My Groups (the groups you're a member of, shown above the directory) ──
+  const [myGroups, setMyGroups] = useState<V3Group[]>([]);
+  const [myLoading, setMyLoading] = useState(true);
+  const [myError, setMyError] = useState(false);
+  const [leaving, setLeaving] = useState<Record<string, boolean>>({});
+  const [groupFaces, setGroupFaces] = useState<Record<string, MyGroupFace>>({});
+
+  const loadMyGroups = useCallback(async () => {
+    setMyLoading(true);
+    setMyError(false);
+    LOG('loadMyGroups — start');
+    try {
+      const gs = await getMyCommunityGroups();
+      LOG('loadMyGroups — got', gs.length, 'community groups');
+      setMyGroups(gs);
+      const faceEntries = await Promise.all(
+        gs.map(async (g): Promise<[string, MyGroupFace]> => {
+          try {
+            const identity = await readGroupIdentity(g.group_id);
+            const refs: string[] = [];
+            if (identity.banner_ref) refs.push(identity.banner_ref);
+            if (identity.avatar_ref) refs.push(identity.avatar_ref);
+            let banner_url: string | undefined;
+            let avatar_url: string | undefined;
+            if (refs.length) {
+              const resolved = await resolveMediaRefs(refs);
+              const map: Record<string, MediaRecord> = {};
+              for (const m of resolved) if (m._id) map[m._id] = m;
+              if (identity.banner_ref) banner_url = map[identity.banner_ref]?.url;
+              if (identity.avatar_ref) avatar_url = map[identity.avatar_ref]?.url;
+            }
+            return [g.group_id, { banner_url, avatar_url, name: identity.name, status: identity.status }];
+          } catch (e) {
+            LOG('loadMyGroups — face failed for', g.group_id, ':', e);
+            return [g.group_id, {}];
+          }
+        }),
+      );
+      setGroupFaces(Object.fromEntries(faceEntries));
+    } catch (e) {
+      LOG('loadMyGroups — failed:', e);
+      setMyError(true);
+    } finally {
+      setMyLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    loadMyGroups();
+  }, [loadMyGroups]);
+
+  const handleLeave = useCallback(async (groupId: string) => {
+    setLeaving((prev) => ({ ...prev, [groupId]: true }));
+    try {
+      LOG('leave —', groupId);
+      await leaveGroup(groupId);
+      setMyGroups((prev) => prev.filter((g) => g.group_id !== groupId));
+    } catch (e) {
+      LOG('leave — failed:', e);
+      toast.error(errorMessage(e, 'Could not leave the group.'));
+    } finally {
+      setLeaving((prev) => ({ ...prev, [groupId]: false }));
+    }
+  }, []);
+
   const loadPage = useCallback(async (offset: number, append: boolean) => {
     if (append) {
       setLoadingMore(true);
@@ -434,6 +638,39 @@ export default function DiscoverGroupsTab({ query }: DiscoverGroupsTabProps) {
           </span>
         </div>
       )}
+
+      {/* My Groups — the groups you're a member of (above the directory) */}
+      <div className="px-4 pt-4 md:px-0" data-testid="groups-my-section">
+        <h2 className="mb-3 text-sm font-semibold text-muted-foreground" data-testid="groups-my-header">
+          My Groups
+        </h2>
+        {myError ? (
+          <p className="text-sm text-muted-foreground">Couldn't load your groups.</p>
+        ) : myLoading ? (
+          <div className="space-y-3" data-testid="groups-my-skeleton">
+            {Array.from({ length: 2 }).map((_, i) => (
+              <MyGroupRowSkeleton key={i} />
+            ))}
+          </div>
+        ) : myGroups.length > 0 ? (
+          <div className="space-y-3" data-testid="groups-my-list">
+            {myGroups.map((g) => (
+              <MyGroupRow
+                key={g.group_id}
+                group={g}
+                face={groupFaces[g.group_id]}
+                onOpen={() => openGroup(g.group_id)}
+                onLeave={() => handleLeave(g.group_id)}
+                leaving={!!leaving[g.group_id]}
+              />
+            ))}
+          </div>
+        ) : (
+          <p className="text-sm text-muted-foreground" data-testid="groups-my-empty">
+            You're not in any groups yet.
+          </p>
+        )}
+      </div>
 
       {/* Tag filter chips (?tag=, deep-linkable) */}
       {topics.length > 0 && (

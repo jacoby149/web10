@@ -797,12 +797,13 @@ describe('Layout', () => {
     // DOM in jsdom) — assert via the stable data-testid hooks instead.
     expect(screen.getByTestId('nav-feed')).toBeInTheDocument();
     expect(screen.getByTestId('nav-discover')).toBeInTheDocument();
-    expect(screen.getByTestId('nav-groups')).toBeInTheDocument();
     expect(screen.getByTestId('nav-profile')).toBeInTheDocument();
     expect(screen.getByTestId('nav-messages')).toBeInTheDocument();
+    // Groups is retired from the nav (it lives in the Explorer/Groups subtab).
+    expect(screen.queryByTestId('nav-groups')).not.toBeInTheDocument();
     expect(screen.getAllByText('Feed').length).toBeGreaterThanOrEqual(1);
-    expect(screen.getAllByText('Discover').length).toBeGreaterThanOrEqual(1);
-    expect(screen.getAllByText('Groups').length).toBeGreaterThanOrEqual(1);
+    expect(screen.getAllByText('Explorer').length).toBeGreaterThanOrEqual(1);
+    expect(screen.queryByText('Groups')).not.toBeInTheDocument();
     expect(screen.getAllByText('Profile').length).toBeGreaterThanOrEqual(1);
     expect(screen.getAllByText('Messages').length).toBeGreaterThanOrEqual(1);
   });
@@ -840,7 +841,8 @@ describe('Layout', () => {
     expect(within(mobileNav).getByTestId('nav-messages-mobile')).toBeInTheDocument();
     expect(within(mobileNav).getByTestId('nav-profile-mobile')).toBeInTheDocument();
     expect(within(mobileNav).getByTestId('nav-more-mobile')).toBeInTheDocument();
-    // Settings and Groups are NOT in the bar (they live in the More sheet).
+    // Settings is NOT in the bar (it lives in the More sheet). Groups is
+    // retired from the nav entirely (it lives in the Explorer/Groups subtab).
     expect(within(mobileNav).queryByTestId('nav-settings-mobile')).not.toBeInTheDocument();
     expect(within(mobileNav).queryByTestId('nav-groups-mobile')).not.toBeInTheDocument();
     // …and none of the coming-soon icons are crammed into the bar.
@@ -853,15 +855,16 @@ describe('Layout', () => {
     // The More sheet is closed by default.
     expect(screen.queryByTestId('more-sheet')).not.toBeInTheDocument();
 
-    // Tapping More opens the sheet: Shorts + Settings + Groups (real
-    // destinations) + the coming-soon list (Stories, Livestream, Games,
-    // Marketplace). Shorts is a real surface (shorts.md), not coming-soon.
+    // Tapping More opens the sheet: Shorts + Settings (real destinations) +
+    // the coming-soon list (Stories, Livestream, Games, Marketplace). Shorts
+    // is a real surface (shorts.md), not coming-soon. Groups is retired from
+    // the nav (it lives in the Explorer/Groups subtab), so it's not here.
     fireEvent.click(screen.getByTestId('nav-more-mobile'));
     const sheet = screen.getByTestId('more-sheet');
     expect(sheet).toBeInTheDocument();
     expect(within(sheet).getByTestId('nav-shorts-mobile')).toBeInTheDocument();
     expect(within(sheet).getByTestId('nav-settings-mobile')).toBeInTheDocument();
-    expect(within(sheet).getByTestId('nav-groups-mobile')).toBeInTheDocument();
+    expect(within(sheet).queryByTestId('nav-groups-mobile')).not.toBeInTheDocument();
     expect(within(sheet).getByTestId('nav-stories-mobile')).toBeInTheDocument();
     expect(within(sheet).getByTestId('nav-livestream-mobile')).toBeInTheDocument();
     expect(within(sheet).getByTestId('nav-games-mobile')).toBeInTheDocument();

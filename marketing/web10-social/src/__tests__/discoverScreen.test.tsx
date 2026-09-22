@@ -122,7 +122,7 @@ describe('DiscoverScreen', () => {
       expect(screen.getByTestId('discover-grid')).toBeInTheDocument();
     });
 
-    expect(screen.getByRole('heading', { name: 'Discover' })).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: 'Explorer' })).toBeInTheDocument();
     // KnobRack preset chips (testids: preset-{id})
     expect(screen.getByTestId('preset-most-recent')).toBeInTheDocument();
     expect(screen.getByTestId('preset-most-liked')).toBeInTheDocument();
@@ -1548,5 +1548,60 @@ describe('DiscoverScreen — subtab shell (D1)', () => {
     });
     // posts is the bare URL — the ?tab= param is removed.
     expect(lastSearch).toBe('');
+  });
+
+  it('shows the My Groups section in the Groups subtab', async () => {
+    await renderDiscoverAt('/discover?tab=groups');
+    await waitFor(() => {
+      expect(screen.getByTestId('discover-groups-tab')).toBeInTheDocument();
+    });
+    // The My Groups section is present with its header.
+    expect(screen.getByTestId('groups-my-section')).toBeInTheDocument();
+    expect(screen.getByTestId('groups-my-header')).toBeInTheDocument();
+  });
+
+  it('shows the person sub-tabs in the People subtab', async () => {
+    await renderDiscoverAt('/discover?tab=people');
+    await waitFor(() => {
+      expect(screen.getByTestId('discover-people-tab')).toBeInTheDocument();
+    });
+    // The person sub-tab row is present with all three tabs.
+    expect(screen.getByTestId('people-person-tab-row')).toBeInTheDocument();
+    expect(screen.getByTestId('people-person-tab-following')).toBeInTheDocument();
+    expect(screen.getByTestId('people-person-tab-followers')).toBeInTheDocument();
+    expect(screen.getByTestId('people-person-tab-discover')).toBeInTheDocument();
+    // Discover is the default (bare URL).
+    expect(screen.getByTestId('people-person-tab-discover')).toHaveAttribute('aria-selected', 'true');
+  });
+
+  it('switches to the Following sub-route and back to Discover', async () => {
+    await renderDiscoverAt('/discover?tab=people');
+    await waitFor(() => {
+      expect(screen.getByTestId('discover-people-tab')).toBeInTheDocument();
+    });
+
+    fireEvent.click(screen.getByTestId('people-person-tab-following'));
+    await waitFor(() => {
+      expect(screen.getByTestId('people-personal-view')).toBeInTheDocument();
+    });
+    expect(screen.getByTestId('people-person-tab-following')).toHaveAttribute('aria-selected', 'true');
+    // The discover sort toggle is gone on the Following sub-route.
+    expect(screen.queryByTestId('people-sort-toggle')).not.toBeInTheDocument();
+
+    // Back to Discover restores the public directory.
+    fireEvent.click(screen.getByTestId('people-person-tab-discover'));
+    await waitFor(() => {
+      expect(screen.getByTestId('people-sort-toggle')).toBeInTheDocument();
+    });
+    expect(screen.queryByTestId('people-personal-view')).not.toBeInTheDocument();
+  });
+
+  it('restores the Following sub-route from ?personTab=following on initial render', async () => {
+    await renderDiscoverAt('/discover?tab=people&personTab=following');
+    await waitFor(() => {
+      expect(screen.getByTestId('discover-people-tab')).toBeInTheDocument();
+    });
+    expect(screen.getByTestId('people-person-tab-following')).toHaveAttribute('aria-selected', 'true');
+    expect(screen.getByTestId('people-personal-view')).toBeInTheDocument();
   });
 });
