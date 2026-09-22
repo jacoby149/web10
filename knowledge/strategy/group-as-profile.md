@@ -193,7 +193,7 @@ Deep-linkable (`?tab=`), refresh-safe. The hero (3.116.0) stays above the tabs.
   settings; the commit is atomic (face + settings land together); the upload
   warning; no auto-save mid-upload; Cancel restores the live state; works the
   same on a draft and a published group).
-- [ ] **G3: the members/roles secondary surface** — the manager **kebab**
+- [✓ 3.131.0] **G3: the members/roles secondary surface** — the manager **kebab**
   (secondary to the pencil) opens the existing Members + Roles sections
   (unchanged components, new home) + the **published-delete** two-tap confirm.
   `groupsScreens.test.tsx` (the kebab is manager-only; it opens the sections;
@@ -212,6 +212,32 @@ Deep-linkable (`?tab=`), refresh-safe. The hero (3.116.0) stays above the tabs.
   375}.png` (the draft edit-mode page); the screenshot test on every state;
   the harness seeds (a group with media posts, a manager for the pencil, a
   draft for the create flow). **Gated on G1–G4.**
+- [✓ 3.136.1] **G6: the group page reads as a profile — the hero shape + the
+  desktop width** (`GroupDetailScreen.tsx` + `GroupsScreen.tsx`) — operator
+  pass (20.09.2026): "the boxin club group page is formatted retardedly, look
+  how slick my profile looks in comparison" + "on desktop like a super small
+  width … my profile page uses the desktop screen real estate well." Two
+  roots: (1) **the hero shape** — the detail's hero crammed the name *beside*
+  the avatar (cramped on mobile, the name ran under the avatar) and orphaned
+  the Join/Leave button in a floating full-width row below the hero; the
+  profile stacks the name *below* the avatar with the action top-right. The
+  hero is re-cut to the profile's exact shape: an avatar row (`-mt-14`, the
+  avatar overlapping the banner) carrying the **membership action (Join/
+  Leave/Requested/Invite-only) + the manager's Edit pencil top-right**
+  (aligned with the avatar's bottom, `mt-14` — the profile's Follow/Message
+  position), and the **name + badges + meta below the avatar, full width**
+  (not beside it). The orphaned action row is dropped (the action moves into
+  the hero). (2) **the desktop width** — the detail + the list were
+  `md:max-w-2xl` (672px), a narrow column on desktop; both are now
+  `w-full md:max-w-3xl md:mx-auto` (768px, the profile's `max-w-3xl`). The
+  `w-full` is load-bearing: the container is a flex item (`flex-1` / the
+  outer `flex flex-col`), and `mx-auto` on a flex item stops the cross-axis
+  stretch — without `w-full` the column collapses to its content width
+  (602px detail / 396px list, measured), not the 768px cap. The G5 hit-test
+  guarantee (the banner-overlapping row is `relative` so interactive elements
+  paint above the cover `<img>`) re-pins to the new avatar row.
+  `groupsScreens.test.tsx` re-pinned (the G5 test targets the avatar row).
+  **Gated on G5.**
 
 **Ownership:** this lane owns `GroupDetailScreen.tsx`, `ManageGroup/`,
 `GroupsScreen.tsx` (the create entry), `groups.ts` (the draft/publish fns).
