@@ -819,10 +819,19 @@ describe('Layout', () => {
         </Layout>
       </MemoryRouter>,
     );
-    // Desktop sidebar: Shorts is a real destination; Stories is still
-    // coming-soon. Both render in the sidebar.
-    expect(screen.getByTestId('nav-stories')).toBeInTheDocument();
+    // Desktop sidebar: Shorts is a real destination (a nav row). The
+    // coming-soon surfaces (Stories, …) live in the "More" popover — they're
+    // not permanent nav rows, so they don't hold sidebar space.
     expect(screen.getByTestId('nav-shorts')).toBeInTheDocument();
+    expect(screen.getByTestId('nav-more-desktop')).toBeInTheDocument();
+    // The popover is closed by default — the coming-soon items aren't in the doc.
+    expect(screen.queryByTestId('nav-stories')).not.toBeInTheDocument();
+    // Opening More reveals the coming-soon list.
+    fireEvent.click(screen.getByTestId('nav-more-desktop'));
+    expect(screen.getByTestId('nav-stories')).toBeInTheDocument();
+    expect(screen.getByTestId('nav-livestream')).toBeInTheDocument();
+    expect(screen.getByTestId('nav-games')).toBeInTheDocument();
+    expect(screen.getByTestId('nav-marketplace')).toBeInTheDocument();
 
     // The mobile bottom bar is exactly four core tabs + the More tab.
     const mobileNav = screen.getByLabelText('Primary mobile');

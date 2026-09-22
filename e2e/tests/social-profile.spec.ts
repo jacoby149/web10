@@ -546,10 +546,10 @@ test.describe('Profiles gauntlet — real flow + log sequence', () => {
     await page.getByPlaceholder('Bio').fill(bio);
     await page.locator('[data-testid="save-profile-button"]').click();
 
-    // The edits render after save. (Scoped to `main` — the display name also
-    // appears in the sidebar account row, so a page-wide getByText is
-    // ambiguous; the assertion is about the profile screen.)
-    await expect(page.locator('main').getByText(displayName)).toBeVisible({ timeout: 15000 });
+    // The edits render after save. (Target the profile name element directly —
+    // the display name also appears in the top bar account row, so a page-wide
+    // getByText is ambiguous; the assertion is about the profile screen.)
+    await expect(page.getByTestId('profile-name')).toHaveText(displayName, { timeout: 15000 });
     await expect(page.getByText(website)).toBeVisible();
     await expect(page.getByText(bio, { exact: false })).toBeVisible();
 
@@ -574,7 +574,7 @@ test.describe('Profiles gauntlet — real flow + log sequence', () => {
     // survive.
     await page.reload();
     await page.waitForLoadState('networkidle');
-    await expect(page.locator('main').getByText(displayName)).toBeVisible({ timeout: 15000 });
+    await expect(page.getByTestId('profile-name')).toHaveText(displayName, { timeout: 15000 });
     await expect(page.getByText(website)).toBeVisible();
     await expect(page.getByText(bio, { exact: false })).toBeVisible();
 
