@@ -92,7 +92,7 @@ any failure → log + swallow      ← never blocks / never 500s the submit
 
   | field | value |
   |---|---|
-  | `subject` | `Bug report {report_id}` (the mail view's thread list + bubble render it) |
+   | `subject` | `Bug report {report_id}` (carried on the DM body; the chat bubble renders `message`) |
   | `message` | the report summary — description, page URL, app version, device, browser, error message, reporter (username/email when present) |
   | `sender_username` / `sender_provider` | `bugbot` / the node provider |
   | `recipient_username` / `recipient_provider` | the admin / the node provider |

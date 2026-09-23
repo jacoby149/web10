@@ -1,6 +1,6 @@
 // Screenshot-harness Vite config. Serves screenshots/harness/index.html with
-// the data layer aliased to seeded mocks so the messages views (Chat / Mail /
-// CRM) render logged-in with content and no backend. See README.md.
+// the data layer aliased to seeded mocks so the messages view (Chat) renders
+// logged-in with content and no backend. See README.md.
 //
 // Alias order matters (first match wins): the exact `@/data` barrel and
 // `@/data/wapi` are swapped for mocks; everything else under `@` (including

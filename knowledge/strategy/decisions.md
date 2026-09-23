@@ -9,6 +9,22 @@ Status legend: [decided] intent set · [in-progress] · [open] still debating.
 
 ---
 
+### D79 — The Messages surface is chat-only: the Mail and CRM views are deleted [decided]
+
+Operator, 22.09.2026 — "can we hide the mail and the crm thing from the messages part, it is just distracting" → "can actually just delete those views!"
+
+**The decision.** The Messages surface is **chat only**: DMs + group chats, one screen, no view toggle. The **Mail** and **CRM** views (shipped in 1.0.182 as the "one inbox, three apps" lens demo) are **deleted** — `MailView.tsx` / `CrmView.tsx` removed, the Chat/Mail/CRM toggle bar removed from the messages screen, and the `?view=mail` / `?view=crm` deep links retired (a stale link lands on chat).
+
+**Why.** The lens idea proved its point in the demo video and the pitch; as a permanent fixture it costs the flagship surface a row of chrome and a split of the user's attention on every visit. The operator's call: it's distracting, the chat is the product. The "view lenses everywhere" idea stays parked in `later.md` — the *concept* (same records, different lenses) is unchanged; only the in-product Mail/CRM rendering of it is gone.
+
+**What stays.** The **data layer is untouched**: `contacts.ts` (notes, `crm_status`, spam flags), the DM `subject` field, and the `dms`/`contacts` collections all remain — they're the substrate a future lens (or a separate app) would read, and the bugbot DM flow (D70) still writes `subject` on its reports. Only the two renderings are deleted.
+
+**Rejects.** (1) **Hiding the toggle behind a setting** — the operator asked to delete, and a setting that nobody flips is settings-surface sprawl. (2) **Keeping the views as separate routes** (`/messages/mail`) — same distraction, worse discoverability.
+
+**Files:** `marketing/web10-social/src/components/Chat/` (DmsScreen trimmed, MailView/CrmView deleted), `screenshots/` (harness + README), tests re-pinned; `later.md` references updated.
+
+---
+
 ### D78 — Groups carry a platform-level `tags` column; web10-social classifies its groups by tag [decided]
 
 Operator, 18.09.2026 — after the "followers groups showing in My Groups" bug: "is this a fundamental protocol flaw? should groups themselves have tags? … this would be an issue for any app architecture not just social media. we could add tags to the groups in clickhouse, make a clickhouse upgrade right?" Tag scheme: "web10-social-group web10-social-dm web10-social-followers."

@@ -1,7 +1,7 @@
 // Screenshot harness — mock of the `@/data` barrel (exact-match aliased by
 // screenshots/vite.config.ts). Provides seeded, in-memory implementations of
-// every data-layer function the messages views import, so Chat / Mail / CRM
-// render with realistic content and no backend. See screenshots/README.md.
+// every data-layer function the messages view imports, so Chat renders with
+// realistic content and no backend. See screenshots/README.md.
 import type { DmRecord, ContactRecord } from '@/data/types';
 
 const ME = 'web10/me';
