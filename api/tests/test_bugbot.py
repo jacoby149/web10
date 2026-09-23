@@ -136,7 +136,9 @@ class TestEnsureDmGroup:
             # DM'd the bot first, so the group is creator-embedded on them).
             mock_client.query.side_effect = [
                 _mock_result_rows([]),
-                _mock_result_rows([("g-2", "[]", "invite_only", 0, [], "hidden", "2026-01-01 00:00:00", "2026-01-01 00:00:00")]),
+                _mock_result_rows(
+                    [("g-2", "[]", "invite_only", 0, [], "hidden", "2026-01-01 00:00:00", "2026-01-01 00:00:00")]
+                ),
             ]
             group_id = bugbot._ensure_dm_group("jacoby149")
             assert group_id == f"{settings.PROVIDER}/groups/users/jacoby149/dm-bugbot-jacoby149"

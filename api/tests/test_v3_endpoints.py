@@ -421,7 +421,7 @@ class TestDelete:
                 '{"text":"x"}',
                 "",
                 [],
-                    "hidden",
+                "hidden",
                 datetime(2026, 1, 1),
                 datetime(2026, 1, 1),
                 "none",
@@ -852,7 +852,7 @@ class TestJoinRequests:
                 "open",
                 1,
                 [],
-                    "hidden",
+                "hidden",
                 datetime(2026, 1, 1),
                 datetime(2026, 1, 1),
             )
@@ -880,7 +880,7 @@ class TestJoinRequests:
                 "open",
                 1,
                 [],
-                    "hidden",
+                "hidden",
                 datetime(2026, 1, 1),
                 datetime(2026, 1, 1),
             )
@@ -904,7 +904,7 @@ class TestJoinRequests:
                 "open",
                 1,
                 [],
-                    "hidden",
+                "hidden",
                 datetime(2026, 1, 1),
                 datetime(2026, 1, 1),
             )
@@ -939,7 +939,7 @@ class TestJoinRequests:
                 "open",
                 1,
                 [],
-                    "hidden",
+                "hidden",
                 datetime(2026, 1, 1),
                 datetime(2026, 1, 1),
             )
@@ -966,7 +966,7 @@ class TestJoinRequests:
                 "open",
                 1,
                 [],
-                    "hidden",
+                "hidden",
                 datetime(2026, 1, 1),
                 datetime(2026, 1, 1),
             )
@@ -994,7 +994,7 @@ class TestJoinRequests:
                 "open",
                 1,
                 [],
-                    "hidden",
+                "hidden",
                 datetime(2026, 1, 1),
                 datetime(2026, 1, 1),
             )
@@ -1023,7 +1023,7 @@ class TestInviteMember:
                 "open",
                 1,
                 [],
-                    "hidden",
+                "hidden",
                 datetime(2026, 1, 1),
                 datetime(2026, 1, 1),
             )
@@ -1051,7 +1051,16 @@ class TestInviteMember:
 
     def test_invite_no_permission(self, client, token):
         mock_group = [
-            ("g1", '[{"name":"member","permissions":[]}]', "open", 1, [], "hidden", datetime(2026, 1, 1), datetime(2026, 1, 1))
+            (
+                "g1",
+                '[{"name":"member","permissions":[]}]',
+                "open",
+                1,
+                [],
+                "hidden",
+                datetime(2026, 1, 1),
+                datetime(2026, 1, 1),
+            )
         ]
         with (
             patch("app.v3.services.clickhouse.client") as mock_ch,
@@ -1418,7 +1427,7 @@ class TestSignup:
                 "open",
                 1,
                 [],
-                    "hidden",
+                "hidden",
                 datetime(2026, 1, 1),
                 datetime(2026, 1, 1),
             )

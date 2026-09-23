@@ -179,7 +179,9 @@ def ensure_apps_schema():
         # social-graph groups — followers + community — to 'public'). Pre-existing
         # volumes predate the column; ADD COLUMN appends it at the end, which is
         # why group inserts name their columns.
-        client.command("ALTER TABLE group_contracts ADD COLUMN IF NOT EXISTS membership_visibility String DEFAULT 'hidden'")
+        client.command(
+            "ALTER TABLE group_contracts ADD COLUMN IF NOT EXISTS membership_visibility String DEFAULT 'hidden'"
+        )
         # documents.ad_mode + documents.ad_target — the v3 ad preference
         # (ads-dissemination.md): a doc's ad is `pinned` (ad_target = the ad
         # doc_id) or `none`. Pre-existing volumes predate the columns; ADD
@@ -1178,7 +1180,19 @@ def update_group(group_id: str, **kwargs):
     now = _now()
     client.insert(
         "group_contracts",
-        [[group_id, _json(roles), join_policy, int(discoverable), existing["created_at"], now, 0, tags, membership_visibility]],
+        [
+            [
+                group_id,
+                _json(roles),
+                join_policy,
+                int(discoverable),
+                existing["created_at"],
+                now,
+                0,
+                tags,
+                membership_visibility,
+            ]
+        ],
         column_names=[
             "group_id",
             "roles",

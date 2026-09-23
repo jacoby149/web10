@@ -505,7 +505,12 @@ class TestMembershipVisibilityCreate:
 
     def test_explicit_public(self):
         with _patch_client():
-            assert ch.create_group("g", [{"name": "member"}], "open", membership_visibility="public")["membership_visibility"] == "public"
+            assert (
+                ch.create_group("g", [{"name": "member"}], "open", membership_visibility="public")[
+                    "membership_visibility"
+                ]
+                == "public"
+            )
 
     def test_insert_uses_named_column(self):
         with _patch_client() as mock_client:
@@ -516,7 +521,10 @@ class TestMembershipVisibilityCreate:
 
 class TestMembershipVisibilityInfer:
     def test_followers_public(self):
-        assert ch._infer_membership_visibility("api.localhost/groups/users/alice/followers", ["web10-social-followers"]) == "public"
+        assert (
+            ch._infer_membership_visibility("api.localhost/groups/users/alice/followers", ["web10-social-followers"])
+            == "public"
+        )
 
     def test_community_public(self):
         assert ch._infer_membership_visibility("web10.app/groups/alice/jazz", ["web10-social-group"]) == "public"
@@ -538,7 +546,14 @@ class TestMembershipVisibilityBackfill:
                 _mock_result_rows(
                     [
                         # followers group → flipped to public
-                        ("api.localhost/groups/users/alice/followers", "[]", "open", 0, datetime(2026, 1, 1), ["web10-social-followers"]),
+                        (
+                            "api.localhost/groups/users/alice/followers",
+                            "[]",
+                            "open",
+                            0,
+                            datetime(2026, 1, 1),
+                            ["web10-social-followers"],
+                        ),
                         # community group → flipped to public
                         ("web10.app/groups/alice/jazz", "[]", "open", 0, datetime(2026, 1, 1), ["web10-social-group"]),
                         # dm group → stays hidden (no insert)
@@ -569,7 +584,14 @@ class TestGetUserPublicGroups:
             mock_client.query.return_value = _mock_result_rows(
                 [
                     # group_id, role, joined_at, join_policy, discoverable, tags
-                    ("api.localhost/groups/users/bob/followers", "member", datetime(2026, 1, 2), "open", 0, ["web10-social-followers"]),
+                    (
+                        "api.localhost/groups/users/bob/followers",
+                        "member",
+                        datetime(2026, 1, 2),
+                        "open",
+                        0,
+                        ["web10-social-followers"],
+                    ),
                     ("web10.app/groups/alice/jazz", "member", datetime(2026, 1, 3), "open", 1, ["web10-social-group"]),
                 ]
             )

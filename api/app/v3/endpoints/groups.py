@@ -129,7 +129,9 @@ def create_group(data: CreateGroup):
     group_id = f"{decoded.provider}/groups/users/{creator}/{group_id}"
 
     if not ch.get_group(group_id):
-        ch.create_group(group_id, data.roles, data.join_policy, data.discoverable, data.tags, data.membership_visibility)
+        ch.create_group(
+            group_id, data.roles, data.join_policy, data.discoverable, data.tags, data.membership_visibility
+        )
 
     for m in data.members:
         if not ch.get_group_member(group_id, m["member_key"]):
