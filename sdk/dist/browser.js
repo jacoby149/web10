@@ -96,6 +96,21 @@
     }
     return res.json();
   }
+  async function authGet(url, params) {
+    const qs = new URLSearchParams;
+    for (const [k, v] of Object.entries(params ?? {})) {
+      if (v != null)
+        qs.set(k, String(v));
+    }
+    const sep = url.includes("?") ? "&" : "?";
+    const full = qs.toString() ? `${url}${sep}${qs.toString()}` : url;
+    const res = await fetch(full, { method: "GET", headers: { Accept: "application/json" } });
+    if (!res.ok) {
+      const text = await res.text().catch(() => "");
+      throw httpError(res.status, res.statusText, text);
+    }
+    return res.json();
+  }
 
   // src/token.ts
   function cookieDict() {
@@ -391,8 +406,21 @@
       async leaveGroup(groupId) {
         return v3Post("groups/leave", { group_id: groupId });
       },
-      async getGroupMembers(groupId) {
-        return v3Post("groups/members/list", { group_id: groupId });
+      async getGroupMembers(groupId, opts) {
+        const body = { group_id: groupId };
+        if (opts?.limit != null)
+          body.limit = opts.limit;
+        if (opts?.offset != null)
+          body.offset = opts.offset;
+        return v3Post("groups/members/list", body);
+      },
+      async byUserGroups(user, opts) {
+        return authGet(`${apiOrigin}/v3/groups/by-user`, {
+          user,
+          tag: opts?.tag,
+          limit: opts?.limit,
+          offset: opts?.offset
+        });
       },
       async addGroupMember(groupId, memberKey, role) {
         return v3Post("groups/members/add", {

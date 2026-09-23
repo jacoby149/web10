@@ -308,14 +308,14 @@ describe('GroupsScreen', () => {
       expect(screen.getByTestId('groups-my-empty')).toBeInTheDocument();
     });
     expect(screen.getByText(/not in any groups yet/i)).toBeInTheDocument();
-    // The CTA now points at the Discover/Groups subtab (the directory's new home).
+    // The CTA now points at Discover's Explore tab (the directory's new home).
     fireEvent.click(screen.getByTestId('groups-my-empty-cta'));
     await waitFor(() => {
-      expect(screen.getByTestId('location-probe')).toHaveTextContent('/discover?tab=groups');
+      expect(screen.getByTestId('location-probe')).toHaveTextContent('/discover?tab=explore');
     });
   });
 
-  it('redirects /groups?tab=discover to /discover?tab=groups (carrying the filters)', async () => {
+  it('redirects /groups?tab=discover to /discover?tab=explore (carrying the filters)', async () => {
     vi.mocked(getMyCommunityGroups).mockResolvedValue([]);
     const { default: GroupsScreen } = await import('@/components/Groups/GroupsScreen');
     render(
@@ -327,7 +327,7 @@ describe('GroupsScreen', () => {
       </MemoryRouter>,
     );
     await waitFor(() => {
-      expect(screen.getByTestId('location-probe')).toHaveTextContent('/discover?tab=groups&q=photo&tag=retro');
+      expect(screen.getByTestId('location-probe')).toHaveTextContent('/discover?tab=explore&q=photo&tag=retro');
     });
     // The my-groups fetch is skipped while redirecting.
     expect(getMyCommunityGroups).not.toHaveBeenCalled();

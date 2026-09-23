@@ -14,6 +14,10 @@ class CreateGroup(BaseModel):
     # D78: the group's generic label set (the platform stores/matches them; the
     # app decides what they mean, e.g. `web10-social-group`). Defaults to [].
     tags: list[str] | None = None
+    # D80: whether who's in the group is publicly enumerable. 'public' (the
+    # social graph — followers / community) or 'hidden' (dm / close-friends).
+    # Defaults to 'hidden' (the conservative default).
+    membership_visibility: str | None = None
 
 
 class GetGroup(BaseModel):
@@ -40,8 +44,24 @@ class ListMyGroups(BaseModel):
 
 
 class ListGroupMembers(BaseModel):
-    token: str
+    # D80: optional — a public-visibility group's member list is anon-readable.
+    # A hidden group still requires a member token.
+    token: str | None = None
     group_id: str
+    # D80: pagination (the followers list can be large).
+    limit: int = 100
+    offset: int = 0
+
+
+class ListUserGroups(BaseModel):
+    """D80: the public "what groups is user X in?" read (anon)."""
+
+    user: str
+    # Optional single-tag filter (the D78 tag column) — e.g. the followers tag
+    # for the following-list. None = all public groups.
+    tag: str | None = None
+    limit: int = 50
+    offset: int = 0
 
 
 class AddGroupMember(BaseModel):

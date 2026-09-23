@@ -8,17 +8,10 @@ import {
   sortPeople,
   filterPeople,
   DEFAULT_PEOPLE_SORT,
-  readFollows,
-  listFollowers,
-  readUserProfile,
-  getFollowersCount,
-  resolveMediaRefs,
   type PersonCard,
   type PeopleSort,
-  type ProfileRecord,
 } from '@/data';
 import { followUser, unfollowUser } from '@/data';
-import { getWapi } from '@/data/wapi';
 import { toast, errorMessage } from '@/components/shared/Toast';
 import {
   Users,
@@ -307,28 +300,6 @@ export default function DiscoverPeopleTab({ query }: DiscoverPeopleTabProps) {
     LOG('query cleared');
   }, [searchParams, setSearchParams]);
 
-  // Deep-link: active person sub-tab from ?personTab= (refresh-safe, shareable).
-  // `discover` is the bare URL (the public directory); `following` and
-  // `followers` are the personal sub-routes.
-  type PersonTab = 'discover' | 'following' | 'followers';
-  const personTab: PersonTab = useMemo(() => {
-    const raw = searchParams.get('personTab');
-    return raw === 'following' || raw === 'followers' ? raw : 'discover';
-  }, [searchParams]);
-  const setPersonTab = useCallback(
-    (next: PersonTab) => {
-      const params = new URLSearchParams(searchParams);
-      if (next === 'discover') {
-        params.delete('personTab');
-      } else {
-        params.set('personTab', next);
-      }
-      setSearchParams(params);
-      LOG('personTab —', next);
-    },
-    [searchParams, setSearchParams],
-  );
-
   const [people, setPeople] = useState<PersonCard[]>([]);
   const [loading, setLoading] = useState(true);
   const [loadingMore, setLoadingMore] = useState(false);
@@ -341,103 +312,6 @@ export default function DiscoverPeopleTab({ query }: DiscoverPeopleTabProps) {
   // The next offset to fetch (the "view more" cursor). A ref so the stable
   // loadPage callback reads the latest without a stale closure.
   const nextOffsetRef = useRef(0);
-
-  // ── Following / Followers (the personal sub-routes) ──────────────────────
-  const [personalPeople, setPersonalPeople] = useState<PersonCard[]>([]);
-  const [personalLoading, setPersonalLoading] = useState(false);
-  const [personalError, setPersonalError] = useState(false);
-  // A ref so the stable loadPersonal callback reads the latest personTab.
-  const personTabRef = useRef<PersonTab>('discover');
-  personTabRef.current = personTab;
-
-  // Resolve a list of {username, provider} to PersonCard[] (profile + face +
-  // follower count). Used by both the following and followers sub-routes.
-  const resolvePeople = useCallback(async (entries: { username: string; provider: string }[]): Promise<PersonCard[]> => {
-    const token = getWapi().readToken();
-    const myFollowing = new Set<string>();
-    if (token) {
-      try {
-        const myGroups = await getWapi().getMyGroups();
-        for (const g of myGroups) {
-          if (g.group_id.endsWith('/followers')) {
-            const parts = g.group_id.split('/');
-            myFollowing.add(parts[parts.length - 2] || '');
-          }
-        }
-      } catch { /* degrade to no follows */ }
-    }
-    return Promise.all(entries.map(async (entry): Promise<PersonCard> => {
-      const card: PersonCard = {
-        username: entry.username,
-        provider: entry.provider,
-        display_name: entry.username,
-        followers_count: 0,
-        is_following: myFollowing.has(entry.username),
-      };
-      try {
-        const profile = await readUserProfile(entry.username, entry.provider);
-        if (profile) {
-          card.display_name = profile.display_name || entry.username;
-          card.bio = profile.bio;
-          card.avatar_ref = profile.avatar_ref;
-          card.banner_ref = profile.banner_ref;
-        }
-      } catch { /* no profile */ }
-      try {
-        card.followers_count = await getFollowersCount(entry.username);
-      } catch { /* count unavailable */ }
-      // Resolve the face media (avatar + banner).
-      const refs = [card.avatar_ref, card.banner_ref].filter(Boolean) as string[];
-      if (refs.length) {
-        try {
-          const media = await resolveMediaRefs(refs, { username: entry.username, provider: entry.provider }, 'public_media');
-          for (const m of media) {
-            if (m._id === card.avatar_ref) card.avatar_url = m.url;
-            else if (m._id === card.banner_ref) card.banner_url = m.url;
-          }
-        } catch { /* face media failed */ }
-      }
-      return card;
-    }));
-  }, []);
-
-  const loadPersonal = useCallback(async () => {
-    const tab = personTabRef.current;
-    if (tab === 'discover') return;
-    setPersonalLoading(true);
-    setPersonalError(false);
-    LOG('loadPersonal —', tab);
-    try {
-      const token = getWapi().readToken();
-      if (!token) {
-        setPersonalPeople([]);
-        return;
-      }
-      let entries: { username: string; provider: string }[];
-      if (tab === 'following') {
-        const follows = await readFollows();
-        entries = follows.map((f) => ({ username: f.username, provider: f.provider || token.provider }));
-      } else {
-        const followers = await listFollowers(token.username);
-        entries = followers;
-      }
-      LOG('loadPersonal — got', entries.length, 'person(s)');
-      const resolved = await resolvePeople(entries);
-      setPersonalPeople(resolved);
-    } catch (e) {
-      LOG('loadPersonal — failed:', e);
-      setPersonalError(true);
-    } finally {
-      setPersonalLoading(false);
-    }
-  }, [resolvePeople]);
-
-  // Load the personal list when the personTab changes to following/followers.
-  useEffect(() => {
-    if (personTab === 'following' || personTab === 'followers') {
-      loadPersonal();
-    }
-  }, [personTab, loadPersonal]);
 
   const loadPage = useCallback(async (offset: number, append: boolean) => {
     if (append) {
@@ -478,9 +352,6 @@ export default function DiscoverPeopleTab({ query }: DiscoverPeopleTabProps) {
         setPeople((prev) =>
           prev.map((p) => (p.username === person.username ? { ...p, is_following: true } : p)),
         );
-        setPersonalPeople((prev) =>
-          prev.map((p) => (p.username === person.username ? { ...p, is_following: true } : p)),
-        );
       } catch (e) {
         LOG('follow — failed:', e);
         toast.error(errorMessage(e, `Could not follow ${person.username}.`));
@@ -498,9 +369,6 @@ export default function DiscoverPeopleTab({ query }: DiscoverPeopleTabProps) {
         LOG('unfollow —', person.username);
         await unfollowUser(person.username, person.provider);
         setPeople((prev) =>
-          prev.map((p) => (p.username === person.username ? { ...p, is_following: false } : p)),
-        );
-        setPersonalPeople((prev) =>
           prev.map((p) => (p.username === person.username ? { ...p, is_following: false } : p)),
         );
       } catch (e) {
@@ -558,39 +426,6 @@ export default function DiscoverPeopleTab({ query }: DiscoverPeopleTabProps) {
         </div>
       )}
 
-      {/* Person sub-tabs: Following | Followers | Discover (?personTab=) */}
-      <div className="border-b border-border bg-surface/50">
-        <div className="px-4 md:px-0">
-          <div className="flex items-center gap-1 py-1.5" role="tablist" aria-label="People sections" data-testid="people-person-tab-row">
-            {([
-              ['following', 'Following'],
-              ['followers', 'Followers'],
-              ['discover', 'Discover'],
-            ] as [PersonTab, string][]).map(([id, label]) => (
-              <button
-                key={id}
-                type="button"
-                role="tab"
-                aria-selected={personTab === id}
-                data-testid={`people-person-tab-${id}`}
-                onClick={() => setPersonTab(id)}
-                className={cn(
-                  'rounded-lg px-3 py-1.5 text-xs font-medium transition-colors',
-                  'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background',
-                  personTab === id
-                    ? 'bg-brand-muted text-brand-300'
-                    : 'text-muted-foreground hover:text-foreground hover:bg-elevated',
-                )}
-              >
-                {label}
-              </button>
-            ))}
-          </div>
-        </div>
-      </div>
-
-      {personTab === 'discover' ? (
-        <>
       {/* Sort toggle */}
       <div className="px-4 py-3 md:px-0">
         <div className="flex items-center gap-1" data-testid="people-sort-toggle" role="tablist" aria-label="Sort people">
@@ -662,51 +497,6 @@ export default function DiscoverPeopleTab({ query }: DiscoverPeopleTabProps) {
           </>
         )}
       </div>
-        </>
-      ) : (
-        /* Following / Followers personal list */
-        <div className="flex-1 px-4 py-4 md:px-0" data-testid="people-personal-view">
-          {personalError ? (
-            <PeopleErrorState onRetry={loadPersonal} />
-          ) : personalLoading ? (
-            <div className="space-y-3" data-testid="people-personal-skeleton">
-              {Array.from({ length: 4 }).map((_, i) => (
-                <PersonCardSkeleton key={i} />
-              ))}
-            </div>
-          ) : personalPeople.length > 0 ? (
-            <div className="space-y-3" data-testid="people-personal-list">
-              {personalPeople.map((p) => (
-                <PersonCardRow
-                  key={p.username}
-                  person={p}
-                  followLoading={!!followLoading[p.username]}
-                  onFollow={() => handleFollow(p)}
-                  onUnfollow={() => handleUnfollow(p)}
-                  onOpen={() => openProfile(p)}
-                />
-              ))}
-            </div>
-          ) : (
-            <div
-              data-testid="people-personal-empty"
-              className="flex flex-col items-center justify-center py-16 px-8 text-center"
-            >
-              <div className="mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-brand-muted/50">
-                <Users className="h-8 w-8 text-brand-400" strokeWidth={1.5} />
-              </div>
-              <h2 className="font-display text-xl font-semibold text-foreground">
-                {personTab === 'following' ? "You're not following anyone yet" : 'No followers yet'}
-              </h2>
-              <p className="mt-2 max-w-sm text-sm text-muted-foreground">
-                {personTab === 'following'
-                  ? 'Find people to follow in the Discover tab.'
-                  : 'When people follow you, they\'ll show up here.'}
-              </p>
-            </div>
-          )}
-        </div>
-      )}
     </div>
   );
 }

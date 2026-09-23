@@ -171,6 +171,15 @@ def ensure_apps_schema():
         # Pre-existing volumes predate the column; ADD COLUMN appends it at the
         # end, which is why group inserts name their columns.
         client.command("ALTER TABLE group_contracts ADD COLUMN IF NOT EXISTS tags Array(String) DEFAULT []")
+        # group_contracts.membership_visibility — D80: whether *who is in the
+        # group* is publicly enumerable. 'public' → membership rows appear in
+        # the public reads (by-user, members/list, the memberships query CTE);
+        # 'hidden' → they don't. Sibling of join_policy + discoverable. Default
+        # 'hidden' (the conservative default; the backfill below flips the
+        # social-graph groups — followers + community — to 'public'). Pre-existing
+        # volumes predate the column; ADD COLUMN appends it at the end, which is
+        # why group inserts name their columns.
+        client.command("ALTER TABLE group_contracts ADD COLUMN IF NOT EXISTS membership_visibility String DEFAULT 'hidden'")
         # documents.ad_mode + documents.ad_target — the v3 ad preference
         # (ads-dissemination.md): a doc's ad is `pinned` (ad_target = the ad
         # doc_id) or `none`. Pre-existing volumes predate the columns; ADD
@@ -200,7 +209,7 @@ def ensure_apps_schema():
             ") ENGINE = ReplacingMergeTree(updated_at) ORDER BY report_id"
         )
         log.info(
-            "[v3] schema ensured (apps.visits + app_ratings.comment + node_config + app_visits + group_contracts.discoverable + documents.ad_mode/ad_target + moderation_flags + bug_reports present)"
+            "[v3] schema ensured (apps.visits + app_ratings.comment + node_config + app_visits + group_contracts.discoverable + group_contracts.tags + group_contracts.membership_visibility + documents.ad_mode/ad_target + moderation_flags + bug_reports present)"
         )
         # Data migration (idempotent): re-home demo apps registered under
         # their directory-index file URLs onto their directory URLs.
@@ -214,6 +223,10 @@ def ensure_apps_schema():
         # Data migration (one-time, sentinel-gated): seed legacy groups' tags
         # from their id shape (D78) — groups created before the tags column.
         _migrate_group_tags_backfill()
+        # Data migration (one-time, sentinel-gated): set legacy groups'
+        # membership_visibility from their tags (D80) — followers + community
+        # groups → public, dm + everything else stays hidden.
+        _migrate_membership_visibility_backfill()
     except Exception as e:
         # ClickHouse not up yet, or table missing (fresh volume mid-init).
         # The DDL template covers fresh volumes; log and move on.
@@ -343,6 +356,81 @@ def _migrate_discoverable_default_flip() -> None:
 
 # Sentinel config_id in node_config marking the group-tags backfill as done (D78).
 _GROUP_TAGS_SENTINEL = "migration:group_tags_backfill"
+
+# Sentinel config_id in node_config marking the D80 membership-visibility
+# backfill as done.
+_MEMBERSHIP_VISIBILITY_SENTINEL = "migration:membership_visibility_backfill"
+
+
+def _infer_membership_visibility(group_id: str, tags: list[str]) -> str:
+    """D80: infer a legacy group's membership_visibility from its tags (one-time
+    backfill only). New groups set it at creation; after the backfill the stored
+    value is authoritative and this inference retires.
+
+    The social graph is public (the thesis — "your number here is real", "a real
+    network, not a dark forest"); DM relationships are private (who you're DMing
+    is not enumerable). So: followers + community groups → 'public'; dm groups
+    (and everything else) → 'hidden'.
+    """
+    if "web10-social-followers" in tags or "web10-social-group" in tags:
+        return "public"
+    return "hidden"
+
+
+def _migrate_membership_visibility_backfill() -> None:
+    """One-time, sentinel-gated data migration (D80).
+
+    Groups created before the ``group_contracts.membership_visibility`` column
+    have ``membership_visibility = 'hidden'`` (the column default). Seed each
+    live group with its visibility, inferred from its tags (followers +
+    community → 'public'; dm + everything else → 'hidden'). Appends a new
+    group_contracts row per group (ReplacingMergeTree dedup picks the newer
+    row).
+
+    Runs exactly once: a node_config sentinel marks completion. Safe under
+    concurrent workers (a duplicate run appends identical rows + the sentinel;
+    dedup hides all but one).
+    """
+    done = client.query(
+        "SELECT 1 FROM node_config WHERE config_id = %(sentinel)s AND deleted = 0 LIMIT 1",
+        {"sentinel": _MEMBERSHIP_VISIBILITY_SENTINEL},
+    )
+    if done.result_rows:
+        return
+    result = client.query(
+        "SELECT group_id, roles, join_policy, discoverable, created_at, tags "
+        "FROM (SELECT group_id, roles, join_policy, discoverable, created_at, tags, deleted, "
+        "row_number() OVER (PARTITION BY group_id ORDER BY updated_at DESC, deleted DESC) AS rn "
+        "FROM group_contracts) "
+        "WHERE rn = 1 AND deleted = 0"
+    )
+    for group_id, roles, join_policy, discoverable, created_at, tags in result.result_rows:
+        visibility = _infer_membership_visibility(group_id, list(tags))
+        if visibility == "hidden":
+            # Already at the column default — nothing to flip.
+            continue
+        client.insert(
+            "group_contracts",
+            [[group_id, roles, join_policy, discoverable, created_at, _now(), 0, list(tags), visibility]],
+            column_names=[
+                "group_id",
+                "roles",
+                "join_policy",
+                "discoverable",
+                "created_at",
+                "updated_at",
+                "deleted",
+                "tags",
+                "membership_visibility",
+            ],
+        )
+    # Set the sentinel so this never runs again.
+    client.insert(
+        "node_config",
+        [[_MEMBERSHIP_VISIBILITY_SENTINEL, _json({"done": True}), _now(), 0]],
+        column_names=["config_id", "body", "updated_at", "deleted"],
+    )
+    log.info("[v3] membership-visibility backfill applied (followers + community groups → public)")
 
 
 def _infer_group_tag(group_id: str) -> list[str]:
@@ -965,7 +1053,12 @@ def get_doc_groups(doc_id: str) -> list[str]:
 
 
 def create_group(
-    group_id: str, roles: list[dict], join_policy: str, discoverable: bool | None = None, tags: list[str] | None = None
+    group_id: str,
+    roles: list[dict],
+    join_policy: str,
+    discoverable: bool | None = None,
+    tags: list[str] | None = None,
+    membership_visibility: str | None = None,
 ) -> dict:
     """Create a group contract.
 
@@ -977,15 +1070,22 @@ def create_group(
     ``tags`` (D78) is the group's generic label set — the platform stores and
     matches them (``has(tags, …)``); the app decides what they mean (e.g.
     ``web10-social-group``). Defaults to ``[]``.
+
+    ``membership_visibility`` (D80) governs whether *who is in the group* is
+    publicly enumerable: ``'public'`` → membership rows appear in the public
+    reads (by-user, members/list, the memberships query CTE); ``'hidden'`` →
+    they don't. Defaults to ``'hidden'`` (the conservative default).
     """
     if discoverable is None:
         discoverable = False
     if tags is None:
         tags = []
+    if membership_visibility is None:
+        membership_visibility = "hidden"
     now = _now()
     client.insert(
         "group_contracts",
-        [[group_id, _json(roles), join_policy, int(discoverable), now, now, 0, tags]],
+        [[group_id, _json(roles), join_policy, int(discoverable), now, now, 0, tags, membership_visibility]],
         column_names=[
             "group_id",
             "roles",
@@ -995,6 +1095,7 @@ def create_group(
             "updated_at",
             "deleted",
             "tags",
+            "membership_visibility",
         ],
     )
     return {
@@ -1003,6 +1104,7 @@ def create_group(
         "join_policy": join_policy,
         "discoverable": discoverable,
         "tags": list(tags),
+        "membership_visibility": membership_visibility,
         "created_at": _iso_utc(now),
     }
 
@@ -1014,8 +1116,8 @@ def get_group(group_id: str) -> dict | None:
     a deleted group must not be found by its stale active row.
     """
     result = client.query(
-        "SELECT group_id, roles, join_policy, discoverable, tags, created_at, updated_at "
-        "FROM (SELECT group_id, roles, join_policy, discoverable, tags, created_at, updated_at, deleted, "
+        "SELECT group_id, roles, join_policy, discoverable, tags, membership_visibility, created_at, updated_at "
+        "FROM (SELECT group_id, roles, join_policy, discoverable, tags, membership_visibility, created_at, updated_at, deleted, "
         "row_number() OVER (PARTITION BY group_id ORDER BY updated_at DESC, deleted DESC) as rn "
         "FROM group_contracts WHERE group_id = %(group_id)s) "
         "WHERE rn = 1 AND deleted = 0",
@@ -1030,8 +1132,9 @@ def get_group(group_id: str) -> dict | None:
         "join_policy": row[2],
         "discoverable": bool(row[3]),
         "tags": list(row[4]),
-        "created_at": _iso_utc(row[5]),
-        "updated_at": _iso_utc(row[6]),
+        "membership_visibility": row[5],
+        "created_at": _iso_utc(row[6]),
+        "updated_at": _iso_utc(row[7]),
     }
 
 
@@ -1070,10 +1173,12 @@ def update_group(group_id: str, **kwargs):
     discoverable = kwargs.get("discoverable", existing["discoverable"])
     # tags (D78): None = leave unchanged; a list = replace.
     tags = kwargs.get("tags", existing.get("tags", []))
+    # membership_visibility (D80): None = leave unchanged.
+    membership_visibility = kwargs.get("membership_visibility", existing.get("membership_visibility", "hidden"))
     now = _now()
     client.insert(
         "group_contracts",
-        [[group_id, _json(roles), join_policy, int(discoverable), existing["created_at"], now, 0, tags]],
+        [[group_id, _json(roles), join_policy, int(discoverable), existing["created_at"], now, 0, tags, membership_visibility]],
         column_names=[
             "group_id",
             "roles",
@@ -1083,6 +1188,7 @@ def update_group(group_id: str, **kwargs):
             "updated_at",
             "deleted",
             "tags",
+            "membership_visibility",
         ],
     )
     return {
@@ -1091,6 +1197,7 @@ def update_group(group_id: str, **kwargs):
         "join_policy": join_policy,
         "discoverable": discoverable,
         "tags": list(tags),
+        "membership_visibility": membership_visibility,
         "updated_at": _iso_utc(now),
     }
 
@@ -1145,6 +1252,7 @@ def get_group_members(group_id: str, limit: int = 100, offset: int = 0) -> list[
         "FROM group_members "
         "WHERE group_id = %(group_id)s) "
         "WHERE rn = 1 AND deleted = 0 "
+        "ORDER BY member_key "
         "LIMIT %(limit)s OFFSET %(offset)s",
         {"group_id": group_id, "limit": limit, "offset": offset},
     )
@@ -1513,6 +1621,56 @@ def get_user_groups(member_key: str, tags: list[str] | None = None) -> list[dict
                 }
             )
     return out
+
+
+def get_user_public_groups(member_key: str, tag: str | None = None, limit: int = 50, offset: int = 0) -> list[dict]:
+    """D80: the public "what groups is user X in?" read.
+
+    Returns the user's memberships in **``membership_visibility == 'public'``**
+    groups only — the groups whose membership is publicly enumerable. Hidden
+    groups (dm / close-friends) never surface here, so a reader can never
+    enumerate who X is DMing. Anon-readable (no principal gate — the visibility
+    is the group's own policy, not the reader's).
+
+    ``tag`` (optional): filter to groups carrying that single tag (the D78 tag
+    column) — e.g. ``"web10-social-followers"`` for the following-list.
+
+    Paged (``limit`` / ``offset``), ordered by ``group_id`` (stable). Each row
+    carries the group's metadata (``tags``, ``join_policy``, ``discoverable``)
+    alongside the membership (``role``, ``joined_at``) so the app renders rich
+    cards in one round-trip.
+    """
+    params: dict = {"member_key": member_key, "limit": limit, "offset": offset}
+    tag_where = ""
+    if tag:
+        tag_where = " AND has(gc.tags, %(tag)s)"
+        params["tag"] = tag
+    result = client.query(
+        "SELECT gc.group_id, gm.role, gm.joined_at, gc.join_policy, gc.discoverable, gc.tags "
+        "FROM (SELECT group_id, member_key, role, joined_at, deleted, "
+        "row_number() OVER (PARTITION BY group_id, member_key ORDER BY updated_at DESC, deleted DESC) as rn "
+        "FROM group_members) gm "
+        "JOIN (SELECT group_id, join_policy, discoverable, tags, membership_visibility, deleted, "
+        "row_number() OVER (PARTITION BY group_id ORDER BY updated_at DESC, deleted DESC) as rn "
+        "FROM group_contracts) gc "
+        "ON gm.group_id = gc.group_id "
+        "WHERE gm.rn = 1 AND gc.rn = 1 AND gm.deleted = 0 AND gc.deleted = 0 "
+        "AND gm.member_key = %(member_key)s AND gc.membership_visibility = 'public'"
+        + tag_where
+        + " ORDER BY gc.group_id LIMIT %(limit)s OFFSET %(offset)s",
+        params,
+    )
+    return [
+        {
+            "group_id": row[0],
+            "role": row[1],
+            "joined_at": _iso_utc(row[2]),
+            "join_policy": row[3],
+            "discoverable": bool(row[4]),
+            "tags": list(row[5]),
+        }
+        for row in result.result_rows
+    ]
 
 
 # ---------------------------------------------------------------------------

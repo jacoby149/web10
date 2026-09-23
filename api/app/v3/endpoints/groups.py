@@ -129,7 +129,7 @@ def create_group(data: CreateGroup):
     group_id = f"{decoded.provider}/groups/users/{creator}/{group_id}"
 
     if not ch.get_group(group_id):
-        ch.create_group(group_id, data.roles, data.join_policy, data.discoverable, data.tags)
+        ch.create_group(group_id, data.roles, data.join_policy, data.discoverable, data.tags, data.membership_visibility)
 
     for m in data.members:
         if not ch.get_group_member(group_id, m["member_key"]):
@@ -196,11 +196,25 @@ def update_group(data: UpdateGroup):
 
 @router.post("/members/list")
 def get_group_members(data: ListGroupMembers):
-    """Get group members."""
-    user = _user(data)
-    if not ch.is_group_member(data.group_id, user):
-        raise exceptions.CRUD
-    return ch.get_group_members(data.group_id)
+    """Get group members (D80).
+
+    Visibility is governed by the group's ``membership_visibility`` policy:
+    - ``public`` → anyone (anon included) can enumerate the members.
+    - ``hidden`` → only a member of the group (the existing gate).
+
+    This is what makes a followers group's member list a public read (the
+    social graph is public — the thesis) while a dm group's stays private
+    (who you're DMing is not enumerable).
+    """
+    group = ch.get_group(data.group_id)
+    if not group:
+        raise exceptions.ENTRY_NOT_FOUND
+    if group.get("membership_visibility") != "public":
+        # Hidden (or legacy) group — the existing member-only gate.
+        user = _user(data)
+        if not ch.is_group_member(data.group_id, user):
+            raise exceptions.CRUD
+    return ch.get_group_members(data.group_id, limit=data.limit, offset=data.offset)
 
 
 @router.post("/members/add")
@@ -355,6 +369,42 @@ def list_directory(limit: int = 50, offset: int = 0):
                 "join_policy": g["join_policy"],
                 "member_count": counts.get(gid, 0),
                 "permission_summary": _permission_summary(g["roles"]),
+            }
+        )
+    return {"groups": out, "limit": limit, "offset": offset}
+
+
+@router.get("/by-user")
+def list_user_groups(user: str, tag: str | None = None, limit: int = 50, offset: int = 0):
+    """D80: the public "what groups is user X in?" read.
+
+    Anon (no token needed). Returns the user's memberships in **public-
+    visibility groups only** (``membership_visibility == 'public'``) — hidden
+    groups (dm / close-friends) never surface, so a reader can never enumerate
+    who X is DMing. Optional ``tag`` filter (the D78 tag column, e.g. the
+    followers tag for the following-list). Paged (``limit`` / ``offset``). Each
+    row carries the group's metadata (tags, join_policy, discoverable) alongside
+    the membership (role, joined_at) so the app renders rich cards in one
+    round-trip.
+
+    ``user`` is the member key — the bare username (v3 same-node) or the full
+    ``provider/username`` form; both resolve to the same membership rows.
+    """
+    groups = ch.get_user_public_groups(user, tag=tag, limit=limit, offset=offset)
+    out = []
+    for g in groups:
+        owner, slug = _parse_group_id(g["group_id"])
+        out.append(
+            {
+                "group_id": g["group_id"],
+                "name": slug,
+                "owner": owner,
+                "slug": slug,
+                "role": g["role"],
+                "joined_at": g["joined_at"],
+                "join_policy": g["join_policy"],
+                "discoverable": g["discoverable"],
+                "tags": g["tags"],
             }
         )
     return {"groups": out, "limit": limit, "offset": offset}

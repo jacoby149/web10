@@ -122,7 +122,7 @@ describe('DiscoverScreen', () => {
       expect(screen.getByTestId('discover-grid')).toBeInTheDocument();
     });
 
-    expect(screen.getByRole('heading', { name: 'Explorer' })).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: 'Discover' })).toBeInTheDocument();
     // KnobRack preset chips (testids: preset-{id})
     expect(screen.getByTestId('preset-most-recent')).toBeInTheDocument();
     expect(screen.getByTestId('preset-most-liked')).toBeInTheDocument();
@@ -1441,167 +1441,94 @@ describe('DiscoverScreen — subtab shell (D1)', () => {
     });
   });
 
-  it('renders the Posts | People | Groups tab row with Posts active by default', async () => {
+  it('renders the Trending | Explore tab row with Trending active by default', async () => {
     await renderDiscoverAt('/discover');
     await waitFor(() => {
       expect(screen.getByTestId('discover-tab-row')).toBeInTheDocument();
     });
-    expect(screen.getByTestId('discover-tab-posts')).toHaveAttribute('aria-selected', 'true');
-    expect(screen.getByTestId('discover-tab-people')).toHaveAttribute('aria-selected', 'false');
-    expect(screen.getByTestId('discover-tab-groups')).toHaveAttribute('aria-selected', 'false');
+    expect(screen.getByTestId('discover-tab-trending')).toHaveAttribute('aria-selected', 'true');
+    expect(screen.getByTestId('discover-tab-explore')).toHaveAttribute('aria-selected', 'false');
   });
 
-  it('switches to the People placeholder and hides the Posts board', async () => {
+  it('switches to Explore and hides the Trending board', async () => {
     await renderDiscoverAt('/discover');
     await waitFor(() => {
       expect(screen.getByTestId('discover-grid')).toBeInTheDocument();
     });
 
-    fireEvent.click(screen.getByTestId('discover-tab-people'));
+    fireEvent.click(screen.getByTestId('discover-tab-explore'));
 
     await waitFor(() => {
-      expect(screen.getByTestId('discover-people-tab')).toBeInTheDocument();
+      expect(screen.getByTestId('discover-explore-tab')).toBeInTheDocument();
     });
-    expect(screen.getByTestId('discover-tab-people')).toHaveAttribute('aria-selected', 'true');
-    // The Posts board + its search field are gone on the People subtab.
+    expect(screen.getByTestId('discover-tab-explore')).toHaveAttribute('aria-selected', 'true');
+    // The Trending board + its search field are gone on the Explore subtab.
     expect(screen.queryByTestId('discover-grid')).not.toBeInTheDocument();
     expect(screen.queryByTestId('discover-search')).not.toBeInTheDocument();
   });
 
-  it('switches to the Groups placeholder and back to Posts', async () => {
+  it('switches to Explore and back to Trending', async () => {
     await renderDiscoverAt('/discover');
     await waitFor(() => {
       expect(screen.getByTestId('discover-grid')).toBeInTheDocument();
     });
 
-    fireEvent.click(screen.getByTestId('discover-tab-groups'));
+    fireEvent.click(screen.getByTestId('discover-tab-explore'));
     await waitFor(() => {
-      expect(screen.getByTestId('discover-groups-tab')).toBeInTheDocument();
+      expect(screen.getByTestId('discover-explore-tab')).toBeInTheDocument();
     });
     expect(screen.queryByTestId('discover-grid')).not.toBeInTheDocument();
 
-    // Back to Posts restores the board.
-    fireEvent.click(screen.getByTestId('discover-tab-posts'));
+    // Back to Trending restores the board.
+    fireEvent.click(screen.getByTestId('discover-tab-trending'));
     await waitFor(() => {
       expect(screen.getByTestId('discover-grid')).toBeInTheDocument();
     });
-    expect(screen.queryByTestId('discover-groups-tab')).not.toBeInTheDocument();
+    expect(screen.queryByTestId('discover-explore-tab')).not.toBeInTheDocument();
   });
 
-  it('restores the People subtab from ?tab=people on initial render', async () => {
-    await renderDiscoverAt('/discover?tab=people');
+  it('restores the Explore subtab from ?tab=explore on initial render', async () => {
+    await renderDiscoverAt('/discover?tab=explore');
     await waitFor(() => {
-      expect(screen.getByTestId('discover-people-tab')).toBeInTheDocument();
+      expect(screen.getByTestId('discover-explore-tab')).toBeInTheDocument();
     });
-    expect(screen.getByTestId('discover-tab-people')).toHaveAttribute('aria-selected', 'true');
+    expect(screen.getByTestId('discover-tab-explore')).toHaveAttribute('aria-selected', 'true');
     expect(screen.queryByTestId('discover-grid')).not.toBeInTheDocument();
   });
 
-  it('restores the Groups subtab from ?tab=groups on initial render', async () => {
-    await renderDiscoverAt('/discover?tab=groups');
-    await waitFor(() => {
-      expect(screen.getByTestId('discover-groups-tab')).toBeInTheDocument();
-    });
-    expect(screen.getByTestId('discover-tab-groups')).toHaveAttribute('aria-selected', 'true');
-    expect(screen.queryByTestId('discover-grid')).not.toBeInTheDocument();
-  });
-
-  it('treats an unknown ?tab= value as Posts (the bare-URL default)', async () => {
+  it('treats an unknown ?tab= value as Trending (the bare-URL default)', async () => {
     await renderDiscoverAt('/discover?tab=bogus');
     await waitFor(() => {
       expect(screen.getByTestId('discover-grid')).toBeInTheDocument();
     });
-    expect(screen.getByTestId('discover-tab-posts')).toHaveAttribute('aria-selected', 'true');
+    expect(screen.getByTestId('discover-tab-trending')).toHaveAttribute('aria-selected', 'true');
   });
 
-  it('passes ?q= through to the active People subtab', async () => {
-    await renderDiscoverAt('/discover?tab=people&q=lofi');
+  it('passes ?q= through to the active Explore subtab', async () => {
+    await renderDiscoverAt('/discover?tab=explore&q=lofi');
     await waitFor(() => {
-      expect(screen.getByTestId('discover-people-tab')).toBeInTheDocument();
+      expect(screen.getByTestId('discover-explore-tab')).toBeInTheDocument();
     });
-    expect(screen.getByTestId('discover-people-tab-query')).toHaveTextContent('lofi');
+    expect(screen.getByTestId('discover-explore-tab-query')).toHaveTextContent('lofi');
   });
 
-  it('passes ?q= through to the active Groups subtab', async () => {
-    await renderDiscoverAt('/discover?tab=groups&q=study');
-    await waitFor(() => {
-      expect(screen.getByTestId('discover-groups-tab')).toBeInTheDocument();
-    });
-    expect(screen.getByTestId('discover-groups-tab-query')).toHaveTextContent('study');
-  });
-
-  it('writes ?tab= to the URL on switch and clears it for Posts (bare URL)', async () => {
+  it('writes ?tab= to the URL on switch and clears it for Trending (bare URL)', async () => {
     await renderDiscoverAt('/discover');
     await waitFor(() => {
       expect(screen.getByTestId('discover-grid')).toBeInTheDocument();
     });
 
-    fireEvent.click(screen.getByTestId('discover-tab-people'));
+    fireEvent.click(screen.getByTestId('discover-tab-explore'));
     await waitFor(() => {
-      expect(screen.getByTestId('discover-people-tab')).toBeInTheDocument();
+      expect(screen.getByTestId('discover-explore-tab')).toBeInTheDocument();
     });
-    expect(lastSearch).toBe('?tab=people');
+    expect(lastSearch).toBe('?tab=explore');
 
-    fireEvent.click(screen.getByTestId('discover-tab-posts'));
+    fireEvent.click(screen.getByTestId('discover-tab-trending'));
     await waitFor(() => {
       expect(screen.getByTestId('discover-grid')).toBeInTheDocument();
     });
-    // posts is the bare URL — the ?tab= param is removed.
+    // trending is the bare URL — the ?tab= param is removed.
     expect(lastSearch).toBe('');
-  });
-
-  it('shows the My Groups section in the Groups subtab', async () => {
-    await renderDiscoverAt('/discover?tab=groups');
-    await waitFor(() => {
-      expect(screen.getByTestId('discover-groups-tab')).toBeInTheDocument();
-    });
-    // The My Groups section is present with its header.
-    expect(screen.getByTestId('groups-my-section')).toBeInTheDocument();
-    expect(screen.getByTestId('groups-my-header')).toBeInTheDocument();
-  });
-
-  it('shows the person sub-tabs in the People subtab', async () => {
-    await renderDiscoverAt('/discover?tab=people');
-    await waitFor(() => {
-      expect(screen.getByTestId('discover-people-tab')).toBeInTheDocument();
-    });
-    // The person sub-tab row is present with all three tabs.
-    expect(screen.getByTestId('people-person-tab-row')).toBeInTheDocument();
-    expect(screen.getByTestId('people-person-tab-following')).toBeInTheDocument();
-    expect(screen.getByTestId('people-person-tab-followers')).toBeInTheDocument();
-    expect(screen.getByTestId('people-person-tab-discover')).toBeInTheDocument();
-    // Discover is the default (bare URL).
-    expect(screen.getByTestId('people-person-tab-discover')).toHaveAttribute('aria-selected', 'true');
-  });
-
-  it('switches to the Following sub-route and back to Discover', async () => {
-    await renderDiscoverAt('/discover?tab=people');
-    await waitFor(() => {
-      expect(screen.getByTestId('discover-people-tab')).toBeInTheDocument();
-    });
-
-    fireEvent.click(screen.getByTestId('people-person-tab-following'));
-    await waitFor(() => {
-      expect(screen.getByTestId('people-personal-view')).toBeInTheDocument();
-    });
-    expect(screen.getByTestId('people-person-tab-following')).toHaveAttribute('aria-selected', 'true');
-    // The discover sort toggle is gone on the Following sub-route.
-    expect(screen.queryByTestId('people-sort-toggle')).not.toBeInTheDocument();
-
-    // Back to Discover restores the public directory.
-    fireEvent.click(screen.getByTestId('people-person-tab-discover'));
-    await waitFor(() => {
-      expect(screen.getByTestId('people-sort-toggle')).toBeInTheDocument();
-    });
-    expect(screen.queryByTestId('people-personal-view')).not.toBeInTheDocument();
-  });
-
-  it('restores the Following sub-route from ?personTab=following on initial render', async () => {
-    await renderDiscoverAt('/discover?tab=people&personTab=following');
-    await waitFor(() => {
-      expect(screen.getByTestId('discover-people-tab')).toBeInTheDocument();
-    });
-    expect(screen.getByTestId('people-person-tab-following')).toHaveAttribute('aria-selected', 'true');
-    expect(screen.getByTestId('people-personal-view')).toBeInTheDocument();
   });
 });

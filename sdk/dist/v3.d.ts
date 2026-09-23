@@ -228,6 +228,22 @@ export interface V3PeoplePage {
     limit: number;
     offset: number;
 }
+export interface V3UserGroupMembership {
+    group_id: string;
+    name: string;
+    owner: string;
+    slug: string;
+    role: string;
+    joined_at: string;
+    join_policy: string;
+    discoverable: boolean;
+    tags: string[];
+}
+export interface V3UserGroupsPage {
+    groups: V3UserGroupMembership[];
+    limit: number;
+    offset: number;
+}
 /** Overall verdict. `inconclusive` = a check couldn't run (store unreadable)
  *  and nothing is decisively wrong — the client takes no action, retries later. */
 export type AccessStatus = 'ok' | 'degraded' | 'invalid' | 'inconclusive';
@@ -394,7 +410,15 @@ export interface V3Client {
         status: string;
     }>;
     leaveGroup(groupId: string): Promise<V3GroupMember>;
-    getGroupMembers(groupId: string): Promise<V3GroupMember[]>;
+    getGroupMembers(groupId: string, opts?: {
+        limit?: number;
+        offset?: number;
+    }): Promise<V3GroupMember[]>;
+    byUserGroups(user: string, opts?: {
+        tag?: string;
+        limit?: number;
+        offset?: number;
+    }): Promise<V3UserGroupsPage>;
     addGroupMember(groupId: string, memberKey: string, role: string): Promise<V3GroupMember>;
     removeGroupMember(groupId: string, memberKey: string): Promise<V3GroupMember>;
     inviteMember(groupId: string, memberKey: string, role: string): Promise<V3InviteResponse>;

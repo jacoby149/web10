@@ -421,6 +421,7 @@ class TestDelete:
                 '{"text":"x"}',
                 "",
                 [],
+                    "hidden",
                 datetime(2026, 1, 1),
                 datetime(2026, 1, 1),
                 "none",
@@ -655,6 +656,52 @@ class TestGroupDirectory:
         assert resp.json()["groups"] == []
 
 
+class TestGroupByUser:
+    """D80: the public "what groups is user X in?" read (anon)."""
+
+    def test_lists_public_memberships_with_metadata(self, client):
+        with patch(
+            "app.v3.services.clickhouse.get_user_public_groups",
+            return_value=[
+                {
+                    "group_id": "api.localhost/groups/users/bob/followers",
+                    "role": "member",
+                    "joined_at": "2026-01-02T00:00:00Z",
+                    "join_policy": "open",
+                    "discoverable": False,
+                    "tags": ["web10-social-followers"],
+                },
+            ],
+        ) as m:
+            resp = client.get("/v3/groups/by-user", params={"user": "alice"})
+        assert resp.status_code == 200
+        m.assert_called_once_with("alice", tag=None, limit=50, offset=0)
+        data = resp.json()
+        assert len(data["groups"]) == 1
+        g = data["groups"][0]
+        assert g["group_id"] == "api.localhost/groups/users/bob/followers"
+        assert g["role"] == "member"
+        assert g["joined_at"] == "2026-01-02T00:00:00Z"
+        assert g["join_policy"] == "open"
+        assert g["discoverable"] is False
+        assert g["tags"] == ["web10-social-followers"]
+        # the owner + slug are derived from the group_id
+        assert g["owner"] == "bob"
+        assert g["slug"] == "followers"
+
+    def test_tag_filter_passthrough(self, client):
+        with patch("app.v3.services.clickhouse.get_user_public_groups", return_value=[]) as m:
+            resp = client.get("/v3/groups/by-user", params={"user": "alice", "tag": "web10-social-followers"})
+        assert resp.status_code == 200
+        m.assert_called_once_with("alice", tag="web10-social-followers", limit=50, offset=0)
+
+    def test_pagination_passthrough(self, client):
+        with patch("app.v3.services.clickhouse.get_user_public_groups", return_value=[]) as m:
+            resp = client.get("/v3/groups/by-user", params={"user": "alice", "limit": 10, "offset": 20})
+        assert resp.status_code == 200
+        m.assert_called_once_with("alice", tag=None, limit=10, offset=20)
+
+
 class TestGroupDetail:
     """The flexible, principal-based group detail (D53, unlisted-model)."""
 
@@ -716,7 +763,7 @@ class TestGroupDetail:
 
 class TestJoinGroup:
     def test_open_join(self, client, token):
-        mock_rows = [("g1", '{"roles":[]}', "open", 1, [], datetime(2026, 1, 1), datetime(2026, 1, 1))]
+        mock_rows = [("g1", '{"roles":[]}', "open", 1, [], "hidden", datetime(2026, 1, 1), datetime(2026, 1, 1))]
         with patch("app.v3.services.clickhouse.client") as mock_ch:
             mock_ch.query.return_value = MagicMock(result_rows=mock_rows)
             resp = client.post("/v3/groups/join", json={"token": token, "group_id": "g1"})
@@ -724,7 +771,7 @@ class TestJoinGroup:
         assert resp.json()["role"] == "member"
 
     def test_request_join(self, client, token):
-        mock_rows = [("g1", '{"roles":[]}', "request", 1, [], datetime(2026, 1, 1), datetime(2026, 1, 1))]
+        mock_rows = [("g1", '{"roles":[]}', "request", 1, [], "hidden", datetime(2026, 1, 1), datetime(2026, 1, 1))]
         with patch("app.v3.services.clickhouse.client") as mock_ch:
             mock_ch.query.return_value = MagicMock(result_rows=mock_rows)
             resp = client.post("/v3/groups/join", json={"token": token, "group_id": "g1"})
@@ -732,7 +779,7 @@ class TestJoinGroup:
         assert resp.json()["status"] == "pending"
 
     def test_invite_only_join(self, client, token):
-        mock_rows = [("g1", '{"roles":[]}', "invite_only", 0, [], datetime(2026, 1, 1), datetime(2026, 1, 1))]
+        mock_rows = [("g1", '{"roles":[]}', "invite_only", 0, [], "hidden", datetime(2026, 1, 1), datetime(2026, 1, 1))]
         with patch("app.v3.services.clickhouse.client") as mock_ch:
             mock_ch.query.return_value = MagicMock(result_rows=mock_rows)
             resp = client.post("/v3/groups/join", json={"token": token, "group_id": "g1"})
@@ -805,6 +852,7 @@ class TestJoinRequests:
                 "open",
                 1,
                 [],
+                    "hidden",
                 datetime(2026, 1, 1),
                 datetime(2026, 1, 1),
             )
@@ -832,6 +880,7 @@ class TestJoinRequests:
                 "open",
                 1,
                 [],
+                    "hidden",
                 datetime(2026, 1, 1),
                 datetime(2026, 1, 1),
             )
@@ -855,6 +904,7 @@ class TestJoinRequests:
                 "open",
                 1,
                 [],
+                    "hidden",
                 datetime(2026, 1, 1),
                 datetime(2026, 1, 1),
             )
@@ -889,6 +939,7 @@ class TestJoinRequests:
                 "open",
                 1,
                 [],
+                    "hidden",
                 datetime(2026, 1, 1),
                 datetime(2026, 1, 1),
             )
@@ -915,6 +966,7 @@ class TestJoinRequests:
                 "open",
                 1,
                 [],
+                    "hidden",
                 datetime(2026, 1, 1),
                 datetime(2026, 1, 1),
             )
@@ -942,6 +994,7 @@ class TestJoinRequests:
                 "open",
                 1,
                 [],
+                    "hidden",
                 datetime(2026, 1, 1),
                 datetime(2026, 1, 1),
             )
@@ -970,6 +1023,7 @@ class TestInviteMember:
                 "open",
                 1,
                 [],
+                    "hidden",
                 datetime(2026, 1, 1),
                 datetime(2026, 1, 1),
             )
@@ -997,7 +1051,7 @@ class TestInviteMember:
 
     def test_invite_no_permission(self, client, token):
         mock_group = [
-            ("g1", '[{"name":"member","permissions":[]}]', "open", 1, [], datetime(2026, 1, 1), datetime(2026, 1, 1))
+            ("g1", '[{"name":"member","permissions":[]}]', "open", 1, [], "hidden", datetime(2026, 1, 1), datetime(2026, 1, 1))
         ]
         with (
             patch("app.v3.services.clickhouse.client") as mock_ch,
@@ -1208,16 +1262,46 @@ class TestGroupsManages:
 
 class TestGroupMembersList:
     def test_list_members(self, client, token):
+        # D80: the endpoint now calls get_group first (the visibility gate). A
+        # hidden (default) group keeps the existing member-only gate:
+        # get_group → get_group_member (membership check) → get_group_members.
+        mock_group = [("g1", '{"roles":[]}', "open", 0, [], "hidden", datetime(2026, 1, 1), datetime(2026, 1, 1))]
         mock_member = [("testuser", "admin", datetime(2026, 1, 1))]
         mock_members = [("alice", "member", datetime(2026, 1, 1)), ("bob", "member", datetime(2026, 1, 2))]
         with patch("app.v3.services.clickhouse.client") as mock_ch:
             mock_ch.query.side_effect = [
+                MagicMock(result_rows=mock_group),
                 MagicMock(result_rows=mock_member),
                 MagicMock(result_rows=mock_members),
             ]
             resp = client.post("/v3/groups/members/list", json={"token": token, "group_id": "g1"})
         assert resp.status_code == 200
         assert len(resp.json()) == 2
+
+    def test_list_members_public_anon(self, client):
+        # D80: a public-visibility group's member list is anon-readable — no
+        # token, no membership check. The endpoint calls get_group (public) and
+        # skips straight to get_group_members.
+        mock_group = [("g1", '{"roles":[]}', "open", 0, [], "public", datetime(2026, 1, 1), datetime(2026, 1, 1))]
+        mock_members = [("alice", "member", datetime(2026, 1, 1)), ("bob", "member", datetime(2026, 1, 2))]
+        with patch("app.v3.services.clickhouse.client") as mock_ch:
+            mock_ch.query.side_effect = [
+                MagicMock(result_rows=mock_group),
+                MagicMock(result_rows=mock_members),
+            ]
+            resp = client.post("/v3/groups/members/list", json={"group_id": "g1"})
+        assert resp.status_code == 200
+        assert len(resp.json()) == 2
+
+    def test_list_members_hidden_requires_member(self, client):
+        # D80: a hidden group with no token → the membership gate fails (CRUD).
+        mock_group = [("g1", '{"roles":[]}', "open", 0, [], "hidden", datetime(2026, 1, 1), datetime(2026, 1, 1))]
+        with patch("app.v3.services.clickhouse.client") as mock_ch:
+            mock_ch.query.side_effect = [
+                MagicMock(result_rows=mock_group),
+            ]
+            resp = client.post("/v3/groups/members/list", json={"group_id": "g1"})
+        assert resp.status_code == 401
 
 
 # ---------------------------------------------------------------------------
@@ -1334,6 +1418,7 @@ class TestSignup:
                 "open",
                 1,
                 [],
+                    "hidden",
                 datetime(2026, 1, 1),
                 datetime(2026, 1, 1),
             )

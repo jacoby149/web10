@@ -194,6 +194,15 @@ export async function countFollowers(): Promise<number> { return PEERS.length; }
 export async function countFollows(): Promise<number> { return PEERS.length; }
 export async function getFollowersCount(): Promise<number> { return PEERS.length; }
 export async function countUserFollowing(): Promise<number> { return PEERS.length; }
+// D80: the real following/followers reads (the profile's clickable counts).
+// Seeded from the same peer set so the list screens render with content.
+export async function listUserFollowing(): Promise<unknown[]> {
+  return PEERS.map((p) => ({ username: p.username, provider: p.provider }));
+}
+export async function listUserFollowers(): Promise<unknown[]> {
+  return PEERS.map((p) => ({ username: p.username, provider: p.provider }));
+}
+export async function countUserFollowingReal(): Promise<number> { return PEERS.length; }
 export async function readUserPublicPosts(): Promise<unknown[]> { return PROFILE_POSTS; }
 export async function countStagingPosts(): Promise<number> { return 0; }
 export async function saveProfile(): Promise<void> {}

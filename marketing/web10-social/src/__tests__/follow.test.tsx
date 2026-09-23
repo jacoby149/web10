@@ -413,7 +413,7 @@ describe('DiscoverScreen', () => {
     });
   });
 
-  it('renders explorer header', async () => {
+  it('renders discover header', async () => {
     const { default: DiscoverScreen } = await import('@/components/Discover/DiscoverScreen');
 
     render(
@@ -423,7 +423,7 @@ describe('DiscoverScreen', () => {
     );
 
     await waitFor(() => {
-      expect(screen.getByText('Explorer')).toBeInTheDocument();
+      expect(screen.getByText('Discover')).toBeInTheDocument();
     });
   });
 

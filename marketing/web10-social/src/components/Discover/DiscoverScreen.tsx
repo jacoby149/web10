@@ -37,7 +37,6 @@ import {
   Film,
   Music2,
   Users,
-  Layers,
   Search,
   X,
   Video,
@@ -46,8 +45,7 @@ import { cn } from '@/lib/utils';
 import { MARKETING_ORIGIN } from '@/lib/origins';
 import { PRESETS, getPreset, knobStateToSort, scorePost, FIXED_CHARACTER_DETEENT, type PresetId, type KnobState, type PowerMeanSortConfig, defaultKnobState } from '@/lib/powerMean';
 import { KnobRack } from './KnobRack';
-import DiscoverPeopleTab from './DiscoverPeopleTab';
-import DiscoverGroupsTab from './DiscoverGroupsTab';
+import DiscoverExploreTab from './DiscoverExploreTab';
 import { VideoPlayer, sourceFromMedia } from '@/components/Feed/VideoPlayer';
 import { MediaCarousel } from '@/components/Feed/MediaCarousel';
 import { PostActions } from '@/components/Feed/PostActions';
@@ -424,19 +422,21 @@ function postToSignals(post: PostRecord) {
 
 type DiscoverView = 'grid' | 'youtube';
 
-// ── Subtabs (discover-reorg.md D1) ──────────────────────────────────────────
-// Discover is the discovery surface: Posts | People | Groups. The active
-// subtab is URL state (?tab=; posts is the bare URL) so it is refresh-safe and
-// shareable. The shell owns ?q= and passes it to the active subtab — the
-// subtabs have no search field of their own (search is the top bar, S1/S2).
-// People/Groups are designed placeholders until D2/D3 land the real browsers.
+// ── Subtabs (the operator's IA fixed point, 23.09.2026) ──────────────────────
+// Discover is the discovery surface with TWO tabs:
+//   Trending — the posts board (the default; the bare URL).
+//   Explore  — people + groups mashed into one browser ("people are groups in
+//              web10"). The top bar's search opens THIS tab (?tab=explore&q=).
+// The active tab is URL state (?tab=; trending is the bare URL) so it is
+// refresh-safe and shareable. The shell owns ?q= and passes it to the active
+// subtab — the subtabs have no search field of their own (search is the top
+// bar).
 
-type DiscoverTab = 'posts' | 'people' | 'groups';
+type DiscoverTab = 'trending' | 'explore';
 
 const DISCOVER_TABS: { id: DiscoverTab; label: string; icon: typeof Flame }[] = [
-  { id: 'posts', label: 'Posts', icon: Flame },
-  { id: 'people', label: 'People', icon: Users },
-  { id: 'groups', label: 'Groups', icon: Layers },
+  { id: 'trending', label: 'Trending', icon: Flame },
+  { id: 'explore', label: 'Explore', icon: Compass },
 ];
 
 function postHasVideo(post: PostRecord): boolean {
@@ -635,11 +635,11 @@ export default function DiscoverScreen() {
   // bare URL — the param is only written for people/groups, so an unknown or
   // missing value falls back to posts.
   const urlTab = searchParams.get('tab');
-  const tab: DiscoverTab = urlTab === 'people' || urlTab === 'groups' ? urlTab : 'posts';
+  const tab: DiscoverTab = urlTab === 'explore' ? 'explore' : 'trending';
 
   const setTabUrl = useCallback((next: DiscoverTab) => {
     const params = new URLSearchParams(searchParams);
-    if (next === 'posts') {
+    if (next === 'trending') {
       params.delete('tab');
     } else {
       params.set('tab', next);
@@ -1014,9 +1014,9 @@ export default function DiscoverScreen() {
         <div className="flex items-center justify-between px-4 py-3 md:px-0 gap-3">
           <div className="flex items-center gap-2 shrink-0">
             <Compass className="h-5 w-5 text-brand-400" strokeWidth={1.75} />
-            <h1 className="font-display text-lg font-bold text-foreground">Explorer</h1>
+            <h1 className="font-display text-lg font-bold text-foreground">Discover</h1>
           </div>
-          {tab === 'posts' && (
+          {tab === 'trending' && (
             <div className="relative flex-1 max-w-xs">
               <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground pointer-events-none" />
               <input
@@ -1043,10 +1043,12 @@ export default function DiscoverScreen() {
         </div>
       </div>
 
-      {/* Subtabs: Posts | People | Groups (?tab=, posts is the bare URL) */}
+      {/* Subtabs: Trending | Explore (?tab=, trending is the bare URL).
+          Explore = people + groups mashed into one browser (the operator:
+          "people are groups in web10"); the top bar's search opens it. */}
       <div className="border-b border-border bg-surface/50" data-testid="discover-tab-row">
         <div className="px-4 md:px-0">
-          <div className="flex items-center gap-1 py-1.5" role="tablist" aria-label="Explorer sections">
+          <div className="flex items-center gap-1 py-1.5" role="tablist" aria-label="Discover sections">
             {DISCOVER_TABS.map(({ id, label, icon: TabIcon }) => (
               <button
                 key={id}
@@ -1071,7 +1073,7 @@ export default function DiscoverScreen() {
         </div>
       </div>
 
-      {tab === 'posts' ? (
+      {tab === 'trending' ? (
         <>
           {/* The composer — the operator: "you can make a new post from the
               explorer too". Posts from the explorer go to the reader's
@@ -1239,10 +1241,8 @@ export default function DiscoverScreen() {
             )}
           </div>
         </>
-      ) : tab === 'people' ? (
-        <DiscoverPeopleTab query={urlQuery} />
       ) : (
-        <DiscoverGroupsTab query={urlQuery} />
+        <DiscoverExploreTab query={urlQuery} />
       )}
       </div>
     </div>

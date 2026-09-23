@@ -668,16 +668,23 @@ describe('Layout', () => {
     // Nav items render in both the desktop sidebar and the mobile bottom
     // nav (CSS breakpoints hide one in a real browser; both exist in the
     // DOM in jsdom) — assert via the stable data-testid hooks instead.
-    expect(screen.getByTestId('nav-feed')).toBeInTheDocument();
-    expect(screen.getByTestId('nav-discover')).toBeInTheDocument();
+    // The operator's reorder (23.09.2026): Profile (your name), Shorts,
+    // Discover, Feed, Messages, Monetization. Groups is NOT a nav item
+    // (your communities live in Discover → Explore).
     expect(screen.getByTestId('nav-profile')).toBeInTheDocument();
+    expect(screen.getByTestId('nav-shorts')).toBeInTheDocument();
+    expect(screen.getByTestId('nav-discover')).toBeInTheDocument();
+    expect(screen.getByTestId('nav-feed')).toBeInTheDocument();
     expect(screen.getByTestId('nav-messages')).toBeInTheDocument();
-    // Groups is retired from the nav (it lives in the Explorer/Groups subtab).
+    expect(screen.getByTestId('nav-monetization')).toBeInTheDocument();
+    // The profile item shows the user's own name (the mock token's username),
+    // not the word "Profile" — it tells you you're visiting your own profile.
+    expect(screen.getByTestId('nav-profile')).toHaveTextContent('testuser');
+    // Groups is not a nav item (it lives in Discover → Explore).
     expect(screen.queryByTestId('nav-groups')).not.toBeInTheDocument();
     expect(screen.getAllByText('Feed').length).toBeGreaterThanOrEqual(1);
-    expect(screen.getAllByText('Explorer').length).toBeGreaterThanOrEqual(1);
+    expect(screen.getAllByText('Discover').length).toBeGreaterThanOrEqual(1);
     expect(screen.queryByText('Groups')).not.toBeInTheDocument();
-    expect(screen.getAllByText('Profile').length).toBeGreaterThanOrEqual(1);
     expect(screen.getAllByText('Messages').length).toBeGreaterThanOrEqual(1);
   });
 
