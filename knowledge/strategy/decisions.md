@@ -844,7 +844,7 @@ existing flat management check becomes a per-service check on that key.
 For the canonical model reference, see `knowledge-base/web10-v3/
 groups/access.md`.
 
-**Amendment (3.148.0, 23.09.2026) — a user's profile is public by default.**
+**Amendment (3.149.0, 23.09.2026) — a user's profile is public by default.**
 Point 7 (public = `readAll` on `anyone`) already defined the *mechanism*; this
 amendment fixes the *default* for the one group that had never adopted it: the
 **followers group** (a user's profile face lives in it). The followers group's
