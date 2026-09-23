@@ -1,11 +1,11 @@
 # Messages screenshots — how to capture them (read this before you try)
 
-PR screenshots for the **messages screen** (Chat / Mail / CRM views) are
+PR screenshots for the **messages screen** (the Chat view) are
 produced by ONE command, with **no docker stack and no login**:
 
 ```bash
 cd marketing/web10-social
-bun run screenshots        # writes screenshots/{chat,mail,crm}-{desktop,375}.png
+bun run screenshots        # writes screenshots/{chat,settings}-{desktop,375}.png
 ```
 
 One-off view (a screen you're PRing that isn't in the default set) — no
@@ -14,7 +14,7 @@ file edits needed:
 ```bash
 node screenshots/capture.mjs --name my-view --ready '[data-testid="my-view"]'
 node screenshots/capture.mjs --name settings --route /settings --ready h1
-# --toggle '[data-testid="view-toggle-mail"]' clicks a toggle before waiting
+# --toggle '<selector>' clicks a toggle before waiting
 ```
 
 Then LOOK at the six PNGs in this folder before you call the task done
@@ -59,14 +59,14 @@ If you `bun run dev` and point a browser at the app, two things bite you:
   the app's own `index.html` (which imports many `@/data` functions the mock
   omits and would otherwise error the pre-bundler).
 
-Playwright then loads each view (clicking the Chat/Mail/CRM toggle), waits for
-its `data-testid`, and screenshots at 1440×900 and 375×812.
+Playwright then loads each view, waits for its `data-testid`, and
+screenshots at 1440×900 and 375×812.
 
 ## If you change the messages views
 
-- New `@/data` functions used by DmsScreen/MailView/CrmView → add a stub to
+- New `@/data` functions used by DmsScreen → add a stub to
   `harness/mock-data.ts` (or the pre-bundler errors "No matching export").
-- New view or renamed toggle testid → update the `VIEWS` array in
+- New view or renamed testid → update the `VIEWS` array in
   `capture.mjs`.
 - Want different seed content → edit `PEERS` in `harness/mock-data.ts`.
 
