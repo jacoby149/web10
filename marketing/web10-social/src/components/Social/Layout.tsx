@@ -32,11 +32,13 @@ const profileItem = { path: '/profile', icon: User, label: 'Profile', testId: 'n
 const settingsItem = { path: '/settings', icon: Settings, label: 'Settings', testId: 'nav-settings' };
 // Monetization (D75) — every signed-in user: the creator's ad catalog +
 // affiliate onboarding. Deep-links to the Monetization surface's default
-// (Creator) tab.
+// (Creator) tab. A permanent desktop sidebar row; mobile keeps it in the More
+// sheet.
 const monetizationItem = { path: '/monetize', icon: DollarSign, label: 'Monetization', testId: 'nav-monetization' };
-// Node Monetization (D75) — a sibling of Groups, rendered ONLY for the node
-// admin (the useNodeAdmin gate). Deep-links to the Monetization surface's Node
-// tab.
+// Node Monetization (D75) — rendered ONLY for the node admin (the useNodeAdmin
+// gate). Deep-links to the Monetization surface's Node tab. It stays in the
+// desktop More popover + the mobile More sheet (the admin-only sibling of the
+// permanent Monetization row).
 const nodeMonetizationItem = { path: '/monetize?tab=node', icon: DollarSign, label: 'Node Monetization', testId: 'nav-node-monetization' };
 
 // Mobile bottom bar: the four core tabs in thumb-reach order.
@@ -47,7 +49,7 @@ const bottomNavItems = [feedItem, discoverItem, messagesItem, profileItem];
 // group together). Settings is NOT a sidebar row — it lives only in the
 // account menu (top bar), so it isn't duplicated in the nav. Groups is retired
 // from the nav — it lives in the Explorer/Groups subtab (discover-reorg D3).
-const sidebarNavItems = [feedItem, discoverItem, shortsItem, profileItem, messagesItem];
+const sidebarNavItems = [feedItem, discoverItem, shortsItem, profileItem, messagesItem, monetizationItem];
 
 // Provisional, non-infringing names for the surfaces not yet built. Shorts is
 // now a real surface (shorts.md) — it lives in the sidebar + the More sheet,
@@ -172,6 +174,7 @@ export default function Layout({ onLogout, onReportBug, children }: LayoutProps)
   const isActive = (path: string) => {
     if (path === '/profile') return pathname.startsWith('/u/');
     if (path === '/groups') return pathname.startsWith('/groups');
+    if (path === '/monetize') return isMonetizeCreator;
     return pathname === path;
   };
 
@@ -224,13 +227,13 @@ export default function Layout({ onLogout, onReportBug, children }: LayoutProps)
             </button>
             );
           })}
-          {/* More — the coming-soon surfaces + monetization in a popover.
-              Monetization (D75) is a real destination but not a core nav item,
-              so it lives in the More popover (the operator: "the monetization
-              stuff could go in the more tabs"). The coming-soon surfaces are
-              not real destinations yet, so they don't hold permanent nav rows;
-              the popover keeps the roadmap discoverable without the dead
-              weight. */}
+          {/* More — the admin-only Node Monetization entry + the coming-soon
+               surfaces in a popover. Monetization itself is a permanent
+               desktop sidebar row now; Node Monetization stays tucked here
+               because it is node-admin-only. The coming-soon surfaces are not
+               real destinations yet, so they don't hold permanent nav rows;
+               the popover keeps the roadmap discoverable without the dead
+               weight. */}
           <div className="relative mt-4" ref={moreMenuRef}>
             <button
               type="button"
@@ -254,23 +257,6 @@ export default function Layout({ onLogout, onReportBug, children }: LayoutProps)
                 data-testid="more-menu"
                 className="absolute left-0 right-0 bottom-full mb-1 z-30 rounded-lg border border-border bg-popover p-1 shadow-[0_8px_30px_rgb(0,0,0/0.35)] max-h-[min(70vh,420px)] overflow-y-auto"
               >
-                {/* Monetization (D75) — a real destination, demoted from the
-                    sidebar into the More popover (the operator: "the
-                    monetization stuff could go in the more tabs"). */}
-                <button
-                  type="button"
-                  role="menuitem"
-                  data-testid={monetizationItem.testId}
-                  aria-current={isMonetizeCreator ? 'page' : undefined}
-                  onClick={() => { setMoreMenuOpen(false); navigate(monetizationItem.path); }}
-                  className={cn(
-                    'w-full flex items-center gap-3 px-3 py-2 rounded-md text-sm font-medium transition-colors',
-                    isMonetizeCreator ? 'bg-brand-muted text-brand-300' : 'text-foreground hover:bg-elevated',
-                  )}
-                >
-                  <DollarSign className="w-5 h-5" strokeWidth={1.75} />
-                  {monetizationItem.label}
-                </button>
                 {isNodeAdmin && (
                   <button
                     type="button"
@@ -287,7 +273,7 @@ export default function Layout({ onLogout, onReportBug, children }: LayoutProps)
                     {nodeMonetizationItem.label}
                   </button>
                 )}
-                <div className="my-1 h-px bg-border" aria-hidden="true" />
+                {isNodeAdmin && <div className="my-1 h-px bg-border" aria-hidden="true" />}
                 <p className="px-3 py-1.5 text-[0.625rem] font-medium uppercase tracking-wider text-muted-foreground/50">
                   Coming soon
                 </p>

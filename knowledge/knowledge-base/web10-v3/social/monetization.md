@@ -94,16 +94,19 @@ POST /am_admin  { token }  →  { admin: boolean }   (never errors)
 
 ## The Nav
 
-Two entries, both siblings of Groups (the desktop sidebar + the mobile "More"
-sheet). The nav **is** the section switcher — there is no in-page Creator/Node
-tab on the surface; each entry deep-links to its own section and **only that
-entry highlights** (the active state reads the URL's `?tab` param, not just the
-pathname — a pathname-only match lit up both rows at once):
+Two entries. The nav **is** the section switcher — there is no in-page
+Creator/Node tab on the surface; each entry deep-links to its own section and
+**only that entry highlights** (the active state reads the URL's `?tab` param,
+not just the pathname — a pathname-only match lit up both rows at once):
 
-- **Monetization** — every signed-in user. Deep-links to `/monetize` (the
-  Creator section, the default): the creator's ad catalog + affiliate
-  onboarding. Highlights when on `/monetize` **without** `?tab=node`.
+- **Monetization** — every signed-in user. A **permanent desktop sidebar row**
+  (the operator, 23.09.2026: "take monetization out of the more menu on
+  desktop, there is space for it") + the mobile "More" sheet. Deep-links to
+  `/monetize` (the Creator section, the default): the creator's ad catalog +
+  affiliate onboarding. Highlights when on `/monetize` **without** `?tab=node`.
 - **Node Monetization** — the node admin only (non-admins never see it).
+  Lives in the **desktop "More" popover** + the mobile "More" sheet (it is
+  admin-only, so it stays tucked rather than holding a permanent sidebar row).
   Deep-links to `/monetize?tab=node`: the node-ad inventory + density.
   Highlights only when on `/monetize?tab=node`.
 
