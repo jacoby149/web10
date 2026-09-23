@@ -19,6 +19,10 @@ function mockV3Client() {
     delete: vi.fn(),
     getGroup: vi.fn(),
     getMyGroups: vi.fn(),
+    getGroupMembers: vi.fn().mockResolvedValue([
+      { member_key: 'alice', role: 'owner' },
+      { member_key: 'anyone', role: 'reader' },
+    ]),
     createGroup: vi.fn(),
     joinGroup: vi.fn(),
   };
@@ -90,7 +94,10 @@ describe('contacts v3 data layer', () => {
         'followers',
         'open',
         expect.anything(),
-        [{ member_key: 'alice', role: 'owner' }],
+        [
+          { member_key: 'alice', role: 'owner' },
+          { member_key: 'anyone', role: 'reader' },
+        ],
         { tags: ['web10-social-followers'] },
       );
       expect(mock.create).toHaveBeenCalledWith(

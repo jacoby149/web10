@@ -1,5 +1,5 @@
 import { getV3Client } from './v3';
-import { followersGroupId, getGroupMembers, blockUser, unblockUser } from './groups';
+import { followersGroupId, getGroupMembers, blockUser, unblockUser, GROUP_TAG } from './groups';
 import { extractUsername } from './types';
 import { sendNotification } from './notifications';
 
@@ -80,6 +80,69 @@ export async function listFollowers(username: string): Promise<{ username: strin
     username: extractUsername(m.member_key),
     provider: m.member_key.split('/')[0] || 'web10',
   }));
+}
+
+// ── D80: the public following / followers reads (group-policy visibility) ────
+// The social graph is public (followers groups are membership_visibility=
+// 'public'); DM relationships are private (dm groups are 'hidden' and never
+// surface in by-user). These are the real reads behind the profile's clickable
+// Following / Followers counts.
+
+/**
+ * D80: who does `username` follow — the REAL following read (the old
+ * `countUserFollowing` miscounted followers-as-following). Uses the node's
+ * `by-user` read filtered to the followers tag: each row is a followers group
+ * the user is a member of, and the followed user is the group's owner.
+ * Paged (limit / offset).
+ */
+export async function listUserFollowing(
+  username: string,
+  provider?: string,
+  opts?: { limit?: number; offset?: number },
+): Promise<{ username: string; provider: string }[]> {
+  const w = getV3Client();
+  const memberKey = provider ? `${provider}/${username}` : username;
+  const page = await w.byUserGroups(memberKey, {
+    tag: GROUP_TAG.followers,
+    limit: opts?.limit,
+    offset: opts?.offset,
+  });
+  return page.groups.map((g) => ({ username: g.owner, provider: g.group_id.split('/')[0] || 'web10' }));
+}
+
+/**
+ * D80: who follows `username` — the followers of the user's followers group.
+ * Now a public read (membership_visibility='public'), so it works for any
+ * viewer, not just the user's own followers. Paged (limit / offset).
+ */
+export async function listUserFollowers(
+  username: string,
+  provider?: string,
+  opts?: { limit?: number; offset?: number },
+): Promise<{ username: string; provider: string }[]> {
+  const w = getV3Client();
+  const members = await w.getGroupMembers(followersGroupId(username, provider), {
+    limit: opts?.limit,
+    offset: opts?.offset,
+  });
+  return members.map((m) => ({
+    username: extractUsername(m.member_key),
+    provider: m.member_key.split('/')[0] || 'web10',
+  }));
+}
+
+/**
+ * D80: the count of who `username` follows (the real following count, for the
+ * profile's Following tile). The length of the following read (one page — the
+ * count is a display figure; the list screen pages separately).
+ */
+export async function countUserFollowingReal(username: string, provider?: string): Promise<number> {
+  try {
+    const follows = await listUserFollowing(username, provider, { limit: 1000 });
+    return follows.length;
+  } catch {
+    return 0;
+  }
 }
 
 // ── Backward compat aliases ──────────────────────────────────────────────────

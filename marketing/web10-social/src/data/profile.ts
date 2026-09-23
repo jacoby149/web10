@@ -172,3 +172,33 @@ export async function lookupUserProfile(
   LOG('lookupUserProfile —', username, '→', face.display_name || '(no display name)', 'avatar:', !!face.avatar_url);
   return face;
 }
+
+/**
+ * Set the current user's profile public/private (D58 point 7). Public (the
+ * default) = the followers group's `anyone` grant reads `profile` — the face
+ * (avatar / banner / bio / display name) is readable by everyone, including
+ * anon. Private = the grant is removed — only the owner + members can read the
+ * face.
+ *
+ * This is the app expressing publicness through the node's GENERIC group
+ * primitives (a reserved `anyone` read-grant row) — no bespoke node surface
+ * (D60: the protocol stays universal; "profile visibility" is a web10-social
+ * concept mapped onto the universal role-grant mechanism). Requires a token
+ * (only the owner can change their own profile).
+ */
+export async function setProfilePublic(isPublic: boolean): Promise<{ username: string; public: boolean }> {
+  const w = getV3Client();
+  const token = w.readToken();
+  if (!token) throw new Error('not authenticated');
+  const groupId = followersGroupId(token.username, token.provider);
+  LOG('setProfilePublic —', isPublic, 'on', groupId);
+  const members = await w.getGroupMembers(groupId);
+  const hasAnyone = members.some((m) => m.member_key === 'anyone');
+  if (isPublic && !hasAnyone) {
+    await w.addGroupMember(groupId, 'anyone', 'reader');
+  } else if (!isPublic && hasAnyone) {
+    await w.removeGroupMember(groupId, 'anyone');
+  }
+  LOG('setProfilePublic — done:', isPublic);
+  return { username: token.username, public: isPublic };
+}

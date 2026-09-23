@@ -7,6 +7,7 @@ import Layout from '@/components/Social/Layout';
 import FeedScreen from '@/components/Feed/FeedScreen';
 import ProfileScreen from '@/components/Bio/ProfileScreen';
 import UserProfileScreen from '@/components/Bio/UserProfileScreen';
+import UserFollowListScreen from '@/components/Bio/UserFollowListScreen';
 import DiscoverScreen from '@/components/Discover/DiscoverScreen';
 import ShortsScreen from '@/components/Shorts/ShortsScreen';
 import GroupsScreen from '@/components/Groups/GroupsScreen';
@@ -130,6 +131,18 @@ function UserProfileRoute() {
       onBack={() => navigate(-1)}
     />
   );
+}
+
+// D80: the profile's clickable Following / Followers counts → dedicated list
+// screens (the social graph is a property of a person, so it lives here, not on
+// a discovery surface). Deep-linkable: /u/:username/followers + /following.
+// The "Back" button returns to the profile (the operator: "back to profile").
+function UserFollowersRoute() {
+  return <UserFollowListScreen kind="followers" />;
+}
+
+function UserFollowingRoute() {
+  return <UserFollowListScreen kind="following" />;
 }
 
 function GroupDetailRoute() {
@@ -439,11 +452,13 @@ function App() {
           <Route path="/shorts/:postId" element={<ShortsScreen />} />
           <Route path="/groups" element={<GroupsScreen />} />
           <Route path="/groups/:groupId" element={<GroupDetailRoute />} />
-          <Route path="/people" element={<Navigate to="/discover?tab=people" replace />} />
+          <Route path="/people" element={<Navigate to="/discover?tab=explore" replace />} />
           <Route path="/messages/*" element={<DmsScreen />} />
           <Route path="/notifications" element={<NotificationsScreen />} />
           <Route path="/profile" element={<ProfileRedirectRoute />} />
           <Route path="/u/:username" element={<UserProfileRoute />} />
+          <Route path="/u/:username/followers" element={<UserFollowersRoute />} />
+          <Route path="/u/:username/following" element={<UserFollowingRoute />} />
           <Route path="/u/:username/p/:postId" element={<UserProfilePostLinkRoute />} />
           <Route path="/staging" element={<StagingScreen />} />
           <Route path="/monetize" element={<MonetizationScreen />} />

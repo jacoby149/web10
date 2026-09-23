@@ -46,7 +46,7 @@ const PAGE_SIZE = 20;
 // Deterministic rich gradient per entity — the fallback "face" when a group
 // has no uploaded avatar. Gradients read as designed, not as a flat color
 // strip (design.md §1: the screenshot test).
-function hashToGradient(str: string): string {
+export function hashToGradient(str: string): string {
   const gradients = [
     'bg-gradient-to-br from-rose-600 to-pink-900',
     'bg-gradient-to-br from-sky-600 to-indigo-900',
@@ -75,7 +75,7 @@ function formatCount(n: number): string {
 // failure just returns an empty face (the card falls back to the gradient).
 // Shared by the My Groups list and the Discover directory cards so the two
 // tabs render the same card.
-async function resolveGroupFace(groupId: string): Promise<MyGroupFace> {
+export async function resolveGroupFace(groupId: string): Promise<MyGroupFace> {
   try {
     const identity = await readGroupIdentity(groupId);
     const refs: string[] = [];
@@ -97,7 +97,7 @@ async function resolveGroupFace(groupId: string): Promise<MyGroupFace> {
   }
 }
 
-function JoinPolicyBadge({ policy }: { policy: string }) {
+export function JoinPolicyBadge({ policy }: { policy: string }) {
   const variant = policy === 'open' ? 'success' : policy === 'request' ? 'warning' : 'outline';
   const label = policy === 'open' ? 'Open' : policy === 'request' ? 'Request' : 'Invite only';
   return (
@@ -114,14 +114,14 @@ type JoinState = 'idle' | 'joining' | 'joined' | 'requested';
 // The group's face (D60 identity) — the banner + avatar shown on the card.
 // A per-group read failure just leaves that card faceless (the gradient
 // fallback). Shared by the My Groups row and the Discover card.
-interface MyGroupFace {
+export interface MyGroupFace {
   banner_url?: string;
   avatar_url?: string;
   name?: string;
   status?: 'draft' | 'published';
 }
 
-interface DiscoverGroupCardProps {
+export interface DiscoverGroupCardProps {
   entry: GroupDirectoryEntry;
   face?: MyGroupFace;
   joinState: JoinState;
@@ -133,7 +133,7 @@ interface DiscoverGroupCardProps {
 // overlapping avatar + name/meta footer) so the two tabs read as one surface.
 // The only difference: a Join/Request button in the footer (you're not a
 // member yet) instead of the Leave button.
-function DiscoverGroupCard({ entry, face, joinState, onJoin, onOpen }: DiscoverGroupCardProps) {
+export function DiscoverGroupCard({ entry, face, joinState, onJoin, onOpen }: DiscoverGroupCardProps) {
   const name = face?.name || entry.name;
   const initial = name.charAt(0).toUpperCase();
   const canJoin = entry.join_policy !== 'invite_only';
@@ -230,7 +230,7 @@ function DiscoverGroupCard({ entry, face, joinState, onJoin, onOpen }: DiscoverG
   );
 }
 
-function DiscoverGroupCardSkeleton() {
+export function DiscoverGroupCardSkeleton() {
   return (
     <div className="w-full overflow-hidden rounded-xl border border-border bg-card">
       <Skeleton className="h-24 w-full" />

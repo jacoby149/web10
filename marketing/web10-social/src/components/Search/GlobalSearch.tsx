@@ -11,7 +11,9 @@ import type { PostRecord } from '@/data/types';
 // S1 (global-search.md): the top-bar everything-search surface — the
 // expanding-icon state machine: icon (rest) → expanded field → results →
 // collapse. S2 adds the three-way fan-out (people/groups/posts) + result
-// rows + "see more" deep links into the Discover browsers.
+// rows. Searching (Enter) opens Discover's Explore tab with the query
+// (the operator's call: the search bar opens Explore instead of the old
+// per-section "See more" links).
 
 // The app's debounce idiom (feed/discover knob re-reads settle at 400ms).
 const SEARCH_DEBOUNCE_MS = 400;
@@ -113,29 +115,14 @@ function SectionSkeleton({ label }: { label: string }) {
 
 function SearchSection({
   label,
-  seeMoreHref,
-  seeMoreTestId,
   children,
 }: {
   label: string;
-  seeMoreHref: string;
-  seeMoreTestId: string;
   children: React.ReactNode;
 }) {
-  const navigate = useNavigate();
   return (
     <div className="py-1" data-testid={`global-search-section-${label.toLowerCase()}`}>
-      <div className="flex items-center justify-between px-4 py-1">
-        <p className="text-[0.625rem] font-semibold uppercase tracking-wide text-muted-foreground/70">{label}</p>
-        <button
-          type="button"
-          data-testid={seeMoreTestId}
-          onClick={() => navigate(seeMoreHref)}
-          className="text-xs text-brand-300 hover:text-brand-400 transition-colors duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand/50 rounded px-1 py-0.5"
-        >
-          See more
-        </button>
-      </div>
+      <p className="px-4 py-1 text-[0.625rem] font-semibold uppercase tracking-wide text-muted-foreground/70">{label}</p>
       {children}
     </div>
   );
@@ -161,6 +148,7 @@ export default function GlobalSearch({ variant }: GlobalSearchProps) {
   const [people, setPeople] = useState<PersonCard[] | null>(null);
   const [groups, setGroups] = useState<GroupDirectoryEntry[] | null>(null);
   const [posts, setPosts] = useState<PostRecord[] | null>(null);
+  const navigate = useNavigate();
 
   const clearCollapseTimer = () => {
     if (collapseTimer.current) {
@@ -288,12 +276,29 @@ export default function GlobalSearch({ variant }: GlobalSearchProps) {
   }, [open, variant, closeDropdown]);
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === 'Enter') {
+      // Searching opens Discover's Explore tab with the query (the operator's
+      // call — the search bar opens Explore instead of the old per-section
+      // "See more" links). Works on both variants (the mobile full-screen
+      // view collapses via the pathname-change effect).
+      if (query.trim()) submitSearch();
+      return;
+    }
     if (e.key === 'Escape') {
       e.stopPropagation();
       if (variant === 'desktop') closeDropdown();
       else collapse();
     }
   };
+
+  // The search submit: navigate to Discover's Explore tab carrying the query
+  // (?tab=explore&q=). The Explore tab renders people + groups mashed into one
+  // browser, filtered by the query.
+  const submitSearch = useCallback(() => {
+    const q = query.trim();
+    if (!q) return;
+    navigate(`/discover?tab=explore&q=${encodeURIComponent(q)}`);
+  }, [query, navigate]);
 
   const field = (sizeClass: string) => (
     <input
@@ -333,11 +338,7 @@ export default function GlobalSearch({ variant }: GlobalSearchProps) {
         {people === null ? (
           <SectionSkeleton label="People" />
         ) : people.length > 0 ? (
-          <SearchSection
-            label="People"
-            seeMoreHref={`/discover?tab=people&q=${encodeURIComponent(q)}`}
-            seeMoreTestId="global-search-see-more-people"
-          >
+          <SearchSection label="People">
             {people.map((p) => (
               <PersonRow key={p.username} person={p} />
             ))}
@@ -348,11 +349,7 @@ export default function GlobalSearch({ variant }: GlobalSearchProps) {
         {groups === null ? (
           <SectionSkeleton label="Groups" />
         ) : groups.length > 0 ? (
-          <SearchSection
-            label="Groups"
-            seeMoreHref={`/discover?tab=groups&q=${encodeURIComponent(q)}`}
-            seeMoreTestId="global-search-see-more-groups"
-          >
+          <SearchSection label="Groups">
             {groups.map((g) => (
               <GroupRow key={g.group_id} group={g} />
             ))}
@@ -363,16 +360,26 @@ export default function GlobalSearch({ variant }: GlobalSearchProps) {
         {posts === null ? (
           <SectionSkeleton label="Posts" />
         ) : posts.length > 0 ? (
-          <SearchSection
-            label="Posts"
-            seeMoreHref={`/discover?q=${encodeURIComponent(q)}`}
-            seeMoreTestId="global-search-see-more-posts"
-          >
+          <SearchSection label="Posts">
             {posts.map((p) => (
               <PostRow key={p._id || p.created_at} post={p} />
             ))}
           </SearchSection>
         ) : null}
+
+        {/* The search CTA — Enter (or this) opens Discover's Explore tab
+            with the query: people + groups mashed into one browser. */}
+        {(people !== null || groups !== null || posts !== null) && (
+          <button
+            type="button"
+            data-testid="global-search-open-explore"
+            onClick={submitSearch}
+            className="w-full flex items-center gap-2 px-4 py-2.5 text-left text-sm text-brand-300 hover:text-brand-400 hover:bg-elevated transition-colors duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand/50"
+          >
+            <Search className="w-4 h-4 shrink-0" strokeWidth={1.75} />
+            See all results for &ldquo;{q}&rdquo; in Explore
+          </button>
+        )}
 
         {/* No results (all three sections loaded, all empty) */}
         {people !== null && groups !== null && posts !== null &&

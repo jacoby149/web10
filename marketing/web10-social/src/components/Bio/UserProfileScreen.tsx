@@ -19,7 +19,7 @@ import {
   readFollow,
   countFollows,
   countFollowers,
-  countUserFollowing,
+  countUserFollowingReal,
   readUserPublicPosts,
 } from '@/data';
 import { getWapi } from '@/data/wapi';
@@ -244,9 +244,11 @@ export default function UserProfileScreen({ username, provider, onBack }: UserPr
           // Ledger unavailable — fCount stays null (hide tile)
         }
 
-        // Following count from the public ledger (per-user, never the viewer's)
+        // Following count from the public ledger (per-user, never the viewer's).
+        // D80: the REAL following read (who X follows) — the old
+        // `countUserFollowing` miscounted X's followers, not who X follows.
         try {
-          fc = await countUserFollowing(username, provider);
+          fc = await countUserFollowingReal(username, provider);
         } catch {
           setFollowingCountError(true);
         }
@@ -705,24 +707,39 @@ export default function UserProfileScreen({ username, provider, onBack }: UserPr
           )}
         </div>
 
-        {/* Stats row — tabular-nums (design.md §5) */}
+        {/* Stats row — tabular-nums (design.md §5). D80: the Followers +
+            Following counts are clickable → the dedicated list screens
+            (/u/:username/followers + /following) with a back-to-profile exit.
+            The social graph is a property of a person, so it lives here. */}
         <div className="mt-4 flex gap-6" data-testid="user-profile-stats">
           <div>
             <span className="tabular-nums font-display font-bold text-foreground text-lg block">{posts.length}</span>
             <span className="text-xs text-muted-foreground">Posts</span>
           </div>
           {followerCount !== null && followerCount !== undefined && (
-            <div>
-              <span className="tabular-nums font-display font-bold text-foreground text-lg block">{followerCount}</span>
-              <span className="text-xs text-muted-foreground">Followers</span>
-            </div>
+            <button
+              type="button"
+              onClick={() => navigate(`/u/${username}/followers`)}
+              className="group text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring rounded-md -mx-1 px-1"
+              data-testid="user-profile-followers-link"
+              aria-label={`View ${followerCount} followers`}
+            >
+              <span className="tabular-nums font-display font-bold text-foreground text-lg block group-hover:text-brand transition-colors">{followerCount}</span>
+              <span className="text-xs text-muted-foreground group-hover:text-brand transition-colors">Followers</span>
+            </button>
           )}
-          <div>
-            <span className="tabular-nums font-display font-bold text-foreground text-lg block">
+          <button
+            type="button"
+            onClick={() => navigate(`/u/${username}/following`)}
+            className="group text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring rounded-md -mx-1 px-1"
+            data-testid="user-profile-following-link"
+            aria-label="View who is being followed"
+          >
+            <span className="tabular-nums font-display font-bold text-foreground text-lg block group-hover:text-brand transition-colors">
               {followingCountError ? '—' : followingCount ?? ''}
             </span>
-            <span className="text-xs text-muted-foreground">Following</span>
-          </div>
+            <span className="text-xs text-muted-foreground group-hover:text-brand transition-colors">Following</span>
+          </button>
         </div>
 
         {/* Staging entry point — only shown to owner when N > 0 */}

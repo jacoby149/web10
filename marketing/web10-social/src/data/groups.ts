@@ -96,6 +96,17 @@ const FOLLOWER_ROLES = [
     name: 'member',
     permissions: { 'posts': ['readAll'] },
   },
+  // The public profile grant (D41 + D58 point 7): the `anyone` principal class
+  // reads the `profile` service — the face (avatar / banner / bio / display
+  // name) is public by default. Scoped to `profile` (not `posts`): the face is
+  // public, the content stays member-gated. ensureFollowers enrolls `anyone`
+  // with this role; opting a profile private removes the row. The `reader` name
+  // matches the community groups' reserved read-grant role (D58: publicness is
+  // a role grant to a reserved principal class).
+  {
+    name: 'reader',
+    permissions: { 'profile': ['readAll'] },
+  },
 ];
 
 const CLOSE_FRIENDS_ROLES = [
@@ -181,11 +192,16 @@ export async function ensureFollowers(username: string, provider?: string): Prom
   } catch {
     // Group doesn't exist — create it (the creator is the owner member), tagged
     // as a followers group (D78) so the feed + My Groups select it by tag.
+    // Public by default (D41 + D58 point 7): the `anyone` grant reads `profile`,
+    // so the face is discoverable from birth.
     await w.createGroup(
       'followers',
       'open',
       FOLLOWER_ROLES,
-      [{ member_key: username, role: 'owner' }],
+      [
+        { member_key: username, role: 'owner' },
+        { member_key: 'anyone', role: 'reader' },
+      ],
       { tags: [GROUP_TAG.followers] },
     );
     return groupId;
@@ -195,6 +211,19 @@ export async function ensureFollowers(username: string, provider?: string): Prom
   if (!myGroups.some((g) => g.group_id === groupId)) {
     console.log('[groups] ensureFollowers — group exists but user is not a member; joining:', groupId);
     await w.joinGroup(groupId);
+  }
+  // Public-by-default heal: a followers group created before the rule (or by a
+  // client that hasn't adopted it) has no `anyone` row — its profile face is
+  // unreadable to anyone but the owner + members. Add the grant so the face
+  // becomes public without a node redeploy. Idempotent (no-op when present).
+  try {
+    const members = await w.getGroupMembers(groupId);
+    if (!members.some((m) => m.member_key === 'anyone')) {
+      console.log('[groups] ensureFollowers — healing private followers group to public:', groupId);
+      await w.addGroupMember(groupId, 'anyone', 'reader');
+    }
+  } catch (e) {
+    console.log('[groups] ensureFollowers — public heal skipped:', e);
   }
   return groupId;
 }
