@@ -1322,8 +1322,14 @@ export default function DmsScreen() {
                 </AvatarFallback>
               </Avatar>
               <div className="min-w-0">
-                <span className="font-medium text-sm text-foreground truncate block" data-testid="group-chat-name">
-                  {groupFace?.name || '…'}
+                <span className="flex items-center gap-1.5 min-w-0">
+                  <span className="font-medium text-sm text-foreground truncate" data-testid="group-chat-name">
+                    {groupFace?.name || '…'}
+                  </span>
+                  <Badge variant="brand" className="normal-case tracking-normal shrink-0" data-testid="group-chat-header-badge">
+                    <Users className="w-3 h-3 mr-1" aria-hidden="true" />
+                    Group
+                  </Badge>
                 </span>
                 <span className="text-xs text-muted-foreground/60 truncate block" data-testid="group-chat-members">
                   {groupMembers.length} member{groupMembers.length === 1 ? '' : 's'}
@@ -1554,9 +1560,17 @@ export default function DmsScreen() {
                   )}
                 </div>
                 <div className="flex-1 min-w-0">
-                  <div className="flex items-center justify-between">
-                    <span className="font-medium text-sm text-foreground truncate">{item.name}</span>
-                    <span className="text-xs text-muted-foreground ml-2 shrink-0">
+                  <div className="flex items-center justify-between gap-2">
+                    <span className="flex items-center gap-1.5 min-w-0">
+                      <span className="font-medium text-sm text-foreground truncate">{item.name}</span>
+                      {!isDm && (
+                        <Badge variant="brand" className="normal-case tracking-normal shrink-0" data-testid="group-chat-type-badge">
+                          <Users className="w-3 h-3 mr-1" aria-hidden="true" />
+                          Group
+                        </Badge>
+                      )}
+                    </span>
+                    <span className="text-xs text-muted-foreground shrink-0">
                       {lastMsg ? formatTime(lastMsg.sent_at) : ''}
                     </span>
                   </div>
