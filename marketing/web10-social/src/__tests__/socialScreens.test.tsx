@@ -637,6 +637,27 @@ describe('DmsScreen', () => {
     expect(screen.getByTestId('group-chat-item')).toHaveTextContent('The Crew');
     // A group row carries the group badge (not a presence dot).
     expect(screen.getByTestId('group-chat-badge')).toBeInTheDocument();
+    // An explicit "Group" type badge makes it clear this is a group message.
+    expect(screen.getByTestId('group-chat-type-badge')).toHaveTextContent('Group');
+  });
+
+  it('DM conversation rows do not carry a Group badge', async () => {
+    const { listConversations, getMyGroupChats } = await import('@/data');
+    vi.mocked(listConversations).mockResolvedValueOnce([
+      'test.localhost/testuser--test.localhost/alice',
+    ]);
+    vi.mocked(getMyGroupChats).mockResolvedValueOnce([]);
+
+    const { default: DmsScreen } = await import('@/components/Chat/DmsScreen');
+    render(
+      <MemoryRouter initialEntries={['/messages']}>
+        <DmsScreen />
+      </MemoryRouter>,
+    );
+    await waitFor(() => {
+      expect(screen.getByTestId('dm-conversation-item')).toBeInTheDocument();
+    });
+    expect(screen.queryByTestId('group-chat-type-badge')).not.toBeInTheDocument();
   });
 
   it('renders the group thread view — name header, member count, per-sender attribution (group-chat.md)', async () => {
@@ -665,6 +686,8 @@ describe('DmsScreen', () => {
     });
     expect(screen.getByTestId('group-chat-name')).toHaveTextContent('The Crew');
     expect(screen.getByTestId('group-chat-members')).toHaveTextContent('3 members');
+    // The header carries an explicit "Group" badge next to the name.
+    expect(screen.getByTestId('group-chat-header-badge')).toHaveTextContent('Group');
     // Per-sender attribution: the inbound message (alice) shows the sender name;
     // my own message (testuser) does not (isMe). Exactly one sender label.
     expect(screen.getByTestId('dm-message-sender')).toHaveTextContent('alice');
