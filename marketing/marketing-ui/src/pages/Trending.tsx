@@ -677,7 +677,7 @@ function Trending() {
               searchLoading ? (
                 <div
                   data-testid="trending-grid-skeleton"
-                  className="mx-auto grid w-full max-w-xl grid-cols-1 gap-4"
+                  className="mx-auto grid w-full max-w-2xl grid-cols-1 gap-4"
                 >
                   <TrendingSkeleton featured />
                   {Array.from({ length: 5 }).map((_, i) => (
@@ -722,7 +722,7 @@ function Trending() {
                       </p>
                       <div
                         data-testid="trending-grid"
-                        className="mx-auto grid w-full max-w-xl grid-cols-1 gap-4"
+                        className="mx-auto grid w-full max-w-2xl grid-cols-1 gap-4"
                       >
 {visibleSearchResults.map(post => (
                            <TrendingCard
@@ -765,7 +765,7 @@ function Trending() {
             ) : isInitialLoad ? (
               <div
                 data-testid="trending-grid-skeleton"
-                className="mx-auto grid w-full max-w-xl grid-cols-1 gap-4"
+                className="mx-auto grid w-full max-w-2xl grid-cols-1 gap-4"
               >
                 <TrendingSkeleton featured />
                 {Array.from({ length: 5 }).map((_, i) => (
@@ -841,7 +841,7 @@ function Trending() {
               <>
                 <div
                   data-testid="trending-grid"
-                  className="mx-auto grid w-full max-w-xl grid-cols-1 gap-4"
+                  className="mx-auto grid w-full max-w-2xl grid-cols-1 gap-4"
                 >
 {visible.map(post => (
                      <TrendingCard
@@ -858,7 +858,7 @@ function Trending() {
                    ))}
                 </div>
                 {loadingMore && (
-                  <div className="mx-auto mt-4 grid w-full max-w-xl grid-cols-1 gap-4">
+                  <div className="mx-auto mt-4 grid w-full max-w-2xl grid-cols-1 gap-4">
                     {Array.from({ length: 3 }).map((_, i) => (
                       <TrendingSkeleton key={`more-${i}`} />
                     ))}

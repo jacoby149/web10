@@ -192,6 +192,7 @@ export async function deletePost(): Promise<void> {}
 export async function movePostVisibility(): Promise<void> {}
 export async function countFollowers(): Promise<number> { return PEERS.length; }
 export async function countFollows(): Promise<number> { return PEERS.length; }
+export async function getFollowersCount(): Promise<number> { return PEERS.length; }
 export async function countUserFollowing(): Promise<number> { return PEERS.length; }
 export async function readUserPublicPosts(): Promise<unknown[]> { return PROFILE_POSTS; }
 export async function countStagingPosts(): Promise<number> { return 0; }
