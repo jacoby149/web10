@@ -356,7 +356,7 @@ export default function GroupsScreen() {
 
   return (
     <div className="flex flex-col min-h-full bg-background">
-      <div className="md:max-w-2xl md:mx-auto">
+      <div className="md:max-w-3xl md:mx-auto">
         {/* Header */}
         <div className="sticky top-0 z-10 bg-background/90 backdrop-blur-md border-b border-border md:static md:border-0 md:bg-transparent md:mb-4">
           <div className="flex items-center justify-between px-4 py-3 md:px-0 gap-3">

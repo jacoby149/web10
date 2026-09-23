@@ -232,7 +232,9 @@ test.describe('social-groups-directory gauntlet — the Discover/Groups browser 
     const groupId = await createGroup(request, owner.token, owner.username, slug, { joinPolicy: 'open', discoverable: true });
 
     // --- Viewer opens the Discover/Groups browser (the directory's new home, D3) ---
-    await page.goto(`${SOCIAL_BASE}/discover?tab=groups`);
+    // ?groupTab=discover lands on the Discover sub-tab (the directory); the
+    // bare URL defaults to My Groups (the memberships).
+    await page.goto(`${SOCIAL_BASE}/discover?tab=groups&groupTab=discover`);
     await page.waitForLoadState('networkidle');
     await expect(page.locator('[data-testid="groups-discover-grid"]')).toBeVisible();
 

@@ -453,6 +453,28 @@ export default function DiscoverGroupsTab({ query }: DiscoverGroupsTabProps) {
     LOG('query cleared');
   }, [searchParams, setSearchParams]);
 
+  // Deep-link: active groups sub-tab from ?groupTab= (refresh-safe, shareable).
+  // `my` is the bare URL (your memberships); `discover` is the public directory
+  // (find + search new groups). Mirrors the People tab's ?personTab= pattern.
+  type GroupTab = 'my' | 'discover';
+  const groupTab: GroupTab = useMemo(() => {
+    const raw = searchParams.get('groupTab');
+    return raw === 'discover' ? 'discover' : 'my';
+  }, [searchParams]);
+  const setGroupTab = useCallback(
+    (next: GroupTab) => {
+      const params = new URLSearchParams(searchParams);
+      if (next === 'my') {
+        params.delete('groupTab');
+      } else {
+        params.set('groupTab', next);
+      }
+      setSearchParams(params);
+      LOG('groupTab —', next);
+    },
+    [searchParams, setSearchParams],
+  );
+
   const [groups, setGroups] = useState<GroupDirectoryEntry[]>([]);
   const [loading, setLoading] = useState(true);
   const [loadingMore, setLoadingMore] = useState(false);
@@ -617,7 +639,9 @@ export default function DiscoverGroupsTab({ query }: DiscoverGroupsTabProps) {
   return (
     <div data-testid="discover-groups-tab" className="flex flex-col">
       {/* The active ?q= filter (from the top bar's "see more groups") — a
-          chip that shows the query + clears it. No search field of its own. */}
+          chip that shows the query + clears it. No search field of its own.
+          Sits above the sub-tabs (the People tab's pattern) so it survives a
+          tab switch. */}
       {query.trim() !== '' && (
         <div className="px-4 pt-3 md:px-0">
           <span
@@ -639,7 +663,38 @@ export default function DiscoverGroupsTab({ query }: DiscoverGroupsTabProps) {
         </div>
       )}
 
-      {/* My Groups — the groups you're a member of (above the directory) */}
+      {/* Groups sub-tabs: My Groups | Discover (?groupTab=, my is the bare URL) */}
+      <div className="border-b border-border bg-surface/50">
+        <div className="px-4 md:px-0">
+          <div className="flex items-center gap-1 py-1.5" role="tablist" aria-label="Groups sections" data-testid="groups-group-tab-row">
+            {([
+              ['my', 'My Groups'],
+              ['discover', 'Discover'],
+            ] as [GroupTab, string][]).map(([id, label]) => (
+              <button
+                key={id}
+                type="button"
+                role="tab"
+                aria-selected={groupTab === id}
+                data-testid={`groups-group-tab-${id}`}
+                onClick={() => setGroupTab(id)}
+                className={cn(
+                  'rounded-lg px-3 py-1.5 text-xs font-medium transition-colors',
+                  'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background',
+                  groupTab === id
+                    ? 'bg-brand-muted text-brand-300'
+                    : 'text-muted-foreground hover:text-foreground hover:bg-elevated',
+                )}
+              >
+                {label}
+              </button>
+            ))}
+          </div>
+        </div>
+      </div>
+
+      {groupTab === 'my' ? (
+      /* My Groups — the groups you're a member of */
       <div className="px-4 pt-4 md:px-0" data-testid="groups-my-section">
         <h2 className="mb-3 text-sm font-semibold text-muted-foreground" data-testid="groups-my-header">
           My Groups
@@ -667,11 +722,13 @@ export default function DiscoverGroupsTab({ query }: DiscoverGroupsTabProps) {
           </div>
         ) : (
           <p className="text-sm text-muted-foreground" data-testid="groups-my-empty">
-            You're not in any groups yet.
+            You're not in any groups yet. Find some in the Discover tab.
           </p>
         )}
       </div>
-
+      ) : (
+      <>
+      {/* Discover — the public directory (find + search new groups) */}
       {/* Tag filter chips (?tag=, deep-linkable) */}
       {topics.length > 0 && (
         <div className="px-4 py-3 md:px-0">
@@ -745,7 +802,7 @@ export default function DiscoverGroupsTab({ query }: DiscoverGroupsTabProps) {
                   disabled={loadingMore}
                   className="gap-2"
                 >
-                  {loadingMore && <Loader2 className="h-4 w-4 animate-spin" strokeWidth={2} />}
+                  {loadingMore && <Loader2 className="h-4 w-4 animate-spin" strokeWidth={1.75} />}
                   View more
                 </Button>
               </div>
@@ -753,6 +810,8 @@ export default function DiscoverGroupsTab({ query }: DiscoverGroupsTabProps) {
           </>
         )}
       </div>
+      </>
+      )}
     </div>
   );
 }
