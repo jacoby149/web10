@@ -201,7 +201,7 @@ describe('Follow button -> followUser call', () => {
     const { default: DiscoverScreen } = await import('@/components/Discover/DiscoverScreen');
 
     render(
-      <MemoryRouter initialEntries={['/discover']}>
+      <MemoryRouter initialEntries={['/discover?view=grid']}>
         <DiscoverScreen />
       </MemoryRouter>,
     );
@@ -434,7 +434,7 @@ describe('DiscoverScreen', () => {
     const { default: DiscoverScreen } = await import('@/components/Discover/DiscoverScreen');
 
     render(
-      <MemoryRouter initialEntries={['/discover']}>
+      <MemoryRouter initialEntries={['/discover?view=grid']}>
         <DiscoverScreen />
       </MemoryRouter>,
     );

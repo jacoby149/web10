@@ -3,12 +3,13 @@ import { Zap, ArrowUpRight, MessageCircleOff, Flame, Video } from 'lucide-react'
 import {
   TrendingCard,
   TrendingSkeleton,
-  YouTubeCard,
   YouTubeSkeleton,
   fetchDiscoverFeed,
   mapDiscoveryToFeedPost,
+  feedPostToDiscover,
   parseCreatedAt,
 } from '@/components/FeedPreview';
+import { HomeCard } from '@web10/discover';
 import type { FeedPost } from '@/components/FeedPreview';
 import { TrendingSidebar } from '@/components/TrendingSidebar';
 import { KnobRack } from '@/components/KnobRack';
@@ -35,7 +36,10 @@ const INITIAL_PAGE = 20;
 const PAGE_STEP = 20;
 const MAX_RESULTS = 100;
 
-type TrendingView = 'grid' | 'youtube';
+// `home` (the YouTube-style video wall — the default) + `grid` (Hot Gossip,
+// the ranked board). The operator: "video view should be first, hot gossip
+// second, to compete. video should be renamed home view."
+type TrendingView = 'grid' | 'home';
 
 // ── Discover users (A14: followers_count included) ──────────────────────────
 
@@ -213,10 +217,12 @@ function Trending() {
   const cardRefs = useRef<Map<string, HTMLElement>>(new Map());
 
   // Search state
-  // View toggle: read from ?view= query param (deep-link rule)
+  // View toggle: read from ?view= query param (deep-link rule). `home` (the
+  // video wall) is the default / bare URL; `?view=grid` is Hot Gossip. A legacy
+  // `?view=youtube` (the old video view) maps to `home`.
   const [view, setView] = useState<TrendingView>(() => {
     const params = new URLSearchParams(window.location.search);
-    return (params.get('view') as TrendingView) || 'grid';
+    return params.get('view') === 'grid' ? 'grid' : 'home';
   });
 
   // Subtab: read from ?tab= query param (deep-link rule). `posts` is the bare
@@ -244,7 +250,11 @@ function Trending() {
   const setViewUrl = useCallback((v: TrendingView) => {
     setView(v);
     const params = new URLSearchParams(window.location.search);
-    params.set('view', v);
+    if (v === 'grid') {
+      params.set('view', 'grid');
+    } else {
+      params.delete('view');
+    }
     window.history.replaceState({}, '', `${window.location.pathname}?${params.toString()}`);
     trackFunnel('trending_view_toggle', { view: v });
   }, []);
@@ -636,13 +646,13 @@ function Trending() {
         </div>
       </div>
 
-      {/* View toggle — YouTube-style, below topics */}
+      {/* View toggle — Home (the video wall, default) + Hot Gossip (the board) */}
       {!isInitialLoad && !isSearching && (
         <div className="mx-auto max-w-4xl px-4 sm:px-6">
           <div className="flex items-center gap-1 py-2" data-testid="trending-view-toggle">
             {([
+              ['home', 'Home', Video],
               ['grid', 'Hot Gossip', Flame],
-              ['youtube', 'Video', Video],
             ] as [TrendingView, string, typeof Flame][]).map(([v, label, Icon]) => (
               <button
                 key={v}
@@ -768,27 +778,31 @@ function Trending() {
                   <TrendingSkeleton key={i} />
                 ))}
               </div>
-            ) : view === 'youtube' ? (
-              /* YouTube view — media posts only, 16:9 thumbnails */
+            ) : view === 'home' ? (
+              /* Home view — the YouTube-style video wall (16:9 thumbnails,
+                 title + author attribution). Videos only. */
               <>
                 {mediaPosts.length > 0 ? (
                   <>
                     <div
-                      data-testid="trending-youtube-grid"
-                      className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4"
+                      data-testid="trending-home-grid"
+                      className="grid grid-cols-1 gap-x-4 gap-y-6 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4"
                     >
                       {mediaPosts.map(post => (
-                        <YouTubeCard
+                        <HomeCard
                           key={post.id}
-                          post={post}
-                          rank={post.rank}
+                          post={feedPostToDiscover(post)}
+                          remote
+                          postHref={post.author ? `${SOCIAL_ORIGIN}/u/${encodeURIComponent(post.author)}/p/${encodeURIComponent(post.id)}` : SOCIAL_ORIGIN}
+                          authorHref={post.author ? `${SOCIAL_ORIGIN}/u/${encodeURIComponent(post.author)}` : SOCIAL_ORIGIN}
+                          testId="home-card"
                         />
                       ))}
                     </div>
                     {loadingMore && (
-                      <div className="mt-6 grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+                      <div className="mt-6 grid grid-cols-1 gap-x-4 gap-y-6 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
                         {Array.from({ length: 4 }).map((_, i) => (
-                          <YouTubeSkeleton key={`yt-more-${i}`} />
+                          <YouTubeSkeleton key={`home-more-${i}`} />
                         ))}
                       </div>
                     )}
@@ -820,7 +834,7 @@ function Trending() {
                       No media posts yet
                     </h2>
                     <p className="mt-2 text-sm text-muted-foreground">
-                      The video view shows posts with videos and images.
+                      The Home view shows posts with videos.
                       Switch to Hot Gossip to see all trending posts.
                     </p>
                     <button

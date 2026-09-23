@@ -252,7 +252,9 @@ test.describe('Discover board gauntlet — marketing trending page + moderation'
     await page.waitForTimeout(3000);
 
     // --- Load the marketing trending page (anon — no auth needed) ---
-    await page.goto(`${MARKETING_BASE}/trending`);
+    // ?view=grid — the Home view (the video wall) is the default; this test
+    // exercises the Hot Gossip board (the ranked post grid).
+    await page.goto(`${MARKETING_BASE}/trending?view=grid`);
     await page.waitForLoadState('networkidle');
     await expect(page.locator('[data-testid="trending-grid"]')).toBeVisible({ timeout: 30_000 });
 
