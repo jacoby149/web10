@@ -171,6 +171,7 @@ export default function Layout({ onLogout, onReportBug, children }: LayoutProps)
   const isActive = (path: string) => {
     if (path === '/profile') return pathname.startsWith('/u/');
     if (path === '/groups') return pathname.startsWith('/groups');
+    if (path === '/monetize') return isMonetizeCreator;
     return pathname === path;
   };
 
@@ -278,7 +279,7 @@ export default function Layout({ onLogout, onReportBug, children }: LayoutProps)
                     {nodeMonetizationItem.label}
                   </button>
                 )}
-                <div className="my-1 h-px bg-border" aria-hidden="true" />
+                {isNodeAdmin && <div className="my-1 h-px bg-border" aria-hidden="true" />}
                 <p className="px-3 py-1.5 text-[0.625rem] font-medium uppercase tracking-wider text-muted-foreground/50">
                   Coming soon
                 </p>
