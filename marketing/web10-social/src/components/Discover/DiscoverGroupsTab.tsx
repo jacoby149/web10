@@ -13,6 +13,8 @@ import {
   resolveMediaRefs,
   groupDisplayName,
   leaveGroup,
+  createDraftGroup,
+  getV3Client,
   type GroupDirectoryEntry,
   type MediaRecord,
 } from '@/data';
@@ -30,6 +32,7 @@ import {
   X,
   LogOut,
   ChevronRight,
+  Plus,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
@@ -68,6 +71,32 @@ function formatCount(n: number): string {
   return String(n);
 }
 
+// Resolve a group's face (D60 identity) to a presigned banner + avatar. A
+// failure just returns an empty face (the card falls back to the gradient).
+// Shared by the My Groups list and the Discover directory cards so the two
+// tabs render the same card.
+async function resolveGroupFace(groupId: string): Promise<MyGroupFace> {
+  try {
+    const identity = await readGroupIdentity(groupId);
+    const refs: string[] = [];
+    if (identity.banner_ref) refs.push(identity.banner_ref);
+    if (identity.avatar_ref) refs.push(identity.avatar_ref);
+    let banner_url: string | undefined;
+    let avatar_url: string | undefined;
+    if (refs.length) {
+      const resolved = await resolveMediaRefs(refs);
+      const map: Record<string, MediaRecord> = {};
+      for (const m of resolved) if (m._id) map[m._id] = m;
+      if (identity.banner_ref) banner_url = map[identity.banner_ref]?.url;
+      if (identity.avatar_ref) avatar_url = map[identity.avatar_ref]?.url;
+    }
+    return { banner_url, avatar_url, name: identity.name, status: identity.status };
+  } catch (e) {
+    LOG('face — failed for', groupId, ':', e);
+    return {};
+  }
+}
+
 function JoinPolicyBadge({ policy }: { policy: string }) {
   const variant = policy === 'open' ? 'success' : policy === 'request' ? 'warning' : 'outline';
   const label = policy === 'open' ? 'Open' : policy === 'request' ? 'Request' : 'Invite only';
@@ -82,119 +111,120 @@ function JoinPolicyBadge({ policy }: { policy: string }) {
 
 type JoinState = 'idle' | 'joining' | 'joined' | 'requested';
 
+// The group's face (D60 identity) — the banner + avatar shown on the card.
+// A per-group read failure just leaves that card faceless (the gradient
+// fallback). Shared by the My Groups row and the Discover card.
+interface MyGroupFace {
+  banner_url?: string;
+  avatar_url?: string;
+  name?: string;
+  status?: 'draft' | 'published';
+}
+
 interface DiscoverGroupCardProps {
   entry: GroupDirectoryEntry;
+  face?: MyGroupFace;
   joinState: JoinState;
   onJoin: () => void;
   onOpen: () => void;
 }
 
-function DiscoverGroupCard({ entry, joinState, onJoin, onOpen }: DiscoverGroupCardProps) {
-  const initial = entry.name.charAt(0).toUpperCase();
+// The directory card — the SAME shape as the My Groups card (banner strip +
+// overlapping avatar + name/meta footer) so the two tabs read as one surface.
+// The only difference: a Join/Request button in the footer (you're not a
+// member yet) instead of the Leave button.
+function DiscoverGroupCard({ entry, face, joinState, onJoin, onOpen }: DiscoverGroupCardProps) {
+  const name = face?.name || entry.name;
+  const initial = name.charAt(0).toUpperCase();
   const canJoin = entry.join_policy !== 'invite_only';
   const gradient = hashToGradient(entry.group_id);
 
   return (
     <div
       data-testid="groups-discover-card"
+      role="button"
+      tabIndex={0}
+      onClick={onOpen}
+      onKeyDown={(e) => {
+        if (e.key === 'Enter' || e.key === ' ') {
+          e.preventDefault();
+          onOpen();
+        }
+      }}
       className={cn(
-        'group relative flex flex-col rounded-xl border border-border bg-card p-4 transition-all duration-200',
+        'group relative w-full overflow-hidden rounded-xl border border-border bg-card text-left cursor-pointer transition-all duration-200',
         'hover:-translate-y-1 hover:border-brand/40 hover:shadow-[0_8px_32px_-8px_var(--color-glow-intense)]',
+        'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background',
         'motion-reduce:transform-none',
       )}
     >
-      <div className="flex items-start gap-3">
-        <button
-          type="button"
-          onClick={onOpen}
-          className="shrink-0 rounded-full focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-          aria-label={`View ${entry.name}`}
-        >
-          <Avatar className={cn('h-14 w-14', gradient)}>
-            <AvatarFallback className="text-foreground text-lg font-semibold">{initial}</AvatarFallback>
+      <div className="h-24 w-full overflow-hidden" aria-hidden="true">
+        {face?.banner_url ? (
+          <img
+            src={face.banner_url}
+            alt=""
+            loading="lazy"
+            className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-105 motion-reduce:transform-none"
+          />
+        ) : (
+          <div className={cn('h-full w-full', gradient)} />
+        )}
+      </div>
+      <div className="flex items-end gap-3 p-4 pt-0">
+        <div className="shrink-0 -mt-8 rounded-full border-4 border-card">
+          <Avatar className={cn('h-16 w-16', !face?.avatar_url && gradient)}>
+            {face?.avatar_url ? (
+              <AvatarImage src={face.avatar_url} alt={name} />
+            ) : (
+              <AvatarFallback className="text-foreground text-xl font-semibold">{initial}</AvatarFallback>
+            )}
           </Avatar>
-        </button>
-        <div className="min-w-0 flex-1">
-          <button
-            type="button"
-            onClick={onOpen}
-            className="block w-full truncate text-left text-base font-semibold text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring rounded"
-            data-testid="groups-discover-card-name"
-          >
-            {entry.name}
-          </button>
-          <p className="mt-0.5 truncate text-xs text-muted-foreground">by @{entry.owner}</p>
         </div>
-      </div>
-
-      <div className="mt-3 flex items-center gap-1.5">
-        <Users className="h-3 w-3 shrink-0 text-muted-foreground" strokeWidth={2} aria-hidden="true" />
-        <span className="text-xs text-muted-foreground tabular-nums">
-          {formatCount(entry.member_count)} members
-        </span>
-        <span aria-hidden="true" className="text-muted-foreground/40">·</span>
-        <JoinPolicyBadge policy={entry.join_policy} />
-      </div>
-
-      {(entry.tags ?? []).length > 0 && (
-        <div className="mt-3 flex flex-wrap gap-1.5">
-          {entry.tags!.slice(0, 3).map((tag) => (
-            <span
-              key={tag}
-              className="rounded-full border border-brand/10 bg-brand-muted/60 px-2.5 py-1 text-xs text-brand-300"
-            >
-              #{tag}
-            </span>
-          ))}
+        <div className="min-w-0 flex-1 pb-1">
+          <div className="flex items-center gap-2">
+            <h3 className="truncate text-base font-semibold text-foreground" data-testid="groups-discover-card-name">{name}</h3>
+            <span className="shrink-0 text-xs text-muted-foreground">by @{entry.owner}</span>
+          </div>
+          <p className="mt-1 flex items-center gap-1.5 text-xs text-muted-foreground">
+            <Users className="h-3 w-3 shrink-0" strokeWidth={2} aria-hidden="true" />
+            <span className="tabular-nums">{formatCount(entry.member_count)} members</span>
+            <span aria-hidden="true" className="text-muted-foreground/40">·</span>
+            <JoinPolicyBadge policy={entry.join_policy} />
+          </p>
         </div>
-      )}
-
-      <div className="mt-4 flex items-center gap-2">
         <Button
-          variant={joinState === 'joined' ? 'outline' : 'brand_subtle'}
+          variant={joinState === 'joined' ? 'outline' : 'brand'}
           size="sm"
-          className={cn('flex-1 gap-1.5', joinState === 'joined' && 'border-border text-muted-foreground')}
+          className={cn('shrink-0 gap-1.5', joinState === 'joined' && 'border-border text-muted-foreground')}
           disabled={!canJoin || joinState === 'joining' || joinState === 'joined' || joinState === 'requested'}
-          onClick={onJoin}
+          onClick={(e) => {
+            e.stopPropagation();
+            onJoin();
+          }}
           data-testid="groups-join-button"
         >
           {joinState === 'joining' ? (
-            <>
-              <Loader2 className="h-3.5 w-3.5 animate-spin" strokeWidth={2} />
-              Joining…
-            </>
-          ) : joinState === 'joined' ? (
-            <>
-              <UserCheck className="h-3.5 w-3.5" strokeWidth={1.75} />
-              Joined
-            </>
-          ) : joinState === 'requested' ? (
-            <>
-              <UserCheck className="h-3.5 w-3.5" strokeWidth={1.75} />
-              Requested
-            </>
+            <Loader2 className="h-3.5 w-3.5 animate-spin" strokeWidth={2} />
+          ) : joinState === 'joined' || joinState === 'requested' ? (
+            <UserCheck className="h-3.5 w-3.5" strokeWidth={1.75} />
           ) : entry.join_policy === 'invite_only' ? (
-            <>
-              <Lock className="h-3.5 w-3.5" strokeWidth={1.75} />
-              Invite only
-            </>
+            <Lock className="h-3.5 w-3.5" strokeWidth={1.75} />
           ) : (
-            <>
-              <UserPlus className="h-3.5 w-3.5" strokeWidth={1.75} />
-              {entry.join_policy === 'request' ? 'Request' : 'Join'}
-            </>
+            <UserPlus className="h-3.5 w-3.5" strokeWidth={1.75} />
           )}
+          {joinState === 'joining'
+            ? 'Joining…'
+            : joinState === 'joined'
+              ? 'Joined'
+              : joinState === 'requested'
+                ? 'Requested'
+                : entry.join_policy === 'invite_only'
+                  ? 'Invite only'
+                  : entry.join_policy === 'request'
+                    ? 'Request'
+                    : 'Join'}
         </Button>
-        <Button
-          variant="ghost"
-          size="sm"
-          onClick={onOpen}
-          className="shrink-0 gap-1 text-muted-foreground hover:text-foreground"
-          aria-label={`View ${entry.name}`}
-          data-testid="groups-discover-card-open"
-        >
-          View
-        </Button>
+        <ChevronRight className="h-4 w-4 shrink-0 text-muted-foreground/50 transition-transform duration-150 group-hover:translate-x-0.5" />
       </div>
     </div>
   );
@@ -202,31 +232,23 @@ function DiscoverGroupCard({ entry, joinState, onJoin, onOpen }: DiscoverGroupCa
 
 function DiscoverGroupCardSkeleton() {
   return (
-    <div className="rounded-xl border border-border bg-card p-4">
-      <div className="flex items-start gap-3">
-        <Skeleton className="h-14 w-14 shrink-0 rounded-full" />
-        <div className="min-w-0 flex-1 space-y-2">
-          <Skeleton className="h-4 w-28" />
-          <Skeleton className="h-3 w-16" />
+    <div className="w-full overflow-hidden rounded-xl border border-border bg-card">
+      <Skeleton className="h-24 w-full" />
+      <div className="flex items-end gap-3 p-4 pt-0">
+        <div className="shrink-0 -mt-8 rounded-full border-4 border-card">
+          <Skeleton className="h-16 w-16 rounded-full" />
         </div>
-      </div>
-      <Skeleton className="mt-3 h-3 w-32" />
-      <div className="mt-4 flex gap-2">
-        <Skeleton className="h-8 flex-1 rounded-md" />
-        <Skeleton className="h-8 w-14 rounded-md" />
+        <div className="min-w-0 flex-1 space-y-2 pb-1">
+          <Skeleton className="h-4 w-36" />
+          <Skeleton className="h-3 w-40" />
+        </div>
+        <Skeleton className="h-8 w-16 rounded-md" />
       </div>
     </div>
   );
 }
 
 // ── My Groups row (the groups you're a member of) ────────────────────────────
-
-interface MyGroupFace {
-  banner_url?: string;
-  avatar_url?: string;
-  name?: string;
-  status?: 'draft' | 'published';
-}
 
 interface MyGroupRowProps {
   group: V3Group;
@@ -492,6 +514,24 @@ export default function DiscoverGroupsTab({ query }: DiscoverGroupsTabProps) {
   const [leaving, setLeaving] = useState<Record<string, boolean>>({});
   const [groupFaces, setGroupFaces] = useState<Record<string, MyGroupFace>>({});
 
+  // ── New group (the create entry — same flow as the /groups screen) ────────
+  const [creating, setCreating] = useState(false);
+  const handleNewGroup = useCallback(async () => {
+    if (creating) return;
+    setCreating(true);
+    LOG('new group — creating draft');
+    try {
+      const username = getV3Client().readToken()?.username || '';
+      const groupId = await createDraftGroup(username);
+      LOG('new group — draft created, opening edit mode', groupId);
+      navigate(`/groups/${encodeURIComponent(groupId)}?edit=1`);
+    } catch (e) {
+      LOG('new group — failed:', e);
+      toast.error(errorMessage(e, 'Could not create the group. Try again.'));
+      setCreating(false);
+    }
+  }, [creating, navigate]);
+
   const loadMyGroups = useCallback(async () => {
     setMyLoading(true);
     setMyError(false);
@@ -501,27 +541,7 @@ export default function DiscoverGroupsTab({ query }: DiscoverGroupsTabProps) {
       LOG('loadMyGroups — got', gs.length, 'community groups');
       setMyGroups(gs);
       const faceEntries = await Promise.all(
-        gs.map(async (g): Promise<[string, MyGroupFace]> => {
-          try {
-            const identity = await readGroupIdentity(g.group_id);
-            const refs: string[] = [];
-            if (identity.banner_ref) refs.push(identity.banner_ref);
-            if (identity.avatar_ref) refs.push(identity.avatar_ref);
-            let banner_url: string | undefined;
-            let avatar_url: string | undefined;
-            if (refs.length) {
-              const resolved = await resolveMediaRefs(refs);
-              const map: Record<string, MediaRecord> = {};
-              for (const m of resolved) if (m._id) map[m._id] = m;
-              if (identity.banner_ref) banner_url = map[identity.banner_ref]?.url;
-              if (identity.avatar_ref) avatar_url = map[identity.avatar_ref]?.url;
-            }
-            return [g.group_id, { banner_url, avatar_url, name: identity.name, status: identity.status }];
-          } catch (e) {
-            LOG('loadMyGroups — face failed for', g.group_id, ':', e);
-            return [g.group_id, {}];
-          }
-        }),
+        gs.map(async (g): Promise<[string, MyGroupFace]> => [g.group_id, await resolveGroupFace(g.group_id)]),
       );
       setGroupFaces(Object.fromEntries(faceEntries));
     } catch (e) {
@@ -535,6 +555,26 @@ export default function DiscoverGroupsTab({ query }: DiscoverGroupsTabProps) {
   useEffect(() => {
     loadMyGroups();
   }, [loadMyGroups]);
+
+  // ── Discover directory faces (resolve each group's banner + avatar so the
+  //     card matches the My Groups card) ──────────────────────────────────────
+  const [discoverFaces, setDiscoverFaces] = useState<Record<string, MyGroupFace>>({});
+  useEffect(() => {
+    if (groups.length === 0) return;
+    let cancelled = false;
+    (async () => {
+      const missing = groups.filter((g) => !(g.group_id in discoverFaces));
+      if (missing.length === 0) return;
+      const entries = await Promise.all(
+        missing.map(async (g): Promise<[string, MyGroupFace]> => [g.group_id, await resolveGroupFace(g.group_id)]),
+      );
+      if (cancelled) return;
+      setDiscoverFaces((prev) => ({ ...prev, ...Object.fromEntries(entries) }));
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [groups, discoverFaces]);
 
   const handleLeave = useCallback(async (groupId: string) => {
     setLeaving((prev) => ({ ...prev, [groupId]: true }));
@@ -663,32 +703,50 @@ export default function DiscoverGroupsTab({ query }: DiscoverGroupsTabProps) {
         </div>
       )}
 
-      {/* Groups sub-tabs: My Groups | Discover (?groupTab=, my is the bare URL) */}
+      {/* Groups sub-tabs: My Groups | Discover (?groupTab=, my is the bare URL)
+          + the "New group" create entry (visible in both tabs). */}
       <div className="border-b border-border bg-surface/50">
         <div className="px-4 md:px-0">
-          <div className="flex items-center gap-1 py-1.5" role="tablist" aria-label="Groups sections" data-testid="groups-group-tab-row">
-            {([
-              ['my', 'My Groups'],
-              ['discover', 'Discover'],
-            ] as [GroupTab, string][]).map(([id, label]) => (
-              <button
-                key={id}
-                type="button"
-                role="tab"
-                aria-selected={groupTab === id}
-                data-testid={`groups-group-tab-${id}`}
-                onClick={() => setGroupTab(id)}
-                className={cn(
-                  'rounded-lg px-3 py-1.5 text-xs font-medium transition-colors',
-                  'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background',
-                  groupTab === id
-                    ? 'bg-brand-muted text-brand-300'
-                    : 'text-muted-foreground hover:text-foreground hover:bg-elevated',
-                )}
-              >
-                {label}
-              </button>
-            ))}
+          <div className="flex items-center justify-between gap-2 py-1.5">
+            <div className="flex items-center gap-1" role="tablist" aria-label="Groups sections" data-testid="groups-group-tab-row">
+              {([
+                ['my', 'My Groups'],
+                ['discover', 'Discover'],
+              ] as [GroupTab, string][]).map(([id, label]) => (
+                <button
+                  key={id}
+                  type="button"
+                  role="tab"
+                  aria-selected={groupTab === id}
+                  data-testid={`groups-group-tab-${id}`}
+                  onClick={() => setGroupTab(id)}
+                  className={cn(
+                    'rounded-lg px-3 py-1.5 text-xs font-medium transition-colors',
+                    'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background',
+                    groupTab === id
+                      ? 'bg-brand-muted text-brand-300'
+                      : 'text-muted-foreground hover:text-foreground hover:bg-elevated',
+                  )}
+                >
+                  {label}
+                </button>
+              ))}
+            </div>
+            <Button
+              variant="brand"
+              size="sm"
+              className="shrink-0 gap-1.5"
+              onClick={handleNewGroup}
+              disabled={creating}
+              data-testid="groups-tab-new-button"
+            >
+              {creating ? (
+                <Loader2 className="h-3.5 w-3.5 animate-spin" strokeWidth={2} />
+              ) : (
+                <Plus className="h-3.5 w-3.5" strokeWidth={2} />
+              )}
+              {creating ? 'Creating…' : 'New group'}
+            </Button>
           </div>
         </div>
       </div>
@@ -781,6 +839,7 @@ export default function DiscoverGroupsTab({ query }: DiscoverGroupsTabProps) {
                   <DiscoverGroupCard
                     key={entry.group_id}
                     entry={entry}
+                    face={discoverFaces[entry.group_id]}
                     joinState={joinStates[entry.group_id] || 'idle'}
                     onJoin={() => handleJoin(entry)}
                     onOpen={() => openGroup(entry.group_id)}
