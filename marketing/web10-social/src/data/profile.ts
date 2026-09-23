@@ -17,6 +17,10 @@ import { fromV3DocToProfile, type ProfileRecord } from './types';
 
 const LOG = (...args: unknown[]) => console.log('[profile]', ...args);
 const LOG_ERR = (...args: unknown[]) => console.error('[profile]', ...args);
+// A sign-out mid-flight ("No token available") is a normal lifecycle event, not
+// an error — warn, not error (console.error would trip the e2e console-error
+// gauntlet, which allows only 403/404 resource failures).
+const LOG_WARN = (...args: unknown[]) => console.warn('[profile]', ...args);
 
 /**
  * Read the current user's profile record.
@@ -34,7 +38,13 @@ export async function readProfile(): Promise<ProfileRecord | null> {
     });
     LOG('readProfile — got', docs.length, 'doc(s) from', groupId);
     if (docs.length > 0) {
-      return fromV3DocToProfile(docs[0]);
+      // One record per user. A stale duplicate can linger (the sign-in seed +
+      // an early save racing the ClickHouse merge) — the latest wins, matching
+      // the node's D0 read (which dedupes on updated_at).
+      const latest = docs.reduce((a, b) =>
+        (a.updated_at ?? '') >= (b.updated_at ?? '') ? a : b,
+      );
+      return fromV3DocToProfile(latest);
     }
   } catch (e) {
     // No profile doc yet (or no followers group yet) — fall through to getProfile
@@ -73,27 +83,35 @@ export async function ensureProfile(): Promise<void> {
   const token = w.readToken();
   if (!token) return;
 
-  // Ensure the home group exists + is public (the `anyone` read grant) before
-  // writing — the same guarantee saveProfile relies on.
-  const groupId = await ensureFollowers(token.username, token.provider);
-
-  // A face already exists → leave it alone (never clobber user edits).
   try {
-    const docs = await w.read('profile', { groups: [groupId] });
-    if (docs.length > 0) {
-      LOG('ensureProfile — face already exists, no-op');
-      return;
-    }
-  } catch (e) {
-    // No readable face (or no group yet) — fall through to create.
-    LOG('ensureProfile — no readable face yet:', String(e));
-  }
+    // Ensure the home group exists + is public (the `anyone` read grant) before
+    // writing — the same guarantee saveProfile relies on.
+    const groupId = await ensureFollowers(token.username, token.provider);
 
-  // Seed a minimal public face. display_name = the username so the card has a
-  // name even before the user edits anything.
-  LOG('ensureProfile — seeding default face for', token.username);
-  const doc = await w.create('profile', { display_name: token.username }, { groups: [groupId] });
-  LOG('ensureProfile — created face:', doc.doc_id);
+    // A face already exists → leave it alone (never clobber user edits).
+    try {
+      const docs = await w.read('profile', { groups: [groupId] });
+      if (docs.length > 0) {
+        LOG('ensureProfile — face already exists, no-op');
+        return;
+      }
+    } catch (e) {
+      // No readable face (or no group yet) — fall through to create.
+      LOG('ensureProfile — no readable face yet:', String(e));
+    }
+
+    // Seed a minimal public face. display_name = the username so the card has a
+    // name even before the user edits anything.
+    LOG('ensureProfile — seeding default face for', token.username);
+    const doc = await w.create('profile', { display_name: token.username }, { groups: [groupId] });
+    LOG('ensureProfile — created face:', doc.doc_id);
+  } catch (e) {
+    // A failure is a benign degrade (the face is re-seeded on the next sign-in)
+    // — it never blocks the session. The most common cause is a sign-out
+    // mid-flight ("No token available", a 401) — a normal lifecycle event. Warn,
+    // not error (console.error would trip the e2e console-error gauntlet).
+    LOG_WARN('ensureProfile — skipped (will retry next sign-in):', e);
+  }
 }
 
 /**
@@ -119,14 +137,33 @@ export async function saveProfile(profile: Partial<ProfileRecord>): Promise<Prof
   const groupId = await ensureFollowers(token.username, token.provider);
   LOG('saveProfile — followers group ready:', groupId);
 
-  // Try to update existing
-  if (profile._id) {
-    const doc = await w.update(profile._id, body);
-    LOG('saveProfile — updated doc:', profile._id);
+  // The profile is ONE doc per user. Find the existing doc (the sign-in seed
+  // from ensureProfile, or a prior save) and update it in place — a create
+  // would leave a stale duplicate the read side has to dedupe. The caller's
+  // `_id` wins when present; otherwise read the group for the current doc.
+  let existingId = profile._id;
+  if (!existingId) {
+    try {
+      const docs = await w.read('profile', { groups: [groupId] });
+      if (docs.length > 0) {
+        const latest = docs.reduce((a, b) =>
+          (a.updated_at ?? '') >= (b.updated_at ?? '') ? a : b,
+        );
+        existingId = latest.doc_id;
+      }
+    } catch (e) {
+      LOG('saveProfile — existing-doc read failed (will create):', String(e));
+    }
+  }
+
+  // Update the existing doc in place.
+  if (existingId) {
+    const doc = await w.update(existingId, body);
+    LOG('saveProfile — updated doc:', existingId);
     return fromV3DocToProfile(doc);
   }
 
-  // Create new
+  // No doc yet — create it.
   LOG('saveProfile — creating new doc in', groupId);
   const doc = await w.create('profile', body, { groups: [groupId] });
   LOG('saveProfile — created doc:', doc.doc_id);

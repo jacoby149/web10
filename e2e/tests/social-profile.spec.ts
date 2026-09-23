@@ -463,12 +463,20 @@ test.describe('Profiles gauntlet — real flow + log sequence', () => {
     await expect(page.getByText(bio, { exact: false })).toBeVisible({ timeout: 15000 });
 
     // Settle the CH read side before the reload (the write is synchronous;
-    // the ReplacingMergeTree read can lag a beat under load).
+    // the ReplacingMergeTree read can lag a beat under load). Wait for the SAVED
+    // doc (the one carrying the bio) — the sign-in seed alone satisfies
+    // "a doc exists" but not the save.
     const settled = await pollUntil(
       () => readProfileDocs(request, owner.token, owner.username),
-      (docs) => docs.length >= 1,
+      (docs) => docs.some((d) => d.body?.bio === bio),
     );
-    expect(settled[0].body.bio).toBe(bio);
+    // The profile is one logical record; the app's readProfile dedupes to the
+    // latest doc (the sign-in seed + a save can briefly both exist under the
+    // CH merge lag). Assert on the latest, matching the app's read semantics.
+    const latestProfile = settled.reduce((a, b) =>
+      (a.updated_at ?? '') >= (b.updated_at ?? '') ? a : b,
+    );
+    expect(latestProfile.body.bio).toBe(bio);
 
     // Return run: reload. The token cookie persists, the profile re-reads,
     // and the bio survives (the doc was written to the followers group).
@@ -564,11 +572,17 @@ test.describe('Profiles gauntlet — real flow + log sequence', () => {
     expect(groups.map((g) => g.group_id)).toContain(followersGroupId(owner.username));
     const profiles = await pollUntil(
       () => readProfileDocs(request, owner.token, owner.username),
-      (docs) => docs.length >= 1,
+      (docs) => docs.some((d) => d.body?.bio === bio),
     );
-    expect(profiles[0].body.display_name).toBe(displayName);
-    expect(profiles[0].body.website).toBe(website);
-    expect(profiles[0].body.bio).toBe(bio);
+    // The profile is one logical record; the app's readProfile dedupes to the
+    // latest doc (the sign-in seed + a save can briefly both exist under the
+    // CH merge lag). Assert on the latest, matching the app's read semantics.
+    const latestProfile = profiles.reduce((a, b) =>
+      (a.updated_at ?? '') >= (b.updated_at ?? '') ? a : b,
+    );
+    expect(latestProfile.body.display_name).toBe(displayName);
+    expect(latestProfile.body.website).toBe(website);
+    expect(latestProfile.body.bio).toBe(bio);
 
     // Return run: reload — the profile re-reads from the group and the edits
     // survive.
