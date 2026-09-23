@@ -191,32 +191,59 @@ export default function GlobalSearch({ variant }: GlobalSearchProps) {
     setOpen(true);
   };
 
+  // Desktop: close ONLY the results dropdown (animate out 150ms, then
+  // open=false). The field is always visible on desktop (the operator's call),
+  // so this does NOT clear the query — clicking away keeps what was typed.
+  const closeDropdown = useCallback(() => {
+    setClosing(true);
+    if (collapseTimer.current) clearTimeout(collapseTimer.current);
+    collapseTimer.current = setTimeout(() => {
+      setOpen(false);
+      setClosing(false);
+      collapseTimer.current = null;
+    }, COLLAPSE_MS);
+  }, []);
+
+  // The X button: clear the typed query and keep focus in the field so the
+  // user can immediately type a new one (the dropdown, if open, falls back to
+  // the "type to search" idle state). The field itself never disappears.
+  const clearQuery = () => {
+    setQuery('');
+    setDebouncedQuery('');
+    inputRef.current?.focus();
+  };
+
   // Clear a pending collapse if the component unmounts mid-animation.
   useEffect(() => clearCollapseTimer, []);
 
-  // Focus lands in the field the moment it opens.
+  // Mobile: focus lands in the field the moment the full-screen view opens.
+  // Desktop: the field is always visible, so focus is driven by the user (the
+  // input's onFocus opens the results dropdown) — never stolen on mount.
   useEffect(() => {
-    if (open) inputRef.current?.focus();
-  }, [open]);
+    if (open && variant === 'mobile') inputRef.current?.focus();
+  }, [open, variant]);
 
-  // When the search collapses, return focus to the trigger so keyboard users
-  // land somewhere sane (design.md §11 — fully keyboard-operable). Runs after
-  // the trigger remounts, so the ref is fresh in both variants.
+  // Mobile: when the full-screen view closes, return focus to the trigger so
+  // keyboard users land somewhere sane (design.md §11 — fully keyboard-
+  // operable). Desktop has no trigger (the field is always visible), so this
+  // is a no-op there.
   useEffect(() => {
+    if (variant !== 'mobile') return;
     if (wasOpen.current && !open) {
       wasOpen.current = false;
       triggerRef.current?.focus();
     } else if (open) {
       wasOpen.current = true;
     }
-  }, [open]);
+  }, [open, variant]);
 
   // The debounced query (the app's 400ms idiom) — S2's fan-out reads this.
+  // Always tracks the field (the desktop field is always visible), so the
+  // dropdown reopens onto the current query rather than a stale one.
   useEffect(() => {
-    if (!open) return;
     const t = setTimeout(() => setDebouncedQuery(query), SEARCH_DEBOUNCE_MS);
     return () => clearTimeout(t);
-  }, [query, open]);
+  }, [query]);
 
   // S2: fire the three-way fan-out when the debounced query changes.
   // Per-section loading: each read resolves independently.
@@ -239,26 +266,32 @@ export default function GlobalSearch({ variant }: GlobalSearchProps) {
     return () => { cancelled = true; };
   }, [debouncedQuery, open]);
 
-  // Navigate → collapse (the state machine's fourth exit).
+  // Navigate → close the results UI (the state machine's fourth exit).
+  // Desktop: just close the dropdown (the field stays, the query persists).
+  // Mobile: full collapse (the full-screen view closes and resets).
   useEffect(() => {
-    if (open) collapse();
+    if (open) {
+      if (variant === 'desktop') closeDropdown();
+      else collapse();
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [pathname]);
 
-  // Desktop: click outside the bar → collapse.
+  // Desktop: click outside the bar → close the dropdown (the field stays).
   useEffect(() => {
     if (!open || variant !== 'desktop') return;
     const onDown = (e: MouseEvent) => {
-      if (containerRef.current && !containerRef.current.contains(e.target as Node)) collapse();
+      if (containerRef.current && !containerRef.current.contains(e.target as Node)) closeDropdown();
     };
     document.addEventListener('mousedown', onDown);
     return () => document.removeEventListener('mousedown', onDown);
-  }, [open, variant, collapse]);
+  }, [open, variant, closeDropdown]);
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
     if (e.key === 'Escape') {
       e.stopPropagation();
-      collapse();
+      if (variant === 'desktop') closeDropdown();
+      else collapse();
     }
   };
 
@@ -269,6 +302,7 @@ export default function GlobalSearch({ variant }: GlobalSearchProps) {
       type="text"
       value={query}
       onChange={(e) => setQuery(e.target.value)}
+      onFocus={expand}
       onKeyDown={handleKeyDown}
       placeholder="Search people, groups, posts…"
       aria-label="Search"
@@ -356,41 +390,26 @@ export default function GlobalSearch({ variant }: GlobalSearchProps) {
   if (variant === 'desktop') {
     return (
       <div ref={containerRef} className="relative flex-1 min-w-0 flex items-center h-14 px-4">
-        {open ? (
-          <div
-            data-testid="global-search-field-wrap"
-            className={cn(
-              'flex items-center gap-2 flex-1 h-9 rounded-lg bg-elevated border border-input px-3 transition-colors duration-150',
-              'focus-within:border-brand/60',
-              !closing && 'animate-panel-in',
-              closing && 'opacity-0 transition-opacity duration-150 ease-out',
-            )}
-          >
-            <Search className="w-4 h-4 shrink-0 text-muted-foreground" strokeWidth={1.75} aria-hidden="true" />
-            {field('text-sm')}
-            <button
-              type="button"
-              data-testid="global-search-close"
-              aria-label="Close search"
-              onClick={collapse}
-              className="h-6 w-6 shrink-0 flex items-center justify-center rounded-md text-muted-foreground hover:text-foreground hover:bg-elevated transition-colors duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand/50"
-            >
-              <X className="w-4 h-4" strokeWidth={1.75} />
-            </button>
-          </div>
-        ) : (
+        {/* The field is always visible on desktop (the operator's call): the
+            persistent "Search people, groups, posts…" placeholder is more
+            informative than a bare icon. Focus opens the dropdown; the X
+            clears the query; clicking away closes the dropdown (field stays). */}
+        <div
+          data-testid="global-search-field-wrap"
+          className="flex items-center gap-2 flex-1 h-9 rounded-lg bg-elevated border border-input px-3 transition-colors duration-150 focus-within:border-brand/60"
+        >
+          <Search className="w-4 h-4 shrink-0 text-muted-foreground" strokeWidth={1.75} aria-hidden="true" />
+          {field('text-sm')}
           <button
-            ref={triggerRef}
             type="button"
-            data-testid="global-search-trigger"
-            aria-label="Search"
-            aria-expanded={false}
-            onClick={expand}
-            className="h-9 w-9 flex items-center justify-center rounded-lg text-muted-foreground hover:text-foreground hover:bg-elevated transition-colors duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand/50"
+            data-testid="global-search-close"
+            aria-label="Clear search"
+            onClick={clearQuery}
+            className="h-6 w-6 shrink-0 flex items-center justify-center rounded-md text-muted-foreground hover:text-foreground hover:bg-elevated transition-colors duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand/50"
           >
-            <Search className="w-5 h-5" strokeWidth={1.75} />
+            <X className="w-4 h-4" strokeWidth={1.75} />
           </button>
-        )}
+        </div>
         {open && (
           <div
             data-testid="global-search-results"
