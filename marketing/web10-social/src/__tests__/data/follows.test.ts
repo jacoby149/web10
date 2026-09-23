@@ -106,12 +106,17 @@ describe('follows v3 data layer', () => {
       mock.createGroup = vi.fn().mockResolvedValue({ group_id: 'web10.app/groups/users/alice/followers' });
       const groupId = await groups.ensureFollowers('alice');
       // Created under the bare slug `followers` (the API embeds the creator)
-      // with the bare username as the owner member_key.
+      // with the bare username as the owner member_key. Public by default
+      // (D41 + D58 point 7): the `anyone` row carries the `reader` role
+      // (profile: readAll), so the face is discoverable from birth.
       expect(mock.createGroup).toHaveBeenCalledWith(
         'followers',
         'open',
         expect.anything(),
-        [{ member_key: 'alice', role: 'owner' }],
+        [
+          { member_key: 'alice', role: 'owner' },
+          { member_key: 'anyone', role: 'reader' },
+        ],
         { tags: ['web10-social-followers'] },
       );
       expect(groupId).toBe('web10.app/groups/users/alice/followers');
@@ -124,11 +129,38 @@ describe('follows v3 data layer', () => {
       mock.getMyGroups.mockResolvedValue([
         { group_id: 'web10.app/groups/users/alice/followers', my_role: 'owner' },
       ]);
+      // Already public (the `anyone` row is present) — the heal is a no-op.
+      mock.getGroupMembers.mockResolvedValue([
+        { member_key: 'alice', role: 'owner' },
+        { member_key: 'anyone', role: 'reader' },
+      ]);
       const groupId = await groups.ensureFollowers('alice');
       expect(groupId).toBe('web10.app/groups/users/alice/followers');
       // Already a member — no join (a join would add a duplicate member row
       // with the `member` role, downgrading the owner on merge).
       expect(mock.joinGroup).not.toHaveBeenCalled();
+      // Already public — no heal.
+      expect(mock.addGroupMember).not.toHaveBeenCalled();
+    });
+
+    it('HEALS a private followers group to public: no anyone row → adds the reader grant', async () => {
+      // A group created before the public-by-default rule has no `anyone` row —
+      // its profile face is unreadable to a stranger. ensureFollowers (run on
+      // mount) adds the grant so the face becomes public without a redeploy.
+      mock.getGroup.mockResolvedValue({ group_id: 'web10.app/groups/users/alice/followers' });
+      mock.getMyGroups.mockResolvedValue([
+        { group_id: 'web10.app/groups/users/alice/followers', my_role: 'owner' },
+      ]);
+      mock.getGroupMembers.mockResolvedValue([
+        { member_key: 'alice', role: 'owner' },
+      ]);
+      mock.addGroupMember.mockResolvedValue({ member_key: 'anyone', role: 'reader' });
+      await groups.ensureFollowers('alice');
+      expect(mock.addGroupMember).toHaveBeenCalledWith(
+        'web10.app/groups/users/alice/followers',
+        'anyone',
+        'reader',
+      );
     });
 
     it('HEALS the phantom-member state: group exists but the user is not a member', async () => {
@@ -142,6 +174,11 @@ describe('follows v3 data layer', () => {
         { group_id: 'web10.app/groups/web10/discover', my_role: 'member' },
       ]);
       mock.joinGroup.mockResolvedValue({ group_id: 'web10.app/groups/users/alice/followers', member_key: 'alice', role: 'member' });
+      // The public heal runs after the join; the group is already public.
+      mock.getGroupMembers.mockResolvedValue([
+        { member_key: 'alice', role: 'member' },
+        { member_key: 'anyone', role: 'reader' },
+      ]);
       const groupId = await groups.ensureFollowers('alice');
       expect(groupId).toBe('web10.app/groups/users/alice/followers');
       expect(mock.joinGroup).toHaveBeenCalledWith('web10.app/groups/users/alice/followers');

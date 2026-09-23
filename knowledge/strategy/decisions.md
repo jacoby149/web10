@@ -844,6 +844,25 @@ existing flat management check becomes a per-service check on that key.
 For the canonical model reference, see `knowledge-base/web10-v3/
 groups/access.md`.
 
+**Amendment (3.148.0, 23.09.2026) — a user's profile is public by default.**
+Point 7 (public = `readAll` on `anyone`) already defined the *mechanism*; this
+amendment fixes the *default* for the one group that had never adopted it: the
+**followers group** (a user's profile face lives in it). The followers group's
+role set granted `owner` → `*` + `member` → `posts: readAll` but **no `anyone`
+grant**, so a profile was readable only by the owner + followers — a stranger
+(or anon) saw a fallback initial, not the pfp (the Followers/Following tabs +
+"someone else's profile" rendered faceless). The fix is **client-side (D60 — no
+node surface)**: the social app expresses publicness through the node's generic
+role-grant primitive — `FOLLOWER_ROLES` gains a `reader` role (`profile:
+readAll`, scoped to the face, not `posts`), `ensureFollowers` creates the group
+with an `anyone` → `reader` row (and heals a pre-existing private group on
+mount), and `setProfilePublic` toggles the row. Public *community* groups were
+never affected — they already add the `anyone` → `reader` row for the
+`web10-social-group-identity` face. **Open (deferred, D62):** the private half
+needs a persisted `visibility` preference so the mount-heal doesn't re-publicize
+an opted-private profile; until then the heal is a one-way ratchet to public
+(correct for the "public unless made private" default).
+
 ### D57 — Two-layer ad model: creator ads (D55) + node-level ads; the payment model is scoped to what the node can enforce [decided]
 
 Operator, 30.08.2026 — after the ads lane completed (3.30.0), the business
