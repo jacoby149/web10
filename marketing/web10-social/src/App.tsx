@@ -22,7 +22,7 @@ import { ErrorBoundary } from '@/components/shared/ErrorBoundary';
 import { ReportBug } from '@/components/shared/ReportBug';
 import { Toaster } from '@/components/shared/Toast';
 import { InstallPrompt } from '@/components/shared/InstallPrompt';
-import { getWapi, getV3Client, verifyAndRecover, Web10Error } from '@/data';
+import { getWapi, getV3Client, verifyAndRecover, Web10Error, ensureProfile } from '@/data';
 import { resolveMediaRefs } from '@/data/posts';
 import { readSettings } from '@/data/settings';
 import { initP2P, teardownP2P, setPeer } from '@/data/p2p';
@@ -385,6 +385,12 @@ function App() {
   useEffect(() => {
     if (signedIn) {
       applyP2P();
+      // Seed a public profile face on sign-in (idempotent, non-clobbering) so
+      // the account is discoverable in the D0 people directory from birth —
+      // the followers group is public-by-default but the face content is only
+      // ever created when the user edits their profile, which left new
+      // accounts absent from the directory. A failure is a benign degrade.
+      ensureProfile().catch((e) => LOG_ERR('ensureProfile — failed:', e));
     } else {
       teardownP2P();
       teardownNotifications();
