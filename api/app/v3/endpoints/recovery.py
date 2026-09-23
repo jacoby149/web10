@@ -160,24 +160,25 @@ def complete(data: RecoveryComplete):
     payload = _check_verify_token(data.verify_token)
     contact = payload["contact"]
     kind = payload["kind"]
+    username = data.username.lower()
 
-    user = ch.get_user(data.username)
+    user = ch.get_user(username)
     if user:
         # Existing account — it must actually carry this contact (defense in depth).
         if not _account_has_contact(user, contact, kind):
             raise exceptions.CONTACT_NOT_LINKED
         if data.new_password:
-            ch.change_password(data.username, get_password_hash(data.new_password))
+            ch.change_password(username, get_password_hash(data.new_password))
     else:
         # New account — create it carrying the verified contact. A random
         # password when none is set, so the contact is the credential.
-        if not _USERNAME_RE.match(data.username):
+        if not _USERNAME_RE.match(username):
             raise exceptions.BAD_USERNAME
         pw_hash = (
             get_password_hash(data.new_password) if data.new_password else get_password_hash(secrets.token_urlsafe(24))
         )
         created = ch.create_user(
-            data.username,
+            username,
             pw_hash,
             phone=contact if kind == "phone" else "",
             email=contact if kind == "email" else "",
@@ -186,7 +187,7 @@ def complete(data: RecoveryComplete):
             raise exceptions.EXISTS
     # Mark the contact verified on the account.
     if kind == "phone":
-        ch.verify_phone(data.username)
+        ch.verify_phone(username)
     else:
-        ch.verify_email(data.username)
-    return {"token": _mint_login_token(data.username)}
+        ch.verify_email(username)
+    return {"token": _mint_login_token(username)}

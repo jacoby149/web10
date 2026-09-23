@@ -54,6 +54,36 @@
       this.details = details;
     }
   }
+  function extractDetail(text) {
+    if (!text)
+      return null;
+    let data;
+    try {
+      data = JSON.parse(text);
+    } catch {
+      return null;
+    }
+    if (typeof data !== "object" || data === null)
+      return null;
+    const detail = data.detail;
+    if (typeof detail === "string" && detail.trim())
+      return detail;
+    if (Array.isArray(detail)) {
+      const parts = detail.map((d) => {
+        const item = d;
+        return typeof item?.msg === "string" ? item.msg : null;
+      });
+      const joined = parts.filter(Boolean).join("; ");
+      if (joined)
+        return joined;
+    }
+    return null;
+  }
+  function httpError(status, statusText, body) {
+    const detail = extractDetail(body);
+    const fallback = `Request failed: ${status} ${statusText}`.trim();
+    return new Web10Error(detail ?? fallback, status, body || undefined);
+  }
   async function authPost(url, body) {
     const res = await fetch(url, {
       method: "POST",
@@ -62,7 +92,7 @@
     });
     if (!res.ok) {
       const text = await res.text().catch(() => "");
-      throw new Web10Error(`Request failed: ${res.status} ${res.statusText}`, res.status, text);
+      throw httpError(res.status, res.statusText, text);
     }
     return res.json();
   }
@@ -245,6 +275,14 @@
           payload.offset = opts.offset;
         if (opts.ref != null)
           payload.ref = opts.ref;
+        if (opts.sort != null)
+          payload.sort = opts.sort;
+        if (opts.tags != null)
+          payload.tags = opts.tags;
+        if (opts.cursor != null)
+          payload.cursor = opts.cursor;
+        if (opts.order != null)
+          payload.order = opts.order;
         return v3Post("read", payload);
       },
       async readRefCounts(collection, opts) {
@@ -258,10 +296,25 @@
         const payload = { sql };
         if (opts?.groups)
           payload.groups = opts.groups;
+        if (opts?.withGroupMeta)
+          payload.withGroupMeta = true;
+        if (opts?.prepare)
+          payload.prepare = opts.prepare;
         const token = state.token ?? readTokenCookie();
         if (token)
           payload.token = token;
         return authPost(`${apiOrigin}/v3/query`, payload);
+      },
+      async listPeopleDirectory(opts) {
+        const payload = {};
+        if (opts?.limit != null)
+          payload.limit = opts.limit;
+        if (opts?.offset != null)
+          payload.offset = opts.offset;
+        const token = state.token ?? readTokenCookie();
+        if (token)
+          payload.token = token;
+        return authPost(`${apiOrigin}/v3/users/directory`, payload);
       },
       async update(docId, body, opts) {
         const payload = { doc_id: docId, body };
@@ -289,19 +342,27 @@
           payload.allowed_origin = allowedOrigin;
         return v3Post("app-contracts/revoke", payload);
       },
-      async createGroup(name, joinPolicy, roles, members) {
-        return v3Post("groups/create", {
+      async createGroup(name, joinPolicy, roles, members, opts) {
+        const payload = {
           name,
           join_policy: joinPolicy,
           roles,
           members
-        });
+        };
+        if (opts?.discoverable !== undefined)
+          payload.discoverable = opts.discoverable;
+        if (opts?.tags)
+          payload.tags = opts.tags;
+        return v3Post("groups/create", payload);
       },
       async getGroup(groupId) {
         return v3Post("groups/get", { group_id: groupId });
       },
-      async getMyGroups() {
-        return v3Post("groups/list", {});
+      async getMyGroups(opts) {
+        const payload = {};
+        if (opts?.tags)
+          payload.tags = opts.tags;
+        return v3Post("groups/list", payload);
       },
       async getGroupsManages() {
         return v3Post("groups/manages", {});
@@ -312,7 +373,14 @@
           payload.join_policy = opts.join_policy;
         if (opts?.roles)
           payload.roles = opts.roles;
+        if (opts?.discoverable !== undefined)
+          payload.discoverable = opts.discoverable;
+        if (opts?.tags)
+          payload.tags = opts.tags;
         return v3Post("groups/update", payload);
+      },
+      async deleteGroup(groupId) {
+        return v3Post("groups/delete", { group_id: groupId });
       },
       async joinGroup(groupId) {
         return v3Post("groups/join", { group_id: groupId });
@@ -418,6 +486,9 @@
       },
       async deleteMedia(docId) {
         return v3Post("media/delete", { doc_id: docId });
+      },
+      async getThumbnail(docId) {
+        return v3Post("media/thumbnail", { doc_id: docId });
       },
       async getNodeStats() {
         return v3Post("stats", {});

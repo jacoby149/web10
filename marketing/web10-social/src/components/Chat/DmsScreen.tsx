@@ -9,15 +9,11 @@ import { getWapi } from '@/data/wapi';
 import { listConversations, readDms, sendDm, getLastDm, readContacts, startConversation, conversationKey as deriveConversationKey, readFollows, addContact, deleteDm, updateDm, deleteConversation, lookupUserProfile, type UserFace, getMyGroupChats, readGroupChatFace, readGroupChatMessages, sendGroupChatMessage, createGroupChat, groupChatRouteKey, groupIdFromRouteKey, getGroupMembers, type GroupChatSummary } from '@/data';
 import { sendP2P, onP2PInbound, isP2PReady, getOnlinePeers, peerIdFor, onPresenceChange, probePresence } from '@/data/p2p';
 import type { DmRecord, ContactRecord, FollowRecord } from '@/data/types';
-import { Send, ChevronLeft, Plus, X, Search, MessageSquare, Mail, Users, MoreVertical, Edit3, Trash2, Check, Loader2 } from 'lucide-react';
+import { Send, ChevronLeft, Plus, X, Search, Users, MoreVertical, Edit3, Trash2, Check, Loader2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { toast, errorMessage } from '@/components/shared/Toast';
 import { TextWithLinks } from '@/components/Feed/LinkEmbed';
 import { MARKETING_ORIGIN } from '@/lib/origins';
-import MailView from './MailView';
-import CrmView from './CrmView';
-
-type MessagesView = 'chat' | 'mail' | 'crm';
 
 // Subscribe to the live P2P presence set (peers we've had a live connection to
 // this session). Returns a fresh Set on each change so the UI re-renders.
@@ -927,9 +923,7 @@ export default function DmsScreen() {
   const [lastMessages, setLastMessages] = useState<Record<string, DmRecord | null>>({});
   const [contactMap, setContactMap] = useState<Record<string, ContactRecord>>({});
   const [showPicker, setShowPicker] = useState(false);
-  const [searchParams, setSearchParams] = useSearchParams();
-  const initialView = (searchParams.get('view') || 'chat') as MessagesView;
-  const [activeView, setActiveView] = useState<MessagesView>(initialView);
+  const [searchParams] = useSearchParams();
   const [confirmDialog, setConfirmDialog] = useState<{ open: boolean; title: string; description: string; onConfirm: () => void; confirmLabel?: string; variant?: 'destructive' | 'default' }>({ open: false, title: '', description: '', onConfirm: () => {} });
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const token = getWapi().readToken();
@@ -1004,13 +998,6 @@ export default function DmsScreen() {
     return unsub;
   }, [selectedConv]);
 
-  // Sync activeView with ?view= search param
-  useEffect(() => {
-    if (activeView !== initialView) {
-      setSearchParams({ view: initialView }, { replace: true });
-    }
-  }, [initialView]);
-
   // Sync selectedConv with URL conversationKey param
   useEffect(() => {
     if (urlConvKey && urlConvKey !== selectedConv) {
@@ -1066,10 +1053,25 @@ export default function DmsScreen() {
     if (prov && user) probePresence(prov, user);
   }, [selectedConv]);
 
-  // Handle ?to=<username> deep link from profile Message button
+  // Handle ?to=<username>[&provider=<p>] deep link from the profile Message
+  // button. The profile always knows the recipient's provider, so when it's
+  // present we derive the canonical conversation key and drop straight into
+  // the DM view — even an empty chat for a first message — with no compose /
+  // picker in between. A bare ?to= (no provider) keeps the old fallback:
+  // open the existing conversation if there is one, else the prefilled picker.
   useEffect(() => {
     const to = searchParams.get('to');
+    const toProvider = searchParams.get('provider');
     if (!to || !token || loading) return;
+
+    if (toProvider) {
+      const conv = deriveConversationKey(
+        { provider: token.provider, username: token.username },
+        { provider: toProvider, username: to },
+      );
+      navigate(`/messages/${conv}`, { replace: true });
+      return;
+    }
 
     const existingConv = conversations.find((conv) => {
       const other = conv.split('--').find((p) => p !== `${token.provider}/${token.username}`);
@@ -1278,16 +1280,6 @@ export default function DmsScreen() {
     return username;
   }
 
-  function switchView(view: MessagesView) {
-    setActiveView(view);
-    const params: Record<string, string> = { view };
-    if (selectedConv) {
-      navigate(`/messages/${selectedConv}?view=${view}`);
-    } else {
-      navigate(`/messages?view=${view}`);
-    }
-  }
-
   if (showPicker) {
     return (
       <ContactPicker
@@ -1295,77 +1287,6 @@ export default function DmsScreen() {
         onSelect={handlePickerSelect}
         prefilledUsername={searchParams.get('to') || undefined}
       />
-    );
-  }
-
-  // Alternate views: mail and CRM
-  if (activeView === 'mail') {
-    return (
-      <div className="flex flex-col h-full">
-        <div className="flex items-center border-b border-border" data-testid="messages-view-toggle">
-          {([
-            ['chat', 'Chat', MessageSquare],
-            ['mail', 'Mail', Mail],
-            ['crm', 'CRM', Users],
-          ] as [MessagesView, string, typeof MessageSquare][]).map(([view, label, Icon]) => (
-            <button
-              key={view}
-              onClick={() => switchView(view)}
-              className={cn(
-                'flex-1 flex items-center justify-center gap-1.5 py-2.5 text-xs font-medium transition-all duration-150 relative',
-                activeView === view
-                  ? 'text-foreground'
-                  : 'text-muted-foreground hover:text-foreground',
-              )}
-              data-testid={`view-toggle-${view}`}
-            >
-              <Icon className="w-3.5 h-3.5" />
-              <span className="hidden sm:inline">{label}</span>
-              {activeView === view && (
-                <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-brand" />
-              )}
-            </button>
-          ))}
-        </div>
-        <div className="flex-1 overflow-hidden">
-          <MailView />
-        </div>
-      </div>
-    );
-  }
-
-  if (activeView === 'crm') {
-    return (
-      <div className="flex flex-col h-full">
-        <div className="flex items-center border-b border-border" data-testid="messages-view-toggle">
-          {([
-            ['chat', 'Chat', MessageSquare],
-            ['mail', 'Mail', Mail],
-            ['crm', 'CRM', Users],
-          ] as [MessagesView, string, typeof MessageSquare][]).map(([view, label, Icon]) => (
-            <button
-              key={view}
-              onClick={() => switchView(view)}
-              className={cn(
-                'flex-1 flex items-center justify-center gap-1.5 py-2.5 text-xs font-medium transition-all duration-150 relative',
-                activeView === view
-                  ? 'text-foreground'
-                  : 'text-muted-foreground hover:text-foreground',
-              )}
-              data-testid={`view-toggle-${view}`}
-            >
-              <Icon className="w-3.5 h-3.5" />
-              <span className="hidden sm:inline">{label}</span>
-              {activeView === view && (
-                <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-brand" />
-              )}
-            </button>
-          ))}
-        </div>
-        <div className="flex-1 overflow-hidden">
-          <CrmView />
-        </div>
-      </div>
     );
   }
 
@@ -1401,8 +1322,14 @@ export default function DmsScreen() {
                 </AvatarFallback>
               </Avatar>
               <div className="min-w-0">
-                <span className="font-medium text-sm text-foreground truncate block" data-testid="group-chat-name">
-                  {groupFace?.name || '…'}
+                <span className="flex items-center gap-1.5 min-w-0">
+                  <span className="font-medium text-sm text-foreground truncate" data-testid="group-chat-name">
+                    {groupFace?.name || '…'}
+                  </span>
+                  <Badge variant="brand" className="normal-case tracking-normal shrink-0" data-testid="group-chat-header-badge">
+                    <Users className="w-3 h-3 mr-1" aria-hidden="true" />
+                    Group
+                  </Badge>
                 </span>
                 <span className="text-xs text-muted-foreground/60 truncate block" data-testid="group-chat-members">
                   {groupMembers.length} member{groupMembers.length === 1 ? '' : 's'}
@@ -1533,32 +1460,7 @@ export default function DmsScreen() {
 
   if (!conversations.length && !groupChats.length) {
     return (
-      <div className="flex flex-col h-full">
-        <div className="flex items-center border-b border-border" data-testid="messages-view-toggle">
-          {([
-            ['chat', 'Chat', MessageSquare],
-            ['mail', 'Mail', Mail],
-            ['crm', 'CRM', Users],
-          ] as [MessagesView, string, typeof MessageSquare][]).map(([view, label, Icon]) => (
-            <button
-              key={view}
-              onClick={() => switchView(view)}
-              className={cn(
-                'flex-1 flex items-center justify-center gap-1.5 py-2.5 text-xs font-medium transition-all duration-150 relative',
-                activeView === view
-                  ? 'text-foreground'
-                  : 'text-muted-foreground hover:text-foreground',
-              )}
-              data-testid={`view-toggle-${view}`}
-            >
-              <Icon className="w-3.5 h-3.5" />
-              <span className="hidden sm:inline">{label}</span>
-              {activeView === view && (
-                <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-brand" />
-              )}
-            </button>
-          ))}
-        </div>
+      <div className="flex flex-col h-full" data-testid="dms-screen">
         <div className="px-4 py-4 border-b border-border flex items-center justify-between">
           <h1 className="font-display text-lg font-bold text-foreground">Messages</h1>
           <div className="flex items-center gap-2">
@@ -1591,32 +1493,7 @@ export default function DmsScreen() {
   }
 
   return (
-    <div className="flex flex-col h-full">
-      <div className="flex items-center border-b border-border" data-testid="messages-view-toggle">
-        {([
-          ['chat', 'Chat', MessageSquare],
-          ['mail', 'Mail', Mail],
-          ['crm', 'CRM', Users],
-        ] as [MessagesView, string, typeof MessageSquare][]).map(([view, label, Icon]) => (
-          <button
-            key={view}
-            onClick={() => switchView(view)}
-            className={cn(
-              'flex-1 flex items-center justify-center gap-1.5 py-2.5 text-xs font-medium transition-all duration-150 relative',
-              activeView === view
-                ? 'text-foreground'
-                : 'text-muted-foreground hover:text-foreground',
-            )}
-            data-testid={`view-toggle-${view}`}
-          >
-            <Icon className="w-3.5 h-3.5" />
-            <span className="hidden sm:inline">{label}</span>
-            {activeView === view && (
-              <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-brand" />
-            )}
-          </button>
-        ))}
-      </div>
+    <div className="flex flex-col h-full" data-testid="dms-screen">
       <div className="px-4 py-4 border-b border-border flex items-center justify-between">
         <h1 className="font-display text-lg font-bold text-foreground">Messages</h1>
         <div className="flex items-center gap-2">
@@ -1683,9 +1560,17 @@ export default function DmsScreen() {
                   )}
                 </div>
                 <div className="flex-1 min-w-0">
-                  <div className="flex items-center justify-between">
-                    <span className="font-medium text-sm text-foreground truncate">{item.name}</span>
-                    <span className="text-xs text-muted-foreground ml-2 shrink-0">
+                  <div className="flex items-center justify-between gap-2">
+                    <span className="flex items-center gap-1.5 min-w-0">
+                      <span className="font-medium text-sm text-foreground truncate">{item.name}</span>
+                      {!isDm && (
+                        <Badge variant="brand" className="normal-case tracking-normal shrink-0" data-testid="group-chat-type-badge">
+                          <Users className="w-3 h-3 mr-1" aria-hidden="true" />
+                          Group
+                        </Badge>
+                      )}
+                    </span>
+                    <span className="text-xs text-muted-foreground shrink-0">
                       {lastMsg ? formatTime(lastMsg.sent_at) : ''}
                     </span>
                   </div>

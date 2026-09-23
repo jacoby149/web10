@@ -42,6 +42,7 @@ from app.v3.models.groups import (
     ListGroupMembers,
     ListHiddenDocs,
     ListJoinRequests,
+    ListMyGroups,
     RemoveGroupMember,
     UnhideDoc,
     UpdateGroup,
@@ -60,6 +61,7 @@ from app.v3.models.moderation import ModerationAutoHide, ModerationFlags
 from app.v3.models.preview import PreviewRender
 from app.v3.models.query import PrepareFace, PrepareSpec, QueryRequest
 from app.v3.models.session import VerifySession
+from app.v3.models.users import ListPeopleDirectory
 
 __all__ = [
     # auth
@@ -103,6 +105,7 @@ __all__ = [
     "DeclineInvite",
     "LeaveGroup",
     "ListJoinRequests",
+    "ListMyGroups",
     "JoinRequestOp",
     "DeleteGroup",
     "HideDoc",
@@ -134,4 +137,6 @@ __all__ = [
     "ModerationAutoHide",
     # preview (the generic link-preview card renderer)
     "PreviewRender",
+    # people (the public people directory, D0)
+    "ListPeopleDirectory",
 ]

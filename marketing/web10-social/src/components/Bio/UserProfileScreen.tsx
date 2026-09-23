@@ -30,6 +30,7 @@ import { PostLightbox } from './PostLightbox';
 import { ProfileFeed } from './ProfileFeed';
 import { ProfileViewToggle, type ProfileViewMode } from './ProfileViewToggle';
 import { ProfileMediaLightbox, type ProfileMediaOption, type FaceCropResult } from './ProfileMediaLightbox';
+import PostComposer from '@/components/Feed/PostComposer';
 import { toast, errorMessage } from '@/components/shared/Toast';
 import { cn } from '@/lib/utils';
 import { MARKETING_ORIGIN } from '@/lib/origins';
@@ -573,7 +574,9 @@ export default function UserProfileScreen({ username, provider, onBack }: UserPr
                   size="sm"
                   className="gap-1.5 min-w-[100px] border-border hover:bg-elevated"
                   data-testid="message-button"
-                  onClick={() => navigate(`/messages?to=${username}`)}
+                  onClick={() =>
+                    navigate(`/messages?to=${username}&provider=${provider}`)
+                  }
                 >
                   <MessageSquare className="w-3.5 h-3.5" />
                   Message
@@ -636,7 +639,10 @@ export default function UserProfileScreen({ username, provider, onBack }: UserPr
             </div>
           ) : (
             <>
-              <h1 className="font-display text-xl font-bold text-foreground truncate">
+              {/* `profile-name` is a stable hook for e2e: the display name also
+                  renders in the top bar account row (inside <main>), so tests
+                  target this element directly instead of an ambiguous getByText. */}
+              <h1 className="font-display text-xl font-bold text-foreground truncate" data-testid="profile-name">
                 {profile?.display_name || username}
               </h1>
               {!isOwnProfile && (
@@ -792,7 +798,15 @@ export default function UserProfileScreen({ username, provider, onBack }: UserPr
       {/* Posts: the insta-shaped grid (default) or the facebook-shaped feed */}
       <div className="p-1">
         {activeTab === 'posts' ? (
-          posts.length ? (
+          <>
+          {/* The composer — the owner can post from their profile (the
+              operator: "you can make a new post from your profile"). */}
+          {isOwnProfile && (
+            <div data-testid="profile-composer" className="mb-3">
+              <PostComposer onPostCreated={loadData} />
+            </div>
+          )}
+          {posts.length ? (
             viewMode === 'feed' ? (
               <ProfileFeed
                 posts={posts}
@@ -882,7 +896,8 @@ export default function UserProfileScreen({ username, provider, onBack }: UserPr
                 </p>
               )}
             </div>
-          )
+          )}
+          </>
         ) : mediaPosts.length ? (
           <div className="grid grid-cols-3 gap-1">
             {mediaPosts.flatMap((post) =>

@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { useNavigate, useLocation, Outlet } from 'react-router-dom';
 import { cn } from '@/lib/utils';
-import { Home, User, MessageSquare, PlusCircle, LogOut, Bug, Compass, Users, Store, Gamepad2, Radio, Zap, Clapperboard, Settings, MoreHorizontal, X, Bell, ChevronUp, DollarSign, UserSearch } from 'lucide-react';
+import { Home, User, MessageSquare, LogOut, Bug, Compass, Store, Gamepad2, Radio, Zap, Clapperboard, Settings, MoreHorizontal, X, Bell, ChevronDown, DollarSign } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { getWapi } from '@/data/wapi';
@@ -10,6 +10,7 @@ import type { ProfileRecord } from '@/data';
 import { useNotifications } from '@/hooks/useNotifications';
 import { useNodeAdmin } from '@/components/Monetization/useNodeAdmin';
 import NotificationBell from '@/components/Notifications/NotificationBell';
+import GlobalSearch from '@/components/Search/GlobalSearch';
 
 interface LayoutProps {
   onLogout: () => void;
@@ -21,16 +22,13 @@ interface LayoutProps {
 // and Groups move into the "More" sheet so the bottom bar never exceeds five
 // icons — room to grow as surfaces ship.
 const feedItem = { path: '/feed', icon: Home, label: 'Feed', testId: 'nav-feed' };
-const discoverItem = { path: '/discover', icon: Compass, label: 'Discover', testId: 'nav-discover' };
+const discoverItem = { path: '/discover', icon: Compass, label: 'Explorer', testId: 'nav-discover' };
 const shortsItem = { path: '/shorts', icon: Clapperboard, label: 'Shorts', testId: 'nav-shorts' };
 const messagesItem = { path: '/messages', icon: MessageSquare, label: 'Messages', testId: 'nav-messages' };
 const profileItem = { path: '/profile', icon: User, label: 'Profile', testId: 'nav-profile' };
-// Real destinations demoted from the bottom bar into the "More" sheet (and
-// the desktop sidebar).
-const groupsItem = { path: '/groups', icon: Users, label: 'Groups', testId: 'nav-groups' };
-// People (find profiles) — the mutual-follow discovery surface. A sibling of
-// Groups in the sidebar + the mobile More sheet (NOT a bottom-bar core tab).
-const peopleItem = { path: '/people', icon: UserSearch, label: 'People', testId: 'nav-people' };
+// Real destinations demoted from the bottom bar into the "More" sheet.
+// (Groups is retired from the nav entirely — it lives in the Explorer/Groups
+// subtab, discover-reorg D3 — so it no longer holds a nav row.)
 const settingsItem = { path: '/settings', icon: Settings, label: 'Settings', testId: 'nav-settings' };
 // Monetization (D75) — every signed-in user: the creator's ad catalog +
 // affiliate onboarding. Deep-links to the Monetization surface's default
@@ -43,11 +41,13 @@ const nodeMonetizationItem = { path: '/monetize?tab=node', icon: DollarSign, lab
 
 // Mobile bottom bar: the four core tabs in thumb-reach order.
 const bottomNavItems = [feedItem, discoverItem, messagesItem, profileItem];
-// Desktop sidebar keeps its historical order (Feed, Discover, Groups,
-// Profile, Messages, Settings) — the bottom bar reorders for thumb-reach,
-// the sidebar doesn't need to follow it. Shorts sits after Discover (the
-// video surfaces group together).
-const sidebarNavItems = [feedItem, discoverItem, shortsItem, groupsItem, peopleItem, profileItem, messagesItem, settingsItem];
+// Desktop sidebar keeps its historical order (Feed, Explorer, Shorts,
+// Profile, Messages) — the bottom bar reorders for thumb-reach, the sidebar
+// doesn't need to follow it. Shorts sits after Explorer (the video surfaces
+// group together). Settings is NOT a sidebar row — it lives only in the
+// account menu (top bar), so it isn't duplicated in the nav. Groups is retired
+// from the nav — it lives in the Explorer/Groups subtab (discover-reorg D3).
+const sidebarNavItems = [feedItem, discoverItem, shortsItem, profileItem, messagesItem];
 
 // Provisional, non-infringing names for the surfaces not yet built. Shorts is
 // now a real surface (shorts.md) — it lives in the sidebar + the More sheet,
@@ -79,6 +79,13 @@ export default function Layout({ onLogout, onReportBug, children }: LayoutProps)
   const { unread } = useNotifications();
   const { isAdmin: isNodeAdmin } = useNodeAdmin();
   const isNotifications = pathname === '/notifications';
+  // Shorts is a full-screen immersive lens (the TikTok model): the bottom tab
+  // bar would overlap the action rail + the comment sheet, so it is hidden on
+  // the lens. The exit is the back arrow the lens renders itself (top-left →
+  // /feed); the mobile top header stays so the account actions remain
+  // reachable. Dropping the `pb-16` reserve too makes the lens truly
+  // full-bleed (the video runs edge to edge, no dead band under the bar).
+  const isShorts = pathname.startsWith('/shorts');
 
   // The Monetization surface holds its section in the URL (`?tab=node`). The
   // two nav entries are the switcher — each must highlight on its OWN section,
@@ -95,6 +102,11 @@ export default function Layout({ onLogout, onReportBug, children }: LayoutProps)
   // "clear way to log out".
   const [userMenuOpen, setUserMenuOpen] = useState(false);
   const userMenuRef = useRef<HTMLDivElement>(null);
+  // The desktop "More" popover — the coming-soon surfaces, tucked out of the
+  // permanent nav (they're not real destinations yet, so they don't hold a
+  // nav row; the popover keeps the roadmap discoverable).
+  const [moreMenuOpen, setMoreMenuOpen] = useState(false);
+  const moreMenuRef = useRef<HTMLDivElement>(null);
   const [displayName, setDisplayName] = useState<string | null>(null);
   const [avatarUrl, setAvatarUrl] = useState<string | undefined>(undefined);
   const username = token?.username ?? '';
@@ -140,6 +152,22 @@ export default function Layout({ onLogout, onReportBug, children }: LayoutProps)
       document.removeEventListener('keydown', onKey);
     };
   }, [userMenuOpen]);
+
+  useEffect(() => {
+    if (!moreMenuOpen) return;
+    const onDown = (e: MouseEvent) => {
+      if (moreMenuRef.current && !moreMenuRef.current.contains(e.target as Node)) setMoreMenuOpen(false);
+    };
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setMoreMenuOpen(false);
+    };
+    document.addEventListener('mousedown', onDown);
+    document.addEventListener('keydown', onKey);
+    return () => {
+      document.removeEventListener('mousedown', onDown);
+      document.removeEventListener('keydown', onKey);
+    };
+  }, [moreMenuOpen]);
 
   const isActive = (path: string) => {
     if (path === '/profile') return pathname.startsWith('/u/');
@@ -196,220 +224,99 @@ export default function Layout({ onLogout, onReportBug, children }: LayoutProps)
             </button>
             );
           })}
-          <button
-            key={monetizationItem.path}
-            data-testid={monetizationItem.testId}
-            aria-current={isMonetizeCreator ? 'page' : undefined}
-            onClick={() => navigate(monetizationItem.path)}
-            className={cn(
-              'w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all duration-150',
-              isMonetizeCreator
-                ? cn(
-                    'bg-gradient-to-r from-brand-muted to-brand/15 text-brand-300',
-                    'border border-brand/20 glow-active',
-                  )
-                : 'text-muted-foreground hover:text-foreground hover:bg-elevated/80 hover:border hover:border-border/50',
-            )}
-          >
-            <DollarSign className={cn('w-6 h-6 transition-colors duration-150', isMonetizeCreator && 'text-brand')} strokeWidth={isMonetizeCreator ? 2 : 1.75} />
-            {monetizationItem.label}
-            {isMonetizeCreator && (
-              <div
-                className="ml-auto w-1.5 h-1.5 rounded-full bg-brand animate-glow-pulse"
-                aria-hidden="true"
-              />
-            )}
-          </button>
-          {isNodeAdmin && (
+          {/* More — the coming-soon surfaces + monetization in a popover.
+              Monetization (D75) is a real destination but not a core nav item,
+              so it lives in the More popover (the operator: "the monetization
+              stuff could go in the more tabs"). The coming-soon surfaces are
+              not real destinations yet, so they don't hold permanent nav rows;
+              the popover keeps the roadmap discoverable without the dead
+              weight. */}
+          <div className="relative mt-4" ref={moreMenuRef}>
             <button
-              key={nodeMonetizationItem.path}
-              data-testid={nodeMonetizationItem.testId}
-              aria-current={isMonetizeNode ? 'page' : undefined}
-              onClick={() => navigate(nodeMonetizationItem.path)}
+              type="button"
+              data-testid="nav-more-desktop"
+              aria-haspopup="menu"
+              aria-expanded={moreMenuOpen}
+              onClick={() => setMoreMenuOpen((o) => !o)}
               className={cn(
                 'w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all duration-150',
-                isMonetizeNode
-                  ? cn(
-                      'bg-gradient-to-r from-brand-muted to-brand/15 text-brand-300',
-                      'border border-brand/20 glow-active',
-                    )
+                moreMenuOpen
+                  ? 'bg-elevated/80 text-foreground'
                   : 'text-muted-foreground hover:text-foreground hover:bg-elevated/80 hover:border hover:border-border/50',
               )}
             >
-              <DollarSign className={cn('w-6 h-6 transition-colors duration-150', isMonetizeNode && 'text-brand')} strokeWidth={isMonetizeNode ? 2 : 1.75} />
-              {nodeMonetizationItem.label}
-              {isMonetizeNode && (
-                <div
-                  className="ml-auto w-1.5 h-1.5 rounded-full bg-brand animate-glow-pulse"
-                  aria-hidden="true"
-                />
-              )}
+              <MoreHorizontal className="w-6 h-6" strokeWidth={1.75} />
+              More
             </button>
-          )}
-          <button
-            data-testid="nav-notifications"
-            aria-current={isNotifications ? 'page' : undefined}
-            onClick={() => navigate('/notifications')}
-            className={cn(
-              'w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all duration-150',
-              isNotifications
-                ? cn(
-                    'bg-gradient-to-r from-brand-muted to-brand/15 text-brand-300',
-                    'border border-brand/20 glow-active',
-                  )
-                : 'text-muted-foreground hover:text-foreground hover:bg-elevated/80 hover:border hover:border-border/50',
-            )}
-          >
-            <Bell className={cn('w-6 h-6 transition-colors duration-150', isNotifications && 'text-brand')} strokeWidth={isNotifications ? 2 : 1.75} />
-            Notifications
-            {unread > 0 && (
-              <span
-                data-testid="nav-notifications-badge"
-                aria-hidden="true"
-                className="ml-auto min-w-5 h-5 px-1.5 rounded-full bg-brand text-background text-[0.625rem] font-bold flex items-center justify-center animate-glow-pulse"
-              >
-                {unread > 99 ? '99+' : unread}
-              </span>
-            )}
-          </button>
-          <button
-            data-testid="nav-new-post"
-            onClick={() => navigate('/feed')}
-            className={cn(
-              'w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all duration-150 mt-4',
-              'text-muted-foreground hover:text-foreground hover:bg-elevated/80 hover:border hover:border-border/50',
-            )}
-          >
-            <PlusCircle className="w-6 h-6" strokeWidth={1.75} />
-            New post
-          </button>
-
-          <div className="mt-6 pt-4 border-t border-border/60" aria-label="Coming soon">
-            <p className="px-3 pb-1 text-[0.625rem] font-medium uppercase tracking-wider text-muted-foreground/50">
-              Coming soon
-            </p>
-            {comingSoonItems.map(({ icon: Icon, label, testId }) => (
+            {moreMenuOpen && (
               <div
-                key={testId}
-                data-testid={testId}
-                aria-disabled="true"
-                className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium text-muted-foreground/50 cursor-not-allowed select-none"
+                role="menu"
+                data-testid="more-menu"
+                className="absolute left-0 right-0 bottom-full mb-1 z-30 rounded-lg border border-border bg-popover p-1 shadow-[0_8px_30px_rgb(0,0,0/0.35)] max-h-[min(70vh,420px)] overflow-y-auto"
               >
-                <Icon className="w-6 h-6" strokeWidth={1.75} />
-                {label}
-                <span className="ml-auto text-[0.5625rem] font-semibold uppercase tracking-wide text-brand-300/80 bg-brand-muted/50 border border-brand/15 rounded-full px-1.5 py-0.5">
-                  Soon
-                </span>
+                {/* Monetization (D75) — a real destination, demoted from the
+                    sidebar into the More popover (the operator: "the
+                    monetization stuff could go in the more tabs"). */}
+                <button
+                  type="button"
+                  role="menuitem"
+                  data-testid={monetizationItem.testId}
+                  aria-current={isMonetizeCreator ? 'page' : undefined}
+                  onClick={() => { setMoreMenuOpen(false); navigate(monetizationItem.path); }}
+                  className={cn(
+                    'w-full flex items-center gap-3 px-3 py-2 rounded-md text-sm font-medium transition-colors',
+                    isMonetizeCreator ? 'bg-brand-muted text-brand-300' : 'text-foreground hover:bg-elevated',
+                  )}
+                >
+                  <DollarSign className="w-5 h-5" strokeWidth={1.75} />
+                  {monetizationItem.label}
+                </button>
+                {isNodeAdmin && (
+                  <button
+                    type="button"
+                    role="menuitem"
+                    data-testid={nodeMonetizationItem.testId}
+                    aria-current={isMonetizeNode ? 'page' : undefined}
+                    onClick={() => { setMoreMenuOpen(false); navigate(nodeMonetizationItem.path); }}
+                    className={cn(
+                      'w-full flex items-center gap-3 px-3 py-2 rounded-md text-sm font-medium transition-colors',
+                      isMonetizeNode ? 'bg-brand-muted text-brand-300' : 'text-foreground hover:bg-elevated',
+                    )}
+                  >
+                    <DollarSign className="w-5 h-5" strokeWidth={1.75} />
+                    {nodeMonetizationItem.label}
+                  </button>
+                )}
+                <div className="my-1 h-px bg-border" aria-hidden="true" />
+                <p className="px-3 py-1.5 text-[0.625rem] font-medium uppercase tracking-wider text-muted-foreground/50">
+                  Coming soon
+                </p>
+                {comingSoonItems.map(({ icon: Icon, label, testId }) => (
+                  <div
+                    key={testId}
+                    data-testid={testId}
+                    aria-disabled="true"
+                    className="w-full flex items-center gap-3 px-3 py-2 rounded-md text-sm font-medium text-muted-foreground/50 cursor-not-allowed select-none"
+                  >
+                    <Icon className="w-5 h-5" strokeWidth={1.75} />
+                    {label}
+                    <span className="ml-auto text-[0.5625rem] font-semibold uppercase tracking-wide text-brand-300/80 bg-brand-muted/50 border border-brand/15 rounded-full px-1.5 py-0.5">
+                      Soon
+                    </span>
+                  </div>
+                ))}
               </div>
-            ))}
+            )}
           </div>
         </nav>
-        <div className="relative p-3 border-t border-border" ref={userMenuRef}>
-          <button
-            type="button"
-            data-testid="user-menu-trigger"
-            aria-haspopup="menu"
-            aria-expanded={userMenuOpen}
-            onClick={() => setUserMenuOpen((o) => !o)}
-            className={cn(
-              'w-full flex items-center gap-3 rounded-lg p-2 transition-colors duration-150',
-              'hover:bg-elevated/80 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand/50',
-              userMenuOpen && 'bg-elevated/80',
-            )}
-          >
-            <Avatar className="h-9 w-9">
-              {avatarUrl ? (
-                <AvatarImage src={avatarUrl} alt="" />
-              ) : (
-                <AvatarFallback className="bg-brand-muted text-brand-300 text-sm font-semibold">
-                  {(displayName || username || '?').charAt(0).toUpperCase()}
-                </AvatarFallback>
-              )}
-            </Avatar>
-            <div className="flex-1 min-w-0 text-left">
-              <p className="text-sm font-medium text-foreground truncate">{displayName || username}</p>
-              <p className="text-xs text-muted-foreground truncate">@{username}</p>
-            </div>
-            <ChevronUp
-              className={cn('w-4 h-4 shrink-0 text-muted-foreground transition-transform duration-150', userMenuOpen && 'rotate-180')}
-              strokeWidth={1.75}
-            />
-          </button>
-
-          {userMenuOpen && (
-            <div
-              role="menu"
-              data-testid="user-menu"
-              className="absolute bottom-full left-3 right-3 z-30 mb-2 rounded-lg border border-border bg-popover p-1 shadow-[0_8px_30px_rgb(0_0_0/0.35)]"
-            >
-              <div className="border-b border-border px-3 py-2">
-                <p className="text-[0.625rem] uppercase tracking-wide text-muted-foreground/70">Signed in as</p>
-                <p className="truncate text-sm font-medium text-foreground">{displayName || username}</p>
-                <p className="truncate text-xs text-muted-foreground">@{username}</p>
-              </div>
-              <div className="pt-1">
-                <button
-                  type="button"
-                  role="menuitem"
-                  data-testid="user-menu-profile"
-                  onClick={() => { setUserMenuOpen(false); navigate(profilePath); }}
-                  className="flex w-full items-center gap-2 rounded-md px-3 py-2 text-left text-sm text-foreground hover:bg-elevated transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand/50"
-                >
-                  <User className="w-4 h-4 text-muted-foreground" strokeWidth={1.75} />
-                  Profile
-                </button>
-                <button
-                  type="button"
-                  role="menuitem"
-                  data-testid="user-menu-settings"
-                  onClick={() => { setUserMenuOpen(false); navigate('/settings'); }}
-                  className="flex w-full items-center gap-2 rounded-md px-3 py-2 text-left text-sm text-foreground hover:bg-elevated transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand/50"
-                >
-                  <Settings className="w-4 h-4 text-muted-foreground" strokeWidth={1.75} />
-                  Settings
-                </button>
-                <button
-                  type="button"
-                  role="menuitem"
-                  data-testid="user-menu-report-bug"
-                  onClick={() => { setUserMenuOpen(false); onReportBug(); }}
-                  className="flex w-full items-center gap-2 rounded-md px-3 py-2 text-left text-sm text-foreground hover:bg-elevated transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand/50"
-                >
-                  <Bug className="w-4 h-4 text-muted-foreground" strokeWidth={1.75} />
-                  Report a bug
-                </button>
-                <div className="my-1 h-px bg-border" aria-hidden="true" />
-                <button
-                  type="button"
-                  role="menuitem"
-                  data-testid="logout-button"
-                  onClick={onLogout}
-                  className="flex w-full items-center gap-2 rounded-md px-3 py-2 text-left text-sm text-muted-foreground hover:bg-danger-muted hover:text-danger transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand/50"
-                >
-                  <LogOut className="w-4 h-4" strokeWidth={1.75} />
-                  Log out
-                </button>
-              </div>
-            </div>
-          )}
-        </div>
       </aside>
 
       <main className="flex-1 flex flex-col min-w-0 min-h-0">
         <header className="md:hidden flex items-center justify-between px-4 h-14 border-b border-border bg-surface/95 backdrop-blur-md sticky top-0 z-20 gap-2">
           <Wordmark />
           <div className="flex items-center gap-1">
+            <GlobalSearch variant="mobile" />
             <NotificationBell />
-            <Button
-              variant="ghost"
-              size="icon"
-              data-testid="new-post-button-mobile"
-              className="h-11 w-11 text-muted-foreground hover:text-foreground"
-              aria-label="New post"
-              onClick={() => navigate('/feed')}
-            >
-              <PlusCircle className="w-5 h-5" strokeWidth={1.75} />
-            </Button>
             <Button
               variant="ghost"
               size="icon"
@@ -433,6 +340,138 @@ export default function Layout({ onLogout, onReportBug, children }: LayoutProps)
           </div>
         </header>
 
+        {/* Desktop top bar (global-search S1): the everything-search lives in
+            the chrome — the search field is always visible (the operator's
+            call: the persistent placeholder is more informative than a bare
+            icon), and the results dropdown opens on focus.
+            The account entry point (avatar → user menu) sits on the right —
+            moved here from the bottom of the sidebar, where it was buried.
+            Hidden on the Shorts lens (the immersive surface keeps its
+            full-bleed frame, like the bottom bar already does). */}
+        {!isShorts && (
+          <header
+            data-testid="topbar-desktop"
+            className="hidden md:flex items-center border-b border-border bg-surface/95 backdrop-blur-md z-20"
+          >
+            <GlobalSearch variant="desktop" />
+            {/* Notifications — the bell lives in the top bar next to the
+                account row (the operator: "notifications could go in the top
+                right next to the other thing on the top right"). The unread
+                badge mirrors the sidebar's (retired from the sidebar). */}
+            <button
+              type="button"
+              data-testid="nav-notifications"
+              aria-label="Notifications"
+              onClick={() => navigate('/notifications')}
+              className={cn(
+                'relative flex items-center justify-center h-9 w-9 rounded-lg transition-colors duration-150',
+                'hover:bg-elevated/80 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand/50',
+                isNotifications ? 'text-brand' : 'text-muted-foreground',
+              )}
+            >
+              <Bell className="w-5 h-5" strokeWidth={isNotifications ? 2 : 1.75} />
+              {unread > 0 && (
+                <span
+                  data-testid="nav-notifications-badge"
+                  aria-hidden="true"
+                  className="absolute -top-0.5 -right-0.5 min-w-4.5 h-4.5 px-1 rounded-full bg-brand text-background text-[0.5625rem] font-bold flex items-center justify-center animate-glow-pulse"
+                >
+                  {unread > 99 ? '99+' : unread}
+                </span>
+              )}
+            </button>
+            <div className="relative shrink-0 pr-3" ref={userMenuRef}>
+              <button
+                type="button"
+                data-testid="user-menu-trigger"
+                aria-haspopup="menu"
+                aria-expanded={userMenuOpen}
+                onClick={() => setUserMenuOpen((o) => !o)}
+                className={cn(
+                  'flex items-center gap-2.5 rounded-lg pl-1.5 pr-2 py-1.5 transition-colors duration-150',
+                  'hover:bg-elevated/80 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand/50',
+                  userMenuOpen && 'bg-elevated/80',
+                )}
+              >
+                <Avatar className="h-8 w-8">
+                  {avatarUrl ? (
+                    <AvatarImage src={avatarUrl} alt="" />
+                  ) : (
+                    <AvatarFallback className="bg-brand-muted text-brand-300 text-sm font-semibold">
+                      {(displayName || username || '?').charAt(0).toUpperCase()}
+                    </AvatarFallback>
+                  )}
+                </Avatar>
+                <div className="hidden lg:block text-left min-w-0">
+                  <p className="text-sm font-medium text-foreground truncate leading-tight">{displayName || username}</p>
+                  <p className="text-xs text-muted-foreground truncate leading-tight">@{username}</p>
+                </div>
+                <ChevronDown
+                  className={cn('w-4 h-4 shrink-0 text-muted-foreground transition-transform duration-150', userMenuOpen && 'rotate-180')}
+                  strokeWidth={1.75}
+                />
+              </button>
+
+              {userMenuOpen && (
+                <div
+                  role="menu"
+                  data-testid="user-menu"
+                  className="absolute right-0 top-full mt-2 w-64 rounded-lg border border-border bg-popover p-1 shadow-[0_8px_30px_rgb(0,0,0/0.35)] z-30"
+                >
+                  <div className="border-b border-border px-3 py-2">
+                    <p className="text-[0.625rem] uppercase tracking-wide text-muted-foreground/70">Signed in as</p>
+                    <p className="truncate text-sm font-medium text-foreground">{displayName || username}</p>
+                    <p className="truncate text-xs text-muted-foreground">@{username}</p>
+                  </div>
+                  <div className="pt-1">
+                    <button
+                      type="button"
+                      role="menuitem"
+                      data-testid="user-menu-profile"
+                      onClick={() => { setUserMenuOpen(false); navigate(profilePath); }}
+                      className="flex w-full items-center gap-2 rounded-md px-3 py-2 text-left text-sm text-foreground hover:bg-elevated transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand/50"
+                    >
+                      <User className="w-4 h-4 text-muted-foreground" strokeWidth={1.75} />
+                      Profile
+                    </button>
+                    <button
+                      type="button"
+                      role="menuitem"
+                      data-testid="user-menu-settings"
+                      onClick={() => { setUserMenuOpen(false); navigate('/settings'); }}
+                      className="flex w-full items-center gap-2 rounded-md px-3 py-2 text-left text-sm text-foreground hover:bg-elevated transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand/50"
+                    >
+                      <Settings className="w-4 h-4 text-muted-foreground" strokeWidth={1.75} />
+                      Settings
+                    </button>
+                    <button
+                      type="button"
+                      role="menuitem"
+                      data-testid="user-menu-report-bug"
+                      onClick={() => { setUserMenuOpen(false); onReportBug(); }}
+                      className="flex w-full items-center gap-2 rounded-md px-3 py-2 text-left text-sm text-foreground hover:bg-elevated transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand/50"
+                    >
+                      <Bug className="w-4 h-4 text-muted-foreground" strokeWidth={1.75} />
+                      Report a bug
+                    </button>
+                    <div className="my-1 h-px bg-border" aria-hidden="true" />
+                    <button
+                      type="button"
+                      role="menuitem"
+                      data-testid="logout-button"
+                      onClick={onLogout}
+                      className="flex w-full items-center gap-2 rounded-md px-3 py-2 text-left text-sm text-muted-foreground hover:bg-danger-muted hover:text-danger transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand/50"
+                    >
+                      <LogOut className="w-4 h-4" strokeWidth={1.75} />
+                      Log out
+                    </button>
+                  </div>
+                </div>
+              )}
+            </div>
+          </header>
+        )}
+
         {/* The always-on signal (D69): a live "N new" strip above every screen.
             It clears the moment you open /notifications (which marks all read),
             so it's a nudge, not a permanent fixture. */}
@@ -451,13 +490,16 @@ export default function Layout({ onLogout, onReportBug, children }: LayoutProps)
           </button>
         )}
 
-        <div className="flex-1 min-h-0 overflow-y-auto pb-16 md:pb-0">
+        <div className={cn('flex-1 min-h-0 overflow-y-auto md:pb-0', isShorts ? '' : 'pb-16')}>
           {children || <Outlet />}
         </div>
 
         <nav
           aria-label="Primary mobile"
-          className="md:hidden fixed bottom-0 inset-x-0 z-20 flex items-stretch border-t border-border bg-surface/95 backdrop-blur-md"
+          className={cn(
+            'md:hidden fixed bottom-0 inset-x-0 z-20 flex items-stretch border-t border-border bg-surface/95 backdrop-blur-md',
+            isShorts && 'hidden',
+          )}
         >
           {bottomNavItems.map(({ path, icon: Icon, label, testId }) => {
             return (
@@ -539,28 +581,6 @@ export default function Layout({ onLogout, onReportBug, children }: LayoutProps)
                 >
                   <Settings className="w-5 h-5" strokeWidth={1.75} />
                   {settingsItem.label}
-                </button>
-                <button
-                  data-testid="nav-groups-mobile"
-                  onClick={() => go(groupsItem.path)}
-                  className={cn(
-                    'w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors duration-150',
-                    isActive(groupsItem.path) ? 'bg-brand-muted text-brand-300' : 'text-foreground hover:bg-elevated',
-                  )}
-                >
-                  <Users className="w-5 h-5" strokeWidth={1.75} />
-                  {groupsItem.label}
-                </button>
-                <button
-                  data-testid="nav-people-mobile"
-                  onClick={() => go(peopleItem.path)}
-                  className={cn(
-                    'w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors duration-150',
-                    isActive(peopleItem.path) ? 'bg-brand-muted text-brand-300' : 'text-foreground hover:bg-elevated',
-                  )}
-                >
-                  <UserSearch className="w-5 h-5" strokeWidth={1.75} />
-                  {peopleItem.label}
                 </button>
                 <button
                   data-testid="nav-monetization-mobile"

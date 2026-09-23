@@ -91,6 +91,7 @@ describe('contacts v3 data layer', () => {
         'open',
         expect.anything(),
         [{ member_key: 'alice', role: 'owner' }],
+        { tags: ['web10-social-followers'] },
       );
       expect(mock.create).toHaveBeenCalledWith(
         'contacts',

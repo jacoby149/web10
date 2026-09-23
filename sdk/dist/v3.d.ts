@@ -74,6 +74,10 @@ export interface V3Group {
     /** The D53 "blasting" flag — whether the group is listed in the public directory.
      *  Returned by `/manages` + `/get`; optional for forward-compat (older nodes). */
     discoverable?: boolean;
+    /** The D78 group label set — the platform stores/matches them (`has(tags, …)`);
+     *  the app decides what they mean (e.g. `web10-social-group`). Optional for
+     *  forward-compat (older nodes predate the column). */
+    tags?: string[];
 }
 export interface V3ResolvedMedia {
     doc_id?: string;
@@ -214,6 +218,16 @@ export interface V3User {
 export interface V3LoginResponse {
     token: string;
 }
+export interface V3DirectoryUser {
+    username: string;
+    follower_count: number;
+    profile: Record<string, unknown>;
+}
+export interface V3PeoplePage {
+    users: V3DirectoryUser[];
+    limit: number;
+    offset: number;
+}
 /** Overall verdict. `inconclusive` = a check couldn't run (store unreadable)
  *  and nothing is decisively wrong — the client takes no action, retries later. */
 export type AccessStatus = 'ok' | 'degraded' | 'invalid' | 'inconclusive';
@@ -320,7 +334,12 @@ export interface V3Client {
     query(sql: string, opts?: {
         groups?: string[];
         prepare?: V3Prepare;
+        withGroupMeta?: boolean;
     }): Promise<V3QueryResult>;
+    listPeopleDirectory(opts?: {
+        limit?: number;
+        offset?: number;
+    }): Promise<V3PeoplePage>;
     update(docId: string, body: Record<string, unknown>, opts?: {
         groups?: string[];
         ad_preference?: V3AdPreference;
@@ -347,16 +366,20 @@ export interface V3Client {
         role?: string;
     }[], opts?: {
         discoverable?: boolean;
+        tags?: string[];
     }): Promise<{
         group_id: string;
     }>;
     getGroup(groupId: string): Promise<V3Group>;
-    getMyGroups(): Promise<V3Group[]>;
+    getMyGroups(opts?: {
+        tags?: string[];
+    }): Promise<V3Group[]>;
     getGroupsManages(): Promise<V3Group[]>;
     updateGroup(groupId: string, opts?: {
         join_policy?: string;
         roles?: Record<string, unknown>[];
         discoverable?: boolean;
+        tags?: string[];
     }): Promise<V3Group>;
     deleteGroup(groupId: string): Promise<{
         group_id: string;

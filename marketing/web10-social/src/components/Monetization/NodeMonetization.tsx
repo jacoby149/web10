@@ -1,5 +1,5 @@
-import { useState, useEffect, useCallback } from 'react';
-import { Radio, Plus, Pause, Play, Trash2, AlertTriangle, RefreshCw, SlidersHorizontal, X } from 'lucide-react';
+import { useState, useEffect, useCallback, useRef } from 'react';
+import { Radio, Plus, Pause, Play, Trash2, AlertTriangle, RefreshCw, SlidersHorizontal, X, ImagePlus } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -11,10 +11,12 @@ import {
   readNodeAds,
   getNodeConfig,
   saveNodeAdPercentage,
+  saveNodeAdOverwrite,
   buildNodeAdBody,
   type AdItem,
 } from '@/data/ads-catalog';
-import { getV3Client, getDiscoverGroupId, type AdOffer } from '@/data';
+import { getV3Client, getDiscoverGroupId, uploadMedia, type AdOffer, type AdFormat, type MediaRecord } from '@/data';
+import { processImage, generateThumbnail, captureVideoPoster, getVideoInfo } from '@/lib/mediaProcessing';
 
 const OFFER_KINDS = ['affiliate', 'direct', 'own_store'] as const;
 
@@ -36,6 +38,11 @@ export function NodeMonetization() {
   const [pctLoaded, setPctLoaded] = useState(false);
   const [pctSaving, setPctSaving] = useState(false);
 
+  // The overwrite knob (ad-improvements.md): when on, a node ad replaces the
+  // creator's ad on the same post (instead of both showing).
+  const [overwrite, setOverwrite] = useState<boolean>(false);
+  const [overwriteSaving, setOverwriteSaving] = useState(false);
+
   const [showNewAd, setShowNewAd] = useState(false);
 
   const load = useCallback(async () => {
@@ -48,12 +55,14 @@ export function NodeMonetization() {
     } finally {
       setLoading(false);
     }
-    // The percentage: the effective node config (admin). A non-admin gets a
-    // 403 — the slider degrades to read-only (the node ads still load).
+    // The percentage + overwrite: the effective node config (admin). A
+    // non-admin gets a 403 — the controls degrade to read-only (the node ads
+    // still load).
     try {
       const cfg = await getNodeConfig();
       const pct = Number((cfg as Record<string, unknown>)?.node_ad_percentage ?? 10);
       setPercentage(Number.isFinite(pct) ? pct : 10);
+      setOverwrite(Boolean((cfg as Record<string, unknown>)?.node_ad_overwrite ?? false));
       setPctLoaded(true);
     } catch {
       setPctLoaded(false);
@@ -79,9 +88,28 @@ export function NodeMonetization() {
     }
   };
 
-  const createNodeAd = async (offer: AdOffer, text: string, status: 'active' | 'paused') => {
+  const saveOverwrite = async (value: boolean) => {
+    setOverwriteSaving(true);
+    try {
+      await saveNodeAdOverwrite(value);
+      setOverwrite(value);
+      toast.success(value ? 'Node ads overwrite the creator\'s ad' : 'Node ads and the creator\'s ad both show');
+    } catch (e) {
+      toast.error(errorMessage(e, 'Failed to save the overwrite setting'));
+    } finally {
+      setOverwriteSaving(false);
+    }
+  };
+
+  const createNodeAd = async (
+    offer: AdOffer,
+    text: string,
+    status: 'active' | 'paused',
+    mediaRefs?: string[],
+    format: AdFormat = 'inline',
+  ) => {
     const w = getV3Client();
-    await w.create('posts', buildNodeAdBody(offer, text, status), { groups: [getDiscoverGroupId()] });
+    await w.create('posts', buildNodeAdBody(offer, text, status, mediaRefs, format), { groups: [getDiscoverGroupId()] });
   };
 
   const setStatus = async (ad: AdItem, status: 'active' | 'paused') => {
@@ -125,7 +153,7 @@ export function NodeMonetization() {
 
       {showNewAd && (
         <NewNodeAdForm
-          onSubmit={(offer, text, status) => run(() => createNodeAd(offer, text, status), 'Node ad created')}
+          onSubmit={(offer, text, status, mediaRefs, format) => run(() => createNodeAd(offer, text, status, mediaRefs, format), 'Node ad created')}
           onCancel={() => setShowNewAd(false)}
         />
       )}
@@ -163,6 +191,41 @@ export function NodeMonetization() {
             {!pctLoaded ? 'admin only' : pctSaving ? 'saving…' : 'saved'}
           </span>
           <span>100% = every post</span>
+        </div>
+      </div>
+
+      {/* The overwrite knob (ad-improvements.md): does a node ad replace the
+          creator's ad on the same post, or do both show? */}
+      <div className="rounded border border-border p-4" data-testid="node-ads-overwrite">
+        <div className="flex items-center justify-between gap-3">
+          <div className="min-w-0 flex-1">
+            <p className="text-sm font-medium text-foreground">Overwrite the creator&apos;s ad?</p>
+            <p className="mt-0.5 text-xs text-muted-foreground">
+              {overwrite
+                ? 'On — a node ad replaces the creator\u2019s ad on the same post (only the node ad shows).'
+                : 'Off — the node ad and the creator\u2019s ad both show; the creator\u2019s monetization is never suppressed.'}
+            </p>
+          </div>
+          <button
+            type="button"
+            role="switch"
+            aria-checked={overwrite}
+            aria-label="Overwrite the creator's ad"
+            disabled={!pctLoaded || overwriteSaving}
+            onClick={() => saveOverwrite(!overwrite)}
+            className={cn(
+              'relative h-6 w-11 flex-shrink-0 rounded-full transition-colors disabled:opacity-50',
+              overwrite ? 'bg-brand' : 'bg-elevated border border-border',
+            )}
+            data-testid="node-ads-overwrite-toggle"
+          >
+            <span
+              className={cn(
+                'absolute top-0.5 h-5 w-5 rounded-full bg-foreground transition-all',
+                overwrite ? 'left-[22px]' : 'left-0.5',
+              )}
+            />
+          </button>
         </div>
       </div>
 
@@ -290,7 +353,7 @@ function NodeAdRow({ ad, onPause, onResume, onRetire }: {
 }
 
 function NewNodeAdForm({ onSubmit, onCancel }: {
-  onSubmit: (offer: AdOffer, text: string, status: 'active' | 'paused') => void;
+  onSubmit: (offer: AdOffer, text: string, status: 'active' | 'paused', mediaRefs: string[], format: AdFormat) => void;
   onCancel: () => void;
 }) {
   const [text, setText] = useState('');
@@ -300,20 +363,31 @@ function NewNodeAdForm({ onSubmit, onCancel }: {
   const [cta, setCta] = useState('');
   const [disclosure, setDisclosure] = useState('Sponsored');
   const [status, setStatus] = useState<'active' | 'paused'>('active');
+  const [format, setFormat] = useState<AdFormat>('inline');
+  const [media, setMedia] = useState<{ file?: File; previewUrl?: string; isVideo?: boolean } | null>(null);
   const [saving, setSaving] = useState(false);
+  const mediaInputRef = useRef<HTMLInputElement>(null);
 
-  const submit = () => {
+  const pickMedia = (file: File) => {
+    setMedia({ file, previewUrl: URL.createObjectURL(file), isVideo: file.type.startsWith('video/') });
+  };
+
+  const submit = async () => {
     if (!link.trim()) return;
     setSaving(true);
-    const offer: AdOffer = { kind, partner: partner.trim(), link: link.trim(), cta: cta.trim(), disclosure: disclosure.trim() };
-    Promise.resolve(onSubmit(offer, text.trim() || 'Untitled node ad', status))
-      .catch(() => {})
-      .finally(() => {
-        setSaving(false);
-        setText(''); setKind('direct'); setPartner(''); setLink(''); setCta('');
-        setDisclosure('Sponsored'); setStatus('active');
-        onCancel();
-      });
+    try {
+      let mediaRefs: string[] = [];
+      if (media?.file) {
+        const record = await uploadNodeAdMedia(media.file);
+        if (record._id) mediaRefs = [record._id];
+      }
+      const offer: AdOffer = { kind, partner: partner.trim(), link: link.trim(), cta: cta.trim(), disclosure: disclosure.trim() };
+      onSubmit(offer, text.trim() || 'Untitled node ad', status, mediaRefs, format);
+      onCancel();
+    } catch (e) {
+      toast.error(errorMessage(e, 'Failed to upload media'));
+      setSaving(false);
+    }
   };
 
   return (
@@ -329,6 +403,65 @@ function NewNodeAdForm({ onSubmit, onCancel }: {
           <Label htmlFor="node-ad-text">Copy</Label>
           <Input id="node-ad-text" placeholder="Try the new workflow tool." value={text} onChange={(e) => setText(e.target.value)} data-testid="node-ad-text" />
         </div>
+
+        {/* Format — inline (compact block) vs post (a full post). */}
+        <div className="grid gap-1.5">
+          <Label>Format</Label>
+          <div className="flex gap-2" data-testid="node-ad-format-toggle">
+            {(['inline', 'post'] as AdFormat[]).map((f) => (
+              <button
+                key={f}
+                type="button"
+                onClick={() => setFormat(f)}
+                className={cn(
+                  'flex-1 rounded-md border px-3 py-2 text-left text-xs transition-colors',
+                  format === f ? 'border-brand bg-brand-muted text-brand-300' : 'border-border text-muted-foreground hover:border-brand/50',
+                )}
+                data-testid={`node-ad-format-${f}`}
+              >
+                <span className="block font-medium capitalize">{f}</span>
+                <span className="block text-[0.6875rem] opacity-80">
+                  {f === 'inline' ? 'compact block under the post' : 'a full post (media, likes)'}
+                </span>
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {/* Media — one image or video (the creative). */}
+        <div className="grid gap-1.5">
+          <Label>Media (image or video)</Label>
+          <input
+            ref={mediaInputRef}
+            type="file"
+            accept="image/*,video/*"
+            className="hidden"
+            onChange={(e) => { const f = e.target.files?.[0]; if (f) pickMedia(f); e.target.value = ''; }}
+            data-testid="node-ad-media-input"
+          />
+          {media ? (
+            <div className="relative overflow-hidden rounded-md border border-border" data-testid="node-ad-media-preview">
+              {media.isVideo ? (
+                <video src={media.previewUrl} className="max-h-48 w-full object-contain bg-elevated" muted playsInline />
+              ) : (
+                <img src={media.previewUrl} alt="" className="max-h-48 w-full object-contain bg-elevated" />
+              )}
+              <div className="absolute right-2 top-2 flex gap-1">
+                <Button variant="ghost" size="sm" className="h-7 w-7 p-0 bg-background/70" onClick={() => mediaInputRef.current?.click()} aria-label="Replace media" data-testid="node-ad-media-replace">
+                  <ImagePlus className="h-3.5 w-3.5" />
+                </Button>
+                <Button variant="ghost" size="sm" className="h-7 w-7 p-0 bg-background/70 hover:text-danger" onClick={() => setMedia(null)} aria-label="Remove media" data-testid="node-ad-media-remove">
+                  <X className="h-3.5 w-3.5" />
+                </Button>
+              </div>
+            </div>
+          ) : (
+            <Button variant="outline" size="sm" onClick={() => mediaInputRef.current?.click()} data-testid="node-ad-media-add">
+              <ImagePlus className="mr-1 h-3.5 w-3.5" /> Add media
+            </Button>
+          )}
+        </div>
+
         <div className="grid grid-cols-2 gap-3">
           <div className="grid gap-1.5">
             <Label htmlFor="node-ad-kind">Offer kind</Label>
@@ -383,4 +516,32 @@ function NewNodeAdForm({ onSubmit, onCancel }: {
       </div>
     </div>
   );
+}
+
+/** Upload a node ad's creative media (image or video) → a MediaRecord. */
+async function uploadNodeAdMedia(file: File): Promise<MediaRecord> {
+  if (file.type.startsWith('video/')) {
+    const info = await getVideoInfo(file);
+    const poster = await captureVideoPoster(file);
+    const posterFile = new File([poster.blob], `poster-${Date.now()}.webp`, { type: poster.mimeType });
+    return uploadMedia({
+      file,
+      thumbnailFile: posterFile,
+      width: info.width,
+      height: info.height,
+      durationSeconds: Math.round(info.duration * 100) / 100,
+      service: 'public_media',
+    });
+  }
+  const processed = await processImage(file);
+  const processedFile = new File([processed.blob], file.name, { type: processed.mimeType });
+  const thumb = await generateThumbnail(processedFile);
+  const thumbFile = new File([thumb.blob], `thumb-${Date.now()}.webp`, { type: thumb.mimeType });
+  return uploadMedia({
+    file: processedFile,
+    thumbnailFile: thumbFile,
+    width: processed.width,
+    height: processed.height,
+    service: 'public_media',
+  });
 }

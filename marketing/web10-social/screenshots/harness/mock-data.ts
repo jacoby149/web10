@@ -1,7 +1,7 @@
 // Screenshot harness — mock of the `@/data` barrel (exact-match aliased by
 // screenshots/vite.config.ts). Provides seeded, in-memory implementations of
-// every data-layer function the messages views import, so Chat / Mail / CRM
-// render with realistic content and no backend. See screenshots/README.md.
+// every data-layer function the messages view imports, so Chat renders with
+// realistic content and no backend. See screenshots/README.md.
 import type { DmRecord, ContactRecord } from '@/data/types';
 
 const ME = 'web10/me';
@@ -192,6 +192,7 @@ export async function deletePost(): Promise<void> {}
 export async function movePostVisibility(): Promise<void> {}
 export async function countFollowers(): Promise<number> { return PEERS.length; }
 export async function countFollows(): Promise<number> { return PEERS.length; }
+export async function getFollowersCount(): Promise<number> { return PEERS.length; }
 export async function countUserFollowing(): Promise<number> { return PEERS.length; }
 export async function readUserPublicPosts(): Promise<unknown[]> { return PROFILE_POSTS; }
 export async function countStagingPosts(): Promise<number> { return 0; }
@@ -205,8 +206,8 @@ export async function fanOutToFollowers(): Promise<void> {}
 export async function readMyAds(): Promise<{ ads: unknown[]; albums: unknown[] }> { return { ads: [], albums: [] }; }
  export async function refreshMediaUrls<T>(records: T[]): Promise<T[]> { return records; }
  export async function readComments(): Promise<unknown[]> { return []; }
- export async function createComment(): Promise<unknown> { return {}; }
- // The thread seams (comments.md, the Facebook model): the shared thread reads
+  export async function createComment(): Promise<unknown> { return {}; }
+  // The thread seams (comments.md, the Facebook model): the shared thread reads
  // a PAGED top-level page (+ per-comment replyCounts) and a PAGED reply page
  // ("view more replies"), and writes top-level comments or replies (parentId).
  // Seed a small threaded conversation so the screenshot shows the thread shape.
@@ -241,6 +242,19 @@ export async function readMyAds(): Promise<{ ads: unknown[]; albums: unknown[] }
  export async function countRepliesByComment(): Promise<Record<string, number>> { return {}; }
  export async function createThreadComment(): Promise<unknown> { return {}; }
 export async function deleteComment(): Promise<void> {}
+// Photos in comments (3.113.0) — the harness has no upload pipeline; the stub
+// returns a fake doc_id + url so the comment thread's attach control degrades
+// cleanly offline.
+export async function uploadCommentPhoto(_file: File): Promise<{
+  docId: string;
+  url: string;
+  thumbUrl?: string;
+  width?: number;
+  height?: number;
+  mimeType?: string;
+}> {
+  return { docId: 'mock-comment-photo', url: 'http://x/mock-comment-photo.jpg', mimeType: 'image/jpeg' };
+}
 export async function countReactions(): Promise<number> { return 0; }
 export async function countComments(postId?: string): Promise<number> {
   // The profile's feed view seeds real counts for its first two posts.
@@ -403,6 +417,24 @@ export async function readGroupDirectory(): Promise<SeedDirectoryEntry[]> {
   return DIRECTORY;
 }
 export async function readGroupDetail(groupId: string): Promise<unknown> {
+  // The G4 create-flow capture: a draft group (inert — unlisted, owner-only,
+  // face status:'draft'). The harness user ('me') owns it.
+  if (groupId === 'web10/groups/users/me/new-group') {
+    return {
+      group_id: 'web10/groups/users/me/new-group',
+      name: 'new-group',
+      owner: 'me',
+      slug: 'new-group',
+      join_policy: 'open',
+      discoverable: false,
+      member_count: 1,
+      roles: [],
+      permission_summary: 'member: readAll, create',
+      is_member: true,
+      posts_state: 'ok',
+      posts: [],
+    };
+  }
   const entry = DIRECTORY.find((g) => g.group_id === groupId) ?? DIRECTORY[0];
   return {
     group_id: entry.group_id,
@@ -428,10 +460,27 @@ export async function readGroupDetail(groupId: string): Promise<unknown> {
   };
 }
 export async function joinGroup(): Promise<unknown> { return { status: 'joined' }; }
+// Group edit-mode seams (group-as-profile) — the GroupDetailScreen imports these
+// from the @/data barrel; the harness mock must export them or the module errors.
+export async function saveGroup(): Promise<unknown> { return { status: 'saved' }; }
+export async function publishGroup(): Promise<unknown> { return { status: 'published' }; }
 export async function readGroupIdentity(groupId: string): Promise<unknown> {
   // Per-group faces so the My Groups list capture shows a mix of face states:
   // nova → banner + avatar, luna → banner only, kai → no face (gradient fallback).
   const faces: Record<string, unknown> = {
+    // The G4 create-flow capture: the draft's face (status:'draft', staged
+    // settings in the face — decision 2).
+    'web10/groups/users/me/new-group': {
+      name: 'New group',
+      description: '',
+      banner_ref: '',
+      avatar_ref: '',
+      tags: [],
+      status: 'draft',
+      visibility: 'private',
+      join_policy: 'open',
+      discoverable: false,
+    },
     'web10/groups/users/nova/synthwave-sessions': {
       name: 'Synthwave Sessions',
       description: 'A shared space on your node — content you co-create with the people you choose.',
@@ -459,8 +508,12 @@ export async function readGroupIdentity(groupId: string): Promise<unknown> {
 }
 export async function getGroupsManages(): Promise<unknown[]> {
   // The harness user manages the synthwave-sessions group → the detail screen
-  // shows the manager-only "Manage" entry point in the capture.
-  return [{ group_id: 'web10/groups/users/nova/synthwave-sessions', join_policy: 'open', my_role: 'owner', member_count: 128 }];
+  // shows the manager-only "Manage" entry point in the capture. The draft
+  // (the G4 create-flow capture) is owned by the harness user too.
+  return [
+    { group_id: 'web10/groups/users/nova/synthwave-sessions', join_policy: 'open', my_role: 'owner', member_count: 128 },
+    { group_id: 'web10/groups/users/me/new-group', join_policy: 'open', my_role: 'owner', member_count: 1 },
+  ];
 }
 // The Manage-sheet sections import these from the @/data barrel — the harness
 // aliases @/data to this file, so every named import must exist here or the
@@ -471,6 +524,38 @@ export async function updateGroup(): Promise<unknown> { return {}; }
 export async function addGroupMember(): Promise<unknown> { return {}; }
 export async function removeGroupMember(): Promise<unknown> { return {}; }
 export async function deleteGroup(): Promise<unknown> { return { status: 'deleted' }; }
+// G4: the create entry point + the slug guard — the group detail / edit mode
+// import these from the @/data barrel. (saveGroup / publishGroup — the atomic
+// commit — are stubbed above with the other group fns.)
+export async function createDraftGroup(): Promise<string> { return 'web10/groups/users/me/new-group'; }
+export async function slugTaken(): Promise<boolean> { return false; }
+// G1: the Media tab's paged read + page size (GroupDetailScreen imports both
+// from the @/data barrel).
+export const GROUP_MEDIA_PAGE_SIZE = 24;
+export async function readGroupMediaPage(groupId: string): Promise<unknown> {
+  // G5: the Media tab's insta grid capture — the synthwave-sessions group's
+  // media posts (one media_ref each → one grid cell each). Other groups have
+  // no media (the empty state).
+  if (groupId === 'web10/groups/users/nova/synthwave-sessions') {
+    const posts = ['grp-med-1', 'grp-med-2', 'grp-med-3', 'grp-med-4', 'grp-med-5', 'grp-med-6'].map(
+      (ref, i) => ({
+        _id: `gm-${i + 1}`,
+        text: i === 5 ? 'Latest clip from the live set' : 'From the session',
+        author_username: i % 2 === 0 ? 'nova' : 'kai',
+        author_provider: 'web10',
+        created_at: minsAgo(60 * (i + 1)),
+        media_refs: [ref],
+      }),
+    );
+    return { posts, hasMore: false, total: posts.length };
+  }
+  return { posts: [], hasMore: false, total: 0 };
+}
+// The slug helper (GroupEditMode's slug preview) — same derivation as the real
+// data layer.
+export function slugify(name: string): string {
+  return name.trim().toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '');
+}
 export async function getGroupMembers(): Promise<unknown[]> {
   return [
     { member_key: 'web10/users/nova', role: 'owner' },
@@ -838,6 +923,19 @@ const FACE_MEDIA: Record<string, Record<string, unknown>> = {
   'grp-banner-kai': { ...creative('LO-FI', 1600, 400, '#0ea5e9', '#0c4a6e', 'image/png'), _id: 'grp-banner-kai' },
 };
 
+// Group media posts (G5: the Media tab's insta grid capture) — the seeded
+// grid for the synthwave-sessions group. A mix of image + video cells so the
+// shot shows both the plain image cell and the video cell with the play
+// overlay. The grid renders one cell per media_ref (flattened).
+const GROUP_MEDIA: Record<string, Record<string, unknown>> = {
+  'grp-med-1': { ...creative('LIVE SET', 1280, 1280, '#8b5cf6', '#2e1065', 'image/png'), _id: 'grp-med-1' },
+  'grp-med-2': { ...creative('STUDIO', 1280, 1280, '#7c3aed', '#4c1d95', 'image/png'), _id: 'grp-med-2' },
+  'grp-med-3': { ...creative('DROP', 1280, 1280, '#a78bfa', '#1e1b4b', 'image/png'), _id: 'grp-med-3' },
+  'grp-med-4': { ...creative('SET', 1280, 1280, '#c4b5fd', '#312e81', 'image/png'), _id: 'grp-med-4' },
+  'grp-med-5': { ...creative('BACKSTAGE', 1280, 1280, '#f59e0b', '#78350f', 'image/png'), _id: 'grp-med-5' },
+  'grp-med-6': { ...creative('CLIP', 1280, 1280, '#0ea5e9', '#0c4a6e'), _id: 'grp-med-6' },
+};
+
 const DISCOVER_POSTS: SeedDiscoverPost[] = [
   {
     _id: 'dp-1',
@@ -946,7 +1044,7 @@ export async function resolveMediaRefs<T>(refs: T[]): Promise<T[]> {
     // PROFILE_MEDIA / FACE_MEDIA are declared later in the module (the profile
     // seed sections) — safe: the lookup runs at call time, after the module is
     // evaluated.
-    const rec = DISCOVER_MEDIA[id] ?? PROFILE_MEDIA[id] ?? FACE_MEDIA[id];
+    const rec = DISCOVER_MEDIA[id] ?? PROFILE_MEDIA[id] ?? FACE_MEDIA[id] ?? GROUP_MEDIA[id];
     if (rec) out.push(rec as T);
   }
   return out;
@@ -1012,65 +1110,113 @@ export async function fetchSuggestedUsers(): Promise<unknown[]> {
 }
 
 // ── People (screenshot seed) ─────────────────────────────────────────────────
-// The People screen (find profiles, sorted by mutuals) reads fetchPeople.
-// Seeded with a mix of face states so the capture shows: banner+avatar,
-// avatar-only (gradient banner), no-face (initial fallback), and the
-// Following vs Follow button states.
-export async function fetchPeople(_limit = 20): Promise<unknown[]> {
-  return [
-    {
-      username: 'luna', provider: 'web10', display_name: 'Luna Reyes',
-      bio: 'Creator · behind the scenes',
-      avatar_ref: 'pp-avatar-luna', banner_ref: 'pp-banner-luna',
-      avatar_url: creative('LUNA', 400, 400, '#8b5cf6', '#2e1065', 'image/png').url,
-      banner_url: creative('LUNA BANNER', 1600, 400, '#7c3aed', '#4c1d95', 'image/png').url,
-      followers_count: 12400, mutuals: 5, is_following: true,
-    },
-    {
-      username: 'kai', provider: 'web10', display_name: 'Kai Mori',
-      bio: 'Lo-fi study beats',
-      avatar_ref: 'pp-avatar-kai',
-      avatar_url: creative('KAI', 400, 400, '#0ea5e9', '#0c4a6e', 'image/png').url,
-      followers_count: 5120, mutuals: 3, is_following: false,
-    },
-    {
-      username: 'marco', provider: 'web10', display_name: 'Marco Silva',
-      followers_count: 167, mutuals: 2, is_following: false,
-    },
-    {
-      username: 'vera', provider: 'web10', display_name: 'Vera Costa',
-      bio: 'Street photography',
-      banner_ref: 'pp-banner-vera',
-      banner_url: creative('VERA BANNER', 1600, 400, '#f59e0b', '#78350f', 'image/png').url,
-      followers_count: 24, mutuals: 1, is_following: true,
-    },
-    {
-      username: 'pixel', provider: 'web10', display_name: 'Pixel',
-      bio: 'Retro gaming',
-      avatar_ref: 'pp-avatar-pixel', banner_ref: 'pp-banner-pixel',
-      avatar_url: creative('PIXEL', 400, 400, '#22c55e', '#14532d', 'image/png').url,
-      banner_url: creative('PIXEL BANNER', 1600, 400, '#16a34a', '#052e16', 'image/png').url,
-      followers_count: 25600, mutuals: 0, is_following: false,
-    },
-  ];
+// The People browser (Discover subtab / the standalone screen) reads
+// fetchPeoplePage (the D0 directory read). Seeded with 12 people (>= the
+// quiet-here threshold of 10, so the capture shows the list) across a mix of
+// face states: banner+avatar, avatar-only (gradient banner), no-face (initial
+// fallback), and the Following vs Follow button states.
+export async function fetchPeoplePage(_opts: { limit: number; offset: number }): Promise<{ people: unknown[]; hasMore: boolean }> {
+  return {
+    hasMore: false,
+    people: [
+      {
+        username: 'pixel', provider: 'web10', display_name: 'Pixel',
+        bio: 'Retro gaming',
+        avatar_ref: 'pp-avatar-pixel', banner_ref: 'pp-banner-pixel',
+        avatar_url: creative('PIXEL', 400, 400, '#22c55e', '#14532d', 'image/png').url,
+        banner_url: creative('PIXEL BANNER', 1600, 400, '#16a34a', '#052e16', 'image/png').url,
+        followers_count: 25600, is_following: false,
+      },
+      {
+        username: 'luna', provider: 'web10', display_name: 'Luna Reyes',
+        bio: 'Creator · behind the scenes',
+        avatar_ref: 'pp-avatar-luna', banner_ref: 'pp-banner-luna',
+        avatar_url: creative('LUNA', 400, 400, '#8b5cf6', '#2e1065', 'image/png').url,
+        banner_url: creative('LUNA BANNER', 1600, 400, '#7c3aed', '#4c1d95', 'image/png').url,
+        followers_count: 12400, is_following: true,
+      },
+      {
+        username: 'kai', provider: 'web10', display_name: 'Kai Mori',
+        bio: 'Lo-fi study beats',
+        avatar_ref: 'pp-avatar-kai',
+        avatar_url: creative('KAI', 400, 400, '#0ea5e9', '#0c4a6e', 'image/png').url,
+        followers_count: 5120, is_following: false,
+      },
+      {
+        username: 'nova', provider: 'web10', display_name: 'Nova',
+        bio: 'Synthwave producer',
+        avatar_ref: 'pp-avatar-nova', banner_ref: 'pp-banner-nova',
+        avatar_url: creative('NOVA', 400, 400, '#f472b6', '#831843', 'image/png').url,
+        banner_url: creative('NOVA BANNER', 1600, 400, '#ec4899', '#500724', 'image/png').url,
+        followers_count: 3300, is_following: false,
+      },
+      {
+        username: 'zoe', provider: 'web10', display_name: 'Zoe Rivers',
+        bio: 'Film photography',
+        followers_count: 1670, is_following: false,
+      },
+      {
+        username: 'marco', provider: 'web10', display_name: 'Marco Silva',
+        followers_count: 167, is_following: false,
+      },
+      {
+        username: 'vera', provider: 'web10', display_name: 'Vera Costa',
+        bio: 'Street photography',
+        banner_ref: 'pp-banner-vera',
+        banner_url: creative('VERA BANNER', 1600, 400, '#f59e0b', '#78350f', 'image/png').url,
+        followers_count: 240, is_following: true,
+      },
+      {
+        username: 'theo', provider: 'web10', display_name: 'Theo',
+        bio: 'Cycling vlogs',
+        avatar_ref: 'pp-avatar-theo',
+        avatar_url: creative('THEO', 400, 400, '#a78bfa', '#4c1d95', 'image/png').url,
+        followers_count: 98, is_following: false,
+      },
+      {
+        username: 'iris', provider: 'web10', display_name: 'Iris',
+        followers_count: 61, is_following: false,
+      },
+      {
+        username: 'jude', provider: 'web10', display_name: 'Jude Park',
+        bio: 'Cooking + recipes',
+        followers_count: 44, is_following: false,
+      },
+      {
+        username: 'wren', provider: 'web10', display_name: 'Wren',
+        followers_count: 12, is_following: false,
+      },
+      {
+        username: 'sol', provider: 'web10', display_name: 'Sol',
+        followers_count: 3, is_following: false,
+      },
+    ],
+  };
 }
 
-// The People screen imports sortPeople from the @/data barrel — provide a
-// working implementation so the harness renders the correct sort order.
+// The People browser imports sortPeople / filterPeople / DEFAULT_PEOPLE_SORT
+// from the @/data barrel — provide working implementations so the harness
+// renders the correct order + filter.
+export const DEFAULT_PEOPLE_SORT = 'popular';
 export function sortPeople(people: any[], sort: string): any[] {
   const arr = [...people];
   switch (sort) {
-    case 'popular':
-      arr.sort((a, b) => (b.followers_count - a.followers_count) || a.username.localeCompare(b.username));
-      break;
     case 'az':
       arr.sort((a, b) => a.username.localeCompare(b.username));
       break;
+    case 'popular':
     default:
-      arr.sort((a, b) => (b.mutuals - a.mutuals) || (b.followers_count - a.followers_count) || a.username.localeCompare(b.username));
+      arr.sort((a, b) => (b.followers_count - a.followers_count) || a.username.localeCompare(b.username));
       break;
   }
   return arr;
+}
+export function filterPeople(people: any[], query: string): any[] {
+  const q = (query || '').trim().toLowerCase();
+  if (!q) return people;
+  return people.filter(
+    (p) => (p.display_name || '').toLowerCase().includes(q) || p.username.toLowerCase().includes(q),
+  );
 }
 
 // ── Profile (screenshot seed) ────────────────────────────────────────────────

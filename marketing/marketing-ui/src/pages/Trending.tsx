@@ -13,6 +13,8 @@ import type { FeedPost } from '@/components/FeedPreview';
 import { TrendingSidebar } from '@/components/TrendingSidebar';
 import { KnobRack } from '@/components/KnobRack';
 import { SearchBar } from '@/components/SearchBar';
+import { TrendingPeople } from '@/components/TrendingPeople';
+import { TrendingGroups } from '@/components/TrendingGroups';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { SOCIAL_ORIGIN } from '@/lib/origins';
 import { trackFunnel } from '@/lib/analytics';
@@ -59,13 +61,23 @@ function hashToColor(str: string): string {
 }
 
 async function fetchDiscoverUsers(limit = 20): Promise<DiscoverUser[]> {
-  const resp = await fetch(`${API_ORIGIN}/discover/users`, {
-    method: 'PATCH',
+  // M1: the real D0 read (the anon public people directory) replaces the dead
+  // `PATCH /discover/users` call (that endpoint never existed — it returned
+  // []). One round-trip: the node composes list_users + the I3 gate + profile
+  // faces + follower counts.
+  const resp = await fetch(`${API_ORIGIN}/v3/users/directory`, {
+    method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ query: { limit, services: 'public_posts' } }),
+    body: JSON.stringify({ limit, offset: 0 }),
   });
   if (!resp.ok) return [];
-  return resp.json();
+  const data = await resp.json();
+  return (data.users || []).map((u: { username: string; follower_count: number }) => ({
+    username: u.username,
+    post_count: 0,
+    engagement_score: 0,
+    followers_count: u.follower_count,
+  }));
 }
 
 function formatFollowers(n: number): string {
@@ -206,6 +218,28 @@ function Trending() {
     const params = new URLSearchParams(window.location.search);
     return (params.get('view') as TrendingView) || 'grid';
   });
+
+  // Subtab: read from ?tab= query param (deep-link rule). `posts` is the bare
+  // URL (the default); `people` and `groups` are the M1 subtabs (the anon
+  // public directory, mirroring the social app's Explorer).
+  type TrendingTab = 'posts' | 'people' | 'groups';
+  const [tab, setTab] = useState<TrendingTab>(() => {
+    const params = new URLSearchParams(window.location.search);
+    const raw = params.get('tab');
+    return raw === 'people' || raw === 'groups' ? raw : 'posts';
+  });
+
+  const setTabUrl = useCallback((next: TrendingTab) => {
+    setTab(next);
+    const params = new URLSearchParams(window.location.search);
+    if (next === 'posts') {
+      params.delete('tab');
+    } else {
+      params.set('tab', next);
+    }
+    window.history.replaceState({}, '', `${window.location.pathname}?${params.toString()}`);
+    trackFunnel('trending_tab', { tab: next });
+  }, []);
 
   const setViewUrl = useCallback((v: TrendingView) => {
     setView(v);
@@ -505,6 +539,51 @@ function Trending() {
         </div>
       </header>
 
+      {/* Subtabs: Posts | People | Groups (?tab=, posts is the bare URL) —
+          M1: the public ledger mirrors the social app's Explorer. */}
+      <div className="mx-auto max-w-4xl px-4 pt-2 sm:px-6" data-testid="trending-tab-row">
+        <div className="flex items-center gap-1 py-1.5" role="tablist" aria-label="Trending sections">
+            {([
+              ['posts', 'Posts'],
+              ['people', 'People'],
+              ['groups', 'Groups'],
+            ] as [TrendingTab, string][]).map(([id, label]) => (
+              <button
+                key={id}
+                type="button"
+                role="tab"
+                aria-selected={tab === id}
+                data-testid={`trending-tab-${id}`}
+                onClick={() => setTabUrl(id)}
+                className={[
+                  'rounded-lg px-3 py-1.5 text-xs font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background',
+                  tab === id
+                    ? 'bg-brand-muted text-brand-300'
+                    : 'text-muted-foreground hover:text-foreground hover:bg-elevated',
+                ].join(' ')}
+              >
+                {label}
+              </button>
+            ))}
+        </div>
+      </div>
+
+      {/* People subtab (M1) — the anon public directory */}
+      {tab === 'people' && (
+        <main className="flex-1 px-4 py-8 sm:px-6">
+          <TrendingPeople />
+        </main>
+      )}
+
+      {/* Groups subtab (M1) — the anon public directory */}
+      {tab === 'groups' && (
+        <main className="flex-1 px-4 py-8 sm:px-6">
+          <TrendingGroups />
+        </main>
+      )}
+
+      {/* Posts subtab (the default) — the existing feed */}
+      {tab === 'posts' && (<>
       {/* Knob Rack — only show when not searching */}
       {!isInitialLoad && allPosts.length > 0 && !isSearching && (
         <div className="px-4 pt-6 pb-4 sm:px-6">
@@ -559,30 +638,28 @@ function Trending() {
 
       {/* View toggle — YouTube-style, below topics */}
       {!isInitialLoad && !isSearching && (
-        <div className="border-b border-border bg-surface/50">
-          <div className="mx-auto max-w-4xl px-4 sm:px-6">
-            <div className="flex items-center gap-1 py-2" data-testid="trending-view-toggle">
-              {([
-                ['grid', 'Hot Gossip', Flame],
-                ['youtube', 'Video', Video],
-              ] as [TrendingView, string, typeof Flame][]).map(([v, label, Icon]) => (
-                <button
-                  key={v}
-                  type="button"
-                  onClick={() => setViewUrl(v)}
-                  data-testid={`view-toggle-${v}`}
-                  className={[
-                    'flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background',
-                    view === v
-                      ? 'bg-brand-muted text-brand-300'
-                      : 'text-muted-foreground hover:text-foreground hover:bg-elevated',
-                  ].join(' ')}
-                >
-                  <Icon className="h-3.5 w-3.5" strokeWidth={1.75} />
-                  <span>{label}</span>
-                </button>
-              ))}
-            </div>
+        <div className="mx-auto max-w-4xl px-4 sm:px-6">
+          <div className="flex items-center gap-1 py-2" data-testid="trending-view-toggle">
+            {([
+              ['grid', 'Hot Gossip', Flame],
+              ['youtube', 'Video', Video],
+            ] as [TrendingView, string, typeof Flame][]).map(([v, label, Icon]) => (
+              <button
+                key={v}
+                type="button"
+                onClick={() => setViewUrl(v)}
+                data-testid={`view-toggle-${v}`}
+                className={[
+                  'flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background',
+                  view === v
+                    ? 'bg-brand-muted text-brand-300'
+                    : 'text-muted-foreground hover:text-foreground hover:bg-elevated',
+                ].join(' ')}
+              >
+                <Icon className="h-3.5 w-3.5" strokeWidth={1.75} />
+                <span>{label}</span>
+              </button>
+            ))}
           </div>
         </div>
       )}
@@ -596,7 +673,7 @@ function Trending() {
               searchLoading ? (
                 <div
                   data-testid="trending-grid-skeleton"
-                  className="mx-auto grid w-full max-w-xl grid-cols-1 gap-4"
+                  className="mx-auto grid w-full max-w-2xl grid-cols-1 gap-4"
                 >
                   <TrendingSkeleton featured />
                   {Array.from({ length: 5 }).map((_, i) => (
@@ -641,7 +718,7 @@ function Trending() {
                       </p>
                       <div
                         data-testid="trending-grid"
-                        className="mx-auto grid w-full max-w-xl grid-cols-1 gap-4"
+                        className="mx-auto grid w-full max-w-2xl grid-cols-1 gap-4"
                       >
 {visibleSearchResults.map(post => (
                            <TrendingCard
@@ -684,7 +761,7 @@ function Trending() {
             ) : isInitialLoad ? (
               <div
                 data-testid="trending-grid-skeleton"
-                className="mx-auto grid w-full max-w-xl grid-cols-1 gap-4"
+                className="mx-auto grid w-full max-w-2xl grid-cols-1 gap-4"
               >
                 <TrendingSkeleton featured />
                 {Array.from({ length: 5 }).map((_, i) => (
@@ -760,7 +837,7 @@ function Trending() {
               <>
                 <div
                   data-testid="trending-grid"
-                  className="mx-auto grid w-full max-w-xl grid-cols-1 gap-4"
+                  className="mx-auto grid w-full max-w-2xl grid-cols-1 gap-4"
                 >
 {visible.map(post => (
                      <TrendingCard
@@ -777,7 +854,7 @@ function Trending() {
                    ))}
                 </div>
                 {loadingMore && (
-                  <div className="mx-auto mt-4 grid w-full max-w-xl grid-cols-1 gap-4">
+                  <div className="mx-auto mt-4 grid w-full max-w-2xl grid-cols-1 gap-4">
                     {Array.from({ length: 3 }).map((_, i) => (
                       <TrendingSkeleton key={`more-${i}`} />
                     ))}
@@ -840,6 +917,7 @@ function Trending() {
           )}
         </div>
       </main>
+      </>)}
     </div>
   );
 }

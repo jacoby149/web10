@@ -10,7 +10,8 @@ why the guarantee holds.
 ## The one-sentence guarantee
 
 > A caller's query can only read the **boundary CTEs** (service-named,
-> filtered to the caller's readable groups) or CTEs derived from them. The raw
+> filtered to the caller's readable groups; plus the opt-in `group_meta`
+> CTE, visibility-enforced the same way) or CTEs derived from them. The raw
 > tables (`documents`, `doc_groups`, `group_members`, …) are **unreachable**
 > from the caller's query.
 
@@ -27,13 +28,16 @@ The caller's SQL string is **never executed**. It is:
    `INSERT` / `UPDATE` / `DELETE` / `DROP` / … → rejected.
 3. **Walked**: every `Table` node in the tree — including inside caller CTEs
    and subqueries — is checked:
-   - empty name (a **table function**: `file()`, `numbers()`, `s3()`) →
-     rejected (an escape hatch off the node);
-   - a **raw node table** (`documents`, `doc_groups`, …) → rejected;
-   - an **ungranted / unknown** table → rejected;
-   - a **granted service** (`posts`, `comments`, …) → noted (a boundary CTE is
-     needed);
-   - a **caller-defined CTE** → allowed (it is derived from services).
+    - empty name (a **table function**: `file()`, `numbers()`, `s3()`) →
+      rejected (an escape hatch off the node);
+    - a **raw node table** (`documents`, `doc_groups`, …) → rejected;
+    - the reserved name **`group_meta`** → allowed only when the caller opted
+      in (`withGroupMeta`); otherwise rejected as an unknown table. It is an
+      API-built CTE, not a service (see [Group metadata](#group-metadata-the-group_meta-cte));
+    - an **ungranted / unknown** table → rejected;
+    - a **granted service** (`posts`, `comments`, …) → noted (a boundary CTE is
+      needed);
+    - a **caller-defined CTE** → allowed (it is derived from services).
 4. **Compiled**: for each service the query uses, the API builds a **boundary
    CTE** — the service's docs, deduped, joined to `doc_groups`, filtered to the
    caller's readable groups for that service — and injects it **first** (so
@@ -46,11 +50,11 @@ The boundary CTE for a service looks like:
 
 ```sql
 posts AS (
-  SELECT d.doc_id, d.author_key, d.body, d.ref_value, d.tags, d.created_at, d.updated_at
+  SELECT d.doc_id, d.author_key, d.body, d.ref_value, d.tags, d.created_at, d.updated_at, d.ad_mode, d.ad_target, dg.group_id
   FROM (
-    SELECT doc_id, author_key, body, ref_value, tags, created_at, updated_at
+    SELECT doc_id, author_key, body, ref_value, tags, created_at, updated_at, ad_mode, ad_target, deleted
     FROM documents
-    WHERE collection_name = 'posts' AND deleted = 0
+    WHERE collection_name = 'posts'
     QUALIFY row_number() OVER (PARTITION BY doc_id, author_key ORDER BY updated_at DESC) = 1
   ) d
   JOIN (
@@ -68,7 +72,9 @@ posts AS (
 ```
 
 The caller's `SELECT … FROM posts` now reads that CTE. `posts` is no longer the
-raw table — it is the caller's own groups, and nothing else.
+raw table — it is the caller's own groups, and nothing else. A doc in N readable
+groups surfaces N rows (one per group); `group_id` is the join key for group
+metadata (QE-A0).
 
 **Why `NOT IN`, not `LEFT ANTI JOIN`.** The block/sharing/hidden filters are
 `NOT IN` / tuple-`NOT IN` subqueries, not `LEFT ANTI JOIN`. A ClickHouse 24.8
@@ -80,6 +86,71 @@ empty-subquery "no blocks → keep all" case and the sharing-pause self-exempt)
 and inline cleanly. The column mapping is the anti-join's `ON` clause,
 transposed: `ub.user_key = d.author_key AND ub.blocked_key = reader` becomes
 `d.author_key NOT IN (SELECT user_key … WHERE blocked_key = reader)`.
+
+## Group metadata: the `group_meta` CTE (QE-A)
+
+The engine can also expose **group metadata** — `member_count` (from
+`group_members`), `join_policy` + `discoverable` (from `group_contracts`) —
+through a second API-built boundary CTE named `group_meta`. Design:
+`strategy/engine-group-metadata.md`.
+
+**Opt-in.** The caller sets `withGroupMeta: true` on `POST /v3/query` (SDK:
+`w.query(sql, { withGroupMeta: true })`). Without it, `group_meta` is an
+unknown table and the query is rejected — the join costs nothing unless
+asked for.
+
+**Visibility = the existing I3 gate, NULL-out-and-sort-last.** The endpoint
+computes the reader's readable set (union of `readable_groups` over the
+services the query touches; for a standalone `group_meta` query, the reader's
+own memberships among the candidates) and passes it to
+`_group_meta_cte_sql(readable, candidates)`. The CTE **full-scans all
+candidate groups** and CASE-NULLs the metadata of the unreadable ones:
+
+```sql
+group_meta AS (
+  SELECT gc.group_id,
+         CASE WHEN gc.group_id IN (<readable>) THEN gm.member_count ELSE NULL END AS member_count,
+         CASE WHEN gc.group_id IN (<readable>) THEN gc.join_policy  ELSE NULL END AS join_policy,
+         CASE WHEN gc.group_id IN (<readable>) THEN gc.discoverable ELSE NULL END AS discoverable
+  FROM (<deduped group_contracts, latest row, not-deleted, candidates only>) gc
+  LEFT JOIN (<pre-aggregated active member counts, candidates only>) gm
+         ON gc.group_id = gm.group_id
+)
+```
+
+**This CTE must NOT copy the service CTE's `WHERE group_id IN (readable)`
+filter.** The service CTEs *exclude* unreadable groups; `group_meta` must
+*include* them as NULLs — that is what makes `ORDER BY member_count` honest
+(I3): unreadable groups sort to the bottom and reveal nothing but their
+existence, which the caller already knows. A WHERE-filter would silently drop
+them and break the "there are groups I can't read" signal.
+
+**The wall extends, it doesn't weaken.** `group_members` and
+`group_contracts` stay in `RAW_TABLES`: a direct reference is rejected even
+with the opt-in on, including inside caller CTEs and subqueries (the AST walk
++ re-parse backstop are unchanged in structure). The per-row visibility check
+is a set-membership test on a precomputed set (vectorizes), not a correlated
+per-row function.
+
+**Edge shapes** (all shape-valid, ClickHouse 24.8-safe): no candidate groups
+→ `WHERE 1 = 0` empty CTE with `CAST(NULL AS …)` columns; no readable groups
+→ every metadata column is a plain `CAST(NULL AS …)` (no CASE). `Nullable`
+casts are required — 24.8 rejects `CAST(NULL AS String)` with
+CANNOT_CONVERT_TYPE.
+
+**The caller joins on the key QE-A0 exposed:**
+`SELECT p.*, gm.member_count FROM posts p LEFT JOIN group_meta gm ON
+p.group_id = gm.group_id` — a doc in N readable groups has N rows, each
+joining the metadata of its own group.
+
+**The I3 proof is pinned end to end** (QE-C, the seatbelt):
+`e2e/tests/query-engine.spec.ts` runs the compiled SQL against a real
+ClickHouse with real membership data and pins the semantics the unit tests
+can't — a private group's metadata is NULL (not zero) to a non-reader and
+present to a member; `ORDER BY … NULLS LAST` puts unreadable groups last with
+no rank signal; private groups of different sizes are indistinguishable to a
+non-reader (no count leak); and the raw tables 403 in every shape (top-level,
+caller CTE, subquery) even with the opt-in on.
 
 ## Why the guarantee holds
 
@@ -128,6 +199,11 @@ membrane that must not leak:
 | stacked statements rejected | `test_stacked_statements_rejected` |
 | comment can't hide a raw table | `test_comment_cannot_hide_a_raw_table` |
 | unknown / system / ungranted table rejected | `test_unknown_table_rejected`, `test_system_table_rejected`, `test_ungranted_service_rejected` |
+| group_meta rejected without opt-in / injected with it | `test_group_meta_rejected_without_opt_in`, `test_group_meta_cte_injected_with_opt_in` |
+| group_meta CASE-NULLs unreadable groups (no WHERE-filter) | `test_group_meta_nulls_unreadable_groups_not_filters_them` |
+| raw tables still rejected with group_meta on (top / caller CTE / subquery) | `test_group_meta_raw_tables_still_blocked_with_opt_in`, `test_group_meta_raw_table_in_caller_cte_rejected_with_opt_in`, `test_group_meta_raw_table_in_subquery_rejected_with_opt_in` |
+| group_meta edge shapes (no candidates / no readable) | `test_group_meta_empty_candidates_shape_valid`, `test_group_meta_empty_readable_all_null` |
+| group_meta I3 semantics on live data (value NULL, no rank leak, no count leak, wall holds) | `e2e/tests/query-engine.spec.ts` — the `group_meta (QE-C: the I3 anti-tests)` block (the seatbelt: real ClickHouse, real membership data) |
 | non-SELECT rejected | `test_non_select_rejected` |
 | unparseable rejected | `test_unparseable_rejected` |
 | aggregation can't leak past the boundary | `test_aggregation_cannot_leak_past_the_boundary` |
@@ -160,7 +236,10 @@ read them. The boundary is the rewriter, full stop.
    `query_services()` (which services the query touches) → `readable_groups()`
    per service (the D58 read gate) → `build_safe_query(...)` → `execute_query()`.
    Anon-capable (a missing token reads as the node's `anon` member, the public
-   board — D41). The SDK exposes it as `w.query(sql, { groups? })`.
+   board — D41). The SDK exposes it as `w.query(sql, { groups?, prepare?,
+   withGroupMeta? })`. When `withGroupMeta` is set, the endpoint additionally
+   computes the readable set for the `group_meta` CTE and passes it to
+   `build_safe_query`, which injects the CTE if the query references it.
 2. **The `ref` filter on the group read** (`read_docs_by_ref`) — the fixed
    "give me the comments/reactions for these posts" shape, compiled through the
    same engine so it carries the full boundary.

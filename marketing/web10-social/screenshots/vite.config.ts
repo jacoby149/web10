@@ -1,6 +1,6 @@
 // Screenshot-harness Vite config. Serves screenshots/harness/index.html with
-// the data layer aliased to seeded mocks so the messages views (Chat / Mail /
-// CRM) render logged-in with content and no backend. See README.md.
+// the data layer aliased to seeded mocks so the messages view (Chat) renders
+// logged-in with content and no backend. See README.md.
 //
 // Alias order matters (first match wins): the exact `@/data` barrel and
 // `@/data/wapi` are swapped for mocks; everything else under `@` (including
@@ -22,6 +22,8 @@ export default defineConfig({
       { find: /^@\/data\/settings$/, replacement: path.resolve(here, './harness/mock-settings.ts') },
       { find: /^@\/data\/p2p$/, replacement: path.resolve(here, './harness/mock-p2p.ts') },
       { find: /^@\/data\/notifications$/, replacement: path.resolve(here, './harness/mock-notifications.ts') },
+      { find: /^@\/data\/search$/, replacement: path.resolve(here, './harness/mock-search.ts') },
+      { find: /^@\/data\/ads-catalog$/, replacement: path.resolve(here, './harness/mock-ads-catalog.ts') },
       { find: /^@\/data$/, replacement: path.resolve(here, './harness/mock-data.ts') },
       { find: '@', replacement: path.resolve(root, './src') },
     ],

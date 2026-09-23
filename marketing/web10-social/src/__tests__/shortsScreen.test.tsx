@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
-import { MemoryRouter } from 'react-router-dom';
+import { MemoryRouter, useLocation } from 'react-router-dom';
 import '@testing-library/jest-dom';
 import * as data from '@/data';
 
@@ -477,6 +477,43 @@ describe('ShortsScreen — the vertical short-form feed (shorts.md)', () => {
     // The label flips to "Copied!" (the clear feedback).
     await waitFor(() => {
       expect(shareLabel()).toBe('Copied!');
+    });
+  });
+
+  it('the back arrow exits the lens to /feed (the bottom bar is hidden here)', async () => {
+    (data.readShortsFeed as ReturnType<typeof vi.fn>).mockResolvedValue([
+      shortPost({ id: 's1', author: 'luna' }),
+    ]);
+
+    // A probe that mirrors the current route, so the test can assert the
+    // back button actually navigates (not just that it renders).
+    function LocationProbe() {
+      const { pathname } = useLocation();
+      return <div data-testid="route-probe">{pathname}</div>;
+    }
+    const { default: ShortsScreen } = await import('@/components/Shorts/ShortsScreen');
+    render(
+      <MemoryRouter initialEntries={['/shorts']}>
+        <ShortsScreen />
+        <LocationProbe />
+      </MemoryRouter>,
+    );
+
+    await waitFor(() => {
+      expect(screen.getByTestId('shorts-container')).toBeInTheDocument();
+    });
+
+    // The back arrow is present, labelled, and carries the chevron icon…
+    const back = screen.getByTestId('shorts-back');
+    expect(back).toHaveAttribute('aria-label', 'Back to feed');
+    expect(back.querySelector('[data-testid="icon-chevronleft"]')).not.toBeNull();
+    // …and we start on the lens.
+    expect(screen.getByTestId('route-probe')).toHaveTextContent('/shorts');
+
+    // Tapping it exits the lens to the feed (the home base).
+    fireEvent.click(back);
+    await waitFor(() => {
+      expect(screen.getByTestId('route-probe')).toHaveTextContent('/feed');
     });
   });
 });

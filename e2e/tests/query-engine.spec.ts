@@ -95,10 +95,11 @@ async function createDoc(request: APIRequestContext, token: string, service: str
   return (await res.json()) as { doc_id: string };
 }
 
-async function query(request: APIRequestContext, token: string | null, sql: string, groups?: string[]) {
+async function query(request: APIRequestContext, token: string | null, sql: string, groups?: string[], withGroupMeta?: boolean) {
   const body: Record<string, unknown> = { sql };
   if (token) body.token = token;
   if (groups) body.groups = groups;
+  if (withGroupMeta) body.withGroupMeta = true;
   return v3Post(request, `${API_BASE}/v3/query`, body, { Origin: ORIGIN });
 }
 
@@ -351,5 +352,197 @@ test.describe('Query engine — anon (the public board)', () => {
     const data = (await res.json()) as { rows: unknown[]; count: number };
     expect(Array.isArray(data.rows)).toBeTruthy();
     expect(typeof data.count).toBe('number');
+  });
+});
+
+// ---------------------------------------------------------------------------
+// group_meta (QE-C): the I3 anti-tests — the seatbelt
+//
+// The group_meta CTE (engine-group-metadata.md) exposes group metadata
+// (member_count / join_policy / discoverable) with NULL-out-and-sort-last
+// semantics. These tests run the compiled SQL against a REAL ClickHouse with
+// REAL membership data and pin the I3 proof end to end:
+//
+//   - the value is NULL: a private group's metadata is absent to a
+//     non-reader, present to a member;
+//   - the sort reveals no rank: unreadable groups sort last, as NULLs;
+//   - the NULL pattern reveals no count: private groups of different sizes
+//     are indistinguishable to a non-reader;
+//   - the wall holds: raw tables are rejected even with the opt-in on.
+//
+// The engine-level rejection facets (SQL shape, CASE-NULL vs WHERE-filter,
+// edge shapes) are pinned in api/tests/test_safe_query.py; the endpoint
+// wiring in api/tests/test_query_endpoint.py.
+// ---------------------------------------------------------------------------
+
+test.describe('Query engine — group_meta (QE-C: the I3 anti-tests)', () => {
+  test('a member joins content to group_meta and sees their own group count (the positive control)', async ({ request }) => {
+    const { username, token } = await signupAndLogin(request, 'qemeta');
+    await addAppContract(request, token, { posts: ['readAll', 'create'] });
+    const groupId = await createGroup(request, token, 'qe-meta', [{ member_key: username, role: 'owner' }]);
+    const p1 = await createDoc(request, token, 'posts', { text: 'hello' }, [groupId]);
+    await settle();
+
+    // The reference shape: content JOIN group metadata on the group_id key
+    // (QE-A0). The owner is the only member → member_count 1.
+    const res = await query(
+      request,
+      token,
+      `SELECT p.doc_id, gm.member_count, gm.join_policy, gm.discoverable
+       FROM posts p
+       JOIN group_meta gm ON p.group_id = gm.group_id`,
+      [groupId],
+      true,
+    );
+    expect(res.ok(), `query failed (${res.status}) ${await res.text().catch(() => '')}`).toBeTruthy();
+    const data = (await res.json()) as {
+      rows: { doc_id: string; member_count: number; join_policy: string; discoverable: number }[];
+      count: number;
+    };
+    expect(data.count).toBe(1);
+    expect(data.rows[0].doc_id).toBe(p1.doc_id);
+    expect(data.rows[0].member_count).toBe(1);
+    expect(data.rows[0].join_policy).toBe('open');
+    // D53 (amended): not discoverable by default — the API-built CTE reads
+    // the real contract row, not a stub.
+    expect(data.rows[0].discoverable).toBe(0);
+  });
+
+  test('a private group metadata is NULL to a non-reader, present to a member', async ({ request }) => {
+    const owner = await signupAndLogin(request, 'qemetaown');
+    const m2 = await signupAndLogin(request, 'qemeta2');
+    const m3 = await signupAndLogin(request, 'qemeta3');
+    const intruder = await signupAndLogin(request, 'qemetaintr');
+    await addAppContract(request, owner.token, { posts: ['readAll'] });
+    await addAppContract(request, intruder.token, { posts: ['readAll'] });
+    // A private group with 3 members — a non-trivial count that must not leak.
+    const groupId = await createGroup(request, owner.token, 'qe-meta-private', [
+      { member_key: owner.username, role: 'owner' },
+      { member_key: m2.username },
+      { member_key: m3.username },
+    ]);
+    await settle();
+
+    // The member sees the real metadata.
+    const memberRes = await query(request, owner.token, 'SELECT group_id, member_count, join_policy FROM group_meta', [groupId], true);
+    expect(memberRes.ok(), `member query failed (${memberRes.status}) ${await memberRes.text().catch(() => '')}`).toBeTruthy();
+    const memberData = (await memberRes.json()) as { rows: { group_id: string; member_count: number; join_policy: string }[]; count: number };
+    expect(memberData.count).toBe(1);
+    expect(memberData.rows[0].group_id).toBe(groupId);
+    expect(memberData.rows[0].member_count).toBe(3);
+    expect(memberData.rows[0].join_policy).toBe('open');
+
+    // The non-reader sees the group (it is in their candidate set) but every
+    // metadata column is NULL — the value is absent, not zero, not a stub.
+    const intruderRes = await query(request, intruder.token, 'SELECT group_id, member_count, join_policy, discoverable FROM group_meta', [groupId], true);
+    expect(intruderRes.ok(), `intruder query failed (${intruderRes.status}) ${await intruderRes.text().catch(() => '')}`).toBeTruthy();
+    const intruderData = (await intruderRes.json()) as {
+      rows: { group_id: string; member_count: number | null; join_policy: string | null; discoverable: number | null }[];
+      count: number;
+    };
+    expect(intruderData.count).toBe(1);
+    expect(intruderData.rows[0].group_id).toBe(groupId);
+    expect(intruderData.rows[0].member_count).toBeNull();
+    expect(intruderData.rows[0].join_policy).toBeNull();
+    expect(intruderData.rows[0].discoverable).toBeNull();
+  });
+
+  test('unreadable groups sort last as NULLs — the sort reveals no rank', async ({ request }) => {
+    const reader = await signupAndLogin(request, 'qesort');
+    const other1 = await signupAndLogin(request, 'qesort1');
+    const other2 = await signupAndLogin(request, 'qesort2');
+    await addAppContract(request, reader.token, { posts: ['readAll'] });
+    // The reader's own group (readable) + two private groups they can't read.
+    const ownGroup = await createGroup(request, reader.token, 'qe-sort-own', [{ member_key: reader.username, role: 'owner' }]);
+    const priv1 = await createGroup(request, other1.token, 'qe-sort-p1', [{ member_key: other1.username, role: 'owner' }]);
+    const priv2 = await createGroup(request, other2.token, 'qe-sort-p2', [{ member_key: other2.username, role: 'owner' }]);
+    await settle();
+
+    const res = await query(
+      request,
+      reader.token,
+      'SELECT group_id, member_count FROM group_meta ORDER BY member_count DESC NULLS LAST',
+      [ownGroup, priv1, priv2],
+      true,
+    );
+    expect(res.ok(), `query failed (${res.status}) ${await res.text().catch(() => '')}`).toBeTruthy();
+    const data = (await res.json()) as { rows: { group_id: string; member_count: number | null }[]; count: number };
+    expect(data.count).toBe(3);
+    // The readable group sorts first, with its real count.
+    expect(data.rows[0].group_id).toBe(ownGroup);
+    expect(data.rows[0].member_count).toBe(1);
+    // The unreadable groups sort last, as NULLs. Their relative order is
+    // undefined (that is the point — no rank leak), so assert the set, not
+    // the order.
+    const tail = data.rows.slice(1);
+    expect(tail.map((r) => r.group_id).sort()).toEqual([priv1, priv2].sort());
+    for (const row of tail) {
+      expect(row.member_count).toBeNull();
+    }
+  });
+
+  test('the NULL pattern reveals no count — private groups of different sizes are indistinguishable', async ({ request }) => {
+    const owner1 = await signupAndLogin(request, 'qecount1');
+    const owner2 = await signupAndLogin(request, 'qecount2');
+    const m1 = await signupAndLogin(request, 'qecount3');
+    const m2 = await signupAndLogin(request, 'qecount4');
+    const intruder = await signupAndLogin(request, 'qecount5');
+    await addAppContract(request, intruder.token, { posts: ['readAll'] });
+    // Two private groups: one with 1 member, one with 3. To a non-reader they
+    // must be indistinguishable — both NULL, no count signal.
+    const small = await createGroup(request, owner1.token, 'qe-count-small', [{ member_key: owner1.username, role: 'owner' }]);
+    const big = await createGroup(request, owner2.token, 'qe-count-big', [
+      { member_key: owner2.username, role: 'owner' },
+      { member_key: m1.username },
+      { member_key: m2.username },
+    ]);
+    await settle();
+
+    const res = await query(request, intruder.token, 'SELECT group_id, member_count FROM group_meta ORDER BY group_id', [small, big], true);
+    expect(res.ok(), `query failed (${res.status}) ${await res.text().catch(() => '')}`).toBeTruthy();
+    const data = (await res.json()) as { rows: { group_id: string; member_count: number | null }[]; count: number };
+    expect(data.count).toBe(2);
+    for (const row of data.rows) {
+      expect(row.member_count, `count leaked for ${row.group_id}`).toBeNull();
+    }
+    // Sanity: the owner of the big group sees the real (different) count —
+    // the NULLs above are a visibility effect, not an empty table.
+    const ownerRes = await query(request, owner2.token, 'SELECT member_count FROM group_meta', [big], true);
+    expect(ownerRes.ok(), `owner query failed (${ownerRes.status}) ${await ownerRes.text().catch(() => '')}`).toBeTruthy();
+    const ownerData = (await ownerRes.json()) as { rows: { member_count: number }[] };
+    expect(ownerData.rows[0].member_count).toBe(3);
+  });
+
+  test('raw tables are rejected even with withGroupMeta on (the wall holds)', async ({ request }) => {
+    const { username, token } = await signupAndLogin(request, 'qewall');
+    await addAppContract(request, token, { posts: ['readAll'] });
+    const groupId = await createGroup(request, token, 'qe-wall', [{ member_key: username, role: 'owner' }]);
+    await settle();
+
+    // The opt-in opens group_meta, not the raw tables. Every shape below is
+    // rejected before anything executes — including a raw-table reference
+    // hidden inside a caller CTE or a subquery (the AST walk is complete).
+    for (const sql of [
+      'SELECT * FROM group_members',
+      'SELECT * FROM group_contracts',
+      'SELECT * FROM users',
+      'WITH t AS (SELECT * FROM group_members) SELECT * FROM t',
+      'SELECT count() FROM (SELECT * FROM group_members) t',
+      "SELECT * FROM posts WHERE doc_id IN (SELECT doc_id FROM group_members)",
+    ]) {
+      const res = await query(request, token, sql, [groupId], true);
+      expect(res.status(), `expected 403 for: ${sql}`).toBe(403);
+    }
+  });
+
+  test('group_meta without the opt-in flag is 403 (unknown table)', async ({ request }) => {
+    const { username, token } = await signupAndLogin(request, 'qeflag');
+    await addAppContract(request, token, { posts: ['readAll'] });
+    const groupId = await createGroup(request, token, 'qe-flag', [{ member_key: username, role: 'owner' }]);
+    await settle();
+
+    const res = await query(request, token, 'SELECT * FROM group_meta', [groupId]);
+    expect(res.status()).toBe(403);
+    expect(await res.text()).toMatch(/group_meta/);
   });
 });

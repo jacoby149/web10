@@ -514,97 +514,7 @@ describe('DmsScreen', () => {
     );
   });
 
-  it('renders view toggle with all three views', async () => {
-    const { default: DmsScreen } = await import('@/components/Chat/DmsScreen');
-    render(
-      <MemoryRouter>
-        <DmsScreen />
-      </MemoryRouter>,
-    );
-    await waitFor(() => {
-      expect(screen.getByTestId('messages-view-toggle')).toBeInTheDocument();
-    });
-    expect(screen.getByTestId('view-toggle-chat')).toBeInTheDocument();
-    expect(screen.getByTestId('view-toggle-mail')).toBeInTheDocument();
-    expect(screen.getByTestId('view-toggle-crm')).toBeInTheDocument();
-  });
-
-  it('switches to mail view on toggle click', async () => {
-    const { default: DmsScreen } = await import('@/components/Chat/DmsScreen');
-    render(
-      <MemoryRouter>
-        <DmsScreen />
-      </MemoryRouter>,
-    );
-    await waitFor(() => {
-      expect(screen.getByTestId('messages-view-toggle')).toBeInTheDocument();
-    });
-    fireEvent.click(screen.getByTestId('view-toggle-mail'));
-    await waitFor(() => {
-      expect(screen.getByTestId('mail-view')).toBeInTheDocument();
-    });
-  });
-
-  it('switches to crm view on toggle click', async () => {
-    const { default: DmsScreen } = await import('@/components/Chat/DmsScreen');
-    render(
-      <MemoryRouter>
-        <DmsScreen />
-      </MemoryRouter>,
-    );
-    await waitFor(() => {
-      expect(screen.getByTestId('messages-view-toggle')).toBeInTheDocument();
-    });
-    fireEvent.click(screen.getByTestId('view-toggle-crm'));
-    await waitFor(() => {
-      expect(screen.getByTestId('crm-view')).toBeInTheDocument();
-    });
-  });
-
-  it('switches back to chat view from mail', async () => {
-    const { default: DmsScreen } = await import('@/components/Chat/DmsScreen');
-    render(
-      <MemoryRouter>
-        <DmsScreen />
-      </MemoryRouter>,
-    );
-    await waitFor(() => {
-      expect(screen.getByTestId('messages-view-toggle')).toBeInTheDocument();
-    });
-    fireEvent.click(screen.getByTestId('view-toggle-mail'));
-    await waitFor(() => {
-      expect(screen.getByTestId('mail-view')).toBeInTheDocument();
-    });
-    fireEvent.click(screen.getByTestId('view-toggle-chat'));
-    // After switching back, the chat view shows the empty state or conversation list
-    expect(screen.getByTestId('dms-empty')).toBeInTheDocument();
-  });
-
-  it('restores mail view from ?view=mail on mount', async () => {
-    const { default: DmsScreen } = await import('@/components/Chat/DmsScreen');
-    render(
-      <MemoryRouter initialEntries={['/messages?view=mail']}>
-        <DmsScreen />
-      </MemoryRouter>,
-    );
-    await waitFor(() => {
-      expect(screen.getByTestId('mail-view')).toBeInTheDocument();
-    });
-  });
-
-  it('restores crm view from ?view=crm on mount', async () => {
-    const { default: DmsScreen } = await import('@/components/Chat/DmsScreen');
-    render(
-      <MemoryRouter initialEntries={['/messages?view=crm']}>
-        <DmsScreen />
-      </MemoryRouter>,
-    );
-    await waitFor(() => {
-      expect(screen.getByTestId('crm-view')).toBeInTheDocument();
-    });
-  });
-
-  it('defaults to chat view when ?view is missing', async () => {
+  it('renders the conversation list at /messages (no view toggle)', async () => {
     const { default: DmsScreen } = await import('@/components/Chat/DmsScreen');
     render(
       <MemoryRouter initialEntries={['/messages']}>
@@ -614,6 +524,8 @@ describe('DmsScreen', () => {
     await waitFor(() => {
       expect(screen.getByTestId('dms-empty')).toBeInTheDocument();
     });
+    // The Mail/CRM views were deleted (3.144.0) — the toggle is gone with them.
+    expect(screen.queryByTestId('messages-view-toggle')).not.toBeInTheDocument();
   });
 
   it('shows a group chat in the conversation list (group-chat.md)', async () => {
@@ -637,6 +549,27 @@ describe('DmsScreen', () => {
     expect(screen.getByTestId('group-chat-item')).toHaveTextContent('The Crew');
     // A group row carries the group badge (not a presence dot).
     expect(screen.getByTestId('group-chat-badge')).toBeInTheDocument();
+    // An explicit "Group" type badge makes it clear this is a group message.
+    expect(screen.getByTestId('group-chat-type-badge')).toHaveTextContent('Group');
+  });
+
+  it('DM conversation rows do not carry a Group badge', async () => {
+    const { listConversations, getMyGroupChats } = await import('@/data');
+    vi.mocked(listConversations).mockResolvedValueOnce([
+      'test.localhost/testuser--test.localhost/alice',
+    ]);
+    vi.mocked(getMyGroupChats).mockResolvedValueOnce([]);
+
+    const { default: DmsScreen } = await import('@/components/Chat/DmsScreen');
+    render(
+      <MemoryRouter initialEntries={['/messages']}>
+        <DmsScreen />
+      </MemoryRouter>,
+    );
+    await waitFor(() => {
+      expect(screen.getByTestId('dm-conversation-item')).toBeInTheDocument();
+    });
+    expect(screen.queryByTestId('group-chat-type-badge')).not.toBeInTheDocument();
   });
 
   it('renders the group thread view — name header, member count, per-sender attribution (group-chat.md)', async () => {
@@ -665,71 +598,28 @@ describe('DmsScreen', () => {
     });
     expect(screen.getByTestId('group-chat-name')).toHaveTextContent('The Crew');
     expect(screen.getByTestId('group-chat-members')).toHaveTextContent('3 members');
+    // The header carries an explicit "Group" badge next to the name.
+    expect(screen.getByTestId('group-chat-header-badge')).toHaveTextContent('Group');
     // Per-sender attribution: the inbound message (alice) shows the sender name;
     // my own message (testuser) does not (isMe). Exactly one sender label.
     expect(screen.getByTestId('dm-message-sender')).toHaveTextContent('alice');
   });
-});
 
-describe('MailView', () => {
-  beforeEach(() => {
-    vi.clearAllMocks();
-  });
-
-  it('renders mail view with heading', async () => {
-    const { default: MailView } = await import('@/components/Chat/MailView');
-    render(<MailView />);
+  it('a profile ?to=+?provider= deep link goes straight to the DM thread (no compose picker)', async () => {
+    const { default: DmsScreen } = await import('@/components/Chat/DmsScreen');
+    render(
+      <MemoryRouter initialEntries={['/messages?to=otheruser&provider=test.localhost']}>
+        <Routes>
+          <Route path="/messages/*" element={<DmsScreen />} />
+        </Routes>
+      </MemoryRouter>,
+    );
+    // The provider is present, so the handler derives the conversation key and
+    // navigates straight to the DM thread — the compose picker never opens.
     await waitFor(() => {
-      expect(screen.getByText('Mail')).toBeInTheDocument();
-    });
-  });
-
-  it('renders search input', async () => {
-    const { default: MailView } = await import('@/components/Chat/MailView');
-    render(<MailView />);
-    await waitFor(() => {
-      expect(screen.getByTestId('mail-search')).toBeInTheDocument();
-    });
-  });
-
-  it('renders empty state when no threads', async () => {
-    const { default: MailView } = await import('@/components/Chat/MailView');
-    render(<MailView />);
-    await waitFor(() => {
-      expect(screen.getByTestId('mail-view')).toBeInTheDocument();
-    });
-    expect(screen.getAllByText(/Inbox is empty/).length).toBeGreaterThanOrEqual(1);
-  });
-});
-
-describe('CrmView', () => {
-  beforeEach(() => {
-    vi.clearAllMocks();
-  });
-
-  it('renders crm view with heading', async () => {
-    const { default: CrmView } = await import('@/components/Chat/CrmView');
-    render(<CrmView />);
-    await waitFor(() => {
-      expect(screen.getByText('Contacts')).toBeInTheDocument();
-    });
-  });
-
-  it('renders search input', async () => {
-    const { default: CrmView } = await import('@/components/Chat/CrmView');
-    render(<CrmView />);
-    await waitFor(() => {
-      expect(screen.getByTestId('crm-search')).toBeInTheDocument();
-    });
-  });
-
-  it('renders empty state when no contacts', async () => {
-    const { default: CrmView } = await import('@/components/Chat/CrmView');
-    render(<CrmView />);
-    await waitFor(() => {
-      expect(screen.getByTestId('crm-view')).toBeInTheDocument();
-    });
-    expect(screen.getByText(/No contacts/)).toBeInTheDocument();
+      expect(screen.getByTestId('dm-conversation')).toBeInTheDocument();
+    }, { timeout: 2000 });
+    expect(screen.queryByTestId('dm-contact-picker')).not.toBeInTheDocument();
   });
 });
 
@@ -780,12 +670,13 @@ describe('Layout', () => {
     // DOM in jsdom) — assert via the stable data-testid hooks instead.
     expect(screen.getByTestId('nav-feed')).toBeInTheDocument();
     expect(screen.getByTestId('nav-discover')).toBeInTheDocument();
-    expect(screen.getByTestId('nav-groups')).toBeInTheDocument();
     expect(screen.getByTestId('nav-profile')).toBeInTheDocument();
     expect(screen.getByTestId('nav-messages')).toBeInTheDocument();
+    // Groups is retired from the nav (it lives in the Explorer/Groups subtab).
+    expect(screen.queryByTestId('nav-groups')).not.toBeInTheDocument();
     expect(screen.getAllByText('Feed').length).toBeGreaterThanOrEqual(1);
-    expect(screen.getAllByText('Discover').length).toBeGreaterThanOrEqual(1);
-    expect(screen.getAllByText('Groups').length).toBeGreaterThanOrEqual(1);
+    expect(screen.getAllByText('Explorer').length).toBeGreaterThanOrEqual(1);
+    expect(screen.queryByText('Groups')).not.toBeInTheDocument();
     expect(screen.getAllByText('Profile').length).toBeGreaterThanOrEqual(1);
     expect(screen.getAllByText('Messages').length).toBeGreaterThanOrEqual(1);
   });
@@ -802,10 +693,19 @@ describe('Layout', () => {
         </Layout>
       </MemoryRouter>,
     );
-    // Desktop sidebar: Shorts is a real destination; Stories is still
-    // coming-soon. Both render in the sidebar.
-    expect(screen.getByTestId('nav-stories')).toBeInTheDocument();
+    // Desktop sidebar: Shorts is a real destination (a nav row). The
+    // coming-soon surfaces (Stories, …) live in the "More" popover — they're
+    // not permanent nav rows, so they don't hold sidebar space.
     expect(screen.getByTestId('nav-shorts')).toBeInTheDocument();
+    expect(screen.getByTestId('nav-more-desktop')).toBeInTheDocument();
+    // The popover is closed by default — the coming-soon items aren't in the doc.
+    expect(screen.queryByTestId('nav-stories')).not.toBeInTheDocument();
+    // Opening More reveals the coming-soon list.
+    fireEvent.click(screen.getByTestId('nav-more-desktop'));
+    expect(screen.getByTestId('nav-stories')).toBeInTheDocument();
+    expect(screen.getByTestId('nav-livestream')).toBeInTheDocument();
+    expect(screen.getByTestId('nav-games')).toBeInTheDocument();
+    expect(screen.getByTestId('nav-marketplace')).toBeInTheDocument();
 
     // The mobile bottom bar is exactly four core tabs + the More tab.
     const mobileNav = screen.getByLabelText('Primary mobile');
@@ -814,7 +714,8 @@ describe('Layout', () => {
     expect(within(mobileNav).getByTestId('nav-messages-mobile')).toBeInTheDocument();
     expect(within(mobileNav).getByTestId('nav-profile-mobile')).toBeInTheDocument();
     expect(within(mobileNav).getByTestId('nav-more-mobile')).toBeInTheDocument();
-    // Settings and Groups are NOT in the bar (they live in the More sheet).
+    // Settings is NOT in the bar (it lives in the More sheet). Groups is
+    // retired from the nav entirely (it lives in the Explorer/Groups subtab).
     expect(within(mobileNav).queryByTestId('nav-settings-mobile')).not.toBeInTheDocument();
     expect(within(mobileNav).queryByTestId('nav-groups-mobile')).not.toBeInTheDocument();
     // …and none of the coming-soon icons are crammed into the bar.
@@ -827,25 +728,46 @@ describe('Layout', () => {
     // The More sheet is closed by default.
     expect(screen.queryByTestId('more-sheet')).not.toBeInTheDocument();
 
-    // Tapping More opens the sheet: Shorts + Settings + Groups (real
-    // destinations) + the coming-soon list (Stories, Livestream, Games,
-    // Marketplace). Shorts is a real surface (shorts.md), not coming-soon.
+    // Tapping More opens the sheet: Shorts + Settings (real destinations) +
+    // the coming-soon list (Stories, Livestream, Games, Marketplace). Shorts
+    // is a real surface (shorts.md), not coming-soon. Groups is retired from
+    // the nav (it lives in the Explorer/Groups subtab), so it's not here.
     fireEvent.click(screen.getByTestId('nav-more-mobile'));
     const sheet = screen.getByTestId('more-sheet');
     expect(sheet).toBeInTheDocument();
     expect(within(sheet).getByTestId('nav-shorts-mobile')).toBeInTheDocument();
     expect(within(sheet).getByTestId('nav-settings-mobile')).toBeInTheDocument();
-    expect(within(sheet).getByTestId('nav-groups-mobile')).toBeInTheDocument();
+    expect(within(sheet).queryByTestId('nav-groups-mobile')).not.toBeInTheDocument();
     expect(within(sheet).getByTestId('nav-stories-mobile')).toBeInTheDocument();
     expect(within(sheet).getByTestId('nav-livestream-mobile')).toBeInTheDocument();
     expect(within(sheet).getByTestId('nav-games-mobile')).toBeInTheDocument();
     expect(within(sheet).getByTestId('nav-marketplace-mobile')).toBeInTheDocument();
   });
 
+  it('People is retired from the nav (D4) — the Discover/People subtab is the home now', async () => {
+    const { default: Layout } = await import('@/components/Social/Layout');
+    render(
+      <MemoryRouter initialEntries={['/feed']}>
+        <Layout onLogout={() => {}} onReportBug={() => {}}>
+          <div>Content</div>
+        </Layout>
+      </MemoryRouter>,
+    );
+    // The People nav item is gone from the desktop sidebar…
+    expect(screen.queryByTestId('nav-people')).not.toBeInTheDocument();
+    // …and the mobile More sheet.
+    fireEvent.click(screen.getByTestId('nav-more-mobile'));
+    const sheet = screen.getByTestId('more-sheet');
+    expect(within(sheet).queryByTestId('nav-people-mobile')).not.toBeInTheDocument();
+    // Discover (the People subtab's home) is still in the nav.
+    expect(screen.getByTestId('nav-discover')).toBeInTheDocument();
+  });
+
   it('Monetization nav renders for every user; Node Monetization only for the node admin', async () => {
     const { default: Layout } = await import('@/components/Social/Layout');
     // Non-admin: the "Monetization" entry (the creator's ad catalog +
-    // affiliate onboarding) is visible; "Node Monetization" is not.
+    // affiliate onboarding) is visible in the More popover; "Node
+    // Monetization" is not.
     checkNodeAdmin.mockResolvedValue(false);
     const first = render(
       <MemoryRouter initialEntries={['/feed']}>
@@ -854,13 +776,15 @@ describe('Layout', () => {
         </Layout>
       </MemoryRouter>,
     );
+    // Open the More popover (monetization lives there now).
+    fireEvent.click(screen.getByTestId('nav-more-desktop'));
     expect(await screen.findByTestId('nav-monetization')).toBeInTheDocument();
     // The admin check has settled — the node entry never appears.
     await waitFor(() => expect(checkNodeAdmin).toHaveBeenCalled());
     expect(screen.queryByTestId('nav-node-monetization')).not.toBeInTheDocument();
     first.unmount();
 
-    // Node admin: both entries render.
+    // Node admin: both entries render in the More popover.
     checkNodeAdmin.mockResolvedValue(true);
     render(
       <MemoryRouter initialEntries={['/feed']}>
@@ -869,6 +793,7 @@ describe('Layout', () => {
         </Layout>
       </MemoryRouter>,
     );
+    fireEvent.click(screen.getByTestId('nav-more-desktop'));
     expect(await screen.findByTestId('nav-monetization')).toBeInTheDocument();
     expect(await screen.findByTestId('nav-node-monetization')).toBeInTheDocument();
   });
@@ -885,6 +810,8 @@ describe('Layout', () => {
         </Layout>
       </MemoryRouter>,
     );
+    // Open the More popover (monetization lives there now).
+    fireEvent.click(screen.getByTestId('nav-more-desktop'));
     // The Node row appears only once the async admin check resolves.
     const nodeRow = await screen.findByTestId('nav-node-monetization');
     expect(screen.getByTestId('nav-monetization')).toHaveAttribute('aria-current', 'page');
@@ -901,6 +828,8 @@ describe('Layout', () => {
         </Layout>
       </MemoryRouter>,
     );
+    // Open the More popover (monetization lives there now).
+    fireEvent.click(screen.getByTestId('nav-more-desktop'));
     expect(await screen.findByTestId('nav-node-monetization')).toHaveAttribute('aria-current', 'page');
     expect(screen.getByTestId('nav-monetization')).not.toHaveAttribute('aria-current');
   });
@@ -1069,6 +998,39 @@ describe('Layout', () => {
     );
     expect(screen.getAllByText('web').length).toBeGreaterThanOrEqual(1);
     expect(screen.getAllByText('10').length).toBeGreaterThanOrEqual(1);
+  });
+
+  it('notifications bell is in the desktop top bar (not the sidebar)', async () => {
+    const { default: Layout } = await import('@/components/Social/Layout');
+    render(
+      <MemoryRouter initialEntries={['/feed']}>
+        <Layout onLogout={() => {}} onReportBug={() => {}}>
+          <div>Content</div>
+        </Layout>
+      </MemoryRouter>,
+    );
+    // The notifications bell is in the top bar.
+    const bell = await screen.findByTestId('nav-notifications');
+    expect(bell).toBeInTheDocument();
+    // It's inside the top bar (the desktop top bar testid).
+    const topbar = screen.getByTestId('topbar-desktop');
+    expect(topbar.contains(bell)).toBe(true);
+  });
+
+  it('the "New post" button is NOT in the sidebar or the mobile top bar', async () => {
+    const { default: Layout } = await import('@/components/Social/Layout');
+    render(
+      <MemoryRouter initialEntries={['/feed']}>
+        <Layout onLogout={() => {}} onReportBug={() => {}}>
+          <div>Content</div>
+        </Layout>
+      </MemoryRouter>,
+    );
+    await screen.findByTestId('topbar-desktop');
+    // The sidebar "New post" row is gone.
+    expect(screen.queryByTestId('nav-new-post')).not.toBeInTheDocument();
+    // The mobile top bar "New post" button is gone.
+    expect(screen.queryByTestId('new-post-button-mobile')).not.toBeInTheDocument();
   });
 });
 

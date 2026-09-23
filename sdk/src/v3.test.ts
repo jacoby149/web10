@@ -129,6 +129,7 @@ describe('v3 client', () => {
       expect(client).toHaveProperty('read')
       expect(client).toHaveProperty('readById')
       expect(client).toHaveProperty('query')
+      expect(client).toHaveProperty('listPeopleDirectory')
       expect(client).toHaveProperty('update')
       expect(client).toHaveProperty('delete')
       expect(client).toHaveProperty('addAppContract')
@@ -551,11 +552,70 @@ describe('v3 client', () => {
       expect(call.prepare).toBeUndefined()
     })
 
+    it('query passes withGroupMeta when set (QE-A: opt-in to the group_meta CTE)', async () => {
+      vi.spyOn(http, 'authPost').mockResolvedValueOnce({ rows: [], count: 0 } as any)
+
+      await client.query('SELECT gm.group_id, gm.member_count FROM group_meta gm', { withGroupMeta: true })
+      const call = (vi.mocked(http.authPost).mock.calls[0][1] as any)
+      expect(call.withGroupMeta).toBe(true)
+    })
+
+    it('query omits withGroupMeta when not provided', async () => {
+      vi.spyOn(http, 'authPost').mockResolvedValueOnce({ rows: [], count: 0 } as any)
+
+      await client.query('SELECT doc_id FROM posts')
+      const call = (vi.mocked(http.authPost).mock.calls[0][1] as any)
+      expect(call.withGroupMeta).toBeUndefined()
+    })
+
     it('query works without a token (anon reads the public board)', async () => {
       client.scrubToken()
       vi.spyOn(http, 'authPost').mockResolvedValueOnce({ rows: [], count: 0 } as any)
 
       await expect(client.query('SELECT doc_id FROM posts')).resolves.toEqual({ rows: [], count: 0 })
+      const call = (vi.mocked(http.authPost).mock.calls[0][1] as any)
+      expect(call.token).toBeUndefined()
+    })
+
+    it('listPeopleDirectory posts to /v3/users/directory with the token', async () => {
+      const mockResponse = {
+        users: [{ username: 'bob', follower_count: 10, profile: { display_name: 'Bob' } }],
+        limit: 20,
+        offset: 0,
+      }
+      vi.spyOn(http, 'authPost').mockResolvedValueOnce(mockResponse as any)
+
+      const result = await client.listPeopleDirectory()
+      expect(result).toEqual(mockResponse)
+      expect(http.authPost).toHaveBeenCalledWith(
+        'http://api.localhost/v3/users/directory',
+        expect.objectContaining({ token: mockToken }),
+      )
+    })
+
+    it('listPeopleDirectory passes limit and offset', async () => {
+      vi.spyOn(http, 'authPost').mockResolvedValueOnce({ users: [], limit: 5, offset: 10 } as any)
+
+      await client.listPeopleDirectory({ limit: 5, offset: 10 })
+      const call = (vi.mocked(http.authPost).mock.calls[0][1] as any)
+      expect(call.limit).toBe(5)
+      expect(call.offset).toBe(10)
+    })
+
+    it('listPeopleDirectory omits limit/offset when not provided', async () => {
+      vi.spyOn(http, 'authPost').mockResolvedValueOnce({ users: [], limit: 20, offset: 0 } as any)
+
+      await client.listPeopleDirectory()
+      const call = (vi.mocked(http.authPost).mock.calls[0][1] as any)
+      expect(call.limit).toBeUndefined()
+      expect(call.offset).toBeUndefined()
+    })
+
+    it('listPeopleDirectory works without a token (anon reads the public subset)', async () => {
+      client.scrubToken()
+      vi.spyOn(http, 'authPost').mockResolvedValueOnce({ users: [], limit: 20, offset: 0 } as any)
+
+      await expect(client.listPeopleDirectory()).resolves.toEqual({ users: [], limit: 20, offset: 0 })
       const call = (vi.mocked(http.authPost).mock.calls[0][1] as any)
       expect(call.token).toBeUndefined()
     })
@@ -729,6 +789,36 @@ describe('v3 client', () => {
       await client.updateGroup('g1', { discoverable: false })
       const call = (vi.mocked(http.authPost).mock.calls[0][1] as any)
       expect(call.discoverable).toBe(false)
+    })
+
+    it('createGroup with tags passes the label set (D78)', async () => {
+      vi.spyOn(http, 'authPost').mockResolvedValueOnce({ group_id: 'g1' } as any)
+      await client.createGroup('my-group', 'open', [], [{ member_key: 'alice', role: 'owner' }], { tags: ['web10-social-group'] })
+      const call = (vi.mocked(http.authPost).mock.calls[0][1] as any)
+      expect(call.tags).toEqual(['web10-social-group'])
+    })
+
+    it('getMyGroups with tags sends the server-side filter (D78)', async () => {
+      vi.spyOn(http, 'authPost').mockResolvedValueOnce([] as any)
+      await client.getMyGroups({ tags: ['web10-social-group'] })
+      expect(http.authPost).toHaveBeenCalledWith(
+        'http://api.localhost/v3/groups/list',
+        expect.objectContaining({ tags: ['web10-social-group'], token: mockToken }),
+      )
+    })
+
+    it('getMyGroups without tags omits the filter (backward compat)', async () => {
+      vi.spyOn(http, 'authPost').mockResolvedValueOnce([] as any)
+      await client.getMyGroups()
+      const call = (vi.mocked(http.authPost).mock.calls[0][1] as any)
+      expect(call.tags).toBeUndefined()
+    })
+
+    it('updateGroup with tags passes the label set (D78)', async () => {
+      vi.spyOn(http, 'authPost').mockResolvedValueOnce({ group_id: 'g1', join_policy: 'open', my_role: 'owner', member_count: 5, tags: ['web10-social-chat'] } as any)
+      await client.updateGroup('g1', { tags: ['web10-social-chat'] })
+      const call = (vi.mocked(http.authPost).mock.calls[0][1] as any)
+      expect(call.tags).toEqual(['web10-social-chat'])
     })
 
     it('deleteGroup posts groups/delete', async () => {

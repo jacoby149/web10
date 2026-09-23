@@ -8,7 +8,7 @@
 // profile-feed render the profile (grid view / facebook-shaped feed view);
 // default is /messages.
 import { createRoot } from 'react-dom/client';
-import { MemoryRouter, Routes, Route } from 'react-router-dom';
+import { MemoryRouter, Routes, Route, useParams } from 'react-router-dom';
 import '@fontsource-variable/inter/standard.css';
 import '@fontsource-variable/space-grotesk';
 import '../../src/index.css';
@@ -57,6 +57,14 @@ class HarnessHls {
 }
 (window as unknown as { Hls: unknown }).Hls = HarnessHls;
 
+// The group detail reads its id from the route (the harness seeds faces per
+// group — synthwave-sessions has a full face, lofi-study-room has none, so
+// both hero variants are capturable).
+function GroupDetailRoute() {
+  const { groupId } = useParams();
+  return <GroupDetailScreen groupId={groupId || ''} />;
+}
+
 const params = new URLSearchParams(window.location.search);
 const screen = params.get('screen');
 // The install-prompt capture: render over Shorts and force the surface open
@@ -71,10 +79,17 @@ const initialRoute =
   : screen === 'notifications' ? '/notifications'
   : screen === 'discover' ? '/discover'
   : screen === 'discover-youtube' ? '/discover?view=youtube'
+  : screen === 'discover-people' ? '/discover?tab=people'
+  : screen === 'discover-groups' ? '/discover?tab=groups'
   : screen === 'shorts' || screen === 'install-prompt' ? '/shorts'
   : screen === 'groups' ? '/groups'
   : screen === 'groups-discover' ? '/groups?tab=discover'
   : screen === 'groups-detail' ? '/groups/web10%2Fgroups%2Fusers%2Fnova%2Fsynthwave-sessions'
+  : screen === 'groups-media' ? '/groups/web10%2Fgroups%2Fusers%2Fnova%2Fsynthwave-sessions?tab=media'
+  : screen === 'groups-detail-noface' ? '/groups/web10%2Fgroups%2Fusers%2Fkai%2Flofi-study-room'
+   : screen === 'groups-create' ? '/groups/web10%2Fgroups%2Fusers%2Fme%2Fnew-group?edit=1'
+   : screen === 'chat-group-thread'
+     ? '/messages/group/web10%2Fgroups%2Fusers%2Fnova%2Fchat-the-crew'
   : screen === 'people' ? '/people'
   : screen === 'profile' ? '/u/me'
   : screen === 'profile-feed' ? '/u/me?view=feed'
@@ -95,7 +110,7 @@ createRoot(document.getElementById('root')!).render(
         <Route path="/messages/*" element={<DmsScreen />} />
         <Route path="/settings" element={<SettingsScreen onLogout={() => {}} onReportBug={() => {}} />} />
         <Route path="/groups" element={<GroupsScreen />} />
-        <Route path="/groups/:groupId" element={<GroupDetailScreen groupId={'web10/groups/users/nova/synthwave-sessions'} />} />
+        <Route path="/groups/:groupId" element={<GroupDetailRoute />} />
         <Route path="/people" element={<PeopleScreen />} />
         <Route path="/u/:username" element={<UserProfileScreen username={'me'} provider={'web10'} />} />
         <Route path="/monetize" element={<MonetizationScreen />} />

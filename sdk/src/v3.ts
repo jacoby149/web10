@@ -114,6 +114,10 @@ export interface V3Group {
   /** The D53 "blasting" flag — whether the group is listed in the public directory.
    *  Returned by `/manages` + `/get`; optional for forward-compat (older nodes). */
   discoverable?: boolean
+  /** The D78 group label set — the platform stores/matches them (`has(tags, …)`);
+   *  the app decides what they mean (e.g. `web10-social-group`). Optional for
+   *  forward-compat (older nodes predate the column). */
+  tags?: string[]
 }
 
 // A resolved media ref — the shape the platform read produces
@@ -329,6 +333,23 @@ export interface V3User {
 
 export interface V3LoginResponse {
   token: string
+}
+
+// The public people directory (D0, discover-reorg): one row per user whose
+// profile face the reader can read (I3). `follower_count` is the unspoofable
+// membership aggregate (count of the user's followers group), not a stored
+// field. `profile` is the user's face (display_name, bio, avatar_ref,
+// banner_ref, …) — the same shape the social app's profile read returns.
+export interface V3DirectoryUser {
+  username: string
+  follower_count: number
+  profile: Record<string, unknown>
+}
+
+export interface V3PeoplePage {
+  users: V3DirectoryUser[]
+  limit: number
+  offset: number
 }
 
 // ── Access health (verifyAccess) ────────────────────────────────────────────
@@ -611,9 +632,10 @@ export function createV3Client(options: V3ClientOptions = {}): V3Client {
      * and your own CTEs are all fair game, and none of them can leak past
      * your groups (the raw tables are unreachable, a wall not a membrane).
      *
-     * Each service CTE exposes: `doc_id`, `author_key`, `body` (JSON string —
-     * use `JSONExtractString(body, 'field', 'value')` for fields),
-     * `ref_value`, `tags`, `created_at`, `updated_at`.
+      * Each service CTE exposes: `doc_id`, `author_key`, `body` (JSON string —
+      * use `JSONExtractString(body, 'field', 'value')` for fields),
+      * `ref_value`, `tags`, `created_at`, `updated_at`, `group_id` (the group
+      * the doc row belongs to — a doc in N readable groups returns N rows).
      *
      * **Alias every table-qualified column you SELECT** (`p.body AS body`,
      * `p.author_key AS author_key`, …). ClickHouse names a result column after
@@ -662,13 +684,30 @@ export function createV3Client(options: V3ClientOptions = {}): V3Client {
      * `)
      * ```
      *
-     * @param sql — a single ClickHouse SELECT over service names.
-     * @param opts.groups — scope the read to specific group IDs (default: all
-     *   the reader's groups, the "me" semantics of `read`).
-     */
-    async query(sql: string, opts?: { groups?: string[]; prepare?: V3Prepare }): Promise<V3QueryResult> {
+      * @param sql — a single ClickHouse SELECT over service names.
+      * @param opts.groups — scope the read to specific group IDs (default: all
+      *   the reader's groups, the "me" semantics of `read`).
+      * @param opts.withGroupMeta — opt in to the `group_meta` boundary CTE so
+      *   the query can `JOIN group_meta gm ON <svc>.group_id = gm.group_id`
+      *   and read `gm.member_count`, `gm.join_policy`, `gm.discoverable`.
+      *   Groups the reader can't read are present but NULLed out (sort them
+      *   last; they reveal nothing but existence). Without this flag
+      *   `group_meta` is rejected as an unknown table.
+      *
+      * @example Sort groups by legit audience size:
+      * ```ts
+      * const { rows } = await w.query(`
+      *   SELECT gm.group_id, gm.member_count, gm.join_policy, gm.discoverable
+      *   FROM group_meta gm
+      *   ORDER BY gm.member_count DESC
+      *   LIMIT 20
+      * `, { withGroupMeta: true })
+      * ```
+      */
+    async query(sql: string, opts?: { groups?: string[]; prepare?: V3Prepare; withGroupMeta?: boolean }): Promise<V3QueryResult> {
       const payload: Record<string, unknown> = { sql }
       if (opts?.groups) payload.groups = opts.groups
+      if (opts?.withGroupMeta) payload.withGroupMeta = true
       // The prepare pass (D73): the engine mints the result rows (media + HLS
       // + ads + face) so the query returns render-ready rows in one round-trip.
       if (opts?.prepare) payload.prepare = opts.prepare
@@ -677,6 +716,22 @@ export function createV3Client(options: V3ClientOptions = {}): V3Client {
       const token = state.token ?? readTokenCookie()
       if (token) payload.token = token
       return authPost<V3QueryResult>(`${apiOrigin}/v3/query`, payload)
+    },
+
+    /**
+     * The public people directory (D0, discover-reorg): a paged,
+     * follower-ranked list of users whose profile face the reader can read.
+     * Anon-capable (like `query` / `read`): the token rides along when present,
+     * but a missing token reads as the node's anon member (the public subset).
+     * A signed-in reader sees more (their follows + the public subset).
+     */
+    async listPeopleDirectory(opts?: { limit?: number; offset?: number }): Promise<V3PeoplePage> {
+      const payload: Record<string, unknown> = {}
+      if (opts?.limit != null) payload.limit = opts.limit
+      if (opts?.offset != null) payload.offset = opts.offset
+      const token = state.token ?? readTokenCookie()
+      if (token) payload.token = token
+      return authPost<V3PeoplePage>(`${apiOrigin}/v3/users/directory`, payload)
     },
 
     async update(
@@ -723,7 +778,7 @@ export function createV3Client(options: V3ClientOptions = {}): V3Client {
       joinPolicy: string,
       roles: Record<string, unknown>[],
       members: { member_key: string; role?: string }[],
-      opts?: { discoverable?: boolean },
+      opts?: { discoverable?: boolean; tags?: string[] },
     ): Promise<{ group_id: string }> {
       const payload: V3Body = {
         name,
@@ -732,6 +787,7 @@ export function createV3Client(options: V3ClientOptions = {}): V3Client {
         members,
       }
       if (opts?.discoverable !== undefined) payload.discoverable = opts.discoverable
+      if (opts?.tags) payload.tags = opts.tags
       return v3Post<{ group_id: string }>('groups/create', payload)
     },
 
@@ -739,8 +795,10 @@ export function createV3Client(options: V3ClientOptions = {}): V3Client {
       return v3Post<V3Group>('groups/get', { group_id: groupId })
     },
 
-    async getMyGroups(): Promise<V3Group[]> {
-      return v3Post<V3Group[]>('groups/list', {})
+    async getMyGroups(opts?: { tags?: string[] }): Promise<V3Group[]> {
+      const payload: V3Body = {}
+      if (opts?.tags) payload.tags = opts.tags
+      return v3Post<V3Group[]>('groups/list', payload)
     },
 
     async getGroupsManages(): Promise<V3Group[]> {
@@ -749,12 +807,13 @@ export function createV3Client(options: V3ClientOptions = {}): V3Client {
 
     async updateGroup(
       groupId: string,
-      opts?: { join_policy?: string; roles?: Record<string, unknown>[]; discoverable?: boolean },
+      opts?: { join_policy?: string; roles?: Record<string, unknown>[]; discoverable?: boolean; tags?: string[] },
     ): Promise<V3Group> {
       const payload: V3Body = { group_id: groupId }
       if (opts?.join_policy) payload.join_policy = opts.join_policy
       if (opts?.roles) payload.roles = opts.roles
       if (opts?.discoverable !== undefined) payload.discoverable = opts.discoverable
+      if (opts?.tags) payload.tags = opts.tags
       return v3Post<V3Group>('groups/update', payload)
     },
 
@@ -1091,7 +1150,8 @@ export interface V3Client {
   read(collection: string, opts: { groups: string[]; limit?: number; offset?: number; ref?: string | string[]; sort?: PowerMeanSort; tags?: string[]; cursor?: string; order?: "asc" | "desc" }): Promise<V3Document[]>
   readRefCounts(collection: string, opts: { groups: string[]; ref: string | string[] }): Promise<Record<string, number>>
   readById(docId: string, collection: string): Promise<V3Document>
-  query(sql: string, opts?: { groups?: string[]; prepare?: V3Prepare }): Promise<V3QueryResult>
+  query(sql: string, opts?: { groups?: string[]; prepare?: V3Prepare; withGroupMeta?: boolean }): Promise<V3QueryResult>
+  listPeopleDirectory(opts?: { limit?: number; offset?: number }): Promise<V3PeoplePage>
   update(docId: string, body: Record<string, unknown>, opts?: { groups?: string[]; ad_preference?: V3AdPreference }): Promise<V3Document>
   delete(docId: string): Promise<{ doc_id: string; status: string }>
 
@@ -1107,11 +1167,11 @@ export interface V3Client {
   contractOnReady(contracts: V3CR[], callback?: (response: { status: string; errors?: string[] }) => void): void
 
   // Groups
-  createGroup(name: string, joinPolicy: string, roles: Record<string, unknown>[], members: { member_key: string; role?: string }[], opts?: { discoverable?: boolean }): Promise<{ group_id: string }>
+  createGroup(name: string, joinPolicy: string, roles: Record<string, unknown>[], members: { member_key: string; role?: string }[], opts?: { discoverable?: boolean; tags?: string[] }): Promise<{ group_id: string }>
   getGroup(groupId: string): Promise<V3Group>
-  getMyGroups(): Promise<V3Group[]>
+  getMyGroups(opts?: { tags?: string[] }): Promise<V3Group[]>
   getGroupsManages(): Promise<V3Group[]>
-  updateGroup(groupId: string, opts?: { join_policy?: string; roles?: Record<string, unknown>[]; discoverable?: boolean }): Promise<V3Group>
+  updateGroup(groupId: string, opts?: { join_policy?: string; roles?: Record<string, unknown>[]; discoverable?: boolean; tags?: string[] }): Promise<V3Group>
   deleteGroup(groupId: string): Promise<{ group_id: string; status: string }>
   joinGroup(groupId: string): Promise<V3GroupMember | { group_id: string; status: string }>
   requestJoin(groupId: string): Promise<{ group_id: string; status: string }>

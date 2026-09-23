@@ -1,5 +1,5 @@
-import { useState, useEffect, useCallback, useMemo } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useState, useEffect, useCallback, useRef } from 'react';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -7,6 +7,8 @@ import { Skeleton } from '@/components/ui/skeleton';
 import {
   readGroupDetail,
   readGroupIdentity,
+  readGroupMediaPage,
+  GROUP_MEDIA_PAGE_SIZE,
   joinGroup,
   requestJoinGroup,
   leaveGroup,
@@ -18,20 +20,25 @@ import {
   readReactions,
   toggleReactionKind,
   toggleRepost,
+  saveGroup,
+  publishGroup,
   type ReactionKind,
   type GroupDetail,
   type GroupIdentity,
+  type GroupCommitInput,
   type MediaRecord,
 } from '@/data';
 import { fromV3DocToPost } from '@/data/types';
 import { getV3Client } from '@/data/v3';
 import type { PostRecord } from '@/data/types';
 import ManageGroupSheet, { type ManageSection } from '@/components/Groups/ManageGroup/ManageGroupSheet';
-import ManageProfileSection from '@/components/Groups/ManageGroup/ProfileSection';
-import ManageSettingsSection from '@/components/Groups/ManageGroup/SettingsSection';
+import GroupEditMode from '@/components/Groups/ManageGroup/GroupEditMode';
 import ManageMembersSection from '@/components/Groups/ManageGroup/MembersSection';
 import ManageRolesSection from '@/components/Groups/ManageGroup/RolesSection';
 import { toast, errorMessage } from '@/components/shared/Toast';
+import { PostCard } from '@/components/Feed/FeedScreen';
+import PostComposer from '@/components/Feed/PostComposer';
+import { PostLightbox } from '@/components/Bio/PostLightbox';
 import {
   ArrowLeft,
   Users,
@@ -43,13 +50,12 @@ import {
   AlertTriangle,
   RefreshCw,
   Globe,
-  Send,
-  Settings,
+  MoreHorizontal,
   ImagePlus,
+  Play,
+  Pencil,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { VideoPlayer, sourceFromMedia } from '@/components/Feed/VideoPlayer';
-import { PostActions } from '@/components/Feed/PostActions';
 
 const LOG = (...args: unknown[]) => console.log('[social:groups:detail]', ...args);
 
@@ -73,72 +79,21 @@ function formatCount(n: number): string {
   return String(n);
 }
 
-function formatTimeAgo(dateStr: string): string {
-  const diff = Date.now() - new Date(dateStr).getTime();
-  const mins = Math.floor(diff / 60000);
-  if (mins < 1) return 'now';
-  if (mins < 60) return `${mins}m`;
-  const hrs = Math.floor(mins / 60);
-  if (hrs < 24) return `${hrs}h`;
-  const days = Math.floor(hrs / 24);
-  if (days < 7) return `${days}d`;
-  return new Date(dateStr).toLocaleDateString();
-}
+// ── Group feed post (the reference PostCard, group-scoped) ─────────────────
+// The feed is the reference renderer (FeedScreen's PostCard) — no surface
+// re-implements the card. This wrapper owns the per-post engagement state
+// (the reaction pair + comment count, scoped to the group — reactions and
+// comments attach to the group, not the discover board, post-actions.md) and
+// hands the card the group via `groups` so every engagement write lands in
+// the group.
 
-// ── Media renderer (images + video, natural ratio) ─────────────────────────
-
-function PostMedia({ media }: { media: MediaRecord[] }) {
-  if (!media.length) return null;
-  const single = media.length === 1;
-  return (
-    <div className={cn('mt-3 grid gap-1.5', single ? 'grid-cols-1' : 'grid-cols-2')}>
-      {media.map((m, i) => {
-        const isVideo = (m.mime_type || '').startsWith('video/');
-        const isImage = (m.mime_type || '').startsWith('image/');
-        if (isVideo) {
-          return (
-            <VideoPlayer
-              key={m._id || i}
-              source={sourceFromMedia(m)}
-              mode="inline"
-              fit="contain"
-              maxHeight="60vh"
-              testId="group-post-video"
-              className="rounded-lg ring-1 ring-border"
-            />
-          );
-        }
-        if (isImage) {
-          return (
-            <img
-              key={m._id || i}
-              src={m.url}
-              alt=""
-              className={cn(
-                'w-full rounded-lg object-cover ring-1 ring-border',
-                single ? 'max-h-[60vh]' : 'aspect-square',
-              )}
-              data-testid="group-post-image"
-            />
-          );
-        }
-        return null;
-      })}
-    </div>
-  );
-}
-
-// ── Post card (member view) ────────────────────────────────────────────────
-
-function GroupPostCard({ post, media, groupId }: { post: PostRecord; media: MediaRecord[]; groupId: string }) {
+function GroupFeedPost({ post, media, groupId }: { post: PostRecord; media: MediaRecord[]; groupId: string }) {
   const navigate = useNavigate();
   const author = post.author_username || post.author || 'unknown';
-  const displayName = author.charAt(0).toUpperCase() + author.slice(1);
 
   // Engagement state (post-actions.md): the reaction pair + comment count,
-  // scoped to the group (reactions/comments attach to the group, not the
-  // discover board). Loaded on mount — the group feed is a short list, not a
-  // paginated feed, so a per-card read is fine (the lightbox's pattern).
+  // scoped to the group. Loaded on mount — the group feed is a short list,
+  // not a paginated feed, so a per-card read is fine (the lightbox's pattern).
   const [liked, setLiked] = useState(false);
   const [disliked, setDisliked] = useState(false);
   const [likeCount, setLikeCount] = useState(0);
@@ -228,114 +183,30 @@ function GroupPostCard({ post, media, groupId }: { post: PostRecord; media: Medi
   }
 
   return (
-    <article data-testid="group-post-card" className="rounded-lg border border-border bg-card p-4">
-      <div className="flex items-center gap-3">
-        <Avatar className={cn('h-9 w-9 shrink-0', hashToColor(author))}>
-          <AvatarFallback className="text-foreground text-sm font-semibold">
-            {author.charAt(0).toUpperCase()}
-          </AvatarFallback>
-        </Avatar>
-        <div className="min-w-0 flex-1">
-          <p className="truncate text-sm font-semibold text-foreground">{displayName}</p>
-          <p className="text-xs text-muted-foreground">{formatTimeAgo(post.created_at)}</p>
-        </div>
-      </div>
-      {post.text && (
-        <p className="mt-3 whitespace-pre-wrap text-sm leading-relaxed text-foreground">{post.text}</p>
-      )}
-      <PostMedia media={media} />
-      <PostActions
-        postId={post._id || ''}
-        liked={liked}
-        disliked={disliked}
-        reactionCount={likeCount}
-        dislikeCount={dislikeCount}
-        commentCount={commentCount}
-        onToggleReaction={handleToggleReaction}
-        onCommentCountChange={setCommentCount}
-        postAuthor={author}
-        groups={[groupId]}
-        onAuthorClick={(username) => navigate(`/u/${username}`)}
-        dislike="interactive"
-        repost="interactive"
-        reposted={reposted}
-        repostCount={repostCount}
-        onToggleRepost={handleToggleRepost}
-        testId="group-post-actions"
-      />
-    </article>
-  );
-}
-
-// ── Composer (member only) ─────────────────────────────────────────────────
-
-function GroupComposer({ groupId, onPosted }: { groupId: string; onPosted: () => void }) {
-  const [text, setText] = useState('');
-  const [posting, setPosting] = useState(false);
-  const username = useMemo(() => {
-    try {
-      return getV3Client().readToken()?.username || 'you';
-    } catch {
-      return 'you';
-    }
-  }, []);
-
-  const handlePost = useCallback(async () => {
-    const body = text.trim();
-    if (!body || posting) return;
-    setPosting(true);
-    LOG('composer — posting to', groupId);
-    try {
-      const w = getV3Client();
-      await w.create('posts', { text: body }, { groups: [groupId] });
-      LOG('composer — posted');
-      setText('');
-      onPosted();
-    } catch (e) {
-      LOG('composer — failed:', e);
-      toast.error(errorMessage(e, 'Could not post to the group.'));
-    } finally {
-      setPosting(false);
-    }
-  }, [text, posting, groupId, onPosted]);
-
-  return (
-    <div className="mb-4 flex items-start gap-3" data-testid="group-composer">
-      <Avatar className={cn('h-9 w-9 shrink-0', hashToColor(username))}>
-        <AvatarFallback className="text-foreground text-sm font-semibold">{username.charAt(0).toUpperCase()}</AvatarFallback>
-      </Avatar>
-      <div className="flex-1">
-        <textarea
-          value={text}
-          onChange={(e) => setText(e.target.value)}
-          onKeyDown={(e) => {
-            if ((e.metaKey || e.ctrlKey) && e.key === 'Enter') handlePost();
-          }}
-          placeholder="Share with the group…"
-          rows={2}
-          disabled={posting}
-          data-testid="group-composer-input"
-          className="w-full resize-none rounded-lg border border-input bg-surface px-3 py-2 text-sm placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-brand/50 transition-colors duration-150"
-        />
-        <div className="mt-2 flex justify-end">
-          <Button
-            variant="brand"
-            size="sm"
-            onClick={handlePost}
-            disabled={posting || !text.trim()}
-            className="gap-1.5"
-            data-testid="group-composer-post"
-          >
-            {posting ? (
-              <Loader2 className="h-3.5 w-3.5 animate-spin" strokeWidth={2} />
-            ) : (
-              <Send className="h-3.5 w-3.5" strokeWidth={1.75} />
-            )}
-            Post
-          </Button>
-        </div>
-      </div>
-    </div>
+    <PostCard
+      post={post}
+      authorName={author}
+      authorUsername={post.author_username}
+      authorProvider={post.author_provider}
+      mediaItems={media}
+      reactionCount={likeCount}
+      dislikeCount={dislikeCount}
+      commentCount={commentCount}
+      liked={liked}
+      disliked={disliked}
+      reposted={reposted}
+      repostCount={repostCount}
+      onToggleRepost={handleToggleRepost}
+      timestamp={post.created_at}
+      onToggleReaction={handleToggleReaction}
+      onCommentCountChange={setCommentCount}
+      onAuthorClick={(username) => navigate(`/u/${username}`)}
+      postAuthor={post.author_username}
+      groups={[groupId]}
+      isOwnPost={token ? post.author_username === token.username : false}
+      onPostUpdated={() => {}}
+      testId="group-post-card"
+    />
   );
 }
 
@@ -378,6 +249,53 @@ export default function GroupDetailScreen({ groupId }: { groupId: string }) {
   // (the reader's role grants a management op under the 'group' key).
   const [canManage, setCanManage] = useState(false);
   const [manageOpen, setManageOpen] = useState(false);
+
+  // The inline edit mode (G2, decision 2): the manager's "Edit" pencil flips
+  // the page into edit mode (the hero's fields become inputs + the settings).
+  // Edit mode STAGES the changes — the live group is frozen at the last commit;
+  // Save/Publish is the atomic commit, Cancel discards.
+  const [editing, setEditing] = useState(false);
+  // A draft is being created right now (G4: the "New group" flow lands here
+  // with ?edit=1) — the draft-delete in the action row is lightweight
+  // (one-tap, no confirm): the group is inert, discarding it frees the slug.
+  const [deletingDraft, setDeletingDraft] = useState(false);
+  // A banner/avatar upload is in flight (reported by GroupEditMode, decision 3).
+  // Gates the save (no auto-save mid-upload) + the nav-away warning.
+  const [uploading, setUploading] = useState(false);
+  // The nav-away-mid-upload warning is showing (decision 3).
+  const [uploadWarning, setUploadWarning] = useState(false);
+  // The create-time slug guard (G4, decision 1): true while an active group
+  // exists at the draft's slug. Gates Publish (the guard is live in edit mode).
+  const [slugTaken, setSlugTaken] = useState(false);
+
+  // The tabs (G1): Feed (default, bare URL) | Media (?tab=media). The URL holds
+  // the active tab (the deep-link rule) — refresh restores it, back/forward
+  // work, and a shared link carries it. The group page is the profile page with
+  // the tab order flipped (feed first, media second).
+  const [searchParams, setSearchParams] = useSearchParams();
+  const tab: 'feed' | 'media' = searchParams.get('tab') === 'media' ? 'media' : 'feed';
+  const selectTab = useCallback((next: 'feed' | 'media') => {
+    const params = new URLSearchParams(searchParams);
+    if (next === 'media') params.set('tab', 'media');
+    else params.delete('tab');
+    setSearchParams(params, { replace: true });
+    LOG('tab —', next);
+  }, [searchParams, setSearchParams]);
+
+  // The Media tab (G1): a PAGED insta grid of the group's media posts —
+  // infinite scroll appends the next page (not "pull everything") — plus a
+  // total count ("N photos", the exhaustion signal). Media is resolved into
+  // mediaGridMap (doc_id → MediaRecord) as each page lands.
+  const [mediaPosts, setMediaPosts] = useState<PostRecord[]>([]);
+  const [mediaTotal, setMediaTotal] = useState(0);
+  const [mediaHasMore, setMediaHasMore] = useState(false);
+  const [mediaLoading, setMediaLoading] = useState(false);
+  const [mediaLoadingMore, setMediaLoadingMore] = useState(false);
+  const [mediaGridMap, setMediaGridMap] = useState<Record<string, MediaRecord>>({});
+  const [mediaLightboxPost, setMediaLightboxPost] = useState<PostRecord | null>(null);
+  const mediaOffsetRef = useRef(0);
+  const mediaInitializedRef = useRef(false);
+  const mediaSentinelRef = useRef<HTMLDivElement>(null);
 
   const load = useCallback(async () => {
     if (!id) return;
@@ -431,6 +349,107 @@ export default function GroupDetailScreen({ groupId }: { groupId: string }) {
     load();
   }, [load]);
 
+  // G4: a draft opens in edit mode — the create flow lands here with ?edit=1,
+  // and a draft with no staged name yet is still being configured. The page IS
+  // the form (the operator's "profile looking page come up in the edit mode").
+  // The flag is cleared on entry so a refresh mid-create doesn't re-flip a
+  // named draft into edit mode (it re-opens via the pencil like any group).
+  useEffect(() => {
+    if (loading || editing || identity.status !== 'draft') return;
+    const wantsEdit = searchParams.get('edit') === '1' || !identity.name;
+    if (!wantsEdit) return;
+    LOG('draft — auto-opening edit mode', id);
+    setEditing(true);
+    if (searchParams.get('edit') === '1') {
+      const params = new URLSearchParams(searchParams);
+      params.delete('edit');
+      setSearchParams(params, { replace: true });
+    }
+  }, [loading, editing, identity.status, identity.name, id, searchParams, setSearchParams]);
+
+  // ── Media tab (G1): the paged insta grid ──────────────────────────────────
+  // `loadMediaPage` reads one page (limit/offset) of the group's media posts +
+  // the total count, resolves the page's media refs into mediaGridMap, and
+  // appends (or replaces, for page one) the grid. `loadMoreMedia` is the
+  // infinite-scroll trigger (the sentinel's IntersectionObserver).
+  const loadMediaPage = useCallback(async (offset: number, append: boolean) => {
+    if (!id) return;
+    if (append) setMediaLoadingMore(true);
+    else setMediaLoading(true);
+    LOG('loadMediaPage — start', id, { offset, append });
+    try {
+      const page = await readGroupMediaPage(id, GROUP_MEDIA_PAGE_SIZE, offset);
+      // Resolve the page's media refs (the grid renders from the resolved map —
+      // the same resolveMediaRefs path the hero + feed use).
+      const refs: string[] = [];
+      for (const p of page.posts) {
+        for (const r of p.media_refs || []) {
+          const refId = mediaRefId(r);
+          if (refId) refs.push(refId);
+        }
+      }
+      if (refs.length) {
+        const resolved = await resolveMediaRefs([...new Set(refs)]);
+        const map: Record<string, MediaRecord> = {};
+        for (const m of resolved) if (m._id) map[m._id] = m;
+        setMediaGridMap((prev) => ({ ...prev, ...map }));
+      }
+      setMediaPosts((prev) => (append ? [...prev, ...page.posts] : page.posts));
+      setMediaTotal(page.total);
+      setMediaHasMore(page.hasMore);
+      mediaOffsetRef.current = offset + page.posts.length;
+      LOG('loadMediaPage — got', page.posts.length, 'posts, total:', page.total, 'hasMore:', page.hasMore);
+    } catch (e) {
+      LOG('loadMediaPage — failed:', e);
+    } finally {
+      setMediaLoading(false);
+      setMediaLoadingMore(false);
+    }
+  }, [id]);
+
+  const loadMoreMedia = useCallback(() => {
+    if (!mediaHasMore || mediaLoadingMore || mediaLoading) return;
+    loadMediaPage(mediaOffsetRef.current, true);
+  }, [mediaHasMore, mediaLoadingMore, mediaLoading, loadMediaPage]);
+
+  // Reset the media grid when the group changes (the route param can change
+  // without a remount). Fresh group → fresh grid.
+  useEffect(() => {
+    mediaInitializedRef.current = false;
+    mediaOffsetRef.current = 0;
+    setMediaPosts([]);
+    setMediaTotal(0);
+    setMediaHasMore(false);
+    setMediaGridMap({});
+    setMediaLightboxPost(null);
+  }, [id]);
+
+  // Load page one when the Media tab is active (and not yet loaded). The feed
+  // is the default tab, so the media read is deferred until the tab is opened.
+  useEffect(() => {
+    if (tab === 'media' && !mediaInitializedRef.current && !mediaLoading) {
+      mediaInitializedRef.current = true;
+      loadMediaPage(0, false);
+    }
+  }, [tab, mediaLoading, loadMediaPage]);
+
+  // Infinite scroll: a sentinel at the bottom of the grid triggers loadMoreMedia
+  // when it scrolls into view (rootMargin prefetches a page early) — the feed's
+  // exact pattern.
+  useEffect(() => {
+    if (tab !== 'media') return;
+    const sentinel = mediaSentinelRef.current;
+    if (!sentinel) return;
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries[0].isIntersecting) loadMoreMedia();
+      },
+      { rootMargin: '200px' },
+    );
+    observer.observe(sentinel);
+    return () => observer.disconnect();
+  }, [tab, loadMoreMedia]);
+
   const handleJoin = useCallback(async () => {
     if (!detail) return;
     setJoinState('working');
@@ -480,10 +499,74 @@ export default function GroupDetailScreen({ groupId }: { groupId: string }) {
     }
   }, [detail, navigate]);
 
+  // The atomic commit (G2, decision 2): the staged face AND settings land
+  // together via G0's saveGroup (published) / publishGroup (draft). On success
+  // the live state re-reads and edit mode exits; on failure the error surfaces
+  // in the edit form (the stage is kept so the user can retry).
+  const handleEditSave = useCallback(
+    async (staged: GroupCommitInput) => {
+      if (!detail) return;
+      const isDraft = identity.status === 'draft';
+      // The create-time slug guard (decision 1) is live in edit mode: a draft
+      // can't publish onto a slug another active group owns.
+      if (isDraft && slugTaken) {
+        LOG('edit save — blocked: slug taken', detail.group_id);
+        return;
+      }
+      LOG('edit save — atomic commit', detail.group_id, { isDraft });
+      if (isDraft) {
+        await publishGroup(detail.group_id, staged);
+      } else {
+        await saveGroup(detail.group_id, staged);
+      }
+      setEditing(false);
+      await load();
+    },
+    [detail, identity.status, slugTaken, load],
+  );
+
+  // Cancel discards the stage (decision 2) — the live state was never touched,
+  // so exiting edit mode restores it.
+  const handleEditCancel = useCallback(() => {
+    LOG('edit cancel — discarding stage');
+    setEditing(false);
+  }, []);
+
+  // The lightweight draft-delete (G4): only reachable on a draft (the create
+  // flow's action row). One tap — the group is inert (unlisted, owner-only),
+  // so discarding it can't kill a live community; the tombstone frees the slug
+  // (delete-then-recreate is safe, G0). The published-delete two-tap confirm
+  // lives in the kebab (G3) and is a different path.
+  const handleDeleteDraft = useCallback(async () => {
+    if (!detail || deletingDraft) return;
+    LOG('draft delete —', detail.group_id);
+    setDeletingDraft(true);
+    try {
+      await deleteGroup(detail.group_id);
+      LOG('draft delete — done, back to groups');
+      navigate('/groups');
+    } catch (e) {
+      LOG('draft delete — failed:', e);
+      toast.error(errorMessage(e, 'Could not delete the draft.'));
+      setDeletingDraft(false);
+    }
+  }, [detail, deletingDraft, navigate]);
+
+  // The back button (decision 3): a nav-away while an upload is in flight shows
+  // the warning (stay / leave) instead of leaving immediately.
+  const handleBack = useCallback(() => {
+    if (uploading) {
+      LOG('back — upload in flight, showing warning');
+      setUploadWarning(true);
+      return;
+    }
+    navigate(-1);
+  }, [uploading, navigate]);
+
   if (loading) {
     return (
       <div className="flex flex-col min-h-full bg-background">
-        <div className="md:max-w-2xl md:mx-auto px-4 py-4 md:px-0">
+        <div className="w-full md:max-w-3xl md:mx-auto px-4 py-4 md:px-0">
           <DetailSkeleton />
         </div>
       </div>
@@ -493,7 +576,7 @@ export default function GroupDetailScreen({ groupId }: { groupId: string }) {
   if (notFound) {
     return (
       <div className="flex flex-col min-h-full bg-background">
-        <div className="md:max-w-2xl md:mx-auto px-4 py-4 md:px-0">
+        <div className="w-full md:max-w-3xl md:mx-auto px-4 py-4 md:px-0">
           <div
             data-testid="group-detail-notfound"
             className="flex flex-col items-center justify-center py-16 px-8 text-center"
@@ -518,7 +601,7 @@ export default function GroupDetailScreen({ groupId }: { groupId: string }) {
   if (error || !detail) {
     return (
       <div className="flex flex-col min-h-full bg-background">
-        <div className="md:max-w-2xl md:mx-auto px-4 py-4 md:px-0">
+        <div className="w-full md:max-w-3xl md:mx-auto px-4 py-4 md:px-0">
           <div
             data-testid="group-detail-error"
             className="flex flex-col items-center justify-center py-16 px-8 text-center"
@@ -556,24 +639,11 @@ export default function GroupDetailScreen({ groupId }: { groupId: string }) {
   // The group has a "face" when it has any of the rich display metadata.
   const hasFace = Boolean(bannerUrl || avatarUrl || hasAbout);
 
-  // The Manage sheet's sections. Profile + Settings are live; Members / Roles
-  // are the remaining bites that drop their content in. Until a section lands,
-  // it renders the placeholder.
+  // The kebab's sections (G3): Profile + Settings are RETIRED — they fold into
+  // the inline edit mode (the "Edit" pencil). The kebab (secondary to the
+  // pencil) is the secondary surface for the list ops that don't fit inline
+  // editing: Members + Roles + the published-delete two-tap confirm.
   const manageSections: ManageSection[] = [
-    { id: 'profile', label: 'Profile', icon: ImagePlus, content: <ManageProfileSection groupId={detail.group_id} onSaved={load} /> },
-    {
-      id: 'settings',
-      label: 'Settings',
-      icon: Settings,
-      content: (
-        <ManageSettingsSection
-          groupId={detail.group_id}
-          joinPolicy={detail.join_policy}
-          discoverable={Boolean(detail.discoverable)}
-          onSaved={load}
-        />
-      ),
-    },
     { id: 'members', label: 'Members', icon: Users, content: <ManageMembersSection groupId={detail.group_id} onSaved={load} /> },
     {
       id: 'roles',
@@ -592,13 +662,13 @@ export default function GroupDetailScreen({ groupId }: { groupId: string }) {
 
   return (
     <div className="flex flex-col min-h-full bg-background">
-      <div className="md:max-w-2xl md:mx-auto flex-1 flex flex-col">
-        {/* Sticky top bar — back + (managers) the Manage entry point */}
+      <div className="w-full md:max-w-3xl md:mx-auto flex-1 flex flex-col">
+        {/* Sticky top bar — back + (managers) the kebab entry point (G3) */}
         <div className="sticky top-0 z-20 flex items-center justify-between border-b border-border bg-background/90 px-2 py-2 backdrop-blur-md md:static md:border-0 md:bg-transparent md:px-0 md:py-1" data-testid="group-detail-topbar">
           <Button
             variant="ghost"
             size="icon"
-            onClick={() => navigate(-1)}
+            onClick={handleBack}
             className="h-9 w-9 shrink-0 text-muted-foreground hover:text-foreground"
             aria-label="Back"
             data-testid="group-detail-back"
@@ -607,33 +677,65 @@ export default function GroupDetailScreen({ groupId }: { groupId: string }) {
           </Button>
           {canManage && (
             <Button
-              variant="outline"
-              size="sm"
-              className="gap-1.5"
+              variant="ghost"
+              size="icon"
+              className="h-9 w-9 shrink-0 text-muted-foreground hover:text-foreground"
               onClick={() => setManageOpen(true)}
-              data-testid="group-detail-manage"
+              aria-label="Manage group"
+              data-testid="group-detail-kebab"
             >
-              <Settings className="h-3.5 w-3.5" strokeWidth={1.75} />
-              <span className="hidden sm:inline">Manage</span>
+              <MoreHorizontal className="h-5 w-5" strokeWidth={1.75} />
             </Button>
           )}
         </div>
 
-        {/* The hero — the group's face (or a designed empty state when it has none) */}
-        {hasFace ? (
-          <div data-testid="group-detail-hero">
-            {bannerUrl && (
-              <div className="h-28 w-full overflow-hidden md:h-40" data-testid="group-detail-banner">
-                <img src={bannerUrl} alt="" className="h-full w-full object-cover" data-testid="group-detail-banner-img" />
-              </div>
+        {/* The hero — the group's face, profile-shaped (banner + overlapping
+            avatar + name + about), the same shape as a user profile. The
+            banner is ALWAYS present (the brand gradient when the group has
+            no cover) so the page never collapses to a bare header. */}
+        <div data-testid="group-detail-hero">
+          {editing ? (
+            <div className="px-4 py-4 sm:px-6" data-testid="group-detail-editing">
+              <GroupEditMode
+                groupId={detail.group_id}
+                identity={identity}
+                joinPolicy={detail.join_policy}
+                discoverable={Boolean(detail.discoverable)}
+                isDraft={identity.status === 'draft'}
+                onUploadingChange={setUploading}
+                onSave={handleEditSave}
+                onCancel={handleEditCancel}
+                slugTaken={slugTaken}
+                onSlugTakenChange={setSlugTaken}
+                onDelete={handleDeleteDraft}
+                deleting={deletingDraft}
+              />
+            </div>
+          ) : (
+          <>
+          <div
+            className={cn(
+              'relative h-32 w-full overflow-hidden sm:h-44',
+              'bg-gradient-to-br from-brand/40 via-brand-muted to-background',
             )}
-            <div className={cn('flex items-end gap-3 px-4', bannerUrl ? '-mt-8 pb-0' : 'pt-4', 'md:px-0')}>
-              <div className="shrink-0 rounded-full border-4 border-card">
-                <Avatar className={cn('h-16 w-16', hashToColor(detail.group_id))}>
+            data-testid="group-detail-banner"
+          >
+            <div
+              className="absolute inset-0 bg-gradient-to-t from-background/60 via-transparent to-brand/10"
+              aria-hidden="true"
+            />
+            {bannerUrl && (
+              <img src={bannerUrl} alt="" className="absolute inset-0 h-full w-full object-cover" data-testid="group-detail-banner-img" />
+            )}
+          </div>
+          <div className="px-4 sm:px-6">
+            <div className="relative flex items-end justify-between gap-4 -mt-14">
+              <div className="shrink-0 rounded-full border-4 border-background">
+                <Avatar className={cn('h-20 w-20', hashToColor(detail.group_id))}>
                   {avatarUrl ? (
                     <img src={avatarUrl} alt="" className="h-full w-full rounded-full object-cover" data-testid="group-detail-avatar-img" />
                   ) : (
-                    <AvatarFallback className="text-foreground text-xl font-semibold">
+                    <AvatarFallback className="text-foreground text-3xl font-semibold">
                       {displayName.charAt(0).toUpperCase()}
                     </AvatarFallback>
                   )}
@@ -641,9 +743,14 @@ export default function GroupDetailScreen({ groupId }: { groupId: string }) {
               </div>
               <div className="min-w-0 flex-1 pb-1">
                 <div className="flex flex-wrap items-center gap-2">
-                  <h1 className="truncate font-display text-lg font-bold text-foreground" data-testid="group-detail-name">
+                  <h1 className="truncate font-display text-xl font-bold text-foreground" data-testid="group-detail-name">
                     {displayName}
                   </h1>
+                  {identity.status === 'draft' && (
+                    <Badge variant="outline" className="normal-case tracking-normal" data-testid="group-detail-draft">
+                      Draft
+                    </Badge>
+                  )}
                   {detail.discoverable && (
                     <Badge variant="brand" className="normal-case tracking-normal" data-testid="group-detail-listed">
                       Listed
@@ -659,6 +766,18 @@ export default function GroupDetailScreen({ groupId }: { groupId: string }) {
                       Private
                     </Badge>
                   )}
+                  {canManage && (
+                    <button
+                      type="button"
+                      onClick={() => setEditing(true)}
+                      aria-label="Edit group"
+                      className="ml-auto inline-flex items-center gap-1.5 rounded-md border border-border bg-elevated px-2.5 py-1.5 text-xs font-medium text-foreground transition-colors hover:border-brand/40 hover:text-brand-300 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                      data-testid="group-detail-edit"
+                    >
+                      <Pencil className="h-3.5 w-3.5" strokeWidth={1.75} />
+                      <span className="hidden sm:inline">Edit</span>
+                    </button>
+                  )}
                 </div>
                 <p className="mt-0.5 flex items-center gap-1.5 text-xs text-muted-foreground">
                   <span className="tabular-nums">{formatCount(detail.member_count)} members</span>
@@ -668,7 +787,7 @@ export default function GroupDetailScreen({ groupId }: { groupId: string }) {
               </div>
             </div>
             {hasAbout && (
-              <div className="border-b border-border px-4 py-3 md:px-0">
+              <div className="mt-3 pb-4">
                 {identity.description && (
                   <p className="text-sm leading-relaxed text-foreground" data-testid="group-detail-description">
                     {identity.description}
@@ -697,39 +816,10 @@ export default function GroupDetailScreen({ groupId }: { groupId: string }) {
                 )}
               </div>
             )}
-          </div>
-        ) : (
-          <div className="border-b border-border px-4 py-4 md:px-0" data-testid="group-detail-hero-empty">
-            <div className="flex items-center gap-3">
-              <div className="shrink-0">
-                <Avatar className={cn('h-12 w-12', hashToColor(detail.group_id))}>
-                  <AvatarFallback className="text-foreground text-lg font-semibold">
-                    {displayName.charAt(0).toUpperCase()}
-                  </AvatarFallback>
-                </Avatar>
-              </div>
-              <div className="min-w-0 flex-1">
-                <div className="flex flex-wrap items-center gap-2">
-                  <h1 className="truncate font-display text-lg font-bold text-foreground" data-testid="group-detail-name">
-                    {displayName}
-                  </h1>
-                  {detail.discoverable && (
-                    <Badge variant="brand" className="normal-case tracking-normal" data-testid="group-detail-listed">
-                      Listed
-                    </Badge>
-                  )}
-                </div>
-                <p className="mt-0.5 flex items-center gap-1.5 text-xs text-muted-foreground">
-                  <span className="tabular-nums">{formatCount(detail.member_count)} members</span>
-                  <span aria-hidden="true">·</span>
-                  <span>by @{detail.owner}</span>
-                </p>
-              </div>
-            </div>
-            {canManage && (
+            {!hasFace && canManage && (
               <button
                 type="button"
-                onClick={() => setManageOpen(true)}
+                onClick={() => (identity.status === 'draft' ? setEditing(true) : setManageOpen(true))}
                 className="mt-3 flex w-full items-center justify-center gap-2 rounded-lg border border-dashed border-border bg-surface px-3 py-3 text-sm font-medium text-muted-foreground transition-colors hover:border-brand/40 hover:text-brand-300 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                 data-testid="group-detail-add-face"
               >
@@ -737,8 +827,11 @@ export default function GroupDetailScreen({ groupId }: { groupId: string }) {
                 Add a cover &amp; about
               </button>
             )}
+            {!hasAbout && <div className="pb-4" />}
           </div>
-        )}
+          </>
+          )}
+        </div>
 
         {/* Join / Leave — the membership action, below the hero */}
         <div className="flex items-center justify-end gap-2 border-b border-border px-4 py-3 md:px-0" data-testid="group-detail-actions">
@@ -792,53 +885,194 @@ export default function GroupDetailScreen({ groupId }: { groupId: string }) {
           )}
         </div>
 
-        {/* The feed — the dominant surface */}
-        <div className="flex-1 px-4 py-4 md:px-0">
-          {detail.posts_state === 'ok' ? (
-            <>
-              {detail.is_member && <GroupComposer groupId={detail.group_id} onPosted={load} />}
-              <div className="space-y-3" data-testid="group-detail-posts">
-                {postRecords.length > 0 ? (
-                  postRecords.map((p) => (
-                    <GroupPostCard
-                      key={p._id || p.created_at}
-                      post={p}
-                      media={(p.media_refs || []).map((r) => mediaMap[mediaRefId(r)]).filter(Boolean)}
-                      groupId={detail.group_id}
-                    />
-                  ))
-                ) : (
-                  <div
-                    data-testid="group-detail-posts-empty"
-                    className="flex flex-col items-center justify-center py-12 px-8 text-center rounded-lg border border-border bg-card"
-                  >
-                    <div className="mb-3 flex h-12 w-12 items-center justify-center rounded-full bg-brand-muted/50">
-                      <Users className="h-6 w-6 text-brand-400" strokeWidth={1.5} />
-                    </div>
-                    <p className="text-sm font-medium text-foreground">No posts yet</p>
-                    <p className="mt-1 text-xs text-muted-foreground">
-                      Be the first to share something with the group.
-                    </p>
+        {/* The tabs (G1): Feed (default, bare URL) | Media (?tab=media) — the
+            profile's tab row with the order flipped (feed front and center,
+            media second). The URL holds the active tab (deep-link rule). */}
+        <div className="flex items-end border-b border-border" data-testid="group-detail-tabs">
+          <button
+            data-testid="group-tab-feed"
+            aria-current={tab === 'feed' ? 'true' : undefined}
+            className={cn(
+              'flex-1 min-h-11 py-3 text-sm font-medium text-center transition-all duration-150 relative',
+              tab === 'feed' ? 'text-foreground' : 'text-muted-foreground hover:text-foreground',
+            )}
+            onClick={() => selectTab('feed')}
+          >
+            Feed
+            {tab === 'feed' && (
+              <div className="absolute bottom-0 inset-x-0 h-0.5 bg-gradient-to-r from-brand to-brand-600" />
+            )}
+          </button>
+          <button
+            data-testid="group-tab-media"
+            aria-current={tab === 'media' ? 'true' : undefined}
+            className={cn(
+              'flex-1 min-h-11 py-3 text-sm font-medium text-center transition-all duration-150 relative',
+              tab === 'media' ? 'text-foreground' : 'text-muted-foreground hover:text-foreground',
+            )}
+            onClick={() => selectTab('media')}
+          >
+            Media
+            {tab === 'media' && (
+              <div className="absolute bottom-0 inset-x-0 h-0.5 bg-gradient-to-r from-brand to-brand-600" />
+            )}
+          </button>
+        </div>
+
+        {/* The feed — the dominant surface (the reference feed card + composer) */}
+        {tab === 'feed' && (
+          <div className="flex-1 px-4 py-4 md:px-0">
+            {detail.posts_state === 'ok' ? (
+              <>
+                {detail.is_member && (
+                  <div data-testid="group-composer" className="mb-4">
+                    <PostComposer groups={[detail.group_id]} onPostCreated={load} />
                   </div>
                 )}
+                <div data-testid="group-detail-posts">
+                  {postRecords.length > 0 ? (
+                    postRecords.map((p) => (
+                      <GroupFeedPost
+                        key={p._id || p.created_at}
+                        post={p}
+                        media={(p.media_refs || []).map((r) => mediaMap[mediaRefId(r)]).filter(Boolean)}
+                        groupId={detail.group_id}
+                      />
+                    ))
+                  ) : (
+                    <div
+                      data-testid="group-detail-posts-empty"
+                      className="flex flex-col items-center justify-center py-12 px-8 text-center rounded-lg border border-border bg-card"
+                    >
+                      <div className="mb-3 flex h-12 w-12 items-center justify-center rounded-full bg-brand-muted/50">
+                        <Users className="h-6 w-6 text-brand-400" strokeWidth={1.5} />
+                      </div>
+                      <p className="text-sm font-medium text-foreground">No posts yet</p>
+                      <p className="mt-1 text-xs text-muted-foreground">
+                        Be the first to share something with the group.
+                      </p>
+                    </div>
+                  )}
+                </div>
+              </>
+            ) : (
+              <div
+                data-testid="group-detail-join-to-view"
+                className="flex flex-col items-center justify-center py-12 px-8 text-center rounded-lg border border-border bg-card"
+              >
+                <div className="mb-3 flex h-12 w-12 items-center justify-center rounded-full bg-brand-muted/50">
+                  <Lock className="h-6 w-6 text-brand-400" strokeWidth={1.5} />
+                </div>
+                <p className="text-sm font-medium text-foreground">Join to view posts</p>
+                <p className="mt-1 max-w-xs text-xs text-muted-foreground">
+                  This group's content is only visible to members. Join the group
+                  to see what's being shared.
+                </p>
               </div>
-            </>
-          ) : (
-            <div
-              data-testid="group-detail-join-to-view"
-              className="flex flex-col items-center justify-center py-12 px-8 text-center rounded-lg border border-border bg-card"
-            >
-              <div className="mb-3 flex h-12 w-12 items-center justify-center rounded-full bg-brand-muted/50">
-                <Lock className="h-6 w-6 text-brand-400" strokeWidth={1.5} />
+            )}
+          </div>
+        )}
+
+        {/* The media tab (G1): the paged insta grid of the group's media posts —
+            infinite scroll appends the next page; the count shows "N photos". */}
+        {tab === 'media' && (
+          <div className="flex-1 px-4 py-4 md:px-0" data-testid="group-detail-media">
+            {detail.posts_state === 'ok' ? (
+              mediaLoading ? (
+                <div className="grid grid-cols-3 gap-1" data-testid="group-media-skeleton">
+                  {Array.from({ length: 9 }).map((_, i) => (
+                    <Skeleton key={i} className="aspect-square rounded-none" />
+                  ))}
+                </div>
+              ) : mediaPosts.length > 0 ? (
+                <>
+                  <div className="mb-3 flex items-center justify-between" data-testid="group-media-count">
+                    <span className="text-sm text-muted-foreground tabular-nums">
+                      {mediaTotal} {mediaTotal === 1 ? 'photo' : 'photos'}
+                    </span>
+                  </div>
+                  <div className="grid grid-cols-3 gap-1" data-testid="group-media-grid">
+                    {mediaPosts.flatMap((post) =>
+                      (post.media_refs || []).map((ref) => {
+                        const media = mediaGridMap[mediaRefId(ref)];
+                        if (!media) return null;
+                        return (
+                          <div
+                            key={mediaRefId(ref)}
+                            role="button"
+                            tabIndex={0}
+                            aria-label="View post"
+                            data-testid="group-media-cell"
+                            onClick={() => setMediaLightboxPost(post)}
+                            onKeyDown={(e) => {
+                              if (e.key === 'Enter' || e.key === ' ') {
+                                e.preventDefault();
+                                setMediaLightboxPost(post);
+                              }
+                            }}
+                            className="aspect-square bg-elevated overflow-hidden relative group cursor-pointer outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset"
+                          >
+                            {media.mime_type?.startsWith('video/') ? (
+                              <div className="w-full h-full relative">
+                                <video
+                                  src={media.url}
+                                  poster={media.thumbnail_url}
+                                  className="w-full h-full object-cover transition-transform duration-150 group-hover:scale-110"
+                                  preload="metadata"
+                                  playsInline
+                                  muted
+                                />
+                                <div className="absolute inset-0 flex items-center justify-center bg-black/20 opacity-0 group-hover:opacity-100 transition-opacity duration-150">
+                                  <div className="flex items-center justify-center w-9 h-9 rounded-full bg-background/80 backdrop-blur-sm">
+                                    <Play className="w-4 h-4 text-foreground ml-0.5" strokeWidth={2} />
+                                  </div>
+                                </div>
+                              </div>
+                            ) : (
+                              <img
+                                src={media.url}
+                                alt={media.alt_text || ''}
+                                className="w-full h-full object-cover transition-transform duration-150 group-hover:scale-110"
+                                loading="lazy"
+                              />
+                            )}
+                            <div className="absolute inset-0 bg-gradient-to-t from-black/30 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-150" />
+                          </div>
+                        );
+                      }),
+                    )}
+                  </div>
+                  {/* The infinite-scroll sentinel (triggers loadMoreMedia when it scrolls in) */}
+                  <div ref={mediaSentinelRef} className="flex items-center justify-center py-4" data-testid="group-media-sentinel">
+                    {mediaLoadingMore ? (
+                      <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
+                    ) : mediaHasMore ? (
+                      <span className="text-xs text-muted-foreground">Loading more…</span>
+                    ) : null}
+                  </div>
+                </>
+              ) : (
+                <div className="py-16 text-center" data-testid="group-media-empty">
+                  <p className="text-sm text-muted-foreground">No media yet</p>
+                </div>
+              )
+            ) : (
+              <div
+                data-testid="group-detail-join-to-view"
+                className="flex flex-col items-center justify-center py-12 px-8 text-center rounded-lg border border-border bg-card"
+              >
+                <div className="mb-3 flex h-12 w-12 items-center justify-center rounded-full bg-brand-muted/50">
+                  <Lock className="h-6 w-6 text-brand-400" strokeWidth={1.5} />
+                </div>
+                <p className="text-sm font-medium text-foreground">Join to view posts</p>
+                <p className="mt-1 max-w-xs text-xs text-muted-foreground">
+                  This group's content is only visible to members. Join the group
+                  to see what's being shared.
+                </p>
               </div>
-              <p className="text-sm font-medium text-foreground">Join to view posts</p>
-              <p className="mt-1 max-w-xs text-xs text-muted-foreground">
-                This group's content is only visible to members. Join the group
-                to see what's being shared.
-              </p>
-            </div>
-          )}
-        </div>
+            )}
+          </div>
+        )}
       </div>
 
       {/* The management surface — manager-only, mounted at the screen root */}
@@ -850,6 +1084,57 @@ export default function GroupDetailScreen({ groupId }: { groupId: string }) {
           groupName={displayName}
           sections={manageSections}
         />
+      )}
+
+      {/* The media lightbox (G1): the tapped media post, the profile's lightbox */}
+      {mediaLightboxPost && (
+        <PostLightbox
+          post={mediaLightboxPost}
+          mediaMap={mediaGridMap}
+          onClose={() => setMediaLightboxPost(null)}
+          onReload={load}
+          postAuthor={mediaLightboxPost.author_username}
+          postService="posts"
+          isOwner={getV3Client().readToken()?.username === mediaLightboxPost.author_username}
+        />
+      )}
+
+      {/* The nav-away-mid-upload warning (G2, decision 3): leaving while a
+          cover/avatar upload is in flight would cancel it. Stay / Leave. */}
+      {uploadWarning && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center px-4"
+          role="dialog"
+          aria-modal="true"
+          aria-label="Upload in progress"
+        >
+          <div className="absolute inset-0 bg-background/80 backdrop-blur-sm" aria-hidden="true" />
+          <div className="relative w-full max-w-sm rounded-lg border border-border bg-card p-5 shadow-[0_8px_30px_rgb(0,0,0,0.35)]" data-testid="group-upload-warning">
+            <div className="mb-3 flex h-10 w-10 items-center justify-center rounded-full bg-warning/15">
+              <AlertTriangle className="h-5 w-5 text-warning" strokeWidth={1.75} />
+            </div>
+            <h3 className="font-display text-base font-semibold text-foreground">Upload in progress</h3>
+            <p className="mt-1 text-sm text-muted-foreground">
+              Your upload will be canceled if you leave.
+            </p>
+            <div className="mt-4 flex justify-end gap-2">
+              <Button variant="ghost" size="sm" onClick={() => setUploadWarning(false)} data-testid="group-upload-warning-stay">
+                Stay
+              </Button>
+              <Button
+                variant="brand"
+                size="sm"
+                onClick={() => {
+                  setUploadWarning(false);
+                  navigate(-1);
+                }}
+                data-testid="group-upload-warning-leave"
+              >
+                Leave
+              </Button>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );

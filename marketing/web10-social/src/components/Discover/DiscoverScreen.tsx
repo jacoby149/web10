@@ -1,6 +1,5 @@
 import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { useSearchParams } from 'react-router-dom';
-import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -9,10 +8,6 @@ import {
   readProfile,
   readUserProfile,
   resolveMediaRefs,
-  fetchSuggestedUsers,
-  followUser,
-  unfollowUser,
-  readFollow,
   getV3Client,
   getDiscoverGroupId,
   toggleReactionKind,
@@ -26,10 +21,11 @@ import type {
   PostRecord,
   MediaRecord,
   ProfileRecord,
-  SuggestedUser,
   ResolvedMediaRef,
+  AdRecord,
 } from '@/data';
 import { mediaRefId } from '@/data';
+import { AttachedAd } from '@/components/Feed/AttachedAd';
 import {
   Compass,
   Flame,
@@ -41,21 +37,21 @@ import {
   Film,
   Music2,
   Users,
-  UserPlus,
-  UserX,
-  Loader2,
+  Layers,
   Search,
   X,
   Video,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { MARKETING_ORIGIN } from '@/lib/origins';
-import { requestInstallPrompt, isMobile } from '@/lib/pwa';
 import { PRESETS, getPreset, knobStateToSort, scorePost, FIXED_CHARACTER_DETEENT, type PresetId, type KnobState, type PowerMeanSortConfig, defaultKnobState } from '@/lib/powerMean';
 import { KnobRack } from './KnobRack';
+import DiscoverPeopleTab from './DiscoverPeopleTab';
+import DiscoverGroupsTab from './DiscoverGroupsTab';
 import { VideoPlayer, sourceFromMedia } from '@/components/Feed/VideoPlayer';
 import { MediaCarousel } from '@/components/Feed/MediaCarousel';
 import { PostActions } from '@/components/Feed/PostActions';
+import PostComposer from '@/components/Feed/PostComposer';
 // D74: the shared discover card (one source, both apps). The social app's grid
 // + youtube cards now wrap it — the same card the marketing /trending uses.
 import { DiscoverCard as SharedDiscoverCard, type DiscoverPost, type CreateComment } from '@web10/discover';
@@ -109,25 +105,6 @@ function formatTimeAgo(dateStr: string): string {
   const days = Math.floor(hrs / 24);
   if (days < 7) return `${days}d`;
   return new Date(dateStr).toLocaleDateString();
-}
-
-function formatCount(n: number): string {
-  if (n >= 10000) return `${(n / 1000).toFixed(1)}k`;
-  if (n >= 1000) return `${(n / 1000).toFixed(1)}k`;
-  return String(n);
-}
-
-function hashToColor(str: string): string {
-  const colors = [
-    'bg-rose-500', 'bg-sky-500', 'bg-amber-500', 'bg-emerald-500',
-    'bg-violet-500', 'bg-pink-500', 'bg-indigo-500', 'bg-orange-500',
-    'bg-teal-500', 'bg-red-500',
-  ];
-  let hash = 0;
-  for (let i = 0; i < str.length; i++) {
-    hash = str.charCodeAt(i) + ((hash << 5) - hash);
-  }
-  return colors[Math.abs(hash) % colors.length];
 }
 
 // ── Heat glow tiers ────────────────────────────────────────────────────────
@@ -246,112 +223,6 @@ function buildTopics(tags: string[]): string[] {
   return unique.slice(0, 12);
 }
 
-// ── Suggested user card ────────────────────────────────────────────────────
-
-interface DiscoverUserCardProps {
-  user: SuggestedUser;
-  isFollowing: boolean;
-  onFollow: () => void;
-  onUnfollow: () => void;
-  onViewProfile: () => void;
-  followLoading: boolean;
-}
-
-function DiscoverUserCard({
-  user,
-  isFollowing,
-  onFollow,
-  onUnfollow,
-  onViewProfile,
-  followLoading,
-}: DiscoverUserCardProps) {
-  const name = user.display_name || user.username;
-  const handleFollowToggle = (e: React.MouseEvent) => {
-    e.stopPropagation();
-    if (isFollowing) {
-      onUnfollow();
-    } else {
-      onFollow();
-    }
-  };
-
-  return (
-    <div
-      data-testid="discover-user-card"
-      className={cn(
-        'group relative flex w-44 shrink-0 flex-col items-center rounded-lg border border-border bg-card p-4 text-center cursor-pointer transition-all duration-150',
-        'hover:-translate-y-0.5 hover:border-brand/30 motion-reduce:transform-none',
-        isFollowing && 'border-brand/30',
-      )}
-      onClick={onViewProfile}
-      role="button"
-      tabIndex={0}
-      onKeyDown={(e) => {
-        if (e.key === 'Enter' || e.key === ' ') {
-          e.preventDefault();
-          onViewProfile();
-        }
-      }}
-      aria-label={`View ${name}'s profile`}
-    >
-      <Avatar
-        className={cn('h-16 w-16 ring-2 ring-transparent transition-all duration-150', hashToColor(user.username), isFollowing && 'ring-brand/40')}
-        onClick={(e) => e.stopPropagation()}
-      >
-        <AvatarFallback className="text-foreground text-xl font-semibold">
-          {name.charAt(0).toUpperCase()}
-        </AvatarFallback>
-      </Avatar>
-      <h3 className="mt-3 w-full truncate text-sm font-semibold text-foreground">{name}</h3>
-      <p className="w-full truncate text-xs text-muted-foreground">@{user.username}</p>
-      {typeof user.followers_count === 'number' && (
-        <p className="mt-1 text-xs text-muted-foreground tabular-nums">
-          {formatCount(user.followers_count)} followers
-        </p>
-      )}
-      {user.bio && (
-        <p className="mt-1 line-clamp-2 text-xs text-muted-foreground/80">{user.bio}</p>
-      )}
-      <Button
-        variant={isFollowing ? 'outline' : 'brand'}
-        size="sm"
-        data-testid="discover-follow-button"
-        onClick={handleFollowToggle}
-        disabled={followLoading}
-        className={cn(
-          'mt-3 w-full gap-1.5',
-          isFollowing && 'border-border hover:border-danger/50 hover:text-danger hover:bg-danger-muted',
-        )}
-      >
-        {followLoading ? (
-          <Loader2 className="h-3.5 w-3.5 animate-spin" strokeWidth={2} />
-        ) : isFollowing ? (
-          <>
-            <UserX className="h-3.5 w-3.5" strokeWidth={1.75} />
-            Following
-          </>
-        ) : (
-          <>
-            <UserPlus className="h-3.5 w-3.5" strokeWidth={1.75} />
-            Follow
-          </>
-        )}
-      </Button>
-    </div>
-  );
-}
-
-function SuggestedUserSkeleton() {
-  return (
-    <div className="flex w-44 shrink-0 flex-col items-center rounded-lg border border-border bg-card p-4">
-      <Skeleton className="h-16 w-16 rounded-full" />
-      <Skeleton className="mt-3 h-4 w-24" />
-      <Skeleton className="mt-2 h-3 w-16" />
-      <Skeleton className="mt-3 h-8 w-full rounded-md" />
-    </div>
-  );
-}
-
 // ── DiscoverCard (trending post) ─────────────────────────────────────────────
 
 // D74: adapt the wapi createComment to the shared card's injected CreateComment.
@@ -381,6 +252,10 @@ function postRecordToDiscoverPost(post: PostRecord, mediaItems: MediaRecord[], d
     reposts: post.reposts,
     score: post.score,
     media: mediaItems,
+    // The attached ads (ad-improvements.md) — the creator's pinned ad + the
+    // node's ad, rendered per format via the card's renderAd seam.
+    ad: post.ad,
+    node_ad: post.node_ad,
   };
 }
 
@@ -443,6 +318,10 @@ function DiscoverCard({
       readComments={readThreadComments}
       readReplies={readThreadReplies}
       createComment={discoverCreateComment}
+      // The attached-ad renderer (ad-improvements.md): each attached ad renders
+      // per its format (inline AdBlock / full PostAdCard). The shared card is
+      // presentational, so the app injects its ad components here.
+      renderAd={(ad) => <AttachedAd ad={ad as unknown as AdRecord} />}
       testId="discover-card"
       // A full-width 9:16 box is ~1.78× the card tall — too big on desktop,
       // and it buries the control rack at its bottom. Cap the portrait frame
@@ -544,6 +423,21 @@ function postToSignals(post: PostRecord) {
 // ── View toggle (D-trending-views bite b: Discover parity) ──────────────────
 
 type DiscoverView = 'grid' | 'youtube';
+
+// ── Subtabs (discover-reorg.md D1) ──────────────────────────────────────────
+// Discover is the discovery surface: Posts | People | Groups. The active
+// subtab is URL state (?tab=; posts is the bare URL) so it is refresh-safe and
+// shareable. The shell owns ?q= and passes it to the active subtab — the
+// subtabs have no search field of their own (search is the top bar, S1/S2).
+// People/Groups are designed placeholders until D2/D3 land the real browsers.
+
+type DiscoverTab = 'posts' | 'people' | 'groups';
+
+const DISCOVER_TABS: { id: DiscoverTab; label: string; icon: typeof Flame }[] = [
+  { id: 'posts', label: 'Posts', icon: Flame },
+  { id: 'people', label: 'People', icon: Users },
+  { id: 'groups', label: 'Groups', icon: Layers },
+];
 
 function postHasVideo(post: PostRecord): boolean {
   // The video view is videos-only (competing with YouTube — photos don't
@@ -737,11 +631,22 @@ export default function DiscoverScreen() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // People-to-follow rail
-  const [suggested, setSuggested] = useState<SuggestedUser[]>([]);
-  const [suggestedLoading, setSuggestedLoading] = useState(true);
-  const [followStates, setFollowStates] = useState<Record<string, boolean>>({});
-  const [followLoading, setFollowLoading] = useState<Record<string, boolean>>({});
+  // Deep-link: active subtab from ?tab= (discover-reorg.md D1). posts is the
+  // bare URL — the param is only written for people/groups, so an unknown or
+  // missing value falls back to posts.
+  const urlTab = searchParams.get('tab');
+  const tab: DiscoverTab = urlTab === 'people' || urlTab === 'groups' ? urlTab : 'posts';
+
+  const setTabUrl = useCallback((next: DiscoverTab) => {
+    const params = new URLSearchParams(searchParams);
+    if (next === 'posts') {
+      params.delete('tab');
+    } else {
+      params.set('tab', next);
+    }
+    setSearchParams(params);
+    LOG('subtab —', next);
+  }, [searchParams, setSearchParams]);
 
   const loadDiscover = useCallback(async (sort: PowerMeanSortConfig | null = null) => {
     // `loading` is the INITIAL skeleton only — a knob-triggered re-read keeps
@@ -904,32 +809,6 @@ export default function DiscoverScreen() {
     }
   }, []);
 
-  const loadSuggested = useCallback(async () => {
-    setSuggestedLoading(true);
-    try {
-      const users = await fetchSuggestedUsers(20);
-      setSuggested(users);
-
-      const states: Record<string, boolean> = {};
-      await Promise.all(
-        users.map(async (user) => {
-          const key = `${user.username}@${user.provider}`;
-          try {
-            const follow = await readFollow(user.username, user.provider);
-            states[key] = follow?.status === 'active';
-          } catch {
-            states[key] = false;
-          }
-        }),
-      );
-      setFollowStates(states);
-    } catch {
-      setSuggested([]);
-    } finally {
-      setSuggestedLoading(false);
-    }
-  }, []);
-
   // The server-side ranking config for the current knob state. The Newest
   // preset is pure chronological — the board's default read (no sort param).
   const sortConfig = useMemo<PowerMeanSortConfig | null>(() => {
@@ -956,41 +835,6 @@ export default function DiscoverScreen() {
     refreshTimer.current = setTimeout(() => loadDiscover(sortConfig), 400);
     return () => { if (refreshTimer.current) clearTimeout(refreshTimer.current); };
   }, [sortConfig, loadDiscover]);
-
-  useEffect(() => {
-    loadSuggested();
-  }, [loadSuggested]);
-
-  const handleFollow = useCallback(async (user: SuggestedUser) => {
-    const key = `${user.username}@${user.provider}`;
-    setFollowLoading((prev) => ({ ...prev, [key]: true }));
-    try {
-      await followUser(user.username, user.provider);
-      setFollowStates((prev) => ({ ...prev, [key]: true }));
-      // D72: following is the strongest "this is my place" signal — the
-      // install prompt fires here (mobile only; dismissal remembered).
-      if (isMobile()) requestInstallPrompt('engagement');
-    } catch (e) {
-      // Follow failed — leave state unchanged, but tell the user why.
-      toast.error(errorMessage(e, `Could not follow ${user.username}.`));
-    } finally {
-      setFollowLoading((prev) => ({ ...prev, [key]: false }));
-    }
-  }, []);
-
-  const handleUnfollow = useCallback(async (user: SuggestedUser) => {
-    const key = `${user.username}@${user.provider}`;
-    setFollowLoading((prev) => ({ ...prev, [key]: true }));
-    try {
-      await unfollowUser(user.username, user.provider);
-      setFollowStates((prev) => ({ ...prev, [key]: false }));
-    } catch (e) {
-      // Unfollow failed — leave state unchanged, but tell the user why.
-      toast.error(errorMessage(e, `Could not unfollow ${user.username}.`));
-    } finally {
-      setFollowLoading((prev) => ({ ...prev, [key]: false }));
-    }
-  }, []);
 
   // The reaction pair (post-actions.md): like XOR dislike, one reaction per
   // user. Optimistic update of the own-reaction maps + the post's like/dislike
@@ -1142,7 +986,6 @@ export default function DiscoverScreen() {
   );
 
   const isInitialLoad = loading && posts.length === 0;
-  const showSuggested = suggestedLoading || suggested.length > 0;
 
   function handleSearchChange(e: React.ChangeEvent<HTMLInputElement>) {
     const val = e.target.value;
@@ -1165,229 +1008,242 @@ export default function DiscoverScreen() {
 
   return (
     <div className="flex flex-col min-h-full bg-background">
-      <div className="md:max-w-xl md:mx-auto">
+      <div className="w-full md:max-w-3xl md:mx-auto">
       {/* Header */}
-      <div className="sticky top-0 z-10 bg-background/90 backdrop-blur-md border-b border-border md:static md:border-0 md:bg-transparent md:mb-4">
+      <div className="sticky top-0 z-10 bg-background/90 backdrop-blur-md md:static md:bg-transparent md:mb-4">
         <div className="flex items-center justify-between px-4 py-3 md:px-0 gap-3">
           <div className="flex items-center gap-2 shrink-0">
             <Compass className="h-5 w-5 text-brand-400" strokeWidth={1.75} />
-            <h1 className="font-display text-lg font-bold text-foreground">Discover</h1>
+            <h1 className="font-display text-lg font-bold text-foreground">Explorer</h1>
           </div>
-          <div className="relative flex-1 max-w-xs">
-            <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground pointer-events-none" />
-            <input
-              type="text"
-              value={searchQuery}
-              onChange={handleSearchChange}
-              placeholder="Search posts…"
-              data-testid="discover-search"
-              className="w-full h-8 pl-8 pr-7 rounded-full border border-input bg-surface text-sm placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-brand/50 transition-colors duration-150"
-            />
-            {searchQuery && (
-              <button
-                type="button"
-                onClick={handleSearchClear}
-                className="absolute right-1.5 top-1/2 -translate-y-1/2 h-5 w-5 flex items-center justify-center rounded-full hover:bg-elevated transition-colors duration-150"
-                aria-label="Clear search"
-                data-testid="discover-search-clear"
-              >
-                <X className="h-3 w-3 text-muted-foreground" />
-              </button>
-            )}
-          </div>
-        </div>
-      </div>
-
-      {/* Controls: presets + knobs */}
-      <div className="px-4 py-3 md:px-0">
-        <KnobRack
-          state={knobState}
-          activePreset={activePreset}
-          onChange={handleKnobChange}
-          onPreset={handlePreset}
-        />
-      </div>
-
-      {/* People to follow rail */}
-      {showSuggested && (
-        <section
-          data-testid="discover-suggested"
-          className="px-4 py-3 md:px-0"
-          aria-label="People to follow"
-        >
-          <div className="mb-3 flex items-center gap-2">
-            <Users className="h-4 w-4 text-brand-400" strokeWidth={1.75} />
-            <h2 className="font-display text-sm font-semibold text-foreground">People to follow</h2>
-          </div>
-          <div className="flex gap-3 overflow-x-auto pb-2 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
-            {suggestedLoading
-              ? Array.from({ length: 4 }).map((_, i) => <SuggestedUserSkeleton key={i} />)
-              : suggested.map((user) => {
-                  const key = `${user.username}@${user.provider}`;
-                  return (
-                    <DiscoverUserCard
-                      key={key}
-                      user={user}
-                      isFollowing={!!followStates[key]}
-                      followLoading={!!followLoading[key]}
-                      onFollow={() => handleFollow(user)}
-                      onUnfollow={() => handleUnfollow(user)}
-                      onViewProfile={() => navigateToUserProfile(user.username, user.provider)}
-                    />
-                  );
-                })}
-          </div>
-        </section>
-      )}
-
-      {/* Topic filter chips */}
-      {topics.length > 1 && (
-        <div className="px-4 py-3 md:px-0">
-          <div
-            className="flex gap-2 overflow-x-auto [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
-            role="tablist"
-            aria-label="Filter by topic"
-          >
-            {topics.map(t => {
-              const active = t === activeTag;
-              return (
+          {tab === 'posts' && (
+            <div className="relative flex-1 max-w-xs">
+              <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground pointer-events-none" />
+              <input
+                type="text"
+                value={searchQuery}
+                onChange={handleSearchChange}
+                placeholder="Search posts…"
+                data-testid="discover-search"
+                className="w-full h-8 pl-8 pr-7 rounded-full border border-input bg-surface text-sm placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-brand/50 transition-colors duration-150"
+              />
+              {searchQuery && (
                 <button
-                  key={t}
                   type="button"
-                  role="tab"
-                  aria-selected={active}
-                  data-testid="discover-topic"
-                  onClick={() => {
-                    setActiveTag(t);
-                    const params = new URLSearchParams(searchParams);
-                    if (t === 'All') {
-                      params.delete('tag');
-                    } else {
-                      params.set('tag', t);
-                    }
-                    setSearchParams(params);
-                  }}
-                  className={cn(
-                    'shrink-0 rounded-full border px-3 py-1.5 text-sm transition-colors',
-                    'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background',
-                    active
-                      ? 'border-brand bg-brand-muted text-brand-300'
-                      : 'border-border bg-surface text-muted-foreground hover:text-foreground',
-                  )}
+                  onClick={handleSearchClear}
+                  className="absolute right-1.5 top-1/2 -translate-y-1/2 h-5 w-5 flex items-center justify-center rounded-full hover:bg-elevated transition-colors duration-150"
+                  aria-label="Clear search"
+                  data-testid="discover-search-clear"
                 >
-                  {t === 'All' ? 'All' : `#${t}`}
+                  <X className="h-3 w-3 text-muted-foreground" />
                 </button>
-              );
-            })}
-          </div>
-        </div>
-      )}
-
-      {/* View toggle — YouTube-style, below topics */}
-      {!isInitialLoad && posts.length > 0 && (
-        <div className="border-b border-border bg-surface/50">
-          <div className="px-4 md:px-0">
-            <div className="flex items-center gap-1 py-2" data-testid="discover-view-toggle">
-              {([
-                ['grid', 'Hot Gossip', Flame],
-                ['youtube', 'Video', Video],
-              ] as [DiscoverView, string, typeof Flame][]).map(([v, label, Icon]) => (
-                <button
-                  key={v}
-                  type="button"
-                  onClick={() => setViewUrl(v)}
-                  data-testid={`discover-view-toggle-${v}`}
-                  className={cn(
-                    'flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-medium transition-colors',
-                    'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background',
-                    view === v
-                      ? 'bg-brand-muted text-brand-300'
-                      : 'text-muted-foreground hover:text-foreground hover:bg-elevated',
-                  )}
-                >
-                  <Icon className="h-3.5 w-3.5" strokeWidth={1.75} />
-                  <span>{label}</span>
-                </button>
-              ))}
+              )}
             </div>
-          </div>
+          )}
         </div>
-      )}
+      </div>
 
-      {/* Content */}
-      <div className="flex-1 px-4 py-4 md:px-0">
-        {isInitialLoad ? (
-          <div className="grid grid-cols-1 gap-4" data-testid="discover-grid-skeleton">
-            {Array.from({ length: 4 }).map((_, i) => (
-              <DiscoverSkeleton key={i} />
+      {/* Subtabs: Posts | People | Groups (?tab=, posts is the bare URL) */}
+      <div className="border-b border-border bg-surface/50" data-testid="discover-tab-row">
+        <div className="px-4 md:px-0">
+          <div className="flex items-center gap-1 py-1.5" role="tablist" aria-label="Explorer sections">
+            {DISCOVER_TABS.map(({ id, label, icon: TabIcon }) => (
+              <button
+                key={id}
+                type="button"
+                role="tab"
+                aria-selected={tab === id}
+                data-testid={`discover-tab-${id}`}
+                onClick={() => setTabUrl(id)}
+                className={cn(
+                  'flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-medium transition-colors',
+                  'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background',
+                  tab === id
+                    ? 'bg-brand-muted text-brand-300'
+                    : 'text-muted-foreground hover:text-foreground hover:bg-elevated',
+                )}
+              >
+                <TabIcon className="h-3.5 w-3.5" strokeWidth={1.75} />
+                <span>{label}</span>
+              </button>
             ))}
           </div>
-        ) : view === 'youtube' ? (
-          /* YouTube view — media posts only, 16:9 thumbnails */
-          mediaPosts.length > 0 ? (
-            <div className="grid grid-cols-1 gap-6" data-testid="discover-youtube-grid">
-              {mediaPosts.map((post, i) => {
-                const authorKey = `${post.author_username}@${post.author_provider}`;
-                const profile = profileMap[authorKey];
-                const mediaItems = mediaMap[post._id || ''] || [];
-                const authorName = profile?.display_name || (post.author_username || '').replace(/[-_]/g, ' ');
-
-                return (
-                  <DiscoverYouTubeCard
-                    key={post._id || post.created_at}
-                    post={post}
-                    rank={i + 1}
-                    authorName={authorName}
-                    authorAvatar={
-                      profile?.avatar_ref
-                        ? mediaItems.find(m => m._id === profile.avatar_ref)?.url
-                        : undefined
-                    }
-                    mediaItems={mediaItems}
-                    onAuthorClick={() => navigateToUserProfile(post.author_username || '', post.author_provider || '')}
-                    onCommentAuthorClick={(username, provider) => navigateToUserProfile(username, provider || '')}
-                  />
-                );
-              })}
-            </div>
-          ) : (
-            <DiscoverYouTubeEmptyState onSwitchToGrid={() => setViewUrl('grid')} />
-          )
-        ) : visiblePosts.length > 0 ? (
-          <div className="grid grid-cols-1 gap-4" data-testid="discover-grid">
-            {visiblePosts.map((post, i) => {
-              const authorKey = `${post.author_username}@${post.author_provider}`;
-              const profile = profileMap[authorKey];
-              const mediaItems = mediaMap[post._id || ''] || [];
-              const authorName = profile?.display_name || (post.author_username || '').replace(/[-_]/g, ' ');
-
-              return (
-                <DiscoverCard
-                  key={post._id || post.created_at}
-                  post={post}
-                  rank={i + 1}
-                  maxScore={maxScore}
-                  authorName={authorName}
-                  authorAvatar={
-                    profile?.avatar_ref
-                      ? mediaItems.find(m => m._id === profile.avatar_ref)?.url
-                      : undefined
-                  }
-                  mediaItems={mediaItems}
-                  onAuthorClick={() => navigateToUserProfile(post.author_username || '', post.author_provider || '')}
-                  onCommentAuthorClick={(username, provider) => navigateToUserProfile(username, provider || '')}
-                  liked={!!likedMap[post._id || '']}
-                  disliked={!!dislikedMap[post._id || '']}
-                  reposted={!!repostedMap[post._id || '']}
-                  onToggleReaction={(kind) => handleToggleReaction(post._id || '', kind)}
-                  onToggleRepost={() => handleToggleRepost(post._id || '')}
-                />              );
-            })}
-          </div>
-        ) : (
-          <DiscoverEmptyState />
-        )}
+        </div>
       </div>
+
+      {tab === 'posts' ? (
+        <>
+          {/* The composer — the operator: "you can make a new post from the
+              explorer too". Posts from the explorer go to the reader's
+              followers groups (the same as the feed's composer). */}
+          <div data-testid="discover-composer" className="border-b border-border">
+            <PostComposer onPostCreated={() => loadDiscover(sortConfig)} />
+          </div>
+
+          {/* Controls: presets + knobs */}
+          <div className="px-4 py-3 md:px-0">
+            <KnobRack
+              state={knobState}
+              activePreset={activePreset}
+              onChange={handleKnobChange}
+              onPreset={handlePreset}
+            />
+          </div>
+
+          {/* Topic filter chips */}
+          {topics.length > 1 && (
+            <div className="px-4 py-3 md:px-0">
+              <div
+                className="flex gap-2 overflow-x-auto [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+                role="tablist"
+                aria-label="Filter by topic"
+              >
+                {topics.map(t => {
+                  const active = t === activeTag;
+                  return (
+                    <button
+                      key={t}
+                      type="button"
+                      role="tab"
+                      aria-selected={active}
+                      data-testid="discover-topic"
+                      onClick={() => {
+                        setActiveTag(t);
+                        const params = new URLSearchParams(searchParams);
+                        if (t === 'All') {
+                          params.delete('tag');
+                        } else {
+                          params.set('tag', t);
+                        }
+                        setSearchParams(params);
+                      }}
+                      className={cn(
+                        'shrink-0 rounded-full border px-3 py-1.5 text-sm transition-colors',
+                        'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background',
+                        active
+                          ? 'border-brand bg-brand-muted text-brand-300'
+                          : 'border-border bg-surface text-muted-foreground hover:text-foreground',
+                      )}
+                    >
+                      {t === 'All' ? 'All' : `#${t}`}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+
+          {/* View toggle — YouTube-style, below topics */}
+          {!isInitialLoad && posts.length > 0 && (
+            <div className="border-b border-border bg-surface/50">
+              <div className="px-4 md:px-0">
+                <div className="flex items-center gap-1 py-2" data-testid="discover-view-toggle">
+                  {([
+                    ['grid', 'Hot Gossip', Flame],
+                    ['youtube', 'Video', Video],
+                  ] as [DiscoverView, string, typeof Flame][]).map(([v, label, Icon]) => (
+                    <button
+                      key={v}
+                      type="button"
+                      onClick={() => setViewUrl(v)}
+                      data-testid={`discover-view-toggle-${v}`}
+                      className={cn(
+                        'flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-medium transition-colors',
+                        'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background',
+                        view === v
+                          ? 'bg-brand-muted text-brand-300'
+                          : 'text-muted-foreground hover:text-foreground hover:bg-elevated',
+                      )}
+                    >
+                      <Icon className="h-3.5 w-3.5" strokeWidth={1.75} />
+                      <span>{label}</span>
+                    </button>
+                  ))}
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Content */}
+          <div className="flex-1 px-4 py-4 md:px-0">
+            {isInitialLoad ? (
+              <div className="grid grid-cols-1 gap-4" data-testid="discover-grid-skeleton">
+                {Array.from({ length: 4 }).map((_, i) => (
+                  <DiscoverSkeleton key={i} />
+                ))}
+              </div>
+            ) : view === 'youtube' ? (
+              /* YouTube view — media posts only, 16:9 thumbnails */
+              mediaPosts.length > 0 ? (
+                <div className="grid grid-cols-1 gap-6" data-testid="discover-youtube-grid">
+                  {mediaPosts.map((post, i) => {
+                    const authorKey = `${post.author_username}@${post.author_provider}`;
+                    const profile = profileMap[authorKey];
+                    const mediaItems = mediaMap[post._id || ''] || [];
+                    const authorName = profile?.display_name || (post.author_username || '').replace(/[-_]/g, ' ');
+
+                    return (
+                      <DiscoverYouTubeCard
+                        key={post._id || post.created_at}
+                        post={post}
+                        rank={i + 1}
+                        authorName={authorName}
+                        authorAvatar={
+                          profile?.avatar_ref
+                            ? mediaItems.find(m => m._id === profile.avatar_ref)?.url
+                            : undefined
+                        }
+                        mediaItems={mediaItems}
+                        onAuthorClick={() => navigateToUserProfile(post.author_username || '', post.author_provider || '')}
+                        onCommentAuthorClick={(username, provider) => navigateToUserProfile(username, provider || '')}
+                      />
+                    );
+                  })}
+                </div>
+              ) : (
+                <DiscoverYouTubeEmptyState onSwitchToGrid={() => setViewUrl('grid')} />
+              )
+            ) : visiblePosts.length > 0 ? (
+              <div className="grid grid-cols-1 gap-4" data-testid="discover-grid">
+                {visiblePosts.map((post, i) => {
+                  const authorKey = `${post.author_username}@${post.author_provider}`;
+                  const profile = profileMap[authorKey];
+                  const mediaItems = mediaMap[post._id || ''] || [];
+                  const authorName = profile?.display_name || (post.author_username || '').replace(/[-_]/g, ' ');
+
+                  return (
+                    <DiscoverCard
+                      key={post._id || post.created_at}
+                      post={post}
+                      rank={i + 1}
+                      maxScore={maxScore}
+                      authorName={authorName}
+                      authorAvatar={
+                        profile?.avatar_ref
+                          ? mediaItems.find(m => m._id === profile.avatar_ref)?.url
+                          : undefined
+                      }
+                      mediaItems={mediaItems}
+                      onAuthorClick={() => navigateToUserProfile(post.author_username || '', post.author_provider || '')}
+                      onCommentAuthorClick={(username, provider) => navigateToUserProfile(username, provider || '')}
+                      liked={!!likedMap[post._id || '']}
+                      disliked={!!dislikedMap[post._id || '']}
+                      reposted={!!repostedMap[post._id || '']}
+                      onToggleReaction={(kind) => handleToggleReaction(post._id || '', kind)}
+                      onToggleRepost={() => handleToggleRepost(post._id || '')}
+                    />              );
+                })}
+              </div>
+            ) : (
+              <DiscoverEmptyState />
+            )}
+          </div>
+        </>
+      ) : tab === 'people' ? (
+        <DiscoverPeopleTab query={urlQuery} />
+      ) : (
+        <DiscoverGroupsTab query={urlQuery} />
+      )}
       </div>
     </div>
   );

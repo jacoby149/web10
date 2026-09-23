@@ -74,8 +74,9 @@ why it's good:
   three apps").
 
 why it's parked:
-- the messages toggle ALREADY makes the point in-product and in the
-  demo video — a second toggle proves nothing new to a creator.
+- the messages toggle made the point in the demo video and the pitch, then
+  got deleted as in-product chrome (D79, 22.09.2026 — "it is just
+  distracting"). A second toggle proves nothing new to a creator.
 - breadth ahead of the spine: delivery truth, media, discovery, and
   deep links come first (the 26.07-late board priorities).
 - view-toggle sprawl is settings-surface sprawl (<5% open settings;
@@ -92,7 +93,8 @@ live. build then — one lens at a time, rendering only.
 the idea (operator, 26.07, looking at the app store + the messages
 lens toggle): "this has some chinese wechat super app potential." one
 identity, many apps over the same data, an in-platform store, sub-
-apps inside the flagship (CRM/Mail already live there) — that IS the
+apps inside the flagship (CRM/Mail once lived there as views — deleted
+in D79; the lens concept is what the super-app frame is built on) — that IS the
 super-app shape. and web10's version is structurally stronger than
 wechat's: wechat mini-apps run on tencent's data under tencent's
 eyes; web10 mini-apps run on YOUR data under scoped tokens you

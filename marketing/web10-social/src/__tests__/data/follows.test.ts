@@ -112,6 +112,7 @@ describe('follows v3 data layer', () => {
         'open',
         expect.anything(),
         [{ member_key: 'alice', role: 'owner' }],
+        { tags: ['web10-social-followers'] },
       );
       expect(groupId).toBe('web10.app/groups/users/alice/followers');
       // A freshly created group has the creator as owner — no join needed.

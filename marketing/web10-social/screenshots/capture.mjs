@@ -1,4 +1,4 @@
-// Captures screens (Chat / Mail / CRM / Settings) at desktop + 375px.
+// Captures screens (Chat / Settings) at desktop + 375px.
 //
 // ONE command, no backend, no login:  node screenshots/capture.mjs
 // It boots the harness Vite server (screenshots/vite.config.ts) itself, waits
@@ -27,9 +27,7 @@ const VIEWPORTS = {
 };
 
 const DEFAULT_VIEWS = [
-  { name: 'chat', toggle: null, ready: '[data-testid="messages-view-toggle"]' },
-  { name: 'mail', toggle: '[data-testid="view-toggle-mail"]', ready: '[data-testid="mail-thread-row"]' },
-  { name: 'crm', toggle: '[data-testid="view-toggle-crm"]', ready: '[data-testid="crm-contact-row"]' },
+  { name: 'chat', toggle: null, ready: '[data-testid="dm-new-message-btn"]' },
   { name: 'settings', route: '/settings', ready: 'h1' },
 ];
 
@@ -130,7 +128,7 @@ try {
           // (e.g. the knob rack's "Advanced" panel) after the view is ready.
           if (view.toggle) await page.click(view.toggle);
         } else {
-          await page.waitForSelector('[data-testid="messages-view-toggle"] >> visible=true', { timeout: 15000 });
+          await page.waitForSelector('[data-testid="dms-screen"] >> visible=true', { timeout: 15000 });
           for (const click of view.clicks ?? []) await page.click(click);
           if (view.toggle) await page.click(view.toggle);
           for (const [sel, val] of view.fills ?? []) await page.fill(sel, val);

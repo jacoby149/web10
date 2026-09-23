@@ -95,11 +95,13 @@ New module `src/data/groupChat.ts` (sibling to `dms.ts`):
   with `body = { message, sender_username, sender_provider, … }`. The write
   gate (D58) requires membership; a non-member 403s (I3).
 
-`getMyCommunityGroups()` is unchanged in v1 — a group chat is a non-infra group, so it
-may **also** appear in the Groups surface's My Groups (a known v1 duplication; the
-`kind: 'chat'` filter there is a small follow-up). The two surfaces are intended to be
-disjoint (Messages = DMs + chats, Groups = communities); v1 just doesn't enforce it on
-the Groups side yet.
+**Surface disjointness (D78).** A group chat carries the platform tag
+`web10-social-chat`; a community carries `web10-social-group`. My Groups selects
+by the `web10-social-group` tag (a server-side `getMyGroups({ tags })` read), so a
+chat is excluded from the Groups surface by construction — the two surfaces are
+disjoint (Messages = DMs + chats, Groups = communities) with no client-side
+pattern matching. (Pre-D78 this was a known v1 duplication, filtered by the face
+`kind` client-side; the tag makes it structural.)
 
 ### Per-sender attribution (why the message body carries the sender)
 
@@ -119,7 +121,9 @@ thread.
 The conversation list shows **DMs and group chats together**, sorted by
 last-message recency (the existing DM sort). A group-chat row shows the group
 **name** (not a person's name), a group avatar (the face, or a `Users`-glyph
-fallback when unset), and the last-message preview. It is deep-linkable at
+fallback when unset), and the last-message preview. Next to the name it carries
+an explicit **"Group" badge** (a `Users`-glyph pill) so a group chat reads as a
+group message at a glance — a DM row never shows it. It is deep-linkable at
 `/messages/group/{groupId}` (the splat route; the `group/` prefix distinguishes
 it from a DM key, which is `provider/user--provider/user`).
 
@@ -135,8 +139,10 @@ note to self, not a chat).
 
 Same shell as a DM thread, with three differences:
 1. **Header** — the group **name** (not a person's name) + a member count
-   ("N members"), tappable to a member list. No presence dot (presence is a
-   1:1 concept; group presence is a follow-up).
+   ("N members"), tappable to a member list. An explicit **"Group" badge** sits
+   next to the name (the same pill the list row carries), so the thread reads
+   as a group conversation, not a DM. No presence dot (presence is a 1:1
+   concept; group presence is a follow-up).
 2. **Per-sender bubbles** — every inbound bubble shows the sender's avatar +
    name above the text; the reader's own bubbles are right-aligned with no name.
 3. **No "delete conversation" for non-owners** — only the owner deletes the
