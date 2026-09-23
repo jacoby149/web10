@@ -54,7 +54,7 @@ import { PostActions } from '@/components/Feed/PostActions';
 import PostComposer from '@/components/Feed/PostComposer';
 // D74: the shared discover card (one source, both apps). The social app's grid
 // + youtube cards now wrap it — the same card the marketing /trending uses.
-import { DiscoverCard as SharedDiscoverCard, type DiscoverPost, type CreateComment } from '@web10/discover';
+import { DiscoverCard as SharedDiscoverCard, HomeCard, type DiscoverPost, type CreateComment } from '@web10/discover';
 import { readThreadComments, readThreadReplies, createComment as wapiCreateComment } from '@/data';
 
 const LOG = (...args: unknown[]) => console.log('[social:discover]', ...args);
@@ -129,6 +129,18 @@ function navigateToUserProfile(username: string, provider: string) {
   window.dispatchEvent(
     new CustomEvent('navigate-user-profile', {
       detail: { username, provider },
+    }),
+  );
+}
+
+// ── Navigate to a post's permalink (the Home card's primary action) ──────────
+// The App listens for this and routes to /u/:username/p/:postId (the post's
+// deep link — refresh restores it, back/forward work). The provider rides in
+// the event so the permalink route can read the post.
+function navigateToPost(username: string, postId: string, provider: string) {
+  window.dispatchEvent(
+    new CustomEvent('navigate-post', {
+      detail: { username, postId, provider },
     }),
   );
 }
@@ -422,7 +434,10 @@ function postToSignals(post: PostRecord) {
 
 // ── View toggle (D-trending-views bite b: Discover parity) ──────────────────
 
-type DiscoverView = 'grid' | 'youtube';
+// The view toggle. `home` (the YouTube-style video wall — the default) and
+// `grid` (Hot Gossip — the ranked post board). The operator: "video view should
+// be first, hot gossip second, to compete. video should be renamed home view."
+type DiscoverView = 'grid' | 'home';
 
 // ── Subtabs (discover-reorg.md D1) ──────────────────────────────────────────
 // Discover is the discovery surface: Posts | People | Groups. The active
@@ -450,74 +465,76 @@ function postHasVideo(post: PostRecord): boolean {
   return !!(post.tags?.includes('video') || hasVideoRef);
 }
 
-// ── YouTubeCard (Discover parity with marketing-ui YouTubeCard) ─────────────
+// ── HomeCard (the Home view — the YouTube-style video wall) ─────────────────
+// The operator: "the youtube view is preferable, less brainrot — the videos
+// all have a good title, a thumbnail, and the attribution of who put them up."
+// The Home view is the default view of the Explorer (competing with YouTube).
+// The card is the SHARED HomeCard (one source, both apps) — a 16:9 thumbnail,
+// a truncated title, and the author's attribution.
 
-interface DiscoverYouTubeCardProps {
+interface DiscoverHomeCardProps {
   post: PostRecord;
-  rank: number;
   authorName: string;
   authorAvatar?: string;
   mediaItems: MediaRecord[];
+  liked: boolean;
+  reposted: boolean;
   onAuthorClick: () => void;
-  /** A comment's author is a tappable profile link (in-app navigation). */
-  onCommentAuthorClick?: (username: string, provider?: string) => void;
+  onToggleReaction: (kind: ReactionKind) => void;
+  onToggleRepost: () => void;
 }
 
-function DiscoverYouTubeCard({
+function DiscoverHomeCard({
   post,
-  rank,
   authorName,
   authorAvatar,
   mediaItems,
+  liked,
+  reposted,
   onAuthorClick,
-  onCommentAuthorClick,
-}: DiscoverYouTubeCardProps) {
-  // D74: the social video-view card is now the SHARED discover card (the same
-  // one the marketing /trending youtube view uses) — one source, both apps.
-  // The video view is videos-only (competing with YouTube).
+  onToggleReaction,
+  onToggleRepost,
+}: DiscoverHomeCardProps) {
+  const openPost = () => navigateToPost(post.author_username || '', post._id || '', post.author_provider || '');
   return (
-    <SharedDiscoverCard
+    <HomeCard
       post={postRecordToDiscoverPost(post, mediaItems, authorName)}
-      rank={rank}
-      maxScore={1}
       authorAvatar={authorAvatar}
+      onPostClick={openPost}
       onAuthorClick={onAuthorClick}
-      onCommentAuthorClick={onCommentAuthorClick}
-      readComments={readThreadComments}
-      readReplies={readThreadReplies}
-      createComment={discoverCreateComment}
-      testId="discover-youtube-card"
-      // Same portrait cap as the board card (a 9:16 clip in the video view is
-      // too big on desktop + buries the rack). Landscape is unaffected.
-      videoMaxWidth="min(50vh, 100%)"
+      onCommentClick={openPost}
+      liked={liked}
+      reposted={reposted}
+      onToggleReaction={onToggleReaction}
+      onToggleRepost={onToggleRepost}
+      testId="discover-home-card"
     />
   );
 }
 
-function DiscoverYouTubeSkeleton() {
+function DiscoverHomeSkeleton() {
   return (
-    <div data-testid="discover-youtube-skeleton">
-      <div className="overflow-hidden rounded-xl bg-elevated">
+    <div data-testid="discover-home-skeleton">
+      <div className="overflow-hidden rounded-lg bg-elevated">
         <Skeleton className="aspect-video w-full" />
       </div>
       <div className="mt-2.5 flex gap-2.5">
-        <Skeleton className="h-9 w-9 shrink-0 rounded-full" />
+        <Skeleton className="h-8 w-8 shrink-0 rounded-full" />
         <div className="min-w-0 flex-1 space-y-1.5">
           <Skeleton className="h-4 w-full" />
           <Skeleton className="h-4 w-3/4" />
-          <Skeleton className="h-3 w-24" />
         </div>
       </div>
     </div>
   );
 }
 
-// ── YouTube empty state ────────────────────────────────────────────────────
+// ── Home empty state ────────────────────────────────────────────────────────
 
-function DiscoverYouTubeEmptyState({ onSwitchToGrid }: { onSwitchToGrid: () => void }) {
+function DiscoverHomeEmptyState({ onSwitchToGrid }: { onSwitchToGrid: () => void }) {
   return (
     <div
-      data-testid="discover-youtube-empty"
+      data-testid="discover-home-empty"
       className="flex flex-col items-center justify-center py-16 px-8 text-center"
     >
       <div className="flex h-16 w-16 items-center justify-center rounded-full bg-brand-muted/50 mb-4">
@@ -527,13 +544,13 @@ function DiscoverYouTubeEmptyState({ onSwitchToGrid }: { onSwitchToGrid: () => v
         No videos yet
       </h2>
       <p className="mt-2 text-sm text-muted-foreground max-w-sm">
-        The video view shows trending video posts.
+        The Home view shows trending video posts.
         Switch to Hot Gossip to see all trending posts.
       </p>
       <Button
         variant="outline"
         size="sm"
-        data-testid="discover-youtube-empty-cta"
+        data-testid="discover-home-empty-cta"
         onClick={onSwitchToGrid}
         className="mt-6 gap-2"
       >
@@ -573,16 +590,20 @@ export default function DiscoverScreen() {
   const urlQuery = searchParams.get('q') || '';
   const [searchQuery, setSearchQuery] = useState<string>(urlQuery);
 
-  // Deep-link: view toggle from ?view= (refresh-safe, shareable)
+  // Deep-link: view toggle from ?view= (refresh-safe, shareable). `home` is the
+  // bare URL (the default); `?view=grid` is Hot Gossip. A legacy `?view=youtube`
+  // (the old video view) maps to `home`.
   const [view, setView] = useState<DiscoverView>(() => {
-    return (searchParams.get('view') as DiscoverView) || 'grid';
+    const raw = searchParams.get('view');
+    if (raw === 'grid') return 'grid';
+    return 'home'; // home (default) — also covers a legacy 'youtube'
   });
 
   const setViewUrl = useCallback((v: DiscoverView) => {
     setView(v);
     const params = new URLSearchParams(searchParams);
-    if (v === 'youtube') {
-      params.set('view', 'youtube');
+    if (v === 'grid') {
+      params.set('view', 'grid');
     } else {
       params.delete('view');
     }
@@ -605,9 +626,9 @@ export default function DiscoverScreen() {
     }
   }, [searchParams]);
 
-  // Sync view with ?view= search param
+  // Sync view with ?view= search param (home is the bare URL / default).
   useEffect(() => {
-    const current = (searchParams.get('view') as DiscoverView) || 'grid';
+    const current: DiscoverView = searchParams.get('view') === 'grid' ? 'grid' : 'home';
     if (view !== current) {
       setView(current);
     }
@@ -1133,14 +1154,15 @@ export default function DiscoverScreen() {
             </div>
           )}
 
-          {/* View toggle — YouTube-style, below topics */}
+          {/* View toggle — Home (the video wall, default) + Hot Gossip (the
+              ranked board). The operator: video first, hot gossip second. */}
           {!isInitialLoad && posts.length > 0 && (
             <div className="border-b border-border bg-surface/50">
               <div className="px-4 md:px-0">
                 <div className="flex items-center gap-1 py-2" data-testid="discover-view-toggle">
                   {([
+                    ['home', 'Home', Video],
                     ['grid', 'Hot Gossip', Flame],
-                    ['youtube', 'Video', Video],
                   ] as [DiscoverView, string, typeof Flame][]).map(([v, label, Icon]) => (
                     <button
                       key={v}
@@ -1164,29 +1186,30 @@ export default function DiscoverScreen() {
             </div>
           )}
 
-          {/* Content */}
-          <div className="flex-1 px-4 py-4 md:px-0">
+          {/* Content — the Home view (the video wall, the default) is the
+              YouTube-style grid that fills the screen; Hot Gossip keeps the
+              single-column board. */}
+          <div className="flex-1 px-4 py-4 md:px-0 md:w-full md:max-w-5xl md:mx-auto">
             {isInitialLoad ? (
               <div className="grid grid-cols-1 gap-4" data-testid="discover-grid-skeleton">
                 {Array.from({ length: 4 }).map((_, i) => (
                   <DiscoverSkeleton key={i} />
                 ))}
               </div>
-            ) : view === 'youtube' ? (
-              /* YouTube view — media posts only, 16:9 thumbnails */
+            ) : view === 'home' ? (
+              /* Home view — videos only, the YouTube-style wall (16:9 thumbs) */
               mediaPosts.length > 0 ? (
-                <div className="grid grid-cols-1 gap-6" data-testid="discover-youtube-grid">
-                  {mediaPosts.map((post, i) => {
+                <div className="grid grid-cols-1 gap-x-4 gap-y-6 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4" data-testid="discover-home-grid">
+                  {mediaPosts.map((post) => {
                     const authorKey = `${post.author_username}@${post.author_provider}`;
                     const profile = profileMap[authorKey];
                     const mediaItems = mediaMap[post._id || ''] || [];
                     const authorName = profile?.display_name || (post.author_username || '').replace(/[-_]/g, ' ');
 
                     return (
-                      <DiscoverYouTubeCard
+                      <DiscoverHomeCard
                         key={post._id || post.created_at}
                         post={post}
-                        rank={i + 1}
                         authorName={authorName}
                         authorAvatar={
                           profile?.avatar_ref
@@ -1194,14 +1217,17 @@ export default function DiscoverScreen() {
                             : undefined
                         }
                         mediaItems={mediaItems}
+                        liked={!!likedMap[post._id || '']}
+                        reposted={!!repostedMap[post._id || '']}
                         onAuthorClick={() => navigateToUserProfile(post.author_username || '', post.author_provider || '')}
-                        onCommentAuthorClick={(username, provider) => navigateToUserProfile(username, provider || '')}
+                        onToggleReaction={(kind) => handleToggleReaction(post._id || '', kind)}
+                        onToggleRepost={() => handleToggleRepost(post._id || '')}
                       />
                     );
                   })}
                 </div>
               ) : (
-                <DiscoverYouTubeEmptyState onSwitchToGrid={() => setViewUrl('grid')} />
+                <DiscoverHomeEmptyState onSwitchToGrid={() => setViewUrl('grid')} />
               )
             ) : visiblePosts.length > 0 ? (
               <div className="grid grid-cols-1 gap-4" data-testid="discover-grid">
