@@ -514,97 +514,7 @@ describe('DmsScreen', () => {
     );
   });
 
-  it('renders view toggle with all three views', async () => {
-    const { default: DmsScreen } = await import('@/components/Chat/DmsScreen');
-    render(
-      <MemoryRouter>
-        <DmsScreen />
-      </MemoryRouter>,
-    );
-    await waitFor(() => {
-      expect(screen.getByTestId('messages-view-toggle')).toBeInTheDocument();
-    });
-    expect(screen.getByTestId('view-toggle-chat')).toBeInTheDocument();
-    expect(screen.getByTestId('view-toggle-mail')).toBeInTheDocument();
-    expect(screen.getByTestId('view-toggle-crm')).toBeInTheDocument();
-  });
-
-  it('switches to mail view on toggle click', async () => {
-    const { default: DmsScreen } = await import('@/components/Chat/DmsScreen');
-    render(
-      <MemoryRouter>
-        <DmsScreen />
-      </MemoryRouter>,
-    );
-    await waitFor(() => {
-      expect(screen.getByTestId('messages-view-toggle')).toBeInTheDocument();
-    });
-    fireEvent.click(screen.getByTestId('view-toggle-mail'));
-    await waitFor(() => {
-      expect(screen.getByTestId('mail-view')).toBeInTheDocument();
-    });
-  });
-
-  it('switches to crm view on toggle click', async () => {
-    const { default: DmsScreen } = await import('@/components/Chat/DmsScreen');
-    render(
-      <MemoryRouter>
-        <DmsScreen />
-      </MemoryRouter>,
-    );
-    await waitFor(() => {
-      expect(screen.getByTestId('messages-view-toggle')).toBeInTheDocument();
-    });
-    fireEvent.click(screen.getByTestId('view-toggle-crm'));
-    await waitFor(() => {
-      expect(screen.getByTestId('crm-view')).toBeInTheDocument();
-    });
-  });
-
-  it('switches back to chat view from mail', async () => {
-    const { default: DmsScreen } = await import('@/components/Chat/DmsScreen');
-    render(
-      <MemoryRouter>
-        <DmsScreen />
-      </MemoryRouter>,
-    );
-    await waitFor(() => {
-      expect(screen.getByTestId('messages-view-toggle')).toBeInTheDocument();
-    });
-    fireEvent.click(screen.getByTestId('view-toggle-mail'));
-    await waitFor(() => {
-      expect(screen.getByTestId('mail-view')).toBeInTheDocument();
-    });
-    fireEvent.click(screen.getByTestId('view-toggle-chat'));
-    // After switching back, the chat view shows the empty state or conversation list
-    expect(screen.getByTestId('dms-empty')).toBeInTheDocument();
-  });
-
-  it('restores mail view from ?view=mail on mount', async () => {
-    const { default: DmsScreen } = await import('@/components/Chat/DmsScreen');
-    render(
-      <MemoryRouter initialEntries={['/messages?view=mail']}>
-        <DmsScreen />
-      </MemoryRouter>,
-    );
-    await waitFor(() => {
-      expect(screen.getByTestId('mail-view')).toBeInTheDocument();
-    });
-  });
-
-  it('restores crm view from ?view=crm on mount', async () => {
-    const { default: DmsScreen } = await import('@/components/Chat/DmsScreen');
-    render(
-      <MemoryRouter initialEntries={['/messages?view=crm']}>
-        <DmsScreen />
-      </MemoryRouter>,
-    );
-    await waitFor(() => {
-      expect(screen.getByTestId('crm-view')).toBeInTheDocument();
-    });
-  });
-
-  it('defaults to chat view when ?view is missing', async () => {
+  it('renders the conversation list at /messages (no view toggle)', async () => {
     const { default: DmsScreen } = await import('@/components/Chat/DmsScreen');
     render(
       <MemoryRouter initialEntries={['/messages']}>
@@ -614,6 +524,8 @@ describe('DmsScreen', () => {
     await waitFor(() => {
       expect(screen.getByTestId('dms-empty')).toBeInTheDocument();
     });
+    // The Mail/CRM views were deleted (3.144.0) — the toggle is gone with them.
+    expect(screen.queryByTestId('messages-view-toggle')).not.toBeInTheDocument();
   });
 
   it('shows a group chat in the conversation list (group-chat.md)', async () => {
@@ -637,6 +549,27 @@ describe('DmsScreen', () => {
     expect(screen.getByTestId('group-chat-item')).toHaveTextContent('The Crew');
     // A group row carries the group badge (not a presence dot).
     expect(screen.getByTestId('group-chat-badge')).toBeInTheDocument();
+    // An explicit "Group" type badge makes it clear this is a group message.
+    expect(screen.getByTestId('group-chat-type-badge')).toHaveTextContent('Group');
+  });
+
+  it('DM conversation rows do not carry a Group badge', async () => {
+    const { listConversations, getMyGroupChats } = await import('@/data');
+    vi.mocked(listConversations).mockResolvedValueOnce([
+      'test.localhost/testuser--test.localhost/alice',
+    ]);
+    vi.mocked(getMyGroupChats).mockResolvedValueOnce([]);
+
+    const { default: DmsScreen } = await import('@/components/Chat/DmsScreen');
+    render(
+      <MemoryRouter initialEntries={['/messages']}>
+        <DmsScreen />
+      </MemoryRouter>,
+    );
+    await waitFor(() => {
+      expect(screen.getByTestId('dm-conversation-item')).toBeInTheDocument();
+    });
+    expect(screen.queryByTestId('group-chat-type-badge')).not.toBeInTheDocument();
   });
 
   it('renders the group thread view — name header, member count, per-sender attribution (group-chat.md)', async () => {
@@ -665,6 +598,8 @@ describe('DmsScreen', () => {
     });
     expect(screen.getByTestId('group-chat-name')).toHaveTextContent('The Crew');
     expect(screen.getByTestId('group-chat-members')).toHaveTextContent('3 members');
+    // The header carries an explicit "Group" badge next to the name.
+    expect(screen.getByTestId('group-chat-header-badge')).toHaveTextContent('Group');
     // Per-sender attribution: the inbound message (alice) shows the sender name;
     // my own message (testuser) does not (isMe). Exactly one sender label.
     expect(screen.getByTestId('dm-message-sender')).toHaveTextContent('alice');
@@ -685,68 +620,6 @@ describe('DmsScreen', () => {
       expect(screen.getByTestId('dm-conversation')).toBeInTheDocument();
     }, { timeout: 2000 });
     expect(screen.queryByTestId('dm-contact-picker')).not.toBeInTheDocument();
-  });
-});
-
-describe('MailView', () => {
-  beforeEach(() => {
-    vi.clearAllMocks();
-  });
-
-  it('renders mail view with heading', async () => {
-    const { default: MailView } = await import('@/components/Chat/MailView');
-    render(<MailView />);
-    await waitFor(() => {
-      expect(screen.getByText('Mail')).toBeInTheDocument();
-    });
-  });
-
-  it('renders search input', async () => {
-    const { default: MailView } = await import('@/components/Chat/MailView');
-    render(<MailView />);
-    await waitFor(() => {
-      expect(screen.getByTestId('mail-search')).toBeInTheDocument();
-    });
-  });
-
-  it('renders empty state when no threads', async () => {
-    const { default: MailView } = await import('@/components/Chat/MailView');
-    render(<MailView />);
-    await waitFor(() => {
-      expect(screen.getByTestId('mail-view')).toBeInTheDocument();
-    });
-    expect(screen.getAllByText(/Inbox is empty/).length).toBeGreaterThanOrEqual(1);
-  });
-});
-
-describe('CrmView', () => {
-  beforeEach(() => {
-    vi.clearAllMocks();
-  });
-
-  it('renders crm view with heading', async () => {
-    const { default: CrmView } = await import('@/components/Chat/CrmView');
-    render(<CrmView />);
-    await waitFor(() => {
-      expect(screen.getByText('Contacts')).toBeInTheDocument();
-    });
-  });
-
-  it('renders search input', async () => {
-    const { default: CrmView } = await import('@/components/Chat/CrmView');
-    render(<CrmView />);
-    await waitFor(() => {
-      expect(screen.getByTestId('crm-search')).toBeInTheDocument();
-    });
-  });
-
-  it('renders empty state when no contacts', async () => {
-    const { default: CrmView } = await import('@/components/Chat/CrmView');
-    render(<CrmView />);
-    await waitFor(() => {
-      expect(screen.getByTestId('crm-view')).toBeInTheDocument();
-    });
-    expect(screen.getByText(/No contacts/)).toBeInTheDocument();
   });
 });
 
