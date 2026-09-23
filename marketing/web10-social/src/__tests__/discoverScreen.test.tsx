@@ -24,6 +24,10 @@ vi.mock('@/data', async (importOriginal) => {
     // The reaction tap handler (post-actions.md) — spied to assert the like
     // is wired to the data layer.
     toggleReactionKind: vi.fn().mockResolvedValue('like'),
+    // The Explore tab's paged reads (people = the D0 directory, groups = the
+    // D53 directory) — mocked so the Explore section tests control the data.
+    fetchPeoplePage: vi.fn().mockResolvedValue({ people: [], hasMore: false }),
+    readGroupDirectory: vi.fn().mockResolvedValue([]),
   };
 });
 
@@ -1530,5 +1534,100 @@ describe('DiscoverScreen — subtab shell (D1)', () => {
     });
     // trending is the bare URL — the ?tab= param is removed.
     expect(lastSearch).toBe('');
+  });
+
+  // ── The People / Groups visibility toggle (?show=) ────────────────────────
+  // Seed the Explore tab's data so the sections render (the mock's default v3
+  // client has no listPeopleDirectory, so fetchPeoplePage would error).
+  function seedExploreData() {
+    (data.fetchPeoplePage as ReturnType<typeof vi.fn>).mockResolvedValue({
+      people: [{ username: 'alice', provider: 'test.localhost', followers_count: 3, is_following: false }],
+      hasMore: false,
+    });
+    (data.readGroupDirectory as ReturnType<typeof vi.fn>).mockResolvedValue([
+      { group_id: 'g1', name: 'Lofi', owner: 'alice', tags: ['music'] },
+    ]);
+  }
+
+  it('renders the People | Groups toggle with both active by default', async () => {
+    seedExploreData();
+    await renderDiscoverAt('/discover?tab=explore');
+    await waitFor(() => {
+      expect(screen.getByTestId('explore-show-toggle')).toBeInTheDocument();
+    });
+    expect(screen.getByTestId('explore-show-people')).toHaveAttribute('aria-pressed', 'true');
+    expect(screen.getByTestId('explore-show-groups')).toHaveAttribute('aria-pressed', 'true');
+    expect(screen.getByTestId('explore-people-section')).toBeInTheDocument();
+    expect(screen.getByTestId('explore-groups-section')).toBeInTheDocument();
+  });
+
+  it('hides the people section (and the sort row) when People is toggled off', async () => {
+    seedExploreData();
+    await renderDiscoverAt('/discover?tab=explore');
+    await waitFor(() => {
+      expect(screen.getByTestId('explore-show-toggle')).toBeInTheDocument();
+    });
+    expect(screen.getByTestId('explore-sort-toggle')).toBeInTheDocument();
+
+    fireEvent.click(screen.getByTestId('explore-show-people'));
+
+    await waitFor(() => {
+      expect(screen.queryByTestId('explore-people-section')).not.toBeInTheDocument();
+    });
+    expect(screen.getByTestId('explore-show-people')).toHaveAttribute('aria-pressed', 'false');
+    expect(screen.getByTestId('explore-groups-section')).toBeInTheDocument();
+    // The sort row is people-only — it hides with the section.
+    expect(screen.queryByTestId('explore-sort-toggle')).not.toBeInTheDocument();
+    // ?show=groups is written (the bare URL is "both").
+    expect(lastSearch).toContain('show=groups');
+  });
+
+  it('shows the neutral empty state when both sections are hidden', async () => {
+    seedExploreData();
+    await renderDiscoverAt('/discover?tab=explore');
+    await waitFor(() => {
+      expect(screen.getByTestId('explore-show-toggle')).toBeInTheDocument();
+    });
+    fireEvent.click(screen.getByTestId('explore-show-people'));
+    await waitFor(() => {
+      expect(screen.queryByTestId('explore-people-section')).not.toBeInTheDocument();
+    });
+    fireEvent.click(screen.getByTestId('explore-show-groups'));
+    await waitFor(() => {
+      expect(screen.getByTestId('explore-show-none')).toBeInTheDocument();
+    });
+    expect(screen.queryByTestId('explore-groups-section')).not.toBeInTheDocument();
+    expect(lastSearch).toContain('show=none');
+  });
+
+  it('restores ?show=groups on initial render (deep link)', async () => {
+    seedExploreData();
+    await renderDiscoverAt('/discover?tab=explore&show=groups');
+    await waitFor(() => {
+      expect(screen.getByTestId('explore-show-toggle')).toBeInTheDocument();
+    });
+    expect(screen.getByTestId('explore-show-people')).toHaveAttribute('aria-pressed', 'false');
+    expect(screen.getByTestId('explore-show-groups')).toHaveAttribute('aria-pressed', 'true');
+    expect(screen.queryByTestId('explore-people-section')).not.toBeInTheDocument();
+    expect(screen.getByTestId('explore-groups-section')).toBeInTheDocument();
+  });
+
+  it('re-shows a hidden section when its toggle is clicked again', async () => {
+    seedExploreData();
+    await renderDiscoverAt('/discover?tab=explore');
+    await waitFor(() => {
+      expect(screen.getByTestId('explore-show-toggle')).toBeInTheDocument();
+    });
+    fireEvent.click(screen.getByTestId('explore-show-people'));
+    await waitFor(() => {
+      expect(screen.queryByTestId('explore-people-section')).not.toBeInTheDocument();
+    });
+    fireEvent.click(screen.getByTestId('explore-show-people'));
+    await waitFor(() => {
+      expect(screen.getByTestId('explore-people-section')).toBeInTheDocument();
+    });
+    expect(screen.getByTestId('explore-show-people')).toHaveAttribute('aria-pressed', 'true');
+    // Back to "both" — the ?show= param is cleared (bare URL).
+    expect(lastSearch).not.toContain('show=');
   });
 });

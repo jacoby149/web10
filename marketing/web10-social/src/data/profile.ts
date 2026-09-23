@@ -52,6 +52,51 @@ export async function readProfile(): Promise<ProfileRecord | null> {
 }
 
 /**
+ * Ensure the current user has a public profile face (the D0 directory's
+ * precondition). A user's face is a `profile` doc in their followers group,
+ * and the public people directory (D0) only lists users who have a readable
+ * face — so an account that never opened its profile screen is ABSENT from
+ * the directory, even though its followers group is public-by-default
+ * (3.149.0). This closes that gap: on sign-in the app seeds a minimal public
+ * face (display_name = the username) when none exists, so every account is
+ * discoverable from birth.
+ *
+ * Idempotent + non-clobbering: it reads first and only WRITES when there is
+ * no profile doc at all. It never overwrites a face the user has already
+ * edited (display_name / bio / avatar / banner) — a present doc is left
+ * untouched. Runs client-side (D60: the app owns the face; the node stays
+ * generic). A failure is a benign degrade (the face is re-seeded on the next
+ * sign-in) — it never blocks the session.
+ */
+export async function ensureProfile(): Promise<void> {
+  const w = getV3Client();
+  const token = w.readToken();
+  if (!token) return;
+
+  // Ensure the home group exists + is public (the `anyone` read grant) before
+  // writing — the same guarantee saveProfile relies on.
+  const groupId = await ensureFollowers(token.username, token.provider);
+
+  // A face already exists → leave it alone (never clobber user edits).
+  try {
+    const docs = await w.read('profile', { groups: [groupId] });
+    if (docs.length > 0) {
+      LOG('ensureProfile — face already exists, no-op');
+      return;
+    }
+  } catch (e) {
+    // No readable face (or no group yet) — fall through to create.
+    LOG('ensureProfile — no readable face yet:', String(e));
+  }
+
+  // Seed a minimal public face. display_name = the username so the card has a
+  // name even before the user edits anything.
+  LOG('ensureProfile — seeding default face for', token.username);
+  const doc = await w.create('profile', { display_name: token.username }, { groups: [groupId] });
+  LOG('ensureProfile — created face:', doc.doc_id);
+}
+
+/**
  * Create or update the current user's profile.
  */
 export async function saveProfile(profile: Partial<ProfileRecord>): Promise<ProfileRecord> {
