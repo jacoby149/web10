@@ -27,32 +27,43 @@ never edit the same file: this lane owns `Layout.tsx` + a new
 **Current state (verified):** the social app has **no top bar** — desktop is
 sidebar-only (`Layout.tsx`), mobile is a 56px header (Wordmark + bell + new
 post + bug + logout, no search). So this is a **new chrome surface**, not a
- tweak. **The collision rule (operator, 18.09.2026):** the bar is **slim at
-rest** — just a **search icon**, always there (like the logout) — so it never
-crowds a per-screen sticky header. Tap → it **animates open** to a full-width
-field; done/Escape → it **collapses** back to the icon. Desktop: a slim top
-bar above the content. Mobile: the existing header carries the icon.
+ tweak. **The shape (operator, 18.09.2026, refined 23.09.2026):** the search
+is the front door, so it is **always visible** — a full field with the
+"Search people, groups, posts…" placeholder, not a bare icon. The operator
+(23.09.2026, two screenshots): "i want the search bar to look like this all
+the time … like its clicked in form, because i think that is alot more
+informative to the user." **Desktop:** the top bar permanently renders the
+expanded field (glyph + placeholder + X); the results **dropdown** opens on
+focus and closes on Escape / click-outside / navigate; the X clears the query
+(the field never collapses). **Mobile:** the 56px header can't carry a
+permanent field, so it keeps the icon → full-screen results view pattern.
 
 ---
 
 ## The design
 
-### The surface (the expanding-icon model)
-A search **icon** in the app chrome, available on **every** screen (it's in
-the shell, not a page). The state machine:
-**`icon (rest) → expanded field → results → collapse`.**
-- **Rest:** a slim search icon in the top bar / header (always there, like the
-  logout). The bar stays slim — it never crowds a per-screen sticky header.
-- **Expanded:** tap the icon → it **animates open** to a full-width field
-  (the bar grows to hold it). Focus is in the field.
+### The surface (the always-expanded field)
+A search **field** in the app chrome, available on **every** screen (it's in
+the shell, not a page). The field is **always visible** — the operator's call
+(23.09.2026): the persistent "Search people, groups, posts…" placeholder is
+more informative than a bare icon. The state machine scopes to the **results
+dropdown**: **`field (always) → focus → results → close`.**
+- **Field (always):** a full field (search glyph + input + X) in the top bar
+  / header, on every screen. The placeholder is the front door, so it's
+  always on.
+- **Focus:** clicking / focusing the field opens the **results dropdown**
+  (focus is in the field).
 - **Results:** type → **debounced** (the app's 400ms idiom) → up to three
-  sections: **People**, **Groups**, **Posts** — top ~5 each, each row tappable.
+  sections: **People**, **Groups**, **Posts** — top ~5 each, each row
+  tappable.
   - **Desktop:** a **dropdown** under the field.
   - **Mobile:** a **full-screen results view** (not a dropdown — a dropdown
     from a 56px header over a scrollable screen + keyboard is fiddly) with an
-    **X to collapse** (the operator's call).
-- **Collapse:** done / Escape / the X / navigate → the field **collapses**
-  back to the icon.
+    **X to close** (the operator's call).
+- **Close:** Escape / click-outside / navigate → the **dropdown** closes
+  (150ms fade); the field stays. The **X clears the query** (desktop) /
+  closes the full-screen view (mobile). The typed query persists across
+  close/reopen and navigation.
 - **Tap a result** → navigate: person → `/u/:username`, group →
   `/groups/:groupId` (encoded), post → the post (the profile permalink, the
   app's existing post deep link).
@@ -109,9 +120,22 @@ existing idiom). No second data path.
   navigate; "see more" → the Discover browser with `?q=` **using the pinned
   URL shape** (`/discover?tab=people&q=…` etc. — the cross-lane contract with
   `discover-reorg`). `globalSearch.test.ts` (the fan-out merges + caps each
-  section; a people hit links to `/u/…`, a group hit to `/groups/…`, "see more
-  people" to the **pinned** `/discover?tab=people&q=…`). **People scale gated
-  on `discover-reorg` D0** (v1 floor: `fetchPeople`).
+   section; a people hit links to `/u/…`, a group hit to `/groups/…`, "see more
+   people" to the **pinned** `/discover?tab=people&q=…`). **People scale gated
+   on `discover-reorg` D0** (v1 floor: `fetchPeople`).
+- [✓] **S3: the desktop field is always expanded** (`GlobalSearch.tsx`) —
+  operator pass (23.09.2026, two screenshots): "i want the search bar to look
+  like this all the time … like its clicked in form, because i think that is
+  alot more informative to the user." The desktop top bar permanently renders
+  the full field (glyph + "Search people, groups, posts…" + X) instead of the
+  collapsed icon; `open` now scopes to the **results dropdown** (focus →
+  open; Escape / click-outside / navigate → close, 150ms fade); the X **clears
+  the query** (keeps focus in the field) instead of collapsing; the typed
+  query persists across close/reopen and navigation. **Mobile is unchanged**
+  (icon → full-screen results view). `globalSearch.test.tsx` re-pinned (the
+  field is always present, no trigger; focus opens the dropdown; Escape /
+  click-outside close the dropdown but keep the field; X clears the query; the
+  Layout cases count one trigger — the mobile one — plus the desktop field).
 
 **Ownership:** this lane owns `Layout.tsx`, `src/components/Search/`,
 `src/data/search.ts`. It does **not** touch `DiscoverScreen.tsx` or the
