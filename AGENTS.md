@@ -254,6 +254,45 @@ you if you arent ok with that." Full model:
 
 Single ClickHouse `documents` table, primary key `(author_key, doc_id)`. `doc_groups` maps documents to groups. `group_contracts` + `group_members` define access. Two contract types: app contracts (infrastructure trust, CORS-enforced) and group contracts (social access, role-enforced). Full model: `knowledge/knowledge-base/web10-v3/db/clickhouse.md`.
 
+## The node stays generic (D60) — no app-specific surface in `api/`
+
+**The platform API (`api/`) exposes only universal primitives. It never learns an
+app's concepts.** web10-social is the *frontier app* built on the protocol, not
+the protocol itself. The moment `api/` grows a table, endpoint, function, or
+field that only makes sense for one app (a "followers group," a "profile
+visibility," a "banner," a "feed"), it stops being universal — another app that
+defines identity differently (or has no followers concept) can't use the
+platform without the platform knowing its specifics.
+
+**The test, applied to every `api/` change:** *"Would a notes app, a music app,
+or a shop use this endpoint / table / column / field?"* If the honest answer is
+"no, only web10-social," the change is app-specific and belongs **client-side**
+(`marketing/web10-social/`), expressed through the universal primitives — not in
+the node.
+
+**How app concepts ARE expressed (the generic seams, all already exist):**
+- **App data** → documents in an **app-named service** (`web10-social-group-
+  identity`, `profile`, `posts`, …) read/written through the normal CRUD path.
+- **Publicness / access** → a **role grant** on a group: a reserved principal-
+  class member row (`anyone` / `authenticated`) with a role that grants
+  `readAll` on the service (D58). "Make my profile public" = the app adds an
+  `anyone` read-grant row to its own group via `addGroupMember` — no node
+  endpoint.
+- **App-specific reads** → the **query engine** (`w.query`, D73) + the prepare
+  pass. The app writes its own `SELECT` over its services; the node hardcodes
+  nothing.
+
+**The D60 reversals (the pattern of what NOT to build — all were undone):**
+a `POST /v3/feed` endpoint (→ a client query, D73) · a `group_identity` table +
+`POST /v3/groups/identity` (→ an app-named service) · a followers-group check in
+the session oracle (→ client-side) · a `collection_name = 'posts'` filter in the
+ad path (→ tag + group membership, D64). If you catch yourself adding a node
+endpoint that names a social concept, stop — that's the smell.
+
+Full model: `knowledge/strategy/decisions.md` D60 + `knowledge-base/web10-v3/
+groups/access.md`. This is a **review rejection**: an app-specific `api/` change
+does not merge.
+
 ## Auth model
 
 JWT tokens with `username, site, target, provider, expires`. Server verifies signature, checks app contracts + group membership. Full auth flow: `knowledge/knowledge-base/web10-v3/auth/auth.md`.
@@ -547,6 +586,12 @@ knowledge/strategy/plan.md, CI workflows). If you're unsure, target `dev`.
   everything passes.
 - **Don't invent crypto or protocols.** Reuse: OIDC/JWKS for federation,
   Signal sender-keys / MLS for group keys, S3 API for blobs.
+- **Keep `api/` generic (D60).** No app-specific tables/endpoints/functions
+  in the node — if a change only makes sense for web10-social, it belongs
+  client-side, expressed through the universal primitives (app-named services
+  + role grants + the query engine). The test: would a notes/music/shop app
+  use it? Full rule + the reversal pattern: "The node stays generic (D60)"
+  above. An app-specific `api/` change is a review rejection.
 - **Match the surrounding code** until a phase explicitly modernizes it.
 - **Update CHANGELOG.md.** Any improvement or change gets a line (newest
   at top, `version || DD.MM.YYYY`). Do it in the same branch. If your
