@@ -359,7 +359,7 @@ describe('DiscoverGroupsTab', () => {
     );
   });
 
-  function renderTab(initialEntry = '/discover?tab=groups', query = '') {
+  function renderTab(initialEntry = '/discover?tab=groups&groupTab=discover', query = '') {
     return import('@/components/Discover/DiscoverGroupsTab').then(({ default: DiscoverGroupsTab }) =>
       render(
         <MemoryRouter initialEntries={[initialEntry]}>
@@ -430,7 +430,7 @@ describe('DiscoverGroupsTab', () => {
 
   it('filters the directory by the ?q= query (name/owner/tags) and shows the chip', async () => {
     vi.mocked(readGroupDirectory).mockResolvedValue(mockDirectory as never);
-    await renderTab('/discover?tab=groups', 'photo');
+    await renderTab('/discover?tab=groups&groupTab=discover', 'photo');
     await waitFor(() => {
       expect(screen.getByTestId('groups-discover-grid')).toBeInTheDocument();
     });
@@ -443,7 +443,7 @@ describe('DiscoverGroupsTab', () => {
 
   it('filters the directory by tag chip (?tag= deep link)', async () => {
     vi.mocked(readGroupDirectory).mockResolvedValue(mockDirectory as never);
-    await renderTab('/discover?tab=groups&tag=retro');
+    await renderTab('/discover?tab=groups&groupTab=discover&tag=retro');
     await waitFor(() => {
       expect(screen.getByTestId('groups-discover-grid')).toBeInTheDocument();
     });
@@ -454,7 +454,7 @@ describe('DiscoverGroupsTab', () => {
 
   it('shows the no-match state when a query filters everything out', async () => {
     vi.mocked(readGroupDirectory).mockResolvedValue(mockDirectory as never);
-    await renderTab('/discover?tab=groups', 'zzzzz');
+    await renderTab('/discover?tab=groups&groupTab=discover', 'zzzzz');
     await waitFor(() => {
       expect(screen.getByTestId('groups-discover-no-results')).toBeInTheDocument();
     });

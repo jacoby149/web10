@@ -541,9 +541,8 @@ function Trending() {
 
       {/* Subtabs: Posts | People | Groups (?tab=, posts is the bare URL) —
           M1: the public ledger mirrors the social app's Explorer. */}
-      <div className="border-b border-border bg-surface/50" data-testid="trending-tab-row">
-        <div className="mx-auto max-w-4xl px-4 sm:px-6">
-          <div className="flex items-center gap-1 py-1.5" role="tablist" aria-label="Trending sections">
+      <div className="mx-auto max-w-4xl px-4 pt-2 sm:px-6" data-testid="trending-tab-row">
+        <div className="flex items-center gap-1 py-1.5" role="tablist" aria-label="Trending sections">
             {([
               ['posts', 'Posts'],
               ['people', 'People'],
@@ -566,7 +565,6 @@ function Trending() {
                 {label}
               </button>
             ))}
-          </div>
         </div>
       </div>
 
@@ -640,30 +638,28 @@ function Trending() {
 
       {/* View toggle — YouTube-style, below topics */}
       {!isInitialLoad && !isSearching && (
-        <div className="border-b border-border bg-surface/50">
-          <div className="mx-auto max-w-4xl px-4 sm:px-6">
-            <div className="flex items-center gap-1 py-2" data-testid="trending-view-toggle">
-              {([
-                ['grid', 'Hot Gossip', Flame],
-                ['youtube', 'Video', Video],
-              ] as [TrendingView, string, typeof Flame][]).map(([v, label, Icon]) => (
-                <button
-                  key={v}
-                  type="button"
-                  onClick={() => setViewUrl(v)}
-                  data-testid={`view-toggle-${v}`}
-                  className={[
-                    'flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background',
-                    view === v
-                      ? 'bg-brand-muted text-brand-300'
-                      : 'text-muted-foreground hover:text-foreground hover:bg-elevated',
-                  ].join(' ')}
-                >
-                  <Icon className="h-3.5 w-3.5" strokeWidth={1.75} />
-                  <span>{label}</span>
-                </button>
-              ))}
-            </div>
+        <div className="mx-auto max-w-4xl px-4 sm:px-6">
+          <div className="flex items-center gap-1 py-2" data-testid="trending-view-toggle">
+            {([
+              ['grid', 'Hot Gossip', Flame],
+              ['youtube', 'Video', Video],
+            ] as [TrendingView, string, typeof Flame][]).map(([v, label, Icon]) => (
+              <button
+                key={v}
+                type="button"
+                onClick={() => setViewUrl(v)}
+                data-testid={`view-toggle-${v}`}
+                className={[
+                  'flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background',
+                  view === v
+                    ? 'bg-brand-muted text-brand-300'
+                    : 'text-muted-foreground hover:text-foreground hover:bg-elevated',
+                ].join(' ')}
+              >
+                <Icon className="h-3.5 w-3.5" strokeWidth={1.75} />
+                <span>{label}</span>
+              </button>
+            ))}
           </div>
         </div>
       )}

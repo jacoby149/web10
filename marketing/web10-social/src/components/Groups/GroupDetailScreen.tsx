@@ -566,7 +566,7 @@ export default function GroupDetailScreen({ groupId }: { groupId: string }) {
   if (loading) {
     return (
       <div className="flex flex-col min-h-full bg-background">
-        <div className="md:max-w-2xl md:mx-auto px-4 py-4 md:px-0">
+        <div className="md:max-w-3xl md:mx-auto px-4 py-4 md:px-0">
           <DetailSkeleton />
         </div>
       </div>
@@ -576,7 +576,7 @@ export default function GroupDetailScreen({ groupId }: { groupId: string }) {
   if (notFound) {
     return (
       <div className="flex flex-col min-h-full bg-background">
-        <div className="md:max-w-2xl md:mx-auto px-4 py-4 md:px-0">
+        <div className="md:max-w-3xl md:mx-auto px-4 py-4 md:px-0">
           <div
             data-testid="group-detail-notfound"
             className="flex flex-col items-center justify-center py-16 px-8 text-center"
@@ -601,7 +601,7 @@ export default function GroupDetailScreen({ groupId }: { groupId: string }) {
   if (error || !detail) {
     return (
       <div className="flex flex-col min-h-full bg-background">
-        <div className="md:max-w-2xl md:mx-auto px-4 py-4 md:px-0">
+        <div className="md:max-w-3xl md:mx-auto px-4 py-4 md:px-0">
           <div
             data-testid="group-detail-error"
             className="flex flex-col items-center justify-center py-16 px-8 text-center"
@@ -662,7 +662,7 @@ export default function GroupDetailScreen({ groupId }: { groupId: string }) {
 
   return (
     <div className="flex flex-col min-h-full bg-background">
-      <div className="md:max-w-2xl md:mx-auto flex-1 flex flex-col">
+      <div className="md:max-w-3xl md:mx-auto flex-1 flex flex-col">
         {/* Sticky top bar — back + (managers) the kebab entry point (G3) */}
         <div className="sticky top-0 z-20 flex items-center justify-between border-b border-border bg-background/90 px-2 py-2 backdrop-blur-md md:static md:border-0 md:bg-transparent md:px-0 md:py-1" data-testid="group-detail-topbar">
           <Button
