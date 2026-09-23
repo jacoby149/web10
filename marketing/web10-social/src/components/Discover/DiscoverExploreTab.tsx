@@ -146,14 +146,15 @@ export default function DiscoverExploreTab({ query }: DiscoverExploreTabProps) {
       setGroupsLoading(true);
       setGroupsError(false);
     }
-    LOG('loadGroupsPage — offset:', offset, 'append:', append);
+    LOG('loadPage — offset:', offset, 'append:', append);
     try {
       const page = await readGroupDirectory(PAGE_SIZE, offset);
+      LOG('loadPage — got', page.length, 'group(s)');
       groupsNextOffsetRef.current = offset + page.length;
       setGroups((prev) => (append ? [...prev, ...page] : page));
       setGroupsHasMore(page.length === PAGE_SIZE);
     } catch (e) {
-      LOG('loadGroupsPage — failed:', e);
+      LOG('loadPage — failed:', e);
       if (!append) setGroupsError(true);
     } finally {
       setGroupsLoading(false);
@@ -188,9 +189,11 @@ export default function DiscoverExploreTab({ query }: DiscoverExploreTabProps) {
     setJoinStates((prev) => ({ ...prev, [entry.group_id]: 'joining' }));
     try {
       if (entry.join_policy === 'request') {
+        LOG('request join —', entry.group_id);
         await requestJoinGroup(entry.group_id);
         setJoinStates((prev) => ({ ...prev, [entry.group_id]: 'requested' }));
       } else {
+        LOG('join —', entry.group_id);
         await joinGroup(entry.group_id);
         setJoinStates((prev) => ({ ...prev, [entry.group_id]: 'joined' }));
       }
