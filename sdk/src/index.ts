@@ -20,6 +20,8 @@ export type {
   V3FeedPost,
   V3Group,
   V3GroupMember,
+  V3UserGroupMembership,
+  V3UserGroupsPage,
   V3InviteResponse,
   V3JoinRequest,
   V3ServiceContract,

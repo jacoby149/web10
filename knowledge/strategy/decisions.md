@@ -9,6 +9,43 @@ Status legend: [decided] intent set · [in-progress] · [open] still debating.
 
 ---
 
+### D80 — Group membership visibility is group policy: a `membership_visibility` contract field governs who can enumerate who's in a group [decided]
+
+Operator, 23.09.2026 — after the "see following/followers on any profile" pass: "everything has to be generic with web10, so cant edit clickhouse.py, needs to be implemented using the query engine" → "this isnt some cia high privacy stuff, use signal for that" → "i actually am a fan of the groups having settings in them … `membership_is_public = true, or false`, to dictate if it shows up. so for the dms the membership shouldnt be public, people shouldnt be able to see who you dm, but people should be able to see who you follow" → "so govern whether the group membership is public in the group policy."
+
+**The decision.** Whether *who is in a group* is publicly enumerable is a **group-policy field**, not a per-user setting and not a global rule. The group contract gains **`membership_visibility`** (`public` | `hidden`, sibling of `join_policy` + `discoverable`):
+
+- **`public`** → the group's membership rows appear in the public reads (`by-user`, `members/list`, the `memberships` query surface). Anyone, anon included, can enumerate who's in it.
+- **`hidden`** → they don't. The group still exists and you can still be in it, but *that you're in it* is not enumerable by outsiders.
+
+**The one rule:** a membership row `(G, M)` is publicly visible **iff `G.membership_visibility == public`**. Every read surface honors that single clause — no per-user flag, no reserved service, no doc projection, no multi-clause visibility function.
+
+**web10-social sets it per group type at creation** (app-owned semantics; the node stores a generic field):
+
+| group | `membership_visibility` | why |
+|---|---|---|
+| **followers** | `public` | who you follow / who follows you is your public graph — the thesis ("your number here is real", "a real network, not a dark forest") |
+| **community** | `public` | affiliations are shareable |
+| **dm** | `hidden` | who you're DMing is private — not enumerable |
+| **close-friends** | `hidden` | it's a private circle |
+
+**The read surfaces (all generic, all honoring the one rule):**
+1. **`POST /v3/groups/by-user`** — the primary read: "what groups is user X in?" Returns X's memberships in `public`-visibility groups only, with an optional `tag` filter (D78's `tags` column — pass `"followers"` for the following-list, nothing for the whole graph), paged, and returns the group's metadata (`tags`, `join_policy`, `discoverable`) alongside each membership so the app renders rich cards in one round-trip. Anon-readable.
+2. **`memberships` query-engine CTE** — a read-only, opt-in surface over `group_members` (deduped, not-deleted) exposing `public`-visibility groups' rows: `group_id, member_key, role, joined_at`. Same category as `group_meta` (an API-built view over the contract tables, not a writable app service). Hidden-visibility groups' rows simply aren't in the view. For app composition ("users in G who are also in H", rank by role).
+3. **`POST /v3/groups/members/list`** — re-gated from bare `is_group_member` to the rule: `public`-visibility groups → any reader; `hidden` → member/owner only.
+
+**Why group policy and not a per-user setting.** The earlier turns explored a per-user `memberships_visible` flag and a doc-as-membership model (attach your membership docs to discover to share them). Both rejected: the flag needs a four-clause visibility rule (self/owner/mutual/setting) and a reserved writable service the node writes to (breaking "all writable services are app-owned"); the doc model copies the fact out of `group_members` (a sync + drift + tombstone-mirror burden) to reuse the doc-attach gate. Group policy needs **one field the node already stores per group, one clause, zero new write path** — `join`/`leave` already write `group_members`, the source of truth. The owner controls it because it's their group, and DM privacy falls out for free (DM groups are created `hidden`).
+
+**Why public-by-default for the social graph.** The thesis is a data-*policy* platform, not a privacy platform: the node is readable by design, the network is public, searchable, above water. The social graph (who follows whom, who's in what community) is the creator's *audience* — their asset — and "your number here is real" means it's verifiable. Hiding it would be the dark-forest behavior D41 rejected. The one genuine sensitivity class — **DM relationships** — is handled by making DM groups `hidden`, honoring "use Signal for that" *within* web10: public graph, private conversations.
+
+**I3 note.** This is a deliberate, recorded *expansion* of what's public (membership rows in `public`-visibility groups), the same class as D41 making content node-readable — not a leak. The conformance suite gains a **positive** test (anon reads `by-user` / `members/list` on a public group; DM-group memberships absent from `by-user`) rather than only anti-tests.
+
+**Rejects.** (1) **Global "memberships table is totally public"** — leaks DM relationships; the operator's DM-privacy call rules it out. (2) **Per-user `memberships_visible` flag** — four-clause rule + reserved node-written service; group policy is strictly simpler. (3) **Doc-as-membership (attach to discover to share)** — copies the fact out of `group_members` (sync/drift/tombstone burden) and reserves a writable service name the node owns, breaking "all writable services are app-owned." (4) **A `listMembers` structural op + D58 role re-gate** — unnecessary once visibility is a contract field; the rule is one clause, not a permission-map lookup.
+
+**Files:** `api/app/v3/services/clickhouse.py` (contract field + `by-user` read + `members/list` gate), `api/app/v3/endpoints/groups.py` (`by-user` route), `api/app/v3/services/safe_query.py` + `endpoints/query.py` (the `memberships` CTE, opt-in), `sdk/src/v3.ts` (`byUserGroups` + `withMemberships` query flag), `marketing/web10-social/src/data/groups.ts` (set `membership_visibility` at create per type), `marketing/web10-social/src/data/follows.ts` (kill the `countUserFollowing` miscount; real following read), the profile list screens (`/u/:username/followers`, `/u/:username/following`). KB: `groups/access.md` + `groups/overview.md` (the third visibility axis), `query-engine.md` (the `memberships` surface).
+
+---
+
 ### D79 — The Messages surface is chat-only: the Mail and CRM views are deleted [decided]
 
 Operator, 22.09.2026 — "can we hide the mail and the crm thing from the messages part, it is just distracting" → "can actually just delete those views!"

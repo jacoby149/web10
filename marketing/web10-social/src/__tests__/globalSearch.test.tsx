@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
-import { MemoryRouter } from 'react-router-dom';
+import { MemoryRouter, useLocation } from 'react-router-dom';
 import '@testing-library/jest-dom';
 
 // Mock lucide-react icons as simple span elements (any icon, no manual list).
@@ -55,6 +55,24 @@ function renderDesktopSearch() {
   return render(
     <MemoryRouter initialEntries={['/feed']}>
       <GlobalSearch variant="desktop" />
+    </MemoryRouter>,
+  );
+}
+
+// A location probe — captures the current location so a test can assert a
+// navigation (the Enter-to-Explore flow).
+let probeLocation = '';
+function LocationProbe() {
+  const location = useLocation();
+  probeLocation = `${location.pathname}${location.search}`;
+  return null;
+}
+
+function renderDesktopSearchWithProbe() {
+  return render(
+    <MemoryRouter initialEntries={['/feed']}>
+      <GlobalSearch variant="desktop" />
+      <LocationProbe />
     </MemoryRouter>,
   );
 }
@@ -190,7 +208,7 @@ describe('GlobalSearch — mobile (full-screen view, not a dropdown)', () => {
   });
 });
 
-describe('GlobalSearch — S2 results (fan-out + rows + see more)', () => {
+describe('GlobalSearch — S2 results (fan-out + rows + explore)', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     // Reset to the default empty results.
@@ -214,9 +232,8 @@ describe('GlobalSearch — S2 results (fan-out + rows + see more)', () => {
     expect(row).toBeInTheDocument();
     expect(row).toHaveTextContent('Alice Smith');
     expect(row).toHaveTextContent('@alice');
-    // "See more" for people links to the pinned Discover URL shape.
-    const seeMore = screen.getByTestId('global-search-see-more-people');
-    expect(seeMore).toBeInTheDocument();
+    // The "See all results in Explore" CTA (Enter's target) is present.
+    expect(screen.getByTestId('global-search-open-explore')).toBeInTheDocument();
   });
 
   it('renders the Groups section with rows when groups match', async () => {
@@ -233,7 +250,7 @@ describe('GlobalSearch — S2 results (fan-out + rows + see more)', () => {
     expect(row).toBeInTheDocument();
     expect(row).toHaveTextContent('Synthwave Sessions');
     expect(row).toHaveTextContent('@nova');
-    expect(screen.getByTestId('global-search-see-more-groups')).toBeInTheDocument();
+    expect(screen.getByTestId('global-search-open-explore')).toBeInTheDocument();
   });
 
   it('renders the Posts section with rows when posts match', async () => {
@@ -249,7 +266,40 @@ describe('GlobalSearch — S2 results (fan-out + rows + see more)', () => {
     const row = screen.getByTestId('global-search-post-p1');
     expect(row).toBeInTheDocument();
     expect(row).toHaveTextContent('Check out this synthwave mix');
-    expect(screen.getByTestId('global-search-see-more-posts')).toBeInTheDocument();
+    expect(screen.getByTestId('global-search-open-explore')).toBeInTheDocument();
+  });
+
+  it('Enter submits the search to Discover Explore (?tab=explore&q=)', async () => {
+    vi.mocked(searchPeople).mockResolvedValue([
+      { username: 'alice', provider: 'web10', display_name: 'Alice Smith', followers_count: 100, is_following: false },
+    ] as any);
+    probeLocation = '';
+    renderDesktopSearchWithProbe();
+    const field = screen.getByTestId('global-search-field');
+    fireEvent.focus(field);
+    fireEvent.change(field, { target: { value: 'alice' } });
+    await screen.findByTestId('global-search-person-alice');
+    // Enter opens Discover's Explore tab with the query.
+    fireEvent.keyDown(field, { key: 'Enter' });
+    await waitFor(() => {
+      expect(probeLocation).toBe('/discover?tab=explore&q=alice');
+    });
+  });
+
+  it('the "See all results in Explore" CTA navigates to Discover Explore', async () => {
+    vi.mocked(searchPeople).mockResolvedValue([
+      { username: 'alice', provider: 'web10', display_name: 'Alice Smith', followers_count: 100, is_following: false },
+    ] as any);
+    probeLocation = '';
+    renderDesktopSearchWithProbe();
+    const field = screen.getByTestId('global-search-field');
+    fireEvent.focus(field);
+    fireEvent.change(field, { target: { value: 'alice' } });
+    const cta = await screen.findByTestId('global-search-open-explore');
+    fireEvent.click(cta);
+    await waitFor(() => {
+      expect(probeLocation).toBe('/discover?tab=explore&q=alice');
+    });
   });
 
   it('shows the "no results" state when all three sections are empty', async () => {

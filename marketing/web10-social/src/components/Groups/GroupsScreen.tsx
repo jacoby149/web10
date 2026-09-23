@@ -339,12 +339,13 @@ export default function GroupsScreen() {
     [navigate],
   );
 
-  // The Discover tab moved to the Discover/Groups subtab (discover-reorg D3).
-  // Old links + notification deep links to /groups?tab=discover redirect to the
-  // new home, carrying the ?q= / ?tag= filters over.
+  // The group directory moved to Discover's Explore tab (the operator's IA
+  // fixed point: people + groups are one browser). Old links + notification
+  // deep links to /groups?tab=discover redirect to the new home, carrying the
+  // ?q= / ?tag= filters over.
   if (isRedirecting) {
     const params = new URLSearchParams();
-    params.set('tab', 'groups');
+    params.set('tab', 'explore');
     const q = searchParams.get('q');
     if (q) params.set('q', q);
     const tag = searchParams.get('tag');
@@ -423,7 +424,7 @@ export default function GroupsScreen() {
                 variant="brand"
                 size="sm"
                 className="mt-6 gap-2"
-                onClick={() => navigate('/discover?tab=groups')}
+                onClick={() => navigate('/discover?tab=explore')}
                 data-testid="groups-my-empty-cta"
               >
                 <Search className="h-4 w-4" strokeWidth={1.75} />
