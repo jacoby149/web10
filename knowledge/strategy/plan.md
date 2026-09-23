@@ -391,6 +391,7 @@ Lane: `engine-group-metadata` in `parallel-execution.md`.
 
 - [✓] **S1: the search surface in the chrome** (`Layout.tsx` + new `src/components/Search/GlobalSearch.tsx`) — the field (desktop top bar / mobile header), the dropdown shell (open/close/Escape/keyboard), the debounced query state. Sequence before discover-reorg D4 (both touch `Layout.tsx`).
 - [✓] **S2: the fan-out + results + "see more"** (new `src/data/search.ts` + `GlobalSearch.tsx`) — `globalSearch(query)` (three-way fan-out: people + groups + posts, top ~5 each); the dropdown sections; tap → navigate; "see more" → the Discover browser with `?q=`. People scale gated on discover-reorg D0 (v1 floor: `fetchPeople`).
+- [✓] **S3: the desktop field is always expanded** (`GlobalSearch.tsx`) — operator pass (23.09.2026): the desktop top-bar search field is permanently visible (glyph + "Search people, groups, posts…" + X) instead of the collapsed icon, because the placeholder is more informative; the dropdown opens on focus and closes on Escape / click-outside / navigate; the X clears the query instead of collapsing; the query persists across close/reopen and navigation; mobile keeps the icon → full-screen pattern.
 
 Lane: `global-search` in `parallel-execution.md`.
 

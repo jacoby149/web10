@@ -72,19 +72,18 @@ describe('GlobalSearch — desktop (dropdown)', () => {
     vi.clearAllMocks();
   });
 
-  it('rests as a slim icon — no field, no results', () => {
+  it('always shows the search field (no bare icon) — no results until focused', () => {
     renderDesktopSearch();
-    expect(screen.getByTestId('global-search-trigger')).toBeInTheDocument();
-    expect(screen.queryByTestId('global-search-field')).not.toBeInTheDocument();
+    // The field is always visible on desktop (the operator's call); no bare icon.
+    expect(screen.getByTestId('global-search-field')).toBeInTheDocument();
+    expect(screen.queryByTestId('global-search-trigger')).not.toBeInTheDocument();
     expect(screen.queryByTestId('global-search-results')).not.toBeInTheDocument();
   });
 
-  it('tap expands to a full-width field with focus + the "type to search" state', async () => {
+  it('focusing the field opens the dropdown with the "type to search" state', async () => {
     renderDesktopSearch();
-    fireEvent.click(screen.getByTestId('global-search-trigger'));
-    const field = await screen.findByTestId('global-search-field');
-    expect(field).toBeInTheDocument();
-    expect(field).toHaveFocus();
+    const field = screen.getByTestId('global-search-field');
+    fireEvent.focus(field);
     expect(screen.getByTestId('global-search-type-to-search')).toBeInTheDocument();
     // The results container is a dropdown (absolute under the field), not a
     // full-screen view.
@@ -96,8 +95,8 @@ describe('GlobalSearch — desktop (dropdown)', () => {
 
   it('the query is debounced (400ms) before the results slot updates', async () => {
     renderDesktopSearch();
-    fireEvent.click(screen.getByTestId('global-search-trigger'));
-    const field = await screen.findByTestId('global-search-field');
+    const field = screen.getByTestId('global-search-field');
+    fireEvent.focus(field);
     fireEvent.change(field, { target: { value: 'john' } });
     // Immediately: still the idle "type to search" state (debounce pending).
     expect(screen.getByTestId('global-search-type-to-search')).toBeInTheDocument();
@@ -109,31 +108,37 @@ describe('GlobalSearch — desktop (dropdown)', () => {
     );
   });
 
-  it('Escape collapses back to the icon', async () => {
+  it('Escape closes the dropdown (the field stays visible)', async () => {
     renderDesktopSearch();
-    fireEvent.click(screen.getByTestId('global-search-trigger'));
-    const field = await screen.findByTestId('global-search-field');
+    const field = screen.getByTestId('global-search-field');
+    fireEvent.focus(field);
+    expect(screen.getByTestId('global-search-results')).toBeInTheDocument();
     fireEvent.keyDown(field, { key: 'Escape' });
-    await waitFor(() => expect(screen.queryByTestId('global-search-field')).not.toBeInTheDocument());
-    expect(screen.getByTestId('global-search-trigger')).toBeInTheDocument();
+    // The dropdown fades out (150ms), but the field stays visible.
+    await waitFor(() => expect(screen.queryByTestId('global-search-results')).not.toBeInTheDocument());
+    expect(screen.getByTestId('global-search-field')).toBeInTheDocument();
   });
 
-  it('the X button collapses back to the icon', async () => {
+  it('the X button clears the query (the field stays visible)', async () => {
     renderDesktopSearch();
-    fireEvent.click(screen.getByTestId('global-search-trigger'));
-    await screen.findByTestId('global-search-field');
+    const field = screen.getByTestId('global-search-field');
+    fireEvent.focus(field);
+    fireEvent.change(field, { target: { value: 'john' } });
+    expect(field).toHaveValue('john');
     fireEvent.click(screen.getByTestId('global-search-close'));
-    await waitFor(() => expect(screen.queryByTestId('global-search-field')).not.toBeInTheDocument());
-    expect(screen.getByTestId('global-search-trigger')).toBeInTheDocument();
+    await waitFor(() => expect(field).toHaveValue(''));
+    expect(screen.getByTestId('global-search-field')).toBeInTheDocument();
   });
 
-  it('clicking outside the bar collapses (desktop)', async () => {
+  it('clicking outside the bar closes the dropdown (the field stays)', async () => {
     renderDesktopSearch();
-    fireEvent.click(screen.getByTestId('global-search-trigger'));
-    await screen.findByTestId('global-search-field');
+    const field = screen.getByTestId('global-search-field');
+    fireEvent.focus(field);
+    expect(screen.getByTestId('global-search-results')).toBeInTheDocument();
     fireEvent.mouseDown(document.body);
-    await waitFor(() => expect(screen.queryByTestId('global-search-field')).not.toBeInTheDocument());
-    expect(screen.getByTestId('global-search-trigger')).toBeInTheDocument();
+    // The dropdown fades out (150ms), but the field stays visible.
+    await waitFor(() => expect(screen.queryByTestId('global-search-results')).not.toBeInTheDocument());
+    expect(screen.getByTestId('global-search-field')).toBeInTheDocument();
   });
 });
 
@@ -199,8 +204,8 @@ describe('GlobalSearch — S2 results (fan-out + rows + see more)', () => {
       { username: 'alice', provider: 'web10', display_name: 'Alice Smith', followers_count: 100, is_following: false },
     ] as any);
     renderDesktopSearch();
-    fireEvent.click(screen.getByTestId('global-search-trigger'));
-    const field = await screen.findByTestId('global-search-field');
+    const field = screen.getByTestId('global-search-field');
+    fireEvent.focus(field);
     fireEvent.change(field, { target: { value: 'alice' } });
     // The People section appears with the row.
     const section = await screen.findByTestId('global-search-section-people');
@@ -219,8 +224,8 @@ describe('GlobalSearch — S2 results (fan-out + rows + see more)', () => {
       { group_id: 'g1', name: 'Synthwave Sessions', owner: 'nova', slug: 'synthwave', join_policy: 'open', member_count: 50, tags: ['music'], permission_summary: 'public' },
     ] as any);
     renderDesktopSearch();
-    fireEvent.click(screen.getByTestId('global-search-trigger'));
-    const field = await screen.findByTestId('global-search-field');
+    const field = screen.getByTestId('global-search-field');
+    fireEvent.focus(field);
     fireEvent.change(field, { target: { value: 'synthwave' } });
     const section = await screen.findByTestId('global-search-section-groups');
     expect(section).toBeInTheDocument();
@@ -236,8 +241,8 @@ describe('GlobalSearch — S2 results (fan-out + rows + see more)', () => {
       { _id: 'p1', text: 'Check out this synthwave mix', author_username: 'alice', created_at: '2026-01-01T00:00:00Z' },
     ] as any);
     renderDesktopSearch();
-    fireEvent.click(screen.getByTestId('global-search-trigger'));
-    const field = await screen.findByTestId('global-search-field');
+    const field = screen.getByTestId('global-search-field');
+    fireEvent.focus(field);
     fireEvent.change(field, { target: { value: 'synthwave' } });
     const section = await screen.findByTestId('global-search-section-posts');
     expect(section).toBeInTheDocument();
@@ -249,8 +254,8 @@ describe('GlobalSearch — S2 results (fan-out + rows + see more)', () => {
 
   it('shows the "no results" state when all three sections are empty', async () => {
     renderDesktopSearch();
-    fireEvent.click(screen.getByTestId('global-search-trigger'));
-    const field = await screen.findByTestId('global-search-field');
+    const field = screen.getByTestId('global-search-field');
+    fireEvent.focus(field);
     fireEvent.change(field, { target: { value: 'zzz-no-match' } });
     await waitFor(
       () => expect(screen.getByTestId('global-search-no-results')).toBeInTheDocument(),
@@ -272,8 +277,8 @@ describe('GlobalSearch — S2 results (fan-out + rows + see more)', () => {
     vi.mocked(searchPosts).mockReturnValue(new Promise((r) => { resolvePosts = r; }));
 
     renderDesktopSearch();
-    fireEvent.click(screen.getByTestId('global-search-trigger'));
-    const field = await screen.findByTestId('global-search-field');
+    const field = screen.getByTestId('global-search-field');
+    fireEvent.focus(field);
     fireEvent.change(field, { target: { value: 'alice' } });
 
     // People section appears (it resolved), while groups + posts are still loading
@@ -301,13 +306,14 @@ describe('GlobalSearch — S2 results (fan-out + rows + see more)', () => {
       { username: 'alice', provider: 'web10', display_name: 'Alice', followers_count: 1, is_following: false },
     ] as any);
     renderDesktopSearch();
-    fireEvent.click(screen.getByTestId('global-search-trigger'));
-    const field = await screen.findByTestId('global-search-field');
+    const field = screen.getByTestId('global-search-field');
+    fireEvent.focus(field);
     fireEvent.change(field, { target: { value: 'alice' } });
     const row = await screen.findByTestId('global-search-person-alice');
     fireEvent.click(row);
-    // Navigation triggers the collapse (pathname change).
-    await waitFor(() => expect(screen.queryByTestId('global-search-field')).not.toBeInTheDocument());
+    // Navigation closes the dropdown (pathname change); the field stays.
+    await waitFor(() => expect(screen.queryByTestId('global-search-results')).not.toBeInTheDocument());
+    expect(screen.getByTestId('global-search-field')).toBeInTheDocument();
   });
 
   it('tapping a group row navigates to /groups/:groupId', async () => {
@@ -315,12 +321,14 @@ describe('GlobalSearch — S2 results (fan-out + rows + see more)', () => {
       { group_id: 'web10/groups/users/nova/synthwave', name: 'Synthwave', owner: 'nova', slug: 'synthwave', join_policy: 'open', member_count: 5, tags: [], permission_summary: 'public' },
     ] as any);
     renderDesktopSearch();
-    fireEvent.click(screen.getByTestId('global-search-trigger'));
-    const field = await screen.findByTestId('global-search-field');
+    const field = screen.getByTestId('global-search-field');
+    fireEvent.focus(field);
     fireEvent.change(field, { target: { value: 'synthwave' } });
     const row = await screen.findByTestId('global-search-group-web10/groups/users/nova/synthwave');
     fireEvent.click(row);
-    await waitFor(() => expect(screen.queryByTestId('global-search-field')).not.toBeInTheDocument());
+    // Navigation closes the dropdown (pathname change); the field stays.
+    await waitFor(() => expect(screen.queryByTestId('global-search-results')).not.toBeInTheDocument());
+    expect(screen.getByTestId('global-search-field')).toBeInTheDocument();
   });
 });
 
@@ -329,7 +337,7 @@ describe('Layout — the search icon is on every screen (desktop + 375px)', () =
     vi.clearAllMocks();
   });
 
-  it('the search trigger is present in BOTH the desktop top bar and the mobile header', async () => {
+  it('the search field (desktop) + trigger (mobile) are on every screen', async () => {
     const { default: Layout } = await import('@/components/Social/Layout');
     render(
       <MemoryRouter initialEntries={['/feed']}>
@@ -338,15 +346,16 @@ describe('Layout — the search icon is on every screen (desktop + 375px)', () =
         </Layout>
       </MemoryRouter>,
     );
-    // One trigger in the desktop top bar + one in the mobile header
-    // (CSS breakpoints hide one in a real browser; both exist in the DOM).
-    const triggers = screen.getAllByTestId('global-search-trigger');
-    expect(triggers.length).toBe(2);
+    // Desktop top bar: the field is always visible (no bare trigger); the
+    // mobile header keeps its trigger icon (CSS breakpoints hide one in a
+    // real browser; both exist in the DOM).
+    expect(screen.getAllByTestId('global-search-trigger').length).toBe(1);
+    expect(screen.getByTestId('global-search-field-wrap')).toBeInTheDocument();
     // The desktop top bar is present.
     expect(screen.getByTestId('topbar-desktop')).toBeInTheDocument();
   });
 
-  it('the search trigger is still present on other screens (discover, profile)', async () => {
+  it('the search field + trigger are still present on other screens (discover, profile)', async () => {
     const { default: Layout } = await import('@/components/Social/Layout');
     const { unmount } = render(
       <MemoryRouter initialEntries={['/discover']}>
@@ -355,7 +364,8 @@ describe('Layout — the search icon is on every screen (desktop + 375px)', () =
         </Layout>
       </MemoryRouter>,
     );
-    expect(screen.getAllByTestId('global-search-trigger').length).toBe(2);
+    expect(screen.getAllByTestId('global-search-trigger').length).toBe(1);
+    expect(screen.getByTestId('global-search-field-wrap')).toBeInTheDocument();
     unmount();
 
     render(
@@ -365,7 +375,8 @@ describe('Layout — the search icon is on every screen (desktop + 375px)', () =
         </Layout>
       </MemoryRouter>,
     );
-    expect(screen.getAllByTestId('global-search-trigger').length).toBe(2);
+    expect(screen.getAllByTestId('global-search-trigger').length).toBe(1);
+    expect(screen.getByTestId('global-search-field-wrap')).toBeInTheDocument();
   });
 
   it('the desktop top bar is hidden on the Shorts lens (immersive full-bleed)', async () => {

@@ -341,8 +341,9 @@ export default function Layout({ onLogout, onReportBug, children }: LayoutProps)
         </header>
 
         {/* Desktop top bar (global-search S1): the everything-search lives in
-            the chrome — slim at rest (just the search icon, so it never
-            crowds a per-screen sticky header), the field expands in place.
+            the chrome — the search field is always visible (the operator's
+            call: the persistent placeholder is more informative than a bare
+            icon), and the results dropdown opens on focus.
             The account entry point (avatar → user menu) sits on the right —
             moved here from the bottom of the sidebar, where it was buried.
             Hidden on the Shorts lens (the immersive surface keeps its
