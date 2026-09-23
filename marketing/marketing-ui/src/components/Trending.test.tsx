@@ -297,10 +297,13 @@ describe('Trending page', () => {
     vi.stubGlobal('fetch', vi.fn());
     vi.stubGlobal('open', vi.fn());
     Element.prototype.scrollIntoView = vi.fn();
+    // Start from the bare URL (no ?view=) — the default view is Home.
+    window.history.replaceState(null, '', '/');
   });
 
   it('renders a ranked grid and the Top 10 sidebar from the discovery API', async () => {
     mockDiscoverFeed();
+    window.history.replaceState(null, '', '?view=grid');
     const { default: Trending } = await import('@/pages/Trending');
     render(<Trending />);
     await waitFor(() => expect(screen.getByTestId('trending-grid')).toBeInTheDocument());
@@ -311,6 +314,7 @@ describe('Trending page', () => {
 
   it('shows Load more when a full page returns, and fetches the next page', async () => {
     mockDiscoverFeed();
+    window.history.replaceState(null, '', '?view=grid');
     const { default: Trending } = await import('@/pages/Trending');
     render(<Trending />);
     const loadMore = await screen.findByTestId('trending-load-more');
@@ -326,6 +330,7 @@ describe('Trending page', () => {
 
   it('renders the empty story beat when the network is quiet', async () => {
     mockDiscoverFeed([]);
+    window.history.replaceState(null, '', '?view=grid');
     const { default: Trending } = await import('@/pages/Trending');
     render(<Trending />);
     await waitFor(() => expect(screen.getByTestId('trending-empty')).toBeInTheDocument());
@@ -335,6 +340,7 @@ describe('Trending page', () => {
 
   it('filters the grid by topic chip', async () => {
     mockDiscoverFeed();
+    window.history.replaceState(null, '', '?view=grid');
     const { default: Trending } = await import('@/pages/Trending');
     render(<Trending />);
     await waitFor(() => expect(screen.getByTestId('trending-grid')).toBeInTheDocument());
@@ -346,6 +352,7 @@ describe('Trending page', () => {
 
   it('like is display-only in remote mode (anon can\'t like; no count change)', async () => {
     mockDiscoverFeed();
+    window.history.replaceState(null, '', '?view=grid');
     const { default: Trending } = await import('@/pages/Trending');
     render(<Trending />);
     await waitFor(() => expect(screen.getByTestId('trending-grid')).toBeInTheDocument());
@@ -411,6 +418,7 @@ describe('Knob re-ranking', () => {
     // The older post has 5 reactions (high engagement); the newer post has 1.
     const reactions: Record<string, number> = { 'older-post': 5, 'newer-post': 1 };
     mockDiscoverFeed(posts, reactions);
+    window.history.replaceState(null, '', '?view=grid');
     const { default: Trending } = await import('@/pages/Trending');
     render(<Trending />);
     await waitFor(() => expect(screen.getByTestId('trending-grid')).toBeInTheDocument());
@@ -449,6 +457,7 @@ describe('Preset behavior', () => {
     // The old post has 5 reactions (high engagement); the new post has none.
     const reactions: Record<string, number> = { 'old-post': 5 };
     mockDiscoverFeed(posts, reactions);
+    window.history.replaceState(null, '', '?view=grid');
     const { default: Trending } = await import('@/pages/Trending');
     render(<Trending />);
     await waitFor(() => expect(screen.getByTestId('trending-grid')).toBeInTheDocument());
@@ -467,6 +476,7 @@ describe('Preset behavior', () => {
     // The old post has 5 reactions (high engagement); the new post has 1.
     const reactions: Record<string, number> = { 'old-post': 5, 'new-post': 1 };
     mockDiscoverFeed(posts, reactions);
+    window.history.replaceState(null, '', '?view=grid');
     const { default: Trending } = await import('@/pages/Trending');
     render(<Trending />);
     await waitFor(() => expect(screen.getByTestId('trending-grid')).toBeInTheDocument());
@@ -759,85 +769,82 @@ describe('Trending view toggle', () => {
     vi.stubGlobal('fetch', vi.fn());
     vi.stubGlobal('open', vi.fn());
     Element.prototype.scrollIntoView = vi.fn();
+    // Each test starts from the bare URL (no ?view=) — the default view is Home.
+    // (Other describes set ?view=grid; reset it so it doesn't leak.)
+    window.history.replaceState(null, '', '/');
   });
 
-  it('renders the view toggle with Grid and YouTube buttons after load', async () => {
-    mockDiscoverFeed(makeV3Posts(10));
+  it('renders the view toggle with Home and Hot Gossip buttons after load', async () => {
+    mockDiscoverFeed(makeV3PostsMedia(6));
     const { default: Trending } = await import('@/pages/Trending');
     render(<Trending />);
     await waitFor(() => expect(screen.getByTestId('trending-view-toggle')).toBeInTheDocument());
+    expect(screen.getByTestId('view-toggle-home')).toBeInTheDocument();
     expect(screen.getByTestId('view-toggle-grid')).toBeInTheDocument();
-    expect(screen.getByTestId('view-toggle-youtube')).toBeInTheDocument();
   });
 
-  it('shows the grid view by default (no ?view= param)', async () => {
-    mockDiscoverFeed(makeV3Posts(10));
+  it('shows the Home view by default (no ?view= param)', async () => {
+    mockDiscoverFeed(makeV3PostsMedia(6));
     const { default: Trending } = await import('@/pages/Trending');
     render(<Trending />);
-    await waitFor(() => expect(screen.getByTestId('trending-grid')).toBeInTheDocument());
-    expect(screen.queryByTestId('trending-youtube-grid')).not.toBeInTheDocument();
+    await waitFor(() => expect(screen.getByTestId('trending-home-grid')).toBeInTheDocument());
+    expect(screen.queryByTestId('trending-grid')).not.toBeInTheDocument();
   });
 
-  it('switches to YouTube view when clicking the YouTube button', async () => {
+  it('switches to Hot Gossip view when clicking the Hot Gossip button', async () => {
     mockDiscoverFeed(makeV3PostsMedia(6));
     const { default: Trending } = await import('@/pages/Trending');
     render(<Trending />);
     await waitFor(() => expect(screen.getByTestId('trending-view-toggle')).toBeInTheDocument());
-    fireEvent.click(screen.getByTestId('view-toggle-youtube'));
-    await waitFor(() => expect(screen.getByTestId('trending-youtube-grid')).toBeInTheDocument());
-  });
-
-  it('switches back to grid view when clicking the Grid button', async () => {
-    mockDiscoverFeed(makeV3PostsMedia(6));
-    const { default: Trending } = await import('@/pages/Trending');
-    render(<Trending />);
-    await waitFor(() => expect(screen.getByTestId('trending-view-toggle')).toBeInTheDocument());
-    fireEvent.click(screen.getByTestId('view-toggle-youtube'));
-    await waitFor(() => expect(screen.getByTestId('trending-youtube-grid')).toBeInTheDocument());
     fireEvent.click(screen.getByTestId('view-toggle-grid'));
     await waitFor(() => expect(screen.getByTestId('trending-grid')).toBeInTheDocument());
   });
 
-  it('YouTube view shows videos only (competing with YouTube — no photos)', async () => {
-    // 6 posts: 2 video, 2 image, 2 text-only
+  it('switches back to Home view when clicking the Home button', async () => {
     mockDiscoverFeed(makeV3PostsMedia(6));
     const { default: Trending } = await import('@/pages/Trending');
     render(<Trending />);
     await waitFor(() => expect(screen.getByTestId('trending-view-toggle')).toBeInTheDocument());
-    fireEvent.click(screen.getByTestId('view-toggle-youtube'));
-    await waitFor(() => expect(screen.getByTestId('trending-youtube-grid')).toBeInTheDocument());
-    // Videos only: 2 video cards (the 2 image + 2 text-only are excluded).
-    expect(screen.getAllByTestId('youtube-card')).toHaveLength(2);
+    fireEvent.click(screen.getByTestId('view-toggle-grid'));
+    await waitFor(() => expect(screen.getByTestId('trending-grid')).toBeInTheDocument());
+    fireEvent.click(screen.getByTestId('view-toggle-home'));
+    await waitFor(() => expect(screen.getByTestId('trending-home-grid')).toBeInTheDocument());
   });
 
-  it('YouTube view shows video posts with resolved media refs (mime from the read, no tag needed)', async () => {
+  it('Home view shows videos only (competing with YouTube — no photos)', async () => {
+    // 6 posts: 2 video, 2 image, 2 text-only
+    mockDiscoverFeed(makeV3PostsMedia(6));
+    const { default: Trending } = await import('@/pages/Trending');
+    render(<Trending />);
+    await waitFor(() => expect(screen.getByTestId('trending-home-grid')).toBeInTheDocument());
+    // Videos only: 2 video cards (the 2 image + 2 text-only are excluded).
+    expect(screen.getAllByTestId('home-card')).toHaveLength(2);
+  });
+
+  it('Home view shows video posts with resolved media refs (mime from the read, no tag needed)', async () => {
     // Regression pin: the v3 read serves media_refs pre-resolved (objects with
     // mime_type). Video detection must come from the resolved mime_type, not
     // tags — these posts have no video tag.
     mockDiscoverFeed(makeV3PostsResolvedMedia(4));
     const { default: Trending } = await import('@/pages/Trending');
     render(<Trending />);
-    await waitFor(() => expect(screen.getByTestId('trending-view-toggle')).toBeInTheDocument());
-    fireEvent.click(screen.getByTestId('view-toggle-youtube'));
-    await waitFor(() => expect(screen.getByTestId('trending-youtube-grid')).toBeInTheDocument());
+    await waitFor(() => expect(screen.getByTestId('trending-home-grid')).toBeInTheDocument());
     // 2 of the 4 are videos (resolved mime_type video/mp4) → 2 cards.
-    expect(screen.getAllByTestId('youtube-card')).toHaveLength(2);
+    expect(screen.getAllByTestId('home-card')).toHaveLength(2);
   });
 
-  it('YouTube view shows empty state when no media posts exist', async () => {
+  it('Home view shows empty state when no media posts exist', async () => {
     const textOnlyPosts = Array.from({ length: 5 }, (_, i) =>
       v3Post(i, { doc_id: `text-only-${i}`, body: { text: `text post ${i}` }, tags: ['text'], created_at: new Date().toISOString() }),
     );
     mockDiscoverFeed(textOnlyPosts);
     const { default: Trending } = await import('@/pages/Trending');
     render(<Trending />);
-    await waitFor(() => expect(screen.getByTestId('trending-view-toggle')).toBeInTheDocument());
-    fireEvent.click(screen.getByTestId('view-toggle-youtube'));
     await waitFor(() => expect(screen.getByText('No media posts yet')).toBeInTheDocument());
   });
 });
 
-describe('YouTubeCard', () => {
+describe('HomeCard (the Home view card)', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     vi.stubGlobal('fetch', vi.fn());
@@ -862,61 +869,72 @@ describe('YouTubeCard', () => {
     });
   });
 
-  it('renders the shared discover card for a video post (16:9 media)', async () => {
-    const { YouTubeCard } = await import('@/components/FeedPreview');
-    const videoPost: FeedPost = {
-      ...basePost,
-      id: 'yt-video',
-      media: 'video',
-      mediaRefs: [{ doc_id: 'ref-1', object_key: 'u/a.mp4', mime_type: 'video/mp4', read_url: 'https://cdn.example.com/a.mp4?sig=x' }],
-      firstAttachmentMime: 'video/mp4',
-      author: 'testuser',
-    };
-    render(<YouTubeCard post={videoPost} rank={1} />);
-    expect(screen.getByTestId('youtube-card')).toBeInTheDocument();
-    // The shared card renders the video through the shared VideoPlayer.
-    expect(screen.getByTestId('discover-media-video')).toBeInTheDocument();
+  const videoPost: FeedPost = {
+    ...basePost,
+    id: 'yt-video',
+    media: 'video',
+    mediaRefs: [{ doc_id: 'ref-1', object_key: 'u/a.mp4', mime_type: 'video/mp4', read_url: 'https://cdn.example.com/a.mp4?sig=x', thumbnail_url: 'https://cdn.example.com/thumb.jpg', width: 1080, height: 1920, duration_seconds: 142 }],
+    firstAttachmentMime: 'video/mp4',
+    author: 'testuser',
+  };
+
+  it('renders a 16:9 thumbnail (the video poster) for a video post', async () => {
+    const { HomeCard } = await import('@web10/discover');
+    const { feedPostToDiscover } = await import('@/components/FeedPreview');
+    render(<HomeCard post={feedPostToDiscover(videoPost)} testId="home-card" />);
+    const thumb = screen.getByTestId('home-card-thumb');
+    expect(thumb).toBeInTheDocument();
+    // The 16:9 frame fills the card width…
+    expect(thumb.className).toContain('aspect-video');
+    // …and the thumbnail is the video's poster (an <img>), not a <video>.
+    const img = thumb.querySelector('img');
+    expect(img).not.toBeNull();
+    expect(img!.getAttribute('src')).toBe('https://cdn.example.com/thumb.jpg');
+    expect(thumb.querySelector('video')).toBeNull();
+    // The duration badge shows the clip's length.
+    expect(screen.getByTestId('home-card-duration')).toHaveTextContent('2:22');
   });
 
-  it('renders the shared discover card with the display name + post text', async () => {
-    const { YouTubeCard } = await import('@/components/FeedPreview');
-    const videoPost: FeedPost = {
-      ...basePost,
-      id: 'yt-text',
-      media: 'video',
-      mediaRefs: [{ doc_id: 'ref-1', object_key: 'u/a.mp4', mime_type: 'video/mp4', read_url: 'https://cdn.example.com/a.mp4?sig=x' }],
-      firstAttachmentMime: 'video/mp4',
-      author: 'testuser',
-    };
-    render(<YouTubeCard post={videoPost} />);
-    expect(screen.getByTestId('youtube-card')).toBeInTheDocument();
-    // The display name (post.name) is shown…
-    expect(screen.getByText('Ada Lovelace')).toBeInTheDocument();
-    // …and the post text is the content.
-    expect(screen.getByText('first program')).toBeInTheDocument();
+  it('shows the author attribution + the post text as the title', async () => {
+    const { HomeCard } = await import('@web10/discover');
+    const { feedPostToDiscover } = await import('@/components/FeedPreview');
+    render(<HomeCard post={feedPostToDiscover(videoPost)} testId="home-card" />);
+    // The title is the post text (short → shown in full).
+    expect(screen.getByTestId('home-card-title')).toHaveTextContent('first program');
+    // The attribution is the author's display name.
+    expect(screen.getByTestId('home-card')).toHaveTextContent('Ada Lovelace');
   });
 
-  it('uses the resolved read_url directly (no presign round-trip)', async () => {
-    // Regression pin: the v3 read serves media_refs pre-resolved with a fresh
-    // presigned read_url. The shared card renders it directly instead of
-    // calling the (owner-scoped, token-gated) presign endpoints.
-    const { YouTubeCard } = await import('@/components/FeedPreview');
-    const readUrl = 'https://cdn.example.com/a.mp4?sig=x';
-    const videoPost: FeedPost = {
-      ...basePost,
-      id: 'yt-resolved',
-      media: 'video',
-      mediaRefs: [{ doc_id: 'ref-1', object_key: 'u/a.mp4', mime_type: 'video/mp4', read_url: readUrl }],
-      firstAttachmentMime: 'video/mp4',
-      author: 'testuser',
-    };
-    render(<YouTubeCard post={videoPost} rank={1} />);
-    await waitFor(() => expect(screen.getByTestId('discover-media-video')).toBeInTheDocument());
-    const video = document.querySelector('video') as HTMLVideoElement;
-    expect(video).not.toBeNull();
-    expect(video.getAttribute('src')).toBe(readUrl);
-    // The resolved path must not hit the network for a presign.
-    expect(vi.mocked(fetch)).not.toHaveBeenCalled();
+  it('truncates a long title to the char limit with a trailing ellipsis', async () => {
+    const { HomeCard, HOME_TITLE_LIMIT } = await import('@web10/discover');
+    const { feedPostToDiscover } = await import('@/components/FeedPreview');
+    const longPost: FeedPost = { ...videoPost, content: 'x'.repeat(HOME_TITLE_LIMIT + 40) };
+    render(<HomeCard post={feedPostToDiscover(longPost)} testId="home-card" />);
+    const title = screen.getByTestId('home-card-title');
+    // The title is cut to the limit + a trailing ellipsis…
+    expect(title.textContent!.length).toBeLessThanOrEqual(HOME_TITLE_LIMIT + 1);
+    expect(title.textContent!.endsWith('…')).toBe(true);
+  });
+
+  it('remote mode: the title links to the post permalink + the author to their profile', async () => {
+    const { HomeCard } = await import('@web10/discover');
+    const { feedPostToDiscover } = await import('@/components/FeedPreview');
+    render(
+      <HomeCard
+        post={feedPostToDiscover(videoPost)}
+        remote
+        postHref={`https://social.web10.app/u/testuser/p/yt-video`}
+        authorHref={`https://social.web10.app/u/testuser`}
+        testId="home-card"
+      />,
+    );
+    // The title is the link-out to the post permalink on web10 social.
+    const title = screen.getByTestId('home-card-title');
+    expect(title.tagName).toBe('A');
+    expect(title.getAttribute('href')).toMatch(/\/u\/testuser\/p\/yt-video$/);
+    // The author links to their profile.
+    const authorLinks = screen.getAllByRole('link', { name: /Ada Lovelace/ });
+    expect(authorLinks.some(l => l.getAttribute('href')?.match(/\/u\/testuser$/))).toBe(true);
   });
 });
 
@@ -956,61 +974,6 @@ describe('TrendingCard deep links', () => {
       <TrendingCard post={{ ...basePost, author: undefined }} rank={5} maxScore={100} onLike={noop} onComment={noop} onRepost={noop} />,
     );
     // The card derives the author from the handle (@ada → ada).
-    const authorLinks = screen.getAllByRole('link', { name: /Ada Lovelace/ });
-    expect(authorLinks[0].getAttribute('href')).toMatch(/\/u\/ada$/);
-  });
-});
-
-describe('YouTubeCard deep links', () => {
-  beforeEach(() => {
-    vi.clearAllMocks();
-    vi.stubGlobal('fetch', vi.fn());
-    vi.stubGlobal('open', vi.fn());
-    Element.prototype.scrollIntoView = vi.fn();
-    vi.stubGlobal('IntersectionObserver', class {
-      observe = vi.fn();
-      disconnect = vi.fn();
-    });
-    Object.defineProperty(window, 'matchMedia', {
-      writable: true,
-      value: (query: string) => ({
-        matches: false,
-        media: query,
-        onchange: null,
-        addListener: vi.fn(),
-        removeListener: vi.fn(),
-        addEventListener: vi.fn(),
-        removeEventListener: vi.fn(),
-        dispatchEvent: vi.fn(),
-      }),
-    });
-  });
-
-  it('the post text links to /u/:username/p/:postId (remote mode: click → social)', async () => {
-    const { YouTubeCard } = await import('@/components/FeedPreview');
-    const videoPost: FeedPost = {
-      ...basePost,
-      id: 'yt-video',
-      media: 'video',
-      mediaRefs: [{ doc_id: 'ref-1', object_key: 'u/a.mp4', mime_type: 'video/mp4', read_url: 'https://cdn.example.com/a.mp4?sig=x' }],
-      firstAttachmentMime: 'video/mp4',
-      author: 'testuser',
-    };
-    render(<YouTubeCard post={videoPost} rank={1} />);
-    // The shared card is an <article>; the post text is the link-out to social.
-    expect(screen.getByTestId('youtube-card').tagName).toBe('ARTICLE');
-    const contentLink = screen.getByRole('link', { name: /first program/ });
-    expect(contentLink.getAttribute('href')).toMatch(/\/u\/testuser\/p\/yt-video$/);
-    expect(contentLink.getAttribute('target')).toBe('_blank');
-  });
-
-  it('author falls back to the handle-derived username when author is missing', async () => {
-    const { YouTubeCard } = await import('@/components/FeedPreview');
-    const post: FeedPost = {
-      ...basePost,
-      author: undefined,
-    };
-    render(<YouTubeCard post={post} />);
     const authorLinks = screen.getAllByRole('link', { name: /Ada Lovelace/ });
     expect(authorLinks[0].getAttribute('href')).toMatch(/\/u\/ada$/);
   });

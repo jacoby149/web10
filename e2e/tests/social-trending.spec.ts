@@ -312,7 +312,9 @@ test.describe('Social trending gauntlet — /discover board + D36 knobs + deep l
     await postToDiscover(request, c1.token, postB);
 
     // --- Load the board (pre-authed: the token cookie is the session) ---
-    await page.goto(`${SOCIAL_BASE}/discover`);
+    // ?view=grid — the Home view (the video wall) is the default; this test
+    // exercises the Hot Gossip board (the ranked post grid).
+    await page.goto(`${SOCIAL_BASE}/discover?view=grid`);
     await page.waitForLoadState('networkidle');
     await expect(page.locator('[data-testid="discover-grid"]')).toBeVisible({ timeout: 30_000 });
 

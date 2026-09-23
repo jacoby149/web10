@@ -338,11 +338,17 @@ function App() {
       navigate(`/u/${customEvent.detail.username}`, { state: { provider: customEvent.detail.provider } });
     };
     window.addEventListener('navigate-user-profile', handler);
+    const postHandler = (e: Event) => {
+      const customEvent = e as CustomEvent<{ username: string; postId: string; provider: string }>;
+      navigate(`/u/${customEvent.detail.username}/p/${customEvent.detail.postId}`, { state: { provider: customEvent.detail.provider } });
+    };
+    window.addEventListener('navigate-post', postHandler);
     return () => {
       window.removeEventListener('session:signed-out', onSignedOut);
       window.removeEventListener('unhandledrejection', onAuthError);
       window.removeEventListener('error', onAuthError);
       window.removeEventListener('navigate-user-profile', handler);
+      window.removeEventListener('navigate-post', postHandler);
     };
   }, [navigate, runAccessRecovery]);
 

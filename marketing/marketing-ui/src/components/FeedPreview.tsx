@@ -40,12 +40,14 @@ function feedPostToMediaItems(mediaRefs?: (string | ResolvedMediaRef)[]): MediaI
       // a tall box, not a squashed 16:9) and the card caps a portrait frame.
       width: r.width || undefined,
       height: r.height || undefined,
+      // The clip's length — the HomeCard's duration badge (parity with the
+      // social app, which carries it through its own mapper).
+      duration_seconds: r.duration_seconds || undefined,
       transcoding_settings: r.transcoding_settings || undefined,
     }));
 }
 
-function feedPostToDiscover(post: FeedPost): DiscoverPost {
-  const author = post.author || post.handle.replace(/^@/, '');
+function feedPostToDiscover(post: FeedPost): DiscoverPost {  const author = post.author || post.handle.replace(/^@/, '');
   return {
     id: post.id,
     author,
@@ -475,40 +477,10 @@ async function fetchDiscoverFeed(sort: 'recent' | 'trending', limit = 6): Promis
   return mapped.slice(0, limit);
 }
 
-// ── YouTubeCard (D-trending-views) ──────────────────────────────────────────
+// ── YouTubeSkeleton (the Home view's loading state) ─────────────────────────
 //
-// YouTube-style card: 16:9 thumbnail, title + author + meta row below.
-// Used in the YouTube view of /trending — media posts only.
-
-interface YouTubeCardProps {
-  post: FeedPost;
-  rank?: number;
-}
-
-function YouTubeCard({ post, rank }: YouTubeCardProps) {
-  // D74: the YouTube view's card is now the SHARED discover card (the same one
-  // the social app's Discover uses), in `remote` mode. The youtubey 16:9 media
-  // + author + meta is the shared card's layout — one card, both apps.
-  const author = post.author || post.handle.replace(/^@/, '');
-  const postHref = author
-    ? `${SOCIAL_ORIGIN}/u/${encodeURIComponent(author)}/p/${encodeURIComponent(post.id)}`
-    : SOCIAL_ORIGIN;
-  const authorHref = author
-    ? `${SOCIAL_ORIGIN}/u/${encodeURIComponent(author)}`
-    : SOCIAL_ORIGIN;
-  return (
-    <DiscoverCard
-      post={feedPostToDiscover(post)}
-      rank={rank ?? 0}
-      maxScore={1}
-      remote
-      postHref={postHref}
-      authorHref={authorHref}
-      readComments={marketingReadComments}
-      testId="youtube-card"
-    />
-  );
-}
+// The Home view (the YouTube-style video wall) shows these skeletons while the
+// next page loads. The card itself is the shared `HomeCard` (@web10/discover).
 
 function YouTubeSkeleton() {
   return (
@@ -528,4 +500,4 @@ function YouTubeSkeleton() {
   );
 }
 
-export { TrendingCard, TrendingSkeleton, YouTubeCard, YouTubeSkeleton, fetchDiscoverFeed, mapDiscoveryToFeedPost, formatCount, parseCount, parseCreatedAt, type FeedPost, type DiscoveryPost, type ResolvedMediaRef };
+export { TrendingCard, TrendingSkeleton, YouTubeSkeleton, fetchDiscoverFeed, mapDiscoveryToFeedPost, feedPostToDiscover, formatCount, parseCount, parseCreatedAt, type FeedPost, type DiscoveryPost, type ResolvedMediaRef };
