@@ -222,7 +222,19 @@ export default function Layout({ onLogout, onReportBug, children }: LayoutProps)
                   : 'text-muted-foreground hover:text-foreground hover:bg-elevated/80 hover:border hover:border-border/50',
               )}
             >
-              <Icon className={cn('w-6 h-6 transition-colors duration-150', active && 'text-brand')} strokeWidth={active ? 2 : 1.75} />
+              {path === '/profile' ? (
+                <Avatar className="h-6 w-6 shrink-0">
+                  {avatarUrl ? (
+                    <AvatarImage src={avatarUrl} alt="" />
+                  ) : (
+                    <AvatarFallback className="bg-brand-muted text-brand-300 text-xs font-semibold">
+                      {(displayName || username || '?').charAt(0).toUpperCase()}
+                    </AvatarFallback>
+                  )}
+                </Avatar>
+              ) : (
+                <Icon className={cn('w-6 h-6 transition-colors duration-150', active && 'text-brand')} strokeWidth={active ? 2 : 1.75} />
+              )}
               <span className="truncate">{navLabel}</span>
               {active && (
                 <div
