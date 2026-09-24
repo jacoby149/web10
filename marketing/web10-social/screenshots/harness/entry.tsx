@@ -23,6 +23,7 @@ import NotificationsScreen from '@/components/Notifications/NotificationsScreen'
 import DiscoverScreen from '@/components/Discover/DiscoverScreen';
 import ShortsScreen from '@/components/Shorts/ShortsScreen';
 import UserProfileScreen from '@/components/Bio/UserProfileScreen';
+import UserFollowListScreen from '@/components/Bio/UserFollowListScreen';
 import PostComposer from '@/components/Feed/PostComposer';
 import MonetizationScreen from '@/components/Monetization/MonetizationScreen';
 import { InstallPrompt } from '@/components/shared/InstallPrompt';
@@ -65,6 +66,13 @@ function GroupDetailRoute() {
   return <GroupDetailScreen groupId={groupId || ''} />;
 }
 
+function UserFollowersRoute() {
+  return <UserFollowListScreen kind="followers" />;
+}
+function UserFollowingRoute() {
+  return <UserFollowListScreen kind="following" />;
+}
+
 const params = new URLSearchParams(window.location.search);
 const screen = params.get('screen');
 // The install-prompt capture: render over Shorts and force the surface open
@@ -77,10 +85,11 @@ const initialRoute =
   : screen === 'feed' ? '/feed'
   : screen === 'composer' ? '/composer'
   : screen === 'notifications' ? '/notifications'
-  : screen === 'discover' ? '/discover'
-  : screen === 'discover-youtube' ? '/discover?view=youtube'
-  : screen === 'discover-people' ? '/discover?tab=people'
-  : screen === 'discover-groups' ? '/discover?tab=groups'
+   : screen === 'discover' ? '/discover'
+   : screen === 'discover-youtube' ? '/discover?view=youtube'
+   : screen === 'discover-people' ? '/discover?tab=explore'
+   : screen === 'discover-groups' ? '/discover?tab=explore'
+   : screen === 'discover-explore' ? '/discover?tab=explore'
   : screen === 'shorts' || screen === 'install-prompt' ? '/shorts'
   : screen === 'groups' ? '/groups'
   : screen === 'groups-discover' ? '/groups?tab=discover'
@@ -90,9 +99,11 @@ const initialRoute =
    : screen === 'groups-create' ? '/groups/web10%2Fgroups%2Fusers%2Fme%2Fnew-group?edit=1'
    : screen === 'chat-group-thread'
      ? '/messages/group/web10%2Fgroups%2Fusers%2Fnova%2Fchat-the-crew'
-  : screen === 'people' ? '/people'
-  : screen === 'profile' ? '/u/me'
-  : screen === 'profile-feed' ? '/u/me?view=feed'
+   : screen === 'people' ? '/people'
+   : screen === 'profile' ? '/u/me'
+   : screen === 'profile-followers' ? '/u/me/followers'
+   : screen === 'profile-following' ? '/u/me/following'
+   : screen === 'profile-feed' ? '/u/me?view=feed'
   : screen === 'monetize' ? '/monetize'
   : screen === 'monetize-node' ? '/monetize?tab=node'
   : '/messages';
@@ -113,6 +124,8 @@ createRoot(document.getElementById('root')!).render(
         <Route path="/groups/:groupId" element={<GroupDetailRoute />} />
         <Route path="/people" element={<PeopleScreen />} />
         <Route path="/u/:username" element={<UserProfileScreen username={'me'} provider={'web10'} />} />
+        <Route path="/u/:username/followers" element={<UserFollowersRoute />} />
+        <Route path="/u/:username/following" element={<UserFollowingRoute />} />
         <Route path="/monetize" element={<MonetizationScreen />} />
       </Route>
     </Routes>

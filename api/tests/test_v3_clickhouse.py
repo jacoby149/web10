@@ -290,6 +290,7 @@ class TestUpdateGroup:
                         "open",
                         0,
                         ["web10-social-group"],
+                        "public",
                         datetime(2026, 1, 1),
                         datetime(2026, 1, 1),
                     ),
@@ -309,6 +310,7 @@ class TestUpdateGroup:
                         "open",
                         0,
                         ["web10-social-group"],
+                        "public",
                         datetime(2026, 1, 1),
                         datetime(2026, 1, 1),
                     ),
@@ -377,6 +379,7 @@ class TestGetGroup:
                         "open",
                         1,
                         ["web10-social-group"],
+                        "public",
                         datetime(2026, 1, 1),
                         datetime(2026, 1, 1),
                     ),
@@ -387,6 +390,7 @@ class TestGetGroup:
             assert result["join_policy"] == "open"
             assert result["discoverable"] is True
             assert result["tags"] == ["web10-social-group"]
+            assert result["membership_visibility"] == "public"
 
     def test_not_found(self):
         with _patch_client() as mock_client:
@@ -483,6 +487,144 @@ class TestGetUserGroups:
                 _mock_result_rows([]),
             ]
             ch.get_user_groups("alice")
+            sql, _ = mock_client.query.call_args[0]
+            assert "has(gc.tags" not in sql
+
+
+# ---------------------------------------------------------------------------
+# D80 — membership visibility (group policy)
+# ---------------------------------------------------------------------------
+
+
+class TestMembershipVisibilityCreate:
+    def test_default_hidden(self):
+        # D80: the conservative default — a group's membership is NOT publicly
+        # enumerable unless the owner opts in.
+        with _patch_client():
+            assert ch.create_group("g", [{"name": "member"}], "open")["membership_visibility"] == "hidden"
+
+    def test_explicit_public(self):
+        with _patch_client():
+            assert (
+                ch.create_group("g", [{"name": "member"}], "open", membership_visibility="public")[
+                    "membership_visibility"
+                ]
+                == "public"
+            )
+
+    def test_insert_uses_named_column(self):
+        with _patch_client() as mock_client:
+            ch.create_group("g", [{"name": "member"}], "open", membership_visibility="public")
+            args, kwargs = mock_client.insert.call_args
+            assert "membership_visibility" in kwargs["column_names"]
+
+
+class TestMembershipVisibilityInfer:
+    def test_followers_public(self):
+        assert (
+            ch._infer_membership_visibility("api.localhost/groups/users/alice/followers", ["web10-social-followers"])
+            == "public"
+        )
+
+    def test_community_public(self):
+        assert ch._infer_membership_visibility("web10.app/groups/alice/jazz", ["web10-social-group"]) == "public"
+
+    def test_dm_hidden(self):
+        assert ch._infer_membership_visibility("web10.app/groups/alice/dm-bob", ["web10-social-dm"]) == "hidden"
+
+    def test_untagged_hidden(self):
+        assert ch._infer_membership_visibility("web10.app/groups/web10/discover", []) == "hidden"
+
+
+class TestMembershipVisibilityBackfill:
+    def test_backfill_flips_public_groups_only(self):
+        # D80: the backfill flips followers + community groups to 'public' and
+        # leaves dm / everything else at the 'hidden' default (no row appended).
+        with _patch_client() as mock_client:
+            mock_client.query.side_effect = [
+                _mock_result_rows([]),  # sentinel check — not done
+                _mock_result_rows(
+                    [
+                        # followers group → flipped to public
+                        (
+                            "api.localhost/groups/users/alice/followers",
+                            "[]",
+                            "open",
+                            0,
+                            datetime(2026, 1, 1),
+                            ["web10-social-followers"],
+                        ),
+                        # community group → flipped to public
+                        ("web10.app/groups/alice/jazz", "[]", "open", 0, datetime(2026, 1, 1), ["web10-social-group"]),
+                        # dm group → stays hidden (no insert)
+                        ("web10.app/groups/alice/dm-bob", "[]", "open", 0, datetime(2026, 1, 1), ["web10-social-dm"]),
+                    ]
+                ),
+            ]
+            ch._migrate_membership_visibility_backfill()
+            inserts = [c for c in mock_client.insert.call_args_list if c[0][0] == "group_contracts"]
+            assert len(inserts) == 2
+            flipped = {row[0]: row[8] for row in (c[0][1][0] for c in inserts)}
+            assert flipped["api.localhost/groups/users/alice/followers"] == "public"
+            assert flipped["web10.app/groups/alice/jazz"] == "public"
+            assert "web10.app/groups/alice/dm-bob" not in flipped
+
+    def test_backfill_skips_when_sentinel_set(self):
+        with _patch_client() as mock_client:
+            mock_client.query.return_value = _mock_result_rows([(1,)])  # sentinel present
+            ch._migrate_membership_visibility_backfill()
+            mock_client.insert.assert_not_called()
+
+
+class TestGetUserPublicGroups:
+    def test_returns_public_memberships_with_metadata(self):
+        # D80: the public "what groups is X in?" read — the membership rows in
+        # public-visibility groups, each carrying the group's metadata.
+        with _patch_client() as mock_client:
+            mock_client.query.return_value = _mock_result_rows(
+                [
+                    # group_id, role, joined_at, join_policy, discoverable, tags
+                    (
+                        "api.localhost/groups/users/bob/followers",
+                        "member",
+                        datetime(2026, 1, 2),
+                        "open",
+                        0,
+                        ["web10-social-followers"],
+                    ),
+                    ("web10.app/groups/alice/jazz", "member", datetime(2026, 1, 3), "open", 1, ["web10-social-group"]),
+                ]
+            )
+            groups = ch.get_user_public_groups("alice")
+            assert len(groups) == 2
+            assert groups[0]["group_id"] == "api.localhost/groups/users/bob/followers"
+            assert groups[0]["role"] == "member"
+            assert groups[0]["join_policy"] == "open"
+            assert groups[0]["discoverable"] is False
+            assert groups[0]["tags"] == ["web10-social-followers"]
+
+    def test_filters_on_public_visibility(self):
+        # The SQL must gate on membership_visibility = 'public' — hidden (dm)
+        # groups never surface.
+        with _patch_client() as mock_client:
+            mock_client.query.return_value = _mock_result_rows([])
+            ch.get_user_public_groups("alice")
+            sql, _ = mock_client.query.call_args[0]
+            assert "membership_visibility = 'public'" in sql
+
+    def test_tag_filter_builds_has_clause(self):
+        # The optional single-tag filter (the following-list = the followers tag).
+        with _patch_client() as mock_client:
+            mock_client.query.return_value = _mock_result_rows([])
+            ch.get_user_public_groups("alice", tag="web10-social-followers")
+            sql, params = mock_client.query.call_args[0]
+            assert "has(gc.tags, %(tag)s)" in sql
+            assert params["tag"] == "web10-social-followers"
+
+    def test_no_tag_omits_filter(self):
+        with _patch_client() as mock_client:
+            mock_client.query.return_value = _mock_result_rows([])
+            ch.get_user_public_groups("alice")
             sql, _ = mock_client.query.call_args[0]
             assert "has(gc.tags" not in sql
 
@@ -1305,6 +1447,7 @@ class TestCreateUser:
                 "open",
                 0,
                 [],
+                "hidden",
                 datetime(2026, 1, 1),
                 datetime(2026, 1, 1),
             )
@@ -1596,6 +1739,7 @@ class TestEnsureDiscoverGroup:
                 "open",
                 0,
                 [],
+                "hidden",
                 datetime(2026, 1, 1),
                 datetime(2026, 1, 1),
             )

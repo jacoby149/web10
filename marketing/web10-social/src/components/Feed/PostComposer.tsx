@@ -246,6 +246,7 @@ export default function PostComposer({
   repostingTo,
   onRepostCancel,
   groups,
+  compact = false,
 }: {
   onPostCreated?: () => void;
   /**
@@ -261,6 +262,14 @@ export default function PostComposer({
    * the group, not the reader's followers groups). Threaded to createPost.
    */
   groups?: string[];
+  /**
+   * Compact (collapsed) mode: the composer rests as a single-line "What's on
+   * your mind?" bar and expands to the full form on focus. The Discover
+   * surface uses it so the video wall, not the composer, is the hero
+   * (design.md §10 — the chrome recedes). The feed / profile / group
+   * composers stay full-size.
+   */
+  compact?: boolean;
 }) {
   const [text, setText] = useState('');
   const [mediaItems, setMediaItems] = useState<AttachedMedia[]>([]);
@@ -692,6 +701,13 @@ export default function PostComposer({
   const hasErroredMedia = mediaItems.some((item) => item.error);
   const initials = (profile?.display_name || '?').charAt(0).toUpperCase();
 
+  // Compact mode: the composer rests as a single-line bar and expands to the
+  // full form when it has focus or content (the Discover surface — the video
+  // wall is the hero, not the composer). The full form is always shown for a
+  // repost (the context block must be visible) or when not compact.
+  const hasContent = text.trim().length > 0 || mediaItems.length > 0;
+  const expanded = !compact || focused || hasContent || !!repostingTo;
+
   return (
     <div
       className={cn(
@@ -742,43 +758,48 @@ export default function PostComposer({
             onBlur={() => setFocused(false)}
             placeholder={repostingTo ? 'Add a comment…' : "What's on your mind?"}
             disabled={posting}
-            className="resize-none min-h-[72px] bg-elevated border-0 text-foreground placeholder:text-muted-foreground text-[0.9375rem]"
+            className={cn(
+              'resize-none bg-elevated border-0 text-foreground placeholder:text-muted-foreground text-[0.9375rem]',
+              expanded ? 'min-h-[72px]' : 'min-h-[44px] max-h-[44px] overflow-hidden leading-[44px]',
+            )}
             data-testid="composer-textarea"
           />
 
-          {dragOver && (
-            <div className="mt-2 rounded border-2 border-dashed border-brand text-center py-4 text-sm text-brand-300">
-              Drop to attach
-            </div>
-          )}
+          {expanded && (
+            <>
+              {dragOver && (
+                <div className="mt-2 rounded border-2 border-dashed border-brand text-center py-4 text-sm text-brand-300">
+                  Drop to attach
+                </div>
+              )}
 
-          {mediaItems.length > 0 && (
-            <div className="mt-3 flex flex-wrap gap-2" data-testid="media-tray">
-              {mediaItems.map((item, i) => (
-                <MediaTrayItem
-                  key={item.id}
-                  item={item}
-                  index={i}
-                  count={mediaItems.length}
-                  onRemove={() => removeMedia(item.id)}
-                  onAltTextChange={(alt) => updateAltText(item.id, alt)}
-                  onDragStart={handleDragStart}
-                  onDragOver={handleDragOver}
-                  onDrop={handleMediaDrop}
-                  onDragEnd={handleDragEnd}
-                  onEdit={item.isVideo ? () => setEditingMediaId(item.id) : undefined}
-                  disabled={posting || uploading}
-                />
-              ))}
-            </div>
-          )}
+              {mediaItems.length > 0 && (
+                <div className="mt-3 flex flex-wrap gap-2" data-testid="media-tray">
+                  {mediaItems.map((item, i) => (
+                    <MediaTrayItem
+                      key={item.id}
+                      item={item}
+                      index={i}
+                      count={mediaItems.length}
+                      onRemove={() => removeMedia(item.id)}
+                      onAltTextChange={(alt) => updateAltText(item.id, alt)}
+                      onDragStart={handleDragStart}
+                      onDragOver={handleDragOver}
+                      onDrop={handleMediaDrop}
+                      onDragEnd={handleDragEnd}
+                      onEdit={item.isVideo ? () => setEditingMediaId(item.id) : undefined}
+                      disabled={posting || uploading}
+                    />
+                  ))}
+                </div>
+              )}
 
-          {error && (
-            <div className="mt-3 flex items-center gap-2 text-sm text-danger" role="alert" data-testid="composer-error">
-              <AlertTriangle className="w-4 h-4 shrink-0" />
-              {error}
-            </div>
-          )}
+              {error && (
+                <div className="mt-3 flex items-center gap-2 text-sm text-danger" role="alert" data-testid="composer-error">
+                  <AlertTriangle className="w-4 h-4 shrink-0" />
+                  {error}
+                </div>
+              )}
 
           <div className="mt-3 flex items-center justify-between">
             <div className="flex items-center gap-1">
@@ -891,6 +912,8 @@ export default function PostComposer({
               )}
             </Button>
           </div>
+          </>
+          )}
         </div>
       </div>
 

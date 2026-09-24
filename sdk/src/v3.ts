@@ -31,7 +31,7 @@
  * ```
  */
 
-import { authPost, Web10Error } from './http'
+import { authPost, authGet, Web10Error } from './http'
 import { decodeJwt, readTokenCookie, setTokenCookie, scrubTokenCookie } from './token'
 import type { TokenPayload } from './types'
 
@@ -348,6 +348,28 @@ export interface V3DirectoryUser {
 
 export interface V3PeoplePage {
   users: V3DirectoryUser[]
+  limit: number
+  offset: number
+}
+
+// ── D80: the public "what groups is user X in?" read ─────────────────────────
+// A user's membership in a public-visibility group (followers / community).
+// Hidden groups (dm / close-friends) never surface — a reader can never
+// enumerate who X is DMing.
+export interface V3UserGroupMembership {
+  group_id: string
+  name: string
+  owner: string
+  slug: string
+  role: string
+  joined_at: string
+  join_policy: string
+  discoverable: boolean
+  tags: string[]
+}
+
+export interface V3UserGroupsPage {
+  groups: V3UserGroupMembership[]
   limit: number
   offset: number
 }
@@ -836,8 +858,31 @@ export function createV3Client(options: V3ClientOptions = {}): V3Client {
       return v3Post<V3GroupMember>('groups/leave', { group_id: groupId })
     },
 
-    async getGroupMembers(groupId: string): Promise<V3GroupMember[]> {
-      return v3Post<V3GroupMember[]>('groups/members/list', { group_id: groupId })
+    async getGroupMembers(groupId: string, opts?: { limit?: number; offset?: number }): Promise<V3GroupMember[]> {
+      const body: Record<string, unknown> = { group_id: groupId }
+      if (opts?.limit != null) body.limit = opts.limit
+      if (opts?.offset != null) body.offset = opts.offset
+      return v3Post<V3GroupMember[]>('groups/members/list', body)
+    },
+
+    /**
+     * D80: the public "what groups is user X in?" read. Anon-capable (like
+     * `listPeopleDirectory`): the token rides along when present, but a missing
+     * token reads as the node's anon member. Returns the user's memberships in
+     * **public-visibility groups only** (followers / community) — hidden groups
+     * (dm / close-friends) never surface. `tag` filters to one tag (e.g. the
+     * followers tag for the following-list). Paged (limit / offset).
+     */
+    async byUserGroups(
+      user: string,
+      opts?: { tag?: string; limit?: number; offset?: number },
+    ): Promise<V3UserGroupsPage> {
+      return authGet<V3UserGroupsPage>(`${apiOrigin}/v3/groups/by-user`, {
+        user,
+        tag: opts?.tag,
+        limit: opts?.limit,
+        offset: opts?.offset,
+      })
     },
 
     async addGroupMember(
@@ -1176,7 +1221,8 @@ export interface V3Client {
   joinGroup(groupId: string): Promise<V3GroupMember | { group_id: string; status: string }>
   requestJoin(groupId: string): Promise<{ group_id: string; status: string }>
   leaveGroup(groupId: string): Promise<V3GroupMember>
-  getGroupMembers(groupId: string): Promise<V3GroupMember[]>
+  getGroupMembers(groupId: string, opts?: { limit?: number; offset?: number }): Promise<V3GroupMember[]>
+  byUserGroups(user: string, opts?: { tag?: string; limit?: number; offset?: number }): Promise<V3UserGroupsPage>
   addGroupMember(groupId: string, memberKey: string, role: string): Promise<V3GroupMember>
   removeGroupMember(groupId: string, memberKey: string): Promise<V3GroupMember>
   inviteMember(groupId: string, memberKey: string, role: string): Promise<V3InviteResponse>

@@ -15,6 +15,7 @@ The package is **presentational only** — it owns the card + its presentational
 | Module | What it is |
 |---|---|
 | `DiscoverCard` | The card: rank + time, author row, media, tags, engagement bar. |
+| `HomeCard` | The Home view's card — the YouTube-style video tile (16:9 thumbnail, a truncated title, the author's attribution). |
 | `VideoPlayer` / `HlsVideoPlayer` / `MediaCarousel` | The player (the "no surface owns a `<video>`" rule — `video-player.md`). |
 | `PostActions` / `CommentThread` | The engagement bar + the comment thread (`post-actions.md`). |
 | `RankBadge` / `heatTier` / `HEAT_SHADOW` | The rank badge (#1 gold, #2-3 silver, #4+ brand) + the tiered heat glow. |
@@ -50,9 +51,18 @@ The card plays the **transcoded HLS** (H.264/AAC) via `sourceFromMedia` — the 
 
 This is the greyed-out-tile fix: the **raw source file** (`read_url`) is the user's original camera upload — typically HEVC/AV1, which mobile Chrome (Pixel 9) can't decode. The transcoded HLS is universally decodable. The node mints `manifest_url` into the resolved media ref on every read (`_mint_hls_manifest_urls`), so the card picks the HLS path with zero extra reads.
 
-## The video view is videos-only
+## The Home view is videos-only (the default view)
 
-The "Video" view (both apps) shows **videos only** — competing with YouTube, photos don't belong. The filter is the render-time gate: a post is a video if it's tagged `video` OR its first resolved media is a video (`mime_type` starts with `video/`) — not the client-asserted tag alone (a direct API caller can tag an image as a video; the gate drops it at render).
+The discover / trending surface has two views, toggled by `?view=`: **Home** (the default, the bare URL) and **Hot Gossip** (`?view=grid`, the ranked post board). The operator: *"video view should be first, hot gossip second, to compete. video should be renamed home view."*
+
+**Home** is the YouTube-style video wall — the card that competes pound-for-pound with YouTube's home page. It shows **videos only** (photos don't belong). The filter is the render-time gate: a post is a video if it's tagged `video` OR its first resolved media is a video (`mime_type` starts with `video/`) — not the client-asserted tag alone (a direct API caller can tag an image as a video; the gate drops it at render).
+
+The Home card is the shared **`HomeCard`** (one source, both apps), the "less brainrot" YouTube shape:
+1. a **16:9 thumbnail** (the video's `thumbnail_url` / first frame, `object-cover` — fills the frame, never letterboxes) with a play affordance + a duration badge;
+2. the **title** — the post text, truncated to `HOME_TITLE_LIMIT` (80) chars with a trailing ellipsis (the "show it if it's short, else …" rule);
+3. the **attribution** — the author's avatar + display name + a relative time.
+
+In `interactive` mode (web10-social) the thumbnail + title navigate to the post's permalink and the author to their profile (in-app), plus a compact like/comment/repost engagement row. In `remote` mode (marketing-ui) they're link-outs to web10 social, no engagement row (an anon visitor can't react). The title is `text-base` (16px, the chunky YouTube scale). The Home wall is **full-width** (no `max-w` cap) so the thumbnails fill the viewport: the social Discover is **3-across on desktop** (`sm:grid-cols-2 lg:grid-cols-3` — "three fill the viewport", the operator's "GIGANTIC" call) and the marketing `/trending` is 3-across full-width.
 
 ## Consumption (the single-React requirement)
 
@@ -65,4 +75,4 @@ Both apps carry the alias + `paths` + the single-instance mappings. The `file:` 
 
 ## What is NOT shared
 
-The **screen** chrome is app-specific and stays in each app: the social `DiscoverScreen`'s knob rack, suggested-users row, and profile map; the marketing `/trending` page's topic filter, search, and TOP-10 sidebar. The shared package is the **card**, not the **screen**. (The knob rack is already a verbatim copy between the apps — if that drift becomes a problem, it's a natural follow-up to share, but the high-churn surface — the card — is now shared.)
+The **screen** chrome is app-specific and stays in each app: the social `DiscoverScreen`'s chunky sticky **Posts | People** tab row (the primary nav — no separate "Discover" header; "People" is really people + groups, called People like Facebook's Friends tab), compact composer (single-line until focused), and profile map; the marketing `/trending` page's slim control row (search + Posts|People|Groups + Home|Hot Gossip), topic filter, and TOP-10 sidebar (**Hot Gossip only** — the Home wall is full-width with no rail). The shared package is the **card**, not the **screen**. (The knob rack is already a verbatim copy between the apps — if that drift becomes a problem, it's a natural follow-up to share, but the high-churn surface — the card — is now shared.)

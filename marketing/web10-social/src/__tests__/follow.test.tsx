@@ -201,7 +201,7 @@ describe('Follow button -> followUser call', () => {
     const { default: DiscoverScreen } = await import('@/components/Discover/DiscoverScreen');
 
     render(
-      <MemoryRouter initialEntries={['/discover']}>
+      <MemoryRouter initialEntries={['/discover?view=grid']}>
         <DiscoverScreen />
       </MemoryRouter>,
     );
@@ -413,7 +413,7 @@ describe('DiscoverScreen', () => {
     });
   });
 
-  it('renders explorer header', async () => {
+  it('renders discover header', async () => {
     const { default: DiscoverScreen } = await import('@/components/Discover/DiscoverScreen');
 
     render(
@@ -423,7 +423,7 @@ describe('DiscoverScreen', () => {
     );
 
     await waitFor(() => {
-      expect(screen.getByText('Explorer')).toBeInTheDocument();
+      expect(screen.getByTestId('discover-tab-row')).toBeInTheDocument();
     });
   });
 
@@ -434,7 +434,7 @@ describe('DiscoverScreen', () => {
     const { default: DiscoverScreen } = await import('@/components/Discover/DiscoverScreen');
 
     render(
-      <MemoryRouter initialEntries={['/discover']}>
+      <MemoryRouter initialEntries={['/discover?view=grid']}>
         <DiscoverScreen />
       </MemoryRouter>,
     );

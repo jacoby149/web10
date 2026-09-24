@@ -30,4 +30,10 @@ export declare function extractDetail(text: string): string | null;
  * Perform a POST request.
  */
 export declare function authPost<T>(url: string, body: Record<string, unknown>): Promise<T>;
+/**
+ * Anon-capable GET with query params (D80: the public `by-user` read). The
+ * token rides along as a query param when present, but a missing token is fine
+ * — the endpoint reads as the node's anon member (the public subset).
+ */
+export declare function authGet<T>(url: string, params?: Record<string, unknown>): Promise<T>;
 //# sourceMappingURL=http.d.ts.map

@@ -1,14 +1,15 @@
 import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
-import { Zap, ArrowUpRight, MessageCircleOff, Flame, Video } from 'lucide-react';
+import { ArrowUpRight, MessageCircleOff, Flame, Video } from 'lucide-react';
 import {
   TrendingCard,
   TrendingSkeleton,
-  YouTubeCard,
   YouTubeSkeleton,
   fetchDiscoverFeed,
   mapDiscoveryToFeedPost,
+  feedPostToDiscover,
   parseCreatedAt,
 } from '@/components/FeedPreview';
+import { HomeCard } from '@web10/discover';
 import type { FeedPost } from '@/components/FeedPreview';
 import { TrendingSidebar } from '@/components/TrendingSidebar';
 import { KnobRack } from '@/components/KnobRack';
@@ -35,7 +36,10 @@ const INITIAL_PAGE = 20;
 const PAGE_STEP = 20;
 const MAX_RESULTS = 100;
 
-type TrendingView = 'grid' | 'youtube';
+// `home` (the YouTube-style video wall — the default) + `grid` (Hot Gossip,
+// the ranked board). The operator: "video view should be first, hot gossip
+// second, to compete. video should be renamed home view."
+type TrendingView = 'grid' | 'home';
 
 // ── Discover users (A14: followers_count included) ──────────────────────────
 
@@ -213,10 +217,12 @@ function Trending() {
   const cardRefs = useRef<Map<string, HTMLElement>>(new Map());
 
   // Search state
-  // View toggle: read from ?view= query param (deep-link rule)
+  // View toggle: read from ?view= query param (deep-link rule). `home` (the
+  // video wall) is the default / bare URL; `?view=grid` is Hot Gossip. A legacy
+  // `?view=youtube` (the old video view) maps to `home`.
   const [view, setView] = useState<TrendingView>(() => {
     const params = new URLSearchParams(window.location.search);
-    return (params.get('view') as TrendingView) || 'grid';
+    return params.get('view') === 'grid' ? 'grid' : 'home';
   });
 
   // Subtab: read from ?tab= query param (deep-link rule). `posts` is the bare
@@ -244,7 +250,11 @@ function Trending() {
   const setViewUrl = useCallback((v: TrendingView) => {
     setView(v);
     const params = new URLSearchParams(window.location.search);
-    params.set('view', v);
+    if (v === 'grid') {
+      params.set('view', 'grid');
+    } else {
+      params.delete('view');
+    }
     window.history.replaceState({}, '', `${window.location.pathname}?${params.toString()}`);
     trackFunnel('trending_view_toggle', { view: v });
   }, []);
@@ -508,41 +518,21 @@ function Trending() {
 
   return (
     <div className="flex min-h-screen flex-col bg-background">
-      {/* Hero */}
-      <header className="border-b border-border bg-background px-4 pt-12 pb-8 sm:px-6">
-        <div className="mx-auto max-w-4xl">
-          <div className="flex items-center gap-2 text-brand-400">
-            <Zap className="h-5 w-5" strokeWidth={1.75} />
-            <span className="text-xs font-medium uppercase tracking-[0.08em]">
-              Trending
-            </span>
-          </div>
-          <h1 className="reveal mt-4 font-display text-4xl font-bold tracking-[-0.02em] text-foreground sm:text-5xl">
-            What&apos;s actually trending.
-            <br />
-            <span className="text-muted-foreground">No algorithm.</span>
-          </h1>
-          <p className="reveal mt-4 max-w-xl text-muted-foreground [animation-delay:80ms]">
-            Live engagement across the network, ordered by real reactions —
-            not a recommender. Ranked, not curated.
-          </p>
-          {/* Search bar — YouTube placement, header row */}
-          <div className="reveal mt-6 max-w-xl [animation-delay:160ms]">
+      {/* Control row — the chrome recedes so the video wall is the hero
+          (design.md §10). Search + Posts|People|Groups + Home|Hot Gossip in
+          one slim sticky band instead of a giant hero + stacked control bands. */}
+      <div className="sticky top-0 z-30 border-b border-border bg-background/95 backdrop-blur-md">
+        <div className="mx-auto flex max-w-7xl flex-wrap items-center gap-x-4 gap-y-2 px-4 py-2.5 sm:px-6">
+          <div className="min-w-0 flex-1 basis-52">
             <SearchBar
               value={searchQuery}
               onChange={handleSearchChange}
               onClear={handleSearchClear}
               inputRef={searchInputRef}
-              placeholder={isSearching ? 'Search posts, tags, topics…' : 'Search posts, tags, topics…'}
+              placeholder="Search posts, tags, topics…"
             />
           </div>
-        </div>
-      </header>
-
-      {/* Subtabs: Posts | People | Groups (?tab=, posts is the bare URL) —
-          M1: the public ledger mirrors the social app's Explorer. */}
-      <div className="mx-auto max-w-4xl px-4 pt-2 sm:px-6" data-testid="trending-tab-row">
-        <div className="flex items-center gap-1 py-1.5" role="tablist" aria-label="Trending sections">
+          <div className="flex items-center gap-1" role="tablist" aria-label="Trending sections" data-testid="trending-tab-row">
             {([
               ['posts', 'Posts'],
               ['people', 'People'],
@@ -565,6 +555,31 @@ function Trending() {
                 {label}
               </button>
             ))}
+          </div>
+          {tab === 'posts' && !isInitialLoad && !isSearching && (
+            <div className="flex items-center gap-1" data-testid="trending-view-toggle">
+              {([
+                ['home', 'Home', Video],
+                ['grid', 'Hot Gossip', Flame],
+              ] as [TrendingView, string, typeof Flame][]).map(([v, label, Icon]) => (
+                <button
+                  key={v}
+                  type="button"
+                  onClick={() => setViewUrl(v)}
+                  data-testid={`view-toggle-${v}`}
+                  className={[
+                    'flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background',
+                    view === v
+                      ? 'bg-brand-muted text-brand-300'
+                      : 'text-muted-foreground hover:text-foreground hover:bg-elevated',
+                  ].join(' ')}
+                >
+                  <Icon className="h-3.5 w-3.5" strokeWidth={1.75} />
+                  <span>{label}</span>
+                </button>
+              ))}
+            </div>
+          )}
         </div>
       </div>
 
@@ -599,9 +614,9 @@ function Trending() {
       {/* Topic filter — sticky, horizontal scroll */}
       <div
         data-testid="trending-topics"
-        className="sticky top-0 z-20 border-b border-border bg-background/95 backdrop-blur-md"
+        className="border-b border-border bg-background/95 backdrop-blur-md"
       >
-        <div className="mx-auto max-w-4xl px-4 sm:px-6">
+        <div className="mx-auto max-w-7xl px-4 sm:px-6">
           <div
             className="flex gap-2 overflow-x-auto py-3 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden [mask-image:linear-gradient(to_left,transparent,black_40px)]"
             role="tablist"
@@ -636,37 +651,10 @@ function Trending() {
         </div>
       </div>
 
-      {/* View toggle — YouTube-style, below topics */}
-      {!isInitialLoad && !isSearching && (
-        <div className="mx-auto max-w-4xl px-4 sm:px-6">
-          <div className="flex items-center gap-1 py-2" data-testid="trending-view-toggle">
-            {([
-              ['grid', 'Hot Gossip', Flame],
-              ['youtube', 'Video', Video],
-            ] as [TrendingView, string, typeof Flame][]).map(([v, label, Icon]) => (
-              <button
-                key={v}
-                type="button"
-                onClick={() => setViewUrl(v)}
-                data-testid={`view-toggle-${v}`}
-                className={[
-                  'flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background',
-                  view === v
-                    ? 'bg-brand-muted text-brand-300'
-                    : 'text-muted-foreground hover:text-foreground hover:bg-elevated',
-                ].join(' ')}
-              >
-                <Icon className="h-3.5 w-3.5" strokeWidth={1.75} />
-                <span>{label}</span>
-              </button>
-            ))}
-          </div>
-        </div>
-      )}
-
-      {/* Body: grid + sidebar */}
+      {/* Body: grid + sidebar (the sidebar is Hot Gossip only — the Home wall
+          is full-width, YouTube-style, with no Top 10 rail). */}
       <main className="flex-1 px-4 py-8 sm:px-6">
-        <div className="mx-auto flex max-w-6xl gap-8">
+        <div className={`mx-auto flex ${view === 'grid' && !isSearching ? 'max-w-7xl gap-8' : 'w-full'}`}>
           <div className="min-w-0 flex-1">
             {isSearching ? (
               /* Search results */
@@ -761,34 +749,37 @@ function Trending() {
             ) : isInitialLoad ? (
               <div
                 data-testid="trending-grid-skeleton"
-                className="mx-auto grid w-full max-w-2xl grid-cols-1 gap-4"
+                className="grid w-full grid-cols-1 gap-x-4 gap-y-6 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4"
               >
-                <TrendingSkeleton featured />
-                {Array.from({ length: 5 }).map((_, i) => (
-                  <TrendingSkeleton key={i} />
+                {Array.from({ length: 8 }).map((_, i) => (
+                  <YouTubeSkeleton key={i} />
                 ))}
               </div>
-            ) : view === 'youtube' ? (
-              /* YouTube view — media posts only, 16:9 thumbnails */
+            ) : view === 'home' ? (
+              /* Home view — the YouTube-style video wall (16:9 thumbnails,
+                 title + author attribution). Videos only. */
               <>
                 {mediaPosts.length > 0 ? (
                   <>
                     <div
-                      data-testid="trending-youtube-grid"
-                      className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4"
+                      data-testid="trending-home-grid"
+                      className="grid grid-cols-1 gap-x-4 gap-y-6 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4"
                     >
                       {mediaPosts.map(post => (
-                        <YouTubeCard
+                        <HomeCard
                           key={post.id}
-                          post={post}
-                          rank={post.rank}
+                          post={feedPostToDiscover(post)}
+                          remote
+                          postHref={post.author ? `${SOCIAL_ORIGIN}/u/${encodeURIComponent(post.author)}/p/${encodeURIComponent(post.id)}` : SOCIAL_ORIGIN}
+                          authorHref={post.author ? `${SOCIAL_ORIGIN}/u/${encodeURIComponent(post.author)}` : SOCIAL_ORIGIN}
+                          testId="home-card"
                         />
                       ))}
                     </div>
                     {loadingMore && (
-                      <div className="mt-6 grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+                      <div className="mt-6 grid grid-cols-1 gap-x-4 gap-y-6 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
                         {Array.from({ length: 4 }).map((_, i) => (
-                          <YouTubeSkeleton key={`yt-more-${i}`} />
+                          <YouTubeSkeleton key={`home-more-${i}`} />
                         ))}
                       </div>
                     )}
@@ -820,7 +811,7 @@ function Trending() {
                       No media posts yet
                     </h2>
                     <p className="mt-2 text-sm text-muted-foreground">
-                      The video view shows posts with videos and images.
+                      The Home view shows posts with videos.
                       Switch to Hot Gossip to see all trending posts.
                     </p>
                     <button
@@ -905,8 +896,10 @@ function Trending() {
             )}
           </div>
 
-          {/* Sidebar — desktop only, only when not searching */}
-          {!isSearching && (
+          {/* Sidebar — the Top 10 rail is Hot Gossip only (the Home wall is
+              full-width, YouTube-style, with no rail). Desktop only, and not
+              while searching. */}
+          {view === 'grid' && !isSearching && (
             <TrendingSidebar
               entries={ranked
                 .filter(p => topic === 'All' || (p.tags?.includes(topic) ?? false))

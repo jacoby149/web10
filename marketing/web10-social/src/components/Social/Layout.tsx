@@ -22,32 +22,31 @@ interface LayoutProps {
 // and Groups move into the "More" sheet so the bottom bar never exceeds five
 // icons — room to grow as surfaces ship.
 const feedItem = { path: '/feed', icon: Home, label: 'Feed', testId: 'nav-feed' };
-const discoverItem = { path: '/discover', icon: Compass, label: 'Explorer', testId: 'nav-discover' };
+const discoverItem = { path: '/discover', icon: Compass, label: 'Discover', testId: 'nav-discover' };
 const shortsItem = { path: '/shorts', icon: Clapperboard, label: 'Shorts', testId: 'nav-shorts' };
 const messagesItem = { path: '/messages', icon: MessageSquare, label: 'Messages', testId: 'nav-messages' };
+// The profile nav item shows the user's name/username (not the word "Profile")
+// — it tells you you're visiting your own profile (the operator's call). The
+// label is resolved at render time (the display name is async).
 const profileItem = { path: '/profile', icon: User, label: 'Profile', testId: 'nav-profile' };
-// Real destinations demoted from the bottom bar into the "More" sheet.
-// (Groups is retired from the nav entirely — it lives in the Explorer/Groups
-// subtab, discover-reorg D3 — so it no longer holds a nav row.)
 const settingsItem = { path: '/settings', icon: Settings, label: 'Settings', testId: 'nav-settings' };
 // Monetization (D75) — every signed-in user: the creator's ad catalog +
-// affiliate onboarding. Deep-links to the Monetization surface's default
-// (Creator) tab.
+// affiliate onboarding. A first-class nav item (the operator's reorder).
+// Deep-links to the Monetization surface's default (Creator) tab.
 const monetizationItem = { path: '/monetize', icon: DollarSign, label: 'Monetization', testId: 'nav-monetization' };
-// Node Monetization (D75) — a sibling of Groups, rendered ONLY for the node
-// admin (the useNodeAdmin gate). Deep-links to the Monetization surface's Node
-// tab.
+// Node Monetization (D75) — rendered ONLY for the node admin (the
+// useNodeAdmin gate). Deep-links to the Monetization surface's Node tab.
+// Stays in the More popover (admin-only, not a core nav item).
 const nodeMonetizationItem = { path: '/monetize?tab=node', icon: DollarSign, label: 'Node Monetization', testId: 'nav-node-monetization' };
 
 // Mobile bottom bar: the four core tabs in thumb-reach order.
 const bottomNavItems = [feedItem, discoverItem, messagesItem, profileItem];
-// Desktop sidebar keeps its historical order (Feed, Explorer, Shorts,
-// Profile, Messages) — the bottom bar reorders for thumb-reach, the sidebar
-// doesn't need to follow it. Shorts sits after Explorer (the video surfaces
-// group together). Settings is NOT a sidebar row — it lives only in the
-// account menu (top bar), so it isn't duplicated in the nav. Groups is retired
-// from the nav — it lives in the Explorer/Groups subtab (discover-reorg D3).
-const sidebarNavItems = [feedItem, discoverItem, shortsItem, profileItem, messagesItem];
+// Desktop sidebar — the operator's reorder (23.09.2026): your profile (your
+// name) first, then Shorts, Discover, Feed, Messages, Monetization. Groups is
+// NOT a nav item (the operator dropped the Groups nav restore); your
+// communities live in Discover → Explore. Settings is NOT a sidebar row — it
+// lives only in the account menu (top bar), so it isn't duplicated in the nav.
+const sidebarNavItems = [profileItem, shortsItem, discoverItem, feedItem, messagesItem, monetizationItem];
 
 // Provisional, non-infringing names for the surfaces not yet built. Shorts is
 // now a real surface (shorts.md) — it lives in the sidebar + the More sheet,
@@ -172,6 +171,7 @@ export default function Layout({ onLogout, onReportBug, children }: LayoutProps)
   const isActive = (path: string) => {
     if (path === '/profile') return pathname.startsWith('/u/');
     if (path === '/groups') return pathname.startsWith('/groups');
+    if (path === '/monetize') return isMonetizeCreator;
     return pathname === path;
   };
 
@@ -197,15 +197,24 @@ export default function Layout({ onLogout, onReportBug, children }: LayoutProps)
         <nav className="relative flex-1 px-2 space-y-1" aria-label="Primary">
           {sidebarNavItems.map(({ path, icon: Icon, label, testId }) => {
             const target = path === '/profile' ? profilePath : path;
+            // The profile item shows the user's own name (the operator's call:
+            // "has the same behavior as the profile button, just tells you
+            // more you are visiting your own profile").
+            const navLabel = path === '/profile' ? displayName || username || 'Profile' : label;
+            // The Monetization row highlights only on its OWN section (the
+            // Creator tab) — never on /monetize?tab=node (where Node
+            // Monetization is the active one). The same query-string rule the
+            // top-bar account row uses.
+            const active = path === '/monetize' ? isMonetizeCreator : isActive(path);
             return (
             <button
               key={path}
               data-testid={testId}
-              aria-current={path === '/profile' ? isActive('/profile') : isActive(path) ? 'page' : undefined}
+              aria-current={path === '/profile' ? isActive('/profile') : active ? 'page' : undefined}
               onClick={() => navigate(target)}
               className={cn(
                 'w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all duration-150',
-                isActive(path)
+                active
                   ? cn(
                       'bg-gradient-to-r from-brand-muted to-brand/15 text-brand-300',
                       'border border-brand/20 glow-active',
@@ -213,9 +222,21 @@ export default function Layout({ onLogout, onReportBug, children }: LayoutProps)
                   : 'text-muted-foreground hover:text-foreground hover:bg-elevated/80 hover:border hover:border-border/50',
               )}
             >
-              <Icon className={cn('w-6 h-6 transition-colors duration-150', isActive(path) && 'text-brand')} strokeWidth={isActive(path) ? 2 : 1.75} />
-              {label}
-              {isActive(path) && (
+              {path === '/profile' ? (
+                <Avatar className="h-6 w-6 shrink-0">
+                  {avatarUrl ? (
+                    <AvatarImage src={avatarUrl} alt="" />
+                  ) : (
+                    <AvatarFallback className="bg-brand-muted text-brand-300 text-xs font-semibold">
+                      {(displayName || username || '?').charAt(0).toUpperCase()}
+                    </AvatarFallback>
+                  )}
+                </Avatar>
+              ) : (
+                <Icon className={cn('w-6 h-6 transition-colors duration-150', active && 'text-brand')} strokeWidth={active ? 2 : 1.75} />
+              )}
+              <span className="truncate">{navLabel}</span>
+              {active && (
                 <div
                   className="ml-auto w-1.5 h-1.5 rounded-full bg-brand animate-glow-pulse"
                   aria-hidden="true"
@@ -224,13 +245,13 @@ export default function Layout({ onLogout, onReportBug, children }: LayoutProps)
             </button>
             );
           })}
-          {/* More — the coming-soon surfaces + monetization in a popover.
-              Monetization (D75) is a real destination but not a core nav item,
-              so it lives in the More popover (the operator: "the monetization
-              stuff could go in the more tabs"). The coming-soon surfaces are
-              not real destinations yet, so they don't hold permanent nav rows;
-              the popover keeps the roadmap discoverable without the dead
-              weight. */}
+          {/* More — the coming-soon surfaces + Node Monetization (admin-only)
+               in a popover. Monetization is a first-class sidebar item (the
+               operator's reorder); Node Monetization stays here (it's an
+               admin-only surface, not a core nav item). The coming-soon
+               surfaces are not real destinations yet, so they don't hold
+               permanent nav rows; the popover keeps the roadmap discoverable
+               without the dead weight. */}
           <div className="relative mt-4" ref={moreMenuRef}>
             <button
               type="button"
@@ -254,23 +275,6 @@ export default function Layout({ onLogout, onReportBug, children }: LayoutProps)
                 data-testid="more-menu"
                 className="absolute left-0 right-0 bottom-full mb-1 z-30 rounded-lg border border-border bg-popover p-1 shadow-[0_8px_30px_rgb(0,0,0/0.35)] max-h-[min(70vh,420px)] overflow-y-auto"
               >
-                {/* Monetization (D75) — a real destination, demoted from the
-                    sidebar into the More popover (the operator: "the
-                    monetization stuff could go in the more tabs"). */}
-                <button
-                  type="button"
-                  role="menuitem"
-                  data-testid={monetizationItem.testId}
-                  aria-current={isMonetizeCreator ? 'page' : undefined}
-                  onClick={() => { setMoreMenuOpen(false); navigate(monetizationItem.path); }}
-                  className={cn(
-                    'w-full flex items-center gap-3 px-3 py-2 rounded-md text-sm font-medium transition-colors',
-                    isMonetizeCreator ? 'bg-brand-muted text-brand-300' : 'text-foreground hover:bg-elevated',
-                  )}
-                >
-                  <DollarSign className="w-5 h-5" strokeWidth={1.75} />
-                  {monetizationItem.label}
-                </button>
                 {isNodeAdmin && (
                   <button
                     type="button"
@@ -287,7 +291,7 @@ export default function Layout({ onLogout, onReportBug, children }: LayoutProps)
                     {nodeMonetizationItem.label}
                   </button>
                 )}
-                <div className="my-1 h-px bg-border" aria-hidden="true" />
+                {isNodeAdmin && <div className="my-1 h-px bg-border" aria-hidden="true" />}
                 <p className="px-3 py-1.5 text-[0.625rem] font-medium uppercase tracking-wider text-muted-foreground/50">
                   Coming soon
                 </p>

@@ -653,6 +653,19 @@ describe('PostComposer', () => {
     fireEvent.change(textarea, { target: { value: 'Hello world' } });
     expect(screen.getByRole('button', { name: /post/i })).not.toBeDisabled();
   });
+
+  it('compact mode rests collapsed (no action row) until focused, then expands', async () => {
+    const { default: PostComposer } = await import('@/components/Feed/PostComposer');
+    render(<PostComposer compact />);
+    const textarea = screen.getByPlaceholderText("What's on your mind?");
+    // Collapsed: the action row (attach button) is hidden…
+    expect(screen.queryByTestId('attach-media-button')).not.toBeInTheDocument();
+    // …focusing expands the full form.
+    fireEvent.focus(textarea);
+    await waitFor(() => {
+      expect(screen.getByTestId('attach-media-button')).toBeInTheDocument();
+    });
+  });
 });
 
 describe('Layout', () => {
@@ -668,17 +681,49 @@ describe('Layout', () => {
     // Nav items render in both the desktop sidebar and the mobile bottom
     // nav (CSS breakpoints hide one in a real browser; both exist in the
     // DOM in jsdom) — assert via the stable data-testid hooks instead.
-    expect(screen.getByTestId('nav-feed')).toBeInTheDocument();
-    expect(screen.getByTestId('nav-discover')).toBeInTheDocument();
+    // The operator's reorder (23.09.2026): Profile (your name), Shorts,
+    // Discover, Feed, Messages, Monetization. Groups is NOT a nav item
+    // (your communities live in Discover → Explore).
     expect(screen.getByTestId('nav-profile')).toBeInTheDocument();
+    expect(screen.getByTestId('nav-shorts')).toBeInTheDocument();
+    expect(screen.getByTestId('nav-discover')).toBeInTheDocument();
+    expect(screen.getByTestId('nav-feed')).toBeInTheDocument();
     expect(screen.getByTestId('nav-messages')).toBeInTheDocument();
-    // Groups is retired from the nav (it lives in the Explorer/Groups subtab).
+    expect(screen.getByTestId('nav-monetization')).toBeInTheDocument();
+    // The profile item shows the user's own name (the mock token's username),
+    // not the word "Profile" — it tells you you're visiting your own profile.
+    expect(screen.getByTestId('nav-profile')).toHaveTextContent('testuser');
+    // Groups is not a nav item (it lives in Discover → Explore).
     expect(screen.queryByTestId('nav-groups')).not.toBeInTheDocument();
     expect(screen.getAllByText('Feed').length).toBeGreaterThanOrEqual(1);
-    expect(screen.getAllByText('Explorer').length).toBeGreaterThanOrEqual(1);
+    expect(screen.getAllByText('Discover').length).toBeGreaterThanOrEqual(1);
     expect(screen.queryByText('Groups')).not.toBeInTheDocument();
-    expect(screen.getAllByText('Profile').length).toBeGreaterThanOrEqual(1);
     expect(screen.getAllByText('Messages').length).toBeGreaterThanOrEqual(1);
+  });
+
+  it('sidebar profile row shows the profile pic (not the generic icon)', async () => {
+    const { readProfile, resolveMediaRefs } = await import('@/data');
+    vi.mocked(readProfile).mockResolvedValueOnce({
+      display_name: 'Test User',
+      avatar_ref: 'avatar-1',
+    });
+    vi.mocked(resolveMediaRefs).mockResolvedValueOnce([
+      { _id: 'avatar-1', url: 'http://test.com/avatar.png', created_at: '2026-01-01T00:00:00Z' },
+    ]);
+    const { default: Layout } = await import('@/components/Social/Layout');
+    render(
+      <MemoryRouter initialEntries={['/feed']}>
+        <Layout onLogout={() => {}} onReportBug={() => {}}>
+          <div>Content</div>
+        </Layout>
+      </MemoryRouter>,
+    );
+    // The profile row's leading element is the avatar image (the profile pic),
+    // not the generic User icon.
+    const profileRow = await screen.findByTestId('nav-profile');
+    const img = profileRow.querySelector('img');
+    expect(img).not.toBeNull();
+    expect(img).toHaveAttribute('src', 'http://test.com/avatar.png');
   });
 
   it('mobile bottom nav holds 4 core tabs + a More tab; coming-soon live in the More sheet, not the bar', async () => {
@@ -766,7 +811,7 @@ describe('Layout', () => {
   it('Monetization nav renders for every user; Node Monetization only for the node admin', async () => {
     const { default: Layout } = await import('@/components/Social/Layout');
     // Non-admin: the "Monetization" entry (the creator's ad catalog +
-    // affiliate onboarding) is visible in the More popover; "Node
+    // affiliate onboarding) is a permanent desktop sidebar row; "Node
     // Monetization" is not.
     checkNodeAdmin.mockResolvedValue(false);
     const first = render(
@@ -776,15 +821,18 @@ describe('Layout', () => {
         </Layout>
       </MemoryRouter>,
     );
-    // Open the More popover (monetization lives there now).
-    fireEvent.click(screen.getByTestId('nav-more-desktop'));
+    // Monetization is a permanent sidebar row (no popover needed).
     expect(await screen.findByTestId('nav-monetization')).toBeInTheDocument();
     // The admin check has settled — the node entry never appears.
     await waitFor(() => expect(checkNodeAdmin).toHaveBeenCalled());
     expect(screen.queryByTestId('nav-node-monetization')).not.toBeInTheDocument();
+    // The More popover no longer carries a Monetization row.
+    fireEvent.click(screen.getByTestId('nav-more-desktop'));
+    const moreMenu = screen.getByTestId('more-menu');
+    expect(within(moreMenu).queryByTestId('nav-monetization')).not.toBeInTheDocument();
     first.unmount();
 
-    // Node admin: both entries render in the More popover.
+    // Node admin: Monetization in the sidebar + Node Monetization in the More popover.
     checkNodeAdmin.mockResolvedValue(true);
     render(
       <MemoryRouter initialEntries={['/feed']}>
@@ -793,8 +841,8 @@ describe('Layout', () => {
         </Layout>
       </MemoryRouter>,
     );
-    fireEvent.click(screen.getByTestId('nav-more-desktop'));
     expect(await screen.findByTestId('nav-monetization')).toBeInTheDocument();
+    fireEvent.click(screen.getByTestId('nav-more-desktop'));
     expect(await screen.findByTestId('nav-node-monetization')).toBeInTheDocument();
   });
 
@@ -810,7 +858,7 @@ describe('Layout', () => {
         </Layout>
       </MemoryRouter>,
     );
-    // Open the More popover (monetization lives there now).
+    // Monetization is a permanent sidebar row; open the More popover for the Node row.
     fireEvent.click(screen.getByTestId('nav-more-desktop'));
     // The Node row appears only once the async admin check resolves.
     const nodeRow = await screen.findByTestId('nav-node-monetization');
@@ -828,7 +876,7 @@ describe('Layout', () => {
         </Layout>
       </MemoryRouter>,
     );
-    // Open the More popover (monetization lives there now).
+    // Open the More popover for the Node row (Monetization is a sidebar row).
     fireEvent.click(screen.getByTestId('nav-more-desktop'));
     expect(await screen.findByTestId('nav-node-monetization')).toHaveAttribute('aria-current', 'page');
     expect(screen.getByTestId('nav-monetization')).not.toHaveAttribute('aria-current');

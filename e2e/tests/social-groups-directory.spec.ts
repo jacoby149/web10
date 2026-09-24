@@ -209,12 +209,12 @@ test.describe('social-groups-directory — API floor (D53 directory + detail)', 
 // which builds the PR branch.)
 // ---------------------------------------------------------------------------
 
-test.describe('social-groups-directory gauntlet — the Discover/Groups browser + /groups', () => {
-  test('Discover/Groups → join an open group → it appears in My Groups → detail deep link', async ({ page, context, request }) => {
+test.describe('social-groups-directory gauntlet — the Discover/Explore browser + /groups', () => {
+  test('Discover/Explore → join an open group → it appears in My Groups → detail deep link', async ({ page, context, request }) => {
     test.setTimeout(60_000);
-    // Capture both the Discover/Groups browser (`[social:groups-tab]`) and the
+    // Capture the Discover/Explore browser (`[social:explore-tab]`) and the
     // /groups My Groups screen (`[social:groups]`) — the open bracket matches both.
-    const logs = captureConsoleLogs(page, '[social:groups');
+    const logs = captureConsoleLogs(page, '[social:');
 
     // Viewer (pre-authed via the token cookie — no login popup).
     const viewer = await signupAndLogin(request, 'sggu');
@@ -231,12 +231,12 @@ test.describe('social-groups-directory gauntlet — the Discover/Groups browser 
     const slug = uniqueUser('gauntlet');
     const groupId = await createGroup(request, owner.token, owner.username, slug, { joinPolicy: 'open', discoverable: true });
 
-    // --- Viewer opens the Discover/Groups browser (the directory's new home, D3) ---
-    // ?groupTab=discover lands on the Discover sub-tab (the directory); the
-    // bare URL defaults to My Groups (the memberships).
-    await page.goto(`${SOCIAL_BASE}/discover?tab=groups&groupTab=discover`);
+    // --- Viewer opens the Discover/Explore browser (the directory's new home) ---
+    // ?tab=explore lands on the Explore tab (people + groups mashed into one
+    // browser); the group directory is the Groups section.
+    await page.goto(`${SOCIAL_BASE}/discover?tab=explore`);
     await page.waitForLoadState('networkidle');
-    await expect(page.locator('[data-testid="groups-discover-grid"]')).toBeVisible();
+    await expect(page.locator('[data-testid="explore-groups-list"]')).toBeVisible();
 
     // The owner's discoverable group is in the directory.
     const card = page.locator('[data-testid="groups-discover-card"]').filter({ hasText: slug });

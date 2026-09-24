@@ -7,6 +7,7 @@ import Layout from '@/components/Social/Layout';
 import FeedScreen from '@/components/Feed/FeedScreen';
 import ProfileScreen from '@/components/Bio/ProfileScreen';
 import UserProfileScreen from '@/components/Bio/UserProfileScreen';
+import UserFollowListScreen from '@/components/Bio/UserFollowListScreen';
 import DiscoverScreen from '@/components/Discover/DiscoverScreen';
 import ShortsScreen from '@/components/Shorts/ShortsScreen';
 import GroupsScreen from '@/components/Groups/GroupsScreen';
@@ -21,7 +22,7 @@ import { ErrorBoundary } from '@/components/shared/ErrorBoundary';
 import { ReportBug } from '@/components/shared/ReportBug';
 import { Toaster } from '@/components/shared/Toast';
 import { InstallPrompt } from '@/components/shared/InstallPrompt';
-import { getWapi, getV3Client, verifyAndRecover, Web10Error } from '@/data';
+import { getWapi, getV3Client, verifyAndRecover, Web10Error, ensureProfile } from '@/data';
 import { resolveMediaRefs } from '@/data/posts';
 import { readSettings } from '@/data/settings';
 import { initP2P, teardownP2P, setPeer } from '@/data/p2p';
@@ -130,6 +131,18 @@ function UserProfileRoute() {
       onBack={() => navigate(-1)}
     />
   );
+}
+
+// D80: the profile's clickable Following / Followers counts → dedicated list
+// screens (the social graph is a property of a person, so it lives here, not on
+// a discovery surface). Deep-linkable: /u/:username/followers + /following.
+// The "Back" button returns to the profile (the operator: "back to profile").
+function UserFollowersRoute() {
+  return <UserFollowListScreen kind="followers" />;
+}
+
+function UserFollowingRoute() {
+  return <UserFollowListScreen kind="following" />;
 }
 
 function GroupDetailRoute() {
@@ -325,11 +338,17 @@ function App() {
       navigate(`/u/${customEvent.detail.username}`, { state: { provider: customEvent.detail.provider } });
     };
     window.addEventListener('navigate-user-profile', handler);
+    const postHandler = (e: Event) => {
+      const customEvent = e as CustomEvent<{ username: string; postId: string; provider: string }>;
+      navigate(`/u/${customEvent.detail.username}/p/${customEvent.detail.postId}`, { state: { provider: customEvent.detail.provider } });
+    };
+    window.addEventListener('navigate-post', postHandler);
     return () => {
       window.removeEventListener('session:signed-out', onSignedOut);
       window.removeEventListener('unhandledrejection', onAuthError);
       window.removeEventListener('error', onAuthError);
       window.removeEventListener('navigate-user-profile', handler);
+      window.removeEventListener('navigate-post', postHandler);
     };
   }, [navigate, runAccessRecovery]);
 
@@ -366,6 +385,12 @@ function App() {
   useEffect(() => {
     if (signedIn) {
       applyP2P();
+      // Seed a public profile face on sign-in (idempotent, non-clobbering) so
+      // the account is discoverable in the D0 people directory from birth —
+      // the followers group is public-by-default but the face content is only
+      // ever created when the user edits their profile, which left new
+      // accounts absent from the directory. A failure is a benign degrade.
+      ensureProfile().catch((e) => LOG_ERR('ensureProfile — failed:', e));
     } else {
       teardownP2P();
       teardownNotifications();
@@ -433,11 +458,13 @@ function App() {
           <Route path="/shorts/:postId" element={<ShortsScreen />} />
           <Route path="/groups" element={<GroupsScreen />} />
           <Route path="/groups/:groupId" element={<GroupDetailRoute />} />
-          <Route path="/people" element={<Navigate to="/discover?tab=people" replace />} />
+          <Route path="/people" element={<Navigate to="/discover?tab=explore" replace />} />
           <Route path="/messages/*" element={<DmsScreen />} />
           <Route path="/notifications" element={<NotificationsScreen />} />
           <Route path="/profile" element={<ProfileRedirectRoute />} />
           <Route path="/u/:username" element={<UserProfileRoute />} />
+          <Route path="/u/:username/followers" element={<UserFollowersRoute />} />
+          <Route path="/u/:username/following" element={<UserFollowingRoute />} />
           <Route path="/u/:username/p/:postId" element={<UserProfilePostLinkRoute />} />
           <Route path="/staging" element={<StagingScreen />} />
           <Route path="/monetize" element={<MonetizationScreen />} />
