@@ -53,13 +53,18 @@ dropdown**: **`field (always) → focus → results → close`.**
   always on.
 - **Focus:** clicking / focusing the field opens the **results dropdown**
   (focus is in the field).
-- **Results:** type → **debounced** (the app's 400ms idiom) → up to three
-  sections: **People**, **Groups**, **Posts** — top ~5 each, each row
-  tappable.
-  - **Desktop:** a **dropdown** under the field.
-  - **Mobile:** a **full-screen results view** (not a dropdown — a dropdown
-    from a 56px header over a scrollable screen + keyboard is fiddly) with an
-    **X to close** (the operator's call).
+- **Results:** type → **debounced** (the app's 400ms idiom) → a **chunky
+  mode toggle** (Posts | People & Groups) over the results. **Posts is the
+  default** (the operator, 23.09.2026: "the moment you search in the search
+  bar it should show you the discover posts being searched, and then chunky
+  icon to switch it to people and groups search"). One tap flips to
+  **People & Groups** (the people + groups sections + the "See all results in
+  Explore" CTA). The fan-out is **mode-aware** — the people/groups reads only
+  fire in People & Groups mode (no wasted reads); posts always load.
+   - **Desktop:** a **dropdown** under the field.
+   - **Mobile:** a **full-screen results view** (not a dropdown — a dropdown
+     from a 56px header over a scrollable screen + keyboard is fiddly) with an
+     **X to close** (the operator's call).
 - **Close:** Escape / click-outside / navigate → the **dropdown** closes
   (150ms fade); the field stays. The **X clears the query** (desktop) /
   closes the full-screen view (mobile). The typed query persists across
@@ -125,8 +130,8 @@ existing idiom). No second data path.
    on `discover-reorg` D0** (v1 floor: `fetchPeople`).
 - [✓] **S3: the desktop field is always expanded** (`GlobalSearch.tsx`) —
   operator pass (23.09.2026, two screenshots): "i want the search bar to look
-  like this all the time … like its clicked in form, because i think that is
-  alot more informative to the user." The desktop top bar permanently renders
+  like this all the time … like its clicked in form, because i think that is alot more
+  informative to the user." The desktop top bar permanently renders
   the full field (glyph + "Search people, groups, posts…" + X) instead of the
   collapsed icon; `open` now scopes to the **results dropdown** (focus →
   open; Escape / click-outside / navigate → close, 150ms fade); the X **clears
@@ -136,6 +141,16 @@ existing idiom). No second data path.
   field is always present, no trigger; focus opens the dropdown; Escape /
   click-outside close the dropdown but keep the field; X clears the query; the
   Layout cases count one trigger — the mobile one — plus the desktop field).
+- [✓ 3.153.0] **S4: posts-first + the chunky People & Groups toggle**
+  (`GlobalSearch.tsx`) — operator pass (23.09.2026, the "show don't tell"
+  search rework): the dropdown **defaults to the Posts section** ("the moment
+  you search it should show the discover posts being searched") with a
+  **chunky Posts | People & Groups mode toggle** (one tap flips to the people
+  + groups sections + the "See all results in Explore" CTA). The fan-out is
+  **mode-aware** (people/groups reads only fire in People & Groups mode). The
+  mode resets to Posts on collapse. `globalSearch.test.tsx` re-pinned to the
+  posts-first + mode-toggle model (posts default, the toggle flips to
+  people+groups, Enter/CTA still open Explore).
 
 **Ownership:** this lane owns `Layout.tsx`, `src/components/Search/`,
 `src/data/search.ts`. It does **not** touch `DiscoverScreen.tsx` or the

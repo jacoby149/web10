@@ -179,11 +179,12 @@ export function HomeCard({
         )}
       </a>
 
-      {/* 2. The title — the post text, truncated to the char limit. */}
+      {/* 2. The title — the post text, truncated to the char limit. The
+          chunky YouTube scale: text-base (16px) bold, two lines. */}
       <a
         {...postLinkProps}
         data-testid={`${testId}-title`}
-        className="mt-2.5 line-clamp-2 text-sm font-semibold leading-snug text-foreground transition-colors hover:text-brand-400 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring rounded"
+        className="mt-2.5 line-clamp-2 text-base font-semibold leading-snug text-foreground transition-colors hover:text-brand-400 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring rounded"
       >
         {title}
       </a>

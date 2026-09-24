@@ -423,7 +423,7 @@ describe('DiscoverScreen', () => {
     );
 
     await waitFor(() => {
-      expect(screen.getByText('Discover')).toBeInTheDocument();
+      expect(screen.getByTestId('discover-tab-row')).toBeInTheDocument();
     });
   });
 

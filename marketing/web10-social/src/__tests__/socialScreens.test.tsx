@@ -653,6 +653,19 @@ describe('PostComposer', () => {
     fireEvent.change(textarea, { target: { value: 'Hello world' } });
     expect(screen.getByRole('button', { name: /post/i })).not.toBeDisabled();
   });
+
+  it('compact mode rests collapsed (no action row) until focused, then expands', async () => {
+    const { default: PostComposer } = await import('@/components/Feed/PostComposer');
+    render(<PostComposer compact />);
+    const textarea = screen.getByPlaceholderText("What's on your mind?");
+    // Collapsed: the action row (attach button) is hidden…
+    expect(screen.queryByTestId('attach-media-button')).not.toBeInTheDocument();
+    // …focusing expands the full form.
+    fireEvent.focus(textarea);
+    await waitFor(() => {
+      expect(screen.getByTestId('attach-media-button')).toBeInTheDocument();
+    });
+  });
 });
 
 describe('Layout', () => {
