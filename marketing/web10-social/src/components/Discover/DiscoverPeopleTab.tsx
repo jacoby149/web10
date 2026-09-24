@@ -132,6 +132,14 @@ export function PersonCardRow({ person, followLoading, onFollow, onUnfollow, onO
           <h3 className="truncate text-base font-semibold text-foreground">{name}</h3>
           <p className="truncate text-xs text-muted-foreground">@{person.username}</p>
           <p className="mt-1 flex items-center gap-1.5 text-xs text-muted-foreground tabular-nums">
+            {person.mutuals > 0 && (
+              <>
+                <span data-testid="people-mutuals">
+                  {person.mutuals} mutual{person.mutuals === 1 ? '' : 's'}
+                </span>
+                <span aria-hidden="true" className="text-muted-foreground/40">·</span>
+              </>
+            )}
             <Users className="h-3 w-3 shrink-0" strokeWidth={2} aria-hidden="true" />
             <span data-testid="people-followers">
               {formatCount(person.followers_count)} follower{person.followers_count === 1 ? '' : 's'}

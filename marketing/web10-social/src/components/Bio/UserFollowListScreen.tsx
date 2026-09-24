@@ -190,6 +190,7 @@ export default function UserFollowListScreen({ kind, onBack }: UserFollowListScr
         provider: entry.provider,
         display_name: entry.username,
         followers_count: 0,
+        mutuals: 0,
         is_following: myFollowing.has(entry.username),
       };
       try {

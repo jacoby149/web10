@@ -4,11 +4,17 @@ The I3 floor this pins:
   * anon sees only the public subset (followers groups with an ``anyone``
     grant on ``profile``); a signed-in reader sees more (their follows + the
     public subset) — same card shape, different permissions;
-  * a user whose profile face the reader cannot read is ABSENT, never shown
-    with a fallback (I3: no private data);
-  * a user with no profile doc is absent (not shown-with-fallback);
+  * the I3 read-gate is the access boundary — a user whose followers group the
+    reader cannot read is ABSENT (carol's private group, eve's private group
+    for anon);
+  * a user with no profile face is STILL listed (username-only face) — a
+    username + follower count is public identity, so a fresh account is
+    discoverable from birth (the directory doesn't read empty until every user
+    opens their profile);
   * the follower count is the membership aggregate ``count(group_members)``
-    on the followers group, not a stored field (unspoofable).
+    on the followers group, not a stored field (unspoofable);
+  * ``mutuals`` is how many of a user's followers the reader also follows
+    (the "N mutuals" signal) — 0 for anon (no following).
 """
 
 import json
@@ -96,10 +102,29 @@ def _dispatch(reader: str, authenticated: bool):
         fgid("dave"): PUBLIC_ROLES,
         fgid("eve"): PRIVATE_ROLES,
     }
+    # Who follows each user (the members of their followers group) — the input
+    # to the mutuals computation (mutuals(X) = |followers(X) ∩ reader-following|).
+    followers_of = {
+        "alice": ["carol", "eve", "bob"],
+        "bob": ["carol", "alice"],
+        "carol": ["bob"],
+        "dave": ["bob"],
+        "eve": ["carol", "alice", "dave"],
+    }
+    # The reader's following set (the followers groups they're a member of).
+    reader_following = {
+        "anon": set(),
+        "carol": {fgid("alice"), fgid("eve")},
+    }[reader]
 
     def dispatch(sql, params=None):
         if "count() AS cnt" in sql:
             return _rows([(fgid(u), COUNTS[u]) for u in COUNTS])
+        if "AS mutuals" in sql:
+            fk = set(params["fk"])
+            return _rows([(fgid(u), sum(1 for f in followers_of[u] if f in fk)) for u in followers_of])
+        if "group_id LIKE '%/followers'" in sql:
+            return _rows([(g,) for g in reader_following])
         if "p.doc_id AS doc_id" in sql:
             return _rows(
                 [(f"doc-{u}", u, json.dumps(FACES[u]), [], "2026-01-01T00:00:00", "", "none", "") for u in FACES]
@@ -126,20 +151,31 @@ class TestListPublicUsersComposition:
         with patch.object(ch, "client") as mock_client:
             mock_client.query.side_effect = _dispatch("anon", False)
             result = ch.list_public_users("anon", False, limit=20, offset=0)
-        # anon: alice (5) + bob (10) are public; carol/eve private (absent);
-        # dave public but no profile (absent). Ranked by follower count desc.
-        assert [r["username"] for r in result] == ["bob", "alice"]
-        assert [r["follower_count"] for r in result] == [10, 5]
+        # anon: alice (5) + bob (10) + dave (2, public, no face -> username-only
+        # face) are public; carol/eve private (absent). Ranked by follower count
+        # desc. Anon has no following -> mutuals 0.
+        assert [r["username"] for r in result] == ["bob", "alice", "dave"]
+        assert [r["follower_count"] for r in result] == [10, 5, 2]
+        assert [r["mutuals"] for r in result] == [0, 0, 0]
 
-    def test_anon_excludes_private_and_profileless(self):
+    def test_anon_excludes_private(self):
         with patch.object(ch, "client") as mock_client:
             mock_client.query.side_effect = _dispatch("anon", False)
             result = ch.list_public_users("anon", False, limit=20, offset=0)
         usernames = {r["username"] for r in result}
-        # I3: carol + eve (private) and dave (no profile) are absent.
+        # I3: carol + eve (private followers groups) are absent.
         assert "carol" not in usernames
         assert "eve" not in usernames
-        assert "dave" not in usernames
+
+    def test_faceless_user_listed_with_username_face(self):
+        """A public user with no profile face is still listed (username-only
+        face) — the directory doesn't read empty until every user has a face."""
+        with patch.object(ch, "client") as mock_client:
+            mock_client.query.side_effect = _dispatch("anon", False)
+            result = ch.list_public_users("anon", False, limit=20, offset=0)
+        by_user = {r["username"]: r for r in result}
+        assert "dave" in by_user
+        assert by_user["dave"]["profile"]["display_name"] == "dave"
 
     def test_signed_in_sees_more_than_anon(self):
         with patch.object(ch, "client") as mock_client:
@@ -151,8 +187,23 @@ class TestListPublicUsersComposition:
         assert "eve" in usernames
         assert "carol" in usernames
         # still ranked by follower count desc.
-        assert usernames == ["bob", "eve", "alice", "carol"]
-        assert [r["follower_count"] for r in result] == [10, 7, 5, 3]
+        assert usernames == ["bob", "eve", "alice", "carol", "dave"]
+        assert [r["follower_count"] for r in result] == [10, 7, 5, 3, 2]
+
+    def test_mutuals_is_reader_following_intersection(self):
+        """mutuals(X) = |followers(X) ∩ reader-following|. carol follows alice
+        + eve: alice's followers {carol,eve,bob} ∩ {alice,eve} = {eve} = 1;
+        eve's followers {carol,alice,dave} ∩ {alice,eve} = {alice} = 1; bob's
+        followers {carol,alice} ∩ {alice,eve} = {alice} = 1; carol/dave 0."""
+        with patch.object(ch, "client") as mock_client:
+            mock_client.query.side_effect = _dispatch("carol", True)
+            result = ch.list_public_users("carol", True, limit=20, offset=0)
+        by_user = {r["username"]: r["mutuals"] for r in result}
+        assert by_user["alice"] == 1
+        assert by_user["eve"] == 1
+        assert by_user["bob"] == 1
+        assert by_user["carol"] == 0
+        assert by_user["dave"] == 0
 
     def test_follower_count_is_membership_aggregate(self):
         """The count comes from count(group_members), not a stored field."""
@@ -160,8 +211,8 @@ class TestListPublicUsersComposition:
             mock_client.query.side_effect = _dispatch("anon", False)
             result = ch.list_public_users("anon", False, limit=20, offset=0)
         by_user = {r["username"]: r["follower_count"] for r in result}
-        # Matches the group_members aggregate exactly (bob 10, alice 5).
-        assert by_user == {"bob": 10, "alice": 5}
+        # Matches the group_members aggregate exactly (bob 10, alice 5, dave 2).
+        assert by_user == {"bob": 10, "alice": 5, "dave": 2}
 
     def test_profile_face_is_returned(self):
         with patch.object(ch, "client") as mock_client:

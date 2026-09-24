@@ -338,11 +338,14 @@ export interface V3LoginResponse {
 // The public people directory (D0, discover-reorg): one row per user whose
 // profile face the reader can read (I3). `follower_count` is the unspoofable
 // membership aggregate (count of the user's followers group), not a stored
-// field. `profile` is the user's face (display_name, bio, avatar_ref,
-// banner_ref, …) — the same shape the social app's profile read returns.
+// field. `mutuals` is how many of that user's followers the reader also follows
+// (the "N mutuals" signal — server-computed, I3-clean, 0 for anon). `profile`
+// is the user's face (display_name, bio, avatar_ref, banner_ref, …) — the same
+// shape the social app's profile read returns.
 export interface V3DirectoryUser {
   username: string
   follower_count: number
+  mutuals: number
   profile: Record<string, unknown>
 }
 

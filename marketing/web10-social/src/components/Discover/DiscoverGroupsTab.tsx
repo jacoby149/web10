@@ -258,7 +258,7 @@ interface MyGroupRowProps {
   leaving: boolean;
 }
 
-function MyGroupRow({ group, face, onOpen, onLeave, leaving }: MyGroupRowProps) {
+export function MyGroupRow({ group, face, onOpen, onLeave, leaving }: MyGroupRowProps) {
   const name = face?.name || groupDisplayName(group.group_id);
   const initial = name.charAt(0).toUpperCase();
   const isOwner = group.my_role === 'owner' || group.my_role === 'admin';
@@ -353,7 +353,7 @@ function MyGroupRow({ group, face, onOpen, onLeave, leaving }: MyGroupRowProps) 
   );
 }
 
-function MyGroupRowSkeleton() {
+export function MyGroupRowSkeleton() {
   return (
     <div className="w-full overflow-hidden rounded-xl border border-border bg-card">
       <Skeleton className="h-24 w-full" />

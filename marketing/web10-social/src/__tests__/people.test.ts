@@ -25,19 +25,25 @@ import {
   type PersonCard,
 } from '@/data/people';
 
-// A D0 directory user: { username, follower_count, profile }.
-const dirUser = (username: string, follower_count: number, profile: Record<string, unknown> = {}) => ({
+// A D0 directory user: { username, follower_count, mutuals, profile }.
+const dirUser = (
+  username: string,
+  follower_count: number,
+  profile: Record<string, unknown> = {},
+  mutuals = 0,
+) => ({
   username,
   follower_count,
+  mutuals,
   profile,
 });
 
 describe('sortPeople', () => {
   const people: PersonCard[] = [
-    { username: 'zeta', provider: 'p', followers_count: 100, is_following: false },
-    { username: 'alpha', provider: 'p', followers_count: 50, is_following: false },
-    { username: 'mid', provider: 'p', followers_count: 200, is_following: false },
-    { username: 'beta', provider: 'p', followers_count: 500, is_following: false },
+    { username: 'zeta', provider: 'p', followers_count: 100, mutuals: 0, is_following: false },
+    { username: 'alpha', provider: 'p', followers_count: 50, mutuals: 0, is_following: false },
+    { username: 'mid', provider: 'p', followers_count: 200, mutuals: 0, is_following: false },
+    { username: 'beta', provider: 'p', followers_count: 500, mutuals: 0, is_following: false },
   ];
 
   it('sorts by popular (followers_count descending, default)', () => {
@@ -47,8 +53,8 @@ describe('sortPeople', () => {
 
   it('breaks popular ties by username', () => {
     const tied: PersonCard[] = [
-      { username: 'zoe', provider: 'p', followers_count: 10, is_following: false },
-      { username: 'amy', provider: 'p', followers_count: 10, is_following: false },
+      { username: 'zoe', provider: 'p', followers_count: 10, mutuals: 0, is_following: false },
+      { username: 'amy', provider: 'p', followers_count: 10, mutuals: 0, is_following: false },
     ];
     expect(sortPeople(tied, 'popular').map((p) => p.username)).toEqual(['amy', 'zoe']);
   });
@@ -67,9 +73,9 @@ describe('sortPeople', () => {
 
 describe('filterPeople', () => {
   const people: PersonCard[] = [
-    { username: 'zoe', provider: 'p', display_name: 'Zoe Rivers', followers_count: 10, is_following: false },
-    { username: 'amy', provider: 'p', display_name: 'Amy', followers_count: 20, is_following: false },
-    { username: 'river-king', provider: 'p', display_name: 'King', followers_count: 30, is_following: false },
+    { username: 'zoe', provider: 'p', display_name: 'Zoe Rivers', followers_count: 10, mutuals: 0, is_following: false },
+    { username: 'amy', provider: 'p', display_name: 'Amy', followers_count: 20, mutuals: 0, is_following: false },
+    { username: 'river-king', provider: 'p', display_name: 'King', followers_count: 30, mutuals: 0, is_following: false },
   ];
 
   it('filters by display name (case-insensitive)', () => {
@@ -102,11 +108,11 @@ describe('fetchPeoplePage', () => {
     mockResolveMediaRefs.mockResolvedValue([]);
   });
 
-  it('maps D0 users to person cards (face + unspoofable follower count)', async () => {
+  it('maps D0 users to person cards (face + unspoofable follower count + mutuals)', async () => {
     mockListPeopleDirectory.mockResolvedValue({
       users: [
-        dirUser('alice', 120, { display_name: 'Alice', bio: 'hi', avatar_ref: 'av-1' }),
-        dirUser('bob', 40),
+        dirUser('alice', 120, { display_name: 'Alice', bio: 'hi', avatar_ref: 'av-1' }, 7),
+        dirUser('bob', 40, {}, 0),
       ],
       limit: 20,
       offset: 0,
@@ -118,11 +124,25 @@ describe('fetchPeoplePage', () => {
     expect(alice.display_name).toBe('Alice');
     expect(alice.bio).toBe('hi');
     expect(alice.followers_count).toBe(120);
+    expect(alice.mutuals).toBe(7);
     expect(alice.provider).toBe('api.localhost');
-    // bob has no profile face fields — falls back to the username.
+    // bob has no profile face fields — falls back to the username; mutuals 0.
     const bob = people.find((p) => p.username === 'bob')!;
     expect(bob.display_name).toBe('bob');
     expect(bob.followers_count).toBe(40);
+    expect(bob.mutuals).toBe(0);
+  });
+
+  it('defaults mutuals to 0 when the node omits it (back-compat)', async () => {
+    mockListPeopleDirectory.mockResolvedValue({
+      users: [
+        { username: 'alice', follower_count: 10, profile: {} },
+      ],
+      limit: 20,
+      offset: 0,
+    });
+    const { people } = await fetchPeoplePage({ limit: 20, offset: 0 });
+    expect(people[0].mutuals).toBe(0);
   });
 
   it('passes limit + offset to the D0 read', async () => {
