@@ -61,7 +61,7 @@ jobs:
       # authenticated pulls get 1000/h vs the 100/6h anonymous Docker Hub limit
       # that was flaking these shards. See e2e/mirror-images.json + ghcr-mirror.yml.
       - name: Log in to GHCR
-        uses: docker/login-action@v3
+        uses: docker/login-action@v4
         with:
           registry: ghcr.io
           username: ${{ github.actor }}
