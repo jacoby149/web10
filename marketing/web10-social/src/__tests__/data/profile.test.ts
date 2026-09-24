@@ -1,6 +1,16 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import * as v3 from '../../data/v3';
-import { setProfilePublic } from '../../data/profile';
+import { setProfilePublic, ensureProfile } from '../../data/profile';
+
+// ensureProfile ensures the followers group (the home group) before writing —
+// mock it so the test doesn't fan out to group CRUD.
+vi.mock('../../data/groups', async (importOriginal) => {
+  const original = await importOriginal() as Record<string, unknown>;
+  return {
+    ...original,
+    ensureFollowers: vi.fn(async () => 'web10.app/groups/users/alice/followers'),
+  };
+});
 
 function mockV3Client() {
   const mock = {
@@ -97,6 +107,47 @@ describe('profile v3 data layer', () => {
     it('requires a token', async () => {
       mock.readToken.mockReturnValue(null);
       await expect(setProfilePublic(true)).rejects.toThrow('not authenticated');
+    });
+  });
+
+  describe('ensureProfile (seed a public face on sign-in, D0 precondition)', () => {
+    const FG = 'web10.app/groups/users/alice/followers';
+
+    it('seeds a default face (display_name = username) when none exists', async () => {
+      // No profile doc yet → read returns empty → create is called.
+      mock.read.mockResolvedValue([]);
+      mock.create.mockResolvedValue({ doc_id: 'prof1', body: { display_name: 'alice' } });
+      await ensureProfile();
+      expect(mock.create).toHaveBeenCalledWith(
+        'profile',
+        { display_name: 'alice' },
+        { groups: [FG] },
+      );
+    });
+
+    it('is a no-op when a face already exists (never clobbers user edits)', async () => {
+      mock.read.mockResolvedValue([{ doc_id: 'prof1', body: { display_name: 'Alice Q' } }]);
+      await ensureProfile();
+      expect(mock.create).not.toHaveBeenCalled();
+      expect(mock.update).not.toHaveBeenCalled();
+    });
+
+    it('seeds when the face read fails (no readable face yet)', async () => {
+      mock.read.mockRejectedValue(new Error('403'));
+      mock.create.mockResolvedValue({ doc_id: 'prof1', body: { display_name: 'alice' } });
+      await ensureProfile();
+      expect(mock.create).toHaveBeenCalledWith(
+        'profile',
+        { display_name: 'alice' },
+        { groups: [FG] },
+      );
+    });
+
+    it('is a no-op when not signed in', async () => {
+      mock.readToken.mockReturnValue(null);
+      await ensureProfile();
+      expect(mock.read).not.toHaveBeenCalled();
+      expect(mock.create).not.toHaveBeenCalled();
     });
   });
 });

@@ -29,6 +29,7 @@ import {
 } from './DiscoverGroupsTab';
 import {
   Users,
+  Hash,
   Search,
   X,
   Loader2,
@@ -216,6 +217,38 @@ export default function DiscoverExploreTab({ query }: DiscoverExploreTabProps) {
     LOG('query cleared');
   }, [searchParams, setSearchParams]);
 
+  // ── The People / Groups visibility toggle (?show=) ────────────────────────
+  // The Explore tab mashes people + groups into one browser. On a node with a
+  // lot of people, the people list would drown out the (usually far fewer)
+  // groups — so each section can be shown or hidden independently. `?show=`
+  // holds the visible set: `both` (the default, the bare URL) | `people` |
+  // `groups` | `none`. Both-off is a real state (a neutral empty state) — the
+  // operator wanted "both selected, neither, or one or the other." Deep-
+  // linkable + refresh-safe (the ?tab= / ?sort= / ?q= idiom).
+  type ShowFilter = 'both' | 'people' | 'groups' | 'none';
+  const show: ShowFilter = useMemo(() => {
+    const raw = searchParams.get('show');
+    return raw === 'people' || raw === 'groups' || raw === 'none' ? raw : 'both';
+  }, [searchParams]);
+  const showPeople = show === 'both' || show === 'people';
+  const showGroups = show === 'both' || show === 'groups';
+
+  const setSectionVisible = useCallback(
+    (section: 'people' | 'groups', visible: boolean) => {
+      // Toggling a section recomputes the visible set from the two booleans.
+      const nextPeople = section === 'people' ? visible : showPeople;
+      const nextGroups = section === 'groups' ? visible : showGroups;
+      const next: ShowFilter =
+        nextPeople && nextGroups ? 'both' : nextPeople ? 'people' : nextGroups ? 'groups' : 'none';
+      const params = new URLSearchParams(searchParams);
+      if (next === 'both') params.delete('show');
+      else params.set('show', next);
+      setSearchParams(params);
+      LOG('show —', next, `(people:${nextPeople}, groups:${nextGroups})`);
+    },
+    [searchParams, setSearchParams, showPeople, showGroups],
+  );
+
   const sortedPeople = useMemo(() => sortPeople(people, sort), [people, sort]);
   const filteredPeople = useMemo(() => filterPeople(sortedPeople, query), [sortedPeople, query]);
 
@@ -233,12 +266,19 @@ export default function DiscoverExploreTab({ query }: DiscoverExploreTabProps) {
   const peopleQuiet = peopleFirstPageCountRef.current !== null && peopleFirstPageCountRef.current < 10;
   const peopleNoResults = query.trim() !== '' && !peopleQuiet && filteredPeople.length === 0;
   const groupsNoResults = query.trim() !== '' && groups.length > 0 && filteredGroups.length === 0;
+  // A visible section is "effectively empty" for the query when it has finished
+  // loading and shows nothing (no-results, quiet, or a genuinely empty list).
+  const peopleEffectivelyEmpty =
+    !peopleLoading && (peopleNoResults || peopleQuiet || filteredPeople.length === 0);
+  const groupsEffectivelyEmpty =
+    !groupsLoading && (groupsNoResults || filteredGroups.length === 0);
+  // The combined no-results state: a query that matches nothing in any VISIBLE
+  // section (a hidden section can't be "empty" — it's just not shown).
   const bothEmpty =
     query.trim() !== '' &&
-    (peopleNoResults || !peopleLoading) &&
-    (groupsNoResults || !groupsLoading) &&
-    filteredPeople.length === 0 &&
-    filteredGroups.length === 0;
+    (showPeople || showGroups) &&
+    (!showPeople || peopleEffectivelyEmpty) &&
+    (!showGroups || groupsEffectivelyEmpty);
 
   return (
     <div data-testid="discover-explore-tab" className="flex flex-col">
@@ -266,36 +306,72 @@ export default function DiscoverExploreTab({ query }: DiscoverExploreTabProps) {
         </div>
       )}
 
-      {/* Sort toggle (people only — the groups directory is member-ranked
-          server-side, so a client sort would be a lie). */}
-      <div className="px-4 py-3 md:px-0">
-        <div className="flex items-center gap-1" data-testid="explore-sort-toggle" role="tablist" aria-label="Sort people">
-          {SORT_OPTIONS.map(([s, label]) => (
-            <button
-              key={s}
-              type="button"
-              role="tab"
-              aria-selected={sort === s}
-              onClick={() => setSort(s)}
-              data-testid={`explore-sort-${s}`}
-              className={cn(
-                'rounded-lg px-3 py-1.5 text-xs font-medium transition-colors',
-                'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background',
-                sort === s
-                  ? 'bg-brand-muted text-brand-300'
-                  : 'text-muted-foreground hover:text-foreground hover:bg-elevated',
-              )}
-            >
-              {label}
-            </button>
-          ))}
+      {/* The People / Groups visibility toggle (?show=) — chunky icon+label
+          chips so a flood of people can't drown out the groups. Each section
+          shows/hides independently: both (default) / people / groups / none. */}
+      <div className="px-4 pt-3 md:px-0">
+        <div className="flex items-center gap-2" data-testid="explore-show-toggle" role="group" aria-label="Show sections">
+          {(['people', 'groups'] as const).map((section) => {
+            const active = section === 'people' ? showPeople : showGroups;
+            const Icon = section === 'people' ? Users : Hash;
+            return (
+              <button
+                key={section}
+                type="button"
+                aria-pressed={active}
+                onClick={() => setSectionVisible(section, !active)}
+                data-testid={`explore-show-${section}`}
+                className={cn(
+                  'inline-flex items-center gap-2 rounded-full px-4 py-2 text-sm font-medium transition-colors',
+                  'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background',
+                  active
+                    ? 'bg-brand-muted text-brand-300'
+                    : 'text-muted-foreground hover:text-foreground hover:bg-elevated',
+                )}
+              >
+                <Icon className="h-4 w-4" strokeWidth={1.75} />
+                {section === 'people' ? 'People' : 'Groups'}
+              </button>
+            );
+          })}
         </div>
       </div>
 
+      {/* Sort toggle (people only — the groups directory is member-ranked
+          server-side, so a client sort would be a lie). Hidden when the people
+          section is off. */}
+      {showPeople && (
+        <div className="px-4 py-3 md:px-0">
+          <div className="flex items-center gap-1" data-testid="explore-sort-toggle" role="tablist" aria-label="Sort people">
+            {SORT_OPTIONS.map(([s, label]) => (
+              <button
+                key={s}
+                type="button"
+                role="tab"
+                aria-selected={sort === s}
+                onClick={() => setSort(s)}
+                data-testid={`explore-sort-${s}`}
+                className={cn(
+                  'rounded-lg px-3 py-1.5 text-xs font-medium transition-colors',
+                  'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background',
+                  sort === s
+                    ? 'bg-brand-muted text-brand-300'
+                    : 'text-muted-foreground hover:text-foreground hover:bg-elevated',
+                )}
+              >
+                {label}
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
+
       {/* Mashed list — people and groups render as one stream, each with its
-          own pagination. (The operator: "people are groups in web10.") */}
+          own pagination (each section honors the ?show= toggle). (The operator:
+          "people are groups in web10.") */}
       <div className="flex-1 px-4 pb-4 md:px-0 space-y-6" data-testid="explore-view">
         {/* People */}
+        {showPeople && (
         <section data-testid="explore-people-section">
           <h2 className="px-1 pb-2 text-[0.625rem] font-semibold uppercase tracking-wide text-muted-foreground/70">
             People
@@ -360,8 +436,10 @@ export default function DiscoverExploreTab({ query }: DiscoverExploreTabProps) {
             </>
           )}
         </section>
+        )}
 
         {/* Groups */}
+        {showGroups && (
         <section data-testid="explore-groups-section">
           <h2 className="px-1 pb-2 text-[0.625rem] font-semibold uppercase tracking-wide text-muted-foreground/70">
             Groups
@@ -426,6 +504,23 @@ export default function DiscoverExploreTab({ query }: DiscoverExploreTabProps) {
             </>
           )}
         </section>
+        )}
+
+        {/* Both sections hidden (?show=none) — a neutral empty state. */}
+        {!showPeople && !showGroups && (
+          <div
+            data-testid="explore-show-none"
+            className="flex flex-col items-center justify-center py-16 px-8 text-center"
+          >
+            <div className="mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-brand-muted/50">
+              <Users className="h-8 w-8 text-brand-400" strokeWidth={1.5} />
+            </div>
+            <h2 className="font-display text-xl font-semibold text-foreground">Nothing to show</h2>
+            <p className="mt-2 max-w-sm text-sm text-muted-foreground">
+              Both sections are hidden. Turn People or Groups back on above.
+            </p>
+          </div>
+        )}
 
         {/* The combined no-results state (a query that matches neither). */}
         {bothEmpty && (
