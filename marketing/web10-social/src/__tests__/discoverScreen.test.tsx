@@ -474,14 +474,7 @@ describe('DiscoverScreen', () => {
       </MemoryRouter>,
     );
 
-    await waitFor(() => {
-      expect(screen.getByTestId('discover-search')).toBeInTheDocument();
-    });
-
-    // Search input should have the query
-    expect(screen.getByTestId('discover-search')).toHaveValue('hello');
-
-    // Only matching posts should be visible
+    // The ?q= query filters the board to matching posts.
     await waitFor(() => {
       const cards = screen.getAllByTestId('discover-card');
       expect(cards.length).toBe(1);
@@ -595,59 +588,7 @@ describe('DiscoverScreen', () => {
     });
   });
 
-  it('typing in search input filters posts and writes ?q=', async () => {
-    (data.readDiscoverFeed as ReturnType<typeof vi.fn>).mockResolvedValue([
-      {
-        author: 'user1',
-        provider: 'api.web10.app',
-        post_id: 'p1',
-        text: 'Hello world post',
-        tags: ['general'],
-        created_at: new Date().toISOString(),
-        likes: 10,
-        comments: 2,
-        reposts: 1,
-        score: 14,
-      },
-      {
-        author: 'user2',
-        provider: 'api.web10.app',
-        post_id: 'p2',
-        text: 'Another post here',
-        tags: ['general'],
-        created_at: new Date().toISOString(),
-        likes: 5,
-        comments: 1,
-        reposts: 0,
-        score: 7,
-      },
-    ]);
-
-    const { default: DiscoverScreen } = await import('@/components/Discover/DiscoverScreen');
-    render(
-      <MemoryRouter initialEntries={['/discover?view=grid']}>
-        <DiscoverScreen />
-      </MemoryRouter>,
-    );
-
-    await waitFor(() => {
-      expect(screen.getByTestId('discover-grid')).toBeInTheDocument();
-    });
-
-    // Initially 2 cards visible
-    expect(screen.getAllByTestId('discover-card').length).toBe(2);
-
-    // Type in search
-    const input = screen.getByTestId('discover-search');
-    fireEvent.change(input, { target: { value: 'hello' } });
-
-    // Should filter to 1 card
-    await waitFor(() => {
-      expect(screen.getAllByTestId('discover-card').length).toBe(1);
-    });
-  });
-
-  it('clearing search removes ?q= and shows all posts', async () => {
+  it('a ?q= query filters the board to matching posts', async () => {
     (data.readDiscoverFeed as ReturnType<typeof vi.fn>).mockResolvedValue([
       {
         author: 'user1',
@@ -682,23 +623,10 @@ describe('DiscoverScreen', () => {
       </MemoryRouter>,
     );
 
+    // Initially 2 cards; the ?q= query filters to the 1 matching post.
     await waitFor(() => {
-      expect(screen.getByTestId('discover-search')).toHaveValue('hello');
+      expect(screen.getAllByTestId('discover-card').length).toBe(1);
     });
-
-    // Only 1 card visible with query
-    expect(screen.getAllByTestId('discover-card').length).toBe(1);
-
-    // Click clear button
-    fireEvent.click(screen.getByTestId('discover-search-clear'));
-
-    // Should show all posts again
-    await waitFor(() => {
-      expect(screen.getAllByTestId('discover-card').length).toBe(2);
-    });
-
-    // Search input should be empty
-    expect(screen.getByTestId('discover-search')).toHaveValue('');
   });
 
   // ── D-trending-views: view toggle + Home (video) view ─────────────────
@@ -1484,9 +1412,8 @@ describe('DiscoverScreen — subtab shell (D1)', () => {
       expect(screen.getByTestId('discover-explore-tab')).toBeInTheDocument();
     });
     expect(screen.getByTestId('discover-tab-explore')).toHaveAttribute('aria-selected', 'true');
-    // The Trending board + its search field are gone on the Explore subtab.
+    // The Trending board is gone on the Explore subtab.
     expect(screen.queryByTestId('discover-grid')).not.toBeInTheDocument();
-    expect(screen.queryByTestId('discover-search')).not.toBeInTheDocument();
   });
 
   it('switches to Explore and back to Trending', async () => {

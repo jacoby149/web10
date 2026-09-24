@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { useLocation, useNavigate } from 'react-router-dom';
-import { Search, X, Users } from 'lucide-react';
+import { Search, X, Users, FileText } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { searchPeople, searchGroups, searchPosts } from '@/data/search';
 import type { PersonCard } from '@/data/people';
@@ -135,6 +135,10 @@ export default function GlobalSearch({ variant }: GlobalSearchProps) {
   const [closing, setClosing] = useState(false);
   const [query, setQuery] = useState('');
   const [debouncedQuery, setDebouncedQuery] = useState('');
+  // The results mode: `posts` (the default — "the moment you search it should
+  // show the discover posts being searched") + `people` (people + groups, the
+  // chunky toggle the operator asked for). Reset to `posts` on collapse.
+  const [mode, setMode] = useState<'posts' | 'people'>('posts');
   const inputRef = useRef<HTMLInputElement>(null);
   const triggerRef = useRef<HTMLButtonElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
@@ -166,6 +170,7 @@ export default function GlobalSearch({ variant }: GlobalSearchProps) {
       setClosing(false);
       setQuery('');
       setDebouncedQuery('');
+      setMode('posts');
       setPeople(null);
       setGroups(null);
       setPosts(null);
@@ -233,8 +238,10 @@ export default function GlobalSearch({ variant }: GlobalSearchProps) {
     return () => clearTimeout(t);
   }, [query]);
 
-  // S2: fire the three-way fan-out when the debounced query changes.
-  // Per-section loading: each read resolves independently.
+  // S2: fire the fan-out when the debounced query (or the mode) changes.
+  // Mode-aware: posts are the default; people + groups are fetched only when
+  // the user flips to the "People & Groups" mode (no wasted reads). Per-section
+  // loading: each read resolves independently.
   useEffect(() => {
     if (!open) return;
     setPeople(null);
@@ -242,17 +249,19 @@ export default function GlobalSearch({ variant }: GlobalSearchProps) {
     setPosts(null);
     if (!debouncedQuery) return;
     let cancelled = false;
-    searchPeople(debouncedQuery)
-      .then((r) => { if (!cancelled) setPeople(r); })
-      .catch(() => { if (!cancelled) setPeople([]); });
-    searchGroups(debouncedQuery)
-      .then((r) => { if (!cancelled) setGroups(r); })
-      .catch(() => { if (!cancelled) setGroups([]); });
     searchPosts(debouncedQuery)
       .then((r) => { if (!cancelled) setPosts(r); })
       .catch(() => { if (!cancelled) setPosts([]); });
+    if (mode === 'people') {
+      searchPeople(debouncedQuery)
+        .then((r) => { if (!cancelled) setPeople(r); })
+        .catch(() => { if (!cancelled) setPeople([]); });
+      searchGroups(debouncedQuery)
+        .then((r) => { if (!cancelled) setGroups(r); })
+        .catch(() => { if (!cancelled) setGroups([]); });
+    }
     return () => { cancelled = true; };
-  }, [debouncedQuery, open]);
+  }, [debouncedQuery, open, mode]);
 
   // Navigate → close the results UI (the state machine's fourth exit).
   // Desktop: just close the dropdown (the field stays, the query persists).
@@ -321,10 +330,15 @@ export default function GlobalSearch({ variant }: GlobalSearchProps) {
   );
 
   // The results container content: the "type to search" idle state, or the
-  // three sections (People/Groups/Posts) with per-section loading.
+  // mode-specific results. The mode toggle (Posts | People & Groups) is the
+  // chunky switch the operator asked for — posts are the default; one tap
+  // flips to people + groups. It renders as soon as there's a query (immediate,
+  // not debounced) so it's clickable while the results are still loading.
   const q = debouncedQuery;
+  const allLoaded = (s: unknown) => s !== null;
+
   const resultsContent =
-    q === '' ? (
+    query.trim() === '' ? (
       <div
         data-testid="global-search-type-to-search"
         className="flex items-center gap-3 px-4 py-8 text-sm text-muted-foreground"
@@ -334,42 +348,93 @@ export default function GlobalSearch({ variant }: GlobalSearchProps) {
       </div>
     ) : (
       <div className="py-1">
-        {/* People */}
-        {people === null ? (
-          <SectionSkeleton label="People" />
-        ) : people.length > 0 ? (
-          <SearchSection label="People">
-            {people.map((p) => (
-              <PersonRow key={p.username} person={p} />
-            ))}
-          </SearchSection>
-        ) : null}
+        {/* The chunky mode toggle — Posts (default) | People & Groups. */}
+        <div className="flex items-center gap-1 px-3 py-2" role="tablist" aria-label="Search results type" data-testid="global-search-mode-toggle">
+          {([
+            ['posts', 'Posts', FileText],
+            ['people', 'People & Groups', Users],
+          ] as ['posts' | 'people', string, typeof FileText][]).map(([m, label, Icon]) => (
+            <button
+              key={m}
+              type="button"
+              role="tab"
+              aria-selected={mode === m}
+              data-testid={`global-search-mode-${m}`}
+              onClick={() => setMode(m)}
+              className={cn(
+                'flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-semibold transition-colors',
+                'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand/50',
+                mode === m
+                  ? 'bg-brand-muted text-brand-300'
+                  : 'text-muted-foreground hover:text-foreground hover:bg-elevated',
+              )}
+            >
+              <Icon className="h-3.5 w-3.5" strokeWidth={1.75} />
+              <span>{label}</span>
+            </button>
+          ))}
+        </div>
 
-        {/* Groups */}
-        {groups === null ? (
-          <SectionSkeleton label="Groups" />
-        ) : groups.length > 0 ? (
-          <SearchSection label="Groups">
-            {groups.map((g) => (
-              <GroupRow key={g.group_id} group={g} />
-            ))}
-          </SearchSection>
-        ) : null}
+        {mode === 'posts' ? (
+          <>
+            {/* Posts (the default — "show the discover posts being searched") */}
+            {posts === null ? (
+              <SectionSkeleton label="Posts" />
+            ) : posts.length > 0 ? (
+              <SearchSection label="Posts">
+                {posts.map((p) => (
+                  <PostRow key={p._id || p.created_at} post={p} />
+                ))}
+              </SearchSection>
+            ) : (
+              <div
+                data-testid="global-search-no-results"
+                className="px-4 py-8 text-center text-sm text-muted-foreground"
+              >
+                No posts match &ldquo;{q}&rdquo;
+              </div>
+            )}
+          </>
+        ) : (
+          <>
+            {/* People */}
+            {people === null ? (
+              <SectionSkeleton label="People" />
+            ) : people.length > 0 ? (
+              <SearchSection label="People">
+                {people.map((p) => (
+                  <PersonRow key={p.username} person={p} />
+                ))}
+              </SearchSection>
+            ) : null}
 
-        {/* Posts */}
-        {posts === null ? (
-          <SectionSkeleton label="Posts" />
-        ) : posts.length > 0 ? (
-          <SearchSection label="Posts">
-            {posts.map((p) => (
-              <PostRow key={p._id || p.created_at} post={p} />
-            ))}
-          </SearchSection>
-        ) : null}
+            {/* Groups */}
+            {groups === null ? (
+              <SectionSkeleton label="Groups" />
+            ) : groups.length > 0 ? (
+              <SearchSection label="Groups">
+                {groups.map((g) => (
+                  <GroupRow key={g.group_id} group={g} />
+                ))}
+              </SearchSection>
+            ) : null}
+
+            {/* No results (both sections loaded, both empty) */}
+            {allLoaded(people) && allLoaded(groups) &&
+             people.length === 0 && groups.length === 0 && (
+              <div
+                data-testid="global-search-no-results"
+                className="px-4 py-8 text-center text-sm text-muted-foreground"
+              >
+                No people or groups match &ldquo;{q}&rdquo;
+              </div>
+            )}
+          </>
+        )}
 
         {/* The search CTA — Enter (or this) opens Discover's Explore tab
             with the query: people + groups mashed into one browser. */}
-        {(people !== null || groups !== null || posts !== null) && (
+        {mode === 'people' && (allLoaded(people) || allLoaded(groups)) && (
           <button
             type="button"
             data-testid="global-search-open-explore"
@@ -379,17 +444,6 @@ export default function GlobalSearch({ variant }: GlobalSearchProps) {
             <Search className="w-4 h-4 shrink-0" strokeWidth={1.75} />
             See all results for &ldquo;{q}&rdquo; in Explore
           </button>
-        )}
-
-        {/* No results (all three sections loaded, all empty) */}
-        {people !== null && groups !== null && posts !== null &&
-         people.length === 0 && groups.length === 0 && posts.length === 0 && (
-          <div
-            data-testid="global-search-no-results"
-            className="px-4 py-8 text-center text-sm text-muted-foreground"
-          >
-            No matches for &ldquo;{q}&rdquo;
-          </div>
         )}
       </div>
     );

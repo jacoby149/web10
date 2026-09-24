@@ -37,8 +37,6 @@ import {
   Film,
   Music2,
   Users,
-  Search,
-  X,
   Video,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
@@ -449,9 +447,13 @@ type DiscoverView = 'grid' | 'home';
 
 type DiscoverTab = 'trending' | 'explore';
 
+// The two top-level destinations. The chunky "chunky icon to switch it to
+// people and groups" the operator asked for: a big, obvious toggle, not a
+// buried pill. "Explore" is renamed "People & Groups" (what it actually is —
+// the mashed people + groups browser).
 const DISCOVER_TABS: { id: DiscoverTab; label: string; icon: typeof Flame }[] = [
-  { id: 'trending', label: 'Trending', icon: Flame },
-  { id: 'explore', label: 'Explore', icon: Compass },
+  { id: 'trending', label: 'Posts', icon: Flame },
+  { id: 'explore', label: 'People & Groups', icon: Users },
 ];
 
 function postHasVideo(post: PostRecord): boolean {
@@ -1008,68 +1010,26 @@ export default function DiscoverScreen() {
 
   const isInitialLoad = loading && posts.length === 0;
 
-  function handleSearchChange(e: React.ChangeEvent<HTMLInputElement>) {
-    const val = e.target.value;
-    setSearchQuery(val);
-    const params = new URLSearchParams(searchParams);
-    if (val.trim()) {
-      params.set('q', val.trim());
-    } else {
-      params.delete('q');
-    }
-    setSearchParams(params);
-  }
-
-  function handleSearchClear() {
-    setSearchQuery('');
-    const params = new URLSearchParams(searchParams);
-    params.delete('q');
-    setSearchParams(params);
-  }
-
   return (
     <div className="flex flex-col min-h-full bg-background">
-      <div className="w-full md:max-w-3xl md:mx-auto">
-      {/* Header */}
+      <div className="w-full">
+      {/* Header — the title only. Search lives in the top bar (the operator:
+          "we have search on the top bar we don't need a search here"). */}
       <div className="sticky top-0 z-10 bg-background/90 backdrop-blur-md md:static md:bg-transparent md:mb-4">
-        <div className="flex items-center justify-between px-4 py-3 md:px-0 gap-3">
-          <div className="flex items-center gap-2 shrink-0">
-            <Compass className="h-5 w-5 text-brand-400" strokeWidth={1.75} />
-            <h1 className="font-display text-lg font-bold text-foreground">Discover</h1>
-          </div>
-          {tab === 'trending' && (
-            <div className="relative flex-1 max-w-xs">
-              <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground pointer-events-none" />
-              <input
-                type="text"
-                value={searchQuery}
-                onChange={handleSearchChange}
-                placeholder="Search posts…"
-                data-testid="discover-search"
-                className="w-full h-8 pl-8 pr-7 rounded-full border border-input bg-surface text-sm placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-brand/50 transition-colors duration-150"
-              />
-              {searchQuery && (
-                <button
-                  type="button"
-                  onClick={handleSearchClear}
-                  className="absolute right-1.5 top-1/2 -translate-y-1/2 h-5 w-5 flex items-center justify-center rounded-full hover:bg-elevated transition-colors duration-150"
-                  aria-label="Clear search"
-                  data-testid="discover-search-clear"
-                >
-                  <X className="h-3 w-3 text-muted-foreground" />
-                </button>
-              )}
-            </div>
-          )}
+        <div className="flex items-center gap-2 px-4 py-3 md:px-0">
+          <Compass className="h-5 w-5 text-brand-400" strokeWidth={1.75} />
+          <h1 className="font-display text-lg font-bold text-foreground">Discover</h1>
         </div>
       </div>
 
-      {/* Subtabs: Trending | Explore (?tab=, trending is the bare URL).
-          Explore = people + groups mashed into one browser (the operator:
-          "people are groups in web10"); the top bar's search opens it. */}
+      {/* Tabs: Posts | People & Groups (?tab=, trending is the bare URL).
+          A chunky toggle — the "chunky icon to switch it to people and
+          groups" the operator asked for. People & Groups = the mashed people
+          + groups browser (the operator: "people are groups in web10"); the
+          top bar's search opens it. */}
       <div className="border-b border-border bg-surface/50" data-testid="discover-tab-row">
         <div className="px-4 md:px-0">
-          <div className="flex items-center gap-1 py-1.5" role="tablist" aria-label="Discover sections">
+          <div className="flex items-center gap-2 py-2" role="tablist" aria-label="Discover sections">
             {DISCOVER_TABS.map(({ id, label, icon: TabIcon }) => (
               <button
                 key={id}
@@ -1079,14 +1039,14 @@ export default function DiscoverScreen() {
                 data-testid={`discover-tab-${id}`}
                 onClick={() => setTabUrl(id)}
                 className={cn(
-                  'flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-medium transition-colors',
+                  'flex items-center gap-2 rounded-lg px-4 py-2 text-sm font-semibold transition-colors',
                   'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background',
                   tab === id
                     ? 'bg-brand-muted text-brand-300'
                     : 'text-muted-foreground hover:text-foreground hover:bg-elevated',
                 )}
               >
-                <TabIcon className="h-3.5 w-3.5" strokeWidth={1.75} />
+                <TabIcon className="h-4 w-4" strokeWidth={1.75} />
                 <span>{label}</span>
               </button>
             ))}
@@ -1097,10 +1057,10 @@ export default function DiscoverScreen() {
       {tab === 'trending' ? (
         <>
           {/* The composer — the operator: "you can make a new post from the
-              explorer too". Posts from the explorer go to the reader's
-              followers groups (the same as the feed's composer). */}
+              explorer too". Compact: it rests as a single-line bar so the
+              video wall, not the composer, is the hero (design.md §10). */}
           <div data-testid="discover-composer" className="border-b border-border">
-            <PostComposer onPostCreated={() => loadDiscover(sortConfig)} />
+            <PostComposer compact onPostCreated={() => loadDiscover(sortConfig)} />
           </div>
 
           {/* Controls: presets + knobs */}
@@ -1191,7 +1151,7 @@ export default function DiscoverScreen() {
           {/* Content — the Home view (the video wall, the default) is the
               YouTube-style grid that fills the screen; Hot Gossip keeps the
               single-column board. */}
-          <div className="flex-1 px-4 py-4 md:px-0 md:w-full md:max-w-5xl md:mx-auto">
+          <div className="flex-1 px-4 py-4 md:px-0">
             {isInitialLoad ? (
               <div className="grid grid-cols-1 gap-4" data-testid="discover-grid-skeleton">
                 {Array.from({ length: 4 }).map((_, i) => (
@@ -1201,7 +1161,7 @@ export default function DiscoverScreen() {
             ) : view === 'home' ? (
               /* Home view — videos only, the YouTube-style wall (16:9 thumbs) */
               mediaPosts.length > 0 ? (
-                <div className="grid grid-cols-1 gap-x-4 gap-y-6 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4" data-testid="discover-home-grid">
+                <div className="grid grid-cols-1 gap-x-4 gap-y-6 sm:grid-cols-2 lg:grid-cols-3" data-testid="discover-home-grid">
                   {mediaPosts.map((post) => {
                     const authorKey = `${post.author_username}@${post.author_provider}`;
                     const profile = profileMap[authorKey];
