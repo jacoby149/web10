@@ -122,7 +122,7 @@ describe('DiscoverScreen', () => {
       expect(screen.getByTestId('discover-grid')).toBeInTheDocument();
     });
 
-    expect(screen.getByRole('heading', { name: 'Discover' })).toBeInTheDocument();
+    expect(screen.getByTestId('discover-tab-row')).toBeInTheDocument();
     // KnobRack preset chips (testids: preset-{id})
     expect(screen.getByTestId('preset-most-recent')).toBeInTheDocument();
     expect(screen.getByTestId('preset-most-liked')).toBeInTheDocument();

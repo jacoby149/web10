@@ -37,6 +37,7 @@ import {
   Film,
   Music2,
   Users,
+  User,
   Video,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
@@ -447,13 +448,13 @@ type DiscoverView = 'grid' | 'home';
 
 type DiscoverTab = 'trending' | 'explore';
 
-// The two top-level destinations. The chunky "chunky icon to switch it to
-// people and groups" the operator asked for: a big, obvious toggle, not a
-// buried pill. "Explore" is renamed "People & Groups" (what it actually is —
-// the mashed people + groups browser).
+// The two top-level destinations. Chunky and obvious — the operator (23.09.2026):
+// "that is just too small too hard to see, want to keep the youtube stuff big."
+// "Explore" is renamed **People** (it's really people + groups, but called
+// People like Facebook's Friends tab) with a person icon.
 const DISCOVER_TABS: { id: DiscoverTab; label: string; icon: typeof Flame }[] = [
   { id: 'trending', label: 'Posts', icon: Flame },
-  { id: 'explore', label: 'People & Groups', icon: Users },
+  { id: 'explore', label: 'People', icon: User },
 ];
 
 function postHasVideo(post: PostRecord): boolean {
@@ -1013,23 +1014,16 @@ export default function DiscoverScreen() {
   return (
     <div className="flex flex-col min-h-full bg-background">
       <div className="w-full">
-      {/* Header — the title only. Search lives in the top bar (the operator:
-          "we have search on the top bar we don't need a search here"). */}
-      <div className="sticky top-0 z-10 bg-background/90 backdrop-blur-md md:static md:bg-transparent md:mb-4">
-        <div className="flex items-center gap-2 px-4 py-3 md:px-0">
-          <Compass className="h-5 w-5 text-brand-400" strokeWidth={1.75} />
-          <h1 className="font-display text-lg font-bold text-foreground">Discover</h1>
-        </div>
-      </div>
-
-      {/* Tabs: Posts | People & Groups (?tab=, trending is the bare URL).
-          A chunky toggle — the "chunky icon to switch it to people and
-          groups" the operator asked for. People & Groups = the mashed people
-          + groups browser (the operator: "people are groups in web10"); the
-          top bar's search opens it. */}
-      <div className="border-b border-border bg-surface/50" data-testid="discover-tab-row">
+      {/* Tabs: Posts | People (?tab=, trending is the bare URL). The primary
+          nav — no separate "Discover" header (the operator's "show don't
+          tell": the video wall is the hero, the tabs are the nav). Chunky +
+          obvious + sticky (the operator, 23.09.2026): "that is just too small
+          too hard to see, want to keep the youtube stuff big." People is
+          really people + groups (the mashed browser), called People like
+          Facebook's Friends tab, with a person icon. */}
+      <div className="sticky top-0 z-10 border-b border-border bg-background/95 backdrop-blur-md md:bg-surface/50" data-testid="discover-tab-row">
         <div className="px-4 md:px-0">
-          <div className="flex items-center gap-2 py-2" role="tablist" aria-label="Discover sections">
+          <div className="flex items-center gap-2 py-3" role="tablist" aria-label="Discover sections">
             {DISCOVER_TABS.map(({ id, label, icon: TabIcon }) => (
               <button
                 key={id}
@@ -1039,14 +1033,14 @@ export default function DiscoverScreen() {
                 data-testid={`discover-tab-${id}`}
                 onClick={() => setTabUrl(id)}
                 className={cn(
-                  'flex items-center gap-2 rounded-lg px-4 py-2 text-sm font-semibold transition-colors',
+                  'flex items-center gap-2.5 rounded-xl px-5 py-2.5 text-base font-semibold transition-colors',
                   'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background',
                   tab === id
                     ? 'bg-brand-muted text-brand-300'
                     : 'text-muted-foreground hover:text-foreground hover:bg-elevated',
                 )}
               >
-                <TabIcon className="h-4 w-4" strokeWidth={1.75} />
+                <TabIcon className="h-5 w-5" strokeWidth={1.75} />
                 <span>{label}</span>
               </button>
             ))}
