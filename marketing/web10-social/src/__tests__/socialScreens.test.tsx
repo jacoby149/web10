@@ -688,6 +688,31 @@ describe('Layout', () => {
     expect(screen.getAllByText('Messages').length).toBeGreaterThanOrEqual(1);
   });
 
+  it('sidebar profile row shows the profile pic (not the generic icon)', async () => {
+    const { readProfile, resolveMediaRefs } = await import('@/data');
+    vi.mocked(readProfile).mockResolvedValueOnce({
+      display_name: 'Test User',
+      avatar_ref: 'avatar-1',
+    });
+    vi.mocked(resolveMediaRefs).mockResolvedValueOnce([
+      { _id: 'avatar-1', url: 'http://test.com/avatar.png', created_at: '2026-01-01T00:00:00Z' },
+    ]);
+    const { default: Layout } = await import('@/components/Social/Layout');
+    render(
+      <MemoryRouter initialEntries={['/feed']}>
+        <Layout onLogout={() => {}} onReportBug={() => {}}>
+          <div>Content</div>
+        </Layout>
+      </MemoryRouter>,
+    );
+    // The profile row's leading element is the avatar image (the profile pic),
+    // not the generic User icon.
+    const profileRow = await screen.findByTestId('nav-profile');
+    const img = profileRow.querySelector('img');
+    expect(img).not.toBeNull();
+    expect(img).toHaveAttribute('src', 'http://test.com/avatar.png');
+  });
+
   it('mobile bottom nav holds 4 core tabs + a More tab; coming-soon live in the More sheet, not the bar', async () => {
     // Operator, 30.08.2026: the mobile bottom bar was too crammed — a "More"
     // tab (the 5th icon) opens a sheet with Settings + the coming-soon
