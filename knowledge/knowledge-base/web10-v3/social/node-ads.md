@@ -171,7 +171,17 @@ The same section shows:
 
 - The current percentage (slider)
 - The list of active node ads (creative preview, offer, status)
-- Create / pause / resume / retire node ads
+- Create / **edit** / pause / resume / retire node ads
+
+**Node ads are editable, exactly like creator ads** (3.162.0 — parity,
+`ad-improvements.md`): the Node Monetization surface's ad form is the same
+create-AND-edit form the creator's catalog uses — Edit pre-fills the copy,
+the offer (kind / partner / link / CTA / disclosure), the status, the format
+(inline / post), and the existing media (kept by doc_id unless replaced).
+Save is `w.update` on the **same doc_id** (an update is a new version), so
+the read-time attach (`get_active_node_ads`) picks up the new
+creative/offer/format on the next read. No albums (a node ad is the
+operator's inventory, not a creator's catalog).
 ## The Renderer
 
 The app already renders ad posts (tagged `ad`) as ad blocks

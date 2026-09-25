@@ -59,6 +59,9 @@ export async function saveNodeAdOverwrite() {}
 export async function updateAd() {
   return { doc_id: 'ad-1' };
 }
+export async function updateNodeAd() {
+  return { doc_id: 'node-1' };
+}
 export async function ensureFollowersGroup() {
   return 'web10.app/groups/users/testuser/followers';
 }
