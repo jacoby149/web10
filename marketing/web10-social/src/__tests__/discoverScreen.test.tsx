@@ -1586,3 +1586,107 @@ describe('DiscoverScreen — subtab shell (D1)', () => {
     expect(lastSearch).not.toContain('show=');
   });
 });
+
+describe('DiscoverScreen — the post-format ad renders as its own card, next in line (ad-improvements.md)', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    (data.getV3Client as ReturnType<typeof vi.fn>).mockReturnValue({
+      read: vi.fn().mockResolvedValue([]),
+      readToken: vi.fn().mockReturnValue({ provider: 'test.localhost', username: 'testuser' }),
+    });
+  });
+
+  const POST_AD = {
+    _id: 'ad-1',
+    text: 'Everything I use, linked.',
+    created_at: new Date().toISOString(),
+    offer: { link: 'https://amzn.to/abc', cta: 'Check it out', disclosure: 'I may earn a commission.' },
+    status: 'active',
+    author_username: 'alice',
+    variant: 'creator',
+    format: 'post',
+    media_refs: [],
+  };
+
+  const INLINE_AD = {
+    _id: 'ad-inline-1',
+    text: 'The compact inline ad.',
+    offer: { link: 'https://amzn.to/xyz', cta: 'Get it', disclosure: 'I may earn a commission.' },
+    status: 'active',
+    author_username: 'alice',
+    variant: 'creator',
+    format: 'inline',
+    media_refs: [],
+  };
+
+  it('a post-format ad attached to a discover post renders as a standalone card AFTER that post (not inside it)', async () => {
+    (data.readDiscoverFeed as ReturnType<typeof vi.fn>).mockResolvedValue([
+      {
+        author: 'top-user',
+        provider: 'api.web10.app',
+        post_id: 'p1',
+        text: 'Top post',
+        tags: ['trending'],
+        created_at: new Date().toISOString(),
+        likes: 200,
+        comments: 50,
+        reposts: 20,
+        score: 250,
+        ad: POST_AD,
+      },
+    ]);
+
+    const { default: DiscoverScreen } = await import('@/components/Discover/DiscoverScreen');
+    render(
+      <MemoryRouter initialEntries={['/discover?view=grid']}>
+        <DiscoverScreen />
+      </MemoryRouter>,
+    );
+
+    const card = await screen.findByTestId('discover-card');
+    const adCard = screen.getByTestId('post-ad-card');
+
+    // The ad is its own standalone card, NOT nested inside the discover card.
+    expect(adCard.tagName).toBe('ARTICLE');
+    expect(adCard.getAttribute('data-ad-standalone')).toBe('true');
+    expect(card.contains(adCard)).toBe(false);
+    // Next in line on the board — directly after the post's card.
+    expect(card.nextElementSibling).toBe(adCard);
+    // The ad dressing is intact.
+    expect(screen.getByTestId('post-ad-badge')).toHaveTextContent('Ad');
+    expect(screen.getByTestId('post-ad-author')).toHaveTextContent('@alice');
+    expect(screen.getByTestId('post-ad-cta')).toHaveTextContent('Check it out');
+  });
+
+  it('an inline ad stays in the discover card (no standalone card)', async () => {
+    (data.readDiscoverFeed as ReturnType<typeof vi.fn>).mockResolvedValue([
+      {
+        author: 'top-user',
+        provider: 'api.web10.app',
+        post_id: 'p1',
+        text: 'Top post',
+        tags: ['trending'],
+        created_at: new Date().toISOString(),
+        likes: 200,
+        comments: 50,
+        reposts: 20,
+        score: 250,
+        ad: INLINE_AD,
+      },
+    ]);
+
+    const { default: DiscoverScreen } = await import('@/components/Discover/DiscoverScreen');
+    render(
+      <MemoryRouter initialEntries={['/discover?view=grid']}>
+        <DiscoverScreen />
+      </MemoryRouter>,
+    );
+
+    const card = await screen.findByTestId('discover-card');
+    // The compact AdBlock renders inside the card's ad slot.
+    const adBlock = screen.getByTestId('ad-block');
+    expect(card.contains(adBlock)).toBe(true);
+    // No standalone post-ad card.
+    expect(screen.queryByTestId('post-ad-card')).toBeNull();
+  });
+});

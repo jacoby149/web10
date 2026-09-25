@@ -372,11 +372,17 @@ export function DiscoverCard({
         {/* Attached ads (ad-improvements.md): the creator's pinned ad + the
             node's ad, each rendered per its format via the injected seam. Both
             can be present (neither suppresses the other, unless the node
-            overwrote the creator's). Absent `renderAd` → no ads (marketing). */}
-        {renderAd && (post.ad || post.node_ad) && (
+            overwrote the creator's). `post`-format ads are SKIPPED here — they
+            render as their own card in the stream, next in line after this
+            post (the screen inserts them; they look like just another post,
+            nothing indicates the pin). Absent `renderAd` → no ads (marketing). */}
+        {renderAd && (
+          (post.ad && post.ad.format !== 'post') ||
+          (post.node_ad && post.node_ad.format !== 'post')
+        ) && (
           <div className="mt-3 space-y-2" data-testid="discover-card-ads">
-            {post.ad && renderAd(post.ad)}
-            {post.node_ad && renderAd(post.node_ad)}
+            {post.ad && post.ad.format !== 'post' && renderAd(post.ad)}
+            {post.node_ad && post.node_ad.format !== 'post' && renderAd(post.node_ad)}
           </div>
         )}
       </div>
