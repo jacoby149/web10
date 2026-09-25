@@ -611,6 +611,28 @@ export async function leaveGroup(): Promise<unknown> { return { status: 'left' }
 export function mediaRefId(ref: string | { doc_id?: string }): string {
   return typeof ref === 'string' ? ref : ref.doc_id || '';
 }
+// Build a MediaRecord from an inline resolved ref (the anon discover path —
+// the node returns media inline on the read, so no re-presign is needed).
+export function fromResolvedMediaRef(r: {
+  doc_id?: string; object_key?: string | null; mime_type?: string | null;
+  size_bytes?: number | null; read_url?: string | null; width?: number | null;
+  height?: number | null; duration_seconds?: number | null; thumbnail_url?: string | null;
+  transcoding_settings?: unknown;
+}): unknown {
+  return {
+    _id: r.doc_id || undefined,
+    url: r.read_url || '',
+    object_key: r.object_key || undefined,
+    created_at: '',
+    mime_type: r.mime_type || undefined,
+    size_bytes: r.size_bytes || undefined,
+    width: r.width || undefined,
+    height: r.height || undefined,
+    duration_seconds: r.duration_seconds || undefined,
+    thumbnail_url: r.thumbnail_url || undefined,
+    transcoding_settings: r.transcoding_settings,
+  };
+}
 export function groupDisplayName(groupId: string, name?: string): string {
   if (name) return name;
   const parts = groupId.split('/');
