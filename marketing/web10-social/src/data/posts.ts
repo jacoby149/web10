@@ -17,6 +17,30 @@ import { fromV3DocToPost, fromV3DocToMedia, fromResolvedMediaRef, extractUsernam
 // No collection split — one `posts` collection, groups define access.
 
 /**
+ * Tags reserved for the ad machinery (ads.md / node-ads.md, D55/D57). A `posts`
+ * doc carrying `ad` IS an ad (the catalog splits on it, the feed read drops it
+ * from the standalone list, the read-time join serves it attached); `node_ad`
+ * marks the operator's node inventory (found by `get_active_node_ads` on the
+ * discover group); `ad_album` is an ad album. These are written ONLY by the ad
+ * catalog (`ads-catalog.ts`), never by a user post. If a user could tag their
+ * own post `#ad`, it would be misclassified as ad inventory (dropped from the
+ * feed, or — worse — served as someone else's attached ad). The node stays
+ * generic (D60) and doesn't police tags, so the app guards its own write path.
+ */
+export const RESERVED_POST_TAGS = ['ad', 'node_ad', 'ad_album'] as const;
+
+/**
+ * Throw if `tags` carry a reserved ad-machinery tag. The user-facing error
+ * names the tag so the composer can show it ("not so fast — `#ad` is a web10
+ * ads-only tag"). Returns the offending tags (empty when clean).
+ */
+export function reservedTagViolation(tags?: string[]): string[] {
+  if (!tags?.length) return [];
+  const reserved = RESERVED_POST_TAGS.filter((t) => tags.includes(t));
+  return reserved;
+}
+
+/**
  * Create a new post record.
  * Media files should be uploaded first via uploadMedia(), then referenced
  * through media_refs.
@@ -33,6 +57,16 @@ export async function createPost(
   const w = getV3Client();
   const token = w.readToken();
   if (!token) throw new Error('not authenticated');
+
+  // Reserved ad-machinery tags (ad / node_ad / ad_album) are the ad catalog's
+  // to write — a user post carrying one would be misclassified as ad inventory.
+  const reserved = reservedTagViolation(post.tags);
+  if (reserved.length) {
+    throw new Error(
+      `Not so fast — #${reserved.join(', #')} is a web10 ads-only tag. ` +
+      'Ads are made in Monetization, not tagged on a post.',
+    );
+  }
 
   const body: Record<string, unknown> = {
     text: post.text,
@@ -270,6 +304,17 @@ export async function updatePost(
   adPreference?: { mode: 'none' | 'pinned'; target?: string },
 ): Promise<PostRecord> {
   const w = getV3Client();
+
+  // Same reserved-tag guard as createPost — an edit can't smuggle an ad tag
+  // onto a post (the ad catalog is the only writer of ad / node_ad / ad_album).
+  const reserved = reservedTagViolation(updates.tags);
+  if (reserved.length) {
+    throw new Error(
+      `Not so fast — #${reserved.join(', #')} is a web10 ads-only tag. ` +
+      'Ads are made in Monetization, not tagged on a post.',
+    );
+  }
+
   const body: Record<string, unknown> = {};
   if (updates.text !== undefined) body.text = updates.text;
   if (updates.media_refs !== undefined) body.media_refs = updates.media_refs;

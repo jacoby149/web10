@@ -366,6 +366,30 @@ describe('Trending page', () => {
     // No interactive like → no window.open (the anon visitor can't like).
     expect(window.open).not.toHaveBeenCalled();
   });
+
+  it('never renders ad-tagged docs as board posts (ads are attached at read time, not ranked)', async () => {
+    // The discover group HOLDS the node ad docs (tagged `ad` + `node_ad`) —
+    // that's where `get_active_node_ads` finds them. But they are ad inventory,
+    // not board content: they show only when ATTACHED to a post via the
+    // read-time join, never as standalone ranked posts. The 25.09.2026 leak
+    // (operator screenshot) ranked `#ad #node_ad` docs #1/#2 on /trending.
+    // The board read drops them, the same way the social app's discover read
+    // does (`dropAdPosts`, web10-social `data/feed.ts`).
+    const posts = [
+      v3Post(0, { doc_id: 'node-ad-1', tags: ['ad', 'node_ad'], body: { text: 'node ad creative' } }),
+      v3Post(1, { doc_id: 'creator-ad-1', tags: ['ad'], body: { text: 'creator ad creative' } }),
+      ...makeV3Posts(5),
+    ];
+    mockDiscoverFeed(posts);
+    window.history.replaceState(null, '', '?view=grid');
+    const { default: Trending } = await import('@/pages/Trending');
+    render(<MemoryRouter initialEntries={['/trending' + window.location.search]}><Trending /></MemoryRouter>);
+    await waitFor(() => expect(screen.getByTestId('trending-grid')).toBeInTheDocument());
+    // Only the 5 real posts render — both ad docs are dropped from the board.
+    expect(screen.getAllByTestId('trending-card')).toHaveLength(5);
+    expect(screen.queryByText('node ad creative')).not.toBeInTheDocument();
+    expect(screen.queryByText('creator ad creative')).not.toBeInTheDocument();
+  });
 });
 
 // ── D-trending-knobs: knob rack, presets, mix code, re-ranking ──────────────
