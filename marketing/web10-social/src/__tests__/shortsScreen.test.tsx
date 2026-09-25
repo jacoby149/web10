@@ -291,22 +291,28 @@ describe('ShortsScreen — the vertical short-form feed (shorts.md)', () => {
     // screen's IntersectionObserver callback fires with slide 1 intersecting
     // (the setup.ts mock captures the callback; drive it with the real entry).
     const io = (globalThis as any).IntersectionObserver;
-    // The mock stores every constructed observer; the newest one is the
-    // current render's (it re-registers on shorts/activeIndex changes).
-    const observers = (io as any).instances as any[];
-    const slideObserver = observers[observers.length - 1];
-    expect(slideObserver).toBeTruthy();
+    const getLiveObserver = () => {
+      const observers = (io as any).instances as any[];
+      return observers[observers.length - 1];
+    };
+    // The screen's IO effect re-registers on [shorts, activeIndex] (and the
+    // async load() settles in a couple of state updates), so the observer can
+    // be re-created between an early grab and the fire — re-resolve the live
+    // one right before firing (the load-dependent flake).
+    expect(getLiveObserver()).toBeTruthy();
     const slide1 = screen.getByTestId('short-slide-1');
-    slideObserver.callback([{ isIntersecting: true, target: slide1 } as unknown as IntersectionObserverEntry], slideObserver);
+    getLiveObserver().callback([{ isIntersecting: true, target: slide1 } as unknown as IntersectionObserverEntry], getLiveObserver());
 
-    // Autoplay hands over: the new active slide plays…
+    // Autoplay hands over: the new active slide plays… The handover is an async
+    // effect chain (setActiveIndex → re-render → the InlineVideo play effect),
+    // so under CI load it can exceed the default 1s waitFor — give it headroom.
     await waitFor(() => {
       expect(play1).toHaveBeenCalled();
-    });
+    }, { timeout: 5000 });
     // …and the off-screen slide pauses.
     await waitFor(() => {
       expect(pause0).toHaveBeenCalled();
-    });
+    }, { timeout: 5000 });
   });
 
   it('keyboard: ArrowDown swipes to the next slide (the desktop swipe)', async () => {

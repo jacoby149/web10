@@ -1523,8 +1523,11 @@ describe('DiscoverScreen — subtab shell (D1)', () => {
     await waitFor(() => {
       expect(screen.queryByTestId('discover-trending-tab-query')).not.toBeInTheDocument();
     });
-    // The ?q= param is gone from the URL.
-    expect(lastSearch).not.toContain('q=');
+    // The ?q= param is gone from the URL (lastSearch is a render side-effect of
+    // the LocationProbe — wait for it to settle, not a synchronous read).
+    await waitFor(() => {
+      expect(lastSearch).not.toContain('q=');
+    });
   });
 
   it('writes ?tab= to the URL on switch and clears it for Trending (bare URL)', async () => {
@@ -1538,7 +1541,9 @@ describe('DiscoverScreen — subtab shell (D1)', () => {
       expect(screen.getByTestId('discover-explore-tab')).toBeInTheDocument();
     });
     // The ?view= param is preserved across the tab switch.
-    expect(lastSearch).toBe('?view=grid&tab=explore');
+    await waitFor(() => {
+      expect(lastSearch).toBe('?view=grid&tab=explore');
+    });
 
     fireEvent.click(screen.getByTestId('discover-tab-trending'));
     // trending is the bare URL — the ?tab= param is removed (?view= stays). Wait
@@ -1595,7 +1600,9 @@ describe('DiscoverScreen — subtab shell (D1)', () => {
     // The sort row is people-only — it hides with the section.
     expect(screen.queryByTestId('explore-sort-toggle')).not.toBeInTheDocument();
     // ?show=groups is written (the bare URL is "both").
-    expect(lastSearch).toContain('show=groups');
+    await waitFor(() => {
+      expect(lastSearch).toContain('show=groups');
+    });
   });
 
   it('shows the neutral empty state when both sections are hidden', async () => {
@@ -1613,7 +1620,9 @@ describe('DiscoverScreen — subtab shell (D1)', () => {
       expect(screen.getByTestId('explore-show-none')).toBeInTheDocument();
     });
     expect(screen.queryByTestId('explore-groups-section')).not.toBeInTheDocument();
-    expect(lastSearch).toContain('show=none');
+    await waitFor(() => {
+      expect(lastSearch).toContain('show=none');
+    });
   });
 
   it('restores ?show=groups on initial render (deep link)', async () => {
@@ -1644,7 +1653,9 @@ describe('DiscoverScreen — subtab shell (D1)', () => {
     });
     expect(screen.getByTestId('explore-show-people')).toHaveAttribute('aria-pressed', 'true');
     // Back to "both" — the ?show= param is cleared (bare URL).
-    expect(lastSearch).not.toContain('show=');
+    await waitFor(() => {
+      expect(lastSearch).not.toContain('show=');
+    });
   });
 
   // ── The People / Groups filter chips (?personFilter= / ?groupFilter=) ──────
@@ -1693,7 +1704,9 @@ describe('DiscoverScreen — subtab shell (D1)', () => {
       expect(screen.getAllByTestId('people-card')).toHaveLength(1);
     });
     expect(screen.getByTestId('people-card')).toHaveTextContent('alice');
-    expect(lastSearch).toContain('personFilter=mutuals');
+    await waitFor(() => {
+      expect(lastSearch).toContain('personFilter=mutuals');
+    });
   });
 
   it('the Following filter lists the reader\'s own following (separate read)', async () => {
@@ -1714,7 +1727,9 @@ describe('DiscoverScreen — subtab shell (D1)', () => {
       expect(screen.getByTestId('people-card')).toHaveTextContent('carol');
     });
     expect(data.fetchMyFollowingCards).toHaveBeenCalled();
-    expect(lastSearch).toContain('personFilter=following');
+    await waitFor(() => {
+      expect(lastSearch).toContain('personFilter=following');
+    });
   });
 
   it('the Followers filter lists the reader\'s own followers (separate read)', async () => {
@@ -1734,7 +1749,9 @@ describe('DiscoverScreen — subtab shell (D1)', () => {
       expect(screen.getByTestId('people-card')).toHaveTextContent('dave');
     });
     expect(data.fetchMyFollowersCards).toHaveBeenCalled();
-    expect(lastSearch).toContain('personFilter=followers');
+    await waitFor(() => {
+      expect(lastSearch).toContain('personFilter=followers');
+    });
   });
 
   it('the My Groups filter lists the reader\'s own groups (separate read)', async () => {
@@ -1756,7 +1773,9 @@ describe('DiscoverScreen — subtab shell (D1)', () => {
     });
     expect(screen.getByTestId('groups-my-row')).toHaveTextContent('my-crew');
     expect(data.getMyCommunityGroups).toHaveBeenCalled();
-    expect(lastSearch).toContain('groupFilter=mine');
+    await waitFor(() => {
+      expect(lastSearch).toContain('groupFilter=mine');
+    });
   });
 
   it('restores ?personFilter=mutuals on initial render (deep link)', async () => {
