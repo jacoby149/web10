@@ -672,13 +672,17 @@ export function PostCard({
       </div>
 
       {/* Carried ads (D55 + D57): the creator's pinned ad (`post.ad`) and the
-          node's ad (`post.node_ad`) can both be present — render both, neither
-          suppressing the other (unless node_ad_overwrite dropped the creator's).
-          Each renders per its format (inline AdBlock / full PostAdCard). */}
-      {(post.ad || post.node_ad) && (
+          node's ad (`post.node_ad`) can both be present. Each renders per its
+          FORMAT: `inline` → the compact AdBlock in this slot (under the post);
+          `post` → its own card in the stream, next in line after this post
+          (the feed's list inserts it — the ad looks like just another post,
+          with the Ad/Sponsored badge + disclosure, nothing indicating the
+          pin). Neither format suppresses the other (unless node_ad_overwrite
+          dropped the creator's). */}
+      {((post.ad && post.ad.format !== 'post') || (post.node_ad && post.node_ad.format !== 'post')) && (
         <div className="px-3 pb-3 md:px-4 md:pb-4 space-y-2">
-          {post.ad && <AttachedAd ad={post.ad} />}
-          {post.node_ad && <AttachedAd ad={post.node_ad} />}
+          {post.ad && post.ad.format !== 'post' && <AttachedAd ad={post.ad} />}
+          {post.node_ad && post.node_ad.format !== 'post' && <AttachedAd ad={post.node_ad} />}
         </div>
       )}
 
@@ -1032,7 +1036,7 @@ export default function FeedScreen({ onAuthorClick, onRepost }: { onAuthorClick?
           <FeedEmptyState />
         ) : (
           <>
-            {posts.map((post) => {
+            {posts.flatMap((post) => {
               // The feed carries everything per post (D69) — media (resolved +
               // HLS), the author's profile + avatar, and the counts. No maps,
               // no re-fetch. The counts display off the live maps (initialized
@@ -1041,7 +1045,17 @@ export default function FeedScreen({ onAuthorClick, onRepost }: { onAuthorClick?
                 .filter((r): r is ResolvedMediaRef => typeof r !== 'string')
                 .map(fromResolvedMediaRef);
 
-              return (
+              // Post-format ads (ad-improvements.md): a `post`-format ad rides
+              // the post it's attached to but renders as its OWN card, next in
+              // line after that post in the stream — "just another post" with
+              // the Ad/Sponsored badge + disclosure, nothing indicating the
+              // pin. (Inline ads stay in the PostCard's own ad slot.)
+              const attached: AdRecord[] = [
+                ...(post.ad && post.ad.format === 'post' ? [post.ad] : []),
+                ...(post.node_ad && post.node_ad.format === 'post' ? [post.node_ad] : []),
+              ];
+
+              const card = (
                 <PostCard
                   key={post._id || post.created_at}
                   post={post}
@@ -1068,6 +1082,18 @@ export default function FeedScreen({ onAuthorClick, onRepost }: { onAuthorClick?
                   isOwnPost={isOwnPost(post)}
                 />
               );
+
+              if (!attached.length) return [card];
+              return [
+                card,
+                ...attached.map((ad) => (
+                  <AttachedAd
+                    key={`${post._id || post.created_at}-ad-${ad._id || 'x'}`}
+                    ad={ad}
+                    standalone
+                  />
+                )),
+              ];
             })}
             {/* The infinite-scroll sentinel (triggers loadMore when it scrolls in) */}
             <div ref={sentinelRef} className="h-12 flex items-center justify-center">

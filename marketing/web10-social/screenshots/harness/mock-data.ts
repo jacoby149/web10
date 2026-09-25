@@ -717,21 +717,25 @@ const FEED_POSTS: SeedFeedPost[] = [
     likes: 128,
     comments: 24,
     reposts: 0,
-    // A creator ad (violet "Ad" dressing) with a media creative.
+    // A creator ad (violet "Ad" dressing) with a media creative — the
+    // `post` FORMAT (ad-improvements.md): it renders as its OWN card, next in
+    // line after fp-1 in the feed, not inside the post.
     ad: {
       _id: 'ad-nova-1',
       text: 'The analog synth I use for everything — linked below.',
+      created_at: minsAgo(30),
       media_refs: [adCreative('NOVA-1S', '#8b5cf6', '#2e1065')],
       offer: {
         kind: 'affiliate',
         partner: 'SynthLab',
         link: 'https://synthlab.example/nova-1s?ref=nova',
-        cta: 'Get it',
+        cta: 'Check it out',
         disclosure: 'I may earn a commission from this link.',
       },
       status: 'active',
       author_username: 'nova',
       variant: 'creator',
+      format: 'post',
     },
   },
   {
@@ -744,7 +748,9 @@ const FEED_POSTS: SeedFeedPost[] = [
     likes: 342,
     comments: 51,
     reposts: 0,
-    // BOTH ads present (D57): the creator's pinned ad + the node's ad.
+    // BOTH ads present (D57): the creator's pinned ad (inline — the compact
+    // AdBlock under the post) + the node's ad (`post` FORMAT — its own card,
+    // next in line after the post).
     ad: {
       _id: 'ad-luna-1',
       text: 'My favorite studio mic, on everything.',
@@ -759,10 +765,13 @@ const FEED_POSTS: SeedFeedPost[] = [
       status: 'active',
       author_username: 'luna',
       variant: 'creator',
+      format: 'inline',
     },
     node_ad: {
       _id: 'node-ad-1',
       text: 'WorkflowCo — the tool our whole node runs on.',
+      created_at: minsAgo(45),
+      media_refs: [adCreative('WORKFLOWCO', '#f59e0b', '#78350f')],
       offer: {
         kind: 'direct',
         partner: 'WorkflowCo',
@@ -773,6 +782,7 @@ const FEED_POSTS: SeedFeedPost[] = [
       status: 'active',
       author_username: 'nodeops',
       variant: 'node',
+      format: 'post',
     },
   },
   {
@@ -866,6 +876,10 @@ interface SeedDiscoverPost {
   comments: number;
   reposts: number;
   media_refs?: string[];
+  // Carried ads (D55 + D57) — the screenshot seed shows both ad formats:
+  // dp-1 carries a `post`-format creator ad (renders as its own card, next in
+  // line after the post on the Hot Gossip board).
+  ad?: unknown;
 }
 
 function creative(label: string, w: number, h: number, from: string, to: string, mime = 'video/mp4'): Record<string, unknown> {
@@ -913,6 +927,25 @@ const DISCOVER_MEDIA: Record<string, Record<string, unknown>> = {
     },
   },
   'dm-portrait3': { ...creative('BACKSTAGE', 720, 1280, '#f59e0b', '#78350f'), _id: 'dm-portrait3' },
+  // The post-format ad's creative (dp-1's attached ad) — a distinct image so
+  // the ad card reads as its own post, not a repeat of the post's media.
+  'dm-ad-synth': { ...creative('NOVA-1S', 1280, 720, '#8b5cf6', '#2e1065', 'image/png'), _id: 'dm-ad-synth' },
+  // The FEED's ad creatives (the inline adCreative SVGs) — keyed by the
+  // doc_id adCreative() mints (`media-<label>`) so the post-format ad cards'
+  // media resolves through resolveMediaRefs, the same way the node's read
+  // serves pre-resolved refs.
+  ...Object.fromEntries(
+    [
+      ['media-NOVA-1S', adCreative('NOVA-1S', '#8b5cf6', '#2e1065')],
+      ['media-AERO M2', adCreative('AERO M2', '#7c3aed', '#4c1d95')],
+      ['media-WORKFLOWCO', adCreative('WORKFLOWCO', '#f59e0b', '#78350f')],
+    ].map(([id, rec]) => {
+      const r = rec as Record<string, unknown>;
+      // PostAdMedia reads `url` / `thumbnail_url` (the MediaRecord shape) —
+      // adCreative mints `read_url`, so normalize here.
+      return [id, { ...r, _id: id, url: r.read_url, thumbnail_url: r.read_url }];
+    }),
+  ),
 };
 
 // Profile face media (avatar + banner + the owner's posts' media) — the
@@ -958,6 +991,26 @@ const DISCOVER_POSTS: SeedDiscoverPost[] = [
     comments: 24,
     reposts: 3,
     media_refs: ['dm-landscape'],
+    // A `post`-format creator ad (ad-improvements.md): it rides dp-1 but
+    // renders as its OWN card, next in line after dp-1 on the Hot Gossip
+    // board — "just another post" with the Ad badge + disclosure.
+    ad: {
+      _id: 'ad-nova-post',
+      text: 'The analog synth I use for everything — linked below.',
+      created_at: minsAgo(30),
+      media_refs: ['dm-ad-synth'],
+      offer: {
+        kind: 'affiliate',
+        partner: 'SynthLab',
+        link: 'https://synthlab.example/nova-1s?ref=nova',
+        cta: 'Check it out',
+        disclosure: 'I may earn a commission from this link.',
+      },
+      status: 'active',
+      author_username: 'nova',
+      variant: 'creator',
+      format: 'post',
+    },
   },
   {
     _id: 'dp-2',

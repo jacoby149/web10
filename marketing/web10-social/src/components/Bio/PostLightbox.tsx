@@ -21,7 +21,7 @@ import {
 } from '@/data';
 import { PostActions } from '@/components/Feed/PostActions';
 import { TextWithLinks } from '@/components/Feed/LinkEmbed';
-import { AdBlock } from '@/components/Feed/AdBlock';
+import { AttachedAd } from '@/components/Feed/AttachedAd';
 import { AdPicker } from '@/components/Feed/AdPicker';
 import { toast, errorMessage } from '@/components/shared/Toast';
 import { cn } from '@/lib/utils';
@@ -504,12 +504,14 @@ export function PostLightbox({ post, mediaMap, onClose, onReload, postAuthor, po
           />
 
           {/* Carried ads (D55 + D57): the creator's pinned ad + the node's ad
-               can both be present — render both, neither suppressing the other.
-               The comment thread mounts with the actions bar above (PostActions). */}
+                can both be present — render both, neither suppressing the other.
+                Each renders per its format (attached variant — the compact
+                AdBlock / the post-format card inside the lightbox). The comment
+                thread mounts with the actions bar above (PostActions). */}
           {(currentPost.ad || currentPost.node_ad) && (
             <div className="mt-3 -mx-1 px-4 space-y-2">
-              {currentPost.ad && <AdBlock ad={currentPost.ad} />}
-              {currentPost.node_ad && <AdBlock ad={currentPost.node_ad} />}
+              {currentPost.ad && <AttachedAd ad={currentPost.ad} />}
+              {currentPost.node_ad && <AttachedAd ad={currentPost.node_ad} />}
             </div>
           )}
 
