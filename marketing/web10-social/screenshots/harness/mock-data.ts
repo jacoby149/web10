@@ -666,14 +666,14 @@ interface SeedFeedPost {
 
 // A self-contained SVG creative (renders offline, no network) — a gradient
 // "product shot" so the ad's media density is visible in the PR shot.
-function adCreative(label: string, from: string, to: string): unknown {
+function adCreative(label: string, from: string, to: string, w = 800, h = 450): unknown {
   const svg =
-    `<svg xmlns='http://www.w3.org/2000/svg' width='800' height='450'>` +
+    `<svg xmlns='http://www.w3.org/2000/svg' width='${w}' height='${h}'>` +
     `<defs><linearGradient id='g' x1='0' y1='0' x2='1' y2='1'>` +
     `<stop offset='0' stop-color='${from}'/><stop offset='1' stop-color='${to}'/>` +
     `</linearGradient></defs>` +
-    `<rect width='800' height='450' fill='url(#g)'/>` +
-    `<text x='40' y='250' font-family='sans-serif' font-size='44' font-weight='700' fill='white'>${label}</text>` +
+    `<rect width='${w}' height='${h}' fill='url(#g)'/>` +
+    `<text x='40' y='${Math.round(h / 2) + 15}' font-family='sans-serif' font-size='44' font-weight='700' fill='white'>${label}</text>` +
     `</svg>`;
   return {
     doc_id: `media-${label}`,
@@ -682,8 +682,8 @@ function adCreative(label: string, from: string, to: string): unknown {
     filename: `${label}.svg`,
     size_bytes: 500,
     read_url: `data:image/svg+xml;utf8,${encodeURIComponent(svg)}`,
-    width: 800,
-    height: 450,
+    width: w,
+    height: h,
     duration_seconds: null,
     thumbnail_url: null,
   };
@@ -797,7 +797,7 @@ const FEED_POSTS: SeedFeedPost[] = [
       _id: 'node-ad-1',
       text: 'WorkflowCo — the tool our whole node runs on.',
       created_at: minsAgo(45),
-      media_refs: [adCreative('WORKFLOWCO', '#f59e0b', '#78350f')],
+      media_refs: [adCreative('WORKFLOWCO', '#f59e0b', '#78350f', 450, 800)],
       offer: {
         kind: 'direct',
         partner: 'WorkflowCo',
@@ -964,7 +964,7 @@ const DISCOVER_MEDIA: Record<string, Record<string, unknown>> = {
     [
       ['media-NOVA-1S', adCreative('NOVA-1S', '#8b5cf6', '#2e1065')],
       ['media-AERO M2', adCreative('AERO M2', '#7c3aed', '#4c1d95')],
-      ['media-WORKFLOWCO', adCreative('WORKFLOWCO', '#f59e0b', '#78350f')],
+      ['media-WORKFLOWCO', adCreative('WORKFLOWCO', '#f59e0b', '#78350f', 450, 800)],
     ].map(([id, rec]) => {
       const r = rec as Record<string, unknown>;
       // PostAdMedia reads `url` / `thumbnail_url` (the MediaRecord shape) —

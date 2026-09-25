@@ -58,7 +58,7 @@ function parseCliViews(argv) {
     if (argv[i] === '--click') actions.push({ type: 'click', sel: argv[i + 1] });
     else if (argv[i] === '--fill') actions.push({ type: 'fill', sel: argv[i + 1], val: argv[i + 2] });
   }
-  return [{ name, ready, route: get('--route'), toggle: get('--toggle'), clicks: actions.filter((a) => a.type === 'click').map((a) => a.sel), fills: actions.filter((a) => a.type === 'fill').map((a) => [a.sel, a.val]), actions, hover: get('--hover'), readyAlt: get('--ready-alt'), extra: get('--extra') }];
+  return [{ name, ready, route: get('--route'), toggle: get('--toggle'), clicks: actions.filter((a) => a.type === 'click').map((a) => a.sel), fills: actions.filter((a) => a.type === 'fill').map((a) => [a.sel, a.val]), actions, hover: get('--hover'), readyAlt: get('--ready-alt'), extra: get('--extra'), scroll: get('--scroll') }];
 }
 const VIEWS = parseCliViews(process.argv.slice(2)) ?? DEFAULT_VIEWS;
 
@@ -158,6 +158,15 @@ try {
         // mouseenter/mousemove handlers fire and the overlay becomes visible.
         if (view.hover) {
           await page.hover(view.hover);
+          await page.waitForTimeout(300);
+        }
+        // `--scroll SEL` brings a below-the-fold element into the viewport
+        // before the shot (the feed's ad cards sit under the first post).
+        if (view.scroll) {
+          await page.evaluate((sel) => {
+            const el = document.querySelector(sel);
+            if (el) el.scrollIntoView({ block: 'center' });
+          }, view.scroll);
           await page.waitForTimeout(300);
         }
       } catch (err) {
