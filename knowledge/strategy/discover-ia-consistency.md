@@ -17,7 +17,7 @@ them one surface.
 > so `?tab=` deep links + the `?tab=explore&q=` search hand-off keep working.
 > The People *section* inside the browser (two-overlapped glyph) is unchanged.
 
-> **The mirror drifts (25.09.2026, 3.161.1):** the fixed point held for the
+> **The mirror drifts (25.09.2026, 3.163.1):** the fixed point held for the
 > tabs + cards, but three marketing-only surfaces had drifted from the social
 > app and were re-aligned: (1) the marketing **search** called a phantom
 > `PATCH /discover/search` (404 → "Search unavailable") — it now mirrors the
