@@ -1187,7 +1187,7 @@ export async function fetchPeoplePage(_opts: { limit: number; offset: number }):
         avatar_ref: 'pp-avatar-pixel', banner_ref: 'pp-banner-pixel',
         avatar_url: creative('PIXEL', 400, 400, '#22c55e', '#14532d', 'image/png').url,
         banner_url: creative('PIXEL BANNER', 1600, 400, '#16a34a', '#052e16', 'image/png').url,
-        followers_count: 25600, is_following: false,
+        followers_count: 25600, mutuals: 12, is_following: false,
       },
       {
         username: 'luna', provider: 'web10', display_name: 'Luna Reyes',
@@ -1195,7 +1195,7 @@ export async function fetchPeoplePage(_opts: { limit: number; offset: number }):
         avatar_ref: 'pp-avatar-luna', banner_ref: 'pp-banner-luna',
         avatar_url: creative('LUNA', 400, 400, '#8b5cf6', '#2e1065', 'image/png').url,
         banner_url: creative('LUNA BANNER', 1600, 400, '#7c3aed', '#4c1d95', 'image/png').url,
-        followers_count: 12400, is_following: true,
+        followers_count: 12400, mutuals: 5, is_following: true,
       },
       {
         username: 'kai', provider: 'web10', display_name: 'Kai Mori',
@@ -1210,50 +1210,65 @@ export async function fetchPeoplePage(_opts: { limit: number; offset: number }):
         avatar_ref: 'pp-avatar-nova', banner_ref: 'pp-banner-nova',
         avatar_url: creative('NOVA', 400, 400, '#f472b6', '#831843', 'image/png').url,
         banner_url: creative('NOVA BANNER', 1600, 400, '#ec4899', '#500724', 'image/png').url,
-        followers_count: 3300, is_following: false,
+        followers_count: 3300, mutuals: 3, is_following: false,
       },
       {
         username: 'zoe', provider: 'web10', display_name: 'Zoe Rivers',
         bio: 'Film photography',
-        followers_count: 1670, is_following: false,
+        followers_count: 1670, mutuals: 1, is_following: false,
       },
       {
         username: 'marco', provider: 'web10', display_name: 'Marco Silva',
-        followers_count: 167, is_following: false,
+        followers_count: 167, mutuals: 0, is_following: false,
       },
       {
         username: 'vera', provider: 'web10', display_name: 'Vera Costa',
         bio: 'Street photography',
         banner_ref: 'pp-banner-vera',
         banner_url: creative('VERA BANNER', 1600, 400, '#f59e0b', '#78350f', 'image/png').url,
-        followers_count: 240, is_following: true,
+        followers_count: 240, mutuals: 0, is_following: true,
       },
       {
         username: 'theo', provider: 'web10', display_name: 'Theo',
         bio: 'Cycling vlogs',
         avatar_ref: 'pp-avatar-theo',
         avatar_url: creative('THEO', 400, 400, '#a78bfa', '#4c1d95', 'image/png').url,
-        followers_count: 98, is_following: false,
+        followers_count: 98, mutuals: 0, is_following: false,
       },
       {
         username: 'iris', provider: 'web10', display_name: 'Iris',
-        followers_count: 61, is_following: false,
+        followers_count: 61, mutuals: 0, is_following: false,
       },
       {
         username: 'jude', provider: 'web10', display_name: 'Jude Park',
         bio: 'Cooking + recipes',
-        followers_count: 44, is_following: false,
+        followers_count: 44, mutuals: 0, is_following: false,
       },
       {
         username: 'wren', provider: 'web10', display_name: 'Wren',
-        followers_count: 12, is_following: false,
+        followers_count: 12, mutuals: 0, is_following: false,
       },
       {
         username: 'sol', provider: 'web10', display_name: 'Sol',
-        followers_count: 3, is_following: false,
+        followers_count: 3, mutuals: 0, is_following: false,
       },
     ],
   };
+}
+
+// The Explore tab's own-graph reads (the Following / Followers filters). Seeded
+// so the filter chips render a list when toggled.
+export async function fetchMyFollowersCards(): Promise<unknown[]> {
+  return [
+    { username: 'luna', provider: 'web10', display_name: 'Luna Reyes', followers_count: 12400, mutuals: 5, is_following: true },
+    { username: 'vera', provider: 'web10', display_name: 'Vera Costa', followers_count: 240, mutuals: 0, is_following: true },
+  ];
+}
+export async function fetchMyFollowingCards(): Promise<unknown[]> {
+  return [
+    { username: 'luna', provider: 'web10', display_name: 'Luna Reyes', followers_count: 12400, mutuals: 5, is_following: true },
+    { username: 'vera', provider: 'web10', display_name: 'Vera Costa', followers_count: 240, mutuals: 0, is_following: true },
+  ];
 }
 
 // The People browser imports sortPeople / filterPeople / DEFAULT_PEOPLE_SORT

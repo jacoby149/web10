@@ -3422,8 +3422,20 @@ def list_public_users(reader: str, authenticated: bool, limit: int = 20, offset:
 
     Principal-based: ``anon`` sees the public subset (followers groups whose
     ``anyone``/``anon`` grant allows reading ``profile``); a signed-in reader
-    sees more (their follows + ``authenticated`` grants). A user with no
-    readable profile face is ABSENT, not shown-with-fallback (I3).
+    sees more (their follows + ``authenticated`` grants). The I3 read-gate
+    (``readable_groups_batched``) is the access boundary — a user is in the
+    directory iff their followers group is readable by the reader. A user with
+    no profile face yet is STILL listed (with a username-only face) — a
+    username + follower count is public identity, so a fresh account is
+    discoverable from birth instead of the directory reading empty until every
+    user opens their profile.
+
+    The node stays generic (D60): it returns the universal primitives — the
+    user, the unspoofable follower count, and the profile face. It does NOT
+    compute app-specific social signals (e.g. "mutuals" / "how much in
+    common"); those are derived client-side from the generic membership
+    primitive (a user's followers = the member list of their followers
+    group), so the node never learns an app's concepts.
     """
     users = list_users()
     if not users:
@@ -3465,9 +3477,12 @@ def list_public_users(reader: str, authenticated: bool, limit: int = 20, offset:
     for username, gid in user_to_group.items():
         if gid not in readable_set:
             continue
-        face = face_by_user.get(username)
-        if face is None:
-            continue  # no readable profile face -> absent (I3)
+        # A user with no profile face yet is still listed — a username-only
+        # face (public identity; the I3 gate already bounds who is readable).
+        # This is a generic listing decision (list readable users), not an
+        # app concept: the directory is populated from birth instead of reading
+        # empty until every user opens their profile.
+        face = face_by_user.get(username) or {"display_name": username}
         rows.append(
             {
                 "username": username,

@@ -59,6 +59,7 @@ export function PersonCardRow({ person, followLoading, onFollow, onUnfollow, onO
     banner_url: person.banner_url,
     avatar_url: person.avatar_url,
     followers_count: person.followers_count,
+    mutuals: person.mutuals,
     is_following: person.is_following,
   };
   return (

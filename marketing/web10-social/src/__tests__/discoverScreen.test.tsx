@@ -28,6 +28,11 @@ vi.mock('@/data', async (importOriginal) => {
     // D53 directory) — mocked so the Explore section tests control the data.
     fetchPeoplePage: vi.fn().mockResolvedValue({ people: [], hasMore: false }),
     readGroupDirectory: vi.fn().mockResolvedValue([]),
+    // The Explore tab's own-graph reads (the Following / Followers / My Groups
+    // filters) — mocked so the filter tests control the data.
+    fetchMyFollowersCards: vi.fn().mockResolvedValue([]),
+    fetchMyFollowingCards: vi.fn().mockResolvedValue([]),
+    getMyCommunityGroups: vi.fn().mockResolvedValue([]),
   };
 });
 
@@ -1496,7 +1501,10 @@ describe('DiscoverScreen — subtab shell (D1)', () => {
   // client has no listPeopleDirectory, so fetchPeoplePage would error).
   function seedExploreData() {
     (data.fetchPeoplePage as ReturnType<typeof vi.fn>).mockResolvedValue({
-      people: [{ username: 'alice', provider: 'test.localhost', followers_count: 3, is_following: false }],
+      people: [
+        { username: 'alice', provider: 'test.localhost', followers_count: 3, mutuals: 2, is_following: true },
+        { username: 'bob', provider: 'test.localhost', followers_count: 5, mutuals: 0, is_following: false },
+      ],
       hasMore: false,
     });
     (data.readGroupDirectory as ReturnType<typeof vi.fn>).mockResolvedValue([
@@ -1584,6 +1592,131 @@ describe('DiscoverScreen — subtab shell (D1)', () => {
     expect(screen.getByTestId('explore-show-people')).toHaveAttribute('aria-pressed', 'true');
     // Back to "both" — the ?show= param is cleared (bare URL).
     expect(lastSearch).not.toContain('show=');
+  });
+
+  // ── The People / Groups filter chips (?personFilter= / ?groupFilter=) ──────
+  // The "easy filters": People = All | Following | Mutuals | Followers;
+  // Groups = All | My Groups | Discover.
+
+  it('renders the People filter chips with All active by default', async () => {
+    seedExploreData();
+    await renderDiscoverAt('/discover?tab=explore');
+    await waitFor(() => {
+      expect(screen.getByTestId('explore-people-filter')).toBeInTheDocument();
+    });
+    expect(screen.getByTestId('explore-people-filter-all')).toHaveAttribute('aria-selected', 'true');
+    expect(screen.getByTestId('explore-people-filter-following')).toHaveAttribute('aria-selected', 'false');
+    expect(screen.getByTestId('explore-people-filter-mutuals')).toHaveAttribute('aria-selected', 'false');
+    expect(screen.getByTestId('explore-people-filter-followers')).toHaveAttribute('aria-selected', 'false');
+  });
+
+  it('renders the Groups filter chips with All active by default', async () => {
+    seedExploreData();
+    await renderDiscoverAt('/discover?tab=explore');
+    await waitFor(() => {
+      expect(screen.getByTestId('explore-groups-filter')).toBeInTheDocument();
+    });
+    expect(screen.getByTestId('explore-groups-filter-all')).toHaveAttribute('aria-selected', 'true');
+    expect(screen.getByTestId('explore-groups-filter-mine')).toHaveAttribute('aria-selected', 'false');
+    expect(screen.getByTestId('explore-groups-filter-discover')).toHaveAttribute('aria-selected', 'false');
+  });
+
+  it('the Mutuals filter shows only people with mutuals > 0', async () => {
+    seedExploreData();
+    await renderDiscoverAt('/discover?tab=explore');
+    await waitFor(() => {
+      expect(screen.getByTestId('explore-people-filter')).toBeInTheDocument();
+    });
+    // Both alice (2 mutuals) + bob (0 mutuals) show under All.
+    expect(screen.getAllByTestId('people-card')).toHaveLength(2);
+
+    fireEvent.click(screen.getByTestId('explore-people-filter-mutuals'));
+
+    await waitFor(() => {
+      expect(screen.getByTestId('explore-people-filter-mutuals')).toHaveAttribute('aria-selected', 'true');
+    });
+    // Only alice (mutuals 2) remains — bob (0 mutuals) is filtered out.
+    await waitFor(() => {
+      expect(screen.getAllByTestId('people-card')).toHaveLength(1);
+    });
+    expect(screen.getByTestId('people-card')).toHaveTextContent('alice');
+    expect(lastSearch).toContain('personFilter=mutuals');
+  });
+
+  it('the Following filter lists the reader\'s own following (separate read)', async () => {
+    seedExploreData();
+    (data.fetchMyFollowingCards as ReturnType<typeof vi.fn>).mockResolvedValue([
+      { username: 'carol', provider: 'test.localhost', display_name: 'Carol', followers_count: 9, mutuals: 0, is_following: true },
+    ]);
+    await renderDiscoverAt('/discover?tab=explore');
+    await waitFor(() => {
+      expect(screen.getByTestId('explore-people-filter')).toBeInTheDocument();
+    });
+    fireEvent.click(screen.getByTestId('explore-people-filter-following'));
+    await waitFor(() => {
+      expect(screen.getByTestId('explore-people-filter-following')).toHaveAttribute('aria-selected', 'true');
+    });
+    // The directory (alice/bob) is replaced by the following read (carol).
+    await waitFor(() => {
+      expect(screen.getByTestId('people-card')).toHaveTextContent('carol');
+    });
+    expect(data.fetchMyFollowingCards).toHaveBeenCalled();
+    expect(lastSearch).toContain('personFilter=following');
+  });
+
+  it('the Followers filter lists the reader\'s own followers (separate read)', async () => {
+    seedExploreData();
+    (data.fetchMyFollowersCards as ReturnType<typeof vi.fn>).mockResolvedValue([
+      { username: 'dave', provider: 'test.localhost', display_name: 'Dave', followers_count: 9, mutuals: 0, is_following: false },
+    ]);
+    await renderDiscoverAt('/discover?tab=explore');
+    await waitFor(() => {
+      expect(screen.getByTestId('explore-people-filter')).toBeInTheDocument();
+    });
+    fireEvent.click(screen.getByTestId('explore-people-filter-followers'));
+    await waitFor(() => {
+      expect(screen.getByTestId('explore-people-filter-followers')).toHaveAttribute('aria-selected', 'true');
+    });
+    await waitFor(() => {
+      expect(screen.getByTestId('people-card')).toHaveTextContent('dave');
+    });
+    expect(data.fetchMyFollowersCards).toHaveBeenCalled();
+    expect(lastSearch).toContain('personFilter=followers');
+  });
+
+  it('the My Groups filter lists the reader\'s own groups (separate read)', async () => {
+    seedExploreData();
+    (data.getMyCommunityGroups as ReturnType<typeof vi.fn>).mockResolvedValue([
+      { group_id: 'test.localhost/groups/communities/my-crew', join_policy: 'open', my_role: 'member', member_count: 4, tags: [] },
+    ]);
+    await renderDiscoverAt('/discover?tab=explore');
+    await waitFor(() => {
+      expect(screen.getByTestId('explore-groups-filter')).toBeInTheDocument();
+    });
+    fireEvent.click(screen.getByTestId('explore-groups-filter-mine'));
+    await waitFor(() => {
+      expect(screen.getByTestId('explore-groups-filter-mine')).toHaveAttribute('aria-selected', 'true');
+    });
+    // The directory (Lofi) is replaced by the My Groups list (my-crew).
+    await waitFor(() => {
+      expect(screen.getByTestId('explore-groups-mine-list')).toBeInTheDocument();
+    });
+    expect(screen.getByTestId('groups-my-row')).toHaveTextContent('my-crew');
+    expect(data.getMyCommunityGroups).toHaveBeenCalled();
+    expect(lastSearch).toContain('groupFilter=mine');
+  });
+
+  it('restores ?personFilter=mutuals on initial render (deep link)', async () => {
+    seedExploreData();
+    await renderDiscoverAt('/discover?tab=explore&personFilter=mutuals');
+    await waitFor(() => {
+      expect(screen.getByTestId('explore-people-filter')).toBeInTheDocument();
+    });
+    expect(screen.getByTestId('explore-people-filter-mutuals')).toHaveAttribute('aria-selected', 'true');
+    // Only alice (mutuals 2) shows.
+    await waitFor(() => {
+      expect(screen.getAllByTestId('people-card')).toHaveLength(1);
+    });
   });
 });
 

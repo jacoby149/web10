@@ -27,6 +27,10 @@ export interface DiscoverPerson {
   avatar_url?: string;
   /** The unspoofable follower count. */
   followers_count: number;
+  /** How many of this person's followers the reader also follows (the "N mutuals").
+   *  App-derived (the node stays generic, D60); shown only when > 0. Optional —
+   *  the marketing (anon) browser doesn't compute it. */
+  mutuals?: number;
   /** Whether the reader follows this person (interactive mode). */
   is_following?: boolean;
 }
@@ -118,6 +122,14 @@ export function PersonCard({
           <h3 className="truncate text-base font-semibold text-foreground">{name}</h3>
           <p className="truncate text-xs text-muted-foreground">@{person.username}</p>
           <p className="mt-1 flex items-center gap-1.5 text-xs text-muted-foreground tabular-nums">
+            {person.mutuals != null && person.mutuals > 0 && (
+              <>
+                <span data-testid="people-mutuals">
+                  {person.mutuals} mutual{person.mutuals === 1 ? '' : 's'}
+                </span>
+                <span aria-hidden="true" className="text-muted-foreground/40">·</span>
+              </>
+            )}
             <Users className="h-3 w-3 shrink-0" strokeWidth={2} aria-hidden="true" />
             <span data-testid="people-followers">
               {formatCount(person.followers_count)} follower{person.followers_count === 1 ? '' : 's'}
