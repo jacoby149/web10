@@ -1541,11 +1541,12 @@ describe('DiscoverScreen — subtab shell (D1)', () => {
     expect(lastSearch).toBe('?view=grid&tab=explore');
 
     fireEvent.click(screen.getByTestId('discover-tab-trending'));
+    // trending is the bare URL — the ?tab= param is removed (?view= stays). Wait
+    // for the URL update to land: the grid may already be mounted, so waiting on
+    // it alone doesn't prove the navigate fired (the load-dependent flake).
     await waitFor(() => {
-      expect(screen.getByTestId('discover-grid')).toBeInTheDocument();
+      expect(lastSearch).toBe('?view=grid');
     });
-    // trending is the bare URL — the ?tab= param is removed (?view= stays).
-    expect(lastSearch).toBe('?view=grid');
   });
 
   // ── The People / Groups visibility toggle (?show=) ────────────────────────

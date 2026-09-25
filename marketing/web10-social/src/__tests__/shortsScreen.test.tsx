@@ -188,8 +188,12 @@ describe('ShortsScreen — the vertical short-form feed (shorts.md)', () => {
       expect(screen.getByTestId('short-video-0')).toBeInTheDocument();
     });
 
-    // The hls.js source is attached (the transcoded path)…
-    expect(FakeHls.instances.length).toBeGreaterThan(0);
+    // The hls.js source is attached (the transcoded path) — `new Hls()` runs in
+    // the player's effect (after the element commits), so wait for the instance
+    // rather than asserting it right after the element appears (the hlsFeed race).
+    await waitFor(() => {
+      expect(FakeHls.instances.length).toBeGreaterThan(0);
+    });
     // …but the slide is the video-only immersive fill: no full rack…
     expect(screen.queryByTestId('player-controls')).toBeNull();
     expect(screen.queryByTestId('quality-select')).toBeNull();
