@@ -158,7 +158,7 @@ existing idiom). No second data path.
   mode resets to Posts on collapse. `globalSearch.test.tsx` re-pinned to the
   posts-first + mode-toggle model (posts default, the toggle flips to
   people+groups, Enter/CTA still open Explore).
-- [✓ 3.157.0] **S5: Enter stays on the active tab + the labels match Discover**
+- [✓ 3.158.0] **S5: Enter stays on the active tab + the labels match Discover**
   (`GlobalSearch.tsx`) — operator pass (24.09.2026, the search dropdown
   screenshot): "i would like if i hit enter that the search happens whether
   on posts or the people tab, like it searches / stays on both. then you can
