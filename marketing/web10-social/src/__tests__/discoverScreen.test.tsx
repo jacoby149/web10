@@ -1395,13 +1395,16 @@ describe('DiscoverScreen — subtab shell (D1)', () => {
     });
   });
 
-  it('renders the Trending | Explore tab row with Trending active by default', async () => {
+  it('renders the Trending | Profiles tab row with Trending active by default', async () => {
     await renderDiscoverAt('/discover');
     await waitFor(() => {
       expect(screen.getByTestId('discover-tab-row')).toBeInTheDocument();
     });
     expect(screen.getByTestId('discover-tab-trending')).toHaveAttribute('aria-selected', 'true');
     expect(screen.getByTestId('discover-tab-explore')).toHaveAttribute('aria-selected', 'false');
+    // A1: the tab labels are Trending (was Posts) + Profiles (was People).
+    expect(screen.getByTestId('discover-tab-trending')).toHaveTextContent('Trending');
+    expect(screen.getByTestId('discover-tab-explore')).toHaveTextContent('Profiles');
   });
 
   it('switches to Explore and hides the Trending board', async () => {

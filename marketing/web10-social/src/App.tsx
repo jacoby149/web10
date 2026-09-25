@@ -29,6 +29,7 @@ import { initP2P, teardownP2P, setPeer } from '@/data/p2p';
 import { initNotifications, teardownNotifications } from '@/data/notifications';
 import { trackEvent, hotjarIdentify } from '@/lib/analytics';
 import { PostLightbox } from '@/components/Bio/PostLightbox';
+import { RepostProvider, useRepost } from '@/context/RepostContext';
 import type { PostRecord, MediaRecord, Visibility } from '@/data/types';
 
 const LOG = (...args: unknown[]) => console.log('[social]', ...args);
@@ -241,14 +242,18 @@ function UserProfilePostLinkRoute() {
 // remounts (version bump) so the new repost shows up.
 function FeedRoute({ onAuthorClick }: { onAuthorClick: (username: string, provider: string) => void }) {
   const [version, setVersion] = useState(0);
-  const [repostingTo, setRepostingTo] = useState<PostRecord | null>(null);
+  // Repost (reposts.md): the repost state is app-wide (RepostContext) so the
+  // repeat icon on ANY surface (feed, discover, lightbox, profile, groups)
+  // opens this same composer in repost mode. The feed's onRepost → repostingTo
+  // pattern (3.110.0) is lifted from FeedRoute-local state to the shared seam.
+  const { repostingTo, setRepostingTo, clearReposting } = useRepost();
   return (
     <>
       <PostComposer
         repostingTo={repostingTo}
-        onRepostCancel={() => setRepostingTo(null)}
+        onRepostCancel={clearReposting}
         onPostCreated={() => {
-          setRepostingTo(null);
+          clearReposting();
           setVersion((v) => v + 1);
           trackEvent('post_created');
         }}
@@ -256,7 +261,7 @@ function FeedRoute({ onAuthorClick }: { onAuthorClick: (username: string, provid
       <FeedScreen
         key={version}
         onAuthorClick={onAuthorClick}
-        onRepost={(post) => setRepostingTo(post)}
+        onRepost={setRepostingTo}
       />
     </>
   );
@@ -450,6 +455,7 @@ function App() {
           </Button>
         </div>
       )}
+      <RepostProvider>
       <Routes>
         <Route element={<Layout onLogout={handleLogout} onReportBug={() => handleReportBug('button')} />}>
           <Route path="/feed" element={<FeedRoute onAuthorClick={handleAuthorClick} />} />
@@ -472,6 +478,7 @@ function App() {
           <Route path="*" element={<Navigate to="/feed" replace />} />
         </Route>
       </Routes>
+      </RepostProvider>
       <Toaster />
       {/* D72: the PWA install surface — one dismissible card at the moment of
           value (Shorts on a phone, a follow), fired by requestInstallPrompt. */}

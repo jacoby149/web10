@@ -8,9 +8,8 @@ import { SOCIAL_ORIGIN } from '../lib/origins'
 
 const navItems = [
   { path: '/', label: 'Home' },
-  { path: '/trending', label: 'Trending' },
+  { path: '/trending', label: 'Discover' },
   { path: '/app-store', label: 'App Store' },
-  { path: '/groups', label: 'Groups' },
   { path: '/import', label: 'Import Your Life' },
   { path: '/join', label: 'Join' },
 ]
