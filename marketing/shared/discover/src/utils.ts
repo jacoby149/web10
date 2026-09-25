@@ -28,6 +28,28 @@ export function hashToColor(str: string): string {
   return AVATAR_COLORS[Math.abs(hash) % AVATAR_COLORS.length];
 }
 
+const FACE_GRADIENTS = [
+  'bg-gradient-to-br from-rose-600 to-pink-900',
+  'bg-gradient-to-br from-sky-600 to-indigo-900',
+  'bg-gradient-to-br from-amber-600 to-orange-900',
+  'bg-gradient-to-br from-emerald-600 to-teal-900',
+  'bg-gradient-to-br from-violet-600 to-purple-900',
+  'bg-gradient-to-br from-pink-600 to-rose-900',
+  'bg-gradient-to-br from-indigo-600 to-violet-900',
+  'bg-gradient-to-br from-orange-600 to-red-900',
+  'bg-gradient-to-br from-teal-600 to-cyan-900',
+  'bg-gradient-to-br from-red-600 to-rose-900',
+];
+
+/** Deterministic rich face gradient from an id (the person/group card fallback). */
+export function hashToGradient(str: string): string {
+  let hash = 0;
+  for (let i = 0; str.length > i; i++) {
+    hash = str.charCodeAt(i) + ((hash << 5) - hash);
+  }
+  return FACE_GRADIENTS[Math.abs(hash) % FACE_GRADIENTS.length];
+}
+
 /**
  * The v3 read serializes datetimes as naive 'YYYY-MM-DD HH:MM:SS[.ffffff]'
  * (str(datetime) of a UTC wall-clock). Browsers parse the space-separated form

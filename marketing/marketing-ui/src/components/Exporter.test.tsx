@@ -146,7 +146,7 @@ describe('Exporter /import page', () => {
     const { default: Exporter } = await import('@/pages/Exporter');
     render(<Exporter />);
     expect(screen.getByRole('link', { name: 'Home' })).toBeInTheDocument();
-    expect(screen.getByRole('link', { name: 'Trending' })).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: 'Discover' })).toBeInTheDocument();
     expect(screen.getByRole('link', { name: 'Docs' })).toBeInTheDocument();
   });
 });

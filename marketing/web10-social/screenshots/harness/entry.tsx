@@ -88,6 +88,7 @@ const initialRoute =
     : screen === 'discover' ? '/discover'
     : screen === 'discover-searched' ? '/discover?q=lofi'
     : screen === 'discover-people-searched' ? '/discover?tab=explore&q=lofi'
+    : screen === 'discover-grid' ? '/discover?view=grid'
     : screen === 'discover-youtube' ? '/discover?view=youtube'
    : screen === 'discover-people' ? '/discover?tab=explore'
    : screen === 'discover-groups' ? '/discover?tab=explore'

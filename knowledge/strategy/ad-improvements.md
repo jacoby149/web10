@@ -36,10 +36,12 @@ gains a **format** — two ways to run the same ad object:
 - **`post`** (new): the **same attachment** as inline (referenced by a post's
   `ad_preference`, or attached by the node at read time), but **rendered as a
   full post** — everything a post has (media, likes, comments, author) — with
-  **ad dressing** (the "Ad"/"Sponsored" badge + the offer CTA + the disclosure).
-  It sits **under the post it's attached to**, looking like its own post (not an
-  AdBlock). This is the Meta/Instagram "sponsored post" model: a full post that's
-  an ad, labelled as one, that you can like/comment on.
+  **ad dressing** (the "Ad"/"Sponsored" badge + the offer CTA + the
+  disclosure). It renders as **its own card in the stream, next in line after
+  the post it's attached to** — "just another post," with **nothing indicating
+  the pin** (no ring, no "attached to" marker). This is the Meta/Instagram
+  "sponsored post" model: a full post that's an ad, labelled as one, that you
+  can like/comment on.
 
 **The format is purely rendering — the attachment is the same (the "clever
 joins").** Both formats are **attached to a post at read time**: a creator ad via
@@ -78,12 +80,17 @@ The changes are:
    ranked feed posts). The ad appears only as `doc.ad` / `doc.node_ad` (attached),
    rendered per its format. This is the "sucked in by the join" behavior — the ad
    is never a free-floating post.
-3. **Rendering** — the feed (`PostCard`) + discover (`DiscoverCard`) render the
-   **attached** ad (`doc.ad` / `doc.node_ad`) per its `format`: `inline` → the
-   compact `AdBlock` (today); `post` → a **full post card** + ad dressing (badge +
-   offer CTA + disclosure), reusing the `AdBlock`'s offer/disclosure rendering.
-   Likes / comments work for free (it's a `posts` doc). The post-format ad renders
-   **under the post it's attached to**, looking like its own post.
+ 3. **Rendering** — the feed (`PostCard`) + discover (`DiscoverCard`) render the
+    **attached** ad (`doc.ad` / `doc.node_ad`) per its `format`: `inline` → the
+    compact `AdBlock` (today); `post` → a **full post card as its own card in
+    the stream, next in line after the post** (media, author, likes, comments —
+    all for free, it's a `posts` doc) + ad dressing (badge + offer CTA +
+    disclosure), with **nothing indicating the pin**. The screen inserts the
+    standalone ad card after the post's card (feed list + discover board both
+    `flatMap` post → its post-format ads); the shared `DiscoverCard`'s `renderAd`
+    slot skips the `post` format (inline only). The lightbox (no stream) renders
+    the post ad in its **attached** variant (compact card in the post's ad slot).
+    Likes / comments work for free (it's a `posts` doc).
 4. **Maker** — the ad form (Issue 1's `AdForm`) + the node ad form gain a
    **format toggle** (Inline / Post). A post-format ad gets the full post
    treatment (media via Issue 4, etc.). Pinning is the same for both formats
@@ -492,6 +499,21 @@ reader).
 **Surface:** web10-social, feed + discover + lightbox (a `post`-format ad,
 attached to a post, renders as a full post under it)
 **Operator (verbatim):** see the two-ad-formats section above.
+
+> **Revision (24.09.2026, operator):** "the post ad renders within the post its
+> attached too, would be nice if in the discover trending, the feed, where it is
+> being viewed it gets rendered as just another post" + "but with the ad
+> disclosures, but like a post that is in the feed next in line after the pinned
+> post, not indicating its pinned to that post." The 3.134.0 build rendered the
+> post ad **inside** the post's own card (a ringed block under it) — the
+> operator wants it as **just another post: its own card in the stream, next in
+> line after the pinned post**, with only the badge + disclosure as ad
+> dressing — nothing indicating the pin. The attachment model is unchanged
+> (still attached, never ranked); only the rendering moved. Bites G + this
+> revision: the feed list + the discover board insert the standalone ad card
+> after the post's card; the shared `DiscoverCard` slot skips the `post`
+> format; the lightbox keeps the compact attached variant (no stream there).
+> KB: `ads.md` "Two Formats" + `discover-card.md` "The ad slot".
 
 The model is in the two-ad-formats section. A post ad is **attached to a post**
 (the same `ad_preference` / `attach_node_ads` join as inline) and **rendered as a

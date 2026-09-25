@@ -1,10 +1,16 @@
 # Global Search — the top-bar everything-search (operator pass, 18.09.2026)
 
-**Status: PLANNED.** The operator wants Instagram-style profile search: a
-**global search in the app chrome** (people + groups + posts) that's the
-*front door*, with the Discover subtabs as the *browsers* you land on via
-"see more." This doc owns the search surface. The subtabs it deep-links into
-are `discover-reorg.md`; the group page it can land on is `group-as-profile.md`.
+**Status: SHIPPED + AMENDED (3.157.0).** The always-expanded everything-search
+shipped in the desktop **top bar** (S1–S4). **`discover-ia-consistency.md`
+(3.157.0) moved the desktop field's home from the top bar to the sidebar** —
+the operator's Facebook-style chrome ("then the search would fit in the
+sidebar!"): the desktop sidebar now carries the keys mark, then the search
+field, then the nav rows; the top bar carries the Discover tabs + the bell +
+the account row. **Mobile is unchanged** (the 56px header keeps the icon →
+full-screen results view). The state machine (always-expanded field, focus →
+dropdown, X clears the query, the typed query persists) is unchanged — only
+the field's *home* moved. Everything below is the historical record; the
+current desktop home is the sidebar.
 
 > **The shape (operator, 18.09.2026):** "maybe good to have an everything
 > search on the topbar, people groups, everything. AND have people tab in
@@ -158,7 +164,7 @@ existing idiom). No second data path.
   mode resets to Posts on collapse. `globalSearch.test.tsx` re-pinned to the
   posts-first + mode-toggle model (posts default, the toggle flips to
   people+groups, Enter/CTA still open Explore).
-- [✓ 3.158.0] **S5: Enter stays on the active tab + the labels match Discover**
+- [✓ 3.160.0] **S5: Enter stays on the active tab + the labels match Discover**
   (`GlobalSearch.tsx`) — operator pass (24.09.2026, the search dropdown
   screenshot): "i would like if i hit enter that the search happens whether
   on posts or the people tab, like it searches / stays on both. then you can

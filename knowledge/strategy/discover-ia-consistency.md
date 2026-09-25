@@ -1,6 +1,6 @@
 # Discover IA Consistency — one Discover, two apps (operator pass, 23.09.2026)
 
-**Status: PLANNED (awaiting operator sign-off).** The operator's pass (23.09.2026,
+**Status: SHIPPED (3.158.0).** Operator sign-off on the three flagged decisions was GIVEN (23.09.2026). The operator's pass (23.09.2026,
 ~13 screenshots) converges on one idea: **the Discover surface should read the
 same in the social app and on the marketing site** — same tabs, same names, same
 icons, same card shapes, same chrome. Right now the two apps have drifted: the
@@ -9,8 +9,16 @@ social Discover is `Posts | People` with a top-bar search, the marketing
 shapes, and a "super old" groups render. This doc is the fixed point that makes
 them one surface.
 
-> **The one-liner:** Discover = **Trending | Profiles**, in both apps. Search
-> lives in the **sidebar** (desktop) / header (mobile). The **Profiles** browser
+> **Name override (24.09.2026, 3.160.0):** the second tab is labeled **People**,
+> not "Profiles" — the operator: "trending People makes more sense". This
+> supersedes decision (3) above (which had signed off "Profiles"). It applies to
+> **both apps** (the whole point is they read the same), and only the visible
+> label moves — the tab *id* stays `explore` (social) / `profiles` (marketing)
+> so `?tab=` deep links + the `?tab=explore&q=` search hand-off keep working.
+> The People *section* inside the browser (two-overlapped glyph) is unchanged.
+
+> **The one-liner:** Discover = **Trending | People**, in both apps. Search
+> lives in the **sidebar** (desktop) / header (mobile). The **People** browser
 > mashes **People + Groups** (the social Explore tab) and is mirrored verbatim on
 > the marketing site. The marketing nav's "Trending" is renamed **Discover**.
 
@@ -67,15 +75,16 @@ here is client-side in `web10-social` + `marketing-ui` + the shared
 
 ## The fixed point (what "done" looks like)
 
-### The tabs: `Trending | Profiles` (both apps)
-- The social Discover's top-level tabs are **Trending | Profiles** (was
-  `Posts | People`). **Trending** keeps the flame icon (it *is* the trending
-  posts board — the name now says that). **Profiles** is the people+groups
-  browser (was "People"/"Explore").
+### The tabs: `Trending | People` (both apps)
+- The social Discover's top-level tabs are **Trending | People** (was
+  `Posts | People`, briefly `Trending | Profiles` in 3.158.0 — renamed back to
+  "People" on 24.09.2026). **Trending** keeps the flame icon (it *is* the
+  trending posts board — the name now says that). **People** is the
+  people+groups browser.
 - The marketing `/trending` (renamed **Discover**, see chrome) shows the same
-  **Trending | Profiles** tabs, in the **chunky** style the social app uses
+  **Trending | People** tabs, in the **chunky** style the social app uses
   (big pills + icons), not the current small text row.
-- **Groups is not a top-level tab in either app.** It lives inside the Profiles
+- **Groups is not a top-level tab in either app.** It lives inside the People
   browser as a section (the social Explore tab already does this). The marketing
   drops its top-level "Groups" tab; the standalone `/groups` page is retired
   (redirects to `/trending?tab=profiles`).
@@ -84,19 +93,19 @@ here is client-side in `web10-social` + `marketing-ui` + the shared
 | Surface | Concept | Icon |
 |---|---|---|
 | Discover top-level tab | **Trending** | `Flame` (unchanged) |
-| Discover top-level tab | **Profiles** | `User` (one person) |
-| Profiles browser section | **People** | `Users` (two overlapped people) |
-| Profiles browser section | **Groups** | `Hash` (unchanged — "groups is just fine") |
+| Discover top-level tab | **People** | `User` (one person) |
+| People browser section | **People** | `Users` (two overlapped people) |
+| People browser section | **Groups** | `Hash` (unchanged — "groups is just fine") |
 
-The operator's "swap those logos" = the **Profiles tab** carries the one-person
-glyph and the **People section** carries the two-overlapped glyph (they must not
-be mixed up). The marketing mirrors the same mapping.
+The operator's "swap those logos" = the **People tab** carries the one-person
+glyph and the **People section** (inside the tab) carries the two-overlapped
+glyph (they must not be mixed up). The marketing mirrors the same mapping.
 
 ### The chrome (desktop)
 - **Sidebar** (Facebook-style): the **keys mark only** (no "web10" wordmark) at
   the top, then the **search field** (moved down from the top bar), then the nav
   rows (Profile · Shorts · Discover · Feed · Messages · Monetization · More).
-- **Top bar**: the **Trending | Profiles** tabs (on the Discover screen) on the
+- **Top bar**: the **Trending | People** tabs (on the Discover screen) on the
   left, the notifications bell + account row on the right. The search is gone
   from here (it's in the sidebar now).
 - **Mobile**: unchanged — the 56px header keeps the search icon → full-screen
@@ -125,7 +134,7 @@ chrome/renames (A + B) are independent of the marketing work (C). All client-sid
 
 ### A — Social Discover: rename + icons + padding (web10-social)
 
-- [ ] **A1: `Posts` → `Trending`, `People` → `Profiles` (the tab row).**
+- [✓ 3.158.0] **A1: `Posts` → `Trending`, `People` → `Profiles` (the tab row).**
   `DiscoverScreen.tsx` `DISCOVER_TABS`: the `trending` tab's label `Posts` →
   **`Trending`** (icon stays `Flame`); the `explore` tab's label `People` →
   **`Profiles`** (icon stays `User`, one person). The tab *ids* are unchanged
@@ -133,13 +142,13 @@ chrome/renames (A + B) are independent of the marketing work (C). All client-sid
   hand-off keep working — only the visible label moves. `data-testid`s
   (`discover-tab-trending` / `discover-tab-explore`) unchanged. Re-pin
   `discoverScreen.test.tsx` (the two label assertions).
-- [ ] **A2: the People section icon = two-overlapped; confirm the Profiles tab =
+- [✓ 3.158.0] **A2: the People section icon = two-overlapped; confirm the Profiles tab =
   one-person.** `DiscoverExploreTab.tsx` — the People section toggle chip already
   uses `Users` (two overlapped); the Profiles tab (A1) uses `User` (one person).
   Verify the two are not swapped anywhere (the operator's "swap those logos");
   the section header "People" + the `?show=` toggle keep the `Users` glyph.
   Groups keeps `Hash`. No behavior change — icon/label only.
-- [ ] **A3: side padding on the Discover screen.** The operator: "no padding at
+- [✓ 3.158.0] **A3: side padding on the Discover screen.** The operator: "no padding at
   all on the sides." The Discover content wrappers run `md:px-0` (full-bleed on
   desktop, matching the 3.153.0 "video wall is the hero" pass). Restore a
   desktop gutter so the wall breathes — `md:px-4 lg:px-6` (or the feed's
@@ -149,13 +158,13 @@ chrome/renames (A + B) are independent of the marketing work (C). All client-sid
 
 ### B — Social chrome: search to the sidebar, tabs to the top bar (web10-social)
 
-- [ ] **B1: the keys mark only (no wordmark) in the sidebar.** `Layout.tsx`
+- [✓ 3.158.0] **B1: the keys mark only (no wordmark) in the sidebar.** `Layout.tsx`
   `Wordmark` — the desktop sidebar's top row drops the "web10" text, keeping
   just the `/keys-mark.png` glyph (Facebook-style). The mobile header keeps the
   full lockup (it's the only branding on a phone). Add a `compact`/`markOnly`
   variant to `Wordmark` rather than deleting the text (the mobile header still
   uses the full form). Re-pin the Layout wordmark test.
-- [ ] **B2: the search field moves from the top bar to the sidebar (desktop).**
+- [✓ 3.158.0] **B2: the search field moves from the top bar to the sidebar (desktop).**
   `Layout.tsx` — the desktop `<GlobalSearch variant="desktop" />` leaves the top
   bar and renders at the top of the sidebar (under the keys mark, above the nav
   rows). The top bar keeps the bell + account row. The search's results dropdown
@@ -165,7 +174,7 @@ chrome/renames (A + B) are independent of the marketing work (C). All client-sid
   (`global-search.md` S3). Mobile is untouched (the 56px header keeps the
   icon → full-screen results view). Re-pin `globalSearch.test.tsx` + the Layout
   cases (the desktop field is now in the sidebar, not the top bar).
-- [ ] **B3: the Trending | Profiles tabs move into the top bar (desktop,
+- [✓ 3.158.0] **B3: the Trending | Profiles tabs move into the top bar (desktop,
   Discover screen only).** The Discover screen's sticky tab row
   (`discover-tab-row`) moves from below the top bar into the top bar's left side
   when the active screen is Discover. On non-Discover screens the top bar shows
@@ -180,7 +189,7 @@ chrome/renames (A + B) are independent of the marketing work (C). All client-sid
 
 ### C — Marketing: mirror the social Discover (marketing-ui + shared)
 
-- [ ] **C1: extract the People + Groups cards into `@web10/discover` (the
+- [✓ 3.158.0] **C1: extract the People + Groups cards into `@web10/discover` (the
   keystone).** `discover-reorg.md` M1 already called for this. Move the social
   `PersonCardRow` (banner+avatar+name+@handle+followers+Follow) and
   `DiscoverGroupCard` (banner+avatar+name+owner+members+join-policy+Join) into
@@ -189,14 +198,14 @@ chrome/renames (A + B) are independent of the marketing work (C). All client-sid
   (interactive mode) so there's one source. This is what lets the marketing
   render the *same* cards. `@web10/discover` `index.ts` exports them; both apps'
   `@source` already scans the package (3.111.0).
-- [ ] **C2: the marketing nav — `Trending` → `Discover`; drop `Groups`.**
+- [✓ 3.158.0] **C2: the marketing nav — `Trending` → `Discover`; drop `Groups`.**
   `Navbar.tsx` `navItems`: `{ path: '/trending', label: 'Trending' }` →
   `{ path: '/trending', label: 'Discover' }`; remove the `{ path: '/groups' }`
   row (groups now live inside Discover). The operator: "this should be home
   discover app store." The `/groups` route redirects to `/trending?tab=profiles`
   (so old links + the footer/Join/Exporter "Trending" links keep working — update
   those three links' labels to "Discover" too). Re-pin any Navbar/route tests.
-- [ ] **C3: the marketing Discover page = the social Discover (Trending |
+- [✓ 3.158.0] **C3: the marketing Discover page = the social Discover (Trending |
   Profiles).** `Trending.tsx`:
   - The tab row becomes **Trending | Profiles** (chunky, icon+label pills,
     matching the social) — was `Posts | People | Groups`. The `posts` tab →
@@ -213,7 +222,7 @@ chrome/renames (A + B) are independent of the marketing work (C). All client-sid
     the Profiles browser now match the social.
   - `?tab=` values: `posts` (bare) / `profiles` (was `people`) / `groups`
     (retired → redirects to `profiles`). Re-pin `Trending.test.tsx`.
-- [ ] **C4: marketing card parity (the "super old" groups render is gone).**
+- [✓ 3.158.0] **C4: marketing card parity (the "super old" groups render is gone).**
   With C1 + C3, the marketing People + Groups cards are the shared banner+avatar
   shapes (the same as the social Discover). The old `TrendingGroups` flat card +
   the standalone `/groups` `GroupDirectory` card are retired. Confirm the
@@ -222,7 +231,7 @@ chrome/renames (A + B) are independent of the marketing work (C). All client-sid
 
 ### D — Docs + bookkeeping (same branch as the code)
 
-- [ ] **D1: keep the KB true.** `discover-reorg.md` (the tabs are now
+- [✓ 3.158.0] **D1: keep the KB true.** `discover-reorg.md` (the tabs are now
   `Trending | Profiles`; groups is a section, not a tab) + `global-search.md`
   (the search's home is the sidebar on desktop) + this doc's ticks. `AGENTS.md`
   only if a stack/auth fact changed (it doesn't — pure UI). A CHANGELOG line

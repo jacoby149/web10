@@ -181,6 +181,9 @@ export interface AdRecord {
   _id?: string;
   text?: string;
   media_refs?: (string | ResolvedMediaRef)[];
+  /** The ad doc's created_at — the post-format ad's standalone card shows it
+   *  in the post header (an ad is a `posts` doc, so it has one). */
+  created_at?: string;
   offer?: AdOffer;
   status?: 'active' | 'paused';
   /** The web10 account that made the ad (from author_key). */
@@ -211,6 +214,7 @@ export function fromV3DocToAd(doc: V3Document): AdRecord {
     _id: doc.doc_id,
     text: (body.text as string) || undefined,
     media_refs: (body.media_refs as (string | ResolvedMediaRef)[]) || undefined,
+    created_at: doc.created_at || undefined,
     offer: {
       kind: leafValue(offerRaw.kind),
       partner: leafValue(offerRaw.partner),

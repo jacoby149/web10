@@ -1,14 +1,20 @@
 # Discover Reorg — Posts, People, Groups as browsers (operator pass, 18.09.2026)
 
-**Status: PLANNED.** Discover becomes *the* discovery surface — **Posts |
-People | Groups** subtabs. **Search is NOT here** — it's the top-bar
-everything-search (`global-search.md`); each subtab is a **browser** you can
-reach *with a query already applied* via "see more" (`?q=`), where you page +
-sort. The Groups tab keeps only the groups you're a part of. The standalone
-People tab is retired. The marketing `/trending` mirrors the three entities.
+**Status: SHIPPED + SUPERSEDED (3.157.0).** The original three-subtab design
+(Posts | People | Groups) shipped, then **`discover-ia-consistency.md`
+(3.158.0) re-cut the tabs to two — Trending | People** (the operator's
+23.09.2026 pass; the second tab was briefly "Profiles" and renamed back to
+"People" on 24.09.2026 — "trending People makes more sense"). **Groups is a
+*section* inside the People browser, not a top-level tab** (in both the social
+app and the marketing site). The People browser's cards + the Groups cards are
+now the **shared `@web10/discover` `PersonCard` + `GroupCard`** (one source,
+both apps). The marketing `/trending` mirrors the social Discover (Trending |
+People, the same People browser). Everything below is the historical record of
+the original reorg; read `discover-ia-consistency.md` for the current fixed
+point.
 
-> **The one-liner:** the subtabs are *browsers* (paged, sortable), not
-> search boxes. The front door is the top-bar search (`global-search.md`);
+> **The one-liner (original):** the subtabs are *browsers* (paged, sortable),
+> not search boxes. The front door is the top-bar search (`global-search.md`);
 > "see more people" lands you here with the query applied so you can page
 > through. Rationale: *"you are discovering people and groups."*
 

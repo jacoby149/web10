@@ -96,6 +96,42 @@ describe('PostAdCard (the post-format ad)', () => {
     render(<PostAdCard ad={{ ...POST_AD, offer: { ...POST_AD.offer, cta: '' } }} />);
     expect(screen.getByTestId('post-ad-cta')).toHaveTextContent('Learn more');
   });
+
+  it('standalone (default) renders as its own feed card — post header with the badge, no attachment ring', async () => {
+    const { PostAdCard } = await import('@/components/Feed/PostAdCard');
+    render(<PostAdCard ad={{ ...POST_AD, created_at: new Date().toISOString() }} />);
+    const card = screen.getByTestId('post-ad-card');
+    // Its own card in the stream (the article chrome), marked standalone.
+    expect(card.tagName).toBe('ARTICLE');
+    expect(card.getAttribute('data-ad-standalone')).toBe('true');
+    // The provenance badge sits in the post header, next to the author.
+    expect(screen.getByTestId('post-ad-badge')).toHaveTextContent('Ad');
+    expect(screen.getByTestId('post-ad-author')).toHaveTextContent('@alice');
+    // The ad doc's created_at shows in the header (it's a posts doc).
+    expect(card).toHaveTextContent('now');
+    // The disclosure names the creator.
+    expect(screen.getByTestId('post-ad-disclosure')).toHaveTextContent('@alice');
+  });
+
+  it('standalone without a created_at renders the header without a time', async () => {
+    const { PostAdCard } = await import('@/components/Feed/PostAdCard');
+    render(<PostAdCard ad={POST_AD} />);
+    const card = screen.getByTestId('post-ad-card');
+    expect(card.getAttribute('data-ad-standalone')).toBe('true');
+    expect(screen.getByTestId('post-ad-author')).toHaveTextContent('@alice');
+  });
+
+  it('attached mode (standalone=false) renders the compact card with the attachment ring', async () => {
+    const { PostAdCard } = await import('@/components/Feed/PostAdCard');
+    render(<PostAdCard ad={POST_AD} standalone={false} />);
+    const card = screen.getByTestId('post-ad-card');
+    // The compact div (not the feed-card article), no standalone marker.
+    expect(card.tagName).toBe('DIV');
+    expect(card.getAttribute('data-ad-standalone')).toBeNull();
+    expect(card.className).toContain('ring-1');
+    expect(screen.getByTestId('post-ad-badge')).toHaveTextContent('Ad');
+    expect(screen.getByTestId('post-ad-author')).toHaveTextContent('@alice');
+  });
 });
 
 describe('AttachedAd (render per format)', () => {

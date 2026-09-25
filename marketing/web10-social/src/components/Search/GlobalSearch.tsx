@@ -464,11 +464,13 @@ export default function GlobalSearch({ variant }: GlobalSearchProps) {
 
   if (variant === 'desktop') {
     return (
-      <div ref={containerRef} className="relative flex-1 min-w-0 flex items-center h-14 px-4">
+      <div ref={containerRef} className="relative w-full flex items-center">
         {/* The field is always visible on desktop (the operator's call): the
             persistent "Search people, groups, posts…" placeholder is more
             informative than a bare icon. Focus opens the dropdown; the X
-            clears the query; clicking away closes the dropdown (field stays). */}
+            clears the query; clicking away closes the dropdown (field stays).
+            The field lives in the sidebar (the operator's Facebook-style
+            chrome); the results dropdown anchors below it. */}
         <div
           data-testid="global-search-field-wrap"
           className="flex items-center gap-2 flex-1 h-9 rounded-lg bg-elevated border border-input px-3 transition-colors duration-150 focus-within:border-brand/60"
