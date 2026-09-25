@@ -17,6 +17,17 @@ them one surface.
 > so `?tab=` deep links + the `?tab=explore&q=` search hand-off keep working.
 > The People *section* inside the browser (two-overlapped glyph) is unchanged.
 
+> **The mirror drifts (25.09.2026, 3.161.1):** the fixed point held for the
+> tabs + cards, but three marketing-only surfaces had drifted from the social
+> app and were re-aligned: (1) the marketing **search** called a phantom
+> `PATCH /discover/search` (404 → "Search unavailable") — it now mirrors the
+> social `searchPosts` (board pool + client filter, the documented v1 floor);
+> (2) the search **query is `?q=`-driven** (was state-only, so the Profiles
+> tab's query-chip X was a no-op) — the deep-link rule, the social Discover's
+> own model; (3) the People/Groups **cards were squeezed into a 2-col grid**
+> (half width) — they're single-column now, the social app's width. Lane item
+> C5 in `parallel-execution.md`.
+
 > **The one-liner:** Discover = **Trending | People**, in both apps. Search
 > lives in the **sidebar** (desktop) / header (mobile). The **People** browser
 > mashes **People + Groups** (the social Explore tab) and is mirrored verbatim on
