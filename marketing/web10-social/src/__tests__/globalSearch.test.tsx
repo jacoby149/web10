@@ -226,7 +226,7 @@ describe('GlobalSearch — mobile (full-screen view, not a dropdown)', () => {
   });
 });
 
-describe('GlobalSearch — S2 results (trending-first + People toggle)', () => {
+describe('GlobalSearch — S2 results (people-first + Trending toggle)', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     // Reset to the default empty results.
@@ -235,7 +235,10 @@ describe('GlobalSearch — S2 results (trending-first + People toggle)', () => {
     vi.mocked(searchPosts).mockResolvedValue([]);
   });
 
-  it('defaults to the Trending mode (the moment you search, posts are shown)', async () => {
+  it('defaults to the People mode (the moment you search, people + groups are shown)', async () => {
+    vi.mocked(searchPeople).mockResolvedValue([
+      { username: 'alice', provider: 'web10', display_name: 'Alice Smith', followers_count: 100, is_following: false },
+    ] as any);
     vi.mocked(searchPosts).mockResolvedValue([
       { _id: 'p1', text: 'Check out this synthwave mix', author_username: 'alice', created_at: '2026-01-01T00:00:00Z' },
     ] as any);
@@ -243,59 +246,55 @@ describe('GlobalSearch — S2 results (trending-first + People toggle)', () => {
     const field = screen.getByTestId('global-search-field');
     fireEvent.focus(field);
     fireEvent.change(field, { target: { value: 'synthwave' } });
-    // The Trending section appears by default (no toggle click needed)…
-    const section = await screen.findByTestId('global-search-section-trending');
+    // The People section appears by default (no toggle click needed — the
+    // search is people-first, S7)…
+    const section = await screen.findByTestId('global-search-section-people');
     expect(section).toBeInTheDocument();
-    expect(screen.getByTestId('global-search-post-p1')).toBeInTheDocument();
-    // …and the Trending tab is the active mode.
-    expect(screen.getByTestId('global-search-mode-posts')).toHaveAttribute('aria-selected', 'true');
-    // People/Groups are not shown in Trending mode.
-    expect(screen.queryByTestId('global-search-section-people')).not.toBeInTheDocument();
-    expect(screen.queryByTestId('global-search-section-groups')).not.toBeInTheDocument();
+    expect(screen.getByTestId('global-search-person-alice')).toBeInTheDocument();
+    // …and the People tab is the active mode.
+    expect(screen.getByTestId('global-search-mode-people')).toHaveAttribute('aria-selected', 'true');
+    // The Trending posts are not shown in People mode (one tap over).
+    expect(screen.queryByTestId('global-search-section-trending')).not.toBeInTheDocument();
   });
 
-  it('the chunky toggle flips to People (people + groups sections)', async () => {
-    vi.mocked(searchPeople).mockResolvedValue([
-      { username: 'alice', provider: 'web10', display_name: 'Alice Smith', followers_count: 100, is_following: false },
-    ] as any);
-    vi.mocked(searchGroups).mockResolvedValue([
-      { group_id: 'g1', name: 'Synthwave Sessions', owner: 'nova', slug: 'synthwave', join_policy: 'open', member_count: 50, tags: ['music'], permission_summary: 'public' },
+  it('the toggle flips to Trending (the posts section)', async () => {
+    vi.mocked(searchPosts).mockResolvedValue([
+      { _id: 'p1', text: 'Check out this synthwave mix', author_username: 'alice', created_at: '2026-01-01T00:00:00Z' },
     ] as any);
     renderDesktopSearch();
     const field = screen.getByTestId('global-search-field');
     fireEvent.focus(field);
     fireEvent.change(field, { target: { value: 'synthwave' } });
-    // Flip to the People mode…
-    fireEvent.click(screen.getByTestId('global-search-mode-people'));
-    // …both the People and Groups sections appear.
-    expect(await screen.findByTestId('global-search-section-people')).toBeInTheDocument();
-    expect(screen.getByTestId('global-search-person-alice')).toBeInTheDocument();
-    expect(await screen.findByTestId('global-search-section-groups')).toBeInTheDocument();
-    expect(screen.getByTestId('global-search-group-g1')).toBeInTheDocument();
-    // The "See all results in Discover" CTA is present in People mode.
-    expect(screen.getByTestId('global-search-open-explore')).toBeInTheDocument();
+    // Flip to the Trending mode…
+    fireEvent.click(screen.getByTestId('global-search-mode-posts'));
+    // …the Trending section appears (loaded together with the people read —
+    // the flip is instant, no re-skeleton).
+    expect(await screen.findByTestId('global-search-section-trending')).toBeInTheDocument();
+    expect(screen.getByTestId('global-search-post-p1')).toBeInTheDocument();
+    // The "See all results in Discover" CTA is absent in Trending mode
+    // (it lives in People mode).
+    expect(screen.queryByTestId('global-search-open-explore')).not.toBeInTheDocument();
   });
 
-  it('Enter submits the search to Discover (?q=), staying on the active tab', async () => {
-    vi.mocked(searchPosts).mockResolvedValue([
-      { _id: 'p1', text: 'a post', author_username: 'alice', created_at: '2026-01-01T00:00:00Z' },
+  it('Enter submits the search to the People tab (?tab=explore&q=) — the search is people-first', async () => {
+    vi.mocked(searchPeople).mockResolvedValue([
+      { username: 'alice', provider: 'web10', display_name: 'Alice Smith', followers_count: 100, is_following: false },
     ] as any);
     probeLocation = '';
     renderDesktopSearchWithProbe();
     const field = screen.getByTestId('global-search-field');
     fireEvent.focus(field);
     fireEvent.change(field, { target: { value: 'alice' } });
-    await screen.findByTestId('global-search-post-p1');
-    // Enter opens Discover with the query — the bare URL (Trending is the
-    // default tab); the query chip renders on both tabs so it can be X'd
-    // from either.
+    await screen.findByTestId('global-search-person-alice');
+    // Enter (People mode, the default) opens Discover's People tab with the
+    // query — the "see all" lands where the small results came from.
     fireEvent.keyDown(field, { key: 'Enter' });
     await waitFor(() => {
-      expect(probeLocation).toBe('/discover?q=alice');
+      expect(probeLocation).toBe('/discover?tab=explore&q=alice');
     });
   });
 
-  it('Enter on the People tab keeps ?tab=explore (stays on the active tab)', async () => {
+  it('Enter in Trending mode stays on the active tab (the S5 hand-off)', async () => {
     probeLocation = '';
     render(
       <MemoryRouter initialEntries={['/discover?tab=explore']}>
@@ -307,13 +306,15 @@ describe('GlobalSearch — S2 results (trending-first + People toggle)', () => {
     fireEvent.focus(field);
     fireEvent.change(field, { target: { value: 'alice' } });
     await screen.findByTestId('global-search-mode-toggle');
+    // Flip to Trending mode — Enter keeps the active tab (?tab=explore).
+    fireEvent.click(screen.getByTestId('global-search-mode-posts'));
     fireEvent.keyDown(field, { key: 'Enter' });
     await waitFor(() => {
       expect(probeLocation).toBe('/discover?tab=explore&q=alice');
     });
   });
 
-  it('the "See all results in Discover" CTA navigates to Discover with the query', async () => {
+  it('the "See all results in Discover" CTA navigates to the People tab with the query', async () => {
     vi.mocked(searchPeople).mockResolvedValue([
       { username: 'alice', provider: 'web10', display_name: 'Alice Smith', followers_count: 100, is_following: false },
     ] as any);
@@ -322,11 +323,10 @@ describe('GlobalSearch — S2 results (trending-first + People toggle)', () => {
     const field = screen.getByTestId('global-search-field');
     fireEvent.focus(field);
     fireEvent.change(field, { target: { value: 'alice' } });
-    fireEvent.click(screen.getByTestId('global-search-mode-people'));
     const cta = await screen.findByTestId('global-search-open-explore');
     fireEvent.click(cta);
     await waitFor(() => {
-      expect(probeLocation).toBe('/discover?q=alice');
+      expect(probeLocation).toBe('/discover?tab=explore&q=alice');
     });
   });
 
@@ -335,6 +335,8 @@ describe('GlobalSearch — S2 results (trending-first + People toggle)', () => {
     const field = screen.getByTestId('global-search-field');
     fireEvent.focus(field);
     fireEvent.change(field, { target: { value: 'zzz-no-match' } });
+    // Flip to Trending mode (the search defaults to People)…
+    fireEvent.click(screen.getByTestId('global-search-mode-posts'));
     await waitFor(
       () => expect(screen.getByTestId('global-search-no-results')).toBeInTheDocument(),
       { timeout: 1500 },
@@ -342,7 +344,7 @@ describe('GlobalSearch — S2 results (trending-first + People toggle)', () => {
     expect(screen.queryByTestId('global-search-section-trending')).not.toBeInTheDocument();
   });
 
-  it('per-section loading (People & Groups mode): a slow section does not block the fast ones', async () => {
+  it('per-section loading (People mode): a slow section does not block the fast ones', async () => {
     // People resolves immediately; groups is pending.
     let resolveGroups: (v: unknown) => void = () => {};
     vi.mocked(searchPeople).mockResolvedValue([
@@ -354,7 +356,6 @@ describe('GlobalSearch — S2 results (trending-first + People toggle)', () => {
     const field = screen.getByTestId('global-search-field');
     fireEvent.focus(field);
     fireEvent.change(field, { target: { value: 'alice' } });
-    fireEvent.click(screen.getByTestId('global-search-mode-people'));
 
     // People section appears (it resolved), while groups is still loading
     // (its skeleton is present, its section is not).
