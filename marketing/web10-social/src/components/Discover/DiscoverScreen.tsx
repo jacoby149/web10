@@ -1193,13 +1193,24 @@ export default function DiscoverScreen() {
               )
             ) : visiblePosts.length > 0 ? (
               <div className="grid grid-cols-1 gap-4" data-testid="discover-grid">
-                {visiblePosts.map((post, i) => {
+                {visiblePosts.flatMap((post, i) => {
                   const authorKey = `${post.author_username}@${post.author_provider}`;
                   const profile = profileMap[authorKey];
                   const mediaItems = mediaMap[post._id || ''] || [];
                   const authorName = profile?.display_name || (post.author_username || '').replace(/[-_]/g, ' ');
 
-                  return (
+                  // Post-format ads (ad-improvements.md): a `post`-format ad
+                  // rides the post it's attached to but renders as its OWN
+                  // card, next in line after that post on the board — "just
+                  // another post" with the Ad/Sponsored badge + disclosure,
+                  // nothing indicating the pin. (Inline ads stay in the card's
+                  // own ad slot; the shared card skips the post format.)
+                  const attached: AdRecord[] = [
+                    ...(post.ad && post.ad.format === 'post' ? [post.ad] : []),
+                    ...(post.node_ad && post.node_ad.format === 'post' ? [post.node_ad] : []),
+                  ];
+
+                  const card = (
                     <DiscoverCard
                       key={post._id || post.created_at}
                       post={post}
@@ -1219,7 +1230,20 @@ export default function DiscoverScreen() {
                       reposted={!!repostedMap[post._id || '']}
                       onToggleReaction={(kind) => handleToggleReaction(post._id || '', kind)}
                       onToggleRepost={() => handleRepost(post)}
-                    />              );
+                    />
+                  );
+
+                  if (!attached.length) return [card];
+                  return [
+                    card,
+                    ...attached.map((ad) => (
+                      <AttachedAd
+                        key={`${post._id || post.created_at}-ad-${ad._id || 'x'}`}
+                        ad={ad}
+                        standalone
+                      />
+                    )),
+                  ];
                 })}
               </div>
             ) : (

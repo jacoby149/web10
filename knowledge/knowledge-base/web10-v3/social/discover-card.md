@@ -45,6 +45,21 @@ The social app injects its wapi-backed data; the marketing injects its public-le
 
 The read side is identical in both modes — "see comments on both." The write affordances become link-outs in `remote` mode because there's no session to write with.
 
+## The ad slot (and the post-format ad's own card)
+
+The card's `renderAd?: (ad: DiscoverAd) => ReactNode` seam (absent in
+`remote` mode → no ads) renders the post's attached ads in the card's ad slot
+(between the media and the engagement bar): the creator's pinned ad
+(`post.ad`) + the node's ad (`post.node_ad`), each per its `format`. The social
+app injects its `AttachedAd` (inline → the compact `AdBlock`, post → the
+`PostAdCard`'s attached variant).
+
+**`post`-format ads are skipped by the card's slot** — they render as their
+**own card in the stream, next in line after the post** (the screen inserts
+them; `ads.md` "Two Formats"). Nothing indicates the pin — the badge +
+disclosure are the only dressing. The card only ever renders the inline
+format in its slot.
+
 ## The video: transcoded HLS, not the raw file
 
 The card plays the **transcoded HLS** (H.264/AAC) via `sourceFromMedia` — the same rule `video-player.md` specs: a video with `transcoding_settings.status === 'done'` + a minted `manifest_url` plays through hls.js (native HLS on Safari); anything else (processing/failed/absent) plays the direct file.
