@@ -40,6 +40,8 @@ import {
   Users,
   User,
   Video,
+  Search,
+  X,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { MARKETING_ORIGIN } from '@/lib/origins';
@@ -441,24 +443,28 @@ type DiscoverView = 'grid' | 'home';
 // ── Subtabs (the operator's IA fixed point, 23.09.2026) ──────────────────────
 // Discover is the discovery surface with TWO tabs:
 //   Trending — the posts board (the default; the bare URL).
-//   Explore  — people + groups mashed into one browser ("people are groups in
-//              web10"). The top bar's search opens THIS tab (?tab=explore&q=).
+//   People   — people + groups mashed into one browser ("people are groups in
+//              web10").
 // The active tab is URL state (?tab=; trending is the bare URL) so it is
 // refresh-safe and shareable. The shell owns ?q= and passes it to the active
 // subtab — the subtabs have no search field of their own (search is the top
-// bar).
+// bar). The top bar's search (Enter) opens Discover with the query
+// (?q=) on WHATEVER tab is active — the query chip (with its X) renders on
+// both tabs, so the search can be cleared from either one.
 
 type DiscoverTab = 'trending' | 'explore';
 
 // The two top-level destinations. Chunky and obvious — the operator (23.09.2026):
 // "that is just too small too hard to see, want to keep the youtube stuff big."
-// **Trending** keeps the flame (it IS the trending posts board — the name now
-// says that). **Profiles** is the people + groups browser (the operator's
-// "swap those logos": the tab carries the one-person glyph, the People *section*
-// carries the two-overlapped glyph).
+// The posts board is called **Trending** (the flame icon means trending posts —
+// the operator: "call it trending instead of posts, much better"). The
+// people+groups browser is called **People** (like Facebook's Friends tab)
+// with a person icon. (The operator, 24.09.2026: "trending People makes more
+// sense" — the tab is "People", not "Profiles"; the People *section* inside it
+// keeps the two-overlapped glyph, the tab the one-person glyph.)
 const DISCOVER_TABS: { id: DiscoverTab; label: string; icon: typeof Flame }[] = [
   { id: 'trending', label: 'Trending', icon: Flame },
-  { id: 'explore', label: 'Profiles', icon: User },
+  { id: 'explore', label: 'People', icon: User },
 ];
 
 function postHasVideo(post: PostRecord): boolean {
@@ -674,6 +680,17 @@ export default function DiscoverScreen() {
     }
     setSearchParams(params);
     LOG('subtab —', next);
+  }, [searchParams, setSearchParams]);
+
+  // Clear the active ?q= (the search chip's X) — on either tab. The query is
+  // screen state the URL holds; removing the param re-renders both tabs
+  // unfiltered (the Trending board's client filter + the Explore tab's
+  // people/groups filters both key off ?q=).
+  const clearQuery = useCallback(() => {
+    const params = new URLSearchParams(searchParams);
+    params.delete('q');
+    setSearchParams(params);
+    LOG('query cleared');
   }, [searchParams, setSearchParams]);
 
   const loadDiscover = useCallback(async (sort: PowerMeanSortConfig | null = null) => {
@@ -1015,16 +1032,18 @@ export default function DiscoverScreen() {
   return (
     <div className="flex flex-col min-h-full bg-background">
       <div className="w-full">
-      {/* Tabs: Trending | Profiles (?tab=, trending is the bare URL). The
+      {/* Tabs: Trending | People (?tab=, trending is the bare URL). The
           primary nav — no separate "Discover" header (the operator's "show
           don't tell": the video wall is the hero, the tabs are the nav).
           Chunky + obvious + sticky (the operator, 23.09.2026): "that is just
           too small too hard to see, want to keep the youtube stuff big."
-          Profiles is really people + groups (the mashed browser), with a
+          People is really people + groups (the mashed browser), with a
           one-person icon (the People *section* carries the two-overlapped
-          glyph). On DESKTOP this screen-level row is hidden — the tabs live
-          in the global top bar (B3, the operator's Facebook-style chrome);
-          on mobile (no top bar) this row is the source. */}
+          glyph). (The operator, 24.09.2026: "trending People makes more
+          sense" — the tab is "People", not "Profiles".) On DESKTOP this
+          screen-level row is hidden — the tabs live in the global top bar
+          (B3, the operator's Facebook-style chrome); on mobile (no top bar)
+          this row is the source. */}
       <div className="sticky top-0 z-10 border-b border-border bg-background/95 backdrop-blur-md md:bg-surface/50 md:hidden" data-testid="discover-tab-row">
         <div className="px-4 md:px-0">
           <div className="flex items-center gap-2 py-3" role="tablist" aria-label="Discover sections">
@@ -1054,6 +1073,31 @@ export default function DiscoverScreen() {
 
       {tab === 'trending' ? (
         <>
+          {/* The active ?q= filter (from the top bar's search) — the same
+              chip the People tab shows, so the search can be X'd from either
+              tab. Clearing it re-filters the board (the client-side ?q=
+              filter) and the URL. */}
+          {urlQuery.trim() !== '' && (
+            <div className="px-4 pt-3 md:px-0">
+              <span
+                data-testid="discover-trending-tab-query"
+                className="inline-flex items-center gap-1.5 rounded-full border border-brand/40 bg-brand-muted/40 px-3 py-1 text-xs text-brand-300"
+              >
+                <Search className="h-3.5 w-3.5" strokeWidth={1.75} />
+                {urlQuery.trim()}
+                <button
+                  type="button"
+                  onClick={clearQuery}
+                  data-testid="discover-trending-tab-query-clear"
+                  aria-label="Clear search"
+                  className="ml-0.5 -mr-1 flex h-4 w-4 items-center justify-center rounded-full hover:bg-brand-muted transition-colors duration-150"
+                >
+                  <X className="h-3 w-3" strokeWidth={2} />
+                </button>
+              </span>
+            </div>
+          )}
+
           {/* The composer — the operator: "you can make a new post from the
               explorer too". Compact: it rests as a single-line bar so the
               video wall, not the composer, is the hero (design.md §10). */}

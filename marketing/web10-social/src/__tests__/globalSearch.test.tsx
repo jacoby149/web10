@@ -210,7 +210,7 @@ describe('GlobalSearch — mobile (full-screen view, not a dropdown)', () => {
   });
 });
 
-describe('GlobalSearch — S2 results (posts-first + People & Groups toggle)', () => {
+describe('GlobalSearch — S2 results (trending-first + People toggle)', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     // Reset to the default empty results.
@@ -219,7 +219,7 @@ describe('GlobalSearch — S2 results (posts-first + People & Groups toggle)', (
     vi.mocked(searchPosts).mockResolvedValue([]);
   });
 
-  it('defaults to the Posts mode (the moment you search, posts are shown)', async () => {
+  it('defaults to the Trending mode (the moment you search, posts are shown)', async () => {
     vi.mocked(searchPosts).mockResolvedValue([
       { _id: 'p1', text: 'Check out this synthwave mix', author_username: 'alice', created_at: '2026-01-01T00:00:00Z' },
     ] as any);
@@ -227,18 +227,18 @@ describe('GlobalSearch — S2 results (posts-first + People & Groups toggle)', (
     const field = screen.getByTestId('global-search-field');
     fireEvent.focus(field);
     fireEvent.change(field, { target: { value: 'synthwave' } });
-    // The Posts section appears by default (no toggle click needed)…
-    const section = await screen.findByTestId('global-search-section-posts');
+    // The Trending section appears by default (no toggle click needed)…
+    const section = await screen.findByTestId('global-search-section-trending');
     expect(section).toBeInTheDocument();
     expect(screen.getByTestId('global-search-post-p1')).toBeInTheDocument();
-    // …and the Posts tab is the active mode.
+    // …and the Trending tab is the active mode.
     expect(screen.getByTestId('global-search-mode-posts')).toHaveAttribute('aria-selected', 'true');
-    // People/Groups are not shown in Posts mode.
+    // People/Groups are not shown in Trending mode.
     expect(screen.queryByTestId('global-search-section-people')).not.toBeInTheDocument();
     expect(screen.queryByTestId('global-search-section-groups')).not.toBeInTheDocument();
   });
 
-  it('the chunky toggle flips to People & Groups (people + groups sections)', async () => {
+  it('the chunky toggle flips to People (people + groups sections)', async () => {
     vi.mocked(searchPeople).mockResolvedValue([
       { username: 'alice', provider: 'web10', display_name: 'Alice Smith', followers_count: 100, is_following: false },
     ] as any);
@@ -249,18 +249,18 @@ describe('GlobalSearch — S2 results (posts-first + People & Groups toggle)', (
     const field = screen.getByTestId('global-search-field');
     fireEvent.focus(field);
     fireEvent.change(field, { target: { value: 'synthwave' } });
-    // Flip to the People & Groups mode…
+    // Flip to the People mode…
     fireEvent.click(screen.getByTestId('global-search-mode-people'));
     // …both the People and Groups sections appear.
     expect(await screen.findByTestId('global-search-section-people')).toBeInTheDocument();
     expect(screen.getByTestId('global-search-person-alice')).toBeInTheDocument();
     expect(await screen.findByTestId('global-search-section-groups')).toBeInTheDocument();
     expect(screen.getByTestId('global-search-group-g1')).toBeInTheDocument();
-    // The "See all results in Explore" CTA is present in People & Groups mode.
+    // The "See all results in Discover" CTA is present in People mode.
     expect(screen.getByTestId('global-search-open-explore')).toBeInTheDocument();
   });
 
-  it('Enter submits the search to Discover Explore (?tab=explore&q=)', async () => {
+  it('Enter submits the search to Discover (?q=), staying on the active tab', async () => {
     vi.mocked(searchPosts).mockResolvedValue([
       { _id: 'p1', text: 'a post', author_username: 'alice', created_at: '2026-01-01T00:00:00Z' },
     ] as any);
@@ -270,14 +270,34 @@ describe('GlobalSearch — S2 results (posts-first + People & Groups toggle)', (
     fireEvent.focus(field);
     fireEvent.change(field, { target: { value: 'alice' } });
     await screen.findByTestId('global-search-post-p1');
-    // Enter opens Discover's Explore tab with the query (mode-independent).
+    // Enter opens Discover with the query — the bare URL (Trending is the
+    // default tab); the query chip renders on both tabs so it can be X'd
+    // from either.
+    fireEvent.keyDown(field, { key: 'Enter' });
+    await waitFor(() => {
+      expect(probeLocation).toBe('/discover?q=alice');
+    });
+  });
+
+  it('Enter on the People tab keeps ?tab=explore (stays on the active tab)', async () => {
+    probeLocation = '';
+    render(
+      <MemoryRouter initialEntries={['/discover?tab=explore']}>
+        <GlobalSearch variant="desktop" />
+        <LocationProbe />
+      </MemoryRouter>,
+    );
+    const field = screen.getByTestId('global-search-field');
+    fireEvent.focus(field);
+    fireEvent.change(field, { target: { value: 'alice' } });
+    await screen.findByTestId('global-search-mode-toggle');
     fireEvent.keyDown(field, { key: 'Enter' });
     await waitFor(() => {
       expect(probeLocation).toBe('/discover?tab=explore&q=alice');
     });
   });
 
-  it('the "See all results in Explore" CTA navigates to Discover Explore', async () => {
+  it('the "See all results in Discover" CTA navigates to Discover with the query', async () => {
     vi.mocked(searchPeople).mockResolvedValue([
       { username: 'alice', provider: 'web10', display_name: 'Alice Smith', followers_count: 100, is_following: false },
     ] as any);
@@ -290,11 +310,11 @@ describe('GlobalSearch — S2 results (posts-first + People & Groups toggle)', (
     const cta = await screen.findByTestId('global-search-open-explore');
     fireEvent.click(cta);
     await waitFor(() => {
-      expect(probeLocation).toBe('/discover?tab=explore&q=alice');
+      expect(probeLocation).toBe('/discover?q=alice');
     });
   });
 
-  it('shows the "no results" state when posts are empty (Posts mode)', async () => {
+  it('shows the "no results" state when posts are empty (Trending mode)', async () => {
     renderDesktopSearch();
     const field = screen.getByTestId('global-search-field');
     fireEvent.focus(field);
@@ -303,7 +323,7 @@ describe('GlobalSearch — S2 results (posts-first + People & Groups toggle)', (
       () => expect(screen.getByTestId('global-search-no-results')).toBeInTheDocument(),
       { timeout: 1500 },
     );
-    expect(screen.queryByTestId('global-search-section-posts')).not.toBeInTheDocument();
+    expect(screen.queryByTestId('global-search-section-trending')).not.toBeInTheDocument();
   });
 
   it('per-section loading (People & Groups mode): a slow section does not block the fast ones', async () => {

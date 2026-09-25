@@ -536,7 +536,7 @@ function Trending() {
           <div className="flex items-center gap-1" role="tablist" aria-label="Discover sections" data-testid="trending-tab-row">
             {([
               ['trending', 'Trending', Flame],
-              ['profiles', 'Profiles', User],
+              ['profiles', 'People', User],
             ] as [TrendingTab, string, typeof Flame][]).map(([id, label, Icon]) => (
               <button
                 key={id}

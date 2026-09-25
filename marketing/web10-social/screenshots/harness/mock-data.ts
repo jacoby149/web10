@@ -187,6 +187,10 @@ export async function readPost(): Promise<unknown> { return {}; }
 export async function readPosts(): Promise<unknown[]> { return []; }
 export async function createPost(): Promise<unknown> { return {}; }
 export async function createRepost(): Promise<unknown> { return {}; }
+// Repost-unify (#1003) surface reads — the harness has no repost data, so they
+// degrade to empty (no tallies, no "I reposted this" fill).
+export async function readRepostCounts(): Promise<Record<string, number>> { return {}; }
+export async function readMyRepostedIds(): Promise<Set<string>> { return new Set(); }
 export async function updatePost(): Promise<unknown> { return {}; }
 export async function deletePost(): Promise<void> {}
 export async function movePostVisibility(): Promise<void> {}

@@ -1099,7 +1099,7 @@ describe('Layout', () => {
     expect(topbar.contains(field)).toBe(false);
   });
 
-  it('the Discover screen shows the Trending | Profiles tabs in the top bar — B3', async () => {
+  it('the Discover screen shows the Trending | People tabs in the top bar — B3', async () => {
     const { default: Layout } = await import('@/components/Social/Layout');
     render(
       <MemoryRouter initialEntries={['/discover']}>

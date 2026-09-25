@@ -11,9 +11,9 @@ import type { PostRecord } from '@/data/types';
 // S1 (global-search.md): the top-bar everything-search surface — the
 // expanding-icon state machine: icon (rest) → expanded field → results →
 // collapse. S2 adds the three-way fan-out (people/groups/posts) + result
-// rows. Searching (Enter) opens Discover's Explore tab with the query
-// (the operator's call: the search bar opens Explore instead of the old
-// per-section "See more" links).
+// rows. Searching (Enter) opens Discover with the query (?q=), staying on
+// the active tab — the query chip (with its X) renders on both the Trending
+// and People tabs, so the search can be cleared from either.
 
 // The app's debounce idiom (feed/discover knob re-reads settle at 400ms).
 const SEARCH_DEBOUNCE_MS = 400;
@@ -137,14 +137,15 @@ export default function GlobalSearch({ variant }: GlobalSearchProps) {
   const [debouncedQuery, setDebouncedQuery] = useState('');
   // The results mode: `posts` (the default — "the moment you search it should
   // show the discover posts being searched") + `people` (people + groups, the
-  // chunky toggle the operator asked for). Reset to `posts` on collapse.
+  // chunky toggle the operator asked for — labeled "People" to match
+  // Discover's tabs). Reset to `posts` on collapse.
   const [mode, setMode] = useState<'posts' | 'people'>('posts');
   const inputRef = useRef<HTMLInputElement>(null);
   const triggerRef = useRef<HTMLButtonElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const collapseTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const wasOpen = useRef(false);
-  const { pathname } = useLocation();
+  const { pathname, search: locationSearch } = useLocation();
 
   // S2: the three search sections. null = loading, [] = loaded (empty),
   // [...] = loaded (has results). Per-section loading: the slowest read
@@ -240,7 +241,7 @@ export default function GlobalSearch({ variant }: GlobalSearchProps) {
 
   // S2: fire the fan-out when the debounced query (or the mode) changes.
   // Mode-aware: posts are the default; people + groups are fetched only when
-  // the user flips to the "People & Groups" mode (no wasted reads). Per-section
+  // the user flips to the "People" mode (no wasted reads). Per-section
   // loading: each read resolves independently.
   useEffect(() => {
     if (!open) return;
@@ -286,10 +287,11 @@ export default function GlobalSearch({ variant }: GlobalSearchProps) {
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
     if (e.key === 'Enter') {
-      // Searching opens Discover's Explore tab with the query (the operator's
-      // call — the search bar opens Explore instead of the old per-section
-      // "See more" links). Works on both variants (the mobile full-screen
-      // view collapses via the pathname-change effect).
+      // Searching opens Discover with the query (?q=), staying on the active
+      // tab — the query chip (with its X) renders on BOTH the Trending and
+      // People tabs, so the search can be cleared from either. Works on both
+      // variants (the mobile full-screen view collapses via the pathname-
+      // change effect).
       if (query.trim()) submitSearch();
       return;
     }
@@ -300,14 +302,24 @@ export default function GlobalSearch({ variant }: GlobalSearchProps) {
     }
   };
 
-  // The search submit: navigate to Discover's Explore tab carrying the query
-  // (?tab=explore&q=). The Explore tab renders people + groups mashed into one
-  // browser, filtered by the query.
+  // The search submit: navigate to Discover carrying the query (?q=) and
+  // STAY on whatever tab is active (the operator's call: the search happens
+  // on both tabs — the query chip, with its X, renders on Trending AND
+  // People, so it can be cleared from either). A bare /discover?q= lands on
+  // Trending (the bare-URL default); /discover?tab=explore&q= lands on
+  // People. The query is screen state the URL holds (the deep-link rule).
   const submitSearch = useCallback(() => {
     const q = query.trim();
     if (!q) return;
-    navigate(`/discover?tab=explore&q=${encodeURIComponent(q)}`);
-  }, [query, navigate]);
+    // Stay on the active Discover tab if we're already there (?tab=explore
+    // rides along); otherwise land on the bare URL (Trending, the default).
+    const params = new URLSearchParams(locationSearch);
+    if (params.get('tab') === 'explore') {
+      navigate(`/discover?tab=explore&q=${encodeURIComponent(q)}`);
+    } else {
+      navigate(`/discover?q=${encodeURIComponent(q)}`);
+    }
+  }, [query, navigate, locationSearch]);
 
   const field = (sizeClass: string) => (
     <input
@@ -330,7 +342,7 @@ export default function GlobalSearch({ variant }: GlobalSearchProps) {
   );
 
   // The results container content: the "type to search" idle state, or the
-  // mode-specific results. The mode toggle (Posts | People & Groups) is the
+  // mode-specific results. The mode toggle (Trending | People) is the
   // chunky switch the operator asked for — posts are the default; one tap
   // flips to people + groups. It renders as soon as there's a query (immediate,
   // not debounced) so it's clickable while the results are still loading.
@@ -348,11 +360,13 @@ export default function GlobalSearch({ variant }: GlobalSearchProps) {
       </div>
     ) : (
       <div className="py-1">
-        {/* The chunky mode toggle — Posts (default) | People & Groups. */}
+        {/* The chunky mode toggle — Trending (default) | People. The labels
+            match Discover's tabs (the operator: "it is supposed to be
+            Trending and People, not Posts and People"). */}
         <div className="flex items-center gap-1 px-3 py-2" role="tablist" aria-label="Search results type" data-testid="global-search-mode-toggle">
           {([
-            ['posts', 'Posts', FileText],
-            ['people', 'People & Groups', Users],
+            ['posts', 'Trending', FileText],
+            ['people', 'People', Users],
           ] as ['posts' | 'people', string, typeof FileText][]).map(([m, label, Icon]) => (
             <button
               key={m}
@@ -377,11 +391,11 @@ export default function GlobalSearch({ variant }: GlobalSearchProps) {
 
         {mode === 'posts' ? (
           <>
-            {/* Posts (the default — "show the discover posts being searched") */}
+            {/* Trending posts (the default — "show the discover posts being searched") */}
             {posts === null ? (
-              <SectionSkeleton label="Posts" />
+              <SectionSkeleton label="Trending" />
             ) : posts.length > 0 ? (
-              <SearchSection label="Posts">
+              <SearchSection label="Trending">
                 {posts.map((p) => (
                   <PostRow key={p._id || p.created_at} post={p} />
                 ))}
@@ -432,8 +446,8 @@ export default function GlobalSearch({ variant }: GlobalSearchProps) {
           </>
         )}
 
-        {/* The search CTA — Enter (or this) opens Discover's Explore tab
-            with the query: people + groups mashed into one browser. */}
+        {/* The search CTA — Enter (or this) opens Discover with the query,
+            staying on the active tab (the query chip clears it from either). */}
         {mode === 'people' && (allLoaded(people) || allLoaded(groups)) && (
           <button
             type="button"
@@ -442,7 +456,7 @@ export default function GlobalSearch({ variant }: GlobalSearchProps) {
             className="w-full flex items-center gap-2 px-4 py-2.5 text-left text-sm text-brand-300 hover:text-brand-400 hover:bg-elevated transition-colors duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand/50"
           >
             <Search className="w-4 h-4 shrink-0" strokeWidth={1.75} />
-            See all results for &ldquo;{q}&rdquo; in Explore
+            See all results for &ldquo;{q}&rdquo; in Discover
           </button>
         )}
       </div>

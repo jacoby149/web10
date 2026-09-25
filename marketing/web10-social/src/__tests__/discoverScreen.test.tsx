@@ -1400,16 +1400,17 @@ describe('DiscoverScreen — subtab shell (D1)', () => {
     });
   });
 
-  it('renders the Trending | Profiles tab row with Trending active by default', async () => {
+  it('renders the Trending | People tab row with Trending active by default', async () => {
     await renderDiscoverAt('/discover');
     await waitFor(() => {
       expect(screen.getByTestId('discover-tab-row')).toBeInTheDocument();
     });
     expect(screen.getByTestId('discover-tab-trending')).toHaveAttribute('aria-selected', 'true');
     expect(screen.getByTestId('discover-tab-explore')).toHaveAttribute('aria-selected', 'false');
-    // A1: the tab labels are Trending (was Posts) + Profiles (was People).
+    // The tab labels are "Trending" and "People" (the operator, 24.09.2026:
+    // "trending People makes more sense" — not "Profiles").
     expect(screen.getByTestId('discover-tab-trending')).toHaveTextContent('Trending');
-    expect(screen.getByTestId('discover-tab-explore')).toHaveTextContent('Profiles');
+    expect(screen.getByTestId('discover-tab-explore')).toHaveTextContent('People');
   });
 
   it('switches to Explore and hides the Trending board', async () => {
@@ -1473,6 +1474,29 @@ describe('DiscoverScreen — subtab shell (D1)', () => {
       expect(screen.getByTestId('discover-explore-tab')).toBeInTheDocument();
     });
     expect(screen.getByTestId('discover-explore-tab-query')).toHaveTextContent('lofi');
+  });
+
+  it('shows the query chip on the Trending tab (?q= without ?tab=)', async () => {
+    await renderDiscoverAt('/discover?q=lofi');
+    await waitFor(() => {
+      expect(screen.getByTestId('discover-trending-tab-query')).toBeInTheDocument();
+    });
+    expect(screen.getByTestId('discover-trending-tab-query')).toHaveTextContent('lofi');
+    // The Trending tab is active (the bare-URL default).
+    expect(screen.getByTestId('discover-tab-trending')).toHaveAttribute('aria-selected', 'true');
+  });
+
+  it('X on the Trending tab query chip clears ?q= (back to the unfiltered board)', async () => {
+    await renderDiscoverAt('/discover?q=lofi');
+    await waitFor(() => {
+      expect(screen.getByTestId('discover-trending-tab-query')).toBeInTheDocument();
+    });
+    fireEvent.click(screen.getByTestId('discover-trending-tab-query-clear'));
+    await waitFor(() => {
+      expect(screen.queryByTestId('discover-trending-tab-query')).not.toBeInTheDocument();
+    });
+    // The ?q= param is gone from the URL.
+    expect(lastSearch).not.toContain('q=');
   });
 
   it('writes ?tab= to the URL on switch and clears it for Trending (bare URL)', async () => {

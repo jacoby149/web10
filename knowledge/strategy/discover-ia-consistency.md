@@ -9,8 +9,16 @@ social Discover is `Posts | People` with a top-bar search, the marketing
 shapes, and a "super old" groups render. This doc is the fixed point that makes
 them one surface.
 
-> **The one-liner:** Discover = **Trending | Profiles**, in both apps. Search
-> lives in the **sidebar** (desktop) / header (mobile). The **Profiles** browser
+> **Name override (24.09.2026, 3.160.0):** the second tab is labeled **People**,
+> not "Profiles" — the operator: "trending People makes more sense". This
+> supersedes decision (3) above (which had signed off "Profiles"). It applies to
+> **both apps** (the whole point is they read the same), and only the visible
+> label moves — the tab *id* stays `explore` (social) / `profiles` (marketing)
+> so `?tab=` deep links + the `?tab=explore&q=` search hand-off keep working.
+> The People *section* inside the browser (two-overlapped glyph) is unchanged.
+
+> **The one-liner:** Discover = **Trending | People**, in both apps. Search
+> lives in the **sidebar** (desktop) / header (mobile). The **People** browser
 > mashes **People + Groups** (the social Explore tab) and is mirrored verbatim on
 > the marketing site. The marketing nav's "Trending" is renamed **Discover**.
 
@@ -67,15 +75,16 @@ here is client-side in `web10-social` + `marketing-ui` + the shared
 
 ## The fixed point (what "done" looks like)
 
-### The tabs: `Trending | Profiles` (both apps)
-- The social Discover's top-level tabs are **Trending | Profiles** (was
-  `Posts | People`). **Trending** keeps the flame icon (it *is* the trending
-  posts board — the name now says that). **Profiles** is the people+groups
-  browser (was "People"/"Explore").
+### The tabs: `Trending | People` (both apps)
+- The social Discover's top-level tabs are **Trending | People** (was
+  `Posts | People`, briefly `Trending | Profiles` in 3.158.0 — renamed back to
+  "People" on 24.09.2026). **Trending** keeps the flame icon (it *is* the
+  trending posts board — the name now says that). **People** is the
+  people+groups browser.
 - The marketing `/trending` (renamed **Discover**, see chrome) shows the same
-  **Trending | Profiles** tabs, in the **chunky** style the social app uses
+  **Trending | People** tabs, in the **chunky** style the social app uses
   (big pills + icons), not the current small text row.
-- **Groups is not a top-level tab in either app.** It lives inside the Profiles
+- **Groups is not a top-level tab in either app.** It lives inside the People
   browser as a section (the social Explore tab already does this). The marketing
   drops its top-level "Groups" tab; the standalone `/groups` page is retired
   (redirects to `/trending?tab=profiles`).
@@ -84,19 +93,19 @@ here is client-side in `web10-social` + `marketing-ui` + the shared
 | Surface | Concept | Icon |
 |---|---|---|
 | Discover top-level tab | **Trending** | `Flame` (unchanged) |
-| Discover top-level tab | **Profiles** | `User` (one person) |
-| Profiles browser section | **People** | `Users` (two overlapped people) |
-| Profiles browser section | **Groups** | `Hash` (unchanged — "groups is just fine") |
+| Discover top-level tab | **People** | `User` (one person) |
+| People browser section | **People** | `Users` (two overlapped people) |
+| People browser section | **Groups** | `Hash` (unchanged — "groups is just fine") |
 
-The operator's "swap those logos" = the **Profiles tab** carries the one-person
-glyph and the **People section** carries the two-overlapped glyph (they must not
-be mixed up). The marketing mirrors the same mapping.
+The operator's "swap those logos" = the **People tab** carries the one-person
+glyph and the **People section** (inside the tab) carries the two-overlapped
+glyph (they must not be mixed up). The marketing mirrors the same mapping.
 
 ### The chrome (desktop)
 - **Sidebar** (Facebook-style): the **keys mark only** (no "web10" wordmark) at
   the top, then the **search field** (moved down from the top bar), then the nav
   rows (Profile · Shorts · Discover · Feed · Messages · Monetization · More).
-- **Top bar**: the **Trending | Profiles** tabs (on the Discover screen) on the
+- **Top bar**: the **Trending | People** tabs (on the Discover screen) on the
   left, the notifications bell + account row on the right. The search is gone
   from here (it's in the sidebar now).
 - **Mobile**: unchanged — the 56px header keeps the search icon → full-screen

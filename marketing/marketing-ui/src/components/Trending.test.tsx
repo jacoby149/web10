@@ -1164,9 +1164,10 @@ describe('Discover tab row (C3)', () => {
     });
     expect(screen.getByTestId('trending-tab-trending')).toHaveAttribute('aria-selected', 'true');
     expect(screen.getByTestId('trending-tab-profiles')).toHaveAttribute('aria-selected', 'false');
-    // The chunky labels.
+    // The chunky labels (the tab is "People", not "Profiles" — the operator,
+    // 24.09.2026: "trending People makes more sense"; the tab id stays `profiles`).
     expect(screen.getByTestId('trending-tab-trending')).toHaveTextContent('Trending');
-    expect(screen.getByTestId('trending-tab-profiles')).toHaveTextContent('Profiles');
+    expect(screen.getByTestId('trending-tab-profiles')).toHaveTextContent('People');
   });
 
   it('switches to the Profiles subtab on click', async () => {

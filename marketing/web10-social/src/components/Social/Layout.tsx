@@ -104,7 +104,7 @@ export default function Layout({ onLogout, onReportBug, children }: LayoutProps)
   const isMonetizeCreator = pathname === '/monetize' && monetizeTab !== 'node';
   const isMonetizeNode = pathname === '/monetize' && monetizeTab === 'node';
 
-  // B3: the Discover screen's Trending | Profiles tabs live in the top bar
+  // B3: the Discover screen's Trending | People tabs live in the top bar
   // (desktop, Discover screen only — the operator's Facebook-style chrome).
   // The active tab is URL state (?tab=; trending is the bare URL) so it stays
   // deep-linkable + refresh-safe. On non-Discover screens the top bar shows
@@ -381,7 +381,7 @@ export default function Layout({ onLogout, onReportBug, children }: LayoutProps)
         </header>
 
         {/* Desktop top bar. The search field moved to the sidebar (B2). On the
-            Discover screen the left side carries the Trending | Profiles tabs
+            Discover screen the left side carries the Trending | People tabs
             (B3); on every other screen it's empty (the tabs are
             Discover-specific). The right side keeps the bell + the account
             row. Hidden on the Shorts lens (the immersive surface keeps its
@@ -395,7 +395,7 @@ export default function Layout({ onLogout, onReportBug, children }: LayoutProps)
               <div className="flex items-center gap-1" role="tablist" aria-label="Discover sections" data-testid="discover-tab-row">
                 {([
                   ['trending', 'Trending', Flame],
-                  ['explore', 'Profiles', User],
+                  ['explore', 'People', User],
                 ] as ['trending' | 'explore', string, typeof Flame][]).map(([id, label, TabIcon]) => (
                   <button
                     key={id}
