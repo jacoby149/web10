@@ -9,17 +9,20 @@ import { mediaRefId } from '@/data/types';
 import { getWapi } from '@/data/wapi';
 import {
   toggleReactionKind,
-  toggleRepost,
-  type ReactionKind,
   readReactions,
   countComments,
   updatePost,
   deletePost,
   movePostVisibility,
   readMyAds,
+  readRepostCounts,
+  readMyRepostedIds,
+  getDiscoverGroupId,
+  type ReactionKind,
   type AdAlbum,
 } from '@/data';
 import { PostActions } from '@/components/Feed/PostActions';
+import { useRepost } from '@/context/RepostContext';
 import { TextWithLinks } from '@/components/Feed/LinkEmbed';
 import { AdBlock } from '@/components/Feed/AdBlock';
 import { AdPicker } from '@/components/Feed/AdPicker';
@@ -186,12 +189,22 @@ export function PostLightbox({ post, mediaMap, onClose, onReload, postAuthor, po
   // Load reaction + comment state (the lightbox reads fresh — it's a modal,
   // not a feed). The like and dislike counts are derived from the reactions
   // read (each type counted separately — the heart and the thumb are the same).
+  //
+  // Repost (reposts.md: a repost is a POST, not a reaction). The count is the
+  // number of `repost_of` posts (readRepostCounts, the feed query's I3-scoped
+  // join lifted to a surface read) and the "I reposted this" fill is the
+  // reader's own repost post (readMyRepostedIds, the readFeedReactions
+  // own-post read lifted to a surface read). The legacy `type:'repost'`
+  // reaction still fills for old data (a read-only fallback).
   useEffect(() => {
     let cancelled = false;
+    const postId = currentPost._id || '';
     Promise.all([
-      token ? readReactions('posts', currentPost._id || '') : Promise.resolve([]),
-      countComments(currentPost._id || ''),
-    ]).then(([reactions, cCount]) => {
+      token ? readReactions('posts', postId) : Promise.resolve([]),
+      countComments(postId),
+      readRepostCounts([postId], [getDiscoverGroupId()]),
+      readMyRepostedIds(),
+    ]).then(([reactions, cCount, repostCounts, myReposts]) => {
       if (cancelled) return;
       setLikeCount(reactions.filter((r) => r.type === 'like').length);
       setDislikeCount(reactions.filter((r) => r.type === 'dislike').length);
@@ -206,12 +219,16 @@ export function PostLightbox({ post, mediaMap, onClose, onReload, postAuthor, po
       setDisliked(!!reactions.find(
         r => r.author_username === token.username && r.type === 'dislike',
       ));
-      // Repost (reposts.md): independent of like/dislike, counted from the
-      // same reactions read.
-      setReposted(!!reactions.find(
-        r => r.author_username === token.username && r.type === 'repost',
-      ));
-      setRepostCount(reactions.filter((r) => r.type === 'repost').length);
+      // Repost (reposts.md): the count is the number of `repost_of` posts; the
+      // fill is the reader's own repost post (the legacy reaction is a
+      // read-only fallback for old data).
+      setRepostCount(repostCounts[postId] || 0);
+      setReposted(
+        myReposts.has(postId) ||
+        !!reactions.find(
+          r => r.author_username === token.username && r.type === 'repost',
+        ),
+      );
       setCommentCount(cCount);
     }).catch(console.error);
     return () => { cancelled = true; };
@@ -247,24 +264,14 @@ export function PostLightbox({ post, mediaMap, onClose, onReload, postAuthor, po
     }
   }
 
-  // Repost (reposts.md): independent of like/dislike. Optimistic update of the
-  // reader's own repost flag + the repost count, rollback on error. The data
-  // layer (toggleRepost) enforces one-repost-per-user + self-heal.
-  async function handleToggleRepost() {
-    if (!token) return;
-    const wasReposted = reposted;
-    const nextReposted = !wasReposted;
-    const delta = nextReposted ? 1 : -1;
-    setReposted(nextReposted);
-    setRepostCount(prev => Math.max(0, prev + delta));
-    try {
-      await toggleRepost(currentPost._id || '');
-    } catch (e) {
-      console.error('Failed to toggle repost:', e);
-      toast.error(errorMessage(e, 'Could not update your repost.'));
-      setReposted(wasReposted);
-      setRepostCount(prev => Math.max(0, prev - delta));
-    }
+  // Repost (reposts.md): a repost is a POST, not a reaction toggle. Tapping
+  // the repeat icon opens the app-level composer in repost mode (the shared
+  // RepostContext seam — the same composer the feed uses) with this post as
+  // the context. The composer's createRepost is the single write; the count +
+  // fill re-derive from the post-based read on the next load.
+  const { setRepostingTo } = useRepost();
+  function handleRepost() {
+    setRepostingTo(currentPost);
   }
 
   async function handleSaveEdit() {
@@ -480,7 +487,7 @@ export function PostLightbox({ post, mediaMap, onClose, onReload, postAuthor, po
             repost="interactive"
             reposted={reposted}
             repostCount={repostCount}
-            onToggleRepost={handleToggleRepost}
+            onToggleRepost={handleRepost}
             testId="lightbox-post-actions"
             trailing={
               <button

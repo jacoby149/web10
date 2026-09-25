@@ -3,7 +3,9 @@ import {
   countComments,
   readReactions,
   toggleReactionKind,
-  toggleRepost,
+  readRepostCounts,
+  readMyRepostedIds,
+  getDiscoverGroupId,
   type ReactionKind,
 } from '@/data';
 import { getWapi } from '@/data/wapi';
@@ -13,6 +15,7 @@ import {
   type PostRecord,
 } from '@/data/types';
 import { PostCard } from '@/components/Feed/FeedScreen';
+import { useRepost } from '@/context/RepostContext';
 import { toast, errorMessage } from '@/components/shared/Toast';
 
 const LOG = (...args: unknown[]) => console.log('[social:profile-feed]', ...args);
@@ -74,6 +77,18 @@ export function ProfileFeed({
     }
     LOG('load engagement for', posts.length, 'posts');
     (async () => {
+      // Repost (reposts.md: a repost is a POST, not a reaction). The count is
+      // the number of `repost_of` posts (readRepostCounts, the feed query's
+      // I3-scoped join lifted to a surface read) and the "I reposted this"
+      // fill is the reader's own repost post (readMyRepostedIds, the
+      // readFeedReactions own-post read lifted to a surface read). Batched
+      // once for the whole profile, not per post. The legacy `type:'repost'`
+      // reaction still fills for old data (a read-only fallback).
+      const ids = posts.map((p) => p._id || '').filter(Boolean);
+      const [repostCounts, myReposts] = await Promise.all([
+        readRepostCounts(ids, [getDiscoverGroupId()]),
+        readMyRepostedIds(),
+      ]);
       // Per-post isolation: one rejected read degrades that card's counts to
       // zero (the feed's 3.25.x pattern), it never blanks the view.
       await Promise.all(
@@ -88,21 +103,22 @@ export function ProfileFeed({
             // a separate tally too (reposts.md — independent of like/dislike).
             const likeCount = reactions.filter((r) => r.type === 'like').length;
             const dislikeCount = reactions.filter((r) => r.type === 'dislike').length;
-            const repostCount = reactions.filter((r) => r.type === 'repost').length;
             const mine = tokenUsername
               ? reactions.find(
                   (r) => r.author_username === tokenUsername && (r.type === 'like' || r.type === 'dislike'),
                 )
               : undefined;
+            // The repost fill: the reader's own repost post, OR a legacy
+            // `type:'repost'` reaction (old data, read-only fallback).
             const mineRepost = tokenUsername
               ? reactions.find((r) => r.author_username === tokenUsername && r.type === 'repost')
               : undefined;
             setLikeMap((prev) => ({ ...prev, [id]: likeCount }));
             setDislikeCountMap((prev) => ({ ...prev, [id]: dislikeCount }));
-            setRepostCountMap((prev) => ({ ...prev, [id]: repostCount }));
+            setRepostCountMap((prev) => ({ ...prev, [id]: repostCounts[id] || 0 }));
             setLikedMap((prev) => ({ ...prev, [id]: mine?.type === 'like' }));
             setDislikedMap((prev) => ({ ...prev, [id]: mine?.type === 'dislike' }));
-            setRepostedMap((prev) => ({ ...prev, [id]: !!mineRepost }));
+            setRepostedMap((prev) => ({ ...prev, [id]: myReposts.has(id) || !!mineRepost }));
           } catch (e) {
             console.error('[social:profile-feed] reaction read failed:', e);
           }
@@ -166,22 +182,14 @@ export function ProfileFeed({
     }
   }
 
-  // Repost (reposts.md): independent of like/dislike. Optimistic update of the
-  // reader's own repost flag + the repost count, rollback on error.
-  async function handleToggleRepost(postId: string) {
-    const wasReposted = !!repostedMap[postId];
-    const nextReposted = !wasReposted;
-    const delta = nextReposted ? 1 : -1;
-    setRepostedMap((prev) => ({ ...prev, [postId]: nextReposted }));
-    setRepostCountMap((prev) => ({ ...prev, [postId]: Math.max(0, (prev[postId] || 0) + delta) }));
-    try {
-      await toggleRepost(postId);
-    } catch (e) {
-      console.error('Failed to toggle repost:', e);
-      toast.error(errorMessage(e, 'Could not update your repost.'));
-      setRepostedMap((prev) => ({ ...prev, [postId]: wasReposted }));
-      setRepostCountMap((prev) => ({ ...prev, [postId]: Math.max(0, (prev[postId] || 0) - delta) }));
-    }
+  // Repost (reposts.md): a repost is a POST, not a reaction toggle. Tapping
+  // the repeat icon opens the app-level composer in repost mode (the shared
+  // RepostContext seam) with this post as the context. The composer's
+  // createRepost is the single write; the count + fill re-derive from the
+  // post-based read on the next load (onPostUpdated).
+  const { setRepostingTo } = useRepost();
+  function handleRepost(post: PostRecord) {
+    setRepostingTo(post);
   }
 
   function mediaItemsFor(post: PostRecord): MediaRecord[] {
@@ -219,7 +227,7 @@ export function ProfileFeed({
             reposted={!!repostedMap[id]}
             timestamp={post.created_at}
             onToggleReaction={(kind) => handleToggleReaction(id, kind)}
-            onToggleRepost={() => handleToggleRepost(id)}
+            onToggleRepost={() => handleRepost(post)}
             onCommentCountChange={(n) => setCommentMap((prev) => ({ ...prev, [id]: n }))}
             onAuthorClick={onAuthorClick}
             postAuthor={authorUsername}
