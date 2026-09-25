@@ -14,6 +14,7 @@ const getNodeConfig = vi.fn();
 const saveNodeAdPercentage = vi.fn();
 const saveNodeAdOverwrite = vi.fn();
 const updateAd = vi.fn();
+const updateNodeAd = vi.fn();
 vi.mock('@/data/ads-catalog', () => ({
   checkNodeAdmin: (...a: unknown[]) => checkNodeAdmin(...a),
   readMyCatalog: (...a: unknown[]) => readMyCatalog(...a),
@@ -22,6 +23,7 @@ vi.mock('@/data/ads-catalog', () => ({
   saveNodeAdPercentage: (...a: unknown[]) => saveNodeAdPercentage(...a),
   saveNodeAdOverwrite: (...a: unknown[]) => saveNodeAdOverwrite(...a),
   updateAd: (...a: unknown[]) => updateAd(...a),
+  updateNodeAd: (...a: unknown[]) => updateNodeAd(...a),
   buildOfferBody: vi.fn(),
   buildNodeAdBody: vi.fn(),
   splitCatalog: vi.fn(),
@@ -187,5 +189,57 @@ describe('NodeMonetization — overwrite knob (ad-improvements.md)', () => {
     await waitFor(() => expect(toggle).not.toBeDisabled());
     fireEvent.click(toggle);
     await waitFor(() => expect(saveNodeAdOverwrite).toHaveBeenCalledWith(true));
+  });
+});
+
+describe('NodeMonetization — node ad edit (parity with creator ads)', () => {
+  const NODE_AD_ITEM = {
+    doc: { doc_id: 'node-1', tags: ['ad', 'node_ad'] },
+    text: 'Sick of Youtube? Try exporting to web10!',
+    offer: { kind: 'direct', partner: '', link: 'https://web10.app/export', cta: 'Learn more', disclosure: 'Sponsored' },
+    status: 'active' as const,
+    media_refs: undefined,
+    format: 'inline' as const,
+    albums: [] as string[],
+  };
+
+  beforeEach(() => {
+    checkNodeAdmin.mockResolvedValue(true);
+    getNodeConfig.mockResolvedValue({ node_ad_percentage: 10, node_ad_overwrite: false });
+    readNodeAds.mockResolvedValue([NODE_AD_ITEM]);
+    updateNodeAd.mockResolvedValue({ doc_id: 'node-1' });
+  });
+
+  it('the node ad row has an Edit button that opens the edit form pre-filled', async () => {
+    renderAt('/monetize?tab=node');
+    const editBtn = await screen.findByTestId('node-ads-edit-node-1');
+    fireEvent.click(editBtn);
+    // The edit form opens (not the new form), pre-filled with the ad's copy.
+    expect(await screen.findByTestId('node-ad-edit-form')).toBeInTheDocument();
+    expect(screen.getByTestId('node-ad-text')).toHaveValue('Sick of Youtube? Try exporting to web10!');
+    expect(screen.getByTestId('node-ad-link')).toHaveValue('https://web10.app/export');
+  });
+
+  it('saving an edit calls updateNodeAd with the same doc_id', async () => {
+    renderAt('/monetize?tab=node');
+    fireEvent.click(await screen.findByTestId('node-ads-edit-node-1'));
+    await screen.findByTestId('node-ad-edit-form');
+    // Change the copy + pick the post format, then save.
+    fireEvent.change(screen.getByTestId('node-ad-text'), { target: { value: 'Updated node ad copy' } });
+    fireEvent.click(screen.getByTestId('node-ad-format-post'));
+    fireEvent.click(screen.getByTestId('node-ad-save'));
+    await waitFor(() => expect(updateNodeAd).toHaveBeenCalled());
+    const call = (updateNodeAd as any).mock.calls[0];
+    expect(call[0].doc.doc_id).toBe('node-1'); // same doc_id (the attach picks up the new version)
+    expect(call[1].link).toBe('https://web10.app/export'); // offer preserved
+    expect(call[5]).toBe('post'); // format passed through
+  });
+
+  it('the New Node Ad form keeps the create flow', async () => {
+    renderAt('/monetize?tab=node');
+    fireEvent.click(await screen.findByTestId('node-ads-new'));
+    expect(await screen.findByTestId('node-ad-new-form')).toBeInTheDocument();
+    // The CTA suggestion chips are present (parity with the creator's form).
+    expect(screen.getByTestId('node-ad-cta-suggest-check-it-out')).toBeInTheDocument();
   });
 });
