@@ -186,4 +186,76 @@ describe('HoverVideo — the YouTube-style hover preview (video-player.md)', () 
     });
     expect(FakeHls.instances).toHaveLength(1);
   });
+
+  it('the video is revealed only when playing — the poster stays the backdrop (no gray flash)', async () => {
+    const { HoverVideo } = await import('@web10/discover');
+    render(<HoverVideo media={videoMedia} poster={videoMedia.thumbnail_url} testId="hv" />);
+    const frame = screen.getByTestId('hv');
+    const video = frame.querySelector('video') as HTMLVideoElement;
+    const play = vi.spyOn(video, 'play').mockResolvedValue(undefined);
+    const pause = vi.spyOn(video, 'pause').mockImplementation(() => {});
+
+    fireEvent.mouseEnter(frame);
+    await waitFor(() => expect(play).toHaveBeenCalled());
+    // Hovered but not yet playing (the source is still loading) → the video is
+    // hidden, the poster is the visible face. This is the gray-flash fix: the
+    // tile never shows a black/gray frame before the first frame is on screen.
+    expect(video.className).toMatch(/opacity-0/);
+
+    // The source starts playing (first frame on screen) → the video reveals.
+    video.dispatchEvent(new Event('playing'));
+    await waitFor(() => expect(video.className).toMatch(/opacity-100/));
+
+    // The pointer leaves → playback stops → the video hides, the poster returns.
+    fireEvent.mouseLeave(frame);
+    await waitFor(() => expect(pause).toHaveBeenCalled());
+    video.dispatchEvent(new Event('pause'));
+    await waitFor(() => expect(video.className).toMatch(/opacity-0/));
+  });
+
+  it('the progress bar tracks the preview (the YouTube home behavior)', async () => {
+    const { HoverVideo } = await import('@web10/discover');
+    render(<HoverVideo media={videoMedia} poster={videoMedia.thumbnail_url} testId="hv" />);
+    const frame = screen.getByTestId('hv');
+    const video = frame.querySelector('video') as HTMLVideoElement;
+    vi.spyOn(video, 'play').mockResolvedValue(undefined);
+    vi.spyOn(video, 'pause').mockImplementation(() => {});
+
+    // At rest: no progress bar.
+    expect(screen.queryByTestId('hv-progress')).toBeNull();
+
+    fireEvent.mouseEnter(frame);
+    // Hovered but not playing / no duration known yet: still no bar.
+    expect(screen.queryByTestId('hv-progress')).toBeNull();
+
+    // The source reports a duration + starts playing…
+    Object.defineProperty(video, 'duration', { value: 123, configurable: true });
+    video.dispatchEvent(new Event('loadedmetadata'));
+    video.dispatchEvent(new Event('playing'));
+    await waitFor(() => expect(screen.getByTestId('hv-progress')).not.toBeNull());
+
+    // …and the played portion fills as time advances (61.5s of 123s = 50%).
+    Object.defineProperty(video, 'currentTime', { value: 61.5, configurable: true });
+    video.dispatchEvent(new Event('timeupdate'));
+    await waitFor(() => {
+      expect(screen.getByTestId('hv-progress').style.width).toBe('50%');
+    });
+  });
+
+  it('unmuting is audible (the volume is raised if it was at zero)', async () => {
+    const { HoverVideo } = await import('@web10/discover');
+    render(<HoverVideo media={videoMedia} poster={videoMedia.thumbnail_url} testId="hv" />);
+    const frame = screen.getByTestId('hv');
+    const video = frame.querySelector('video') as HTMLVideoElement;
+    vi.spyOn(video, 'play').mockResolvedValue(undefined);
+    vi.spyOn(video, 'pause').mockImplementation(() => {});
+    // The element rests at zero volume — unmuting must raise it, not just flip
+    // the muted flag (the "no volume" complaint).
+    Object.defineProperty(video, 'volume', { value: 0, writable: true, configurable: true });
+
+    fireEvent.mouseEnter(frame);
+    fireEvent.click(screen.getByTestId('hv-mute')); // unmute
+    expect(video.muted).toBe(false);
+    expect(video.volume).toBe(0.8);
+  });
 });
