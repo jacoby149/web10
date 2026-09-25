@@ -84,9 +84,20 @@ doesn't read it.
   disclosure, the provenance badge (Ad / Sponsored), and a like. It "looks
   like a post" — the Meta/Instagram "sponsored post." **Nothing about it
   indicates it is pinned to another post** — no ring, no "attached to"
-  marker; the badge + disclosure are the only ad dressing. The post header
-  shows the ad's own author (+ the ad doc's `created_at`, when the read
-  carries it).
+   marker; the badge + disclosure are the only ad dressing. The post header
+   shows the ad's own author (+ the ad doc's `created_at`, when the read
+   carries it).
+
+   **The creative reuses the feed's media render** (an ad is a `posts` doc, so
+   its media is a normal media record — the "looks like a post" promise is
+   literal): a video rides the shared `<VideoPlayer>` (the hls.js rack for
+   transcoded, the tap-to-play inline surface otherwise — the same surface the
+   feed's `MediaItem` uses, so the "no surface owns a `<video>`" rule holds);
+   an image FILLS the frame (`object-cover`, the discover card's fill) in a
+   `w-full` natural-ratio frame capped at `60vh` — a portrait creative crops to
+   fill the card edge-to-edge instead of letterboxing (the `w-full` is what
+   makes `max-height` the binding constraint; without it the frame shrinks to a
+   sliver and the creative renders as a left-aligned letterbox in a wide card).
 
 **Key: a post ad is ATTACHED, not a standalone feed post.** It is served with
 the post it's attached to (the `ad_preference` / `attach_node_ads` join) and
