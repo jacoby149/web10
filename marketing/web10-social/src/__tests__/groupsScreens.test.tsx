@@ -1220,6 +1220,14 @@ describe('GroupDetailScreen', () => {
     await waitFor(() => {
       expect(screen.getAllByTestId('group-media-cell').length).toBe(2);
     });
+    // Wait for the grid to be fully settled (page 1 landed, hasMore set → the
+    // sentinel shows its idle "Loading more…" state) before firing. The
+    // observer's loadMoreMedia guard reads mediaLoading from a closure that can
+    // still be true right after the cells render, so firing too early no-ops
+    // (the load-dependent flake).
+    await waitFor(() => {
+      expect(screen.getByTestId('group-media-sentinel')).toHaveTextContent('Loading more…');
+    });
     // The sentinel is visible → the observer fires → loadMoreMedia appends page 2.
     (globalThis as unknown as Record<string, () => void>).fireIntersectionObservers();
     await waitFor(() => {
@@ -1232,6 +1240,12 @@ describe('GroupDetailScreen', () => {
   it('the media grid shows the empty state when the group has no media posts', async () => {
     vi.mocked(readGroupMediaPage).mockResolvedValue({ posts: [], hasMore: false, total: 0 } as never);
     await renderDetailAt('/groups/x?tab=media');
+    // The empty state only renders once the detail is settled (posts_state ===
+    // 'ok') — the detail read is async and can land after the media read under
+    // load, so wait for it first (the load-dependent flake).
+    await waitFor(() => {
+      expect(screen.getByTestId('group-detail-hero')).toBeInTheDocument();
+    });
     await waitFor(() => {
       expect(screen.getByTestId('group-media-empty')).toBeInTheDocument();
     });
