@@ -58,7 +58,7 @@ function parseCliViews(argv) {
     if (argv[i] === '--click') actions.push({ type: 'click', sel: argv[i + 1] });
     else if (argv[i] === '--fill') actions.push({ type: 'fill', sel: argv[i + 1], val: argv[i + 2] });
   }
-  return [{ name, ready, route: get('--route'), toggle: get('--toggle'), clicks: actions.filter((a) => a.type === 'click').map((a) => a.sel), fills: actions.filter((a) => a.type === 'fill').map((a) => [a.sel, a.val]), actions, hover: get('--hover'), readyAlt: get('--ready-alt'), scroll: get('--scroll') }];
+  return [{ name, ready, route: get('--route'), toggle: get('--toggle'), clicks: actions.filter((a) => a.type === 'click').map((a) => a.sel), fills: actions.filter((a) => a.type === 'fill').map((a) => [a.sel, a.val]), actions, hover: get('--hover'), readyAlt: get('--ready-alt'), extra: get('--extra'), scroll: get('--scroll') }];
 }
 const VIEWS = parseCliViews(process.argv.slice(2)) ?? DEFAULT_VIEWS;
 
@@ -104,7 +104,9 @@ try {
         console.error(line);
       });
 
-      const gotoUrl = view.route ? `${URL}?screen=${view.route.replace('/', '')}` : URL;
+      const gotoUrl = view.route
+        ? `${URL}?screen=${view.route.replace('/', '')}${view.extra ? `&${view.extra}` : ''}`
+        : URL;
       try {
         await page.goto(gotoUrl, { waitUntil: 'networkidle' });
 

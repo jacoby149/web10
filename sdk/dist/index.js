@@ -285,14 +285,24 @@ function createV3Client(options = {}) {
         payload.cursor = opts.cursor;
       if (opts.order != null)
         payload.order = opts.order;
-      return v3Post("read", payload);
+      const token = state.token ?? readTokenCookie();
+      if (token)
+        payload.token = token;
+      return authPost(`${apiOrigin}/v3/read`, payload);
     },
     async readRefCounts(collection, opts) {
       const payload = { service: collection, groups: opts.groups, ref: opts.ref, count: true };
-      return v3Post("read", payload);
+      const token = state.token ?? readTokenCookie();
+      if (token)
+        payload.token = token;
+      return authPost(`${apiOrigin}/v3/read`, payload);
     },
     async readById(docId, collection) {
-      return v3Post("read", { doc_id: docId, service: collection });
+      const payload = { doc_id: docId, service: collection };
+      const token = state.token ?? readTokenCookie();
+      if (token)
+        payload.token = token;
+      return authPost(`${apiOrigin}/v3/read`, payload);
     },
     async query(sql, opts) {
       const payload = { sql };

@@ -30,7 +30,8 @@ import { initNotifications, teardownNotifications } from '@/data/notifications';
 import { trackEvent, hotjarIdentify } from '@/lib/analytics';
 import { PostLightbox } from '@/components/Bio/PostLightbox';
 import { RepostProvider, useRepost } from '@/context/RepostContext';
-import type { PostRecord, MediaRecord, Visibility } from '@/data/types';
+import type { PostRecord, MediaRecord, Visibility, ResolvedMediaRef } from '@/data/types';
+import { fromResolvedMediaRef } from '@/data/types';
 
 const LOG = (...args: unknown[]) => console.log('[social]', ...args);
 const LOG_ERR = (...args: unknown[]) => console.error('[social]', ...args);
@@ -43,57 +44,6 @@ function sessionAlertMessage(reason: string): string {
   // reauth_deferred / cooldown:reauth / action_failed:reauth / not_signed_in —
   // the session needs a re-derive; the user triggers it (or a failure will).
   return 'Your session needs to be refreshed. Log in again to continue.';
-}
-
-function LoginScreen({ onLogin }: { onLogin: () => void }) {
-  return (
-    <div className="relative flex flex-col items-center justify-center min-h-screen bg-background px-6 overflow-hidden">
-      <div
-        className="pointer-events-none absolute inset-0 bg-gradient-to-br from-brand/10 via-transparent to-brand-muted/20"
-        aria-hidden="true"
-      />
-      <div
-        className="pointer-events-none absolute top-1/4 left-1/4 h-64 w-64 rounded-full bg-brand/10 blur-3xl animate-float-slow"
-        aria-hidden="true"
-      />
-      <div
-        className="pointer-events-none absolute bottom-1/4 right-1/4 h-48 w-48 rounded-full bg-brand-600/10 blur-3xl animate-float-medium"
-        aria-hidden="true"
-      />
-      <div
-        className="pointer-events-none absolute top-1/2 right-1/3 h-32 w-32 rounded-full bg-brand-400/8 blur-2xl animate-float-fast"
-        aria-hidden="true"
-      />
-      <div
-        className="pointer-events-none absolute top-1/2 left-1/2 h-80 w-80 -translate-x-1/2 -translate-y-[60%] rounded-full bg-brand/20 blur-3xl"
-        aria-hidden="true"
-      />
-      <div className="relative w-full max-w-sm text-center space-y-8">
-        <div className="space-y-3">
-          <img src="/keys-mark.png" alt="" className="h-14 w-14 mx-auto" aria-hidden="true" />
-          <h1 className="font-display text-4xl font-bold tracking-tight text-foreground">
-            web<span className="text-brand">10</span>
-          </h1>
-          <p className="text-muted-foreground">Your audience. No shadow ban.</p>
-        </div>
-        <Button
-          variant="brand"
-          size="lg"
-          data-testid="login-button"
-          className="w-full h-12 text-base font-semibold"
-          onClick={onLogin}
-        >
-          Log in or create your account
-        </Button>
-        <p className="text-xs text-muted-foreground">
-          Log in or create your account — one step.
-        </p>
-        <p className="text-xs text-muted-foreground">
-          Powered by your own node. 100% delivery by architecture.
-        </p>
-      </div>
-    </div>
-  );
 }
 
 function ErrorFallback({ onReport, onReload }: { onReport: () => void; onReload: () => void }) {
@@ -167,26 +117,39 @@ function UserProfilePostLinkRoute() {
     (async () => {
       try {
         const token = getWapi().readToken();
-        if (!token) return;
-        // Try reading from public_posts first, then posts
+        // Anon-capable: the node's read-by-id is `user_or_anon` and resolves
+        // media server-side (fresh presigned URLs + HLS), so a public post's
+        // permalink renders for a signed-out visitor — the marketing site's
+        // video click lands here and must show the video, not a login wall.
         const w = getV3Client();
         let p: PostRecord | null = null;
-        let service = 'posts';
         try {
           const doc = await w.readById(postId, 'posts');
-          p = { _id: doc.doc_id, text: (doc.body.text as string) || undefined, media_refs: (doc.body.media_refs as string[]) || undefined, created_at: doc.created_at, updated_at: doc.updated_at, visibility: (doc.body.visibility as Visibility) || undefined, tags: doc.tags || (doc.body.tags as string[]) || undefined };
+          p = { _id: doc.doc_id, text: (doc.body.text as string) || undefined, media_refs: (doc.body.media_refs as (string | ResolvedMediaRef)[]) || undefined, created_at: doc.created_at, updated_at: doc.updated_at, visibility: (doc.body.visibility as Visibility) || undefined, tags: doc.tags || (doc.body.tags as string[]) || undefined };
         } catch { /* not found */ }
         if (!cancelled && p) {
           setPost(p);
           if (p.media_refs?.length) {
-            const media = await resolveMediaRefs(
-              p.media_refs,
-              { username: username!, provider: provider || token.provider },
-              username === token.username ? 'media' : 'public_media',
-            );
             const flat: Record<string, MediaRecord> = {};
-            for (const m of media) {
-              if (m._id) flat[m._id] = m;
+            if (token) {
+              // Signed-in: the cross-user `public_media` path mints fresh
+              // presigned URLs (the owner's own media uses the `media` service).
+              const media = await resolveMediaRefs(
+                p.media_refs,
+                { username: username!, provider: provider || token.provider },
+                username === token.username ? 'media' : 'public_media',
+              );
+              for (const m of media) {
+                if (m._id) flat[m._id] = m;
+              }
+            } else {
+              // Anon: build the map from the inline resolved refs the node
+              // returned (no token to re-presign with).
+              for (const r of p.media_refs) {
+                if (typeof r === 'string') continue;
+                const id = r.doc_id || '';
+                if (id) flat[id] = fromResolvedMediaRef(r);
+              }
             }
             if (!cancelled) setMediaMap(flat);
           }
@@ -437,9 +400,16 @@ function App() {
     [handleReportBug],
   );
 
-  if (!signedIn) {
-    return <LoginScreen onLogin={handleLogin} />;
-  }
+  // Anon browsing (the operator: "supporting anon login with web10 social"):
+  // a signed-out visitor is NOT wall'd off at the login screen. They get the
+  // app shell in a read-only mode — the Discover board (the public ledger),
+  // post permalinks, profiles, shorts — and a clear Sign in affordance. The
+  // node is readable by design (D41/D58): the discover board + public posts +
+  // public profile faces are `anyone`-readable, so the same screens render for
+  // anon (the SDK's read path is anon-capable). Signed-in-only surfaces
+  // (feed, messages, notifications, settings, monetize, staging, your own
+  // profile) redirect to /discover when there's no session.
+  const isAnon = !signedIn;
 
   return (
     <ErrorBoundary fallback={handleBoundaryFallback}>
@@ -457,25 +427,25 @@ function App() {
       )}
       <RepostProvider>
       <Routes>
-        <Route element={<Layout onLogout={handleLogout} onReportBug={() => handleReportBug('button')} />}>
-          <Route path="/feed" element={<FeedRoute onAuthorClick={handleAuthorClick} />} />
+        <Route element={<Layout onLogout={handleLogout} onLogin={handleLogin} isAnon={isAnon} onReportBug={() => handleReportBug('button')} />}>
+          <Route path="/feed" element={isAnon ? <Navigate to="/discover" replace /> : <FeedRoute onAuthorClick={handleAuthorClick} />} />
           <Route path="/discover" element={<DiscoverScreen />} />
           <Route path="/shorts" element={<ShortsScreen />} />
           <Route path="/shorts/:postId" element={<ShortsScreen />} />
           <Route path="/groups" element={<GroupsScreen />} />
           <Route path="/groups/:groupId" element={<GroupDetailRoute />} />
           <Route path="/people" element={<Navigate to="/discover?tab=explore" replace />} />
-          <Route path="/messages/*" element={<DmsScreen />} />
-          <Route path="/notifications" element={<NotificationsScreen />} />
-          <Route path="/profile" element={<ProfileRedirectRoute />} />
+          <Route path="/messages/*" element={isAnon ? <Navigate to="/discover" replace /> : <DmsScreen />} />
+          <Route path="/notifications" element={isAnon ? <Navigate to="/discover" replace /> : <NotificationsScreen />} />
+          <Route path="/profile" element={isAnon ? <Navigate to="/discover" replace /> : <ProfileRedirectRoute />} />
           <Route path="/u/:username" element={<UserProfileRoute />} />
-          <Route path="/u/:username/followers" element={<UserFollowersRoute />} />
-          <Route path="/u/:username/following" element={<UserFollowingRoute />} />
+          <Route path="/u/:username/followers" element={isAnon ? <Navigate to="/discover" replace /> : <UserFollowersRoute />} />
+          <Route path="/u/:username/following" element={isAnon ? <Navigate to="/discover" replace /> : <UserFollowingRoute />} />
           <Route path="/u/:username/p/:postId" element={<UserProfilePostLinkRoute />} />
-          <Route path="/staging" element={<StagingScreen />} />
-          <Route path="/monetize" element={<MonetizationScreen />} />
-          <Route path="/settings" element={<SettingsScreen onLogout={handleLogout} onReportBug={() => handleReportBug('button')} />} />
-          <Route path="*" element={<Navigate to="/feed" replace />} />
+          <Route path="/staging" element={isAnon ? <Navigate to="/discover" replace /> : <StagingScreen />} />
+          <Route path="/monetize" element={isAnon ? <Navigate to="/discover" replace /> : <MonetizationScreen />} />
+          <Route path="/settings" element={isAnon ? <Navigate to="/discover" replace /> : <SettingsScreen onLogout={handleLogout} onReportBug={() => handleReportBug('button')} />} />
+          <Route path="*" element={<Navigate to={isAnon ? '/discover' : '/feed'} replace />} />
         </Route>
       </Routes>
       </RepostProvider>

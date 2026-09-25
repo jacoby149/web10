@@ -1149,17 +1149,21 @@ describe('Layout', () => {
   });
 });
 
-describe('LoginScreen', () => {
-  it('renders login button', async () => {
+describe('Anon shell (signed-out visitor)', () => {
+  it('renders the Sign in affordance, not the login wall', async () => {
     const { default: App } = await import('@/App');
     render(
       <MemoryRouter>
         <App />
       </MemoryRouter>
     );
+    // Anon mode: a signed-out visitor gets the app shell with a clear Sign in
+    // button (the operator: "make it clear you can sign in"), not the old
+    // full-screen login wall.
     await waitFor(() => {
-      expect(screen.getByText('Log in or create your account')).toBeInTheDocument();
+      expect(screen.getAllByTestId(/sign-in-button/).length).toBeGreaterThan(0);
     });
+    expect(screen.queryByText('Log in or create your account')).not.toBeInTheDocument();
   });
 
   it('renders branding', async () => {

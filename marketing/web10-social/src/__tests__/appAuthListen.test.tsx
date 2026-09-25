@@ -63,14 +63,20 @@ describe('App renders', () => {
     installWeb10Mock();
   });
 
-  it('renders without crashing when signed-out', async () => {
+  it('renders the anon shell (not the login wall) when signed-out', async () => {
     const { default: App } = await import('@/App');
     render(
       <MemoryRouter>
         <App />
       </MemoryRouter>
     );
-    await waitFor(() => expect(screen.getByTestId('login-button')).toBeInTheDocument());
+    // Anon mode: a signed-out visitor gets the app shell with a clear Sign in
+    // affordance (both the desktop + mobile variants render in jsdom), not the
+    // old full-screen login wall.
+    await waitFor(() =>
+      expect(screen.getAllByTestId(/sign-in-button/).length).toBeGreaterThan(0),
+    );
+    expect(screen.queryByText('Log in or create your account')).not.toBeInTheDocument();
   });
 
   it('renders without crashing when signed-in', async () => {
