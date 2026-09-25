@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
-import { useSearchParams } from 'react-router-dom';
+import { useSearchParams, useNavigate } from 'react-router-dom';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -11,7 +11,8 @@ import {
   getV3Client,
   getDiscoverGroupId,
   toggleReactionKind,
-  toggleRepost,
+  readRepostCounts,
+  readMyRepostedIds,
   extractUsername,
   type ReactionKind,
 } from '@/data';
@@ -49,6 +50,7 @@ import { VideoPlayer, sourceFromMedia } from '@/components/Feed/VideoPlayer';
 import { MediaCarousel } from '@/components/Feed/MediaCarousel';
 import { PostActions } from '@/components/Feed/PostActions';
 import PostComposer from '@/components/Feed/PostComposer';
+import { useRepost } from '@/context/RepostContext';
 // D74: the shared discover card (one source, both apps). The social app's grid
 // + youtube cards now wrap it — the same card the marketing /trending uses.
 import { DiscoverCard as SharedDiscoverCard, HomeCard, type DiscoverPost, type CreateComment } from '@web10/discover';
@@ -693,34 +695,43 @@ export default function DiscoverScreen() {
         try {
           const w = getV3Client();
           const discoverId = getDiscoverGroupId();
-          const [reactionDocs, commentDocs] = await Promise.all([
+          const [reactionDocs, commentDocs, repostCounts, myReposts] = await Promise.all([
             w.read('reactions', { groups: [discoverId], limit: 500 }),
             w.read('comments', { groups: [discoverId], limit: 500 }),
+            // Repost (reposts.md: a repost is a POST, not a reaction). The
+            // count is the number of `repost_of` posts (readRepostCounts, the
+            // feed query's I3-scoped join lifted to a surface read) and the
+            // "I reposted this" fill is the reader's own repost post
+            // (readMyRepostedIds, the readFeedReactions own-post read lifted to
+            // a surface read). The legacy `type:'repost'` reaction still fills
+            // for old data (a read-only fallback).
+            readRepostCounts(results.map((p) => p._id || '').filter(Boolean), [discoverId]),
+            readMyRepostedIds(),
           ]);
           const likesByPost: Record<string, number> = {};
           const dislikesByPost: Record<string, number> = {};
-          const repostsByPost: Record<string, number> = {};
           const commentsByPost: Record<string, number> = {};
           // The reader's own reaction per post (v3 ownership is by username
           // alone — the reaction's author_key is the bare username, the
           // provider implicit, so match on username, not provider).
           const likedByPost: Record<string, boolean> = {};
           const dislikedByPost: Record<string, boolean> = {};
-          const repostedByPost: Record<string, boolean> = {};
+          const legacyRepostedByPost: Record<string, boolean> = {};
           for (const d of reactionDocs) {
             if (d.ref_value) {
-              // Each reaction type is counted separately (the heart, the thumb,
-              // and the repeat icon each show their own tally — post-actions.md /
-              // reposts.md). The old `else likesByPost` branch counted reposts
-              // as likes; now each type has its own tally.
+              // Each reaction type is counted separately (the heart and the
+              // thumb each show their own tally — post-actions.md). The repost
+              // is NOT counted from reactions anymore (reposts.md — it is a
+              // post); the legacy `type:'repost'` reaction only feeds the
+              // read-only fill fallback for old data.
               const type = (d.body as Record<string, unknown>)?.type as string | undefined;
               if (type === 'like') likesByPost[d.ref_value] = (likesByPost[d.ref_value] || 0) + 1;
               else if (type === 'dislike') dislikesByPost[d.ref_value] = (dislikesByPost[d.ref_value] || 0) + 1;
-              else if (type === 'repost') repostsByPost[d.ref_value] = (repostsByPost[d.ref_value] || 0) + 1;
+              else if (type === 'repost') legacyRepostedByPost[d.ref_value] = true;
               if (extractUsername(d.author_key) === token.username) {
                 if (type === 'like') likedByPost[d.ref_value] = true;
                 else if (type === 'dislike') dislikedByPost[d.ref_value] = true;
-                else if (type === 'repost') repostedByPost[d.ref_value] = true;
+                else if (type === 'repost') legacyRepostedByPost[d.ref_value] = true;
               }
             }
           }
@@ -730,16 +741,24 @@ export default function DiscoverScreen() {
           for (const p of results) {
             p.likes = likesByPost[p._id || ''] || 0;
             p.dislikes = dislikesByPost[p._id || ''] || 0;
-            p.reposts = repostsByPost[p._id || ''] || 0;
+            p.reposts = repostCounts[p._id || ''] || 0;
             p.comments = commentsByPost[p._id || ''] || 0;
           }
           setLikedMap(likedByPost);
           setDislikedMap(dislikedByPost);
+          // The repost fill: the reader's own repost post, OR a legacy
+          // `type:'repost'` reaction (old data, read-only fallback).
+          const repostedByPost: Record<string, boolean> = {};
+          for (const p of results) {
+            const id = p._id || '';
+            if (myReposts.has(id) || legacyRepostedByPost[id]) repostedByPost[id] = true;
+          }
           setRepostedMap(repostedByPost);
           LOG(
             'engagement — counted',
             Object.values(likesByPost).reduce((a, b) => a + b, 0), 'reactions +',
-            Object.values(commentsByPost).reduce((a, b) => a + b, 0), 'comments',
+            Object.values(commentsByPost).reduce((a, b) => a + b, 0), 'comments +',
+            Object.values(repostCounts).reduce((a, b) => a + b, 0), 'reposts',
           );
         } catch (e) {
           LOG('engagement — failed (degrading to zero counts):', e);
@@ -904,37 +923,17 @@ export default function DiscoverScreen() {
     }
   }
 
-  // Repost (reposts.md): independent of like/dislike. Optimistic update of the
-  // reader's own repost flag + the post's repost count, rollback on error. The
-  // data layer (toggleRepost) enforces one-repost-per-user + self-heal.
-  async function handleToggleRepost(postId: string) {
-    const token = getWapi().readToken();
-    if (!token) return;
-    const wasReposted = !!repostedMap[postId];
-    const nextReposted = !wasReposted;
-    const delta = nextReposted ? 1 : -1;
-    setRepostedMap((prev) => ({ ...prev, [postId]: nextReposted }));
-    setPosts((prev) =>
-      prev.map((p) =>
-        p._id === postId
-          ? { ...p, reposts: Math.max(0, (p.reposts || 0) + delta) }
-          : p,
-      ),
-    );
-    try {
-      await toggleRepost(postId);
-    } catch (e) {
-      console.error('Failed to toggle repost:', e);
-      toast.error(errorMessage(e, 'Could not update your repost.'));
-      setRepostedMap((prev) => ({ ...prev, [postId]: wasReposted }));
-      setPosts((prev) =>
-        prev.map((p) =>
-          p._id === postId
-            ? { ...p, reposts: Math.max(0, (p.reposts || 0) - delta) }
-            : p,
-        ),
-      );
-    }
+  // Repost (reposts.md): a repost is a POST, not a reaction toggle. Tapping
+  // the repeat icon opens the app-level composer in repost mode (the shared
+  // RepostContext seam) with this post as the context, then returns to the
+  // feed (where the app-level composer lives) so the repost is created there.
+  // The composer's createRepost is the single write; the count + fill
+  // re-derive from the post-based read on the next load.
+  const { setRepostingTo } = useRepost();
+  const navigate = useNavigate();
+  function handleRepost(post: PostRecord) {
+    setRepostingTo(post);
+    navigate('/feed');
   }
 
   // Write a knob state to the URL (the deep-linkable ranking). The param is
@@ -1177,7 +1176,7 @@ export default function DiscoverScreen() {
                         reposted={!!repostedMap[post._id || '']}
                         onAuthorClick={() => navigateToUserProfile(post.author_username || '', post.author_provider || '')}
                         onToggleReaction={(kind) => handleToggleReaction(post._id || '', kind)}
-                        onToggleRepost={() => handleToggleRepost(post._id || '')}
+                        onToggleRepost={() => handleRepost(post)}
                       />
                     );
                   })}
@@ -1212,7 +1211,7 @@ export default function DiscoverScreen() {
                       disliked={!!dislikedMap[post._id || '']}
                       reposted={!!repostedMap[post._id || '']}
                       onToggleReaction={(kind) => handleToggleReaction(post._id || '', kind)}
-                      onToggleRepost={() => handleToggleRepost(post._id || '')}
+                      onToggleRepost={() => handleRepost(post)}
                     />              );
                 })}
               </div>
