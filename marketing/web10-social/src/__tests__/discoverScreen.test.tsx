@@ -1871,3 +1871,84 @@ describe('DiscoverScreen — the post-format ad renders as its own card, next in
     expect(screen.queryByTestId('post-ad-card')).toBeNull();
   });
 });
+
+describe('DiscoverScreen — the control rows keep the desktop gutter (operator pass, 25.09.2026)', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    (data.getV3Client as ReturnType<typeof vi.fn>).mockReturnValue({
+      read: vi.fn().mockResolvedValue([]),
+      readToken: vi.fn().mockReturnValue({ provider: 'test.localhost', username: 'testuser' }),
+    });
+  });
+
+  it('the Trending tab control rows (query chip, KnobRack, view toggle) carry the desktop gutter', async () => {
+    (data.readDiscoverFeed as ReturnType<typeof vi.fn>).mockResolvedValue([
+      {
+        author: 'top-user',
+        provider: 'api.web10.app',
+        post_id: 'p1',
+        text: 'jacob top post',
+        tags: ['trending'],
+        created_at: new Date().toISOString(),
+        likes: 200,
+        comments: 50,
+        reposts: 20,
+        score: 250,
+      },
+    ]);
+
+    const { default: DiscoverScreen } = await import('@/components/Discover/DiscoverScreen');
+    render(
+      <MemoryRouter initialEntries={['/discover?view=grid&q=jacob']}>
+        <DiscoverScreen />
+      </MemoryRouter>,
+    );
+    await screen.findByTestId('discover-grid');
+
+    // The query chip row (was flush at md:px-0 — the controls had no padding).
+    const chip = screen.getByTestId('discover-trending-tab-query');
+    const chipRow = chip.parentElement as HTMLElement;
+    expect(chipRow.className).toContain('md:px-4');
+    expect(chipRow.className).toContain('lg:px-6');
+    expect(chipRow.className).not.toContain('md:px-0');
+
+    // The KnobRack row (presets + Advanced) keeps the same gutter as the
+    // content column.
+    const rack = screen.getByTestId('knob-rack');
+    const rackRow = rack.parentElement as HTMLElement;
+    expect(rackRow.className).toContain('md:px-4');
+    expect(rackRow.className).toContain('lg:px-6');
+    expect(rackRow.className).not.toContain('md:px-0');
+
+    // The Home | Hot Gossip view toggle row.
+    const toggle = screen.getByTestId('discover-view-toggle');
+    const toggleRow = toggle.parentElement as HTMLElement;
+    expect(toggleRow.className).toContain('md:px-4');
+    expect(toggleRow.className).toContain('lg:px-6');
+    expect(toggleRow.className).not.toContain('md:px-0');
+  });
+
+  it('the People tab control rows (query chip, Profiles/Groups toggle) carry the desktop gutter', async () => {
+    const { default: DiscoverScreen } = await import('@/components/Discover/DiscoverScreen');
+    render(
+      <MemoryRouter initialEntries={['/discover?tab=explore&q=jacob']}>
+        <DiscoverScreen />
+      </MemoryRouter>,
+    );
+    await screen.findByTestId('discover-explore-tab');
+
+    // The query chip row.
+    const chip = screen.getByTestId('discover-explore-tab-query');
+    const chipRow = chip.parentElement as HTMLElement;
+    expect(chipRow.className).toContain('md:px-4');
+    expect(chipRow.className).toContain('lg:px-6');
+    expect(chipRow.className).not.toContain('md:px-0');
+
+    // The Profiles | Groups visibility toggle row.
+    const showToggle = screen.getByTestId('explore-show-toggle');
+    const showRow = showToggle.parentElement as HTMLElement;
+    expect(showRow.className).toContain('md:px-4');
+    expect(showRow.className).toContain('lg:px-6');
+    expect(showRow.className).not.toContain('md:px-0');
+  });
+});
