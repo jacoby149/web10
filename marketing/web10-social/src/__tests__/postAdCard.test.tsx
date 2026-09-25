@@ -134,6 +134,31 @@ describe('PostAdCard (the post-format ad)', () => {
   });
 });
 
+describe('PostAdCard creative media (the "looks like a post" render)', () => {
+  it('an image creative FILLS the frame (object-cover, no letterbox)', async () => {
+    vi.mocked(data.resolveMediaRefs).mockResolvedValueOnce([
+      { _id: 'm1', url: 'data:image/png;base64,x', created_at: new Date().toISOString(), mime_type: 'image/png', width: 900, height: 1200, thumbnail_url: 'data:image/png;base64,x' },
+    ] as never);
+    const { PostAdCard } = await import('@/components/Feed/PostAdCard');
+    render(<PostAdCard ad={{ ...POST_AD, media_refs: ['m1'] }} />);
+    const frame = await screen.findByTestId('post-ad-media-image');
+    const img = frame.querySelector('img')!;
+    // Fills the frame edge-to-edge (a polished creative), never a letterbox sliver.
+    expect(img.className).toContain('object-cover');
+    expect(img.className).not.toContain('object-contain');
+  });
+
+  it('a video creative rides the shared VideoPlayer (the hls/tap-to-play surface)', async () => {
+    vi.mocked(data.resolveMediaRefs).mockResolvedValueOnce([
+      { _id: 'v1', url: 'https://cdn.example/v.mp4', created_at: new Date().toISOString(), mime_type: 'video/mp4', width: 1280, height: 720, thumbnail_url: 'data:image/png;base64,x' },
+    ] as never);
+    const { PostAdCard } = await import('@/components/Feed/PostAdCard');
+    render(<PostAdCard ad={{ ...POST_AD, media_refs: ['v1'] }} />);
+    // The shared player's frame (the feed's exact video surface), not a raw <video>.
+    expect(await screen.findByTestId('post-ad-media-video')).toBeTruthy();
+  });
+});
+
 describe('AttachedAd (render per format)', () => {
   it('renders a full PostAdCard for format=post', async () => {
     const { AttachedAd } = await import('@/components/Feed/AttachedAd');
