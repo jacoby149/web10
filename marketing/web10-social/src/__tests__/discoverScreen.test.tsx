@@ -1175,11 +1175,15 @@ describe('DiscoverScreen', () => {
       expect(screen.getByTestId('discover-home-card')).toBeInTheDocument();
     });
 
-    // The Home card is a 16:9 thumbnail (an <img>), not an inline <video>.
+    // The Home card is a thumbnail — the poster <img> + the hover preview's
+    // <video> (inert at rest: no source, hidden), NOT a live inline player.
     expect(screen.getByTestId('discover-home-card-thumb')).toBeInTheDocument();
     const card = screen.getByTestId('discover-home-card');
-    expect(card.querySelector('video')).toBeNull();
     expect(card.querySelector('img')).not.toBeNull();
+    const preview = card.querySelector('video');
+    expect(preview).not.toBeNull();
+    expect(preview!.getAttribute('src')).toBeNull();
+    expect(preview!.className).toMatch(/opacity-0/);
     // Clicking the card opens no lightbox (it navigates to the post permalink).
     fireEvent.click(screen.getByTestId('discover-home-card-thumb'));
     expect(screen.queryByTestId('post-lightbox')).not.toBeInTheDocument();
