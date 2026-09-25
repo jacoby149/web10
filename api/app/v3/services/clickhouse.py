@@ -3409,69 +3409,6 @@ def list_users() -> list[dict]:
     return [{"username": row[0]} for row in result.result_rows]
 
 
-def _reader_following_set(reader: str) -> set[str]:
-    """The set of usernames ``reader`` follows.
-
-    Following IS group membership (the social app joins a user's followers
-    group to follow them), so the reader follows user B iff the reader is an
-    active member of B's followers group (``{provider}/groups/users/{B}/
-    followers``) — the same rule the client's ``readFollows`` uses. The
-    followers-group id carries the followed username as the segment after
-    ``/users/``, so the set is derived by extracting that segment. Returns an
-    empty set for ``anon`` (no following) or on any read failure.
-    """
-    if reader == "anon":
-        return set()
-    try:
-        result = client.query(
-            "SELECT group_id FROM (SELECT group_id, deleted, "
-            "row_number() OVER (PARTITION BY group_id, member_key ORDER BY updated_at DESC, deleted DESC) as rn "
-            "FROM group_members WHERE member_key = %(member_key)s "
-            "AND group_id LIKE '%/followers') WHERE rn = 1 AND deleted = 0",
-            {"member_key": reader},
-        )
-        following: set[str] = set()
-        for (group_id,) in result.result_rows:
-            parts = group_id.split("/")
-            if "users" in parts:
-                i = parts.index("users")
-                if i + 1 < len(parts):
-                    following.add(parts[i + 1])
-        return following
-    except Exception:
-        return set()
-
-
-def _mutual_counts(followers_groups: list[str], reader_following: set[str]) -> dict[str, int]:
-    """Per user, how many of their followers the reader also follows (mutuals).
-
-    ``mutuals(X) = |followers(X) ∩ reader-following|`` — the "N mutuals" signal
-    (the "how much in common" the People browser sorts/filters by). Computed
-    server-side so it is I3-clean (the reader only ever sees counts over groups
-    they can already read — their own following + the candidate's public
-    followers group) and unspoofable (a membership aggregate, not a stored
-    field). One query: count the members of each followers group whose
-    ``member_key`` is in the reader's following set.
-    """
-    if not followers_groups or not reader_following:
-        return {g: 0 for g in followers_groups}
-    gids = list(dict.fromkeys(followers_groups))
-    params: dict = {f"g{i}": g for i, g in enumerate(gids)}
-    fk = list(dict.fromkeys(reader_following))
-    params["fk"] = fk
-    in_clause = ", ".join(f"%(g{i})s" for i in range(len(gids)))
-    result = client.query(
-        "SELECT group_id, countIf(member_key IN %(fk)s) AS mutuals "
-        "FROM (SELECT group_id, member_key, deleted "
-        "FROM group_members WHERE group_id IN (" + in_clause + ") "
-        "QUALIFY row_number() OVER (PARTITION BY group_id, member_key ORDER BY updated_at DESC, deleted DESC) = 1) "
-        "WHERE deleted = 0 GROUP BY group_id",
-        params,
-    )
-    counts = {row[0]: row[1] for row in result.result_rows}
-    return {g: counts.get(g, 0) for g in gids}
-
-
 def list_public_users(reader: str, authenticated: bool, limit: int = 20, offset: int = 0) -> list[dict]:
     """The public people directory (D0, discover-reorg): one server-side
     composition returning a page of user cards ranked by follower count.
@@ -3483,20 +3420,22 @@ def list_public_users(reader: str, authenticated: bool, limit: int = 20, offset:
     aggregate, ``count(group_members)`` — not a stored field) -> rank by
     follower count desc -> ``limit``/``offset``.
 
-    Each card also carries ``mutuals`` — how many of that user's followers the
-    reader also follows (``_mutual_counts`` over the reader's following set).
-    The "N mutuals" signal the People browser sorts/filters by; anon gets 0.
-
     Principal-based: ``anon`` sees the public subset (followers groups whose
     ``anyone``/``anon`` grant allows reading ``profile``); a signed-in reader
     sees more (their follows + ``authenticated`` grants). The I3 read-gate
     (``readable_groups_batched``) is the access boundary — a user is in the
     directory iff their followers group is readable by the reader. A user with
     no profile face yet is STILL listed (with a username-only face) — a
-    username + follower count is public identity (the share preview, 3.90.0,
-    already exposes it for face-less users), so a fresh account is discoverable
-    from birth instead of the directory reading empty until every user opens
-    their profile.
+    username + follower count is public identity, so a fresh account is
+    discoverable from birth instead of the directory reading empty until every
+    user opens their profile.
+
+    The node stays generic (D60): it returns the universal primitives — the
+    user, the unspoofable follower count, and the profile face. It does NOT
+    compute app-specific social signals (e.g. "mutuals" / "how much in
+    common"); those are derived client-side from the generic membership
+    primitive (a user's followers = the member list of their followers
+    group), so the node never learns an app's concepts.
     """
     users = list_users()
     if not users:
@@ -3534,22 +3473,20 @@ def list_public_users(reader: str, authenticated: bool, limit: int = 20, offset:
     # The unspoofable follower count: count(group_members) per followers group.
     counts = _get_group_member_counts(readable)
 
-    # The reader's following set (for mutuals) — empty for anon / on failure.
-    reader_following = _reader_following_set(reader)
-    mutuals = _mutual_counts(readable, reader_following)
-
     rows = []
     for username, gid in user_to_group.items():
         if gid not in readable_set:
             continue
         # A user with no profile face yet is still listed — a username-only
-        # face (public identity, the I3 gate already bounds who is readable).
+        # face (public identity; the I3 gate already bounds who is readable).
+        # This is a generic listing decision (list readable users), not an
+        # app concept: the directory is populated from birth instead of reading
+        # empty until every user opens their profile.
         face = face_by_user.get(username) or {"display_name": username}
         rows.append(
             {
                 "username": username,
                 "follower_count": counts.get(gid, 0),
-                "mutuals": mutuals.get(gid, 0),
                 "profile": face,
             }
         )

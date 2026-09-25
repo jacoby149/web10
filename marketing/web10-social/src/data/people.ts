@@ -2,6 +2,7 @@ import { getV3Client } from './v3';
 import { resolveMediaRefs } from './posts';
 import { followersGroupId, getGroupMembers } from './groups';
 import { listFollowers } from './follows';
+import { extractUsername } from './types';
 
 const LOG = (...args: unknown[]) => console.log('[social:people]', ...args);
 
@@ -147,29 +148,46 @@ export async function fetchPeoplePage(opts: {
       avatar_ref: (profile.avatar_ref as string) || undefined,
       banner_ref: (profile.banner_ref as string) || undefined,
       followers_count: u.follower_count,
-      mutuals: u.mutuals ?? 0,
+      mutuals: 0,
       is_following: myFollowing.has(u.username),
     };
   });
 
-  // Resolve the face media (avatar + banner) per person — owner-scoped reads,
-  // so one call per person. Failures degrade to the card's fallback face.
+  // Per-card enrichment (one bounded pass over the page, each read degrades
+  // independently): (1) the presigned face media (avatar/banner); (2) the
+  // "N mutuals" signal — how many of this person's followers the reader also
+  // follows. Mutuals are derived CLIENT-side from the generic membership
+  // primitive (a user's followers = the member list of their followers group,
+  // `getGroupMembers`), intersected with the reader's own following set — the
+  // node stays generic (D60), it never computes an app's social signal. Anon
+  // has no following set → mutuals stay 0.
   await Promise.all(
     people.map(async (card) => {
-      const refs = [card.avatar_ref, card.banner_ref].filter(Boolean) as string[];
-      if (!refs.length) return;
-      try {
-        const media = await resolveMediaRefs(
-          refs,
-          { username: card.username, provider: card.provider },
-          'public_media',
-        );
-        for (const m of media) {
-          if (m._id === card.avatar_ref) card.avatar_url = m.url;
-          else if (m._id === card.banner_ref) card.banner_url = m.url;
+      // (2) Mutuals — the generic membership primitive (bounded by the page).
+      if (token && myFollowing.size > 0) {
+        try {
+          const members = await getGroupMembers(followersGroupId(card.username, card.provider));
+          card.mutuals = members.filter((m) => myFollowing.has(extractUsername(m.member_key))).length;
+        } catch (e) {
+          LOG('fetchPeoplePage — mutuals read failed for', card.username, '(degrading to 0):', e);
         }
-      } catch (e) {
-        LOG('fetchPeoplePage — face media failed for', card.username, ':', e);
+      }
+      // (1) Face media (avatar + banner) — owner-scoped reads.
+      const refs = [card.avatar_ref, card.banner_ref].filter(Boolean) as string[];
+      if (refs.length) {
+        try {
+          const media = await resolveMediaRefs(
+            refs,
+            { username: card.username, provider: card.provider },
+            'public_media',
+          );
+          for (const m of media) {
+            if (m._id === card.avatar_ref) card.avatar_url = m.url;
+            else if (m._id === card.banner_ref) card.banner_url = m.url;
+          }
+        } catch (e) {
+          LOG('fetchPeoplePage — face media failed for', card.username, ':', e);
+        }
       }
     }),
   );

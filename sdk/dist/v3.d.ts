@@ -221,7 +221,6 @@ export interface V3LoginResponse {
 export interface V3DirectoryUser {
     username: string;
     follower_count: number;
-    mutuals: number;
     profile: Record<string, unknown>;
 }
 export interface V3PeoplePage {

@@ -5,16 +5,17 @@ The I3 floor this pins:
     grant on ``profile``); a signed-in reader sees more (their follows + the
     public subset) — same card shape, different permissions;
   * the I3 read-gate is the access boundary — a user whose followers group the
-    reader cannot read is ABSENT (carol's private group, eve's private group
-    for anon);
+    reader cannot read is ABSENT (no private data leaks);
   * a user with no profile face is STILL listed (username-only face) — a
     username + follower count is public identity, so a fresh account is
-    discoverable from birth (the directory doesn't read empty until every user
-    opens their profile);
+    discoverable from birth instead of the directory reading empty;
   * the follower count is the membership aggregate ``count(group_members)``
-    on the followers group, not a stored field (unspoofable);
-  * ``mutuals`` is how many of a user's followers the reader also follows
-    (the "N mutuals" signal) — 0 for anon (no following).
+    on the followers group, not a stored field (unspoofable).
+
+The node stays generic (D60): it returns the universal primitives only (user,
+follower count, profile face). It does NOT compute app-specific social signals
+(e.g. "mutuals") — those are derived client-side from the membership
+primitive.
 """
 
 import json
@@ -102,29 +103,10 @@ def _dispatch(reader: str, authenticated: bool):
         fgid("dave"): PUBLIC_ROLES,
         fgid("eve"): PRIVATE_ROLES,
     }
-    # Who follows each user (the members of their followers group) — the input
-    # to the mutuals computation (mutuals(X) = |followers(X) ∩ reader-following|).
-    followers_of = {
-        "alice": ["carol", "eve", "bob"],
-        "bob": ["carol", "alice"],
-        "carol": ["bob"],
-        "dave": ["bob"],
-        "eve": ["carol", "alice", "dave"],
-    }
-    # The reader's following set (the followers groups they're a member of).
-    reader_following = {
-        "anon": set(),
-        "carol": {fgid("alice"), fgid("eve")},
-    }[reader]
 
     def dispatch(sql, params=None):
         if "count() AS cnt" in sql:
             return _rows([(fgid(u), COUNTS[u]) for u in COUNTS])
-        if "AS mutuals" in sql:
-            fk = set(params["fk"])
-            return _rows([(fgid(u), sum(1 for f in followers_of[u] if f in fk)) for u in followers_of])
-        if "group_id LIKE '%/followers'" in sql:
-            return _rows([(g,) for g in reader_following])
         if "p.doc_id AS doc_id" in sql:
             return _rows(
                 [(f"doc-{u}", u, json.dumps(FACES[u]), [], "2026-01-01T00:00:00", "", "none", "") for u in FACES]
@@ -152,11 +134,10 @@ class TestListPublicUsersComposition:
             mock_client.query.side_effect = _dispatch("anon", False)
             result = ch.list_public_users("anon", False, limit=20, offset=0)
         # anon: alice (5) + bob (10) + dave (2, public, no face -> username-only
-        # face) are public; carol/eve private (absent). Ranked by follower count
-        # desc. Anon has no following -> mutuals 0.
+        # face) are public; carol/eve private (absent). Ranked by follower
+        # count desc.
         assert [r["username"] for r in result] == ["bob", "alice", "dave"]
         assert [r["follower_count"] for r in result] == [10, 5, 2]
-        assert [r["mutuals"] for r in result] == [0, 0, 0]
 
     def test_anon_excludes_private(self):
         with patch.object(ch, "client") as mock_client:
@@ -169,7 +150,8 @@ class TestListPublicUsersComposition:
 
     def test_faceless_user_listed_with_username_face(self):
         """A public user with no profile face is still listed (username-only
-        face) — the directory doesn't read empty until every user has a face."""
+        face) — the directory is populated from birth, not empty until every
+        user opens their profile."""
         with patch.object(ch, "client") as mock_client:
             mock_client.query.side_effect = _dispatch("anon", False)
             result = ch.list_public_users("anon", False, limit=20, offset=0)
@@ -190,21 +172,6 @@ class TestListPublicUsersComposition:
         assert usernames == ["bob", "eve", "alice", "carol", "dave"]
         assert [r["follower_count"] for r in result] == [10, 7, 5, 3, 2]
 
-    def test_mutuals_is_reader_following_intersection(self):
-        """mutuals(X) = |followers(X) ∩ reader-following|. carol follows alice
-        + eve: alice's followers {carol,eve,bob} ∩ {alice,eve} = {eve} = 1;
-        eve's followers {carol,alice,dave} ∩ {alice,eve} = {alice} = 1; bob's
-        followers {carol,alice} ∩ {alice,eve} = {alice} = 1; carol/dave 0."""
-        with patch.object(ch, "client") as mock_client:
-            mock_client.query.side_effect = _dispatch("carol", True)
-            result = ch.list_public_users("carol", True, limit=20, offset=0)
-        by_user = {r["username"]: r["mutuals"] for r in result}
-        assert by_user["alice"] == 1
-        assert by_user["eve"] == 1
-        assert by_user["bob"] == 1
-        assert by_user["carol"] == 0
-        assert by_user["dave"] == 0
-
     def test_follower_count_is_membership_aggregate(self):
         """The count comes from count(group_members), not a stored field."""
         with patch.object(ch, "client") as mock_client:
@@ -222,11 +189,21 @@ class TestListPublicUsersComposition:
         assert by_user["alice"]["profile"]["display_name"] == "Alice"
         assert by_user["bob"]["profile"]["bio"] == "yo"
 
+    def test_no_mutuals_field(self):
+        """The node stays generic (D60) — it does not compute app-specific
+        social signals like mutuals; the card carries only the universal
+        primitives (username, follower_count, profile)."""
+        with patch.object(ch, "client") as mock_client:
+            mock_client.query.side_effect = _dispatch("anon", False)
+            result = ch.list_public_users("anon", False, limit=20, offset=0)
+        for r in result:
+            assert set(r.keys()) == {"username", "follower_count", "profile"}
+
     def test_limit_and_offset_page(self):
         with patch.object(ch, "client") as mock_client:
             mock_client.query.side_effect = _dispatch("carol", True)
             page = ch.list_public_users("carol", True, limit=2, offset=1)
-        # full order: bob(10), eve(7), alice(5), carol(3); page 2 of size 2
+        # full order: bob(10), eve(7), alice(5), carol(3), dave(2); page 2 of size 2
         assert [r["username"] for r in page] == ["eve", "alice"]
 
 
