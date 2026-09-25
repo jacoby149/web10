@@ -181,6 +181,34 @@ existing idiom). No second data path.
   `globalSearch.test.tsx` re-pinned (Enter → `/discover?q=…`; Enter on the
   People tab keeps `?tab=explore`; the CTA → `/discover?q=…`; the section
   testid is `global-search-section-trending`).
+- [✓ 3.161.0] **S6: the Facebook-style search — the unclipped wide dropdown +
+  the Profiles/Groups subtabs** (`GlobalSearch.tsx` + `Layout.tsx` +
+  `DiscoverExploreTab.tsx` + `DiscoverScreen.tsx`) — operator pass
+  (25.09.2026, the search dropdown + Discover screenshots + two Facebook
+  references): "that search bar looks chopped though" + "this dropdown looks
+  terrible too" + "facebooks looks much better" + "in the subtab of people
+  groups and profiles instead of groups and people! but people should be the
+  logo of the two people … in the subtab, it should be profiles and groups,
+  i.e. profiles is individual people profiles. and should be just one person
+  logo!". (1) **The unchopped field** — the sidebar's `overflow-hidden` (a
+  decorative-glow clip) was clipping the dropdown to the 256px sidebar; the
+  glow now clips in its own inner container and the dropdown is a **wide
+  panel** (`w-[26rem]`, `rounded-xl`) that overflows into the content,
+  Facebook-style. The field is a **rounded-full pill** (h-10, `bg-elevated`),
+  the placeholder shortens to "Search web10" (it fit), and the **X only
+  renders when there's a query** (an empty field has nothing to clear). (2)
+  **The Facebook-style rows** — each result row is a round glyph chip (person
+  / hash / search) + the title + a subline; **person rows carry the account's
+  own avatar on the RIGHT** (the Facebook suggestion row); the mode toggle is
+  a slim segmented control (no chunky pills). (3) **The subtabs are Profiles +
+  Groups** — the Explore tab's visibility chips read **Profiles** (the
+  ONE-person glyph — individual profiles) + **Groups** (hash), and the section
+  header reads **Profiles**; the **People top tab carries the TWO-people
+  glyph** (it holds profiles + groups — "people should be the logo of the two
+  people"). Tab *ids* + `?tab=`/`?show=` deep links unchanged.
+  `globalSearch.test.tsx` re-pinned (the X is query-gated; the pill +
+  wide-panel assertions) + `discoverScreen.test.tsx` +1 (the two-people People
+  tab vs the one-person Profiles chip).
 
 **Ownership:** this lane owns `Layout.tsx`, `src/components/Search/`,
 `src/data/search.ts`. It does **not** touch `DiscoverScreen.tsx` or the

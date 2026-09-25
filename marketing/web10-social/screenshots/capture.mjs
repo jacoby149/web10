@@ -43,20 +43,6 @@ function parseCliViews(argv) {
     const i = argv.indexOf(flag);
     return i === -1 ? null : argv[i + 1];
   };
-  const getMany = (flag) => {
-    const out = [];
-    for (let i = 0; i < argv.length - 1; i++) {
-      if (argv[i] === flag) out.push(argv[i + 1]);
-    }
-    return out;
-  };
-  const getPairs = (flag) => {
-    const out = [];
-    for (let i = 0; i < argv.length - 2; i++) {
-      if (argv[i] === flag) out.push([argv[i + 1], argv[i + 2]]);
-    }
-    return out;
-  };
   const name = get('--name');
   const ready = get('--ready');
   if (!name && !ready) return null;
@@ -64,7 +50,15 @@ function parseCliViews(argv) {
     console.error('--name and --ready must be given together');
     process.exit(1);
   }
-  return [{ name, ready, route: get('--route'), toggle: get('--toggle'), clicks: getMany('--click'), fills: getPairs('--fill'), hover: get('--hover') }];
+  // `--click SEL` / `--fill SEL VALUE` (both repeatable) run in the ORDER
+  // given on the command line — a fill types a query, a later click taps a
+  // control inside its rendered results (the search dropdown's mode toggle).
+  const actions = [];
+  for (let i = 0; i < argv.length - 1; i++) {
+    if (argv[i] === '--click') actions.push({ type: 'click', sel: argv[i + 1] });
+    else if (argv[i] === '--fill') actions.push({ type: 'fill', sel: argv[i + 1], val: argv[i + 2] });
+  }
+  return [{ name, ready, route: get('--route'), toggle: get('--toggle'), clicks: actions.filter((a) => a.type === 'click').map((a) => a.sel), fills: actions.filter((a) => a.type === 'fill').map((a) => [a.sel, a.val]), actions, hover: get('--hover'), readyAlt: get('--ready-alt') }];
 }
 const VIEWS = parseCliViews(process.argv.slice(2)) ?? DEFAULT_VIEWS;
 
@@ -119,11 +113,34 @@ try {
         // matches the hidden copy first and times out even though the view
         // rendered fine.
         if (view.route) {
-          // `--click` (repeatable) opens a sub-view (e.g. the create-group
-          // sheet from the "New group" CTA, or the face lightbox → a pick
-          // tile → the crop step) BEFORE we wait for its ready selector.
-          for (const click of view.clicks ?? []) await page.click(click);
-          await page.waitForSelector(`${view.ready} >> visible=true`, { timeout: 15000 });
+          // `--click` / `--fill` (repeatable) run in the ORDER given on the
+          // command line — a click opens a sub-view (the create-group sheet
+          // from the "New group" CTA, the face lightbox → a pick tile → the
+          // crop step); a fill types a query whose debounced results a later
+          // click can tap (the search dropdown's mode toggle). Actions whose
+          // target isn't visible on this viewport are skipped (the desktop
+          // search field is hidden at 375px and vice versa).
+          for (const action of view.actions ?? []) {
+            try {
+              if (action.type === 'click') await page.click(action.sel, { timeout: 3000 });
+              else await page.fill(action.sel, action.val, { timeout: 3000 });
+            } catch { /* target not visible on this viewport — skip */ }
+            // A fill types a query that renders its results after the 400ms
+            // debounce — settle so a follow-up click lands on rendered DOM.
+            if (action.type === 'fill') await page.waitForTimeout(900);
+          }
+          // `--ready-alt SEL` (optional): a second ready selector accepted on
+          // viewports where the primary can't appear (e.g. the search
+          // dropdown's results section renders only on desktop; on 375 the
+          // screen-level ready is the honest "loaded" signal).
+          if (view.readyAlt) {
+            await Promise.race([
+              page.waitForSelector(`${view.ready} >> visible=true`, { timeout: 15000 }),
+              page.waitForSelector(`${view.readyAlt} >> visible=true`, { timeout: 15000 }),
+            ]);
+          } else {
+            await page.waitForSelector(`${view.ready} >> visible=true`, { timeout: 15000 });
+          }
           // Route views are already loaded — a toggle here expands a sub-panel
           // (e.g. the knob rack's "Advanced" panel) after the view is ready.
           if (view.toggle) await page.click(view.toggle);

@@ -38,7 +38,6 @@ import {
   Film,
   Music2,
   Users,
-  User,
   Video,
   Search,
   X,
@@ -459,12 +458,14 @@ type DiscoverTab = 'trending' | 'explore';
 // The posts board is called **Trending** (the flame icon means trending posts —
 // the operator: "call it trending instead of posts, much better"). The
 // people+groups browser is called **People** (like Facebook's Friends tab)
-// with a person icon. (The operator, 24.09.2026: "trending People makes more
-// sense" — the tab is "People", not "Profiles"; the People *section* inside it
-// keeps the two-overlapped glyph, the tab the one-person glyph.)
+// with the TWO-people glyph (it holds profiles + groups — the operator,
+// 25.09.2026: "people should be the logo of the two people"). The Profiles
+// *subtab* inside it carries the one-person glyph. (The operator,
+// 24.09.2026: "trending People makes more sense" — the tab is "People", not
+// "Profiles".)
 const DISCOVER_TABS: { id: DiscoverTab; label: string; icon: typeof Flame }[] = [
   { id: 'trending', label: 'Trending', icon: Flame },
-  { id: 'explore', label: 'People', icon: User },
+  { id: 'explore', label: 'People', icon: Users },
 ];
 
 function postHasVideo(post: PostRecord): boolean {
@@ -1037,10 +1038,10 @@ export default function DiscoverScreen() {
           don't tell": the video wall is the hero, the tabs are the nav).
           Chunky + obvious + sticky (the operator, 23.09.2026): "that is just
           too small too hard to see, want to keep the youtube stuff big."
-          People is really people + groups (the mashed browser), with a
-          one-person icon (the People *section* carries the two-overlapped
-          glyph). (The operator, 24.09.2026: "trending People makes more
-          sense" — the tab is "People", not "Profiles".) On DESKTOP this
+          People is really people + groups (the mashed browser), with the
+          two-people glyph (the Profiles *subtab* inside it carries the
+          one-person glyph). (The operator, 24.09.2026: "trending People makes
+          more sense" — the tab is "People", not "Profiles".) On DESKTOP this
           screen-level row is hidden — the tabs live in the global top bar
           (B3, the operator's Facebook-style chrome); on mobile (no top bar)
           this row is the source. */}
