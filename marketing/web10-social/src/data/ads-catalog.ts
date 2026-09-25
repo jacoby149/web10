@@ -222,6 +222,26 @@ export async function updateAd(
   return w.update(ad.doc.doc_id, body);
 }
 
+/**
+ * Update an existing node ad (the Edit flow — node ads have the same
+ * editability as creator ads). Same `doc_id` — an update is a new version, so
+ * the read-time attach (`attach_node_ads`) picks up the new creative/offer/
+ * format on the next read. No albums (a node ad is the operator's inventory,
+ * not a creator's catalog).
+ */
+export async function updateNodeAd(
+  ad: AdItem,
+  offer: AdOffer,
+  text: string,
+  status: 'active' | 'paused',
+  mediaRefs?: string[],
+  format: 'inline' | 'post' = 'inline',
+): Promise<V3Document> {
+  const w = getV3Client();
+  const body = buildNodeAdBody(offer, text, status, mediaRefs, format);
+  return w.update(ad.doc.doc_id, body);
+}
+
 // ── The creator's catalog (the owner's own posts over their followers group) ─
 
 /**
