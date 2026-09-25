@@ -105,8 +105,25 @@ renders **next in line after that post** — wherever that post shows (feed,
 discover / Hot Gossip board, the lightbox's attached variant). It is **never**
 a free-floating post in the feed, so it is **never subject to
 ranking/trending** — an ad doesn't need to be popular to show; it's attached.
-(The feed/discover read drops `ad`-tagged docs from the standalone list so ad
-docs don't leak in as plain, ranked posts.)
+
+**The every-surface rule (the standalone leak).** An ad doc is a `posts` doc in
+a group the reader can read — so **every** surface that reads a group for
+standalone posts will see it in the raw read. The rule: **every such surface
+drops `ad`-tagged docs from its standalone list** (the filter is
+`tags ∌ 'ad'` — it catches both creator ads and node ads, since a node ad is
+tagged `ad` + `node_ad`). The ad appears only as `doc.ad` / `doc.node_ad`
+(attached), rendered per its format. Today that is:
+
+- the social app's feed + discover reads (`dropAdPosts`, `data/feed.ts`),
+- the marketing `/trending` board read + its search
+  (`dropAdDocs`, `marketing-ui` `FeedPreview.tsx` — the 25.09.2026 leak: node
+  ad docs ranked #1/#2 on the marketing board, because the marketing read is
+  its own anon group read and had no filter).
+
+A new surface that reads a group for standalone posts inherits the rule: no
+`ad`-tagged doc as a ranked post. (The node does **not** filter — D60: the
+node serves the group read honestly; "an ad is inventory, not content" is the
+app's model.)
 
 **The two renderings of a post ad** (the `PostAdCard`'s `standalone` seam):
 *standalone* (the default — feed + discover) is the own-card-in-the-stream
@@ -132,6 +149,27 @@ node-level knobs (`node_ad_percentage`, `node_ad_overwrite` — see
 | `ref_value` | optional — a related post | the universal link column; carrying an ad is the *post's* `ad_preference` pointing at this doc (`ads-dissemination.md`), not the ad's `ref_value` |
 
 No new tables. No new collection. No new contract permission. It is a post, and the house read (dedup-then-filter, group membership, hidden-doc exclusion) already handles it.
+
+## Reserved Tags (the write-path guard)
+
+The ad-machinery tags — **`ad`**, **`node_ad`**, **`ad_album`** — are reserved:
+only the ad catalog (`ads-catalog.ts`) writes them. The reason is structural,
+not cosmetic: a `posts` doc tagged `ad` **is** ad inventory by definition — the
+catalog splits on it (`splitCatalog`), the feed reads drop it from the
+standalone list (the every-surface rule above), and a `node_ad` doc on the
+discover group is picked up by `get_active_node_ads` and attached to other
+people's posts at read time. If a user could tag their own post `#ad`, their
+post would be misclassified as ad inventory — dropped from the feed, or (worse)
+served as an attached ad on someone else's post.
+
+The node stays generic (D60) and does not police tags, so **the app guards its
+own write path**: `createPost` / `updatePost` (`data/posts.ts`) reject a
+reserved tag with a user-facing error — *"Not so fast — #ad is a web10
+ads-only tag. Ads are made in Monetization, not tagged on a post."* The ad
+catalog writes through `w.create` / `w.update` directly (not the post data
+layer), so the guard never blocks the machinery itself. The composer today
+only ever sets `['short']`; the guard is the choke point for any future tag
+input (or a direct SDK caller going through the app's data layer).
 
 ## Picking Up Ads Per User
 

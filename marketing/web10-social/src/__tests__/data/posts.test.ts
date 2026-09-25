@@ -1,6 +1,15 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import * as v3 from '../../data/v3';
-import { readMyPosts, createRepost, readRepostCounts, readMyRepostedIds } from '../../data/posts';
+import {
+  readMyPosts,
+  createRepost,
+  readRepostCounts,
+  readMyRepostedIds,
+  createPost,
+  updatePost,
+  reservedTagViolation,
+  RESERVED_POST_TAGS,
+} from '../../data/posts';
 
 function mockV3Client() {
   const mock = {
@@ -187,6 +196,61 @@ describe('posts v3 data layer', () => {
       const result = await mock.update('p1', { text: 'updated' });
       expect(mock.update).toHaveBeenCalledWith('p1', { text: 'updated' });
       expect(result).toEqual(updated);
+    });
+  });
+
+  describe('reserved ad-machinery tags (ads.md — the ad catalog is the only writer)', () => {
+    it('exposes the reserved set (ad / node_ad / ad_album)', () => {
+      expect([...RESERVED_POST_TAGS]).toEqual(['ad', 'node_ad', 'ad_album']);
+    });
+
+    it('reservedTagViolation names the offending tags (empty when clean)', () => {
+      expect(reservedTagViolation(['ad'])).toEqual(['ad']);
+      expect(reservedTagViolation(['short', 'node_ad'])).toEqual(['node_ad']);
+      expect(reservedTagViolation(['ad', 'node_ad', 'ad_album'])).toEqual(['ad', 'node_ad', 'ad_album']);
+      expect(reservedTagViolation(['short'])).toEqual([]);
+      expect(reservedTagViolation(undefined)).toEqual([]);
+      expect(reservedTagViolation([])).toEqual([]);
+    });
+
+    it('createPost rejects a reserved tag before writing (the "#ad on my post" guard)', async () => {
+      await expect(
+        createPost({ text: 'check out my ad', tags: ['ad'], created_at: '2026-07-20T00:00:00Z' }),
+      ).rejects.toThrow(/Not so fast/);
+      // The guard fires BEFORE the write — no doc is created.
+      expect(mock.create).not.toHaveBeenCalled();
+    });
+
+    it('createPost rejects node_ad + ad_album too', async () => {
+      await expect(
+        createPost({ text: 'x', tags: ['node_ad'], created_at: '2026-07-20T00:00:00Z' }),
+      ).rejects.toThrow(/node_ad/);
+      await expect(
+        createPost({ text: 'x', tags: ['ad_album'], created_at: '2026-07-20T00:00:00Z' }),
+      ).rejects.toThrow(/ad_album/);
+      expect(mock.create).not.toHaveBeenCalled();
+    });
+
+    it('createPost still allows the app-set tags (short) through', async () => {
+      const doc = { doc_id: 'p9', author_key: 'web10.app/users/alice', body: { text: 'a short', tags: ['short'] }, created_at: '2026-07-20T00:00:00Z' };
+      mock.create.mockResolvedValue(doc);
+      await createPost({ text: 'a short', tags: ['short'], created_at: '2026-07-20T00:00:00Z' });
+      expect(mock.create).toHaveBeenCalled();
+      const body = mock.create.mock.calls[0][1] as Record<string, unknown>;
+      expect(body.tags).toEqual(['short']);
+    });
+
+    it('updatePost rejects a reserved tag before writing (an edit can\'t smuggle one on)', async () => {
+      await expect(updatePost('p1', { tags: ['ad'] })).rejects.toThrow(/Not so fast/);
+      expect(mock.update).not.toHaveBeenCalled();
+    });
+
+    it('updatePost still allows a clean tag edit through', async () => {
+      const updated = { doc_id: 'p1', author_key: 'web10.app/users/alice', body: { tags: ['short'] }, updated_at: '2026-07-20T00:00:00Z' };
+      mock.update.mockResolvedValue(updated);
+      await updatePost('p1', { tags: ['short'] });
+      // updatePost always forwards the ad_preference slot (undefined when absent).
+      expect(mock.update).toHaveBeenCalledWith('p1', { tags: ['short'] }, undefined);
     });
   });
 
