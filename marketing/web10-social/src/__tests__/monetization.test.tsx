@@ -237,7 +237,11 @@ describe('NodeMonetization — node ad edit (parity with creator ads)', () => {
 
   it('the New Node Ad form keeps the create flow', async () => {
     renderAt('/monetize?tab=node');
-    fireEvent.click(await screen.findByTestId('node-ads-new'));
+    // The button is disabled until the ads load (loading=true) — a click while
+    // disabled is a no-op, so wait for the enabled state before opening the form.
+    const newBtn = await screen.findByTestId('node-ads-new');
+    await waitFor(() => expect(newBtn).not.toBeDisabled());
+    fireEvent.click(newBtn);
     expect(await screen.findByTestId('node-ad-new-form')).toBeInTheDocument();
     // The CTA suggestion chips are present (parity with the creator's form).
     expect(screen.getByTestId('node-ad-cta-suggest-check-it-out')).toBeInTheDocument();
