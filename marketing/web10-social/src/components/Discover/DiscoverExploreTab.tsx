@@ -368,8 +368,9 @@ export default function DiscoverExploreTab({ query }: DiscoverExploreTabProps) {
 
       {/* Mashed list — people and groups render as one stream, each with its
           own pagination (each section honors the ?show= toggle). (The operator:
-          "people are groups in web10.") */}
-      <div className="flex-1 px-4 pb-4 md:px-0 space-y-6" data-testid="explore-view">
+          "people are groups in web10.") The desktop gutter (md:px-4 lg:px-6)
+          matches the Trending content column. */}
+      <div className="flex-1 px-4 pb-4 md:px-4 lg:px-6 space-y-6" data-testid="explore-view">
         {/* People */}
         {showPeople && (
         <section data-testid="explore-people-section">

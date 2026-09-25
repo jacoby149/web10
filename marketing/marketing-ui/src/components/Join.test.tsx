@@ -115,7 +115,7 @@ describe('Join page', () => {
     const { default: Join } = await import('@/pages/Join');
     render(<Join />);
     expect(screen.getByRole('link', { name: 'Home' })).toBeInTheDocument();
-    expect(screen.getByRole('link', { name: 'Trending' })).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: 'Discover' })).toBeInTheDocument();
     expect(screen.getByRole('link', { name: 'Docs' })).toBeInTheDocument();
   });
 });

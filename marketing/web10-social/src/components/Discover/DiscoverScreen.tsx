@@ -450,11 +450,13 @@ type DiscoverTab = 'trending' | 'explore';
 
 // The two top-level destinations. Chunky and obvious — the operator (23.09.2026):
 // "that is just too small too hard to see, want to keep the youtube stuff big."
-// "Explore" is renamed **People** (it's really people + groups, but called
-// People like Facebook's Friends tab) with a person icon.
+// **Trending** keeps the flame (it IS the trending posts board — the name now
+// says that). **Profiles** is the people + groups browser (the operator's
+// "swap those logos": the tab carries the one-person glyph, the People *section*
+// carries the two-overlapped glyph).
 const DISCOVER_TABS: { id: DiscoverTab; label: string; icon: typeof Flame }[] = [
-  { id: 'trending', label: 'Posts', icon: Flame },
-  { id: 'explore', label: 'People', icon: User },
+  { id: 'trending', label: 'Trending', icon: Flame },
+  { id: 'explore', label: 'Profiles', icon: User },
 ];
 
 function postHasVideo(post: PostRecord): boolean {
@@ -1014,14 +1016,17 @@ export default function DiscoverScreen() {
   return (
     <div className="flex flex-col min-h-full bg-background">
       <div className="w-full">
-      {/* Tabs: Posts | People (?tab=, trending is the bare URL). The primary
-          nav — no separate "Discover" header (the operator's "show don't
-          tell": the video wall is the hero, the tabs are the nav). Chunky +
-          obvious + sticky (the operator, 23.09.2026): "that is just too small
-          too hard to see, want to keep the youtube stuff big." People is
-          really people + groups (the mashed browser), called People like
-          Facebook's Friends tab, with a person icon. */}
-      <div className="sticky top-0 z-10 border-b border-border bg-background/95 backdrop-blur-md md:bg-surface/50" data-testid="discover-tab-row">
+      {/* Tabs: Trending | Profiles (?tab=, trending is the bare URL). The
+          primary nav — no separate "Discover" header (the operator's "show
+          don't tell": the video wall is the hero, the tabs are the nav).
+          Chunky + obvious + sticky (the operator, 23.09.2026): "that is just
+          too small too hard to see, want to keep the youtube stuff big."
+          Profiles is really people + groups (the mashed browser), with a
+          one-person icon (the People *section* carries the two-overlapped
+          glyph). On DESKTOP this screen-level row is hidden — the tabs live
+          in the global top bar (B3, the operator's Facebook-style chrome);
+          on mobile (no top bar) this row is the source. */}
+      <div className="sticky top-0 z-10 border-b border-border bg-background/95 backdrop-blur-md md:bg-surface/50 md:hidden" data-testid="discover-tab-row">
         <div className="px-4 md:px-0">
           <div className="flex items-center gap-2 py-3" role="tablist" aria-label="Discover sections">
             {DISCOVER_TABS.map(({ id, label, icon: TabIcon }) => (
@@ -1143,9 +1148,11 @@ export default function DiscoverScreen() {
           )}
 
           {/* Content — the Home view (the video wall, the default) is the
-              YouTube-style grid that fills the screen; Hot Gossip keeps the
-              single-column board. */}
-          <div className="flex-1 px-4 py-4 md:px-0">
+               YouTube-style grid that fills the screen; Hot Gossip keeps the
+               single-column board. The desktop gutter (md:px-4 lg:px-6) lets
+               the wall breathe (the operator's "no padding at all on the
+               sides" — a gutter, not full-bleed); mobile stays full-bleed. */}
+          <div className="flex-1 px-4 py-4 md:px-4 lg:px-6">
             {isInitialLoad ? (
               <div className="grid grid-cols-1 gap-4" data-testid="discover-grid-skeleton">
                 {Array.from({ length: 4 }).map((_, i) => (

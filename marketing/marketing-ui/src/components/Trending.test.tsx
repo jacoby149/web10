@@ -1,6 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, fireEvent, waitFor, within } from '@testing-library/react';
 import '@testing-library/jest-dom';
+import { MemoryRouter } from 'react-router-dom';
 import { TrendingCard, parseCreatedAt, type FeedPost } from '@/components/FeedPreview';
 
 // Lane D — coverage for the /trending page pieces (D-trending-*).
@@ -1020,140 +1021,169 @@ describe('Comment thread deep links (remote mode)', () => {
   });
 });
 
-// ── M1: the People + Groups subtabs ─────────────────────────────────────────
+// ── C3: the Profiles browser (mashed People + Groups) ────────────────────────
 
-describe('TrendingPeople (M1)', () => {
+// Route the fetch mock by URL: the D0 people read, the D53 groups read, the
+// group-identity face read, and the posts feed read.
+function mockFetch(routes: Record<string, unknown>) {
+  vi.mocked(fetch).mockImplementation(async (input: RequestInfo | URL) => {
+    const url = String(input);
+    for (const [key, value] of Object.entries(routes)) {
+      if (url.includes(key)) {
+        return {
+          ok: true,
+          json: () => Promise.resolve(value),
+        } as unknown as Response;
+      }
+    }
+    return { ok: true, json: () => Promise.resolve([]) } as unknown as Response;
+  });
+}
+
+describe('ProfilesBrowser (C3)', () => {
   it('renders the people grid from the D0 read', async () => {
-    const { TrendingPeople } = await import('@/components/TrendingPeople');
-    vi.mocked(fetch).mockResolvedValue({
-      ok: true,
-      json: () => Promise.resolve({
-        users: [
-          { username: 'nova', follower_count: 128, profile: { display_name: 'Nova' } },
-          { username: 'kai', follower_count: 512, profile: { display_name: 'Kai' } },
+    const { ProfilesBrowser } = await import('@/components/ProfilesBrowser');
+    // Seed 10+ users so the list renders (a short page trips the "quiet" state).
+    const users = Array.from({ length: 10 }, (_, i) => ({
+      username: `user${i}`,
+      follower_count: 100 + i,
+      profile: { display_name: `User ${i}` },
+    }));
+    mockFetch({
+      '/v3/users/directory': { users, limit: 24, offset: 0 },
+      '/v3/groups/directory': { groups: [], limit: 24, offset: 0 },
+    });
+    render(<MemoryRouter><ProfilesBrowser query="" /></MemoryRouter>);
+    await waitFor(() => {
+      expect(screen.getByTestId('discover-profiles-people-list')).toBeInTheDocument();
+    });
+    expect(screen.getAllByTestId('trending-person-card')).toHaveLength(10);
+    expect(screen.getByText('User 0')).toBeInTheDocument();
+  });
+
+  it('renders the groups grid from the D53 read', async () => {
+    const { ProfilesBrowser } = await import('@/components/ProfilesBrowser');
+    mockFetch({
+      '/v3/users/directory': { users: [], limit: 24, offset: 0 },
+      '/v3/groups/directory': {
+        groups: [
+          { group_id: 'web10/groups/users/nova/synthwave', name: 'synthwave', owner: 'nova', join_policy: 'open', member_count: 128 },
+          { group_id: 'web10/groups/users/kai/lofi', name: 'lofi', owner: 'kai', join_policy: 'request', member_count: 512 },
         ],
         limit: 24,
         offset: 0,
-      }),
-    } as unknown as Response);
-    render(<TrendingPeople />);
-    await waitFor(() => {
-      expect(screen.getByTestId('trending-people-grid')).toBeInTheDocument();
+      },
     });
-    expect(screen.getAllByTestId('trending-person-card')).toHaveLength(2);
-    expect(screen.getByText('Nova')).toBeInTheDocument();
-    expect(screen.getByText('Kai')).toBeInTheDocument();
+    render(<MemoryRouter><ProfilesBrowser query="" /></MemoryRouter>);
+    await waitFor(() => {
+      expect(screen.getByTestId('discover-profiles-groups-list')).toBeInTheDocument();
+    });
+    expect(screen.getAllByTestId('trending-group-card')).toHaveLength(2);
+    const names = screen.getAllByTestId('groups-discover-card-name');
+    expect(names[0]).toHaveTextContent('synthwave');
+    expect(names[1]).toHaveTextContent('lofi');
   });
 
   it('shows the quiet state when the D0 read returns no users', async () => {
-    const { TrendingPeople } = await import('@/components/TrendingPeople');
-    vi.mocked(fetch).mockResolvedValue({
-      ok: true,
-      json: () => Promise.resolve({ users: [], limit: 24, offset: 0 }),
-    } as unknown as Response);
-    render(<TrendingPeople />);
+    const { ProfilesBrowser } = await import('@/components/ProfilesBrowser');
+    mockFetch({
+      '/v3/users/directory': { users: [], limit: 24, offset: 0 },
+      '/v3/groups/directory': { groups: [], limit: 24, offset: 0 },
+    });
+    render(<MemoryRouter><ProfilesBrowser query="" /></MemoryRouter>);
     await waitFor(() => {
-      expect(screen.getByTestId('trending-people-empty')).toBeInTheDocument();
+      expect(screen.getByTestId('discover-profiles-people-quiet')).toBeInTheDocument();
     });
   });
 
   it('shows the error state when the D0 read fails', async () => {
-    const { TrendingPeople } = await import('@/components/TrendingPeople');
-    // A network error (fetch throws) triggers the error state. A non-ok
-    // response is treated as an empty list (the component degrades gracefully).
-    vi.mocked(fetch).mockRejectedValue(new Error('network error'));
-    render(<TrendingPeople />);
-    await waitFor(() => {
-      expect(screen.getByTestId('trending-people-error')).toBeInTheDocument();
+    const { ProfilesBrowser } = await import('@/components/ProfilesBrowser');
+    vi.mocked(fetch).mockImplementation(async (input: RequestInfo | URL) => {
+      const url = String(input);
+      if (url.includes('/v3/groups/directory')) {
+        return { ok: true, json: () => Promise.resolve({ groups: [], limit: 24, offset: 0 }) } as unknown as Response;
+      }
+      throw new Error('network error');
     });
-  });
-});
-
-describe('TrendingGroups (M1)', () => {
-  it('renders the groups grid from the D53 read', async () => {
-    const { TrendingGroups } = await import('@/components/TrendingGroups');
-    vi.mocked(fetch).mockResolvedValue({
-      ok: true,
-      json: () => Promise.resolve({
-        groups: [
-          { group_id: 'web10/groups/users/nova/synthwave', name: 'synthwave', owner: 'nova', slug: 'synthwave', join_policy: 'open', member_count: 128, permission_summary: 'member: readAll' },
-          { group_id: 'web10/groups/users/kai/lofi', name: 'lofi', owner: 'kai', slug: 'lofi', join_policy: 'request', member_count: 512, permission_summary: 'member: readAll' },
-        ],
-        limit: 24,
-        offset: 0,
-      }),
-    } as unknown as Response);
-    render(<TrendingGroups />);
+    render(<MemoryRouter><ProfilesBrowser query="" /></MemoryRouter>);
     await waitFor(() => {
-      expect(screen.getByTestId('trending-groups-grid')).toBeInTheDocument();
+      expect(screen.getByTestId('discover-profiles-people-error')).toBeInTheDocument();
     });
-    expect(screen.getAllByTestId('trending-group-card')).toHaveLength(2);
-    const names = screen.getAllByTestId('trending-group-name');
-    expect(names[0]).toHaveTextContent('Synthwave');
-    expect(names[1]).toHaveTextContent('Lofi');
   });
 
   it('shows the empty state when the D53 read returns no groups', async () => {
-    const { TrendingGroups } = await import('@/components/TrendingGroups');
-    vi.mocked(fetch).mockResolvedValue({
-      ok: true,
-      json: () => Promise.resolve({ groups: [], limit: 24, offset: 0 }),
-    } as unknown as Response);
-    render(<TrendingGroups />);
-    await waitFor(() => {
-      expect(screen.getByTestId('trending-groups-empty')).toBeInTheDocument();
+    const { ProfilesBrowser } = await import('@/components/ProfilesBrowser');
+    mockFetch({
+      '/v3/users/directory': { users: [], limit: 24, offset: 0 },
+      '/v3/groups/directory': { groups: [], limit: 24, offset: 0 },
     });
+    render(<MemoryRouter><ProfilesBrowser query="" /></MemoryRouter>);
+    await waitFor(() => {
+      expect(screen.getByTestId('discover-profiles-groups-empty')).toBeInTheDocument();
+    });
+  });
+
+  it('toggles a section off via the ?show= chips', async () => {
+    const { ProfilesBrowser } = await import('@/components/ProfilesBrowser');
+    const users = Array.from({ length: 10 }, (_, i) => ({
+      username: `user${i}`,
+      follower_count: 100 + i,
+      profile: { display_name: `User ${i}` },
+    }));
+    mockFetch({
+      '/v3/users/directory': { users, limit: 24, offset: 0 },
+      '/v3/groups/directory': { groups: [], limit: 24, offset: 0 },
+    });
+    render(<MemoryRouter><ProfilesBrowser query="" /></MemoryRouter>);
+    await waitFor(() => {
+      expect(screen.getByTestId('discover-profiles-people-list')).toBeInTheDocument();
+    });
+    // Both sections on by default.
+    expect(screen.getByTestId('discover-show-people')).toHaveAttribute('aria-pressed', 'true');
+    expect(screen.getByTestId('discover-show-groups')).toHaveAttribute('aria-pressed', 'true');
+    // Turn People off.
+    fireEvent.click(screen.getByTestId('discover-show-people'));
+    await waitFor(() => {
+      expect(screen.queryByTestId('discover-profiles-people-section')).not.toBeInTheDocument();
+    });
+    expect(screen.getByTestId('discover-show-people')).toHaveAttribute('aria-pressed', 'false');
   });
 });
 
-describe('Trending subtab row (M1)', () => {
-  it('renders the Posts | People | Groups tabs with Posts active by default', async () => {
+describe('Discover tab row (C3)', () => {
+  it('renders the Trending | Profiles tabs with Trending active by default', async () => {
     const { default: Trending } = await import('@/pages/Trending');
-    // Mock the posts feed read (the existing /v3/read call).
-    vi.mocked(fetch).mockResolvedValue({
-      ok: true,
-      json: () => Promise.resolve([]),
-    } as unknown as Response);
-    render(<Trending />);
+    mockFetch({
+      '/v3/read': [],
+      '/v3/users/directory': { users: [], limit: 24, offset: 0 },
+      '/v3/groups/directory': { groups: [], limit: 24, offset: 0 },
+    });
+    render(<MemoryRouter><Trending /></MemoryRouter>);
     await waitFor(() => {
       expect(screen.getByTestId('trending-tab-row')).toBeInTheDocument();
     });
-    expect(screen.getByTestId('trending-tab-posts')).toHaveAttribute('aria-selected', 'true');
-    expect(screen.getByTestId('trending-tab-people')).toHaveAttribute('aria-selected', 'false');
-    expect(screen.getByTestId('trending-tab-groups')).toHaveAttribute('aria-selected', 'false');
+    expect(screen.getByTestId('trending-tab-trending')).toHaveAttribute('aria-selected', 'true');
+    expect(screen.getByTestId('trending-tab-profiles')).toHaveAttribute('aria-selected', 'false');
+    // The chunky labels.
+    expect(screen.getByTestId('trending-tab-trending')).toHaveTextContent('Trending');
+    expect(screen.getByTestId('trending-tab-profiles')).toHaveTextContent('Profiles');
   });
 
-  it('switches to the People subtab on click', async () => {
+  it('switches to the Profiles subtab on click', async () => {
     const { default: Trending } = await import('@/pages/Trending');
-    vi.mocked(fetch).mockResolvedValue({
-      ok: true,
-      json: () => Promise.resolve({ users: [], limit: 24, offset: 0 }),
-    } as unknown as Response);
-    render(<Trending />);
+    mockFetch({
+      '/v3/read': [],
+      '/v3/users/directory': { users: [], limit: 24, offset: 0 },
+      '/v3/groups/directory': { groups: [], limit: 24, offset: 0 },
+    });
+    render(<MemoryRouter><Trending /></MemoryRouter>);
     await waitFor(() => {
       expect(screen.getByTestId('trending-tab-row')).toBeInTheDocument();
     });
-    fireEvent.click(screen.getByTestId('trending-tab-people'));
+    fireEvent.click(screen.getByTestId('trending-tab-profiles'));
     await waitFor(() => {
-      expect(screen.getByTestId('trending-people-view')).toBeInTheDocument();
+      expect(screen.getByTestId('discover-profiles-browser')).toBeInTheDocument();
     });
-    expect(screen.getByTestId('trending-tab-people')).toHaveAttribute('aria-selected', 'true');
-  });
-
-  it('switches to the Groups subtab on click', async () => {
-    const { default: Trending } = await import('@/pages/Trending');
-    vi.mocked(fetch).mockResolvedValue({
-      ok: true,
-      json: () => Promise.resolve({ groups: [], limit: 24, offset: 0 }),
-    } as unknown as Response);
-    render(<Trending />);
-    await waitFor(() => {
-      expect(screen.getByTestId('trending-tab-row')).toBeInTheDocument();
-    });
-    fireEvent.click(screen.getByTestId('trending-tab-groups'));
-    await waitFor(() => {
-      expect(screen.getByTestId('trending-groups-view')).toBeInTheDocument();
-    });
-    expect(screen.getByTestId('trending-tab-groups')).toHaveAttribute('aria-selected', 'true');
+    expect(screen.getByTestId('trending-tab-profiles')).toHaveAttribute('aria-selected', 'true');
   });
 });
