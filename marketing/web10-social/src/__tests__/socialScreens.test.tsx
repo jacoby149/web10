@@ -1065,6 +1065,73 @@ describe('Layout', () => {
     expect(topbar.contains(bell)).toBe(true);
   });
 
+  it('the desktop sidebar shows the keys mark only (no wordmark) — B1', async () => {
+    const { default: Layout } = await import('@/components/Social/Layout');
+    render(
+      <MemoryRouter initialEntries={['/feed']}>
+        <Layout onLogout={() => {}} onReportBug={() => {}}>
+          <div>Content</div>
+        </Layout>
+      </MemoryRouter>,
+    );
+    // The desktop sidebar's top row is the keys glyph alone (markOnly).
+    expect(screen.getByTestId('wordmark-mark')).toBeInTheDocument();
+    // The "web10" wordmark text is NOT in the sidebar (only the mobile header
+    // keeps the full lockup; in jsdom both are in the DOM, so assert the mark
+    // variant exists and the wordmark text is not a sibling of it).
+    const mark = screen.getByTestId('wordmark-mark');
+    expect(mark.textContent).toBe('');
+  });
+
+  it('the desktop search field is in the sidebar, not the top bar — B2', async () => {
+    const { default: Layout } = await import('@/components/Social/Layout');
+    render(
+      <MemoryRouter initialEntries={['/feed']}>
+        <Layout onLogout={() => {}} onReportBug={() => {}}>
+          <div>Content</div>
+        </Layout>
+      </MemoryRouter>,
+    );
+    const field = screen.getByTestId('global-search-field-wrap');
+    expect(field).toBeInTheDocument();
+    // The field is NOT inside the desktop top bar (it moved to the sidebar).
+    const topbar = screen.getByTestId('topbar-desktop');
+    expect(topbar.contains(field)).toBe(false);
+  });
+
+  it('the Discover screen shows the Trending | Profiles tabs in the top bar — B3', async () => {
+    const { default: Layout } = await import('@/components/Social/Layout');
+    render(
+      <MemoryRouter initialEntries={['/discover']}>
+        <Layout onLogout={() => {}} onReportBug={() => {}}>
+          <div>Discover content</div>
+        </Layout>
+      </MemoryRouter>,
+    );
+    // The two tabs are in the top bar on the Discover screen.
+    const topbar = screen.getByTestId('topbar-desktop');
+    const row = topbar.querySelector('[data-testid="discover-tab-row"]');
+    expect(row).not.toBeNull();
+    expect(topbar.contains(screen.getByTestId('discover-tab-trending'))).toBe(true);
+    expect(topbar.contains(screen.getByTestId('discover-tab-explore'))).toBe(true);
+    // Trending is active by default (the bare URL).
+    expect(screen.getByTestId('discover-tab-trending')).toHaveAttribute('aria-selected', 'true');
+    expect(screen.getByTestId('discover-tab-explore')).toHaveAttribute('aria-selected', 'false');
+  });
+
+  it('non-Discover screens show no tabs in the top bar — B3', async () => {
+    const { default: Layout } = await import('@/components/Social/Layout');
+    render(
+      <MemoryRouter initialEntries={['/feed']}>
+        <Layout onLogout={() => {}} onReportBug={() => {}}>
+          <div>Content</div>
+        </Layout>
+      </MemoryRouter>,
+    );
+    const topbar = screen.getByTestId('topbar-desktop');
+    expect(topbar.querySelector('[data-testid="discover-tab-row"]')).toBeNull();
+  });
+
   it('the "New post" button is NOT in the sidebar or the mobile top bar', async () => {
     const { default: Layout } = await import('@/components/Social/Layout');
     render(

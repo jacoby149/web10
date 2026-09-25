@@ -1,7 +1,7 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { useNavigate, useLocation, Outlet } from 'react-router-dom';
 import { cn } from '@/lib/utils';
-import { Home, User, MessageSquare, LogOut, Bug, Compass, Store, Gamepad2, Radio, Zap, Clapperboard, Settings, MoreHorizontal, X, Bell, ChevronDown, DollarSign } from 'lucide-react';
+import { Home, User, MessageSquare, LogOut, Bug, Compass, Store, Gamepad2, Radio, Zap, Clapperboard, Settings, MoreHorizontal, X, Bell, ChevronDown, DollarSign, Flame } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { getWapi } from '@/data/wapi';
@@ -58,7 +58,17 @@ const comingSoonItems = [
   { icon: Store, label: 'Marketplace', testId: 'nav-marketplace' },
 ];
 
-function Wordmark({ className }: { className?: string }) {
+function Wordmark({ className, markOnly = false }: { className?: string; markOnly?: boolean }) {
+  // `markOnly` (the desktop sidebar, the operator's "just a logo of keys, no
+  // web10 text" — Facebook-style): the keys glyph alone. The mobile header
+  // keeps the full lockup (it's the only branding on a phone).
+  if (markOnly) {
+    return (
+      <span className={cn('flex items-center', className)} data-testid="wordmark-mark">
+        <img src="/keys-mark.png" alt="web10" className="h-7 w-7 shrink-0" aria-hidden="true" />
+      </span>
+    );
+  }
   return (
     <span className={cn('flex items-center gap-2', className)}>
       <img src="/keys-mark.png" alt="" className="h-6 w-6 shrink-0" aria-hidden="true" />
@@ -93,6 +103,24 @@ export default function Layout({ onLogout, onReportBug, children }: LayoutProps)
   const monetizeTab = new URLSearchParams(search).get('tab');
   const isMonetizeCreator = pathname === '/monetize' && monetizeTab !== 'node';
   const isMonetizeNode = pathname === '/monetize' && monetizeTab === 'node';
+
+  // B3: the Discover screen's Trending | Profiles tabs live in the top bar
+  // (desktop, Discover screen only — the operator's Facebook-style chrome).
+  // The active tab is URL state (?tab=; trending is the bare URL) so it stays
+  // deep-linkable + refresh-safe. On non-Discover screens the top bar shows
+  // only the bell + the account row.
+  const isDiscover = pathname === '/discover';
+  const discoverTab = new URLSearchParams(search).get('tab') === 'explore' ? 'explore' : 'trending';
+  const setDiscoverTab = useCallback(
+    (next: 'trending' | 'explore') => {
+      const params = new URLSearchParams(search);
+      if (next === 'trending') params.delete('tab');
+      else params.set('tab', next);
+      const qs = params.toString();
+      navigate(`/discover${qs ? `?${qs}` : ''}`);
+    },
+    [search, navigate],
+  );
 
   // The desktop sidebar's account entry point: an avatar row that opens a
   // user menu (Profile / Settings / Report a bug / Log out). This is where
@@ -192,7 +220,15 @@ export default function Layout({ onLogout, onReportBug, children }: LayoutProps)
           aria-hidden="true"
         />
         <div className="relative p-4">
-          <Wordmark />
+          <Wordmark markOnly />
+        </div>
+        {/* The desktop search field lives in the sidebar (the operator's
+            Facebook-style chrome: keys mark, then search, then the nav rows).
+            It was in the top bar; the top bar now carries the Discover tabs
+            + the bell + the account row. The results dropdown anchors here
+            (it positions `absolute top-full` off this wrapper). */}
+        <div className="relative px-4 pb-3">
+          <GlobalSearch variant="desktop" />
         </div>
         <nav className="relative flex-1 px-2 space-y-1" aria-label="Primary">
           {sidebarNavItems.map(({ path, icon: Icon, label, testId }) => {
@@ -344,20 +380,47 @@ export default function Layout({ onLogout, onReportBug, children }: LayoutProps)
           </div>
         </header>
 
-        {/* Desktop top bar (global-search S1): the everything-search lives in
-            the chrome — the search field is always visible (the operator's
-            call: the persistent placeholder is more informative than a bare
-            icon), and the results dropdown opens on focus.
-            The account entry point (avatar → user menu) sits on the right —
-            moved here from the bottom of the sidebar, where it was buried.
-            Hidden on the Shorts lens (the immersive surface keeps its
+        {/* Desktop top bar. The search field moved to the sidebar (B2). On the
+            Discover screen the left side carries the Trending | Profiles tabs
+            (B3); on every other screen it's empty (the tabs are
+            Discover-specific). The right side keeps the bell + the account
+            row. Hidden on the Shorts lens (the immersive surface keeps its
             full-bleed frame, like the bottom bar already does). */}
         {!isShorts && (
           <header
             data-testid="topbar-desktop"
-            className="hidden md:flex items-center border-b border-border bg-surface/95 backdrop-blur-md z-20"
+            className="hidden md:flex items-center justify-between gap-4 border-b border-border bg-surface/95 backdrop-blur-md z-20 px-4"
           >
-            <GlobalSearch variant="desktop" />
+            {isDiscover ? (
+              <div className="flex items-center gap-1" role="tablist" aria-label="Discover sections" data-testid="discover-tab-row">
+                {([
+                  ['trending', 'Trending', Flame],
+                  ['explore', 'Profiles', User],
+                ] as ['trending' | 'explore', string, typeof Flame][]).map(([id, label, TabIcon]) => (
+                  <button
+                    key={id}
+                    type="button"
+                    role="tab"
+                    aria-selected={discoverTab === id}
+                    data-testid={`discover-tab-${id}`}
+                    onClick={() => setDiscoverTab(id)}
+                    className={cn(
+                      'flex items-center gap-2 rounded-lg px-3.5 py-2 text-sm font-semibold transition-colors',
+                      'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background',
+                      discoverTab === id
+                        ? 'bg-brand-muted text-brand-300'
+                        : 'text-muted-foreground hover:text-foreground hover:bg-elevated',
+                    )}
+                  >
+                    <TabIcon className="h-4 w-4" strokeWidth={1.75} />
+                    <span>{label}</span>
+                  </button>
+                ))}
+              </div>
+            ) : (
+              <div aria-hidden="true" />
+            )}
+            <div className="flex items-center gap-1">
             {/* Notifications — the bell lives in the top bar next to the
                 account row (the operator: "notifications could go in the top
                 right next to the other thing on the top right"). The unread
@@ -472,6 +535,7 @@ export default function Layout({ onLogout, onReportBug, children }: LayoutProps)
                   </div>
                 </div>
               )}
+            </div>
             </div>
           </header>
         )}
