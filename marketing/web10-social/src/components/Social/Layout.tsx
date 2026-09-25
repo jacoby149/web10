@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { useNavigate, useLocation, Outlet } from 'react-router-dom';
 import { cn } from '@/lib/utils';
-import { Home, User, Users, MessageSquare, LogOut, Bug, Compass, Store, Gamepad2, Radio, Zap, Clapperboard, Settings, MoreHorizontal, X, Bell, ChevronDown, DollarSign, Flame } from 'lucide-react';
+import { Home, User, Users, MessageSquare, LogOut, LogIn, Bug, Compass, Store, Gamepad2, Radio, Zap, Clapperboard, Settings, MoreHorizontal, X, Bell, ChevronDown, DollarSign, Flame } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { getWapi } from '@/data/wapi';
@@ -14,6 +14,14 @@ import GlobalSearch from '@/components/Search/GlobalSearch';
 
 interface LayoutProps {
   onLogout: () => void;
+  /** Anon mode: open the sign-in flow (the consent popup). */
+  onLogin?: () => void;
+  /**
+   * Anon mode (signed-out visitor). Driven by the SAME source App uses
+   * (`getSocialAuth().isSignedIn()`) so the chrome and the routes agree. When
+   * omitted (direct Layout tests), it falls back to the token's presence.
+   */
+  isAnon?: boolean;
   onReportBug: () => void;
   children?: React.ReactNode;
 }
@@ -38,15 +46,6 @@ const monetizationItem = { path: '/monetize', icon: DollarSign, label: 'Monetiza
 // useNodeAdmin gate). Deep-links to the Monetization surface's Node tab.
 // Stays in the More popover (admin-only, not a core nav item).
 const nodeMonetizationItem = { path: '/monetize?tab=node', icon: DollarSign, label: 'Node Monetization', testId: 'nav-node-monetization' };
-
-// Mobile bottom bar: the four core tabs in thumb-reach order.
-const bottomNavItems = [feedItem, discoverItem, messagesItem, profileItem];
-// Desktop sidebar — the operator's reorder (23.09.2026): your profile (your
-// name) first, then Shorts, Discover, Feed, Messages, Monetization. Groups is
-// NOT a nav item (the operator dropped the Groups nav restore); your
-// communities live in Discover → Explore. Settings is NOT a sidebar row — it
-// lives only in the account menu (top bar), so it isn't duplicated in the nav.
-const sidebarNavItems = [profileItem, shortsItem, discoverItem, feedItem, messagesItem, monetizationItem];
 
 // Provisional, non-infringing names for the surfaces not yet built. Shorts is
 // now a real surface (shorts.md) — it lives in the sidebar + the More sheet,
@@ -79,11 +78,27 @@ function Wordmark({ className, markOnly = false }: { className?: string; markOnl
   );
 }
 
-export default function Layout({ onLogout, onReportBug, children }: LayoutProps) {
+export default function Layout({ onLogout, onLogin, isAnon: isAnonProp, onReportBug, children }: LayoutProps) {
   const navigate = useNavigate();
   const { pathname, search } = useLocation();
   const token = getWapi().readToken();
-  const profilePath = token ? `/u/${token.username}` : '/feed';
+  // Anon mode (the operator: "supporting anon login with web10 social"): a
+  // signed-out visitor browses the public surfaces (Discover, Shorts,
+  // profiles) in a read-only shell. The chrome swaps the account row for a
+  // clear Sign in affordance and hides the signed-in-only nav (Feed, Messages,
+  // your Profile, Monetization). `isAnon` is driven by the same source App
+  // uses (getSocialAuth().isSignedIn()) so the chrome and the routes agree;
+  // a direct Layout render (no prop) falls back to the token's presence.
+  const isAnon = isAnonProp ?? !token;
+  const profilePath = token ? `/u/${token.username}` : '/discover';
+  // Anon nav: only the public surfaces (Discover, Shorts). Feed, Messages,
+  // your Profile, and Monetization are signed-in-only — hiding them keeps the
+  // chrome honest (a dead nav item that redirects to Discover is worse than
+  // no item).
+  const anonSidebarNavItems = [discoverItem, shortsItem];
+  const anonBottomNavItems = [discoverItem, shortsItem];
+  const sidebarNavItems = isAnon ? anonSidebarNavItems : [profileItem, shortsItem, discoverItem, feedItem, messagesItem, monetizationItem];
+  const bottomNavItems = isAnon ? anonBottomNavItems : [feedItem, discoverItem, messagesItem, profileItem];
   const [moreOpen, setMoreOpen] = useState(false);
   const { unread } = useNotifications();
   const { isAdmin: isNodeAdmin } = useNodeAdmin();
@@ -359,27 +374,42 @@ export default function Layout({ onLogout, onReportBug, children }: LayoutProps)
           <Wordmark />
           <div className="flex items-center gap-1">
             <GlobalSearch variant="mobile" />
-            <NotificationBell />
-            <Button
-              variant="ghost"
-              size="icon"
-              data-testid="report-bug-button-mobile"
-              className="h-11 w-11 text-muted-foreground hover:text-foreground"
-              aria-label="Report a bug"
-              onClick={onReportBug}
-            >
-              <Bug className="w-5 h-5" strokeWidth={1.75} />
-            </Button>
-            <Button
-              variant="ghost"
-              size="icon"
-              data-testid="logout-button-mobile"
-              className="h-11 w-11 text-muted-foreground hover:text-foreground"
-              aria-label="Log out"
-              onClick={onLogout}
-            >
-              <LogOut className="w-5 h-5" strokeWidth={1.75} />
-            </Button>
+            {isAnon ? (
+              <Button
+                variant="brand"
+                size="sm"
+                data-testid="sign-in-button-mobile"
+                className="h-10 px-4 font-semibold"
+                onClick={() => onLogin?.()}
+              >
+                <LogIn className="w-4 h-4 mr-1.5" strokeWidth={2} />
+                Sign in
+              </Button>
+            ) : (
+              <>
+                <NotificationBell />
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  data-testid="report-bug-button-mobile"
+                  className="h-11 w-11 text-muted-foreground hover:text-foreground"
+                  aria-label="Report a bug"
+                  onClick={onReportBug}
+                >
+                  <Bug className="w-5 h-5" strokeWidth={1.75} />
+                </Button>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  data-testid="logout-button-mobile"
+                  className="h-11 w-11 text-muted-foreground hover:text-foreground"
+                  aria-label="Log out"
+                  onClick={onLogout}
+                >
+                  <LogOut className="w-5 h-5" strokeWidth={1.75} />
+                </Button>
+              </>
+            )}
           </div>
         </header>
 
@@ -428,6 +458,21 @@ export default function Layout({ onLogout, onReportBug, children }: LayoutProps)
               <div aria-hidden="true" />
             )}
             <div className="flex items-center gap-1">
+            {isAnon ? (
+              /* Anon: no notifications, no account row — a clear Sign in
+                 affordance (the operator: "make it clear you can sign in"). */
+              <Button
+                variant="brand"
+                size="sm"
+                data-testid="sign-in-button-desktop"
+                className="ml-auto h-9 px-4 font-semibold"
+                onClick={() => onLogin?.()}
+              >
+                <LogIn className="w-4 h-4 mr-1.5" strokeWidth={2} />
+                Sign in
+              </Button>
+            ) : (
+            <>
             {/* Notifications — the bell lives in the top bar next to the
                 account row (the operator: "notifications could go in the top
                 right next to the other thing on the top right"). The unread
@@ -543,6 +588,8 @@ export default function Layout({ onLogout, onReportBug, children }: LayoutProps)
                 </div>
               )}
             </div>
+            </>
+            )}
             </div>
           </header>
         )}
@@ -550,7 +597,7 @@ export default function Layout({ onLogout, onReportBug, children }: LayoutProps)
         {/* The always-on signal (D69): a live "N new" strip above every screen.
             It clears the moment you open /notifications (which marks all read),
             so it's a nudge, not a permanent fixture. */}
-        {unread > 0 && !isNotifications && (
+        {unread > 0 && !isNotifications && !isAnon && (
           <button
             type="button"
             data-testid="notification-banner"
@@ -601,8 +648,12 @@ export default function Layout({ onLogout, onReportBug, children }: LayoutProps)
             );
           })}
           {/* The "More" tab: the fifth icon. Opens a sheet with Settings +
-              the coming-soon surfaces, so the bottom bar stays at five and
-              has room to grow as features ship (operator, 30.08.2026). */}
+               the coming-soon surfaces, so the bottom bar stays at five and
+               has room to grow as features ship (operator, 30.08.2026).
+               Hidden in anon mode — it only holds signed-in-only surfaces
+               (Settings, Monetization); the Sign in affordance is in the
+               header. */}
+          {!isAnon && (
           <button
             data-testid="nav-more-mobile"
             aria-label="More"
@@ -613,6 +664,7 @@ export default function Layout({ onLogout, onReportBug, children }: LayoutProps)
             <MoreHorizontal className="w-5 h-5" strokeWidth={1.75} />
             <span className="text-[0.625rem] font-medium uppercase tracking-wide">More</span>
           </button>
+          )}
         </nav>
 
         {/* The "More" sheet — Settings (the demoted real destination) plus

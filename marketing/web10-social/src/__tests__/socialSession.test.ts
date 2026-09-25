@@ -75,12 +75,20 @@ describe('data client session semantics (SDK client + seam sync)', () => {
     expect(lastBody.token).toBe(JWT_B);
   });
 
-  it('sign-out stops data calls (no token available after the scrub)', async () => {
+  it('sign-out makes reads anon (no token carried after the scrub)', async () => {
     const v3 = await import('@/data/v3');
     v3.setTokenCookie(JWT_A);
     const w = v3.getV3Client();
     w.scrubToken(); // the app's sign-out path (auth seam: cookie + state)
-    await expect(w.read('posts', { groups: ['g'] })).rejects.toThrow(/No token available/);
+    // Reads are anon-capable (the node's read endpoint is `user_or_anon`): a
+    // signed-out visitor reads the public board. The request goes out WITHOUT
+    // a token (the node reads as `anon`), so the call resolves — it no longer
+    // rejects with "No token available".
+    await expect(w.read('posts', { groups: ['g'] })).resolves.not.toThrow();
+    const calls = (globalThis.fetch as ReturnType<typeof vi.fn>).mock.calls;
+    const readCall = calls.find(([url]) => String(url).includes('/v3/read'));
+    const body = JSON.parse(readCall[1].body);
+    expect(body.token).toBeUndefined();
   });
 
   it('the auth seam keeps the data client in step (signOut scrubs, authListen re-syncs)', async () => {
@@ -106,7 +114,14 @@ describe('data client session semantics (SDK client + seam sync)', () => {
     auth.signOut();
     expect(mock.scrubTokenCookie).toHaveBeenCalled();
     expect(w.isSignedIn()).toBe(false); // data client state scrubbed
-    await expect(w.read('posts', { groups: ['g'] })).rejects.toThrow(/No token available/);
+    // Anon-capable read: the call goes out without a token (no "No token
+    // available" rejection — the node reads as `anon`).
+    await w.read('posts', { groups: ['g'] });
+    {
+      const calls = (globalThis.fetch as ReturnType<typeof vi.fn>).mock.calls;
+      const readCall = calls.find(([url]) => String(url).includes('/v3/read'));
+      expect(JSON.parse(readCall[1].body).token).toBeUndefined();
+    }
 
     // login the way the SDK delivers it: callback fires, seam re-syncs
     const onSignedIn = mock.authListen.mock.calls[0][0] as (signedIn: boolean) => void;
