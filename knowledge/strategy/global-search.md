@@ -54,13 +54,15 @@ dropdown**: **`field (always) → focus → results → close`.**
 - **Focus:** clicking / focusing the field opens the **results dropdown**
   (focus is in the field).
 - **Results:** type → **debounced** (the app's 400ms idiom) → a **chunky
-  mode toggle** (Posts | People & Groups) over the results. **Posts is the
-  default** (the operator, 23.09.2026: "the moment you search in the search
-  bar it should show you the discover posts being searched, and then chunky
-  icon to switch it to people and groups search"). One tap flips to
-  **People & Groups** (the people + groups sections + the "See all results in
-  Explore" CTA). The fan-out is **mode-aware** — the people/groups reads only
-  fire in People & Groups mode (no wasted reads); posts always load.
+   mode toggle** (Trending | People) over the results. **Trending (posts) is
+   the default** (the operator, 23.09.2026: "the moment you search in the
+   search bar it should show you the discover posts being searched, and then
+   chunky icon to switch it to people and groups search"). One tap flips to
+   **People** (the people + groups sections + the "See all results in
+   Discover" CTA). The labels match Discover's tabs — the operator
+   (24.09.2026): "it is supposed to be Trending and People, not Posts and
+   People." The fan-out is **mode-aware** — the people/groups reads only
+   fire in People mode (no wasted reads); posts always load.
    - **Desktop:** a **dropdown** under the field.
    - **Mobile:** a **full-screen results view** (not a dropdown — a dropdown
      from a 56px header over a scrollable screen + keyboard is fiddly) with an
@@ -72,13 +74,18 @@ dropdown**: **`field (always) → focus → results → close`.**
 - **Tap a result** → navigate: person → `/u/:username`, group →
   `/groups/:groupId` (encoded), post → the post (the profile permalink, the
   app's existing post deep link).
-- **"See more People / Groups / Posts"** (one per non-empty section) → the
-  Discover browser with the query applied. **This URL shape is a cross-lane
-  contract with `discover-reorg` — it is pinned verbatim here and in that
-  doc, and a shared deep-link test asserts it** (so the two lanes can't drift):
-  - People → `/discover?tab=people&q=…`
-  - Groups → `/discover?tab=groups&q=…`
-  - Posts → `/discover?q=…` (the Posts tab is the default, so `?q=` alone)
+- **Enter / the CTA** → Discover **with the query** (`?q=`), staying on
+  whatever tab is active (the operator, 24.09.2026: "i would like if i hit
+  enter that the search happens whether on posts or the people tab, like it
+  searches / stays on both. then you can X it from either one in the
+  discover"). A bare `/discover?q=…` lands on Trending (the bare-URL
+  default); `/discover?tab=explore&q=…` lands on People. The query chip
+  (with its X) renders on **both** tabs, so the search can be cleared from
+  either one. **This URL shape is a cross-lane contract with
+  `discover-reorg` — it is pinned verbatim here and in that doc** (so the two
+  lanes can't drift):
+  - Trending → `/discover?q=…` (the Trending tab is the default, so `?q=` alone)
+  - People → `/discover?tab=explore&q=…`
 - Empty query → just the field (no results). No results → a designed "No
   matches for '…'" state. Anon (signed-out) → the field is present but the
   People/Posts sections degrade (anon can't read much); the app's existing
@@ -151,6 +158,23 @@ existing idiom). No second data path.
   mode resets to Posts on collapse. `globalSearch.test.tsx` re-pinned to the
   posts-first + mode-toggle model (posts default, the toggle flips to
   people+groups, Enter/CTA still open Explore).
+- [✓ 3.157.0] **S5: Enter stays on the active tab + the labels match Discover**
+  (`GlobalSearch.tsx`) — operator pass (24.09.2026, the search dropdown
+  screenshot): "i would like if i hit enter that the search happens whether
+  on posts or the people tab, like it searches / stays on both. then you can
+  X it from either one in the discover! also that text is just wrong, it is
+  supposed to be Trending and People, not Posts and People." (1) **Enter /
+  the CTA** now navigates to Discover **with the query, staying on the active
+  tab** — a bare `/discover?q=…` (Trending) or `/discover?tab=explore&q=…`
+  (People), instead of always forcing `?tab=explore`. (2) The **mode toggle
+  labels** are **Trending | People** (was Posts | People & Groups) — matching
+  Discover's tabs; the posts section header reads "Trending"; the CTA reads
+  "See all results in Discover." (3) The **query chip (with its X)** now
+  renders on the **Trending tab too** (DiscoverScreen — see
+  `discover-reorg.md`), so the search can be X'd from either tab.
+  `globalSearch.test.tsx` re-pinned (Enter → `/discover?q=…`; Enter on the
+  People tab keeps `?tab=explore`; the CTA → `/discover?q=…`; the section
+  testid is `global-search-section-trending`).
 
 **Ownership:** this lane owns `Layout.tsx`, `src/components/Search/`,
 `src/data/search.ts`. It does **not** touch `DiscoverScreen.tsx` or the

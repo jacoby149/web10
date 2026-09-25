@@ -39,6 +39,8 @@ import {
   Users,
   User,
   Video,
+  Search,
+  X,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { MARKETING_ORIGIN } from '@/lib/origins';
@@ -439,21 +441,25 @@ type DiscoverView = 'grid' | 'home';
 // ── Subtabs (the operator's IA fixed point, 23.09.2026) ──────────────────────
 // Discover is the discovery surface with TWO tabs:
 //   Trending — the posts board (the default; the bare URL).
-//   Explore  — people + groups mashed into one browser ("people are groups in
-//              web10"). The top bar's search opens THIS tab (?tab=explore&q=).
+//   People   — people + groups mashed into one browser ("people are groups in
+//              web10").
 // The active tab is URL state (?tab=; trending is the bare URL) so it is
 // refresh-safe and shareable. The shell owns ?q= and passes it to the active
 // subtab — the subtabs have no search field of their own (search is the top
-// bar).
+// bar). The top bar's search (Enter) opens Discover with the query
+// (?q=) on WHATEVER tab is active — the query chip (with its X) renders on
+// both tabs, so the search can be cleared from either one.
 
 type DiscoverTab = 'trending' | 'explore';
 
 // The two top-level destinations. Chunky and obvious — the operator (23.09.2026):
 // "that is just too small too hard to see, want to keep the youtube stuff big."
-// "Explore" is renamed **People** (it's really people + groups, but called
-// People like Facebook's Friends tab) with a person icon.
+// The posts board is called **Trending** (the flame icon means trending posts —
+// the operator: "call it trending instead of posts, much better"). The
+// people+groups browser is called **People** (like Facebook's Friends tab)
+// with a person icon.
 const DISCOVER_TABS: { id: DiscoverTab; label: string; icon: typeof Flame }[] = [
-  { id: 'trending', label: 'Posts', icon: Flame },
+  { id: 'trending', label: 'Trending', icon: Flame },
   { id: 'explore', label: 'People', icon: User },
 ];
 
@@ -670,6 +676,17 @@ export default function DiscoverScreen() {
     }
     setSearchParams(params);
     LOG('subtab —', next);
+  }, [searchParams, setSearchParams]);
+
+  // Clear the active ?q= (the search chip's X) — on either tab. The query is
+  // screen state the URL holds; removing the param re-renders both tabs
+  // unfiltered (the Trending board's client filter + the Explore tab's
+  // people/groups filters both key off ?q=).
+  const clearQuery = useCallback(() => {
+    const params = new URLSearchParams(searchParams);
+    params.delete('q');
+    setSearchParams(params);
+    LOG('query cleared');
   }, [searchParams, setSearchParams]);
 
   const loadDiscover = useCallback(async (sort: PowerMeanSortConfig | null = null) => {
@@ -1050,6 +1067,31 @@ export default function DiscoverScreen() {
 
       {tab === 'trending' ? (
         <>
+          {/* The active ?q= filter (from the top bar's search) — the same
+              chip the People tab shows, so the search can be X'd from either
+              tab. Clearing it re-filters the board (the client-side ?q=
+              filter) and the URL. */}
+          {urlQuery.trim() !== '' && (
+            <div className="px-4 pt-3 md:px-0">
+              <span
+                data-testid="discover-trending-tab-query"
+                className="inline-flex items-center gap-1.5 rounded-full border border-brand/40 bg-brand-muted/40 px-3 py-1 text-xs text-brand-300"
+              >
+                <Search className="h-3.5 w-3.5" strokeWidth={1.75} />
+                {urlQuery.trim()}
+                <button
+                  type="button"
+                  onClick={clearQuery}
+                  data-testid="discover-trending-tab-query-clear"
+                  aria-label="Clear search"
+                  className="ml-0.5 -mr-1 flex h-4 w-4 items-center justify-center rounded-full hover:bg-brand-muted transition-colors duration-150"
+                >
+                  <X className="h-3 w-3" strokeWidth={2} />
+                </button>
+              </span>
+            </div>
+          )}
+
           {/* The composer — the operator: "you can make a new post from the
               explorer too". Compact: it rests as a single-line bar so the
               video wall, not the composer, is the hero (design.md §10). */}
