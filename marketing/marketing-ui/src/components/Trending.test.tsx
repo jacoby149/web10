@@ -887,11 +887,15 @@ describe('HomeCard (the Home view card)', () => {
     expect(thumb).toBeInTheDocument();
     // The 16:9 frame fills the card width…
     expect(thumb.className).toContain('aspect-video');
-    // …and the thumbnail is the video's poster (an <img>), not a <video>.
+    // …and the resting face is the video's poster (the hover preview's
+    // backdrop — the <video> is present but inert: no source, hidden).
     const img = thumb.querySelector('img');
     expect(img).not.toBeNull();
     expect(img!.getAttribute('src')).toBe('https://cdn.example.com/thumb.jpg');
-    expect(thumb.querySelector('video')).toBeNull();
+    const video = thumb.querySelector('video');
+    expect(video).not.toBeNull();
+    expect(video!.getAttribute('src')).toBeNull();
+    expect(video!.className).toMatch(/opacity-0/);
     // The duration badge shows the clip's length.
     expect(screen.getByTestId('home-card-duration')).toHaveTextContent('2:22');
   });
