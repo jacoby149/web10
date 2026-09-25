@@ -83,8 +83,12 @@ describe('FeedScreen — the repost card (reposts.md)', () => {
     // The reposter's comment (the quote) renders on the card.
     expect(screen.getByText('This is why I repost it — great insight.')).toBeInTheDocument();
 
-    // The embedded original post loads (readPostById is called with the repost_of id).
-    expect(readPostById).toHaveBeenCalledWith('orig-1');
+    // The embedded original post loads (readPostById is called with the repost_of
+    // id) — the fetch runs in a post-commit effect, so wait for the call rather
+    // than asserting it synchronously (the load-dependent flake).
+    await waitFor(() => {
+      expect(readPostById).toHaveBeenCalledWith('orig-1');
+    });
     const embed = await screen.findByTestId('repost-embed');
     expect(embed).toHaveTextContent('Alice');
     expect(embed).toHaveTextContent('The original post text everyone is amplifying.');
