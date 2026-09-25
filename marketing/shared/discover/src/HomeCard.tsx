@@ -1,6 +1,7 @@
 import { Play, Film, Heart, MessageCircle, Repeat2 } from 'lucide-react';
 import { cn, hashToColor, timeAgo } from './utils';
 import { Avatar, AvatarFallback } from './ui';
+import { HoverVideo } from './HoverVideo';
 import type { DiscoverPost, MediaItem } from './types';
 
 /**
@@ -13,7 +14,10 @@ import type { DiscoverPost, MediaItem } from './types';
  * Layout (top to bottom):
  *   1. a 16:9 thumbnail (the video's poster / first frame, `object-cover` —
  *      fills the frame, never letterboxes) with a play affordance + a duration
- *      badge;
+ *      badge. For a video, the thumbnail is the **hover preview**
+ *      (`HoverVideo`): the poster at rest, the clip playing muted on hover
+ *      with a top-right speaker toggle (the YouTube home behavior) — the
+ *      frame stays inert, the `<a>` owns the click.
  *   2. the title — the post text, truncated to `TITLE_LIMIT` chars with a
  *      trailing ellipsis (the "show it if it's short, else …" rule);
  *   3. the attribution — the author's avatar + display name + a relative time.
@@ -142,15 +146,26 @@ export function HomeCard({
       <a
         {...postLinkProps}
         data-testid={`${testId}-thumb`}
-        className="relative block aspect-video w-full overflow-hidden rounded-lg bg-elevated"
+        className="group/thumb relative block aspect-video w-full overflow-hidden rounded-lg bg-elevated"
       >
         {thumbSrc ? (
-          <img
-            src={thumbSrc}
-            alt=""
-            loading="lazy"
-            className="h-full w-full object-cover transition-transform duration-200 group-hover:scale-[1.03] motion-reduce:transform-none"
-          />
+          isVideo && media ? (
+            // The hover preview (YouTube home): the poster at rest; the video
+            // plays muted on hover with a top-right speaker toggle. The frame
+            // is inert — the <a> owns the click (hover plays, click navigates).
+            <HoverVideo
+              media={media}
+              poster={thumbSrc}
+              testId={`${testId}-hover-video`}
+            />
+          ) : (
+            <img
+              src={thumbSrc}
+              alt=""
+              loading="lazy"
+              className="h-full w-full object-cover transition-transform duration-200 group-hover:scale-[1.03] motion-reduce:transform-none"
+            />
+          )
         ) : isVideo ? (
           <div className="flex h-full w-full items-center justify-center bg-gradient-to-br from-elevated to-background">
             <Film className="h-8 w-8 text-muted-foreground/40" strokeWidth={1.5} />
@@ -159,9 +174,13 @@ export function HomeCard({
           <div className="flex h-full w-full items-center justify-center bg-gradient-to-br from-elevated to-background" />
         )}
 
-        {/* The play affordance (always visible — a thumbnail is a promise). */}
+        {/* The play affordance (always visible at rest — a thumbnail is a
+            promise). It recedes while the hover preview plays (YouTube: the
+            button is for the still, the preview replaces it). `pointer-events-
+            none`: it's decorative (the <a> owns the click) and must not sit
+            over the HoverVideo and steal its mouseenter. */}
         {isVideo && (
-          <div className="absolute inset-0 flex items-center justify-center">
+          <div className="pointer-events-none absolute inset-0 flex items-center justify-center transition-opacity duration-150 group-hover/thumb:opacity-0">
             <div className="flex h-12 w-12 items-center justify-center rounded-full bg-background/70 backdrop-blur-sm transition-transform duration-150 group-hover:scale-110 motion-reduce:transform-none">
               <Play className="ml-0.5 h-5 w-5 text-foreground" strokeWidth={2} fill="currentColor" />
             </div>
@@ -172,7 +191,7 @@ export function HomeCard({
         {duration && (
           <span
             data-testid={`${testId}-duration`}
-            className="absolute bottom-1.5 right-1.5 rounded bg-background/85 px-1.5 py-0.5 text-[0.6875rem] font-medium tabular-nums text-foreground"
+            className="pointer-events-none absolute bottom-1.5 right-1.5 rounded bg-background/85 px-1.5 py-0.5 text-[0.6875rem] font-medium tabular-nums text-foreground"
           >
             {duration}
           </span>
