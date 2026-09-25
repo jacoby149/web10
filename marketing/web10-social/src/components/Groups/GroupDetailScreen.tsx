@@ -19,7 +19,9 @@ import {
   countComments,
   readReactions,
   toggleReactionKind,
-  toggleRepost,
+  readRepostCounts,
+  readMyRepostedIds,
+  getDiscoverGroupId,
   saveGroup,
   publishGroup,
   type ReactionKind,
@@ -38,6 +40,7 @@ import ManageRolesSection from '@/components/Groups/ManageGroup/RolesSection';
 import { toast, errorMessage } from '@/components/shared/Toast';
 import { PostCard } from '@/components/Feed/FeedScreen';
 import PostComposer from '@/components/Feed/PostComposer';
+import { useRepost } from '@/context/RepostContext';
 import { PostLightbox } from '@/components/Bio/PostLightbox';
 import {
   ArrowLeft,
@@ -105,10 +108,20 @@ function GroupFeedPost({ post, media, groupId }: { post: PostRecord; media: Medi
 
   useEffect(() => {
     let cancelled = false;
+    const postId = post._id || '';
     Promise.all([
-      countComments(post._id || '', [groupId]),
-      token ? readReactions(post._id || '', undefined, [groupId]) : Promise.resolve([]),
-    ]).then(([cCount, reactions]) => {
+      countComments(postId, [groupId]),
+      token ? readReactions(postId, undefined, [groupId]) : Promise.resolve([]),
+      // Repost (reposts.md: a repost is a POST, not a reaction). The count is
+      // the number of `repost_of` posts (readRepostCounts, the feed query's
+      // I3-scoped join lifted to a surface read) and the "I reposted this"
+      // fill is the reader's own repost post (readMyRepostedIds, the
+      // readFeedReactions own-post read lifted to a surface read). The legacy
+      // `type:'repost'` reaction still fills for old data (a read-only
+      // fallback).
+      readRepostCounts([postId], [getDiscoverGroupId()]),
+      readMyRepostedIds(),
+    ]).then(([cCount, reactions, repostCounts, myReposts]) => {
       if (cancelled) return;
       setCommentCount(cCount);
       if (!token) return;
@@ -120,17 +133,20 @@ function GroupFeedPost({ post, media, groupId }: { post: PostRecord; media: Medi
       setDisliked(!!reactions.find(
         r => r.author_username === token.username && r.type === 'dislike',
       ));
-      // Repost (reposts.md): independent of like/dislike, group-scoped like the
-      // rest of the engagement.
-      setReposted(!!reactions.find(
-        r => r.author_username === token.username && r.type === 'repost',
-      ));
+      // Repost (reposts.md): the count is the number of `repost_of` posts; the
+      // fill is the reader's own repost post (the legacy reaction is a
+      // read-only fallback for old data).
+      setRepostCount(repostCounts[postId] || 0);
+      setReposted(
+        myReposts.has(postId) ||
+        !!reactions.find(
+          r => r.author_username === token.username && r.type === 'repost',
+        ),
+      );
       // Likes and dislikes are counted separately (the heart and the thumb
-      // each show their own tally — post-actions.md). The repost is a separate
-      // tally too.
+      // each show their own tally — post-actions.md).
       setLikeCount(reactions.filter((r) => r.type === 'like').length);
       setDislikeCount(reactions.filter((r) => r.type === 'dislike').length);
-      setRepostCount(reactions.filter((r) => r.type === 'repost').length);
     }).catch((e) => console.error('Failed to load group post engagement:', e));
     return () => { cancelled = true; };
   }, [post._id, groupId, token]);
@@ -162,24 +178,17 @@ function GroupFeedPost({ post, media, groupId }: { post: PostRecord; media: Medi
     }
   }
 
-  // Repost (reposts.md): independent of like/dislike, group-scoped. Optimistic
-  // update of the reader's own repost flag + the repost count, rollback on
-  // error. The data layer (toggleRepost) enforces one-repost-per-user.
-  async function handleToggleRepost() {
-    if (!token) return;
-    const wasReposted = reposted;
-    const nextReposted = !wasReposted;
-    const delta = nextReposted ? 1 : -1;
-    setReposted(nextReposted);
-    setRepostCount(prev => Math.max(0, prev + delta));
-    try {
-      await toggleRepost(post._id || '', [groupId]);
-    } catch (e) {
-      console.error('Failed to toggle repost:', e);
-      toast.error(errorMessage(e, 'Could not update your repost.'));
-      setReposted(wasReposted);
-      setRepostCount(prev => Math.max(0, prev - delta));
-    }
+  // Repost (reposts.md): a repost is a POST, not a reaction toggle. Tapping
+  // the repeat icon opens the app-level composer in repost mode (the shared
+  // RepostContext seam) with this post as the context, then returns to the
+  // feed (where the app-level composer lives) so the repost is created there.
+  // A repost is a public post (the reposter's followers group), not a group
+  // post — so it never uses the group composer. The composer's createRepost is
+  // the single write; the count + fill re-derive on the next load.
+  const { setRepostingTo } = useRepost();
+  function handleRepost() {
+    setRepostingTo(post);
+    navigate('/feed');
   }
 
   return (
@@ -196,7 +205,7 @@ function GroupFeedPost({ post, media, groupId }: { post: PostRecord; media: Medi
       disliked={disliked}
       reposted={reposted}
       repostCount={repostCount}
-      onToggleRepost={handleToggleRepost}
+      onToggleRepost={handleRepost}
       timestamp={post.created_at}
       onToggleReaction={handleToggleReaction}
       onCommentCountChange={setCommentCount}

@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import * as v3 from '../../data/v3';
-import { readMyPosts, createRepost } from '../../data/posts';
+import { readMyPosts, createRepost, readRepostCounts, readMyRepostedIds } from '../../data/posts';
 
 function mockV3Client() {
   const mock = {
@@ -13,6 +13,7 @@ function mockV3Client() {
     readById: vi.fn(),
     update: vi.fn(),
     delete: vi.fn(),
+    query: vi.fn(),
     getMyGroups: vi.fn(),
     confirmMediaUpload: vi.fn(),
     listMedia: vi.fn(),
@@ -79,6 +80,70 @@ describe('posts v3 data layer', () => {
     it('throws when the original has no id', async () => {
       await expect(createRepost({}, 'comment')).rejects.toThrow(/without an id/);
       expect(mock.create).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('readRepostCounts (reposts.md: count repost_of posts, not reactions)', () => {
+    it('counts reposts as posts whose repost_of points at the post (I3-scoped query)', async () => {
+      mock.query.mockResolvedValue({ rows: [{ repost_of: 'orig1', n: 3 }, { repost_of: 'orig2', n: 1 }] });
+      const counts = await readRepostCounts(['orig1', 'orig2'], ['g1']);
+      // The count is the number of `repost_of` posts (one per reposter) — the
+      // feed query's I3-scoped join lifted to a surface read.
+      expect(counts).toEqual({ orig1: 3, orig2: 1 });
+      // The query counts DISTINCT doc_ids (a post in N readable groups is one
+      // repost, not N) and filters on repost_of.
+      expect(mock.query).toHaveBeenCalledWith(
+        expect.stringContaining("count(DISTINCT doc_id)"),
+        expect.objectContaining({ groups: ['g1'] }),
+      );
+      const sql = mock.query.mock.calls[0][0] as string;
+      expect(sql).toContain("JSONExtractString(body, 'repost_of')");
+      expect(sql).not.toContain("type') = 'repost'");
+    });
+
+    it('degrades to an empty map when the query fails', async () => {
+      mock.query.mockRejectedValue(new Error('boom'));
+      const counts = await readRepostCounts(['orig1'], ['g1']);
+      expect(counts).toEqual({});
+    });
+
+    it('returns {} for no post ids (no query)', async () => {
+      const counts = await readRepostCounts([], ['g1']);
+      expect(counts).toEqual({});
+      expect(mock.query).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('readMyRepostedIds (reposts.md: the "I reposted this" fill)', () => {
+    it('returns the set of repost_of targets from the reader\'s own posts', async () => {
+      mock.read.mockResolvedValue([
+        { doc_id: 'rp1', author_key: 'web10.app/users/alice', body: { repost_of: 'orig1' } },
+        { doc_id: 'rp2', author_key: 'web10.app/users/alice', body: { repost_of: 'orig2' } },
+        { doc_id: 'p3', author_key: 'web10.app/users/alice', body: { text: 'a normal post' } },
+      ]);
+      const ids = await readMyRepostedIds();
+      // The fill comes from the reader's own repost posts (the readFeedReactions
+      // own-post read lifted to a surface read) — scoped to the reader's own
+      // followers group.
+      expect(ids).toEqual(new Set(['orig1', 'orig2']));
+      expect(mock.read).toHaveBeenCalledWith('posts', {
+        groups: ['web10.app/groups/users/alice/followers'],
+      });
+    });
+
+    it('ignores other authors\' posts (username match)', async () => {
+      mock.read.mockResolvedValue([
+        { doc_id: 'rp1', author_key: 'web10.app/users/bob', body: { repost_of: 'orig1' } },
+      ]);
+      const ids = await readMyRepostedIds();
+      expect(ids).toEqual(new Set());
+    });
+
+    it('returns an empty set when not signed in', async () => {
+      mock.readToken.mockReturnValue(null);
+      const ids = await readMyRepostedIds();
+      expect(ids).toEqual(new Set());
+      expect(mock.read).not.toHaveBeenCalled();
     });
   });
 

@@ -7,7 +7,7 @@ import {
   ensureFollowers,
 } from './groups';
 import type { PostRecord, MediaRecord, MediaUploadRequest, Visibility, ResolvedMediaRef } from './types';
-import { fromV3DocToPost, fromV3DocToMedia, fromResolvedMediaRef } from './types';
+import { fromV3DocToPost, fromV3DocToMedia, fromResolvedMediaRef, extractUsername } from './types';
 
 // ── Post data layer (v3) ─────────────────────────────────────────────────────
 // Posts live in the `posts` collection. Visibility is controlled by GROUPS:
@@ -104,6 +104,81 @@ export async function createRepost(
     visibility: 'public',
     repost_of: original._id,
   });
+}
+
+/**
+ * Count reposts on a set of posts (reposts.md: a repost is a POST, not a
+ * reaction). The count is the number of `posts` whose `body.repost_of` points
+ * at each post — one per reposter, so it is self-healing (delete your repost
+ * post and the tally drops). This is the surface-level analog of the feed
+ * query's I3-scoped `repost_of` join (the D73 reference): the same `posts`
+ * service, scoped to the caller's readable groups, so a private post's repost
+ * tally is not visible to non-members.
+ *
+ * `groups` is the reader's readable set (the feed's followers groups + the
+ * discover board, the same union the feed's engagement reads use). A post
+ * attached to N readable groups surfaces N rows in the boundary CTE, so the
+ * count is `count(DISTINCT doc_id)` — one per reposter, not one per (repost,
+ * group) pair. Returns per-original counts; a post with no reposts is absent
+ * (the caller treats absent as 0).
+ */
+export async function readRepostCounts(
+  postIds: string[],
+  groups: string[],
+): Promise<Record<string, number>> {
+  const counts: Record<string, number> = {};
+  if (!postIds.length || !groups.length) return counts;
+  const w = getV3Client();
+  const quoted = postIds.map((id) => `'${id.replace(/'/g, "''")}'`).join(', ');
+  try {
+    const result = await w.query(
+      "SELECT JSONExtractString(body, 'repost_of') AS repost_of, count(DISTINCT doc_id) AS n " +
+        `FROM posts WHERE JSONExtractString(body, 'repost_of') IN (${quoted}) ` +
+        "GROUP BY JSONExtractString(body, 'repost_of')",
+      { groups },
+    );
+    for (const row of result.rows) {
+      const ref = String(row.repost_of);
+      if (ref) counts[ref] = Number(row.n) || 0;
+    }
+    console.log(
+      '[social-post] readRepostCounts —',
+      Object.values(counts).reduce((a, b) => a + b, 0), 'reposts over', postIds.length, 'posts',
+    );
+  } catch (e) {
+    // A failed count degrades to zero (the feed's 3.25.x pattern) — the icon
+    // just shows no tally rather than the surface failing to load.
+    console.warn('[social-post] readRepostCounts — failed (degrading to zero):', e);
+  }
+  return counts;
+}
+
+/**
+ * Read the set of post doc_ids the READER has reposted (reposts.md: the
+ * "I reposted this" fill). A repost is a real post the reader authored whose
+ * `body.repost_of` points at the original, so the fill is derived from the
+ * reader's own posts — the surface-level analog of the feed's
+ * `readFeedReactions` own-post read (the D73 reference). Reads the reader's
+ * own followers group (where their posts live) and returns the set of
+ * `repost_of` targets. A failure degrades to an empty set (the hearts just
+ * stay unfilled rather than the surface failing to load).
+ */
+export async function readMyRepostedIds(): Promise<Set<string>> {
+  const ids = new Set<string>();
+  const w = getV3Client();
+  const token = w.readToken();
+  if (!token) return ids;
+  try {
+    const docs = await w.read('posts', { groups: [followersGroupId(token.username)] });
+    for (const doc of docs) {
+      if (extractUsername(doc.author_key) !== token.username) continue;
+      const repostOf = (doc.body as Record<string, unknown>).repost_of as string | undefined;
+      if (repostOf) ids.add(repostOf);
+    }
+  } catch (e) {
+    console.warn('[social-post] readMyRepostedIds — failed (degrading to empty):', e);
+  }
+  return ids;
 }
 
 /**

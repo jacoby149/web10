@@ -2,7 +2,7 @@
 
 A repost is a fan saying "this deserves more eyes" — and saying it *from themselves*. A repost resurfaces someone else's post in the reposter's own feed, optionally with the reposter's own comment on top (a quote). This doc defines what a repost *is* on the wire, how the composer creates one, how the feed renders it, and how it is counted. The feed / discover / groups docs define *where* a post shows; `post-actions.md` defines *how the engagement row renders*.
 
-> **Model change (3.110.0):** a repost is **a post, not a reaction.** The pre-3.110.0 model (a `reactions` doc with `type: 'repost'`, a countable signal on the target) is retired as the primary mechanism. A repost now creates a real `posts` doc that references the original by `repost_of` and carries the reposter's comment in `text`. That is what makes it show up in the reposter's feed as "reposted" — a reaction never appears in a feed. (The legacy `type: 'repost'` reaction still reads as a "reposted" fill for old data, and the other surfaces' repeat icon still writes it as a lightweight boost signal — unifying those surfaces onto the post model is an open follow-up.)
+> **Model change (3.110.0):** a repost is **a post, not a reaction.** The pre-3.110.0 model (a `reactions` doc with `type: 'repost'`, a countable signal on the target) is retired as the primary mechanism. A repost now creates a real `posts` doc that references the original by `repost_of` and carries the reposter's comment in `text`. That is what makes it show up in the reposter's feed as "reposted" — a reaction never appears in a feed. (The legacy `type: 'repost'` reaction still reads as a "reposted" fill for old data — a read-only fallback. **The repeat icon on every surface is unified onto the post model** (3.154.0): it opens the composer in repost mode, and the count is the number of `repost_of` posts.)
 
 ## The use case
 
@@ -29,7 +29,7 @@ The composer (`src/components/Feed/PostComposer.tsx`) is app-level (above the fe
 - A **plain repost is postable** with no comment and no media (the repost itself is the content).
 - Submitting calls `createRepost(repostingTo, text)` — it never uploads the user's own media (the original's media is referenced by the original post, not copied). On success it clears the repost state and fires `onPostCreated` (the feed remounts so the new repost shows up).
 
-The feed's repeat icon (`onToggleRepost` on `<PostActions>`) is wired to open the composer in repost mode: `FeedScreen` reports the tapped post up via `onRepost`, and `FeedRoute` sets `repostingTo`.
+The repeat icon is wired to open the composer in repost mode on **every surface** — not just the feed. The repost state (`repostingTo`) is app-wide (a `RepostProvider` in `App.tsx`, read through `useRepost`), so the feed's `onRepost` → `repostingTo` pattern (3.110.0) is a single shared seam: the feed, Discover, PostLightbox, ProfileFeed, and Groups all call `setRepostingTo(post)` to open the same app-level composer in repost mode. Discover / Groups (which have no composer of their own) navigate to the feed after setting the repost, so the composer is always the one that creates the post. The composer's `createRepost` is the single write — no surface writes a `type:'repost'` reaction anymore.
 
 ## The feed render: the "reposted" card
 
@@ -46,14 +46,14 @@ A post whose body has `repost_of` renders as a **reposted card** (`PostCard` in 
 
 ## The count is real
 
-The repost count on a post is the number of **posts whose `repost_of` points at it**:
+The repost count on a post is the number of **posts whose `repost_of` points at it** — one per reposter, so it is self-healing (delete your repost post and the tally drops). It is stable across refresh (no `1 0 1 0` toggle), because it is a read of the post docs, not a reaction flip.
 
 - **Feed** — the D73 feed query joins `posts` on `JSONExtractString(body, 'repost_of') = p.doc_id` and counts, so `post.reposts` rides in the payload (the same path as `likes` / `dislikes` / `comments`). The join is scoped to the reader's groups (I3), so a private post's repost tally is not visible to non-members.
-- **Discover / Lightbox / Profile / Groups** — these surfaces still count the legacy `type: 'repost'` reaction (the lightweight boost signal). Unifying them onto the post-based count is an open follow-up.
+- **Discover / Lightbox / Profile / Groups** — the same count, lifted to a surface read: `readRepostCounts(postIds, groups)` runs an I3-scoped `count(DISTINCT doc_id)` over `posts` whose `repost_of` points at the post (the feed query's join, run per-surface). `count(DISTINCT doc_id)` — not `count()` — because a post attached to N readable groups surfaces N rows in the boundary CTE; one reposter is one repost, not N.
 
 ## The "I reposted this" state (the filled icon)
 
-`readFeedReactions` (the feed's initial-state load) marks a post as `reposted` when the reader has **either** (a) a legacy `type: 'repost'` reaction on it, **or** (b) their own post whose `repost_of` points at it (read from the reader's followers group). The repeat icon fills (brand) for those posts.
+The fill is the reader's **own repost post** — `readMyRepostedIds()` reads the reader's own followers group and returns the set of `repost_of` targets (the `readFeedReactions` own-post read, lifted to a surface read). A surface fills the repeat icon when the reader has a repost post for the target, **or** holds a legacy `type: 'repost'` reaction on it (the read-only fallback for old data). The feed's `readFeedReactions` does the same two-part check inline.
 
 ## Independent of like / dislike
 
@@ -67,20 +67,20 @@ A repost is a separate axis from the like/dislike pair. A user can like *and* re
 ## What this is not
 
 - **Not the share / link action.** "Share" (the `Share2` icon, `navigator.share` / clipboard of the permalink) is a separate, surface-owned action. Repost is a data write (a new post); share is a link.
-- **Not a reaction (anymore).** The pre-3.110.0 `type: 'repost'` reaction is retired as the primary mechanism. It still reads as a "reposted" fill for old data and still backs the other surfaces' lightweight boost signal.
+- **Not a reaction (anymore).** The pre-3.110.0 `type: 'repost'` reaction is retired as the primary mechanism. It still reads as a "reposted" fill for old data (a read-only fallback) — no surface writes it anymore.
 - **Not a ranking signal (yet).** The power-mean scorer normalizes a `reposts` signal but weights it `0`. Wiring it into the ranking (a knob or a fixed weight) is a separate decision.
 
 ## Follow-ups (open)
 
-- **Unify the other surfaces** — Discover / Lightbox / Profile / Groups still write the legacy `type: 'repost'` reaction and count it. Route their repeat icon to the composer (the post-based repost) and count `repost_of` posts, so there is one repost everywhere.
 - **Author nudge** — a repost does not yet notify the original's author. A "X reposted your post" notification is a new notification type + a destination in `notifications.md`.
 - **Ranking weight** — giving the repost signal a non-zero weight in the power-mean (a knob or a fixed value).
 
 ## Reference
 
 - The shared engagement bar (the repeat icon axis): `./post-actions.md`
-- The post data layer (`createRepost`): `../../../../marketing/web10-social/src/data/posts.ts`
+- The post data layer (`createRepost`, `readRepostCounts`, `readMyRepostedIds`): `../../../../marketing/web10-social/src/data/posts.ts`
 - The composer (repost mode): `../../../../marketing/web10-social/src/components/Feed/PostComposer.tsx`
+- The shared repost seam (`RepostProvider` / `useRepost`): `../../../../marketing/web10-social/src/context/RepostContext.tsx`
 - The feed render (the reposted card): `../../../../marketing/web10-social/src/components/Feed/FeedScreen.tsx`
 - The notification a like fires (the repost nudge is an open follow-up): `./notifications.md`
 - The visual bar (tokens, states, the screenshot test): `../../../strategy/design.md`

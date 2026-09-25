@@ -35,6 +35,10 @@ import {
   Plus,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
+// D74 / discover-ia-consistency C1: the group card is SHARED (one source,
+// both apps). The social app renders it in interactive mode (join + in-app
+// open); the marketing Discover renders the same card in remote mode.
+import { GroupCard as SharedGroupCard, GroupCardSkeleton as SharedGroupCardSkeleton } from '@web10/discover';
 
 const LOG = (...args: unknown[]) => console.log('[social:groups-tab]', ...args);
 
@@ -129,123 +133,26 @@ export interface DiscoverGroupCardProps {
   onOpen: () => void;
 }
 
-// The directory card — the SAME shape as the My Groups card (banner strip +
-// overlapping avatar + name/meta footer) so the two tabs read as one surface.
-// The only difference: a Join/Request button in the footer (you're not a
-// member yet) instead of the Leave button.
+// The directory card — the SHARED group card (one source, both apps). The
+// social app renders it in interactive mode (join + in-app open); the
+// marketing Discover renders the same card in remote mode. The shared card is
+// the SAME shape as the My Groups card (banner strip + overlapping avatar +
+// name/meta footer) so the two tabs read as one surface.
 export function DiscoverGroupCard({ entry, face, joinState, onJoin, onOpen }: DiscoverGroupCardProps) {
-  const name = face?.name || entry.name;
-  const initial = name.charAt(0).toUpperCase();
-  const canJoin = entry.join_policy !== 'invite_only';
-  const gradient = hashToGradient(entry.group_id);
-
   return (
-    <div
-      data-testid="groups-discover-card"
-      role="button"
-      tabIndex={0}
-      onClick={onOpen}
-      onKeyDown={(e) => {
-        if (e.key === 'Enter' || e.key === ' ') {
-          e.preventDefault();
-          onOpen();
-        }
-      }}
-      className={cn(
-        'group relative w-full overflow-hidden rounded-xl border border-border bg-card text-left cursor-pointer transition-all duration-200',
-        'hover:-translate-y-1 hover:border-brand/40 hover:shadow-[0_8px_32px_-8px_var(--color-glow-intense)]',
-        'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background',
-        'motion-reduce:transform-none',
-      )}
-    >
-      <div className="h-24 w-full overflow-hidden" aria-hidden="true">
-        {face?.banner_url ? (
-          <img
-            src={face.banner_url}
-            alt=""
-            loading="lazy"
-            className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-105 motion-reduce:transform-none"
-          />
-        ) : (
-          <div className={cn('h-full w-full', gradient)} />
-        )}
-      </div>
-      <div className="flex items-end gap-3 p-4 pt-0">
-        <div className="shrink-0 -mt-8 rounded-full border-4 border-card">
-          <Avatar className={cn('h-16 w-16', !face?.avatar_url && gradient)}>
-            {face?.avatar_url ? (
-              <AvatarImage src={face.avatar_url} alt={name} />
-            ) : (
-              <AvatarFallback className="text-foreground text-xl font-semibold">{initial}</AvatarFallback>
-            )}
-          </Avatar>
-        </div>
-        <div className="min-w-0 flex-1 pb-1">
-          <div className="flex items-center gap-2">
-            <h3 className="truncate text-base font-semibold text-foreground" data-testid="groups-discover-card-name">{name}</h3>
-            <span className="shrink-0 text-xs text-muted-foreground">by @{entry.owner}</span>
-          </div>
-          <p className="mt-1 flex items-center gap-1.5 text-xs text-muted-foreground">
-            <Users className="h-3 w-3 shrink-0" strokeWidth={2} aria-hidden="true" />
-            <span className="tabular-nums">{formatCount(entry.member_count)} members</span>
-            <span aria-hidden="true" className="text-muted-foreground/40">·</span>
-            <JoinPolicyBadge policy={entry.join_policy} />
-          </p>
-        </div>
-        <Button
-          variant={joinState === 'joined' ? 'outline' : 'brand'}
-          size="sm"
-          className={cn('shrink-0 gap-1.5', joinState === 'joined' && 'border-border text-muted-foreground')}
-          disabled={!canJoin || joinState === 'joining' || joinState === 'joined' || joinState === 'requested'}
-          onClick={(e) => {
-            e.stopPropagation();
-            onJoin();
-          }}
-          data-testid="groups-join-button"
-        >
-          {joinState === 'joining' ? (
-            <Loader2 className="h-3.5 w-3.5 animate-spin" strokeWidth={2} />
-          ) : joinState === 'joined' || joinState === 'requested' ? (
-            <UserCheck className="h-3.5 w-3.5" strokeWidth={1.75} />
-          ) : entry.join_policy === 'invite_only' ? (
-            <Lock className="h-3.5 w-3.5" strokeWidth={1.75} />
-          ) : (
-            <UserPlus className="h-3.5 w-3.5" strokeWidth={1.75} />
-          )}
-          {joinState === 'joining'
-            ? 'Joining…'
-            : joinState === 'joined'
-              ? 'Joined'
-              : joinState === 'requested'
-                ? 'Requested'
-                : entry.join_policy === 'invite_only'
-                  ? 'Invite only'
-                  : entry.join_policy === 'request'
-                    ? 'Request'
-                    : 'Join'}
-        </Button>
-        <ChevronRight className="h-4 w-4 shrink-0 text-muted-foreground/50 transition-transform duration-150 group-hover:translate-x-0.5" />
-      </div>
-    </div>
+    <SharedGroupCard
+      entry={entry}
+      face={face}
+      joinState={joinState}
+      onJoin={onJoin}
+      onOpen={onOpen}
+      testId="groups-discover-card"
+    />
   );
 }
 
 export function DiscoverGroupCardSkeleton() {
-  return (
-    <div className="w-full overflow-hidden rounded-xl border border-border bg-card">
-      <Skeleton className="h-24 w-full" />
-      <div className="flex items-end gap-3 p-4 pt-0">
-        <div className="shrink-0 -mt-8 rounded-full border-4 border-card">
-          <Skeleton className="h-16 w-16 rounded-full" />
-        </div>
-        <div className="min-w-0 flex-1 space-y-2 pb-1">
-          <Skeleton className="h-4 w-36" />
-          <Skeleton className="h-3 w-40" />
-        </div>
-        <Skeleton className="h-8 w-16 rounded-md" />
-      </div>
-    </div>
-  );
+  return <SharedGroupCardSkeleton testId="groups-discover-card-skeleton" />;
 }
 
 // ── My Groups row (the groups you're a member of) ────────────────────────────
