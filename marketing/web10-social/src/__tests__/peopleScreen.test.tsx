@@ -29,6 +29,7 @@ function makePeople(n: number, startFollowers = 1000): PersonCard[] {
     provider: 'web10',
     display_name: `User ${i}`,
     followers_count: startFollowers - i * 10,
+    mutuals: 0,
     is_following: false,
   }));
 }

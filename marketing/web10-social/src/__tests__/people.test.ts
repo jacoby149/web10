@@ -18,6 +18,15 @@ vi.mock('@/data/posts', () => ({
   resolveMediaRefs: (...args: unknown[]) => mockResolveMediaRefs(...args),
 }));
 
+// The generic membership primitive (mutuals are derived client-side from a
+// user's followers group member list, intersected with the reader's following).
+const mockGetGroupMembers = vi.fn();
+vi.mock('@/data/groups', () => ({
+  followersGroupId: (username: string, provider?: string) =>
+    `${provider || 'web10'}/groups/users/${username}/followers`,
+  getGroupMembers: (...args: unknown[]) => mockGetGroupMembers(...args),
+}));
+
 import {
   fetchPeoplePage,
   sortPeople,
@@ -25,8 +34,14 @@ import {
   type PersonCard,
 } from '@/data/people';
 
-// A D0 directory user: { username, follower_count, profile }.
-const dirUser = (username: string, follower_count: number, profile: Record<string, unknown> = {}) => ({
+// A D0 directory user: { username, follower_count, profile }. The node stays
+// generic (D60) — it returns the universal primitives only; mutuals are
+// derived client-side, so they are NOT in the directory response.
+const dirUser = (
+  username: string,
+  follower_count: number,
+  profile: Record<string, unknown> = {},
+) => ({
   username,
   follower_count,
   profile,
@@ -34,10 +49,10 @@ const dirUser = (username: string, follower_count: number, profile: Record<strin
 
 describe('sortPeople', () => {
   const people: PersonCard[] = [
-    { username: 'zeta', provider: 'p', followers_count: 100, is_following: false },
-    { username: 'alpha', provider: 'p', followers_count: 50, is_following: false },
-    { username: 'mid', provider: 'p', followers_count: 200, is_following: false },
-    { username: 'beta', provider: 'p', followers_count: 500, is_following: false },
+    { username: 'zeta', provider: 'p', followers_count: 100, mutuals: 0, is_following: false },
+    { username: 'alpha', provider: 'p', followers_count: 50, mutuals: 0, is_following: false },
+    { username: 'mid', provider: 'p', followers_count: 200, mutuals: 0, is_following: false },
+    { username: 'beta', provider: 'p', followers_count: 500, mutuals: 0, is_following: false },
   ];
 
   it('sorts by popular (followers_count descending, default)', () => {
@@ -47,8 +62,8 @@ describe('sortPeople', () => {
 
   it('breaks popular ties by username', () => {
     const tied: PersonCard[] = [
-      { username: 'zoe', provider: 'p', followers_count: 10, is_following: false },
-      { username: 'amy', provider: 'p', followers_count: 10, is_following: false },
+      { username: 'zoe', provider: 'p', followers_count: 10, mutuals: 0, is_following: false },
+      { username: 'amy', provider: 'p', followers_count: 10, mutuals: 0, is_following: false },
     ];
     expect(sortPeople(tied, 'popular').map((p) => p.username)).toEqual(['amy', 'zoe']);
   });
@@ -67,9 +82,9 @@ describe('sortPeople', () => {
 
 describe('filterPeople', () => {
   const people: PersonCard[] = [
-    { username: 'zoe', provider: 'p', display_name: 'Zoe Rivers', followers_count: 10, is_following: false },
-    { username: 'amy', provider: 'p', display_name: 'Amy', followers_count: 20, is_following: false },
-    { username: 'river-king', provider: 'p', display_name: 'King', followers_count: 30, is_following: false },
+    { username: 'zoe', provider: 'p', display_name: 'Zoe Rivers', followers_count: 10, mutuals: 0, is_following: false },
+    { username: 'amy', provider: 'p', display_name: 'Amy', followers_count: 20, mutuals: 0, is_following: false },
+    { username: 'river-king', provider: 'p', display_name: 'King', followers_count: 30, mutuals: 0, is_following: false },
   ];
 
   it('filters by display name (case-insensitive)', () => {
@@ -106,7 +121,7 @@ describe('fetchPeoplePage', () => {
     mockListPeopleDirectory.mockResolvedValue({
       users: [
         dirUser('alice', 120, { display_name: 'Alice', bio: 'hi', avatar_ref: 'av-1' }),
-        dirUser('bob', 40),
+        dirUser('bob', 40, {}),
       ],
       limit: 20,
       offset: 0,
@@ -123,6 +138,40 @@ describe('fetchPeoplePage', () => {
     const bob = people.find((p) => p.username === 'bob')!;
     expect(bob.display_name).toBe('bob');
     expect(bob.followers_count).toBe(40);
+  });
+
+  it('computes mutuals client-side (followers(X) ∩ my-following, the generic membership primitive)', async () => {
+    // I follow carol (member of carol's followers group).
+    mockGetMyGroups.mockResolvedValue([
+      { group_id: 'api.localhost/groups/users/carol/followers', join_policy: 'open', my_role: 'member', member_count: 1 },
+    ]);
+    // alice's followers = [carol, dave] → 1 mutual (carol). bob's = [dave] → 0.
+    mockGetGroupMembers.mockImplementation(async (groupId: string) => {
+      if (groupId.includes('/alice/followers')) return [{ member_key: 'carol' }, { member_key: 'dave' }];
+      if (groupId.includes('/bob/followers')) return [{ member_key: 'dave' }];
+      return [];
+    });
+    mockListPeopleDirectory.mockResolvedValue({
+      users: [dirUser('alice', 120, {}), dirUser('bob', 40, {})],
+      limit: 20,
+      offset: 0,
+    });
+
+    const { people } = await fetchPeoplePage({ limit: 20, offset: 0 });
+    expect(people.find((p) => p.username === 'alice')!.mutuals).toBe(1);
+    expect(people.find((p) => p.username === 'bob')!.mutuals).toBe(0);
+  });
+
+  it('mutuals stay 0 when the reader follows no one (no membership read needed)', async () => {
+    mockGetMyGroups.mockResolvedValue([]); // no following
+    mockListPeopleDirectory.mockResolvedValue({
+      users: [dirUser('alice', 10, {})],
+      limit: 20,
+      offset: 0,
+    });
+    const { people } = await fetchPeoplePage({ limit: 20, offset: 0 });
+    expect(people[0].mutuals).toBe(0);
+    expect(mockGetGroupMembers).not.toHaveBeenCalled();
   });
 
   it('passes limit + offset to the D0 read', async () => {

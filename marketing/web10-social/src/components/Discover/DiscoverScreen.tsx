@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
-import { useSearchParams } from 'react-router-dom';
+import { useSearchParams, useNavigate } from 'react-router-dom';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -11,7 +11,8 @@ import {
   getV3Client,
   getDiscoverGroupId,
   toggleReactionKind,
-  toggleRepost,
+  readRepostCounts,
+  readMyRepostedIds,
   extractUsername,
   type ReactionKind,
 } from '@/data';
@@ -37,8 +38,9 @@ import {
   Film,
   Music2,
   Users,
-  User,
   Video,
+  Search,
+  X,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { MARKETING_ORIGIN } from '@/lib/origins';
@@ -49,6 +51,7 @@ import { VideoPlayer, sourceFromMedia } from '@/components/Feed/VideoPlayer';
 import { MediaCarousel } from '@/components/Feed/MediaCarousel';
 import { PostActions } from '@/components/Feed/PostActions';
 import PostComposer from '@/components/Feed/PostComposer';
+import { useRepost } from '@/context/RepostContext';
 // D74: the shared discover card (one source, both apps). The social app's grid
 // + youtube cards now wrap it — the same card the marketing /trending uses.
 import { DiscoverCard as SharedDiscoverCard, HomeCard, type DiscoverPost, type CreateComment } from '@web10/discover';
@@ -439,22 +442,30 @@ type DiscoverView = 'grid' | 'home';
 // ── Subtabs (the operator's IA fixed point, 23.09.2026) ──────────────────────
 // Discover is the discovery surface with TWO tabs:
 //   Trending — the posts board (the default; the bare URL).
-//   Explore  — people + groups mashed into one browser ("people are groups in
-//              web10"). The top bar's search opens THIS tab (?tab=explore&q=).
+//   People   — people + groups mashed into one browser ("people are groups in
+//              web10").
 // The active tab is URL state (?tab=; trending is the bare URL) so it is
 // refresh-safe and shareable. The shell owns ?q= and passes it to the active
 // subtab — the subtabs have no search field of their own (search is the top
-// bar).
+// bar). The top bar's search (Enter) opens Discover with the query
+// (?q=) on WHATEVER tab is active — the query chip (with its X) renders on
+// both tabs, so the search can be cleared from either one.
 
 type DiscoverTab = 'trending' | 'explore';
 
 // The two top-level destinations. Chunky and obvious — the operator (23.09.2026):
 // "that is just too small too hard to see, want to keep the youtube stuff big."
-// "Explore" is renamed **People** (it's really people + groups, but called
-// People like Facebook's Friends tab) with a person icon.
+// The posts board is called **Trending** (the flame icon means trending posts —
+// the operator: "call it trending instead of posts, much better"). The
+// people+groups browser is called **People** (like Facebook's Friends tab)
+// with the TWO-people glyph (it holds profiles + groups — the operator,
+// 25.09.2026: "people should be the logo of the two people"). The Profiles
+// *subtab* inside it carries the one-person glyph. (The operator,
+// 24.09.2026: "trending People makes more sense" — the tab is "People", not
+// "Profiles".)
 const DISCOVER_TABS: { id: DiscoverTab; label: string; icon: typeof Flame }[] = [
-  { id: 'trending', label: 'Posts', icon: Flame },
-  { id: 'explore', label: 'People', icon: User },
+  { id: 'trending', label: 'Trending', icon: Flame },
+  { id: 'explore', label: 'People', icon: Users },
 ];
 
 function postHasVideo(post: PostRecord): boolean {
@@ -672,6 +683,17 @@ export default function DiscoverScreen() {
     LOG('subtab —', next);
   }, [searchParams, setSearchParams]);
 
+  // Clear the active ?q= (the search chip's X) — on either tab. The query is
+  // screen state the URL holds; removing the param re-renders both tabs
+  // unfiltered (the Trending board's client filter + the Explore tab's
+  // people/groups filters both key off ?q=).
+  const clearQuery = useCallback(() => {
+    const params = new URLSearchParams(searchParams);
+    params.delete('q');
+    setSearchParams(params);
+    LOG('query cleared');
+  }, [searchParams, setSearchParams]);
+
   const loadDiscover = useCallback(async (sort: PowerMeanSortConfig | null = null) => {
     // `loading` is the INITIAL skeleton only — a knob-triggered re-read keeps
     // the previous grid on screen (no skeleton flash per twist).
@@ -693,34 +715,43 @@ export default function DiscoverScreen() {
         try {
           const w = getV3Client();
           const discoverId = getDiscoverGroupId();
-          const [reactionDocs, commentDocs] = await Promise.all([
+          const [reactionDocs, commentDocs, repostCounts, myReposts] = await Promise.all([
             w.read('reactions', { groups: [discoverId], limit: 500 }),
             w.read('comments', { groups: [discoverId], limit: 500 }),
+            // Repost (reposts.md: a repost is a POST, not a reaction). The
+            // count is the number of `repost_of` posts (readRepostCounts, the
+            // feed query's I3-scoped join lifted to a surface read) and the
+            // "I reposted this" fill is the reader's own repost post
+            // (readMyRepostedIds, the readFeedReactions own-post read lifted to
+            // a surface read). The legacy `type:'repost'` reaction still fills
+            // for old data (a read-only fallback).
+            readRepostCounts(results.map((p) => p._id || '').filter(Boolean), [discoverId]),
+            readMyRepostedIds(),
           ]);
           const likesByPost: Record<string, number> = {};
           const dislikesByPost: Record<string, number> = {};
-          const repostsByPost: Record<string, number> = {};
           const commentsByPost: Record<string, number> = {};
           // The reader's own reaction per post (v3 ownership is by username
           // alone — the reaction's author_key is the bare username, the
           // provider implicit, so match on username, not provider).
           const likedByPost: Record<string, boolean> = {};
           const dislikedByPost: Record<string, boolean> = {};
-          const repostedByPost: Record<string, boolean> = {};
+          const legacyRepostedByPost: Record<string, boolean> = {};
           for (const d of reactionDocs) {
             if (d.ref_value) {
-              // Each reaction type is counted separately (the heart, the thumb,
-              // and the repeat icon each show their own tally — post-actions.md /
-              // reposts.md). The old `else likesByPost` branch counted reposts
-              // as likes; now each type has its own tally.
+              // Each reaction type is counted separately (the heart and the
+              // thumb each show their own tally — post-actions.md). The repost
+              // is NOT counted from reactions anymore (reposts.md — it is a
+              // post); the legacy `type:'repost'` reaction only feeds the
+              // read-only fill fallback for old data.
               const type = (d.body as Record<string, unknown>)?.type as string | undefined;
               if (type === 'like') likesByPost[d.ref_value] = (likesByPost[d.ref_value] || 0) + 1;
               else if (type === 'dislike') dislikesByPost[d.ref_value] = (dislikesByPost[d.ref_value] || 0) + 1;
-              else if (type === 'repost') repostsByPost[d.ref_value] = (repostsByPost[d.ref_value] || 0) + 1;
+              else if (type === 'repost') legacyRepostedByPost[d.ref_value] = true;
               if (extractUsername(d.author_key) === token.username) {
                 if (type === 'like') likedByPost[d.ref_value] = true;
                 else if (type === 'dislike') dislikedByPost[d.ref_value] = true;
-                else if (type === 'repost') repostedByPost[d.ref_value] = true;
+                else if (type === 'repost') legacyRepostedByPost[d.ref_value] = true;
               }
             }
           }
@@ -730,16 +761,24 @@ export default function DiscoverScreen() {
           for (const p of results) {
             p.likes = likesByPost[p._id || ''] || 0;
             p.dislikes = dislikesByPost[p._id || ''] || 0;
-            p.reposts = repostsByPost[p._id || ''] || 0;
+            p.reposts = repostCounts[p._id || ''] || 0;
             p.comments = commentsByPost[p._id || ''] || 0;
           }
           setLikedMap(likedByPost);
           setDislikedMap(dislikedByPost);
+          // The repost fill: the reader's own repost post, OR a legacy
+          // `type:'repost'` reaction (old data, read-only fallback).
+          const repostedByPost: Record<string, boolean> = {};
+          for (const p of results) {
+            const id = p._id || '';
+            if (myReposts.has(id) || legacyRepostedByPost[id]) repostedByPost[id] = true;
+          }
           setRepostedMap(repostedByPost);
           LOG(
             'engagement — counted',
             Object.values(likesByPost).reduce((a, b) => a + b, 0), 'reactions +',
-            Object.values(commentsByPost).reduce((a, b) => a + b, 0), 'comments',
+            Object.values(commentsByPost).reduce((a, b) => a + b, 0), 'comments +',
+            Object.values(repostCounts).reduce((a, b) => a + b, 0), 'reposts',
           );
         } catch (e) {
           LOG('engagement — failed (degrading to zero counts):', e);
@@ -904,37 +943,17 @@ export default function DiscoverScreen() {
     }
   }
 
-  // Repost (reposts.md): independent of like/dislike. Optimistic update of the
-  // reader's own repost flag + the post's repost count, rollback on error. The
-  // data layer (toggleRepost) enforces one-repost-per-user + self-heal.
-  async function handleToggleRepost(postId: string) {
-    const token = getWapi().readToken();
-    if (!token) return;
-    const wasReposted = !!repostedMap[postId];
-    const nextReposted = !wasReposted;
-    const delta = nextReposted ? 1 : -1;
-    setRepostedMap((prev) => ({ ...prev, [postId]: nextReposted }));
-    setPosts((prev) =>
-      prev.map((p) =>
-        p._id === postId
-          ? { ...p, reposts: Math.max(0, (p.reposts || 0) + delta) }
-          : p,
-      ),
-    );
-    try {
-      await toggleRepost(postId);
-    } catch (e) {
-      console.error('Failed to toggle repost:', e);
-      toast.error(errorMessage(e, 'Could not update your repost.'));
-      setRepostedMap((prev) => ({ ...prev, [postId]: wasReposted }));
-      setPosts((prev) =>
-        prev.map((p) =>
-          p._id === postId
-            ? { ...p, reposts: Math.max(0, (p.reposts || 0) - delta) }
-            : p,
-        ),
-      );
-    }
+  // Repost (reposts.md): a repost is a POST, not a reaction toggle. Tapping
+  // the repeat icon opens the app-level composer in repost mode (the shared
+  // RepostContext seam) with this post as the context, then returns to the
+  // feed (where the app-level composer lives) so the repost is created there.
+  // The composer's createRepost is the single write; the count + fill
+  // re-derive from the post-based read on the next load.
+  const { setRepostingTo } = useRepost();
+  const navigate = useNavigate();
+  function handleRepost(post: PostRecord) {
+    setRepostingTo(post);
+    navigate('/feed');
   }
 
   // Write a knob state to the URL (the deep-linkable ranking). The param is
@@ -1014,14 +1033,19 @@ export default function DiscoverScreen() {
   return (
     <div className="flex flex-col min-h-full bg-background">
       <div className="w-full">
-      {/* Tabs: Posts | People (?tab=, trending is the bare URL). The primary
-          nav — no separate "Discover" header (the operator's "show don't
-          tell": the video wall is the hero, the tabs are the nav). Chunky +
-          obvious + sticky (the operator, 23.09.2026): "that is just too small
-          too hard to see, want to keep the youtube stuff big." People is
-          really people + groups (the mashed browser), called People like
-          Facebook's Friends tab, with a person icon. */}
-      <div className="sticky top-0 z-10 border-b border-border bg-background/95 backdrop-blur-md md:bg-surface/50" data-testid="discover-tab-row">
+      {/* Tabs: Trending | People (?tab=, trending is the bare URL). The
+          primary nav — no separate "Discover" header (the operator's "show
+          don't tell": the video wall is the hero, the tabs are the nav).
+          Chunky + obvious + sticky (the operator, 23.09.2026): "that is just
+          too small too hard to see, want to keep the youtube stuff big."
+          People is really people + groups (the mashed browser), with the
+          two-people glyph (the Profiles *subtab* inside it carries the
+          one-person glyph). (The operator, 24.09.2026: "trending People makes
+          more sense" — the tab is "People", not "Profiles".) On DESKTOP this
+          screen-level row is hidden — the tabs live in the global top bar
+          (B3, the operator's Facebook-style chrome); on mobile (no top bar)
+          this row is the source. */}
+      <div className="sticky top-0 z-10 border-b border-border bg-background/95 backdrop-blur-md md:bg-surface/50 md:hidden" data-testid="discover-tab-row">
         <div className="px-4 md:px-0">
           <div className="flex items-center gap-2 py-3" role="tablist" aria-label="Discover sections">
             {DISCOVER_TABS.map(({ id, label, icon: TabIcon }) => (
@@ -1050,6 +1074,31 @@ export default function DiscoverScreen() {
 
       {tab === 'trending' ? (
         <>
+          {/* The active ?q= filter (from the top bar's search) — the same
+              chip the People tab shows, so the search can be X'd from either
+              tab. Clearing it re-filters the board (the client-side ?q=
+              filter) and the URL. */}
+          {urlQuery.trim() !== '' && (
+            <div className="px-4 pt-3 md:px-0">
+              <span
+                data-testid="discover-trending-tab-query"
+                className="inline-flex items-center gap-1.5 rounded-full border border-brand/40 bg-brand-muted/40 px-3 py-1 text-xs text-brand-300"
+              >
+                <Search className="h-3.5 w-3.5" strokeWidth={1.75} />
+                {urlQuery.trim()}
+                <button
+                  type="button"
+                  onClick={clearQuery}
+                  data-testid="discover-trending-tab-query-clear"
+                  aria-label="Clear search"
+                  className="ml-0.5 -mr-1 flex h-4 w-4 items-center justify-center rounded-full hover:bg-brand-muted transition-colors duration-150"
+                >
+                  <X className="h-3 w-3" strokeWidth={2} />
+                </button>
+              </span>
+            </div>
+          )}
+
           {/* The composer — the operator: "you can make a new post from the
               explorer too". Compact: it rests as a single-line bar so the
               video wall, not the composer, is the hero (design.md §10). */}
@@ -1143,9 +1192,11 @@ export default function DiscoverScreen() {
           )}
 
           {/* Content — the Home view (the video wall, the default) is the
-              YouTube-style grid that fills the screen; Hot Gossip keeps the
-              single-column board. */}
-          <div className="flex-1 px-4 py-4 md:px-0">
+               YouTube-style grid that fills the screen; Hot Gossip keeps the
+               single-column board. The desktop gutter (md:px-4 lg:px-6) lets
+               the wall breathe (the operator's "no padding at all on the
+               sides" — a gutter, not full-bleed); mobile stays full-bleed. */}
+          <div className="flex-1 px-4 py-4 md:px-4 lg:px-6">
             {isInitialLoad ? (
               <div className="grid grid-cols-1 gap-4" data-testid="discover-grid-skeleton">
                 {Array.from({ length: 4 }).map((_, i) => (
@@ -1177,7 +1228,7 @@ export default function DiscoverScreen() {
                         reposted={!!repostedMap[post._id || '']}
                         onAuthorClick={() => navigateToUserProfile(post.author_username || '', post.author_provider || '')}
                         onToggleReaction={(kind) => handleToggleReaction(post._id || '', kind)}
-                        onToggleRepost={() => handleToggleRepost(post._id || '')}
+                        onToggleRepost={() => handleRepost(post)}
                       />
                     );
                   })}
@@ -1187,13 +1238,24 @@ export default function DiscoverScreen() {
               )
             ) : visiblePosts.length > 0 ? (
               <div className="grid grid-cols-1 gap-4" data-testid="discover-grid">
-                {visiblePosts.map((post, i) => {
+                {visiblePosts.flatMap((post, i) => {
                   const authorKey = `${post.author_username}@${post.author_provider}`;
                   const profile = profileMap[authorKey];
                   const mediaItems = mediaMap[post._id || ''] || [];
                   const authorName = profile?.display_name || (post.author_username || '').replace(/[-_]/g, ' ');
 
-                  return (
+                  // Post-format ads (ad-improvements.md): a `post`-format ad
+                  // rides the post it's attached to but renders as its OWN
+                  // card, next in line after that post on the board — "just
+                  // another post" with the Ad/Sponsored badge + disclosure,
+                  // nothing indicating the pin. (Inline ads stay in the card's
+                  // own ad slot; the shared card skips the post format.)
+                  const attached: AdRecord[] = [
+                    ...(post.ad && post.ad.format === 'post' ? [post.ad] : []),
+                    ...(post.node_ad && post.node_ad.format === 'post' ? [post.node_ad] : []),
+                  ];
+
+                  const card = (
                     <DiscoverCard
                       key={post._id || post.created_at}
                       post={post}
@@ -1212,8 +1274,21 @@ export default function DiscoverScreen() {
                       disliked={!!dislikedMap[post._id || '']}
                       reposted={!!repostedMap[post._id || '']}
                       onToggleReaction={(kind) => handleToggleReaction(post._id || '', kind)}
-                      onToggleRepost={() => handleToggleRepost(post._id || '')}
-                    />              );
+                      onToggleRepost={() => handleRepost(post)}
+                    />
+                  );
+
+                  if (!attached.length) return [card];
+                  return [
+                    card,
+                    ...attached.map((ad) => (
+                      <AttachedAd
+                        key={`${post._id || post.created_at}-ad-${ad._id || 'x'}`}
+                        ad={ad}
+                        standalone
+                      />
+                    )),
+                  ];
                 })}
               </div>
             ) : (

@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { useLocation, useNavigate } from 'react-router-dom';
-import { Search, X, Users, FileText } from 'lucide-react';
+import { Search, X, User, Users, Hash, FileText } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { searchPeople, searchGroups, searchPosts } from '@/data/search';
 import type { PersonCard } from '@/data/people';
@@ -11,9 +11,9 @@ import type { PostRecord } from '@/data/types';
 // S1 (global-search.md): the top-bar everything-search surface — the
 // expanding-icon state machine: icon (rest) → expanded field → results →
 // collapse. S2 adds the three-way fan-out (people/groups/posts) + result
-// rows. Searching (Enter) opens Discover's Explore tab with the query
-// (the operator's call: the search bar opens Explore instead of the old
-// per-section "See more" links).
+// rows. Searching (Enter) opens Discover with the query (?q=), staying on
+// the active tab — the query chip (with its X) renders on both the Trending
+// and People tabs, so the search can be cleared from either.
 
 // The app's debounce idiom (feed/discover knob re-reads settle at 400ms).
 const SEARCH_DEBOUNCE_MS = 400;
@@ -37,24 +37,29 @@ interface GlobalSearchProps {
 function PersonRow({ person }: { person: PersonCard }) {
   const navigate = useNavigate();
   const initial = (person.display_name || person.username).charAt(0).toUpperCase();
+  // Facebook-style suggestion row: the round glyph chip leads, the account's
+  // own avatar trails on the right (the operator's reference, 25.09.2026).
   return (
     <button
       type="button"
       data-testid={`global-search-person-${person.username}`}
       onClick={() => navigate(`/u/${person.username}`)}
-      className="w-full flex items-center gap-3 px-4 py-2 text-left hover:bg-elevated transition-colors duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand/50"
+      className="w-full flex items-center gap-3 px-3 py-2 text-left hover:bg-elevated transition-colors duration-150 focus-visible:outline-none focus-visible:bg-elevated"
     >
+      <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-elevated">
+        <User className="h-4 w-4 text-muted-foreground" strokeWidth={1.75} />
+      </span>
+      <span className="flex-1 min-w-0">
+        <span className="block text-sm font-medium text-foreground truncate">{person.display_name || person.username}</span>
+        <span className="block text-xs text-muted-foreground truncate">@{person.username}</span>
+      </span>
       {person.avatar_url ? (
-        <img src={person.avatar_url} alt="" className="h-8 w-8 rounded-full object-cover shrink-0" />
+        <img src={person.avatar_url} alt="" className="h-9 w-9 rounded-full object-cover shrink-0" />
       ) : (
-        <div className="h-8 w-8 rounded-full bg-brand-muted text-brand-300 text-xs font-semibold flex items-center justify-center shrink-0">
+        <span className="h-9 w-9 rounded-full bg-brand-muted text-brand-300 text-xs font-semibold flex items-center justify-center shrink-0">
           {initial}
-        </div>
+        </span>
       )}
-      <div className="flex-1 min-w-0">
-        <p className="text-sm font-medium text-foreground truncate">{person.display_name || person.username}</p>
-        <p className="text-xs text-muted-foreground truncate">@{person.username}</p>
-      </div>
     </button>
   );
 }
@@ -66,17 +71,17 @@ function GroupRow({ group }: { group: GroupDirectoryEntry }) {
       type="button"
       data-testid={`global-search-group-${group.group_id}`}
       onClick={() => navigate(`/groups/${encodeURIComponent(group.group_id)}`)}
-      className="w-full flex items-center gap-3 px-4 py-2 text-left hover:bg-elevated transition-colors duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand/50"
+      className="w-full flex items-center gap-3 px-3 py-2 text-left hover:bg-elevated transition-colors duration-150 focus-visible:outline-none focus-visible:bg-elevated"
     >
-      <div className="h-8 w-8 rounded-lg bg-brand-muted text-brand-300 flex items-center justify-center shrink-0">
-        <Users className="w-4 h-4" strokeWidth={1.75} />
-      </div>
-      <div className="flex-1 min-w-0">
-        <p className="text-sm font-medium text-foreground truncate">{group.name}</p>
-        <p className="text-xs text-muted-foreground truncate">
+      <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-elevated">
+        <Hash className="h-4 w-4 text-muted-foreground" strokeWidth={1.75} />
+      </span>
+      <span className="flex-1 min-w-0">
+        <span className="block text-sm font-medium text-foreground truncate">{group.name}</span>
+        <span className="block text-xs text-muted-foreground truncate">
           @{group.owner} · {group.member_count} member{group.member_count === 1 ? '' : 's'}
-        </p>
-      </div>
+        </span>
+      </span>
     </button>
   );
 }
@@ -90,22 +95,22 @@ function PostRow({ post }: { post: PostRecord }) {
       type="button"
       data-testid={`global-search-post-${post._id || 'unknown'}`}
       onClick={() => navigate(href)}
-      className="w-full flex items-start gap-3 px-4 py-2 text-left hover:bg-elevated transition-colors duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand/50"
+      className="w-full flex items-center gap-3 px-3 py-2 text-left hover:bg-elevated transition-colors duration-150 focus-visible:outline-none focus-visible:bg-elevated"
     >
-      <div className="h-8 w-8 rounded-lg bg-elevated border border-border flex items-center justify-center shrink-0">
-        <Search className="w-3.5 h-3.5 text-muted-foreground" strokeWidth={1.75} />
-      </div>
-      <div className="flex-1 min-w-0">
-        <p className="text-sm text-foreground truncate">{post.text || '(no text)'}</p>
-        <p className="text-xs text-muted-foreground truncate">@{author}</p>
-      </div>
+      <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-elevated">
+        <Search className="h-4 w-4 text-muted-foreground" strokeWidth={1.75} />
+      </span>
+      <span className="flex-1 min-w-0">
+        <span className="block text-sm text-foreground truncate">{post.text || '(no text)'}</span>
+        <span className="block text-xs text-muted-foreground truncate">@{author}</span>
+      </span>
     </button>
   );
 }
 
 function SectionSkeleton({ label }: { label: string }) {
   return (
-    <div className="px-4 py-2" aria-hidden="true">
+    <div className="px-3 py-2" aria-hidden="true">
       <p className="text-[0.625rem] font-semibold uppercase tracking-wide text-muted-foreground/70 mb-1.5">{label}</p>
       <div className="skeleton-shimmer h-10 rounded-lg" />
       <div className="skeleton-shimmer h-10 rounded-lg mt-2" />
@@ -122,7 +127,7 @@ function SearchSection({
 }) {
   return (
     <div className="py-1" data-testid={`global-search-section-${label.toLowerCase()}`}>
-      <p className="px-4 py-1 text-[0.625rem] font-semibold uppercase tracking-wide text-muted-foreground/70">{label}</p>
+      <p className="px-3 py-1 text-[0.625rem] font-semibold uppercase tracking-wide text-muted-foreground/70">{label}</p>
       {children}
     </div>
   );
@@ -137,14 +142,15 @@ export default function GlobalSearch({ variant }: GlobalSearchProps) {
   const [debouncedQuery, setDebouncedQuery] = useState('');
   // The results mode: `posts` (the default — "the moment you search it should
   // show the discover posts being searched") + `people` (people + groups, the
-  // chunky toggle the operator asked for). Reset to `posts` on collapse.
+  // chunky toggle the operator asked for — labeled "People" to match
+  // Discover's tabs). Reset to `posts` on collapse.
   const [mode, setMode] = useState<'posts' | 'people'>('posts');
   const inputRef = useRef<HTMLInputElement>(null);
   const triggerRef = useRef<HTMLButtonElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const collapseTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const wasOpen = useRef(false);
-  const { pathname } = useLocation();
+  const { pathname, search: locationSearch } = useLocation();
 
   // S2: the three search sections. null = loading, [] = loaded (empty),
   // [...] = loaded (has results). Per-section loading: the slowest read
@@ -240,7 +246,7 @@ export default function GlobalSearch({ variant }: GlobalSearchProps) {
 
   // S2: fire the fan-out when the debounced query (or the mode) changes.
   // Mode-aware: posts are the default; people + groups are fetched only when
-  // the user flips to the "People & Groups" mode (no wasted reads). Per-section
+  // the user flips to the "People" mode (no wasted reads). Per-section
   // loading: each read resolves independently.
   useEffect(() => {
     if (!open) return;
@@ -286,10 +292,11 @@ export default function GlobalSearch({ variant }: GlobalSearchProps) {
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
     if (e.key === 'Enter') {
-      // Searching opens Discover's Explore tab with the query (the operator's
-      // call — the search bar opens Explore instead of the old per-section
-      // "See more" links). Works on both variants (the mobile full-screen
-      // view collapses via the pathname-change effect).
+      // Searching opens Discover with the query (?q=), staying on the active
+      // tab — the query chip (with its X) renders on BOTH the Trending and
+      // People tabs, so the search can be cleared from either. Works on both
+      // variants (the mobile full-screen view collapses via the pathname-
+      // change effect).
       if (query.trim()) submitSearch();
       return;
     }
@@ -300,14 +307,24 @@ export default function GlobalSearch({ variant }: GlobalSearchProps) {
     }
   };
 
-  // The search submit: navigate to Discover's Explore tab carrying the query
-  // (?tab=explore&q=). The Explore tab renders people + groups mashed into one
-  // browser, filtered by the query.
+  // The search submit: navigate to Discover carrying the query (?q=) and
+  // STAY on whatever tab is active (the operator's call: the search happens
+  // on both tabs — the query chip, with its X, renders on Trending AND
+  // People, so it can be cleared from either). A bare /discover?q= lands on
+  // Trending (the bare-URL default); /discover?tab=explore&q= lands on
+  // People. The query is screen state the URL holds (the deep-link rule).
   const submitSearch = useCallback(() => {
     const q = query.trim();
     if (!q) return;
-    navigate(`/discover?tab=explore&q=${encodeURIComponent(q)}`);
-  }, [query, navigate]);
+    // Stay on the active Discover tab if we're already there (?tab=explore
+    // rides along); otherwise land on the bare URL (Trending, the default).
+    const params = new URLSearchParams(locationSearch);
+    if (params.get('tab') === 'explore') {
+      navigate(`/discover?tab=explore&q=${encodeURIComponent(q)}`);
+    } else {
+      navigate(`/discover?q=${encodeURIComponent(q)}`);
+    }
+  }, [query, navigate, locationSearch]);
 
   const field = (sizeClass: string) => (
     <input
@@ -318,7 +335,7 @@ export default function GlobalSearch({ variant }: GlobalSearchProps) {
       onChange={(e) => setQuery(e.target.value)}
       onFocus={expand}
       onKeyDown={handleKeyDown}
-      placeholder="Search people, groups, posts…"
+      placeholder="Search web10"
       aria-label="Search"
       autoComplete="off"
       spellCheck={false}
@@ -330,7 +347,7 @@ export default function GlobalSearch({ variant }: GlobalSearchProps) {
   );
 
   // The results container content: the "type to search" idle state, or the
-  // mode-specific results. The mode toggle (Posts | People & Groups) is the
+  // mode-specific results. The mode toggle (Trending | People) is the
   // chunky switch the operator asked for — posts are the default; one tap
   // flips to people + groups. It renders as soon as there's a query (immediate,
   // not debounced) so it's clickable while the results are still loading.
@@ -348,40 +365,52 @@ export default function GlobalSearch({ variant }: GlobalSearchProps) {
       </div>
     ) : (
       <div className="py-1">
-        {/* The chunky mode toggle — Posts (default) | People & Groups. */}
-        <div className="flex items-center gap-1 px-3 py-2" role="tablist" aria-label="Search results type" data-testid="global-search-mode-toggle">
-          {([
-            ['posts', 'Posts', FileText],
-            ['people', 'People & Groups', Users],
-          ] as ['posts' | 'people', string, typeof FileText][]).map(([m, label, Icon]) => (
-            <button
-              key={m}
-              type="button"
-              role="tab"
-              aria-selected={mode === m}
-              data-testid={`global-search-mode-${m}`}
-              onClick={() => setMode(m)}
-              className={cn(
-                'flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-semibold transition-colors',
-                'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand/50',
-                mode === m
-                  ? 'bg-brand-muted text-brand-300'
-                  : 'text-muted-foreground hover:text-foreground hover:bg-elevated',
-              )}
-            >
-              <Icon className="h-3.5 w-3.5" strokeWidth={1.75} />
-              <span>{label}</span>
-            </button>
-          ))}
+        {/* The mode toggle — Trending (default) | People. The labels match
+            Discover's tabs (the operator: "it is supposed to be Trending and
+            People, not Posts and People"). Slim segmented control (the
+            Facebook-style dropdown, 25.09.2026 — no chunky pills). It
+            renders as soon as there's a query (immediate, not debounced) so
+            it's clickable while the results are still loading. */}
+        <div className="px-3 pt-2 pb-1">
+          <div
+            className="inline-flex items-center gap-0.5 rounded-full bg-elevated p-0.5"
+            role="tablist"
+            aria-label="Search results type"
+            data-testid="global-search-mode-toggle"
+          >
+            {([
+              ['posts', 'Trending', FileText],
+              ['people', 'People', Users],
+            ] as ['posts' | 'people', string, typeof FileText][]).map(([m, label, Icon]) => (
+              <button
+                key={m}
+                type="button"
+                role="tab"
+                aria-selected={mode === m}
+                data-testid={`global-search-mode-${m}`}
+                onClick={() => setMode(m)}
+                className={cn(
+                  'flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-semibold transition-colors',
+                  'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand/50',
+                  mode === m
+                    ? 'bg-brand-muted text-brand-300'
+                    : 'text-muted-foreground hover:text-foreground',
+                )}
+              >
+                <Icon className="h-3.5 w-3.5" strokeWidth={1.75} />
+                <span>{label}</span>
+              </button>
+            ))}
+          </div>
         </div>
 
         {mode === 'posts' ? (
           <>
-            {/* Posts (the default — "show the discover posts being searched") */}
+            {/* Trending posts (the default — "show the discover posts being searched") */}
             {posts === null ? (
-              <SectionSkeleton label="Posts" />
+              <SectionSkeleton label="Trending" />
             ) : posts.length > 0 ? (
-              <SearchSection label="Posts">
+              <SearchSection label="Trending">
                 {posts.map((p) => (
                   <PostRow key={p._id || p.created_at} post={p} />
                 ))}
@@ -432,8 +461,8 @@ export default function GlobalSearch({ variant }: GlobalSearchProps) {
           </>
         )}
 
-        {/* The search CTA — Enter (or this) opens Discover's Explore tab
-            with the query: people + groups mashed into one browser. */}
+        {/* The search CTA — Enter (or this) opens Discover with the query,
+            staying on the active tab (the query chip clears it from either). */}
         {mode === 'people' && (allLoaded(people) || allLoaded(groups)) && (
           <button
             type="button"
@@ -442,7 +471,7 @@ export default function GlobalSearch({ variant }: GlobalSearchProps) {
             className="w-full flex items-center gap-2 px-4 py-2.5 text-left text-sm text-brand-300 hover:text-brand-400 hover:bg-elevated transition-colors duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand/50"
           >
             <Search className="w-4 h-4 shrink-0" strokeWidth={1.75} />
-            See all results for &ldquo;{q}&rdquo; in Explore
+            See all results for &ldquo;{q}&rdquo; in Discover
           </button>
         )}
       </div>
@@ -450,32 +479,38 @@ export default function GlobalSearch({ variant }: GlobalSearchProps) {
 
   if (variant === 'desktop') {
     return (
-      <div ref={containerRef} className="relative flex-1 min-w-0 flex items-center h-14 px-4">
+      <div ref={containerRef} className="relative w-full flex items-center">
         {/* The field is always visible on desktop (the operator's call): the
-            persistent "Search people, groups, posts…" placeholder is more
-            informative than a bare icon. Focus opens the dropdown; the X
-            clears the query; clicking away closes the dropdown (field stays). */}
+            persistent placeholder is more informative than a bare icon.
+            Focus opens the dropdown; the X (only when there's a query)
+            clears it; clicking away closes the dropdown (field stays). The
+            field lives in the sidebar (the operator's Facebook-style
+            chrome); the results dropdown anchors below it and overflows the
+            sidebar into the content (the Facebook-style wide panel — the
+            sidebar itself is NOT overflow-hidden, 25.09.2026). */}
         <div
           data-testid="global-search-field-wrap"
-          className="flex items-center gap-2 flex-1 h-9 rounded-lg bg-elevated border border-input px-3 transition-colors duration-150 focus-within:border-brand/60"
+          className="flex items-center gap-2 flex-1 h-10 w-full rounded-full bg-elevated border border-border/60 pl-3.5 pr-1.5 transition-colors duration-150 focus-within:border-brand/50 focus-within:bg-background"
         >
           <Search className="w-4 h-4 shrink-0 text-muted-foreground" strokeWidth={1.75} aria-hidden="true" />
           {field('text-sm')}
-          <button
-            type="button"
-            data-testid="global-search-close"
-            aria-label="Clear search"
-            onClick={clearQuery}
-            className="h-6 w-6 shrink-0 flex items-center justify-center rounded-md text-muted-foreground hover:text-foreground hover:bg-elevated transition-colors duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand/50"
-          >
-            <X className="w-4 h-4" strokeWidth={1.75} />
-          </button>
+          {query.trim() !== '' && (
+            <button
+              type="button"
+              data-testid="global-search-close"
+              aria-label="Clear search"
+              onClick={clearQuery}
+              className="h-7 w-7 shrink-0 flex items-center justify-center rounded-full text-muted-foreground hover:text-foreground hover:bg-elevated transition-colors duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand/50"
+            >
+              <X className="w-3.5 h-3.5" strokeWidth={2} />
+            </button>
+          )}
         </div>
         {open && (
           <div
             data-testid="global-search-results"
             className={cn(
-              'absolute top-full left-4 right-4 mt-1 rounded-lg border border-border bg-popover shadow-[0_8px_30px_rgb(0_0_0/0.35)] z-30 overflow-hidden',
+              'absolute top-full left-0 mt-2 w-[26rem] max-w-[calc(100vw-2rem)] rounded-xl border border-border bg-popover shadow-[0_12px_40px_rgb(0_0_0/0.45)] z-40 overflow-hidden',
               !closing && 'animate-panel-in',
               closing && 'opacity-0 transition-opacity duration-150 ease-out',
             )}

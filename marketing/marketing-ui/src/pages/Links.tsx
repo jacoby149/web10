@@ -37,7 +37,7 @@ function getLinks(): LinkItem[] {
       icon: Store,
     },
     {
-      name: 'Trending',
+      name: 'Discover',
       description: 'Public discovery board',
       href: '/trending',
       icon: TrendingUp,

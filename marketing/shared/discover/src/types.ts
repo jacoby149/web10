@@ -149,6 +149,9 @@ export interface DiscoverAd {
   _id?: string;
   text?: string;
   media_refs?: unknown[];
+  /** The ad doc's created_at — the post-format ad's standalone card shows it
+   *  in the post header (an ad is a `posts` doc, so it has one). */
+  created_at?: string;
   offer?: {
     kind?: string;
     partner?: string;

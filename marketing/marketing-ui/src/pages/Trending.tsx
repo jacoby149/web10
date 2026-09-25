@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
-import { ArrowUpRight, MessageCircleOff, Flame, Video } from 'lucide-react';
+import { ArrowUpRight, MessageCircleOff, Flame, Video, User } from 'lucide-react';
 import {
   TrendingCard,
   TrendingSkeleton,
@@ -14,8 +14,7 @@ import type { FeedPost } from '@/components/FeedPreview';
 import { TrendingSidebar } from '@/components/TrendingSidebar';
 import { KnobRack } from '@/components/KnobRack';
 import { SearchBar } from '@/components/SearchBar';
-import { TrendingPeople } from '@/components/TrendingPeople';
-import { TrendingGroups } from '@/components/TrendingGroups';
+import { ProfilesBrowser } from '@/components/ProfilesBrowser';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { SOCIAL_ORIGIN } from '@/lib/origins';
 import { trackFunnel } from '@/lib/analytics';
@@ -225,20 +224,22 @@ function Trending() {
     return params.get('view') === 'grid' ? 'grid' : 'home';
   });
 
-  // Subtab: read from ?tab= query param (deep-link rule). `posts` is the bare
-  // URL (the default); `people` and `groups` are the M1 subtabs (the anon
-  // public directory, mirroring the social app's Explorer).
-  type TrendingTab = 'posts' | 'people' | 'groups';
+  // Subtab: read from ?tab= query param (deep-link rule). `trending` (the
+  // posts board) is the bare URL (the default); `profiles` is the mashed
+  // People + Groups browser (the social Discover "Profiles" tab, mirrored).
+  // The retired `?tab=people` / `?tab=groups` map to `profiles` (C3).
+  type TrendingTab = 'trending' | 'profiles';
   const [tab, setTab] = useState<TrendingTab>(() => {
     const params = new URLSearchParams(window.location.search);
     const raw = params.get('tab');
-    return raw === 'people' || raw === 'groups' ? raw : 'posts';
+    if (raw === 'profiles' || raw === 'people' || raw === 'groups') return 'profiles';
+    return 'trending';
   });
 
   const setTabUrl = useCallback((next: TrendingTab) => {
     setTab(next);
     const params = new URLSearchParams(window.location.search);
-    if (next === 'posts') {
+    if (next === 'trending') {
       params.delete('tab');
     } else {
       params.set('tab', next);
@@ -532,12 +533,11 @@ function Trending() {
               placeholder="Search posts, tags, topics…"
             />
           </div>
-          <div className="flex items-center gap-1" role="tablist" aria-label="Trending sections" data-testid="trending-tab-row">
+          <div className="flex items-center gap-1" role="tablist" aria-label="Discover sections" data-testid="trending-tab-row">
             {([
-              ['posts', 'Posts'],
-              ['people', 'People'],
-              ['groups', 'Groups'],
-            ] as [TrendingTab, string][]).map(([id, label]) => (
+              ['trending', 'Trending', Flame],
+              ['profiles', 'People', User],
+            ] as [TrendingTab, string, typeof Flame][]).map(([id, label, Icon]) => (
               <button
                 key={id}
                 type="button"
@@ -546,17 +546,18 @@ function Trending() {
                 data-testid={`trending-tab-${id}`}
                 onClick={() => setTabUrl(id)}
                 className={[
-                  'rounded-lg px-3 py-1.5 text-xs font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background',
+                  'flex items-center gap-2 rounded-xl px-5 py-2.5 text-base font-semibold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background',
                   tab === id
                     ? 'bg-brand-muted text-brand-300'
                     : 'text-muted-foreground hover:text-foreground hover:bg-elevated',
                 ].join(' ')}
               >
-                {label}
+                <Icon className="h-5 w-5" strokeWidth={1.75} />
+                <span>{label}</span>
               </button>
             ))}
           </div>
-          {tab === 'posts' && !isInitialLoad && !isSearching && (
+          {tab === 'trending' && !isInitialLoad && !isSearching && (
             <div className="flex items-center gap-1" data-testid="trending-view-toggle">
               {([
                 ['home', 'Home', Video],
@@ -583,22 +584,17 @@ function Trending() {
         </div>
       </div>
 
-      {/* People subtab (M1) — the anon public directory */}
-      {tab === 'people' && (
+      {/* Profiles subtab — the mashed People + Groups browser (the social
+          Discover "Profiles" tab, mirrored). The `?show=` toggle + the shared
+          cards come from the shared ProfilesBrowser (C1/C3). */}
+      {tab === 'profiles' && (
         <main className="flex-1 px-4 py-8 sm:px-6">
-          <TrendingPeople />
+          <ProfilesBrowser query={searchQuery} />
         </main>
       )}
 
-      {/* Groups subtab (M1) — the anon public directory */}
-      {tab === 'groups' && (
-        <main className="flex-1 px-4 py-8 sm:px-6">
-          <TrendingGroups />
-        </main>
-      )}
-
-      {/* Posts subtab (the default) — the existing feed */}
-      {tab === 'posts' && (<>
+      {/* Trending subtab (the default) — the existing feed */}
+      {tab === 'trending' && (<>
       {/* Knob Rack — only show when not searching */}
       {!isInitialLoad && allPosts.length > 0 && !isSearching && (
         <div className="px-4 pt-6 pb-4 sm:px-6">

@@ -4,11 +4,18 @@ The I3 floor this pins:
   * anon sees only the public subset (followers groups with an ``anyone``
     grant on ``profile``); a signed-in reader sees more (their follows + the
     public subset) — same card shape, different permissions;
-  * a user whose profile face the reader cannot read is ABSENT, never shown
-    with a fallback (I3: no private data);
-  * a user with no profile doc is absent (not shown-with-fallback);
+  * the I3 read-gate is the access boundary — a user whose followers group the
+    reader cannot read is ABSENT (no private data leaks);
+  * a user with no profile face is STILL listed (username-only face) — a
+    username + follower count is public identity, so a fresh account is
+    discoverable from birth instead of the directory reading empty;
   * the follower count is the membership aggregate ``count(group_members)``
     on the followers group, not a stored field (unspoofable).
+
+The node stays generic (D60): it returns the universal primitives only (user,
+follower count, profile face). It does NOT compute app-specific social signals
+(e.g. "mutuals") — those are derived client-side from the membership
+primitive.
 """
 
 import json
@@ -126,20 +133,31 @@ class TestListPublicUsersComposition:
         with patch.object(ch, "client") as mock_client:
             mock_client.query.side_effect = _dispatch("anon", False)
             result = ch.list_public_users("anon", False, limit=20, offset=0)
-        # anon: alice (5) + bob (10) are public; carol/eve private (absent);
-        # dave public but no profile (absent). Ranked by follower count desc.
-        assert [r["username"] for r in result] == ["bob", "alice"]
-        assert [r["follower_count"] for r in result] == [10, 5]
+        # anon: alice (5) + bob (10) + dave (2, public, no face -> username-only
+        # face) are public; carol/eve private (absent). Ranked by follower
+        # count desc.
+        assert [r["username"] for r in result] == ["bob", "alice", "dave"]
+        assert [r["follower_count"] for r in result] == [10, 5, 2]
 
-    def test_anon_excludes_private_and_profileless(self):
+    def test_anon_excludes_private(self):
         with patch.object(ch, "client") as mock_client:
             mock_client.query.side_effect = _dispatch("anon", False)
             result = ch.list_public_users("anon", False, limit=20, offset=0)
         usernames = {r["username"] for r in result}
-        # I3: carol + eve (private) and dave (no profile) are absent.
+        # I3: carol + eve (private followers groups) are absent.
         assert "carol" not in usernames
         assert "eve" not in usernames
-        assert "dave" not in usernames
+
+    def test_faceless_user_listed_with_username_face(self):
+        """A public user with no profile face is still listed (username-only
+        face) — the directory is populated from birth, not empty until every
+        user opens their profile."""
+        with patch.object(ch, "client") as mock_client:
+            mock_client.query.side_effect = _dispatch("anon", False)
+            result = ch.list_public_users("anon", False, limit=20, offset=0)
+        by_user = {r["username"]: r for r in result}
+        assert "dave" in by_user
+        assert by_user["dave"]["profile"]["display_name"] == "dave"
 
     def test_signed_in_sees_more_than_anon(self):
         with patch.object(ch, "client") as mock_client:
@@ -151,8 +169,8 @@ class TestListPublicUsersComposition:
         assert "eve" in usernames
         assert "carol" in usernames
         # still ranked by follower count desc.
-        assert usernames == ["bob", "eve", "alice", "carol"]
-        assert [r["follower_count"] for r in result] == [10, 7, 5, 3]
+        assert usernames == ["bob", "eve", "alice", "carol", "dave"]
+        assert [r["follower_count"] for r in result] == [10, 7, 5, 3, 2]
 
     def test_follower_count_is_membership_aggregate(self):
         """The count comes from count(group_members), not a stored field."""
@@ -160,8 +178,8 @@ class TestListPublicUsersComposition:
             mock_client.query.side_effect = _dispatch("anon", False)
             result = ch.list_public_users("anon", False, limit=20, offset=0)
         by_user = {r["username"]: r["follower_count"] for r in result}
-        # Matches the group_members aggregate exactly (bob 10, alice 5).
-        assert by_user == {"bob": 10, "alice": 5}
+        # Matches the group_members aggregate exactly (bob 10, alice 5, dave 2).
+        assert by_user == {"bob": 10, "alice": 5, "dave": 2}
 
     def test_profile_face_is_returned(self):
         with patch.object(ch, "client") as mock_client:
@@ -171,11 +189,21 @@ class TestListPublicUsersComposition:
         assert by_user["alice"]["profile"]["display_name"] == "Alice"
         assert by_user["bob"]["profile"]["bio"] == "yo"
 
+    def test_no_mutuals_field(self):
+        """The node stays generic (D60) — it does not compute app-specific
+        social signals like mutuals; the card carries only the universal
+        primitives (username, follower_count, profile)."""
+        with patch.object(ch, "client") as mock_client:
+            mock_client.query.side_effect = _dispatch("anon", False)
+            result = ch.list_public_users("anon", False, limit=20, offset=0)
+        for r in result:
+            assert set(r.keys()) == {"username", "follower_count", "profile"}
+
     def test_limit_and_offset_page(self):
         with patch.object(ch, "client") as mock_client:
             mock_client.query.side_effect = _dispatch("carol", True)
             page = ch.list_public_users("carol", True, limit=2, offset=1)
-        # full order: bob(10), eve(7), alice(5), carol(3); page 2 of size 2
+        # full order: bob(10), eve(7), alice(5), carol(3), dave(2); page 2 of size 2
         assert [r["username"] for r in page] == ["eve", "alice"]
 
 

@@ -1,5 +1,8 @@
 import { getV3Client } from './v3';
 import { resolveMediaRefs } from './posts';
+import { followersGroupId, getGroupMembers } from './groups';
+import { listFollowers } from './follows';
+import { extractUsername } from './types';
 
 const LOG = (...args: unknown[]) => console.log('[social:people]', ...args);
 
@@ -30,6 +33,8 @@ export interface PersonCard {
   banner_url?: string;
   /** The unspoofable follower count (D0: count of the followers group). */
   followers_count: number;
+  /** How many of this user's followers the reader also follows (the "N mutuals"). */
+  mutuals: number;
   /** Whether the reader follows this person. */
   is_following: boolean;
 }
@@ -38,6 +43,18 @@ export type PeopleSort = 'popular' | 'az';
 
 /** The default sort (the server's follower ranking). */
 export const DEFAULT_PEOPLE_SORT: PeopleSort = 'popular';
+
+/**
+ * The People browser's view filter (the "easy filters" the operator asked for —
+ * the social graph, not just discovery). `all` is the bare URL (the public
+ * directory, the D0 read); `following` = the people you follow; `mutuals` =
+ * people you have in common (mutuals > 0, the D0 read filtered); `followers`
+ * = the people who follow you. Deep-linkable via `?personFilter=`.
+ */
+export type PeopleFilter = 'all' | 'following' | 'mutuals' | 'followers';
+
+/** The default filter (the public directory — the bare URL). */
+export const DEFAULT_PEOPLE_FILTER: PeopleFilter = 'all';
 
 /**
  * Order a people list for display. Non-mutating; ties break by username so the
@@ -131,28 +148,46 @@ export async function fetchPeoplePage(opts: {
       avatar_ref: (profile.avatar_ref as string) || undefined,
       banner_ref: (profile.banner_ref as string) || undefined,
       followers_count: u.follower_count,
+      mutuals: 0,
       is_following: myFollowing.has(u.username),
     };
   });
 
-  // Resolve the face media (avatar + banner) per person — owner-scoped reads,
-  // so one call per person. Failures degrade to the card's fallback face.
+  // Per-card enrichment (one bounded pass over the page, each read degrades
+  // independently): (1) the presigned face media (avatar/banner); (2) the
+  // "N mutuals" signal — how many of this person's followers the reader also
+  // follows. Mutuals are derived CLIENT-side from the generic membership
+  // primitive (a user's followers = the member list of their followers group,
+  // `getGroupMembers`), intersected with the reader's own following set — the
+  // node stays generic (D60), it never computes an app's social signal. Anon
+  // has no following set → mutuals stay 0.
   await Promise.all(
     people.map(async (card) => {
-      const refs = [card.avatar_ref, card.banner_ref].filter(Boolean) as string[];
-      if (!refs.length) return;
-      try {
-        const media = await resolveMediaRefs(
-          refs,
-          { username: card.username, provider: card.provider },
-          'public_media',
-        );
-        for (const m of media) {
-          if (m._id === card.avatar_ref) card.avatar_url = m.url;
-          else if (m._id === card.banner_ref) card.banner_url = m.url;
+      // (2) Mutuals — the generic membership primitive (bounded by the page).
+      if (token && myFollowing.size > 0) {
+        try {
+          const members = await getGroupMembers(followersGroupId(card.username, card.provider));
+          card.mutuals = members.filter((m) => myFollowing.has(extractUsername(m.member_key))).length;
+        } catch (e) {
+          LOG('fetchPeoplePage — mutuals read failed for', card.username, '(degrading to 0):', e);
         }
-      } catch (e) {
-        LOG('fetchPeoplePage — face media failed for', card.username, ':', e);
+      }
+      // (1) Face media (avatar + banner) — owner-scoped reads.
+      const refs = [card.avatar_ref, card.banner_ref].filter(Boolean) as string[];
+      if (refs.length) {
+        try {
+          const media = await resolveMediaRefs(
+            refs,
+            { username: card.username, provider: card.provider },
+            'public_media',
+          );
+          for (const m of media) {
+            if (m._id === card.avatar_ref) card.avatar_url = m.url;
+            else if (m._id === card.banner_ref) card.banner_url = m.url;
+          }
+        } catch (e) {
+          LOG('fetchPeoplePage — face media failed for', card.username, ':', e);
+        }
       }
     }),
   );
@@ -161,4 +196,168 @@ export async function fetchPeoplePage(opts: {
   const hasMore = page.users.length >= opts.limit;
   LOG('fetchPeoplePage — returned', people.length, 'card(s), hasMore:', hasMore);
   return { people, hasMore };
+}
+
+/**
+ * The reader's own followers (who follow you) as PersonCards, for the People
+ * browser's "Followers" filter. The `Followers` view is the one the D0
+ * directory can't express (the reader's followers aren't necessarily
+ * discoverable public people), so it's a separate read: `listFollowers(me)`
+ * (the members of the reader's own followers group) enriched with each
+ * person's face (display name + presigned avatar/banner). Each read degrades
+ * independently — a missing profile just leaves that card faceless (the
+ * username renders). Follower count is the reader's own group size (shared).
+ */
+export async function fetchMyFollowersCards(): Promise<PersonCard[]> {
+  const w = getV3Client();
+  const token = w.readToken();
+  if (!token) {
+    LOG('fetchMyFollowersCards — no token, returning []');
+    return [];
+  }
+  const me = token.username;
+  const provider = token.provider;
+
+  let followers: { username: string; provider: string }[] = [];
+  try {
+    followers = await listFollowers(me);
+  } catch (e) {
+    LOG('fetchMyFollowersCards — listFollowers failed:', e);
+    return [];
+  }
+  LOG('fetchMyFollowersCards — got', followers.length, 'follower(s)');
+
+  // The reader's own follower count (the size of their followers group) — the
+  // same figure every follower card shares (a display figure, not per-person).
+  let ownFollowerCount = followers.length;
+  try {
+    const members = await getGroupMembers(followersGroupId(me, provider));
+    ownFollowerCount = members.length;
+  } catch {
+    // Degrade to the list length.
+  }
+
+  const myFollowing = new Set<string>(followers.map((f) => f.username));
+
+  const cards = await Promise.all(
+    followers.map(async (f): Promise<PersonCard> => {
+      const card: PersonCard = {
+        username: f.username,
+        provider: f.provider || provider,
+        display_name: f.username,
+        followers_count: ownFollowerCount,
+        mutuals: 0,
+        is_following: myFollowing.has(f.username),
+      };
+      // Resolve the face (display name + avatar/banner) — degrades to the
+      // username + gradient fallback when the profile is unreadable.
+      try {
+        const docs = await w.read('profile', { groups: [followersGroupId(f.username, f.provider)] });
+        if (docs.length > 0) {
+          const latest = docs.reduce((a, b) => ((a.updated_at ?? '') >= (b.updated_at ?? '') ? a : b));
+          const body = latest.body as Record<string, unknown>;
+          card.display_name = (body.display_name as string) || f.username;
+          card.bio = (body.bio as string) || undefined;
+          card.avatar_ref = (body.avatar_ref as string) || undefined;
+          card.banner_ref = (body.banner_ref as string) || undefined;
+        }
+      } catch {
+        // No readable face — the card renders from the username alone.
+      }
+      const refs = [card.avatar_ref, card.banner_ref].filter(Boolean) as string[];
+      if (refs.length) {
+        try {
+          const media = await resolveMediaRefs(refs, { username: card.username, provider: card.provider }, 'public_media');
+          for (const m of media) {
+            if (m._id === card.avatar_ref) card.avatar_url = m.url;
+            else if (m._id === card.banner_ref) card.banner_url = m.url;
+          }
+        } catch (e) {
+          LOG('fetchMyFollowersCards — face media failed for', card.username, ':', e);
+        }
+      }
+      return card;
+    }),
+  );
+
+  LOG('fetchMyFollowersCards — returned', cards.length, 'card(s)');
+  return cards;
+}
+
+/**
+ * The reader's own following (the people you follow) as PersonCards, for the
+ * People browser's "Following" filter. Following IS group membership, so the
+ * set is exactly the `/followers` groups the reader belongs to (one read);
+ * each is enriched with the followed person's face. Same shape + degradation
+ * as {@link fetchMyFollowersCards}.
+ */
+export async function fetchMyFollowingCards(): Promise<PersonCard[]> {
+  const w = getV3Client();
+  const token = w.readToken();
+  if (!token) {
+    LOG('fetchMyFollowingCards — no token, returning []');
+    return [];
+  }
+  const me = token.username;
+  const provider = token.provider;
+
+  // My following set — follows are group membership (the /followers groups I'm
+  // in). The followed user is the group's owner (the username segment).
+  let following: { username: string; provider: string }[] = [];
+  try {
+    const myGroups = await w.getMyGroups();
+    following = myGroups
+      .filter((g) => g.group_id.endsWith('/followers'))
+      .map((g) => {
+        const parts = g.group_id.split('/');
+        return { username: parts[parts.length - 2] || '', provider: parts[0] || provider };
+      })
+      .filter((f) => f.username && f.username !== me);
+  } catch (e) {
+    LOG('fetchMyFollowingCards — my-follows read failed:', e);
+    return [];
+  }
+  LOG('fetchMyFollowingCards — got', following.length, 'following');
+
+  const cards = await Promise.all(
+    following.map(async (f): Promise<PersonCard> => {
+      const card: PersonCard = {
+        username: f.username,
+        provider: f.provider || provider,
+        display_name: f.username,
+        followers_count: 0,
+        mutuals: 0,
+        is_following: true,
+      };
+      try {
+        const docs = await w.read('profile', { groups: [followersGroupId(f.username, f.provider)] });
+        if (docs.length > 0) {
+          const latest = docs.reduce((a, b) => ((a.updated_at ?? '') >= (b.updated_at ?? '') ? a : b));
+          const body = latest.body as Record<string, unknown>;
+          card.display_name = (body.display_name as string) || f.username;
+          card.bio = (body.bio as string) || undefined;
+          card.avatar_ref = (body.avatar_ref as string) || undefined;
+          card.banner_ref = (body.banner_ref as string) || undefined;
+        }
+      } catch {
+        // No readable face — the card renders from the username alone.
+      }
+      const refs = [card.avatar_ref, card.banner_ref].filter(Boolean) as string[];
+      if (refs.length) {
+        try {
+          const media = await resolveMediaRefs(refs, { username: card.username, provider: card.provider }, 'public_media');
+          for (const m of media) {
+            if (m._id === card.avatar_ref) card.avatar_url = m.url;
+            else if (m._id === card.banner_ref) card.banner_url = m.url;
+          }
+        } catch (e) {
+          LOG('fetchMyFollowingCards — face media failed for', card.username, ':', e);
+        }
+      }
+      return card;
+    }),
+  );
+
+  LOG('fetchMyFollowingCards — returned', cards.length, 'card(s)');
+  return cards;
 }

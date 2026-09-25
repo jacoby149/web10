@@ -7,6 +7,8 @@
 
 export { DiscoverCard, type DiscoverCardProps } from './DiscoverCard';
 export { HomeCard, truncateTitle, HOME_TITLE_LIMIT, type HomeCardProps } from './HomeCard';
+export { PersonCard, PersonCardSkeleton, type PersonCardProps, type DiscoverPerson } from './PersonCard';
+export { GroupCard, GroupCardSkeleton, JoinPolicyBadge, type GroupCardProps, type DiscoverGroup, type DiscoverGroupFace, type GroupJoinState } from './GroupCard';
 export { VideoPlayer, sourceFromMedia, ImmersiveHls, InlineVideo, type VideoSource, type VideoPlayerProps } from './VideoPlayer';
 export { HlsVideoPlayer } from './HlsVideoPlayer';
 export { MediaCarousel, type MediaCarouselProps } from './MediaCarousel';
@@ -14,7 +16,7 @@ export { PostActions, type PostActionsProps, type PostActionMode, type ReactionK
 export { CommentThread, type CommentThreadProps } from './CommentThread';
 export { RankBadge, heatTier, HEAT_SHADOW } from './RankBadge';
 export { Badge, IconBtn, Avatar, AvatarFallback, Skeleton, TextInput, Select } from './ui';
-export { cn, formatCount, hashToColor, timeAgo, parseCreatedAt } from './utils';
+export { cn, formatCount, hashToColor, hashToGradient, timeAgo, parseCreatedAt } from './utils';
 export type {
   DiscoverPost,
   MediaItem,

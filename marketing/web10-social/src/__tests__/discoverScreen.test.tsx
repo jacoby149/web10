@@ -28,6 +28,11 @@ vi.mock('@/data', async (importOriginal) => {
     // D53 directory) — mocked so the Explore section tests control the data.
     fetchPeoplePage: vi.fn().mockResolvedValue({ people: [], hasMore: false }),
     readGroupDirectory: vi.fn().mockResolvedValue([]),
+    // The Explore tab's own-graph reads (the Following / Followers / My Groups
+    // filters) — mocked so the filter tests control the data.
+    fetchMyFollowersCards: vi.fn().mockResolvedValue([]),
+    fetchMyFollowingCards: vi.fn().mockResolvedValue([]),
+    getMyCommunityGroups: vi.fn().mockResolvedValue([]),
   };
 });
 
@@ -1395,13 +1400,41 @@ describe('DiscoverScreen — subtab shell (D1)', () => {
     });
   });
 
-  it('renders the Trending | Explore tab row with Trending active by default', async () => {
+  it('renders the Trending | People tab row with Trending active by default', async () => {
     await renderDiscoverAt('/discover');
     await waitFor(() => {
       expect(screen.getByTestId('discover-tab-row')).toBeInTheDocument();
     });
     expect(screen.getByTestId('discover-tab-trending')).toHaveAttribute('aria-selected', 'true');
     expect(screen.getByTestId('discover-tab-explore')).toHaveAttribute('aria-selected', 'false');
+    // The tab labels are "Trending" and "People" (the operator, 24.09.2026:
+    // "trending People makes more sense" — not "Profiles").
+    expect(screen.getByTestId('discover-tab-trending')).toHaveTextContent('Trending');
+    expect(screen.getByTestId('discover-tab-explore')).toHaveTextContent('People');
+  });
+
+  it('the People tab carries the two-people glyph; the Profiles subtab chip the one-person glyph', async () => {
+    await renderDiscoverAt('/discover?tab=explore');
+    await waitFor(() => {
+      expect(screen.getByTestId('explore-show-toggle')).toBeInTheDocument();
+    });
+    // The top-level People tab: the TWO-people glyph (it holds profiles +
+    // groups — the operator, 25.09.2026: "people should be the logo of the
+    // two people").
+    const tab = screen.getByTestId('discover-tab-explore');
+    expect(tab.querySelector('[data-testid="icon-users"]')).not.toBeNull();
+    expect(tab.querySelector('[data-testid="icon-user"]')).toBeNull();
+    // The Profiles subtab chip: the ONE-person glyph (individual profiles —
+    // "in the subtab, it should be profiles and groups … and should be just
+    // one person logo").
+    const chip = screen.getByTestId('explore-show-people');
+    expect(chip).toHaveTextContent('Profiles');
+    expect(chip.querySelector('[data-testid="icon-user"]')).not.toBeNull();
+    expect(chip.querySelector('[data-testid="icon-users"]')).toBeNull();
+    // The Groups chip keeps its hash glyph.
+    const groupsChip = screen.getByTestId('explore-show-groups');
+    expect(groupsChip).toHaveTextContent('Groups');
+    expect(groupsChip.querySelector('[data-testid="icon-hash"]')).not.toBeNull();
   });
 
   it('switches to Explore and hides the Trending board', async () => {
@@ -1467,6 +1500,29 @@ describe('DiscoverScreen — subtab shell (D1)', () => {
     expect(screen.getByTestId('discover-explore-tab-query')).toHaveTextContent('lofi');
   });
 
+  it('shows the query chip on the Trending tab (?q= without ?tab=)', async () => {
+    await renderDiscoverAt('/discover?q=lofi');
+    await waitFor(() => {
+      expect(screen.getByTestId('discover-trending-tab-query')).toBeInTheDocument();
+    });
+    expect(screen.getByTestId('discover-trending-tab-query')).toHaveTextContent('lofi');
+    // The Trending tab is active (the bare-URL default).
+    expect(screen.getByTestId('discover-tab-trending')).toHaveAttribute('aria-selected', 'true');
+  });
+
+  it('X on the Trending tab query chip clears ?q= (back to the unfiltered board)', async () => {
+    await renderDiscoverAt('/discover?q=lofi');
+    await waitFor(() => {
+      expect(screen.getByTestId('discover-trending-tab-query')).toBeInTheDocument();
+    });
+    fireEvent.click(screen.getByTestId('discover-trending-tab-query-clear'));
+    await waitFor(() => {
+      expect(screen.queryByTestId('discover-trending-tab-query')).not.toBeInTheDocument();
+    });
+    // The ?q= param is gone from the URL.
+    expect(lastSearch).not.toContain('q=');
+  });
+
   it('writes ?tab= to the URL on switch and clears it for Trending (bare URL)', async () => {
     await renderDiscoverAt('/discover?view=grid');
     await waitFor(() => {
@@ -1493,7 +1549,10 @@ describe('DiscoverScreen — subtab shell (D1)', () => {
   // client has no listPeopleDirectory, so fetchPeoplePage would error).
   function seedExploreData() {
     (data.fetchPeoplePage as ReturnType<typeof vi.fn>).mockResolvedValue({
-      people: [{ username: 'alice', provider: 'test.localhost', followers_count: 3, is_following: false }],
+      people: [
+        { username: 'alice', provider: 'test.localhost', followers_count: 3, mutuals: 2, is_following: true },
+        { username: 'bob', provider: 'test.localhost', followers_count: 5, mutuals: 0, is_following: false },
+      ],
       hasMore: false,
     });
     (data.readGroupDirectory as ReturnType<typeof vi.fn>).mockResolvedValue([
@@ -1581,5 +1640,234 @@ describe('DiscoverScreen — subtab shell (D1)', () => {
     expect(screen.getByTestId('explore-show-people')).toHaveAttribute('aria-pressed', 'true');
     // Back to "both" — the ?show= param is cleared (bare URL).
     expect(lastSearch).not.toContain('show=');
+  });
+
+  // ── The People / Groups filter chips (?personFilter= / ?groupFilter=) ──────
+  // The "easy filters": People = All | Following | Mutuals | Followers;
+  // Groups = All | My Groups | Discover.
+
+  it('renders the People filter chips with All active by default', async () => {
+    seedExploreData();
+    await renderDiscoverAt('/discover?tab=explore');
+    await waitFor(() => {
+      expect(screen.getByTestId('explore-people-filter')).toBeInTheDocument();
+    });
+    expect(screen.getByTestId('explore-people-filter-all')).toHaveAttribute('aria-selected', 'true');
+    expect(screen.getByTestId('explore-people-filter-following')).toHaveAttribute('aria-selected', 'false');
+    expect(screen.getByTestId('explore-people-filter-mutuals')).toHaveAttribute('aria-selected', 'false');
+    expect(screen.getByTestId('explore-people-filter-followers')).toHaveAttribute('aria-selected', 'false');
+  });
+
+  it('renders the Groups filter chips with All active by default', async () => {
+    seedExploreData();
+    await renderDiscoverAt('/discover?tab=explore');
+    await waitFor(() => {
+      expect(screen.getByTestId('explore-groups-filter')).toBeInTheDocument();
+    });
+    expect(screen.getByTestId('explore-groups-filter-all')).toHaveAttribute('aria-selected', 'true');
+    expect(screen.getByTestId('explore-groups-filter-mine')).toHaveAttribute('aria-selected', 'false');
+    expect(screen.getByTestId('explore-groups-filter-discover')).toHaveAttribute('aria-selected', 'false');
+  });
+
+  it('the Mutuals filter shows only people with mutuals > 0', async () => {
+    seedExploreData();
+    await renderDiscoverAt('/discover?tab=explore');
+    await waitFor(() => {
+      expect(screen.getByTestId('explore-people-filter')).toBeInTheDocument();
+    });
+    // Both alice (2 mutuals) + bob (0 mutuals) show under All.
+    expect(screen.getAllByTestId('people-card')).toHaveLength(2);
+
+    fireEvent.click(screen.getByTestId('explore-people-filter-mutuals'));
+
+    await waitFor(() => {
+      expect(screen.getByTestId('explore-people-filter-mutuals')).toHaveAttribute('aria-selected', 'true');
+    });
+    // Only alice (mutuals 2) remains — bob (0 mutuals) is filtered out.
+    await waitFor(() => {
+      expect(screen.getAllByTestId('people-card')).toHaveLength(1);
+    });
+    expect(screen.getByTestId('people-card')).toHaveTextContent('alice');
+    expect(lastSearch).toContain('personFilter=mutuals');
+  });
+
+  it('the Following filter lists the reader\'s own following (separate read)', async () => {
+    seedExploreData();
+    (data.fetchMyFollowingCards as ReturnType<typeof vi.fn>).mockResolvedValue([
+      { username: 'carol', provider: 'test.localhost', display_name: 'Carol', followers_count: 9, mutuals: 0, is_following: true },
+    ]);
+    await renderDiscoverAt('/discover?tab=explore');
+    await waitFor(() => {
+      expect(screen.getByTestId('explore-people-filter')).toBeInTheDocument();
+    });
+    fireEvent.click(screen.getByTestId('explore-people-filter-following'));
+    await waitFor(() => {
+      expect(screen.getByTestId('explore-people-filter-following')).toHaveAttribute('aria-selected', 'true');
+    });
+    // The directory (alice/bob) is replaced by the following read (carol).
+    await waitFor(() => {
+      expect(screen.getByTestId('people-card')).toHaveTextContent('carol');
+    });
+    expect(data.fetchMyFollowingCards).toHaveBeenCalled();
+    expect(lastSearch).toContain('personFilter=following');
+  });
+
+  it('the Followers filter lists the reader\'s own followers (separate read)', async () => {
+    seedExploreData();
+    (data.fetchMyFollowersCards as ReturnType<typeof vi.fn>).mockResolvedValue([
+      { username: 'dave', provider: 'test.localhost', display_name: 'Dave', followers_count: 9, mutuals: 0, is_following: false },
+    ]);
+    await renderDiscoverAt('/discover?tab=explore');
+    await waitFor(() => {
+      expect(screen.getByTestId('explore-people-filter')).toBeInTheDocument();
+    });
+    fireEvent.click(screen.getByTestId('explore-people-filter-followers'));
+    await waitFor(() => {
+      expect(screen.getByTestId('explore-people-filter-followers')).toHaveAttribute('aria-selected', 'true');
+    });
+    await waitFor(() => {
+      expect(screen.getByTestId('people-card')).toHaveTextContent('dave');
+    });
+    expect(data.fetchMyFollowersCards).toHaveBeenCalled();
+    expect(lastSearch).toContain('personFilter=followers');
+  });
+
+  it('the My Groups filter lists the reader\'s own groups (separate read)', async () => {
+    seedExploreData();
+    (data.getMyCommunityGroups as ReturnType<typeof vi.fn>).mockResolvedValue([
+      { group_id: 'test.localhost/groups/communities/my-crew', join_policy: 'open', my_role: 'member', member_count: 4, tags: [] },
+    ]);
+    await renderDiscoverAt('/discover?tab=explore');
+    await waitFor(() => {
+      expect(screen.getByTestId('explore-groups-filter')).toBeInTheDocument();
+    });
+    fireEvent.click(screen.getByTestId('explore-groups-filter-mine'));
+    await waitFor(() => {
+      expect(screen.getByTestId('explore-groups-filter-mine')).toHaveAttribute('aria-selected', 'true');
+    });
+    // The directory (Lofi) is replaced by the My Groups list (my-crew).
+    await waitFor(() => {
+      expect(screen.getByTestId('explore-groups-mine-list')).toBeInTheDocument();
+    });
+    expect(screen.getByTestId('groups-my-row')).toHaveTextContent('my-crew');
+    expect(data.getMyCommunityGroups).toHaveBeenCalled();
+    expect(lastSearch).toContain('groupFilter=mine');
+  });
+
+  it('restores ?personFilter=mutuals on initial render (deep link)', async () => {
+    seedExploreData();
+    await renderDiscoverAt('/discover?tab=explore&personFilter=mutuals');
+    await waitFor(() => {
+      expect(screen.getByTestId('explore-people-filter')).toBeInTheDocument();
+    });
+    expect(screen.getByTestId('explore-people-filter-mutuals')).toHaveAttribute('aria-selected', 'true');
+    // Only alice (mutuals 2) shows.
+    await waitFor(() => {
+      expect(screen.getAllByTestId('people-card')).toHaveLength(1);
+    });
+  });
+});
+
+describe('DiscoverScreen — the post-format ad renders as its own card, next in line (ad-improvements.md)', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    (data.getV3Client as ReturnType<typeof vi.fn>).mockReturnValue({
+      read: vi.fn().mockResolvedValue([]),
+      readToken: vi.fn().mockReturnValue({ provider: 'test.localhost', username: 'testuser' }),
+    });
+  });
+
+  const POST_AD = {
+    _id: 'ad-1',
+    text: 'Everything I use, linked.',
+    created_at: new Date().toISOString(),
+    offer: { link: 'https://amzn.to/abc', cta: 'Check it out', disclosure: 'I may earn a commission.' },
+    status: 'active',
+    author_username: 'alice',
+    variant: 'creator',
+    format: 'post',
+    media_refs: [],
+  };
+
+  const INLINE_AD = {
+    _id: 'ad-inline-1',
+    text: 'The compact inline ad.',
+    offer: { link: 'https://amzn.to/xyz', cta: 'Get it', disclosure: 'I may earn a commission.' },
+    status: 'active',
+    author_username: 'alice',
+    variant: 'creator',
+    format: 'inline',
+    media_refs: [],
+  };
+
+  it('a post-format ad attached to a discover post renders as a standalone card AFTER that post (not inside it)', async () => {
+    (data.readDiscoverFeed as ReturnType<typeof vi.fn>).mockResolvedValue([
+      {
+        author: 'top-user',
+        provider: 'api.web10.app',
+        post_id: 'p1',
+        text: 'Top post',
+        tags: ['trending'],
+        created_at: new Date().toISOString(),
+        likes: 200,
+        comments: 50,
+        reposts: 20,
+        score: 250,
+        ad: POST_AD,
+      },
+    ]);
+
+    const { default: DiscoverScreen } = await import('@/components/Discover/DiscoverScreen');
+    render(
+      <MemoryRouter initialEntries={['/discover?view=grid']}>
+        <DiscoverScreen />
+      </MemoryRouter>,
+    );
+
+    const card = await screen.findByTestId('discover-card');
+    const adCard = screen.getByTestId('post-ad-card');
+
+    // The ad is its own standalone card, NOT nested inside the discover card.
+    expect(adCard.tagName).toBe('ARTICLE');
+    expect(adCard.getAttribute('data-ad-standalone')).toBe('true');
+    expect(card.contains(adCard)).toBe(false);
+    // Next in line on the board — directly after the post's card.
+    expect(card.nextElementSibling).toBe(adCard);
+    // The ad dressing is intact.
+    expect(screen.getByTestId('post-ad-badge')).toHaveTextContent('Ad');
+    expect(screen.getByTestId('post-ad-author')).toHaveTextContent('@alice');
+    expect(screen.getByTestId('post-ad-cta')).toHaveTextContent('Check it out');
+  });
+
+  it('an inline ad stays in the discover card (no standalone card)', async () => {
+    (data.readDiscoverFeed as ReturnType<typeof vi.fn>).mockResolvedValue([
+      {
+        author: 'top-user',
+        provider: 'api.web10.app',
+        post_id: 'p1',
+        text: 'Top post',
+        tags: ['trending'],
+        created_at: new Date().toISOString(),
+        likes: 200,
+        comments: 50,
+        reposts: 20,
+        score: 250,
+        ad: INLINE_AD,
+      },
+    ]);
+
+    const { default: DiscoverScreen } = await import('@/components/Discover/DiscoverScreen');
+    render(
+      <MemoryRouter initialEntries={['/discover?view=grid']}>
+        <DiscoverScreen />
+      </MemoryRouter>,
+    );
+
+    const card = await screen.findByTestId('discover-card');
+    // The compact AdBlock renders inside the card's ad slot.
+    const adBlock = screen.getByTestId('ad-block');
+    expect(card.contains(adBlock)).toBe(true);
+    // No standalone post-ad card.
+    expect(screen.queryByTestId('post-ad-card')).toBeNull();
   });
 });

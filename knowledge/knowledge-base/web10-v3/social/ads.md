@@ -77,23 +77,38 @@ doesn't read it.
 
 - **`inline`** — the compact **AdBlock** under the post it's attached to: a
   (square) thumbnail + the offer CTA + the disclosure. The original, restricted
-  form.
-- **`post`** — a **full post-like card** under the post it's attached to: the
-  creative media (image/video, everything a post has), the copy, the offer CTA,
-  the disclosure, the provenance badge (Ad / Sponsored), and a like. It "looks
-  like a post" — the Meta/Instagram "sponsored post."
+  form. It renders **inside** the post's own card (the card's ad slot).
+- **`post`** — a **full post card** rendered as its **own card in the stream,
+  next in line after the post it's attached to**: the creative media
+  (image/video, everything a post has), the copy, the offer CTA, the
+  disclosure, the provenance badge (Ad / Sponsored), and a like. It "looks
+  like a post" — the Meta/Instagram "sponsored post." **Nothing about it
+  indicates it is pinned to another post** — no ring, no "attached to"
+  marker; the badge + disclosure are the only ad dressing. The post header
+  shows the ad's own author (+ the ad doc's `created_at`, when the read
+  carries it).
 
-**Key: a post ad is ATTACHED, not a standalone feed post.** It is served with the
-post it's attached to (the `ad_preference` / `attach_node_ads` join), rendered
-under that post. It is **never** a free-floating post in the feed, so it is
-**never subject to ranking/trending** — an ad doesn't need to be popular to show;
-it's attached. (The feed/discover read drops `ad`-tagged docs from the standalone
-list so ad docs don't leak in as plain, ranked posts.)
+**Key: a post ad is ATTACHED, not a standalone feed post.** It is served with
+the post it's attached to (the `ad_preference` / `attach_node_ads` join) and
+renders **next in line after that post** — wherever that post shows (feed,
+discover / Hot Gossip board, the lightbox's attached variant). It is **never**
+a free-floating post in the feed, so it is **never subject to
+ranking/trending** — an ad doesn't need to be popular to show; it's attached.
+(The feed/discover read drops `ad`-tagged docs from the standalone list so ad
+docs don't leak in as plain, ranked posts.)
 
-Both **creator** and **node** ads support both formats — a node ad and a creator
-ad "work the same exact way" (same object, same attachment, same formats); they
-differ only in provenance (the Ad/Sponsored badge) and the node-level knobs
-(`node_ad_percentage`, `node_ad_overwrite` — see `monetization.md`).
+**The two renderings of a post ad** (the `PostAdCard`'s `standalone` seam):
+*standalone* (the default — feed + discover) is the own-card-in-the-stream
+form; *attached* (the lightbox, where there is no stream) is the compact
+variant inside the post's own ad slot (the provenance strip + media + copy +
+offer + like, wrapped in the attachment ring). Inline ads always render in the
+post's own ad slot, in every surface.
+
+Both **creator** and **node** ads support both formats — a node ad and a
+creator ad "work the same exact way" (same object, same attachment, same
+formats); they differ only in provenance (the Ad/Sponsored badge) and the
+node-level knobs (`node_ad_percentage`, `node_ad_overwrite` — see
+`monetization.md`).
 
 ## How It Maps to the Data Model
 

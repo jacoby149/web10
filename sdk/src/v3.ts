@@ -339,7 +339,10 @@ export interface V3LoginResponse {
 // profile face the reader can read (I3). `follower_count` is the unspoofable
 // membership aggregate (count of the user's followers group), not a stored
 // field. `profile` is the user's face (display_name, bio, avatar_ref,
-// banner_ref, …) — the same shape the social app's profile read returns.
+// banner_ref, …) — the same shape the social app's profile read returns. The
+// node stays generic (D60): it returns the universal primitives only — no
+// app-specific social signals (mutuals are derived client-side from the
+// membership primitive).
 export interface V3DirectoryUser {
   username: string
   follower_count: number

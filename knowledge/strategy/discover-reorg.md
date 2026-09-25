@@ -1,14 +1,20 @@
 # Discover Reorg — Posts, People, Groups as browsers (operator pass, 18.09.2026)
 
-**Status: PLANNED.** Discover becomes *the* discovery surface — **Posts |
-People | Groups** subtabs. **Search is NOT here** — it's the top-bar
-everything-search (`global-search.md`); each subtab is a **browser** you can
-reach *with a query already applied* via "see more" (`?q=`), where you page +
-sort. The Groups tab keeps only the groups you're a part of. The standalone
-People tab is retired. The marketing `/trending` mirrors the three entities.
+**Status: SHIPPED + SUPERSEDED (3.157.0).** The original three-subtab design
+(Posts | People | Groups) shipped, then **`discover-ia-consistency.md`
+(3.158.0) re-cut the tabs to two — Trending | People** (the operator's
+23.09.2026 pass; the second tab was briefly "Profiles" and renamed back to
+"People" on 24.09.2026 — "trending People makes more sense"). **Groups is a
+*section* inside the People browser, not a top-level tab** (in both the social
+app and the marketing site). The People browser's cards + the Groups cards are
+now the **shared `@web10/discover` `PersonCard` + `GroupCard`** (one source,
+both apps). The marketing `/trending` mirrors the social Discover (Trending |
+People, the same People browser). Everything below is the historical record of
+the original reorg; read `discover-ia-consistency.md` for the current fixed
+point.
 
-> **The one-liner:** the subtabs are *browsers* (paged, sortable), not
-> search boxes. The front door is the top-bar search (`global-search.md`);
+> **The one-liner (original):** the subtabs are *browsers* (paged, sortable),
+> not search boxes. The front door is the top-bar search (`global-search.md`);
 > "see more people" lands you here with the query applied so you can page
 > through. Rationale: *"you are discovering people and groups."*
 
@@ -55,23 +61,36 @@ People has no server read yet (the D0 open item below).
 
 ## The design
 
-### The subtabs = browsers (search lives in the top bar)
-One screen, three subtabs, URL state (`?tab=posts|people|groups`; `posts` is
-the bare URL). **No per-subtab search field** — the query arrives via
-`?q=` from the top-bar search's "see more" (`global-search.md`). Each subtab
-is a paged, sortable **browser**:
+> **Current state (24.09.2026):** Discover is **two tabs — Trending |
+> People** (the `?tab=` ids are `trending` / `explore`; trending is the bare
+> URL). The original three tabs collapsed to two: **Groups is a section
+> inside the People tab** (the `?show=` People/Groups toggle), not a top-level
+> tab. The posts board's tab label is **Trending** (was "Posts" — the
+> operator, 24.09.2026: "it is supposed to be Trending and People, not Posts
+> and People"; the flame icon means trending posts). The top-bar search
+> (Enter) lands on Discover **with the query, staying on the active tab**
+> (`/discover?q=…` → Trending, `/discover?tab=explore&q=…` → People), and the
+> **query chip (with its X) renders on BOTH tabs** — the search can be
+> cleared from either one. See `global-search.md` S5.
 
-- **Posts** (default) — the existing board feed, **unchanged** (grid/Video,
-  topic chips, KnobRack). A `?q=` (from "see more posts") filters it — the
-  app's existing post search, now reachable from the global search too.
-- **People** — the People cards (banner+avatar+name+mutuals+Follow), the
-  three sorts (Mutuals/Popular/A–Z, `?sort=`), **pagination** ("view more"),
-  and a `?q=` filter (name/handle). Reached bare (browse) or with a query
-  (from "see more people"). The "People to follow" rail is **retired** from
-  the Posts view — it becomes this tab.
-- **Groups** — the D53 directory cards (face+name+owner+members+join policy+
-  tags), the tag filter (`?tag=`), **pagination** (thread the `offset`), and
-  a `?q=` filter (name/owner/tags). Join/Request + View.
+### The subtabs = browsers (search lives in the top bar)
+One screen, two subtabs, URL state (`?tab=`; `trending` is the bare URL).
+**No per-subtab search field** — the query arrives via
+`?q=` from the top-bar search (`global-search.md`). Each subtab is a paged,
+sortable **browser**:
+
+- **Trending** (default, `?tab=` bare) — the existing board feed (grid/Video,
+  topic chips, KnobRack). A `?q=` (from the search) filters it — the app's
+  existing post search — and shows the **query chip** (with its X) above the
+  composer, so the search can be cleared from this tab.
+- **People** (`?tab=explore`) — the **mashed People + Groups browser**
+  (the operator: "people are groups in web10"): the People cards (banner+
+  avatar+name+followers+Follow, the Popular/A–Z sorts, "view more" paging)
+  and the Groups directory cards (the D53 read, paged, join/request), each
+  with a `?q=` filter (name/handle for people, name/owner/tags for groups)
+  and a `?show=` People/Groups visibility toggle. The **query chip** (with
+  its X) renders here too. The "People to follow" rail is **retired** from
+  the Trending view — it became this tab.
 
 ### Groups tab = the groups you're a part of
 `/groups` keeps one list: **My Groups** (unchanged). Its Discover tab moves
