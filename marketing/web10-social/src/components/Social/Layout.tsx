@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { useNavigate, useLocation, Outlet } from 'react-router-dom';
 import { cn } from '@/lib/utils';
-import { Home, User, MessageSquare, LogOut, Bug, Compass, Store, Gamepad2, Radio, Zap, Clapperboard, Settings, MoreHorizontal, X, Bell, ChevronDown, DollarSign, Flame } from 'lucide-react';
+import { Home, User, Users, MessageSquare, LogOut, Bug, Compass, Store, Gamepad2, Radio, Zap, Clapperboard, Settings, MoreHorizontal, X, Bell, ChevronDown, DollarSign, Flame } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { getWapi } from '@/data/wapi';
@@ -212,13 +212,16 @@ export default function Layout({ onLogout, onReportBug, children }: LayoutProps)
   return (
     <div className="flex h-screen overflow-hidden bg-background">
       <aside className={cn(
-        'hidden md:flex flex-col w-64 border-r border-border relative overflow-hidden',
+        'hidden md:flex flex-col w-64 border-r border-border relative',
         'bg-gradient-to-b from-surface to-background',
       )}>
-        <div
-          className="pointer-events-none absolute -top-20 -left-20 h-40 w-40 rounded-full bg-brand/5 blur-3xl"
-          aria-hidden="true"
-        />
+        {/* The decorative glow is clipped by its OWN container — the aside
+            itself must NOT be overflow-hidden: the search results dropdown
+            anchors here and overflows into the content (the Facebook-style
+            wide panel, 25.09.2026). */}
+        <div className="pointer-events-none absolute inset-0 overflow-hidden" aria-hidden="true">
+          <div className="absolute -top-20 -left-20 h-40 w-40 rounded-full bg-brand/5 blur-3xl" />
+        </div>
         <div className="relative p-4">
           <Wordmark markOnly />
         </div>
@@ -395,7 +398,11 @@ export default function Layout({ onLogout, onReportBug, children }: LayoutProps)
               <div className="flex items-center gap-1" role="tablist" aria-label="Discover sections" data-testid="discover-tab-row">
                 {([
                   ['trending', 'Trending', Flame],
-                  ['explore', 'People', User],
+                  // The People tab carries the TWO-people glyph (it holds
+                  // profiles + groups — the operator, 25.09.2026: "people
+                  // should be the logo of the two people"); the Profiles
+                  // *subtab* inside it carries the one-person glyph.
+                  ['explore', 'People', Users],
                 ] as ['trending' | 'explore', string, typeof Flame][]).map(([id, label, TabIcon]) => (
                   <button
                     key={id}

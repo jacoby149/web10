@@ -143,6 +143,9 @@ describe('GlobalSearch — desktop (dropdown)', () => {
     renderDesktopSearch();
     const field = screen.getByTestId('global-search-field');
     fireEvent.focus(field);
+    // The X only renders once there's a query (the Facebook-style field —
+    // an empty field has nothing to clear).
+    expect(screen.queryByTestId('global-search-close')).not.toBeInTheDocument();
     fireEvent.change(field, { target: { value: 'john' } });
     expect(field).toHaveValue('john');
     fireEvent.click(screen.getByTestId('global-search-close'));
@@ -159,6 +162,19 @@ describe('GlobalSearch — desktop (dropdown)', () => {
     // The dropdown fades out (150ms), but the field stays visible.
     await waitFor(() => expect(screen.queryByTestId('global-search-results')).not.toBeInTheDocument());
     expect(screen.getByTestId('global-search-field')).toBeInTheDocument();
+  });
+
+  it('the field is a Facebook-style pill + the dropdown is a wide panel (overflows the sidebar)', () => {
+    renderDesktopSearch();
+    // The pill: rounded-full (the operator's Facebook reference, 25.09.2026).
+    const wrap = screen.getByTestId('global-search-field-wrap');
+    expect(wrap.className).toContain('rounded-full');
+    // The dropdown is the wide panel (w-[26rem]) — it overflows the 256px
+    // sidebar into the content, instead of being clipped to it.
+    fireEvent.focus(screen.getByTestId('global-search-field'));
+    const results = screen.getByTestId('global-search-results');
+    expect(results.className).toContain('w-[26rem]');
+    expect(results.className).toContain('rounded-xl');
   });
 });
 

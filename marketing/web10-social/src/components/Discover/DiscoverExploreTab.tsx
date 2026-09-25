@@ -36,6 +36,7 @@ import {
   type MyGroupFace,
 } from './DiscoverGroupsTab';
 import {
+  User,
   Users,
   Hash,
   Search,
@@ -496,14 +497,18 @@ export default function DiscoverExploreTab({ query }: DiscoverExploreTabProps) {
         </div>
       )}
 
-      {/* The People / Groups visibility toggle (?show=) — chunky icon+label
-          chips so a flood of people can't drown out the groups. Each section
-          shows/hides independently: both (default) / people / groups / none. */}
+      {/* The Profiles / Groups visibility toggle (?show=) — chunky icon+label
+          chips so a flood of profiles can't drown out the groups. Each section
+          shows/hides independently: both (default) / people / groups / none.
+          The Profiles chip carries the ONE-person glyph (individual profiles);
+          the People *tab* above it carries the two-people glyph. (The operator,
+          25.09.2026: "in the subtab, it should be profiles and groups … and
+          should be just one person logo".) */}
       <div className="px-4 pt-3 md:px-0">
         <div className="flex items-center gap-2" data-testid="explore-show-toggle" role="group" aria-label="Show sections">
           {(['people', 'groups'] as const).map((section) => {
             const active = section === 'people' ? showPeople : showGroups;
-            const Icon = section === 'people' ? Users : Hash;
+            const Icon = section === 'people' ? User : Hash;
             return (
               <button
                 key={section}
@@ -520,7 +525,7 @@ export default function DiscoverExploreTab({ query }: DiscoverExploreTabProps) {
                 )}
               >
                 <Icon className="h-4 w-4" strokeWidth={1.75} />
-                {section === 'people' ? 'People' : 'Groups'}
+                {section === 'people' ? 'Profiles' : 'Groups'}
               </button>
             );
           })}
@@ -537,7 +542,7 @@ export default function DiscoverExploreTab({ query }: DiscoverExploreTabProps) {
         <section data-testid="explore-people-section">
           <div className="flex items-center justify-between gap-2 pb-2">
             <h2 className="px-1 text-[0.625rem] font-semibold uppercase tracking-wide text-muted-foreground/70">
-              People
+              Profiles
             </h2>
             {/* The People filter chips (?personFilter=) — the "easy filters". */}
             <div className="flex items-center gap-1" data-testid="explore-people-filter" role="tablist" aria-label="Filter people">
@@ -798,7 +803,7 @@ export default function DiscoverExploreTab({ query }: DiscoverExploreTabProps) {
             </div>
             <h2 className="font-display text-xl font-semibold text-foreground">Nothing to show</h2>
             <p className="mt-2 max-w-sm text-sm text-muted-foreground">
-              Both sections are hidden. Turn People or Groups back on above.
+              Both sections are hidden. Turn Profiles or Groups back on above.
             </p>
           </div>
         )}

@@ -1413,6 +1413,30 @@ describe('DiscoverScreen — subtab shell (D1)', () => {
     expect(screen.getByTestId('discover-tab-explore')).toHaveTextContent('People');
   });
 
+  it('the People tab carries the two-people glyph; the Profiles subtab chip the one-person glyph', async () => {
+    await renderDiscoverAt('/discover?tab=explore');
+    await waitFor(() => {
+      expect(screen.getByTestId('explore-show-toggle')).toBeInTheDocument();
+    });
+    // The top-level People tab: the TWO-people glyph (it holds profiles +
+    // groups — the operator, 25.09.2026: "people should be the logo of the
+    // two people").
+    const tab = screen.getByTestId('discover-tab-explore');
+    expect(tab.querySelector('[data-testid="icon-users"]')).not.toBeNull();
+    expect(tab.querySelector('[data-testid="icon-user"]')).toBeNull();
+    // The Profiles subtab chip: the ONE-person glyph (individual profiles —
+    // "in the subtab, it should be profiles and groups … and should be just
+    // one person logo").
+    const chip = screen.getByTestId('explore-show-people');
+    expect(chip).toHaveTextContent('Profiles');
+    expect(chip.querySelector('[data-testid="icon-user"]')).not.toBeNull();
+    expect(chip.querySelector('[data-testid="icon-users"]')).toBeNull();
+    // The Groups chip keeps its hash glyph.
+    const groupsChip = screen.getByTestId('explore-show-groups');
+    expect(groupsChip).toHaveTextContent('Groups');
+    expect(groupsChip.querySelector('[data-testid="icon-hash"]')).not.toBeNull();
+  });
+
   it('switches to Explore and hides the Trending board', async () => {
     await renderDiscoverAt('/discover?view=grid');
     await waitFor(() => {
