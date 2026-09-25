@@ -1110,7 +1110,7 @@ export default function DiscoverScreen() {
               tab. Clearing it re-filters the board (the client-side ?q=
               filter) and the URL. */}
           {urlQuery.trim() !== '' && (
-            <div className="px-4 pt-3 md:px-0">
+            <div className="px-4 pt-3 md:px-4 lg:px-6">
               <span
                 data-testid="discover-trending-tab-query"
                 className="inline-flex items-center gap-1.5 rounded-full border border-brand/40 bg-brand-muted/40 px-3 py-1 text-xs text-brand-300"
@@ -1141,7 +1141,7 @@ export default function DiscoverScreen() {
           )}
 
           {/* Controls: presets + knobs */}
-          <div className="px-4 py-3 md:px-0">
+          <div className="px-4 py-3 md:px-4 lg:px-6">
             <KnobRack
               state={knobState}
               activePreset={activePreset}
@@ -1152,7 +1152,7 @@ export default function DiscoverScreen() {
 
           {/* Topic filter chips */}
           {topics.length > 1 && (
-            <div className="px-4 py-3 md:px-0">
+            <div className="px-4 py-3 md:px-4 lg:px-6">
               <div
                 className="flex gap-2 overflow-x-auto [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
                 role="tablist"
@@ -1197,7 +1197,7 @@ export default function DiscoverScreen() {
               ranked board). The operator: video first, hot gossip second. */}
           {!isInitialLoad && posts.length > 0 && (
             <div className="border-b border-border bg-surface/50">
-              <div className="px-4 md:px-0">
+              <div className="px-4 md:px-4 lg:px-6">
                 <div className="flex items-center gap-1 py-2" data-testid="discover-view-toggle">
                   {([
                     ['home', 'Home', Video],
