@@ -34,8 +34,10 @@ web10-v3/
 │   └── endpoints.md       ← the store's endpoint surface: the product page, ratings, stats
 ├── groups/                ← groups as a platform primitive
 │   ├── overview.md        ← policy containers, roles, join policies
+│   ├── access.md          ← who can do what in a group (the D58 read/write gate)
 │   ├── identity.md        ← profiles, URLs, service-scoped roles
 │   ├── requests.md        ← app→user group consent (GCR), auto-approve, bundling
+│   ├── contract-healing.md ← the app owns its own contracts: diff a group contract against its canonical spec + the consensual (additive, non-clobbering) self-heal
 │   └── social-contracts.md ← the exact group contracts the social app creates
 ├── social/                ← web10-social implementation
 │   ├── overview.md        ← how social uses groups: discover, follows, communities
@@ -87,7 +89,7 @@ web10-v3/
 - **App Store** — `app-store/overview.md` (registration, visits, PWA manifests), `app-store/endpoints.md` (the endpoint surface: product page, ratings, stats)
 - **Security** — `security/overview.md` (invariants I1–I5, two-contract model, blocking)
 - **Query Engine** — `query-engine.md` (the flexible read: how far to take the power), `safe-query.md` (the boundary CTE + why the guarantee holds; `w.query()` / `POST /v3/query`)
-- **Groups** — `groups/overview.md` (primitive), `groups/identity.md` (profiles)
+- **Groups** — `groups/overview.md` (primitive), `groups/access.md` (who can do what — the D58 gate), `groups/identity.md` (profiles), `groups/contract-healing.md` (the app owns its own contracts — the consensual self-heal)
 - **Social** — `social/overview.md` (implementation), `social/cross-app-sharing.md` (patterns), `social/ads.md` (the creator-owned ads — a post tagged `ad`), `social/ads-catalog.md` (the catalog + composer), `social/monetization.md` (the app-owned ad surface, D75 — the catalog + onboarding + node-ad inventory in web10-social, node-admin gated), `social/video-player.md` (the client's one shared video surface — `<VideoPlayer>`, the two modalities), `social/shorts.md` (the vertical short-form feed — a 9:16 post on the discover group, the /shorts swipe surface), `social/post-actions.md` (the client's one shared engagement bar — `<PostActions>`, the like/dislike pair, the repost axis, the `<CommentThread>` mount), `social/comments.md` (the comment thread — threaded replies: `ref_value` is always the post, `parent_id` in the body, one read builds the tree; comment likes: a `reactions` doc on the comment), `social/reposts.md` (the repost — a `type:'repost'` reaction, independent of like/dislike, the real count + tappable repeat icon, not a boost), `social/group-chat.md` (N-person messaging in the Messages surface — a group with `kind:'chat'` on its face, a name + members, per-sender bubbles; CRUD-only real-time in v1), `social/discover-card.md` (the shared discover card, D74 — one component, two apps), `social/pwa.md` (making web10-social a serious installable app — the real service worker + the install prompt at the moment of value, D72), `social/share-preview.md` (the post permalink, rich when shared — the social app's preview server renders OG/Twitter tags, the browser gets the SPA)
 - **Media** — `media/transcoding-foundation.md` (the model), `media/transcoding.md` (the pipeline), `media/streaming.md` (the layers), `media/minio-auth-bifurcated.md` (the auth split), `media/thumbnailing.md` (the generic "picture for this doc" — `pickThumbnail` + the access-checked endpoint; the social card refactored onto it)
 - **Telemetry** — `telemetry.md` (why web10 tracks hard: GA4 + masked Hotjar, the content line, the terms trade — D56)

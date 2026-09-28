@@ -208,6 +208,9 @@ export async function listUserFollowers(): Promise<unknown[]> {
 }
 export async function countUserFollowingReal(): Promise<number> { return PEERS.length; }
 export async function readUserPublicPosts(): Promise<unknown[]> { return PROFILE_POSTS; }
+export async function readUserPublicProfile(): Promise<{ posts: unknown[]; avatarUrl?: string; bannerUrl?: string }> {
+  return { posts: PROFILE_POSTS };
+}
 export async function countStagingPosts(): Promise<number> { return 0; }
 export async function saveProfile(): Promise<void> {}
 export async function readMyPosts(): Promise<unknown[]> { return PROFILE_POSTS; }

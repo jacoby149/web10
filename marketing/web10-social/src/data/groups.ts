@@ -1,4 +1,4 @@
-import { getV3Client, readTokenCookie, extractDetail, Web10Error, type V3Group, type V3Document, type V3Client } from './v3';
+import { getV3Client, readTokenCookie, extractDetail, Web10Error, type V3Group, type V3Document, type V3Client, type V3GroupContractSpec } from './v3';
 import { extractUsername, fromV3DocToPost, type PostRecord } from './types';
 import { API_HOST, API_ORIGIN } from '../lib/origins';
 
@@ -146,6 +146,29 @@ const DM_ROLES = [
   },
 ];
 
+// ── Canonical contract specs (the "the app owns its own contracts") ──────────
+// Each group type the app creates has a CANONICAL shape it needs to work. The
+// self-heal (ensureFollowers → reconcileGroupContract) guarantees the app
+// INFRASTRUCTURE: the role definitions, the join policy, and the tags. It does
+// NOT touch a row that is the OWNER's choice. The split is the load-bearing
+// one (D60 — the SDK provides the mechanism, the app declares what's its own):
+//
+//   * FOLLOWERS — the `reader` ROLE is infrastructure (it's what makes the
+//     public-profile grant work; a group created before the role existed lacks
+//     it, leaving the `anyone → reader` row inert and the owner absent from the
+//     people directory). The `anyone` MEMBER ROW is the owner's publicness
+//     choice (public by default at creation, toggleable to private via
+//     setProfilePublic) — so it is NOT in the spec: re-adding it on every
+//     sign-in would clobber a "make private" choice. It's a create-time default
+//     + user toggle, not a heal invariant.
+
+/** The canonical followers-group contract the app self-heals toward. */
+const FOLLOWERS_CONTRACT_SPEC: V3GroupContractSpec = {
+  roles: FOLLOWER_ROLES,
+  join_policy: 'open',
+  tags: [GROUP_TAG.followers],
+};
+
 // ── Ensure groups ────────────────────────────────────────────────────────────
 
 /**
@@ -212,18 +235,29 @@ export async function ensureFollowers(username: string, provider?: string): Prom
     console.log('[groups] ensureFollowers — group exists but user is not a member; joining:', groupId);
     await w.joinGroup(groupId);
   }
-  // Public-by-default heal: a followers group created before the rule (or by a
-  // client that hasn't adopted it) has no `anyone` row — its profile face is
-  // unreadable to anyone but the owner + members. Add the grant so the face
-  // becomes public without a node redeploy. Idempotent (no-op when present).
+  // SELF-HEAL the contract to the canonical shape (the "the app owns its own
+  // contracts" primitive). Additive + non-clobbering + idempotent: it appends
+  // any missing ROLE DEFINITION (the real bug — a group created before the
+  // `reader` role existed lacks it, leaving the `anyone → reader` row inert
+  // and the owner absent from the public people directory), appends the
+  // followers tag, and resets a drifted join policy. It NEVER touches the
+  // `anyone` publicness member row (the owner's choice — re-adding it on every
+  // sign-in would clobber a "make private") nor any role/tag the owner set.
   try {
-    const members = await w.getGroupMembers(groupId);
-    if (!members.some((m) => m.member_key === 'anyone')) {
-      console.log('[groups] ensureFollowers — healing private followers group to public:', groupId);
-      await w.addGroupMember(groupId, 'anyone', 'reader');
+    const { diff, healed } = await w.reconcileGroupContract(groupId, FOLLOWERS_CONTRACT_SPEC);
+    if (healed) {
+      console.log(
+        '[groups] ensureFollowers — healed contract drift:',
+        JSON.stringify({
+          missingRoles: diff.missingRoles.map((r) => r.name),
+          rolePermissionGaps: diff.rolePermissionGaps,
+          missingTags: diff.missingTags,
+          joinPolicyDrifted: diff.joinPolicyDrifted,
+        }),
+      );
     }
   } catch (e) {
-    console.log('[groups] ensureFollowers — public heal skipped:', e);
+    console.log('[groups] ensureFollowers — contract heal skipped:', e);
   }
   return groupId;
 }
