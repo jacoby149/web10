@@ -53,6 +53,8 @@ export type {
   V3GroupCR,
   V3GroupRole,
   V3GroupMemberCR,
+  V3GroupContractSpec,
+  V3GroupContractDiff,
   V3User,
   V3LoginResponse,
   V3Client,

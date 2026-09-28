@@ -8,7 +8,7 @@
  */
 
 // V3 client
-export { createV3Client, pickThumbnail, type V3Client } from './v3'
+export { createV3Client, pickThumbnail, diffGroupContract, mergeGroupRolesForReconcile, findDanglingGrants, type V3Client } from './v3'
 export type {
   V3ClientOptions,
   V3AdPreference,
@@ -20,6 +20,8 @@ export type {
   V3FeedPost,
   V3Group,
   V3GroupMember,
+  V3GroupContractSpec,
+  V3GroupContractDiff,
   V3UserGroupMembership,
   V3UserGroupsPage,
   V3InviteResponse,
