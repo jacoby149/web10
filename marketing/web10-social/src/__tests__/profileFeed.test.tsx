@@ -42,6 +42,7 @@ vi.mock('@/data', async (importOriginal) => {
     countFollowers: vi.fn().mockResolvedValue(0),
     countUserFollowing: vi.fn().mockResolvedValue(0),
     readUserPublicPosts: vi.fn().mockResolvedValue([]),
+    readUserPublicProfile: vi.fn().mockResolvedValue({ posts: [], avatarUrl: undefined, bannerUrl: undefined }),
     readReactions: vi.fn().mockResolvedValue([]),
     toggleReactionKind: vi.fn().mockResolvedValue('like'),
     readFollows: vi.fn().mockResolvedValue([]),
@@ -293,10 +294,14 @@ describe('Profile posts view lens (grid | feed)', () => {
   });
 
   it('the feed view on someone else\'s profile shows no owner menu (not their posts to edit)', async () => {
-    const { readUserPublicPosts } = await import('@/data');
-    vi.mocked(readUserPublicPosts).mockResolvedValue([
-      { _id: 'vp-1', text: 'their post', author_username: 'nova', author_provider: 'test.localhost', created_at: new Date().toISOString() },
-    ]);
+    const { readUserPublicProfile } = await import('@/data');
+    vi.mocked(readUserPublicProfile).mockResolvedValue({
+      posts: [
+        { _id: 'vp-1', text: 'their post', author_username: 'nova', author_provider: 'test.localhost', created_at: new Date().toISOString() },
+      ],
+      avatarUrl: undefined,
+      bannerUrl: undefined,
+    });
 
     const { default: UserProfileScreen } = await import('@/components/Bio/UserProfileScreen');
     render(
