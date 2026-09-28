@@ -337,3 +337,122 @@ class TestUpdateJobMonotonic:
 
         # The tie (now == current) must be broken: new updated_at = current + 1us.
         assert captured["updated_at"] == fixed + __import__("datetime").timedelta(microseconds=1)
+
+
+# ---------------------------------------------------------------------------
+# _clamp_progress — the UInt8 guard
+# ---------------------------------------------------------------------------
+
+
+class TestClampProgress:
+    def test_in_range(self):
+        assert iw._clamp_progress(42) == 42
+        assert iw._clamp_progress(0) == 0
+        assert iw._clamp_progress(100) == 100
+
+    def test_clamps_high(self):
+        assert iw._clamp_progress(101) == 100
+        assert iw._clamp_progress(255) == 100
+
+    def test_clamps_negative(self):
+        assert iw._clamp_progress(-5) == 0
+
+    def test_garbage(self):
+        assert iw._clamp_progress(None) == 0
+        assert iw._clamp_progress("n/a") == 0
+
+
+# ---------------------------------------------------------------------------
+# user_owns_group — the I3 target-group gate
+# ---------------------------------------------------------------------------
+
+
+class TestUserOwnsGroup:
+    def test_owner_bare_key(self):
+        # Followers groups enroll the owner under the bare username.
+        with patch("app.v3.services.clickhouse.get_group_member") as gm:
+            gm.return_value = {"member_key": "alice", "role": "owner"}
+            assert iw.user_owns_group("alice", "g1") is True
+
+    def test_owner_prefixed_key(self):
+        # Community groups enroll the owner under {provider}/users/{username}.
+        with patch("app.v3.services.clickhouse.get_group_member") as gm:
+            gm.side_effect = lambda g, k: (
+                {"member_key": k, "role": "owner"} if k.endswith("/users/alice") else None
+            )
+            assert iw.user_owns_group("alice", "g1") is True
+
+    def test_member_not_owner(self):
+        with patch("app.v3.services.clickhouse.get_group_member") as gm:
+            gm.return_value = {"member_key": "alice", "role": "member"}
+            assert iw.user_owns_group("alice", "g1") is False
+
+    def test_not_a_member(self):
+        with patch("app.v3.services.clickhouse.get_group_member") as gm:
+            gm.return_value = None
+            assert iw.user_owns_group("alice", "g1") is False
+
+
+# ---------------------------------------------------------------------------
+# _write_records (as_page) — the channel becomes the group's face (D60)
+# ---------------------------------------------------------------------------
+
+
+class TestWriteRecordsPage:
+    def _run_page(self, has_face=False):
+        calls = []
+
+        def fake_query(sql, params=None):
+            res = MagicMock()
+            if "count()" in sql:
+                # _user_has_profile / _group_has_face both count — the page
+                # path only calls _group_has_face, which we patch separately,
+                # so this is the (unused) profile count.
+                res.result_rows = [[0]]
+            else:
+                res.result_rows = []
+            return res
+
+        def fake_insert_document(author_key, service, body, ref_value="", tags=None, doc_id=None, ad_mode="none", ad_target="", created_at=None):
+            calls.append(("insert", service, body.get("origin_id")))
+            return {"doc_id": f"doc-{body.get('origin_id') or service}"}
+
+        def fake_attach(doc_id, group_ids):
+            calls.append(("attach", doc_id, tuple(group_ids)))
+
+        patches = [
+            patch("app.v3.services.clickhouse.client.query", side_effect=fake_query),
+            patch("app.v3.services.clickhouse.insert_document", side_effect=fake_insert_document),
+            patch("app.v3.services.clickhouse.attach_doc_to_groups", side_effect=fake_attach),
+            patch("app.v3.services.clickhouse.confirm_media_upload", return_value={"doc_id": "media-x"}),
+            patch("app.services.media.get_s3_client", return_value=MagicMock()),
+            patch("app.services.media.make_object_key", return_value="k/thumb.jpg"),
+            patch.object(iw, "_group_has_face", return_value=has_face),
+            patch("app.v3.services.import_worker.requests.get", return_value=MagicMock(content=b"t", raise_for_status=MagicMock())),
+        ]
+        for p in patches:
+            p.start()
+        try:
+            written, skipped, errors = iw._write_records("job-1", "alice", _records(), "g-page", as_page=True)
+        finally:
+            for p in patches:
+                p.stop()
+        return written, skipped, errors, calls
+
+    def test_channel_becomes_group_face(self):
+        # as_page: the channel writes to the identity service (the face), NOT
+        # the personal profile service.
+        _, _, _, calls = self._run_page(has_face=False)
+        services = {c[1] for c in calls if c[0] == "insert"}
+        assert iw.GROUP_IDENTITY_SERVICE in services
+        assert "profile" not in services
+        # The face doc is attached to the target group.
+        face_attaches = [c for c in calls if c[0] == "attach"]
+        assert all(c[2] == ("g-page",) for c in face_attaches)
+
+    def test_existing_face_not_overwritten(self):
+        # A group that already has a face keeps it — the import skips.
+        written, skipped, _, calls = self._run_page(has_face=True)
+        services = {c[1] for c in calls if c[0] == "insert"}
+        assert iw.GROUP_IDENTITY_SERVICE not in services
+        assert "profile" not in services

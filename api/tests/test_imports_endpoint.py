@@ -47,9 +47,11 @@ def _job(user="testuser", phase=iw.PENDING, keys=None):
         "platform": "youtube",
         "phase": phase,
         "object_keys": keys or [],
+        "target_group_id": "",
         "total_records": 0,
         "written_records": 0,
         "skipped_records": 0,
+        "progress": 0,
         "errors": [],
         "message": "m",
         "created_at": "2026-01-01T00:00:00",
@@ -141,6 +143,67 @@ class TestCreate:
         )
         assert resp.status_code == 401
 
+    def test_target_group_not_found(self, client, token):
+        # An explicit target group that doesn't exist is a 404.
+        with patch("app.v3.services.import_worker.ch.get_group", return_value=None):
+            resp = client.post(
+                "/v3/imports",
+                json={
+                    "token": token,
+                    "platform": "youtube",
+                    "parts": [{"filename": "a.tar"}],
+                    "target_group_id": "web10.app/groups/ghost",
+                },
+            )
+        assert resp.status_code == 404
+
+    def test_target_group_not_owned(self, client, token):
+        # A group the user does NOT own is a 403 (I3: the import writes the
+        # group's face + posts + comments — owner-level only).
+        with (
+            patch("app.v3.services.import_worker.ch.get_group", return_value={"group_id": "g"}),
+            patch("app.v3.services.import_worker.user_owns_group", return_value=False),
+        ):
+            resp = client.post(
+                "/v3/imports",
+                json={
+                    "token": token,
+                    "platform": "youtube",
+                    "parts": [{"filename": "a.tar"}],
+                    "target_group_id": "web10.app/groups/other",
+                },
+            )
+        assert resp.status_code == 403
+
+    def test_target_group_owned_passes(self, client, token):
+        # A group the user owns is accepted and stored on the job.
+        with (
+            patch("app.v3.services.import_worker.ch.get_group", return_value={"group_id": "g"}),
+            patch("app.v3.services.import_worker.user_owns_group", return_value=True),
+            patch("app.v3.endpoints.imports.ensure_bucket"),
+            patch("app.v3.endpoints.imports.get_s3_client", return_value=MagicMock()),
+            patch("app.v3.endpoints.imports.get_s3_signing_client") as signer,
+            patch("app.v3.services.import_worker.create_import_job") as create,
+            patch("app.v3.services.import_worker.get_import_job", return_value=_job()),
+        ):
+            signer.return_value.generate_presigned_post.return_value = {
+                "url": "https://minio/upload",
+                "fields": {"key": "k"},
+            }
+            resp = client.post(
+                "/v3/imports",
+                json={
+                    "token": token,
+                    "platform": "youtube",
+                    "parts": [{"filename": "a.tar"}],
+                    "target_group_id": "web10.app/groups/mine",
+                },
+            )
+        assert resp.status_code == 200
+        # target_group_id is the 5th positional arg to create_import_job.
+        args, _ = create.call_args
+        assert args[4] == "web10.app/groups/mine"
+
 
 # ---------------------------------------------------------------------------
 # POST /v3/imports/start
@@ -219,3 +282,16 @@ class TestStatus:
         assert resp.status_code == 200
         assert resp.json()["job"]["job_id"] == "job-1"
         assert resp.json()["job"]["phase"] == iw.PENDING
+        # The progress percentage is part of the status surface (the client's
+        # progress bar reads it).
+        assert "progress" in resp.json()["job"]
+
+    def test_progress_round_trips(self, client, token):
+        # A mid-import job reports its percentage (the "x% imported" surface).
+        job = _job(phase=iw.PROCESSING)
+        job["progress"] = 57
+        job["total_records"] = 100
+        job["written_records"] = 57
+        with patch("app.v3.services.import_worker.get_import_job", return_value=job):
+            resp = client.post("/v3/imports/status", json={"token": token, "job_id": "job-1"})
+        assert resp.json()["job"]["progress"] == 57
