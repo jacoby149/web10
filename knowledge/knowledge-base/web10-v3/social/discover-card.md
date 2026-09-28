@@ -60,6 +60,16 @@ them; `ads.md` "Two Formats"). Nothing indicates the pin — the badge +
 disclosure are the only dressing. The card only ever renders the inline
 format in its slot.
 
+**The board read drops ad docs (the every-surface rule).** The card renders
+what its screen's read hands it — and the discover group *holds* the node ad
+docs (tagged `ad` + `node_ad`). So each app's board read filters them out of
+the standalone list before the cards ever see them: the social app's
+`readDiscoverFeed` (`dropAdPosts`) and the marketing `/trending` read + search
+(`dropAdDocs`, `FeedPreview.tsx`). Without the filter, a node ad doc renders as
+a plain ranked tile/card on the board (the 25.09.2026 leak — `#ad #node_ad`
+docs ranked #1/#2 on the marketing Home wall). Full rule: `ads.md` "The
+every-surface rule".
+
 ## The video: transcoded HLS, not the raw file
 
 The card plays the **transcoded HLS** (H.264/AAC) via `sourceFromMedia` — the same rule `video-player.md` specs: a video with `transcoding_settings.status === 'done'` + a minted `manifest_url` plays through hls.js (native HLS on Safari); anything else (processing/failed/absent) plays the direct file.
@@ -73,7 +83,7 @@ The discover / trending surface has two views, toggled by `?view=`: **Home** (th
 **Home** is the YouTube-style video wall — the card that competes pound-for-pound with YouTube's home page. It shows **videos only** (photos don't belong). The filter is the render-time gate: a post is a video if it's tagged `video` OR its first resolved media is a video (`mime_type` starts with `video/`) — not the client-asserted tag alone (a direct API caller can tag an image as a video; the gate drops it at render).
 
 The Home card is the shared **`HomeCard`** (one source, both apps), the "less brainrot" YouTube shape:
-1. a **16:9 thumbnail** (the video's `thumbnail_url` / first frame, `object-cover` — fills the frame, never letterboxes) with a play affordance + a duration badge. For a video, the thumbnail is the **hover preview** (`HoverVideo`, 3.164.0): the poster at rest, the clip playing **muted on hover** with a **top-right speaker toggle** (the YouTube home behavior — `video-player.md` "The hover preview"). The frame is inert (the `<a>` owns the click: hover plays, click navigates); touch devices never fire `mouseenter`, so they keep the static thumbnail.
+1. a **16:9 thumbnail** (the video's `thumbnail_url` / first frame, `object-cover` — fills the frame, never letterboxes) with a play affordance + a duration badge. For a video, the thumbnail is the **hover preview** (`HoverVideo`, 3.164.0): the poster at rest, the clip playing **muted on hover** with a **top-right speaker toggle** + a **bottom progress bar** (the YouTube home behavior — `video-player.md` "The hover preview"). The video reveals only once it is actually **playing** (the poster stays the backdrop, so the tile never flashes gray), and un-muting is audible. The frame is inert (the `<a>` owns the click: hover plays, click navigates); touch devices never fire `mouseenter`, so they keep the static thumbnail.
 2. the **title** — the post text, truncated to `HOME_TITLE_LIMIT` (80) chars with a trailing ellipsis (the "show it if it's short, else …" rule);
 3. the **attribution** — the author's avatar + display name + a relative time.
 
