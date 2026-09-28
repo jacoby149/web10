@@ -26,6 +26,7 @@ import UserProfileScreen from '@/components/Bio/UserProfileScreen';
 import UserFollowListScreen from '@/components/Bio/UserFollowListScreen';
 import PostComposer from '@/components/Feed/PostComposer';
 import MonetizationScreen from '@/components/Monetization/MonetizationScreen';
+import NodeSettingsScreen from '@/components/NodeSettings/NodeSettingsScreen';
 import { InstallPrompt } from '@/components/shared/InstallPrompt';
 
 // Fake hls.js — the harness has no backend, so the seeded manifest sigs are
@@ -110,10 +111,13 @@ const initialRoute =
    : screen === 'profile-followers' ? '/u/me/followers'
    : screen === 'profile-following' ? '/u/me/following'
    : screen === 'profile-feed' ? '/u/me?view=feed'
-   : screen === 'monetize' ? '/monetize'
-   : screen === 'monetize-node' ? '/monetize?tab=node'
-   : anon ? '/discover'
-   : '/messages';
+    : screen === 'monetize' ? '/monetize'
+    : screen === 'monetize-node' ? '/monetize?tab=node'
+    : screen === 'node-settings' ? '/node-settings'
+    : screen === 'node-settings-people' ? '/node-settings?tab=people'
+    : screen === 'node-settings-link' ? '/node-settings?tab=link'
+    : anon ? '/discover'
+    : '/messages';
 
 createRoot(document.getElementById('root')!).render(
   <MemoryRouter initialEntries={[initialRoute]}>
@@ -134,6 +138,7 @@ createRoot(document.getElementById('root')!).render(
         <Route path="/u/:username/followers" element={<UserFollowersRoute />} />
         <Route path="/u/:username/following" element={<UserFollowingRoute />} />
         <Route path="/monetize" element={<MonetizationScreen />} />
+        <Route path="/node-settings" element={<NodeSettingsScreen />} />
       </Route>
     </Routes>
     {/* D72: the install surface — forced open by ?pwa-prompt=1 for the capture. */}
