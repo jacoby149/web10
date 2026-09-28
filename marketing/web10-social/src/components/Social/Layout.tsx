@@ -95,8 +95,11 @@ export default function Layout({ onLogout, onLogin, isAnon: isAnonProp, onReport
   // your Profile, and Monetization are signed-in-only — hiding them keeps the
   // chrome honest (a dead nav item that redirects to Discover is worse than
   // no item).
-  const anonSidebarNavItems = [discoverItem, shortsItem];
-  const anonBottomNavItems = [discoverItem, shortsItem];
+  // Shorts leads the anon nav (the operator, 25.09.2026: "shorts should be
+  // first!!!!") — a signed-out visitor is here for the video, Discover is
+  // second. The signed-in order (M6) is unchanged.
+  const anonSidebarNavItems = [shortsItem, discoverItem];
+  const anonBottomNavItems = [shortsItem, discoverItem];
   const sidebarNavItems = isAnon ? anonSidebarNavItems : [profileItem, shortsItem, discoverItem, feedItem, messagesItem, monetizationItem];
   const bottomNavItems = isAnon ? anonBottomNavItems : [feedItem, discoverItem, messagesItem, profileItem];
   const [moreOpen, setMoreOpen] = useState(false);
@@ -422,7 +425,7 @@ export default function Layout({ onLogout, onLogin, isAnon: isAnonProp, onReport
         {!isShorts && (
           <header
             data-testid="topbar-desktop"
-            className="hidden md:flex items-center justify-between gap-4 border-b border-border bg-surface/95 backdrop-blur-md z-20 px-4"
+            className="hidden md:flex items-center justify-between gap-4 border-b border-border bg-surface/95 backdrop-blur-md z-20 px-4 h-14"
           >
             {isDiscover ? (
               <div className="flex items-center gap-1" role="tablist" aria-label="Discover sections" data-testid="discover-tab-row">
