@@ -195,6 +195,7 @@ class TestListPublicUsersComposition:
         returns `created_at` (not `updated_at`); a regression to `doc["updated_at"]`
         here is a KeyError (the e2e's real setup has 2+ profile docs, the
         single-doc mock above never exercised this branch)."""
+
         def dispatch(sql, params=None):
             if "count() AS cnt" in sql:
                 return _rows([(fgid("alice"), 5)])
@@ -203,8 +204,26 @@ class TestListPublicUsersComposition:
                 # the current one (newer). The newest must win.
                 return _rows(
                     [
-                        ("doc-alice-old", "alice", json.dumps({"display_name": "Stale"}), [], "2025-01-01T00:00:00", "", "none", ""),
-                        ("doc-alice-new", "alice", json.dumps({"display_name": "Alice", "bio": "hi"}), [], "2026-01-01T00:00:00", "", "none", ""),
+                        (
+                            "doc-alice-old",
+                            "alice",
+                            json.dumps({"display_name": "Stale"}),
+                            [],
+                            "2025-01-01T00:00:00",
+                            "",
+                            "none",
+                            "",
+                        ),
+                        (
+                            "doc-alice-new",
+                            "alice",
+                            json.dumps({"display_name": "Alice", "bio": "hi"}),
+                            [],
+                            "2026-01-01T00:00:00",
+                            "",
+                            "none",
+                            "",
+                        ),
                     ]
                 )
             if "FROM group_members WHERE member_key = %(member_key)s" in sql:
