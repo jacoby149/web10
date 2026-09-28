@@ -45,14 +45,31 @@ export interface HoverVideoProps {
   poster?: string;
   testId?: string;
   className?: string;
+  /**
+   * Reports the preview's live position as it plays (the `timeupdate` /
+   * `loadedmetadata` / `durationchange` signal). The parent's time-lapse badge
+   * keys off this — at rest the badge shows the clip's total length, while the
+   * preview plays it counts up the elapsed position.
+   */
+  onTime?: (current: number, duration: number) => void;
+  /** Fires when the preview starts/stops playing (the `playing` / `pause` signal). */
+  onPlayingChange?: (playing: boolean) => void;
 }
 
-export function HoverVideo({ media, poster, testId, className }: HoverVideoProps) {
+export function HoverVideo({ media, poster, testId, className, onTime, onPlayingChange }: HoverVideoProps) {
   const videoRef = useRef<HTMLVideoElement>(null);
   const hlsRef = useRef<HlsInstance | null>(null);
   const attachedRef = useRef(false);
   // The scrubber's hit area — the pointer math (clientX → time) reads its rect.
   const trackRef = useRef<HTMLDivElement>(null);
+  // The parent's live-position callbacks, kept in refs so the (empty-deps)
+  // listener effect always calls the latest closure without re-binding.
+  const onTimeRef = useRef(onTime);
+  const onPlayingChangeRef = useRef(onPlayingChange);
+  useEffect(() => {
+    onTimeRef.current = onTime;
+    onPlayingChangeRef.current = onPlayingChange;
+  });
   const [hovered, setHovered] = useState(false);
   const [muted, setMuted] = useState(true);
   // The video is only revealed once it is actually PLAYING (frames on
@@ -113,10 +130,24 @@ export function HoverVideo({ media, poster, testId, className }: HoverVideoProps
   useEffect(() => {
     const el = videoRef.current;
     if (!el) return;
-    const onPlaying = () => setPlaying(true);
-    const onPause = () => setPlaying(false);
-    const onTime = () => setCurrent(el.currentTime);
-    const onMeta = () => setDuration(el.duration || 0);
+    const onPlaying = () => {
+      setPlaying(true);
+      onPlayingChangeRef.current?.(true);
+    };
+    const onPause = () => {
+      setPlaying(false);
+      onPlayingChangeRef.current?.(false);
+    };
+    const onTime = () => {
+      setCurrent(el.currentTime);
+      // Surface the live position to the parent (the time-lapse badge). The
+      // state updates above are async, so report the element's raw values now.
+      onTimeRef.current?.(el.currentTime, el.duration || 0);
+    };
+    const onMeta = () => {
+      setDuration(el.duration || 0);
+      onTimeRef.current?.(el.currentTime, el.duration || 0);
+    };
     el.addEventListener('playing', onPlaying);
     el.addEventListener('pause', onPause);
     el.addEventListener('timeupdate', onTime);
