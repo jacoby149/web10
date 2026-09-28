@@ -205,6 +205,180 @@ export interface V3GroupMember {
   status?: string
 }
 
+// ── Group contract reconciliation (the "the app owns its own contracts") ─────
+// A group contract has a CANONICAL shape the app needs for it to work (the
+// roles that grant the app's access model, the reserved member rows the app
+// itself requires, the join policy, the tags). A contract can DRIFT from that
+// shape — created before a role existed, a role definition missing while a
+// member row still points at it, a tag dropped — and the app silently breaks
+// (e.g. a followers group missing its `reader` role grants nothing, so its
+// owner is absent from the public people directory). The reconciliation
+// primitive is the universal "check every contract the app needs; if it is not
+// equal to the canonical shape, heal it" core.
+//
+// The heal is CONSENSUAL — additive, never destructive:
+//   * It only ADDS what is missing (a role definition, a permission op, a
+//     member row, a tag) and resets a drifted join policy. It NEVER removes a
+//     role, an op, a member row, or a tag the owner has — so it can't erase a
+//     choice the owner made.
+//   * It only touches what the SPEC declares. Anything the owner set that the
+//     spec doesn't mention is left exactly as-is.
+// The split that makes this safe is the APP's, not the SDK's (D60): the app
+// decides which parts of its contract are INFRASTRUCTURE (the roles/tags/join
+// policy it needs to function — put them in the spec, auto-healed) vs. a USER
+// CHOICE (e.g. the followers group's `anyone` publicness row, which the owner
+// toggles public/private — NOT in the spec, so the heal never fights the
+// owner over it). A heal that re-added a row the owner deliberately removed
+// would clobber their choice on the next sign-in — the spec is how the app
+// says "this is mine to guarantee; that one is the owner's."
+// Idempotent: a contract already in sync produces no writes.
+
+/** The canonical shape of a group contract the app needs. */
+export interface V3GroupContractSpec {
+  /** The roles the contract must define. A missing role is added; a role that
+   *  exists but is missing some of the spec's permission ops gets those ops
+   *  UNIONED in (additive — ops the owner added are never removed). */
+  roles: V3GroupRole[]
+  /** The member rows the contract must carry — the reserved principal-class
+   *  grants the APP itself requires (infrastructure, not a user choice). A
+   *  missing row is added; an existing row (any role) is left as-is. Omit this
+   *  for rows that are the OWNER's choice (e.g. a profile's publicness) so the
+   *  heal doesn't clobber them. */
+  members?: V3GroupMemberCR[]
+  /** The join policy the contract must carry. A drift is reset to the spec's. */
+  join_policy?: string
+  /** The tags the contract must carry (the spec's tags are ADDED to the
+   *  contract's existing set — the owner's other tags are never dropped). */
+  tags?: string[]
+}
+
+export interface V3GroupContractDiff {
+  /** Roles in the spec the contract does not define (added on heal). */
+  missingRoles: V3GroupRole[]
+  /** (role, service, op) the spec requires but the matching existing role
+   *  lacks (unioned in on heal). */
+  rolePermissionGaps: { role: string; service: string; op: string }[]
+  /** Member rows in the spec the contract does not carry (added on heal). */
+  missingMembers: V3GroupMemberCR[]
+  /** The spec's join policy differs from the contract's (reset on heal). */
+  joinPolicyDrifted: boolean
+  /** Tags in the spec the contract does not carry (added on heal). */
+  missingTags: string[]
+  /** True when the contract already matches the spec (nothing to heal). */
+  inSync: boolean
+}
+
+/**
+ * Pure diff of a group contract against a canonical spec. No I/O — the caller
+ * passes the contract's current `roles` / `members` / `join_policy` / `tags`
+ * (from `getGroup` + `getGroupMembers`). The result is the exact set of
+ * additive changes that would bring the contract in line with the spec.
+ */
+export function diffGroupContract(
+  spec: V3GroupContractSpec,
+  current: {
+    roles?: V3GroupRole[]
+    members?: { member_key: string; role: string }[]
+    join_policy?: string
+    tags?: string[]
+  },
+): V3GroupContractDiff {
+  const curRoles = new Map((current.roles ?? []).map((r) => [r.name, r]))
+  const curMemberKeys = new Set((current.members ?? []).map((m) => m.member_key))
+  const curTags = new Set(current.tags ?? [])
+
+  const missingRoles: V3GroupRole[] = []
+  const rolePermissionGaps: V3GroupContractDiff['rolePermissionGaps'] = []
+  for (const role of spec.roles) {
+    const actual = curRoles.get(role.name)
+    if (!actual) {
+      missingRoles.push(role)
+      continue
+    }
+    for (const [service, ops] of Object.entries(role.permissions ?? {})) {
+      const have = new Set(actual.permissions?.[service] ?? [])
+      for (const op of ops ?? []) {
+        if (!have.has(op) && !rolePermissionGaps.some((g) => g.role === role.name && g.service === service && g.op === op)) {
+          rolePermissionGaps.push({ role: role.name, service, op })
+        }
+      }
+    }
+  }
+
+  const missingMembers: V3GroupMemberCR[] = (spec.members ?? []).filter(
+    (m) => !curMemberKeys.has(m.member_key),
+  )
+
+  const joinPolicyDrifted =
+    spec.join_policy != null && current.join_policy != null && current.join_policy !== spec.join_policy
+
+  const missingTags = (spec.tags ?? []).filter((t) => !curTags.has(t))
+
+  return {
+    missingRoles,
+    rolePermissionGaps,
+    missingMembers,
+    joinPolicyDrifted,
+    missingTags,
+    inSync:
+      missingRoles.length === 0 &&
+      rolePermissionGaps.length === 0 &&
+      missingMembers.length === 0 &&
+      !joinPolicyDrifted &&
+      missingTags.length === 0,
+  }
+}
+
+/**
+ * Build the full role list to write on a reconcile: the contract's existing
+ * roles (preserved verbatim — the owner's roles are never removed or rewritten)
+ * + the spec's missing roles, with the spec's missing permission ops UNIONED
+ * into the matching existing roles. Pure; the result is what `updateGroup`
+ * should be given (it replaces the whole role set, so the full merged list is
+ * required). A role that is already complete is passed through unchanged.
+ */
+export function mergeGroupRolesForReconcile(
+  currentRoles: V3GroupRole[] | undefined,
+  specRoles: V3GroupRole[],
+  diff: V3GroupContractDiff,
+): V3GroupRole[] {
+  const merged: V3GroupRole[] = (currentRoles ?? []).map((r) => ({
+    ...r,
+    permissions: { ...r.permissions },
+  }))
+  const byName = new Map(merged.map((r) => [r.name, r]))
+  for (const gap of diff.rolePermissionGaps) {
+    const role = byName.get(gap.role)
+    if (!role) continue
+    const ops = role.permissions[gap.service] ?? (role.permissions[gap.service] = [])
+    if (!ops.includes(gap.op)) ops.push(gap.op)
+  }
+  for (const role of diff.missingRoles) {
+    merged.push({ name: role.name, permissions: { ...role.permissions } })
+  }
+  return merged
+}
+
+/**
+ * Generic referential-integrity check (no canonical spec needed): the member
+ * rows of a group contract whose `role` is not defined in the contract's
+ * `roles`. A dangling grant is broken by construction, regardless of app — a
+ * member row that names a nonexistent role grants nothing (the read gate
+ * resolves the role by name; an undefined role yields no permissions). This is
+ * the invariant the authenticator's "contract health" surface checks, because
+ * it is generic (the authenticator is D60 — it does not know any app's
+ * canonical spec). The *repair* is the owning app's job (its self-heal adds
+ * the missing role definition on the next sign-in); the authenticator detects
+ * + surfaces.
+ */
+export function findDanglingGrants(
+  roles: V3GroupRole[] | undefined,
+  members: { member_key: string; role: string }[] | undefined,
+): { member_key: string; role: string }[] {
+  const defined = new Set((roles ?? []).map((r) => r?.name).filter(Boolean) as string[])
+  return (members ?? []).filter((m) => m.role && !defined.has(m.role))
+}
+
 export interface V3InviteResponse {
   group_id: string
   invited_key: string
@@ -859,6 +1033,69 @@ export function createV3Client(options: V3ClientOptions = {}): V3Client {
       return v3Post<V3Group>('groups/update', payload)
     },
 
+    /**
+     * Reconcile a group contract against a canonical spec (the "the app owns
+     * its own contracts" primitive). Reads the contract's current shape
+     * (`getGroup` + `getGroupMembers`), diffs it against `spec`
+     * ({@link diffGroupContract}), and — when it has drifted — applies the
+     * ADDITIVE heal: missing roles are appended to the contract's role set,
+     * missing member rows are added, missing tags are appended, and a drifted
+     * join policy is reset to the spec's. It NEVER removes or rewrites what the
+     * owner has set (a role whose permissions differ is reported in the diff,
+     * not auto-corrected — that's the owner's call). Idempotent: a contract
+     * already in sync is left untouched (no writes).
+     *
+     * This is what lets an app guarantee its own preconditions: "check every
+     * contract I need; if it is not equal to the shape I need, heal it" — so a
+     * contract created before a role existed (or otherwise drifted) self-heals
+     * on the next sign-in instead of silently breaking the app.
+     */
+    async reconcileGroupContract(
+      groupId: string,
+      spec: V3GroupContractSpec,
+    ): Promise<{ inSync: boolean; diff: V3GroupContractDiff; healed: boolean }> {
+      const [group, members] = await Promise.all([
+        this.getGroup(groupId),
+        this.getGroupMembers(groupId),
+      ])
+      const diff = diffGroupContract(spec, {
+        roles: group.roles as V3GroupRole[] | undefined,
+        members,
+        join_policy: group.join_policy,
+        tags: group.tags,
+      })
+      if (diff.inSync) return { inSync: true, diff, healed: false }
+
+      // One updateGroup for the contract-level fields (roles / join_policy /
+      // tags). `updateGroup` REPLACES the field it is given, so send the FULL
+      // merged value (current + the missing pieces) — never just the delta.
+      const updateOpts: { join_policy?: string; roles?: Record<string, unknown>[]; tags?: string[] } = {}
+      if (diff.missingRoles.length || diff.rolePermissionGaps.length) {
+        // The merge returns typed roles; the updateGroup wire type is the loose
+        // Record shape (the SDK's role API boundary) — cast through unknown.
+        updateOpts.roles = mergeGroupRolesForReconcile(
+          group.roles as V3GroupRole[] | undefined,
+          spec.roles,
+          diff,
+        ) as unknown as Record<string, unknown>[]
+      }
+      if (diff.joinPolicyDrifted && spec.join_policy) {
+        updateOpts.join_policy = spec.join_policy
+      }
+      if (diff.missingTags.length) {
+        updateOpts.tags = [...(group.tags ?? []), ...diff.missingTags]
+      }
+      if (Object.keys(updateOpts).length) {
+        await this.updateGroup(groupId, updateOpts)
+      }
+      // Member rows are additive one-at-a-time (a missing reserved row the app
+      // requires). Existing rows are never touched.
+      for (const m of diff.missingMembers) {
+        await this.addGroupMember(groupId, m.member_key, m.role)
+      }
+      return { inSync: false, diff, healed: true }
+    },
+
     async deleteGroup(groupId: string): Promise<{ group_id: string; status: string }> {
       return v3Post<{ group_id: string; status: string }>('groups/delete', { group_id: groupId })
     },
@@ -1237,6 +1474,9 @@ export interface V3Client {
   getMyGroups(opts?: { tags?: string[] }): Promise<V3Group[]>
   getGroupsManages(): Promise<V3Group[]>
   updateGroup(groupId: string, opts?: { join_policy?: string; roles?: Record<string, unknown>[]; discoverable?: boolean; tags?: string[] }): Promise<V3Group>
+  /** Reconcile a group contract against a canonical spec — additive, non-
+   *  clobbering, idempotent. The "the app owns its own contracts" primitive. */
+  reconcileGroupContract(groupId: string, spec: V3GroupContractSpec): Promise<{ inSync: boolean; diff: V3GroupContractDiff; healed: boolean }>
   deleteGroup(groupId: string): Promise<{ group_id: string; status: string }>
   joinGroup(groupId: string): Promise<V3GroupMember | { group_id: string; status: string }>
   requestJoin(groupId: string): Promise<{ group_id: string; status: string }>

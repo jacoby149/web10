@@ -23,6 +23,7 @@ function mockV3Client() {
     addGroupMember: vi.fn(),
     removeGroupMember: vi.fn(),
     createGroup: vi.fn(),
+    reconcileGroupContract: vi.fn(),
     blockUser: vi.fn(),
     unblockUser: vi.fn(),
     blockUserInGroup: vi.fn(),
@@ -124,43 +125,64 @@ describe('follows v3 data layer', () => {
       expect(mock.getMyGroups).not.toHaveBeenCalled();
     });
 
-    it('returns existing group if it exists and the user is a member', async () => {
+    it('returns existing group if it exists and the user is a member, and self-heals the contract', async () => {
       mock.getGroup.mockResolvedValue({ group_id: 'web10.app/groups/users/alice/followers' });
       mock.getMyGroups.mockResolvedValue([
         { group_id: 'web10.app/groups/users/alice/followers', my_role: 'owner' },
       ]);
-      // Already public (the `anyone` row is present) — the heal is a no-op.
-      mock.getGroupMembers.mockResolvedValue([
-        { member_key: 'alice', role: 'owner' },
-        { member_key: 'anyone', role: 'reader' },
-      ]);
+      // The contract is already in sync — the reconcile is a no-op (no writes).
+      mock.reconcileGroupContract.mockResolvedValue({
+        inSync: true,
+        healed: false,
+        diff: { missingRoles: [], rolePermissionGaps: [], missingMembers: [], joinPolicyDrifted: false, missingTags: [], inSync: true },
+      });
       const groupId = await groups.ensureFollowers('alice');
       expect(groupId).toBe('web10.app/groups/users/alice/followers');
       // Already a member — no join (a join would add a duplicate member row
       // with the `member` role, downgrading the owner on merge).
       expect(mock.joinGroup).not.toHaveBeenCalled();
-      // Already public — no heal.
+      // The contract self-heal runs against the canonical followers spec —
+      // roles + open join policy + the followers tag. It does NOT list the
+      // `anyone` publicness row (that's the owner's choice, not app infra).
+      expect(mock.reconcileGroupContract).toHaveBeenCalledWith('web10.app/groups/users/alice/followers', {
+        roles: expect.anything(),
+        join_policy: 'open',
+        tags: ['web10-social-followers'],
+      });
+      // The heal is additive — it never re-adds the `anyone` row directly.
       expect(mock.addGroupMember).not.toHaveBeenCalled();
     });
 
-    it('HEALS a private followers group to public: no anyone row → adds the reader grant', async () => {
-      // A group created before the public-by-default rule has no `anyone` row —
-      // its profile face is unreadable to a stranger. ensureFollowers (run on
-      // mount) adds the grant so the face becomes public without a redeploy.
+    it('SELF-HEALS a contract missing the reader role (the followers `reader` bug)', async () => {
+      // A group created before the `reader` role existed lacks the role
+      // definition — the `anyone → reader` row is present but inert, so the
+      // owner is absent from the public people directory. ensureFollowers
+      // (run on sign-in) reconciles the contract, appending the missing role.
       mock.getGroup.mockResolvedValue({ group_id: 'web10.app/groups/users/alice/followers' });
       mock.getMyGroups.mockResolvedValue([
         { group_id: 'web10.app/groups/users/alice/followers', my_role: 'owner' },
       ]);
-      mock.getGroupMembers.mockResolvedValue([
-        { member_key: 'alice', role: 'owner' },
-      ]);
-      mock.addGroupMember.mockResolvedValue({ member_key: 'anyone', role: 'reader' });
+      mock.reconcileGroupContract.mockResolvedValue({
+        inSync: false,
+        healed: true,
+        diff: {
+          missingRoles: [{ name: 'reader', permissions: { profile: ['readAll'] } }],
+          rolePermissionGaps: [],
+          missingMembers: [],
+          joinPolicyDrifted: false,
+          missingTags: [],
+          inSync: false,
+        },
+      });
       await groups.ensureFollowers('alice');
-      expect(mock.addGroupMember).toHaveBeenCalledWith(
-        'web10.app/groups/users/alice/followers',
-        'anyone',
-        'reader',
-      );
+      // The reconcile is what heals it (the SDK primitive does the diff + the
+      // additive updateGroup/addGroupMember) — ensureFollowers delegates.
+      expect(mock.reconcileGroupContract).toHaveBeenCalledTimes(1);
+      const spec = mock.reconcileGroupContract.mock.calls[0][1];
+      // The spec carries the reader role (the app infrastructure the heal guarantees).
+      expect(spec.roles.map((r: any) => r.name)).toContain('reader');
+      // It does NOT declare the `anyone` row (the owner's publicness choice).
+      expect(spec.members).toBeUndefined();
     });
 
     it('HEALS the phantom-member state: group exists but the user is not a member', async () => {
@@ -174,14 +196,25 @@ describe('follows v3 data layer', () => {
         { group_id: 'web10.app/groups/web10/discover', my_role: 'member' },
       ]);
       mock.joinGroup.mockResolvedValue({ group_id: 'web10.app/groups/users/alice/followers', member_key: 'alice', role: 'member' });
-      // The public heal runs after the join; the group is already public.
-      mock.getGroupMembers.mockResolvedValue([
-        { member_key: 'alice', role: 'member' },
-        { member_key: 'anyone', role: 'reader' },
-      ]);
+      // The contract self-heal runs after the join.
+      mock.reconcileGroupContract.mockResolvedValue({
+        inSync: true,
+        healed: false,
+        diff: { missingRoles: [], rolePermissionGaps: [], missingMembers: [], joinPolicyDrifted: false, missingTags: [], inSync: true },
+      });
       const groupId = await groups.ensureFollowers('alice');
       expect(groupId).toBe('web10.app/groups/users/alice/followers');
       expect(mock.joinGroup).toHaveBeenCalledWith('web10.app/groups/users/alice/followers');
+    });
+
+    it('degrades gracefully if the contract self-heal throws (never blocks sign-in)', async () => {
+      mock.getGroup.mockResolvedValue({ group_id: 'web10.app/groups/users/alice/followers' });
+      mock.getMyGroups.mockResolvedValue([
+        { group_id: 'web10.app/groups/users/alice/followers', my_role: 'owner' },
+      ]);
+      mock.reconcileGroupContract.mockRejectedValue(new Error('network'));
+      // The heal failure is non-fatal — ensureFollowers still returns the id.
+      await expect(groups.ensureFollowers('alice')).resolves.toBe('web10.app/groups/users/alice/followers');
     });
   });
 });
