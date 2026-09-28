@@ -189,6 +189,41 @@ class TestListPublicUsersComposition:
         assert by_user["alice"]["profile"]["display_name"] == "Alice"
         assert by_user["bob"]["profile"]["bio"] == "yo"
 
+    def test_stale_duplicate_profile_docs_latest_wins(self):
+        """A user with multiple DISTINCT profile docs (stale duplicates) — the
+        face dedup must pick the newest by created_at and NOT raise. The read
+        returns `created_at` (not `updated_at`); a regression to `doc["updated_at"]`
+        here is a KeyError (the e2e's real setup has 2+ profile docs, the
+        single-doc mock above never exercised this branch)."""
+        def dispatch(sql, params=None):
+            if "count() AS cnt" in sql:
+                return _rows([(fgid("alice"), 5)])
+            if "p.doc_id AS doc_id" in sql:
+                # alice has TWO profile docs: a stale one (older created_at) and
+                # the current one (newer). The newest must win.
+                return _rows(
+                    [
+                        ("doc-alice-old", "alice", json.dumps({"display_name": "Stale"}), [], "2025-01-01T00:00:00", "", "none", ""),
+                        ("doc-alice-new", "alice", json.dumps({"display_name": "Alice", "bio": "hi"}), [], "2026-01-01T00:00:00", "", "none", ""),
+                    ]
+                )
+            if "FROM group_members WHERE member_key = %(member_key)s" in sql:
+                return _rows([])
+            if "FROM group_members WHERE member_key IN" in sql:
+                return _rows([(fgid("alice"), "anyone", "public-reader")])
+            if "FROM group_contracts WHERE group_id IN" in sql:
+                return _rows([(fgid("alice"), json.dumps(PUBLIC_ROLES))])
+            if "FROM users) WHERE rn = 1" in sql:
+                return _rows([("alice",)])
+            raise AssertionError(f"unexpected query: {sql}")
+
+        with patch.object(ch, "client") as mock_client:
+            mock_client.query.side_effect = dispatch
+            result = ch.list_public_users("anon", False, limit=20, offset=0)
+        by_user = {r["username"]: r for r in result}
+        assert by_user["alice"]["profile"]["display_name"] == "Alice"
+        assert by_user["alice"]["profile"]["bio"] == "hi"
+
     def test_no_mutuals_field(self):
         """The node stays generic (D60) — it does not compute app-specific
         social signals like mutuals; the card carries only the universal
