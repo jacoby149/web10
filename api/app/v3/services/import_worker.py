@@ -156,7 +156,9 @@ def _parse_json(s) -> object:
         return None
 
 
-def create_import_job(job_id: str, user_key: str, platform: str, object_keys: list[str], target_group_id: str = "") -> dict:
+def create_import_job(
+    job_id: str, user_key: str, platform: str, object_keys: list[str], target_group_id: str = ""
+) -> dict:
     now = _now()
     ch.client.insert(
         "import_jobs",
@@ -353,9 +355,7 @@ def _process_job(job_id: str) -> None:
         return
 
     user = job["user_key"]
-    update_import_job(
-        job_id, phase=PROCESSING, progress=0, message="Downloading export from storage..."
-    )
+    update_import_job(job_id, phase=PROCESSING, progress=0, message="Downloading export from storage...")
 
     tmp_dir = Path(tempfile.mkdtemp(prefix=f"import-{job_id[:8]}-"))
     try:
@@ -591,7 +591,9 @@ def _upload_thumbnail(user: str, url: str, origin_id: str, title: str | None) ->
     return doc["doc_id"]
 
 
-def _write_records(job_id: str, user: str, records: list[dict], target_group: str, as_page: bool = False) -> tuple[int, int, list[str]]:
+def _write_records(
+    job_id: str, user: str, records: list[dict], target_group: str, as_page: bool = False
+) -> tuple[int, int, list[str]]:
     """Write the parsed records to the node. Returns (written, skipped, errors).
 
     Order matters (the D62 comment join):

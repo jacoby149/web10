@@ -377,9 +377,7 @@ class TestUserOwnsGroup:
     def test_owner_prefixed_key(self):
         # Community groups enroll the owner under {provider}/users/{username}.
         with patch("app.v3.services.clickhouse.get_group_member") as gm:
-            gm.side_effect = lambda g, k: (
-                {"member_key": k, "role": "owner"} if k.endswith("/users/alice") else None
-            )
+            gm.side_effect = lambda g, k: {"member_key": k, "role": "owner"} if k.endswith("/users/alice") else None
             assert iw.user_owns_group("alice", "g1") is True
 
     def test_member_not_owner(self):
@@ -413,7 +411,17 @@ class TestWriteRecordsPage:
                 res.result_rows = []
             return res
 
-        def fake_insert_document(author_key, service, body, ref_value="", tags=None, doc_id=None, ad_mode="none", ad_target="", created_at=None):
+        def fake_insert_document(
+            author_key,
+            service,
+            body,
+            ref_value="",
+            tags=None,
+            doc_id=None,
+            ad_mode="none",
+            ad_target="",
+            created_at=None,
+        ):
             calls.append(("insert", service, body.get("origin_id")))
             return {"doc_id": f"doc-{body.get('origin_id') or service}"}
 
@@ -428,7 +436,10 @@ class TestWriteRecordsPage:
             patch("app.services.media.get_s3_client", return_value=MagicMock()),
             patch("app.services.media.make_object_key", return_value="k/thumb.jpg"),
             patch.object(iw, "_group_has_face", return_value=has_face),
-            patch("app.v3.services.import_worker.requests.get", return_value=MagicMock(content=b"t", raise_for_status=MagicMock())),
+            patch(
+                "app.v3.services.import_worker.requests.get",
+                return_value=MagicMock(content=b"t", raise_for_status=MagicMock()),
+            ),
         ]
         for p in patches:
             p.start()
