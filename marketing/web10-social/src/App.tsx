@@ -17,6 +17,7 @@ import NotificationsScreen from '@/components/Notifications/NotificationsScreen'
 import StagingScreen from '@/components/Staging/StagingScreen';
 import SettingsScreen from '@/components/Settings/SettingsScreen';
 import MonetizationScreen from '@/components/Monetization/MonetizationScreen';
+import NodeSettingsScreen from '@/components/NodeSettings/NodeSettingsScreen';
 import PostComposer from '@/components/Feed/PostComposer';
 import { ErrorBoundary } from '@/components/shared/ErrorBoundary';
 import { ReportBug } from '@/components/shared/ReportBug';
@@ -453,6 +454,7 @@ function App() {
           <Route path="/staging" element={isAnon ? <Navigate to="/discover" replace /> : <StagingScreen />} />
           <Route path="/monetize" element={isAnon ? <Navigate to="/discover" replace /> : <MonetizationScreen />} />
           <Route path="/settings" element={isAnon ? <Navigate to="/discover" replace /> : <SettingsScreen onLogout={handleLogout} onReportBug={() => handleReportBug('button')} />} />
+          <Route path="/node-settings" element={isAnon ? <Navigate to="/discover" replace /> : <NodeSettingsScreen />} />
           <Route path="*" element={<Navigate to={isAnon ? '/discover' : '/feed'} replace />} />
         </Route>
       </Routes>
