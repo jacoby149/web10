@@ -106,4 +106,25 @@ describe('readUserPublicProfile — the anon / non-follower profile read (D73 qu
     expect(result.avatarUrl).toBeUndefined();
     expect(result.bannerUrl).toBeUndefined();
   });
+
+  it('dedupes a public post attached to both the followers + discover groups (a follower reads it twice)', async () => {
+    // A follower can read both groups, so the query's boundary CTE returns one
+    // row per (doc, group) — a public post in both groups comes back twice.
+    // The read must collapse it to one.
+    mockQuery
+      .mockResolvedValueOnce({
+        rows: [
+          postRow('p-1', 'public post'), // from the followers group
+          postRow('p-1', 'public post'), // the same post, from the discover group
+          postRow('p-2', 'another post'),
+        ],
+        count: 3,
+      })
+      .mockResolvedValueOnce({ rows: [{ author_key: 'jacobtest', body: {}, avatar_url: 'http://cdn/a.jpg' }], count: 1 })
+      .mockResolvedValueOnce({ rows: [], count: 0 });
+
+    const result = await readUserPublicProfile('jacobtest');
+    // The dupe (p-1 x2) collapses to one; p-2 stays. Two unique posts.
+    expect(result.posts.map((p) => p._id)).toEqual(['p-1', 'p-2']);
+  });
 });

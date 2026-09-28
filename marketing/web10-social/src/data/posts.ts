@@ -343,10 +343,21 @@ export async function readUserPublicProfile(
   ]);
 
   const posts = postsRes.rows.map((r) => fromV3DocToPost(r as unknown as import('./v3').V3Document));
+  // A public post is attached to BOTH the followers group and the discover
+  // group. The query's boundary CTE returns one row per (doc, group), so a
+  // follower (who can read both groups) gets each public post twice. Dedupe by
+  // doc_id — anon only reads discover (one group) so never dupes, but a
+  // follower / the owner's followers do.
+  const seenPostIds = new Set<string>();
+  const uniquePosts = posts.filter((post) => {
+    if (!post._id || seenPostIds.has(post._id)) return false;
+    seenPostIds.add(post._id);
+    return true;
+  });
   const avatarUrl = (avatarRes.rows[0] as { avatar_url?: string } | undefined)?.avatar_url;
   const bannerUrl = (bannerRes.rows[0] as { banner_url?: string } | undefined)?.banner_url;
 
-  return { posts, avatarUrl, bannerUrl };
+  return { posts: uniquePosts, avatarUrl, bannerUrl };
 }
 
 /**
