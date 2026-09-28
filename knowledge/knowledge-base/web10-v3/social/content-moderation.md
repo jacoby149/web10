@@ -1,6 +1,6 @@
 # Content Moderation: Sensitive Language Detection + Discover Suppression
 
-**Status:** decided (D59) + built (3.37.0). The detection layer, the write-path auto-hide, the `moderation_flags` review queue, the `auto_hide_users` list, and the Node Config Moderation card are all in. The open questions below are resolved by the v0 build: whole-word matching, forward-only (no retroactive scan), profile name/bio are flagged-only (not scanned on the post path), and the queue is human-in-the-loop (the operator suppresses; the machine only flags).
+**Status:** decided (D59) + built (3.37.0). The detection layer, the write-path auto-hide, the `moderation_flags` review queue, and the `auto_hide_users` list are all in. The operator's moderation surface lives in the **social app's Node Settings** (the node owner's surface — see "The UI surface" below); the authenticator's Node Config moderation card is retired (it's social-related, not node-infrastructure). The open questions below are resolved by the v0 build: whole-word matching, forward-only (no retroactive scan), profile name/bio are flagged-only (not scanned on the post path), and the queue is human-in-the-loop (the operator suppresses; the machine only flags).
 
 ## The Problem
 
@@ -94,14 +94,13 @@ No `resolved` column. The queue is: `SELECT username, count(*), max(created_at),
 
 ### The UI surface
 
-A "Moderation" card in the Node Config panel (authenticator):
+The operator's moderation surface lives in the **social app's Node Settings** (`/node-settings`, `marketing/web10-social/src/components/NodeSettings/`), reachable from the "More" menu (desktop popover + mobile sheet) and gated by the node-owner check (`useNodeAdmin` → `POST /am_admin`). It is social-related (it curates the social app's discover board), so it lives in the social app, not the authenticator's Node Config (that card + the Board Moderation card are retired). Three tabs, deep-linkable (`?tab=`):
 
-- **The blocklist editor** — tag input, add/remove words
-- **Auto-moderate toggle** — on/off
-- **Master switch** — moderation enabled/disabled
-- **The queue** — "Users with hidden posts in discover": username, count, last flagged, snippet. Two actions per user:
-  - **"Keep hiding"** → adds username to `node_config.auto_hide_users`
-  - **"Dismiss"** → does nothing to the table (it's an audit log); the operator simply doesn't add them to `auto_hide_users`
+- **Moderation** (default) — the sensitive-words blocklist (tag input, add/remove), the **master switch** (`moderation_enabled`), the **auto-moderate toggle** (`auto_moderate`), the **Hidden from Discover** list (`auto_hide_users`, with unhide), and the **review queue** (`/v3/moderation/flags`: username, flag count, matched words, a **Keep hiding / Hiding** action that adds/removes the username from `auto_hide_users`).
+- **People** — builds on the D0 people directory: search the node's people, open one to **see their posts**, and **Hide** a user (adds to `auto_hide_users`) or **Hide** a specific post (board takedown, `POST /v3/groups/hide`).
+- **Link** — paste a web10 permalink (`/u/:username/p/:postId` or `/u/:username`); it pulls up the post + the author and offers **Hide this post** (board takedown) + **Hide user** (`auto_hide_users`). This is the operator's "I got a link to a bad post (e.g. an escort ad), let me deal with it" surface.
+
+The data seam is `marketing/web10-social/src/data/moderation.ts` (the `/v3/moderation/*` + `/config/update` + `/v3/groups/{hide,unhide}` calls, the `parseWeb10Link` parser mirroring `preview/server.mjs`, and the `readUserPostsForModeration` read). No node change — every primitive already exists (D59).
 
 ### The "keep hiding" behavior
 
