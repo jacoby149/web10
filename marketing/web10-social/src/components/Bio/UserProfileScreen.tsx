@@ -20,11 +20,11 @@ import {
   countFollows,
   countFollowers,
   countUserFollowingReal,
-  readUserPublicPosts,
+  readUserPublicProfile,
 } from '@/data';
 import { getWapi } from '@/data/wapi';
 import type { ProfileRecord, PostRecord, MediaRecord, FollowRecord } from '@/data/types';
-import { mediaRefId } from '@/data/types';
+import { mediaRefId, fromResolvedMediaRef } from '@/data/types';
 import { MapPin, Globe, Link, Users, UserPlus, UserCheck, Loader2, ArrowLeft, MessageSquare, Play, Camera, Edit3, Check, X, ImagePlus, AlertTriangle, Inbox } from 'lucide-react';
 import { PostLightbox } from './PostLightbox';
 import { ProfileFeed } from './ProfileFeed';
@@ -219,23 +219,45 @@ export default function UserProfileScreen({ username, provider, onBack }: UserPr
         fCount = fCnt; // null = ledger unavailable → hide the tile
         setStagingCount(stgCount);
       } else {
-        // Viewer path: read from discovery API + public ledger
-        const [p, fr] = await Promise.all([
+        // Viewer path (anon or a signed-in non-owner): read the author's
+        // PUBLIC profile through the D73 query engine (readUserPublicProfile).
+        // The old path read the author's posts from their followers group +
+        // resolved the face via listMedia — both are wrong for a non-owner
+        // (the followers group's `anyone` grant is `profile`-only, and
+        // listMedia is owner-scoped), so anon + non-followers saw no posts and
+        // no profile picture. The query engine is anon-capable, author-scoped,
+        // and returns the posts with media resolved inline + the face URLs.
+        const [p, fr, pub] = await Promise.all([
           readUserProfile(username).catch(() => null),
           readFollow(username).catch(() => null),
+          readUserPublicProfile(username, provider).catch((e) => {
+            console.error('[social] loadData — readUserPublicProfile failed:', e);
+            return { posts: [] as PostRecord[], avatarUrl: undefined, bannerUrl: undefined };
+          }),
         ]);
         profile = p;
         setFollowRecord(fr);
         setFollowing(fr?.status === 'active' || false);
-
-        // Fetch posts DIRECTLY from the author's public_posts collection —
-        // never via discovery, so admin board-moderation (discover-only
-        // takedown) can't rip the post off the author's profile.
-        try {
-          postsData = await readUserPublicPosts(username, provider);
-        } catch {
-          // Author collection unreadable
+        postsData = pub.posts;
+        // The face (avatar / banner) — presigned URLs the query engine minted
+        // (author-scoped, so they render for any viewer, not just the owner).
+        // Build the media map from the posts' inline-resolved media + the face
+        // records (the grid / banner look up mediaMap by the media doc_id).
+        const mediaMapInit: Record<string, MediaRecord> = {};
+        for (const post of pub.posts) {
+          for (const ref of post.media_refs || []) {
+            if (typeof ref === 'string') continue; // unresolved — nothing to render
+            const id = mediaRefId(ref);
+            if (id && !mediaMapInit[id]) mediaMapInit[id] = fromResolvedMediaRef(ref);
+          }
         }
+        if (profile?.avatar_ref && pub.avatarUrl) {
+          mediaMapInit[profile.avatar_ref] = { _id: profile.avatar_ref, url: pub.avatarUrl, created_at: '' };
+        }
+        if (profile?.banner_ref && pub.bannerUrl) {
+          mediaMapInit[profile.banner_ref] = { _id: profile.banner_ref, url: pub.bannerUrl, created_at: '' };
+        }
+        setMediaMap(mediaMapInit);
 
         // Follower count from the public ledger (per-user, never the viewer's)
         try {
@@ -262,25 +284,27 @@ export default function UserProfileScreen({ username, provider, onBack }: UserPr
       setFollowingCount(fc);
       setFollowerCount(fCount);
 
-      // Resolve media refs (isolated — a media-read failure degrades the
-      // images, never the profile/posts/counts already set above).
-      const allRefs = postsData.flatMap((post) => post.media_refs || []);
-      if (profile?.avatar_ref) allRefs.push(profile.avatar_ref);
-      if (profile?.banner_ref) allRefs.push(profile.banner_ref);
-      const mediaMapInit: Record<string, MediaRecord> = {};
-      if (allRefs.length) {
-        try {
-          const media = isOwn
-            ? await resolveMediaRefs([...new Set(allRefs)])
-            : await resolveMediaRefs([...new Set(allRefs)], { username, provider }, 'public_media');
-          media.forEach((m) => {
-            if (m._id) mediaMapInit[m._id] = m;
-          });
-        } catch (e) {
-          console.error('[social] loadData — media resolution failed (degraded):', e);
+      // Resolve media refs (owner path only — the viewer path built its media
+      // map from the query engine's inline-resolved media above). Isolated: a
+      // media-read failure degrades the images, never the profile/posts/counts
+      // already set.
+      if (isOwn) {
+        const allRefs = postsData.flatMap((post) => post.media_refs || []);
+        if (profile?.avatar_ref) allRefs.push(profile.avatar_ref);
+        if (profile?.banner_ref) allRefs.push(profile.banner_ref);
+        const mediaMapInit: Record<string, MediaRecord> = {};
+        if (allRefs.length) {
+          try {
+            const media = await resolveMediaRefs([...new Set(allRefs)]);
+            media.forEach((m) => {
+              if (m._id) mediaMapInit[m._id] = m;
+            });
+          } catch (e) {
+            console.error('[social] loadData — media resolution failed (degraded):', e);
+          }
         }
+        setMediaMap(mediaMapInit);
       }
-      setMediaMap(mediaMapInit);
     } catch (e) {
       console.error('Failed to load user profile:', e);
     }

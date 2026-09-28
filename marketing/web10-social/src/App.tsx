@@ -231,7 +231,15 @@ function FeedRoute({ onAuthorClick }: { onAuthorClick: (username: string, provid
 }
 
 function App() {
-  const [signedIn, setSignedIn] = useState(false);
+  // Initialize from the synchronous cookie check (NOT `false`): the anon-mode
+  // routes below (`isAnon ? <Navigate to="/discover"> : <Screen>`) render on the
+  // FIRST paint, and child effects run before the mount effect that would
+  // otherwise flip `signedIn` to true. Starting from `false` makes a signed-in
+  // user's first render anon → a hard-refresh / deep-link to /feed bounces to
+  // /discover before the feed can mount (the anon PR's regression). `isSignedIn`
+  // is a cookie read (no side effects), so deriving initial state from it is
+  // safe. The mount effect still runs the access recovery + authListen.
+  const [signedIn, setSignedIn] = useState(() => getSocialAuth().isSignedIn());
   const [showReportBug, setShowReportBug] = useState(false);
   const [reportTrigger, setReportTrigger] = useState<'button' | 'error-boundary'>('button');
   // The access recovery's manual-fallback banner (set when a recovery is in

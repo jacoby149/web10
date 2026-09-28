@@ -60,6 +60,16 @@ them; `ads.md` "Two Formats"). Nothing indicates the pin — the badge +
 disclosure are the only dressing. The card only ever renders the inline
 format in its slot.
 
+**The board read drops ad docs (the every-surface rule).** The card renders
+what its screen's read hands it — and the discover group *holds* the node ad
+docs (tagged `ad` + `node_ad`). So each app's board read filters them out of
+the standalone list before the cards ever see them: the social app's
+`readDiscoverFeed` (`dropAdPosts`) and the marketing `/trending` read + search
+(`dropAdDocs`, `FeedPreview.tsx`). Without the filter, a node ad doc renders as
+a plain ranked tile/card on the board (the 25.09.2026 leak — `#ad #node_ad`
+docs ranked #1/#2 on the marketing Home wall). Full rule: `ads.md` "The
+every-surface rule".
+
 ## The video: transcoded HLS, not the raw file
 
 The card plays the **transcoded HLS** (H.264/AAC) via `sourceFromMedia` — the same rule `video-player.md` specs: a video with `transcoding_settings.status === 'done'` + a minted `manifest_url` plays through hls.js (native HLS on Safari); anything else (processing/failed/absent) plays the direct file.

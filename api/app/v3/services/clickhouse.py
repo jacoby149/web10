@@ -3464,11 +3464,17 @@ def list_public_users(reader: str, authenticated: bool, limit: int = 20, offset:
         require_membership=False,
     )
     # One profile doc per user; if stale duplicates exist, the latest wins.
+    # The read returns `created_at` (not `updated_at` — `_group_docs_query`
+    # dedups per (doc_id, author_key) by updated_at in SQL, so within a doc the
+    # latest version already won; the Python loop only disambiguates multiple
+    # DISTINCT profile docs, where the newest face has the newest created_at).
+    # Store the DOC (not the body) so the comparison key is available; the body
+    # is extracted per user below.
     face_by_user: dict[str, dict] = {}
     for doc in faces:
         current = face_by_user.get(doc["author_key"])
-        if current is None or doc["updated_at"] > current["updated_at"]:
-            face_by_user[doc["author_key"]] = doc["body"]
+        if current is None or doc["created_at"] > current["created_at"]:
+            face_by_user[doc["author_key"]] = doc
 
     # The unspoofable follower count: count(group_members) per followers group.
     counts = _get_group_member_counts(readable)
@@ -3482,7 +3488,7 @@ def list_public_users(reader: str, authenticated: bool, limit: int = 20, offset:
         # This is a generic listing decision (list readable users), not an
         # app concept: the directory is populated from birth instead of reading
         # empty until every user opens their profile.
-        face = face_by_user.get(username) or {"display_name": username}
+        face = (face_by_user.get(username) or {}).get("body") or {"display_name": username}
         rows.append(
             {
                 "username": username,

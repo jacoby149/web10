@@ -230,7 +230,15 @@ Stripe), which is a separate engineering problem. See
   VAST/VPAID). Not v3. Maybe v4.
 - **Not a separate ad post in the feed.** The node ad is attached to the
   post, not a standalone feed item. The user sees the post + the ad block
-  under it, the same way they see a post + a pinned creator ad.
+  under it, the same way they see a post + a pinned creator ad. The node ad
+  doc *lives on* the discover group (that's where `get_active_node_ads` finds
+  it), so every surface that reads the group for standalone posts must drop
+  `ad`-tagged docs — the every-surface rule (`ads.md` "The every-surface
+  rule"): the social feed/discover reads (`dropAdPosts`) and the marketing
+  `/trending` board read + search (`dropAdDocs`) both do. A node ad doc that
+  leaks into a standalone list renders as a plain ranked post (the
+  25.09.2026 marketing-board leak) — the bug the rule exists to keep from
+  recurring.
 - **Not a payment processor.** v3 is ads only. The `offer.link` is an
   external URL. The payment happens off-platform (Patreon, the creator's
   store, the affiliate network). web10 doesn't process the payment, doesn't
