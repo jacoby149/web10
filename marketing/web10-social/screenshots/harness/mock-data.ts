@@ -1143,6 +1143,12 @@ export async function resolveMediaRefs<T>(refs: T[]): Promise<T[]> {
 export async function readUserProfile(): Promise<unknown> {
   return { display_name: 'Nova', username: 'nova', provider: 'web10', avatar_ref: '', bio: 'Synthwave producer' };
 }
+// The anon / non-follower profile read (D73 query engine). The harness has no
+// query engine, so return a minimal public face (the profile screen degrades
+// to the empty-state on top of this).
+export async function readUserPublicProfile(): Promise<unknown> {
+  return { posts: [], avatarUrl: undefined, bannerUrl: undefined };
+}
 export async function lookupUserProfile(username?: string): Promise<unknown> {
   // Return a face for the seeded peers so the DM compose preview renders.
   const peer = PEERS.find((p) => p.username === username);

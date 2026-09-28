@@ -100,12 +100,17 @@ beforeEach(() => {
 });
 
 describe('NodeSettingsScreen — the admin gate', () => {
-  it('shows the "not the node owner" state for a non-admin', async () => {
+  it('hides the surface from a non-admin (generic not-found, no existence reveal)', async () => {
     checkNodeAdmin.mockResolvedValue(false);
     renderAt('/node-settings');
-    expect(await screen.findByTestId('node-settings-not-admin')).toBeInTheDocument();
+    // A non-admin who deep-links sees a generic not-found — never the controls.
+    expect(await screen.findByTestId('node-settings-not-found')).toBeInTheDocument();
     // The tabs are never rendered for a non-admin.
     expect(screen.queryByTestId('node-settings-tabs')).not.toBeInTheDocument();
+    // And the surface's existence is NOT revealed — no "Node Settings" heading,
+    // no "node owner" mention (a non-admin shouldn't know it's a thing).
+    expect(screen.queryByText('Node Settings')).not.toBeInTheDocument();
+    expect(screen.queryByText(/node owner/i)).not.toBeInTheDocument();
   });
 
   it('renders the tabs for a node admin', async () => {

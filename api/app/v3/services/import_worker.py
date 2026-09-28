@@ -85,9 +85,11 @@ CREATE TABLE IF NOT EXISTS import_jobs (
     platform String,
     phase String,
     object_keys String,
+    target_group_id String DEFAULT '',
     total_records UInt64 DEFAULT 0,
     written_records UInt64 DEFAULT 0,
     skipped_records UInt64 DEFAULT 0,
+    progress UInt8 DEFAULT 0,
     errors String,
     message String DEFAULT '',
     created_at DateTime64(3),
@@ -103,9 +105,11 @@ _JOB_COLUMNS = [
     "platform",
     "phase",
     "object_keys",
+    "target_group_id",
     "total_records",
     "written_records",
     "skipped_records",
+    "progress",
     "errors",
     "message",
     "created_at",
@@ -124,6 +128,15 @@ def ensure_import_jobs_schema() -> None:
     fresh ClickHouse) — same idiom as ensure_apps_schema."""
     try:
         ch.client.command(_IMPORT_JOBS_DDL)
+        # import_jobs.progress — the 0-100 import percentage (the client's
+        # progress bar). Pre-existing volumes predate the column; ADD COLUMN
+        # appends it at the end, which is why inserts name their columns.
+        ch.client.command("ALTER TABLE import_jobs ADD COLUMN IF NOT EXISTS progress UInt8 DEFAULT 0")
+        # import_jobs.target_group_id — the group the import writes into (the
+        # "port your channel into a page" flow). Empty = the followers group
+        # (the pre-group-targeting default). Pre-existing volumes predate the
+        # column; ADD COLUMN appends it at the end.
+        ch.client.command("ALTER TABLE import_jobs ADD COLUMN IF NOT EXISTS target_group_id String DEFAULT ''")
     except Exception as e:
         logger.warning("[import] import_jobs schema ensure skipped: %s: %s", type(e).__name__, e)
 
@@ -143,7 +156,9 @@ def _parse_json(s) -> object:
         return None
 
 
-def create_import_job(job_id: str, user_key: str, platform: str, object_keys: list[str]) -> dict:
+def create_import_job(
+    job_id: str, user_key: str, platform: str, object_keys: list[str], target_group_id: str = ""
+) -> dict:
     now = _now()
     ch.client.insert(
         "import_jobs",
@@ -154,6 +169,8 @@ def create_import_job(job_id: str, user_key: str, platform: str, object_keys: li
                 platform,
                 PENDING,
                 _json(object_keys),
+                target_group_id or "",
+                0,
                 0,
                 0,
                 0,
@@ -171,8 +188,8 @@ def create_import_job(job_id: str, user_key: str, platform: str, object_keys: li
 
 def get_import_job(job_id: str) -> dict | None:
     result = ch.client.query(
-        "SELECT job_id, user_key, platform, phase, object_keys, total_records, "
-        "written_records, skipped_records, errors, message, created_at, updated_at "
+        "SELECT job_id, user_key, platform, phase, object_keys, target_group_id, "
+        "total_records, written_records, skipped_records, progress, errors, message, created_at, updated_at "
         "FROM (SELECT *, row_number() OVER (PARTITION BY job_id ORDER BY updated_at DESC) AS rn "
         "FROM import_jobs WHERE job_id = %(job_id)s AND deleted = 0) WHERE rn = 1",
         {"job_id": job_id},
@@ -186,14 +203,26 @@ def get_import_job(job_id: str) -> dict | None:
         "platform": row[2],
         "phase": row[3],
         "object_keys": _parse_json(row[4]) or [],
-        "total_records": int(row[5]),
-        "written_records": int(row[6]),
-        "skipped_records": int(row[7]),
-        "errors": _parse_json(row[8]) or [],
-        "message": row[9],
-        "created_at": row[10].isoformat() if isinstance(row[10], datetime) else row[10],
-        "updated_at": row[11].isoformat() if isinstance(row[11], datetime) else row[11],
+        "target_group_id": row[5] or "",
+        "total_records": int(row[6]),
+        "written_records": int(row[7]),
+        "skipped_records": int(row[8]),
+        "progress": int(row[9]),
+        "errors": _parse_json(row[10]) or [],
+        "message": row[11],
+        "created_at": row[12].isoformat() if isinstance(row[12], datetime) else row[12],
+        "updated_at": row[13].isoformat() if isinstance(row[13], datetime) else row[13],
     }
+
+
+def _clamp_progress(v) -> int:
+    """The progress column is UInt8 — clamp any computed percentage to 0..100
+    so a miscount can't overflow the column (or go negative)."""
+    try:
+        n = int(v)
+    except (TypeError, ValueError):
+        return 0
+    return max(0, min(100, n))
 
 
 def update_import_job(job_id: str, **fields) -> dict:
@@ -223,9 +252,11 @@ def update_import_job(job_id: str, **fields) -> dict:
                 existing["platform"],
                 fields.get("phase", existing["phase"]),
                 _json(fields.get("object_keys", existing["object_keys"])),
+                existing.get("target_group_id", ""),
                 int(fields.get("total_records", existing["total_records"])),
                 int(fields.get("written_records", existing["written_records"])),
                 int(fields.get("skipped_records", existing["skipped_records"])),
+                _clamp_progress(fields.get("progress", existing.get("progress", 0))),
                 _json(fields.get("errors", existing["errors"])),
                 fields.get("message", existing["message"]),
                 datetime.fromisoformat(existing["created_at"]) if existing["created_at"] else now,
@@ -324,16 +355,21 @@ def _process_job(job_id: str) -> None:
         return
 
     user = job["user_key"]
-    update_import_job(job_id, phase=PROCESSING, message="Downloading export from storage...")
+    update_import_job(job_id, phase=PROCESSING, progress=0, message="Downloading export from storage...")
 
     tmp_dir = Path(tempfile.mkdtemp(prefix=f"import-{job_id[:8]}-"))
     try:
         _download_parts(job["object_keys"], tmp_dir)
+        # Download + parse are indeterminate (the record count isn't known
+        # until the parse) — progress stays 0 with a live message; the
+        # percentage starts counting once the write phase knows its total.
+        update_import_job(job_id, message="Extracting and parsing the export...")
         entries = _extract_data_entries(tmp_dir)
         records = parser(entries)
         update_import_job(
             job_id,
             total_records=len(records),
+            progress=0,
             message=f"Parsed {len(records)} records — writing to node...",
         )
         if not records:
@@ -345,13 +381,24 @@ def _process_job(job_id: str) -> None:
             )
             return
 
-        followers_group = ensure_followers_group(user)
-        written, skipped, errors = _write_records(job_id, user, records, followers_group)
+        # Resolve the target group. An explicit target_group_id (validated as
+        # user-owned at create time) is a PAGE import — the channel becomes the
+        # group's face (group-as-profile, D60). Absent → the legacy followers
+        # group + personal profile.
+        target_group_id = job.get("target_group_id") or ""
+        if target_group_id:
+            target_group = target_group_id
+            as_page = True
+        else:
+            target_group = ensure_followers_group(user)
+            as_page = False
+        written, skipped, errors = _write_records(job_id, user, records, target_group, as_page)
         update_import_job(
             job_id,
             phase=COMPLETE,
             written_records=written,
             skipped_records=skipped,
+            progress=100,
             errors=errors[:100],
             message=f"Import complete: {written} written, {skipped} skipped.",
         )
@@ -439,6 +486,42 @@ def ensure_followers_group(user: str) -> str:
     return group_id
 
 
+# The app-named group-identity service (the group's face — D60: app data in an
+# app-named service, not a platform table). The social app's constant is
+# `web10-social-group-identity`; the page import writes the channel into it.
+GROUP_IDENTITY_SERVICE = "web10-social-group-identity"
+
+
+def user_owns_group(user: str, group_id: str) -> bool:
+    """True if the user is the OWNER of the group (I3: an import may only write
+    into a group the user owns — it writes posts, comments, AND the group's
+    face, all of which require owner-level grants).
+
+    The owner's member_key format varies by group kind (bare username for
+    followers groups, `{provider}/users/{username}` for community groups), so
+    both candidates are checked."""
+    candidates = [user]
+    if settings.PROVIDER:
+        candidates.append(f"{settings.PROVIDER}/users/{user}")
+    for key in candidates:
+        member = ch.get_group_member(group_id, key)
+        if member and member.get("role") == "owner":
+            return True
+    return False
+
+
+def _group_has_face(group_id: str) -> bool:
+    """True if the group already has a face doc (the identity service is a
+    replace-on-write doc stream — a non-empty read means a face exists)."""
+    result = ch.client.query(
+        "SELECT count() FROM documents "
+        "WHERE collection_name = %(service)s AND deleted = 0 "
+        "AND doc_id IN (SELECT doc_id FROM doc_groups WHERE group_id = %(group)s AND deleted = 0)",
+        {"service": GROUP_IDENTITY_SERVICE, "group": group_id},
+    )
+    return int(result.result_rows[0][0]) > 0
+
+
 # ---------------------------------------------------------------------------
 # The write pipeline (direct ClickHouse — no HTTP fan-out)
 # ---------------------------------------------------------------------------
@@ -508,27 +591,38 @@ def _upload_thumbnail(user: str, url: str, origin_id: str, title: str | None) ->
     return doc["doc_id"]
 
 
-def _write_records(job_id: str, user: str, records: list[dict], followers_group: str) -> tuple[int, int, list[str]]:
+def _write_records(
+    job_id: str, user: str, records: list[dict], target_group: str, as_page: bool = False
+) -> tuple[int, int, list[str]]:
     """Write the parsed records to the node. Returns (written, skipped, errors).
 
     Order matters (the D62 comment join):
       1. media — the thumbnails (download -> MinIO -> media_metadata),
-      2. posts — staging_posts, attached to the followers group (owner-only
+      2. posts — staging_posts, attached to the target group (owner-only
          until the staging UI publishes them — D19/D30),
       3. comments — ref_value = the imported post's doc_id,
-      4. profile — only if the user has no profile doc yet.
+      4. the channel — the group's FACE (as_page: the group-as-profile model,
+         D60 identity service) or the user's personal profile (legacy).
     """
     errors: list[str] = []
     written = 0
     skipped = 0
+    done = 0  # parsed records processed (written or skipped) — the progress numerator
+    total = len(records)
     existing, existing_post_ids = _existing_origin_ids(user)
 
     def _progress(message: str) -> None:
+        # The percentage is over the PARSED records (posts + comments +
+        # profile) — the media thumbnails are an auxiliary sub-step of the
+        # posts, not a record of their own. Capped at 99: 100 is reserved for
+        # the COMPLETE phase (the client reads 100 as "done").
+        pct = min(99, (done * 100) // total) if total else 0
         try:
             update_import_job(
                 job_id,
                 written_records=written,
                 skipped_records=skipped,
+                progress=pct,
                 errors=errors[:100],
                 message=message,
             )
@@ -573,6 +667,9 @@ def _write_records(job_id: str, user: str, records: list[dict], followers_group:
         oid = rec["origin_id"]
         if ("staging_posts", oid) in existing:
             skipped += 1
+            done += 1
+            if done % 25 == 0:
+                _progress(f"Posts: {done}/{total}...")
             continue
         body = dict(rec["body"])
         original_created = _parse_iso_utc(body.pop("created_at", None))
@@ -585,11 +682,12 @@ def _write_records(job_id: str, user: str, records: list[dict], followers_group:
             tags=body.get("tags", []),
             created_at=original_created,
         )
-        ch.attach_doc_to_groups(doc["doc_id"], [followers_group])
+        ch.attach_doc_to_groups(doc["doc_id"], [target_group])
         post_doc_ids[oid] = doc["doc_id"]
         written += 1
-        if written % 25 == 0:
-            _progress(f"Posts: {written} written...")
+        done += 1
+        if done % 25 == 0:
+            _progress(f"Posts: {done}/{total}...")
 
     # Phase 3 — comments (the D62 join: ref_value = the post's doc_id). A
     # comment whose post wasn't imported is an orphan — skipped, not written.
@@ -597,11 +695,17 @@ def _write_records(job_id: str, user: str, records: list[dict], followers_group:
         oid = rec["origin_id"]
         if ("comments", oid) in existing:
             skipped += 1
+            done += 1
+            if done % 25 == 0:
+                _progress(f"Comments: {done}/{total}...")
             continue
         ref = post_doc_ids.get(rec.get("ref_origin_id") or "")
         if not ref:
             skipped += 1
+            done += 1
             errors.append(f"[comments] {oid}: no post for video {rec.get('ref_origin_id')}")
+            if done % 25 == 0:
+                _progress(f"Comments: {done}/{total}...")
             continue
         body = dict(rec["body"])
         original_created = _parse_iso_utc(body.pop("created_at", None))
@@ -612,22 +716,48 @@ def _write_records(job_id: str, user: str, records: list[dict], followers_group:
             ref_value=ref,
             created_at=original_created,
         )
-        ch.attach_doc_to_groups(doc["doc_id"], [followers_group])
+        ch.attach_doc_to_groups(doc["doc_id"], [target_group])
         written += 1
-        if written % 25 == 0:
-            _progress(f"Comments: {written} written...")
+        done += 1
+        if done % 25 == 0:
+            _progress(f"Comments: {done}/{total}...")
 
-    # Phase 4 — profile (the channel -> the creator profile). Never overwrite
-    # an existing profile — the user's current profile wins.
+    # Phase 4 — the channel. As a PAGE (as_page), the channel becomes the
+    # group's FACE (the D60 identity service) — the group-as-profile model:
+    # the imported channel is its own animal, its own profile. Legacy (no
+    # target group), it becomes the user's personal profile. Never overwrite
+    # an existing face/profile — the current one wins.
     profile_recs = [r for r in records if r["service"] == "profile"]
     if profile_recs:
-        if _user_has_profile(user):
-            skipped += 1
-            _progress("Profile: kept the existing one (not overwritten by the import)")
+        if as_page:
+            if _group_has_face(target_group):
+                skipped += 1
+                done += 1
+                _progress("Channel: kept the group's existing face (not overwritten)")
+            else:
+                body = dict(profile_recs[0]["body"])
+                face = {
+                    "name": body.get("display_name"),
+                    "description": body.get("bio"),
+                    "website": body.get("website"),
+                    "origin": "youtube",
+                    "origin_id": profile_recs[0].get("origin_id"),
+                }
+                doc = ch.insert_document(author_key=user, service=GROUP_IDENTITY_SERVICE, body=face)
+                ch.attach_doc_to_groups(doc["doc_id"], [target_group])
+                written += 1
+                done += 1
+                _progress("Channel: set as the group's face")
         else:
-            body = dict(profile_recs[0]["body"])
-            doc = ch.insert_document(author_key=user, service="profile", body=body)
-            ch.attach_doc_to_groups(doc["doc_id"], [followers_group])
-            written += 1
+            if _user_has_profile(user):
+                skipped += 1
+                done += 1
+                _progress("Profile: kept the existing one (not overwritten by the import)")
+            else:
+                body = dict(profile_recs[0]["body"])
+                doc = ch.insert_document(author_key=user, service="profile", body=body)
+                ch.attach_doc_to_groups(doc["doc_id"], [target_group])
+                written += 1
+                done += 1
 
     return written, skipped, errors

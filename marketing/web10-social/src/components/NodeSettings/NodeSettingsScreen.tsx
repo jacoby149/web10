@@ -43,25 +43,32 @@ export default function NodeSettingsScreen() {
   };
 
   // The admin gate — the surface is node-owner-only. A non-admin (or a stale
-  // link) sees the "not the node owner" state, never the controls.
+  // link) must NOT learn the surface exists: while the check is in flight we
+  // show a neutral loading state (no "Node Settings" heading), and once it
+  // resolves to non-admin we show a generic not-found — the same as any unknown
+  // route — so a non-admin can't tell Node Settings is a thing. The nav items
+  // are already `isNodeAdmin`-gated (Layout), so this is the deep-link case.
+  if (adminLoading) {
+    return (
+      <div className="mx-auto max-w-2xl px-4 py-6" data-testid="node-settings-screen">
+        <div className="mt-8 flex justify-center py-16" data-testid="node-settings-loading">
+          <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" strokeWidth={1.5} />
+        </div>
+      </div>
+    );
+  }
+
   if (!isAdmin) {
     return (
       <div className="mx-auto max-w-2xl px-4 py-6" data-testid="node-settings-screen">
-        <h1 className="font-display text-2xl font-medium text-foreground">Node Settings</h1>
         <div
           className="mt-8 flex flex-col items-center justify-center rounded-lg border border-border bg-card py-16 px-8 text-center"
-          data-testid="node-settings-not-admin"
+          data-testid="node-settings-not-found"
         >
-          <Shield className="h-10 w-10 text-muted-foreground/40" strokeWidth={1.25} />
-          <p className="mt-4 text-sm font-medium text-foreground">
-            {adminLoading ? 'Checking node access…' : 'Node owner access required'}
+          <p className="text-sm font-medium text-foreground">Page not found</p>
+          <p className="mt-1 text-xs text-muted-foreground max-w-sm">
+            This page doesn&apos;t exist on the node. It may have been moved or deleted.
           </p>
-          {!adminLoading && (
-            <p className="mt-1 text-xs text-muted-foreground max-w-sm">
-              This surface is for the node owner. If you run this node, make sure
-              your account is on the node&apos;s admin list.
-            </p>
-          )}
         </div>
       </div>
     );
