@@ -52,7 +52,14 @@ export async function readNodeAds() {
   return [NODE_AD_1];
 }
 export async function getNodeConfig() {
-  return { node_ad_percentage: 10, node_ad_overwrite: false };
+  return {
+    node_ad_percentage: 10,
+    node_ad_overwrite: false,
+    moderation_enabled: true,
+    auto_moderate: true,
+    sensitive_words: ['slur', 'hate', 'spam'],
+    auto_hide_users: ['badguy'],
+  };
 }
 export async function saveNodeAdPercentage() {}
 export async function saveNodeAdOverwrite() {}

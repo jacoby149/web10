@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { useNavigate, useLocation, Outlet } from 'react-router-dom';
 import { cn } from '@/lib/utils';
-import { Home, User, Users, MessageSquare, LogOut, LogIn, Bug, Compass, Store, Gamepad2, Radio, Zap, Clapperboard, Settings, MoreHorizontal, X, Bell, ChevronDown, DollarSign, Flame } from 'lucide-react';
+import { Home, User, Users, MessageSquare, LogOut, LogIn, Bug, Compass, Store, Gamepad2, Radio, Zap, Clapperboard, Settings, MoreHorizontal, X, Bell, ChevronDown, DollarSign, Flame, Shield } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { getWapi } from '@/data/wapi';
@@ -46,6 +46,11 @@ const monetizationItem = { path: '/monetize', icon: DollarSign, label: 'Monetiza
 // useNodeAdmin gate). Deep-links to the Monetization surface's Node tab.
 // Stays in the More popover (admin-only, not a core nav item).
 const nodeMonetizationItem = { path: '/monetize?tab=node', icon: DollarSign, label: 'Node Monetization', testId: 'nav-node-monetization' };
+// Node Settings (D59) — the node owner's content-moderation surface, in the
+// social app (not the authenticator — it's social-related). Rendered ONLY for
+// the node admin (the useNodeAdmin gate). Stays in the More popover (admin-only,
+// not a core nav item) — the same home as Node Monetization.
+const nodeSettingsItem = { path: '/node-settings', icon: Shield, label: 'Node Settings', testId: 'nav-node-settings' };
 
 // Provisional, non-infringing names for the surfaces not yet built. Shorts is
 // now a real surface (shorts.md) — it lives in the sidebar + the More sheet,
@@ -346,6 +351,22 @@ export default function Layout({ onLogout, onLogin, isAnon: isAnonProp, onReport
                   >
                     <DollarSign className="w-5 h-5" strokeWidth={1.75} />
                     {nodeMonetizationItem.label}
+                  </button>
+                )}
+                {isNodeAdmin && (
+                  <button
+                    type="button"
+                    role="menuitem"
+                    data-testid={nodeSettingsItem.testId}
+                    aria-current={pathname === nodeSettingsItem.path ? 'page' : undefined}
+                    onClick={() => { setMoreMenuOpen(false); navigate(nodeSettingsItem.path); }}
+                    className={cn(
+                      'w-full flex items-center gap-3 px-3 py-2 rounded-md text-sm font-medium transition-colors',
+                      pathname === nodeSettingsItem.path ? 'bg-brand-muted text-brand-300' : 'text-foreground hover:bg-elevated',
+                    )}
+                  >
+                    <Shield className="w-5 h-5" strokeWidth={1.75} />
+                    {nodeSettingsItem.label}
                   </button>
                 )}
                 {isNodeAdmin && <div className="my-1 h-px bg-border" aria-hidden="true" />}
@@ -734,6 +755,19 @@ export default function Layout({ onLogout, onLogin, isAnon: isAnonProp, onReport
                   >
                     <DollarSign className="w-5 h-5" strokeWidth={1.75} />
                     {nodeMonetizationItem.label}
+                  </button>
+                )}
+                {isNodeAdmin && (
+                  <button
+                    data-testid="nav-node-settings-mobile"
+                    onClick={() => go(nodeSettingsItem.path)}
+                    className={cn(
+                      'w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors duration-150',
+                      pathname === nodeSettingsItem.path ? 'bg-brand-muted text-brand-300' : 'text-foreground hover:bg-elevated',
+                    )}
+                  >
+                    <Shield className="w-5 h-5" strokeWidth={1.75} />
+                    {nodeSettingsItem.label}
                   </button>
                 )}
               </div>
