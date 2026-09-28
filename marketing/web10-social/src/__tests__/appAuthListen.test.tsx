@@ -89,4 +89,30 @@ describe('App renders', () => {
     // App renders without throwing — container has children
     expect(container.children.length).toBeGreaterThan(0);
   });
+
+  it('a signed-in user at /feed renders the feed, not a bounce to /discover (no anon mount race)', async () => {
+    // Regression: `signedIn` used to start `false`, so the FIRST render was
+    // anon even for a signed-in user — the `isAnon ? <Navigate to="/discover">`
+    // on /feed fired before the mount effect could flip signedIn to true,
+    // bouncing a hard-refresh / deep-link to /discover. `signedIn` now
+    // initializes from the synchronous cookie check, so the first render is
+    // correct. A signed-in user at /feed must render the feed (the composer),
+    // never the discover tab row.
+    installWeb10Mock({
+      token: 'signed-in-token',
+      payload: { username: 'testuser', provider: 'test.localhost', site: 'web10' },
+    });
+    const { default: App } = await import('@/App');
+    render(
+      <MemoryRouter initialEntries={['/feed']}>
+        <App />
+      </MemoryRouter>
+    );
+    // The feed's composer renders (FeedRoute mounted, not redirected).
+    await waitFor(() => {
+      expect(screen.getByTestId('post-composer')).toBeInTheDocument();
+    });
+    // And the discover tab row (the anon landing) is NOT present.
+    expect(screen.queryByTestId('discover-tab-row')).not.toBeInTheDocument();
+  });
 });

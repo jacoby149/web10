@@ -275,17 +275,23 @@ test.describe('Social settings gauntlet — real flow + log sequence', () => {
 
     // --- Sign out (scrubs the token cookie) ---
     await page.locator('[data-testid="settings-logout-button"]').click();
-    await expect(page.locator('[data-testid="login-button"]')).toBeVisible({ timeout: 10000 });
+    // Anon shell: the Sign in affordance in the desktop top bar (the anon PR
+    // retired the full-screen LoginScreen + its `login-button` testid).
+    await expect(page.locator('[data-testid="sign-in-button-desktop"]')).toBeVisible({ timeout: 10000 });
 
     // --- Sign back in: the opener is signed out, so the popup shows the login
     //     screen (NOT a silent auto-complete — that was the "can't switch
     //     account" bug). The contract is already granted, so the no-password
     //     "Continue as" fast path settles it (token re-hand). ---
     const reloginPopupPromise = context.waitForEvent('page', { timeout: 60000 });
-    await page.locator('[data-testid="login-button"]').click();
+    await page.locator('[data-testid="sign-in-button-desktop"]').click();
     const reloginPopup = await reloginPopupPromise;
     await reloginPopup.locator('[data-testid="consent-continue-as"]').waitFor({ state: 'visible', timeout: 60000 });
     await reloginPopup.locator('[data-testid="consent-continue-as"]').click();
+    // After the sign-out the opener was on the anon landing (/discover); the
+    // re-login restores the session but does not navigate back, so go to
+    // /settings explicitly before asserting the re-signed-in screen.
+    await page.goto(`${SOCIAL_BASE}/settings`);
     await expect(page.locator('[data-testid="settings-visibility-private"]')).toBeVisible({ timeout: 60000 });
 
     // --- Still persisted: a FRESH page load (no in-memory cache) reads the
