@@ -477,7 +477,7 @@ export default function DiscoverExploreTab({ query }: DiscoverExploreTabProps) {
           the query + clears it. No search field of its own (search is the
           top bar). */}
       {query.trim() !== '' && (
-        <div className="px-4 pt-3 md:px-0">
+        <div className="px-4 pt-3 md:px-4 lg:px-6">
           <span
             data-testid="discover-explore-tab-query"
             className="inline-flex items-center gap-1.5 rounded-full border border-brand/40 bg-brand-muted/40 px-3 py-1 text-xs text-brand-300"
@@ -504,7 +504,7 @@ export default function DiscoverExploreTab({ query }: DiscoverExploreTabProps) {
           the People *tab* above it carries the two-people glyph. (The operator,
           25.09.2026: "in the subtab, it should be profiles and groups … and
           should be just one person logo".) */}
-      <div className="px-4 pt-3 md:px-0">
+      <div className="px-4 pt-3 md:px-4 lg:px-6">
         <div className="flex items-center gap-2" data-testid="explore-show-toggle" role="group" aria-label="Show sections">
           {(['people', 'groups'] as const).map((section) => {
             const active = section === 'people' ? showPeople : showGroups;

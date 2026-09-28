@@ -75,6 +75,9 @@ function UserFollowingRoute() {
 
 const params = new URLSearchParams(window.location.search);
 const screen = params.get('screen');
+// Anon mode (?anon=1): a signed-out visitor. The chrome is the anon shell
+// (Sign in affordance + public-only nav) and the default surface is Discover.
+const anon = params.get('anon') === '1';
 // The install-prompt capture: render over Shorts and force the surface open
 // (?pwa-prompt=1) so the shot shows the real card without a live beforeinstallprompt.
 if (screen === 'install-prompt') {
@@ -107,14 +110,15 @@ const initialRoute =
    : screen === 'profile-followers' ? '/u/me/followers'
    : screen === 'profile-following' ? '/u/me/following'
    : screen === 'profile-feed' ? '/u/me?view=feed'
-  : screen === 'monetize' ? '/monetize'
-  : screen === 'monetize-node' ? '/monetize?tab=node'
-  : '/messages';
+   : screen === 'monetize' ? '/monetize'
+   : screen === 'monetize-node' ? '/monetize?tab=node'
+   : anon ? '/discover'
+   : '/messages';
 
 createRoot(document.getElementById('root')!).render(
   <MemoryRouter initialEntries={[initialRoute]}>
     <Routes>
-      <Route element={<Layout onLogout={() => {}} onReportBug={() => {}} />}>
+      <Route element={<Layout onLogout={() => {}} onLogin={() => {}} isAnon={anon} onReportBug={() => {}} />}>
         <Route path="/feed" element={<FeedScreen />} />
         <Route path="/composer" element={<PostComposer />} />
         <Route path="/notifications" element={<NotificationsScreen />} />

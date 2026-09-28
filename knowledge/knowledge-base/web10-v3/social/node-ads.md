@@ -171,7 +171,17 @@ The same section shows:
 
 - The current percentage (slider)
 - The list of active node ads (creative preview, offer, status)
-- Create / pause / resume / retire node ads
+- Create / **edit** / pause / resume / retire node ads
+
+**Node ads are editable, exactly like creator ads** (3.162.0 — parity,
+`ad-improvements.md`): the Node Monetization surface's ad form is the same
+create-AND-edit form the creator's catalog uses — Edit pre-fills the copy,
+the offer (kind / partner / link / CTA / disclosure), the status, the format
+(inline / post), and the existing media (kept by doc_id unless replaced).
+Save is `w.update` on the **same doc_id** (an update is a new version), so
+the read-time attach (`get_active_node_ads`) picks up the new
+creative/offer/format on the next read. No albums (a node ad is the
+operator's inventory, not a creator's catalog).
 ## The Renderer
 
 The app already renders ad posts (tagged `ad`) as ad blocks
@@ -220,7 +230,15 @@ Stripe), which is a separate engineering problem. See
   VAST/VPAID). Not v3. Maybe v4.
 - **Not a separate ad post in the feed.** The node ad is attached to the
   post, not a standalone feed item. The user sees the post + the ad block
-  under it, the same way they see a post + a pinned creator ad.
+  under it, the same way they see a post + a pinned creator ad. The node ad
+  doc *lives on* the discover group (that's where `get_active_node_ads` finds
+  it), so every surface that reads the group for standalone posts must drop
+  `ad`-tagged docs — the every-surface rule (`ads.md` "The every-surface
+  rule"): the social feed/discover reads (`dropAdPosts`) and the marketing
+  `/trending` board read + search (`dropAdDocs`) both do. A node ad doc that
+  leaks into a standalone list renders as a plain ranked post (the
+  25.09.2026 marketing-board leak) — the bug the rule exists to keep from
+  recurring.
 - **Not a payment processor.** v3 is ads only. The `offer.link` is an
   external URL. The payment happens off-platform (Patreon, the creator's
   store, the affiliate network). web10 doesn't process the payment, doesn't

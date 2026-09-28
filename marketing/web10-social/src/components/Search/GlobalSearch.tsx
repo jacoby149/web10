@@ -11,9 +11,13 @@ import type { PostRecord } from '@/data/types';
 // S1 (global-search.md): the top-bar everything-search surface — the
 // expanding-icon state machine: icon (rest) → expanded field → results →
 // collapse. S2 adds the three-way fan-out (people/groups/posts) + result
-// rows. Searching (Enter) opens Discover with the query (?q=), staying on
-// the active tab — the query chip (with its X) renders on both the Trending
-// and People tabs, so the search can be cleared from either.
+// rows. S7 (25.09.2026) makes the search PEOPLE-FIRST — opposite to Discover
+// (where Trending is the first tab): the dropdown opens on the People mode
+// (people + groups, live as you type), the "See all results" CTA + Enter in
+// People mode land on the People tab (?tab=explore), and the Trending mode
+// (posts) is one tap over — its Enter keeps the active-tab hand-off (S5). The
+// query chip (with its X) renders on both Discover tabs, so the search can
+// be cleared from either.
 
 // The app's debounce idiom (feed/discover knob re-reads settle at 400ms).
 const SEARCH_DEBOUNCE_MS = 400;
@@ -140,11 +144,12 @@ export default function GlobalSearch({ variant }: GlobalSearchProps) {
   const [closing, setClosing] = useState(false);
   const [query, setQuery] = useState('');
   const [debouncedQuery, setDebouncedQuery] = useState('');
-  // The results mode: `posts` (the default — "the moment you search it should
-  // show the discover posts being searched") + `people` (people + groups, the
-  // chunky toggle the operator asked for — labeled "People" to match
-  // Discover's tabs). Reset to `posts` on collapse.
-  const [mode, setMode] = useState<'posts' | 'people'>('posts');
+  // The results mode: `people` (the default — the operator, 25.09.2026: "for
+  // search purposes, people should be selected firstly in the search, people
+  // first, opposite in discover in discover the trending tab is first") +
+  // `posts` (the Trending posts, the Discover default — the two surfaces are
+  // opposite on purpose). Reset to `people` on collapse.
+  const [mode, setMode] = useState<'posts' | 'people'>('people');
   const inputRef = useRef<HTMLInputElement>(null);
   const triggerRef = useRef<HTMLButtonElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
@@ -176,7 +181,7 @@ export default function GlobalSearch({ variant }: GlobalSearchProps) {
       setClosing(false);
       setQuery('');
       setDebouncedQuery('');
-      setMode('posts');
+      setMode('people');
       setPeople(null);
       setGroups(null);
       setPosts(null);
@@ -244,30 +249,34 @@ export default function GlobalSearch({ variant }: GlobalSearchProps) {
     return () => clearTimeout(t);
   }, [query]);
 
-  // S2: fire the fan-out when the debounced query (or the mode) changes.
-  // Mode-aware: posts are the default; people + groups are fetched only when
-  // the user flips to the "People" mode (no wasted reads). Per-section
-  // loading: each read resolves independently.
+  // S2: fire the fan-out when the debounced query changes. All three reads
+  // (people + groups + posts) fire together — the mode only controls which
+  // sections are SHOWN, so a tab flip is instant (no re-skeleton) and each
+  // section renders independently as its read resolves (per-section loading).
+  // The reads are cheap pool reads (50, filtered client-side), so fetching
+  // all three is not a cost worth gating. A query change resets all sections
+  // (stale results from a previous query must not linger under a new one).
+  const lastFannedQuery = useRef('');
   useEffect(() => {
     if (!open) return;
+    if (lastFannedQuery.current === debouncedQuery) return;
+    lastFannedQuery.current = debouncedQuery;
     setPeople(null);
     setGroups(null);
     setPosts(null);
     if (!debouncedQuery) return;
     let cancelled = false;
+    searchPeople(debouncedQuery)
+      .then((r) => { if (!cancelled) setPeople(r); })
+      .catch(() => { if (!cancelled) setPeople([]); });
+    searchGroups(debouncedQuery)
+      .then((r) => { if (!cancelled) setGroups(r); })
+      .catch(() => { if (!cancelled) setGroups([]); });
     searchPosts(debouncedQuery)
       .then((r) => { if (!cancelled) setPosts(r); })
       .catch(() => { if (!cancelled) setPosts([]); });
-    if (mode === 'people') {
-      searchPeople(debouncedQuery)
-        .then((r) => { if (!cancelled) setPeople(r); })
-        .catch(() => { if (!cancelled) setPeople([]); });
-      searchGroups(debouncedQuery)
-        .then((r) => { if (!cancelled) setGroups(r); })
-        .catch(() => { if (!cancelled) setGroups([]); });
-    }
     return () => { cancelled = true; };
-  }, [debouncedQuery, open, mode]);
+  }, [debouncedQuery, open]);
 
   // Navigate → close the results UI (the state machine's fourth exit).
   // Desktop: just close the dropdown (the field stays, the query persists).
@@ -292,11 +301,12 @@ export default function GlobalSearch({ variant }: GlobalSearchProps) {
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
     if (e.key === 'Enter') {
-      // Searching opens Discover with the query (?q=), staying on the active
-      // tab — the query chip (with its X) renders on BOTH the Trending and
-      // People tabs, so the search can be cleared from either. Works on both
-      // variants (the mobile full-screen view collapses via the pathname-
-      // change effect).
+      // Searching opens Discover with the query (?q=) — the destination
+      // follows the results mode (People mode → the People tab; Trending
+      // mode → the active tab). The query chip (with its X) renders on BOTH
+      // the Trending and People tabs, so the search can be cleared from
+      // either. Works on both variants (the mobile full-screen view
+      // collapses via the pathname-change effect).
       if (query.trim()) submitSearch();
       return;
     }
@@ -307,24 +317,32 @@ export default function GlobalSearch({ variant }: GlobalSearchProps) {
     }
   };
 
-  // The search submit: navigate to Discover carrying the query (?q=) and
-  // STAY on whatever tab is active (the operator's call: the search happens
-  // on both tabs — the query chip, with its X, renders on Trending AND
-  // People, so it can be cleared from either). A bare /discover?q= lands on
-  // Trending (the bare-URL default); /discover?tab=explore&q= lands on
-  // People. The query is screen state the URL holds (the deep-link rule).
+  // The search submit: navigate to Discover carrying the query (?q=). The
+  // destination follows the RESULTS MODE (S7: the search is people-first):
+  // People mode → the People tab (?tab=explore — the people/groups browser,
+  // where the small results came from); Trending mode → stay on whatever tab
+  // is active (the S5 hand-off — the query chip, with its X, renders on
+  // Trending AND People, so it can be cleared from either). A bare
+  // /discover?q= lands on Trending (the bare-URL default);
+  // /discover?tab=explore&q= lands on People. The query is screen state the
+  // URL holds (the deep-link rule).
   const submitSearch = useCallback(() => {
     const q = query.trim();
     if (!q) return;
-    // Stay on the active Discover tab if we're already there (?tab=explore
-    // rides along); otherwise land on the bare URL (Trending, the default).
+    if (mode === 'people') {
+      navigate(`/discover?tab=explore&q=${encodeURIComponent(q)}`);
+      return;
+    }
+    // Trending mode: stay on the active Discover tab if we're already there
+    // (?tab=explore rides along); otherwise land on the bare URL (Trending,
+    // the default).
     const params = new URLSearchParams(locationSearch);
     if (params.get('tab') === 'explore') {
       navigate(`/discover?tab=explore&q=${encodeURIComponent(q)}`);
     } else {
       navigate(`/discover?q=${encodeURIComponent(q)}`);
     }
-  }, [query, navigate, locationSearch]);
+  }, [query, navigate, locationSearch, mode]);
 
   const field = (sizeClass: string) => (
     <input
@@ -347,10 +365,11 @@ export default function GlobalSearch({ variant }: GlobalSearchProps) {
   );
 
   // The results container content: the "type to search" idle state, or the
-  // mode-specific results. The mode toggle (Trending | People) is the
-  // chunky switch the operator asked for — posts are the default; one tap
-  // flips to people + groups. It renders as soon as there's a query (immediate,
-  // not debounced) so it's clickable while the results are still loading.
+  // mode-specific results. The mode toggle (People | Trending) is the
+  // segmented switch — people is the default (S7: the search is people-first,
+  // opposite to Discover where Trending is first); one tap flips to the
+  // Trending posts. It renders as soon as there's a query (immediate, not
+  // debounced) so it's clickable while the results are still loading.
   const q = debouncedQuery;
   const allLoaded = (s: unknown) => s !== null;
 
@@ -365,12 +384,14 @@ export default function GlobalSearch({ variant }: GlobalSearchProps) {
       </div>
     ) : (
       <div className="py-1">
-        {/* The mode toggle — Trending (default) | People. The labels match
-            Discover's tabs (the operator: "it is supposed to be Trending and
-            People, not Posts and People"). Slim segmented control (the
-            Facebook-style dropdown, 25.09.2026 — no chunky pills). It
-            renders as soon as there's a query (immediate, not debounced) so
-            it's clickable while the results are still loading. */}
+        {/* The mode toggle — People (default, S7) | Trending. The labels
+            match Discover's tabs (the operator: "it is supposed to be
+            Trending and People, not Posts and People"). Slim segmented
+            control (the Facebook-style dropdown, 25.09.2026 — no chunky
+            pills). It renders as soon as there's a query (immediate, not
+            debounced) so it's clickable while the results are still loading.
+            Both modes' sections load together (the mode only picks which
+            are shown), so a flip is instant. */}
         <div className="px-3 pt-2 pb-1">
           <div
             className="inline-flex items-center gap-0.5 rounded-full bg-elevated p-0.5"
@@ -379,8 +400,8 @@ export default function GlobalSearch({ variant }: GlobalSearchProps) {
             data-testid="global-search-mode-toggle"
           >
             {([
-              ['posts', 'Trending', FileText],
               ['people', 'People', Users],
+              ['posts', 'Trending', FileText],
             ] as ['posts' | 'people', string, typeof FileText][]).map(([m, label, Icon]) => (
               <button
                 key={m}
@@ -406,7 +427,8 @@ export default function GlobalSearch({ variant }: GlobalSearchProps) {
 
         {mode === 'posts' ? (
           <>
-            {/* Trending posts (the default — "show the discover posts being searched") */}
+            {/* Trending posts (the Discover default — the search's Trending
+                mode mirrors it; the search itself is people-first, S7) */}
             {posts === null ? (
               <SectionSkeleton label="Trending" />
             ) : posts.length > 0 ? (
@@ -461,8 +483,12 @@ export default function GlobalSearch({ variant }: GlobalSearchProps) {
           </>
         )}
 
-        {/* The search CTA — Enter (or this) opens Discover with the query,
-            staying on the active tab (the query chip clears it from either). */}
+        {/* The search CTA — Enter (or this) opens Discover with the query.
+            People mode → the People tab (?tab=explore, the people/groups
+            browser — S7: the search is people-first, so the "see all" lands
+            where the small results came from). Trending mode → the Trending
+            tab (the active-tab hand-off, S5 — the query chip clears it from
+            either tab). */}
         {mode === 'people' && (allLoaded(people) || allLoaded(groups)) && (
           <button
             type="button"

@@ -211,6 +211,8 @@ const posts = await w.read('posts', {
 
 The API translates `groups` into a join against `doc_groups` → `group_members`. You get documents where the group matches and you're a member. Blacklists are checked automatically.
 
+**Anon-capable.** `read` / `readById` / `readRefCounts` ride the token along when one is present, but a **missing token reads as the node's `anon` member** (the node's `read` endpoint is `user_or_anon`, D58) — the same rule `query` and `listPeopleDirectory` already had. This is what lets a signed-out visitor read the public board + a public post's permalink without a token (the social app's anon browsing, 3.162.0). I3 is unchanged: the node still enforces the read-gate, so anon only gets what the `anyone` / `authenticated` grants allow (the discover board, public posts, public profile faces) — a followers-only / private post still 404s for anon. The SDK no longer throws "No token available" on a read; it sends the request without a token and the node reads as `anon`.
+
 **Feed pattern** — read across multiple groups (union):
 
 ```ts

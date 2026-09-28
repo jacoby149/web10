@@ -1,10 +1,12 @@
 import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { ArrowUpRight, MessageCircleOff, Flame, Video, User } from 'lucide-react';
 import {
   TrendingCard,
   TrendingSkeleton,
   YouTubeSkeleton,
   fetchDiscoverFeed,
+  searchDiscoverPosts,
   mapDiscoveryToFeedPost,
   feedPostToDiscover,
   parseCreatedAt,
@@ -135,23 +137,17 @@ interface RankedPost extends FeedPost {
   featured: boolean;
 }
 
+// The marketing search (the social app's `searchPosts` shape, mirrored): the
+// discover board's pool, filtered client-side. The old `PATCH /discover/search`
+// call was a phantom endpoint (the route never existed — every search 404'd
+// into "Search unavailable"); the node has no multi-entity search endpoint
+// (the documented v1 floor — global-search.md), so the board read + the
+// client filter IS the search.
 async function fetchSearchResults(query: string, limit = 50): Promise<FeedPost[]> {
-  const resp = await fetch(`${API_ORIGIN}/discover/search`, {
-    method: 'PATCH',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ query: { q: query, limit, services: 'public_posts' } }),
-  });
-  if (!resp.ok) {
-    const text = await resp.text().catch(() => '');
-    let detail: string | null = null;
-    try {
-      const data = JSON.parse(text);
-      if (data && typeof data.detail === 'string' && data.detail.trim()) detail = data.detail;
-    } catch { /* non-JSON body */ }
-    throw new Error(detail ?? `Search failed (${resp.status})`);
-  }
-  const results = await resp.json();
-  return results.map(mapDiscoveryToFeedPost);
+  console.log('[trending] search —', query);
+  const results = await searchDiscoverPosts(query, limit);
+  console.log('[trending] search —', query, '→', results.length, 'result(s)');
+  return results;
 }
 
 function buildTopic(allTags: string[]): string[] {
@@ -260,14 +256,31 @@ function Trending() {
     trackFunnel('trending_view_toggle', { view: v });
   }, []);
 
-  // Search state
-  const [searchQuery, setSearchQuery] = useState('');
+  // Search state — the query is URL-driven (?q=), the single source of truth
+  // (the deep-link rule; the social Discover holds its query the same way).
+  // The Profiles tab's query chip (with its X) clears ?q= from the URL, so a
+  // state-only query would make that X a no-op.
+  const [searchParams, setSearchParams] = useSearchParams();
+  const searchQuery = searchParams.get('q') ?? '';
   const [searchResults, setSearchResults] = useState<FeedPost[]>([]);
   const [searchUsers, setSearchUsers] = useState<DiscoverUser[]>([]);
   const [searchLoading, setSearchLoading] = useState(false);
   const [searchSearched, setSearchSearched] = useState(false);
   const [searchError, setSearchError] = useState<string | null>(null);
   const searchInputRef = useRef<HTMLInputElement>(null);
+
+  // Write ?q= into the URL (replace — no history spam while typing).
+  const setSearchQuery = useCallback((value: string) => {
+    setSearchParams(
+      (prev) => {
+        const params = new URLSearchParams(prev);
+        if (value) params.set('q', value);
+        else params.delete('q');
+        return params;
+      },
+      { replace: true },
+    );
+  }, [setSearchParams]);
 
   const loadFeed = useCallback(async (nextLimit: number, append: boolean) => {
     if (append) setLoadingMore(true); else setLoading(true);
@@ -362,24 +375,25 @@ function Trending() {
     }
   }, []);
 
-  const debouncedSearch = useRef<ReturnType<typeof setTimeout>>(undefined);
+  // The query is URL-driven (?q=), so EVERY change — typing in the field, the
+  // Profiles tab's query-chip X, a topic chip, a deep link — flows through
+  // this one debounced effect. (The chip's X rewrites ?q= via react-router;
+  // a state-only query would make it a no-op.)
+  useEffect(() => {
+    const t = setTimeout(() => doSearch(searchQuery), 300);
+    return () => clearTimeout(t);
+  }, [searchQuery, doSearch]);
+
   const handleSearchChange = useCallback(
     (value: string) => {
       setSearchQuery(value);
-      clearTimeout(debouncedSearch.current);
-      debouncedSearch.current = setTimeout(() => doSearch(value), 300);
     },
-    [doSearch],
+    [setSearchQuery],
   );
 
   const handleSearchClear = useCallback(() => {
     setSearchQuery('');
-    setSearchResults([]);
-    setSearchUsers([]);
-    setSearchSearched(false);
-    setSearchError(null);
-    clearTimeout(debouncedSearch.current);
-  }, []);
+  }, [setSearchQuery]);
 
   // When a topic chip is clicked during search, filter search results by tag
   // When not searching, the topic chip already filters the trending feed via setTopic
@@ -388,15 +402,14 @@ function Trending() {
       setTopic(t);
       if (searchSearched && t !== 'All') {
         // If searching and a tag is selected, add it to the search query
-        const tagQuery = `#${t}`;
-        setSearchQuery(tagQuery);
-        doSearch(tagQuery);
+        // (the ?q= effect runs the search).
+        setSearchQuery(`#${t}`);
       } else if (searchSearched && t === 'All') {
         // Clear search tag filter when "All" is clicked during search
         handleSearchClear();
       }
     },
-    [searchSearched, doSearch, handleSearchClear],
+    [searchSearched, setSearchQuery, handleSearchClear],
   );
 
   const maxScore = useMemo(

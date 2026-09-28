@@ -1175,11 +1175,15 @@ describe('DiscoverScreen', () => {
       expect(screen.getByTestId('discover-home-card')).toBeInTheDocument();
     });
 
-    // The Home card is a 16:9 thumbnail (an <img>), not an inline <video>.
+    // The Home card is a thumbnail — the poster <img> + the hover preview's
+    // <video> (inert at rest: no source, hidden), NOT a live inline player.
     expect(screen.getByTestId('discover-home-card-thumb')).toBeInTheDocument();
     const card = screen.getByTestId('discover-home-card');
-    expect(card.querySelector('video')).toBeNull();
     expect(card.querySelector('img')).not.toBeNull();
+    const preview = card.querySelector('video');
+    expect(preview).not.toBeNull();
+    expect(preview!.getAttribute('src')).toBeNull();
+    expect(preview!.className).toMatch(/opacity-0/);
     // Clicking the card opens no lightbox (it navigates to the post permalink).
     fireEvent.click(screen.getByTestId('discover-home-card-thumb'));
     expect(screen.queryByTestId('post-lightbox')).not.toBeInTheDocument();
@@ -1519,8 +1523,11 @@ describe('DiscoverScreen — subtab shell (D1)', () => {
     await waitFor(() => {
       expect(screen.queryByTestId('discover-trending-tab-query')).not.toBeInTheDocument();
     });
-    // The ?q= param is gone from the URL.
-    expect(lastSearch).not.toContain('q=');
+    // The ?q= param is gone from the URL (lastSearch is a render side-effect of
+    // the LocationProbe — wait for it to settle, not a synchronous read).
+    await waitFor(() => {
+      expect(lastSearch).not.toContain('q=');
+    });
   });
 
   it('writes ?tab= to the URL on switch and clears it for Trending (bare URL)', async () => {
@@ -1534,14 +1541,17 @@ describe('DiscoverScreen — subtab shell (D1)', () => {
       expect(screen.getByTestId('discover-explore-tab')).toBeInTheDocument();
     });
     // The ?view= param is preserved across the tab switch.
-    expect(lastSearch).toBe('?view=grid&tab=explore');
+    await waitFor(() => {
+      expect(lastSearch).toBe('?view=grid&tab=explore');
+    });
 
     fireEvent.click(screen.getByTestId('discover-tab-trending'));
+    // trending is the bare URL — the ?tab= param is removed (?view= stays). Wait
+    // for the URL update to land: the grid may already be mounted, so waiting on
+    // it alone doesn't prove the navigate fired (the load-dependent flake).
     await waitFor(() => {
-      expect(screen.getByTestId('discover-grid')).toBeInTheDocument();
+      expect(lastSearch).toBe('?view=grid');
     });
-    // trending is the bare URL — the ?tab= param is removed (?view= stays).
-    expect(lastSearch).toBe('?view=grid');
   });
 
   // ── The People / Groups visibility toggle (?show=) ────────────────────────
@@ -1590,7 +1600,9 @@ describe('DiscoverScreen — subtab shell (D1)', () => {
     // The sort row is people-only — it hides with the section.
     expect(screen.queryByTestId('explore-sort-toggle')).not.toBeInTheDocument();
     // ?show=groups is written (the bare URL is "both").
-    expect(lastSearch).toContain('show=groups');
+    await waitFor(() => {
+      expect(lastSearch).toContain('show=groups');
+    });
   });
 
   it('shows the neutral empty state when both sections are hidden', async () => {
@@ -1608,7 +1620,9 @@ describe('DiscoverScreen — subtab shell (D1)', () => {
       expect(screen.getByTestId('explore-show-none')).toBeInTheDocument();
     });
     expect(screen.queryByTestId('explore-groups-section')).not.toBeInTheDocument();
-    expect(lastSearch).toContain('show=none');
+    await waitFor(() => {
+      expect(lastSearch).toContain('show=none');
+    });
   });
 
   it('restores ?show=groups on initial render (deep link)', async () => {
@@ -1639,7 +1653,9 @@ describe('DiscoverScreen — subtab shell (D1)', () => {
     });
     expect(screen.getByTestId('explore-show-people')).toHaveAttribute('aria-pressed', 'true');
     // Back to "both" — the ?show= param is cleared (bare URL).
-    expect(lastSearch).not.toContain('show=');
+    await waitFor(() => {
+      expect(lastSearch).not.toContain('show=');
+    });
   });
 
   // ── The People / Groups filter chips (?personFilter= / ?groupFilter=) ──────
@@ -1688,7 +1704,9 @@ describe('DiscoverScreen — subtab shell (D1)', () => {
       expect(screen.getAllByTestId('people-card')).toHaveLength(1);
     });
     expect(screen.getByTestId('people-card')).toHaveTextContent('alice');
-    expect(lastSearch).toContain('personFilter=mutuals');
+    await waitFor(() => {
+      expect(lastSearch).toContain('personFilter=mutuals');
+    });
   });
 
   it('the Following filter lists the reader\'s own following (separate read)', async () => {
@@ -1709,7 +1727,9 @@ describe('DiscoverScreen — subtab shell (D1)', () => {
       expect(screen.getByTestId('people-card')).toHaveTextContent('carol');
     });
     expect(data.fetchMyFollowingCards).toHaveBeenCalled();
-    expect(lastSearch).toContain('personFilter=following');
+    await waitFor(() => {
+      expect(lastSearch).toContain('personFilter=following');
+    });
   });
 
   it('the Followers filter lists the reader\'s own followers (separate read)', async () => {
@@ -1729,7 +1749,9 @@ describe('DiscoverScreen — subtab shell (D1)', () => {
       expect(screen.getByTestId('people-card')).toHaveTextContent('dave');
     });
     expect(data.fetchMyFollowersCards).toHaveBeenCalled();
-    expect(lastSearch).toContain('personFilter=followers');
+    await waitFor(() => {
+      expect(lastSearch).toContain('personFilter=followers');
+    });
   });
 
   it('the My Groups filter lists the reader\'s own groups (separate read)', async () => {
@@ -1751,7 +1773,9 @@ describe('DiscoverScreen — subtab shell (D1)', () => {
     });
     expect(screen.getByTestId('groups-my-row')).toHaveTextContent('my-crew');
     expect(data.getMyCommunityGroups).toHaveBeenCalled();
-    expect(lastSearch).toContain('groupFilter=mine');
+    await waitFor(() => {
+      expect(lastSearch).toContain('groupFilter=mine');
+    });
   });
 
   it('restores ?personFilter=mutuals on initial render (deep link)', async () => {
@@ -1869,5 +1893,86 @@ describe('DiscoverScreen — the post-format ad renders as its own card, next in
     expect(card.contains(adBlock)).toBe(true);
     // No standalone post-ad card.
     expect(screen.queryByTestId('post-ad-card')).toBeNull();
+  });
+});
+
+describe('DiscoverScreen — the control rows keep the desktop gutter (operator pass, 25.09.2026)', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    (data.getV3Client as ReturnType<typeof vi.fn>).mockReturnValue({
+      read: vi.fn().mockResolvedValue([]),
+      readToken: vi.fn().mockReturnValue({ provider: 'test.localhost', username: 'testuser' }),
+    });
+  });
+
+  it('the Trending tab control rows (query chip, KnobRack, view toggle) carry the desktop gutter', async () => {
+    (data.readDiscoverFeed as ReturnType<typeof vi.fn>).mockResolvedValue([
+      {
+        author: 'top-user',
+        provider: 'api.web10.app',
+        post_id: 'p1',
+        text: 'jacob top post',
+        tags: ['trending'],
+        created_at: new Date().toISOString(),
+        likes: 200,
+        comments: 50,
+        reposts: 20,
+        score: 250,
+      },
+    ]);
+
+    const { default: DiscoverScreen } = await import('@/components/Discover/DiscoverScreen');
+    render(
+      <MemoryRouter initialEntries={['/discover?view=grid&q=jacob']}>
+        <DiscoverScreen />
+      </MemoryRouter>,
+    );
+    await screen.findByTestId('discover-grid');
+
+    // The query chip row (was flush at md:px-0 — the controls had no padding).
+    const chip = screen.getByTestId('discover-trending-tab-query');
+    const chipRow = chip.parentElement as HTMLElement;
+    expect(chipRow.className).toContain('md:px-4');
+    expect(chipRow.className).toContain('lg:px-6');
+    expect(chipRow.className).not.toContain('md:px-0');
+
+    // The KnobRack row (presets + Advanced) keeps the same gutter as the
+    // content column.
+    const rack = screen.getByTestId('knob-rack');
+    const rackRow = rack.parentElement as HTMLElement;
+    expect(rackRow.className).toContain('md:px-4');
+    expect(rackRow.className).toContain('lg:px-6');
+    expect(rackRow.className).not.toContain('md:px-0');
+
+    // The Home | Hot Gossip view toggle row.
+    const toggle = screen.getByTestId('discover-view-toggle');
+    const toggleRow = toggle.parentElement as HTMLElement;
+    expect(toggleRow.className).toContain('md:px-4');
+    expect(toggleRow.className).toContain('lg:px-6');
+    expect(toggleRow.className).not.toContain('md:px-0');
+  });
+
+  it('the People tab control rows (query chip, Profiles/Groups toggle) carry the desktop gutter', async () => {
+    const { default: DiscoverScreen } = await import('@/components/Discover/DiscoverScreen');
+    render(
+      <MemoryRouter initialEntries={['/discover?tab=explore&q=jacob']}>
+        <DiscoverScreen />
+      </MemoryRouter>,
+    );
+    await screen.findByTestId('discover-explore-tab');
+
+    // The query chip row.
+    const chip = screen.getByTestId('discover-explore-tab-query');
+    const chipRow = chip.parentElement as HTMLElement;
+    expect(chipRow.className).toContain('md:px-4');
+    expect(chipRow.className).toContain('lg:px-6');
+    expect(chipRow.className).not.toContain('md:px-0');
+
+    // The Profiles | Groups visibility toggle row.
+    const showToggle = screen.getByTestId('explore-show-toggle');
+    const showRow = showToggle.parentElement as HTMLElement;
+    expect(showRow.className).toContain('md:px-4');
+    expect(showRow.className).toContain('lg:px-6');
+    expect(showRow.className).not.toContain('md:px-0');
   });
 });

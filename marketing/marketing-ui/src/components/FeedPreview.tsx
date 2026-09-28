@@ -410,6 +410,20 @@ async function readGroup(service: string, limit: number): Promise<V3Doc[]> {
   return resp.json();
 }
 
+/**
+ * Ad docs (tagged `ad` — creator or `node_ad`) live ON the discover group
+ * (that's where `get_active_node_ads` finds node ads), but they are ad
+ * INVENTORY, not board content: they show only when ATTACHED to a post via
+ * the read-time join (`doc.ad` / `doc.node_ad`), never as standalone ranked
+ * posts. The social app's discover read drops them the same way
+ * (`dropAdPosts`, web10-social `data/feed.ts`) — the marketing board read
+ * must too, or node ads leak in as plain ranked posts (the 25.09.2026
+ * operator screenshot: `#ad #node_ad` docs ranked #1/#2 on /trending).
+ */
+function dropAdDocs(docs: V3Doc[]): V3Doc[] {
+  return docs.filter((d) => !(d.tags || []).includes('ad'));
+}
+
 // The engagement-count shape: {ref_value: count} for these posts. The server
 // runs GROUP BY ref_value through the safe-query engine (exact, no cap) —
 // replaces "read a capped sample, count client-side" (which undercounted past
@@ -425,44 +439,53 @@ async function readGroupRefCounts(service: string, ref: string[]): Promise<Recor
   return resp.json();
 }
 
+// One board doc → the DiscoveryPost shape. `likesByPost` / `commentsByPost`
+// are the server-side engagement counts ({} for a search — the page's knob
+// pipeline re-scores on the raw post signals, not the board's tally).
+function mapV3DocToDiscovery(
+  p: V3Doc,
+  likesByPost: Record<string, number>,
+  commentsByPost: Record<string, number>,
+): DiscoveryPost {
+  // The v3 read serves media_refs pre-resolved (objects with mime_type +
+  // read_url). Derive the first attachment's mime from the first resolved
+  // ref so media detection (video/image/music) works without relying on tags.
+  const mediaRefs: (string | ResolvedMediaRef)[] = p.body?.media_refs || [];
+  const first = mediaRefs[0];
+  const firstAttachmentMime =
+    first && typeof first === 'object' ? first.mime_type || undefined : undefined;
+  return {
+    author: p.author_key,
+    service: p.service,
+    post_id: p.doc_id,
+    body_text: p.body?.text || '',
+    tags: p.tags || [],
+    created_at: p.created_at,
+    engagement: {
+      likes: likesByPost[p.doc_id] || 0,
+      comments: commentsByPost[p.doc_id] || 0,
+      reposts: 0,
+    },
+    engagement_score: (likesByPost[p.doc_id] || 0) + (commentsByPost[p.doc_id] || 0),
+    media_refs: mediaRefs,
+    has_media: mediaRefs.length > 0,
+    first_attachment_mime: firstAttachmentMime,
+  };
+}
+
 async function fetchDiscoverFeed(sort: 'recent' | 'trending', limit = 6): Promise<DiscoveryPost[]> {
   // v3: the public board is the node-default discover group. Read it through
   // the normal group-read path as anon (no token). Engagement is the
   // server-side count shape (GROUP BY ref_value through the engine) for the
   // board's posts — exact, no cap.
-  const posts = await readGroup('posts', 200);
+  const posts = dropAdDocs(await readGroup('posts', 200));
   const postIds = posts.map((p) => p.doc_id);
   const [likesByPost, commentsByPost] = await Promise.all([
     readGroupRefCounts('reactions', postIds),
     readGroupRefCounts('comments', postIds),
   ]);
 
-  let mapped: DiscoveryPost[] = posts.map((p) => {
-    // The v3 read serves media_refs pre-resolved (objects with mime_type +
-    // read_url). Derive the first attachment's mime from the first resolved
-    // ref so media detection (video/image/music) works without relying on tags.
-    const mediaRefs: (string | ResolvedMediaRef)[] = p.body?.media_refs || [];
-    const first = mediaRefs[0];
-    const firstAttachmentMime =
-      first && typeof first === 'object' ? first.mime_type || undefined : undefined;
-    return {
-      author: p.author_key,
-      service: p.service,
-      post_id: p.doc_id,
-      body_text: p.body?.text || '',
-      tags: p.tags || [],
-      created_at: p.created_at,
-      engagement: {
-        likes: likesByPost[p.doc_id] || 0,
-        comments: commentsByPost[p.doc_id] || 0,
-        reposts: 0,
-      },
-      engagement_score: (likesByPost[p.doc_id] || 0) + (commentsByPost[p.doc_id] || 0),
-      media_refs: mediaRefs,
-      has_media: mediaRefs.length > 0,
-      first_attachment_mime: firstAttachmentMime,
-    };
-  });
+  const mapped: DiscoveryPost[] = posts.map((p) => mapV3DocToDiscovery(p, likesByPost, commentsByPost));
   console.log(
     '[trending] discover feed —', posts.length, 'posts;',
     mapped.filter(p => p.has_media).length, 'with media;',
@@ -475,6 +498,36 @@ async function fetchDiscoverFeed(sort: 'recent' | 'trending', limit = 6): Promis
     mapped.sort((a, b) => b.created_at.localeCompare(a.created_at));
   }
   return mapped.slice(0, limit);
+}
+
+// The marketing search (the social app's `searchPosts` shape, mirrored): read
+// the discover board's pool and filter client-side. The node has no
+// multi-entity search endpoint (the documented v1 floor — global-search.md);
+// the old `PATCH /discover/search` call was a phantom (the route never
+// existed — every search 404'd into "Search unavailable"). The pool is the
+// same 200-post board read the feed uses; the filter matches text, author,
+// or tag (a `#tag` query matches tags only — the topic-chip hand-off).
+async function searchDiscoverPosts(query: string, limit = 50): Promise<FeedPost[]> {
+  const q = query.trim().toLowerCase();
+  if (!q) return [];
+  const posts = dropAdDocs(await readGroup('posts', 200));
+  const tagOnly = q.startsWith('#');
+  const needle = tagOnly ? q.slice(1) : q;
+  const filtered = posts.filter((p) => {
+    const text = (p.body?.text || '').toLowerCase();
+    const author = (p.author_key || '').toLowerCase();
+    const tags = (p.tags || []).map((t) => t.toLowerCase());
+    if (tagOnly) return tags.some((t) => t.includes(needle));
+    return (
+      text.includes(needle) ||
+      author.includes(needle) ||
+      tags.some((t) => t.includes(needle))
+    );
+  });
+  // Newest first (the board read is unordered for our purposes; the ranked
+  // re-sort happens in the page's knob pipeline).
+  filtered.sort((a, b) => b.created_at.localeCompare(a.created_at));
+  return filtered.slice(0, limit).map((p) => mapDiscoveryToFeedPost(mapV3DocToDiscovery(p, {}, {})));
 }
 
 // ── YouTubeSkeleton (the Home view's loading state) ─────────────────────────
@@ -500,4 +553,4 @@ function YouTubeSkeleton() {
   );
 }
 
-export { TrendingCard, TrendingSkeleton, YouTubeSkeleton, fetchDiscoverFeed, mapDiscoveryToFeedPost, feedPostToDiscover, formatCount, parseCount, parseCreatedAt, type FeedPost, type DiscoveryPost, type ResolvedMediaRef };
+export { TrendingCard, TrendingSkeleton, YouTubeSkeleton, fetchDiscoverFeed, searchDiscoverPosts, mapDiscoveryToFeedPost, feedPostToDiscover, formatCount, parseCount, parseCreatedAt, type FeedPost, type DiscoveryPost, type ResolvedMediaRef };

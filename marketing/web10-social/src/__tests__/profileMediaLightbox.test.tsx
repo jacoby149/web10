@@ -74,6 +74,7 @@ vi.mock('@/data', async (importOriginal) => {
     readUserProfile: vi.fn().mockResolvedValue(null),
     readMyPosts: mockReadMyPosts,
     readUserPublicPosts: vi.fn().mockResolvedValue([]),
+    readUserPublicProfile: vi.fn().mockResolvedValue({ posts: [], avatarUrl: undefined, bannerUrl: undefined }),
     countFollows: mockCountFollows,
     countFollowers: mockCountFollowers,
     countUserFollowing: vi.fn().mockResolvedValue(0),
@@ -195,6 +196,13 @@ describe('Profile face lightbox — the Facebook-like "your profile picture is a
       _id: 'profile-other',
       display_name: 'Someone Else',
       avatar_ref: AVATAR_REF.doc_id,
+    });
+    // The viewer's avatar resolves through the public profile read (the
+    // query engine's face-prepare) — provide the presigned URL.
+    vi.mocked(await import('@/data')).readUserPublicProfile.mockResolvedValue({
+      posts: [],
+      avatarUrl: 'http://test.com/avatar-other.png',
+      bannerUrl: undefined,
     });
     render(
       <MemoryRouter>

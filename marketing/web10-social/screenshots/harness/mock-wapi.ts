@@ -13,13 +13,19 @@ import type { WapiWrapper, WapiToken } from '../../src/data/wapi';
 
 const TOKEN: WapiToken = { provider: 'web10', username: 'me' };
 
+// Anon mode (?anon=1): the harness renders a SIGNED-OUT visitor (the anon
+// browsing shell) instead of a logged-in one. The wapi mock reports no token
+// so the chrome swaps in the Sign in affordance + the anon nav.
+const ANON = typeof window !== 'undefined'
+  && new URLSearchParams(window.location.search).get('anon') === '1';
+
 function createMockWrapper(): WapiWrapper {
   return {
-    // Auth — always signed in as web10/me.
-    isSignedIn: () => true,
+    // Auth — signed in as web10/me, or signed out in anon mode.
+    isSignedIn: () => !ANON,
     signOut: () => {},
     setToken: () => {},
-    readToken: () => TOKEN,
+    readToken: () => (ANON ? null : TOKEN),
     openAuthPortal: () => {},
     authListen: () => {},
 

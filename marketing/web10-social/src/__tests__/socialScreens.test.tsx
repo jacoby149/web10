@@ -1147,19 +1147,65 @@ describe('Layout', () => {
     // The mobile top bar "New post" button is gone.
     expect(screen.queryByTestId('new-post-button-mobile')).not.toBeInTheDocument();
   });
+
+  it('anon chrome: Shorts leads the nav (the operator: "shorts should be first!!!!")', async () => {
+    const { default: Layout } = await import('@/components/Social/Layout');
+    render(
+      <MemoryRouter initialEntries={['/discover']}>
+        <Layout onLogout={() => {}} onLogin={() => {}} isAnon onReportBug={() => {}}>
+          <div>Content</div>
+        </Layout>
+      </MemoryRouter>,
+    );
+    // Desktop sidebar: Shorts is the FIRST nav row, Discover second.
+    const sidebarNav = screen.getByLabelText('Primary');
+    const sidebarItems = Array.from(sidebarNav.querySelectorAll('[data-testid]'))
+      .map((el) => el.getAttribute('data-testid'))
+      .filter((id) => id?.startsWith('nav-'));
+    expect(sidebarItems.indexOf('nav-shorts')).toBeLessThan(sidebarItems.indexOf('nav-discover'));
+    expect(sidebarItems[0]).toBe('nav-shorts');
+    // Mobile bottom nav: Shorts first, Discover second (no More tab in anon).
+    const mobileNav = screen.getByLabelText('Primary mobile');
+    const mobileItems = Array.from(mobileNav.querySelectorAll('[data-testid]'))
+      .map((el) => el.getAttribute('data-testid'))
+      .filter((id) => id?.startsWith('nav-'));
+    expect(mobileItems[0]).toBe('nav-shorts-mobile');
+    expect(mobileItems[1]).toBe('nav-discover-mobile');
+  });
+
+  it('anon chrome: the desktop top bar keeps a fixed height (the Sign in button must not collapse it)', async () => {
+    const { default: Layout } = await import('@/components/Social/Layout');
+    render(
+      <MemoryRouter initialEntries={['/discover']}>
+        <Layout onLogout={() => {}} onLogin={() => {}} isAnon onReportBug={() => {}}>
+          <div>Content</div>
+        </Layout>
+      </MemoryRouter>,
+    );
+    // The anon top bar (Sign in affordance, no account row) is the SAME height
+    // as the signed-in one — a fixed h-14, not content-driven (the missing
+    // profile row used to shrink the bar and throw off the padding).
+    const topbar = screen.getByTestId('topbar-desktop');
+    expect(topbar).toHaveClass('h-14');
+    expect(screen.getByTestId('sign-in-button-desktop')).toBeInTheDocument();
+  });
 });
 
-describe('LoginScreen', () => {
-  it('renders login button', async () => {
+describe('Anon shell (signed-out visitor)', () => {
+  it('renders the Sign in affordance, not the login wall', async () => {
     const { default: App } = await import('@/App');
     render(
       <MemoryRouter>
         <App />
       </MemoryRouter>
     );
+    // Anon mode: a signed-out visitor gets the app shell with a clear Sign in
+    // button (the operator: "make it clear you can sign in"), not the old
+    // full-screen login wall.
     await waitFor(() => {
-      expect(screen.getByText('Log in or create your account')).toBeInTheDocument();
+      expect(screen.getAllByTestId(/sign-in-button/).length).toBeGreaterThan(0);
     });
+    expect(screen.queryByText('Log in or create your account')).not.toBeInTheDocument();
   });
 
   it('renders branding', async () => {

@@ -1,15 +1,18 @@
 # Global Search — the top-bar everything-search (operator pass, 18.09.2026)
 
-**Status: SHIPPED + AMENDED (3.157.0).** The always-expanded everything-search
+**Status: SHIPPED + AMENDED (3.162.0).** The always-expanded everything-search
 shipped in the desktop **top bar** (S1–S4). **`discover-ia-consistency.md`
 (3.157.0) moved the desktop field's home from the top bar to the sidebar** —
 the operator's Facebook-style chrome ("then the search would fit in the
 sidebar!"): the desktop sidebar now carries the keys mark, then the search
 field, then the nav rows; the top bar carries the Discover tabs + the bell +
 the account row. **Mobile is unchanged** (the 56px header keeps the icon →
-full-screen results view). The state machine (always-expanded field, focus →
-dropdown, X clears the query, the typed query persists) is unchanged — only
-the field's *home* moved. Everything below is the historical record; the
+full-screen results view). **S7 (3.162.0) made the search people-first** —
+the dropdown opens on the People mode (people + groups, live as you type),
+opposite to Discover (where Trending is the first tab); the "see all" CTA +
+Enter in People mode land on the People tab. The state machine
+(always-expanded field, focus → dropdown, X clears the query, the typed
+query persists) is unchanged. Everything below is the historical record; the
 current desktop home is the sidebar.
 
 > **The shape (operator, 18.09.2026):** "maybe good to have an everything
@@ -59,16 +62,17 @@ dropdown**: **`field (always) → focus → results → close`.**
   always on.
 - **Focus:** clicking / focusing the field opens the **results dropdown**
   (focus is in the field).
-- **Results:** type → **debounced** (the app's 400ms idiom) → a **chunky
-   mode toggle** (Trending | People) over the results. **Trending (posts) is
-   the default** (the operator, 23.09.2026: "the moment you search in the
-   search bar it should show you the discover posts being searched, and then
-   chunky icon to switch it to people and groups search"). One tap flips to
-   **People** (the people + groups sections + the "See all results in
-   Discover" CTA). The labels match Discover's tabs — the operator
-   (24.09.2026): "it is supposed to be Trending and People, not Posts and
-   People." The fan-out is **mode-aware** — the people/groups reads only
-   fire in People mode (no wasted reads); posts always load.
+- **Results:** type → **debounced** (the app's 400ms idiom) → a **slim
+   segmented mode toggle** (People | Trending) over the results. **People
+   (people + groups) is the default** (S7, 25.09.2026 — the search is
+   people-first, **opposite to Discover** where Trending is the first tab):
+   the small people/groups results appear live as you type, and the "see
+   all" CTA / Enter land on the People tab. One tap flips to **Trending**
+   (the posts section); its Enter keeps the S5 active-tab hand-off. The
+   labels match Discover's tabs — the operator (24.09.2026): "it is supposed
+   to be Trending and People, not Posts and People." All three fan-out reads
+   load together on the query (the mode only picks which sections are
+   shown), so a flip is instant and each section renders independently.
    - **Desktop:** a **dropdown** under the field.
    - **Mobile:** a **full-screen results view** (not a dropdown — a dropdown
      from a 56px header over a scrollable screen + keyboard is fiddly) with an
@@ -80,12 +84,14 @@ dropdown**: **`field (always) → focus → results → close`.**
 - **Tap a result** → navigate: person → `/u/:username`, group →
   `/groups/:groupId` (encoded), post → the post (the profile permalink, the
   app's existing post deep link).
-- **Enter / the CTA** → Discover **with the query** (`?q=`), staying on
-  whatever tab is active (the operator, 24.09.2026: "i would like if i hit
-  enter that the search happens whether on posts or the people tab, like it
-  searches / stays on both. then you can X it from either one in the
-  discover"). A bare `/discover?q=…` lands on Trending (the bare-URL
-  default); `/discover?tab=explore&q=…` lands on People. The query chip
+- **Enter / the CTA** → Discover **with the query** (`?q=`). The destination
+  follows the results mode (S7): **People mode** → the **People tab**
+  (`/discover?tab=explore&q=…` — the "see all" lands where the small results
+  came from); **Trending mode** → whatever tab is active (the operator,
+  24.09.2026: "i would like if i hit enter that the search happens whether
+  on posts or the people tab, like it searches / stays on both"). A bare
+  `/discover?q=…` lands on Trending (the bare-URL default);
+  `/discover?tab=explore&q=…` lands on People. The query chip
   (with its X) renders on **both** tabs, so the search can be cleared from
   either one. **This URL shape is a cross-lane contract with
   `discover-reorg` — it is pinned verbatim here and in that doc** (so the two
@@ -207,8 +213,34 @@ existing idiom). No second data path.
   glyph** (it holds profiles + groups — "people should be the logo of the two
   people"). Tab *ids* + `?tab=`/`?show=` deep links unchanged.
   `globalSearch.test.tsx` re-pinned (the X is query-gated; the pill +
-  wide-panel assertions) + `discoverScreen.test.tsx` +1 (the two-people People
-  tab vs the one-person Profiles chip).
+   wide-panel assertions) + `discoverScreen.test.tsx` +1 (the two-people People
+   tab vs the one-person Profiles chip).
+- [✓ 3.162.0] **S7: the search is people-first — opposite to Discover, live as
+  you type, no "see results" hop** (`GlobalSearch.tsx`) — operator pass
+  (25.09.2026, the search dropdown + Discover screenshots): "for search
+  purposes, people should be selected firstly in the search, people first,
+  opposite in discover in discover the trending tab is first, and shouldnt
+  have to hit see results! the people tab should pull up automatically with
+  the search as you type as well as showing the small results." The search
+  and Discover are **opposite on purpose**: Discover opens on **Trending**
+  (the posts board is the hero), the search opens on **People** (the front
+  door is finding accounts). (1) **The default mode is People** — the
+  dropdown opens on the people + groups sections, live as you type (the
+  400ms debounce + per-section loading are unchanged); the Trending (posts)
+  section is one tap over. (2) **The reads load together, the mode only
+  picks which sections are shown** — all three fan-out reads fire on the
+  debounced query (they're cheap pool reads), so a tab flip is instant (no
+  re-skeleton) and each section renders independently as its read resolves.
+  (3) **The "see all" lands where the small results came from** — Enter /
+  the "See all results in Discover" CTA in **People mode** navigate to the
+  **People tab** (`/discover?tab=explore&q=…`); in **Trending mode** they
+  keep the S5 active-tab hand-off (a bare `/discover?q=…` → Trending;
+  `?tab=explore` rides along when already there). The query chip (with its
+  X) still renders on both tabs. `globalSearch.test.tsx` re-pinned to the
+  people-first model (People default; the toggle flips to Trending; Enter →
+  `?tab=explore&q=`; Enter in Trending mode keeps the active tab; the CTA →
+  `?tab=explore&q=`; the no-results state is Trending-mode; per-section
+  loading unchanged).
 
 **Ownership:** this lane owns `Layout.tsx`, `src/components/Search/`,
 `src/data/search.ts`. It does **not** touch `DiscoverScreen.tsx` or the

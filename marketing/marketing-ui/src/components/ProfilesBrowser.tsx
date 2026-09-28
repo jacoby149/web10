@@ -342,7 +342,7 @@ export function ProfilesBrowser({ query }: { query: string }) {
                 </button>
               </div>
             ) : peopleLoading ? (
-              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2" data-testid="discover-profiles-people-skeleton">
+              <div className="space-y-3" data-testid="discover-profiles-people-skeleton">
                 {Array.from({ length: 4 }).map((_, i) => (
                   <PersonCardSkeleton key={i} testId="discover-profiles-person-skeleton" />
                 ))}
@@ -357,7 +357,7 @@ export function ProfilesBrowser({ query }: { query: string }) {
               </p>
             ) : (
               <>
-                <div className="grid grid-cols-1 gap-4 sm:grid-cols-2" data-testid="discover-profiles-people-list">
+                <div className="space-y-3" data-testid="discover-profiles-people-list">
                   {filteredPeople.map((p) => (
                     <PersonCard
                       key={p.username}
@@ -409,7 +409,7 @@ export function ProfilesBrowser({ query }: { query: string }) {
                 </button>
               </div>
             ) : groupsLoading ? (
-              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2" data-testid="discover-profiles-groups-skeleton">
+              <div className="space-y-3" data-testid="discover-profiles-groups-skeleton">
                 {Array.from({ length: 4 }).map((_, i) => (
                   <GroupCardSkeleton key={i} testId="discover-profiles-group-skeleton" />
                 ))}
@@ -424,7 +424,7 @@ export function ProfilesBrowser({ query }: { query: string }) {
               </p>
             ) : (
               <>
-                <div className="grid grid-cols-1 gap-4 sm:grid-cols-2" data-testid="discover-profiles-groups-list">
+                <div className="space-y-3" data-testid="discover-profiles-groups-list">
                   {filteredGroups.map((g) => (
                     <GroupCard
                       key={g.group_id}

@@ -623,19 +623,30 @@ export function createV3Client(options: V3ClientOptions = {}): V3Client {
       // and returns the next page after the cursor.
       if (opts.cursor != null) payload.cursor = opts.cursor
       if (opts.order != null) payload.order = opts.order
-      return v3Post<V3Document[]>('read', payload)
+      // Anon-capable (like the node's read endpoint, `user_or_anon`): the
+      // token rides along when present, but a missing token reads as the
+      // node's anon member (the public board — D58 `anyone` grant). This is
+      // what lets a signed-out visitor read the discover board + a public
+      // post's permalink without a token. The node still enforces I3: anon
+      // only gets what the `anyone`/`authenticated` grants allow.
+      const token = state.token ?? readTokenCookie()
+      if (token) payload.token = token
+      return authPost<V3Document[]>(`${apiOrigin}/v3/read`, payload)
     },
 
     // The engagement-count shape: {ref_value: count} for these posts. The
     // server runs GROUP BY ref_value through the safe-query engine (exact for
     // the caller's readable groups, no cap) — the feed/trending server-side
     // count that replaces "read a capped sample, count client-side."
+    // Anon-capable (same rule as `read`).
     async readRefCounts(
       collection: string,
       opts: { groups: string[]; ref: string | string[] },
     ): Promise<Record<string, number>> {
       const payload: V3Body = { service: collection, groups: opts.groups, ref: opts.ref, count: true }
-      return v3Post<Record<string, number>>('read', payload)
+      const token = state.token ?? readTokenCookie()
+      if (token) payload.token = token
+      return authPost<Record<string, number>>(`${apiOrigin}/v3/read`, payload)
     },
 
     async readById(
@@ -644,7 +655,13 @@ export function createV3Client(options: V3ClientOptions = {}): V3Client {
     ): Promise<V3Document> {
       // The API merged read-by-id into read (optional doc_id param, #537) —
       // the doc_id path returns a single document, not an array.
-      return v3Post<V3Document>('read', { doc_id: docId, service: collection })
+      // Anon-capable (same rule as `read`): a public post's permalink resolves
+      // for a signed-out visitor (the node's read-by-id path is `user_or_anon`
+      // and resolves media server-side).
+      const payload: V3Body = { doc_id: docId, service: collection }
+      const token = state.token ?? readTokenCookie()
+      if (token) payload.token = token
+      return authPost<V3Document>(`${apiOrigin}/v3/read`, payload)
     },
 
     /**

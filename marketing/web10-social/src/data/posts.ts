@@ -6,8 +6,8 @@ import {
   closeFriendsGroupId,
   ensureFollowers,
 } from './groups';
-import type { PostRecord, MediaRecord, MediaUploadRequest, Visibility, ResolvedMediaRef } from './types';
-import { fromV3DocToPost, fromV3DocToMedia, fromResolvedMediaRef, extractUsername } from './types';
+import type { PostRecord, MediaRecord, MediaUploadRequest, Visibility, ResolvedMediaRef, ProfileRecord } from './types';
+import { fromV3DocToPost, fromV3DocToMedia, fromResolvedMediaRef, fromV3DocToProfile, mediaRefId, extractUsername } from './types';
 
 // ── Post data layer (v3) ─────────────────────────────────────────────────────
 // Posts live in the `posts` collection. Visibility is controlled by GROUPS:
@@ -15,6 +15,30 @@ import { fromV3DocToPost, fromV3DocToMedia, fromResolvedMediaRef, extractUsernam
 //   - followers-only: attached to followers group only
 //   - private: attached to close-friends group only
 // No collection split — one `posts` collection, groups define access.
+
+/**
+ * Tags reserved for the ad machinery (ads.md / node-ads.md, D55/D57). A `posts`
+ * doc carrying `ad` IS an ad (the catalog splits on it, the feed read drops it
+ * from the standalone list, the read-time join serves it attached); `node_ad`
+ * marks the operator's node inventory (found by `get_active_node_ads` on the
+ * discover group); `ad_album` is an ad album. These are written ONLY by the ad
+ * catalog (`ads-catalog.ts`), never by a user post. If a user could tag their
+ * own post `#ad`, it would be misclassified as ad inventory (dropped from the
+ * feed, or — worse — served as someone else's attached ad). The node stays
+ * generic (D60) and doesn't police tags, so the app guards its own write path.
+ */
+export const RESERVED_POST_TAGS = ['ad', 'node_ad', 'ad_album'] as const;
+
+/**
+ * Throw if `tags` carry a reserved ad-machinery tag. The user-facing error
+ * names the tag so the composer can show it ("not so fast — `#ad` is a web10
+ * ads-only tag"). Returns the offending tags (empty when clean).
+ */
+export function reservedTagViolation(tags?: string[]): string[] {
+  if (!tags?.length) return [];
+  const reserved = RESERVED_POST_TAGS.filter((t) => tags.includes(t));
+  return reserved;
+}
 
 /**
  * Create a new post record.
@@ -33,6 +57,16 @@ export async function createPost(
   const w = getV3Client();
   const token = w.readToken();
   if (!token) throw new Error('not authenticated');
+
+  // Reserved ad-machinery tags (ad / node_ad / ad_album) are the ad catalog's
+  // to write — a user post carrying one would be misclassified as ad inventory.
+  const reserved = reservedTagViolation(post.tags);
+  if (reserved.length) {
+    throw new Error(
+      `Not so fast — #${reserved.join(', #')} is a web10 ads-only tag. ` +
+      'Ads are made in Monetization, not tagged on a post.',
+    );
+  }
 
   const body: Record<string, unknown> = {
     text: post.text,
@@ -244,6 +278,89 @@ export async function readUserPosts(username: string, optsOrProvider?: { limit?:
 }
 
 /**
+ * Read a user's PUBLIC profile for a non-owner viewer (anon or a signed-in
+ * non-follower) — the posts + the face (avatar / banner), render-ready.
+ *
+ * Why a dedicated read (the root of "anon can't see their posts or prof pic"):
+ * the profile's old viewer path read the author's posts from their FOLLOWERS
+ * group and resolved the face media via `listMedia`. Both are wrong for a
+ * non-owner:
+ *   - The followers group's `anyone` grant is `profile`-only (D41 + D58 point
+ *     7 — "the face is public, the content stays member-gated"). A non-member
+ *     (anon, or a signed-in non-follower) can read the `profile` service there
+ *     but NOT `posts` — anon gets `[]`, a non-follower gets a 403. Public posts
+ *     are instead attached to the DISCOVER group (anon-readable), which the
+ *     old path never read.
+ *   - `listMedia` is owner-scoped (`author_key = the viewer`), so a non-owner
+ *     resolves 0 of the author's media — the avatar/banner never render for
+ *     anyone but the owner.
+ *
+ * The D73 query engine is the fix (the same mechanism the feed uses for
+ * app-specific reads): the app writes a SELECT over `posts` filtered to the
+ * author, scoped to `[followers, discover]`, and the engine's prepare pass
+ * mints the rows (media + HLS + ads + the author's face) in one round-trip.
+ * It is anon-capable (a missing token reads as the node's `anon` — the public
+ * board), author-scoped (the presign is bound to the author, not the viewer),
+ * and I3-clean (the boundary CTEs + block/sharing/hidden anti-joins apply, so
+ * a moderated / blocked / hidden post does not leak). A public post attached
+ * to both discover + followers returns once (deduped by the author filter over
+ * the readable groups); a follower additionally sees the author's
+ * followers-only posts via the followers group.
+ *
+ * Returns the posts (media resolved inline) + the author's avatar / banner as
+ * presigned URLs (the face-prepare). The face degrades to the fallback initials
+ * when the author has no avatar (the screen renders `avatar_ref`'s fallback).
+ */
+export async function readUserPublicProfile(
+  username: string,
+  provider?: string,
+  limit = 50,
+): Promise<{ posts: PostRecord[]; avatarUrl?: string; bannerUrl?: string }> {
+  const w = getV3Client();
+  const groups = [followersGroupId(username, provider), getDiscoverGroupId()];
+  // Escape the username for the SQL literal (usernames are [a-z0-9-_] but be
+  // defensive — a quote would break out of the literal).
+  const escaped = username.replace(/'/g, "''");
+  // The posts, author-filtered, scoped to [followers, discover]. The prepare
+  // pass mints the rows (media + HLS + ads) — the feed's render-ready shape.
+  const postsSql =
+    'SELECT p.doc_id AS doc_id, p.author_key AS author_key, p.body AS body, p.tags AS tags, ' +
+    'p.created_at AS created_at, p.ref_value AS ref_value, p.ad_mode AS ad_mode, p.ad_target AS ad_target ' +
+    `FROM posts p WHERE p.author_key = '${escaped}' ` +
+    'ORDER BY toUnixTimestamp64Milli(p.created_at) DESC ' +
+    `LIMIT ${limit}`;
+  // The face (avatar + banner) — two queries over the `profile` row, each with
+  // a face prepare (the face-prepare resolves ONE media field per query). The
+  // profile row is anon-readable (the followers group's `anyone` grant reads
+  // `profile`), and the presign is author-scoped (bound to the author, not the
+  // viewer) — so the face renders for any viewer, not just the owner.
+  const faceSql = `SELECT author_key AS author_key, body AS body FROM profile WHERE author_key = '${escaped}' LIMIT 1`;
+
+  const [postsRes, avatarRes, bannerRes] = await Promise.all([
+    w.query(postsSql, { groups, prepare: { media: true, ads: true } }),
+    w.query(faceSql, { groups, prepare: { face: { bodyField: 'body', mediaField: 'avatar_ref', urlField: 'avatar_url' } } }),
+    w.query(faceSql, { groups, prepare: { face: { bodyField: 'body', mediaField: 'banner_ref', urlField: 'banner_url' } } }),
+  ]);
+
+  const posts = postsRes.rows.map((r) => fromV3DocToPost(r as unknown as import('./v3').V3Document));
+  // A public post is attached to BOTH the followers group and the discover
+  // group. The query's boundary CTE returns one row per (doc, group), so a
+  // follower (who can read both groups) gets each public post twice. Dedupe by
+  // doc_id — anon only reads discover (one group) so never dupes, but a
+  // follower / the owner's followers do.
+  const seenPostIds = new Set<string>();
+  const uniquePosts = posts.filter((post) => {
+    if (!post._id || seenPostIds.has(post._id)) return false;
+    seenPostIds.add(post._id);
+    return true;
+  });
+  const avatarUrl = (avatarRes.rows[0] as { avatar_url?: string } | undefined)?.avatar_url;
+  const bannerUrl = (bannerRes.rows[0] as { banner_url?: string } | undefined)?.banner_url;
+
+  return { posts: uniquePosts, avatarUrl, bannerUrl };
+}
+
+/**
  * Read a single post by ID.
  */
 export async function readPostById(docId: string): Promise<PostRecord | null> {
@@ -270,6 +387,17 @@ export async function updatePost(
   adPreference?: { mode: 'none' | 'pinned'; target?: string },
 ): Promise<PostRecord> {
   const w = getV3Client();
+
+  // Same reserved-tag guard as createPost — an edit can't smuggle an ad tag
+  // onto a post (the ad catalog is the only writer of ad / node_ad / ad_album).
+  const reserved = reservedTagViolation(updates.tags);
+  if (reserved.length) {
+    throw new Error(
+      `Not so fast — #${reserved.join(', #')} is a web10 ads-only tag. ` +
+      'Ads are made in Monetization, not tagged on a post.',
+    );
+  }
+
   const body: Record<string, unknown> = {};
   if (updates.text !== undefined) body.text = updates.text;
   if (updates.media_refs !== undefined) body.media_refs = updates.media_refs;

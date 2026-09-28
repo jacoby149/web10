@@ -1,4 +1,14 @@
 import '@testing-library/jest-dom';
+import { configure } from '@testing-library/dom';
+
+// The web10-social suite runs 72 files in parallel on a 2-vCPU CI runner. Under
+// that load, the default 1s waitFor/findBy timeout is too tight for multi-step
+// effect chains (render → effect → state → re-render → effect), so a long tail
+// of otherwise-correct tests flake (a different one each run, all green in
+// isolation). Raise the global async timeout so the tests wait for the real
+// condition instead of racing the clock — the systemic fix for the
+// load-dependent flake class. Individual tests can still override it.
+configure({ asyncUtilTimeout: 5000 });
 
 // jsdom has no IntersectionObserver (the feed's infinite-scroll sentinel uses
 // it). A controllable mock: observe/unobserve/disconnect are no-ops, and the

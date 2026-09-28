@@ -25,7 +25,7 @@ import type {
   ResolvedMediaRef,
   AdRecord,
 } from '@/data';
-import { mediaRefId } from '@/data';
+import { mediaRefId, fromResolvedMediaRef } from '@/data';
 import { AttachedAd } from '@/components/Feed/AttachedAd';
 import {
   Compass,
@@ -578,6 +578,10 @@ function DiscoverHomeEmptyState({ onSwitchToGrid }: { onSwitchToGrid: () => void
 // ── Main screen ────────────────────────────────────────────────────────────
 
 export default function DiscoverScreen() {
+  // Anon mode: a signed-out visitor browses the board read-only. The composer
+  // is hidden (they can't post without a session) — the Sign in affordance in
+  // the chrome is the path to posting.
+  const isAnon = !getWapi().readToken();
   const [posts, setPosts] = useState<PostRecord[]>([]);
   const [loading, setLoading] = useState(true);
   const [profileMap, setProfileMap] = useState<Record<string, ProfileRecord>>({});
@@ -788,18 +792,16 @@ export default function DiscoverScreen() {
       setPosts(results);
       hasLoadedRef.current = true;
 
-      if (!token) {
-        setLoading(false);
-        return;
-      }
-
-      // Resolve profiles for authors
+      // Resolve profiles for authors. Anon-capable: a public profile face is
+      // `anyone`-readable (profiles are public by default, 3.149.0), so an
+      // anon visitor sees the author's face too. The own-profile read
+      // (readProfile) is token-gated; anon always goes through readUserProfile.
       const profiles: Record<string, ProfileRecord> = {};
       for (const post of results) {
         const key = `${post.author_username}@${post.author_provider}`;
         if (profiles[key]) continue;
         try {
-          const profile = post.author_username === token.username
+          const profile = token && post.author_username === token.username
             ? await readProfile()
             : await readUserProfile(post.author_username || '');
           if (profile) profiles[key] = profile;
@@ -809,54 +811,83 @@ export default function DiscoverScreen() {
       }
       setProfileMap(profiles);
 
-      // Resolve media for posts that have media
+      // Resolve media for posts that have media.
+      //
+      // Signed-in: the cross-user `public_media` path (resolveMediaRefs) mints
+      // fresh presigned URLs — the owner's own media uses the `media` service.
+      //
+      // Anon: the read already returned the media inline (the node's
+      // resolve_media_urls_in_docs rewrites media_refs to {doc_id, object_key,
+      // read_url, …} at read time — the same presigned URL the signed-in path
+      // would mint). There's no token to re-presign with, so build the map
+      // straight from the inline refs. (The URLs are fresh at read time; the
+      // 60s expiry is a non-issue for the initial board render.)
       const postsWithMedia = results.filter(p => p.media_refs?.length);
       if (postsWithMedia.length) {
         try {
-          const byAuthor = new Map<string, { posts: typeof postsWithMedia; refs: (string | ResolvedMediaRef)[] }>();
-          for (const p of postsWithMedia) {
-            const key = `${p.author_username}@${p.author_provider}`;
-            const entry = byAuthor.get(key);
-            if (entry) {
-              entry.posts.push(p);
-              entry.refs.push(...(p.media_refs || []));
-            } else {
-              byAuthor.set(key, {
-                posts: [p],
-                refs: [...(p.media_refs || [])],
-              });
+          if (!token) {
+            const mMap: Record<string, MediaRecord[]> = {};
+            for (const p of postsWithMedia) {
+              const inline = (p.media_refs || []).filter((r): r is ResolvedMediaRef => typeof r !== 'string');
+              if (!inline.length) continue;
+              const seen = new Set<string>();
+              const records: MediaRecord[] = [];
+              for (const r of inline) {
+                const id = r.doc_id || '';
+                if (id && !seen.has(id)) {
+                  seen.add(id);
+                  records.push(fromResolvedMediaRef(r));
+                }
+              }
+              if (records.length) mMap[p._id || ''] = records;
             }
-          }
-          const mMap: Record<string, MediaRecord[]> = {};
-          for (const [key, entry] of byAuthor) {
-            const [username, provider] = key.split('@');
-            const isOwn = username === token.username && provider === token.provider;
-            // Dedupe by doc_id, keeping the original ref shape (resolved
-            // objects carry the cross-user read_url; strings are doc_ids).
-            const seen = new Set<string>();
-            const uniqueRefs: (string | ResolvedMediaRef)[] = [];
-            for (const r of entry.refs) {
-              const id = mediaRefId(r);
-              if (id && !seen.has(id)) {
-                seen.add(id);
-                uniqueRefs.push(r);
+            if (Object.keys(mMap).length) setMediaMap(mMap);
+          } else {
+            const byAuthor = new Map<string, { posts: typeof postsWithMedia; refs: (string | ResolvedMediaRef)[] }>();
+            for (const p of postsWithMedia) {
+              const key = `${p.author_username}@${p.author_provider}`;
+              const entry = byAuthor.get(key);
+              if (entry) {
+                entry.posts.push(p);
+                entry.refs.push(...(p.media_refs || []));
+              } else {
+                byAuthor.set(key, {
+                  posts: [p],
+                  refs: [...(p.media_refs || [])],
+                });
               }
             }
-            if (!uniqueRefs.length) continue;
-            const media = await resolveMediaRefs(
-              uniqueRefs,
-              { username, provider },
-              isOwn ? 'media' : 'public_media',
-            );
-            for (const p of entry.posts) {
-              if (p.media_refs?.length) {
-                const postRefIds = new Set((p.media_refs || []).map(mediaRefId));
-                mMap[p._id || ''] = media.filter(m => postRefIds.has(m._id || ''));
+            const mMap: Record<string, MediaRecord[]> = {};
+            for (const [key, entry] of byAuthor) {
+              const [username, provider] = key.split('@');
+              const isOwn = username === token.username && provider === token.provider;
+              // Dedupe by doc_id, keeping the original ref shape (resolved
+              // objects carry the cross-user read_url; strings are doc_ids).
+              const seen = new Set<string>();
+              const uniqueRefs: (string | ResolvedMediaRef)[] = [];
+              for (const r of entry.refs) {
+                const id = mediaRefId(r);
+                if (id && !seen.has(id)) {
+                  seen.add(id);
+                  uniqueRefs.push(r);
+                }
+              }
+              if (!uniqueRefs.length) continue;
+              const media = await resolveMediaRefs(
+                uniqueRefs,
+                { username, provider },
+                isOwn ? 'media' : 'public_media',
+              );
+              for (const p of entry.posts) {
+                if (p.media_refs?.length) {
+                  const postRefIds = new Set((p.media_refs || []).map(mediaRefId));
+                  mMap[p._id || ''] = media.filter(m => postRefIds.has(m._id || ''));
+                }
               }
             }
-          }
-          if (Object.keys(mMap).length) {
-            setMediaMap(mMap);
+            if (Object.keys(mMap).length) {
+              setMediaMap(mMap);
+            }
           }
         } catch {
           // Media resolution failed — degrade gracefully
@@ -1079,7 +1110,7 @@ export default function DiscoverScreen() {
               tab. Clearing it re-filters the board (the client-side ?q=
               filter) and the URL. */}
           {urlQuery.trim() !== '' && (
-            <div className="px-4 pt-3 md:px-0">
+            <div className="px-4 pt-3 md:px-4 lg:px-6">
               <span
                 data-testid="discover-trending-tab-query"
                 className="inline-flex items-center gap-1.5 rounded-full border border-brand/40 bg-brand-muted/40 px-3 py-1 text-xs text-brand-300"
@@ -1101,13 +1132,16 @@ export default function DiscoverScreen() {
 
           {/* The composer — the operator: "you can make a new post from the
               explorer too". Compact: it rests as a single-line bar so the
-              video wall, not the composer, is the hero (design.md §10). */}
+              video wall, not the composer, is the hero (design.md §10).
+              Hidden in anon mode (a signed-out visitor can't post). */}
+          {!isAnon && (
           <div data-testid="discover-composer" className="border-b border-border">
             <PostComposer compact onPostCreated={() => loadDiscover(sortConfig)} />
           </div>
+          )}
 
           {/* Controls: presets + knobs */}
-          <div className="px-4 py-3 md:px-0">
+          <div className="px-4 py-3 md:px-4 lg:px-6">
             <KnobRack
               state={knobState}
               activePreset={activePreset}
@@ -1118,7 +1152,7 @@ export default function DiscoverScreen() {
 
           {/* Topic filter chips */}
           {topics.length > 1 && (
-            <div className="px-4 py-3 md:px-0">
+            <div className="px-4 py-3 md:px-4 lg:px-6">
               <div
                 className="flex gap-2 overflow-x-auto [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
                 role="tablist"
@@ -1163,7 +1197,7 @@ export default function DiscoverScreen() {
               ranked board). The operator: video first, hot gossip second. */}
           {!isInitialLoad && posts.length > 0 && (
             <div className="border-b border-border bg-surface/50">
-              <div className="px-4 md:px-0">
+              <div className="px-4 md:px-4 lg:px-6">
                 <div className="flex items-center gap-1 py-2" data-testid="discover-view-toggle">
                   {([
                     ['home', 'Home', Video],

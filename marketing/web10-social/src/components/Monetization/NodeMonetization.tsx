@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
-import { Radio, Plus, Pause, Play, Trash2, AlertTriangle, RefreshCw, SlidersHorizontal, X, ImagePlus } from 'lucide-react';
+import { Radio, Plus, Pause, Play, Trash2, AlertTriangle, RefreshCw, SlidersHorizontal, X, Pencil, ImagePlus } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -13,12 +13,15 @@ import {
   saveNodeAdPercentage,
   saveNodeAdOverwrite,
   buildNodeAdBody,
+  updateNodeAd,
   type AdItem,
 } from '@/data/ads-catalog';
-import { getV3Client, getDiscoverGroupId, uploadMedia, type AdOffer, type AdFormat, type MediaRecord } from '@/data';
+import { getV3Client, getDiscoverGroupId, uploadMedia, resolveMediaRefs, type AdOffer, type AdFormat, type MediaRecord } from '@/data';
 import { processImage, generateThumbnail, captureVideoPoster, getVideoInfo } from '@/lib/mediaProcessing';
 
-const OFFER_KINDS = ['affiliate', 'direct', 'own_store'] as const;
+const OFFER_KINDS = ['none', 'affiliate', 'direct', 'own_store'] as const;
+// Quick-pick CTA suggestions (parity with the creator's AdForm, ad-improvements.md).
+const CTA_SUGGESTIONS = ['Check it out', 'Learn more', 'Shop now', 'Sign up', 'Book now', 'Get it'];
 
 /**
  * The Node Monetization section (D57, D75) — the operator's ad inventory.
@@ -43,7 +46,12 @@ export function NodeMonetization() {
   const [overwrite, setOverwrite] = useState<boolean>(false);
   const [overwriteSaving, setOverwriteSaving] = useState(false);
 
-  const [showNewAd, setShowNewAd] = useState(false);
+  const [editingAd, setEditingAd] = useState<AdItem | null>(null);
+  const [adFormOpen, setAdFormOpen] = useState(false);
+
+  const openNewAd = () => { setEditingAd(null); setAdFormOpen(true); };
+  const openEditAd = (ad: AdItem) => { setEditingAd(ad); setAdFormOpen(true); };
+  const closeAdForm = () => { setAdFormOpen(false); setEditingAd(null); };
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -112,6 +120,17 @@ export function NodeMonetization() {
     await w.create('posts', buildNodeAdBody(offer, text, status, mediaRefs, format), { groups: [getDiscoverGroupId()] });
   };
 
+  const editNodeAd = async (
+    ad: AdItem,
+    offer: AdOffer,
+    text: string,
+    status: 'active' | 'paused',
+    mediaRefs?: string[],
+    format: AdFormat = 'inline',
+  ) => {
+    await updateNodeAd(ad, offer, text, status, mediaRefs, format);
+  };
+
   const setStatus = async (ad: AdItem, status: 'active' | 'paused') => {
     const w = getV3Client();
     await w.update(ad.doc.doc_id, { status });
@@ -146,15 +165,24 @@ export function NodeMonetization() {
             Your node&apos;s ad inventory — the second layer. Node ads run on top of creators&apos; own ads; neither replaces the other.
           </p>
         </div>
-        <Button variant="brand" size="sm" onClick={() => setShowNewAd((v) => !v)} data-testid="node-ads-new" disabled={loading}>
+        <Button variant="brand" size="sm" onClick={openNewAd} data-testid="node-ads-new" disabled={loading}>
           <Plus className="mr-1 h-4 w-4" /> New Node Ad
         </Button>
       </div>
 
-      {showNewAd && (
-        <NewNodeAdForm
-          onSubmit={(offer, text, status, mediaRefs, format) => run(() => createNodeAd(offer, text, status, mediaRefs, format), 'Node ad created')}
-          onCancel={() => setShowNewAd(false)}
+      {adFormOpen && (
+        <NodeAdForm
+          initial={editingAd}
+          onSubmit={(offer, text, status, mediaRefs, format) =>
+            run(
+              () =>
+                editingAd
+                  ? editNodeAd(editingAd, offer, text, status, mediaRefs, format)
+                  : createNodeAd(offer, text, status, mediaRefs, format),
+              editingAd ? 'Node ad updated' : 'Node ad created',
+            )
+          }
+          onCancel={closeAdForm}
         />
       )}
 
@@ -236,13 +264,14 @@ export function NodeMonetization() {
         ) : error ? (
           <ErrorState message={error} onRetry={load} />
         ) : ads && ads.length === 0 ? (
-          <EmptyState onNewAd={() => setShowNewAd(true)} />
+          <EmptyState onNewAd={openNewAd} />
         ) : ads ? (
           <div className="space-y-3">
             {ads.map((ad) => (
               <NodeAdRow
                 key={ad.doc.doc_id}
                 ad={ad}
+                onEdit={() => openEditAd(ad)}
                 onPause={() => run(() => setStatus(ad, 'paused'), 'Node ad paused')}
                 onResume={() => run(() => setStatus(ad, 'active'), 'Node ad active')}
                 onRetire={() => run(() => retireAd(ad), 'Node ad retired')}
@@ -300,8 +329,9 @@ function EmptyState({ onNewAd }: { onNewAd: () => void }) {
   );
 }
 
-function NodeAdRow({ ad, onPause, onResume, onRetire }: {
+function NodeAdRow({ ad, onEdit, onPause, onResume, onRetire }: {
   ad: AdItem;
+  onEdit: () => void;
   onPause: () => void;
   onResume: () => void;
   onRetire: () => void;
@@ -317,16 +347,19 @@ function NodeAdRow({ ad, onPause, onResume, onRetire }: {
           <div className="flex flex-wrap items-center gap-2">
             <span className="truncate text-sm font-medium text-foreground">{ad.text || 'Untitled node ad'}</span>
             <Badge variant={active ? 'success' : 'default'}>{active ? 'ACTIVE' : 'PAUSED'}</Badge>
-            {ad.offer.partner && <Badge variant="outline">{ad.offer.partner}</Badge>}
+            <Badge variant="outline">{ad.format === 'post' ? 'POST AD' : 'INLINE'}</Badge>
+            {ad.offer.kind && <Badge variant="outline">{ad.offer.kind}</Badge>}
           </div>
-          {ad.offer.cta && (
+          {ad.offer.partner && (
             <p className="mt-1 truncate text-xs text-muted-foreground">
-              {ad.offer.cta}
-              {ad.offer.link ? ` · ${ad.offer.link}` : ''}
+              {ad.offer.partner}{ad.offer.cta ? ` · ${ad.offer.cta}` : ''}
             </p>
           )}
         </div>
         <div className="flex flex-shrink-0 items-center gap-1.5">
+          <Button variant="outline" size="sm" onClick={onEdit} data-testid={`node-ads-edit-${ad.doc.doc_id}`} aria-label="Edit node ad">
+            <Pencil className="h-3.5 w-3.5" /> Edit
+          </Button>
           {active ? (
             <Button variant="ghost" size="sm" onClick={onPause} aria-label="Pause node ad" data-testid={`node-ads-pause-${ad.doc.doc_id}`}>
               <Pause className="h-3.5 w-3.5" />
@@ -352,24 +385,68 @@ function NodeAdRow({ ad, onPause, onResume, onRetire }: {
   );
 }
 
-function NewNodeAdForm({ onSubmit, onCancel }: {
+/**
+ * The node ad form — create AND edit (parity with the creator's AdForm,
+ * ad-improvements.md). Edit mode pre-fills from `initial`; the save keeps the
+ * same doc_id (an update is a new version), so the read-time attach picks up
+ * the new creative/offer/format on the next read. No albums (a node ad is the
+ * operator's inventory, not a creator's catalog).
+ */
+function NodeAdForm({ initial, onSubmit, onCancel }: {
+  initial: AdItem | null;
   onSubmit: (offer: AdOffer, text: string, status: 'active' | 'paused', mediaRefs: string[], format: AdFormat) => void;
   onCancel: () => void;
 }) {
-  const [text, setText] = useState('');
-  const [kind, setKind] = useState<string>('direct');
-  const [partner, setPartner] = useState('');
-  const [link, setLink] = useState('');
-  const [cta, setCta] = useState('');
-  const [disclosure, setDisclosure] = useState('Sponsored');
-  const [status, setStatus] = useState<'active' | 'paused'>('active');
-  const [format, setFormat] = useState<AdFormat>('inline');
-  const [media, setMedia] = useState<{ file?: File; previewUrl?: string; isVideo?: boolean } | null>(null);
+  const editing = !!initial;
+  const [text, setText] = useState(initial?.text || '');
+  const [kind, setKind] = useState<string>(initial?.offer.kind || 'direct');
+  const [partner, setPartner] = useState(initial?.offer.partner || '');
+  const [link, setLink] = useState(initial?.offer.link || '');
+  const [cta, setCta] = useState(initial?.offer.cta || '');
+  const [disclosure, setDisclosure] = useState(initial?.offer.disclosure || 'Sponsored');
+  const [status, setStatus] = useState<'active' | 'paused'>(initial?.status || 'active');
+  const [format, setFormat] = useState<AdFormat>(initial?.format || 'inline');
   const [saving, setSaving] = useState(false);
+
+  // The ad's creative media — one item (image or video). `file` = a newly
+  // picked file (uploaded on submit); `existingDocId` = the current media kept
+  // (edit mode); `previewUrl` = what to show.
+  const [media, setMedia] = useState<{
+    file?: File;
+    previewUrl?: string;
+    isVideo?: boolean;
+    existingDocId?: string;
+  } | null>(null);
   const mediaInputRef = useRef<HTMLInputElement>(null);
 
+  // Edit mode: resolve the existing media to a preview URL.
+  useEffect(() => {
+    let live = true;
+    const refs = initial?.media_refs;
+    if (refs && refs.length) {
+      const first = refs[0];
+      const docId = typeof first === 'string' ? first : (first as { doc_id?: string }).doc_id;
+      if (docId) {
+        setMedia({ existingDocId: docId, isVideo: false });
+        resolveMediaRefs([docId])
+          .then((m) => {
+            if (!live) return;
+            const rec = m[0];
+            setMedia((prev) =>
+              prev && prev.existingDocId === docId
+                ? { ...prev, previewUrl: rec?.thumbnail_url || rec?.url, isVideo: rec?.mime_type?.startsWith('video/') }
+                : prev,
+            );
+          })
+          .catch(() => {});
+      }
+    }
+    return () => { live = false; };
+  }, [initial]);
+
   const pickMedia = (file: File) => {
-    setMedia({ file, previewUrl: URL.createObjectURL(file), isVideo: file.type.startsWith('video/') });
+    const isVideo = file.type.startsWith('video/');
+    setMedia({ file, previewUrl: URL.createObjectURL(file), isVideo });
   };
 
   const submit = async () => {
@@ -380,6 +457,8 @@ function NewNodeAdForm({ onSubmit, onCancel }: {
       if (media?.file) {
         const record = await uploadNodeAdMedia(media.file);
         if (record._id) mediaRefs = [record._id];
+      } else if (media?.existingDocId) {
+        mediaRefs = [media.existingDocId];
       }
       const offer: AdOffer = { kind, partner: partner.trim(), link: link.trim(), cta: cta.trim(), disclosure: disclosure.trim() };
       onSubmit(offer, text.trim() || 'Untitled node ad', status, mediaRefs, format);
@@ -391,13 +470,16 @@ function NewNodeAdForm({ onSubmit, onCancel }: {
   };
 
   return (
-    <div className="rounded border border-border bg-elevated/30 p-4" data-testid="node-ad-new-form">
+    <div className="rounded border border-border bg-elevated/30 p-4" data-testid={editing ? 'node-ad-edit-form' : 'node-ad-new-form'}>
       <div className="mb-3 flex items-center justify-between">
-        <h4 className="text-sm font-medium text-foreground">New node ad</h4>
+        <h4 className="text-sm font-medium text-foreground">{editing ? 'Edit node ad' : 'New node ad'}</h4>
         <Button variant="ghost" size="sm" onClick={onCancel} aria-label="Cancel">
           <X className="h-4 w-4" />
         </Button>
       </div>
+      <p className="mb-3 text-xs text-muted-foreground">
+        A piece of content with the link that pays. The disclosure shows to your audience, always.
+      </p>
       <div className="grid gap-3">
         <div className="grid gap-1.5">
           <Label htmlFor="node-ad-text">Copy</Label>
@@ -472,23 +554,41 @@ function NewNodeAdForm({ onSubmit, onCancel }: {
               className="h-9 w-full rounded-md border border-input bg-elevated px-3 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-ring"
               data-testid="node-ad-kind"
             >
-              {OFFER_KINDS.map((k) => <option key={k} value={k}>{k}</option>)}
+              {OFFER_KINDS.map((k) => <option key={k} value={k}>{k === 'none' ? 'none (self-promo)' : k}</option>)}
             </select>
           </div>
-          <div className="grid gap-1.5">
-            <Label htmlFor="node-ad-partner">Partner / sponsor</Label>
-            <Input id="node-ad-partner" placeholder="e.g. WorkflowCo" value={partner} onChange={(e) => setPartner(e.target.value)} data-testid="node-ad-partner" />
-          </div>
+          {kind !== 'none' && (
+            <div className="grid gap-1.5">
+              <Label htmlFor="node-ad-partner">Partner / sponsor</Label>
+              <Input id="node-ad-partner" placeholder="e.g. WorkflowCo (optional)" value={partner} onChange={(e) => setPartner(e.target.value)} data-testid="node-ad-partner" />
+            </div>
+          )}
         </div>
         <div className="grid gap-1.5">
           <Label htmlFor="node-ad-link">Link (the one that pays)</Label>
           <Input id="node-ad-link" placeholder="https://workflowco.com?ref=node" value={link} onChange={(e) => setLink(e.target.value)} data-testid="node-ad-link" />
         </div>
-        <div className="grid grid-cols-2 gap-3">
-          <div className="grid gap-1.5">
-            <Label htmlFor="node-ad-cta">CTA</Label>
-            <Input id="node-ad-cta" placeholder="Learn more" value={cta} onChange={(e) => setCta(e.target.value)} data-testid="node-ad-cta" />
+        <div className="grid gap-1.5">
+          <Label htmlFor="node-ad-cta">CTA</Label>
+          <Input id="node-ad-cta" placeholder="e.g. Learn more" value={cta} onChange={(e) => setCta(e.target.value)} data-testid="node-ad-cta" />
+          <div className="flex flex-wrap gap-1.5">
+            {CTA_SUGGESTIONS.map((s) => (
+              <button
+                key={s}
+                type="button"
+                onClick={() => setCta(s)}
+                className={cn(
+                  'rounded-full border px-2.5 py-0.5 text-[0.6875rem] transition-colors',
+                  cta === s ? 'border-brand bg-brand-muted text-brand-300' : 'border-border text-muted-foreground hover:border-brand/50',
+                )}
+                data-testid={`node-ad-cta-suggest-${s.toLowerCase().replace(/\s+/g, '-')}`}
+              >
+                {s}
+              </button>
+            ))}
           </div>
+        </div>
+        <div className="grid grid-cols-2 gap-3">
           <div className="grid gap-1.5">
             <Label htmlFor="node-ad-status">Status</Label>
             <select
@@ -502,16 +602,16 @@ function NewNodeAdForm({ onSubmit, onCancel }: {
               <option value="paused">paused</option>
             </select>
           </div>
-        </div>
-        <div className="grid gap-1.5">
-          <Label htmlFor="node-ad-disclosure">Disclosure</Label>
-          <Input id="node-ad-disclosure" placeholder="Sponsored" value={disclosure} onChange={(e) => setDisclosure(e.target.value)} data-testid="node-ad-disclosure" />
+          <div className="grid gap-1.5">
+            <Label htmlFor="node-ad-disclosure">Disclosure</Label>
+            <Input id="node-ad-disclosure" placeholder="Sponsored" value={disclosure} onChange={(e) => setDisclosure(e.target.value)} data-testid="node-ad-disclosure" />
+          </div>
         </div>
       </div>
       <div className="mt-4 flex justify-end gap-2">
         <Button variant="outline" size="sm" onClick={onCancel}>Cancel</Button>
         <Button variant="brand" size="sm" onClick={submit} disabled={saving || !link.trim()} data-testid="node-ad-save">
-          {saving ? 'Creating…' : 'Create Node Ad'}
+          {saving ? 'Saving…' : editing ? 'Save Node Ad' : 'Create Node Ad'}
         </Button>
       </div>
     </div>

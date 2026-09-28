@@ -1,12 +1,13 @@
 import { useEffect, useState } from 'react';
 import { Megaphone, Radio, ExternalLink, Heart } from 'lucide-react';
-import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
 import { resolveMediaRefs, countReactions, readReactions, toggleReactionKind } from '@/data';
 import { getWapi } from '@/data/wapi';
 import type { AdRecord, MediaRecord } from '@/data/types';
 import { cn } from '@/lib/utils';
 import { toast, errorMessage } from '@/components/shared/Toast';
+import { VideoPlayer, sourceFromMedia } from './VideoPlayer';
 
 function formatTimeAgo(dateStr: string): string {
   const diff = Date.now() - new Date(dateStr).getTime();
@@ -44,6 +45,9 @@ function formatTimeAgo(dateStr: string): string {
  */
 export function PostAdCard({ ad, className, standalone = true }: { ad: AdRecord; className?: string; standalone?: boolean }) {
   const isNode = ad.variant === 'node';
+  // The horizontal rhythm: the standalone feed card aligns its offer + like
+  // rows to the header/copy (px-4); the compact attached card keeps px-3.
+  const padX = standalone ? 'px-4' : 'px-3';
   const [mediaItems, setMediaItems] = useState<MediaRecord[]>([]);
   const [likeCount, setLikeCount] = useState(0);
   const [liked, setLiked] = useState(false);
@@ -119,7 +123,7 @@ export function PostAdCard({ ad, className, standalone = true }: { ad: AdRecord;
 
   // The offer — partner + CTA (the link that pays).
   const offer = ad.offer?.link ? (
-    <div className="flex items-center gap-2 px-3 py-3">
+    <div className={cn('flex items-center gap-2 py-3', padX)}>
       {ad.offer.partner && !isNode && (
         <span className="text-xs font-medium text-muted-foreground truncate" data-testid="post-ad-partner">
           {ad.offer.partner}
@@ -142,7 +146,7 @@ export function PostAdCard({ ad, className, standalone = true }: { ad: AdRecord;
 
   // The like + the disclosure (part of the object, never hidden).
   const likeRow = (
-    <div className="flex items-center gap-3 px-3 pb-3">
+    <div className={cn('flex items-center gap-3 pb-3', padX)}>
       <button
         type="button"
         onClick={handleLike}
@@ -246,58 +250,41 @@ export function PostAdCard({ ad, className, standalone = true }: { ad: AdRecord;
   );
 }
 
-/** The post ad's creative media — the first item, rendered like a post's media. */
+/**
+ * The post ad's creative media — rendered the SAME way the feed renders a
+ * post's media (the "looks like a post" promise, ad-improvements.md). A video
+ * rides the shared `<VideoPlayer>` (the hls.js rack for transcoded, the
+ * tap-to-play inline surface otherwise) — the ad is a `posts` doc, so its
+ * media is a normal media record. An image FILLS the frame (`object-cover`,
+ * the same fill the discover card uses) so it reads as a polished creative —
+ * never a letterboxed sliver in a wide card. The frame is the media's natural
+ * ratio, capped so a portrait creative can't blow up the card.
+ */
 function PostAdMedia({ media }: { media: MediaRecord }) {
   const isVideo = media.mime_type?.startsWith('video/');
-  const [playing, setPlaying] = useState(false);
-  const knownRatio = media.width && media.height ? media.width / media.height : null;
-  const ratio = knownRatio ?? 16 / 9;
-  const containerStyle: React.CSSProperties = { aspectRatio: `${ratio}`, maxHeight: '50vh' };
 
   if (isVideo) {
+    const source = sourceFromMedia(media);
     return (
-      <div
-        className="bg-elevated overflow-hidden relative cursor-pointer group"
-        style={containerStyle}
-        onClick={() => setPlaying((p) => !p)}
-        role="button"
-        tabIndex={0}
-        aria-label={playing ? 'Pause ad video' : 'Play ad video'}
-        onKeyDown={(e) => {
-          if (e.key === 'Enter' || e.key === ' ') {
-            e.preventDefault();
-            setPlaying((p) => !p);
-          }
-        }}
-        data-testid="post-ad-media-video"
-      >
-        <video
-          src={media.url}
-          poster={media.thumbnail_url}
-          className="w-full h-full object-contain"
-          preload="metadata"
-          playsInline
-          muted={!playing}
-          loop
-          autoPlay={playing}
-        />
-        {!playing && (
-          <div className="absolute inset-0 flex items-center justify-center bg-black/20">
-            <div className="flex items-center justify-center w-12 h-12 rounded-full bg-background/80 backdrop-blur-sm">
-              <Megaphone className="w-5 h-5 text-foreground ml-0.5" strokeWidth={2} />
-            </div>
-          </div>
-        )}
-      </div>
+      <VideoPlayer
+        source={source}
+        mode={source.type === 'hls' ? 'full' : 'inline'}
+        fit="contain"
+        maxHeight="60vh"
+        testId="post-ad-media-video"
+      />
     );
   }
 
+  const knownRatio = media.width && media.height ? media.width / media.height : null;
+  const ratio = knownRatio ?? 16 / 9;
+  const containerStyle: React.CSSProperties = { aspectRatio: `${ratio}`, maxHeight: '60vh' };
   return (
-    <div className="bg-elevated overflow-hidden relative" style={containerStyle} data-testid="post-ad-media-image">
+    <div className="w-full bg-elevated overflow-hidden relative" style={containerStyle} data-testid="post-ad-media-image">
       <img
         src={media.thumbnail_url || media.url}
         alt={media.alt_text || ''}
-        className="w-full h-full object-contain"
+        className="w-full h-full object-cover"
         loading="lazy"
       />
     </div>

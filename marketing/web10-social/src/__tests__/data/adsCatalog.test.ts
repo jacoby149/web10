@@ -181,6 +181,36 @@ describe('updateAd', () => {
   });
 });
 
+describe('updateNodeAd', () => {
+  beforeEach(mockV3Client);
+
+  it('updates the same doc_id with the node ad body (node_ad tag kept)', async () => {
+    const mock = v3.getV3Client() as any;
+    const nodeDoc = { ...AD_DOC, doc_id: 'node-1', tags: ['ad', 'node_ad'] };
+    const ad = adsCatalog.parseAd(nodeDoc as any);
+    await adsCatalog.updateNodeAd(
+      ad,
+      { kind: 'direct', partner: 'WorkflowCo', link: 'https://new.com', cta: 'Learn more', disclosure: 'Sponsored' },
+      'Updated node ad copy',
+      'paused',
+      ['media-2'],
+      'post',
+    );
+    // Same doc_id (an update is a new version, not a new doc) — the read-time
+    // attach picks up the new version on the next read.
+    expect(mock.update).toHaveBeenCalledWith(
+      'node-1',
+      expect.objectContaining({
+        text: 'Updated node ad copy',
+        format: 'post',
+        media_refs: ['media-2'],
+        status: 'paused',
+        tags: ['ad', 'node_ad'],
+      }),
+    );
+  });
+});
+
 describe('isNodeAd / splitNodeAds', () => {
   it('flags only node_ad-tagged docs', () => {
     const nodeAd = { ...AD_DOC, tags: ['ad', 'node_ad'], doc_id: 'node-1' };
