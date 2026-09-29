@@ -1,6 +1,6 @@
 import { fetchPeoplePage, filterPeople, type PersonCard } from './people';
 import { readGroupDirectory, type GroupDirectoryEntry } from './groups';
-import { readDiscoverFeed } from './feed';
+import { readDiscoverFeed, readShortsFeed, type ShortPost } from './feed';
 import type { PostRecord } from './types';
 
 const LOG = (...args: unknown[]) => console.log('[social:search]', ...args);
@@ -15,7 +15,24 @@ const POOL_SIZE = 50;
 export interface SearchResults {
   people: PersonCard[];
   groups: GroupDirectoryEntry[];
+  video: PostRecord[];
+  shorts: ShortPost[];
   posts: PostRecord[];
+}
+
+/**
+ * Is this post a video? The Video destination's render-time gate
+ * (DiscoverScreen's `postHasVideo`, kept in lockstep): a post is a video if
+ * it's tagged `video` OR its first resolved media is a video. The tag is
+ * client-asserted (a direct API caller can fake it), so the resolved media
+ * mime is the backstop — same logic, both surfaces.
+ */
+function postHasVideo(post: PostRecord): boolean {
+  const refs = post.media_refs || [];
+  const hasVideoRef = refs.some(
+    (r) => typeof r === 'object' && r !== null && (r as { mime_type?: string }).mime_type?.startsWith('video/'),
+  );
+  return !!(post.tags?.includes('video') || hasVideoRef);
 }
 
 function normalize(query: string): string {
@@ -81,19 +98,61 @@ export async function searchPosts(query: string, limit = DEFAULT_LIMIT): Promise
 }
 
 /**
- * The three-way fan-out: search people, groups, and posts in parallel.
+ * Search VIDEO posts (the `/video` destination) by text or author.
+ *
+ * v1: the same discover-board pool as `searchPosts`, additionally gated to
+ * video posts (`postHasVideo` — the Video destination's render-time gate, so
+ * the dropdown shows exactly what the destination will show).
+ */
+export async function searchVideo(query: string, limit = DEFAULT_LIMIT): Promise<PostRecord[]> {
+  const q = normalize(query);
+  if (!q) return [];
+  const pool = await readDiscoverFeed(null, POOL_SIZE);
+  const filtered = pool.filter(
+    (p) =>
+      postHasVideo(p) &&
+      ((p.text && p.text.toLowerCase().includes(q)) ||
+        (p.author_username && p.author_username.toLowerCase().includes(q))),
+  );
+  LOG('searchVideo —', q, '→', filtered.length, 'of', pool.length, 'pool');
+  return filtered.slice(0, limit);
+}
+
+/**
+ * Search SHORTS (the `/shorts` destination) by text or author.
+ *
+ * v1: `readShortsFeed` (the discover board filtered to genuine 9:16 shorts —
+ * the render-time gate, shorts.md) filtered client-side by the short's text
+ * or author.
+ */
+export async function searchShorts(query: string, limit = DEFAULT_LIMIT): Promise<ShortPost[]> {
+  const q = normalize(query);
+  if (!q) return [];
+  const pool = await readShortsFeed(POOL_SIZE);
+  const filtered = pool.filter(
+    (s) =>
+      (s.post.text && s.post.text.toLowerCase().includes(q)) ||
+      (s.post.author_username && s.post.author_username.toLowerCase().includes(q)),
+  );
+  LOG('searchShorts —', q, '→', filtered.length, 'of', pool.length, 'pool');
+  return filtered.slice(0, limit);
+}
+
+/**
+ * The five-way fan-out: search people, groups, video, shorts, and posts in
+ * parallel.
  *
  * Each section is independent — a failure in one read degrades that section
  * to an empty list, it never blanks the whole dropdown. The component uses
  * the individual `search*` functions for per-section loading (so the slowest
  * read doesn't block the others); this is the convenience wrapper for cases
- * that want all three at once (and for tests).
+ * that want all five at once (and for tests).
  */
 export async function globalSearch(query: string, limit = DEFAULT_LIMIT): Promise<SearchResults> {
   const q = query.trim();
-  if (!q) return { people: [], groups: [], posts: [] };
+  if (!q) return { people: [], groups: [], video: [], shorts: [], posts: [] };
 
-  const [people, groups, posts] = await Promise.all([
+  const [people, groups, video, shorts, posts] = await Promise.all([
     searchPeople(q, limit).catch((e) => {
       LOG('people search failed (degrading to []):', e);
       return [] as PersonCard[];
@@ -102,11 +161,19 @@ export async function globalSearch(query: string, limit = DEFAULT_LIMIT): Promis
       LOG('groups search failed (degrading to []):', e);
       return [] as GroupDirectoryEntry[];
     }),
+    searchVideo(q, limit).catch((e) => {
+      LOG('video search failed (degrading to []):', e);
+      return [] as PostRecord[];
+    }),
+    searchShorts(q, limit).catch((e) => {
+      LOG('shorts search failed (degrading to []):', e);
+      return [] as ShortPost[];
+    }),
     searchPosts(q, limit).catch((e) => {
       LOG('posts search failed (degrading to []):', e);
       return [] as PostRecord[];
     }),
   ]);
 
-  return { people, groups, posts };
+  return { people, groups, video, shorts, posts };
 }

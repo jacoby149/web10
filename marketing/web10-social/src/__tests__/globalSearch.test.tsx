@@ -38,17 +38,21 @@ vi.mock('@/data/ads-catalog', () => ({
   checkNodeAdmin: (...a: unknown[]) => checkNodeAdmin(...a),
 }));
 
-// Mock the search data layer (S2) so the component test controls the results.
-// Default: all three sections resolve to [] (the "no results" state).
-const { searchPeople, searchGroups, searchPosts } = vi.hoisted(() => ({
+// Mock the search data layer (S2/S8) so the component test controls the
+// results. Default: all five sections resolve to [] (the "no results" state).
+const { searchPeople, searchGroups, searchPosts, searchVideo, searchShorts } = vi.hoisted(() => ({
   searchPeople: vi.fn().mockResolvedValue([]),
   searchGroups: vi.fn().mockResolvedValue([]),
   searchPosts: vi.fn().mockResolvedValue([]),
+  searchVideo: vi.fn().mockResolvedValue([]),
+  searchShorts: vi.fn().mockResolvedValue([]),
 }));
 vi.mock('@/data/search', () => ({
   searchPeople: (...a: unknown[]) => searchPeople(...a),
   searchGroups: (...a: unknown[]) => searchGroups(...a),
   searchPosts: (...a: unknown[]) => searchPosts(...a),
+  searchVideo: (...a: unknown[]) => searchVideo(...a),
+  searchShorts: (...a: unknown[]) => searchShorts(...a),
 }));
 
 function renderDesktopSearch() {
@@ -118,7 +122,7 @@ describe('GlobalSearch — desktop (dropdown)', () => {
     fireEvent.change(field, { target: { value: 'john' } });
     // Immediately: the mode toggle is up (the idle "type to search" state is
     // gone), but the results are still pending (debounce not settled).
-    expect(screen.getByTestId('global-search-mode-posts')).toBeInTheDocument();
+    expect(screen.getByTestId('global-search-mode-video')).toBeInTheDocument();
     expect(screen.queryByTestId('global-search-no-results')).not.toBeInTheDocument();
     // After the 400ms debounce settles, the fan-out fires. With the default
     // mock (all sections empty) the results slot shows the "no results" state.
@@ -227,21 +231,34 @@ describe('GlobalSearch — mobile (full-screen view, not a dropdown)', () => {
   });
 });
 
-describe('GlobalSearch — S2 results (people-first + Trending toggle)', () => {
+describe('GlobalSearch — S2/S8 results (four categories: People | Video | Shorts | Hot Gossip)', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     // Reset to the default empty results.
     vi.mocked(searchPeople).mockResolvedValue([]);
     vi.mocked(searchGroups).mockResolvedValue([]);
     vi.mocked(searchPosts).mockResolvedValue([]);
+    vi.mocked(searchVideo).mockResolvedValue([]);
+    vi.mocked(searchShorts).mockResolvedValue([]);
+  });
+
+  it('the mode toggle is the four flat destinations (People | Video | Shorts | Hot Gossip)', async () => {
+    renderDesktopSearch();
+    const field = screen.getByTestId('global-search-field');
+    fireEvent.focus(field);
+    fireEvent.change(field, { target: { value: 'synthwave' } });
+    await screen.findByTestId('global-search-mode-toggle');
+    expect(screen.getByTestId('global-search-mode-people')).toBeInTheDocument();
+    expect(screen.getByTestId('global-search-mode-video')).toBeInTheDocument();
+    expect(screen.getByTestId('global-search-mode-shorts')).toBeInTheDocument();
+    expect(screen.getByTestId('global-search-mode-gossip')).toBeInTheDocument();
+    // People is the default (S7: the search is people-first).
+    expect(screen.getByTestId('global-search-mode-people')).toHaveAttribute('aria-selected', 'true');
   });
 
   it('defaults to the People mode (the moment you search, people + groups are shown)', async () => {
     vi.mocked(searchPeople).mockResolvedValue([
       { username: 'alice', provider: 'web10', display_name: 'Alice Smith', followers_count: 100, is_following: false },
-    ] as any);
-    vi.mocked(searchPosts).mockResolvedValue([
-      { _id: 'p1', text: 'Check out this synthwave mix', author_username: 'alice', created_at: '2026-01-01T00:00:00Z' },
     ] as any);
     renderDesktopSearch();
     const field = screen.getByTestId('global-search-field');
@@ -254,11 +271,44 @@ describe('GlobalSearch — S2 results (people-first + Trending toggle)', () => {
     expect(screen.getByTestId('global-search-person-alice')).toBeInTheDocument();
     // …and the People tab is the active mode.
     expect(screen.getByTestId('global-search-mode-people')).toHaveAttribute('aria-selected', 'true');
-    // The Trending posts are not shown in People mode (one tap over).
-    expect(screen.queryByTestId('global-search-section-trending')).not.toBeInTheDocument();
+    // The other categories' sections are not shown in People mode (one tap over).
+    expect(screen.queryByTestId('global-search-section-video')).not.toBeInTheDocument();
+    expect(screen.queryByTestId('global-search-section-shorts')).not.toBeInTheDocument();
+    expect(screen.queryByTestId('global-search-section-hot-gossip')).not.toBeInTheDocument();
   });
 
-  it('the toggle flips to Trending (the posts section)', async () => {
+  it('the toggle flips to Video (the video posts section)', async () => {
+    vi.mocked(searchVideo).mockResolvedValue([
+      { _id: 'v1', text: 'Synthwave video mix', author_username: 'alice', created_at: '2026-01-01T00:00:00Z' },
+    ] as any);
+    renderDesktopSearch();
+    const field = screen.getByTestId('global-search-field');
+    fireEvent.focus(field);
+    fireEvent.change(field, { target: { value: 'synthwave' } });
+    // Flip to the Video category…
+    fireEvent.click(screen.getByTestId('global-search-mode-video'));
+    // …the Video section appears (loaded together with the other reads —
+    // the flip is instant, no re-skeleton).
+    expect(await screen.findByTestId('global-search-section-video')).toBeInTheDocument();
+    expect(screen.getByTestId('global-search-video-v1')).toBeInTheDocument();
+  });
+
+  it('the toggle flips to Shorts (the shorts section)', async () => {
+    vi.mocked(searchShorts).mockResolvedValue([
+      { post: { _id: 's1', text: 'Synthwave in 15 seconds', author_username: 'alice', created_at: '2026-01-01T00:00:00Z' }, media: { _id: 'm1', mime_type: 'video/mp4', width: 720, height: 1280 } },
+    ] as any);
+    renderDesktopSearch();
+    const field = screen.getByTestId('global-search-field');
+    fireEvent.focus(field);
+    fireEvent.change(field, { target: { value: 'synthwave' } });
+    // Flip to the Shorts category…
+    fireEvent.click(screen.getByTestId('global-search-mode-shorts'));
+    // …the Shorts section appears.
+    expect(await screen.findByTestId('global-search-section-shorts')).toBeInTheDocument();
+    expect(screen.getByTestId('global-search-short-s1')).toBeInTheDocument();
+  });
+
+  it('the toggle flips to Hot Gossip (the ranked post board section)', async () => {
     vi.mocked(searchPosts).mockResolvedValue([
       { _id: 'p1', text: 'Check out this synthwave mix', author_username: 'alice', created_at: '2026-01-01T00:00:00Z' },
     ] as any);
@@ -266,18 +316,14 @@ describe('GlobalSearch — S2 results (people-first + Trending toggle)', () => {
     const field = screen.getByTestId('global-search-field');
     fireEvent.focus(field);
     fireEvent.change(field, { target: { value: 'synthwave' } });
-    // Flip to the Trending mode…
-    fireEvent.click(screen.getByTestId('global-search-mode-posts'));
-    // …the Trending section appears (loaded together with the people read —
-    // the flip is instant, no re-skeleton).
-    expect(await screen.findByTestId('global-search-section-trending')).toBeInTheDocument();
+    // Flip to the Hot Gossip category…
+    fireEvent.click(screen.getByTestId('global-search-mode-gossip'));
+    // …the Hot Gossip section appears.
+    expect(await screen.findByTestId('global-search-section-hot-gossip')).toBeInTheDocument();
     expect(screen.getByTestId('global-search-post-p1')).toBeInTheDocument();
-    // The "See all results in Discover" CTA is absent in Trending mode
-    // (it lives in People mode).
-    expect(screen.queryByTestId('global-search-open-explore')).not.toBeInTheDocument();
   });
 
-  it('Enter submits the search to the People tab (?tab=explore&q=) — the search is people-first', async () => {
+  it('Enter in People mode opens the People destination with the query', async () => {
     vi.mocked(searchPeople).mockResolvedValue([
       { username: 'alice', provider: 'web10', display_name: 'Alice Smith', followers_count: 100, is_following: false },
     ] as any);
@@ -295,27 +341,52 @@ describe('GlobalSearch — S2 results (people-first + Trending toggle)', () => {
     });
   });
 
-  it('Enter in Posts mode opens the Hot Gossip destination with the query', async () => {
+  it('Enter in Video mode opens the Video destination with the query', async () => {
     probeLocation = '';
-    render(
-      <MemoryRouter initialEntries={['/hot-gossip']}>
-        <GlobalSearch variant="desktop" />
-        <LocationProbe />
-      </MemoryRouter>,
-    );
+    renderDesktopSearchWithProbe();
     const field = screen.getByTestId('global-search-field');
     fireEvent.focus(field);
     fireEvent.change(field, { target: { value: 'alice' } });
     await screen.findByTestId('global-search-mode-toggle');
-    // Flip to Posts mode — Enter opens Hot Gossip (the ranked post board).
-    fireEvent.click(screen.getByTestId('global-search-mode-posts'));
+    // Flip to the Video category — Enter opens /video with the query.
+    fireEvent.click(screen.getByTestId('global-search-mode-video'));
+    fireEvent.keyDown(field, { key: 'Enter' });
+    await waitFor(() => {
+      expect(probeLocation).toBe('/video?q=alice');
+    });
+  });
+
+  it('Enter in Shorts mode opens the Shorts destination with the query', async () => {
+    probeLocation = '';
+    renderDesktopSearchWithProbe();
+    const field = screen.getByTestId('global-search-field');
+    fireEvent.focus(field);
+    fireEvent.change(field, { target: { value: 'alice' } });
+    await screen.findByTestId('global-search-mode-toggle');
+    // Flip to the Shorts category — Enter opens /shorts with the query.
+    fireEvent.click(screen.getByTestId('global-search-mode-shorts'));
+    fireEvent.keyDown(field, { key: 'Enter' });
+    await waitFor(() => {
+      expect(probeLocation).toBe('/shorts?q=alice');
+    });
+  });
+
+  it('Enter in Hot Gossip mode opens the Hot Gossip destination with the query', async () => {
+    probeLocation = '';
+    renderDesktopSearchWithProbe();
+    const field = screen.getByTestId('global-search-field');
+    fireEvent.focus(field);
+    fireEvent.change(field, { target: { value: 'alice' } });
+    await screen.findByTestId('global-search-mode-toggle');
+    // Flip to the Hot Gossip category — Enter opens /hot-gossip with the query.
+    fireEvent.click(screen.getByTestId('global-search-mode-gossip'));
     fireEvent.keyDown(field, { key: 'Enter' });
     await waitFor(() => {
       expect(probeLocation).toBe('/hot-gossip?q=alice');
     });
   });
 
-  it('the "See all results" CTA navigates to the People destination with the query', async () => {
+  it('the "See all results" CTA navigates to the picked category with the query', async () => {
     vi.mocked(searchPeople).mockResolvedValue([
       { username: 'alice', provider: 'web10', display_name: 'Alice Smith', followers_count: 100, is_following: false },
     ] as any);
@@ -331,18 +402,35 @@ describe('GlobalSearch — S2 results (people-first + Trending toggle)', () => {
     });
   });
 
-  it('shows the "no results" state when posts are empty (Trending mode)', async () => {
+  it('the "See all results" CTA in Video mode navigates to /video with the query', async () => {
+    vi.mocked(searchVideo).mockResolvedValue([
+      { _id: 'v1', text: 'A video', author_username: 'alice', created_at: '2026-01-01T00:00:00Z' },
+    ] as any);
+    probeLocation = '';
+    renderDesktopSearchWithProbe();
+    const field = screen.getByTestId('global-search-field');
+    fireEvent.focus(field);
+    fireEvent.change(field, { target: { value: 'video' } });
+    fireEvent.click(screen.getByTestId('global-search-mode-video'));
+    const cta = await screen.findByTestId('global-search-open-explore');
+    fireEvent.click(cta);
+    await waitFor(() => {
+      expect(probeLocation).toBe('/video?q=video');
+    });
+  });
+
+  it('shows the "no results" state when the picked category is empty', async () => {
     renderDesktopSearch();
     const field = screen.getByTestId('global-search-field');
     fireEvent.focus(field);
     fireEvent.change(field, { target: { value: 'zzz-no-match' } });
-    // Flip to Trending mode (the search defaults to People)…
-    fireEvent.click(screen.getByTestId('global-search-mode-posts'));
+    // Flip to the Hot Gossip category (the search defaults to People)…
+    fireEvent.click(screen.getByTestId('global-search-mode-gossip'));
     await waitFor(
       () => expect(screen.getByTestId('global-search-no-results')).toBeInTheDocument(),
       { timeout: 1500 },
     );
-    expect(screen.queryByTestId('global-search-section-trending')).not.toBeInTheDocument();
+    expect(screen.queryByTestId('global-search-section-hot-gossip')).not.toBeInTheDocument();
   });
 
   it('per-section loading (People mode): a slow section does not block the fast ones', async () => {
@@ -401,6 +489,28 @@ describe('GlobalSearch — S2 results (people-first + Trending toggle)', () => {
     // Navigation closes the dropdown (pathname change); the field stays.
     await waitFor(() => expect(screen.queryByTestId('global-search-results')).not.toBeInTheDocument());
     expect(screen.getByTestId('global-search-field')).toBeInTheDocument();
+  });
+
+  it('tapping a short row navigates to /shorts/:postId', async () => {
+    vi.mocked(searchShorts).mockResolvedValue([
+      { post: { _id: 's1', text: 'A short', author_username: 'alice', created_at: '2026-01-01T00:00:00Z' }, media: { _id: 'm1', mime_type: 'video/mp4', width: 720, height: 1280 } },
+    ] as any);
+    probeLocation = '';
+    render(
+      <MemoryRouter initialEntries={['/feed']}>
+        <GlobalSearch variant="desktop" />
+        <LocationProbe />
+      </MemoryRouter>,
+    );
+    const field = screen.getByTestId('global-search-field');
+    fireEvent.focus(field);
+    fireEvent.change(field, { target: { value: 'short' } });
+    fireEvent.click(screen.getByTestId('global-search-mode-shorts'));
+    const row = await screen.findByTestId('global-search-short-s1');
+    fireEvent.click(row);
+    await waitFor(() => {
+      expect(probeLocation).toBe('/shorts/s1');
+    });
   });
 });
 
