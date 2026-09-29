@@ -192,21 +192,26 @@ global read (and its ad) to a foreign viewer without a privacy violation.
   counter across two independent nodes needs a consensus protocol, which is not
   what ClickHouse is, and not what users need. **v2 delivers the "unified
   nodes" feeling without picking this fight.**
-- **Ads-in-proportion-to-load (a parallel, tractable track):** it does *not*
-  need unified ClickHouse. It's a **metering + settlement** system: each node
-  meters its own traffic; node-ads rotate in proportion to reported traffic.
-  A traffic ledger + an ad-rotation policy, not a data-consistency problem.
-  **Settlement nuance (open):** when B serves its ad to alice (an A-user), does
-  A get a cut for *routing* the viewer, or does B keep the whole impression?
-  Lean: **B keeps it** (B served the read, B owns the ad, B does the work); A's
-  value is its own content's reads, not a tax on others'. A settlement-policy
-  question, not an architecture one.
+- **Ads (a natural outcome, not a system):** no settlement, no Stripe, no cut
+  for routing. Ads ride with reads (D57 — node-ads are operator-curated posts);
+  **each node keeps the ad revenue from the reads it serves.** The user is *on*
+  A (their home node), so A serves the **majority** of their ad impressions —
+  their feed + discover content lives on A, so A's discover-type ads dominate
+  their view. When they read B's content (a follow on B), B serves B's ad for
+  that read. So each node's ad revenue is naturally proportional to the reads it
+  serves, and the home node (A) gets the majority. **No metering, no ledger, no
+  settlement** — it falls out of "ads ride with reads" + "the user's home node
+  is where most of their reads are."
 
 **The honest summary:** you get "feel like one node" at the **read layer**
 (eventually-consistent global counts, fast local aggregation via ClickHouse +
 API-layer merge) — and that is all that's needed, because reads are what's
-profitable. You do *not* get it at the write layer (a single strongly-consistent
-global counter across two independent nodes) — and you don't need to.
+profitable. The home node (A) keeps the **majority** of the user's ad revenue
+(their feed + discover content lives on A, so A serves most of their ad
+impressions); a foreign node (B) keeps the ad revenue from the reads it serves.
+No settlement. You do *not* get "feel like one node" at the write layer (a
+single strongly-consistent global counter across two independent nodes) — and
+you don't need to.
 
 ---
 
@@ -324,26 +329,23 @@ Each is its own PR/lane (see `parallel-execution.md` → `multi-node-federation
   the canonical format (A) and cross-node auth (B) meet. **Gates D.**
  - **D — cross-node reads (the multi-node feed).** Client-side fan-out + ranked
    merge, targeted by provider (see the read model). **Gated on C.**
- - **E — cross-node engagement aggregation (the "unified" feel, v2).** A
-   *global* like/comment count for a post: each node fast-scans its local
-   engagement (ClickHouse OLAP), the API layer does the HTTP fan-out + merge
-   (I6), the client shows an eventually-consistent unified count. This is the
-   "feel like one node" payoff and the read-revenue model (see the end-state
-   vision). **Gated on C** (a like on a foreign post is a cross-node read of the
-   post + a local write of the reaction doc).
- - **F — ads-in-proportion-to-load (the settlement track).** A metering +
-   settlement system: each node meters its own traffic; node-ads (D57) rotate
-   in proportion to reported traffic. A traffic ledger + ad-rotation policy,
-   not a data-consistency problem. Independent of E (it rides the same cross-node
-   API boundary but is an accounting concern). **Open:** the settlement split
-   (does the routing node get a cut, or does the serving node keep the whole
-   impression — lean: the serving node keeps it).
+  - **E — cross-node engagement aggregation (the "unified" feel, v2).** A
+    *global* like/comment count for a post: each node fast-scans its local
+    engagement (ClickHouse OLAP), the API layer does the HTTP fan-out + merge
+    (I6), the client shows an eventually-consistent unified count. This is the
+    "feel like one node" payoff and the read-revenue model (see the end-state
+    vision). **Gated on C** (a like on a foreign post is a cross-node read of the
+    post + a local write of the reaction doc).
+
+  **Ads are not a phase** — they're a natural outcome of the read model (see the
+  end-state vision): each node keeps the ad revenue from the reads it serves, the
+  home node keeps the majority, no settlement. Nothing to build beyond D57
+  (node-ads) + the read model (D).
 
 **Sequencing:** H is independent (land it first). A gates C and D. B is
-independent of A but both gate C. C gates D and E. F is independent (a parallel
-track). **v3 (cross-node write unification / a strongly-consistent global
-counter) is not a phase** — it's the wall, and v2 (E) delivers the "unified"
-feel without it.
+independent of A but both gate C. C gates D and E. **v3 (cross-node write
+unification / a strongly-consistent global counter) is not a phase** — it's the
+wall, and v2 (E) delivers the "unified" feel without it.
 
 ---
 
