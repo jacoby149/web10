@@ -40,7 +40,7 @@ function KnobRack({ state, activePreset, onChange, onPreset }: KnobRackProps) {
   const [expanded, setExpanded] = useState(false);
 
   return (
-    <div data-testid="knob-rack" className="mx-auto max-w-4xl">
+    <div data-testid="knob-rack" className="mx-auto max-w-7xl">
       {/* Preset chips */}
       <div
         className="flex flex-wrap items-center justify-start gap-2"
