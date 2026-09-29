@@ -1,6 +1,6 @@
 # Global Search — the top-bar everything-search (operator pass, 18.09.2026)
 
-**Status: SHIPPED + AMENDED (3.162.0) + RE-AMENDED (3.174.0).** The
+**Status: SHIPPED + AMENDED (3.162.0) + RE-AMENDED (3.174.0) + S8 (3.175.0).** The
 always-expanded everything-search shipped in the desktop **top bar** (S1–S4).
 `discover-ia-consistency.md` (3.157.0) moved the desktop field's home from the
 top bar to the sidebar (the operator's Facebook-style chrome). **On 29.09.2026
@@ -13,9 +13,15 @@ is unchanged** (the 56px header keeps the icon → full-screen results view).
 **S7 (3.162.0) made the search people-first** — the dropdown opens on the
 People mode (people + groups, live as you type), opposite to Discover (where
 Trending is the first tab); the "see all" CTA + Enter in People mode land on
-the People tab. The state machine (always-expanded field, focus → dropdown, X
-clears the query, the typed query persists) is unchanged. Everything below is
-the historical record; the current desktop home is the **top bar**.
+the People tab. **S8 (3.175.0) made the search four categories** — the
+Discover split's four flat destinations (Video · Shorts · Hot Gossip · People)
+are the four search categories: the dropdown's mode toggle is the four
+destinations, one tap picks the category, and Enter / the "see all" CTA open
+THAT destination with the query (`/video?q=`, `/shorts?q=`, `/hot-gossip?q=`,
+`/people?q=`); the Shorts destination honors `?q=` (the wall filters its tiles + a query
+chip). The state machine (always-expanded field, focus → dropdown, X clears the
+query, the typed query persists) is unchanged. Everything below is the
+historical record; the current desktop home is the **top bar**.
 
 > **The shape (operator, 18.09.2026):** "maybe good to have an everything
 > search on the topbar, people groups, everything. AND have people tab in
@@ -241,8 +247,50 @@ existing idiom). No second data path.
   X) still renders on both tabs. `globalSearch.test.tsx` re-pinned to the
   people-first model (People default; the toggle flips to Trending; Enter →
   `?tab=explore&q=`; Enter in Trending mode keeps the active tab; the CTA →
-  `?tab=explore&q=`; the no-results state is Trending-mode; per-section
-  loading unchanged).
+   `?tab=explore&q=`; the no-results state is Trending-mode; per-section
+   loading unchanged).
+- [✓ 3.175.0] **S8: the search is four categories — the four flat destinations
+    are the four search categories** (`src/data/search.ts` + `GlobalSearch.tsx`
+    + `ShortsWall.tsx` + `ShortsScreen.tsx`) — operator pass (28.09.2026, the search dropdown
+   screenshot): "if people selected in the search, should open people tab
+   automatically, then if trending is selected, should open hot gossip tab
+   with that search, but search should have all 4 categories as options to
+   search! and you pick one! so all searchable". The Discover split (3.171.0)
+   flattened Discover to four flat routes (Video · Shorts · Hot Gossip ·
+   People), but the search still carried the pre-split **two-mode** toggle
+   (People | Trending) — the "Trending" category was really Hot Gossip, and
+   Video + Shorts were unsearchable. The fix makes the search mirror the nav
+   exactly: **(1) the fan-out goes from three reads to five** — new
+   `searchVideo` (the discover-board pool gated to video posts — the `/video`
+   destination's render-time gate, `postHasVideo`, kept in lockstep with
+   `DiscoverScreen`) + `searchShorts` (`readShortsFeed` — the genuine 9:16
+   gate, shorts.md — filtered by text/author) join `searchPeople` /
+   `searchGroups` / `searchPosts`; `globalSearch` returns
+   `{people, groups, video, shorts, posts}`, each section degrading
+   independently. (2) **The mode toggle is the four flat destinations**
+   (People | Video | Shorts | Hot Gossip — the labels match the nav exactly),
+   People still the default (S7: the search is people-first); one tap picks
+   the category, each shows its own section; the "See all results for "…" in
+   {Category}" CTA + Enter navigate to **that destination with `?q=`**
+   (`/people?q=` / `/video?q=` / `/shorts?q=` / `/hot-gossip?q=`); all five
+   reads load together on the debounced query (the mode only picks which
+   sections are shown) so a flip is instant; the segmented track is
+   `overflow-x-auto` + `whitespace-nowrap` so the four labels fit on one line
+    at 375px. (3) **The Shorts destination honors `?q=`** — the search's Shorts
+    category lands on `/shorts?q=…`; since 3.173.0 a bare `/shorts` is the
+    **wall** (the lens is `/shorts/:postId`), the wall filters its tiles to the
+    matches (text/author, case-insensitive — a view over the loaded wall, not a
+    re-read) + shows a **query chip (with its X)** so the search is visible +
+    clearable (the `?q=` idiom the other destinations already use); a no-match
+    `?q=` shows a designed no-match state with the clear affordance. The lens
+    keeps the same `?q=` filter + chip for `/shorts/:postId?q=…` deep links.
+    `globalSearch.test.ts` re-pinned to the five-way
+   fan-out (+ `searchVideo` / `searchShorts` suites); `globalSearch.test.tsx`
+   re-pinned to the four-category model (the toggle; Enter / CTA per category
+   → the right destination + `?q=`; the per-category sections; the no-results
+   state; per-section loading; row navigation) + `shortsScreen.test.tsx` +2.
+   1092 web10-social tests green, `tsc` clean. **No node change (D60 —
+   entirely client-side).**
 
 **Ownership:** this lane owns `Layout.tsx`, `src/components/Search/`,
 `src/data/search.ts`. It does **not** touch `DiscoverScreen.tsx` or the

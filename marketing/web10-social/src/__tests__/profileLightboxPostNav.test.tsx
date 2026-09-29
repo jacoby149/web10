@@ -252,8 +252,8 @@ describe('Profile lightbox — Instagram-style post navigation (the side arrows 
     };
     vi.mocked(readMyPosts).mockResolvedValue([multiMediaPost]);
     vi.mocked(resolveMediaRefs).mockResolvedValue([
-      { _id: 'm-1', url: 'http://test.com/1.png', mime_type: 'image/png' },
-      { _id: 'm-2', url: 'http://test.com/2.png', mime_type: 'image/png' },
+      { _id: 'm-1', url: 'http://test.com/1.png', mime_type: 'image/png', created_at: new Date().toISOString() },
+      { _id: 'm-2', url: 'http://test.com/2.png', mime_type: 'image/png', created_at: new Date().toISOString() },
     ]);
     const { default: UserProfileScreen } = await import('@/components/Bio/UserProfileScreen');
     render(

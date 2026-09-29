@@ -535,6 +535,44 @@ describe('ShortsScreen — the vertical short-form feed (shorts.md)', () => {
       expect(screen.getByTestId('route-probe')).toHaveTextContent('/feed');
     });
   });
+
+  it('?q= filters the wall to matching shorts + shows the query chip (the S8 search deep link)', async () => {
+    (data.readShortsFeed as ReturnType<typeof vi.fn>).mockResolvedValue([
+      shortPost({ id: 's1', author: 'luna', text: 'synthwave mix' }),
+      shortPost({ id: 's2', author: 'kai', text: 'study vlog' }),
+    ]);
+    // /shorts?q= is the WALL (a bare /shorts is the wall; the lens is /shorts/:postId).
+    await renderShorts(['/shorts?q=synthwave']);
+
+    // The wall filters to the match — only the synthwave tile renders…
+    await waitFor(() => {
+      expect(screen.getByTestId('short-wall-tile-s1')).toBeInTheDocument();
+    });
+    expect(screen.queryByTestId('short-wall-tile-s2')).not.toBeInTheDocument();
+    // …and the query chip (with its X) shows the active search.
+    const chip = screen.getByTestId('shorts-query-chip');
+    expect(chip).toHaveTextContent('synthwave');
+    expect(screen.getByTestId('shorts-query-chip-clear')).toBeInTheDocument();
+
+    // Clearing the chip drops ?q= and the full wall returns.
+    fireEvent.click(screen.getByTestId('shorts-query-chip-clear'));
+    await waitFor(() => {
+      expect(screen.getByTestId('short-wall-tile-s2')).toBeInTheDocument();
+    });
+    expect(screen.queryByTestId('shorts-query-chip')).not.toBeInTheDocument();
+  });
+
+  it('?q= with no match shows the no-match state (not an empty wall)', async () => {
+    (data.readShortsFeed as ReturnType<typeof vi.fn>).mockResolvedValue([
+      shortPost({ id: 's1', author: 'luna', text: 'synthwave mix' }),
+    ]);
+    await renderShorts(['/shorts?q=zzz-no-match']);
+
+    await waitFor(() => {
+      expect(screen.getByTestId('shorts-query-clear')).toBeInTheDocument();
+    });
+    expect(screen.queryByTestId('short-wall-tile-s1')).not.toBeInTheDocument();
+  });
 });
 
 describe('ShortsScreen — the explore wall (/shorts, the "before you pick a short" surface)', () => {
