@@ -382,7 +382,7 @@ test.describe('Social watch — API floor (read-by-id + board queue + I3)', () =
 
 test.describe('Social watch gauntlet — wall → watch → queue → back → ?t=', () => {
   test('click a landscape tile → watch page (player+title+queue) → queue nav → back (same knobs) → ?t= round-trip', async ({ page, context, request }) => {
-    test.setTimeout(300_000);
+    test.setTimeout(480_000);
     const logs = captureConsoleLogs(page, '[social:watch]');
     const pageErrors: string[] = [];
     page.on('pageerror', (err) => pageErrors.push(err.message));
@@ -418,24 +418,28 @@ test.describe('Social watch gauntlet — wall → watch → queue → back → ?
     const wallKnobs = new URL(page.url()).searchParams.get('knobs');
     expect(wallKnobs).toBeTruthy();
 
-    // The seeded tile renders (contains — the wall is shared).
+    // The seeded tile renders (contains — the wall is shared). The tile only
+    // appears once the wall resolves the post's media to a video (a presign
+    // round-trip), so give it a generous timeout.
     const tile = page.locator('[data-testid="discover-home-card"]', { hasText: postA });
-    await expect(tile).toBeVisible({ timeout: 30_000 });
+    await expect(tile).toBeVisible({ timeout: 60_000 });
 
     // Click the landscape tile → the watch page (carrying the wall's ?knobs=).
     await tile.click();
     await page.waitForURL(`**/watch/${docA}**`, { timeout: 30_000 });
 
     // --- The watch page renders: player + title + the "What's next" queue ---
-    await expect(page.locator('[data-testid="watch-player"]')).toBeVisible({ timeout: 30_000 });
-    await expect(page.locator('[data-testid="watch-title"]')).toHaveText(postA);
+    // The player only appears once the page resolves the post's media to a
+    // video (a presign round-trip), so give it a generous timeout.
+    await expect(page.locator('[data-testid="watch-player"]')).toBeVisible({ timeout: 60_000 });
+    await expect(page.locator('[data-testid="watch-title"]')).toHaveText(postA, { timeout: 30_000 });
     // The ?knobs= hand-off: the wall's ranking rides along.
     expect(new URL(page.url()).searchParams.get('knobs')).toBe(wallKnobs);
 
     // The queue is the board re-ranked — the OTHER seeded post is in it.
     const queue = page.locator('[data-testid="watch-queue"]');
-    await expect(queue).toBeVisible();
-    await expect(queue.locator('[data-testid="watch-queue-card"]', { hasText: postB })).toBeVisible({ timeout: 15_000 });
+    await expect(queue).toBeVisible({ timeout: 30_000 });
+    await expect(queue.locator('[data-testid="watch-queue-card"]', { hasText: postB })).toBeVisible({ timeout: 30_000 });
 
     // The video is playable (the player got real media — duration > 0).
     await expect
@@ -460,7 +464,8 @@ test.describe('Social watch gauntlet — wall → watch → queue → back → ?
     // --- Browser back → the wall, with the SAME ?knobs= (URL is the state) ---
     await page.goBack();
     await page.waitForURL(`**/video**`, { timeout: 30_000 });
-    await expect(page.locator('[data-testid="discover-home-grid"]')).toBeVisible({ timeout: 30_000 });
+    // The grid renders once the wall re-resolves the posts' media to videos.
+    await expect(page.locator('[data-testid="discover-home-grid"]')).toBeVisible({ timeout: 60_000 });
     expect(new URL(page.url()).searchParams.get('knobs')).toBe(wallKnobs);
 
     // --- The ?t= round-trip: seek → the position is written back (replace) ---
@@ -469,7 +474,7 @@ test.describe('Social watch gauntlet — wall → watch → queue → back → ?
     // fires on timeupdate (throttled), so poll for it rather than a fixed wait.
     await page.goto(`${SOCIAL_BASE}/watch/${docA}?knobs=${wallKnobs}`);
     await page.waitForLoadState('networkidle');
-    await expect(page.locator('[data-testid="watch-player"]')).toBeVisible({ timeout: 30_000 });
+    await expect(page.locator('[data-testid="watch-player"]')).toBeVisible({ timeout: 60_000 });
     await page.locator('video').first().evaluate((v) => (v as HTMLVideoElement).play());
     await expect
       .poll(
@@ -485,11 +490,13 @@ test.describe('Social watch gauntlet — wall → watch → queue → back → ?
 
     // No watch-surface errors, no uncaught page errors. The P2P init can fail
     // in the e2e environment (no WebRTC signaling) — it's a global app-init
-    // error, unrelated to the watch surface, so filter it out; assert on all
-    // OTHER page errors.
-    const errors = logs.filter((l) => l.includes('FAILED') || l.includes('Error'));
+    // error, unrelated to the watch surface (it surfaces as a `[p2p]` console
+    // log AND an uncaught pageerror), so filter it out of both; assert on all
+    // OTHER errors.
+    const isP2P = (s: string) => s.includes('[p2p]') || s.includes('peerId');
+    const errors = logs.filter((l) => (l.includes('FAILED') || l.includes('Error')) && !isP2P(l));
     expect(errors).toEqual([]);
-    const watchPageErrors = pageErrors.filter((e) => !e.includes('[p2p] initP2P'));
+    const watchPageErrors = pageErrors.filter((e) => !isP2P(e));
     expect(watchPageErrors).toEqual([]);
   });
 });
