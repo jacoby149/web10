@@ -481,15 +481,24 @@ export function PostLightbox({ post, mediaMap, onClose, onReload, postAuthor, po
                 </Button>
               </div>
             </div>
-) : currentPost.text ? (
-              <div className="mt-3 whitespace-pre-wrap break-words text-sm leading-relaxed text-foreground">
-                <TextWithLinks text={currentPost.text} />
-             </div>
-           ) : (
-            !hasMedia && (
-              <p className="mt-3 text-sm text-muted-foreground">This post has no content.</p>
-            )
-          )}
+) : currentPost.title || currentPost.text ? (
+              <div className="mt-3">
+                {currentPost.title && (
+                  <h2 className="mb-1 text-base font-semibold leading-snug text-foreground" data-testid="post-lightbox-title">
+                    {currentPost.title}
+                  </h2>
+                )}
+                {currentPost.text && (
+                  <div className="whitespace-pre-wrap break-words text-sm leading-relaxed text-foreground">
+                    <TextWithLinks text={currentPost.text} />
+                  </div>
+                )}
+              </div>
+            ) : (
+             !hasMedia && (
+               <p className="mt-3 text-sm text-muted-foreground">This post has no content.</p>
+             )
+           )}
 
           {/* Actions bar (post-actions.md): the shared reaction pair +
               comment entry, with the lightbox's share button trailing. */}

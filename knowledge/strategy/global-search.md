@@ -1,6 +1,6 @@
 # Global Search — the top-bar everything-search (operator pass, 18.09.2026)
 
-**Status: SHIPPED + AMENDED (3.162.0) + RE-AMENDED (3.174.0) + S8 (3.175.0) + S9 (3.177.0).** The
+**Status: SHIPPED + AMENDED (3.162.0) + RE-AMENDED (3.174.0) + S8 (3.175.0) + S9 (3.178.0).** The
 always-expanded everything-search shipped in the desktop **top bar** (S1–S4).
 `discover-ia-consistency.md` (3.157.0) moved the desktop field's home from the
 top bar to the sidebar (the operator's Facebook-style chrome). **On 29.09.2026
@@ -19,7 +19,7 @@ are the four search categories: the dropdown's mode toggle is the four
 destinations, one tap picks the category, and Enter / the "see all" CTA open
 THAT destination with the query (`/video?q=`, `/shorts?q=`, `/hot-gossip?q=`,
 `/people?q=`); the Shorts destination honors `?q=` (the wall filters its tiles + a query
-chip). **S9 (3.177.0) made the search the open tab's live filter** — the four
+chip). **S9 (3.178.0) made the search the open tab's live filter** — the four
 categories are the four nav tabs: a category tap OPENS that tab (navigates to
 its destination, carrying the query), and typing in the field, while a tab is
 open, filters THAT tab as you type (the query is written to the destination's
@@ -298,7 +298,7 @@ existing idiom). No second data path.
     state; per-section loading; row navigation) + `shortsScreen.test.tsx` +2.
     1092 web10-social tests green, `tsc` clean. **No node change (D60 —
     entirely client-side).**
-- [✓ 3.177.0] **S9: the search bar IS the open tab's live filter — a category
+- [✓ 3.178.0] **S9: the search bar IS the open tab's live filter — a category
     tap opens that tab, and typing filters the open tab as you type**
     (`GlobalSearch.tsx`) — operator pass (29.09.2026): "on search bar, if i
     hit people, people tab should open up, when i type it should be searching

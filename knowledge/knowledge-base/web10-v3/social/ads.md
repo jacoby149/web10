@@ -34,7 +34,8 @@ An ad is a `posts` document. `collection_name = 'posts'`, `author_key` = the cre
 
 ```json
 {
-  "text": "Everything I use, linked.",
+  "title": "Everything I use, linked.",
+  "text": "The full list is in the bio — affiliate links below.",
   "media_refs": ["<media doc_id>"],
   "tags": ["ad"],
   "offer": {
@@ -48,7 +49,7 @@ An ad is a `posts` document. `collection_name = 'posts'`, `author_key` = the cre
 }
 ```
 
-**The creative is the post itself** — `text` (the copy) + `media_refs` (the media, the same doc-id refs a post uses, resolved through the same media machinery). A video ad's media rides the HLS pipeline (`../media/transcoding.md`) exactly like a post's video. There is no separate `creative` wrapper and no separate media prefix — the ad's media is a normal media record.
+**The creative is the post itself** — `title` (the optional headline) + `text` (the caption / copy) + `media_refs` (the media, the same doc-id refs a post uses, resolved through the same media machinery). A video ad's media rides the HLS pipeline (`../media/transcoding.md`) exactly like a post's video. There is no separate `creative` wrapper and no separate media prefix — the ad's media is a normal media record. **`title` is the post's own field (D82)** — an ad is a `posts` doc, so it carries the same two bodies of text as any post; the post-format ad's card shows the title as its headline + the caption as its copy, and the inline ad uses the title as its line. The `offer` object is untouched by this — the creative is the post, the offer is the link.
 
 **`offer`** — the monetizable link. The leaf-typed standard (`../sdk/document-typing.md`): `kind` is `affiliate` | `direct` | `own_store` — that is the whole "you name it": an Amazon tag, a brand the creator DM'd, the creator's own store, all the same shape. `link` is the URL that pays the creator. `cta` is the button text. `disclosure` is the auto-shown FTC line. The platform never rewrites the link, never cloaks it, never inserts its own — the creator's link is the link.
 

@@ -132,20 +132,20 @@ function PostRow({ post }: { post: PostRecord }) {
   const href = post._id ? `/u/${author}/p/${post._id}` : `/u/${author}`;
   return (
     <button
-    type="button"
-    data-testid={`global-search-post-${post._id || 'unknown'}`}
-    onClick={() => navigate(href)}
-    className="w-full flex items-center gap-3 px-3 py-2 text-left hover:bg-elevated transition-colors duration-150 focus-visible:outline-none focus-visible:bg-elevated"
-  >
-    <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-elevated">
-      <Search className="h-4 w-4 text-muted-foreground" strokeWidth={1.75} />
-    </span>
-    <span className="flex-1 min-w-0">
-      <span className="block text-sm text-foreground truncate">{post.text || '(no text)'}</span>
-      <span className="block text-xs text-muted-foreground truncate">@{author}</span>
-    </span>
-  </button>
-);
+      type="button"
+      data-testid={`global-search-post-${post._id || 'unknown'}`}
+      onClick={() => navigate(href)}
+      className="w-full flex items-center gap-3 px-3 py-2 text-left hover:bg-elevated transition-colors duration-150 focus-visible:outline-none focus-visible:bg-elevated"
+    >
+      <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-elevated">
+        <Search className="h-4 w-4 text-muted-foreground" strokeWidth={1.75} />
+      </span>
+      <span className="flex-1 min-w-0">
+        <span className="block text-sm text-foreground truncate">{post.title || post.text || '(no text)'}</span>
+        <span className="block text-xs text-muted-foreground truncate">@{author}</span>
+      </span>
+    </button>
+  );
 }
 
 function VideoRow({ post }: { post: PostRecord }) {
@@ -163,7 +163,7 @@ function VideoRow({ post }: { post: PostRecord }) {
         <Video className="h-4 w-4 text-muted-foreground" strokeWidth={1.75} />
       </span>
       <span className="flex-1 min-w-0">
-        <span className="block text-sm text-foreground truncate">{post.text || '(no text)'}</span>
+        <span className="block text-sm text-foreground truncate">{post.title || post.text || '(no text)'}</span>
         <span className="block text-xs text-muted-foreground truncate">@{author}</span>
       </span>
     </button>
@@ -185,7 +185,7 @@ function ShortRow({ short }: { short: ShortPost }) {
         <Smartphone className="h-4 w-4 text-muted-foreground" strokeWidth={1.75} />
       </span>
       <span className="flex-1 min-w-0">
-        <span className="block text-sm text-foreground truncate">{post.text || '(no text)'}</span>
+        <span className="block text-sm text-foreground truncate">{post.title || post.text || '(no text)'}</span>
         <span className="block text-xs text-muted-foreground truncate">@{author}</span>
       </span>
     </button>

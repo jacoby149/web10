@@ -110,7 +110,11 @@ export function HomeCard({
   const initial = username.charAt(0).toUpperCase();
   const avatarColor = hashToColor(username);
 
-  const title = truncateTitle(post.text || '') || displayName;
+  // The title (D82): the post's `title` (the headline) when present, else the
+  // post text (`text`) truncated to the char limit. The video wall card shows
+  // the title only (the YouTube model — the caption is the watch page's
+  // description, not the card). A caption-only post shows its text, truncated.
+  const title = truncateTitle(post.title || post.text || '') || displayName;
 
   const media: MediaItem | undefined = post.media?.[0];
   const isVideo = media?.mime_type?.startsWith('video/');

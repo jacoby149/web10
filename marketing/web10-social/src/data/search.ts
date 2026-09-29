@@ -79,7 +79,20 @@ export async function searchGroups(query: string, limit = DEFAULT_LIMIT): Promis
 }
 
 /**
- * Search posts by text or author username.
+ * Does this post match a query? Checks the post's two bodies of text (D82) —
+ * the `title` (the headline, the highest-signal string) + the `text` (the
+ * caption) — or the author username.
+ */
+function postMatches(post: PostRecord, q: string): boolean {
+  return (
+    (post.title && post.title.toLowerCase().includes(q)) ||
+    (post.text && post.text.toLowerCase().includes(q)) ||
+    (post.author_username && post.author_username.toLowerCase().includes(q))
+  );
+}
+
+/**
+ * Search posts by title, caption, or author username.
  *
  * v1: `readDiscoverFeed` (the discover board) filtered client-side. This is
  * the app's existing `?q=` post search shape.
@@ -88,11 +101,7 @@ export async function searchPosts(query: string, limit = DEFAULT_LIMIT): Promise
   const q = normalize(query);
   if (!q) return [];
   const pool = await readDiscoverFeed(null, POOL_SIZE);
-  const filtered = pool.filter(
-    (p) =>
-      (p.text && p.text.toLowerCase().includes(q)) ||
-      (p.author_username && p.author_username.toLowerCase().includes(q)),
-  );
+  const filtered = pool.filter((p) => postMatches(p, q));
   LOG('searchPosts —', q, '→', filtered.length, 'of', pool.length, 'pool');
   return filtered.slice(0, limit);
 }
@@ -109,10 +118,7 @@ export async function searchVideo(query: string, limit = DEFAULT_LIMIT): Promise
   if (!q) return [];
   const pool = await readDiscoverFeed(null, POOL_SIZE);
   const filtered = pool.filter(
-    (p) =>
-      postHasVideo(p) &&
-      ((p.text && p.text.toLowerCase().includes(q)) ||
-        (p.author_username && p.author_username.toLowerCase().includes(q))),
+    (p) => postHasVideo(p) && postMatches(p, q),
   );
   LOG('searchVideo —', q, '→', filtered.length, 'of', pool.length, 'pool');
   return filtered.slice(0, limit);
@@ -131,6 +137,7 @@ export async function searchShorts(query: string, limit = DEFAULT_LIMIT): Promis
   const pool = await readShortsFeed(POOL_SIZE);
   const filtered = pool.filter(
     (s) =>
+      (s.post.title && s.post.title.toLowerCase().includes(q)) ||
       (s.post.text && s.post.text.toLowerCase().includes(q)) ||
       (s.post.author_username && s.post.author_username.toLowerCase().includes(q)),
   );
