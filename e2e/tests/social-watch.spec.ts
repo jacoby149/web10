@@ -130,6 +130,53 @@ async function anonRead(request: APIRequestContext, service: string, groups: str
   });
 }
 
+/**
+ * Poll an anon read-by-id until it's OK. ClickHouse is eventually consistent —
+ * the doc_groups membership join (the I3 gate) can lag the create, so a
+ * just-created post 404s for a moment. The watch page's read-by-id is the
+ * thing under test, so poll it to the steady state rather than racing it.
+ */
+async function anonReadByIdWait(
+  request: APIRequestContext,
+  docId: string,
+  service: string,
+  timeoutMs = 30_000,
+): Promise<import('@playwright/test').APIResponse> {
+  const deadline = Date.now() + timeoutMs;
+  let last: import('@playwright/test').APIResponse | null = null;
+  while (Date.now() < deadline) {
+    last = await anonReadById(request, docId, service);
+    if (last.ok()) return last;
+    await new Promise((r) => setTimeout(r, 1000));
+  }
+  return last!;
+}
+
+/**
+ * Poll the anon board read until every given post text is visible (ClickHouse
+ * eventual consistency). The Video wall loads the board ONCE on mount — so the
+ * gauntlet settles the board via the API first, then loads the wall (which
+ * then sees the posts).
+ */
+async function waitForPostsOnBoard(
+  request: APIRequestContext,
+  texts: string[],
+  timeoutMs = 30_000,
+): Promise<string[]> {
+  const deadline = Date.now() + timeoutMs;
+  let visible: string[] = [];
+  while (Date.now() < deadline) {
+    const res = await anonRead(request, POSTS, [DISCOVER_GROUP_ID]);
+    if (res.ok()) {
+      const docs = (await res.json()) as any[];
+      visible = docs.map((d) => d.body.text);
+      if (texts.every((t) => visible.includes(t))) return visible;
+    }
+    await new Promise((r) => setTimeout(r, 1000));
+  }
+  return visible;
+}
+
 /** Create a private (invite_only) group the reader owns — for the I3 anti-test. */
 async function createPrivateGroup(request: APIRequestContext, token: string, username: string): Promise<string> {
   const res = await v3Post(request, `${API_BASE}/v3/groups/create`, {
@@ -280,9 +327,10 @@ test.describe('Social watch — API floor (read-by-id + board queue + I3)', () =
     const docId = await postToDiscover(request, u.token, text);
 
     // NO token — the watch page's post read is user_or_anon; a public (board)
-    // post resolves for a signed-out visitor.
-    const res = await anonReadById(request, docId, POSTS);
-    expect(res.ok(), `anon read-by-id failed (${res.status})`).toBeTruthy();
+    // post resolves for a signed-out visitor. Poll to the steady state
+    // (ClickHouse eventual consistency — the membership join can lag the create).
+    const res = await anonReadByIdWait(request, docId, POSTS);
+    expect(res.ok(), `anon read-by-id failed (${res.status()})`).toBeTruthy();
     const doc = (await res.json()) as any;
     expect(doc.doc_id).toBe(docId);
     expect(doc.body.text).toBe(text);
@@ -293,11 +341,10 @@ test.describe('Social watch — API floor (read-by-id + board queue + I3)', () =
     const text = `watch board queue post ${Date.now()}`;
     await postToDiscover(request, u.token, text);
 
-    // The queue is the board read (anon) — the post comes back in it.
-    const res = await anonRead(request, POSTS, [DISCOVER_GROUP_ID]);
-    expect(res.ok()).toBeTruthy();
-    const docs = (await res.json()) as any[];
-    expect(docs.map((d) => d.body.text)).toContain(text);
+    // The queue is the board read (anon) — the post comes back in it (polled
+    // to the steady state for eventual consistency).
+    const visible = await waitForPostsOnBoard(request, [text]);
+    expect(visible, `post "${text}" never appeared on the board`).toContain(text);
   });
 
   test('I3 anti-test: a non-discover post is not watchable anon (read-by-id 404)', async ({ request }) => {
@@ -312,6 +359,14 @@ test.describe('Social watch — API floor (read-by-id + board queue + I3)', () =
     });
     expect(res.ok()).toBeTruthy();
     const docId = (await res.json()).doc_id as string;
+
+    // First prove the post EXISTS (the owner can read it by id) — so the anon
+    // 404 is an access denial (I3), not eventual consistency.
+    const ownerRes = await request.post(`${API_BASE}/v3/read`, {
+      data: JSON.stringify({ token: owner.token, doc_id: docId, service: POSTS }),
+      headers: { 'Content-Type': 'application/json' },
+    });
+    expect(ownerRes.ok(), `owner read-by-id failed (${ownerRes.status()})`).toBeTruthy();
 
     // Anon is not a member of the private group — the read-by-id is I3-gated
     // by the membership join, so it returns nothing → 404. The watch page
@@ -343,9 +398,14 @@ test.describe('Social watch gauntlet — wall → watch → queue → back → ?
     const postB = `watch queue video ${Date.now()}`;
     const docB = await postVideoToDiscover(request, viewer.token, postB, mediaDocId);
 
-    // ClickHouse is eventually consistent — give the inserts time to settle so
-    // the board read (the wall + the queue) sees the rows.
-    await page.waitForTimeout(3000);
+    // ClickHouse is eventually consistent — settle the board via the API
+    // BEFORE loading the wall. The Video wall loads the board ONCE on mount,
+    // so if the posts aren't visible at that instant the tiles never appear
+    // (the wall doesn't poll). Polling the anon board read to the steady
+    // state guarantees the wall (and the watch page's queue) see both posts.
+    const settled = await waitForPostsOnBoard(request, [postA, postB]);
+    expect(settled, `seeded posts never settled on the board`).toContain(postA);
+    expect(settled).toContain(postB);
 
     // --- Load the Video wall, set a ranking, and click the landscape tile ---
     await page.goto(`${SOCIAL_BASE}/video`);
