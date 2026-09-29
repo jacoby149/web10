@@ -21,7 +21,7 @@ This is the load-bearing decision. A repost is **a post, not a reaction**: it cr
 
 ## The composer: repost mode
 
-The composer (`src/components/Feed/PostComposer.tsx`) is app-level (above the feed, in `App.tsx`'s `FeedRoute`). It takes a `repostingTo?: PostRecord` prop. When set, it is in **repost mode**:
+The composer (`src/components/Feed/PostComposer.tsx`) is app-level — the single instance lives in the **New Post sheet** (`src/components/Feed/NewPostSheet.tsx`, rendered above the routes in `App.tsx`, opened by the `ComposerContext`). It takes a `repostingTo?: PostRecord` prop. When set, it is in **repost mode**:
 
 - A **repost context block** (`RepostContext`) renders at the top: the original author, the original text (truncated), and the original's first media item — so the user knows exactly what they're amplifying. An **X** cancels the repost (`onRepostCancel`).
 - The textarea placeholder becomes **"Add a comment…"** (the comment is the quote).
@@ -29,7 +29,7 @@ The composer (`src/components/Feed/PostComposer.tsx`) is app-level (above the fe
 - A **plain repost is postable** with no comment and no media (the repost itself is the content).
 - Submitting calls `createRepost(repostingTo, text)` — it never uploads the user's own media (the original's media is referenced by the original post, not copied). On success it clears the repost state and fires `onPostCreated` (the feed remounts so the new repost shows up).
 
-The repeat icon is wired to open the composer in repost mode on **every surface** — not just the feed. The repost state (`repostingTo`) is app-wide (a `RepostProvider` in `App.tsx`, read through `useRepost`), so the feed's `onRepost` → `repostingTo` pattern (3.110.0) is a single shared seam: the feed, Discover, PostLightbox, ProfileFeed, and Groups all call `setRepostingTo(post)` to open the same app-level composer in repost mode. Discover / Groups (which have no composer of their own) navigate to the feed after setting the repost, so the composer is always the one that creates the post. The composer's `createRepost` is the single write — no surface writes a `type:'repost'` reaction anymore.
+The repeat icon is wired to open the composer in repost mode on **every surface** — not just the feed. The repost state (`repostingTo`) is app-wide (a `RepostProvider` in `App.tsx`, read through `useRepost`), so the feed's `onRepost` → `repostingTo` pattern (3.110.0) is a single shared seam: the feed, Discover, PostLightbox, ProfileFeed, Watch, and Groups all call `setRepostingTo(post)` + `openComposer()` to open the same app-level composer (the New Post sheet) in repost mode. Since 3.182.0 the composer is a modal sheet, so the repeat icon opens it **in place** — no surface navigates to /feed anymore (the user stays on the wall / watch page / profile). The composer's `createRepost` is the single write — no surface writes a `type:'repost'` reaction anymore.
 
 ## The feed render: the "reposted" card
 

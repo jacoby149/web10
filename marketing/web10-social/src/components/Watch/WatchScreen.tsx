@@ -40,6 +40,7 @@ import {
 } from '@/data';
 import { getWapi } from '@/data/wapi';
 import { useRepost } from '@/context/RepostContext';
+import { useComposer } from '@/context/ComposerContext';
 import { defaultKnobState, knobStateToSort, type KnobState, type PowerMeanSortConfig } from '@/lib/powerMean';
 import {
   rankWatchQueue,
@@ -374,15 +375,17 @@ export default function WatchScreen() {
 
   // ── Repost (reposts.md): a repost is a POST, not a reaction toggle. The
   //    repeat icon opens the app-level composer in repost mode (the shared
-  //    RepostContext seam — the same composer the feed uses) and returns to
-  //    the feed, where the composer lives. The composer's createRepost is the
-  //    single write; the count + fill re-derive on the next load.
+  //    RepostContext seam) — the New Post sheet pops up in place (no
+  //    navigation; the user stays on the watch page). The composer's
+  //    createRepost is the single write; the count + fill re-derive on the
+  //    next load.
   const { setRepostingTo } = useRepost();
+  const { openComposer } = useComposer();
   const handleRepost = useCallback(() => {
     if (!token || !post) return;
     setRepostingTo(post);
-    navigate('/feed');
-  }, [token, post, setRepostingTo, navigate]);
+    openComposer();
+  }, [token, post, setRepostingTo, openComposer]);
 
   // ── Follow toggle (the overlay + the author row) ───────────────────────────
   const handleToggleFollow = useCallback(async () => {

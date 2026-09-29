@@ -11,6 +11,7 @@ import { useNotifications } from '@/hooks/useNotifications';
 import { useNodeAdmin } from '@/components/Monetization/useNodeAdmin';
 import NotificationBell from '@/components/Notifications/NotificationBell';
 import GlobalSearch from '@/components/Search/GlobalSearch';
+import { NewPostFab } from '@/components/Feed/NewPostFab';
 
 interface LayoutProps {
   onLogout: () => void;
@@ -776,6 +777,13 @@ export default function Layout({ onLogout, onLogin, isAnon: isAnonProp, onReport
             </div>
           </div>
         )}
+
+        {/* The floating "New Post" button — the only resting compose chrome
+            (the inline composer boxes are retired; the full composer pops up
+            in the app-level sheet on tap). Hidden on the Shorts lens (the
+            immersive surface keeps its full-bleed frame) and in anon mode
+            (a signed-out visitor can't post). */}
+        <NewPostFab hidden={isShorts || isAnon} />
       </main>
     </div>
   );

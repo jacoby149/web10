@@ -90,14 +90,14 @@ describe('App renders', () => {
     expect(container.children.length).toBeGreaterThan(0);
   });
 
-  it('a signed-in user at /feed renders the feed, not a bounce to /discover (no anon mount race)', async () => {
+  it('a signed-in user at /feed renders the Posts screen, not a bounce to /video (no anon mount race)', async () => {
     // Regression: `signedIn` used to start `false`, so the FIRST render was
-    // anon even for a signed-in user — the `isAnon ? <Navigate to="/discover">`
+    // anon even for a signed-in user — the `isAnon ? <Navigate to="/video">`
     // on /feed fired before the mount effect could flip signedIn to true,
-    // bouncing a hard-refresh / deep-link to /discover. `signedIn` now
+    // bouncing a hard-refresh / deep-link to /video. `signedIn` now
     // initializes from the synchronous cookie check, so the first render is
-    // correct. A signed-in user at /feed must render the feed (the composer),
-    // never the discover tab row.
+    // correct. A signed-in user at /feed must render the Posts screen (the
+    // Discover | Following tab row), never the video wall.
     installWeb10Mock({
       token: 'signed-in-token',
       payload: { username: 'testuser', provider: 'test.localhost', site: 'web10' },
@@ -108,12 +108,13 @@ describe('App renders', () => {
         <App />
       </MemoryRouter>
     );
-    // The feed's composer renders (FeedRoute mounted, not redirected).
+    // The Posts screen's tab row renders (PostsScreen mounted, not redirected).
     await waitFor(() => {
-      expect(screen.getByTestId('post-composer')).toBeInTheDocument();
+      expect(screen.getByTestId('posts-tab-row')).toBeInTheDocument();
     });
-    // And the discover tab row (the anon landing) is NOT present.
-    expect(screen.queryByTestId('discover-tab-row')).not.toBeInTheDocument();
+    // The compose affordance is the app-level FAB (the inline composer boxes
+    // are retired — the full composer pops up in the New Post sheet on tap).
+    expect(screen.getByTestId('new-post-fab')).toBeInTheDocument();
   });
 
   it('a signed-in user at the root lands on /video (the default), not /feed', async () => {
