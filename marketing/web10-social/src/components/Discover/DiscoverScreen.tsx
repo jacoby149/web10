@@ -453,6 +453,24 @@ function postHasVideo(post: PostRecord): boolean {
   return !!(post.tags?.includes('video') || hasVideoRef);
 }
 
+// A post is a SHORT (portrait video) if its first video media is 9:16
+// (width < height) — the same render-time gate the Shorts feed uses (shorts.md),
+// re-derived from the resolved media rather than the client-asserted `short` tag.
+// The Video wall is landscape-only (YouTube-shaped); portrait videos live in
+// the Shorts destination (TikTok-shaped). This is the aspect-ratio split that
+// keeps the two from bleeding into each other.
+function postIsPortraitVideo(post: PostRecord): boolean {
+  const refs = post.media_refs || [];
+  return refs.some((r) => {
+    if (typeof r !== 'object' || r === null) return false;
+    const m = r as { mime_type?: string; width?: number | null; height?: number | null };
+    return (
+      m.mime_type?.startsWith('video/') &&
+      !!m.width && !!m.height && m.width < m.height
+    );
+  });
+}
+
 // ── HomeCard (the Home view — the YouTube-style video wall) ─────────────────
 // The operator: "the youtube view is preferable, less brainrot — the videos
 // all have a good title, a thumbnail, and the attribution of who put them up."
@@ -495,9 +513,12 @@ function DiscoverHomeCard({
   const openPost = () => {
     const id = post._id || '';
     if (!id) return;
-    const video = mediaItems.find((m) => m.mime_type?.startsWith('video/'));
-    const isPortrait = !!video && !!video.width && !!video.height && video.width < video.height;
-    if (isPortrait) {
+    // The aspect-ratio split (shorts.md): the Video wall is landscape-only, so
+    // a card here is a landscape video → the watch page (carrying the current
+    // ?knobs= ranking). A portrait video is a short and lives in the Shorts
+    // destination (the lens) — the wall filters those out, but the gate stays
+    // as the backstop (a portrait card can only reach here via a stale read).
+    if (postIsPortraitVideo(post)) {
       navigate(`/shorts/${id}`);
       return;
     }
@@ -1052,9 +1073,13 @@ export default function DiscoverScreen({ mode: modeOverride }: { mode?: Discover
     return filtered;
   }, [scoredPosts, activeTag, searchQuery]);
 
-  // YouTube view: media posts only (video + image)
+  // Video wall: landscape videos only (the YouTube shape). Portrait videos are
+  // shorts — they live in the Shorts destination (the TikTok shape), not here.
+  // The aspect-ratio split keeps the two from bleeding into each other: a user
+  // clicks a landscape video in the wall (→ the watch page) or a short in the
+  // Shorts wall (→ the lens), never the other way around.
   const mediaPosts = useMemo(
-    () => visiblePosts.filter(p => postHasVideo(p)),
+    () => visiblePosts.filter(p => postHasVideo(p) && !postIsPortraitVideo(p)),
     [visiblePosts],
   );
 
