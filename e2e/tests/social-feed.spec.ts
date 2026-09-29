@@ -565,7 +565,7 @@ test.describe('Social feed gauntlet — render → post → reload persists', ()
     await setTokenCookie(context, 'auth.localhost', viewer.token);
 
     // --- /feed renders the followed creator's post ---
-    await page.goto(`${SOCIAL_BASE}/feed`);
+    await page.goto(`${SOCIAL_BASE}/feed?tab=following`);
     await page.waitForLoadState('networkidle');
     await expect(page.locator('[data-testid="post-composer"]')).toBeVisible();
     await expectFeedShowsPost(page, creatorPost);
@@ -642,7 +642,7 @@ test.describe('Social feed gauntlet — render → post → reload persists', ()
     await setTokenCookie(context, 'social.localhost', viewer.token);
     await setTokenCookie(context, 'auth.localhost', viewer.token);
 
-    await page.goto(`${SOCIAL_BASE}/feed`);
+    await page.goto(`${SOCIAL_BASE}/feed?tab=following`);
     await page.waitForLoadState('networkidle');
 
     // --- The transcoded post: the hls.js player, not a plain <video> ---
@@ -707,7 +707,7 @@ test.describe('Social feed gauntlet — render → post → reload persists', ()
     await setTokenCookie(context, 'social.localhost', follower.token);
     await setTokenCookie(context, 'auth.localhost', follower.token);
 
-    await page.goto(`${SOCIAL_BASE}/feed`);
+    await page.goto(`${SOCIAL_BASE}/feed?tab=following`);
     await page.waitForLoadState('networkidle');
 
     // The creator's transcoded post renders the hls.js player in the
