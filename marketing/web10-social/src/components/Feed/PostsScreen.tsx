@@ -1,14 +1,11 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { Flame, Home } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { getWapi } from '@/data/wapi';
-import PostComposer from '@/components/Feed/PostComposer';
 import FeedScreen from '@/components/Feed/FeedScreen';
 import DiscoverScreen from '@/components/Discover/DiscoverScreen';
 import { useRepost } from '@/context/RepostContext';
-import { trackEvent } from '@/lib/analytics';
-import type { PostRecord } from '@/data/types';
 
 // The Posts screen — the merged Feed + Hot Gossip surface (the X/Threads model:
 // one destination, a "Discover | Following" tab row inside). The operator's
@@ -69,10 +66,18 @@ function TabButton({
 export default function PostsScreen({ onAuthorClick }: { onAuthorClick?: (username: string, provider: string) => void }) {
   const [searchParams, setSearchParams] = useSearchParams();
   const isAnon = !getWapi().readToken();
-  const { repostingTo, setRepostingTo, clearReposting } = useRepost();
+  const { setRepostingTo } = useRepost();
   // Bumping `version` remounts FeedScreen so a fresh post / repost shows up
-  // immediately (the old FeedRoute's remount idiom).
+  // immediately (the old FeedRoute's remount idiom). The app-level New Post
+  // sheet fires `post-created` (NewPostSheet) — the listener below is the
+  // seam that replaces the old inline composer's onPostCreated callback.
   const [version, setVersion] = useState(0);
+
+  useEffect(() => {
+    const onPostCreated = () => setVersion((v) => v + 1);
+    window.addEventListener('post-created', onPostCreated);
+    return () => window.removeEventListener('post-created', onPostCreated);
+  }, []);
 
   // Anon: no Following tab (no session → no feed). The screen is just the
   // Discover board (the public ledger), the same read-only board the old
@@ -120,21 +125,11 @@ export default function PostsScreen({ onAuthorClick }: { onAuthorClick?: (userna
       </div>
 
       {tab === 'following' ? (
-        <>
-          {/* The composer lives on the Following tab (the personal feed) — the
-              X model. A repost from the Discover tab navigates here (the
-              composer is the single write, reposts.md). */}
-          <PostComposer
-            repostingTo={repostingTo}
-            onRepostCancel={clearReposting}
-            onPostCreated={() => {
-              clearReposting();
-              setVersion((v) => v + 1);
-              trackEvent('post_created');
-            }}
-          />
-          <FeedScreen key={version} onAuthorClick={onAuthorClick} onRepost={setRepostingTo} />
-        </>
+        /* The personal feed. The composer is NOT inline (the operator: "it
+           should be invisible") — the app-level New Post sheet (the Layout's
+           floating "+" button) is the single compose surface. A repost from
+           any surface opens that sheet in repost mode (reposts.md). */
+        <FeedScreen key={version} onAuthorClick={onAuthorClick} onRepost={setRepostingTo} />
       ) : (
         <DiscoverScreen mode="hot-gossip" />
       )}

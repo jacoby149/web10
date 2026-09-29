@@ -16,6 +16,7 @@ import {
 } from '@/data/types';
 import { PostCard } from '@/components/Feed/FeedScreen';
 import { useRepost } from '@/context/RepostContext';
+import { useComposer } from '@/context/ComposerContext';
 import { toast, errorMessage } from '@/components/shared/Toast';
 
 const LOG = (...args: unknown[]) => console.log('[social:profile-feed]', ...args);
@@ -184,12 +185,15 @@ export function ProfileFeed({
 
   // Repost (reposts.md): a repost is a POST, not a reaction toggle. Tapping
   // the repeat icon opens the app-level composer in repost mode (the shared
-  // RepostContext seam) with this post as the context. The composer's
-  // createRepost is the single write; the count + fill re-derive from the
-  // post-based read on the next load (onPostUpdated).
+  // RepostContext seam) with this post as the context — the New Post sheet
+  // pops up in place (no navigation; the user stays on the profile). The
+  // composer's createRepost is the single write; the count + fill
+  // re-derive from the post-based read on the next load (onPostUpdated).
   const { setRepostingTo } = useRepost();
+  const { openComposer } = useComposer();
   function handleRepost(post: PostRecord) {
     setRepostingTo(post);
+    openComposer();
   }
 
   function mediaItemsFor(post: PostRecord): MediaRecord[] {
