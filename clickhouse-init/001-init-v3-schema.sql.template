@@ -254,3 +254,23 @@ CREATE TABLE IF NOT EXISTS bug_reports (
     deleted UInt8 DEFAULT 0
 ) ENGINE = ReplacingMergeTree(updated_at)
 ORDER BY report_id;
+
+-- First-party usage log (D56). One row per beacon event (pageview / funnel /
+-- error) from the frontends. Persistent home for the marketing-site +
+-- social-app telemetry. Append-only, TTL 1 year (usage telemetry, not content).
+CREATE TABLE IF NOT EXISTS marketing_events (
+    event_type String,
+    app String,
+    path String,
+    referrer String,
+    funnel_event String,
+    metadata String,
+    error_message String,
+    error_source String,
+    error_line UInt32,
+    error_column UInt32,
+    user_agent String,
+    created_at DateTime64(3)
+) ENGINE = MergeTree
+ORDER BY (event_type, created_at)
+TTL toDateTime(created_at) + INTERVAL 1 YEAR;

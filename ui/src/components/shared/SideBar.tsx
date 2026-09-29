@@ -10,6 +10,7 @@ import {
   KeyRound,
   ExternalLink,
   Users,
+  Activity,
   type LucideIcon,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
@@ -27,6 +28,7 @@ export const NAV_ITEMS: { mode: string; label: string; icon: LucideIcon; adminOn
   { mode: 'groups', label: 'Group Contracts', icon: Users },
   { mode: 'requests', label: 'Requests', icon: Inbox },
   { mode: 'config', label: 'Node Config', icon: SlidersHorizontal, adminOnly: true },
+  { mode: 'analytics', label: 'Analytics', icon: Activity, adminOnly: true },
 ];
 
 // The wider web10 ecosystem — the console self-references out to the product.

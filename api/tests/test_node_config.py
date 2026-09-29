@@ -351,3 +351,99 @@ class TestTelemetryConfigFields:
         inserted = json.loads(row[1])
         assert inserted["ga4_measurement_id"] == "G-NEW"
         assert inserted["hotjar_site_id"] == "42"
+
+
+class TestMarketingEvents:
+    """POST /analytics/event (public beacon) + POST /admin/analytics (the
+    operator's dashboard) — the first-party usage log in marketing_events
+    (D56). The beacon is fire-and-forget (a CH failure never fails the
+    request); the read is admin-gated."""
+
+    def test_pageview_ingest_inserts_row(self, client):
+        with patch("app.v3.services.clickhouse.client") as mock_ch:
+            resp = client.post(
+                "/analytics/event",
+                json={"type": "pageview", "app": "marketing-ui", "path": "/", "referrer": "https://google.com"},
+            )
+        assert resp.status_code == 200
+        assert resp.json()["status"] == "ok"
+        inserts = [c for c in mock_ch.insert.call_args_list if c[0] and c[0][0] == "marketing_events"]
+        assert len(inserts) == 1
+        row = inserts[0][0][1][0]
+        assert row[0] == "pageview"  # event_type
+        assert row[1] == "marketing-ui"  # app
+        assert row[2] == "/"  # path
+        assert row[3] == "https://google.com"  # referrer
+
+    def test_funnel_ingest_stores_event(self, client):
+        with patch("app.v3.services.clickhouse.client") as mock_ch:
+            resp = client.post(
+                "/analytics/event",
+                json={"type": "funnel", "app": "marketing-ui", "event": "landing", "metadata": {"x": 1}},
+            )
+        assert resp.status_code == 200
+        row = [c for c in mock_ch.insert.call_args_list if c[0] and c[0][0] == "marketing_events"][0][0][1][0]
+        assert row[0] == "funnel"
+        assert row[4] == "landing"  # funnel_event
+
+    def test_unknown_type_is_dropped_not_error(self, client):
+        with patch("app.v3.services.clickhouse.client") as mock_ch:
+            resp = client.post("/analytics/event", json={"type": "nonsense"})
+        assert resp.status_code == 200
+        assert resp.json()["status"] == "ok"
+        assert not [c for c in mock_ch.insert.call_args_list if c[0] and c[0][0] == "marketing_events"]
+
+    def test_ingest_never_fails_on_ch_error(self, client):
+        """A ClickHouse hiccup drops the event but the beacon still gets 200."""
+        with patch("app.v3.services.clickhouse.client") as mock_ch:
+            mock_ch.insert.side_effect = Exception("CH down")
+            resp = client.post("/analytics/event", json={"type": "pageview", "path": "/"})
+        assert resp.status_code == 200
+        assert resp.json()["status"] == "ok"
+
+    def test_admin_analytics_returns_summary(self, client, token):
+        with patch("app.v3.services.clickhouse.client") as mock_ch:
+            # check_admin reads node_config (admins list) → first query.
+            # Then the summary's five queries run in order.
+            mock_ch.query.side_effect = [
+                _config_result({"admins": ["testuser"]}),  # check_admin
+                MagicMock(result_rows=[(10, 5, 2)]),  # totals
+                MagicMock(result_rows=[("/", 8), ("/docs", 2)]),  # top paths
+                MagicMock(result_rows=[("https://google.com", 6)]),  # top referrers
+                MagicMock(result_rows=[("landing", 5)]),  # funnel
+                MagicMock(result_rows=[("TypeError: x", 2)]),  # top errors
+                MagicMock(result_rows=[("2026-09-01", 4), ("2026-09-02", 6)]),  # timeseries
+            ]
+            resp = client.post("/admin/analytics", json={"token": token}, params={"days": 30})
+        assert resp.status_code == 200
+        data = resp.json()
+        assert data["totals"] == {"pageviews": 10, "funnel": 5, "errors": 2}
+        assert data["top_paths"][0] == {"path": "/", "count": 8}
+        assert data["top_referrers"][0] == {"referrer": "https://google.com", "count": 6}
+        assert data["funnel"][0] == {"event": "landing", "count": 5}
+        assert data["top_errors"][0] == {"message": "TypeError: x", "count": 2}
+        assert data["timeseries"] == [
+            {"day": "2026-09-01", "pageviews": 4},
+            {"day": "2026-09-02", "pageviews": 6},
+        ]
+
+    def test_admin_analytics_requires_admin(self):
+        """A valid token for a NON-admin user is rejected (403 NOT_ADMIN)."""
+        non_admin = jwt.encode(
+            {
+                "username": "notadmin",
+                "site": "auth.localhost",
+                "target": settings.PROVIDER,
+                "provider": settings.PROVIDER,
+                "expires": (datetime.utcnow() + timedelta(minutes=60)).isoformat(),
+            },
+            settings.PRIVATE_KEY,
+            algorithm=settings.ALGORITHM,
+        )
+        # raise_server_exceptions=False so the bare Exception("NOT_ADMIN")
+        # runs through the production handler (→ 403) instead of re-raising.
+        with TestClient(fastapi_app, raise_server_exceptions=False) as tc:
+            with patch("app.v3.services.clickhouse.client") as mock_ch:
+                mock_ch.query.return_value = _config_result({"admins": ["someoneelse"]})
+                resp = tc.post("/admin/analytics", json={"token": non_admin})
+        assert resp.status_code == 403

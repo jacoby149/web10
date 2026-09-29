@@ -210,6 +210,20 @@ def ensure_apps_schema():
             "deleted UInt8 DEFAULT 0"
             ") ENGINE = ReplacingMergeTree(updated_at) ORDER BY report_id"
         )
+        # marketing_events — the first-party usage log (D56). One row per
+        # beacon event (pageview / funnel / error) from the frontends. This is
+        # the persistent home for the marketing-site + social-app telemetry the
+        # in-memory marketing-api list used to hold (and lost on every restart).
+        # Append-only MergeTree, TTL 1 year (usage telemetry, not content).
+        client.command(
+            "CREATE TABLE IF NOT EXISTS marketing_events ("
+            "event_type String, app String, path String, referrer String, "
+            "funnel_event String, metadata String, error_message String, "
+            "error_source String, error_line UInt32, error_column UInt32, "
+            "user_agent String, created_at DateTime64(3)"
+            ") ENGINE = MergeTree ORDER BY (event_type, created_at)"
+            " TTL toDateTime(created_at) + INTERVAL 1 YEAR"
+        )
         # banned_users — the node-level ban (D59a). Pre-existing volumes
         # predate the table; the DDL template covers fresh volumes.
         client.command(
@@ -219,7 +233,7 @@ def ensure_apps_schema():
             ") ENGINE = ReplacingMergeTree(updated_at) ORDER BY username"
         )
         log.info(
-            "[v3] schema ensured (apps.visits + app_ratings.comment + node_config + app_visits + group_contracts.discoverable + group_contracts.tags + group_contracts.membership_visibility + documents.ad_mode/ad_target + moderation_flags + bug_reports present)"
+            "[v3] schema ensured (apps.visits + app_ratings.comment + node_config + app_visits + group_contracts.discoverable + group_contracts.tags + group_contracts.membership_visibility + documents.ad_mode/ad_target + moderation_flags + bug_reports + marketing_events + banned_users present)"
         )
         # Data migration (idempotent): re-home demo apps registered under
         # their directory-index file URLs onto their directory URLs.
@@ -4442,4 +4456,130 @@ def get_bug_report(report_id: str) -> dict | None:
         "stack_trace": row[9],
         "screenshots": _parse_json(row[10]),
         "created_at": _iso_utc(row[11]),
+    }
+
+
+# ---------------------------------------------------------------------------
+# marketing_events — first-party usage log (D56)
+#
+# One row per beacon event from the frontends (pageview / funnel / error).
+# This is the persistent home for the marketing-site + social-app telemetry
+# the in-memory marketing-api list used to hold (and lose on every restart).
+# Ingest is public (the beacon fires before login, CORS is wildcard); the
+# read is admin-gated (the operator's own numbers).
+# ---------------------------------------------------------------------------
+
+
+def insert_marketing_event(
+    event_type: str,
+    app: str = "",
+    path: str = "",
+    referrer: str = "",
+    funnel_event: str = "",
+    metadata: dict | None = None,
+    error_message: str = "",
+    error_source: str = "",
+    error_line: int = 0,
+    error_column: int = 0,
+    user_agent: str = "",
+) -> None:
+    """Append one beacon event. Best-effort — a telemetry write must never
+    fail the caller's request (the endpoint swallows the exception)."""
+    client.insert(
+        "marketing_events",
+        [
+            [
+                event_type,
+                app,
+                path,
+                referrer,
+                funnel_event,
+                _json(metadata or {}),
+                error_message,
+                error_source,
+                int(error_line or 0),
+                int(error_column or 0),
+                user_agent,
+                _now(),
+            ]
+        ],
+        column_names=[
+            "event_type",
+            "app",
+            "path",
+            "referrer",
+            "funnel_event",
+            "metadata",
+            "error_message",
+            "error_source",
+            "error_line",
+            "error_column",
+            "user_agent",
+            "created_at",
+        ],
+    )
+
+
+def marketing_events_summary(days: int = 30) -> dict:
+    """The operator's usage dashboard (admin only). Realtime queries over
+    marketing_events — no maintained counters. Everything is content-free:
+    paths, funnel steps, referrers, error counts. `days` bounds the window."""
+    # Totals in the window.
+    totals = client.query(
+        "SELECT count() AS pageviews, "
+        "countIf(event_type = 'funnel') AS funnel, "
+        "countIf(event_type = 'error') AS errors "
+        "FROM marketing_events WHERE created_at > now() - INTERVAL %(days)s DAY",
+        {"days": days},
+    ).result_rows[0]
+    # Top paths by pageviews.
+    top_paths = client.query(
+        "SELECT path, count() AS c FROM marketing_events "
+        "WHERE event_type = 'pageview' AND created_at > now() - INTERVAL %(days)s DAY "
+        "GROUP BY path ORDER BY c DESC LIMIT 15",
+        {"days": days},
+    ).result_rows
+    # Top referrers (external sources) by pageviews. Internal/empty referrers
+    # are dropped — "direct" is the operator's own navigation, not a source.
+    top_referrers = client.query(
+        "SELECT referrer, count() AS c FROM marketing_events "
+        "WHERE event_type = 'pageview' AND referrer != '' "
+        "AND created_at > now() - INTERVAL %(days)s DAY "
+        "GROUP BY referrer ORDER BY c DESC LIMIT 15",
+        {"days": days},
+    ).result_rows
+    # Funnel step counts (a fixed, known set of steps).
+    funnel_rows = client.query(
+        "SELECT funnel_event, count() AS c FROM marketing_events "
+        "WHERE event_type = 'funnel' AND created_at > now() - INTERVAL %(days)s DAY "
+        "GROUP BY funnel_event ORDER BY c DESC",
+        {"days": days},
+    ).result_rows
+    # Top error messages by count (the message is content-free — a JS error
+    # string, never user content).
+    top_errors = client.query(
+        "SELECT error_message, count() AS c FROM marketing_events "
+        "WHERE event_type = 'error' AND created_at > now() - INTERVAL %(days)s DAY "
+        "GROUP BY error_message ORDER BY c DESC LIMIT 10",
+        {"days": days},
+    ).result_rows
+    # Time-series: pageviews per day (for the line graph).
+    timeseries = client.query(
+        "SELECT toDate(created_at) AS day, count() AS c FROM marketing_events "
+        "WHERE event_type = 'pageview' AND created_at > now() - INTERVAL %(days)s DAY "
+        "GROUP BY day ORDER BY day",
+        {"days": days},
+    ).result_rows
+    return {
+        "days": days,
+        "totals": {
+            "pageviews": int(totals[0]),
+            "funnel": int(totals[1]),
+            "errors": int(totals[2]),
+        },
+        "top_paths": [{"path": r[0], "count": int(r[1])} for r in top_paths],
+        "top_referrers": [{"referrer": r[0], "count": int(r[1])} for r in top_referrers],
+        "funnel": [{"event": r[0], "count": int(r[1])} for r in funnel_rows],
+        "top_errors": [{"message": r[0], "count": int(r[1])} for r in top_errors],
+        "timeseries": [{"day": str(r[0]), "pageviews": int(r[1])} for r in timeseries],
     }

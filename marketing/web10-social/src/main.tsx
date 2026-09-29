@@ -6,11 +6,15 @@ import '@fontsource-variable/inter/standard.css';
 import '@fontsource-variable/space-grotesk';
 import './index.css';
 import App from './App';
-import { installTelemetry, trackPageview } from './lib/analytics';
+import { installTelemetry, trackPageview, trackNodePageview, reportNodeError } from './lib/analytics';
 
 // D56: full-platform telemetry — GA4 + masked Hotjar (content-blind). IDs
 // resolved at runtime from the node (GET /telemetry), env fallback in dev.
 installTelemetry();
+
+// D56: first-party beacon to the node (persistent, in ClickHouse). Content-free.
+window.addEventListener('error', (e) => reportNodeError(e.message, { source: e.filename, line: e.lineno, column: e.colno }));
+window.addEventListener('unhandledrejection', (e) => reportNodeError((e.reason as any)?.message || String(e.reason)));
 
 // D72: the PWA service worker — the keystone that makes the app installable
 // (the browser only fires beforeinstallprompt for a functioning SW). Prod
@@ -29,6 +33,7 @@ function AnalyticsTracker() {
   const location = useLocation();
   useEffect(() => {
     trackPageview(location.pathname);
+    trackNodePageview(location.pathname);
   }, [location.pathname]);
   return null;
 }

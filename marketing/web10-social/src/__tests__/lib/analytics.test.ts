@@ -7,6 +7,8 @@ import {
   trackPageview,
   trackEvent,
   hotjarIdentify,
+  trackNodePageview,
+  reportNodeError,
 } from '../../lib/analytics';
 
 describe('analytics', () => {
@@ -194,6 +196,45 @@ describe('analytics', () => {
 
     it('is a no-op when Hotjar is not installed', () => {
       expect(() => hotjarIdentify('alice')).not.toThrow();
+    });
+  });
+
+  describe('first-party node beacon', () => {
+    let fetchSpy: ReturnType<typeof vi.spyOn>;
+
+    beforeEach(() => {
+      // jsdom has no sendBeacon — force the fetch path so we can assert.
+      (navigator as any).sendBeacon = undefined;
+      fetchSpy = vi.spyOn(window, 'fetch').mockResolvedValue(new Response(null, { status: 200 }));
+    });
+
+    afterEach(() => {
+      fetchSpy.mockRestore();
+    });
+
+    it('trackNodePageview fires a pageview to the node', () => {
+      trackNodePageview('/feed');
+      const [url, init] = fetchSpy.mock.calls[0];
+      expect(String(url)).toContain('/analytics/event');
+      const body = JSON.parse((init as any).body);
+      expect(body.type).toBe('pageview');
+      expect(body.app).toBe('web10-social');
+      expect(body.path).toBe('/feed');
+    });
+
+    it('reportNodeError fires an error to the node', () => {
+      reportNodeError('TypeError: x', { source: 'app.js', line: 1, column: 2 });
+      const [url, init] = fetchSpy.mock.calls[0];
+      expect(String(url)).toContain('/analytics/event');
+      const body = JSON.parse((init as any).body);
+      expect(body.type).toBe('error');
+      expect(body.message).toBe('TypeError: x');
+      expect(body.source).toBe('app.js');
+    });
+
+    it('never throws when the network fails', () => {
+      fetchSpy.mockRejectedValueOnce(new Error('offline'));
+      expect(() => trackNodePageview('/feed')).not.toThrow();
     });
   });
 });
