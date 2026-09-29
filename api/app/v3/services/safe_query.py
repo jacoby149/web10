@@ -65,6 +65,7 @@ RAW_TABLES = frozenset(
         "group_members",
         "group_join_requests",
         "group_hidden_docs",
+        "banned_users",
         "user_blacklist",
         "group_blacklist",
         "user_group_sharing",
@@ -208,24 +209,12 @@ def _boundary_cte_sql(service: str, readable_groups: list[str], member_key: str)
         # group_hidden_docs: hide docs a moderator hid in THIS group.
         f"AND (d.doc_id, dg.group_id) NOT IN (SELECT doc_id, group_id FROM (SELECT group_id, doc_id, deleted, "
         f"row_number() OVER (PARTITION BY group_id, doc_id ORDER BY updated_at DESC, deleted DESC) AS rn "
-        f"FROM group_hidden_docs) WHERE rn = 1 AND deleted = 0)"
+        f"FROM group_hidden_docs) WHERE rn = 1 AND deleted = 0) "
+        # banned_users (D59a): hide docs by node-banned users (service-agnostic).
+        f"AND d.author_key NOT IN (SELECT username FROM (SELECT username, deleted, "
+        f"row_number() OVER (PARTITION BY username ORDER BY updated_at DESC, deleted DESC) AS rn "
+        f"FROM banned_users) WHERE rn = 1 AND deleted = 0)"
     )
-    # Node-level ban (D59a): a banned user's content is filtered out of every
-    # read path — the query engine included. The list is node_config (a JSON
-    # array of usernames, read on each read). An empty list degrades to no
-    # predicate. The list is node-operator-curated (never caller input), so
-    # inlining it quoted is safe. A config read failure must never break the
-    # query — degrade to no ban filter (the ban is a curation layer, not a
-    # security boundary).
-    try:
-        from app.services import config as config_svc
-
-        banned = config_svc.effective_config().get("banned_users") or []
-        if banned:
-            banned_in = ", ".join(f"'{u.replace(chr(39), chr(39) * 2)}'" for u in banned)
-            filters += f" AND d.author_key NOT IN ({banned_in})"
-    except Exception:
-        pass
     return (
         f"SELECT d.doc_id, d.author_key, d.body, d.ref_value, d.tags, "
         f"d.created_at, d.updated_at, d.ad_mode, d.ad_target, dg.group_id FROM ({dedup_docs}) d "

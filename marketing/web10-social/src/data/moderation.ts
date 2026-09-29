@@ -175,6 +175,15 @@ export async function setUserBanned(username: string, ban: boolean): Promise<str
   return data.banned_users ?? [];
 }
 
+/**
+ * List the node's banned users (D59a). Reads from the `banned_users`
+ * ClickHouse table (not node_config). Returns the active banned usernames.
+ */
+export async function getBannedUsers(): Promise<string[]> {
+  const data = await adminPost<{ banned_users: { username: string }[] }>('/v3/moderation/banned', {});
+  return (data.banned_users ?? []).map((u) => u.username);
+}
+
 // ── The web10 link parser (the operator pastes a permalink in the Link tab) ──
 
 /**

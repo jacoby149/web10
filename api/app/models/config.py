@@ -65,7 +65,6 @@ class ConfigUpdate(BaseModel):
     auto_moderate: bool | None = None
     moderation_enabled: bool | None = None
     auto_hide_users: list[str] | None = None
-    banned_users: list[str] | None = None
     node_ad_percentage: int | None = None
     node_ad_overwrite: bool | None = None
     brand_text: str | None = None

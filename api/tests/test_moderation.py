@@ -487,34 +487,37 @@ class TestAutoHideRetroactiveSweep:
 
 class TestBanEndpoint:
     def test_ban_add(self, client):
-        saved = {"banned_users": ["existing"]}
         with (
             patch("app.services.config.is_admin", return_value=True),
-            patch("app.services.config.get_config", return_value=saved),
-            patch("app.services.config.save_config") as mock_save,
+            patch("app.v3.services.clickhouse.ban_user") as mock_ban,
+            patch("app.v3.services.clickhouse.get_banned_users", return_value=["existing", "newuser"]),
         ):
             resp = client.post(
                 "/v3/moderation/ban", json={"token": _admin_token(), "username": "newuser", "ban": True}
             )
         assert resp.status_code == 200
         assert resp.json()["banned_users"] == ["existing", "newuser"]
-        mock_save.assert_called_once()
-        assert mock_save.call_args.args[0]["banned_users"] == ["existing", "newuser"]
+        mock_ban.assert_called_once_with("newuser", "node-admin")
 
     def test_ban_remove(self, client):
-        saved = {"banned_users": ["existing", "newuser"]}
         with (
             patch("app.services.config.is_admin", return_value=True),
-            patch("app.services.config.get_config", return_value=saved),
-            patch("app.services.config.save_config") as mock_save,
+            patch("app.v3.services.clickhouse.unban_user") as mock_unban,
+            patch("app.v3.services.clickhouse.get_banned_users", return_value=["existing"]),
         ):
             resp = client.post(
                 "/v3/moderation/ban", json={"token": _admin_token(), "username": "newuser", "ban": False}
             )
         assert resp.status_code == 200
         assert resp.json()["banned_users"] == ["existing"]
-        mock_save.assert_called_once()
-        assert mock_save.call_args.args[0]["banned_users"] == ["existing"]
+        mock_unban.assert_called_once_with("newuser")
+
+    def test_ban_empty_username_rejected(self, client):
+        with patch("app.services.config.is_admin", return_value=True):
+            resp = client.post(
+                "/v3/moderation/ban", json={"token": _admin_token(), "username": "  ", "ban": True}
+            )
+        assert resp.status_code != 200
 
     def test_ban_non_admin_rejected(self):
         with TestClient(fastapi_app, raise_server_exceptions=False) as tc:
@@ -535,31 +538,32 @@ class TestBanReadPathFilter:
     def test_board_base_sql_filters_banned(self):
         import app.v3.services.clickhouse as ch
 
-        # The board read threads banned_users in as a param (read once at the
-        # endpoint, keeping the SQL builder pure — no config read inside).
-        sql = ch._board_base_sql(["g1"], require_membership=False, banned_users=["badguy", "trollface"])
-        assert "p.author_key NOT IN" in sql
-        assert "'badguy'" in sql and "'trollface'" in sql
+        # The ban is a LEFT ANTI JOIN against the banned_users table (no
+        # inlined list, no config read).
+        sql = ch._board_base_sql(["g1"], require_membership=False)
+        assert "FROM banned_users" in sql
+        assert "bu.username = p.author_key" in sql
 
-    def test_board_base_sql_no_ban_when_empty(self):
+    def test_board_base_sql_ban_is_always_present(self):
         import app.v3.services.clickhouse as ch
 
-        sql = ch._board_base_sql(["g1"], require_membership=False, banned_users=[])
-        assert "author_key NOT IN" not in sql
+        # The anti-join is unconditional (no parameter to toggle it) — the
+        # table is empty by default, so the join is a no-op when no one is
+        # banned.
+        sql = ch._board_base_sql(["g1"], require_membership=True)
+        assert "FROM banned_users" in sql
 
     def test_boundary_cte_sql_filters_banned(self):
         from app.v3.services import safe_query
 
-        with patch("app.services.config.effective_config", return_value={"banned_users": ["badguy"]}):
-            sql = safe_query._boundary_cte_sql("posts", ["g1"], "reader")
-        # The banned predicate is a literal IN-list (distinct from the
-        # user_blacklist filter, which is a subquery).
-        assert "d.author_key NOT IN ('badguy')" in sql
+        sql = safe_query._boundary_cte_sql("posts", ["g1"], "reader")
+        # The banned predicate is a subquery against the banned_users table
+        # (same pattern as the other ReplacingMergeTree filters).
+        assert "FROM banned_users" in sql
+        assert "d.author_key NOT IN" in sql
 
-    def test_boundary_cte_sql_no_ban_when_empty(self):
+    def test_banned_users_in_raw_tables(self):
         from app.v3.services import safe_query
 
-        with patch("app.services.config.effective_config", return_value={"banned_users": []}):
-            sql = safe_query._boundary_cte_sql("posts", ["g1"], "reader")
-        # No banned IN-list (the user_blacklist subquery filter is still there).
-        assert "NOT IN ('" not in sql
+        # Callers must not be able to reference banned_users directly.
+        assert "banned_users" in safe_query.RAW_TABLES

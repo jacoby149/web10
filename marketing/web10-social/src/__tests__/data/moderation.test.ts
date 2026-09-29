@@ -225,3 +225,30 @@ describe('setUserBanned', () => {
     expect(fetchMock).not.toHaveBeenCalled();
   });
 });
+
+describe('getBannedUsers', () => {
+  afterEach(() => vi.unstubAllGlobals());
+
+  it('posts to /v3/moderation/banned and maps the response', async () => {
+    setToken('raw-jwt');
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({ banned_users: [{ username: 'badguy', banned_by: 'admin', banned_at: '2026-01-01T00:00:00Z' }] }),
+    });
+    vi.stubGlobal('fetch', fetchMock);
+    const out = await moderation.getBannedUsers();
+    expect(out).toEqual(['badguy']);
+    expect(fetchMock).toHaveBeenCalledWith(
+      expect.stringContaining('/v3/moderation/banned'),
+      expect.objectContaining({ method: 'POST' }),
+    );
+  });
+
+  it('throws when signed out', async () => {
+    clearToken();
+    const fetchMock = vi.fn();
+    vi.stubGlobal('fetch', fetchMock);
+    await expect(moderation.getBannedUsers()).rejects.toThrow('not signed in');
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+});

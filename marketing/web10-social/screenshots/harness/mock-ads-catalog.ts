@@ -59,7 +59,6 @@ export async function getNodeConfig() {
     auto_moderate: true,
     sensitive_words: ['slur', 'hate', 'spam'],
     auto_hide_users: ['badguy'],
-    banned_users: ['trollface'],
   };
 }
 export async function saveNodeAdPercentage() {}

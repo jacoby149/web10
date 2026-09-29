@@ -6,7 +6,6 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Skeleton } from '@/components/ui/skeleton';
 import { toast, errorMessage } from '@/components/shared/Toast';
-import { getNodeConfig } from '@/data/ads-catalog';
 import {
   fetchPeoplePage,
   filterPeople,
@@ -16,6 +15,7 @@ import {
   readUserPostsForModeration,
   setUserAutoHidden,
   setUserBanned,
+  getBannedUsers,
   hidePostFromBoard,
 } from '@/data/moderation';
 import type { PostRecord } from '@/data/types';
@@ -53,12 +53,11 @@ export function PeopleTab() {
     setLoading(true);
     setError(null);
     try {
-      const [page, cfg] = await Promise.all([
+      const [page, banned] = await Promise.all([
         fetchPeoplePage({ limit: PAGE_SIZE, offset: 0 }),
-        getNodeConfig().catch(() => ({} as Record<string, unknown>)),
+        getBannedUsers().catch(() => [] as string[]),
       ]);
       setPeople(page.people);
-      const banned = Array.isArray(cfg.banned_users) ? (cfg.banned_users as string[]) : [];
       setBannedUsers(new Set(banned));
     } catch (e) {
       setError(errorMessage(e, 'Failed to load people'));

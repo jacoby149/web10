@@ -34,6 +34,9 @@ export async function setUserAutoHidden(_username: string, hide: boolean) {
 export async function setUserBanned(_username: string, ban: boolean) {
   return ban ? ['badguy'] : [];
 }
+export async function getBannedUsers() {
+  return ['trollface'];
+}
 export async function saveModerationConfig() {}
 export async function hidePostFromBoard() {}
 export async function unhidePostFromBoard() {}

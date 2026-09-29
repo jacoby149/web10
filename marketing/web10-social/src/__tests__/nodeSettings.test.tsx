@@ -13,7 +13,6 @@ const getNodeConfig = vi.fn().mockResolvedValue({
   auto_moderate: true,
   sensitive_words: ['slur'],
   auto_hide_users: [],
-  banned_users: [],
 });
 vi.mock('@/data/ads-catalog', () => ({
   checkNodeAdmin: (...a: unknown[]) => checkNodeAdmin(...a),
@@ -29,6 +28,7 @@ const hidePostFromBoard = vi.fn();
 const unhidePostFromBoard = vi.fn();
 const readHiddenPosts = vi.fn();
 const readUserPostsForModeration = vi.fn();
+const getBannedUsers = vi.fn();
 vi.mock('@/data/moderation', async () => {
   const actual = await vi.importActual<typeof import('@/data/moderation')>('@/data/moderation');
   return {
@@ -36,6 +36,7 @@ vi.mock('@/data/moderation', async () => {
     readModerationFlags: (...a: unknown[]) => readModerationFlags(...a),
     setUserAutoHidden: (...a: unknown[]) => setUserAutoHidden(...a),
     setUserBanned: (...a: unknown[]) => setUserBanned(...a),
+    getBannedUsers: (...a: unknown[]) => getBannedUsers(...a),
     saveModerationConfig: (...a: unknown[]) => saveModerationConfig(...a),
     hidePostFromBoard: (...a: unknown[]) => hidePostFromBoard(...a),
     unhidePostFromBoard: (...a: unknown[]) => unhidePostFromBoard(...a),
@@ -97,8 +98,8 @@ beforeEach(() => {
     auto_moderate: true,
     sensitive_words: ['slur'],
     auto_hide_users: [],
-    banned_users: [],
   });
+  getBannedUsers.mockResolvedValue([]);
   readModerationFlags.mockResolvedValue([
     { username: 'badguy', flag_count: 2, last_flagged: '2026-01-01', matched_words: ['word'] },
   ]);
@@ -185,14 +186,8 @@ describe('NodeSettingsScreen — the Moderation tab', () => {
     await waitFor(() => expect(unhidePostFromBoard).toHaveBeenCalledWith('hidden-1'));
   });
 
-  it('renders the banned-users list from the node config', async () => {
-    getNodeConfig.mockResolvedValue({
-      moderation_enabled: true,
-      auto_moderate: true,
-      sensitive_words: ['slur'],
-      auto_hide_users: [],
-      banned_users: ['badguy'],
-    });
+  it('renders the banned-users list', async () => {
+    getBannedUsers.mockResolvedValue(['badguy']);
     renderAt('/node-settings');
     expect(await screen.findByTestId('moderation-banned-user-badguy')).toBeInTheDocument();
   });

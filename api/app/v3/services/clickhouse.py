@@ -210,6 +210,14 @@ def ensure_apps_schema():
             "deleted UInt8 DEFAULT 0"
             ") ENGINE = ReplacingMergeTree(updated_at) ORDER BY report_id"
         )
+        # banned_users — the node-level ban (D59a). Pre-existing volumes
+        # predate the table; the DDL template covers fresh volumes.
+        client.command(
+            "CREATE TABLE IF NOT EXISTS banned_users ("
+            "username String, banned_by String, banned_at DateTime64(3), "
+            "updated_at DateTime64(3), deleted UInt8 DEFAULT 0"
+            ") ENGINE = ReplacingMergeTree(updated_at) ORDER BY username"
+        )
         log.info(
             "[v3] schema ensured (apps.visits + app_ratings.comment + node_config + app_visits + group_contracts.discoverable + group_contracts.tags + group_contracts.membership_visibility + documents.ad_mode/ad_target + moderation_flags + bug_reports present)"
         )
@@ -1837,6 +1845,70 @@ def get_hidden_docs(group_id: str) -> list[dict]:
 
 
 # ---------------------------------------------------------------------------
+# Node-level ban (D59a) — banned_users table
+# ---------------------------------------------------------------------------
+
+
+def ban_user(username: str, banned_by: str) -> None:
+    """Ban a username (their content is filtered out of every read path).
+
+    ReplacingMergeTree: a new active row supersedes any prior tombstone.
+    ``now64(6)`` (microsecond) so the ban's ``updated_at`` is never earlier
+    than a same-second unban it supersedes (same house pattern as
+    ``unhide_doc_from_group``).
+    """
+    now = _now()
+    client.insert(
+        "banned_users",
+        [[username, banned_by, now, now, 0]],
+    )
+
+
+def unban_user(username: str) -> None:
+    """Unban a username (their content returns to every read path).
+
+    Tombstone: append a ``deleted=1`` row with a microsecond-precision
+    ``updated_at`` so the ReplacingMergeTree dedup ranks it above the active
+    ban row even when both land in the same second.
+    """
+    client.command(
+        "INSERT INTO banned_users (username, banned_by, banned_at, updated_at, deleted) "
+        "SELECT username, banned_by, banned_at, now64(6), 1 "
+        "FROM banned_users WHERE username = %(username)s AND deleted = 0",
+        {"username": username},
+    )
+
+
+def get_banned_users() -> list[str]:
+    """The active (non-tombstoned) banned usernames. Dedup first (latest row
+    per username, tombstones included), then filter deleted=0 — same pattern
+    as every other ReplacingMergeTree read in this file."""
+    result = client.query(
+        "SELECT username FROM (SELECT username, deleted, "
+        "row_number() OVER (PARTITION BY username ORDER BY updated_at DESC, deleted DESC) AS rn "
+        "FROM banned_users) WHERE rn = 1 AND deleted = 0"
+    )
+    return [row[0] for row in result.result_rows]
+
+
+def get_banned_users_list() -> list[dict]:
+    """The active banned users with metadata (for the admin UI)."""
+    result = client.query(
+        "SELECT username, banned_by, banned_at FROM (SELECT username, banned_by, banned_at, deleted, "
+        "row_number() OVER (PARTITION BY username ORDER BY updated_at DESC, deleted DESC) AS rn "
+        "FROM banned_users) WHERE rn = 1 AND deleted = 0 ORDER BY banned_at DESC"
+    )
+    return [
+        {
+            "username": row[0],
+            "banned_by": row[1],
+            "banned_at": _iso_utc(row[2]),
+        }
+        for row in result.result_rows
+    ]
+
+
+# ---------------------------------------------------------------------------
 # Content moderation (D59) — the review queue
 # ---------------------------------------------------------------------------
 
@@ -2206,7 +2278,6 @@ def _board_base_sql(
     group_ids: list[str],
     require_membership: bool = True,
     tags: list[str] | None = None,
-    banned_users: list[str] | None = None,
 ) -> str:
     """Board base SQL (shared by the no-sort and ranked read paths).
 
@@ -2229,13 +2300,10 @@ def _board_base_sql(
     tag is the cheap, indexable server filter; the render-time 9:16 gate on the
     client stays the backstop that drops fakes.
 
-    ``banned_users`` (D59a): the node's banned usernames (the node-level ban).
-    A banned user's docs are filtered out of every read path — the predicate is
-    on ``author_key``, service-agnostic (D60). The list is read ONCE per
-    request at the endpoint and threaded in (not queried inside the SQL
-    builder — that would add a node_config query per read). An empty/None list
-    degrades to no predicate. The list is node-operator-curated (never caller
-    input), so inlining it quoted is safe.
+    The node-level ban (D59a) is a LEFT ANTI JOIN against the ``banned_users``
+    table (dedup first, then deleted=0) — same pattern as the other
+    ReplacingMergeTree anti-joins. A banned author's docs are filtered out,
+    service-agnostic (D60).
     """
     membership_join = (
         "JOIN (SELECT group_id, member_key, role FROM (SELECT group_id, member_key, role, deleted, "
@@ -2246,10 +2314,6 @@ def _board_base_sql(
     )
     membership_where = "gm.member_key = %(member_key)s AND " if require_membership else ""
     tag_where = " AND (" + " AND ".join(f"has(p.tags, %(tag{i})s)" for i in range(len(tags))) + ")" if tags else ""
-    banned_where = ""
-    if banned_users:
-        banned_in = ", ".join(f"'{u.replace(chr(39), chr(39) * 2)}'" for u in banned_users)
-        banned_where = f" AND p.author_key NOT IN ({banned_in})"
     return (
         "SELECT p.doc_id AS doc_id, p.author_key, p.body, p.tags, p.created_at, p.ref_value, p.ad_mode, p.ad_target "
         "FROM (SELECT doc_id, author_key, body, tags, created_at, ref_value, ad_mode, ad_target, deleted "
@@ -2277,13 +2341,16 @@ def _board_base_sql(
         "row_number() OVER (PARTITION BY group_id, doc_id ORDER BY updated_at DESC, deleted DESC) AS rn "
         "FROM group_hidden_docs) WHERE rn = 1 AND deleted = 0) hd "
         "ON hd.doc_id = p.doc_id AND hd.group_id = pg.group_id "
+        "LEFT ANTI JOIN (SELECT username FROM (SELECT username, deleted, "
+        "row_number() OVER (PARTITION BY username ORDER BY updated_at DESC, deleted DESC) AS rn "
+        "FROM banned_users) WHERE rn = 1 AND deleted = 0) bu "
+        "ON bu.username = p.author_key "
         "WHERE "
         + membership_where
         + "pg.group_id IN (%(g0)s"
         + "".join(f", %(g{i})s" for i in range(1, len(group_ids)))
         + ")"
         + tag_where
-        + banned_where
     )
 
 
@@ -2295,7 +2362,6 @@ def _group_docs_query(
     offset: int,
     require_membership: bool = True,
     tags: list[str] | None = None,
-    banned_users: list[str] | None = None,
 ) -> list[dict]:
     """The core v3 discover query (no ranking).
 
@@ -2304,8 +2370,7 @@ def _group_docs_query(
     fetches the full membership (no LIMIT clause). `require_membership=False`
     (D58) drops the membership JOIN — the caller pre-filtered `group_ids` to the
     readable set. `tags` filters to docs carrying every given tag (the
-    server-side tag filter, shorts.md). `banned_users` (D59a) filters out a
-    banned author's docs (service-agnostic).
+    server-side tag filter, shorts.md).
     """
     limit_clause = "LIMIT %(limit)s OFFSET %(offset)s" if limit is not None else ""
     params: dict = {
@@ -2318,7 +2383,7 @@ def _group_docs_query(
     if limit is not None:
         params["limit"] = limit
     result = client.query(
-        _board_base_sql(group_ids, require_membership, tags, banned_users)
+        _board_base_sql(group_ids, require_membership, tags)
         + " ORDER BY p.created_at DESC "
         + limit_clause,
         params,
@@ -2348,7 +2413,6 @@ def _group_docs_ranked_query(
     offset: int,
     require_membership: bool = True,
     tags: list[str] | None = None,
-    banned_users: list[str] | None = None,
 ) -> list[dict]:
     """The v3 discover query with power-mean ranking in SQL (the v1 scale-up).
 
@@ -2392,7 +2456,7 @@ def _group_docs_ranked_query(
 
     sql = (
         "SELECT b.doc_id, b.author_key, b.body, b.tags, b.created_at, b.ref_value, b.ad_mode, b.ad_target "
-        "FROM (" + _board_base_sql(group_ids, require_membership, tags, banned_users) + ") b "
+        "FROM (" + _board_base_sql(group_ids, require_membership, tags) + ") b "
         "LEFT JOIN (SELECT ref_value, count() AS reaction_count FROM (SELECT ref_value FROM documents "
         "WHERE deleted = 0 AND collection_name = 'reactions' "
         "QUALIFY row_number() OVER (PARTITION BY doc_id, author_key ORDER BY updated_at DESC) = 1) "
@@ -2430,7 +2494,6 @@ def read_documents_in_groups(
     sort: dict | None = None,
     require_membership: bool = True,
     tags: list[str] | None = None,
-    banned_users: list[str] | None = None,
 ) -> list[dict]:
     """Read documents attached to groups the reader can access.
 
@@ -2449,9 +2512,9 @@ def read_documents_in_groups(
     filter by its own tags. The Shorts feed is the first consumer (``['short']``);
     the render-time 9:16 gate on the client stays the backstop that drops fakes.
 
-    ``banned_users`` (D59a): the node's banned usernames — a banned author's
-    docs are filtered out (service-agnostic). Read once per request at the
-    endpoint and threaded in (not queried inside the SQL builder).
+    The node-level ban (D59a) is enforced by a LEFT ANTI JOIN against the
+    ``banned_users`` table inside the board base SQL — a banned author's docs
+    are filtered out, service-agnostic.
 
     Blocking/sharing enforcement (KB: security/overview.md "Blocking and
     Sharing", social/cross-app-sharing.md):
@@ -2466,7 +2529,7 @@ def read_documents_in_groups(
       (the author keeps seeing their own posts — "pause sharing without
       leaving").
 
-    All three tables are ReplacingMergeTree: block/unblock/toggle append a
+    All these tables are ReplacingMergeTree: block/unblock/toggle append a
     new version and the old row survives until a background merge. The
     anti-joins therefore dedup first (latest row per key, tombstones
     included) and then filter deleted = 0 — a raw `deleted = 0` join would
@@ -2480,9 +2543,9 @@ def read_documents_in_groups(
         # Power-mean ranking in SQL (the v1 scale-up): the board base is joined
         # to exact engagement counts, scored in SQL (mirroring the client), and
         # paged in ClickHouse — no full membership fetch into Python
-        return _group_docs_ranked_query(group_ids, member_key, service, sort, limit, offset, require_membership, tags, banned_users)
+        return _group_docs_ranked_query(group_ids, member_key, service, sort, limit, offset, require_membership, tags)
 
-    return _group_docs_query(group_ids, member_key, service, limit, offset, require_membership, tags, banned_users)
+    return _group_docs_query(group_ids, member_key, service, limit, offset, require_membership, tags)
 
 
 class QueryExecutionError(Exception):

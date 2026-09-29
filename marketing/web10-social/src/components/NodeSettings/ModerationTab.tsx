@@ -14,6 +14,7 @@ import {
   readHiddenPosts,
   unhidePostFromBoard,
   setUserBanned,
+  getBannedUsers,
   type ModerationFlag,
   type HiddenPost,
 } from '@/data/moderation';
@@ -60,7 +61,7 @@ export function ModerationTab() {
       setAutoModerate(Boolean(cfg.auto_moderate ?? true));
       setWords(Array.isArray(cfg.sensitive_words) ? (cfg.sensitive_words as string[]) : []);
       setHiddenUsers(Array.isArray(cfg.auto_hide_users) ? (cfg.auto_hide_users as string[]) : []);
-      setBannedUsers(Array.isArray(cfg.banned_users) ? (cfg.banned_users as string[]) : []);
+      setBannedUsers(await getBannedUsers());
     } catch (e) {
       toast.error(errorMessage(e, 'Failed to load the moderation settings'));
     } finally {

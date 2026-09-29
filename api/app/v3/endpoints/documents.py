@@ -3,7 +3,6 @@ import logging
 from fastapi import APIRouter, HTTPException, Request
 
 import app.exceptions as exceptions
-from app.services import config as config_svc
 from app.services.hls import hls_prefix, mint_sig
 from app.v3.endpoints.auth_helper import user as _user
 from app.v3.endpoints.auth_helper import user_or_anon
@@ -260,10 +259,6 @@ def read_documents(request: Request, data: ReadDocuments):
         docs = ch.attach_node_ads(docs, reader)
         return _mint_hls_manifest_urls(ch.resolve_media_urls_in_docs(docs), reader, authenticated)
 
-    # Node-level ban (D59a): a banned user's docs are filtered out of the
-    # board read (service-agnostic). Read once here and threaded in — keeps
-    # read_documents_in_groups pure (no config read inside the SQL builder).
-    banned = config_svc.banned_users()
     docs = ch.read_documents_in_groups(
         group_ids=group_ids,
         member_key=reader,
@@ -278,7 +273,6 @@ def read_documents(request: Request, data: ReadDocuments):
         # carry every given tag. A platform primitive — the Shorts feed is the
         # first consumer (["short"]); the render-time gate stays the backstop.
         tags=data.tags,
-        banned_users=banned,
     )
     # v3 ad preference: serve each pinned doc with its ad inline (I3-checked).
     docs = ch.attach_pinned_ads(docs, reader)

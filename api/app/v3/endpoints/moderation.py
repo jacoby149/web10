@@ -64,22 +64,34 @@ def moderation_auto_hide(data: ModerationAutoHide):
 
 @router.post("/ban", tags=["admin"])
 def moderation_ban(data: ModerationBan):
-    """Add or remove a username from the node's ``banned_users`` list (D59a —
-    the node-level ban). ``ban=True`` bans the user (their content is filtered
-    out of every read path — the board read + the query engine); ``ban=False``
-    unbans (their content returns). Node-local, reversible, admin only.
+    """Ban or unban a username (D59a — the node-level ban). ``ban=True`` bans
+    the user (their content is filtered out of every read path — the board
+    read + the query engine); ``ban=False`` unbans (their content returns).
+    Node-local, reversible, admin only.
+
+    Stored in the ``banned_users`` ClickHouse table (ReplacingMergeTree) —
+    not node_config. The read path enforces the ban via a LEFT ANTI JOIN
+    against the table (no config read, no inlined list).
     """
     check_admin(Token(token=data.token))
-    current = config_svc.get_config()
-    users = list(current.get("banned_users") or [])
     username = data.username.strip()
     if not username:
         raise exceptions.CRUD
-    if data.ban and username not in users:
-        users.append(username)
-    elif not data.ban and username in users:
-        users.remove(username)
-    current["banned_users"] = users
-    config_svc.save_config(current)
-    log.info("[moderation] ban %s %s", "added" if data.ban else "removed", username)
-    return {"username": username, "ban": data.ban, "banned_users": users}
+    if data.ban:
+        ch.ban_user(username, "node-admin")
+        log.info("[moderation] banned %s", username)
+    else:
+        ch.unban_user(username)
+        log.info("[moderation] unbanned %s", username)
+    return {"username": username, "ban": data.ban, "banned_users": ch.get_banned_users()}
+
+
+@router.post("/banned", tags=["admin"])
+def moderation_banned_list(data: ModerationFlags):
+    """List the node's banned users (D59a). Admin only.
+
+    Reads from the ``banned_users`` ClickHouse table (not node_config).
+    Returns the active (non-tombstoned) banned usernames with metadata.
+    """
+    check_admin(Token(token=data.token))
+    return {"banned_users": ch.get_banned_users_list()}

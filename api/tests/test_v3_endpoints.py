@@ -111,9 +111,6 @@ class TestRead:
             # D58 read gate: every candidate group is readable (gate logic is
             # unit-tested in test_v3_access.py; here we isolate the endpoint).
             patch("app.v3.services.clickhouse.readable_groups", side_effect=lambda p, s, a, c: c),
-            # The node-level ban read (D59a) is covered in test_moderation.py;
-            # keep the read-query mock sequence clean here.
-            patch("app.v3.endpoints.documents.config_svc.banned_users", return_value=[]),
         ):
             mock_ch.query.side_effect = [
                 MagicMock(result_rows=mock_groups),
@@ -324,9 +321,6 @@ class TestRead:
         with (
             patch("app.v3.services.clickhouse.client") as mock_ch,
             patch("app.v3.services.clickhouse.readable_groups", side_effect=lambda p, s, a, c: c),
-            # The node-level ban read (D59a) is covered in test_moderation.py;
-            # keep the read-query mock sequence clean here.
-            patch("app.v3.endpoints.documents.config_svc.banned_users", return_value=[]),
         ):
             mock_ch.query.side_effect = [
                 MagicMock(result_rows=mock_groups),
@@ -2058,9 +2052,6 @@ class TestDiscoverBoardAnonRead:
         with (
             patch("app.v3.services.clickhouse.client") as mock_ch,
             patch("app.v3.services.clickhouse.readable_groups", side_effect=lambda p, s, a, c: c),
-            # The node-level ban read (D59a) is covered in test_moderation.py;
-            # keep the read-query mock sequence clean here.
-            patch("app.v3.endpoints.documents.config_svc.banned_users", return_value=[]),
         ):
             # read_documents_in_groups is a single query
             mock_ch.query.return_value = MagicMock(result_rows=mock_docs)
