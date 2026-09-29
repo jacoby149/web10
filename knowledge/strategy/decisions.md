@@ -9,6 +9,22 @@ Status legend: [decided] intent set · [in-progress] · [open] still debating.
 
 ---
 
+### D83 — The watch page's author is the profile, not an overlay (reversal of the 3.170.0 "stay on the train" rule) [decided]
+
+Operator, 29.09.2026 — "you could also just have about go to their profile page, instead of this extra modal to maintain not sure though what do you think?" (after the watch page's author overlay showed a broken "J" avatar + no banner, and the Follow button read "Follow" on the operator's own video).
+
+**The decision.** The watch page's author row (avatar + name) **navigates to `/u/:username`** — the author's full profile. The 3.170.0 `AuthorOverlay` (the "stay on the train" drawer) is **deleted**. The profile page is the canonical "About" surface: banner, avatar, name, bio, stats, follow, the full post grid — and it is already deep-linkable.
+
+**Why the overlay was wrong (the part that tells you it's correct).** The overlay was a *second* profile surface — a redundant, lower-fidelity copy of the profile page (no banner, fewer posts, no stats). It also shipped with a real bug: it looked up the avatar at `mediaMap['avatar:'+avatar_ref]`, a key the watch page's post-media resolver (`resolvePostsMedia`) never populates — so the avatar always fell back to the initial-letter tile (the "J"), and there was no banner. A modal that is a worse version of the page it previews is friction, not a feature. And the app already had the convention: **every other surface's author click navigates to `/u/:username`** (the feed, the card, the Shorts lens, the comment thread, the search). The watch page was the lone holdout inventing its own modal.
+
+**The self case (the "Follow" bug).** On your own video the Follow button read "Follow" — because `isFollowing` is a followers-group membership check, and you are not a member of your *own* followers group. The correct state for self is **no Follow button** (you can't follow yourself), not a forced "Following." The button is now hidden when `author === token.username`.
+
+**What it rejects.** (1) **A second profile surface** — the overlay was a worse copy of the profile page; one canonical surface wins. (2) **The "stay on the train" rule as a hard constraint** — the original concern (a profile click yanks you off the video) is real but recoverable: the `?t=` URL still restores the exact playback position, so "off the train" is one browser-back. The cost of a clean, single author surface is worth that. (3) **A "Following" label on your own video** — self is a distinct state (no button), not a follow state.
+
+**The seam:** `marketing/web10-social/src/components/Watch/WatchScreen.tsx` (the `AuthorOverlay` component + the `overlayOpen` state + the `readUserPublicProfile`/author-posts fetch are gone; the author button navigates to `/u/:username`; the avatar is resolved from the profile's `avatar_ref` via `resolveMediaRefs`; the Follow button is hidden for self). KB: `social/watch-page.md` (the author section + decision #5 + "What this is not").
+
+---
+
 ### D82 — A post carries two bodies of text: an optional `title` (the headline) + `text` (the caption) — one field, app-owned, zero node surface [decided]
 
 Operator, 29.09.2026 — "i am thinking to shorts, videos, hot gossip, the three things, posts should have title and caption, not just one. i.e. two bodies of text would be richer for all three formats. what do you think? definitely a little different from regular social media." → "definitely effects all the screens, they all have to make decisions on displaying title AND/OR caption, two text fields instead of just one. and the implications for ads too, also should fit in with posts potentially!"
