@@ -91,6 +91,8 @@ const initialRoute =
   : screen === 'composer' ? '/composer'
   : screen === 'notifications' ? '/notifications'
     : screen === 'discover' ? '/discover'
+    : screen === 'video' ? '/video'
+    : screen === 'hot-gossip' ? '/hot-gossip'
     : screen === 'discover-searched' ? '/discover?q=lofi'
     : screen === 'discover-people-searched' ? '/discover?tab=explore&q=lofi'
     : screen === 'discover-grid' ? '/discover?view=grid'
@@ -130,6 +132,8 @@ createRoot(document.getElementById('root')!).render(
         <Route path="/composer" element={<PostComposer />} />
         <Route path="/notifications" element={<NotificationsScreen />} />
         <Route path="/discover" element={<DiscoverScreen />} />
+        <Route path="/video" element={<DiscoverScreen />} />
+        <Route path="/hot-gossip" element={<DiscoverScreen />} />
         <Route path="/watch/:postId" element={<WatchScreen />} />
         <Route path="/shorts" element={<ShortsScreen />} />
         <Route path="/shorts/:postId" element={<ShortsScreen />} />
