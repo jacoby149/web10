@@ -338,7 +338,7 @@ existing idiom). No second data path.
     (typing on each of the four tabs writes `?q=` debounced; the field seeds
     from the tab's `?q=`; the X clears the field AND the tab's `?q=`; typing on
     a non-destination route writes no `?q=`; Enter on an open tab stays on the
-    tab). 1118 web10-social tests green, `tsc` clean. **No node change (D60 —
+    tab). 1124 web10-social tests green, `tsc` clean. **No node change (D60 —
     entirely client-side).**
 
 **Ownership:** this lane owns `Layout.tsx`, `src/components/Search/`,
