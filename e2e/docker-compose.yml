@@ -103,6 +103,13 @@ services:
       PORT: "80"
       VIRTUAL_HOST: rtc.localhost
       CHOKIDAR_USEPOLLING: "true"
+      # The e2e stack is HTTP-only (the proxy maps :80, no TLS), so the default
+      # https://{provider}/certify gate would never be reached. Point it at the
+      # API by its docker service name on the shared network so the /certify
+      # gate is actually exercised (and the fail-closed .catch in api/rtc can
+      # drop a socket if it ever fails). Without this, the P2P specs pass via
+      # the network-failure bypass instead of proving the gate works.
+      CERTIFY_BASE_URL: http://api
     networks:
       - e2e-net
 
