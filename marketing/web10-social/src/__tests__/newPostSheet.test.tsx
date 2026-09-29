@@ -98,6 +98,27 @@ describe('The app-level New Post sheet + FAB', () => {
     expect(screen.queryByTestId('post-composer')).not.toBeInTheDocument();
   });
 
+  it('the FAB is hidden on the Messages surface (it would cover the send button)', async () => {
+    installWeb10Mock({
+      token: 'signed-in-token',
+      payload: { username: 'testuser', provider: 'test.localhost', site: 'web10' },
+    });
+    const { default: App } = await import('@/App');
+    render(
+      <MemoryRouter initialEntries={['/messages']}>
+        <App />
+      </MemoryRouter>,
+    );
+    // The messages surface is up (the conversation list / empty state).
+    await waitFor(() => {
+      expect(
+        screen.queryByTestId('dms-empty') ?? screen.queryByTestId('dms-screen'),
+      ).toBeInTheDocument();
+    });
+    // The FAB is NOT there — a chat has its own bottom-right send button.
+    expect(screen.queryByTestId('new-post-fab')).not.toBeInTheDocument();
+  });
+
   it('tapping the FAB opens the sheet with the full composer', async () => {
     installWeb10Mock({
       token: 'signed-in-token',

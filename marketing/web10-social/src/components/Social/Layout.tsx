@@ -781,9 +781,11 @@ export default function Layout({ onLogout, onLogin, isAnon: isAnonProp, onReport
         {/* The floating "New Post" button — the only resting compose chrome
             (the inline composer boxes are retired; the full composer pops up
             in the app-level sheet on tap). Hidden on the Shorts lens (the
-            immersive surface keeps its full-bleed frame) and in anon mode
-            (a signed-out visitor can't post). */}
-        <NewPostFab hidden={isShorts || isAnon} />
+            immersive surface keeps its full-bleed frame), on the Messages
+            surface (a chat has its own bottom-right send button the FAB would
+            cover — and a "new post" affordance inside a conversation is noise),
+            and in anon mode (a signed-out visitor can't post). */}
+        <NewPostFab hidden={isShorts || isAnon || pathname.startsWith('/messages')} />
       </main>
     </div>
   );
