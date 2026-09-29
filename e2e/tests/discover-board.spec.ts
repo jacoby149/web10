@@ -252,10 +252,10 @@ test.describe('Discover board gauntlet — marketing trending page + moderation'
     await page.waitForTimeout(3000);
 
     // --- Load the marketing Hot Gossip destination (anon — no auth needed) ---
-    // The Discover split (3.171.0) flattened the old /trending salad (?view=grid
-    // toggle + ?tab= row) to flat routes: /hot-gossip is the ranked post board
-    // (the old ?view=grid). This test exercises that board.
-    await page.goto(`${MARKETING_BASE}/hot-gossip`);
+    // The pre-split layout (3.173.0) moved the four flat destinations under
+    // /trending: /trending/hot-gossip is the ranked post board. This test
+    // exercises that board.
+    await page.goto(`${MARKETING_BASE}/trending/hot-gossip`);
     await page.waitForLoadState('networkidle');
     await expect(page.locator('[data-testid="trending-grid"]')).toBeVisible({ timeout: 30_000 });
 
