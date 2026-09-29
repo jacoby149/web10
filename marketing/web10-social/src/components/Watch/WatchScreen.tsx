@@ -17,6 +17,7 @@ import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 import {
   readDiscoverFeed,
+  readPostById,
   resolveMediaRefs,
   getV3Client,
   getDiscoverGroupId,
@@ -39,6 +40,7 @@ import {
   type ReactionKind,
 } from '@/data';
 import { getWapi } from '@/data/wapi';
+import { useRepost } from '@/context/RepostContext';
 import { defaultKnobState, knobStateToSort, type KnobState, type PowerMeanSortConfig } from '@/lib/powerMean';
 import {
   rankWatchQueue,
@@ -345,20 +347,11 @@ export default function WatchScreen() {
 
       // 1. The post by doc_id (anon-capable — the node's read-by-id is
       //    user_or_anon, so a signed-out visitor lands on a working screen).
-      let p: PostRecord | null = null;
-      try {
-        const doc = await w.readById(postId, 'posts');
-        p = {
-          _id: doc.doc_id,
-          text: (doc.body.text as string) || undefined,
-          media_refs: (doc.body.media_refs as (string | ResolvedMediaRef)[]) || undefined,
-          created_at: doc.created_at,
-          updated_at: doc.updated_at,
-          tags: doc.tags || (doc.body.tags as string[]) || undefined,
-          author_username: (doc.body.author_username as string) || undefined,
-          author_provider: (doc.body.author_provider as string) || undefined,
-        };
-      } catch { /* not found */ }
+      //    The canonical mapper (`fromV3DocToPost`) derives the author from
+      //    the doc's `author_key` — the post body carries no author fields
+      //    (the write path never puts them there), so a body read renders
+      //    "Unknown".
+      const p = await readPostById(postId);
       if (!p) { setNotFound(true); setLoading(false); return; }
       setPost(p);
 
@@ -483,6 +476,18 @@ export default function WatchScreen() {
       setDislikes((v) => Math.max(0, v - dislikeDelta));
     }
   }, [token, post, liked, disliked]);
+
+  // ── Repost (reposts.md): a repost is a POST, not a reaction toggle. The
+  //    repeat icon opens the app-level composer in repost mode (the shared
+  //    RepostContext seam — the same composer the feed uses) and returns to
+  //    the feed, where the composer lives. The composer's createRepost is the
+  //    single write; the count + fill re-derive on the next load.
+  const { setRepostingTo } = useRepost();
+  const handleRepost = useCallback(() => {
+    if (!token || !post) return;
+    setRepostingTo(post);
+    navigate('/feed');
+  }, [token, post, setRepostingTo, navigate]);
 
   // ── Follow toggle (the overlay + the author row) ───────────────────────────
   const handleToggleFollow = useCallback(async () => {
@@ -628,9 +633,12 @@ export default function WatchScreen() {
           reposted={reposted}
           repostCount={reposts}
           onToggleReaction={(kind) => void handleToggleReaction(kind)}
+          onToggleRepost={handleRepost}
           groups={[getDiscoverGroupId()]}
           postAuthor={author}
           onAuthorClick={(username, provider) => navigate(`/u/${username}`, { state: { provider: provider || '' } })}
+          dislike="interactive"
+          repost={isAnon ? 'display' : 'interactive'}
           testId="watch-post-actions"
         />
       </div>
