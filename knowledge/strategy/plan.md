@@ -157,8 +157,8 @@ The fix is two pieces. **The watch page** is the YouTube-shaped video destinatio
 - [✓ 3.170.0] **The author overlay** (`AuthorOverlay` in `WatchScreen.tsx`) — the profile drawer (face, bio, follow, recent posts, "View all posts" → `/u/:username`), the "stay on the train" rule. Lane: `watch-page` W3.
 - [✓ 3.170.0] **The Home card's click re-point** (`DiscoverScreen.tsx`) — portrait → `/shorts/:postId`, landscape → `/watch/:postId?from=discover&knobs=…` (the aspect-ratio branch, replacing the profile+lightbox destination). Lane: `watch-page` W4.
 - [ ] **The e2e + screenshot pass** (`e2e/tests/social-watch.spec.ts`) — the watch page gauntlet + the `?t=` round-trip + the screenshots. **Screenshots done (3.170.0: `watch-{desktop,375}.png`); the browser e2e gauntlet is still open.** Lane: `watch-page` W5.
-- [ ] **The Discover split — social app** (`Layout.tsx`, `DiscoverScreen.tsx`, `App.tsx`) — the four flat destinations **Video · Shorts · Hot Gossip · People**; the `?view=`/`?tab=` salad retires. Lane: `discover-split` S1.
-- [ ] **The Discover split — marketing site** (`Navbar.tsx`, `App.tsx`, `Trending.tsx`) — `Home`→`About`, `Discover`→`Home` (the front door), the experience nav sidebar **Video · Shorts · Hot Gossip · People**. Lane: `discover-split` S2. **Sequenced after the watch page** (the watch page's entry point moves from the Home view toggle to the Video sidebar item).
+- [✓ 3.171.0] **The Discover split — social app** (`Layout.tsx`, `DiscoverScreen.tsx`, `App.tsx`) — the four flat destinations **Video · Shorts · Hot Gossip · People**; the `?view=`/`?tab=` salad retires. Lane: `discover-split` S1.
+- [✓ 3.171.0] **The Discover split — marketing site** (`Navbar.tsx`, `App.tsx`, `Trending.tsx`) — `Home`→`About`, `Discover`→`Home` (the front door), the experience nav sidebar **Video · Shorts · Hot Gossip · People**. Lane: `discover-split` S2. **Sequenced after the watch page** (the watch page's entry point moves from the Home view toggle to the Video sidebar item).
 
 ## Share Preview: Rich Post Permalinks (D71)
 

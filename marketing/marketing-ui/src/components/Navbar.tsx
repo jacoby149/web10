@@ -6,13 +6,22 @@ import GitHubStarButton from './GitHubStarButton'
 import { trackFunnel } from '../lib/analytics'
 import { SOCIAL_ORIGIN } from '../lib/origins'
 
+// The nav leads with the product (watch-page.md, the Discover split): the
+// social EXPERIENCE is the front door (Home, `/` — the Video wall), and the
+// pitch (the old landing page) is About, last. The experience first, the
+// pitch last.
 const navItems = [
   { path: '/', label: 'Home' },
-  { path: '/trending', label: 'Discover' },
   { path: '/app-store', label: 'App Store' },
   { path: '/import', label: 'Import Your Life' },
   { path: '/join', label: 'Join' },
+  { path: '/about', label: 'About' },
 ]
+
+// The experience's sub-destinations (the /trending split, now at `/`): Home
+// stays lit while the visitor is anywhere in the experience (the Video wall,
+// Shorts, Hot Gossip, People).
+const EXPERIENCE_PATHS = ['/shorts', '/hot-gossip', '/people']
 
 const learnItems = [
   { path: '/freedom', label: 'Freedom' },
@@ -36,8 +45,13 @@ function Navbar({ onReportBug }: { onReportBug: () => void }) {
     learnTimer.current = setTimeout(() => setLearnOpen(false), 100)
   }, [])
 
-  const isActive = (path: string) =>
-    location.pathname === path || (path !== '/' && location.pathname.startsWith(path))
+  const isActive = (path: string) => {
+    if (path === '/') {
+      // Home = the experience: the bare `/` (Video wall) + its sub-destinations.
+      return location.pathname === '/' || EXPERIENCE_PATHS.some(p => location.pathname.startsWith(p))
+    }
+    return location.pathname === path || location.pathname.startsWith(path)
+  }
 
   const isLearnActive = learnItems.some(item => isActive(item.path))
 
@@ -124,7 +138,7 @@ function Navbar({ onReportBug }: { onReportBug: () => void }) {
 
         <div className="hidden items-center gap-2 md:flex">
           <Link
-            to="/trending?focus=search"
+            to="/?focus=search"
             className="group flex h-9 w-9 items-center justify-center rounded-md text-muted-foreground transition-colors duration-150 ease-out hover:bg-elevated hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
             aria-label="Search"
           >

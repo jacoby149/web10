@@ -18,7 +18,8 @@ import type { DiscoverPost, MediaItem } from './types';
  *      badge. For a video, the thumbnail is the **hover preview**
  *      (`HoverVideo`): the poster at rest, the clip playing muted on hover
  *      with a top-right speaker toggle (the YouTube home behavior) — the
- *      frame stays inert, the `<a>` owns the click.
+ *      frame stays inert, the `<a>` owns the click. `frame="portrait"`
+ *      switches the tile to the 9:16 Shorts wall's vertical shape.
  *   2. the title — the post text, truncated to `TITLE_LIMIT` chars with a
  *      trailing ellipsis (the "show it if it's short, else …" rule);
  *   3. the attribution — the author's avatar + display name + a relative time.
@@ -67,6 +68,9 @@ export interface HomeCardProps {
   onAuthorClick?: () => void;
   /** Remote (marketing) mode: anon, link-outs to web10 social. */
   remote?: boolean;
+  /** The thumbnail's frame: `landscape` (16:9, the video wall — the default)
+      or `portrait` (9:16, the Shorts wall — the vertical lens's shape). */
+  frame?: 'landscape' | 'portrait';
   /** A DOM id for the card. */
   id?: string;
   className?: string;
@@ -89,6 +93,7 @@ export function HomeCard({
   onPostClick,
   onAuthorClick,
   remote = false,
+  frame = 'landscape',
   id,
   className,
   testId = 'home-card',
@@ -153,11 +158,12 @@ export function HomeCard({
       id={id}
       className={cn('group flex flex-col', className)}
     >
-      {/* 1. The thumbnail — a 16:9 frame that fills the card width. */}
+      {/* 1. The thumbnail — a 16:9 frame that fills the card width (the video
+          wall); `frame="portrait"` is the 9:16 Shorts wall's vertical tile. */}
       <a
         {...postLinkProps}
         data-testid={`${testId}-thumb`}
-        className="group/thumb relative block aspect-video w-full overflow-hidden rounded-lg bg-elevated"
+        className={`group/thumb relative block w-full overflow-hidden rounded-lg bg-elevated ${frame === 'portrait' ? 'aspect-[9/16]' : 'aspect-video'}`}
       >
         {thumbSrc ? (
           isVideo && media ? (

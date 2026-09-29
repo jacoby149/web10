@@ -251,10 +251,11 @@ test.describe('Discover board gauntlet — marketing trending page + moderation'
     // so the browser's read sees the row.
     await page.waitForTimeout(3000);
 
-    // --- Load the marketing trending page (anon — no auth needed) ---
-    // ?view=grid — the Home view (the video wall) is the default; this test
-    // exercises the Hot Gossip board (the ranked post grid).
-    await page.goto(`${MARKETING_BASE}/trending?view=grid`);
+    // --- Load the marketing Hot Gossip destination (anon — no auth needed) ---
+    // The Discover split (3.171.0) flattened the old /trending salad (?view=grid
+    // toggle + ?tab= row) to flat routes: /hot-gossip is the ranked post board
+    // (the old ?view=grid). This test exercises that board.
+    await page.goto(`${MARKETING_BASE}/hot-gossip`);
     await page.waitForLoadState('networkidle');
     await expect(page.locator('[data-testid="trending-grid"]')).toBeVisible({ timeout: 30_000 });
 

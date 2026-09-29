@@ -286,18 +286,18 @@ describe('GlobalSearch — S2 results (people-first + Trending toggle)', () => {
     fireEvent.focus(field);
     fireEvent.change(field, { target: { value: 'alice' } });
     await screen.findByTestId('global-search-person-alice');
-    // Enter (People mode, the default) opens Discover's People tab with the
+    // Enter (People mode, the default) opens the People destination with the
     // query — the "see all" lands where the small results came from.
     fireEvent.keyDown(field, { key: 'Enter' });
     await waitFor(() => {
-      expect(probeLocation).toBe('/discover?tab=explore&q=alice');
+      expect(probeLocation).toBe('/people?q=alice');
     });
   });
 
-  it('Enter in Trending mode stays on the active tab (the S5 hand-off)', async () => {
+  it('Enter in Posts mode opens the Hot Gossip destination with the query', async () => {
     probeLocation = '';
     render(
-      <MemoryRouter initialEntries={['/discover?tab=explore']}>
+      <MemoryRouter initialEntries={['/hot-gossip']}>
         <GlobalSearch variant="desktop" />
         <LocationProbe />
       </MemoryRouter>,
@@ -306,15 +306,15 @@ describe('GlobalSearch — S2 results (people-first + Trending toggle)', () => {
     fireEvent.focus(field);
     fireEvent.change(field, { target: { value: 'alice' } });
     await screen.findByTestId('global-search-mode-toggle');
-    // Flip to Trending mode — Enter keeps the active tab (?tab=explore).
+    // Flip to Posts mode — Enter opens Hot Gossip (the ranked post board).
     fireEvent.click(screen.getByTestId('global-search-mode-posts'));
     fireEvent.keyDown(field, { key: 'Enter' });
     await waitFor(() => {
-      expect(probeLocation).toBe('/discover?tab=explore&q=alice');
+      expect(probeLocation).toBe('/hot-gossip?q=alice');
     });
   });
 
-  it('the "See all results in Discover" CTA navigates to the People tab with the query', async () => {
+  it('the "See all results" CTA navigates to the People destination with the query', async () => {
     vi.mocked(searchPeople).mockResolvedValue([
       { username: 'alice', provider: 'web10', display_name: 'Alice Smith', followers_count: 100, is_following: false },
     ] as any);
@@ -326,7 +326,7 @@ describe('GlobalSearch — S2 results (people-first + Trending toggle)', () => {
     const cta = await screen.findByTestId('global-search-open-explore');
     fireEvent.click(cta);
     await waitFor(() => {
-      expect(probeLocation).toBe('/discover?tab=explore&q=alice');
+      expect(probeLocation).toBe('/people?q=alice');
     });
   });
 
