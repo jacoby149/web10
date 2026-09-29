@@ -80,9 +80,15 @@ interface PostLightboxProps {
   postService?: string;
   isOwner?: boolean;
   highlightedCommentId?: string;
+  // Instagram-style post navigation (the profile grid's modal): when the
+  // parent supplies a prev/next post, the lightbox's side arrows step through
+  // the PROFILE'S posts (not the post's media). The parent owns the list +
+  // the index; the lightbox just swaps the `post` prop it renders.
+  onPrevPost?: () => void;
+  onNextPost?: () => void;
 }
 
-export function PostLightbox({ post, mediaMap, onClose, onReload, postAuthor, postService, isOwner: isOwnerProp, highlightedCommentId }: PostLightboxProps) {
+export function PostLightbox({ post, mediaMap, onClose, onReload, postAuthor, postService, isOwner: isOwnerProp, highlightedCommentId, onPrevPost, onNextPost }: PostLightboxProps) {
   const navigate = useNavigate();
   // Track the live post — initialized from the prop but updated in-place
   // after mutations (visibility toggle, edit) so a re-toggle uses the fresh
@@ -95,6 +101,17 @@ export function PostLightbox({ post, mediaMap, onClose, onReload, postAuthor, po
   const [index, setIndex] = useState(0);
   const hasMedia = media.length > 0;
   const multiple = media.length > 1;
+
+  // The parent can swap the post in place (the profile grid's Instagram-style
+  // prev/next post arrows). `currentPost` is internal state (it tracks
+  // in-place mutations like the visibility toggle's new _id), so a prop swap
+  // must re-sync it — and the media index resets to the first frame of the
+  // new post. (The initial mount is a no-op: the state already equals the
+  // prop.)
+  useEffect(() => {
+    setCurrentPost(post);
+    setIndex(0);
+  }, [post]);
 
   // Like state (post-actions.md: the reaction pair — like XOR dislike). The
   // like and dislike counts are tracked separately (each tally shows its own
@@ -171,9 +188,16 @@ export function PostLightbox({ post, mediaMap, onClose, onReload, postAuthor, po
     setIndex(i => (i + 1) % media.length);
   }, [media.length]);
 
+  const hasPostNav = Boolean(onPrevPost || onNextPost);
+
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if (e.key === 'Escape') onClose();
+      // With post navigation (the profile grid), the arrows step through the
+      // PROFILE'S posts — Instagram's model. Without it, they page the
+      // post's own media (the multi-frame carousel).
+      else if (e.key === 'ArrowLeft' && hasPostNav) onPrevPost?.();
+      else if (e.key === 'ArrowRight' && hasPostNav) onNextPost?.();
       else if (e.key === 'ArrowLeft' && multiple) prev();
       else if (e.key === 'ArrowRight' && multiple) next();
     };
@@ -184,7 +208,7 @@ export function PostLightbox({ post, mediaMap, onClose, onReload, postAuthor, po
       window.removeEventListener('keydown', onKey);
       document.body.style.overflow = prevOverflow;
     };
-  }, [onClose, prev, next, multiple]);
+  }, [onClose, prev, next, multiple, hasPostNav, onPrevPost, onNextPost]);
 
   // Load reaction + comment state (the lightbox reads fresh — it's a modal,
   // not a feed). The like and dislike counts are derived from the reactions
@@ -617,8 +641,36 @@ export function PostLightbox({ post, mediaMap, onClose, onReload, postAuthor, po
               )}
             </div>
           )}
+          </div>
         </div>
-      </div>
+
+      {/* Instagram-style post navigation (the profile grid's modal): the side
+          arrows live on the backdrop, outside the panel — the modal steps
+          through the PROFILE'S posts, not just the post's media. (The
+          media-carousel arrows stay inside the media pane, for the
+          post's own frames.) */}
+      {onPrevPost && (
+        <button
+          type="button"
+          onClick={(e) => { e.stopPropagation(); onPrevPost(); }}
+          aria-label="Previous post"
+          data-testid="post-lightbox-prev-post"
+          className="absolute left-2 top-1/2 -translate-y-1/2 z-10 rounded-full bg-background/60 p-2 text-foreground backdrop-blur-sm transition-colors hover:bg-background/80 sm:left-4"
+        >
+          <ChevronLeft className="h-6 w-6" />
+        </button>
+      )}
+      {onNextPost && (
+        <button
+          type="button"
+          onClick={(e) => { e.stopPropagation(); onNextPost(); }}
+          aria-label="Next post"
+          data-testid="post-lightbox-next-post"
+          className="absolute right-2 top-1/2 -translate-y-1/2 z-10 rounded-full bg-background/60 p-2 text-foreground backdrop-blur-sm transition-colors hover:bg-background/80 sm:right-4"
+        >
+          <ChevronRight className="h-6 w-6" />
+        </button>
+      )}
     </div>
   );
 }
