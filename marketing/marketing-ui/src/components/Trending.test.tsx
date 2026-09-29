@@ -1,7 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, fireEvent, waitFor, within } from '@testing-library/react';
 import '@testing-library/jest-dom';
-import { MemoryRouter } from 'react-router-dom';
+import { MemoryRouter, Routes, Route } from 'react-router-dom';
 import { TrendingCard, parseCreatedAt, type FeedPost } from '@/components/FeedPreview';
 
 // Lane D — coverage for the /trending page pieces (D-trending-*).
@@ -304,9 +304,8 @@ describe('Trending page', () => {
 
   it('renders a ranked grid and the Top 10 sidebar from the discovery API', async () => {
     mockDiscoverFeed();
-    window.history.replaceState(null, '', '?view=grid');
     const { default: Trending } = await import('@/pages/Trending');
-    render(<MemoryRouter initialEntries={['/trending' + window.location.search]}><Trending /></MemoryRouter>);
+    render(<MemoryRouter initialEntries={['/hot-gossip' + window.location.search]}><Trending /></MemoryRouter>);
     await waitFor(() => expect(screen.getByTestId('trending-grid')).toBeInTheDocument());
     expect(screen.getAllByTestId('trending-card')).toHaveLength(20);
     const sidebar = screen.getByTestId('trending-sidebar');
@@ -315,9 +314,8 @@ describe('Trending page', () => {
 
   it('shows Load more when a full page returns, and fetches the next page', async () => {
     mockDiscoverFeed();
-    window.history.replaceState(null, '', '?view=grid');
     const { default: Trending } = await import('@/pages/Trending');
-    render(<MemoryRouter initialEntries={['/trending' + window.location.search]}><Trending /></MemoryRouter>);
+    render(<MemoryRouter initialEntries={['/hot-gossip' + window.location.search]}><Trending /></MemoryRouter>);
     const loadMore = await screen.findByTestId('trending-load-more');
     // The component reads the discover group via /v3/read (anon). Load more
     // re-reads with a higher page limit → more /v3/read calls.
@@ -331,9 +329,8 @@ describe('Trending page', () => {
 
   it('renders the empty story beat when the network is quiet', async () => {
     mockDiscoverFeed([]);
-    window.history.replaceState(null, '', '?view=grid');
     const { default: Trending } = await import('@/pages/Trending');
-    render(<MemoryRouter initialEntries={['/trending' + window.location.search]}><Trending /></MemoryRouter>);
+    render(<MemoryRouter initialEntries={['/hot-gossip' + window.location.search]}><Trending /></MemoryRouter>);
     await waitFor(() => expect(screen.getByTestId('trending-empty')).toBeInTheDocument());
     expect(screen.getByText('The network is quiet')).toBeInTheDocument();
     expect(screen.getByTestId('trending-empty-cta')).toHaveAttribute('href');
@@ -341,9 +338,8 @@ describe('Trending page', () => {
 
   it('filters the grid by topic chip', async () => {
     mockDiscoverFeed();
-    window.history.replaceState(null, '', '?view=grid');
     const { default: Trending } = await import('@/pages/Trending');
-    render(<MemoryRouter initialEntries={['/trending' + window.location.search]}><Trending /></MemoryRouter>);
+    render(<MemoryRouter initialEntries={['/hot-gossip' + window.location.search]}><Trending /></MemoryRouter>);
     await waitFor(() => expect(screen.getByTestId('trending-grid')).toBeInTheDocument());
     const codeChip = screen.getAllByTestId('trending-topic').find(el => el.textContent === '#code');
     expect(codeChip).toBeDefined();
@@ -353,9 +349,8 @@ describe('Trending page', () => {
 
   it('like is display-only in remote mode (anon can\'t like; no count change)', async () => {
     mockDiscoverFeed();
-    window.history.replaceState(null, '', '?view=grid');
     const { default: Trending } = await import('@/pages/Trending');
-    render(<MemoryRouter initialEntries={['/trending' + window.location.search]}><Trending /></MemoryRouter>);
+    render(<MemoryRouter initialEntries={['/hot-gossip' + window.location.search]}><Trending /></MemoryRouter>);
     await waitFor(() => expect(screen.getByTestId('trending-grid')).toBeInTheDocument());
     const firstCard = screen.getAllByTestId('trending-card')[0];
     // Remote mode: the like is a display span (a count), not a tappable button.
@@ -381,9 +376,8 @@ describe('Trending page', () => {
       ...makeV3Posts(5),
     ];
     mockDiscoverFeed(posts);
-    window.history.replaceState(null, '', '?view=grid');
     const { default: Trending } = await import('@/pages/Trending');
-    render(<MemoryRouter initialEntries={['/trending' + window.location.search]}><Trending /></MemoryRouter>);
+    render(<MemoryRouter initialEntries={['/hot-gossip' + window.location.search]}><Trending /></MemoryRouter>);
     await waitFor(() => expect(screen.getByTestId('trending-grid')).toBeInTheDocument());
     // Only the 5 real posts render — both ad docs are dropped from the board.
     expect(screen.getAllByTestId('trending-card')).toHaveLength(5);
@@ -405,7 +399,7 @@ describe('Knob rack renders', () => {
   it('shows the knob rack with 3 knobs and 3 presets after load', async () => {
     mockDiscoverFeed(makeV3Posts(10));
     const { default: Trending } = await import('@/pages/Trending');
-    render(<MemoryRouter initialEntries={['/trending' + window.location.search]}><Trending /></MemoryRouter>);
+    render(<MemoryRouter initialEntries={['/hot-gossip' + window.location.search]}><Trending /></MemoryRouter>);
     await waitFor(() => expect(screen.getByTestId('knob-rack')).toBeInTheDocument());
     expect(screen.getByTestId('knob-recency')).toBeInTheDocument();
     expect(screen.getByTestId('knob-likes')).toBeInTheDocument();
@@ -443,9 +437,8 @@ describe('Knob re-ranking', () => {
     // The older post has 5 reactions (high engagement); the newer post has 1.
     const reactions: Record<string, number> = { 'older-post': 5, 'newer-post': 1 };
     mockDiscoverFeed(posts, reactions);
-    window.history.replaceState(null, '', '?view=grid');
     const { default: Trending } = await import('@/pages/Trending');
-    render(<MemoryRouter initialEntries={['/trending' + window.location.search]}><Trending /></MemoryRouter>);
+    render(<MemoryRouter initialEntries={['/hot-gossip' + window.location.search]}><Trending /></MemoryRouter>);
     await waitFor(() => expect(screen.getByTestId('trending-grid')).toBeInTheDocument());
     const initialCards = screen.getAllByTestId('trending-card');
     const initialOrder = initialCards.map(c => c.id);
@@ -482,9 +475,8 @@ describe('Preset behavior', () => {
     // The old post has 5 reactions (high engagement); the new post has none.
     const reactions: Record<string, number> = { 'old-post': 5 };
     mockDiscoverFeed(posts, reactions);
-    window.history.replaceState(null, '', '?view=grid');
     const { default: Trending } = await import('@/pages/Trending');
-    render(<MemoryRouter initialEntries={['/trending' + window.location.search]}><Trending /></MemoryRouter>);
+    render(<MemoryRouter initialEntries={['/hot-gossip' + window.location.search]}><Trending /></MemoryRouter>);
     await waitFor(() => expect(screen.getByTestId('trending-grid')).toBeInTheDocument());
     fireEvent.click(screen.getByTestId('preset-most-recent'));
     await waitFor(() => {
@@ -501,9 +493,8 @@ describe('Preset behavior', () => {
     // The old post has 5 reactions (high engagement); the new post has 1.
     const reactions: Record<string, number> = { 'old-post': 5, 'new-post': 1 };
     mockDiscoverFeed(posts, reactions);
-    window.history.replaceState(null, '', '?view=grid');
     const { default: Trending } = await import('@/pages/Trending');
-    render(<MemoryRouter initialEntries={['/trending' + window.location.search]}><Trending /></MemoryRouter>);
+    render(<MemoryRouter initialEntries={['/hot-gossip' + window.location.search]}><Trending /></MemoryRouter>);
     await waitFor(() => expect(screen.getByTestId('trending-grid')).toBeInTheDocument());
     fireEvent.click(screen.getByTestId('preset-most-liked'));
     await waitFor(() => {
@@ -523,7 +514,7 @@ describe('Preset behavior', () => {
     window.location.hash = '';
     mockDiscoverFeed();
     const { default: Trending } = await import('@/pages/Trending');
-    render(<MemoryRouter initialEntries={['/trending' + window.location.search]}><Trending /></MemoryRouter>);
+    render(<MemoryRouter initialEntries={['/hot-gossip' + window.location.search]}><Trending /></MemoryRouter>);
     await waitFor(() => expect(screen.getByTestId('knob-rack')).toBeInTheDocument());
 
     // Balanced is the default — lit before any click.
@@ -786,54 +777,169 @@ describe('TrendingMedia transcoded HLS (the greyed-out-tile fix)', () => {
   });
 });
 
-// ── D-trending-views: view toggle + YouTube view ─────────────────────────────
+// ── The Discover split (watch-page.md): the salad retires to four flat
+//     destinations (Video · Shorts · Hot Gossip · People). The `?view=`
+//     toggle + the `?tab=` row are gone; legacy URLs redirect. ───────────────
 
-describe('Trending view toggle', () => {
+describe('The Discover split (the salad retires)', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     vi.stubGlobal('fetch', vi.fn());
     vi.stubGlobal('open', vi.fn());
     Element.prototype.scrollIntoView = vi.fn();
-    // Each test starts from the bare URL (no ?view=) — the default view is Home.
-    // (Other describes set ?view=grid; reset it so it doesn't leak.)
     window.history.replaceState(null, '', '/');
   });
 
-  it('renders the view toggle with Home and Hot Gossip buttons after load', async () => {
+  it('the Video destination (the bare URL) has no tab row and no view toggle', async () => {
     mockDiscoverFeed(makeV3PostsMedia(6));
     const { default: Trending } = await import('@/pages/Trending');
-    render(<MemoryRouter initialEntries={['/trending' + window.location.search]}><Trending /></MemoryRouter>);
-    await waitFor(() => expect(screen.getByTestId('trending-view-toggle')).toBeInTheDocument());
-    expect(screen.getByTestId('view-toggle-home')).toBeInTheDocument();
-    expect(screen.getByTestId('view-toggle-grid')).toBeInTheDocument();
+    render(<MemoryRouter initialEntries={['/trending']}><Trending /></MemoryRouter>);
+    await waitFor(() => expect(screen.getByTestId('trending-home-grid')).toBeInTheDocument());
+    // The salad is gone — the sidebar (ExperienceShell) owns the nav now.
+    expect(screen.queryByTestId('trending-tab-row')).not.toBeInTheDocument();
+    expect(screen.queryByTestId('trending-view-toggle')).not.toBeInTheDocument();
   });
 
-  it('shows the Home view by default (no ?view= param)', async () => {
-    mockDiscoverFeed(makeV3PostsMedia(6));
+  it('the Hot Gossip destination renders the board (no toggle, no tabs)', async () => {
+    mockDiscoverFeed(makeV3Posts(6));
     const { default: Trending } = await import('@/pages/Trending');
-    render(<MemoryRouter initialEntries={['/trending' + window.location.search]}><Trending /></MemoryRouter>);
-    await waitFor(() => expect(screen.getByTestId('trending-home-grid')).toBeInTheDocument());
+    render(<MemoryRouter initialEntries={['/hot-gossip']}><Trending /></MemoryRouter>);
+    await waitFor(() => expect(screen.getByTestId('trending-grid')).toBeInTheDocument());
+    expect(screen.queryByTestId('trending-tab-row')).not.toBeInTheDocument();
+    expect(screen.queryByTestId('trending-view-toggle')).not.toBeInTheDocument();
+    expect(screen.queryByTestId('trending-home-grid')).not.toBeInTheDocument();
+  });
+
+  it('the People destination renders the people + groups browser', async () => {
+    mockFetch({
+      '/v3/read': [],
+      '/v3/users/directory': { users: [], limit: 24, offset: 0 },
+      '/v3/groups/directory': { groups: [], limit: 24, offset: 0 },
+    });
+    const { default: Trending } = await import('@/pages/Trending');
+    render(<MemoryRouter initialEntries={['/people']}><Trending /></MemoryRouter>);
+    await waitFor(() => expect(screen.getByTestId('discover-profiles-browser')).toBeInTheDocument());
+    // The board chrome is gone on the People destination.
+    expect(screen.queryByTestId('trending-home-grid')).not.toBeInTheDocument();
     expect(screen.queryByTestId('trending-grid')).not.toBeInTheDocument();
   });
 
-  it('switches to Hot Gossip view when clicking the Hot Gossip button', async () => {
-    mockDiscoverFeed(makeV3PostsMedia(6));
+  it('legacy ?view=grid redirects to the Hot Gossip destination (carrying ?q=)', async () => {
+    mockDiscoverFeed(makeV3Posts(6));
     const { default: Trending } = await import('@/pages/Trending');
-    render(<MemoryRouter initialEntries={['/trending' + window.location.search]}><Trending /></MemoryRouter>);
-    await waitFor(() => expect(screen.getByTestId('trending-view-toggle')).toBeInTheDocument());
-    fireEvent.click(screen.getByTestId('view-toggle-grid'));
+    render(
+      <MemoryRouter initialEntries={['/trending?view=grid&q=code']}>
+        <Routes>
+          <Route path="/trending" element={<Trending />} />
+          <Route path="/hot-gossip" element={<Trending />} />
+        </Routes>
+      </MemoryRouter>,
+    );
+    // The redirect lands on the board with the query carried over.
     await waitFor(() => expect(screen.getByTestId('trending-grid')).toBeInTheDocument());
+    expect(screen.getByTestId('trending-search-input')).toHaveValue('code');
   });
 
-  it('switches back to Home view when clicking the Home button', async () => {
-    mockDiscoverFeed(makeV3PostsMedia(6));
+  it('legacy ?tab=profiles redirects to the People destination', async () => {
+    mockFetch({
+      '/v3/read': [],
+      '/v3/users/directory': { users: [], limit: 24, offset: 0 },
+      '/v3/groups/directory': { groups: [], limit: 24, offset: 0 },
+    });
     const { default: Trending } = await import('@/pages/Trending');
-    render(<MemoryRouter initialEntries={['/trending' + window.location.search]}><Trending /></MemoryRouter>);
-    await waitFor(() => expect(screen.getByTestId('trending-view-toggle')).toBeInTheDocument());
-    fireEvent.click(screen.getByTestId('view-toggle-grid'));
-    await waitFor(() => expect(screen.getByTestId('trending-grid')).toBeInTheDocument());
-    fireEvent.click(screen.getByTestId('view-toggle-home'));
-    await waitFor(() => expect(screen.getByTestId('trending-home-grid')).toBeInTheDocument());
+    render(
+      <MemoryRouter initialEntries={['/trending?tab=profiles']}>
+        <Routes>
+          <Route path="/trending" element={<Trending />} />
+          <Route path="/people" element={<Trending />} />
+        </Routes>
+      </MemoryRouter>,
+    );
+    await waitFor(() => expect(screen.getByTestId('discover-profiles-browser')).toBeInTheDocument());
+  });
+
+  it('the Video wall links out 1:1 — landscape → the watch page (carrying the knobs)', async () => {
+    // A landscape video (width > height) → /watch/:postId?from=discover&knobs=…
+    const posts = [
+      v3Post(0, {
+        doc_id: 'landscape-v',
+        body: {
+          text: 'a landscape clip',
+          media_refs: [{ doc_id: 'ref-l', object_key: 'u/a.mp4', mime_type: 'video/mp4', read_url: 'https://cdn.example.com/a.mp4?sig=x', width: 1920, height: 1080 }],
+        },
+        tags: ['video'],
+      }),
+    ];
+    mockDiscoverFeed(posts);
+    const { default: Trending } = await import('@/pages/Trending');
+    render(<MemoryRouter initialEntries={['/trending']}><Trending /></MemoryRouter>);
+    const card = await screen.findByTestId('home-card');
+    const link = within(card).getByTestId('home-card-thumb');
+    expect(link).toHaveAttribute('href', expect.stringContaining('/watch/landscape-v?from=discover&knobs='));
+  });
+
+  it('the Video wall links out 1:1 — portrait → the Shorts lens (the aspect-ratio gate)', async () => {
+    // A portrait video (width < height) → /shorts/:postId (the lens).
+    const posts = [
+      v3Post(0, {
+        doc_id: 'portrait-v',
+        body: {
+          text: 'a vertical clip',
+          media_refs: [{ doc_id: 'ref-p', object_key: 'u/b.mp4', mime_type: 'video/mp4', read_url: 'https://cdn.example.com/b.mp4?sig=x', width: 1080, height: 1920 }],
+        },
+        tags: ['video'],
+      }),
+    ];
+    mockDiscoverFeed(posts);
+    const { default: Trending } = await import('@/pages/Trending');
+    render(<MemoryRouter initialEntries={['/trending']}><Trending /></MemoryRouter>);
+    const card = await screen.findByTestId('home-card');
+    const link = within(card).getByTestId('home-card-thumb');
+    expect(link).toHaveAttribute('href', expect.stringContaining('/shorts/portrait-v'));
+  });
+
+  it('the Shorts destination renders the vertical wall and links out to the lens', async () => {
+    const posts = [
+      v3Post(0, {
+        doc_id: 'short-1',
+        body: {
+          text: 'a short',
+          media_refs: [{ doc_id: 'ref-s1', object_key: 'u/s1.mp4', mime_type: 'video/mp4', read_url: 'https://cdn.example.com/s1.mp4?sig=x', width: 1080, height: 1920 }],
+        },
+        tags: ['video', 'short'],
+      }),
+      v3Post(1, {
+        doc_id: 'landscape-1',
+        body: {
+          text: 'not a short',
+          media_refs: [{ doc_id: 'ref-s2', object_key: 'u/s2.mp4', mime_type: 'video/mp4', read_url: 'https://cdn.example.com/s2.mp4?sig=x', width: 1920, height: 1080 }],
+        },
+        tags: ['video'],
+      }),
+    ];
+    mockDiscoverFeed(posts);
+    const { default: Trending } = await import('@/pages/Trending');
+    render(<MemoryRouter initialEntries={['/shorts']}><Trending /></MemoryRouter>);
+    const grid = await screen.findByTestId('trending-shorts-grid');
+    // Only the portrait video is a short (the 9:16 gate).
+    const cards = within(grid).getAllByTestId('shorts-card');
+    expect(cards).toHaveLength(1);
+    const link = within(cards[0]).getByTestId('shorts-card-thumb');
+    expect(link).toHaveAttribute('href', expect.stringContaining('/shorts/short-1'));
+  });
+
+  it('Hot Gossip posts link out 1:1 — to the board at that post (?post=), not a profile', async () => {
+    mockDiscoverFeed(makeV3Posts(6));
+    const { default: Trending } = await import('@/pages/Trending');
+    render(<MemoryRouter initialEntries={['/hot-gossip']}><Trending /></MemoryRouter>);
+    const cards = await screen.findAllByTestId('trending-card');
+    const card = cards[0];
+    const links = within(card).getAllByRole('link').map(l => l.getAttribute('href') || '');
+    expect(links.some(h => h.includes('/hot-gossip?post='))).toBe(true);
+    // No post link goes to the post permalink (the retired destination).
+    expect(links.some(h => h.includes('/p/'))).toBe(false);
+    // The author attribution still links to the profile (1:1 People).
+    expect(links.some(h => h.includes('/u/'))).toBe(true);
   });
 
   it('Home view shows videos only (competing with YouTube — no photos)', async () => {
@@ -1178,42 +1284,27 @@ describe('ProfilesBrowser (C3)', () => {
   });
 });
 
-describe('Discover tab row (C3)', () => {
-  it('renders the Trending | Profiles tabs with Trending active by default', async () => {
-    const { default: Trending } = await import('@/pages/Trending');
-    mockFetch({
-      '/v3/read': [],
-      '/v3/users/directory': { users: [], limit: 24, offset: 0 },
-      '/v3/groups/directory': { groups: [], limit: 24, offset: 0 },
-    });
-    render(<MemoryRouter><Trending /></MemoryRouter>);
-    await waitFor(() => {
-      expect(screen.getByTestId('trending-tab-row')).toBeInTheDocument();
-    });
-    expect(screen.getByTestId('trending-tab-trending')).toHaveAttribute('aria-selected', 'true');
-    expect(screen.getByTestId('trending-tab-profiles')).toHaveAttribute('aria-selected', 'false');
-    // The chunky labels (the tab is "People", not "Profiles" — the operator,
-    // 24.09.2026: "trending People makes more sense"; the tab id stays `profiles`).
-    expect(screen.getByTestId('trending-tab-trending')).toHaveTextContent('Trending');
-    expect(screen.getByTestId('trending-tab-profiles')).toHaveTextContent('People');
-  });
+// The old `Trending | Profiles` tab row retires with the Discover split — the
+// People destination is a flat route (`/people`), covered in "The Discover
+// split (the salad retires)" above.
 
-  it('switches to the Profiles subtab on click', async () => {
-    const { default: Trending } = await import('@/pages/Trending');
+describe('The People destination (the old Profiles tab)', () => {
+  it('the search field filters the browser live (?q= is the query source)', async () => {
+    const users = Array.from({ length: 3 }, (_, i) => ({
+      username: `user${i}`,
+      follower_count: 100 + i,
+      profile: { display_name: `User ${i}` },
+    }));
     mockFetch({
       '/v3/read': [],
-      '/v3/users/directory': { users: [], limit: 24, offset: 0 },
+      '/v3/users/directory': { users, limit: 24, offset: 0 },
       '/v3/groups/directory': { groups: [], limit: 24, offset: 0 },
     });
-    render(<MemoryRouter><Trending /></MemoryRouter>);
-    await waitFor(() => {
-      expect(screen.getByTestId('trending-tab-row')).toBeInTheDocument();
-    });
-    fireEvent.click(screen.getByTestId('trending-tab-profiles'));
-    await waitFor(() => {
-      expect(screen.getByTestId('discover-profiles-browser')).toBeInTheDocument();
-    });
-    expect(screen.getByTestId('trending-tab-profiles')).toHaveAttribute('aria-selected', 'true');
+    const { default: Trending } = await import('@/pages/Trending');
+    render(<MemoryRouter initialEntries={['/people']}><Trending /></MemoryRouter>);
+    await waitFor(() => expect(screen.getByTestId('discover-profiles-browser')).toBeInTheDocument());
+    // The salad's tab row is gone on the People destination too.
+    expect(screen.queryByTestId('trending-tab-row')).not.toBeInTheDocument();
   });
 });
 
@@ -1290,21 +1381,22 @@ describe('Trending search (the phantom-endpoint fix)', () => {
     await waitFor(() => expect(screen.getAllByTestId('trending-card')).toHaveLength(1));
   });
 
-  it('the Profiles tab query-chip X clears the field (the operator\'s bug)', async () => {
+  it('the People destination query-chip X clears the field (the operator\'s bug)', async () => {
     mockFetch({
       '/v3/read': [],
       '/v3/users/directory': { users: [], limit: 24, offset: 0 },
       '/v3/groups/directory': { groups: [], limit: 24, offset: 0 },
     });
-    // The tab reads window.location.search at init (the deep-link rule).
-    window.history.replaceState(null, '', '/trending?tab=profiles');
+    // The People destination reads window.location.search at init (the
+    // deep-link rule).
+    window.history.replaceState(null, '', '/people');
     const { default: Trending } = await import('@/pages/Trending');
-    render(<MemoryRouter initialEntries={['/trending?tab=profiles']}><Trending /></MemoryRouter>);
+    render(<MemoryRouter initialEntries={['/people']}><Trending /></MemoryRouter>);
     await waitFor(() => expect(screen.getByTestId('discover-profiles-browser')).toBeInTheDocument());
 
     const input = screen.getByTestId('trending-search-input');
     fireEvent.change(input, { target: { value: 'dav' } });
-    // The query chip (with its X) appears on the Profiles tab.
+    // The query chip (with its X) appears on the People destination.
     const chipClear = await screen.findByTestId('discover-profiles-query-clear');
     // The chip X clears ?q= — which now also clears the field (the bug: the
     // field was state-only, so the chip X was a no-op).

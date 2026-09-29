@@ -202,7 +202,7 @@ describe('Follow button -> followUser call', () => {
     const { default: DiscoverScreen } = await import('@/components/Discover/DiscoverScreen');
 
     render(
-      <MemoryRouter initialEntries={['/discover?view=grid']}>
+      <MemoryRouter initialEntries={['/hot-gossip']}>
         <DiscoverScreen />
       </MemoryRouter>,
     );
@@ -414,18 +414,20 @@ describe('DiscoverScreen', () => {
     });
   });
 
-  it('renders discover header', async () => {
+  it('renders the Video wall (the Discover split retires the tab row)', async () => {
     const { default: DiscoverScreen } = await import('@/components/Discover/DiscoverScreen');
 
     render(
-      <MemoryRouter initialEntries={['/discover']}>
+      <MemoryRouter initialEntries={['/video']}>
         <DiscoverScreen />
       </MemoryRouter>,
     );
 
+    // The Video destination is the video wall (the tab row is retired).
     await waitFor(() => {
-      expect(screen.getByTestId('discover-tab-row')).toBeInTheDocument();
+      expect(screen.getByTestId('discover-home-empty')).toBeInTheDocument();
     });
+    expect(screen.queryByTestId('discover-tab-row')).not.toBeInTheDocument();
   });
 
   it('renders empty state when no suggestions', async () => {
@@ -435,7 +437,7 @@ describe('DiscoverScreen', () => {
     const { default: DiscoverScreen } = await import('@/components/Discover/DiscoverScreen');
 
     render(
-      <MemoryRouter initialEntries={['/discover?view=grid']}>
+      <MemoryRouter initialEntries={['/hot-gossip']}>
         <DiscoverScreen />
       </MemoryRouter>,
     );

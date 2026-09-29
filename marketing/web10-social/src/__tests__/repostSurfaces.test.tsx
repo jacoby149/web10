@@ -159,7 +159,7 @@ describe('Repost: the repeat icon opens the composer in repost mode on EVERY sur
       vi.mocked(data.readDiscoverFeed).mockResolvedValueOnce([POST as any]);
       const { default: DiscoverScreen } = await import('@/components/Discover/DiscoverScreen');
       render(
-        <MemoryRouter initialEntries={['/discover?view=grid']}>
+        <MemoryRouter initialEntries={['/hot-gossip']}>
           <DiscoverScreen />
         </MemoryRouter>,
       );
@@ -173,7 +173,7 @@ describe('Repost: the repeat icon opens the composer in repost mode on EVERY sur
       vi.mocked(data.readRepostCounts).mockResolvedValue({ 'post-1': 7 });
       const { default: DiscoverScreen } = await import('@/components/Discover/DiscoverScreen');
       render(
-        <MemoryRouter initialEntries={['/discover?view=grid']}>
+        <MemoryRouter initialEntries={['/hot-gossip']}>
           <DiscoverScreen />
         </MemoryRouter>,
       );
