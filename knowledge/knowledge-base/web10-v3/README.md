@@ -32,7 +32,7 @@ web10-v3/
 ├── app-store/             ← the node's public storefront
 │   ├── overview.md        ← registration (a path is an app), visits, PWA manifests, store UI
 │   └── endpoints.md       ← the store's endpoint surface: the product page, ratings, stats
-├── analytics/             ← the generic content-analytics engine (D85)
+├── analytics/             ← the generic content-analytics engine (D86)
 │   └── overview.md        ← per-content performance: the three primitives, the two-tier impression (delivery server-side, viewport client-gated), what a "surface" is, the `trackContentEvent` SDK surface, anti-gaming
 ├── groups/                ← groups as a platform primitive
 │   ├── overview.md        ← policy containers, roles, join policies
@@ -89,7 +89,7 @@ web10-v3/
 - **DB** — `db/clickhouse.md` (tables, indexes, patterns)
 - **Setup & Config** — `setup/node-config.md` (node_config table, admins, /am_admin)
 - **App Store** — `app-store/overview.md` (registration, visits, PWA manifests), `app-store/endpoints.md` (the endpoint surface: product page, ratings, stats)
-- **Content Analytics** — `analytics/overview.md` (the generic per-content engine, D85: the three primitives, the two-tier impression — delivery server-side + viewport client-gated, what a "surface" is, the `trackContentEvent` SDK surface, the D49-pattern anti-gaming, the "crazy metrics are queries" note)
+- **Content Analytics** — `analytics/overview.md` (the generic per-content engine, D86: the three primitives, the two-tier impression — delivery server-side + viewport client-gated, what a "surface" is, the `trackContentEvent` SDK surface, the D49-pattern anti-gaming, the "crazy metrics are queries" note)
 - **Security** — `security/overview.md` (invariants I1–I5, two-contract model, blocking)
 - **Query Engine** — `query-engine.md` (the flexible read: how far to take the power), `safe-query.md` (the boundary CTE + why the guarantee holds; `w.query()` / `POST /v3/query`)
 - **Groups** — `groups/overview.md` (primitive), `groups/access.md` (who can do what — the D58 gate), `groups/identity.md` (profiles), `groups/contract-healing.md` (the app owns its own contracts — the consensual self-heal)

@@ -7,7 +7,7 @@ engine, keyed on the **document**, not the app.
 
 This is `app_visits` (D49) generalized from the *app* level to the
 *document* level. The data model lives in `../db/clickhouse.md`; the SDK
-surface in `../sdk/api.md`; the decision (D85) in
+surface in `../sdk/api.md`; the decision (D86) in
 `../../strategy/decisions.md`.
 
 ## The Three Primitives
