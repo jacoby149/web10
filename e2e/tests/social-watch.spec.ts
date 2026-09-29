@@ -277,6 +277,12 @@ async function seedLandscapeVideo(
 }
 
 /** A discover post carrying the video (media_refs → the media doc). */
+/** A discover post carrying the video (media_refs → the media doc). Tagged
+ *  `video` — the Video wall's `postHasVideo` gate checks the tag OR a resolved
+ *  video media_ref; for a signed-in board read the media_refs are strings (the
+ *  wall resolves them separately), so the tag is the signal that puts the post
+ *  on the wall. The tile's aspect-ratio routing (watch vs shorts) still uses
+ *  the RESOLVED media's width/height, not the tag. */
 async function postVideoToDiscover(
   request: APIRequestContext,
   token: string,
@@ -286,7 +292,7 @@ async function postVideoToDiscover(
   const res = await v3Post(request, `${API_BASE}/v3/create`, {
     token,
     service: POSTS,
-    body: { text, media_refs: [mediaDocId], origin: 'web10', created_at: new Date().toISOString() },
+    body: { text, media_refs: [mediaDocId], tags: ['video'], origin: 'web10', created_at: new Date().toISOString() },
     groups: [DISCOVER_GROUP_ID],
   });
   expect(res.ok(), `create video post failed (${res.status})`).toBeTruthy();
