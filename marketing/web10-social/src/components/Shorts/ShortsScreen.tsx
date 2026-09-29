@@ -9,6 +9,7 @@ import { CommentThread } from '@/components/Feed/CommentThread';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
 import { requestInstallPrompt, isMobile } from '@/lib/pwa';
+import ShortsWall from './ShortsWall';
 
 const LOG = (...args: unknown[]) => console.log('[shorts]', ...args);
 
@@ -21,11 +22,36 @@ const LOG = (...args: unknown[]) => console.log('[shorts]', ...args);
 let sessionMuted = true;
 
 /**
- * The Shorts surface (shorts.md) — the full-screen, vertical, swipe-between-
- * posts feed. The video IS the screen: each slide is a full-viewport-height
- * snap slide, the video fills it (`fit="cover"`, `immersive` — no control
- * rack, no phone-width column), and the author/caption overlay + the
- * like/comment/share rail sit on top.
+ * The Shorts route (shorts.md) — two surfaces, one route family:
+ *
+ * - **The wall** (`/shorts`, no `:postId`) — the explore grid: a responsive
+ *   wall of 9:16 vertical video tiles that fills the screen. The "before you
+ *   pick a short" surface (the operator: "the moment you visit it looks like
+ *   [the wall]").
+ * - **The lens** (`/shorts/:postId`) — the full-screen, vertical,
+ *   swipe-between-posts feed. The video IS the screen: each slide is a
+ *   full-viewport-height snap slide, the video fills it (`fit="cover"`,
+ *   `immersive`), and the author/caption overlay + the like/comment/share
+ *   rail sit on top. The "youtube what's next" / TikTok infinite scroll.
+ *
+ * The route dispatcher (`ShortsScreen`) picks the surface from the URL — the
+ * URL is the state (the deep-link rule): a bare `/shorts` is the wall, a
+ * `/shorts/:postId` is the lens opened on that short.
+ */
+export default function ShortsScreen() {
+  const { postId } = useParams<{ postId: string }>();
+  // No `:postId` → the explore wall. A `:postId` → the lens (the existing
+  // full-screen swipe feed, opened on that short).
+  if (!postId) return <ShortsWall />;
+  return <ShortsLens postId={postId} />;
+}
+
+/**
+ * The Shorts lens — the full-screen, vertical, swipe-between-posts feed. The
+ * video IS the screen: each slide is a full-viewport-height snap slide, the
+ * video fills it (`fit="cover"`, `immersive` — no control rack, no phone-width
+ * column), and the author/caption overlay + the like/comment/share rail sit on
+ * top.
  *
  * The frame: on a phone (a 9:16 viewport) the slide is already ~9:16, so the
  * video is full-bleed. On a wide desktop viewport the slide is a centered
@@ -38,8 +64,7 @@ let sessionMuted = true;
  * equivalent of the swipe). The active slide (≥60% visible) autoplays muted;
  * off-screen slides pause.
  */
-export default function ShortsScreen() {
-  const { postId } = useParams<{ postId: string }>();
+function ShortsLens({ postId }: { postId: string }) {
   const navigate = useNavigate();
   const [shorts, setShorts] = useState<ShortPost[]>([]);
   const [loading, setLoading] = useState(true);
