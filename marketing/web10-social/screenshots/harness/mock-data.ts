@@ -1162,7 +1162,10 @@ export async function resolveMediaRefs<T>(refs: T[]): Promise<T[]> {
   return out;
 }
 export async function readUserProfile(): Promise<unknown> {
-  return { display_name: 'Nova', username: 'nova', provider: 'web10', avatar_ref: '', bio: 'Synthwave producer' };
+  // A real avatar_ref so the watch page's author row resolves a face (the
+  // avatar is resolved from the profile's avatar_ref via resolveMediaRefs —
+  // the D83 fix for the overlay's broken mediaMap lookup).
+  return { display_name: 'Nova', username: 'nova', provider: 'web10', avatar_ref: 'face-avatar', bio: 'Synthwave producer' };
 }
 // The watch page's author read (the overlay's "recent posts" strip) — the
 // author's public posts (a couple of the seeded discover posts by them).
@@ -1424,5 +1427,22 @@ const PROFILE_POSTS = [
     text: 'Headphones on, world off. Lo-fi study room is live.',
     created_at: minsAgo(60 * 26),
     tags: ['music', 'study'],
+  },
+  {
+    _id: 'pp-4',
+    author_username: 'me',
+    author_provider: 'web10',
+    title: 'No algorithm between you and the post',
+    text: 'It just arrives. That is the whole thing — your audience, your node, your data.',
+    created_at: minsAgo(60 * 30),
+    tags: ['creators'],
+  },
+  {
+    _id: 'pp-5',
+    author_username: 'me',
+    author_provider: 'web10',
+    text: 'The rack is finally quiet. Swapped the PSUs and the whole thing idles cold now.',
+    created_at: minsAgo(60 * 48),
+    tags: ['studio'],
   },
 ];

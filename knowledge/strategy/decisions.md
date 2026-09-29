@@ -9,7 +9,7 @@ Status legend: [decided] intent set · [in-progress] · [open] still debating.
 
 ---
 
-### D83 — Multi-node federation: one canonical principal format + the foundation [decided, in-progress]
+### D84 — Multi-node federation: one canonical principal format + the foundation [decided, in-progress]
 
 Operator, 29.09.2026 — after the profile Following-tab fix (3.179.1) exposed the member_key format drift: "this doesnt sound good, because the full provider/username should be used, what if eventually people follow two same usernames on different providers?" → "you should do it right now! make it work multi provider, this is the main hangup that stops it from doing so" → "we need to make the multi node thing possible, set the foundation, we don't need to show it working right away, but yes we should be reading the other node's feed some day, multi node feed absolutely, but there is more we need to discuss about how that would work. i.e. does one node query the other node, or does the user query both nodes (the node they're on and the node they're not on)?"
 
@@ -51,7 +51,23 @@ There is **no `provider` column** — the provider is either omitted (followers,
 
 **What it rejects.** (1) **A `provider` column** on `group_members` / `documents` — no integrity gain in ClickHouse, breaks the principal classes, forces a table rebuild. (2) **Leaving the format drift** — the three-format member_key + bare author_key is the root of the Following-tab bug and the cross-provider collision; it must be canonicalized, not patched per-read (the 3.179.1 `/by-user` normalization is a stopgap that collapses to the bare form; it is *reversed* by Phase A, which makes the `provider/username` form the real stored form). (3) **Building the cross-node read path before the canonical format + token verification** — a read path on top of an inconsistent identity + unverifiable cross-node tokens is a house on sand. (4) **A global "one database" federation** — the nodes are separate; federation is the read/write path across them, not a shared store.
 
-**The seam.** `api/app/services/auth.py` (the token verification — D7/I1, Phase B), `api/app/v3/endpoints/auth_helper.py` + the reader-principal derivation (Phase A), `api/app/v3/services/clickhouse.py` (the `author_key` + `member_key` + read-gate — Phase A), the data migration (Phase A), `sdk/src/v3.ts` (the Cross-Node Addressing seam — Phases C/D), `marketing/web10-social/src/data/` (the client-side feed merge — Phase D). KB: `security/overview.md` (I1, the Federation section), `auth/auth.md` (Cross-Node Addressing), `db/clickhouse.md` (the schema). Lane: `multi-node-federation (D83)` in `parallel-execution.md`.
+**The seam.** `api/app/services/auth.py` (the token verification — D7/I1, Phase B), `api/app/v3/endpoints/auth_helper.py` + the reader-principal derivation (Phase A), `api/app/v3/services/clickhouse.py` (the `author_key` + `member_key` + read-gate — Phase A), the data migration (Phase A), `sdk/src/v3.ts` (the Cross-Node Addressing seam — Phases C/D), `marketing/web10-social/src/data/` (the client-side feed merge — Phase D). KB: `security/overview.md` (I1, the Federation section), `auth/auth.md` (Cross-Node Addressing), `db/clickhouse.md` (the schema). Lane: `multi-node-federation (D84)` in `parallel-execution.md`.
+
+---
+
+### D83 — The watch page's author is the profile, not an overlay (reversal of the 3.170.0 "stay on the train" rule) [decided]
+
+Operator, 29.09.2026 — "you could also just have about go to their profile page, instead of this extra modal to maintain not sure though what do you think?" (after the watch page's author overlay showed a broken "J" avatar + no banner, and the Follow button read "Follow" on the operator's own video).
+
+**The decision.** The watch page's author row (avatar + name) **navigates to `/u/:username`** — the author's full profile. The 3.170.0 `AuthorOverlay` (the "stay on the train" drawer) is **deleted**. The profile page is the canonical "About" surface: banner, avatar, name, bio, stats, follow, the full post grid — and it is already deep-linkable.
+
+**Why the overlay was wrong (the part that tells you it's correct).** The overlay was a *second* profile surface — a redundant, lower-fidelity copy of the profile page (no banner, fewer posts, no stats). It also shipped with a real bug: it looked up the avatar at `mediaMap['avatar:'+avatar_ref]`, a key the watch page's post-media resolver (`resolvePostsMedia`) never populates — so the avatar always fell back to the initial-letter tile (the "J"), and there was no banner. A modal that is a worse version of the page it previews is friction, not a feature. And the app already had the convention: **every other surface's author click navigates to `/u/:username`** (the feed, the card, the Shorts lens, the comment thread, the search). The watch page was the lone holdout inventing its own modal.
+
+**The self case (the "Follow" bug).** On your own video the Follow button read "Follow" — because `isFollowing` is a followers-group membership check, and you are not a member of your *own* followers group. The correct state for self is **no Follow button** (you can't follow yourself), not a forced "Following." The button is now hidden when `author === token.username`.
+
+**What it rejects.** (1) **A second profile surface** — the overlay was a worse copy of the profile page; one canonical surface wins. (2) **The "stay on the train" rule as a hard constraint** — the original concern (a profile click yanks you off the video) is real but recoverable: the `?t=` URL still restores the exact playback position, so "off the train" is one browser-back. The cost of a clean, single author surface is worth that. (3) **A "Following" label on your own video** — self is a distinct state (no button), not a follow state.
+
+**The seam:** `marketing/web10-social/src/components/Watch/WatchScreen.tsx` (the `AuthorOverlay` component + the `overlayOpen` state + the `readUserPublicProfile`/author-posts fetch are gone; the author button navigates to `/u/:username`; the avatar is resolved from the profile's `avatar_ref` via `resolveMediaRefs`; the Follow button is hidden for self). KB: `social/watch-page.md` (the author section + decision #5 + "What this is not").
 
 ---
 
