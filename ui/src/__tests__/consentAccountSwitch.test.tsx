@@ -31,11 +31,13 @@ function signedInHarness(overrides: Record<string, any> = {}) {
     _contractReceived: true,
     _expectedUser: undefined, // signed-out opener by default (no ?as=)
     _userConfirmed: false,
+    loginUsername: null,
     rememberedAccounts: [
       { username: 'alice', provider: 'api.web10.app' },
       { username: 'bob', provider: 'api.web10.app' },
     ],
     setUserConfirmed: vi.fn(),
+    setLoginUsername: vi.fn(),
     goToApp: vi.fn(),
     logout: vi.fn(),
     approveAll: vi.fn(),
@@ -77,6 +79,35 @@ describe('ConsentView — signed-out opener with a live session (account switch)
     fireEvent.click(screen.getByTestId('account-picker-bob'))
     expect((screen.getByTestId('username-input') as HTMLInputElement).value).toBe('bob')
     expect((screen.getByTestId('provider-input') as HTMLInputElement).value).toBe('api.web10.app')
+  })
+
+  it('"Continue as" hides once the form targets a different account (the wrong-identity guard)', () => {
+    // The operator's screenshot: the popup is signed in as alice, the user
+    // picks bob from the picker. "Continue as alice" would hand back the WRONG
+    // identity, so it must disappear — the password form is the only path left
+    // for bob.
+    const I = signedInHarness()
+    const { rerender } = render(<ConsentView I={I} />)
+    expect(screen.getByTestId('consent-continue-as')).toBeTruthy()
+    // Simulate picking bob (selectAccount calls setLoginUsername('bob')).
+    I.loginUsername = 'bob'
+    rerender(<ConsentView I={I} />)
+    expect(screen.queryByTestId('consent-continue-as')).toBeNull()
+    // The form is still there — the password path for bob.
+    expect(screen.getByTestId('login-submit')).toBeTruthy()
+  })
+
+  it('"Continue as" stays while the form targets the session account or is blank', () => {
+    const I = signedInHarness()
+    const { rerender } = render(<ConsentView I={I} />)
+    // Blank (the user cleared the field / "Use another account").
+    I.loginUsername = ''
+    rerender(<ConsentView I={I} />)
+    expect(screen.getByTestId('consent-continue-as')).toBeTruthy()
+    // The session's own account (case-insensitive).
+    I.loginUsername = 'Alice'
+    rerender(<ConsentView I={I} />)
+    expect(screen.getByTestId('consent-continue-as')).toBeTruthy()
   })
 
   it('a signed-in opener (return run) still auto-completes — one tap preserved', () => {

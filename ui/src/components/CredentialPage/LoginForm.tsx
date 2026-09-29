@@ -17,6 +17,7 @@ function LoginForm({ I, embedded = false }: { I: Record<string, any>; embedded?:
     const u = document.getElementById('username') as HTMLInputElement | null;
     if (p) p.value = a.provider;
     if (u) u.value = a.username;
+    I.setLoginUsername?.(a.username);
     const pw = document.getElementById('password') as HTMLInputElement | null;
     if (pw) pw.focus();
   }
@@ -63,6 +64,7 @@ function LoginForm({ I, embedded = false }: { I: Record<string, any>; embedded?:
             onClick={() => {
               const u = document.getElementById('username') as HTMLInputElement | null;
               if (u) { u.value = ''; u.focus(); }
+              I.setLoginUsername?.('');
             }}
           >
             Use another account

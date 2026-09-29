@@ -217,6 +217,12 @@ function useInterface() {
     // account), or the "Continue as" fast path. That confirmation is what lets
     // the popup settle.
     [I._userConfirmed, I.setUserConfirmed] = React.useState(false);
+    // The username currently in the login form (null = untouched). The consent
+    // popup's "Continue as {session user}" fast path is only honest while the
+    // form targets the session's own account — once the user picks or types a
+    // DIFFERENT account, the button would confirm the wrong identity, so it
+    // hides (the password form is the only path left for the other account).
+    [I.loginUsername, I.setLoginUsername] = React.useState<string | null>(null);
 
     // v3 service contracts (ClickHouse-backed — simpler model: origin + service)
     [I.v3Contracts, I.setV3Contracts] = React.useState<any[]>([]);
@@ -510,10 +516,21 @@ function useInterface() {
             })
             .catch((error: any) => {
                 console.error('[auth-ui] login — v3.login failed:', error)
-                if (I.v3.isSignedIn()) {
-                    console.log('[auth-ui] login — already signed in from cookie, finishing login')
+                // A failed login must never silently adopt the cookie's session.
+                // isSignedIn() is true whenever ANY token cookie exists, so the
+                // old fallback finished the login as the cookie's account — the
+                // WRONG user whenever the popup held a session for a different
+                // account (pick j2, mistype the password, get signed in as
+                // jacoby149). Only adopt the cookie's session when it IS the
+                // account the user just tried to log in as (the offline case:
+                // the API is unreachable but the user's own session is live).
+                const cookieUser = I.v3.readToken?.()?.username;
+                const attempted = String(username).trim().toLowerCase();
+                if (cookieUser && cookieUser.toLowerCase() === attempted) {
+                    console.log('[auth-ui] login — cookie session matches the attempted user, finishing login')
                     I.finishLogin();
                 } else {
+                    console.log('[auth-ui] login — rejecting: cookie user', cookieUser || '(none)', '≠ attempted', attempted)
                     I.setStatus("Failed to Log In : " + (error.message || String(error)));
                 }
             });

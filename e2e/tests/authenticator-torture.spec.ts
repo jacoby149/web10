@@ -396,6 +396,54 @@ test.describe('Browser — login (real LoginForm) + state rule', () => {
     await expect(page.locator('[data-testid="credential-status"]')).toContainText('Failed to Log In');
   });
 
+  test('stale session for a DIFFERENT account: wrong password → error, NOT signed in as the stale user', async ({ page, context, request }) => {
+    // The operator's screenshot: the popup holds a live session for A
+    // ("Continue as A" + the picker), the user picks B and submits the wrong
+    // password. The old code saw isSignedIn() (A's cookie) and finished the
+    // login AS A — silently handing back the wrong account instead of the
+    // "Failed to Log In" error.
+    const userA = await signupFreshUser(request);
+    const userB = await signupFreshUser(request);
+    // Pre-grant A's app contract so the popup settles to the login form
+    // (nothingToShow → the "Continue as A" state, not the consent screen).
+    await request.post(`${API_BASE}/v3/app-contracts/add`, {
+      data: JSON.stringify({
+        token: userA.token,
+        allowed_origin: MARKETING_BASE,
+        permissions: { notes: ['readAll', 'create', 'updateOwn', 'deleteOwn'] },
+      }),
+      headers: { 'Content-Type': 'application/json', Origin: AUTH_BASE },
+    });
+    await setTokenCookie(context, 'auth.localhost', userA.token);
+
+    const demoLogs = captureConsoleLogs(page, ['[notes-demo]', '[wapi]']);
+    await page.goto(`${MARKETING_BASE}/docs/notes/`);
+    await page.waitForLoadState('networkidle');
+    await expect(page.locator('#authButton')).toHaveText('Log in');
+
+    const popupPromise = context.waitForEvent('page', { timeout: 15000 });
+    await page.locator('#authButton').click();
+    const popup = await popupPromise;
+    await popup.waitForLoadState('networkidle');
+
+    // The login form with the stale session's fast path.
+    await popup.locator('[data-testid="consent-continue-as"]').waitFor({ state: 'visible', timeout: 15000 });
+
+    // Try to log in as B with the WRONG password.
+    await popup.locator('#username').fill(userB.username);
+    await popup.locator('#password').fill('WrongPassword1!');
+    await popup.locator('[data-testid="login-submit"]').click();
+
+    // THE regression: the error is shown — the login was NOT silently
+    // finished as the stale user (A).
+    await expect(popup.locator('[data-testid="credential-status"]')).toContainText('Failed to Log In', { timeout: 15000 });
+    // The popup is still on the login form (no auto-complete).
+    await expect(popup.locator('[data-testid="login-submit"]')).toBeVisible();
+    // The demo never signed in — no token was handed to it.
+    expect(demoLogs.join('\n')).not.toContain('authListen fired — user is signed in');
+    await expect(page.locator('#authButton')).toHaveText('Log in');
+  });
+
   test('return run: session survives reload (state rule)', async ({ page, request }) => {
     const { username } = await signupFreshUser(request);
     await page.goto(AUTH_BASE);
