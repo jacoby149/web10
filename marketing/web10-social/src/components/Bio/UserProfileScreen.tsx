@@ -25,7 +25,7 @@ import {
 import { getWapi } from '@/data/wapi';
 import type { ProfileRecord, PostRecord, MediaRecord, FollowRecord } from '@/data/types';
 import { mediaRefId, fromResolvedMediaRef } from '@/data/types';
-import { MapPin, Globe, Link, Users, UserPlus, UserCheck, Loader2, ArrowLeft, MessageSquare, Play, Camera, Edit3, Check, X, ImagePlus, AlertTriangle, Inbox } from 'lucide-react';
+import { MapPin, Globe, Link, Users, UserPlus, UserCheck, Loader2, ArrowLeft, MessageSquare, Play, Camera, Edit3, Check, X, ImagePlus, AlertTriangle, Inbox, LayoutGrid, Clapperboard, User } from 'lucide-react';
 import { PostLightbox } from './PostLightbox';
 import { ProfileFeed } from './ProfileFeed';
 import { ProfileViewToggle, type ProfileViewMode } from './ProfileViewToggle';
@@ -71,6 +71,91 @@ function formatTimeAgo(dateStr: string): string {
   const days = Math.floor(hrs / 24);
   if (days < 7) return `${days}d`;
   return new Date(dateStr).toLocaleDateString();
+}
+
+/** A media record that is a video (the wall's 9:16 tiles are video-first). */
+function isVideo(m: MediaRecord | undefined | null): boolean {
+  return !!m?.mime_type?.startsWith('video/');
+}
+
+interface WallTileProps {
+  media: MediaRecord;
+  testId: string;
+  caption?: string;
+  multiCount?: number;
+  onClick: () => void;
+}
+
+/**
+ * A 9:16 vertical video tile for the profile + Shorts walls (the "wall of
+ * video" — the new-Instagram / TikTok shape). The tile is a portrait frame
+ * (`aspect-[9/16]`) that fills its grid cell; a video renders a `<video>`
+ * (poster + muted preload) with a play badge, an image renders a cover-cropped
+ * `<img>`. The grid is responsive (`auto-fill, minmax(160px, 1fr)`) so as many
+ * tiles as fit the width render — the wall fills the whole screen, not a fixed
+ * column count.
+ */
+function WallTile({ media, testId, caption, multiCount, onClick }: WallTileProps) {
+  const video = isVideo(media);
+  return (
+    <div
+      role="button"
+      tabIndex={0}
+      aria-label={caption ? `View ${caption}` : 'View post'}
+      data-testid={testId}
+      onClick={onClick}
+      onKeyDown={(e) => {
+        if (e.key === 'Enter' || e.key === ' ') {
+          e.preventDefault();
+          onClick();
+        }
+      }}
+      className="relative aspect-[9/16] w-full bg-elevated overflow-hidden rounded-lg group cursor-pointer outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset"
+    >
+      {video ? (
+        <video
+          src={media.url}
+          poster={media.thumbnail_url}
+          className="w-full h-full object-cover transition-transform duration-150 group-hover:scale-105"
+          preload="metadata"
+          playsInline
+          muted
+        />
+      ) : media.url ? (
+        <img
+          src={media.url}
+          alt={media.alt_text || ''}
+          className="w-full h-full object-cover transition-transform duration-150 group-hover:scale-105"
+          loading="lazy"
+        />
+      ) : (
+        // A post with no media (text-only) — a caption-only tile on the
+        // elevated surface (no broken image).
+        <div className="w-full h-full p-3 flex items-start bg-gradient-to-br from-elevated to-surface">
+          <p className="text-xs text-muted-foreground line-clamp-6">{caption}</p>
+        </div>
+      )}
+      {/* The play badge (the video affordance, top-right — the Instagram/TikTok
+          position). */}
+      {video && (
+        <div className="absolute top-2 right-2 flex items-center justify-center w-6 h-6 rounded-md bg-black/50 backdrop-blur-sm" aria-hidden="true">
+          <Play className="w-3.5 h-3.5 text-white ml-px" fill="currentColor" strokeWidth={0} />
+        </div>
+      )}
+      {typeof multiCount === 'number' && multiCount > 1 && (
+        <div className="absolute top-2 left-2 flex items-center gap-1 bg-black/50 text-white text-xs px-1.5 py-0.5 rounded-md backdrop-blur-sm">
+          <ImagePlus className="w-3 h-3" />
+          {multiCount}
+        </div>
+      )}
+      {/* The caption (the post text, the Instagram/TikTok overlay). */}
+      {caption && (
+        <div className="absolute inset-x-0 bottom-0 p-2 bg-gradient-to-t from-black/70 via-black/30 to-transparent pointer-events-none">
+          <p className="text-xs text-white line-clamp-2 leading-snug">{caption}</p>
+        </div>
+      )}
+    </div>
+  );
 }
 
 export default function UserProfileScreen({ username, provider, onBack }: UserProfileScreenProps) {
@@ -456,7 +541,7 @@ export default function UserProfileScreen({ username, provider, onBack }: UserPr
   }
 
   return (
-    <div className="mx-auto max-w-3xl">
+    <div className="w-full">
       {/* Persistent file input — the avatar/banner upload seam (e2e: setInputFiles) */}
       <input
         ref={fileInputRef}
@@ -520,9 +605,11 @@ export default function UserProfileScreen({ username, provider, onBack }: UserPr
         )}
       </div>
 
-      {/* Header */}
+      {/* Header — the new-Instagram shape: the avatar on the left, the name /
+          stats / bio / action buttons stacked to its right. Full width (the
+          operator: "filling the whole screen"). */}
       <div className="px-4 pt-4 pb-4">
-        <div className="flex items-start justify-between gap-6 -mt-14">
+        <div className="flex items-start gap-4 sm:gap-6">
           <div
             role="button"
             tabIndex={0}
@@ -536,11 +623,11 @@ export default function UserProfileScreen({ username, provider, onBack }: UserPr
               }
             }}
             className={cn(
-              'group cursor-pointer outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset rounded-full',
-              isOwnProfile ? 'relative' : 'flex-shrink-0',
+              '-mt-14 group shrink-0 cursor-pointer outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset rounded-full self-start',
+              isOwnProfile ? 'relative' : '',
             )}>
             <Avatar className={cn(
-              'h-20 w-20 border-4 border-background',
+              'h-20 w-20 sm:h-24 sm:w-24 border-4 border-background',
               isOwnProfile ? 'ring-2 ring-brand/20 hover:ring-brand/40 transition-shadow duration-150' : '',
             )}>
               {avatarMedia ? (
@@ -567,247 +654,254 @@ export default function UserProfileScreen({ username, provider, onBack }: UserPr
               </button>
             )}
           </div>
-          {!isOwnProfile && (
-            <div className="flex flex-col gap-2 mt-14">
-              <div className="flex gap-2">
-                <Button
-                  variant={following ? 'outline' : 'brand'}
-                  size="sm"
-                  className={cn(
-                    'gap-1.5 min-w-[100px]',
-                    following && 'border-border hover:border-danger/50 hover:text-danger hover:bg-danger-muted',
-                  )}
-                  data-testid="follow-button"
-                  onClick={handleFollow}
-                  disabled={followLoading}
-                >
-                  {followLoading ? (
-                    <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                  ) : following ? (
-                    <>
-                      <UserCheck className="w-3.5 h-3.5" />
-                      Following
-                    </>
-                  ) : (
-                    <>
-                      <UserPlus className="w-3.5 h-3.5" />
-                      Follow
-                    </>
-                  )}
-                </Button>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  className="gap-1.5 min-w-[100px] border-border hover:bg-elevated"
-                  data-testid="message-button"
-                  onClick={() =>
-                    navigate(`/messages?to=${username}&provider=${provider}`)
-                  }
-                >
-                  <MessageSquare className="w-3.5 h-3.5" />
-                  Message
-                </Button>
+
+          {/* The right column: name + @handle, the stats row, the bio, and the
+              action buttons (Follow/Message for a viewer, Edit profile for the
+              owner). The new-Instagram layout stacks them beside the avatar. */}
+          <div className="flex-1 min-w-0 pt-2">
+            <div className="flex items-start justify-between gap-4">
+              <div className="min-w-0">
+                {isOwnProfile && editing ? (
+                  <Input
+                    value={draft.display_name || ''}
+                    onChange={(e) => setDraft({ ...draft, display_name: e.target.value })}
+                    placeholder="Display name"
+                    data-testid="profile-name-input"
+                    className="max-w-xs"
+                  />
+                ) : (
+                  <>
+                    {/* `profile-name` is a stable hook for e2e: the display name
+                        also renders in the top bar account row (inside <main>),
+                        so tests target this element directly. */}
+                    <h1 className="font-display text-xl sm:text-2xl font-bold text-foreground truncate" data-testid="profile-name">
+                      {profile?.display_name || username}
+                    </h1>
+                    <p className="text-xs sm:text-sm text-muted-foreground truncate">@{username}</p>
+                  </>
+                )}
               </div>
-            </div>
-          )}
-          {isOwnProfile && !editing && (
-            <Button
-              variant="brand_subtle"
-              size="sm"
-              className="mt-14 gap-1.5"
-              data-testid="edit-profile-button"
-              onClick={() => setEditing(true)}
-            >
-              <Edit3 className="w-3.5 h-3.5" />
-              Edit profile
-            </Button>
-          )}
-        </div>
-
-        {uploadError && (
-          <div
-            className="mt-3 flex items-center gap-2 text-sm text-danger"
-            role="alert"
-            data-testid="profile-upload-error"
-          >
-            <AlertTriangle className="w-4 h-4 shrink-0" />
-            {uploadError}
-          </div>
-        )}
-
-        <div className="mt-3">
-          {isOwnProfile && editing ? (
-            <div className="flex flex-col gap-3">
-              <Input
-                value={draft.display_name || ''}
-                onChange={(e) => setDraft({ ...draft, display_name: e.target.value })}
-                placeholder="Display name"
-                data-testid="profile-name-input"
-              />
-              <div className="flex gap-2">
-                <Button size="sm" variant="brand" onClick={handleSave} disabled={saving} data-testid="save-profile-button" className="gap-1.5">
-                  <Check className="w-3.5 h-3.5" />
-                  {saving ? 'Saving…' : 'Save'}
-                </Button>
-                <Button
-                  size="sm"
-                  variant="ghost"
-                  onClick={() => {
-                    setEditing(false);
-                    setDraft(profile || {});
-                  }}
-                  className="gap-1.5"
-                >
-                  <X className="w-3.5 h-3.5" />
-                  Cancel
-                </Button>
-              </div>
-            </div>
-          ) : (
-            <>
-              {/* `profile-name` is a stable hook for e2e: the display name also
-                  renders in the top bar account row (inside <main>), so tests
-                  target this element directly instead of an ambiguous getByText. */}
-              <h1 className="font-display text-xl font-bold text-foreground truncate" data-testid="profile-name">
-                {profile?.display_name || username}
-              </h1>
-              {!isOwnProfile && (
-                <p className="text-xs text-muted-foreground">@{username}</p>
-              )}
-            </>
-          )}
-        </div>
-
-        {/* Bio section */}
-        <div className="mt-3">
-          {isOwnProfile && editing ? (
-            <div className="flex flex-col gap-3">
-              <Textarea
-                value={draft.bio || ''}
-                onChange={(e) => setDraft({ ...draft, bio: e.target.value })}
-                placeholder="Bio"
-                className="text-sm min-h-[60px] resize-none"
-              />
-              <Input
-                value={draft.website || ''}
-                onChange={(e) => setDraft({ ...draft, website: e.target.value })}
-                placeholder="Website"
-              />
-              <Input
-                value={draft.location || ''}
-                onChange={(e) => setDraft({ ...draft, location: e.target.value })}
-                placeholder="Location"
-              />
-            </div>
-          ) : (
-            <div className="space-y-1.5">
-              {profile?.bio && (
-                <p className="text-sm text-foreground leading-relaxed whitespace-pre-wrap">{profile.bio}</p>
-              )}
-              {profile?.location && (
-                <div className="flex items-center gap-1.5 text-sm text-muted-foreground">
-                  <MapPin className="w-3.5 h-3.5" />
-                  <span>{profile.location}</span>
-                </div>
-              )}
-              {profile?.website && (
-                <div className="flex items-center gap-1.5 text-sm text-muted-foreground">
-                  {profile.website.startsWith('http') ? (
-                    <Globe className="w-3.5 h-3.5" />
-                  ) : (
-                    <Link className="w-3.5 h-3.5" />
-                  )}
-                  <a
-                    href={profile.website.startsWith('http') ? profile.website : `https://${profile.website}`}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="text-brand-300 hover:text-brand-400 hover:underline transition-colors duration-150"
+              <div className="flex shrink-0 items-center gap-2">
+                {!isOwnProfile && (
+                  <>
+                    <Button
+                      variant={following ? 'outline' : 'brand'}
+                      size="sm"
+                      className={cn(
+                        'gap-1.5 min-w-[100px]',
+                        following && 'border-border hover:border-danger/50 hover:text-danger hover:bg-danger-muted',
+                      )}
+                      data-testid="follow-button"
+                      onClick={handleFollow}
+                      disabled={followLoading}
+                    >
+                      {followLoading ? (
+                        <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                      ) : following ? (
+                        <>
+                          <UserCheck className="w-3.5 h-3.5" />
+                          Following
+                        </>
+                      ) : (
+                        <>
+                          <UserPlus className="w-3.5 h-3.5" />
+                          Follow
+                        </>
+                      )}
+                    </Button>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="gap-1.5 min-w-[100px] border-border hover:bg-elevated"
+                      data-testid="message-button"
+                      onClick={() =>
+                        navigate(`/messages?to=${username}&provider=${provider}`)
+                      }
+                    >
+                      <MessageSquare className="w-3.5 h-3.5" />
+                      Message
+                    </Button>
+                  </>
+                )}
+                {isOwnProfile && !editing && (
+                  <Button
+                    variant="brand_subtle"
+                    size="sm"
+                    className="gap-1.5"
+                    data-testid="edit-profile-button"
+                    onClick={() => setEditing(true)}
                   >
-                    {profile.website}
-                  </a>
+                    <Edit3 className="w-3.5 h-3.5" />
+                    Edit profile
+                  </Button>
+                )}
+              </div>
+            </div>
+
+            {/* Stats row — tabular-nums (design.md §5). D80: the Followers +
+                Following counts are clickable → the dedicated list screens. */}
+            <div className="mt-3 flex gap-6" data-testid="user-profile-stats">
+              <div>
+                <span className="tabular-nums font-display font-bold text-foreground text-lg block">{posts.length}</span>
+                <span className="text-xs text-muted-foreground">Posts</span>
+              </div>
+              {followerCount !== null && followerCount !== undefined && (
+                <button
+                  type="button"
+                  onClick={() => navigate(`/u/${username}/followers`)}
+                  className="group text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring rounded-md -mx-1 px-1"
+                  data-testid="user-profile-followers-link"
+                  aria-label={`View ${followerCount} followers`}
+                >
+                  <span className="tabular-nums font-display font-bold text-foreground text-lg block group-hover:text-brand transition-colors">{followerCount}</span>
+                  <span className="text-xs text-muted-foreground group-hover:text-brand transition-colors">Followers</span>
+                </button>
+              )}
+              <button
+                type="button"
+                onClick={() => navigate(`/u/${username}/following`)}
+                className="group text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring rounded-md -mx-1 px-1"
+                data-testid="user-profile-following-link"
+                aria-label="View who is being followed"
+              >
+                <span className="tabular-nums font-display font-bold text-foreground text-lg block group-hover:text-brand transition-colors">
+                  {followingCountError ? '—' : followingCount ?? ''}
+                </span>
+                <span className="text-xs text-muted-foreground group-hover:text-brand transition-colors">Following</span>
+              </button>
+            </div>
+
+            {/* Bio section */}
+            <div className="mt-3">
+              {isOwnProfile && editing ? (
+                <div className="flex flex-col gap-3">
+                  <Textarea
+                    value={draft.bio || ''}
+                    onChange={(e) => setDraft({ ...draft, bio: e.target.value })}
+                    placeholder="Bio"
+                    className="text-sm min-h-[60px] resize-none max-w-md"
+                  />
+                  <Input
+                    value={draft.website || ''}
+                    onChange={(e) => setDraft({ ...draft, website: e.target.value })}
+                    placeholder="Website"
+                    className="max-w-md"
+                  />
+                  <Input
+                    value={draft.location || ''}
+                    onChange={(e) => setDraft({ ...draft, location: e.target.value })}
+                    placeholder="Location"
+                    className="max-w-md"
+                  />
+                  <div className="flex gap-2">
+                    <Button size="sm" variant="brand" onClick={handleSave} disabled={saving} data-testid="save-profile-button" className="gap-1.5">
+                      <Check className="w-3.5 h-3.5" />
+                      {saving ? 'Saving…' : 'Save'}
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      onClick={() => {
+                        setEditing(false);
+                        setDraft(profile || {});
+                      }}
+                      className="gap-1.5"
+                    >
+                      <X className="w-3.5 h-3.5" />
+                      Cancel
+                    </Button>
+                  </div>
+                </div>
+              ) : (
+                <div className="space-y-1.5">
+                  {profile?.bio && (
+                    <p className="text-sm text-foreground leading-relaxed whitespace-pre-wrap max-w-2xl">{profile.bio}</p>
+                  )}
+                  {profile?.location && (
+                    <div className="flex items-center gap-1.5 text-sm text-muted-foreground">
+                      <MapPin className="w-3.5 h-3.5" />
+                      <span>{profile.location}</span>
+                    </div>
+                  )}
+                  {profile?.website && (
+                    <div className="flex items-center gap-1.5 text-sm text-muted-foreground">
+                      {profile.website.startsWith('http') ? (
+                        <Globe className="w-3.5 h-3.5" />
+                      ) : (
+                        <Link className="w-3.5 h-3.5" />
+                      )}
+                      <a
+                        href={profile.website.startsWith('http') ? profile.website : `https://${profile.website}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-brand-300 hover:text-brand-400 hover:underline transition-colors duration-150"
+                      >
+                        {profile.website}
+                      </a>
+                    </div>
+                  )}
                 </div>
               )}
             </div>
-          )}
-        </div>
 
-        {/* Stats row — tabular-nums (design.md §5). D80: the Followers +
-            Following counts are clickable → the dedicated list screens
-            (/u/:username/followers + /following) with a back-to-profile exit.
-            The social graph is a property of a person, so it lives here. */}
-        <div className="mt-4 flex gap-6" data-testid="user-profile-stats">
-          <div>
-            <span className="tabular-nums font-display font-bold text-foreground text-lg block">{posts.length}</span>
-            <span className="text-xs text-muted-foreground">Posts</span>
+            {uploadError && (
+              <div
+                className="mt-3 flex items-center gap-2 text-sm text-danger"
+                role="alert"
+                data-testid="profile-upload-error"
+              >
+                <AlertTriangle className="w-4 h-4 shrink-0" />
+                {uploadError}
+              </div>
+            )}
+
+            {/* Staging entry point — only shown to owner when N > 0 */}
+            {isOwnProfile && stagingCount > 0 && (
+              <Button
+                variant="brand_subtle"
+                size="sm"
+                data-testid="review-imports-button"
+                className="mt-3 w-full max-w-xs gap-2"
+                onClick={() => navigate('/staging')}
+              >
+                <Inbox className="w-4 h-4" />
+                Review imports ({stagingCount})
+              </Button>
+            )}
+
+            {/* Follow error state */}
+            {followError && (
+              <div className="mt-3 flex items-center gap-2 text-sm text-danger" role="alert">
+                <span className="inline-block w-1.5 h-1.5 rounded-full bg-danger flex-shrink-0" />
+                {followError}
+                <button
+                  onClick={() => { setFollowError(null); handleFollow(); }}
+                  className="text-brand-300 hover:text-brand-400 underline underline-offset-2 transition-colors duration-150"
+                >
+                  Retry
+                </button>
+              </div>
+            )}
           </div>
-          {followerCount !== null && followerCount !== undefined && (
-            <button
-              type="button"
-              onClick={() => navigate(`/u/${username}/followers`)}
-              className="group text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring rounded-md -mx-1 px-1"
-              data-testid="user-profile-followers-link"
-              aria-label={`View ${followerCount} followers`}
-            >
-              <span className="tabular-nums font-display font-bold text-foreground text-lg block group-hover:text-brand transition-colors">{followerCount}</span>
-              <span className="text-xs text-muted-foreground group-hover:text-brand transition-colors">Followers</span>
-            </button>
-          )}
-          <button
-            type="button"
-            onClick={() => navigate(`/u/${username}/following`)}
-            className="group text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring rounded-md -mx-1 px-1"
-            data-testid="user-profile-following-link"
-            aria-label="View who is being followed"
-          >
-            <span className="tabular-nums font-display font-bold text-foreground text-lg block group-hover:text-brand transition-colors">
-              {followingCountError ? '—' : followingCount ?? ''}
-            </span>
-            <span className="text-xs text-muted-foreground group-hover:text-brand transition-colors">Following</span>
-          </button>
         </div>
-
-        {/* Staging entry point — only shown to owner when N > 0 */}
-        {isOwnProfile && stagingCount > 0 && (
-          <Button
-            variant="brand_subtle"
-            size="sm"
-            data-testid="review-imports-button"
-            className="mt-3 w-full gap-2"
-            onClick={() => navigate('/staging')}
-          >
-            <Inbox className="w-4 h-4" />
-            Review imports ({stagingCount})
-          </Button>
-        )}
-
-        {/* Follow error state */}
-        {followError && (
-          <div className="mt-3 flex items-center gap-2 text-sm text-danger" role="alert">
-            <span className="inline-block w-1.5 h-1.5 rounded-full bg-danger flex-shrink-0" />
-            {followError}
-            <button
-              onClick={() => { setFollowError(null); handleFollow(); }}
-              className="text-brand-300 hover:text-brand-400 underline underline-offset-2 transition-colors duration-150"
-            >
-              Retry
-            </button>
-          </div>
-        )}
       </div>
 
-      {/* Tabs (+ the posts tab's view lens: grid | feed) */}
-      <div className="flex items-end border-b border-border">
+      {/* Tabs (+ the posts tab's view lens: grid | feed). Icon tabs (the
+          new-Instagram shape) — Posts (the content wall) | Media (every media
+          item). The view toggle (grid | feed) stays a posts-tab concept. */}
+      <div className="flex items-center border-b border-border">
         <button
           data-testid="profile-tab-posts"
           aria-current={activeTab === 'posts' ? 'true' : undefined}
           className={cn(
-            'flex-1 min-h-11 py-3 text-sm font-medium text-center transition-all duration-150 relative',
+            'flex-1 min-h-11 py-3 text-sm font-medium flex items-center justify-center gap-2 transition-all duration-150 relative',
             activeTab === 'posts'
               ? 'text-foreground'
               : 'text-muted-foreground hover:text-foreground',
           )}
           onClick={() => selectTab('posts')}
         >
+          <LayoutGrid className="w-4 h-4" strokeWidth={2} />
           Posts
           {activeTab === 'posts' && (
             <div className="absolute bottom-0 inset-x-0 h-0.5 bg-gradient-to-r from-brand to-brand-600" />
@@ -817,13 +911,14 @@ export default function UserProfileScreen({ username, provider, onBack }: UserPr
           data-testid="profile-tab-media"
           aria-current={activeTab === 'media' ? 'true' : undefined}
           className={cn(
-            'flex-1 min-h-11 py-3 text-sm font-medium text-center transition-all duration-150 relative',
+            'flex-1 min-h-11 py-3 text-sm font-medium flex items-center justify-center gap-2 transition-all duration-150 relative',
             activeTab === 'media'
               ? 'text-foreground'
               : 'text-muted-foreground hover:text-foreground',
           )}
           onClick={() => selectTab('media')}
         >
+          <Clapperboard className="w-4 h-4" strokeWidth={2} />
           Media
           {activeTab === 'media' && (
             <div className="absolute bottom-0 inset-x-0 h-0.5 bg-gradient-to-r from-brand to-brand-600" />
@@ -836,8 +931,13 @@ export default function UserProfileScreen({ username, provider, onBack }: UserPr
         )}
       </div>
 
-      {/* Posts: the insta-shaped grid (default) or the facebook-shaped feed */}
-      <div className="p-1">
+      {/* Content — the wall of video (the new-Instagram / TikTok shape). A
+          responsive grid of 9:16 vertical tiles that fills the whole screen:
+          `auto-fill, minmax(160px, 1fr)` renders as many columns as fit the
+          width (the operator: "filling the whole screen", "doesn't have to be
+          4"). Posts tab: the insta-shaped wall (default) or the facebook-shaped
+          feed. Media tab: every media item as a wall tile. */}
+      <div className="px-4 pb-4 pt-2">
         {activeTab === 'posts' ? (
           <>
           {/* The composer — the owner can post from their profile (the
@@ -861,62 +961,21 @@ export default function UserProfileScreen({ username, provider, onBack }: UserPr
                 onAuthorClick={(u) => navigate(`/u/${u}`)}
               />
             ) : (
-            <div className="grid grid-cols-3 gap-1">
+            <div className="grid gap-2 [grid-template-columns:repeat(auto-fill,minmax(160px,1fr))]">
               {posts.map((post) => {
                 const firstMedia = post.media_refs?.[0] ? mediaMap[mediaRefId(post.media_refs[0])] : null;
+                // A post with no media renders as a caption-only tile (the
+                // text is the face); a post with media renders the first media
+                // (video-first — the wall is a wall of video).
                 return (
-                  <div
+                  <WallTile
                     key={post._id}
-                    role="button"
-                    tabIndex={0}
-                    aria-label="View post"
-                    data-testid="profile-post-cell"
+                    media={firstMedia ?? { _id: post._id, url: '', created_at: '' }}
+                    testId="profile-post-cell"
+                    caption={post.text}
+                    multiCount={post.media_refs?.length}
                     onClick={() => setLightboxPost(post)}
-                    onKeyDown={(e) => {
-                      if (e.key === 'Enter' || e.key === ' ') {
-                        e.preventDefault();
-                        setLightboxPost(post);
-                      }
-                    }}
-                    className="aspect-square bg-elevated overflow-hidden relative group cursor-pointer outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset"
-                  >
-                    {firstMedia ? (
-                      firstMedia.mime_type?.startsWith('video/') ? (
-                        <div className="w-full h-full relative">
-                          <video
-                            src={firstMedia.url}
-                            poster={firstMedia.thumbnail_url}
-                            className="w-full h-full object-cover transition-transform duration-150 group-hover:scale-110"
-                            preload="metadata"
-                            playsInline
-                            muted
-                          />
-                          <div className="absolute inset-0 flex items-center justify-center bg-black/20 opacity-0 group-hover:opacity-100 transition-opacity duration-150">
-                            <div className="flex items-center justify-center w-9 h-9 rounded-full bg-background/80 backdrop-blur-sm">
-                              <Play className="w-4 h-4 text-foreground ml-0.5" strokeWidth={2} />
-                            </div>
-                          </div>
-                        </div>
-                      ) : (
-                        <img
-                          src={firstMedia.url}
-                          alt=""
-                          className="w-full h-full object-cover transition-transform duration-150 group-hover:scale-110"
-                          loading="lazy"
-                        />
-                      )
-                    ) : post.text ? (
-                      <div className="w-full h-full p-3 flex items-start">
-                        <p className="text-xs text-muted-foreground line-clamp-6">{post.text}</p>
-                      </div>
-                    ) : null}
-                    {(post.media_refs?.length || 0) > 1 && (
-                      <div className="absolute top-2 right-2 bg-background/80 text-foreground text-xs px-1.5 py-0.5 rounded-md backdrop-blur-sm border border-border/50">
-                        {post.media_refs?.length}
-                      </div>
-                    )}
-                    <div className="absolute inset-0 bg-gradient-to-t from-black/30 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-150" />
-                  </div>
+                  />
                 );
               })}
             </div>
@@ -940,53 +999,19 @@ export default function UserProfileScreen({ username, provider, onBack }: UserPr
           )}
           </>
         ) : mediaPosts.length ? (
-          <div className="grid grid-cols-3 gap-1">
+          <div className="grid gap-2 [grid-template-columns:repeat(auto-fill,minmax(160px,1fr))]">
             {mediaPosts.flatMap((post) =>
               (post.media_refs || []).map((ref) => {
                 const media = mediaMap[mediaRefId(ref)];
                 if (!media) return null;
                 return (
-                  <div
+                  <WallTile
                     key={mediaRefId(ref)}
-                    role="button"
-                    tabIndex={0}
-                    aria-label="View post"
-                    data-testid="profile-media-cell"
+                    media={media}
+                    testId="profile-media-cell"
+                    caption={post.text}
                     onClick={() => setLightboxPost(post)}
-                    onKeyDown={(e) => {
-                      if (e.key === 'Enter' || e.key === ' ') {
-                        e.preventDefault();
-                        setLightboxPost(post);
-                      }
-                    }}
-                    className="aspect-square bg-elevated overflow-hidden relative group cursor-pointer outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset"
-                  >
-                    {media.mime_type?.startsWith('video/') ? (
-                      <div className="w-full h-full relative">
-                        <video
-                          src={media.url}
-                          poster={media.thumbnail_url}
-                          className="w-full h-full object-cover transition-transform duration-150 group-hover:scale-110"
-                          preload="metadata"
-                          playsInline
-                          muted
-                        />
-                        <div className="absolute inset-0 flex items-center justify-center bg-black/20 opacity-0 group-hover:opacity-100 transition-opacity duration-150">
-                          <div className="flex items-center justify-center w-9 h-9 rounded-full bg-background/80 backdrop-blur-sm">
-                            <Play className="w-4 h-4 text-foreground ml-0.5" strokeWidth={2} />
-                          </div>
-                        </div>
-                      </div>
-                    ) : (
-                      <img
-                        src={media.url}
-                        alt={media.alt_text || ''}
-                        className="w-full h-full object-cover transition-transform duration-150 group-hover:scale-110"
-                        loading="lazy"
-                      />
-                    )}
-                    <div className="absolute inset-0 bg-gradient-to-t from-black/30 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-150" />
-                  </div>
+                  />
                 );
               }),
             )}

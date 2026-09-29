@@ -453,7 +453,7 @@ describe('Layout — the search icon is on every screen (desktop + 375px)', () =
   it('the desktop top bar is hidden on the Shorts lens (immersive full-bleed)', async () => {
     const { default: Layout } = await import('@/components/Social/Layout');
     render(
-      <MemoryRouter initialEntries={['/shorts']}>
+      <MemoryRouter initialEntries={['/shorts/s1']}>
         <Layout onLogout={() => {}} onReportBug={() => {}}>
           <div>Shorts lens</div>
         </Layout>
