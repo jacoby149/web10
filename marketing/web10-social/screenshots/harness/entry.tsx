@@ -100,6 +100,7 @@ const initialRoute =
     : screen === 'discover-explore' ? '/discover?tab=explore'
     : screen === 'watch' ? '/watch/dp-1'
     : screen === 'shorts' || screen === 'install-prompt' ? '/shorts'
+    : screen === 'shorts-searched' ? '/shorts?q=studio'
   : screen === 'groups' ? '/groups'
   : screen === 'groups-discover' ? '/groups?tab=discover'
   : screen === 'groups-detail' ? '/groups/web10%2Fgroups%2Fusers%2Fnova%2Fsynthwave-sessions'

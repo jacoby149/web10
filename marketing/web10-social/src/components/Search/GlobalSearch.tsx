@@ -1,23 +1,24 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { useLocation, useNavigate } from 'react-router-dom';
-import { Search, X, User, Users, Hash, FileText } from 'lucide-react';
+import { Search, X, User, Users, Hash, Video, Smartphone, Flame } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { searchPeople, searchGroups, searchPosts } from '@/data/search';
+import { searchPeople, searchGroups, searchPosts, searchVideo, searchShorts } from '@/data/search';
 import type { PersonCard } from '@/data/people';
 import type { GroupDirectoryEntry } from '@/data/groups';
 import type { PostRecord } from '@/data/types';
+import type { ShortPost } from '@/data';
 
 // S1 (global-search.md): the top-bar everything-search surface — the
 // expanding-icon state machine: icon (rest) → expanded field → results →
-// collapse. S2 adds the three-way fan-out (people/groups/posts) + result
-// rows. S7 (25.09.2026) makes the search PEOPLE-FIRST — opposite to Discover
-// (where Trending is the first tab): the dropdown opens on the People mode
-// (people + groups, live as you type), the "See all results" CTA + Enter in
-// People mode land on the People tab (?tab=explore), and the Trending mode
-// (posts) is one tap over — its Enter keeps the active-tab hand-off (S5). The
-// query chip (with its X) renders on both Discover tabs, so the search can
-// be cleared from either.
+// collapse. S2 adds the fan-out + result rows. S7 makes the search
+// PEOPLE-FIRST. S8 (28.09.2026) — the Discover split's four flat
+// destinations (Video · Shorts · Hot Gossip · People) are the four search
+// CATEGORIES: the dropdown's mode toggle is the four destinations, one tap
+// picks the category, and Enter / the "see all" CTA open THAT destination
+// with the query (`/video?q=`, `/shorts?q=`, `/hot-gossip?q=`,
+// `/people?q=`). All four fan-out reads load together on the debounced query
+// (the mode only picks which sections are shown), so a flip is instant.
 
 // The app's debounce idiom (feed/discover knob re-reads settle at 400ms).
 const SEARCH_DEBOUNCE_MS = 400;
@@ -112,6 +113,50 @@ function PostRow({ post }: { post: PostRecord }) {
   );
 }
 
+function VideoRow({ post }: { post: PostRecord }) {
+  const navigate = useNavigate();
+  const author = post.author_username || 'unknown';
+  const href = post._id ? `/u/${author}/p/${post._id}` : `/u/${author}`;
+  return (
+    <button
+      type="button"
+      data-testid={`global-search-video-${post._id || 'unknown'}`}
+      onClick={() => navigate(href)}
+      className="w-full flex items-center gap-3 px-3 py-2 text-left hover:bg-elevated transition-colors duration-150 focus-visible:outline-none focus-visible:bg-elevated"
+    >
+      <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-elevated">
+        <Video className="h-4 w-4 text-muted-foreground" strokeWidth={1.75} />
+      </span>
+      <span className="flex-1 min-w-0">
+        <span className="block text-sm text-foreground truncate">{post.text || '(no text)'}</span>
+        <span className="block text-xs text-muted-foreground truncate">@{author}</span>
+      </span>
+    </button>
+  );
+}
+
+function ShortRow({ short }: { short: ShortPost }) {
+  const navigate = useNavigate();
+  const post = short.post;
+  const author = post.author_username || 'unknown';
+  return (
+    <button
+      type="button"
+      data-testid={`global-search-short-${post._id || 'unknown'}`}
+      onClick={() => navigate(post._id ? `/shorts/${post._id}` : '/shorts')}
+      className="w-full flex items-center gap-3 px-3 py-2 text-left hover:bg-elevated transition-colors duration-150 focus-visible:outline-none focus-visible:bg-elevated"
+    >
+      <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-elevated">
+        <Smartphone className="h-4 w-4 text-muted-foreground" strokeWidth={1.75} />
+      </span>
+      <span className="flex-1 min-w-0">
+        <span className="block text-sm text-foreground truncate">{post.text || '(no text)'}</span>
+        <span className="block text-xs text-muted-foreground truncate">@{author}</span>
+      </span>
+    </button>
+  );
+}
+
 function SectionSkeleton({ label }: { label: string }) {
   return (
     <div className="px-3 py-2" aria-hidden="true">
@@ -130,7 +175,7 @@ function SearchSection({
   children: React.ReactNode;
 }) {
   return (
-    <div className="py-1" data-testid={`global-search-section-${label.toLowerCase()}`}>
+    <div className="py-1" data-testid={`global-search-section-${label.toLowerCase().replace(/\s+/g, '-')}`}>
       <p className="px-3 py-1 text-[0.625rem] font-semibold uppercase tracking-wide text-muted-foreground/70">{label}</p>
       {children}
     </div>
@@ -144,12 +189,12 @@ export default function GlobalSearch({ variant }: GlobalSearchProps) {
   const [closing, setClosing] = useState(false);
   const [query, setQuery] = useState('');
   const [debouncedQuery, setDebouncedQuery] = useState('');
-  // The results mode: `people` (the default — the operator, 25.09.2026: "for
-  // search purposes, people should be selected firstly in the search, people
-  // first, opposite in discover in discover the trending tab is first") +
-  // `posts` (the Trending posts, the Discover default — the two surfaces are
-  // opposite on purpose). Reset to `people` on collapse.
-  const [mode, setMode] = useState<'posts' | 'people'>('people');
+  // The results mode (S8): the four flat destinations are the four search
+  // categories — `people` (the default — S7: the search is people-first, the
+  // front door is finding accounts) | `video` | `shorts` | `gossip` (Hot
+  // Gossip, the ranked post board). One tap picks the category; Enter / the
+  // CTA open THAT destination with the query. Reset to `people` on collapse.
+  const [mode, setMode] = useState<'people' | 'video' | 'shorts' | 'gossip'>('people');
   const inputRef = useRef<HTMLInputElement>(null);
   const triggerRef = useRef<HTMLButtonElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
@@ -157,11 +202,13 @@ export default function GlobalSearch({ variant }: GlobalSearchProps) {
   const wasOpen = useRef(false);
   const { pathname } = useLocation();
 
-  // S2: the three search sections. null = loading, [] = loaded (empty),
+  // S2/S8: the five search sections. null = loading, [] = loaded (empty),
   // [...] = loaded (has results). Per-section loading: the slowest read
   // never blocks the others.
   const [people, setPeople] = useState<PersonCard[] | null>(null);
   const [groups, setGroups] = useState<GroupDirectoryEntry[] | null>(null);
+  const [video, setVideo] = useState<PostRecord[] | null>(null);
+  const [shorts, setShorts] = useState<ShortPost[] | null>(null);
   const [posts, setPosts] = useState<PostRecord[] | null>(null);
   const navigate = useNavigate();
 
@@ -184,6 +231,8 @@ export default function GlobalSearch({ variant }: GlobalSearchProps) {
       setMode('people');
       setPeople(null);
       setGroups(null);
+      setVideo(null);
+      setShorts(null);
       setPosts(null);
       collapseTimer.current = null;
     }, COLLAPSE_MS);
@@ -249,13 +298,14 @@ export default function GlobalSearch({ variant }: GlobalSearchProps) {
     return () => clearTimeout(t);
   }, [query]);
 
-  // S2: fire the fan-out when the debounced query changes. All three reads
-  // (people + groups + posts) fire together — the mode only controls which
-  // sections are SHOWN, so a tab flip is instant (no re-skeleton) and each
-  // section renders independently as its read resolves (per-section loading).
-  // The reads are cheap pool reads (50, filtered client-side), so fetching
-  // all three is not a cost worth gating. A query change resets all sections
-  // (stale results from a previous query must not linger under a new one).
+  // S2/S8: fire the fan-out when the debounced query changes. All five reads
+  // (people + groups + video + shorts + posts) fire together — the mode only
+  // controls which sections are SHOWN, so a category flip is instant (no
+  // re-skeleton) and each section renders independently as its read resolves
+  // (per-section loading). The reads are cheap pool reads (50, filtered
+  // client-side), so fetching all five is not a cost worth gating. A query
+  // change resets all sections (stale results from a previous query must not
+  // linger under a new one).
   const lastFannedQuery = useRef('');
   useEffect(() => {
     if (!open) return;
@@ -263,6 +313,8 @@ export default function GlobalSearch({ variant }: GlobalSearchProps) {
     lastFannedQuery.current = debouncedQuery;
     setPeople(null);
     setGroups(null);
+    setVideo(null);
+    setShorts(null);
     setPosts(null);
     if (!debouncedQuery) return;
     let cancelled = false;
@@ -272,6 +324,12 @@ export default function GlobalSearch({ variant }: GlobalSearchProps) {
     searchGroups(debouncedQuery)
       .then((r) => { if (!cancelled) setGroups(r); })
       .catch(() => { if (!cancelled) setGroups([]); });
+    searchVideo(debouncedQuery)
+      .then((r) => { if (!cancelled) setVideo(r); })
+      .catch(() => { if (!cancelled) setVideo([]); });
+    searchShorts(debouncedQuery)
+      .then((r) => { if (!cancelled) setShorts(r); })
+      .catch(() => { if (!cancelled) setShorts([]); });
     searchPosts(debouncedQuery)
       .then((r) => { if (!cancelled) setPosts(r); })
       .catch(() => { if (!cancelled) setPosts([]); });
@@ -301,12 +359,12 @@ export default function GlobalSearch({ variant }: GlobalSearchProps) {
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
     if (e.key === 'Enter') {
-      // Searching opens Discover with the query (?q=) — the destination
-      // follows the results mode (People mode → the People tab; Trending
-      // mode → the active tab). The query chip (with its X) renders on BOTH
-      // the Trending and People tabs, so the search can be cleared from
-      // either. Works on both variants (the mobile full-screen view
-      // collapses via the pathname-change effect).
+      // Searching opens the picked category's destination with the query
+      // (?q=) — S8: People → /people, Video → /video, Shorts → /shorts,
+      // Hot Gossip → /hot-gossip. The query chip (with its X) renders on the
+      // destination, so the search can be cleared there. Works on both
+      // variants (the mobile full-screen view collapses via the
+      // pathname-change effect).
       if (query.trim()) submitSearch();
       return;
     }
@@ -317,20 +375,22 @@ export default function GlobalSearch({ variant }: GlobalSearchProps) {
     }
   };
 
-  // The search submit: navigate to the matching destination carrying the
-  // query (?q=). The destination follows the RESULTS MODE (S7: the search is
-  // people-first): People mode → the People destination (the people/groups
-  // browser, where the small results came from); Posts mode → Hot Gossip (the
-  // ranked post board — the Discover split's home for posts). The query is
-  // screen state the URL holds (the deep-link rule).
+  // The search submit (S8): navigate to the picked CATEGORY's destination
+  // carrying the query (?q=). Each of the four flat destinations is a search
+  // category — the "see all" lands where the small results came from:
+  // People → `/people?q=` (the people/groups browser), Video → `/video?q=`
+  // (the video wall), Shorts → `/shorts?q=` (the vertical lens), Hot Gossip
+  // → `/hot-gossip?q=` (the ranked post board). The query is screen state the
+  // URL holds (the deep-link rule).
   const submitSearch = useCallback(() => {
     const q = query.trim();
     if (!q) return;
-    if (mode === 'people') {
-      navigate(`/people?q=${encodeURIComponent(q)}`);
-      return;
-    }
-    navigate(`/hot-gossip?q=${encodeURIComponent(q)}`);
+    const dest =
+      mode === 'people' ? '/people'
+      : mode === 'video' ? '/video'
+      : mode === 'shorts' ? '/shorts'
+      : '/hot-gossip';
+    navigate(`${dest}?q=${encodeURIComponent(q)}`);
   }, [query, navigate, mode]);
 
   const field = (sizeClass: string) => (
@@ -354,13 +414,23 @@ export default function GlobalSearch({ variant }: GlobalSearchProps) {
   );
 
   // The results container content: the "type to search" idle state, or the
-  // mode-specific results. The mode toggle (People | Trending) is the
-  // segmented switch — people is the default (S7: the search is people-first,
-  // opposite to Discover where Trending is first); one tap flips to the
-  // Trending posts. It renders as soon as there's a query (immediate, not
-  // debounced) so it's clickable while the results are still loading.
+  // mode-specific results. The mode toggle (People | Video | Shorts | Hot
+  // Gossip) is the four flat destinations (S8) — the labels match the nav
+  // exactly, and one tap picks the category. People is the default (S7: the
+  // search is people-first). It renders as soon as there's a query
+  // (immediate, not debounced) so it's clickable while the results are still
+  // loading. All five fan-out reads load together (the mode only picks which
+  // sections are shown), so a flip is instant.
   const q = debouncedQuery;
   const allLoaded = (s: unknown) => s !== null;
+
+  // The "see all" CTA label + destination, per mode (S8: the CTA lands where
+  // the small results came from).
+  const ctaLabel =
+    mode === 'people' ? 'in People'
+    : mode === 'video' ? 'in Video'
+    : mode === 'shorts' ? 'in Shorts'
+    : 'in Hot Gossip';
 
   const resultsContent =
     query.trim() === '' ? (
@@ -373,25 +443,24 @@ export default function GlobalSearch({ variant }: GlobalSearchProps) {
       </div>
     ) : (
       <div className="py-1">
-        {/* The mode toggle — People (default, S7) | Trending. The labels
-            match Discover's tabs (the operator: "it is supposed to be
-            Trending and People, not Posts and People"). Slim segmented
-            control (the Facebook-style dropdown, 25.09.2026 — no chunky
-            pills). It renders as soon as there's a query (immediate, not
-            debounced) so it's clickable while the results are still loading.
-            Both modes' sections load together (the mode only picks which
-            are shown), so a flip is instant. */}
+        {/* The mode toggle — the four flat destinations (S8): People
+            (default, S7) | Video | Shorts | Hot Gossip. The labels match the
+            nav exactly. Slim segmented control (the Facebook-style dropdown).
+            It renders as soon as there's a query (immediate, not debounced)
+            so it's clickable while the results are still loading. */}
         <div className="px-3 pt-2 pb-1">
           <div
-            className="inline-flex items-center gap-0.5 rounded-full bg-elevated p-0.5"
+            className="flex items-center gap-0.5 rounded-full bg-elevated p-0.5 max-w-full overflow-x-auto [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
             role="tablist"
             aria-label="Search results type"
             data-testid="global-search-mode-toggle"
           >
             {([
               ['people', 'People', Users],
-              ['posts', 'Trending', FileText],
-            ] as ['posts' | 'people', string, typeof FileText][]).map(([m, label, Icon]) => (
+              ['video', 'Video', Video],
+              ['shorts', 'Shorts', Smartphone],
+              ['gossip', 'Hot Gossip', Flame],
+            ] as ['people' | 'video' | 'shorts' | 'gossip', string, typeof Users][]).map(([m, label, Icon]) => (
               <button
                 key={m}
                 type="button"
@@ -400,7 +469,7 @@ export default function GlobalSearch({ variant }: GlobalSearchProps) {
                 data-testid={`global-search-mode-${m}`}
                 onClick={() => setMode(m)}
                 className={cn(
-                  'flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-semibold transition-colors',
+                  'flex items-center gap-1.5 whitespace-nowrap rounded-full px-3 py-1 text-xs font-semibold transition-colors',
                   'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand/50',
                   mode === m
                     ? 'bg-brand-muted text-brand-300'
@@ -414,28 +483,7 @@ export default function GlobalSearch({ variant }: GlobalSearchProps) {
           </div>
         </div>
 
-        {mode === 'posts' ? (
-          <>
-            {/* Trending posts (the Discover default — the search's Trending
-                mode mirrors it; the search itself is people-first, S7) */}
-            {posts === null ? (
-              <SectionSkeleton label="Trending" />
-            ) : posts.length > 0 ? (
-              <SearchSection label="Trending">
-                {posts.map((p) => (
-                  <PostRow key={p._id || p.created_at} post={p} />
-                ))}
-              </SearchSection>
-            ) : (
-              <div
-                data-testid="global-search-no-results"
-                className="px-4 py-8 text-center text-sm text-muted-foreground"
-              >
-                No posts match &ldquo;{q}&rdquo;
-              </div>
-            )}
-          </>
-        ) : (
+        {mode === 'people' ? (
           <>
             {/* People */}
             {people === null ? (
@@ -470,13 +518,78 @@ export default function GlobalSearch({ variant }: GlobalSearchProps) {
               </div>
             )}
           </>
+        ) : mode === 'video' ? (
+          <>
+            {/* Video posts (the /video destination's render-time gate) */}
+            {video === null ? (
+              <SectionSkeleton label="Video" />
+            ) : video.length > 0 ? (
+              <SearchSection label="Video">
+                {video.map((p) => (
+                  <VideoRow key={p._id || p.created_at} post={p} />
+                ))}
+              </SearchSection>
+            ) : (
+              <div
+                data-testid="global-search-no-results"
+                className="px-4 py-8 text-center text-sm text-muted-foreground"
+              >
+                No videos match &ldquo;{q}&rdquo;
+              </div>
+            )}
+          </>
+        ) : mode === 'shorts' ? (
+          <>
+            {/* Shorts (the /shorts destination — genuine 9:16, shorts.md) */}
+            {shorts === null ? (
+              <SectionSkeleton label="Shorts" />
+            ) : shorts.length > 0 ? (
+              <SearchSection label="Shorts">
+                {shorts.map((s) => (
+                  <ShortRow key={s.post._id || s.post.created_at} short={s} />
+                ))}
+              </SearchSection>
+            ) : (
+              <div
+                data-testid="global-search-no-results"
+                className="px-4 py-8 text-center text-sm text-muted-foreground"
+              >
+                No shorts match &ldquo;{q}&rdquo;
+              </div>
+            )}
+          </>
+        ) : (
+          <>
+            {/* Hot Gossip posts (the ranked post board) */}
+            {posts === null ? (
+              <SectionSkeleton label="Hot Gossip" />
+            ) : posts.length > 0 ? (
+              <SearchSection label="Hot Gossip">
+                {posts.map((p) => (
+                  <PostRow key={p._id || p.created_at} post={p} />
+                ))}
+              </SearchSection>
+            ) : (
+              <div
+                data-testid="global-search-no-results"
+                className="px-4 py-8 text-center text-sm text-muted-foreground"
+              >
+                No posts match &ldquo;{q}&rdquo;
+              </div>
+            )}
+          </>
         )}
 
-        {/* The search CTA — Enter (or this) opens the matching destination
-            with the query. People mode → the People destination (the
-            people/groups browser — S7: the search is people-first, so the
-            "see all" lands where the small results came from). */}
-        {mode === 'people' && (allLoaded(people) || allLoaded(groups)) && (
+        {/* The search CTA — Enter (or this) opens the picked category's
+            destination with the query (S8: the "see all" lands where the
+            small results came from). */}
+        {(mode === 'people'
+          ? allLoaded(people) || allLoaded(groups)
+          : mode === 'video'
+            ? allLoaded(video)
+            : mode === 'shorts'
+              ? allLoaded(shorts)
+              : allLoaded(posts)) && (
           <button
             type="button"
             data-testid="global-search-open-explore"
@@ -484,7 +597,7 @@ export default function GlobalSearch({ variant }: GlobalSearchProps) {
             className="w-full flex items-center gap-2 px-4 py-2.5 text-left text-sm text-brand-300 hover:text-brand-400 hover:bg-elevated transition-colors duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand/50"
           >
             <Search className="w-4 h-4 shrink-0" strokeWidth={1.75} />
-            See all results for &ldquo;{q}&rdquo; in People
+            See all results for &ldquo;{q}&rdquo; {ctaLabel}
           </button>
         )}
       </div>
