@@ -55,9 +55,14 @@ vi.mock('@/data/search', () => ({
   searchShorts: (...a: unknown[]) => searchShorts(...a),
 }));
 
+// The generic search tests render on a NON-destination route (/profile) so the
+// mode rests on People (S7: the search is people-first) — the "mode follows the
+// open tab" S9 behavior is tested separately via renderSearchOnDestination.
+// (/feed is now a search destination — the Posts screen — so it would default
+// to the Posts/gossip mode, not People.)
 function renderDesktopSearch() {
   return render(
-    <MemoryRouter initialEntries={['/feed']}>
+    <MemoryRouter initialEntries={['/profile']}>
       <GlobalSearch variant="desktop" />
     </MemoryRouter>,
   );
@@ -74,7 +79,7 @@ function LocationProbe() {
 
 function renderDesktopSearchWithProbe() {
   return render(
-    <MemoryRouter initialEntries={['/feed']}>
+    <MemoryRouter initialEntries={['/profile']}>
       <GlobalSearch variant="desktop" />
       <LocationProbe />
     </MemoryRouter>,
@@ -83,8 +88,21 @@ function renderDesktopSearchWithProbe() {
 
 function renderMobileSearch() {
   return render(
-    <MemoryRouter initialEntries={['/feed']}>
+    <MemoryRouter initialEntries={['/profile']}>
       <GlobalSearch variant="mobile" />
+    </MemoryRouter>,
+  );
+}
+
+// S9: render the search on a search-aware destination (the open tab). The
+// destination's ?q= filter is the app's existing behavior (DiscoverScreen /
+// ShortsWall) — this probe only asserts the search field's contract: the
+// field is the tab's live filter (typing writes ?q= to the tab's URL).
+function renderSearchOnDestination(path: string) {
+  return render(
+    <MemoryRouter initialEntries={[path]}>
+      <GlobalSearch variant="desktop" />
+      <LocationProbe />
     </MemoryRouter>,
   );
 }
@@ -231,7 +249,7 @@ describe('GlobalSearch — mobile (full-screen view, not a dropdown)', () => {
   });
 });
 
-describe('GlobalSearch — S2/S8 results (four categories: People | Video | Shorts | Hot Gossip)', () => {
+describe('GlobalSearch — S2/S8 results (four categories: People | Video | Shorts | Posts)', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     // Reset to the default empty results.
@@ -242,7 +260,7 @@ describe('GlobalSearch — S2/S8 results (four categories: People | Video | Shor
     vi.mocked(searchShorts).mockResolvedValue([]);
   });
 
-  it('the mode toggle is the four flat destinations (People | Video | Shorts | Hot Gossip)', async () => {
+  it('the mode toggle is the four flat destinations (People | Video | Shorts | Posts)', async () => {
     renderDesktopSearch();
     const field = screen.getByTestId('global-search-field');
     fireEvent.focus(field);
@@ -277,50 +295,157 @@ describe('GlobalSearch — S2/S8 results (four categories: People | Video | Shor
     expect(screen.queryByTestId('global-search-section-posts')).not.toBeInTheDocument();
   });
 
-  it('the toggle flips to Video (the video posts section)', async () => {
+  it('on the Video tab the dropdown previews Video (the mode follows the open tab)', async () => {
     vi.mocked(searchVideo).mockResolvedValue([
       { _id: 'v1', text: 'Synthwave video mix', author_username: 'alice', created_at: '2026-01-01T00:00:00Z' },
     ] as any);
-    renderDesktopSearch();
+    renderSearchOnDestination('/video');
     const field = screen.getByTestId('global-search-field');
     fireEvent.focus(field);
     fireEvent.change(field, { target: { value: 'synthwave' } });
-    // Flip to the Video category…
-    fireEvent.click(screen.getByTestId('global-search-mode-video'));
-    // …the Video section appears (loaded together with the other reads —
-    // the flip is instant, no re-skeleton).
+    // The Video tab is open → the mode is Video (the field is the tab's
+    // search box) and the Video section is the preview.
+    expect(screen.getByTestId('global-search-mode-video')).toHaveAttribute('aria-selected', 'true');
     expect(await screen.findByTestId('global-search-section-video')).toBeInTheDocument();
     expect(screen.getByTestId('global-search-video-v1')).toBeInTheDocument();
   });
 
-  it('the toggle flips to Shorts (the shorts section)', async () => {
+  it('on the Shorts tab the dropdown previews Shorts (the mode follows the open tab)', async () => {
     vi.mocked(searchShorts).mockResolvedValue([
       { post: { _id: 's1', text: 'Synthwave in 15 seconds', author_username: 'alice', created_at: '2026-01-01T00:00:00Z' }, media: { _id: 'm1', mime_type: 'video/mp4', width: 720, height: 1280 } },
     ] as any);
-    renderDesktopSearch();
+    renderSearchOnDestination('/shorts');
     const field = screen.getByTestId('global-search-field');
     fireEvent.focus(field);
     fireEvent.change(field, { target: { value: 'synthwave' } });
-    // Flip to the Shorts category…
-    fireEvent.click(screen.getByTestId('global-search-mode-shorts'));
-    // …the Shorts section appears.
+    expect(screen.getByTestId('global-search-mode-shorts')).toHaveAttribute('aria-selected', 'true');
     expect(await screen.findByTestId('global-search-section-shorts')).toBeInTheDocument();
     expect(screen.getByTestId('global-search-short-s1')).toBeInTheDocument();
   });
 
-  it('the toggle flips to Posts (the ranked post board section)', async () => {
+  it('on the Posts tab the dropdown previews Posts (the mode follows the open tab)', async () => {
     vi.mocked(searchPosts).mockResolvedValue([
       { _id: 'p1', text: 'Check out this synthwave mix', author_username: 'alice', created_at: '2026-01-01T00:00:00Z' },
     ] as any);
-    renderDesktopSearch();
+    renderSearchOnDestination('/feed');
     const field = screen.getByTestId('global-search-field');
     fireEvent.focus(field);
     fireEvent.change(field, { target: { value: 'synthwave' } });
-    // Flip to the Posts category…
-    fireEvent.click(screen.getByTestId('global-search-mode-gossip'));
-    // …the Posts section appears.
+    expect(screen.getByTestId('global-search-mode-gossip')).toHaveAttribute('aria-selected', 'true');
     expect(await screen.findByTestId('global-search-section-posts')).toBeInTheDocument();
     expect(screen.getByTestId('global-search-post-p1')).toBeInTheDocument();
+  });
+
+  it('tapping the Video category OPENS the Video tab (navigates with the query)', async () => {
+    probeLocation = '';
+    renderDesktopSearchWithProbe();
+    const field = screen.getByTestId('global-search-field');
+    fireEvent.focus(field);
+    fireEvent.change(field, { target: { value: 'synthwave' } });
+    await screen.findByTestId('global-search-mode-toggle');
+    // One tap → the Video destination opens (the tab), carrying the query.
+    fireEvent.click(screen.getByTestId('global-search-mode-video'));
+    await waitFor(() => expect(probeLocation).toBe('/video?q=synthwave'));
+  });
+
+  it('tapping the Shorts category OPENS the Shorts tab (navigates with the query)', async () => {
+    probeLocation = '';
+    renderDesktopSearchWithProbe();
+    const field = screen.getByTestId('global-search-field');
+    fireEvent.focus(field);
+    fireEvent.change(field, { target: { value: 'synthwave' } });
+    await screen.findByTestId('global-search-mode-toggle');
+    fireEvent.click(screen.getByTestId('global-search-mode-shorts'));
+    await waitFor(() => expect(probeLocation).toBe('/shorts?q=synthwave'));
+  });
+
+  it('tapping the Posts category OPENS the Posts tab (navigates with the query)', async () => {
+    probeLocation = '';
+    renderDesktopSearchWithProbe();
+    const field = screen.getByTestId('global-search-field');
+    fireEvent.focus(field);
+    fireEvent.change(field, { target: { value: 'synthwave' } });
+    await screen.findByTestId('global-search-mode-toggle');
+    fireEvent.click(screen.getByTestId('global-search-mode-gossip'));
+    await waitFor(() => expect(probeLocation).toBe('/feed?q=synthwave'));
+  });
+
+  it('S9: typing on the Video tab live-filters it (the query is written to ?q=, debounced)', async () => {
+    renderSearchOnDestination('/video');
+    const field = screen.getByTestId('global-search-field');
+    fireEvent.focus(field);
+    fireEvent.change(field, { target: { value: 'synth' } });
+    // Immediately: the URL has not been written yet (the 400ms debounce).
+    expect(probeLocation).toBe('/video');
+    // After the debounce settles, the query is on the tab's URL — the
+    // destination's existing ?q= filter picks it up and filters live.
+    await waitFor(() => expect(probeLocation).toBe('/video?q=synth'), { timeout: 1500 });
+  });
+
+  it('S9: typing on the Posts tab live-filters the board (?q= on /feed)', async () => {
+    renderSearchOnDestination('/feed');
+    const field = screen.getByTestId('global-search-field');
+    fireEvent.focus(field);
+    fireEvent.change(field, { target: { value: 'drama' } });
+    await waitFor(() => expect(probeLocation).toBe('/feed?q=drama'), { timeout: 1500 });
+  });
+
+  it('S9: typing on the People tab live-filters people (?q= on /people)', async () => {
+    renderSearchOnDestination('/people');
+    const field = screen.getByTestId('global-search-field');
+    fireEvent.focus(field);
+    fireEvent.change(field, { target: { value: 'alice' } });
+    await waitFor(() => expect(probeLocation).toBe('/people?q=alice'), { timeout: 1500 });
+  });
+
+  it('S9: typing on the Shorts tab live-filters the wall (?q= on /shorts)', async () => {
+    renderSearchOnDestination('/shorts');
+    const field = screen.getByTestId('global-search-field');
+    fireEvent.focus(field);
+    fireEvent.change(field, { target: { value: 'dance' } });
+    await waitFor(() => expect(probeLocation).toBe('/shorts?q=dance'), { timeout: 1500 });
+  });
+
+  it('S9: the field is seeded from the tab\'s ?q= (deep link / refresh restores the filter)', async () => {
+    renderSearchOnDestination('/video?q=synthwave');
+    const field = screen.getByTestId('global-search-field');
+    // The open tab's ?q= is in the field (the URL is the source of truth).
+    await waitFor(() => expect(field).toHaveValue('synthwave'));
+  });
+
+  it('S9: the X clears the field AND the tab\'s ?q= (the tab un-filters)', async () => {
+    renderSearchOnDestination('/video?q=synthwave');
+    const field = screen.getByTestId('global-search-field');
+    await waitFor(() => expect(field).toHaveValue('synthwave'));
+    fireEvent.focus(field);
+    fireEvent.click(screen.getByTestId('global-search-close'));
+    await waitFor(() => expect(field).toHaveValue(''));
+    // The ?q= is removed from the tab's URL (the tab un-filters).
+    await waitFor(() => expect(probeLocation).toBe('/video'), { timeout: 1500 });
+  });
+
+  it('S9: typing on a non-destination route does NOT write ?q= (the preview only)', async () => {
+    probeLocation = '';
+    renderDesktopSearchWithProbe(); // /profile — not a search destination
+    const field = screen.getByTestId('global-search-field');
+    fireEvent.focus(field);
+    fireEvent.change(field, { target: { value: 'synth' } });
+    // Give the debounce time to settle — the URL must stay put (no ?q= on
+    // /profile; the dropdown preview is the only effect off-destination).
+    await new Promise((r) => setTimeout(r, 600));
+    expect(probeLocation).toBe('/profile');
+  });
+
+  it('S9: Enter on an open tab opens that tab with the query (stays on the tab)', async () => {
+    renderSearchOnDestination('/video');
+    const field = screen.getByTestId('global-search-field');
+    fireEvent.focus(field);
+    fireEvent.change(field, { target: { value: 'alice' } });
+    await screen.findByTestId('global-search-mode-toggle');
+    // The Video tab is open → the mode is Video → Enter opens /video with the
+    // query (the tab is already open; the query lands on its URL).
+    fireEvent.keyDown(field, { key: 'Enter' });
+    await waitFor(() => expect(probeLocation).toBe('/video?q=alice'), { timeout: 1500 });
   });
 
   it('Enter in People mode opens the People destination with the query', async () => {
@@ -341,34 +466,28 @@ describe('GlobalSearch — S2/S8 results (four categories: People | Video | Shor
     });
   });
 
-  it('Enter in Video mode opens the Video destination with the query', async () => {
-    probeLocation = '';
-    renderDesktopSearchWithProbe();
+  it('Enter on the Video tab opens the Video destination with the query', async () => {
+    renderSearchOnDestination('/video');
     const field = screen.getByTestId('global-search-field');
     fireEvent.focus(field);
     fireEvent.change(field, { target: { value: 'alice' } });
     await screen.findByTestId('global-search-mode-toggle');
-    // Flip to the Video category — Enter opens /video with the query.
-    fireEvent.click(screen.getByTestId('global-search-mode-video'));
+    // The Video tab is open → the mode is Video → Enter opens /video with the
+    // query (the "see all" lands on the open tab).
     fireEvent.keyDown(field, { key: 'Enter' });
-    await waitFor(() => {
-      expect(probeLocation).toBe('/video?q=alice');
-    });
+    await waitFor(() => expect(probeLocation).toBe('/video?q=alice'), { timeout: 1500 });
   });
 
-  it('Enter in Shorts mode opens the Shorts destination with the query', async () => {
-    probeLocation = '';
-    renderDesktopSearchWithProbe();
+  it('Enter on the Shorts tab opens the Shorts destination with the query', async () => {
+    renderSearchOnDestination('/shorts');
     const field = screen.getByTestId('global-search-field');
     fireEvent.focus(field);
     fireEvent.change(field, { target: { value: 'alice' } });
     await screen.findByTestId('global-search-mode-toggle');
-    // Flip to the Shorts category — Enter opens /shorts with the query.
-    fireEvent.click(screen.getByTestId('global-search-mode-shorts'));
+    // The Shorts tab is open → the mode is Shorts → Enter opens /shorts with
+    // the query.
     fireEvent.keyDown(field, { key: 'Enter' });
-    await waitFor(() => {
-      expect(probeLocation).toBe('/shorts?q=alice');
-    });
+    await waitFor(() => expect(probeLocation).toBe('/shorts?q=alice'), { timeout: 1500 });
   });
 
   it('Enter in Posts mode opens the Posts (Discover) destination with the query', async () => {
@@ -403,35 +522,31 @@ describe('GlobalSearch — S2/S8 results (four categories: People | Video | Shor
     });
   });
 
-  it('the "See all results" CTA in Video mode navigates to /video with the query', async () => {
+  it('the "See all results" CTA on the Video tab opens /video with the query', async () => {
     vi.mocked(searchVideo).mockResolvedValue([
       { _id: 'v1', text: 'A video', author_username: 'alice', created_at: '2026-01-01T00:00:00Z' },
     ] as any);
-    probeLocation = '';
-    renderDesktopSearchWithProbe();
+    renderSearchOnDestination('/video');
     const field = screen.getByTestId('global-search-field');
     fireEvent.focus(field);
     fireEvent.change(field, { target: { value: 'video' } });
-    fireEvent.click(screen.getByTestId('global-search-mode-video'));
     const cta = await screen.findByTestId('global-search-open-explore');
     fireEvent.click(cta);
-    await waitFor(() => {
-      expect(probeLocation).toBe('/video?q=video');
-    });
+    await waitFor(() => expect(probeLocation).toBe('/video?q=video'), { timeout: 1500 });
   });
 
-  it('shows the "no results" state when the picked category is empty', async () => {
-    renderDesktopSearch();
+  it('shows the "no results" state when the open tab\'s category is empty', async () => {
+    renderSearchOnDestination('/feed');
     const field = screen.getByTestId('global-search-field');
     fireEvent.focus(field);
     fireEvent.change(field, { target: { value: 'zzz-no-match' } });
-    // Flip to the Hot Gossip category (the search defaults to People)…
-    fireEvent.click(screen.getByTestId('global-search-mode-gossip'));
+    // The Posts tab is open → the mode is gossip → the no-results state
+    // is the Posts one.
     await waitFor(
       () => expect(screen.getByTestId('global-search-no-results')).toBeInTheDocument(),
       { timeout: 1500 },
     );
-    expect(screen.queryByTestId('global-search-section-hot-gossip')).not.toBeInTheDocument();
+    expect(screen.queryByTestId('global-search-section-posts')).not.toBeInTheDocument();
   });
 
   it('per-section loading (People mode): a slow section does not block the fast ones', async () => {
@@ -468,7 +583,8 @@ describe('GlobalSearch — S2/S8 results (four categories: People | Video | Shor
     const field = screen.getByTestId('global-search-field');
     fireEvent.focus(field);
     fireEvent.change(field, { target: { value: 'alice' } });
-    fireEvent.click(screen.getByTestId('global-search-mode-people'));
+    // People is the default mode (S7) — the row is there without a toggle tap
+    // (S9: a category tap navigates, it no longer flips the preview).
     const row = await screen.findByTestId('global-search-person-alice');
     fireEvent.click(row);
     // Navigation closes the dropdown (pathname change); the field stays.
@@ -484,7 +600,6 @@ describe('GlobalSearch — S2/S8 results (four categories: People | Video | Shor
     const field = screen.getByTestId('global-search-field');
     fireEvent.focus(field);
     fireEvent.change(field, { target: { value: 'synthwave' } });
-    fireEvent.click(screen.getByTestId('global-search-mode-people'));
     const row = await screen.findByTestId('global-search-group-web10/groups/users/nova/synthwave');
     fireEvent.click(row);
     // Navigation closes the dropdown (pathname change); the field stays.
@@ -492,21 +607,16 @@ describe('GlobalSearch — S2/S8 results (four categories: People | Video | Shor
     expect(screen.getByTestId('global-search-field')).toBeInTheDocument();
   });
 
-  it('tapping a short row navigates to /shorts/:postId', async () => {
+  it('tapping a short row (on the Shorts tab) navigates to /shorts/:postId', async () => {
     vi.mocked(searchShorts).mockResolvedValue([
       { post: { _id: 's1', text: 'A short', author_username: 'alice', created_at: '2026-01-01T00:00:00Z' }, media: { _id: 'm1', mime_type: 'video/mp4', width: 720, height: 1280 } },
     ] as any);
     probeLocation = '';
-    render(
-      <MemoryRouter initialEntries={['/feed']}>
-        <GlobalSearch variant="desktop" />
-        <LocationProbe />
-      </MemoryRouter>,
-    );
+    renderSearchOnDestination('/shorts');
     const field = screen.getByTestId('global-search-field');
     fireEvent.focus(field);
     fireEvent.change(field, { target: { value: 'short' } });
-    fireEvent.click(screen.getByTestId('global-search-mode-shorts'));
+    // The Shorts tab is open → the mode is Shorts → the short row is there.
     const row = await screen.findByTestId('global-search-short-s1');
     fireEvent.click(row);
     await waitFor(() => {

@@ -17,6 +17,7 @@ import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 import {
   readDiscoverFeed,
+  readPostById,
   resolveMediaRefs,
   getV3Client,
   getDiscoverGroupId,
@@ -39,6 +40,7 @@ import {
   type ReactionKind,
 } from '@/data';
 import { getWapi } from '@/data/wapi';
+import { useRepost } from '@/context/RepostContext';
 import { defaultKnobState, knobStateToSort, type KnobState, type PowerMeanSortConfig } from '@/lib/powerMean';
 import {
   rankWatchQueue,
@@ -168,7 +170,7 @@ function QueueCard({ post, media, authorName, authorAvatar, onOpen, active }: {
         ) : null}
       </div>
       <div className="flex min-w-0 flex-1 flex-col">
-        <p className="line-clamp-2 text-sm font-medium leading-snug text-foreground">{post.text || 'Untitled'}</p>
+        <p className="line-clamp-2 text-sm font-medium leading-snug text-foreground">{post.title || post.text || 'Untitled'}</p>
         <p className="mt-1 truncate text-xs text-muted-foreground">{authorName}</p>
       </div>
     </button>
@@ -345,20 +347,11 @@ export default function WatchScreen() {
 
       // 1. The post by doc_id (anon-capable — the node's read-by-id is
       //    user_or_anon, so a signed-out visitor lands on a working screen).
-      let p: PostRecord | null = null;
-      try {
-        const doc = await w.readById(postId, 'posts');
-        p = {
-          _id: doc.doc_id,
-          text: (doc.body.text as string) || undefined,
-          media_refs: (doc.body.media_refs as (string | ResolvedMediaRef)[]) || undefined,
-          created_at: doc.created_at,
-          updated_at: doc.updated_at,
-          tags: doc.tags || (doc.body.tags as string[]) || undefined,
-          author_username: (doc.body.author_username as string) || undefined,
-          author_provider: (doc.body.author_provider as string) || undefined,
-        };
-      } catch { /* not found */ }
+      //    The canonical mapper (`fromV3DocToPost`) derives the author from
+      //    the doc's `author_key` — the post body carries no author fields
+      //    (the write path never puts them there), so a body read renders
+      //    "Unknown". It also carries the post's `title` (D82).
+      const p = await readPostById(postId);
       if (!p) { setNotFound(true); setLoading(false); return; }
       setPost(p);
 
@@ -484,6 +477,18 @@ export default function WatchScreen() {
     }
   }, [token, post, liked, disliked]);
 
+  // ── Repost (reposts.md): a repost is a POST, not a reaction toggle. The
+  //    repeat icon opens the app-level composer in repost mode (the shared
+  //    RepostContext seam — the same composer the feed uses) and returns to
+  //    the feed, where the composer lives. The composer's createRepost is the
+  //    single write; the count + fill re-derive on the next load.
+  const { setRepostingTo } = useRepost();
+  const handleRepost = useCallback(() => {
+    if (!token || !post) return;
+    setRepostingTo(post);
+    navigate('/feed');
+  }, [token, post, setRepostingTo, navigate]);
+
   // ── Follow toggle (the overlay + the author row) ───────────────────────────
   const handleToggleFollow = useCallback(async () => {
     if (!token || !post?.author_username) return;
@@ -577,8 +582,17 @@ export default function WatchScreen() {
         )}
 
         <h1 className="font-display text-lg font-semibold leading-snug text-foreground" data-testid="watch-title">
-          {post.text || 'Untitled'}
+          {post.title || post.text || 'Untitled'}
         </h1>
+
+        {/* The caption (D82): the post's `text` body, shown under the title
+            when the post carries both (title = the headline, text = the
+            description). A caption-only post shows just the title (the text). */}
+        {post.title && post.text && (
+          <p className="text-sm leading-relaxed text-muted-foreground whitespace-pre-wrap break-words" data-testid="watch-caption">
+            {post.text}
+          </p>
+        )}
 
         {/* The author row (under the video — the watch page's shape). */}
         <div className="flex items-center gap-3" data-testid="watch-author-row">
@@ -628,9 +642,12 @@ export default function WatchScreen() {
           reposted={reposted}
           repostCount={reposts}
           onToggleReaction={(kind) => void handleToggleReaction(kind)}
+          onToggleRepost={handleRepost}
           groups={[getDiscoverGroupId()]}
           postAuthor={author}
           onAuthorClick={(username, provider) => navigate(`/u/${username}`, { state: { provider: provider || '' } })}
+          dislike="interactive"
+          repost={isAnon ? 'display' : 'interactive'}
           testId="watch-post-actions"
         />
       </div>

@@ -25,6 +25,10 @@ export interface PostMention {
 
 export interface PostRecord {
   _id?: string;
+  /** The post's headline (D82) — the short, punchy line that leads a card /
+   *  watch header / short overlay. Optional: a post with no title renders
+   *  caption-only (the pre-D82 shape). `text` is the caption (the longer body). */
+  title?: string;
   text?: string;
   // A media ref is either a bare doc_id (string — the write path, or a
   // pre-resolution read) or a resolved object (the API read path's
@@ -86,6 +90,7 @@ export function fromV3DocToPost(doc: V3Document): PostRecord {
   const provider = extractProvider(doc.author_key);
   return {
     _id: doc.doc_id,
+    title: (body.title as string) || undefined,
     text: (body.text as string) || undefined,
     media_refs: (body.media_refs as string[]) || undefined,
     created_at: doc.created_at,
@@ -179,6 +184,10 @@ export type AdFormat = 'inline' | 'post';
 
 export interface AdRecord {
   _id?: string;
+  /** The ad's headline (D82) — an ad is a `posts` doc, so it carries the same
+   *  optional `title` as any post. The post-format ad's card shows it as its
+   *  headline; the inline ad uses it as its line. */
+  title?: string;
   text?: string;
   media_refs?: (string | ResolvedMediaRef)[];
   /** The ad doc's created_at — the post-format ad's standalone card shows it
@@ -212,6 +221,7 @@ export function fromV3DocToAd(doc: V3Document): AdRecord {
   const tags = doc.tags || [];
   return {
     _id: doc.doc_id,
+    title: (body.title as string) || undefined,
     text: (body.text as string) || undefined,
     media_refs: (body.media_refs as (string | ResolvedMediaRef)[]) || undefined,
     created_at: doc.created_at || undefined,
