@@ -727,7 +727,7 @@ export default function PostComposer({
     <div
       className={cn(
         'relative overflow-hidden transition-all duration-150',
-        !chromeless && 'px-4 py-4 border-b border-border',
+        chromeless ? 'px-4 py-4 sm:px-6 sm:py-5' : 'px-4 py-4 border-b border-border',
         dragOver && 'bg-brand-muted/30',
         focused && !chromeless && 'border-b-brand/30',
       )}
@@ -797,8 +797,8 @@ export default function PostComposer({
             placeholder={repostingTo ? 'Add a comment…' : "What's on your mind?"}
             disabled={posting}
             className={cn(
-              'resize-none bg-elevated border-0 text-foreground placeholder:text-muted-foreground text-[0.9375rem] caret-brand-400',
-              expanded ? 'min-h-[72px]' : 'min-h-[44px] max-h-[44px] overflow-hidden leading-[44px]',
+              'resize-none bg-transparent border-0 text-foreground placeholder:text-muted-foreground text-lg caret-brand-400',
+              expanded ? 'min-h-[120px]' : 'min-h-[44px] max-h-[44px] overflow-hidden leading-[44px]',
             )}
             data-testid="composer-textarea"
           />
@@ -839,7 +839,7 @@ export default function PostComposer({
                 </div>
               )}
 
-          <div className="mt-3 flex items-center justify-between">
+          <div className="mt-4 border-t border-border pt-3">
             <div className="flex items-center gap-1">
               <Button
                 variant="ghost"
@@ -929,27 +929,27 @@ export default function PostComposer({
                 </span>
               )}
             </div>
-            <Button
-              variant="brand"
-              size="default"
-              disabled={!canPost || hasErroredMedia}
-              onClick={handleSubmit}
-              data-testid="post-submit"
-              className="gap-2 font-semibold min-w-24"
-            >
-              {posting ? (
-                <>
-                  <Loader2 className="w-4 h-4 animate-spin" />
-                  {repostingTo ? 'Reposting…' : 'Posting…'}
-                </>
-              ) : (
-                <>
-                  {repostingTo ? <Repeat2 className="w-3.5 h-3.5" strokeWidth={2} /> : <Send className="w-3.5 h-3.5" />}
-                  {repostingTo ? 'Repost' : 'Post'}
-                </>
-              )}
-            </Button>
           </div>
+          <Button
+            variant="brand"
+            size="default"
+            disabled={!canPost || hasErroredMedia}
+            onClick={handleSubmit}
+            data-testid="post-submit"
+            className="mt-3 h-11 w-full font-semibold"
+          >
+            {posting ? (
+              <>
+                <Loader2 className="w-4 h-4 animate-spin" />
+                {repostingTo ? 'Reposting…' : 'Posting…'}
+              </>
+            ) : (
+              <>
+                {repostingTo ? <Repeat2 className="w-3.5 h-3.5" strokeWidth={2} /> : <Send className="w-3.5 h-3.5" />}
+                {repostingTo ? 'Repost' : 'Post'}
+              </>
+            )}
+          </Button>
           </>
           )}
         </div>

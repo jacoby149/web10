@@ -69,4 +69,15 @@ describe('PostComposer — the title treatment (D85, rich-text.md)', () => {
     const caption = await screen.findByTestId('composer-textarea');
     expect(caption).toHaveClass('caret-brand-400');
   });
+
+  it('the caption sits on the surface, not in a gray form box (the stage, not a form)', async () => {
+    const { default: PostComposer } = await import('@/components/Feed/PostComposer');
+    render(<PostComposer />);
+    const caption = await screen.findByTestId('composer-textarea');
+    // The D85 composer pass: the caption is on the surface (bg-transparent),
+    // not a bg-elevated form field — Facebook's "What's on your mind" is on
+    // the surface, not in a gray box.
+    expect(caption).toHaveClass('bg-transparent');
+    expect(caption).not.toHaveClass('bg-elevated');
+  });
 });
