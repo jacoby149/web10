@@ -212,13 +212,14 @@ describe('WatchScreen (the watch page)', () => {
     );
   });
 
-  it('tapping the repost icon opens the composer in repost mode and returns to the feed (the shared seam)', async () => {
+  it('tapping the repost icon opens the composer in repost mode, staying on the watch page (the shared seam)', async () => {
     await renderWatch();
     const btn = await screen.findByTestId('repost-button');
     fireEvent.click(btn);
     await waitFor(() => expect(setRepostingToSpy).toHaveBeenCalledWith(expect.objectContaining({ _id: 'post-cur' })));
-    // The composer lives on the feed route — the watch page navigates there.
-    expect(screen.getByTestId('feed-route')).toBeInTheDocument();
+    // The composer is app-level (the New Post sheet) — the watch page does NOT
+    // navigate away; the user stays on the watch page and the sheet pops up.
+    expect(screen.queryByTestId('feed-route')).not.toBeInTheDocument();
   });
 
   it('renders the "What\'s next" queue (the board, re-ranked) + the relatedness chips', async () => {

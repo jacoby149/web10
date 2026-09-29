@@ -30,7 +30,6 @@ import { PostLightbox } from './PostLightbox';
 import { ProfileFeed } from './ProfileFeed';
 import { ProfileViewToggle, type ProfileViewMode } from './ProfileViewToggle';
 import { ProfileMediaLightbox, type ProfileMediaOption, type FaceCropResult } from './ProfileMediaLightbox';
-import PostComposer from '@/components/Feed/PostComposer';
 import { toast, errorMessage } from '@/components/shared/Toast';
 import { cn } from '@/lib/utils';
 import { MARKETING_ORIGIN } from '@/lib/origins';
@@ -469,6 +468,15 @@ export default function UserProfileScreen({ username, provider, onBack }: UserPr
     }
     setLoading(false);
   }, [username, provider]);
+
+  // The app-level New Post sheet fires `post-created` (NewPostSheet) when a
+  // post lands — reload the profile so the fresh post shows up (the seam
+  // that replaces the old inline composer's onPostCreated callback).
+  useEffect(() => {
+    const onPostCreated = () => loadData();
+    window.addEventListener('post-created', onPostCreated);
+    return () => window.removeEventListener('post-created', onPostCreated);
+  }, [loadData]);
 
   async function handleFollow() {
     if (followLoading) return;
@@ -1013,13 +1021,10 @@ export default function UserProfileScreen({ username, provider, onBack }: UserPr
       <div className="px-4 pb-4 pt-2">
         {activeTab === 'posts' ? (
           <>
-          {/* The composer — the owner can post from their profile (the
-              operator: "you can make a new post from your profile"). */}
-          {isOwnProfile && (
-            <div data-testid="profile-composer" className="mb-3">
-              <PostComposer onPostCreated={loadData} />
-            </div>
-          )}
+          {/* The composer is NOT inline (the operator: "it should be
+              invisible") — the app-level New Post sheet (the Layout's
+              floating "+" button) is the single compose surface, reachable
+              from the profile too. */}
           {posts.length ? (
             viewMode === 'feed' ? (
               <ProfileFeed

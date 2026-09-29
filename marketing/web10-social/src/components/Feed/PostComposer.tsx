@@ -247,6 +247,7 @@ export default function PostComposer({
   onRepostCancel,
   groups,
   compact = false,
+  chromeless = false,
 }: {
   onPostCreated?: () => void;
   /**
@@ -270,6 +271,13 @@ export default function PostComposer({
    * composers stay full-size.
    */
   compact?: boolean;
+  /**
+   * Chromeless: drop the inline chrome (the horizontal padding + the
+   * border-b rule) so the composer can sit inside a container that owns its
+   * own padding/borders — the New Post sheet (the app-level modal). The
+   * form itself (avatar, title, caption, actions) is unchanged.
+   */
+  chromeless?: boolean;
 }) {
   const [text, setText] = useState('');
   // The post's two bodies of text (D82): `title` (the optional headline) +
@@ -718,9 +726,10 @@ export default function PostComposer({
   return (
     <div
       className={cn(
-        'px-4 py-4 border-b border-border transition-all duration-150 relative overflow-hidden',
+        'relative overflow-hidden transition-all duration-150',
+        !chromeless && 'px-4 py-4 border-b border-border',
         dragOver && 'bg-brand-muted/30',
-        focused && 'border-b-brand/30',
+        focused && !chromeless && 'border-b-brand/30',
       )}
       onDragOver={(e) => {
         e.preventDefault();

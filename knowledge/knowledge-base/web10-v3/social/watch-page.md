@@ -191,7 +191,9 @@ The Discover split gave **Hot Gossip** its own sidebar destination, but it left 
 | Tab | What it is | The content |
 |---|---|---|
 | **Discover** (the default, the bare `/feed`) | the old **Hot Gossip** — the ranked post board (the Threads shape) | the `DiscoverScreen` board: knob rack + topic chips + the single-column ranked board + the **Top 10** rail |
-| **Following** (`/feed?tab=following`) | the old **Feed** — the personal feed | the composer + `FeedScreen` (the posts from people you follow) |
+| **Following** (`/feed?tab=following`) | the old **Feed** — the personal feed | `FeedScreen` (the posts from people you follow) |
+
+(The composer is NOT inline on either tab — since 3.184.0 it is the app-level **New Post sheet**, opened by the floating "+" button; see `reposts.md` "The composer: repost mode".)
 
 **Naming** (the operator's deliberation, 29.09.2026): the container is **Posts**, not "Threads" (a Facebook trademark — "that can't be sued for sure"), not "What's New", and not "Hot Gossip" (the "gossip" connotation). "Posts" is the safe, descriptive name for the container; the **flame** icon carries the Hot Gossip brand energy. The *tabs* do the specific naming (Discover = the hot/ranked board, Following = the personal feed).
 
