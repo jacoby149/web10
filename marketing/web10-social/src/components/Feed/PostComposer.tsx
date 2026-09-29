@@ -769,7 +769,14 @@ export default function PostComposer({
           )}
           {/* The title — the post's headline (D82). A single-line input above
               the caption; optional (a post with no title is caption-only).
-              Hidden in repost mode (the text there is the repost's comment). */}
+              Hidden in repost mode (the text there is the repost's comment).
+              The D85 title treatment (rich-text.md): a headline you are
+              writing, not a form field — the display face (Space Grotesk), the
+              `bg-elevated` box killed (it sits on the composer surface), a
+              violet caret (the brand moment), and a dimmed display-face
+              placeholder so the empty state looks like a headline waiting to
+              be written. The composer's focus glow (the top brand line) is the
+              "the stage is lit" moment. */}
           {!repostingTo && (
             <Input
               value={title}
@@ -777,7 +784,7 @@ export default function PostComposer({
               onFocus={() => setFocused(true)}
               placeholder="Add a title…"
               disabled={posting}
-              className="mb-1.5 h-9 rounded-md bg-elevated border-0 text-foreground placeholder:text-muted-foreground text-[0.9375rem] font-medium"
+              className="mb-1.5 h-auto min-h-9 rounded-none border-0 bg-transparent px-0 py-1 font-display text-2xl font-semibold tracking-tight text-foreground caret-brand-400 placeholder:font-display placeholder:text-muted-foreground/50 focus:shadow-[0_0_20px_var(--color-glow-intense)]"
               aria-label="Post title"
               data-testid="composer-title"
             />
@@ -790,7 +797,7 @@ export default function PostComposer({
             placeholder={repostingTo ? 'Add a comment…' : "What's on your mind?"}
             disabled={posting}
             className={cn(
-              'resize-none bg-elevated border-0 text-foreground placeholder:text-muted-foreground text-[0.9375rem]',
+              'resize-none bg-elevated border-0 text-foreground placeholder:text-muted-foreground text-[0.9375rem] caret-brand-400',
               expanded ? 'min-h-[72px]' : 'min-h-[44px] max-h-[44px] overflow-hidden leading-[44px]',
             )}
             data-testid="composer-textarea"
