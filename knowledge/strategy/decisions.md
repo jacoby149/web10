@@ -9,6 +9,26 @@ Status legend: [decided] intent set · [in-progress] · [open] still debating.
 
 ---
 
+### D81 — Copyright takedowns use the "Post-It Note" DMCA rule: a designated-agent email + a manual, fast removal — no takedown queue, no node surface [decided]
+
+Operator, 29.09.2026 — "Use the 'Post-It Note' DMCA rule: Add a simple 'Report Copyright' button and an email address (like copyright@yourapp.com) in your terms of service. If a label emails you to take a video down, you just delete it manually. As long as you act fast, you are legally protected while you are small. we need this on the app for compliance."
+
+**The decision.** Copyright takedowns are a **legal-compliance surface**, not a platform feature. web10 follows the **"Post-It Note" rule**: a designated-agent **email address** + a **fast, manual removal**. A rights holder emails the agent with a link to the infringing content; the node operator opens the link and removes it (the existing board takedown `POST /v3/groups/hide`, or the author's own delete). Acting quickly on valid notices is what keeps a small node legally protected.
+
+**The shape (all client-side + a doc — zero node surface, D60):**
+
+- **The designated agent** is an email: `copyright@web10.com` for the web10 reference node / web10-social. A self-hosted node names its **own** agent in its **own terms** — the agent is a terms-level thing, not a `node_config` column (the node stays generic).
+- **The in-app affordance is a `mailto:` composer, not a write.** **Settings → About → Report copyright** opens a dialog showing the agent's email + a pre-filled message (the content's link, the author, a rights statement) and hands it to the user's mail client. It never sends anything itself — no data write, no node call.
+- **The terms of service publish the address** (`marketing-ui /docs/terms`, "Copyright & DMCA") so a rights holder who doesn't use the app can still find it.
+
+**Why a single entry point, not a per-post button.** The app has many content surfaces (video, shorts, hot gossip, profile, the post lightbox). The mechanism is an **email**, so the button does not belong scattered across every surface — it lives in **one always-reachable place** (Settings → About, next to "Report a bug"). A per-post "Report copyright" on every surface would be the over-built version of a deliberately-small rule.
+
+**What it rejects.** (1) **A takedown queue** — no `takedowns` table, no `/v3/takedowns` endpoint, no in-app report queue. The email **is** the report; a node surface for it would violate D60 (a DMCA queue is a legal/operational concern, not a platform primitive). (2) **A per-post report button on every content surface** — the mechanism is an email, so the affordance is one entry point, not scattered. (3) **A strike system** — no counter, no account penalty. A valid notice removes the content; that's the whole mechanism. (4) **A `node_config` agent column** — the agent is terms-level, not a node-config field (the node stays app-agnostic).
+
+**The seam:** `marketing/web10-social/src/components/shared/ReportCopyright.tsx` (the `mailto:` dialog + the `COPYRIGHT_EMAIL` constant), reached from `SettingsScreen` (the About section). The public doc is `marketing/marketing-ui/public/docs/terms.md`. The KB model is `knowledge/knowledge-base/web10-v3/social/content-moderation.md` ("Copyright Takedowns").
+
+---
+
 ### D80 — Group membership visibility is group policy: a `membership_visibility` contract field governs who can enumerate who's in a group [decided]
 
 Operator, 23.09.2026 — after the "see following/followers on any profile" pass: "everything has to be generic with web10, so cant edit clickhouse.py, needs to be implemented using the query engine" → "this isnt some cia high privacy stuff, use signal for that" → "i actually am a fan of the groups having settings in them … `membership_is_public = true, or false`, to dictate if it shows up. so for the dms the membership shouldnt be public, people shouldnt be able to see who you dm, but people should be able to see who you follow" → "so govern whether the group membership is public in the group policy."

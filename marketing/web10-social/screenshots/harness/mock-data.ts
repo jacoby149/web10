@@ -208,6 +208,7 @@ export async function listUserFollowers(): Promise<unknown[]> {
 }
 export async function countUserFollowingReal(): Promise<number> { return PEERS.length; }
 export async function readUserPublicPosts(): Promise<unknown[]> { return PROFILE_POSTS; }
+// readUserPublicProfile lives below (the real impl, keyed by username).
 export async function countStagingPosts(): Promise<number> { return 0; }
 export async function saveProfile(): Promise<void> {}
 export async function readMyPosts(): Promise<unknown[]> { return PROFILE_POSTS; }

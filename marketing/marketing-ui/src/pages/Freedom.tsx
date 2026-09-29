@@ -271,6 +271,7 @@ function Freedom() {
             <a href="/" className="hover:text-foreground">Home</a>
             <a href="/freedom" className="hover:text-foreground">Freedom</a>
             <a href="/docs" className="hover:text-foreground">Docs</a>
+            <a href="/docs/terms" className="hover:text-foreground">Terms</a>
             <a href="/join" className="hover:text-foreground">Join</a>
             <a href={SOCIAL_ORIGIN} className="hover:text-foreground">Sign In</a>
             <a href="https://github.com/jacoby149/web10" className="hover:text-foreground">GitHub</a>
