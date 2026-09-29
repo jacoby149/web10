@@ -4,6 +4,7 @@ export type {
   ModerationFlag,
   ModerationConfig,
   ParsedWeb10Link,
+  HiddenPost,
 } from '../../src/data/moderation';
 
 // Re-export the pure parser for real (it has no I/O).
@@ -14,15 +15,31 @@ const FLAGS = [
   { username: 'trollface', flag_count: 1, last_flagged: '2026-01-01T00:00:00', matched_words: ['hate'] },
 ];
 
+const HIDDEN_POSTS = [
+  {
+    doc_id: 'hidden-1',
+    author_key: 'badguy',
+    hidden_at: '2026-01-02T00:00:00',
+    moderator_key: 'node',
+    body: { text: 'escorts for hire — dm me' },
+  },
+];
+
 export async function readModerationFlags() {
   return FLAGS;
 }
 export async function setUserAutoHidden(_username: string, hide: boolean) {
   return hide ? ['badguy'] : [];
 }
+export async function setUserBanned(_username: string, ban: boolean) {
+  return ban ? ['badguy'] : [];
+}
 export async function saveModerationConfig() {}
 export async function hidePostFromBoard() {}
 export async function unhidePostFromBoard() {}
+export async function readHiddenPosts() {
+  return HIDDEN_POSTS;
+}
 
 export async function readUserPostsForModeration(_username: string) {
   return {

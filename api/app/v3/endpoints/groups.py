@@ -4,6 +4,7 @@ from fastapi import APIRouter
 
 import app.exceptions as exceptions
 from app.models.auth import Token
+from app.services import config as config_svc
 from app.services.auth import check_admin, decode_token
 from app.v3.endpoints.auth_helper import user as _user
 from app.v3.endpoints.auth_helper import user_or_anon
@@ -448,8 +449,11 @@ def group_detail(group_id: str, token: str | None = None):
         "posts": [],
     }
     if is_member:
+        # Node-level ban (D59a): a banned user's docs are filtered out of the
+        # group read (service-agnostic). Read once and threaded in.
         out["posts"] = ch.read_documents_in_groups(
-            group_ids=[group_id], member_key=principal, service="posts", limit=20
+            group_ids=[group_id], member_key=principal, service="posts", limit=20,
+            banned_users=config_svc.banned_users(),
         )
     return out
 

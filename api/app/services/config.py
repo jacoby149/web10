@@ -169,6 +169,9 @@ def effective_config() -> dict:
         "auto_moderate": True,
         "moderation_enabled": True,
         "auto_hide_users": [],
+        # Node-level ban (D59a): usernames whose content is filtered out of
+        # every read path (the board read + the query engine). Empty by default.
+        "banned_users": [],
         "node_ad_percentage": 10,
         # When true, a node ad that fires on a post with a creator's ad drops
         # the creator's ad (only the node ad shows). Default false — the D57
@@ -198,6 +201,20 @@ def get_config_field(field: str, default=None):
     if field in cfg:
         return cfg[field]
     return getattr(settings, field, default)
+
+
+def banned_users() -> list[str]:
+    """The node's banned usernames (D59a) — the node-level ban.
+
+    Read once per request at the read endpoint and threaded into the board
+    read (keeping ``read_documents_in_groups`` pure). A config read failure
+    degrades to an empty list — the ban is a curation layer, not a security
+    boundary, and a config read must never break a read.
+    """
+    try:
+        return list(effective_config().get("banned_users") or [])
+    except Exception:
+        return []
 
 
 def generate_jwt_keypair() -> dict:

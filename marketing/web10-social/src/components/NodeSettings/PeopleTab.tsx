@@ -1,10 +1,12 @@
 import { useState, useEffect, useCallback, useMemo } from 'react';
-import { Search, X, Loader2, Ban, EyeOff, ChevronDown, AlertTriangle, RefreshCw, Eye } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
+import { Search, X, Loader2, Ban, EyeOff, ChevronDown, AlertTriangle, RefreshCw, UserX, ExternalLink } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Skeleton } from '@/components/ui/skeleton';
 import { toast, errorMessage } from '@/components/shared/Toast';
+import { getNodeConfig } from '@/data/ads-catalog';
 import {
   fetchPeoplePage,
   filterPeople,
@@ -13,6 +15,7 @@ import {
 import {
   readUserPostsForModeration,
   setUserAutoHidden,
+  setUserBanned,
   hidePostFromBoard,
 } from '@/data/moderation';
 import type { PostRecord } from '@/data/types';
@@ -22,17 +25,21 @@ const PAGE_SIZE = 20;
 /**
  * The People tab — the operator's "find a person to ban, see their posts."
  * Builds on the D0 people directory (the same read the Discover People browser
- * uses): search the node's people, open one to see their posts, and hide the
- * user (auto_hide_users — their future posts auto-hidden from Discover) or
- * hide a specific post (board takedown).
+ * uses): search the node's people, **click one to open their profile**, open
+ * one to see their posts, hide the user (auto_hide_users — retroactive), ban
+ * the user (banned_users — node-level read-path filter), or hide a specific
+ * post (board takedown).
  */
 export function PeopleTab() {
+  const navigate = useNavigate();
   const [query, setQuery] = useState('');
   const [people, setPeople] = useState<PersonCard[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [hiddenUsers, setHiddenUsers] = useState<Set<string>>(new Set());
+  const [bannedUsers, setBannedUsers] = useState<Set<string>>(new Set());
   const [hidingUser, setHidingUser] = useState<string | null>(null);
+  const [banningUser, setBanningUser] = useState<string | null>(null);
 
   // The selected person (the "see their posts" expansion).
   const [selected, setSelected] = useState<string | null>(null);
@@ -46,8 +53,13 @@ export function PeopleTab() {
     setLoading(true);
     setError(null);
     try {
-      const page = await fetchPeoplePage({ limit: PAGE_SIZE, offset: 0 });
+      const [page, cfg] = await Promise.all([
+        fetchPeoplePage({ limit: PAGE_SIZE, offset: 0 }),
+        getNodeConfig().catch(() => ({} as Record<string, unknown>)),
+      ]);
       setPeople(page.people);
+      const banned = Array.isArray(cfg.banned_users) ? (cfg.banned_users as string[]) : [];
+      setBannedUsers(new Set(banned));
     } catch (e) {
       setError(errorMessage(e, 'Failed to load people'));
     } finally {
@@ -62,6 +74,7 @@ export function PeopleTab() {
   const filtered = useMemo(() => filterPeople(people, query), [people, query]);
 
   const isHidden = (username: string) => hiddenUsers.has(username);
+  const isBanned = (username: string) => bannedUsers.has(username);
 
   const toggleHideUser = async (username: string) => {
     const hide = !isHidden(username);
@@ -75,6 +88,24 @@ export function PeopleTab() {
     } finally {
       setHidingUser(null);
     }
+  };
+
+  const toggleBanUser = async (username: string) => {
+    const ban = !isBanned(username);
+    setBanningUser(username);
+    try {
+      const next = await setUserBanned(username, ban);
+      setBannedUsers(new Set(next));
+      toast.success(ban ? `Banned @${username}` : `Unbanned @${username}`);
+    } catch (e) {
+      toast.error(errorMessage(e, 'Failed to update the ban list'));
+    } finally {
+      setBanningUser(null);
+    }
+  };
+
+  const openProfile = (username: string) => {
+    navigate(`/u/${encodeURIComponent(username)}`);
   };
 
   const selectPerson = async (username: string) => {
@@ -176,26 +207,35 @@ export function PeopleTab() {
                 data-testid={`person-row-${person.username}`}
               >
                 <div className="flex items-center gap-3 px-3 py-2.5">
-                  {person.avatar_url ? (
-                    <img
-                      src={person.avatar_url}
-                      alt=""
-                      className="h-10 w-10 rounded-full object-cover shrink-0"
-                      data-testid={`person-avatar-${person.username}`}
-                    />
-                  ) : (
-                    <div className="h-10 w-10 rounded-full bg-elevated flex items-center justify-center text-sm font-medium text-muted-foreground shrink-0">
-                      {person.username.slice(0, 1).toUpperCase()}
+                  <button
+                    type="button"
+                    onClick={() => openProfile(person.username)}
+                    aria-label={`Open ${person.username}'s profile`}
+                    className="flex items-center gap-3 min-w-0 flex-1 rounded-md text-left hover:bg-elevated/60 transition-colors p-1 -m-1"
+                    data-testid={`person-open-${person.username}`}
+                  >
+                    {person.avatar_url ? (
+                      <img
+                        src={person.avatar_url}
+                        alt=""
+                        className="h-10 w-10 rounded-full object-cover shrink-0"
+                        data-testid={`person-avatar-${person.username}`}
+                      />
+                    ) : (
+                      <div className="h-10 w-10 rounded-full bg-elevated flex items-center justify-center text-sm font-medium text-muted-foreground shrink-0">
+                        {person.username.slice(0, 1).toUpperCase()}
+                      </div>
+                    )}
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-medium text-foreground truncate flex items-center gap-1">
+                        {person.display_name || person.username}
+                        <ExternalLink className="h-3 w-3 text-muted-foreground/60 shrink-0" strokeWidth={2} />
+                      </p>
+                      <p className="text-xs text-muted-foreground font-mono truncate">
+                        @{person.username} · {person.followers_count} followers
+                      </p>
                     </div>
-                  )}
-                  <div className="flex-1 min-w-0">
-                    <p className="text-sm font-medium text-foreground truncate">
-                      {person.display_name || person.username}
-                    </p>
-                    <p className="text-xs text-muted-foreground font-mono truncate">
-                      @{person.username} · {person.followers_count} followers
-                    </p>
-                  </div>
+                  </button>
                   <button
                     type="button"
                     onClick={() => selectPerson(person.username)}
@@ -224,6 +264,27 @@ export function PeopleTab() {
                       <>
                         <Ban className="mr-1 h-3.5 w-3.5" strokeWidth={1.5} />
                         Hide
+                      </>
+                    )}
+                  </Button>
+                  <Button
+                    variant={isBanned(person.username) ? 'outline' : 'destructive'}
+                    size="sm"
+                    disabled={banningUser === person.username}
+                    onClick={() => toggleBanUser(person.username)}
+                    data-testid={`person-ban-${person.username}`}
+                  >
+                    {banningUser === person.username ? (
+                      <Loader2 className="h-3.5 w-3.5 animate-spin" strokeWidth={1.75} />
+                    ) : isBanned(person.username) ? (
+                      <>
+                        <UserX className="mr-1 h-3.5 w-3.5" strokeWidth={1.5} />
+                        Unban
+                      </>
+                    ) : (
+                      <>
+                        <UserX className="mr-1 h-3.5 w-3.5" strokeWidth={1.5} />
+                        Ban
                       </>
                     )}
                   </Button>

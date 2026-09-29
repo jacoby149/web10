@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import { Plus, X, Loader2, Ban, EyeOff, ShieldAlert } from 'lucide-react';
+import { Plus, X, Loader2, Ban, EyeOff, ShieldAlert, UserX } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -11,25 +11,32 @@ import {
   readModerationFlags,
   setUserAutoHidden,
   saveModerationConfig,
+  readHiddenPosts,
+  unhidePostFromBoard,
+  setUserBanned,
   type ModerationFlag,
+  type HiddenPost,
 } from '@/data/moderation';
 
 /**
  * The Moderation tab — the sensitive-words filter + the review queue, ported
  * from the authenticator's Node Config "Content Moderation" card (D59). The
- * operator curates the blocklist, toggles auto-hide, and reviews flagged users.
+ * operator curates the blocklist, toggles auto-hide, reviews flagged users,
+ * and manages the hidden-posts restore list + the node-level ban list.
  *
  * Node_config fields (the node merges these over the existing config):
  *   - moderation_enabled  — master switch (off = no detection runs)
  *   - auto_moderate       — auto-hide matching posts from Discover
  *   - sensitive_words     — the blocklist (whole-word, case-insensitive)
- *   - auto_hide_users     — the "hidden" users (their future posts auto-hidden)
+ *   - auto_hide_users     — the "hidden" users (their board docs are swept)
+ *   - banned_users        — the node-level ban (content filtered from reads)
  */
 export function ModerationTab() {
   const [enabled, setEnabled] = useState(true);
   const [autoModerate, setAutoModerate] = useState(true);
   const [words, setWords] = useState<string[]>([]);
   const [hiddenUsers, setHiddenUsers] = useState<string[]>([]);
+  const [bannedUsers, setBannedUsers] = useState<string[]>([]);
   const [newWord, setNewWord] = useState('');
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -38,6 +45,12 @@ export function ModerationTab() {
   const [flagsLoading, setFlagsLoading] = useState(true);
   const [flagsError, setFlagsError] = useState<string | null>(null);
   const [hidingUser, setHidingUser] = useState<string | null>(null);
+  const [banningUser, setBanningUser] = useState<string | null>(null);
+
+  // The hidden-posts restore list (the discover group's group_hidden_docs).
+  const [hiddenPosts, setHiddenPosts] = useState<HiddenPost[] | null>(null);
+  const [hiddenPostsLoading, setHiddenPostsLoading] = useState(true);
+  const [unhidingPost, setUnhidingPost] = useState<string | null>(null);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -47,6 +60,7 @@ export function ModerationTab() {
       setAutoModerate(Boolean(cfg.auto_moderate ?? true));
       setWords(Array.isArray(cfg.sensitive_words) ? (cfg.sensitive_words as string[]) : []);
       setHiddenUsers(Array.isArray(cfg.auto_hide_users) ? (cfg.auto_hide_users as string[]) : []);
+      setBannedUsers(Array.isArray(cfg.banned_users) ? (cfg.banned_users as string[]) : []);
     } catch (e) {
       toast.error(errorMessage(e, 'Failed to load the moderation settings'));
     } finally {
@@ -66,10 +80,24 @@ export function ModerationTab() {
     }
   }, []);
 
+  const loadHiddenPosts = useCallback(async () => {
+    setHiddenPostsLoading(true);
+    try {
+      setHiddenPosts(await readHiddenPosts());
+    } catch {
+      // Degrade — the restore list is a convenience; a read failure leaves it
+      // empty rather than erroring the whole tab.
+      setHiddenPosts([]);
+    } finally {
+      setHiddenPostsLoading(false);
+    }
+  }, []);
+
   useEffect(() => {
     load();
     loadFlags();
-  }, [load, loadFlags]);
+    loadHiddenPosts();
+  }, [load, loadFlags, loadHiddenPosts]);
 
   const saveConfig = async (update: {
     moderation_enabled?: boolean;
@@ -115,7 +143,9 @@ export function ModerationTab() {
   };
 
   // "Keep hiding" / "Unhide" — adds or removes a username from auto_hide_users
-  // (a direct action, not a config save). Governs the user's FUTURE posts.
+  // (a direct action, not a config save). Retroactive (D59a): the node also
+  // sweeps the user's existing discover-board docs, so refresh the hidden-posts
+  // list after the action.
   const toggleAutoHide = async (username: string) => {
     const hide = !hiddenUsers.includes(username);
     setHidingUser(username);
@@ -124,10 +154,43 @@ export function ModerationTab() {
       const next = await setUserAutoHidden(username, hide);
       setHiddenUsers(next);
       toast.success(hide ? `Hiding @${username} from Discover` : `Restored @${username} to Discover`);
+      loadHiddenPosts();
     } catch (e) {
       toast.error(errorMessage(e, 'Failed to update the hidden list'));
     } finally {
       setHidingUser(null);
+    }
+  };
+
+  // "Ban" / "Unban" — adds or removes a username from banned_users (the
+  // node-level ban, D59a). A banned user's content is filtered out of every
+  // read path.
+  const toggleBan = async (username: string) => {
+    const ban = !bannedUsers.includes(username);
+    setBanningUser(username);
+    setFlagsError(null);
+    try {
+      const next = await setUserBanned(username, ban);
+      setBannedUsers(next);
+      toast.success(ban ? `Banned @${username}` : `Unbanned @${username}`);
+    } catch (e) {
+      toast.error(errorMessage(e, 'Failed to update the ban list'));
+    } finally {
+      setBanningUser(null);
+    }
+  };
+
+  // Restore a hidden post to the board (the per-post Unhide in the restore list).
+  const unhidePost = async (docId: string) => {
+    setUnhidingPost(docId);
+    try {
+      await unhidePostFromBoard(docId);
+      setHiddenPosts((prev) => (prev ? prev.filter((p) => p.doc_id !== docId) : prev));
+      toast.success('Post restored to Discover');
+    } catch (e) {
+      toast.error(errorMessage(e, 'Failed to restore the post'));
+    } finally {
+      setUnhidingPost(null);
     }
   };
 
@@ -224,8 +287,8 @@ export function ModerationTab() {
         <div className="space-y-2">
           <Label className="text-muted-foreground">Hidden from Discover</Label>
           <p className="text-xs text-muted-foreground">
-            These users&apos; future posts are auto-hidden from the board. Unhide to
-            restore their discover visibility.
+            These users&apos; board posts are hidden (retroactively). Unhide to restore
+            their discover visibility.
           </p>
           <div className="flex flex-wrap gap-1.5" data-testid="moderation-hidden-users">
             {hiddenUsers.map((username) => (
@@ -255,6 +318,95 @@ export function ModerationTab() {
         </div>
       )}
 
+      {/* The banned users (banned_users — the node-level ban, D59a) */}
+      {bannedUsers.length > 0 && (
+        <div className="space-y-2">
+          <Label className="text-muted-foreground">Banned</Label>
+          <p className="text-xs text-muted-foreground">
+            Banned users&apos; content is filtered out of every read on this node
+            (the board, the feed, the query engine). Unban to restore it.
+          </p>
+          <div className="flex flex-wrap gap-1.5" data-testid="moderation-banned-users">
+            {bannedUsers.map((username) => (
+              <span
+                key={username}
+                className="inline-flex items-center gap-1 rounded-full border border-border bg-danger-muted px-2.5 py-1 font-mono text-xs text-danger"
+                data-testid={`moderation-banned-user-${username}`}
+              >
+                <UserX className="h-3 w-3" strokeWidth={2} />
+                @{username}
+                <button
+                  type="button"
+                  onClick={() => toggleBan(username)}
+                  disabled={banningUser === username}
+                  aria-label={`Unban ${username}`}
+                  className="text-danger/70 transition-colors hover:text-danger focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                  data-testid={`moderation-unban-user-${username}`}
+                >
+                  {banningUser === username ? (
+                    <Loader2 className="h-3 w-3 animate-spin" strokeWidth={2} />
+                  ) : (
+                    <X className="h-3 w-3" strokeWidth={2} />
+                  )}
+                </button>
+              </span>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* The hidden posts (the discover group's takedown list — restore list) */}
+      <div className="space-y-2">
+        <Label className="text-muted-foreground">Hidden posts</Label>
+        <p className="text-xs text-muted-foreground">
+          Posts taken off the Discover board (by you or the auto-filter). Restore
+          one to put it back on the board.
+        </p>
+        {hiddenPostsLoading ? (
+          <Skeleton className="h-12 w-full" />
+        ) : hiddenPosts && hiddenPosts.length === 0 ? (
+          <p className="text-sm text-muted-foreground" data-testid="moderation-hidden-posts-empty">
+            No hidden posts.
+          </p>
+        ) : (
+          <div className="space-y-1.5" data-testid="moderation-hidden-posts">
+            {hiddenPosts?.map((post) => (
+              <div
+                key={post.doc_id}
+                className="flex items-center justify-between gap-2 rounded-sm border border-border bg-elevated px-3 py-2"
+                data-testid={`moderation-hidden-post-${post.doc_id}`}
+              >
+                <div className="min-w-0 flex-1">
+                  <p className="truncate text-sm text-foreground">
+                    {(post.body?.text as string) || <span className="text-muted-foreground italic">(media only)</span>}
+                  </p>
+                  <p className="truncate font-mono text-xs text-muted-foreground">
+                    @{post.author_key}
+                  </p>
+                </div>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="shrink-0"
+                  disabled={unhidingPost === post.doc_id}
+                  onClick={() => unhidePost(post.doc_id)}
+                  data-testid={`moderation-unhide-post-${post.doc_id}`}
+                >
+                  {unhidingPost === post.doc_id ? (
+                    <Loader2 className="h-3.5 w-3.5 animate-spin" strokeWidth={1.5} />
+                  ) : (
+                    <>
+                      <EyeOff className="mr-1 h-3.5 w-3.5 strokeWidth={1.5}" />
+                      Unhide
+                    </>
+                  )}
+                </Button>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+
       {/* The review queue */}
       <div className="border-t border-border pt-4">
         <div className="flex items-center gap-2 mb-2">
@@ -276,6 +428,7 @@ export function ModerationTab() {
           <div className="space-y-2" data-testid="moderation-queue">
             {flags?.map((flag) => {
               const isHidden = hiddenUsers.includes(flag.username);
+              const isBanned = bannedUsers.includes(flag.username);
               return (
                 <div
                   key={flag.username}
@@ -290,26 +443,48 @@ export function ModerationTab() {
                       {flag.matched_words.slice(0, 3).join(', ')}
                     </div>
                   </div>
-                  <Button
-                    variant={isHidden ? 'outline' : 'brand'}
-                    size="sm"
-                    className="shrink-0"
-                    disabled={hidingUser === flag.username}
-                    onClick={() => toggleAutoHide(flag.username)}
-                    data-testid={`moderation-flag-toggle-${flag.username}`}
-                  >
-                    {isHidden ? (
-                      <>
-                        <EyeOff className="mr-1 h-3.5 w-3.5" strokeWidth={1.5} />
-                        Hiding
-                      </>
-                    ) : (
-                      <>
-                        <Ban className="mr-1 h-3.5 w-3.5" strokeWidth={1.5} />
-                        Keep hiding
-                      </>
-                    )}
-                  </Button>
+                  <div className="flex shrink-0 items-center gap-1.5">
+                    <Button
+                      variant={isHidden ? 'outline' : 'brand'}
+                      size="sm"
+                      disabled={hidingUser === flag.username}
+                      onClick={() => toggleAutoHide(flag.username)}
+                      data-testid={`moderation-flag-toggle-${flag.username}`}
+                    >
+                      {isHidden ? (
+                        <>
+                          <EyeOff className="mr-1 h-3.5 w-3.5" strokeWidth={1.5} />
+                          Hiding
+                        </>
+                      ) : (
+                        <>
+                          <Ban className="mr-1 h-3.5 w-3.5" strokeWidth={1.5} />
+                          Keep hiding
+                        </>
+                      )}
+                    </Button>
+                    <Button
+                      variant={isBanned ? 'outline' : 'destructive'}
+                      size="sm"
+                      disabled={banningUser === flag.username}
+                      onClick={() => toggleBan(flag.username)}
+                      data-testid={`moderation-flag-ban-${flag.username}`}
+                    >
+                      {banningUser === flag.username ? (
+                        <Loader2 className="h-3.5 w-3.5 animate-spin" strokeWidth={1.5} />
+                      ) : isBanned ? (
+                        <>
+                          <UserX className="mr-1 h-3.5 w-3.5" strokeWidth={1.5} />
+                          Unban
+                        </>
+                      ) : (
+                        <>
+                          <UserX className="mr-1 h-3.5 w-3.5" strokeWidth={1.5} />
+                          Ban
+                        </>
+                      )}
+                    </Button>
+                  </div>
                 </div>
               );
             })}

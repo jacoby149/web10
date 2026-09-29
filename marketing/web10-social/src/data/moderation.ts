@@ -137,6 +137,44 @@ export async function unhidePostFromBoard(docId: string): Promise<void> {
   await adminPost('/v3/groups/unhide', { group_id: getDiscoverGroupId(), doc_id: docId });
 }
 
+/**
+ * A doc currently hidden from the Discover board (the moderation takedown list).
+ * `author_key` is the bare username (v3 same-node); `body` is the doc's body
+ * (for a post, `body.text` is the post text).
+ */
+export interface HiddenPost {
+  doc_id: string;
+  author_key: string;
+  hidden_at: string;
+  moderator_key: string;
+  body: Record<string, unknown>;
+}
+
+/**
+ * List the docs currently hidden from the Discover board (the operator's
+ * "hidden posts" restore list — the surface the authenticator's retired Board
+ * Moderation card had). Gated by node-admin (the `/v3/groups/hidden` read).
+ */
+export async function readHiddenPosts(): Promise<HiddenPost[]> {
+  const data = await adminPost<{ hidden: HiddenPost[] }>('/v3/groups/hidden', {
+    group_id: getDiscoverGroupId(),
+  });
+  return data.hidden ?? [];
+}
+
+/**
+ * Add or remove a username from the node's `banned_users` list (the node-level
+ * ban, D59a). `ban=true` bans (the user's content is filtered out of every read
+ * path); `ban=false` unbans (their content returns). Returns the new list.
+ */
+export async function setUserBanned(username: string, ban: boolean): Promise<string[]> {
+  const data = await adminPost<{ banned_users: string[] }>('/v3/moderation/ban', {
+    username,
+    ban,
+  });
+  return data.banned_users ?? [];
+}
+
 // ── The web10 link parser (the operator pastes a permalink in the Link tab) ──
 
 /**

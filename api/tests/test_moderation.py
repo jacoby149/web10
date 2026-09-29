@@ -406,3 +406,160 @@ class TestGetModerationFlagsQuery:
         assert flags[0]["matched_words"] == ["nigger", "auto_hide_users"]
         assert flags[0]["flag_count"] == 2
         assert flags[1]["matched_words"] == ["kike"]
+
+
+# ---------------------------------------------------------------------------
+# Retroactive user-hide sweep (D59a) — hiding a user sweeps their EXISTING
+# discover-board docs, not just future posts
+# ---------------------------------------------------------------------------
+
+
+class TestAutoHideRetroactiveSweep:
+    def test_hide_sweeps_existing_posts(self, client):
+        saved = {"auto_hide_users": []}
+        with (
+            patch("app.services.config.is_admin", return_value=True),
+            patch("app.services.config.get_config", return_value=saved),
+            patch("app.services.config.save_config"),
+            patch("app.v3.services.clickhouse.get_user_discover_posts", return_value=["doc-a", "doc-b"]),
+            patch("app.v3.services.clickhouse.hide_doc_from_group") as mock_hide,
+        ):
+            resp = client.post(
+                "/v3/moderation/auto-hide", json={"token": _admin_token(), "username": "badguy", "hide": True}
+            )
+        assert resp.status_code == 200
+        # Each existing discover-board doc is hidden from the discover group by
+        # the node moderator (the same mechanism the write-path hook uses).
+        assert mock_hide.call_count == 2
+        mock_hide.assert_any_call(DISCOVER_GROUP_ID, "doc-a", moderation.NODE_MODERATOR)
+        mock_hide.assert_any_call(DISCOVER_GROUP_ID, "doc-b", moderation.NODE_MODERATOR)
+
+    def test_unhide_restores_existing_posts(self, client):
+        saved = {"auto_hide_users": ["badguy"]}
+        with (
+            patch("app.services.config.is_admin", return_value=True),
+            patch("app.services.config.get_config", return_value=saved),
+            patch("app.services.config.save_config"),
+            patch("app.v3.services.clickhouse.get_user_discover_posts", return_value=["doc-a"]),
+            patch("app.v3.services.clickhouse.unhide_doc_from_group") as mock_unhide,
+        ):
+            resp = client.post(
+                "/v3/moderation/auto-hide", json={"token": _admin_token(), "username": "badguy", "hide": False}
+            )
+        assert resp.status_code == 200
+        mock_unhide.assert_called_once_with(DISCOVER_GROUP_ID, "doc-a")
+
+    def test_sweep_failure_does_not_fail_endpoint(self, client):
+        # The sweep is best-effort: a DB failure must not fail the list update
+        # (the list is the source of truth for future posts).
+        saved = {"auto_hide_users": []}
+        with (
+            patch("app.services.config.is_admin", return_value=True),
+            patch("app.services.config.get_config", return_value=saved),
+            patch("app.services.config.save_config"),
+            patch("app.v3.services.clickhouse.get_user_discover_posts", side_effect=Exception("db down")),
+        ):
+            resp = client.post(
+                "/v3/moderation/auto-hide", json={"token": _admin_token(), "username": "badguy", "hide": True}
+            )
+        assert resp.status_code == 200
+        assert resp.json()["auto_hide_users"] == ["badguy"]
+
+    def test_sweep_is_service_agnostic(self):
+        # D60: a hide is "take this user off the board" — the sweep is NOT
+        # scoped to collection_name = 'posts' (no social concept in the node).
+        import app.v3.services.clickhouse as ch
+
+        mock_client = MagicMock()
+        mock_client.query.return_value = MagicMock(result_rows=[("doc-a",)])
+        with patch.object(ch, "client", mock_client):
+            ch.get_user_discover_posts("badguy")
+        sql = mock_client.query.call_args[0][0]
+        assert "collection_name" not in sql
+        assert "author_key = %(author)s" in sql
+        assert "group_id = %(group)s" in sql
+
+
+# ---------------------------------------------------------------------------
+# The node-level ban endpoint (D59a) — banned_users list, admin-only
+# ---------------------------------------------------------------------------
+
+
+class TestBanEndpoint:
+    def test_ban_add(self, client):
+        saved = {"banned_users": ["existing"]}
+        with (
+            patch("app.services.config.is_admin", return_value=True),
+            patch("app.services.config.get_config", return_value=saved),
+            patch("app.services.config.save_config") as mock_save,
+        ):
+            resp = client.post(
+                "/v3/moderation/ban", json={"token": _admin_token(), "username": "newuser", "ban": True}
+            )
+        assert resp.status_code == 200
+        assert resp.json()["banned_users"] == ["existing", "newuser"]
+        mock_save.assert_called_once()
+        assert mock_save.call_args.args[0]["banned_users"] == ["existing", "newuser"]
+
+    def test_ban_remove(self, client):
+        saved = {"banned_users": ["existing", "newuser"]}
+        with (
+            patch("app.services.config.is_admin", return_value=True),
+            patch("app.services.config.get_config", return_value=saved),
+            patch("app.services.config.save_config") as mock_save,
+        ):
+            resp = client.post(
+                "/v3/moderation/ban", json={"token": _admin_token(), "username": "newuser", "ban": False}
+            )
+        assert resp.status_code == 200
+        assert resp.json()["banned_users"] == ["existing"]
+        mock_save.assert_called_once()
+        assert mock_save.call_args.args[0]["banned_users"] == ["existing"]
+
+    def test_ban_non_admin_rejected(self):
+        with TestClient(fastapi_app, raise_server_exceptions=False) as tc:
+            with patch("app.services.config.is_admin", return_value=False):
+                resp = tc.post(
+                    "/v3/moderation/ban", json={"token": _make_token("rando"), "username": "x", "ban": True}
+                )
+        assert resp.status_code == 403
+
+
+# ---------------------------------------------------------------------------
+# The ban read-path filter (D59a) — banned_users' docs are filtered out of
+# every read path (the board read + the query engine), service-agnostic
+# ---------------------------------------------------------------------------
+
+
+class TestBanReadPathFilter:
+    def test_board_base_sql_filters_banned(self):
+        import app.v3.services.clickhouse as ch
+
+        # The board read threads banned_users in as a param (read once at the
+        # endpoint, keeping the SQL builder pure — no config read inside).
+        sql = ch._board_base_sql(["g1"], require_membership=False, banned_users=["badguy", "trollface"])
+        assert "p.author_key NOT IN" in sql
+        assert "'badguy'" in sql and "'trollface'" in sql
+
+    def test_board_base_sql_no_ban_when_empty(self):
+        import app.v3.services.clickhouse as ch
+
+        sql = ch._board_base_sql(["g1"], require_membership=False, banned_users=[])
+        assert "author_key NOT IN" not in sql
+
+    def test_boundary_cte_sql_filters_banned(self):
+        from app.v3.services import safe_query
+
+        with patch("app.services.config.effective_config", return_value={"banned_users": ["badguy"]}):
+            sql = safe_query._boundary_cte_sql("posts", ["g1"], "reader")
+        # The banned predicate is a literal IN-list (distinct from the
+        # user_blacklist filter, which is a subquery).
+        assert "d.author_key NOT IN ('badguy')" in sql
+
+    def test_boundary_cte_sql_no_ban_when_empty(self):
+        from app.v3.services import safe_query
+
+        with patch("app.services.config.effective_config", return_value={"banned_users": []}):
+            sql = safe_query._boundary_cte_sql("posts", ["g1"], "reader")
+        # No banned IN-list (the user_blacklist subquery filter is still there).
+        assert "NOT IN ('" not in sql

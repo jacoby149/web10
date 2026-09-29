@@ -1841,6 +1841,26 @@ def get_hidden_docs(group_id: str) -> list[dict]:
 # ---------------------------------------------------------------------------
 
 
+def get_user_discover_posts(username: str) -> list[str]:
+    """The doc_ids of ``username``'s docs attached to the discover group (the
+    retroactive user-hide sweep, D59a). Service-agnostic — a hide is "take this
+    user off the board", so EVERY doc they have on the board is swept, whatever
+    service it lives in (the node stays generic, D60 — no ``posts`` hardcode).
+    Dedup-then-filter (the tombstone read invariant); only live, not-deleted
+    docs. ``username`` is the author_key (v3 same-node: the bare username).
+    """
+    result = client.query(
+        "SELECT p.doc_id FROM (SELECT doc_id, author_key, deleted FROM (SELECT doc_id, author_key, deleted, "
+        "row_number() OVER (PARTITION BY doc_id, author_key ORDER BY updated_at DESC) AS rn "
+        "FROM documents) WHERE rn = 1 AND deleted = 0) p "
+        "JOIN (SELECT doc_id, group_id FROM doc_groups WHERE deleted = 0 "
+        "QUALIFY row_number() OVER (PARTITION BY doc_id, group_id ORDER BY updated_at DESC) = 1) pg "
+        "ON p.doc_id = pg.doc_id WHERE p.author_key = %(author)s AND pg.group_id = %(group)s",
+        {"author": username, "group": DISCOVER_GROUP_ID},
+    )
+    return [row[0] for row in result.result_rows]
+
+
 def insert_moderation_flag(username: str, doc_id: str, matched_words: list[str]) -> None:
     """Append a moderation flag (the review queue). Append-only — every flag is
     kept as an audit row; the queue is a GROUP BY view over them."""
@@ -2182,11 +2202,16 @@ def _power_mean_score_sql(
     return f"pow({num} / {tw}, 1 / %(p)s)"
 
 
-def _board_base_sql(group_ids: list[str], require_membership: bool = True, tags: list[str] | None = None) -> str:
+def _board_base_sql(
+    group_ids: list[str],
+    require_membership: bool = True,
+    tags: list[str] | None = None,
+    banned_users: list[str] | None = None,
+) -> str:
     """Board base SQL (shared by the no-sort and ranked read paths).
 
     documents JOIN doc_groups [JOIN group_members], filtered by tombstones,
-    blacklists, sharing, and hidden docs. Selects
+    blacklists, sharing, hidden docs, and the node-level ban (D59a). Selects
     (doc_id, author_key, body, tags, created_at, ref_value, ad_mode, ad_target).
     Placeholders: %(coll)s, %(member_key)s, %(g0)s..%(gN)s, %(tag0)s..%(tagN)s.
 
@@ -2201,8 +2226,16 @@ def _board_base_sql(group_ids: list[str], require_membership: bool = True, tags:
     given tag (``has(p.tags, %(tagN)s)`` ANDed). The idiom the node-ad read
     already uses (``has(tags, 'node_ad')``, below); generalized to N tags. The
     Shorts feed uses it to pull only ``short``-tagged posts (shorts.md) — the
-    tag is the cheap, indexable server filter; the render-time 9:16 gate on
-    the client stays the backstop that drops fakes.
+    tag is the cheap, indexable server filter; the render-time 9:16 gate on the
+    client stays the backstop that drops fakes.
+
+    ``banned_users`` (D59a): the node's banned usernames (the node-level ban).
+    A banned user's docs are filtered out of every read path — the predicate is
+    on ``author_key``, service-agnostic (D60). The list is read ONCE per
+    request at the endpoint and threaded in (not queried inside the SQL
+    builder — that would add a node_config query per read). An empty/None list
+    degrades to no predicate. The list is node-operator-curated (never caller
+    input), so inlining it quoted is safe.
     """
     membership_join = (
         "JOIN (SELECT group_id, member_key, role FROM (SELECT group_id, member_key, role, deleted, "
@@ -2213,6 +2246,10 @@ def _board_base_sql(group_ids: list[str], require_membership: bool = True, tags:
     )
     membership_where = "gm.member_key = %(member_key)s AND " if require_membership else ""
     tag_where = " AND (" + " AND ".join(f"has(p.tags, %(tag{i})s)" for i in range(len(tags))) + ")" if tags else ""
+    banned_where = ""
+    if banned_users:
+        banned_in = ", ".join(f"'{u.replace(chr(39), chr(39) * 2)}'" for u in banned_users)
+        banned_where = f" AND p.author_key NOT IN ({banned_in})"
     return (
         "SELECT p.doc_id AS doc_id, p.author_key, p.body, p.tags, p.created_at, p.ref_value, p.ad_mode, p.ad_target "
         "FROM (SELECT doc_id, author_key, body, tags, created_at, ref_value, ad_mode, ad_target, deleted "
@@ -2246,6 +2283,7 @@ def _board_base_sql(group_ids: list[str], require_membership: bool = True, tags:
         + "".join(f", %(g{i})s" for i in range(1, len(group_ids)))
         + ")"
         + tag_where
+        + banned_where
     )
 
 
@@ -2257,14 +2295,17 @@ def _group_docs_query(
     offset: int,
     require_membership: bool = True,
     tags: list[str] | None = None,
+    banned_users: list[str] | None = None,
 ) -> list[dict]:
     """The core v3 discover query (no ranking).
 
     documents JOIN doc_groups [JOIN group_members], filtered by tombstones,
-    blacklists, and hidden docs. `limit=None` fetches the full membership (no
-    LIMIT clause). `require_membership=False` (D58) drops the membership JOIN —
-    the caller pre-filtered `group_ids` to the readable set. `tags` filters to
-    docs carrying every given tag (the server-side tag filter, shorts.md).
+    blacklists, hidden docs, and the node-level ban (D59a). `limit=None`
+    fetches the full membership (no LIMIT clause). `require_membership=False`
+    (D58) drops the membership JOIN — the caller pre-filtered `group_ids` to the
+    readable set. `tags` filters to docs carrying every given tag (the
+    server-side tag filter, shorts.md). `banned_users` (D59a) filters out a
+    banned author's docs (service-agnostic).
     """
     limit_clause = "LIMIT %(limit)s OFFSET %(offset)s" if limit is not None else ""
     params: dict = {
@@ -2277,7 +2318,10 @@ def _group_docs_query(
     if limit is not None:
         params["limit"] = limit
     result = client.query(
-        _board_base_sql(group_ids, require_membership, tags) + " ORDER BY p.created_at DESC " + limit_clause, params
+        _board_base_sql(group_ids, require_membership, tags, banned_users)
+        + " ORDER BY p.created_at DESC "
+        + limit_clause,
+        params,
     )
     return [
         {
@@ -2304,6 +2348,7 @@ def _group_docs_ranked_query(
     offset: int,
     require_membership: bool = True,
     tags: list[str] | None = None,
+    banned_users: list[str] | None = None,
 ) -> list[dict]:
     """The v3 discover query with power-mean ranking in SQL (the v1 scale-up).
 
@@ -2347,7 +2392,7 @@ def _group_docs_ranked_query(
 
     sql = (
         "SELECT b.doc_id, b.author_key, b.body, b.tags, b.created_at, b.ref_value, b.ad_mode, b.ad_target "
-        "FROM (" + _board_base_sql(group_ids, require_membership, tags) + ") b "
+        "FROM (" + _board_base_sql(group_ids, require_membership, tags, banned_users) + ") b "
         "LEFT JOIN (SELECT ref_value, count() AS reaction_count FROM (SELECT ref_value FROM documents "
         "WHERE deleted = 0 AND collection_name = 'reactions' "
         "QUALIFY row_number() OVER (PARTITION BY doc_id, author_key ORDER BY updated_at DESC) = 1) "
@@ -2385,11 +2430,13 @@ def read_documents_in_groups(
     sort: dict | None = None,
     require_membership: bool = True,
     tags: list[str] | None = None,
+    banned_users: list[str] | None = None,
 ) -> list[dict]:
     """Read documents attached to groups the reader can access.
 
     This is the core v3 discover query: documents JOIN doc_groups [JOIN
-    group_members], filtered by tombstones, blacklists, and hidden docs.
+    group_members], filtered by tombstones, blacklists, hidden docs, and the
+    node-level ban (D59a).
 
     ``require_membership`` (D58): when True (the legacy path) the read is
     gated on the reader being a member of each group. When False, the caller
@@ -2401,6 +2448,10 @@ def read_documents_in_groups(
     It is a platform primitive, not a social concept: any service's read can
     filter by its own tags. The Shorts feed is the first consumer (``['short']``);
     the render-time 9:16 gate on the client stays the backstop that drops fakes.
+
+    ``banned_users`` (D59a): the node's banned usernames — a banned author's
+    docs are filtered out (service-agnostic). Read once per request at the
+    endpoint and threaded in (not queried inside the SQL builder).
 
     Blocking/sharing enforcement (KB: security/overview.md "Blocking and
     Sharing", social/cross-app-sharing.md):
@@ -2429,10 +2480,9 @@ def read_documents_in_groups(
         # Power-mean ranking in SQL (the v1 scale-up): the board base is joined
         # to exact engagement counts, scored in SQL (mirroring the client), and
         # paged in ClickHouse — no full membership fetch into Python
-        # (feed-lens-integration.md, option B).
-        return _group_docs_ranked_query(group_ids, member_key, service, sort, limit, offset, require_membership, tags)
+        return _group_docs_ranked_query(group_ids, member_key, service, sort, limit, offset, require_membership, tags, banned_users)
 
-    return _group_docs_query(group_ids, member_key, service, limit, offset, require_membership, tags)
+    return _group_docs_query(group_ids, member_key, service, limit, offset, require_membership, tags, banned_users)
 
 
 class QueryExecutionError(Exception):
