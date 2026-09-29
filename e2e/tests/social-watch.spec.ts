@@ -35,7 +35,6 @@ const SOCIAL_BASE = `http://social.localhost${p}`;
 const PROVIDER = 'api.localhost';
 const DISCOVER_GROUP_ID = `${PROVIDER}/groups/web10/discover`;
 const POSTS = 'posts';
-const MEDIA = 'media';
 
 // Mirror of SOCIAL_SERVICES / SOCIAL_OPERATIONS in
 // marketing/web10-social/src/interfaces/auth.ts — the app contract the D42
@@ -194,21 +193,6 @@ async function createPrivateGroup(request: APIRequestContext, token: string, use
 
 // ── Video seeding (the watch page needs a real, playable landscape video) ────
 
-/** Create the owner's media group (the video lives here, not on the board). */
-async function createMediaGroup(request: APIRequestContext, token: string, username: string): Promise<string> {
-  const res = await v3Post(request, `${API_BASE}/v3/groups/create`, {
-    token,
-    name: `media-${username}`,
-    join_policy: 'invite_only',
-    roles: [
-      { name: 'owner', services: ['*'], permissions: ['readAll', 'create', 'updateOwn', 'deleteOwn', 'manageRoles'] },
-    ],
-    members: [{ member_key: username, role: 'owner' }],
-  });
-  expect(res.ok(), `create media group failed (${res.status})`).toBeTruthy();
-  return (await res.json()).group_id as string;
-}
-
 /** Upload a video to MinIO and return the object_key. */
 async function uploadVideoToMinio(request: APIRequestContext, token: string): Promise<string> {
   const uploadRes = await v3Post(request, `${API_BASE}/v3/media/upload-url`, {
@@ -233,6 +217,14 @@ async function uploadVideoToMinio(request: APIRequestContext, token: string): Pr
 /**
  * Upload the landscape video, create the media doc, queue the transcode, and
  * poll until it settles. Returns the media doc_id (the post's media_ref).
+ *
+ * The media doc is created via `media/confirm` (NOT `v3/create`): confirm
+ * stores it with `collection_name = 'media_metadata'`, which is what the
+ * social app's `resolveMediaRefs` → `listMedia` reads (`collection_name IN
+ * ('media_metadata', 'public_media')`). A `v3/create` with `service: 'media'`
+ * gives `collection_name = 'media'`, which `listMedia` can't find — so the
+ * watch page would show "No video to play".
+ *
  * Transcoding is the proven-playable path (H.264/AAC HLS) — the watch page's
  * ?t= round-trip needs the video to actually play (timeupdate).
  */
@@ -240,22 +232,23 @@ async function seedLandscapeVideo(
   request: APIRequestContext,
   token: string,
   username: string,
-  groupId: string,
 ): Promise<string> {
   const objectKey = await uploadVideoToMinio(request, token);
-  const createRes = await v3Post(request, `${API_BASE}/v3/create`, {
+  const confirmRes = await v3Post(request, `${API_BASE}/v3/media/confirm`, {
     token,
-    service: MEDIA,
     body: {
+      object_key: objectKey,
       video: { type: 'minio', value: objectKey },
       filename: 'landscape.mp4',
       mime_type: 'video/mp4',
-      date: new Date().toISOString(),
+      width: 1280,
+      height: 720,
+      duration_seconds: 8,
+      service: 'media',
     },
-    groups: [groupId],
   });
-  expect(createRes.ok(), `create media doc failed (${createRes.status})`).toBeTruthy();
-  const docId = (await createRes.json()).doc_id as string;
+  expect(confirmRes.ok(), `media/confirm failed (${confirmRes.status})`).toBeTruthy();
+  const docId = (await confirmRes.json()).doc_id as string;
 
   const tcRes = await v3Post(request, `${API_BASE}/v3/media/transcode`, { token, doc_id: docId });
   expect(tcRes.ok(), `media/transcode failed (${tcRes.status})`).toBeTruthy();
@@ -263,7 +256,7 @@ async function seedLandscapeVideo(
   const deadline = Date.now() + 200_000;
   let doc: any = null;
   while (Date.now() < deadline) {
-    const readRes = await v3Post(request, `${API_BASE}/v3/read`, { token, service: MEDIA, doc_id: docId });
+    const readRes = await v3Post(request, `${API_BASE}/v3/read`, { token, service: 'media_metadata', doc_id: docId });
     expect(readRes.ok()).toBeTruthy();
     doc = await readRes.json();
     const ts = doc.body?.transcoding_settings;
@@ -408,8 +401,7 @@ test.describe('Social watch gauntlet — wall → watch → queue → back → ?
     // --- Seed via API: ONE landscape video (transcoded, playable) + two
     //     discover posts carrying it (the wall tile + the queue item) ---
     const viewer = await setupViewer(request, context, 'watchui');
-    const mediaGroup = await createMediaGroup(request, viewer.token, viewer.username);
-    const mediaDocId = await seedLandscapeVideo(request, viewer.token, viewer.username, mediaGroup);
+    const mediaDocId = await seedLandscapeVideo(request, viewer.token, viewer.username);
 
     const postA = `watch wall video ${Date.now()}`;
     const docA = await postVideoToDiscover(request, viewer.token, postA, mediaDocId, viewer.username);
