@@ -468,6 +468,11 @@ test.describe('Social watch gauntlet — wall → watch → queue → back → ?
       .toBeGreaterThan(0);
 
     // --- Click a queue item → the next video (a new history entry) ---
+    // Pause the video first: the ?t= write-back (setSearchParams, replace)
+    // fires on timeupdate and would race the navigation (overwriting the URL
+    // back to the current doc). Pausing stops the timeupdate, so the queue
+    // item's navigation is clean.
+    await page.locator('video').first().evaluate((v) => (v as HTMLVideoElement).pause());
     await queue.locator('[data-testid="watch-queue-card"]', { hasText: postB }).click();
     await page.waitForURL(`**/watch/${docB}**`, { timeout: 30_000 });
     await expect(page.locator('[data-testid="watch-title"]')).toHaveText(postB, { timeout: 30_000 });
