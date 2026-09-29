@@ -203,8 +203,8 @@ export function reportNodeError(message: string, opts?: { source?: string; line?
  * Track a content-free analytics event.
  *
  * Events are aggregate-only: no post text, no media URLs, no PII.
- * Allowed events: login, logout, post_created, follow, unfollow,
- * pwa_install_prompt_shown, pwa_installed.
+ * Allowed events: login, logout, post_created, new_post_open, follow,
+ * unfollow, pwa_install_prompt_shown, pwa_installed.
  * All metadata is structural (visibility, screen, trigger), never content.
  *
  * The PWA events (D72) carry only the **trigger context** — where the prompt
@@ -216,6 +216,7 @@ export function trackEvent(
     | 'login'
     | 'logout'
     | 'post_created'
+    | 'new_post_open'
     | 'follow'
     | 'unfollow'
     | 'pwa_install_prompt_shown'

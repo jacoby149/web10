@@ -13,7 +13,7 @@ from app.models.config import (
     SetupStatus,
 )
 from app.services import config as config_svc
-from app.services.auth import check_admin, decode_token, get_password_hash
+from app.services.auth import certify, check_admin, decode_token, get_password_hash
 from app.v3.services import clickhouse as ch
 
 router = APIRouter()
@@ -24,6 +24,27 @@ log = logging.getLogger(__name__)
 def root():
     """A bare API host should look intentional, not broken."""
     return RedirectResponse(url="/docs")
+
+
+@router.post("/certify", tags=["system"])
+def certify_endpoint(token: Token):
+    """Verify that a token was minted by THIS node and is unexpired.
+
+    The WebRTC signaling server (``api/rtc``) calls this on every connection
+    and keeps the socket only on a 200. It is the v2-era endpoint the Python
+    rewrite dropped — without it the signaling server 404s over real HTTPS and
+    closes every socket, so P2P (real-time messages + notifications) is dead
+    on any non-local node. Locally it masked itself: the HTTPS call to the
+    HTTP-only local API fails at the network layer, the RTC server's missing
+    ``.catch`` never closes the socket, and P2P "works" — a corrupted measure.
+
+    ``certify`` (services/auth.py) does the real check: signature verification
+    (I2 — no unsigned decode), provider match (the token is from this node),
+    and expiry. A forged / cross-node / expired token raises ``TOKEN`` → 401,
+    so the signaling server drops the socket.
+    """
+    certify(token)
+    return {"status": "ok"}
 
 
 # --- Setup wizard ---

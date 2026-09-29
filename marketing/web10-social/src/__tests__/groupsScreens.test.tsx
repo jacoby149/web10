@@ -582,20 +582,27 @@ describe('GroupDetailScreen', () => {
     });
   });
 
-  it('a member sees the group composer (the feed composer, group-scoped)', async () => {
+  it('a member sees a "Post to this group" button (the composer is app-level, not inline)', async () => {
     await loadDetail();
     await waitFor(() => {
       expect(screen.getByTestId('group-detail-posts')).toBeInTheDocument();
     });
-    // The composer is the feed's PostComposer (the group feed looks like the
-    // feed) — present for a member, absent for non-members.
-    expect(screen.getByTestId('group-composer')).toBeInTheDocument();
-    expect(screen.getByTestId('post-composer')).toBeInTheDocument();
-    expect(screen.getByTestId('composer-textarea')).toBeInTheDocument();
-    // The Post button is disabled until there's text
-    expect(screen.getByTestId('post-submit')).toBeDisabled();
-    fireEvent.change(screen.getByTestId('composer-textarea'), { target: { value: 'Hello group' } });
-    expect(screen.getByTestId('post-submit')).toBeEnabled();
+    // The composer is NOT inline (the operator: "it should be invisible") —
+    // a member gets a "Post to this group" button that opens the app-level
+    // New Post sheet scoped to this group.
+    expect(screen.getByTestId('group-post-button')).toBeInTheDocument();
+    // The old inline composer is gone.
+    expect(screen.queryByTestId('group-composer')).not.toBeInTheDocument();
+    expect(screen.queryByTestId('post-composer')).not.toBeInTheDocument();
+  });
+
+  it('a non-member does NOT see the "Post to this group" button', async () => {
+    vi.mocked(readGroupDetail).mockResolvedValue(mockDetailNonMember as never);
+    await loadDetail();
+    await waitFor(() => {
+      expect(screen.getByTestId('group-detail-join-to-view')).toBeInTheDocument();
+    });
+    expect(screen.queryByTestId('group-post-button')).not.toBeInTheDocument();
   });
 
   it('renders post media (image) when the group feed carries media', async () => {
