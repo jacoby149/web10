@@ -376,6 +376,8 @@ test.describe('Ads gauntlet — composer pin → follower sees the ad block', ()
     // --- The creator composes a post, pins the ad, and posts ---
     await pageC.goto(`${SOCIAL_BASE}/feed?tab=following`);
     await pageC.waitForLoadState('networkidle');
+    // The composer is NOT inline (3.184.0) — open the app-level sheet via the FAB.
+    await pageC.locator('[data-testid="new-post-fab"]').click();
     await expect(pageC.locator('[data-testid="post-composer"]')).toBeVisible();
 
     const myPost = `pinned ad post ${Date.now()}`;
