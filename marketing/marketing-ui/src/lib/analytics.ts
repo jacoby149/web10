@@ -1,12 +1,10 @@
 // Centralized analytics for marketing-ui (D56: full-platform telemetry).
-// In-house funnel analytics + JS error beacon (first-party, to the
-// marketing-api) + GA4 + masked Hotjar (session replay + heatmaps,
-// content-blind: text blurred, images blocked). See
+// First-party beacon to the NODE (persistent, in ClickHouse — the operator's
+// own numbers, not third-party) + GA4 + masked Hotjar (session replay +
+// heatmaps, content-blind: text blurred, images blocked). See
 // knowledge-base/web10-v3/telemetry.md.
 
-const MARKETING_API =
-  (typeof window !== 'undefined' && new URLSearchParams(window.location.search).get('marketing_api')) ||
-  (import.meta.env?.VITE_MARKETING_API || 'http://marketing-api.localhost')
+import { API_ORIGIN } from '@/lib/origins'
 
 const APP = 'marketing-ui'
 
@@ -23,7 +21,9 @@ function fire(url: string, body: object) {
 
 /** Track a pageview. Called automatically by the router tracker. */
 export function trackPageview(path: string) {
-  fire(`${MARKETING_API}/analytics/pageview`, {
+  fire(`${API_ORIGIN}/analytics/event`, {
+    type: 'pageview',
+    app: APP,
     path,
     referrer: document.referrer || null,
     user_agent: navigator.userAgent,
@@ -60,17 +60,23 @@ export function trackFunnel(
     | 'enter_click',
   metadata: Record<string, unknown> = {},
 ) {
-  fire(`${MARKETING_API}/analytics/funnel`, { event, metadata })
+  fire(`${API_ORIGIN}/analytics/event`, {
+    type: 'funnel',
+    app: APP,
+    event,
+    metadata,
+  })
 }
 
 /** Report a client-side JS error (content-free, no PII). */
 export function reportError(message: string, opts?: { source?: string; line?: number; column?: number }) {
-  fire(`${MARKETING_API}/analytics/error`, {
+  fire(`${API_ORIGIN}/analytics/event`, {
+    type: 'error',
+    app: APP,
     message: typeof message === 'string' ? message.slice(0, 2000) : String(message).slice(0, 2000),
     source: opts?.source?.slice(0, 500),
     line: opts?.line,
     column: opts?.column,
-    app: APP,
     route: typeof window !== 'undefined' ? window.location.pathname : '',
     user_agent: navigator.userAgent?.slice(0, 500),
   })
@@ -102,8 +108,6 @@ export function installErrorBeacon() {
 // so an operator can change them live in the Node Config UI without a
 // rebuild; the build-time env is the fallback for pure frontend dev.
 // ---------------------------------------------------------------------------
-
-import { API_ORIGIN } from '@/lib/origins'
 
 interface GtagQueue {
   (command: 'config', measurementId: string, config?: Record<string, unknown>): void;

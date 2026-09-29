@@ -9,6 +9,42 @@ Status legend: [decided] intent set · [in-progress] · [open] still debating.
 
 ---
 
+### D81 — Content analytics is a generic engine: impressions are two-tier (delivery server-side, viewport client-gated), keyed on the document [decided]
+
+Operator, 28.09.2026 — after building the first-party platform telemetry (D56): "we want to add analytics to web10 social, so the users of web10 social can see how their ads are performing i.e. how many clicks and stuff, how many times their posts are getting viewed, impressions" → "web10 is generic, so needs to be an engine any app can use, social app or whatever" → "the sdk needs a way to log impressions … but kind of whack if this is super hackable, people hacking it and pumping their own stuff up" → "web10 doesnt take a cut of influencer ads it makes money from node ads so in everyones best interest to have it be honest" → "a web10 app could have inspect element changed, to spam the sdk or whatever, or someone could make an app that just abuses the sdk."
+
+**The decision.** Per-content performance (impressions, engagement, clicks) is a **platform primitive** — a generic analytics engine in the node — not a web10-social feature. It is `app_visits` (D49) generalized from the *app* level to the *document* level, and it obeys the D60 test: a notes app wants "how many times was my note read," a music app "how many plays did my track get," a shop "how many views did my product get." Same primitive, different app, different name. The node stores the generic signal; each app interprets it (what "surface" means, the dashboard it renders).
+
+**The three primitives (everything else is a query over these):**
+
+| Primitive | Generic meaning | Captured where | App-specific name |
+|---|---|---|---|
+| **Impression** | "Doc X in service S was shown to reader R on surface Z" | **two-tier** — delivery: the node's read path (a side effect of `read()`) · viewport: the app's UI, gated on a preceding delivery | post shown / note read / track played / product viewed |
+| **Engagement** | "User U reacted to doc X" | `reactions` docs (already exists) | liked / commented / reposted |
+| **Click** | "User U clicked a CTA on doc X" | `trackContentEvent(docId, { type: 'click', cta_id })` — deduped + gated on a preceding impression | ad CTA tapped / "buy" / "subscribe" |
+
+**Impressions are two-tier: delivery server-side, viewport client-gated.** The *delivery* tier is a side effect of the read — when the node's read path returns docs to a reader, it logs them in the same pass. The client does **not** call `trackImpression()`; there is no endpoint to hammer and no method to fire from devtools, so the floor is un-gameable. The *viewport* tier ("how many seconds," "did they scroll past it," watch-percentage) is inherently client-side — the server has no idea which of the 50 docs a reader stared at — so the app fires it from its own UI (`IntersectionObserver` for a feed, `<video>` `timeupdate` for shorts). But the node **drops any viewport signal for a doc it did not serve to that reader**, so a user in devtools cannot fabricate dwell on a post they were never shown. The SDK surface is tiny: `read(service, { surface })` (delivery is automatic) + `trackContentEvent(docId, { surface, type, ...payload })` (the one new method — `type` is `viewport` / `click` / app-defined) + reactions (existing).
+
+**Anti-gaming (the D49 pattern, generalized):** the node only counts what a *verified* user's token actually did, deduped and windowed.
+- **Impressions** — deduped per `(doc, reader, surface)` per window (1h/1d). A user who refreshes the feed 100× gets 50 impressions (the 50 docs), not 5000. Same as `app_visits` (1 row per (app, user) per 3h).
+- **Reach** — `countDistinct(reader)` over impressions. A user is one reader; they cannot make themselves ten.
+- **Viewports / clicks** — gated on a preceding delivery (you cannot report on what the node did not serve you) + deduped per `(doc, reader, surface, type)` per window.
+- **Engagement** — one reaction per user per doc (mutually exclusive, self-healing; already exists).
+- **The malicious app** — has to use real, verified web10 accounts. The node mints tokens (login + verified phone, D61); an app cannot mint them. Spamming means creating N real accounts with N verified phones — the bot-account problem every platform has, not an SDK-specific hole.
+- **The inspect-element user** — cannot generate an impression for a doc the read path did not return to them; the node only logs what it actually served.
+
+**Why it's honest by incentive, not just by construction.** web10 does **not** take a cut of creator/influencer ads — its revenue is **node ads** (D55/D57), which run on this same engine. So (1) the platform has no hidden incentive to inflate creator numbers (it is not on the other side of them), (2) a creator gaming their own numbers would be poisoning the data *they* pay to see ("pretty dumb to hack your own shit"), and (3) the one number that pays the platform (node-ad performance) is server-side and is the basis of the platform fee — so the platform has a *hard* incentive to keep the engine honest. This is the opposite of the ad-network model (GA4/Google), where the platform profits from the data and the user has reason to distrust it. The engine is neutral, first-party, node-owned infrastructure — the "own your data" story applied to the node's own metrics.
+
+**The surface is a label the app passes, not a node concept.** The node records the `surface` string verbatim; it does not know what "feed" or "shorts" means. web10-social passes `feed` / `shorts` / `discover` / `profile` / `group`; a notes app passes `list` / `detail`; a shop passes `catalog` / `product`. The creator sees total impressions + a breakdown by surface (the "how is my content performing across the platform" view — the YouTube/TikTok "views by source" model).
+
+**The line it does not cross (D56/D60):** impressions are content-free — `doc_id + reader_key + surface + seen_at`, never the doc's body. The engine lives in `api/` (the node), is D60-generic (no app-specific columns), and is first-party (the node's own ClickHouse, not a third party).
+
+**Rejected:** client-side *delivery* logging (gameable — inspect-element, a spam app, or a script can fire it at will; the delivery floor stays server-side); a per-app analytics feature in `marketing/web10-social/` (breaks D60 — a notes/music/shop app needs the same engine); a separate `trackImpression()` SDK method (gives the client a counting lever it should not have — delivery is a read side-effect, and the only client method is the *gated* `trackContentEvent`); a fixed node-side list of surfaces (the surface is an app-owned label, so the engine stays D60-generic); tying the engine to creator-ad revenue (web10's revenue is node ads, so the engine stays neutral infrastructure).
+
+**Sequencing (plan.md → "Content Analytics Engine (D81)"; lane `content-analytics`):** capture (log impressions in the read path — the keystone, gates everything) → query (a generic "impressions for my docs" endpoint) → dashboard (web10-social's creator surface, the first consumer) → ads (click + conversion on a doc tagged `ad`, reusing the existing affiliate/pay pipeline).
+
+---
+
 ### D80 — Group membership visibility is group policy: a `membership_visibility` contract field governs who can enumerate who's in a group [decided]
 
 Operator, 23.09.2026 — after the "see following/followers on any profile" pass: "everything has to be generic with web10, so cant edit clickhouse.py, needs to be implemented using the query engine" → "this isnt some cia high privacy stuff, use signal for that" → "i actually am a fan of the groups having settings in them … `membership_is_public = true, or false`, to dictate if it shows up. so for the dms the membership shouldnt be public, people shouldnt be able to see who you dm, but people should be able to see who you follow" → "so govern whether the group membership is public in the group policy."
