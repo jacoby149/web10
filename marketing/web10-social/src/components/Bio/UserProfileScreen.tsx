@@ -91,10 +91,8 @@ interface WallTileProps {
  * video" — the new-Instagram / TikTok shape). The tile is a portrait frame
  * (`aspect-[9/16]`) that fills its grid cell; a video renders a `<video>`
  * (poster + muted preload) with a play badge, an image renders a cover-cropped
- * `<img>`. The grid is responsive, capped at 4 columns
- * (`auto-fill, minmax(max(160px, 25%), 1fr)` — each column is at least 25%
- * wide, so never more than 4, and never narrower than 160px, so fewer
- * columns on small screens).
+ * `<img>`. The grid is responsive — 4 across on desktop (the Instagram
+ * shape), fewer as the width shrinks (explicit breakpoints).
  */
 function WallTile({ media, testId, caption, multiCount, onClick }: WallTileProps) {
   const video = isVideo(media);
@@ -933,9 +931,8 @@ export default function UserProfileScreen({ username, provider, onBack }: UserPr
       </div>
 
       {/* Content — the wall of video (the new-Instagram / TikTok shape). A
-          responsive grid of 9:16 vertical tiles, capped at 4 columns
-          (`auto-fill, minmax(max(160px, 25%), 1fr)` — 4 across on a wide
-          screen, fewer as the width shrinks; the Instagram-explore shape).
+          responsive grid of 9:16 vertical tiles — 4 across on desktop (the
+          Instagram shape), fewer as the width shrinks (explicit breakpoints).
           Posts tab: the insta-shaped wall (default) or the facebook-shaped
           feed. Media tab: every media item as a wall tile. */}
       <div className="px-4 pb-4 pt-2">
@@ -962,7 +959,7 @@ export default function UserProfileScreen({ username, provider, onBack }: UserPr
                 onAuthorClick={(u) => navigate(`/u/${u}`)}
               />
             ) : (
-            <div className="grid gap-2 [grid-template-columns:repeat(auto-fill,minmax(max(160px,25%),1fr))]">
+            <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-4">
               {posts.map((post) => {
                 const firstMedia = post.media_refs?.[0] ? mediaMap[mediaRefId(post.media_refs[0])] : null;
                 // A post with no media renders as a caption-only tile (the
@@ -1000,7 +997,7 @@ export default function UserProfileScreen({ username, provider, onBack }: UserPr
           )}
           </>
         ) : mediaPosts.length ? (
-          <div className="grid gap-2 [grid-template-columns:repeat(auto-fill,minmax(max(160px,25%),1fr))]">
+          <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-4">
             {mediaPosts.flatMap((post) =>
               (post.media_refs || []).map((ref) => {
                 const media = mediaMap[mediaRefId(ref)];

@@ -496,7 +496,12 @@ function DiscoverHomeCard({
     if (!id) return;
     const video = mediaItems.find((m) => m.mime_type?.startsWith('video/'));
     const isPortrait = !!video && !!video.width && !!video.height && video.width < video.height;
-    if (isPortrait) {
+    // Only route to the Shorts lens if the post is actually a short (tagged
+    // `short` AND portrait). The lens loads from readShortsFeed which filters
+    // by the `short` tag — an untagged portrait video won't appear there.
+    // Untagged portrait videos go to the watch page (handles portrait with
+    // a letterbox, same as landscape).
+    if (isPortrait && post.tags?.includes('short')) {
       navigate(`/shorts/${id}`);
       return;
     }
