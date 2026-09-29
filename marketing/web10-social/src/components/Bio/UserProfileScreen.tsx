@@ -78,10 +78,42 @@ function isVideo(m: MediaRecord | undefined | null): boolean {
   return !!m?.mime_type?.startsWith('video/');
 }
 
+/**
+ * The text-tile palette (design.md §13) — the deep, brand-tinted backgrounds a
+ * text-only post renders on. A text-only post picks one **deterministically**
+ * (hash of the post id → the same `hashToColor` idiom the avatar fallbacks
+ * use), so a given post always gets the same color (stable across renders /
+ * devices) and the wall reads as a designed set of cards, not a wall of empty
+ * black boxes. The CSS var (not a raw hex) keeps it token-based.
+ */
+const TEXT_TILE_COLORS = [
+  'var(--color-tile-violet)',
+  'var(--color-tile-indigo)',
+  'var(--color-tile-fuchsia)',
+  'var(--color-tile-blue)',
+  'var(--color-tile-teal)',
+  'var(--color-tile-rose)',
+] as const;
+
+function textTileColor(postId?: string): string {
+  if (!postId) return TEXT_TILE_COLORS[0];
+  let h = 0;
+  for (let i = 0; i < postId.length; i++) {
+    h = (h << 5) - h + postId.charCodeAt(i);
+    h |= 0;
+  }
+  return TEXT_TILE_COLORS[Math.abs(h) % TEXT_TILE_COLORS.length];
+}
+
 interface WallTileProps {
   media: MediaRecord;
   testId: string;
+  /** The post's headline (D82) — the text-only tile's display-font heading. */
+  title?: string;
+  /** The post's caption (D82) — the smaller line under the title. */
   caption?: string;
+  /** The post's doc_id — seeds the deterministic text-tile background color. */
+  postId?: string;
   multiCount?: number;
   onClick: () => void;
 }
@@ -94,13 +126,16 @@ interface WallTileProps {
  * `<img>`. The grid is responsive — 4 across on desktop (the Instagram
  * shape), fewer as the width shrinks (explicit breakpoints).
  */
-function WallTile({ media, testId, caption, multiCount, onClick }: WallTileProps) {
+function WallTile({ media, testId, title, caption, postId, multiCount, onClick }: WallTileProps) {
   const video = isVideo(media);
+  // The text-only tile's heading: the title (D82) when present, else the
+  // caption. `ariaLabel` keeps the accessible name stable.
+  const heading = title || caption;
   return (
     <div
       role="button"
       tabIndex={0}
-      aria-label={caption ? `View ${caption}` : 'View post'}
+      aria-label={heading ? `View ${heading}` : 'View post'}
       data-testid={testId}
       onClick={onClick}
       onKeyDown={(e) => {
@@ -128,10 +163,50 @@ function WallTile({ media, testId, caption, multiCount, onClick }: WallTileProps
           loading="lazy"
         />
       ) : (
-        // A post with no media (text-only) — a caption-only tile on the
-        // elevated surface (no broken image).
-        <div className="w-full h-full p-3 flex items-start bg-gradient-to-br from-elevated to-surface">
-          <p className="text-xs text-muted-foreground line-clamp-6">{caption}</p>
+        // A post with no media (text-only) — a designed "quote card": a solid
+        // brand-tinted background (deterministic per post, design.md §13), a
+        // soft light glow in the top-left for depth, and the title set in the
+        // display face (Space Grotesk) with the caption under it. Vertically
+        // centered, not corner-dumped — it reads as a card, not an empty box.
+        <div
+          className="relative w-full h-full flex flex-col justify-center p-5"
+          style={{ backgroundColor: textTileColor(postId) }}
+          data-testid={`${testId}-text`}
+        >
+          {/* The ambient glow — a soft light source in the top-left + a gentle
+              vignette at the base (social glow, design.md §4). */}
+          <div
+            className="pointer-events-none absolute inset-0"
+            style={{
+              background:
+                'radial-gradient(120% 85% at 22% 12%, rgba(255,255,255,0.28), rgba(255,255,255,0.05) 42%, transparent 62%), radial-gradient(120% 60% at 50% 118%, rgba(0,0,0,0.28), transparent 60%)',
+            }}
+            aria-hidden="true"
+          />
+          <div className="relative">
+            {title ? (
+              <p
+                className="font-display font-semibold text-foreground leading-tight break-words line-clamp-5"
+                style={{ fontSize: '1.5rem' }}
+                data-testid={`${testId}-text-title`}
+              >
+                {title}
+              </p>
+            ) : (
+              <p
+                className="font-medium text-foreground leading-snug break-words line-clamp-7"
+                style={{ fontSize: '1.25rem' }}
+                data-testid={`${testId}-text-title`}
+              >
+                {caption}
+              </p>
+            )}
+            {title && caption && (
+              <p className="mt-2.5 text-sm text-foreground/80 leading-snug break-words line-clamp-4" data-testid={`${testId}-text-caption`}>
+                {caption}
+              </p>
+            )}
+          </div>
         </div>
       )}
       {/* The play badge (the video affordance, top-right — the Instagram/TikTok
@@ -970,7 +1045,9 @@ export default function UserProfileScreen({ username, provider, onBack }: UserPr
                     key={post._id}
                     media={firstMedia ?? { _id: post._id, url: '', created_at: '' }}
                     testId="profile-post-cell"
-                    caption={post.title || post.text}
+                    title={post.title}
+                    caption={post.text}
+                    postId={post._id}
                     multiCount={post.media_refs?.length}
                     onClick={() => setLightboxPost(post)}
                   />
@@ -1007,7 +1084,9 @@ export default function UserProfileScreen({ username, provider, onBack }: UserPr
                     key={mediaRefId(ref)}
                     media={media}
                     testId="profile-media-cell"
-                    caption={post.title || post.text}
+                    title={post.title}
+                    caption={post.text}
+                    postId={post._id}
                     onClick={() => setLightboxPost(post)}
                   />
                 );
