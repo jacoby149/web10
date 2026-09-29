@@ -471,21 +471,24 @@ function Trending() {
     [ranked, topic],
   );
 
-  // Video wall: videos only (competing with YouTube — photos don't belong in
-  // the video wall). Filtered by topic.
+  // Video wall: landscape videos only (the YouTube shape). Portrait videos are
+  // shorts — they live in the Shorts destination (the TikTok shape), not here.
+  // The aspect-ratio split keeps the two from bleeding into each other.
   const videoPosts = useMemo(
     () => {
-      const videoOnly = visible.filter(p => p.media === 'video');
-      return topic === 'All' ? videoOnly : videoOnly.filter(p => p.tags?.includes(topic) ?? false);
+      const landscapeOnly = visible.filter(p => p.media === 'video' && !isPortraitVideo(p));
+      return topic === 'All' ? landscapeOnly : landscapeOnly.filter(p => p.tags?.includes(topic) ?? false);
     },
     [visible, topic],
   );
 
   // Shorts wall: the vertical videos (the 9:16 gate, re-derived from the
-  // resolved media — the same signal the social Shorts lens uses).
+  // resolved media — the same signal the social Shorts lens uses). Derived from
+  // `visible`, not `videoPosts` — the Video wall is landscape-only, so the
+  // portrait shorts live here, not there.
   const shortsPosts = useMemo(
-    () => videoPosts.filter(p => isPortraitVideo(p)),
-    [videoPosts],
+    () => visible.filter(p => p.media === 'video' && isPortraitVideo(p)),
+    [visible],
   );
 
   const maxSearchScore = useMemo(

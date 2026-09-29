@@ -384,10 +384,22 @@ export default function WatchScreen() {
       setMediaMap(media);
 
       // 5. The queue: the board re-ranked for similarity to the current video.
-      //    Videos only (the "What's next" is a video queue — the Home wall is
-      //    videos-only, so the queue is too).
+      //    Landscape videos only (the "What's next" is a video queue — the
+      //    Video wall is landscape-only, so the queue is too). Portrait videos
+      //    are shorts (the TikTok shape) — they live in the Shorts destination,
+      //    not the YouTube-shaped watch queue. The aspect-ratio split keeps the
+      //    two from bleeding into each other.
       const ranked = rankWatchQueue(board, p, knobState, relatedness);
-      const videoQueue = ranked.filter((q) => (media[q._id || ''] || []).some((m) => m.mime_type?.startsWith('video/')));
+      const videoQueue = ranked.filter((q) => {
+        const ms = media[q._id || ''] || [];
+        const hasVideo = ms.some((m) => m.mime_type?.startsWith('video/'));
+        if (!hasVideo) return false;
+        // Exclude portrait (9:16) shorts — the queue is landscape only.
+        const isPortrait = ms.some(
+          (m) => m.mime_type?.startsWith('video/') && !!m.width && !!m.height && m.width < m.height,
+        );
+        return !isPortrait;
+      });
       setQueue(videoQueue);
 
       // 6. Engagement for the current post (the ref pattern — count the

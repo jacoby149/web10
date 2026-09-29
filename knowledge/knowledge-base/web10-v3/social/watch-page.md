@@ -12,14 +12,18 @@ That is the whole goal. Everything below is in service of keeping the fan on the
 
 ## The two destinations, decided by aspect ratio
 
-The Home wall shows **videos only** (the render-time gate, `discover-card.md`). A click routes by the **same signal Shorts already uses** — the resolved media's aspect ratio (`width < height`), not the client-asserted tag:
+The Video wall is **landscape-only** (the YouTube shape). A portrait (9:16) video is a **short** — it lives in the Shorts destination (the TikTok shape, `shorts.md`), not the wall. The aspect-ratio split keeps the two from bleeding into each other: a fan clicks a landscape video in the wall (→ the watch page) or a short in the Shorts wall (→ the lens), never the other way around. The wall's render gate is `postHasVideo(post) && !postIsPortraitVideo(post)` — the same `width < height` signal Shorts' render-time backstop already runs, re-derived from the resolved media (not the client-asserted tag).
+
+The "What's next" queue is landscape-only for the same reason — it is the watch page's version of the wall, so a short never appears in it (the operator: "it is really disorienting to be ripped out of video view without any indication"; YouTube keeps the two separate).
+
+A click still routes by the **same signal** — the resolved media's aspect ratio (`width < height`), not the client-asserted tag:
 
 | Click target | Destination | Shape |
 |---|---|---|
 | **9:16** (portrait) | `/shorts/:postId` | the vertical swipe lens (`shorts.md`) — already built |
 | **16:9 / landscape** | **`/watch/:postId`** (this doc) | the watch page — big video + "What's next" queue |
 
-No new signal, no new read. The aspect-ratio gate is the one Shorts' render-time backstop already runs (`mime_type` starts with `video/` **and** `width < height`). The Home card's click handler branches on it: portrait → the lens, landscape → the watch page. (A multi-media post routes on its **first** video's ratio, the same rule the Home gate uses to decide "is this a video at all.")
+No new signal, no new read. The wall filters portrait out, so the portrait branch of the click handler is a **backstop** (a portrait card can only reach it via a stale read) — the wall's gate is the primary split. (A multi-media post routes on its **first** video's ratio, the same rule the wall's gate uses to decide "is this a video at all.")
 
 ## The URL is the entire state (no client-side preservation)
 
