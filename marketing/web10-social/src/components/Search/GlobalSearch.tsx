@@ -106,7 +106,7 @@ function PostRow({ post }: { post: PostRecord }) {
         <Search className="h-4 w-4 text-muted-foreground" strokeWidth={1.75} />
       </span>
       <span className="flex-1 min-w-0">
-        <span className="block text-sm text-foreground truncate">{post.text || '(no text)'}</span>
+        <span className="block text-sm text-foreground truncate">{post.title || post.text || '(no text)'}</span>
         <span className="block text-xs text-muted-foreground truncate">@{author}</span>
       </span>
     </button>
@@ -128,7 +128,7 @@ function VideoRow({ post }: { post: PostRecord }) {
         <Video className="h-4 w-4 text-muted-foreground" strokeWidth={1.75} />
       </span>
       <span className="flex-1 min-w-0">
-        <span className="block text-sm text-foreground truncate">{post.text || '(no text)'}</span>
+        <span className="block text-sm text-foreground truncate">{post.title || post.text || '(no text)'}</span>
         <span className="block text-xs text-muted-foreground truncate">@{author}</span>
       </span>
     </button>
@@ -150,7 +150,7 @@ function ShortRow({ short }: { short: ShortPost }) {
         <Smartphone className="h-4 w-4 text-muted-foreground" strokeWidth={1.75} />
       </span>
       <span className="flex-1 min-w-0">
-        <span className="block text-sm text-foreground truncate">{post.text || '(no text)'}</span>
+        <span className="block text-sm text-foreground truncate">{post.title || post.text || '(no text)'}</span>
         <span className="block text-xs text-muted-foreground truncate">@{author}</span>
       </span>
     </button>

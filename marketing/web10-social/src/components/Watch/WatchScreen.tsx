@@ -168,7 +168,7 @@ function QueueCard({ post, media, authorName, authorAvatar, onOpen, active }: {
         ) : null}
       </div>
       <div className="flex min-w-0 flex-1 flex-col">
-        <p className="line-clamp-2 text-sm font-medium leading-snug text-foreground">{post.text || 'Untitled'}</p>
+        <p className="line-clamp-2 text-sm font-medium leading-snug text-foreground">{post.title || post.text || 'Untitled'}</p>
         <p className="mt-1 truncate text-xs text-muted-foreground">{authorName}</p>
       </div>
     </button>
@@ -350,6 +350,7 @@ export default function WatchScreen() {
         const doc = await w.readById(postId, 'posts');
         p = {
           _id: doc.doc_id,
+          title: (doc.body.title as string) || undefined,
           text: (doc.body.text as string) || undefined,
           media_refs: (doc.body.media_refs as (string | ResolvedMediaRef)[]) || undefined,
           created_at: doc.created_at,
@@ -577,8 +578,17 @@ export default function WatchScreen() {
         )}
 
         <h1 className="font-display text-lg font-semibold leading-snug text-foreground" data-testid="watch-title">
-          {post.text || 'Untitled'}
+          {post.title || post.text || 'Untitled'}
         </h1>
+
+        {/* The caption (D82): the post's `text` body, shown under the title
+            when the post carries both (title = the headline, text = the
+            description). A caption-only post shows just the title (the text). */}
+        {post.title && post.text && (
+          <p className="text-sm leading-relaxed text-muted-foreground whitespace-pre-wrap break-words" data-testid="watch-caption">
+            {post.text}
+          </p>
+        )}
 
         {/* The author row (under the video — the watch page's shape). */}
         <div className="flex items-center gap-3" data-testid="watch-author-row">

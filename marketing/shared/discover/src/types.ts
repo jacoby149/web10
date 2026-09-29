@@ -147,6 +147,10 @@ export type UploadCommentMedia = (file: File) => Promise<{
  */
 export interface DiscoverAd {
   _id?: string;
+  /** The ad's headline (D82) — an ad is a `posts` doc, so it carries the same
+   *  optional `title` as any post. The post-format card shows it as its
+   *  headline; the inline block uses it as its line. */
+  title?: string;
   text?: string;
   media_refs?: unknown[];
   /** The ad doc's created_at — the post-format ad's standalone card shows it
@@ -179,6 +183,10 @@ export interface DiscoverPost {
   /** The display name (the marketing card's post.name; the social app's
    *  profile display_name). Falls back to the username-derived name. */
   display_name?: string;
+  /** The post's headline (D82) — the short, punchy line that leads the card.
+   *  Optional: a post with no title renders caption-only. `text` is the
+   *  caption (the longer body). */
+  title?: string;
   text?: string;
   tags?: string[];
   created_at: string;

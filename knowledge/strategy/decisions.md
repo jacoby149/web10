@@ -9,6 +9,46 @@ Status legend: [decided] intent set · [in-progress] · [open] still debating.
 
 ---
 
+### D82 — A post carries two bodies of text: an optional `title` (the headline) + `text` (the caption) — one field, app-owned, zero node surface [decided]
+
+Operator, 29.09.2026 — "i am thinking to shorts, videos, hot gossip, the three things, posts should have title and caption, not just one. i.e. two bodies of text would be richer for all three formats. what do you think? definitely a little different from regular social media." → "definitely effects all the screens, they all have to make decisions on displaying title AND/OR caption, two text fields instead of just one. and the implications for ads too, also should fit in with posts potentially!"
+
+**The decision.** A post's body gains an **optional `title`** alongside the existing **`text`** (the caption). Two bodies of text, not one — a deliberate break from the single-caption shape of regular social media. The `title` is the **headline** (the short, punchy line that leads a card / watch header / short overlay); `text` is the **caption** (the longer body). It is **optional everywhere**: a post with no `title` renders exactly as today (caption-only), so there is no migration and no rewrite of existing docs.
+
+**The shape (all client-side — zero node surface, D60):** the node stores `{service, body}` opaquely and does not care what fields are in the body. Adding `title` to the `posts` body is one field the app writes and reads — no new table, no new column, no new endpoint, no contract change. The composer writes it; `fromV3DocToPost` reads it; every surface decides how to show the two fields.
+
+**The per-format split:**
+
+| Format | `title` | `text` (caption) |
+|---|---|---|
+| **Video** (the YouTube wall) | the chunky card title + the watch-page header | the description under the player |
+| **Shorts** | the overlay line on the tile / lens | the expanded caption |
+| **Hot Gossip** (Threads) | optional top line — a hot take is caption-only by default | the body |
+
+The load-bearing case is **Video**: today the video wall's "title" is a *lie* — it is `text` truncated to 80 chars. A real, author-controlled `title` is what YouTube is (title + description). **Hot Gossip** is the interesting call: Threads is *just* text, so a headline would be over-structure — the card shows the title only when one exists, otherwise it is the plain text card.
+
+**Ads fall out for free (the part that tells you it's correct).** An ad *is* a `posts` doc tagged `ad` with the same body (ads.md, D55). Add `title` to the post body and the ad creative inherits it with no separate ad change: a post-format ad's card gets a title + caption just like a post, an inline ad uses the title as its line. The `offer` object is untouched — the creative is the post, the offer is the link. That is the "an ad is a post" doctrine doing its job.
+
+**The real work is the render matrix, not the model.** Every surface makes a show/hide/truncate decision for each of the two fields:
+
+| Surface | Title | Caption |
+|---|---|---|
+| Video wall card (`HomeCard`) | chunky, ~80-char cap | hidden (or 1 line) |
+| Watch page | header | full, under the player |
+| Shorts tile / lens | overlay line | expanded |
+| Hot Gossip card (`DiscoverCard`) | optional top line | the body |
+| Ad (post format) | card title | copy |
+| Ad (inline) | the line | — |
+| Composer | new title input | existing text box |
+
+**Search matches the title too** — a title is the highest-signal string to match; the `?q=` post/video/shorts filters check `title || text`.
+
+**What it rejects.** (1) **A second required field** — `title` is optional; forcing a headline on a hot take (or a caption on a title-only clip) would be over-structure. (2) **A node column / endpoint** — D60: it is a body field the app owns, not platform surface. (3) **A per-format content type** — shorts / videos / gossip are all `posts` docs (shorts.md, D30/D58); the two fields are on the one post shape, not three shapes. (4) **A media `caption`** — the per-media `caption`/`alt_text` (accessibility, on the media doc) is a different thing and stays; the post's `title`/`text` are the post's own two bodies.
+
+**The seam:** `marketing/web10-social/src/data/{types,posts}.ts` (`PostRecord.title`, `fromV3DocToPost`, `createPost`/`updatePost`), `marketing/shared/discover/src/{types,HomeCard,DiscoverCard}.tsx` (`DiscoverPost.title` + the two cards), `src/data/ads-catalog.ts` + `src/data/types.ts` (`AdRecord.title`, `fromV3DocToAd`), the composer (`PostComposer.tsx`), the watch / shorts / lightbox surfaces, and `src/data/search.ts`. KB: `social/ads.md` (the post body shape), `social/shorts.md` (the overlay), `social/discover-card.md` (the card title).
+
+---
+
 ### D81 — Copyright takedowns use the "Post-It Note" DMCA rule: a designated-agent email + a manual, fast removal — no takedown queue, no node surface [decided]
 
 Operator, 29.09.2026 — "Use the 'Post-It Note' DMCA rule: Add a simple 'Report Copyright' button and an email address (like copyright@yourapp.com) in your terms of service. If a label emails you to take a video down, you just delete it manually. As long as you act fast, you are legally protected while you are small. we need this on the app for compliance."

@@ -53,6 +53,7 @@ function feedPostToDiscover(post: FeedPost): DiscoverPost {  const author = post
     author,
     author_username: author,
     display_name: post.name,
+    title: post.title,
     text: post.content,
     tags: post.tags,
     created_at: post.createdAt,
@@ -123,6 +124,7 @@ interface DiscoveryPost {
   service: string;
   post_id: string;
   body_text: string;
+  body_title?: string;
   tags: string[];
   created_at: string;
   engagement: {
@@ -146,6 +148,7 @@ interface FeedPost {
   avatarColor: string;
   time: string;
   content: string;
+  title?: string;
   media?: 'image' | 'video' | 'music';
   mediaRefs?: (string | ResolvedMediaRef)[];
   firstAttachmentMime?: string;
@@ -234,6 +237,7 @@ function mapDiscoveryToFeedPost(d: DiscoveryPost): FeedPost {
     avatarColor: hashToColor(d.author),
     time: timeAgo(d.created_at),
     content: d.body_text || '',
+    title: d.body_title || undefined,
     media: mediaType,
     mediaRefs: d.media_refs,
     firstAttachmentMime: mime,
@@ -469,6 +473,7 @@ function mapV3DocToDiscovery(
     service: p.service,
     post_id: p.doc_id,
     body_text: p.body?.text || '',
+    body_title: p.body?.title || undefined,
     tags: p.tags || [],
     created_at: p.created_at,
     engagement: {

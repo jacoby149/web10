@@ -191,8 +191,16 @@ export function PostAdCard({ ad, className, standalone = true }: { ad: AdRecord;
           </span>
         </div>
         {media && <PostAdMedia media={media} />}
+        {/* The creative's two bodies (D82): the title (the headline) + the
+            caption (`text`). An ad is a `posts` doc, so it carries the same
+            fields as any post. */}
+        {ad.title && (
+          <h3 className="px-3 pt-3 text-sm font-semibold leading-snug text-foreground" data-testid="post-ad-title">
+            {ad.title}
+          </h3>
+        )}
         {ad.text && (
-          <p className="px-3 pt-3 text-sm text-foreground leading-relaxed whitespace-pre-wrap break-words">
+          <p className={cn('px-3 text-sm text-foreground leading-relaxed whitespace-pre-wrap break-words', ad.title ? 'pt-1' : 'pt-3')}>
             {ad.text}
           </p>
         )}
@@ -237,9 +245,16 @@ export function PostAdCard({ ad, className, standalone = true }: { ad: AdRecord;
       {/* The creative — the media leads (like a post). */}
       {media && <PostAdMedia media={media} />}
 
-      {/* The copy. */}
+      {/* The creative's two bodies (D82): the title (the headline) + the
+          caption (`text`). An ad is a `posts` doc, so it carries the same
+          fields as any post. */}
+      {ad.title && (
+        <h3 className="px-4 pt-3 text-base font-semibold leading-snug text-foreground" data-testid="post-ad-title">
+          {ad.title}
+        </h3>
+      )}
       {ad.text && (
-        <div className="px-4 pt-3 text-sm text-foreground leading-relaxed whitespace-pre-wrap break-words">
+        <div className={cn('px-4 text-sm text-foreground leading-relaxed whitespace-pre-wrap break-words', ad.title ? 'pt-1' : 'pt-3')}>
           {ad.text}
         </div>
       )}

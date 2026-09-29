@@ -972,7 +972,7 @@ export default function UserProfileScreen({ username, provider, onBack }: UserPr
                     key={post._id}
                     media={firstMedia ?? { _id: post._id, url: '', created_at: '' }}
                     testId="profile-post-cell"
-                    caption={post.text}
+                    caption={post.title || post.text}
                     multiCount={post.media_refs?.length}
                     onClick={() => setLightboxPost(post)}
                   />
@@ -1009,7 +1009,7 @@ export default function UserProfileScreen({ username, provider, onBack }: UserPr
                     key={mediaRefId(ref)}
                     media={media}
                     testId="profile-media-cell"
-                    caption={post.text}
+                    caption={post.title || post.text}
                     onClick={() => setLightboxPost(post)}
                   />
                 );

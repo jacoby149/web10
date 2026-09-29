@@ -296,6 +296,14 @@ export function DiscoverCard({
             ) : (
               <div className="flex items-center gap-1.5 truncate text-left">{authorInner}</div>
             )}
+            {/* The post's two bodies (D82): the title (the headline) as a top
+                line when present, then the caption (`text`) as the body. A
+                caption-only post (no title) shows just the text — the plain
+                Threads shape. The title is a headline, not a link (the author
+                row + media carry the navigation). */}
+            {post.title && (
+              <p className="mt-1 text-sm font-semibold leading-snug text-foreground">{post.title}</p>
+            )}
             {post.text && (
               postHref ? (
                 // Remote mode: the post text is a link-out to the post on web10
