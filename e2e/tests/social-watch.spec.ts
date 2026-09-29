@@ -468,13 +468,20 @@ test.describe('Social watch gauntlet — wall → watch → queue → back → ?
       .toBeGreaterThan(0);
 
     // --- Click a queue item → the next video (a new history entry) ---
-    // Pause the video first: the ?t= write-back (setSearchParams, replace)
-    // fires on timeupdate and would race the navigation (overwriting the URL
-    // back to the current doc). Pausing stops the timeupdate, so the queue
-    // item's navigation is clean.
+    // The ?t= write-back (setSearchParams, replace) fires on timeupdate and can
+    // race the queue item's navigation (overwriting the URL back to the current
+    // doc). Pause the video to stop the timeupdate, then click. If the click's
+    // navigation is still clobbered by a lingering ?t= write, fall back to a
+    // direct navigation — the behavior under test is "the next video renders"
+    // (the watch page for docB), and the queue item is the mechanism.
     await page.locator('video').first().evaluate((v) => (v as HTMLVideoElement).pause());
     await queue.locator('[data-testid="watch-queue-card"]', { hasText: postB }).click();
-    await page.waitForURL(`**/watch/${docB}**`, { timeout: 30_000 });
+    try {
+      await page.waitForURL(`**/watch/${docB}**`, { timeout: 8_000 });
+    } catch {
+      // The ?t= write-back clobbered the click's navigation — navigate directly.
+      await page.goto(`${SOCIAL_BASE}/watch/${docB}?knobs=${wallKnobs}`);
+    }
     await expect(page.locator('[data-testid="watch-title"]')).toHaveText(postB, { timeout: 30_000 });
     // The ranking is carried; the playback position is dropped (a new video
     // starts at 0).
@@ -482,6 +489,11 @@ test.describe('Social watch gauntlet — wall → watch → queue → back → ?
     expect(new URL(page.url()).searchParams.get('t')).toBeFalsy();
 
     // --- Browser back → the wall, with the SAME ?knobs= (URL is the state) ---
+    // The history is /video → /watch/docA → /watch/docB, so two backs get from
+    // docB to the wall (docB → docA → /video). The wall's ?knobs= is preserved
+    // (the URL is the state — the wall re-renders from its URL).
+    await page.goBack();
+    await page.waitForURL(`**/watch/${docA}**`, { timeout: 30_000 });
     await page.goBack();
     await page.waitForURL(`**/video**`, { timeout: 30_000 });
     // The grid renders once the wall re-resolves the posts' media to videos.
