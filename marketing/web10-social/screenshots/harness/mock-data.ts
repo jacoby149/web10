@@ -360,6 +360,24 @@ export function getV3Client(): unknown {
       return docs;
     },
     readRefCounts: async () => ({}),
+    // readById (the watch page's primary read) — return the seeded discover
+    // post by doc_id in the node's doc shape (body carries the post fields).
+    readById: async (docId: string) => {
+      const p = DISCOVER_POSTS.find((x) => (x._id as string) === docId);
+      if (!p) throw new Error('not found');
+      return {
+        doc_id: p._id,
+        created_at: p.created_at,
+        updated_at: p.created_at,
+        tags: p.tags,
+        body: {
+          text: p.text,
+          author_username: p.author_username,
+          author_provider: p.author_provider,
+          media_refs: p.media_refs,
+        },
+      };
+    },
   };
 }
 export function getDiscoverGroupId(): string { return 'web10/groups/web10/discover'; }
@@ -1140,6 +1158,26 @@ export async function resolveMediaRefs<T>(refs: T[]): Promise<T[]> {
 export async function readUserProfile(): Promise<unknown> {
   return { display_name: 'Nova', username: 'nova', provider: 'web10', avatar_ref: '', bio: 'Synthwave producer' };
 }
+// The watch page's author read (the overlay's "recent posts" strip) — the
+// author's public posts (a couple of the seeded discover posts by them).
+export async function readUserPublicProfile(username?: string): Promise<unknown> {
+  const posts = DISCOVER_POSTS.filter((p) => p.author_username === username).map((p) => ({
+    _id: p._id,
+    text: p.text,
+    created_at: p.created_at,
+    tags: p.tags,
+    author_username: p.author_username,
+    author_provider: p.author_provider,
+    media_refs: p.media_refs,
+    likes: p.likes,
+    comments: p.comments,
+    reposts: p.reposts,
+  }));
+  return { posts, avatarUrl: undefined, bannerUrl: undefined };
+}
+// The watch page's "am I following X?" — false by default (the Follow button
+// shows, not Following).
+export async function isFollowing(): Promise<boolean> { return false; }
 export async function lookupUserProfile(username?: string): Promise<unknown> {
   // Return a face for the seeded peers so the DM compose preview renders.
   const peer = PEERS.find((p) => p.username === username);

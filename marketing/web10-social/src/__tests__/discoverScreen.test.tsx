@@ -1353,6 +1353,33 @@ describe('DiscoverScreen — the engagement bar is interactive (post-actions.md)
       expect(card.querySelector('[data-testid="like-button"]')).toHaveAttribute('aria-pressed', 'true');
     });
   });
+
+  it('the Home-view card (the Video wall) has the like/dislike pair, like the feed', async () => {
+    // The operator: "these video thumbnails dont have dislikes, should have!
+    // we have them on the regular feed!" The HomeCard's engagement row now
+    // carries the like/dislike pair (parity with the feed's PostActions).
+    (data.readDiscoverFeed as ReturnType<typeof vi.fn>).mockResolvedValue([
+      { _id: 'p1', author: 'creator', author_username: 'creator', author_provider: 'api.web10.app', text: 'A video post', tags: ['video'], media_refs: ['m1'], created_at: new Date().toISOString(), likes: 3, comments: 1, reposts: 0, score: 5 },
+    ]);
+    const { default: DiscoverScreen } = await import('@/components/Discover/DiscoverScreen');
+    render(
+      <MemoryRouter initialEntries={['/discover']}>
+        <DiscoverScreen />
+      </MemoryRouter>,
+    );
+    await waitFor(() => {
+      expect(screen.getAllByTestId('discover-home-card').length).toBe(1);
+    });
+    const card = screen.getAllByTestId('discover-home-card')[0];
+    // Both the like and the dislike are real, tappable buttons (not display spans).
+    const like = card.querySelector('[data-testid="discover-home-card-like"]');
+    const dislike = card.querySelector('[data-testid="discover-home-card-dislike"]');
+    expect(like).not.toBeNull();
+    expect(like!.tagName).toBe('BUTTON');
+    expect(dislike).not.toBeNull();
+    expect(dislike!.tagName).toBe('BUTTON');
+    expect(dislike).toHaveAttribute('aria-label', 'Dislike');
+  });
 });
 
 // ── D1: the Discover subtab shell (Posts | People | Groups) ─────────────────

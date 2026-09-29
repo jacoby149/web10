@@ -1,4 +1,4 @@
-import { Play, Film, Heart, MessageCircle, Repeat2 } from 'lucide-react';
+import { Play, Film, Heart, ThumbsDown, MessageCircle, Repeat2 } from 'lucide-react';
 import { cn, hashToColor, timeAgo } from './utils';
 import { Avatar, AvatarFallback } from './ui';
 import { HoverVideo } from './HoverVideo';
@@ -73,6 +73,7 @@ export interface HomeCardProps {
   testId?: string;
   // ── Interactive engagement row (the social app wires these) ───────────────
   liked?: boolean;
+  disliked?: boolean;
   reposted?: boolean;
   onToggleReaction?: (kind: 'like' | 'dislike') => void;
   onToggleRepost?: () => void;
@@ -91,6 +92,7 @@ export function HomeCard({
   className,
   testId = 'home-card',
   liked = false,
+  disliked = false,
   reposted = false,
   onToggleReaction,
   onToggleRepost,
@@ -240,6 +242,16 @@ export function HomeCard({
           >
             <Heart className={cn('h-3.5 w-3.5', liked && 'fill-current')} strokeWidth={1.75} />
             {post.likes ?? 0}
+          </button>
+          <button
+            type="button"
+            data-testid={`${testId}-dislike`}
+            aria-label={disliked ? 'Remove dislike' : 'Dislike'}
+            onClick={(e) => { e.stopPropagation(); onToggleReaction?.('dislike'); }}
+            className={cn('flex items-center gap-1.5 transition-colors hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring rounded', disliked && 'text-foreground')}
+          >
+            <ThumbsDown className={cn('h-3.5 w-3.5', disliked && 'fill-current')} strokeWidth={1.75} />
+            {post.dislikes ?? 0}
           </button>
           <button
             type="button"

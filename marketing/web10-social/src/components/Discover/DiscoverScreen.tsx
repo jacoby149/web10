@@ -133,18 +133,6 @@ function navigateToUserProfile(username: string, provider: string) {
   );
 }
 
-// ── Navigate to a post's permalink (the Home card's primary action) ──────────
-// The App listens for this and routes to /u/:username/p/:postId (the post's
-// deep link — refresh restores it, back/forward work). The provider rides in
-// the event so the permalink route can read the post.
-function navigateToPost(username: string, postId: string, provider: string) {
-  window.dispatchEvent(
-    new CustomEvent('navigate-post', {
-      detail: { username, postId, provider },
-    }),
-  );
-}
-
 // ── Rank badge ─────────────────────────────────────────────────────────────
 
 function RankBadge({ rank }: { rank: number }) {
@@ -492,6 +480,7 @@ interface DiscoverHomeCardProps {
   authorAvatar?: string;
   mediaItems: MediaRecord[];
   liked: boolean;
+  disliked: boolean;
   reposted: boolean;
   onAuthorClick: () => void;
   onToggleReaction: (kind: ReactionKind) => void;
@@ -504,12 +493,33 @@ function DiscoverHomeCard({
   authorAvatar,
   mediaItems,
   liked,
+  disliked,
   reposted,
   onAuthorClick,
   onToggleReaction,
   onToggleRepost,
 }: DiscoverHomeCardProps) {
-  const openPost = () => navigateToPost(post.author_username || '', post._id || '', post.author_provider || '');
+  const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  // The aspect-ratio branch (watch-page.md): a portrait (9:16) video goes to
+  // the Shorts lens; a landscape video goes to the watch page (the YouTube
+  // view) carrying the current ?knobs= ranking. The gate is the resolved
+  // media's ratio (width < height), not the client-asserted tag — the same
+  // signal Shorts' render-time backstop uses.
+  const openPost = () => {
+    const id = post._id || '';
+    if (!id) return;
+    const video = mediaItems.find((m) => m.mime_type?.startsWith('video/'));
+    const isPortrait = !!video && !!video.width && !!video.height && video.width < video.height;
+    if (isPortrait) {
+      navigate(`/shorts/${id}`);
+      return;
+    }
+    const params = new URLSearchParams();
+    const knobs = searchParams.get('knobs');
+    if (knobs) params.set('knobs', knobs);
+    navigate(`/watch/${id}?${params.toString()}`);
+  };
   return (
     <HomeCard
       post={postRecordToDiscoverPost(post, mediaItems, authorName)}
@@ -518,6 +528,7 @@ function DiscoverHomeCard({
       onAuthorClick={onAuthorClick}
       onCommentClick={openPost}
       liked={liked}
+      disliked={disliked}
       reposted={reposted}
       onToggleReaction={onToggleReaction}
       onToggleRepost={onToggleRepost}
@@ -1259,6 +1270,7 @@ export default function DiscoverScreen() {
                         }
                         mediaItems={mediaItems}
                         liked={!!likedMap[post._id || '']}
+                        disliked={!!dislikedMap[post._id || '']}
                         reposted={!!repostedMap[post._id || '']}
                         onAuthorClick={() => navigateToUserProfile(post.author_username || '', post.author_provider || '')}
                         onToggleReaction={(kind) => handleToggleReaction(post._id || '', kind)}

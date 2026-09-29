@@ -109,10 +109,26 @@ export interface VideoPlayerProps {
   /** testid for the outer container — surfaces keep their existing testids. */
   testId?: string;
   className?: string;
+  /**
+   * Seek to this time (seconds) once playback is ready (the watch page's
+   * `?t=`). Applied on the `seeked` event (metadata + seek landed). Absent →
+   * start at 0 (unchanged).
+   */
+  initialTime?: number;
+  /**
+   * Fired on every `timeupdate` with the current playback position (seconds) —
+   * the watch page's `?t=` write-back. Absent → no callback (unchanged).
+   */
+  onTimeUpdate?: (t: number) => void;
+  /**
+   * Loop the clip (default `true` — the ambient feed/shorts behavior). A
+   * surface that plays a video once (the watch page) passes `false`.
+   */
+  loop?: boolean;
 }
 
-export function VideoPlayer({ source, mode = 'inline', fit = 'contain', ratio, maxHeight, maxWidth, showDuration = true, fill = false, immersive = false, active = false, muted = true, testId, className }: VideoPlayerProps) {
-  LOG('video player — source:', source.type, 'mode:', mode, 'fit:', fit, 'ratio:', ratio ?? 'natural', 'immersive:', immersive, 'active:', active, 'muted:', muted);
+export function VideoPlayer({ source, mode = 'inline', fit = 'contain', ratio, maxHeight, maxWidth, showDuration = true, fill = false, immersive = false, active = false, muted = true, testId, className, initialTime, onTimeUpdate, loop = true }: VideoPlayerProps) {
+  LOG('video player — source:', source.type, 'mode:', mode, 'fit:', fit, 'ratio:', ratio ?? 'natural', 'immersive:', immersive, 'active:', active, 'muted:', muted, 'initialTime:', initialTime ?? 0, 'loop:', loop);
 
   if (source.type === 'hls') {
     if (immersive) {
@@ -138,6 +154,9 @@ export function VideoPlayer({ source, mode = 'inline', fit = 'contain', ratio, m
         className={className}
         maxWidth={maxWidth}
         maxHeight={maxHeight}
+        initialTime={initialTime}
+        onTimeUpdate={onTimeUpdate}
+        loop={loop}
       />
     );
   }
@@ -148,7 +167,7 @@ export function VideoPlayer({ source, mode = 'inline', fit = 'contain', ratio, m
 
   // file + full → native controls (the lightbox's non-transcoded path).
   if (mode === 'full') {
-    return <NativeVideo url={source.url} poster={source.poster} testId={testId} className={className} />;
+    return <NativeVideo url={source.url} poster={source.poster} testId={testId} className={className} initialTime={initialTime} onTimeUpdate={onTimeUpdate} loop={loop} />;
   }
 
   // file + inline → the shared tap-to-play (the feed/discover path).
@@ -192,16 +211,41 @@ function VideoError({ className }: { className?: string }) {
   );
 }
 
-function NativeVideo({ url, poster, testId, className }: { url: string; poster?: string; testId?: string; className?: string }) {
+function NativeVideo({ url, poster, testId, className, initialTime, onTimeUpdate, loop = true }: { url: string; poster?: string; testId?: string; className?: string; initialTime?: number; onTimeUpdate?: (t: number) => void; loop?: boolean }) {
+  const videoRef = useRef<HTMLVideoElement>(null);
   const [failed, setFailed] = useState(false);
+
+  // Seek to the initial time once metadata is ready (the watch page's ?t=).
+  useEffect(() => {
+    const el = videoRef.current;
+    if (!el || initialTime == null || initialTime <= 0) return;
+    const onMeta = () => {
+      el.currentTime = initialTime;
+      LOG('native video — seeked to initial time', initialTime);
+    };
+    if (el.readyState >= 1) onMeta();
+    else el.addEventListener('loadedmetadata', onMeta, { once: true });
+    return () => el.removeEventListener('loadedmetadata', onMeta);
+  }, [url, initialTime]);
+
+  useEffect(() => {
+    const el = videoRef.current;
+    if (!el || !onTimeUpdate) return;
+    const onTime = () => onTimeUpdate(el.currentTime);
+    el.addEventListener('timeupdate', onTime);
+    return () => el.removeEventListener('timeupdate', onTime);
+  }, [url, onTimeUpdate]);
+
   if (failed) return <VideoError className={className} />;
   return (
     <video
       key={url}
+      ref={videoRef}
       src={url}
       poster={poster}
       controls
       playsInline
+      loop={loop}
       onError={() => {
         LOG('video — native load failed, url:', url);
         setFailed(true);

@@ -543,8 +543,13 @@ export interface AppSettings {
    */
   p2pEnabled?: boolean;
   /** The feed's knob tuning (the D36 power-mean state) — persisted so the
-   *  app remembers how the user tuned their feed across sessions/devices. */
+    *  app remembers how the user tuned their feed across sessions/devices. */
   feedKnobs?: KnobState;
+  /** The watch page's "What's next" relatedness preset (watch-page.md) — how
+    *  hard the queue tilts toward the current video (mixed / more-like-this /
+    *  same-creator / just-the-feed). Persisted so the tuning survives across
+    *  sessions (URL > saved > default). */
+  watchRelatedness?: string;
 }
 
 // ── Legacy types (backward compat) ──────────────────────────────────────────
