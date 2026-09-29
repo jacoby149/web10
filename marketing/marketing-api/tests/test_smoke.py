@@ -178,4 +178,3 @@ def test_contact_never_in_public_post_body():
     assert entry["message"] in post_body
     assert entry["route"] in post_body
     assert entry["version"] in post_body
-
