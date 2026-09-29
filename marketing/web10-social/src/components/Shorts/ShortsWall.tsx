@@ -13,10 +13,9 @@ const PAGE_SIZE = 50;
  * The Shorts explore wall — the "before you pick a short" surface (the
  * operator: "the moment you visit it looks like [the wall] … click a video
  * get into that [infinite scroll] view"). A responsive grid of 9:16 vertical
- * video tiles, capped at 4 columns (`auto-fill, minmax(max(160px, 25%), 1fr)`
- * — each column at least 25% wide, so never more than 4; never narrower than
- * 160px, so fewer columns on small screens — the same wall shape as the
- * profile's content wall). Tapping a tile navigates to `/shorts/:postId` — the
+ * video tiles — 4 across on desktop (the TikTok/YouTube-Shorts shape), fewer
+ * as the width shrinks (explicit breakpoints: 2 on a phone, 3 on a laptop,
+ * 4 on a wide monitor). Tapping a tile navigates to `/shorts/:postId` — the
  * existing full-screen swipe lens (the "youtube what's next" / TikTok infinite
  * scroll).
  *
@@ -216,11 +215,11 @@ export default function ShortsWall() {
           </span>
         </div>
       )}
-      {/* The wall: a responsive grid of 9:16 vertical tiles, capped at 4
-          columns. `auto-fill, minmax(max(160px, 25%), 1fr)` — each column is
-          at least 25% wide (so never more than 4) and never narrower than
-          160px (so fewer columns as the width shrinks). */}
-      <div className="grid gap-2 [grid-template-columns:repeat(auto-fill,minmax(max(160px,25%),1fr))]">
+      {/* The wall: a responsive grid of 9:16 vertical tiles — 4 across on
+          desktop (the TikTok/YouTube-Shorts shape), fewer as the width
+          shrinks. Explicit breakpoints (not auto-fill) so the desktop always
+          lands on 4 columns regardless of the gap math. */}
+      <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-4">
         {visibleShorts.map((short) => (
           <button
             key={short.post._id}
