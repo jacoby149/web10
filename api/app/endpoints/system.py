@@ -2,7 +2,7 @@ import json
 import logging
 
 import requests
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, Request
 from fastapi.responses import RedirectResponse
 
 import app.exceptions as exceptions
@@ -172,7 +172,7 @@ def telemetry_config():
 
 
 @router.post("/analytics/event", tags=["telemetry"])
-def analytics_event(req: dict):
+async def analytics_event(request: Request):
     """Ingest one first-party beacon event (pageview / funnel / error).
 
     Public — no token. The beacon fires before login, and CORS is wildcard on
@@ -181,10 +181,20 @@ def analytics_event(req: dict):
     any origin. The event is content-free by convention (paths, funnel steps,
     referrers, JS error strings — never post text, media, or PII).
 
-    Best-effort: a telemetry write must never fail the caller. A ClickHouse
-    hiccup is swallowed and the beacon still gets a 200 (the event is dropped,
-    never the user's request).
+    The body is read as raw JSON, NOT a typed `dict` param: the beacon fires
+    via `navigator.sendBeacon`, which sends a string body as `text/plain`
+    (not `application/json`). A typed `dict` param makes FastAPI 422 on that
+    content-type mismatch — and a 422 in the browser console is an "unexpected
+    console error" that fails the e2e. Reading the raw body is content-type
+    agnostic. Best-effort: a telemetry write must never fail the caller (a
+    ClickHouse hiccup is swallowed; the beacon still gets a 200).
     """
+    try:
+        req = await request.json()
+    except Exception:
+        req = {}
+    if not isinstance(req, dict):
+        return {"status": "ok"}
     etype = (req.get("type") or req.get("event_type") or "").strip()
     if etype not in ("pageview", "funnel", "error"):
         # Unknown types are dropped, not errors — the beacon is fire-and-forget.
