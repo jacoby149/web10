@@ -2,7 +2,7 @@ import json
 import logging
 
 import requests
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, Request
 from fastapi.responses import RedirectResponse
 
 import app.exceptions as exceptions
@@ -166,6 +166,64 @@ def telemetry_config():
         "ga4_measurement_id": cfg.get("ga4_measurement_id") or "",
         "hotjar_site_id": cfg.get("hotjar_site_id") or "",
     }
+
+
+# --- First-party usage telemetry (D56) ---
+
+
+@router.post("/analytics/event", tags=["telemetry"])
+async def analytics_event(request: Request):
+    """Ingest one first-party beacon event (pageview / funnel / error).
+
+    Public — no token. The beacon fires before login, and CORS is wildcard on
+    this node (the security boundary is the token, not the origin), so every
+    surface — marketing site, social app, authenticator — can POST here from
+    any origin. The event is content-free by convention (paths, funnel steps,
+    referrers, JS error strings — never post text, media, or PII).
+
+    The body is read as raw JSON, NOT a typed `dict` param: the beacon fires
+    via `navigator.sendBeacon`, which sends a string body as `text/plain`
+    (not `application/json`). A typed `dict` param makes FastAPI 422 on that
+    content-type mismatch — and a 422 in the browser console is an "unexpected
+    console error" that fails the e2e. Reading the raw body is content-type
+    agnostic. Best-effort: a telemetry write must never fail the caller (a
+    ClickHouse hiccup is swallowed; the beacon still gets a 200).
+    """
+    try:
+        req = await request.json()
+    except Exception:
+        req = {}
+    if not isinstance(req, dict):
+        return {"status": "ok"}
+    etype = (req.get("type") or req.get("event_type") or "").strip()
+    if etype not in ("pageview", "funnel", "error"):
+        # Unknown types are dropped, not errors — the beacon is fire-and-forget.
+        return {"status": "ok"}
+    try:
+        ch.insert_marketing_event(
+            event_type=etype,
+            app=(req.get("app") or "").strip(),
+            path=(req.get("path") or "").strip(),
+            referrer=(req.get("referrer") or "").strip(),
+            funnel_event=(req.get("event") or req.get("funnel_event") or "").strip(),
+            metadata=req.get("metadata") or {},
+            error_message=(req.get("message") or req.get("error_message") or "").strip(),
+            error_source=(req.get("source") or req.get("error_source") or "").strip(),
+            error_line=int(req.get("line") or 0),
+            error_column=int(req.get("column") or 0),
+            user_agent=(req.get("user_agent") or "").strip(),
+        )
+    except Exception:
+        log.exception("[telemetry] event ingest failed (event dropped)")
+    return {"status": "ok"}
+
+
+@router.post("/admin/analytics", tags=["admin"])
+def admin_analytics(req: Token, days: int = 30):
+    """The operator's usage dashboard (admin only): totals, top paths, top
+    referrers, funnel counts, top errors — realtime over marketing_events."""
+    check_admin(req)
+    return ch.marketing_events_summary(days=days)
 
 
 # --- Health ---

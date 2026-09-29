@@ -591,7 +591,46 @@ the decision is D56. Lane is `platform-telemetry` in
 - [✓ 3.27.1] **Deploy wiring** — `VITE_GA4_MEASUREMENT_ID` + `VITE_HOTJAR_SITE_ID` baked at build time: Dockerfile ARG/ENV on all three frontends, compose passes `GA4_MEASUREMENT_ID` / `HOTJAR_SITE_ID` per environment (empty = tracking off), env examples updated.
 - [✓ 3.27.2] **Positioning realignment** — the strategy/KB/README docs stop reading "anti-analytics" and say the D56 game out loud (influencer-friendly: the incumbents' UX is the output of a decade of telemetry, and web10 now runs the same engine with a data policy they can't offer): thesis.md gains the "and it tracks hard (D56)" section; the manifesto's "nobody is mining you" is narrowed to content (never scanned/sold/fed to the ad machine) + the candid telemetry parenthetical; AGENTS.md gains the Telemetry (D56) operating rule; the README premise table gains the "Built like the best, owned like yours" row; design.md drops the stale "privacy-first" justifications.
 - [✓ 3.27.3] **Runtime-configurable IDs** — the GA4/Hotjar IDs live in `node_config` (ClickHouse), set in the Node Config UI (Telemetry card), resolved at page load via a public `GET /telemetry` (node authoritative, build-time env is the dev fallback). No rebuild to change the IDs. Also fixed the Node Config save (flat body vs the API's `{token:{token}, update:{...}}` — every save 422'd).
-- [ ] **Terms copy** — the tracking disclosure on the marketing site (the "wrong platform for you if you arent ok with that" line, verbatim or close). Gated on a terms surface existing — there is no terms page yet.
+ - [ ] **Terms copy** — the tracking disclosure on the marketing site (the "wrong platform for you if you arent ok with that" line, verbatim or close). Gated on a terms surface existing — there is no terms page yet.
+
+## Content Analytics Engine (D86) — Platform
+
+Per-content performance (impressions, engagement, clicks) as a **generic
+platform primitive** — `app_visits` (D49) generalized from the *app* level to
+the *document* level. The node stores the generic signal; each app interprets
+it (what "surface" means, the dashboard it renders). D60 test: a notes app
+wants "how many times was my note read," a music app "how many plays did my
+track get," a shop "how many views did my product get." Same engine. Decision
+D86; lane is `content-analytics` in `parallel-execution.md`.
+
+**The model (three primitives — everything else is a query over these):**
+**impression** (doc X shown to reader R on surface Z — **two-tier**: delivery
+is a side effect of the node's read path; the viewport/dwell tier is fired by
+the app's UI but *gated on a preceding delivery*) · **engagement** (reactions
+— already exists) · **click** (CTA tapped — `trackContentEvent`, deduped +
+gated on a preceding impression). **A "surface" is which screen showed the
+content** — a string label the app sends (`feed` / `shorts` / `discover` for
+web10-social; `list` / `detail` for a notes app), not a fixed node list.
+Anti-gaming is the D49 pattern generalized: the node only counts what a
+verified token actually did, deduped per (doc, reader, surface) per window,
+reach = `countDistinct(reader)`; the client cannot pump numbers because it
+does not control the counting (and can only report viewport/click signals for
+docs it was actually served). Honest by incentive too: web10's revenue is node
+ads (not creator cuts), so the platform has a hard incentive to keep the
+engine honest and a creator gaming it would only poison their own data. The
+"crazy" metrics (watch %, retention, active-times, demographics) are **queries
+over the same generic event log**, not a separate system — v1 is the core
+(delivery + viewport + click + engagement + reach).
+
+- [✓] **Decision: D86** (`knowledge/strategy/decisions.md`) — the generic engine, the three primitives, the two-tier impression model (delivery server-side, viewport client-gated), the surface-label convention, the D49-pattern anti-gaming, the incentive-alignment argument, the D60 test, the line it does not cross.
+- [✓] **KB** (`knowledge-base/web10-v3/analytics/overview.md`) — the engine model: the `content_events` table (doc_id, service, reader_key, surface, event_type, payload, seen_at), the two-tier impression (delivery in the read path + viewport gated on a preceding delivery), what a "surface" is, the `trackContentEvent` SDK surface, the dedup/windowing rules, the "crazy metrics are queries" note, the content-free line.
+- [ ] **Dashboard mock (design the target first)** (`marketing/web10-social/` or a design artifact) — mock the creator analytics UI *before* building the engine. The mock defines the data contract: what charts, what time horizons (7d / 30d / 90d / 1y / all-time), what the realtime view looks like, what the per-post detail looks like. The engine is then built *to* the mock — not the other way around. This is the "docs first, then code" philosophy applied to the dashboard: the mock is the spec. **Gates the rest** (it defines what the capture/query/SDK items need to produce).
+- [ ] **Operator dashboard: node ad performance** (`ui/`) — the operator analytics dashboard (D56) gains a **Node Ads** section: impressions, clicks, CTR for the operator's node ads (D57). The operator's revenue is from node ads, so they need to see how their ads are performing. The data comes from the D86 `content_events` engine (node ads are docs tagged `ad`, same as creator ads). Mock data first; real data once the D86 capture is built.
+- [ ] **Capture (the keystone)** (`api/app/v3/`) — the `content_events` ClickHouse table (DDL template + boot self-heal) + log **delivery** impressions in the read path (a `read` of service S to reader R on surface Z inserts windowed, deduped rows) + gate the client `trackContentEvent` signals on a preceding delivery. No UI. Data starts accumulating. Gated: a verified reader only (anon reads log nothing — same as D49).
+- [ ] **Query** (`api/app/v3/`) — the generic reads the mock needs: "impressions for my docs in service S, grouped by surface, over window W" + time-series ("impressions per day over window W") + per-doc detail (impressions, reach, avg dwell, clicks, by surface). Creator/admin-scoped, I3-bound to the caller's own docs.
+- [ ] **SDK surface** (`sdk/`) — `trackContentEvent(docId, { surface, type, ...payload })` (the one new method; `type` is `viewport` / `click` / app-defined; the node dedups + gates it on a preceding delivery) + `read(service, { surface })` gains the `surface` param (delivery is a server-side side effect).
+- [ ] **Dashboard (build to the mock)** (`marketing/web10-social/`) — implement the creator's per-post / per-ad surface *to the mock*: time-series line graphs (impressions, reach, clicks over the selected window), the surface breakdown, the realtime view (last 48h, polled), per-post detail (impressions, avg dwell, watch %, clicks, conversion). The first consumer; other apps build their own on the same engine.
+- [ ] **Ads** (`api/app/v3/` + `marketing/web10-social/`) — click + conversion tracking on a doc tagged `ad` (D55), on top of the engine's impression + click primitives. The node-ad performance number (D57) is the same engine, which is what the platform fee is based on.
 
 ## Content Moderation (D59) — Platform
 

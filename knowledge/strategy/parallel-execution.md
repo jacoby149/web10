@@ -924,6 +924,35 @@ mirror.
 
 - [✓ 3.84.0] **GHCR mirror + repoint** (`ghcr-mirror.yml`, `e2e/mirror-images.json`, 8 Dockerfiles, 3 compose files, e2e.yml + docker.yml GHCR login) — the e2e shards flaked on `pull access denied for minio/minio` (Docker Hub anonymous rate limit on shared runner IPs; probe PR #887). Mirror every external image (minio, clickhouse 24.8/24.3/latest, nginx-proxy, bun, nginx, python, static-web-server, uv) to `ghcr.io/jacoby149/base-*`; repoint every `FROM` + runtime `image:`; authenticated pulls (GITHUB_TOKEN, 1000/h). No `docker login`, no Artifactory — GHCR is the built-in lightweight registry.
 
+### Lane: content-analytics (D86)
+**Owns:** `api/app/v3/` (the `content_events` table + read-path capture + query endpoint), `clickhouse-init/` (DDL template), `sdk/src/` (`trackContentEvent`), `marketing/web10-social/` (the creator dashboard), `knowledge/knowledge-base/web10-v3/analytics/`
+
+The generic content-analytics engine (D86) — per-content performance
+(impressions, engagement, clicks) as a platform primitive, `app_visits` (D49)
+generalized to the document level. **Impressions are two-tier:** delivery is a
+side effect of the node's read path (un-gameable — the client doesn't control
+it); the viewport/dwell tier is fired by the app's UI but **gated on a
+preceding delivery** (the client can only report on docs it was served). A
+**"surface"** is which screen showed the content — a string label the app
+sends (`feed`/`shorts`/`discover` for web10-social; `list`/`detail` for a
+notes app), not a fixed node list. The node only counts what a verified token
+actually did, deduped per (doc, reader, surface) per window. Honest by
+incentive too: web10's revenue is node ads (not creator cuts), so the platform
+has a hard incentive to keep the engine honest. D60: the engine is in `api/`,
+generic (no app-specific columns); each app interprets the `surface` label +
+builds its own dashboard. **Sequencing: the dashboard mock gates the rest**
+(design the target first, build the engine to it). Read D86 + the KB before
+starting.
+
+- [✓] **Decision: D86** (`knowledge/strategy/decisions.md`) — the generic engine, the three primitives, the two-tier impression model (delivery server-side, viewport client-gated), the surface-label convention, the D49-pattern anti-gaming, the incentive-alignment argument, the D60 test, the line it does not cross
+- [✓] **KB** (`knowledge-base/web10-v3/analytics/overview.md`) — the `content_events` table shape, the two-tier impression, what a "surface" is, the `trackContentEvent` SDK surface, the dedup/windowing rules, the "crazy metrics are queries" note, the content-free line
+- [ ] **Dashboard mock (design the target first)** (`marketing/web10-social/` or a design artifact) — mock the creator analytics UI *before* building the engine. The mock defines the data contract: what charts, what time horizons (7d / 30d / 90d / 1y / all-time), what the realtime view looks like, what the per-post detail looks like. The engine is built *to* the mock. **Gates the rest.**
+- [ ] **Capture (the keystone)** (`api/app/v3/` + `clickhouse-init/`) — the `content_events` ClickHouse table (DDL template + boot self-heal) + log **delivery** impressions in the read path (windowed, deduped, verified-reader-only) + gate the client `trackContentEvent` signals on a preceding delivery. No UI.
+- [ ] **Query** (`api/app/v3/`) — the generic reads the mock needs: grouped-by-surface over a window, time-series (per day), per-doc detail (impressions, reach, avg dwell, clicks, by surface). Creator/admin-scoped, I3-bound to the caller's own docs.
+- [ ] **SDK surface** (`sdk/`) — `trackContentEvent(docId, { surface, type, ...payload })` (the one new method; `type` is `viewport`/`click`/app-defined; the node dedups + gates it on a preceding delivery) + `read(service, { surface })` gains the `surface` param.
+- [ ] **Dashboard (build to the mock)** (`marketing/web10-social/`) — implement the creator's per-post / per-ad surface *to the mock*: time-series line graphs, the surface breakdown, the realtime view (last 48h, polled), per-post detail (impressions, avg dwell, watch %, clicks, conversion). The first consumer.
+- [ ] **Ads** (`api/app/v3/` + `marketing/web10-social/`) — click + conversion on a doc tagged `ad` (D55), on top of the engine. The node-ad performance number (D57) is the same engine (the basis of the platform fee).
+
 ### Lane: feed-paging (feeds page until exhausted)
 **Owns:** the one-shot feed reads in `marketing/web10-social/src/data/` (`feed.ts`, `posts.ts`, `groups.ts`) + the feed surfaces that render them (the Shorts wall, the Discover boards, the profile feed, the group feed tab, the Watch board). **The audit (operator, 29.09.2026):** "do all the feeds paginate too? where they get another get another until you hit the limit? run out? because that is the correct behavior." Several feeds were single reads capped at a limit (50) — a creator with more than the cap only ever saw the first page. The node already supports it (both the ranked + chronological `read_documents_in_groups` paths apply `LIMIT … OFFSET …`), so this is all client-side (no node change, D60). The pattern (from the Shorts wall, 3.179.0): a paged data read returning `{ items, hasMore }` (hasMore = board page size, `page.length >= limit`) + a sentinel (`IntersectionObserver`, `rootMargin: 200px`) that appends the next page, advancing the offset by the board page size + deduping by id.
 
