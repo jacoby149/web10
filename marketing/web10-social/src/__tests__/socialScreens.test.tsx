@@ -815,6 +815,27 @@ describe('Layout', () => {
     expect(screen.queryByTestId('nav-discover')).not.toBeInTheDocument();
   });
 
+  it('signed-in sidebar: Feed sits below Hot Gossip (the operator reorder)', async () => {
+    const { default: Layout } = await import('@/components/Social/Layout');
+    render(
+      <MemoryRouter initialEntries={['/video']}>
+        <Layout onLogout={() => {}} onReportBug={() => {}}>
+          <div>Content</div>
+        </Layout>
+      </MemoryRouter>,
+    );
+    const sidebarNav = screen.getByLabelText('Primary');
+    const sidebarItems = Array.from(sidebarNav.querySelectorAll('[data-testid]'))
+      .map((el) => el.getAttribute('data-testid'))
+      .filter((id) => id?.startsWith('nav-'));
+    // Video leads, then Shorts, Hot Gossip, Feed (below Hot Gossip), People, Messages.
+    expect(sidebarItems.indexOf('nav-video')).toBeLessThan(sidebarItems.indexOf('nav-shorts'));
+    expect(sidebarItems.indexOf('nav-shorts')).toBeLessThan(sidebarItems.indexOf('nav-hot-gossip'));
+    expect(sidebarItems.indexOf('nav-hot-gossip')).toBeLessThan(sidebarItems.indexOf('nav-feed'));
+    expect(sidebarItems.indexOf('nav-feed')).toBeLessThan(sidebarItems.indexOf('nav-people'));
+    expect(sidebarItems.indexOf('nav-people')).toBeLessThan(sidebarItems.indexOf('nav-messages'));
+  });
+
   it('Monetization nav renders for every user; Node Monetization only for the node admin', async () => {
     const { default: Layout } = await import('@/components/Social/Layout');
     // Non-admin: the "Monetization" entry (the creator's ad catalog +
@@ -1072,7 +1093,7 @@ describe('Layout', () => {
     expect(topbar.contains(bell)).toBe(true);
   });
 
-  it('the desktop sidebar shows the keys mark only (no wordmark) — B1', async () => {
+  it('the desktop sidebar shows the full web10 wordmark (keys mark + text)', async () => {
     const { default: Layout } = await import('@/components/Social/Layout');
     render(
       <MemoryRouter initialEntries={['/feed']}>
@@ -1081,16 +1102,16 @@ describe('Layout', () => {
         </Layout>
       </MemoryRouter>,
     );
-    // The desktop sidebar's top row is the keys glyph alone (markOnly).
-    expect(screen.getByTestId('wordmark-mark')).toBeInTheDocument();
-    // The "web10" wordmark text is NOT in the sidebar (only the mobile header
-    // keeps the full lockup; in jsdom both are in the DOM, so assert the mark
-    // variant exists and the wordmark text is not a sibling of it).
-    const mark = screen.getByTestId('wordmark-mark');
-    expect(mark.textContent).toBe('');
+    // The 29.09.2026 pass restored the wordmark to the sidebar (the
+    // mark-only Facebook-style variant was retired with the sidebar search).
+    // The full lockup: "web" + "10" (the "10" in brand violet) next to the
+    // keys mark. The mark-only variant is gone.
+    expect(screen.queryByTestId('wordmark-mark')).not.toBeInTheDocument();
+    expect(screen.getAllByText('web').length).toBeGreaterThanOrEqual(1);
+    expect(screen.getAllByText('10').length).toBeGreaterThanOrEqual(1);
   });
 
-  it('the desktop search field is in the sidebar, not the top bar — B2', async () => {
+  it('the desktop search field is in the top bar, not the sidebar', async () => {
     const { default: Layout } = await import('@/components/Social/Layout');
     render(
       <MemoryRouter initialEntries={['/feed']}>
@@ -1101,9 +1122,10 @@ describe('Layout', () => {
     );
     const field = screen.getByTestId('global-search-field-wrap');
     expect(field).toBeInTheDocument();
-    // The field is NOT inside the desktop top bar (it moved to the sidebar).
+    // The field is inside the desktop top bar (the 29.09.2026 pass moved it
+    // back — the sidebar search was a "traffic jam").
     const topbar = screen.getByTestId('topbar-desktop');
-    expect(topbar.contains(field)).toBe(false);
+    expect(topbar.contains(field)).toBe(true);
   });
 
   it('the Discover destinations live in the sidebar, not the top bar (the split retires B3)', async () => {
@@ -1228,9 +1250,12 @@ describe('Anon shell (signed-out visitor)', () => {
         <App />
       </MemoryRouter>
     );
+    // The full web10 lockup (keys mark + "web" + "10") renders in BOTH the
+    // desktop sidebar and the mobile header (in jsdom both are in the DOM),
+    // so assert on the count, not a unique match.
     await waitFor(() => {
-      expect(screen.getByText('web')).toBeInTheDocument();
-      expect(screen.getByText('10')).toBeInTheDocument();
+      expect(screen.getAllByText('web').length).toBeGreaterThanOrEqual(1);
+      expect(screen.getAllByText('10').length).toBeGreaterThanOrEqual(1);
     });
   });
 });

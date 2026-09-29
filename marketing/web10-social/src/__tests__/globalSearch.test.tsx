@@ -168,13 +168,14 @@ describe('GlobalSearch — desktop (dropdown)', () => {
     expect(screen.getByTestId('global-search-field')).toBeInTheDocument();
   });
 
-  it('the field is a Facebook-style pill + the dropdown is a wide panel (overflows the sidebar)', () => {
+  it('the field is a Facebook-style pill + the dropdown is a wide panel', () => {
     renderDesktopSearch();
     // The pill: rounded-full (the operator's Facebook reference, 25.09.2026).
     const wrap = screen.getByTestId('global-search-field-wrap');
     expect(wrap.className).toContain('rounded-full');
-    // The dropdown is the wide panel (w-[26rem]) — it overflows the 256px
-    // sidebar into the content, instead of being clipped to it.
+    // The dropdown is the wide panel (w-[26rem]) — wider than the top-bar
+    // field, anchored below it (the 29.09.2026 pass moved the field back to
+    // the top bar).
     fireEvent.focus(screen.getByTestId('global-search-field'));
     const results = screen.getByTestId('global-search-results');
     expect(results.className).toContain('w-[26rem]');

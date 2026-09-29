@@ -69,17 +69,11 @@ const comingSoonItems = [
   { icon: Store, label: 'Marketplace', testId: 'nav-marketplace' },
 ];
 
-function Wordmark({ className, markOnly = false }: { className?: string; markOnly?: boolean }) {
-  // `markOnly` (the desktop sidebar, the operator's "just a logo of keys, no
-  // web10 text" — Facebook-style): the keys glyph alone. The mobile header
-  // keeps the full lockup (it's the only branding on a phone).
-  if (markOnly) {
-    return (
-      <span className={cn('flex items-center', className)} data-testid="wordmark-mark">
-        <img src="/keys-mark.png" alt="web10" className="h-7 w-7 shrink-0" aria-hidden="true" />
-      </span>
-    );
-  }
+function Wordmark({ className }: { className?: string }) {
+  // The full lockup: the keys mark + "web10" (the "10" in brand violet).
+  // The sidebar top row (desktop) and the mobile header both carry it — the
+  // 29.09.2026 pass restored the wordmark to the sidebar (the mark-only
+  // Facebook-style variant was retired with the sidebar search).
   return (
     <span className={cn('flex items-center gap-2', className)}>
       <img src="/keys-mark.png" alt="" className="h-6 w-6 shrink-0" aria-hidden="true" />
@@ -115,7 +109,7 @@ export default function Layout({ onLogout, onLogin, isAnon: isAnonProp, onReport
   // The four destinations are full SIDEBAR items (desktop). The mobile bottom
   // bar stays at five max (design.md §9): the core (Feed, Video, Shorts,
   // Messages) + More; Hot Gossip + People live in the More sheet on mobile.
-  const sidebarNavItems = isAnon ? anonSidebarNavItems : [profileItem, feedItem, videoItem, shortsItem, hotGossipItem, peopleItem, messagesItem, monetizationItem];
+  const sidebarNavItems = isAnon ? anonSidebarNavItems : [profileItem, videoItem, shortsItem, hotGossipItem, feedItem, peopleItem, messagesItem, monetizationItem];
   const bottomNavItems = isAnon ? anonBottomNavItems : [feedItem, videoItem, shortsItem, messagesItem];
   const [moreOpen, setMoreOpen] = useState(false);
   const { unread } = useNotifications();
@@ -230,23 +224,14 @@ export default function Layout({ onLogout, onLogin, isAnon: isAnonProp, onReport
         'hidden md:flex flex-col w-64 border-r border-border relative',
         'bg-gradient-to-b from-surface to-background',
       )}>
-        {/* The decorative glow is clipped by its OWN container — the aside
-            itself must NOT be overflow-hidden: the search results dropdown
-            anchors here and overflows into the content (the Facebook-style
-            wide panel, 25.09.2026). */}
+        {/* The decorative glow is clipped by its OWN container (the
+            overflow-hidden wrapper), so the aside itself carries no
+            overflow rule. */}
         <div className="pointer-events-none absolute inset-0 overflow-hidden" aria-hidden="true">
           <div className="absolute -top-20 -left-20 h-40 w-40 rounded-full bg-brand/5 blur-3xl" />
         </div>
         <div className="relative p-4">
-          <Wordmark markOnly />
-        </div>
-        {/* The desktop search field lives in the sidebar (the operator's
-            Facebook-style chrome: keys mark, then search, then the nav rows).
-            It was in the top bar; the top bar now carries the Discover tabs
-            + the bell + the account row. The results dropdown anchors here
-            (it positions `absolute top-full` off this wrapper). */}
-        <div className="relative px-4 pb-3">
-          <GlobalSearch variant="desktop" />
+          <Wordmark />
         </div>
         <nav className="relative flex-1 px-2 space-y-1" aria-label="Primary">
           {sidebarNavItems.map(({ path, icon: Icon, label, testId }) => {
@@ -429,18 +414,23 @@ export default function Layout({ onLogout, onLogin, isAnon: isAnonProp, onReport
           </div>
         </header>
 
-        {/* Desktop top bar. The search field moved to the sidebar (B2). The
-            left side is empty (the Discover split retired the top-bar
-            Trending | People tabs — the sidebar owns that nav now). The right
-            side keeps the bell + the account row. Hidden on the Shorts lens
-            (the immersive surface keeps its full-bleed frame, like the bottom
-            bar already does). */}
+        {/* Desktop top bar. The search field lives here (the operator's
+            29.09.2026 pass: the sidebar's search pill was a "traffic jam" —
+            the field returns to the top bar, the sidebar keeps the full
+            web10 wordmark). The right side keeps the bell + the account row.
+            Hidden on the Shorts lens (the immersive surface keeps its
+            full-bleed frame, like the bottom bar already does). */}
         {!isShorts && (
           <header
             data-testid="topbar-desktop"
             className="hidden md:flex items-center justify-between gap-4 border-b border-border bg-surface/95 backdrop-blur-md z-20 px-4 h-14"
           >
-            <div aria-hidden="true" />
+            {/* The desktop search: a fixed-width field on the left (the
+                YouTube/Instagram top-bar shape). The results dropdown
+                anchors below it (absolute top-full off the field's wrapper). */}
+            <div className="w-72 max-w-full shrink-0">
+              <GlobalSearch variant="desktop" />
+            </div>
             <div className="flex items-center gap-1">
             {isAnon ? (
               /* Anon: no notifications, no account row — a clear Sign in
