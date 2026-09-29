@@ -346,7 +346,6 @@ export default function GlobalSearch({ variant }: GlobalSearchProps) {
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [pathname]);
-
   // Desktop: click outside the bar → close the dropdown (the field stays).
   useEffect(() => {
     if (!open || variant !== 'desktop') return;
@@ -379,9 +378,10 @@ export default function GlobalSearch({ variant }: GlobalSearchProps) {
   // carrying the query (?q=). Each of the four flat destinations is a search
   // category — the "see all" lands where the small results came from:
   // People → `/people?q=` (the people/groups browser), Video → `/video?q=`
-  // (the video wall), Shorts → `/shorts?q=` (the vertical lens), Hot Gossip
-  // → `/hot-gossip?q=` (the ranked post board). The query is screen state the
-  // URL holds (the deep-link rule).
+  // (the video wall), Shorts → `/shorts?q=` (the vertical lens), Posts
+  // → `/feed?q=` (the Posts screen's Discover tab — the ranked post board;
+  // the merged Feed + Hot Gossip surface, the X/Threads model). The query is
+  // screen state the URL holds (the deep-link rule).
   const submitSearch = useCallback(() => {
     const q = query.trim();
     if (!q) return;
@@ -389,7 +389,7 @@ export default function GlobalSearch({ variant }: GlobalSearchProps) {
       mode === 'people' ? '/people'
       : mode === 'video' ? '/video'
       : mode === 'shorts' ? '/shorts'
-      : '/hot-gossip';
+      : '/feed';
     navigate(`${dest}?q=${encodeURIComponent(q)}`);
   }, [query, navigate, mode]);
 
@@ -430,7 +430,7 @@ export default function GlobalSearch({ variant }: GlobalSearchProps) {
     mode === 'people' ? 'in People'
     : mode === 'video' ? 'in Video'
     : mode === 'shorts' ? 'in Shorts'
-    : 'in Hot Gossip';
+    : 'in Posts';
 
   const resultsContent =
     query.trim() === '' ? (
@@ -459,7 +459,7 @@ export default function GlobalSearch({ variant }: GlobalSearchProps) {
               ['people', 'People', Users],
               ['video', 'Video', Video],
               ['shorts', 'Shorts', Smartphone],
-              ['gossip', 'Hot Gossip', Flame],
+              ['gossip', 'Posts', Flame],
             ] as ['people' | 'video' | 'shorts' | 'gossip', string, typeof Users][]).map(([m, label, Icon]) => (
               <button
                 key={m}
@@ -560,11 +560,11 @@ export default function GlobalSearch({ variant }: GlobalSearchProps) {
           </>
         ) : (
           <>
-            {/* Hot Gossip posts (the ranked post board) */}
+            {/* Posts (the ranked post board — the Posts screen's Discover tab) */}
             {posts === null ? (
-              <SectionSkeleton label="Hot Gossip" />
+              <SectionSkeleton label="Posts" />
             ) : posts.length > 0 ? (
-              <SearchSection label="Hot Gossip">
+              <SearchSection label="Posts">
                 {posts.map((p) => (
                   <PostRow key={p._id || p.created_at} post={p} />
                 ))}

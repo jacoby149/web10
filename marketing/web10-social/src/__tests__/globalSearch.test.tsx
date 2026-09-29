@@ -274,7 +274,7 @@ describe('GlobalSearch — S2/S8 results (four categories: People | Video | Shor
     // The other categories' sections are not shown in People mode (one tap over).
     expect(screen.queryByTestId('global-search-section-video')).not.toBeInTheDocument();
     expect(screen.queryByTestId('global-search-section-shorts')).not.toBeInTheDocument();
-    expect(screen.queryByTestId('global-search-section-hot-gossip')).not.toBeInTheDocument();
+    expect(screen.queryByTestId('global-search-section-posts')).not.toBeInTheDocument();
   });
 
   it('the toggle flips to Video (the video posts section)', async () => {
@@ -308,7 +308,7 @@ describe('GlobalSearch — S2/S8 results (four categories: People | Video | Shor
     expect(screen.getByTestId('global-search-short-s1')).toBeInTheDocument();
   });
 
-  it('the toggle flips to Hot Gossip (the ranked post board section)', async () => {
+  it('the toggle flips to Posts (the ranked post board section)', async () => {
     vi.mocked(searchPosts).mockResolvedValue([
       { _id: 'p1', text: 'Check out this synthwave mix', author_username: 'alice', created_at: '2026-01-01T00:00:00Z' },
     ] as any);
@@ -316,10 +316,10 @@ describe('GlobalSearch — S2/S8 results (four categories: People | Video | Shor
     const field = screen.getByTestId('global-search-field');
     fireEvent.focus(field);
     fireEvent.change(field, { target: { value: 'synthwave' } });
-    // Flip to the Hot Gossip category…
+    // Flip to the Posts category…
     fireEvent.click(screen.getByTestId('global-search-mode-gossip'));
-    // …the Hot Gossip section appears.
-    expect(await screen.findByTestId('global-search-section-hot-gossip')).toBeInTheDocument();
+    // …the Posts section appears.
+    expect(await screen.findByTestId('global-search-section-posts')).toBeInTheDocument();
     expect(screen.getByTestId('global-search-post-p1')).toBeInTheDocument();
   });
 
@@ -371,18 +371,19 @@ describe('GlobalSearch — S2/S8 results (four categories: People | Video | Shor
     });
   });
 
-  it('Enter in Hot Gossip mode opens the Hot Gossip destination with the query', async () => {
+  it('Enter in Posts mode opens the Posts (Discover) destination with the query', async () => {
     probeLocation = '';
     renderDesktopSearchWithProbe();
     const field = screen.getByTestId('global-search-field');
     fireEvent.focus(field);
     fireEvent.change(field, { target: { value: 'alice' } });
     await screen.findByTestId('global-search-mode-toggle');
-    // Flip to the Hot Gossip category — Enter opens /hot-gossip with the query.
+    // Flip to the Posts category — Enter opens the Posts screen's Discover
+    // tab (/feed) with the query (the merged Feed + Hot Gossip surface).
     fireEvent.click(screen.getByTestId('global-search-mode-gossip'));
     fireEvent.keyDown(field, { key: 'Enter' });
     await waitFor(() => {
-      expect(probeLocation).toBe('/hot-gossip?q=alice');
+      expect(probeLocation).toBe('/feed?q=alice');
     });
   });
 

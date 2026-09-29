@@ -18,7 +18,7 @@ import SettingsScreen from '@/components/Settings/SettingsScreen';
 import GroupsScreen from '@/components/Groups/GroupsScreen';
 import GroupDetailScreen from '@/components/Groups/GroupDetailScreen';
 import PeopleScreen from '@/components/People/PeopleScreen';
-import FeedScreen from '@/components/Feed/FeedScreen';
+import PostsScreen from '@/components/Feed/PostsScreen';
 import NotificationsScreen from '@/components/Notifications/NotificationsScreen';
 import DiscoverScreen from '@/components/Discover/DiscoverScreen';
 import WatchScreen from '@/components/Watch/WatchScreen';
@@ -88,6 +88,8 @@ if (screen === 'install-prompt') {
 const initialRoute =
   screen === 'settings' ? '/settings'
   : screen === 'feed' ? '/feed'
+  : screen === 'posts' ? '/feed'
+  : screen === 'posts-following' ? '/feed?tab=following'
   : screen === 'composer' ? '/composer'
   : screen === 'notifications' ? '/notifications'
     : screen === 'discover' ? '/discover'
@@ -126,7 +128,7 @@ createRoot(document.getElementById('root')!).render(
   <MemoryRouter initialEntries={[initialRoute]}>
     <Routes>
       <Route element={<Layout onLogout={() => {}} onLogin={() => {}} isAnon={anon} onReportBug={() => {}} />}>
-        <Route path="/feed" element={<FeedScreen />} />
+        <Route path="/feed" element={<PostsScreen />} />
         <Route path="/composer" element={<PostComposer />} />
         <Route path="/notifications" element={<NotificationsScreen />} />
         <Route path="/discover" element={<DiscoverScreen />} />

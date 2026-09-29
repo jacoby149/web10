@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { useNavigate, useLocation, Outlet } from 'react-router-dom';
 import { cn } from '@/lib/utils';
-import { Home, User, Users, MessageSquare, LogOut, LogIn, Bug, Store, Gamepad2, Radio, Zap, Clapperboard, Settings, MoreHorizontal, X, Bell, ChevronDown, DollarSign, Flame, Shield, Video } from 'lucide-react';
+import { User, Users, MessageSquare, LogOut, LogIn, Bug, Store, Gamepad2, Radio, Zap, Clapperboard, Settings, MoreHorizontal, X, Bell, ChevronDown, DollarSign, Flame, Shield, Video } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { getWapi } from '@/data/wapi';
@@ -29,7 +29,13 @@ interface LayoutProps {
 // The four core destinations that stay one thumb-reach on mobile. Settings
 // and Groups move into the "More" sheet so the bottom bar never exceeds five
 // icons — room to grow as surfaces ship.
-const feedItem = { path: '/feed', icon: Home, label: 'Feed', testId: 'nav-feed' };
+// The merged Posts destination (the X/Threads model): the old Feed + Hot
+// Gossip sidebar tabs collapse into ONE "Posts" item (the flame icon) with a
+// "Discover | Following" tab row inside (the PostsScreen at /feed). The
+// operator's call (29.09.2026): "Posts on the side bar (Flame icon) and in it
+// is Discover | Following". The testid stays `nav-feed` (it points at /feed);
+// the label + icon change.
+const feedItem = { path: '/feed', icon: Flame, label: 'Posts', testId: 'nav-feed' };
 // The Discover split (watch-page.md): the old single "Discover" item is
 // replaced by four flat destinations — Video (the video wall, the old Home
 // view) · Shorts (the vertical lens) · Hot Gossip (the ranked post board, the
@@ -107,9 +113,15 @@ export default function Layout({ onLogout, onLogin, isAnon: isAnonProp, onReport
   const anonSidebarNavItems = [videoItem, shortsItem, hotGossipItem, peopleItem];
   const anonBottomNavItems = [videoItem, shortsItem, hotGossipItem, peopleItem];
   // The four destinations are full SIDEBAR items (desktop). The mobile bottom
-  // bar stays at five max (design.md §9): the core (Feed, Video, Shorts,
-  // Messages) + More; Hot Gossip + People live in the More sheet on mobile.
-  const sidebarNavItems = isAnon ? anonSidebarNavItems : [profileItem, videoItem, shortsItem, hotGossipItem, feedItem, peopleItem, messagesItem, monetizationItem];
+  // bar stays at five max (design.md §9): the core (Posts, Video, Shorts,
+  // Messages) + More; People lives in the More sheet on mobile.
+  //
+  // Signed-in: Hot Gossip is NO LONGER a separate sidebar item — it's a tab
+  // inside the merged Posts destination (the X/Threads model). The sidebar
+  // shows Posts (the flame, /feed) in Hot Gossip's old slot. Anon keeps the
+  // separate Hot Gossip item (a signed-out visitor has no personal feed, so
+  // there's no "Posts" container for them — Hot Gossip is the public board).
+  const sidebarNavItems = isAnon ? anonSidebarNavItems : [profileItem, videoItem, shortsItem, feedItem, peopleItem, messagesItem, monetizationItem];
   const bottomNavItems = isAnon ? anonBottomNavItems : [feedItem, videoItem, shortsItem, messagesItem];
   const [moreOpen, setMoreOpen] = useState(false);
   const { unread } = useNotifications();
@@ -676,20 +688,11 @@ export default function Layout({ onLogout, onLogin, isAnon: isAnonProp, onReport
                   <User className="w-5 h-5" strokeWidth={1.75} />
                   {displayName || username || 'Profile'}
                 </button>
-                {/* Hot Gossip + People — the two Discover-split destinations
-                    that don't hold a bottom-bar slot (the bar stays at five
-                    max); they live here on mobile. */}
-                <button
-                  data-testid="nav-hot-gossip-mobile"
-                  onClick={() => go(hotGossipItem.path)}
-                  className={cn(
-                    'w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors duration-150',
-                    isActive(hotGossipItem.path) ? 'bg-brand-muted text-brand-300' : 'text-foreground hover:bg-elevated',
-                  )}
-                >
-                  <Flame className="w-5 h-5" strokeWidth={1.75} />
-                  {hotGossipItem.label}
-                </button>
+                {/* People — the Discover-split destination that doesn't hold a
+                    bottom-bar slot (the bar stays at five max); it lives here
+                    on mobile. Hot Gossip is no longer a separate item — it's a
+                    tab inside Posts (the X/Threads model), reachable via the
+                    bottom-bar Posts item. */}
                 <button
                   data-testid="nav-people-mobile"
                   onClick={() => go(peopleItem.path)}
