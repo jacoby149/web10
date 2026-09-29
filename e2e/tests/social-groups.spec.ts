@@ -250,7 +250,7 @@ test.describe('social-groups gauntlet — follow/unfollow through the app', () =
     await expect(followBtn).toContainText('Following', { timeout: 10000 });
 
     // --- The creator's post appears in /feed ---
-    await page.goto(`${SOCIAL_BASE}/feed`);
+    await page.goto(`${SOCIAL_BASE}/feed?tab=following`);
     await page.waitForLoadState('networkidle');
     await expectFeedHasPost(page, postText, true);
 
@@ -262,7 +262,7 @@ test.describe('social-groups gauntlet — follow/unfollow through the app', () =
     await expect(followBtn).toContainText('Follow', { timeout: 10000 });
 
     // --- The creator's post leaves /feed ---
-    await page.goto(`${SOCIAL_BASE}/feed`);
+    await page.goto(`${SOCIAL_BASE}/feed?tab=following`);
     await page.waitForLoadState('networkidle');
     await expectFeedHasPost(page, postText, false);
 

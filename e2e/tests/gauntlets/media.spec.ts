@@ -328,7 +328,7 @@ test.describe('media — browser gauntlet (the player)', () => {
     const context: BrowserContext = await browser.newContext();
     const page = await context.newPage();
     await setTokenCookie(context, 'social.localhost', user.token);
-    await page.goto(`${SOCIAL_BASE}/feed`);
+    await page.goto(`${SOCIAL_BASE}/feed?tab=following`);
 
     // The video player renders for the post (the hls.js rack for a transcoded
     // clip; the native <video> if the transcode fell back). Wait for it.

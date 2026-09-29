@@ -264,7 +264,7 @@ test.describe('Social notifications — browser gauntlet (real-time badge, no re
         pageB.on('pageerror', (e: any) => pageErrorsB.push(e.message));
 
         // --- A loads /feed, P2P-ready, and posts ---
-        await pageA.goto(`${SOCIAL_BASE}/feed`);
+        await pageA.goto(`${SOCIAL_BASE}/feed?tab=following`);
         await pageA.waitForLoadState('networkidle');
         await waitForLog(p2pLogsA, 'initP2P — READY', 30_000);
 
@@ -278,7 +278,7 @@ test.describe('Social notifications — browser gauntlet (real-time badge, no re
         await followUser(request, B.token, A.username);
 
         // --- B loads /feed, P2P-ready, and sees A's post ---
-        await pageB.goto(`${SOCIAL_BASE}/feed`);
+        await pageB.goto(`${SOCIAL_BASE}/feed?tab=following`);
         await pageB.waitForLoadState('networkidle');
         await waitForLog(p2pLogsB, 'initP2P — READY', 30_000);
         const bSeesPost = pageB.locator('text=' + postText).first();

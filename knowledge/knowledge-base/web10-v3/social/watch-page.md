@@ -178,6 +178,31 @@ The marketing site does **not** have its own watch page / Shorts lens / Hot Goss
 
 **This is the long-term shape; the watch page is the first piece.** The split is its own lane (it touches `Layout.tsx` nav + the `DiscoverScreen` shell + the marketing `Navbar`/`Trending`). The watch page can land *first* (it is a new route + a new screen, it does not require the sidebar split to exist — it is reachable from the current Home view's card click). The split lands after, and the watch page's entry point moves from "the Home view toggle" to "the Home sidebar item" with no change to the page itself.
 
+## The Posts merge (Feed + Hot Gossip → one destination)
+
+The Discover split gave **Hot Gossip** its own sidebar destination, but it left **Feed** (the personal `/feed`) as a *separate* sidebar item too — so the sidebar carried two "streams of posts" (Feed + Hot Gossip) that are really one surface with two lenses. The operator's call (29.09.2026, the X/Threads reference): **merge them into ONE destination** with a tab row inside, "like how x.com does it — For you | Following".
+
+**The shape:** one sidebar item — **Posts** (the flame icon) at `/feed` — with a **`Discover | Following`** tab row inside (the X/Threads model):
+
+| Tab | What it is | The content |
+|---|---|---|
+| **Discover** (the default, the bare `/feed`) | the old **Hot Gossip** — the ranked post board (the Threads shape) | the `DiscoverScreen` board: knob rack + topic chips + the single-column ranked board + the **Top 10** rail |
+| **Following** (`/feed?tab=following`) | the old **Feed** — the personal feed | the composer + `FeedScreen` (the posts from people you follow) |
+
+**Naming** (the operator's deliberation, 29.09.2026): the container is **Posts**, not "Threads" (a Facebook trademark — "that can't be sued for sure"), not "What's New", and not "Hot Gossip" (the "gossip" connotation). "Posts" is the safe, descriptive name for the container; the **flame** icon carries the Hot Gossip brand energy. The *tabs* do the specific naming (Discover = the hot/ranked board, Following = the personal feed).
+
+**Routes:**
+- `/feed` — the Posts screen. Bare URL = **Discover** (the default tab); `?tab=following` = **Following**. The tab is screen state the URL holds (refresh-safe, shareable).
+- `/hot-gossip` — redirects to `/feed` (the Discover tab) **preserving the query** — so the marketing link-out (`/hot-gossip?post=<id>`) lands on the Discover board scrolled to + highlighting that post, and a `?q=` search lands filtered. Anon `/hot-gossip` renders the board directly (an anon visitor has no personal feed, so there is no "Posts" container for them — Hot Gossip is the public board).
+
+**The board narrows to fit the leaderboard.** The operator (29.09.2026, the social-app Hot Gossip screenshot): "hot gossip is way too horizontally big … we could fit the leaderboard into it and reduce some size." The board was running full-bleed; it is now capped to a reading column (`max-w-2xl`) with the **Top 10** rail beside it (the marketing `/trending` shape — a *content* rail that scrolls the board to a post, not a nav rail). The rail is desktop-only (`lg:block`); on mobile the board is full-width and the rail hides. The rail is hidden while searching (the filtered board is the focus).
+
+**Anon:** no **Following** tab (no session → no personal feed). The screen is just the **Discover** board (the public ledger) — the same read-only board the old `/hot-gossip` showed.
+
+**The search category relabels.** The top-bar search's "Hot Gossip" category is relabeled **Posts** (the flame) and lands on `/feed` (the Discover tab) with the query — the merged destination, not the retired `/hot-gossip`.
+
+This is entirely client-side (D60 — no node change). It touches `Layout.tsx` (the nav: Feed → Posts, drop the separate Hot Gossip item), a new `PostsScreen` (the tab row + the two tabs), `DiscoverScreen` (the `mode` prop + the Top 10 rail + the narrowed board), and `GlobalSearch` (the category relabel). The watch page, the Shorts lens, and the Video wall are untouched.
+
 ## The "beyond your community" note (open, not a v1 decision)
 
 The operator flagged, looking at YouTube's **Community** tab (posts *strictly for your subscribed community*): web10's posts go **beyond** that — a public post is on the **discover group** (readable by `anyone`, D41/D58), not just the author's followers. That is the differentiator: YouTube's feed is your subscription graph; web10's Home wall is the **public ledger** — anyone's post, ranked by the knobs, discoverable by anyone. The watch page inherits this: its "What's next" queue is drawn from the **public discover board**, not the viewer's follow graph. (The *following* feed — `/feed` — is the subscription-graph surface; the watch page is the discovery surface. They are different queues over different groups, and the `?from=` param is the seam that keeps them distinct if a `/feed`-sourced watch page is ever wanted.)

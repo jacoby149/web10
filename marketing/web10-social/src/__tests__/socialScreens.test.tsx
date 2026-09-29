@@ -681,13 +681,15 @@ describe('Layout', () => {
     // Nav items render in both the desktop sidebar and the mobile bottom
     // nav (CSS breakpoints hide one in a real browser; both exist in the
     // DOM in jsdom) — assert via the stable data-testid hooks instead.
-    // The Discover split (watch-page.md): the old Discover item is four flat
-    // destinations — Video, Shorts, Hot Gossip, People.
+    // The merged Posts destination (the X/Threads model): the old Feed +
+    // Hot Gossip tabs collapse into ONE "Posts" item (the flame, /feed) with
+    // a Discover | Following tab row inside. Hot Gossip is no longer a
+    // separate sidebar item for a signed-in user.
     expect(screen.getByTestId('nav-profile')).toBeInTheDocument();
     expect(screen.getByTestId('nav-feed')).toBeInTheDocument();
     expect(screen.getByTestId('nav-video')).toBeInTheDocument();
     expect(screen.getByTestId('nav-shorts')).toBeInTheDocument();
-    expect(screen.getByTestId('nav-hot-gossip')).toBeInTheDocument();
+    expect(screen.queryByTestId('nav-hot-gossip')).not.toBeInTheDocument();
     expect(screen.getByTestId('nav-people')).toBeInTheDocument();
     expect(screen.getByTestId('nav-messages')).toBeInTheDocument();
     expect(screen.getByTestId('nav-monetization')).toBeInTheDocument();
@@ -698,7 +700,9 @@ describe('Layout', () => {
     expect(screen.getByTestId('nav-profile')).toHaveTextContent('testuser');
     // Groups is not a nav item (it lives in the People destination).
     expect(screen.queryByTestId('nav-groups')).not.toBeInTheDocument();
-    expect(screen.getAllByText('Feed').length).toBeGreaterThanOrEqual(1);
+    // The merged destination is labeled "Posts" (the flame), not "Feed".
+    expect(screen.getAllByText('Posts').length).toBeGreaterThanOrEqual(1);
+    expect(screen.queryByText('Feed')).not.toBeInTheDocument();
     expect(screen.getAllByText('Video').length).toBeGreaterThanOrEqual(1);
     expect(screen.queryByText('Groups')).not.toBeInTheDocument();
     expect(screen.getAllByText('Messages').length).toBeGreaterThanOrEqual(1);
@@ -777,15 +781,17 @@ describe('Layout', () => {
     // The More sheet is closed by default.
     expect(screen.queryByTestId('more-sheet')).not.toBeInTheDocument();
 
-    // Tapping More opens the sheet: Profile (demoted from the bar) + Hot
-    // Gossip + People (the Discover-split destinations that don't hold a
-    // bottom-bar slot) + Settings (real destination) + the coming-soon list
-    // (Stories, Livestream, Games, Marketplace).
+    // Tapping More opens the sheet: Profile (demoted from the bar) + People
+    // (the Discover-split destination that doesn't hold a bottom-bar slot) +
+    // Settings (real destination) + the coming-soon list (Stories, Livestream,
+    // Games, Marketplace). Hot Gossip is NOT in the sheet — it's a tab inside
+    // the merged Posts destination (the X/Threads model), reachable via the
+    // bottom-bar Posts item.
     fireEvent.click(screen.getByTestId('nav-more-mobile'));
     const sheet = screen.getByTestId('more-sheet');
     expect(sheet).toBeInTheDocument();
     expect(within(sheet).getByTestId('nav-profile-mobile')).toBeInTheDocument();
-    expect(within(sheet).getByTestId('nav-hot-gossip-mobile')).toBeInTheDocument();
+    expect(within(sheet).queryByTestId('nav-hot-gossip-mobile')).not.toBeInTheDocument();
     expect(within(sheet).getByTestId('nav-people-mobile')).toBeInTheDocument();
     expect(within(sheet).getByTestId('nav-settings-mobile')).toBeInTheDocument();
     expect(within(sheet).queryByTestId('nav-groups-mobile')).not.toBeInTheDocument();
@@ -815,7 +821,7 @@ describe('Layout', () => {
     expect(screen.queryByTestId('nav-discover')).not.toBeInTheDocument();
   });
 
-  it('signed-in sidebar: Feed sits below Hot Gossip (the operator reorder)', async () => {
+  it('signed-in sidebar: Posts (the merged Feed + Hot Gossip) sits below Shorts', async () => {
     const { default: Layout } = await import('@/components/Social/Layout');
     render(
       <MemoryRouter initialEntries={['/video']}>
@@ -828,12 +834,14 @@ describe('Layout', () => {
     const sidebarItems = Array.from(sidebarNav.querySelectorAll('[data-testid]'))
       .map((el) => el.getAttribute('data-testid'))
       .filter((id) => id?.startsWith('nav-'));
-    // Video leads, then Shorts, Hot Gossip, Feed (below Hot Gossip), People, Messages.
+    // Video leads, then Shorts, Posts (the merged Feed + Hot Gossip, in Hot
+    // Gossip's old slot), People, Messages. Hot Gossip is no longer a
+    // separate item — it's a tab inside Posts.
     expect(sidebarItems.indexOf('nav-video')).toBeLessThan(sidebarItems.indexOf('nav-shorts'));
-    expect(sidebarItems.indexOf('nav-shorts')).toBeLessThan(sidebarItems.indexOf('nav-hot-gossip'));
-    expect(sidebarItems.indexOf('nav-hot-gossip')).toBeLessThan(sidebarItems.indexOf('nav-feed'));
+    expect(sidebarItems.indexOf('nav-shorts')).toBeLessThan(sidebarItems.indexOf('nav-feed'));
     expect(sidebarItems.indexOf('nav-feed')).toBeLessThan(sidebarItems.indexOf('nav-people'));
     expect(sidebarItems.indexOf('nav-people')).toBeLessThan(sidebarItems.indexOf('nav-messages'));
+    expect(sidebarItems).not.toContain('nav-hot-gossip');
   });
 
   it('Monetization nav renders for every user; Node Monetization only for the node admin', async () => {
@@ -1137,15 +1145,16 @@ describe('Layout', () => {
         </Layout>
       </MemoryRouter>,
     );
-    // The old Trending | People top-bar tabs are retired — the four
-    // destinations are sidebar items now (the Discover split).
+    // The old Trending | People top-bar tabs are retired — the destinations
+    // are sidebar items now (the Discover split). Hot Gossip is no longer a
+    // separate item — it's a tab inside the merged Posts destination.
     const topbar = screen.getByTestId('topbar-desktop');
     expect(topbar.querySelector('[data-testid="discover-tab-row"]')).toBeNull();
-    // The four destinations are in the sidebar.
+    // The destinations are in the sidebar.
     const sidebarNav = screen.getByLabelText('Primary');
     expect(sidebarNav.querySelector('[data-testid="nav-video"]')).not.toBeNull();
     expect(sidebarNav.querySelector('[data-testid="nav-shorts"]')).not.toBeNull();
-    expect(sidebarNav.querySelector('[data-testid="nav-hot-gossip"]')).not.toBeNull();
+    expect(sidebarNav.querySelector('[data-testid="nav-feed"]')).not.toBeNull();
     expect(sidebarNav.querySelector('[data-testid="nav-people"]')).not.toBeNull();
   });
 
