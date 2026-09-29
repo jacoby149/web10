@@ -1142,6 +1142,11 @@ export async function readShortsFeed(): Promise<{ post: unknown; media: unknown 
   }
   return shorts;
 }
+// The paged Shorts read (the wall's infinite scroll). The harness returns the
+// full seeded wall as one page (hasMore false — no sentinel in the capture).
+export async function readShortsPage(): Promise<{ shorts: { post: unknown; media: unknown }[]; hasMore: boolean }> {
+  return { shorts: await readShortsFeed(), hasMore: false };
+}
 // The Discover screen resolves a post's media_refs to MediaRecords. The mock
 // maps the seeded doc_ids to the creatives above (url + thumbnail + dims).
 export async function resolveMediaRefs<T>(refs: T[]): Promise<T[]> {

@@ -36,6 +36,7 @@ vi.mock('@/data', async (importOriginal) => {
   return {
     ...original,
     readShortsFeed: vi.fn().mockResolvedValue([]),
+    readShortsPage: vi.fn().mockResolvedValue({ shorts: [], hasMore: false }),
     toggleReactionKind: vi.fn().mockResolvedValue(undefined),
     getV3Client: vi.fn().mockReturnValue({ read: fakeV3Read }),
   };
@@ -537,10 +538,13 @@ describe('ShortsScreen — the vertical short-form feed (shorts.md)', () => {
   });
 
   it('?q= filters the wall to matching shorts + shows the query chip (the S8 search deep link)', async () => {
-    (data.readShortsFeed as ReturnType<typeof vi.fn>).mockResolvedValue([
-      shortPost({ id: 's1', author: 'luna', text: 'synthwave mix' }),
-      shortPost({ id: 's2', author: 'kai', text: 'study vlog' }),
-    ]);
+    (data.readShortsPage as ReturnType<typeof vi.fn>).mockResolvedValue({
+      shorts: [
+        shortPost({ id: 's1', author: 'luna', text: 'synthwave mix' }),
+        shortPost({ id: 's2', author: 'kai', text: 'study vlog' }),
+      ],
+      hasMore: false,
+    });
     // /shorts?q= is the WALL (a bare /shorts is the wall; the lens is /shorts/:postId).
     await renderShorts(['/shorts?q=synthwave']);
 
@@ -563,9 +567,12 @@ describe('ShortsScreen — the vertical short-form feed (shorts.md)', () => {
   });
 
   it('?q= with no match shows the no-match state (not an empty wall)', async () => {
-    (data.readShortsFeed as ReturnType<typeof vi.fn>).mockResolvedValue([
-      shortPost({ id: 's1', author: 'luna', text: 'synthwave mix' }),
-    ]);
+    (data.readShortsPage as ReturnType<typeof vi.fn>).mockResolvedValue({
+      shorts: [
+        shortPost({ id: 's1', author: 'luna', text: 'synthwave mix' }),
+      ],
+      hasMore: false,
+    });
     await renderShorts(['/shorts?q=zzz-no-match']);
 
     await waitFor(() => {
@@ -596,10 +603,13 @@ describe('ShortsScreen — the explore wall (/shorts, the "before you pick a sho
   }
 
   it('renders the responsive wall of 9:16 video tiles (not the lens)', async () => {
-    (data.readShortsFeed as ReturnType<typeof vi.fn>).mockResolvedValue([
-      shortPost({ id: 's1', author: 'luna', text: 'first' }),
-      shortPost({ id: 's2', author: 'kai', text: 'second' }),
-    ]);
+    (data.readShortsPage as ReturnType<typeof vi.fn>).mockResolvedValue({
+      shorts: [
+        shortPost({ id: 's1', author: 'luna', text: 'first' }),
+        shortPost({ id: 's2', author: 'kai', text: 'second' }),
+      ],
+      hasMore: false,
+    });
     await renderWall();
 
     await waitFor(() => {
@@ -619,11 +629,62 @@ describe('ShortsScreen — the explore wall (/shorts, the "before you pick a sho
     expect(screen.getByText('first')).toBeInTheDocument();
   });
 
+  it('infinite scroll: the sentinel loads the next page and appends (the wall pages the board)', async () => {
+    // Page 1: two shorts, hasMore true (a full board page).
+    // Page 2: two more shorts, hasMore false (the last page).
+    (data.readShortsPage as ReturnType<typeof vi.fn>)
+      .mockResolvedValueOnce({
+        shorts: [shortPost({ id: 's1', author: 'luna', text: 'first' }), shortPost({ id: 's2', author: 'kai', text: 'second' })],
+        hasMore: true,
+      })
+      .mockResolvedValueOnce({
+        shorts: [shortPost({ id: 's3', author: 'nova', text: 'third' }), shortPost({ id: 's4', author: 'me', text: 'fourth' })],
+        hasMore: false,
+      });
+    await renderWall();
+
+    await waitFor(() => {
+      expect(screen.getByTestId('short-wall-tile-s1')).toBeInTheDocument();
+      expect(screen.getByTestId('short-wall-tile-s2')).toBeInTheDocument();
+    });
+    // The sentinel is present (hasMore true, no active query).
+    const sentinel = screen.getByTestId('shorts-wall-sentinel');
+    expect(sentinel).toBeInTheDocument();
+
+    // The sentinel is visible → the observer fires → loadMore appends page 2.
+    (globalThis as unknown as Record<string, () => void>).fireIntersectionObservers();
+    await waitFor(() => {
+      expect(screen.getByTestId('short-wall-tile-s3')).toBeInTheDocument();
+      expect(screen.getByTestId('short-wall-tile-s4')).toBeInTheDocument();
+    });
+    // The second page was fetched with the next board offset (PAGE_SIZE = 50).
+    expect(data.readShortsPage).toHaveBeenLastCalledWith(50, 50);
+    // hasMore is now false → the sentinel is gone (the board is exhausted).
+    expect(screen.queryByTestId('shorts-wall-sentinel')).toBeNull();
+  });
+
+  it('no sentinel when the first page is the last (hasMore false)', async () => {
+    (data.readShortsPage as ReturnType<typeof vi.fn>).mockResolvedValue({
+      shorts: [shortPost({ id: 's1', author: 'luna' })],
+      hasMore: false,
+    });
+    await renderWall();
+
+    await waitFor(() => {
+      expect(screen.getByTestId('short-wall-tile-s1')).toBeInTheDocument();
+    });
+    // A short first page is the last one — no sentinel, no "load more".
+    expect(screen.queryByTestId('shorts-wall-sentinel')).toBeNull();
+  });
+
   it('tapping a tile navigates to the lens (/shorts/:postId)', async () => {
-    (data.readShortsFeed as ReturnType<typeof vi.fn>).mockResolvedValue([
-      shortPost({ id: 's1', author: 'luna' }),
-      shortPost({ id: 's2', author: 'kai' }),
-    ]);
+    (data.readShortsPage as ReturnType<typeof vi.fn>).mockResolvedValue({
+      shorts: [
+        shortPost({ id: 's1', author: 'luna' }),
+        shortPost({ id: 's2', author: 'kai' }),
+      ],
+      hasMore: false,
+    });
     function LocationProbe() {
       const { pathname } = useLocation();
       return <div data-testid="route-probe">{pathname}</div>;
@@ -652,7 +713,7 @@ describe('ShortsScreen — the explore wall (/shorts, the "before you pick a sho
   });
 
   it('renders the designed empty state when there are no shorts', async () => {
-    (data.readShortsFeed as ReturnType<typeof vi.fn>).mockResolvedValue([]);
+    (data.readShortsPage as ReturnType<typeof vi.fn>).mockResolvedValue({ shorts: [], hasMore: false });
     await renderWall();
 
     await waitFor(() => {
