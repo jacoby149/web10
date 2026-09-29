@@ -113,21 +113,25 @@ glyph and the **People section** (inside the tab) carries the two-overlapped
 glyph (they must not be mixed up). The marketing mirrors the same mapping.
 
 ### The chrome (desktop)
-- **Sidebar** (Facebook-style): the **keys mark only** (no "web10" wordmark) at
-  the top, then the **search field** (moved down from the top bar), then the nav
-  rows (Profile · Shorts · Discover · Feed · Messages · Monetization · More).
-- **Top bar**: the **Trending | People** tabs (on the Discover screen) on the
-  left, the notifications bell + account row on the right. The search is gone
-  from here (it's in the sidebar now).
-- **Mobile**: unchanged — the 56px header keeps the search icon → full-screen
-  results view (a phone can't carry a sidebar search field).
+- **Sidebar**: the **full "web10" wordmark** (keys mark + "web" in foreground +
+  "10" in brand violet) at the top, then the nav rows (Profile · Feed · Video ·
+  Shorts · Hot Gossip · People · Messages · Monetization · More). The
+  mark-only Facebook-style variant (B1, 3.158.0) was retired on 29.09.2026.
+- **Top bar**: the **search field** on the left (a fixed-width pill), the
+  notifications bell + account row on the right. The search returned to the
+  top bar on 29.09.2026 (the sidebar search was a "traffic jam"). The
+  Trending | People tabs (B3) are retired by the Discover split (3.171.0) —
+  the sidebar owns that nav now.
+- **Mobile**: unchanged — the 56px header keeps the full wordmark lockup + the
+  search icon → full-screen results view (a phone can't carry a top-bar field).
 
 ### Search results = Discover results
 Typing in the search shows the **Discover** results — **Trending posts** (the
 default) or **People & Groups** (the chunky mode toggle, already built in
 `GlobalSearch`). Enter / the CTA deep-links into the Profiles browser with the
 query applied (`/discover?tab=profiles&q=…`). This is the existing `GlobalSearch`
-behavior; only its *home* moves (top bar → sidebar).
+behavior. The field's home moved top bar → sidebar (3.158.0) and back to the
+top bar (29.09.2026); the dropdown + deep-link behavior is unchanged.
 
 ### Marketing = a faithful mirror
 The marketing Discover page renders the **same** Trending board + the **same**
@@ -168,6 +172,14 @@ chrome/renames (A + B) are independent of the marketing work (C). All client-sid
   reads as designed, not as a regression of the "fill the viewport" pass.
 
 ### B — Social chrome: search to the sidebar, tabs to the top bar (web10-social)
+
+> **Reversed (29.09.2026, 3.172.0):** the operator's pass — "we can definitely
+> write web10 in purple like how we used to have it, and have the search be in
+> the topbar again, the design just works now, instead of this traffic jam."
+> B1 (mark-only) + B2 (sidebar search) are undone: the sidebar keeps the full
+> **web10** wordmark (the "10" in brand violet) and the desktop search field
+> returns to the **top bar** (left slot, a fixed-width pill). B3's tabs were
+> already retired by the Discover split (3.171.0). See the CHANGELOG.
 
 - [✓ 3.158.0] **B1: the keys mark only (no wordmark) in the sidebar.** `Layout.tsx`
   `Wordmark` — the desktop sidebar's top row drops the "web10" text, keeping

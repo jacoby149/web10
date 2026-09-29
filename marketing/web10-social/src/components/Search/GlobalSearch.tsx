@@ -497,10 +497,9 @@ export default function GlobalSearch({ variant }: GlobalSearchProps) {
             persistent placeholder is more informative than a bare icon.
             Focus opens the dropdown; the X (only when there's a query)
             clears it; clicking away closes the dropdown (field stays). The
-            field lives in the sidebar (the operator's Facebook-style
-            chrome); the results dropdown anchors below it and overflows the
-            sidebar into the content (the Facebook-style wide panel — the
-            sidebar itself is NOT overflow-hidden, 25.09.2026). */}
+            field lives in the desktop top bar (the 29.09.2026 pass moved it
+            back from the sidebar — the sidebar search was a "traffic jam");
+            the results dropdown anchors below it. */}
         <div
           data-testid="global-search-field-wrap"
           className="flex items-center gap-2 flex-1 h-10 w-full rounded-full bg-elevated border border-border/60 pl-3.5 pr-1.5 transition-colors duration-150 focus-within:border-brand/50 focus-within:bg-background"
