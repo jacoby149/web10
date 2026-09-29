@@ -7,7 +7,7 @@
 // entire state: no client-side preservation — ?t= is the playback position,
 // ?knobs= is the ranking, ?related= is the relatedness. Refresh / back / share
 // all rebuild the exact state.
-import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { useParams, useSearchParams, useNavigate } from 'react-router-dom';
 import { X, User, ExternalLink } from 'lucide-react';
 import { VideoPlayer, sourceFromMedia } from '@/components/Feed/VideoPlayer';
@@ -290,7 +290,13 @@ export default function WatchScreen() {
   const isAnon = !token;
 
   // ── URL state (the entire watch state lives here) ──────────────────────────
-  const knobState = useMemo(() => parseWatchKnobs(searchParams.get('knobs')), [searchParams]);
+  // Derive STABLE primitives (strings) from the URL — never a fresh object.
+  // The load effect below is keyed on these; a fresh object (a re-parsed
+  // KnobState, the searchParams array, a re-decoded token) in the dep chain
+  // would recreate `load` on every render and re-run the effect forever
+  // (the "sick spammy loop" — the node 429s under the hammering). `knobState`
+  // is parsed inside `load` from `knobsKey` so it never sits in the dep chain.
+  const knobsKey = searchParams.get('knobs') ?? '';
   const relatedness: RelatednessId = parseRelatednessParam(searchParams.get('related')) ?? 'mixed';
 
   // ?t= — captured once per postId (the write-back updates ?t= but must not
@@ -327,7 +333,12 @@ export default function WatchScreen() {
     if (!postId) { setNotFound(true); setLoading(false); return; }
     setLoading(true);
     setNotFound(false);
-    LOG('load — post:', postId, 'knobs:', searchParams.get('knobs'), 'related:', searchParams.get('related'));
+    // Read the token inside the callback (the ShortsScreen idiom). `readToken()`
+    // returns a fresh object every call — capturing it as a `useCallback` dep
+    // would recreate `load` on every render and re-run the effect forever.
+    const token = getWapi().readToken();
+    const knobState = parseWatchKnobs(knobsKey || null);
+    LOG('load — post:', postId, 'knobs:', knobsKey || '(default)', 'related:', relatedness);
     try {
       const w = getV3Client();
       const discoverId = getDiscoverGroupId();
@@ -424,7 +435,7 @@ export default function WatchScreen() {
     } finally {
       setLoading(false);
     }
-  }, [postId, knobState, relatedness, token, searchParams]);
+  }, [postId, knobsKey, relatedness]);
 
   useEffect(() => { void load(); }, [load]);
 
