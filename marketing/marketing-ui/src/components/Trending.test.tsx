@@ -878,8 +878,10 @@ describe('The Discover split (the salad retires)', () => {
     expect(link).toHaveAttribute('href', expect.stringContaining('/watch/landscape-v?from=discover&knobs='));
   });
 
-  it('the Video wall links out 1:1 — portrait → the Shorts lens (the aspect-ratio gate)', async () => {
-    // A portrait video (width < height) → /shorts/:postId (the lens).
+  it('the Video wall is landscape-only — a portrait video is a short, not a video (the aspect-ratio split)', async () => {
+    // A portrait video (width < height) is a short — it lives in the Shorts
+    // destination (the TikTok shape), not the Video wall (the YouTube shape).
+    // The wall filters it out, so a portrait-only board shows the empty state.
     const posts = [
       v3Post(0, {
         doc_id: 'portrait-v',
@@ -887,15 +889,16 @@ describe('The Discover split (the salad retires)', () => {
           text: 'a vertical clip',
           media_refs: [{ doc_id: 'ref-p', object_key: 'u/b.mp4', mime_type: 'video/mp4', read_url: 'https://cdn.example.com/b.mp4?sig=x', width: 1080, height: 1920 }],
         },
-        tags: ['video'],
+        tags: ['video', 'short'],
       }),
     ];
     mockDiscoverFeed(posts);
     const { default: Trending } = await import('@/pages/Trending');
     render(<MemoryRouter initialEntries={['/trending/video']}><Trending /></MemoryRouter>);
-    const card = await screen.findByTestId('home-card');
-    const link = within(card).getByTestId('home-card-thumb');
-    expect(link).toHaveAttribute('href', expect.stringContaining('/shorts/portrait-v'));
+    // No video wall card — the portrait short is excluded from the Video wall
+    // (it's landscape-only; the aspect-ratio gate routes portrait to Shorts).
+    await waitFor(() => expect(screen.queryByTestId('home-card')).not.toBeInTheDocument());
+    expect(screen.queryByTestId('trending-home-grid')).not.toBeInTheDocument();
   });
 
   it('the Shorts destination renders the vertical wall and links out to the lens', async () => {

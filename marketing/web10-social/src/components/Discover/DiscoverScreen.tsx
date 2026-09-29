@@ -51,8 +51,8 @@ import DiscoverExploreTab from './DiscoverExploreTab';
 import { VideoPlayer, sourceFromMedia } from '@/components/Feed/VideoPlayer';
 import { MediaCarousel } from '@/components/Feed/MediaCarousel';
 import { PostActions } from '@/components/Feed/PostActions';
-import PostComposer from '@/components/Feed/PostComposer';
 import { useRepost } from '@/context/RepostContext';
+import { useComposer } from '@/context/ComposerContext';
 // D74: the shared discover card (one source, both apps). The social app's grid
 // + youtube cards now wrap it — the same card the marketing /trending uses.
 import { DiscoverCard as SharedDiscoverCard, HomeCard, type DiscoverPost, type CreateComment } from '@web10/discover';
@@ -453,6 +453,24 @@ function postHasVideo(post: PostRecord): boolean {
   return !!(post.tags?.includes('video') || hasVideoRef);
 }
 
+// A post is a SHORT (portrait video) if its first video media is 9:16
+// (width < height) — the same render-time gate the Shorts feed uses (shorts.md),
+// re-derived from the resolved media rather than the client-asserted `short` tag.
+// The Video wall is landscape-only (YouTube-shaped); portrait videos live in
+// the Shorts destination (TikTok-shaped). This is the aspect-ratio split that
+// keeps the two from bleeding into each other.
+function postIsPortraitVideo(post: PostRecord): boolean {
+  const refs = post.media_refs || [];
+  return refs.some((r) => {
+    if (typeof r !== 'object' || r === null) return false;
+    const m = r as { mime_type?: string; width?: number | null; height?: number | null };
+    return (
+      m.mime_type?.startsWith('video/') &&
+      !!m.width && !!m.height && m.width < m.height
+    );
+  });
+}
+
 // ── HomeCard (the Home view — the YouTube-style video wall) ─────────────────
 // The operator: "the youtube view is preferable, less brainrot — the videos
 // all have a good title, a thumbnail, and the attribution of who put them up."
@@ -495,9 +513,12 @@ function DiscoverHomeCard({
   const openPost = () => {
     const id = post._id || '';
     if (!id) return;
-    const video = mediaItems.find((m) => m.mime_type?.startsWith('video/'));
-    const isPortrait = !!video && !!video.width && !!video.height && video.width < video.height;
-    if (isPortrait) {
+    // The aspect-ratio split (shorts.md): the Video wall is landscape-only, so
+    // a card here is a landscape video → the watch page (carrying the current
+    // ?knobs= ranking). A portrait video is a short and lives in the Shorts
+    // destination (the lens) — the wall filters those out, but the gate stays
+    // as the backstop (a portrait card can only reach here via a stale read).
+    if (postIsPortraitVideo(post)) {
       navigate(`/shorts/${id}`);
       return;
     }
@@ -593,10 +614,6 @@ export default function DiscoverScreen({ mode: modeOverride }: { mode?: Discover
   // at /feed (the Following/Hot Gossip tabs) where the path is /feed, not
   // /hot-gossip, so it passes mode="hot-gossip" directly.
   const mode = modeOverride ?? modeFromPath(pathname);
-  // Anon mode: a signed-out visitor browses the board read-only. The composer
-  // is hidden (they can't post without a session) — the Sign in affordance in
-  // the chrome is the path to posting.
-  const isAnon = !getWapi().readToken();
   const [posts, setPosts] = useState<PostRecord[]>([]);
   const [loading, setLoading] = useState(true);
   const [profileMap, setProfileMap] = useState<Record<string, ProfileRecord>>({});
@@ -927,6 +944,15 @@ export default function DiscoverScreen({ mode: modeOverride }: { mode?: Discover
     return () => { if (refreshTimer.current) clearTimeout(refreshTimer.current); };
   }, [sortConfig, loadDiscover]);
 
+  // The app-level New Post sheet fires `post-created` (NewPostSheet) when a
+  // post lands — re-read the board so the fresh post shows up (the seam that
+  // replaces the old inline composer's onPostCreated callback).
+  useEffect(() => {
+    const onPostCreated = () => loadDiscover(sortConfig);
+    window.addEventListener('post-created', onPostCreated);
+    return () => window.removeEventListener('post-created', onPostCreated);
+  }, [loadDiscover, sortConfig]);
+
   // The reaction pair (post-actions.md): like XOR dislike, one reaction per
   // user. Optimistic update of the own-reaction maps + the post's like/dislike
   // counts, rollback on error. The data layer (toggleReactionKind) enforces
@@ -973,17 +999,16 @@ export default function DiscoverScreen({ mode: modeOverride }: { mode?: Discover
 
   // Repost (reposts.md): a repost is a POST, not a reaction toggle. Tapping
   // the repeat icon opens the app-level composer in repost mode (the shared
-  // RepostContext seam) with this post as the context, then returns to the
-  // feed (where the app-level composer lives) so the repost is created there.
-  // The composer's createRepost is the single write; the count + fill
+  // RepostContext seam) with this post as the context — the New Post sheet
+  // pops up in place (no navigation; the user stays on the wall). The
+  // composer's createRepost is the single write; the count + fill
   // re-derive from the post-based read on the next load.
   const { setRepostingTo } = useRepost();
+  const { openComposer } = useComposer();
   const navigate = useNavigate();
   function handleRepost(post: PostRecord) {
     setRepostingTo(post);
-    // The composer lives on the Following tab (the Posts screen) — a repost
-    // from the Discover board navigates there so the composer is visible.
-    navigate('/feed?tab=following');
+    openComposer();
   }
 
   // Write a knob state to the URL (the deep-linkable ranking). The param is
@@ -1052,9 +1077,13 @@ export default function DiscoverScreen({ mode: modeOverride }: { mode?: Discover
     return filtered;
   }, [scoredPosts, activeTag, searchQuery]);
 
-  // YouTube view: media posts only (video + image)
+  // Video wall: landscape videos only (the YouTube shape). Portrait videos are
+  // shorts — they live in the Shorts destination (the TikTok shape), not here.
+  // The aspect-ratio split keeps the two from bleeding into each other: a user
+  // clicks a landscape video in the wall (→ the watch page) or a short in the
+  // Shorts wall (→ the lens), never the other way around.
   const mediaPosts = useMemo(
-    () => visiblePosts.filter(p => postHasVideo(p)),
+    () => visiblePosts.filter(p => postHasVideo(p) && !postIsPortraitVideo(p)),
     [visiblePosts],
   );
 
@@ -1094,15 +1123,10 @@ export default function DiscoverScreen({ mode: modeOverride }: { mode?: Discover
             </div>
           )}
 
-          {/* The composer — the operator: "you can make a new post from the
-              explorer too". Compact: it rests as a single-line bar so the
-              video wall, not the composer, is the hero (design.md §10).
-              Hidden in anon mode (a signed-out visitor can't post). */}
-          {!isAnon && (
-          <div data-testid="discover-composer" className="border-b border-border">
-            <PostComposer compact onPostCreated={() => loadDiscover(sortConfig)} />
-          </div>
-          )}
+          {/* The composer is NOT inline (the operator: "it should be
+              invisible") — the app-level New Post sheet (the Layout's
+              floating "+" button) is the single compose surface. The video
+              wall is the hero, not a composer box (design.md §10). */}
 
           {/* Controls: presets + knobs */}
           <div className="px-4 py-3 md:px-4 lg:px-6">

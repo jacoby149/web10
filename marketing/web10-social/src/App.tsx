@@ -31,6 +31,8 @@ import { initNotifications, teardownNotifications } from '@/data/notifications';
 import { trackEvent, hotjarIdentify } from '@/lib/analytics';
 import { PostLightbox } from '@/components/Bio/PostLightbox';
 import { RepostProvider } from '@/context/RepostContext';
+import { ComposerProvider } from '@/context/ComposerContext';
+import { NewPostSheet } from '@/components/Feed/NewPostSheet';
 import type { PostRecord, MediaRecord, Visibility, ResolvedMediaRef } from '@/data/types';
 import { fromResolvedMediaRef } from '@/data/types';
 
@@ -404,6 +406,7 @@ function App() {
         </div>
       )}
       <RepostProvider>
+      <ComposerProvider>
       <Routes>
         <Route element={<Layout onLogout={handleLogout} onLogin={handleLogin} isAnon={isAnon} onReportBug={() => handleReportBug('button')} />}>
           <Route path="/feed" element={<PostsScreen onAuthorClick={handleAuthorClick} />} />
@@ -435,6 +438,13 @@ function App() {
           <Route path="*" element={<Navigate to="/feed" replace />} />
         </Route>
       </Routes>
+      {/* The app-level composer (the "New Post" sheet) — one composer for the
+          whole app, opened by the Layout's floating "+" button, a group
+          feed's "Post to this group", or a repeat icon (repost mode). The
+          inline composer boxes on the feed / profile / video / group
+          surfaces are retired (the operator: "it should be invisible"). */}
+      <NewPostSheet />
+      </ComposerProvider>
       </RepostProvider>
       <Toaster />
       {/* D72: the PWA install surface — one dismissible card at the moment of

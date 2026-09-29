@@ -151,12 +151,60 @@ export function trackPageview(path: string) {
   });
 }
 
+// ---------------------------------------------------------------------------
+// First-party beacon to the NODE (D56). Persistent in ClickHouse
+// (marketing_events) — the operator's own numbers, read in the node console.
+// Content-free: paths + error strings only, never post text / media / PII.
+// Fire-and-forget; never blocks render, never throws.
+// ---------------------------------------------------------------------------
+
+const APP = 'web10-social';
+
+function fireNode(body: object) {
+  try {
+    navigator.sendBeacon?.(`${API_ORIGIN}/analytics/event`, JSON.stringify(body)) ??
+      fetch(`${API_ORIGIN}/analytics/event`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body),
+        keepalive: true,
+      }).catch(() => {});
+  } catch {
+    // telemetry must never break the app
+  }
+}
+
+/** First-party pageview to the node (complements the GA4 pageview). */
+export function trackNodePageview(path: string) {
+  fireNode({
+    type: 'pageview',
+    app: APP,
+    path,
+    referrer: document.referrer || null,
+    user_agent: navigator.userAgent,
+  });
+}
+
+/** First-party JS error to the node (content-free). */
+export function reportNodeError(message: string, opts?: { source?: string; line?: number; column?: number }) {
+  fireNode({
+    type: 'error',
+    app: APP,
+    message: String(message).slice(0, 2000),
+    source: opts?.source?.slice(0, 500),
+    line: opts?.line,
+    column: opts?.column,
+    route: typeof window !== 'undefined' ? window.location.pathname : '',
+    user_agent: navigator.userAgent?.slice(0, 500),
+  });
+}
+
 /**
  * Track a content-free analytics event.
  *
  * Events are aggregate-only: no post text, no media URLs, no PII.
- * Allowed events: login, logout, post_created, follow, unfollow,
- * pwa_install_prompt_shown, pwa_installed.
+ * Allowed events: login, logout, post_created, new_post_open, follow,
+ * unfollow, pwa_install_prompt_shown, pwa_installed.
  * All metadata is structural (visibility, screen, trigger), never content.
  *
  * The PWA events (D72) carry only the **trigger context** — where the prompt
@@ -168,6 +216,7 @@ export function trackEvent(
     | 'login'
     | 'logout'
     | 'post_created'
+    | 'new_post_open'
     | 'follow'
     | 'unfollow'
     | 'pwa_install_prompt_shown'

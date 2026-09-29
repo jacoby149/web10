@@ -269,6 +269,9 @@ test.describe('Social notifications — browser gauntlet (real-time badge, no re
         await waitForLog(p2pLogsA, 'initP2P — READY', 30_000);
 
         const postText = `notif post ${Date.now()}`;
+        // The composer is NOT inline (3.184.0) — open the app-level sheet via the FAB.
+        await pageA.locator('[data-testid="new-post-fab"]').click();
+        await expect(pageA.locator('[data-testid="post-composer"]')).toBeVisible();
         await pageA.locator('[data-testid="composer-textarea"]').fill(postText);
         await pageA.locator('[data-testid="post-submit"]').click();
         // A's post renders in A's feed (the optimistic / persisted append).

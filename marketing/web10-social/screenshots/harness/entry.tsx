@@ -28,6 +28,9 @@ import PostComposer from '@/components/Feed/PostComposer';
 import MonetizationScreen from '@/components/Monetization/MonetizationScreen';
 import NodeSettingsScreen from '@/components/NodeSettings/NodeSettingsScreen';
 import { InstallPrompt } from '@/components/shared/InstallPrompt';
+import { RepostProvider } from '@/context/RepostContext';
+import { ComposerProvider } from '@/context/ComposerContext';
+import { NewPostSheet } from '@/components/Feed/NewPostSheet';
 
 // Fake hls.js — the harness has no backend, so the seeded manifest sigs are
 // not valid against the production API (a real hls.js would 403 → the
@@ -127,6 +130,8 @@ const initialRoute =
 
 createRoot(document.getElementById('root')!).render(
   <MemoryRouter initialEntries={[initialRoute]}>
+    <RepostProvider>
+    <ComposerProvider>
     <Routes>
       <Route element={<Layout onLogout={() => {}} onLogin={() => {}} isAnon={anon} onReportBug={() => {}} />}>
         <Route path="/feed" element={<PostsScreen />} />
@@ -152,5 +157,9 @@ createRoot(document.getElementById('root')!).render(
     </Routes>
     {/* D72: the install surface — forced open by ?pwa-prompt=1 for the capture. */}
     <InstallPrompt />
+    {/* The app-level New Post sheet (the FAB in the Layout opens it). */}
+    <NewPostSheet />
+    </ComposerProvider>
+    </RepostProvider>
   </MemoryRouter>,
 );

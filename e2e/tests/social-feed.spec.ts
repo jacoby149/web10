@@ -567,19 +567,26 @@ test.describe('Social feed gauntlet — render → post → reload persists', ()
     // --- /feed renders the followed creator's post ---
     await page.goto(`${SOCIAL_BASE}/feed?tab=following`);
     await page.waitForLoadState('networkidle');
-    await expect(page.locator('[data-testid="post-composer"]')).toBeVisible();
+    // The composer is NOT inline (3.184.0) — the floating "+" FAB is the
+    // resting compose chrome; the full composer pops up in the app-level sheet.
+    await expect(page.locator('[data-testid="new-post-fab"]')).toBeVisible();
     await expectFeedShowsPost(page, creatorPost);
 
     // --- Post via the composer (public → discover + own followers group) ---
+    // Open the app-level New Post sheet (the FAB) so the composer is visible.
+    await page.locator('[data-testid="new-post-fab"]').click();
     const myPost = `my feed post ${Date.now()}`;
+    await expect(page.locator('[data-testid="post-composer"]')).toBeVisible();
     await page.locator('[data-testid="post-composer"] textarea').fill(myPost);
     await page.locator('[data-testid="post-submit"]').click();
 
-    // The composer succeeded (no error surfaced). The user's OWN post surfaces
-    // in their OWN feed: createPost provisions the user's own followers group
-    // (user as owner) before attaching, so readFeed (the user's groups minus
-    // discover) includes it. The remount re-reads the feed after the post.
+    // The composer succeeded (no error surfaced). The sheet closes on a
+    // successful post + the user's OWN post surfaces in their OWN feed
+    // (createPost provisions the user's own followers group (user as owner)
+    // before attaching, so readFeed (the user's groups minus discover) includes
+    // it). The screen re-reads the feed after the post (the `post-created` event).
     await expect(page.locator('[data-testid="composer-error"]')).toHaveCount(0);
+    await expect(page.locator('[data-testid="new-post-sheet"]')).toHaveCount(0);
     await expectFeedShowsPost(page, myPost);
     // It also landed on the discover board (a public post is attached there).
     await expectGroupContainsPost(request, viewer.token, DISCOVER_GROUP_ID, myPost);
@@ -587,7 +594,8 @@ test.describe('Social feed gauntlet — render → post → reload persists', ()
     // --- Reload: the session + the feed + the post persist ---
     await page.reload();
     await page.waitForLoadState('networkidle');
-    await expect(page.locator('[data-testid="post-composer"]')).toBeVisible();
+    // The FAB is back (the composer is not inline — the sheet starts closed).
+    await expect(page.locator('[data-testid="new-post-fab"]')).toBeVisible();
     // The feed still renders the followed creator's post across the reload.
     await expectFeedShowsPost(page, creatorPost);
     // The viewer's OWN post persists in their OWN feed across the reload.

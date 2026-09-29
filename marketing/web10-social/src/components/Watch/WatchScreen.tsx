@@ -40,6 +40,7 @@ import {
 } from '@/data';
 import { getWapi } from '@/data/wapi';
 import { useRepost } from '@/context/RepostContext';
+import { useComposer } from '@/context/ComposerContext';
 import { defaultKnobState, knobStateToSort, type KnobState, type PowerMeanSortConfig } from '@/lib/powerMean';
 import {
   rankWatchQueue,
@@ -279,10 +280,22 @@ export default function WatchScreen() {
       setMediaMap(media);
 
       // 5. The queue: the board re-ranked for similarity to the current video.
-      //    Videos only (the "What's next" is a video queue — the Home wall is
-      //    videos-only, so the queue is too).
+      //    Landscape videos only (the "What's next" is a video queue — the
+      //    Video wall is landscape-only, so the queue is too). Portrait videos
+      //    are shorts (the TikTok shape) — they live in the Shorts destination,
+      //    not the YouTube-shaped watch queue. The aspect-ratio split keeps the
+      //    two from bleeding into each other.
       const ranked = rankWatchQueue(board, p, knobState, relatedness);
-      const videoQueue = ranked.filter((q) => (media[q._id || ''] || []).some((m) => m.mime_type?.startsWith('video/')));
+      const videoQueue = ranked.filter((q) => {
+        const ms = media[q._id || ''] || [];
+        const hasVideo = ms.some((m) => m.mime_type?.startsWith('video/'));
+        if (!hasVideo) return false;
+        // Exclude portrait (9:16) shorts — the queue is landscape only.
+        const isPortrait = ms.some(
+          (m) => m.mime_type?.startsWith('video/') && !!m.width && !!m.height && m.width < m.height,
+        );
+        return !isPortrait;
+      });
       setQueue(videoQueue);
 
       // 6. Engagement for the current post (the ref pattern — count the
@@ -374,15 +387,17 @@ export default function WatchScreen() {
 
   // ── Repost (reposts.md): a repost is a POST, not a reaction toggle. The
   //    repeat icon opens the app-level composer in repost mode (the shared
-  //    RepostContext seam — the same composer the feed uses) and returns to
-  //    the feed, where the composer lives. The composer's createRepost is the
-  //    single write; the count + fill re-derive on the next load.
+  //    RepostContext seam) — the New Post sheet pops up in place (no
+  //    navigation; the user stays on the watch page). The composer's
+  //    createRepost is the single write; the count + fill re-derive on the
+  //    next load.
   const { setRepostingTo } = useRepost();
+  const { openComposer } = useComposer();
   const handleRepost = useCallback(() => {
     if (!token || !post) return;
     setRepostingTo(post);
-    navigate('/feed');
-  }, [token, post, setRepostingTo, navigate]);
+    openComposer();
+  }, [token, post, setRepostingTo, openComposer]);
 
   // ── Follow toggle (the overlay + the author row) ───────────────────────────
   const handleToggleFollow = useCallback(async () => {
