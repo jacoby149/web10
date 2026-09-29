@@ -112,10 +112,17 @@ export function AdBlock({ ad, className }: { ad: AdRecord; className?: string })
         </span>
       </div>
 
-      {/* The creative — media leads (like a post), then the copy. */}
+      {/* The creative — media leads (like a post), then the two bodies (D82):
+          the title (the line) + the caption (`text`). An ad is a `posts` doc,
+          so it carries the same fields as any post. */}
       {hasMedia && <AdMedia media={mediaItems[0]} />}
+      {ad.title && (
+        <p className="px-3 pt-3 text-sm font-semibold leading-snug text-foreground" data-testid="ad-title">
+          {ad.title}
+        </p>
+      )}
       {ad.text && (
-        <p className="px-3 pt-3 text-sm text-foreground leading-relaxed whitespace-pre-wrap break-words">
+        <p className={cn('px-3 text-sm text-foreground leading-relaxed whitespace-pre-wrap break-words', ad.title ? 'pt-1' : 'pt-3')}>
           {ad.text}
         </p>
       )}

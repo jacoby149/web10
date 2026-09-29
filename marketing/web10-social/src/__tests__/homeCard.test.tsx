@@ -46,6 +46,28 @@ beforeEach(() => {
   window.Hls = FakeHls as unknown as typeof window.Hls;
 });
 
+describe('HomeCard — the title (D82)', () => {
+  it('shows the post title as the card title when present', async () => {
+    const { HomeCard } = await import('@web10/discover');
+    const withTitle: DiscoverPost = { ...post, title: 'My Video Title' };
+    render(<HomeCard post={withTitle} testId="hc" />);
+    expect(screen.getByTestId('hc-title')).toHaveTextContent('My Video Title');
+  });
+
+  it('falls back to the post text (truncated) when there is no title', async () => {
+    const { HomeCard } = await import('@web10/discover');
+    render(<HomeCard post={post} testId="hc" />);
+    expect(screen.getByTestId('hc-title')).toHaveTextContent('Just a video');
+  });
+
+  it('falls back to the display name when there is no title and no text', async () => {
+    const { HomeCard } = await import('@web10/discover');
+    const noText: DiscoverPost = { ...post, text: undefined };
+    render(<HomeCard post={noText} testId="hc" />);
+    expect(screen.getByTestId('hc-title')).toHaveTextContent('Video Creator');
+  });
+});
+
 describe('HomeCard — the duration badge is a live time-lapse (the YouTube home behavior)', () => {
   it('at rest: the badge shows the clip total (2:03 for a 123s clip)', async () => {
     const { HomeCard } = await import('@web10/discover');
