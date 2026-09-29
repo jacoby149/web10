@@ -173,7 +173,7 @@ chrome/renames (A + B) are independent of the marketing work (C). All client-sid
 
 ### B — Social chrome: search to the sidebar, tabs to the top bar (web10-social)
 
-> **Reversed (29.09.2026, 3.172.0):** the operator's pass — "we can definitely
+> **Reversed (29.09.2026, 3.174.0):** the operator's pass — "we can definitely
 > write web10 in purple like how we used to have it, and have the search be in
 > the topbar again, the design just works now, instead of this traffic jam."
 > B1 (mark-only) + B2 (sidebar search) are undone: the sidebar keeps the full

@@ -1,10 +1,10 @@
 # Global Search — the top-bar everything-search (operator pass, 18.09.2026)
 
-**Status: SHIPPED + AMENDED (3.162.0) + RE-AMENDED (3.172.0).** The
+**Status: SHIPPED + AMENDED (3.162.0) + RE-AMENDED (3.174.0).** The
 always-expanded everything-search shipped in the desktop **top bar** (S1–S4).
 `discover-ia-consistency.md` (3.157.0) moved the desktop field's home from the
 top bar to the sidebar (the operator's Facebook-style chrome). **On 29.09.2026
-(3.172.0) the field's home moved BACK to the top bar** — the operator's pass:
+(3.174.0) the field's home moved BACK to the top bar** — the operator's pass:
 "have the search be in the topbar again, the design just works now, instead of
 this traffic jam." The desktop top bar now carries the **search field** (a
 fixed-width pill, left slot) + the bell + the account row; the sidebar carries
