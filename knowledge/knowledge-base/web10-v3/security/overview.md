@@ -28,6 +28,8 @@ Every read query must:
 
 There is no sandboxed aggregation pipeline (v2). There is no cross-collection stage (v2). The ClickHouse queries are constructed by the API layer — they always include the `author_key` or group membership filter.
 
+**The membership check includes the reserved principal-class rows (D58).** A reader reads a group's documents if they're a literal member (`member_key = reader`) **OR** the group carries the `anyone` grant (always — the public class) **OR** the `authenticated` grant (real users only). This is why the public (discover) board is anon-readable: the discover group's public member is the `anyone` class (the legacy `anon` row was renamed), not a literal `anon` membership. Every read path — the group read, the **read-by-id** (`read_document_by_id`, the watch page's post read), the people directory — applies this same principal-class gate. A read path that checks only literal membership (`member_key = reader`) silently 404s for anon on public groups (the watch-page bug, 3.172.1).
+
 ```mermaid
 flowchart TD
     A["API receives request"] --> B{"Token username?"}

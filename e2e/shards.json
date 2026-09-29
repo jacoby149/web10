@@ -23,6 +23,7 @@
         "social-profile.spec.ts",
         "social-settings.spec.ts",
         "social-trending.spec.ts",
+        "social-watch.spec.ts",
         "social-groups.spec.ts",
         "social-groups-directory.spec.ts",
         "social-post-feed.spec.ts",
