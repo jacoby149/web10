@@ -146,19 +146,25 @@ a query input.
 
 The read layer is not a *feature* — it is the **business model**. A node earns
 from *serving reads*; node-ads (D57) ride with reads (operator-curated posts,
-not a programmatic ad network — D5). In client-side fan-out, when alice (on A)
-reads bob's post, the client hits **B** for it, **B serves the read + B's ad**,
-and **B earns the impression**. The federation *routes read-revenue to the
-content-hosting node*. That is the "creator runs a node and monetizes" thesis
-(D5) made cross-node: bob's content earns B's ad revenue from reads by users on
-*any* node. More reads → more ad slots → more revenue, linearly.
+not a programmatic ad network — D5). In client-side fan-out, the user is *on*
+their home node (A) — that's where the app session runs and where the ad slots
+are. **The home node serves the ads for the user's session**, so it earns the
+**majority** of their ad impressions — not because of any content proportion,
+but simply because the user is on it. When the user reads content from a foreign
+node (bob's post on B), B serves the content; B's ads can ride with that content
+(a minority). The home node is the "platform" for the user; foreign nodes are
+content sources. That is the "creator runs a node and monetizes" thesis (D5)
+made cross-node: a node monetizes the users it hosts (serves their ads) and the
+content it serves.
 
 **Why it works cross-node without the node holding the viewer's data:**
-node-ads are operator-curated, **not user-targeted**. B doesn't need alice's
-data to serve B's ad — the ad is the same for whoever reads bob's post. No
-targeting, no PII crossing the boundary. That is the readable-by-design thesis
-(I4) doing monetization work: the data was never secret, so a node can serve a
-global read (and its ad) to a foreign viewer without a privacy violation.
+node-ads are operator-curated, **not user-targeted**. A doesn't need to send
+alice's data to B to earn her ad revenue — A serves the ads *for her session*
+(on A). B only serves content when the user reads B's stuff; B's ads (if any)
+ride with that content. No PII crosses the boundary. That is the
+readable-by-design thesis (I4) doing monetization work: the data was never
+secret, so a node can serve a foreign viewer's reads without a privacy
+violation.
 
 **The "feel like one node" spectrum — what's winnable, what's the wall:**
 
@@ -193,25 +199,23 @@ global read (and its ad) to a foreign viewer without a privacy violation.
   what ClickHouse is, and not what users need. **v2 delivers the "unified
   nodes" feeling without picking this fight.**
 - **Ads (a natural outcome, not a system):** no settlement, no Stripe, no cut
-  for routing. Ads ride with reads (D57 — node-ads are operator-curated posts);
-  **each node keeps the ad revenue from the reads it serves.** The user is *on*
-  A (their home node), so A serves the **majority** of their ad impressions —
-  their feed + discover content lives on A, so A's discover-type ads dominate
-  their view. When they read B's content (a follow on B), B serves B's ad for
-  that read. So each node's ad revenue is naturally proportional to the reads it
-  serves, and the home node (A) gets the majority. **No metering, no ledger, no
-  settlement** — it falls out of "ads ride with reads" + "the user's home node
-  is where most of their reads are."
+  for routing. **The user is on A** (their home node / session), so **A serves
+  the ads for the user's session and earns the majority of their ad
+  impressions** — not because of any content proportion, but simply because the
+  user is on A. When the user reads foreign content (bob's post on B), B serves
+  the content; B's ads can ride with that content (a minority). Each node
+  monetizes the users it hosts (serves their session ads) and the content it
+  serves. **No metering, no ledger, no settlement** — it falls out of "the user
+  is on their home node" + "ads ride with reads" (D57).
 
 **The honest summary:** you get "feel like one node" at the **read layer**
 (eventually-consistent global counts, fast local aggregation via ClickHouse +
 API-layer merge) — and that is all that's needed, because reads are what's
 profitable. The home node (A) keeps the **majority** of the user's ad revenue
-(their feed + discover content lives on A, so A serves most of their ad
-impressions); a foreign node (B) keeps the ad revenue from the reads it serves.
-No settlement. You do *not* get "feel like one node" at the write layer (a
-single strongly-consistent global counter across two independent nodes) — and
-you don't need to.
+because the user is *on* A — A serves the ads for the user's session; a foreign
+node (B) keeps the ad revenue from the content it serves. No settlement. You do
+*not* get "feel like one node" at the write layer (a single strongly-consistent
+global counter across two independent nodes) — and you don't need to.
 
 ---
 
