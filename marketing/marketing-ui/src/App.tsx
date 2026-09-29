@@ -39,6 +39,8 @@ function App({ onReportBug }: { onReportBug: () => void }) {
           <Route path="people" element={<Trending />} />
           <Route path="video" element={<Trending />} />
           <Route path="shorts" element={<Trending />} />
+          {/* Legacy: the old Hot Gossip route (renamed to Posts, 3.185.0). */}
+          <Route path="hot-gossip" element={<Navigate to="/trending" replace />} />
         </Route>
         <Route path="/links" element={<Links />} />
         <Route path="/everything" element={<Everything />} />
