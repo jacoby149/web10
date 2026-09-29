@@ -20,6 +20,7 @@ function mockV3Client() {
     joinGroup: vi.fn(),
     leaveGroup: vi.fn(),
     getGroupMembers: vi.fn(),
+    byUserGroups: vi.fn(),
     addGroupMember: vi.fn(),
     removeGroupMember: vi.fn(),
     createGroup: vi.fn(),
@@ -69,6 +70,42 @@ describe('follows v3 data layer', () => {
       mock.leaveGroup.mockResolvedValue({ member_key: 'alice', role: 'member' });
       await follows.unfollowUser('bob');
       expect(mock.leaveGroup).toHaveBeenCalledWith('web10.app/groups/users/bob/followers');
+    });
+  });
+
+  describe('listUserFollowing (D80: the real following read)', () => {
+    it('queries by-user with the provider/username member key + the followers tag, and derives the followed user from each group owner', async () => {
+      mock.byUserGroups.mockResolvedValue({
+        groups: [
+          { group_id: 'web10.app/groups/users/bob/followers', owner: 'bob' },
+          { group_id: 'web10.app/groups/users/carol/followers', owner: 'carol' },
+        ],
+        limit: 20,
+        offset: 0,
+      });
+      const result = await follows.listUserFollowing('alice', 'web10.app', { limit: 20, offset: 0 });
+      // The node stores member_key as the bare username; the endpoint
+      // normalizes the provider/username form, so the client sends the full
+      // form and the node resolves it to the same rows.
+      expect(mock.byUserGroups).toHaveBeenCalledWith('web10.app/alice', {
+        tag: 'web10-social-followers',
+        limit: 20,
+        offset: 0,
+      });
+      expect(result).toEqual([
+        { username: 'bob', provider: 'web10.app' },
+        { username: 'carol', provider: 'web10.app' },
+      ]);
+    });
+
+    it('falls back to the bare username when no provider is given', async () => {
+      mock.byUserGroups.mockResolvedValue({ groups: [], limit: 20, offset: 0 });
+      await follows.listUserFollowing('alice', undefined, { limit: 20, offset: 0 });
+      expect(mock.byUserGroups).toHaveBeenCalledWith('alice', {
+        tag: 'web10-social-followers',
+        limit: 20,
+        offset: 0,
+      });
     });
   });
 
