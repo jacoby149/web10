@@ -256,10 +256,15 @@ async function seedLandscapeVideo(
   const deadline = Date.now() + 200_000;
   let doc: any = null;
   while (Date.now() < deadline) {
-    const readRes = await v3Post(request, `${API_BASE}/v3/read`, { token, service: 'media_metadata', doc_id: docId });
-    expect(readRes.ok()).toBeTruthy();
-    doc = await readRes.json();
-    const ts = doc.body?.transcoding_settings;
+    // Poll via media/list (NOT v3/read by doc_id): the media doc created via
+    // media/confirm is not attached to any group, so the read-by-id membership
+    // join 404s. media/list reads by author_key (no group), which is how the
+    // social app's resolveMediaRefs → listMedia finds it too.
+    const listRes = await v3Post(request, `${API_BASE}/v3/media/list`, { token, doc_ids: [docId] });
+    expect(listRes.ok(), `media/list failed (${listRes.status})`).toBeTruthy();
+    const docs = (await listRes.json()) as any[];
+    doc = docs.find((d) => d.doc_id === docId) || null;
+    const ts = doc?.body?.transcoding_settings;
     if (ts && (ts.status === 'done' || ts.status === 'failed')) break;
     await new Promise((r) => setTimeout(r, 2000));
   }
