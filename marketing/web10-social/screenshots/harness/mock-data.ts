@@ -1162,7 +1162,10 @@ export async function resolveMediaRefs<T>(refs: T[]): Promise<T[]> {
   return out;
 }
 export async function readUserProfile(): Promise<unknown> {
-  return { display_name: 'Nova', username: 'nova', provider: 'web10', avatar_ref: '', bio: 'Synthwave producer' };
+  // A real avatar_ref so the watch page's author row resolves a face (the
+  // avatar is resolved from the profile's avatar_ref via resolveMediaRefs —
+  // the D83 fix for the overlay's broken mediaMap lookup).
+  return { display_name: 'Nova', username: 'nova', provider: 'web10', avatar_ref: 'face-avatar', bio: 'Synthwave producer' };
 }
 // The watch page's author read (the overlay's "recent posts" strip) — the
 // author's public posts (a couple of the seeded discover posts by them).
