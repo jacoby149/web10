@@ -1218,7 +1218,7 @@ describe('ProfilesBrowser (C3)', () => {
     expect(names[1]).toHaveTextContent('lofi');
   });
 
-  it('shows the quiet state when the D0 read returns no users', async () => {
+  it('shows the empty state when the D0 read returns no users', async () => {
     const { ProfilesBrowser } = await import('@/components/ProfilesBrowser');
     mockFetch({
       '/v3/users/directory': { users: [], limit: 24, offset: 0 },
@@ -1226,8 +1226,30 @@ describe('ProfilesBrowser (C3)', () => {
     });
     render(<MemoryRouter><ProfilesBrowser query="" /></MemoryRouter>);
     await waitFor(() => {
-      expect(screen.getByTestId('discover-profiles-people-quiet')).toBeInTheDocument();
+      expect(screen.getByTestId('discover-profiles-people-empty')).toBeInTheDocument();
     });
+  });
+
+  it('a small node (<10 people) still shows a person who matches the search', async () => {
+    // The operator's bug: a 1-person node where a search query matches. The old
+    // "quiet" heuristic (<10 people) suppressed the match and showed
+    // "No profiles found" — the match must render instead.
+    const { ProfilesBrowser } = await import('@/components/ProfilesBrowser');
+    mockFetch({
+      '/v3/users/directory': {
+        users: [{ username: 'jacoby149', follower_count: 2, profile: { display_name: 'Jacob Hoffman' } }],
+        limit: 24,
+        offset: 0,
+      },
+      '/v3/groups/directory': { groups: [], limit: 24, offset: 0 },
+    });
+    render(<MemoryRouter><ProfilesBrowser query="jac" /></MemoryRouter>);
+    await waitFor(() => {
+      expect(screen.getByTestId('discover-profiles-people-list')).toBeInTheDocument();
+    });
+    expect(screen.getAllByTestId('trending-person-card')).toHaveLength(1);
+    expect(screen.getByText('Jacob Hoffman')).toBeInTheDocument();
+    expect(screen.queryByTestId('discover-profiles-no-results')).not.toBeInTheDocument();
   });
 
   it('shows the error state when the D0 read fails', async () => {
