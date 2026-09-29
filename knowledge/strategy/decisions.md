@@ -9,6 +9,52 @@ Status legend: [decided] intent set · [in-progress] · [open] still debating.
 
 ---
 
+### D84 — Multi-node federation: one canonical principal format + the foundation [decided, in-progress]
+
+Operator, 29.09.2026 — after the profile Following-tab fix (3.179.1) exposed the member_key format drift: "this doesnt sound good, because the full provider/username should be used, what if eventually people follow two same usernames on different providers?" → "you should do it right now! make it work multi provider, this is the main hangup that stops it from doing so" → "we need to make the multi node thing possible, set the foundation, we don't need to show it working right away, but yes we should be reading the other node's feed some day, multi node feed absolutely, but there is more we need to discuss about how that would work. i.e. does one node query the other node, or does the user query both nodes (the node they're on and the node they're not on)?"
+
+**The decision.** web10 is a **federation of nodes**, not one node. The foundation for that is two things: (1) a **single canonical principal format** across the whole identity layer, and (2) **cross-node token verification** (D7 / I1 — already in flight). This decision locks the canonical format and scopes the foundation; it does **not** build the cross-node read path yet (that is an open question, below).
+
+**The current state (why this is the hangup).** The node is architecturally single-node, and the identity layer is **inconsistent** — the same user is stored under different keys depending on the write path:
+
+| Surface | Key format | Example |
+|---|---|---|
+| `documents.author_key` | bare username | `jacoby149` |
+| `group_members.member_key` — **followers** groups | bare username | `jacoby149` |
+| `group_members.member_key` — **community** groups | `{provider}/users/{username}` | `web10.app/users/jacoby149` |
+| `group_members.member_key` — **DM** groups | hardcoded `web10.app/users/{username}` | `web10.app/users/jacoby149` |
+| reader principal (the JWT `username` claim) | bare username | `jacoby149` |
+
+There is **no `provider` column** — the provider is either omitted (followers, author_key) or crammed into the string (community/DM, and DM even hardcodes `web10.app` regardless of the real provider). The codebase already knows this is a mess: `import_worker.py` checks **both** the bare and the `provider/users/username` form because it can't tell which a given group used. The `/by-user` Following-tab bug (3.179.1) is one symptom of this drift, not the disease.
+
+**The canonical format (the load-bearing call).** One column, **`{provider}/users/{username}`** — chosen across the *entire* identity layer, not just `group_members`:
+
+- **`author_key`** (the `documents` table's primary key) → `{provider}/users/{username}`.
+- **`group_members.member_key`** (all three group kinds) → `{provider}/users/{username}`.
+- **the reader principal** (the JWT `username` claim, as used by every `member_key = reader` / `author_key = reader` gate) → `{provider}/users/{username}`.
+
+**Why one column, not two** (the operator asked "one column or two"): two columns is the Postgres instinct, but in ClickHouse it buys no integrity (no UNIQUE constraints — consistency is still enforced at the app layer) and it breaks the **principal classes** (`anyone` / `authenticated` / `anon` have no provider — a two-column model forces a sentinel like `provider = ''`). One column keeps the read gate a plain equality JOIN (`member_key = reader`) and makes the migration **data-only** (no `ORDER BY` change, no table rebuild). `{provider}/users/{username}` is unambiguous, self-describing, and already the format community + DM groups use.
+
+**The four phases (the foundation, in order).** Each is its own PR/lane; this decision scopes them, it does not build them.
+
+- **A — the canonical principal format + migration.** Rewrite `author_key`, every `group_members.member_key`, and the reader principal to `{provider}/users/{username}`. A **data migration** (insert new-format rows, tombstone the old — the ReplacingMergeTree pattern), not a schema change. The reader principal is derived from the token as `{provider}/users/{username}` (the token already carries both claims). This is the piece that dissolves the "two same usernames on different providers" collision. **Gates B, C, D.**
+- **B — cross-node token verification (D7 / I1, already in flight).** HS256 → RS256/EdDSA + JWKS: per-node keypair, public keys at a well-known JWKS URL, offline verification. A node verifies *another* node's token cryptographically (I1) instead of rejecting it. The scaffolding exists but is dead (`certify_with_remote_provider` is defined, never called; `certify` isn't on the active v3 path). **Independent of A** (A is data, B is auth) but both are needed before C.
+- **C — cross-node group membership.** Following someone on another node = joining *their* followers group, which lives on *their* node. The membership row + the follow relationship must be expressible across the node boundary. This is where the canonical format (A) and cross-node auth (B) meet.
+- **D — cross-node reads (the multi-node feed).** The user's feed includes posts from creators on other nodes. **Open — see below.**
+
+**The open question (the read model — to be discussed, not decided).** When a user's feed spans two nodes, **who queries whom?** Two models:
+
+1. **Client-side fan-out** — the user's client (holding tokens for both nodes) queries each node directly and merges. The node stays a dumb broker; the client is the aggregator. Pros: matches the existing **Cross-Node Addressing** SDK seam (`w.read('posts', {}, 'alice', 'api.web10.app')` already routes to a remote node's origin); no node-to-node trust beyond token verification (B); each node only serves its own data (I3 stays local). Cons: the client fans out to N nodes (latency, the "remote() to 10 nodes" concern in `faq/skeptical-points-addressed.md`); the client must merge + rank + dedupe across nodes.
+2. **Server-side proxy** — the user's home node queries the other node on the user's behalf and merges. Pros: the client talks to one node; the home node can cache / rank. Cons: node-to-node trust + a server-side remote call (the "call-the-remote-and-trust-200" anti-pattern D7 rejects, unless it rides JWKS-verified tokens); the home node becomes a proxy for data it doesn't own (I3 / I4 tension — the operator is liable for what it brokers).
+
+**The lean (not a decision):** model 1 (client-side fan-out) is the one that fits the existing architecture — the Cross-Node Addressing seam is already client-side, the node stays a generic broker (D60), and I3 stays local to each node. Model 2 centralizes the merge but imports node-to-node trust that D7 is specifically trying to avoid. **This is the thing to discuss before D is scoped.** The KB's `faq/skeptical-points-addressed.md` already leans "targeted queries, not broadcasts" (a mail query hits the specific nodes from the membership list, not a fan-out to every node) — which is model 1 with targeted routing.
+
+**What it rejects.** (1) **A `provider` column** on `group_members` / `documents` — no integrity gain in ClickHouse, breaks the principal classes, forces a table rebuild. (2) **Leaving the format drift** — the three-format member_key + bare author_key is the root of the Following-tab bug and the cross-provider collision; it must be canonicalized, not patched per-read (the 3.179.1 `/by-user` normalization is a stopgap that collapses to the bare form; it is *reversed* by Phase A, which makes the `provider/username` form the real stored form). (3) **Building the cross-node read path before the canonical format + token verification** — a read path on top of an inconsistent identity + unverifiable cross-node tokens is a house on sand. (4) **A global "one database" federation** — the nodes are separate; federation is the read/write path across them, not a shared store.
+
+**The seam.** `api/app/services/auth.py` (the token verification — D7/I1, Phase B), `api/app/v3/endpoints/auth_helper.py` + the reader-principal derivation (Phase A), `api/app/v3/services/clickhouse.py` (the `author_key` + `member_key` + read-gate — Phase A), the data migration (Phase A), `sdk/src/v3.ts` (the Cross-Node Addressing seam — Phases C/D), `marketing/web10-social/src/data/` (the client-side feed merge — Phase D). KB: `security/overview.md` (I1, the Federation section), `auth/auth.md` (Cross-Node Addressing), `db/clickhouse.md` (the schema). Lane: `multi-node-federation (D84)` in `parallel-execution.md`.
+
+---
+
 ### D83 — The watch page's author is the profile, not an overlay (reversal of the 3.170.0 "stay on the train" rule) [decided]
 
 Operator, 29.09.2026 — "you could also just have about go to their profile page, instead of this extra modal to maintain not sure though what do you think?" (after the watch page's author overlay showed a broken "J" avatar + no banner, and the Follow button read "Follow" on the operator's own video).
