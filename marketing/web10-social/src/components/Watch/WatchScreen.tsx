@@ -170,7 +170,7 @@ function QueueCard({ post, media, authorName, authorAvatar, onOpen, active }: {
         ) : null}
       </div>
       <div className="flex min-w-0 flex-1 flex-col">
-        <p className="line-clamp-2 text-sm font-medium leading-snug text-foreground">{post.text || 'Untitled'}</p>
+        <p className="line-clamp-2 text-sm font-medium leading-snug text-foreground">{post.title || post.text || 'Untitled'}</p>
         <p className="mt-1 truncate text-xs text-muted-foreground">{authorName}</p>
       </div>
     </button>
@@ -350,7 +350,7 @@ export default function WatchScreen() {
       //    The canonical mapper (`fromV3DocToPost`) derives the author from
       //    the doc's `author_key` — the post body carries no author fields
       //    (the write path never puts them there), so a body read renders
-      //    "Unknown".
+      //    "Unknown". It also carries the post's `title` (D82).
       const p = await readPostById(postId);
       if (!p) { setNotFound(true); setLoading(false); return; }
       setPost(p);
@@ -582,8 +582,17 @@ export default function WatchScreen() {
         )}
 
         <h1 className="font-display text-lg font-semibold leading-snug text-foreground" data-testid="watch-title">
-          {post.text || 'Untitled'}
+          {post.title || post.text || 'Untitled'}
         </h1>
+
+        {/* The caption (D82): the post's `text` body, shown under the title
+            when the post carries both (title = the headline, text = the
+            description). A caption-only post shows just the title (the text). */}
+        {post.title && post.text && (
+          <p className="text-sm leading-relaxed text-muted-foreground whitespace-pre-wrap break-words" data-testid="watch-caption">
+            {post.text}
+          </p>
+        )}
 
         {/* The author row (under the video — the watch page's shape). */}
         <div className="flex items-center gap-3" data-testid="watch-author-row">

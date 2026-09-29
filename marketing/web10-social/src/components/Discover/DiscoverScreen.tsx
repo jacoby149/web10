@@ -243,6 +243,7 @@ function postRecordToDiscoverPost(post: PostRecord, mediaItems: MediaRecord[], d
     author: post.author_username || '',
     author_username: post.author_username || '',
     display_name: displayName,
+    title: post.title,
     text: post.text,
     tags: post.tags,
     created_at: post.created_at,

@@ -134,6 +134,20 @@ describe('buildOfferBody / buildNodeAdBody', () => {
     expect(inline.media_refs).toEqual([]);
   });
 
+  it('buildOfferBody writes the title (D82) when provided (an ad is a posts doc)', () => {
+    const body = adsCatalog.buildOfferBody(
+      { kind: 'affiliate', partner: 'Amazon', link: 'https://amzn.to/abc', cta: 'Get it', disclosure: 'I may earn.' },
+      'The caption',
+      'active',
+      [],
+      undefined,
+      'inline',
+      'The headline',
+    );
+    expect(body.title).toBe('The headline');
+    expect(body.text).toBe('The caption');
+  });
+
   it('parseAd reads the format + media_refs', () => {
     const doc = {
       ...AD_DOC,
