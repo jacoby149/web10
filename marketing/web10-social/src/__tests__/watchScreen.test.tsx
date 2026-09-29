@@ -114,6 +114,9 @@ async function renderWatch(path = '/watch/post-cur') {
         {/* The repost seam navigates here (the app-level composer lives on the
             feed route) — a marker so the navigation is assertable. */}
         <Route path="/feed" element={<div data-testid="feed-route" />} />
+        {/* The author click navigates to the profile — a marker so the
+            navigation is assertable (the "About" is the profile page). */}
+        <Route path="/u/:username" element={<div data-testid="profile-route" />} />
       </Routes>
     </MemoryRouter>,
   );
@@ -209,13 +212,14 @@ describe('WatchScreen (the watch page)', () => {
     );
   });
 
-  it('tapping the repost icon opens the composer in repost mode and returns to the feed (the shared seam)', async () => {
+  it('tapping the repost icon opens the composer in repost mode, staying on the watch page (the shared seam)', async () => {
     await renderWatch();
     const btn = await screen.findByTestId('repost-button');
     fireEvent.click(btn);
     await waitFor(() => expect(setRepostingToSpy).toHaveBeenCalledWith(expect.objectContaining({ _id: 'post-cur' })));
-    // The composer lives on the feed route — the watch page navigates there.
-    expect(screen.getByTestId('feed-route')).toBeInTheDocument();
+    // The composer is app-level (the New Post sheet) — the watch page does NOT
+    // navigate away; the user stays on the watch page and the sheet pops up.
+    expect(screen.queryByTestId('feed-route')).not.toBeInTheDocument();
   });
 
   it('renders the "What\'s next" queue (the board, re-ranked) + the relatedness chips', async () => {
@@ -233,6 +237,45 @@ describe('WatchScreen (the watch page)', () => {
     expect(screen.getByTestId('watch-relatedness-mixed')).toHaveAttribute('aria-selected', 'true');
   });
 
+  it('the "What\'s next" queue is landscape-only — a portrait (9:16) short stays out', async () => {
+    // The board gains a portrait (9:16) short — the TikTok shape. The watch
+    // queue is the YouTube shape (landscape), so the short stays out (the
+    // aspect-ratio split: the Video wall and the queue are landscape-only,
+    // portrait lives in the Shorts destination).
+    (data.readDiscoverFeed as ReturnType<typeof vi.fn>).mockResolvedValue([
+      ...BOARD.map((b) => ({
+        _id: b.doc_id,
+        text: b.body.text,
+        created_at: b.created_at,
+        tags: b.tags,
+        author_username: b.body.author_username,
+        author_provider: b.body.author_provider,
+        media_refs: b.body.media_refs,
+        likes: 0,
+        comments: 0,
+        reposts: 0,
+      })),
+      {
+        _id: 'post-short',
+        text: 'a vertical clip',
+        created_at: at(4),
+        tags: ['short'],
+        author_username: 'carol',
+        author_provider: 'web10',
+        media_refs: [{ doc_id: 'm-short', mime_type: 'video/mp4', read_url: 'https://cdn/v/short.mp4', width: 1080, height: 1920, duration_seconds: 15, thumbnail_url: 'https://cdn/t/short.jpg' }],
+        likes: 0,
+        comments: 0,
+        reposts: 0,
+      },
+    ]);
+    await renderWatch();
+    await waitFor(() => expect(screen.getByTestId('watch-queue')).toBeInTheDocument());
+    // The queue has the two landscape board posts — the portrait short is excluded.
+    const cards = screen.getAllByTestId('watch-queue-card');
+    expect(cards).toHaveLength(2);
+    expect(screen.queryByText('a vertical clip')).not.toBeInTheDocument();
+  });
+
   it('clicking a relatedness chip updates ?related= (the deep-link rule)', async () => {
     await renderWatch();
     await waitFor(() => expect(screen.getByTestId('watch-relatedness-same-creator')).toBeInTheDocument());
@@ -242,18 +285,39 @@ describe('WatchScreen (the watch page)', () => {
     expect(screen.getByTestId('watch-relatedness-mixed')).toHaveAttribute('aria-selected', 'false');
   });
 
-  it('opens the author overlay (the "stay on the train" rule) and closes it', async () => {
+  it('clicking the author navigates to their profile (the "About" is the profile page, not a modal)', async () => {
     await renderWatch();
-    await waitFor(() => expect(screen.getByTestId('watch-about-button')).toBeInTheDocument());
-    fireEvent.click(screen.getByTestId('watch-about-button'));
-    await waitFor(() => expect(screen.getByTestId('watch-author-overlay')).toBeInTheDocument());
-    // The overlay shows the face + bio + the follow + view-all affordances.
-    expect(screen.getByTestId('watch-author-overlay-panel')).toHaveTextContent('Alex Honnold');
-    expect(screen.getByTestId('watch-author-overlay-panel')).toHaveTextContent('Free soloist');
-    expect(screen.getByTestId('watch-author-overlay-view-all')).toBeInTheDocument();
-    // Close it (the X).
-    fireEvent.click(screen.getByTestId('watch-author-overlay-close'));
-    await waitFor(() => expect(screen.queryByTestId('watch-author-overlay')).not.toBeInTheDocument());
+    await waitFor(() => expect(screen.getByTestId('watch-author-row')).toBeInTheDocument());
+    // The author row's avatar + name is the "About" affordance — clicking it
+    // navigates to /u/:username (the same destination every other surface's
+    // author click uses). There is no overlay / About button on the watch page.
+    fireEvent.click(screen.getByTestId('watch-author-link'));
+    await waitFor(() => expect(screen.getByTestId('profile-route')).toBeInTheDocument());
+    expect(screen.queryByTestId('watch-author-overlay')).not.toBeInTheDocument();
+    expect(screen.queryByTestId('watch-about-button')).not.toBeInTheDocument();
+  });
+
+  it('hides the Follow button on your own video (you can\'t follow yourself)', async () => {
+    // The current post's author is the viewer (author_key username 'me' = the
+    // token's username). isFollowing returns false (you're not in your own
+    // followers group), so the old code rendered a "Follow" button — the bug.
+    // The self case hides the button entirely.
+    (data.readPostById as ReturnType<typeof vi.fn>).mockResolvedValue(
+      data.fromV3DocToPost({
+        doc_id: 'post-cur',
+        author_key: 'test.localhost/users/me',
+        created_at: at(1),
+        updated_at: at(1),
+        tags: ['climbing'],
+        body: {
+          text: 'My own video',
+          media_refs: [{ doc_id: 'm-cur', mime_type: 'video/mp4', read_url: 'https://cdn/v/cur.mp4', width: 1280, height: 720, duration_seconds: 90, thumbnail_url: 'https://cdn/t/cur.jpg' }],
+        },
+      } as never),
+    );
+    await renderWatch();
+    await waitFor(() => expect(screen.getByTestId('watch-author-row')).toBeInTheDocument());
+    expect(screen.queryByTestId('watch-follow-button')).not.toBeInTheDocument();
   });
 
   it('shows the not-found state when the post is absent', async () => {

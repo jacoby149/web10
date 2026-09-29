@@ -18,7 +18,7 @@ import SettingsScreen from '@/components/Settings/SettingsScreen';
 import GroupsScreen from '@/components/Groups/GroupsScreen';
 import GroupDetailScreen from '@/components/Groups/GroupDetailScreen';
 import PeopleScreen from '@/components/People/PeopleScreen';
-import FeedScreen from '@/components/Feed/FeedScreen';
+import PostsScreen from '@/components/Feed/PostsScreen';
 import NotificationsScreen from '@/components/Notifications/NotificationsScreen';
 import DiscoverScreen from '@/components/Discover/DiscoverScreen';
 import WatchScreen from '@/components/Watch/WatchScreen';
@@ -29,6 +29,9 @@ import PostComposer from '@/components/Feed/PostComposer';
 import MonetizationScreen from '@/components/Monetization/MonetizationScreen';
 import NodeSettingsScreen from '@/components/NodeSettings/NodeSettingsScreen';
 import { InstallPrompt } from '@/components/shared/InstallPrompt';
+import { RepostProvider } from '@/context/RepostContext';
+import { ComposerProvider } from '@/context/ComposerContext';
+import { NewPostSheet } from '@/components/Feed/NewPostSheet';
 
 // Fake hls.js — the harness has no backend, so the seeded manifest sigs are
 // not valid against the production API (a real hls.js would 403 → the
@@ -88,9 +91,13 @@ if (screen === 'install-prompt') {
 const initialRoute =
   screen === 'settings' ? '/settings'
   : screen === 'feed' ? '/feed'
+  : screen === 'posts' ? '/feed'
+  : screen === 'posts-following' ? '/feed?tab=following'
   : screen === 'composer' ? '/composer'
   : screen === 'notifications' ? '/notifications'
     : screen === 'discover' ? '/discover'
+    : screen === 'video' ? '/video'
+    : screen === 'hot-gossip' ? '/hot-gossip'
     : screen === 'discover-searched' ? '/discover?q=lofi'
     : screen === 'discover-people-searched' ? '/discover?tab=explore&q=lofi'
     : screen === 'discover-grid' ? '/discover?view=grid'
@@ -124,12 +131,16 @@ const initialRoute =
 
 createRoot(document.getElementById('root')!).render(
   <MemoryRouter initialEntries={[initialRoute]}>
+    <RepostProvider>
+    <ComposerProvider>
     <Routes>
       <Route element={<Layout onLogout={() => {}} onLogin={() => {}} isAnon={anon} onReportBug={() => {}} />}>
-        <Route path="/feed" element={<FeedScreen />} />
+        <Route path="/feed" element={<PostsScreen />} />
         <Route path="/composer" element={<PostComposer />} />
         <Route path="/notifications" element={<NotificationsScreen />} />
         <Route path="/discover" element={<DiscoverScreen />} />
+        <Route path="/video" element={<DiscoverScreen />} />
+        <Route path="/hot-gossip" element={<DiscoverScreen />} />
         <Route path="/watch/:postId" element={<WatchScreen />} />
         <Route path="/shorts" element={<ShortsScreen />} />
         <Route path="/shorts/:postId" element={<ShortsScreen />} />
@@ -147,5 +158,9 @@ createRoot(document.getElementById('root')!).render(
     </Routes>
     {/* D72: the install surface — forced open by ?pwa-prompt=1 for the capture. */}
     <InstallPrompt />
+    {/* The app-level New Post sheet (the FAB in the Layout opens it). */}
+    <NewPostSheet />
+    </ComposerProvider>
+    </RepostProvider>
   </MemoryRouter>,
 );

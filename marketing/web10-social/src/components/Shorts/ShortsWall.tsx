@@ -1,19 +1,21 @@
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState, useCallback, useRef } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
-import { Play, Search, X } from 'lucide-react';
-import { readShortsFeed, type ShortPost } from '@/data';
+import { Play, Search, X, Loader2 } from 'lucide-react';
+import { readShortsPage, type ShortPost } from '@/data';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 
 const LOG = (...args: unknown[]) => console.log('[shorts-wall]', ...args);
+
+// The page size for the board read (the "load more" increment).
+const PAGE_SIZE = 50;
 
 /**
  * The Shorts explore wall — the "before you pick a short" surface (the
  * operator: "the moment you visit it looks like [the wall] … click a video
  * get into that [infinite scroll] view"). A responsive grid of 9:16 vertical
- * video tiles, capped at 4 columns (`auto-fill, minmax(max(160px, 25%), 1fr)`
- * — each column at least 25% wide, so never more than 4; never narrower than
- * 160px, so fewer columns on small screens — the same wall shape as the
- * profile's content wall). Tapping a tile navigates to `/shorts/:postId` — the
+ * video tiles — 4 across on desktop (the TikTok/YouTube-Shorts shape), fewer
+ * as the width shrinks (explicit breakpoints: 2 on a phone, 3 on a laptop,
+ * 4 on a wide monitor). Tapping a tile navigates to `/shorts/:postId` — the
  * existing full-screen swipe lens (the "youtube what's next" / TikTok infinite
  * scroll).
  *
@@ -25,6 +27,15 @@ export default function ShortsWall() {
   const [shorts, setShorts] = useState<ShortPost[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  // Infinite scroll (the feed's pattern): the wall pages the board until it's
+  // exhausted. `hasMore` keys off the board page size (a full page of tagged
+  // shorts means there may be another); `nextOffsetRef` is the next offset to
+  // fetch (a ref so the stable `loadMore` reads the latest without a stale
+  // closure); `loadingMore` guards against double-fires from the sentinel.
+  const [hasMore, setHasMore] = useState(false);
+  const [loadingMore, setLoadingMore] = useState(false);
+  const nextOffsetRef = useRef(0);
+  const sentinelRef = useRef<HTMLDivElement>(null);
 
   // Deep link: the search query from ?q= (the global search's Shorts category
   // lands here — /shorts?q=…, the S8 four-category search). The wall is now the
@@ -52,24 +63,73 @@ export default function ShortsWall() {
       })
     : shorts;
 
-  async function load() {
+  const load = useCallback(async () => {
     setLoading(true);
     setError(null);
     try {
-      const result = await readShortsFeed(50);
-      LOG('loaded', result.length, 'shorts');
-      setShorts(result);
+      const { shorts: page, hasMore: more } = await readShortsPage(PAGE_SIZE, 0);
+      LOG('loaded', page.length, 'shorts, hasMore:', more);
+      nextOffsetRef.current = PAGE_SIZE;
+      setShorts(page);
+      setHasMore(more);
     } catch (e) {
       console.error('[shorts-wall] load failed:', e);
       setError('Could not load shorts. Try again.');
     } finally {
       setLoading(false);
     }
-  }
+  }, []);
+
+  // Infinite scroll: append the next board page (the sentinel's
+  // IntersectionObserver fires this). A full page means there may be another;
+  // a short page is the last one.
+  const loadMore = useCallback(async () => {
+    if (loadingMore || !hasMore) return;
+    setLoadingMore(true);
+    try {
+      const { shorts: page, hasMore: more } = await readShortsPage(PAGE_SIZE, nextOffsetRef.current);
+      LOG('loadMore — appended', page.length, 'shorts, hasMore:', more);
+      // Advance by the BOARD page size (not the filtered count) — the 9:16 gate
+      // can drop some of a full page, so advancing by page.length would re-read
+      // tagged shorts. A full board page (hasMore true) is exactly PAGE_SIZE.
+      nextOffsetRef.current += PAGE_SIZE;
+      // Dedupe by post id (offset paging can surface a post twice if the board
+      // shifts between page reads — a new short posted mid-scroll).
+      setShorts((prev) => {
+        const seen = new Set(prev.map((s) => s.post._id).filter(Boolean));
+        return [...prev, ...page.filter((s) => !s.post._id || !seen.has(s.post._id))];
+      });
+      setHasMore(more);
+    } catch (e) {
+      console.error('[shorts-wall] loadMore failed:', e);
+    } finally {
+      setLoadingMore(false);
+    }
+  }, [loadingMore, hasMore]);
 
   useEffect(() => {
     load();
-  }, []);
+  }, [load]);
+
+  // Infinite scroll: a sentinel at the bottom of the wall triggers loadMore
+  // when it scrolls into view (rootMargin prefetches a page early). Only active
+  // when there's no active ?q= — with a query the wall is a filtered view over
+  // the loaded shorts, and a short filtered grid would rapidly page the whole
+  // board (loading non-matching pages that get filtered out).
+  const queryActive = urlQuery.trim() !== '';
+  useEffect(() => {
+    if (queryActive) return;
+    const sentinel = sentinelRef.current;
+    if (!sentinel) return;
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries[0].isIntersecting) loadMore();
+      },
+      { rootMargin: '200px' },
+    );
+    observer.observe(sentinel);
+    return () => observer.disconnect();
+  }, [queryActive, loadMore, shorts.length]);
 
   if (loading) {
     return (
@@ -155,11 +215,11 @@ export default function ShortsWall() {
           </span>
         </div>
       )}
-      {/* The wall: a responsive grid of 9:16 vertical tiles, capped at 4
-          columns. `auto-fill, minmax(max(160px, 25%), 1fr)` — each column is
-          at least 25% wide (so never more than 4) and never narrower than
-          160px (so fewer columns as the width shrinks). */}
-      <div className="grid gap-2 [grid-template-columns:repeat(auto-fill,minmax(max(160px,25%),1fr))]">
+      {/* The wall: a responsive grid of 9:16 vertical tiles — 4 across on
+          desktop (the TikTok/YouTube-Shorts shape), fewer as the width
+          shrinks. Explicit breakpoints (not auto-fill) so the desktop always
+          lands on 4 columns regardless of the gap math. */}
+      <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-4">
         {visibleShorts.map((short) => (
           <button
             key={short.post._id}
@@ -208,6 +268,20 @@ export default function ShortsWall() {
           </button>
         ))}
       </div>
+      {/* The infinite-scroll sentinel (triggers loadMore when it scrolls in).
+          Only rendered for the plain wall browse (no active ?q=) — with a
+          query the wall is a filtered view, and a short filtered grid would
+          rapidly page the whole board (loading non-matching pages). */}
+      {!queryActive && hasMore && !loading && (
+        <div ref={sentinelRef} className="flex items-center justify-center py-6" data-testid="shorts-wall-sentinel">
+          {loadingMore && (
+            <span className="flex items-center gap-2 text-sm text-muted-foreground">
+              <Loader2 className="h-4 w-4 animate-spin" strokeWidth={2} />
+              Loading more…
+            </span>
+          )}
+        </div>
+      )}
     </div>
   );
 }

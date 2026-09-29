@@ -38,12 +38,14 @@ export async function readDiscoverFeed(
   sort: PowerMeanSort | null = null,
   limit = 50,
   tags?: string[],
+  offset = 0,
 ): Promise<PostRecord[]> {
   const w = getV3Client();
   try {
     const docs = await w.read('posts', {
       groups: [getDiscoverGroupId()],
       limit,
+      offset,
       ...(sort ? { sort } : {}),
       ...(tags ? { tags } : {}),
     });
@@ -87,10 +89,27 @@ export interface ShortPost {
  *   2. **Render-time** — the 9:16 re-derive below (the backstop that drops
  *      fakes: a doc tagged `short` whose media isn't a real vertical video).
  */
-export async function readShortsFeed(limit = 50): Promise<ShortPost[]> {
-  const posts = await readDiscoverFeed(null, limit, ['short']);
+export interface ShortsPage {
+  shorts: ShortPost[];
+  /** True when the board returned a full page of tagged shorts — there may be
+   *  another page. A short page is the last one. (The 9:16 gate can drop some
+   *  of a full page, so hasMore keys off the BOARD page size, not the filtered
+   *  count — otherwise a page of fakes would stop paging early.) */
+  hasMore: boolean;
+}
+
+/**
+ * One PAGE of the Shorts feed (the paged read — the wall's infinite scroll).
+ * Returns the genuine 9:16 shorts for the page + `hasMore` (the board page
+ * size, before the 9:16 gate). See {@link readShortsFeed} for the two-layer
+ * filter; this is the same read, paged.
+ */
+export async function readShortsPage(limit = 50, offset = 0): Promise<ShortsPage> {
+  const posts = await readDiscoverFeed(null, limit, ['short'], offset);
+  // The board page size (before the 9:16 gate) — the paging signal.
+  const hasMore = posts.length >= limit;
   const withMedia = posts.filter((p) => p.media_refs?.length);
-  if (!withMedia.length) return [];
+  if (!withMedia.length) return { shorts: [], hasMore };
 
   const token = getV3Client().readToken();
   const byAuthor = new Map<string, { posts: PostRecord[]; refs: (string | ResolvedMediaRef)[] }>();
@@ -139,6 +158,16 @@ export async function readShortsFeed(limit = 50): Promise<ShortPost[]> {
       shorts.push({ post: p, media: vertical[0] });
     }
   }
+  return { shorts, hasMore };
+}
+
+/**
+ * The Shorts feed (the one-shot read — the lens + the search). Returns the
+ * genuine 9:16 shorts for the first page. The paged variant (the wall's
+ * infinite scroll) is {@link readShortsPage}, which also returns `hasMore`.
+ */
+export async function readShortsFeed(limit = 50, offset = 0): Promise<ShortPost[]> {
+  const { shorts } = await readShortsPage(limit, offset);
   return shorts;
 }
 

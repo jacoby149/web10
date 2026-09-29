@@ -46,29 +46,33 @@ interface GlobalSearchProps {
 type SearchMode = 'people' | 'video' | 'shorts' | 'gossip';
 
 // The destination each category opens (S9: a category tap IS the tab).
+// Posts → /feed (the Posts screen's Discover tab — the merged Feed + Hot
+// Gossip surface, the X/Threads model).
 const MODE_DESTINATION: Record<SearchMode, string> = {
   people: '/people',
   video: '/video',
   shorts: '/shorts',
-  gossip: '/hot-gossip',
+  gossip: '/feed',
 };
 
 const MODE_LABEL: Record<SearchMode, string> = {
   people: 'People',
   video: 'Video',
   shorts: 'Shorts',
-  gossip: 'Hot Gossip',
+  gossip: 'Posts',
 };
 
 // The open tab (S9): which search-aware destination is the current route.
 // `/shorts` (the wall) and `/shorts/:postId` (the lens) are both the Shorts
-// tab — both honor ?q=. Everything else (feed, profile, messages, …) is not
-// a search destination: typing there shows the preview only (no ?q= write).
+// tab — both honor ?q=. The Posts screen (`/feed`, the merged Feed + Hot
+// Gossip — Discover | Following tabs) is the Posts/gossip tab. Everything
+// else (profile, messages, …) is not a search destination: typing there shows
+// the preview only (no ?q= write).
 function destinationFromPath(pathname: string): SearchMode | null {
   if (pathname.startsWith('/people')) return 'people';
   if (pathname.startsWith('/video')) return 'video';
   if (pathname.startsWith('/shorts')) return 'shorts';
-  if (pathname.startsWith('/hot-gossip')) return 'gossip';
+  if (pathname.startsWith('/feed')) return 'gossip';
   return null;
 }
 
@@ -276,6 +280,15 @@ export default function GlobalSearch({ variant }: GlobalSearchProps) {
   // the flag armed.
   const hasInteractedSinceFocus = useRef(false);
   const wasFocusedRef = useRef(false);
+  // S10 (search stays open on a topic change): a category-open navigation (a
+  // category tap / Enter / the "see all" CTA) should keep the dropdown open —
+  // the operator wants to see the results as they search, not have the
+  // dropdown collapse the moment the tab opens. The navigation it triggers
+  // (a pathname change) would normally close the dropdown (the navigate →
+  // close effect); this flag tells that effect this navigation was the
+  // search's own, so it keeps the dropdown open instead. Set on the open,
+  // consumed (reset) by the pathname-change effect.
+  const categoryOpenRef = useRef(false);
 
   // S9: a navigation (a row tap, a category tap, back/forward) ends the
   // live-filter gesture — the field re-seeds from the new URL's ?q= (the seed
@@ -471,14 +484,27 @@ export default function GlobalSearch({ variant }: GlobalSearchProps) {
   // Navigate → close the results UI (the state machine's fourth exit).
   // Desktop: just close the dropdown (the field stays, the query persists).
   // Mobile: full collapse (the full-screen view closes and resets).
+  // S10: a navigation the search ITSELF triggered (a category tap / Enter /
+  // the "see all" CTA — a topic change) keeps the dropdown open: the operator
+  // wants to see the results as they search, not have it collapse the moment
+  // the tab opens. The mode follows the new open tab (the mode-follows effect)
+  // and the field re-seeds from the new URL's ?q= (the seed effect), so the
+  // preview matches the tab now being filtered. A ?q= write does NOT change
+  // the pathname, so it does not trip this — only a real navigation does.
   useEffect(() => {
     if (open) {
+      if (categoryOpenRef.current) {
+        categoryOpenRef.current = false;
+        // Keep the dropdown open + refocus the field so it stays alive (a
+        // real browser's mousedown on the category button blurred the field).
+        if (variant === 'desktop') inputRef.current?.focus();
+        return;
+      }
       if (variant === 'desktop') closeDropdown();
       else collapse();
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [pathname]);
-
   // Desktop: click outside the bar → close the dropdown (the field stays).
   useEffect(() => {
     if (!open || variant !== 'desktop') return;
@@ -508,12 +534,17 @@ export default function GlobalSearch({ variant }: GlobalSearchProps) {
   // S9: open a category's tab (the destination) carrying the query (?q=).
   // The four categories are the four nav tabs — People → /people (the
   // people/groups browser), Video → /video (the video wall), Shorts →
-  // /shorts (the wall), Hot Gossip → /hot-gossip (the ranked post board).
+  // /shorts (the wall), Posts → /feed (the Posts screen's Discover tab — the
+  // merged Feed + Hot Gossip surface, the X/Threads model).
   // The query is screen state the URL holds (the deep-link rule); each
   // destination's existing ?q= filter picks it up and filters live.
   const openCategory = useCallback((m: SearchMode) => {
     const q = query.trim();
     const dest = MODE_DESTINATION[m];
+    // S10: this navigation is the search's own topic change — keep the
+    // dropdown open (the operator wants to see the results as they search).
+    // The pathname-change effect consumes + resets the flag.
+    categoryOpenRef.current = true;
     if (q) {
       const params = new URLSearchParams();
       params.set('q', q);
@@ -598,11 +629,12 @@ export default function GlobalSearch({ variant }: GlobalSearchProps) {
     ) : (
       <div className="py-1">
         {/* The mode toggle — the four flat destinations (S8): People
-            (default, S7) | Video | Shorts | Hot Gossip. The labels match the
-            nav exactly. S9: a tap OPENS that tab (navigates to the
-            destination, carrying the query). Slim segmented control (the
-            Facebook-style dropdown). It renders as soon as there's a query
-            (immediate, not debounced) so it's clickable while the results
+             (default, S7) | Video | Shorts | Posts (the merged Feed + Hot
+             Gossip surface — the Posts screen's Discover tab). The labels
+             match the nav exactly. S9: a tap OPENS that tab (navigates to the
+             destination, carrying the query). Slim segmented control (the
+             Facebook-style dropdown). It renders as soon as there's a query
+             (immediate, not debounced) so it's clickable while the results
             are still loading. */}
         <div className="px-3 pt-2 pb-1">
           <div
@@ -615,7 +647,7 @@ export default function GlobalSearch({ variant }: GlobalSearchProps) {
               ['people', 'People', Users],
               ['video', 'Video', Video],
               ['shorts', 'Shorts', Smartphone],
-              ['gossip', 'Hot Gossip', Flame],
+              ['gossip', 'Posts', Flame],
             ] as [SearchMode, string, typeof Users][]).map(([m, label, Icon]) => (
               <button
                 key={m}
@@ -716,11 +748,11 @@ export default function GlobalSearch({ variant }: GlobalSearchProps) {
           </>
         ) : (
           <>
-            {/* Hot Gossip posts (the ranked post board) */}
+            {/* Posts (the ranked post board — the Posts screen's Discover tab) */}
             {posts === null ? (
-              <SectionSkeleton label="Hot Gossip" />
+              <SectionSkeleton label="Posts" />
             ) : posts.length > 0 ? (
-              <SearchSection label="Hot Gossip">
+              <SearchSection label="Posts">
                 {posts.map((p) => (
                   <PostRow key={p._id || p.created_at} post={p} />
                 ))}

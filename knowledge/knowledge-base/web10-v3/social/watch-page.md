@@ -12,14 +12,18 @@ That is the whole goal. Everything below is in service of keeping the fan on the
 
 ## The two destinations, decided by aspect ratio
 
-The Home wall shows **videos only** (the render-time gate, `discover-card.md`). A click routes by the **same signal Shorts already uses** — the resolved media's aspect ratio (`width < height`), not the client-asserted tag:
+The Video wall is **landscape-only** (the YouTube shape). A portrait (9:16) video is a **short** — it lives in the Shorts destination (the TikTok shape, `shorts.md`), not the wall. The aspect-ratio split keeps the two from bleeding into each other: a fan clicks a landscape video in the wall (→ the watch page) or a short in the Shorts wall (→ the lens), never the other way around. The wall's render gate is `postHasVideo(post) && !postIsPortraitVideo(post)` — the same `width < height` signal Shorts' render-time backstop already runs, re-derived from the resolved media (not the client-asserted tag).
+
+The "What's next" queue is landscape-only for the same reason — it is the watch page's version of the wall, so a short never appears in it (the operator: "it is really disorienting to be ripped out of video view without any indication"; YouTube keeps the two separate).
+
+A click still routes by the **same signal** — the resolved media's aspect ratio (`width < height`), not the client-asserted tag:
 
 | Click target | Destination | Shape |
 |---|---|---|
 | **9:16** (portrait) | `/shorts/:postId` | the vertical swipe lens (`shorts.md`) — already built |
 | **16:9 / landscape** | **`/watch/:postId`** (this doc) | the watch page — big video + "What's next" queue |
 
-No new signal, no new read. The aspect-ratio gate is the one Shorts' render-time backstop already runs (`mime_type` starts with `video/` **and** `width < height`). The Home card's click handler branches on it: portrait → the lens, landscape → the watch page. (A multi-media post routes on its **first** video's ratio, the same rule the Home gate uses to decide "is this a video at all.")
+No new signal, no new read. The wall filters portrait out, so the portrait branch of the click handler is a **backstop** (a portrait card can only reach it via a stale read) — the wall's gate is the primary split. (A multi-media post routes on its **first** video's ratio, the same rule the wall's gate uses to decide "is this a video at all.")
 
 ## The URL is the entire state (no client-side preservation)
 
@@ -114,15 +118,18 @@ The operator (28.09.2026): **"should be configurable knobs, all feed is tunable 
 
 **Bounded for v1.** The queue is the 50 posts on the board, re-ranked. Infinite scroll (fetching the next board page as the fan reaches the bottom of the queue) is a follow-up. The operator signed off on bounded-for-v1.
 
-## The author — the overlay, not the navigation
+## The author — the profile is the "About" (the overlay is gone)
 
-The operator's core concern: **sending someone from the watch page straight to a profile gets them off the train.** The author is reachable, but reaching them does not leave the page.
+The author row's avatar + name are the "About" affordance: **clicking them navigates to `/u/:username`** — the author's full profile. There is no overlay, no "View all posts" detour, no second profile surface. This is the same destination every other surface's author click already uses (the feed, the card, the Shorts lens, the comment thread, the search) — the watch page was the lone holdout with its own modal, and a modal that is a *worse* version of the page it previews (no banner, a broken avatar, fewer posts, no stats) is friction, not a feature.
 
-The author row's avatar + name open a **profile overlay** — a slide-in panel (desktop: right-side drawer over the queue; mobile: bottom sheet) showing the author's face, display name, bio, follower count, a **Follow/Unfollow** button, and a small strip of their recent posts. From the overlay, **"View all posts"** is the one explicit link that navigates to `/u/:username` (the full profile). Everything else — see who they are, follow them, peek at a post — happens *without* leaving the watch page. Close the overlay and the video is still playing at the same `?t=`.
+**The "stay on the train" rule retires (D83, 29.09.2026).** The original call (3.170.0, W3) was that the author click must *not* leave the watch page — the video keeps playing at the same `?t=`, the profile is a slide-in drawer. In practice the drawer was a redundant, lower-fidelity copy of the profile page, and it shipped with a real bug: the overlay's avatar looked up `mediaMap['avatar:'+avatar_ref]`, a key the watch page's post-media resolver never populated, so it always fell back to the initial-letter tile (the "J" the operator saw). The operator's call (29.09.2026): "you could also just have about go to their profile page, instead of this extra modal to maintain" — the profile page is the canonical About surface (banner, avatar, name, bio, stats, follow, the full post grid), it is already deep-linkable, and it keeps the app on **one** author surface instead of two. Leaving the watch page is the cost; the URL (`?t=`) still gets you back to the exact playback position, so "off the train" is recoverable in one browser-back.
 
-This is the "stay on the train" rule made concrete: the profile is *reachable from* the watch page, never the *default* of clicking the author. (The old behavior — author click → full profile navigation — is retired for the watch page; it remains the correct behavior on the Home card's attribution and on the feed, where there is no watch context to preserve.)
+**The author row, decided:**
 
-**The overlay is a new component** (`ProfileOverlay`, or a `modal` mode on the existing profile read). It reuses `readUserProfile` / `readUserPublicProfile` (the face + the public posts, the 3.166.0 read) — no new data layer. The Follow button drives the existing follow seam.
+- **Avatar + display name + follower count** → a single button that navigates to `/u/:username` (the "About"). The avatar is resolved from the profile's `avatar_ref` (a separate `resolveMediaRefs` presign, the profile's own media — not the post-media map), so the row shows the real face, not the initial-letter tile.
+- **Follow** stays inline (the one action you want one-tap on the watch page, the YouTube shape). It drives the existing follow seam.
+- **The self case:** when the video is the viewer's own (`author === token.username`), the Follow button is **hidden** — you can't follow yourself. The old code rendered "Follow" here because `isFollowing` is a followers-group membership check and you are not a member of your own followers group; the correct state for self is no button, not a forced "Following."
+- **No "About" button.** The avatar/name *is* the affordance; a separate "About" button was the modal's leftover.
 
 ## The exit — no back-to-discover button
 
@@ -175,6 +182,33 @@ The marketing site does **not** have its own watch page / Shorts lens / Hot Goss
 
 **This is the long-term shape; the watch page is the first piece.** The split is its own lane (it touches `Layout.tsx` nav + the `DiscoverScreen` shell + the marketing `Navbar`/`Trending`). The watch page can land *first* (it is a new route + a new screen, it does not require the sidebar split to exist — it is reachable from the current Home view's card click). The split lands after, and the watch page's entry point moves from "the Home view toggle" to "the Home sidebar item" with no change to the page itself.
 
+## The Posts merge (Feed + Hot Gossip → one destination)
+
+The Discover split gave **Hot Gossip** its own sidebar destination, but it left **Feed** (the personal `/feed`) as a *separate* sidebar item too — so the sidebar carried two "streams of posts" (Feed + Hot Gossip) that are really one surface with two lenses. The operator's call (29.09.2026, the X/Threads reference): **merge them into ONE destination** with a tab row inside, "like how x.com does it — For you | Following".
+
+**The shape:** one sidebar item — **Posts** (the flame icon) at `/feed` — with a **`Discover | Following`** tab row inside (the X/Threads model):
+
+| Tab | What it is | The content |
+|---|---|---|
+| **Discover** (the default, the bare `/feed`) | the old **Hot Gossip** — the ranked post board (the Threads shape) | the `DiscoverScreen` board: knob rack + topic chips + the single-column ranked board + the **Top 10** rail |
+| **Following** (`/feed?tab=following`) | the old **Feed** — the personal feed | `FeedScreen` (the posts from people you follow) |
+
+(The composer is NOT inline on either tab — since 3.184.0 it is the app-level **New Post sheet**, opened by the floating "+" button; see `reposts.md` "The composer: repost mode".)
+
+**Naming** (the operator's deliberation, 29.09.2026): the container is **Posts**, not "Threads" (a Facebook trademark — "that can't be sued for sure"), not "What's New", and not "Hot Gossip" (the "gossip" connotation). "Posts" is the safe, descriptive name for the container; the **flame** icon carries the Hot Gossip brand energy. The *tabs* do the specific naming (Discover = the hot/ranked board, Following = the personal feed).
+
+**Routes:**
+- `/feed` — the Posts screen. Bare URL = **Discover** (the default tab); `?tab=following` = **Following**. The tab is screen state the URL holds (refresh-safe, shareable).
+- `/hot-gossip` — redirects to `/feed` (the Discover tab) **preserving the query** — so the marketing link-out (`/hot-gossip?post=<id>`) lands on the Discover board scrolled to + highlighting that post, and a `?q=` search lands filtered. Anon `/hot-gossip` renders the board directly (an anon visitor has no personal feed, so there is no "Posts" container for them — Hot Gossip is the public board).
+
+**The board narrows to fit the leaderboard.** The operator (29.09.2026, the social-app Hot Gossip screenshot): "hot gossip is way too horizontally big … we could fit the leaderboard into it and reduce some size." The board was running full-bleed; it is now capped to a reading column (`max-w-2xl`) with the **Top 10** rail beside it (the marketing `/trending` shape — a *content* rail that scrolls the board to a post, not a nav rail). The rail is desktop-only (`lg:block`); on mobile the board is full-width and the rail hides. The rail is hidden while searching (the filtered board is the focus).
+
+**Anon:** no **Following** tab (no session → no personal feed). The screen is just the **Discover** board (the public ledger) — the same read-only board the old `/hot-gossip` showed.
+
+**The search category relabels.** The top-bar search's "Hot Gossip" category is relabeled **Posts** (the flame) and lands on `/feed` (the Discover tab) with the query — the merged destination, not the retired `/hot-gossip`.
+
+This is entirely client-side (D60 — no node change). It touches `Layout.tsx` (the nav: Feed → Posts, drop the separate Hot Gossip item), a new `PostsScreen` (the tab row + the two tabs), `DiscoverScreen` (the `mode` prop + the Top 10 rail + the narrowed board), and `GlobalSearch` (the category relabel). The watch page, the Shorts lens, and the Video wall are untouched.
+
 ## The "beyond your community" note (open, not a v1 decision)
 
 The operator flagged, looking at YouTube's **Community** tab (posts *strictly for your subscribed community*): web10's posts go **beyond** that — a public post is on the **discover group** (readable by `anyone`, D41/D58), not just the author's followers. That is the differentiator: YouTube's feed is your subscription graph; web10's Home wall is the **public ledger** — anyone's post, ranked by the knobs, discoverable by anyone. The watch page inherits this: its "What's next" queue is drawn from the **public discover board**, not the viewer's follow graph. (The *following* feed — `/feed` — is the subscription-graph surface; the watch page is the discovery surface. They are different queues over different groups, and the `?from=` param is the seam that keeps them distinct if a `/feed`-sourced watch page is ever wanted.)
@@ -184,7 +218,7 @@ This is a product note to carry, not a v1 build. It does not change the watch pa
 ## What this is not
 
 - **Not a modal.** The watch page is a **route** (`/watch/:postId`), a full page, not a `PostLightbox` overlay. The lightbox stays the profile's modality (the grid cell → modal, `video-player.md`). The watch page is the *stream's* modality for a clicked video.
-- **Not the profile.** The profile is reachable *from* the watch page (the overlay's "View all posts"), never the default of a video click. The old `navigateToPost → /u/:username/p/:postId` (profile + lightbox) is retired as the Home card's destination.
+- **Not the profile (for a video click).** Clicking the *video* lands on the watch page, never the old `navigateToPost → /u/:username/p/:postId` (profile + lightbox) — that retired as the Home card's destination. Clicking the *author* (the avatar/name) is a different gesture and **does** go to the profile (`/u/:username`) — the author is the "About," D83.
 - **Not a new collection or group.** The queue is a re-rank of the discover board. No `watch` group, no `watch` collection, no node change (D60 — the node stays generic; this is entirely client-side).
 - **Not infinite (v1).** The queue is the loaded 50, re-ranked. Infinite scroll is a follow-up.
 - **Not the Shorts lens.** A 9:16 video goes to `/shorts/:postId` (the swipe feed). The watch page is the landscape destination. The two share the aspect-ratio gate and the `sourceFromMedia` rule; they are different surfaces.
@@ -196,7 +230,7 @@ This is a product note to carry, not a v1 build. It does not change the watch pa
 2. **Aspect-ratio routing** — portrait → `/shorts/:postId`, landscape → `/watch/:postId`, the Shorts render-time gate (`width < height` on the resolved media), no new signal.
 3. **The "What's next" queue** — the loaded Discover board (50), client-side re-rank: `knob_score × (1 + tagWeight·|tag∩| + authorWeight·[same author])`. A boost, not a filter. Bounded for v1 (the operator: "that sounds great for the whats next"). `?knobs=` carries the ranking the fan had.
 4. **The layout** (the operator: "yupp i like that for the layout") — desktop: video left, queue right; mobile: stacked. `<VideoPlayer mode="full">`. Author row **under** the video (watch) vs bottom-left over the video (shorts). Comments below (`CommentThread`).
-5. **The author overlay** — the author row opens a profile overlay (face, bio, follow, recent posts, "View all posts" → `/u/:username`), not a navigation. The "stay on the train" rule.
+5. **The author is the profile, not an overlay (reversal, D83, 29.09.2026)** — the author row's avatar + name navigate to `/u/:username` (the full profile — the canonical "About" surface, the same destination every other surface's author click uses). The 3.170.0 "stay on the train" overlay is retired: it was a redundant, lower-fidelity copy of the profile page and shipped with a broken avatar (it read a `mediaMap` key the post-media resolver never populated). The Follow button stays inline; it is **hidden on your own video** (you can't follow yourself — the old "Follow" label was the self-case bug). The `?t=` URL still gets you back to the exact playback position, so leaving the page is recoverable in one browser-back.
 6. **No back-to-discover button** (the operator: "dont need a back to discover, if they click discover tab again … or the web10 social logo could do it too"). Exit is browser-back or the sidebar/logo.
 7. **The Discover split** (the operator: "takes these 4 things and turns it into three sidebar things" + "the marketing page could benefit from a sidebar home (video tab), shorts, hot gossip, people, so youtube but two more things on the sidebar than youtube!" + "dont call it home, call it Video … i am saying like it is because it is videos!") — **Video · Shorts · Hot Gossip · People** as flat sidebar destinations, both apps (the first item is **Video**, not Home — it is called what it is, because it *is* videos). The `?view=` / `?tab=` nesting retires. **A separate lane; the watch page lands first and is reachable from the current Home view until the split moves its entry point.**
 8. **Hot Gossip stays Threads-style** (the operator: "i wouldnt change hot gossip much … hot gossip is great"). The split gives it its own destination; its content model (the ranked post board, the Threads shape) is unchanged.

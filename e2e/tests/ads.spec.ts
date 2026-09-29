@@ -374,8 +374,10 @@ test.describe('Ads gauntlet — composer pin → follower sees the ad block', ()
     pageV.on('pageerror', (e) => pageErrorsV.push(e.message));
 
     // --- The creator composes a post, pins the ad, and posts ---
-    await pageC.goto(`${SOCIAL_BASE}/feed`);
+    await pageC.goto(`${SOCIAL_BASE}/feed?tab=following`);
     await pageC.waitForLoadState('networkidle');
+    // The composer is NOT inline (3.184.0) — open the app-level sheet via the FAB.
+    await pageC.locator('[data-testid="new-post-fab"]').click();
     await expect(pageC.locator('[data-testid="post-composer"]')).toBeVisible();
 
     const myPost = `pinned ad post ${Date.now()}`;
@@ -404,7 +406,7 @@ test.describe('Ads gauntlet — composer pin → follower sees the ad block', ()
     await expect(pageC.locator('[data-testid="ad-cta"]')).toBeVisible();
 
     // --- The FOLLOWER's feed renders the same post with the ad block ---
-    await pageV.goto(`${SOCIAL_BASE}/feed`);
+    await pageV.goto(`${SOCIAL_BASE}/feed?tab=following`);
     await pageV.waitForLoadState('networkidle');
     await expectFeedShowsPost(pageV, myPost);
     await expect(pageV.locator('[data-testid="ad-block"]')).toBeVisible({ timeout: 20000 });

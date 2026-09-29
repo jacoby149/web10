@@ -70,6 +70,22 @@ def _require_moderation_any(group_id: str, user: str, token: str):
     check_admin(Token(token=token))
 
 
+def _normalize_member_key(user: str) -> str:
+    """Normalize a user identifier to the bare username the node stores as
+    ``member_key``.
+
+    The node writes ``member_key`` from the JWT's ``username`` claim (the bare
+    username) on every write path (join, create, the owner row), and the
+    ``/list`` read matches on that bare form. The ``/by-user`` ``user`` param is
+    documented to accept either the bare username (v3 same-node) or the full
+    ``provider/username`` form; both must resolve to the same rows. Providers
+    are hostnames and usernames are ``[a-z0-9-]`` (no ``/``), so ``provider/
+    username`` carries exactly one slash — the username is the last segment.
+    A bare username (no ``/``) is returned unchanged.
+    """
+    return user.rsplit("/", 1)[-1] if "/" in user else user
+
+
 def _parse_group_id(group_id: str) -> tuple[str, str]:
     """Extract (owner, slug) from a group_id.
 
@@ -392,7 +408,7 @@ def list_user_groups(user: str, tag: str | None = None, limit: int = 50, offset:
     ``user`` is the member key — the bare username (v3 same-node) or the full
     ``provider/username`` form; both resolve to the same membership rows.
     """
-    groups = ch.get_user_public_groups(user, tag=tag, limit=limit, offset=offset)
+    groups = ch.get_user_public_groups(_normalize_member_key(user), tag=tag, limit=limit, offset=offset)
     out = []
     for g in groups:
         owner, slug = _parse_group_id(g["group_id"])

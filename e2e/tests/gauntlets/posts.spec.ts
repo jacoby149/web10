@@ -92,9 +92,12 @@ test.describe('posts — browser gauntlet', () => {
     const context: BrowserContext = await browser.newContext();
     const page = await context.newPage();
     await setTokenCookie(context, 'social.localhost', viewer.token);
-    await page.goto(`${SOCIAL_BASE}/feed`);
+    await page.goto(`${SOCIAL_BASE}/feed?tab=following`);
 
     // Post via the composer (default visibility: public → discover + followers).
+    // The composer is NOT inline (3.184.0) — open the app-level sheet via the FAB.
+    await page.locator('[data-testid="new-post-fab"]').click();
+    await expect(page.locator('[data-testid="post-composer"]')).toBeVisible();
     await page.locator('[data-testid="post-composer"] textarea').fill(postText);
     await page.locator('[data-testid="post-submit"]').click();
 
@@ -168,18 +171,19 @@ test.describe('posts — cross-user', () => {
     const bContext: BrowserContext = await browser.newContext();
     const bPage = await bContext.newPage();
     await setTokenCookie(bContext, 'social.localhost', b.token);
-    await bPage.goto(`${SOCIAL_BASE}/feed`);
+    await bPage.goto(`${SOCIAL_BASE}/feed?tab=following`);
     await expect(async () => {
       expect(await postCard(bPage, postText).count()).toBeGreaterThan(0);
     }).toPass({ timeout: 20000 });
 
     // UI: D's feed does NOT show the card (I3 at the feed level). Wait for the
-    // feed to render (the composer is always in the feed), then assert absence.
+    // feed to render (the FAB is the resting compose chrome, always in the
+    // feed), then assert absence.
     const dContext: BrowserContext = await browser.newContext();
     const dPage = await dContext.newPage();
     await setTokenCookie(dContext, 'social.localhost', d.token);
-    await dPage.goto(`${SOCIAL_BASE}/feed`);
-    await expect(dPage.locator('[data-testid="post-composer"]')).toBeVisible({ timeout: 20000 });
+    await dPage.goto(`${SOCIAL_BASE}/feed?tab=following`);
+    await expect(dPage.locator('[data-testid="new-post-fab"]')).toBeVisible({ timeout: 20000 });
     expect(await postCard(dPage, postText).count(), 'D\'s feed should not show A\'s post').toBe(0);
 
     await bContext.close();

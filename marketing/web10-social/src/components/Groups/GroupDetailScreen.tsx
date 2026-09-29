@@ -39,8 +39,8 @@ import ManageMembersSection from '@/components/Groups/ManageGroup/MembersSection
 import ManageRolesSection from '@/components/Groups/ManageGroup/RolesSection';
 import { toast, errorMessage } from '@/components/shared/Toast';
 import { PostCard } from '@/components/Feed/FeedScreen';
-import PostComposer from '@/components/Feed/PostComposer';
 import { useRepost } from '@/context/RepostContext';
+import { useComposer } from '@/context/ComposerContext';
 import { PostLightbox } from '@/components/Bio/PostLightbox';
 import {
   ArrowLeft,
@@ -57,6 +57,7 @@ import {
   ImagePlus,
   Play,
   Pencil,
+  Plus,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
@@ -92,6 +93,7 @@ function formatCount(n: number): string {
 
 function GroupFeedPost({ post, media, groupId }: { post: PostRecord; media: MediaRecord[]; groupId: string }) {
   const navigate = useNavigate();
+  const { openComposer } = useComposer();
   const author = post.author_username || post.author || 'unknown';
 
   // Engagement state (post-actions.md): the reaction pair + comment count,
@@ -180,15 +182,15 @@ function GroupFeedPost({ post, media, groupId }: { post: PostRecord; media: Medi
 
   // Repost (reposts.md): a repost is a POST, not a reaction toggle. Tapping
   // the repeat icon opens the app-level composer in repost mode (the shared
-  // RepostContext seam) with this post as the context, then returns to the
-  // feed (where the app-level composer lives) so the repost is created there.
-  // A repost is a public post (the reposter's followers group), not a group
-  // post — so it never uses the group composer. The composer's createRepost is
-  // the single write; the count + fill re-derive on the next load.
+  // RepostContext seam) with this post as the context — the New Post sheet
+  // pops up in place (no navigation; the user stays on the group). A repost
+  // is a public post (the reposter's followers group), not a group post — so
+  // it never uses the group composer. The composer's createRepost is the
+  // single write; the count + fill re-derive on the next load.
   const { setRepostingTo } = useRepost();
   function handleRepost() {
     setRepostingTo(post);
-    navigate('/feed');
+    openComposer();
   }
 
   return (
@@ -244,6 +246,7 @@ type JoinState = 'idle' | 'working' | 'done';
 
 export default function GroupDetailScreen({ groupId }: { groupId: string }) {
   const navigate = useNavigate();
+  const { openComposer } = useComposer();
   const id = groupId ? decodeURIComponent(groupId) : '';
 
   const [detail, setDetail] = useState<GroupDetail | null>(null);
@@ -356,6 +359,15 @@ export default function GroupDetailScreen({ groupId }: { groupId: string }) {
 
   useEffect(() => {
     load();
+  }, [load]);
+
+  // The app-level New Post sheet fires `post-created` (NewPostSheet) when a
+  // post lands — reload the group feed so the fresh post shows up (the seam
+  // that replaces the old inline group composer's onPostCreated callback).
+  useEffect(() => {
+    const onPostCreated = () => load();
+    window.addEventListener('post-created', onPostCreated);
+    return () => window.removeEventListener('post-created', onPostCreated);
   }, [load]);
 
   // G4: a draft opens in edit mode — the create flow lands here with ?edit=1,
@@ -933,10 +945,21 @@ export default function GroupDetailScreen({ groupId }: { groupId: string }) {
           <div className="flex-1 px-4 py-4 md:px-0">
             {detail.posts_state === 'ok' ? (
               <>
+                {/* The composer is NOT inline (the operator: "it should be
+                    invisible") — a member gets a "Post to this group" button
+                    that opens the app-level New Post sheet scoped to this
+                    group (the post attaches to the group, the old
+                    group-composer behavior). */}
                 {detail.is_member && (
-                  <div data-testid="group-composer" className="mb-4">
-                    <PostComposer groups={[detail.group_id]} onPostCreated={load} />
-                  </div>
+                  <button
+                    type="button"
+                    data-testid="group-post-button"
+                    onClick={() => openComposer({ groups: [detail.group_id] })}
+                    className="mb-4 flex w-full items-center justify-center gap-2 rounded-lg border border-border bg-elevated px-4 py-3 text-sm font-medium text-foreground transition-colors duration-150 hover:border-brand/40 hover:bg-brand-muted/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
+                  >
+                    <Plus className="w-4 h-4 text-brand" strokeWidth={2} />
+                    Post to this group
+                  </button>
                 )}
                 <div data-testid="group-detail-posts">
                   {postRecords.length > 0 ? (

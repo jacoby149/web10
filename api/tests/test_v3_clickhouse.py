@@ -902,6 +902,37 @@ class TestReadDocumentById:
             mock_client.query.return_value = _mock_result_rows([])
             assert ch.read_document_by_id("doc-1", "alice", "posts") is None
 
+    def test_anon_read_includes_the_anyone_class(self):
+        """The read-by-id must include the `anyone` principal-class row (D58) —
+        otherwise anon (reader = "anon") can't read a public (discover) post by
+        id: the discover group's public member is the `anyone` class (the legacy
+        `anon` row was renamed), so a literal `member_key = "anon"` join 404s.
+        That is the watch page's post read."""
+        with _patch_client() as mock_client:
+            mock_client.query.return_value = _mock_result_rows([])
+            ch.read_document_by_id("doc-1", "anon", "posts")
+            params = mock_client.query.call_args[0][1]
+            allowed_keys = [params[f"key{i}"] for i in range(len(params) - 3)]
+            # The reader's own key + the `anyone` class.
+            assert "anon" in allowed_keys
+            assert "anyone" in allowed_keys
+            # Anon is not a real user — the `authenticated` class must NOT be
+            # included (it would let anon read signed-in-only groups).
+            assert "authenticated" not in allowed_keys
+
+    def test_authenticated_read_includes_the_authenticated_class(self):
+        """A real user's read-by-id includes BOTH the `anyone` and
+        `authenticated` principal-class rows (D58) — a real user reads public
+        groups via `anyone` AND signed-in-only groups via `authenticated`."""
+        with _patch_client() as mock_client:
+            mock_client.query.return_value = _mock_result_rows([])
+            ch.read_document_by_id("doc-1", "alice", "posts", authenticated=True)
+            params = mock_client.query.call_args[0][1]
+            allowed_keys = [params[f"key{i}"] for i in range(len(params) - 3)]
+            assert "alice" in allowed_keys
+            assert "anyone" in allowed_keys
+            assert "authenticated" in allowed_keys
+
 
 # ---------------------------------------------------------------------------
 # Groups: manages

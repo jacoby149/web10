@@ -2691,24 +2691,44 @@ def read_ref_counts_by_ref(
 # ---------------------------------------------------------------------------
 
 
-def read_document_by_id(doc_id: str, member_key: str, service: str) -> dict | None:
+def read_document_by_id(doc_id: str, member_key: str, service: str, authenticated: bool = False) -> dict | None:
     """Read a single document by doc_id with group permission check.
 
     Returns the doc's `ad_mode`/`ad_target` so the caller can serve the pinned
     ad inline (the post detail deep link is a read — same as the feed read).
+
+    The read gate is the D58 principal-class half (the same gate the board
+    read's `can_read_group` applies): the reader reads the doc if they're a
+    literal member of a group it belongs to, OR the group carries the
+    `anyone` grant (always — the public class), OR the `authenticated` grant
+    (real users). Without the class rows, anon (reader = "anon") can't read a
+    public (discover) post by id — the discover group's public member is the
+    `anyone` class (D58 renamed the legacy `anon` row), so a literal
+    `member_key = "anon"` join 404s. That is the watch page's post read.
 
     The user_blacklist anti-join dedups first (latest row per key,
     tombstones included) then filters deleted = 0 — same reason as
     read_documents_in_groups: a raw `deleted = 0` join keeps matching the
     stale pre-unblock row until a background merge.
     """
+    # The reader's allowed member_keys: their own membership + the reserved
+    # public-class rows (anyone — always; authenticated — for real users).
+    class_keys = ["anyone"] + (["authenticated"] if authenticated else [])
+    keys = [member_key, *class_keys]
+    key_ph = ", ".join(f"%(key{i})s" for i in range(len(keys)))
+    params: dict = {
+        "doc_id": doc_id,
+        "coll": service,
+        "member_key": member_key,
+        **{f"key{i}": k for i, k in enumerate(keys)},
+    }
     result = client.query(
         "SELECT p.doc_id, p.author_key, p.body, p.tags, p.created_at, p.ref_value, p.ad_mode, p.ad_target "
         "FROM documents p "
         "LEFT SEMI JOIN ( "
         "SELECT pg.doc_id FROM doc_groups pg "
         "JOIN group_members gm ON pg.group_id = gm.group_id "
-        "WHERE gm.member_key = %(member_key)s AND pg.deleted = 0 AND gm.deleted = 0 "
+        f"WHERE gm.member_key IN ({key_ph}) AND pg.deleted = 0 AND gm.deleted = 0 "
         ") membership ON membership.doc_id = p.doc_id "
         "LEFT ANTI JOIN (SELECT user_key, blocked_key FROM (SELECT user_key, blocked_key, deleted, "
         "row_number() OVER (PARTITION BY user_key, blocked_key ORDER BY updated_at DESC, deleted DESC) AS rn "
@@ -2718,7 +2738,7 @@ def read_document_by_id(doc_id: str, member_key: str, service: str) -> dict | No
         "AND p.deleted = 0 "
         "AND p.collection_name = %(coll)s "
         "ORDER BY p.updated_at DESC LIMIT 1",
-        {"doc_id": doc_id, "coll": service, "member_key": member_key},
+        params,
     )
     if not result.result_rows:
         return None

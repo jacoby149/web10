@@ -13,8 +13,11 @@ Five guarantees that must hold every phase. The conformance/permission test suit
 | **I3** | No query returns documents for an `author_key` the token doesn't own, unless group membership grants access. |
 | **I4** | The node is a readable, accountable broker: content is node-readable by design (discovery, search, auditability). Operator-blindness is explicitly **not** a goal (D41). Access is controlled by terms (I3); the operator is legally liable for hosted data. |
 | **I5** | Every actor (app, agent, LLM) acts under a scoped, expiring, revocable token enforced by app contracts. |
+| **I6** | The cross-node boundary is the HTTP API + a verified token. No node ever queries another node's ClickHouse; remote data is content, never control (never query input, never a key into the local store, never a grant). |
 
 **Known gap:** I1 is partially broken — symmetric HS256 signing means providers can't verify each other's tokens. The fix (RS256/EdDSA + JWKS, D7) is in flight. Do not add code that deepens the HS256 assumption.
+
+**I6 (federation, D84):** the multi-node read model is **client-side fan-out** — the user's client queries each node and merges; a node never proxies another's data. The cross-node boundary is the HTTP API with a JWKS-verified token (I1), **never** a cross-ClickHouse query (`remote()`/`cluster()` are for trusted clusters and are rejected for federation). The feed merge is a result-set *union* of independently I3-authorized reads, so a foreign node's data can't steer what the local node queries — a data reference is not a grant (the same property that stops a local user reading other posts). Full model + the "mine Node A from Node B" walk-through: `knowledge/strategy/multi-node.md`.
 
 ## How ClickHouse Enforces I3
 
@@ -27,6 +30,8 @@ Every read query must:
 ```
 
 There is no sandboxed aggregation pipeline (v2). There is no cross-collection stage (v2). The ClickHouse queries are constructed by the API layer — they always include the `author_key` or group membership filter.
+
+**The membership check includes the reserved principal-class rows (D58).** A reader reads a group's documents if they're a literal member (`member_key = reader`) **OR** the group carries the `anyone` grant (always — the public class) **OR** the `authenticated` grant (real users only). This is why the public (discover) board is anon-readable: the discover group's public member is the `anyone` class (the legacy `anon` row was renamed), not a literal `anon` membership. Every read path — the group read, the **read-by-id** (`read_document_by_id`, the watch page's post read), the people directory — applies this same principal-class gate. A read path that checks only literal membership (`member_key = reader`) silently 404s for anon on public groups (the watch-page bug, 3.172.1).
 
 ```mermaid
 flowchart TD

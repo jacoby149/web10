@@ -139,6 +139,28 @@ async function waitForLog(logs: string[], needle: string, timeoutMs: number): Pr
 const rtcArgs = ['--disable-features=WebRtcHideLocalIpsWithMdns'];
 
 test.describe('Social P2P real-time — two live accounts, witnessed in the DOM (no reloads)', () => {
+  // API floor: the /certify gate the RTC signaling server relies on. The
+  // browser gauntlet below only proves P2P works end-to-end; this proves the
+  // GATE itself (the thing 3.183.2 restored) returns 200 for a valid token and
+  // 401 for a malformed one. Fast, no browser, deterministic. Without this, a
+  // regression that breaks /certify (e.g. the endpoint 404s again) would be
+  // caught only by the slow browser gauntlet — and on an HTTP-only e2e stack,
+  // the gauntlet's P2P could still pass via the network-failure bypass.
+  test('/certify gate: 200 for a valid node token, 401 for a malformed one', async ({ request }) => {
+    const { token } = await signupAndLogin(request, 'certify');
+    const ok = await request.post(`${API_BASE}/certify`, {
+      data: JSON.stringify({ token }),
+      headers: { 'Content-Type': 'application/json' },
+    });
+    expect(ok.status(), `valid token should certify 200, got ${ok.status()}`).toBe(200);
+
+    const bad = await request.post(`${API_BASE}/certify`, {
+      data: JSON.stringify({ token: 'not-a-jwt' }),
+      headers: { 'Content-Type': 'application/json' },
+    });
+    expect(bad.status(), `malformed token should be rejected 401, got ${bad.status()}`).toBe(401);
+  });
+
   test(
     'A messages B: B\'s notification badge pops to 1 AND the message lands in B\'s open thread with no reload (and vice versa)',
     async ({ request }) => {

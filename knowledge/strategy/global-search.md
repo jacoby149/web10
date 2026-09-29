@@ -1,6 +1,6 @@
 # Global Search — the top-bar everything-search (operator pass, 18.09.2026)
 
-**Status: SHIPPED + AMENDED (3.162.0) + RE-AMENDED (3.174.0) + S8 (3.175.0) + S9 (3.178.0).** The
+**Status: SHIPPED + AMENDED (3.162.0) + RE-AMENDED (3.174.0) + S8 (3.175.0) + S9 (3.178.0) + S10 (3.180.0).** The
 always-expanded everything-search shipped in the desktop **top bar** (S1–S4).
 `discover-ia-consistency.md` (3.157.0) moved the desktop field's home from the
 top bar to the sidebar (the operator's Facebook-style chrome). **On 29.09.2026
@@ -25,7 +25,14 @@ its destination, carrying the query), and typing in the field, while a tab is
 open, filters THAT tab as you type (the query is written to the destination's
 URL as `?q=`, debounced — the destinations' existing `?q=` client-side filters
 do the rest, live). The field is the tab's search box; the dropdown is the
-preview (a few rows + the "open the tab" CTA). The state machine (always-
+preview (a few rows + the "open the tab" CTA). **S10 (3.180.0) keeps the
+dropdown open on a topic change** — a category tap / Enter / the "see all"
+CTA navigates to the picked tab AND keeps the dropdown open (the operator
+wants to see the results as they search, not have it collapse the moment the
+tab opens); the mode follows the now-open tab and the field re-seeds from the
+new URL's `?q=`, so the preview matches the tab being filtered. A row tap
+(person / group / post / short) still closes the dropdown (it is not a topic
+change). The state machine (always-
 expanded field, focus → dropdown, X clears the query, the typed query
 persists) is unchanged. Everything below is the
 historical record; the current desktop home is the **top bar**.
@@ -338,8 +345,38 @@ existing idiom). No second data path.
     (typing on each of the four tabs writes `?q=` debounced; the field seeds
     from the tab's `?q=`; the X clears the field AND the tab's `?q=`; typing on
     a non-destination route writes no `?q=`; Enter on an open tab stays on the
-    tab). 1124 web10-social tests green, `tsc` clean. **No node change (D60 —
-    entirely client-side).**
+     tab). 1124 web10-social tests green, `tsc` clean. **No node change (D60 —
+     entirely client-side).**
+- [✓ 3.180.0] **S10: the search stays open on a topic change — the dropdown
+     survives the navigation it triggers** (`GlobalSearch.tsx`) — operator pass
+     (29.09.2026, two search screenshots): "when i change search topic, it
+     switches screens which is great, but the search collapses" + "the search
+     should stay open in my opinion, so the user can see the search results as
+     they search". S9 made a category tap / Enter / the "see all" CTA navigate
+     to the picked destination (the tab) — but the navigate → close effect
+     (`useEffect` on `pathname`) closed the dropdown the moment the tab opened,
+     so the user lost the preview exactly when they wanted to compare it
+     against the now-filtered tab. **The fix (all client-side,
+     `GlobalSearch.tsx` — no node change, D60):** a `categoryOpenRef` flag is
+     set when the search's OWN navigation fires (`openCategory` — the category
+     tap, Enter, and the CTA all route through it) and consumed (reset) by the
+     `pathname`-change effect: when the flag is set, the effect keeps the
+     dropdown open (desktop) + re-focuses the field (a real browser's mousedown
+     on the category button blurred it) instead of closing it. The mode follows
+     the now-open tab (the existing mode-follows effect) and the field
+     re-seeds from the new URL's `?q=` (the existing seed effect), so the
+     preview matches the tab being filtered. A row tap (person / group / post /
+     short) is NOT a topic change — it still closes the dropdown (the flag is
+     only set by `openCategory`). Mobile is unchanged (the full-screen view
+     still collapses on navigate — the operator's original mobile design).
+     `globalSearch.test.tsx` +5 (a new S10 block: tapping a category keeps the
+     dropdown open + the mode follows the tab; the CTA keeps it open; Enter
+     keeps it open; switching topics on an already-open tab keeps it open; a
+     row tap still closes it — the regression pin). 1129 web10-social tests
+     green, `tsc` clean. Harness `entry.tsx` gains the `/video` + `/hot-gossip`
+     routes (DiscoverScreen) so the PR screenshot can show the dropdown open
+     over the now-filtered tab; screenshots `search-stays-open-{desktop,375}.png`.
+     **No node change (D60 — entirely client-side).**
 
 **Ownership:** this lane owns `Layout.tsx`, `src/components/Search/`,
 `src/data/search.ts`. It does **not** touch `DiscoverScreen.tsx` or the

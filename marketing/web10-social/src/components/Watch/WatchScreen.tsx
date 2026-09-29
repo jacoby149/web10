@@ -9,7 +9,7 @@
 // all rebuild the exact state.
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { useParams, useSearchParams, useNavigate } from 'react-router-dom';
-import { X, User, ExternalLink } from 'lucide-react';
+import { User } from 'lucide-react';
 import { VideoPlayer, sourceFromMedia } from '@/components/Feed/VideoPlayer';
 import { PostActions } from '@/components/Feed/PostActions';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
@@ -26,7 +26,6 @@ import {
   readRepostCounts,
   readMyRepostedIds,
   readUserProfile,
-  readUserPublicProfile,
   isFollowing,
   followUser,
   unfollowUser,
@@ -41,6 +40,7 @@ import {
 } from '@/data';
 import { getWapi } from '@/data/wapi';
 import { useRepost } from '@/context/RepostContext';
+import { useComposer } from '@/context/ComposerContext';
 import { defaultKnobState, knobStateToSort, type KnobState, type PowerMeanSortConfig } from '@/lib/powerMean';
 import {
   rankWatchQueue,
@@ -177,110 +177,6 @@ function QueueCard({ post, media, authorName, authorAvatar, onOpen, active }: {
   );
 }
 
-// ── The author overlay (the "stay on the train" rule — not a navigation) ─────
-
-function AuthorOverlay({ author, profile, posts, mediaMap, following, onToggleFollow, onClose, onViewAll }: {
-  author: string;
-  profile: ProfileRecord | null;
-  posts: PostRecord[];
-  mediaMap: Record<string, MediaRecord[]>;
-  following: boolean;
-  onToggleFollow: () => void;
-  onClose: () => void;
-  onViewAll: () => void;
-}) {
-  const displayName = profile?.display_name || author.replace(/[-_]/g, ' ');
-  const avatarUrl = profile?.avatar_ref
-    ? (mediaMap[`avatar:${profile.avatar_ref}`]?.[0]?.url)
-    : undefined;
-
-  useEffect(() => {
-    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose(); };
-    document.addEventListener('keydown', onKey);
-    return () => document.removeEventListener('keydown', onKey);
-  }, [onClose]);
-
-  return (
-    <div
-      data-testid="watch-author-overlay"
-      className="fixed inset-0 z-50 flex items-end justify-end bg-black/60 backdrop-blur-sm md:items-stretch"
-      onClick={onClose}
-      role="dialog"
-      aria-modal="true"
-      aria-label={`About ${displayName}`}
-    >
-      <div
-        data-testid="watch-author-overlay-panel"
-        onClick={(e) => e.stopPropagation()}
-        className="flex h-full w-full flex-col overflow-y-auto bg-surface shadow-2xl md:w-96 md:border-l md:border-border"
-      >
-        {/* Header */}
-        <div className="flex items-center justify-between border-b border-border px-4 py-3">
-          <h2 className="font-display text-base font-semibold text-foreground">About</h2>
-          <button
-            type="button"
-            data-testid="watch-author-overlay-close"
-            onClick={onClose}
-            aria-label="Close"
-            className="rounded-md p-1 text-muted-foreground transition-colors hover:bg-elevated hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-          >
-            <X className="h-5 w-5" strokeWidth={2} />
-          </button>
-        </div>
-
-        {/* Face */}
-        <div className="flex flex-col items-center px-6 py-6 text-center">
-          <Avatar className="h-20 w-20">
-            {avatarUrl ? <AvatarImage src={avatarUrl} alt={displayName} /> : (
-              <AvatarFallback className="bg-brand-muted text-brand-300 text-xl font-semibold">{displayName.charAt(0).toUpperCase()}</AvatarFallback>
-            )}
-          </Avatar>
-          <p className="mt-3 font-display text-lg font-semibold text-foreground">{displayName}</p>
-          <p className="text-sm text-muted-foreground">@{author}</p>
-          {profile?.bio ? <p className="mt-3 text-sm text-foreground/90">{profile.bio}</p> : null}
-          <div className="mt-4 flex items-center gap-3">
-            <Button
-              variant={following ? 'outline' : 'brand'}
-              size="sm"
-              data-testid="watch-author-overlay-follow"
-              onClick={onToggleFollow}
-            >
-              {following ? 'Following' : 'Follow'}
-            </Button>
-            <Button variant="ghost" size="sm" data-testid="watch-author-overlay-view-all" onClick={onViewAll}>
-              <ExternalLink className="mr-1.5 h-3.5 w-3.5" strokeWidth={2} />
-              View all posts
-            </Button>
-          </div>
-        </div>
-
-        {/* Recent posts */}
-        {posts.length > 0 && (
-          <div className="border-t border-border px-4 py-4">
-            <p className="mb-3 text-xs font-semibold uppercase tracking-[0.04em] text-muted-foreground">Recent posts</p>
-            <div className="grid grid-cols-3 gap-1.5">
-              {posts.slice(0, 6).map((p) => {
-                const m = leadMedia(mediaMap[p._id || ''] || []);
-                return (
-                  <div key={p._id} className="aspect-square overflow-hidden rounded-md bg-elevated">
-                    {m?.thumbnail_url || (m && !m.mime_type?.startsWith('video/') ? m.url : undefined) ? (
-                      <img src={m.thumbnail_url || m.url} alt="" className="h-full w-full object-cover" loading="lazy" />
-                    ) : (
-                      <div className="flex h-full w-full items-center justify-center">
-                        <User className="h-4 w-4 text-muted-foreground/40" />
-                      </div>
-                    )}
-                  </div>
-                );
-              })}
-            </div>
-          </div>
-        )}
-      </div>
-    </div>
-  );
-}
-
 // ── Main screen ──────────────────────────────────────────────────────────────
 
 export default function WatchScreen() {
@@ -317,10 +213,9 @@ export default function WatchScreen() {
   const [mediaMap, setMediaMap] = useState<Record<string, MediaRecord[]>>({});
   const [queue, setQueue] = useState<PostRecord[]>([]);
   const [profile, setProfile] = useState<ProfileRecord | null>(null);
-  const [authorPosts, setAuthorPosts] = useState<PostRecord[]>([]);
+  const [authorAvatarUrl, setAuthorAvatarUrl] = useState<string | undefined>(undefined);
   const [followersCount, setFollowersCount] = useState<number | null>(null);
   const [following, setFollowing] = useState(false);
-  const [overlayOpen, setOverlayOpen] = useState(false);
 
   // Engagement for the current post.
   const [likes, setLikes] = useState(0);
@@ -360,34 +255,47 @@ export default function WatchScreen() {
       const sortConfig: PowerMeanSortConfig | null = knobStateToSort(knobState);
       const board = await readDiscoverFeed(sortConfig, 50);
 
-      // 3. The author's public posts (the overlay's "recent posts" strip) —
-      //    fetched before media resolution so their media resolves in the same
-      //    batch. Best-effort — a failure degrades to an empty strip.
+      // 3. The author's face (the row's display name + avatar). The profile read
+      //    gives the display name; the avatar is resolved from the profile's
+      //    avatar_ref (the profile's own media — a separate presign, best-effort).
       const author = p.author_username || '';
-      let authorPosts: PostRecord[] = [];
       let profile: ProfileRecord | null = null;
       if (author) {
-        const results = await Promise.allSettled([
-          readUserProfile(author, p.author_provider),
-          readUserPublicProfile(author, p.author_provider),
-        ]);
-        const [face, pub] = results;
-        profile = face.status === 'fulfilled' ? face.value : null;
-        authorPosts = pub.status === 'fulfilled' ? pub.value.posts : [];
+        profile = await readUserProfile(author, p.author_provider).catch(() => null);
+        setProfile(profile);
+        if (profile?.avatar_ref) {
+          const isOwnAuthor = token && author === token.username && (p.author_provider || '') === token.provider;
+          try {
+            const [m] = await resolveMediaRefs([profile.avatar_ref], { username: author, provider: p.author_provider }, isOwnAuthor ? 'media' : 'public_media');
+            setAuthorAvatarUrl(m?.[0]?.url);
+          } catch {
+            setAuthorAvatarUrl(undefined);
+          }
+        }
       }
-      setProfile(profile);
-      setAuthorPosts(authorPosts);
 
-      // 4. Resolve media for the current post + the board + the author's posts
-      //    (batched by author — one presign round-trip per author).
-      const media = await resolvePostsMedia([p, ...board, ...authorPosts]);
+      // 4. Resolve media for the current post + the board (batched by author —
+      //    one presign round-trip per author).
+      const media = await resolvePostsMedia([p, ...board]);
       setMediaMap(media);
 
       // 5. The queue: the board re-ranked for similarity to the current video.
-      //    Videos only (the "What's next" is a video queue — the Home wall is
-      //    videos-only, so the queue is too).
+      //    Landscape videos only (the "What's next" is a video queue — the
+      //    Video wall is landscape-only, so the queue is too). Portrait videos
+      //    are shorts (the TikTok shape) — they live in the Shorts destination,
+      //    not the YouTube-shaped watch queue. The aspect-ratio split keeps the
+      //    two from bleeding into each other.
       const ranked = rankWatchQueue(board, p, knobState, relatedness);
-      const videoQueue = ranked.filter((q) => (media[q._id || ''] || []).some((m) => m.mime_type?.startsWith('video/')));
+      const videoQueue = ranked.filter((q) => {
+        const ms = media[q._id || ''] || [];
+        const hasVideo = ms.some((m) => m.mime_type?.startsWith('video/'));
+        if (!hasVideo) return false;
+        // Exclude portrait (9:16) shorts — the queue is landscape only.
+        const isPortrait = ms.some(
+          (m) => m.mime_type?.startsWith('video/') && !!m.width && !!m.height && m.width < m.height,
+        );
+        return !isPortrait;
+      });
       setQueue(videoQueue);
 
       // 6. Engagement for the current post (the ref pattern — count the
@@ -479,15 +387,17 @@ export default function WatchScreen() {
 
   // ── Repost (reposts.md): a repost is a POST, not a reaction toggle. The
   //    repeat icon opens the app-level composer in repost mode (the shared
-  //    RepostContext seam — the same composer the feed uses) and returns to
-  //    the feed, where the composer lives. The composer's createRepost is the
-  //    single write; the count + fill re-derive on the next load.
+  //    RepostContext seam) — the New Post sheet pops up in place (no
+  //    navigation; the user stays on the watch page). The composer's
+  //    createRepost is the single write; the count + fill re-derive on the
+  //    next load.
   const { setRepostingTo } = useRepost();
+  const { openComposer } = useComposer();
   const handleRepost = useCallback(() => {
     if (!token || !post) return;
     setRepostingTo(post);
-    navigate('/feed');
-  }, [token, post, setRepostingTo, navigate]);
+    openComposer();
+  }, [token, post, setRepostingTo, openComposer]);
 
   // ── Follow toggle (the overlay + the author row) ───────────────────────────
   const handleToggleFollow = useCallback(async () => {
@@ -556,7 +466,10 @@ export default function WatchScreen() {
   const video = firstVideoMedia(media);
   const author = post.author_username || '';
   const authorName = profile?.display_name || author.replace(/[-_]/g, ' ') || 'Unknown';
-  const authorAvatar = profile?.avatar_ref ? mediaMap[`avatar:${profile.avatar_ref}`]?.[0]?.url : undefined;
+  const authorAvatar = authorAvatarUrl;
+  // The self case: the video is the viewer's own. You can't follow yourself —
+  // the Follow button is hidden (not a "Following" state; you are the author).
+  const isOwnAuthor = !!token && author === token.username && (post.author_provider || '') === token.provider;
 
   return (
     <div className="mx-auto grid max-w-6xl grid-cols-1 gap-6 px-4 py-6 md:grid-cols-[1fr_360px]">
@@ -594,13 +507,16 @@ export default function WatchScreen() {
           </p>
         )}
 
-        {/* The author row (under the video — the watch page's shape). */}
+        {/* The author row (under the video — the watch page's shape). The avatar
+            + name navigate to the author's profile (the "About" — the same
+            destination every other surface's author click uses). */}
         <div className="flex items-center gap-3" data-testid="watch-author-row">
           <button
             type="button"
-            onClick={() => setOverlayOpen(true)}
+            data-testid="watch-author-link"
+            onClick={() => navigate(`/u/${author}`, { state: { provider: post.author_provider || '' } })}
             className="flex min-w-0 items-center gap-3 rounded-full transition-colors hover:bg-elevated focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-            aria-label={`About ${authorName}`}
+            aria-label={`View ${authorName}'s profile`}
           >
             <Avatar className="h-11 w-11 shrink-0">
               {authorAvatar ? <AvatarImage src={authorAvatar} alt={authorName} /> : (
@@ -615,7 +531,7 @@ export default function WatchScreen() {
             </div>
           </button>
           <div className="ml-auto flex items-center gap-2">
-            {!isAnon && (
+            {!isAnon && !isOwnAuthor && (
               <Button
                 variant={following ? 'outline' : 'brand'}
                 size="sm"
@@ -625,9 +541,6 @@ export default function WatchScreen() {
                 {following ? 'Following' : 'Follow'}
               </Button>
             )}
-            <Button variant="ghost" size="sm" data-testid="watch-about-button" onClick={() => setOverlayOpen(true)}>
-              About
-            </Button>
           </div>
         </div>
 
@@ -707,20 +620,6 @@ export default function WatchScreen() {
           </p>
         )}
       </aside>
-
-      {/* ── The author overlay (the "stay on the train" rule) ── */}
-      {overlayOpen && (
-        <AuthorOverlay
-          author={author}
-          profile={profile}
-          posts={authorPosts}
-          mediaMap={mediaMap}
-          following={following}
-          onToggleFollow={() => void handleToggleFollow()}
-          onClose={() => setOverlayOpen(false)}
-          onViewAll={() => { setOverlayOpen(false); navigate(`/u/${author}`, { state: { provider: post.author_provider || '' } }); }}
-        />
-      )}
     </div>
   );
 }

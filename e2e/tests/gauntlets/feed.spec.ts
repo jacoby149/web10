@@ -125,7 +125,7 @@ test.describe('feed — browser gauntlet', () => {
     await expect(followBtn).toContainText('Following', { timeout: 10000 });
 
     // --- The creator's post appears in /feed; UI == DB ---
-    await page.goto(`${SOCIAL_BASE}/feed`);
+    await page.goto(`${SOCIAL_BASE}/feed?tab=following`);
     await assertFeedTruth(page, request, viewer.token, postText, true);
 
     // --- RELOAD → the post persists (the return run) ---
@@ -139,7 +139,7 @@ test.describe('feed — browser gauntlet', () => {
     await expect(followBtn).toContainText('Follow', { timeout: 10000 });
 
     // --- The creator's post leaves /feed; UI == DB ---
-    await page.goto(`${SOCIAL_BASE}/feed`);
+    await page.goto(`${SOCIAL_BASE}/feed?tab=following`);
     await assertFeedTruth(page, request, viewer.token, postText, false);
 
     await context.close();
@@ -179,7 +179,7 @@ test.describe('feed — I3 (a stranger cannot read the followers group)', () => 
     const page = await context.newPage();
     await setTokenCookie(context, 'social.localhost', stranger.token);
     await setTokenCookie(context, 'auth.localhost', stranger.token);
-    await page.goto(`${SOCIAL_BASE}/feed`);
+    await page.goto(`${SOCIAL_BASE}/feed?tab=following`);
     await assertFeedTruth(page, request, stranger.token, postText, false);
 
     await context.close();

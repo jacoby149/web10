@@ -46,12 +46,13 @@ import { cn } from '@/lib/utils';
 import { MARKETING_ORIGIN } from '@/lib/origins';
 import { PRESETS, getPreset, knobStateToSort, scorePost, FIXED_CHARACTER_DETEENT, type PresetId, type KnobState, type PowerMeanSortConfig, defaultKnobState } from '@/lib/powerMean';
 import { KnobRack } from './KnobRack';
+import { HotGossipSidebar } from './HotGossipSidebar';
 import DiscoverExploreTab from './DiscoverExploreTab';
 import { VideoPlayer, sourceFromMedia } from '@/components/Feed/VideoPlayer';
 import { MediaCarousel } from '@/components/Feed/MediaCarousel';
 import { PostActions } from '@/components/Feed/PostActions';
-import PostComposer from '@/components/Feed/PostComposer';
 import { useRepost } from '@/context/RepostContext';
+import { useComposer } from '@/context/ComposerContext';
 // D74: the shared discover card (one source, both apps). The social app's grid
 // + youtube cards now wrap it — the same card the marketing /trending uses.
 import { DiscoverCard as SharedDiscoverCard, HomeCard, type DiscoverPost, type CreateComment } from '@web10/discover';
@@ -452,6 +453,24 @@ function postHasVideo(post: PostRecord): boolean {
   return !!(post.tags?.includes('video') || hasVideoRef);
 }
 
+// A post is a SHORT (portrait video) if its first video media is 9:16
+// (width < height) — the same render-time gate the Shorts feed uses (shorts.md),
+// re-derived from the resolved media rather than the client-asserted `short` tag.
+// The Video wall is landscape-only (YouTube-shaped); portrait videos live in
+// the Shorts destination (TikTok-shaped). This is the aspect-ratio split that
+// keeps the two from bleeding into each other.
+function postIsPortraitVideo(post: PostRecord): boolean {
+  const refs = post.media_refs || [];
+  return refs.some((r) => {
+    if (typeof r !== 'object' || r === null) return false;
+    const m = r as { mime_type?: string; width?: number | null; height?: number | null };
+    return (
+      m.mime_type?.startsWith('video/') &&
+      !!m.width && !!m.height && m.width < m.height
+    );
+  });
+}
+
 // ── HomeCard (the Home view — the YouTube-style video wall) ─────────────────
 // The operator: "the youtube view is preferable, less brainrot — the videos
 // all have a good title, a thumbnail, and the attribution of who put them up."
@@ -494,9 +513,12 @@ function DiscoverHomeCard({
   const openPost = () => {
     const id = post._id || '';
     if (!id) return;
-    const video = mediaItems.find((m) => m.mime_type?.startsWith('video/'));
-    const isPortrait = !!video && !!video.width && !!video.height && video.width < video.height;
-    if (isPortrait) {
+    // The aspect-ratio split (shorts.md): the Video wall is landscape-only, so
+    // a card here is a landscape video → the watch page (carrying the current
+    // ?knobs= ranking). A portrait video is a short and lives in the Shorts
+    // destination (the lens) — the wall filters those out, but the gate stays
+    // as the backstop (a portrait card can only reach here via a stale read).
+    if (postIsPortraitVideo(post)) {
       navigate(`/shorts/${id}`);
       return;
     }
@@ -585,13 +607,13 @@ function modeFromPath(pathname: string): DiscoverMode {
   return 'video';
 }
 
-export default function DiscoverScreen() {
+export default function DiscoverScreen({ mode: modeOverride }: { mode?: DiscoverMode }) {
   const { pathname } = useLocation();
-  const mode = modeFromPath(pathname);
-  // Anon mode: a signed-out visitor browses the board read-only. The composer
-  // is hidden (they can't post without a session) — the Sign in affordance in
-  // the chrome is the path to posting.
-  const isAnon = !getWapi().readToken();
+  // The mode is normally derived from the route path (the path IS the mode).
+  // An explicit `mode` override wins — the What's New screen embeds this board
+  // at /feed (the Following/Hot Gossip tabs) where the path is /feed, not
+  // /hot-gossip, so it passes mode="hot-gossip" directly.
+  const mode = modeOverride ?? modeFromPath(pathname);
   const [posts, setPosts] = useState<PostRecord[]>([]);
   const [loading, setLoading] = useState(true);
   const [profileMap, setProfileMap] = useState<Record<string, ProfileRecord>>({});
@@ -677,6 +699,18 @@ export default function DiscoverScreen() {
       el.scrollIntoView({ behavior: 'smooth', block: 'center' });
     }
   }, [highlightPostId, posts]);
+
+  // The Top 10 rail's jump: set ?post=<id> (the deep-link the highlight effect
+  // above reacts to). The URL holds the target (refresh-safe, shareable) — the
+  // same seam the marketing link-out uses. A re-tap of the same entry is a no-op
+  // (the param is already set); a different entry replaces it.
+  const jumpToPost = useCallback((postId: string) => {
+    if (!postId) return;
+    const params = new URLSearchParams(searchParams);
+    params.set('post', postId);
+    setSearchParams(params);
+    LOG('sidebar — jump to post:', postId);
+  }, [searchParams, setSearchParams]);
 
   const loadDiscover = useCallback(async (sort: PowerMeanSortConfig | null = null) => {
     // `loading` is the INITIAL skeleton only — a knob-triggered re-read keeps
@@ -910,6 +944,15 @@ export default function DiscoverScreen() {
     return () => { if (refreshTimer.current) clearTimeout(refreshTimer.current); };
   }, [sortConfig, loadDiscover]);
 
+  // The app-level New Post sheet fires `post-created` (NewPostSheet) when a
+  // post lands — re-read the board so the fresh post shows up (the seam that
+  // replaces the old inline composer's onPostCreated callback).
+  useEffect(() => {
+    const onPostCreated = () => loadDiscover(sortConfig);
+    window.addEventListener('post-created', onPostCreated);
+    return () => window.removeEventListener('post-created', onPostCreated);
+  }, [loadDiscover, sortConfig]);
+
   // The reaction pair (post-actions.md): like XOR dislike, one reaction per
   // user. Optimistic update of the own-reaction maps + the post's like/dislike
   // counts, rollback on error. The data layer (toggleReactionKind) enforces
@@ -956,15 +999,16 @@ export default function DiscoverScreen() {
 
   // Repost (reposts.md): a repost is a POST, not a reaction toggle. Tapping
   // the repeat icon opens the app-level composer in repost mode (the shared
-  // RepostContext seam) with this post as the context, then returns to the
-  // feed (where the app-level composer lives) so the repost is created there.
-  // The composer's createRepost is the single write; the count + fill
+  // RepostContext seam) with this post as the context — the New Post sheet
+  // pops up in place (no navigation; the user stays on the wall). The
+  // composer's createRepost is the single write; the count + fill
   // re-derive from the post-based read on the next load.
   const { setRepostingTo } = useRepost();
+  const { openComposer } = useComposer();
   const navigate = useNavigate();
   function handleRepost(post: PostRecord) {
     setRepostingTo(post);
-    navigate('/feed');
+    openComposer();
   }
 
   // Write a knob state to the URL (the deep-linkable ranking). The param is
@@ -1033,9 +1077,13 @@ export default function DiscoverScreen() {
     return filtered;
   }, [scoredPosts, activeTag, searchQuery]);
 
-  // YouTube view: media posts only (video + image)
+  // Video wall: landscape videos only (the YouTube shape). Portrait videos are
+  // shorts — they live in the Shorts destination (the TikTok shape), not here.
+  // The aspect-ratio split keeps the two from bleeding into each other: a user
+  // clicks a landscape video in the wall (→ the watch page) or a short in the
+  // Shorts wall (→ the lens), never the other way around.
   const mediaPosts = useMemo(
-    () => visiblePosts.filter(p => postHasVideo(p)),
+    () => visiblePosts.filter(p => postHasVideo(p) && !postIsPortraitVideo(p)),
     [visiblePosts],
   );
 
@@ -1075,15 +1123,10 @@ export default function DiscoverScreen() {
             </div>
           )}
 
-          {/* The composer — the operator: "you can make a new post from the
-              explorer too". Compact: it rests as a single-line bar so the
-              video wall, not the composer, is the hero (design.md §10).
-              Hidden in anon mode (a signed-out visitor can't post). */}
-          {!isAnon && (
-          <div data-testid="discover-composer" className="border-b border-border">
-            <PostComposer compact onPostCreated={() => loadDiscover(sortConfig)} />
-          </div>
-          )}
+          {/* The composer is NOT inline (the operator: "it should be
+              invisible") — the app-level New Post sheet (the Layout's
+              floating "+" button) is the single compose surface. The video
+              wall is the hero, not a composer box (design.md §10). */}
 
           {/* Controls: presets + knobs */}
           <div className="px-4 py-3 md:px-4 lg:px-6">
@@ -1185,62 +1228,87 @@ export default function DiscoverScreen() {
                 <DiscoverHomeEmptyState onSwitchToGrid={() => navigate('/hot-gossip')} />
               )
             ) : visiblePosts.length > 0 ? (
-              <div className="grid grid-cols-1 gap-4" data-testid="discover-grid">
-                {visiblePosts.flatMap((post, i) => {
-                  const authorKey = `${post.author_username}@${post.author_provider}`;
-                  const profile = profileMap[authorKey];
-                  const mediaItems = mediaMap[post._id || ''] || [];
-                  const authorName = profile?.display_name || (post.author_username || '').replace(/[-_]/g, ' ');
+              /* Hot Gossip — the ranked post board (the Threads shape), now
+                 capped to a reading column with the Top 10 rail beside it
+                 (the marketing /trending shape). The board was running
+                 full-bleed ("way too horizontally big"); the rail is the
+                 shortcut to the top of the board, so the board narrows to
+                 make room for it. Mobile: the rail hides (lg:block), the
+                 board stays full-width. */
+              <div className="mx-auto flex w-full max-w-5xl gap-8">
+                <div className="min-w-0 flex-1">
+                  <div className="mx-auto grid w-full max-w-2xl grid-cols-1 gap-4" data-testid="discover-grid">
+                    {visiblePosts.flatMap((post, i) => {
+                      const authorKey = `${post.author_username}@${post.author_provider}`;
+                      const profile = profileMap[authorKey];
+                      const mediaItems = mediaMap[post._id || ''] || [];
+                      const authorName = profile?.display_name || (post.author_username || '').replace(/[-_]/g, ' ');
 
-                  // Post-format ads (ad-improvements.md): a `post`-format ad
-                  // rides the post it's attached to but renders as its OWN
-                  // card, next in line after that post on the board — "just
-                  // another post" with the Ad/Sponsored badge + disclosure,
-                  // nothing indicating the pin. (Inline ads stay in the card's
-                  // own ad slot; the shared card skips the post format.)
-                  const attached: AdRecord[] = [
-                    ...(post.ad && post.ad.format === 'post' ? [post.ad] : []),
-                    ...(post.node_ad && post.node_ad.format === 'post' ? [post.node_ad] : []),
-                  ];
+                      // Post-format ads (ad-improvements.md): a `post`-format ad
+                      // rides the post it's attached to but renders as its OWN
+                      // card, next in line after that post on the board — "just
+                      // another post" with the Ad/Sponsored badge + disclosure,
+                      // nothing indicating the pin. (Inline ads stay in the card's
+                      // own ad slot; the shared card skips the post format.)
+                      const attached: AdRecord[] = [
+                        ...(post.ad && post.ad.format === 'post' ? [post.ad] : []),
+                        ...(post.node_ad && post.node_ad.format === 'post' ? [post.node_ad] : []),
+                      ];
 
-                  const isHighlighted = !!highlightPostId && (post._id || '') === highlightPostId;
-                  const card = (
-                    <DiscoverCard
-                      key={post._id || post.created_at}
-                      post={post}
-                      rank={i + 1}
-                      maxScore={maxScore}
-                      authorName={authorName}
-                      authorAvatar={
-                        profile?.avatar_ref
-                          ? mediaItems.find(m => m._id === profile.avatar_ref)?.url
-                          : undefined
-                      }
-                      mediaItems={mediaItems}
-                      onAuthorClick={() => navigateToUserProfile(post.author_username || '', post.author_provider || '')}
-                      onCommentAuthorClick={(username, provider) => navigateToUserProfile(username, provider || '')}
-                      liked={!!likedMap[post._id || '']}
-                      disliked={!!dislikedMap[post._id || '']}
-                      reposted={!!repostedMap[post._id || '']}
-                      onToggleReaction={(kind) => handleToggleReaction(post._id || '', kind)}
-                      onToggleRepost={() => handleRepost(post)}
-                      id={isHighlighted ? 'hot-gossip-highlight' : undefined}
-                      className={isHighlighted ? 'ring-2 ring-brand border-brand shadow-[0_0_24px_-4px_var(--color-glow-intense)]' : undefined}
-                    />
-                  );
+                      const isHighlighted = !!highlightPostId && (post._id || '') === highlightPostId;
+                      const card = (
+                        <DiscoverCard
+                          key={post._id || post.created_at}
+                          post={post}
+                          rank={i + 1}
+                          maxScore={maxScore}
+                          authorName={authorName}
+                          authorAvatar={
+                            profile?.avatar_ref
+                              ? mediaItems.find(m => m._id === profile.avatar_ref)?.url
+                              : undefined
+                          }
+                          mediaItems={mediaItems}
+                          onAuthorClick={() => navigateToUserProfile(post.author_username || '', post.author_provider || '')}
+                          onCommentAuthorClick={(username, provider) => navigateToUserProfile(username, provider || '')}
+                          liked={!!likedMap[post._id || '']}
+                          disliked={!!dislikedMap[post._id || '']}
+                          reposted={!!repostedMap[post._id || '']}
+                          onToggleReaction={(kind) => handleToggleReaction(post._id || '', kind)}
+                          onToggleRepost={() => handleRepost(post)}
+                          id={isHighlighted ? 'hot-gossip-highlight' : undefined}
+                          className={isHighlighted ? 'ring-2 ring-brand border-brand shadow-[0_0_24px_-4px_var(--color-glow-intense)]' : undefined}
+                        />
+                      );
 
-                  if (!attached.length) return [card];
-                  return [
-                    card,
-                    ...attached.map((ad) => (
-                      <AttachedAd
-                        key={`${post._id || post.created_at}-ad-${ad._id || 'x'}`}
-                        ad={ad}
-                        standalone
-                      />
-                    )),
-                  ];
-                })}
+                      if (!attached.length) return [card];
+                      return [
+                        card,
+                        ...attached.map((ad) => (
+                          <AttachedAd
+                            key={`${post._id || post.created_at}-ad-${ad._id || 'x'}`}
+                            ad={ad}
+                            standalone
+                          />
+                        )),
+                      ];
+                    })}
+                  </div>
+                </div>
+
+                {/* The Top 10 rail — Hot Gossip only, desktop only (the board's
+                    shortcut, not a nav rail). Hidden while searching (the
+                    filtered board is the focus, the unfiltered top-10 would
+                    mislead) — the marketing rail has the same rule. */}
+                {urlQuery.trim() === '' && (
+                  <HotGossipSidebar
+                    entries={scoredPosts
+                      .filter(p => activeTag === 'All' || (p.tags?.includes(activeTag) ?? false))
+                      .slice(0, 10)
+                      .map((p, i) => ({ post: p, rank: i + 1, score: p.score ?? 0 }))}
+                    onSelect={jumpToPost}
+                  />
+                )}
               </div>
             ) : (
               <DiscoverEmptyState />

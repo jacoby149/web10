@@ -33,7 +33,7 @@ export function feedPostCard(page: Page, postText: string) {
 /**
  * The UI-only presence check (a toPass retry for posts that appear/disappear
  * asynchronously after a follow/unfollow triggers a feed re-read). The page
- * must be on the feed (`${SOCIAL_BASE}/feed`).
+ * must be on the feed (`${SOCIAL_BASE}/feed?tab=following`).
  */
 export async function assertFeedHasPost(
   page: Page,

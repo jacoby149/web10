@@ -4,7 +4,7 @@ import Peer from 'peerjs';
 import { Button } from '@/components/ui/button';
 import { getSocialAuth } from '@/interfaces/auth';
 import Layout from '@/components/Social/Layout';
-import FeedScreen from '@/components/Feed/FeedScreen';
+import PostsScreen from '@/components/Feed/PostsScreen';
 import ProfileScreen from '@/components/Bio/ProfileScreen';
 import UserProfileScreen from '@/components/Bio/UserProfileScreen';
 import UserFollowListScreen from '@/components/Bio/UserFollowListScreen';
@@ -19,7 +19,6 @@ import StagingScreen from '@/components/Staging/StagingScreen';
 import SettingsScreen from '@/components/Settings/SettingsScreen';
 import MonetizationScreen from '@/components/Monetization/MonetizationScreen';
 import NodeSettingsScreen from '@/components/NodeSettings/NodeSettingsScreen';
-import PostComposer from '@/components/Feed/PostComposer';
 import { ErrorBoundary } from '@/components/shared/ErrorBoundary';
 import { ReportBug } from '@/components/shared/ReportBug';
 import { Toaster } from '@/components/shared/Toast';
@@ -31,7 +30,9 @@ import { initP2P, teardownP2P, setPeer } from '@/data/p2p';
 import { initNotifications, teardownNotifications } from '@/data/notifications';
 import { trackEvent, hotjarIdentify } from '@/lib/analytics';
 import { PostLightbox } from '@/components/Bio/PostLightbox';
-import { RepostProvider, useRepost } from '@/context/RepostContext';
+import { RepostProvider } from '@/context/RepostContext';
+import { ComposerProvider } from '@/context/ComposerContext';
+import { NewPostSheet } from '@/components/Feed/NewPostSheet';
 import type { PostRecord, MediaRecord, Visibility, ResolvedMediaRef } from '@/data/types';
 import { fromResolvedMediaRef } from '@/data/types';
 
@@ -196,42 +197,11 @@ function UserProfilePostLinkRoute() {
   );
 }
 
-// /feed route: composing a post bumps `version`, which remounts FeedScreen
-// so a fresh post shows up immediately instead of only after a manual
-// refresh (the post is delivered to the author's own inbox on create).
-//
-// Repost (reposts.md): tapping the repeat icon on a feed post opens the
-// composer in REPOST mode (the composer is app-level, above the feed). The
-// reposted post rides in `repostingTo`; the composer shows it as a context
-// block + a comment field. Submitting creates a repost post; the feed
-// remounts (version bump) so the new repost shows up.
-function FeedRoute({ onAuthorClick }: { onAuthorClick: (username: string, provider: string) => void }) {
-  const [version, setVersion] = useState(0);
-  // Repost (reposts.md): the repost state is app-wide (RepostContext) so the
-  // repeat icon on ANY surface (feed, discover, lightbox, profile, groups)
-  // opens this same composer in repost mode. The feed's onRepost → repostingTo
-  // pattern (3.110.0) is lifted from FeedRoute-local state to the shared seam.
-  const { repostingTo, setRepostingTo, clearReposting } = useRepost();
-  return (
-    <>
-      <PostComposer
-        repostingTo={repostingTo}
-        onRepostCancel={clearReposting}
-        onPostCreated={() => {
-          clearReposting();
-          setVersion((v) => v + 1);
-          trackEvent('post_created');
-        }}
-      />
-      <FeedScreen
-        key={version}
-        onAuthorClick={onAuthorClick}
-        onRepost={setRepostingTo}
-      />
-    </>
-  );
-}
-
+// /feed route: the merged Posts screen (Feed + Hot Gossip, the X/Threads
+// model — one destination, a "Discover | Following" tab row inside). The
+// composer + feed remount on post/repost create (the version-bump idiom,
+// lifted into PostsScreen). Repost (reposts.md): the repeat icon on ANY
+// surface opens the composer in repost mode via the app-wide RepostContext.
 function App() {
   // Initialize from the synchronous cookie check (NOT `false`): the anon-mode
   // routes below (`isAnon ? <Navigate to="/discover"> : <Screen>`) render on the
@@ -436,16 +406,17 @@ function App() {
         </div>
       )}
       <RepostProvider>
+      <ComposerProvider>
       <Routes>
         <Route element={<Layout onLogout={handleLogout} onLogin={handleLogin} isAnon={isAnon} onReportBug={() => handleReportBug('button')} />}>
-          <Route path="/feed" element={isAnon ? <Navigate to="/video" replace /> : <FeedRoute onAuthorClick={handleAuthorClick} />} />
+          <Route path="/feed" element={isAnon ? <Navigate to="/video" replace /> : <PostsScreen onAuthorClick={handleAuthorClick} />} />
           {/* The Discover split (watch-page.md): the old single /discover
               (Trending|People tabs + Home|Hot Gossip toggle) is four flat
               destinations. /discover (bare) → Video (the default);
               ?view=grid → Hot Gossip; ?tab=explore → People. The ?knobs= /
               ?q= / ?tag= deep links survive on the relevant destinations. */}
           <Route path="/video" element={<DiscoverScreen />} />
-          <Route path="/hot-gossip" element={<DiscoverScreen />} />
+          <Route path="/hot-gossip" element={isAnon ? <DiscoverScreen mode="hot-gossip" /> : <HotGossipRedirect />} />
           <Route path="/people" element={<DiscoverScreen />} />
           <Route path="/discover" element={<DiscoverRedirect />} />
           <Route path="/watch/:postId" element={<WatchScreen />} />
@@ -467,6 +438,13 @@ function App() {
           <Route path="*" element={<Navigate to="/video" replace />} />
         </Route>
       </Routes>
+      {/* The app-level composer (the "New Post" sheet) — one composer for the
+          whole app, opened by the Layout's floating "+" button, a group
+          feed's "Post to this group", or a repeat icon (repost mode). The
+          inline composer boxes on the feed / profile / video / group
+          surfaces are retired (the operator: "it should be invisible"). */}
+      <NewPostSheet />
+      </ComposerProvider>
       </RepostProvider>
       <Toaster />
       {/* D72: the PWA install surface — one dismissible card at the moment of
@@ -509,6 +487,19 @@ function DiscoverRedirect() {
     return <Navigate to={`/hot-gossip${suffix}`} replace />;
   }
   return <Navigate to={`/video${suffix}`} replace />;
+}
+
+// /hot-gossip → the Posts screen's Discover tab (the merged Feed + Hot Gossip
+// surface). The query is carried over verbatim so the marketing link-out
+// (`/hot-gossip?post=<id>`) lands on the Discover board scrolled to +
+// highlighting that post, and a `?q=` search lands filtered. Discover is the
+// default tab, so no `?tab=` is added.
+function HotGossipRedirect() {
+  const [searchParams] = useSearchParams();
+  const params = new URLSearchParams(searchParams);
+  params.delete('tab');
+  const qs = params.toString();
+  return <Navigate to={`/feed${qs ? `?${qs}` : ''}`} replace />;
 }
 
 export default App;
