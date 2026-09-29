@@ -5,8 +5,17 @@ const p = port === '80' ? '' : `:${port}`;
 const BASE = `http://marketing.localhost${p}`;
 
 test.describe('marketing-ui route smoke', () => {
-  test('landing page renders without white-screen', async ({ page }) => {
+  test('landing page (the experience) renders without white-screen', async ({ page }) => {
+    // The Discover split (3.171.0): `/` is the EXPERIENCE (the Video wall +
+    // the four-destination nav), not the pitch. The pitch moved to /about.
     await page.goto(BASE);
+    await expect(page).toHaveTitle(/web10/i);
+    await expect(page.locator('[data-testid="experience-nav"]')).toBeVisible({ timeout: 10000 });
+  });
+
+  test('about page (the pitch) renders without white-screen', async ({ page }) => {
+    // The old landing page (the "Your audience." pitch) now lives at /about.
+    await page.goto(`${BASE}/about`);
     await expect(page).toHaveTitle(/web10/i);
     await expect(page.locator('text=The web10')).toBeVisible({ timeout: 10000 });
   });
