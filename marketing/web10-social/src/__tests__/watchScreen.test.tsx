@@ -13,15 +13,18 @@ const NOW = '2026-09-28T12:00:00.000Z';
 const H = 3_600_000;
 const at = (hoursAgo: number) => new Date(Date.parse(NOW) - hoursAgo * H).toISOString();
 
+// The post doc the node returns: the author lives in `author_key` — the body
+// carries NO author fields (the write path never puts them there). The watch
+// page must derive the author from author_key (fromV3DocToPost), not the body.
+
 const CURRENT = {
   doc_id: 'post-cur',
+  author_key: 'test.localhost/users/alex',
   created_at: at(1),
   updated_at: at(1),
   tags: ['climbing'],
   body: {
     text: 'Free soloing the north face',
-    author_username: 'alex',
-    author_provider: 'web10',
     media_refs: [{ doc_id: 'm-cur', mime_type: 'video/mp4', read_url: 'https://cdn/v/cur.mp4', width: 1280, height: 720, duration_seconds: 90, thumbnail_url: 'https://cdn/t/cur.jpg' }],
   },
 };
@@ -64,7 +67,11 @@ const MEDIA: Record<string, unknown> = {
 // The V3 client the screen uses for readById (the post) + the engagement read
 // (reactions/comments over the discover group). `fakeV3Read` is hoisted (the
 // vi.mock factory runs before any top-level const).
-const { fakeV3Read, fakeReadById } = vi.hoisted(() => ({ fakeV3Read: vi.fn(), fakeReadById: vi.fn() }));
+const { fakeV3Read, fakeReadById, setRepostingToSpy } = vi.hoisted(() => ({ fakeV3Read: vi.fn(), fakeReadById: vi.fn(), setRepostingToSpy: vi.fn() }));
+
+vi.mock('@/context/RepostContext', () => ({
+  useRepost: () => ({ repostingTo: null, setRepostingTo: setRepostingToSpy, clearReposting: vi.fn() }),
+}));
 
 vi.mock('@/data', async (importOriginal) => {
   const original = await importOriginal() as Record<string, unknown>;
@@ -72,6 +79,7 @@ vi.mock('@/data', async (importOriginal) => {
   // beforeEach wipes factory-set implementations, so they must be re-set there).
   return {
     ...original,
+    readPostById: vi.fn(),
     readDiscoverFeed: vi.fn(),
     resolveMediaRefs: vi.fn(),
     readUserProfile: vi.fn(),
@@ -103,6 +111,9 @@ async function renderWatch(path = '/watch/post-cur') {
     <MemoryRouter initialEntries={[path]}>
       <Routes>
         <Route path="/watch/:postId" element={<WatchScreen />} />
+        {/* The repost seam navigates here (the app-level composer lives on the
+            feed route) — a marker so the navigation is assertable. */}
+        <Route path="/feed" element={<div data-testid="feed-route" />} />
       </Routes>
     </MemoryRouter>,
   );
@@ -145,8 +156,11 @@ beforeEach(() => {
   // The V3 client (readById for the post + read for the engagement). clearAllMocks
   // wipes the factory's mockReturnValue, so re-establish it here.
   (data.getV3Client as ReturnType<typeof vi.fn>).mockReturnValue({ read: fakeV3Read, readById: fakeReadById });
-  // The post by id (the watch page's primary read).
-  fakeReadById.mockResolvedValue(CURRENT);
+  // The post by id (the watch page's primary read) — the canonical mapper
+  // (fromV3DocToPost) derives the author from author_key.
+  (data.readPostById as ReturnType<typeof vi.fn>).mockResolvedValue(
+    data.fromV3DocToPost(CURRENT as never),
+  );
   // The engagement read (reactions/comments over the discover group) — empty.
   fakeV3Read.mockResolvedValue([]);
 });
@@ -165,6 +179,43 @@ describe('WatchScreen (the watch page)', () => {
     expect(screen.getByTestId('watch-author-row')).toHaveTextContent('4,200 followers');
     // The follow button (signed-in).
     expect(screen.getByTestId('watch-follow-button')).toHaveTextContent('Follow');
+  });
+
+  it('resolves the author from the doc author_key when the profile read fails (never "Unknown")', async () => {
+    // Regression: the old screen read `body.author_username`, which the write
+    // path never sets — the author lives in `author_key`. With no profile, the
+    // row must fall back to the author_key username, not "Unknown".
+    (data.readUserProfile as ReturnType<typeof vi.fn>).mockRejectedValue(new Error('no profile'));
+    await renderWatch();
+    await waitFor(() => expect(screen.getByTestId('watch-author-row')).toBeInTheDocument());
+    const row = screen.getByTestId('watch-author-row');
+    expect(row).toHaveTextContent('alex');
+    expect(row).not.toHaveTextContent('Unknown');
+  });
+
+  it('renders the dislike + repost buttons (the watch page is a full engagement surface)', async () => {
+    await renderWatch();
+    await waitFor(() => expect(screen.getByTestId('watch-post-actions')).toBeInTheDocument());
+    expect(screen.getByTestId('dislike-button')).toBeInTheDocument();
+    expect(screen.getByTestId('repost-button')).toBeInTheDocument();
+  });
+
+  it('tapping the dislike thumb reports the dislike reaction to the data layer', async () => {
+    await renderWatch();
+    const btn = await screen.findByTestId('dislike-button');
+    fireEvent.click(btn);
+    await waitFor(() =>
+      expect(data.toggleReactionKind).toHaveBeenCalledWith('post-cur', 'dislike', [data.getDiscoverGroupId()]),
+    );
+  });
+
+  it('tapping the repost icon opens the composer in repost mode and returns to the feed (the shared seam)', async () => {
+    await renderWatch();
+    const btn = await screen.findByTestId('repost-button');
+    fireEvent.click(btn);
+    await waitFor(() => expect(setRepostingToSpy).toHaveBeenCalledWith(expect.objectContaining({ _id: 'post-cur' })));
+    // The composer lives on the feed route — the watch page navigates there.
+    expect(screen.getByTestId('feed-route')).toBeInTheDocument();
   });
 
   it('renders the "What\'s next" queue (the board, re-ranked) + the relatedness chips', async () => {
@@ -206,7 +257,7 @@ describe('WatchScreen (the watch page)', () => {
   });
 
   it('shows the not-found state when the post is absent', async () => {
-    fakeReadById.mockRejectedValue(new Error('not found'));
+    (data.readPostById as ReturnType<typeof vi.fn>).mockResolvedValue(null);
     await renderWatch();
     await waitFor(() => expect(screen.getByText('Video not found')).toBeInTheDocument());
   });
