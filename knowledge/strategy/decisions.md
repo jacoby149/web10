@@ -677,6 +677,67 @@ consideration).
 Full model: `knowledge-base/web10-v3/social/content-moderation.md`. Default
 list: `knowledge-base/web10-v3/social/sensitive-words-default.md`.
 
+### D59a — Node-level ban (`banned_users`) + retroactive user-hide [decided]
+Operator, 28.09.2026 — "the social app i tried to hide the posts from the user,
+but the posts were still visible" + "no ability to ban, just to hide from
+discover" + "node level ban needs a kb entry, like if user banned, the web10
+query engine just filters out banned user created stuff that simple" + "hiding
+for a whole user … it is currently only per post, needs work too on the backend
+to let hide all happen for a user".
+
+**Decided** — (1) **The user-hide is retroactive.** `POST /v3/moderation/auto-hide`
+with `hide=true` no longer only governs *future* posts: it also sweeps the
+user's **existing** discover-board docs and hides each from the board (the
+existing `group_hidden_docs` mechanism); `hide=false` restores them. The sweep
+is **service-agnostic** (D60 — no `posts` hardcode): a hide is "take this user
+off the board", so every doc they have on the discover board is swept, whatever
+service it lives in. The write-path hook still covers future posts. This fixes
+"I hid the user but their posts are still visible" — the hide now takes effect
+immediately, not on the user's next post. (2) **A node-level ban is
+`node_config.banned_users`** — a JSON array of usernames (the same shape as
+`auto_hide_users`), admin-only (`POST /v3/moderation/ban`). A banned user's
+content is **filtered out of every read path**: the board read
+(`_board_base_sql`) and the query engine (`_boundary_cte_sql`) both carry an
+`author_key NOT IN (banned_users)` predicate, so a banned user's docs do not
+surface in any read (discover, feed, profile, the D73 query engine) — for any
+service, not just social. The ban is **generic** (D60 — a node-owner feature,
+not scoped to social): a node operator banning a spammer's content is
+app-agnostic. The ban is node-level (a node_config list, not a user property —
+it does not follow the user across nodes) and reversible (remove the username
+and their content returns). (3) **The ban is stronger than the hide.** A hide
+(`auto_hide_users`) is *board curation* — it suppresses the user's docs from
+the discover board only (their profile, followers' feed, and other groups are
+intact — D41/I3 hold). A ban reaches the whole read path. A banned user is also
+off the board (the ban subsumes the hide for board visibility), but the ban's
+reach is broader. (4) **The Hidden Posts list returns to the UI** — the
+Moderation tab lists the discover group's `group_hidden_docs`
+(`POST /v3/groups/hidden`) with a per-post Unhide, restoring the surface the
+authenticator's retired Board Moderation card had.
+
+**Why:** the operator's mental model — "if user banned, the query engine just
+filters out banned user created stuff" — is the right one and it's the smallest
+correct mechanism: a node_config list + a read-path predicate, no new table, no
+new role, no DDL. Both the ban and the retroactive sweep are **generic** (D60):
+the ban filters on `author_key` in the universal read path (any service, any
+app), and the sweep hides every doc the user has on the discover board (no
+`posts` hardcode — "take this user off the board" is service-agnostic). The
+sweep reuses the same `group_hidden_docs` mechanism the write-path hook already
+uses, so "hide a user" and "hide a post" are the same primitive at two
+granularities.
+
+**Rejected:** a `banned` column on a `users` table (a user property — the ban is
+a node-operator decision, node-local, like `auto_hide_users`); blocking a
+banned user's *login* (the operator's model is a read-path filter — the content
+isn't served — not an account lockout; a login block is a different, stronger
+mechanism and not what was asked); reusing `auto_hide_users` and relabeling it
+"Ban" (it's board-curation only — it doesn't filter the profile/followers'
+feed, so it's not a real ban); scoping the sweep to `collection_name = 'posts'`
+(a D60 leak — the node learning "a post is a social doc"; the sweep is
+service-agnostic because a hide is "off the board", not "off the posts board").
+
+Full model: `knowledge-base/web10-v3/social/content-moderation.md` ("The Ban" +
+"The 'hide a user' behavior (retroactive)").
+
 ---
 
 ### D58 — Group access model: per-service role maps + principal classes (`anyone` / `authenticated` / `member`) [decided]
