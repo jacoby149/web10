@@ -27,6 +27,7 @@ const DOC_SECTIONS: { title: string; pages: DocPage[] }[] = [
       { slug: 'account-recovery', title: 'Account Recovery', file: '/docs/account-recovery.md' },
       { slug: 'import-from-other-platforms', title: 'Import from Other Platforms', file: '/docs/import-from-other-platforms.md' },
       { slug: 'export-guidance', title: 'Export Guidance', file: '/docs/export-guidance.md' },
+      { slug: 'terms', title: 'Terms of Service', file: '/docs/terms.md' },
     ],
   },
   {

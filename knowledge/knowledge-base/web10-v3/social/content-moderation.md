@@ -138,6 +138,30 @@ New fields on `node_config`:
 
 All set in the Node Config UI / Node Settings. Changes apply immediately (read on each read, no cache).
 
+## Copyright Takedowns: the "Post-It Note" DMCA rule
+
+Content moderation (above) is the **operator's** curation lever — the node owner keeps the board clean. **Copyright takedowns** are a different, **legal-compliance** surface: a third-party rights holder (not the operator) asks for infringing content to be removed. web10 follows the **"Post-It Note" rule** — the deliberately-small takedown path that keeps a node legally protected while it's small.
+
+**The model (no backend, no queue, no database):**
+
+1. **The designated agent** is an email address — `copyright@web10.com` for the web10 reference node / web10-social. A self-hosted node names its **own** agent in its own terms (the node stays generic, D60 — the agent is a terms-level thing, not a node-config column).
+2. **The report is an email.** The rights holder sends the agent a link to the infringing content + their name + how to reach them + a statement that they are the rights holder (or authorized to act).
+3. **The operator acts fast.** They open the link and remove the content **manually** — the existing board takedown (`POST /v3/groups/hide`) or, for a full removal, the author's own delete. Acting quickly on valid notices is the legal protection: a small node that responds promptly to valid DMCA notices is safe.
+
+**Why this is the right shape (and not a takedown queue):**
+
+- **It is not a node feature.** There is no `takedowns` table, no `/v3/takedowns` endpoint, no in-app report queue. The email **is** the report. Adding a node surface for it would violate D60 (the node stays app-agnostic; a DMCA queue is a legal/operational concern, not a platform primitive).
+- **The in-app affordance is a `mailto:` composer, not a write.** The social app's **Settings → About → Report copyright** opens a dialog that shows the designated agent's email + a pre-filled message (the content's link, the author, a rights statement) and hands it to the user's mail client. It never sends anything itself — no data write, no node call. This is the **single** entry point (not a per-post button on every surface: video, shorts, hot gossip, profile — the mechanism is an email, so the button lives in one always-reachable place, not scattered across the content surfaces).
+- **The terms of service publish the address** (`marketing-ui /docs/terms`, the "Copyright & DMCA" section) so a rights holder who doesn't use the app can still find it.
+
+**The seam:** `marketing/web10-social/src/components/shared/ReportCopyright.tsx` (the `mailto:` dialog + the `COPYRIGHT_EMAIL` constant), reached from `SettingsScreen` (the About section). The public doc is `marketing/marketing-ui/public/docs/terms.md`.
+
+**What this is NOT:**
+
+- **Not a strike system.** No counter, no account penalty, no "three strikes and you're out". A valid notice removes the content; that's the whole mechanism.
+- **Not a substitute for the operator's moderation.** The operator's board curation (hide/ban above) is for *their* node's health; a DMCA takedown is for *someone else's* rights. They share the same removal lever (the board takedown) but are different intents.
+- **Not a legal guarantee.** The "Post-It Note" rule is the small-node posture: a real, published, fast-acting takedown path. It is not a substitute for the operator's own legal counsel, and a self-hosted node's terms govern its own exposure.
+
 ## What This Is NOT
 
 - **The hide is not a ban.** A *hidden* user (`auto_hide_users`) can still post, DM, follow, be followed; their profile and followers' feed are intact. They're just not on the board. The **ban** (`banned_users`) is the stronger lever: their content is filtered out of every read path (see "The Ban" above).
