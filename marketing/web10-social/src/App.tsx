@@ -9,6 +9,7 @@ import ProfileScreen from '@/components/Bio/ProfileScreen';
 import UserProfileScreen from '@/components/Bio/UserProfileScreen';
 import UserFollowListScreen from '@/components/Bio/UserFollowListScreen';
 import DiscoverScreen from '@/components/Discover/DiscoverScreen';
+import WatchScreen from '@/components/Watch/WatchScreen';
 import ShortsScreen from '@/components/Shorts/ShortsScreen';
 import GroupsScreen from '@/components/Groups/GroupsScreen';
 import GroupDetailScreen from '@/components/Groups/GroupDetailScreen';
@@ -439,6 +440,7 @@ function App() {
         <Route element={<Layout onLogout={handleLogout} onLogin={handleLogin} isAnon={isAnon} onReportBug={() => handleReportBug('button')} />}>
           <Route path="/feed" element={isAnon ? <Navigate to="/discover" replace /> : <FeedRoute onAuthorClick={handleAuthorClick} />} />
           <Route path="/discover" element={<DiscoverScreen />} />
+          <Route path="/watch/:postId" element={<WatchScreen />} />
           <Route path="/shorts" element={<ShortsScreen />} />
           <Route path="/shorts/:postId" element={<ShortsScreen />} />
           <Route path="/groups" element={<GroupsScreen />} />

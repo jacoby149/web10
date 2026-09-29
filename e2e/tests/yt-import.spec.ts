@@ -4,7 +4,7 @@ import { buildYtTakeout } from '../fixtures/yt-takeout.mjs';
 const port = process.env.E2E_HTTP_PORT || '80';
 const p = port === '80' ? '' : `:${port}`;
 const API_BASE = `http://api.localhost${p}`;
-const AUTH_BASE = `http://auth.localhost${p}`;
+const SOCIAL_BASE = `http://social.localhost${p}`;
 const PROVIDER = 'api.localhost';
 
 const password = 'TestPass123!';
@@ -195,19 +195,19 @@ test.describe(`YouTube import e2e (source: ${takeout.source})`, () => {
 });
 
 // ---------------------------------------------------------------------------
-// Browser gauntlet — the real Import card drives the real pipeline
+// Browser gauntlet — the social app's Import tab drives the real pipeline
 // ---------------------------------------------------------------------------
 
-test.describe('YouTube import — the authenticator UI', () => {
-  // The browser gauntlet needs the stack on the DEFAULT port (80): the
-  // authenticator derives its API origin from the token's portless `provider`
-  // claim (`api.localhost`), so the browser calls `http://api.localhost/...`.
-  // On a non-default port (a local workaround to dodge a port collision) that
-  // origin is wrong and the UI can't reach the node — skip rather than fail.
-  // CI runs the stack on port 80, so this runs there.
+test.describe('YouTube import — the social app UI', () => {
+  // The browser gauntlet needs the stack on the DEFAULT port (80): the social
+  // app derives its API origin from the token's portless `provider` claim
+  // (`api.localhost`), so the browser calls `http://api.localhost/...`. On a
+  // non-default port (a local workaround to dodge a port collision) that origin
+  // is wrong and the UI can't reach the node — skip rather than fail. CI runs
+  // the stack on port 80, so this runs there.
   test.skip(port !== '80', 'browser gauntlet requires the e2e stack on the default port (80)');
 
-  test('the Import card ports the Takeout through the real UI', async ({ page, context, request }) => {
+  test('the Import tab ports the Takeout through the real UI', async ({ page, context, request }) => {
     const { username, token } = await signupFreshUser(request);
 
     // Capture any page crash / console error so a failure is diagnosable.
@@ -217,27 +217,24 @@ test.describe('YouTube import — the authenticator UI', () => {
       if (msg.type() === 'error') pageErrors.push(`console: ${msg.text()}`);
     });
 
-    // Pre-authenticate the browser context (the authenticator reads the token
-    // cookie), then navigate to the Settings view where the Import card lives.
-    // The authenticator is mode-driven (no router): a signed-in user lands on
-    // the contracts view, so we click the Settings nav to switch modes.
+    // Pre-authenticate the browser context (the social app reads the token
+    // cookie), then navigate to the Settings screen where the Import section
+    // lives. The default target is "Your profile" (the followers group +
+    // personal profile) — the same shape the API floor asserts.
     await context.addCookies([
-      { name: 'token', value: token, domain: 'auth.localhost', path: '/', secure: false, httpOnly: false },
+      { name: 'token', value: token, domain: 'social.localhost', path: '/', secure: false, httpOnly: false },
     ]);
-    await page.goto(AUTH_BASE);
-    await expect(page.locator('[data-testid="sidebar-nav-settings"]')).toBeVisible({ timeout: 15_000 });
-    await page.locator('[data-testid="sidebar-nav-settings"]').click();
-    // The Settings view can crash on a card's mount error (the error boundary
-    // shows "Something went wrong"). If the Import card never appears, report
-    // the captured page errors so the crash is diagnosable.
+    await page.goto(`${SOCIAL_BASE}/settings`);
+    // The Import section renders on the Settings screen. If it never appears,
+    // report the captured page errors so a crash is diagnosable.
     await page.waitForTimeout(2500);
     if (!(await page.locator('[data-testid="import-section"]').isVisible().catch(() => false))) {
-      throw new Error(`Import card did not render. Page errors: ${pageErrors.join(' | ') || '(none captured)'}`);
+      throw new Error(`Import section did not render. Page errors: ${pageErrors.join(' | ') || '(none captured)'}`);
     }
     await expect(page.locator('[data-testid="import-section"]')).toBeVisible({ timeout: 15_000 });
 
-    // Expand the card, pick the Takeout zip, and start the import.
-    await page.locator('[data-testid="import-toggle"]').click();
+    // Pick the Takeout zip and start the import (the default target — your
+    // profile — is already selected).
     await page.locator('[data-testid="import-file-input"]').setInputFiles({
       name: TAKEOUT_NAME,
       mimeType: 'application/zip',
@@ -246,8 +243,10 @@ test.describe('YouTube import — the authenticator UI', () => {
     await expect(page.locator('[data-testid="import-file-item"]')).toHaveCount(1);
     await page.locator('[data-testid="import-start"]').click();
 
-    // The card polls the job and flips to the complete state.
-    await expect(page.locator('[data-testid="import-complete"]')).toBeVisible({ timeout: 120_000 });
+    // The section polls the job and flips to the complete state. The real
+    // export downloads a thumbnail per video from YouTube's CDN — bound the
+    // wait well above the default so a slow network doesn't flake the test.
+    await expect(page.locator('[data-testid="import-complete"]')).toBeVisible({ timeout: 180_000 });
 
     // The node actually wrote the catalog (the UI is a thin client — the
     // assertion is that the data landed in the account).
