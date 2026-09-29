@@ -281,18 +281,30 @@ async function seedLandscapeVideo(
  *  `video` — the Video wall's `postHasVideo` gate checks the tag OR a resolved
  *  video media_ref; for a signed-in board read the media_refs are strings (the
  *  wall resolves them separately), so the tag is the signal that puts the post
- *  on the wall. The tile's aspect-ratio routing (watch vs shorts) still uses
- *  the RESOLVED media's width/height, not the tag. */
+ *  on the wall. The author fields (author_username/author_provider) are set so
+ *  the watch page resolves the media as the author's OWN media (`media`
+ *  service) — the media lives in the author's private media group, so a
+ *  cross-user (`public_media`) read can't reach it. The tile's aspect-ratio
+ *  routing (watch vs shorts) uses the RESOLVED media's width/height. */
 async function postVideoToDiscover(
   request: APIRequestContext,
   token: string,
   text: string,
   mediaDocId: string,
+  authorUsername: string,
 ): Promise<string> {
   const res = await v3Post(request, `${API_BASE}/v3/create`, {
     token,
     service: POSTS,
-    body: { text, media_refs: [mediaDocId], tags: ['video'], origin: 'web10', created_at: new Date().toISOString() },
+    body: {
+      text,
+      media_refs: [mediaDocId],
+      tags: ['video'],
+      author_username: authorUsername,
+      author_provider: PROVIDER,
+      origin: 'web10',
+      created_at: new Date().toISOString(),
+    },
     groups: [DISCOVER_GROUP_ID],
   });
   expect(res.ok(), `create video post failed (${res.status})`).toBeTruthy();
@@ -400,9 +412,9 @@ test.describe('Social watch gauntlet — wall → watch → queue → back → ?
     const mediaDocId = await seedLandscapeVideo(request, viewer.token, viewer.username, mediaGroup);
 
     const postA = `watch wall video ${Date.now()}`;
-    const docA = await postVideoToDiscover(request, viewer.token, postA, mediaDocId);
+    const docA = await postVideoToDiscover(request, viewer.token, postA, mediaDocId, viewer.username);
     const postB = `watch queue video ${Date.now()}`;
-    const docB = await postVideoToDiscover(request, viewer.token, postB, mediaDocId);
+    const docB = await postVideoToDiscover(request, viewer.token, postB, mediaDocId, viewer.username);
 
     // ClickHouse is eventually consistent — settle the board via the API
     // BEFORE loading the wall. The Video wall loads the board ONCE on mount,
