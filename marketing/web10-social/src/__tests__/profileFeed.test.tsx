@@ -141,6 +141,52 @@ describe('Profile posts view lens (grid | feed)', () => {
     expect(screen.queryByTestId('profile-feed')).not.toBeInTheDocument();
   });
 
+  it('text-only posts render as designed quote cards (colored bg + display-font title, not a black box)', async () => {
+    // Seed posts that carry a title (D82) so the display-font heading path runs.
+    const { readMyPosts } = await import('@/data');
+    vi.mocked(readMyPosts).mockResolvedValue([
+      { _id: 'tt-1', title: 'My headline', text: 'the caption under it', created_at: new Date().toISOString() },
+      { _id: 'tt-2', text: 'a caption-only post', created_at: new Date().toISOString() },
+    ]);
+    const { default: UserProfileScreen } = await import('@/components/Bio/UserProfileScreen');
+    render(
+      <MemoryRouter initialEntries={['/u/testuser']}>
+        <UserProfileScreen username="testuser" provider="test.localhost" />
+      </MemoryRouter>,
+    );
+
+    await waitFor(() => {
+      expect(screen.getAllByTestId('profile-post-cell').length).toBe(2);
+    });
+
+    // Each text-only post renders the designed tile (not the old empty box).
+    const tiles = screen.getAllByTestId('profile-post-cell-text');
+    expect(tiles.length).toBe(2);
+
+    // The background is a palette token (a CSS var, not a raw hex / flat black).
+    const TILE_VARS = [
+      'var(--color-tile-violet)', 'var(--color-tile-indigo)', 'var(--color-tile-fuchsia)',
+      'var(--color-tile-blue)', 'var(--color-tile-teal)', 'var(--color-tile-rose)',
+    ];
+    expect(TILE_VARS).toContain(tiles[0].style.backgroundColor);
+    expect(TILE_VARS).toContain(tiles[1].style.backgroundColor);
+
+    // A post with a title: the title is the display-font heading + the caption
+    // sits under it (two bodies, D82). Both posts share the `profile-post-cell`
+    // testid, so the heading testid appears once per post — index into it.
+    const headings = screen.getAllByTestId('profile-post-cell-text-title');
+    expect(headings.length).toBe(2);
+    expect(headings[0]).toHaveTextContent('My headline');
+    expect(headings[0]).toHaveClass('font-display');
+    // The caption renders under the title (only the titled post has one).
+    expect(screen.getByTestId('profile-post-cell-text-caption')).toHaveTextContent('the caption under it');
+
+    // A caption-only post: its text is the heading (no separate caption line,
+    // not the display font).
+    expect(headings[1]).toHaveTextContent('a caption-only post');
+    expect(headings[1]).not.toHaveClass('font-display');
+  });
+
   it('switching to the feed view renders the facebook-shaped card stream', async () => {
     await renderOwnProfile();
 

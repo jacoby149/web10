@@ -625,6 +625,107 @@ describe('GlobalSearch — S2/S8 results (four categories: People | Video | Shor
   });
 });
 
+describe('GlobalSearch — S10: the search stays open on a topic change', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    vi.mocked(searchPeople).mockResolvedValue([]);
+    vi.mocked(searchGroups).mockResolvedValue([]);
+    vi.mocked(searchPosts).mockResolvedValue([]);
+    vi.mocked(searchVideo).mockResolvedValue([]);
+    vi.mocked(searchShorts).mockResolvedValue([]);
+  });
+
+  it('tapping a category keeps the dropdown open (the operator wants to see results as they search)', async () => {
+    probeLocation = '';
+    renderDesktopSearchWithProbe(); // /feed — not a search destination
+    const field = screen.getByTestId('global-search-field');
+    fireEvent.focus(field);
+    fireEvent.change(field, { target: { value: 'synthwave' } });
+    await screen.findByTestId('global-search-mode-toggle');
+    // The dropdown is open before the tap.
+    expect(screen.getByTestId('global-search-results')).toBeInTheDocument();
+    // One tap → the Video tab opens. The dropdown must STAY OPEN (S10) — the
+    // operator wants to see the results as they search, not have it collapse.
+    fireEvent.click(screen.getByTestId('global-search-mode-video'));
+    await waitFor(() => expect(probeLocation).toBe('/video?q=synthwave'));
+    // The dropdown is still open after the topic change (it did not collapse).
+    expect(screen.getByTestId('global-search-results')).toBeInTheDocument();
+    // The mode follows the now-open tab (Video) — the preview matches it.
+    expect(screen.getByTestId('global-search-mode-video')).toHaveAttribute('aria-selected', 'true');
+  });
+
+  it('the "See all results" CTA keeps the dropdown open on a topic change', async () => {
+    vi.mocked(searchPeople).mockResolvedValue([
+      { username: 'alice', provider: 'web10', display_name: 'Alice Smith', followers_count: 100, is_following: false },
+    ] as any);
+    probeLocation = '';
+    renderDesktopSearchWithProbe(); // /feed
+    const field = screen.getByTestId('global-search-field');
+    fireEvent.focus(field);
+    fireEvent.change(field, { target: { value: 'alice' } });
+    const cta = await screen.findByTestId('global-search-open-explore');
+    expect(screen.getByTestId('global-search-results')).toBeInTheDocument();
+    fireEvent.click(cta);
+    await waitFor(() => expect(probeLocation).toBe('/people?q=alice'));
+    // The dropdown stays open after the CTA's topic change.
+    expect(screen.getByTestId('global-search-results')).toBeInTheDocument();
+    expect(screen.getByTestId('global-search-mode-people')).toHaveAttribute('aria-selected', 'true');
+  });
+
+  it('Enter keeps the dropdown open on a topic change', async () => {
+    vi.mocked(searchPeople).mockResolvedValue([
+      { username: 'alice', provider: 'web10', display_name: 'Alice Smith', followers_count: 100, is_following: false },
+    ] as any);
+    probeLocation = '';
+    renderDesktopSearchWithProbe(); // /feed
+    const field = screen.getByTestId('global-search-field');
+    fireEvent.focus(field);
+    fireEvent.change(field, { target: { value: 'alice' } });
+    await screen.findByTestId('global-search-mode-toggle');
+    expect(screen.getByTestId('global-search-results')).toBeInTheDocument();
+    fireEvent.keyDown(field, { key: 'Enter' });
+    await waitFor(() => expect(probeLocation).toBe('/people?q=alice'));
+    // The dropdown stays open after Enter's topic change.
+    expect(screen.getByTestId('global-search-results')).toBeInTheDocument();
+    expect(screen.getByTestId('global-search-mode-people')).toHaveAttribute('aria-selected', 'true');
+  });
+
+  it('tapping a category on an already-open tab keeps the dropdown open (switching topics)', async () => {
+    // Start on the Video tab with a query, then switch to Posts — the
+    // dropdown must stay open through the topic switch.
+    vi.mocked(searchVideo).mockResolvedValue([
+      { _id: 'v1', text: 'Synthwave video mix', author_username: 'alice', created_at: '2026-01-01T00:00:00Z' },
+    ] as any);
+    renderSearchOnDestination('/video');
+    const field = screen.getByTestId('global-search-field');
+    fireEvent.focus(field);
+    fireEvent.change(field, { target: { value: 'synthwave' } });
+    await screen.findByTestId('global-search-section-video');
+    expect(screen.getByTestId('global-search-results')).toBeInTheDocument();
+    // Switch topics: tap Posts.
+    fireEvent.click(screen.getByTestId('global-search-mode-gossip'));
+    await waitFor(() => expect(probeLocation).toBe('/feed?q=synthwave'));
+    // The dropdown stays open + the mode follows the new tab (Posts).
+    expect(screen.getByTestId('global-search-results')).toBeInTheDocument();
+    expect(screen.getByTestId('global-search-mode-gossip')).toHaveAttribute('aria-selected', 'true');
+  });
+
+  it('a row tap still closes the dropdown (S10 only exempts the search\'s own topic change)', async () => {
+    vi.mocked(searchPeople).mockResolvedValue([
+      { username: 'alice', provider: 'web10', display_name: 'Alice', followers_count: 1, is_following: false },
+    ] as any);
+    renderDesktopSearch(); // /feed
+    const field = screen.getByTestId('global-search-field');
+    fireEvent.focus(field);
+    fireEvent.change(field, { target: { value: 'alice' } });
+    const row = await screen.findByTestId('global-search-person-alice');
+    fireEvent.click(row);
+    // Row navigation is NOT a topic change — it still closes the dropdown.
+    await waitFor(() => expect(screen.queryByTestId('global-search-results')).not.toBeInTheDocument());
+    expect(screen.getByTestId('global-search-field')).toBeInTheDocument();
+  });
+});
+
 describe('Layout — the search icon is on every screen (desktop + 375px)', () => {
   beforeEach(() => {
     vi.clearAllMocks();

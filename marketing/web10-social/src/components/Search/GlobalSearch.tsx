@@ -280,6 +280,15 @@ export default function GlobalSearch({ variant }: GlobalSearchProps) {
   // the flag armed.
   const hasInteractedSinceFocus = useRef(false);
   const wasFocusedRef = useRef(false);
+  // S10 (search stays open on a topic change): a category-open navigation (a
+  // category tap / Enter / the "see all" CTA) should keep the dropdown open —
+  // the operator wants to see the results as they search, not have the
+  // dropdown collapse the moment the tab opens. The navigation it triggers
+  // (a pathname change) would normally close the dropdown (the navigate →
+  // close effect); this flag tells that effect this navigation was the
+  // search's own, so it keeps the dropdown open instead. Set on the open,
+  // consumed (reset) by the pathname-change effect.
+  const categoryOpenRef = useRef(false);
 
   // S9: a navigation (a row tap, a category tap, back/forward) ends the
   // live-filter gesture — the field re-seeds from the new URL's ?q= (the seed
@@ -475,8 +484,22 @@ export default function GlobalSearch({ variant }: GlobalSearchProps) {
   // Navigate → close the results UI (the state machine's fourth exit).
   // Desktop: just close the dropdown (the field stays, the query persists).
   // Mobile: full collapse (the full-screen view closes and resets).
+  // S10: a navigation the search ITSELF triggered (a category tap / Enter /
+  // the "see all" CTA — a topic change) keeps the dropdown open: the operator
+  // wants to see the results as they search, not have it collapse the moment
+  // the tab opens. The mode follows the new open tab (the mode-follows effect)
+  // and the field re-seeds from the new URL's ?q= (the seed effect), so the
+  // preview matches the tab now being filtered. A ?q= write does NOT change
+  // the pathname, so it does not trip this — only a real navigation does.
   useEffect(() => {
     if (open) {
+      if (categoryOpenRef.current) {
+        categoryOpenRef.current = false;
+        // Keep the dropdown open + refocus the field so it stays alive (a
+        // real browser's mousedown on the category button blurred the field).
+        if (variant === 'desktop') inputRef.current?.focus();
+        return;
+      }
       if (variant === 'desktop') closeDropdown();
       else collapse();
     }
@@ -518,6 +541,10 @@ export default function GlobalSearch({ variant }: GlobalSearchProps) {
   const openCategory = useCallback((m: SearchMode) => {
     const q = query.trim();
     const dest = MODE_DESTINATION[m];
+    // S10: this navigation is the search's own topic change — keep the
+    // dropdown open (the operator wants to see the results as they search).
+    // The pathname-change effect consumes + resets the flag.
+    categoryOpenRef.current = true;
     if (q) {
       const params = new URLSearchParams();
       params.set('q', q);
