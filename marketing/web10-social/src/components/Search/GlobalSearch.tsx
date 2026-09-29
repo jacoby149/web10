@@ -1,23 +1,26 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
-import { useLocation, useNavigate } from 'react-router-dom';
-import { Search, X, User, Users, Hash, FileText } from 'lucide-react';
+import { useLocation, useNavigate, useSearchParams } from 'react-router-dom';
+import { Search, X, User, Users, Hash, Video, Smartphone, Flame } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { searchPeople, searchGroups, searchPosts } from '@/data/search';
+import { searchPeople, searchGroups, searchPosts, searchVideo, searchShorts } from '@/data/search';
 import type { PersonCard } from '@/data/people';
 import type { GroupDirectoryEntry } from '@/data/groups';
 import type { PostRecord } from '@/data/types';
+import type { ShortPost } from '@/data';
 
-// S1 (global-search.md): the top-bar everything-search surface — the
-// expanding-icon state machine: icon (rest) → expanded field → results →
-// collapse. S2 adds the three-way fan-out (people/groups/posts) + result
-// rows. S7 (25.09.2026) makes the search PEOPLE-FIRST — opposite to Discover
-// (where Trending is the first tab): the dropdown opens on the People mode
-// (people + groups, live as you type), the "See all results" CTA + Enter in
-// People mode land on the People tab (?tab=explore), and the Trending mode
-// (posts) is one tap over — its Enter keeps the active-tab hand-off (S5). The
-// query chip (with its X) renders on both Discover tabs, so the search can
-// be cleared from either.
+// S1 (global-search.md): the top-bar everything-search surface. S7 made the
+// search PEOPLE-FIRST. S8 (28.09.2026) made the search four categories — the
+// Discover split's four flat destinations (Video · Shorts · Hot Gossip ·
+// People) are the four search categories. **S9 (29.09.2026) makes the search
+// the open tab's live filter:** the four categories are the four nav tabs —
+// one tap OPENS that tab (navigates to its destination), and typing in the
+// field, while a tab is open, filters THAT tab as you type (the query is
+// written to the destination's URL as ?q=, debounced — the destinations'
+// existing ?q= client-side filters do the rest, live). The field is the
+// tab's search box; the dropdown is the preview (a few rows + the "open the
+// tab" CTA). The state machine (always-expanded field, focus → dropdown, X
+// clears the query, the typed query persists) is unchanged.
 
 // The app's debounce idiom (feed/discover knob re-reads settle at 400ms).
 const SEARCH_DEBOUNCE_MS = 400;
@@ -34,6 +37,39 @@ interface GlobalSearchProps {
    * fiddly — the operator's call).
    */
   variant: GlobalSearchVariant;
+}
+
+// The four search categories = the four flat destinations (S8). The mode is
+// the category the dropdown previews; S9: it follows the OPEN tab when one is
+// open (the field is that tab's search box), and defaults to People when no
+// destination is open (S7: the search is people-first).
+type SearchMode = 'people' | 'video' | 'shorts' | 'gossip';
+
+// The destination each category opens (S9: a category tap IS the tab).
+const MODE_DESTINATION: Record<SearchMode, string> = {
+  people: '/people',
+  video: '/video',
+  shorts: '/shorts',
+  gossip: '/hot-gossip',
+};
+
+const MODE_LABEL: Record<SearchMode, string> = {
+  people: 'People',
+  video: 'Video',
+  shorts: 'Shorts',
+  gossip: 'Hot Gossip',
+};
+
+// The open tab (S9): which search-aware destination is the current route.
+// `/shorts` (the wall) and `/shorts/:postId` (the lens) are both the Shorts
+// tab — both honor ?q=. Everything else (feed, profile, messages, …) is not
+// a search destination: typing there shows the preview only (no ?q= write).
+function destinationFromPath(pathname: string): SearchMode | null {
+  if (pathname.startsWith('/people')) return 'people';
+  if (pathname.startsWith('/video')) return 'video';
+  if (pathname.startsWith('/shorts')) return 'shorts';
+  if (pathname.startsWith('/hot-gossip')) return 'gossip';
+  return null;
 }
 
 // ── Result row components ─────────────────────────────────────────────────────
@@ -105,7 +141,51 @@ function PostRow({ post }: { post: PostRecord }) {
         <Search className="h-4 w-4 text-muted-foreground" strokeWidth={1.75} />
       </span>
       <span className="flex-1 min-w-0">
-        <span className="block text-sm text-foreground truncate">{post.text || '(no text)'}</span>
+        <span className="block text-sm text-foreground truncate">{post.title || post.text || '(no text)'}</span>
+        <span className="block text-xs text-muted-foreground truncate">@{author}</span>
+      </span>
+    </button>
+  );
+}
+
+function VideoRow({ post }: { post: PostRecord }) {
+  const navigate = useNavigate();
+  const author = post.author_username || 'unknown';
+  const href = post._id ? `/u/${author}/p/${post._id}` : `/u/${author}`;
+  return (
+    <button
+      type="button"
+      data-testid={`global-search-video-${post._id || 'unknown'}`}
+      onClick={() => navigate(href)}
+      className="w-full flex items-center gap-3 px-3 py-2 text-left hover:bg-elevated transition-colors duration-150 focus-visible:outline-none focus-visible:bg-elevated"
+    >
+      <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-elevated">
+        <Video className="h-4 w-4 text-muted-foreground" strokeWidth={1.75} />
+      </span>
+      <span className="flex-1 min-w-0">
+        <span className="block text-sm text-foreground truncate">{post.title || post.text || '(no text)'}</span>
+        <span className="block text-xs text-muted-foreground truncate">@{author}</span>
+      </span>
+    </button>
+  );
+}
+
+function ShortRow({ short }: { short: ShortPost }) {
+  const navigate = useNavigate();
+  const post = short.post;
+  const author = post.author_username || 'unknown';
+  return (
+    <button
+      type="button"
+      data-testid={`global-search-short-${post._id || 'unknown'}`}
+      onClick={() => navigate(post._id ? `/shorts/${post._id}` : '/shorts')}
+      className="w-full flex items-center gap-3 px-3 py-2 text-left hover:bg-elevated transition-colors duration-150 focus-visible:outline-none focus-visible:bg-elevated"
+    >
+      <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-elevated">
+        <Smartphone className="h-4 w-4 text-muted-foreground" strokeWidth={1.75} />
+      </span>
+      <span className="flex-1 min-w-0">
+        <span className="block text-sm text-foreground truncate">{post.title || post.text || '(no text)'}</span>
         <span className="block text-xs text-muted-foreground truncate">@{author}</span>
       </span>
     </button>
@@ -130,7 +210,7 @@ function SearchSection({
   children: React.ReactNode;
 }) {
   return (
-    <div className="py-1" data-testid={`global-search-section-${label.toLowerCase()}`}>
+    <div className="py-1" data-testid={`global-search-section-${label.toLowerCase().replace(/\s+/g, '-')}`}>
       <p className="px-3 py-1 text-[0.625rem] font-semibold uppercase tracking-wide text-muted-foreground/70">{label}</p>
       {children}
     </div>
@@ -144,24 +224,111 @@ export default function GlobalSearch({ variant }: GlobalSearchProps) {
   const [closing, setClosing] = useState(false);
   const [query, setQuery] = useState('');
   const [debouncedQuery, setDebouncedQuery] = useState('');
-  // The results mode: `people` (the default — the operator, 25.09.2026: "for
-  // search purposes, people should be selected firstly in the search, people
-  // first, opposite in discover in discover the trending tab is first") +
-  // `posts` (the Trending posts, the Discover default — the two surfaces are
-  // opposite on purpose). Reset to `people` on collapse.
-  const [mode, setMode] = useState<'posts' | 'people'>('people');
+  // The results mode (S8): the four flat destinations are the four search
+  // categories. S9: when a destination tab is OPEN, the mode follows it (the
+  // field is that tab's search box — the preview matches the open tab); when
+  // no destination is open, People is the default (S7: the search is
+  // people-first). A category tap navigates to that destination (opens the
+  // tab) — it no longer just flips the preview.
+  const [mode, setMode] = useState<SearchMode>('people');
   const inputRef = useRef<HTMLInputElement>(null);
   const triggerRef = useRef<HTMLButtonElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const collapseTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const wasOpen = useRef(false);
-  const { pathname, search: locationSearch } = useLocation();
+  const { pathname, search } = useLocation();
+  const [searchParams, setSearchParams] = useSearchParams();
 
-  // S2: the three search sections. null = loading, [] = loaded (empty),
+  // S9: the open tab. When one of the four search destinations is the current
+  // route, the field is THAT tab's search box: typing writes ?q= to its URL
+  // (debounced) and the tab's existing ?q= filter does the rest, live. On any
+  // other route the field is the front door (the preview only — no ?q= write,
+  // a ?q= on /feed or /u/:username would be noise).
+  const openDestination = destinationFromPath(pathname);
+
+  // S9: the field mirrors the open tab's ?q= (deep-link + refresh-safe — the
+  // URL is the single source of truth, the field derives from it). When no
+  // destination is open, the field is free (the dropdown's working query).
+  const urlQuery = searchParams.get('q') || '';
+  useEffect(() => {
+    if (openDestination) setQuery(urlQuery);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [urlQuery, openDestination]);
+
+  // S9: the mode follows the open tab (the preview matches the tab being
+  // filtered); on other routes it rests on People (S7).
+  useEffect(() => {
+    setMode(openDestination ?? 'people');
+  }, [openDestination]);
+
+  // S9: the field is the open tab's search box only while the user has it
+  // focused (the live-filter gesture). The ?q= write is gated on focus AND on
+  // a real interaction (a keystroke or the X clear) — never on mount or a
+  // bare focus — so a deep link (/video?q=…) is not wiped before the field
+  // seeds from it, and navigating between tabs with a ?q= does not re-write
+  // the param.
+  const [focused, setFocused] = useState(false);
+  // Set by the first real change since a FRESH focus (a keystroke or the X
+  // clear). The ?q= sync skips until this is set, so the seed's own debounce
+  // (the field mirroring the tab's ?q=) never registers as a "clear". It is
+  // reset only on a fresh focus (the input wasn't focused just before) — a
+  // programmatic re-focus (the X's refocus, after its mousedown blur) keeps
+  // the flag armed.
+  const hasInteractedSinceFocus = useRef(false);
+  const wasFocusedRef = useRef(false);
+
+  // S9: a navigation (a row tap, a category tap, back/forward) ends the
+  // live-filter gesture — the field re-seeds from the new URL's ?q= (the seed
+  // effect) and the sync stops re-applying the old query to the new location.
+  // (A ?q= write does NOT change the pathname, so it does not trip this —
+  // only a real navigation does.)
+  useEffect(() => {
+    hasInteractedSinceFocus.current = false;
+  }, [pathname]);
+
+  // S9: typing in the field, while a tab is open AND the field is focused
+  // AND the user has actually interacted, live-filters the tab — the settled
+  // debounced query is written to the destination's URL as ?q= (replace — no
+  // history spam per keystroke). The destination's ?q= filter (client-side,
+  // over the loaded pool) reacts to the URL change. A genuine clear (the
+  // field is empty AND the debounce has settled to empty — NOT a pending
+  // debounce after a keystroke) removes the ?q= (the tab un-filters). The X
+  // clear removes the ?q= directly in `clearQuery` (robust to the mousedown
+  // blur a real browser fires before the click).
+  useEffect(() => {
+    if (!openDestination || !focused || !hasInteractedSinceFocus.current) return;
+    const target = debouncedQuery.trim();
+    const params = new URLSearchParams(searchParams);
+    if (target) {
+      if (params.get('q') !== target) {
+        params.set('q', target);
+        setSearchParams(params, { replace: true });
+      }
+    } else if (!query.trim()) {
+      // The field is genuinely empty (select-all + delete) — clear the ?q=.
+      if (params.has('q')) {
+        params.delete('q');
+        setSearchParams(params, { replace: true });
+      }
+    }
+    // else: a keystroke's debounce is still pending (query non-empty,
+    // debouncedQuery empty) — wait for it to settle, don't touch the ?q=.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [debouncedQuery, query, openDestination, focused]);
+
+  // The results mode (S8): the four flat destinations are the four search
+  // categories — `people` (the default — S7: the search is people-first, the
+  // front door is finding accounts) | `video` | `shorts` | `gossip` (Hot
+  // Gossip, the ranked post board). S9: one tap OPENS that destination (the
+  // tab) carrying the query; Enter / the CTA do the same.
+
+  // S2/S8: the five search sections. null = loading, [] = loaded (empty),
   // [...] = loaded (has results). Per-section loading: the slowest read
   // never blocks the others.
   const [people, setPeople] = useState<PersonCard[] | null>(null);
   const [groups, setGroups] = useState<GroupDirectoryEntry[] | null>(null);
+  const [video, setVideo] = useState<PostRecord[] | null>(null);
+  const [shorts, setShorts] = useState<ShortPost[] | null>(null);
   const [posts, setPosts] = useState<PostRecord[] | null>(null);
   const navigate = useNavigate();
 
@@ -184,6 +351,8 @@ export default function GlobalSearch({ variant }: GlobalSearchProps) {
       setMode('people');
       setPeople(null);
       setGroups(null);
+      setVideo(null);
+      setShorts(null);
       setPosts(null);
       collapseTimer.current = null;
     }, COLLAPSE_MS);
@@ -210,10 +379,21 @@ export default function GlobalSearch({ variant }: GlobalSearchProps) {
 
   // The X button: clear the typed query and keep focus in the field so the
   // user can immediately type a new one (the dropdown, if open, falls back to
-  // the "type to search" idle state). The field itself never disappears.
+  // the "type to search" idle state). S9: while a tab is open, the X also
+  // clears the tab's ?q= DIRECTLY (the tab un-filters) — not via the
+  // debounce sync, which a real browser's mousedown-blur (before the click)
+  // would disarm. The field itself never disappears.
   const clearQuery = () => {
+    hasInteractedSinceFocus.current = true;
     setQuery('');
     setDebouncedQuery('');
+    if (openDestination) {
+      const params = new URLSearchParams(searchParams);
+      if (params.has('q')) {
+        params.delete('q');
+        setSearchParams(params, { replace: true });
+      }
+    }
     inputRef.current?.focus();
   };
 
@@ -241,21 +421,23 @@ export default function GlobalSearch({ variant }: GlobalSearchProps) {
     }
   }, [open, variant]);
 
-  // The debounced query (the app's 400ms idiom) — S2's fan-out reads this.
-  // Always tracks the field (the desktop field is always visible), so the
-  // dropdown reopens onto the current query rather than a stale one.
+  // The debounced query (the app's 400ms idiom) — S2's fan-out + S9's ?q=
+  // sync both read this. Always tracks the field (the desktop field is always
+  // visible), so the dropdown reopens onto the current query rather than a
+  // stale one.
   useEffect(() => {
     const t = setTimeout(() => setDebouncedQuery(query), SEARCH_DEBOUNCE_MS);
     return () => clearTimeout(t);
   }, [query]);
 
-  // S2: fire the fan-out when the debounced query changes. All three reads
-  // (people + groups + posts) fire together — the mode only controls which
-  // sections are SHOWN, so a tab flip is instant (no re-skeleton) and each
-  // section renders independently as its read resolves (per-section loading).
-  // The reads are cheap pool reads (50, filtered client-side), so fetching
-  // all three is not a cost worth gating. A query change resets all sections
-  // (stale results from a previous query must not linger under a new one).
+  // S2/S8: fire the fan-out when the debounced query changes. All five reads
+  // (people + groups + video + shorts + posts) fire together — the mode only
+  // controls which sections are SHOWN, so a category flip is instant (no
+  // re-skeleton) and each section renders independently as its read resolves
+  // (per-section loading). The reads are cheap pool reads (50, filtered
+  // client-side), so fetching all five is not a cost worth gating. A query
+  // change resets all sections (stale results from a previous query must not
+  // linger under a new one).
   const lastFannedQuery = useRef('');
   useEffect(() => {
     if (!open) return;
@@ -263,6 +445,8 @@ export default function GlobalSearch({ variant }: GlobalSearchProps) {
     lastFannedQuery.current = debouncedQuery;
     setPeople(null);
     setGroups(null);
+    setVideo(null);
+    setShorts(null);
     setPosts(null);
     if (!debouncedQuery) return;
     let cancelled = false;
@@ -272,6 +456,12 @@ export default function GlobalSearch({ variant }: GlobalSearchProps) {
     searchGroups(debouncedQuery)
       .then((r) => { if (!cancelled) setGroups(r); })
       .catch(() => { if (!cancelled) setGroups([]); });
+    searchVideo(debouncedQuery)
+      .then((r) => { if (!cancelled) setVideo(r); })
+      .catch(() => { if (!cancelled) setVideo([]); });
+    searchShorts(debouncedQuery)
+      .then((r) => { if (!cancelled) setShorts(r); })
+      .catch(() => { if (!cancelled) setShorts([]); });
     searchPosts(debouncedQuery)
       .then((r) => { if (!cancelled) setPosts(r); })
       .catch(() => { if (!cancelled) setPosts([]); });
@@ -301,12 +491,10 @@ export default function GlobalSearch({ variant }: GlobalSearchProps) {
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
     if (e.key === 'Enter') {
-      // Searching opens Discover with the query (?q=) — the destination
-      // follows the results mode (People mode → the People tab; Trending
-      // mode → the active tab). The query chip (with its X) renders on BOTH
-      // the Trending and People tabs, so the search can be cleared from
-      // either. Works on both variants (the mobile full-screen view
-      // collapses via the pathname-change effect).
+      // S9: Enter opens the picked category's tab with the query (the same
+      // as tapping the category) — the "see all" lands where the small
+      // results came from. Works on both variants (the mobile full-screen
+      // view collapses via the pathname-change effect).
       if (query.trim()) submitSearch();
       return;
     }
@@ -317,32 +505,30 @@ export default function GlobalSearch({ variant }: GlobalSearchProps) {
     }
   };
 
-  // The search submit: navigate to Discover carrying the query (?q=). The
-  // destination follows the RESULTS MODE (S7: the search is people-first):
-  // People mode → the People tab (?tab=explore — the people/groups browser,
-  // where the small results came from); Trending mode → stay on whatever tab
-  // is active (the S5 hand-off — the query chip, with its X, renders on
-  // Trending AND People, so it can be cleared from either). A bare
-  // /discover?q= lands on Trending (the bare-URL default);
-  // /discover?tab=explore&q= lands on People. The query is screen state the
-  // URL holds (the deep-link rule).
-  const submitSearch = useCallback(() => {
+  // S9: open a category's tab (the destination) carrying the query (?q=).
+  // The four categories are the four nav tabs — People → /people (the
+  // people/groups browser), Video → /video (the video wall), Shorts →
+  // /shorts (the wall), Hot Gossip → /hot-gossip (the ranked post board).
+  // The query is screen state the URL holds (the deep-link rule); each
+  // destination's existing ?q= filter picks it up and filters live.
+  const openCategory = useCallback((m: SearchMode) => {
     const q = query.trim();
-    if (!q) return;
-    if (mode === 'people') {
-      navigate(`/discover?tab=explore&q=${encodeURIComponent(q)}`);
-      return;
-    }
-    // Trending mode: stay on the active Discover tab if we're already there
-    // (?tab=explore rides along); otherwise land on the bare URL (Trending,
-    // the default).
-    const params = new URLSearchParams(locationSearch);
-    if (params.get('tab') === 'explore') {
-      navigate(`/discover?tab=explore&q=${encodeURIComponent(q)}`);
+    const dest = MODE_DESTINATION[m];
+    if (q) {
+      const params = new URLSearchParams();
+      params.set('q', q);
+      navigate(`${dest}?${params.toString()}`);
     } else {
-      navigate(`/discover?q=${encodeURIComponent(q)}`);
+      navigate(dest);
     }
-  }, [query, navigate, locationSearch, mode]);
+  }, [query, navigate]);
+
+  // The search submit (S9): Enter / the CTA open the picked category's tab
+  // with the query — the same as tapping the category.
+  const submitSearch = useCallback(() => {
+    if (!query.trim()) return;
+    openCategory(mode);
+  }, [query, mode, openCategory]);
 
   const field = (sizeClass: string) => (
     <input
@@ -350,8 +536,27 @@ export default function GlobalSearch({ variant }: GlobalSearchProps) {
       data-testid="global-search-field"
       type="text"
       value={query}
-      onChange={(e) => setQuery(e.target.value)}
-      onFocus={expand}
+      onChange={(e) => {
+        // A real keystroke: arm the ?q= sync (the seed's own debounce must
+        // not register as a "clear" of the tab's ?q=).
+        hasInteractedSinceFocus.current = true;
+        setQuery(e.target.value);
+      }}
+      onFocus={() => {
+        // A fresh focus (the input wasn't focused just before) is not an
+        // interaction — the tab's ?q= (the deep link) survives until the user
+        // actually types or hits the X. A programmatic re-focus (the X's
+        // refocus, after its mousedown blur) is NOT fresh — the armed flag
+        // survives it.
+        if (!wasFocusedRef.current) hasInteractedSinceFocus.current = false;
+        wasFocusedRef.current = true;
+        setFocused(true);
+        expand();
+      }}
+      onBlur={() => {
+        wasFocusedRef.current = false;
+        setFocused(false);
+      }}
       onKeyDown={handleKeyDown}
       placeholder="Search web10"
       aria-label="Search"
@@ -365,13 +570,21 @@ export default function GlobalSearch({ variant }: GlobalSearchProps) {
   );
 
   // The results container content: the "type to search" idle state, or the
-  // mode-specific results. The mode toggle (People | Trending) is the
-  // segmented switch — people is the default (S7: the search is people-first,
-  // opposite to Discover where Trending is first); one tap flips to the
-  // Trending posts. It renders as soon as there's a query (immediate, not
-  // debounced) so it's clickable while the results are still loading.
+  // mode-specific results. The mode toggle (People | Video | Shorts | Hot
+  // Gossip) is the four flat destinations (S8) — the labels match the nav
+  // exactly. S9: one tap OPENS that tab (navigates to the destination,
+  // carrying the query); the active one is the open tab when a destination
+  // is open (S7: People is the default when none is). It renders as soon as
+  // there's a query (immediate, not debounced) so it's clickable while the
+  // results are still loading. All five fan-out reads load together (the
+  // mode only picks which sections are shown), so a flip is instant.
   const q = debouncedQuery;
   const allLoaded = (s: unknown) => s !== null;
+
+  // The "open the tab" CTA label (S9: the CTA opens the picked category's
+  // tab with the query — the "see all" lands where the small results came
+  // from).
+  const ctaLabel = MODE_LABEL[mode];
 
   const resultsContent =
     query.trim() === '' ? (
@@ -384,34 +597,35 @@ export default function GlobalSearch({ variant }: GlobalSearchProps) {
       </div>
     ) : (
       <div className="py-1">
-        {/* The mode toggle — People (default, S7) | Trending. The labels
-            match Discover's tabs (the operator: "it is supposed to be
-            Trending and People, not Posts and People"). Slim segmented
-            control (the Facebook-style dropdown, 25.09.2026 — no chunky
-            pills). It renders as soon as there's a query (immediate, not
-            debounced) so it's clickable while the results are still loading.
-            Both modes' sections load together (the mode only picks which
-            are shown), so a flip is instant. */}
+        {/* The mode toggle — the four flat destinations (S8): People
+            (default, S7) | Video | Shorts | Hot Gossip. The labels match the
+            nav exactly. S9: a tap OPENS that tab (navigates to the
+            destination, carrying the query). Slim segmented control (the
+            Facebook-style dropdown). It renders as soon as there's a query
+            (immediate, not debounced) so it's clickable while the results
+            are still loading. */}
         <div className="px-3 pt-2 pb-1">
           <div
-            className="inline-flex items-center gap-0.5 rounded-full bg-elevated p-0.5"
+            className="flex items-center gap-0.5 rounded-full bg-elevated p-0.5 max-w-full overflow-x-auto [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
             role="tablist"
             aria-label="Search results type"
             data-testid="global-search-mode-toggle"
           >
             {([
               ['people', 'People', Users],
-              ['posts', 'Trending', FileText],
-            ] as ['posts' | 'people', string, typeof FileText][]).map(([m, label, Icon]) => (
+              ['video', 'Video', Video],
+              ['shorts', 'Shorts', Smartphone],
+              ['gossip', 'Hot Gossip', Flame],
+            ] as [SearchMode, string, typeof Users][]).map(([m, label, Icon]) => (
               <button
                 key={m}
                 type="button"
                 role="tab"
                 aria-selected={mode === m}
                 data-testid={`global-search-mode-${m}`}
-                onClick={() => setMode(m)}
+                onClick={() => openCategory(m)}
                 className={cn(
-                  'flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-semibold transition-colors',
+                  'flex items-center gap-1.5 whitespace-nowrap rounded-full px-3 py-1 text-xs font-semibold transition-colors',
                   'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand/50',
                   mode === m
                     ? 'bg-brand-muted text-brand-300'
@@ -425,28 +639,7 @@ export default function GlobalSearch({ variant }: GlobalSearchProps) {
           </div>
         </div>
 
-        {mode === 'posts' ? (
-          <>
-            {/* Trending posts (the Discover default — the search's Trending
-                mode mirrors it; the search itself is people-first, S7) */}
-            {posts === null ? (
-              <SectionSkeleton label="Trending" />
-            ) : posts.length > 0 ? (
-              <SearchSection label="Trending">
-                {posts.map((p) => (
-                  <PostRow key={p._id || p.created_at} post={p} />
-                ))}
-              </SearchSection>
-            ) : (
-              <div
-                data-testid="global-search-no-results"
-                className="px-4 py-8 text-center text-sm text-muted-foreground"
-              >
-                No posts match &ldquo;{q}&rdquo;
-              </div>
-            )}
-          </>
-        ) : (
+        {mode === 'people' ? (
           <>
             {/* People */}
             {people === null ? (
@@ -481,23 +674,85 @@ export default function GlobalSearch({ variant }: GlobalSearchProps) {
               </div>
             )}
           </>
+        ) : mode === 'video' ? (
+          <>
+            {/* Video posts (the /video destination's render-time gate) */}
+            {video === null ? (
+              <SectionSkeleton label="Video" />
+            ) : video.length > 0 ? (
+              <SearchSection label="Video">
+                {video.map((p) => (
+                  <VideoRow key={p._id || p.created_at} post={p} />
+                ))}
+              </SearchSection>
+            ) : (
+              <div
+                data-testid="global-search-no-results"
+                className="px-4 py-8 text-center text-sm text-muted-foreground"
+              >
+                No videos match &ldquo;{q}&rdquo;
+              </div>
+            )}
+          </>
+        ) : mode === 'shorts' ? (
+          <>
+            {/* Shorts (the /shorts destination — genuine 9:16, shorts.md) */}
+            {shorts === null ? (
+              <SectionSkeleton label="Shorts" />
+            ) : shorts.length > 0 ? (
+              <SearchSection label="Shorts">
+                {shorts.map((s) => (
+                  <ShortRow key={s.post._id || s.post.created_at} short={s} />
+                ))}
+              </SearchSection>
+            ) : (
+              <div
+                data-testid="global-search-no-results"
+                className="px-4 py-8 text-center text-sm text-muted-foreground"
+              >
+                No shorts match &ldquo;{q}&rdquo;
+              </div>
+            )}
+          </>
+        ) : (
+          <>
+            {/* Hot Gossip posts (the ranked post board) */}
+            {posts === null ? (
+              <SectionSkeleton label="Hot Gossip" />
+            ) : posts.length > 0 ? (
+              <SearchSection label="Hot Gossip">
+                {posts.map((p) => (
+                  <PostRow key={p._id || p.created_at} post={p} />
+                ))}
+              </SearchSection>
+            ) : (
+              <div
+                data-testid="global-search-no-results"
+                className="px-4 py-8 text-center text-sm text-muted-foreground"
+              >
+                No posts match &ldquo;{q}&rdquo;
+              </div>
+            )}
+          </>
         )}
 
-        {/* The search CTA — Enter (or this) opens Discover with the query.
-            People mode → the People tab (?tab=explore, the people/groups
-            browser — S7: the search is people-first, so the "see all" lands
-            where the small results came from). Trending mode → the Trending
-            tab (the active-tab hand-off, S5 — the query chip clears it from
-            either tab). */}
-        {mode === 'people' && (allLoaded(people) || allLoaded(groups)) && (
+        {/* The CTA — S9: opens the picked category's TAB with the query
+            (the "see all" lands where the small results came from). */}
+        {(mode === 'people'
+          ? allLoaded(people) || allLoaded(groups)
+          : mode === 'video'
+            ? allLoaded(video)
+            : mode === 'shorts'
+              ? allLoaded(shorts)
+              : allLoaded(posts)) && (
           <button
             type="button"
             data-testid="global-search-open-explore"
             onClick={submitSearch}
-            className="w-full flex items-center gap-2 px-4 py-2.5 text-left text-sm text-brand-300 hover:text-brand-400 hover:bg-elevated transition-colors duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand/50"
+            className="w-full flex items-center gap-2 px-4 py-2.5 text-left text-brand-300 hover:text-brand-400 hover:bg-elevated transition-colors duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand/50"
           >
             <Search className="w-4 h-4 shrink-0" strokeWidth={1.75} />
-            See all results for &ldquo;{q}&rdquo; in Discover
+            See all results for &ldquo;{q}&rdquo; in {ctaLabel}
           </button>
         )}
       </div>
@@ -510,10 +765,11 @@ export default function GlobalSearch({ variant }: GlobalSearchProps) {
             persistent placeholder is more informative than a bare icon.
             Focus opens the dropdown; the X (only when there's a query)
             clears it; clicking away closes the dropdown (field stays). The
-            field lives in the sidebar (the operator's Facebook-style
-            chrome); the results dropdown anchors below it and overflows the
-            sidebar into the content (the Facebook-style wide panel — the
-            sidebar itself is NOT overflow-hidden, 25.09.2026). */}
+            field lives in the desktop top bar (the 29.09.2026 pass moved it
+            back from the sidebar — the sidebar search was a "traffic jam");
+            the results dropdown anchors below it. S9: on a search
+            destination the field is that tab's live filter (typing writes
+            ?q= to the tab's URL). */}
         <div
           data-testid="global-search-field-wrap"
           className="flex items-center gap-2 flex-1 h-10 w-full rounded-full bg-elevated border border-border/60 pl-3.5 pr-1.5 transition-colors duration-150 focus-within:border-brand/50 focus-within:bg-background"

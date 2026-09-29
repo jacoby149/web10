@@ -208,9 +208,7 @@ export async function listUserFollowers(): Promise<unknown[]> {
 }
 export async function countUserFollowingReal(): Promise<number> { return PEERS.length; }
 export async function readUserPublicPosts(): Promise<unknown[]> { return PROFILE_POSTS; }
-export async function readUserPublicProfile(): Promise<{ posts: unknown[]; avatarUrl?: string; bannerUrl?: string }> {
-  return { posts: PROFILE_POSTS };
-}
+// readUserPublicProfile lives below (the real impl, keyed by username).
 export async function countStagingPosts(): Promise<number> { return 0; }
 export async function saveProfile(): Promise<void> {}
 export async function readMyPosts(): Promise<unknown[]> { return PROFILE_POSTS; }
@@ -363,6 +361,24 @@ export function getV3Client(): unknown {
       return docs;
     },
     readRefCounts: async () => ({}),
+    // readById (the watch page's primary read) — return the seeded discover
+    // post by doc_id in the node's doc shape (body carries the post fields).
+    readById: async (docId: string) => {
+      const p = DISCOVER_POSTS.find((x) => (x._id as string) === docId);
+      if (!p) throw new Error('not found');
+      return {
+        doc_id: p._id,
+        created_at: p.created_at,
+        updated_at: p.created_at,
+        tags: p.tags,
+        body: {
+          text: p.text,
+          author_username: p.author_username,
+          author_provider: p.author_provider,
+          media_refs: p.media_refs,
+        },
+      };
+    },
   };
 }
 export function getDiscoverGroupId(): string { return 'web10/groups/web10/discover'; }
@@ -1143,6 +1159,26 @@ export async function resolveMediaRefs<T>(refs: T[]): Promise<T[]> {
 export async function readUserProfile(): Promise<unknown> {
   return { display_name: 'Nova', username: 'nova', provider: 'web10', avatar_ref: '', bio: 'Synthwave producer' };
 }
+// The watch page's author read (the overlay's "recent posts" strip) — the
+// author's public posts (a couple of the seeded discover posts by them).
+export async function readUserPublicProfile(username?: string): Promise<unknown> {
+  const posts = DISCOVER_POSTS.filter((p) => p.author_username === username).map((p) => ({
+    _id: p._id,
+    text: p.text,
+    created_at: p.created_at,
+    tags: p.tags,
+    author_username: p.author_username,
+    author_provider: p.author_provider,
+    media_refs: p.media_refs,
+    likes: p.likes,
+    comments: p.comments,
+    reposts: p.reposts,
+  }));
+  return { posts, avatarUrl: undefined, bannerUrl: undefined };
+}
+// The watch page's "am I following X?" — false by default (the Follow button
+// shows, not Following).
+export async function isFollowing(): Promise<boolean> { return false; }
 export async function lookupUserProfile(username?: string): Promise<unknown> {
   // Return a face for the seeded peers so the DM compose preview renders.
   const peer = PEERS.find((p) => p.username === username);
@@ -1159,10 +1195,26 @@ export async function lookupUserProfile(username?: string): Promise<unknown> {
 }
 // A repost's embed (reposts.md) reads the original by doc_id. The harness
 // returns the seeded feed post that the repost references (fp-2 = luna's post),
-// so the "reposted" card renders the embedded original.
+// so the "reposted" card renders the embedded original. The watch page's
+// primary read (a discover post, e.g. dp-1) also lands here — the author is
+// derived from the doc's author_key (fromV3DocToPost), matching the node.
 export async function readPostById(docId: string): Promise<unknown> {
   const p = FEED_POSTS.find((x) => x._id === docId);
-  if (!p) return null;
+  if (!p) {
+    const d = DISCOVER_POSTS.find((x) => (x._id as string) === docId);
+    if (!d) return null;
+    return {
+      _id: d._id,
+      text: d.text,
+      created_at: d.created_at,
+      tags: d.tags,
+      author_username: d.author_username,
+      author_provider: d.author_provider,
+      media_refs: d.media_refs,
+      profile: { display_name: d.author_username === 'nova' ? 'Nova' : d.author_username },
+      ad: d.ad,
+    };
+  }
   return {
     _id: p._id,
     text: p.text,

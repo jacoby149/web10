@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { useNavigate, useLocation, Outlet } from 'react-router-dom';
 import { cn } from '@/lib/utils';
-import { Home, User, Users, MessageSquare, LogOut, LogIn, Bug, Compass, Store, Gamepad2, Radio, Zap, Clapperboard, Settings, MoreHorizontal, X, Bell, ChevronDown, DollarSign, Flame, Shield } from 'lucide-react';
+import { Home, User, Users, MessageSquare, LogOut, LogIn, Bug, Store, Gamepad2, Radio, Zap, Clapperboard, Settings, MoreHorizontal, X, Bell, ChevronDown, DollarSign, Flame, Shield, Video } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { getWapi } from '@/data/wapi';
@@ -30,8 +30,15 @@ interface LayoutProps {
 // and Groups move into the "More" sheet so the bottom bar never exceeds five
 // icons — room to grow as surfaces ship.
 const feedItem = { path: '/feed', icon: Home, label: 'Feed', testId: 'nav-feed' };
-const discoverItem = { path: '/discover', icon: Compass, label: 'Discover', testId: 'nav-discover' };
+// The Discover split (watch-page.md): the old single "Discover" item is
+// replaced by four flat destinations — Video (the video wall, the old Home
+// view) · Shorts (the vertical lens) · Hot Gossip (the ranked post board, the
+// old grid view) · People (the people + groups browser, the old explore tab).
+// The sidebar owns the nav; the ?view= / ?tab= salad retires.
+const videoItem = { path: '/video', icon: Video, label: 'Video', testId: 'nav-video' };
 const shortsItem = { path: '/shorts', icon: Clapperboard, label: 'Shorts', testId: 'nav-shorts' };
+const hotGossipItem = { path: '/hot-gossip', icon: Flame, label: 'Hot Gossip', testId: 'nav-hot-gossip' };
+const peopleItem = { path: '/people', icon: Users, label: 'People', testId: 'nav-people' };
 const messagesItem = { path: '/messages', icon: MessageSquare, label: 'Messages', testId: 'nav-messages' };
 // The profile nav item shows the user's name/username (not the word "Profile")
 // — it tells you you're visiting your own profile (the operator's call). The
@@ -62,17 +69,11 @@ const comingSoonItems = [
   { icon: Store, label: 'Marketplace', testId: 'nav-marketplace' },
 ];
 
-function Wordmark({ className, markOnly = false }: { className?: string; markOnly?: boolean }) {
-  // `markOnly` (the desktop sidebar, the operator's "just a logo of keys, no
-  // web10 text" — Facebook-style): the keys glyph alone. The mobile header
-  // keeps the full lockup (it's the only branding on a phone).
-  if (markOnly) {
-    return (
-      <span className={cn('flex items-center', className)} data-testid="wordmark-mark">
-        <img src="/keys-mark.png" alt="web10" className="h-7 w-7 shrink-0" aria-hidden="true" />
-      </span>
-    );
-  }
+function Wordmark({ className }: { className?: string }) {
+  // The full lockup: the keys mark + "web10" (the "10" in brand violet).
+  // The sidebar top row (desktop) and the mobile header both carry it — the
+  // 29.09.2026 pass restored the wordmark to the sidebar (the mark-only
+  // Facebook-style variant was retired with the sidebar search).
   return (
     <span className={cn('flex items-center gap-2', className)}>
       <img src="/keys-mark.png" alt="" className="h-6 w-6 shrink-0" aria-hidden="true" />
@@ -95,29 +96,34 @@ export default function Layout({ onLogout, onLogin, isAnon: isAnonProp, onReport
   // uses (getSocialAuth().isSignedIn()) so the chrome and the routes agree;
   // a direct Layout render (no prop) falls back to the token's presence.
   const isAnon = isAnonProp ?? !token;
-  const profilePath = token ? `/u/${token.username}` : '/discover';
-  // Anon nav: only the public surfaces (Discover, Shorts). Feed, Messages,
-  // your Profile, and Monetization are signed-in-only — hiding them keeps the
-  // chrome honest (a dead nav item that redirects to Discover is worse than
-  // no item).
-  // Shorts leads the anon nav (the operator, 25.09.2026: "shorts should be
-  // first!!!!") — a signed-out visitor is here for the video, Discover is
-  // second. The signed-in order (M6) is unchanged.
-  const anonSidebarNavItems = [shortsItem, discoverItem];
-  const anonBottomNavItems = [shortsItem, discoverItem];
-  const sidebarNavItems = isAnon ? anonSidebarNavItems : [profileItem, shortsItem, discoverItem, feedItem, messagesItem, monetizationItem];
-  const bottomNavItems = isAnon ? anonBottomNavItems : [feedItem, discoverItem, messagesItem, profileItem];
+  const profilePath = token ? `/u/${token.username}` : '/video';
+  // Anon nav: only the public surfaces (Video, Shorts, Hot Gossip, People).
+  // Feed, Messages, your Profile, and Monetization are signed-in-only — hiding
+  // them keeps the chrome honest (a dead nav item that redirects is worse
+  // than no item).
+  // Video leads the anon nav (a signed-out visitor is here for the video — the
+  // video wall is the front door, Shorts the lens). The signed-in order (M6)
+  // is unchanged.
+  const anonSidebarNavItems = [videoItem, shortsItem, hotGossipItem, peopleItem];
+  const anonBottomNavItems = [videoItem, shortsItem, hotGossipItem, peopleItem];
+  // The four destinations are full SIDEBAR items (desktop). The mobile bottom
+  // bar stays at five max (design.md §9): the core (Feed, Video, Shorts,
+  // Messages) + More; Hot Gossip + People live in the More sheet on mobile.
+  const sidebarNavItems = isAnon ? anonSidebarNavItems : [profileItem, videoItem, shortsItem, hotGossipItem, feedItem, peopleItem, messagesItem, monetizationItem];
+  const bottomNavItems = isAnon ? anonBottomNavItems : [feedItem, videoItem, shortsItem, messagesItem];
   const [moreOpen, setMoreOpen] = useState(false);
   const { unread } = useNotifications();
   const { isAdmin: isNodeAdmin } = useNodeAdmin();
   const isNotifications = pathname === '/notifications';
-  // Shorts is a full-screen immersive lens (the TikTok model): the bottom tab
-  // bar would overlap the action rail + the comment sheet, so it is hidden on
-  // the lens. The exit is the back arrow the lens renders itself (top-left →
-  // /feed); the mobile top header stays so the account actions remain
-  // reachable. Dropping the `pb-16` reserve too makes the lens truly
-  // full-bleed (the video runs edge to edge, no dead band under the bar).
-  const isShorts = pathname.startsWith('/shorts');
+  // The Shorts LENS (`/shorts/:postId`) is a full-screen immersive surface
+  // (the TikTok model): the bottom tab bar would overlap the action rail + the
+  // comment sheet, so it is hidden on the lens. The exit is the back arrow the
+  // lens renders itself (top-left → /feed); the mobile top header stays so the
+  // account actions remain reachable. Dropping the `pb-16` reserve too makes
+  // the lens truly full-bleed (the video runs edge to edge, no dead band under
+  // the bar). The Shorts WALL (`/shorts`, no `:postId`) is a normal scrollable
+  // grid — it keeps the normal chrome (top bar + bottom nav + pb-16).
+  const isShorts = /^\/shorts\/[^/]+/.test(pathname);
 
   // The Monetization surface holds its section in the URL (`?tab=node`). The
   // two nav entries are the switcher — each must highlight on its OWN section,
@@ -126,24 +132,6 @@ export default function Layout({ onLogout, onLogin, isAnon: isAnonProp, onReport
   const monetizeTab = new URLSearchParams(search).get('tab');
   const isMonetizeCreator = pathname === '/monetize' && monetizeTab !== 'node';
   const isMonetizeNode = pathname === '/monetize' && monetizeTab === 'node';
-
-  // B3: the Discover screen's Trending | People tabs live in the top bar
-  // (desktop, Discover screen only — the operator's Facebook-style chrome).
-  // The active tab is URL state (?tab=; trending is the bare URL) so it stays
-  // deep-linkable + refresh-safe. On non-Discover screens the top bar shows
-  // only the bell + the account row.
-  const isDiscover = pathname === '/discover';
-  const discoverTab = new URLSearchParams(search).get('tab') === 'explore' ? 'explore' : 'trending';
-  const setDiscoverTab = useCallback(
-    (next: 'trending' | 'explore') => {
-      const params = new URLSearchParams(search);
-      if (next === 'trending') params.delete('tab');
-      else params.set('tab', next);
-      const qs = params.toString();
-      navigate(`/discover${qs ? `?${qs}` : ''}`);
-    },
-    [search, navigate],
-  );
 
   // The desktop sidebar's account entry point: an avatar row that opens a
   // user menu (Profile / Settings / Report a bug / Log out). This is where
@@ -238,23 +226,14 @@ export default function Layout({ onLogout, onLogin, isAnon: isAnonProp, onReport
         'hidden md:flex flex-col w-64 border-r border-border relative',
         'bg-gradient-to-b from-surface to-background',
       )}>
-        {/* The decorative glow is clipped by its OWN container — the aside
-            itself must NOT be overflow-hidden: the search results dropdown
-            anchors here and overflows into the content (the Facebook-style
-            wide panel, 25.09.2026). */}
+        {/* The decorative glow is clipped by its OWN container (the
+            overflow-hidden wrapper), so the aside itself carries no
+            overflow rule. */}
         <div className="pointer-events-none absolute inset-0 overflow-hidden" aria-hidden="true">
           <div className="absolute -top-20 -left-20 h-40 w-40 rounded-full bg-brand/5 blur-3xl" />
         </div>
         <div className="relative p-4">
-          <Wordmark markOnly />
-        </div>
-        {/* The desktop search field lives in the sidebar (the operator's
-            Facebook-style chrome: keys mark, then search, then the nav rows).
-            It was in the top bar; the top bar now carries the Discover tabs
-            + the bell + the account row. The results dropdown anchors here
-            (it positions `absolute top-full` off this wrapper). */}
-        <div className="relative px-4 pb-3">
-          <GlobalSearch variant="desktop" />
+          <Wordmark />
         </div>
         <nav className="relative flex-1 px-2 space-y-1" aria-label="Primary">
           {sidebarNavItems.map(({ path, icon: Icon, label, testId }) => {
@@ -437,50 +416,23 @@ export default function Layout({ onLogout, onLogin, isAnon: isAnonProp, onReport
           </div>
         </header>
 
-        {/* Desktop top bar. The search field moved to the sidebar (B2). On the
-            Discover screen the left side carries the Trending | People tabs
-            (B3); on every other screen it's empty (the tabs are
-            Discover-specific). The right side keeps the bell + the account
-            row. Hidden on the Shorts lens (the immersive surface keeps its
+        {/* Desktop top bar. The search field lives here (the operator's
+            29.09.2026 pass: the sidebar's search pill was a "traffic jam" —
+            the field returns to the top bar, the sidebar keeps the full
+            web10 wordmark). The right side keeps the bell + the account row.
+            Hidden on the Shorts lens (the immersive surface keeps its
             full-bleed frame, like the bottom bar already does). */}
         {!isShorts && (
           <header
             data-testid="topbar-desktop"
             className="hidden md:flex items-center justify-between gap-4 border-b border-border bg-surface/95 backdrop-blur-md z-20 px-4 h-14"
           >
-            {isDiscover ? (
-              <div className="flex items-center gap-1" role="tablist" aria-label="Discover sections" data-testid="discover-tab-row">
-                {([
-                  ['trending', 'Trending', Flame],
-                  // The People tab carries the TWO-people glyph (it holds
-                  // profiles + groups — the operator, 25.09.2026: "people
-                  // should be the logo of the two people"); the Profiles
-                  // *subtab* inside it carries the one-person glyph.
-                  ['explore', 'People', Users],
-                ] as ['trending' | 'explore', string, typeof Flame][]).map(([id, label, TabIcon]) => (
-                  <button
-                    key={id}
-                    type="button"
-                    role="tab"
-                    aria-selected={discoverTab === id}
-                    data-testid={`discover-tab-${id}`}
-                    onClick={() => setDiscoverTab(id)}
-                    className={cn(
-                      'flex items-center gap-2 rounded-lg px-3.5 py-2 text-sm font-semibold transition-colors',
-                      'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background',
-                      discoverTab === id
-                        ? 'bg-brand-muted text-brand-300'
-                        : 'text-muted-foreground hover:text-foreground hover:bg-elevated',
-                    )}
-                  >
-                    <TabIcon className="h-4 w-4" strokeWidth={1.75} />
-                    <span>{label}</span>
-                  </button>
-                ))}
-              </div>
-            ) : (
-              <div aria-hidden="true" />
-            )}
+            {/* The desktop search: a fixed-width field on the left (the
+                YouTube/Instagram top-bar shape). The results dropdown
+                anchors below it (absolute top-full off the field's wrapper). */}
+            <div className="w-72 max-w-full shrink-0">
+              <GlobalSearch variant="desktop" />
+            </div>
             <div className="flex items-center gap-1">
             {isAnon ? (
               /* Anon: no notifications, no account row — a clear Sign in
@@ -711,16 +663,43 @@ export default function Layout({ onLogout, onLogin, isAnon: isAnonProp, onReport
               </div>
 
               <div className="space-y-1">
+                {/* Profile — demoted from the bottom bar (the bar is full with
+                    Feed, Video, Shorts, Messages + More); it lives here now. */}
                 <button
-                  data-testid="nav-shorts-mobile"
-                  onClick={() => go(shortsItem.path)}
+                  data-testid="nav-profile-mobile"
+                  onClick={() => go(profileItem.path)}
                   className={cn(
                     'w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors duration-150',
-                    isActive(shortsItem.path) ? 'bg-brand-muted text-brand-300' : 'text-foreground hover:bg-elevated',
+                    isActive(profileItem.path) ? 'bg-brand-muted text-brand-300' : 'text-foreground hover:bg-elevated',
                   )}
                 >
-                  <Clapperboard className="w-5 h-5" strokeWidth={1.75} />
-                  {shortsItem.label}
+                  <User className="w-5 h-5" strokeWidth={1.75} />
+                  {displayName || username || 'Profile'}
+                </button>
+                {/* Hot Gossip + People — the two Discover-split destinations
+                    that don't hold a bottom-bar slot (the bar stays at five
+                    max); they live here on mobile. */}
+                <button
+                  data-testid="nav-hot-gossip-mobile"
+                  onClick={() => go(hotGossipItem.path)}
+                  className={cn(
+                    'w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors duration-150',
+                    isActive(hotGossipItem.path) ? 'bg-brand-muted text-brand-300' : 'text-foreground hover:bg-elevated',
+                  )}
+                >
+                  <Flame className="w-5 h-5" strokeWidth={1.75} />
+                  {hotGossipItem.label}
+                </button>
+                <button
+                  data-testid="nav-people-mobile"
+                  onClick={() => go(peopleItem.path)}
+                  className={cn(
+                    'w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors duration-150',
+                    isActive(peopleItem.path) ? 'bg-brand-muted text-brand-300' : 'text-foreground hover:bg-elevated',
+                  )}
+                >
+                  <Users className="w-5 h-5" strokeWidth={1.75} />
+                  {peopleItem.label}
                 </button>
                 <button
                   data-testid="nav-settings-mobile"

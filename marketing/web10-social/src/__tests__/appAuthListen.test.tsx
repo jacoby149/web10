@@ -115,4 +115,27 @@ describe('App renders', () => {
     // And the discover tab row (the anon landing) is NOT present.
     expect(screen.queryByTestId('discover-tab-row')).not.toBeInTheDocument();
   });
+
+  it('a signed-in user at the root lands on /video (the default), not /feed', async () => {
+    // The operator: "video should be the default that it goes to". The
+    // catch-all route sends signed-in users to /video (the video wall),
+    // not /feed. A bare "/" (or any unknown path) lands on Video.
+    installWeb10Mock({
+      token: 'signed-in-token',
+      payload: { username: 'testuser', provider: 'test.localhost', site: 'web10' },
+    });
+    const { default: App } = await import('@/App');
+    const { container } = render(
+      <MemoryRouter initialEntries={['/']}>
+        <App />
+      </MemoryRouter>
+    );
+    // The Video destination (DiscoverScreen) renders — the nav-video item
+    // is active (the sidebar highlights the current destination).
+    await waitFor(() => {
+      const videoNav = container.querySelector('[data-testid="nav-video"]');
+      expect(videoNav).not.toBeNull();
+      expect(videoNav).toHaveAttribute('aria-current', 'page');
+    });
+  });
 });

@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
-import { createV3Client, pickThumbnail, type V3Client } from './v3'
+import { createV3Client, pickThumbnail, diffGroupContract, mergeGroupRolesForReconcile, findDanglingGrants, type V3Client, type V3GroupRole } from './v3'
 import * as http from './http'
 import * as token from './token'
 import { decodeJwt, isTokenExpired, readTokenCookie, setTokenCookie, scrubTokenCookie } from './token'
@@ -923,6 +923,147 @@ describe('v3 client', () => {
 
   // ── Join request management ───────────────────────────────────────────
 
+  describe('reconcileGroupContract (the app owns its own contracts)', () => {
+    beforeEach(() => client.setToken(mockToken))
+
+    const OWNER = { name: 'owner', permissions: { '*': ['readAll', 'deleteAll'] } }
+    const MEMBER = { name: 'member', permissions: { posts: ['readAll'] } }
+    const READER = { name: 'reader', permissions: { profile: ['readAll'] } }
+    const FULL = [OWNER, MEMBER, READER]
+
+    // Dispatch the sequential authPost calls reconcileGroupContract makes
+    // (get → members/list → [update] → [members/add]) by URL.
+    function mockGroup({ group, members }: { group: any; members: any[] }) {
+      vi.spyOn(http, 'authPost').mockImplementation(async (url: string) => {
+        if (url.endsWith('/groups/get')) return group
+        if (url.endsWith('/groups/members/list')) return members
+        if (url.endsWith('/groups/update')) return group
+        if (url.endsWith('/groups/members/add')) return { member_key: 'anyone', role: 'reader' }
+        throw new Error('unexpected call: ' + url)
+      })
+    }
+    const calls = (action: string) =>
+      (vi.mocked(http.authPost).mock.calls.filter(([u]) => u.endsWith(action)) as any[])
+
+    it('is a no-op when the contract already matches the spec (idempotent)', async () => {
+      mockGroup({
+        group: { group_id: 'g', join_policy: 'open', roles: FULL, tags: ['web10-social-followers'] },
+        members: [{ member_key: 'alice', role: 'owner' }, { member_key: 'anyone', role: 'reader' }],
+      })
+      const res = await client.reconcileGroupContract('g', {
+        roles: FULL,
+        members: [{ member_key: 'anyone', role: 'reader' }],
+        join_policy: 'open',
+        tags: ['web10-social-followers'],
+      })
+      expect(res.inSync).toBe(true)
+      expect(res.healed).toBe(false)
+      expect(calls('/groups/update')).toHaveLength(0)
+      expect(calls('/groups/members/add')).toHaveLength(0)
+    })
+
+    it('heals a missing role by appending it (the followers `reader` bug)', async () => {
+      // The contract is missing the `reader` role definition — the exact prod
+      // drift: the `anyone → reader` row exists but the role it names is absent,
+      // so the grant is inert and the owner is absent from the people directory.
+      mockGroup({
+        group: { group_id: 'g', join_policy: 'open', roles: [OWNER, MEMBER], tags: [] },
+        members: [{ member_key: 'alice', role: 'owner' }, { member_key: 'anyone', role: 'reader' }],
+      })
+      const res = await client.reconcileGroupContract('g', { roles: FULL })
+      expect(res.inSync).toBe(false)
+      expect(res.healed).toBe(true)
+      expect(res.diff.missingRoles.map((r) => r.name)).toEqual(['reader'])
+      // The update sends the FULL merged role set (existing preserved + reader
+      // appended) — never just the delta (updateGroup replaces the field).
+      const update = calls('/groups/update')[0][1]
+      expect(update.roles.map((r: any) => r.name)).toEqual(['owner', 'member', 'reader'])
+      // The `anyone` row already exists → NOT re-added (no clobber).
+      expect(calls('/groups/members/add')).toHaveLength(0)
+    })
+
+    it('unions a missing permission op into an existing role (additive, never removes)', async () => {
+      // `reader` exists but lost its `profile: readAll` op (drift). The heal
+      // adds the op back WITHOUT touching the owner's other roles/ops.
+      const driftedReader = { name: 'reader', permissions: {} }
+      mockGroup({
+        group: { group_id: 'g', join_policy: 'open', roles: [OWNER, MEMBER, driftedReader], tags: [] },
+        members: [{ member_key: 'alice', role: 'owner' }],
+      })
+      const res = await client.reconcileGroupContract('g', { roles: FULL })
+      expect(res.diff.rolePermissionGaps).toEqual([{ role: 'reader', service: 'profile', op: 'readAll' }])
+      const update = calls('/groups/update')[0][1]
+      const reader = update.roles.find((r: any) => r.name === 'reader')
+      expect(reader.permissions).toEqual({ profile: ['readAll'] })
+      // The owner's role is preserved verbatim.
+      const owner = update.roles.find((r: any) => r.name === 'owner')
+      expect(owner.permissions).toEqual(OWNER.permissions)
+    })
+
+    it('adds a missing app-required member row', async () => {
+      mockGroup({
+        group: { group_id: 'g', join_policy: 'open', roles: FULL, tags: [] },
+        members: [{ member_key: 'alice', role: 'owner' }], // no `anyone` row
+      })
+      const res = await client.reconcileGroupContract('g', {
+        roles: FULL,
+        members: [{ member_key: 'anyone', role: 'reader' }],
+      })
+      expect(res.diff.missingMembers).toEqual([{ member_key: 'anyone', role: 'reader' }])
+      expect(calls('/groups/members/add')[0][1]).toMatchObject({ member_key: 'anyone', role: 'reader' })
+      // No role change needed → no updateGroup.
+      expect(calls('/groups/update')).toHaveLength(0)
+    })
+
+    it('appends missing tags (owner\'s other tags are never dropped)', async () => {
+      mockGroup({
+        group: { group_id: 'g', join_policy: 'open', roles: FULL, tags: ['owner-custom-tag'] },
+        members: [{ member_key: 'alice', role: 'owner' }],
+      })
+      await client.reconcileGroupContract('g', {
+        roles: FULL,
+        tags: ['web10-social-followers'],
+      })
+      const update = calls('/groups/update')[0][1]
+      expect(update.tags).toEqual(['owner-custom-tag', 'web10-social-followers'])
+    })
+
+    it('resets a drifted join policy to the spec\'s', async () => {
+      mockGroup({
+        group: { group_id: 'g', join_policy: 'request', roles: FULL, tags: [] },
+        members: [{ member_key: 'alice', role: 'owner' }],
+      })
+      const res = await client.reconcileGroupContract('g', { roles: FULL, join_policy: 'open' })
+      expect(res.diff.joinPolicyDrifted).toBe(true)
+      const update = calls('/groups/update')[0][1]
+      expect(update.join_policy).toBe('open')
+    })
+
+    it('never touches what the spec does not declare (consensual)', async () => {
+      // The contract has an EXTRA role + an EXTRA member row + an EXTRA tag the
+      // spec doesn't mention. The spec is satisfied, so nothing is written — the
+      // owner's additions are left exactly as-is.
+      mockGroup({
+        group: {
+          group_id: 'g',
+          join_policy: 'open',
+          roles: [...FULL, { name: 'owner-custom', permissions: { '*': ['readAll'] } }],
+          tags: ['owner-custom-tag'],
+        },
+        members: [
+          { member_key: 'alice', role: 'owner' },
+          { member_key: 'anyone', role: 'reader' },
+          { member_key: 'bob', role: 'member' },
+        ],
+      })
+      const res = await client.reconcileGroupContract('g', { roles: FULL })
+      expect(res.inSync).toBe(true)
+      expect(res.healed).toBe(false)
+      expect(calls('/groups/update')).toHaveLength(0)
+      expect(calls('/groups/members/add')).toHaveLength(0)
+    })
+  })
+
   describe('join requests', () => {
     beforeEach(() => client.setToken(mockToken))
 
@@ -1289,5 +1430,131 @@ describe('v3 client', () => {
       const call = (vi.mocked(http.authPost).mock.calls[0][1] as any)
       expect(call.body).toEqual({ target_app_id: 'https://myapp.com' })
     })
+  })
+})
+
+// ── Contract reconciliation (pure — no client / no I/O) ──────────────────────
+
+describe('diffGroupContract (pure)', () => {
+  const OWNER: V3GroupRole = { name: 'owner', permissions: { '*': ['readAll'] } }
+  const READER: V3GroupRole = { name: 'reader', permissions: { profile: ['readAll'] } }
+
+  it('reports inSync when the contract matches the spec', () => {
+    const diff = diffGroupContract(
+      { roles: [OWNER, READER], members: [{ member_key: 'anyone', role: 'reader' }], join_policy: 'open', tags: ['t'] },
+      { roles: [OWNER, READER], members: [{ member_key: 'anyone', role: 'reader' }], join_policy: 'open', tags: ['t'] },
+    )
+    expect(diff.inSync).toBe(true)
+    expect(diff.missingRoles).toHaveLength(0)
+    expect(diff.rolePermissionGaps).toHaveLength(0)
+    expect(diff.missingMembers).toHaveLength(0)
+    expect(diff.joinPolicyDrifted).toBe(false)
+    expect(diff.missingTags).toHaveLength(0)
+  })
+
+  it('reports a missing role', () => {
+    const diff = diffGroupContract({ roles: [OWNER, READER] }, { roles: [OWNER] })
+    expect(diff.missingRoles.map((r) => r.name)).toEqual(['reader'])
+    expect(diff.inSync).toBe(false)
+  })
+
+  it('reports a permission gap on an existing role (not a missing role)', () => {
+    const driftedReader: V3GroupRole = { name: 'reader', permissions: {} }
+    const diff = diffGroupContract({ roles: [OWNER, READER] }, { roles: [OWNER, driftedReader] })
+    expect(diff.missingRoles).toHaveLength(0)
+    expect(diff.rolePermissionGaps).toEqual([{ role: 'reader', service: 'profile', op: 'readAll' }])
+  })
+
+  it('reports a missing member row', () => {
+    // Spec requires the `anyone` row and the current contract carries it → present.
+    const present = diffGroupContract(
+      { roles: [OWNER], members: [{ member_key: 'anyone', role: 'reader' }] },
+      { roles: [OWNER], members: [{ member_key: 'anyone', role: 'reader' }] },
+    )
+    expect(present.missingMembers).toEqual([])
+    // Spec requires the `anyone` row but the current contract lacks it → missing.
+    const missing = diffGroupContract(
+      { roles: [OWNER], members: [{ member_key: 'anyone', role: 'reader' }] },
+      { roles: [OWNER], members: [{ member_key: 'alice', role: 'owner' }] },
+    )
+    expect(missing.missingMembers).toEqual([{ member_key: 'anyone', role: 'reader' }])
+  })
+
+  it('reports a join policy drift', () => {
+    const diff = diffGroupContract({ roles: [OWNER], join_policy: 'open' }, { roles: [OWNER], join_policy: 'request' })
+    expect(diff.joinPolicyDrifted).toBe(true)
+  })
+
+  it('reports missing tags', () => {
+    const diff = diffGroupContract({ roles: [OWNER], tags: ['a', 'b'] }, { roles: [OWNER], tags: ['a'] })
+    expect(diff.missingTags).toEqual(['b'])
+  })
+
+  it('is inSync when the spec has no members/join_policy/tags and roles match', () => {
+    const diff = diffGroupContract({ roles: [OWNER] }, { roles: [OWNER] })
+    expect(diff.inSync).toBe(true)
+  })
+})
+
+describe('mergeGroupRolesForReconcile (pure)', () => {
+  const OWNER: V3GroupRole = { name: 'owner', permissions: { '*': ['readAll'] } }
+  const READER: V3GroupRole = { name: 'reader', permissions: { profile: ['readAll'] } }
+
+  it('appends missing roles, preserving existing ones verbatim', () => {
+    const diff = diffGroupContract({ roles: [OWNER, READER] }, { roles: [OWNER] })
+    const merged = mergeGroupRolesForReconcile([OWNER], [OWNER, READER], diff)
+    expect(merged.map((r) => r.name)).toEqual(['owner', 'reader'])
+    expect(merged[0]).toEqual(OWNER)
+  })
+
+  it('unions a missing op into an existing role without dropping its other ops', () => {
+    const driftedReader: V3GroupRole = { name: 'reader', permissions: { posts: ['readAll'] } }
+    const specReader: V3GroupRole = { name: 'reader', permissions: { posts: ['readAll'], profile: ['readAll'] } }
+    const diff = diffGroupContract({ roles: [specReader] }, { roles: [driftedReader] })
+    expect(diff.rolePermissionGaps).toEqual([{ role: 'reader', service: 'profile', op: 'readAll' }])
+    const merged = mergeGroupRolesForReconcile([driftedReader], [specReader], diff)
+    expect(merged[0].permissions).toEqual({ posts: ['readAll'], profile: ['readAll'] })
+  })
+
+  it('does not mutate the input roles', () => {
+    const driftedReader: V3GroupRole = { name: 'reader', permissions: {} }
+    const specReader: V3GroupRole = { name: 'reader', permissions: { profile: ['readAll'] } }
+    const diff = diffGroupContract({ roles: [specReader] }, { roles: [driftedReader] })
+    mergeGroupRolesForReconcile([driftedReader], [specReader], diff)
+    expect(driftedReader.permissions).toEqual({})
+  })
+})
+
+describe('findDanglingGrants (pure — the generic contract-health invariant)', () => {
+  const OWNER: V3GroupRole = { name: 'owner', permissions: { '*': ['readAll'] } }
+  const MEMBER: V3GroupRole = { name: 'member', permissions: { posts: ['readAll'] } }
+
+  it('reports a member row that names an undefined role (the followers `reader` bug)', () => {
+    // The contract defines owner + member, but a member row names `reader`
+    // (undefined) — the grant is inert. The generic check catches it with no
+    // app spec.
+    const dangling = findDanglingGrants(
+      [OWNER, MEMBER],
+      [{ member_key: 'alice', role: 'owner' }, { member_key: 'anyone', role: 'reader' }],
+    )
+    expect(dangling).toEqual([{ member_key: 'anyone', role: 'reader' }])
+  })
+
+  it('reports nothing when every member row names a defined role', () => {
+    const dangling = findDanglingGrants(
+      [OWNER, MEMBER],
+      [{ member_key: 'alice', role: 'owner' }, { member_key: 'bob', role: 'member' }],
+    )
+    expect(dangling).toEqual([])
+  })
+
+  it('ignores rows with an empty role', () => {
+    const dangling = findDanglingGrants([OWNER], [{ member_key: 'alice', role: '' }])
+    expect(dangling).toEqual([])
+  })
+
+  it('handles undefined roles/members', () => {
+    expect(findDanglingGrants(undefined, [{ member_key: 'a', role: 'x' }])).toEqual([{ member_key: 'a', role: 'x' }])
+    expect(findDanglingGrants([OWNER], undefined)).toEqual([])
   })
 })

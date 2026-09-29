@@ -272,6 +272,11 @@ export default function PostComposer({
   compact?: boolean;
 }) {
   const [text, setText] = useState('');
+  // The post's two bodies of text (D82): `title` (the optional headline) +
+  // `text` (the caption). The title leads a card / watch header / short
+  // overlay; the caption is the longer body. Optional — a post with no title
+  // is caption-only (the pre-D82 shape).
+  const [title, setTitle] = useState('');
   const [mediaItems, setMediaItems] = useState<AttachedMedia[]>([]);
   const [uploading, setUploading] = useState(false);
   const [posting, setPosting] = useState(false);
@@ -658,6 +663,7 @@ export default function PostComposer({
         mediaItems[0].width < mediaItems[0].height;
       const postRecord = await createPost(
         {
+          title: title.trim() || undefined,
           text: text.trim(),
           media_refs: mediaRecords.map((m) => m._id!).filter(Boolean),
           visibility,
@@ -679,6 +685,7 @@ export default function PostComposer({
 
       mediaItems.forEach((item) => previewUrlsRef.current.delete(item.previewUrl));
       previewUrlsRef.current.clear();
+      setTitle('');
       setText('');
       setMediaItems([]);
       setPinnedAd(null);
@@ -697,7 +704,7 @@ export default function PostComposer({
 
   // A plain repost (no comment, no media) is valid — the repost itself is the
   // content. Otherwise the post needs text or media.
-  const canPost = (text.trim() || mediaItems.length || !!repostingTo) && !uploading && !posting;
+  const canPost = (text.trim() || title.trim() || mediaItems.length || !!repostingTo) && !uploading && !posting;
   const hasErroredMedia = mediaItems.some((item) => item.error);
   const initials = (profile?.display_name || '?').charAt(0).toUpperCase();
 
@@ -705,7 +712,7 @@ export default function PostComposer({
   // full form when it has focus or content (the Discover surface — the video
   // wall is the hero, not the composer). The full form is always shown for a
   // repost (the context block must be visible) or when not compact.
-  const hasContent = text.trim().length > 0 || mediaItems.length > 0;
+  const hasContent = text.trim().length > 0 || title.trim().length > 0 || mediaItems.length > 0;
   const expanded = !compact || focused || hasContent || !!repostingTo;
 
   return (
@@ -749,6 +756,21 @@ export default function PostComposer({
                 setMediaItems([]);
                 onRepostCancel?.();
               }}
+            />
+          )}
+          {/* The title — the post's headline (D82). A single-line input above
+              the caption; optional (a post with no title is caption-only).
+              Hidden in repost mode (the text there is the repost's comment). */}
+          {!repostingTo && (
+            <Input
+              value={title}
+              onChange={(e) => setTitle(e.target.value)}
+              onFocus={() => setFocused(true)}
+              placeholder="Add a title…"
+              disabled={posting}
+              className="mb-1.5 h-9 rounded-md bg-elevated border-0 text-foreground placeholder:text-muted-foreground text-[0.9375rem] font-medium"
+              aria-label="Post title"
+              data-testid="composer-title"
             />
           )}
           <Textarea

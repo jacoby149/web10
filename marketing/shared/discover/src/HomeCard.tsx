@@ -1,4 +1,4 @@
-import { Play, Film, Heart, MessageCircle, Repeat2 } from 'lucide-react';
+import { Play, Film, Heart, ThumbsDown, MessageCircle, Repeat2 } from 'lucide-react';
 import { useState } from 'react';
 import { cn, hashToColor, timeAgo } from './utils';
 import { Avatar, AvatarFallback } from './ui';
@@ -18,7 +18,8 @@ import type { DiscoverPost, MediaItem } from './types';
  *      badge. For a video, the thumbnail is the **hover preview**
  *      (`HoverVideo`): the poster at rest, the clip playing muted on hover
  *      with a top-right speaker toggle (the YouTube home behavior) — the
- *      frame stays inert, the `<a>` owns the click.
+ *      frame stays inert, the `<a>` owns the click. `frame="portrait"`
+ *      switches the tile to the 9:16 Shorts wall's vertical shape.
  *   2. the title — the post text, truncated to `TITLE_LIMIT` chars with a
  *      trailing ellipsis (the "show it if it's short, else …" rule);
  *   3. the attribution — the author's avatar + display name + a relative time.
@@ -67,6 +68,9 @@ export interface HomeCardProps {
   onAuthorClick?: () => void;
   /** Remote (marketing) mode: anon, link-outs to web10 social. */
   remote?: boolean;
+  /** The thumbnail's frame: `landscape` (16:9, the video wall — the default)
+      or `portrait` (9:16, the Shorts wall — the vertical lens's shape). */
+  frame?: 'landscape' | 'portrait';
   /** A DOM id for the card. */
   id?: string;
   className?: string;
@@ -74,6 +78,7 @@ export interface HomeCardProps {
   testId?: string;
   // ── Interactive engagement row (the social app wires these) ───────────────
   liked?: boolean;
+  disliked?: boolean;
   reposted?: boolean;
   onToggleReaction?: (kind: 'like' | 'dislike') => void;
   onToggleRepost?: () => void;
@@ -88,10 +93,12 @@ export function HomeCard({
   onPostClick,
   onAuthorClick,
   remote = false,
+  frame = 'landscape',
   id,
   className,
   testId = 'home-card',
   liked = false,
+  disliked = false,
   reposted = false,
   onToggleReaction,
   onToggleRepost,
@@ -103,7 +110,11 @@ export function HomeCard({
   const initial = username.charAt(0).toUpperCase();
   const avatarColor = hashToColor(username);
 
-  const title = truncateTitle(post.text || '') || displayName;
+  // The title (D82): the post's `title` (the headline) when present, else the
+  // post text (`text`) truncated to the char limit. The video wall card shows
+  // the title only (the YouTube model — the caption is the watch page's
+  // description, not the card). A caption-only post shows its text, truncated.
+  const title = truncateTitle(post.title || post.text || '') || displayName;
 
   const media: MediaItem | undefined = post.media?.[0];
   const isVideo = media?.mime_type?.startsWith('video/');
@@ -151,11 +162,12 @@ export function HomeCard({
       id={id}
       className={cn('group flex flex-col', className)}
     >
-      {/* 1. The thumbnail — a 16:9 frame that fills the card width. */}
+      {/* 1. The thumbnail — a 16:9 frame that fills the card width (the video
+          wall); `frame="portrait"` is the 9:16 Shorts wall's vertical tile. */}
       <a
         {...postLinkProps}
         data-testid={`${testId}-thumb`}
-        className="group/thumb relative block aspect-video w-full overflow-hidden rounded-lg bg-elevated"
+        className={`group/thumb relative block w-full overflow-hidden rounded-lg bg-elevated ${frame === 'portrait' ? 'aspect-[9/16]' : 'aspect-video'}`}
       >
         {thumbSrc ? (
           isVideo && media ? (
@@ -253,6 +265,16 @@ export function HomeCard({
           >
             <Heart className={cn('h-3.5 w-3.5', liked && 'fill-current')} strokeWidth={1.75} />
             {post.likes ?? 0}
+          </button>
+          <button
+            type="button"
+            data-testid={`${testId}-dislike`}
+            aria-label={disliked ? 'Remove dislike' : 'Dislike'}
+            onClick={(e) => { e.stopPropagation(); onToggleReaction?.('dislike'); }}
+            className={cn('flex items-center gap-1.5 transition-colors hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring rounded', disliked && 'text-foreground')}
+          >
+            <ThumbsDown className={cn('h-3.5 w-3.5', disliked && 'fill-current')} strokeWidth={1.75} />
+            {post.dislikes ?? 0}
           </button>
           <button
             type="button"

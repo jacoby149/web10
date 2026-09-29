@@ -21,6 +21,7 @@ import PeopleScreen from '@/components/People/PeopleScreen';
 import FeedScreen from '@/components/Feed/FeedScreen';
 import NotificationsScreen from '@/components/Notifications/NotificationsScreen';
 import DiscoverScreen from '@/components/Discover/DiscoverScreen';
+import WatchScreen from '@/components/Watch/WatchScreen';
 import ShortsScreen from '@/components/Shorts/ShortsScreen';
 import UserProfileScreen from '@/components/Bio/UserProfileScreen';
 import UserFollowListScreen from '@/components/Bio/UserFollowListScreen';
@@ -96,8 +97,10 @@ const initialRoute =
     : screen === 'discover-youtube' ? '/discover?view=youtube'
    : screen === 'discover-people' ? '/discover?tab=explore'
    : screen === 'discover-groups' ? '/discover?tab=explore'
-   : screen === 'discover-explore' ? '/discover?tab=explore'
-  : screen === 'shorts' || screen === 'install-prompt' ? '/shorts'
+    : screen === 'discover-explore' ? '/discover?tab=explore'
+    : screen === 'watch' ? '/watch/dp-1'
+    : screen === 'shorts' || screen === 'install-prompt' ? '/shorts'
+    : screen === 'shorts-searched' ? '/shorts?q=studio'
   : screen === 'groups' ? '/groups'
   : screen === 'groups-discover' ? '/groups?tab=discover'
   : screen === 'groups-detail' ? '/groups/web10%2Fgroups%2Fusers%2Fnova%2Fsynthwave-sessions'
@@ -127,6 +130,7 @@ createRoot(document.getElementById('root')!).render(
         <Route path="/composer" element={<PostComposer />} />
         <Route path="/notifications" element={<NotificationsScreen />} />
         <Route path="/discover" element={<DiscoverScreen />} />
+        <Route path="/watch/:postId" element={<WatchScreen />} />
         <Route path="/shorts" element={<ShortsScreen />} />
         <Route path="/shorts/:postId" element={<ShortsScreen />} />
         <Route path="/messages/*" element={<DmsScreen />} />

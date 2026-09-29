@@ -355,8 +355,9 @@ function Join() {
           <span>&copy; {new Date().getFullYear()} web10</span>
           <div className="flex gap-6">
             <a href="/" className="hover:text-foreground">Home</a>
-            <a href="/trending" className="hover:text-foreground">Discover</a>
+            <a href="/trending" className="hover:text-foreground">Trending</a>
             <a href="/docs" className="hover:text-foreground">Docs</a>
+            <a href="/docs/terms" className="hover:text-foreground">Terms</a>
             <a href={SOCIAL_ORIGIN} className="hover:text-foreground">Sign In</a>
           </div>
         </div>

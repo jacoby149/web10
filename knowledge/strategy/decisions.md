@@ -9,6 +9,66 @@ Status legend: [decided] intent set · [in-progress] · [open] still debating.
 
 ---
 
+### D82 — A post carries two bodies of text: an optional `title` (the headline) + `text` (the caption) — one field, app-owned, zero node surface [decided]
+
+Operator, 29.09.2026 — "i am thinking to shorts, videos, hot gossip, the three things, posts should have title and caption, not just one. i.e. two bodies of text would be richer for all three formats. what do you think? definitely a little different from regular social media." → "definitely effects all the screens, they all have to make decisions on displaying title AND/OR caption, two text fields instead of just one. and the implications for ads too, also should fit in with posts potentially!"
+
+**The decision.** A post's body gains an **optional `title`** alongside the existing **`text`** (the caption). Two bodies of text, not one — a deliberate break from the single-caption shape of regular social media. The `title` is the **headline** (the short, punchy line that leads a card / watch header / short overlay); `text` is the **caption** (the longer body). It is **optional everywhere**: a post with no `title` renders exactly as today (caption-only), so there is no migration and no rewrite of existing docs.
+
+**The shape (all client-side — zero node surface, D60):** the node stores `{service, body}` opaquely and does not care what fields are in the body. Adding `title` to the `posts` body is one field the app writes and reads — no new table, no new column, no new endpoint, no contract change. The composer writes it; `fromV3DocToPost` reads it; every surface decides how to show the two fields.
+
+**The per-format split:**
+
+| Format | `title` | `text` (caption) |
+|---|---|---|
+| **Video** (the YouTube wall) | the chunky card title + the watch-page header | the description under the player |
+| **Shorts** | the overlay line on the tile / lens | the expanded caption |
+| **Hot Gossip** (Threads) | optional top line — a hot take is caption-only by default | the body |
+
+The load-bearing case is **Video**: today the video wall's "title" is a *lie* — it is `text` truncated to 80 chars. A real, author-controlled `title` is what YouTube is (title + description). **Hot Gossip** is the interesting call: Threads is *just* text, so a headline would be over-structure — the card shows the title only when one exists, otherwise it is the plain text card.
+
+**Ads fall out for free (the part that tells you it's correct).** An ad *is* a `posts` doc tagged `ad` with the same body (ads.md, D55). Add `title` to the post body and the ad creative inherits it with no separate ad change: a post-format ad's card gets a title + caption just like a post, an inline ad uses the title as its line. The `offer` object is untouched — the creative is the post, the offer is the link. That is the "an ad is a post" doctrine doing its job.
+
+**The real work is the render matrix, not the model.** Every surface makes a show/hide/truncate decision for each of the two fields:
+
+| Surface | Title | Caption |
+|---|---|---|
+| Video wall card (`HomeCard`) | chunky, ~80-char cap | hidden (or 1 line) |
+| Watch page | header | full, under the player |
+| Shorts tile / lens | overlay line | expanded |
+| Hot Gossip card (`DiscoverCard`) | optional top line | the body |
+| Ad (post format) | card title | copy |
+| Ad (inline) | the line | — |
+| Composer | new title input | existing text box |
+
+**Search matches the title too** — a title is the highest-signal string to match; the `?q=` post/video/shorts filters check `title || text`.
+
+**What it rejects.** (1) **A second required field** — `title` is optional; forcing a headline on a hot take (or a caption on a title-only clip) would be over-structure. (2) **A node column / endpoint** — D60: it is a body field the app owns, not platform surface. (3) **A per-format content type** — shorts / videos / gossip are all `posts` docs (shorts.md, D30/D58); the two fields are on the one post shape, not three shapes. (4) **A media `caption`** — the per-media `caption`/`alt_text` (accessibility, on the media doc) is a different thing and stays; the post's `title`/`text` are the post's own two bodies.
+
+**The seam:** `marketing/web10-social/src/data/{types,posts}.ts` (`PostRecord.title`, `fromV3DocToPost`, `createPost`/`updatePost`), `marketing/shared/discover/src/{types,HomeCard,DiscoverCard}.tsx` (`DiscoverPost.title` + the two cards), `src/data/ads-catalog.ts` + `src/data/types.ts` (`AdRecord.title`, `fromV3DocToAd`), the composer (`PostComposer.tsx`), the watch / shorts / lightbox surfaces, and `src/data/search.ts`. KB: `social/ads.md` (the post body shape), `social/shorts.md` (the overlay), `social/discover-card.md` (the card title).
+
+---
+
+### D81 — Copyright takedowns use the "Post-It Note" DMCA rule: a designated-agent email + a manual, fast removal — no takedown queue, no node surface [decided]
+
+Operator, 29.09.2026 — "Use the 'Post-It Note' DMCA rule: Add a simple 'Report Copyright' button and an email address (like copyright@yourapp.com) in your terms of service. If a label emails you to take a video down, you just delete it manually. As long as you act fast, you are legally protected while you are small. we need this on the app for compliance."
+
+**The decision.** Copyright takedowns are a **legal-compliance surface**, not a platform feature. web10 follows the **"Post-It Note" rule**: a designated-agent **email address** + a **fast, manual removal**. A rights holder emails the agent with a link to the infringing content; the node operator opens the link and removes it (the existing board takedown `POST /v3/groups/hide`, or the author's own delete). Acting quickly on valid notices is what keeps a small node legally protected.
+
+**The shape (all client-side + a doc — zero node surface, D60):**
+
+- **The designated agent** is an email: `copyright@web10.com` for the web10 reference node / web10-social. A self-hosted node names its **own** agent in its **own terms** — the agent is a terms-level thing, not a `node_config` column (the node stays generic).
+- **The in-app affordance is a `mailto:` composer, not a write.** **Settings → About → Report copyright** opens a dialog showing the agent's email + a pre-filled message (the content's link, the author, a rights statement) and hands it to the user's mail client. It never sends anything itself — no data write, no node call.
+- **The terms of service publish the address** (`marketing-ui /docs/terms`, "Copyright & DMCA") so a rights holder who doesn't use the app can still find it.
+
+**Why a single entry point, not a per-post button.** The app has many content surfaces (video, shorts, hot gossip, profile, the post lightbox). The mechanism is an **email**, so the button does not belong scattered across every surface — it lives in **one always-reachable place** (Settings → About, next to "Report a bug"). A per-post "Report copyright" on every surface would be the over-built version of a deliberately-small rule.
+
+**What it rejects.** (1) **A takedown queue** — no `takedowns` table, no `/v3/takedowns` endpoint, no in-app report queue. The email **is** the report; a node surface for it would violate D60 (a DMCA queue is a legal/operational concern, not a platform primitive). (2) **A per-post report button on every content surface** — the mechanism is an email, so the affordance is one entry point, not scattered. (3) **A strike system** — no counter, no account penalty. A valid notice removes the content; that's the whole mechanism. (4) **A `node_config` agent column** — the agent is terms-level, not a node-config field (the node stays app-agnostic).
+
+**The seam:** `marketing/web10-social/src/components/shared/ReportCopyright.tsx` (the `mailto:` dialog + the `COPYRIGHT_EMAIL` constant), reached from `SettingsScreen` (the About section). The public doc is `marketing/marketing-ui/public/docs/terms.md`. The KB model is `knowledge/knowledge-base/web10-v3/social/content-moderation.md` ("Copyright Takedowns").
+
+---
+
 ### D80 — Group membership visibility is group policy: a `membership_visibility` contract field governs who can enumerate who's in a group [decided]
 
 Operator, 23.09.2026 — after the "see following/followers on any profile" pass: "everything has to be generic with web10, so cant edit clickhouse.py, needs to be implemented using the query engine" → "this isnt some cia high privacy stuff, use signal for that" → "i actually am a fan of the groups having settings in them … `membership_is_public = true, or false`, to dictate if it shows up. so for the dms the membership shouldnt be public, people shouldnt be able to see who you dm, but people should be able to see who you follow" → "so govern whether the group membership is public in the group policy."
@@ -676,6 +736,67 @@ consideration).
 
 Full model: `knowledge-base/web10-v3/social/content-moderation.md`. Default
 list: `knowledge-base/web10-v3/social/sensitive-words-default.md`.
+
+### D59a — Node-level ban (`banned_users`) + retroactive user-hide [decided]
+Operator, 28.09.2026 — "the social app i tried to hide the posts from the user,
+but the posts were still visible" + "no ability to ban, just to hide from
+discover" + "node level ban needs a kb entry, like if user banned, the web10
+query engine just filters out banned user created stuff that simple" + "hiding
+for a whole user … it is currently only per post, needs work too on the backend
+to let hide all happen for a user".
+
+**Decided** — (1) **The user-hide is retroactive.** `POST /v3/moderation/auto-hide`
+with `hide=true` no longer only governs *future* posts: it also sweeps the
+user's **existing** discover-board docs and hides each from the board (the
+existing `group_hidden_docs` mechanism); `hide=false` restores them. The sweep
+is **service-agnostic** (D60 — no `posts` hardcode): a hide is "take this user
+off the board", so every doc they have on the discover board is swept, whatever
+service it lives in. The write-path hook still covers future posts. This fixes
+"I hid the user but their posts are still visible" — the hide now takes effect
+immediately, not on the user's next post. (2) **A node-level ban is
+`node_config.banned_users`** — a JSON array of usernames (the same shape as
+`auto_hide_users`), admin-only (`POST /v3/moderation/ban`). A banned user's
+content is **filtered out of every read path**: the board read
+(`_board_base_sql`) and the query engine (`_boundary_cte_sql`) both carry an
+`author_key NOT IN (banned_users)` predicate, so a banned user's docs do not
+surface in any read (discover, feed, profile, the D73 query engine) — for any
+service, not just social. The ban is **generic** (D60 — a node-owner feature,
+not scoped to social): a node operator banning a spammer's content is
+app-agnostic. The ban is node-level (a node_config list, not a user property —
+it does not follow the user across nodes) and reversible (remove the username
+and their content returns). (3) **The ban is stronger than the hide.** A hide
+(`auto_hide_users`) is *board curation* — it suppresses the user's docs from
+the discover board only (their profile, followers' feed, and other groups are
+intact — D41/I3 hold). A ban reaches the whole read path. A banned user is also
+off the board (the ban subsumes the hide for board visibility), but the ban's
+reach is broader. (4) **The Hidden Posts list returns to the UI** — the
+Moderation tab lists the discover group's `group_hidden_docs`
+(`POST /v3/groups/hidden`) with a per-post Unhide, restoring the surface the
+authenticator's retired Board Moderation card had.
+
+**Why:** the operator's mental model — "if user banned, the query engine just
+filters out banned user created stuff" — is the right one and it's the smallest
+correct mechanism: a node_config list + a read-path predicate, no new table, no
+new role, no DDL. Both the ban and the retroactive sweep are **generic** (D60):
+the ban filters on `author_key` in the universal read path (any service, any
+app), and the sweep hides every doc the user has on the discover board (no
+`posts` hardcode — "take this user off the board" is service-agnostic). The
+sweep reuses the same `group_hidden_docs` mechanism the write-path hook already
+uses, so "hide a user" and "hide a post" are the same primitive at two
+granularities.
+
+**Rejected:** a `banned` column on a `users` table (a user property — the ban is
+a node-operator decision, node-local, like `auto_hide_users`); blocking a
+banned user's *login* (the operator's model is a read-path filter — the content
+isn't served — not an account lockout; a login block is a different, stronger
+mechanism and not what was asked); reusing `auto_hide_users` and relabeling it
+"Ban" (it's board-curation only — it doesn't filter the profile/followers'
+feed, so it's not a real ban); scoping the sweep to `collection_name = 'posts'`
+(a D60 leak — the node learning "a post is a social doc"; the sweep is
+service-agnostic because a hide is "off the board", not "off the posts board").
+
+Full model: `knowledge-base/web10-v3/social/content-moderation.md` ("The Ban" +
+"The 'hide a user' behavior (retroactive)").
 
 ---
 

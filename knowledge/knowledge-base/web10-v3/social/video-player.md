@@ -96,7 +96,7 @@ flowchart TD
 ```
 
 - **Inline modality** — the surface is a *stream* (Feed, Discover, Groups). The video plays in place. No modal. Comments expand inline in the card (`CommentThread`, the feed's existing pattern), not in a lightbox.
-- **Modal modality** — the surface is a *gallery* (the Profile grid, the deep-link). The grid cell is a static poster; tapping it opens the `PostLightbox`, which renders `<VideoPlayer mode="full">`.
+- **Modal modality** — the surface is a *gallery* (the Profile grid, the deep-link). The grid cell is a static poster; tapping it opens the `PostLightbox`, which renders `<VideoPlayer mode="full">`. **The profile's lightbox navigates between the profile's posts** (operator, 29.09.2026: "instagram has those arrows on the side that go next next next, so on the profile should do that <> to go through posts when you are in a modal"): Instagram-style `<` `>` arrows on the backdrop (outside the panel) step through the profile's posts (wrapping), and `ArrowLeft`/`ArrowRight` do the same. The lightbox owns the modal; the profile owns the list + index (the `onPrevPost`/`onNextPost` seam swaps the `post` prop; the lightbox re-syncs its internal `currentPost` + media index on a prop change). The in-pane media-carousel arrows (a post's own multi-frame) are a separate, inner navigation — with post nav present, the keyboard arrows step posts, not frames. The Shorts lens does NOT get this (it is TikTok-style — vertical swipe only).
 
 The deep-link (`/u/:username/p/:postId`) is the modal modality — it opens over the profile, so it stays a modal. Consistent.
 

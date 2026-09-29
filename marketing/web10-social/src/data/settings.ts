@@ -69,11 +69,15 @@ export async function readSettings(): Promise<AppSettings> {
       // back to its own default (the Newest preset: the feed is
       // chronological until the user tunes it).
       const feedKnobs = sanitizeFeedKnobs(body.feedKnobs);
+      // watchRelatedness stays undefined when absent — the watch page falls
+      // back to its own default (Mixed: a balanced "what's next").
+      const watchRelatedness = typeof body.watchRelatedness === 'string' ? body.watchRelatedness : undefined;
       cachedSettings = {
         defaultVisibility: (body.defaultVisibility as AppSettings['defaultVisibility']) || defaultSettings.defaultVisibility,
         // Absent field (a doc written before the toggle existed) → default on.
         p2pEnabled: body.p2pEnabled === undefined ? defaultSettings.p2pEnabled : Boolean(body.p2pEnabled),
         ...(feedKnobs ? { feedKnobs } : {}),
+        ...(watchRelatedness ? { watchRelatedness } : {}),
       };
       LOG('readSettings — resolved:', JSON.stringify(cachedSettings));
       return cachedSettings;
@@ -102,6 +106,11 @@ export async function saveSettings(settings: Partial<AppSettings>): Promise<AppS
   // clobber a previously saved knob state — merged carries it forward).
   if (merged.feedKnobs) {
     body.feedKnobs = merged.feedKnobs;
+  }
+  // Persist the watch page's relatedness tuning when present (same rule — a
+  // visibility-only save must not clobber a previously saved relatedness).
+  if (merged.watchRelatedness) {
+    body.watchRelatedness = merged.watchRelatedness;
   }
 
   // The settings doc is only readable while attached to a group the user is

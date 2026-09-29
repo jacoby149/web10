@@ -58,7 +58,7 @@ from app.v3.models.media import (
     TranscodeRequest,
     UploadUrlRequest,
 )
-from app.v3.models.moderation import ModerationAutoHide, ModerationFlags
+from app.v3.models.moderation import ModerationAutoHide, ModerationBan, ModerationFlags
 from app.v3.models.preview import PreviewRender
 from app.v3.models.query import PrepareFace, PrepareSpec, QueryRequest
 from app.v3.models.session import VerifySession
@@ -137,6 +137,7 @@ __all__ = [
     # moderation
     "ModerationFlags",
     "ModerationAutoHide",
+    "ModerationBan",
     # preview (the generic link-preview card renderer)
     "PreviewRender",
     # people (the public people directory, D0)

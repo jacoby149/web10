@@ -69,7 +69,7 @@ describe('DiscoverScreen', () => {
   it('renders skeleton while loading', async () => {
     const { default: DiscoverScreen } = await import('@/components/Discover/DiscoverScreen');
     render(
-      <MemoryRouter initialEntries={['/discover?view=grid']}>
+      <MemoryRouter initialEntries={['/hot-gossip']}>
         <DiscoverScreen />
       </MemoryRouter>,
     );
@@ -81,7 +81,7 @@ describe('DiscoverScreen', () => {
   it('renders empty state when discovery returns nothing', async () => {
     const { default: DiscoverScreen } = await import('@/components/Discover/DiscoverScreen');
     render(
-      <MemoryRouter initialEntries={['/discover?view=grid']}>
+      <MemoryRouter initialEntries={['/hot-gossip']}>
         <DiscoverScreen />
       </MemoryRouter>,
     );
@@ -122,7 +122,7 @@ describe('DiscoverScreen', () => {
 
     const { default: DiscoverScreen } = await import('@/components/Discover/DiscoverScreen');
     render(
-      <MemoryRouter initialEntries={['/discover?view=grid']}>
+      <MemoryRouter initialEntries={['/hot-gossip']}>
         <DiscoverScreen />
       </MemoryRouter>,
     );
@@ -131,7 +131,8 @@ describe('DiscoverScreen', () => {
       expect(screen.getByTestId('discover-grid')).toBeInTheDocument();
     });
 
-    expect(screen.getByTestId('discover-tab-row')).toBeInTheDocument();
+    // The tab row is gone (the Discover split retires the ?tab= salad).
+    expect(screen.queryByTestId('discover-tab-row')).not.toBeInTheDocument();
     // KnobRack preset chips (testids: preset-{id})
     expect(screen.getByTestId('preset-most-recent')).toBeInTheDocument();
     expect(screen.getByTestId('preset-most-liked')).toBeInTheDocument();
@@ -192,7 +193,7 @@ describe('DiscoverScreen', () => {
 
     const { default: DiscoverScreen } = await import('@/components/Discover/DiscoverScreen');
     render(
-      <MemoryRouter initialEntries={['/discover?view=grid']}>
+      <MemoryRouter initialEntries={['/hot-gossip']}>
         <DiscoverScreen />
       </MemoryRouter>,
     );
@@ -235,7 +236,7 @@ describe('DiscoverScreen', () => {
 
     const { default: DiscoverScreen } = await import('@/components/Discover/DiscoverScreen');
     render(
-      <MemoryRouter initialEntries={['/discover?view=grid']}>
+      <MemoryRouter initialEntries={['/hot-gossip']}>
         <DiscoverScreen />
       </MemoryRouter>,
     );
@@ -280,7 +281,7 @@ describe('DiscoverScreen', () => {
 
     const { default: DiscoverScreen } = await import('@/components/Discover/DiscoverScreen');
     render(
-      <MemoryRouter initialEntries={['/discover?view=grid']}>
+      <MemoryRouter initialEntries={['/hot-gossip']}>
         <DiscoverScreen />
       </MemoryRouter>,
     );
@@ -317,7 +318,7 @@ describe('DiscoverScreen', () => {
 
     const { default: DiscoverScreen } = await import('@/components/Discover/DiscoverScreen');
     render(
-      <MemoryRouter initialEntries={['/discover?view=grid']}>
+      <MemoryRouter initialEntries={['/hot-gossip']}>
         <DiscoverScreen />
       </MemoryRouter>,
     );
@@ -363,7 +364,7 @@ describe('DiscoverScreen', () => {
 
     const { default: DiscoverScreen } = await import('@/components/Discover/DiscoverScreen');
     render(
-      <MemoryRouter initialEntries={['/discover?view=grid']}>
+      <MemoryRouter initialEntries={['/hot-gossip']}>
         <DiscoverScreen />
       </MemoryRouter>,
     );
@@ -428,7 +429,7 @@ describe('DiscoverScreen', () => {
 
     const { default: DiscoverScreen } = await import('@/components/Discover/DiscoverScreen');
     render(
-      <MemoryRouter initialEntries={['/discover?view=grid&tag=cooking']}>
+      <MemoryRouter initialEntries={['/hot-gossip?tag=cooking']}>
         <DiscoverScreen />
       </MemoryRouter>,
     );
@@ -478,7 +479,7 @@ describe('DiscoverScreen', () => {
 
     const { default: DiscoverScreen } = await import('@/components/Discover/DiscoverScreen');
     render(
-      <MemoryRouter initialEntries={['/discover?view=grid&q=hello']}>
+      <MemoryRouter initialEntries={['/hot-gossip?q=hello']}>
         <DiscoverScreen />
       </MemoryRouter>,
     );
@@ -532,7 +533,7 @@ describe('DiscoverScreen', () => {
 
     const { default: DiscoverScreen } = await import('@/components/Discover/DiscoverScreen');
     render(
-      <MemoryRouter initialEntries={['/discover?view=grid&tag=cooking&q=delicious']}>
+      <MemoryRouter initialEntries={['/hot-gossip?tag=cooking&q=delicious']}>
         <DiscoverScreen />
       </MemoryRouter>,
     );
@@ -576,7 +577,7 @@ describe('DiscoverScreen', () => {
 
     const { default: DiscoverScreen } = await import('@/components/Discover/DiscoverScreen');
     render(
-      <MemoryRouter initialEntries={['/discover?view=grid']}>
+      <MemoryRouter initialEntries={['/hot-gossip']}>
         <DiscoverScreen />
       </MemoryRouter>,
     );
@@ -627,7 +628,7 @@ describe('DiscoverScreen', () => {
 
     const { default: DiscoverScreen } = await import('@/components/Discover/DiscoverScreen');
     render(
-      <MemoryRouter initialEntries={['/discover?view=grid&q=hello']}>
+      <MemoryRouter initialEntries={['/hot-gossip?q=hello']}>
         <DiscoverScreen />
       </MemoryRouter>,
     );
@@ -640,7 +641,7 @@ describe('DiscoverScreen', () => {
 
   // ── D-trending-views: view toggle + Home (video) view ─────────────────
 
-  it('renders view toggle with Home and Hot Gossip buttons', async () => {
+  it('the view toggle is gone (the Discover split retires the ?view= salad)', async () => {
     (data.readDiscoverFeed as ReturnType<typeof vi.fn>).mockResolvedValue([
       {
         author: 'user1',
@@ -658,22 +659,23 @@ describe('DiscoverScreen', () => {
 
     const { default: DiscoverScreen } = await import('@/components/Discover/DiscoverScreen');
     render(
-      <MemoryRouter initialEntries={['/discover']}>
+      <MemoryRouter initialEntries={['/video']}>
         <DiscoverScreen />
       </MemoryRouter>,
     );
 
     await waitFor(() => {
-      expect(screen.getByTestId('discover-view-toggle')).toBeInTheDocument();
+      expect(screen.getByTestId('discover-home-grid')).toBeInTheDocument();
     });
 
-    expect(screen.getByTestId('discover-view-toggle-home')).toBeInTheDocument();
-    expect(screen.getByTestId('discover-view-toggle-grid')).toBeInTheDocument();
-    // Home (the video wall) should be active by default
-    expect(screen.getByTestId('discover-view-toggle-home').classList).toContain('bg-brand-muted');
+    // The ?view= toggle (Home | Hot Gossip) is retired — the sidebar owns the
+    // nav now (the Discover split, watch-page.md). The mode is the route.
+    expect(screen.queryByTestId('discover-view-toggle')).not.toBeInTheDocument();
+    expect(screen.queryByTestId('discover-view-toggle-home')).not.toBeInTheDocument();
+    expect(screen.queryByTestId('discover-view-toggle-grid')).not.toBeInTheDocument();
   });
 
-  it('switches to Home view when the Home button is clicked', async () => {
+  it('the Video destination renders the video wall (the old Home view)', async () => {
     (data.readDiscoverFeed as ReturnType<typeof vi.fn>).mockResolvedValue([
       {
         author: 'user1',
@@ -704,23 +706,12 @@ describe('DiscoverScreen', () => {
 
     const { default: DiscoverScreen } = await import('@/components/Discover/DiscoverScreen');
     render(
-      <MemoryRouter initialEntries={['/discover?view=grid']}>
+      <MemoryRouter initialEntries={['/video']}>
         <DiscoverScreen />
       </MemoryRouter>,
     );
 
-    await waitFor(() => {
-      expect(screen.getByTestId('discover-grid')).toBeInTheDocument();
-    });
-
-    // Click Home toggle
-    fireEvent.click(screen.getByTestId('discover-view-toggle-home'));
-
-    await waitFor(() => {
-      expect(screen.getByTestId('discover-view-toggle-home').classList).toContain('bg-brand-muted');
-    });
-
-    // Should show Home grid with only media posts
+    // The Video destination is the video wall — only media posts, as Home cards.
     await waitFor(() => {
       expect(screen.getByTestId('discover-home-grid')).toBeInTheDocument();
     });
@@ -729,39 +720,7 @@ describe('DiscoverScreen', () => {
     expect(screen.getAllByTestId('discover-home-card').length).toBe(1);
   });
 
-  it('restores Home view by default (no ?view= param)', async () => {
-    (data.readDiscoverFeed as ReturnType<typeof vi.fn>).mockResolvedValue([
-      {
-        author: 'user1',
-        provider: 'api.web10.app',
-        post_id: 'p1',
-        text: 'Video post',
-        tags: ['video'],
-        created_at: new Date().toISOString(),
-        likes: 10,
-        comments: 2,
-        reposts: 1,
-        score: 14,
-      },
-    ]);
-
-    const { default: DiscoverScreen } = await import('@/components/Discover/DiscoverScreen');
-    render(
-      <MemoryRouter initialEntries={['/discover']}>
-        <DiscoverScreen />
-      </MemoryRouter>,
-    );
-
-    await waitFor(() => {
-      expect(screen.getByTestId('discover-view-toggle-home').classList).toContain('bg-brand-muted');
-    });
-
-    await waitFor(() => {
-      expect(screen.getByTestId('discover-home-grid')).toBeInTheDocument();
-    });
-  });
-
-  it('shows Home empty state when no media posts exist', async () => {
+  it('the Video destination shows its empty state when no media posts exist', async () => {
     (data.readDiscoverFeed as ReturnType<typeof vi.fn>).mockResolvedValue([
       {
         author: 'user1',
@@ -779,7 +738,7 @@ describe('DiscoverScreen', () => {
 
     const { default: DiscoverScreen } = await import('@/components/Discover/DiscoverScreen');
     render(
-      <MemoryRouter initialEntries={['/discover']}>
+      <MemoryRouter initialEntries={['/video']}>
         <DiscoverScreen />
       </MemoryRouter>,
     );
@@ -792,7 +751,7 @@ describe('DiscoverScreen', () => {
     expect(screen.getByTestId('discover-home-empty-cta')).toBeInTheDocument();
   });
 
-  it('Home empty state CTA switches back to Hot Gossip view', async () => {
+  it('the Video empty-state CTA navigates to the Hot Gossip destination', async () => {
     (data.readDiscoverFeed as ReturnType<typeof vi.fn>).mockResolvedValue([
       {
         author: 'user1',
@@ -808,9 +767,17 @@ describe('DiscoverScreen', () => {
       },
     ]);
 
+    let lastPath = '';
+    function PathProbe() {
+      const location = useLocation();
+      lastPath = location.pathname;
+      return null;
+    }
+
     const { default: DiscoverScreen } = await import('@/components/Discover/DiscoverScreen');
     render(
-      <MemoryRouter initialEntries={['/discover']}>
+      <MemoryRouter initialEntries={['/video']}>
+        <PathProbe />
         <DiscoverScreen />
       </MemoryRouter>,
     );
@@ -819,16 +786,11 @@ describe('DiscoverScreen', () => {
       expect(screen.getByTestId('discover-home-empty')).toBeInTheDocument();
     });
 
-    // Click the CTA to switch to Hot Gossip
+    // Click the CTA — it navigates to the Hot Gossip destination (the split's
+    // flat route; the old in-screen ?view= toggle is gone).
     fireEvent.click(screen.getByTestId('discover-home-empty-cta'));
-
     await waitFor(() => {
-      expect(screen.getByTestId('discover-view-toggle-grid').classList).toContain('bg-brand-muted');
-    });
-
-    // Should now show Hot Gossip grid view
-    await waitFor(() => {
-      expect(screen.getByTestId('discover-grid')).toBeInTheDocument();
+      expect(lastPath).toBe('/hot-gossip');
     });
   });
 
@@ -865,7 +827,7 @@ describe('DiscoverScreen', () => {
 
     const { default: DiscoverScreen } = await import('@/components/Discover/DiscoverScreen');
     render(
-      <MemoryRouter initialEntries={['/discover']}>
+      <MemoryRouter initialEntries={['/video']}>
         <DiscoverScreen />
       </MemoryRouter>,
     );
@@ -884,7 +846,7 @@ describe('DiscoverScreen', () => {
     expect(screen.getByTestId('discover-home-card')).toHaveTextContent('video creator');
   });
 
-  it('Hot Gossip grid view is unchanged (?view=grid)', async () => {
+  it('the Hot Gossip destination renders the ranked board (all posts)', async () => {
     (data.readDiscoverFeed as ReturnType<typeof vi.fn>).mockResolvedValue([
       {
         author: 'user1',
@@ -914,7 +876,7 @@ describe('DiscoverScreen', () => {
 
     const { default: DiscoverScreen } = await import('@/components/Discover/DiscoverScreen');
     render(
-      <MemoryRouter initialEntries={['/discover?view=grid']}>
+      <MemoryRouter initialEntries={['/hot-gossip']}>
         <DiscoverScreen />
       </MemoryRouter>,
     );
@@ -962,7 +924,7 @@ describe('DiscoverScreen', () => {
 
     const { default: DiscoverScreen } = await import('@/components/Discover/DiscoverScreen');
     render(
-      <MemoryRouter initialEntries={['/discover?view=grid']}>
+      <MemoryRouter initialEntries={['/hot-gossip']}>
         <DiscoverScreen />
       </MemoryRouter>,
     );
@@ -1014,7 +976,7 @@ describe('DiscoverScreen', () => {
 
     const { default: DiscoverScreen } = await import('@/components/Discover/DiscoverScreen');
     render(
-      <MemoryRouter initialEntries={['/discover?view=grid']}>
+      <MemoryRouter initialEntries={['/hot-gossip']}>
         <DiscoverScreen />
       </MemoryRouter>,
     );
@@ -1066,7 +1028,7 @@ describe('DiscoverScreen', () => {
 
     const { default: DiscoverScreen } = await import('@/components/Discover/DiscoverScreen');
     render(
-      <MemoryRouter initialEntries={['/discover?view=grid']}>
+      <MemoryRouter initialEntries={['/hot-gossip']}>
         <DiscoverScreen />
       </MemoryRouter>,
     );
@@ -1111,7 +1073,7 @@ describe('DiscoverScreen', () => {
 
     const { default: DiscoverScreen } = await import('@/components/Discover/DiscoverScreen');
     render(
-      <MemoryRouter initialEntries={['/discover?view=grid']}>
+      <MemoryRouter initialEntries={['/hot-gossip']}>
         <DiscoverScreen />
       </MemoryRouter>,
     );
@@ -1166,7 +1128,7 @@ describe('DiscoverScreen', () => {
 
     const { default: DiscoverScreen } = await import('@/components/Discover/DiscoverScreen');
     render(
-      <MemoryRouter initialEntries={['/discover']}>
+      <MemoryRouter initialEntries={['/video']}>
         <DiscoverScreen />
       </MemoryRouter>,
     );
@@ -1249,7 +1211,7 @@ describe('DiscoverScreen', () => {
 
     const { default: DiscoverScreen } = await import('@/components/Discover/DiscoverScreen');
     render(
-      <MemoryRouter initialEntries={['/discover?view=grid']}>
+      <MemoryRouter initialEntries={['/hot-gossip']}>
         <DiscoverScreen />
       </MemoryRouter>,
     );
@@ -1286,7 +1248,7 @@ describe('DiscoverScreen — the engagement bar is interactive (post-actions.md)
     (data.readDiscoverFeed as ReturnType<typeof vi.fn>).mockResolvedValue(posts);
     return import('@/components/Discover/DiscoverScreen').then(({ default: DiscoverScreen }) => {
       render(
-        <MemoryRouter initialEntries={['/discover?view=grid']}>
+        <MemoryRouter initialEntries={['/hot-gossip']}>
           <DiscoverScreen />
         </MemoryRouter>,
       );
@@ -1353,14 +1315,41 @@ describe('DiscoverScreen — the engagement bar is interactive (post-actions.md)
       expect(card.querySelector('[data-testid="like-button"]')).toHaveAttribute('aria-pressed', 'true');
     });
   });
+
+  it('the Home-view card (the Video wall) has the like/dislike pair, like the feed', async () => {
+    // The operator: "these video thumbnails dont have dislikes, should have!
+    // we have them on the regular feed!" The HomeCard's engagement row now
+    // carries the like/dislike pair (parity with the feed's PostActions).
+    (data.readDiscoverFeed as ReturnType<typeof vi.fn>).mockResolvedValue([
+      { _id: 'p1', author: 'creator', author_username: 'creator', author_provider: 'api.web10.app', text: 'A video post', tags: ['video'], media_refs: ['m1'], created_at: new Date().toISOString(), likes: 3, comments: 1, reposts: 0, score: 5 },
+    ]);
+    const { default: DiscoverScreen } = await import('@/components/Discover/DiscoverScreen');
+    render(
+      <MemoryRouter initialEntries={['/video']}>
+        <DiscoverScreen />
+      </MemoryRouter>,
+    );
+    await waitFor(() => {
+      expect(screen.getAllByTestId('discover-home-card').length).toBe(1);
+    });
+    const card = screen.getAllByTestId('discover-home-card')[0];
+    // Both the like and the dislike are real, tappable buttons (not display spans).
+    const like = card.querySelector('[data-testid="discover-home-card-like"]');
+    const dislike = card.querySelector('[data-testid="discover-home-card-dislike"]');
+    expect(like).not.toBeNull();
+    expect(like!.tagName).toBe('BUTTON');
+    expect(dislike).not.toBeNull();
+    expect(dislike!.tagName).toBe('BUTTON');
+    expect(dislike).toHaveAttribute('aria-label', 'Dislike');
+  });
 });
 
-// ── D1: the Discover subtab shell (Posts | People | Groups) ─────────────────
-// The shell owns ?tab= (posts is the bare URL) and ?q= (passed to the active
-// subtab). The subtabs have no search field of their own — search is the
-// top bar (a different lane). The Posts view is a no-regression.
+// ── The Discover split: the four flat destinations ──────────────────────────
+// The old ?tab= / ?view= salad is retired — each destination is a top-level
+// route the sidebar owns. The screen derives its mode from the path. ?q= /
+// ?tag= / ?knobs= survive as URL state on the relevant destinations.
 
-describe('DiscoverScreen — subtab shell (D1)', () => {
+describe('DiscoverScreen — the four destinations (the Discover split)', () => {
   // A probe that captures the router location (MemoryRouter keeps its own
   // history — window.location never moves).
   let lastSearch = '';
@@ -1404,118 +1393,81 @@ describe('DiscoverScreen — subtab shell (D1)', () => {
     });
   });
 
-  it('renders the Trending | People tab row with Trending active by default', async () => {
-    await renderDiscoverAt('/discover');
+  it('the tab row is gone (the Discover split retires the ?tab= salad)', async () => {
+    await renderDiscoverAt('/video');
+    // The seeded post is text-only, so the Video wall shows its empty state.
     await waitFor(() => {
-      expect(screen.getByTestId('discover-tab-row')).toBeInTheDocument();
+      expect(screen.getByTestId('discover-home-empty')).toBeInTheDocument();
     });
-    expect(screen.getByTestId('discover-tab-trending')).toHaveAttribute('aria-selected', 'true');
-    expect(screen.getByTestId('discover-tab-explore')).toHaveAttribute('aria-selected', 'false');
-    // The tab labels are "Trending" and "People" (the operator, 24.09.2026:
-    // "trending People makes more sense" — not "Profiles").
-    expect(screen.getByTestId('discover-tab-trending')).toHaveTextContent('Trending');
-    expect(screen.getByTestId('discover-tab-explore')).toHaveTextContent('People');
+    // The Trending | People tab row is retired — the sidebar owns the nav now.
+    expect(screen.queryByTestId('discover-tab-row')).not.toBeInTheDocument();
+    expect(screen.queryByTestId('discover-tab-trending')).not.toBeInTheDocument();
+    expect(screen.queryByTestId('discover-tab-explore')).not.toBeInTheDocument();
   });
 
-  it('the People tab carries the two-people glyph; the Profiles subtab chip the one-person glyph', async () => {
-    await renderDiscoverAt('/discover?tab=explore');
-    await waitFor(() => {
-      expect(screen.getByTestId('explore-show-toggle')).toBeInTheDocument();
-    });
-    // The top-level People tab: the TWO-people glyph (it holds profiles +
-    // groups — the operator, 25.09.2026: "people should be the logo of the
-    // two people").
-    const tab = screen.getByTestId('discover-tab-explore');
-    expect(tab.querySelector('[data-testid="icon-users"]')).not.toBeNull();
-    expect(tab.querySelector('[data-testid="icon-user"]')).toBeNull();
-    // The Profiles subtab chip: the ONE-person glyph (individual profiles —
-    // "in the subtab, it should be profiles and groups … and should be just
-    // one person logo").
-    const chip = screen.getByTestId('explore-show-people');
-    expect(chip).toHaveTextContent('Profiles');
-    expect(chip.querySelector('[data-testid="icon-user"]')).not.toBeNull();
-    expect(chip.querySelector('[data-testid="icon-users"]')).toBeNull();
-    // The Groups chip keeps its hash glyph.
-    const groupsChip = screen.getByTestId('explore-show-groups');
-    expect(groupsChip).toHaveTextContent('Groups');
-    expect(groupsChip.querySelector('[data-testid="icon-hash"]')).not.toBeNull();
-  });
-
-  it('switches to Explore and hides the Trending board', async () => {
-    await renderDiscoverAt('/discover?view=grid');
-    await waitFor(() => {
-      expect(screen.getByTestId('discover-grid')).toBeInTheDocument();
-    });
-
-    fireEvent.click(screen.getByTestId('discover-tab-explore'));
-
+  it('the People destination renders the people + groups browser', async () => {
+    await renderDiscoverAt('/people');
     await waitFor(() => {
       expect(screen.getByTestId('discover-explore-tab')).toBeInTheDocument();
     });
-    expect(screen.getByTestId('discover-tab-explore')).toHaveAttribute('aria-selected', 'true');
-    // The Trending board is gone on the Explore subtab.
+    // The People destination is the browser (the old ?tab=explore content).
+    expect(screen.getByTestId('explore-show-toggle')).toBeInTheDocument();
     expect(screen.queryByTestId('discover-grid')).not.toBeInTheDocument();
   });
 
-  it('switches to Explore and back to Trending', async () => {
-    await renderDiscoverAt('/discover?view=grid');
+  it('the Hot Gossip destination renders the ranked board (not the browser)', async () => {
+    await renderDiscoverAt('/hot-gossip');
     await waitFor(() => {
       expect(screen.getByTestId('discover-grid')).toBeInTheDocument();
     });
-
-    fireEvent.click(screen.getByTestId('discover-tab-explore'));
-    await waitFor(() => {
-      expect(screen.getByTestId('discover-explore-tab')).toBeInTheDocument();
-    });
-    expect(screen.queryByTestId('discover-grid')).not.toBeInTheDocument();
-
-    // Back to Trending restores the board.
-    fireEvent.click(screen.getByTestId('discover-tab-trending'));
-    await waitFor(() => {
-      expect(screen.getByTestId('discover-grid')).toBeInTheDocument();
-    });
+    // The Hot Gossip destination is the post board (the old ?view=grid content).
     expect(screen.queryByTestId('discover-explore-tab')).not.toBeInTheDocument();
   });
 
-  it('restores the Explore subtab from ?tab=explore on initial render', async () => {
-    await renderDiscoverAt('/discover?tab=explore');
+  it('the Video destination renders the video wall (not the browser)', async () => {
+    // Seed a video post so the wall has a card (the beforeEach seed is text-only).
+    (data.readDiscoverFeed as ReturnType<typeof vi.fn>).mockResolvedValue([
+      {
+        _id: 'p1',
+        author: 'user1',
+        author_username: 'user1',
+        author_provider: 'api.web10.app',
+        text: 'A video post',
+        tags: ['video'],
+        media_refs: ['m1'],
+        created_at: new Date().toISOString(),
+        likes: 10,
+        comments: 2,
+        reposts: 1,
+        score: 13,
+      },
+    ]);
+    await renderDiscoverAt('/video');
     await waitFor(() => {
-      expect(screen.getByTestId('discover-explore-tab')).toBeInTheDocument();
+      expect(screen.getByTestId('discover-home-grid')).toBeInTheDocument();
     });
-    expect(screen.getByTestId('discover-tab-explore')).toHaveAttribute('aria-selected', 'true');
+    expect(screen.queryByTestId('discover-explore-tab')).not.toBeInTheDocument();
     expect(screen.queryByTestId('discover-grid')).not.toBeInTheDocument();
   });
 
-  it('treats an unknown ?tab= value as Trending (the bare-URL default)', async () => {
-    await renderDiscoverAt('/discover?tab=bogus');
-    await waitFor(() => {
-      // Posts is the default subtab; its default view is Home (the video wall).
-      // The seeded post is text-only, so Home shows its empty state.
-      expect(screen.getByTestId('discover-home-empty')).toBeInTheDocument();
-    });
-    expect(screen.getByTestId('discover-tab-trending')).toHaveAttribute('aria-selected', 'true');
-  });
-
-  it('passes ?q= through to the active Explore subtab', async () => {
-    await renderDiscoverAt('/discover?tab=explore&q=lofi');
+  it('passes ?q= through to the People destination', async () => {
+    await renderDiscoverAt('/people?q=lofi');
     await waitFor(() => {
       expect(screen.getByTestId('discover-explore-tab')).toBeInTheDocument();
     });
     expect(screen.getByTestId('discover-explore-tab-query')).toHaveTextContent('lofi');
   });
 
-  it('shows the query chip on the Trending tab (?q= without ?tab=)', async () => {
-    await renderDiscoverAt('/discover?q=lofi');
+  it('shows the query chip on the Video destination (?q=)', async () => {
+    await renderDiscoverAt('/video?q=lofi');
     await waitFor(() => {
       expect(screen.getByTestId('discover-trending-tab-query')).toBeInTheDocument();
     });
     expect(screen.getByTestId('discover-trending-tab-query')).toHaveTextContent('lofi');
-    // The Trending tab is active (the bare-URL default).
-    expect(screen.getByTestId('discover-tab-trending')).toHaveAttribute('aria-selected', 'true');
   });
 
-  it('X on the Trending tab query chip clears ?q= (back to the unfiltered board)', async () => {
-    await renderDiscoverAt('/discover?q=lofi');
+  it('X on the Video destination query chip clears ?q= (back to the unfiltered board)', async () => {
+    await renderDiscoverAt('/video?q=lofi');
     await waitFor(() => {
       expect(screen.getByTestId('discover-trending-tab-query')).toBeInTheDocument();
     });
@@ -1527,30 +1479,6 @@ describe('DiscoverScreen — subtab shell (D1)', () => {
     // the LocationProbe — wait for it to settle, not a synchronous read).
     await waitFor(() => {
       expect(lastSearch).not.toContain('q=');
-    });
-  });
-
-  it('writes ?tab= to the URL on switch and clears it for Trending (bare URL)', async () => {
-    await renderDiscoverAt('/discover?view=grid');
-    await waitFor(() => {
-      expect(screen.getByTestId('discover-grid')).toBeInTheDocument();
-    });
-
-    fireEvent.click(screen.getByTestId('discover-tab-explore'));
-    await waitFor(() => {
-      expect(screen.getByTestId('discover-explore-tab')).toBeInTheDocument();
-    });
-    // The ?view= param is preserved across the tab switch.
-    await waitFor(() => {
-      expect(lastSearch).toBe('?view=grid&tab=explore');
-    });
-
-    fireEvent.click(screen.getByTestId('discover-tab-trending'));
-    // trending is the bare URL — the ?tab= param is removed (?view= stays). Wait
-    // for the URL update to land: the grid may already be mounted, so waiting on
-    // it alone doesn't prove the navigate fired (the load-dependent flake).
-    await waitFor(() => {
-      expect(lastSearch).toBe('?view=grid');
     });
   });
 
@@ -1572,7 +1500,7 @@ describe('DiscoverScreen — subtab shell (D1)', () => {
 
   it('renders the People | Groups toggle with both active by default', async () => {
     seedExploreData();
-    await renderDiscoverAt('/discover?tab=explore');
+    await renderDiscoverAt('/people');
     await waitFor(() => {
       expect(screen.getByTestId('explore-show-toggle')).toBeInTheDocument();
     });
@@ -1584,7 +1512,7 @@ describe('DiscoverScreen — subtab shell (D1)', () => {
 
   it('hides the people section (and the sort row) when People is toggled off', async () => {
     seedExploreData();
-    await renderDiscoverAt('/discover?tab=explore');
+    await renderDiscoverAt('/people');
     await waitFor(() => {
       expect(screen.getByTestId('explore-show-toggle')).toBeInTheDocument();
     });
@@ -1607,7 +1535,7 @@ describe('DiscoverScreen — subtab shell (D1)', () => {
 
   it('shows the neutral empty state when both sections are hidden', async () => {
     seedExploreData();
-    await renderDiscoverAt('/discover?tab=explore');
+    await renderDiscoverAt('/people');
     await waitFor(() => {
       expect(screen.getByTestId('explore-show-toggle')).toBeInTheDocument();
     });
@@ -1627,7 +1555,7 @@ describe('DiscoverScreen — subtab shell (D1)', () => {
 
   it('restores ?show=groups on initial render (deep link)', async () => {
     seedExploreData();
-    await renderDiscoverAt('/discover?tab=explore&show=groups');
+    await renderDiscoverAt('/people?show=groups');
     await waitFor(() => {
       expect(screen.getByTestId('explore-show-toggle')).toBeInTheDocument();
     });
@@ -1639,7 +1567,7 @@ describe('DiscoverScreen — subtab shell (D1)', () => {
 
   it('re-shows a hidden section when its toggle is clicked again', async () => {
     seedExploreData();
-    await renderDiscoverAt('/discover?tab=explore');
+    await renderDiscoverAt('/people');
     await waitFor(() => {
       expect(screen.getByTestId('explore-show-toggle')).toBeInTheDocument();
     });
@@ -1664,7 +1592,7 @@ describe('DiscoverScreen — subtab shell (D1)', () => {
 
   it('renders the People filter chips with All active by default', async () => {
     seedExploreData();
-    await renderDiscoverAt('/discover?tab=explore');
+    await renderDiscoverAt('/people');
     await waitFor(() => {
       expect(screen.getByTestId('explore-people-filter')).toBeInTheDocument();
     });
@@ -1676,7 +1604,7 @@ describe('DiscoverScreen — subtab shell (D1)', () => {
 
   it('renders the Groups filter chips with All active by default', async () => {
     seedExploreData();
-    await renderDiscoverAt('/discover?tab=explore');
+    await renderDiscoverAt('/people');
     await waitFor(() => {
       expect(screen.getByTestId('explore-groups-filter')).toBeInTheDocument();
     });
@@ -1687,7 +1615,7 @@ describe('DiscoverScreen — subtab shell (D1)', () => {
 
   it('the Mutuals filter shows only people with mutuals > 0', async () => {
     seedExploreData();
-    await renderDiscoverAt('/discover?tab=explore');
+    await renderDiscoverAt('/people');
     await waitFor(() => {
       expect(screen.getByTestId('explore-people-filter')).toBeInTheDocument();
     });
@@ -1714,7 +1642,7 @@ describe('DiscoverScreen — subtab shell (D1)', () => {
     (data.fetchMyFollowingCards as ReturnType<typeof vi.fn>).mockResolvedValue([
       { username: 'carol', provider: 'test.localhost', display_name: 'Carol', followers_count: 9, mutuals: 0, is_following: true },
     ]);
-    await renderDiscoverAt('/discover?tab=explore');
+    await renderDiscoverAt('/people');
     await waitFor(() => {
       expect(screen.getByTestId('explore-people-filter')).toBeInTheDocument();
     });
@@ -1737,7 +1665,7 @@ describe('DiscoverScreen — subtab shell (D1)', () => {
     (data.fetchMyFollowersCards as ReturnType<typeof vi.fn>).mockResolvedValue([
       { username: 'dave', provider: 'test.localhost', display_name: 'Dave', followers_count: 9, mutuals: 0, is_following: false },
     ]);
-    await renderDiscoverAt('/discover?tab=explore');
+    await renderDiscoverAt('/people');
     await waitFor(() => {
       expect(screen.getByTestId('explore-people-filter')).toBeInTheDocument();
     });
@@ -1759,7 +1687,7 @@ describe('DiscoverScreen — subtab shell (D1)', () => {
     (data.getMyCommunityGroups as ReturnType<typeof vi.fn>).mockResolvedValue([
       { group_id: 'test.localhost/groups/communities/my-crew', join_policy: 'open', my_role: 'member', member_count: 4, tags: [] },
     ]);
-    await renderDiscoverAt('/discover?tab=explore');
+    await renderDiscoverAt('/people');
     await waitFor(() => {
       expect(screen.getByTestId('explore-groups-filter')).toBeInTheDocument();
     });
@@ -1780,7 +1708,7 @@ describe('DiscoverScreen — subtab shell (D1)', () => {
 
   it('restores ?personFilter=mutuals on initial render (deep link)', async () => {
     seedExploreData();
-    await renderDiscoverAt('/discover?tab=explore&personFilter=mutuals');
+    await renderDiscoverAt('/people?personFilter=mutuals');
     await waitFor(() => {
       expect(screen.getByTestId('explore-people-filter')).toBeInTheDocument();
     });
@@ -1843,7 +1771,7 @@ describe('DiscoverScreen — the post-format ad renders as its own card, next in
 
     const { default: DiscoverScreen } = await import('@/components/Discover/DiscoverScreen');
     render(
-      <MemoryRouter initialEntries={['/discover?view=grid']}>
+      <MemoryRouter initialEntries={['/hot-gossip']}>
         <DiscoverScreen />
       </MemoryRouter>,
     );
@@ -1882,7 +1810,7 @@ describe('DiscoverScreen — the post-format ad renders as its own card, next in
 
     const { default: DiscoverScreen } = await import('@/components/Discover/DiscoverScreen');
     render(
-      <MemoryRouter initialEntries={['/discover?view=grid']}>
+      <MemoryRouter initialEntries={['/hot-gossip']}>
         <DiscoverScreen />
       </MemoryRouter>,
     );
@@ -1923,7 +1851,7 @@ describe('DiscoverScreen — the control rows keep the desktop gutter (operator 
 
     const { default: DiscoverScreen } = await import('@/components/Discover/DiscoverScreen');
     render(
-      <MemoryRouter initialEntries={['/discover?view=grid&q=jacob']}>
+      <MemoryRouter initialEntries={['/hot-gossip?q=jacob']}>
         <DiscoverScreen />
       </MemoryRouter>,
     );
@@ -1944,18 +1872,14 @@ describe('DiscoverScreen — the control rows keep the desktop gutter (operator 
     expect(rackRow.className).toContain('lg:px-6');
     expect(rackRow.className).not.toContain('md:px-0');
 
-    // The Home | Hot Gossip view toggle row.
-    const toggle = screen.getByTestId('discover-view-toggle');
-    const toggleRow = toggle.parentElement as HTMLElement;
-    expect(toggleRow.className).toContain('md:px-4');
-    expect(toggleRow.className).toContain('lg:px-6');
-    expect(toggleRow.className).not.toContain('md:px-0');
+    // The view toggle is gone (the Discover split retires the ?view= salad).
+    expect(screen.queryByTestId('discover-view-toggle')).not.toBeInTheDocument();
   });
 
   it('the People tab control rows (query chip, Profiles/Groups toggle) carry the desktop gutter', async () => {
     const { default: DiscoverScreen } = await import('@/components/Discover/DiscoverScreen');
     render(
-      <MemoryRouter initialEntries={['/discover?tab=explore&q=jacob']}>
+      <MemoryRouter initialEntries={['/people?q=jacob']}>
         <DiscoverScreen />
       </MemoryRouter>,
     );

@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
-import { useSearchParams } from 'react-router-dom';
-import { ArrowUpRight, MessageCircleOff, Flame, Video, User } from 'lucide-react';
+import { useLocation, useNavigate, useSearchParams, Navigate } from 'react-router-dom';
+import { ArrowUpRight, MessageCircleOff } from 'lucide-react';
 import {
   TrendingCard,
   TrendingSkeleton,
@@ -10,9 +10,10 @@ import {
   mapDiscoveryToFeedPost,
   feedPostToDiscover,
   parseCreatedAt,
+  type FeedPost,
+  type ResolvedMediaRef,
 } from '@/components/FeedPreview';
 import { HomeCard } from '@web10/discover';
-import type { FeedPost } from '@/components/FeedPreview';
 import { TrendingSidebar } from '@/components/TrendingSidebar';
 import { KnobRack } from '@/components/KnobRack';
 import { SearchBar } from '@/components/SearchBar';
@@ -37,12 +38,87 @@ const INITIAL_PAGE = 20;
 const PAGE_STEP = 20;
 const MAX_RESULTS = 100;
 
-// `home` (the YouTube-style video wall — the default) + `grid` (Hot Gossip,
-// the ranked board). The operator: "video view should be first, hot gossip
-// second, to compete. video should be renamed home view."
-type TrendingView = 'grid' | 'home';
+// ── The four destinations (the Discover split, watch-page.md) ────────────────
+// The old /trending salad (a `Trending | People` tab row PLUS a `Home | Hot
+// Gossip` view toggle — three levels of "which list am I looking at" in one
+// screen) retires. Each destination is a flat route the experience sidebar
+// owns (ExperienceShell): **Video** (the video wall, the index route) ·
+// **Shorts** (the vertical lens) · **Hot Gossip** (the ranked post board) ·
+// **People** (the people + groups browser). The `?view=` toggle + the `?tab=`
+// row are gone; legacy URLs redirect to the matching destination (carrying
+// `?q=` / `?tag=`). The destination is set by the ROUTE, not a query param —
+// the same rule the social app's split uses.
+type ExperienceDest = 'video' | 'shorts' | 'hot-gossip' | 'people';
 
-// ── Discover users (A14: followers_count included) ──────────────────────────
+function destFromPath(pathname: string): ExperienceDest {
+  if (pathname.startsWith('/trending/shorts')) return 'shorts';
+  if (pathname.startsWith('/trending/hot-gossip')) return 'hot-gossip';
+  if (pathname.startsWith('/trending/people')) return 'people';
+  return 'video'; // `/trending` (the index)
+}
+
+// The social app's `?knobs=` encoding (DiscoverScreen): the five detent
+// indices, comma-joined (recency,likes,comments,halfLife,character). The
+// Video wall's link-out carries the ranking the visitor had ("keep you in
+// the same feed settings").
+const KNOB_KEYS: (keyof KnobState)[] = ['recency', 'likes', 'comments', 'halfLife', 'character'];
+function encodeKnobs(state: KnobState): string {
+  return KNOB_KEYS.map((k) => String(state[k])).join(',');
+}
+
+// The 1:1 link-out (watch-page.md): the marketing site is the anon preview;
+// clicking an item link-outs to web10-social at the MATCHING destination.
+// The destination is set by the tab you're in, not the content type.
+//   Video      → the watch page (landscape) or the Shorts lens (portrait) —
+//                the aspect-ratio gate, the same signal the social app's
+//                Home card click uses (`width < height` on the resolved media).
+//   Shorts     → the Shorts lens.
+//   Hot Gossip → the Hot Gossip board, scrolled to + highlighting that post
+//                (`?post=` — the Threads equivalent of the watch page: the
+//                post is a full card in the stream, NOT a profile, NOT a
+//                detail page).
+//   People     → the person's profile (the People destination).
+
+function firstMedia(post: FeedPost): ResolvedMediaRef | undefined {
+  return post.mediaRefs?.find((r): r is ResolvedMediaRef => typeof r === 'object' && !!r.read_url);
+}
+
+function isPortraitVideo(post: FeedPost): boolean {
+  const m = firstMedia(post);
+  return (
+    !!m &&
+    (m.mime_type || '').startsWith('video/') &&
+    !!m.width &&
+    !!m.height &&
+    m.width < m.height
+  );
+}
+
+function videoPostHref(post: FeedPost, knobState: KnobState): string {
+  if (!post.author) return SOCIAL_ORIGIN;
+  if (isPortraitVideo(post)) {
+    return `${SOCIAL_ORIGIN}/shorts/${encodeURIComponent(post.id)}`;
+  }
+  const knobs = encodeKnobs(knobState);
+  return `${SOCIAL_ORIGIN}/watch/${encodeURIComponent(post.id)}?from=discover&knobs=${knobs}`;
+}
+
+function shortsPostHref(post: FeedPost): string {
+  if (!post.author) return SOCIAL_ORIGIN;
+  return `${SOCIAL_ORIGIN}/shorts/${encodeURIComponent(post.id)}`;
+}
+
+function gossipPostHref(post: FeedPost): string {
+  if (!post.author) return SOCIAL_ORIGIN;
+  return `${SOCIAL_ORIGIN}/hot-gossip?post=${encodeURIComponent(post.id)}`;
+}
+
+function authorProfileHref(post: FeedPost): string {
+  if (!post.author) return SOCIAL_ORIGIN;
+  return `${SOCIAL_ORIGIN}/u/${encodeURIComponent(post.author)}`;
+}
+
+// ── Matching users row (search's people results) ─────────────────────────────
 
 interface DiscoverUser {
   username: string;
@@ -66,10 +142,9 @@ function hashToColor(str: string): string {
 }
 
 async function fetchDiscoverUsers(limit = 20): Promise<DiscoverUser[]> {
-  // M1: the real D0 read (the anon public people directory) replaces the dead
-  // `PATCH /discover/users` call (that endpoint never existed — it returned
-  // []). One round-trip: the node composes list_users + the I3 gate + profile
-  // faces + follower counts.
+  // M1: the real D0 read (the anon public people directory). One round-trip:
+  // the node composes list_users + the I3 gate + profile faces + follower
+  // counts.
   const resp = await fetch(`${API_ORIGIN}/v3/users/directory`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
@@ -86,12 +161,9 @@ async function fetchDiscoverUsers(limit = 20): Promise<DiscoverUser[]> {
 }
 
 function formatFollowers(n: number): string {
-  if (n >= 10000) return `${(n / 1000).toFixed(1)}k`;
   if (n >= 1000) return `${(n / 1000).toFixed(1)}k`;
   return String(n);
 }
-
-// ── Matching users row ──────────────────────────────────────────────────────
 
 function MatchingUsersRow({ users, query }: { users: DiscoverUser[]; query: string }) {
   if (users.length === 0) return null;
@@ -138,11 +210,9 @@ interface RankedPost extends FeedPost {
 }
 
 // The marketing search (the social app's `searchPosts` shape, mirrored): the
-// discover board's pool, filtered client-side. The old `PATCH /discover/search`
-// call was a phantom endpoint (the route never existed — every search 404'd
-// into "Search unavailable"); the node has no multi-entity search endpoint
-// (the documented v1 floor — global-search.md), so the board read + the
-// client filter IS the search.
+// discover board's pool, filtered client-side. The node has no multi-entity
+// search endpoint (the documented v1 floor — global-search.md), so the board
+// read + the client filter IS the search.
 async function fetchSearchResults(query: string, limit = 50): Promise<FeedPost[]> {
   console.log('[trending] search —', query);
   const results = await searchDiscoverPosts(query, limit);
@@ -199,6 +269,10 @@ function writeMixToHash(state: KnobState) {
 }
 
 function Trending() {
+  const { pathname } = useLocation();
+  const navigate = useNavigate();
+  const dest = destFromPath(pathname);
+
   const [allPosts, setAllPosts] = useState<FeedPost[]>([]);
   const [loading, setLoading] = useState(true);
   const [loadingMore, setLoadingMore] = useState(false);
@@ -211,56 +285,15 @@ function Trending() {
   );
   const cardRefs = useRef<Map<string, HTMLElement>>(new Map());
 
-  // Search state
-  // View toggle: read from ?view= query param (deep-link rule). `home` (the
-  // video wall) is the default / bare URL; `?view=grid` is Hot Gossip. A legacy
-  // `?view=youtube` (the old video view) maps to `home`.
-  const [view, setView] = useState<TrendingView>(() => {
-    const params = new URLSearchParams(window.location.search);
-    return params.get('view') === 'grid' ? 'grid' : 'home';
-  });
-
-  // Subtab: read from ?tab= query param (deep-link rule). `trending` (the
-  // posts board) is the bare URL (the default); `profiles` is the mashed
-  // People + Groups browser (the social Discover "Profiles" tab, mirrored).
-  // The retired `?tab=people` / `?tab=groups` map to `profiles` (C3).
-  type TrendingTab = 'trending' | 'profiles';
-  const [tab, setTab] = useState<TrendingTab>(() => {
-    const params = new URLSearchParams(window.location.search);
-    const raw = params.get('tab');
-    if (raw === 'profiles' || raw === 'people' || raw === 'groups') return 'profiles';
-    return 'trending';
-  });
-
-  const setTabUrl = useCallback((next: TrendingTab) => {
-    setTab(next);
-    const params = new URLSearchParams(window.location.search);
-    if (next === 'trending') {
-      params.delete('tab');
-    } else {
-      params.set('tab', next);
-    }
-    window.history.replaceState({}, '', `${window.location.pathname}?${params.toString()}`);
-    trackFunnel('trending_tab', { tab: next });
-  }, []);
-
-  const setViewUrl = useCallback((v: TrendingView) => {
-    setView(v);
-    const params = new URLSearchParams(window.location.search);
-    if (v === 'grid') {
-      params.set('view', 'grid');
-    } else {
-      params.delete('view');
-    }
-    window.history.replaceState({}, '', `${window.location.pathname}?${params.toString()}`);
-    trackFunnel('trending_view_toggle', { view: v });
-  }, []);
+  // ── The URL is the state (the deep-link rule) ──────────────────────────────
+  // One useSearchParams for the whole screen: the legacy-redirect check, the
+  // search query (?q=), and the People destination's query chip all read it.
+  const [searchParams, setSearchParams] = useSearchParams();
 
   // Search state — the query is URL-driven (?q=), the single source of truth
   // (the deep-link rule; the social Discover holds its query the same way).
-  // The Profiles tab's query chip (with its X) clears ?q= from the URL, so a
-  // state-only query would make that X a no-op.
-  const [searchParams, setSearchParams] = useSearchParams();
+  // The People destination's query chip (with its X) clears ?q= from the URL,
+  // so a state-only query would make that X a no-op.
   const searchQuery = searchParams.get('q') ?? '';
   const [searchResults, setSearchResults] = useState<FeedPost[]>([]);
   const [searchUsers, setSearchUsers] = useState<DiscoverUser[]>([]);
@@ -309,21 +342,23 @@ function Trending() {
     }
   }, []);
 
+  // The board read powers Video + Shorts + Hot Gossip (the People destination
+  // has its own reads — ProfilesBrowser — and skips the board).
   useEffect(() => {
+    if (dest === 'people') return;
     loadFeed(INITIAL_PAGE, false);
-    trackFunnel('trending_view');
-  }, [loadFeed]);
+    trackFunnel('trending_view', { dest });
+  }, [loadFeed, dest]);
 
-  // Auto-focus search when navigated from nav (hash #search or ?focus=search)
+  // Auto-focus search when navigated from nav (?focus=search)
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
-    const hash = window.location.hash;
-    if (params.get('focus') === 'search' || hash === '#search') {
+    if (params.get('focus') === 'search') {
       searchInputRef.current?.focus();
       // Clean up the param so refresh doesn't re-focus
       params.delete('focus');
       const newSearch = params.toString();
-      const newUrl = `${window.location.pathname}${newSearch ? `?${newSearch}` : ''}${hash === '#search' ? '' : window.location.hash}`;
+      const newUrl = `${window.location.pathname}${newSearch ? `?${newSearch}` : ''}${window.location.hash}`;
       window.history.replaceState({}, '', newUrl);
     }
   }, []);
@@ -376,9 +411,9 @@ function Trending() {
   }, []);
 
   // The query is URL-driven (?q=), so EVERY change — typing in the field, the
-  // Profiles tab's query-chip X, a topic chip, a deep link — flows through
-  // this one debounced effect. (The chip's X rewrites ?q= via react-router;
-  // a state-only query would make it a no-op.)
+  // People destination's query-chip X, a topic chip, a deep link — flows
+  // through this one debounced effect. (The chip's X rewrites ?q= via
+  // react-router; a state-only query would make it a no-op.)
   useEffect(() => {
     const t = setTimeout(() => doSearch(searchQuery), 300);
     return () => clearTimeout(t);
@@ -396,7 +431,7 @@ function Trending() {
   }, [setSearchQuery]);
 
   // When a topic chip is clicked during search, filter search results by tag
-  // When not searching, the topic chip already filters the trending feed via setTopic
+  // When not searching, the topic chip already filters the board via setTopic
   const handleTopicClick = useCallback(
     (t: string) => {
       setTopic(t);
@@ -436,14 +471,21 @@ function Trending() {
     [ranked, topic],
   );
 
-  // YouTube view: videos only (competing with YouTube — photos don't belong
-  // in the video view). Filtered by topic.
-  const mediaPosts = useMemo(
+  // Video wall: videos only (competing with YouTube — photos don't belong in
+  // the video wall). Filtered by topic.
+  const videoPosts = useMemo(
     () => {
       const videoOnly = visible.filter(p => p.media === 'video');
       return topic === 'All' ? videoOnly : videoOnly.filter(p => p.tags?.includes(topic) ?? false);
     },
     [visible, topic],
+  );
+
+  // Shorts wall: the vertical videos (the 9:16 gate, re-derived from the
+  // resolved media — the same signal the social Shorts lens uses).
+  const shortsPosts = useMemo(
+    () => videoPosts.filter(p => isPortraitVideo(p)),
+    [videoPosts],
   );
 
   const maxSearchScore = useMemo(
@@ -530,87 +572,56 @@ function Trending() {
   const isInitialLoad = loading && allPosts.length === 0;
   const isSearching = searchSearched;
 
-  return (
-    <div className="flex min-h-screen flex-col bg-background">
-      {/* Control row — the chrome recedes so the video wall is the hero
-          (design.md §10). Search + Posts|People|Groups + Home|Hot Gossip in
-          one slim sticky band instead of a giant hero + stacked control bands. */}
-      <div className="sticky top-0 z-30 border-b border-border bg-background/95 backdrop-blur-md">
-        <div className="mx-auto flex max-w-7xl flex-wrap items-center gap-x-4 gap-y-2 px-4 py-2.5 sm:px-6">
-          <div className="min-w-0 flex-1 basis-52">
-            <SearchBar
-              value={searchQuery}
-              onChange={handleSearchChange}
-              onClear={handleSearchClear}
-              inputRef={searchInputRef}
-              placeholder="Search posts, tags, topics…"
-            />
-          </div>
-          <div className="flex items-center gap-1" role="tablist" aria-label="Discover sections" data-testid="trending-tab-row">
-            {([
-              ['trending', 'Trending', Flame],
-              ['profiles', 'People', User],
-            ] as [TrendingTab, string, typeof Flame][]).map(([id, label, Icon]) => (
-              <button
-                key={id}
-                type="button"
-                role="tab"
-                aria-selected={tab === id}
-                data-testid={`trending-tab-${id}`}
-                onClick={() => setTabUrl(id)}
-                className={[
-                  'flex items-center gap-2 rounded-xl px-5 py-2.5 text-base font-semibold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background',
-                  tab === id
-                    ? 'bg-brand-muted text-brand-300'
-                    : 'text-muted-foreground hover:text-foreground hover:bg-elevated',
-                ].join(' ')}
-              >
-                <Icon className="h-5 w-5" strokeWidth={1.75} />
-                <span>{label}</span>
-              </button>
-            ))}
-          </div>
-          {tab === 'trending' && !isInitialLoad && !isSearching && (
-            <div className="flex items-center gap-1" data-testid="trending-view-toggle">
-              {([
-                ['home', 'Home', Video],
-                ['grid', 'Hot Gossip', Flame],
-              ] as [TrendingView, string, typeof Flame][]).map(([v, label, Icon]) => (
-                <button
-                  key={v}
-                  type="button"
-                  onClick={() => setViewUrl(v)}
-                  data-testid={`view-toggle-${v}`}
-                  className={[
-                    'flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background',
-                    view === v
-                      ? 'bg-brand-muted text-brand-300'
-                      : 'text-muted-foreground hover:text-foreground hover:bg-elevated',
-                  ].join(' ')}
-                >
-                  <Icon className="h-3.5 w-3.5" strokeWidth={1.75} />
-                  <span>{label}</span>
-                </button>
-              ))}
-            </div>
-          )}
-        </div>
-      </div>
+  // ── Legacy redirects (the salad retires) — AFTER all the hooks (a
+  //     conditional return between hook calls breaks the hook order). The old
+  //     `?view=grid` (Hot Gossip) + `?tab=profiles|people|groups` (the People
+  //     browser) map to the flat destinations, carrying `?q=` / `?tag=` over.
+  const legacyView = searchParams.get('view');
+  const legacyTab = searchParams.get('tab');
+  if ((legacyView === 'grid' || legacyView === 'youtube') && dest === 'video') {
+    const params = new URLSearchParams(searchParams);
+    params.delete('view');
+    const qs = params.toString();
+    return <Navigate to={`/trending/hot-gossip${qs ? `?${qs}` : ''}`} replace />;
+  }
+  if (legacyTab && dest === 'video') {
+    const params = new URLSearchParams(searchParams);
+    params.delete('tab');
+    const qs = params.toString();
+    return <Navigate to={`/trending/people${qs ? `?${qs}` : ''}`} replace />;
+  }
 
-      {/* Profiles subtab — the mashed People + Groups browser (the social
-          Discover "Profiles" tab, mirrored). The `?show=` toggle + the shared
-          cards come from the shared ProfilesBrowser (C1/C3). */}
-      {tab === 'profiles' && (
-        <main className="flex-1 px-4 py-8 sm:px-6">
+  // ── The People destination — the people + groups browser (the old `?tab=
+  //     profiles` content). The search field above filters it live. ──────────
+  if (dest === 'people') {
+    return (
+      <div className="flex min-h-screen flex-col bg-background">
+        <ControlBand
+          searchQuery={searchQuery}
+          onSearchChange={handleSearchChange}
+          onSearchClear={handleSearchClear}
+          searchInputRef={searchInputRef}
+        />
+        <main className="flex-1 px-4 py-6 sm:px-6">
           <ProfilesBrowser query={searchQuery} />
         </main>
-      )}
+      </div>
+    );
+  }
 
-      {/* Trending subtab (the default) — the existing feed */}
-      {tab === 'trending' && (<>
+  // ── The board destinations (Video · Shorts · Hot Gossip) ──────────────────
+  return (
+    <div className="flex min-h-screen flex-col bg-background">
+      <ControlBand
+        searchQuery={searchQuery}
+        onSearchChange={handleSearchChange}
+        onSearchClear={handleSearchClear}
+        searchInputRef={searchInputRef}
+      />
+
       {/* Knob Rack — only show when not searching */}
       {!isInitialLoad && allPosts.length > 0 && !isSearching && (
-        <div className="px-4 pt-6 pb-4 sm:px-6">
+        <div className="px-4 pt-4 pb-2 sm:px-6">
           <KnobRack
             state={knobState}
             activePreset={activePreset}
@@ -627,7 +638,7 @@ function Trending() {
       >
         <div className="mx-auto max-w-7xl px-4 sm:px-6">
           <div
-            className="flex gap-2 overflow-x-auto py-3 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden [mask-image:linear-gradient(to_left,transparent,black_40px)]"
+            className="flex gap-2 overflow-x-auto py-2.5 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden [mask-image:linear-gradient(to_left,transparent,black_40px)]"
             role="tablist"
             aria-label="Filter by topic"
           >
@@ -660,13 +671,13 @@ function Trending() {
         </div>
       </div>
 
-      {/* Body: grid + sidebar (the sidebar is Hot Gossip only — the Home wall
-          is full-width, YouTube-style, with no Top 10 rail). */}
-      <main className="flex-1 px-4 py-8 sm:px-6">
-        <div className={`mx-auto flex ${view === 'grid' && !isSearching ? 'max-w-7xl gap-8' : 'w-full'}`}>
+      {/* Body — the destination's content. Hot Gossip keeps the Top 10 rail
+          (a content rail, not the nav); Video + Shorts are full-width walls. */}
+      <main className="flex-1 px-4 py-6 sm:px-6">
+        <div className={`mx-auto flex ${dest === 'hot-gossip' && !isSearching ? 'max-w-7xl gap-8' : 'w-full'}`}>
           <div className="min-w-0 flex-1">
             {isSearching ? (
-              /* Search results */
+              /* Search results (all three board destinations share the shape) */
               searchLoading ? (
                 <div
                   data-testid="trending-grid-skeleton"
@@ -717,19 +728,21 @@ function Trending() {
                         data-testid="trending-grid"
                         className="mx-auto grid w-full max-w-2xl grid-cols-1 gap-4"
                       >
-{visibleSearchResults.map(post => (
-                           <TrendingCard
-                             key={post.id}
-                             post={post}
-                             rank={post.rank}
-                             featured={post.featured}
-                             maxScore={maxSearchScore}
-                             onLike={() => handleReaction('like', post.id)}
-                             onComment={() => handleComment(post.id)}
-                             onRepost={() => handleReaction('repost', post.id)}
-                             cardRef={registerCard(post.id)}
-                           />
-                         ))}
+                        {visibleSearchResults.map(post => (
+                          <TrendingCard
+                            key={post.id}
+                            post={post}
+                            rank={post.rank}
+                            featured={post.featured}
+                            maxScore={maxSearchScore}
+                            onLike={() => handleReaction('like', post.id)}
+                            onComment={() => handleComment(post.id)}
+                            onRepost={() => handleReaction('repost', post.id)}
+                            cardRef={registerCard(post.id)}
+                            postHref={gossipPostHref(post)}
+                            authorHref={authorProfileHref(post)}
+                          />
+                        ))}
                       </div>
                     </>
                   ) : (
@@ -758,29 +771,31 @@ function Trending() {
             ) : isInitialLoad ? (
               <div
                 data-testid="trending-grid-skeleton"
-                className="grid w-full grid-cols-1 gap-x-4 gap-y-6 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4"
+                className={`grid w-full gap-x-4 gap-y-6 ${dest === 'shorts' ? 'grid-cols-2 sm:grid-cols-3 lg:grid-cols-4' : 'grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4'}`}
               >
                 {Array.from({ length: 8 }).map((_, i) => (
-                  <YouTubeSkeleton key={i} />
+                  <YouTubeSkeleton key={i} portrait={dest === 'shorts'} />
                 ))}
               </div>
-            ) : view === 'home' ? (
-              /* Home view — the YouTube-style video wall (16:9 thumbnails,
-                 title + author attribution). Videos only. */
+            ) : dest === 'video' ? (
+              /* Video — the YouTube-style video wall (16:9 thumbnails, title +
+                 author attribution). Videos only. The 1:1 link-out: a
+                 landscape tile → the watch page (carrying the knobs), a
+                 portrait tile → the Shorts lens (the aspect-ratio gate). */
               <>
-                {mediaPosts.length > 0 ? (
+                {videoPosts.length > 0 ? (
                   <>
                     <div
                       data-testid="trending-home-grid"
                       className="grid grid-cols-1 gap-x-4 gap-y-6 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4"
                     >
-                      {mediaPosts.map(post => (
+                      {videoPosts.map(post => (
                         <HomeCard
                           key={post.id}
                           post={feedPostToDiscover(post)}
                           remote
-                          postHref={post.author ? `${SOCIAL_ORIGIN}/u/${encodeURIComponent(post.author)}/p/${encodeURIComponent(post.id)}` : SOCIAL_ORIGIN}
-                          authorHref={post.author ? `${SOCIAL_ORIGIN}/u/${encodeURIComponent(post.author)}` : SOCIAL_ORIGIN}
+                          postHref={videoPostHref(post, knobState)}
+                          authorHref={authorProfileHref(post)}
                           testId="home-card"
                         />
                       ))}
@@ -811,47 +826,94 @@ function Trending() {
                     )}
                   </>
                 ) : (
-                  <div
-                    data-testid="trending-empty"
-                    className="mx-auto flex max-w-md flex-col items-center rounded-xl border border-dashed border-border bg-surface/50 px-6 py-16 text-center"
-                  >
-                    <MessageCircleOff className="h-10 w-10 text-muted-foreground" strokeWidth={1.5} />
-                    <h2 className="mt-4 font-display text-xl font-semibold text-foreground">
-                      No media posts yet
-                    </h2>
-                    <p className="mt-2 text-sm text-muted-foreground">
-                      The Home view shows posts with videos.
-                      Switch to Hot Gossip to see all trending posts.
-                    </p>
-                    <button
-                      type="button"
-                      onClick={() => setViewUrl('grid')}
-                      className="mt-6 inline-flex items-center gap-1.5 rounded-full border border-border bg-surface px-5 py-2.5 text-sm font-medium text-foreground transition-colors hover:bg-elevated focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
+                  <EmptyBoard
+                    title="No media posts yet"
+                    body="The Video wall shows posts with videos."
+                    ctaLabel="Switch to Hot Gossip"
+                    ctaHref="/trending/hot-gossip"
+                  />
+                )}
+              </>
+            ) : dest === 'shorts' ? (
+              /* Shorts — the vertical lens's wall (9:16 tiles). The 1:1
+                 link-out: every tile → the Shorts lens on web10 social. */
+              <>
+                {shortsPosts.length > 0 ? (
+                  <>
+                    <div
+                      data-testid="trending-shorts-grid"
+                      className="grid grid-cols-2 gap-x-4 gap-y-6 sm:grid-cols-3 lg:grid-cols-4"
                     >
-                      Switch to Hot Gossip
-                    </button>
-                  </div>
+                      {shortsPosts.map(post => (
+                        <HomeCard
+                          key={post.id}
+                          post={feedPostToDiscover(post)}
+                          remote
+                          frame="portrait"
+                          postHref={shortsPostHref(post)}
+                          authorHref={authorProfileHref(post)}
+                          testId="shorts-card"
+                        />
+                      ))}
+                    </div>
+                    {loadingMore && (
+                      <div className="mt-6 grid grid-cols-2 gap-x-4 gap-y-6 sm:grid-cols-3 lg:grid-cols-4">
+                        {Array.from({ length: 4 }).map((_, i) => (
+                          <YouTubeSkeleton key={`shorts-more-${i}`} portrait />
+                        ))}
+                      </div>
+                    )}
+                    {hasMore && !loadingMore && (
+                      <div className="mt-8 flex justify-center">
+                        <button
+                          type="button"
+                          onClick={handleLoadMore}
+                          data-testid="trending-load-more"
+                          className="rounded-full border border-brand bg-brand-muted px-6 py-2.5 text-sm font-medium text-brand-300 transition-colors hover:bg-brand hover:text-brand-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
+                        >
+                          Load more
+                        </button>
+                      </div>
+                    )}
+                    {!hasMore && allPosts.length > 0 && (
+                      <p className="mt-8 text-center text-sm text-muted-foreground">
+                        That&apos;s all trending shorts right now.
+                      </p>
+                    )}
+                  </>
+                ) : (
+                  <EmptyBoard
+                    title="No shorts yet"
+                    body="The Shorts wall shows vertical (9:16) videos."
+                    ctaLabel="Switch to Video"
+                    ctaHref="/trending"
+                  />
                 )}
               </>
             ) : visible.length > 0 ? (
+              /* Hot Gossip — the ranked post board (the Threads shape). The
+                 1:1 link-out: a post → the Hot Gossip board on web10 social,
+                 scrolled to + highlighting that post (`?post=`). */
               <>
                 <div
                   data-testid="trending-grid"
                   className="mx-auto grid w-full max-w-2xl grid-cols-1 gap-4"
                 >
-{visible.map(post => (
-                     <TrendingCard
-                       key={post.id}
-                       post={post}
-                       rank={post.rank}
-                       featured={post.featured}
-                       maxScore={maxScore}
-                       onLike={() => handleReaction('like', post.id)}
-                       onComment={() => handleComment(post.id)}
-                       onRepost={() => handleReaction('repost', post.id)}
-                       cardRef={registerCard(post.id)}
-                     />
-                   ))}
+                  {visible.map(post => (
+                    <TrendingCard
+                      key={post.id}
+                      post={post}
+                      rank={post.rank}
+                      featured={post.featured}
+                      maxScore={maxScore}
+                      onLike={() => handleReaction('like', post.id)}
+                      onComment={() => handleComment(post.id)}
+                      onRepost={() => handleReaction('repost', post.id)}
+                      cardRef={registerCard(post.id)}
+                      postHref={gossipPostHref(post)}
+                      authorHref={authorProfileHref(post)}
+                    />
+                  ))}
                 </div>
                 {loadingMore && (
                   <div className="mx-auto mt-4 grid w-full max-w-2xl grid-cols-1 gap-4">
@@ -879,36 +941,20 @@ function Trending() {
                 )}
               </>
             ) : (
-              <div
-                data-testid="trending-empty"
-                className="mx-auto flex max-w-md flex-col items-center rounded-xl border border-dashed border-border bg-surface/50 px-6 py-16 text-center"
-              >
-                <MessageCircleOff className="h-10 w-10 text-muted-foreground" strokeWidth={1.5} />
-                <h2 className="mt-4 font-display text-xl font-semibold text-foreground">
-                  The network is quiet
-                </h2>
-                <p className="mt-2 text-sm text-muted-foreground">
-                  Nobody has posted yet. Be the first — a single post makes
-                  the whole thing start to move.
-                </p>
-                <a
-                  href={SOCIAL_ORIGIN}
-                  target="_blank"
-                  rel="noreferrer"
-                  data-testid="trending-empty-cta"
-                  className="mt-6 inline-flex items-center gap-1.5 rounded-full bg-brand px-5 py-2.5 text-sm font-medium text-brand-foreground transition-colors hover:bg-brand-600 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
-                >
-                  Open web10 social
-                  <ArrowUpRight className="h-4 w-4" strokeWidth={1.75} />
-                </a>
-              </div>
+              <EmptyBoard
+                title="The network is quiet"
+                body="Nobody has posted yet. Be the first — a single post makes the whole thing start to move."
+                ctaLabel="Open web10 social"
+                ctaHref={SOCIAL_ORIGIN}
+                external
+              />
             )}
           </div>
 
-          {/* Sidebar — the Top 10 rail is Hot Gossip only (the Home wall is
-              full-width, YouTube-style, with no rail). Desktop only, and not
-              while searching. */}
-          {view === 'grid' && !isSearching && (
+          {/* Sidebar — the Top 10 rail is Hot Gossip only (the Video + Shorts
+              walls are full-width, with no rail). Desktop only, and not while
+              searching. */}
+          {dest === 'hot-gossip' && !isSearching && (
             <TrendingSidebar
               entries={ranked
                 .filter(p => topic === 'All' || (p.tags?.includes(topic) ?? false))
@@ -919,7 +965,74 @@ function Trending() {
           )}
         </div>
       </main>
-      </>)}
+    </div>
+  );
+}
+
+// ── The sticky control band (search) — the chrome recedes so the content is
+//     the hero (design.md §10). The destination nav lives in the ExperienceShell
+//     sidebar (the salad's tab row + view toggle retire). ─────────────────────
+
+function ControlBand({
+  searchQuery,
+  onSearchChange,
+  onSearchClear,
+  searchInputRef,
+}: {
+  searchQuery: string;
+  onSearchChange: (value: string) => void;
+  onSearchClear: () => void;
+  searchInputRef: React.RefObject<HTMLInputElement>;
+}) {
+  return (
+    <div className="sticky top-0 z-30 border-b border-border bg-background/95 backdrop-blur-md">
+      <div className="mx-auto flex max-w-7xl flex-wrap items-center gap-x-4 gap-y-2 px-4 py-2.5 sm:px-6">
+        <div className="min-w-0 flex-1 basis-52">
+          <SearchBar
+            value={searchQuery}
+            onChange={onSearchChange}
+            onClear={onSearchClear}
+            inputRef={searchInputRef}
+            placeholder="Search posts, tags, topics…"
+          />
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ── The board empty state (a destination with no posts) ─────────────────────
+
+function EmptyBoard({
+  title,
+  body,
+  ctaLabel,
+  ctaHref,
+  external = false,
+}: {
+  title: string;
+  body: string;
+  ctaLabel: string;
+  ctaHref: string;
+  external?: boolean;
+}) {
+  return (
+    <div
+      data-testid="trending-empty"
+      className="mx-auto flex max-w-md flex-col items-center rounded-xl border border-dashed border-border bg-surface/50 px-6 py-16 text-center"
+    >
+      <MessageCircleOff className="h-10 w-10 text-muted-foreground" strokeWidth={1.5} />
+      <h2 className="mt-4 font-display text-xl font-semibold text-foreground">{title}</h2>
+      <p className="mt-2 text-sm text-muted-foreground">{body}</p>
+      <a
+        href={ctaHref}
+        {...(external ? { target: '_blank', rel: 'noreferrer' } : {})}
+        data-testid="trending-empty-cta"
+        className="mt-6 inline-flex items-center gap-1.5 rounded-full bg-brand px-5 py-2.5 text-sm font-medium text-brand-foreground transition-colors hover:bg-brand-600 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
+      >
+        {ctaLabel}
+        <ArrowUpRight className="h-4 w-4" strokeWidth={1.75} />
+      </a>
     </div>
   );
 }
