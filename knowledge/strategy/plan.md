@@ -782,10 +782,19 @@ render). Spec'd in `knowledge-base/web10-v3/social/shorts.md`.
 - [✓ 3.90.0] **Nav** — Shorts promoted from coming-soon to a real destination (desktop sidebar + the mobile More sheet; the bottom bar stays at five).
 - [✓ 3.90.0] **Tests** — `feed.test.ts` +2 driving the gate (real 9:16 kept; faked image / lying-ratio / multi-media dropped; untagged 9:16 kept) + `socialScreens.test.tsx` re-pinned.
 - [✓ 3.95.0] **The surface plays like a short** — the video fills the screen (the `immersive` player mode: the video-only hls fill, no control rack, no phone-width column; the desktop slide is a centered 9:16 column that fills the viewport height — the designed letterbox), the active slide autoplays muted + off-screen slides pause, and the TikTok swipe works (native scroll-snap + `ArrowUp`/`ArrowDown`/`PageUp`/`PageDown`). `shorts.md` gains the frame/playback/swipe spec (decision #6); `video-player.md` gains the `immersive` layout prop.
-- [✓ 3.97.0] **v1.5** — the server-side `has(tags, 'short')` filter on `read` (the generic `tags` param — a platform primitive, not a social concept; the idiom the node-ad read already uses, `clickhouse.py:2419`) so the Shorts feed pulls only shorts. The two-layer model is now explicit: the tag is the server-side inclusion rule, the render-time 9:16 gate stays the backstop that drops fakes. (The optional ffmpeg-stamped dimension verification in the transcode worker remains the open "truly bulletproof" follow-up.)
+ - [✓ 3.97.0] **v1.5** — the server-side `has(tags, 'short')` filter on `read` (the generic `tags` param — a platform primitive, not a social concept; the idiom the node-ad read already uses, `clickhouse.py:2419`) so the Shorts feed pulls only shorts. The two-layer model is now explicit: the tag is the server-side inclusion rule, the render-time 9:16 gate stays the backstop that drops fakes. (The optional ffmpeg-stamped dimension verification in the transcode worker remains the open "truly bulletproof" follow-up.)
+
+## Feed Paging: the one-shot feeds page until exhausted — web10-social
+**Operator (29.09.2026):** "do all the feeds paginate too? where they get another get another until you hit the limit? run out? because that is the correct behavior." The audit found several feeds were single reads capped at 50 — a creator with more than the cap only ever saw the first page. The node already supports it (both the ranked + chronological `read_documents_in_groups` paths apply `LIMIT … OFFSET …`), so this is all client-side (no node change, D60). The pattern (from the Shorts wall, 3.179.0): a paged data read returning `{ items, hasMore }` (hasMore = board page size) + a sentinel (`IntersectionObserver`, `rootMargin: 200px`) that appends the next page (offset advances by the board page size, dedupe by id).
+
+- [✓ 3.179.0] **Shorts wall paginates** (`feed.ts` `readShortsPage` + `ShortsWall.tsx`) — the explore grid pages the board until exhausted (infinite scroll); `readShortsFeed` (lens + search) is now a thin wrapper over `readShortsPage`.
+- [ ] **Discover boards (Video + Hot Gossip) paginate** (`DiscoverScreen.tsx`) — the main content, highest value; needs the `loadDiscover` enrichment (engagement + profiles + media) extracted so `loadMore` can enrich a page + merge the maps; a knob re-read resets to page one.
+- [ ] **Profile feed paginates** (`UserProfileScreen.tsx`) — `readPosts` already supports `limit`/`offset`; thread it through + a sentinel on the profile's content wall.
+- [ ] **Group feed tab paginates** (`GroupDetailScreen.tsx` + `readGroupFeed`) — the group's post feed (Feed tab) is a one-shot read.
+- [ ] **Watch board paginates** (`WatchScreen.tsx`) — the "What's next" queue is bounded to the loaded 50 (W2: "infinite scroll is a follow-up").
 
 ## PWA: make web10-social a serious installable app — web10-social
-
+ 
 **Decision: D72.** The reel/shorts surface (`/shorts`, 3.90.0) is where the web
 experience genuinely lacks on a phone (browser chrome eats the viewport,
 autoplay-with-audio is blocked until the first tap, back yanks you out of the
