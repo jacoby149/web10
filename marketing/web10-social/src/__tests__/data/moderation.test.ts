@@ -171,3 +171,84 @@ describe('board hide / unhide', () => {
     );
   });
 });
+
+describe('readHiddenPosts', () => {
+  afterEach(() => vi.unstubAllGlobals());
+
+  it('posts the discover group to /v3/groups/hidden and returns the list', async () => {
+    setToken('raw-jwt');
+    const hidden = [
+      { doc_id: 'h1', author_key: 'badguy', hidden_at: '2026-01-01', moderator_key: 'node', body: { text: 'x' } },
+    ];
+    const fetchMock = vi.fn().mockResolvedValue({ ok: true, json: async () => ({ hidden }) });
+    vi.stubGlobal('fetch', fetchMock);
+    const out = await moderation.readHiddenPosts();
+    expect(out).toEqual(hidden);
+    expect(fetchMock).toHaveBeenCalledWith(
+      expect.stringContaining('/v3/groups/hidden'),
+      expect.objectContaining({
+        body: JSON.stringify({ group_id: getDiscoverGroupId(), token: 'raw-jwt' }),
+      }),
+    );
+  });
+
+  it('returns [] when the node returns no hidden docs', async () => {
+    setToken('raw-jwt');
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue({ ok: true, json: async () => ({ hidden: [] }) }));
+    expect(await moderation.readHiddenPosts()).toEqual([]);
+  });
+});
+
+describe('setUserBanned', () => {
+  afterEach(() => vi.unstubAllGlobals());
+
+  it('posts the username + ban to /v3/moderation/ban', async () => {
+    setToken('raw-jwt');
+    const fetchMock = vi.fn().mockResolvedValue({ ok: true, json: async () => ({ banned_users: ['badguy'] }) });
+    vi.stubGlobal('fetch', fetchMock);
+    const out = await moderation.setUserBanned('badguy', true);
+    expect(out).toEqual(['badguy']);
+    expect(fetchMock).toHaveBeenCalledWith(
+      expect.stringContaining('/v3/moderation/ban'),
+      expect.objectContaining({
+        method: 'POST',
+        body: JSON.stringify({ username: 'badguy', ban: true, token: 'raw-jwt' }),
+      }),
+    );
+  });
+
+  it('throws when signed out', async () => {
+    clearToken();
+    const fetchMock = vi.fn();
+    vi.stubGlobal('fetch', fetchMock);
+    await expect(moderation.setUserBanned('x', true)).rejects.toThrow('not signed in');
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+});
+
+describe('getBannedUsers', () => {
+  afterEach(() => vi.unstubAllGlobals());
+
+  it('posts to /v3/moderation/banned and maps the response', async () => {
+    setToken('raw-jwt');
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({ banned_users: [{ username: 'badguy', banned_by: 'admin', banned_at: '2026-01-01T00:00:00Z' }] }),
+    });
+    vi.stubGlobal('fetch', fetchMock);
+    const out = await moderation.getBannedUsers();
+    expect(out).toEqual(['badguy']);
+    expect(fetchMock).toHaveBeenCalledWith(
+      expect.stringContaining('/v3/moderation/banned'),
+      expect.objectContaining({ method: 'POST' }),
+    );
+  });
+
+  it('throws when signed out', async () => {
+    clearToken();
+    const fetchMock = vi.fn();
+    vi.stubGlobal('fetch', fetchMock);
+    await expect(moderation.getBannedUsers()).rejects.toThrow('not signed in');
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+});

@@ -1,5 +1,5 @@
 import { useState, useCallback } from 'react';
-import { Link2, Loader2, Ban, EyeOff, User, FileText, Hash, AlertTriangle } from 'lucide-react';
+import { Link2, Loader2, Ban, EyeOff, User, FileText, Hash, AlertTriangle, UserX } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -11,6 +11,7 @@ import { lookupUserProfile, type UserFace } from '@/data/profile';
 import {
   parseWeb10Link,
   setUserAutoHidden,
+  setUserBanned as setUserBannedApi,
   hidePostFromBoard,
   readUserPostsForModeration,
   type ParsedWeb10Link,
@@ -40,6 +41,8 @@ export function LinkTab() {
 
   const [hidingUser, setHidingUser] = useState(false);
   const [userHidden, setUserHidden] = useState(false);
+  const [banningUser, setBanningUser] = useState(false);
+  const [userBanned, setUserBanned] = useState(false);
   const [hidingPost, setHidingPost] = useState(false);
   const [postHidden, setPostHidden] = useState(false);
 
@@ -52,6 +55,7 @@ export function LinkTab() {
     setContentError(null);
     setPostHidden(false);
     setUserHidden(false);
+    setUserBanned(false);
 
     if (!link) {
       setParseError('That doesn\u2019t look like a web10 link (e.g. https://…/u/username/p/post-id).');
@@ -101,6 +105,21 @@ export function LinkTab() {
       toast.error(errorMessage(e, 'Failed to update the hidden list'));
     } finally {
       setHidingUser(false);
+    }
+  };
+
+  const toggleBanUser = async () => {
+    if (!targetUsername) return;
+    const ban = !userBanned;
+    setBanningUser(true);
+    try {
+      await setUserBannedApi(targetUsername, ban);
+      setUserBanned(ban);
+      toast.success(ban ? `Banned @${targetUsername}` : `Unbanned @${targetUsername}`);
+    } catch (e) {
+      toast.error(errorMessage(e, 'Failed to update the ban list'));
+    } finally {
+      setBanningUser(false);
     }
   };
 
@@ -215,27 +234,50 @@ export function LinkTab() {
                   <p className="text-sm font-medium text-foreground truncate">{face?.display_name || targetUsername}</p>
                   <p className="text-xs text-muted-foreground font-mono truncate">@{targetUsername}</p>
                 </div>
-                <Button
-                  variant={userHidden ? 'outline' : 'brand'}
-                  size="sm"
-                  disabled={hidingUser}
-                  onClick={toggleHideUser}
-                  data-testid="link-hide-user"
-                >
-                  {hidingUser ? (
-                    <Loader2 className="h-3.5 w-3.5 animate-spin" strokeWidth={1.75} />
-                  ) : userHidden ? (
-                    <>
-                      <EyeOff className="mr-1 h-3.5 w-3.5" strokeWidth={1.5} />
-                      Hiding
-                    </>
-                  ) : (
-                    <>
-                      <Ban className="mr-1 h-3.5 w-3.5" strokeWidth={1.5} />
-                      Hide user
-                    </>
-                  )}
-                </Button>
+                <div className="flex shrink-0 items-center gap-1.5">
+                  <Button
+                    variant={userHidden ? 'outline' : 'brand'}
+                    size="sm"
+                    disabled={hidingUser}
+                    onClick={toggleHideUser}
+                    data-testid="link-hide-user"
+                  >
+                    {hidingUser ? (
+                      <Loader2 className="h-3.5 w-3.5 animate-spin" strokeWidth={1.75} />
+                    ) : userHidden ? (
+                      <>
+                        <EyeOff className="mr-1 h-3.5 w-3.5" strokeWidth={1.5} />
+                        Hiding
+                      </>
+                    ) : (
+                      <>
+                        <Ban className="mr-1 h-3.5 w-3.5" strokeWidth={1.5} />
+                        Hide user
+                      </>
+                    )}
+                  </Button>
+                  <Button
+                    variant={userBanned ? 'outline' : 'destructive'}
+                    size="sm"
+                    disabled={banningUser}
+                    onClick={toggleBanUser}
+                    data-testid="link-ban-user"
+                  >
+                    {banningUser ? (
+                      <Loader2 className="h-3.5 w-3.5 animate-spin" strokeWidth={1.75} />
+                    ) : userBanned ? (
+                      <>
+                        <UserX className="mr-1 h-3.5 w-3.5" strokeWidth={1.5} />
+                        Unban
+                      </>
+                    ) : (
+                      <>
+                        <UserX className="mr-1 h-3.5 w-3.5" strokeWidth={1.5} />
+                        Ban user
+                      </>
+                    )}
+                  </Button>
+                </div>
               </div>
 
               {/* Their recent posts (profile link) */}

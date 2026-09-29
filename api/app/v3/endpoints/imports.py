@@ -49,12 +49,22 @@ def create_import(data: ImportCreate):
             detail=f"parts must be 1..{settings.IMPORT_MAX_PARTS} (got {len(data.parts)})",
         )
 
+    # An explicit target group must be one the user OWNS (I3: the import writes
+    # posts + comments + the group's face, all owner-level). A group the user
+    # doesn't own is a 403, an unknown group a 404.
+    target_group_id = (data.target_group_id or "").strip()
+    if target_group_id:
+        if not import_worker.ch.get_group(target_group_id):
+            raise HTTPException(status_code=404, detail="target group not found")
+        if not import_worker.user_owns_group(user, target_group_id):
+            raise HTTPException(status_code=403, detail="you do not own the target group")
+
     job_id = uuid.uuid4().hex
     s3 = get_s3_client()
     ensure_bucket(s3)
     signer = get_s3_signing_client()
     object_keys = [_import_object_key(user, job_id, i, part.filename) for i, part in enumerate(data.parts)]
-    import_worker.create_import_job(job_id, user, data.platform, object_keys)
+    import_worker.create_import_job(job_id, user, data.platform, object_keys, target_group_id)
 
     uploads = []
     for i, object_key in enumerate(object_keys):

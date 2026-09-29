@@ -21,6 +21,9 @@ import type { AdOffer } from './types';
 
 export interface AdItem {
   doc: V3Document;
+  /** The ad's headline (D82) — an ad is a `posts` doc, so it carries the same
+   *  optional `title` as any post. */
+  title?: string;
   text: string;
   offer: AdOffer;
   status: 'active' | 'paused';
@@ -68,6 +71,7 @@ export function parseAd(doc: V3Document): AdItem {
   const tags = doc.tags || [];
   return {
     doc,
+    title: leaf(body.title) || undefined,
     text: leaf(body.text),
     offer: {
       kind: leaf(offerRaw.kind),
@@ -142,9 +146,13 @@ export function buildOfferBody(
   albumIds: string[],
   mediaRefs?: string[],
   format: 'inline' | 'post' = 'inline',
+  title?: string,
 ): Record<string, unknown> {
   const tags = ['ad', ...albumIds.map((id) => `album:${id}`)];
   return {
+    // The post's two bodies of text (D82): the optional `title` headline + the
+    // `text` caption. An ad is a `posts` doc, so it carries the same fields.
+    title,
     text,
     tags,
     offer: {
@@ -185,8 +193,10 @@ export function buildNodeAdBody(
   status: 'active' | 'paused',
   mediaRefs?: string[],
   format: 'inline' | 'post' = 'inline',
+  title?: string,
 ): Record<string, unknown> {
   return {
+    title,
     text,
     tags: ['ad', 'node_ad'],
     offer: {
@@ -216,9 +226,10 @@ export async function updateAd(
   albumIds: string[],
   mediaRefs?: string[],
   format: 'inline' | 'post' = 'inline',
+  title?: string,
 ): Promise<V3Document> {
   const w = getV3Client();
-  const body = buildOfferBody(offer, text, status, albumIds, mediaRefs, format);
+  const body = buildOfferBody(offer, text, status, albumIds, mediaRefs, format, title);
   return w.update(ad.doc.doc_id, body);
 }
 
@@ -236,9 +247,10 @@ export async function updateNodeAd(
   status: 'active' | 'paused',
   mediaRefs?: string[],
   format: 'inline' | 'post' = 'inline',
+  title?: string,
 ): Promise<V3Document> {
   const w = getV3Client();
-  const body = buildNodeAdBody(offer, text, status, mediaRefs, format);
+  const body = buildNodeAdBody(offer, text, status, mediaRefs, format, title);
   return w.update(ad.doc.doc_id, body);
 }
 

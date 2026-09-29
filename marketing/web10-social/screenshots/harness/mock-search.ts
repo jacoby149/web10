@@ -27,3 +27,19 @@ export async function searchPosts(query: string, _limit = 5) {
     { _id: 'sp-2', text: 'Synthwave is back and it is absolutely beautiful', author_username: 'nova', created_at: '2026-01-02T00:00:00Z' },
   ];
 }
+
+export async function searchVideo(query: string, _limit = 5) {
+  if (!HAS_RESULTS(query)) return [];
+  return [
+    { _id: 'sv-1', text: 'Synthwave video mix — full 4K render', author_username: 'alice', tags: ['video'], created_at: '2026-01-01T00:00:00Z' },
+    { _id: 'sv-2', text: 'Behind the scenes of the synthwave session', author_username: 'nova', tags: ['video'], created_at: '2026-01-02T00:00:00Z' },
+  ];
+}
+
+export async function searchShorts(query: string, _limit = 5) {
+  if (!HAS_RESULTS(query)) return [];
+  return [
+    { post: { _id: 'ss-1', text: 'Synthwave in 15 seconds', author_username: 'alice', created_at: '2026-01-01T00:00:00Z' }, media: { _id: 'm-ss-1', mime_type: 'video/mp4', width: 720, height: 1280 } },
+    { post: { _id: 'ss-2', text: 'Lofi study short', author_username: 'kai', created_at: '2026-01-02T00:00:00Z' }, media: { _id: 'm-ss-2', mime_type: 'video/mp4', width: 720, height: 1280 } },
+  ];
+}

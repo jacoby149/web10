@@ -224,8 +224,16 @@ def ensure_apps_schema():
             ") ENGINE = MergeTree ORDER BY (event_type, created_at)"
             " TTL toDateTime(created_at) + INTERVAL 1 YEAR"
         )
+        # banned_users — the node-level ban (D59a). Pre-existing volumes
+        # predate the table; the DDL template covers fresh volumes.
+        client.command(
+            "CREATE TABLE IF NOT EXISTS banned_users ("
+            "username String, banned_by String, banned_at DateTime64(3), "
+            "updated_at DateTime64(3), deleted UInt8 DEFAULT 0"
+            ") ENGINE = ReplacingMergeTree(updated_at) ORDER BY username"
+        )
         log.info(
-            "[v3] schema ensured (apps.visits + app_ratings.comment + node_config + app_visits + group_contracts.discoverable + group_contracts.tags + group_contracts.membership_visibility + documents.ad_mode/ad_target + moderation_flags + bug_reports + marketing_events present)"
+            "[v3] schema ensured (apps.visits + app_ratings.comment + node_config + app_visits + group_contracts.discoverable + group_contracts.tags + group_contracts.membership_visibility + documents.ad_mode/ad_target + moderation_flags + bug_reports + marketing_events + banned_users present)"
         )
         # Data migration (idempotent): re-home demo apps registered under
         # their directory-index file URLs onto their directory URLs.
@@ -1851,8 +1859,92 @@ def get_hidden_docs(group_id: str) -> list[dict]:
 
 
 # ---------------------------------------------------------------------------
+# Node-level ban (D59a) — banned_users table
+# ---------------------------------------------------------------------------
+
+
+def ban_user(username: str, banned_by: str) -> None:
+    """Ban a username (their content is filtered out of every read path).
+
+    ReplacingMergeTree: a new active row supersedes any prior tombstone.
+    ``now64(6)`` (microsecond) so the ban's ``updated_at`` is never earlier
+    than a same-second unban it supersedes (same house pattern as
+    ``unhide_doc_from_group``).
+    """
+    now = _now()
+    client.insert(
+        "banned_users",
+        [[username, banned_by, now, now, 0]],
+    )
+
+
+def unban_user(username: str) -> None:
+    """Unban a username (their content returns to every read path).
+
+    Tombstone: append a ``deleted=1`` row with a microsecond-precision
+    ``updated_at`` so the ReplacingMergeTree dedup ranks it above the active
+    ban row even when both land in the same second.
+    """
+    client.command(
+        "INSERT INTO banned_users (username, banned_by, banned_at, updated_at, deleted) "
+        "SELECT username, banned_by, banned_at, now64(6), 1 "
+        "FROM banned_users WHERE username = %(username)s AND deleted = 0",
+        {"username": username},
+    )
+
+
+def get_banned_users() -> list[str]:
+    """The active (non-tombstoned) banned usernames. Dedup first (latest row
+    per username, tombstones included), then filter deleted=0 — same pattern
+    as every other ReplacingMergeTree read in this file."""
+    result = client.query(
+        "SELECT username FROM (SELECT username, deleted, "
+        "row_number() OVER (PARTITION BY username ORDER BY updated_at DESC, deleted DESC) AS rn "
+        "FROM banned_users) WHERE rn = 1 AND deleted = 0"
+    )
+    return [row[0] for row in result.result_rows]
+
+
+def get_banned_users_list() -> list[dict]:
+    """The active banned users with metadata (for the admin UI)."""
+    result = client.query(
+        "SELECT username, banned_by, banned_at FROM (SELECT username, banned_by, banned_at, deleted, "
+        "row_number() OVER (PARTITION BY username ORDER BY updated_at DESC, deleted DESC) AS rn "
+        "FROM banned_users) WHERE rn = 1 AND deleted = 0 ORDER BY banned_at DESC"
+    )
+    return [
+        {
+            "username": row[0],
+            "banned_by": row[1],
+            "banned_at": _iso_utc(row[2]),
+        }
+        for row in result.result_rows
+    ]
+
+
+# ---------------------------------------------------------------------------
 # Content moderation (D59) — the review queue
 # ---------------------------------------------------------------------------
+
+
+def get_user_discover_posts(username: str) -> list[str]:
+    """The doc_ids of ``username``'s docs attached to the discover group (the
+    retroactive user-hide sweep, D59a). Service-agnostic — a hide is "take this
+    user off the board", so EVERY doc they have on the board is swept, whatever
+    service it lives in (the node stays generic, D60 — no ``posts`` hardcode).
+    Dedup-then-filter (the tombstone read invariant); only live, not-deleted
+    docs. ``username`` is the author_key (v3 same-node: the bare username).
+    """
+    result = client.query(
+        "SELECT p.doc_id FROM (SELECT doc_id, author_key, deleted FROM (SELECT doc_id, author_key, deleted, "
+        "row_number() OVER (PARTITION BY doc_id, author_key ORDER BY updated_at DESC) AS rn "
+        "FROM documents) WHERE rn = 1 AND deleted = 0) p "
+        "JOIN (SELECT doc_id, group_id FROM doc_groups WHERE deleted = 0 "
+        "QUALIFY row_number() OVER (PARTITION BY doc_id, group_id ORDER BY updated_at DESC) = 1) pg "
+        "ON p.doc_id = pg.doc_id WHERE p.author_key = %(author)s AND pg.group_id = %(group)s",
+        {"author": username, "group": DISCOVER_GROUP_ID},
+    )
+    return [row[0] for row in result.result_rows]
 
 
 def insert_moderation_flag(username: str, doc_id: str, matched_words: list[str]) -> None:
@@ -2196,11 +2288,15 @@ def _power_mean_score_sql(
     return f"pow({num} / {tw}, 1 / %(p)s)"
 
 
-def _board_base_sql(group_ids: list[str], require_membership: bool = True, tags: list[str] | None = None) -> str:
+def _board_base_sql(
+    group_ids: list[str],
+    require_membership: bool = True,
+    tags: list[str] | None = None,
+) -> str:
     """Board base SQL (shared by the no-sort and ranked read paths).
 
     documents JOIN doc_groups [JOIN group_members], filtered by tombstones,
-    blacklists, sharing, and hidden docs. Selects
+    blacklists, sharing, hidden docs, and the node-level ban (D59a). Selects
     (doc_id, author_key, body, tags, created_at, ref_value, ad_mode, ad_target).
     Placeholders: %(coll)s, %(member_key)s, %(g0)s..%(gN)s, %(tag0)s..%(tagN)s.
 
@@ -2215,8 +2311,13 @@ def _board_base_sql(group_ids: list[str], require_membership: bool = True, tags:
     given tag (``has(p.tags, %(tagN)s)`` ANDed). The idiom the node-ad read
     already uses (``has(tags, 'node_ad')``, below); generalized to N tags. The
     Shorts feed uses it to pull only ``short``-tagged posts (shorts.md) — the
-    tag is the cheap, indexable server filter; the render-time 9:16 gate on
-    the client stays the backstop that drops fakes.
+    tag is the cheap, indexable server filter; the render-time 9:16 gate on the
+    client stays the backstop that drops fakes.
+
+    The node-level ban (D59a) is a LEFT ANTI JOIN against the ``banned_users``
+    table (dedup first, then deleted=0) — same pattern as the other
+    ReplacingMergeTree anti-joins. A banned author's docs are filtered out,
+    service-agnostic (D60).
     """
     membership_join = (
         "JOIN (SELECT group_id, member_key, role FROM (SELECT group_id, member_key, role, deleted, "
@@ -2254,6 +2355,10 @@ def _board_base_sql(group_ids: list[str], require_membership: bool = True, tags:
         "row_number() OVER (PARTITION BY group_id, doc_id ORDER BY updated_at DESC, deleted DESC) AS rn "
         "FROM group_hidden_docs) WHERE rn = 1 AND deleted = 0) hd "
         "ON hd.doc_id = p.doc_id AND hd.group_id = pg.group_id "
+        "LEFT ANTI JOIN (SELECT username FROM (SELECT username, deleted, "
+        "row_number() OVER (PARTITION BY username ORDER BY updated_at DESC, deleted DESC) AS rn "
+        "FROM banned_users) WHERE rn = 1 AND deleted = 0) bu "
+        "ON bu.username = p.author_key "
         "WHERE "
         + membership_where
         + "pg.group_id IN (%(g0)s"
@@ -2275,10 +2380,11 @@ def _group_docs_query(
     """The core v3 discover query (no ranking).
 
     documents JOIN doc_groups [JOIN group_members], filtered by tombstones,
-    blacklists, and hidden docs. `limit=None` fetches the full membership (no
-    LIMIT clause). `require_membership=False` (D58) drops the membership JOIN —
-    the caller pre-filtered `group_ids` to the readable set. `tags` filters to
-    docs carrying every given tag (the server-side tag filter, shorts.md).
+    blacklists, hidden docs, and the node-level ban (D59a). `limit=None`
+    fetches the full membership (no LIMIT clause). `require_membership=False`
+    (D58) drops the membership JOIN — the caller pre-filtered `group_ids` to the
+    readable set. `tags` filters to docs carrying every given tag (the
+    server-side tag filter, shorts.md).
     """
     limit_clause = "LIMIT %(limit)s OFFSET %(offset)s" if limit is not None else ""
     params: dict = {
@@ -2291,7 +2397,8 @@ def _group_docs_query(
     if limit is not None:
         params["limit"] = limit
     result = client.query(
-        _board_base_sql(group_ids, require_membership, tags) + " ORDER BY p.created_at DESC " + limit_clause, params
+        _board_base_sql(group_ids, require_membership, tags) + " ORDER BY p.created_at DESC " + limit_clause,
+        params,
     )
     return [
         {
@@ -2403,7 +2510,8 @@ def read_documents_in_groups(
     """Read documents attached to groups the reader can access.
 
     This is the core v3 discover query: documents JOIN doc_groups [JOIN
-    group_members], filtered by tombstones, blacklists, and hidden docs.
+    group_members], filtered by tombstones, blacklists, hidden docs, and the
+    node-level ban (D59a).
 
     ``require_membership`` (D58): when True (the legacy path) the read is
     gated on the reader being a member of each group. When False, the caller
@@ -2415,6 +2523,10 @@ def read_documents_in_groups(
     It is a platform primitive, not a social concept: any service's read can
     filter by its own tags. The Shorts feed is the first consumer (``['short']``);
     the render-time 9:16 gate on the client stays the backstop that drops fakes.
+
+    The node-level ban (D59a) is enforced by a LEFT ANTI JOIN against the
+    ``banned_users`` table inside the board base SQL — a banned author's docs
+    are filtered out, service-agnostic.
 
     Blocking/sharing enforcement (KB: security/overview.md "Blocking and
     Sharing", social/cross-app-sharing.md):
@@ -2429,7 +2541,7 @@ def read_documents_in_groups(
       (the author keeps seeing their own posts — "pause sharing without
       leaving").
 
-    All three tables are ReplacingMergeTree: block/unblock/toggle append a
+    All these tables are ReplacingMergeTree: block/unblock/toggle append a
     new version and the old row survives until a background merge. The
     anti-joins therefore dedup first (latest row per key, tombstones
     included) and then filter deleted = 0 — a raw `deleted = 0` join would
@@ -2443,7 +2555,6 @@ def read_documents_in_groups(
         # Power-mean ranking in SQL (the v1 scale-up): the board base is joined
         # to exact engagement counts, scored in SQL (mirroring the client), and
         # paged in ClickHouse — no full membership fetch into Python
-        # (feed-lens-integration.md, option B).
         return _group_docs_ranked_query(group_ids, member_key, service, sort, limit, offset, require_membership, tags)
 
     return _group_docs_query(group_ids, member_key, service, limit, offset, require_membership, tags)
@@ -2594,24 +2705,44 @@ def read_ref_counts_by_ref(
 # ---------------------------------------------------------------------------
 
 
-def read_document_by_id(doc_id: str, member_key: str, service: str) -> dict | None:
+def read_document_by_id(doc_id: str, member_key: str, service: str, authenticated: bool = False) -> dict | None:
     """Read a single document by doc_id with group permission check.
 
     Returns the doc's `ad_mode`/`ad_target` so the caller can serve the pinned
     ad inline (the post detail deep link is a read — same as the feed read).
+
+    The read gate is the D58 principal-class half (the same gate the board
+    read's `can_read_group` applies): the reader reads the doc if they're a
+    literal member of a group it belongs to, OR the group carries the
+    `anyone` grant (always — the public class), OR the `authenticated` grant
+    (real users). Without the class rows, anon (reader = "anon") can't read a
+    public (discover) post by id — the discover group's public member is the
+    `anyone` class (D58 renamed the legacy `anon` row), so a literal
+    `member_key = "anon"` join 404s. That is the watch page's post read.
 
     The user_blacklist anti-join dedups first (latest row per key,
     tombstones included) then filters deleted = 0 — same reason as
     read_documents_in_groups: a raw `deleted = 0` join keeps matching the
     stale pre-unblock row until a background merge.
     """
+    # The reader's allowed member_keys: their own membership + the reserved
+    # public-class rows (anyone — always; authenticated — for real users).
+    class_keys = ["anyone"] + (["authenticated"] if authenticated else [])
+    keys = [member_key, *class_keys]
+    key_ph = ", ".join(f"%(key{i})s" for i in range(len(keys)))
+    params: dict = {
+        "doc_id": doc_id,
+        "coll": service,
+        "member_key": member_key,
+        **{f"key{i}": k for i, k in enumerate(keys)},
+    }
     result = client.query(
         "SELECT p.doc_id, p.author_key, p.body, p.tags, p.created_at, p.ref_value, p.ad_mode, p.ad_target "
         "FROM documents p "
         "LEFT SEMI JOIN ( "
         "SELECT pg.doc_id FROM doc_groups pg "
         "JOIN group_members gm ON pg.group_id = gm.group_id "
-        "WHERE gm.member_key = %(member_key)s AND pg.deleted = 0 AND gm.deleted = 0 "
+        f"WHERE gm.member_key IN ({key_ph}) AND pg.deleted = 0 AND gm.deleted = 0 "
         ") membership ON membership.doc_id = p.doc_id "
         "LEFT ANTI JOIN (SELECT user_key, blocked_key FROM (SELECT user_key, blocked_key, deleted, "
         "row_number() OVER (PARTITION BY user_key, blocked_key ORDER BY updated_at DESC, deleted DESC) AS rn "
@@ -2621,7 +2752,7 @@ def read_document_by_id(doc_id: str, member_key: str, service: str) -> dict | No
         "AND p.deleted = 0 "
         "AND p.collection_name = %(coll)s "
         "ORDER BY p.updated_at DESC LIMIT 1",
-        {"doc_id": doc_id, "coll": service, "member_key": member_key},
+        params,
     )
     if not result.result_rows:
         return None

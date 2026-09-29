@@ -1,19 +1,41 @@
 # Global Search — the top-bar everything-search (operator pass, 18.09.2026)
 
-**Status: SHIPPED + AMENDED (3.162.0).** The always-expanded everything-search
-shipped in the desktop **top bar** (S1–S4). **`discover-ia-consistency.md`
-(3.157.0) moved the desktop field's home from the top bar to the sidebar** —
-the operator's Facebook-style chrome ("then the search would fit in the
-sidebar!"): the desktop sidebar now carries the keys mark, then the search
-field, then the nav rows; the top bar carries the Discover tabs + the bell +
-the account row. **Mobile is unchanged** (the 56px header keeps the icon →
-full-screen results view). **S7 (3.162.0) made the search people-first** —
-the dropdown opens on the People mode (people + groups, live as you type),
-opposite to Discover (where Trending is the first tab); the "see all" CTA +
-Enter in People mode land on the People tab. The state machine
-(always-expanded field, focus → dropdown, X clears the query, the typed
-query persists) is unchanged. Everything below is the historical record; the
-current desktop home is the sidebar.
+**Status: SHIPPED + AMENDED (3.162.0) + RE-AMENDED (3.174.0) + S8 (3.175.0) + S9 (3.178.0) + S10 (3.180.0).** The
+always-expanded everything-search shipped in the desktop **top bar** (S1–S4).
+`discover-ia-consistency.md` (3.157.0) moved the desktop field's home from the
+top bar to the sidebar (the operator's Facebook-style chrome). **On 29.09.2026
+(3.174.0) the field's home moved BACK to the top bar** — the operator's pass:
+"have the search be in the topbar again, the design just works now, instead of
+this traffic jam." The desktop top bar now carries the **search field** (a
+fixed-width pill, left slot) + the bell + the account row; the sidebar carries
+the full **web10** wordmark (the "10" in brand violet) + the nav rows. **Mobile
+is unchanged** (the 56px header keeps the icon → full-screen results view).
+**S7 (3.162.0) made the search people-first** — the dropdown opens on the
+People mode (people + groups, live as you type), opposite to Discover (where
+Trending is the first tab); the "see all" CTA + Enter in People mode land on
+the People tab. **S8 (3.175.0) made the search four categories** — the
+Discover split's four flat destinations (Video · Shorts · Hot Gossip · People)
+are the four search categories: the dropdown's mode toggle is the four
+destinations, one tap picks the category, and Enter / the "see all" CTA open
+THAT destination with the query (`/video?q=`, `/shorts?q=`, `/hot-gossip?q=`,
+`/people?q=`); the Shorts destination honors `?q=` (the wall filters its tiles + a query
+chip). **S9 (3.178.0) made the search the open tab's live filter** — the four
+categories are the four nav tabs: a category tap OPENS that tab (navigates to
+its destination, carrying the query), and typing in the field, while a tab is
+open, filters THAT tab as you type (the query is written to the destination's
+URL as `?q=`, debounced — the destinations' existing `?q=` client-side filters
+do the rest, live). The field is the tab's search box; the dropdown is the
+preview (a few rows + the "open the tab" CTA). **S10 (3.180.0) keeps the
+dropdown open on a topic change** — a category tap / Enter / the "see all"
+CTA navigates to the picked tab AND keeps the dropdown open (the operator
+wants to see the results as they search, not have it collapse the moment the
+tab opens); the mode follows the now-open tab and the field re-seeds from the
+new URL's `?q=`, so the preview matches the tab being filtered. A row tap
+(person / group / post / short) still closes the dropdown (it is not a topic
+change). The state machine (always-
+expanded field, focus → dropdown, X clears the query, the typed query
+persists) is unchanged. Everything below is the
+historical record; the current desktop home is the **top bar**.
 
 > **The shape (operator, 18.09.2026):** "maybe good to have an everything
 > search on the topbar, people groups, everything. AND have people tab in
@@ -239,8 +261,122 @@ existing idiom). No second data path.
   X) still renders on both tabs. `globalSearch.test.tsx` re-pinned to the
   people-first model (People default; the toggle flips to Trending; Enter →
   `?tab=explore&q=`; Enter in Trending mode keeps the active tab; the CTA →
-  `?tab=explore&q=`; the no-results state is Trending-mode; per-section
-  loading unchanged).
+   `?tab=explore&q=`; the no-results state is Trending-mode; per-section
+   loading unchanged).
+- [✓ 3.175.0] **S8: the search is four categories — the four flat destinations
+    are the four search categories** (`src/data/search.ts` + `GlobalSearch.tsx`
+    + `ShortsWall.tsx` + `ShortsScreen.tsx`) — operator pass (28.09.2026, the search dropdown
+   screenshot): "if people selected in the search, should open people tab
+   automatically, then if trending is selected, should open hot gossip tab
+   with that search, but search should have all 4 categories as options to
+   search! and you pick one! so all searchable". The Discover split (3.171.0)
+   flattened Discover to four flat routes (Video · Shorts · Hot Gossip ·
+   People), but the search still carried the pre-split **two-mode** toggle
+   (People | Trending) — the "Trending" category was really Hot Gossip, and
+   Video + Shorts were unsearchable. The fix makes the search mirror the nav
+   exactly: **(1) the fan-out goes from three reads to five** — new
+   `searchVideo` (the discover-board pool gated to video posts — the `/video`
+   destination's render-time gate, `postHasVideo`, kept in lockstep with
+   `DiscoverScreen`) + `searchShorts` (`readShortsFeed` — the genuine 9:16
+   gate, shorts.md — filtered by text/author) join `searchPeople` /
+   `searchGroups` / `searchPosts`; `globalSearch` returns
+   `{people, groups, video, shorts, posts}`, each section degrading
+   independently. (2) **The mode toggle is the four flat destinations**
+   (People | Video | Shorts | Hot Gossip — the labels match the nav exactly),
+   People still the default (S7: the search is people-first); one tap picks
+   the category, each shows its own section; the "See all results for "…" in
+   {Category}" CTA + Enter navigate to **that destination with `?q=`**
+   (`/people?q=` / `/video?q=` / `/shorts?q=` / `/hot-gossip?q=`); all five
+   reads load together on the debounced query (the mode only picks which
+   sections are shown) so a flip is instant; the segmented track is
+   `overflow-x-auto` + `whitespace-nowrap` so the four labels fit on one line
+    at 375px. (3) **The Shorts destination honors `?q=`** — the search's Shorts
+    category lands on `/shorts?q=…`; since 3.173.0 a bare `/shorts` is the
+    **wall** (the lens is `/shorts/:postId`), the wall filters its tiles to the
+    matches (text/author, case-insensitive — a view over the loaded wall, not a
+    re-read) + shows a **query chip (with its X)** so the search is visible +
+    clearable (the `?q=` idiom the other destinations already use); a no-match
+    `?q=` shows a designed no-match state with the clear affordance. The lens
+    keeps the same `?q=` filter + chip for `/shorts/:postId?q=…` deep links.
+    `globalSearch.test.ts` re-pinned to the five-way
+   fan-out (+ `searchVideo` / `searchShorts` suites); `globalSearch.test.tsx`
+    re-pinned to the four-category model (the toggle; Enter / CTA per category
+    → the right destination + `?q=`; the per-category sections; the no-results
+    state; per-section loading; row navigation) + `shortsScreen.test.tsx` +2.
+    1092 web10-social tests green, `tsc` clean. **No node change (D60 —
+    entirely client-side).**
+- [✓ 3.178.0] **S9: the search bar IS the open tab's live filter — a category
+    tap opens that tab, and typing filters the open tab as you type**
+    (`GlobalSearch.tsx`) — operator pass (29.09.2026): "on search bar, if i
+    hit people, people tab should open up, when i type it should be searching
+    people as i type, if i hit hot topic, the hot topic tab should show up, as
+    i type it should be searching the feed! if i have video tab open as a i
+    type should be filtering the videos! shorts tab, same thing!". S8 made the
+    four destinations the four search categories, but a category tap only
+    flipped the dropdown's preview and typing only fed the dropdown — the open
+    tab was a separate surface that only learned the query via Enter / the CTA.
+    S9 makes the field the tab's search box: **(1) a category tap opens the
+    tab** — tapping People / Video / Shorts / Hot Gossip navigates to that
+    destination (`/people` / `/video` / `/shorts` / `/hot-gossip`) carrying the
+    query (`?q=`); Enter / the "see all" CTA do the same (now the tap matches
+    them). **(2) the field is the open tab's live filter** — when one of the
+    four search destinations is the current route, the field mirrors the tab's
+    `?q=` (deep-link + refresh-safe — the URL is the source of truth) and
+    typing writes the debounced query back to the tab's URL as `?q=`
+    (`replace`, no history spam per keystroke); the destination's existing
+    `?q=` client-side filter (DiscoverScreen / ShortsWall / DiscoverExploreTab)
+    reacts and filters live. The X clears the field AND the tab's `?q=` (the
+    tab un-filters). On a non-destination route (feed / profile / messages) the
+    field is the front door only — the preview shows, no `?q=` is written.
+    **(3) the mode follows the open tab** — the dropdown preview matches the
+    tab being filtered (on `/video` it previews Video, …); on a non-destination
+    route it rests on People (S7). **The interaction guard (the subtle part):**
+    the `?q=` write is gated on the field being focused AND on a real
+    interaction (a keystroke or the X clear) — never on mount or a bare focus —
+    so a deep link (`/video?q=…`) is not wiped before the field seeds from it,
+    and a navigation (a row tap) ends the live-filter gesture (the field
+    re-seeds from the new URL). The X clear removes `?q=` directly (robust to
+    the mousedown-blur a real browser fires before the click).
+    `globalSearch.test.tsx` re-pinned to the S9 model (the four "toggle flips"
+    → "on the {tab} the dropdown previews {tab}"; the three "Enter in {mode}"
+    → "Enter on the {tab}"; the three "tapping a category" assert the tap
+    NAVIGATES with `?q=`; the row-tap cases drop the now-redundant mode-people
+    click + the short-row case moves onto the Shorts tab) + 8 new S9 cases
+    (typing on each of the four tabs writes `?q=` debounced; the field seeds
+    from the tab's `?q=`; the X clears the field AND the tab's `?q=`; typing on
+    a non-destination route writes no `?q=`; Enter on an open tab stays on the
+     tab). 1124 web10-social tests green, `tsc` clean. **No node change (D60 —
+     entirely client-side).**
+- [✓ 3.180.0] **S10: the search stays open on a topic change — the dropdown
+     survives the navigation it triggers** (`GlobalSearch.tsx`) — operator pass
+     (29.09.2026, two search screenshots): "when i change search topic, it
+     switches screens which is great, but the search collapses" + "the search
+     should stay open in my opinion, so the user can see the search results as
+     they search". S9 made a category tap / Enter / the "see all" CTA navigate
+     to the picked destination (the tab) — but the navigate → close effect
+     (`useEffect` on `pathname`) closed the dropdown the moment the tab opened,
+     so the user lost the preview exactly when they wanted to compare it
+     against the now-filtered tab. **The fix (all client-side,
+     `GlobalSearch.tsx` — no node change, D60):** a `categoryOpenRef` flag is
+     set when the search's OWN navigation fires (`openCategory` — the category
+     tap, Enter, and the CTA all route through it) and consumed (reset) by the
+     `pathname`-change effect: when the flag is set, the effect keeps the
+     dropdown open (desktop) + re-focuses the field (a real browser's mousedown
+     on the category button blurred it) instead of closing it. The mode follows
+     the now-open tab (the existing mode-follows effect) and the field
+     re-seeds from the new URL's `?q=` (the existing seed effect), so the
+     preview matches the tab being filtered. A row tap (person / group / post /
+     short) is NOT a topic change — it still closes the dropdown (the flag is
+     only set by `openCategory`). Mobile is unchanged (the full-screen view
+     still collapses on navigate — the operator's original mobile design).
+     `globalSearch.test.tsx` +5 (a new S10 block: tapping a category keeps the
+     dropdown open + the mode follows the tab; the CTA keeps it open; Enter
+     keeps it open; switching topics on an already-open tab keeps it open; a
+     row tap still closes it — the regression pin). 1129 web10-social tests
+     green, `tsc` clean. Harness `entry.tsx` gains the `/video` + `/hot-gossip`
+     routes (DiscoverScreen) so the PR screenshot can show the dropdown open
+     over the now-filtered tab; screenshots `search-stays-open-{desktop,375}.png`.
+     **No node change (D60 — entirely client-side).**
 
 **Ownership:** this lane owns `Layout.tsx`, `src/components/Search/`,
 `src/data/search.ts`. It does **not** touch `DiscoverScreen.tsx` or the

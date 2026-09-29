@@ -18,9 +18,10 @@ import SettingsScreen from '@/components/Settings/SettingsScreen';
 import GroupsScreen from '@/components/Groups/GroupsScreen';
 import GroupDetailScreen from '@/components/Groups/GroupDetailScreen';
 import PeopleScreen from '@/components/People/PeopleScreen';
-import FeedScreen from '@/components/Feed/FeedScreen';
+import PostsScreen from '@/components/Feed/PostsScreen';
 import NotificationsScreen from '@/components/Notifications/NotificationsScreen';
 import DiscoverScreen from '@/components/Discover/DiscoverScreen';
+import WatchScreen from '@/components/Watch/WatchScreen';
 import ShortsScreen from '@/components/Shorts/ShortsScreen';
 import UserProfileScreen from '@/components/Bio/UserProfileScreen';
 import UserFollowListScreen from '@/components/Bio/UserFollowListScreen';
@@ -87,17 +88,23 @@ if (screen === 'install-prompt') {
 const initialRoute =
   screen === 'settings' ? '/settings'
   : screen === 'feed' ? '/feed'
+  : screen === 'posts' ? '/feed'
+  : screen === 'posts-following' ? '/feed?tab=following'
   : screen === 'composer' ? '/composer'
   : screen === 'notifications' ? '/notifications'
     : screen === 'discover' ? '/discover'
+    : screen === 'video' ? '/video'
+    : screen === 'hot-gossip' ? '/hot-gossip'
     : screen === 'discover-searched' ? '/discover?q=lofi'
     : screen === 'discover-people-searched' ? '/discover?tab=explore&q=lofi'
     : screen === 'discover-grid' ? '/discover?view=grid'
     : screen === 'discover-youtube' ? '/discover?view=youtube'
    : screen === 'discover-people' ? '/discover?tab=explore'
    : screen === 'discover-groups' ? '/discover?tab=explore'
-   : screen === 'discover-explore' ? '/discover?tab=explore'
-  : screen === 'shorts' || screen === 'install-prompt' ? '/shorts'
+    : screen === 'discover-explore' ? '/discover?tab=explore'
+    : screen === 'watch' ? '/watch/dp-1'
+    : screen === 'shorts' || screen === 'install-prompt' ? '/shorts'
+    : screen === 'shorts-searched' ? '/shorts?q=studio'
   : screen === 'groups' ? '/groups'
   : screen === 'groups-discover' ? '/groups?tab=discover'
   : screen === 'groups-detail' ? '/groups/web10%2Fgroups%2Fusers%2Fnova%2Fsynthwave-sessions'
@@ -123,10 +130,13 @@ createRoot(document.getElementById('root')!).render(
   <MemoryRouter initialEntries={[initialRoute]}>
     <Routes>
       <Route element={<Layout onLogout={() => {}} onLogin={() => {}} isAnon={anon} onReportBug={() => {}} />}>
-        <Route path="/feed" element={<FeedScreen />} />
+        <Route path="/feed" element={<PostsScreen />} />
         <Route path="/composer" element={<PostComposer />} />
         <Route path="/notifications" element={<NotificationsScreen />} />
         <Route path="/discover" element={<DiscoverScreen />} />
+        <Route path="/video" element={<DiscoverScreen />} />
+        <Route path="/hot-gossip" element={<DiscoverScreen />} />
+        <Route path="/watch/:postId" element={<WatchScreen />} />
         <Route path="/shorts" element={<ShortsScreen />} />
         <Route path="/shorts/:postId" element={<ShortsScreen />} />
         <Route path="/messages/*" element={<DmsScreen />} />

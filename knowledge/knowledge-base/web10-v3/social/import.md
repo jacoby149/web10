@@ -91,11 +91,23 @@ parallelism lives (bounded `ThreadPoolExecutor`).
    6. marks the job `complete` and **deletes the export from MinIO** (the
       privacy promise: the node never keeps the raw export).
 5. **Poll** — `POST /v3/imports/status` `{token, job_id}` returns the job row
-   (phase, `total_records`, `written_records`, `skipped_records`, `errors`,
-   `message`). The client renders it.
+   (phase, `total_records`, `written_records`, `skipped_records`, `progress`,
+   `errors`, `message`). The client renders it.
 
 The job row is the status surface. Phases: `pending → queued → processing →
 complete | error`.
+
+### The progress percentage
+
+The job row carries a `progress` column (0-100, clamped) so the client renders
+a real "x% imported" bar. The worker computes it during the write phase:
+download + parse are **indeterminate** (`progress` stays 0 with a live
+`message` — the record count isn't known until the parse), then the percentage
+counts **parsed records processed** (written or skipped) out of the total,
+capped at **99**. **100 is reserved for `complete`** — the client reads 100 as
+"done", so a mid-import job never claims it. The media thumbnails are an
+auxiliary sub-step of the posts (not a record of their own), so they don't move
+the percentage.
 
 ## The Write Pipeline (order matters)
 
@@ -104,17 +116,39 @@ complete | error`.
 1. **Media** — the thumbnails. Download → MinIO → `media_metadata` doc. Bounded
    concurrency (a 10k-video channel is 10k small downloads). A failed
    thumbnail is non-fatal — the post still imports.
-2. **Posts** — `staging_posts`, attached to the followers group, with
+2. **Posts** — `staging_posts`, attached to the **target group**, with
    `created_at` = the **original publish date** (the catalog keeps its real
    dates — "take your videos exactly"). `insert_document` gained a `created_at`
    param for this (backdates the doc; `updated_at` stays now, which is what the
    ReplacingMergeTree dedup keys off).
 3. **Comments** — `comments` with **`ref_value` = the imported post's
-   `doc_id`** (the D62 engagement join). The `doc_id` is server-generated, so
-   the post must be written first and its `doc_id` captured. A comment whose
-   post wasn't imported is an **orphan** — skipped, not written.
-4. **Profile** — the channel → the creator profile. Never overwrites an
-   existing profile (the user's current profile wins).
+   `doc_id`** (the D62 engagement join), attached to the target group. The
+   `doc_id` is server-generated, so the post must be written first and its
+   `doc_id` captured. A comment whose post wasn't imported is an **orphan** —
+   skipped, not written.
+4. **The channel** — the group's **face** when the import targets a group
+   (below), or the user's personal **profile** (the legacy default). Never
+   overwrites an existing face/profile — the current one wins.
+
+### The target group (import into a page)
+
+The import can write into a **group the user owns** instead of the user's
+personal profile — the "port your channel into a page" flow. `POST /v3/imports`
+accepts an optional `target_group_id`; the node gates it (404 if the group is
+unknown, 403 if the user does not own it — I3, since the import writes posts +
+comments + the group's face, all owner-level). When a target is set:
+
+- the posts + comments attach to **that group** (not the followers group), and
+- the channel becomes the **group's face** — a doc in the app-named
+  `web10-social-group-identity` service (the **group-as-profile** model,
+  `../groups/identity.md`): the channel title → the face `name`, the
+  description → `description`, the channel URL → `website`. The group is its
+  own animal, its own profile (the Facebook-page model) — it lives in the
+  People tab, not the creator's profile.
+
+Absent a target, the legacy flow is unchanged: the followers group + the
+personal `profile`. A group that already has a face keeps it (the import
+skips the face write, never overwrites).
 
 ### Why `staging_posts` (D30)
 
@@ -166,21 +200,28 @@ export — Takeout exports YouTube as CSV, not the Data-API JSON):
 
 | Endpoint | Body | Returns |
 |---|---|---|
-| `POST /v3/imports` | `{token, platform, parts:[{filename, size_bytes}]}` | `{job_id, platform, job, uploads:[{part_index, object_key, upload_url, fields}]}` |
+| `POST /v3/imports` | `{token, platform, parts:[{filename, size_bytes}], target_group_id?}` | `{job_id, platform, job, uploads:[{part_index, object_key, upload_url, fields}]}` |
 | `POST /v3/imports/start` | `{token, job_id}` | `{job_id, status}` (400 if parts missing) |
-| `POST /v3/imports/status` | `{token, job_id}` | `{job_id, job}` |
+| `POST /v3/imports/status` | `{token, job_id}` | `{job_id, job}` (the job row carries `progress` 0-100) |
 
 All token-gated; a user may only start/status **their own** job (403 otherwise,
-404 if unknown). The presigned upload URLs are scoped to the exact object keys
-(the S3 key is the boundary — a URL can only address this job's parts).
+404 if unknown). `target_group_id` is optional — when set it must be a group the
+user **owns** (404 if unknown, 403 if not owned). The presigned upload URLs are
+scoped to the exact object keys (the S3 key is the boundary — a URL can only
+address this job's parts).
 
 ## The UI
 
-The authenticator's **Settings → Import from YouTube** card
-(`ui/src/components/Settings/Import.tsx`): pick the Takeout files (tar or zip,
-multiple) → Start Import. It creates the job, uploads each part to MinIO,
-starts the job, and polls the status, rendering the phase + progress. The node
-deletes the raw export when the job finishes.
+The social app's **Settings → Import** section
+(`marketing/web10-social/src/components/Settings/ImportSection.tsx`, data layer
+`src/data/imports.ts`) is the home of the import: pick the Takeout files (tar or
+zip, multiple), choose **where it lands** (your profile, or a group you own —
+the target picker lists `getGroupsManages` + each group's face name), Start
+Import. It creates the job, uploads each part to MinIO, starts the job, and
+polls the status, rendering the live **percentage** + record count. The node
+deletes the raw export when the job finishes. (The import was originally the
+authenticator's `ui/src/components/Settings/Import.tsx` card; that was removed —
+the social app is the only home now.)
 
 ## What This Is Not
 

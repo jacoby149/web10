@@ -9,7 +9,7 @@ Status legend: [decided] intent set · [in-progress] · [open] still debating.
 
 ---
 
-### D81 — Content analytics is a generic engine: impressions are two-tier (delivery server-side, viewport client-gated), keyed on the document [decided]
+### D85 — Content analytics is a generic engine: impressions are two-tier (delivery server-side, viewport client-gated), keyed on the document [decided]
 
 Operator, 28.09.2026 — after building the first-party platform telemetry (D56): "we want to add analytics to web10 social, so the users of web10 social can see how their ads are performing i.e. how many clicks and stuff, how many times their posts are getting viewed, impressions" → "web10 is generic, so needs to be an engine any app can use, social app or whatever" → "the sdk needs a way to log impressions … but kind of whack if this is super hackable, people hacking it and pumping their own stuff up" → "web10 doesnt take a cut of influencer ads it makes money from node ads so in everyones best interest to have it be honest" → "a web10 app could have inspect element changed, to spam the sdk or whatever, or someone could make an app that just abuses the sdk."
 
@@ -41,7 +41,127 @@ Operator, 28.09.2026 — after building the first-party platform telemetry (D56)
 
 **Rejected:** client-side *delivery* logging (gameable — inspect-element, a spam app, or a script can fire it at will; the delivery floor stays server-side); a per-app analytics feature in `marketing/web10-social/` (breaks D60 — a notes/music/shop app needs the same engine); a separate `trackImpression()` SDK method (gives the client a counting lever it should not have — delivery is a read side-effect, and the only client method is the *gated* `trackContentEvent`); a fixed node-side list of surfaces (the surface is an app-owned label, so the engine stays D60-generic); tying the engine to creator-ad revenue (web10's revenue is node ads, so the engine stays neutral infrastructure).
 
-**Sequencing (plan.md → "Content Analytics Engine (D81)"; lane `content-analytics`):** capture (log impressions in the read path — the keystone, gates everything) → query (a generic "impressions for my docs" endpoint) → dashboard (web10-social's creator surface, the first consumer) → ads (click + conversion on a doc tagged `ad`, reusing the existing affiliate/pay pipeline).
+**Sequencing (plan.md → "Content Analytics Engine (D85)"; lane `content-analytics`):** capture (log impressions in the read path — the keystone, gates everything) → query (a generic "impressions for my docs" endpoint) → dashboard (web10-social's creator surface, the first consumer) → ads (click + conversion on a doc tagged `ad`, reusing the existing affiliate/pay pipeline).
+
+### D84 — Multi-node federation: one canonical principal format + the foundation [decided, in-progress]
+
+Operator, 29.09.2026 — after the profile Following-tab fix (3.179.1) exposed the member_key format drift: "this doesnt sound good, because the full provider/username should be used, what if eventually people follow two same usernames on different providers?" → "you should do it right now! make it work multi provider, this is the main hangup that stops it from doing so" → "we need to make the multi node thing possible, set the foundation, we don't need to show it working right away, but yes we should be reading the other node's feed some day, multi node feed absolutely, but there is more we need to discuss about how that would work. i.e. does one node query the other node, or does the user query both nodes (the node they're on and the node they're not on)?"
+
+**The decision.** web10 is a **federation of nodes**, not one node. The foundation for that is two things: (1) a **single canonical principal format** across the whole identity layer, and (2) **cross-node token verification** (D7 / I1 — already in flight). This decision locks the canonical format and scopes the foundation; it does **not** build the cross-node read path yet (that is an open question, below).
+
+**The current state (why this is the hangup).** The node is architecturally single-node, and the identity layer is **inconsistent** — the same user is stored under different keys depending on the write path:
+
+| Surface | Key format | Example |
+|---|---|---|
+| `documents.author_key` | bare username | `jacoby149` |
+| `group_members.member_key` — **followers** groups | bare username | `jacoby149` |
+| `group_members.member_key` — **community** groups | `{provider}/users/{username}` | `web10.app/users/jacoby149` |
+| `group_members.member_key` — **DM** groups | hardcoded `web10.app/users/{username}` | `web10.app/users/jacoby149` |
+| reader principal (the JWT `username` claim) | bare username | `jacoby149` |
+
+There is **no `provider` column** — the provider is either omitted (followers, author_key) or crammed into the string (community/DM, and DM even hardcodes `web10.app` regardless of the real provider). The codebase already knows this is a mess: `import_worker.py` checks **both** the bare and the `provider/users/username` form because it can't tell which a given group used. The `/by-user` Following-tab bug (3.179.1) is one symptom of this drift, not the disease.
+
+**The canonical format (the load-bearing call).** One column, **`{provider}/users/{username}`** — chosen across the *entire* identity layer, not just `group_members`:
+
+- **`author_key`** (the `documents` table's primary key) → `{provider}/users/{username}`.
+- **`group_members.member_key`** (all three group kinds) → `{provider}/users/{username}`.
+- **the reader principal** (the JWT `username` claim, as used by every `member_key = reader` / `author_key = reader` gate) → `{provider}/users/{username}`.
+
+**Why one column, not two** (the operator asked "one column or two"): two columns is the Postgres instinct, but in ClickHouse it buys no integrity (no UNIQUE constraints — consistency is still enforced at the app layer) and it breaks the **principal classes** (`anyone` / `authenticated` / `anon` have no provider — a two-column model forces a sentinel like `provider = ''`). One column keeps the read gate a plain equality JOIN (`member_key = reader`) and makes the migration **data-only** (no `ORDER BY` change, no table rebuild). `{provider}/users/{username}` is unambiguous, self-describing, and already the format community + DM groups use.
+
+**The phases (the foundation, in order).** Each is its own PR/lane; this decision scopes them, it does not build them. The end-state vision (reads are the business model; v2 engagement aggregation is the "unified" payoff; v3 write-unification is the wall) is in `multi-node.md`.
+
+- **A — the canonical principal format + migration.** Rewrite `author_key`, every `group_members.member_key`, and the reader principal to `{provider}/users/{username}`. A **data migration** (insert new-format rows, tombstone the old — the ReplacingMergeTree pattern), not a schema change. The reader principal is derived from the token as `{provider}/users/{username}` (the token already carries both claims). This is the piece that dissolves the "two same usernames on different providers" collision. **Gates C, D, E.**
+- **B — cross-node token verification (D7 / I1, already in flight).** HS256 → RS256/EdDSA + JWKS: per-node keypair, public keys at a well-known JWKS URL, offline verification. A node verifies *another* node's token cryptographically (I1) instead of rejecting it. The scaffolding exists but is dead (`certify_with_remote_provider` is defined, never called; `certify` isn't on the active v3 path). **Independent of A** (A is data, B is auth) but both are needed before C.
+- **C — cross-node group membership.** Following someone on another node = joining *their* followers group, which lives on *their* node. The membership row + the follow relationship must be expressible across the node boundary. This is where the canonical format (A) and cross-node auth (B) meet. **Gates D, E.**
+- **D — cross-node reads (the multi-node feed).** The user's feed includes posts from creators on other nodes. **Client-side fan-out + ranked merge, targeted by provider** (decided — see `multi-node.md`). **Gated on C.**
+- **E — cross-node engagement aggregation (the "unified" feel, v2).** A *global* like/comment count: each node fast-scans its local engagement (ClickHouse OLAP), the API layer does the HTTP fan-out + merge (I6), the client shows an eventually-consistent unified count. The read-revenue model — the node earns from serving reads. **Gated on C.**
+
+**Ads are not a phase** — a natural outcome of the read model: **the user is on A** (their home node / session), so **A serves the ads for the user's session and keeps the majority of their ad revenue** — not because of any content proportion, but simply because the user is on A. A foreign node (B) keeps the ad revenue from the content it serves. No settlement, no Stripe, no cut for routing. It falls out of "the user is on their home node" + "ads ride with reads" (D57). Full model + the "feel like one node" spectrum (v1/v2/v3): `multi-node.md`.
+
+**The read model (decided, 29.09.2026): client-side fan-out for v1.** When a user's feed spans two nodes, **the user's client queries both nodes and merges** — not the home node proxying. The client holds the user's home-node token, calls each node the user follows people on (targeted, not broadcast — the KB's "targeted queries, not broadcasts"), and does a ranked merge of the result sets. Server-side proxy (the home node queries the other node and merges) is **deferred**, not banned: it imports node-to-node trust that D7 is trying to avoid, and a server-side merge that caches foreign data has a confused-deputy risk (a cache key that omits the reader principal leaks one user's read to another). Full model + the security walk-through: `multi-node.md`.
+
+**I6 — the cross-node boundary is the HTTP API + a verified token; remote data is content, never control.** (New invariant, 29.09.2026 — the operator's "mine Node A from Node B" concern.) Two hard rules: (1) **no node ever queries another node's ClickHouse** — the boundary is the HTTP API + a JWKS-verified token (ClickHouse's `remote()`/`cluster()` are for trusted clusters and are rejected for federation); (2) **remote data is untrusted content, never query input, never a key into the local ClickHouse, never a grant** — the feed merge is a result-set *union* of independently I3-authorized reads, so a foreign node's data can't steer what the local node queries. The "mine A from B" attack fails because every read is re-authorized by the *serving* node against the *verified* token — a data reference is not a grant (the same property that stops a local user reading other posts, I3).
+
+**What it rejects.** (1) **A `provider` column** on `group_members` / `documents` — no integrity gain in ClickHouse, breaks the principal classes, forces a table rebuild. (2) **Leaving the format drift** — the three-format member_key + bare author_key is the root of the Following-tab bug and the cross-provider collision; it must be canonicalized, not patched per-read (the 3.179.1 `/by-user` normalization is a stopgap that collapses to the bare form; it is *reversed* by Phase A, which makes the `provider/username` form the real stored form). (3) **Building the cross-node read path before the canonical format + token verification** — a read path on top of an inconsistent identity + unverifiable cross-node tokens is a house on sand. (4) **A global "one database" federation** — the nodes are separate; federation is the read/write path across them, not a shared store. (5) **Cross-ClickHouse federation** (`remote()`/`cluster()`) — a DB-level trust path that bypasses the API's auth; the boundary is the HTTP API (I6).
+
+**The seam.** `api/app/services/auth.py` (the token verification — D7/I1, Phase B), `api/app/v3/endpoints/auth_helper.py` + the reader-principal derivation (Phase A), `api/app/v3/services/clickhouse.py` (the `author_key` + `member_key` + read-gate — Phase A), the data migration (Phase A), `sdk/src/v3.ts` (the Cross-Node Addressing seam — Phases C/D), `marketing/web10-social/src/data/` (the client-side feed merge — Phase D). KB: `security/overview.md` (I1, the Federation section), `auth/auth.md` (Cross-Node Addressing), `db/clickhouse.md` (the schema). **The "how" doc: `multi-node.md`** (the read model, the cross-node boundary, I6, the phase sequencing, the open questions). Lane: `multi-node-federation (D84)` in `parallel-execution.md`.
+
+---
+
+### D83 — The watch page's author is the profile, not an overlay (reversal of the 3.170.0 "stay on the train" rule) [decided]
+
+Operator, 29.09.2026 — "you could also just have about go to their profile page, instead of this extra modal to maintain not sure though what do you think?" (after the watch page's author overlay showed a broken "J" avatar + no banner, and the Follow button read "Follow" on the operator's own video).
+
+**The decision.** The watch page's author row (avatar + name) **navigates to `/u/:username`** — the author's full profile. The 3.170.0 `AuthorOverlay` (the "stay on the train" drawer) is **deleted**. The profile page is the canonical "About" surface: banner, avatar, name, bio, stats, follow, the full post grid — and it is already deep-linkable.
+
+**Why the overlay was wrong (the part that tells you it's correct).** The overlay was a *second* profile surface — a redundant, lower-fidelity copy of the profile page (no banner, fewer posts, no stats). It also shipped with a real bug: it looked up the avatar at `mediaMap['avatar:'+avatar_ref]`, a key the watch page's post-media resolver (`resolvePostsMedia`) never populates — so the avatar always fell back to the initial-letter tile (the "J"), and there was no banner. A modal that is a worse version of the page it previews is friction, not a feature. And the app already had the convention: **every other surface's author click navigates to `/u/:username`** (the feed, the card, the Shorts lens, the comment thread, the search). The watch page was the lone holdout inventing its own modal.
+
+**The self case (the "Follow" bug).** On your own video the Follow button read "Follow" — because `isFollowing` is a followers-group membership check, and you are not a member of your *own* followers group. The correct state for self is **no Follow button** (you can't follow yourself), not a forced "Following." The button is now hidden when `author === token.username`.
+
+**What it rejects.** (1) **A second profile surface** — the overlay was a worse copy of the profile page; one canonical surface wins. (2) **The "stay on the train" rule as a hard constraint** — the original concern (a profile click yanks you off the video) is real but recoverable: the `?t=` URL still restores the exact playback position, so "off the train" is one browser-back. The cost of a clean, single author surface is worth that. (3) **A "Following" label on your own video** — self is a distinct state (no button), not a follow state.
+
+**The seam:** `marketing/web10-social/src/components/Watch/WatchScreen.tsx` (the `AuthorOverlay` component + the `overlayOpen` state + the `readUserPublicProfile`/author-posts fetch are gone; the author button navigates to `/u/:username`; the avatar is resolved from the profile's `avatar_ref` via `resolveMediaRefs`; the Follow button is hidden for self). KB: `social/watch-page.md` (the author section + decision #5 + "What this is not").
+
+---
+
+### D82 — A post carries two bodies of text: an optional `title` (the headline) + `text` (the caption) — one field, app-owned, zero node surface [decided]
+
+Operator, 29.09.2026 — "i am thinking to shorts, videos, hot gossip, the three things, posts should have title and caption, not just one. i.e. two bodies of text would be richer for all three formats. what do you think? definitely a little different from regular social media." → "definitely effects all the screens, they all have to make decisions on displaying title AND/OR caption, two text fields instead of just one. and the implications for ads too, also should fit in with posts potentially!"
+
+**The decision.** A post's body gains an **optional `title`** alongside the existing **`text`** (the caption). Two bodies of text, not one — a deliberate break from the single-caption shape of regular social media. The `title` is the **headline** (the short, punchy line that leads a card / watch header / short overlay); `text` is the **caption** (the longer body). It is **optional everywhere**: a post with no `title` renders exactly as today (caption-only), so there is no migration and no rewrite of existing docs.
+
+**The shape (all client-side — zero node surface, D60):** the node stores `{service, body}` opaquely and does not care what fields are in the body. Adding `title` to the `posts` body is one field the app writes and reads — no new table, no new column, no new endpoint, no contract change. The composer writes it; `fromV3DocToPost` reads it; every surface decides how to show the two fields.
+
+**The per-format split:**
+
+| Format | `title` | `text` (caption) |
+|---|---|---|
+| **Video** (the YouTube wall) | the chunky card title + the watch-page header | the description under the player |
+| **Shorts** | the overlay line on the tile / lens | the expanded caption |
+| **Hot Gossip** (Threads) | optional top line — a hot take is caption-only by default | the body |
+
+The load-bearing case is **Video**: today the video wall's "title" is a *lie* — it is `text` truncated to 80 chars. A real, author-controlled `title` is what YouTube is (title + description). **Hot Gossip** is the interesting call: Threads is *just* text, so a headline would be over-structure — the card shows the title only when one exists, otherwise it is the plain text card.
+
+**Ads fall out for free (the part that tells you it's correct).** An ad *is* a `posts` doc tagged `ad` with the same body (ads.md, D55). Add `title` to the post body and the ad creative inherits it with no separate ad change: a post-format ad's card gets a title + caption just like a post, an inline ad uses the title as its line. The `offer` object is untouched — the creative is the post, the offer is the link. That is the "an ad is a post" doctrine doing its job.
+
+**The real work is the render matrix, not the model.** Every surface makes a show/hide/truncate decision for each of the two fields:
+
+| Surface | Title | Caption |
+|---|---|---|
+| Video wall card (`HomeCard`) | chunky, ~80-char cap | hidden (or 1 line) |
+| Watch page | header | full, under the player |
+| Shorts tile / lens | overlay line | expanded |
+| Hot Gossip card (`DiscoverCard`) | optional top line | the body |
+| Ad (post format) | card title | copy |
+| Ad (inline) | the line | — |
+| Composer | new title input | existing text box |
+
+**Search matches the title too** — a title is the highest-signal string to match; the `?q=` post/video/shorts filters check `title || text`.
+
+**What it rejects.** (1) **A second required field** — `title` is optional; forcing a headline on a hot take (or a caption on a title-only clip) would be over-structure. (2) **A node column / endpoint** — D60: it is a body field the app owns, not platform surface. (3) **A per-format content type** — shorts / videos / gossip are all `posts` docs (shorts.md, D30/D58); the two fields are on the one post shape, not three shapes. (4) **A media `caption`** — the per-media `caption`/`alt_text` (accessibility, on the media doc) is a different thing and stays; the post's `title`/`text` are the post's own two bodies.
+
+**The seam:** `marketing/web10-social/src/data/{types,posts}.ts` (`PostRecord.title`, `fromV3DocToPost`, `createPost`/`updatePost`), `marketing/shared/discover/src/{types,HomeCard,DiscoverCard}.tsx` (`DiscoverPost.title` + the two cards), `src/data/ads-catalog.ts` + `src/data/types.ts` (`AdRecord.title`, `fromV3DocToAd`), the composer (`PostComposer.tsx`), the watch / shorts / lightbox surfaces, and `src/data/search.ts`. KB: `social/ads.md` (the post body shape), `social/shorts.md` (the overlay), `social/discover-card.md` (the card title).
+
+---
+
+### D81 — Copyright takedowns use the "Post-It Note" DMCA rule: a designated-agent email + a manual, fast removal — no takedown queue, no node surface [decided]
+
+Operator, 29.09.2026 — "Use the 'Post-It Note' DMCA rule: Add a simple 'Report Copyright' button and an email address (like copyright@yourapp.com) in your terms of service. If a label emails you to take a video down, you just delete it manually. As long as you act fast, you are legally protected while you are small. we need this on the app for compliance."
+
+**The decision.** Copyright takedowns are a **legal-compliance surface**, not a platform feature. web10 follows the **"Post-It Note" rule**: a designated-agent **email address** + a **fast, manual removal**. A rights holder emails the agent with a link to the infringing content; the node operator opens the link and removes it (the existing board takedown `POST /v3/groups/hide`, or the author's own delete). Acting quickly on valid notices is what keeps a small node legally protected.
+
+**The shape (all client-side + a doc — zero node surface, D60):**
+
+- **The designated agent** is an email: `copyright@web10.com` for the web10 reference node / web10-social. A self-hosted node names its **own** agent in its **own terms** — the agent is a terms-level thing, not a `node_config` column (the node stays generic).
+- **The in-app affordance is a `mailto:` composer, not a write.** **Settings → About → Report copyright** opens a dialog showing the agent's email + a pre-filled message (the content's link, the author, a rights statement) and hands it to the user's mail client. It never sends anything itself — no data write, no node call.
+- **The terms of service publish the address** (`marketing-ui /docs/terms`, "Copyright & DMCA") so a rights holder who doesn't use the app can still find it.
+
+**Why a single entry point, not a per-post button.** The app has many content surfaces (video, shorts, hot gossip, profile, the post lightbox). The mechanism is an **email**, so the button does not belong scattered across every surface — it lives in **one always-reachable place** (Settings → About, next to "Report a bug"). A per-post "Report copyright" on every surface would be the over-built version of a deliberately-small rule.
+
+**What it rejects.** (1) **A takedown queue** — no `takedowns` table, no `/v3/takedowns` endpoint, no in-app report queue. The email **is** the report; a node surface for it would violate D60 (a DMCA queue is a legal/operational concern, not a platform primitive). (2) **A per-post report button on every content surface** — the mechanism is an email, so the affordance is one entry point, not scattered. (3) **A strike system** — no counter, no account penalty. A valid notice removes the content; that's the whole mechanism. (4) **A `node_config` agent column** — the agent is terms-level, not a node-config field (the node stays app-agnostic).
+
+**The seam:** `marketing/web10-social/src/components/shared/ReportCopyright.tsx` (the `mailto:` dialog + the `COPYRIGHT_EMAIL` constant), reached from `SettingsScreen` (the About section). The public doc is `marketing/marketing-ui/public/docs/terms.md`. The KB model is `knowledge/knowledge-base/web10-v3/social/content-moderation.md` ("Copyright Takedowns").
 
 ---
 
@@ -712,6 +832,67 @@ consideration).
 
 Full model: `knowledge-base/web10-v3/social/content-moderation.md`. Default
 list: `knowledge-base/web10-v3/social/sensitive-words-default.md`.
+
+### D59a — Node-level ban (`banned_users`) + retroactive user-hide [decided]
+Operator, 28.09.2026 — "the social app i tried to hide the posts from the user,
+but the posts were still visible" + "no ability to ban, just to hide from
+discover" + "node level ban needs a kb entry, like if user banned, the web10
+query engine just filters out banned user created stuff that simple" + "hiding
+for a whole user … it is currently only per post, needs work too on the backend
+to let hide all happen for a user".
+
+**Decided** — (1) **The user-hide is retroactive.** `POST /v3/moderation/auto-hide`
+with `hide=true` no longer only governs *future* posts: it also sweeps the
+user's **existing** discover-board docs and hides each from the board (the
+existing `group_hidden_docs` mechanism); `hide=false` restores them. The sweep
+is **service-agnostic** (D60 — no `posts` hardcode): a hide is "take this user
+off the board", so every doc they have on the discover board is swept, whatever
+service it lives in. The write-path hook still covers future posts. This fixes
+"I hid the user but their posts are still visible" — the hide now takes effect
+immediately, not on the user's next post. (2) **A node-level ban is
+`node_config.banned_users`** — a JSON array of usernames (the same shape as
+`auto_hide_users`), admin-only (`POST /v3/moderation/ban`). A banned user's
+content is **filtered out of every read path**: the board read
+(`_board_base_sql`) and the query engine (`_boundary_cte_sql`) both carry an
+`author_key NOT IN (banned_users)` predicate, so a banned user's docs do not
+surface in any read (discover, feed, profile, the D73 query engine) — for any
+service, not just social. The ban is **generic** (D60 — a node-owner feature,
+not scoped to social): a node operator banning a spammer's content is
+app-agnostic. The ban is node-level (a node_config list, not a user property —
+it does not follow the user across nodes) and reversible (remove the username
+and their content returns). (3) **The ban is stronger than the hide.** A hide
+(`auto_hide_users`) is *board curation* — it suppresses the user's docs from
+the discover board only (their profile, followers' feed, and other groups are
+intact — D41/I3 hold). A ban reaches the whole read path. A banned user is also
+off the board (the ban subsumes the hide for board visibility), but the ban's
+reach is broader. (4) **The Hidden Posts list returns to the UI** — the
+Moderation tab lists the discover group's `group_hidden_docs`
+(`POST /v3/groups/hidden`) with a per-post Unhide, restoring the surface the
+authenticator's retired Board Moderation card had.
+
+**Why:** the operator's mental model — "if user banned, the query engine just
+filters out banned user created stuff" — is the right one and it's the smallest
+correct mechanism: a node_config list + a read-path predicate, no new table, no
+new role, no DDL. Both the ban and the retroactive sweep are **generic** (D60):
+the ban filters on `author_key` in the universal read path (any service, any
+app), and the sweep hides every doc the user has on the discover board (no
+`posts` hardcode — "take this user off the board" is service-agnostic). The
+sweep reuses the same `group_hidden_docs` mechanism the write-path hook already
+uses, so "hide a user" and "hide a post" are the same primitive at two
+granularities.
+
+**Rejected:** a `banned` column on a `users` table (a user property — the ban is
+a node-operator decision, node-local, like `auto_hide_users`); blocking a
+banned user's *login* (the operator's model is a read-path filter — the content
+isn't served — not an account lockout; a login block is a different, stronger
+mechanism and not what was asked); reusing `auto_hide_users` and relabeling it
+"Ban" (it's board-curation only — it doesn't filter the profile/followers'
+feed, so it's not a real ban); scoping the sweep to `collection_name = 'posts'`
+(a D60 leak — the node learning "a post is a social doc"; the sweep is
+service-agnostic because a hide is "off the board", not "off the posts board").
+
+Full model: `knowledge-base/web10-v3/social/content-moderation.md` ("The Ban" +
+"The 'hide a user' behavior (retroactive)").
 
 ---
 

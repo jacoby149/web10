@@ -194,7 +194,7 @@ def read_documents(request: Request, data: ReadDocuments):
         _check_app_permission(request, reader, data.service, "readAll")
 
     if data.doc_id:
-        doc = ch.read_document_by_id(data.doc_id, reader, data.service)
+        doc = ch.read_document_by_id(data.doc_id, reader, data.service, authenticated)
         if not doc:
             raise exceptions.ENTRY_NOT_FOUND
         # v3 ad preference: the single-doc read serves the pinned ad inline

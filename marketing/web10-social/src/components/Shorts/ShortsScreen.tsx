@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState, useCallback } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
-import { Heart, MessageCircle, Share2, X, Volume2, VolumeX, ChevronLeft } from 'lucide-react';
+import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
+import { Heart, MessageCircle, Share2, X, Volume2, VolumeX, ChevronLeft, Search } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { getWapi } from '@/data/wapi';
 import { readShortsFeed, toggleReactionKind, getV3Client, getDiscoverGroupId, extractUsername, type ShortPost } from '@/data';
@@ -9,6 +9,7 @@ import { CommentThread } from '@/components/Feed/CommentThread';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
 import { requestInstallPrompt, isMobile } from '@/lib/pwa';
+import ShortsWall from './ShortsWall';
 
 const LOG = (...args: unknown[]) => console.log('[shorts]', ...args);
 
@@ -21,11 +22,36 @@ const LOG = (...args: unknown[]) => console.log('[shorts]', ...args);
 let sessionMuted = true;
 
 /**
- * The Shorts surface (shorts.md) — the full-screen, vertical, swipe-between-
- * posts feed. The video IS the screen: each slide is a full-viewport-height
- * snap slide, the video fills it (`fit="cover"`, `immersive` — no control
- * rack, no phone-width column), and the author/caption overlay + the
- * like/comment/share rail sit on top.
+ * The Shorts route (shorts.md) — two surfaces, one route family:
+ *
+ * - **The wall** (`/shorts`, no `:postId`) — the explore grid: a responsive
+ *   wall of 9:16 vertical video tiles that fills the screen. The "before you
+ *   pick a short" surface (the operator: "the moment you visit it looks like
+ *   [the wall]").
+ * - **The lens** (`/shorts/:postId`) — the full-screen, vertical,
+ *   swipe-between-posts feed. The video IS the screen: each slide is a
+ *   full-viewport-height snap slide, the video fills it (`fit="cover"`,
+ *   `immersive`), and the author/caption overlay + the like/comment/share
+ *   rail sit on top. The "youtube what's next" / TikTok infinite scroll.
+ *
+ * The route dispatcher (`ShortsScreen`) picks the surface from the URL — the
+ * URL is the state (the deep-link rule): a bare `/shorts` is the wall, a
+ * `/shorts/:postId` is the lens opened on that short.
+ */
+export default function ShortsScreen() {
+  const { postId } = useParams<{ postId: string }>();
+  // No `:postId` → the explore wall. A `:postId` → the lens (the existing
+  // full-screen swipe feed, opened on that short).
+  if (!postId) return <ShortsWall />;
+  return <ShortsLens postId={postId} />;
+}
+
+/**
+ * The Shorts lens — the full-screen, vertical, swipe-between-posts feed. The
+ * video IS the screen: each slide is a full-viewport-height snap slide, the
+ * video fills it (`fit="cover"`, `immersive` — no control rack, no phone-width
+ * column), and the author/caption overlay + the like/comment/share rail sit on
+ * top.
  *
  * The frame: on a phone (a 9:16 viewport) the slide is already ~9:16, so the
  * video is full-bleed. On a wide desktop viewport the slide is a centered
@@ -38,8 +64,7 @@ let sessionMuted = true;
  * equivalent of the swipe). The active slide (≥60% visible) autoplays muted;
  * off-screen slides pause.
  */
-export default function ShortsScreen() {
-  const { postId } = useParams<{ postId: string }>();
+function ShortsLens({ postId }: { postId: string }) {
   const navigate = useNavigate();
   const [shorts, setShorts] = useState<ShortPost[]>([]);
   const [loading, setLoading] = useState(true);
@@ -57,6 +82,33 @@ export default function ShortsScreen() {
   // ambient loop; the speaker icon is the escape hatch (the TikTok model).
   const [muted, setMuted] = useState<boolean>(sessionMuted);
   const containerRef = useRef<HTMLDivElement>(null);
+
+  // Deep link: the search query from ?q= (the global search's Shorts category
+  // lands here — /shorts?q=…, the S8 four-category search). The lens filters
+  // its slides to the matches (text or author, case-insensitive) and shows a
+  // query chip (with its X) so the search is visible + clearable — the same
+  // ?q= idiom as the other destinations (the URL holds the screen state).
+  const [searchParams, setSearchParams] = useSearchParams();
+  const urlQuery = searchParams.get('q') || '';
+  const clearQuery = useCallback(() => {
+    const params = new URLSearchParams(searchParams);
+    params.delete('q');
+    setSearchParams(params);
+    LOG('query cleared');
+  }, [searchParams, setSearchParams]);
+
+  // The slides, filtered to the active ?q= (the search is a view over the
+  // loaded lens, not a re-read — the lens loads the board once).
+  const visibleShorts = urlQuery.trim()
+    ? shorts.filter((s) => {
+        const q = urlQuery.trim().toLowerCase();
+        return (
+          (s.post.title && s.post.title.toLowerCase().includes(q)) ||
+          (s.post.text && s.post.text.toLowerCase().includes(q)) ||
+          (s.post.author_username && s.post.author_username.toLowerCase().includes(q))
+        );
+      })
+    : shorts;
 
   // The slides, in order — the container's children filtered to the snap
   // slides. The back arrow is also a child of the container (it sits above the
@@ -163,14 +215,14 @@ export default function ShortsScreen() {
 
   // Deep link: scroll to the specific short when :postId is present
   useEffect(() => {
-    if (!postId || shorts.length === 0) return;
-    const idx = shorts.findIndex((s) => s.post._id === postId);
+    if (!postId || visibleShorts.length === 0) return;
+    const idx = visibleShorts.findIndex((s) => s.post._id === postId);
     if (idx >= 0 && containerRef.current) {
       const el = slideEls()[idx];
       el?.scrollIntoView({ behavior: 'instant' });
       LOG('deep link — scrolled to short', idx, postId);
     }
-  }, [postId, shorts]);
+  }, [postId, visibleShorts]);
 
   // Track which slide is the active one (≥60% visible) — the source of truth
   // for the ambient autoplay (the active slide plays muted, the rest pause)
@@ -195,7 +247,7 @@ export default function ShortsScreen() {
     );
     slideEls().forEach((child) => observer.observe(child));
     return () => observer.disconnect();
-  }, [shorts, activeIndex]);
+  }, [visibleShorts, activeIndex]);
 
   // The swipe, keyboard edition: ArrowUp/ArrowDown + PageUp/PageDown scroll
   // one slide (the desktop equivalent of the swipe). The container is the
@@ -203,7 +255,7 @@ export default function ShortsScreen() {
   function handleKeyDown(e: React.KeyboardEvent<HTMLDivElement>) {
     if (e.key === 'ArrowDown' || e.key === 'PageDown') {
       e.preventDefault();
-      slideEls()[Math.min(activeIndex + 1, shorts.length - 1)]
+      slideEls()[Math.min(activeIndex + 1, visibleShorts.length - 1)]
         ?.scrollIntoView({ behavior: 'smooth' });
     } else if (e.key === 'ArrowUp' || e.key === 'PageUp') {
       e.preventDefault();
@@ -299,6 +351,24 @@ export default function ShortsScreen() {
     );
   }
 
+  // A ?q= that matches no loaded short (the search is a filter over the
+  // lens, not a re-read) — a designed no-match state with the clear affordance.
+  if (urlQuery.trim() && visibleShorts.length === 0) {
+    return (
+      <div className="h-full flex items-center justify-center bg-background">
+        <div className="flex flex-col items-center gap-3 text-center px-6">
+          <p className="text-sm font-medium text-foreground">No shorts match &ldquo;{urlQuery.trim()}&rdquo;</p>
+          <p className="text-xs text-muted-foreground max-w-52">
+            Try a different name or caption.
+          </p>
+          <Button variant="outline" size="sm" onClick={clearQuery} data-testid="shorts-query-clear">
+            Clear search
+          </Button>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div
       ref={containerRef}
@@ -321,7 +391,29 @@ export default function ShortsScreen() {
         <ChevronLeft className="w-6 h-6" strokeWidth={2} />
       </button>
 
-      {shorts.map((short, i) => (
+      {/* The active ?q= filter (from the global search's Shorts category) —
+          a chip that shows the query + clears it (the S8 deep-link idiom;
+          the lens filtered to the matches). A full-width sticky wrapper
+          centers the chip; pointer-events pass through except on the chip. */}
+      {urlQuery.trim() !== '' && (
+        <div className="sticky top-4 z-30 flex justify-center pointer-events-none" data-testid="shorts-query-chip">
+          <span className="pointer-events-auto inline-flex items-center gap-1.5 rounded-full bg-black/40 backdrop-blur-md px-3 py-1.5 text-xs text-white">
+            <Search className="h-3.5 w-3.5" strokeWidth={1.75} />
+            {urlQuery.trim()}
+            <button
+              type="button"
+              onClick={clearQuery}
+              data-testid="shorts-query-chip-clear"
+              aria-label="Clear search"
+              className="ml-0.5 -mr-1 flex h-4 w-4 items-center justify-center rounded-full hover:bg-white/20 transition-colors duration-150"
+            >
+              <X className="h-3 w-3" strokeWidth={2} />
+            </button>
+          </span>
+        </div>
+      )}
+
+      {visibleShorts.map((short, i) => (
         // The slide: full viewport height, one per swipe (snap-y mandatory).
         // The frame: on a phone the slide IS the 9:16 frame (full-bleed); on a
         // wide desktop viewport the frame is a centered 9:16 column that fills
@@ -367,6 +459,12 @@ export default function ShortsScreen() {
                 <p className="text-sm font-medium text-white truncate">
                   @{short.post.author_username}
                 </p>
+                {/* The post's two bodies (D82): the title is the lead line, the
+                    caption (`text`) the line under it. A short with only a
+                    caption shows the caption; a title-only short shows the title. */}
+                {short.post.title && (
+                  <p className="text-xs font-medium text-white line-clamp-1 mt-0.5">{short.post.title}</p>
+                )}
                 {short.post.text && (
                   <p className="text-xs text-white/80 line-clamp-2 mt-0.5">{short.post.text}</p>
                 )}

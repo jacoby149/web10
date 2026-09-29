@@ -19,6 +19,9 @@ ui/dist/
 marketing/marketing-ui/dist/
 marketing/web10-social/dist/
 
+# vite dependency-optimization cache (regenerates on every dev run)
+.vite/
+
 # expo
 .expo/
 

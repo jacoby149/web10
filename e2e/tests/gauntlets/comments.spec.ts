@@ -110,7 +110,7 @@ test.describe('comments — browser gauntlet', () => {
     const context: BrowserContext = await browser.newContext();
     const page = await context.newPage();
     await setTokenCookie(context, 'social.localhost', viewer.token);
-    await page.goto(`${SOCIAL_BASE}/feed`);
+    await page.goto(`${SOCIAL_BASE}/feed?tab=following`);
     // Settle: the feed read is async; wait for the post card to render.
     await expect(async () => {
       expect(await postCard(page, postText).count()).toBeGreaterThan(0);
@@ -179,7 +179,7 @@ test.describe('comments — cross-user', () => {
     const context = await browser.newContext();
     const page = await context.newPage();
     await setTokenCookie(context, 'social.localhost', b.token);
-    await page.goto(`${SOCIAL_BASE}/feed`);
+    await page.goto(`${SOCIAL_BASE}/feed?tab=following`);
     await expect(async () => {
       expect(await postCard(page, postText).count()).toBeGreaterThan(0);
     }).toPass({ timeout: 20000 });

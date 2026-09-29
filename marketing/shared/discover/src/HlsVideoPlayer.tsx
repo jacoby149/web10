@@ -110,6 +110,15 @@ interface HlsVideoPlayerProps {
    * the cap is a no-op for it. Absent → uncapped (unchanged).
    */
   maxHeight?: string;
+  /** Seek to this time (seconds) once playback is ready (the watch page's
+    *  `?t=`). Absent → start at 0 (unchanged). */
+  initialTime?: number;
+  /** Fired on every `timeupdate` with the current position (seconds) — the
+    *  watch page's `?t=` write-back. Absent → no callback (unchanged). */
+  onTimeUpdate?: (t: number) => void;
+  /** Loop the clip (default `true` — the ambient feed behavior). The watch
+    *  page plays once → passes `false`. */
+  loop?: boolean;
 }
 
 /** m:ss — the time readout (current / total). */
@@ -136,7 +145,7 @@ const SPEEDS = ['1x', '1.5x', '2x'] as const;
  * component serves the feed card and the lightbox, so both surfaces get the
  * identical controls.
  */
-export function HlsVideoPlayer({ manifestUrl, poster, width, height, className, maxWidth, maxHeight }: HlsVideoPlayerProps) {
+export function HlsVideoPlayer({ manifestUrl, poster, width, height, className, maxWidth, maxHeight, initialTime, onTimeUpdate, loop = true }: HlsVideoPlayerProps) {
   const videoRef = useRef<HTMLVideoElement>(null);
   const hlsRef = useRef<HlsInstance | null>(null);
   const hideTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -215,6 +224,38 @@ export function HlsVideoPlayer({ manifestUrl, poster, width, height, className, 
     LOG_ERR('hls player — no HLS support in this browser');
     setFailed(true);
   }, [manifestHref]);
+
+  // ── Seek to the initial time once playback is ready (the watch page's ?t=). ─
+  // Applied on `seeked` (metadata + the seek landed) — setting currentTime
+  // before the source is ready is a no-op. A one-shot per manifest.
+  useEffect(() => {
+    const el = videoRef.current;
+    if (!el || initialTime == null || initialTime <= 0) return;
+    const onSeeked = () => {
+      if (Math.abs(el.currentTime - initialTime) > 0.5) el.currentTime = initialTime;
+      LOG('hls player — seeked to initial time', initialTime);
+    };
+    el.addEventListener('seeked', onSeeked);
+    // Nudge the seek once the source is attached (hls.js attaches async).
+    const t = setTimeout(() => {
+      if (el.readyState >= 1 && Math.abs(el.currentTime - initialTime) > 0.5) {
+        el.currentTime = initialTime;
+      }
+    }, 250);
+    return () => {
+      el.removeEventListener('seeked', onSeeked);
+      clearTimeout(t);
+    };
+  }, [manifestHref, initialTime]);
+
+  // ── Surface timeupdate to the parent (the watch page's ?t= write-back). ────
+  useEffect(() => {
+    const el = videoRef.current;
+    if (!el || !onTimeUpdate) return;
+    const onTime = () => onTimeUpdate(el.currentTime);
+    el.addEventListener('timeupdate', onTime);
+    return () => el.removeEventListener('timeupdate', onTime);
+  }, [manifestHref, onTimeUpdate]);
 
   // ── Keep the DOM in sync with playback events ─────────────────────────────
   useEffect(() => {
@@ -391,7 +432,7 @@ export function HlsVideoPlayer({ manifestUrl, poster, width, height, className, 
           className="w-full h-full object-contain"
           muted
           autoPlay
-          loop
+          loop={loop}
           playsInline
           preload="auto"
           onClick={togglePlay}

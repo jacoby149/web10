@@ -37,9 +37,9 @@ function getLinks(): LinkItem[] {
       icon: Store,
     },
     {
-      name: 'Discover',
-      description: 'Public discovery board',
-      href: '/trending',
+      name: 'Home',
+      description: 'The live social experience (Video · Shorts · Hot Gossip · People)',
+      href: '/',
       icon: TrendingUp,
     },
     {

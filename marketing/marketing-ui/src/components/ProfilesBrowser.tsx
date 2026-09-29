@@ -146,7 +146,6 @@ export function ProfilesBrowser({ query }: { query: string }) {
   const [peopleLoadingMore, setPeopleLoadingMore] = useState(false);
   const [peopleError, setPeopleError] = useState(false);
   const [peopleHasMore, setPeopleHasMore] = useState(false);
-  const [peopleFirstCount, setPeopleFirstCount] = useState<number | null>(null);
   const peopleNextOffset = useRef(0);
 
   const loadPeoplePage = useCallback(async (offset: number, append: boolean) => {
@@ -157,7 +156,6 @@ export function ProfilesBrowser({ query }: { query: string }) {
     }
     try {
       const { users, hasMore } = await fetchPeoplePage(PAGE_SIZE, offset);
-      if (!append) setPeopleFirstCount(users.length);
       peopleNextOffset.current = offset + users.length;
       const faces = await Promise.all(users.map((u) => resolvePersonFace(u.username, u.profile)));
       const cards: DiscoverPerson[] = users.map((u, i) => ({
@@ -191,10 +189,9 @@ export function ProfilesBrowser({ query }: { query: string }) {
     );
   }, [people, query]);
 
-  const peopleQuiet = peopleFirstCount !== null && peopleFirstCount < 10;
-  const peopleNoResults = query.trim() !== '' && !peopleQuiet && filteredPeople.length === 0;
+  const peopleNoResults = query.trim() !== '' && filteredPeople.length === 0;
   const peopleEffectivelyEmpty =
-    !peopleLoading && (peopleNoResults || peopleQuiet || filteredPeople.length === 0);
+    !peopleLoading && (peopleNoResults || filteredPeople.length === 0);
 
   // ── Groups ─────────────────────────────────────────────────────────────────
   const [groups, setGroups] = useState<DiscoverGroup[]>([]);
@@ -347,13 +344,13 @@ export function ProfilesBrowser({ query }: { query: string }) {
                   <PersonCardSkeleton key={i} testId="discover-profiles-person-skeleton" />
                 ))}
               </div>
-            ) : peopleQuiet ? (
-              <p className="px-1 py-2 text-sm text-muted-foreground" data-testid="discover-profiles-people-quiet">
-                It's quiet here — this node is still finding its people.
-              </p>
             ) : peopleNoResults ? (
               <p className="px-1 py-2 text-sm text-muted-foreground" data-testid="discover-profiles-people-no-results">
                 No people match “{query.trim()}”.
+              </p>
+            ) : filteredPeople.length === 0 && !query.trim() ? (
+              <p className="px-1 py-2 text-sm text-muted-foreground" data-testid="discover-profiles-people-empty">
+                No people listed yet.
               </p>
             ) : (
               <>

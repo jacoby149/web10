@@ -6,13 +6,23 @@ import GitHubStarButton from './GitHubStarButton'
 import { trackFunnel } from '../lib/analytics'
 import { SOCIAL_ORIGIN } from '../lib/origins'
 
+// The nav leads with the pitch (the pre-Discover-split layout): the landing
+// page is the front door (Home, `/`), and the social experience is Trending
+// (`/trending`). The experience's sub-destinations (Video · Shorts · Hot
+// Gossip · People) keep Trending lit while the visitor is anywhere in the
+// experience.
 const navItems = [
   { path: '/', label: 'Home' },
-  { path: '/trending', label: 'Discover' },
+  { path: '/trending', label: 'Trending' },
   { path: '/app-store', label: 'App Store' },
   { path: '/import', label: 'Import Your Life' },
   { path: '/join', label: 'Join' },
 ]
+
+// The experience's sub-destinations (the /trending split): Trending stays lit
+// while the visitor is anywhere in the experience (Video, Shorts, Hot Gossip,
+// People).
+const EXPERIENCE_PATHS = ['/trending/shorts', '/trending/hot-gossip', '/trending/people']
 
 const learnItems = [
   { path: '/freedom', label: 'Freedom' },
@@ -36,8 +46,17 @@ function Navbar({ onReportBug }: { onReportBug: () => void }) {
     learnTimer.current = setTimeout(() => setLearnOpen(false), 100)
   }, [])
 
-  const isActive = (path: string) =>
-    location.pathname === path || (path !== '/' && location.pathname.startsWith(path))
+  const isActive = (path: string) => {
+    if (path === '/') {
+      // Home = the pitch: the bare `/` (the landing page).
+      return location.pathname === '/'
+    }
+    if (path === '/trending') {
+      // Trending = the experience: `/trending` + its sub-destinations.
+      return location.pathname === '/trending' || EXPERIENCE_PATHS.some(p => location.pathname.startsWith(p))
+    }
+    return location.pathname === path || location.pathname.startsWith(path)
+  }
 
   const isLearnActive = learnItems.some(item => isActive(item.path))
 

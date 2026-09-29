@@ -695,6 +695,17 @@ class TestGroupByUser:
         assert resp.status_code == 200
         m.assert_called_once_with("alice", tag="web10-social-followers", limit=50, offset=0)
 
+    def test_provider_username_form_normalizes_to_bare(self, client):
+        """The documented ``provider/username`` form resolves to the same rows
+        as the bare username — the node stores ``member_key`` as the bare
+        username (the JWT claim), so the endpoint must normalize before the
+        exact-match read. Without this, the full form matches nothing (the
+        Following tab renders empty for a logged-in user)."""
+        with patch("app.v3.services.clickhouse.get_user_public_groups", return_value=[]) as m:
+            resp = client.get("/v3/groups/by-user", params={"user": "api.localhost/alice"})
+        assert resp.status_code == 200
+        m.assert_called_once_with("alice", tag=None, limit=50, offset=0)
+
     def test_pagination_passthrough(self, client):
         with patch("app.v3.services.clickhouse.get_user_public_groups", return_value=[]) as m:
             resp = client.get("/v3/groups/by-user", params={"user": "alice", "limit": 10, "offset": 20})

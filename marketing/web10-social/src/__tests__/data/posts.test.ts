@@ -59,6 +59,28 @@ describe('posts v3 data layer', () => {
       expect(mock.create).toHaveBeenCalledWith('posts', { text: 'Hello world' }, { groups: ['web10.app/groups/web10/discover'] });
       expect(result).toEqual(doc);
     });
+
+    it('writes the title (D82) into the body alongside the caption', async () => {
+      const doc = { doc_id: 'p3', author_key: 'web10.app/users/alice', body: { title: 'My headline', text: 'The caption' }, created_at: '2026-07-18T00:00:00Z' };
+      mock.create.mockResolvedValue(doc);
+      await createPost({ title: 'My headline', text: 'The caption', created_at: '2026-07-18T00:00:00Z' });
+      expect(mock.create).toHaveBeenCalledWith(
+        'posts',
+        expect.objectContaining({ title: 'My headline', text: 'The caption' }),
+        expect.anything(),
+      );
+    });
+
+    it('writes title: undefined when no title is given (caption-only post)', async () => {
+      const doc = { doc_id: 'p4', author_key: 'web10.app/users/alice', body: { text: 'Just a caption' }, created_at: '2026-07-18T00:00:00Z' };
+      mock.create.mockResolvedValue(doc);
+      await createPost({ text: 'Just a caption', created_at: '2026-07-18T00:00:00Z' });
+      expect(mock.create).toHaveBeenCalledWith(
+        'posts',
+        expect.objectContaining({ title: undefined, text: 'Just a caption' }),
+        expect.anything(),
+      );
+    });
   });
 
   describe('createRepost (reposts.md: a real post doc referencing the original)', () => {

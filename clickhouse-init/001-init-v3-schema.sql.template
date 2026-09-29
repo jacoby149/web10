@@ -223,6 +223,20 @@ CREATE TABLE IF NOT EXISTS app_contracts (
 ) ENGINE = ReplacingMergeTree(updated_at)
 ORDER BY (user_key, allowed_origin);
 
+-- Node-level ban (D59a): usernames whose content is filtered out of every
+-- read path (the board read + the query engine). ReplacingMergeTree — a ban
+-- is an active row, an unban is a tombstone (deleted=1). The read path uses a
+-- LEFT ANTI JOIN (dedup first, then deleted=0), same pattern as
+-- group_hidden_docs / user_blacklist.
+CREATE TABLE IF NOT EXISTS banned_users (
+    username String,
+    banned_by String,
+    banned_at DateTime64(3),
+    updated_at DateTime64(3),
+    deleted UInt8 DEFAULT 0
+) ENGINE = ReplacingMergeTree(updated_at)
+ORDER BY username;
+
 CREATE TABLE IF NOT EXISTS bug_reports (
     report_id String,
     username String DEFAULT '',
