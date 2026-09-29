@@ -790,10 +790,10 @@ describe('The Discover split (the salad retires)', () => {
     window.history.replaceState(null, '', '/');
   });
 
-  it('the Video destination (the bare URL) has no tab row and no view toggle', async () => {
+  it('the Video destination has no tab row and no view toggle', async () => {
     mockDiscoverFeed(makeV3PostsMedia(6));
     const { default: Trending } = await import('@/pages/Trending');
-    render(<MemoryRouter initialEntries={['/trending']}><Trending /></MemoryRouter>);
+    render(<MemoryRouter initialEntries={['/trending/video']}><Trending /></MemoryRouter>);
     await waitFor(() => expect(screen.getByTestId('trending-home-grid')).toBeInTheDocument());
     // The salad is gone — the sidebar (ExperienceShell) owns the nav now.
     expect(screen.queryByTestId('trending-tab-row')).not.toBeInTheDocument();
@@ -824,14 +824,14 @@ describe('The Discover split (the salad retires)', () => {
     expect(screen.queryByTestId('trending-grid')).not.toBeInTheDocument();
   });
 
-  it('legacy ?view=grid redirects to the Hot Gossip destination (carrying ?q=)', async () => {
+  it('legacy ?view=grid redirects to the Posts destination (carrying ?q=)', async () => {
     mockDiscoverFeed(makeV3Posts(6));
     const { default: Trending } = await import('@/pages/Trending');
     render(
       <MemoryRouter initialEntries={['/trending?view=grid&q=code']}>
         <Routes>
           <Route path="/trending" element={<Trending />} />
-          <Route path="/trending/hot-gossip" element={<Trending />} />
+          <Route path="/trending/posts" element={<Trending />} />
         </Routes>
       </MemoryRouter>,
     );
@@ -872,7 +872,7 @@ describe('The Discover split (the salad retires)', () => {
     ];
     mockDiscoverFeed(posts);
     const { default: Trending } = await import('@/pages/Trending');
-    render(<MemoryRouter initialEntries={['/trending']}><Trending /></MemoryRouter>);
+    render(<MemoryRouter initialEntries={['/trending/video']}><Trending /></MemoryRouter>);
     const card = await screen.findByTestId('home-card');
     const link = within(card).getByTestId('home-card-thumb');
     expect(link).toHaveAttribute('href', expect.stringContaining('/watch/landscape-v?from=discover&knobs='));
@@ -892,7 +892,7 @@ describe('The Discover split (the salad retires)', () => {
     ];
     mockDiscoverFeed(posts);
     const { default: Trending } = await import('@/pages/Trending');
-    render(<MemoryRouter initialEntries={['/trending']}><Trending /></MemoryRouter>);
+    render(<MemoryRouter initialEntries={['/trending/video']}><Trending /></MemoryRouter>);
     const card = await screen.findByTestId('home-card');
     const link = within(card).getByTestId('home-card-thumb');
     expect(link).toHaveAttribute('href', expect.stringContaining('/shorts/portrait-v'));
@@ -946,7 +946,7 @@ describe('The Discover split (the salad retires)', () => {
     // 6 posts: 2 video, 2 image, 2 text-only
     mockDiscoverFeed(makeV3PostsMedia(6));
     const { default: Trending } = await import('@/pages/Trending');
-    render(<MemoryRouter initialEntries={['/trending' + window.location.search]}><Trending /></MemoryRouter>);
+    render(<MemoryRouter initialEntries={['/trending/video' + window.location.search]}><Trending /></MemoryRouter>);
     await waitFor(() => expect(screen.getByTestId('trending-home-grid')).toBeInTheDocument());
     // Videos only: 2 video cards (the 2 image + 2 text-only are excluded).
     expect(screen.getAllByTestId('home-card')).toHaveLength(2);
@@ -958,7 +958,7 @@ describe('The Discover split (the salad retires)', () => {
     // tags — these posts have no video tag.
     mockDiscoverFeed(makeV3PostsResolvedMedia(4));
     const { default: Trending } = await import('@/pages/Trending');
-    render(<MemoryRouter initialEntries={['/trending' + window.location.search]}><Trending /></MemoryRouter>);
+    render(<MemoryRouter initialEntries={['/trending/video' + window.location.search]}><Trending /></MemoryRouter>);
     await waitFor(() => expect(screen.getByTestId('trending-home-grid')).toBeInTheDocument());
     // 2 of the 4 are videos (resolved mime_type video/mp4) → 2 cards.
     expect(screen.getAllByTestId('home-card')).toHaveLength(2);
@@ -970,7 +970,7 @@ describe('The Discover split (the salad retires)', () => {
     );
     mockDiscoverFeed(textOnlyPosts);
     const { default: Trending } = await import('@/pages/Trending');
-    render(<MemoryRouter initialEntries={['/trending' + window.location.search]}><Trending /></MemoryRouter>);
+    render(<MemoryRouter initialEntries={['/trending/video' + window.location.search]}><Trending /></MemoryRouter>);
     await waitFor(() => expect(screen.getByText('No media posts yet')).toBeInTheDocument());
   });
 });
@@ -1355,7 +1355,7 @@ describe('Trending search (the phantom-endpoint fix)', () => {
     ];
     mockDiscoverFeed(posts);
     const { default: Trending } = await import('@/pages/Trending');
-    render(<MemoryRouter initialEntries={['/trending']}><Trending /></MemoryRouter>);
+    render(<MemoryRouter initialEntries={['/trending/video']}><Trending /></MemoryRouter>);
 
     const input = screen.getByTestId('trending-search-input');
     fireEvent.change(input, { target: { value: 'dav' } });
@@ -1374,7 +1374,7 @@ describe('Trending search (the phantom-endpoint fix)', () => {
     ];
     mockDiscoverFeed(posts);
     const { default: Trending } = await import('@/pages/Trending');
-    render(<MemoryRouter initialEntries={['/trending']}><Trending /></MemoryRouter>);
+    render(<MemoryRouter initialEntries={['/trending/video']}><Trending /></MemoryRouter>);
 
     const input = screen.getByTestId('trending-search-input');
     fireEvent.change(input, { target: { value: 'dav' } });

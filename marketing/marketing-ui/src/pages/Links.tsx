@@ -38,7 +38,7 @@ function getLinks(): LinkItem[] {
     },
     {
       name: 'Home',
-      description: 'The live social experience (Video · Shorts · Hot Gossip · People)',
+      description: 'The live social experience (People · Posts · Video · Shorts)',
       href: '/',
       icon: TrendingUp,
     },

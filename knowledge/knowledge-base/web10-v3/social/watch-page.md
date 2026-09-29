@@ -203,6 +203,27 @@ The Discover split gave **Hot Gossip** its own sidebar destination, but it left 
 
 This is entirely client-side (D60 — no node change). It touches `Layout.tsx` (the nav: Feed → Posts, drop the separate Hot Gossip item), a new `PostsScreen` (the tab row + the two tabs), `DiscoverScreen` (the `mode` prop + the Top 10 rail + the narrowed board), and `GlobalSearch` (the category relabel). The watch page, the Shorts lens, and the Video wall are untouched.
 
+## The content pyramid (People → Posts → Video → Shorts)
+
+The operator's framing (29.09.2026): the four destinations are a **content pyramid, least → most addictive** — the nav order *is* the pyramid, in both apps:
+
+| Order | Destination | The layer |
+|---|---|---|
+| 1 (tip) | **People** | the conceptual "why a social network" — the directory (2012 Facebook: how people started talking to friends online). Profiles, not content. |
+| 2 | **Posts** | the threads — the ranked post board (the Discover board) + the personal feed (Following). The content. |
+| 3 | **Video** | the media/television layer — the video wall (YouTube). Vegging, but over something you pay attention to. |
+| 4 (base) | **Shorts** | straight endorphins — 15 seconds (TikTok). The most addictive. |
+
+**Posts is the default** (the operator: "the people tab is kind of boring just a bunch of profiles not actual content, so by default have that second tab selected"). People is the conceptual tip, but it's a directory, not content — so a visitor lands on **Posts** (the content), not People. Social: the catch-all route → `/feed` (Posts). Marketing Trending: the index (`/trending`) → Posts.
+
+**Hot Gossip is renamed to Posts everywhere** (the operator: "dont want to keep calling this thing hot gossip, the intention is all through the experience hot gossip is now posts, just call it like it is!"). The marketing route `/trending/hot-gossip` → `/trending/posts`; the ExperienceShell label, the CTA labels, the Links description, and the analytics funnel (`experience_posts`) all say **Posts**. The internal `dest === 'hot-gossip'` identifier stays (it's an identifier, not user-facing).
+
+**The Home page is the pitch (the SELL), not the experience (the SHOW).** The operator reconsidered the "make Trending the home" idea (29.09.2026): "organized isn't always the most business aligned." The marketing site has two jobs serving two people — **SELL the business case** (the pitch: manifesto + reach gap + stats + CTA, for the creator's manager / investor) and **SHOW the product** (the experience, "show don't tell," for the creator / user). The old structure had this right: **Home (`/`) = the SELL** (a dedicated landing page — the first thing a stranger sees, focused on the business case), **Trending (`/trending`) = the SHOW** (the experience, the pyramid). Merging the SELL into a tab (the Manifesto-as-tab idea) demotes the business case from "the landing page" to "the first tab of a 5-tab experience" — a new visitor has to *decide* where to start instead of being *told* the value prop in 30 seconds (design.md §10). So the Home page is restored as the pitch; the Manifesto-as-tab idea is dropped (the manifesto *is* the Home page).
+
+**The Discover | Following tabs are styled like X's "For you | Following"** (the operator: "the discover following just not lined up doesnt look flashy like x's for you following"). Centered (each tab 50% of a `max-w-2xl` container), bold active tab + a brand underline (centered under the label), gray inactive tab. Anon: the Following tab is greyed out (no session → no feed).
+
+**The node stats do NOT go on the People tab** (the operator: "those stats dont make sense in the people banner, those are node stats … seems like unrelated to the social app"). The node stats (users / apps in the store / data liberated) are node-level metrics, not social-app metrics. Social-app-bespoke stats for the People tab are a follow-up (a content/data call, not a code change).
+
 ## The "beyond your community" note (open, not a v1 decision)
 
 The operator flagged, looking at YouTube's **Community** tab (posts *strictly for your subscribed community*): web10's posts go **beyond** that — a public post is on the **discover group** (readable by `anyone`, D41/D58), not just the author's followers. That is the differentiator: YouTube's feed is your subscription graph; web10's Home wall is the **public ledger** — anyone's post, ranked by the knobs, discoverable by anyone. The watch page inherits this: its "What's next" queue is drawn from the **public discover board**, not the viewer's follow graph. (The *following* feed — `/feed` — is the subscription-graph surface; the watch page is the discovery surface. They are different queues over different groups, and the `?from=` param is the seam that keeps them distinct if a `/feed`-sourced watch page is ever wanted.)

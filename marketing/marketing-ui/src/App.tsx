@@ -25,14 +25,20 @@ function App({ onReportBug }: { onReportBug: () => void }) {
     <StarsProvider>
       <Navbar onReportBug={onReportBug} />
       <Routes>
-        {/* The pitch (the landing page) — the front door, front and center. */}
+        {/* The pitch (the SELL) — the dedicated landing page. The business case:
+            manifesto + reach gap + stats + CTA. (design.md §10: a creator's
+            manager believes this is a company in 30 seconds.) Front and center. */}
         <Route path="/" element={<Home />} />
-        {/* The social experience — the four flat destinations under /trending. */}
+        {/* The experience (the SHOW) — the content pyramid: People → Posts →
+            Video → Shorts. Posts is the default (the index) — the content, not
+            the profiles (the operator, 29.09.2026: "the people tab is kind of
+            boring just a bunch of profiles not actual content, so by default
+            have that second tab selected"). */}
         <Route path="/trending" element={<ExperienceShell />}>
           <Route index element={<Trending />} />
-          <Route path="shorts" element={<Trending />} />
-          <Route path="hot-gossip" element={<Trending />} />
           <Route path="people" element={<Trending />} />
+          <Route path="video" element={<Trending />} />
+          <Route path="shorts" element={<Trending />} />
         </Route>
         <Route path="/links" element={<Links />} />
         <Route path="/everything" element={<Everything />} />

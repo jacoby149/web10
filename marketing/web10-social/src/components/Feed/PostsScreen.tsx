@@ -34,32 +34,40 @@ function TabButton({
   testId,
   icon: Icon,
   label,
+  disabled = false,
 }: {
   active: boolean;
   onClick: () => void;
   testId: string;
   icon: typeof Flame;
   label: string;
+  /** Greyed out + inert (the Following tab for an anon visitor — no session,
+      no personal feed). The operator (29.09.2026): "if on anon the following
+      tab should be greyed out". */
+  disabled?: boolean;
 }) {
   return (
     <button
       type="button"
       role="tab"
       aria-selected={active}
+      aria-disabled={disabled || undefined}
       data-testid={testId}
-      onClick={onClick}
+      onClick={disabled ? undefined : onClick}
       className={cn(
-        'relative flex items-center gap-2 px-3 py-3 text-sm font-medium transition-colors duration-150',
-        'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background',
-        active ? 'text-foreground' : 'text-muted-foreground hover:text-foreground',
+        'relative flex flex-1 items-center justify-center gap-2 py-3.5 text-[0.9375rem] transition-colors duration-150',
+        'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset',
+        disabled
+          ? 'cursor-not-allowed text-muted-foreground/40'
+          : active ? 'font-semibold text-foreground' : 'font-medium text-muted-foreground hover:text-foreground',
       )}
     >
-      <Icon className={cn('h-4 w-4', active && 'text-brand')} strokeWidth={active ? 2 : 1.75} />
+      <Icon className={cn('h-[18px] w-[18px]', active && !disabled && 'text-brand')} strokeWidth={active && !disabled ? 2.25 : 1.75} />
       <span>{label}</span>
-      {active && (
+      {active && !disabled && (
         <span
           aria-hidden="true"
-          className="absolute inset-x-2 -bottom-px h-0.5 rounded-full bg-gradient-to-r from-brand to-brand-600"
+          className="absolute -bottom-px left-1/2 h-[3px] w-14 -translate-x-1/2 rounded-full bg-brand"
         />
       )}
     </button>
@@ -74,16 +82,13 @@ export default function PostsScreen({ onAuthorClick }: { onAuthorClick?: (userna
   // immediately (the old FeedRoute's remount idiom).
   const [version, setVersion] = useState(0);
 
-  // Anon: no Following tab (no session → no feed). The screen is just the
-  // Discover board (the public ledger), the same read-only board the old
-  // /hot-gossip showed.
-  if (isAnon) {
-    return <DiscoverScreen mode="hot-gossip" />;
-  }
-
-  const tab: PostsTab = tabFromParam(searchParams.get('tab'));
+  // Anon: the Following tab (the personal feed) is greyed out — no session →
+  // no feed. The screen is the Discover board (the public ledger) with the
+  // Following tab disabled; the tab is forced to Discover for anon.
+  const tab: PostsTab = isAnon ? 'discover' : tabFromParam(searchParams.get('tab'));
 
   const setTab = (next: PostsTab) => {
+    if (isAnon && next === 'following') return; // Following is disabled for anon
     const params = new URLSearchParams(searchParams);
     if (next === 'discover') params.delete('tab');
     else params.set('tab', 'following');
@@ -92,16 +97,18 @@ export default function PostsScreen({ onAuthorClick }: { onAuthorClick?: (userna
 
   return (
     <div className="flex flex-col min-h-full bg-background">
-      {/* The tab row — X/Threads-style: Discover | Following. The URL holds the
-          tab (?tab=), so refresh restores it + it's shareable. Discover is the
-          default (the bare URL). */}
+      {/* The tab row — X/Threads-style: Discover | Following. Centered, bold,
+          with the brand underline (the operator, 29.09.2026: "make it look
+          flashy like x's for you following"). The URL holds the tab (?tab=),
+          so refresh restores it + it's shareable. Discover is the default
+          (the bare URL). */}
       <div
         className="sticky top-0 z-10 border-b border-border bg-background/95 backdrop-blur-md"
         role="tablist"
         aria-label="Posts"
         data-testid="posts-tab-row"
       >
-        <div className="mx-auto flex max-w-5xl items-center gap-1 px-4 md:px-6">
+        <div className="mx-auto flex max-w-2xl">
           <TabButton
             active={tab === 'discover'}
             onClick={() => setTab('discover')}
@@ -115,6 +122,7 @@ export default function PostsScreen({ onAuthorClick }: { onAuthorClick?: (userna
             testId="posts-tab-following"
             icon={Home}
             label="Following"
+            disabled={isAnon}
           />
         </div>
       </div>

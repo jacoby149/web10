@@ -1,5 +1,6 @@
 import '@testing-library/jest-dom';
 import { configure } from '@testing-library/dom';
+import { vi } from 'vitest';
 
 // The web10-social suite runs 72 files in parallel on a 2-vCPU CI runner. Under
 // that load, the default 1s waitFor/findBy timeout is too tight for multi-step
@@ -9,6 +10,15 @@ import { configure } from '@testing-library/dom';
 // condition instead of racing the clock — the systemic fix for the
 // load-dependent flake class. Individual tests can still override it.
 configure({ asyncUtilTimeout: 5000 });
+
+// jsdom has no real network. A global fetch mock that rejects immediately so
+// components that fetch (e.g. a stats bar → `POST /v3/stats`) degrade
+// gracefully (no bar) instead of leaving an in-flight request that races the
+// test clock under load. A test that wants a fetch to resolve can stub the
+// global fetch to resolve with a payload.
+(globalThis as Record<string, unknown>).fetch = vi.fn(() =>
+  Promise.reject(new Error('no network in tests')),
+);
 
 // jsdom has no IntersectionObserver (the feed's infinite-scroll sentinel uses
 // it). A controllable mock: observe/unobserve/disconnect are no-ops, and the

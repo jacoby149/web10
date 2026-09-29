@@ -406,7 +406,7 @@ function App() {
       <RepostProvider>
       <Routes>
         <Route element={<Layout onLogout={handleLogout} onLogin={handleLogin} isAnon={isAnon} onReportBug={() => handleReportBug('button')} />}>
-          <Route path="/feed" element={isAnon ? <Navigate to="/video" replace /> : <PostsScreen onAuthorClick={handleAuthorClick} />} />
+          <Route path="/feed" element={<PostsScreen onAuthorClick={handleAuthorClick} />} />
           {/* The Discover split (watch-page.md): the old single /discover
               (Trending|People tabs + Home|Hot Gossip toggle) is four flat
               destinations. /discover (bare) → Video (the default);
@@ -432,7 +432,7 @@ function App() {
           <Route path="/monetize" element={isAnon ? <Navigate to="/video" replace /> : <MonetizationScreen />} />
           <Route path="/settings" element={isAnon ? <Navigate to="/video" replace /> : <SettingsScreen onLogout={handleLogout} onReportBug={() => handleReportBug('button')} />} />
           <Route path="/node-settings" element={isAnon ? <Navigate to="/video" replace /> : <NodeSettingsScreen />} />
-          <Route path="*" element={<Navigate to="/video" replace />} />
+          <Route path="*" element={<Navigate to="/feed" replace />} />
         </Route>
       </Routes>
       </RepostProvider>
