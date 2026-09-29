@@ -2383,9 +2383,7 @@ def _group_docs_query(
     if limit is not None:
         params["limit"] = limit
     result = client.query(
-        _board_base_sql(group_ids, require_membership, tags)
-        + " ORDER BY p.created_at DESC "
-        + limit_clause,
+        _board_base_sql(group_ids, require_membership, tags) + " ORDER BY p.created_at DESC " + limit_clause,
         params,
     )
     return [

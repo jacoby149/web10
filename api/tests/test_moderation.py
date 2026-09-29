@@ -492,9 +492,7 @@ class TestBanEndpoint:
             patch("app.v3.services.clickhouse.ban_user") as mock_ban,
             patch("app.v3.services.clickhouse.get_banned_users", return_value=["existing", "newuser"]),
         ):
-            resp = client.post(
-                "/v3/moderation/ban", json={"token": _admin_token(), "username": "newuser", "ban": True}
-            )
+            resp = client.post("/v3/moderation/ban", json={"token": _admin_token(), "username": "newuser", "ban": True})
         assert resp.status_code == 200
         assert resp.json()["banned_users"] == ["existing", "newuser"]
         mock_ban.assert_called_once_with("newuser", "node-admin")
@@ -514,17 +512,13 @@ class TestBanEndpoint:
 
     def test_ban_empty_username_rejected(self, client):
         with patch("app.services.config.is_admin", return_value=True):
-            resp = client.post(
-                "/v3/moderation/ban", json={"token": _admin_token(), "username": "  ", "ban": True}
-            )
+            resp = client.post("/v3/moderation/ban", json={"token": _admin_token(), "username": "  ", "ban": True})
         assert resp.status_code != 200
 
     def test_ban_non_admin_rejected(self):
         with TestClient(fastapi_app, raise_server_exceptions=False) as tc:
             with patch("app.services.config.is_admin", return_value=False):
-                resp = tc.post(
-                    "/v3/moderation/ban", json={"token": _make_token("rando"), "username": "x", "ban": True}
-                )
+                resp = tc.post("/v3/moderation/ban", json={"token": _make_token("rando"), "username": "x", "ban": True})
         assert resp.status_code == 403
 
 

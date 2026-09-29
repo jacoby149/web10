@@ -56,7 +56,9 @@ def moderation_auto_hide(data: ModerationAutoHide):
             else:
                 ch.unhide_doc_from_group(ch.DISCOVER_GROUP_ID, doc_id)
         if doc_ids:
-            log.info("[moderation] %s %d discover post(s) for %s", "hid" if data.hide else "restored", len(doc_ids), username)
+            log.info(
+                "[moderation] %s %d discover post(s) for %s", "hid" if data.hide else "restored", len(doc_ids), username
+            )
     except Exception as e:
         log.warning("[moderation] retroactive sweep failed (non-fatal): %s: %s", type(e).__name__, e)
     return {"username": username, "hide": data.hide, "auto_hide_users": users}
