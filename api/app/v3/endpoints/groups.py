@@ -449,7 +449,10 @@ def group_detail(group_id: str, token: str | None = None):
     }
     if is_member:
         out["posts"] = ch.read_documents_in_groups(
-            group_ids=[group_id], member_key=principal, service="posts", limit=20
+            group_ids=[group_id],
+            member_key=principal,
+            service="posts",
+            limit=20,
         )
     return out
 

@@ -15,3 +15,13 @@ class ModerationAutoHide(BaseModel):
     token: str
     username: str
     hide: bool = True
+
+
+class ModerationBan(BaseModel):
+    """Admin adds or removes a username from the node's ``banned_users`` list
+    (D59a — the node-level ban). ``ban=True`` bans (their content is filtered
+    out of every read path); ``ban=False`` unbans (their content returns)."""
+
+    token: str
+    username: str
+    ban: bool = True
