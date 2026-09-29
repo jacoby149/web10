@@ -115,13 +115,15 @@ export default function Layout({ onLogout, onLogin, isAnon: isAnonProp, onReport
   const { unread } = useNotifications();
   const { isAdmin: isNodeAdmin } = useNodeAdmin();
   const isNotifications = pathname === '/notifications';
-  // Shorts is a full-screen immersive lens (the TikTok model): the bottom tab
-  // bar would overlap the action rail + the comment sheet, so it is hidden on
-  // the lens. The exit is the back arrow the lens renders itself (top-left →
-  // /feed); the mobile top header stays so the account actions remain
-  // reachable. Dropping the `pb-16` reserve too makes the lens truly
-  // full-bleed (the video runs edge to edge, no dead band under the bar).
-  const isShorts = pathname.startsWith('/shorts');
+  // The Shorts LENS (`/shorts/:postId`) is a full-screen immersive surface
+  // (the TikTok model): the bottom tab bar would overlap the action rail + the
+  // comment sheet, so it is hidden on the lens. The exit is the back arrow the
+  // lens renders itself (top-left → /feed); the mobile top header stays so the
+  // account actions remain reachable. Dropping the `pb-16` reserve too makes
+  // the lens truly full-bleed (the video runs edge to edge, no dead band under
+  // the bar). The Shorts WALL (`/shorts`, no `:postId`) is a normal scrollable
+  // grid — it keeps the normal chrome (top bar + bottom nav + pb-16).
+  const isShorts = /^\/shorts\/[^/]+/.test(pathname);
 
   // The Monetization surface holds its section in the URL (`?tab=node`). The
   // two nav entries are the switcher — each must highlight on its OWN section,
