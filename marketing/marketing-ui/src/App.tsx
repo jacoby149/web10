@@ -2,8 +2,9 @@ import { Routes, Route, Navigate } from 'react-router-dom'
 import Navbar from './components/Navbar'
 import { StarsProvider } from './components/GitHubStarsContext'
 import DeployStatus from './components/DeployStatus'
-import Home from './pages/Home'
+import ExperienceShell from './components/ExperienceShell'
 import Trending from './pages/Trending'
+import Home from './pages/Home'
 import Join from './pages/Join'
 import Docs from './pages/Docs'
 import AppStore from './pages/AppStore'
@@ -19,18 +20,30 @@ function App({ onReportBug }: { onReportBug: () => void }) {
     <StarsProvider>
       <Navbar onReportBug={onReportBug} />
       <Routes>
-        <Route path="/" element={<Home />} />
+        {/* The experience IS the home (watch-page.md, the Discover split):
+            the front door is the live social preview, not the pitch. The
+            shell owns the four-destination nav (Video · Shorts · Hot Gossip
+            · People); each destination is a flat route under `/`. */}
+        <Route path="/" element={<ExperienceShell />}>
+          <Route index element={<Trending />} />
+          <Route path="shorts" element={<Trending />} />
+          <Route path="hot-gossip" element={<Trending />} />
+          <Route path="people" element={<Trending />} />
+        </Route>
+        {/* The pitch (the old landing page) — one click away, last in the nav. */}
+        <Route path="/about" element={<Home />} />
         <Route path="/links" element={<Links />} />
         <Route path="/everything" element={<Everything />} />
-        <Route path="/trending" element={<Trending />} />
+        {/* Legacy: the old Discover path + the old groups redirect. */}
+        <Route path="/trending" element={<Navigate to="/" replace />} />
+        <Route path="/groups" element={<Navigate to="/people" replace />} />
+        <Route path="/groups/:id" element={<GroupDetail />} />
         <Route path="/join" element={<Join />} />
         <Route path="/freedom" element={<Freedom />} />
         <Route path="/docs" element={<Docs />} />
         <Route path="/docs/:page" element={<Docs />} />
         <Route path="/app-store" element={<AppStore />} />
         <Route path="/app-store/app/:id" element={<AppDetail />} />
-        <Route path="/groups" element={<Navigate to="/trending?tab=profiles" replace />} />
-        <Route path="/groups/:id" element={<GroupDetail />} />
         <Route path="/import" element={<Exporter />} />
       </Routes>
       <DeployStatus />

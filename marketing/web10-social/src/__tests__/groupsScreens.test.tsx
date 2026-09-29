@@ -182,7 +182,7 @@ const mockDetailNonMember = {
 };
 
 // A location probe — renders the current pathname + search so a redirect can
-// be asserted (the /groups?tab=discover → /discover?tab=groups hand-off).
+// be asserted (the /groups?tab=discover → /people hand-off).
 function LocationProbe() {
   const location = useLocation();
   return <div data-testid="location-probe">{location.pathname}{location.search}</div>;
@@ -300,7 +300,7 @@ describe('GroupsScreen', () => {
       <MemoryRouter initialEntries={['/groups']}>
         <Routes>
           <Route path="/groups" element={<GroupsScreen />} />
-          <Route path="/discover" element={<LocationProbe />} />
+          <Route path="/people" element={<LocationProbe />} />
         </Routes>
       </MemoryRouter>,
     );
@@ -308,26 +308,26 @@ describe('GroupsScreen', () => {
       expect(screen.getByTestId('groups-my-empty')).toBeInTheDocument();
     });
     expect(screen.getByText(/not in any groups yet/i)).toBeInTheDocument();
-    // The CTA now points at Discover's Explore tab (the directory's new home).
+    // The CTA now points at the People destination (the directory's new home).
     fireEvent.click(screen.getByTestId('groups-my-empty-cta'));
     await waitFor(() => {
-      expect(screen.getByTestId('location-probe')).toHaveTextContent('/discover?tab=explore');
+      expect(screen.getByTestId('location-probe')).toHaveTextContent('/people');
     });
   });
 
-  it('redirects /groups?tab=discover to /discover?tab=explore (carrying the filters)', async () => {
+  it('redirects /groups?tab=discover to /people (carrying the filters)', async () => {
     vi.mocked(getMyCommunityGroups).mockResolvedValue([]);
     const { default: GroupsScreen } = await import('@/components/Groups/GroupsScreen');
     render(
       <MemoryRouter initialEntries={['/groups?tab=discover&q=photo&tag=retro']}>
         <Routes>
           <Route path="/groups" element={<GroupsScreen />} />
-          <Route path="/discover" element={<LocationProbe />} />
+          <Route path="/people" element={<LocationProbe />} />
         </Routes>
       </MemoryRouter>,
     );
     await waitFor(() => {
-      expect(screen.getByTestId('location-probe')).toHaveTextContent('/discover?tab=explore&q=photo&tag=retro');
+      expect(screen.getByTestId('location-probe')).toHaveTextContent('/people?q=photo&tag=retro');
     });
     // The my-groups fetch is skipped while redirecting.
     expect(getMyCommunityGroups).not.toHaveBeenCalled();
@@ -359,7 +359,7 @@ describe('DiscoverGroupsTab', () => {
     );
   });
 
-  function renderTab(initialEntry = '/discover?tab=groups&groupTab=discover', query = '') {
+  function renderTab(initialEntry = '/people?groupTab=discover', query = '') {
     return import('@/components/Discover/DiscoverGroupsTab').then(({ default: DiscoverGroupsTab }) =>
       render(
         <MemoryRouter initialEntries={[initialEntry]}>
@@ -430,7 +430,7 @@ describe('DiscoverGroupsTab', () => {
 
   it('filters the directory by the ?q= query (name/owner/tags) and shows the chip', async () => {
     vi.mocked(readGroupDirectory).mockResolvedValue(mockDirectory as never);
-    await renderTab('/discover?tab=groups&groupTab=discover', 'photo');
+    await renderTab('/people?groupTab=discover', 'photo');
     await waitFor(() => {
       expect(screen.getByTestId('groups-discover-grid')).toBeInTheDocument();
     });
@@ -443,7 +443,7 @@ describe('DiscoverGroupsTab', () => {
 
   it('filters the directory by tag chip (?tag= deep link)', async () => {
     vi.mocked(readGroupDirectory).mockResolvedValue(mockDirectory as never);
-    await renderTab('/discover?tab=groups&groupTab=discover&tag=retro');
+    await renderTab('/people?groupTab=discover&tag=retro');
     await waitFor(() => {
       expect(screen.getByTestId('groups-discover-grid')).toBeInTheDocument();
     });
@@ -454,7 +454,7 @@ describe('DiscoverGroupsTab', () => {
 
   it('shows the no-match state when a query filters everything out', async () => {
     vi.mocked(readGroupDirectory).mockResolvedValue(mockDirectory as never);
-    await renderTab('/discover?tab=groups&groupTab=discover', 'zzzzz');
+    await renderTab('/people?groupTab=discover', 'zzzzz');
     await waitFor(() => {
       expect(screen.getByTestId('groups-discover-no-results')).toBeInTheDocument();
     });

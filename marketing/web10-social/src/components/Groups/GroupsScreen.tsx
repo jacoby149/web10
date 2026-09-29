@@ -345,12 +345,12 @@ export default function GroupsScreen() {
   // ?q= / ?tag= filters over.
   if (isRedirecting) {
     const params = new URLSearchParams();
-    params.set('tab', 'explore');
     const q = searchParams.get('q');
     if (q) params.set('q', q);
     const tag = searchParams.get('tag');
     if (tag) params.set('tag', tag);
-    return <Navigate to={`/discover?${params.toString()}`} replace />;
+    const qs = params.toString();
+    return <Navigate to={`/people${qs ? `?${qs}` : ''}`} replace />;
   }
 
   const isMyInitialLoad = myLoading && myGroups.length === 0;
@@ -424,7 +424,7 @@ export default function GroupsScreen() {
                 variant="brand"
                 size="sm"
                 className="mt-6 gap-2"
-                onClick={() => navigate('/discover?tab=explore')}
+                onClick={() => navigate('/people?show=groups')}
                 data-testid="groups-my-empty-cta"
               >
                 <Search className="h-4 w-4" strokeWidth={1.75} />

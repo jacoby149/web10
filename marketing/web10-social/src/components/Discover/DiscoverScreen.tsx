@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
-import { useSearchParams, useNavigate } from 'react-router-dom';
+import { useSearchParams, useNavigate, useLocation } from 'react-router-dom';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -279,6 +279,10 @@ interface DiscoverCardProps {
   onToggleReaction: (kind: ReactionKind) => void;
   /** The reader's tap on the repost (reposts.md — independent of like). */
   onToggleRepost: () => void;
+  /** The card's DOM id (the Hot Gossip ?post= highlight target). */
+  id?: string;
+  /** Extra classes (the Hot Gossip ?post= highlight ring). */
+  className?: string;
 }
 
 function DiscoverCard({
@@ -295,6 +299,8 @@ function DiscoverCard({
   reposted,
   onToggleReaction,
   onToggleRepost,
+  id,
+  className,
 }: DiscoverCardProps) {
   // D74: the social discover card is now the SHARED discover card (the same one
   // the marketing /trending uses) — one source, both apps. The data seam (wapi
@@ -323,6 +329,8 @@ function DiscoverCard({
       // presentational, so the app injects its ad components here.
       renderAd={(ad) => <AttachedAd ad={ad as unknown as AdRecord} />}
       testId="discover-card"
+      id={id}
+      className={className}
       // A full-width 9:16 box is ~1.78× the card tall — too big on desktop,
       // and it buries the control rack at its bottom. Cap the portrait frame
       // (centered in a black letterbox), consistent with the marketing
@@ -420,41 +428,17 @@ function postToSignals(post: PostRecord) {
   };
 }
 
-// ── View toggle (D-trending-views bite b: Discover parity) ──────────────────
-
-// The view toggle. `home` (the YouTube-style video wall — the default) and
-// `grid` (Hot Gossip — the ranked post board). The operator: "video view should
-// be first, hot gossip second, to compete. video should be renamed home view."
-type DiscoverView = 'grid' | 'home';
-
-// ── Subtabs (the operator's IA fixed point, 23.09.2026) ──────────────────────
-// Discover is the discovery surface with TWO tabs:
-//   Trending — the posts board (the default; the bare URL).
-//   People   — people + groups mashed into one browser ("people are groups in
-//              web10").
-// The active tab is URL state (?tab=; trending is the bare URL) so it is
-// refresh-safe and shareable. The shell owns ?q= and passes it to the active
-// subtab — the subtabs have no search field of their own (search is the top
-// bar). The top bar's search (Enter) opens Discover with the query
-// (?q=) on WHATEVER tab is active — the query chip (with its X) renders on
-// both tabs, so the search can be cleared from either one.
-
-type DiscoverTab = 'trending' | 'explore';
-
-// The two top-level destinations. Chunky and obvious — the operator (23.09.2026):
-// "that is just too small too hard to see, want to keep the youtube stuff big."
-// The posts board is called **Trending** (the flame icon means trending posts —
-// the operator: "call it trending instead of posts, much better"). The
-// people+groups browser is called **People** (like Facebook's Friends tab)
-// with the TWO-people glyph (it holds profiles + groups — the operator,
-// 25.09.2026: "people should be the logo of the two people"). The Profiles
-// *subtab* inside it carries the one-person glyph. (The operator,
-// 24.09.2026: "trending People makes more sense" — the tab is "People", not
-// "Profiles".)
-const DISCOVER_TABS: { id: DiscoverTab; label: string; icon: typeof Flame }[] = [
-  { id: 'trending', label: 'Trending', icon: Flame },
-  { id: 'explore', label: 'People', icon: Users },
-];
+// ── The four destinations (the Discover split, watch-page.md) ────────────────
+// The old Discover salad (a `Trending | People` tab row PLUS a `Home | Hot
+// Gossip` view toggle — three levels of "which list am I looking at" in one
+// screen) is retired. Each destination is now a top-level route the sidebar
+// owns: **Video** (the video wall, the old Home view) · **Hot Gossip** (the
+// ranked post board, the old grid view) · **People** (the people + groups
+// browser, the old explore tab) · **Shorts** (already its own route). The
+// screen is mode-driven: the same board read powers Video + Hot Gossip; the
+// `?view=` toggle + the `?tab=` row are gone. `?knobs=` / `?q=` / `?tag=`
+// survive on the relevant destinations.
+export type DiscoverMode = 'video' | 'hot-gossip' | 'people';
 
 function postHasVideo(post: PostRecord): boolean {
   // The video view is videos-only (competing with YouTube — photos don't
@@ -569,7 +553,7 @@ function DiscoverHomeEmptyState({ onSwitchToGrid }: { onSwitchToGrid: () => void
         No videos yet
       </h2>
       <p className="mt-2 text-sm text-muted-foreground max-w-sm">
-        The Home view shows trending video posts.
+        The Video wall shows trending video posts.
         Switch to Hot Gossip to see all trending posts.
       </p>
       <Button
@@ -588,7 +572,21 @@ function DiscoverHomeEmptyState({ onSwitchToGrid }: { onSwitchToGrid: () => void
 
 // ── Main screen ────────────────────────────────────────────────────────────
 
+// The mode is derived from the route path (the path IS the mode — the route
+// owns it). `/video` → `video`, `/hot-gossip` → `hot-gossip`, `/people` →
+// `people`. A direct render with no matching path (tests) defaults to `video`.
+// The old `?view=` toggle + `?tab=` row are retired — the sidebar owns the
+// nav. `?knobs=` / `?q=` / `?tag=` survive as URL state on the relevant
+// destinations.
+function modeFromPath(pathname: string): DiscoverMode {
+  if (pathname.startsWith('/hot-gossip')) return 'hot-gossip';
+  if (pathname.startsWith('/people')) return 'people';
+  return 'video';
+}
+
 export default function DiscoverScreen() {
+  const { pathname } = useLocation();
+  const mode = modeFromPath(pathname);
   // Anon mode: a signed-out visitor browses the board read-only. The composer
   // is hidden (they can't post without a session) — the Sign in affordance in
   // the chrome is the path to posting.
@@ -619,26 +617,6 @@ export default function DiscoverScreen() {
   const urlQuery = searchParams.get('q') || '';
   const [searchQuery, setSearchQuery] = useState<string>(urlQuery);
 
-  // Deep-link: view toggle from ?view= (refresh-safe, shareable). `home` is the
-  // bare URL (the default); `?view=grid` is Hot Gossip. A legacy `?view=youtube`
-  // (the old video view) maps to `home`.
-  const [view, setView] = useState<DiscoverView>(() => {
-    const raw = searchParams.get('view');
-    if (raw === 'grid') return 'grid';
-    return 'home'; // home (default) — also covers a legacy 'youtube'
-  });
-
-  const setViewUrl = useCallback((v: DiscoverView) => {
-    setView(v);
-    const params = new URLSearchParams(searchParams);
-    if (v === 'grid') {
-      params.set('view', 'grid');
-    } else {
-      params.delete('view');
-    }
-    setSearchParams(params);
-  }, [searchParams, setSearchParams]);
-
   // Sync activeTag with ?tag= search param
   useEffect(() => {
     const current = searchParams.get('tag') || 'All';
@@ -652,14 +630,6 @@ export default function DiscoverScreen() {
     const current = searchParams.get('q') || '';
     if (searchQuery !== current) {
       setSearchQuery(current);
-    }
-  }, [searchParams]);
-
-  // Sync view with ?view= search param (home is the bare URL / default).
-  useEffect(() => {
-    const current: DiscoverView = searchParams.get('view') === 'grid' ? 'grid' : 'home';
-    if (view !== current) {
-      setView(current);
     }
   }, [searchParams]);
 
@@ -681,23 +651,6 @@ export default function DiscoverScreen() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // Deep-link: active subtab from ?tab= (discover-reorg.md D1). posts is the
-  // bare URL — the param is only written for people/groups, so an unknown or
-  // missing value falls back to posts.
-  const urlTab = searchParams.get('tab');
-  const tab: DiscoverTab = urlTab === 'explore' ? 'explore' : 'trending';
-
-  const setTabUrl = useCallback((next: DiscoverTab) => {
-    const params = new URLSearchParams(searchParams);
-    if (next === 'trending') {
-      params.delete('tab');
-    } else {
-      params.set('tab', next);
-    }
-    setSearchParams(params);
-    LOG('subtab —', next);
-  }, [searchParams, setSearchParams]);
-
   // Clear the active ?q= (the search chip's X) — on either tab. The query is
   // screen state the URL holds; removing the param re-renders both tabs
   // unfiltered (the Trending board's client filter + the Explore tab's
@@ -708,6 +661,21 @@ export default function DiscoverScreen() {
     setSearchParams(params);
     LOG('query cleared');
   }, [searchParams, setSearchParams]);
+
+  // Hot Gossip deep link: ?post=<id> scrolls the board to that post and
+  // highlights it (the Threads-equivalent link-out — the marketing site's Hot
+  // Gossip click lands here, in the middle of the board, at that post). The id
+  // is screen state the URL holds (refresh-safe, shareable). The card carries
+  // the id as its DOM id (the highlight ring is its own className), so the
+  // scroll targets it directly once the board has rendered.
+  const highlightPostId = searchParams.get('post') || '';
+  useEffect(() => {
+    if (!highlightPostId) return;
+    const el = document.getElementById('hot-gossip-highlight');
+    if (el) {
+      el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    }
+  }, [highlightPostId, posts]);
 
   const loadDiscover = useCallback(async (sort: PowerMeanSortConfig | null = null) => {
     // `loading` is the INITIAL skeleton only — a knob-triggered re-read keeps
@@ -1075,51 +1043,16 @@ export default function DiscoverScreen() {
   return (
     <div className="flex flex-col min-h-full bg-background">
       <div className="w-full">
-      {/* Tabs: Trending | People (?tab=, trending is the bare URL). The
-          primary nav — no separate "Discover" header (the operator's "show
-          don't tell": the video wall is the hero, the tabs are the nav).
-          Chunky + obvious + sticky (the operator, 23.09.2026): "that is just
-          too small too hard to see, want to keep the youtube stuff big."
-          People is really people + groups (the mashed browser), with the
-          two-people glyph (the Profiles *subtab* inside it carries the
-          one-person glyph). (The operator, 24.09.2026: "trending People makes
-          more sense" — the tab is "People", not "Profiles".) On DESKTOP this
-          screen-level row is hidden — the tabs live in the global top bar
-          (B3, the operator's Facebook-style chrome); on mobile (no top bar)
-          this row is the source. */}
-      <div className="sticky top-0 z-10 border-b border-border bg-background/95 backdrop-blur-md md:bg-surface/50 md:hidden" data-testid="discover-tab-row">
-        <div className="px-4 md:px-0">
-          <div className="flex items-center gap-2 py-3" role="tablist" aria-label="Discover sections">
-            {DISCOVER_TABS.map(({ id, label, icon: TabIcon }) => (
-              <button
-                key={id}
-                type="button"
-                role="tab"
-                aria-selected={tab === id}
-                data-testid={`discover-tab-${id}`}
-                onClick={() => setTabUrl(id)}
-                className={cn(
-                  'flex items-center gap-2.5 rounded-xl px-5 py-2.5 text-base font-semibold transition-colors',
-                  'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background',
-                  tab === id
-                    ? 'bg-brand-muted text-brand-300'
-                    : 'text-muted-foreground hover:text-foreground hover:bg-elevated',
-                )}
-              >
-                <TabIcon className="h-5 w-5" strokeWidth={1.75} />
-                <span>{label}</span>
-              </button>
-            ))}
-          </div>
-        </div>
-      </div>
-
-      {tab === 'trending' ? (
+      {mode === 'people' ? (
+        /* People — the people + groups browser (the old `?tab=explore`). The
+           sidebar owns the nav; the screen is the browser. */
+        <DiscoverExploreTab query={urlQuery} />
+      ) : (
         <>
           {/* The active ?q= filter (from the top bar's search) — the same
               chip the People tab shows, so the search can be X'd from either
-              tab. Clearing it re-filters the board (the client-side ?q=
-              filter) and the URL. */}
+              destination. Clearing it re-filters the board (the client-side
+              ?q= filter) and the URL. */}
           {urlQuery.trim() !== '' && (
             <div className="px-4 pt-3 md:px-4 lg:px-6">
               <span
@@ -1204,43 +1137,11 @@ export default function DiscoverScreen() {
             </div>
           )}
 
-          {/* View toggle — Home (the video wall, default) + Hot Gossip (the
-              ranked board). The operator: video first, hot gossip second. */}
-          {!isInitialLoad && posts.length > 0 && (
-            <div className="border-b border-border bg-surface/50">
-              <div className="px-4 md:px-4 lg:px-6">
-                <div className="flex items-center gap-1 py-2" data-testid="discover-view-toggle">
-                  {([
-                    ['home', 'Home', Video],
-                    ['grid', 'Hot Gossip', Flame],
-                  ] as [DiscoverView, string, typeof Flame][]).map(([v, label, Icon]) => (
-                    <button
-                      key={v}
-                      type="button"
-                      onClick={() => setViewUrl(v)}
-                      data-testid={`discover-view-toggle-${v}`}
-                      className={cn(
-                        'flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-medium transition-colors',
-                        'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background',
-                        view === v
-                          ? 'bg-brand-muted text-brand-300'
-                          : 'text-muted-foreground hover:text-foreground hover:bg-elevated',
-                      )}
-                    >
-                      <Icon className="h-3.5 w-3.5" strokeWidth={1.75} />
-                      <span>{label}</span>
-                    </button>
-                  ))}
-                </div>
-              </div>
-            </div>
-          )}
-
-          {/* Content — the Home view (the video wall, the default) is the
-               YouTube-style grid that fills the screen; Hot Gossip keeps the
-               single-column board. The desktop gutter (md:px-4 lg:px-6) lets
-               the wall breathe (the operator's "no padding at all on the
-               sides" — a gutter, not full-bleed); mobile stays full-bleed. */}
+          {/* Content — the Video wall (the YouTube-style grid) fills the
+                screen; Hot Gossip keeps the single-column board. The desktop
+                gutter (md:px-4 lg:px-6) lets the wall breathe (the operator's
+                "no padding at all on the sides" — a gutter, not full-bleed);
+                mobile stays full-bleed. */}
           <div className="flex-1 px-4 py-4 md:px-4 lg:px-6">
             {isInitialLoad ? (
               <div className="grid grid-cols-1 gap-4" data-testid="discover-grid-skeleton">
@@ -1248,7 +1149,7 @@ export default function DiscoverScreen() {
                   <DiscoverSkeleton key={i} />
                 ))}
               </div>
-            ) : view === 'home' ? (
+            ) : mode === 'video' ? (
               /* Home view — videos only, the YouTube-style wall (16:9 thumbs) */
               mediaPosts.length > 0 ? (
                 <div className="grid grid-cols-1 gap-x-4 gap-y-6 sm:grid-cols-2 lg:grid-cols-3" data-testid="discover-home-grid">
@@ -1280,7 +1181,7 @@ export default function DiscoverScreen() {
                   })}
                 </div>
               ) : (
-                <DiscoverHomeEmptyState onSwitchToGrid={() => setViewUrl('grid')} />
+                <DiscoverHomeEmptyState onSwitchToGrid={() => navigate('/hot-gossip')} />
               )
             ) : visiblePosts.length > 0 ? (
               <div className="grid grid-cols-1 gap-4" data-testid="discover-grid">
@@ -1301,6 +1202,7 @@ export default function DiscoverScreen() {
                     ...(post.node_ad && post.node_ad.format === 'post' ? [post.node_ad] : []),
                   ];
 
+                  const isHighlighted = !!highlightPostId && (post._id || '') === highlightPostId;
                   const card = (
                     <DiscoverCard
                       key={post._id || post.created_at}
@@ -1321,6 +1223,8 @@ export default function DiscoverScreen() {
                       reposted={!!repostedMap[post._id || '']}
                       onToggleReaction={(kind) => handleToggleReaction(post._id || '', kind)}
                       onToggleRepost={() => handleRepost(post)}
+                      id={isHighlighted ? 'hot-gossip-highlight' : undefined}
+                      className={isHighlighted ? 'ring-2 ring-brand border-brand shadow-[0_0_24px_-4px_var(--color-glow-intense)]' : undefined}
                     />
                   );
 
@@ -1342,8 +1246,6 @@ export default function DiscoverScreen() {
             )}
           </div>
         </>
-      ) : (
-        <DiscoverExploreTab query={urlQuery} />
       )}
       </div>
     </div>

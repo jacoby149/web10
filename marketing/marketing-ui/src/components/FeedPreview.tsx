@@ -262,6 +262,12 @@ interface TrendingCardProps {
   readOnly?: boolean;
   className?: string;
   cardRef?: (el: HTMLElement | null) => void;
+  /** The post's link-out target (the 1:1 destination mapping, the Discover
+      split — e.g. Hot Gossip's `?post=` board link). Defaults to the post
+      permalink on web10 social. */
+  postHref?: string;
+  /** The author's link-out target. Defaults to the profile on web10 social. */
+  authorHref?: string;
 }
 
 // ── Inline comment panel (anon read, auth-gated compose) ────────────────────
@@ -309,25 +315,29 @@ function TrendingCard({
   readOnly: _readOnly = false,
   className,
   cardRef,
+  postHref,
+  authorHref,
 }: TrendingCardProps) {
   // D74: the marketing /trending card is now the SHARED discover card (the same
   // one the social app's Discover uses), in `remote` mode — anon, so the like
   // is display-only and the comment compose is a link-out to web10 social.
   const author = post.author || post.handle.replace(/^@/, '');
-  const postHref = author
-    ? `${SOCIAL_ORIGIN}/u/${encodeURIComponent(author)}/p/${encodeURIComponent(post.id)}`
-    : SOCIAL_ORIGIN;
-  const authorHref = author
-    ? `${SOCIAL_ORIGIN}/u/${encodeURIComponent(author)}`
-    : SOCIAL_ORIGIN;
+  const resolvedPostHref = postHref
+    || (author
+      ? `${SOCIAL_ORIGIN}/u/${encodeURIComponent(author)}/p/${encodeURIComponent(post.id)}`
+      : SOCIAL_ORIGIN);
+  const resolvedAuthorHref = authorHref
+    || (author
+      ? `${SOCIAL_ORIGIN}/u/${encodeURIComponent(author)}`
+      : SOCIAL_ORIGIN);
   return (
     <DiscoverCard
       post={feedPostToDiscover(post)}
       rank={rank}
       maxScore={maxScore}
       remote
-      postHref={postHref}
-      authorHref={authorHref}
+      postHref={resolvedPostHref}
+      authorHref={resolvedAuthorHref}
       readComments={marketingReadComments}
       id={`trending-card-${post.id}`}
       className={className}
@@ -535,11 +545,11 @@ async function searchDiscoverPosts(query: string, limit = 50): Promise<FeedPost[
 // The Home view (the YouTube-style video wall) shows these skeletons while the
 // next page loads. The card itself is the shared `HomeCard` (@web10/discover).
 
-function YouTubeSkeleton() {
+function YouTubeSkeleton({ portrait = false }: { portrait?: boolean }) {
   return (
     <div data-testid="youtube-skeleton">
-      <div className="overflow-hidden rounded-xl bg-elevated">
-        <Skeleton className="aspect-video w-full" />
+      <div className={`overflow-hidden rounded-xl bg-elevated ${portrait ? 'aspect-[9/16]' : 'aspect-video'}`}>
+        <Skeleton className="h-full w-full" />
       </div>
       <div className="mt-2.5 flex gap-2.5">
         <Skeleton className="h-9 w-9 shrink-0 rounded-full" />

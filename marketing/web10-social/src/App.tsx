@@ -438,26 +438,33 @@ function App() {
       <RepostProvider>
       <Routes>
         <Route element={<Layout onLogout={handleLogout} onLogin={handleLogin} isAnon={isAnon} onReportBug={() => handleReportBug('button')} />}>
-          <Route path="/feed" element={isAnon ? <Navigate to="/discover" replace /> : <FeedRoute onAuthorClick={handleAuthorClick} />} />
-          <Route path="/discover" element={<DiscoverScreen />} />
+          <Route path="/feed" element={isAnon ? <Navigate to="/video" replace /> : <FeedRoute onAuthorClick={handleAuthorClick} />} />
+          {/* The Discover split (watch-page.md): the old single /discover
+              (Trending|People tabs + Home|Hot Gossip toggle) is four flat
+              destinations. /discover (bare) → Video (the default);
+              ?view=grid → Hot Gossip; ?tab=explore → People. The ?knobs= /
+              ?q= / ?tag= deep links survive on the relevant destinations. */}
+          <Route path="/video" element={<DiscoverScreen />} />
+          <Route path="/hot-gossip" element={<DiscoverScreen />} />
+          <Route path="/people" element={<DiscoverScreen />} />
+          <Route path="/discover" element={<DiscoverRedirect />} />
           <Route path="/watch/:postId" element={<WatchScreen />} />
           <Route path="/shorts" element={<ShortsScreen />} />
           <Route path="/shorts/:postId" element={<ShortsScreen />} />
           <Route path="/groups" element={<GroupsScreen />} />
           <Route path="/groups/:groupId" element={<GroupDetailRoute />} />
-          <Route path="/people" element={<Navigate to="/discover?tab=explore" replace />} />
-          <Route path="/messages/*" element={isAnon ? <Navigate to="/discover" replace /> : <DmsScreen />} />
-          <Route path="/notifications" element={isAnon ? <Navigate to="/discover" replace /> : <NotificationsScreen />} />
-          <Route path="/profile" element={isAnon ? <Navigate to="/discover" replace /> : <ProfileRedirectRoute />} />
+          <Route path="/messages/*" element={isAnon ? <Navigate to="/video" replace /> : <DmsScreen />} />
+          <Route path="/notifications" element={isAnon ? <Navigate to="/video" replace /> : <NotificationsScreen />} />
+          <Route path="/profile" element={isAnon ? <Navigate to="/video" replace /> : <ProfileRedirectRoute />} />
           <Route path="/u/:username" element={<UserProfileRoute />} />
-          <Route path="/u/:username/followers" element={isAnon ? <Navigate to="/discover" replace /> : <UserFollowersRoute />} />
-          <Route path="/u/:username/following" element={isAnon ? <Navigate to="/discover" replace /> : <UserFollowingRoute />} />
+          <Route path="/u/:username/followers" element={isAnon ? <Navigate to="/video" replace /> : <UserFollowersRoute />} />
+          <Route path="/u/:username/following" element={isAnon ? <Navigate to="/video" replace /> : <UserFollowingRoute />} />
           <Route path="/u/:username/p/:postId" element={<UserProfilePostLinkRoute />} />
-          <Route path="/staging" element={isAnon ? <Navigate to="/discover" replace /> : <StagingScreen />} />
-          <Route path="/monetize" element={isAnon ? <Navigate to="/discover" replace /> : <MonetizationScreen />} />
-          <Route path="/settings" element={isAnon ? <Navigate to="/discover" replace /> : <SettingsScreen onLogout={handleLogout} onReportBug={() => handleReportBug('button')} />} />
-          <Route path="/node-settings" element={isAnon ? <Navigate to="/discover" replace /> : <NodeSettingsScreen />} />
-          <Route path="*" element={<Navigate to={isAnon ? '/discover' : '/feed'} replace />} />
+          <Route path="/staging" element={isAnon ? <Navigate to="/video" replace /> : <StagingScreen />} />
+          <Route path="/monetize" element={isAnon ? <Navigate to="/video" replace /> : <MonetizationScreen />} />
+          <Route path="/settings" element={isAnon ? <Navigate to="/video" replace /> : <SettingsScreen onLogout={handleLogout} onReportBug={() => handleReportBug('button')} />} />
+          <Route path="/node-settings" element={isAnon ? <Navigate to="/video" replace /> : <NodeSettingsScreen />} />
+          <Route path="*" element={<Navigate to={isAnon ? '/video' : '/feed'} replace />} />
         </Route>
       </Routes>
       </RepostProvider>
@@ -481,6 +488,27 @@ function ProfileRedirectRoute() {
     return <Navigate to="/feed" replace />;
   }
   return <Navigate to={`/u/${token.username}`} replace state={{ provider: token.provider }} />;
+}
+
+// The Discover split's redirect (watch-page.md): the old /discover URL (the
+// Trending|People tabs + Home|Hot Gossip toggle) maps to the four flat
+// destinations. The ?knobs= / ?q= / ?tag= deep links survive on the relevant
+// destination (carried over verbatim). Bare /discover → Video (the default);
+// ?view=grid → Hot Gossip; ?tab=explore → People.
+function DiscoverRedirect() {
+  const [searchParams] = useSearchParams();
+  const params = new URLSearchParams(searchParams);
+  params.delete('view');
+  params.delete('tab');
+  const qs = params.toString();
+  const suffix = qs ? `?${qs}` : '';
+  if (searchParams.get('tab') === 'explore') {
+    return <Navigate to={`/people${suffix}`} replace />;
+  }
+  if (searchParams.get('view') === 'grid') {
+    return <Navigate to={`/hot-gossip${suffix}`} replace />;
+  }
+  return <Navigate to={`/video${suffix}`} replace />;
 }
 
 export default App;

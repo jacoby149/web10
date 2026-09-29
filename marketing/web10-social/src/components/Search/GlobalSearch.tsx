@@ -155,7 +155,7 @@ export default function GlobalSearch({ variant }: GlobalSearchProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const collapseTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const wasOpen = useRef(false);
-  const { pathname, search: locationSearch } = useLocation();
+  const { pathname } = useLocation();
 
   // S2: the three search sections. null = loading, [] = loaded (empty),
   // [...] = loaded (has results). Per-section loading: the slowest read
@@ -317,32 +317,21 @@ export default function GlobalSearch({ variant }: GlobalSearchProps) {
     }
   };
 
-  // The search submit: navigate to Discover carrying the query (?q=). The
-  // destination follows the RESULTS MODE (S7: the search is people-first):
-  // People mode → the People tab (?tab=explore — the people/groups browser,
-  // where the small results came from); Trending mode → stay on whatever tab
-  // is active (the S5 hand-off — the query chip, with its X, renders on
-  // Trending AND People, so it can be cleared from either). A bare
-  // /discover?q= lands on Trending (the bare-URL default);
-  // /discover?tab=explore&q= lands on People. The query is screen state the
-  // URL holds (the deep-link rule).
+  // The search submit: navigate to the matching destination carrying the
+  // query (?q=). The destination follows the RESULTS MODE (S7: the search is
+  // people-first): People mode → the People destination (the people/groups
+  // browser, where the small results came from); Posts mode → Hot Gossip (the
+  // ranked post board — the Discover split's home for posts). The query is
+  // screen state the URL holds (the deep-link rule).
   const submitSearch = useCallback(() => {
     const q = query.trim();
     if (!q) return;
     if (mode === 'people') {
-      navigate(`/discover?tab=explore&q=${encodeURIComponent(q)}`);
+      navigate(`/people?q=${encodeURIComponent(q)}`);
       return;
     }
-    // Trending mode: stay on the active Discover tab if we're already there
-    // (?tab=explore rides along); otherwise land on the bare URL (Trending,
-    // the default).
-    const params = new URLSearchParams(locationSearch);
-    if (params.get('tab') === 'explore') {
-      navigate(`/discover?tab=explore&q=${encodeURIComponent(q)}`);
-    } else {
-      navigate(`/discover?q=${encodeURIComponent(q)}`);
-    }
-  }, [query, navigate, locationSearch, mode]);
+    navigate(`/hot-gossip?q=${encodeURIComponent(q)}`);
+  }, [query, navigate, mode]);
 
   const field = (sizeClass: string) => (
     <input
@@ -483,12 +472,10 @@ export default function GlobalSearch({ variant }: GlobalSearchProps) {
           </>
         )}
 
-        {/* The search CTA — Enter (or this) opens Discover with the query.
-            People mode → the People tab (?tab=explore, the people/groups
-            browser — S7: the search is people-first, so the "see all" lands
-            where the small results came from). Trending mode → the Trending
-            tab (the active-tab hand-off, S5 — the query chip clears it from
-            either tab). */}
+        {/* The search CTA — Enter (or this) opens the matching destination
+            with the query. People mode → the People destination (the
+            people/groups browser — S7: the search is people-first, so the
+            "see all" lands where the small results came from). */}
         {mode === 'people' && (allLoaded(people) || allLoaded(groups)) && (
           <button
             type="button"
@@ -497,7 +484,7 @@ export default function GlobalSearch({ variant }: GlobalSearchProps) {
             className="w-full flex items-center gap-2 px-4 py-2.5 text-left text-sm text-brand-300 hover:text-brand-400 hover:bg-elevated transition-colors duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand/50"
           >
             <Search className="w-4 h-4 shrink-0" strokeWidth={1.75} />
-            See all results for &ldquo;{q}&rdquo; in Discover
+            See all results for &ldquo;{q}&rdquo; in People
           </button>
         )}
       </div>

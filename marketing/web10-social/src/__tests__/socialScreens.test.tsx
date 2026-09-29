@@ -681,22 +681,25 @@ describe('Layout', () => {
     // Nav items render in both the desktop sidebar and the mobile bottom
     // nav (CSS breakpoints hide one in a real browser; both exist in the
     // DOM in jsdom) — assert via the stable data-testid hooks instead.
-    // The operator's reorder (23.09.2026): Profile (your name), Shorts,
-    // Discover, Feed, Messages, Monetization. Groups is NOT a nav item
-    // (your communities live in Discover → Explore).
+    // The Discover split (watch-page.md): the old Discover item is four flat
+    // destinations — Video, Shorts, Hot Gossip, People.
     expect(screen.getByTestId('nav-profile')).toBeInTheDocument();
-    expect(screen.getByTestId('nav-shorts')).toBeInTheDocument();
-    expect(screen.getByTestId('nav-discover')).toBeInTheDocument();
     expect(screen.getByTestId('nav-feed')).toBeInTheDocument();
+    expect(screen.getByTestId('nav-video')).toBeInTheDocument();
+    expect(screen.getByTestId('nav-shorts')).toBeInTheDocument();
+    expect(screen.getByTestId('nav-hot-gossip')).toBeInTheDocument();
+    expect(screen.getByTestId('nav-people')).toBeInTheDocument();
     expect(screen.getByTestId('nav-messages')).toBeInTheDocument();
     expect(screen.getByTestId('nav-monetization')).toBeInTheDocument();
+    // The old single Discover item is retired (the four destinations replace it).
+    expect(screen.queryByTestId('nav-discover')).not.toBeInTheDocument();
     // The profile item shows the user's own name (the mock token's username),
     // not the word "Profile" — it tells you you're visiting your own profile.
     expect(screen.getByTestId('nav-profile')).toHaveTextContent('testuser');
-    // Groups is not a nav item (it lives in Discover → Explore).
+    // Groups is not a nav item (it lives in the People destination).
     expect(screen.queryByTestId('nav-groups')).not.toBeInTheDocument();
     expect(screen.getAllByText('Feed').length).toBeGreaterThanOrEqual(1);
-    expect(screen.getAllByText('Discover').length).toBeGreaterThanOrEqual(1);
+    expect(screen.getAllByText('Video').length).toBeGreaterThanOrEqual(1);
     expect(screen.queryByText('Groups')).not.toBeInTheDocument();
     expect(screen.getAllByText('Messages').length).toBeGreaterThanOrEqual(1);
   });
@@ -755,17 +758,18 @@ describe('Layout', () => {
     // The mobile bottom bar is exactly four core tabs + the More tab.
     const mobileNav = screen.getByLabelText('Primary mobile');
     expect(within(mobileNav).getByTestId('nav-feed-mobile')).toBeInTheDocument();
-    expect(within(mobileNav).getByTestId('nav-discover-mobile')).toBeInTheDocument();
+    expect(within(mobileNav).getByTestId('nav-video-mobile')).toBeInTheDocument();
+    expect(within(mobileNav).getByTestId('nav-shorts-mobile')).toBeInTheDocument();
     expect(within(mobileNav).getByTestId('nav-messages-mobile')).toBeInTheDocument();
-    expect(within(mobileNav).getByTestId('nav-profile-mobile')).toBeInTheDocument();
     expect(within(mobileNav).getByTestId('nav-more-mobile')).toBeInTheDocument();
-    // Settings is NOT in the bar (it lives in the More sheet). Groups is
-    // retired from the nav entirely (it lives in the Explorer/Groups subtab).
+    // Hot Gossip + People are NOT in the bar (they live in the More sheet);
+    // Settings is not in the bar either.
+    expect(within(mobileNav).queryByTestId('nav-hot-gossip-mobile')).not.toBeInTheDocument();
+    expect(within(mobileNav).queryByTestId('nav-people-mobile')).not.toBeInTheDocument();
     expect(within(mobileNav).queryByTestId('nav-settings-mobile')).not.toBeInTheDocument();
     expect(within(mobileNav).queryByTestId('nav-groups-mobile')).not.toBeInTheDocument();
     // …and none of the coming-soon icons are crammed into the bar.
     expect(within(mobileNav).queryByTestId('nav-stories-mobile')).not.toBeInTheDocument();
-    expect(within(mobileNav).queryByTestId('nav-shorts-mobile')).not.toBeInTheDocument();
     expect(within(mobileNav).queryByTestId('nav-livestream-mobile')).not.toBeInTheDocument();
     expect(within(mobileNav).queryByTestId('nav-games-mobile')).not.toBeInTheDocument();
     expect(within(mobileNav).queryByTestId('nav-marketplace-mobile')).not.toBeInTheDocument();
@@ -773,14 +777,16 @@ describe('Layout', () => {
     // The More sheet is closed by default.
     expect(screen.queryByTestId('more-sheet')).not.toBeInTheDocument();
 
-    // Tapping More opens the sheet: Shorts + Settings (real destinations) +
-    // the coming-soon list (Stories, Livestream, Games, Marketplace). Shorts
-    // is a real surface (shorts.md), not coming-soon. Groups is retired from
-    // the nav (it lives in the Explorer/Groups subtab), so it's not here.
+    // Tapping More opens the sheet: Profile (demoted from the bar) + Hot
+    // Gossip + People (the Discover-split destinations that don't hold a
+    // bottom-bar slot) + Settings (real destination) + the coming-soon list
+    // (Stories, Livestream, Games, Marketplace).
     fireEvent.click(screen.getByTestId('nav-more-mobile'));
     const sheet = screen.getByTestId('more-sheet');
     expect(sheet).toBeInTheDocument();
-    expect(within(sheet).getByTestId('nav-shorts-mobile')).toBeInTheDocument();
+    expect(within(sheet).getByTestId('nav-profile-mobile')).toBeInTheDocument();
+    expect(within(sheet).getByTestId('nav-hot-gossip-mobile')).toBeInTheDocument();
+    expect(within(sheet).getByTestId('nav-people-mobile')).toBeInTheDocument();
     expect(within(sheet).getByTestId('nav-settings-mobile')).toBeInTheDocument();
     expect(within(sheet).queryByTestId('nav-groups-mobile')).not.toBeInTheDocument();
     expect(within(sheet).getByTestId('nav-stories-mobile')).toBeInTheDocument();
@@ -789,7 +795,7 @@ describe('Layout', () => {
     expect(within(sheet).getByTestId('nav-marketplace-mobile')).toBeInTheDocument();
   });
 
-  it('People is retired from the nav (D4) — the Discover/People subtab is the home now', async () => {
+  it('People is a first-class nav destination (the Discover split)', async () => {
     const { default: Layout } = await import('@/components/Social/Layout');
     render(
       <MemoryRouter initialEntries={['/feed']}>
@@ -798,14 +804,15 @@ describe('Layout', () => {
         </Layout>
       </MemoryRouter>,
     );
-    // The People nav item is gone from the desktop sidebar…
-    expect(screen.queryByTestId('nav-people')).not.toBeInTheDocument();
-    // …and the mobile More sheet.
+    // The People nav item is in the desktop sidebar (the old ?tab=explore
+    // subtab is now its own destination)…
+    expect(screen.getByTestId('nav-people')).toBeInTheDocument();
+    // …and in the mobile More sheet (it doesn't hold a bottom-bar slot).
     fireEvent.click(screen.getByTestId('nav-more-mobile'));
     const sheet = screen.getByTestId('more-sheet');
-    expect(within(sheet).queryByTestId('nav-people-mobile')).not.toBeInTheDocument();
-    // Discover (the People subtab's home) is still in the nav.
-    expect(screen.getByTestId('nav-discover')).toBeInTheDocument();
+    expect(within(sheet).getByTestId('nav-people-mobile')).toBeInTheDocument();
+    // The old single Discover item is retired (the four destinations replace it).
+    expect(screen.queryByTestId('nav-discover')).not.toBeInTheDocument();
   });
 
   it('Monetization nav renders for every user; Node Monetization only for the node admin', async () => {
@@ -1099,27 +1106,28 @@ describe('Layout', () => {
     expect(topbar.contains(field)).toBe(false);
   });
 
-  it('the Discover screen shows the Trending | People tabs in the top bar — B3', async () => {
+  it('the Discover destinations live in the sidebar, not the top bar (the split retires B3)', async () => {
     const { default: Layout } = await import('@/components/Social/Layout');
     render(
-      <MemoryRouter initialEntries={['/discover']}>
+      <MemoryRouter initialEntries={['/video']}>
         <Layout onLogout={() => {}} onReportBug={() => {}}>
           <div>Discover content</div>
         </Layout>
       </MemoryRouter>,
     );
-    // The two tabs are in the top bar on the Discover screen.
+    // The old Trending | People top-bar tabs are retired — the four
+    // destinations are sidebar items now (the Discover split).
     const topbar = screen.getByTestId('topbar-desktop');
-    const row = topbar.querySelector('[data-testid="discover-tab-row"]');
-    expect(row).not.toBeNull();
-    expect(topbar.contains(screen.getByTestId('discover-tab-trending'))).toBe(true);
-    expect(topbar.contains(screen.getByTestId('discover-tab-explore'))).toBe(true);
-    // Trending is active by default (the bare URL).
-    expect(screen.getByTestId('discover-tab-trending')).toHaveAttribute('aria-selected', 'true');
-    expect(screen.getByTestId('discover-tab-explore')).toHaveAttribute('aria-selected', 'false');
+    expect(topbar.querySelector('[data-testid="discover-tab-row"]')).toBeNull();
+    // The four destinations are in the sidebar.
+    const sidebarNav = screen.getByLabelText('Primary');
+    expect(sidebarNav.querySelector('[data-testid="nav-video"]')).not.toBeNull();
+    expect(sidebarNav.querySelector('[data-testid="nav-shorts"]')).not.toBeNull();
+    expect(sidebarNav.querySelector('[data-testid="nav-hot-gossip"]')).not.toBeNull();
+    expect(sidebarNav.querySelector('[data-testid="nav-people"]')).not.toBeNull();
   });
 
-  it('non-Discover screens show no tabs in the top bar — B3', async () => {
+  it('non-Discover screens show no tabs in the top bar', async () => {
     const { default: Layout } = await import('@/components/Social/Layout');
     render(
       <MemoryRouter initialEntries={['/feed']}>
@@ -1148,29 +1156,34 @@ describe('Layout', () => {
     expect(screen.queryByTestId('new-post-button-mobile')).not.toBeInTheDocument();
   });
 
-  it('anon chrome: Shorts leads the nav (the operator: "shorts should be first!!!!")', async () => {
+  it('anon chrome: the four destinations lead the nav (Video first)', async () => {
     const { default: Layout } = await import('@/components/Social/Layout');
     render(
-      <MemoryRouter initialEntries={['/discover']}>
+      <MemoryRouter initialEntries={['/video']}>
         <Layout onLogout={() => {}} onLogin={() => {}} isAnon onReportBug={() => {}}>
           <div>Content</div>
         </Layout>
       </MemoryRouter>,
     );
-    // Desktop sidebar: Shorts is the FIRST nav row, Discover second.
+    // Desktop sidebar: Video is the FIRST nav row (the video wall is the front
+    // door), then Shorts, Hot Gossip, People.
     const sidebarNav = screen.getByLabelText('Primary');
     const sidebarItems = Array.from(sidebarNav.querySelectorAll('[data-testid]'))
       .map((el) => el.getAttribute('data-testid'))
       .filter((id) => id?.startsWith('nav-'));
-    expect(sidebarItems.indexOf('nav-shorts')).toBeLessThan(sidebarItems.indexOf('nav-discover'));
-    expect(sidebarItems[0]).toBe('nav-shorts');
-    // Mobile bottom nav: Shorts first, Discover second (no More tab in anon).
+    expect(sidebarItems[0]).toBe('nav-video');
+    expect(sidebarItems.indexOf('nav-video')).toBeLessThan(sidebarItems.indexOf('nav-shorts'));
+    expect(sidebarItems.indexOf('nav-shorts')).toBeLessThan(sidebarItems.indexOf('nav-hot-gossip'));
+    expect(sidebarItems.indexOf('nav-hot-gossip')).toBeLessThan(sidebarItems.indexOf('nav-people'));
+    // Mobile bottom nav: all four destinations (anon has no More tab).
     const mobileNav = screen.getByLabelText('Primary mobile');
     const mobileItems = Array.from(mobileNav.querySelectorAll('[data-testid]'))
       .map((el) => el.getAttribute('data-testid'))
       .filter((id) => id?.startsWith('nav-'));
-    expect(mobileItems[0]).toBe('nav-shorts-mobile');
-    expect(mobileItems[1]).toBe('nav-discover-mobile');
+    expect(mobileItems[0]).toBe('nav-video-mobile');
+    expect(mobileItems).toContain('nav-shorts-mobile');
+    expect(mobileItems).toContain('nav-hot-gossip-mobile');
+    expect(mobileItems).toContain('nav-people-mobile');
   });
 
   it('anon chrome: the desktop top bar keeps a fixed height (the Sign in button must not collapse it)', async () => {
