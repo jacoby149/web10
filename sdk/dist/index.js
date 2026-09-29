@@ -163,6 +163,62 @@ function pickThumbnail(resolvedMedia) {
   }
   return null;
 }
+function diffGroupContract(spec, current) {
+  const curRoles = new Map((current.roles ?? []).map((r) => [r.name, r]));
+  const curMemberKeys = new Set((current.members ?? []).map((m) => m.member_key));
+  const curTags = new Set(current.tags ?? []);
+  const missingRoles = [];
+  const rolePermissionGaps = [];
+  for (const role of spec.roles) {
+    const actual = curRoles.get(role.name);
+    if (!actual) {
+      missingRoles.push(role);
+      continue;
+    }
+    for (const [service, ops] of Object.entries(role.permissions ?? {})) {
+      const have = new Set(actual.permissions?.[service] ?? []);
+      for (const op of ops ?? []) {
+        if (!have.has(op) && !rolePermissionGaps.some((g) => g.role === role.name && g.service === service && g.op === op)) {
+          rolePermissionGaps.push({ role: role.name, service, op });
+        }
+      }
+    }
+  }
+  const missingMembers = (spec.members ?? []).filter((m) => !curMemberKeys.has(m.member_key));
+  const joinPolicyDrifted = spec.join_policy != null && current.join_policy != null && current.join_policy !== spec.join_policy;
+  const missingTags = (spec.tags ?? []).filter((t) => !curTags.has(t));
+  return {
+    missingRoles,
+    rolePermissionGaps,
+    missingMembers,
+    joinPolicyDrifted,
+    missingTags,
+    inSync: missingRoles.length === 0 && rolePermissionGaps.length === 0 && missingMembers.length === 0 && !joinPolicyDrifted && missingTags.length === 0
+  };
+}
+function mergeGroupRolesForReconcile(currentRoles, specRoles, diff) {
+  const merged = (currentRoles ?? []).map((r) => ({
+    ...r,
+    permissions: { ...r.permissions }
+  }));
+  const byName = new Map(merged.map((r) => [r.name, r]));
+  for (const gap of diff.rolePermissionGaps) {
+    const role = byName.get(gap.role);
+    if (!role)
+      continue;
+    const ops = role.permissions[gap.service] ?? (role.permissions[gap.service] = []);
+    if (!ops.includes(gap.op))
+      ops.push(gap.op);
+  }
+  for (const role of diff.missingRoles) {
+    merged.push({ name: role.name, permissions: { ...role.permissions } });
+  }
+  return merged;
+}
+function findDanglingGrants(roles, members) {
+  const defined = new Set((roles ?? []).map((r) => r?.name).filter(Boolean));
+  return (members ?? []).filter((m) => m.role && !defined.has(m.role));
+}
 function createV3Client(options = {}) {
   const apiOrigin = options.apiOrigin ?? "https://api.web10.app";
   const rtcServer = options.rtcServer ?? "rtc.web10.app";
@@ -391,6 +447,37 @@ function createV3Client(options = {}) {
         payload.tags = opts.tags;
       return v3Post("groups/update", payload);
     },
+    async reconcileGroupContract(groupId, spec) {
+      const [group, members] = await Promise.all([
+        this.getGroup(groupId),
+        this.getGroupMembers(groupId)
+      ]);
+      const diff = diffGroupContract(spec, {
+        roles: group.roles,
+        members,
+        join_policy: group.join_policy,
+        tags: group.tags
+      });
+      if (diff.inSync)
+        return { inSync: true, diff, healed: false };
+      const updateOpts = {};
+      if (diff.missingRoles.length || diff.rolePermissionGaps.length) {
+        updateOpts.roles = mergeGroupRolesForReconcile(group.roles, spec.roles, diff);
+      }
+      if (diff.joinPolicyDrifted && spec.join_policy) {
+        updateOpts.join_policy = spec.join_policy;
+      }
+      if (diff.missingTags.length) {
+        updateOpts.tags = [...group.tags ?? [], ...diff.missingTags];
+      }
+      if (Object.keys(updateOpts).length) {
+        await this.updateGroup(groupId, updateOpts);
+      }
+      for (const m of diff.missingMembers) {
+        await this.addGroupMember(groupId, m.member_key, m.role);
+      }
+      return { inSync: false, diff, healed: true };
+    },
     async deleteGroup(groupId) {
       return v3Post("groups/delete", { group_id: groupId });
     },
@@ -599,8 +686,11 @@ export {
   scrubTokenCookie,
   readTokenCookie,
   pickThumbnail,
+  mergeGroupRolesForReconcile,
   isTokenExpired,
+  findDanglingGrants,
   extractDetail,
+  diffGroupContract,
   decodeJwt,
   createV3Client,
   cookieDict,

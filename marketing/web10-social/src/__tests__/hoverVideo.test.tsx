@@ -258,4 +258,98 @@ describe('HoverVideo — the YouTube-style hover preview (video-player.md)', () 
     expect(video.muted).toBe(false);
     expect(video.volume).toBe(0.8);
   });
+
+  it('the video overlays the poster (both absolute inset-0) — the audio-plays-but-still-thumbnail fix', async () => {
+    const { HoverVideo } = await import('@web10/discover');
+    render(<HoverVideo media={videoMedia} poster={videoMedia.thumbnail_url} testId="hv" />);
+    const frame = screen.getByTestId('hv');
+    const img = frame.querySelector('img') as HTMLImageElement;
+    const video = frame.querySelector('video') as HTMLVideoElement;
+    // Both the poster and the video must occupy the SAME box (absolute inset-0),
+    // stacked — never flow one below the other. A flow layout pushed the video
+    // off-screen below the poster, so the audio played but the visible image
+    // stayed the thumbnail (the operator's "only hearing the audio, the image is
+    // just the thumbnail" complaint).
+    expect(img.className).toMatch(/absolute/);
+    expect(img.className).toMatch(/inset-0/);
+    expect(video.className).toMatch(/absolute/);
+    expect(video.className).toMatch(/inset-0/);
+  });
+
+  it('the scrubber seeks on click (click a spot on the bar → jump to that position)', async () => {
+    const { HoverVideo } = await import('@web10/discover');
+    render(<HoverVideo media={videoMedia} poster={videoMedia.thumbnail_url} testId="hv" />);
+    const frame = screen.getByTestId('hv');
+    const video = frame.querySelector('video') as HTMLVideoElement;
+    vi.spyOn(video, 'play').mockResolvedValue(undefined);
+    vi.spyOn(video, 'pause').mockImplementation(() => {});
+    Object.defineProperty(video, 'duration', { value: 120, configurable: true });
+    let currentTime = 0;
+    Object.defineProperty(video, 'currentTime', {
+      get: () => currentTime,
+      set: (v: number) => { currentTime = v; },
+      configurable: true,
+    });
+
+    fireEvent.mouseEnter(frame);
+    video.dispatchEvent(new Event('loadedmetadata'));
+    video.dispatchEvent(new Event('playing'));
+    const scrubber = await screen.findByTestId('hv-scrubber');
+
+    // The track spans 0–200px; clicking at x=100 (the middle) seeks to 50% of
+    // 120s = 60s. The bar is a real control, not decoration.
+    vi.spyOn(scrubber, 'getBoundingClientRect').mockReturnValue({
+      left: 0, right: 200, top: 0, bottom: 12, width: 200, height: 12, x: 0, y: 0, toJSON: () => ({}),
+    } as DOMRect);
+    fireEvent.click(scrubber, { clientX: 100 });
+    expect(currentTime).toBe(60);
+  });
+
+  it('a scrubber click never navigates (it stops + prevents the card link)', async () => {
+    const { HoverVideo } = await import('@web10/discover');
+    const linkClicks = vi.fn();
+    render(
+      <a href="#post" onClick={linkClicks} className="relative block aspect-video">
+        <HoverVideo media={videoMedia} poster={videoMedia.thumbnail_url} testId="hv" />
+      </a>,
+    );
+    const frame = screen.getByTestId('hv');
+    const video = frame.querySelector('video') as HTMLVideoElement;
+    vi.spyOn(video, 'play').mockResolvedValue(undefined);
+    vi.spyOn(video, 'pause').mockImplementation(() => {});
+    Object.defineProperty(video, 'duration', { value: 120, configurable: true });
+
+    fireEvent.mouseEnter(frame);
+    video.dispatchEvent(new Event('loadedmetadata'));
+    video.dispatchEvent(new Event('playing'));
+    const scrubber = await screen.findByTestId('hv-scrubber');
+    vi.spyOn(scrubber, 'getBoundingClientRect').mockReturnValue({
+      left: 0, right: 200, top: 0, bottom: 12, width: 200, height: 12, x: 0, y: 0, toJSON: () => ({}),
+    } as DOMRect);
+
+    // The scrubber is a control, not the card link: the click must not navigate.
+    const result = fireEvent.click(scrubber, { clientX: 100 });
+    expect(linkClicks).not.toHaveBeenCalled();
+    expect(result).toBe(false); // preventDefault → the anchor's default navigation is cancelled
+  });
+
+  it('the speaker toggle cancels the anchor navigation (preventDefault, not just stopPropagation)', async () => {
+    const { HoverVideo } = await import('@web10/discover');
+    render(
+      <a href="#post" className="relative block aspect-video">
+        <HoverVideo media={videoMedia} poster={videoMedia.thumbnail_url} testId="hv" />
+      </a>,
+    );
+    const frame = screen.getByTestId('hv');
+    const video = frame.querySelector('video') as HTMLVideoElement;
+    vi.spyOn(video, 'play').mockResolvedValue(undefined);
+
+    fireEvent.mouseEnter(frame);
+    const mute = screen.getByTestId('hv-mute');
+    // fireEvent returns false when the event's default was prevented — the
+    // speaker is a control, so clicking it must cancel the anchor's navigation
+    // (the "clicking the audio button opens a new tab" bug).
+    const result = fireEvent.click(mute);
+    expect(result).toBe(false);
+  });
 });

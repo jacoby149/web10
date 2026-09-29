@@ -45,12 +45,31 @@ export interface HoverVideoProps {
   poster?: string;
   testId?: string;
   className?: string;
+  /**
+   * Reports the preview's live position as it plays (the `timeupdate` /
+   * `loadedmetadata` / `durationchange` signal). The parent's time-lapse badge
+   * keys off this — at rest the badge shows the clip's total length, while the
+   * preview plays it counts up the elapsed position.
+   */
+  onTime?: (current: number, duration: number) => void;
+  /** Fires when the preview starts/stops playing (the `playing` / `pause` signal). */
+  onPlayingChange?: (playing: boolean) => void;
 }
 
-export function HoverVideo({ media, poster, testId, className }: HoverVideoProps) {
+export function HoverVideo({ media, poster, testId, className, onTime, onPlayingChange }: HoverVideoProps) {
   const videoRef = useRef<HTMLVideoElement>(null);
   const hlsRef = useRef<HlsInstance | null>(null);
   const attachedRef = useRef(false);
+  // The scrubber's hit area — the pointer math (clientX → time) reads its rect.
+  const trackRef = useRef<HTMLDivElement>(null);
+  // The parent's live-position callbacks, kept in refs so the (empty-deps)
+  // listener effect always calls the latest closure without re-binding.
+  const onTimeRef = useRef(onTime);
+  const onPlayingChangeRef = useRef(onPlayingChange);
+  useEffect(() => {
+    onTimeRef.current = onTime;
+    onPlayingChangeRef.current = onPlayingChange;
+  });
   const [hovered, setHovered] = useState(false);
   const [muted, setMuted] = useState(true);
   // The video is only revealed once it is actually PLAYING (frames on
@@ -111,10 +130,24 @@ export function HoverVideo({ media, poster, testId, className }: HoverVideoProps
   useEffect(() => {
     const el = videoRef.current;
     if (!el) return;
-    const onPlaying = () => setPlaying(true);
-    const onPause = () => setPlaying(false);
-    const onTime = () => setCurrent(el.currentTime);
-    const onMeta = () => setDuration(el.duration || 0);
+    const onPlaying = () => {
+      setPlaying(true);
+      onPlayingChangeRef.current?.(true);
+    };
+    const onPause = () => {
+      setPlaying(false);
+      onPlayingChangeRef.current?.(false);
+    };
+    const onTime = () => {
+      setCurrent(el.currentTime);
+      // Surface the live position to the parent (the time-lapse badge). The
+      // state updates above are async, so report the element's raw values now.
+      onTimeRef.current?.(el.currentTime, el.duration || 0);
+    };
+    const onMeta = () => {
+      setDuration(el.duration || 0);
+      onTimeRef.current?.(el.currentTime, el.duration || 0);
+    };
     el.addEventListener('playing', onPlaying);
     el.addEventListener('pause', onPause);
     el.addEventListener('timeupdate', onTime);
@@ -162,7 +195,12 @@ export function HoverVideo({ media, poster, testId, className }: HoverVideoProps
   // The speaker toggle flips the element either way (a toggle while the
   // pointer is still over the card takes effect immediately).
   const toggleMute = (e: React.MouseEvent) => {
+    // The speaker is a control, not the card link. `stopPropagation` stops the
+    // React handler bubbling to the `<a>`; `preventDefault` cancels the browser's
+    // native anchor-follow (the "clicking the speaker opens a new tab" bug —
+    // stopPropagation alone does NOT cancel the default navigation).
     e.stopPropagation();
+    e.preventDefault();
     const el = videoRef.current;
     if (el) {
       el.muted = !el.muted;
@@ -170,6 +208,30 @@ export function HoverVideo({ media, poster, testId, className }: HoverVideoProps
     }
     setMuted((m) => !m);
     LOG('mute toggled →', !muted);
+  };
+
+  // The scrubber: a click anywhere on the track seeks to that position (the
+  // YouTube home behavior — the bar is a control, not decoration). The pointer
+  // math uses the track's own rect, so it's correct at any card width.
+  const seekTo = (clientX: number) => {
+    const el = videoRef.current;
+    const track = trackRef.current;
+    if (!el || !track || !Number.isFinite(el.duration) || el.duration <= 0) return;
+    const rect = track.getBoundingClientRect();
+    if (rect.width <= 0) return;
+    const frac = Math.min(1, Math.max(0, (clientX - rect.left) / rect.width));
+    const t = frac * el.duration;
+    el.currentTime = t;
+    setCurrent(t);
+    LOG('seek →', t.toFixed(2));
+  };
+
+  const onScrubClick = (e: React.MouseEvent) => {
+    // The scrubber is a control, not the card link — stop the click from
+    // navigating out of the tile.
+    e.stopPropagation();
+    e.preventDefault();
+    seekTo(e.clientX);
   };
 
   const progress = duration > 0 ? Math.min(100, (current / duration) * 100) : 0;
@@ -202,26 +264,31 @@ export function HoverVideo({ media, poster, testId, className }: HoverVideoProps
         setHovered(false);
       }}
     >
-      {/* The poster — always the backdrop. It shows at rest AND while the
-          video loads, so the tile never flashes gray/black: the video only
-          fades in on top of it once it is actually playing. */}
+      {/* The poster — always the backdrop, pinned to the tile. It shows at
+          rest AND while the video loads, so the tile never flashes gray/black:
+          the video overlays it and fades in once it is actually playing. Both
+          the poster and the video are `absolute inset-0` — they must occupy the
+          SAME box (stacked), never flow one below the other (a flow layout
+          pushed the video off-screen below the poster, so the audio played but
+          the visible image stayed the thumbnail). */}
       {poster && (
         <img
           src={poster}
           alt=""
           loading="lazy"
-          className="h-full w-full object-cover"
+          className="absolute inset-0 h-full w-full object-cover"
         />
       )}
 
       {/* The preview — muted autoplay, cover-cropped into the 16:9 frame.
-          Revealed only while playing (frames on screen), over the poster. */}
+          Overlays the poster (absolute inset-0); revealed only while playing
+          (frames on screen). */}
       <video
         ref={videoRef}
         data-testid={`${testId}-video`}
         poster={poster}
         className={cn(
-          'h-full w-full object-cover transition-opacity duration-200',
+          'absolute inset-0 h-full w-full object-cover transition-opacity duration-200',
           playing ? 'opacity-100' : 'opacity-0',
         )}
         muted
@@ -234,16 +301,36 @@ export function HoverVideo({ media, poster, testId, className }: HoverVideoProps
         }}
       />
 
-      {/* The progress bar — the YouTube home behavior: a thin track along the
-          bottom of the tile, the played portion filled. `pointer-events-none`
-          (decorative — the <a> owns the click). Only while the preview is
-          live and the duration is known. */}
+      {/* The scrubber — the YouTube home behavior: a thin track along the
+          bottom of the tile, the played portion filled, click-to-seek. It is a
+          real control (not `pointer-events-none`): a click anywhere on the
+          track seeks to that position. `group-hover/hover-video` reveals a
+          thicker track + a thumb while the pointer is over the tile. Only
+          while the preview is live and the duration is known. */}
       {hovered && playing && duration > 0 && (
-        <div className="pointer-events-none absolute inset-x-0 bottom-0 h-0.5 bg-white/25" aria-hidden>
+        <div
+          ref={trackRef}
+          data-testid={`${testId}-scrubber`}
+          role="slider"
+          aria-label="Seek"
+          aria-valuemin={0}
+          aria-valuemax={Math.round(duration)}
+          aria-valuenow={Math.round(current)}
+          onClick={onScrubClick}
+          className="group/scrub absolute inset-x-0 bottom-0 h-3 cursor-pointer"
+        >
+          {/* The track — thin at rest, thicker on hover. */}
+          <div className="absolute inset-x-0 bottom-0 h-0.5 rounded-full bg-white/25 transition-all duration-150 group-hover/scrub:h-1" />
+          {/* The played portion. */}
           <div
             data-testid={`${testId}-progress`}
-            className="h-full bg-white"
+            className="absolute bottom-0 left-0 h-0.5 rounded-full bg-white transition-all duration-150 group-hover/scrub:h-1"
             style={{ width: `${progress}%` }}
+          />
+          {/* The thumb — revealed on hover, at the played edge. */}
+          <div
+            className="absolute bottom-0 h-2.5 w-2.5 -translate-x-1/2 translate-y-1/2 rounded-full bg-foreground opacity-0 transition-opacity duration-150 group-hover/scrub:opacity-100"
+            style={{ left: `${progress}%` }}
           />
         </div>
       )}

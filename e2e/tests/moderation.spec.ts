@@ -22,12 +22,13 @@ import { API_BASE, v3Login, v3Signup } from '../v3-helpers';
  * visibility. The hide is scoped to the discover group — the author's copy and
  * their followers group are untouched.
  *
- * The browser gauntlet drives the REAL surfaces (pre-authed via the token
- * cookie): the operator sets the blocklist in the Node Config "Content
- * Moderation" card, a flagged post is hidden from the board, the flag appears
- * in the review queue, the operator "keeps hiding" (adds to auto_hide_users),
- * the user's next post is auto-hidden, the operator removes the user, and the
- * next post is visible — with no pageerror.
+ * The browser gauntlet drives the REAL surface (pre-authed via the token
+ * cookie): the operator opens the SOCIAL app's Node Settings (Moderation tab —
+ * the node-owner surface; the authenticator's card is retired), sets the
+ * blocklist, a flagged post is hidden from the board, the flag appears in the
+ * review queue, the operator "keeps hiding" (adds to auto_hide_users), the
+ * user's next post is auto-hidden, the operator removes the user, and the next
+ * post is visible — with no pageerror.
  *
  * NOTE: the tests mutate the shared node config (`sensitive_words`,
  * `auto_hide_users`), so they run serially and reset both to empty in
@@ -363,44 +364,37 @@ test.describe('Content moderation (D59)', () => {
   });
 
   // ---------------------------------------------------------------------------
-  // Browser gauntlet — the Node Config "Content Moderation" card drives the
-  // full flow: set blocklist → post flagged → hidden → queue → keep hiding →
-  // next post auto-hidden → remove → next post visible.
+  // Browser gauntlet — the social app's Node Settings (Moderation tab) drives
+  // the full flow: set blocklist → post flagged → hidden → queue → keep hiding
+  // → next post auto-hidden → remove → next post visible. The surface is the
+  // node-owner's (useNodeAdmin gate); the operator (admin) is the node owner.
   // ---------------------------------------------------------------------------
 
-  test.describe('Browser gauntlet — the Content Moderation card', () => {
+  test.describe('Browser gauntlet — the social app Node Settings Moderation tab', () => {
     test('set blocklist → flagged post hidden → queue → keep hiding → next auto-hidden → remove → visible', async ({ browser, request }) => {
       const admin = await adminToken(request);
       const user = await signupAndLogin(request, 'modg');
       await addAppContract(request, user.token, SOCIAL_ORIGIN, SOCIAL_CONTRACT_PERMISSIONS);
-      // The operator (admin) needs a contract for the authenticator origin to
-      // read the board + write posts through the card's node client.
-      await addAppContract(request, admin, AUTH_BASE, SOCIAL_CONTRACT_PERMISSIONS);
 
       const flaggedText = `gauntlet ${FLAG_WORD} ${Date.now()}`;
       const listedText = `gauntlet listed ${Date.now()}`;
       const restoredText = `gauntlet restored ${Date.now()}`;
 
-      // --- The OPERATOR sets the blocklist in the Content Moderation card ---
+      // --- The OPERATOR opens the social app's Node Settings (Moderation tab) ---
+      // Pre-authed via the token cookie (the session is cookie-backed); the admin
+      // is the node owner, so the surface renders (the useNodeAdmin gate).
       const ctxOp = await browser.newContext();
+      await setTokenCookie(ctxOp, 'social.localhost', admin);
       const pageOp = await ctxOp.newPage();
       const opErrors = capturePageErrors(pageOp);
-      await pageOp.goto(AUTH_BASE);
-      await pageOp.locator('#username').waitFor({ state: 'visible', timeout: 30000 });
-      await pageOp.locator('#username').fill('admin');
-      await pageOp.locator('#password').fill('admin123');
-      await pageOp.locator('[data-testid="login-submit"]').click();
-      await expect(pageOp.locator('[data-testid="topbar-username"]')).toHaveText('admin', { timeout: 20000 });
-      // Navigate to Node Config → the Content Moderation card.
-      await pageOp.locator('[data-testid="sidebar-nav-config"]').click();
-      await expect(pageOp.locator('[data-testid="config-content-moderation-card"]')).toBeVisible({ timeout: 20000 });
+      await pageOp.goto(`${SOCIAL_BASE}/node-settings`);
+      // The Moderation tab (the default) renders the blocklist editor.
+      await expect(pageOp.locator('[data-testid="moderation-tab"]')).toBeVisible({ timeout: 30000 });
 
-      // Add the sentinel word to the blocklist + save (the diff-only config save).
-      await pageOp.locator('[data-testid="config-moderation-word-input"]').fill(FLAG_WORD);
-      await pageOp.locator('[data-testid="config-moderation-word-add"]').click();
-      await expect(pageOp.locator(`[data-testid="config-moderation-word-${FLAG_WORD}"]`)).toBeVisible();
-      await pageOp.locator('[data-testid="config-save-button"]').click();
-      await expect(pageOp.locator('[data-testid="config-saved-indicator"]')).toBeVisible({ timeout: 20000 });
+      // Add the sentinel word to the blocklist (auto-saves — no separate Save).
+      await pageOp.locator('[data-testid="moderation-word-input"]').fill(FLAG_WORD);
+      await pageOp.locator('[data-testid="moderation-word-add"]').click();
+      await expect(pageOp.locator(`[data-testid="moderation-word-${FLAG_WORD}"]`)).toBeVisible({ timeout: 20000 });
       expect(opErrors, 'operator pageerrors (blocklist set)').toEqual([]);
 
       // --- A flagged post is hidden from the board ---
@@ -408,21 +402,18 @@ test.describe('Content moderation (D59)', () => {
       await expectBoardText(request, user.token, flaggedText, /* absent */ true);
       await expectHiddenText(request, admin, flaggedText, /* absent */ false);
 
-      // The flag appears in the operator's review queue. The authenticator's
-      // mode is in-memory (not persisted across reload), so re-navigate to the
-      // config page (away + back) to re-mount the card and re-load the queue.
-      await pageOp.locator('[data-testid="sidebar-nav-contracts"]').click();
-      await pageOp.locator('[data-testid="sidebar-nav-config"]').click();
-      await expect(pageOp.locator('[data-testid="config-content-moderation-card"]')).toBeVisible({ timeout: 20000 });
-      await expect(pageOp.locator(`[data-testid="config-moderation-flag-${user.username}"]`)).toBeVisible({ timeout: 20000 });
+      // The flag appears in the review queue. Re-load the tab to re-mount + re-read
+      // the queue (the flag was recorded after the tab's initial load).
+      await pageOp.goto(`${SOCIAL_BASE}/node-settings`);
+      await expect(pageOp.locator(`[data-testid="moderation-flag-${user.username}"]`)).toBeVisible({ timeout: 20000 });
       // The queue row shows the matched word.
-      await expect(pageOp.locator(`[data-testid="config-moderation-flag-${user.username}"]`)).toContainText(FLAG_WORD);
+      await expect(pageOp.locator(`[data-testid="moderation-flag-${user.username}"]`)).toContainText(FLAG_WORD);
       expect(opErrors, 'operator pageerrors (queue)').toEqual([]);
 
       // --- The operator "keeps hiding" (adds the user to auto_hide_users) ---
-      await pageOp.locator(`[data-testid="config-moderation-flag-toggle-${user.username}"]`).click();
+      await pageOp.locator(`[data-testid="moderation-flag-toggle-${user.username}"]`).click();
       // The button flips to the "Hiding" state (the user is now on the list).
-      await expect(pageOp.locator(`[data-testid="config-moderation-flag-toggle-${user.username}"]`)).toContainText('Hiding', { timeout: 20000 });
+      await expect(pageOp.locator(`[data-testid="moderation-flag-toggle-${user.username}"]`)).toContainText('Hiding', { timeout: 20000 });
       expect(opErrors, 'operator pageerrors (keep hiding)').toEqual([]);
       await ctxOp.close();
 
@@ -433,22 +424,16 @@ test.describe('Content moderation (D59)', () => {
 
       // --- The operator removes the user from auto_hide_users ---
       const ctxOp2 = await browser.newContext();
+      await setTokenCookie(ctxOp2, 'social.localhost', admin);
       const pageOp2 = await ctxOp2.newPage();
       const op2Errors = capturePageErrors(pageOp2);
-      await pageOp2.goto(AUTH_BASE);
-      await pageOp2.locator('#username').waitFor({ state: 'visible', timeout: 30000 });
-      await pageOp2.locator('#username').fill('admin');
-      await pageOp2.locator('#password').fill('admin123');
-      await pageOp2.locator('[data-testid="login-submit"]').click();
-      await expect(pageOp2.locator('[data-testid="topbar-username"]')).toHaveText('admin', { timeout: 20000 });
-      await pageOp2.locator('[data-testid="sidebar-nav-config"]').click();
-      await expect(pageOp2.locator('[data-testid="config-content-moderation-card"]')).toBeVisible({ timeout: 20000 });
+      await pageOp2.goto(`${SOCIAL_BASE}/node-settings`);
       // The user is still flagged (the audit log is append-only) and on the list
       // (the button shows "Hiding") — clicking removes them.
-      await expect(pageOp2.locator(`[data-testid="config-moderation-flag-${user.username}"]`)).toBeVisible({ timeout: 20000 });
-      await pageOp2.locator(`[data-testid="config-moderation-flag-toggle-${user.username}"]`).click();
+      await expect(pageOp2.locator(`[data-testid="moderation-flag-${user.username}"]`)).toBeVisible({ timeout: 20000 });
+      await pageOp2.locator(`[data-testid="moderation-flag-toggle-${user.username}"]`).click();
       // The button flips back to "Keep hiding" (the user is off the list).
-      await expect(pageOp2.locator(`[data-testid="config-moderation-flag-toggle-${user.username}"]`)).toContainText('Keep hiding', { timeout: 20000 });
+      await expect(pageOp2.locator(`[data-testid="moderation-flag-toggle-${user.username}"]`)).toContainText('Keep hiding', { timeout: 20000 });
       expect(op2Errors, 'operator pageerrors (remove)').toEqual([]);
       await ctxOp2.close();
 

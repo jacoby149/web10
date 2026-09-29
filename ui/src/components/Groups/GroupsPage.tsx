@@ -3,6 +3,7 @@ import { Users, UserPlus, Shield, Plus, Lock, LockOpen, MessageSquare } from 'lu
 import AppShell from '../shared/AppShell';
 import RecoveryNudgeBanner from '../shared/RecoveryNudgeBanner';
 import GroupCard from './GroupCard';
+import ContractHealth from './ContractHealth';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
@@ -243,6 +244,8 @@ function GroupsManage({ I }: { I: Record<string, any> }) {
           Create group
         </Button>
       </div>
+
+      <ContractHealth I={I} groups={groups} />
 
       {groups.length === 0 ? (
         <EmptyGroups isManaged={true} />

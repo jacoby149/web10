@@ -1,4 +1,5 @@
 import { Play, Film, Heart, ThumbsDown, MessageCircle, Repeat2 } from 'lucide-react';
+import { useState } from 'react';
 import { cn, hashToColor, timeAgo } from './utils';
 import { Avatar, AvatarFallback } from './ui';
 import { HoverVideo } from './HoverVideo';
@@ -112,6 +113,14 @@ export function HomeCard({
   const thumbSrc = media?.thumbnail_url || (isImage ? media?.url : undefined);
   const duration = isVideo ? formatDuration(media?.duration_seconds) : null;
 
+  // The hover preview's live position (the time-lapse badge). At rest the
+  // badge shows the clip's total length (`duration`); while the preview plays
+  // it counts up the elapsed position (the YouTube home behavior — the badge
+  // is a live clock, not a frozen length). `HoverVideo` reports the position
+  // as it plays; the badge resets to the total when the pointer leaves.
+  const [liveCurrent, setLiveCurrent] = useState(0);
+  const [previewPlaying, setPreviewPlaying] = useState(false);
+
   const interactive = !remote && !!onPostClick;
   const showEngagement = interactive && (
     (post.likes ?? 0) > 0 || (post.comments ?? 0) > 0 || (post.reposts ?? 0) > 0 ||
@@ -159,6 +168,8 @@ export function HomeCard({
               media={media}
               poster={thumbSrc}
               testId={`${testId}-hover-video`}
+              onTime={(current) => setLiveCurrent(current)}
+              onPlayingChange={setPreviewPlaying}
             />
           ) : (
             <img
@@ -189,13 +200,15 @@ export function HomeCard({
           </div>
         )}
 
-        {/* The duration badge (bottom-right, the video's length). */}
+        {/* The duration badge (bottom-right). At rest it shows the clip's total
+            length; while the hover preview plays it is a live time-lapse — the
+            elapsed position counting up (the YouTube home behavior). */}
         {duration && (
           <span
             data-testid={`${testId}-duration`}
             className="pointer-events-none absolute bottom-1.5 right-1.5 rounded bg-background/85 px-1.5 py-0.5 text-[0.6875rem] font-medium tabular-nums text-foreground"
           >
-            {duration}
+            {previewPlaying ? formatDuration(liveCurrent) : duration}
           </span>
         )}
       </a>

@@ -5,7 +5,8 @@ import { toast, errorMessage } from '@/components/shared/Toast';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { requestInstallPrompt } from '@/lib/pwa';
-import { Settings as SettingsIcon, User, Database, Info, LogOut, ExternalLink, Shield, Bug, Eye, Lock, Loader2, Zap, Download } from 'lucide-react';
+import { Settings as SettingsIcon, User, Database, Info, LogOut, ExternalLink, Shield, Bug, Eye, Lock, Loader2, Zap, Download, UploadCloud } from 'lucide-react';
+import { ImportSection } from './ImportSection';
 
 const APP_VERSION = import.meta.env?.VITE_GIT_COMMIT || '0.1.0';
 const AUTH_ORIGIN = import.meta.env?.VITE_AUTH_ORIGIN || 'https://auth.web10.app';
@@ -249,6 +250,10 @@ export default function SettingsScreen({ onLogout, onReportBug }: { onLogout: ()
         <RealTimeSection settings={settings} onSave={handleSaveSettings} />
       )}
 
+      <Section title="Import" icon={UploadCloud}>
+        <ImportSection />
+      </Section>
+
       <Section title="Your Data" icon={Database}>
         <div className="px-4 py-3 space-y-2">
           <p className="text-sm text-foreground">
@@ -262,11 +267,6 @@ export default function SettingsScreen({ onLogout, onReportBug }: { onLogout: ()
           label="Manage app access"
           description="Review and revoke app permissions"
           href={`${AUTH_ORIGIN}/contracts`}
-        />
-        <LinkRow
-          label="Export your data"
-          description="Download everything in one archive"
-          href="/import"
         />
       </Section>
 

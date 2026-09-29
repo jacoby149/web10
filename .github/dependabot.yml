@@ -1,49 +1,64 @@
 version: 2
 updates:
+  # All dependency PRs target `dev` (the workflow branch) — `main` is only
+  # updated by a deliberate merge from `dev`. Without an explicit
+  # `target-branch`, dependabot defaults to the default branch (`main`), which
+  # is why the earlier bumps piled up against the wrong base.
+  #
   # Bun (CI installs with `bun install --frozen-lockfile` — bun.lock is the source of truth)
   - package-ecosystem: "bun"
     directory: "/ui"
+    target-branch: "dev"
     schedule:
       interval: "weekly"
   - package-ecosystem: "bun"
     directory: "/sdk"
+    target-branch: "dev"
     schedule:
       interval: "weekly"
   - package-ecosystem: "bun"
     directory: "/marketing/web10-social"
+    target-branch: "dev"
     schedule:
       interval: "weekly"
   - package-ecosystem: "bun"
     directory: "/marketing/marketing-ui"
+    target-branch: "dev"
     schedule:
       interval: "weekly"
   - package-ecosystem: "bun"
     directory: "/api/rtc"
+    target-branch: "dev"
     schedule:
       interval: "weekly"
 
   # npm
   - package-ecosystem: "npm"
     directory: "/e2e"
+    target-branch: "dev"
     schedule:
       interval: "weekly"
   - package-ecosystem: "npm"
     directory: "/marketing/web10-cli"
+    target-branch: "dev"
     schedule:
       interval: "weekly"
 
   # Python (uv-managed, `uv sync --frozen` in the Docker build)
   - package-ecosystem: "pip"
     directory: "/api"
+    target-branch: "dev"
     schedule:
       interval: "weekly"
   - package-ecosystem: "pip"
     directory: "/marketing/marketing-api"
+    target-branch: "dev"
     schedule:
       interval: "weekly"
 
   # GitHub Actions
   - package-ecosystem: "github-actions"
     directory: "/"
+    target-branch: "dev"
     schedule:
       interval: "weekly"

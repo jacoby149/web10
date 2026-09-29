@@ -6,7 +6,6 @@ import VerifyPhone from './VerifyPhone';
 import DevPay from './DevPay';
 import Changelog from './Changelog';
 import RecoveryContact from './RecoveryContact';
-import Import from './Import';
 import { cn } from '@/lib/utils';
 
 type Tab = 'settings' | 'changes';
@@ -52,7 +51,6 @@ function Settings({ I }: { I: Record<string, any> }) {
       {tab === 'settings' ? (
         <div className="space-y-4">
           <RecoveryContact I={I} />
-          <Import I={I} />
           {I.isVerified() ? <ChangePhone I={I} /> : <VerifyPhone I={I} />}
           <ChangePass I={I} />
           <DevPay I={I} />
