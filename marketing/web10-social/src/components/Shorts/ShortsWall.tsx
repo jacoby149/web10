@@ -10,10 +10,12 @@ const LOG = (...args: unknown[]) => console.log('[shorts-wall]', ...args);
  * The Shorts explore wall — the "before you pick a short" surface (the
  * operator: "the moment you visit it looks like [the wall] … click a video
  * get into that [infinite scroll] view"). A responsive grid of 9:16 vertical
- * video tiles that fills the whole screen (`auto-fill, minmax(160px, 1fr)` —
- * as many columns as fit the width, the same wall shape as the profile's
- * content wall). Tapping a tile navigates to `/shorts/:postId` — the existing
- * full-screen swipe lens (the "youtube what's next" / TikTok infinite scroll).
+ * video tiles, capped at 4 columns (`auto-fill, minmax(max(160px, 25%), 1fr)`
+ * — each column at least 25% wide, so never more than 4; never narrower than
+ * 160px, so fewer columns on small screens — the same wall shape as the
+ * profile's content wall). Tapping a tile navigates to `/shorts/:postId` — the
+ * existing full-screen swipe lens (the "youtube what's next" / TikTok infinite
+ * scroll).
  *
  * The data is the same `readShortsFeed` the lens uses (the render-time 9:16
  * gate), so the wall and the lens show the same shorts.
@@ -85,11 +87,11 @@ export default function ShortsWall() {
 
   return (
     <div className="px-4 py-4" data-testid="shorts-wall">
-      {/* The wall: a responsive grid of 9:16 vertical tiles. `auto-fill,
-          minmax(160px, 1fr)` renders as many columns as fit the width — the
-          wall fills the whole screen (the operator: "filling the whole
-          screen", "doesn't have to be 4"). */}
-      <div className="grid gap-2 [grid-template-columns:repeat(auto-fill,minmax(160px,1fr))]">
+      {/* The wall: a responsive grid of 9:16 vertical tiles, capped at 4
+          columns. `auto-fill, minmax(max(160px, 25%), 1fr)` — each column is
+          at least 25% wide (so never more than 4) and never narrower than
+          160px (so fewer columns as the width shrinks). */}
+      <div className="grid gap-2 [grid-template-columns:repeat(auto-fill,minmax(max(160px,25%),1fr))]">
         {shorts.map((short) => (
           <button
             key={short.post._id}
