@@ -115,7 +115,7 @@ export default function Layout({ onLogout, onLogin, isAnon: isAnonProp, onReport
   // The four destinations are full SIDEBAR items (desktop). The mobile bottom
   // bar stays at five max (design.md §9): the core (Feed, Video, Shorts,
   // Messages) + More; Hot Gossip + People live in the More sheet on mobile.
-  const sidebarNavItems = isAnon ? anonSidebarNavItems : [profileItem, feedItem, videoItem, shortsItem, hotGossipItem, peopleItem, messagesItem, monetizationItem];
+  const sidebarNavItems = isAnon ? anonSidebarNavItems : [profileItem, videoItem, shortsItem, hotGossipItem, feedItem, peopleItem, messagesItem, monetizationItem];
   const bottomNavItems = isAnon ? anonBottomNavItems : [feedItem, videoItem, shortsItem, messagesItem];
   const [moreOpen, setMoreOpen] = useState(false);
   const { unread } = useNotifications();
