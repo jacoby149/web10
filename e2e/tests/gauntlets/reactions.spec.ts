@@ -143,7 +143,7 @@ test.describe('reactions — browser gauntlet (the full state machine)', () => {
     const context: BrowserContext = await browser.newContext();
     const page = await context.newPage();
     await setTokenCookie(context, 'social.localhost', viewer.token);
-    await page.goto(`${SOCIAL_BASE}/feed`);
+    await page.goto(`${SOCIAL_BASE}/feed?tab=following`);
     // Settle: the feed read is async; wait for the post card to render.
     await expect(async () => {
       expect(await postCard(page, postText).count()).toBeGreaterThan(0);
@@ -238,7 +238,7 @@ test.describe('reactions — cross-user (does B see A)', () => {
     const context = await browser.newContext();
     const page = await context.newPage();
     await setTokenCookie(context, 'social.localhost', b.token);
-    await page.goto(`${SOCIAL_BASE}/feed`);
+    await page.goto(`${SOCIAL_BASE}/feed?tab=following`);
     await expect(async () => {
       expect(await postCard(page, postText).count()).toBeGreaterThan(0);
     }).toPass({ timeout: 20000 });
@@ -259,7 +259,7 @@ test.describe('reactions — cross-user (does B see A)', () => {
     const aContext = await browser.newContext();
     const aPage = await aContext.newPage();
     await setTokenCookie(aContext, 'social.localhost', a.token);
-    await aPage.goto(`${SOCIAL_BASE}/feed`);
+    await aPage.goto(`${SOCIAL_BASE}/feed?tab=following`);
     await expect(async () => {
       expect(await postCard(aPage, postText).count()).toBeGreaterThan(0);
     }).toPass({ timeout: 20000 });

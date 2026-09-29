@@ -46,29 +46,33 @@ interface GlobalSearchProps {
 type SearchMode = 'people' | 'video' | 'shorts' | 'gossip';
 
 // The destination each category opens (S9: a category tap IS the tab).
+// Posts → /feed (the Posts screen's Discover tab — the merged Feed + Hot
+// Gossip surface, the X/Threads model).
 const MODE_DESTINATION: Record<SearchMode, string> = {
   people: '/people',
   video: '/video',
   shorts: '/shorts',
-  gossip: '/hot-gossip',
+  gossip: '/feed',
 };
 
 const MODE_LABEL: Record<SearchMode, string> = {
   people: 'People',
   video: 'Video',
   shorts: 'Shorts',
-  gossip: 'Hot Gossip',
+  gossip: 'Posts',
 };
 
 // The open tab (S9): which search-aware destination is the current route.
 // `/shorts` (the wall) and `/shorts/:postId` (the lens) are both the Shorts
-// tab — both honor ?q=. Everything else (feed, profile, messages, …) is not
-// a search destination: typing there shows the preview only (no ?q= write).
+// tab — both honor ?q=. The Posts screen (`/feed`, the merged Feed + Hot
+// Gossip — Discover | Following tabs) is the Posts/gossip tab. Everything
+// else (profile, messages, …) is not a search destination: typing there shows
+// the preview only (no ?q= write).
 function destinationFromPath(pathname: string): SearchMode | null {
   if (pathname.startsWith('/people')) return 'people';
   if (pathname.startsWith('/video')) return 'video';
   if (pathname.startsWith('/shorts')) return 'shorts';
-  if (pathname.startsWith('/hot-gossip')) return 'gossip';
+  if (pathname.startsWith('/feed')) return 'gossip';
   return null;
 }
 
@@ -501,7 +505,6 @@ export default function GlobalSearch({ variant }: GlobalSearchProps) {
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [pathname]);
-
   // Desktop: click outside the bar → close the dropdown (the field stays).
   useEffect(() => {
     if (!open || variant !== 'desktop') return;
@@ -531,7 +534,8 @@ export default function GlobalSearch({ variant }: GlobalSearchProps) {
   // S9: open a category's tab (the destination) carrying the query (?q=).
   // The four categories are the four nav tabs — People → /people (the
   // people/groups browser), Video → /video (the video wall), Shorts →
-  // /shorts (the wall), Hot Gossip → /hot-gossip (the ranked post board).
+  // /shorts (the wall), Posts → /feed (the Posts screen's Discover tab — the
+  // merged Feed + Hot Gossip surface, the X/Threads model).
   // The query is screen state the URL holds (the deep-link rule); each
   // destination's existing ?q= filter picks it up and filters live.
   const openCategory = useCallback((m: SearchMode) => {
@@ -625,11 +629,12 @@ export default function GlobalSearch({ variant }: GlobalSearchProps) {
     ) : (
       <div className="py-1">
         {/* The mode toggle — the four flat destinations (S8): People
-            (default, S7) | Video | Shorts | Hot Gossip. The labels match the
-            nav exactly. S9: a tap OPENS that tab (navigates to the
-            destination, carrying the query). Slim segmented control (the
-            Facebook-style dropdown). It renders as soon as there's a query
-            (immediate, not debounced) so it's clickable while the results
+             (default, S7) | Video | Shorts | Posts (the merged Feed + Hot
+             Gossip surface — the Posts screen's Discover tab). The labels
+             match the nav exactly. S9: a tap OPENS that tab (navigates to the
+             destination, carrying the query). Slim segmented control (the
+             Facebook-style dropdown). It renders as soon as there's a query
+             (immediate, not debounced) so it's clickable while the results
             are still loading. */}
         <div className="px-3 pt-2 pb-1">
           <div
@@ -642,7 +647,7 @@ export default function GlobalSearch({ variant }: GlobalSearchProps) {
               ['people', 'People', Users],
               ['video', 'Video', Video],
               ['shorts', 'Shorts', Smartphone],
-              ['gossip', 'Hot Gossip', Flame],
+              ['gossip', 'Posts', Flame],
             ] as [SearchMode, string, typeof Users][]).map(([m, label, Icon]) => (
               <button
                 key={m}
@@ -743,11 +748,11 @@ export default function GlobalSearch({ variant }: GlobalSearchProps) {
           </>
         ) : (
           <>
-            {/* Hot Gossip posts (the ranked post board) */}
+            {/* Posts (the ranked post board — the Posts screen's Discover tab) */}
             {posts === null ? (
-              <SectionSkeleton label="Hot Gossip" />
+              <SectionSkeleton label="Posts" />
             ) : posts.length > 0 ? (
-              <SearchSection label="Hot Gossip">
+              <SearchSection label="Posts">
                 {posts.map((p) => (
                   <PostRow key={p._id || p.created_at} post={p} />
                 ))}

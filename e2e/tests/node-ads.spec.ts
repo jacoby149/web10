@@ -429,7 +429,7 @@ test.describe('Node ads gauntlet — Node Monetization surface → follower feed
     const fErrors = capturePageErrors(pageF);
     await setTokenCookie(ctxF, 'social.localhost', follower.token);
     await setTokenCookie(ctxF, 'auth.localhost', follower.token);
-    await pageF.goto(`${SOCIAL_BASE}/feed`);
+    await pageF.goto(`${SOCIAL_BASE}/feed?tab=following`);
     await pageF.waitForLoadState('networkidle');
     // The target post is in the follower's feed (the creator's followers group).
     await expect(async () => {
@@ -475,7 +475,7 @@ test.describe('Node ads gauntlet — Node Monetization surface → follower feed
     const fErrors = capturePageErrors(pageF);
     await setTokenCookie(ctxF, 'social.localhost', follower.token);
     await setTokenCookie(ctxF, 'auth.localhost', follower.token);
-    await pageF.goto(`${SOCIAL_BASE}/feed`);
+    await pageF.goto(`${SOCIAL_BASE}/feed?tab=following`);
     await pageF.waitForLoadState('networkidle');
     await expect(async () => {
       const texts = await pageF.locator('[data-testid="post-card"]').allTextContents();

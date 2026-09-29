@@ -55,9 +55,14 @@ vi.mock('@/data/search', () => ({
   searchShorts: (...a: unknown[]) => searchShorts(...a),
 }));
 
+// The generic search tests render on a NON-destination route (/profile) so the
+// mode rests on People (S7: the search is people-first) — the "mode follows the
+// open tab" S9 behavior is tested separately via renderSearchOnDestination.
+// (/feed is now a search destination — the Posts screen — so it would default
+// to the Posts/gossip mode, not People.)
 function renderDesktopSearch() {
   return render(
-    <MemoryRouter initialEntries={['/feed']}>
+    <MemoryRouter initialEntries={['/profile']}>
       <GlobalSearch variant="desktop" />
     </MemoryRouter>,
   );
@@ -74,7 +79,7 @@ function LocationProbe() {
 
 function renderDesktopSearchWithProbe() {
   return render(
-    <MemoryRouter initialEntries={['/feed']}>
+    <MemoryRouter initialEntries={['/profile']}>
       <GlobalSearch variant="desktop" />
       <LocationProbe />
     </MemoryRouter>,
@@ -83,7 +88,7 @@ function renderDesktopSearchWithProbe() {
 
 function renderMobileSearch() {
   return render(
-    <MemoryRouter initialEntries={['/feed']}>
+    <MemoryRouter initialEntries={['/profile']}>
       <GlobalSearch variant="mobile" />
     </MemoryRouter>,
   );
@@ -244,7 +249,7 @@ describe('GlobalSearch — mobile (full-screen view, not a dropdown)', () => {
   });
 });
 
-describe('GlobalSearch — S2/S8 results (four categories: People | Video | Shorts | Hot Gossip)', () => {
+describe('GlobalSearch — S2/S8 results (four categories: People | Video | Shorts | Posts)', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     // Reset to the default empty results.
@@ -255,7 +260,7 @@ describe('GlobalSearch — S2/S8 results (four categories: People | Video | Shor
     vi.mocked(searchShorts).mockResolvedValue([]);
   });
 
-  it('the mode toggle is the four flat destinations (People | Video | Shorts | Hot Gossip)', async () => {
+  it('the mode toggle is the four flat destinations (People | Video | Shorts | Posts)', async () => {
     renderDesktopSearch();
     const field = screen.getByTestId('global-search-field');
     fireEvent.focus(field);
@@ -287,7 +292,7 @@ describe('GlobalSearch — S2/S8 results (four categories: People | Video | Shor
     // The other categories' sections are not shown in People mode (one tap over).
     expect(screen.queryByTestId('global-search-section-video')).not.toBeInTheDocument();
     expect(screen.queryByTestId('global-search-section-shorts')).not.toBeInTheDocument();
-    expect(screen.queryByTestId('global-search-section-hot-gossip')).not.toBeInTheDocument();
+    expect(screen.queryByTestId('global-search-section-posts')).not.toBeInTheDocument();
   });
 
   it('on the Video tab the dropdown previews Video (the mode follows the open tab)', async () => {
@@ -318,16 +323,16 @@ describe('GlobalSearch — S2/S8 results (four categories: People | Video | Shor
     expect(screen.getByTestId('global-search-short-s1')).toBeInTheDocument();
   });
 
-  it('on the Hot Gossip tab the dropdown previews Hot Gossip (the mode follows the open tab)', async () => {
+  it('on the Posts tab the dropdown previews Posts (the mode follows the open tab)', async () => {
     vi.mocked(searchPosts).mockResolvedValue([
       { _id: 'p1', text: 'Check out this synthwave mix', author_username: 'alice', created_at: '2026-01-01T00:00:00Z' },
     ] as any);
-    renderSearchOnDestination('/hot-gossip');
+    renderSearchOnDestination('/feed');
     const field = screen.getByTestId('global-search-field');
     fireEvent.focus(field);
     fireEvent.change(field, { target: { value: 'synthwave' } });
     expect(screen.getByTestId('global-search-mode-gossip')).toHaveAttribute('aria-selected', 'true');
-    expect(await screen.findByTestId('global-search-section-hot-gossip')).toBeInTheDocument();
+    expect(await screen.findByTestId('global-search-section-posts')).toBeInTheDocument();
     expect(screen.getByTestId('global-search-post-p1')).toBeInTheDocument();
   });
 
@@ -354,7 +359,7 @@ describe('GlobalSearch — S2/S8 results (four categories: People | Video | Shor
     await waitFor(() => expect(probeLocation).toBe('/shorts?q=synthwave'));
   });
 
-  it('tapping the Hot Gossip category OPENS the Hot Gossip tab (navigates with the query)', async () => {
+  it('tapping the Posts category OPENS the Posts tab (navigates with the query)', async () => {
     probeLocation = '';
     renderDesktopSearchWithProbe();
     const field = screen.getByTestId('global-search-field');
@@ -362,7 +367,7 @@ describe('GlobalSearch — S2/S8 results (four categories: People | Video | Shor
     fireEvent.change(field, { target: { value: 'synthwave' } });
     await screen.findByTestId('global-search-mode-toggle');
     fireEvent.click(screen.getByTestId('global-search-mode-gossip'));
-    await waitFor(() => expect(probeLocation).toBe('/hot-gossip?q=synthwave'));
+    await waitFor(() => expect(probeLocation).toBe('/feed?q=synthwave'));
   });
 
   it('S9: typing on the Video tab live-filters it (the query is written to ?q=, debounced)', async () => {
@@ -377,12 +382,12 @@ describe('GlobalSearch — S2/S8 results (four categories: People | Video | Shor
     await waitFor(() => expect(probeLocation).toBe('/video?q=synth'), { timeout: 1500 });
   });
 
-  it('S9: typing on the Hot Gossip tab live-filters the feed (?q= on /hot-gossip)', async () => {
-    renderSearchOnDestination('/hot-gossip');
+  it('S9: typing on the Posts tab live-filters the board (?q= on /feed)', async () => {
+    renderSearchOnDestination('/feed');
     const field = screen.getByTestId('global-search-field');
     fireEvent.focus(field);
     fireEvent.change(field, { target: { value: 'drama' } });
-    await waitFor(() => expect(probeLocation).toBe('/hot-gossip?q=drama'), { timeout: 1500 });
+    await waitFor(() => expect(probeLocation).toBe('/feed?q=drama'), { timeout: 1500 });
   });
 
   it('S9: typing on the People tab live-filters people (?q= on /people)', async () => {
@@ -421,14 +426,14 @@ describe('GlobalSearch — S2/S8 results (four categories: People | Video | Shor
 
   it('S9: typing on a non-destination route does NOT write ?q= (the preview only)', async () => {
     probeLocation = '';
-    renderDesktopSearchWithProbe(); // /feed — not a search destination
+    renderDesktopSearchWithProbe(); // /profile — not a search destination
     const field = screen.getByTestId('global-search-field');
     fireEvent.focus(field);
     fireEvent.change(field, { target: { value: 'synth' } });
     // Give the debounce time to settle — the URL must stay put (no ?q= on
-    // /feed; the dropdown preview is the only effect off-destination).
+    // /profile; the dropdown preview is the only effect off-destination).
     await new Promise((r) => setTimeout(r, 600));
-    expect(probeLocation).toBe('/feed');
+    expect(probeLocation).toBe('/profile');
   });
 
   it('S9: Enter on an open tab opens that tab with the query (stays on the tab)', async () => {
@@ -485,16 +490,20 @@ describe('GlobalSearch — S2/S8 results (four categories: People | Video | Shor
     await waitFor(() => expect(probeLocation).toBe('/shorts?q=alice'), { timeout: 1500 });
   });
 
-  it('Enter on the Hot Gossip tab opens the Hot Gossip destination with the query', async () => {
-    renderSearchOnDestination('/hot-gossip');
+  it('Enter in Posts mode opens the Posts (Discover) destination with the query', async () => {
+    probeLocation = '';
+    renderDesktopSearchWithProbe();
     const field = screen.getByTestId('global-search-field');
     fireEvent.focus(field);
     fireEvent.change(field, { target: { value: 'alice' } });
     await screen.findByTestId('global-search-mode-toggle');
-    // The Hot Gossip tab is open → the mode is gossip → Enter opens
-    // /hot-gossip with the query.
+    // Flip to the Posts category — Enter opens the Posts screen's Discover
+    // tab (/feed) with the query (the merged Feed + Hot Gossip surface).
+    fireEvent.click(screen.getByTestId('global-search-mode-gossip'));
     fireEvent.keyDown(field, { key: 'Enter' });
-    await waitFor(() => expect(probeLocation).toBe('/hot-gossip?q=alice'), { timeout: 1500 });
+    await waitFor(() => {
+      expect(probeLocation).toBe('/feed?q=alice');
+    });
   });
 
   it('the "See all results" CTA navigates to the picked category with the query', async () => {
@@ -527,17 +536,17 @@ describe('GlobalSearch — S2/S8 results (four categories: People | Video | Shor
   });
 
   it('shows the "no results" state when the open tab\'s category is empty', async () => {
-    renderSearchOnDestination('/hot-gossip');
+    renderSearchOnDestination('/feed');
     const field = screen.getByTestId('global-search-field');
     fireEvent.focus(field);
     fireEvent.change(field, { target: { value: 'zzz-no-match' } });
-    // The Hot Gossip tab is open → the mode is gossip → the no-results state
-    // is the Hot Gossip one.
+    // The Posts tab is open → the mode is gossip → the no-results state
+    // is the Posts one.
     await waitFor(
       () => expect(screen.getByTestId('global-search-no-results')).toBeInTheDocument(),
       { timeout: 1500 },
     );
-    expect(screen.queryByTestId('global-search-section-hot-gossip')).not.toBeInTheDocument();
+    expect(screen.queryByTestId('global-search-section-posts')).not.toBeInTheDocument();
   });
 
   it('per-section loading (People mode): a slow section does not block the fast ones', async () => {
@@ -682,7 +691,7 @@ describe('GlobalSearch — S10: the search stays open on a topic change', () => 
   });
 
   it('tapping a category on an already-open tab keeps the dropdown open (switching topics)', async () => {
-    // Start on the Video tab with a query, then switch to Hot Gossip — the
+    // Start on the Video tab with a query, then switch to Posts — the
     // dropdown must stay open through the topic switch.
     vi.mocked(searchVideo).mockResolvedValue([
       { _id: 'v1', text: 'Synthwave video mix', author_username: 'alice', created_at: '2026-01-01T00:00:00Z' },
@@ -693,10 +702,10 @@ describe('GlobalSearch — S10: the search stays open on a topic change', () => 
     fireEvent.change(field, { target: { value: 'synthwave' } });
     await screen.findByTestId('global-search-section-video');
     expect(screen.getByTestId('global-search-results')).toBeInTheDocument();
-    // Switch topics: tap Hot Gossip.
+    // Switch topics: tap Posts.
     fireEvent.click(screen.getByTestId('global-search-mode-gossip'));
-    await waitFor(() => expect(probeLocation).toBe('/hot-gossip?q=synthwave'));
-    // The dropdown stays open + the mode follows the new tab (Hot Gossip).
+    await waitFor(() => expect(probeLocation).toBe('/feed?q=synthwave'));
+    // The dropdown stays open + the mode follows the new tab (Posts).
     expect(screen.getByTestId('global-search-results')).toBeInTheDocument();
     expect(screen.getByTestId('global-search-mode-gossip')).toHaveAttribute('aria-selected', 'true');
   });
