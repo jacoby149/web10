@@ -51,10 +51,10 @@ const MAX_RESULTS = 100;
 type ExperienceDest = 'video' | 'shorts' | 'hot-gossip' | 'people';
 
 function destFromPath(pathname: string): ExperienceDest {
-  if (pathname.startsWith('/shorts')) return 'shorts';
-  if (pathname.startsWith('/hot-gossip')) return 'hot-gossip';
-  if (pathname.startsWith('/people')) return 'people';
-  return 'video'; // `/` (the index) + the legacy `/trending`
+  if (pathname.startsWith('/trending/shorts')) return 'shorts';
+  if (pathname.startsWith('/trending/hot-gossip')) return 'hot-gossip';
+  if (pathname.startsWith('/trending/people')) return 'people';
+  return 'video'; // `/trending` (the index)
 }
 
 // The social app's `?knobs=` encoding (DiscoverScreen): the five detent
@@ -582,13 +582,13 @@ function Trending() {
     const params = new URLSearchParams(searchParams);
     params.delete('view');
     const qs = params.toString();
-    return <Navigate to={`/hot-gossip${qs ? `?${qs}` : ''}`} replace />;
+    return <Navigate to={`/trending/hot-gossip${qs ? `?${qs}` : ''}`} replace />;
   }
   if (legacyTab && dest === 'video') {
     const params = new URLSearchParams(searchParams);
     params.delete('tab');
     const qs = params.toString();
-    return <Navigate to={`/people${qs ? `?${qs}` : ''}`} replace />;
+    return <Navigate to={`/trending/people${qs ? `?${qs}` : ''}`} replace />;
   }
 
   // ── The People destination — the people + groups browser (the old `?tab=
@@ -602,7 +602,7 @@ function Trending() {
           onSearchClear={handleSearchClear}
           searchInputRef={searchInputRef}
         />
-        <main className="flex-1 px-4 py-8 sm:px-6">
+        <main className="flex-1 px-4 py-6 sm:px-6">
           <ProfilesBrowser query={searchQuery} />
         </main>
       </div>
@@ -621,7 +621,7 @@ function Trending() {
 
       {/* Knob Rack — only show when not searching */}
       {!isInitialLoad && allPosts.length > 0 && !isSearching && (
-        <div className="px-4 pt-6 pb-4 sm:px-6">
+        <div className="px-4 pt-4 pb-2 sm:px-6">
           <KnobRack
             state={knobState}
             activePreset={activePreset}
@@ -638,7 +638,7 @@ function Trending() {
       >
         <div className="mx-auto max-w-7xl px-4 sm:px-6">
           <div
-            className="flex gap-2 overflow-x-auto py-3 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden [mask-image:linear-gradient(to_left,transparent,black_40px)]"
+            className="flex gap-2 overflow-x-auto py-2.5 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden [mask-image:linear-gradient(to_left,transparent,black_40px)]"
             role="tablist"
             aria-label="Filter by topic"
           >
@@ -673,7 +673,7 @@ function Trending() {
 
       {/* Body — the destination's content. Hot Gossip keeps the Top 10 rail
           (a content rail, not the nav); Video + Shorts are full-width walls. */}
-      <main className="flex-1 px-4 py-8 sm:px-6">
+      <main className="flex-1 px-4 py-6 sm:px-6">
         <div className={`mx-auto flex ${dest === 'hot-gossip' && !isSearching ? 'max-w-7xl gap-8' : 'w-full'}`}>
           <div className="min-w-0 flex-1">
             {isSearching ? (
@@ -830,7 +830,7 @@ function Trending() {
                     title="No media posts yet"
                     body="The Video wall shows posts with videos."
                     ctaLabel="Switch to Hot Gossip"
-                    ctaHref="/hot-gossip"
+                    ctaHref="/trending/hot-gossip"
                   />
                 )}
               </>
@@ -886,7 +886,7 @@ function Trending() {
                     title="No shorts yet"
                     body="The Shorts wall shows vertical (9:16) videos."
                     ctaLabel="Switch to Video"
-                    ctaHref="/"
+                    ctaHref="/trending"
                   />
                 )}
               </>

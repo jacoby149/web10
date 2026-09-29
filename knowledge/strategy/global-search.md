@@ -1,19 +1,21 @@
 # Global Search — the top-bar everything-search (operator pass, 18.09.2026)
 
-**Status: SHIPPED + AMENDED (3.162.0).** The always-expanded everything-search
-shipped in the desktop **top bar** (S1–S4). **`discover-ia-consistency.md`
-(3.157.0) moved the desktop field's home from the top bar to the sidebar** —
-the operator's Facebook-style chrome ("then the search would fit in the
-sidebar!"): the desktop sidebar now carries the keys mark, then the search
-field, then the nav rows; the top bar carries the Discover tabs + the bell +
-the account row. **Mobile is unchanged** (the 56px header keeps the icon →
-full-screen results view). **S7 (3.162.0) made the search people-first** —
-the dropdown opens on the People mode (people + groups, live as you type),
-opposite to Discover (where Trending is the first tab); the "see all" CTA +
-Enter in People mode land on the People tab. The state machine
-(always-expanded field, focus → dropdown, X clears the query, the typed
-query persists) is unchanged. Everything below is the historical record; the
-current desktop home is the sidebar.
+**Status: SHIPPED + AMENDED (3.162.0) + RE-AMENDED (3.174.0).** The
+always-expanded everything-search shipped in the desktop **top bar** (S1–S4).
+`discover-ia-consistency.md` (3.157.0) moved the desktop field's home from the
+top bar to the sidebar (the operator's Facebook-style chrome). **On 29.09.2026
+(3.174.0) the field's home moved BACK to the top bar** — the operator's pass:
+"have the search be in the topbar again, the design just works now, instead of
+this traffic jam." The desktop top bar now carries the **search field** (a
+fixed-width pill, left slot) + the bell + the account row; the sidebar carries
+the full **web10** wordmark (the "10" in brand violet) + the nav rows. **Mobile
+is unchanged** (the 56px header keeps the icon → full-screen results view).
+**S7 (3.162.0) made the search people-first** — the dropdown opens on the
+People mode (people + groups, live as you type), opposite to Discover (where
+Trending is the first tab); the "see all" CTA + Enter in People mode land on
+the People tab. The state machine (always-expanded field, focus → dropdown, X
+clears the query, the typed query persists) is unchanged. Everything below is
+the historical record; the current desktop home is the **top bar**.
 
 > **The shape (operator, 18.09.2026):** "maybe good to have an everything
 > search on the topbar, people groups, everything. AND have people tab in

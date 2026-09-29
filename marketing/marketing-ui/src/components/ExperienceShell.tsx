@@ -12,10 +12,10 @@ import { trackFunnel } from '@/lib/analytics';
 // Gossip, not this nav rail.
 
 const destinations = [
-  { to: '/', label: 'Video', icon: Video, end: true, funnel: 'experience_video' },
-  { to: '/shorts', label: 'Shorts', icon: Clapperboard, end: false, funnel: 'experience_shorts' },
-  { to: '/hot-gossip', label: 'Hot Gossip', icon: Flame, end: false, funnel: 'experience_hot_gossip' },
-  { to: '/people', label: 'People', icon: Users, end: false, funnel: 'experience_people' },
+  { to: '/trending', label: 'Video', icon: Video, end: true, funnel: 'experience_video' },
+  { to: '/trending/shorts', label: 'Shorts', icon: Clapperboard, end: false, funnel: 'experience_shorts' },
+  { to: '/trending/hot-gossip', label: 'Hot Gossip', icon: Flame, end: false, funnel: 'experience_hot_gossip' },
+  { to: '/trending/people', label: 'People', icon: Users, end: false, funnel: 'experience_people' },
 ] as const;
 
 const itemClass = ({ isActive }: { isActive: boolean }) =>

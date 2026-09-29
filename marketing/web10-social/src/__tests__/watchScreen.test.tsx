@@ -220,4 +220,45 @@ describe('WatchScreen (the watch page)', () => {
     await waitFor(() => expect(screen.getByTestId('watch-player')).toBeInTheDocument());
     expect(screen.getByTestId('watch-video')).toBeInTheDocument();
   });
+
+  it('does not re-load on every render (the readToken fresh-object loop)', async () => {
+    // Regression: the real SDK's readToken() returns a FRESH object every call
+    // (decodeJwt builds a new one). The old WatchScreen captured that token as a
+    // `useCallback` dep on `load`, so `load` was recreated on every render and the
+    // `useEffect([load])` re-ran forever — the "sick spammy loop" that hammered
+    // the node into 429s. The wapi mock above returns a STABLE object, which
+    // masked the bug; this test returns a fresh object each call to reproduce it.
+    const { getWapi } = await import('@/data/wapi');
+    vi.mocked(getWapi).mockReturnValue({
+      readToken: () => ({ provider: 'test.localhost', username: 'me' }),
+    } as never);
+
+    let boardReads = 0;
+    (data.readDiscoverFeed as ReturnType<typeof vi.fn>).mockImplementation(async () => {
+      boardReads++;
+      return BOARD.map((b) => ({
+        _id: b.doc_id,
+        text: b.body.text,
+        created_at: b.created_at,
+        tags: b.tags,
+        author_username: b.body.author_username,
+        author_provider: b.body.author_provider,
+        media_refs: b.body.media_refs,
+        likes: 0,
+        comments: 0,
+        reposts: 0,
+      }));
+    });
+
+    await renderWatch();
+    // The page settles (the player renders), then we give any runaway re-render
+    // loop time to manifest as extra board reads.
+    await waitFor(() => expect(screen.getByTestId('watch-player')).toBeInTheDocument());
+    await new Promise((r) => setTimeout(r, 250));
+
+    // A correct screen loads once (or a couple of times under React StrictMode
+    // double-invoke) — never a runaway. The old code read the board on every
+    // render, which would be dozens of times in this window.
+    expect(boardReads).toBeLessThanOrEqual(3);
+  });
 });
