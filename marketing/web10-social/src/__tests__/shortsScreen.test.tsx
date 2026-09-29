@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
-import { MemoryRouter, useLocation } from 'react-router-dom';
+import { MemoryRouter, Routes, Route, useLocation } from 'react-router-dom';
 import '@testing-library/jest-dom';
 import * as data from '@/data';
 
@@ -112,11 +112,14 @@ function hlsShort(over: { id: string; author: string }) {
   });
 }
 
-async function renderShorts(initialEntries: string[] = ['/shorts']) {
+async function renderShorts(initialEntries: string[] = ['/shorts/s1']) {
   const { default: ShortsScreen } = await import('@/components/Shorts/ShortsScreen');
   return render(
     <MemoryRouter initialEntries={initialEntries}>
-      <ShortsScreen />
+      <Routes>
+        <Route path="/shorts" element={<ShortsScreen />} />
+        <Route path="/shorts/:postId" element={<ShortsScreen />} />
+      </Routes>
     </MemoryRouter>,
   );
 }
@@ -147,6 +150,9 @@ describe('ShortsScreen — the vertical short-form feed (shorts.md)', () => {
     // Default: the engagement read returns nothing (zero counts) unless a test
     // seeds it.
     fakeV3Read.mockResolvedValue([]);
+    // jsdom has no scrollIntoView — the lens's deep-link effect calls it on
+    // mount (scrolling to the :postId short). Stub it so the effect is a no-op.
+    HTMLElement.prototype.scrollIntoView = vi.fn();
   });
 
   it('renders one snap slide per short, the video filling the slide', async () => {
@@ -503,8 +509,11 @@ describe('ShortsScreen — the vertical short-form feed (shorts.md)', () => {
     }
     const { default: ShortsScreen } = await import('@/components/Shorts/ShortsScreen');
     render(
-      <MemoryRouter initialEntries={['/shorts']}>
-        <ShortsScreen />
+      <MemoryRouter initialEntries={['/shorts/s1']}>
+        <Routes>
+          <Route path="/shorts" element={<ShortsScreen />} />
+          <Route path="/shorts/:postId" element={<ShortsScreen />} />
+        </Routes>
         <LocationProbe />
       </MemoryRouter>,
     );
@@ -517,13 +526,99 @@ describe('ShortsScreen — the vertical short-form feed (shorts.md)', () => {
     const back = screen.getByTestId('shorts-back');
     expect(back).toHaveAttribute('aria-label', 'Back to feed');
     expect(back.querySelector('[data-testid="icon-chevronleft"]')).not.toBeNull();
-    // …and we start on the lens.
-    expect(screen.getByTestId('route-probe')).toHaveTextContent('/shorts');
+    // …and we start on the lens (the /shorts/:postId route).
+    expect(screen.getByTestId('route-probe')).toHaveTextContent('/shorts/s1');
 
     // Tapping it exits the lens to the feed (the home base).
     fireEvent.click(back);
     await waitFor(() => {
       expect(screen.getByTestId('route-probe')).toHaveTextContent('/feed');
+    });
+  });
+});
+
+describe('ShortsScreen — the explore wall (/shorts, the "before you pick a short" surface)', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    FakeHls.instances = [];
+    window.Hls = FakeHls as unknown as typeof window.Hls;
+    fakeV3Read.mockResolvedValue([]);
+  });
+
+  async function renderWall() {
+    const { default: ShortsScreen } = await import('@/components/Shorts/ShortsScreen');
+    return render(
+      <MemoryRouter initialEntries={['/shorts']}>
+        <Routes>
+          <Route path="/shorts" element={<ShortsScreen />} />
+          <Route path="/shorts/:postId" element={<ShortsScreen />} />
+        </Routes>
+      </MemoryRouter>,
+    );
+  }
+
+  it('renders the responsive wall of 9:16 video tiles (not the lens)', async () => {
+    (data.readShortsFeed as ReturnType<typeof vi.fn>).mockResolvedValue([
+      shortPost({ id: 's1', author: 'luna', text: 'first' }),
+      shortPost({ id: 's2', author: 'kai', text: 'second' }),
+    ]);
+    await renderWall();
+
+    await waitFor(() => {
+      expect(screen.getByTestId('shorts-wall')).toBeInTheDocument();
+      expect(screen.getByTestId('short-wall-tile-s1')).toBeInTheDocument();
+      expect(screen.getByTestId('short-wall-tile-s2')).toBeInTheDocument();
+    });
+    // The wall is the explore grid — NOT the full-screen lens (no snap
+    // container, no action rail).
+    expect(screen.queryByTestId('shorts-container')).toBeNull();
+    expect(screen.queryByTestId('short-like-0')).toBeNull();
+    // Each tile is a 9:16 vertical frame.
+    const tile = screen.getByTestId('short-wall-tile-s1');
+    expect(tile.className).toMatch(/aspect-\[9\/16\]/);
+    // The tile shows the author handle + caption overlay.
+    expect(screen.getByText('@luna')).toBeInTheDocument();
+    expect(screen.getByText('first')).toBeInTheDocument();
+  });
+
+  it('tapping a tile navigates to the lens (/shorts/:postId)', async () => {
+    (data.readShortsFeed as ReturnType<typeof vi.fn>).mockResolvedValue([
+      shortPost({ id: 's1', author: 'luna' }),
+      shortPost({ id: 's2', author: 'kai' }),
+    ]);
+    function LocationProbe() {
+      const { pathname } = useLocation();
+      return <div data-testid="route-probe">{pathname}</div>;
+    }
+    const { default: ShortsScreen } = await import('@/components/Shorts/ShortsScreen');
+    render(
+      <MemoryRouter initialEntries={['/shorts']}>
+        <Routes>
+          <Route path="/shorts" element={<ShortsScreen />} />
+          <Route path="/shorts/:postId" element={<ShortsScreen />} />
+        </Routes>
+        <LocationProbe />
+      </MemoryRouter>,
+    );
+
+    await waitFor(() => {
+      expect(screen.getByTestId('short-wall-tile-s2')).toBeInTheDocument();
+    });
+    expect(screen.getByTestId('route-probe')).toHaveTextContent('/shorts');
+
+    // Tapping a tile drops into the lens on that short.
+    fireEvent.click(screen.getByTestId('short-wall-tile-s2'));
+    await waitFor(() => {
+      expect(screen.getByTestId('route-probe')).toHaveTextContent('/shorts/s2');
+    });
+  });
+
+  it('renders the designed empty state when there are no shorts', async () => {
+    (data.readShortsFeed as ReturnType<typeof vi.fn>).mockResolvedValue([]);
+    await renderWall();
+
+    await waitFor(() => {
+      expect(screen.getByText('No shorts yet')).toBeInTheDocument();
     });
   });
 });
