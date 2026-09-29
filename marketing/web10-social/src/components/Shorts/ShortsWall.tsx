@@ -1,6 +1,6 @@
-import { useEffect, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { Play } from 'lucide-react';
+import { useEffect, useState, useCallback } from 'react';
+import { useNavigate, useSearchParams } from 'react-router-dom';
+import { Play, Search, X } from 'lucide-react';
 import { readShortsFeed, type ShortPost } from '@/data';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 
@@ -23,6 +23,31 @@ export default function ShortsWall() {
   const [shorts, setShorts] = useState<ShortPost[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+
+  // Deep link: the search query from ?q= (the global search's Shorts category
+  // lands here — /shorts?q=…, the S8 four-category search). The wall is now the
+  // Shorts destination (a bare /shorts is the wall, the lens is /shorts/:postId),
+  // so the search's ?q= filters the wall tiles to the matches (text/author,
+  // case-insensitive — a view over the loaded wall, not a re-read) and shows a
+  // query chip (with its X) so the search is visible + clearable.
+  const [searchParams, setSearchParams] = useSearchParams();
+  const urlQuery = searchParams.get('q') || '';
+  const clearQuery = useCallback(() => {
+    const params = new URLSearchParams(searchParams);
+    params.delete('q');
+    setSearchParams(params);
+    LOG('query cleared');
+  }, [searchParams, setSearchParams]);
+
+  const visibleShorts = urlQuery.trim()
+    ? shorts.filter((s) => {
+        const q = urlQuery.trim().toLowerCase();
+        return (
+          (s.post.text && s.post.text.toLowerCase().includes(q)) ||
+          (s.post.author_username && s.post.author_username.toLowerCase().includes(q))
+        );
+      })
+    : shorts;
 
   async function load() {
     setLoading(true);
@@ -83,14 +108,56 @@ export default function ShortsWall() {
     );
   }
 
+  // A ?q= that matches no loaded short (the search is a filter over the wall,
+  // not a re-read) — a designed no-match state with the clear affordance.
+  if (urlQuery.trim() && visibleShorts.length === 0) {
+    return (
+      <div className="h-full flex items-center justify-center bg-background">
+        <div className="flex flex-col items-center gap-3 text-center px-6">
+          <p className="text-sm font-medium text-foreground">No shorts match &ldquo;{urlQuery.trim()}&rdquo;</p>
+          <p className="text-xs text-muted-foreground max-w-52">
+            Try a different name or caption.
+          </p>
+          <button
+            onClick={clearQuery}
+            data-testid="shorts-query-clear"
+            className="text-sm text-brand-300 hover:text-brand-400 underline underline-offset-2 transition-colors"
+          >
+            Clear search
+          </button>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="px-4 py-4" data-testid="shorts-wall">
+      {/* The active ?q= filter (from the global search's Shorts category) —
+          a chip that shows the query + clears it (the S8 deep-link idiom;
+          the wall filtered to the matches). */}
+      {urlQuery.trim() !== '' && (
+        <div className="mb-3 flex justify-center" data-testid="shorts-query-chip">
+          <span className="inline-flex items-center gap-1.5 rounded-full bg-elevated border border-border px-3 py-1.5 text-xs text-foreground">
+            <Search className="h-3.5 w-3.5" strokeWidth={1.75} />
+            {urlQuery.trim()}
+            <button
+              type="button"
+              onClick={clearQuery}
+              data-testid="shorts-query-chip-clear"
+              aria-label="Clear search"
+              className="ml-0.5 -mr-1 flex h-4 w-4 items-center justify-center rounded-full text-muted-foreground hover:text-foreground hover:bg-background transition-colors duration-150"
+            >
+              <X className="h-3 w-3" strokeWidth={2} />
+            </button>
+          </span>
+        </div>
+      )}
       {/* The wall: a responsive grid of 9:16 vertical tiles. `auto-fill,
           minmax(160px, 1fr)` renders as many columns as fit the width — the
           wall fills the whole screen (the operator: "filling the whole
           screen", "doesn't have to be 4"). */}
       <div className="grid gap-2 [grid-template-columns:repeat(auto-fill,minmax(160px,1fr))]">
-        {shorts.map((short) => (
+        {visibleShorts.map((short) => (
           <button
             key={short.post._id}
             type="button"

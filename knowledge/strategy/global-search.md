@@ -18,7 +18,7 @@ Discover split's four flat destinations (Video · Shorts · Hot Gossip · People
 are the four search categories: the dropdown's mode toggle is the four
 destinations, one tap picks the category, and Enter / the "see all" CTA open
 THAT destination with the query (`/video?q=`, `/shorts?q=`, `/hot-gossip?q=`,
-`/people?q=`); the Shorts lens honors `?q=` (filters its slides + a query
+`/people?q=`); the Shorts destination honors `?q=` (the wall filters its tiles + a query
 chip). The state machine (always-expanded field, focus → dropdown, X clears the
 query, the typed query persists) is unchanged. Everything below is the
 historical record; the current desktop home is the **top bar**.
@@ -250,8 +250,8 @@ existing idiom). No second data path.
    `?tab=explore&q=`; the no-results state is Trending-mode; per-section
    loading unchanged).
 - [✓ 3.175.0] **S8: the search is four categories — the four flat destinations
-   are the four search categories** (`src/data/search.ts` + `GlobalSearch.tsx`
-   + `ShortsScreen.tsx`) — operator pass (28.09.2026, the search dropdown
+    are the four search categories** (`src/data/search.ts` + `GlobalSearch.tsx`
+    + `ShortsWall.tsx` + `ShortsScreen.tsx`) — operator pass (28.09.2026, the search dropdown
    screenshot): "if people selected in the search, should open people tab
    automatically, then if trending is selected, should open hot gossip tab
    with that search, but search should have all 4 categories as options to
@@ -276,18 +276,20 @@ existing idiom). No second data path.
    reads load together on the debounced query (the mode only picks which
    sections are shown) so a flip is instant; the segmented track is
    `overflow-x-auto` + `whitespace-nowrap` so the four labels fit on one line
-   at 375px. (3) **The Shorts lens honors `?q=`** — the search's Shorts
-   category lands on `/shorts?q=…`; the lens filters its slides to the
-   matches (text/author, case-insensitive — a view over the loaded lens, not a
-   re-read) + shows a **query chip (with its X)** in a sticky top-center
-   wrapper so the search is visible + clearable (the `?q=` idiom the other
-   destinations already use); a no-match `?q=` shows a designed no-match state
-   with the clear affordance. `globalSearch.test.ts` re-pinned to the five-way
+    at 375px. (3) **The Shorts destination honors `?q=`** — the search's Shorts
+    category lands on `/shorts?q=…`; since 3.173.0 a bare `/shorts` is the
+    **wall** (the lens is `/shorts/:postId`), the wall filters its tiles to the
+    matches (text/author, case-insensitive — a view over the loaded wall, not a
+    re-read) + shows a **query chip (with its X)** so the search is visible +
+    clearable (the `?q=` idiom the other destinations already use); a no-match
+    `?q=` shows a designed no-match state with the clear affordance. The lens
+    keeps the same `?q=` filter + chip for `/shorts/:postId?q=…` deep links.
+    `globalSearch.test.ts` re-pinned to the five-way
    fan-out (+ `searchVideo` / `searchShorts` suites); `globalSearch.test.tsx`
    re-pinned to the four-category model (the toggle; Enter / CTA per category
    → the right destination + `?q=`; the per-category sections; the no-results
    state; per-section loading; row navigation) + `shortsScreen.test.tsx` +2.
-   1086 web10-social tests green, `tsc` clean. **No node change (D60 —
+   1092 web10-social tests green, `tsc` clean. **No node change (D60 —
    entirely client-side).**
 
 **Ownership:** this lane owns `Layout.tsx`, `src/components/Search/`,

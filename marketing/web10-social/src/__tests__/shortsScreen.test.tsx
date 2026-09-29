@@ -536,32 +536,33 @@ describe('ShortsScreen — the vertical short-form feed (shorts.md)', () => {
     });
   });
 
-  it('?q= filters the lens to matching shorts + shows the query chip (the S8 search deep link)', async () => {
+  it('?q= filters the wall to matching shorts + shows the query chip (the S8 search deep link)', async () => {
     (data.readShortsFeed as ReturnType<typeof vi.fn>).mockResolvedValue([
       shortPost({ id: 's1', author: 'luna', text: 'synthwave mix' }),
       shortPost({ id: 's2', author: 'kai', text: 'study vlog' }),
     ]);
+    // /shorts?q= is the WALL (a bare /shorts is the wall; the lens is /shorts/:postId).
     await renderShorts(['/shorts?q=synthwave']);
 
-    // The lens filters to the match — only the synthwave slide renders…
+    // The wall filters to the match — only the synthwave tile renders…
     await waitFor(() => {
-      expect(screen.getByTestId('short-slide-0')).toBeInTheDocument();
+      expect(screen.getByTestId('short-wall-tile-s1')).toBeInTheDocument();
     });
-    expect(screen.queryByTestId('short-slide-1')).not.toBeInTheDocument();
+    expect(screen.queryByTestId('short-wall-tile-s2')).not.toBeInTheDocument();
     // …and the query chip (with its X) shows the active search.
     const chip = screen.getByTestId('shorts-query-chip');
     expect(chip).toHaveTextContent('synthwave');
     expect(screen.getByTestId('shorts-query-chip-clear')).toBeInTheDocument();
 
-    // Clearing the chip drops ?q= and the full lens returns.
+    // Clearing the chip drops ?q= and the full wall returns.
     fireEvent.click(screen.getByTestId('shorts-query-chip-clear'));
     await waitFor(() => {
-      expect(screen.getByTestId('short-slide-1')).toBeInTheDocument();
+      expect(screen.getByTestId('short-wall-tile-s2')).toBeInTheDocument();
     });
     expect(screen.queryByTestId('shorts-query-chip')).not.toBeInTheDocument();
   });
 
-  it('?q= with no match shows the no-match state (not an empty lens)', async () => {
+  it('?q= with no match shows the no-match state (not an empty wall)', async () => {
     (data.readShortsFeed as ReturnType<typeof vi.fn>).mockResolvedValue([
       shortPost({ id: 's1', author: 'luna', text: 'synthwave mix' }),
     ]);
@@ -570,7 +571,7 @@ describe('ShortsScreen — the vertical short-form feed (shorts.md)', () => {
     await waitFor(() => {
       expect(screen.getByTestId('shorts-query-clear')).toBeInTheDocument();
     });
-    expect(screen.queryByTestId('short-slide-0')).not.toBeInTheDocument();
+    expect(screen.queryByTestId('short-wall-tile-s1')).not.toBeInTheDocument();
   });
 });
 
