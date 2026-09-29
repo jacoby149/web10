@@ -464,7 +464,7 @@ function App() {
           <Route path="/monetize" element={isAnon ? <Navigate to="/video" replace /> : <MonetizationScreen />} />
           <Route path="/settings" element={isAnon ? <Navigate to="/video" replace /> : <SettingsScreen onLogout={handleLogout} onReportBug={() => handleReportBug('button')} />} />
           <Route path="/node-settings" element={isAnon ? <Navigate to="/video" replace /> : <NodeSettingsScreen />} />
-          <Route path="*" element={<Navigate to={isAnon ? '/video' : '/feed'} replace />} />
+          <Route path="*" element={<Navigate to="/video" replace />} />
         </Route>
       </Routes>
       </RepostProvider>
