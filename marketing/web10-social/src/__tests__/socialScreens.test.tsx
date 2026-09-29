@@ -815,6 +815,27 @@ describe('Layout', () => {
     expect(screen.queryByTestId('nav-discover')).not.toBeInTheDocument();
   });
 
+  it('signed-in sidebar: Feed sits below Hot Gossip (the operator reorder)', async () => {
+    const { default: Layout } = await import('@/components/Social/Layout');
+    render(
+      <MemoryRouter initialEntries={['/video']}>
+        <Layout onLogout={() => {}} onReportBug={() => {}}>
+          <div>Content</div>
+        </Layout>
+      </MemoryRouter>,
+    );
+    const sidebarNav = screen.getByLabelText('Primary');
+    const sidebarItems = Array.from(sidebarNav.querySelectorAll('[data-testid]'))
+      .map((el) => el.getAttribute('data-testid'))
+      .filter((id) => id?.startsWith('nav-'));
+    // Video leads, then Shorts, Hot Gossip, Feed (below Hot Gossip), People, Messages.
+    expect(sidebarItems.indexOf('nav-video')).toBeLessThan(sidebarItems.indexOf('nav-shorts'));
+    expect(sidebarItems.indexOf('nav-shorts')).toBeLessThan(sidebarItems.indexOf('nav-hot-gossip'));
+    expect(sidebarItems.indexOf('nav-hot-gossip')).toBeLessThan(sidebarItems.indexOf('nav-feed'));
+    expect(sidebarItems.indexOf('nav-feed')).toBeLessThan(sidebarItems.indexOf('nav-people'));
+    expect(sidebarItems.indexOf('nav-people')).toBeLessThan(sidebarItems.indexOf('nav-messages'));
+  });
+
   it('Monetization nav renders for every user; Node Monetization only for the node admin', async () => {
     const { default: Layout } = await import('@/components/Social/Layout');
     // Non-admin: the "Monetization" entry (the creator's ad catalog +
