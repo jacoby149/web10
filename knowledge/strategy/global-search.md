@@ -1,6 +1,6 @@
 # Global Search — the top-bar everything-search (operator pass, 18.09.2026)
 
-**Status: SHIPPED + AMENDED (3.162.0) + RE-AMENDED (3.174.0) + S8 (3.175.0) + S9 (3.178.0) + S10 (3.179.0).** The
+**Status: SHIPPED + AMENDED (3.162.0) + RE-AMENDED (3.174.0) + S8 (3.175.0) + S9 (3.178.0) + S10 (3.180.0).** The
 always-expanded everything-search shipped in the desktop **top bar** (S1–S4).
 `discover-ia-consistency.md` (3.157.0) moved the desktop field's home from the
 top bar to the sidebar (the operator's Facebook-style chrome). **On 29.09.2026
@@ -25,7 +25,7 @@ its destination, carrying the query), and typing in the field, while a tab is
 open, filters THAT tab as you type (the query is written to the destination's
 URL as `?q=`, debounced — the destinations' existing `?q=` client-side filters
 do the rest, live). The field is the tab's search box; the dropdown is the
-preview (a few rows + the "open the tab" CTA). **S10 (3.179.0) keeps the
+preview (a few rows + the "open the tab" CTA). **S10 (3.180.0) keeps the
 dropdown open on a topic change** — a category tap / Enter / the "see all"
 CTA navigates to the picked tab AND keeps the dropdown open (the operator
 wants to see the results as they search, not have it collapse the moment the
@@ -347,7 +347,7 @@ existing idiom). No second data path.
     a non-destination route writes no `?q=`; Enter on an open tab stays on the
      tab). 1124 web10-social tests green, `tsc` clean. **No node change (D60 —
      entirely client-side).**
-- [✓ 3.179.0] **S10: the search stays open on a topic change — the dropdown
+- [✓ 3.180.0] **S10: the search stays open on a topic change — the dropdown
      survives the navigation it triggers** (`GlobalSearch.tsx`) — operator pass
      (29.09.2026, two search screenshots): "when i change search topic, it
      switches screens which is great, but the search collapses" + "the search
