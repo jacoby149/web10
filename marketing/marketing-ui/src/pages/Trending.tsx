@@ -51,10 +51,10 @@ const MAX_RESULTS = 100;
 type ExperienceDest = 'video' | 'shorts' | 'hot-gossip' | 'people';
 
 function destFromPath(pathname: string): ExperienceDest {
-  if (pathname.startsWith('/shorts')) return 'shorts';
-  if (pathname.startsWith('/hot-gossip')) return 'hot-gossip';
-  if (pathname.startsWith('/people')) return 'people';
-  return 'video'; // `/` (the index) + the legacy `/trending`
+  if (pathname.startsWith('/trending/shorts')) return 'shorts';
+  if (pathname.startsWith('/trending/hot-gossip')) return 'hot-gossip';
+  if (pathname.startsWith('/trending/people')) return 'people';
+  return 'video'; // `/trending` (the index)
 }
 
 // The social app's `?knobs=` encoding (DiscoverScreen): the five detent
@@ -582,13 +582,13 @@ function Trending() {
     const params = new URLSearchParams(searchParams);
     params.delete('view');
     const qs = params.toString();
-    return <Navigate to={`/hot-gossip${qs ? `?${qs}` : ''}`} replace />;
+    return <Navigate to={`/trending/hot-gossip${qs ? `?${qs}` : ''}`} replace />;
   }
   if (legacyTab && dest === 'video') {
     const params = new URLSearchParams(searchParams);
     params.delete('tab');
     const qs = params.toString();
-    return <Navigate to={`/people${qs ? `?${qs}` : ''}`} replace />;
+    return <Navigate to={`/trending/people${qs ? `?${qs}` : ''}`} replace />;
   }
 
   // ── The People destination — the people + groups browser (the old `?tab=
@@ -830,7 +830,7 @@ function Trending() {
                     title="No media posts yet"
                     body="The Video wall shows posts with videos."
                     ctaLabel="Switch to Hot Gossip"
-                    ctaHref="/hot-gossip"
+                    ctaHref="/trending/hot-gossip"
                   />
                 )}
               </>
@@ -886,7 +886,7 @@ function Trending() {
                     title="No shorts yet"
                     body="The Shorts wall shows vertical (9:16) videos."
                     ctaLabel="Switch to Video"
-                    ctaHref="/"
+                    ctaHref="/trending"
                   />
                 )}
               </>
