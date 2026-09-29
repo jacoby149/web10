@@ -65,6 +65,11 @@ services:
       PORT: 80
       VIRTUAL_HOST: rtc.localhost
       CHOKIDAR_USEPOLLING: "true"
+      # The local stack is HTTP-only, so the default https://{provider}/certify
+      # gate would never be reached. Point it at the API by its docker service
+      # name so the /certify gate is actually exercised (and the fail-closed
+      # .catch in api/rtc can drop a socket if it ever fails).
+      CERTIFY_BASE_URL: http://api
     ports:
       - "6363:80"
 
