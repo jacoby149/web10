@@ -73,6 +73,16 @@ never trusts the payload's content.
 No new API endpoint: the generic CRUD + the ref-count read + `w.query()`
 cover it.
 
+**The event time (what the cursor compares against) is the doc's write time,
+not "now."** A row is *read* when its event time is at/before the `last_seen`
+cursor. The event time comes from the doc's own `created_at` — the **body**
+field when present, else the **document column** `created_at` (the node always
+sets it — the true write time). It must never fall back to `new Date()` ("now"):
+a doc written by an older version that lacks `body.created_at` would otherwise
+be re-stamped "now" on every seed, stay permanently after the cursor, and pin
+the badge (the "2 notifications always" bug, 3.184.3). The column fallback is
+what makes a stale doc sort to its real age and read as seen.
+
 **Write side (the nudge) — the actor's app pushes on a targeting action:**
 
 ```
