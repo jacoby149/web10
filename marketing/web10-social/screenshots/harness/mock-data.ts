@@ -1420,4 +1420,21 @@ const PROFILE_POSTS = [
     created_at: minsAgo(60 * 26),
     tags: ['music', 'study'],
   },
+  {
+    _id: 'pp-4',
+    author_username: 'me',
+    author_provider: 'web10',
+    title: 'No algorithm between you and the post',
+    text: 'It just arrives. That is the whole thing — your audience, your node, your data.',
+    created_at: minsAgo(60 * 30),
+    tags: ['creators'],
+  },
+  {
+    _id: 'pp-5',
+    author_username: 'me',
+    author_provider: 'web10',
+    text: 'The rack is finally quiet. Swapped the PSUs and the whole thing idles cold now.',
+    created_at: minsAgo(60 * 48),
+    tags: ['studio'],
+  },
 ];

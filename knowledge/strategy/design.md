@@ -463,6 +463,19 @@ the missing steps.
   --color-brand-muted: #2e1065;
   --color-brand-foreground: #fafafa;
 
+  /* text-tile palette — text-only posts on the 9:16 wall (social app).
+     Deep, saturated, dark backgrounds (each reads as a color but stays in the
+     dark-first UI) + a bright foreground. A text-only post picks one
+     deterministically (hash of the post id) so it renders as a designed card,
+     not an empty black box. All pair with --color-tile-foreground (≥4.5:1). */
+  --color-tile-violet: #4c1d95;
+  --color-tile-indigo: #312e81;
+  --color-tile-fuchsia: #701a75;
+  --color-tile-blue: #1e3a8a;
+  --color-tile-teal: #134e4a;
+  --color-tile-rose: #881337;
+  --color-tile-foreground: #fafafa;
+
   /* glow — ambient light, social flagship (§4) */
   --color-glow: rgba(139, 92, 246, 0.15);
   --color-glow-intense: rgba(139, 92, 246, 0.35);
