@@ -69,6 +69,10 @@ export async function createPost(
   }
 
   const body: Record<string, unknown> = {
+    // The post's two bodies of text (D82): `title` (the optional headline) +
+    // `text` (the caption). The node stores the body opaquely — zero node
+    // surface (D60); the app writes + reads the field.
+    title: post.title,
     text: post.text,
     media_refs: post.media_refs,
     origin: post.origin,
@@ -399,6 +403,7 @@ export async function updatePost(
   }
 
   const body: Record<string, unknown> = {};
+  if (updates.title !== undefined) body.title = updates.title;
   if (updates.text !== undefined) body.text = updates.text;
   if (updates.media_refs !== undefined) body.media_refs = updates.media_refs;
   if (updates.visibility !== undefined) body.visibility = updates.visibility;

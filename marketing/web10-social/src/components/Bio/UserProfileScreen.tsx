@@ -91,9 +91,10 @@ interface WallTileProps {
  * video" — the new-Instagram / TikTok shape). The tile is a portrait frame
  * (`aspect-[9/16]`) that fills its grid cell; a video renders a `<video>`
  * (poster + muted preload) with a play badge, an image renders a cover-cropped
- * `<img>`. The grid is responsive (`auto-fill, minmax(160px, 1fr)`) so as many
- * tiles as fit the width render — the wall fills the whole screen, not a fixed
- * column count.
+ * `<img>`. The grid is responsive, capped at 4 columns
+ * (`auto-fill, minmax(max(160px, 25%), 1fr)` — each column is at least 25%
+ * wide, so never more than 4, and never narrower than 160px, so fewer
+ * columns on small screens).
  */
 function WallTile({ media, testId, caption, multiCount, onClick }: WallTileProps) {
   const video = isVideo(media);
@@ -932,10 +933,10 @@ export default function UserProfileScreen({ username, provider, onBack }: UserPr
       </div>
 
       {/* Content — the wall of video (the new-Instagram / TikTok shape). A
-          responsive grid of 9:16 vertical tiles that fills the whole screen:
-          `auto-fill, minmax(160px, 1fr)` renders as many columns as fit the
-          width (the operator: "filling the whole screen", "doesn't have to be
-          4"). Posts tab: the insta-shaped wall (default) or the facebook-shaped
+          responsive grid of 9:16 vertical tiles, capped at 4 columns
+          (`auto-fill, minmax(max(160px, 25%), 1fr)` — 4 across on a wide
+          screen, fewer as the width shrinks; the Instagram-explore shape).
+          Posts tab: the insta-shaped wall (default) or the facebook-shaped
           feed. Media tab: every media item as a wall tile. */}
       <div className="px-4 pb-4 pt-2">
         {activeTab === 'posts' ? (
@@ -961,7 +962,7 @@ export default function UserProfileScreen({ username, provider, onBack }: UserPr
                 onAuthorClick={(u) => navigate(`/u/${u}`)}
               />
             ) : (
-            <div className="grid gap-2 [grid-template-columns:repeat(auto-fill,minmax(160px,1fr))]">
+            <div className="grid gap-2 [grid-template-columns:repeat(auto-fill,minmax(max(160px,25%),1fr))]">
               {posts.map((post) => {
                 const firstMedia = post.media_refs?.[0] ? mediaMap[mediaRefId(post.media_refs[0])] : null;
                 // A post with no media renders as a caption-only tile (the
@@ -972,7 +973,7 @@ export default function UserProfileScreen({ username, provider, onBack }: UserPr
                     key={post._id}
                     media={firstMedia ?? { _id: post._id, url: '', created_at: '' }}
                     testId="profile-post-cell"
-                    caption={post.text}
+                    caption={post.title || post.text}
                     multiCount={post.media_refs?.length}
                     onClick={() => setLightboxPost(post)}
                   />
@@ -999,7 +1000,7 @@ export default function UserProfileScreen({ username, provider, onBack }: UserPr
           )}
           </>
         ) : mediaPosts.length ? (
-          <div className="grid gap-2 [grid-template-columns:repeat(auto-fill,minmax(160px,1fr))]">
+          <div className="grid gap-2 [grid-template-columns:repeat(auto-fill,minmax(max(160px,25%),1fr))]">
             {mediaPosts.flatMap((post) =>
               (post.media_refs || []).map((ref) => {
                 const media = mediaMap[mediaRefId(ref)];
@@ -1009,7 +1010,7 @@ export default function UserProfileScreen({ username, provider, onBack }: UserPr
                     key={mediaRefId(ref)}
                     media={media}
                     testId="profile-media-cell"
-                    caption={post.text}
+                    caption={post.title || post.text}
                     onClick={() => setLightboxPost(post)}
                   />
                 );
@@ -1023,17 +1024,26 @@ export default function UserProfileScreen({ username, provider, onBack }: UserPr
         )}
       </div>
 
-      {lightboxPost && (
-        <PostLightbox
-          post={lightboxPost}
-          mediaMap={mediaMap}
-          onClose={() => setLightboxPost(null)}
-          onReload={loadData}
-          postAuthor={username}
-          postService={'public_posts'}
-          isOwner={isOwnProfile}
-        />
-      )}
+      {lightboxPost && (() => {
+        // Instagram-style post navigation: the modal's side arrows step
+        // through the profile's posts (wrapping, like the Instagram grid).
+        // The lightbox owns the modal; the profile owns the list + index.
+        const idx = posts.findIndex((p) => p._id === lightboxPost._id);
+        const canNav = idx >= 0 && posts.length > 1;
+        return (
+          <PostLightbox
+            post={lightboxPost}
+            mediaMap={mediaMap}
+            onClose={() => setLightboxPost(null)}
+            onReload={loadData}
+            postAuthor={username}
+            postService={'public_posts'}
+            isOwner={isOwnProfile}
+            onPrevPost={canNav ? () => setLightboxPost(posts[(idx - 1 + posts.length) % posts.length]) : undefined}
+            onNextPost={canNav ? () => setLightboxPost(posts[(idx + 1) % posts.length]) : undefined}
+          />
+        );
+      })()}
 
       {faceLightbox && (
         <ProfileMediaLightbox

@@ -624,8 +624,21 @@ export function PostCard({
           </div>
         </div>
       ) : post.text && !post.repost_of ? (
-        <div className="px-4 pt-3 text-sm text-foreground leading-relaxed whitespace-pre-wrap break-words">
-          <TextWithLinks text={post.text} />
+        <div className="px-4 pt-3">
+          {post.title && (
+            <h3 className="mb-1 text-base font-semibold leading-snug text-foreground" data-testid="post-card-title">
+              {post.title}
+            </h3>
+          )}
+          <div className="text-sm text-foreground leading-relaxed whitespace-pre-wrap break-words">
+            <TextWithLinks text={post.text} />
+          </div>
+        </div>
+      ) : post.title && !post.repost_of ? (
+        <div className="px-4 pt-3">
+          <h3 className="text-base font-semibold leading-snug text-foreground" data-testid="post-card-title">
+            {post.title}
+          </h3>
         </div>
       ) : null}
 

@@ -103,6 +103,7 @@ function ShortsLens({ postId }: { postId: string }) {
     ? shorts.filter((s) => {
         const q = urlQuery.trim().toLowerCase();
         return (
+          (s.post.title && s.post.title.toLowerCase().includes(q)) ||
           (s.post.text && s.post.text.toLowerCase().includes(q)) ||
           (s.post.author_username && s.post.author_username.toLowerCase().includes(q))
         );
@@ -458,6 +459,12 @@ function ShortsLens({ postId }: { postId: string }) {
                 <p className="text-sm font-medium text-white truncate">
                   @{short.post.author_username}
                 </p>
+                {/* The post's two bodies (D82): the title is the lead line, the
+                    caption (`text`) the line under it. A short with only a
+                    caption shows the caption; a title-only short shows the title. */}
+                {short.post.title && (
+                  <p className="text-xs font-medium text-white line-clamp-1 mt-0.5">{short.post.title}</p>
+                )}
                 {short.post.text && (
                   <p className="text-xs text-white/80 line-clamp-2 mt-0.5">{short.post.text}</p>
                 )}

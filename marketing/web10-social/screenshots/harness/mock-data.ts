@@ -1200,10 +1200,26 @@ export async function lookupUserProfile(username?: string): Promise<unknown> {
 }
 // A repost's embed (reposts.md) reads the original by doc_id. The harness
 // returns the seeded feed post that the repost references (fp-2 = luna's post),
-// so the "reposted" card renders the embedded original.
+// so the "reposted" card renders the embedded original. The watch page's
+// primary read (a discover post, e.g. dp-1) also lands here — the author is
+// derived from the doc's author_key (fromV3DocToPost), matching the node.
 export async function readPostById(docId: string): Promise<unknown> {
   const p = FEED_POSTS.find((x) => x._id === docId);
-  if (!p) return null;
+  if (!p) {
+    const d = DISCOVER_POSTS.find((x) => (x._id as string) === docId);
+    if (!d) return null;
+    return {
+      _id: d._id,
+      text: d.text,
+      created_at: d.created_at,
+      tags: d.tags,
+      author_username: d.author_username,
+      author_provider: d.author_provider,
+      media_refs: d.media_refs,
+      profile: { display_name: d.author_username === 'nova' ? 'Nova' : d.author_username },
+      ad: d.ad,
+    };
+  }
   return {
     _id: p._id,
     text: p.text,
