@@ -153,14 +153,15 @@ def create_group(data: CreateGroup):
         if not ch.get_group_member(group_id, m["member_key"]):
             ch.add_group_member(group_id, m["member_key"], m.get("role", "member"))
 
-    creator_role = None
-    for role_def in data.roles:
-        if any(m["member_key"] == creator for m in data.members if m.get("role") == role_def["name"]):
-            creator_role = role_def
-            break
+    for m in data.members:
+        if not ch.get_group_member(group_id, m["member_key"]):
+            ch.add_group_member(group_id, m["member_key"], m.get("role", "member"))
 
-    if not creator_role and not ch.get_group_member(group_id, creator):
-        ch.add_group_member(group_id, creator, "admin")
+    # The creator is the owner by definition. This guards against clients that
+    # pass the creator's member row in a key form the node's permission checks
+    # do not resolve (the "dead group" bug). It is a no-op when the contract
+    # has no owner role or the creator is already the owner.
+    ch.ensure_creator_owner(group_id, creator, data.roles)
 
     return {"group_id": group_id}
 
@@ -504,6 +505,29 @@ def delete_group(data: DeleteGroup):
     _require_group_permission(data.group_id, user, "deleteGroup")
     ch.delete_group(data.group_id)
     return {"group_id": data.group_id, "status": "deleted"}
+
+
+@router.post("/heal-owner")
+def heal_group_owner(data: GetGroup):
+    """Re-point the group's ownership to its creator.
+
+    A group whose creator row drifted to a non-owner role (or whose owner row
+    is stored under a key form the permission checks do not resolve) is dead:
+    the creator can no longer edit or delete it. This endpoint re-points the
+    creator's bare-username member row to the `owner` role. It is gated on
+    creator == caller (the creator is derived from the group_id) and is a
+    no-op when the group already has the creator as owner or defines no
+    owner role.
+    """
+    user = _user(data)
+    group = ch.get_group(data.group_id)
+    if not group:
+        raise exceptions.ENTRY_NOT_FOUND
+    creator, _slug = _parse_group_id(data.group_id)
+    if creator != user:
+        raise exceptions.CRUD
+    ch.ensure_creator_owner(data.group_id, user, group["roles"])
+    return {"group_id": data.group_id, "status": "healed"}
 
 
 # ---------------------------------------------------------------------------

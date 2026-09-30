@@ -1273,6 +1273,31 @@ def remove_group_member(group_id: str, member_key: str):
     )
 
 
+def ensure_creator_owner(group_id: str, creator: str, roles: list[dict]) -> None:
+    """Ensure the creator of a group holds the `owner` role.
+
+    The creator is the `{creator}` segment of a created group id
+    (`{provider}/groups/users/{creator}/{slug}`). The node resolves the acting
+    user to the bare username, so a client that stores the owner row under a
+    different key form (e.g. `{provider}/users/{creator}`) can leave the
+    creator with no resolvable management role — a "dead" group. This inserts a
+    current `owner` row for the creator's bare username when needed. The
+    ReplacingMergeTree-style latest-row dedup used by readers makes the new row
+    win over an older non-owner row.
+
+    This is a no-op when the contract defines no `owner` role (for example, DM
+    groups) or when the creator is already the owner.
+    """
+    if not any(isinstance(r, dict) and r.get("name") == "owner" for r in roles or []):
+        return
+
+    existing = get_group_member(group_id, creator)
+    if existing and existing.get("role") == "owner":
+        return
+
+    add_group_member(group_id, creator, "owner")
+
+
 def get_group_members(group_id: str, limit: int = 100, offset: int = 0) -> list[dict]:
     """Get active members of a group (deduplicated by latest version).
 
