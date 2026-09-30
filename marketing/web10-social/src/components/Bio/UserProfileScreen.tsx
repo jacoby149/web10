@@ -127,7 +127,6 @@ interface WallTileProps {
  */
 function WallTile({ media, testId, title, caption, postId, multiCount, onClick }: WallTileProps) {
   const video = isVideo(media);
-  const isTextOnly = !media.url;
   // The text-only tile's heading: the title (D82) when present, else the
   // caption. `ariaLabel` keeps the accessible name stable.
   const heading = title || caption;
@@ -145,11 +144,8 @@ function WallTile({ media, testId, title, caption, postId, multiCount, onClick }
         }
       }}
       className={cn(
-        'relative w-full bg-elevated overflow-hidden group cursor-pointer outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset',
+        'relative aspect-[9/16] w-full bg-elevated overflow-hidden group cursor-pointer outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset',
         'rounded-none sm:rounded-lg',
-        isTextOnly
-          ? 'col-span-3 sm:col-span-1 aspect-[2/1] sm:aspect-[9/16]'
-          : 'aspect-square sm:aspect-[9/16]',
       )}
     >
       {video ? (
@@ -693,11 +689,12 @@ export default function UserProfileScreen({ username, provider, onBack }: UserPr
         )}
       </div>
 
-      {/* Header — the new-Instagram shape: the avatar on the left, the name /
-          stats / bio / action buttons stacked to its right. Full width (the
-          operator: "filling the whole screen"). */}
+      {/* Header — the new-Instagram shape. On mobile the avatar sits on top and
+          the name / stats / bio / action buttons stack below it at full width
+          (Instagram's mobile profile). On desktop the avatar is on the left
+          with the name + buttons beside it. */}
       <div className="px-4 pt-4 pb-4">
-        <div className="flex items-start gap-4 sm:gap-6">
+        <div className="flex flex-col sm:flex-row items-start gap-4 sm:gap-6">
           <div
             role="button"
             tabIndex={0}
@@ -711,7 +708,7 @@ export default function UserProfileScreen({ username, provider, onBack }: UserPr
               }
             }}
             className={cn(
-              '-mt-14 group shrink-0 cursor-pointer outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset rounded-full self-start',
+              '-mt-14 group shrink-0 cursor-pointer outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset rounded-full self-center sm:self-start',
               isOwnProfile ? 'relative' : '',
             )}>
             <Avatar className={cn(
