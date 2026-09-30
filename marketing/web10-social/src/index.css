@@ -113,9 +113,85 @@
       animation-duration: 0.01ms !important;
       animation-iteration-count: 1 !important;
       transition-duration: 0.01ms !important;
-      scroll-behavior: auto !important;
+      scroll-behavior: auto;
     }
   }
+}
+
+/* The Tiptap composer (D85, rich-text.md "The write side"): the caption is a
+   WYSIWYG editor. The Placeholder extension marks the empty first paragraph
+   with `is-editor-empty` + a `data-placeholder` attribute; there is no
+   `placeholder` attribute on a contenteditable, so the placeholder text is
+   drawn here as a `::before` pseudo-element (floated to zero height so it
+   never pushes the caret). The editor content is typeset with the brand scale
+   — the display face for headings, the sans for body, mono for code — so a
+   post reads "set in type" while it's being written. */
+.composer-editor {
+  position: relative;
+}
+.composer-editor p.is-editor-empty::before {
+  content: attr(data-placeholder);
+  float: left;
+  height: 0;
+  pointer-events: none;
+  color: var(--color-muted-foreground);
+  opacity: 0.55;
+}
+.composer-editor p {
+  margin: 0 0 0.5em;
+}
+.composer-editor p:last-child {
+  margin-bottom: 0;
+}
+.composer-editor h2 {
+  font-family: var(--font-display);
+  font-size: 1.375rem;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  margin: 0.5em 0 0.25em;
+}
+.composer-editor ul,
+.composer-editor ol {
+  padding-left: 1.25rem;
+  margin: 0.25em 0;
+}
+.composer-editor ul {
+  list-style: disc;
+}
+.composer-editor ol {
+  list-style: decimal;
+}
+.composer-editor li {
+  margin: 0.125em 0;
+}
+.composer-editor code {
+  font-family: var(--font-mono);
+  font-size: 0.875em;
+  background: var(--color-muted);
+  padding: 0.1em 0.35em;
+  border-radius: 4px;
+}
+.composer-editor pre {
+  background: var(--color-muted);
+  padding: 0.75em 1em;
+  border-radius: 8px;
+  overflow-x: auto;
+  margin: 0.5em 0;
+}
+.composer-editor pre code {
+  background: transparent;
+  padding: 0;
+}
+.composer-editor a {
+  color: var(--color-brand-300);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+.composer-editor blockquote {
+  border-left: 2px solid var(--color-brand);
+  padding-left: 1em;
+  margin: 0.5em 0;
+  color: var(--color-muted-foreground);
 }
 
 @layer utilities {

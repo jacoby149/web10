@@ -12,6 +12,7 @@ import '@testing-library/jest-dom';
 
 import { lucideMock } from './helpers/lucideMock';
 import { installWeb10Mock } from './helpers/web10Mock';
+import { typeInComposer } from './helpers/tiptap';
 vi.mock('lucide-react', () => lucideMock);
 
 vi.mock('@/data', async (importOriginal) => {
@@ -193,7 +194,7 @@ describe('The app-level New Post sheet + FAB', () => {
       expect(screen.getByTestId('new-post-sheet')).toBeInTheDocument();
     });
     // Type + post → createPost is called scoped to the group.
-    fireEvent.change(screen.getByTestId('composer-textarea'), { target: { value: 'Hello group' } });
+    await typeInComposer('Hello group');
     fireEvent.click(screen.getByTestId('post-submit'));
     await waitFor(() => {
       expect(createPost).toHaveBeenCalled();
@@ -221,7 +222,7 @@ describe('The app-level New Post sheet + FAB', () => {
     await waitFor(() => {
       expect(screen.getByTestId('new-post-sheet')).toBeInTheDocument();
     });
-    fireEvent.change(screen.getByTestId('composer-textarea'), { target: { value: 'a post' } });
+    await typeInComposer('a post');
     fireEvent.click(screen.getByTestId('post-submit'));
     // The post lands → the sheet closes + the event fires.
     await waitFor(() => {

@@ -31,14 +31,15 @@ export function NewPostFab({ hidden = false }: { hidden?: boolean }) {
       }}
       className={
         'fixed right-4 bottom-20 md:right-6 md:bottom-6 z-30 ' +
-        'flex h-14 w-14 items-center justify-center rounded-full ' +
+        'flex h-16 w-16 items-center justify-center rounded-full ' +
         'bg-gradient-to-br from-brand to-brand-600 text-brand-foreground ' +
-        'shadow-[0_8px_30px_rgb(0,0,0/0.35)] ' +
+        'ring-2 ring-brand-300/40 ' +
+        'shadow-[0_8px_30px_rgb(0,0,0/0.45)] ' +
         'transition-transform duration-150 ease-out hover:scale-105 active:scale-95 ' +
         'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background'
       }
     >
-      <Plus className="w-7 h-7" strokeWidth={2.25} />
+      <Plus className="w-8 h-8" strokeWidth={2.25} />
     </button>
   );
 }

@@ -5,6 +5,7 @@ import '@testing-library/jest-dom';
 
 // Mock lucide-react icons as simple span elements (any icon, no manual list)
 import { lucideMock } from './helpers/lucideMock';
+import { composerEditor, typeInComposer } from './helpers/tiptap';
 vi.mock('lucide-react', () => lucideMock);
 
 // Mock data layer
@@ -644,8 +645,14 @@ describe('PostComposer', () => {
 
   it('renders textarea with placeholder', async () => {
     const { default: PostComposer } = await import('@/components/Feed/PostComposer');
-    render(<PostComposer />);
-    expect(screen.getByPlaceholderText("What's on your mind?")).toBeInTheDocument();
+    const { container } = render(<PostComposer />);
+    // The caption is a Tiptap editor: the placeholder is a `data-placeholder`
+    // attr on the empty paragraph (a CSS pseudo-element), not a `placeholder`
+    // attr on a textarea.
+    await screen.findByTestId('composer-textarea');
+    const empty = container.querySelector('[data-placeholder]');
+    expect(empty).toBeTruthy();
+    expect(empty?.getAttribute('data-placeholder')).toBe("What's on your mind?");
   });
 
   it('shows image upload button', async () => {
@@ -663,19 +670,17 @@ describe('PostComposer', () => {
   it('enables post button when text is entered', async () => {
     const { default: PostComposer } = await import('@/components/Feed/PostComposer');
     render(<PostComposer />);
-    const textarea = screen.getByPlaceholderText("What's on your mind?");
-    fireEvent.change(textarea, { target: { value: 'Hello world' } });
+    await typeInComposer('Hello world');
     expect(screen.getByRole('button', { name: /post/i })).not.toBeDisabled();
   });
 
   it('compact mode rests collapsed (no action row) until focused, then expands', async () => {
     const { default: PostComposer } = await import('@/components/Feed/PostComposer');
     render(<PostComposer compact />);
-    const textarea = screen.getByPlaceholderText("What's on your mind?");
     // Collapsed: the action row (attach button) is hidden…
     expect(screen.queryByTestId('attach-media-button')).not.toBeInTheDocument();
-    // …focusing expands the full form.
-    fireEvent.focus(textarea);
+    // …focusing the editor expands the full form.
+    (await composerEditor()).commands.focus();
     await waitFor(() => {
       expect(screen.getByTestId('attach-media-button')).toBeInTheDocument();
     });
