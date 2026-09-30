@@ -208,6 +208,25 @@ export async function listUserFollowers(): Promise<unknown[]> {
 }
 export async function countUserFollowingReal(): Promise<number> { return PEERS.length; }
 export async function readUserPublicPosts(): Promise<unknown[]> { return PROFILE_POSTS; }
+// D88: saved collections (the profile's Saved tab). Seeded with a few
+// collections so the tab renders with content (the cards + the open view).
+const SAVED_COLLECTIONS = [
+  { groupId: 'web10/groups/users/me/saved-guitar-riffs', name: 'Guitar Riffs', visibility: 'private', itemCount: 3, slug: 'guitar-riffs' },
+  { groupId: 'web10/groups/users/me/saved-tour-sets', name: 'Tour Sets', visibility: 'public', itemCount: 2, slug: 'tour-sets' },
+  { groupId: 'web10/groups/users/me/saved-later', name: 'Watch Later', visibility: 'private', itemCount: 1, slug: 'later' },
+];
+export async function getMyCollections(): Promise<unknown[]> { return SAVED_COLLECTIONS; }
+export async function readCollection(): Promise<unknown> {
+  return {
+    face: { name: 'Guitar Riffs' },
+    posts: [
+      { _id: 'sc-1', postId: 'pp-1', savedAt: minsAgo(120), unavailable: false, post: PROFILE_POSTS[0] },
+      { _id: 'sc-2', postId: 'pp-2', savedAt: minsAgo(300), unavailable: false, post: PROFILE_POSTS[1] },
+      { _id: 'sc-3', postId: 'pp-3', savedAt: minsAgo(500), unavailable: false, post: PROFILE_POSTS[2] },
+    ],
+    mediaMap: {},
+  };
+}
 // readUserPublicProfile lives below (the real impl, keyed by username).
 export async function countStagingPosts(): Promise<number> { return 0; }
 export async function saveProfile(): Promise<void> {}
