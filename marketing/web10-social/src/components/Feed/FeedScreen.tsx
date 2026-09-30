@@ -20,7 +20,7 @@ import {
   type AdAlbum,
 } from '@/data';
 import { getWapi } from '@/data/wapi';
-import { fromResolvedMediaRef, type ResolvedMediaRef, type PostRecord, type MediaRecord, type AdRecord } from '@/data/types';
+import { fromResolvedMediaRef, mediaRefId, type ResolvedMediaRef, type PostRecord, type MediaRecord, type AdRecord } from '@/data/types';
 import {
   PRESETS,
   getPreset,
@@ -28,15 +28,17 @@ import {
   type KnobState,
 } from '@/lib/powerMean';
 import { KnobRack } from '@/components/Discover/KnobRack';
-import { MoreHorizontal, Share2, Check, Edit3, Eye, EyeOff, Trash2, Repeat2, Megaphone } from 'lucide-react';
+import { MoreHorizontal, Share2, Check, Edit3, Eye, EyeOff, Trash2, Repeat2, Megaphone, X, Film } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { MARKETING_ORIGIN } from '@/lib/origins';
 import { Textarea } from '@/components/ui/textarea';
 import { PostActions } from './PostActions';
 import { TextWithLinks } from './LinkEmbed';
+import { PostBody } from './PostBody';
 import { AdBlock } from './AdBlock';
 import { AttachedAd } from './AttachedAd';
 import { AdPicker } from './AdPicker';
+import { useComposer } from '@/context/ComposerContext';
 import { VideoPlayer, sourceFromMedia } from './VideoPlayer';
 import { MediaCarousel } from './MediaCarousel';
 import { toast, errorMessage } from '@/components/shared/Toast';
@@ -265,8 +267,8 @@ function RepostedEmbed({
         </div>
       </div>
       {original.text ? (
-        <div className="px-3 pb-2.5 text-sm text-foreground leading-relaxed whitespace-pre-wrap break-words line-clamp-6">
-          <TextWithLinks text={original.text} />
+        <div className="px-3 pb-2.5 text-sm text-foreground line-clamp-6">
+          <PostBody text={original.text} density="light" />
         </div>
       ) : null}
       <div className="pb-2">
@@ -349,39 +351,13 @@ export function PostCard({
   testId = 'post-card',
 }: PostCardProps) {
   // Owner actions (previously the lightbox's job — the feed is now inline).
+  // Editing is NOT inline — it opens the app-level composer sheet in edit mode
+  // (the ONE edit path, so the card stays the read surface).
+  const { openComposer } = useComposer();
   const [menuOpen, setMenuOpen] = useState(false);
-  const [editing, setEditing] = useState(false);
-  const [editDraft, setEditDraft] = useState(post.text || '');
-  const [saving, setSaving] = useState(false);
   const [deleteConfirm, setDeleteConfirm] = useState(false);
   const [copied, setCopied] = useState(false);
   const [togglingVisibility, setTogglingVisibility] = useState(false);
-
-  // The edit flow's "Pin an ad" (ad-improvements.md): swap / clear the post's
-  // pinned ad. `pinnedAdId` is the ad's doc_id (null = no ad); the picker
-  // lazy-loads the creator's ads (the PostComposer pattern).
-  const [pinnedAdId, setPinnedAdId] = useState<string | null>(post.ad_target || null);
-  const [showAdPicker, setShowAdPicker] = useState(false);
-  const [ads, setAds] = useState<AdRecord[]>([]);
-  const [albums, setAlbums] = useState<AdAlbum[]>([]);
-  const [loadingAds, setLoadingAds] = useState(false);
-
-  const openAdPicker = useCallback(async () => {
-    setPinnedAdId(post.ad_target || null);
-    setShowAdPicker(true);
-    if (!ads.length && !loadingAds) {
-      setLoadingAds(true);
-      try {
-        const { ads: myAds, albums: myAlbums } = await readMyAds();
-        setAds(myAds);
-        setAlbums(myAlbums);
-      } catch (e) {
-        console.warn('[social-feed] readMyAds failed:', e);
-      } finally {
-        setLoadingAds(false);
-      }
-    }
-  }, [post.ad_target, ads.length, loadingAds]);
 
   // Close the owner menu on Escape.
   useEffect(() => {
@@ -417,25 +393,6 @@ export function PostCard({
     }
   }
 
-  async function handleSaveEdit() {
-    setSaving(true);
-    try {
-      // The edit can also swap / clear the pinned ad (ad-improvements.md).
-      const adPreference = pinnedAdId
-        ? { mode: 'pinned' as const, target: pinnedAdId }
-        : { mode: 'none' as const };
-      await updatePost(post._id || '', { text: editDraft, updated_at: new Date().toISOString() }, adPreference);
-      setEditing(false);
-      setShowAdPicker(false);
-      onPostUpdated?.();
-    } catch (e) {
-      console.error('Failed to update post:', e);
-      toast.error(errorMessage(e, 'Could not save your edit.'));
-    } finally {
-      setSaving(false);
-    }
-  }
-
   async function handleDelete() {
     try {
       await deletePost(post._id || '');
@@ -464,7 +421,7 @@ export function PostCard({
     <article
       data-testid={testId}
       className={cn(
-        'bg-card border-b border-border md:border md:rounded-lg md:mb-4 overflow-hidden',
+        'bg-card border-b border-border overflow-hidden',
         'glow-card transition-all duration-150',
       )}
     >
@@ -541,7 +498,7 @@ export function PostCard({
                   </button>
                   <button
                     type="button"
-                    onClick={(e) => { e.stopPropagation(); setMenuOpen(false); setEditing(true); setEditDraft(post.text || ''); }}
+                    onClick={(e) => { e.stopPropagation(); setMenuOpen(false); openComposer({ editingPost: post }); }}
                     className="flex w-full items-center gap-2 rounded-md px-3 py-2 text-left text-sm text-foreground hover:bg-elevated transition-colors"
                     data-testid="post-option-edit"
                   >
@@ -589,9 +546,9 @@ export function PostCard({
       {/* Repost (reposts.md): the reposter's comment (the quote) sits above the
           embedded original post — the X/Twitter quote-tweet layout. A repost
           carries no media of its own; the original's media lives in the embed. */}
-      {post.repost_of && !editing && post.text ? (
-        <div className="px-4 pt-3 text-sm text-foreground leading-relaxed whitespace-pre-wrap break-words">
-          <TextWithLinks text={post.text} />
+      {post.repost_of && post.text ? (
+        <div className="px-4 pt-3 text-sm text-foreground">
+          <PostBody text={post.text} density="light" />
         </div>
       ) : null}
 
@@ -599,39 +556,20 @@ export function PostCard({
         <RepostedEmbed repostOf={post.repost_of} onAuthorClick={onAuthorClick} />
       )}
 
+      {/* Media. Editing (title / body / media remove) happens in the app-level
+          composer sheet (openComposer({ editingPost }) — the ONE edit path),
+          not inline here, so the card stays the read surface. */}
       <MediaGrid mediaItems={mediaItems} />
 
-      {editing ? (
-        <div className="px-4 pt-3 space-y-2">
-          <Textarea
-            value={editDraft}
-            onChange={(e) => setEditDraft(e.target.value)}
-            placeholder="Edit post…"
-            className="text-sm min-h-[80px] resize-none"
-            data-testid="post-edit-input"
-          />
-          <div className="flex flex-wrap items-center gap-2">
-            <Button size="sm" variant="brand" onClick={handleSaveEdit} disabled={saving} data-testid="post-edit-save" className="text-xs">
-              {saving ? 'Saving…' : 'Save'}
-            </Button>
-            <Button size="sm" variant="ghost" onClick={() => { setEditing(false); setEditDraft(post.text || ''); setShowAdPicker(false); }} className="text-xs">
-              Cancel
-            </Button>
-            <Button size="sm" variant="ghost" onClick={openAdPicker} data-testid="post-edit-pin-ad" className="text-xs gap-1.5 text-muted-foreground hover:text-foreground">
-              <Megaphone className="h-3.5 w-3.5" />
-              {pinnedAdId ? 'Change ad' : 'Pin an ad'}
-            </Button>
-          </div>
-        </div>
-      ) : post.text && !post.repost_of ? (
+      {post.text && !post.repost_of ? (
         <div className="px-4 pt-3">
           {post.title && (
             <h3 className="mb-1 text-base font-semibold leading-snug text-foreground" data-testid="post-card-title">
               {post.title}
             </h3>
           )}
-          <div className="text-sm text-foreground leading-relaxed whitespace-pre-wrap break-words">
-            <TextWithLinks text={post.text} />
+          <div className="text-sm text-foreground">
+            <PostBody text={post.text} density="full" />
           </div>
         </div>
       ) : post.title && !post.repost_of ? (
@@ -675,6 +613,7 @@ export function PostCard({
             reposted={reposted}
             repostCount={repostCount}
             onToggleRepost={onToggleRepost}
+            layout="compact"
           />
         </div>
         {(post.origin || 'web10') !== 'web10' && (
@@ -699,17 +638,6 @@ export function PostCard({
         </div>
       )}
 
-      {/* The edit flow's "Pin an ad" picker (ad-improvements.md). */}
-      <AdPicker
-        open={showAdPicker}
-        ads={ads}
-        albums={albums}
-        selectedAdId={pinnedAdId || undefined}
-        loading={loadingAds}
-        onClose={() => setShowAdPicker(false)}
-        onSelect={(ad) => setPinnedAdId(ad._id || null)}
-        onClear={() => setPinnedAdId(null)}
-      />
     </article>
   );
 }
@@ -734,9 +662,9 @@ function FeedEmptyState() {
 
 function FeedSkeleton() {
   return (
-    <div className="space-y-0 md:space-y-4 md:p-4" data-testid="feed-skeleton">
+    <div data-testid="feed-skeleton">
       {[0, 1, 2].map((i) => (
-        <div key={i} className="bg-card border-b border-border md:border md:rounded-lg overflow-hidden">
+        <div key={i} className="bg-card border-b border-border overflow-hidden">
           <div className="flex items-center gap-2.5 px-4 py-3">
             <Skeleton className="h-9 w-9 rounded-full" />
             <Skeleton className="h-3 w-32" />

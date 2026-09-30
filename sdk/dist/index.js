@@ -482,6 +482,9 @@ function createV3Client(options = {}) {
     async deleteGroup(groupId) {
       return v3Post("groups/delete", { group_id: groupId });
     },
+    async healGroupOwner(groupId) {
+      return v3Post("groups/heal-owner", { group_id: groupId });
+    },
     async joinGroup(groupId) {
       return v3Post("groups/join", { group_id: groupId });
     },

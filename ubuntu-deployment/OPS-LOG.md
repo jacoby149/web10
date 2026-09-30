@@ -3,6 +3,33 @@
 Newest at top. Format per AGENT-OPS.md §8. Read the top entries
 BEFORE doing ops work — someone may already be mid-fix.
 
+## 30.09.2026 20:20 — opencode (montpellier, jacoby149/heal-dead-groups) — healed the operator's "dead groups" (creator row drifted off `owner`)
+did:
+  - Diagnosed the "groups I created I can't edit/delete" bug in prod + dev
+    ClickHouse: the social app created community groups with the owner row
+    under `web10.app/users/jacoby149` (full form), but the node resolves the
+    acting user to the BARE username (`_user` → JWT `username`). The node's
+    `create_group` then added `jacoby149 → admin` (a role NOT in the community
+    contract), so the creator's resolvable role granted no `manageRoles` /
+    `deleteGroup` → the group was unmanageable ("dead").
+  - Healed the 4 dead groups by inserting a current `jacoby149 → owner` row
+    (latest-row dedup makes it win over the stale admin/member row) — the same
+    minimal fix the new node `ensure_creator_owner` / `POST /v3/groups/heal-owner`
+    do in code:
+    - web10-dev-clickhouse-1: `…/users/jacoby149/boxin-club`,
+      `…/users/jacoby149/new-group`.
+    - web10-prod-clickhouse-1: `…/users/jacoby149/boxin-club`,
+      `…/users/jacoby149/e-sports-grinders`.
+  - No volumes touched, no data deleted — additive membership rows only. The
+    orphaned `web10.app/users/jacoby149 → owner` rows were left in place
+    (harmless; the permission checks match the bare username).
+state: all 4 groups now resolve `jacoby149 → owner` (verified via the
+  deduped group_members read). The operator can now edit/delete them in the
+  app. web10-dev + web10-prod stacks otherwise untouched.
+next: the code fix (root cause + self-heal + delete affordance) ships in the
+  montpellier branch → dev; once deployed, any future dead group self-heals on
+  load and is deletable from the My Groups list.
+
 ## 09.09.2026 23:40 — opencode (honolulu) — retired the box e2e self-hosted runner (dead weight after 3.77.7 moved e2e to GitHub-hosted)
 did:
   - The `web10-e2e-box` self-hosted runner (added 3.77.3, retired when e2e

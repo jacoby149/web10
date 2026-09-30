@@ -7,8 +7,9 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { Input } from '@/components/ui/input';
-import { createPost, createRepost, uploadMedia, readProfile, resolveMediaRefs, fanOutToFollowers, readMyAds, getWapi } from '@/data';
+import { createPost, createRepost, updatePost, uploadMedia, readProfile, resolveMediaRefs, fanOutToFollowers, readMyAds, getWapi } from '@/data';
 import type { MediaRecord, ProfileRecord, Visibility, AdRecord, AdAlbum, PostRecord, ResolvedMediaRef } from '@/data';
+import { mediaRefId } from '@/data/types';
 import { readSettings } from '@/data/settings';
 import {
   validateMedia,
@@ -19,7 +20,7 @@ import {
   validateVideoDuration,
 } from '@/lib/mediaProcessing';
 import type { ProcessingError as MediaProcessingError } from '@/lib/mediaProcessing';
-import { Image, X, Send, Loader2, AlertTriangle, GripVertical, Globe, Lock, Megaphone, Scissors, Repeat2, Bold, Italic, Strikethrough, Heading2, List, Code, Link as LinkIcon } from 'lucide-react';
+import { Image, X, Send, Loader2, AlertTriangle, GripVertical, Globe, Lock, Megaphone, Scissors, Repeat2, Bold, Italic, Strikethrough, Heading2, List, Code, Link as LinkIcon, Film } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { AdPicker } from './AdPicker';
 import { VideoEditorSheet } from './VideoEditorSheet';
@@ -262,6 +263,7 @@ export default function PostComposer({
   repostingTo,
   onRepostCancel,
   groups,
+  editingPost,
   compact = false,
   chromeless = false,
 }: {
@@ -280,6 +282,18 @@ export default function PostComposer({
    */
   groups?: string[];
   /**
+   * When set, the composer is in EDIT mode (the ONE edit path — the operator,
+   * 30.09.2026: "we definitely need some kind of consistent strategy for all
+   * these surfaces"). The title + body (into the Tiptap editor) + media +
+   * pinned ad are pre-filled from `editingPost`, and saving calls `updatePost`
+   * (not `createPost`) — the same WYSIWYG surface that creates a post, so edit
+   * never regresses to a plain textarea or drops the title. Media is
+   * remove-only in edit mode (you can't attach new media to an existing post).
+   * `onPostCreated` is reused as the "saved" callback (the sheet closes +
+   * fires `post-created`, the screens reload and pick up the edit).
+   */
+  editingPost?: PostRecord;
+  /**
    * Compact (collapsed) mode: the composer rests as a single-line "What's on
    * your mind?" bar and expands to the full form on focus. The Discover
    * surface uses it so the video wall, not the composer, is the hero
@@ -295,13 +309,22 @@ export default function PostComposer({
    */
   chromeless?: boolean;
 }) {
-  const [text, setText] = useState('');
+  const isEditing = !!editingPost;
+  // Whether the caption has content — a cheap boolean, NOT the markdown. The
+  // markdown is computed on demand at submit (a full turndown walk on every
+  // keystroke is what made typing laggy). The editor owns the document.
+  const [hasText, setHasText] = useState(!!editingPost?.text);
   // The post's two bodies of text (D82): `title` (the optional headline) +
   // `text` (the caption). The title leads a card / watch header / short
   // overlay; the caption is the longer body. Optional — a post with no title
-  // is caption-only (the pre-D82 shape).
-  const [title, setTitle] = useState('');
+  // is caption-only (the pre-D82 shape). In edit mode both are pre-filled from
+  // the post being edited.
+  const [title, setTitle] = useState(editingPost?.title || '');
   const [mediaItems, setMediaItems] = useState<AttachedMedia[]>([]);
+  // Edit mode: the post's current media (remove-only — you can't attach new
+  // media to an existing post). Resolved from `editingPost.media_refs` on
+  // mount; the surviving items are written back on save.
+  const [editMedia, setEditMedia] = useState<MediaRecord[]>([]);
   const [uploading, setUploading] = useState(false);
   const [posting, setPosting] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -309,8 +332,13 @@ export default function PostComposer({
   const [focused, setFocused] = useState(false);
   const [profile, setProfile] = useState<ProfileRecord | null>(null);
   const [avatarUrl, setAvatarUrl] = useState<string | undefined>(undefined);
-  const [visibility, setVisibility] = useState<Visibility>('public');
-  const [pinnedAd, setPinnedAd] = useState<AdRecord | null>(null);
+  const [visibility, setVisibility] = useState<Visibility>(editingPost?.visibility || 'public');
+  // In edit mode the pinned ad is pre-filled from the post's ad_target (a
+  // minimal stub — the chip shows "Pinned ad"; the real ad object is only
+  // needed for the picker, which loads lazily).
+  const [pinnedAd, setPinnedAd] = useState<AdRecord | null>(
+    editingPost?.ad_target ? { _id: editingPost.ad_target, text: 'Pinned ad' } : null,
+  );
   const [showAdPicker, setShowAdPicker] = useState(false);
   const [ads, setAds] = useState<AdRecord[]>([]);
   const [albums, setAlbums] = useState<AdAlbum[]>([]);
@@ -331,11 +359,14 @@ export default function PostComposer({
         placeholder: repostingTo ? 'Add a comment…' : "What's on your mind?",
       }),
     ],
-    content: text,
+    content: editingPost?.text || '',
     onFocus: () => setFocused(true),
     onBlur: () => setFocused(false),
+    // The markdown is NOT computed here — a full turndown walk of the document
+    // on every keystroke is what made typing laggy. Just track whether there's
+    // content (cheap); the markdown is serialized on demand at submit.
     onUpdate: ({ editor }) => {
-      setText(markdownConverter.turndown(editor.getHTML()).trim());
+      setHasText(!editor.isEmpty);
     },
     editorProps: {
       attributes: {
@@ -358,6 +389,14 @@ export default function PostComposer({
       el.__editor = undefined;
     };
   }, [editor]);
+
+  // Serialize the editor's document to markdown — called ONLY at submit (not on
+  // every keystroke, which is what made typing laggy). The markdown is the true
+  // data the data layer writes; the user never sees it.
+  const getMarkdown = useCallback(
+    () => (editor ? markdownConverter.turndown(editor.getHTML()).trim() : ''),
+    [editor],
+  );
 
   // Load the creator's ads + albums when the picker opens (lazy — only when
   // the creator actually pins an ad).
@@ -396,6 +435,22 @@ export default function PostComposer({
       })
       .catch(() => {});
   }, []);
+
+  // Edit mode: resolve the post's media refs into displayable records so the
+  // remove-only grid can show them. Runs once per post being edited.
+  useEffect(() => {
+    if (!editingPost) return;
+    const refs = (editingPost.media_refs || []).filter(Boolean) as (string | ResolvedMediaRef)[];
+    let cancelled = false;
+    if (!refs.length) {
+      setEditMedia([]);
+      return;
+    }
+    resolveMediaRefs(refs)
+      .then((media) => { if (!cancelled) setEditMedia(media); })
+      .catch(() => { if (!cancelled) setEditMedia([]); });
+    return () => { cancelled = true; };
+  }, [editingPost?._id]);
 
   // Track all preview URLs for cleanup on unmount
   const previewUrlsRef = useRef(new Set<string>());
@@ -588,8 +643,49 @@ export default function PostComposer({
     dragIdRef.current = null;
   }
 
+  // Edit mode save (the ONE edit path): write the edited title + body + the
+  // surviving media refs + the ad preference back via updatePost. No fan-out
+  // (it's not a new post). `onPostCreated` is reused as the "saved" callback —
+  // the sheet closes + fires `post-created`, the screens reload and pick up
+  // the edit.
+  async function handleSaveEdit() {
+    if (!editingPost) return;
+    const markdown = getMarkdown();
+    if (!markdown && !title.trim() && !editMedia.length) return;
+    setError(null);
+    setPosting(true);
+    try {
+      const updates: Partial<PostRecord> = {
+        title: title.trim() || undefined,
+        text: markdown,
+        updated_at: new Date().toISOString(),
+      };
+      // Media: only send `media_refs` when it actually changed (the owner
+      // removed some). The surviving refs are the post's original refs minus
+      // the ones dropped from `editMedia` (matched by doc_id).
+      const keptIds = new Set(editMedia.map((m) => m._id).filter(Boolean));
+      const originalRefs = editingPost.media_refs || [];
+      const survivingRefs = originalRefs.filter((ref) => keptIds.has(mediaRefId(ref)));
+      if (survivingRefs.length !== originalRefs.length) {
+        updates.media_refs = survivingRefs;
+      }
+      const adPreference = pinnedAd
+        ? { mode: 'pinned' as const, target: pinnedAd._id }
+        : { mode: 'none' as const };
+      await updatePost(editingPost._id || '', updates, adPreference);
+      console.log('[social-composer] post saved (edit)', editingPost._id);
+      onPostCreated?.();
+    } catch (e) {
+      console.error('Failed to save edit:', e);
+      setError(e instanceof Error ? e.message : 'Something went wrong. Try again.');
+    } finally {
+      setPosting(false);
+    }
+  }
+
   async function handleSubmit() {
-    if (!text.trim() && !mediaItems.length && !repostingTo) return;
+    const markdown = getMarkdown();
+    if (!markdown && !mediaItems.length && !repostingTo) return;
     setError(null);
 
     // Repost (reposts.md): a repost is a real post doc referencing the
@@ -598,15 +694,15 @@ export default function PostComposer({
     if (repostingTo) {
       setPosting(true);
       try {
-        await createRepost(repostingTo, text);
+        await createRepost(repostingTo, markdown);
         // Fan-out to followers' inboxes (a repost is a public post).
         try {
-          await fanOutToFollowers({ _id: repostingTo._id, text: text.trim() || undefined, created_at: new Date().toISOString() });
+          await fanOutToFollowers({ _id: repostingTo._id, text: markdown || undefined, created_at: new Date().toISOString() });
         } catch (fanOutErr) {
           console.warn('Fan-out to followers failed (non-fatal):', fanOutErr);
         }
         editor?.commands.clearContent();
-        setText('');
+        setHasText(false);
         setMediaItems([]);
         onRepostCancel?.();
         onPostCreated?.();
@@ -729,7 +825,7 @@ export default function PostComposer({
       const postRecord = await createPost(
         {
           title: title.trim() || undefined,
-          text: text.trim(),
+          text: markdown,
           media_refs: mediaRecords.map((m) => m._id!).filter(Boolean),
           visibility,
           created_at: new Date().toISOString(),
@@ -752,7 +848,7 @@ export default function PostComposer({
       previewUrlsRef.current.clear();
       setTitle('');
       editor?.commands.clearContent();
-      setText('');
+      setHasText(false);
       setMediaItems([]);
       setPinnedAd(null);
       onPostCreated?.();
@@ -769,8 +865,11 @@ export default function PostComposer({
   }
 
   // A plain repost (no comment, no media) is valid — the repost itself is the
-  // content. Otherwise the post needs text or media.
-  const canPost = (text.trim() || title.trim() || mediaItems.length || !!repostingTo) && !uploading && !posting;
+  // content. Otherwise the post needs text or media. In edit mode, a save is
+  // valid as long as the post still has some content (text / title / media).
+  const canPost = isEditing
+    ? (hasText || title.trim() || editMedia.length) && !posting
+    : (hasText || title.trim() || mediaItems.length || !!repostingTo) && !uploading && !posting;
   const hasErroredMedia = mediaItems.some((item) => item.error);
   const initials = (profile?.display_name || '?').charAt(0).toUpperCase();
   // The account the post is being created AS (the identity row). Read from the
@@ -783,8 +882,8 @@ export default function PostComposer({
   // full form when it has focus or content (the Discover surface — the video
   // wall is the hero, not the composer). The full form is always shown for a
   // repost (the context block must be visible) or when not compact.
-  const hasContent = text.trim().length > 0 || title.trim().length > 0 || mediaItems.length > 0;
-  const expanded = !compact || focused || hasContent || !!repostingTo;
+  const hasContent = hasText || title.trim().length > 0 || mediaItems.length > 0 || editMedia.length > 0;
+  const expanded = !compact || focused || hasContent || !!repostingTo || isEditing;
 
   return (
     <div
@@ -843,40 +942,43 @@ export default function PostComposer({
               post={repostingTo}
               onCancel={() => {
                 editor?.commands.clearContent();
-                setText('');
+                setHasText(false);
                 setMediaItems([]);
                 onRepostCancel?.();
               }}
             />
           )}
-          {/* The title — the post's headline (D82). A single-line input above
-              the caption; optional (a post with no title is caption-only).
-              Hidden in repost mode (the text there is the repost's comment).
-              The D85 title treatment (rich-text.md): a headline you are
-              writing, not a form field — the display face (Space Grotesk), the
-              `bg-elevated` box killed (it sits on the composer surface), a
-              violet caret (the brand moment), and a dimmed display-face
-              placeholder so the empty state looks like a headline waiting to
-              be written. The composer's focus glow (the top brand line) is the
-              "the stage is lit" moment. */}
-          {!repostingTo && (
-            <Input
-              value={title}
-              onChange={(e) => setTitle(e.target.value)}
-              onFocus={() => setFocused(true)}
-              placeholder="Add a title…"
-              disabled={posting}
-              className="mb-1.5 h-auto min-h-9 rounded-none border-0 bg-transparent px-0 py-1 font-display text-2xl font-semibold tracking-tight text-foreground caret-brand-400 placeholder:font-display placeholder:text-muted-foreground/50 focus:shadow-[0_0_20px_var(--color-glow-intense)]"
+           {/* The title — the post's headline (D82). A single-line input above
+               the caption; optional (a post with no title is caption-only) —
+               the placeholder says so, so the optionality is explicit (the
+               operator, 30.09.2026: "it isnt soo so clear that titles are
+               optional"). Hidden in repost mode (the text there is the
+               repost's comment). The D85 title treatment (rich-text.md): a
+               headline you are writing, not a form field — the display face
+               (Space Grotesk), the `bg-elevated` box killed (it sits on the
+               composer surface), a violet caret (the brand moment), and a
+               dimmed display-face placeholder so the empty state looks like a
+               headline waiting to be written. The composer's focus glow (the
+               top brand line) is the "the stage is lit" moment. */}
+           {!repostingTo && (
+             <Input
+               value={title}
+               onChange={(e) => setTitle(e.target.value)}
+               onFocus={() => setFocused(true)}
+               placeholder="Add a title (optional)…"
+               disabled={posting}
+              className="mb-1.5 h-auto min-h-9 rounded-none border-0 bg-transparent px-0 py-1 font-display text-2xl font-semibold tracking-tight text-foreground caret-brand-400 placeholder:font-display placeholder:text-muted-foreground/50"
               aria-label="Post title"
               data-testid="composer-title"
             />
           )}
-          {/* The caption — the Tiptap editor (WYSIWYG). The markdown is stored
-              under the hood (the `text` state, synced via onUpdate); the user
-              never sees the syntax. The contenteditable carries the testid +
-              the on-surface classes (bg-transparent, the violet caret). The
-              formatting toolbar lives below the text (a row above the action
-              bar — the Facebook structure), not above it. */}
+           {/* The caption — the Tiptap editor (WYSIWYG). The markdown is stored
+               under the hood (serialized on demand at submit — NOT on every
+               keystroke, which is what made typing laggy); the user never sees
+               the syntax. The contenteditable carries the testid + the
+               on-surface classes (bg-transparent, the violet caret). The
+               formatting toolbar lives below the text (a row above the action
+               bar — the Facebook structure), not above it. */}
           <EditorContent editor={editor} />
 
           {expanded && (
@@ -905,6 +1007,43 @@ export default function PostComposer({
                       disabled={posting || uploading}
                     />
                   ))}
+                </div>
+              )}
+
+              {/* Edit mode: the post's current media, remove-only (you can't
+                  attach new media to an existing post). Each item has a remove
+                  button; the survivors are written back on save. */}
+              {isEditing && editMedia.length > 0 && (
+                <div className="mt-3" data-testid="edit-media-grid">
+                  <p className="mb-2 text-xs font-medium text-muted-foreground">Media — tap × to remove</p>
+                  <div className="grid grid-cols-3 gap-2">
+                    {editMedia.map((m, i) => (
+                      <div key={m._id || i} className="relative aspect-square overflow-hidden rounded-lg bg-elevated">
+                        {m.mime_type?.startsWith('video/') ? (
+                          <div className="w-full h-full flex items-center justify-center text-muted-foreground">
+                            <Film className="w-6 h-6" />
+                          </div>
+                        ) : (
+                          <img
+                            src={m.thumbnail_url || m.url}
+                            alt={m.alt_text || ''}
+                            className="w-full h-full object-cover"
+                            loading="lazy"
+                          />
+                        )}
+                        <button
+                          type="button"
+                          onClick={() => setEditMedia((prev) => prev.filter((x) => x !== m))}
+                          disabled={posting}
+                          aria-label="Remove media"
+                          data-testid={`composer-edit-remove-media-${i}`}
+                          className="absolute -top-2 -right-2 flex items-center justify-center h-7 w-7 rounded-full bg-background border border-border shadow-md text-muted-foreground hover:text-danger hover:border-danger transition-colors disabled:opacity-40"
+                        >
+                          <X className="w-3.5 h-3.5" />
+                        </button>
+                      </div>
+                    ))}
+                  </div>
                 </div>
               )}
 
@@ -955,17 +1094,21 @@ export default function PostComposer({
 
           <div className="mt-4 border-t border-border pt-3">
             <div className="flex items-center gap-1">
-              <Button
-                variant="ghost"
-                size="icon"
-                className="h-10 w-10 text-muted-foreground hover:text-brand hover:bg-brand-muted/50 transition-colors duration-150"
-                onClick={() => fileInputRef.current?.click()}
-                disabled={uploading || posting}
-                aria-label="Attach media"
-                data-testid="attach-media-button"
-              >
-                <Image className="w-[18px] h-[18px]" strokeWidth={1.75} />
-              </Button>
+              {/* Attach media is create-only — you can't add new media to an
+                  existing post in edit mode (media is remove-only there). */}
+              {!isEditing && (
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="h-10 w-10 text-muted-foreground hover:text-brand hover:bg-brand-muted/50 transition-colors duration-150"
+                  onClick={() => fileInputRef.current?.click()}
+                  disabled={uploading || posting}
+                  aria-label="Attach media"
+                  data-testid="attach-media-button"
+                >
+                  <Image className="w-[18px] h-[18px]" strokeWidth={1.75} />
+                </Button>
+              )}
 
               <div className="relative">
                 <select
@@ -1044,26 +1187,29 @@ export default function PostComposer({
               )}
             </div>
           </div>
-          <Button
-            variant="brand"
-            size="default"
-            disabled={!canPost || hasErroredMedia}
-            onClick={handleSubmit}
-            data-testid="post-submit"
-            className="mt-3 h-11 w-full font-semibold"
-          >
-            {posting ? (
-              <>
-                <Loader2 className="w-4 h-4 animate-spin" />
-                {repostingTo ? 'Reposting…' : 'Posting…'}
-              </>
-            ) : (
-              <>
-                {repostingTo ? <Repeat2 className="w-3.5 h-3.5" strokeWidth={2} /> : <Send className="w-3.5 h-3.5" />}
-                {repostingTo ? 'Repost' : 'Post'}
-              </>
-            )}
-          </Button>
+           <Button
+             variant="brand"
+             size="default"
+             disabled={!canPost || hasErroredMedia}
+             onClick={isEditing ? handleSaveEdit : handleSubmit}
+             data-testid="post-submit"
+             className="mt-3 h-11 w-full font-semibold"
+           >
+             {posting ? (
+               <>
+                 <Loader2 className="w-4 h-4 animate-spin" />
+                 {isEditing ? 'Saving…' : repostingTo ? 'Reposting…' : 'Posting…'}
+               </>
+             ) : (
+               <>
+                 {isEditing
+                   ? 'Save'
+                   : repostingTo
+                     ? <><Repeat2 className="w-3.5 h-3.5" strokeWidth={2} /> Repost</>
+                     : <><Send className="w-3.5 h-3.5" /> Post</>}
+               </>
+             )}
+           </Button>
           </>
           )}
         </div>
