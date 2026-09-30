@@ -79,11 +79,22 @@ jobs:
             export GIT_COMMIT=$(git rev-parse --short HEAD)
             export STATUS_VERSION=$(head -1 knowledge/changelogs/CHANGELOG.md | sed 's/[| ].*//' | tr -d '[:space:]')
 
-            # Build and deploy the stack
+            # Build and deploy the stack. The TURN relay (coturn) is an
+            # optional service behind the `turn` profile — enable it only
+            # when this env is configured for it (TURN_SECRET set in the
+            # stack env). A relay-less node stays STUN-only.
             cd ubuntu-deployment
+            PROFILES=()
+            if grep -q '^TURN_SECRET=.+' env.$ENV 2>/dev/null; then
+              PROFILES+=(--profile turn)
+              echo "TURN relay enabled (TURN_SECRET set) — deploying with --profile turn"
+            else
+              echo "TURN relay off (no TURN_SECRET) — STUN-only"
+            fi
             docker compose -p $STACK \
               --env-file env.$ENV \
               -f docker-compose.ecosystem.yml \
+              "${PROFILES[@]}" \
               up -d --build --remove-orphans
 
             # Wait for containers to stabilize
@@ -181,11 +192,22 @@ jobs:
             export GIT_COMMIT=$(git rev-parse --short HEAD)
             export STATUS_VERSION=$(head -1 knowledge/changelogs/CHANGELOG.md | sed 's/[| ].*//' | tr -d '[:space:]')
 
-            # Build and deploy the stack
+            # Build and deploy the stack. The TURN relay (coturn) is an
+            # optional service behind the `turn` profile — enable it only
+            # when this env is configured for it (TURN_SECRET set in the
+            # stack env). A relay-less node stays STUN-only.
             cd ubuntu-deployment
+            PROFILES=()
+            if grep -q '^TURN_SECRET=.+' env.$ENV 2>/dev/null; then
+              PROFILES+=(--profile turn)
+              echo "TURN relay enabled (TURN_SECRET set) — deploying with --profile turn"
+            else
+              echo "TURN relay off (no TURN_SECRET) — STUN-only"
+            fi
             docker compose -p $STACK \
               --env-file env.$ENV \
               -f docker-compose.ecosystem.yml \
+              "${PROFILES[@]}" \
               up -d --build --remove-orphans
 
             # Wait for containers to stabilize

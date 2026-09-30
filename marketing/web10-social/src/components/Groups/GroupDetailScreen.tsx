@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useRef } from 'react';
+import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
@@ -24,6 +24,11 @@ import {
   getDiscoverGroupId,
   saveGroup,
   publishGroup,
+  writeGroupIdentity,
+  uploadMedia,
+  refreshMediaUrls,
+  groupCreator,
+  healGroupOwnership,
   type ReactionKind,
   type GroupDetail,
   type GroupIdentity,
@@ -42,6 +47,7 @@ import { PostCard } from '@/components/Feed/FeedScreen';
 import { useRepost } from '@/context/RepostContext';
 import { useComposer } from '@/context/ComposerContext';
 import { PostLightbox } from '@/components/Bio/PostLightbox';
+import { ProfileMediaLightbox, type ProfileMediaOption, type FaceCropResult } from '@/components/Bio/ProfileMediaLightbox';
 import {
   ArrowLeft,
   Users,
@@ -58,6 +64,7 @@ import {
   Play,
   Pencil,
   Plus,
+  Camera,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
@@ -279,6 +286,16 @@ export default function GroupDetailScreen({ groupId }: { groupId: string }) {
   // The create-time slug guard (G4, decision 1): true while an active group
   // exists at the draft's slug. Gates Publish (the guard is live in edit mode).
   const [slugTaken, setSlugTaken] = useState(false);
+  // Quick face edit (the profile's face lightbox, shared): tapping the banner
+  // or avatar opens the enlarged view + pick-from-posts + crop. The hover
+  // buttons upload a new file directly. Both paths write the face doc.
+  const [faceLightbox, setFaceLightbox] = useState<'avatar' | 'banner' | null>(null);
+  const [faceSaving, setFaceSaving] = useState(false);
+  const [faceUploading, setFaceUploading] = useState(false);
+  // The file input is PERSISTENT in the DOM (not created on click) so the
+  // upload seam is drivable from e2e (setInputFiles).
+  const faceFileInputRef = useRef<HTMLInputElement>(null);
+  const facePendingFieldRef = useRef<'avatar' | 'banner' | null>(null);
 
   // The tabs (G1): Feed (default, bare URL) | Media (?tab=media). The URL holds
   // the active tab (the deep-link rule) — refresh restores it, back/forward
@@ -308,6 +325,29 @@ export default function GroupDetailScreen({ groupId }: { groupId: string }) {
   const mediaOffsetRef = useRef(0);
   const mediaInitializedRef = useRef(false);
   const mediaSentinelRef = useRef<HTMLDivElement>(null);
+  // The "dead group" heal runs at most once per mount (it reloads after healing,
+  // and the ref stops a re-heal loop if a heal doesn't land).
+  const healRetriedRef = useRef(false);
+
+  // The face lightbox's pick-from-posts source (the group's own posts' media,
+  // resolved). Mirrors the profile's faceOptions — same shared lightbox.
+  const faceOptions = useMemo<ProfileMediaOption[]>(() => {
+    if (!detail) return [];
+    const out: ProfileMediaOption[] = [];
+    const seen = new Set<string>();
+    for (const doc of detail.posts) {
+      const post = fromV3DocToPost(doc);
+      for (const ref of post.media_refs || []) {
+        const id = mediaRefId(ref);
+        if (!id || seen.has(id)) continue;
+        seen.add(id);
+        const m = mediaMap[id];
+        if (!m) continue; // unresolvable — nothing to render or set
+        out.push({ post, ref: { doc_id: id, read_url: m.url, mime_type: m.mime_type } });
+      }
+    }
+    return out;
+  }, [detail, mediaMap]);
 
   const load = useCallback(async () => {
     if (!id) return;
@@ -369,6 +409,22 @@ export default function GroupDetailScreen({ groupId }: { groupId: string }) {
     window.addEventListener('post-created', onPostCreated);
     return () => window.removeEventListener('post-created', onPostCreated);
   }, [load]);
+
+  // The "dead group" heal: a group the user created can end up unmanageable
+  // (the creator's row drifted to a non-owner role), so the Edit pencil + kebab
+  // (and the delete) never appear. When the loaded group is one the user created
+  // but can't manage, re-point the creator to owner, then reload so the
+  // management surface shows. Runs at most once per mount.
+  useEffect(() => {
+    if (loading || !detail || canManage || healRetriedRef.current) return;
+    const username = getV3Client().readToken()?.username || '';
+    if (groupCreator(detail.group_id) !== username) return;
+    healRetriedRef.current = true;
+    LOG('heal — owned-but-dead group, re-pointing ownership', detail.group_id);
+    healGroupOwnership(detail.group_id, username).then((healed) => {
+      if (healed) load();
+    });
+  }, [loading, detail, canManage, load]);
 
   // G4: a draft opens in edit mode — the create flow lands here with ?edit=1,
   // and a draft with no staged name yet is still being configured. The page IS
@@ -584,6 +640,78 @@ export default function GroupDetailScreen({ groupId }: { groupId: string }) {
     navigate(-1);
   }, [uploading, navigate]);
 
+  // ── Quick face edit (shared profile face lightbox) ─────────────────────
+  // Managers can tap the banner/avatar to view it enlarged and pick a group
+  // post's media as the new face, or use the hover buttons to upload a file.
+  // Both paths write the group identity face doc and reload the detail view.
+  const startFaceUpload = useCallback((field: 'avatar' | 'banner') => {
+    LOG('quick face upload — open file picker for', field);
+    facePendingFieldRef.current = field;
+    faceFileInputRef.current?.click();
+  }, []);
+
+  const handleFaceFileChange = useCallback(
+    async (e: React.ChangeEvent<HTMLInputElement>) => {
+      const file = e.target.files?.[0];
+      e.target.value = '';
+      const field = facePendingFieldRef.current;
+      facePendingFieldRef.current = null;
+      if (!file || !field || !detail) return;
+
+      LOG('quick face file upload — start', field, file.name, file.type, file.size);
+      setFaceUploading(true);
+      setUploading(true);
+      try {
+        const media = await uploadMedia({ file, service: 'public_media' });
+        LOG('quick face file upload — uploaded media _id:', media._id);
+        const [presigned] = await refreshMediaUrls([media]);
+        if (media._id) {
+          setMediaMap((prev) => ({ ...prev, [media._id!]: presigned }));
+        }
+        await writeGroupIdentity(detail.group_id, {
+          ...identity,
+          [field === 'avatar' ? 'avatar_ref' : 'banner_ref']: media._id || '',
+        });
+        LOG('quick face file upload — identity written, reloading');
+        await load();
+      } catch (err) {
+        console.error('[social:groups:detail] quick face file upload failed:', err);
+        toast.error(errorMessage(err, 'Upload failed. Please try again.'));
+      } finally {
+        setFaceUploading(false);
+        setUploading(false);
+      }
+    },
+    [detail, identity, load],
+  );
+
+  const handleFaceCrop = useCallback(
+    async (field: 'avatar' | 'banner', result: FaceCropResult) => {
+      if (!detail) return;
+      LOG('quick face crop — start', field, result.width, 'x', result.height, result.blob.size, 'bytes');
+      setFaceSaving(true);
+      try {
+        const ext = result.mimeType === 'image/png' ? 'png' : 'jpg';
+        const file = new File([result.blob], `group-face-${Date.now()}.${ext}`, { type: result.mimeType });
+        const media = await uploadMedia({ file, service: 'public_media', width: result.width, height: result.height });
+        LOG('quick face crop — uploaded media _id:', media._id);
+        await writeGroupIdentity(detail.group_id, {
+          ...identity,
+          [field === 'avatar' ? 'avatar_ref' : 'banner_ref']: media._id || '',
+        });
+        setFaceLightbox(null);
+        LOG('quick face crop — identity written, reloading');
+        await load();
+      } catch (e) {
+        console.error('[social:groups:detail] quick face crop save failed:', e);
+        toast.error(errorMessage(e, 'Could not update the group photo.'));
+      } finally {
+        setFaceSaving(false);
+      }
+    },
+    [detail, identity, load],
+  );
+
   if (loading) {
     return (
       <div className="flex flex-col min-h-full bg-background">
@@ -735,11 +863,22 @@ export default function GroupDetailScreen({ groupId }: { groupId: string }) {
           ) : (
           <>
           <div
+            role={canManage ? 'button' : undefined}
+            tabIndex={canManage ? 0 : undefined}
+            aria-label={canManage ? 'View cover' : undefined}
+            data-testid="group-detail-banner"
+            onClick={() => canManage && setFaceLightbox('banner')}
+            onKeyDown={(e) => {
+              if (canManage && (e.key === 'Enter' || e.key === ' ')) {
+                e.preventDefault();
+                setFaceLightbox('banner');
+              }
+            }}
             className={cn(
               'relative h-32 w-full overflow-hidden sm:h-44',
               'bg-gradient-to-br from-brand/40 via-brand-muted to-background',
+              canManage && 'group cursor-pointer outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset',
             )}
-            data-testid="group-detail-banner"
           >
             <div
               className="absolute inset-0 bg-gradient-to-t from-background/60 via-transparent to-brand/10"
@@ -748,10 +887,43 @@ export default function GroupDetailScreen({ groupId }: { groupId: string }) {
             {bannerUrl && (
               <img src={bannerUrl} alt="" className="absolute inset-0 h-full w-full object-cover" data-testid="group-detail-banner-img" />
             )}
+            {canManage && (
+              <button
+                type="button"
+                onClick={(e) => { e.stopPropagation(); startFaceUpload('banner'); }}
+                disabled={faceUploading}
+                aria-label="Change cover"
+                data-testid="group-edit-banner-button"
+                className="absolute bottom-2 right-2 flex items-center gap-1.5 px-2.5 h-9 rounded-lg bg-background/70 border border-border text-xs text-foreground opacity-0 group-hover:opacity-100 focus-visible:opacity-100 transition-opacity backdrop-blur-sm hover:border-brand/30 hover:bg-background/90"
+              >
+                {faceUploading ? (
+                  <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                ) : (
+                  <ImagePlus className="w-3.5 h-3.5" />
+                )}
+                Cover
+              </button>
+            )}
           </div>
           <div className="px-4 sm:px-6">
             <div className="relative flex items-end justify-between gap-4 -mt-14">
-              <div className="shrink-0 rounded-full border-4 border-background">
+              <div
+                role={canManage ? 'button' : undefined}
+                tabIndex={canManage ? 0 : undefined}
+                aria-label={canManage ? 'View group photo' : undefined}
+                data-testid="group-detail-avatar"
+                onClick={() => canManage && setFaceLightbox('avatar')}
+                onKeyDown={(e) => {
+                  if (canManage && (e.key === 'Enter' || e.key === ' ')) {
+                    e.preventDefault();
+                    setFaceLightbox('avatar');
+                  }
+                }}
+                className={cn(
+                  'shrink-0 rounded-full border-4 border-background',
+                  canManage && 'group relative cursor-pointer outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset',
+                )}
+              >
                 <Avatar className={cn('h-20 w-20', hashToColor(detail.group_id))}>
                   {avatarUrl ? (
                     <img src={avatarUrl} alt="" className="h-full w-full rounded-full object-cover" data-testid="group-detail-avatar-img" />
@@ -761,6 +933,22 @@ export default function GroupDetailScreen({ groupId }: { groupId: string }) {
                     </AvatarFallback>
                   )}
                 </Avatar>
+                {canManage && (
+                  <button
+                    type="button"
+                    className="absolute bottom-0 right-0 flex items-center justify-center h-7 w-7 rounded-full bg-background border border-border shadow-md opacity-0 group-hover:opacity-100 focus-visible:opacity-100 transition-opacity hover:border-brand/30"
+                    aria-label="Change group photo"
+                    data-testid="group-edit-avatar-button"
+                    disabled={faceUploading}
+                    onClick={(e) => { e.stopPropagation(); startFaceUpload('avatar'); }}
+                  >
+                    {faceUploading ? (
+                      <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                    ) : (
+                      <Camera className="w-3.5 h-3.5 text-foreground" />
+                    )}
+                  </button>
+                )}
               </div>
               <div className="min-w-0 flex-1 pb-1">
                 <div className="flex flex-wrap items-center gap-2">
@@ -1167,6 +1355,42 @@ export default function GroupDetailScreen({ groupId }: { groupId: string }) {
             </div>
           </div>
         </div>
+      )}
+
+      {/* Persistent file input for quick face upload (e2e: setInputFiles) */}
+      {canManage && (
+        <input
+          ref={faceFileInputRef}
+          type="file"
+          accept="image/*"
+          data-testid="group-face-file-input"
+          className="hidden"
+          onChange={handleFaceFileChange}
+        />
+      )}
+
+      {/* Quick face lightbox (shared with profile) */}
+      {faceLightbox && (
+        <ProfileMediaLightbox
+          media={
+            faceLightbox === 'avatar'
+              ? avatarUrl
+                ? { _id: identity.avatar_ref, url: avatarUrl, created_at: '' }
+                : null
+              : bannerUrl
+                ? { _id: identity.banner_ref, url: bannerUrl, created_at: '' }
+                : null
+          }
+          field={faceLightbox}
+          onClose={() => setFaceLightbox(null)}
+          isOwner={canManage}
+          options={faceOptions}
+          onCrop={(result) => handleFaceCrop(faceLightbox, result)}
+          saving={faceSaving}
+          displayName={displayName}
+          avatarLabel="Group photo"
+          bannerLabel="Group cover"
+        />
       )}
     </div>
   );

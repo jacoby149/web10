@@ -24,8 +24,9 @@ import { trackEvent } from '@/lib/analytics';
  * composers' `onPostCreated` callbacks wired per screen.
  */
 export function NewPostSheet() {
-  const { composerOpen, composerGroups, closeComposer } = useComposer();
+  const { composerOpen, composerGroups, editingPost, closeComposer } = useComposer();
   const { repostingTo, clearReposting } = useRepost();
+  const isEditing = !!editingPost;
 
   // Esc closes (design.md §11: anything a mouse can do, Esc can do).
   useEffect(() => {
@@ -44,7 +45,7 @@ export function NewPostSheet() {
       className="fixed inset-0 z-50 flex items-end justify-center px-3 pb-3 sm:items-center sm:p-6"
       role="dialog"
       aria-modal="true"
-      aria-label={repostingTo ? 'Repost' : 'New post'}
+      aria-label={isEditing ? 'Edit post' : repostingTo ? 'Repost' : 'New post'}
       data-testid="new-post-sheet"
     >
       <div
@@ -58,7 +59,9 @@ export function NewPostSheet() {
       >
         <div className="sticky top-0 z-10 relative border-b border-border bg-card px-4 py-3">
           <h3 className="flex items-center justify-center gap-2 font-display text-base font-medium text-foreground">
-            {repostingTo ? (
+            {isEditing ? (
+              'Edit post'
+            ) : repostingTo ? (
               <>
                 <Repeat2 className="w-4 h-4 text-brand" strokeWidth={2} />
                 Repost
@@ -81,9 +84,10 @@ export function NewPostSheet() {
           chromeless
           groups={composerGroups}
           repostingTo={repostingTo}
+          editingPost={editingPost}
           onRepostCancel={clearReposting}
           onPostCreated={() => {
-            console.log('[social-composer] post created — closing sheet, notifying screens');
+            console.log('[social-composer] post saved/created — closing sheet, notifying screens');
             clearReposting();
             closeComposer();
             trackEvent('post_created');

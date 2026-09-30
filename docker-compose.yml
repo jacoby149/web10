@@ -35,6 +35,13 @@ services:
       CLICKHOUSE_DATABASE: web10
       CLICKHOUSE_USER: web10
       CLICKHOUSE_PASSWORD: web10
+      # TURN relay for WebRTC P2P. Empty by default = STUN-only. To enable the
+      # relay locally, start with `docker compose --profile turn up` and set
+      # TURN_URL=turn:turn.localhost:3478. TURN_SECRET defaults to the same
+      # value the turn service uses, so they match out of the box (set both to
+      # a strong random string for anything non-local).
+      TURN_URL: ${TURN_URL:-}
+      TURN_SECRET: ${TURN_SECRET:-local-turn-secret}
     command: ["uv", "run", "uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "80", "--reload"]
 
   ui: # The web10 Authenticator, the UI for managing the web10 API
@@ -72,6 +79,25 @@ services:
       CERTIFY_BASE_URL: http://api
     ports:
       - "6363:80"
+
+  turn: # Optional TURN relay for WebRTC P2P when STUN-only direct connections fail.
+    # Enable with: docker compose --profile turn up --build
+    # Also set TURN_URL and TURN_SECRET for the api service when enabling this profile.
+    # The image's entrypoint auto-prepends `turnserver`, so `command` is flags only.
+    image: ghcr.io/jacoby149/base-coturn:latest
+    profiles: ["turn"]
+    command: >
+      --use-auth-secret
+      --static-auth-secret=${TURN_SECRET:-local-turn-secret}
+      --listening-port=3478
+      --min-port=49152
+      --max-port=65535
+      --no-tls
+    ports:
+      - "3478:3478/udp"
+      - "3478:3478/tcp"
+      - "5349:5349/tcp"
+      - "49152-65535:49152-65535/udp"
 
   sdk: # serves wapi.js as a CDN (dist/) plus the sdk demos
     build: sdk
