@@ -225,7 +225,8 @@ function createV3Client(options = {}) {
   const state = {
     apiOrigin,
     token: options.token ?? readTokenCookie(),
-    rtcServer
+    rtcServer,
+    iceServers: options.iceServers
   };
   async function v3Post(action, body) {
     const token = state.token ?? readTokenCookie();

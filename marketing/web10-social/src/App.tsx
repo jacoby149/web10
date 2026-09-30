@@ -28,6 +28,7 @@ import { resolveMediaRefs } from '@/data/posts';
 import { readSettings } from '@/data/settings';
 import { initP2P, teardownP2P, setPeer } from '@/data/p2p';
 import { initNotifications, teardownNotifications } from '@/data/notifications';
+import { initMessagesUnread, teardownMessagesUnread } from '@/data/messagesUnread';
 import { trackEvent, hotjarIdentify } from '@/lib/analytics';
 import { PostLightbox } from '@/components/Bio/PostLightbox';
 import { RepostProvider } from '@/context/RepostContext';
@@ -310,12 +311,18 @@ function App() {
     if (!auth.isSignedIn()) {
       teardownP2P();
       teardownNotifications();
+      teardownMessagesUnread();
       return;
     }
     // The notification store is app-wide (D69): init it whenever signed in,
     // independent of the P2P toggle. It seeds from CRUD (works offline) and
     // subscribes to the P2P bus for live nudges (no-ops when P2P is off).
     initNotifications().catch((e) => LOG_ERR('initNotifications — failed:', e));
+    // The Messages unread store (the purple badge on the Messages icon): init
+    // it whenever signed in, independent of the P2P toggle. It seeds the
+    // per-conversation read cursors from settings + the last message of every
+    // conversation (CRUD), and subscribes to the P2P bus for live bumps.
+    initMessagesUnread().catch((e) => LOG_ERR('initMessagesUnread — failed:', e));
     try {
       const s = await readSettings();
       LOG('applyP2P — p2pEnabled:', s.p2pEnabled);
@@ -342,6 +349,7 @@ function App() {
     } else {
       teardownP2P();
       teardownNotifications();
+      teardownMessagesUnread();
     }
     const onSettingsChanged = () => {
       if (getSocialAuth().isSignedIn()) applyP2P();

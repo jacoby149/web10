@@ -1,7 +1,6 @@
 import { getV3Client } from './v3';
 import { getMyGroups } from './groups';
 import { fromV3DocToDm, type DmRecord, type DmRecipient } from './types';
-import { sendNotification } from './notifications';
 
 // ── DMs data layer (v3) ──────────────────────────────────────────────────────
 // DMs use groups: each conversation is a group. Messages are posts in that group.
@@ -144,11 +143,10 @@ export async function sendDm(
 
   const doc = await w.create('posts', body, { groups: [groupId] });
   console.log('[social-dms] sendDm — sent', doc.doc_id, 'in', groupId);
-  // The write side (D69): nudge the recipient so their badge bumps in real time.
-  sendNotification(
-    { username: otherUsername, provider: themKey.split('/')[0] },
-    { type: 'dm', from: token.username, ref_doc_id: doc.doc_id },
-  );
+  // DMs are NOT a notification (they have their own unread badge on the
+  // Messages icon — messagesUnread.ts). The real-time nudge to the recipient
+  // is fired by DmsScreen (sendP2P with the message body); the recipient
+  // re-reads the conversation on the nudge. No notification nudge here.
   return fromV3DocToDm(doc);
 }
 

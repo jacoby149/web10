@@ -160,7 +160,7 @@ describe('NotificationsScreen', () => {
     mockState = {
       unread: 2,
       items: [
-        { id: 'n1', type: 'dm', from: 'bob', read: false, created_at: new Date().toISOString() },
+        { id: 'n1', type: 'reaction', from: 'bob', read: false, created_at: new Date().toISOString() },
         { id: 'n2', type: 'reaction', from: 'carol', read: false, created_at: new Date().toISOString() },
       ],
     };
@@ -183,7 +183,7 @@ describe('NotificationsScreen', () => {
     mockState = {
       unread: 2,
       items: [
-        { id: 'n1', type: 'dm', from: 'bob', read: false, created_at: new Date().toISOString() },
+        { id: 'n1', type: 'reaction', from: 'bob', read: false, created_at: new Date().toISOString() },
         { id: 'n2', type: 'reaction', from: 'carol', read: false, created_at: new Date().toISOString() },
       ],
     };
@@ -316,19 +316,6 @@ describe('notification deep links (row click → the place the event is about)',
     expect(screen.getByTestId('nav-probe')).toHaveTextContent('/u/me/p/post-1');
   });
 
-  it('a dm row opens the conversation with the sender', () => {
-    mockState = {
-      unread: 1,
-      items: [{ id: 'dm:bob:msg-1', type: 'dm', from: 'bob', ref_doc_id: 'msg-1', read: false, created_at: now() }],
-    };
-    renderNotificationNav();
-    fireEvent.click(screen.getByTestId('notification-row'));
-    // conversationKey sorts the two provider/username ids.
-    expect(screen.getByTestId('nav-probe')).toHaveTextContent(
-      `/messages/${encodeURIComponent('api.localhost/bob--api.localhost/me')}`,
-    );
-  });
-
   it('a follow_request row opens the follower\'s profile', () => {
     mockState = {
       unread: 1,
@@ -402,8 +389,6 @@ describe('notificationHref (the resolver)', () => {
       .toBe('/u/me/p/p1');
     expect(notificationHref({ id: 'comment:bob:c1', type: 'comment', from: 'bob', ref_doc_id: 'p1', read: false, created_at: now() }, me))
       .toBe('/u/me/p/p1?comment=c1');
-    expect(notificationHref({ id: 'dm:bob:m1', type: 'dm', from: 'bob', read: false, created_at: now() }, me))
-      .toBe(`/messages/${encodeURIComponent('api.localhost/bob--api.localhost/me')}`);
     expect(notificationHref({ id: 'f:alice', type: 'follow_request', from: 'alice', read: false, created_at: now() }, me))
       .toBe('/u/alice');
     expect(notificationHref({ id: 'g:g1', type: 'group_join', from: 'bob', ref_doc_id: 'api.localhost/groups/users/me/g1', read: false, created_at: now() }, me))
@@ -414,7 +399,6 @@ describe('notificationHref (the resolver)', () => {
 
   it('returns null when the destination is unresolvable', () => {
     expect(notificationHref({ id: 'r', type: 'reaction', from: 'bob', read: false, created_at: now() }, me)).toBeNull();
-    expect(notificationHref({ id: 'd', type: 'dm', from: '', read: false, created_at: now() }, me)).toBeNull();
     expect(notificationHref({ id: 'f', type: 'follow_request', from: '', read: false, created_at: now() }, me)).toBeNull();
   });
 });

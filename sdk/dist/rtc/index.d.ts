@@ -20,6 +20,12 @@
  * ```
  */
 import type { V3Client } from '../v3';
+export interface RTCIceServer {
+    urls: string | string[];
+    username?: string;
+    credential?: string;
+}
+export declare function defaultIceServers(): RTCIceServer[];
 /**
  * Set the PeerJS constructor. Call this before initP2P if bundling manually.
  */
@@ -54,12 +60,15 @@ interface PeerJSOptions {
     port: number;
     path: string;
     token: string;
+    iceServers?: RTCIceServer[];
 }
 interface PeerConnection {
     peer: string;
     open: boolean;
     send(data: unknown): void;
     on(event: string, handler: (...args: unknown[]) => void): void;
+    /** Close the channel (drops a half-dead connection so a fresh one can be opened). */
+    close(): void;
 }
 interface PeerInstance {
     id: string;
