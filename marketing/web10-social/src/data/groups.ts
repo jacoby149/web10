@@ -327,7 +327,7 @@ export async function ensureCommunity(
       name,
       joinPolicy,
       COMMUNITY_ROLES,
-      [{ member_key: `web10.app/users/${ownerUsername}`, role: 'owner' }],
+      [{ member_key: ownerUsername, role: 'owner' }],
     );
     return groupId;
   }
@@ -459,7 +459,7 @@ export async function createCommunityGroup(
   const groupId = communityGroupId(ownerUsername, slug);
   const joinPolicy = input.join_policy ?? 'open';
   const members: { member_key: string; role: string }[] = [
-    { member_key: `web10.app/users/${ownerUsername}`, role: 'owner' },
+    { member_key: ownerUsername, role: 'owner' },
   ];
   let discoverable: boolean;
   if (draft) {
@@ -1133,4 +1133,57 @@ export function groupDisplayName(groupId: string, name?: string): string {
   if (name) return name;
   const parts = groupId.split('/');
   return parts[parts.length - 1] || groupId;
+}
+
+// ── Group ownership heal (the "dead group" fix) ─────────────────────────────
+// A group the user created can end up "dead": the creator's member row drifted
+// to a non-owner role (or the owner row is stored under a key form the node's
+// permission checks don't resolve), so the creator can no longer edit or delete
+// it. The node's `groups/heal-owner` re-points the creator's bare-username row
+// to the `owner` role. The creator is the `{creator}` segment of the group_id
+// (`{provider}/groups/users/{creator}/{slug}`).
+
+/** The creator of a group, parsed from its group_id. */
+export function groupCreator(groupId: string): string {
+  const parts = groupId.split('/');
+  const u = parts.indexOf('users');
+  if (u >= 0 && u + 1 < parts.length) return parts[u + 1];
+  const g = parts.indexOf('groups');
+  if (g >= 0 && g + 1 < parts.length) return parts[g + 1];
+  return '';
+}
+
+/**
+ * Re-point a group's ownership to its creator (the "dead group" heal). Calls the
+ * node's `groups/heal-owner`, which is gated on the caller being the creator and
+ * is idempotent. Returns true when the node healed (or confirmed) ownership,
+ * false when it couldn't (e.g. the caller isn't the creator, or the call 403s).
+ */
+export async function healGroupOwnership(groupId: string, username: string): Promise<boolean> {
+  if (groupCreator(groupId) !== username) return false;
+  const w = getV3Client();
+  try {
+    await w.healGroupOwner(groupId);
+    LOG('healGroupOwnership — healed', groupId);
+    return true;
+  } catch (e) {
+    LOG('healGroupOwnership — failed for', groupId, ':', (e as Error)?.message);
+    return false;
+  }
+}
+
+/**
+ * Heal every community group the user created but no longer owns (the dead
+ * groups). Returns the group_ids that were healed, so a caller can re-read the
+ * list. Skips groups the user already owns and groups they didn't create.
+ */
+export async function healOwnedGroups(username: string): Promise<string[]> {
+  const groups = await getMyGroups({ tags: [GROUP_TAG.community] });
+  const dead = groups.filter((g) => groupCreator(g.group_id) === username && g.my_role !== 'owner');
+  if (!dead.length) return [];
+  const healed: string[] = [];
+  for (const g of dead) {
+    if (await healGroupOwnership(g.group_id, username)) healed.push(g.group_id);
+  }
+  return healed;
 }

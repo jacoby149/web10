@@ -446,6 +446,46 @@ class TestIsGroupMember:
             assert ch.is_group_member("g1", "alice") is False
 
 
+class TestEnsureCreatorOwner:
+    """The "dead group" fix: the creator of a group is the owner by definition."""
+
+    OWNER_ROLES = [{"name": "owner", "permissions": {"group": ["manageRoles", "deleteGroup"]}}]
+    MEMBER_ROLES = [{"name": "member", "permissions": {"posts": ["readAll"]}}]
+
+    def test_no_owner_role_is_noop(self):
+        # A contract with no `owner` role (e.g. a DM group) is left alone.
+        with _patch_client() as mock_client:
+            ch.ensure_creator_owner("g1", "alice", self.MEMBER_ROLES)
+            mock_client.insert.assert_not_called()
+            mock_client.query.assert_not_called()
+
+    def test_already_owner_is_noop(self):
+        with _patch_client() as mock_client:
+            mock_client.query.return_value = _mock_result_rows([("alice", "owner", datetime(2026, 1, 1))])
+            ch.ensure_creator_owner("g1", "alice", self.OWNER_ROLES)
+            mock_client.insert.assert_not_called()
+
+    def test_non_owner_role_is_repointed(self):
+        # The creator's row drifted to a non-owner role (the "dead group" bug)
+        # → a current owner row is inserted (latest-row dedup makes it win).
+        with _patch_client() as mock_client:
+            mock_client.query.return_value = _mock_result_rows([("alice", "admin", datetime(2026, 1, 1))])
+            ch.ensure_creator_owner("g1", "alice", self.OWNER_ROLES)
+            mock_client.insert.assert_called_once()
+            row = mock_client.insert.call_args[0][1][0]
+            assert row[1] == "alice"  # member_key
+            assert row[2] == "owner"  # role
+
+    def test_missing_creator_row_is_added(self):
+        with _patch_client() as mock_client:
+            mock_client.query.return_value = _mock_result_rows([])
+            ch.ensure_creator_owner("g1", "alice", self.OWNER_ROLES)
+            mock_client.insert.assert_called_once()
+            row = mock_client.insert.call_args[0][1][0]
+            assert row[1] == "alice"
+            assert row[2] == "owner"
+
+
 class TestGetUserGroups:
     def test_user_groups(self):
         with _patch_client() as mock_client:
