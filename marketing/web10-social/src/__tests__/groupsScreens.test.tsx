@@ -1429,3 +1429,95 @@ describe('GroupDetailScreen', () => {
     });
   });
 });
+
+describe('GroupDetailScreen — quick face edit (shared face lightbox)', () => {
+  const GROUP_ID = 'api.localhost/groups/users/carol/gaming';
+
+  const faceIdentity = {
+    name: 'Gaming Night',
+    description: 'Weekly gaming sessions.',
+    banner_ref: 'banner-1',
+    avatar_ref: 'avatar-1',
+    website: 'https://gaming.example.com',
+    tags: ['gaming'],
+  };
+
+  const faceDetail = {
+    group_id: GROUP_ID,
+    name: 'Gaming Night',
+    owner: 'carol',
+    slug: 'gaming',
+    join_policy: 'open',
+    discoverable: true,
+    member_count: 128,
+    roles: [],
+    permission_summary: 'member: readAll, create',
+    is_member: true,
+    posts_state: 'ok',
+    posts: [],
+  };
+
+  async function loadFaceDetail(manages: boolean) {
+    vi.mocked(readGroupDetail).mockResolvedValue(faceDetail as never);
+    vi.mocked(readGroupIdentity).mockResolvedValue(faceIdentity);
+    vi.mocked(resolveMediaRefs).mockResolvedValue([
+      { _id: 'banner-1', url: 'http://x/banner.png', mime_type: 'image/png', created_at: '' },
+      { _id: 'avatar-1', url: 'http://x/avatar.png', mime_type: 'image/png', created_at: '' },
+    ] as never);
+    vi.mocked(getGroupsManages).mockResolvedValue(
+      manages ? [{ group_id: GROUP_ID, join_policy: 'open', my_role: 'owner', member_count: 128 }] : [],
+    );
+    const { default: GroupDetailScreen } = await import('@/components/Groups/GroupDetailScreen');
+    render(
+      <MemoryRouter initialEntries={['/groups/x']}>
+        <GroupDetailScreen groupId={GROUP_ID} />
+      </MemoryRouter>,
+    );
+    await waitFor(() => {
+      expect(screen.getByTestId('group-detail-hero')).toBeInTheDocument();
+    });
+  }
+
+  it('a manager sees the quick-edit hover buttons + file input on the hero', async () => {
+    await loadFaceDetail(true);
+    expect(screen.getByTestId('group-edit-banner-button')).toBeInTheDocument();
+    expect(screen.getByTestId('group-edit-avatar-button')).toBeInTheDocument();
+    expect(screen.getByTestId('group-face-file-input')).toBeInTheDocument();
+  });
+
+  it('a non-manager sees no quick-edit affordances', async () => {
+    await loadFaceDetail(false);
+    expect(screen.queryByTestId('group-edit-banner-button')).not.toBeInTheDocument();
+    expect(screen.queryByTestId('group-edit-avatar-button')).not.toBeInTheDocument();
+    expect(screen.queryByTestId('group-face-file-input')).not.toBeInTheDocument();
+  });
+
+  it('a manager tapping the avatar opens the shared face lightbox', async () => {
+    await loadFaceDetail(true);
+    fireEvent.click(screen.getByTestId('group-detail-avatar'));
+    await waitFor(() => {
+      expect(screen.getByTestId('profile-media-lightbox')).toBeInTheDocument();
+    });
+    // The lightbox shows the group's current avatar enlarged.
+    const img = await screen.findByTestId('profile-media-lightbox-image');
+    expect(img).toHaveAttribute('src', 'http://x/avatar.png');
+  });
+
+  it('a manager tapping the banner opens the shared face lightbox', async () => {
+    await loadFaceDetail(true);
+    fireEvent.click(screen.getByTestId('group-detail-banner'));
+    await waitFor(() => {
+      expect(screen.getByTestId('profile-media-lightbox')).toBeInTheDocument();
+    });
+    const img = await screen.findByTestId('profile-media-lightbox-image');
+    expect(img).toHaveAttribute('src', 'http://x/banner.png');
+  });
+
+  it('a non-manager tapping the avatar does NOT open the lightbox', async () => {
+    await loadFaceDetail(false);
+    fireEvent.click(screen.getByTestId('group-detail-avatar'));
+    // Give any (wrong) open a chance to happen — it must not.
+    await new Promise((r) => setTimeout(r, 100));
+    expect(screen.queryByTestId('profile-media-lightbox')).not.toBeInTheDocument();
+  });
+});
