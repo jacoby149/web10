@@ -20,7 +20,7 @@ import {
   type AdAlbum,
 } from '@/data';
 import { getWapi } from '@/data/wapi';
-import { fromResolvedMediaRef, type ResolvedMediaRef, type PostRecord, type MediaRecord, type AdRecord } from '@/data/types';
+import { fromResolvedMediaRef, mediaRefId, type ResolvedMediaRef, type PostRecord, type MediaRecord, type AdRecord } from '@/data/types';
 import {
   PRESETS,
   getPreset,
@@ -28,12 +28,13 @@ import {
   type KnobState,
 } from '@/lib/powerMean';
 import { KnobRack } from '@/components/Discover/KnobRack';
-import { MoreHorizontal, Share2, Check, Edit3, Eye, EyeOff, Trash2, Repeat2, Megaphone } from 'lucide-react';
+import { MoreHorizontal, Share2, Check, Edit3, Eye, EyeOff, Trash2, Repeat2, Megaphone, X, Film } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { MARKETING_ORIGIN } from '@/lib/origins';
 import { Textarea } from '@/components/ui/textarea';
 import { PostActions } from './PostActions';
 import { TextWithLinks } from './LinkEmbed';
+import { PostBody } from './PostBody';
 import { AdBlock } from './AdBlock';
 import { AttachedAd } from './AttachedAd';
 import { AdPicker } from './AdPicker';
@@ -265,8 +266,8 @@ function RepostedEmbed({
         </div>
       </div>
       {original.text ? (
-        <div className="px-3 pb-2.5 text-sm text-foreground leading-relaxed whitespace-pre-wrap break-words line-clamp-6">
-          <TextWithLinks text={original.text} />
+        <div className="px-3 pb-2.5 text-sm text-foreground line-clamp-6">
+          <PostBody text={original.text} density="light" />
         </div>
       ) : null}
       <div className="pb-2">
@@ -352,6 +353,10 @@ export function PostCard({
   const [menuOpen, setMenuOpen] = useState(false);
   const [editing, setEditing] = useState(false);
   const [editDraft, setEditDraft] = useState(post.text || '');
+  // The media being edited (the post's current media, minus any the owner
+  // removed during this edit). Init from `mediaItems` when the edit opens;
+  // `handleSaveEdit` writes the surviving refs back via updatePost.
+  const [editMedia, setEditMedia] = useState<MediaRecord[]>([]);
   const [saving, setSaving] = useState(false);
   const [deleteConfirm, setDeleteConfirm] = useState(false);
   const [copied, setCopied] = useState(false);
@@ -424,7 +429,17 @@ export function PostCard({
       const adPreference = pinnedAdId
         ? { mode: 'pinned' as const, target: pinnedAdId }
         : { mode: 'none' as const };
-      await updatePost(post._id || '', { text: editDraft, updated_at: new Date().toISOString() }, adPreference);
+      const updates: Partial<PostRecord> = { text: editDraft, updated_at: new Date().toISOString() };
+      // Media the owner removed during the edit: the surviving refs are the
+      // post's original refs minus the ones dropped from `editMedia`. Only
+      // send `media_refs` when it actually changed (no-op otherwise).
+      const survivingIds = new Set(editMedia.map((m) => m._id).filter(Boolean));
+      const originalRefs = post.media_refs || [];
+      const survivingRefs = originalRefs.filter((ref) => survivingIds.has(mediaRefId(ref)));
+      if (survivingRefs.length !== originalRefs.length) {
+        updates.media_refs = survivingRefs;
+      }
+      await updatePost(post._id || '', updates, adPreference);
       setEditing(false);
       setShowAdPicker(false);
       onPostUpdated?.();
@@ -541,7 +556,7 @@ export function PostCard({
                   </button>
                   <button
                     type="button"
-                    onClick={(e) => { e.stopPropagation(); setMenuOpen(false); setEditing(true); setEditDraft(post.text || ''); }}
+                    onClick={(e) => { e.stopPropagation(); setMenuOpen(false); setEditing(true); setEditDraft(post.text || ''); setEditMedia(mediaItems); }}
                     className="flex w-full items-center gap-2 rounded-md px-3 py-2 text-left text-sm text-foreground hover:bg-elevated transition-colors"
                     data-testid="post-option-edit"
                   >
@@ -590,8 +605,8 @@ export function PostCard({
           embedded original post — the X/Twitter quote-tweet layout. A repost
           carries no media of its own; the original's media lives in the embed. */}
       {post.repost_of && !editing && post.text ? (
-        <div className="px-4 pt-3 text-sm text-foreground leading-relaxed whitespace-pre-wrap break-words">
-          <TextWithLinks text={post.text} />
+        <div className="px-4 pt-3 text-sm text-foreground">
+          <PostBody text={post.text} density="light" />
         </div>
       ) : null}
 
@@ -599,7 +614,44 @@ export function PostCard({
         <RepostedEmbed repostOf={post.repost_of} onAuthorClick={onAuthorClick} />
       )}
 
-      <MediaGrid mediaItems={mediaItems} />
+      {/* Media: the normal grid, or — while editing — an editable grid with a
+          remove button on each item (the owner can drop media from the post).
+          The surviving items are written back on save (handleSaveEdit). */}
+      {editing ? (
+        editMedia.length > 0 ? (
+          <div className="px-4 pt-3">
+            <div className="grid grid-cols-3 gap-2">
+              {editMedia.map((m, i) => (
+                <div key={m._id || i} className="relative group aspect-square overflow-hidden rounded-lg bg-elevated">
+                  {m.mime_type?.startsWith('video/') ? (
+                    <div className="w-full h-full flex items-center justify-center text-muted-foreground">
+                      <Film className="w-6 h-6" />
+                    </div>
+                  ) : (
+                    <img
+                      src={m.thumbnail_url || m.url}
+                      alt={m.alt_text || ''}
+                      className="w-full h-full object-cover"
+                      loading="lazy"
+                    />
+                  )}
+                  <button
+                    type="button"
+                    onClick={() => setEditMedia((prev) => prev.filter((x) => x !== m))}
+                    aria-label="Remove media"
+                    data-testid={`post-edit-remove-media-${i}`}
+                    className="absolute -top-2 -right-2 flex items-center justify-center h-7 w-7 rounded-full bg-background border border-border shadow-md text-muted-foreground hover:text-danger hover:border-danger transition-colors"
+                  >
+                    <X className="w-3.5 h-3.5" />
+                  </button>
+                </div>
+              ))}
+            </div>
+          </div>
+        ) : null
+      ) : (
+        <MediaGrid mediaItems={mediaItems} />
+      )}
 
       {editing ? (
         <div className="px-4 pt-3 space-y-2">
@@ -614,7 +666,7 @@ export function PostCard({
             <Button size="sm" variant="brand" onClick={handleSaveEdit} disabled={saving} data-testid="post-edit-save" className="text-xs">
               {saving ? 'Saving…' : 'Save'}
             </Button>
-            <Button size="sm" variant="ghost" onClick={() => { setEditing(false); setEditDraft(post.text || ''); setShowAdPicker(false); }} className="text-xs">
+            <Button size="sm" variant="ghost" onClick={() => { setEditing(false); setEditDraft(post.text || ''); setEditMedia(mediaItems); setShowAdPicker(false); }} className="text-xs">
               Cancel
             </Button>
             <Button size="sm" variant="ghost" onClick={openAdPicker} data-testid="post-edit-pin-ad" className="text-xs gap-1.5 text-muted-foreground hover:text-foreground">
@@ -630,8 +682,8 @@ export function PostCard({
               {post.title}
             </h3>
           )}
-          <div className="text-sm text-foreground leading-relaxed whitespace-pre-wrap break-words">
-            <TextWithLinks text={post.text} />
+          <div className="text-sm text-foreground">
+            <PostBody text={post.text} density="full" />
           </div>
         </div>
       ) : post.title && !post.repost_of ? (

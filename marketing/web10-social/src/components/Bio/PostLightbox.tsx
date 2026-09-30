@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ChevronLeft, ChevronRight, X, Edit3, Trash2, Eye, EyeOff, Share2, Check, Megaphone } from 'lucide-react';
+import { ChevronLeft, ChevronRight, X, Edit3, Trash2, Eye, EyeOff, Share2, Check, Megaphone, Film } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { Input } from '@/components/ui/input';
@@ -24,7 +24,7 @@ import {
 import { PostActions } from '@/components/Feed/PostActions';
 import { useRepost } from '@/context/RepostContext';
 import { useComposer } from '@/context/ComposerContext';
-import { TextWithLinks } from '@/components/Feed/LinkEmbed';
+import { PostBody } from '@/components/Feed/PostBody';
 import { AttachedAd } from '@/components/Feed/AttachedAd';
 import { AdPicker } from '@/components/Feed/AdPicker';
 import { toast, errorMessage } from '@/components/shared/Toast';
@@ -131,6 +131,10 @@ export function PostLightbox({ post, mediaMap, onClose, onReload, postAuthor, po
   // Edit state
   const [editing, setEditing] = useState(false);
   const [editDraft, setEditDraft] = useState(currentPost.text || '');
+  // The media being edited (the post's current media, minus any the owner
+  // removed during this edit). Init from `media` when the edit opens;
+  // `handleSaveEdit` writes the surviving refs back via updatePost.
+  const [editMedia, setEditMedia] = useState<MediaRecord[]>([]);
   const [saving, setSaving] = useState(false);
 
   // The edit flow's "Pin an ad" (ad-improvements.md): swap / clear the post's
@@ -309,7 +313,17 @@ export function PostLightbox({ post, mediaMap, onClose, onReload, postAuthor, po
       const adPreference = pinnedAdId
         ? { mode: 'pinned' as const, target: pinnedAdId }
         : { mode: 'none' as const };
-      await updatePost(currentPost._id || '', { text: editDraft, updated_at: new Date().toISOString() }, adPreference);
+      const updates: Partial<PostRecord> = { text: editDraft, updated_at: new Date().toISOString() };
+      // Media the owner removed during the edit: the surviving refs are the
+      // post's original refs minus the ones dropped from `editMedia`. Only
+      // send `media_refs` when it actually changed (no-op otherwise).
+      const survivingIds = new Set(editMedia.map((m) => m._id).filter(Boolean));
+      const originalRefs = currentPost.media_refs || [];
+      const survivingRefs = originalRefs.filter((ref) => survivingIds.has(mediaRefId(ref)));
+      if (survivingRefs.length !== originalRefs.length) {
+        updates.media_refs = survivingRefs;
+      }
+      await updatePost(currentPost._id || '', updates, adPreference);
       setEditing(false);
       setShowAdPicker(false);
       onClose();
@@ -397,8 +411,41 @@ export function PostLightbox({ post, mediaMap, onClose, onReload, postAuthor, po
           <X className="h-5 w-5" />
         </Button>
 
-        {/* Media pane */}
-        {hasMedia && (
+        {/* Media pane: the normal viewer, or — while editing — an editable grid
+            with a remove button on each item (the owner can drop media from the
+            post). The surviving items are written back on save (handleSaveEdit). */}
+        {editing ? (
+          editMedia.length > 0 ? (
+            <div className="flex min-h-0 flex-1 items-start justify-center overflow-y-auto bg-black p-4">
+              <div className="grid w-full grid-cols-2 gap-2">
+                {editMedia.map((m, i) => (
+                  <div key={m._id || i} className="relative aspect-square overflow-hidden rounded-lg bg-elevated">
+                    {m.mime_type?.startsWith('video/') ? (
+                      <div className="w-full h-full flex items-center justify-center text-muted-foreground">
+                        <Film className="w-6 h-6" />
+                      </div>
+                    ) : (
+                      <img
+                        src={m.url}
+                        alt={m.alt_text || ''}
+                        className="w-full h-full object-cover"
+                      />
+                    )}
+                    <button
+                      type="button"
+                      onClick={() => setEditMedia((prev) => prev.filter((x) => x !== m))}
+                      aria-label="Remove media"
+                      data-testid={`post-lightbox-edit-remove-media-${i}`}
+                      className="absolute -top-2 -right-2 flex items-center justify-center h-7 w-7 rounded-full bg-background border border-border shadow-md text-muted-foreground hover:text-danger hover:border-danger transition-colors"
+                    >
+                      <X className="w-3.5 h-3.5" />
+                    </button>
+                  </div>
+                ))}
+              </div>
+            </div>
+          ) : null
+        ) : hasMedia && (
           <div className="relative flex min-h-0 flex-1 items-center justify-center bg-black">
             {current.mime_type?.startsWith('video/') ? (
               <LightboxVideo media={current} />
@@ -468,7 +515,7 @@ export function PostLightbox({ post, mediaMap, onClose, onReload, postAuthor, po
                 <Button
                   size="sm"
                   variant="ghost"
-                  onClick={() => { setEditing(false); setEditDraft(currentPost.text || ''); setShowAdPicker(false); }}
+                  onClick={() => { setEditing(false); setEditDraft(currentPost.text || ''); setEditMedia(media); setShowAdPicker(false); }}
                   className="text-xs"
                 >
                   Cancel
@@ -493,8 +540,8 @@ export function PostLightbox({ post, mediaMap, onClose, onReload, postAuthor, po
                   </h2>
                 )}
                 {currentPost.text && (
-                  <div className="whitespace-pre-wrap break-words text-sm leading-relaxed text-foreground">
-                    <TextWithLinks text={currentPost.text} />
+                  <div className="text-sm leading-relaxed text-foreground">
+                    <PostBody text={currentPost.text} density="full" />
                   </div>
                 )}
               </div>
@@ -592,7 +639,7 @@ export function PostLightbox({ post, mediaMap, onClose, onReload, postAuthor, po
               <Button
                 variant="ghost"
                 size="sm"
-                onClick={() => { setEditing(true); setEditDraft(currentPost.text || ''); }}
+                onClick={() => { setEditing(true); setEditDraft(currentPost.text || ''); setEditMedia(media); }}
                 className="text-sm text-muted-foreground hover:text-foreground gap-1.5 w-full justify-start"
                 data-testid="post-edit-button"
               >
