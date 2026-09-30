@@ -197,6 +197,46 @@ docker compose -p web10-dev --env-file env.dev \
 
 After ANY redeploy: run the smoke test (below) against that env.
 
+## TURN relay (optional — WebRTC P2P across NAT)
+
+The node ships **STUN-only** by default. That's enough when both peers are on
+open networks, but it fails behind a symmetric NAT, CGNAT (most mobile
+networks), or a firewall that blocks inbound UDP — the P2P channel goes one
+way (one peer sees the other online, the other doesn't). The **TURN relay**
+(coturn) is the fallback for those peers. It's an **optional service behind
+the `turn` profile**, off unless you opt in.
+
+**To enable (per env):**
+
+1. **One-time:** mirror the coturn image to GHCR — re-run the `ghcr-mirror.yml`
+   workflow (it mirrors `coturn/coturn` → `ghcr.io/jacoby149/base-coturn`).
+2. **Stack env** (`env.dev` / `env.prod`, or Portainer → Environment
+   variables): set `TURN_SECRET` to a strong random string
+   (`openssl rand -base64 32`) and `TURN_URL` to the public TURN host, e.g.
+   `turn:turn.dev.web10.app:3478`. The API mints short-lived RFC 8484
+   credentials with that secret and hands them to clients via `POST /ice`.
+3. **Deploy.** The `deploy.yml` workflow reads `TURN_SECRET` and passes
+   `--profile turn` automatically. For a **manual** SSH redeploy you must add
+   it yourself:
+   ```bash
+   docker compose -p web10-dev --env-file env.dev \
+     -f ubuntu-deployment/docker-compose.ecosystem.yml \
+     --profile turn up -d --build
+   ```
+4. **DNS:** `turn.{zone}` (and `turn.dev.{zone}`) → the box IP.
+   `scripts/sync-dns.py` already creates both — just re-run it.
+5. **Firewall:** allow **UDP 3478** + **UDP 49152–65535** (the relay's media
+   range) and **TCP 3478/5349** (TCP fallback / TLS). Peers connect to the TURN
+   host **directly** — not through NPM — so these ports must be open on the
+   box, not just forwarded to NPM.
+
+**To disable:** clear `TURN_SECRET` (and `TURN_URL`) in the stack env and
+redeploy without `--profile turn`. The node falls back to STUN-only; the turn
+container is removed (`--remove-orphans`).
+
+Smoke test: when the turn container is up, `smoke.sh` checks `POST /ice` is
+reachable (401 without a token, 200 with one).
+
 ## Where things live
 
 | Location | Contents |
