@@ -64,6 +64,12 @@ services:
       CLICKHOUSE_DATABASE: web10
       CLICKHOUSE_USER: web10
       CLICKHOUSE_PASSWORD: web10
+      # TURN relay for WebRTC P2P. Empty by default = STUN-only (the e2e P2P
+      # spec runs exactly as before, on host candidates). To exercise the relay
+      # in e2e, set TURN_URL=turn:turn.localhost:3478 + TURN_SECRET and start
+      # with --profile turn.
+      TURN_URL: ${TURN_URL:-}
+      TURN_SECRET: ${TURN_SECRET:-}
       # Two renditions (not three) — the e2e test video is 320x240, so the
       # 1080p rendition would be pure upscale waste in a test.
       HLS_RENDITIONS: 640x360@1M,1280x720@3M
@@ -110,6 +116,27 @@ services:
       # drop a socket if it ever fails). Without this, the P2P specs pass via
       # the network-failure bypass instead of proving the gate works.
       CERTIFY_BASE_URL: http://api
+    networks:
+      - e2e-net
+
+  turn:
+    # Optional TURN relay for WebRTC P2P. Enable with:
+    #   docker compose --profile turn up --build
+    # and set TURN_URL + TURN_SECRET on the api service.
+    # The image's entrypoint auto-prepends `turnserver`, so `command` is flags only.
+    image: ghcr.io/jacoby149/base-coturn:latest
+    profiles: ["turn"]
+    command: >
+      --use-auth-secret
+      --static-auth-secret=${TURN_SECRET:-e2e-turn-secret}
+      --listening-port=3478
+      --min-port=49152
+      --max-port=65535
+      --no-tls
+    ports:
+      - "3478:3478/udp"
+      - "3478:3478/tcp"
+      - "49152-65535:49152-65535/udp"
     networks:
       - e2e-net
 

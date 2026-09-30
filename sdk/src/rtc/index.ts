@@ -105,18 +105,24 @@ export function createRTC(wapi: V3Client): RTCConnector {
      * promise also resolves after a 10s timeout so an unreachable signaling
      * server cannot hang the caller forever.
      */
-    initP2P(onInbound: ((conn: PeerConnection, data: unknown) => void) | null, label: string = '', secure: boolean = true): Promise<void> {
+    async initP2P(onInbound: ((conn: PeerConnection, data: unknown) => void) | null, label: string = '', secure: boolean = true): Promise<void> {
       const PC = getPeer()
       const token = wapi.readToken()
       if (!token) throw new Error('Cannot init P2P without a token')
       const id = this.peerId(token.provider, token.username, token.site, label)
-      // ICE servers: the node's configured set (a TURN-capable node supplies
-      // its own via the client's `iceServers`), else the robust STUN default.
-      // Without this, PeerJS falls back to a single rate-limited Google STUN.
-      const iceServers: RTCIceServer[] =
-        wapi.state.iceServers && wapi.state.iceServers.length > 0
-          ? wapi.state.iceServers
-          : defaultIceServers()
+      // ICE servers: use the client's explicit config if provided; otherwise
+      // fetch the node's ICE config (STUN + optional TURN) from the /ice
+      // endpoint. Falls back to the built-in STUN default if the fetch fails.
+      let iceServers: RTCIceServer[]
+      if (wapi.state.iceServers && wapi.state.iceServers.length > 0) {
+        iceServers = wapi.state.iceServers
+      } else {
+        try {
+          iceServers = await wapi.getIceServers()
+        } catch {
+          iceServers = defaultIceServers()
+        }
+      }
       peer = new PC(id, {
         host: wapi.state.rtcServer,
         secure,
