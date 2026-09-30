@@ -64,6 +64,7 @@ web10-v3/
 │   ├── bug-reports.md     ← the bugbot (D70): a submitted bug report DMs the node's admins
 │   └── import.md          ← web10 import: a creator's existing catalog (e.g. YouTube) moved onto their node
   ├── telemetry.md           ← why web10 tracks hard (GA4 + masked Hotjar, platform-wide) and the line it doesn't cross
+  ├── p2p-relay.md           ← the TURN relay for WebRTC P2P: why STUN-only goes one-way, the node-minted RFC 8484 credential, POST /ice, the coturn deploy
   ├── licensing.md           ← why web10 is SSPL with a free, ungated core: the §13 moat, tiers-as-services, the no-gate line (D75)
   ├── migration/             ← the v2 → v3 production cutover
   │   └── v2-to-v3-accounts.md ← the 580-account migration: one-day runbook, bcrypt carry-over, phone-recovery flow
