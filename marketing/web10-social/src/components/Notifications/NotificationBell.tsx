@@ -1,15 +1,24 @@
 import { Bell } from 'lucide-react';
-import { useNavigate } from 'react-router-dom';
 import { useNotifications } from '@/hooks/useNotifications';
 import { cn } from '@/lib/utils';
 
 /**
  * The notification bell — a bell icon with a live unread-count badge
- * (glow-pulse when there's something new). Tapping it goes to /notifications.
- * Used in the mobile top-header (the desktop sidebar has its own nav item).
+ * (glow-pulse when there's something new). A dumb toggle: it opens/closes
+ * the notifications panel (the operator: notifications "just toggles open
+ * closed" — not a page). The Layout owns the open state + the panel; this
+ * button only reports the tap. Used in the mobile top-header (the desktop
+ * top bar has its own inline bell in Layout).
  */
-export default function NotificationBell({ className }: { className?: string }) {
-  const navigate = useNavigate();
+export default function NotificationBell({
+  open,
+  onToggle,
+  className,
+}: {
+  open: boolean;
+  onToggle: () => void;
+  className?: string;
+}) {
   const { unread } = useNotifications();
 
   return (
@@ -17,13 +26,15 @@ export default function NotificationBell({ className }: { className?: string }) 
       type="button"
       data-testid="notification-bell"
       aria-label={unread > 0 ? `Notifications (${unread} unread)` : 'Notifications'}
-      onClick={() => navigate('/notifications')}
+      aria-expanded={open}
+      onClick={onToggle}
       className={cn(
         'relative h-11 w-11 flex items-center justify-center rounded-lg text-muted-foreground hover:text-foreground hover:bg-elevated transition-colors duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand/50',
+        open && 'bg-elevated/80 text-foreground',
         className,
       )}
     >
-      <Bell className="w-5 h-5" strokeWidth={unread > 0 ? 2 : 1.75} />
+      <Bell className="w-5 h-5" strokeWidth={unread > 0 || open ? 2 : 1.75} />
       {unread > 0 && (
         <span
           data-testid="notification-badge"

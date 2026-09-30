@@ -10,6 +10,7 @@ import type { ProfileRecord } from '@/data';
 import { useNotifications } from '@/hooks/useNotifications';
 import { useNodeAdmin } from '@/components/Monetization/useNodeAdmin';
 import NotificationBell from '@/components/Notifications/NotificationBell';
+import NotificationsScreen from '@/components/Notifications/NotificationsScreen';
 import GlobalSearch from '@/components/Search/GlobalSearch';
 import { NewPostFab } from '@/components/Feed/NewPostFab';
 
@@ -127,6 +128,14 @@ export default function Layout({ onLogout, onLogin, isAnon: isAnonProp, onReport
   const { unread } = useNotifications();
   const { isAdmin: isNodeAdmin } = useNodeAdmin();
   const isNotifications = pathname === '/notifications';
+  // The notifications panel (the operator: notifications "just toggles open
+  // closed, also an x button to hide the page, sending you back to where you
+  // were right last" — it is NOT its own page). One fixed panel, anchored
+  // under the bell on desktop, full-width under the header on mobile. The
+  // URL never changes (the user stays on their screen); the /notifications
+  // route remains for deep links and renders the same component full-page.
+  const [notificationsOpen, setNotificationsOpen] = useState(false);
+  const notificationsPanelRef = useRef<HTMLDivElement>(null);
   // The Shorts LENS (`/shorts/:postId`) is a full-screen immersive surface
   // (the TikTok model): the bottom tab bar would overlap the action rail + the
   // comment sheet, so it is hidden on the lens. The exit is the back arrow the
@@ -218,6 +227,29 @@ export default function Layout({ onLogout, onLogin, isAnon: isAnonProp, onReport
       document.removeEventListener('keydown', onKey);
     };
   }, [moreMenuOpen]);
+
+  // The notifications panel closes on outside click + Esc (the popover
+  // idiom — the same pattern the More popover + user menu run).
+  useEffect(() => {
+    if (!notificationsOpen) return;
+    const onDown = (e: MouseEvent) => {
+      if (notificationsPanelRef.current && !notificationsPanelRef.current.contains(e.target as Node)) setNotificationsOpen(false);
+    };
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setNotificationsOpen(false);
+    };
+    document.addEventListener('mousedown', onDown);
+    document.addEventListener('keydown', onKey);
+    return () => {
+      document.removeEventListener('mousedown', onDown);
+      document.removeEventListener('keydown', onKey);
+    };
+  }, [notificationsOpen]);
+
+  // A route change (any navigation) closes the panel — the user moved on.
+  useEffect(() => {
+    setNotificationsOpen(false);
+  }, [pathname]);
 
   const isActive = (path: string) => {
     if (path === '/profile') return pathname.startsWith('/u/');
@@ -402,7 +434,10 @@ export default function Layout({ onLogout, onLogin, isAnon: isAnonProp, onReport
               </Button>
             ) : (
               <>
-                <NotificationBell />
+                <NotificationBell
+                  open={notificationsOpen}
+                  onToggle={() => setNotificationsOpen((o) => !o)}
+                />
                 <Button
                   variant="ghost"
                   size="icon"
@@ -463,20 +498,24 @@ export default function Layout({ onLogout, onLogin, isAnon: isAnonProp, onReport
             <>
             {/* Notifications — the bell lives in the top bar next to the
                 account row (the operator: "notifications could go in the top
-                right next to the other thing on the top right"). The unread
+                right next to the other thing on the top right"). It TOGGLES
+                the notifications panel (not a page — the operator: "just
+                toggles open closed, also an x button to hide the page,
+                sending you back to where you were right last"). The unread
                 badge mirrors the sidebar's (retired from the sidebar). */}
             <button
               type="button"
               data-testid="nav-notifications"
               aria-label="Notifications"
-              onClick={() => navigate('/notifications')}
+              aria-expanded={notificationsOpen}
+              onClick={() => setNotificationsOpen((o) => !o)}
               className={cn(
                 'relative flex items-center justify-center h-9 w-9 rounded-lg transition-colors duration-150',
                 'hover:bg-elevated/80 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand/50',
-                isNotifications ? 'text-brand' : 'text-muted-foreground',
+                notificationsOpen ? 'bg-elevated/80 text-foreground' : 'text-muted-foreground',
               )}
             >
-              <Bell className="w-5 h-5" strokeWidth={isNotifications ? 2 : 1.75} />
+              <Bell className="w-5 h-5" strokeWidth={notificationsOpen || unread > 0 ? 2 : 1.75} />
               {unread > 0 && (
                 <span
                   data-testid="nav-notifications-badge"
@@ -583,13 +622,13 @@ export default function Layout({ onLogout, onLogin, isAnon: isAnonProp, onReport
         )}
 
         {/* The always-on signal (D69): a live "N new" strip above every screen.
-            It clears the moment you open /notifications (which marks all read),
-            so it's a nudge, not a permanent fixture. */}
+            It opens the notifications panel (the same toggle the bell is) and
+            clears the moment the panel marks all read. */}
         {unread > 0 && !isNotifications && !isAnon && (
           <button
             type="button"
             data-testid="notification-banner"
-            onClick={() => navigate('/notifications')}
+            onClick={() => setNotificationsOpen(true)}
             className="flex items-center gap-2 px-4 py-2 bg-brand-muted/60 border-b border-brand/20 text-sm text-brand-300 hover:bg-brand-muted transition-colors duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand/50"
           >
             <Bell className="w-4 h-4 shrink-0" strokeWidth={2} />
@@ -598,6 +637,27 @@ export default function Layout({ onLogout, onLogin, isAnon: isAnonProp, onReport
             </span>
             <span className="ml-auto text-xs underline underline-offset-2 shrink-0">View</span>
           </button>
+        )}
+
+        {/* The notifications panel — the bell's popover (the operator:
+            notifications "just toggles open closed, also an x button to hide
+            the page, sending you back to where you were right last" — NOT
+            its own page). Anchored under the bell on desktop, full-width
+            under the header on mobile. The URL never changes; the X (in the
+            panel header) + outside click + Esc all close it. The same
+            component the /notifications route renders full-page. */}
+        {notificationsOpen && !isAnon && (
+          <div
+            ref={notificationsPanelRef}
+            data-testid="notifications-panel"
+            role="dialog"
+            aria-label="Notifications"
+            className="fixed z-40 inset-x-0 top-14 bottom-14 bg-surface flex flex-col md:inset-x-auto md:top-14 md:right-4 md:bottom-auto md:w-96 md:max-w-[calc(100vw-2rem)] md:max-h-[calc(100vh-4rem)] md:rounded-lg md:border md:border-border md:shadow-[0_8px_30px_rgb(0,0,0/0.35)] md:bg-popover md:overflow-hidden"
+          >
+            <div className="flex-1 min-h-0 overflow-y-auto">
+              <NotificationsScreen onClose={() => setNotificationsOpen(false)} />
+            </div>
+          </div>
         )}
 
         <div className={cn('flex-1 min-h-0 overflow-y-auto md:pb-0', isShorts ? '' : 'pb-16')}>
