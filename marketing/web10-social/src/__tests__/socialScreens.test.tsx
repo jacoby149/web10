@@ -759,17 +759,18 @@ describe('Layout', () => {
     expect(screen.getByTestId('nav-games')).toBeInTheDocument();
     expect(screen.getByTestId('nav-marketplace')).toBeInTheDocument();
 
-    // The mobile bottom bar is exactly four core tabs + the More tab.
+    // The mobile bottom bar is the four pyramid destinations (People, Posts,
+    // Video, Shorts) + the More tab.
     const mobileNav = screen.getByLabelText('Primary mobile');
+    expect(within(mobileNav).getByTestId('nav-people-mobile')).toBeInTheDocument();
     expect(within(mobileNav).getByTestId('nav-feed-mobile')).toBeInTheDocument();
     expect(within(mobileNav).getByTestId('nav-video-mobile')).toBeInTheDocument();
     expect(within(mobileNav).getByTestId('nav-shorts-mobile')).toBeInTheDocument();
-    expect(within(mobileNav).getByTestId('nav-messages-mobile')).toBeInTheDocument();
     expect(within(mobileNav).getByTestId('nav-more-mobile')).toBeInTheDocument();
-    // Hot Gossip + People are NOT in the bar (they live in the More sheet);
-    // Settings is not in the bar either.
+    // Messages is NOT in the bar (it lives in the More sheet); Hot Gossip is
+    // gone (a tab inside Posts); Settings is not in the bar either.
     expect(within(mobileNav).queryByTestId('nav-hot-gossip-mobile')).not.toBeInTheDocument();
-    expect(within(mobileNav).queryByTestId('nav-people-mobile')).not.toBeInTheDocument();
+    expect(within(mobileNav).queryByTestId('nav-messages-mobile')).not.toBeInTheDocument();
     expect(within(mobileNav).queryByTestId('nav-settings-mobile')).not.toBeInTheDocument();
     expect(within(mobileNav).queryByTestId('nav-groups-mobile')).not.toBeInTheDocument();
     // …and none of the coming-soon icons are crammed into the bar.
@@ -781,18 +782,17 @@ describe('Layout', () => {
     // The More sheet is closed by default.
     expect(screen.queryByTestId('more-sheet')).not.toBeInTheDocument();
 
-    // Tapping More opens the sheet: Profile (demoted from the bar) + People
-    // (the Discover-split destination that doesn't hold a bottom-bar slot) +
-    // Settings (real destination) + the coming-soon list (Stories, Livestream,
-    // Games, Marketplace). Hot Gossip is NOT in the sheet — it's a tab inside
-    // the merged Posts destination (the X/Threads model), reachable via the
-    // bottom-bar Posts item.
+    // Tapping More opens the sheet: Profile (demoted from the bar) + Messages
+    // (no longer in the bar) + Settings (real destination) + the coming-soon
+    // list (Stories, Livestream, Games, Marketplace). People is NOT in the
+    // sheet — it's in the bottom bar.
     fireEvent.click(screen.getByTestId('nav-more-mobile'));
     const sheet = screen.getByTestId('more-sheet');
     expect(sheet).toBeInTheDocument();
     expect(within(sheet).getByTestId('nav-profile-mobile')).toBeInTheDocument();
     expect(within(sheet).queryByTestId('nav-hot-gossip-mobile')).not.toBeInTheDocument();
-    expect(within(sheet).getByTestId('nav-people-mobile')).toBeInTheDocument();
+    expect(within(sheet).queryByTestId('nav-people-mobile')).not.toBeInTheDocument();
+    expect(within(sheet).getByTestId('nav-messages-mobile')).toBeInTheDocument();
     expect(within(sheet).getByTestId('nav-settings-mobile')).toBeInTheDocument();
     expect(within(sheet).queryByTestId('nav-groups-mobile')).not.toBeInTheDocument();
     expect(within(sheet).getByTestId('nav-stories-mobile')).toBeInTheDocument();
@@ -813,15 +813,14 @@ describe('Layout', () => {
     // The People nav item is in the desktop sidebar (the old ?tab=explore
     // subtab is now its own destination)…
     expect(screen.getByTestId('nav-people')).toBeInTheDocument();
-    // …and in the mobile More sheet (it doesn't hold a bottom-bar slot).
-    fireEvent.click(screen.getByTestId('nav-more-mobile'));
-    const sheet = screen.getByTestId('more-sheet');
-    expect(within(sheet).getByTestId('nav-people-mobile')).toBeInTheDocument();
+    // …and in the mobile bottom bar (the four pyramid destinations).
+    const mobileNav = screen.getByLabelText('Primary mobile');
+    expect(within(mobileNav).getByTestId('nav-people-mobile')).toBeInTheDocument();
     // The old single Discover item is retired (the four destinations replace it).
     expect(screen.queryByTestId('nav-discover')).not.toBeInTheDocument();
   });
 
-  it('signed-in sidebar: Posts (the merged Feed + Hot Gossip) sits below Shorts', async () => {
+  it('signed-in sidebar: the content pyramid order (Profile, People, Posts, Video, Shorts)', async () => {
     const { default: Layout } = await import('@/components/Social/Layout');
     render(
       <MemoryRouter initialEntries={['/video']}>
@@ -834,13 +833,15 @@ describe('Layout', () => {
     const sidebarItems = Array.from(sidebarNav.querySelectorAll('[data-testid]'))
       .map((el) => el.getAttribute('data-testid'))
       .filter((id) => id?.startsWith('nav-'));
-    // Video leads, then Shorts, Posts (the merged Feed + Hot Gossip, in Hot
-    // Gossip's old slot), People, Messages. Hot Gossip is no longer a
-    // separate item — it's a tab inside Posts.
+    // Profile at the top, then the content pyramid (People → Posts → Video →
+    // Shorts), then Messages. Hot Gossip is no longer a separate item — it's a
+    // tab inside Posts.
+    expect(sidebarItems[0]).toBe('nav-profile');
+    expect(sidebarItems.indexOf('nav-profile')).toBeLessThan(sidebarItems.indexOf('nav-people'));
+    expect(sidebarItems.indexOf('nav-people')).toBeLessThan(sidebarItems.indexOf('nav-feed'));
+    expect(sidebarItems.indexOf('nav-feed')).toBeLessThan(sidebarItems.indexOf('nav-video'));
     expect(sidebarItems.indexOf('nav-video')).toBeLessThan(sidebarItems.indexOf('nav-shorts'));
-    expect(sidebarItems.indexOf('nav-shorts')).toBeLessThan(sidebarItems.indexOf('nav-feed'));
-    expect(sidebarItems.indexOf('nav-feed')).toBeLessThan(sidebarItems.indexOf('nav-people'));
-    expect(sidebarItems.indexOf('nav-people')).toBeLessThan(sidebarItems.indexOf('nav-messages'));
+    expect(sidebarItems.indexOf('nav-shorts')).toBeLessThan(sidebarItems.indexOf('nav-messages'));
     expect(sidebarItems).not.toContain('nav-hot-gossip');
   });
 
@@ -1187,7 +1188,7 @@ describe('Layout', () => {
     expect(screen.queryByTestId('new-post-button-mobile')).not.toBeInTheDocument();
   });
 
-  it('anon chrome: the four destinations lead the nav (Video first)', async () => {
+  it('anon chrome: the four pyramid destinations lead the nav (People first)', async () => {
     const { default: Layout } = await import('@/components/Social/Layout');
     render(
       <MemoryRouter initialEntries={['/video']}>
@@ -1196,25 +1197,25 @@ describe('Layout', () => {
         </Layout>
       </MemoryRouter>,
     );
-    // Desktop sidebar: Video is the FIRST nav row (the video wall is the front
-    // door), then Shorts, Hot Gossip, People.
+    // Desktop sidebar: the content pyramid (People → Posts → Video → Shorts).
+    // People is the conceptual tip (the "why there's a network here").
     const sidebarNav = screen.getByLabelText('Primary');
     const sidebarItems = Array.from(sidebarNav.querySelectorAll('[data-testid]'))
       .map((el) => el.getAttribute('data-testid'))
       .filter((id) => id?.startsWith('nav-'));
-    expect(sidebarItems[0]).toBe('nav-video');
+    expect(sidebarItems[0]).toBe('nav-people');
+    expect(sidebarItems.indexOf('nav-people')).toBeLessThan(sidebarItems.indexOf('nav-feed'));
+    expect(sidebarItems.indexOf('nav-feed')).toBeLessThan(sidebarItems.indexOf('nav-video'));
     expect(sidebarItems.indexOf('nav-video')).toBeLessThan(sidebarItems.indexOf('nav-shorts'));
-    expect(sidebarItems.indexOf('nav-shorts')).toBeLessThan(sidebarItems.indexOf('nav-hot-gossip'));
-    expect(sidebarItems.indexOf('nav-hot-gossip')).toBeLessThan(sidebarItems.indexOf('nav-people'));
-    // Mobile bottom nav: all four destinations (anon has no More tab).
+    // Mobile bottom nav: all four pyramid destinations (anon has no More tab).
     const mobileNav = screen.getByLabelText('Primary mobile');
     const mobileItems = Array.from(mobileNav.querySelectorAll('[data-testid]'))
       .map((el) => el.getAttribute('data-testid'))
       .filter((id) => id?.startsWith('nav-'));
-    expect(mobileItems[0]).toBe('nav-video-mobile');
+    expect(mobileItems[0]).toBe('nav-people-mobile');
+    expect(mobileItems).toContain('nav-feed-mobile');
+    expect(mobileItems).toContain('nav-video-mobile');
     expect(mobileItems).toContain('nav-shorts-mobile');
-    expect(mobileItems).toContain('nav-hot-gossip-mobile');
-    expect(mobileItems).toContain('nav-people-mobile');
   });
 
   it('anon chrome: the desktop top bar keeps a fixed height (the Sign in button must not collapse it)', async () => {
