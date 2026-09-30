@@ -165,7 +165,9 @@ services:
     #   2. TURN_URL + TURN_SECRET are set in the stack env (TURN_URL is the
     #      public URI, e.g. turn:turn.{zone}:3478 — DNS must point turn.{zone}
     #      at this host's public IP; see sync-dns.py).
-    #   3. The host firewall allows UDP 3478 + TCP 3478/5349 + UDP 49152-65535.
+    #   3. The host firewall allows UDP 3478 + TCP 3478/5349 + UDP 35000-35200
+    #      (the relay's media range — 200 ports, sized for a creator node's
+    #      concurrent P2P load; see the README "TURN relay" section).
     # TLS (turns:// on 5349) is the recommended production transport; it needs
     # a cert for the TURN hostname — until one is provisioned the service runs
     # plain (turn: on 3478), which is fine on most networks.
@@ -179,14 +181,17 @@ services:
       --use-auth-secret
       --static-auth-secret=${TURN_SECRET:-}
       --listening-port=3478
-      --min-port=49152
-      --max-port=65535
+      --min-port=35000
+      --max-port=35200
       --no-tls
     ports:
       - "3478:3478/udp"
       - "3478:3478/tcp"
       - "5349:5349/tcp"
-      - "49152-65535:49152-65535/udp"
+      # 200-port relay media range (not the 16k IANA default) — sized for a
+      # creator node's concurrent P2P load. The router/firewall only forwards
+      # this range + 3478, not the whole ephemeral block.
+      - "35000-35200:35000-35200/udp"
     restart: unless-stopped
     networks:
       internal:
