@@ -694,7 +694,7 @@ export default function UserProfileScreen({ username, provider, onBack }: UserPr
           (Instagram's mobile profile). On desktop the avatar is on the left
           with the name + buttons beside it. */}
       <div className="px-4 pt-4 pb-4">
-        <div className="flex flex-col sm:flex-row items-start gap-4 sm:gap-6">
+        <div className="flex flex-col sm:flex-row items-start gap-1.5 sm:gap-6">
           <div
             role="button"
             tabIndex={0}
@@ -743,7 +743,7 @@ export default function UserProfileScreen({ username, provider, onBack }: UserPr
           {/* The right column: name + @handle, the stats row, the bio, and the
               action buttons (Follow/Message for a viewer, Edit profile for the
               owner). The new-Instagram layout stacks them beside the avatar. */}
-          <div className="flex-1 min-w-0 pt-2">
+          <div className="flex-1 min-w-0 pt-0 sm:pt-2">
             <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3 sm:gap-4">
               <div className="min-w-0">
                 {isOwnProfile && editing ? (
