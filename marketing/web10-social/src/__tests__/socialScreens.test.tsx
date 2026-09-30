@@ -96,6 +96,20 @@ vi.mock('@/data/ads-catalog', () => ({
   checkNodeAdmin: (...a: unknown[]) => checkNodeAdmin(...a),
 }));
 
+// Mock the Messages unread store so the Layout's Messages badge is controllable
+// in tests (the real store is empty until initMessagesUnread seeds it).
+const { messagesUnreadState } = vi.hoisted(() => ({
+  messagesUnreadState: { unread: 0 },
+}));
+vi.mock('@/data/messagesUnread', () => ({
+  unreadMessagesCount: () => messagesUnreadState.unread,
+  isConversationUnread: () => false,
+  onMessagesUnreadChange: () => () => {},
+  initMessagesUnread: vi.fn(async () => {}),
+  markConversationRead: vi.fn(async () => {}),
+  teardownMessagesUnread: vi.fn(),
+}));
+
 describe('FeedScreen', () => {
   beforeEach(() => {
     vi.clearAllMocks();
@@ -708,6 +722,37 @@ describe('Layout', () => {
     expect(screen.getAllByText('Messages').length).toBeGreaterThanOrEqual(1);
   });
 
+  it('shows the purple unread count on the Messages icon when there are unread messages', async () => {
+    const { default: Layout } = await import('@/components/Social/Layout');
+    messagesUnreadState.unread = 3;
+    render(
+      <MemoryRouter initialEntries={['/feed']}>
+        <Layout onLogout={() => {}} onReportBug={() => {}}>
+          <div>Content</div>
+        </Layout>
+      </MemoryRouter>,
+    );
+    // The badge renders on both the desktop sidebar + the mobile bottom bar
+    // (both exist in the DOM in jsdom).
+    expect(screen.getByTestId('nav-messages-badge-desktop')).toHaveTextContent('3');
+    expect(screen.getByTestId('nav-messages-badge-mobile')).toHaveTextContent('3');
+    messagesUnreadState.unread = 0;
+  });
+
+  it('hides the Messages badge when there are no unread messages', async () => {
+    const { default: Layout } = await import('@/components/Social/Layout');
+    messagesUnreadState.unread = 0;
+    render(
+      <MemoryRouter initialEntries={['/feed']}>
+        <Layout onLogout={() => {}} onReportBug={() => {}}>
+          <div>Content</div>
+        </Layout>
+      </MemoryRouter>,
+    );
+    expect(screen.queryByTestId('nav-messages-badge-desktop')).not.toBeInTheDocument();
+    expect(screen.queryByTestId('nav-messages-badge-mobile')).not.toBeInTheDocument();
+  });
+
   it('sidebar profile row shows the profile pic (not the generic icon)', async () => {
     const { readProfile, resolveMediaRefs } = await import('@/data');
     vi.mocked(readProfile).mockResolvedValueOnce({
@@ -759,18 +804,19 @@ describe('Layout', () => {
     expect(screen.getByTestId('nav-games')).toBeInTheDocument();
     expect(screen.getByTestId('nav-marketplace')).toBeInTheDocument();
 
-    // The mobile bottom bar is the four pyramid destinations (People, Posts,
-    // Video, Shorts) + the More tab.
+    // The mobile bottom bar is the four destinations (Posts, Video, Shorts,
+    // Messages) + the More tab. Messages holds the bar (the DM surface + its
+    // unread badge); People (the discovery surface) lives in the More tab.
     const mobileNav = screen.getByLabelText('Primary mobile');
-    expect(within(mobileNav).getByTestId('nav-people-mobile')).toBeInTheDocument();
     expect(within(mobileNav).getByTestId('nav-feed-mobile')).toBeInTheDocument();
     expect(within(mobileNav).getByTestId('nav-video-mobile')).toBeInTheDocument();
     expect(within(mobileNav).getByTestId('nav-shorts-mobile')).toBeInTheDocument();
+    expect(within(mobileNav).getByTestId('nav-messages-mobile')).toBeInTheDocument();
     expect(within(mobileNav).getByTestId('nav-more-mobile')).toBeInTheDocument();
-    // Messages is NOT in the bar (it lives in the More sheet); Hot Gossip is
+    // People is NOT in the bar (it lives in the More sheet); Hot Gossip is
     // gone (a tab inside Posts); Settings is not in the bar either.
     expect(within(mobileNav).queryByTestId('nav-hot-gossip-mobile')).not.toBeInTheDocument();
-    expect(within(mobileNav).queryByTestId('nav-messages-mobile')).not.toBeInTheDocument();
+    expect(within(mobileNav).queryByTestId('nav-people-mobile')).not.toBeInTheDocument();
     expect(within(mobileNav).queryByTestId('nav-settings-mobile')).not.toBeInTheDocument();
     expect(within(mobileNav).queryByTestId('nav-groups-mobile')).not.toBeInTheDocument();
     // …and none of the coming-soon icons are crammed into the bar.
@@ -782,17 +828,17 @@ describe('Layout', () => {
     // The More sheet is closed by default.
     expect(screen.queryByTestId('more-sheet')).not.toBeInTheDocument();
 
-    // Tapping More opens the sheet: Profile (demoted from the bar) + Messages
-    // (no longer in the bar) + Settings (real destination) + the coming-soon
-    // list (Stories, Livestream, Games, Marketplace). People is NOT in the
-    // sheet — it's in the bottom bar.
+    // Tapping More opens the sheet: Profile (demoted from the bar) + People
+    // (the discovery surface, moved from the bar) + Settings (real destination)
+    // + the coming-soon list (Stories, Livestream, Games, Marketplace).
+    // Messages is NOT in the sheet — it's in the bottom bar.
     fireEvent.click(screen.getByTestId('nav-more-mobile'));
     const sheet = screen.getByTestId('more-sheet');
     expect(sheet).toBeInTheDocument();
     expect(within(sheet).getByTestId('nav-profile-mobile')).toBeInTheDocument();
+    expect(within(sheet).getByTestId('nav-people-mobile')).toBeInTheDocument();
     expect(within(sheet).queryByTestId('nav-hot-gossip-mobile')).not.toBeInTheDocument();
-    expect(within(sheet).queryByTestId('nav-people-mobile')).not.toBeInTheDocument();
-    expect(within(sheet).getByTestId('nav-messages-mobile')).toBeInTheDocument();
+    expect(within(sheet).queryByTestId('nav-messages-mobile')).not.toBeInTheDocument();
     expect(within(sheet).getByTestId('nav-settings-mobile')).toBeInTheDocument();
     expect(within(sheet).queryByTestId('nav-groups-mobile')).not.toBeInTheDocument();
     expect(within(sheet).getByTestId('nav-stories-mobile')).toBeInTheDocument();
@@ -813,9 +859,11 @@ describe('Layout', () => {
     // The People nav item is in the desktop sidebar (the old ?tab=explore
     // subtab is now its own destination)…
     expect(screen.getByTestId('nav-people')).toBeInTheDocument();
-    // …and in the mobile bottom bar (the four pyramid destinations).
-    const mobileNav = screen.getByLabelText('Primary mobile');
-    expect(within(mobileNav).getByTestId('nav-people-mobile')).toBeInTheDocument();
+    // …and on mobile it lives in the More tab (the bottom bar holds Posts,
+    // Video, Shorts, Messages). Open More and assert it's there.
+    fireEvent.click(screen.getByTestId('nav-more-mobile'));
+    const sheet = screen.getByTestId('more-sheet');
+    expect(within(sheet).getByTestId('nav-people-mobile')).toBeInTheDocument();
     // The old single Discover item is retired (the four destinations replace it).
     expect(screen.queryByTestId('nav-discover')).not.toBeInTheDocument();
   });

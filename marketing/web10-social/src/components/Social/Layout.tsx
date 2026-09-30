@@ -8,6 +8,7 @@ import { getWapi } from '@/data/wapi';
 import { readProfile, resolveMediaRefs } from '@/data';
 import type { ProfileRecord } from '@/data';
 import { useNotifications } from '@/hooks/useNotifications';
+import { useMessagesUnread } from '@/hooks/useMessagesUnread';
 import { useNodeAdmin } from '@/components/Monetization/useNodeAdmin';
 import NotificationBell from '@/components/Notifications/NotificationBell';
 import GlobalSearch from '@/components/Search/GlobalSearch';
@@ -122,9 +123,12 @@ export default function Layout({ onLogout, onLogin, isAnon: isAnonProp, onReport
   const sidebarNavItems = isAnon ? anonSidebarNavItems : [profileItem, peopleItem, feedItem, videoItem, shortsItem, messagesItem, monetizationItem];
   // Mobile: the four pyramid destinations (People, Posts, Video, Shorts) +
   // More (all the other icons: Profile, Messages, Monetization, Settings, ...).
-  const bottomNavItems = isAnon ? anonBottomNavItems : [peopleItem, feedItem, videoItem, shortsItem];
+  const bottomNavItems = isAnon ? anonBottomNavItems : [feedItem, videoItem, shortsItem, messagesItem];
   const [moreOpen, setMoreOpen] = useState(false);
   const { unread } = useNotifications();
+  // The Messages unread badge (the purple count on the Messages icon) — DMs
+  // have their own badge, separate from the notifications bell.
+  const { unread: messagesUnread } = useMessagesUnread();
   const { isAdmin: isNodeAdmin } = useNodeAdmin();
   const isNotifications = pathname === '/notifications';
   // The Shorts LENS (`/shorts/:postId`) is a full-screen immersive surface
@@ -286,7 +290,18 @@ export default function Layout({ onLogout, onLogin, isAnon: isAnonProp, onReport
                   )}
                 </Avatar>
               ) : (
-                <Icon className={cn('w-6 h-6 transition-colors duration-150', active && 'text-brand')} strokeWidth={active ? 2 : 1.75} />
+                <span className="relative shrink-0">
+                  <Icon className={cn('w-6 h-6 transition-colors duration-150', active && 'text-brand')} strokeWidth={active ? 2 : 1.75} />
+                  {path === '/messages' && messagesUnread > 0 && (
+                    <span
+                      data-testid="nav-messages-badge-desktop"
+                      aria-hidden="true"
+                      className="absolute -top-1.5 -right-1.5 min-w-4 h-4 px-1 rounded-full bg-brand text-background text-[0.5625rem] font-bold flex items-center justify-center"
+                    >
+                      {messagesUnread > 99 ? '99+' : messagesUnread}
+                    </span>
+                  )}
+                </span>
               )}
               <span className="truncate">{navLabel}</span>
               {active && (
@@ -630,7 +645,18 @@ export default function Layout({ onLogout, onLogin, isAnon: isAnonProp, onReport
                   aria-hidden="true"
                 />
               )}
-              <Icon className="w-5 h-5" strokeWidth={isActive(path) ? 2 : 1.75} />
+              <span className="relative">
+                <Icon className="w-5 h-5" strokeWidth={isActive(path) ? 2 : 1.75} />
+                {path === '/messages' && messagesUnread > 0 && (
+                  <span
+                    data-testid="nav-messages-badge-mobile"
+                    aria-hidden="true"
+                    className="absolute -top-1.5 -right-2 min-w-4 h-4 px-1 rounded-full bg-brand text-background text-[0.5625rem] font-bold flex items-center justify-center"
+                  >
+                    {messagesUnread > 99 ? '99+' : messagesUnread}
+                  </span>
+                )}
+              </span>
               <span className="text-[0.625rem] font-medium uppercase tracking-wide">{label}</span>
             </button>
             );
@@ -688,19 +714,18 @@ export default function Layout({ onLogout, onLogin, isAnon: isAnonProp, onReport
                   <User className="w-5 h-5" strokeWidth={1.75} />
                   {displayName || username || 'Profile'}
                 </button>
-                {/* Messages — the DM surface (no longer in the bottom bar; the
-                    four pyramid destinations — People, Posts, Video, Shorts —
-                    hold the bar, so Messages lives here). */}
+                {/* People — the discovery/browse surface (moved from the bottom
+                    bar to the More tab; Messages holds the bar instead). */}
                 <button
-                  data-testid="nav-messages-mobile"
-                  onClick={() => go(messagesItem.path)}
+                  data-testid="nav-people-mobile"
+                  onClick={() => go(peopleItem.path)}
                   className={cn(
                     'w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors duration-150',
-                    isActive(messagesItem.path) ? 'bg-brand-muted text-brand-300' : 'text-foreground hover:bg-elevated',
+                    isActive(peopleItem.path) ? 'bg-brand-muted text-brand-300' : 'text-foreground hover:bg-elevated',
                   )}
                 >
-                  <MessageSquare className="w-5 h-5" strokeWidth={1.75} />
-                  {messagesItem.label}
+                  <Users className="w-5 h-5" strokeWidth={1.75} />
+                  {peopleItem.label}
                 </button>
                 <button
                   data-testid="nav-settings-mobile"

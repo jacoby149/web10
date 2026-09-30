@@ -560,6 +560,17 @@ export interface AppSettings {
     *  same-creator / just-the-feed). Persisted so the tuning survives across
     *  sessions (URL > saved > default). */
   watchRelatedness?: string;
+  /**
+   * Per-conversation read cursors for the Messages unread badge. Keyed by the
+   * conversation key (e.g. `api.localhost/bob--api.localhost/alice`), value is
+   * the ISO timestamp of the last message the user has read in that
+   * conversation. A conversation is unread when its latest message from the
+   * OTHER party is newer than its cursor. Persisted so the badge survives
+   * across sessions/devices (the same pattern as the notifications `last_seen`
+   * cursor). DMs are NOT a notification — they have their own badge on the
+   * Messages icon (messagesUnread.ts).
+   */
+  dmReadCursors?: Record<string, string>;
 }
 
 // ── Legacy types (backward compat) ──────────────────────────────────────────

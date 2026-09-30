@@ -72,12 +72,19 @@ export async function readSettings(): Promise<AppSettings> {
       // watchRelatedness stays undefined when absent — the watch page falls
       // back to its own default (Mixed: a balanced "what's next").
       const watchRelatedness = typeof body.watchRelatedness === 'string' ? body.watchRelatedness : undefined;
+      // dmReadCursors stays undefined when absent — the Messages badge treats
+      // every conversation as unread (no cursor yet).
+      const dmReadCursors =
+        typeof body.dmReadCursors === 'object' && body.dmReadCursors !== null && Object.keys(body.dmReadCursors as object).length > 0
+          ? (body.dmReadCursors as Record<string, string>)
+          : undefined;
       cachedSettings = {
         defaultVisibility: (body.defaultVisibility as AppSettings['defaultVisibility']) || defaultSettings.defaultVisibility,
         // Absent field (a doc written before the toggle existed) → default on.
         p2pEnabled: body.p2pEnabled === undefined ? defaultSettings.p2pEnabled : Boolean(body.p2pEnabled),
         ...(feedKnobs ? { feedKnobs } : {}),
         ...(watchRelatedness ? { watchRelatedness } : {}),
+        ...(dmReadCursors ? { dmReadCursors } : {}),
       };
       LOG('readSettings — resolved:', JSON.stringify(cachedSettings));
       return cachedSettings;
@@ -111,6 +118,11 @@ export async function saveSettings(settings: Partial<AppSettings>): Promise<AppS
   // visibility-only save must not clobber a previously saved relatedness).
   if (merged.watchRelatedness) {
     body.watchRelatedness = merged.watchRelatedness;
+  }
+  // Persist the Messages read cursors when present (same rule — a
+  // visibility-only save must not clobber a previously saved cursor map).
+  if (merged.dmReadCursors) {
+    body.dmReadCursors = merged.dmReadCursors;
   }
 
   // The settings doc is only readable while attached to a group the user is

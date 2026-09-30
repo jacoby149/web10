@@ -162,7 +162,7 @@ test.describe('Social P2P real-time — two live accounts, witnessed in the DOM 
   });
 
   test(
-    'A messages B: B\'s notification badge pops to 1 AND the message lands in B\'s open thread with no reload (and vice versa)',
+    'A messages B: the message lands in B\'s open thread with no reload (the P2P fast path) AND B\'s Messages badge pops to 1 when the conversation is closed (and vice versa)',
     async ({ request }) => {
       test.setTimeout(120_000);
       const A = await signupAndLogin(request, 'p2pa');
@@ -212,37 +212,51 @@ test.describe('Social P2P real-time — two live accounts, witnessed in the DOM 
         await expect(pageA.locator('[data-testid="dm-conversation"]')).toBeVisible({ timeout: 20_000 });
         await expect(pageB.locator('[data-testid="dm-conversation"]')).toBeVisible({ timeout: 20_000 });
 
-        // --- A sends to B (NO reload / navigation on B anywhere) ---
+        // --- PHASE 1: the open-thread fast path (both threads open) ---
+        // A sends to B (NO reload / navigation on B anywhere).
         const msgA = `p2p hello from A ${Date.now()}`;
         await pageA.locator('[data-testid="dm-input"]').fill(msgA);
         await pageA.locator('[data-testid="dm-send-button"]').click();
         // A's own optimistic append (the sender always sees their own message).
         await expect(pageA.locator('[data-testid="dm-message"]').filter({ hasText: msgA })).toBeVisible({ timeout: 15_000 });
 
-        // WITNESS 1: B's notification badge pops to "1" in real time (the D69
-        // nudge) — the "message pops up with a (1)" the operator wants.
-        await expect(pageB.locator('[data-testid="nav-notifications-badge"]')).toHaveText('1', { timeout: 20_000 });
-
-        // WITNESS 2: B's OPEN thread shows the message in real time (the
+        // WITNESS 1: B's OPEN thread shows the message in real time (the
         // onP2PInbound re-read) — "immediately message loads in the dm without
         // needing a refresh."
         await expect(pageB.locator('[data-testid="dm-message"]').filter({ hasText: msgA })).toBeVisible({ timeout: 20_000 });
 
-        // WITNESS 3 (it was the P2P fast path, not a CRUD coincidence): B logged
+        // WITNESS 2 (it was the P2P fast path, not a CRUD coincidence): B logged
         // the inbound P2P handler that triggered the re-read.
         const bInboundIdx = logsB.findIndex((l) => l.includes('p2p inbound — refreshing'));
         expect(bInboundIdx, 'B must receive the inbound P2P nudge (the fast path)').toBeGreaterThanOrEqual(0);
 
-        // --- B replies to A (NO reload / navigation on A) ---
+        // B replies to A (NO reload / navigation on A).
         const msgB = `p2p reply from B ${Date.now()}`;
         await pageB.locator('[data-testid="dm-input"]').fill(msgB);
         await pageB.locator('[data-testid="dm-send-button"]').click();
         await expect(pageB.locator('[data-testid="dm-message"]').filter({ hasText: msgB })).toBeVisible({ timeout: 15_000 });
 
-        // WITNESS: A's notification badge pops to "1" + A's open thread shows
-        // the reply, again with no reload on A.
-        await expect(pageA.locator('[data-testid="nav-notifications-badge"]')).toHaveText('1', { timeout: 20_000 });
+        // WITNESS: A's open thread shows the reply in real time, no reload on A.
         await expect(pageA.locator('[data-testid="dm-message"]').filter({ hasText: msgB })).toBeVisible({ timeout: 20_000 });
+        const aInboundIdx = logsA.findIndex((l) => l.includes('p2p inbound — refreshing'));
+        expect(aInboundIdx, 'A must receive the inbound P2P nudge (the fast path)').toBeGreaterThanOrEqual(0);
+
+        // --- PHASE 2: the Messages badge (a CLOSED conversation goes unread) ---
+        // B goes back to the list (closes the thread → the conversation is no
+        // longer being read). A's next message then bumps B's Messages badge
+        // (the purple count on the Messages icon — DMs are NOT a notification).
+        await pageB.locator('[data-testid="dm-back-button"]').click();
+        await expect(pageB.locator('[data-testid="dm-new-message-btn"]')).toBeVisible({ timeout: 20_000 });
+
+        const msgA2 = `p2p badge from A ${Date.now()}`;
+        await pageA.locator('[data-testid="dm-input"]').fill(msgA2);
+        await pageA.locator('[data-testid="dm-send-button"]').click();
+        await expect(pageA.locator('[data-testid="dm-message"]').filter({ hasText: msgA2 })).toBeVisible({ timeout: 15_000 });
+
+        // WITNESS: B's Messages badge pops to "1" in real time (the closed
+        // conversation is now unread) — the "little purple circle with a number
+        // next to the messages icon."
+        await expect(pageB.locator('[data-testid="nav-messages-badge-desktop"]')).toHaveText('1', { timeout: 20_000 });
 
         // No console errors / uncaught exceptions on either side.
         const errorsA = [...logsA, ...p2pLogsA].filter((l) => l.includes('FAILED') || l.includes('Error'));

@@ -38,7 +38,6 @@ function makeClient(overrides: { readByIdDoc?: unknown } = {}) {
 
 import * as v3 from '../../data/v3';
 import { sendNotification } from '../../data/notifications';
-import { sendDm } from '../../data/dms';
 import { followUser } from '../../data/follows';
 import { createReaction } from '../../data/reactions';
 import { createComment } from '../../data/comments';
@@ -81,16 +80,6 @@ describe('write side (D69) — actions nudge the target over P2P', () => {
     it('does nothing for an empty target', () => {
       sendNotification({ username: '', provider: 'web10.app' }, { type: 'reaction', from: 'alice' });
       expect(sendP2PCalls.length).toBe(0);
-    });
-  });
-
-  describe('sendDm → nudge the recipient', () => {
-    it('nudges the DM recipient with type "dm"', async () => {
-      const conv = 'web10.app/alice--web10.app/bob';
-      await sendDm(conv, 'hey');
-      const n = lastNudge();
-      expect(n.username).toBe('bob');
-      expect(n.payload).toMatchObject({ type: 'dm', from: 'alice' });
     });
   });
 
