@@ -92,6 +92,16 @@ plain `turn:` on 3478, which is fine on most networks. The host firewall must
 allow the UDP relay range. The image is mirrored to GHCR like every other
 external image (`e2e/mirror-images.json`).
 
+**How it comes up on the box:** the real deploy path is GitHub Actions → SSH →
+`docker compose up` (`deploy.yml`), not Portainer (Portainer is only the
+management UI). `deploy.yml` reads `TURN_SECRET` from the stack env and passes
+`--profile turn` only when it's set — so a relay-less node stays STUN-only and
+an opted-in one brings the relay up with no manual flag. A manual SSH redeploy
+must add `--profile turn` itself. `scripts/sync-dns.py` creates the `turn.{zone}`
+A record (peers connect to the TURN host directly, not via NPM). `scripts/
+smoke.sh` checks `POST /ice` is reachable when the turn container is up. Full
+runbook: `ubuntu-deployment/README.md` "TURN relay (optional)".
+
 ## What it does not fix
 
 TURN relays media that *can* reach the relay. It cannot wake a genuinely
