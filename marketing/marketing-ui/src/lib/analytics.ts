@@ -55,6 +55,7 @@ export function trackFunnel(
     | 'experience_video'
     | 'experience_shorts'
     | 'experience_hot_gossip'
+    | 'experience_posts'
     | 'experience_people'
     | 'join_view'
     | 'join_click'

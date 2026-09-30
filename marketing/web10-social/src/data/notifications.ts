@@ -329,6 +329,22 @@ async function writeLastSeen(iso: string): Promise<void> {
   }
 }
 
+// The event time for a derived row: the doc's own `created_at` (the body
+// field when present, else the document column the node always sets). The
+// column fallback is the fix for the "stale badge" class — a doc written by an
+// older version that has no `body.created_at` used to fall back to "now", so it
+// was re-stamped fresh on every seed and stayed permanently unread (always
+// after the last-seen cursor). The column `created_at` is the durable write
+// time the node records, so a stale doc sorts to its real age and reads as
+// seen. "now" is the last resort (a doc with neither), which can only happen
+// on a malformed read.
+function docCreatedAt(doc: { body: Record<string, unknown>; created_at?: string }): string {
+  const inBody = (doc.body as Record<string, unknown>).created_at;
+  if (typeof inBody === 'string' && inBody) return inBody;
+  if (doc.created_at) return doc.created_at;
+  return new Date().toISOString();
+}
+
 // Derive the notification list from reads: reactions + comments on my posts
 // (from others) + the latest DM from each other party. Best-effort per source
 // — one failing read never blanks the whole list.
@@ -367,7 +383,7 @@ async function deriveNotifications(): Promise<Notification[]> {
           from: author,
           ref_doc_id: b.target_id as string | undefined,
           read: false,
-          created_at: (b.created_at as string) || new Date().toISOString(),
+          created_at: docCreatedAt(r),
         });
       }
     } catch {
@@ -386,7 +402,7 @@ async function deriveNotifications(): Promise<Notification[]> {
           from: author,
           ref_doc_id: b.post_id as string | undefined,
           read: false,
-          created_at: (b.created_at as string) || new Date().toISOString(),
+          created_at: docCreatedAt(c),
         });
       }
     } catch {
@@ -409,14 +425,13 @@ async function deriveNotifications(): Promise<Notification[]> {
         const author = extractUsername(c.author_key);
         if (author === me) continue;
         if (!c.ref_value || !myCommentIds.has(c.ref_value)) continue;
-        const b = c.body as Record<string, unknown>;
         out.push({
           id: `reply:${author}:${c.doc_id}`,
           type: 'reply',
           from: author,
           ref_doc_id: c.ref_value,
           read: false,
-          created_at: (b.created_at as string) || new Date().toISOString(),
+          created_at: docCreatedAt(c),
         });
       }
     }

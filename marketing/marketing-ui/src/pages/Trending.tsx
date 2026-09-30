@@ -52,9 +52,9 @@ type ExperienceDest = 'video' | 'shorts' | 'hot-gossip' | 'people';
 
 function destFromPath(pathname: string): ExperienceDest {
   if (pathname.startsWith('/trending/shorts')) return 'shorts';
-  if (pathname.startsWith('/trending/hot-gossip')) return 'hot-gossip';
+  if (pathname.startsWith('/trending/video')) return 'video';
   if (pathname.startsWith('/trending/people')) return 'people';
-  return 'video'; // `/trending` (the index)
+  return 'hot-gossip'; // `/trending` (the index) — Posts is the default (the content)
 }
 
 // The social app's `?knobs=` encoding (DiscoverScreen): the five detent
@@ -579,15 +579,17 @@ function Trending() {
   //     conditional return between hook calls breaks the hook order). The old
   //     `?view=grid` (Hot Gossip) + `?tab=profiles|people|groups` (the People
   //     browser) map to the flat destinations, carrying `?q=` / `?tag=` over.
+  //     The legacy params only appear in old URLs (the new UI uses the flat
+  //     routes), so these fire on the params regardless of the current dest.
   const legacyView = searchParams.get('view');
   const legacyTab = searchParams.get('tab');
-  if ((legacyView === 'grid' || legacyView === 'youtube') && dest === 'video') {
+  if (legacyView === 'grid' || legacyView === 'youtube') {
     const params = new URLSearchParams(searchParams);
     params.delete('view');
     const qs = params.toString();
-    return <Navigate to={`/trending/hot-gossip${qs ? `?${qs}` : ''}`} replace />;
+    return <Navigate to={`/trending/posts${qs ? `?${qs}` : ''}`} replace />;
   }
-  if (legacyTab && dest === 'video') {
+  if (legacyTab) {
     const params = new URLSearchParams(searchParams);
     params.delete('tab');
     const qs = params.toString();
@@ -832,8 +834,8 @@ function Trending() {
                   <EmptyBoard
                     title="No media posts yet"
                     body="The Video wall shows posts with videos."
-                    ctaLabel="Switch to Hot Gossip"
-                    ctaHref="/trending/hot-gossip"
+                    ctaLabel="Switch to Posts"
+                    ctaHref="/trending/posts"
                   />
                 )}
               </>
@@ -889,7 +891,7 @@ function Trending() {
                     title="No shorts yet"
                     body="The Shorts wall shows vertical (9:16) videos."
                     ctaLabel="Switch to Video"
-                    ctaHref="/trending"
+                    ctaHref="/trending/video"
                   />
                 )}
               </>

@@ -45,7 +45,6 @@ const feedItem = { path: '/feed', icon: Flame, label: 'Posts', testId: 'nav-feed
 // The sidebar owns the nav; the ?view= / ?tab= salad retires.
 const videoItem = { path: '/video', icon: Video, label: 'Video', testId: 'nav-video' };
 const shortsItem = { path: '/shorts', icon: Clapperboard, label: 'Shorts', testId: 'nav-shorts' };
-const hotGossipItem = { path: '/hot-gossip', icon: Flame, label: 'Hot Gossip', testId: 'nav-hot-gossip' };
 const peopleItem = { path: '/people', icon: Users, label: 'People', testId: 'nav-people' };
 const messagesItem = { path: '/messages', icon: MessageSquare, label: 'Messages', testId: 'nav-messages' };
 // The profile nav item shows the user's name/username (not the word "Profile")
@@ -112,19 +111,19 @@ export default function Layout({ onLogout, onLogin, isAnon: isAnonProp, onReport
   // Video leads the anon nav (a signed-out visitor is here for the video — the
   // video wall is the front door, Shorts the lens). The signed-in order (M6)
   // is unchanged.
-  const anonSidebarNavItems = [videoItem, shortsItem, hotGossipItem, peopleItem];
-  const anonBottomNavItems = [videoItem, shortsItem, hotGossipItem, peopleItem];
-  // The four destinations are full SIDEBAR items (desktop). The mobile bottom
-  // bar stays at five max (design.md §9): the core (Posts, Video, Shorts,
-  // Messages) + More; People lives in the More sheet on mobile.
-  //
-  // Signed-in: Hot Gossip is NO LONGER a separate sidebar item — it's a tab
-  // inside the merged Posts destination (the X/Threads model). The sidebar
-  // shows Posts (the flame, /feed) in Hot Gossip's old slot. Anon keeps the
-  // separate Hot Gossip item (a signed-out visitor has no personal feed, so
-  // there's no "Posts" container for them — Hot Gossip is the public board).
-  const sidebarNavItems = isAnon ? anonSidebarNavItems : [profileItem, videoItem, shortsItem, feedItem, peopleItem, messagesItem, monetizationItem];
-  const bottomNavItems = isAnon ? anonBottomNavItems : [feedItem, videoItem, shortsItem, messagesItem];
+  // The pyramid order (the operator, 29.09.2026): People → Posts → Video →
+  // Shorts. People validates "wow there are people here!" (the node stats),
+  // then the user makes their way down the pyramid: Posts (the ranked board),
+  // Video (the wall), Shorts (the lens). Anon + signed-in share the order.
+  const anonSidebarNavItems = [peopleItem, feedItem, videoItem, shortsItem];
+  const anonBottomNavItems = [peopleItem, feedItem, videoItem, shortsItem];
+  // Signed-in: Profile at the top, then the pyramid (People, Posts, Video,
+  // Shorts), then Messages + Monetization. More holds the rest (Settings,
+  // Node Monetization, Node Settings, coming-soon).
+  const sidebarNavItems = isAnon ? anonSidebarNavItems : [profileItem, peopleItem, feedItem, videoItem, shortsItem, messagesItem, monetizationItem];
+  // Mobile: the four pyramid destinations (People, Posts, Video, Shorts) +
+  // More (all the other icons: Profile, Messages, Monetization, Settings, ...).
+  const bottomNavItems = isAnon ? anonBottomNavItems : [peopleItem, feedItem, videoItem, shortsItem];
   const [moreOpen, setMoreOpen] = useState(false);
   const { unread } = useNotifications();
   // The Messages unread badge (the purple count on the Messages icon) — DMs
@@ -715,21 +714,19 @@ export default function Layout({ onLogout, onLogin, isAnon: isAnonProp, onReport
                   <User className="w-5 h-5" strokeWidth={1.75} />
                   {displayName || username || 'Profile'}
                 </button>
-                {/* People — the Discover-split destination that doesn't hold a
-                    bottom-bar slot (the bar stays at five max); it lives here
-                    on mobile. Hot Gossip is no longer a separate item — it's a
-                    tab inside Posts (the X/Threads model), reachable via the
-                    bottom-bar Posts item. */}
+                {/* Messages — the DM surface (no longer in the bottom bar; the
+                    four pyramid destinations — People, Posts, Video, Shorts —
+                    hold the bar, so Messages lives here). */}
                 <button
-                  data-testid="nav-people-mobile"
-                  onClick={() => go(peopleItem.path)}
+                  data-testid="nav-messages-mobile"
+                  onClick={() => go(messagesItem.path)}
                   className={cn(
                     'w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors duration-150',
-                    isActive(peopleItem.path) ? 'bg-brand-muted text-brand-300' : 'text-foreground hover:bg-elevated',
+                    isActive(messagesItem.path) ? 'bg-brand-muted text-brand-300' : 'text-foreground hover:bg-elevated',
                   )}
                 >
-                  <Users className="w-5 h-5" strokeWidth={1.75} />
-                  {peopleItem.label}
+                  <MessageSquare className="w-5 h-5" strokeWidth={1.75} />
+                  {messagesItem.label}
                 </button>
                 <button
                   data-testid="nav-settings-mobile"
