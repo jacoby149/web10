@@ -3,20 +3,37 @@ import Provider from "./FormInputs/Provider";
 import Username from "./FormInputs/Username";
 import CredentialStatus from "./CredentialStatus";
 import { Button } from '@/components/ui/button';
+import { isTokenExpired } from 'web10-npm';
 
 // `embedded` renders just the fields + actions (no card chrome, no
 // "create account") so it can sit inside another surface — e.g. ConsentView.
 function LoginForm({ I, embedded = false }: { I: Record<string, any>; embedded?: boolean }) {
   const remembered: { username: string; provider: string }[] = I.rememberedAccounts || [];
+  // Accounts with a LIVE (non-expired) vaulted token on THIS node — a one-tap
+  // switch, no password (the token IS the proof). Expired / revoked tokens
+  // fall back to the identifier path (pre-fill + password). The rest are
+  // identifiers only and pre-fill the form (password still required).
+  const vaulted = new Set<string>(
+    ((I.vaultedAccounts || []) as { username: string; provider: string; token: string }[])
+      .filter((a) => !isTokenExpired(a.token))
+      .map((a) => a.provider + '/' + a.username),
+  );
+  const isVaulted = (a: { username: string; provider: string }) => vaulted.has(a.provider + '/' + a.username);
 
-  // Picking a remembered account pre-fills the provider + username and focuses
-  // the password — the Google-style fast path. The password is still required
-  // (the list is identifiers only, never a token).
+  // Picking a remembered account:
+  //  - vaulted → one-tap switch (adopt the live token, confirm, reload grants)
+  //  - otherwise → pre-fill the provider + username and focus the password
+  //    (the Google-style fast path; the password is still required).
   function selectAccount(a: { username: string; provider: string }) {
+    if (isVaulted(a)) {
+      I.switchAccount?.(a.username, a.provider);
+      return;
+    }
     const p = document.getElementById('provider') as HTMLInputElement | null;
     const u = document.getElementById('username') as HTMLInputElement | null;
     if (p) p.value = a.provider;
     if (u) u.value = a.username;
+    I.setLoginUsername?.(a.username);
     const pw = document.getElementById('password') as HTMLInputElement | null;
     if (pw) pw.focus();
   }
@@ -53,6 +70,11 @@ function LoginForm({ I, embedded = false }: { I: Record<string, any>; embedded?:
                   <span className="block truncate text-sm font-medium text-foreground">{a.username}</span>
                   <span className="block truncate text-xs text-muted-foreground">{a.provider}</span>
                 </span>
+                {isVaulted(a) && (
+                  <span className="shrink-0 rounded-full bg-brand-muted px-2 py-0.5 text-[11px] font-medium text-brand-300" data-testid={`account-picker-instant-${a.username}`}>
+                    instant
+                  </span>
+                )}
               </button>
             ))}
           </div>
@@ -63,6 +85,7 @@ function LoginForm({ I, embedded = false }: { I: Record<string, any>; embedded?:
             onClick={() => {
               const u = document.getElementById('username') as HTMLInputElement | null;
               if (u) { u.value = ''; u.focus(); }
+              I.setLoginUsername?.('');
             }}
           >
             Use another account

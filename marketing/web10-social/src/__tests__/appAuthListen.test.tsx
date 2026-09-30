@@ -117,10 +117,12 @@ describe('App renders', () => {
     expect(screen.getByTestId('new-post-fab')).toBeInTheDocument();
   });
 
-  it('a signed-in user at the root lands on /video (the default), not /feed', async () => {
-    // The operator: "video should be the default that it goes to". The
-    // catch-all route sends signed-in users to /video (the video wall),
-    // not /feed. A bare "/" (or any unknown path) lands on Video.
+  it('a signed-in user at the root lands on /feed (the default — Posts, the content)', async () => {
+    // The content pyramid (the operator, 29.09.2026): People → Posts → Video →
+    // Shorts. Posts is the default landing (the content, not the profiles —
+    // "the people tab is kind of boring just a bunch of profiles not actual
+    // content, so by default have that second tab selected"). A bare "/" (or
+    // any unknown path) lands on Posts (/feed).
     installWeb10Mock({
       token: 'signed-in-token',
       payload: { username: 'testuser', provider: 'test.localhost', site: 'web10' },
@@ -131,12 +133,12 @@ describe('App renders', () => {
         <App />
       </MemoryRouter>
     );
-    // The Video destination (DiscoverScreen) renders — the nav-video item
-    // is active (the sidebar highlights the current destination).
+    // The Posts destination (PostsScreen) renders — the nav-feed item is
+    // active (the sidebar highlights the current destination).
     await waitFor(() => {
-      const videoNav = container.querySelector('[data-testid="nav-video"]');
-      expect(videoNav).not.toBeNull();
-      expect(videoNav).toHaveAttribute('aria-current', 'page');
+      const feedNav = container.querySelector('[data-testid="nav-feed"]');
+      expect(feedNav).not.toBeNull();
+      expect(feedNav).toHaveAttribute('aria-current', 'page');
     });
   });
 });
