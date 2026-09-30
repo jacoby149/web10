@@ -133,7 +133,7 @@ describe('createCommunityGroup', () => {
     expect(roleNames).toContain('member');
     expect(roleNames).toContain('owner');
     expect(members).toEqual([
-      { member_key: 'web10.app/users/jacoby149', role: 'owner' },
+      { member_key: 'jacoby149', role: 'owner' },
       { member_key: 'anyone', role: 'reader' },
     ]);
     // D78: the group is tagged as a community (the My Groups selection key).
@@ -163,14 +163,14 @@ describe('createCommunityGroup', () => {
     await createCommunityGroup({ name: 'S', visibility: 'signed_in' }, 'jacoby149');
     let members = mock.createGroup.mock.calls[0][3];
     expect(members).toEqual([
-      { member_key: 'web10.app/users/jacoby149', role: 'owner' },
+      { member_key: 'jacoby149', role: 'owner' },
       { member_key: 'authenticated', role: 'reader' },
     ]);
 
     mock.createGroup.mockClear();
     await createCommunityGroup({ name: 'P', visibility: 'private' }, 'jacoby149');
     members = mock.createGroup.mock.calls[0][3];
-    expect(members).toEqual([{ member_key: 'web10.app/users/jacoby149', role: 'owner' }]);
+    expect(members).toEqual([{ member_key: 'jacoby149', role: 'owner' }]);
   });
 });
 

@@ -556,6 +556,17 @@ export async function updateGroup(): Promise<unknown> { return {}; }
 export async function addGroupMember(): Promise<unknown> { return {}; }
 export async function removeGroupMember(): Promise<unknown> { return {}; }
 export async function deleteGroup(): Promise<unknown> { return { status: 'deleted' }; }
+// The "dead group" heal — the harness has no backend, so the heal is a no-op
+// (returns false → no re-read) and groupCreator is the real pure parse.
+export function groupCreator(groupId: string): string {
+  const parts = groupId.split('/');
+  const u = parts.indexOf('users');
+  if (u >= 0 && u + 1 < parts.length) return parts[u + 1];
+  const g = parts.indexOf('groups');
+  if (g >= 0 && g + 1 < parts.length) return parts[g + 1];
+  return '';
+}
+export async function healGroupOwnership(): Promise<boolean> { return false; }
 // G4: the create entry point + the slug guard — the group detail / edit mode
 // import these from the @/data barrel. (saveGroup / publishGroup — the atomic
 // commit — are stubbed above with the other group fns.)

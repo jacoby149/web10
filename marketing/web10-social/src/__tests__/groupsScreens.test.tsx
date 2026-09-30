@@ -39,6 +39,8 @@ vi.mock('@/data', async (importOriginal) => {
     denyJoinRequest: vi.fn().mockResolvedValue({ status: 'declined' }),
     inviteMember: vi.fn().mockResolvedValue({ status: 'invited' }),
     deleteGroup: vi.fn().mockResolvedValue({ status: 'deleted' }),
+    // The "dead group" heal (re-points the creator to owner). Default: no-op.
+    healGroupOwnership: vi.fn().mockResolvedValue(false),
     joinGroup: vi.fn().mockResolvedValue({ status: 'joined' }),
     requestJoinGroup: vi.fn().mockResolvedValue({ status: 'pending' }),
     leaveGroup: vi.fn().mockResolvedValue({ status: 'left' }),
@@ -80,8 +82,9 @@ import {
   getJoinRequests,
   approveJoinRequest,
   denyJoinRequest,
-  inviteMember,
-  deleteGroup,
+    inviteMember,
+    deleteGroup,
+    healGroupOwnership,
     joinGroup,
     requestJoinGroup,
     leaveGroup,
@@ -291,6 +294,100 @@ describe('GroupsScreen', () => {
     await waitFor(() => {
       expect(screen.getAllByTestId('groups-my-row').length).toBe(1);
     });
+  });
+
+  it('heals an owned-but-dead group on load (the "dead group" fix) and re-reads', async () => {
+    // First read: the group is dead (creator == "me", my_role "admin"). Second
+    // read (after the heal): the group is owned.
+    vi.mocked(getMyCommunityGroups)
+      .mockResolvedValueOnce([
+        { group_id: 'api.localhost/groups/users/me/deadgroup', join_policy: 'open', my_role: 'admin', member_count: 1 },
+      ] as never)
+      .mockResolvedValue([
+        { group_id: 'api.localhost/groups/users/me/deadgroup', join_policy: 'open', my_role: 'owner', member_count: 1 },
+      ] as never);
+    vi.mocked(healGroupOwnership).mockResolvedValue(true);
+    const { default: GroupsScreen } = await import('@/components/Groups/GroupsScreen');
+    render(
+      <MemoryRouter initialEntries={['/groups']}>
+        <GroupsScreen />
+      </MemoryRouter>,
+    );
+    await waitFor(() => {
+      expect(screen.getByTestId('groups-my-list')).toBeInTheDocument();
+    });
+    // The heal fired for the dead group (creator == the token's user).
+    await waitFor(() => {
+      expect(healGroupOwnership).toHaveBeenCalledWith('api.localhost/groups/users/me/deadgroup', 'me');
+    });
+    // The list re-read after the heal so it reflects the owned state.
+    await waitFor(() => {
+      expect(getMyCommunityGroups).toHaveBeenCalledTimes(2);
+    });
+    // The healed group now shows the owner badge.
+    expect(screen.getByTestId('groups-my-role-owner')).toBeInTheDocument();
+  });
+
+  it('does NOT heal a group the user did not create', async () => {
+    vi.mocked(getMyCommunityGroups).mockResolvedValue([
+      { group_id: 'api.localhost/groups/users/alice/gaming', join_policy: 'open', my_role: 'member', member_count: 42 },
+    ] as never);
+    const { default: GroupsScreen } = await import('@/components/Groups/GroupsScreen');
+    render(
+      <MemoryRouter initialEntries={['/groups']}>
+        <GroupsScreen />
+      </MemoryRouter>,
+    );
+    await waitFor(() => {
+      expect(screen.getByTestId('groups-my-list')).toBeInTheDocument();
+    });
+    // "me" did not create alice's group → no heal.
+    expect(healGroupOwnership).not.toHaveBeenCalled();
+  });
+
+  it('the delete button on an owner row is a two-tap confirm (deleteGroup)', async () => {
+    vi.mocked(getMyCommunityGroups).mockResolvedValue([
+      { group_id: 'api.localhost/groups/users/me/mine', join_policy: 'open', my_role: 'owner', member_count: 3 },
+    ] as never);
+    const { default: GroupsScreen } = await import('@/components/Groups/GroupsScreen');
+    render(
+      <MemoryRouter initialEntries={['/groups']}>
+        <GroupsScreen />
+      </MemoryRouter>,
+    );
+    await waitFor(() => {
+      expect(screen.getByTestId('groups-my-list')).toBeInTheDocument();
+    });
+    const del = screen.getByTestId('groups-delete-button');
+    // First tap arms the confirm (no delete yet).
+    fireEvent.click(del);
+    expect(deleteGroup).not.toHaveBeenCalled();
+    expect(del).toHaveTextContent('Confirm?');
+    // Second tap deletes and removes the row.
+    fireEvent.click(del);
+    await waitFor(() => {
+      expect(deleteGroup).toHaveBeenCalledWith('api.localhost/groups/users/me/mine');
+    });
+    await waitFor(() => {
+      expect(screen.queryByTestId('groups-my-row')).not.toBeInTheDocument();
+    });
+  });
+
+  it('a non-owner row shows Leave, not Delete', async () => {
+    vi.mocked(getMyCommunityGroups).mockResolvedValue([
+      { group_id: 'api.localhost/groups/users/alice/gaming', join_policy: 'open', my_role: 'member', member_count: 42 },
+    ] as never);
+    const { default: GroupsScreen } = await import('@/components/Groups/GroupsScreen');
+    render(
+      <MemoryRouter initialEntries={['/groups']}>
+        <GroupsScreen />
+      </MemoryRouter>,
+    );
+    await waitFor(() => {
+      expect(screen.getByTestId('groups-my-list')).toBeInTheDocument();
+    });
+    expect(screen.getByTestId('groups-leave-button')).toBeInTheDocument();
+    expect(screen.queryByTestId('groups-delete-button')).not.toBeInTheDocument();
   });
 
   it('shows the empty state with a Discover CTA when in no groups', async () => {
@@ -731,6 +828,41 @@ describe('GroupDetailScreen', () => {
       expect(screen.getByTestId('group-detail-hero')).toBeInTheDocument();
     });
     expect(screen.queryByTestId('group-detail-kebab')).not.toBeInTheDocument();
+  });
+
+  it('heals an owned-but-dead group on load (creator == me, not in manages) and reloads', async () => {
+    const DEAD_ID = 'api.localhost/groups/users/me/deadgroup';
+    vi.mocked(readGroupDetail).mockResolvedValue({ ...mockDetailMember, group_id: DEAD_ID, owner: 'me' } as never);
+    // Dead: the user created it (creator == me) but it is not in getGroupsManages.
+    vi.mocked(getGroupsManages).mockResolvedValue([]);
+    vi.mocked(healGroupOwnership).mockResolvedValue(true);
+    const { default: GroupDetailScreen } = await import('@/components/Groups/GroupDetailScreen');
+    render(
+      <MemoryRouter initialEntries={['/groups/x']}>
+        <GroupDetailScreen groupId={DEAD_ID} />
+      </MemoryRouter>,
+    );
+    await waitFor(() => {
+      expect(screen.getByTestId('group-detail-hero')).toBeInTheDocument();
+    });
+    // The heal fired (creator == the token's user, not manageable).
+    await waitFor(() => {
+      expect(healGroupOwnership).toHaveBeenCalledWith(DEAD_ID, 'me');
+    });
+    // The screen reloaded after the heal (the detail read fired twice).
+    await waitFor(() => {
+      expect(readGroupDetail).toHaveBeenCalledTimes(2);
+    });
+  });
+
+  it('does NOT heal a group the user did not create (detail)', async () => {
+    // GROUP_ID's creator is "carol", not "me" → no heal even when not manageable.
+    vi.mocked(getGroupsManages).mockResolvedValue([]);
+    await loadDetail();
+    await waitFor(() => {
+      expect(screen.getByTestId('group-detail-hero')).toBeInTheDocument();
+    });
+    expect(healGroupOwnership).not.toHaveBeenCalled();
   });
 
   it('clicking the kebab opens the management sheet with its tabs (Members + Roles — Profile/Settings retired)', async () => {

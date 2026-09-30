@@ -852,6 +852,57 @@ class TestLeaveGroup:
         assert resp.json()["status"] == "left"
 
 
+class TestHealGroupOwner:
+    """The "dead group" heal: re-point the group's ownership to its creator."""
+
+    GROUP = {
+        "group_id": "api.localhost/groups/users/testuser/mine",
+        "roles": [{"name": "owner", "permissions": {"group": ["manageRoles", "deleteGroup"]}}],
+        "join_policy": "open",
+        "discoverable": False,
+        "tags": ["web10-social-group"],
+        "membership_visibility": "hidden",
+        "created_at": "2026-01-01",
+        "updated_at": "2026-01-01",
+    }
+
+    def test_creator_can_heal(self, client, token):
+        with (
+            patch("app.v3.services.clickhouse.get_group", return_value=self.GROUP),
+            patch("app.v3.services.clickhouse.ensure_creator_owner") as mock_heal,
+        ):
+            resp = client.post(
+                "/v3/groups/heal-owner",
+                json={"token": token, "group_id": self.GROUP["group_id"]},
+            )
+        assert resp.status_code == 200
+        assert resp.json()["status"] == "healed"
+        # The creator (testuser, from the group_id) is re-pointed to owner.
+        mock_heal.assert_called_once_with(self.GROUP["group_id"], "testuser", self.GROUP["roles"])
+
+    def test_non_creator_cannot_heal(self, client, token):
+        other = {**self.GROUP, "group_id": "api.localhost/groups/users/alice/mine"}
+        with (
+            patch("app.v3.services.clickhouse.get_group", return_value=other),
+            patch("app.v3.services.clickhouse.ensure_creator_owner") as mock_heal,
+        ):
+            resp = client.post(
+                "/v3/groups/heal-owner",
+                json={"token": token, "group_id": other["group_id"]},
+            )
+        # The creator (alice) != the caller (testuser) → denied.
+        assert resp.status_code == 401
+        mock_heal.assert_not_called()
+
+    def test_group_not_found(self, client, token):
+        with patch("app.v3.services.clickhouse.get_group", return_value=None):
+            resp = client.post(
+                "/v3/groups/heal-owner",
+                json={"token": token, "group_id": self.GROUP["group_id"]},
+            )
+        assert resp.status_code == 404
+
+
 class TestJoinRequests:
     """Join request approval/denial endpoints (owner/moderator only)."""
 

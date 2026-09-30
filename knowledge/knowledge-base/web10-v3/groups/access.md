@@ -186,6 +186,64 @@ members:
 `discoverable: false` (not a directory entry) + `anyone`-readable (the public
 board). The two controls are independent — see `discoverability.md`.
 
+## Ownership: the creator is the owner (+ the "dead group" heal)
+
+A created group's id is `{provider}/groups/users/{creator}/{slug}` — the
+**creator** is baked into the id. The access model's load-bearing ownership
+rule is: **the creator of a group is its `owner`.** The `owner` role is the one
+that carries the management ops (`manageRoles` / `assignRoles` / `revokeRoles` /
+`deleteGroup` under the `'group'` key, `access.md` role shape). If the creator's
+resolvable role is anything other than `owner`, the group is **dead**: it shows
+in the creator's list (they are a member) but the Edit / kebab / delete never
+appear, because the permission checks resolve the creator to a role that grants
+no management op.
+
+### The member-key format that caused the "dead groups" bug
+
+The node resolves the acting user to the **bare username** (`_user` → the JWT
+`username` claim) on every read/write path, and the permission checks look the
+creator up by that bare key. A client that stored the owner row under a
+**different key form** (e.g. the full `{provider}/users/{username}`) therefore
+left the creator's bare-username row unmanaged: the client's `owner` row was
+never matched, and the node's `create_group` — not finding the bare-username
+creator among the passed members — added `{username} → admin`, a role that is
+**not defined** in the community contract (owner / moderator / page-curator /
+member / reader). The creator's resolvable role (`admin`) granted nothing →
+dead group. The followers group never hit this because it writes the owner row
+under the bare username (the form the node matches).
+
+### The guarantee + the heal
+
+Two layers keep the rule true:
+
+- **At creation (the node, `create_group`)** — after adding the passed member
+  rows, the node runs `ensure_creator_owner(group_id, creator, roles)`: if the
+  contract defines an `owner` role and the creator's bare-username row is not
+  already `owner`, it inserts a current `owner` row for the creator (the
+  ReplacingMergeTree latest-row dedup makes it win over a stale non-owner row).
+  It is a no-op for contracts with no `owner` role (e.g. DM groups) and when the
+  creator is already the owner. The node is correct by construction regardless
+  of the member-key form a client sends.
+- **On load (the self-heal, `POST /v3/groups/heal-owner`)** — an existing dead
+  group is repaired the moment it is opened. The endpoint is gated on
+  **creator == caller** (the creator is derived from the group_id; only the
+  creator can heal their group's ownership) and is idempotent. It runs
+  `ensure_creator_owner`. The SDK exposes `healGroupOwner`; web10-social calls
+  it on load (the My Groups list + the group detail) whenever a group the user
+  created is not manageable, then re-reads — so a dead group becomes
+  editable/deletable again with no operator intervention.
+
+The heal is **safe by construction**: it only ever elevates the *creator* to
+`owner` (which is correct by definition — the creator of a group is its owner),
+only for a group the caller created, and only when the contract has an `owner`
+role. It never demotes anyone, never touches a group the caller didn't create,
+and is a no-op once the creator is the owner.
+
+This is distinct from the **contract-drift heal** (`contract-healing.md`), which
+keeps the *shape* of a contract (roles / tags / join policy) in line with an
+app's canonical spec. The ownership heal keeps the *creator's role* correct — a
+member-key referential-integrity concern, not a role-definition concern.
+
 ## Why ClickHouse makes this cheap
 
 The role check never touches the big `documents` table. The read path is:

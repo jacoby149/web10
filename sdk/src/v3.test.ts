@@ -141,6 +141,7 @@ describe('v3 client', () => {
       expect(client).toHaveProperty('getGroupsManages')
       expect(client).toHaveProperty('updateGroup')
       expect(client).toHaveProperty('deleteGroup')
+      expect(client).toHaveProperty('healGroupOwner')
       expect(client).toHaveProperty('joinGroup')
       expect(client).toHaveProperty('requestJoin')
       expect(client).toHaveProperty('leaveGroup')
@@ -827,6 +828,16 @@ describe('v3 client', () => {
       expect(result.status).toBe('deleted')
       expect(http.authPost).toHaveBeenCalledWith(
         'http://api.localhost/v3/groups/delete',
+        expect.objectContaining({ group_id: 'g1', token: mockToken }),
+      )
+    })
+
+    it('healGroupOwner posts groups/heal-owner', async () => {
+      vi.spyOn(http, 'authPost').mockResolvedValueOnce({ group_id: 'g1', status: 'healed' } as any)
+      const result = await client.healGroupOwner('g1')
+      expect(result.status).toBe('healed')
+      expect(http.authPost).toHaveBeenCalledWith(
+        'http://api.localhost/v3/groups/heal-owner',
         expect.objectContaining({ group_id: 'g1', token: mockToken }),
       )
     })
