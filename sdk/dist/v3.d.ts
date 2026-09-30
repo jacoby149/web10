@@ -503,6 +503,10 @@ export interface V3Client {
         group_id: string;
         status: string;
     }>;
+    healGroupOwner(groupId: string): Promise<{
+        group_id: string;
+        status: string;
+    }>;
     joinGroup(groupId: string): Promise<V3GroupMember | {
         group_id: string;
         status: string;

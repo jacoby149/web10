@@ -444,6 +444,28 @@ await w.leaveGroup('web10.app/groups/alice/followers')
 // → { group_id: 'web10.app/groups/alice/followers', member_key: 'jacoby149', status: 'left' }
 ```
 
+### Heal Group Ownership (the "dead group" fix)
+
+Re-points a group's ownership to its **creator** (the `{creator}` segment of the
+group id). Use it when a group you created is no longer manageable — the
+creator's member row drifted to a non-owner role (or a key form the node doesn't
+resolve), so the Edit / delete affordances never appear. Gated server-side on
+**creator == caller** (only the creator can heal their group) and idempotent
+(a group already owned by the creator is a no-op). It is a no-op for groups
+whose contract defines no `owner` role (e.g. DM groups).
+
+```ts
+// The creator (jacoby149) re-claims ownership of a group they created
+await w.healGroupOwner('web10.app/groups/jacoby149/boxin-club')
+// → { group_id: 'web10.app/groups/jacoby149/boxin-club', status: 'healed' }
+
+// A non-creator gets a 401
+await w.healGroupOwner('web10.app/groups/alice/some-group')
+// → throws (401) — the creator (alice) != the caller
+```
+
+See `groups/access.md` ("Ownership: the creator is the owner") for the model.
+
 ### Invite a Member
 
 Sends an invite. The target user receives it with the role offered. They can accept or decline.

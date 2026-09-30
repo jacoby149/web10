@@ -41,6 +41,8 @@ import {
   Video,
   Search,
   X,
+  MoreHorizontal,
+  Edit3,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { MARKETING_ORIGIN } from '@/lib/origins';
@@ -285,6 +287,10 @@ interface DiscoverCardProps {
   id?: string;
   /** Extra classes (the Hot Gossip ?post= highlight ring). */
   className?: string;
+  /** When set (the post is the reader's own), the card shows an owner kebab
+   *  whose "Edit post" opens the app-level composer in edit mode (the ONE edit
+   *  path — discover had no edit surface before). */
+  onEdit?: () => void;
 }
 
 function DiscoverCard({
@@ -303,7 +309,12 @@ function DiscoverCard({
   onToggleRepost,
   id,
   className,
+  onEdit,
 }: DiscoverCardProps) {
+  // The owner kebab (own posts only) — a self-contained overlay on the shared
+  // presentational card, which has no edit surface of its own. "Edit post"
+  // opens the app-level composer in edit mode (the ONE edit path).
+  const [ownerMenuOpen, setOwnerMenuOpen] = useState(false);
   // D74: the social discover card is now the SHARED discover card (the same one
   // the marketing /trending uses) — one source, both apps. The data seam (wapi
   // readComments / createComment) is injected; onAuthorClick navigates in-app.
@@ -311,34 +322,65 @@ function DiscoverCard({
   // same way of reacting as the feed (post-actions.md) — and the repost
   // (reposts.md, independent of like).
   return (
-    <SharedDiscoverCard
-      post={postRecordToDiscoverPost(post, mediaItems, authorName)}
-      rank={rank}
-      maxScore={maxScore}
-      authorAvatar={authorAvatar}
-      onAuthorClick={onAuthorClick}
-      onCommentAuthorClick={onCommentAuthorClick}
-      liked={liked}
-      disliked={disliked}
-      reposted={reposted}
-      onToggleReaction={onToggleReaction}
-      onToggleRepost={onToggleRepost}
-      readComments={readThreadComments}
-      readReplies={readThreadReplies}
-      createComment={discoverCreateComment}
-      // The attached-ad renderer (ad-improvements.md): each attached ad renders
-      // per its format (inline AdBlock / full PostAdCard). The shared card is
-      // presentational, so the app injects its ad components here.
-      renderAd={(ad) => <AttachedAd ad={ad as unknown as AdRecord} />}
-      testId="discover-card"
-      id={id}
-      className={className}
-      // A full-width 9:16 box is ~1.78× the card tall — too big on desktop,
-      // and it buries the control rack at its bottom. Cap the portrait frame
-      // (centered in a black letterbox), consistent with the marketing
-      // /trending card. Landscape is unaffected (only portrait is capped).
-      videoMaxWidth="min(50vh, 100%)"
-    />
+    <div className="relative">
+      {onEdit && (
+        <>
+          <button
+            type="button"
+            onClick={() => setOwnerMenuOpen((o) => !o)}
+            aria-label="Post options"
+            data-testid="discover-card-options"
+            className="absolute right-2 top-2 z-20 flex h-8 w-8 items-center justify-center rounded-full bg-background/70 text-muted-foreground backdrop-blur-sm transition-colors hover:text-foreground hover:bg-background/90"
+          >
+            <MoreHorizontal className="w-4 h-4" />
+          </button>
+          {ownerMenuOpen && (
+            <div
+              className="absolute right-2 top-11 z-30 w-40 overflow-hidden rounded-lg border border-border bg-card shadow-lg"
+              data-testid="discover-card-options-menu"
+            >
+              <button
+                type="button"
+                onClick={() => { setOwnerMenuOpen(false); onEdit(); }}
+                className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm text-foreground hover:bg-elevated transition-colors"
+                data-testid="discover-card-option-edit"
+              >
+                <Edit3 className="w-4 h-4" />
+                Edit post
+              </button>
+            </div>
+          )}
+        </>
+      )}
+      <SharedDiscoverCard
+        post={postRecordToDiscoverPost(post, mediaItems, authorName)}
+        rank={rank}
+        maxScore={maxScore}
+        authorAvatar={authorAvatar}
+        onAuthorClick={onAuthorClick}
+        onCommentAuthorClick={onCommentAuthorClick}
+        liked={liked}
+        disliked={disliked}
+        reposted={reposted}
+        onToggleReaction={onToggleReaction}
+        onToggleRepost={onToggleRepost}
+        readComments={readThreadComments}
+        readReplies={readThreadReplies}
+        createComment={discoverCreateComment}
+        // The attached-ad renderer (ad-improvements.md): each attached ad renders
+        // per its format (inline AdBlock / full PostAdCard). The shared card is
+        // presentational, so the app injects its ad components here.
+        renderAd={(ad) => <AttachedAd ad={ad as unknown as AdRecord} />}
+        testId="discover-card"
+        id={id}
+        className={className}
+        // A full-width 9:16 box is ~1.78× the card tall — too big on desktop,
+        // and it buries the control rack at its bottom. Cap the portrait frame
+        // (centered in a black letterbox), consistent with the marketing
+        // /trending card. Landscape is unaffected (only portrait is capped).
+        videoMaxWidth="min(50vh, 100%)"
+      />
+    </div>
 
   );
 }
@@ -1256,6 +1298,11 @@ export default function DiscoverScreen({ mode: modeOverride }: { mode?: Discover
                       ];
 
                       const isHighlighted = !!highlightPostId && (post._id || '') === highlightPostId;
+                      // The reader's own post → the owner kebab (edit via the
+                      // app-level composer — discover had no edit surface before).
+                      const isOwnPost =
+                        !!getWapi()?.readToken()?.username &&
+                        post.author_username === getWapi()!.readToken()!.username;
                       const card = (
                         <DiscoverCard
                           key={post._id || post.created_at}
@@ -1276,6 +1323,7 @@ export default function DiscoverScreen({ mode: modeOverride }: { mode?: Discover
                           reposted={!!repostedMap[post._id || '']}
                           onToggleReaction={(kind) => handleToggleReaction(post._id || '', kind)}
                           onToggleRepost={() => handleRepost(post)}
+                          onEdit={isOwnPost ? () => openComposer({ editingPost: post }) : undefined}
                           id={isHighlighted ? 'hot-gossip-highlight' : undefined}
                           className={isHighlighted ? 'ring-2 ring-brand border-brand shadow-[0_0_24px_-4px_var(--color-glow-intense)]' : undefined}
                         />
