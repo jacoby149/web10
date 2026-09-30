@@ -3,19 +3,17 @@ import { Video, Clapperboard, Flame, Users } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { trackFunnel } from '@/lib/analytics';
 
-// The experience's nav (watch-page.md, the Discover split): the four flat
-// destinations — Video · Shorts · Hot Gossip · People — "YouTube but two more
-// things on the sidebar than YouTube!" The first item is **Video**, not Home
-// (the video wall is called what it is, because it *is* videos). The shell
-// owns the nav; each destination is a flat route under `/` (the index is
-// Video). The `TrendingSidebar` ("Top 10") is a *content* rail inside Hot
-// Gossip, not this nav rail.
-
+// The experience's nav (the content pyramid, least → most addictive): People
+// → Posts → Video → Shorts. People is the conceptual tip (the "why there's a
+// network here" — the directory), but it's profiles, not content, so **Posts
+// is the default (the index)** — the ranked board, the actual content (the
+// operator, 29.09.2026: "the people tab is kind of boring just a bunch of
+// profiles not actual content, so by default have that second tab selected").
 const destinations = [
-  { to: '/trending', label: 'Video', icon: Video, end: true, funnel: 'experience_video' },
-  { to: '/trending/shorts', label: 'Shorts', icon: Clapperboard, end: false, funnel: 'experience_shorts' },
-  { to: '/trending/hot-gossip', label: 'Hot Gossip', icon: Flame, end: false, funnel: 'experience_hot_gossip' },
   { to: '/trending/people', label: 'People', icon: Users, end: false, funnel: 'experience_people' },
+  { to: '/trending', label: 'Posts', icon: Flame, end: true, funnel: 'experience_posts' },
+  { to: '/trending/video', label: 'Video', icon: Video, end: false, funnel: 'experience_video' },
+  { to: '/trending/shorts', label: 'Shorts', icon: Clapperboard, end: false, funnel: 'experience_shorts' },
 ] as const;
 
 const itemClass = ({ isActive }: { isActive: boolean }) =>
