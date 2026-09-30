@@ -8,8 +8,10 @@ import { getWapi } from '@/data/wapi';
 import { readProfile, resolveMediaRefs } from '@/data';
 import type { ProfileRecord } from '@/data';
 import { useNotifications } from '@/hooks/useNotifications';
+import { useMessagesUnread } from '@/hooks/useMessagesUnread';
 import { useNodeAdmin } from '@/components/Monetization/useNodeAdmin';
 import NotificationBell from '@/components/Notifications/NotificationBell';
+import NotificationsScreen from '@/components/Notifications/NotificationsScreen';
 import GlobalSearch from '@/components/Search/GlobalSearch';
 import { NewPostFab } from '@/components/Feed/NewPostFab';
 
@@ -44,7 +46,6 @@ const feedItem = { path: '/feed', icon: Flame, label: 'Posts', testId: 'nav-feed
 // The sidebar owns the nav; the ?view= / ?tab= salad retires.
 const videoItem = { path: '/video', icon: Video, label: 'Video', testId: 'nav-video' };
 const shortsItem = { path: '/shorts', icon: Clapperboard, label: 'Shorts', testId: 'nav-shorts' };
-const hotGossipItem = { path: '/hot-gossip', icon: Flame, label: 'Hot Gossip', testId: 'nav-hot-gossip' };
 const peopleItem = { path: '/people', icon: Users, label: 'People', testId: 'nav-people' };
 const messagesItem = { path: '/messages', icon: MessageSquare, label: 'Messages', testId: 'nav-messages' };
 // The profile nav item shows the user's name/username (not the word "Profile")
@@ -111,23 +112,34 @@ export default function Layout({ onLogout, onLogin, isAnon: isAnonProp, onReport
   // Video leads the anon nav (a signed-out visitor is here for the video — the
   // video wall is the front door, Shorts the lens). The signed-in order (M6)
   // is unchanged.
-  const anonSidebarNavItems = [videoItem, shortsItem, hotGossipItem, peopleItem];
-  const anonBottomNavItems = [videoItem, shortsItem, hotGossipItem, peopleItem];
-  // The four destinations are full SIDEBAR items (desktop). The mobile bottom
-  // bar stays at five max (design.md §9): the core (Posts, Video, Shorts,
-  // Messages) + More; People lives in the More sheet on mobile.
-  //
-  // Signed-in: Hot Gossip is NO LONGER a separate sidebar item — it's a tab
-  // inside the merged Posts destination (the X/Threads model). The sidebar
-  // shows Posts (the flame, /feed) in Hot Gossip's old slot. Anon keeps the
-  // separate Hot Gossip item (a signed-out visitor has no personal feed, so
-  // there's no "Posts" container for them — Hot Gossip is the public board).
-  const sidebarNavItems = isAnon ? anonSidebarNavItems : [profileItem, videoItem, shortsItem, feedItem, peopleItem, messagesItem, monetizationItem];
+  // The pyramid order (the operator, 29.09.2026): People → Posts → Video →
+  // Shorts. People validates "wow there are people here!" (the node stats),
+  // then the user makes their way down the pyramid: Posts (the ranked board),
+  // Video (the wall), Shorts (the lens). Anon + signed-in share the order.
+  const anonSidebarNavItems = [peopleItem, feedItem, videoItem, shortsItem];
+  const anonBottomNavItems = [peopleItem, feedItem, videoItem, shortsItem];
+  // Signed-in: Profile at the top, then the pyramid (People, Posts, Video,
+  // Shorts), then Messages + Monetization. More holds the rest (Settings,
+  // Node Monetization, Node Settings, coming-soon).
+  const sidebarNavItems = isAnon ? anonSidebarNavItems : [profileItem, peopleItem, feedItem, videoItem, shortsItem, messagesItem, monetizationItem];
+  // Mobile: the four pyramid destinations (People, Posts, Video, Shorts) +
+  // More (all the other icons: Profile, Messages, Monetization, Settings, ...).
   const bottomNavItems = isAnon ? anonBottomNavItems : [feedItem, videoItem, shortsItem, messagesItem];
   const [moreOpen, setMoreOpen] = useState(false);
   const { unread } = useNotifications();
+  // The Messages unread badge (the purple count on the Messages icon) — DMs
+  // have their own badge, separate from the notifications bell.
+  const { unread: messagesUnread } = useMessagesUnread();
   const { isAdmin: isNodeAdmin } = useNodeAdmin();
   const isNotifications = pathname === '/notifications';
+  // The notifications panel (the operator: notifications "just toggles open
+  // closed, also an x button to hide the page, sending you back to where you
+  // were right last" — it is NOT its own page). One fixed panel, anchored
+  // under the bell on desktop, full-width under the header on mobile. The
+  // URL never changes (the user stays on their screen); the /notifications
+  // route remains for deep links and renders the same component full-page.
+  const [notificationsOpen, setNotificationsOpen] = useState(false);
+  const notificationsPanelRef = useRef<HTMLDivElement>(null);
   // The Shorts LENS (`/shorts/:postId`) is a full-screen immersive surface
   // (the TikTok model): the bottom tab bar would overlap the action rail + the
   // comment sheet, so it is hidden on the lens. The exit is the back arrow the
@@ -137,6 +149,21 @@ export default function Layout({ onLogout, onLogin, isAnon: isAnonProp, onReport
   // the bar). The Shorts WALL (`/shorts`, no `:postId`) is a normal scrollable
   // grid — it keeps the normal chrome (top bar + bottom nav + pb-16).
   const isShorts = /^\/shorts\/[^/]+/.test(pathname);
+  // The floating "+" New Post button only makes sense where posting IS the
+  // surface's job: the Posts destination (the feed + the board), the Video
+  // wall, the Shorts wall (a short IS a post), and your OWN profile (post to
+  // your followers). It is hidden on every other surface — People (a browser),
+  // other people's profiles, group pages (a member's "Post to this group"
+  // button is the compose entry there), Monetization, Settings, Node Settings,
+  // Notifications — where a "New post" bubble reads as noise (the operator,
+  // 30.09.2026: "make new post on people tab doesnt make sense, on the
+  // monetize tab doesnt make sense").
+  const isOwnProfile = !!token && pathname === `/u/${token.username}`;
+  const isPostDestination =
+    pathname === '/feed' ||
+    pathname === '/video' ||
+    pathname === '/shorts' ||
+    isOwnProfile;
 
   // The Monetization surface holds its section in the URL (`?tab=node`). The
   // two nav entries are the switcher — each must highlight on its OWN section,
@@ -220,6 +247,29 @@ export default function Layout({ onLogout, onLogin, isAnon: isAnonProp, onReport
     };
   }, [moreMenuOpen]);
 
+  // The notifications panel closes on outside click + Esc (the popover
+  // idiom — the same pattern the More popover + user menu run).
+  useEffect(() => {
+    if (!notificationsOpen) return;
+    const onDown = (e: MouseEvent) => {
+      if (notificationsPanelRef.current && !notificationsPanelRef.current.contains(e.target as Node)) setNotificationsOpen(false);
+    };
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setNotificationsOpen(false);
+    };
+    document.addEventListener('mousedown', onDown);
+    document.addEventListener('keydown', onKey);
+    return () => {
+      document.removeEventListener('mousedown', onDown);
+      document.removeEventListener('keydown', onKey);
+    };
+  }, [notificationsOpen]);
+
+  // A route change (any navigation) closes the panel — the user moved on.
+  useEffect(() => {
+    setNotificationsOpen(false);
+  }, [pathname]);
+
   const isActive = (path: string) => {
     if (path === '/profile') return pathname.startsWith('/u/');
     if (path === '/groups') return pathname.startsWith('/groups');
@@ -287,7 +337,18 @@ export default function Layout({ onLogout, onLogin, isAnon: isAnonProp, onReport
                   )}
                 </Avatar>
               ) : (
-                <Icon className={cn('w-6 h-6 transition-colors duration-150', active && 'text-brand')} strokeWidth={active ? 2 : 1.75} />
+                <span className="relative shrink-0">
+                  <Icon className={cn('w-6 h-6 transition-colors duration-150', active && 'text-brand')} strokeWidth={active ? 2 : 1.75} />
+                  {path === '/messages' && messagesUnread > 0 && (
+                    <span
+                      data-testid="nav-messages-badge-desktop"
+                      aria-hidden="true"
+                      className="absolute -top-1.5 -right-1.5 min-w-4 h-4 px-1 rounded-full bg-brand text-background text-[0.5625rem] font-bold flex items-center justify-center"
+                    >
+                      {messagesUnread > 99 ? '99+' : messagesUnread}
+                    </span>
+                  )}
+                </span>
               )}
               <span className="truncate">{navLabel}</span>
               {active && (
@@ -403,7 +464,10 @@ export default function Layout({ onLogout, onLogin, isAnon: isAnonProp, onReport
               </Button>
             ) : (
               <>
-                <NotificationBell />
+                <NotificationBell
+                  open={notificationsOpen}
+                  onToggle={() => setNotificationsOpen((o) => !o)}
+                />
                 <Button
                   variant="ghost"
                   size="icon"
@@ -464,20 +528,24 @@ export default function Layout({ onLogout, onLogin, isAnon: isAnonProp, onReport
             <>
             {/* Notifications — the bell lives in the top bar next to the
                 account row (the operator: "notifications could go in the top
-                right next to the other thing on the top right"). The unread
+                right next to the other thing on the top right"). It TOGGLES
+                the notifications panel (not a page — the operator: "just
+                toggles open closed, also an x button to hide the page,
+                sending you back to where you were right last"). The unread
                 badge mirrors the sidebar's (retired from the sidebar). */}
             <button
               type="button"
               data-testid="nav-notifications"
               aria-label="Notifications"
-              onClick={() => navigate('/notifications')}
+              aria-expanded={notificationsOpen}
+              onClick={() => setNotificationsOpen((o) => !o)}
               className={cn(
                 'relative flex items-center justify-center h-9 w-9 rounded-lg transition-colors duration-150',
                 'hover:bg-elevated/80 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand/50',
-                isNotifications ? 'text-brand' : 'text-muted-foreground',
+                notificationsOpen ? 'bg-elevated/80 text-foreground' : 'text-muted-foreground',
               )}
             >
-              <Bell className="w-5 h-5" strokeWidth={isNotifications ? 2 : 1.75} />
+              <Bell className="w-5 h-5" strokeWidth={notificationsOpen || unread > 0 ? 2 : 1.75} />
               {unread > 0 && (
                 <span
                   data-testid="nav-notifications-badge"
@@ -584,13 +652,13 @@ export default function Layout({ onLogout, onLogin, isAnon: isAnonProp, onReport
         )}
 
         {/* The always-on signal (D69): a live "N new" strip above every screen.
-            It clears the moment you open /notifications (which marks all read),
-            so it's a nudge, not a permanent fixture. */}
+            It opens the notifications panel (the same toggle the bell is) and
+            clears the moment the panel marks all read. */}
         {unread > 0 && !isNotifications && !isAnon && (
           <button
             type="button"
             data-testid="notification-banner"
-            onClick={() => navigate('/notifications')}
+            onClick={() => setNotificationsOpen(true)}
             className="flex items-center gap-2 px-4 py-2 bg-brand-muted/60 border-b border-brand/20 text-sm text-brand-300 hover:bg-brand-muted transition-colors duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand/50"
           >
             <Bell className="w-4 h-4 shrink-0" strokeWidth={2} />
@@ -599,6 +667,27 @@ export default function Layout({ onLogout, onLogin, isAnon: isAnonProp, onReport
             </span>
             <span className="ml-auto text-xs underline underline-offset-2 shrink-0">View</span>
           </button>
+        )}
+
+        {/* The notifications panel — the bell's popover (the operator:
+            notifications "just toggles open closed, also an x button to hide
+            the page, sending you back to where you were right last" — NOT
+            its own page). Anchored under the bell on desktop, full-width
+            under the header on mobile. The URL never changes; the X (in the
+            panel header) + outside click + Esc all close it. The same
+            component the /notifications route renders full-page. */}
+        {notificationsOpen && !isAnon && (
+          <div
+            ref={notificationsPanelRef}
+            data-testid="notifications-panel"
+            role="dialog"
+            aria-label="Notifications"
+            className="fixed z-40 inset-x-0 top-14 bottom-14 bg-surface flex flex-col md:inset-x-auto md:top-14 md:right-4 md:bottom-auto md:w-96 md:max-w-[calc(100vw-2rem)] md:max-h-[calc(100vh-4rem)] md:rounded-lg md:border md:border-border md:shadow-[0_8px_30px_rgb(0,0,0/0.35)] md:bg-popover md:overflow-hidden"
+          >
+            <div className="flex-1 min-h-0 overflow-y-auto">
+              <NotificationsScreen onClose={() => setNotificationsOpen(false)} />
+            </div>
+          </div>
         )}
 
         <div className={cn('flex-1 min-h-0 overflow-y-auto md:pb-0', isShorts ? '' : 'pb-16')}>
@@ -631,7 +720,18 @@ export default function Layout({ onLogout, onLogin, isAnon: isAnonProp, onReport
                   aria-hidden="true"
                 />
               )}
-              <Icon className="w-5 h-5" strokeWidth={isActive(path) ? 2 : 1.75} />
+              <span className="relative">
+                <Icon className="w-5 h-5" strokeWidth={isActive(path) ? 2 : 1.75} />
+                {path === '/messages' && messagesUnread > 0 && (
+                  <span
+                    data-testid="nav-messages-badge-mobile"
+                    aria-hidden="true"
+                    className="absolute -top-1.5 -right-2 min-w-4 h-4 px-1 rounded-full bg-brand text-background text-[0.5625rem] font-bold flex items-center justify-center"
+                  >
+                    {messagesUnread > 99 ? '99+' : messagesUnread}
+                  </span>
+                )}
+              </span>
               <span className="text-[0.625rem] font-medium uppercase tracking-wide">{label}</span>
             </button>
             );
@@ -689,11 +789,8 @@ export default function Layout({ onLogout, onLogin, isAnon: isAnonProp, onReport
                   <User className="w-5 h-5" strokeWidth={1.75} />
                   {displayName || username || 'Profile'}
                 </button>
-                {/* People — the Discover-split destination that doesn't hold a
-                    bottom-bar slot (the bar stays at five max); it lives here
-                    on mobile. Hot Gossip is no longer a separate item — it's a
-                    tab inside Posts (the X/Threads model), reachable via the
-                    bottom-bar Posts item. */}
+                {/* People — the discovery/browse surface (moved from the bottom
+                    bar to the More tab; Messages holds the bar instead). */}
                 <button
                   data-testid="nav-people-mobile"
                   onClick={() => go(peopleItem.path)}
@@ -785,7 +882,7 @@ export default function Layout({ onLogout, onLogin, isAnon: isAnonProp, onReport
             surface (a chat has its own bottom-right send button the FAB would
             cover — and a "new post" affordance inside a conversation is noise),
             and in anon mode (a signed-out visitor can't post). */}
-        <NewPostFab hidden={isShorts || isAnon || pathname.startsWith('/messages')} />
+        <NewPostFab hidden={!isPostDestination || isShorts || isAnon || pathname.startsWith('/messages')} />
       </main>
     </div>
   );

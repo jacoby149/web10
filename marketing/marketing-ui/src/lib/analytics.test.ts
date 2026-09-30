@@ -18,7 +18,7 @@ describe('analytics', () => {
     it('fires a pageview event via sendBeacon', () => {
       trackPageview('/docs/sdk')
       expect(navigator.sendBeacon).toHaveBeenCalledWith(
-        expect.stringContaining('/analytics/pageview'),
+        expect.stringContaining('/analytics/event'),
         expect.stringContaining('"path":"/docs/sdk"'),
       )
     })
@@ -28,7 +28,7 @@ describe('analytics', () => {
     it('fires a funnel event via sendBeacon', () => {
       trackFunnel('landing')
       expect(navigator.sendBeacon).toHaveBeenCalledWith(
-        expect.stringContaining('/analytics/funnel'),
+        expect.stringContaining('/analytics/event'),
         expect.stringContaining('"event":"landing"'),
       )
     })
@@ -36,7 +36,7 @@ describe('analytics', () => {
     it('includes metadata when provided', () => {
       trackFunnel('exporter_view', { platform: 'instagram' })
       expect(navigator.sendBeacon).toHaveBeenCalledWith(
-        expect.stringContaining('/analytics/funnel'),
+        expect.stringContaining('/analytics/event'),
         expect.stringContaining('"platform":"instagram"'),
       )
     })
@@ -46,7 +46,7 @@ describe('analytics', () => {
     it('fires an error event via sendBeacon', () => {
       reportError('TypeError: x is not defined', { source: 'app.js', line: 42 })
       expect(navigator.sendBeacon).toHaveBeenCalledWith(
-        expect.stringContaining('/analytics/error'),
+        expect.stringContaining('/analytics/event'),
         expect.stringContaining('"TypeError: x is not defined"'),
       )
     })
@@ -76,7 +76,7 @@ describe('analytics', () => {
       const errHandler = window.onerror!
       errHandler('ReferenceError: foo is not defined', 'script.js', 10, 5, new Error('foo is not defined'))
       expect(navigator.sendBeacon).toHaveBeenCalledWith(
-        expect.stringContaining('/analytics/error'),
+        expect.stringContaining('/analytics/event'),
         expect.stringContaining('foo is not defined'),
       )
     })
@@ -98,7 +98,7 @@ describe('analytics', () => {
         }))
       })
       expect(navigator.sendBeacon).toHaveBeenCalledWith(
-        expect.stringContaining('/analytics/error'),
+        expect.stringContaining('/analytics/event'),
         expect.stringContaining('unhandled'),
       )
     })

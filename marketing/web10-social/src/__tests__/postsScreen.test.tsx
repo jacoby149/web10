@@ -151,16 +151,22 @@ describe('PostsScreen (the merged Feed + Hot Gossip surface)', () => {
     await screen.findByTestId('feed-empty');
   });
 
-  it('anon /feed renders just the board (no tab row, no composer)', async () => {
-    // Anon: no session → no personal feed → no Following tab. The screen is
-    // just the Discover board (the public ledger).
+  it('anon /feed renders the board with the Following tab greyed out', async () => {
+    // Anon: no session → no personal feed → the Following tab is greyed out
+    // (the operator, 29.09.2026: "if on anon the following tab should be
+    // greyed out"). The screen is the Discover board (the public ledger) with
+    // the tab row, Following disabled.
     const { getWapi } = await import('@/data/wapi');
     (getWapi as ReturnType<typeof vi.fn>).mockReturnValue({
       readToken: vi.fn().mockReturnValue(null),
     });
     await renderPosts('/feed');
-    // No tab row (a single board, not a tabbed surface).
-    expect(screen.queryByTestId('posts-tab-row')).not.toBeInTheDocument();
+    // The tab row is present (a tabbed surface, not a single board).
+    expect(screen.getByTestId('posts-tab-row')).toBeInTheDocument();
+    // The Following tab is greyed out (aria-disabled) for anon.
+    expect(screen.getByTestId('posts-tab-following')).toHaveAttribute('aria-disabled', 'true');
+    // The Discover tab is active (the default).
+    expect(screen.getByTestId('posts-tab-discover')).toHaveAttribute('aria-selected', 'true');
     // No composer (anon can't post).
     expect(screen.queryByTestId('post-composer')).not.toBeInTheDocument();
     // The board renders (the public ledger).

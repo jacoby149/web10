@@ -41,7 +41,7 @@ export function NewPostSheet() {
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-end justify-center sm:items-center sm:p-6"
+      className="fixed inset-0 z-50 flex items-end justify-center px-3 pb-3 sm:items-center sm:p-6"
       role="dialog"
       aria-modal="true"
       aria-label={repostingTo ? 'Repost' : 'New post'}
@@ -53,11 +53,11 @@ export function NewPostSheet() {
         aria-hidden="true"
       />
       <div
-        className="relative w-full max-w-lg max-h-[90vh] overflow-y-auto rounded-t-lg border-t border-border bg-card shadow-[0_-8px_30px_rgb(0,0,0,0.35)] sm:rounded-lg sm:border animate-panel-in"
+        className="relative w-full max-w-lg max-h-[90vh] overflow-y-auto rounded-xl border border-border bg-card shadow-[0_-8px_30px_rgb(0,0,0,0.35)] sm:rounded-lg animate-panel-in"
         data-testid="new-post-sheet-panel"
       >
-        <div className="sticky top-0 z-10 flex items-center justify-between border-b border-border bg-card px-4 py-3">
-          <h3 className="flex items-center gap-2 font-display text-base font-medium text-foreground">
+        <div className="sticky top-0 z-10 relative border-b border-border bg-card px-4 py-3">
+          <h3 className="flex items-center justify-center gap-2 font-display text-base font-medium text-foreground">
             {repostingTo ? (
               <>
                 <Repeat2 className="w-4 h-4 text-brand" strokeWidth={2} />
@@ -72,7 +72,7 @@ export function NewPostSheet() {
             onClick={closeComposer}
             aria-label="Close"
             data-testid="new-post-sheet-close"
-            className="p-1.5 rounded-full text-muted-foreground hover:text-foreground hover:bg-elevated transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-card"
+            className="absolute right-3 top-1/2 -translate-y-1/2 p-1.5 rounded-full text-muted-foreground hover:text-foreground hover:bg-elevated transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-card"
           >
             <X className="w-4 h-4" />
           </button>

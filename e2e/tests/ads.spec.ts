@@ -381,7 +381,9 @@ test.describe('Ads gauntlet — composer pin → follower sees the ad block', ()
     await expect(pageC.locator('[data-testid="post-composer"]')).toBeVisible();
 
     const myPost = `pinned ad post ${Date.now()}`;
-    await pageC.locator('[data-testid="post-composer"] textarea').fill(myPost);
+    // The caption is a Tiptap contenteditable (D85) — no `<textarea>` anymore.
+    // Playwright's `.fill()` supports `[contenteditable]`.
+    await pageC.locator('[data-testid="composer-textarea"]').fill(myPost);
 
     // Open the pin picker → it lists the creator's ad (the catalog read).
     await pageC.locator('[data-testid="pin-ad-button"]').click();

@@ -7,6 +7,24 @@ new endpoint. (This doc's original "API pushes via WebSocket" model is
 retired — D66 rejects a server push channel: no Redis, no pub/sub, and
 `api/rtc` is a PeerJS *signaling* server, not a fan-out bus.)
 
+## The Surface: a panel, not a page
+
+The bell (desktop top bar + mobile header) and the "N new" banner **toggle a
+panel** — they do not navigate. The panel is one fixed element in the `Layout`
+(the popover idiom the More menu + user menu run): anchored under the bell on
+desktop (right-aligned, 384px, shadowed), full-width under the header on
+mobile (above the tab bar). It renders `NotificationsScreen` in **panel mode**
+(the `onClose` prop): the header gains an **X** beside "Mark all read", and a
+row click navigates to the event's deep link AND closes the panel. The URL
+never changes while the panel is open, so closing it (X, outside click, Esc,
+row click, or any route change) puts the user back exactly where they were —
+the operator's "just toggles open closed, also an x button to hide the page,
+sending you back to where you were right last."
+
+The `/notifications` route is kept for deep links: the same component,
+full-page, no X (it closes via the bell). The e2e gauntlet's `notifications-list`
+witness works either way — the panel renders the same list.
+
 ## What the Screen Shows
 
 ```
@@ -72,6 +90,16 @@ never trusts the payload's content.
 
 No new API endpoint: the generic CRUD + the ref-count read + `w.query()`
 cover it.
+
+**The event time (what the cursor compares against) is the doc's write time,
+not "now."** A row is *read* when its event time is at/before the `last_seen`
+cursor. The event time comes from the doc's own `created_at` — the **body**
+field when present, else the **document column** `created_at` (the node always
+sets it — the true write time). It must never fall back to `new Date()` ("now"):
+a doc written by an older version that lacks `body.created_at` would otherwise
+be re-stamped "now" on every seed, stay permanently after the cursor, and pin
+the badge (the "2 notifications always" bug, 3.184.3). The column fallback is
+what makes a stale doc sort to its real age and read as seen.
 
 **Write side (the nudge) — the actor's app pushes on a targeting action:**
 

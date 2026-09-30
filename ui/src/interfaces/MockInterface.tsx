@@ -8,10 +8,15 @@ function useMockInterface() {
 
     I.config = config;
 
+    // ?mock_mode=<mode> previews a specific authenticated console screen
+    // (e.g. ?mock=1&mock_mode=analytics) without a node — sets auth + the
+    // initial mode. Absent → the default mock (signed-out, contracts).
+    const mockMode = new URLSearchParams(window.location.search).get("mock_mode");
+
     [I.theme, I.setTheme] = React.useState("dark");
     [I.logo, I.setLogo] = React.useState(config.REACT_APP_LOGO_DARK);
     [I.menuCollapsed, I.setMenuCollapsed] = React.useState(true);
-    [I.mode, I._setMode] = React.useState("contracts");
+    [I.mode, I._setMode] = React.useState(mockMode || "contracts");
     [I.search, I.setSearch] = React.useState("");
 
     [I.services, I.setServices] = React.useState(mockServices);
@@ -24,7 +29,7 @@ function useMockInterface() {
     [I.recoveryVerifyToken, I.setRecoveryVerifyToken] = React.useState("");
     [I.recoveryAccounts, I.setRecoveryAccounts] = React.useState<any[]>([]);
 
-    [I.auth, I.setAuth] = React.useState(false);
+    [I.auth, I.setAuth] = React.useState(!!mockMode);
     [I.isAdmin, I.setIsAdmin] = React.useState(true);
     [I.verified, I.setVerified] = React.useState(false);
     [I.status, I.setStatus] = React.useState<string | null>(null);

@@ -65,8 +65,8 @@ describe('notifications (app-wide store, D69)', () => {
     client = mockClient();
     vi.spyOn(v3, 'getV3Client').mockReturnValue(client as never);
     vi.spyOn(groups, 'ensureFollowers').mockResolvedValue('web10.app/groups/users/alice/followers');
-    // One non-DM group (the derive reads posts/reactions/comments from it; no
-    // DM groups → listConversations returns [] → no DM notifications).
+    // One non-DM group (the derive reads posts/reactions/comments from it; DMs
+    // are not a notification type — they have their own Messages badge).
     vi.spyOn(groups, 'getMyGroups').mockResolvedValue([
       { group_id: 'web10.app/groups/web10/discover', member_count: 10 } as never,
     ]);
@@ -130,6 +130,47 @@ describe('notifications (app-wide store, D69)', () => {
       // The reaction (Jan 1) predates the cursor (Jan 2) → read.
       expect(notifications.getNotifications()).toHaveLength(1);
       expect(notifications.unreadCount()).toBe(0);
+    });
+
+    it('uses the doc column created_at (not "now") when body.created_at is missing — a stale doc stays read', async () => {
+      // The "stale badge" regression (jacoby149, 29.09.2026): an old version
+      // wrote comments WITHOUT body.created_at. The derive used to fall back to
+      // new Date().toISOString() ("now"), so the doc was re-stamped fresh on
+      // every seed and stayed permanently unread (always after last_seen). The
+      // fix reads the document column created_at (the node always sets it), so
+      // a stale doc sorts to its real age and reads as seen.
+      client.read = vi.fn(async (collection: string) => {
+        if (collection === 'posts') return [{ doc_id: 'post-1', author_key: 'web10.app/alice', body: { text: 'hi' } }];
+        // A stale comment: body has NO created_at, but the column does (Sept 18).
+        if (collection === 'comments') return [{ doc_id: 'c1', author_key: 'web10.app/samhanks', ref_value: 'post-1', created_at: '2026-09-18T00:36:59Z', body: { text: 'Yoooooo', post_id: 'post-1', author_username: 'samhanks' } }];
+        // Cursor is Sept 29 — the stale comment (Sept 18) predates it → read.
+        if (collection === 'notifications') return [{ doc_id: 'cursor', author_key: 'web10.app/alice', body: { last_seen: '2026-09-29T22:03:07Z' } }];
+        return [];
+      }) as never;
+      await notifications.initNotifications();
+      const [row] = notifications.getNotifications();
+      expect(row).toMatchObject({ type: 'comment', from: 'samhanks' });
+      // The row's created_at is the column value, not "now".
+      expect(row.created_at).toBe('2026-09-18T00:36:59Z');
+      // It predates the cursor → read (the badge is NOT stuck).
+      expect(row.read).toBe(true);
+      expect(notifications.unreadCount()).toBe(0);
+    });
+
+    it('still marks a stale doc unread when its column created_at is after the cursor', async () => {
+      // The column fallback must not over-mark: a stale doc (no body.created_at)
+      // whose column created_at is AFTER the cursor is genuinely unread.
+      client.read = vi.fn(async (collection: string) => {
+        if (collection === 'posts') return [{ doc_id: 'post-1', author_key: 'web10.app/alice', body: { text: 'hi' } }];
+        if (collection === 'comments') return [{ doc_id: 'c1', author_key: 'web10.app/samhanks', ref_value: 'post-1', created_at: '2026-09-30T00:00:00Z', body: { text: 'newer', post_id: 'post-1' } }];
+        if (collection === 'notifications') return [{ doc_id: 'cursor', author_key: 'web10.app/alice', body: { last_seen: '2026-09-29T22:03:07Z' } }];
+        return [];
+      }) as never;
+      await notifications.initNotifications();
+      const [row] = notifications.getNotifications();
+      expect(row.created_at).toBe('2026-09-30T00:00:00Z');
+      expect(row.read).toBe(false);
+      expect(notifications.unreadCount()).toBe(1);
     });
 
     it('derives a follow notification for each new follower (excluding self)', async () => {

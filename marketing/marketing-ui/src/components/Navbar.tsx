@@ -6,10 +6,10 @@ import GitHubStarButton from './GitHubStarButton'
 import { trackFunnel } from '../lib/analytics'
 import { SOCIAL_ORIGIN } from '../lib/origins'
 
-// The nav leads with the pitch (the pre-Discover-split layout): the landing
-// page is the front door (Home, `/`), and the social experience is Trending
-// (`/trending`). The experience's sub-destinations (Video · Shorts · Hot
-// Gossip · People) keep Trending lit while the visitor is anywhere in the
+// The nav leads with the pitch (the SELL): the landing page is the front door
+// (Home, `/`), and the social experience is Trending (`/trending`) — the
+// content pyramid (People · Posts · Video · Shorts). The experience's
+// sub-destinations keep Trending lit while the visitor is anywhere in the
 // experience.
 const navItems = [
   { path: '/', label: 'Home' },
@@ -19,10 +19,9 @@ const navItems = [
   { path: '/join', label: 'Join' },
 ]
 
-// The experience's sub-destinations (the /trending split): Trending stays lit
-// while the visitor is anywhere in the experience (Video, Shorts, Hot Gossip,
-// People).
-const EXPERIENCE_PATHS = ['/trending/shorts', '/trending/hot-gossip', '/trending/people']
+// The experience's sub-destinations (the pyramid): Trending stays lit while
+// the visitor is anywhere in the experience (People, Posts, Video, Shorts).
+const EXPERIENCE_PATHS = ['/trending/shorts', '/trending/posts', '/trending/video', '/trending/people']
 
 const learnItems = [
   { path: '/freedom', label: 'Freedom' },

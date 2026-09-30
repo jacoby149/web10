@@ -4,6 +4,7 @@ import '@testing-library/jest-dom';
 import * as data from '@/data';
 
 import { lucideMock } from './helpers/lucideMock';
+import { typeInComposer } from './helpers/tiptap';
 vi.mock('lucide-react', () => lucideMock);
 
 vi.mock('@/data', async (importOriginal) => {
@@ -69,8 +70,13 @@ describe('PostComposer — repost mode (reposts.md)', () => {
 
   it('the textarea placeholder becomes "Add a comment…" in repost mode', async () => {
     const { default: PostComposer } = await import('@/components/Feed/PostComposer');
-    render(<PostComposer repostingTo={ORIGINAL} onRepostCancel={() => {}} />);
-    expect(await screen.findByPlaceholderText('Add a comment…')).toBeInTheDocument();
+    const { container } = render(<PostComposer repostingTo={ORIGINAL} onRepostCancel={() => {}} />);
+    // The caption is a Tiptap editor: the placeholder is a `data-placeholder`
+    // attr on the empty paragraph, not a `placeholder` attr on a textarea.
+    await screen.findByTestId('composer-textarea');
+    const empty = container.querySelector('[data-placeholder]');
+    expect(empty).toBeTruthy();
+    expect(empty?.getAttribute('data-placeholder')).toBe('Add a comment…');
   });
 
   it('the submit button reads "Repost" in repost mode', async () => {
@@ -100,7 +106,7 @@ describe('PostComposer — repost mode (reposts.md)', () => {
     const onRepostCancel = vi.fn();
     const { default: PostComposer } = await import('@/components/Feed/PostComposer');
     render(<PostComposer repostingTo={ORIGINAL} onRepostCancel={onRepostCancel} onPostCreated={onPostCreated} />);
-    fireEvent.change(await screen.findByPlaceholderText('Add a comment…'), { target: { value: 'love this' } });
+    await typeInComposer('love this');
     fireEvent.click(await screen.findByTestId('post-submit'));
     await waitFor(() => {
       expect(data.createRepost).toHaveBeenCalledWith(ORIGINAL, 'love this');
@@ -116,7 +122,7 @@ describe('PostComposer — repost mode (reposts.md)', () => {
     (data.createRepost as any).mockRejectedValueOnce(new Error('boom'));
     const { default: PostComposer } = await import('@/components/Feed/PostComposer');
     render(<PostComposer repostingTo={ORIGINAL} onRepostCancel={() => {}} />);
-    fireEvent.change(await screen.findByPlaceholderText('Add a comment…'), { target: { value: 'hi' } });
+    await typeInComposer('hi');
     fireEvent.click(await screen.findByTestId('post-submit'));
     expect(await screen.findByTestId('composer-error')).toHaveTextContent('boom');
     // The repost context is still present (not cleared on failure).

@@ -22,7 +22,6 @@
 import { getV3Client } from './v3';
 import { followersGroupId, ensureFollowers, getMyGroups } from './groups';
 import { extractUsername, fromV3DocToComment, fromV3DocToPost } from './types';
-import { listConversations, getLastDm, conversationKey } from './dms';
 import { onP2PInbound, sendP2P, type P2PInboundConn } from './p2p';
 
 const LOG = (...args: unknown[]) => console.log('[notifications]', ...args);
@@ -36,7 +35,6 @@ export type NotificationType =
   | 'reaction'
   | 'comment'
   | 'reply'
-  | 'dm'
   | 'follow_request'
   | 'group_join';
 
@@ -94,17 +92,6 @@ export function notificationHref(
         if (commentId) href += `?comment=${encodeURIComponent(commentId)}`;
       }
       return href;
-    }
-    case 'dm': {
-      // The conversation with the sender. v3 DMs are same-node (member keys
-      // are bare usernames — see classifyThread), so the sender's provider is
-      // the recipient's own.
-      if (!n.from) return null;
-      const conv = conversationKey(
-        { provider: me.provider, username: me.username },
-        { provider: me.provider, username: n.from },
-      );
-      return `/messages/${encodeURIComponent(conv)}`;
     }
     case 'follow_request':
       // The follower's profile (the follow surface).
@@ -223,7 +210,9 @@ export function onNotificationChange(listener: NotificationListener): () => void
 
 // Is a raw inbound payload a notification nudge (vs. the DM message nudge,
 // which DmsScreen consumes)? The nudge carries a `type` that is one of the
-// notification types. DM message nudges carry `doc_id` + `message` instead.
+// notification types. DM message nudges carry `doc_id` + `message` instead, and
+// DMs are NOT a notification type — they have their own unread badge on the
+// Messages icon (messagesUnread.ts), not the notifications bell.
 function isNudge(data: unknown): data is NudgePayload {
   if (!data || typeof data !== 'object') return false;
   const t = (data as Record<string, unknown>).type;
@@ -231,7 +220,6 @@ function isNudge(data: unknown): data is NudgePayload {
     t === 'reaction' ||
     t === 'comment' ||
     t === 'reply' ||
-    t === 'dm' ||
     t === 'follow_request' ||
     t === 'group_join'
   );
@@ -341,6 +329,22 @@ async function writeLastSeen(iso: string): Promise<void> {
   }
 }
 
+// The event time for a derived row: the doc's own `created_at` (the body
+// field when present, else the document column the node always sets). The
+// column fallback is the fix for the "stale badge" class — a doc written by an
+// older version that has no `body.created_at` used to fall back to "now", so it
+// was re-stamped fresh on every seed and stayed permanently unread (always
+// after the last-seen cursor). The column `created_at` is the durable write
+// time the node records, so a stale doc sorts to its real age and reads as
+// seen. "now" is the last resort (a doc with neither), which can only happen
+// on a malformed read.
+function docCreatedAt(doc: { body: Record<string, unknown>; created_at?: string }): string {
+  const inBody = (doc.body as Record<string, unknown>).created_at;
+  if (typeof inBody === 'string' && inBody) return inBody;
+  if (doc.created_at) return doc.created_at;
+  return new Date().toISOString();
+}
+
 // Derive the notification list from reads: reactions + comments on my posts
 // (from others) + the latest DM from each other party. Best-effort per source
 // — one failing read never blanks the whole list.
@@ -379,7 +383,7 @@ async function deriveNotifications(): Promise<Notification[]> {
           from: author,
           ref_doc_id: b.target_id as string | undefined,
           read: false,
-          created_at: (b.created_at as string) || new Date().toISOString(),
+          created_at: docCreatedAt(r),
         });
       }
     } catch {
@@ -398,7 +402,7 @@ async function deriveNotifications(): Promise<Notification[]> {
           from: author,
           ref_doc_id: b.post_id as string | undefined,
           read: false,
-          created_at: (b.created_at as string) || new Date().toISOString(),
+          created_at: docCreatedAt(c),
         });
       }
     } catch {
@@ -421,14 +425,13 @@ async function deriveNotifications(): Promise<Notification[]> {
         const author = extractUsername(c.author_key);
         if (author === me) continue;
         if (!c.ref_value || !myCommentIds.has(c.ref_value)) continue;
-        const b = c.body as Record<string, unknown>;
         out.push({
           id: `reply:${author}:${c.doc_id}`,
           type: 'reply',
           from: author,
           ref_doc_id: c.ref_value,
           read: false,
-          created_at: (b.created_at as string) || new Date().toISOString(),
+          created_at: docCreatedAt(c),
         });
       }
     }
@@ -436,24 +439,10 @@ async function deriveNotifications(): Promise<Notification[]> {
     // Best-effort.
   }
 
-  // DMs: the latest message FROM the other party in each conversation.
-  try {
-    const convs = await listConversations();
-    for (const conv of convs) {
-      const last = await getLastDm(conv);
-      if (!last || last.sender_username === me) continue; // only messages from others
-      out.push({
-        id: `dm:${last.sender_username}:${last._id}`,
-        type: 'dm',
-        from: last.sender_username,
-        ref_doc_id: last._id,
-        read: false,
-        created_at: last.sent_at,
-      });
-    }
-  } catch {
-    // Best-effort.
-  }
+  // DMs are NOT derived here — they have their own unread badge on the
+  // Messages icon (messagesUnread.ts), not the notifications bell. The
+  // operator's call: "messages in the notifications is crazy, better if a
+  // little purple circle with a number next to the messages icon."
 
   // Follows: following a user is joining their followers group (open join
   // policy — the follow is immediate, there is no pending request). So a

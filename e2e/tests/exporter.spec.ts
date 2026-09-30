@@ -30,9 +30,11 @@ test.describe('exporter upload -> marketing-api job -> records', () => {
     // importer calls. The ZIP/CRC helpers below are kept for the v3 rewrite.
   });
 
-  test('analytics: pageview tracking', async ({ request }) => {
-    const res = await request.post(`${MARKETING_API_BASE}/analytics/pageview`, {
+  test('analytics: pageview tracking (first-party beacon to the node)', async ({ request }) => {
+    const res = await request.post(`${API_BASE}/analytics/event`, {
       data: {
+        type: 'pageview',
+        app: 'e2e',
         path: '/import',
         referrer: 'https://google.com',
         user_agent: 'e2e-test',
@@ -41,16 +43,13 @@ test.describe('exporter upload -> marketing-api job -> records', () => {
     expect(res.ok()).toBeTruthy();
     const body = await res.json();
     expect(body.status).toBe('ok');
-
-    const summaryRes = await request.get(`${MARKETING_API_BASE}/analytics/summary`);
-    expect(summaryRes.ok()).toBeTruthy();
-    const summary = await summaryRes.json();
-    expect(summary.total_pageviews).toBeGreaterThanOrEqual(1);
   });
 
-  test('analytics: funnel tracking', async ({ request }) => {
-    const res = await request.post(`${MARKETING_API_BASE}/analytics/funnel`, {
+  test('analytics: funnel tracking (first-party beacon to the node)', async ({ request }) => {
+    const res = await request.post(`${API_BASE}/analytics/event`, {
       data: {
+        type: 'funnel',
+        app: 'e2e',
         event: 'export_started',
         metadata: { platform: 'instagram' },
       },

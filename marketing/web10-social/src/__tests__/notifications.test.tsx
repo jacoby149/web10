@@ -92,7 +92,7 @@ describe('NotificationBell', () => {
   });
 
   it('shows no badge when there are no notifications', () => {
-    renderWithRouter(<NotificationBell />);
+    renderWithRouter(<NotificationBell open={false} onToggle={() => {}} />);
     expect(screen.getByTestId('notification-bell')).toBeInTheDocument();
     expect(screen.queryByTestId('notification-badge')).not.toBeInTheDocument();
     expect(screen.getByTestId('notification-bell')).toHaveAccessibleName('Notifications');
@@ -100,7 +100,7 @@ describe('NotificationBell', () => {
 
   it('shows the count badge (glow-pulse) when there are unread notifications', () => {
     mockState = { unread: 3, items: [] };
-    renderWithRouter(<NotificationBell />);
+    renderWithRouter(<NotificationBell open={false} onToggle={() => {}} />);
     const badge = screen.getByTestId('notification-badge');
     expect(badge).toHaveTextContent('3');
     expect(badge).toHaveClass('animate-glow-pulse');
@@ -109,8 +109,22 @@ describe('NotificationBell', () => {
 
   it('caps the badge at 99+', () => {
     mockState = { unread: 150, items: [] };
-    renderWithRouter(<NotificationBell />);
+    renderWithRouter(<NotificationBell open={false} onToggle={() => {}} />);
     expect(screen.getByTestId('notification-badge')).toHaveTextContent('99+');
+  });
+
+  it('is a toggle — reports the tap, reflects open state, never navigates', () => {
+    const onToggle = vi.fn();
+    renderWithRouter(
+      <>
+        <NotificationBell open={false} onToggle={onToggle} />
+        <NavProbe />
+      </>,
+      '/feed',
+    );
+    fireEvent.click(screen.getByTestId('notification-bell'));
+    expect(onToggle).toHaveBeenCalledTimes(1);
+    expect(screen.getByTestId('nav-probe')).toHaveTextContent('/feed');
   });
 });
 
@@ -146,7 +160,7 @@ describe('NotificationsScreen', () => {
     mockState = {
       unread: 2,
       items: [
-        { id: 'n1', type: 'dm', from: 'bob', read: false, created_at: new Date().toISOString() },
+        { id: 'n1', type: 'reaction', from: 'bob', read: false, created_at: new Date().toISOString() },
         { id: 'n2', type: 'reaction', from: 'carol', read: false, created_at: new Date().toISOString() },
       ],
     };
@@ -169,7 +183,7 @@ describe('NotificationsScreen', () => {
     mockState = {
       unread: 2,
       items: [
-        { id: 'n1', type: 'dm', from: 'bob', read: false, created_at: new Date().toISOString() },
+        { id: 'n1', type: 'reaction', from: 'bob', read: false, created_at: new Date().toISOString() },
         { id: 'n2', type: 'reaction', from: 'carol', read: false, created_at: new Date().toISOString() },
       ],
     };
@@ -195,6 +209,68 @@ describe('NotificationsScreen', () => {
     };
     renderWithRouter(<NotificationsScreen />, '/notifications');
     expect(screen.queryByTestId('mark-all-read-button')).not.toBeInTheDocument();
+  });
+});
+
+describe('NotificationsScreen (panel mode — the bell\'s popover, not a page)', () => {
+  beforeEach(() => {
+    mockState = { unread: 0, items: [] };
+    mockToken = { username: 'me', provider: 'api.localhost' };
+    markAllReadMock.mockClear();
+    readByIdMock.mockReset();
+  });
+
+  it('shows the X close button and calls onClose when tapped', () => {
+    const onClose = vi.fn();
+    mockState = {
+      unread: 1,
+      items: [{ id: 'n1', type: 'reaction', from: 'bob', ref_doc_id: 'post-1', read: false, created_at: new Date().toISOString() }],
+    };
+    renderWithRouter(<NotificationsScreen onClose={onClose} />, '/feed');
+    const close = screen.getByTestId('notifications-close');
+    expect(close).toHaveAccessibleName('Close notifications');
+    fireEvent.click(close);
+    expect(onClose).toHaveBeenCalledTimes(1);
+  });
+
+  it('has no X close button in route mode (the full page closes via the bell)', () => {
+    mockState = {
+      unread: 1,
+      items: [{ id: 'n1', type: 'reaction', from: 'bob', ref_doc_id: 'post-1', read: false, created_at: new Date().toISOString() }],
+    };
+    renderWithRouter(<NotificationsScreen />, '/notifications');
+    expect(screen.queryByTestId('notifications-close')).not.toBeInTheDocument();
+  });
+
+  it('a row click in panel mode navigates AND closes the panel (back where you were)', () => {
+    const onClose = vi.fn();
+    mockState = {
+      unread: 1,
+      items: [{ id: 'reaction:bob:post-1', type: 'reaction', from: 'bob', ref_doc_id: 'post-1', read: false, created_at: new Date().toISOString() }],
+    };
+    render(
+      <MemoryRouter initialEntries={['/feed']}>
+        <Routes>
+          <Route path="/feed" element={<NotificationsScreen onClose={onClose} />} />
+          <Route path="*" element={<NavProbe />} />
+        </Routes>
+      </MemoryRouter>,
+    );
+    fireEvent.click(screen.getByTestId('notification-row'));
+    expect(onClose).toHaveBeenCalledTimes(1);
+    expect(screen.getByTestId('nav-probe')).toHaveTextContent('/u/me/p/post-1');
+  });
+
+  it('marks all read in panel mode too (the badge clears when you look)', async () => {
+    mockState = {
+      unread: 2,
+      items: [
+        { id: 'n1', type: 'reaction', from: 'bob', read: false, created_at: new Date().toISOString() },
+        { id: 'n2', type: 'reaction', from: 'carol', read: false, created_at: new Date().toISOString() },
+      ],
+    };
+    renderWithRouter(<NotificationsScreen onClose={() => {}} />, '/feed');
+    await vi.waitFor(() => expect(markAllReadMock).toHaveBeenCalled());
   });
 });
 
@@ -238,19 +314,6 @@ describe('notification deep links (row click → the place the event is about)',
     renderNotificationNav();
     fireEvent.click(screen.getByTestId('notification-row'));
     expect(screen.getByTestId('nav-probe')).toHaveTextContent('/u/me/p/post-1');
-  });
-
-  it('a dm row opens the conversation with the sender', () => {
-    mockState = {
-      unread: 1,
-      items: [{ id: 'dm:bob:msg-1', type: 'dm', from: 'bob', ref_doc_id: 'msg-1', read: false, created_at: now() }],
-    };
-    renderNotificationNav();
-    fireEvent.click(screen.getByTestId('notification-row'));
-    // conversationKey sorts the two provider/username ids.
-    expect(screen.getByTestId('nav-probe')).toHaveTextContent(
-      `/messages/${encodeURIComponent('api.localhost/bob--api.localhost/me')}`,
-    );
   });
 
   it('a follow_request row opens the follower\'s profile', () => {
@@ -326,8 +389,6 @@ describe('notificationHref (the resolver)', () => {
       .toBe('/u/me/p/p1');
     expect(notificationHref({ id: 'comment:bob:c1', type: 'comment', from: 'bob', ref_doc_id: 'p1', read: false, created_at: now() }, me))
       .toBe('/u/me/p/p1?comment=c1');
-    expect(notificationHref({ id: 'dm:bob:m1', type: 'dm', from: 'bob', read: false, created_at: now() }, me))
-      .toBe(`/messages/${encodeURIComponent('api.localhost/bob--api.localhost/me')}`);
     expect(notificationHref({ id: 'f:alice', type: 'follow_request', from: 'alice', read: false, created_at: now() }, me))
       .toBe('/u/alice');
     expect(notificationHref({ id: 'g:g1', type: 'group_join', from: 'bob', ref_doc_id: 'api.localhost/groups/users/me/g1', read: false, created_at: now() }, me))
@@ -338,7 +399,6 @@ describe('notificationHref (the resolver)', () => {
 
   it('returns null when the destination is unresolvable', () => {
     expect(notificationHref({ id: 'r', type: 'reaction', from: 'bob', read: false, created_at: now() }, me)).toBeNull();
-    expect(notificationHref({ id: 'd', type: 'dm', from: '', read: false, created_at: now() }, me)).toBeNull();
     expect(notificationHref({ id: 'f', type: 'follow_request', from: '', read: false, created_at: now() }, me)).toBeNull();
   });
 });

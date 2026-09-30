@@ -12,6 +12,7 @@ import '@testing-library/jest-dom';
 
 import { lucideMock } from './helpers/lucideMock';
 import { installWeb10Mock } from './helpers/web10Mock';
+import { typeInComposer } from './helpers/tiptap';
 vi.mock('lucide-react', () => lucideMock);
 
 vi.mock('@/data', async (importOriginal) => {
@@ -119,6 +120,57 @@ describe('The app-level New Post sheet + FAB', () => {
     expect(screen.queryByTestId('new-post-fab')).not.toBeInTheDocument();
   });
 
+  it('the FAB is hidden on surfaces where a post makes no sense (People, Monetization, Settings)', async () => {
+    // The operator (30.09.2026): "make new post on people tab doesnt make
+    // sense, on the monetize tab doesnt make sense" — the bubble only belongs
+    // where posting IS the surface's job (Posts, Video, Shorts, own profile).
+    installWeb10Mock({
+      token: 'signed-in-token',
+      payload: { username: 'testuser', provider: 'test.localhost', site: 'web10' },
+    });
+    const { default: App } = await import('@/App');
+    const cases: [string, string][] = [
+      ['/people', 'discover-explore-tab'],
+      ['/monetize', 'monetization-screen'],
+      ['/settings', 'settings-visibility-public'],
+    ];
+    for (const [path, surfaceTestId] of cases) {
+      const { unmount } = render(
+        <MemoryRouter initialEntries={[path]}>
+          <App />
+        </MemoryRouter>,
+      );
+      // Wait for the destination to actually render (the assertion below is
+      // about the settled screen, not the first paint).
+      await waitFor(() => {
+        expect(screen.getByTestId(surfaceTestId)).toBeInTheDocument();
+      }, { timeout: 5000 });
+      // The FAB is NOT there — a "New post" bubble reads as noise on these
+      // surfaces.
+      expect(screen.queryByTestId('new-post-fab')).not.toBeInTheDocument();
+      unmount();
+    }
+  });
+
+  it('the FAB is visible on the Video + Shorts destinations (posting makes sense there)', async () => {
+    installWeb10Mock({
+      token: 'signed-in-token',
+      payload: { username: 'testuser', provider: 'test.localhost', site: 'web10' },
+    });
+    const { default: App } = await import('@/App');
+    for (const path of ['/video', '/shorts']) {
+      const { unmount } = render(
+        <MemoryRouter initialEntries={[path]}>
+          <App />
+        </MemoryRouter>,
+      );
+      await waitFor(() => {
+        expect(screen.getByTestId('new-post-fab')).toBeInTheDocument();
+      });
+      unmount();
+    }
+  });
+
   it('tapping the FAB opens the sheet with the full composer', async () => {
     installWeb10Mock({
       token: 'signed-in-token',
@@ -193,7 +245,7 @@ describe('The app-level New Post sheet + FAB', () => {
       expect(screen.getByTestId('new-post-sheet')).toBeInTheDocument();
     });
     // Type + post → createPost is called scoped to the group.
-    fireEvent.change(screen.getByTestId('composer-textarea'), { target: { value: 'Hello group' } });
+    await typeInComposer('Hello group');
     fireEvent.click(screen.getByTestId('post-submit'));
     await waitFor(() => {
       expect(createPost).toHaveBeenCalled();
@@ -221,7 +273,7 @@ describe('The app-level New Post sheet + FAB', () => {
     await waitFor(() => {
       expect(screen.getByTestId('new-post-sheet')).toBeInTheDocument();
     });
-    fireEvent.change(screen.getByTestId('composer-textarea'), { target: { value: 'a post' } });
+    await typeInComposer('a post');
     fireEvent.click(screen.getByTestId('post-submit'));
     // The post lands → the sheet closes + the event fires.
     await waitFor(() => {

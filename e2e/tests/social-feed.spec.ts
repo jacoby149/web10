@@ -577,7 +577,10 @@ test.describe('Social feed gauntlet — render → post → reload persists', ()
     await page.locator('[data-testid="new-post-fab"]').click();
     const myPost = `my feed post ${Date.now()}`;
     await expect(page.locator('[data-testid="post-composer"]')).toBeVisible();
-    await page.locator('[data-testid="post-composer"] textarea').fill(myPost);
+    // The caption is a Tiptap contenteditable (D85) — no `<textarea>` anymore.
+    // Playwright's `.fill()` supports `[contenteditable]`; in a real browser the
+    // native text insertion is observed by ProseMirror's DOM observer.
+    await page.locator('[data-testid="composer-textarea"]').fill(myPost);
     await page.locator('[data-testid="post-submit"]').click();
 
     // The composer succeeded (no error surfaced). The sheet closes on a
