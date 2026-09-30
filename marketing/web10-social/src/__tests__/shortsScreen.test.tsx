@@ -313,13 +313,14 @@ describe('ShortsScreen — the vertical short-form feed (shorts.md)', () => {
     // Autoplay hands over: the new active slide plays… The handover is an async
     // effect chain (setActiveIndex → re-render → the InlineVideo play effect),
     // so under CI load it can exceed the default 1s waitFor — give it headroom.
+    // (10s: a 5s ceiling flaked on CI at 5019ms under load.)
     await waitFor(() => {
       expect(play1).toHaveBeenCalled();
-    }, { timeout: 5000 });
+    }, { timeout: 10000 });
     // …and the off-screen slide pauses.
     await waitFor(() => {
       expect(pause0).toHaveBeenCalled();
-    }, { timeout: 5000 });
+    }, { timeout: 10000 });
   });
 
   it('keyboard: ArrowDown swipes to the next slide (the desktop swipe)', async () => {

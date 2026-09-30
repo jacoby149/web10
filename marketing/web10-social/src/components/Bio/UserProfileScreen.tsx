@@ -143,7 +143,10 @@ function WallTile({ media, testId, title, caption, postId, multiCount, onClick }
           onClick();
         }
       }}
-      className="relative aspect-[9/16] w-full bg-elevated overflow-hidden rounded-lg group cursor-pointer outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset"
+      className={cn(
+        'relative aspect-[9/16] w-full bg-elevated overflow-hidden group cursor-pointer outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset',
+        'rounded-none sm:rounded-lg',
+      )}
     >
       {video ? (
         <video
@@ -168,7 +171,7 @@ function WallTile({ media, testId, title, caption, postId, multiCount, onClick }
         // display face (Space Grotesk) with the caption under it. Vertically
         // centered, not corner-dumped — it reads as a card, not an empty box.
         <div
-          className="relative w-full h-full flex flex-col justify-center p-5"
+          className="relative w-full h-full flex flex-col justify-center p-3 sm:p-5"
           style={{ backgroundColor: textTileColor(postId) }}
           data-testid={`${testId}-text`}
         >
@@ -185,23 +188,21 @@ function WallTile({ media, testId, title, caption, postId, multiCount, onClick }
           <div className="relative">
             {title ? (
               <p
-                className="font-display font-semibold text-foreground leading-tight break-words line-clamp-5"
-                style={{ fontSize: '1.5rem' }}
+                className="font-display font-semibold text-foreground leading-tight break-words line-clamp-5 text-lg sm:text-2xl"
                 data-testid={`${testId}-text-title`}
               >
                 {title}
               </p>
             ) : (
               <p
-                className="font-medium text-foreground leading-snug break-words line-clamp-7"
-                style={{ fontSize: '1.25rem' }}
+                className="font-medium text-foreground leading-snug break-words line-clamp-7 text-base sm:text-xl"
                 data-testid={`${testId}-text-title`}
               >
                 {caption}
               </p>
             )}
             {title && caption && (
-              <p className="mt-2.5 text-sm text-foreground/80 leading-snug break-words line-clamp-4" data-testid={`${testId}-text-caption`}>
+              <p className="mt-1.5 sm:mt-2.5 text-xs sm:text-sm text-foreground/80 leading-snug break-words line-clamp-4" data-testid={`${testId}-text-caption`}>
                 {caption}
               </p>
             )}
@@ -221,8 +222,9 @@ function WallTile({ media, testId, title, caption, postId, multiCount, onClick }
           {multiCount}
         </div>
       )}
-      {/* The caption (the post text, the Instagram/TikTok overlay). */}
-      {caption && (
+      {/* The caption (the post text, the Instagram/TikTok overlay) — media tiles
+          only; a text tile already renders its text as the card face. */}
+      {caption && media.url && (
         <div className="absolute inset-x-0 bottom-0 p-2 bg-gradient-to-t from-black/70 via-black/30 to-transparent pointer-events-none">
           <p className="text-xs text-white line-clamp-2 leading-snug">{caption}</p>
         </div>
@@ -687,11 +689,12 @@ export default function UserProfileScreen({ username, provider, onBack }: UserPr
         )}
       </div>
 
-      {/* Header — the new-Instagram shape: the avatar on the left, the name /
-          stats / bio / action buttons stacked to its right. Full width (the
-          operator: "filling the whole screen"). */}
+      {/* Header — the new-Instagram shape. On mobile the avatar sits on top and
+          the name / stats / bio / action buttons stack below it at full width
+          (Instagram's mobile profile). On desktop the avatar is on the left
+          with the name + buttons beside it. */}
       <div className="px-4 pt-4 pb-4">
-        <div className="flex items-start gap-4 sm:gap-6">
+        <div className="flex flex-col sm:flex-row items-start gap-1.5 sm:gap-6">
           <div
             role="button"
             tabIndex={0}
@@ -705,7 +708,7 @@ export default function UserProfileScreen({ username, provider, onBack }: UserPr
               }
             }}
             className={cn(
-              '-mt-14 group shrink-0 cursor-pointer outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset rounded-full self-start',
+              '-mt-14 group shrink-0 cursor-pointer outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset rounded-full self-center sm:self-start',
               isOwnProfile ? 'relative' : '',
             )}>
             <Avatar className={cn(
@@ -740,8 +743,8 @@ export default function UserProfileScreen({ username, provider, onBack }: UserPr
           {/* The right column: name + @handle, the stats row, the bio, and the
               action buttons (Follow/Message for a viewer, Edit profile for the
               owner). The new-Instagram layout stacks them beside the avatar. */}
-          <div className="flex-1 min-w-0 pt-2">
-            <div className="flex items-start justify-between gap-4">
+          <div className="flex-1 min-w-0 pt-0 sm:pt-2">
+            <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3 sm:gap-4">
               <div className="min-w-0">
                 {isOwnProfile && editing ? (
                   <Input
@@ -763,14 +766,14 @@ export default function UserProfileScreen({ username, provider, onBack }: UserPr
                   </>
                 )}
               </div>
-              <div className="flex shrink-0 items-center gap-2">
+              <div className="flex w-full sm:w-auto shrink-0 items-center gap-2">
                 {!isOwnProfile && (
                   <>
                     <Button
                       variant={following ? 'outline' : 'brand'}
                       size="sm"
                       className={cn(
-                        'gap-1.5 min-w-[100px]',
+                        'gap-1.5 flex-1 sm:flex-none sm:min-w-[100px]',
                         following && 'border-border hover:border-danger/50 hover:text-danger hover:bg-danger-muted',
                       )}
                       data-testid="follow-button"
@@ -794,7 +797,7 @@ export default function UserProfileScreen({ username, provider, onBack }: UserPr
                     <Button
                       variant="outline"
                       size="sm"
-                      className="gap-1.5 min-w-[100px] border-border hover:bg-elevated"
+                      className="gap-1.5 flex-1 sm:flex-none sm:min-w-[100px] border-border hover:bg-elevated"
                       data-testid="message-button"
                       onClick={() =>
                         navigate(`/messages?to=${username}&provider=${provider}`)
@@ -809,7 +812,7 @@ export default function UserProfileScreen({ username, provider, onBack }: UserPr
                   <Button
                     variant="brand_subtle"
                     size="sm"
-                    className="gap-1.5"
+                    className="gap-1.5 flex-1 sm:flex-none"
                     data-testid="edit-profile-button"
                     onClick={() => setEditing(true)}
                   >
@@ -1039,7 +1042,7 @@ export default function UserProfileScreen({ username, provider, onBack }: UserPr
                 onAuthorClick={(u) => navigate(`/u/${u}`)}
               />
             ) : (
-            <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-4">
+            <div className="grid grid-cols-3 gap-0.5 sm:gap-2 lg:grid-cols-4">
               {posts.map((post) => {
                 const firstMedia = post.media_refs?.[0] ? mediaMap[mediaRefId(post.media_refs[0])] : null;
                 // A post with no media renders as a caption-only tile (the
@@ -1079,7 +1082,7 @@ export default function UserProfileScreen({ username, provider, onBack }: UserPr
           )}
           </>
         ) : mediaPosts.length ? (
-          <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-4">
+          <div className="grid grid-cols-3 gap-0.5 sm:gap-2 lg:grid-cols-4">
             {mediaPosts.flatMap((post) =>
               (post.media_refs || []).map((ref) => {
                 const media = mediaMap[mediaRefId(ref)];
