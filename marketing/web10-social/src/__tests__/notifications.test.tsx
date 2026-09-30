@@ -265,7 +265,7 @@ describe('NotificationsScreen (panel mode — the bell\'s popover, not a page)',
     mockState = {
       unread: 2,
       items: [
-        { id: 'n1', type: 'dm', from: 'bob', read: false, created_at: new Date().toISOString() },
+        { id: 'n1', type: 'reaction', from: 'bob', read: false, created_at: new Date().toISOString() },
         { id: 'n2', type: 'reaction', from: 'carol', read: false, created_at: new Date().toISOString() },
       ],
     };
