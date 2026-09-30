@@ -128,40 +128,9 @@ export function PostLightbox({ post, mediaMap, onClose, onReload, postAuthor, po
   // Comment state (the thread's open/closed state lives in <PostActions>)
   const [commentCount, setCommentCount] = useState(0);
 
-  // Edit state
-  const [editing, setEditing] = useState(false);
-  const [editDraft, setEditDraft] = useState(currentPost.text || '');
-  // The media being edited (the post's current media, minus any the owner
-  // removed during this edit). Init from `media` when the edit opens;
-  // `handleSaveEdit` writes the surviving refs back via updatePost.
-  const [editMedia, setEditMedia] = useState<MediaRecord[]>([]);
-  const [saving, setSaving] = useState(false);
-
-  // The edit flow's "Pin an ad" (ad-improvements.md): swap / clear the post's
-  // pinned ad. `pinnedAdId` is the ad's doc_id (null = no ad); the picker
-  // lazy-loads the creator's ads (the PostComposer pattern).
-  const [pinnedAdId, setPinnedAdId] = useState<string | null>(currentPost.ad_target || null);
-  const [showAdPicker, setShowAdPicker] = useState(false);
-  const [ads, setAds] = useState<AdRecord[]>([]);
-  const [albums, setAlbums] = useState<AdAlbum[]>([]);
-  const [loadingAds, setLoadingAds] = useState(false);
-
-  const openAdPicker = useCallback(async () => {
-    setPinnedAdId(currentPost.ad_target || null);
-    setShowAdPicker(true);
-    if (!ads.length && !loadingAds) {
-      setLoadingAds(true);
-      try {
-        const { ads: myAds, albums: myAlbums } = await readMyAds();
-        setAds(myAds);
-        setAlbums(myAlbums);
-      } catch (e) {
-        console.warn('[social-lightbox] readMyAds failed:', e);
-      } finally {
-        setLoadingAds(false);
-      }
-    }
-  }, [currentPost.ad_target, ads.length, loadingAds]);
+  // Editing is NOT inline — it opens the app-level composer sheet in edit mode
+  // (openComposer({ editingPost }) — the ONE edit path, so the lightbox stays
+  // the read surface). No edit state lives here.
 
   // Delete confirm state. `deleteArmed` reveals the confirm UI (type "delete"
   // to proceed); `deleteConfirm` is the typed value that gates the confirm
@@ -306,36 +275,6 @@ export function PostLightbox({ post, mediaMap, onClose, onReload, postAuthor, po
     openComposer();
   }
 
-  async function handleSaveEdit() {
-    setSaving(true);
-    try {
-      // The edit can also swap / clear the pinned ad (ad-improvements.md).
-      const adPreference = pinnedAdId
-        ? { mode: 'pinned' as const, target: pinnedAdId }
-        : { mode: 'none' as const };
-      const updates: Partial<PostRecord> = { text: editDraft, updated_at: new Date().toISOString() };
-      // Media the owner removed during the edit: the surviving refs are the
-      // post's original refs minus the ones dropped from `editMedia`. Only
-      // send `media_refs` when it actually changed (no-op otherwise).
-      const survivingIds = new Set(editMedia.map((m) => m._id).filter(Boolean));
-      const originalRefs = currentPost.media_refs || [];
-      const survivingRefs = originalRefs.filter((ref) => survivingIds.has(mediaRefId(ref)));
-      if (survivingRefs.length !== originalRefs.length) {
-        updates.media_refs = survivingRefs;
-      }
-      await updatePost(currentPost._id || '', updates, adPreference);
-      setEditing(false);
-      setShowAdPicker(false);
-      onClose();
-      onReload?.();
-    } catch (e) {
-      console.error('Failed to update post:', e);
-      toast.error(errorMessage(e, 'Could not save your edit.'));
-    } finally {
-      setSaving(false);
-    }
-  }
-
   async function handleDelete() {
     try {
       await deletePost(currentPost._id || '');
@@ -411,41 +350,10 @@ export function PostLightbox({ post, mediaMap, onClose, onReload, postAuthor, po
           <X className="h-5 w-5" />
         </Button>
 
-        {/* Media pane: the normal viewer, or — while editing — an editable grid
-            with a remove button on each item (the owner can drop media from the
-            post). The surviving items are written back on save (handleSaveEdit). */}
-        {editing ? (
-          editMedia.length > 0 ? (
-            <div className="flex min-h-0 flex-1 items-start justify-center overflow-y-auto bg-black p-4">
-              <div className="grid w-full grid-cols-2 gap-2">
-                {editMedia.map((m, i) => (
-                  <div key={m._id || i} className="relative aspect-square overflow-hidden rounded-lg bg-elevated">
-                    {m.mime_type?.startsWith('video/') ? (
-                      <div className="w-full h-full flex items-center justify-center text-muted-foreground">
-                        <Film className="w-6 h-6" />
-                      </div>
-                    ) : (
-                      <img
-                        src={m.url}
-                        alt={m.alt_text || ''}
-                        className="w-full h-full object-cover"
-                      />
-                    )}
-                    <button
-                      type="button"
-                      onClick={() => setEditMedia((prev) => prev.filter((x) => x !== m))}
-                      aria-label="Remove media"
-                      data-testid={`post-lightbox-edit-remove-media-${i}`}
-                      className="absolute -top-2 -right-2 flex items-center justify-center h-7 w-7 rounded-full bg-background border border-border shadow-md text-muted-foreground hover:text-danger hover:border-danger transition-colors"
-                    >
-                      <X className="w-3.5 h-3.5" />
-                    </button>
-                  </div>
-                ))}
-              </div>
-            </div>
-          ) : null
-        ) : hasMedia && (
+        {/* Media pane: the normal viewer. Editing (title / body / media remove)
+            happens in the app-level composer sheet (openComposer({ editingPost })
+            — the ONE edit path), not inline here. */}
+        {hasMedia && (
           <div className="relative flex min-h-0 flex-1 items-center justify-center bg-black">
             {current.mime_type?.startsWith('video/') ? (
               <LightboxVideo media={current} />
@@ -491,48 +399,10 @@ export function PostLightbox({ post, mediaMap, onClose, onReload, postAuthor, po
             {formatTimeAgo(currentPost.created_at)}
           </span>
 
-          {/* Text content (editable) */}
-          {editing ? (
-            <div className="mt-3 space-y-2">
-              <Textarea
-                value={editDraft}
-                onChange={(e) => setEditDraft(e.target.value)}
-                placeholder="Edit post…"
-                className="text-sm min-h-[80px] resize-none"
-                data-testid="post-edit-input"
-              />
-              <div className="flex flex-wrap items-center gap-2">
-                <Button
-                  size="sm"
-                  variant="brand"
-                  onClick={handleSaveEdit}
-                  disabled={saving}
-                  data-testid="post-edit-save"
-                  className="text-xs"
-                >
-                  {saving ? 'Saving…' : 'Save'}
-                </Button>
-                <Button
-                  size="sm"
-                  variant="ghost"
-                  onClick={() => { setEditing(false); setEditDraft(currentPost.text || ''); setEditMedia(media); setShowAdPicker(false); }}
-                  className="text-xs"
-                >
-                  Cancel
-                </Button>
-                <Button
-                  size="sm"
-                  variant="ghost"
-                  onClick={openAdPicker}
-                  data-testid="post-edit-pin-ad"
-                  className="text-xs gap-1.5 text-muted-foreground hover:text-foreground"
-                >
-                  <Megaphone className="h-3.5 w-3.5" />
-                  {pinnedAdId ? 'Change ad' : 'Pin an ad'}
-                </Button>
-              </div>
-            </div>
-) : currentPost.title || currentPost.text ? (
+          {/* Text content. Editing (title / body / media remove) happens in the
+              app-level composer sheet (openComposer({ editingPost }) — the ONE
+              edit path), not inline here. */}
+          {currentPost.title || currentPost.text ? (
               <div className="mt-3">
                 {currentPost.title && (
                   <h2 className="mb-1 text-base font-semibold leading-snug text-foreground" data-testid="post-lightbox-title">
@@ -546,10 +416,10 @@ export function PostLightbox({ post, mediaMap, onClose, onReload, postAuthor, po
                 )}
               </div>
             ) : (
-             !hasMedia && (
-               <p className="mt-3 text-sm text-muted-foreground">This post has no content.</p>
-             )
-           )}
+              !hasMedia && (
+                <p className="mt-3 text-sm text-muted-foreground">This post has no content.</p>
+              )
+            )}
 
           {/* Actions bar (post-actions.md): the shared reaction pair +
               comment entry, with the lightbox's share button trailing. */}
@@ -606,20 +476,8 @@ export function PostLightbox({ post, mediaMap, onClose, onReload, postAuthor, po
             </div>
           )}
 
-          {/* The edit flow's "Pin an ad" picker (ad-improvements.md). */}
-          <AdPicker
-            open={showAdPicker}
-            ads={ads}
-            albums={albums}
-            selectedAdId={pinnedAdId || undefined}
-            loading={loadingAds}
-            onClose={() => setShowAdPicker(false)}
-            onSelect={(ad) => setPinnedAdId(ad._id || null)}
-            onClear={() => setPinnedAdId(null)}
-          />
-
           {/* Owner actions */}
-          {isOwner && !editing && (
+          {isOwner && (
             <div className="mt-3 pt-3 border-t border-border space-y-2">
               <Button
                 variant="ghost"
@@ -639,7 +497,7 @@ export function PostLightbox({ post, mediaMap, onClose, onReload, postAuthor, po
               <Button
                 variant="ghost"
                 size="sm"
-                onClick={() => { setEditing(true); setEditDraft(currentPost.text || ''); setEditMedia(media); }}
+                onClick={() => openComposer({ editingPost: currentPost })}
                 className="text-sm text-muted-foreground hover:text-foreground gap-1.5 w-full justify-start"
                 data-testid="post-edit-button"
               >

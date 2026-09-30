@@ -38,6 +38,7 @@ import { PostBody } from './PostBody';
 import { AdBlock } from './AdBlock';
 import { AttachedAd } from './AttachedAd';
 import { AdPicker } from './AdPicker';
+import { useComposer } from '@/context/ComposerContext';
 import { VideoPlayer, sourceFromMedia } from './VideoPlayer';
 import { MediaCarousel } from './MediaCarousel';
 import { toast, errorMessage } from '@/components/shared/Toast';
@@ -350,43 +351,13 @@ export function PostCard({
   testId = 'post-card',
 }: PostCardProps) {
   // Owner actions (previously the lightbox's job — the feed is now inline).
+  // Editing is NOT inline — it opens the app-level composer sheet in edit mode
+  // (the ONE edit path, so the card stays the read surface).
+  const { openComposer } = useComposer();
   const [menuOpen, setMenuOpen] = useState(false);
-  const [editing, setEditing] = useState(false);
-  const [editDraft, setEditDraft] = useState(post.text || '');
-  // The media being edited (the post's current media, minus any the owner
-  // removed during this edit). Init from `mediaItems` when the edit opens;
-  // `handleSaveEdit` writes the surviving refs back via updatePost.
-  const [editMedia, setEditMedia] = useState<MediaRecord[]>([]);
-  const [saving, setSaving] = useState(false);
   const [deleteConfirm, setDeleteConfirm] = useState(false);
   const [copied, setCopied] = useState(false);
   const [togglingVisibility, setTogglingVisibility] = useState(false);
-
-  // The edit flow's "Pin an ad" (ad-improvements.md): swap / clear the post's
-  // pinned ad. `pinnedAdId` is the ad's doc_id (null = no ad); the picker
-  // lazy-loads the creator's ads (the PostComposer pattern).
-  const [pinnedAdId, setPinnedAdId] = useState<string | null>(post.ad_target || null);
-  const [showAdPicker, setShowAdPicker] = useState(false);
-  const [ads, setAds] = useState<AdRecord[]>([]);
-  const [albums, setAlbums] = useState<AdAlbum[]>([]);
-  const [loadingAds, setLoadingAds] = useState(false);
-
-  const openAdPicker = useCallback(async () => {
-    setPinnedAdId(post.ad_target || null);
-    setShowAdPicker(true);
-    if (!ads.length && !loadingAds) {
-      setLoadingAds(true);
-      try {
-        const { ads: myAds, albums: myAlbums } = await readMyAds();
-        setAds(myAds);
-        setAlbums(myAlbums);
-      } catch (e) {
-        console.warn('[social-feed] readMyAds failed:', e);
-      } finally {
-        setLoadingAds(false);
-      }
-    }
-  }, [post.ad_target, ads.length, loadingAds]);
 
   // Close the owner menu on Escape.
   useEffect(() => {
@@ -419,35 +390,6 @@ export function PostCard({
         setCopied(true);
         setTimeout(() => setCopied(false), 2000);
       });
-    }
-  }
-
-  async function handleSaveEdit() {
-    setSaving(true);
-    try {
-      // The edit can also swap / clear the pinned ad (ad-improvements.md).
-      const adPreference = pinnedAdId
-        ? { mode: 'pinned' as const, target: pinnedAdId }
-        : { mode: 'none' as const };
-      const updates: Partial<PostRecord> = { text: editDraft, updated_at: new Date().toISOString() };
-      // Media the owner removed during the edit: the surviving refs are the
-      // post's original refs minus the ones dropped from `editMedia`. Only
-      // send `media_refs` when it actually changed (no-op otherwise).
-      const survivingIds = new Set(editMedia.map((m) => m._id).filter(Boolean));
-      const originalRefs = post.media_refs || [];
-      const survivingRefs = originalRefs.filter((ref) => survivingIds.has(mediaRefId(ref)));
-      if (survivingRefs.length !== originalRefs.length) {
-        updates.media_refs = survivingRefs;
-      }
-      await updatePost(post._id || '', updates, adPreference);
-      setEditing(false);
-      setShowAdPicker(false);
-      onPostUpdated?.();
-    } catch (e) {
-      console.error('Failed to update post:', e);
-      toast.error(errorMessage(e, 'Could not save your edit.'));
-    } finally {
-      setSaving(false);
     }
   }
 
@@ -556,7 +498,7 @@ export function PostCard({
                   </button>
                   <button
                     type="button"
-                    onClick={(e) => { e.stopPropagation(); setMenuOpen(false); setEditing(true); setEditDraft(post.text || ''); setEditMedia(mediaItems); }}
+                    onClick={(e) => { e.stopPropagation(); setMenuOpen(false); openComposer({ editingPost: post }); }}
                     className="flex w-full items-center gap-2 rounded-md px-3 py-2 text-left text-sm text-foreground hover:bg-elevated transition-colors"
                     data-testid="post-option-edit"
                   >
@@ -604,7 +546,7 @@ export function PostCard({
       {/* Repost (reposts.md): the reposter's comment (the quote) sits above the
           embedded original post — the X/Twitter quote-tweet layout. A repost
           carries no media of its own; the original's media lives in the embed. */}
-      {post.repost_of && !editing && post.text ? (
+      {post.repost_of && post.text ? (
         <div className="px-4 pt-3 text-sm text-foreground">
           <PostBody text={post.text} density="light" />
         </div>
@@ -614,68 +556,12 @@ export function PostCard({
         <RepostedEmbed repostOf={post.repost_of} onAuthorClick={onAuthorClick} />
       )}
 
-      {/* Media: the normal grid, or — while editing — an editable grid with a
-          remove button on each item (the owner can drop media from the post).
-          The surviving items are written back on save (handleSaveEdit). */}
-      {editing ? (
-        editMedia.length > 0 ? (
-          <div className="px-4 pt-3">
-            <div className="grid grid-cols-3 gap-2">
-              {editMedia.map((m, i) => (
-                <div key={m._id || i} className="relative group aspect-square overflow-hidden rounded-lg bg-elevated">
-                  {m.mime_type?.startsWith('video/') ? (
-                    <div className="w-full h-full flex items-center justify-center text-muted-foreground">
-                      <Film className="w-6 h-6" />
-                    </div>
-                  ) : (
-                    <img
-                      src={m.thumbnail_url || m.url}
-                      alt={m.alt_text || ''}
-                      className="w-full h-full object-cover"
-                      loading="lazy"
-                    />
-                  )}
-                  <button
-                    type="button"
-                    onClick={() => setEditMedia((prev) => prev.filter((x) => x !== m))}
-                    aria-label="Remove media"
-                    data-testid={`post-edit-remove-media-${i}`}
-                    className="absolute -top-2 -right-2 flex items-center justify-center h-7 w-7 rounded-full bg-background border border-border shadow-md text-muted-foreground hover:text-danger hover:border-danger transition-colors"
-                  >
-                    <X className="w-3.5 h-3.5" />
-                  </button>
-                </div>
-              ))}
-            </div>
-          </div>
-        ) : null
-      ) : (
-        <MediaGrid mediaItems={mediaItems} />
-      )}
+      {/* Media. Editing (title / body / media remove) happens in the app-level
+          composer sheet (openComposer({ editingPost }) — the ONE edit path),
+          not inline here, so the card stays the read surface. */}
+      <MediaGrid mediaItems={mediaItems} />
 
-      {editing ? (
-        <div className="px-4 pt-3 space-y-2">
-          <Textarea
-            value={editDraft}
-            onChange={(e) => setEditDraft(e.target.value)}
-            placeholder="Edit post…"
-            className="text-sm min-h-[80px] resize-none"
-            data-testid="post-edit-input"
-          />
-          <div className="flex flex-wrap items-center gap-2">
-            <Button size="sm" variant="brand" onClick={handleSaveEdit} disabled={saving} data-testid="post-edit-save" className="text-xs">
-              {saving ? 'Saving…' : 'Save'}
-            </Button>
-            <Button size="sm" variant="ghost" onClick={() => { setEditing(false); setEditDraft(post.text || ''); setEditMedia(mediaItems); setShowAdPicker(false); }} className="text-xs">
-              Cancel
-            </Button>
-            <Button size="sm" variant="ghost" onClick={openAdPicker} data-testid="post-edit-pin-ad" className="text-xs gap-1.5 text-muted-foreground hover:text-foreground">
-              <Megaphone className="h-3.5 w-3.5" />
-              {pinnedAdId ? 'Change ad' : 'Pin an ad'}
-            </Button>
-          </div>
-        </div>
-      ) : post.text && !post.repost_of ? (
+      {post.text && !post.repost_of ? (
         <div className="px-4 pt-3">
           {post.title && (
             <h3 className="mb-1 text-base font-semibold leading-snug text-foreground" data-testid="post-card-title">
@@ -751,17 +637,6 @@ export function PostCard({
         </div>
       )}
 
-      {/* The edit flow's "Pin an ad" picker (ad-improvements.md). */}
-      <AdPicker
-        open={showAdPicker}
-        ads={ads}
-        albums={albums}
-        selectedAdId={pinnedAdId || undefined}
-        loading={loadingAds}
-        onClose={() => setShowAdPicker(false)}
-        onSelect={(ad) => setPinnedAdId(ad._id || null)}
-        onClear={() => setPinnedAdId(null)}
-      />
     </article>
   );
 }
