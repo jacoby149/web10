@@ -142,6 +142,56 @@ describe('DiscoverScreen', () => {
     expect(screen.getByTestId('preset-balanced')).toBeInTheDocument();
   });
 
+  it('the owner kebab shows on the reader\'s own discover post (and not on others\')', async () => {
+    (data.readDiscoverFeed as ReturnType<typeof vi.fn>).mockResolvedValue([
+      {
+        author: 'testuser', // the signed-in user (the token's username)
+        author_username: 'testuser',
+        provider: 'test.localhost',
+        author_provider: 'test.localhost',
+        post_id: 'own-1',
+        _id: 'own-1',
+        text: 'my own post on discover',
+        tags: ['mine'],
+        created_at: new Date().toISOString(),
+        likes: 5,
+        comments: 1,
+        reposts: 0,
+        score: 50,
+      },
+      {
+        author: 'someone-else',
+        author_username: 'someone-else',
+        provider: 'api.web10.app',
+        author_provider: 'api.web10.app',
+        post_id: 'other-1',
+        _id: 'other-1',
+        text: 'not my post',
+        tags: ['theirs'],
+        created_at: new Date().toISOString(),
+        likes: 9,
+        comments: 2,
+        reposts: 1,
+        score: 60,
+      },
+    ]);
+    const { default: DiscoverScreen } = await import('@/components/Discover/DiscoverScreen');
+    render(
+      <MemoryRouter initialEntries={['/hot-gossip']}>
+        <DiscoverScreen />
+      </MemoryRouter>,
+    );
+    await waitFor(() => {
+      expect(screen.getByTestId('discover-grid')).toBeInTheDocument();
+    });
+    // Exactly one owner kebab — on the reader's own post, not the other's.
+    const kebabs = await screen.findAllByTestId('discover-card-options');
+    expect(kebabs).toHaveLength(1);
+    // Opening it reveals the "Edit post" action (the ONE edit path).
+    fireEvent.click(kebabs[0]);
+    expect(await screen.findByTestId('discover-card-option-edit')).toBeInTheDocument();
+  });
+
   it('renders cards with rank badges', async () => {
     (data.readDiscoverFeed as ReturnType<typeof vi.fn>).mockResolvedValue([
       {
@@ -1812,8 +1862,11 @@ describe('DiscoverScreen — the post-format ad renders as its own card, next in
     expect(adCard.tagName).toBe('ARTICLE');
     expect(adCard.getAttribute('data-ad-standalone')).toBe('true');
     expect(card.contains(adCard)).toBe(false);
-    // Next in line on the board — directly after the post's card.
-    expect(card.nextElementSibling).toBe(adCard);
+    // Next in line on the board — directly after the post's card. (The card may
+    // sit inside a positioning wrapper for the owner kebab, so check the
+    // wrapper's next sibling, not the card's.)
+    const cardWrapper = card.parentElement;
+    expect(cardWrapper?.nextElementSibling).toBe(adCard);
     // The ad dressing is intact.
     expect(screen.getByTestId('post-ad-badge')).toHaveTextContent('Ad');
     expect(screen.getByTestId('post-ad-author')).toHaveTextContent('@alice');
