@@ -123,7 +123,7 @@ export default function Layout({ onLogout, onLogin, isAnon: isAnonProp, onReport
   const sidebarNavItems = isAnon ? anonSidebarNavItems : [profileItem, peopleItem, feedItem, videoItem, shortsItem, messagesItem, monetizationItem];
   // Mobile: the four pyramid destinations (People, Posts, Video, Shorts) +
   // More (all the other icons: Profile, Messages, Monetization, Settings, ...).
-  const bottomNavItems = isAnon ? anonBottomNavItems : [peopleItem, feedItem, videoItem, shortsItem];
+  const bottomNavItems = isAnon ? anonBottomNavItems : [feedItem, videoItem, shortsItem, messagesItem];
   const [moreOpen, setMoreOpen] = useState(false);
   const { unread } = useNotifications();
   // The Messages unread badge (the purple count on the Messages icon) — DMs
@@ -714,19 +714,18 @@ export default function Layout({ onLogout, onLogin, isAnon: isAnonProp, onReport
                   <User className="w-5 h-5" strokeWidth={1.75} />
                   {displayName || username || 'Profile'}
                 </button>
-                {/* Messages — the DM surface (no longer in the bottom bar; the
-                    four pyramid destinations — People, Posts, Video, Shorts —
-                    hold the bar, so Messages lives here). */}
+                {/* People — the discovery/browse surface (moved from the bottom
+                    bar to the More tab; Messages holds the bar instead). */}
                 <button
-                  data-testid="nav-messages-mobile"
-                  onClick={() => go(messagesItem.path)}
+                  data-testid="nav-people-mobile"
+                  onClick={() => go(peopleItem.path)}
                   className={cn(
                     'w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors duration-150',
-                    isActive(messagesItem.path) ? 'bg-brand-muted text-brand-300' : 'text-foreground hover:bg-elevated',
+                    isActive(peopleItem.path) ? 'bg-brand-muted text-brand-300' : 'text-foreground hover:bg-elevated',
                   )}
                 >
-                  <MessageSquare className="w-5 h-5" strokeWidth={1.75} />
-                  {messagesItem.label}
+                  <Users className="w-5 h-5" strokeWidth={1.75} />
+                  {peopleItem.label}
                 </button>
                 <button
                   data-testid="nav-settings-mobile"
