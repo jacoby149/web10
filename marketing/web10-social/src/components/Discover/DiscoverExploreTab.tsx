@@ -18,6 +18,8 @@ import {
   requestJoinGroup,
   getMyCommunityGroups,
   leaveGroup,
+  createDraftGroup,
+  getV3Client,
   type GroupDirectoryEntry,
   type V3Group,
 } from '@/data';
@@ -41,6 +43,7 @@ import {
   Hash,
   Search,
   X,
+  Plus,
   Loader2,
   AlertTriangle,
   RefreshCw,
@@ -367,6 +370,27 @@ export default function DiscoverExploreTab({ query }: DiscoverExploreTabProps) {
       setLeavingGroups((prev) => ({ ...prev, [groupId]: false }));
     }
   }, []);
+
+  // ── New group (the create entry — the same flow as the /groups screen) ─────
+  // The People tab is the groups browser's home (discover-reorg D3: /groups
+  // redirects here), so the create entry lives in the Groups section header —
+  // the same "New group" button the old Groups screen carried.
+  const [creating, setCreating] = useState(false);
+  const handleNewGroup = useCallback(async () => {
+    if (creating) return;
+    setCreating(true);
+    LOG('new group — creating draft');
+    try {
+      const username = getV3Client().readToken()?.username || '';
+      const groupId = await createDraftGroup(username);
+      LOG('new group — draft created, opening edit mode', groupId);
+      navigate(`/groups/${encodeURIComponent(groupId)}?edit=1`);
+    } catch (e) {
+      LOG('new group — failed:', e);
+      toast.error(errorMessage(e, 'Could not create the group. Try again.'));
+      setCreating(false);
+    }
+  }, [creating, navigate]);
 
   // ── The active ?q= filter (from the top bar's search) ─────────────────────
   const clearQuery = useCallback(() => {
@@ -700,6 +724,21 @@ export default function DiscoverExploreTab({ query }: DiscoverExploreTabProps) {
                 </button>
               ))}
             </div>
+            <Button
+              variant="brand"
+              size="sm"
+              className="shrink-0 gap-1.5"
+              onClick={handleNewGroup}
+              disabled={creating}
+              data-testid="explore-groups-new-button"
+            >
+              {creating ? (
+                <Loader2 className="h-3.5 w-3.5 animate-spin" strokeWidth={2} />
+              ) : (
+                <Plus className="h-3.5 w-3.5" strokeWidth={2} />
+              )}
+              {creating ? 'Creating…' : 'New group'}
+            </Button>
           </div>
 
           {groupFilter === 'mine' ? (

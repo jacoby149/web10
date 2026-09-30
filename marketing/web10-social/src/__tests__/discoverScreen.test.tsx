@@ -33,6 +33,9 @@ vi.mock('@/data', async (importOriginal) => {
     fetchMyFollowersCards: vi.fn().mockResolvedValue([]),
     fetchMyFollowingCards: vi.fn().mockResolvedValue([]),
     getMyCommunityGroups: vi.fn().mockResolvedValue([]),
+    // The Explore tab's "New group" create entry (the Groups section header) —
+    // the same draft flow as the /groups screen.
+    createDraftGroup: vi.fn().mockResolvedValue('test.localhost/groups/users/testuser/new-group'),
   };
 });
 
@@ -1353,15 +1356,18 @@ describe('DiscoverScreen — the four destinations (the Discover split)', () => 
   // A probe that captures the router location (MemoryRouter keeps its own
   // history — window.location never moves).
   let lastSearch = '';
+  let lastPath = '';
   function LocationProbe() {
     const location = useLocation();
     lastSearch = location.search;
+    lastPath = location.pathname;
     return null;
   }
 
   async function renderDiscoverAt(path: string) {
     const { default: DiscoverScreen } = await import('@/components/Discover/DiscoverScreen');
     lastSearch = '';
+    lastPath = '';
     return render(
       <MemoryRouter initialEntries={[path]}>
         <LocationProbe />
@@ -1703,6 +1709,29 @@ describe('DiscoverScreen — the four destinations (the Discover split)', () => 
     expect(data.getMyCommunityGroups).toHaveBeenCalled();
     await waitFor(() => {
       expect(lastSearch).toContain('groupFilter=mine');
+    });
+  });
+
+  it('the Groups section carries the "New group" create entry (the People tab is the groups browser home)', async () => {
+    seedExploreData();
+    await renderDiscoverAt('/people');
+    await waitFor(() => {
+      expect(screen.getByTestId('explore-groups-filter')).toBeInTheDocument();
+    });
+    // The create entry is in the Groups section header (the same flow as the
+    // /groups screen's button).
+    const btn = screen.getByTestId('explore-groups-new-button');
+    expect(btn).toHaveTextContent('New group');
+    // Tapping it creates a draft group and navigates to the group page in
+    // edit mode (the G4 create flow).
+    fireEvent.click(btn);
+    await waitFor(() => {
+      expect(data.createDraftGroup).toHaveBeenCalledWith('testuser');
+    });
+    // The draft's group page in edit mode is the navigation target.
+    await waitFor(() => {
+      expect(lastPath).toBe('/groups/test.localhost%2Fgroups%2Fusers%2Ftestuser%2Fnew-group');
+      expect(lastSearch).toBe('?edit=1');
     });
   });
 

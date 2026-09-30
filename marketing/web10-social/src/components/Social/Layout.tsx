@@ -149,6 +149,21 @@ export default function Layout({ onLogout, onLogin, isAnon: isAnonProp, onReport
   // the bar). The Shorts WALL (`/shorts`, no `:postId`) is a normal scrollable
   // grid — it keeps the normal chrome (top bar + bottom nav + pb-16).
   const isShorts = /^\/shorts\/[^/]+/.test(pathname);
+  // The floating "+" New Post button only makes sense where posting IS the
+  // surface's job: the Posts destination (the feed + the board), the Video
+  // wall, the Shorts wall (a short IS a post), and your OWN profile (post to
+  // your followers). It is hidden on every other surface — People (a browser),
+  // other people's profiles, group pages (a member's "Post to this group"
+  // button is the compose entry there), Monetization, Settings, Node Settings,
+  // Notifications — where a "New post" bubble reads as noise (the operator,
+  // 30.09.2026: "make new post on people tab doesnt make sense, on the
+  // monetize tab doesnt make sense").
+  const isOwnProfile = !!token && pathname === `/u/${token.username}`;
+  const isPostDestination =
+    pathname === '/feed' ||
+    pathname === '/video' ||
+    pathname === '/shorts' ||
+    isOwnProfile;
 
   // The Monetization surface holds its section in the URL (`?tab=node`). The
   // two nav entries are the switcher — each must highlight on its OWN section,
@@ -867,7 +882,7 @@ export default function Layout({ onLogout, onLogin, isAnon: isAnonProp, onReport
             surface (a chat has its own bottom-right send button the FAB would
             cover — and a "new post" affordance inside a conversation is noise),
             and in anon mode (a signed-out visitor can't post). */}
-        <NewPostFab hidden={isShorts || isAnon || pathname.startsWith('/messages')} />
+        <NewPostFab hidden={!isPostDestination || isShorts || isAnon || pathname.startsWith('/messages')} />
       </main>
     </div>
   );
