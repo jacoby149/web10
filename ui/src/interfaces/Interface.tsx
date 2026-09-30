@@ -2,6 +2,7 @@ import React from 'react';
 import web10AuthAdapterInit from './authAdapter'
 import { config } from '../config';
 import { rememberAccount, getRememberedAccounts } from '../lib/rememberedAccounts';
+import { vaultToken, getVaultedToken, vaultedAccountsFor } from '../lib/tokenVault';
 
 // ── v3 API helpers (ClickHouse-backed service contracts + groups) ──────────
 
@@ -239,6 +240,42 @@ function useInterface() {
     // every render (useInterface re-runs on each render) so a login that just
     // recorded a new account is reflected the moment the form re-shows.
     I.rememberedAccounts = getRememberedAccounts();
+
+    // The expected provider for THIS node (mirrors restoreAuth's check) — the
+    // vault only offers one-tap switches for tokens from this node; a token
+    // from another provider would 401 here.
+    const _expectedProvider = (() => {
+        const host = window.location.hostname;
+        const isDev = host === 'dev.web10.app' || host.endsWith('.dev.web10.app');
+        const isLocal = host === 'localhost' || host === '127.0.0.1' || host.endsWith('.localhost');
+        return isLocal ? 'api.localhost' : isDev ? 'api.dev.web10.app' : config.REACT_APP_DEFAULT_API;
+    })();
+    I.vaultedAccounts = vaultedAccountsFor(_expectedProvider);
+
+    // One-tap account switch from the picker: adopt the vaulted token as the
+    // live session and confirm the identity (so the consent popup settles).
+    // The password is skipped because the token IS the proof — it was minted
+    // by a real login on this origin. A 401 (token revoked/expired server-side)
+    // surfaces as the normal error and the vault entry is dropped.
+    I.switchAccount = function (username: string, provider: string) {
+        const token = getVaultedToken(username, provider);
+        if (!token) {
+            console.warn('[auth-ui] switchAccount — no vaulted token for', username, provider);
+            return;
+        }
+        console.log('[auth-ui] switchAccount — adopting vaulted token for', username);
+        I.v3.setToken(token);
+        I.setAuth(true);
+        I.setUserConfirmed(true);
+        I.setStatus(null);
+        I.setMode("contracts");
+        // Safe default: clear the (now stale, previous account's) grants so the
+        // consent screen shows until THIS account's grants load — never
+        // auto-complete on another account's "already granted" state.
+        I.setV3Contracts([]);
+        I.checkAdmin();
+        I.servicesLoad();
+    };
 
     // Normalize contract requests into a unified list (app + group contracts).
     // contractListen delivers { contracts } where each CR is either:
@@ -499,6 +536,12 @@ function useInterface() {
         const who = I.v3.readToken?.();
         if (who?.username && who?.provider) {
             rememberAccount({ username: who.username, provider: who.provider });
+            // And vault the live token so the picker can switch back to this
+            // account later in ONE tap, no password (the token IS the proof).
+            const token = I.v3.state?.token;
+            if (token) {
+                vaultToken({ username: who.username, provider: who.provider, token });
+            }
         }
         I.checkAdmin();
         I.servicesLoad();
@@ -1162,6 +1205,20 @@ function applyACR(cr: any) {
                     I._hasReferrer = true;
                 }
             } catch { }
+        }
+    }, [])
+
+    // Vault the RESTORED session once, so the live account is always a one-tap
+    // switch in the picker — even if it was never vaulted by a login in this
+    // browser (e.g. the token came from a prior session). Idempotent: vaulting
+    // the same (provider, username) just re-orders it to the front.
+    React.useEffect(() => {
+        const who = I.v3?.readToken?.();
+        if (who?.username && who?.provider) {
+            const token = I.v3.state?.token;
+            if (token) {
+                vaultToken({ username: who.username, provider: who.provider, token });
+            }
         }
     }, [])
 

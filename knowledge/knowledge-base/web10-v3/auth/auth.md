@@ -98,6 +98,33 @@ Token stored in a cookie named `token`:
 
 No `HttpOnly` — the SDK reads the token client-side to include in API requests.
 
+### The Token Vault (multi-account fast switch)
+
+The authenticator's login screen shows a "Choose an account" picker of the
+last few accounts used on that origin. The picker is two-tier:
+
+- **Identifiers only** (`rememberedAccounts`, localStorage) — every account
+  ever signed in here. Picking one pre-fills the form; the password is still
+  required.
+- **Vaulted tokens** (`tokenVault`, localStorage) — the *live* token for the
+  last few accounts, keyed by `(provider, username)`, capped at 5, most-recent
+  first. Picking a vaulted account switches to it in **one tap, no password**
+  — the token IS the proof (it was minted by a real login on this origin).
+
+A vaulted entry is only offered for a one-tap switch when its `provider`
+matches the node the popup is talking to (a token from another node would 401
+here) and it is not expired. A login vaults the new token; the restored
+session is vaulted on load (so the live account is always one-tap). The vault
+is **persistent** — logging out does not clear it (the account is still a
+valid one-tap switch back).
+
+**Trust boundary:** the single `token` cookie is not `HttpOnly`, so a token in
+localStorage is the *same* exposure class — a script on the authenticator's
+origin already reads the live token. The vault does not widen the boundary; it
+makes the multi-account switching the picker already promised actually
+possible. (The operator's call, 29.09.2026: "remember all the cookies doesn't
+sound like a risk to me.")
+
 ## Server Endpoints
 
 ### Login

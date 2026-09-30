@@ -477,6 +477,34 @@ test.describe('Browser — login (real LoginForm) + state rule', () => {
     expect(cookie).not.toContain('token=');
   });
 
+  test('vault: log in as A, log out, one-tap switch back to A from the picker (no password)', async ({ page, request }) => {
+    // The token vault: a login records the account's live token, so after a
+    // logout the picker offers a ONE-TAP switch back — no password re-typed.
+    const { username } = await signupFreshUser(request);
+
+    // 1. Log in as A (this vaults A's token).
+    await page.goto(AUTH_BASE);
+    await page.waitForLoadState('networkidle');
+    await page.locator('#username').fill(username);
+    await page.locator('#password').fill(password);
+    await page.locator('[data-testid="login-submit"]').click();
+    await expect(page.locator('[data-testid="topbar-username"]')).toHaveText(username, { timeout: 20000 });
+
+    // 2. Log out.
+    await page.locator('[data-testid="topbar-account"]').click();
+    await page.locator('[data-testid="account-logout"]').click();
+    await expect(page.locator('[data-testid="login-submit"]')).toBeVisible({ timeout: 15000 });
+
+    // 3. The picker shows A with the "instant" badge (a live vaulted token).
+    const row = page.locator(`[data-testid="account-picker-${username}"]`);
+    await row.waitFor({ state: 'visible', timeout: 15000 });
+    await expect(page.locator(`[data-testid="account-picker-instant-${username}"]`)).toBeVisible();
+
+    // 4. One-tap switch back — NO password typed.
+    await row.click();
+    await expect(page.locator('[data-testid="topbar-username"]')).toHaveText(username, { timeout: 20000 });
+  });
+
   test('admin panel: Node Config visible to the node admin, hidden to a regular user', async ({ page, request }) => {
     // The seam: checkAdmin → POST /am_admin → isAdmin → the adminOnly
     // nav item renders. A config-read failure used to 500 this (v3 stacks

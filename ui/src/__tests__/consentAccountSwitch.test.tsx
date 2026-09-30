@@ -36,6 +36,11 @@ function signedInHarness(overrides: Record<string, any> = {}) {
       { username: 'alice', provider: 'api.web10.app' },
       { username: 'bob', provider: 'api.web10.app' },
     ],
+    // bob has a live vaulted token (one-tap switch); alice is the live session.
+    vaultedAccounts: [
+      { username: 'bob', provider: 'api.web10.app', token: 'tok-bob' },
+    ],
+    switchAccount: vi.fn(),
     setUserConfirmed: vi.fn(),
     setLoginUsername: vi.fn(),
     goToApp: vi.fn(),
@@ -73,27 +78,47 @@ describe('ConsentView — signed-out opener with a live session (account switch)
     expect(I.setUserConfirmed).toHaveBeenCalledWith(true)
   })
 
-  it('picking a remembered account pre-fills provider + username', () => {
+  it('picking a NON-vaulted remembered account pre-fills provider + username (password path)', () => {
+    // carol has no vaulted token → picking her pre-fills the form; the
+    // password is still required.
+    const I = signedInHarness({
+      rememberedAccounts: [
+        { username: 'alice', provider: 'api.web10.app' },
+        { username: 'carol', provider: 'api.web10.app' },
+      ],
+    })
+    render(<ConsentView I={I} />)
+    fireEvent.click(screen.getByTestId('account-picker-carol'))
+    expect((screen.getByTestId('username-input') as HTMLInputElement).value).toBe('carol')
+    expect((screen.getByTestId('provider-input') as HTMLInputElement).value).toBe('api.web10.app')
+    expect(I.switchAccount).not.toHaveBeenCalled()
+  })
+
+  it('picking a VAULTED remembered account switches in one tap (no password, no pre-fill)', () => {
+    // bob has a live vaulted token → picking him adopts his token directly.
     const I = signedInHarness()
     render(<ConsentView I={I} />)
+    // The vaulted row shows the "instant" badge.
+    expect(screen.getByTestId('account-picker-instant-bob')).toBeTruthy()
     fireEvent.click(screen.getByTestId('account-picker-bob'))
-    expect((screen.getByTestId('username-input') as HTMLInputElement).value).toBe('bob')
-    expect((screen.getByTestId('provider-input') as HTMLInputElement).value).toBe('api.web10.app')
+    expect(I.switchAccount).toHaveBeenCalledWith('bob', 'api.web10.app')
+    // It did NOT pre-fill the form (no password needed).
+    expect((screen.getByTestId('username-input') as HTMLInputElement).value).toBe('')
   })
 
   it('"Continue as" hides once the form targets a different account (the wrong-identity guard)', () => {
     // The operator's screenshot: the popup is signed in as alice, the user
-    // picks bob from the picker. "Continue as alice" would hand back the WRONG
-    // identity, so it must disappear — the password form is the only path left
-    // for bob.
+    // targets a different account. "Continue as alice" would hand back the
+    // WRONG identity, so it must disappear — the password form is the only
+    // path left for the other account.
     const I = signedInHarness()
     const { rerender } = render(<ConsentView I={I} />)
     expect(screen.getByTestId('consent-continue-as')).toBeTruthy()
-    // Simulate picking bob (selectAccount calls setLoginUsername('bob')).
-    I.loginUsername = 'bob'
+    // Simulate the form targeting a different (non-vaulted) account.
+    I.loginUsername = 'carol'
     rerender(<ConsentView I={I} />)
     expect(screen.queryByTestId('consent-continue-as')).toBeNull()
-    // The form is still there — the password path for bob.
+    // The form is still there — the password path for carol.
     expect(screen.getByTestId('login-submit')).toBeTruthy()
   })
 
@@ -110,8 +135,7 @@ describe('ConsentView — signed-out opener with a live session (account switch)
     expect(screen.getByTestId('consent-continue-as')).toBeTruthy()
   })
 
-  it('a signed-in opener (return run) still auto-completes — one tap preserved', () => {
-    const I = signedInHarness({ _expectedUser: 'alice' })
+  it('a signed-in opener (return run) still auto-completes — one tap preserved', () => {    const I = signedInHarness({ _expectedUser: 'alice' })
     render(<ConsentView I={I} />)
     // Auto-complete: goToApp called, Connecting shown, no login form.
     expect(I.goToApp).toHaveBeenCalled()
