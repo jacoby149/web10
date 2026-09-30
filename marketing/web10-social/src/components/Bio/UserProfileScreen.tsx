@@ -21,11 +21,14 @@ import {
   countFollowers,
   countUserFollowingReal,
   readUserPublicProfile,
+  getMyCollections,
+  readCollection,
 } from '@/data';
 import { getWapi } from '@/data/wapi';
 import type { ProfileRecord, PostRecord, MediaRecord, FollowRecord } from '@/data/types';
+import type { CollectionRecord, CollectionContents } from '@/data/saved';
 import { mediaRefId, fromResolvedMediaRef } from '@/data/types';
-import { MapPin, Globe, Link, Users, UserPlus, UserCheck, Loader2, ArrowLeft, MessageSquare, Play, Camera, Edit3, Check, X, ImagePlus, AlertTriangle, Inbox, LayoutGrid, Clapperboard, User } from 'lucide-react';
+import { MapPin, Globe, Link, Users, UserPlus, UserCheck, Loader2, ArrowLeft, MessageSquare, Play, Camera, Edit3, Check, X, ImagePlus, AlertTriangle, Inbox, LayoutGrid, Clapperboard, User, Bookmark } from 'lucide-react';
 import { PostLightbox } from './PostLightbox';
 import { ProfileFeed } from './ProfileFeed';
 import { ProfileViewToggle, type ProfileViewMode } from './ProfileViewToggle';
@@ -58,6 +61,173 @@ interface UserProfileScreenProps {
   username: string;
   provider: string;
   onBack?: () => void;
+}
+
+// ── Saved collections (D88) — the profile's Saved tab ───────────────────────
+// The owner's playlists, YouTube-channel-shaped: a grid of collection cards
+// (name + "N items"). Tapping a card opens the collection's contents inline
+// (the `?c=<slug>` deep link — the URL holds which collection is open). This
+// is the owner's own profile; the visitor-facing public-collections case is a
+// follow-up (it needs the node's by-user enumeration + the membership
+// visibility seam).
+
+interface SavedTabProps {
+  username: string;
+  collections: CollectionRecord[];
+  activeSlug: string | null;
+  onOpenCollection: (slug: string) => void;
+  onBackToCollections: () => void;
+}
+
+function SavedTab({ username, collections, activeSlug, onOpenCollection, onBackToCollections }: SavedTabProps) {
+  const navigate = useNavigate();
+  const [contents, setContents] = useState<CollectionContents | null>(null);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  // When a collection is open, load its contents (the ref_value join → the
+  // resolved posts + media). A dead ref degrades to an "unavailable" tile.
+  useEffect(() => {
+    if (!activeSlug) {
+      setContents(null);
+      return;
+    }
+    const col = collections.find((c) => c.slug === activeSlug);
+    if (!col) return;
+    let cancelled = false;
+    setLoading(true);
+    setError(null);
+    readCollection(col.groupId)
+      .then((c) => { if (!cancelled) setContents(c); })
+      .catch((e) => { if (!cancelled) { console.error('[social] SavedTab — readCollection failed:', e); setError('Couldn\u2019t load this collection.'); } })
+      .finally(() => { if (!cancelled) setLoading(false); });
+    return () => { cancelled = true; };
+  }, [activeSlug, collections]);
+
+  // The collection's contents view (the wall of saved posts).
+  if (activeSlug) {
+    const col = collections.find((c) => c.slug === activeSlug);
+    return (
+      <div className="px-4 pb-4 pt-2">
+        <div className="flex items-center gap-3 py-2">
+          <button
+            data-testid="saved-back"
+            aria-label="Back to collections"
+            onClick={onBackToCollections}
+            className="p-2 -ml-2 rounded-md text-muted-foreground hover:text-foreground transition-colors outline-none focus-visible:ring-2 focus-visible:ring-ring"
+          >
+            <ArrowLeft className="w-5 h-5" strokeWidth={2} />
+          </button>
+          <div className="min-w-0">
+            <h2 className="font-display font-semibold text-foreground text-lg truncate">{col?.name || 'Collection'}</h2>
+            {col && <p className="text-xs text-muted-foreground">{col.itemCount} item{col.itemCount === 1 ? '' : 's'}</p>}
+          </div>
+        </div>
+
+        {loading ? (
+          <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-4">
+            {Array.from({ length: 8 }).map((_, i) => (
+              <Skeleton key={i} className="aspect-[9/16] rounded-lg" />
+            ))}
+          </div>
+        ) : error ? (
+          <div className="py-16 text-center" data-testid="saved-collection-error">
+            <p className="text-sm text-muted-foreground">{error}</p>
+          </div>
+        ) : contents && contents.posts.length ? (
+          <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-4">
+            {contents.posts.map((sp) => {
+              if (sp.unavailable || !sp.post) {
+                return (
+                  <div
+                    key={sp._id || sp.postId}
+                    data-testid="saved-unavailable"
+                    className="aspect-[9/16] w-full bg-elevated rounded-lg flex flex-col items-center justify-center gap-2 p-4"
+                  >
+                    <Inbox className="w-6 h-6 text-muted-foreground/60" strokeWidth={1.5} />
+                    <p className="text-xs text-muted-foreground text-center">No longer available</p>
+                  </div>
+                );
+              }
+              const post = sp.post;
+              const firstMedia = post.media_refs?.length ? contents.mediaMap[mediaRefId(post.media_refs[0])] : null;
+              return (
+                <WallTile
+                  key={sp._id || sp.postId}
+                  media={firstMedia ?? { _id: post._id, url: '', created_at: '' }}
+                  testId="saved-post-cell"
+                  title={post.title}
+                  caption={post.text}
+                  postId={post._id}
+                  multiCount={post.media_refs?.length}
+                  onClick={() => navigate(`/u/${username}/p/${post._id}`)}
+                />
+              );
+            })}
+          </div>
+        ) : (
+          <div className="py-16 text-center" data-testid="saved-collection-empty">
+            <Bookmark className="w-8 h-8 text-muted-foreground/50 mx-auto mb-3" strokeWidth={1.5} />
+            <p className="text-sm text-muted-foreground">Nothing saved here yet</p>
+          </div>
+        )}
+      </div>
+    );
+  }
+
+  // The collections grid (the cards).
+  if (!collections.length) {
+    return (
+      <div className="py-16 text-center" data-testid="saved-empty">
+        <Bookmark className="w-8 h-8 text-muted-foreground/50 mx-auto mb-3" strokeWidth={1.5} />
+        <p className="text-sm text-muted-foreground">No collections yet</p>
+        <p className="text-xs text-muted-foreground/60 mt-1">Save posts to build your first playlist.</p>
+      </div>
+    );
+  }
+
+  return (
+    <div className="px-4 pb-4 pt-2">
+      <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5">
+        {collections.map((col) => (
+          <button
+            key={col.groupId}
+            data-testid="saved-collection-card"
+            onClick={() => onOpenCollection(col.slug)}
+            className="group text-left rounded-lg overflow-hidden bg-surface border border-border hover:border-brand/40 transition-colors outline-none focus-visible:ring-2 focus-visible:ring-ring"
+          >
+            {/* The cover — a brand-tinted placeholder (the first saved post's
+                media is a follow-up; the face's cover_ref is unset for now).
+                A 4:3 thumbnail (the playlist shape — a collection is a list,
+                not a video) + the name/count below, so the card fits the
+                profile's content column without pushing the label off-screen. */}
+            <div
+              className="relative aspect-[4/3] w-full"
+              style={{ backgroundColor: textTileColor(col.groupId) }}
+            >
+              <div
+                className="pointer-events-none absolute inset-0"
+                style={{
+                  background:
+                    'radial-gradient(120% 85% at 22% 12%, rgba(255,255,255,0.22), rgba(255,255,255,0.04) 42%, transparent 62%)',
+                }}
+                aria-hidden="true"
+              />
+              <div className="absolute inset-0 flex items-center justify-center">
+                <Bookmark className="w-8 h-8 text-foreground/70" strokeWidth={1.5} />
+              </div>
+            </div>
+            <div className="p-3">
+              <p className="text-sm font-medium text-foreground truncate">{col.name}</p>
+              <p className="text-xs text-muted-foreground mt-0.5">
+                {col.itemCount} item{col.itemCount === 1 ? '' : 's'}
+              </p>
+            </div>
+          </button>
+        ))}
+      </div>
+    </div>
+  );
 }
 
 function formatTimeAgo(dateStr: string): string {
@@ -259,6 +429,11 @@ export default function UserProfileScreen({ username, provider, onBack }: UserPr
   const [uploadError, setUploadError] = useState<string | null>(null);
   const [draft, setDraft] = useState<Partial<ProfileRecord>>({});
   const [stagingCount, setStagingCount] = useState<number>(0);
+  // Saved collections (D88) — the owner's playlists on the profile's Saved tab.
+  // Loaded only for the owner (the visitor-facing public-collections case is a
+  // follow-up — it needs the node's by-user enumeration + the membership
+  // visibility seam). null = not loaded (anon / visitor → the tab is absent).
+  const [collections, setCollections] = useState<CollectionRecord[] | null>(null);
   // The file input is PERSISTENT in the DOM (not created on click) so the
   // upload seam is drivable from e2e (setInputFiles) — a createElement-on-
   // click input is unreachable from Playwright.
@@ -268,8 +443,11 @@ export default function UserProfileScreen({ username, provider, onBack }: UserPr
   // Deep-link: the active tab from ?tab= (refresh-safe, shareable) — the
   // address bar holds the screen state (the deep-link rule).
   const [searchParams, setSearchParams] = useSearchParams();
-  const [activeTab, setActiveTab] = useState<'posts' | 'media'>(
-    () => (searchParams.get('tab') === 'media' ? 'media' : 'posts'),
+  const [activeTab, setActiveTab] = useState<'posts' | 'media' | 'saved'>(
+    () => {
+      const t = searchParams.get('tab');
+      return t === 'media' ? 'media' : t === 'saved' ? 'saved' : 'posts';
+    },
   );
   // The posts tab's view lens (the "view lenses" idea — rendering only, never
   // ranking): the insta-shaped grid (the default) or the facebook-shaped feed
@@ -278,14 +456,17 @@ export default function UserProfileScreen({ username, provider, onBack }: UserPr
   const [viewMode, setViewMode] = useState<ProfileViewMode>(
     () => (searchParams.get('view') === 'feed' ? 'feed' : 'grid'),
   );
+  // The open collection on the Saved tab (the `?c=<slug>` deep link — the URL
+  // holds which collection is open, so a shared link lands on it).
+  const openCollectionSlug = searchParams.get('c');
 
-  const selectTab = useCallback((tab: 'posts' | 'media') => {
+  const selectTab = useCallback((tab: 'posts' | 'media' | 'saved') => {
     setActiveTab(tab);
     const params = new URLSearchParams(searchParams);
-    if (tab === 'media') {
-      params.set('tab', 'media');
-    } else {
+    if (tab === 'posts') {
       params.delete('tab');
+    } else {
+      params.set('tab', tab);
     }
     setSearchParams(params, { replace: true });
   }, [searchParams, setSearchParams]);
@@ -301,10 +482,26 @@ export default function UserProfileScreen({ username, provider, onBack }: UserPr
     setSearchParams(params, { replace: true });
   }, [searchParams, setSearchParams]);
 
+  // Open a collection on the Saved tab (the `?c=<slug>` deep link).
+  const openCollection = useCallback((slug: string) => {
+    const params = new URLSearchParams(searchParams);
+    params.set('tab', 'saved');
+    params.set('c', slug);
+    setSearchParams(params, { replace: true });
+  }, [searchParams, setSearchParams]);
+
+  // Back to the collections grid (clear the `?c=` param, stay on Saved).
+  const backToCollections = useCallback(() => {
+    const params = new URLSearchParams(searchParams);
+    params.delete('c');
+    setSearchParams(params, { replace: true });
+  }, [searchParams, setSearchParams]);
+
   // Sync activeTab + viewMode with the URL (back/forward + a shared link
   // landing on a tab/view).
   useEffect(() => {
-    const current = searchParams.get('tab') === 'media' ? 'media' : 'posts';
+    const t = searchParams.get('tab');
+    const current: 'posts' | 'media' | 'saved' = t === 'media' ? 'media' : t === 'saved' ? 'saved' : 'posts';
     if (activeTab !== current) setActiveTab(current);
     const currentView = searchParams.get('view') === 'feed' ? 'feed' : 'grid';
     if (viewMode !== currentView) setViewMode(currentView);
@@ -378,6 +575,14 @@ export default function UserProfileScreen({ username, provider, onBack }: UserPr
         }
         fCount = fCnt; // null = ledger unavailable → hide the tile
         setStagingCount(stgCount);
+        // Saved collections (D88) — the owner's playlists for the Saved tab.
+        // Isolated: a failure degrades the tab to empty, never the profile.
+        setCollections(
+          await getMyCollections().catch((e) => {
+            console.error('[social] loadData — getMyCollections failed:', e);
+            return [] as CollectionRecord[];
+          }),
+        );
       } else {
         // Viewer path (anon or a signed-in non-owner): read the author's
         // PUBLIC profile through the D73 query engine (readUserPublicProfile).
@@ -399,6 +604,9 @@ export default function UserProfileScreen({ username, provider, onBack }: UserPr
         setFollowRecord(fr);
         setFollowing(fr?.status === 'active' || false);
         postsData = pub.posts;
+        // A visitor's profile shows no Saved tab (the public-collections case is
+        // a follow-up) — clear any stale owner state so the tab stays absent.
+        setCollections(null);
         // The face (avatar / banner) — presigned URLs the query engine minted
         // (author-scoped, so they render for any viewer, not just the owner).
         // Build the media map from the posts' inline-resolved media + the face
@@ -1009,6 +1217,28 @@ export default function UserProfileScreen({ username, provider, onBack }: UserPr
             <div className="absolute bottom-0 inset-x-0 h-0.5 bg-gradient-to-r from-brand to-brand-600" />
           )}
         </button>
+        {/* Saved (D88) — the owner's playlists. Owner-only: the visitor-facing
+            public-collections case is a follow-up, so the tab is absent on
+            someone else's profile (collections === null there). */}
+        {isOwnProfile && collections && (
+          <button
+            data-testid="profile-tab-saved"
+            aria-current={activeTab === 'saved' ? 'true' : undefined}
+            className={cn(
+              'flex-1 min-h-11 py-3 text-sm font-medium flex items-center justify-center gap-2 transition-all duration-150 relative',
+              activeTab === 'saved'
+                ? 'text-foreground'
+                : 'text-muted-foreground hover:text-foreground',
+            )}
+            onClick={() => selectTab('saved')}
+          >
+            <Bookmark className="w-4 h-4" strokeWidth={2} />
+            Saved
+            {activeTab === 'saved' && (
+              <div className="absolute bottom-0 inset-x-0 h-0.5 bg-gradient-to-r from-brand to-brand-600" />
+            )}
+          </button>
+        )}
         {activeTab === 'posts' && (
           <div className="flex items-center shrink-0 pr-2 pb-2">
             <ProfileViewToggle value={viewMode} onChange={selectView} />
@@ -1020,9 +1250,18 @@ export default function UserProfileScreen({ username, provider, onBack }: UserPr
           responsive grid of 9:16 vertical tiles — 4 across on desktop (the
           Instagram shape), fewer as the width shrinks (explicit breakpoints).
           Posts tab: the insta-shaped wall (default) or the facebook-shaped
-          feed. Media tab: every media item as a wall tile. */}
+          feed. Media tab: every media item as a wall tile. Saved tab (D88):
+          the owner's collection cards (or the open collection's contents). */}
       <div className="px-4 pb-4 pt-2">
-        {activeTab === 'posts' ? (
+        {activeTab === 'saved' && isOwnProfile && collections ? (
+          <SavedTab
+            username={username}
+            collections={collections}
+            activeSlug={openCollectionSlug}
+            onOpenCollection={openCollection}
+            onBackToCollections={backToCollections}
+          />
+        ) : activeTab === 'posts' ? (
           <>
           {/* The composer is NOT inline (the operator: "it should be
               invisible") — the app-level New Post sheet (the Layout's
