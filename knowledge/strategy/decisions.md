@@ -9,6 +9,27 @@ Status legend: [decided] intent set · [in-progress] · [open] still debating.
 
 ---
 
+### D88 — Saved collections: a playlist is a private-by-default group on the profile, publicness is a role grant — zero node surface [decided]
+
+Operator, 30.09.2026 — "there is no concept of a playlist, saved videos, saved shorts, saved posts, should be on your own profile, and see other peoples profiles saved collections kind of a feature" + "with being able to private your saved stuff, since that can be sensitive" + (on the surface) "profile card is the most like youtube channels, card on profile i mean, that makes a TON of sense, so A."
+
+**The decision.** A **saved collection** (a.k.a. playlist) is a **group** the app creates for the user — the same node primitive a community, a DM, and a group chat are — with `kind: 'saved'` on its `web10-social-group-identity` face and the platform tag `web10-social-saved`. A **saved post** is a small doc in an app-named **`saved`** service that `ref_value`s the target post's `doc_id` (a pointer, not a copy). Because posts, videos, and shorts are all one `posts` doc (D84-adjacent, `shorts.md`), **one save covers all three** — there is no separate "saved videos" / "saved shorts" machinery. The feature is **entirely client-side** (web10-social): a composition of the group primitive, the D58 principal-class grants, the identity face, and a `ref_value` link. **Zero node surface** (D60) — no new table, endpoint, column, or contract.
+
+**The privacy model (the load-bearing call, and the "sensitive" guard).** Publicness *is* a role grant to a principal class (D58, `groups/access.md`) — there is no separate "visibility" flag on the node. A collection's **membership is the privacy boundary**:
+
+| kind | the membership rows | who reads the contents |
+|---|---|---|
+| **private** (the default) | `(G, owner, 'owner')` only | **only the owner** |
+| **public** | `(G, owner, 'owner')` + `(G, 'anyone', 'reader')` | everyone |
+
+A new collection is **private by default** (owner row only) — a non-owner's read of its contents 403s (I3), so a stranger on the profile sees the collection's *face* (name, cover, item count) but not what's in it. Flipping it public is the app adding the `(G, 'anyone', 'reader')` row via `addGroupMember` — the *same call* that makes a profile public. This is exactly the "make my profile public = the app adds an `anyone` read-grant row" idiom, applied to a collection. The face's `visibility` field is the app's *intent*; the node's membership rows are the *enforcement*.
+
+**The surface (the operator's "A").** A **Saved** tab on the profile (`/u/:username?tab=saved`, the existing `Posts | Media` tabs + this one, the `?tab=` deep-link idiom) — the YouTube-channel "Playlists" shape. It lists the user's collections as **cards** (cover, name, "N items"); on the owner's profile the cards are editable, on a visitor's profile the tab shows only if there's ≥1 *public* collection and the cards open read-only. A card opens `/u/:username/saved/:collectionId` (deep-linkable) rendering the saved posts as the profile's own wall/feed. The **Save** affordance is a post action ("Save to…" → pick a collection or make a new one), owner-of-the-token only, hidden in anon mode.
+
+**The line it does not cross (D60 / I3).** The node stays generic — the test "would a notes app, a music app, or a shop use this?" passes: a notes app wants "saved notes," a music app "saved tracks," a shop "saved products" — same group+`ref_value`+role-grant composition, different service name. A `ref_value` is **not a grant**: resolving a saved ref runs the target post's *own* read gate, so a private post from someone else stays private even inside your collection (the collection is a list of pointers, not a copy that bypasses I3). `kind: 'saved'` is a render hint, never a security boundary. Rejects: a node-side "saved" table/endpoint (app-specific, D60 reject), a flat single "watch later" list (the operator's framing is *named collections* / playlists), and public-by-default (the "sensitive" framing + the privacy model both point private-by-default).
+
+---
+---
 ### D87 — The creator of a group is its owner, guaranteed by the node and self-healed on load (the "dead groups" fix) [decided]
 
 Operator, 30.09.2026 — "i dont see any way to delete groups, also some groups i created that arent letting me edit them, just dead groups. we should make some kind of healing that deletes them, you can check it out on the ubuntu deployment node."
