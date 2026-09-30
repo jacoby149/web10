@@ -8,6 +8,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { getWapi } from '@/data/wapi';
 import { listConversations, readDms, sendDm, getLastDm, readContacts, startConversation, conversationKey as deriveConversationKey, readFollows, addContact, deleteDm, updateDm, deleteConversation, lookupUserProfile, type UserFace, getMyGroupChats, readGroupChatFace, readGroupChatMessages, sendGroupChatMessage, createGroupChat, groupChatRouteKey, groupIdFromRouteKey, getGroupMembers, type GroupChatSummary } from '@/data';
 import { sendP2P, onP2PInbound, isP2PReady, getOnlinePeers, peerIdFor, onPresenceChange, probePresence } from '@/data/p2p';
+import { markConversationRead } from '@/data/messagesUnread';
 import type { DmRecord, ContactRecord, FollowRecord } from '@/data/types';
 import { Send, ChevronLeft, Plus, X, Search, Users, MoreVertical, Edit3, Trash2, Check, Loader2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
@@ -977,7 +978,13 @@ export default function DmsScreen() {
       // would return empty and clear the thread).
       if (selectedConv && !isGroupChat) {
         readDms(selectedConv)
-          .then(setMessages)
+          .then((msgs) => {
+            setMessages(msgs);
+            // A message arriving while the thread is open is already being
+            // read — mark it read so it doesn't count as unread.
+            const last = msgs[msgs.length - 1];
+            markConversationRead(selectedConv, last?.sent_at);
+          })
           .catch(() => {
             console.log('[social-dms] inbound refresh skipped (message shows on next read)');
           });
@@ -1043,6 +1050,10 @@ export default function DmsScreen() {
       try {
         const msgs = await readDms(selectedConv);
         setMessages(msgs);
+        // Opening the conversation marks it read (clears the Messages badge) —
+        // to the newest message actually loaded, not a stale cache.
+        const last = msgs[msgs.length - 1];
+        markConversationRead(selectedConv, last?.sent_at);
       } catch (e) {
         console.error('Failed to load messages:', e);
       }
