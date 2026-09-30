@@ -96,6 +96,20 @@ vi.mock('@/data/ads-catalog', () => ({
   checkNodeAdmin: (...a: unknown[]) => checkNodeAdmin(...a),
 }));
 
+// Mock the Messages unread store so the Layout's Messages badge is controllable
+// in tests (the real store is empty until initMessagesUnread seeds it).
+const { messagesUnreadState } = vi.hoisted(() => ({
+  messagesUnreadState: { unread: 0 },
+}));
+vi.mock('@/data/messagesUnread', () => ({
+  unreadMessagesCount: () => messagesUnreadState.unread,
+  isConversationUnread: () => false,
+  onMessagesUnreadChange: () => () => {},
+  initMessagesUnread: vi.fn(async () => {}),
+  markConversationRead: vi.fn(async () => {}),
+  teardownMessagesUnread: vi.fn(),
+}));
+
 describe('FeedScreen', () => {
   beforeEach(() => {
     vi.clearAllMocks();
@@ -706,6 +720,37 @@ describe('Layout', () => {
     expect(screen.getAllByText('Video').length).toBeGreaterThanOrEqual(1);
     expect(screen.queryByText('Groups')).not.toBeInTheDocument();
     expect(screen.getAllByText('Messages').length).toBeGreaterThanOrEqual(1);
+  });
+
+  it('shows the purple unread count on the Messages icon when there are unread messages', async () => {
+    const { default: Layout } = await import('@/components/Social/Layout');
+    messagesUnreadState.unread = 3;
+    render(
+      <MemoryRouter initialEntries={['/feed']}>
+        <Layout onLogout={() => {}} onReportBug={() => {}}>
+          <div>Content</div>
+        </Layout>
+      </MemoryRouter>,
+    );
+    // The badge renders on both the desktop sidebar + the mobile bottom bar
+    // (both exist in the DOM in jsdom).
+    expect(screen.getByTestId('nav-messages-badge-desktop')).toHaveTextContent('3');
+    expect(screen.getByTestId('nav-messages-badge-mobile')).toHaveTextContent('3');
+    messagesUnreadState.unread = 0;
+  });
+
+  it('hides the Messages badge when there are no unread messages', async () => {
+    const { default: Layout } = await import('@/components/Social/Layout');
+    messagesUnreadState.unread = 0;
+    render(
+      <MemoryRouter initialEntries={['/feed']}>
+        <Layout onLogout={() => {}} onReportBug={() => {}}>
+          <div>Content</div>
+        </Layout>
+      </MemoryRouter>,
+    );
+    expect(screen.queryByTestId('nav-messages-badge-desktop')).not.toBeInTheDocument();
+    expect(screen.queryByTestId('nav-messages-badge-mobile')).not.toBeInTheDocument();
   });
 
   it('sidebar profile row shows the profile pic (not the generic icon)', async () => {

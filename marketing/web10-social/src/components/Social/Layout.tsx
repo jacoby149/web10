@@ -8,6 +8,7 @@ import { getWapi } from '@/data/wapi';
 import { readProfile, resolveMediaRefs } from '@/data';
 import type { ProfileRecord } from '@/data';
 import { useNotifications } from '@/hooks/useNotifications';
+import { useMessagesUnread } from '@/hooks/useMessagesUnread';
 import { useNodeAdmin } from '@/components/Monetization/useNodeAdmin';
 import NotificationBell from '@/components/Notifications/NotificationBell';
 import GlobalSearch from '@/components/Search/GlobalSearch';
@@ -126,6 +127,9 @@ export default function Layout({ onLogout, onLogin, isAnon: isAnonProp, onReport
   const bottomNavItems = isAnon ? anonBottomNavItems : [feedItem, videoItem, shortsItem, messagesItem];
   const [moreOpen, setMoreOpen] = useState(false);
   const { unread } = useNotifications();
+  // The Messages unread badge (the purple count on the Messages icon) — DMs
+  // have their own badge, separate from the notifications bell.
+  const { unread: messagesUnread } = useMessagesUnread();
   const { isAdmin: isNodeAdmin } = useNodeAdmin();
   const isNotifications = pathname === '/notifications';
   // The Shorts LENS (`/shorts/:postId`) is a full-screen immersive surface
@@ -287,7 +291,18 @@ export default function Layout({ onLogout, onLogin, isAnon: isAnonProp, onReport
                   )}
                 </Avatar>
               ) : (
-                <Icon className={cn('w-6 h-6 transition-colors duration-150', active && 'text-brand')} strokeWidth={active ? 2 : 1.75} />
+                <span className="relative shrink-0">
+                  <Icon className={cn('w-6 h-6 transition-colors duration-150', active && 'text-brand')} strokeWidth={active ? 2 : 1.75} />
+                  {path === '/messages' && messagesUnread > 0 && (
+                    <span
+                      data-testid="nav-messages-badge-desktop"
+                      aria-hidden="true"
+                      className="absolute -top-1.5 -right-1.5 min-w-4 h-4 px-1 rounded-full bg-brand text-background text-[0.5625rem] font-bold flex items-center justify-center"
+                    >
+                      {messagesUnread > 99 ? '99+' : messagesUnread}
+                    </span>
+                  )}
+                </span>
               )}
               <span className="truncate">{navLabel}</span>
               {active && (
@@ -631,7 +646,18 @@ export default function Layout({ onLogout, onLogin, isAnon: isAnonProp, onReport
                   aria-hidden="true"
                 />
               )}
-              <Icon className="w-5 h-5" strokeWidth={isActive(path) ? 2 : 1.75} />
+              <span className="relative">
+                <Icon className="w-5 h-5" strokeWidth={isActive(path) ? 2 : 1.75} />
+                {path === '/messages' && messagesUnread > 0 && (
+                  <span
+                    data-testid="nav-messages-badge-mobile"
+                    aria-hidden="true"
+                    className="absolute -top-1.5 -right-2 min-w-4 h-4 px-1 rounded-full bg-brand text-background text-[0.5625rem] font-bold flex items-center justify-center"
+                  >
+                    {messagesUnread > 99 ? '99+' : messagesUnread}
+                  </span>
+                )}
+              </span>
               <span className="text-[0.625rem] font-medium uppercase tracking-wide">{label}</span>
             </button>
             );

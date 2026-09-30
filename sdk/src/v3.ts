@@ -44,12 +44,19 @@ export interface V3ClientOptions {
   token?: string | null
   /** RTC server hostname (for P2P via web10-npm/rtc) */
   rtcServer?: string
+  /**
+   * ICE servers for WebRTC (P2P via web10-npm/rtc). When absent, the rtc
+   * module uses a robust STUN default. A node with a TURN deployment supplies
+   * its own here (urls + username + credential).
+   */
+  iceServers?: { urls: string | string[]; username?: string; credential?: string }[]
 }
 
 interface V3State {
   apiOrigin: string
   token: string | null
   rtcServer: string
+  iceServers?: { urls: string | string[]; username?: string; credential?: string }[]
 }
 
 // ── Request body shape (mirrors api/app/v3/models/__init__.py Token) ────────
@@ -614,6 +621,7 @@ export function createV3Client(options: V3ClientOptions = {}): V3Client {
     apiOrigin,
     token: options.token ?? readTokenCookie(),
     rtcServer,
+    iceServers: options.iceServers,
   }
 
   async function v3Post<T>(action: string, body: V3Body): Promise<T> {

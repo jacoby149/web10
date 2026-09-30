@@ -38,6 +38,16 @@ export interface V3ClientOptions {
     token?: string | null;
     /** RTC server hostname (for P2P via web10-npm/rtc) */
     rtcServer?: string;
+    /**
+     * ICE servers for WebRTC (P2P via web10-npm/rtc). When absent, the rtc
+     * module uses a robust STUN default. A node with a TURN deployment supplies
+     * its own here (urls + username + credential).
+     */
+    iceServers?: {
+        urls: string | string[];
+        username?: string;
+        credential?: string;
+    }[];
 }
 export interface V3AdPreference {
     mode: 'none' | 'pinned';
@@ -376,6 +386,11 @@ export interface V3Client {
         apiOrigin: string;
         token: string | null;
         rtcServer: string;
+        iceServers?: {
+            urls: string | string[];
+            username?: string;
+            credential?: string;
+        }[];
     };
     setToken(token: string): void;
     scrubToken(): void;

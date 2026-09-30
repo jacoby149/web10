@@ -65,8 +65,8 @@ describe('notifications (app-wide store, D69)', () => {
     client = mockClient();
     vi.spyOn(v3, 'getV3Client').mockReturnValue(client as never);
     vi.spyOn(groups, 'ensureFollowers').mockResolvedValue('web10.app/groups/users/alice/followers');
-    // One non-DM group (the derive reads posts/reactions/comments from it; no
-    // DM groups → listConversations returns [] → no DM notifications).
+    // One non-DM group (the derive reads posts/reactions/comments from it; DMs
+    // are not a notification type — they have their own Messages badge).
     vi.spyOn(groups, 'getMyGroups').mockResolvedValue([
       { group_id: 'web10.app/groups/web10/discover', member_count: 10 } as never,
     ]);

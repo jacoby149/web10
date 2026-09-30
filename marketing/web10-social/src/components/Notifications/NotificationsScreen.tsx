@@ -19,8 +19,6 @@ function describe(n: Notification): string {
       return `${who} commented on your post`;
     case 'reply':
       return `${who} replied to your comment`;
-    case 'dm':
-      return `${who} sent you a message`;
     case 'follow_request':
       return `${who} followed you`;
     case 'group_join':

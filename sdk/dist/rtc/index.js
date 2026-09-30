@@ -1,5 +1,14 @@
 // src/rtc/index.ts
 var PeerClass = null;
+function defaultIceServers() {
+  return [
+    { urls: "stun:stun.l.google.com:19302" },
+    { urls: "stun:stun1.l.google.com:19302" },
+    { urls: "stun:stun2.l.google.com:19302" },
+    { urls: "stun:stun3.l.google.com:19302" },
+    { urls: "stun:stun4.l.google.com:19302" }
+  ];
+}
 function setPeer(Peer) {
   PeerClass = Peer;
 }
@@ -24,12 +33,14 @@ function createRTC(wapi) {
       if (!token)
         throw new Error("Cannot init P2P without a token");
       const id = this.peerId(token.provider, token.username, token.site, label);
+      const iceServers = wapi.state.iceServers && wapi.state.iceServers.length > 0 ? wapi.state.iceServers : defaultIceServers();
       peer = new PC(id, {
         host: wapi.state.rtcServer,
         secure,
         port: secure ? 443 : 80,
         path: "/",
-        token: `${wapi.state.token}~${label}`
+        token: `${wapi.state.token}~${label}`,
+        iceServers
       });
       if (onInbound && peer) {
         peer.on("connection", (raw) => {
@@ -79,5 +90,6 @@ function createRTC(wapi) {
 }
 export {
   setPeer,
+  defaultIceServers,
   createRTC
 };
