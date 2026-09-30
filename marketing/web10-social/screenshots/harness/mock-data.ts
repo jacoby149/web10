@@ -678,6 +678,7 @@ interface SeedFeedPost {
   author_username: string;
   author_provider: string;
   text: string;
+  title?: string;
   created_at: string;
   tags?: string[];
   likes: number;
@@ -720,6 +721,21 @@ function adCreative(label: string, from: string, to: string, w = 800, h = 450): 
 }
 
 const FEED_POSTS: SeedFeedPost[] = [
+  {
+    // A MARKDOWN post (D85) — exercises the <PostBody> renderer's full type
+    // scale (heading, bold, list, code, link) so the PR shot shows markdown
+    // rendering typeset, not as literal ** / # / - syntax.
+    _id: 'fp-md',
+    author_username: 'nova',
+    author_provider: 'web10',
+    title: 'Ship notes',
+    text: '## What landed\n\nThe **composer** now writes *markdown* under the hood. Highlights:\n\n- WYSIWYG editor, no syntax\n- typeset on every read surface\n- `zero` node changes\n\nMore at [web10.xyz](https://web10.xyz).',
+    created_at: minsAgo(1),
+    tags: ['release'],
+    likes: 88,
+    comments: 9,
+    reposts: 2,
+  },
   {
     // A PORTRAIT (9:16) video post — the transcoded (hls) path, the case that
     // used to render a full-width 9:16 box in the feed (~1.78× the card tall).

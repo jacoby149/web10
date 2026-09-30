@@ -59,7 +59,7 @@ describe('PostComposer — the title treatment (D85, rich-text.md)', () => {
     const { default: PostComposer } = await import('@/components/Feed/PostComposer');
     render(<PostComposer />);
     const title = await screen.findByTestId('composer-title');
-    expect(title).toHaveAttribute('placeholder', 'Add a title…');
+    expect(title).toHaveAttribute('placeholder', 'Add a title (optional)…');
     expect(title).toHaveClass('placeholder:font-display');
   });
 
