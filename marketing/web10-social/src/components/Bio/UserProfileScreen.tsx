@@ -127,6 +127,7 @@ interface WallTileProps {
  */
 function WallTile({ media, testId, title, caption, postId, multiCount, onClick }: WallTileProps) {
   const video = isVideo(media);
+  const isTextOnly = !media.url;
   // The text-only tile's heading: the title (D82) when present, else the
   // caption. `ariaLabel` keeps the accessible name stable.
   const heading = title || caption;
@@ -143,7 +144,12 @@ function WallTile({ media, testId, title, caption, postId, multiCount, onClick }
           onClick();
         }
       }}
-      className="relative aspect-square sm:aspect-[9/16] w-full bg-elevated overflow-hidden rounded-lg group cursor-pointer outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset"
+      className={cn(
+        'relative w-full bg-elevated overflow-hidden rounded-lg group cursor-pointer outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset',
+        isTextOnly
+          ? 'col-span-3 sm:col-span-1 aspect-[2/1] sm:aspect-[9/16]'
+          : 'aspect-square sm:aspect-[9/16]',
+      )}
     >
       {video ? (
         <video
@@ -199,7 +205,7 @@ function WallTile({ media, testId, title, caption, postId, multiCount, onClick }
               </p>
             )}
             {title && caption && (
-              <p className="mt-1.5 sm:mt-2.5 hidden sm:block text-sm text-foreground/80 leading-snug break-words line-clamp-4" data-testid={`${testId}-text-caption`}>
+              <p className="mt-1.5 sm:mt-2.5 text-xs sm:text-sm text-foreground/80 leading-snug break-words line-clamp-4" data-testid={`${testId}-text-caption`}>
                 {caption}
               </p>
             )}
