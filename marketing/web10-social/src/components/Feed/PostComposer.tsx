@@ -310,7 +310,10 @@ export default function PostComposer({
   chromeless?: boolean;
 }) {
   const isEditing = !!editingPost;
-  const [text, setText] = useState(editingPost?.text || '');
+  // Whether the caption has content — a cheap boolean, NOT the markdown. The
+  // markdown is computed on demand at submit (a full turndown walk on every
+  // keystroke is what made typing laggy). The editor owns the document.
+  const [hasText, setHasText] = useState(!!editingPost?.text);
   // The post's two bodies of text (D82): `title` (the optional headline) +
   // `text` (the caption). The title leads a card / watch header / short
   // overlay; the caption is the longer body. Optional — a post with no title
@@ -356,11 +359,14 @@ export default function PostComposer({
         placeholder: repostingTo ? 'Add a comment…' : "What's on your mind?",
       }),
     ],
-    content: text,
+    content: editingPost?.text || '',
     onFocus: () => setFocused(true),
     onBlur: () => setFocused(false),
+    // The markdown is NOT computed here — a full turndown walk of the document
+    // on every keystroke is what made typing laggy. Just track whether there's
+    // content (cheap); the markdown is serialized on demand at submit.
     onUpdate: ({ editor }) => {
-      setText(markdownConverter.turndown(editor.getHTML()).trim());
+      setHasText(!editor.isEmpty);
     },
     editorProps: {
       attributes: {
@@ -383,6 +389,14 @@ export default function PostComposer({
       el.__editor = undefined;
     };
   }, [editor]);
+
+  // Serialize the editor's document to markdown — called ONLY at submit (not on
+  // every keystroke, which is what made typing laggy). The markdown is the true
+  // data the data layer writes; the user never sees it.
+  const getMarkdown = useCallback(
+    () => (editor ? markdownConverter.turndown(editor.getHTML()).trim() : ''),
+    [editor],
+  );
 
   // Load the creator's ads + albums when the picker opens (lazy — only when
   // the creator actually pins an ad).
@@ -636,13 +650,14 @@ export default function PostComposer({
   // the edit.
   async function handleSaveEdit() {
     if (!editingPost) return;
-    if (!text.trim() && !title.trim() && !editMedia.length) return;
+    const markdown = getMarkdown();
+    if (!markdown && !title.trim() && !editMedia.length) return;
     setError(null);
     setPosting(true);
     try {
       const updates: Partial<PostRecord> = {
         title: title.trim() || undefined,
-        text: text.trim(),
+        text: markdown,
         updated_at: new Date().toISOString(),
       };
       // Media: only send `media_refs` when it actually changed (the owner
@@ -669,7 +684,8 @@ export default function PostComposer({
   }
 
   async function handleSubmit() {
-    if (!text.trim() && !mediaItems.length && !repostingTo) return;
+    const markdown = getMarkdown();
+    if (!markdown && !mediaItems.length && !repostingTo) return;
     setError(null);
 
     // Repost (reposts.md): a repost is a real post doc referencing the
@@ -678,15 +694,15 @@ export default function PostComposer({
     if (repostingTo) {
       setPosting(true);
       try {
-        await createRepost(repostingTo, text);
+        await createRepost(repostingTo, markdown);
         // Fan-out to followers' inboxes (a repost is a public post).
         try {
-          await fanOutToFollowers({ _id: repostingTo._id, text: text.trim() || undefined, created_at: new Date().toISOString() });
+          await fanOutToFollowers({ _id: repostingTo._id, text: markdown || undefined, created_at: new Date().toISOString() });
         } catch (fanOutErr) {
           console.warn('Fan-out to followers failed (non-fatal):', fanOutErr);
         }
         editor?.commands.clearContent();
-        setText('');
+        setHasText(false);
         setMediaItems([]);
         onRepostCancel?.();
         onPostCreated?.();
@@ -809,7 +825,7 @@ export default function PostComposer({
       const postRecord = await createPost(
         {
           title: title.trim() || undefined,
-          text: text.trim(),
+          text: markdown,
           media_refs: mediaRecords.map((m) => m._id!).filter(Boolean),
           visibility,
           created_at: new Date().toISOString(),
@@ -832,7 +848,7 @@ export default function PostComposer({
       previewUrlsRef.current.clear();
       setTitle('');
       editor?.commands.clearContent();
-      setText('');
+      setHasText(false);
       setMediaItems([]);
       setPinnedAd(null);
       onPostCreated?.();
@@ -852,8 +868,8 @@ export default function PostComposer({
   // content. Otherwise the post needs text or media. In edit mode, a save is
   // valid as long as the post still has some content (text / title / media).
   const canPost = isEditing
-    ? (text.trim() || title.trim() || editMedia.length) && !posting
-    : (text.trim() || title.trim() || mediaItems.length || !!repostingTo) && !uploading && !posting;
+    ? (hasText || title.trim() || editMedia.length) && !posting
+    : (hasText || title.trim() || mediaItems.length || !!repostingTo) && !uploading && !posting;
   const hasErroredMedia = mediaItems.some((item) => item.error);
   const initials = (profile?.display_name || '?').charAt(0).toUpperCase();
   // The account the post is being created AS (the identity row). Read from the
@@ -866,7 +882,7 @@ export default function PostComposer({
   // full form when it has focus or content (the Discover surface — the video
   // wall is the hero, not the composer). The full form is always shown for a
   // repost (the context block must be visible) or when not compact.
-  const hasContent = text.trim().length > 0 || title.trim().length > 0 || mediaItems.length > 0 || editMedia.length > 0;
+  const hasContent = hasText || title.trim().length > 0 || mediaItems.length > 0 || editMedia.length > 0;
   const expanded = !compact || focused || hasContent || !!repostingTo || isEditing;
 
   return (
@@ -926,7 +942,7 @@ export default function PostComposer({
               post={repostingTo}
               onCancel={() => {
                 editor?.commands.clearContent();
-                setText('');
+                setHasText(false);
                 setMediaItems([]);
                 onRepostCancel?.();
               }}
@@ -951,17 +967,18 @@ export default function PostComposer({
                onFocus={() => setFocused(true)}
                placeholder="Add a title (optional)…"
                disabled={posting}
-              className="mb-1.5 h-auto min-h-9 rounded-none border-0 bg-transparent px-0 py-1 font-display text-2xl font-semibold tracking-tight text-foreground caret-brand-400 placeholder:font-display placeholder:text-muted-foreground/50 focus:shadow-[0_0_20px_var(--color-glow-intense)]"
+              className="mb-1.5 h-auto min-h-9 rounded-none border-0 bg-transparent px-0 py-1 font-display text-2xl font-semibold tracking-tight text-foreground caret-brand-400 placeholder:font-display placeholder:text-muted-foreground/50"
               aria-label="Post title"
               data-testid="composer-title"
             />
           )}
-          {/* The caption — the Tiptap editor (WYSIWYG). The markdown is stored
-              under the hood (the `text` state, synced via onUpdate); the user
-              never sees the syntax. The contenteditable carries the testid +
-              the on-surface classes (bg-transparent, the violet caret). The
-              formatting toolbar lives below the text (a row above the action
-              bar — the Facebook structure), not above it. */}
+           {/* The caption — the Tiptap editor (WYSIWYG). The markdown is stored
+               under the hood (serialized on demand at submit — NOT on every
+               keystroke, which is what made typing laggy); the user never sees
+               the syntax. The contenteditable carries the testid + the
+               on-surface classes (bg-transparent, the violet caret). The
+               formatting toolbar lives below the text (a row above the action
+               bar — the Facebook structure), not above it. */}
           <EditorContent editor={editor} />
 
           {expanded && (
