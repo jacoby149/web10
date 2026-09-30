@@ -957,12 +957,14 @@ export interface GroupIdentity {
   website?: string;
   tags?: string[];
   /**
-   * The surface kind (group-chat.md, D77). `'chat'` marks a group as a group
-   * chat (rendered in the Messages surface, per-sender bubbles); absent (or
-   * `'community'`) means a community (the Groups surface feed). Backward
-   * compatible — every pre-existing community has no `kind`.
+   * The surface kind (group-chat.md D77, saved-collections.md D87). `'chat'`
+   * marks a group as a group chat (rendered in the Messages surface,
+   * per-sender bubbles); `'saved'` marks a saved collection (a playlist, on
+   * the profile's Saved tab); absent (or `'community'`) means a community
+   * (the Groups surface feed). Backward compatible — every pre-existing
+   * community has no `kind`.
    */
-  kind?: 'chat' | 'community';
+  kind?: 'chat' | 'community' | 'saved';
   /**
    * The draft/published state (group-as-profile, decision 2). Absent means
    * `published` — every pre-existing group is live. A `draft` group is inert:
