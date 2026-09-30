@@ -4,6 +4,7 @@ import '@testing-library/jest-dom';
 import * as data from '@/data';
 
 import { lucideMock } from './helpers/lucideMock';
+import { typeInComposer } from './helpers/tiptap';
 vi.mock('lucide-react', () => lucideMock);
 
 vi.mock('@/data', async (importOriginal) => {
@@ -136,8 +137,7 @@ describe('PostComposer — pin an ad', () => {
     const { default: PostComposer } = await import('@/components/Feed/PostComposer');
     render(<PostComposer />);
     // type some text so the post is valid
-    const textarea = screen.getByPlaceholderText("What's on your mind?");
-    fireEvent.change(textarea, { target: { value: 'my post' } });
+    await typeInComposer('my post');
     // pin an ad
     fireEvent.click(screen.getByTestId('pin-ad-button'));
     fireEvent.click(await screen.findByTestId('ad-picker-item-ad-1'));
@@ -152,8 +152,7 @@ describe('PostComposer — pin an ad', () => {
   it('posting without a pinned ad omits ad_preference', async () => {
     const { default: PostComposer } = await import('@/components/Feed/PostComposer');
     render(<PostComposer />);
-    const textarea = screen.getByPlaceholderText("What's on your mind?");
-    fireEvent.change(textarea, { target: { value: 'my post' } });
+    await typeInComposer('my post');
     fireEvent.click(screen.getByTestId('post-submit'));
     await waitFor(() => expect(data.createPost).toHaveBeenCalled());
     const call = (data.createPost as any).mock.calls[0];

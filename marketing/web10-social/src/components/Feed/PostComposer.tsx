@@ -1,9 +1,13 @@
 import { useState, useRef, useEffect, useCallback } from 'react';
+import { useEditor, EditorContent } from '@tiptap/react';
+import StarterKit from '@tiptap/starter-kit';
+import Placeholder from '@tiptap/extension-placeholder';
+import TurndownService from 'turndown';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { Input } from '@/components/ui/input';
-import { createPost, createRepost, uploadMedia, readProfile, resolveMediaRefs, fanOutToFollowers, readMyAds } from '@/data';
+import { createPost, createRepost, uploadMedia, readProfile, resolveMediaRefs, fanOutToFollowers, readMyAds, getWapi } from '@/data';
 import type { MediaRecord, ProfileRecord, Visibility, AdRecord, AdAlbum, PostRecord, ResolvedMediaRef } from '@/data';
 import { readSettings } from '@/data/settings';
 import {
@@ -15,7 +19,7 @@ import {
   validateVideoDuration,
 } from '@/lib/mediaProcessing';
 import type { ProcessingError as MediaProcessingError } from '@/lib/mediaProcessing';
-import { Image, X, Send, Loader2, AlertTriangle, GripVertical, Globe, Lock, Megaphone, Scissors, Repeat2 } from 'lucide-react';
+import { Image, X, Send, Loader2, AlertTriangle, GripVertical, Globe, Lock, Megaphone, Scissors, Repeat2, Bold, Italic, Strikethrough, Heading2, List, Code, Link as LinkIcon } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { AdPicker } from './AdPicker';
 import { VideoEditorSheet } from './VideoEditorSheet';
@@ -23,6 +27,18 @@ import type { VideoEditResult } from './VideoEditorSheet';
 import { editVideo, isNoopEdit } from '@/lib/videoEditing';
 
 let nextMediaId = 0;
+
+// The markdown converter (D85, rich-text.md "The write side"): Tiptap v3 has no
+// built-in `getMarkdown()`, so the editor's HTML (`getHTML()`) is converted to
+// markdown with turndown. This is the "markdown stored under the hood" — the
+// user writes in a WYSIWYG, the markdown string is what the data layer writes,
+// and the renderer (react-markdown) parses it back. ATX headings + fenced code
+// blocks + `-` bullets (the GitHub-flavored core the renderer handles).
+const markdownConverter = new TurndownService({
+  headingStyle: 'atx',
+  codeBlockStyle: 'fenced',
+  bulletListMarker: '-',
+});
 
 interface AttachedMedia {
   id: number;
@@ -303,6 +319,46 @@ export default function PostComposer({
   const fileInputRef = useRef<HTMLInputElement>(null);
   const dragIdRef = useRef<number | null>(null);
 
+  // The caption is a Tiptap editor (D85, rich-text.md "The write side"): the
+  // user writes in a WYSIWYG (bold, italic, headings, lists, code, links) and
+  // the markdown is stored under the hood — `text` is the markdown string,
+  // kept in sync via onUpdate. The user never sees the markdown. The editor
+  // owns the document; `text` is the serialized form the data layer writes.
+  const editor = useEditor({
+    extensions: [
+      StarterKit.configure({ link: { openOnClick: false } }),
+      Placeholder.configure({
+        placeholder: repostingTo ? 'Add a comment…' : "What's on your mind?",
+      }),
+    ],
+    content: text,
+    onFocus: () => setFocused(true),
+    onBlur: () => setFocused(false),
+    onUpdate: ({ editor }) => {
+      setText(markdownConverter.turndown(editor.getHTML()).trim());
+    },
+    editorProps: {
+      attributes: {
+        'data-testid': 'composer-textarea',
+        class:
+          'composer-editor bg-transparent caret-brand-400 min-h-[180px] max-h-[40vh] overflow-y-auto px-0 py-1 text-lg leading-relaxed text-foreground focus:outline-none',
+      },
+    },
+  });
+
+  // Test seam: jsdom can't drive a ProseMirror contenteditable through DOM
+  // events (ProseMirror's beforeinput is a no-op stub and its click path needs
+  // coordinate APIs jsdom lacks), so tests reach the editor through its command
+  // API. Expose the instance on the contenteditable node.
+  useEffect(() => {
+    if (!editor) return;
+    const el = editor.view.dom as HTMLElement & { __editor?: typeof editor };
+    el.__editor = editor;
+    return () => {
+      el.__editor = undefined;
+    };
+  }, [editor]);
+
   // Load the creator's ads + albums when the picker opens (lazy — only when
   // the creator actually pins an ad).
   const openAdPicker = useCallback(async () => {
@@ -549,6 +605,7 @@ export default function PostComposer({
         } catch (fanOutErr) {
           console.warn('Fan-out to followers failed (non-fatal):', fanOutErr);
         }
+        editor?.commands.clearContent();
         setText('');
         setMediaItems([]);
         onRepostCancel?.();
@@ -694,6 +751,7 @@ export default function PostComposer({
       mediaItems.forEach((item) => previewUrlsRef.current.delete(item.previewUrl));
       previewUrlsRef.current.clear();
       setTitle('');
+      editor?.commands.clearContent();
       setText('');
       setMediaItems([]);
       setPinnedAd(null);
@@ -715,6 +773,11 @@ export default function PostComposer({
   const canPost = (text.trim() || title.trim() || mediaItems.length || !!repostingTo) && !uploading && !posting;
   const hasErroredMedia = mediaItems.some((item) => item.error);
   const initials = (profile?.display_name || '?').charAt(0).toUpperCase();
+  // The account the post is being created AS (the identity row). Read from the
+  // wapi token — the signed-in user's username. Shown as `@handle` under the
+  // name so it's clear who the post is from (and it generalizes to a group /
+  // alternate identity later).
+  const currentUsername = getWapi()?.readToken()?.username || '';
 
   // Compact mode: the composer rests as a single-line bar and expands to the
   // full form when it has focus or content (the Discover surface — the video
@@ -745,7 +808,14 @@ export default function PostComposer({
           aria-hidden="true"
         />
       )}
-      <div className="flex gap-3">
+      {/* Identity row: the avatar + the name (the Facebook structure — the
+          avatar + name anchor the top, and everything below shares one left
+          margin, so the title, caption, toolbar, action bar, and Post button
+          all line up to the same edge — the "neat vertical stacking"). The
+          name makes it clear who the post is being created AS — the account
+          identity, which will matter once a post can be made as a group /
+          alternate profile. */}
+      <div className="mb-3 flex items-center gap-3">
         <Avatar className="h-10 w-10 shrink-0">
           {avatarUrl ? (
             <AvatarImage src={avatarUrl} alt="" />
@@ -755,12 +825,24 @@ export default function PostComposer({
             </AvatarFallback>
           )}
         </Avatar>
+        <div className="min-w-0 flex-1">
+          <p className="truncate text-[0.9375rem] font-semibold text-foreground" data-testid="composer-author-name">
+            {profile?.display_name || 'You'}
+          </p>
+          {currentUsername && (
+            <p className="truncate text-xs text-muted-foreground" data-testid="composer-author-handle">
+              @{currentUsername}
+            </p>
+          )}
+        </div>
+      </div>
 
-        <div className="flex-1 min-w-0">
+      <div>
           {repostingTo && (
             <RepostContext
               post={repostingTo}
               onCancel={() => {
+                editor?.commands.clearContent();
                 setText('');
                 setMediaItems([]);
                 onRepostCancel?.();
@@ -789,19 +871,13 @@ export default function PostComposer({
               data-testid="composer-title"
             />
           )}
-          <Textarea
-            value={text}
-            onChange={(e) => setText(e.target.value)}
-            onFocus={() => setFocused(true)}
-            onBlur={() => setFocused(false)}
-            placeholder={repostingTo ? 'Add a comment…' : "What's on your mind?"}
-            disabled={posting}
-            className={cn(
-              'resize-none bg-transparent border-0 text-foreground placeholder:text-muted-foreground text-lg caret-brand-400',
-              expanded ? 'min-h-[120px]' : 'min-h-[44px] max-h-[44px] overflow-hidden leading-[44px]',
-            )}
-            data-testid="composer-textarea"
-          />
+          {/* The caption — the Tiptap editor (WYSIWYG). The markdown is stored
+              under the hood (the `text` state, synced via onUpdate); the user
+              never sees the syntax. The contenteditable carries the testid +
+              the on-surface classes (bg-transparent, the violet caret). The
+              formatting toolbar lives below the text (a row above the action
+              bar — the Facebook structure), not above it. */}
+          <EditorContent editor={editor} />
 
           {expanded && (
             <>
@@ -838,6 +914,44 @@ export default function PostComposer({
                   {error}
                 </div>
               )}
+
+              {/* The formatting toolbar (the "Aa" controls — the D85 write side,
+                  rich-text.md "The write side"): a slim token/Lucide row that
+                  wraps the selection / toggles a block. No block inspector (the
+                  WordPress foot-gun, rejected). It sits at the bottom, a row
+                  above the action bar (the Facebook structure), not in the
+                  middle of the text. The user controls the markdown here —
+                  bold, italic, heading, list, code, link — and never sees the
+                  syntax. */}
+              <div className="mt-3 flex items-center gap-1" data-testid="composer-toolbar">
+                {[
+                  { icon: Bold, label: 'Bold', run: () => editor?.chain().focus().toggleBold().run(), on: () => editor?.isActive('bold') },
+                  { icon: Italic, label: 'Italic', run: () => editor?.chain().focus().toggleItalic().run(), on: () => editor?.isActive('italic') },
+                  { icon: Strikethrough, label: 'Strikethrough', run: () => editor?.chain().focus().toggleStrike().run(), on: () => editor?.isActive('strike') },
+                  { icon: Heading2, label: 'Heading', run: () => editor?.chain().focus().toggleHeading({ level: 2 }).run(), on: () => editor?.isActive('heading', { level: 2 }) },
+                  { icon: List, label: 'Bullet list', run: () => editor?.chain().focus().toggleBulletList().run(), on: () => editor?.isActive('bulletList') },
+                  { icon: Code, label: 'Code', run: () => editor?.chain().focus().toggleCode().run(), on: () => editor?.isActive('code') },
+                  { icon: LinkIcon, label: 'Link', run: () => editor?.chain().focus().extendMarkRange('link').setLink({ href: 'https://' }).run(), on: () => editor?.isActive('link') },
+                ].map((item) => (
+                  <button
+                    key={item.label}
+                    type="button"
+                    aria-label={item.label}
+                    aria-pressed={!!item.on()}
+                    data-testid={`composer-toolbar-${item.label.toLowerCase().replace(/\s+/g, '-')}`}
+                    onClick={item.run}
+                    disabled={!editor || posting}
+                    className={cn(
+                      'flex h-8 w-8 items-center justify-center rounded-md transition-colors duration-150 disabled:opacity-40',
+                      item.on()
+                        ? 'bg-brand-muted text-brand-300'
+                        : 'text-muted-foreground hover:text-foreground hover:bg-elevated',
+                    )}
+                  >
+                    <item.icon className="w-4 h-4" strokeWidth={1.75} />
+                  </button>
+                ))}
+              </div>
 
           <div className="mt-4 border-t border-border pt-3">
             <div className="flex items-center gap-1">
@@ -953,7 +1067,6 @@ export default function PostComposer({
           </>
           )}
         </div>
-      </div>
 
       <AdPicker
         open={showAdPicker}
