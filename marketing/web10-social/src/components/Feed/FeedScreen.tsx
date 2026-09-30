@@ -464,7 +464,7 @@ export function PostCard({
     <article
       data-testid={testId}
       className={cn(
-        'bg-card border-b border-border md:border md:rounded-lg md:mb-4 overflow-hidden',
+        'bg-card border-b border-border overflow-hidden',
         'glow-card transition-all duration-150',
       )}
     >
@@ -675,6 +675,7 @@ export function PostCard({
             reposted={reposted}
             repostCount={repostCount}
             onToggleRepost={onToggleRepost}
+            layout="compact"
           />
         </div>
         {(post.origin || 'web10') !== 'web10' && (
@@ -734,9 +735,9 @@ function FeedEmptyState() {
 
 function FeedSkeleton() {
   return (
-    <div className="space-y-0 md:space-y-4 md:p-4" data-testid="feed-skeleton">
+    <div data-testid="feed-skeleton">
       {[0, 1, 2].map((i) => (
-        <div key={i} className="bg-card border-b border-border md:border md:rounded-lg overflow-hidden">
+        <div key={i} className="bg-card border-b border-border overflow-hidden">
           <div className="flex items-center gap-2.5 px-4 py-3">
             <Skeleton className="h-9 w-9 rounded-full" />
             <Skeleton className="h-3 w-32" />

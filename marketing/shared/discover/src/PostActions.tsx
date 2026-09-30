@@ -17,7 +17,12 @@ import type { ReadComments, ReadReplies, CreateComment } from './types';
  *   like    — 'interactive' | 'display' | 'none'   (default 'interactive')
  *   dislike — 'interactive' | 'display' | 'none'   (default 'none')
  *   comments— 'inline' | 'none'                    (default 'inline')
- *   layout  — 'row' | 'bar' | 'bare'               (default 'row')
+ *   layout  — 'row' | 'bar' | 'bare' | 'compact'   (default 'row')
+ *
+ * `compact` (the feed's X-style row): the same slots as `row`, but the icons
+ * are smaller (16px), the counts `text-xs`, and the whole row is muted +
+ * tight — the engagement recedes so the content owns the screen (the operator's
+ * "last mile" vs X: small, discrete, muted, no divided section).
  *
  * `remote` mode (the marketing context, no session): the like is display-only
  * (an anon visitor can't like), and the comment thread's compose becomes a
@@ -53,7 +58,7 @@ export interface PostActionsProps {
   /** The repost axis (reposts.md): independent of like/dislike, default none. */
   repost?: PostActionMode;
   comments?: 'inline' | 'none';
-  layout?: 'row' | 'bar' | 'bare';
+  layout?: 'row' | 'bar' | 'bare' | 'compact';
   /** The post author's username (the comment nudge target). */
   postAuthor?: string;
   /** The post service (default 'posts'). */
@@ -156,6 +161,12 @@ export function PostActions({
   const showLike = effectiveLike !== 'none';
   const showComments = comments === 'inline';
 
+  const compact = layout === 'compact';
+  const btnBase = compact
+    ? 'flex items-center gap-1.5 px-2 py-1.5 rounded-md text-xs transition-all duration-150'
+    : 'flex items-center gap-1.5 px-2.5 py-2 rounded-lg min-h-10 text-sm transition-all duration-150';
+  const iconSize = compact ? 'w-4 h-4' : 'w-[18px] h-[18px]';
+
   const likeButton = effectiveLike === 'interactive' && (
     <button
       key={burstKey}
@@ -165,7 +176,7 @@ export function PostActions({
       aria-label={`Like, ${reactionCount} likes`}
       onClick={(e) => { e.stopPropagation(); onToggleReaction?.('like'); }}
       className={cn(
-        'flex items-center gap-1.5 px-2.5 py-2 rounded-lg min-h-10 text-sm transition-all duration-150',
+        btnBase,
         liked
           ? 'text-danger'
           : 'text-muted-foreground hover:text-foreground hover:bg-elevated/80',
@@ -174,7 +185,7 @@ export function PostActions({
     >
       <Heart
         className={cn(
-          'w-[18px] h-[18px] transition-all duration-150',
+          `${iconSize} transition-all duration-150`,
           liked && 'drop-shadow-[0_0_6px_rgba(239,68,68,0.4)]',
         )}
         strokeWidth={1.75}
@@ -202,7 +213,7 @@ export function PostActions({
       aria-label={`Dislike, ${dislikeCount} dislikes`}
       onClick={(e) => { e.stopPropagation(); onToggleReaction?.('dislike'); }}
       className={cn(
-        'flex items-center gap-1.5 px-2.5 py-2 rounded-lg min-h-10 text-sm transition-all duration-150',
+        btnBase,
         disliked
           ? 'text-muted-foreground bg-elevated'
           : 'text-muted-foreground hover:text-foreground hover:bg-elevated/80',
@@ -210,7 +221,7 @@ export function PostActions({
     >
       <ThumbsDown
         className={cn(
-          'w-[18px] h-[18px] transition-all duration-150',
+          `${iconSize} transition-all duration-150`,
           disliked && 'scale-110',
         )}
         strokeWidth={1.75}
@@ -228,13 +239,13 @@ export function PostActions({
       aria-label={`${localCommentCount} comments${commentsOpen ? ', hide' : ', show'}`}
       onClick={(e) => { e.stopPropagation(); setCommentsOpen((o) => !o); }}
       className={cn(
-        'flex items-center gap-1.5 px-2.5 py-2 rounded-lg min-h-10 text-sm transition-all duration-150',
+        btnBase,
         commentsOpen
           ? 'text-foreground'
           : 'text-muted-foreground hover:text-foreground hover:bg-elevated/80',
       )}
     >
-      <MessageCircle className="w-[18px] h-[18px]" strokeWidth={1.75} />
+      <MessageCircle className={iconSize} strokeWidth={1.75} />
       <span className="tabular-nums">{localCommentCount || ''}</span>
     </button>
   );
@@ -251,7 +262,7 @@ export function PostActions({
       aria-label={`Repost, ${repostCount} reposts`}
       onClick={(e) => { e.stopPropagation(); onToggleRepost?.(); }}
       className={cn(
-        'flex items-center gap-1.5 px-2.5 py-2 rounded-lg min-h-10 text-sm transition-all duration-150',
+        btnBase,
         reposted
           ? 'text-brand-300'
           : 'text-muted-foreground hover:text-foreground hover:bg-elevated/80',
@@ -259,7 +270,7 @@ export function PostActions({
     >
       <Repeat2
         className={cn(
-          'w-[18px] h-[18px] transition-all duration-150',
+          `${iconSize} transition-all duration-150`,
           reposted && 'scale-110',
         )}
         strokeWidth={1.75}
@@ -313,13 +324,16 @@ export function PostActions({
     return <div data-testid={testId} className="contents">{bar}</div>;
   }
 
+  const rowClass =
+    layout === 'compact'
+      ? 'flex items-center gap-1 px-3 py-1.5'
+      : layout === 'row'
+        ? 'flex items-center gap-1 px-2 py-2'
+        : 'flex items-center gap-6 border-t border-border px-4 pt-3 pb-3';
+
   return (
     <div data-testid={testId}>
-      {layout === 'row' ? (
-        <div className="flex items-center gap-1 px-2 py-2">{bar}</div>
-      ) : (
-        <div className="flex items-center gap-6 border-t border-border px-4 pt-3 pb-3">{bar}</div>
-      )}
+      <div className={rowClass}>{bar}</div>
       {thread}
     </div>
   );
