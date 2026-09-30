@@ -23,6 +23,7 @@ function createRTC(wapi) {
   let peer = null;
   const outbound = new Map;
   const inbound = new Map;
+  let onInboundRef = null;
   const connector = {
     peerId(provider, user, origin, label = "") {
       return `${provider} ${user} ${origin} ${label}`.replaceAll(".", "_");
@@ -43,6 +44,7 @@ function createRTC(wapi) {
         iceServers
       });
       if (onInbound && peer) {
+        onInboundRef = onInbound;
         peer.on("connection", (raw) => {
           const conn = raw;
           inbound.set(conn.peer, conn);
@@ -72,6 +74,10 @@ function createRTC(wapi) {
         return existing;
       const conn = peer.connect(id);
       outbound.set(conn.peer, conn);
+      conn.on("data", (data) => {
+        if (onInboundRef)
+          onInboundRef(conn, data);
+      });
       conn.on("close", () => outbound.delete(conn.peer));
       return conn;
     },

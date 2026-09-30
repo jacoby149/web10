@@ -20,27 +20,11 @@
  * ```
  */
 import type { V3Client } from '../v3';
-/**
- * A minimal RTCIceServer (the shape RTCPeerConnection.configuration.iceServers
- * accepts). Kept as a plain interface so the SDK stays dependency-free.
- */
 export interface RTCIceServer {
     urls: string | string[];
     username?: string;
     credential?: string;
 }
-/**
- * The default ICE servers: a robust set of STUN servers. Without an explicit
- * `iceServers`, PeerJS falls back to a single Google STUN that is rate-limited
- * and intermittently unreachable — a direct cause of the "handshake goes one
- * way" flakiness. Multiple STUNs give ICE more candidates to work with.
- *
- * TURN is NOT in the default: it requires per-node credentials (a coturn
- * deployment + auth), so it is supplied via the `iceServers` option when a node
- * has one. STUN-only is the correct default for the open, self-hostable model
- * (D41) — it works on most networks and degrades to a relay-less connection on
- * the rare symmetric NAT.
- */
 export declare function defaultIceServers(): RTCIceServer[];
 /**
  * Set the PeerJS constructor. Call this before initP2P if bundling manually.
@@ -83,6 +67,8 @@ interface PeerConnection {
     open: boolean;
     send(data: unknown): void;
     on(event: string, handler: (...args: unknown[]) => void): void;
+    /** Close the channel (drops a half-dead connection so a fresh one can be opened). */
+    close(): void;
 }
 interface PeerInstance {
     id: string;

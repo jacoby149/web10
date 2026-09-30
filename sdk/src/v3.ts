@@ -1433,7 +1433,12 @@ contracts: V3CR[],
  * The v3 client interface.
  */
 export interface V3Client {
-  state: { apiOrigin: string; token: string | null; rtcServer: string }
+  state: {
+    apiOrigin: string
+    token: string | null
+    rtcServer: string
+    iceServers?: { urls: string | string[]; username?: string; credential?: string }[]
+  }
 
   // Token management
   setToken(token: string): void
