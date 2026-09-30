@@ -7,6 +7,24 @@ new endpoint. (This doc's original "API pushes via WebSocket" model is
 retired — D66 rejects a server push channel: no Redis, no pub/sub, and
 `api/rtc` is a PeerJS *signaling* server, not a fan-out bus.)
 
+## The Surface: a panel, not a page
+
+The bell (desktop top bar + mobile header) and the "N new" banner **toggle a
+panel** — they do not navigate. The panel is one fixed element in the `Layout`
+(the popover idiom the More menu + user menu run): anchored under the bell on
+desktop (right-aligned, 384px, shadowed), full-width under the header on
+mobile (above the tab bar). It renders `NotificationsScreen` in **panel mode**
+(the `onClose` prop): the header gains an **X** beside "Mark all read", and a
+row click navigates to the event's deep link AND closes the panel. The URL
+never changes while the panel is open, so closing it (X, outside click, Esc,
+row click, or any route change) puts the user back exactly where they were —
+the operator's "just toggles open closed, also an x button to hide the page,
+sending you back to where you were right last."
+
+The `/notifications` route is kept for deep links: the same component,
+full-page, no X (it closes via the bell). The e2e gauntlet's `notifications-list`
+witness works either way — the panel renders the same list.
+
 ## What the Screen Shows
 
 ```

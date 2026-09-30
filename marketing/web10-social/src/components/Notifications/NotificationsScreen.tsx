@@ -1,6 +1,6 @@
 import { useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { BellOff, CheckCheck } from 'lucide-react';
+import { BellOff, CheckCheck, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { useNotifications } from '@/hooks/useNotifications';
@@ -43,7 +43,7 @@ function timeAgo(iso: string): string {
   return new Date(iso).toLocaleDateString([], { month: 'short', day: 'numeric' });
 }
 
-function NotificationRow({ n, unread }: { n: Notification; unread: boolean }) {
+function NotificationRow({ n, unread, onClose }: { n: Notification; unread: boolean; onClose?: () => void }) {
   const navigate = useNavigate();
   const me = getWapi().readToken();
 
@@ -57,11 +57,18 @@ function NotificationRow({ n, unread }: { n: Notification; unread: boolean }) {
     if (n.type === 'reply') {
       if (!me) return;
       resolveReplyHref(n, me)
-        .then((r) => { if (r) navigate(r); })
+        .then((r) => {
+          if (!r) return;
+          navigate(r);
+          onClose?.();
+        })
         .catch(() => {});
       return;
     }
-    if (href) navigate(href);
+    if (href) {
+      navigate(href);
+      onClose?.();
+    }
   };
 
   const rowClasses = cn(
@@ -121,8 +128,13 @@ function NotificationRow({ n, unread }: { n: Notification; unread: boolean }) {
   );
 }
 
-export default function NotificationsScreen() {
+export default function NotificationsScreen({ onClose }: { onClose?: () => void }) {
   const { unread, items } = useNotifications();
+  // Panel mode: the bell's popover (the operator: notifications "just toggles
+  // open closed, also an x button to hide the page, sending you back to where
+  // you were right last" — not its own page). The X + a row click call
+  // onClose; the URL never changes, so the user is exactly where they were.
+  const isPanel = typeof onClose === 'function';
 
   // Mark all read while the screen is open — clears the badge + banner (the
   // "you looked" state). Reacts to `unread`, not just mount: the seed
@@ -141,21 +153,34 @@ export default function NotificationsScreen() {
   }, [unread]);
 
   return (
-    <div className="max-w-2xl mx-auto w-full">
-      <div className="flex items-center justify-between px-4 py-4 border-b border-border">
+    <div className={cn('w-full', !isPanel && 'max-w-2xl mx-auto')}>
+      <div className="flex items-center justify-between gap-2 px-4 py-3 border-b border-border">
         <h1 className="font-display text-lg font-bold text-foreground">Notifications</h1>
-        {unread > 0 && (
-          <Button
-            size="sm"
-            variant="ghost"
-            data-testid="mark-all-read-button"
-            className="gap-1.5 text-muted-foreground hover:text-foreground"
-            onClick={() => markAllRead().catch(() => {})}
-          >
-            <CheckCheck className="w-4 h-4" strokeWidth={1.75} />
-            Mark all read
-          </Button>
-        )}
+        <div className="flex items-center gap-1">
+          {unread > 0 && (
+            <Button
+              size="sm"
+              variant="ghost"
+              data-testid="mark-all-read-button"
+              className="gap-1.5 text-muted-foreground hover:text-foreground"
+              onClick={() => markAllRead().catch(() => {})}
+            >
+              <CheckCheck className="w-4 h-4" strokeWidth={1.75} />
+              Mark all read
+            </Button>
+          )}
+          {isPanel && (
+            <button
+              type="button"
+              data-testid="notifications-close"
+              aria-label="Close notifications"
+              onClick={onClose}
+              className="p-1.5 rounded-full text-muted-foreground hover:text-foreground hover:bg-elevated transition-colors duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand/50"
+            >
+              <X className="w-4 h-4" strokeWidth={1.75} />
+            </button>
+          )}
+        </div>
       </div>
 
       {items.length === 0 ? (
@@ -171,7 +196,7 @@ export default function NotificationsScreen() {
       ) : (
         <ul data-testid="notifications-list">
           {items.map((n) => (
-            <NotificationRow key={n.id} n={n} unread={!n.read} />
+            <NotificationRow key={n.id} n={n} unread={!n.read} onClose={onClose} />
           ))}
         </ul>
       )}
