@@ -27,6 +27,8 @@ import {
   writeGroupIdentity,
   uploadMedia,
   refreshMediaUrls,
+  groupCreator,
+  healGroupOwnership,
   type ReactionKind,
   type GroupDetail,
   type GroupIdentity,
@@ -323,6 +325,9 @@ export default function GroupDetailScreen({ groupId }: { groupId: string }) {
   const mediaOffsetRef = useRef(0);
   const mediaInitializedRef = useRef(false);
   const mediaSentinelRef = useRef<HTMLDivElement>(null);
+  // The "dead group" heal runs at most once per mount (it reloads after healing,
+  // and the ref stops a re-heal loop if a heal doesn't land).
+  const healRetriedRef = useRef(false);
 
   // The face lightbox's pick-from-posts source (the group's own posts' media,
   // resolved). Mirrors the profile's faceOptions — same shared lightbox.
@@ -404,6 +409,22 @@ export default function GroupDetailScreen({ groupId }: { groupId: string }) {
     window.addEventListener('post-created', onPostCreated);
     return () => window.removeEventListener('post-created', onPostCreated);
   }, [load]);
+
+  // The "dead group" heal: a group the user created can end up unmanageable
+  // (the creator's row drifted to a non-owner role), so the Edit pencil + kebab
+  // (and the delete) never appear. When the loaded group is one the user created
+  // but can't manage, re-point the creator to owner, then reload so the
+  // management surface shows. Runs at most once per mount.
+  useEffect(() => {
+    if (loading || !detail || canManage || healRetriedRef.current) return;
+    const username = getV3Client().readToken()?.username || '';
+    if (groupCreator(detail.group_id) !== username) return;
+    healRetriedRef.current = true;
+    LOG('heal — owned-but-dead group, re-pointing ownership', detail.group_id);
+    healGroupOwnership(detail.group_id, username).then((healed) => {
+      if (healed) load();
+    });
+  }, [loading, detail, canManage, load]);
 
   // G4: a draft opens in edit mode — the create flow lands here with ?edit=1,
   // and a draft with no staged name yet is still being configured. The page IS

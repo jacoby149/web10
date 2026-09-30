@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { useNavigate, useSearchParams, Navigate } from 'react-router-dom';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
@@ -9,6 +9,9 @@ import {
   readGroupIdentity,
   resolveMediaRefs,
   leaveGroup,
+  deleteGroup,
+  groupCreator,
+  healGroupOwnership,
   groupDisplayName,
   createDraftGroup,
   type MediaRecord,
@@ -25,6 +28,7 @@ import {
   Search,
   AlertTriangle,
   RefreshCw,
+  Trash2,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
@@ -87,13 +91,19 @@ interface MyGroupRowProps {
   onOpen: () => void;
   onLeave: () => void;
   leaving: boolean;
+  onDelete: () => void;
+  deleting: boolean;
 }
 
-function MyGroupRow({ group, face, onOpen, onLeave, leaving }: MyGroupRowProps) {
+function MyGroupRow({ group, face, onOpen, onLeave, leaving, onDelete, deleting }: MyGroupRowProps) {
   const name = face?.name || groupDisplayName(group.group_id);
   const initial = name.charAt(0).toUpperCase();
   const isOwner = group.my_role === 'owner' || group.my_role === 'admin';
   const gradient = hashToGradient(group.group_id);
+  // The delete is a two-tap confirm (the group is destructive to remove). The
+  // first tap arms the confirm; the second deletes. A tap elsewhere (or a
+  // re-render) disarms it.
+  const [confirmDelete, setConfirmDelete] = useState(false);
 
   return (
     <div
@@ -159,7 +169,35 @@ function MyGroupRow({ group, face, onOpen, onLeave, leaving }: MyGroupRowProps) 
             <JoinPolicyBadge policy={group.join_policy} />
           </p>
         </div>
-        {!isOwner && (
+        {isOwner ? (
+          <Button
+            variant="ghost"
+            size="sm"
+            data-testid="groups-delete-button"
+            disabled={deleting}
+            aria-label={confirmDelete ? `Confirm delete ${name}` : `Delete ${name}`}
+            onClick={(e) => {
+              e.stopPropagation();
+              if (confirmDelete) {
+                onDelete();
+              } else {
+                setConfirmDelete(true);
+              }
+            }}
+            className={
+              confirmDelete
+                ? 'shrink-0 gap-1.5 border-danger bg-danger text-white hover:bg-danger'
+                : 'shrink-0 gap-1.5 text-muted-foreground hover:text-danger hover:bg-danger-muted'
+            }
+          >
+            {deleting ? (
+              <Loader2 className="h-3.5 w-3.5 animate-spin" strokeWidth={2} />
+            ) : (
+              <Trash2 className="h-3.5 w-3.5" strokeWidth={1.75} />
+            )}
+            <span className="hidden sm:inline">{confirmDelete ? 'Confirm?' : 'Delete'}</span>
+          </Button>
+        ) : (
           <Button
             variant="ghost"
             size="sm"
@@ -264,7 +302,11 @@ export default function GroupsScreen() {
   const [myLoading, setMyLoading] = useState(true);
   const [myError, setMyError] = useState(false);
   const [leaving, setLeaving] = useState<Record<string, boolean>>({});
+  const [deleting, setDeleting] = useState<Record<string, boolean>>({});
   const [groupFaces, setGroupFaces] = useState<Record<string, GroupFace>>({});
+  // The "dead group" heal runs at most once per mount: it re-reads the list
+  // after healing, and the ref stops a re-heal loop if a heal doesn't land.
+  const healRetriedRef = useRef(false);
 
   // The Discover tab moved out — /groups?tab=discover redirects to the new
   // home. Skip the my-groups fetch while redirecting (the component unmounts).
@@ -275,7 +317,28 @@ export default function GroupsScreen() {
     setMyError(false);
     LOG('loadMyGroups — start');
     try {
-      const groups = await getMyCommunityGroups();
+      let groups = await getMyCommunityGroups();
+      // The "dead group" heal (once per mount): a group the user created can
+      // end up unmanageable (the creator's row drifted to a non-owner role), so
+      // it can't be edited or deleted. Re-point the creator to owner, then
+      // re-read so the list shows the healed (owner) state + the delete action.
+      if (!healRetriedRef.current) {
+        const username = getV3Client().readToken()?.username || '';
+        const dead = groups.filter(
+          (g) => groupCreator(g.group_id) === username && g.my_role !== 'owner',
+        );
+        if (dead.length) {
+          healRetriedRef.current = true;
+          LOG('loadMyGroups — healing', dead.length, 'owned-but-dead groups');
+          let anyHealed = false;
+          for (const g of dead) {
+            if (await healGroupOwnership(g.group_id, username)) anyHealed = true;
+          }
+          if (anyHealed) {
+            groups = await getMyCommunityGroups();
+          }
+        }
+      }
       LOG('loadMyGroups — got', groups.length, 'community groups');
       setMyGroups(groups);
       // Resolve each group's face (D60 identity) so the card can show a real
@@ -328,6 +391,21 @@ export default function GroupsScreen() {
       toast.error(errorMessage(e, 'Could not leave the group.'));
     } finally {
       setLeaving((prev) => ({ ...prev, [groupId]: false }));
+    }
+  }, []);
+
+  const handleDelete = useCallback(async (groupId: string) => {
+    setDeleting((prev) => ({ ...prev, [groupId]: true }));
+    try {
+      LOG('delete —', groupId);
+      await deleteGroup(groupId);
+      LOG('delete — done', groupId);
+      setMyGroups((prev) => prev.filter((g) => g.group_id !== groupId));
+    } catch (e) {
+      LOG('delete — failed:', e);
+      toast.error(errorMessage(e, 'Could not delete the group.'));
+    } finally {
+      setDeleting((prev) => ({ ...prev, [groupId]: false }));
     }
   }, []);
 
@@ -402,6 +480,8 @@ export default function GroupsScreen() {
                   onOpen={() => openGroup(g.group_id)}
                   onLeave={() => handleLeave(g.group_id)}
                   leaving={!!leaving[g.group_id]}
+                  onDelete={() => handleDelete(g.group_id)}
+                  deleting={!!deleting[g.group_id]}
                 />
               ))}
             </div>
