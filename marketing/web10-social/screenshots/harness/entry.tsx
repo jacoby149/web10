@@ -76,6 +76,10 @@ function UserFollowersRoute() {
 function UserFollowingRoute() {
   return <UserFollowListScreen kind="following" />;
 }
+function UserProfileRoute() {
+  const { username } = useParams();
+  return <UserProfileScreen username={username || 'me'} provider={'web10'} />;
+}
 
 const params = new URLSearchParams(window.location.search);
 const screen = params.get('screen');
@@ -116,10 +120,10 @@ const initialRoute =
    : screen === 'chat-group-thread'
      ? '/messages/group/web10%2Fgroups%2Fusers%2Fnova%2Fchat-the-crew'
    : screen === 'people' ? '/people'
-   : screen === 'profile' ? '/u/me'
-   : screen === 'profile-followers' ? '/u/me/followers'
-   : screen === 'profile-following' ? '/u/me/following'
-   : screen === 'profile-feed' ? '/u/me?view=feed'
+    : screen === 'profile' ? '/u/nova'
+    : screen === 'profile-followers' ? '/u/nova/followers'
+    : screen === 'profile-following' ? '/u/nova/following'
+    : screen === 'profile-feed' ? '/u/nova?view=feed'
     : screen === 'monetize' ? '/monetize'
     : screen === 'monetize-node' ? '/monetize?tab=node'
     : screen === 'node-settings' ? '/node-settings'
@@ -148,7 +152,7 @@ createRoot(document.getElementById('root')!).render(
         <Route path="/groups" element={<GroupsScreen />} />
         <Route path="/groups/:groupId" element={<GroupDetailRoute />} />
         <Route path="/people" element={<DiscoverScreen />} />
-        <Route path="/u/:username" element={<UserProfileScreen username={'me'} provider={'web10'} />} />
+        <Route path="/u/:username" element={<UserProfileRoute />} />
         <Route path="/u/:username/followers" element={<UserFollowersRoute />} />
         <Route path="/u/:username/following" element={<UserFollowingRoute />} />
         <Route path="/monetize" element={<MonetizationScreen />} />
