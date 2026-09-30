@@ -145,7 +145,8 @@ function WallTile({ media, testId, title, caption, postId, multiCount, onClick }
         }
       }}
       className={cn(
-        'relative w-full bg-elevated overflow-hidden rounded-lg group cursor-pointer outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset',
+        'relative w-full bg-elevated overflow-hidden group cursor-pointer outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset',
+        'rounded-none sm:rounded-lg',
         isTextOnly
           ? 'col-span-3 sm:col-span-1 aspect-[2/1] sm:aspect-[9/16]'
           : 'aspect-square sm:aspect-[9/16]',
@@ -746,7 +747,7 @@ export default function UserProfileScreen({ username, provider, onBack }: UserPr
               action buttons (Follow/Message for a viewer, Edit profile for the
               owner). The new-Instagram layout stacks them beside the avatar. */}
           <div className="flex-1 min-w-0 pt-2">
-            <div className="flex items-start justify-between gap-4">
+            <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3 sm:gap-4">
               <div className="min-w-0">
                 {isOwnProfile && editing ? (
                   <Input
@@ -768,14 +769,14 @@ export default function UserProfileScreen({ username, provider, onBack }: UserPr
                   </>
                 )}
               </div>
-              <div className="flex shrink-0 items-center gap-2">
+              <div className="flex w-full sm:w-auto shrink-0 items-center gap-2">
                 {!isOwnProfile && (
                   <>
                     <Button
                       variant={following ? 'outline' : 'brand'}
                       size="sm"
                       className={cn(
-                        'gap-1.5 min-w-[100px]',
+                        'gap-1.5 flex-1 sm:flex-none sm:min-w-[100px]',
                         following && 'border-border hover:border-danger/50 hover:text-danger hover:bg-danger-muted',
                       )}
                       data-testid="follow-button"
@@ -799,7 +800,7 @@ export default function UserProfileScreen({ username, provider, onBack }: UserPr
                     <Button
                       variant="outline"
                       size="sm"
-                      className="gap-1.5 min-w-[100px] border-border hover:bg-elevated"
+                      className="gap-1.5 flex-1 sm:flex-none sm:min-w-[100px] border-border hover:bg-elevated"
                       data-testid="message-button"
                       onClick={() =>
                         navigate(`/messages?to=${username}&provider=${provider}`)
@@ -814,7 +815,7 @@ export default function UserProfileScreen({ username, provider, onBack }: UserPr
                   <Button
                     variant="brand_subtle"
                     size="sm"
-                    className="gap-1.5"
+                    className="gap-1.5 flex-1 sm:flex-none"
                     data-testid="edit-profile-button"
                     onClick={() => setEditing(true)}
                   >
