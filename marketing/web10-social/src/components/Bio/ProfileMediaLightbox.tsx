@@ -63,6 +63,10 @@ interface ProfileMediaLightboxProps {
   saving?: boolean;
   /** The owner's display name — shown in the picker header. */
   displayName?: string;
+  /** Override the default label for the avatar field ("Profile picture"). */
+  avatarLabel?: string;
+  /** Override the default label for the banner field ("Banner"). */
+  bannerLabel?: string;
 }
 
 // The preview frames, in CSS pixels. The crop math is resolution-independent
@@ -81,9 +85,11 @@ export function ProfileMediaLightbox({
   onCrop,
   saving = false,
   displayName,
+  avatarLabel,
+  bannerLabel,
 }: ProfileMediaLightboxProps) {
   const isVideo = media?.mime_type?.startsWith('video/');
-  const label = field === 'avatar' ? 'Profile picture' : 'Banner';
+  const label = field === 'avatar' ? (avatarLabel ?? 'Profile picture') : (bannerLabel ?? 'Banner');
   const frameW = field === 'avatar' ? AVATAR_FRAME : BANNER_FRAME_W;
   const frameH = field === 'avatar' ? AVATAR_FRAME : BANNER_FRAME_H;
 
