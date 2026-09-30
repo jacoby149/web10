@@ -240,6 +240,12 @@ function ConsentView({ I }: { I: Record<string, any> }) {
   // a different account.
   const openerSignedIn = !!expectedUser;
   const userConfirmed = !!I._userConfirmed;
+  // "Continue as {username}" is only honest while the login form targets the
+  // session's own account. Once the user picks or types a DIFFERENT account,
+  // confirming "Continue as" would hand back the wrong identity — hide it and
+  // let the password form be the only path for the other account.
+  const formUsername = I.loginUsername;
+  const formTargetsSession = formUsername == null || formUsername.trim() === '' || formUsername.trim().toLowerCase() === (username || '').toLowerCase();
 
   // An ACR is "already granted" when its origin holds every requested permission.
   const isAlreadyGranted = (c: any): boolean => {
@@ -274,7 +280,7 @@ function ConsentView({ I }: { I: Record<string, any> }) {
   // to approve, the consent screen stays — the user is the popup's session
   // user, approving their own contract (which confirms them).
   const showLoginForm = !authed || (!openerSignedIn && !userConfirmed && nothingToShow);
-  const canContinueAsCurrent = !!(authed && !openerSignedIn && !userConfirmed && username && nothingToShow);
+  const canContinueAsCurrent = !!(authed && !openerSignedIn && !userConfirmed && username && nothingToShow && formTargetsSession);
   console.log('[consent] pendingContracts:', pendingContracts, 'grantedOrigins:', grantedOrigins, 'mismatch:', mismatch, 'expectedUser:', expectedUser || '(none)', 'openerSignedIn:', openerSignedIn, 'userConfirmed:', userConfirmed, 'nothingToShow:', nothingToShow, 'showLoginForm:', showLoginForm);
 
   // D42 auto-complete: the popup would settle (nothingToShow) AND the session
