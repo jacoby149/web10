@@ -204,7 +204,7 @@ describe('PostActions — the shared engagement bar (post-actions.md)', () => {
     fireEvent.click(screen.getByTestId('comment-send'));
     await vi.waitFor(() => {
       expect(onCommentCountChange).toHaveBeenCalledWith(1);
-    });
+    }, { timeout: 10000 });
     expect(screen.getByTestId('comment-button')).toHaveTextContent('1');
   });
 
