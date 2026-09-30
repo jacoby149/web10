@@ -1303,6 +1303,21 @@ export function createV3Client(options: V3ClientOptions = {}): V3Client {
       return v3Post<{ users: number; documents: number; groups: number }>('stats', {})
     },
 
+    // ── P2P / WebRTC ───────────────────────────────────────────────────────
+
+    async getIceServers(): Promise<{ urls: string | string[]; username?: string; credential?: string }[]> {
+      const token = state.token ?? readTokenCookie()
+      if (!token) {
+        throw new Web10Error('No token available. Call login() or setToken() first.', 401)
+      }
+      // The /ice endpoint lives on the root router (next to /certify), not under /v3.
+      const res = await authPost<{ iceServers: { urls: string | string[]; username?: string; credential?: string }[] }>(
+        `${apiOrigin}/ice`,
+        { token },
+      )
+      return res.iceServers
+    },
+
     // ── App Store ─────────────────────────────────────────────────────────
 
     async registerApp(app: { url: string; name?: string; description?: string; icon_url?: string; screenshots?: unknown[] }): Promise<{ url: string; review_state: string }> {
@@ -1531,6 +1546,15 @@ export interface V3Client {
 
   // Stats
   getNodeStats(): Promise<{ users: number; documents: number; groups: number }>
+
+  /**
+   * The node's ICE server config for WebRTC P2P (STUN always; TURN with a
+   * freshly-minted time-limited credential when the node runs a relay).
+   * Requires a token — the node mints the TURN credential for authenticated
+   * users only. The rtc module calls this at initP2P when no explicit
+   * `iceServers` were passed to the client.
+   */
+  getIceServers(): Promise<{ urls: string | string[]; username?: string; credential?: string }[]>
 
   // App Store
   registerApp(app: { url: string; name?: string; description?: string; icon_url?: string; screenshots?: unknown[] }): Promise<{ url: string; review_state: string }>

@@ -606,6 +606,14 @@ function createV3Client(options = {}) {
     async getNodeStats() {
       return v3Post("stats", {});
     },
+    async getIceServers() {
+      const token = state.token ?? readTokenCookie();
+      if (!token) {
+        throw new Web10Error("No token available. Call login() or setToken() first.", 401);
+      }
+      const res = await authPost(`${apiOrigin}/ice`, { token });
+      return res.iceServers;
+    },
     async registerApp(app) {
       return authPost(`${apiOrigin}/v3/apps/register`, { body: app });
     },
