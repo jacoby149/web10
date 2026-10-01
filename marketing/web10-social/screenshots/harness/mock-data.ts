@@ -208,6 +208,25 @@ export async function listUserFollowers(): Promise<unknown[]> {
 }
 export async function countUserFollowingReal(): Promise<number> { return PEERS.length; }
 export async function readUserPublicPosts(): Promise<unknown[]> { return PROFILE_POSTS; }
+// D88: saved collections (the profile's Saved tab). Seeded with a few
+// collections so the tab renders with content (the cards + the open view).
+const SAVED_COLLECTIONS = [
+  { groupId: 'web10/groups/users/me/saved-guitar-riffs', name: 'Guitar Riffs', visibility: 'private', itemCount: 3, slug: 'guitar-riffs' },
+  { groupId: 'web10/groups/users/me/saved-tour-sets', name: 'Tour Sets', visibility: 'public', itemCount: 2, slug: 'tour-sets' },
+  { groupId: 'web10/groups/users/me/saved-later', name: 'Watch Later', visibility: 'private', itemCount: 1, slug: 'later' },
+];
+export async function getMyCollections(): Promise<unknown[]> { return SAVED_COLLECTIONS; }
+export async function readCollection(): Promise<unknown> {
+  return {
+    face: { name: 'Guitar Riffs' },
+    posts: [
+      { _id: 'sc-1', postId: 'pp-1', savedAt: minsAgo(120), unavailable: false, post: PROFILE_POSTS[0] },
+      { _id: 'sc-2', postId: 'pp-2', savedAt: minsAgo(300), unavailable: false, post: PROFILE_POSTS[1] },
+      { _id: 'sc-3', postId: 'pp-3', savedAt: minsAgo(500), unavailable: false, post: PROFILE_POSTS[2] },
+    ],
+    mediaMap: {},
+  };
+}
 // readUserPublicProfile lives below (the real impl, keyed by username).
 export async function countStagingPosts(): Promise<number> { return 0; }
 export async function saveProfile(): Promise<void> {}
@@ -556,6 +575,17 @@ export async function updateGroup(): Promise<unknown> { return {}; }
 export async function addGroupMember(): Promise<unknown> { return {}; }
 export async function removeGroupMember(): Promise<unknown> { return {}; }
 export async function deleteGroup(): Promise<unknown> { return { status: 'deleted' }; }
+// The "dead group" heal — the harness has no backend, so the heal is a no-op
+// (returns false → no re-read) and groupCreator is the real pure parse.
+export function groupCreator(groupId: string): string {
+  const parts = groupId.split('/');
+  const u = parts.indexOf('users');
+  if (u >= 0 && u + 1 < parts.length) return parts[u + 1];
+  const g = parts.indexOf('groups');
+  if (g >= 0 && g + 1 < parts.length) return parts[g + 1];
+  return '';
+}
+export async function healGroupOwnership(): Promise<boolean> { return false; }
 // G4: the create entry point + the slug guard — the group detail / edit mode
 // import these from the @/data barrel. (saveGroup / publishGroup — the atomic
 // commit — are stubbed above with the other group fns.)
@@ -667,6 +697,7 @@ interface SeedFeedPost {
   author_username: string;
   author_provider: string;
   text: string;
+  title?: string;
   created_at: string;
   tags?: string[];
   likes: number;
@@ -709,6 +740,21 @@ function adCreative(label: string, from: string, to: string, w = 800, h = 450): 
 }
 
 const FEED_POSTS: SeedFeedPost[] = [
+  {
+    // A MARKDOWN post (D85) — exercises the <PostBody> renderer's full type
+    // scale (heading, bold, list, code, link) so the PR shot shows markdown
+    // rendering typeset, not as literal ** / # / - syntax.
+    _id: 'fp-md',
+    author_username: 'nova',
+    author_provider: 'web10',
+    title: 'Ship notes',
+    text: '## What landed\n\nThe **composer** now writes *markdown* under the hood. Highlights:\n\n- WYSIWYG editor, no syntax\n- typeset on every read surface\n- `zero` node changes\n\nMore at [web10.xyz](https://web10.xyz).',
+    created_at: minsAgo(1),
+    tags: ['release'],
+    likes: 88,
+    comments: 9,
+    reposts: 2,
+  },
   {
     // A PORTRAIT (9:16) video post — the transcoded (hls) path, the case that
     // used to render a full-width 9:16 box in the feed (~1.78× the card tall).

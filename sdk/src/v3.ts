@@ -1108,6 +1108,18 @@ export function createV3Client(options: V3ClientOptions = {}): V3Client {
       return v3Post<{ group_id: string; status: string }>('groups/delete', { group_id: groupId })
     },
 
+    /**
+     * Re-point a group's ownership to its creator (the "dead group" heal).
+     * The node derives the creator from the group_id and re-points the
+     * creator's member row to the `owner` role, so a group whose creator row
+     * drifted to a non-owner role (or a key form the node doesn't resolve)
+     * becomes editable/deletable again. Gated server-side on creator ==
+     * caller. Idempotent.
+     */
+    async healGroupOwner(groupId: string): Promise<{ group_id: string; status: string }> {
+      return v3Post<{ group_id: string; status: string }>('groups/heal-owner', { group_id: groupId })
+    },
+
     async joinGroup(groupId: string): Promise<V3GroupMember | { group_id: string; status: string }> {
       return v3Post<V3GroupMember | { group_id: string; status: string }>('groups/join', { group_id: groupId })
     },
@@ -1303,6 +1315,21 @@ export function createV3Client(options: V3ClientOptions = {}): V3Client {
       return v3Post<{ users: number; documents: number; groups: number }>('stats', {})
     },
 
+    // ── P2P / WebRTC ───────────────────────────────────────────────────────
+
+    async getIceServers(): Promise<{ urls: string | string[]; username?: string; credential?: string }[]> {
+      const token = state.token ?? readTokenCookie()
+      if (!token) {
+        throw new Web10Error('No token available. Call login() or setToken() first.', 401)
+      }
+      // The /ice endpoint lives on the root router (next to /certify), not under /v3.
+      const res = await authPost<{ iceServers: { urls: string | string[]; username?: string; credential?: string }[] }>(
+        `${apiOrigin}/ice`,
+        { token },
+      )
+      return res.iceServers
+    },
+
     // ── App Store ─────────────────────────────────────────────────────────
 
     async registerApp(app: { url: string; name?: string; description?: string; icon_url?: string; screenshots?: unknown[] }): Promise<{ url: string; review_state: string }> {
@@ -1490,8 +1517,9 @@ export interface V3Client {
   /** Reconcile a group contract against a canonical spec — additive, non-
    *  clobbering, idempotent. The "the app owns its own contracts" primitive. */
   reconcileGroupContract(groupId: string, spec: V3GroupContractSpec): Promise<{ inSync: boolean; diff: V3GroupContractDiff; healed: boolean }>
-  deleteGroup(groupId: string): Promise<{ group_id: string; status: string }>
-  joinGroup(groupId: string): Promise<V3GroupMember | { group_id: string; status: string }>
+   deleteGroup(groupId: string): Promise<{ group_id: string; status: string }>
+   healGroupOwner(groupId: string): Promise<{ group_id: string; status: string }>
+   joinGroup(groupId: string): Promise<V3GroupMember | { group_id: string; status: string }>
   requestJoin(groupId: string): Promise<{ group_id: string; status: string }>
   leaveGroup(groupId: string): Promise<V3GroupMember>
   getGroupMembers(groupId: string, opts?: { limit?: number; offset?: number }): Promise<V3GroupMember[]>
@@ -1531,6 +1559,15 @@ export interface V3Client {
 
   // Stats
   getNodeStats(): Promise<{ users: number; documents: number; groups: number }>
+
+  /**
+   * The node's ICE server config for WebRTC P2P (STUN always; TURN with a
+   * freshly-minted time-limited credential when the node runs a relay).
+   * Requires a token — the node mints the TURN credential for authenticated
+   * users only. The rtc module calls this at initP2P when no explicit
+   * `iceServers` were passed to the client.
+   */
+  getIceServers(): Promise<{ urls: string | string[]; username?: string; credential?: string }[]>
 
   // App Store
   registerApp(app: { url: string; name?: string; description?: string; icon_url?: string; screenshots?: unknown[] }): Promise<{ url: string; review_state: string }>

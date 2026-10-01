@@ -28,13 +28,22 @@ function createRTC(wapi) {
     peerId(provider, user, origin, label = "") {
       return `${provider} ${user} ${origin} ${label}`.replaceAll(".", "_");
     },
-    initP2P(onInbound, label = "", secure = true) {
+    async initP2P(onInbound, label = "", secure = true) {
       const PC = getPeer();
       const token = wapi.readToken();
       if (!token)
         throw new Error("Cannot init P2P without a token");
       const id = this.peerId(token.provider, token.username, token.site, label);
-      const iceServers = wapi.state.iceServers && wapi.state.iceServers.length > 0 ? wapi.state.iceServers : defaultIceServers();
+      let iceServers;
+      if (wapi.state.iceServers && wapi.state.iceServers.length > 0) {
+        iceServers = wapi.state.iceServers;
+      } else {
+        try {
+          iceServers = await wapi.getIceServers();
+        } catch {
+          iceServers = defaultIceServers();
+        }
+      }
       peer = new PC(id, {
         host: wapi.state.rtcServer,
         secure,

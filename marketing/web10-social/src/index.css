@@ -194,6 +194,37 @@
   color: var(--color-muted-foreground);
 }
 
+/* The post body renderer (D85, rich-text.md "The read side"): the type scale
+   for the code elements. The full-scale code block (`.post-body-pre`) is
+   JetBrains Mono on the surface bg with a border + the radius + horizontal
+   scroll; the inline code (`.post-body-inline-code`, and any `code` not in a
+   `pre`) is the muted tint + the small radius. */
+.post-body pre.post-body-pre {
+  font-family: var(--font-mono);
+  font-size: 0.8125rem;
+  background: var(--color-muted);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius);
+  padding: 0.75em 1em;
+  overflow-x: auto;
+  margin: 0.5em 0;
+  white-space: pre;
+}
+.post-body pre.post-body-pre code {
+  background: transparent;
+  padding: 0;
+  font-size: inherit;
+}
+.post-body code.post-body-inline-code,
+.post-body :not(pre) > code {
+  font-family: var(--font-mono);
+  font-size: 0.875em;
+  background: var(--color-brand-muted);
+  color: var(--color-brand-300);
+  padding: 0.1em 0.35em;
+  border-radius: var(--radius-sm);
+}
+
 @layer utilities {
   /* design.md §5 — numbers in stats/tables use tabular-nums */
   .tabular-nums {

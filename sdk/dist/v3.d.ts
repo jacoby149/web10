@@ -503,6 +503,10 @@ export interface V3Client {
         group_id: string;
         status: string;
     }>;
+    healGroupOwner(groupId: string): Promise<{
+        group_id: string;
+        status: string;
+    }>;
     joinGroup(groupId: string): Promise<V3GroupMember | {
         group_id: string;
         status: string;
@@ -598,6 +602,18 @@ export interface V3Client {
         documents: number;
         groups: number;
     }>;
+    /**
+     * The node's ICE server config for WebRTC P2P (STUN always; TURN with a
+     * freshly-minted time-limited credential when the node runs a relay).
+     * Requires a token — the node mints the TURN credential for authenticated
+     * users only. The rtc module calls this at initP2P when no explicit
+     * `iceServers` were passed to the client.
+     */
+    getIceServers(): Promise<{
+        urls: string | string[];
+        username?: string;
+        credential?: string;
+    }[]>;
     registerApp(app: {
         url: string;
         name?: string;

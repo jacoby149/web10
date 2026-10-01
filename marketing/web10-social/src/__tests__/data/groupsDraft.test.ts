@@ -46,7 +46,7 @@ describe('createCommunityGroup draft mode (G0)', () => {
     expect(joinPolicy).toBe('request');
     // A draft is inert: unlisted + owner-only (no reserved reader row yet).
     expect(opts).toEqual({ discoverable: false, tags: ['web10-social-group'] });
-    expect(members).toEqual([{ member_key: 'web10.app/users/jacoby149', role: 'owner' }]);
+    expect(members).toEqual([{ member_key: 'jacoby149', role: 'owner' }]);
     // The face carries status=draft + the staged settings (decision 2).
     const [, faceBody] = mock.create.mock.calls[0];
     expect(faceBody).toEqual(
@@ -78,7 +78,7 @@ describe('createCommunityGroup draft mode (G0)', () => {
     expect(opts.discoverable).toBe(false);
     // Others' lists safe: owner-only, no reserved reader row, no other members.
     expect(members).toHaveLength(1);
-    expect(members[0].member_key).toBe('web10.app/users/jacoby149');
+    expect(members[0].member_key).toBe('jacoby149');
     // Owner's list: the community tag is present, so getMyCommunityGroups
     // (server-side tag filter) returns it to the owner.
     expect(opts.tags).toContain('web10-social-group');
@@ -124,7 +124,7 @@ describe('saveGroup / publishGroup (atomic commit, decision 2)', () => {
     const mock = mockV3Client();
     // The draft currently has no reserved reader rows (owner-only).
     mock.getGroupMembers.mockResolvedValue([
-      { member_key: 'web10.app/users/jacoby149', role: 'owner' },
+      { member_key: 'jacoby149', role: 'owner' },
     ]);
 
     await publishGroup('web10.app/groups/jacoby149/my-group', {
@@ -159,7 +159,7 @@ describe('saveGroup / publishGroup (atomic commit, decision 2)', () => {
     const mock = mockV3Client();
     // The group was public before (has an `anyone` reader row).
     mock.getGroupMembers.mockResolvedValue([
-      { member_key: 'web10.app/users/jacoby149', role: 'owner' },
+      { member_key: 'jacoby149', role: 'owner' },
       { member_key: 'anyone', role: 'reader' },
     ]);
     await saveGroup('web10.app/groups/jacoby149/my-group', {
@@ -181,7 +181,7 @@ describe('saveGroup / publishGroup (atomic commit, decision 2)', () => {
   it('private visibility removes all reserved reader rows', async () => {
     const mock = mockV3Client();
     mock.getGroupMembers.mockResolvedValue([
-      { member_key: 'web10.app/users/jacoby149', role: 'owner' },
+      { member_key: 'jacoby149', role: 'owner' },
       { member_key: 'anyone', role: 'reader' },
       { member_key: 'authenticated', role: 'reader' },
     ]);

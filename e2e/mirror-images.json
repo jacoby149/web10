@@ -53,6 +53,12 @@
       "source": "ghcr.io/astral-sh/uv:python3.12-bookworm-slim",
       "target": "ghcr.io/jacoby149/base-uv:python3.12-bookworm-slim",
       "used_by": ["api/Dockerfile"]
+    },
+    {
+      "source": "coturn/coturn:latest",
+      "target": "ghcr.io/jacoby149/base-coturn:latest",
+      "_note": "TURN relay for WebRTC P2P (RFC 8484 time-based credentials). Used by the turn service in local dev, e2e, and production compose files.",
+      "used_by": ["docker-compose.yml", "e2e/docker-compose.yml", "ubuntu-deployment/docker-compose.ecosystem.yml"]
     }
   ]
 }

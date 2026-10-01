@@ -117,7 +117,10 @@ describe('createDraftGroup — the create entry point (G4)', () => {
     // Inert: unlisted + owner-only (no reserved reader row) — the directory and
     // everyone's lists are safe (G0).
     expect(opts).toEqual({ discoverable: false, tags: ['web10-social-group'] });
-    expect(members).toEqual([{ member_key: 'web10.app/users/jacoby149', role: 'owner' }]);
+    // The owner row uses the BARE username (the node resolves the acting user
+    // to the bare username, so a full-form key would be shadowed — the "dead
+    // group" bug).
+    expect(members).toEqual([{ member_key: 'jacoby149', role: 'owner' }]);
     // The face is a draft with the placeholder name.
     const [, faceBody] = mockCreate.mock.calls[0];
     expect(faceBody).toEqual(

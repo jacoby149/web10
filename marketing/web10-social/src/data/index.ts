@@ -12,6 +12,7 @@ export * from './people';
 export * from './profile';
 export * from './dms';
 export * from './groupChat';
+export * from './saved';
 export * from './settings';
 export * from './staging';
 export * from './imports';

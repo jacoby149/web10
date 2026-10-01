@@ -42,6 +42,21 @@ for env in dev prod; do
   check "apex marketing" 200 "https://$apex/"
   check "marketing-api" 200 "https://marketing-api.${pre}web10.app/docs"
 
+  # TURN relay (optional) — only checked when the turn container is actually
+  # up for this stack (i.e. the env was deployed with --profile turn). POST /ice
+  # is token-gated (401 without a token), so a 401 proves the relay is wired
+  # and reachable; a 200 with a TURN server is the fully-configured case.
+  if docker ps --filter "name=${env}-turn" --format '{{.Names}}' | grep -q turn; then
+    ICE_CODE=$(curl -sL -o /dev/null -w '%{http_code}' --max-time 12 \
+      -X POST -H 'Content-Type: application/json' -d '{}' \
+      "https://api.${pre}web10.app/ice" || echo 000)
+    if [[ "$ICE_CODE" == "401" || "$ICE_CODE" == "200" ]]; then
+      echo "  ok   turn /ice reachable ($ICE_CODE)"
+    else
+      echo "  FAIL turn /ice (got $ICE_CODE, want 401 or 200)"; fail=1
+    fi
+  fi
+
   # v3 smoke — full auth flow: signup → login → use token.
   # DEV ONLY for now: prod is still v2 (1.0.302) until the Phase 4 cutover
   # (gated — see knowledge/strategy/plan.md). Re-enable for both envs when

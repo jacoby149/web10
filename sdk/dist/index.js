@@ -482,6 +482,9 @@ function createV3Client(options = {}) {
     async deleteGroup(groupId) {
       return v3Post("groups/delete", { group_id: groupId });
     },
+    async healGroupOwner(groupId) {
+      return v3Post("groups/heal-owner", { group_id: groupId });
+    },
     async joinGroup(groupId) {
       return v3Post("groups/join", { group_id: groupId });
     },
@@ -605,6 +608,14 @@ function createV3Client(options = {}) {
     },
     async getNodeStats() {
       return v3Post("stats", {});
+    },
+    async getIceServers() {
+      const token = state.token ?? readTokenCookie();
+      if (!token) {
+        throw new Web10Error("No token available. Call login() or setToken() first.", 401);
+      }
+      const res = await authPost(`${apiOrigin}/ice`, { token });
+      return res.iceServers;
     },
     async registerApp(app) {
       return authPost(`${apiOrigin}/v3/apps/register`, { body: app });
