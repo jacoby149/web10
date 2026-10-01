@@ -178,13 +178,15 @@ title + a thumbnail) — a compact card, not the full post. Tapping the embed
 opens the *original's* full post (its lightbox / permalink), not the repost's.
 The repost is the quote; the embed is the thing being quoted.
 
-### The share preview (the teaser the node renders)
+### The share preview (the teaser the preview server renders)
 
-The OG / Twitter card (`share.py`, D71) is the teaser density, **node-rendered**
-(no client). It shows the title (`og:title`) + the first line as
-`og:description` (**plain text** — D85's markdown strip, so no `**` / `#`
-leaks) + the first image / poster as `og:image`. The I3 / D41 floor: a
-non-public post renders the generic card with no content.
+The OG / Twitter card is the teaser density, **rendered by the social app's
+preview server** (`preview/card.mjs` — the node's `share.py` was deleted in
+3.91.0; the card is a client-side touch, D60-clean). It shows the title
+(`og:title`) + the first line as `og:description` (**plain text** — D85's
+markdown strip, `preview/markdown.mjs`, so no `**` / `#` leaks) + the first
+image / poster as `og:image`. The I3 / D41 floor: a non-public post renders the
+generic card with no content.
 
 ## The truncation rules
 
@@ -291,8 +293,9 @@ model, made checkable):
 - **The full surfaces:** `PostLightbox.tsx`, `WatchScreen.tsx`, the
   post-permalink route (`/u/:u/p/:id`) — the shared post-detail system
   (specified in `rich-text.md`).
-- **The share preview:** `api/app/v3/endpoints/share.py` (the node-rendered
-  teaser, D71 + D85's strip).
+- **The share preview:** `marketing/web10-social/preview/card.mjs` (the
+  social app's preview server — the client-side teaser, D85's markdown strip in
+  `preview/markdown.mjs`).
 - **The body in every surface:** `<PostBody>` (the renderer, `rich-text.md`) at
   the surface's density (teaser = title only, no `<PostBody>`; summary = light
   markdown, clamped; full = full markdown, reading measure).
