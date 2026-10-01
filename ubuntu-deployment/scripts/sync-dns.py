@@ -27,11 +27,7 @@ LAN = cfg["VM_IP"]; PUB = cfg["VM_PUBLIC_IP"]
 H = {"Authorization": "Bearer " + TOKEN, "Content-Type": "application/json"}
 
 # service subdomains, shared by both envs; "" is the env apex (marketing)
-# "turn." is the WebRTC TURN relay host — peers connect to it DIRECTLY
-# (UDP/TCP straight from the browser, not via the NPM reverse proxy), so
-# it must resolve to the box IP like every other vhost. Only meaningful
-# when the turn profile is enabled (TURN_SECRET set); harmless otherwise.
-SERVICES = ["", "api.", "auth.", "rtc.", "minio.", "social.", "www.", "marketing-api.", "turn."]
+SERVICES = ["", "api.", "auth.", "rtc.", "minio.", "social.", "www.", "marketing-api."]
 # dev mirrors prod with ".dev" inserted: api.dev.web10.app, dev.web10.app apex
 DEV = {f"{s}dev.{ZONE}": LAN for s in SERVICES}
 PROD = {f"{s.rstrip('.')}.{ZONE}": PUB for s in SERVICES if s}
