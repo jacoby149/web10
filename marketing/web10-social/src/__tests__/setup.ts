@@ -33,11 +33,16 @@ class MockIntersectionObserver {
   rootMargin = '';
   thresholds: number[] = [];
   callback: IntersectionObserverCallback;
+  // The element observe() was called with (tests fire a specific tile's
+  // observer — the hover preview's touch-dwell path has one per tile).
+  observed: Element | null = null;
   constructor(callback: IntersectionObserverCallback) {
     this.callback = callback;
     MockIntersectionObserver.instances.push(this);
   }
-  observe() {}
+  observe(el: Element) {
+    this.observed = el;
+  }
   unobserve() {}
   disconnect() {}
   takeRecords() {
