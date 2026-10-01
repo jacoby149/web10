@@ -543,17 +543,19 @@ export default function WatchScreen() {
           />
         </div>
 
-        {/* Title — Space Grotesk, the h2 step. The anchor (the same string the
-            teaser showed). A caption-only post (no title) shows the body. */}
-        {post.title && (
+        {/* Title — Space Grotesk, the h2 step. The anchor (post-render.md rule
+            6): the title when present, else the caption (a caption-only post
+            uses its text as the anchor — the same string the teaser showed). */}
+        {(post.title || post.text) && (
           <h1 className="mt-3 font-display text-2xl font-medium leading-tight tracking-tight text-foreground" data-testid="watch-title">
-            {post.title}
+            {post.title || post.text}
           </h1>
         )}
 
         {/* Body — full markdown at a reading measure (the "beautiful Notion"
-            surface). A caption-only post shows the text as the body. */}
-        {post.text && (
+            surface). Shown when there's a title; a caption-only post's caption
+            is the anchor above, so it isn't duplicated here. */}
+        {post.title && post.text && (
           <div className="mt-2 max-w-prose text-sm leading-relaxed text-foreground" data-testid="watch-caption">
             <PostBody text={post.text} density="full" />
           </div>
