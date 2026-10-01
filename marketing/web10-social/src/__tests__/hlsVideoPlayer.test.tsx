@@ -423,6 +423,27 @@ describe('HlsVideoPlayer', () => {
     expect(frame.className).toMatch(/mx-auto/);
   });
 
+  it('shows the poster as a backdrop <img> and reveals the video only once it is playing (the no-gray idiom)', async () => {
+    installFakeHls();
+    const { HlsVideoPlayer } = await import('@/components/Feed/HlsVideoPlayer');
+    const { container } = render(
+      <HlsVideoPlayer manifestUrl="/v3/media/hls/manifest?doc_id=m1&sig=abc" poster="http://x/poster.jpg" width={720} height={1280} />,
+    );
+    const video = screen.getByTestId('hls-video') as HTMLVideoElement;
+    // The poster is a real <img> backdrop (not just the <video poster> attr) so
+    // the thumbnail loads independently of the video and shows FIRST — the frame
+    // is never a gray/black void while the manifest + first segment load.
+    const poster = container.querySelector('img') as HTMLImageElement;
+    expect(poster).toBeTruthy();
+    expect(poster.getAttribute('src')).toBe('http://x/poster.jpg');
+    // The video is hidden until it has actually played (frames on screen — the
+    // `playing` event, not `canplay`).
+    expect(video.className).toMatch(/opacity-0/);
+    // `playing` fires (frames on screen) → the video fades in over the poster.
+    fireEvent.playing(video);
+    await waitFor(() => expect(video.className).toMatch(/opacity-100/));
+  });
+
   it('a maxHeight cap is a no-op for a landscape clip (already shorter than full-width)', async () => {
     installFakeHls();
     const { HlsVideoPlayer } = await import('@/components/Feed/HlsVideoPlayer');

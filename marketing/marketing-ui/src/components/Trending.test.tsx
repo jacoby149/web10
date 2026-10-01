@@ -711,10 +711,17 @@ describe('TrendingMedia resolved-ref thumbnail', () => {
     };
     render(<TrendingCard post={videoPost} rank={1} maxScore={100} onLike={noop} onComment={noop} onRepost={noop} />);
     await waitFor(() => expect(screen.getByTestId('discover-media-video')).toBeInTheDocument());
-    const video = document.querySelector('video') as HTMLVideoElement;
+    const frame = document.querySelector('[data-testid="discover-media-video"]') as HTMLElement;
+    const video = frame.querySelector('video') as HTMLVideoElement;
     expect(video).not.toBeNull();
     expect(video.getAttribute('src')).toBe(readUrl);
-    expect(video.getAttribute('poster')).toBe(thumbUrl);
+    // The poster is a backdrop <img> inside the video frame (the no-gray idiom):
+    // the thumbnail shows first, independently of the video, so the frame is
+    // never a gray/black void while the source loads. The <video> no longer
+    // carries the poster attr.
+    const poster = frame.querySelector('img') as HTMLImageElement;
+    expect(poster).not.toBeNull();
+    expect(poster.getAttribute('src')).toBe(thumbUrl);
     // The resolved path must not hit the network for a presign / thumbnail.
     expect(vi.mocked(fetch)).not.toHaveBeenCalled();
   });

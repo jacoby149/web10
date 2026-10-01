@@ -164,6 +164,13 @@ export function HlsVideoPlayer({ manifestUrl, poster, width, height, className, 
   // Index into SPEEDS (0 = 1x, 1 = 1.5x, 2 = 2x).
   const [speed, setSpeed] = useState(0);
   const [failed, setFailed] = useState(false);
+  // The poster→video reveal latch: the video fades in only once it has actually
+  // played (frames on screen — the `playing` event, NOT `canplay`, which fires
+  // before the first frame renders and left a gray/black box). Once revealed it
+  // stays: a paused video keeps its current frame, it does not snap back to the
+  // poster. The poster `<img>` below is the backdrop the whole time, so the
+  // frame shows the thumbnail first, then the video (the no-gray idiom, 3.165.1).
+  const [revealed, setRevealed] = useState(false);
 
   // Playback state (drives the overlay + the play/pause icon).
   const [playing, setPlaying] = useState(false);
@@ -263,12 +270,17 @@ export function HlsVideoPlayer({ manifestUrl, poster, width, height, className, 
     if (!el) return;
     const onPlay = () => { playingRef.current = true; setPlaying(true); showControls(); };
     const onPause = () => { playingRef.current = false; setPlaying(false); setControlsVisible(true); };
+    // The poster→video reveal latch: fires only when frames are actually on
+    // screen (the `playing` event, not `canplay`). Once set it never clears —
+    // a paused video keeps its frame, it does not snap back to the poster.
+    const onPlaying = () => setRevealed(true);
     const onTime = () => setCurrent(el.currentTime);
     const onMeta = () => setDuration(el.duration || 0);
     const onVol = () => { setVolume(el.volume); setMuted(el.muted); };
     const onEnd = () => setControlsVisible(true);
     el.addEventListener('play', onPlay);
     el.addEventListener('pause', onPause);
+    el.addEventListener('playing', onPlaying);
     el.addEventListener('timeupdate', onTime);
     el.addEventListener('loadedmetadata', onMeta);
     el.addEventListener('durationchange', onMeta);
@@ -277,6 +289,7 @@ export function HlsVideoPlayer({ manifestUrl, poster, width, height, className, 
     return () => {
       el.removeEventListener('play', onPlay);
       el.removeEventListener('pause', onPause);
+      el.removeEventListener('playing', onPlaying);
       el.removeEventListener('timeupdate', onTime);
       el.removeEventListener('loadedmetadata', onMeta);
       el.removeEventListener('durationchange', onMeta);
@@ -425,11 +438,25 @@ export function HlsVideoPlayer({ manifestUrl, poster, width, height, className, 
         className={cn('group relative w-full', (maxWidth || heightCapped) && 'mx-auto')}
         style={{ aspectRatio: ratio, maxWidth, ...(heightCapped ? { maxHeight } : {}) }}
       >
+        {/* The poster — always the backdrop (the thumbnail-first face). It
+            shows while the manifest + first segment load, then the video fades
+            in over it once frames are on screen (the no-gray idiom, 3.165.1).
+            Both are `absolute inset-0` so they occupy the SAME box (stacked) —
+            the video overlays the poster, never flows below it. */}
+        {poster && (
+          <img
+            src={poster}
+            alt=""
+            className="absolute inset-0 h-full w-full object-contain"
+          />
+        )}
         <video
           ref={videoRef}
           data-testid="hls-video"
-          poster={poster}
-          className="w-full h-full object-contain"
+          className={cn(
+            'absolute inset-0 w-full h-full object-contain transition-opacity duration-200',
+            revealed ? 'opacity-100' : 'opacity-0',
+          )}
           muted
           autoPlay
           loop={loop}
