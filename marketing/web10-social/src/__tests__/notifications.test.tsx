@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { useState, useEffect } from 'react';
-import { render, screen, fireEvent, act } from '@testing-library/react';
+import { render, screen, fireEvent } from '@testing-library/react';
 import { MemoryRouter, Routes, Route, useLocation } from 'react-router-dom';
 import '@testing-library/jest-dom';
 import { lucideMock } from './helpers/lucideMock';
@@ -141,7 +141,7 @@ describe('NotificationsScreen', () => {
     expect(screen.getByText('No notifications yet')).toBeInTheDocument();
   });
 
-  it('renders the history list with the "did X" line + time', () => {
+  it('defaults to the Unread filter (hides read rows) and All shows everything', () => {
     mockState = {
       unread: 1,
       items: [
@@ -150,13 +150,19 @@ describe('NotificationsScreen', () => {
       ],
     };
     renderWithRouter(<NotificationsScreen />, '/notifications');
-    expect(screen.getByTestId('notifications-list')).toBeInTheDocument();
-    expect(screen.getAllByTestId('notification-row')).toHaveLength(2);
+    // Default = Unread: only the unread row (bob) shows; carol (read) is hidden.
+    expect(screen.getByTestId('notifications-filter-unread')).toHaveAttribute('aria-selected', 'true');
+    expect(screen.getAllByTestId('notification-row')).toHaveLength(1);
     expect(screen.getByText('bob reacted to your post')).toBeInTheDocument();
+    expect(screen.queryByText('carol commented on your post')).not.toBeInTheDocument();
+    // Switch to All: both rows show.
+    fireEvent.click(screen.getByTestId('notifications-filter-all'));
+    expect(screen.getByTestId('notifications-filter-all')).toHaveAttribute('aria-selected', 'true');
+    expect(screen.getAllByTestId('notification-row')).toHaveLength(2);
     expect(screen.getByText('carol commented on your post')).toBeInTheDocument();
   });
 
-  it('marks all read on open (clears the badge)', async () => {
+  it('does NOT auto-mark-read on open (the Unread filter needs the unread state)', () => {
     mockState = {
       unread: 2,
       items: [
@@ -165,32 +171,41 @@ describe('NotificationsScreen', () => {
       ],
     };
     renderWithRouter(<NotificationsScreen />, '/notifications');
-    // The on-open effect marks all read.
+    // Opening shows the unread rows; it does NOT mark them read (the badge
+    // clears only via the explicit "Mark all read" action).
+    expect(markAllReadMock).not.toHaveBeenCalled();
+    expect(screen.getAllByTestId('notification-row')).toHaveLength(2);
+  });
+
+  it('clicking "Mark all read" clears the badge', async () => {
+    mockState = {
+      unread: 2,
+      items: [
+        { id: 'n1', type: 'reaction', from: 'bob', read: false, created_at: new Date().toISOString() },
+        { id: 'n2', type: 'reaction', from: 'carol', read: false, created_at: new Date().toISOString() },
+      ],
+    };
+    renderWithRouter(<NotificationsScreen />, '/notifications');
+    fireEvent.click(screen.getByTestId('mark-all-read-button'));
     await vi.waitFor(() => expect(markAllReadMock).toHaveBeenCalled());
   });
 
-  it('re-marks read when the seed lands after the screen opened (the race)', async () => {
-    // The screen opens while the seed (initNotifications → seed) is still in
-    // flight — no notifications yet. The new code must NOT call markAllRead on
-    // an empty store (the old one-shot code called it unconditionally on mount,
-    // where it no-opped and never advanced the cursor).
-    mockState = { unread: 0, items: [] };
-    renderWithRouter(<NotificationsScreen />, '/notifications');
-    expect(markAllReadMock).not.toHaveBeenCalled();
-    // The seed lands: two unread notifications. The reactive effect must
-    // re-run markAllRead so the badge clears (the operator's "viewed but still
-    // says new" bug).
+  it('shows a "caught up" empty state when the Unread filter is empty but history exists', () => {
     mockState = {
-      unread: 2,
+      unread: 0,
       items: [
-        { id: 'n1', type: 'reaction', from: 'bob', read: false, created_at: new Date().toISOString() },
-        { id: 'n2', type: 'reaction', from: 'carol', read: false, created_at: new Date().toISOString() },
+        { id: 'n1', type: 'reaction', from: 'bob', read: true, created_at: new Date().toISOString() },
       ],
     };
-    await act(async () => {
-      emitMockState();
-    });
-    await vi.waitFor(() => expect(markAllReadMock).toHaveBeenCalled());
+    renderWithRouter(<NotificationsScreen />, '/notifications');
+    // Default Unread filter is empty (the one item is read) → caught-up state,
+    // not the "no notifications" state.
+    expect(screen.getByTestId('notifications-empty')).toBeInTheDocument();
+    expect(screen.getByText("You're all caught up")).toBeInTheDocument();
+    expect(screen.queryByTestId('notifications-list')).not.toBeInTheDocument();
+    // "View all" switches to the All filter and shows the history.
+    fireEvent.click(screen.getByTestId('caught-up-view-all'));
+    expect(screen.getAllByTestId('notification-row')).toHaveLength(1);
   });
 
   it('shows the "Mark all read" button when there are unread notifications', () => {
@@ -261,7 +276,7 @@ describe('NotificationsScreen (panel mode — the bell\'s popover, not a page)',
     expect(screen.getByTestId('nav-probe')).toHaveTextContent('/u/me/p/post-1');
   });
 
-  it('marks all read in panel mode too (the badge clears when you look)', async () => {
+  it('panel mode: opening does NOT auto-mark-read; "Mark all read" clears the badge', async () => {
     mockState = {
       unread: 2,
       items: [
@@ -270,6 +285,12 @@ describe('NotificationsScreen (panel mode — the bell\'s popover, not a page)',
       ],
     };
     renderWithRouter(<NotificationsScreen onClose={() => {}} />, '/feed');
+    // Opening the panel shows the unread rows (default Unread filter) and does
+    // NOT mark them read.
+    expect(markAllReadMock).not.toHaveBeenCalled();
+    expect(screen.getAllByTestId('notification-row')).toHaveLength(2);
+    // The explicit "Mark all read" clears the badge.
+    fireEvent.click(screen.getByTestId('mark-all-read-button'));
     await vi.waitFor(() => expect(markAllReadMock).toHaveBeenCalled());
   });
 });
