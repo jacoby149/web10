@@ -11,8 +11,9 @@ import { useState, useEffect, useCallback, useRef } from 'react';
 import { useParams, useSearchParams, useNavigate } from 'react-router-dom';
 import { User } from 'lucide-react';
 import { VideoPlayer, sourceFromMedia } from '@/components/Feed/VideoPlayer';
-import { PostActions } from '@/components/Feed/PostActions';
-import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
+import { PostIdentityRow, PostStatsRow, PostActionBar } from '@/components/Feed/PostDetail';
+import { PostBody } from '@/components/Feed/PostBody';
+import { CommentThread } from '@/components/Feed/CommentThread';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 import {
@@ -29,7 +30,6 @@ import {
   isFollowing,
   followUser,
   unfollowUser,
-  getFollowersCount,
   saveSettings,
   mediaRefId,
   type PostRecord,
@@ -214,7 +214,6 @@ export default function WatchScreen() {
   const [queue, setQueue] = useState<PostRecord[]>([]);
   const [profile, setProfile] = useState<ProfileRecord | null>(null);
   const [authorAvatarUrl, setAuthorAvatarUrl] = useState<string | undefined>(undefined);
-  const [followersCount, setFollowersCount] = useState<number | null>(null);
   const [following, setFollowing] = useState(false);
 
   // Engagement for the current post.
@@ -225,6 +224,10 @@ export default function WatchScreen() {
   const [liked, setLiked] = useState(false);
   const [disliked, setDisliked] = useState(false);
   const [reposted, setReposted] = useState(false);
+  // The comment thread's open state (the "Comment" action toggles it).
+  const [commentsOpen, setCommentsOpen] = useState(false);
+  // The share button's "Copied!" state (the clipboard write).
+  const [copied, setCopied] = useState(false);
 
   const load = useCallback(async () => {
     if (!postId) { setNotFound(true); setLoading(false); return; }
@@ -323,12 +326,9 @@ export default function WatchScreen() {
         LOG('engagement — failed (degrading to zero counts):', e);
       }
 
-      // 7. The author's follower count + following state (the row + overlay).
-      if (author) {
-        try { setFollowersCount(await getFollowersCount(author)); } catch { setFollowersCount(null); }
-        if (token) {
-          try { setFollowing(await isFollowing(author, p.author_provider)); } catch { setFollowing(false); }
-        }
+      // 7. The following state (the author row's Follow button).
+      if (author && token) {
+        try { setFollowing(await isFollowing(author, p.author_provider)); } catch { setFollowing(false); }
       }
     } catch (e) {
       LOG('load — failed:', e);
@@ -399,6 +399,21 @@ export default function WatchScreen() {
     openComposer();
   }, [token, post, setRepostingTo, openComposer]);
 
+  // ── Share (the action bar's Share — a link, not a data write) ───────────────
+  const handleShare = useCallback(() => {
+    if (!post?._id) return;
+    const url = `${window.location.origin}/watch/${post._id}`;
+    const share = () => navigator.share({ title: post.title || 'Post on web10', url }).catch(() => copyUrl());
+    const copyUrl = () => {
+      navigator.clipboard?.writeText(url).then(() => {
+        setCopied(true);
+        setTimeout(() => setCopied(false), 2000);
+      }).catch(() => {});
+    };
+    if (navigator.share) share();
+    else copyUrl();
+  }, [post]);
+
   // ── Follow toggle (the overlay + the author row) ───────────────────────────
   const handleToggleFollow = useCallback(async () => {
     if (!token || !post?.author_username) return;
@@ -409,7 +424,6 @@ export default function WatchScreen() {
     try {
       if (next) await followUser(author, provider);
       else await unfollowUser(author, provider);
-      setFollowersCount((c) => (c == null ? c : Math.max(0, c + (next ? 1 : -1))));
     } catch (e) {
       console.error('Failed to toggle follow:', e);
       setFollowing(!next);
@@ -494,75 +508,88 @@ export default function WatchScreen() {
           </div>
         )}
 
-        <h1 className="font-display text-lg font-semibold leading-snug text-foreground" data-testid="watch-title">
-          {post.title || post.text || 'Untitled'}
-        </h1>
+        {/* The post-detail system (rich-text.md): the identity row, the
+            display-font title, the body (full markdown at a reading measure),
+            the quiet stats row, and the LABELED action bar — the same layout
+            the lightbox and the post permalink share. The player is the hero
+            (above), the "What's next" queue is the chrome (right). */}
 
-        {/* The caption (D82): the post's `text` body, shown under the title
-            when the post carries both (title = the headline, text = the
-            description). A caption-only post shows just the title (the text). */}
-        {post.title && post.text && (
-          <p className="text-sm leading-relaxed text-muted-foreground whitespace-pre-wrap break-words" data-testid="watch-caption">
-            {post.text}
-          </p>
-        )}
-
-        {/* The author row (under the video — the watch page's shape). The avatar
-            + name navigate to the author's profile (the "About" — the same
-            destination every other surface's author click uses). */}
-        <div className="flex items-center gap-3" data-testid="watch-author-row">
-          <button
-            type="button"
-            data-testid="watch-author-link"
-            onClick={() => navigate(`/u/${author}`, { state: { provider: post.author_provider || '' } })}
-            className="flex min-w-0 items-center gap-3 rounded-full transition-colors hover:bg-elevated focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-            aria-label={`View ${authorName}'s profile`}
-          >
-            <Avatar className="h-11 w-11 shrink-0">
-              {authorAvatar ? <AvatarImage src={authorAvatar} alt={authorName} /> : (
-                <AvatarFallback className="bg-brand-muted text-brand-300 font-semibold">{authorName.charAt(0).toUpperCase()}</AvatarFallback>
-              )}
-            </Avatar>
-            <div className="min-w-0 text-left">
-              <p className="truncate font-medium text-foreground">{authorName}</p>
-              <p className="truncate text-xs text-muted-foreground">
-                {followersCount != null ? `${followersCount.toLocaleString()} followers` : `@${author}`}
-              </p>
-            </div>
-          </button>
-          <div className="ml-auto flex items-center gap-2">
-            {!isAnon && !isOwnAuthor && (
-              <Button
-                variant={following ? 'outline' : 'brand'}
-                size="sm"
-                data-testid="watch-follow-button"
-                onClick={handleToggleFollow}
-              >
-                {following ? 'Following' : 'Follow'}
-              </Button>
-            )}
-          </div>
+        {/* Identity row — avatar + name + @handle + · timestamp + privacy,
+            with the Follow button (the watch page's author action). */}
+        <div data-testid="watch-author-row">
+          <PostIdentityRow
+            post={post}
+            authorName={authorName}
+            authorAvatar={authorAvatar}
+            onAuthorClick={(username, provider) => navigate(`/u/${username}`, { state: { provider: provider || '' } })}
+            action={
+              !isAnon && !isOwnAuthor ? (
+                <Button
+                  variant={following ? 'outline' : 'brand'}
+                  size="sm"
+                  data-testid="watch-follow-button"
+                  onClick={handleToggleFollow}
+                >
+                  {following ? 'Following' : 'Follow'}
+                </Button>
+              ) : undefined
+            }
+            testId="watch"
+          />
         </div>
 
-        {/* The engagement bar + the inline comment thread (comments below). */}
-        <PostActions
-          postId={post._id || ''}
+        {/* Title — Space Grotesk, the h2 step. The anchor (the same string the
+            teaser showed). A caption-only post (no title) shows the body. */}
+        {post.title && (
+          <h1 className="mt-3 font-display text-2xl font-medium leading-tight tracking-tight text-foreground" data-testid="watch-title">
+            {post.title}
+          </h1>
+        )}
+
+        {/* Body — full markdown at a reading measure (the "beautiful Notion"
+            surface). A caption-only post shows the text as the body. */}
+        {post.text && (
+          <div className="mt-2 max-w-prose text-sm leading-relaxed text-foreground" data-testid="watch-caption">
+            <PostBody text={post.text} density="full" />
+          </div>
+        )}
+
+        {/* Stats row — a quiet "N likes · M comments" line above the actions. */}
+        <PostStatsRow likeCount={likes} commentCount={comments} testId="watch" />
+
+        {/* Action bar — LABELED (icon + text + count), not bare icons. */}
+        <PostActionBar
           liked={liked}
           disliked={disliked}
-          reactionCount={likes}
+          likeCount={likes}
           dislikeCount={dislikes}
           commentCount={comments}
           reposted={reposted}
           repostCount={reposts}
+          commentsOpen={commentsOpen}
           onToggleReaction={(kind) => void handleToggleReaction(kind)}
           onToggleRepost={handleRepost}
-          groups={[getDiscoverGroupId()]}
-          postAuthor={author}
-          onAuthorClick={(username, provider) => navigate(`/u/${username}`, { state: { provider: provider || '' } })}
-          dislike="interactive"
-          repost={isAnon ? 'display' : 'interactive'}
-          testId="watch-post-actions"
+          onComment={() => setCommentsOpen((o) => !o)}
+          onShare={handleShare}
+          shared={copied}
+          testId="watch"
         />
+
+        {/* The comment thread — the "Comment" action opens the shared threaded
+            comments (the Facebook/Instagram model, paged at both levels). */}
+        {commentsOpen && (
+          <div className="border-t border-border pt-3" data-testid="watch-comments">
+            <CommentThread
+              postId={post._id || ''}
+              isOpen={commentsOpen}
+              count={comments}
+              onCountChange={setComments}
+              postAuthor={author || undefined}
+              groups={[getDiscoverGroupId()]}
+              onAuthorClick={(username, provider) => navigate(`/u/${username}`, { state: { provider: provider || '' } })}
+            />
+          </div>
+        )}
       </div>
 
       {/* ── Right: the "What's next" queue ── */}
