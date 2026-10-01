@@ -280,4 +280,42 @@ describe('VideoPlayer — the shared video surface (video-player.md)', () => {
       expect(video.muted).toBe(false);
     });
   });
+
+  it('inline (file) shows the poster as a backdrop <img> and reveals the video only once it is playing (the no-gray idiom)', async () => {
+    const { InlineVideo } = await import('@/components/Feed/VideoPlayer');
+    const { container } = render(
+      <InlineVideo url="http://x/v.mp4" poster="http://x/poster.jpg" width={720} height={1280} testId="vp-poster" />,
+    );
+    const video = container.querySelector('video')!;
+    // The poster is a real <img> backdrop — the thumbnail shows first,
+    // independently of the video, so the frame is never a gray/black void.
+    const poster = container.querySelector('img') as HTMLImageElement;
+    expect(poster).toBeTruthy();
+    expect(poster.getAttribute('src')).toBe('http://x/poster.jpg');
+    // The video is hidden until it has actually played (the `playing` event).
+    expect(video.className).toMatch(/opacity-0/);
+    fireEvent.playing(video);
+    await waitFor(() => expect(video.className).toMatch(/opacity-100/));
+  });
+
+  it('immersive hls shows the poster as a backdrop <img> and reveals the video only once it is playing (the no-gray idiom)', async () => {
+    const { VideoPlayer } = await import('@/components/Feed/VideoPlayer');
+    const { container } = render(
+      <VideoPlayer
+        source={{ type: 'hls', manifestUrl: '/v3/media/hls/manifest?doc_id=m1&sig=abc', poster: 'http://x/poster.jpg', width: 720, height: 1280 }}
+        mode="inline"
+        fit="cover"
+        immersive
+        active
+        testId="vp-imm-poster"
+      />,
+    );
+    const video = screen.getByTestId('immersive-hls-video') as HTMLVideoElement;
+    const poster = container.querySelector('img') as HTMLImageElement;
+    expect(poster).toBeTruthy();
+    expect(poster.getAttribute('src')).toBe('http://x/poster.jpg');
+    expect(video.className).toMatch(/opacity-0/);
+    fireEvent.playing(video);
+    await waitFor(() => expect(video.className).toMatch(/opacity-100/));
+  });
 });
