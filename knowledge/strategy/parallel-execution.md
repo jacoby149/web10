@@ -193,9 +193,11 @@ P2P stays v4 — do not build it here.
 The social app is the integration test (Phase 3). It ran on two legacy
 seams — `web10-npm@1.0.8` (v1 auth) and the hand-rolled `src/data/v3.ts`
 (data) — and the convergence is on the SDK the demos already run on.
-Both seams are now retired (3.11.0 auth, 3.12.0 data); what remains is
-the hls.js player and the e2e gauntlet that proves it end-to-end.
-   The decision bite gated the seam bites — docs first.
+   Both seams are now retired (3.11.0 auth, 3.12.0 data); what remains is
+   the hls.js player and the e2e gauntlet that proves it end-to-end.
+    The decision bite gated the seam bites — docs first.
+
+  - [✓ 3.199.0] **Videos load the thumbnail first, then the video (the no-grey-box fix, all surfaces)** (operator: "across surfaces, discover, feed, profile, the videos should first load the thumbnail, then the video, otherwise they are grey for like 5 seconds"). **The root:** the data was already fine — every video's `thumbnail_url` is in the one read (the node presigns `thumbnail_object_key` offline; confirmed on the prod box, all video docs carry a `poster-*.webp` blob in MinIO) and `sourceFromMedia` already feeds it to the player. The players rendered the poster only as the `<video poster>` attr over a `bg-black` container, so the frame painted black/grey for the ~5s the HLS manifest → variant → first segment takes to load. The codebase had already solved this exact "vid goes gray" for `HoverVideo` (3.165.1/3.166.3) — the feed/discover/profile players never got it. **The fix (one shared package, `marketing/shared/discover/src/`, all surfaces at once):** lift the no-gray idiom into `HlsVideoPlayer` + `InlineVideo` + `ImmersiveHls` — the poster is a real `<img>` backdrop (`absolute inset-0`, fit-matched) that loads independently and shows FIRST; the `<video>` overlays the SAME box and is revealed only once it has actually **played** (the `playing` event, NOT `canplay`), latched so a paused video keeps its frame. `NativeVideo` (file + `mode="full"`) keeps the native `poster` attr. Zero node surface (D60). **Tests:** `hlsVideoPlayer.test.tsx` +1, `videoPlayer.test.tsx` +2, marketing-ui `Trending.test.tsx` re-pinned. 1225 social + 282 marketing-ui green, `tsc` clean. Screenshots `feed-poster-{desktop,375}.png` + `video-wall-poster-{desktop,375}.png`.
 
   **Saved collections (D88) — a playlist is a private-by-default group on the
   profile; publicness is a role grant; zero node surface.** KB:
