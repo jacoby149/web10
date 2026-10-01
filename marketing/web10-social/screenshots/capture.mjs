@@ -53,10 +53,13 @@ function parseCliViews(argv) {
   // `--click SEL` / `--fill SEL VALUE` (both repeatable) run in the ORDER
   // given on the command line — a fill types a query, a later click taps a
   // control inside its rendered results (the search dropdown's mode toggle).
+  // `--file SEL PATH` sets a file on a file input (the face lightbox's upload
+  // seam — drives the crop step from an uploaded photo).
   const actions = [];
   for (let i = 0; i < argv.length - 1; i++) {
     if (argv[i] === '--click') actions.push({ type: 'click', sel: argv[i + 1] });
     else if (argv[i] === '--fill') actions.push({ type: 'fill', sel: argv[i + 1], val: argv[i + 2] });
+    else if (argv[i] === '--file') actions.push({ type: 'file', sel: argv[i + 1], val: argv[i + 2] });
   }
   return [{ name, ready, route: get('--route'), toggle: get('--toggle'), clicks: actions.filter((a) => a.type === 'click').map((a) => a.sel), fills: actions.filter((a) => a.type === 'fill').map((a) => [a.sel, a.val]), actions, hover: get('--hover'), readyAlt: get('--ready-alt'), extra: get('--extra'), scroll: get('--scroll') }];
 }
@@ -125,7 +128,8 @@ try {
           for (const action of view.actions ?? []) {
             try {
               if (action.type === 'click') await page.click(action.sel, { timeout: 3000 });
-              else await page.fill(action.sel, action.val, { timeout: 3000 });
+              else if (action.type === 'fill') await page.fill(action.sel, action.val, { timeout: 3000 });
+              else if (action.type === 'file') await page.setInputFiles(action.sel, action.val, { timeout: 3000 });
             } catch { /* target not visible on this viewport — skip */ }
             // A fill types a query that renders its results after the 400ms
             // debounce — settle so a follow-up click lands on rendered DOM.
