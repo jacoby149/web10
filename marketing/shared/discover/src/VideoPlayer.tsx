@@ -279,6 +279,11 @@ export function ImmersiveHls({ manifestUrl, poster, width, height, active = fals
   const [failed, setFailed] = useState(false);
   const [tapped, setTapped] = useState(false);
   const playing = (active && !tapped) || (!active && tapped);
+  // The poster→video reveal latch (the no-gray idiom, 3.165.1): the video fades
+  // in only once it has actually played (frames on screen — the `playing`
+  // event, NOT `canplay`). Once set it never clears, so a paused short keeps
+  // its frame. The poster `<img>` is the backdrop the whole time.
+  const [revealed, setRevealed] = useState(false);
 
   useEffect(() => {
     const el = videoRef.current;
@@ -312,6 +317,18 @@ export function ImmersiveHls({ manifestUrl, poster, width, height, active = fals
     LOG('immersive hls — no HLS support in this browser');
     setFailed(true);
   }, [manifestUrl]);
+
+  // The poster→video reveal latch: the video fades in only once it has actually
+  // played (frames on screen — the `playing` event, NOT `canplay`). Once set it
+  // never clears, so a paused short keeps its frame instead of snapping back to
+  // the poster. Listens for the element's lifetime (the source attaches async).
+  useEffect(() => {
+    const el = videoRef.current;
+    if (!el) return;
+    const onPlaying = () => setRevealed(true);
+    el.addEventListener('playing', onPlaying);
+    return () => el.removeEventListener('playing', onPlaying);
+  }, []);
 
   useEffect(() => {
     const el = videoRef.current;
@@ -354,13 +371,26 @@ export function ImmersiveHls({ manifestUrl, poster, width, height, active = fals
         }
       }}
     >
+      {/* The poster — always the backdrop (the thumbnail-first face). It shows
+          while the manifest + first segment load, then the video fades in over
+          it once frames are on screen (the no-gray idiom, 3.165.1). Both are
+          `absolute inset-0` so they occupy the SAME box (stacked). */}
+      {poster && (
+        <img
+          src={poster}
+          alt=""
+          className="absolute inset-0 h-full w-full object-cover"
+        />
+      )}
       <video
         ref={videoRef}
         data-testid="immersive-hls-video"
-        poster={poster}
         width={width}
         height={height}
-        className="absolute inset-0 w-full h-full object-cover"
+        className={cn(
+          'absolute inset-0 w-full h-full object-cover transition-opacity duration-200',
+          revealed ? 'opacity-100' : 'opacity-0',
+        )}
         muted={muted}
         autoPlay
         loop
@@ -414,6 +444,11 @@ export function InlineVideo({ url, poster, width, height, durationSeconds, fit =
   const videoRef = useRef<HTMLVideoElement>(null);
   const [tapped, setTapped] = useState(false);
   const playing = (active && !tapped) || (!active && tapped);
+  // The poster→video reveal latch: the video fades in only once it has actually
+  // played (frames on screen — the `playing` event, NOT `canplay`). Once set it
+  // never clears, so a paused video keeps its frame. The poster `<img>` is the
+  // backdrop the whole time → the thumbnail shows first, then the video.
+  const [revealed, setRevealed] = useState(false);
 
   // ── Control-rack state (the file path gets the same rack as the hls path) ──
   const hideTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -457,12 +492,16 @@ export function InlineVideo({ url, poster, width, height, durationSeconds, fit =
     };
     const onPlay = () => { playingRef.current = true; show(); };
     const onPause = () => { playingRef.current = false; setControlsVisible(true); };
+    // The poster→video reveal latch: fires only when frames are on screen.
+    // Once set it never clears — a paused video keeps its frame.
+    const onPlaying = () => setRevealed(true);
     const onTime = () => setCurrent(el.currentTime);
     const onMeta = () => setDuration(el.duration || 0);
     const onVol = () => { setVolume(el.volume); setMuted(el.muted); };
     const onEnd = () => setControlsVisible(true);
     el.addEventListener('play', onPlay);
     el.addEventListener('pause', onPause);
+    el.addEventListener('playing', onPlaying);
     el.addEventListener('timeupdate', onTime);
     el.addEventListener('loadedmetadata', onMeta);
     el.addEventListener('durationchange', onMeta);
@@ -471,6 +510,7 @@ export function InlineVideo({ url, poster, width, height, durationSeconds, fit =
     return () => {
       el.removeEventListener('play', onPlay);
       el.removeEventListener('pause', onPause);
+      el.removeEventListener('playing', onPlaying);
       el.removeEventListener('timeupdate', onTime);
       el.removeEventListener('loadedmetadata', onMeta);
       el.removeEventListener('durationchange', onMeta);
@@ -550,14 +590,28 @@ export function InlineVideo({ url, poster, width, height, durationSeconds, fit =
       onMouseMove={() => { setControlsVisible(true); if (hideTimer.current) clearTimeout(hideTimer.current); hideTimer.current = setTimeout(() => { if (playingRef.current && !pointerOverRef.current) setControlsVisible(false); }, 2500); }}
       onMouseLeave={() => { pointerOverRef.current = false; setPointerOver(false); if (hideTimer.current) clearTimeout(hideTimer.current); hideTimer.current = setTimeout(() => { if (playingRef.current && !pointerOverRef.current) setControlsVisible(false); }, 2500); }}
     >
+      {/* The poster — always the backdrop (the thumbnail-first face). It shows
+          while the source loads, then the video fades in over it once frames
+          are on screen (the no-gray idiom, 3.165.1). Both are `absolute inset-0`
+          so they occupy the SAME box (stacked) — the video overlays the poster,
+          never flows below it. */}
+      {poster && (
+        <img
+          src={poster}
+          alt=""
+          className={cn(
+            'absolute inset-0 h-full w-full',
+            cover ? 'object-cover' : 'object-contain',
+          )}
+        />
+      )}
       <video
         ref={videoRef}
         src={url}
-        poster={poster}
         className={cn(
-          'w-full h-full',
+          'absolute inset-0 w-full h-full transition-opacity duration-200',
           cover ? 'object-cover' : 'object-contain',
-          immersive && 'absolute inset-0',
+          revealed ? 'opacity-100' : 'opacity-0',
         )}
         preload="metadata"
         playsInline
