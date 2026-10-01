@@ -216,15 +216,37 @@ const SAVED_COLLECTIONS = [
   { groupId: 'web10/groups/users/me/saved-later', name: 'Watch Later', visibility: 'private', itemCount: 1, slug: 'later' },
 ];
 export async function getMyCollections(): Promise<unknown[]> { return SAVED_COLLECTIONS; }
+// The "Save to…" sheet (D88) reads which collections already contain a post.
+// Seed the first feed post (fp-md) as saved in the first collection so the
+// sheet's PR shot shows a filled checkmark.
+export async function readSavedPostIds(groupId: string): Promise<Set<string>> {
+  const first = SAVED_COLLECTIONS[0]?.groupId;
+  return groupId === first ? new Set(['fp-md']) : new Set<string>();
+}
+export async function savePostToCollection(): Promise<boolean> { return true; }
+export async function removePostFromCollection(): Promise<void> {}
+export async function createCollection(): Promise<string> { return 'web10/groups/users/me/saved-new'; }
+export async function setCollectionVisibility(): Promise<void> {}
+export async function renameCollection(): Promise<void> {}
+export async function deleteCollection(): Promise<void> {}
 export async function readCollection(): Promise<unknown> {
+  const posts = [
+    { _id: 'sc-1', postId: 'pp-1', savedAt: minsAgo(120), unavailable: false, post: PROFILE_POSTS[0] },
+    { _id: 'sc-2', postId: 'pp-2', savedAt: minsAgo(300), unavailable: false, post: PROFILE_POSTS[1] },
+    { _id: 'sc-3', postId: 'pp-3', savedAt: minsAgo(500), unavailable: false, post: PROFILE_POSTS[2] },
+  ];
+  // Resolve the posts' media so the wall renders real tiles (not text-only).
+  const mediaMap: Record<string, unknown> = {};
+  for (const p of posts) {
+    for (const id of (p.post as { media_refs?: string[] } | null)?.media_refs ?? []) {
+      const rec = PROFILE_MEDIA[id] ?? DISCOVER_MEDIA[id];
+      if (rec) mediaMap[id] = rec;
+    }
+  }
   return {
-    face: { name: 'Guitar Riffs' },
-    posts: [
-      { _id: 'sc-1', postId: 'pp-1', savedAt: minsAgo(120), unavailable: false, post: PROFILE_POSTS[0] },
-      { _id: 'sc-2', postId: 'pp-2', savedAt: minsAgo(300), unavailable: false, post: PROFILE_POSTS[1] },
-      { _id: 'sc-3', postId: 'pp-3', savedAt: minsAgo(500), unavailable: false, post: PROFILE_POSTS[2] },
-    ],
-    mediaMap: {},
+    face: { name: 'Guitar Riffs', visibility: 'private' },
+    posts,
+    mediaMap,
   };
 }
 // readUserPublicProfile lives below (the real impl, keyed by username).

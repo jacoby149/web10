@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen, waitFor } from '@testing-library/react';
+import { render, screen, waitFor, fireEvent } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import '@testing-library/jest-dom';
 
@@ -27,6 +27,21 @@ vi.mock('@/data', async (importOriginal) => {
 vi.mock('@/data/wapi', () => ({
   getWapi: vi.fn().mockReturnValue({
     readToken: vi.fn().mockReturnValue({ provider: 'test.localhost', username: 'testuser' }),
+  }),
+}));
+
+// The app-level composer seam (the New Post sheet). The repeat icon must call
+// openComposer() to actually OPEN the sheet in repost mode — without it the
+// repeat icon sets repostingTo but nothing appears (the regression this pins).
+const { openComposerSpy } = vi.hoisted(() => ({ openComposerSpy: vi.fn() }));
+vi.mock('@/context/ComposerContext', () => ({
+  ComposerProvider: ({ children }: { children: React.ReactNode }) => children,
+  useComposer: () => ({
+    composerOpen: false,
+    composerGroups: undefined,
+    editingPost: undefined,
+    openComposer: openComposerSpy,
+    closeComposer: vi.fn(),
   }),
 }));
 
@@ -173,5 +188,38 @@ describe('FeedScreen — the repost card (reposts.md)', () => {
     // The node ad is NOT rendered in the embed (the repost post's own node ad,
     // if any, covers the node's inventory — two ads in a compact embed is too much).
     expect(screen.queryByText('Original node ad')).toBeNull();
+  });
+
+  it('the feed repeat icon opens the composer sheet in repost mode (openComposer) — not just sets state', async () => {
+    // The regression: the Following feed's repeat icon called onRepost (which
+    // sets repostingTo) but never openComposer(), so the New Post sheet never
+    // appeared. The sheet is gated on composerOpen, so both calls are required.
+    const { readFeedPage } = await import('@/data');
+    vi.mocked(readFeedPage).mockResolvedValueOnce({
+      posts: [{
+        _id: 'feed-1',
+        text: 'A post worth amplifying',
+        created_at: '2026-09-17T10:00:00Z',
+        author_username: 'alice',
+        author_provider: 'test.localhost',
+        profile: { display_name: 'Alice' },
+        media_refs: [],
+      }],
+      has_more: false,
+      next_cursor: null,
+    });
+
+    const { default: FeedScreen } = await import('@/components/Feed/FeedScreen');
+    render(
+      <MemoryRouter>
+        <FeedScreen />
+      </MemoryRouter>,
+    );
+
+    const btn = await screen.findByTestId('repost-button');
+    fireEvent.click(btn);
+
+    // The sheet actually opens (openComposer) — the call that was missing.
+    expect(openComposerSpy).toHaveBeenCalled();
   });
 });

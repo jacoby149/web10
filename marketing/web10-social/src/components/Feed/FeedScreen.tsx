@@ -28,7 +28,7 @@ import {
   type KnobState,
 } from '@/lib/powerMean';
 import { KnobRack } from '@/components/Discover/KnobRack';
-import { MoreHorizontal, Share2, Check, Edit3, Eye, EyeOff, Trash2, Repeat2, Megaphone, X, Film } from 'lucide-react';
+import { MoreHorizontal, Share2, Check, Edit3, Eye, EyeOff, Trash2, Repeat2, Megaphone, X, Film, Bookmark } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { MARKETING_ORIGIN } from '@/lib/origins';
 import { Textarea } from '@/components/ui/textarea';
@@ -39,6 +39,7 @@ import { AdBlock } from './AdBlock';
 import { AttachedAd } from './AttachedAd';
 import { AdPicker } from './AdPicker';
 import { useComposer } from '@/context/ComposerContext';
+import { useSave } from '@/context/SaveContext';
 import { VideoPlayer, sourceFromMedia } from './VideoPlayer';
 import { MediaCarousel } from './MediaCarousel';
 import { toast, errorMessage } from '@/components/shared/Toast';
@@ -318,8 +319,16 @@ export interface PostCardProps {
    *  card's <PostActions>. */
   groups?: string[];
   isOwnPost?: boolean;
+  /** Whether the reader is signed in (the Save-to-collection control is
+   *  owner-of-the-token only — an anon visitor has no collections, so the
+   *  kebab's Save item is hidden for them). */
+  signedIn?: boolean;
   onPostUpdated?: () => void;
   testId?: string;
+  /** A DOM id for the card (the Discover board's ?post= highlight target). */
+  id?: string;
+  /** Extra classes (the Discover board's ?post= highlight ring). */
+  className?: string;
 }
 
 // Exported so other surfaces (the profile's feed view) can compose the same
@@ -347,13 +356,17 @@ export function PostCard({
   postService,
   groups,
   isOwnPost,
+  signedIn = false,
   onPostUpdated,
   testId = 'post-card',
+  id,
+  className,
 }: PostCardProps) {
   // Owner actions (previously the lightbox's job — the feed is now inline).
   // Editing is NOT inline — it opens the app-level composer sheet in edit mode
   // (the ONE edit path, so the card stays the read surface).
   const { openComposer } = useComposer();
+  const { openSave } = useSave();
   const [menuOpen, setMenuOpen] = useState(false);
   const [deleteConfirm, setDeleteConfirm] = useState(false);
   const [copied, setCopied] = useState(false);
@@ -420,9 +433,11 @@ export function PostCard({
   return (
     <article
       data-testid={testId}
+      id={id}
       className={cn(
         'bg-card border-b border-border overflow-hidden',
         'glow-card transition-all duration-150',
+        className,
       )}
     >
       <div className="flex items-center gap-2.5 px-4 py-3">
@@ -463,7 +478,7 @@ export function PostCard({
             </span>
           )}
         </div>
-        {isOwnPost && (
+        {(signedIn || isOwnPost) && (
           <div className="relative shrink-0">
             <button
               type="button"
@@ -487,54 +502,69 @@ export function PostCard({
                   data-testid="post-options-menu"
                   onClick={(e) => e.stopPropagation()}
                 >
-                  <button
-                    type="button"
-                    onClick={(e) => { e.stopPropagation(); handleShare(); }}
-                    className="flex w-full items-center gap-2 rounded-md px-3 py-2 text-left text-sm text-foreground hover:bg-elevated transition-colors"
-                    data-testid="post-option-share"
-                  >
-                    {copied ? <Check className="w-4 h-4 text-success" /> : <Share2 className="w-4 h-4" />}
-                    {copied ? 'Copied!' : 'Share'}
-                  </button>
-                  <button
-                    type="button"
-                    onClick={(e) => { e.stopPropagation(); setMenuOpen(false); openComposer({ editingPost: post }); }}
-                    className="flex w-full items-center gap-2 rounded-md px-3 py-2 text-left text-sm text-foreground hover:bg-elevated transition-colors"
-                    data-testid="post-option-edit"
-                  >
-                    <Edit3 className="w-4 h-4" />
-                    Edit post
-                  </button>
-                  <button
-                    type="button"
-                    onClick={(e) => { e.stopPropagation(); handleToggleVisibility(); }}
-                    disabled={togglingVisibility}
-                    className="flex w-full items-center gap-2 rounded-md px-3 py-2 text-left text-sm text-foreground hover:bg-elevated transition-colors disabled:opacity-50"
-                    data-testid="post-option-visibility"
-                  >
-                    {post.visibility === 'public' ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-                    {togglingVisibility ? 'Updating…' : post.visibility === 'public' ? 'Make private' : 'Make public'}
-                  </button>
-                  {deleteConfirm ? (
+                  {signedIn && (
                     <button
                       type="button"
-                      onClick={(e) => { e.stopPropagation(); handleDelete(); }}
-                      className="flex w-full items-center gap-2 rounded-md px-3 py-2 text-left text-sm text-danger hover:bg-danger-muted transition-colors"
-                      data-testid="post-option-delete-confirm"
+                      onClick={(e) => { e.stopPropagation(); setMenuOpen(false); openSave(post); }}
+                      className="flex w-full items-center gap-2 rounded-md px-3 py-2 text-left text-sm text-foreground hover:bg-elevated transition-colors"
+                      data-testid="post-option-save"
                     >
-                      <Trash2 className="w-4 h-4" />
-                      Confirm delete
+                      <Bookmark className="w-4 h-4" />
+                      Save to…
                     </button>
-                  ) : (
-                    <button
-                      type="button"
-                      onClick={(e) => { e.stopPropagation(); setDeleteConfirm(true); }}
-                      className="flex w-full items-center gap-2 rounded-md px-3 py-2 text-left text-sm text-danger hover:bg-danger-muted transition-colors"
-                      data-testid="post-option-delete"
-                    >
-                      <Trash2 className="w-4 h-4" />
-                      Delete post
-                    </button>
+                  )}
+                  {isOwnPost && (
+                    <>
+                      <button
+                        type="button"
+                        onClick={(e) => { e.stopPropagation(); handleShare(); }}
+                        className="flex w-full items-center gap-2 rounded-md px-3 py-2 text-left text-sm text-foreground hover:bg-elevated transition-colors"
+                        data-testid="post-option-share"
+                      >
+                        {copied ? <Check className="w-4 h-4 text-success" /> : <Share2 className="w-4 h-4" />}
+                        {copied ? 'Copied!' : 'Share'}
+                      </button>
+                      <button
+                        type="button"
+                        onClick={(e) => { e.stopPropagation(); setMenuOpen(false); openComposer({ editingPost: post }); }}
+                        className="flex w-full items-center gap-2 rounded-md px-3 py-2 text-left text-sm text-foreground hover:bg-elevated transition-colors"
+                        data-testid="post-option-edit"
+                      >
+                        <Edit3 className="w-4 h-4" />
+                        Edit post
+                      </button>
+                      <button
+                        type="button"
+                        onClick={(e) => { e.stopPropagation(); handleToggleVisibility(); }}
+                        disabled={togglingVisibility}
+                        className="flex w-full items-center gap-2 rounded-md px-3 py-2 text-left text-sm text-foreground hover:bg-elevated transition-colors disabled:opacity-50"
+                        data-testid="post-option-visibility"
+                      >
+                        {post.visibility === 'public' ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                        {togglingVisibility ? 'Updating…' : post.visibility === 'public' ? 'Make private' : 'Make public'}
+                      </button>
+                      {deleteConfirm ? (
+                        <button
+                          type="button"
+                          onClick={(e) => { e.stopPropagation(); handleDelete(); }}
+                          className="flex w-full items-center gap-2 rounded-md px-3 py-2 text-left text-sm text-danger hover:bg-danger-muted transition-colors"
+                          data-testid="post-option-delete-confirm"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                          Confirm delete
+                        </button>
+                      ) : (
+                        <button
+                          type="button"
+                          onClick={(e) => { e.stopPropagation(); setDeleteConfirm(true); }}
+                          className="flex w-full items-center gap-2 rounded-md px-3 py-2 text-left text-sm text-danger hover:bg-danger-muted transition-colors"
+                          data-testid="post-option-delete"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                          Delete post
+                        </button>
+                      )}
+                    </>
                   )}
                 </div>
               </>
@@ -695,6 +725,9 @@ export default function FeedScreen({ onAuthorClick, onRepost }: { onAuthorClick?
   const [repostedMap, setRepostedMap] = useState<Record<string, boolean>>({});
   const sentinelRef = useRef<HTMLDivElement>(null);
   const token = getWapi().readToken();
+  // The app-level composer seam (the New Post sheet) — the repeat icon opens
+  // it in repost mode. A hook, so it must run before the `if (loading)` return.
+  const { openComposer } = useComposer();
   // v3 ownership is by username alone: a post's author_key is the bare
   // username (the node's provider is implicit — every local user shares it),
   // so `author_provider` is the v2 fallback ('web10') and never equals the
@@ -946,8 +979,15 @@ export default function FeedScreen({ onAuthorClick, onRepost }: { onAuthorClick?
   // composer above the feed) with this post as the context. The composer
   // creates the repost post; the feed remounts on onPostCreated so the new
   // repost shows up + the repost count / filled state re-derive.
+  //
+  // Two calls, matching every other surface (ProfileFeed / PostLightbox /
+  // Watch / GroupDetail / Discover): `onRepost` sets the app-wide `repostingTo`
+  // state (the post being reposted), and `openComposer()` actually opens the
+  // New Post sheet — without the second call the repeat icon sets state but
+  // nothing appears (the sheet is gated on `composerOpen`).
   function handleRepost(post: PostRecord) {
     onRepost?.(post);
+    openComposer();
   }
 
   if (loading) {
@@ -1021,6 +1061,7 @@ export default function FeedScreen({ onAuthorClick, onRepost }: { onAuthorClick?
                   onAuthorClick={onAuthorClick}
                   onPostUpdated={() => loadFeed(null, knobState)}
                   isOwnPost={isOwnPost(post)}
+                  signedIn={!!token}
                 />
               );
 
