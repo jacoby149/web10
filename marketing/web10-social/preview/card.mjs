@@ -16,6 +16,8 @@
 //   API_ORIGIN    — the node's origin (e.g. http://api:80 in Docker).
 //   SOCIAL_ORIGIN — the social app's public origin (the canonical og:url).
 
+import { stripMarkdown } from './markdown.mjs'
+
 const API_ORIGIN = (process.env.API_ORIGIN || 'http://api.localhost').replace(/\/$/, '')
 const SOCIAL_ORIGIN = (process.env.SOCIAL_ORIGIN || 'http://social.localhost').replace(/\/$/, '')
 
@@ -182,7 +184,10 @@ export async function postCard(username, postId) {
       url: canonicalUrl,
     })
   }
-  const text = doc.body?.text ?? null
+  // The post's `text` is markdown (D85) — strip it to plain words BEFORE
+  // truncating, so the OG / Twitter card never leaks `**` / `#` / `[]()` / ```
+  // (the client-side "one touch," D60-clean — the node stores it opaquely).
+  const text = stripMarkdown(doc.body?.text) ?? null
   const thumb = await getThumbnailAnon(postId)
   let image = thumb?.url ?? null
   let imageAlt = thumb?.alt ?? null
