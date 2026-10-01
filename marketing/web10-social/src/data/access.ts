@@ -45,6 +45,9 @@ const SOCIAL_SERVICES = [
   'staging_posts',
   'web10-social-group-identity',
   'notifications',
+  // The saved-collection store (D88) — a `saved` doc in a collection group.
+  // Must stay in lockstep with SOCIAL_SERVICES in src/interfaces/auth.ts.
+  'saved',
 ];
 const SOCIAL_OPERATIONS = ['readAll', 'create'];
 
