@@ -24,6 +24,12 @@ vi.mock('@/lib/faceCrop', async (importOriginal) => {
   };
 });
 
+// jsdom has no URL.createObjectURL / revokeObjectURL (the upload path mints an
+// object URL for the crop preview). Mock them with a stable fake URL.
+let objectUrlCounter = 0;
+URL.createObjectURL = vi.fn(() => `blob:mock-${objectUrlCounter++}`);
+URL.revokeObjectURL = vi.fn();
+
 // Resolved media refs (the API read path shape — they carry a url to render).
 const AVATAR_REF = { doc_id: 'avatar-doc', read_url: 'https://cdn/avatar.png', mime_type: 'image/png', object_key: 'obj/av' };
 const BANNER_REF = { doc_id: 'banner-doc', read_url: 'https://cdn/banner.png', mime_type: 'image/png', object_key: 'obj/bn' };
@@ -48,6 +54,8 @@ const mockCountStagingPosts = vi.fn().mockResolvedValue(0);
 const mockSaveProfile = vi.fn().mockImplementation((p) => Promise.resolve({ _id: 'profile-1', ...p }));
 // The crop upload — returns a fresh media doc (the crop ships as its own doc).
 const mockUploadMedia = vi.fn().mockResolvedValue({ _id: 'crop-doc-1', object_key: 'obj/crop1' });
+// The post-on-behalf write (the "also post this photo to my feed" intent).
+const mockCreatePost = vi.fn().mockImplementation((post) => Promise.resolve({ _id: 'post-on-behalf-1', ...post }));
 // resolveMediaRefs: map the avatar/banner/post-media doc_ids to MediaRecords.
 // Refs arrive in two shapes — resolved objects (the post's media_refs, the API
 // read path) and bare doc_id strings (avatar_ref/banner_ref). The mock keys on
@@ -82,6 +90,7 @@ vi.mock('@/data', async (importOriginal) => {
     saveProfile: mockSaveProfile,
     resolveMediaRefs: mockResolveMediaRefs,
     uploadMedia: mockUploadMedia,
+    createPost: mockCreatePost,
     readFollow: vi.fn().mockResolvedValue(null),
   };
 });
@@ -217,13 +226,15 @@ describe('Profile face lightbox — the Facebook-like "your profile picture is a
     expect(screen.queryByTestId('profile-media-picker')).not.toBeInTheDocument();
   });
 
-  it('with no posts, the picker shows the empty state', async () => {
+  it('with no posts, the picker shows the upload tile + the no-photos hint', async () => {
     mockReadMyPosts.mockResolvedValueOnce([]);
     await renderOwnProfile();
     fireEvent.click(screen.getByTestId('profile-avatar'));
     await screen.findByTestId('profile-media-picker');
     expect(screen.queryByTestId('profile-media-pick')).not.toBeInTheDocument();
-    expect(screen.getByText(/Post a photo first/i)).toBeInTheDocument();
+    // The upload tile is still present (the no-post-required path).
+    expect(screen.getByTestId('profile-media-upload')).toBeInTheDocument();
+    expect(screen.getByText(/No photos in your posts yet/i)).toBeInTheDocument();
   });
 
   it('pick tiles render the actual image src (not undefined / greyed out)', async () => {
@@ -426,6 +437,177 @@ describe('Profile face lightbox — the crop step (Facebook-style "how it displa
     expect(await screen.findByTestId('face-crop-error')).toHaveTextContent('boom');
     // The lightbox is still open (the user can retry or back out).
     expect(screen.getByTestId('profile-media-lightbox')).toBeInTheDocument();
+    expect(mockSaveProfile).not.toHaveBeenCalled();
+  });
+});
+
+describe('Profile face lightbox — the upload path (no post required)', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  // Open the face lightbox, tap the Upload tile, and drop a file into the
+  // hidden input → the crop step opens on the file's object URL.
+  async function openUploadCropView(field: 'profile-avatar' | 'profile-banner', file?: File) {
+    fireEvent.click(screen.getByTestId(field));
+    await screen.findByTestId('profile-media-picker');
+    fireEvent.click(screen.getByTestId('profile-media-upload'));
+    const input = screen.getByTestId('profile-media-upload-input');
+    fireEvent.change(input, {
+      target: { files: [file ?? new File(['img'], 'photo.png', { type: 'image/png' })] },
+    });
+    const view = await screen.findByTestId('face-crop-view');
+    // The preview image loads (jsdom fires load on src set) so the natural
+    // dims are known — the confirm button enables on that.
+    await waitFor(() => {
+      const img = screen.getByTestId('face-crop-image');
+      expect(img).toHaveAttribute('src');
+    });
+    return view;
+  }
+
+  it('the owner sees an Upload tile in the picker (alongside the post tiles)', async () => {
+    await renderOwnProfile();
+    fireEvent.click(screen.getByTestId('profile-avatar'));
+    await screen.findByTestId('profile-media-picker');
+    expect(screen.getByTestId('profile-media-upload')).toBeInTheDocument();
+    // The post tiles are still there (the upload is an addition, not a replacement).
+    expect((await screen.findAllByTestId('profile-media-pick')).length).toBeGreaterThan(0);
+  });
+
+  it('a non-owner (viewer) sees no Upload tile — view-only', async () => {
+    const { default: UserProfileScreen } = await import('@/components/Bio/UserProfileScreen');
+    vi.mocked(await import('@/data')).readUserProfile.mockResolvedValue({
+      _id: 'profile-other',
+      display_name: 'Someone Else',
+      avatar_ref: AVATAR_REF.doc_id,
+    });
+    vi.mocked(await import('@/data')).readUserPublicProfile.mockResolvedValue({
+      posts: [],
+      avatarUrl: 'http://test.com/avatar-other.png',
+      bannerUrl: undefined,
+    });
+    render(
+      <MemoryRouter>
+        <UserProfileScreen username="someoneelse" provider="test.localhost" />
+      </MemoryRouter>,
+    );
+    await waitFor(() => expect(screen.getByText('Someone Else')).toBeInTheDocument());
+    fireEvent.click(screen.getByTestId('profile-avatar'));
+    await screen.findByTestId('profile-media-lightbox');
+    expect(screen.queryByTestId('profile-media-upload')).not.toBeInTheDocument();
+    expect(screen.queryByTestId('profile-media-picker')).not.toBeInTheDocument();
+  });
+
+  it('picking a file opens the crop step on the file (the object URL is the crop source)', async () => {
+    await renderOwnProfile();
+    await openUploadCropView('profile-avatar');
+    // The crop preview shows the uploaded file's object URL.
+    const img = screen.getByTestId('face-crop-image');
+    expect(img).toHaveAttribute('src', expect.stringMatching(/^blob:mock-/));
+    // Nothing is saved until the crop is confirmed.
+    expect(mockSaveProfile).not.toHaveBeenCalled();
+    expect(mockUploadMedia).not.toHaveBeenCalled();
+  });
+
+  it('the upload crop step shows the "also post to my feed" checkbox', async () => {
+    await renderOwnProfile();
+    await openUploadCropView('profile-avatar');
+    const toggle = screen.getByTestId('face-crop-post-toggle');
+    expect(toggle).toBeInTheDocument();
+    expect(toggle).toHaveTextContent(/Also post this photo to my feed/i);
+    // Unchecked by default.
+    expect(screen.getByTestId('face-crop-post-checkbox')).not.toBeChecked();
+  });
+
+  it('the post crop step (pick from posts) does NOT show the checkbox', async () => {
+    await renderOwnProfile();
+    await openCropView('profile-avatar');
+    expect(screen.queryByTestId('face-crop-post-toggle')).not.toBeInTheDocument();
+  });
+
+  it('confirming an upload crop (no post) uploads + saves the face, no post created', async () => {
+    await renderOwnProfile();
+    await openUploadCropView('profile-avatar');
+    act(() => {
+      fireEvent.load(screen.getByTestId('face-crop-image'));
+    });
+    await waitFor(() => expect(screen.getByTestId('face-crop-confirm')).toBeEnabled());
+    // Leave the checkbox unchecked.
+    fireEvent.click(screen.getByTestId('face-crop-confirm'));
+    await waitFor(() => expect(mockUploadMedia).toHaveBeenCalled());
+    const uploadArg = mockUploadMedia.mock.calls[0][0];
+    expect(uploadArg.file).toBeInstanceOf(File);
+    expect(uploadArg.service).toBe('public_media');
+    await waitFor(() => expect(mockSaveProfile).toHaveBeenCalled());
+    const arg = mockSaveProfile.mock.calls[0][0];
+    expect(arg.avatar_ref).toBe('crop-doc-1');
+    // No post on behalf.
+    expect(mockCreatePost).not.toHaveBeenCalled();
+    // The lightbox closes after the save.
+    await waitFor(() => expect(screen.queryByTestId('profile-media-lightbox')).not.toBeInTheDocument());
+  });
+
+  it('confirming an upload crop WITH the checkbox posts the photo on the owner\'s behalf', async () => {
+    await renderOwnProfile();
+    await openUploadCropView('profile-avatar');
+    act(() => {
+      fireEvent.load(screen.getByTestId('face-crop-image'));
+    });
+    await waitFor(() => expect(screen.getByTestId('face-crop-confirm')).toBeEnabled());
+    // Check the "post on my behalf" box.
+    fireEvent.click(screen.getByTestId('face-crop-post-checkbox'));
+    expect(screen.getByTestId('face-crop-post-checkbox')).toBeChecked();
+    fireEvent.click(screen.getByTestId('face-crop-confirm'));
+    await waitFor(() => expect(mockUploadMedia).toHaveBeenCalled());
+    await waitFor(() => expect(mockSaveProfile).toHaveBeenCalled());
+    expect(mockSaveProfile.mock.calls[0][0].avatar_ref).toBe('crop-doc-1');
+    // The post references the SAME media doc the face points at.
+    await waitFor(() => expect(mockCreatePost).toHaveBeenCalled());
+    const postArg = mockCreatePost.mock.calls[0][0];
+    expect(postArg.media_refs).toEqual(['crop-doc-1']);
+    expect(postArg.visibility).toBe('public');
+    await waitFor(() => expect(screen.queryByTestId('profile-media-lightbox')).not.toBeInTheDocument());
+  });
+
+  it('confirming a banner upload crop saves banner_ref (avatar untouched)', async () => {
+    await renderOwnProfile();
+    await openUploadCropView('profile-banner');
+    act(() => {
+      fireEvent.load(screen.getByTestId('face-crop-image'));
+    });
+    await waitFor(() => expect(screen.getByTestId('face-crop-confirm')).toBeEnabled());
+    fireEvent.click(screen.getByTestId('face-crop-confirm'));
+    await waitFor(() => expect(mockSaveProfile).toHaveBeenCalled());
+    const arg = mockSaveProfile.mock.calls[0][0];
+    expect(arg.banner_ref).toBe('crop-doc-1');
+    expect(arg.avatar_ref).toBe(AVATAR_REF.doc_id);
+  });
+
+  it('a non-image file is rejected (the crop step does not open)', async () => {
+    await renderOwnProfile();
+    fireEvent.click(screen.getByTestId('profile-avatar'));
+    await screen.findByTestId('profile-media-picker');
+    fireEvent.click(screen.getByTestId('profile-media-upload'));
+    const input = screen.getByTestId('profile-media-upload-input');
+    fireEvent.change(input, {
+      target: { files: [new File(['nope'], 'doc.pdf', { type: 'application/pdf' })] },
+    });
+    // The crop step never opens; the picker is still showing.
+    expect(screen.queryByTestId('face-crop-view')).not.toBeInTheDocument();
+    expect(screen.getByTestId('profile-media-picker')).toBeInTheDocument();
+  });
+
+  it('back from the upload crop revokes the object URL and returns to the picker', async () => {
+    await renderOwnProfile();
+    await openUploadCropView('profile-avatar');
+    const url = screen.getByTestId('face-crop-image').getAttribute('src');
+    expect(url).toBeTruthy();
+    fireEvent.click(screen.getByTestId('face-crop-back'));
+    await waitFor(() => expect(screen.queryByTestId('face-crop-view')).not.toBeInTheDocument());
+    expect(await screen.findByTestId('profile-media-picker')).toBeInTheDocument();
+    // The object URL was revoked (no leak).
+    expect(URL.revokeObjectURL).toHaveBeenCalledWith(url);
     expect(mockSaveProfile).not.toHaveBeenCalled();
   });
 });

@@ -100,12 +100,6 @@ services:
       S3_ACCESS_KEY: minioadmin
       S3_SECRET_KEY: ${MINIO_PASSWORD}
       CORS_SERVICE_MANAGERS: ${CORS_SERVICE_MANAGERS:?authenticator hosts only}
-      # TURN relay for WebRTC P2P. Set TURN_URL to the public TURN URI
-      # (e.g. turn:turn.web10.app:3478) and TURN_SECRET to a strong random
-      # string matching the turn service's --static-auth-secret.
-      # Leave both empty to run STUN-only (no relay).
-      TURN_URL: ${TURN_URL:-}
-      TURN_SECRET: ${TURN_SECRET:-}
     command: ["uv", "run", "gunicorn", "-b", "0.0.0.0:80", "-w", "4", "-k", "uvicorn.workers.UvicornWorker", "app.main:app"]
     restart: unless-stopped
     networks:
@@ -151,52 +145,6 @@ services:
       proxy:
         aliases:
           - ${STACK}-rtc
-
-  turn:
-    # TURN relay for WebRTC P2P (coturn, RFC 8484 time-based credentials).
-    # Peers connect to it DIRECTLY (UDP/TCP straight from the browser — the
-    # NPM proxy cannot forward UDP), so it publishes its ports on the host
-    # instead of riding the proxy network. The API mints short-lived
-    # credentials (TURN_SECRET must match --static-auth-secret below) and
-    # hands them to clients via POST /ice.
-    #
-    # REQUIREMENTS before this service is healthy in production:
-    #   1. The image is mirrored (e2e/mirror-images.json + ghcr-mirror.yml).
-    #   2. TURN_URL + TURN_SECRET are set in the stack env (TURN_URL is the
-    #      public URI, e.g. turn:turn.{zone}:3478 — DNS must point turn.{zone}
-    #      at this host's public IP; see sync-dns.py).
-    #   3. The host firewall allows UDP 3478 + TCP 3478/5349 + UDP 35000-35200
-    #      (the relay's media range — 200 ports, sized for a creator node's
-    #      concurrent P2P load; see the README "TURN relay" section).
-    # TLS (turns:// on 5349) is the recommended production transport; it needs
-    # a cert for the TURN hostname — until one is provisioned the service runs
-    # plain (turn: on 3478), which is fine on most networks.
-    # The image's entrypoint auto-prepends `turnserver`, so `command` is flags only.
-    # --static-auth-secret uses ${TURN_SECRET:-} (optional, not :?) so the file
-    # still parses when the turn profile is off. If you enable the profile, set
-    # TURN_SECRET in the stack env (it must match the api's TURN_SECRET).
-    image: ghcr.io/jacoby149/base-coturn:latest
-    profiles: ["turn"]
-    command: >
-      --use-auth-secret
-      --static-auth-secret=${TURN_SECRET:-}
-      --listening-port=3478
-      --min-port=35000
-      --max-port=35200
-      --no-tls
-    ports:
-      - "3478:3478/udp"
-      - "3478:3478/tcp"
-      - "5349:5349/tcp"
-      # 200-port relay media range (not the 16k IANA default) — sized for a
-      # creator node's concurrent P2P load. The router/firewall only forwards
-      # this range + 3478, not the whole ephemeral block.
-      - "35000-35200:35000-35200/udp"
-    restart: unless-stopped
-    networks:
-      internal:
-        aliases:
-          - ${STACK}-turn
 
   social:
     build:

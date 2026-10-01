@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { X, Check, Loader2, ImagePlus, RotateCcw, ChevronLeft } from 'lucide-react';
+import { X, Check, Loader2, ImagePlus, RotateCcw, ChevronLeft, Upload } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import type { MediaRecord, PostRecord, ResolvedMediaRef } from '@/data/types';
 import { mediaRefId, fromResolvedMediaRef } from '@/data/types';
@@ -16,7 +16,7 @@ import {
  * The profile face lightbox — the Facebook-like "your profile picture is a
  * photo you picked from your posts."
  *
- * Two jobs, one modal:
+ * Three jobs, one modal:
  *  - **View** (everyone): the profile picture or banner, enlarged. Click the
  *    avatar or banner on a profile → it opens here. Escape / backdrop / close
  *    dismiss.
@@ -28,6 +28,13 @@ import {
  *    save (it uploads the crop as a new media doc and saves its doc_id as
  *    avatar_ref / banner_ref). The face IS the crop, so every surface shows
  *    the framed image, not a center-cropped guess.
+ *  - **Upload** (owner only): a first-class "Upload a photo" tile in the same
+ *    grid — no post required. Picking a file from disk opens the SAME crop
+ *    step (the object URL is the crop source). Confirm reports via
+ *    `onUploadCrop` with the owner's intent to also post the photo on their
+ *    behalf (the "post on my behalf" checkbox, shown when
+ *    `allowPostOnBehalf` is set) — the parent owns the upload + save +
+ *    optional post.
  *
  * The picker is a pure view: the parent owns the save, so this component
  * only reports intent (the crop blob + dims). That keeps the data flow in
@@ -59,6 +66,12 @@ interface ProfileMediaLightboxProps {
   options?: ProfileMediaOption[];
   /** The owner confirmed a crop — the parent uploads it + saves the ref. */
   onCrop?: (result: FaceCropResult) => void;
+  /** The owner confirmed a crop of an UPLOADED photo — the parent uploads it
+   *  + saves the ref + optionally posts it on the owner's behalf. */
+  onUploadCrop?: (result: FaceCropResult, opts: { postOnBehalf: boolean }) => void;
+  /** Show the "also post this to my feed" checkbox in the crop step (the
+   *  profile screen only — a group face has no "post on my behalf"). */
+  allowPostOnBehalf?: boolean;
   /** A set-as is in flight (the confirm button shows a spinner). */
   saving?: boolean;
   /** The owner's display name — shown in the picker header. */
@@ -83,6 +96,8 @@ export function ProfileMediaLightbox({
   isOwner,
   options = [],
   onCrop,
+  onUploadCrop,
+  allowPostOnBehalf = false,
   saving = false,
   displayName,
   avatarLabel,
@@ -97,6 +112,12 @@ export function ProfileMediaLightbox({
   // The media currently in the crop step (the tapped tile's image).
   const [cropId, setCropId] = useState<string | null>(null);
   const [cropUrl, setCropUrl] = useState<string | null>(null);
+  // The crop source: a post's media (the pick grid) or an uploaded file.
+  // Drives which confirm callback fires (onCrop vs onUploadCrop) and whether
+  // the "post on my behalf" checkbox is offered.
+  const [cropSource, setCropSource] = useState<'post' | 'upload'>('post');
+  // The owner's intent to also post the uploaded photo on their behalf.
+  const [postOnBehalf, setPostOnBehalf] = useState(false);
   // The crop transform (pan + zoom), reset per pick.
   const [crop, setCrop] = useState<FaceCropState>({ scale: 1, x: 0, y: 0 });
   const [cropError, setCropError] = useState<string | null>(null);
@@ -107,6 +128,10 @@ export function ProfileMediaLightbox({
   const [renderedW, setRenderedW] = useState<number>(frameW);
   const frameRef = useRef<HTMLDivElement>(null);
   const dragRef = useRef<{ startX: number; startY: number; baseX: number; baseY: number } | null>(null);
+  // The upload file input (the "Upload a photo" tile's seam — e2e: setInputFiles).
+  const uploadInputRef = useRef<HTMLInputElement>(null);
+  // The uploaded file's object URL (revoked when the crop step closes).
+  const uploadUrlRef = useRef<string | null>(null);
 
   // The picker's media, resolved (deduped by doc_id, resolved records only —
   // an unresolvable ref has no url to render or set). Only image media are
@@ -135,8 +160,11 @@ export function ProfileMediaLightbox({
         if (cropId) {
           setCropId(null);
           setCropUrl(null);
+          setCropSource('post');
+          setPostOnBehalf(false);
           setNatural(null);
           setCropError(null);
+          revokeUploadUrl();
         } else {
           onClose();
         }
@@ -151,10 +179,21 @@ export function ProfileMediaLightbox({
     };
   }, [onClose, cropId]);
 
-  function startCrop(id: string, url: string) {
-    console.log('[face-crop] start crop', { id, url, field });
+  // Revoke the uploaded file's object URL (it is only needed while the crop
+  // step is open — the crop encoder fetches it, nothing else holds it).
+  function revokeUploadUrl() {
+    if (uploadUrlRef.current) {
+      URL.revokeObjectURL(uploadUrlRef.current);
+      uploadUrlRef.current = null;
+    }
+  }
+
+  function startCrop(id: string, url: string, source: 'post' | 'upload' = 'post') {
+    console.log('[face-crop] start crop', { id, url, field, source });
     setCropId(id);
     setCropUrl(url);
+    setCropSource(source);
+    setPostOnBehalf(false);
     setCrop({ scale: 1, x: 0, y: 0 });
     setNatural(null);
     setCropError(null);
@@ -164,8 +203,30 @@ export function ProfileMediaLightbox({
     console.log('[face-crop] back to picker from', cropId);
     setCropId(null);
     setCropUrl(null);
+    setCropSource('post');
+    setPostOnBehalf(false);
     setNatural(null);
     setCropError(null);
+    revokeUploadUrl();
+  }
+
+  // The "Upload a photo" tile: pick a file from disk → the SAME crop step
+  // (the object URL is the crop source). No post required — this is the
+  // first-class upload path the picker used to lack.
+  function handleUploadFile(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    // Reset so the same file can be re-selected on a second upload.
+    e.target.value = '';
+    if (!file) return;
+    if (!file.type.startsWith('image/')) {
+      console.warn('[face-crop] upload rejected — not an image:', file.type);
+      return;
+    }
+    console.log('[face-crop] upload file picked', { name: file.name, type: file.type, size: file.size });
+    revokeUploadUrl();
+    const url = URL.createObjectURL(file);
+    uploadUrlRef.current = url;
+    startCrop('upload', url, 'upload');
   }
 
   // Track the rendered frame width (the banner frame is fluid below its max).
@@ -240,12 +301,16 @@ export function ProfileMediaLightbox({
     if (!cropUrl || !natural || saving || savingId) return;
     setSavingId(cropId);
     setCropError(null);
-    console.log('[face-crop] confirm', { id: cropId, field, crop });
+    console.log('[face-crop] confirm', { id: cropId, field, crop, source: cropSource, postOnBehalf });
     try {
       const out = field === 'avatar' ? { size: AVATAR_FACE.outSize } : { w: BANNER_FACE.outW, h: BANNER_FACE.outH };
       const result = await cropFaceImage(cropUrl, crop, frameW, frameH, out);
       console.log('[face-crop] cropped', { width: result.width, height: result.height, bytes: result.blob.size });
-      onCrop?.(result);
+      if (cropSource === 'upload') {
+        onUploadCrop?.(result, { postOnBehalf: allowPostOnBehalf && postOnBehalf });
+      } else {
+        onCrop?.(result);
+      }
     } catch (e) {
       console.error('[face-crop] crop failed:', e);
       setCropError(e instanceof Error ? e.message : 'Could not crop the image. Please try again.');
@@ -407,6 +472,27 @@ export function ProfileMediaLightbox({
                 </p>
               )}
 
+              {/* The "post on my behalf" intent — upload path only. The photo
+                  becomes the face AND a post in the owner's feed (the parent
+                  creates the post with the same media doc). */}
+              {cropSource === 'upload' && allowPostOnBehalf && (
+                <label
+                  className="flex cursor-pointer items-center gap-2 self-stretch rounded-md border border-border bg-elevated/50 px-3 py-2.5 transition-colors hover:border-brand/30"
+                  data-testid="face-crop-post-toggle"
+                >
+                  <input
+                    type="checkbox"
+                    checked={postOnBehalf}
+                    onChange={(e) => setPostOnBehalf(e.target.checked)}
+                    className="h-4 w-4 rounded border-border accent-[var(--color-brand-500)]"
+                    data-testid="face-crop-post-checkbox"
+                  />
+                  <span className="text-sm text-foreground">
+                    Also post this photo to my feed
+                  </span>
+                </label>
+              )}
+
               <div className="flex items-center gap-2 self-stretch">
                 <Button
                   variant="ghost"
@@ -462,57 +548,82 @@ export function ProfileMediaLightbox({
                 )}
               </div>
 
-              {/* Owner picker — the face becomes a post's media, selected as
-                  the profile picture (the Facebook-like system). */}
+              {/* Owner picker — the face becomes a photo you picked from your
+                  posts, or a photo you upload fresh (no post required). */}
               {isOwner && (
                 <div className="border-t border-border p-4" data-testid="profile-media-picker">
+                  {/* The upload seam — a persistent hidden input (e2e: setInputFiles). */}
+                  <input
+                    ref={uploadInputRef}
+                    type="file"
+                    accept="image/*"
+                    data-testid="profile-media-upload-input"
+                    className="hidden"
+                    onChange={handleUploadFile}
+                  />
                   <div className="mb-3 flex items-center gap-2">
                     <ImagePlus className="h-4 w-4 text-muted-foreground" />
                     <h2 className="text-sm font-medium text-foreground">
                       Set as {label.toLowerCase()}
                     </h2>
                     <span className="text-xs text-muted-foreground">
-                      — pick one of your posts
+                      — pick a photo, or upload one
                     </span>
                   </div>
-                  {pickable.length ? (
-                    <div className="grid grid-cols-3 gap-1.5 sm:grid-cols-4">
-                      {pickable.map(({ id, ref, media: m }) => {
-                        const busy = savingId === id;
-                        return (
-                          <button
-                            key={id}
-                            type="button"
-                            disabled={saving || !!savingId}
-                            onClick={() => startCrop(id, m.url)}
-                            aria-label={`Set as ${label.toLowerCase()}`}
-                            data-testid="profile-media-pick"
-                            className="group relative aspect-square overflow-hidden rounded-md bg-elevated outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset disabled:opacity-60"
-                          >
-                            <img
-                              src={m.url}
-                              alt=""
-                              className="w-full h-full object-cover transition-transform duration-150 group-hover:scale-105"
-                              loading="lazy"
-                            />
-                            {busy && (
-                              <div className="absolute inset-0 flex items-center justify-center bg-background/60">
-                                <Loader2 className="h-5 w-5 text-foreground animate-spin" />
-                              </div>
-                            )}
-                            {/* The "set" affordance — a crop badge on hover */}
-                            <div className="absolute inset-0 flex items-center justify-center bg-brand/0 opacity-0 transition-opacity duration-150 group-hover:bg-brand/20 group-hover:opacity-100">
-                              <span className="flex h-7 w-7 items-center justify-center rounded-full bg-background/80 backdrop-blur-sm">
-                                <ImagePlus className="h-4 w-4 text-foreground" />
-                              </span>
+                  <div className="grid grid-cols-3 gap-1.5 sm:grid-cols-4">
+                    {/* The upload tile — first-class, always present for the
+                        owner (the no-post-required path). */}
+                    <button
+                      type="button"
+                      disabled={saving || !!savingId}
+                      onClick={() => uploadInputRef.current?.click()}
+                      aria-label={`Upload a photo to set as ${label.toLowerCase()}`}
+                      data-testid="profile-media-upload"
+                      className="group relative flex aspect-square flex-col items-center justify-center gap-1.5 rounded-md border border-dashed border-border bg-elevated/50 outline-none transition-colors hover:border-brand/40 hover:bg-elevated focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset disabled:opacity-60"
+                    >
+                      <span className="flex h-8 w-8 items-center justify-center rounded-full bg-background/80 backdrop-blur-sm transition-colors group-hover:bg-brand/20">
+                        <Upload className="h-4 w-4 text-muted-foreground transition-colors group-hover:text-foreground" />
+                      </span>
+                      <span className="text-xs text-muted-foreground transition-colors group-hover:text-foreground">
+                        Upload
+                      </span>
+                    </button>
+                    {pickable.map(({ id, ref, media: m }) => {
+                      const busy = savingId === id;
+                      return (
+                        <button
+                          key={id}
+                          type="button"
+                          disabled={saving || !!savingId}
+                          onClick={() => startCrop(id, m.url)}
+                          aria-label={`Set as ${label.toLowerCase()}`}
+                          data-testid="profile-media-pick"
+                          className="group relative aspect-square overflow-hidden rounded-md bg-elevated outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset disabled:opacity-60"
+                        >
+                          <img
+                            src={m.url}
+                            alt=""
+                            className="w-full h-full object-cover transition-transform duration-150 group-hover:scale-105"
+                            loading="lazy"
+                          />
+                          {busy && (
+                            <div className="absolute inset-0 flex items-center justify-center bg-background/60">
+                              <Loader2 className="h-5 w-5 text-foreground animate-spin" />
                             </div>
-                          </button>
-                        );
-                      })}
-                    </div>
-                  ) : (
-                    <p className="text-sm text-muted-foreground">
-                      Post a photo first, then pick it as your {label.toLowerCase()}.
+                          )}
+                          {/* The "set" affordance — a crop badge on hover */}
+                          <div className="absolute inset-0 flex items-center justify-center bg-brand/0 opacity-0 transition-opacity duration-150 group-hover:bg-brand/20 group-hover:opacity-100">
+                            <span className="flex h-7 w-7 items-center justify-center rounded-full bg-background/80 backdrop-blur-sm">
+                              <ImagePlus className="h-4 w-4 text-foreground" />
+                            </span>
+                          </div>
+                        </button>
+                      );
+                    })}
+                  </div>
+                  {!pickable.length && (
+                    <p className="mt-3 text-sm text-muted-foreground">
+                      No photos in your posts yet — upload one, or post a photo and pick it.
                     </p>
                   )}
                 </div>

@@ -22,6 +22,7 @@ import {
   countUserFollowingReal,
   readUserPublicProfile,
   getMyCollections,
+  createPost,
 } from '@/data';
 import { getWapi } from '@/data/wapi';
 import type { ProfileRecord, PostRecord, MediaRecord, FollowRecord } from '@/data/types';
@@ -724,6 +725,50 @@ export default function UserProfileScreen({ username, provider, onBack }: UserPr
     }
   }
 
+  // The owner confirmed a crop of an UPLOADED photo → make it the face, and
+  // optionally post it on their behalf (the "also post this photo to my feed"
+  // intent). The crop ships as a NEW media doc (the face IS the crop); the
+  // optional post references that same doc, so the photo appears in the
+  // owner's feed + profile grid as a real post. The post is best-effort: a
+  // post failure never undoes the face (the face save already landed).
+  async function handleFaceUploadCrop(field: 'avatar' | 'banner', result: FaceCropResult, opts: { postOnBehalf: boolean }) {
+    setFaceSaving(true);
+    try {
+      const ext = result.mimeType === 'image/png' ? 'png' : 'jpg';
+      const file = new File([result.blob], `face-crop-${Date.now()}.${ext}`, { type: result.mimeType });
+      console.log('[social] handleFaceUploadCrop — uploading crop for', field, result.width, 'x', result.height, result.blob.size, 'bytes', 'postOnBehalf:', opts.postOnBehalf);
+      const media = await uploadMedia({ file, service: 'public_media', width: result.width, height: result.height });
+      console.log('[social] handleFaceUploadCrop — uploaded, media _id:', media._id);
+      const updated = { ...(profile || {}), [field === 'avatar' ? 'avatar_ref' : 'banner_ref']: media._id || '' };
+      const saved = await saveProfile(updated);
+      setProfile(saved);
+      setDraft(saved);
+      setFaceLightbox(null);
+      if (opts.postOnBehalf && media._id) {
+        try {
+          const post = await createPost({
+            text: undefined,
+            media_refs: [media._id],
+            visibility: 'public',
+            created_at: new Date().toISOString(),
+          });
+          console.log('[social] handleFaceUploadCrop — posted on behalf, post _id:', post._id);
+          // The profile's `post-created` listener reloads the posts (the new
+          // post shows up in the grid + wall).
+          window.dispatchEvent(new CustomEvent('post-created'));
+        } catch (postErr) {
+          console.error('[social] handleFaceUploadCrop — post-on-behalf failed (face already saved):', postErr);
+          toast.error(errorMessage(postErr, 'Your photo is set, but posting it to your feed failed.'));
+        }
+      }
+    } catch (e) {
+      console.error('Failed to set profile picture/banner:', e);
+      toast.error(errorMessage(e, 'Could not update your profile picture.'));
+    } finally {
+      setFaceSaving(false);
+    }
+  }
+
   return (
     <div className="w-full">
       {/* Persistent file input — the avatar/banner upload seam (e2e: setInputFiles) */}
@@ -1266,6 +1311,8 @@ export default function UserProfileScreen({ username, provider, onBack }: UserPr
           isOwner={isOwnProfile}
           options={isOwnProfile ? faceOptions : []}
           onCrop={(result) => handleFaceCrop(faceLightbox, result)}
+          onUploadCrop={(result, opts) => handleFaceUploadCrop(faceLightbox, result, opts)}
+          allowPostOnBehalf={isOwnProfile}
           saving={faceSaving}
           displayName={profile?.display_name || username}
         />
