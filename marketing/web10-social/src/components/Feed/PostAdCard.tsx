@@ -211,11 +211,14 @@ export function PostAdCard({ ad, className, standalone = true }: { ad: AdRecord;
   }
 
   // Standalone — the ad as its own card in the stream, next in line after the
-  // post it's attached to. Full feed-card chrome; nothing indicates the pin.
+  // post it's attached to. Full feed-card chrome (the X-style card: full-width,
+  // touching the posts above and below on a single border-b hairline — the
+  // same chrome as the feed's PostCard, so an ad never reads as a floating
+  // rounded card in the middle of the stream); nothing indicates the pin.
   return (
     <article
       className={cn(
-        'bg-card border-b border-border md:border md:rounded-lg md:mb-4 overflow-hidden',
+        'bg-card border-b border-border overflow-hidden',
         'glow-card transition-all duration-150',
         className,
       )}
