@@ -12,12 +12,23 @@ vi.mock('lucide-react', () => lucideMock);
 // setRepostingTo(post) to open the app-level composer in repost mode. A spy
 // captures the called post so a test asserts the surface reports the right one.
 const { setRepostingToSpy } = vi.hoisted(() => ({ setRepostingToSpy: vi.fn() }));
+const { openComposerSpy } = vi.hoisted(() => ({ openComposerSpy: vi.fn() }));
 vi.mock('@/context/RepostContext', () => ({
   RepostProvider: ({ children }: { children: React.ReactNode }) => children,
   useRepost: () => ({
     repostingTo: null,
     setRepostingTo: setRepostingToSpy,
     clearReposting: vi.fn(),
+  }),
+}));
+vi.mock('@/context/ComposerContext', () => ({
+  ComposerProvider: ({ children }: { children: React.ReactNode }) => children,
+  useComposer: () => ({
+    composerOpen: false,
+    composerGroups: undefined,
+    editingPost: undefined,
+    openComposer: openComposerSpy,
+    closeComposer: vi.fn(),
   }),
 }));
 
