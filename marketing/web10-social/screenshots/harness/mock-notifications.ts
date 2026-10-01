@@ -1,7 +1,7 @@
 // Screenshot-harness mock of `@/data/notifications` — seeded with a few
 // notifications (2 unread, 1 read) so the bell badge, the "N new" banner, and
 // the /notifications list render with content (no backend). markAllRead is a
-// no-op so the shots show the unread state (the "New" labels + glow dots).
+// no-op so the shots show the unread state (the glow dots + row tint).
 export type NotificationType =
   | 'reaction'
   | 'comment'

@@ -310,14 +310,18 @@ test.describe('Social notifications — browser gauntlet (real-time badge, no re
         const aInboundIdx = notifLogsA.findIndex((l) => l.includes('inbound nudge') || l.includes('nudge — appended'));
         expect(aInboundIdx, 'A must receive the inbound P2P nudge (the fast path)').toBeGreaterThanOrEqual(0);
 
-        // --- A opens /notifications → the history shows the event ---
+        // --- A opens /notifications → the Unread filter (default) shows the
+        //     event. Opening does NOT auto-mark-read (the Unread filter needs
+        //     the unread state to persist) — the badge clears via the explicit
+        //     "Mark all read" action. ---
         await pageA.locator('[data-testid="nav-notifications"]').click();
         await expect(pageA.locator('[data-testid="notifications-list"]')).toBeVisible({ timeout: 20_000 });
         // The row describes the reaction ("B reacted to your post").
         const aRow = pageA.locator('[data-testid="notification-row"]', { hasText: 'reacted to your post' });
         await expect(aRow.first()).toBeVisible({ timeout: 20_000 });
-
-        // --- Marked read: opening /notifications clears the badge ---
+        // The badge is still lit (unread) until the user marks all read.
+        await expect(pageA.locator('[data-testid="nav-notifications-badge"]')).toHaveText('1');
+        await pageA.locator('[data-testid="mark-all-read-button"]').click();
         await expect(pageA.locator('[data-testid="nav-notifications-badge"]')).toHaveCount(0, { timeout: 20_000 });
 
         // No console errors / uncaught exceptions on either side.

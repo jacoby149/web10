@@ -1,6 +1,5 @@
 import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { useSearchParams, useNavigate, useLocation } from 'react-router-dom';
-import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 import {
@@ -30,19 +29,10 @@ import { AttachedAd } from '@/components/Feed/AttachedAd';
 import {
   Compass,
   Flame,
-  Heart,
-  MessageCircle,
-  Repeat2,
-  Share2,
-  Image as ImageIcon,
-  Film,
-  Music2,
   Users,
   Video,
   Search,
   X,
-  MoreHorizontal,
-  Edit3,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { MARKETING_ORIGIN } from '@/lib/origins';
@@ -50,15 +40,16 @@ import { PRESETS, getPreset, knobStateToSort, scorePost, FIXED_CHARACTER_DETEENT
 import { KnobRack } from './KnobRack';
 import { HotGossipSidebar } from './HotGossipSidebar';
 import DiscoverExploreTab from './DiscoverExploreTab';
-import { VideoPlayer, sourceFromMedia } from '@/components/Feed/VideoPlayer';
-import { MediaCarousel } from '@/components/Feed/MediaCarousel';
-import { PostActions } from '@/components/Feed/PostActions';
+// The feed's PostCard is the reference post renderer (the X-style card —
+// full-width, touching vertically, compact muted engagement row). The
+// Discover board renders the SAME card as the Following tab, so the two
+// tabs look exactly the same (the operator, 30.09.2026).
+import { PostCard } from '@/components/Feed/FeedScreen';
 import { useRepost } from '@/context/RepostContext';
 import { useComposer } from '@/context/ComposerContext';
-// D74: the shared discover card (one source, both apps). The social app's grid
-// + youtube cards now wrap it — the same card the marketing /trending uses.
-import { DiscoverCard as SharedDiscoverCard, HomeCard, type DiscoverPost, type CreateComment } from '@web10/discover';
-import { readThreadComments, readThreadReplies, createComment as wapiCreateComment } from '@/data';
+// The Video wall (the YouTube shape) keeps the shared HomeCard — one source,
+// both apps (the same card the marketing /trending uses).
+import { HomeCard, type DiscoverPost } from '@web10/discover';
 
 const LOG = (...args: unknown[]) => console.log('[social:discover]', ...args);
 
@@ -98,34 +89,6 @@ const DEFAULT_KNOB_ENCODING = encodeKnobState(defaultKnobState());
 
 // ── Helpers ────────────────────────────────────────────────────────────────
 
-function formatTimeAgo(dateStr: string): string {
-  const diff = Date.now() - new Date(dateStr).getTime();
-  const mins = Math.floor(diff / 60000);
-  if (mins < 1) return 'now';
-  if (mins < 60) return `${mins}m`;
-  const hrs = Math.floor(mins / 60);
-  if (hrs < 24) return `${hrs}h`;
-  const days = Math.floor(hrs / 24);
-  if (days < 7) return `${days}d`;
-  return new Date(dateStr).toLocaleDateString();
-}
-
-// ── Heat glow tiers ────────────────────────────────────────────────────────
-function heatTier(score: number, maxScore: number): 0 | 1 | 2 | 3 {
-  if (!maxScore || score <= 0) return 0;
-  const ratio = score / maxScore;
-  if (ratio >= 0.66) return 3;
-  if (ratio >= 0.33) return 2;
-  return 1;
-}
-
-const HEAT_SHADOW: Record<number, string> = {
-  0: '',
-  1: 'shadow-[0_0_24px_-8px_var(--color-glow)]',
-  2: 'shadow-[0_0_36px_-8px_var(--color-glow-intense)]',
-  3: 'shadow-[0_0_52px_-6px_var(--color-glow-intense)]',
-};
-
 // ── Navigate to a user's profile (App listens for this) ──────────────────────
 
 function navigateToUserProfile(username: string, provider: string) {
@@ -136,89 +99,6 @@ function navigateToUserProfile(username: string, provider: string) {
   );
 }
 
-// ── Rank badge ─────────────────────────────────────────────────────────────
-
-function RankBadge({ rank }: { rank: number }) {
-  if (rank === 1) {
-    return (
-      <Badge
-        variant="warning"
-        data-testid="discover-rank-badge"
-        className="border border-warning/40 bg-warning/15 text-warning normal-case tracking-normal"
-        aria-label={`Rank ${rank}, number one`}
-      >
-        <Flame className="mr-1 h-3 w-3" strokeWidth={2} />
-        #{rank}
-      </Badge>
-    );
-  }
-  if (rank <= 3) {
-    return (
-      <Badge
-        variant="default"
-        data-testid="discover-rank-badge"
-        className="border border-border bg-elevated text-foreground normal-case tracking-normal"
-        aria-label={`Rank ${rank}, top three`}
-      >
-        #{rank}
-      </Badge>
-    );
-  }
-  return (
-    <Badge
-      variant="brand"
-      data-testid="discover-rank-badge"
-      aria-label={`Rank ${rank}`}
-    >
-      #{rank}
-    </Badge>
-  );
-}
-
-// ── Media placeholder ──────────────────────────────────────────────────────
-
-function MediaPlaceholder({ type }: { type: 'image' | 'video' | 'music' }) {
-  if (type === 'video') {
-    return (
-      <div className="relative aspect-video w-full overflow-hidden bg-elevated">
-        <div className="absolute inset-0 flex items-center justify-center">
-          <div className="flex h-12 w-12 items-center justify-center rounded-full bg-foreground/10 backdrop-blur-sm">
-            <Film className="h-5 w-5 text-foreground/60" />
-          </div>
-        </div>
-        <div className="absolute inset-0 bg-gradient-to-t from-background/40 to-transparent" />
-      </div>
-    );
-  }
-  if (type === 'music') {
-    return (
-      <div className="flex items-center gap-3 rounded-lg bg-elevated p-3">
-        <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded bg-brand-muted">
-          <Music2 className="h-5 w-5 text-brand-400" />
-        </div>
-        <div className="min-w-0 flex-1">
-          <div className="h-2 w-24 rounded-full bg-muted-foreground/30" />
-          <div className="mt-2 h-1 w-full rounded-full bg-muted-foreground/20">
-            <div className="h-full w-2/5 rounded-full bg-brand" />
-          </div>
-        </div>
-      </div>
-    );
-  }
-  return (
-    <div className="aspect-[4/3] w-full overflow-hidden bg-elevated">
-      <div className="flex h-full w-full items-center justify-center">
-        <ImageIcon className="h-8 w-8 text-muted-foreground/30" />
-      </div>
-    </div>
-  );
-}
-
-// Video posts render through the shared <VideoPlayer> (video-player.md) — the
-// discover grid is the inline modality: a uniform 16:9 tile (object-cover),
-// tap-to-play in place, comments expand inline in the card. There is no
-// lightbox here; that is the profile's modal modality.
-
 // ── Topic chips ────────────────────────────────────────────────────────────
 
 function buildTopics(tags: string[]): string[] {
@@ -226,18 +106,11 @@ function buildTopics(tags: string[]): string[] {
   return unique.slice(0, 12);
 }
 
-// ── DiscoverCard (trending post) ─────────────────────────────────────────────
-
-// D74: adapt the wapi createComment to the shared card's injected CreateComment.
-// `parentId` present = a reply (refs the parent, comments.md); absent = top-level.
-const discoverCreateComment: CreateComment = async ({ postId, text, parentId, groups, postAuthor, postService }) => {
-  const created = await wapiCreateComment(
-    { post_id: postId, text, parent_id: parentId, created_at: new Date().toISOString() },
-    groups ?? postAuthor,
-    postService,
-  );
-  return created;
-};
+// ── Discover board card ──────────────────────────────────────────────────────
+// The hot-gossip board renders the feed's PostCard (the reference renderer —
+// the two Posts tabs look exactly the same). The Video wall (the YouTube
+// shape) keeps the shared HomeCard; this maps a social PostRecord to the
+// shared DiscoverPost for that card.
 
 // Map a social PostRecord + its resolved media to the shared DiscoverPost.
 function postRecordToDiscoverPost(post: PostRecord, mediaItems: MediaRecord[], displayName?: string): DiscoverPost {
@@ -263,162 +136,23 @@ function postRecordToDiscoverPost(post: PostRecord, mediaItems: MediaRecord[], d
   };
 }
 
-interface DiscoverCardProps {
-  post: PostRecord;
-  rank: number;
-  maxScore: number;
-  authorName: string;
-  authorAvatar?: string;
-  mediaItems: MediaRecord[];
-  onAuthorClick: () => void;
-  /** A comment's author is a tappable profile link (in-app navigation). */
-  onCommentAuthorClick?: (username: string, provider?: string) => void;
-  /** Whether the reader has liked this post (the heart fills). */
-  liked: boolean;
-  /** Whether the reader has disliked this post (the thumb fills). */
-  disliked: boolean;
-  /** Whether the reader has reposted this post (the repeat icon fills). */
-  reposted: boolean;
-  /** The reader's tap on the like/dislike pair (post-actions.md). */
-  onToggleReaction: (kind: ReactionKind) => void;
-  /** The reader's tap on the repost (reposts.md — independent of like). */
-  onToggleRepost: () => void;
-  /** The card's DOM id (the Hot Gossip ?post= highlight target). */
-  id?: string;
-  /** Extra classes (the Hot Gossip ?post= highlight ring). */
-  className?: string;
-  /** When set (the post is the reader's own), the card shows an owner kebab
-   *  whose "Edit post" opens the app-level composer in edit mode (the ONE edit
-   *  path — discover had no edit surface before). */
-  onEdit?: () => void;
-}
-
-function DiscoverCard({
-  post,
-  rank,
-  maxScore,
-  authorName,
-  authorAvatar,
-  mediaItems,
-  onAuthorClick,
-  onCommentAuthorClick,
-  liked,
-  disliked,
-  reposted,
-  onToggleReaction,
-  onToggleRepost,
-  id,
-  className,
-  onEdit,
-}: DiscoverCardProps) {
-  // The owner kebab (own posts only) — a self-contained overlay on the shared
-  // presentational card, which has no edit surface of its own. "Edit post"
-  // opens the app-level composer in edit mode (the ONE edit path).
-  const [ownerMenuOpen, setOwnerMenuOpen] = useState(false);
-  // D74: the social discover card is now the SHARED discover card (the same one
-  // the marketing /trending uses) — one source, both apps. The data seam (wapi
-  // readComments / createComment) is injected; onAuthorClick navigates in-app.
-  // The board takes live reactions (the interactive like/dislike pair) — the
-  // same way of reacting as the feed (post-actions.md) — and the repost
-  // (reposts.md, independent of like).
-  return (
-    <div className="relative">
-      {onEdit && (
-        <>
-          <button
-            type="button"
-            onClick={() => setOwnerMenuOpen((o) => !o)}
-            aria-label="Post options"
-            data-testid="discover-card-options"
-            className="absolute right-2 top-2 z-20 flex h-8 w-8 items-center justify-center rounded-full bg-background/70 text-muted-foreground backdrop-blur-sm transition-colors hover:text-foreground hover:bg-background/90"
-          >
-            <MoreHorizontal className="w-4 h-4" />
-          </button>
-          {ownerMenuOpen && (
-            <div
-              className="absolute right-2 top-11 z-30 w-40 overflow-hidden rounded-lg border border-border bg-card shadow-lg"
-              data-testid="discover-card-options-menu"
-            >
-              <button
-                type="button"
-                onClick={() => { setOwnerMenuOpen(false); onEdit(); }}
-                className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm text-foreground hover:bg-elevated transition-colors"
-                data-testid="discover-card-option-edit"
-              >
-                <Edit3 className="w-4 h-4" />
-                Edit post
-              </button>
-            </div>
-          )}
-        </>
-      )}
-      <SharedDiscoverCard
-        post={postRecordToDiscoverPost(post, mediaItems, authorName)}
-        rank={rank}
-        maxScore={maxScore}
-        authorAvatar={authorAvatar}
-        onAuthorClick={onAuthorClick}
-        onCommentAuthorClick={onCommentAuthorClick}
-        liked={liked}
-        disliked={disliked}
-        reposted={reposted}
-        onToggleReaction={onToggleReaction}
-        onToggleRepost={onToggleRepost}
-        readComments={readThreadComments}
-        readReplies={readThreadReplies}
-        createComment={discoverCreateComment}
-        // The attached-ad renderer (ad-improvements.md): each attached ad renders
-        // per its format (inline AdBlock / full PostAdCard). The shared card is
-        // presentational, so the app injects its ad components here.
-        renderAd={(ad) => <AttachedAd ad={ad as unknown as AdRecord} />}
-        testId="discover-card"
-        id={id}
-        className={className}
-        // A full-width 9:16 box is ~1.78× the card tall — too big on desktop,
-        // and it buries the control rack at its bottom. Cap the portrait frame
-        // (centered in a black letterbox), consistent with the marketing
-        // /trending card. Landscape is unaffected (only portrait is capped).
-        videoMaxWidth="min(50vh, 100%)"
-      />
-    </div>
-
-  );
-}
-
+// The board's loading skeleton — the feed's FeedSkeleton shape (the X-style
+// card: full-width, border-b hairline, no rounded floating card), so the
+// loading state looks like the settled board.
 function DiscoverSkeleton() {
   return (
     <div
       data-testid="discover-skeleton"
-      className="overflow-hidden rounded-lg border border-border bg-card"
+      className="bg-card border-b border-border overflow-hidden"
     >
-      <div className="p-4">
-        <div className="flex items-center justify-between">
-          <Skeleton className="h-5 w-12 rounded-full" />
-          <Skeleton className="h-3 w-8" />
-        </div>
-        <div className="mt-3 flex gap-3">
-          <Skeleton className="h-9 w-9 shrink-0 rounded-full" />
-          <div className="min-w-0 flex-1">
-            <div className="flex gap-2">
-              <Skeleton className="h-4 w-24" />
-              <Skeleton className="h-4 w-20" />
-            </div>
-            <Skeleton className="mt-2 h-3 w-full" />
-            <Skeleton className="mt-1.5 h-3 w-5/6" />
-          </div>
-        </div>
-        <div className="mt-3 aspect-[4/3] w-full overflow-hidden rounded-md">
-          <Skeleton className="h-full w-full" />
-        </div>
-        <div className="mt-3 flex gap-2">
-          <Skeleton className="h-5 w-14 rounded-full" />
-          <Skeleton className="h-5 w-14 rounded-full" />
-        </div>
-        <div className="mt-3 flex gap-6 border-t border-border pt-3">
-          <Skeleton className="h-4 w-10" />
-          <Skeleton className="h-4 w-10" />
-          <Skeleton className="h-4 w-10" />
-        </div>
+      <div className="flex items-center gap-2.5 px-4 py-3">
+        <Skeleton className="h-9 w-9 rounded-full" />
+        <Skeleton className="h-3 w-32" />
+      </div>
+      <Skeleton className="w-full aspect-[4/3] rounded-none" />
+      <div className="px-4 py-3 space-y-2">
+        <Skeleton className="h-3 w-full" />
+        <Skeleton className="h-3 w-2/3" />
       </div>
     </div>
   );
@@ -1084,19 +818,14 @@ export default function DiscoverScreen({ mode: modeOverride }: { mode?: Discover
 
   // The node returns the board pre-ranked (the D36 power-mean sort,
   // server-side) — `posts` is already in display order, no client re-rank.
-  // The heat glow still needs a per-post score, so it's computed for DISPLAY
-  // only (the fixed character — the knob is gone); it never affects order.
+  // The per-post score is computed for DISPLAY only (the Top 10 rail's
+  // tally); it never affects order.
   const scoredPosts = useMemo(() => {
     return posts.map(p => ({
       ...p,
       score: scorePost(postToSignals(p), { ...knobState, character: FIXED_CHARACTER_DETEENT }),
     }));
   }, [posts, knobState]);
-
-  const maxScore = useMemo(
-    () => Math.max(1, ...scoredPosts.map(p => p.score ?? 0)),
-    [scoredPosts],
-  );
 
   const topics = useMemo(
     () => ['All', ...buildTopics(scoredPosts.flatMap(p => p.tags ?? []))],
@@ -1230,7 +959,7 @@ export default function DiscoverScreen({ mode: modeOverride }: { mode?: Discover
                 mobile stays full-bleed. */}
           <div className="flex-1 px-4 py-4 md:px-4 lg:px-6">
             {isInitialLoad ? (
-              <div className="grid grid-cols-1 gap-4" data-testid="discover-grid-skeleton">
+              <div className="mx-auto w-full max-w-2xl" data-testid="discover-grid-skeleton">
                 {Array.from({ length: 4 }).map((_, i) => (
                   <DiscoverSkeleton key={i} />
                 ))}
@@ -1270,17 +999,21 @@ export default function DiscoverScreen({ mode: modeOverride }: { mode?: Discover
                 <DiscoverHomeEmptyState onSwitchToGrid={() => navigate('/hot-gossip')} />
               )
             ) : visiblePosts.length > 0 ? (
-              /* Hot Gossip — the ranked post board (the Threads shape), now
-                 capped to a reading column with the Top 10 rail beside it
-                 (the marketing /trending shape). The board was running
-                 full-bleed ("way too horizontally big"); the rail is the
-                 shortcut to the top of the board, so the board narrows to
-                 make room for it. Mobile: the rail hides (lg:block), the
-                 board stays full-width. */
+              /* Hot Gossip — the ranked post board. It renders the FEED'S
+                 PostCard (the reference renderer — the X-style card:
+                 full-width, posts touching vertically, compact muted
+                 engagement row) so the Discover tab looks EXACTLY like the
+                 Following tab (the operator, 30.09.2026: "they should look
+                 exactly the same with the posts touching each other
+                 vertically"). The board keeps its Discover chrome around the
+                 same cards: the reading column + the Top 10 rail beside it
+                 (the ranking lives in the rail, not on the card), the ?post=
+                 highlight, and the knob rack + topic chips above. Mobile:
+                 the rail hides (lg:block), the board stays full-width. */
               <div className="mx-auto flex w-full max-w-5xl gap-8">
                 <div className="min-w-0 flex-1">
-                  <div className="mx-auto grid w-full max-w-2xl grid-cols-1 gap-4" data-testid="discover-grid">
-                    {visiblePosts.flatMap((post, i) => {
+                  <div className="mx-auto w-full max-w-2xl" data-testid="discover-grid">
+                    {visiblePosts.flatMap((post) => {
                       const authorKey = `${post.author_username}@${post.author_provider}`;
                       const profile = profileMap[authorKey];
                       const mediaItems = mediaMap[post._id || ''] || [];
@@ -1299,31 +1032,38 @@ export default function DiscoverScreen({ mode: modeOverride }: { mode?: Discover
 
                       const isHighlighted = !!highlightPostId && (post._id || '') === highlightPostId;
                       // The reader's own post → the owner kebab (edit via the
-                      // app-level composer — discover had no edit surface before).
+                      // app-level composer — the PostCard's ONE edit path).
                       const isOwnPost =
                         !!getWapi()?.readToken()?.username &&
                         post.author_username === getWapi()!.readToken()!.username;
                       const card = (
-                        <DiscoverCard
+                        <PostCard
                           key={post._id || post.created_at}
                           post={post}
-                          rank={i + 1}
-                          maxScore={maxScore}
                           authorName={authorName}
+                          authorUsername={post.author_username}
+                          authorProvider={post.author_provider}
                           authorAvatar={
                             profile?.avatar_ref
                               ? mediaItems.find(m => m._id === profile.avatar_ref)?.url
                               : undefined
                           }
                           mediaItems={mediaItems}
-                          onAuthorClick={() => navigateToUserProfile(post.author_username || '', post.author_provider || '')}
-                          onCommentAuthorClick={(username, provider) => navigateToUserProfile(username, provider || '')}
+                          reactionCount={post.likes || 0}
+                          dislikeCount={post.dislikes || 0}
+                          commentCount={post.comments || 0}
+                          repostCount={post.reposts || 0}
                           liked={!!likedMap[post._id || '']}
                           disliked={!!dislikedMap[post._id || '']}
                           reposted={!!repostedMap[post._id || '']}
+                          timestamp={post.created_at}
                           onToggleReaction={(kind) => handleToggleReaction(post._id || '', kind)}
                           onToggleRepost={() => handleRepost(post)}
-                          onEdit={isOwnPost ? () => openComposer({ editingPost: post }) : undefined}
+                          onCommentCountChange={() => {}}
+                          onAuthorClick={(username, provider) => navigateToUserProfile(username, provider)}
+                          isOwnPost={isOwnPost}
+                          onPostUpdated={() => loadDiscover(sortConfig)}
+                          testId="discover-card"
                           id={isHighlighted ? 'hot-gossip-highlight' : undefined}
                           className={isHighlighted ? 'ring-2 ring-brand border-brand shadow-[0_0_24px_-4px_var(--color-glow-intense)]' : undefined}
                         />

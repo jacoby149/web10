@@ -325,6 +325,10 @@ export interface PostCardProps {
   signedIn?: boolean;
   onPostUpdated?: () => void;
   testId?: string;
+  /** A DOM id for the card (the Discover board's ?post= highlight target). */
+  id?: string;
+  /** Extra classes (the Discover board's ?post= highlight ring). */
+  className?: string;
 }
 
 // Exported so other surfaces (the profile's feed view) can compose the same
@@ -355,6 +359,8 @@ export function PostCard({
   signedIn = false,
   onPostUpdated,
   testId = 'post-card',
+  id,
+  className,
 }: PostCardProps) {
   // Owner actions (previously the lightbox's job — the feed is now inline).
   // Editing is NOT inline — it opens the app-level composer sheet in edit mode
@@ -427,9 +433,11 @@ export function PostCard({
   return (
     <article
       data-testid={testId}
+      id={id}
       className={cn(
         'bg-card border-b border-border overflow-hidden',
         'glow-card transition-all duration-150',
+        className,
       )}
     >
       <div className="flex items-center gap-2.5 px-4 py-3">
@@ -717,6 +725,9 @@ export default function FeedScreen({ onAuthorClick, onRepost }: { onAuthorClick?
   const [repostedMap, setRepostedMap] = useState<Record<string, boolean>>({});
   const sentinelRef = useRef<HTMLDivElement>(null);
   const token = getWapi().readToken();
+  // The app-level composer seam (the New Post sheet) — the repeat icon opens
+  // it in repost mode. A hook, so it must run before the `if (loading)` return.
+  const { openComposer } = useComposer();
   // v3 ownership is by username alone: a post's author_key is the bare
   // username (the node's provider is implicit — every local user shares it),
   // so `author_provider` is the v2 fallback ('web10') and never equals the
@@ -968,8 +979,15 @@ export default function FeedScreen({ onAuthorClick, onRepost }: { onAuthorClick?
   // composer above the feed) with this post as the context. The composer
   // creates the repost post; the feed remounts on onPostCreated so the new
   // repost shows up + the repost count / filled state re-derive.
+  //
+  // Two calls, matching every other surface (ProfileFeed / PostLightbox /
+  // Watch / GroupDetail / Discover): `onRepost` sets the app-wide `repostingTo`
+  // state (the post being reposted), and `openComposer()` actually opens the
+  // New Post sheet — without the second call the repeat icon sets state but
+  // nothing appears (the sheet is gated on `composerOpen`).
   function handleRepost(post: PostRecord) {
     onRepost?.(post);
+    openComposer();
   }
 
   if (loading) {
