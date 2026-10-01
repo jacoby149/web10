@@ -62,36 +62,22 @@ function renderLightbox() {
   );
 }
 
-describe('PostLightbox — delete flow (type "delete" to confirm)', () => {
+describe('PostLightbox — delete flow (two-tap confirm in the `⋯` menu)', () => {
   beforeEach(() => {
     vi.clearAllMocks();
   });
 
-  it('shows the confirm UI when "Delete post" is clicked (not a dead button)', () => {
+  it('arming delete from the `⋯` menu reveals the confirm action (not a dead button)', () => {
     renderLightbox();
-    // Initially the plain "Delete post" button is shown, no confirm input.
-    expect(screen.getByTestId('post-delete-button')).toBeTruthy();
-    expect(screen.queryByTestId('post-delete-confirm-input')).toBeNull();
+    // The owner's `⋯` menu is present; the delete confirm is hidden until armed.
+    expect(screen.getByTestId('post-options-button')).toBeTruthy();
+    expect(screen.queryByTestId('post-delete-confirm-button')).toBeNull();
 
-    // Clicking it ARMS the confirm UI (the bug: it used to do nothing).
+    // Open the menu, click "Delete post" — it ARMS the confirm (the old flow
+    // required typing "delete"; this is a two-tap confirm).
+    fireEvent.click(screen.getByTestId('post-options-button'));
     fireEvent.click(screen.getByTestId('post-delete-button'));
-    expect(screen.getByTestId('post-delete-confirm-input')).toBeTruthy();
     expect(screen.getByTestId('post-delete-confirm-button')).toBeTruthy();
-  });
-
-  it('the confirm button is disabled until "delete" is typed', () => {
-    renderLightbox();
-    fireEvent.click(screen.getByTestId('post-delete-button'));
-    const confirm = screen.getByTestId('post-delete-confirm-button') as HTMLButtonElement;
-    expect(confirm).toBeDisabled();
-
-    // Typing anything-but-"delete" keeps it disabled.
-    fireEvent.change(screen.getByTestId('post-delete-confirm-input'), { target: { value: 'del' } });
-    expect(confirm).toBeDisabled();
-
-    // Typing "delete" enables it.
-    fireEvent.change(screen.getByTestId('post-delete-confirm-input'), { target: { value: 'delete' } });
-    expect(confirm).toBeEnabled();
   });
 
   it('confirming calls deletePost with the post id', async () => {
@@ -101,23 +87,26 @@ describe('PostLightbox — delete flow (type "delete" to confirm)', () => {
         <PostLightbox post={post} mediaMap={{}} onClose={onClose} onReload={vi.fn()} isOwner={true} />
       </MemoryRouter>,
     );
+    fireEvent.click(screen.getByTestId('post-options-button'));
     fireEvent.click(screen.getByTestId('post-delete-button'));
-    fireEvent.change(screen.getByTestId('post-delete-confirm-input'), { target: { value: 'delete' } });
     fireEvent.click(screen.getByTestId('post-delete-confirm-button'));
     await waitFor(() => expect(deletePost).toHaveBeenCalledWith('post-1'));
     expect(onClose).toHaveBeenCalled();
   });
 
-  it('cancel disarms the confirm UI', () => {
-    renderLightbox();
-    fireEvent.click(screen.getByTestId('post-delete-button'));
-    expect(screen.getByTestId('post-delete-confirm-input')).toBeTruthy();
-    // The Cancel button is the ghost button next to Confirm Delete.
-    const cancel = screen.getByRole('button', { name: 'Cancel' });
-    fireEvent.click(cancel);
-    expect(screen.queryByTestId('post-delete-confirm-input')).toBeNull();
-    expect(screen.getByTestId('post-delete-button')).toBeTruthy();
-    expect(deletePost).not.toHaveBeenCalled();
+  it('the delete action is absent for a non-owner', () => {
+    render(
+      <MemoryRouter>
+        <PostLightbox
+          post={{ _id: 'theirs', text: 'theirs', author_username: 'someone', author_provider: 'web10', created_at: new Date().toISOString(), visibility: 'public' }}
+          mediaMap={{}}
+          onClose={vi.fn()}
+          onReload={vi.fn()}
+        />
+      </MemoryRouter>,
+    );
+    expect(screen.queryByTestId('post-options-button')).toBeNull();
+    expect(screen.queryByTestId('post-delete-button')).toBeNull();
   });
 });
 
@@ -137,6 +126,10 @@ describe('PostLightbox — ownership fallback (no isOwner prop)', () => {
         />
       </MemoryRouter>,
     );
+    // The owner's actions live in the `⋯` menu (the post-detail's owner menu,
+    // not a flat list). Opening it reveals them.
+    expect(screen.getByTestId('post-options-button')).toBeTruthy();
+    fireEvent.click(screen.getByTestId('post-options-button'));
     expect(screen.getByTestId('post-edit-button')).toBeTruthy();
     expect(screen.getByTestId('post-delete-button')).toBeTruthy();
     expect(screen.getByTestId('post-visibility-toggle-button')).toBeTruthy();

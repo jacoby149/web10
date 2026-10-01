@@ -1,10 +1,10 @@
 import { useCallback, useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ChevronLeft, ChevronRight, X, Edit3, Trash2, Eye, EyeOff, Share2, Check, Megaphone, Film } from 'lucide-react';
+import { ChevronLeft, ChevronRight, X, Edit3, Trash2, Eye, EyeOff, Share2, Check, Globe, Lock, Users, MoreHorizontal } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { Textarea } from '@/components/ui/textarea';
 import { Input } from '@/components/ui/input';
-import type { PostRecord, MediaRecord, AdRecord } from '@/data/types';
+import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
+import type { PostRecord, MediaRecord, AdRecord, Visibility } from '@/data/types';
 import { mediaRefId } from '@/data/types';
 import { getWapi } from '@/data/wapi';
 import {
@@ -26,7 +26,6 @@ import { useRepost } from '@/context/RepostContext';
 import { useComposer } from '@/context/ComposerContext';
 import { PostBody } from '@/components/Feed/PostBody';
 import { AttachedAd } from '@/components/Feed/AttachedAd';
-import { AdPicker } from '@/components/Feed/AdPicker';
 import { toast, errorMessage } from '@/components/shared/Toast';
 import { cn } from '@/lib/utils';
 import { VideoPlayer, sourceFromMedia } from '@/components/Feed/VideoPlayer';
@@ -132,19 +131,17 @@ export function PostLightbox({ post, mediaMap, onClose, onReload, postAuthor, po
   // (openComposer({ editingPost }) — the ONE edit path, so the lightbox stays
   // the read surface). No edit state lives here.
 
-  // Delete confirm state. `deleteArmed` reveals the confirm UI (type "delete"
-  // to proceed); `deleteConfirm` is the typed value that gates the confirm
-  // button. (Previously the confirm UI was gated on deleteConfirm === 'delete',
-  // which was unreachable — the input that sets it only rendered after it was
-  // already 'delete', so the delete button did nothing.)
-  const [deleteArmed, setDeleteArmed] = useState(false);
-  const [deleteConfirm, setDeleteConfirm] = useState('');
-
   // Visibility toggle state
   const [togglingVisibility, setTogglingVisibility] = useState(false);
 
   // Share state
   const [copied, setCopied] = useState(false);
+
+  // The owner's `⋯` menu (the post-detail's owner actions — a menu, not a flat
+  // list). The delete confirm is two-tap inside the menu (Delete → Confirm
+  // delete), not a type-to-confirm input.
+  const [menuOpen, setMenuOpen] = useState(false);
+  const [deleteArmed, setDeleteArmed] = useState(false);
 
   // Check ownership: explicit prop wins, otherwise derive it from the post's
   // author (v3: author_key is the bare username, so compare usernames — the
@@ -154,6 +151,20 @@ export function PostLightbox({ post, mediaMap, onClose, onReload, postAuthor, po
   const isOwner = isOwnerProp !== undefined
     ? isOwnerProp
     : token !== null && post.author_username === token.username;
+
+  // The identity row (the Facebook "read a post in full" header): the author's
+  // avatar + name + @handle + timestamp + privacy glyph. The name comes from
+  // the feed's inline profile read (D69) when present, else the @handle.
+  const authorUsername = currentPost.author_username || postAuthor || '';
+  const authorName = currentPost.profile?.display_name || authorUsername;
+  const authorAvatar = currentPost.avatar_url || currentPost.profile?.avatar_ref || null;
+  const visibility: Visibility = currentPost.visibility || 'public';
+  const privacyGlyph =
+    visibility === 'private'
+      ? { Icon: Lock, label: 'Private' }
+      : visibility === 'friends'
+        ? { Icon: Users, label: 'Followers only' }
+        : { Icon: Globe, label: 'Public' };
 
   const prev = useCallback(() => {
     setIndex(i => (i - 1 + media.length) % media.length);
@@ -276,6 +287,8 @@ export function PostLightbox({ post, mediaMap, onClose, onReload, postAuthor, po
   }
 
   async function handleDelete() {
+    setDeleteArmed(false);
+    setMenuOpen(false);
     try {
       await deletePost(currentPost._id || '');
       onClose();
@@ -324,6 +337,109 @@ export function PostLightbox({ post, mediaMap, onClose, onReload, postAuthor, po
   }
 
   const current = media[index];
+  const { Icon: PrivacyIcon } = privacyGlyph;
+  // A text-only post (no media) gets a centered reading column, not a
+  // media-pane + details-pane split with dead space (the post-detail system).
+  const textOnly = !hasMedia;
+
+  // The labeled action bar's trailing slots: the lightbox's Share button + the
+  // owner's `⋯` menu (a menu, not a flat list). Shared by the text-only and
+  // media layouts.
+  const trailingActions = (
+    <>
+      <button
+        data-testid="share-button"
+        onClick={handleShare}
+        aria-label={copied ? 'Copied!' : 'Share'}
+        className={cn(
+          'flex items-center justify-center gap-2 px-2.5 py-2.5 rounded-lg min-h-11 text-sm font-medium transition-all duration-150',
+          copied
+            ? 'text-success'
+            : 'text-muted-foreground hover:text-foreground hover:bg-elevated/80',
+        )}
+      >
+        {copied ? <Check className="w-[18px] h-[18px]" strokeWidth={1.75} /> : <Share2 className="w-[18px] h-[18px]" strokeWidth={1.75} />}
+        <span>Share</span>
+      </button>
+      {isOwner && (
+        <div className="relative">
+          <button
+            type="button"
+            aria-label="Post options"
+            aria-expanded={menuOpen}
+            data-testid="post-options-button"
+            onClick={(e) => { e.stopPropagation(); setMenuOpen((o) => !o); }}
+            className="flex items-center justify-center rounded-lg p-2.5 text-muted-foreground hover:text-foreground hover:bg-elevated/80 transition-all duration-150"
+          >
+            <MoreHorizontal className="w-[18px] h-[18px]" strokeWidth={1.75} />
+          </button>
+          {menuOpen && (
+            <>
+              <div className="fixed inset-0 z-20" onClick={(e) => { e.stopPropagation(); setMenuOpen(false); }} aria-hidden="true" />
+              <div
+                className="absolute right-0 top-full z-30 mt-1 w-52 rounded-lg border border-border bg-popover p-1 shadow-[0_8px_30px_rgb(0_0_0/0.35)]"
+                data-testid="post-options-menu"
+                onClick={(e) => e.stopPropagation()}
+              >
+                <button
+                  type="button"
+                  onClick={() => { setMenuOpen(false); void handleToggleVisibility(); }}
+                  disabled={togglingVisibility}
+                  className="flex w-full items-center gap-2 rounded-md px-3 py-2 text-left text-sm text-foreground hover:bg-elevated transition-colors disabled:opacity-50"
+                  data-testid="post-visibility-toggle-button"
+                >
+                  {currentPost.visibility === 'public' ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                  {togglingVisibility ? 'Updating…' : currentPost.visibility === 'public' ? 'Make private' : 'Make public'}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => { setMenuOpen(false); openComposer({ editingPost: currentPost }); }}
+                  className="flex w-full items-center gap-2 rounded-md px-3 py-2 text-left text-sm text-foreground hover:bg-elevated transition-colors"
+                  data-testid="post-edit-button"
+                >
+                  <Edit3 className="w-4 h-4" />
+                  Edit post
+                </button>
+                {deleteArmed ? (
+                  <button
+                    type="button"
+                    onClick={handleDelete}
+                    className="flex w-full items-center gap-2 rounded-md px-3 py-2 text-left text-sm text-danger hover:bg-danger-muted transition-colors"
+                    data-testid="post-delete-confirm-button"
+                  >
+                    <Trash2 className="w-4 h-4" />
+                    Confirm delete
+                  </button>
+                ) : (
+                  <button
+                    type="button"
+                    onClick={() => setDeleteArmed(true)}
+                    className="flex w-full items-center gap-2 rounded-md px-3 py-2 text-left text-sm text-danger hover:bg-danger-muted transition-colors"
+                    data-testid="post-delete-button"
+                  >
+                    <Trash2 className="w-4 h-4" />
+                    Delete post
+                  </button>
+                )}
+              </div>
+            </>
+          )}
+        </div>
+      )}
+    </>
+  );
+
+  // The quiet stats row (the Facebook "N likes · M comments" line above the
+  // actions).
+  const statsRow = (
+    <div className="flex items-center gap-1.5 text-sm text-muted-foreground" data-testid="post-lightbox-stats">
+      <span className="tabular-nums">{likeCount}</span>
+      <span>likes</span>
+      <span aria-hidden="true">·</span>
+      <span className="tabular-nums">{commentCount}</span>
+      <span>comments</span>
+    </div>
+  );
 
   return (
     <div
@@ -335,223 +451,200 @@ export function PostLightbox({ post, mediaMap, onClose, onReload, postAuthor, po
       data-testid="post-lightbox"
     >
       <div
-        className="relative flex w-full max-w-4xl max-h-[88vh] flex-col overflow-hidden rounded-lg border border-border bg-card shadow-[0_8px_30px_rgb(0_0_0/0.35)] animate-panel-in sm:flex-row"
+        className={cn(
+          'relative flex max-h-[88vh] flex-col overflow-hidden rounded-lg border border-border bg-card shadow-[0_8px_30px_rgb(0_0_0/0.35)] animate-panel-in',
+          textOnly ? 'w-full max-w-2xl' : 'w-full max-w-5xl',
+        )}
         onClick={e => e.stopPropagation()}
       >
-        {/* Close */}
-        <Button
-          variant="ghost"
-          size="icon"
-          onClick={onClose}
-          aria-label="Close"
-          data-testid="post-lightbox-close"
-          className="absolute right-2 top-2 z-10 bg-background/60 backdrop-blur-sm hover:bg-background/80"
-        >
-          <X className="h-5 w-5" />
-        </Button>
-
-        {/* Media pane: the normal viewer. Editing (title / body / media remove)
-            happens in the app-level composer sheet (openComposer({ editingPost })
-            — the ONE edit path), not inline here. */}
-        {hasMedia && (
-          <div className="relative flex min-h-0 flex-1 items-center justify-center bg-black">
-            {current.mime_type?.startsWith('video/') ? (
-              <LightboxVideo media={current} />
+        {/* Identity row (the Facebook "read a post in full" header): avatar +
+            name + @handle + timestamp + privacy glyph, with the close button
+            trailing. */}
+        <div className="flex items-center gap-3 border-b border-border px-4 py-3" data-testid="post-lightbox-identity">
+          <Avatar className="h-10 w-10">
+            {authorAvatar ? (
+              <AvatarImage src={authorAvatar} alt={authorName} />
             ) : (
-              <img
-                src={current.url}
-                alt={current.alt_text || ''}
-                className="max-h-[50vh] w-full object-contain sm:max-h-[88vh]"
-              />
+              <AvatarFallback className="bg-brand-muted text-brand-300 text-sm font-semibold">
+                {authorName.charAt(0).toUpperCase()}
+              </AvatarFallback>
             )}
-            {multiple && (
-              <>
-                <button
-                  type="button"
-                  onClick={prev}
-                  aria-label="Previous"
-                  data-testid="post-lightbox-prev"
-                  className="absolute left-2 top-1/2 -translate-y-1/2 rounded-full bg-background/60 p-1.5 text-foreground backdrop-blur-sm transition-colors hover:bg-background/80"
-                >
-                  <ChevronLeft className="h-5 w-5" />
-                </button>
-                <button
-                  type="button"
-                  onClick={next}
-                  aria-label="Next"
-                  data-testid="post-lightbox-next"
-                  className="absolute right-2 top-1/2 -translate-y-1/2 rounded-full bg-background/60 p-1.5 text-foreground backdrop-blur-sm transition-colors hover:bg-background/80"
-                >
-                  <ChevronRight className="h-5 w-5" />
-                </button>
-                <div className="absolute bottom-2 left-1/2 -translate-x-1/2 rounded-full bg-background/70 px-2 py-0.5 text-xs font-mono tabular-nums text-foreground backdrop-blur-sm">
-                  {index + 1} / {media.length}
-                </div>
-              </>
-            )}
-          </div>
-        )}
-
-        {/* Details pane */}
-        <div className="flex min-h-0 shrink-0 flex-col overflow-y-auto p-5 pr-14 sm:w-80">
-          {/* Timestamp */}
-          <span className="text-xs text-muted-foreground">
-            {formatTimeAgo(currentPost.created_at)}
-          </span>
-
-          {/* Text content. Editing (title / body / media remove) happens in the
-              app-level composer sheet (openComposer({ editingPost }) — the ONE
-              edit path), not inline here. */}
-          {currentPost.title || currentPost.text ? (
-              <div className="mt-3">
-                {currentPost.title && (
-                  <h2 className="mb-1 text-base font-semibold leading-snug text-foreground" data-testid="post-lightbox-title">
-                    {currentPost.title}
-                  </h2>
-                )}
-                {currentPost.text && (
-                  <div className="text-sm leading-relaxed text-foreground">
-                    <PostBody text={currentPost.text} density="full" />
-                  </div>
-                )}
-              </div>
-            ) : (
-              !hasMedia && (
-                <p className="mt-3 text-sm text-muted-foreground">This post has no content.</p>
-              )
-            )}
-
-          {/* Actions bar (post-actions.md): the shared reaction pair +
-              comment entry, with the lightbox's share button trailing. */}
-          <PostActions
-            postId={currentPost._id || ''}
-            liked={liked}
-            disliked={disliked}
-            reactionCount={likeCount}
-            dislikeCount={dislikeCount}
-            commentCount={commentCount}
-            onToggleReaction={handleToggleReaction}
-            onCommentCountChange={setCommentCount}
-            postAuthor={postAuthor}
-            postService={postService}
-            highlightedCommentId={highlightedCommentId}
-            defaultOpen={!!highlightedCommentId}
-            onAuthorClick={(username) => navigate(`/u/${username}`)}
-            dislike="interactive"
-            repost="interactive"
-            reposted={reposted}
-            repostCount={repostCount}
-            onToggleRepost={handleRepost}
-            testId="lightbox-post-actions"
-            trailing={
+          </Avatar>
+          <div className="min-w-0 flex-1">
+            <div className="flex items-center gap-1.5">
               <button
-                data-testid="share-button"
-                onClick={handleShare}
-                aria-label={copied ? 'Copied!' : 'Share'}
-                className={cn(
-                  'flex items-center gap-1.5 px-2.5 py-2 rounded-lg min-h-10 text-sm transition-all duration-150',
-                  copied
-                    ? 'text-success'
-                    : 'text-muted-foreground hover:text-foreground hover:bg-elevated/80',
-                )}
+                type="button"
+                onClick={() => authorUsername && navigate(`/u/${authorUsername}`)}
+                className="truncate text-sm font-semibold text-foreground hover:text-brand-300 transition-colors"
+                aria-label={`View ${authorName}'s profile`}
+                data-testid="post-lightbox-author"
               >
-                {copied ? (
-                  <Check className="w-[18px] h-[18px]" strokeWidth={1.75} />
-                ) : (
-                  <Share2 className="w-[18px] h-[18px]" strokeWidth={1.75} />
-                )}
+                {authorName}
               </button>
-            }
-          />
-
-          {/* Carried ads (D55 + D57): the creator's pinned ad + the node's ad
-                can both be present — render both, neither suppressing the other.
-                Each renders per its format (attached variant — the compact
-                AdBlock / the post-format card inside the lightbox). The comment
-                thread mounts with the actions bar above (PostActions). */}
-          {(currentPost.ad || currentPost.node_ad) && (
-            <div className="mt-3 -mx-1 px-4 space-y-2">
-              {currentPost.ad && <AttachedAd ad={currentPost.ad} />}
-              {currentPost.node_ad && <AttachedAd ad={currentPost.node_ad} />}
-            </div>
-          )}
-
-          {/* Owner actions */}
-          {isOwner && (
-            <div className="mt-3 pt-3 border-t border-border space-y-2">
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={handleToggleVisibility}
-                disabled={togglingVisibility}
-                className="text-sm text-muted-foreground hover:text-foreground gap-1.5 w-full justify-start"
-                data-testid="post-visibility-toggle-button"
-              >
-                {currentPost.visibility === 'public' ? (
-                  <EyeOff className="w-3.5 h-3.5" />
-                ) : (
-                  <Eye className="w-3.5 h-3.5" />
-                )}
-                {togglingVisibility ? 'Updating…' : currentPost.visibility === 'public' ? 'Make private' : 'Make public'}
-              </Button>
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={() => openComposer({ editingPost: currentPost })}
-                className="text-sm text-muted-foreground hover:text-foreground gap-1.5 w-full justify-start"
-                data-testid="post-edit-button"
-              >
-                <Edit3 className="w-3.5 h-3.5" />
-                Edit post
-              </Button>
-
-              {deleteArmed ? (
-                <div className="space-y-2">
-                  <p className="text-xs text-danger">Type <span className="font-mono font-medium">delete</span> to confirm</p>
-                  <Input
-                    value={deleteConfirm}
-                    onChange={(e) => setDeleteConfirm(e.target.value)}
-                    placeholder="delete"
-                    className="h-8 text-xs"
-                    data-testid="post-delete-confirm-input"
-                  />
-                  <div className="flex gap-2">
-                    <Button
-                      variant="destructive"
-                      size="sm"
-                      onClick={handleDelete}
-                      disabled={deleteConfirm !== 'delete'}
-                      className="text-xs flex-1"
-                      data-testid="post-delete-confirm-button"
-                    >
-                      Confirm Delete
-                    </Button>
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => { setDeleteArmed(false); setDeleteConfirm(''); }}
-                      className="text-xs"
-                    >
-                      Cancel
-                    </Button>
-                  </div>
-                </div>
-              ) : (
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => { setDeleteArmed(true); setDeleteConfirm(''); }}
-                  className="text-sm text-danger hover:text-danger hover:bg-danger-muted gap-1.5 w-full justify-start"
-                  data-testid="post-delete-button"
-                >
-                  <Trash2 className="w-3.5 h-3.5" />
-                  Delete post
-                </Button>
+              {visibility !== 'public' && (
+                <span className="flex items-center gap-1 text-xs text-muted-foreground" data-testid="post-lightbox-privacy">
+                  <PrivacyIcon className="h-3 w-3" />
+                  {privacyGlyph.label}
+                </span>
               )}
             </div>
-          )}
+            <div className="truncate text-xs text-muted-foreground">
+              {authorUsername && <span>@{authorUsername}</span>}
+              <span> · {formatTimeAgo(currentPost.created_at)}</span>
+            </div>
           </div>
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={onClose}
+            aria-label="Close"
+            data-testid="post-lightbox-close"
+            className="shrink-0 -mr-1 text-muted-foreground hover:text-foreground"
+          >
+            <X className="h-5 w-5" />
+          </Button>
         </div>
+
+        {textOnly ? (
+          /* Text-only post: a single centered reading column (the
+              "beautiful Notion" surface), not a media-pane + details-pane
+              split with dead space. */
+          <div className="min-h-0 overflow-y-auto px-5 py-5 sm:px-8" data-testid="post-lightbox-text-only">
+            <div className="mx-auto max-w-prose">
+              {currentPost.title && (
+                <h2 className="mb-3 font-display text-2xl font-medium tracking-tight text-foreground" data-testid="post-lightbox-title">
+                  {currentPost.title}
+                </h2>
+              )}
+              {currentPost.text ? (
+                <PostBody text={currentPost.text} density="full" className="text-[0.9375rem] leading-relaxed" />
+              ) : (
+                <p className="text-sm text-muted-foreground">This post has no content.</p>
+              )}
+              <div className="mt-4">{statsRow}</div>
+              <div className="mt-3 border-t border-border pt-1">
+                <PostActions
+                  postId={currentPost._id || ''}
+                  liked={liked}
+                  disliked={disliked}
+                  reactionCount={likeCount}
+                  dislikeCount={dislikeCount}
+                  commentCount={commentCount}
+                  onToggleReaction={handleToggleReaction}
+                  onCommentCountChange={setCommentCount}
+                  postAuthor={postAuthor}
+                  postService={postService}
+                  highlightedCommentId={highlightedCommentId}
+                  defaultOpen={!!highlightedCommentId}
+                  onAuthorClick={(username) => navigate(`/u/${username}`)}
+                  dislike="interactive"
+                  repost="interactive"
+                  reposted={reposted}
+                  repostCount={repostCount}
+                  onToggleRepost={handleRepost}
+                  layout="labeled"
+                  testId="lightbox-post-actions"
+                  trailing={trailingActions}
+                />
+              </div>
+              {(currentPost.ad || currentPost.node_ad) && (
+                <div className="mt-3 space-y-2">
+                  {currentPost.ad && <AttachedAd ad={currentPost.ad} />}
+                  {currentPost.node_ad && <AttachedAd ad={currentPost.node_ad} />}
+                </div>
+              )}
+            </div>
+          </div>
+        ) : (
+          /* Media post: the media viewer (left) + the details column (right).
+             On mobile the whole thing scrolls as one unit (media + details
+             natural height); on desktop it's a row with the details column
+             scrolling internally. */
+          <div className="flex flex-col overflow-y-auto sm:min-h-0 sm:flex-1 sm:flex-row sm:overflow-hidden">
+            <div className="relative flex items-center justify-center bg-black sm:min-h-0 sm:flex-1">
+              {current.mime_type?.startsWith('video/') ? (
+                <LightboxVideo media={current} />
+              ) : (
+                <img
+                  src={current.url}
+                  alt={current.alt_text || ''}
+                  className="max-h-[50vh] w-full object-contain sm:max-h-[88vh]"
+                />
+              )}
+              {multiple && (
+                <>
+                  <button
+                    type="button"
+                    onClick={prev}
+                    aria-label="Previous"
+                    data-testid="post-lightbox-prev"
+                    className="absolute left-2 top-1/2 -translate-y-1/2 rounded-full bg-background/60 p-1.5 text-foreground backdrop-blur-sm transition-colors hover:bg-background/80"
+                  >
+                    <ChevronLeft className="h-5 w-5" />
+                  </button>
+                  <button
+                    type="button"
+                    onClick={next}
+                    aria-label="Next"
+                    data-testid="post-lightbox-next"
+                    className="absolute right-2 top-1/2 -translate-y-1/2 rounded-full bg-background/60 p-1.5 text-foreground backdrop-blur-sm transition-colors hover:bg-background/80"
+                  >
+                    <ChevronRight className="h-5 w-5" />
+                  </button>
+                  <div className="absolute bottom-2 left-1/2 -translate-x-1/2 rounded-full bg-background/70 px-2 py-0.5 text-xs font-mono tabular-nums text-foreground backdrop-blur-sm">
+                    {index + 1} / {media.length}
+                  </div>
+                </>
+              )}
+            </div>
+
+            <div className="flex flex-col p-5 sm:min-h-0 sm:w-[28rem] sm:shrink-0 sm:overflow-y-auto">
+              {currentPost.title && (
+                <h2 className="mb-2 font-display text-xl font-medium tracking-tight text-foreground" data-testid="post-lightbox-title">
+                  {currentPost.title}
+                </h2>
+              )}
+              {currentPost.text && (
+                <div className="text-[0.9375rem] leading-relaxed text-foreground">
+                  <PostBody text={currentPost.text} density="full" />
+                </div>
+              )}
+              <div className="mt-3">{statsRow}</div>
+              <div className="mt-2 border-t border-border pt-1">
+                <PostActions
+                  postId={currentPost._id || ''}
+                  liked={liked}
+                  disliked={disliked}
+                  reactionCount={likeCount}
+                  dislikeCount={dislikeCount}
+                  commentCount={commentCount}
+                  onToggleReaction={handleToggleReaction}
+                  onCommentCountChange={setCommentCount}
+                  postAuthor={postAuthor}
+                  postService={postService}
+                  highlightedCommentId={highlightedCommentId}
+                  defaultOpen={!!highlightedCommentId}
+                  onAuthorClick={(username) => navigate(`/u/${username}`)}
+                  dislike="interactive"
+                  repost="interactive"
+                  reposted={reposted}
+                  repostCount={repostCount}
+                  onToggleRepost={handleRepost}
+                  layout="labeled"
+                  testId="lightbox-post-actions"
+                  trailing={trailingActions}
+                />
+              </div>
+              {(currentPost.ad || currentPost.node_ad) && (
+                <div className="mt-3 -mx-1 px-4 space-y-2">
+                  {currentPost.ad && <AttachedAd ad={currentPost.ad} />}
+                  {currentPost.node_ad && <AttachedAd ad={currentPost.node_ad} />}
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+      </div>
 
       {/* Instagram-style post navigation (the profile grid's modal): the side
           arrows live on the backdrop, outside the panel — the modal steps

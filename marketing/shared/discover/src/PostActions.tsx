@@ -17,12 +17,17 @@ import type { ReadComments, ReadReplies, CreateComment } from './types';
  *   like    — 'interactive' | 'display' | 'none'   (default 'interactive')
  *   dislike — 'interactive' | 'display' | 'none'   (default 'none')
  *   comments— 'inline' | 'none'                    (default 'inline')
- *   layout  — 'row' | 'bar' | 'bare' | 'compact'   (default 'row')
- *
- * `compact` (the feed's X-style row): the same slots as `row`, but the icons
- * are smaller (16px), the counts `text-xs`, and the whole row is muted +
- * tight — the engagement recedes so the content owns the screen (the operator's
- * "last mile" vs X: small, discrete, muted, no divided section).
+  *   layout  — 'row' | 'bar' | 'bare' | 'compact' | 'labeled'   (default 'row')
+  *
+  * `compact` (the feed's X-style row): the same slots as `row`, but the icons
+  * are smaller (16px), the counts `text-xs`, and the whole row is muted +
+  * tight — the engagement recedes so the content owns the screen (the operator's
+  * "last mile" vs X: small, discrete, muted, no divided section).
+  *
+  * `labeled` (the post-detail action bar): the same slots as `row`, but each
+  * action carries a text label next to its icon (Like / Comment / Share) +
+  * count, and the row is evenly spaced — the Facebook "read a post in full"
+  * action bar, not the feed's receding row.
  *
  * `remote` mode (the marketing context, no session): the like is display-only
  * (an anon visitor can't like), and the comment thread's compose becomes a
@@ -53,12 +58,16 @@ export interface PostActionsProps {
   reposted?: boolean;
   /** The repost count (the repeat icon's number). */
   repostCount?: number;
+  /** Show the counts next to the icons. Default true. The post-detail lightbox
+   *  sets this false — it shows the counts in a separate stats row, and the
+   *  labeled action bar carries the labels only (the Facebook model). */
+  showCounts?: boolean;
   like?: PostActionMode;
   dislike?: PostActionMode;
   /** The repost axis (reposts.md): independent of like/dislike, default none. */
   repost?: PostActionMode;
   comments?: 'inline' | 'none';
-  layout?: 'row' | 'bar' | 'bare' | 'compact';
+  layout?: 'row' | 'bar' | 'bare' | 'compact' | 'labeled';
   /** The post author's username (the comment nudge target). */
   postAuthor?: string;
   /** The post service (default 'posts'). */
@@ -109,6 +118,7 @@ export function PostActions({
   onToggleRepost,
   reposted = false,
   repostCount = 0,
+  showCounts = true,
   like = 'interactive',
   dislike = 'none',
   repost = 'none',
@@ -162,9 +172,12 @@ export function PostActions({
   const showComments = comments === 'inline';
 
   const compact = layout === 'compact';
+  const labeled = layout === 'labeled';
   const btnBase = compact
     ? 'flex items-center gap-1.5 px-2 py-1.5 rounded-md text-xs transition-all duration-150'
-    : 'flex items-center gap-1.5 px-2.5 py-2 rounded-lg min-h-10 text-sm transition-all duration-150';
+    : labeled
+      ? 'flex items-center justify-center gap-1.5 px-2 py-2.5 rounded-lg min-h-11 text-sm font-medium transition-all duration-150'
+      : 'flex items-center gap-1.5 px-2.5 py-2 rounded-lg min-h-10 text-sm transition-all duration-150';
   const iconSize = compact ? 'w-4 h-4' : 'w-[18px] h-[18px]';
 
   const likeButton = effectiveLike === 'interactive' && (
@@ -191,7 +204,8 @@ export function PostActions({
         strokeWidth={1.75}
         fill={liked ? 'currentColor' : 'none'}
       />
-      <span className="tabular-nums">{reactionCount || ''}</span>
+      {labeled && <span>Like</span>}
+      {showCounts && <span className="tabular-nums">{reactionCount || ''}</span>}
     </button>
   );
 
@@ -227,7 +241,8 @@ export function PostActions({
         strokeWidth={1.75}
         fill={disliked ? 'currentColor' : 'none'}
       />
-      <span className="tabular-nums">{dislikeCount || ''}</span>
+      {labeled && <span>Dislike</span>}
+      {showCounts && <span className="tabular-nums">{dislikeCount || ''}</span>}
     </button>
   );
 
@@ -246,7 +261,8 @@ export function PostActions({
       )}
     >
       <MessageCircle className={iconSize} strokeWidth={1.75} />
-      <span className="tabular-nums">{localCommentCount || ''}</span>
+      {labeled && <span>Comment</span>}
+      {showCounts && <span className="tabular-nums">{localCommentCount || ''}</span>}
     </button>
   );
 
@@ -275,7 +291,8 @@ export function PostActions({
         )}
         strokeWidth={1.75}
       />
-      <span className="tabular-nums">{repostCount || ''}</span>
+      {labeled && <span>Repost</span>}
+      {showCounts && <span className="tabular-nums">{repostCount || ''}</span>}
     </button>
   );
 
@@ -327,9 +344,11 @@ export function PostActions({
   const rowClass =
     layout === 'compact'
       ? 'flex items-center gap-1 px-3 py-1.5'
-      : layout === 'row'
-        ? 'flex items-center gap-1 px-2 py-2'
-        : 'flex items-center gap-6 border-t border-border px-4 pt-3 pb-3';
+      : layout === 'labeled'
+        ? 'flex flex-wrap items-center justify-between gap-1.5 gap-y-2'
+        : layout === 'row'
+          ? 'flex items-center gap-1 px-2 py-2'
+          : 'flex items-center gap-6 border-t border-border px-4 pt-3 pb-3';
 
   return (
     <div data-testid={testId}>
