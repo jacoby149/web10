@@ -127,7 +127,8 @@ async function renderShorts(initialEntries: string[] = ['/shorts/s1']) {
 
 // Seed the fake v3 client's `read` with the engagement docs the screen reads
 // (reactions + comments over the discover group). `reactions` is an array of
-// { ref, type, author }; `comments` is an array of ref ids.
+// { ref, type, author }; `comments` is an array of post ids (a comment's
+// `body.post_id` — the total-count key, comments.md).
 function seedEngagement(
   reactions: { ref: string; type?: string; author?: string }[],
   comments: string[] = [],
@@ -137,7 +138,7 @@ function seedEngagement(
     author_key: r.author ?? 'someone',
     body: { type: r.type ?? 'like' },
   }));
-  const commentDocs = comments.map((ref) => ({ ref_value: ref }));
+  const commentDocs = comments.map((postId) => ({ ref_value: postId, body: { post_id: postId } }));
   fakeV3Read.mockImplementation(async (collection: string) =>
     collection === 'reactions' ? reactionDocs : commentDocs,
   );
