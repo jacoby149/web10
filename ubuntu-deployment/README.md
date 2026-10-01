@@ -225,10 +225,14 @@ the `turn` profile**, off unless you opt in.
    ```
 4. **DNS:** `turn.{zone}` (and `turn.dev.{zone}`) → the box IP.
    `scripts/sync-dns.py` already creates both — just re-run it.
-5. **Firewall:** allow **UDP 3478** + **UDP 49152–65535** (the relay's media
-   range) and **TCP 3478/5349** (TCP fallback / TLS). Peers connect to the TURN
-   host **directly** — not through NPM — so these ports must be open on the
-   box, not just forwarded to NPM.
+ 5. **Firewall / router:** allow **UDP 3478** + **UDP 35000–35200** (the relay's
+    media range — 200 ports, not the 16k IANA default; sized for a creator
+    node's concurrent P2P load) and **TCP 3478/5349** (TCP fallback / TLS).
+    On the **router**, port-forward that UDP range + 3478 to the box's LAN IP
+    (prod: the public entry; dev: LAN-only). Peers connect to the TURN host
+    **directly** — not through NPM — so these must reach the box, not just NPM.
+    If you ever outgrow 200 concurrent relayed flows, widen `--min-port` /
+    `--max-port` in the compose + the forward together.
 
 **To disable:** clear `TURN_SECRET` (and `TURN_URL`) in the stack env and
 redeploy without `--profile turn`. The node falls back to STUN-only; the turn

@@ -130,13 +130,13 @@ services:
       --use-auth-secret
       --static-auth-secret=${TURN_SECRET:-e2e-turn-secret}
       --listening-port=3478
-      --min-port=49152
-      --max-port=65535
+      --min-port=35000
+      --max-port=35200
       --no-tls
     ports:
       - "3478:3478/udp"
       - "3478:3478/tcp"
-      - "49152-65535:49152-65535/udp"
+      - "35000-35200:35000-35200/udp"
     networks:
       - e2e-net
 
