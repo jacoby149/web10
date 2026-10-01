@@ -93,16 +93,11 @@ function NotificationRow({ n, unread, onClose }: { n: Notification; unread: bool
         )}
       </div>
       <div className="flex-1 min-w-0">
-        <p className={cn('text-sm truncate', unread ? 'text-foreground font-medium' : 'text-foreground/90')}>
+        <p className="text-sm truncate text-foreground/90">
           {describe(n)}
         </p>
         <p className="text-xs text-muted-foreground mt-0.5">{timeAgo(n.created_at)}</p>
       </div>
-      {unread && (
-        <span className="text-[0.625rem] font-semibold uppercase tracking-wide text-brand-300" data-testid="notification-new-label">
-          New
-        </span>
-      )}
     </>
   );
 

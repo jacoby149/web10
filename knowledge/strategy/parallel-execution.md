@@ -195,7 +195,9 @@ seams — `web10-npm@1.0.8` (v1 auth) and the hand-rolled `src/data/v3.ts`
 (data) — and the convergence is on the SDK the demos already run on.
 Both seams are now retired (3.11.0 auth, 3.12.0 data); what remains is
 the hls.js player and the e2e gauntlet that proves it end-to-end.
-   The decision bite gated the seam bites — docs first.
+    The decision bite gated the seam bites — docs first.
+
+  - [✓ 3.198.1] **The notifications list drops the bolded "New" tag — unread rows no longer shout which are new vs old** (operator, 30.09.2026: "new notifications, new messages, dont have that bolded thing that lets you know which ones are new and which one are old"). The notification row's `font-semibold uppercase` "New" label + the `font-medium` bolding on unread text was a loud, always-on new/old tell. Removed the label + the bold — every row now renders at the same weight (`text-foreground/90`); the only remaining unread signal is the quiet one already there (the small brand dot on the avatar + the faint `bg-brand-muted/20` row tint, both kept). The Messages list needed no change — its rows were already uniform (name always `font-medium`, preview always muted, no read-state bolding). All client-side, `NotificationsScreen.tsx`, tokens only. **Gates:** none. **Acceptance bar:** the notifications list shows no "New" tag and no bolded unread text (the dot + tint remain as the subtle tell); the messages list is unchanged; 1222 social tests green, `tsc` clean; screenshots `notifications-{desktop,375}.png`.
 
   **Saved collections (D88) — a playlist is a private-by-default group on the
   profile; publicness is a role grant; zero node surface.** KB:
