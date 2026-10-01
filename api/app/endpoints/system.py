@@ -6,7 +6,6 @@ from fastapi import APIRouter, HTTPException, Request
 from fastapi.responses import RedirectResponse
 
 import app.exceptions as exceptions
-import app.settings as settings
 from app.models.auth import Token
 from app.models.config import (
     ConfigUpdate,
