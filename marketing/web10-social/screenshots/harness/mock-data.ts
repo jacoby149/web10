@@ -216,6 +216,17 @@ const SAVED_COLLECTIONS = [
   { groupId: 'web10/groups/users/me/saved-later', name: 'Watch Later', visibility: 'private', itemCount: 1, slug: 'later' },
 ];
 export async function getMyCollections(): Promise<unknown[]> { return SAVED_COLLECTIONS; }
+// D88: the visitor's profile shows the owner's PUBLIC collections (the D80
+// by-user read — only membership_visibility='public' groups surface). Seeded
+// for the visitor profile shot (nova); the owner's own profile uses
+// getMyCollections.
+export async function readUserPublicCollections(username: string): Promise<unknown[]> {
+  if (username === 'me') return [];
+  return [
+    { groupId: 'web10/groups/users/nova/saved-tour-sets', name: 'Tour Sets', visibility: 'public', itemCount: 2, slug: 'tour-sets' },
+    { groupId: 'web10/groups/users/nova/saved-reading-list', name: 'Reading List', visibility: 'public', itemCount: 5, slug: 'reading-list' },
+  ];
+}
 // The "Save to…" sheet (D88) reads which collections already contain a post.
 // Seed the first feed post (fp-md) as saved in the first collection so the
 // sheet's PR shot shows a filled checkmark.

@@ -148,7 +148,14 @@ export async function createCollection(
     'invite_only',
     SAVED_ROLES,
     members,
-    { discoverable: false, tags: [SAVED_TAG] },
+    {
+      discoverable: false,
+      tags: [SAVED_TAG],
+      // D80: the by-user enumeration's visibility policy. A public collection
+      // is enumerable by-user (a visitor's profile can list it); a private one
+      // is not (it never surfaces on someone else's profile).
+      membership_visibility: visibility === 'public' ? 'public' : 'hidden',
+    },
   );
   const groupId = res.group_id;
   LOG('createCollection — created', groupId);
@@ -204,6 +211,46 @@ async function countSaved(groupId: string): Promise<number> {
     LOG('countSaved — failed (degrading to 0)', groupId, (e as Error)?.message);
     return 0;
   }
+}
+
+/**
+ * Read a user's PUBLIC saved collections (the visitor's profile Saved tab).
+ * The node's D80 `by-user` read (tag `web10-social-saved`) returns only groups
+ * with `membership_visibility == 'public'` — a private collection never
+ * surfaces, so a visitor can never enumerate what someone saved privately.
+ * Each returned group is resolved to its face (name) + item count. A per-
+ * collection failure degrades that card (never the list).
+ */
+export async function readUserPublicCollections(username: string, provider?: string): Promise<CollectionRecord[]> {
+  const w = getV3Client();
+  const memberKey = provider ? `${provider}/${username}` : username;
+  LOG('readUserPublicCollections — start', memberKey);
+  const page = await w.byUserGroups(memberKey, { tag: SAVED_TAG, limit: 100 });
+  LOG('readUserPublicCollections —', page.groups.length, 'public collections (by-user)');
+
+  const records = await Promise.all(
+    page.groups.map(async (g) => {
+      const slug = (g.group_id.split('/').pop() || '').replace(/^saved-/, '');
+      let face: GroupIdentity = {};
+      try {
+        face = await readGroupIdentity(g.group_id);
+      } catch (e) {
+        // A face-read failure degrades the card to the slug (never the list).
+        LOG('readUserPublicCollections — face read failed (degrading)', g.group_id, (e as Error)?.message);
+      }
+      const itemCount = await countSaved(g.group_id);
+      return {
+        groupId: g.group_id,
+        name: face.name || slug,
+        visibility: 'public' as CollectionVisibility,
+        coverRef: face.avatar_ref,
+        itemCount,
+        slug,
+      } satisfies CollectionRecord;
+    }),
+  );
+  LOG('readUserPublicCollections — resolved', records.length, 'collections');
+  return records;
 }
 
 // ── Read a collection ────────────────────────────────────────────────────────
@@ -320,7 +367,10 @@ async function findSavedDoc(groupId: string, postId: string) {
 /**
  * Set a collection's visibility. `public` adds the `anyone` reader row (anyone
  * can read the contents); `private` removes it (owner-only). Also updates the
- * face's `visibility` field (the app's intent).
+ * face's `visibility` field (the app's intent) AND the group's D80
+ * `membership_visibility` — the by-user enumeration only returns
+ * `membership_visibility == 'public'` groups, so a public collection is
+ * enumerable on a visitor's profile and a private one is absent.
  */
 export async function setCollectionVisibility(
   groupId: string,
@@ -340,6 +390,12 @@ export async function setCollectionVisibility(
   // Update the face's visibility field (read the current face, set the field).
   const face = await readGroupIdentity(groupId);
   await writeGroupIdentity(groupId, { ...face, visibility });
+
+  // D80: the by-user enumeration's visibility policy follows the face — a
+  // public collection is enumerable by-user, a private one is not.
+  await w.updateGroup(groupId, {
+    membership_visibility: visibility === 'public' ? 'public' : 'hidden',
+  });
   LOG('setCollectionVisibility — done', groupId, visibility);
 }
 

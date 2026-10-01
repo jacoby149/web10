@@ -88,6 +88,9 @@ export interface V3Group {
      *  the app decides what they mean (e.g. `web10-social-group`). Optional for
      *  forward-compat (older nodes predate the column). */
     tags?: string[];
+    /** D80: whether who's in the group is publicly enumerable ('public' /
+     *  'hidden'). Optional for forward-compat (older nodes predate the column). */
+    membership_visibility?: string;
 }
 export interface V3ResolvedMedia {
     doc_id?: string;
@@ -478,6 +481,7 @@ export interface V3Client {
     }[], opts?: {
         discoverable?: boolean;
         tags?: string[];
+        membership_visibility?: string;
     }): Promise<{
         group_id: string;
     }>;
@@ -491,6 +495,7 @@ export interface V3Client {
         roles?: Record<string, unknown>[];
         discoverable?: boolean;
         tags?: string[];
+        membership_visibility?: string;
     }): Promise<V3Group>;
     /** Reconcile a group contract against a canonical spec — additive, non-
      *  clobbering, idempotent. The "the app owns its own contracts" primitive. */
