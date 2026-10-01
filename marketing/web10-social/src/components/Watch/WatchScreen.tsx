@@ -314,7 +314,12 @@ export default function WatchScreen() {
           if (type === 'like') { l++; if (token && extractUsername(r.author_key) === token.username) likedMe = true; }
           else if (type === 'dislike') { d++; if (token && extractUsername(r.author_key) === token.username) dislikedMe = true; }
         }
-        for (const cdoc of commentDocs) if (cdoc.ref_value === postId) c++;
+        // The TOTAL count (top-level + replies): a reply's `ref_value` is its
+        // parent comment (comments.md), so key on `body.post_id`.
+        for (const cdoc of commentDocs) {
+          const pid = (cdoc.body as Record<string, unknown>)?.post_id as string | undefined;
+          if (pid === postId) c++;
+        }
         setLikes(l); setDislikes(d); setComments(c);
         setLiked(likedMe); setDisliked(dislikedMe);
         setReposts(repostCounts[postId] || 0);

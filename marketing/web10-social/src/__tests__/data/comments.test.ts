@@ -92,18 +92,22 @@ describe('comments v3 data layer (the Facebook model, comments.md)', () => {
     });
   });
 
-  describe('countComments (top-level count via readRefCounts)', () => {
-    it('counts a post top-level comments (GROUP BY ref_value)', async () => {
+  describe('countComments (total count — top-level + replies, keyed on body.post_id)', () => {
+    it('counts a post total comments (GROUP BY body.post_id — replies included)', async () => {
       const { countComments } = await import('../../data/comments');
-      mock.readRefCounts.mockResolvedValue({ 'p1': 7 });
+      mock.query.mockResolvedValue({ rows: [{ post_id: 'p1', comment_count: 7 }], count: 1 });
       const n = await countComments('p1', ['me']);
-      expect(mock.readRefCounts).toHaveBeenCalledWith('comments', { groups: ['me'], ref: 'p1' });
+      expect(mock.query).toHaveBeenCalledWith(
+        expect.stringContaining("JSONExtractString(body, 'post_id')"),
+        { groups: ['me'] },
+      );
+      expect(mock.query.mock.calls[0][0]).toContain("'p1'");
       expect(n).toBe(7);
     });
 
-    it('returns 0 when the post has no top-level comments', async () => {
+    it('returns 0 when the post has no comments', async () => {
       const { countComments } = await import('../../data/comments');
-      mock.readRefCounts.mockResolvedValue({});
+      mock.query.mockResolvedValue({ rows: [], count: 0 });
       const n = await countComments('p1', ['me']);
       expect(n).toBe(0);
     });
