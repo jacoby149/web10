@@ -34,10 +34,16 @@ const SOCIAL_ORIGIN = SOCIAL_BASE;
 
 // The v3 services + operations the social app's contract grants
 // (src/interfaces/auth.ts SOCIAL_SERVICES / SOCIAL_OPERATIONS).
+// MUST mirror src/interfaces/auth.ts SOCIAL_SERVICES — the re-login popup's
+// "already granted" check (ConsentView isAlreadyGranted) compares the app's
+// REQUESTED permissions against this seeded grant; a service the app requests
+// that's missing here makes the contract show as pending, so the no-password
+// "Continue as" fast path never renders and the gauntlet times out. (D88 added
+// 'saved' to the app contract — keep this list in lockstep.)
 const SOCIAL_SERVICES = [
   'posts', 'media', 'public_media', 'profile', 'settings',
   'comments', 'reactions', 'contacts', 'staging_posts',
-  'web10-social-group-identity', 'notifications',
+  'web10-social-group-identity', 'notifications', 'saved',
 ];
 const SOCIAL_OPERATIONS = ['create', 'readAll', 'updateOwn', 'deleteOwn'];
 
