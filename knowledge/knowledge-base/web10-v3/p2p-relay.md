@@ -83,8 +83,12 @@ off by default so a node with no relay keeps working STUN-only.
 
 coturn connects **directly** from the browser (UDP/TCP) — the NPM proxy can't
 forward UDP — so the service publishes its ports on the host (3478 UDP/TCP,
-5349 TCP, 49152–65535 UDP) rather than riding the proxy network. The image's
-entrypoint auto-prepends `turnserver`, so the compose `command` is flags only.
+5349 TCP, 35000–35200 UDP) rather than riding the proxy network. The media
+range is a tight 200 ports (`--min-port=35000 --max-port=35200`), not the 16k
+IANA ephemeral default — one relay port is allocated per active P2P media flow,
+and 200 concurrent relayed callers is far more than a creator node sees. Widen
+it (and the router forward) only if you outgrow that. The image's entrypoint
+auto-prepends `turnserver`, so the compose `command` is flags only.
 
 **Production notes:** `turns://` (TLS on 5349) is the recommended transport and
 needs a cert for the TURN hostname; until one is provisioned the service runs
