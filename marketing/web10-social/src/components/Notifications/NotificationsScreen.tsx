@@ -1,5 +1,5 @@
-import { useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useState } from 'react';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { BellOff, CheckCheck, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
@@ -123,6 +123,10 @@ function NotificationRow({ n, unread, onClose }: { n: Notification; unread: bool
   );
 }
 
+// The list filter (the operator: "unread read filter … default show unread,
+// hide the read ones but let you change the filters"). Unread is the default.
+type Filter = 'unread' | 'all';
+
 export default function NotificationsScreen({ onClose }: { onClose?: () => void }) {
   const { unread, items } = useNotifications();
   // Panel mode: the bell's popover (the operator: notifications "just toggles
@@ -130,22 +134,34 @@ export default function NotificationsScreen({ onClose }: { onClose?: () => void 
   // you were right last" — not its own page). The X + a row click call
   // onClose; the URL never changes, so the user is exactly where they were.
   const isPanel = typeof onClose === 'function';
+  const [searchParams, setSearchParams] = useSearchParams();
 
-  // Mark all read while the screen is open — clears the badge + banner (the
-  // "you looked" state). Reacts to `unread`, not just mount: the seed
-  // (initNotifications → seed) is async and can still be in flight when the
-  // screen opens, so a one-shot on-mount mark-read would no-op on an empty
-  // store (items.every(read) is true on []) and the badge would stay lit when
-  // the seed lands. Watching `unread` re-runs the mark-read the moment the seed
-  // (or a new nudge) bumps it. `markAllRead` is a no-op when everything is
-  // already read, so this never loops.
-  useEffect(() => {
-    if (unread > 0) {
-      markAllRead().catch(() => {
-        // Best-effort — a persist failure still cleared the local badge.
-      });
+  // The filter. Route mode keeps it in the URL (?filter=all; unread is the
+  // default/absent) so it's refresh-safe + shareable (the deep-link rule).
+  // Panel mode never changes the URL (the panel's design — "back where you
+  // were"), so it uses local state. Opening the screen does NOT mark read —
+  // the Unread filter needs the unread state to persist until the user
+  // explicitly clears it (the "Mark all read" button).
+  const [panelFilter, setPanelFilter] = useState<Filter>('unread');
+  const filter: Filter = isPanel
+    ? panelFilter
+    : searchParams.get('filter') === 'all'
+      ? 'all'
+      : 'unread';
+  const setFilter = (f: Filter) => {
+    if (isPanel) {
+      setPanelFilter(f);
+    } else {
+      setSearchParams(f === 'all' ? { filter: 'all' } : {}, { replace: true });
     }
-  }, [unread]);
+  };
+
+  // The rows the current filter shows. Unread (default) hides read rows;
+  // All shows the full history.
+  const visible = filter === 'unread' ? items.filter((n) => !n.read) : items;
+  // "Caught up": the Unread filter is empty but there IS history — a positive
+  // empty state (distinct from "no notifications at all").
+  const caughtUp = filter === 'unread' && visible.length === 0 && items.length > 0;
 
   return (
     <div className={cn('w-full', !isPanel && 'max-w-2xl mx-auto')}>
@@ -178,19 +194,64 @@ export default function NotificationsScreen({ onClose }: { onClose?: () => void 
         </div>
       </div>
 
-      {items.length === 0 ? (
+      {items.length > 0 && (
+        <div
+          className="flex items-center gap-0.5 px-4 py-2 border-b border-border"
+          role="tablist"
+          aria-label="Notifications filter"
+          data-testid="notifications-filter"
+        >
+          {(['unread', 'all'] as const).map((f) => (
+            <button
+              key={f}
+              type="button"
+              role="tab"
+              aria-selected={filter === f}
+              data-testid={`notifications-filter-${f}`}
+              onClick={() => setFilter(f)}
+              className={cn(
+                'rounded-md px-3 py-1.5 text-xs font-medium transition-all duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand/50',
+                filter === f ? 'bg-elevated text-foreground' : 'text-muted-foreground hover:text-foreground',
+              )}
+            >
+              {f === 'unread' ? `Unread${unread > 0 ? ` · ${unread}` : ''}` : 'All'}
+            </button>
+          ))}
+        </div>
+      )}
+
+      {visible.length === 0 ? (
         <div className="flex flex-col items-center justify-center py-20 text-center px-6" data-testid="notifications-empty">
           <div className="w-12 h-12 rounded-full bg-elevated flex items-center justify-center mb-3">
             <BellOff className="w-6 h-6 text-muted-foreground" strokeWidth={1.5} />
           </div>
-          <p className="text-sm font-medium text-foreground">No notifications yet</p>
-          <p className="text-xs text-muted-foreground mt-1 max-w-xs">
-            When someone reacts to, comments on, or replies to your posts — or messages you — it shows up here.
-          </p>
+          {caughtUp ? (
+            <>
+              <p className="text-sm font-medium text-foreground">You're all caught up</p>
+              <p className="text-xs text-muted-foreground mt-1 max-w-xs">
+                No unread notifications.{' '}
+                <button
+                  type="button"
+                  data-testid="caught-up-view-all"
+                  onClick={() => setFilter('all')}
+                  className="text-brand-300 underline underline-offset-2 hover:text-brand-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand/50 rounded"
+                >
+                  View all
+                </button>
+              </p>
+            </>
+          ) : (
+            <>
+              <p className="text-sm font-medium text-foreground">No notifications yet</p>
+              <p className="text-xs text-muted-foreground mt-1 max-w-xs">
+                When someone reacts to, comments on, or replies to your posts — or messages you — it shows up here.
+              </p>
+            </>
+          )}
         </div>
       ) : (
         <ul data-testid="notifications-list">
-          {items.map((n) => (
+          {visible.map((n) => (
             <NotificationRow key={n.id} n={n} unread={!n.read} onClose={onClose} />
           ))}
         </ul>
