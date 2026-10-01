@@ -1386,6 +1386,7 @@ export default function GroupDetailScreen({ groupId }: { groupId: string }) {
           isOwner={canManage}
           options={faceOptions}
           onCrop={(result) => handleFaceCrop(faceLightbox, result)}
+          onUploadCrop={(result) => handleFaceCrop(faceLightbox, result)}
           saving={faceSaving}
           displayName={displayName}
           avatarLabel="Group photo"
