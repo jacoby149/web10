@@ -91,8 +91,8 @@ vi.mock('@/data/wapi', () => ({
 globalThis.fetch = vi.fn();
 
 function UrlProbe() {
-  const { search } = useLocation();
-  return <div data-testid="url-probe">{search}</div>;
+  const { pathname, search } = useLocation();
+  return <div data-testid="url-probe">{pathname}{search}</div>;
 }
 
 const OWN_COLLECTIONS = [
@@ -151,44 +151,25 @@ describe('Saved tab (D88) — the owner\u2019s playlists on the profile', () => 
     expect(screen.getByText('No collections yet')).toBeInTheDocument();
   });
 
-  it('opening a collection loads its contents (the ?c= deep link)', async () => {
-    mockReadCollection.mockResolvedValue({
-      face: { name: 'Guitar Riffs' },
-      posts: [
-        { _id: 's1', postId: 'p1', savedAt: 'x', unavailable: false, post: { _id: 'p1', text: 'a saved post', created_at: 'x' } },
-      ],
-      mediaMap: {},
-    });
+  it('tapping a card navigates to the collection\u2019s deep-linkable route', async () => {
     await renderProfile();
     await waitFor(() => expect(screen.getByText('Me')).toBeInTheDocument());
     fireEvent.click(screen.getByTestId('profile-tab-saved'));
     const [card] = await screen.findAllByTestId('saved-collection-card');
     fireEvent.click(card);
-    // The URL holds the open collection.
-    await waitFor(() => expect(screen.getByTestId('url-probe').textContent).toContain('c=guitar-riffs'));
-    // The collection\u2019s contents render (the wall of saved posts).
-    expect(await screen.findByTestId('saved-post-cell')).toBeInTheDocument();
-    // Back returns to the cards.
-    fireEvent.click(screen.getByTestId('saved-back'));
-    await waitFor(() => expect(screen.getByTestId('url-probe').textContent).not.toContain('c='));
-    expect(await screen.findAllByTestId('saved-collection-card')).toHaveLength(2);
+    // The URL holds the open collection (the group_id, URL-encoded — the
+    // group-detail idiom). The contents render in the SavedCollectionScreen
+    // (a separate route, tested in savedCollection.test.tsx).
+    await waitFor(() => expect(screen.getByTestId('url-probe').textContent).toContain('/u/testuser/saved/g1'));
   });
 
-  it('a dead ref degrades to an unavailable tile (never a hard fail)', async () => {
-    mockReadCollection.mockResolvedValue({
-      face: { name: 'Guitar Riffs' },
-      posts: [
-        { _id: 's1', postId: 'dead', savedAt: 'x', unavailable: true, post: null },
-      ],
-      mediaMap: {},
-    });
+  it('tapping the second card navigates to its own route', async () => {
     await renderProfile();
     await waitFor(() => expect(screen.getByText('Me')).toBeInTheDocument());
     fireEvent.click(screen.getByTestId('profile-tab-saved'));
-    const [card] = await screen.findAllByTestId('saved-collection-card');
-    fireEvent.click(card);
-    expect(await screen.findByTestId('saved-unavailable')).toBeInTheDocument();
-    expect(screen.getByText('No longer available')).toBeInTheDocument();
+    const cards = await screen.findAllByTestId('saved-collection-card');
+    fireEvent.click(cards[1]);
+    await waitFor(() => expect(screen.getByTestId('url-probe').textContent).toContain('/u/testuser/saved/g2'));
   });
 });
 

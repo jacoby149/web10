@@ -226,15 +226,27 @@ export async function readSavedPostIds(groupId: string): Promise<Set<string>> {
 export async function savePostToCollection(): Promise<boolean> { return true; }
 export async function removePostFromCollection(): Promise<void> {}
 export async function createCollection(): Promise<string> { return 'web10/groups/users/me/saved-new'; }
+export async function setCollectionVisibility(): Promise<void> {}
+export async function renameCollection(): Promise<void> {}
+export async function deleteCollection(): Promise<void> {}
 export async function readCollection(): Promise<unknown> {
+  const posts = [
+    { _id: 'sc-1', postId: 'pp-1', savedAt: minsAgo(120), unavailable: false, post: PROFILE_POSTS[0] },
+    { _id: 'sc-2', postId: 'pp-2', savedAt: minsAgo(300), unavailable: false, post: PROFILE_POSTS[1] },
+    { _id: 'sc-3', postId: 'pp-3', savedAt: minsAgo(500), unavailable: false, post: PROFILE_POSTS[2] },
+  ];
+  // Resolve the posts' media so the wall renders real tiles (not text-only).
+  const mediaMap: Record<string, unknown> = {};
+  for (const p of posts) {
+    for (const id of (p.post as { media_refs?: string[] } | null)?.media_refs ?? []) {
+      const rec = PROFILE_MEDIA[id] ?? DISCOVER_MEDIA[id];
+      if (rec) mediaMap[id] = rec;
+    }
+  }
   return {
-    face: { name: 'Guitar Riffs' },
-    posts: [
-      { _id: 'sc-1', postId: 'pp-1', savedAt: minsAgo(120), unavailable: false, post: PROFILE_POSTS[0] },
-      { _id: 'sc-2', postId: 'pp-2', savedAt: minsAgo(300), unavailable: false, post: PROFILE_POSTS[1] },
-      { _id: 'sc-3', postId: 'pp-3', savedAt: minsAgo(500), unavailable: false, post: PROFILE_POSTS[2] },
-    ],
-    mediaMap: {},
+    face: { name: 'Guitar Riffs', visibility: 'private' },
+    posts,
+    mediaMap,
   };
 }
 // readUserPublicProfile lives below (the real impl, keyed by username).

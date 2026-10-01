@@ -7,6 +7,7 @@ import Layout from '@/components/Social/Layout';
 import PostsScreen from '@/components/Feed/PostsScreen';
 import ProfileScreen from '@/components/Bio/ProfileScreen';
 import UserProfileScreen from '@/components/Bio/UserProfileScreen';
+import SavedCollectionScreen from '@/components/Bio/SavedCollectionScreen';
 import UserFollowListScreen from '@/components/Bio/UserFollowListScreen';
 import DiscoverScreen from '@/components/Discover/DiscoverScreen';
 import WatchScreen from '@/components/Watch/WatchScreen';
@@ -83,6 +84,26 @@ function UserProfileRoute() {
 
   return (
     <UserProfileScreen
+      username={username!}
+      provider={provider}
+      onBack={() => navigate(-1)}
+    />
+  );
+}
+
+// D88: a saved collection's deep-linkable detail view — /u/:username/saved/:collectionId
+// (the collectionId is the group_id, URL-encoded — the group-detail idiom). The
+// URL holds which collection is open (the "address bar is part of the product"
+// rule). The owner sees the per-item remove + the visibility toggle; a visitor
+// sees a read-only wall (a private collection's read 403s → the error state).
+function SavedCollectionRoute() {
+  const { username } = useParams();
+  const location = useLocation();
+  const navigate = useNavigate();
+  const provider = location.state?.provider || getWapi().readToken()?.provider || '';
+
+  return (
+    <SavedCollectionScreen
       username={username!}
       provider={provider}
       onBack={() => navigate(-1)}
@@ -439,6 +460,7 @@ function App() {
           <Route path="/notifications" element={isAnon ? <Navigate to="/video" replace /> : <NotificationsScreen />} />
           <Route path="/profile" element={isAnon ? <Navigate to="/video" replace /> : <ProfileRedirectRoute />} />
           <Route path="/u/:username" element={<UserProfileRoute />} />
+          <Route path="/u/:username/saved/:collectionId" element={<SavedCollectionRoute />} />
           <Route path="/u/:username/followers" element={isAnon ? <Navigate to="/video" replace /> : <UserFollowersRoute />} />
           <Route path="/u/:username/following" element={isAnon ? <Navigate to="/video" replace /> : <UserFollowingRoute />} />
           <Route path="/u/:username/p/:postId" element={<UserProfilePostLinkRoute />} />

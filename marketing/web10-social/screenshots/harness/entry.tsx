@@ -23,6 +23,7 @@ import DiscoverScreen from '@/components/Discover/DiscoverScreen';
 import WatchScreen from '@/components/Watch/WatchScreen';
 import ShortsScreen from '@/components/Shorts/ShortsScreen';
 import UserProfileScreen from '@/components/Bio/UserProfileScreen';
+import SavedCollectionScreen from '@/components/Bio/SavedCollectionScreen';
 import UserFollowListScreen from '@/components/Bio/UserFollowListScreen';
 import PostComposer from '@/components/Feed/PostComposer';
 import MonetizationScreen from '@/components/Monetization/MonetizationScreen';
@@ -83,6 +84,17 @@ function UserProfileRoute() {
   return <UserProfileScreen username={username || 'me'} provider={'web10'} />;
 }
 
+function SavedCollectionRoute() {
+  const { username } = useParams();
+  return (
+    <SavedCollectionScreen
+      username={username || 'me'}
+      provider={'web10'}
+      onBack={() => {}}
+    />
+  );
+}
+
 const params = new URLSearchParams(window.location.search);
 const screen = params.get('screen');
 // Anon mode (?anon=1): a signed-out visitor. The chrome is the anon shell
@@ -127,7 +139,7 @@ const initialRoute =
     : screen === 'profile-following' ? '/u/nova/following'
     : screen === 'profile-feed' ? '/u/nova?view=feed'
     : screen === 'saved-tab' ? '/u/me?tab=saved'
-    : screen === 'saved-collection' ? '/u/me?tab=saved&c=guitar-riffs'
+    : screen === 'saved-collection' ? '/u/me/saved/web10%2Fgroups%2Fusers%2Fme%2Fsaved-guitar-riffs'
      : screen === 'monetize' ? '/monetize'
      : screen === 'monetize-node' ? '/monetize?tab=node'
     : screen === 'node-settings' ? '/node-settings'
@@ -158,6 +170,7 @@ createRoot(document.getElementById('root')!).render(
         <Route path="/groups/:groupId" element={<GroupDetailRoute />} />
         <Route path="/people" element={<DiscoverScreen />} />
         <Route path="/u/:username" element={<UserProfileRoute />} />
+        <Route path="/u/:username/saved/:collectionId" element={<SavedCollectionRoute />} />
         <Route path="/u/:username/followers" element={<UserFollowersRoute />} />
         <Route path="/u/:username/following" element={<UserFollowingRoute />} />
         <Route path="/monetize" element={<MonetizationScreen />} />
