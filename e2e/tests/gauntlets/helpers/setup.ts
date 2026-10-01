@@ -249,7 +249,9 @@ export async function createDmGroup(
 
 // ── Comments ─────────────────────────────────────────────────────────────────
 
-/** Create a comment on a post (service `comments`, `ref_value` = the post). */
+/** Create a comment on a post (service `comments`, `ref_value` = the post).
+ *  The body carries `post_id` (the real `createComment` writes it — the total
+ *  comment count keys on `body.post_id`, comments.md), so the board's tally sees it. */
 export async function createComment(
   request: APIRequestContext,
   token: string,
@@ -261,7 +263,7 @@ export async function createComment(
     data: JSON.stringify({
       token,
       service: 'comments',
-      body: { text, target_service: 'posts', target_id: postId },
+      body: { text, post_id: postId },
       groups,
       ref_value: postId,
     }),
