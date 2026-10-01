@@ -28,14 +28,25 @@ witness works either way — the panel renders the same list.
 ## What the Screen Shows
 
 ```
-Notifications
-─────────────────────
-alice liked your post · 2m ago
-bob commented on your post · 15m ago
-carol replied to your comment · 1h ago
-dave sent you a message · 2h ago
-charlie followed you · 3h ago
+Notifications                          [Mark all read]
+[ Unread · 2 | All ]        ← filter (Unread is the default)
+─────────────────────────────
+alice liked your post · 2m ago   ●  (unread: dot + tint)
+bob commented on your post · 15m ago ●
+carol replied to your comment · 1h ago   (read: plain, hidden in Unread)
 ```
+
+**The filter (Unread | All).** The list is filtered by a segmented control in
+the header. **Unread is the default** — it shows only unread rows and hides the
+read ones (the operator: "notifications should always default show unread
+notifications, hide the read ones but let you change the filters"). **All**
+shows the full history. The filter is a pure *view* filter — it does not change
+read state. In **route mode** (`/notifications`) the filter lives in the URL
+(`?filter=all`; `unread` is the default/absent) so it's refresh-safe +
+shareable (the deep-link rule); in **panel mode** it's local state (the panel
+never changes the URL — the "back where you were" design). Empty states:
+`items.length === 0` → "No notifications yet"; Unread filter empty but history
+exists → "You're all caught up" (+ a "View all" link that flips the filter).
 
 **Every row deep-links to the place the event is about** (the address bar is
 the destination — the app's deep-link rule). Clicking a row navigates:
@@ -153,17 +164,24 @@ const history = await w.read('notifications', {
 })
 ```
 
-Badge = the unread count (`read: false`). Mark-read on screen open. This is
-the durable history + the badge, with no node table.
+Badge = the unread count (`read: false`). **Mark-read is explicit, not on
+open.** Opening the screen/panel does NOT mark read — the Unread filter needs
+the unread state to persist so the user can see what's new. The badge clears
+via the **"Mark all read"** button (the header action, shown when `unread > 0`)
+or by navigating to a row's destination. This is the durable history + the
+badge, with no node table.
 
 ## The Data Flow
 
 ```
-User opens /notifications
+User opens /notifications (or the bell panel)
   → w.read('notifications', { groups: [myFollowersGroup] })
   → parallel: resolve avatar for each "from"
-  → mark as read
-  → render
+  → render (Unread filter by default; NOT marked read)
+
+User taps "Mark all read"
+  → markAllRead(): flip read:true on all rows + advance the last_seen cursor
+  → the badge + banner clear; the Unread filter now shows "caught up"
 
 Real-time (app-wide, any screen):
   → onP2PInbound: a nudge arrives → re-read from CRUD → append + bump the badge
@@ -183,7 +201,7 @@ the operator's "whatever app state they are in."
 - [ ] Write side — the nudge on each targeting action (reuses `sendP2P`)
 - [ ] Unread state — app-owned `notifications` service in the followers group (D60)
 - [ ] Badge + bell — `Layout` (desktop sidebar + mobile top-header) + the "N new" banner
-- [ ] The `/notifications` screen — deep-linkable history, mark-read on open
+- [✓] The `/notifications` screen — deep-linkable history, the **Unread (default) / All filter**, and **explicit mark-read** (the "Mark all read" button — opening does NOT mark read, so the Unread filter has something to show)
 - [✓] Row deep links — every row navigates to the place the event is about (`notificationHref` + `resolveReplyHref`; the table in "What the Screen Shows")
 - [ ] The missing primitive — `getPendingRequests` (pending join requests for **request-join** groups such as close-friends; NOT needed for follows, which are open-join and derived from the member list)
 - [ ] Notification preferences — per-type toggle (reactions on/off, comments on/off)

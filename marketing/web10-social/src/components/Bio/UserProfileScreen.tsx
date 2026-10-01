@@ -22,11 +22,11 @@ import {
   countUserFollowingReal,
   readUserPublicProfile,
   getMyCollections,
-  readCollection,
+  createPost,
 } from '@/data';
 import { getWapi } from '@/data/wapi';
 import type { ProfileRecord, PostRecord, MediaRecord, FollowRecord } from '@/data/types';
-import type { CollectionRecord, CollectionContents } from '@/data/saved';
+import type { CollectionRecord } from '@/data/saved';
 import { mediaRefId, fromResolvedMediaRef } from '@/data/types';
 import { MapPin, Globe, Link, Users, UserPlus, UserCheck, Loader2, ArrowLeft, MessageSquare, Play, Camera, Edit3, Check, X, ImagePlus, AlertTriangle, Inbox, LayoutGrid, Clapperboard, User, Bookmark } from 'lucide-react';
 import { PostLightbox } from './PostLightbox';
@@ -65,117 +65,20 @@ interface UserProfileScreenProps {
 
 // ── Saved collections (D88) — the profile's Saved tab ───────────────────────
 // The owner's playlists, YouTube-channel-shaped: a grid of collection cards
-// (name + "N items"). Tapping a card opens the collection's contents inline
-// (the `?c=<slug>` deep link — the URL holds which collection is open). This
-// is the owner's own profile; the visitor-facing public-collections case is a
-// follow-up (it needs the node's by-user enumeration + the membership
-// visibility seam).
+// (name + "N items"). Tapping a card navigates to the collection's deep-
+// linkable detail view, /u/:username/saved/:collectionId (the "address bar is
+// part of the product" rule) — the owner's per-item remove + the visibility
+// toggle live there (SavedCollectionScreen). This is the owner's own profile;
+// the visitor-facing public-collections case is a follow-up (it needs the
+// node's by-user enumeration + the membership visibility seam).
 
 interface SavedTabProps {
   username: string;
   collections: CollectionRecord[];
-  activeSlug: string | null;
-  onOpenCollection: (slug: string) => void;
-  onBackToCollections: () => void;
+  onOpenCollection: (groupId: string) => void;
 }
 
-function SavedTab({ username, collections, activeSlug, onOpenCollection, onBackToCollections }: SavedTabProps) {
-  const navigate = useNavigate();
-  const [contents, setContents] = useState<CollectionContents | null>(null);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-
-  // When a collection is open, load its contents (the ref_value join → the
-  // resolved posts + media). A dead ref degrades to an "unavailable" tile.
-  useEffect(() => {
-    if (!activeSlug) {
-      setContents(null);
-      return;
-    }
-    const col = collections.find((c) => c.slug === activeSlug);
-    if (!col) return;
-    let cancelled = false;
-    setLoading(true);
-    setError(null);
-    readCollection(col.groupId)
-      .then((c) => { if (!cancelled) setContents(c); })
-      .catch((e) => { if (!cancelled) { console.error('[social] SavedTab — readCollection failed:', e); setError('Couldn\u2019t load this collection.'); } })
-      .finally(() => { if (!cancelled) setLoading(false); });
-    return () => { cancelled = true; };
-  }, [activeSlug, collections]);
-
-  // The collection's contents view (the wall of saved posts).
-  if (activeSlug) {
-    const col = collections.find((c) => c.slug === activeSlug);
-    return (
-      <div className="px-4 pb-4 pt-2">
-        <div className="flex items-center gap-3 py-2">
-          <button
-            data-testid="saved-back"
-            aria-label="Back to collections"
-            onClick={onBackToCollections}
-            className="p-2 -ml-2 rounded-md text-muted-foreground hover:text-foreground transition-colors outline-none focus-visible:ring-2 focus-visible:ring-ring"
-          >
-            <ArrowLeft className="w-5 h-5" strokeWidth={2} />
-          </button>
-          <div className="min-w-0">
-            <h2 className="font-display font-semibold text-foreground text-lg truncate">{col?.name || 'Collection'}</h2>
-            {col && <p className="text-xs text-muted-foreground">{col.itemCount} item{col.itemCount === 1 ? '' : 's'}</p>}
-          </div>
-        </div>
-
-        {loading ? (
-          <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-4">
-            {Array.from({ length: 8 }).map((_, i) => (
-              <Skeleton key={i} className="aspect-[9/16] rounded-lg" />
-            ))}
-          </div>
-        ) : error ? (
-          <div className="py-16 text-center" data-testid="saved-collection-error">
-            <p className="text-sm text-muted-foreground">{error}</p>
-          </div>
-        ) : contents && contents.posts.length ? (
-          <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-4">
-            {contents.posts.map((sp) => {
-              if (sp.unavailable || !sp.post) {
-                return (
-                  <div
-                    key={sp._id || sp.postId}
-                    data-testid="saved-unavailable"
-                    className="aspect-[9/16] w-full bg-elevated rounded-lg flex flex-col items-center justify-center gap-2 p-4"
-                  >
-                    <Inbox className="w-6 h-6 text-muted-foreground/60" strokeWidth={1.5} />
-                    <p className="text-xs text-muted-foreground text-center">No longer available</p>
-                  </div>
-                );
-              }
-              const post = sp.post;
-              const firstMedia = post.media_refs?.length ? contents.mediaMap[mediaRefId(post.media_refs[0])] : null;
-              return (
-                <WallTile
-                  key={sp._id || sp.postId}
-                  media={firstMedia ?? { _id: post._id, url: '', created_at: '' }}
-                  testId="saved-post-cell"
-                  title={post.title}
-                  caption={post.text}
-                  postId={post._id}
-                  multiCount={post.media_refs?.length}
-                  onClick={() => navigate(`/u/${username}/p/${post._id}`)}
-                />
-              );
-            })}
-          </div>
-        ) : (
-          <div className="py-16 text-center" data-testid="saved-collection-empty">
-            <Bookmark className="w-8 h-8 text-muted-foreground/50 mx-auto mb-3" strokeWidth={1.5} />
-            <p className="text-sm text-muted-foreground">Nothing saved here yet</p>
-          </div>
-        )}
-      </div>
-    );
-  }
-
-  // The collections grid (the cards).
+function SavedTab({ username, collections, onOpenCollection }: SavedTabProps) {
   if (!collections.length) {
     return (
       <div className="py-16 text-center" data-testid="saved-empty">
@@ -193,7 +96,7 @@ function SavedTab({ username, collections, activeSlug, onOpenCollection, onBackT
           <button
             key={col.groupId}
             data-testid="saved-collection-card"
-            onClick={() => onOpenCollection(col.slug)}
+            onClick={() => onOpenCollection(col.groupId)}
             className="group text-left rounded-lg overflow-hidden bg-surface border border-border hover:border-brand/40 transition-colors outline-none focus-visible:ring-2 focus-visible:ring-ring"
           >
             {/* The cover — a brand-tinted placeholder (the first saved post's
@@ -264,7 +167,7 @@ const TEXT_TILE_COLORS = [
   'var(--color-tile-rose)',
 ] as const;
 
-function textTileColor(postId?: string): string {
+export function textTileColor(postId?: string): string {
   if (!postId) return TEXT_TILE_COLORS[0];
   let h = 0;
   for (let i = 0; i < postId.length; i++) {
@@ -295,7 +198,7 @@ interface WallTileProps {
  * `<img>`. The grid is responsive — 4 across on desktop (the Instagram
  * shape), fewer as the width shrinks (explicit breakpoints).
  */
-function WallTile({ media, testId, title, caption, postId, multiCount, onClick }: WallTileProps) {
+export function WallTile({ media, testId, title, caption, postId, multiCount, onClick }: WallTileProps) {
   const video = isVideo(media);
   // The text-only tile's heading: the title (D82) when present, else the
   // caption. `ariaLabel` keeps the accessible name stable.
@@ -456,9 +359,6 @@ export default function UserProfileScreen({ username, provider, onBack }: UserPr
   const [viewMode, setViewMode] = useState<ProfileViewMode>(
     () => (searchParams.get('view') === 'feed' ? 'feed' : 'grid'),
   );
-  // The open collection on the Saved tab (the `?c=<slug>` deep link — the URL
-  // holds which collection is open, so a shared link lands on it).
-  const openCollectionSlug = searchParams.get('c');
 
   const selectTab = useCallback((tab: 'posts' | 'media' | 'saved') => {
     setActiveTab(tab);
@@ -482,20 +382,13 @@ export default function UserProfileScreen({ username, provider, onBack }: UserPr
     setSearchParams(params, { replace: true });
   }, [searchParams, setSearchParams]);
 
-  // Open a collection on the Saved tab (the `?c=<slug>` deep link).
-  const openCollection = useCallback((slug: string) => {
-    const params = new URLSearchParams(searchParams);
-    params.set('tab', 'saved');
-    params.set('c', slug);
-    setSearchParams(params, { replace: true });
-  }, [searchParams, setSearchParams]);
-
-  // Back to the collections grid (clear the `?c=` param, stay on Saved).
-  const backToCollections = useCallback(() => {
-    const params = new URLSearchParams(searchParams);
-    params.delete('c');
-    setSearchParams(params, { replace: true });
-  }, [searchParams, setSearchParams]);
+  // Open a collection — navigate to its deep-linkable detail view
+  // (/u/:username/saved/:collectionId, the collectionId = the group_id,
+  // URL-encoded — the group-detail idiom). The URL holds which collection is
+  // open (the "address bar is part of the product" rule).
+  const openCollection = useCallback((groupId: string) => {
+    navigate(`/u/${username}/saved/${encodeURIComponent(groupId)}`);
+  }, [navigate, username]);
 
   // Sync activeTab + viewMode with the URL (back/forward + a shared link
   // landing on a tab/view).
@@ -824,6 +717,50 @@ export default function UserProfileScreen({ username, provider, onBack }: UserPr
       setProfile(saved);
       setDraft(saved);
       setFaceLightbox(null);
+    } catch (e) {
+      console.error('Failed to set profile picture/banner:', e);
+      toast.error(errorMessage(e, 'Could not update your profile picture.'));
+    } finally {
+      setFaceSaving(false);
+    }
+  }
+
+  // The owner confirmed a crop of an UPLOADED photo → make it the face, and
+  // optionally post it on their behalf (the "also post this photo to my feed"
+  // intent). The crop ships as a NEW media doc (the face IS the crop); the
+  // optional post references that same doc, so the photo appears in the
+  // owner's feed + profile grid as a real post. The post is best-effort: a
+  // post failure never undoes the face (the face save already landed).
+  async function handleFaceUploadCrop(field: 'avatar' | 'banner', result: FaceCropResult, opts: { postOnBehalf: boolean }) {
+    setFaceSaving(true);
+    try {
+      const ext = result.mimeType === 'image/png' ? 'png' : 'jpg';
+      const file = new File([result.blob], `face-crop-${Date.now()}.${ext}`, { type: result.mimeType });
+      console.log('[social] handleFaceUploadCrop — uploading crop for', field, result.width, 'x', result.height, result.blob.size, 'bytes', 'postOnBehalf:', opts.postOnBehalf);
+      const media = await uploadMedia({ file, service: 'public_media', width: result.width, height: result.height });
+      console.log('[social] handleFaceUploadCrop — uploaded, media _id:', media._id);
+      const updated = { ...(profile || {}), [field === 'avatar' ? 'avatar_ref' : 'banner_ref']: media._id || '' };
+      const saved = await saveProfile(updated);
+      setProfile(saved);
+      setDraft(saved);
+      setFaceLightbox(null);
+      if (opts.postOnBehalf && media._id) {
+        try {
+          const post = await createPost({
+            text: undefined,
+            media_refs: [media._id],
+            visibility: 'public',
+            created_at: new Date().toISOString(),
+          });
+          console.log('[social] handleFaceUploadCrop — posted on behalf, post _id:', post._id);
+          // The profile's `post-created` listener reloads the posts (the new
+          // post shows up in the grid + wall).
+          window.dispatchEvent(new CustomEvent('post-created'));
+        } catch (postErr) {
+          console.error('[social] handleFaceUploadCrop — post-on-behalf failed (face already saved):', postErr);
+          toast.error(errorMessage(postErr, 'Your photo is set, but posting it to your feed failed.'));
+        }
+      }
     } catch (e) {
       console.error('Failed to set profile picture/banner:', e);
       toast.error(errorMessage(e, 'Could not update your profile picture.'));
@@ -1257,9 +1194,7 @@ export default function UserProfileScreen({ username, provider, onBack }: UserPr
           <SavedTab
             username={username}
             collections={collections}
-            activeSlug={openCollectionSlug}
             onOpenCollection={openCollection}
-            onBackToCollections={backToCollections}
           />
         ) : activeTab === 'posts' ? (
           <>
@@ -1376,6 +1311,8 @@ export default function UserProfileScreen({ username, provider, onBack }: UserPr
           isOwner={isOwnProfile}
           options={isOwnProfile ? faceOptions : []}
           onCrop={(result) => handleFaceCrop(faceLightbox, result)}
+          onUploadCrop={(result, opts) => handleFaceUploadCrop(faceLightbox, result, opts)}
+          allowPostOnBehalf={isOwnProfile}
           saving={faceSaving}
           displayName={profile?.display_name || username}
         />

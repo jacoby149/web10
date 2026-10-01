@@ -23,6 +23,7 @@ import DiscoverScreen from '@/components/Discover/DiscoverScreen';
 import WatchScreen from '@/components/Watch/WatchScreen';
 import ShortsScreen from '@/components/Shorts/ShortsScreen';
 import UserProfileScreen from '@/components/Bio/UserProfileScreen';
+import SavedCollectionScreen from '@/components/Bio/SavedCollectionScreen';
 import UserFollowListScreen from '@/components/Bio/UserFollowListScreen';
 import PostComposer from '@/components/Feed/PostComposer';
 import MonetizationScreen from '@/components/Monetization/MonetizationScreen';
@@ -30,7 +31,9 @@ import NodeSettingsScreen from '@/components/NodeSettings/NodeSettingsScreen';
 import { InstallPrompt } from '@/components/shared/InstallPrompt';
 import { RepostProvider } from '@/context/RepostContext';
 import { ComposerProvider } from '@/context/ComposerContext';
+import { SaveProvider } from '@/context/SaveContext';
 import { NewPostSheet } from '@/components/Feed/NewPostSheet';
+import { SaveSheet } from '@/components/Feed/SaveSheet';
 
 // Fake hls.js — the harness has no backend, so the seeded manifest sigs are
 // not valid against the production API (a real hls.js would 403 → the
@@ -81,6 +84,17 @@ function UserProfileRoute() {
   return <UserProfileScreen username={username || 'me'} provider={'web10'} />;
 }
 
+function SavedCollectionRoute() {
+  const { username } = useParams();
+  return (
+    <SavedCollectionScreen
+      username={username || 'me'}
+      provider={'web10'}
+      onBack={() => {}}
+    />
+  );
+}
+
 const params = new URLSearchParams(window.location.search);
 const screen = params.get('screen');
 // Anon mode (?anon=1): a signed-out visitor. The chrome is the anon shell
@@ -97,7 +111,8 @@ const initialRoute =
   : screen === 'posts' ? '/feed'
   : screen === 'posts-following' ? '/feed?tab=following'
   : screen === 'composer' ? '/composer'
-  : screen === 'notifications' ? '/notifications'
+    : screen === 'notifications' ? '/notifications'
+    : screen === 'notifications-all' ? '/notifications?filter=all'
     : screen === 'discover' ? '/discover'
     : screen === 'video' ? '/video'
     : screen === 'hot-gossip' ? '/hot-gossip'
@@ -120,12 +135,13 @@ const initialRoute =
    : screen === 'chat-group-thread'
      ? '/messages/group/web10%2Fgroups%2Fusers%2Fnova%2Fchat-the-crew'
     : screen === 'people' ? '/people'
-    : screen === 'profile' ? '/u/nova'
+     : screen === 'profile' ? '/u/nova'
+     : screen === 'profile-me' ? '/u/me'
     : screen === 'profile-followers' ? '/u/nova/followers'
     : screen === 'profile-following' ? '/u/nova/following'
     : screen === 'profile-feed' ? '/u/nova?view=feed'
     : screen === 'saved-tab' ? '/u/me?tab=saved'
-    : screen === 'saved-collection' ? '/u/me?tab=saved&c=guitar-riffs'
+    : screen === 'saved-collection' ? '/u/me/saved/web10%2Fgroups%2Fusers%2Fme%2Fsaved-guitar-riffs'
      : screen === 'monetize' ? '/monetize'
      : screen === 'monetize-node' ? '/monetize?tab=node'
     : screen === 'node-settings' ? '/node-settings'
@@ -138,6 +154,7 @@ createRoot(document.getElementById('root')!).render(
   <MemoryRouter initialEntries={[initialRoute]}>
     <RepostProvider>
     <ComposerProvider>
+    <SaveProvider>
     <Routes>
       <Route element={<Layout onLogout={() => {}} onLogin={() => {}} isAnon={anon} onReportBug={() => {}} />}>
         <Route path="/feed" element={<PostsScreen />} />
@@ -155,6 +172,7 @@ createRoot(document.getElementById('root')!).render(
         <Route path="/groups/:groupId" element={<GroupDetailRoute />} />
         <Route path="/people" element={<DiscoverScreen />} />
         <Route path="/u/:username" element={<UserProfileRoute />} />
+        <Route path="/u/:username/saved/:collectionId" element={<SavedCollectionRoute />} />
         <Route path="/u/:username/followers" element={<UserFollowersRoute />} />
         <Route path="/u/:username/following" element={<UserFollowingRoute />} />
         <Route path="/monetize" element={<MonetizationScreen />} />
@@ -165,6 +183,9 @@ createRoot(document.getElementById('root')!).render(
     <InstallPrompt />
     {/* The app-level New Post sheet (the FAB in the Layout opens it). */}
     <NewPostSheet />
+    {/* The app-level "Save to…" sheet (D88) — opened by a post's kebab. */}
+    <SaveSheet />
+    </SaveProvider>
     </ComposerProvider>
     </RepostProvider>
   </MemoryRouter>,

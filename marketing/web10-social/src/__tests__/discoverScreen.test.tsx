@@ -185,14 +185,15 @@ describe('DiscoverScreen', () => {
       expect(screen.getByTestId('discover-grid')).toBeInTheDocument();
     });
     // Exactly one owner kebab — on the reader's own post, not the other's.
-    const kebabs = await screen.findAllByTestId('discover-card-options');
+    // (The board renders the feed's PostCard — the owner menu is its kebab.)
+    const kebabs = await screen.findAllByTestId('post-options-button');
     expect(kebabs).toHaveLength(1);
     // Opening it reveals the "Edit post" action (the ONE edit path).
     fireEvent.click(kebabs[0]);
-    expect(await screen.findByTestId('discover-card-option-edit')).toBeInTheDocument();
+    expect(await screen.findByTestId('post-option-edit')).toBeInTheDocument();
   });
 
-  it('renders cards with rank badges', async () => {
+  it('the Top 10 rail ranks the board (rank lives in the rail, not on the card)', async () => {
     (data.readDiscoverFeed as ReturnType<typeof vi.fn>).mockResolvedValue([
       {
         author: 'top-user',
@@ -255,8 +256,10 @@ describe('DiscoverScreen', () => {
       expect(screen.getAllByTestId('discover-card').length).toBeGreaterThanOrEqual(1);
     });
 
-    const rankBadges = screen.getAllByTestId('discover-rank-badge');
-    expect(rankBadges.length).toBeGreaterThanOrEqual(1);
+    // The rank is the Top 10 rail's job (the card is the X-style feed card,
+    // which carries no rank badge). The rail lists the top posts by rank.
+    const railEntries = screen.getAllByTestId('hot-gossip-sidebar-entry');
+    expect(railEntries.length).toBeGreaterThanOrEqual(1);
   });
 
   it('renders topic filter chips when posts have tags', async () => {
@@ -383,6 +386,55 @@ describe('DiscoverScreen', () => {
     expect(screen.getAllByTestId('icon-heart').length).toBeGreaterThanOrEqual(1);
     expect(screen.getAllByTestId('icon-messagecircle').length).toBeGreaterThanOrEqual(1);
     expect(screen.getAllByTestId('icon-repeat2').length).toBeGreaterThanOrEqual(1);
+  });
+
+  it('the board is the X-style list — posts touch vertically (no gap), same as the Following tab', async () => {
+    (data.readDiscoverFeed as ReturnType<typeof vi.fn>).mockResolvedValue([
+      {
+        author: 'user1',
+        provider: 'api.web10.app',
+        post_id: 'p1',
+        text: 'First post',
+        tags: [],
+        created_at: new Date().toISOString(),
+        likes: 10,
+        comments: 2,
+        reposts: 1,
+        score: 14,
+      },
+      {
+        author: 'user2',
+        provider: 'api.web10.app',
+        post_id: 'p2',
+        text: 'Second post',
+        tags: [],
+        created_at: new Date(Date.now() - 60000).toISOString(),
+        likes: 5,
+        comments: 1,
+        reposts: 0,
+        score: 7,
+      },
+    ]);
+
+    const { default: DiscoverScreen } = await import('@/components/Discover/DiscoverScreen');
+    render(
+      <MemoryRouter initialEntries={['/hot-gossip']}>
+        <DiscoverScreen />
+      </MemoryRouter>,
+    );
+
+    await waitFor(() => {
+      expect(screen.getAllByTestId('discover-card').length).toBe(2);
+    });
+
+    // The board list has no vertical gap — the posts touch, separated by the
+    // single border-b hairline (the feed's X-style shape, not floating cards).
+    const grid = screen.getByTestId('discover-grid');
+    expect(grid.className).not.toMatch(/gap-/);
+    const cards = screen.getAllByTestId('discover-card');
+    for (const card of cards) {
+      expect(card.className).toMatch(/border-b/);
+    }
   });
 
   it('switches preset between most-recent, most-liked, and balanced (server-side re-read)', async () => {
@@ -982,8 +1034,10 @@ describe('DiscoverScreen', () => {
       </MemoryRouter>,
     );
 
+    // The board renders the feed's PostCard — the inline video is the feed's
+    // media-video surface (the two tabs look exactly the same).
     await waitFor(() => {
-      expect(screen.getByTestId('discover-media-video')).toBeInTheDocument();
+      expect(screen.getByTestId('media-video')).toBeInTheDocument();
     });
 
     // The playable video element is wired to the resolved media url
@@ -1034,7 +1088,7 @@ describe('DiscoverScreen', () => {
       </MemoryRouter>,
     );
 
-    const tile = await screen.findByTestId('discover-media-video');
+    const tile = await screen.findByTestId('media-video');
     // Natural ratio (the clip's 9:16), NOT a forced 16:9 tile.
     expect(tile.className).not.toMatch(/aspect-video/);
     // object-contain (never crops) — the feed's behavior, no letterbox bars.
@@ -1044,11 +1098,11 @@ describe('DiscoverScreen', () => {
     expect(video!.className).not.toMatch(/object-cover/);
   });
 
-  it('a portrait (9:16) clip is capped to a square-ish frame (consistent with the marketing /trending card)', async () => {
+  it('a portrait (9:16) clip renders at the feed height (the board matches the Following tab)', async () => {
     // A full-width 9:16 box is ~1.78× the card tall — too big on desktop and it
-    // buries the control rack at its bottom. The discover card caps the portrait
-    // frame (maxWidth) + centers it (mx-auto) in a black letterbox, the same as
-    // the marketing /trending card (3.105.2).
+    // buries the control rack at its bottom. The board renders the feed's
+    // PostCard, which caps the inline video at 60vh (maxHeight) — the same
+    // behavior as the Following tab (the two tabs look exactly the same).
     (data.readDiscoverFeed as ReturnType<typeof vi.fn>).mockResolvedValue([
       {
         author: 'video-creator',
@@ -1086,12 +1140,11 @@ describe('DiscoverScreen', () => {
       </MemoryRouter>,
     );
 
-    const tile = await screen.findByTestId('discover-media-video');
-    // The frame is capped to the maxWidth + centered in the letterbox.
-    expect(tile.style.maxWidth).toBe('min(50vh, 100%)');
-    expect(tile.className).toMatch(/mx-auto/);
-    // The source ratio is still reserved (9:16) — the cap shrinks the box, it
-    // does not squash the video.
+    const tile = await screen.findByTestId('media-video');
+    // The frame is capped at the feed height (60vh) — the cap shrinks the box,
+    // it does not squash the video.
+    expect(tile.style.maxHeight).toBe('60vh');
+    // The source ratio is still reserved (9:16).
     expect(parseFloat(tile.style.aspectRatio)).toBeCloseTo(1080 / 1920, 5);
   });
 
@@ -1274,8 +1327,8 @@ describe('DiscoverScreen', () => {
     });
 
     // The video post: its own single video, inline — NO carousel.
-    expect(screen.getByTestId('discover-media-video')).toBeInTheDocument();
-    expect(screen.queryByTestId('discover-media-carousel')).not.toBeInTheDocument();
+    expect(screen.getByTestId('media-video')).toBeInTheDocument();
+    expect(screen.queryByTestId('media-carousel')).not.toBeInTheDocument();
     const video = document.querySelector('video');
     expect(video!.getAttribute('src')).toBe('https://cdn.example/m1');
 
@@ -1862,11 +1915,8 @@ describe('DiscoverScreen — the post-format ad renders as its own card, next in
     expect(adCard.tagName).toBe('ARTICLE');
     expect(adCard.getAttribute('data-ad-standalone')).toBe('true');
     expect(card.contains(adCard)).toBe(false);
-    // Next in line on the board — directly after the post's card. (The card may
-    // sit inside a positioning wrapper for the owner kebab, so check the
-    // wrapper's next sibling, not the card's.)
-    const cardWrapper = card.parentElement;
-    expect(cardWrapper?.nextElementSibling).toBe(adCard);
+    // Next in line on the board — directly after the post's card.
+    expect(card.nextElementSibling).toBe(adCard);
     // The ad dressing is intact.
     expect(screen.getByTestId('post-ad-badge')).toHaveTextContent('Ad');
     expect(screen.getByTestId('post-ad-author')).toHaveTextContent('@alice');

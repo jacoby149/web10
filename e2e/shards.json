@@ -27,6 +27,7 @@
         "social-groups.spec.ts",
         "social-groups-directory.spec.ts",
         "social-post-feed.spec.ts",
+        "social-saved.spec.ts",
         "discover-board.spec.ts"
       ]
     },

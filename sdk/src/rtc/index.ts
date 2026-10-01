@@ -38,11 +38,8 @@ export interface RTCIceServer {
 // and intermittently unreachable — a direct cause of the "handshake goes one
 // way" flakiness. Multiple STUNs give ICE more candidates to work with.
 //
-// TURN is NOT in the default: it requires per-node credentials (a coturn
-// deployment + auth), so it is supplied via the `iceServers` option when a node
-// has one. STUN-only is the correct default for the open, self-hostable model
-// (D41) — it works on most networks and degrades to a relay-less connection on
-// the rare symmetric NAT.
+// The node is STUN-only by design (no TURN relay) — it works on most networks
+// and degrades to a relay-less connection on the rare symmetric NAT.
 export function defaultIceServers(): RTCIceServer[] {
   return [
     { urls: 'stun:stun.l.google.com:19302' },

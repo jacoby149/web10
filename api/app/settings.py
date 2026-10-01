@@ -106,17 +106,6 @@ IMPORT_WORKER_CONCURRENCY = int(os.getenv("IMPORT_WORKER_CONCURRENCY", "1"))
 # far beyond any realistic channel export).
 IMPORT_MAX_PARTS = int(os.getenv("IMPORT_MAX_PARTS", "10"))
 
-# TURN relay for WebRTC P2P (D60: node-level infra, not an app concept).
-# When TURN_URL and TURN_SECRET are both set, the node mints time-limited
-# TURN credentials (RFC 8484 long-term credentials) and hands them to P2P
-# clients via POST /ice. STUN-only is the default (no TURN) — a node without
-# a relay still works on open networks. TURN_SECRET must be a strong random
-# string; it is the HMAC key for credential minting and must match the
-# coturn --static-auth-secret value.
-TURN_URL = os.getenv("TURN_URL", "")
-TURN_SECRET = os.getenv("TURN_SECRET", "")
-TURN_CRED_TTL = int(os.getenv("TURN_CRED_TTL", "3600"))
-
 # Load environment variables into settings params.
 for v in list(globals()):
     env_val = os.getenv(v)

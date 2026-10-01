@@ -81,30 +81,53 @@ The profile's face is two media refs on the profile doc (`avatar_ref`,
 circle, the banner as a full-width band (`object-cover`).
 
 **The face lightbox** (click the avatar or banner): everyone sees the face
-enlarged; the **owner** additionally gets a pick-from-your-posts grid — the
-Facebook-like "your profile picture is a photo you picked from your posts."
+enlarged; the **owner** additionally gets a picker — "set as {face}: pick a
+photo, or upload one." Two sources, one crop step:
+
+- **Pick from your posts** — a grid of the owner's own posts' media (the
+  Facebook-like "your profile picture is a photo you picked from your posts").
+- **Upload** — a first-class "Upload" tile in the same grid (a dashed tile,
+  always present for the owner). Picking a file from disk opens the **same
+  crop step** (the file's object URL is the crop source). No post is required
+  to set a face — the upload is the no-post path the picker used to lack
+  (the old empty state was "post a photo first," which forced a post just to
+  get a profile picture).
 
 **The crop step** (owner, the Facebook-style "how it displays"): tapping a
-pickable tile does not save immediately — it opens a crop view of that image
-in the **actual display frame** (a circle for the avatar, the wide band for
-the banner). The user pans (drag) + zooms (wheel / pinch / the ± buttons) to
-frame it; the pan is clamped so the image always covers the frame (the
-`object-cover` invariant). On confirm the visible window is cropped
-client-side (canvas, `src/lib/faceCrop.ts` — the preview and the crop share
-one transform model, so what you see is what ships) and **uploaded as a new
-media doc** through the normal `uploadMedia` path; the profile then points at
-that new doc. The face IS the crop — every surface (feed avatar, profile,
-share card) shows the framed image, not a center-cropped guess. The original
-post's media is untouched.
+pickable tile **or** the upload tile does not save immediately — it opens a
+crop view of that image in the **actual display frame** (a circle for the
+avatar, the wide band for the banner). The user pans (drag) + zooms (wheel /
+pinch / the ± buttons) to frame it; the pan is clamped so the image always
+covers the frame (the `object-cover` invariant). On confirm the visible window
+is cropped client-side (canvas, `src/lib/faceCrop.ts` — the preview and the
+crop share one transform model, so what you see is what ships) and **uploaded
+as a new media doc** through the normal `uploadMedia` path; the profile then
+points at that new doc. The face IS the crop — every surface (feed avatar,
+profile, share card) shows the framed image, not a center-cropped guess. The
+original post's media is untouched (for the pick path).
+
+**Post on my behalf** (upload path only): the crop step offers an
+"Also post this photo to my feed" checkbox when the source is an upload.
+Checked, the confirmed crop is **also** written as a real post (a `posts` doc
+in the owner's followers group, `media_refs` = the same media doc the face
+points at, public) — so the photo appears in the owner's feed + profile grid
+as a post, not just as the face. The post is best-effort: a post failure never
+undoes the face (the face save already landed). The pick-from-posts path has no
+checkbox (the photo is already a post).
 
 The crop output: the avatar is a 512×512 JPEG (the circle mask is applied at
 render, the doc is square); the banner is a 1536×352 JPEG (≈4.36:1, the
 desktop display ratio — `object-cover` re-crops it per viewport at render,
 the same move as the video editor's ratio presets).
 
+**The group face** reuses the same `ProfileMediaLightbox` (3.194.0): a manager
+gets the enlarged view + pick-from-the-group's-posts + the **upload tile**
+(upload → crop → set as the group's face via `writeGroupIdentity`). The group
+surface has no "post on my behalf" (a group face is not a user post).
+
 ## TODO
 
-- [ ] Avatar upload flow — `w.upload()` then update profile with minio ref
+- [x] Avatar upload flow — `w.upload()` then update profile with minio ref (the face lightbox's upload tile + crop step, 3.204.0)
 - [ ] Bio edit — update profile document
 - [ ] Group join policy display — fetch from group metadata
 - [ ] Post list pagination — keyset pagination on created_at
