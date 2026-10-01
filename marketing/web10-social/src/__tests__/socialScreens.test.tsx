@@ -304,7 +304,7 @@ describe('FeedScreen', () => {
     expect(screen.getByTestId('post-option-delete')).toBeInTheDocument();
   });
 
-  it('non-own posts have no owner menu (no lightbox, no options)', async () => {
+  it('non-own posts show the kebab (for Save) but no owner actions (no lightbox)', async () => {
     const { readFeedPage } = await import('@/data');
     vi.mocked(readFeedPage).mockResolvedValueOnce({
       posts: [
@@ -321,7 +321,16 @@ describe('FeedScreen', () => {
     await waitFor(() => {
       expect(screen.getByTestId('post-card')).toBeInTheDocument();
     });
-    expect(screen.queryByTestId('post-options-button')).not.toBeInTheDocument();
+    // A signed-in visitor sees the kebab (the "Save to…" affordance, D88) —
+    // the owner actions (edit / delete / visibility) are NOT in the menu.
+    const options = screen.getByTestId('post-options-button');
+    fireEvent.click(options);
+    await waitFor(() => {
+      expect(screen.getByTestId('post-options-menu')).toBeInTheDocument();
+    });
+    expect(screen.getByTestId('post-option-save')).toBeInTheDocument();
+    expect(screen.queryByTestId('post-option-edit')).not.toBeInTheDocument();
+    expect(screen.queryByTestId('post-option-delete')).not.toBeInTheDocument();
     expect(screen.queryByTestId('post-lightbox')).not.toBeInTheDocument();
   });
 

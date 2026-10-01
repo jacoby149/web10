@@ -216,6 +216,16 @@ const SAVED_COLLECTIONS = [
   { groupId: 'web10/groups/users/me/saved-later', name: 'Watch Later', visibility: 'private', itemCount: 1, slug: 'later' },
 ];
 export async function getMyCollections(): Promise<unknown[]> { return SAVED_COLLECTIONS; }
+// The "Save to…" sheet (D88) reads which collections already contain a post.
+// Seed the first feed post (fp-md) as saved in the first collection so the
+// sheet's PR shot shows a filled checkmark.
+export async function readSavedPostIds(groupId: string): Promise<Set<string>> {
+  const first = SAVED_COLLECTIONS[0]?.groupId;
+  return groupId === first ? new Set(['fp-md']) : new Set<string>();
+}
+export async function savePostToCollection(): Promise<boolean> { return true; }
+export async function removePostFromCollection(): Promise<void> {}
+export async function createCollection(): Promise<string> { return 'web10/groups/users/me/saved-new'; }
 export async function readCollection(): Promise<unknown> {
   return {
     face: { name: 'Guitar Riffs' },
