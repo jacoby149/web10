@@ -9,6 +9,20 @@ Status legend: [decided] intent set · [in-progress] · [open] still debating.
 
 ---
 
+### D89 — Multi-device P2P: a user's devices take bounded slots (1/2/3) in the P2P label; the dialer fans out to all three [decided]
+
+Operator, 01.10.2026 — "lets say i am logged into web10 social on phone and on pc, message friend, will the webrtc glitch out because i got two devices? will my phone and pc both have up to date messages?" → "okay they nudge each other off the network, so compete. the label is for phone, pc, to put whatever for any purpose ie could be devices" → "we could label them 1 2 and 3, and always check 1 2 and 3 when messaging someone, to send that we messaged to all three 1 2 and 3 whether online or not, if connects, they get the message notification, their messages reload" → "i.e. that caps it at 3 devices. but idk how devices would find out which one to take."
+
+**The problem.** The P2P peer id is `${provider} ${user} ${site} ${label}` with a fixed label (`web10-social`), so all of a user's devices register under the *same* id and **compete** for it — PeerJS routes an inbound connection to one connection per id, so only one device holds the channel and gets the instant nudge. Nothing is lost (CRUD is the source of truth; the message is durable in the DM group and the non-nudged device catches up on its next read), but the instant pop reaches one device, not all of them.
+
+**The decision.** Give each device its own **slot** in the label: `web10-social-{slot}`, `slot ∈ {1, 2, 3}`. A user's devices spread across the slots; a friend dialing the user hits all three and reaches every live device. The bound (3) caps the fan-out at a small, dumb number and degrades gracefully past it (a 4th device is CRUD-only — no instant nudge, still works). The slot is **claimed, not assigned**: a device probes slots 1 → 2 → 3 on sign-in and takes the first free one (free = no registered peer, or a zombie that pings to no pong → steal). The slot is held for the life of the device's signaling socket; a **device nonce** (persisted in `localStorage`, echoed in the ping/pong frames) tells a device its own (re)claim from a stranger's takeover. The **dialer fans out to all three** slots fire-and-forget (covers DMs + notifications, which ride the same `sendP2P` seam). **Presence** is the OR over the three slots — the green dot shows if any is live.
+
+**Why the label, not a registry.** The peer id already carries a free-form `label` field; the slot is a value in it. No node change, no relay change, no new endpoint — the signaling server routes by id as it already does and still `certify`-gates every connection (I2). D60-clean: "would a notes app use this?" — yes, the same slot model, different label prefix. The alternative (a server-assigned slot handed out on connect) is the plan B if the client-side claim race proves flaky — it's more invasive and couples the count to the server.
+
+**The line it does not cross.** A slot is a *presence* concept, never an *access* boundary — I3 is untouched (reading a DM still requires group membership; a slot only decides which *device* gets the nudge, never whether a message is *readable*). The nonce is an identity tag, not a credential (not in any token, not sent to the node, not a signing key). This is the *presence/nudge* layer for the no-E2E world (D41) — it is **not** D15's device-cert / QR-pairing / key-sync model, which remains the future *encryption-layer* design. KB: `knowledge/knowledge-base/web10-v3/p2p-multi-device.md`.
+
+---
+
 ### D88 — Saved collections: a playlist is a private-by-default group on the profile, publicness is a role grant — zero node surface [decided]
 
 Operator, 30.09.2026 — "there is no concept of a playlist, saved videos, saved shorts, saved posts, should be on your own profile, and see other peoples profiles saved collections kind of a feature" + "with being able to private your saved stuff, since that can be sensitive" + (on the surface) "profile card is the most like youtube channels, card on profile i mean, that makes a TON of sense, so A."
