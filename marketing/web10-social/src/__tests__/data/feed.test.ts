@@ -117,7 +117,7 @@ describe('feed v3 data layer', () => {
       mock.query.mockImplementation(async (sql: string) => {
         if (sql.includes('FROM posts p')) return { rows: [feedRow()], count: 1 };
         if (sql.includes('FROM reactions')) return { rows: [{ ref_value: 'p1', like_count: 5, dislike_count: 0 }], count: 1 };
-        if (sql.includes('FROM comments')) return { rows: [{ ref_value: 'p1', comment_count: 2 }], count: 1 };
+        if (sql.includes('FROM comments')) return { rows: [{ post_id: 'p1', comment_count: 2 }], count: 1 };
         return { rows: [], count: 0 };
       });
 
@@ -156,7 +156,7 @@ describe('feed v3 data layer', () => {
       mock.query.mockImplementation(async (sql: string) => {
         if (sql.includes('FROM posts p')) return { rows: [feedRow()], count: 1 };
         if (sql.includes('FROM reactions')) return { rows: [{ ref_value: 'p1', like_count: 5, dislike_count: 1 }], count: 1 };
-        if (sql.includes('FROM comments')) return { rows: [{ ref_value: 'p1', comment_count: 2 }], count: 1 };
+        if (sql.includes('FROM comments')) return { rows: [{ post_id: 'p1', comment_count: 2 }], count: 1 };
         return { rows: [], count: 0 };
       });
 
@@ -245,6 +245,34 @@ describe('feed v3 data layer', () => {
       // The repost count column is still selected + coalesced into `reposts`.
       expect(feedSql).toContain('repost_count');
       expect(feedSql).toContain('AS reposts');
+    });
+
+    it('counts comments as the TOTAL (top-level + replies) — keyed on body.post_id, not ref_value (comments.md)', async () => {
+      // Regression: a reply's `ref_value` is its parent comment (3.107.0), so
+      // a comment count keyed on `ref_value` sees only top-level comments —
+      // the badge showed 2 where the thread showed 4. Every comment carries
+      // `body.post_id`, so the count keys on that.
+      const captured: string[] = [];
+      mock.query.mockImplementation(async (sql: string) => {
+        captured.push(sql);
+        if (sql.includes('FROM posts p')) return { rows: [feedRow()], count: 1 };
+        if (sql.includes('FROM reactions')) return { rows: [], count: 0 };
+        if (sql.includes('FROM comments')) return { rows: [{ post_id: 'p1', comment_count: 4 }], count: 1 };
+        return { rows: [], count: 0 };
+      });
+      await readFeedPage({ limit: 20 });
+
+      // The in-query join (the ranked-score path) keys on body.post_id.
+      const feedSql = captured.find((s) => s.includes('FROM posts p'))!;
+      expect(feedSql).toContain("JSONExtractString(body, 'post_id')");
+      expect(feedSql).not.toMatch(/FROM comments WHERE ref_value/);
+      // The follow-up count query (the discover-group tally) does too.
+      const countSql = captured.find((s) => s.includes('FROM comments'))!;
+      expect(countSql).toContain("JSONExtractString(body, 'post_id')");
+      expect(countSql).not.toMatch(/WHERE ref_value IN/);
+      // The total (4 = 2 top-level + 2 replies) lands on the post.
+      const page = await readFeedPage({ limit: 20 });
+      expect(page.posts[0].comments).toBe(4);
     });
   });
 
