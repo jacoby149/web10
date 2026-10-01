@@ -63,6 +63,11 @@ const SOCIAL_SERVICES = [
   // The D69 notification store — a `notifications` doc (the last_seen cursor)
   // in the followers group, read/created/updated by the notification store.
   'notifications',
+  // The saved-collection store (D88) — a `saved` doc (a ref_value pointer at a
+  // post) in a collection group, written by the "Save to…" action + read by the
+  // Saved tab / collection view. Without it in the contract, every save/read
+  // 403s at the app-contract gate (the API does strict per-service matching).
+  'saved',
 ] as const;
 
 // The four operations the documents endpoint enforces (create / read /
