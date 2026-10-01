@@ -47,6 +47,8 @@ describe('the social app contract covers every CRUD service the data layer touch
     expect(contract.permissions['web10-social-group-identity']).toEqual(ops);
     // The D69 notification store — the last_seen cursor doc.
     expect(contract.permissions['notifications']).toEqual(ops);
+    // The D88 saved-collection store — the `saved` doc (a playlist pointer).
+    expect(contract.permissions['saved']).toEqual(ops);
     // The pre-existing services stay granted (no regression on the rest).
     for (const svc of ['posts', 'media', 'public_media', 'profile', 'settings', 'comments', 'reactions', 'contacts', 'staging_posts']) {
       expect(contract.permissions[svc]).toEqual(ops);
@@ -94,6 +96,7 @@ describe('the social app contract covers every CRUD service the data layer touch
     const [args] = mockVerifyAccess.mock.calls[0] as unknown as [{ services: string[]; operations: string[] }];
     expect(args.services).toContain('web10-social-group-identity');
     expect(args.services).toContain('notifications');
+    expect(args.services).toContain('saved');
     // The oracle list is the contract list — same services, same order.
     expect(args.services).toEqual([
       'posts',
@@ -107,6 +110,7 @@ describe('the social app contract covers every CRUD service the data layer touch
       'staging_posts',
       'web10-social-group-identity',
       'notifications',
+      'saved',
     ]);
   });
 });
