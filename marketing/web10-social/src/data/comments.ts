@@ -19,9 +19,10 @@ import { processImage, generateThumbnail, validateMedia } from '@/lib/mediaProce
 // and grows on demand ("view more comments" / "view more replies").
 //
 // The cost (comments.md): the post's TOTAL comment count is no longer one
-// `GROUP BY ref_value` (replies don't ref the post). The top-level count is
-// still exact + cheap; the total is top-level + summed reply counts, or a
-// maintained counter at scale. The count is decoupled from the read.
+// `GROUP BY ref_value` (replies don't ref the post). Every comment carries
+// `body.post_id`, so the total is one `GROUP BY post_id` over the body field
+// (exact + cheap at node scale; a maintained counter is the scale answer).
+// The count is decoupled from the read.
 
 /** A keyset cursor page of comments + the cursor for the next page (null when
  *  the page returned fewer than `limit` rows — the thread is exhausted). */
@@ -85,16 +86,23 @@ export async function readReplies(
 }
 
 /**
- * Count a post's TOP-LEVEL comments (the server's `GROUP BY ref_value` —
- * exact, no cap). The post's TOTAL (top-level + replies) is this plus the
- * sum of each comment's reply count; the thread computes it from the pages it
- * has loaded (comments.md: the count is decoupled from the read).
+ * Count a post's TOTAL comments (top-level + replies). A reply's `ref_value`
+ * is its parent comment (comments.md, 3.107.0), so `ref_value = post_id`
+ * counts top-level only — the badge must match the thread's total. Every
+ * comment carries `body.post_id`, so the count keys on that. The thread
+ * computes the same total from its loaded pages (comments.md: the count is
+ * decoupled from the read).
  */
 export async function countComments(postId: string, groups?: string[]): Promise<number> {
   const w = getV3Client();
   const targetGroups = groups || [getDiscoverGroupId()];
-  const counts = await w.readRefCounts('comments', { groups: targetGroups, ref: postId });
-  return counts[postId] || 0;
+  const safeId = postId.replace(/'/g, "''");
+  const rows = await w.query(
+    "SELECT JSONExtractString(body, 'post_id') AS post_id, count() AS comment_count " +
+      `FROM comments WHERE JSONExtractString(body, 'post_id') = '${safeId}' GROUP BY post_id`,
+    { groups: targetGroups },
+  );
+  return Number(rows.rows[0]?.comment_count) || 0;
 }
 
 /**
