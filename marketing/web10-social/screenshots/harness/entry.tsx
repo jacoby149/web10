@@ -8,7 +8,7 @@
 // profile-feed render the profile (grid view / facebook-shaped feed view);
 // default is /messages.
 import { createRoot } from 'react-dom/client';
-import { MemoryRouter, Routes, Route, useParams } from 'react-router-dom';
+import { MemoryRouter, Routes, Route, useParams, useSearchParams } from 'react-router-dom';
 import '@fontsource-variable/inter/standard.css';
 import '@fontsource-variable/space-grotesk';
 import '../../src/index.css';
@@ -23,6 +23,8 @@ import DiscoverScreen from '@/components/Discover/DiscoverScreen';
 import WatchScreen from '@/components/Watch/WatchScreen';
 import ShortsScreen from '@/components/Shorts/ShortsScreen';
 import UserProfileScreen from '@/components/Bio/UserProfileScreen';
+import { PostLightbox } from '@/components/Bio/PostLightbox';
+import type { PostRecord, MediaRecord } from '@/data/types';
 import SavedCollectionScreen from '@/components/Bio/SavedCollectionScreen';
 import UserFollowListScreen from '@/components/Bio/UserFollowListScreen';
 import PostComposer from '@/components/Feed/PostComposer';
@@ -84,6 +86,46 @@ function UserProfileRoute() {
   return <UserProfileScreen username={username || 'me'} provider={'web10'} />;
 }
 
+// The post-detail lightbox capture: the new Facebook-grade structure (identity
+// row + display-font title + <PostBody> + stats row + labeled action bar +
+// `⋯` owner menu) over the profile. Text-only (the centered reading column) and
+// media (the media-pane + details-column) variants.
+const LIGHTBOX_POST: PostRecord = {
+  _id: 'lb-1',
+  title: 'Shipping the post-detail system',
+  text: '## The read side\n\nThe post body is **markdown** under the hood — the user writes in a WYSIWYG editor and reads a *rendered* post with real type.\n\n- Identity row\n- Stats row\n- Labeled action bar\n- The `⋯` owner menu\n\n> It no longer reads as a first try.',
+  author_username: 'nova',
+  author_provider: 'web10',
+  created_at: new Date(Date.now() - 3600_000).toISOString(),
+  visibility: 'public',
+  profile: { display_name: 'Nova' } as never,
+  avatar_url: 'https://picsum.photos/seed/nova/120',
+  media_refs: [],
+};
+const LIGHTBOX_MEDIA: MediaRecord = {
+  _id: 'lb-media-1',
+  url: 'https://picsum.photos/seed/postdetail/1200/800',
+  mime_type: 'image/jpeg',
+  created_at: new Date().toISOString(),
+} as never;
+
+function LightboxRoute() {
+  const [searchParams] = useSearchParams();
+  const media = searchParams.get('media') === '1';
+  return (
+    <div className="relative">
+      <UserProfileScreen username="nova" provider={'web10'} />
+      <PostLightbox
+        post={media ? { ...LIGHTBOX_POST, media_refs: [{ doc_id: 'lb-media-1' } as never] } : LIGHTBOX_POST}
+        mediaMap={media ? { 'lb-media-1': LIGHTBOX_MEDIA } : {}}
+        onClose={() => {}}
+        postAuthor="nova"
+        isOwner={false}
+      />
+    </div>
+  );
+}
+
 function SavedCollectionRoute() {
   const { username } = useParams();
   return (
@@ -139,7 +181,9 @@ const initialRoute =
      : screen === 'profile-me' ? '/u/me'
     : screen === 'profile-followers' ? '/u/nova/followers'
     : screen === 'profile-following' ? '/u/nova/following'
-    : screen === 'profile-feed' ? '/u/nova?view=feed'
+     : screen === 'profile-feed' ? '/u/nova?view=feed'
+     : screen === 'post-lightbox' ? '/lightbox'
+     : screen === 'post-lightbox-media' ? '/lightbox?media=1'
     : screen === 'saved-tab' ? '/u/me?tab=saved'
     : screen === 'saved-collection' ? '/u/me/saved/web10%2Fgroups%2Fusers%2Fme%2Fsaved-guitar-riffs'
      : screen === 'monetize' ? '/monetize'
@@ -172,6 +216,7 @@ createRoot(document.getElementById('root')!).render(
         <Route path="/groups/:groupId" element={<GroupDetailRoute />} />
         <Route path="/people" element={<DiscoverScreen />} />
         <Route path="/u/:username" element={<UserProfileRoute />} />
+        <Route path="/lightbox" element={<LightboxRoute />} />
         <Route path="/u/:username/saved/:collectionId" element={<SavedCollectionRoute />} />
         <Route path="/u/:username/followers" element={<UserFollowersRoute />} />
         <Route path="/u/:username/following" element={<UserFollowingRoute />} />
