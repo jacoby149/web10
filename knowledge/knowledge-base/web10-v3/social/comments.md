@@ -241,10 +241,14 @@ injected, the same way the discover card injects its data (D74). The seam is
 - `createComment({ postId, text, parentId?, … })` — `parentId` absent =
   top-level (`ref_value = postId`), present = a reply (`ref_value =
   parentId`).
-- `onToggleCommentLike?(commentId)` — the app's comment-like writer
-  (optimistic + rollback on the app, the same pattern as the post like).
-  Absent (e.g. `remote` mode) → the like renders display-only (count, no
-  tap target), the same rule as the post like in remote mode.
+- `onToggleCommentLike?(commentId)` — the app's comment-like writer. The
+  **thread** owns the optimistic flip + rollback (the post-like pattern): it
+  flips the node's `likedByMe` + nudges `likeCount` immediately on tap, calls
+  this writer, and rolls the node back to its pre-tap snapshot if the returned
+  write rejects. The writer returns the write's promise (any shape — the
+  thread only awaits it for the rollback); a `void` return is fine (no
+  rollback). Absent (e.g. `remote` mode) → the like renders display-only
+  (count, no tap target), the same rule as the post like in remote mode.
 
 Each page's comments carry `likeCount` + `likedByMe` when the app resolves
 them (web10-social does, from the reactions read — over the *loaded*
