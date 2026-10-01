@@ -550,7 +550,11 @@ export default function DiscoverScreen({ mode: modeOverride }: { mode?: Discover
             }
           }
           for (const d of commentDocs) {
-            if (d.ref_value) commentsByPost[d.ref_value] = (commentsByPost[d.ref_value] || 0) + 1;
+            // The TOTAL count (top-level + replies): a reply's `ref_value` is
+            // its parent comment (comments.md), so key on `body.post_id`,
+            // which every comment carries.
+            const pid = (d.body as Record<string, unknown>)?.post_id as string | undefined;
+            if (pid) commentsByPost[pid] = (commentsByPost[pid] || 0) + 1;
           }
           for (const p of results) {
             p.likes = likesByPost[p._id || ''] || 0;
