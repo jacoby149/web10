@@ -1,9 +1,5 @@
-import base64
-import hashlib
-import hmac
 import json
 import logging
-import time
 
 import requests
 from fastapi import APIRouter, HTTPException, Request
@@ -56,14 +52,8 @@ def certify_endpoint(token: Token):
 def get_ice(token: Token):
     """Return the node's ICE server configuration for WebRTC P2P clients.
 
-    Always includes the default STUN servers. When TURN_URL and TURN_SECRET
-    are configured, a time-limited TURN credential (RFC 8484 long-term
-    credentials: username = expiry timestamp, credential = base64 HMAC-SHA1)
-    is minted and included. The secret never leaves the node — only the
-    derived, expiring credential is returned to the client.
-
-    Requires a valid node token (same gate as /certify) so that only
-    authenticated node users can mint relay credentials.
+    Returns the default STUN servers. Requires a valid node token (same gate
+    as /certify) so that only authenticated node users can get the config.
     """
     if not token.token:
         raise HTTPException(status_code=401, detail="Token is required")
@@ -76,26 +66,6 @@ def get_ice(token: Token):
         {"urls": "stun:stun3.l.google.com:19302"},
         {"urls": "stun:stun4.l.google.com:19302"},
     ]
-
-    if settings.TURN_URL and settings.TURN_SECRET:
-        # int() guards against the settings env-override loop (settings.py)
-        # turning TURN_CRED_TTL into a string when set via the environment.
-        expiry = int(time.time()) + int(settings.TURN_CRED_TTL)
-        username = str(expiry)
-        credential = base64.b64encode(
-            hmac.new(
-                settings.TURN_SECRET.encode("utf-8"),
-                username.encode("utf-8"),
-                hashlib.sha1,
-            ).digest()
-        ).decode("ascii")
-        ice_servers.append(
-            {
-                "urls": settings.TURN_URL,
-                "username": username,
-                "credential": credential,
-            }
-        )
 
     log.info("[ice] served %d ICE server(s) to token user", len(ice_servers))
     return {"iceServers": ice_servers}
