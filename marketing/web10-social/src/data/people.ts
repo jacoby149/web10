@@ -1,10 +1,70 @@
 import { getV3Client } from './v3';
-import { resolveMediaRefs } from './posts';
 import { followersGroupId, getGroupMembers } from './groups';
 import { listFollowers } from './follows';
 import { extractUsername } from './types';
 
 const LOG = (...args: unknown[]) => console.log('[social:people]', ...args);
+
+/**
+ * Resolve the presigned face media (avatar + banner) for a set of people via
+ * the query engine's author-scoped face-prepare (D73).
+ *
+ * The D0 directory / follow reads return each user's profile face (incl.
+ * `avatar_ref` / `banner_ref`), but those are media doc_ids, not URLs. Minting
+ * a URL requires a presign SCOPED TO THE AUTHOR (the media owner) — not the
+ * reader. The owner-scoped `listMedia` read can't do that: it's scoped to the
+ * reader's own `author_key`, so another user's face 404s (anon) or is filtered
+ * out (signed-in) — the "people show a gradient + initial" bug. The query
+ * engine's face-prepare (`prepare.face`) mints the face URL author-scoped
+ * (bound to the row's `author_key`, not the viewer), so it works for any
+ * reader — anon included.
+ *
+ * Two batched queries (one per face field) over the set's authors, scoped to
+ * their followers groups (the I3 gate: only readable faces return). A face the
+ * reader can't read (a private profile) is absent → that card keeps the
+ * gradient fallback.
+ */
+async function resolveFaces(
+  w: ReturnType<typeof getV3Client>,
+  people: PersonCard[],
+): Promise<void> {
+  const withRefs = people.filter((p) => p.avatar_ref || p.banner_ref);
+  if (!withRefs.length) return;
+
+  const groups = withRefs.map((p) => followersGroupId(p.username, p.provider));
+  const inList = withRefs
+    .map((p) => `'${p.username.replace(/'/g, "''")}'`)
+    .join(', ');
+  const faceSql = `SELECT author_key AS author_key, body AS body FROM profile WHERE author_key IN (${inList})`;
+
+  const empty: { rows: Record<string, unknown>[]; count: number } = { rows: [], count: 0 };
+  const [avatarRes, bannerRes] = await Promise.all([
+    withRefs.some((p) => p.avatar_ref)
+      ? w.query(faceSql, { groups, prepare: { face: { bodyField: 'body', mediaField: 'avatar_ref', urlField: 'avatar_url' } } })
+      : Promise.resolve(empty),
+    withRefs.some((p) => p.banner_ref)
+      ? w.query(faceSql, { groups, prepare: { face: { bodyField: 'body', mediaField: 'banner_ref', urlField: 'banner_url' } } })
+      : Promise.resolve(empty),
+  ]);
+
+  const byAuthor = new Map<string, { avatar_url?: string; banner_url?: string }>();
+  const upsert = (row: Record<string, unknown>) => {
+    const author = String(row.author_key ?? '');
+    if (!author) return;
+    const entry = byAuthor.get(author) ?? {};
+    if (typeof row.avatar_url === 'string') entry.avatar_url = row.avatar_url;
+    if (typeof row.banner_url === 'string') entry.banner_url = row.banner_url;
+    byAuthor.set(author, entry);
+  };
+  for (const row of avatarRes.rows) upsert(row);
+  for (const row of bannerRes.rows) upsert(row);
+
+  for (const p of withRefs) {
+    const face = byAuthor.get(p.username);
+    if (face?.avatar_url) p.avatar_url = face.avatar_url;
+    if (face?.banner_url) p.banner_url = face.banner_url;
+  }
+}
 
 // ── People browser (discover-reorg D2) ───────────────────────────────────────
 // The data source is the node's public people directory (D0): one server-side
@@ -153,17 +213,17 @@ export async function fetchPeoplePage(opts: {
     };
   });
 
-  // Per-card enrichment (one bounded pass over the page, each read degrades
-  // independently): (1) the presigned face media (avatar/banner); (2) the
-  // "N mutuals" signal — how many of this person's followers the reader also
-  // follows. Mutuals are derived CLIENT-side from the generic membership
+  // Per-card enrichment: (1) the presigned face media (avatar/banner) — one
+  // batched author-scoped face-prepare over the page (see resolveFaces); (2)
+  // the "N mutuals" signal — how many of this person's followers the reader
+  // also follows. Mutuals are derived CLIENT-side from the generic membership
   // primitive (a user's followers = the member list of their followers group,
   // `getGroupMembers`), intersected with the reader's own following set — the
   // node stays generic (D60), it never computes an app's social signal. Anon
   // has no following set → mutuals stay 0.
   await Promise.all(
     people.map(async (card) => {
-      // (2) Mutuals — the generic membership primitive (bounded by the page).
+      // Mutuals — the generic membership primitive (bounded by the page).
       if (token && myFollowing.size > 0) {
         try {
           const members = await getGroupMembers(followersGroupId(card.username, card.provider));
@@ -172,25 +232,18 @@ export async function fetchPeoplePage(opts: {
           LOG('fetchPeoplePage — mutuals read failed for', card.username, '(degrading to 0):', e);
         }
       }
-      // (1) Face media (avatar + banner) — owner-scoped reads.
-      const refs = [card.avatar_ref, card.banner_ref].filter(Boolean) as string[];
-      if (refs.length) {
-        try {
-          const media = await resolveMediaRefs(
-            refs,
-            { username: card.username, provider: card.provider },
-            'public_media',
-          );
-          for (const m of media) {
-            if (m._id === card.avatar_ref) card.avatar_url = m.url;
-            else if (m._id === card.banner_ref) card.banner_url = m.url;
-          }
-        } catch (e) {
-          LOG('fetchPeoplePage — face media failed for', card.username, ':', e);
-        }
-      }
     }),
   );
+
+  // Face media (avatar + banner) — one batched author-scoped face-prepare over
+  // the page (I3-gated; a face the reader can't read keeps the gradient
+  // fallback). A failure degrades the whole page to faceless cards, never a
+  // throw.
+  try {
+    await resolveFaces(w, people);
+  } catch (e) {
+    LOG('fetchPeoplePage — face media failed (degrading to faceless cards):', e);
+  }
 
   // A full page means there may be another; a short page is the last one.
   const hasMore = page.users.length >= opts.limit;
@@ -264,21 +317,18 @@ export async function fetchMyFollowersCards(): Promise<PersonCard[]> {
       } catch {
         // No readable face — the card renders from the username alone.
       }
-      const refs = [card.avatar_ref, card.banner_ref].filter(Boolean) as string[];
-      if (refs.length) {
-        try {
-          const media = await resolveMediaRefs(refs, { username: card.username, provider: card.provider }, 'public_media');
-          for (const m of media) {
-            if (m._id === card.avatar_ref) card.avatar_url = m.url;
-            else if (m._id === card.banner_ref) card.banner_url = m.url;
-          }
-        } catch (e) {
-          LOG('fetchMyFollowersCards — face media failed for', card.username, ':', e);
-        }
-      }
       return card;
     }),
   );
+
+  // Face media (avatar + banner) — one batched author-scoped face-prepare over
+  // the followers (I3-gated; a face the reader can't read keeps the gradient
+  // fallback).
+  try {
+    await resolveFaces(w, cards);
+  } catch (e) {
+    LOG('fetchMyFollowersCards — face media failed (degrading to faceless cards):', e);
+  }
 
   LOG('fetchMyFollowersCards — returned', cards.length, 'card(s)');
   return cards;
@@ -342,21 +392,18 @@ export async function fetchMyFollowingCards(): Promise<PersonCard[]> {
       } catch {
         // No readable face — the card renders from the username alone.
       }
-      const refs = [card.avatar_ref, card.banner_ref].filter(Boolean) as string[];
-      if (refs.length) {
-        try {
-          const media = await resolveMediaRefs(refs, { username: card.username, provider: card.provider }, 'public_media');
-          for (const m of media) {
-            if (m._id === card.avatar_ref) card.avatar_url = m.url;
-            else if (m._id === card.banner_ref) card.banner_url = m.url;
-          }
-        } catch (e) {
-          LOG('fetchMyFollowingCards — face media failed for', card.username, ':', e);
-        }
-      }
       return card;
     }),
   );
+
+  // Face media (avatar + banner) — one batched author-scoped face-prepare over
+  // the following (I3-gated; a face the reader can't read keeps the gradient
+  // fallback).
+  try {
+    await resolveFaces(w, cards);
+  } catch (e) {
+    LOG('fetchMyFollowingCards — face media failed (degrading to faceless cards):', e);
+  }
 
   LOG('fetchMyFollowingCards — returned', cards.length, 'card(s)');
   return cards;
