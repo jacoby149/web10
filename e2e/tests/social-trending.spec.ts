@@ -120,12 +120,14 @@ async function addReaction(request: APIRequestContext, token: string, targetDocI
   expect(res.ok(), `create reaction failed (${res.status})`).toBeTruthy();
 }
 
-/** A comment in the `comments` service pointing at the post via ref_value (the ref pattern). */
+/** A comment in the `comments` service pointing at the post via ref_value (the ref pattern).
+ *  The body carries `post_id` (the real `createComment` writes it — the total comment
+ *  count keys on `body.post_id`, comments.md), so the board's tally sees it. */
 async function addComment(request: APIRequestContext, token: string, targetDocId: string, text: string) {
   const res = await v3Post(request, `${API_BASE}/v3/create`, {
     token,
     service: 'comments',
-    body: { text, target_service: 'posts', target_id: targetDocId },
+    body: { text, post_id: targetDocId },
     groups: [DISCOVER_GROUP_ID],
     ref_value: targetDocId,
   });

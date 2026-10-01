@@ -406,7 +406,7 @@ export function getV3Client(): unknown {
           }
         } else if (collection === 'comments') {
           for (let i = 0; i < ((p.comments as number) || 0); i++) {
-            docs.push({ ref_value: id, author_key: authorKey, body: { text: 'seeded comment' } });
+            docs.push({ ref_value: id, author_key: authorKey, body: { text: 'seeded comment', post_id: id } });
           }
         }
       }

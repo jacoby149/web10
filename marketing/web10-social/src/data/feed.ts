@@ -371,7 +371,10 @@ function buildFeedQuery(sort: FeedRanking | null, cursor: { created_at?: string;
     // (I3: scoped to the reader's groups, so a private post's repost tally is
     // not visible to non-members).
     "LEFT JOIN (SELECT JSONExtractString(body, 'repost_of') AS repost_of, count() AS repost_count FROM posts WHERE JSONExtractString(body, 'repost_of') != '' GROUP BY repost_of) rp ON rp.repost_of = p.doc_id " +
-    "LEFT JOIN (SELECT ref_value, count() AS comment_count FROM comments WHERE ref_value != '' GROUP BY ref_value) cmt ON cmt.ref_value = p.doc_id " +
+    // The TOTAL comment count (top-level + replies): a reply's `ref_value` is
+    // its parent comment (comments.md, 3.107.0), so keying on `ref_value`
+    // counts top-level only. Every comment carries `body.post_id`.
+    "LEFT JOIN (SELECT JSONExtractString(body, 'post_id') AS post_id, count() AS comment_count FROM comments WHERE JSONExtractString(body, 'post_id') != '' GROUP BY post_id) cmt ON cmt.post_id = p.doc_id " +
     'LEFT JOIN (SELECT author_key, body FROM profile QUALIFY row_number() OVER (PARTITION BY author_key ORDER BY updated_at DESC) = 1) pr ON pr.author_key = p.author_key ' +
     cursorClause +
     'ORDER BY ' + orderBy + ' ' +
@@ -456,9 +459,13 @@ async function readFeedEngagementCounts(
         `FROM reactions WHERE ref_value IN (${quoted}) GROUP BY ref_value`,
       { groups },
     ),
+    // The TOTAL count (top-level + replies): a reply's `ref_value` is its
+    // parent comment (comments.md, 3.107.0), so `ref_value IN (postIds)` sees
+    // only top-level comments. Every comment carries `body.post_id`, so the
+    // count keys on that — the badge matches the thread's total.
     w.query(
-      'SELECT ref_value, count() AS comment_count ' +
-        `FROM comments WHERE ref_value IN (${quoted}) GROUP BY ref_value`,
+      "SELECT JSONExtractString(body, 'post_id') AS post_id, count() AS comment_count " +
+        `FROM comments WHERE JSONExtractString(body, 'post_id') IN (${quoted}) GROUP BY post_id`,
       { groups },
     ),
   ]);
@@ -471,7 +478,7 @@ async function readFeedEngagementCounts(
   }
   const comments: Record<string, number> = {};
   for (const row of commentRows.rows) {
-    comments[String(row.ref_value)] = Number(row.comment_count) || 0;
+    comments[String(row.post_id)] = Number(row.comment_count) || 0;
   }
   console.log(
     '[social-feed] readFeedEngagementCounts —',
@@ -563,10 +570,22 @@ export async function readFeedEngagement(
   const w = getV3Client();
   console.log('[social-feed] readFeedEngagement — server-side count for', postIds.length, 'posts over', feedGroups.length, 'groups');
   if (!postIds.length) return { likes: {}, comments: {} };
-  const [likes, comments] = await Promise.all([
+  const quoted = postIds.map((id) => `'${id.replace(/'/g, "''")}'`).join(', ');
+  const [likes, commentRows] = await Promise.all([
     w.readRefCounts('reactions', { groups: feedGroups, ref: postIds }),
-    w.readRefCounts('comments', { groups: feedGroups, ref: postIds }),
+    // The TOTAL comment count (top-level + replies) — a reply's `ref_value` is
+    // its parent comment (comments.md, 3.107.0), so the count keys on
+    // `body.post_id`, which every comment carries.
+    w.query(
+      "SELECT JSONExtractString(body, 'post_id') AS post_id, count() AS comment_count " +
+        `FROM comments WHERE JSONExtractString(body, 'post_id') IN (${quoted}) GROUP BY post_id`,
+      { groups: feedGroups },
+    ),
   ]);
+  const comments: Record<string, number> = {};
+  for (const row of commentRows.rows) {
+    comments[String(row.post_id)] = Number(row.comment_count) || 0;
+  }
   console.log(
     '[social-feed] readFeedEngagement — counted',
     Object.values(likes).reduce((a, b) => a + b, 0), 'reactions +',
