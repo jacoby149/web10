@@ -265,6 +265,8 @@ interface DiscoverHomeCardProps {
   onAuthorClick: () => void;
   onToggleReaction: (kind: ReactionKind) => void;
   onToggleRepost: () => void;
+  /** Prioritize the thumbnail (above-the-fold tiles). */
+  priority?: boolean;
 }
 
 function DiscoverHomeCard({
@@ -278,6 +280,7 @@ function DiscoverHomeCard({
   onAuthorClick,
   onToggleReaction,
   onToggleRepost,
+  priority,
 }: DiscoverHomeCardProps) {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
@@ -315,6 +318,7 @@ function DiscoverHomeCard({
       reposted={reposted}
       onToggleReaction={onToggleReaction}
       onToggleRepost={onToggleRepost}
+      priority={priority}
       testId="discover-home-card"
     />
   );
@@ -972,7 +976,7 @@ export default function DiscoverScreen({ mode: modeOverride }: { mode?: Discover
               /* Home view — videos only, the YouTube-style wall (16:9 thumbs) */
               mediaPosts.length > 0 ? (
                 <div className="grid grid-cols-1 gap-x-4 gap-y-6 sm:grid-cols-2 lg:grid-cols-3" data-testid="discover-home-grid">
-                  {mediaPosts.map((post) => {
+                  {mediaPosts.map((post, index) => {
                     const authorKey = `${post.author_username}@${post.author_provider}`;
                     const profile = profileMap[authorKey];
                     const mediaItems = mediaMap[post._id || ''] || [];
@@ -995,6 +999,7 @@ export default function DiscoverScreen({ mode: modeOverride }: { mode?: Discover
                         onAuthorClick={() => navigateToUserProfile(post.author_username || '', post.author_provider || '')}
                         onToggleReaction={(kind) => handleToggleReaction(post._id || '', kind)}
                         onToggleRepost={() => handleRepost(post)}
+                        priority={index < 6}
                       />
                     );
                   })}
