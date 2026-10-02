@@ -96,6 +96,21 @@
     }
     return res.json();
   }
+  async function authGet(url, params) {
+    const qs = new URLSearchParams;
+    for (const [k, v] of Object.entries(params ?? {})) {
+      if (v != null)
+        qs.set(k, String(v));
+    }
+    const sep = url.includes("?") ? "&" : "?";
+    const full = qs.toString() ? `${url}${sep}${qs.toString()}` : url;
+    const res = await fetch(full, { method: "GET", headers: { Accept: "application/json" } });
+    if (!res.ok) {
+      const text = await res.text().catch(() => "");
+      throw httpError(res.status, res.statusText, text);
+    }
+    return res.json();
+  }
 
   // src/token.ts
   function cookieDict() {
@@ -161,13 +176,66 @@
   }
 
   // src/v3.ts
+  function diffGroupContract(spec, current) {
+    const curRoles = new Map((current.roles ?? []).map((r) => [r.name, r]));
+    const curMemberKeys = new Set((current.members ?? []).map((m) => m.member_key));
+    const curTags = new Set(current.tags ?? []);
+    const missingRoles = [];
+    const rolePermissionGaps = [];
+    for (const role of spec.roles) {
+      const actual = curRoles.get(role.name);
+      if (!actual) {
+        missingRoles.push(role);
+        continue;
+      }
+      for (const [service, ops] of Object.entries(role.permissions ?? {})) {
+        const have = new Set(actual.permissions?.[service] ?? []);
+        for (const op of ops ?? []) {
+          if (!have.has(op) && !rolePermissionGaps.some((g) => g.role === role.name && g.service === service && g.op === op)) {
+            rolePermissionGaps.push({ role: role.name, service, op });
+          }
+        }
+      }
+    }
+    const missingMembers = (spec.members ?? []).filter((m) => !curMemberKeys.has(m.member_key));
+    const joinPolicyDrifted = spec.join_policy != null && current.join_policy != null && current.join_policy !== spec.join_policy;
+    const missingTags = (spec.tags ?? []).filter((t) => !curTags.has(t));
+    return {
+      missingRoles,
+      rolePermissionGaps,
+      missingMembers,
+      joinPolicyDrifted,
+      missingTags,
+      inSync: missingRoles.length === 0 && rolePermissionGaps.length === 0 && missingMembers.length === 0 && !joinPolicyDrifted && missingTags.length === 0
+    };
+  }
+  function mergeGroupRolesForReconcile(currentRoles, specRoles, diff) {
+    const merged = (currentRoles ?? []).map((r) => ({
+      ...r,
+      permissions: { ...r.permissions }
+    }));
+    const byName = new Map(merged.map((r) => [r.name, r]));
+    for (const gap of diff.rolePermissionGaps) {
+      const role = byName.get(gap.role);
+      if (!role)
+        continue;
+      const ops = role.permissions[gap.service] ?? (role.permissions[gap.service] = []);
+      if (!ops.includes(gap.op))
+        ops.push(gap.op);
+    }
+    for (const role of diff.missingRoles) {
+      merged.push({ name: role.name, permissions: { ...role.permissions } });
+    }
+    return merged;
+  }
   function createV3Client(options = {}) {
     const apiOrigin = options.apiOrigin ?? "https://api.web10.app";
     const rtcServer = options.rtcServer ?? "rtc.web10.app";
     const state = {
       apiOrigin,
       token: options.token ?? readTokenCookie(),
-      rtcServer
+      rtcServer,
+      iceServers: options.iceServers
     };
     async function v3Post(action, body) {
       const token = state.token ?? readTokenCookie();
@@ -283,14 +351,24 @@
           payload.cursor = opts.cursor;
         if (opts.order != null)
           payload.order = opts.order;
-        return v3Post("read", payload);
+        const token = state.token ?? readTokenCookie();
+        if (token)
+          payload.token = token;
+        return authPost(`${apiOrigin}/v3/read`, payload);
       },
       async readRefCounts(collection, opts) {
         const payload = { service: collection, groups: opts.groups, ref: opts.ref, count: true };
-        return v3Post("read", payload);
+        const token = state.token ?? readTokenCookie();
+        if (token)
+          payload.token = token;
+        return authPost(`${apiOrigin}/v3/read`, payload);
       },
       async readById(docId, collection) {
-        return v3Post("read", { doc_id: docId, service: collection });
+        const payload = { doc_id: docId, service: collection };
+        const token = state.token ?? readTokenCookie();
+        if (token)
+          payload.token = token;
+        return authPost(`${apiOrigin}/v3/read`, payload);
       },
       async query(sql, opts) {
         const payload = { sql };
@@ -353,6 +431,8 @@
           payload.discoverable = opts.discoverable;
         if (opts?.tags)
           payload.tags = opts.tags;
+        if (opts?.membership_visibility)
+          payload.membership_visibility = opts.membership_visibility;
         return v3Post("groups/create", payload);
       },
       async getGroup(groupId) {
@@ -377,10 +457,46 @@
           payload.discoverable = opts.discoverable;
         if (opts?.tags)
           payload.tags = opts.tags;
+        if (opts?.membership_visibility !== undefined)
+          payload.membership_visibility = opts.membership_visibility;
         return v3Post("groups/update", payload);
+      },
+      async reconcileGroupContract(groupId, spec) {
+        const [group, members] = await Promise.all([
+          this.getGroup(groupId),
+          this.getGroupMembers(groupId)
+        ]);
+        const diff = diffGroupContract(spec, {
+          roles: group.roles,
+          members,
+          join_policy: group.join_policy,
+          tags: group.tags
+        });
+        if (diff.inSync)
+          return { inSync: true, diff, healed: false };
+        const updateOpts = {};
+        if (diff.missingRoles.length || diff.rolePermissionGaps.length) {
+          updateOpts.roles = mergeGroupRolesForReconcile(group.roles, spec.roles, diff);
+        }
+        if (diff.joinPolicyDrifted && spec.join_policy) {
+          updateOpts.join_policy = spec.join_policy;
+        }
+        if (diff.missingTags.length) {
+          updateOpts.tags = [...group.tags ?? [], ...diff.missingTags];
+        }
+        if (Object.keys(updateOpts).length) {
+          await this.updateGroup(groupId, updateOpts);
+        }
+        for (const m of diff.missingMembers) {
+          await this.addGroupMember(groupId, m.member_key, m.role);
+        }
+        return { inSync: false, diff, healed: true };
       },
       async deleteGroup(groupId) {
         return v3Post("groups/delete", { group_id: groupId });
+      },
+      async healGroupOwner(groupId) {
+        return v3Post("groups/heal-owner", { group_id: groupId });
       },
       async joinGroup(groupId) {
         return v3Post("groups/join", { group_id: groupId });
@@ -391,8 +507,21 @@
       async leaveGroup(groupId) {
         return v3Post("groups/leave", { group_id: groupId });
       },
-      async getGroupMembers(groupId) {
-        return v3Post("groups/members/list", { group_id: groupId });
+      async getGroupMembers(groupId, opts) {
+        const body = { group_id: groupId };
+        if (opts?.limit != null)
+          body.limit = opts.limit;
+        if (opts?.offset != null)
+          body.offset = opts.offset;
+        return v3Post("groups/members/list", body);
+      },
+      async byUserGroups(user, opts) {
+        return authGet(`${apiOrigin}/v3/groups/by-user`, {
+          user,
+          tag: opts?.tag,
+          limit: opts?.limit,
+          offset: opts?.offset
+        });
       },
       async addGroupMember(groupId, memberKey, role) {
         return v3Post("groups/members/add", {
@@ -492,6 +621,14 @@
       },
       async getNodeStats() {
         return v3Post("stats", {});
+      },
+      async getIceServers() {
+        const token = state.token ?? readTokenCookie();
+        if (!token) {
+          throw new Web10Error("No token available. Call login() or setToken() first.", 401);
+        }
+        const res = await authPost(`${apiOrigin}/ice`, { token });
+        return res.iceServers;
       },
       async registerApp(app) {
         return authPost(`${apiOrigin}/v3/apps/register`, { body: app });

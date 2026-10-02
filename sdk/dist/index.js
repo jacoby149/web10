@@ -422,6 +422,8 @@ function createV3Client(options = {}) {
         payload.discoverable = opts.discoverable;
       if (opts?.tags)
         payload.tags = opts.tags;
+      if (opts?.membership_visibility)
+        payload.membership_visibility = opts.membership_visibility;
       return v3Post("groups/create", payload);
     },
     async getGroup(groupId) {
@@ -446,6 +448,8 @@ function createV3Client(options = {}) {
         payload.discoverable = opts.discoverable;
       if (opts?.tags)
         payload.tags = opts.tags;
+      if (opts?.membership_visibility !== undefined)
+        payload.membership_visibility = opts.membership_visibility;
       return v3Post("groups/update", payload);
     },
     async reconcileGroupContract(groupId, spec) {

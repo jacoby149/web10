@@ -240,9 +240,16 @@ export interface HoverVideoProps {
   onTime?: (current: number, duration: number) => void;
   /** Fires when the preview starts/stops playing (the `playing` / `pause` signal). */
   onPlayingChange?: (playing: boolean) => void;
+  /**
+   * Prioritize the poster image (above-the-fold tiles). When true the poster
+   * loads eagerly with `fetchPriority="high"` so the first-view thumbnails
+   * paint fast instead of the dark frame showing through while a lazy image
+   * is deferred. Below-the-fold tiles stay lazy (the default).
+   */
+  priority?: boolean;
 }
 
-export function HoverVideo({ media, poster, testId, className, onTime, onPlayingChange }: HoverVideoProps) {
+export function HoverVideo({ media, poster, testId, className, onTime, onPlayingChange, priority = false }: HoverVideoProps) {
   const videoRef = useRef<HTMLVideoElement>(null);
   const hlsRef = useRef<HlsInstance | null>(null);
   const attachedRef = useRef(false);
@@ -540,7 +547,8 @@ export function HoverVideo({ media, poster, testId, className, onTime, onPlaying
         <img
           src={poster}
           alt=""
-          loading="lazy"
+          loading={priority ? 'eager' : 'lazy'}
+          fetchPriority={priority ? 'high' : 'auto'}
           className="absolute inset-0 h-full w-full object-cover"
         />
       )}
