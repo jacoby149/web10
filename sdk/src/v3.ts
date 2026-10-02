@@ -125,6 +125,9 @@ export interface V3Group {
    *  the app decides what they mean (e.g. `web10-social-group`). Optional for
    *  forward-compat (older nodes predate the column). */
   tags?: string[]
+  /** D80: whether who's in the group is publicly enumerable ('public' /
+   *  'hidden'). Optional for forward-compat (older nodes predate the column). */
+  membership_visibility?: string
 }
 
 // A resolved media ref — the shape the platform read produces
@@ -1002,7 +1005,7 @@ export function createV3Client(options: V3ClientOptions = {}): V3Client {
       joinPolicy: string,
       roles: Record<string, unknown>[],
       members: { member_key: string; role?: string }[],
-      opts?: { discoverable?: boolean; tags?: string[] },
+      opts?: { discoverable?: boolean; tags?: string[]; membership_visibility?: string },
     ): Promise<{ group_id: string }> {
       const payload: V3Body = {
         name,
@@ -1012,6 +1015,10 @@ export function createV3Client(options: V3ClientOptions = {}): V3Client {
       }
       if (opts?.discoverable !== undefined) payload.discoverable = opts.discoverable
       if (opts?.tags) payload.tags = opts.tags
+      // D80: whether who's in the group is publicly enumerable ('public' /
+      // 'hidden'). Omitted → the node's default ('hidden'), so callers that
+      // don't pass it get today's behavior.
+      if (opts?.membership_visibility) payload.membership_visibility = opts.membership_visibility
       return v3Post<{ group_id: string }>('groups/create', payload)
     },
 
@@ -1031,13 +1038,16 @@ export function createV3Client(options: V3ClientOptions = {}): V3Client {
 
     async updateGroup(
       groupId: string,
-      opts?: { join_policy?: string; roles?: Record<string, unknown>[]; discoverable?: boolean; tags?: string[] },
+      opts?: { join_policy?: string; roles?: Record<string, unknown>[]; discoverable?: boolean; tags?: string[]; membership_visibility?: string },
     ): Promise<V3Group> {
       const payload: V3Body = { group_id: groupId }
       if (opts?.join_policy) payload.join_policy = opts.join_policy
       if (opts?.roles) payload.roles = opts.roles
       if (opts?.discoverable !== undefined) payload.discoverable = opts.discoverable
       if (opts?.tags) payload.tags = opts.tags
+      // D80: 'public' / 'hidden'. Omitted → the node leaves it unchanged
+      // (backward compatible — callers that don't pass it get today's behavior).
+      if (opts?.membership_visibility !== undefined) payload.membership_visibility = opts.membership_visibility
       return v3Post<V3Group>('groups/update', payload)
     },
 
@@ -1509,11 +1519,11 @@ export interface V3Client {
   contractOnReady(contracts: V3CR[], callback?: (response: { status: string; errors?: string[] }) => void): void
 
   // Groups
-  createGroup(name: string, joinPolicy: string, roles: Record<string, unknown>[], members: { member_key: string; role?: string }[], opts?: { discoverable?: boolean; tags?: string[] }): Promise<{ group_id: string }>
+  createGroup(name: string, joinPolicy: string, roles: Record<string, unknown>[], members: { member_key: string; role?: string }[], opts?: { discoverable?: boolean; tags?: string[]; membership_visibility?: string }): Promise<{ group_id: string }>
   getGroup(groupId: string): Promise<V3Group>
   getMyGroups(opts?: { tags?: string[] }): Promise<V3Group[]>
   getGroupsManages(): Promise<V3Group[]>
-  updateGroup(groupId: string, opts?: { join_policy?: string; roles?: Record<string, unknown>[]; discoverable?: boolean; tags?: string[] }): Promise<V3Group>
+  updateGroup(groupId: string, opts?: { join_policy?: string; roles?: Record<string, unknown>[]; discoverable?: boolean; tags?: string[]; membership_visibility?: string }): Promise<V3Group>
   /** Reconcile a group contract against a canonical spec — additive, non-
    *  clobbering, idempotent. The "the app owns its own contracts" primitive. */
   reconcileGroupContract(groupId: string, spec: V3GroupContractSpec): Promise<{ inSync: boolean; diff: V3GroupContractDiff; healed: boolean }>

@@ -123,8 +123,13 @@ async function createFollowersGroup(request: APIRequestContext, token: string, u
 /**
  * Create a saved collection the way the app does (src/data/saved.ts
  * createCollection): createGroup(`saved-{slug}`, invite_only, SAVED_ROLES,
- * [owner], {discoverable:false, tags:[SAVED_TAG]}) + the kind:'saved' face +
- * (when public) the `anyone` reader row. Returns the group_id.
+ * [owner], {discoverable:false, tags:[SAVED_TAG], membership_visibility}) +
+ * the kind:'saved' face + (when public) the `anyone` reader row. Returns the
+ * group_id.
+ *
+ * membership_visibility (D80) is the by-user enumeration's visibility policy:
+ * a public collection is enumerable by-user (a visitor's profile can list it);
+ * a private one is not (it never surfaces on someone else's profile).
  */
 async function createCollection(
   request: APIRequestContext, token: string, owner: string, slug: string,
@@ -141,6 +146,7 @@ async function createCollection(
       members,
       discoverable: false,
       tags: [SAVED_TAG],
+      membership_visibility: opts.public ? 'public' : 'hidden',
     }),
     headers: { 'Content-Type': 'application/json' },
   });
@@ -205,6 +211,28 @@ async function addAnyoneReader(request: APIRequestContext, token: string, groupI
     headers: { 'Content-Type': 'application/json' },
   });
   expect(res.ok(), `add anyone reader failed (${res.status})`).toBeTruthy();
+}
+
+/**
+ * Set the group's D80 membership_visibility (the by-user enumeration's
+ * visibility policy) — the app's setCollectionVisibility does this via
+ * updateGroup. 'public' makes the group enumerable by-user; 'hidden' does not.
+ */
+async function setMembershipVisibility(request: APIRequestContext, token: string, groupId: string, visibility: 'public' | 'hidden') {
+  const res = await request.post(`${API_BASE}/v3/groups/update`, {
+    data: JSON.stringify({ token, group_id: groupId, membership_visibility: visibility }),
+    headers: { 'Content-Type': 'application/json' },
+  });
+  expect(res.ok(), `set membership_visibility failed (${res.status})`).toBeTruthy();
+}
+
+/** The D80 by-user read (anon) — the user's public-visibility groups by tag. */
+async function byUserGroups(request: APIRequestContext, user: string, tag: string): Promise<any[]> {
+  const res = await request.get(`${API_BASE}/v3/groups/by-user`, {
+    params: { user, tag },
+  });
+  expect(res.ok(), `by-user read failed (${res.status})`).toBeTruthy();
+  return ((await res.json()) as any).groups;
 }
 
 const settle = (ms = 1500) => new Promise((r) => setTimeout(r, ms));
@@ -321,6 +349,45 @@ test.describe('Saved collections — API floor (the app\'s exact reads/writes)',
     // "unavailable" tile; the collection read itself never hard-fails.
     expect(readRes.status()).toBe(404);
   });
+
+  test('D80 by-user: a PRIVATE collection is absent, a PUBLIC one surfaces (the visitor\'s Saved tab)', async ({ request }) => {
+    const owner = await signupAndLogin(request, 'svdbyusr');
+
+    // A private collection (membership_visibility='hidden') is NOT enumerable
+    // by-user — a visitor's profile can never list it (the "sensitive" guard).
+    const privId = await createCollection(request, owner.token, owner.username, 'byusr-priv');
+    await pollUntil(
+      () => byUserGroups(request, owner.username, SAVED_TAG),
+      (groups) => groups.every((g) => g.group_id !== privId),
+    );
+    expect((await byUserGroups(request, owner.username, SAVED_TAG)).map((g) => g.group_id)).not.toContain(privId);
+
+    // A public collection (membership_visibility='public') IS enumerable
+    // by-user — the visitor's Saved tab lists it.
+    const pubId = await createCollection(request, owner.token, owner.username, 'byusr-pub', { public: true });
+    await pollUntil(
+      () => byUserGroups(request, owner.username, SAVED_TAG),
+      (groups) => groups.some((g) => g.group_id === pubId),
+    );
+    expect((await byUserGroups(request, owner.username, SAVED_TAG)).map((g) => g.group_id)).toContain(pubId);
+
+    // Flipping the private collection's membership_visibility to public makes
+    // it surface (the app's setCollectionVisibility does exactly this).
+    await setMembershipVisibility(request, owner.token, privId, 'public');
+    await pollUntil(
+      () => byUserGroups(request, owner.username, SAVED_TAG),
+      (groups) => groups.some((g) => g.group_id === privId),
+    );
+    expect((await byUserGroups(request, owner.username, SAVED_TAG)).map((g) => g.group_id)).toContain(privId);
+
+    // Flipping it back to hidden makes it absent again.
+    await setMembershipVisibility(request, owner.token, privId, 'hidden');
+    await pollUntil(
+      () => byUserGroups(request, owner.username, SAVED_TAG),
+      (groups) => groups.every((g) => g.group_id !== privId),
+    );
+    expect((await byUserGroups(request, owner.username, SAVED_TAG)).map((g) => g.group_id)).not.toContain(privId);
+  });
 });
 
 // ---------------------------------------------------------------------------
@@ -411,7 +478,18 @@ test.describe('Saved collections gauntlet — real flow through the app contract
     await expect(page2.getByText(/· Public/)).toBeVisible();
     await ownerCtx2.close();
 
-    // ── Second account: opens the now-public collection read-only. ──
+    // The flip also set the group's D80 membership_visibility to public (the
+    // app's setCollectionVisibility does this via updateGroup) — so the by-user
+    // read now surfaces the collection. Poll it directly before the viewer
+    // visits (the CH read side can lag the write by a beat under eventual
+    // consistency).
+    await pollUntil(
+      () => byUserGroups(request, owner.username, SAVED_TAG),
+      (groups) => groups.some((g) => g.group_id === groupId),
+    );
+
+    // ── Second account: visits the owner's profile → the Saved tab shows the
+    //    now-PUBLIC collection (the D80 by-user read) → opens it read-only. ──
     const viewer = await signupAndLogin(request, 'svdviewer');
     await addSocialAppContract(request, viewer.token);
     const viewerCtx = await browser.newContext();
@@ -420,12 +498,21 @@ test.describe('Saved collections gauntlet — real flow through the app contract
     await setTokenCookie(viewerCtx, 'auth.localhost', viewer.token);
     await settle();
 
-    // Deep link straight to the collection (the URL is shareable — the "address
-    // bar is part of the product" rule). The public collection's contents are
-    // readable via the `anyone` grant; the viewer sees a READ-ONLY wall (no
-    // owner affordances — no visibility toggle, no per-item remove).
-    await page3.goto(`${SOCIAL_BASE}/u/${owner.username}/saved/${encodeURIComponent(groupId)}`);
+    // The visitor's profile: the Saved tab is present (the owner has ≥1 public
+    // collection) and lists the public collection card. (Poll — the D80 by-user
+    // read can lag the membership_visibility flip by a beat under CH eventual
+    // consistency.)
+    await page3.goto(`${SOCIAL_BASE}/u/${owner.username}?tab=saved`);
     await page3.waitForLoadState('networkidle');
+    const viewerSavedCard = page3.locator('[data-testid="saved-collection-card"]', { hasText: colName }).first();
+    await expect(viewerSavedCard).toBeVisible({ timeout: 15000 });
+
+    // Open the collection (the card navigates to the deep-linkable route). The
+    // public collection's contents are readable via the `anyone` grant; the
+    // viewer sees a READ-ONLY wall (no owner affordances — no visibility
+    // toggle, no per-item remove).
+    await viewerSavedCard.click();
+    await expect(page3).toHaveURL(/\/u\/[^/]+\/saved\//, { timeout: 15000 });
     await expect(page3.locator('[data-testid="saved-post-cell"]')).toBeVisible({ timeout: 15000 });
     expect(await page3.locator('[data-testid="saved-collection-visibility"]').count()).toBe(0);
     expect(await page3.locator('[data-testid="saved-post-remove"]').count()).toBe(0);
