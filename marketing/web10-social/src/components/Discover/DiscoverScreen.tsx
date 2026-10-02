@@ -965,7 +965,7 @@ export default function DiscoverScreen({ mode: modeOverride }: { mode?: Discover
                 gutter (md:px-4 lg:px-6) lets the wall breathe (the operator's
                 "no padding at all on the sides" — a gutter, not full-bleed);
                 mobile stays full-bleed. */}
-          <div className="flex-1 px-4 py-4 md:px-4 lg:px-6">
+          <div className="flex-1 py-4 md:px-4 lg:px-6">
             {isInitialLoad ? (
               <div className="mx-auto w-full max-w-2xl" data-testid="discover-grid-skeleton">
                 {Array.from({ length: 4 }).map((_, i) => (
