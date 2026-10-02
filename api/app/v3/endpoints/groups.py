@@ -203,12 +203,20 @@ def update_group(data: UpdateGroup):
     # None leaves it unchanged.
     discoverable = data.discoverable if data.discoverable is not None else existing["discoverable"]
     # tags (D78): None leaves it unchanged; a list replaces.
+    # membership_visibility (D80): None leaves it unchanged; 'public' /
+    # 'hidden' sets it (the by-user enumeration's visibility policy).
+    membership_visibility = (
+        data.membership_visibility
+        if data.membership_visibility is not None
+        else existing.get("membership_visibility", "hidden")
+    )
     result = ch.update_group(
         data.group_id,
         roles=data.roles or existing["roles"],
         join_policy=data.join_policy or existing["join_policy"],
         discoverable=discoverable,
         tags=data.tags if data.tags is not None else existing.get("tags", []),
+        membership_visibility=membership_visibility,
     )
     return result
 

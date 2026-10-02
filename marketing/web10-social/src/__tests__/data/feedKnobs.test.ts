@@ -26,6 +26,7 @@ function mockV3Client() {
     readById: vi.fn(),
     update: vi.fn(),
     delete: vi.fn(),
+    query: vi.fn().mockResolvedValue({ rows: [], count: 0 }),
     getMyGroups: vi.fn(),
     getGroup: vi.fn(),
     createGroup: vi.fn(),
@@ -48,9 +49,11 @@ describe('readFeedEngagement (the ref pattern — server-side count)', () => {
   it('returns the server-side counts for the feed posts', async () => {
     mock.readRefCounts.mockImplementation(async (service: string) => {
       if (service === 'reactions') return { p1: 2, p2: 1 };
-      if (service === 'comments') return { p1: 1, p3: 1 };
       return {};
     });
+    // The comment count is a query keyed on body.post_id (the total —
+    // top-level + replies, comments.md).
+    mock.query.mockResolvedValue({ rows: [{ post_id: 'p1', comment_count: 1 }, { post_id: 'p3', comment_count: 1 }], count: 2 });
 
     const { likes, comments } = await readFeedEngagement(['g1', 'g2'], ['p1', 'p2', 'p3']);
 
@@ -58,14 +61,19 @@ describe('readFeedEngagement (the ref pattern — server-side count)', () => {
     expect(comments).toEqual({ p1: 1, p3: 1 });
   });
 
-  it('calls readRefCounts for reactions + comments with the post ids (no cap)', async () => {
+  it('counts comments by body.post_id (the total — replies included), not ref_value', async () => {
     mock.readRefCounts.mockResolvedValue({});
+    mock.query.mockResolvedValue({ rows: [], count: 0 });
 
     await readFeedEngagement(['ga', 'gb'], ['p1', 'p2']);
 
-    expect(mock.readRefCounts).toHaveBeenCalledTimes(2);
+    // Reactions stay a ref count; comments are a query keyed on body.post_id.
+    expect(mock.readRefCounts).toHaveBeenCalledTimes(1);
     expect(mock.readRefCounts).toHaveBeenCalledWith('reactions', { groups: ['ga', 'gb'], ref: ['p1', 'p2'] });
-    expect(mock.readRefCounts).toHaveBeenCalledWith('comments', { groups: ['ga', 'gb'], ref: ['p1', 'p2'] });
+    expect(mock.query).toHaveBeenCalledTimes(1);
+    const [sql] = mock.query.mock.calls[0];
+    expect(sql).toContain("JSONExtractString(body, 'post_id')");
+    expect(sql).not.toMatch(/WHERE ref_value IN/);
   });
 
   it('returns empty counts and makes no read when there are no posts', async () => {
@@ -76,6 +84,7 @@ describe('readFeedEngagement (the ref pattern — server-side count)', () => {
     expect(likes).toEqual({});
     expect(comments).toEqual({});
     expect(mock.readRefCounts).not.toHaveBeenCalled();
+    expect(mock.query).not.toHaveBeenCalled();
   });
 });
 

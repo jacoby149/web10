@@ -52,21 +52,24 @@ conversation and slice it client-side, which is exactly the unbounded read
 this model exists to avoid. So replies ref their parent. That is the whole
 reason, and it is the same call Facebook and Instagram made.
 
-### The cost: the post's comment count is no longer one `GROUP BY`
+### The cost: the post's comment count is no longer one `GROUP BY ref_value`
 
 Because replies no longer ref the post, `GROUP BY ref_value` over
 `ref_value = post_id` counts only top-level comments. The post's **total**
-comment count (the "N comments" badge) is now **top-level count + the sum of
-each top-level comment's reply count**. Two ways to compute it:
+comment count (the "N comments" badge) is **top-level + replies**. Two ways
+to compute it:
 
-- **Derived (what we ship):** the feed/board count stays a `GROUP BY
-  ref_value` over the post (top-level only — cheap, exact, and the number the
-  ranking knobs care about). The thread's *total* (top-level + replies) is
-  computed by the client from the pages it has loaded + a per-comment reply
-  count, or by a single recursive/summed query when the exact total is needed
-  for the badge. At node scale a summed count is affordable; this is the seam
-  where a **maintained counter** (Facebook's eventual answer at their scale)
-  slots in later without a client change.
+- **Derived (what we ship):** every comment carries `body.post_id` (the
+  post's doc_id, on top-level comments *and* replies), so the total is one
+  `GROUP BY JSONExtractString(body, 'post_id')` — exact, no cap, and it
+  matches the thread's total (the badge shows 4 for 2 top-level + 2 replies,
+  not 2). The feed/board count, the in-query feed join, the single-post
+  `countComments`, and the client-side discover/watch/shorts tallies all key
+  on `body.post_id` for this reason. (Keying on `ref_value` was the 3.206.3
+  bug: the badge showed the top-level count and undershot the open thread.)
+  At node scale this is affordable; this is the seam where a **maintained
+  counter** (Facebook's eventual answer at their scale) slots in later
+  without a client change.
 - **Maintained counter (the scale answer):** increment a counter on the post
   doc on every comment/reply write. Facebook runs this because a `COUNT(*)`
   per render is too expensive at their volume. We do not need it yet — the
@@ -264,10 +267,10 @@ and degrades to no like UI when a seam is absent.
 ## What this is not
 
 - **Not a maintained counter (yet).** The post's total comment count is
-  derived (top-level `GROUP BY` + summed reply counts), not a write-time
-  counter. That is the Facebook model at *their* scale; at node scale the
-  derived count is exact and cheap. The model is shaped so a counter slots
-  in later as a data-layer change, not a protocol change.
+  derived (one `GROUP BY body.post_id` — top-level + replies), not a
+  write-time counter. That is the Facebook model at *their* scale; at node
+  scale the derived count is exact and cheap. The model is shaped so a
+  counter slots in later as a data-layer change, not a protocol change.
 - **Not "Top comments" ranking (yet).** The thread pages chronologically
   (`created_at`). Facebook's default is engagement-ranked "Top comments";
   we don't have a comment-ranking signal yet, so we ship "Most recent"

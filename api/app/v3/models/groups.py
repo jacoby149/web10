@@ -34,6 +34,8 @@ class UpdateGroup(BaseModel):
     discoverable: bool | None = None
     # D78: None = leave unchanged; a list = replace the group's tags.
     tags: list[str] | None = None
+    # D80: None = leave unchanged; 'public' / 'hidden' = set.
+    membership_visibility: str | None = None
 
 
 class ListMyGroups(BaseModel):

@@ -567,6 +567,55 @@ class TestUpdateGroup:
         # discoverable omitted → the existing value is preserved.
         assert mock_update.call_args[1]["discoverable"] is True
 
+    def test_set_membership_visibility(self, client, token):
+        existing = {
+            "group_id": "g1",
+            "roles": [],
+            "join_policy": "open",
+            "discoverable": False,
+            "membership_visibility": "hidden",
+            "created_at": "2026-01-01",
+            "updated_at": "2026-01-01",
+        }
+        with (
+            patch(
+                "app.v3.services.clickhouse.get_group_member", return_value={"member_key": "testuser", "role": "admin"}
+            ),
+            patch("app.v3.services.clickhouse.get_group", return_value=existing),
+            patch("app.v3.services.clickhouse.update_group") as mock_update,
+        ):
+            resp = client.post(
+                "/v3/groups/update",
+                json={"token": token, "group_id": "g1", "membership_visibility": "public"},
+            )
+        assert resp.status_code == 200
+        assert mock_update.call_args[1]["membership_visibility"] == "public"
+
+    def test_membership_visibility_none_leaves_unchanged(self, client, token):
+        existing = {
+            "group_id": "g1",
+            "roles": [],
+            "join_policy": "open",
+            "discoverable": False,
+            "membership_visibility": "public",
+            "created_at": "2026-01-01",
+            "updated_at": "2026-01-01",
+        }
+        with (
+            patch(
+                "app.v3.services.clickhouse.get_group_member", return_value={"member_key": "testuser", "role": "admin"}
+            ),
+            patch("app.v3.services.clickhouse.get_group", return_value=existing),
+            patch("app.v3.services.clickhouse.update_group") as mock_update,
+        ):
+            resp = client.post(
+                "/v3/groups/update",
+                json={"token": token, "group_id": "g1", "join_policy": "request"},
+            )
+        assert resp.status_code == 200
+        # omitted → the existing value is preserved (the D80 policy is sticky).
+        assert mock_update.call_args[1]["membership_visibility"] == "public"
+
 
 class TestListGroups:
     def test_get(self, client, token):
