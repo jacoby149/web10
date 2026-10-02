@@ -185,6 +185,7 @@ const initialRoute =
      : screen === 'post-lightbox' ? '/lightbox'
      : screen === 'post-lightbox-media' ? '/lightbox?media=1'
     : screen === 'saved-tab' ? '/u/me?tab=saved'
+    : screen === 'saved-visitor' ? '/u/nova?tab=saved'
     : screen === 'saved-collection' ? '/u/me/saved/web10%2Fgroups%2Fusers%2Fme%2Fsaved-guitar-riffs'
      : screen === 'monetize' ? '/monetize'
      : screen === 'monetize-node' ? '/monetize?tab=node'
