@@ -1,21 +1,19 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 
-// Mock the v3 client seam (the D0 directory read + the my-follows read).
+// Mock the v3 client seam (the D0 directory read, the my-follows read, and the
+// query engine's author-scoped face-prepare).
 const mockReadToken = vi.fn();
 const mockListPeopleDirectory = vi.fn();
 const mockGetMyGroups = vi.fn();
+const mockQuery = vi.fn().mockResolvedValue({ rows: [], count: 0 });
 
 vi.mock('@/data/v3', () => ({
   getV3Client: () => ({
     readToken: () => mockReadToken(),
     listPeopleDirectory: (...args: unknown[]) => mockListPeopleDirectory(...args),
     getMyGroups: (...args: unknown[]) => mockGetMyGroups(...args),
+    query: (...args: unknown[]) => mockQuery(...args),
   }),
-}));
-
-const mockResolveMediaRefs = vi.fn().mockResolvedValue([]);
-vi.mock('@/data/posts', () => ({
-  resolveMediaRefs: (...args: unknown[]) => mockResolveMediaRefs(...args),
 }));
 
 // The generic membership primitive (mutuals are derived client-side from a
@@ -114,7 +112,8 @@ describe('fetchPeoplePage', () => {
     vi.clearAllMocks();
     mockReadToken.mockReturnValue({ provider: 'api.localhost', username: 'me' });
     mockGetMyGroups.mockResolvedValue([]);
-    mockResolveMediaRefs.mockResolvedValue([]);
+    // The face-prepare query: default to no faces (the gradient fallback).
+    mockQuery.mockResolvedValue({ rows: [], count: 0 });
   });
 
   it('maps D0 users to person cards (face + unspoofable follower count)', async () => {
@@ -196,20 +195,32 @@ describe('fetchPeoplePage', () => {
     expect(people.find((p) => p.username === 'bob')!.is_following).toBe(false);
   });
 
-  it('resolves the face media (avatar + banner) per person', async () => {
+  it('resolves the face media (avatar + banner) per person via the author-scoped face-prepare', async () => {
     mockListPeopleDirectory.mockResolvedValue({
       users: [dirUser('alice', 10, { avatar_ref: 'av-1', banner_ref: 'bn-1' })],
       limit: 20,
       offset: 0,
     });
-    mockResolveMediaRefs.mockResolvedValue([
-      { _id: 'av-1', url: 'http://x/avatar.png' },
-      { _id: 'bn-1', url: 'http://x/banner.png' },
-    ]);
+    // The face-prepare runs two batched queries (avatar + banner). The mock
+    // returns the presigned URL keyed by the row's author_key, selected by the
+    // prepare's mediaField (which face field is being minted).
+    mockQuery.mockImplementation(
+      (_sql: string, opts?: { prepare?: { face?: { mediaField?: string } } }) => {
+        const field = opts?.prepare?.face?.mediaField;
+        if (field === 'avatar_ref') return Promise.resolve({ rows: [{ author_key: 'alice', avatar_url: 'http://x/avatar.png' }], count: 1 });
+        if (field === 'banner_ref') return Promise.resolve({ rows: [{ author_key: 'alice', banner_url: 'http://x/banner.png' }], count: 1 });
+        return Promise.resolve({ rows: [], count: 0 });
+      },
+    );
 
     const { people } = await fetchPeoplePage({ limit: 20, offset: 0 });
     expect(people[0].avatar_url).toBe('http://x/avatar.png');
     expect(people[0].banner_url).toBe('http://x/banner.png');
+    // The face-prepare is scoped to the person's followers group (the I3 gate).
+    expect(mockQuery).toHaveBeenCalledWith(
+      expect.stringContaining('FROM profile'),
+      expect.objectContaining({ groups: ['api.localhost/groups/users/alice/followers'] }),
+    );
   });
 
   it('reports hasMore=true when the page is full, false when short', async () => {
@@ -238,13 +249,13 @@ describe('fetchPeoplePage', () => {
     expect(people[0].is_following).toBe(false);
   });
 
-  it('degrades face media to the fallback when the media read fails', async () => {
+  it('degrades face media to the fallback when the face-prepare read fails', async () => {
     mockListPeopleDirectory.mockResolvedValue({
       users: [dirUser('alice', 10, { avatar_ref: 'av-1' })],
       limit: 20,
       offset: 0,
     });
-    mockResolveMediaRefs.mockRejectedValue(new Error('boom'));
+    mockQuery.mockRejectedValue(new Error('boom'));
 
     const { people } = await fetchPeoplePage({ limit: 20, offset: 0 });
     expect(people[0].avatar_url).toBeUndefined();
@@ -260,5 +271,28 @@ describe('fetchPeoplePage', () => {
     expect(people[0].provider).toBe('web10');
     // Anon: no my-follows read is attempted.
     expect(mockGetMyGroups).not.toHaveBeenCalled();
+  });
+
+  it('resolves faces anon (the signed-out people tab shows the real pfp + banner, not a gradient)', async () => {
+    mockReadToken.mockReturnValue(null);
+    mockListPeopleDirectory.mockResolvedValue({
+      users: [dirUser('alice', 10, { avatar_ref: 'av-1', banner_ref: 'bn-1' })],
+      limit: 20,
+      offset: 0,
+    });
+    // The author-scoped face-prepare works for anon (the presign is bound to the
+    // author, not the viewer) — so the face resolves even with no token.
+    mockQuery.mockImplementation(
+      (_sql: string, opts?: { prepare?: { face?: { mediaField?: string } } }) => {
+        const field = opts?.prepare?.face?.mediaField;
+        if (field === 'avatar_ref') return Promise.resolve({ rows: [{ author_key: 'alice', avatar_url: 'http://x/avatar.png' }], count: 1 });
+        if (field === 'banner_ref') return Promise.resolve({ rows: [{ author_key: 'alice', banner_url: 'http://x/banner.png' }], count: 1 });
+        return Promise.resolve({ rows: [], count: 0 });
+      },
+    );
+
+    const { people } = await fetchPeoplePage({ limit: 20, offset: 0 });
+    expect(people[0].avatar_url).toBe('http://x/avatar.png');
+    expect(people[0].banner_url).toBe('http://x/banner.png');
   });
 });

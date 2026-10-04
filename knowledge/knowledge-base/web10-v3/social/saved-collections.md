@@ -157,13 +157,23 @@ New module `src/data/saved.ts` (sibling to `groups.ts`):
   owner is the only member), takes the **returned** `group_id` (never a
   locally computed one — the API derives it), writes the face
   (`{ kind: 'saved', name, visibility, cover_ref? }`), and — if
-  `visibility === 'public'` — adds the `(G, 'anyone', 'reader')` row. Returns
-  the `group_id`.
+  `visibility === 'public'` — adds the `(G, 'anyone', 'reader')` row. It also
+  passes **`membership_visibility`** to `createGroup` (`'public'` when the
+  collection is public, `'hidden'` when private) — the D80 by-user
+  enumeration's visibility policy, so a public collection is enumerable on a
+  visitor's profile and a private one is not. Returns the `group_id`.
 - `getMyCollections()` — `getMyGroups({ tags: ['web10-social-saved'] })`
   (the server-side tag read, the D78 idiom), then read each group's identity
   → `{ groupId, name, visibility, coverRef, itemCount }[]`. `itemCount` is a
   cheap `readRefCounts` / a `saved`-service count on the group (the list is
   small; per-collection reads are fine at this scale).
+- `readUserPublicCollections(username, provider?)` — the **visitor's** read:
+  the node's D80 `byUserGroups(user, { tag: 'web10-social-saved' })` (anon-
+  capable) returns only the user's **`membership_visibility == 'public'`**
+  groups, so a private collection never surfaces on someone else's profile.
+  Each returned group is resolved to its face (name) + item count
+  (`{ groupId, name, visibility: 'public', coverRef, itemCount, slug }[]`).
+  A face-read failure degrades that card to the slug (never the list).
 - `readCollection(groupId)` — read the `saved` docs in the group (the
   `ref_value`s), batch-resolve each `post_id` to a full `PostRecord` + media
   (the profile wall's resolve path), return `{ face, posts }`. A non-owner
@@ -178,7 +188,10 @@ New module `src/data/saved.ts` (sibling to `groups.ts`):
 - `setCollectionVisibility(groupId, visibility)` — set the face
   `visibility`; add the `(G, 'anyone', 'reader')` row for `public`, remove it
   for `private` (the reserved-principal-class member ops, the same calls the
-  profile public/private toggle uses).
+  profile public/private toggle uses); AND flip the group's D80
+  `membership_visibility` (`'public'`/`'hidden'`) via `updateGroup` — so the
+  by-user enumeration follows the face (a public collection is enumerable on
+  a visitor's profile, a private one is absent).
 - `renameCollection(groupId, name)` / `deleteCollection(groupId)` — update the
   face `name` / delete the group (the owner-only group-management ops).
 
