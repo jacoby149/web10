@@ -120,9 +120,11 @@ function MediaItem({ media }: { media: MediaRecord }) {
     );
   }
 
-  // Image: natural ratio, object-contain, lazy. Measure on load only as a
-  // fallback for legacy media that predates dimension storage — reserving the
-  // ratio up front is what keeps the feed from shifting.
+  // Image: the frame is reserved at the media's natural ratio (no layout
+  // shift — that's the aspectRatio style, not the object-fit), and the photo
+  // FILLS it (object-cover) so a multi-photo carousel crops to one consistent
+  // frame instead of letterboxing. Measure on load only as a fallback for
+  // legacy media that predates dimension storage.
   const src = media.thumbnail_url || media.url;
   const knownRatio = media.width && media.height ? media.width / media.height : null;
   const ratio = knownRatio ?? measuredRatio ?? 4 / 3;
@@ -142,7 +144,7 @@ function MediaItem({ media }: { media: MediaRecord }) {
         src={src}
         alt={media.alt_text || ''}
         onLoad={(e) => onMediaLoaded(e.currentTarget)}
-        className="w-full h-full object-contain"
+        className="w-full h-full object-cover"
         loading="lazy"
       />
       <div className="absolute inset-0 bg-gradient-to-t from-black/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-150" />
@@ -158,10 +160,13 @@ function MediaGrid({ mediaItems }: { mediaItems: MediaRecord[] }) {
   // Single item: the natural-ratio MediaItem (unchanged). Multi-item: the
   // shared inline carousel (video-player.md) — all items swipe in a fixed
   // frame, with a position indicator where the old dead count badge was.
+  // fit="cover": the frame is the first item's natural ratio and every photo
+  // FILLS it (crops to one consistent frame) instead of letterboxing — the
+  // feed's no-shift guarantee is the reserved frame, not the object-fit.
   if (count === 1) {
     return <MediaItem media={first} />;
   }
-  return <MediaCarousel items={mediaItems} fit="contain" maxHeight="60vh" testId="media-carousel" />;
+  return <MediaCarousel items={mediaItems} fit="cover" maxHeight="60vh" testId="media-carousel" />;
 }
 
 /**
