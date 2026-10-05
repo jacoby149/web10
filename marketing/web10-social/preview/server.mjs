@@ -14,7 +14,7 @@
 //   PREVIEW_PORT  — the port to listen on (default 3001).
 
 import http from 'node:http'
-import { postCard, profileCard, groupCard } from './card.mjs'
+import { postCard, profileCard, groupCard, watchCard, shortsCard } from './card.mjs'
 
 const PORT = Number(process.env.PREVIEW_PORT || 3001)
 
@@ -46,6 +46,10 @@ const server = http.createServer(async (req, res) => {
     // (which contains slashes) into a single path segment, so the raw path
     // has no literal slash in it; decodeURIComponent restores the group id.
     const groupMatch = path.match(/^\/groups\/([^/]+)$/)
+    // /watch/:postId — the watch (landscape video) permalink.
+    const watchMatch = path.match(/^\/watch\/([^/]+)$/)
+    // /shorts/:postId — the shorts (vertical video) permalink.
+    const shortsMatch = path.match(/^\/shorts\/([^/]+)$/)
 
     let html = null
     if (postMatch) {
@@ -54,6 +58,10 @@ const server = http.createServer(async (req, res) => {
       html = await profileCard(decodeURIComponent(profileMatch[1]))
     } else if (groupMatch) {
       html = await groupCard(decodeURIComponent(groupMatch[1]))
+    } else if (watchMatch) {
+      html = await watchCard(decodeURIComponent(watchMatch[1]))
+    } else if (shortsMatch) {
+      html = await shortsCard(decodeURIComponent(shortsMatch[1]))
     }
 
     if (!html) {

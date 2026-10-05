@@ -116,7 +116,9 @@ around. It composes the social card from the platform's thumbnail:
   avatar, then the brand mark) — the social-app-specific part, living in the
   social app.
 - **Server-side (the link-preview card).** When a social permalink
-  (`/u/:username/p/:postId`, `/u/:username`) is fetched by a crawler, the
+  (`/u/:username/p/:postId`, `/u/:username`) or a **share URL**
+  (`/watch/:postId`, `/shorts/:postId` — the video + short share links, the
+  same post, a different URL shape) is fetched by a crawler, the
   **social app's own preview server** renders the Open Graph / Twitter Card:
   map the permalink → the doc → read it (media resolved) → `pickThumbnail` →
   the social fallback (author avatar / brand mark) → the card HTML (title from
@@ -187,7 +189,12 @@ preview server; the platform's `share.py` is deleted; the platform keeps only
 the generic thumbnail + the generic renderer). The **group permalink's card**
 is built on the same server (a new `/groups/:groupId` route) — the group's
 face (cover → avatar → brand mark) read from the `web10-social-group-identity`
-doc (D60), the same generic primitives, a different doc.
+doc (D60), the same generic primitives, a different doc. The **watch + short
+share URLs' cards** (`/watch/:postId`, `/shorts/:postId`) are the same server
+again — a watch/short IS a post (one `posts` doc, the D44 video), so the card
+is the post card (same thumbnail + text, `is_video`) with a different
+canonical URL; the post-card logic is shared (`buildPostCard`), the URL shape
+isn't.
 
 Still open:
 
