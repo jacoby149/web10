@@ -71,8 +71,7 @@ def _require_moderation_any(group_id: str, user: str, token: str):
 
 
 def _normalize_member_key(user: str) -> str:
-    """Normalize a user identifier to the bare username the node stores as
-    ``member_key``.
+    """Normalize a user identifier to the form the node stores as ``member_key``.
 
     The node writes ``member_key`` from the JWT's ``username`` claim (the bare
     username) on every write path (join, create, the owner row), and the
@@ -82,7 +81,16 @@ def _normalize_member_key(user: str) -> str:
     are hostnames and usernames are ``[a-z0-9-]`` (no ``/``), so ``provider/
     username`` carries exactly one slash — the username is the last segment.
     A bare username (no ``/``) is returned unchanged.
+
+    A **group_id** (``{provider}/groups/…``) is a legitimate member key too —
+    a group can be a member of another group (e.g. a group collection's owner
+    is the group, not a person). The node stores it verbatim, so it must be
+    matched verbatim: return it unchanged. The ``/groups/`` marker is the
+    discriminator — a ``provider/username`` key never contains it (usernames
+    are ``[a-z0-9-]``).
     """
+    if "/groups/" in user:
+        return user
     return user.rsplit("/", 1)[-1] if "/" in user else user
 
 
@@ -203,12 +211,20 @@ def update_group(data: UpdateGroup):
     # None leaves it unchanged.
     discoverable = data.discoverable if data.discoverable is not None else existing["discoverable"]
     # tags (D78): None leaves it unchanged; a list replaces.
+    # membership_visibility (D80): None leaves it unchanged; 'public' /
+    # 'hidden' sets it (the by-user enumeration's visibility policy).
+    membership_visibility = (
+        data.membership_visibility
+        if data.membership_visibility is not None
+        else existing.get("membership_visibility", "hidden")
+    )
     result = ch.update_group(
         data.group_id,
         roles=data.roles or existing["roles"],
         join_policy=data.join_policy or existing["join_policy"],
         discoverable=discoverable,
         tags=data.tags if data.tags is not None else existing.get("tags", []),
+        membership_visibility=membership_visibility,
     )
     return result
 

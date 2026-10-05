@@ -22,6 +22,7 @@ import {
   countUserFollowingReal,
   readUserPublicProfile,
   getMyCollections,
+  readUserPublicCollections,
   createPost,
 } from '@/data';
 import { getWapi } from '@/data/wapi';
@@ -33,6 +34,8 @@ import { PostLightbox } from './PostLightbox';
 import { ProfileFeed } from './ProfileFeed';
 import { ProfileViewToggle, type ProfileViewMode } from './ProfileViewToggle';
 import { ProfileMediaLightbox, type ProfileMediaOption, type FaceCropResult } from './ProfileMediaLightbox';
+import { SavedCollectionsGrid } from './SavedCollectionsGrid';
+import { textTileColor } from './textTileColor';
 import { toast, errorMessage } from '@/components/shared/Toast';
 import { cn } from '@/lib/utils';
 import { MARKETING_ORIGIN } from '@/lib/origins';
@@ -64,13 +67,15 @@ interface UserProfileScreenProps {
 }
 
 // ── Saved collections (D88) — the profile's Saved tab ───────────────────────
-// The owner's playlists, YouTube-channel-shaped: a grid of collection cards
+// The playlists, YouTube-channel-shaped: a grid of collection cards
 // (name + "N items"). Tapping a card navigates to the collection's deep-
 // linkable detail view, /u/:username/saved/:collectionId (the "address bar is
 // part of the product" rule) — the owner's per-item remove + the visibility
-// toggle live there (SavedCollectionScreen). This is the owner's own profile;
-// the visitor-facing public-collections case is a follow-up (it needs the
-// node's by-user enumeration + the membership visibility seam).
+// toggle live there (SavedCollectionScreen). On the owner's profile the tab
+// is always present (even when empty — the empty state); on a visitor's
+// profile it shows only when the owner has ≥1 PUBLIC collection (the node's
+// D80 by-user read returns only membership_visibility='public' groups, so a
+// private collection never surfaces) and the cards open read-only.
 
 interface SavedTabProps {
   username: string;
@@ -78,59 +83,11 @@ interface SavedTabProps {
   onOpenCollection: (groupId: string) => void;
 }
 
-function SavedTab({ username, collections, onOpenCollection }: SavedTabProps) {
-  if (!collections.length) {
-    return (
-      <div className="py-16 text-center" data-testid="saved-empty">
-        <Bookmark className="w-8 h-8 text-muted-foreground/50 mx-auto mb-3" strokeWidth={1.5} />
-        <p className="text-sm text-muted-foreground">No collections yet</p>
-        <p className="text-xs text-muted-foreground/60 mt-1">Save posts to build your first playlist.</p>
-      </div>
-    );
-  }
-
-  return (
-    <div className="px-4 pb-4 pt-2">
-      <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5">
-        {collections.map((col) => (
-          <button
-            key={col.groupId}
-            data-testid="saved-collection-card"
-            onClick={() => onOpenCollection(col.groupId)}
-            className="group text-left rounded-lg overflow-hidden bg-surface border border-border hover:border-brand/40 transition-colors outline-none focus-visible:ring-2 focus-visible:ring-ring"
-          >
-            {/* The cover — a brand-tinted placeholder (the first saved post's
-                media is a follow-up; the face's cover_ref is unset for now).
-                A 4:3 thumbnail (the playlist shape — a collection is a list,
-                not a video) + the name/count below, so the card fits the
-                profile's content column without pushing the label off-screen. */}
-            <div
-              className="relative aspect-[4/3] w-full"
-              style={{ backgroundColor: textTileColor(col.groupId) }}
-            >
-              <div
-                className="pointer-events-none absolute inset-0"
-                style={{
-                  background:
-                    'radial-gradient(120% 85% at 22% 12%, rgba(255,255,255,0.22), rgba(255,255,255,0.04) 42%, transparent 62%)',
-                }}
-                aria-hidden="true"
-              />
-              <div className="absolute inset-0 flex items-center justify-center">
-                <Bookmark className="w-8 h-8 text-foreground/70" strokeWidth={1.5} />
-              </div>
-            </div>
-            <div className="p-3">
-              <p className="text-sm font-medium text-foreground truncate">{col.name}</p>
-              <p className="text-xs text-muted-foreground mt-0.5">
-                {col.itemCount} item{col.itemCount === 1 ? '' : 's'}
-              </p>
-            </div>
-          </button>
-        ))}
-      </div>
-    </div>
-  );
+// The profile's Saved tab — the shared collections card grid (one card shape,
+// two surfaces: the profile + the group page). `username` is unused by the
+// grid (kept in the props for the call site's shape).
+function SavedTab({ collections, onOpenCollection }: SavedTabProps) {
+  return <SavedCollectionsGrid collections={collections} onOpenCollection={onOpenCollection} />;
 }
 
 function formatTimeAgo(dateStr: string): string {
@@ -158,25 +115,6 @@ function isVideo(m: MediaRecord | undefined | null): boolean {
  * devices) and the wall reads as a designed set of cards, not a wall of empty
  * black boxes. The CSS var (not a raw hex) keeps it token-based.
  */
-const TEXT_TILE_COLORS = [
-  'var(--color-tile-violet)',
-  'var(--color-tile-indigo)',
-  'var(--color-tile-fuchsia)',
-  'var(--color-tile-blue)',
-  'var(--color-tile-teal)',
-  'var(--color-tile-rose)',
-] as const;
-
-export function textTileColor(postId?: string): string {
-  if (!postId) return TEXT_TILE_COLORS[0];
-  let h = 0;
-  for (let i = 0; i < postId.length; i++) {
-    h = (h << 5) - h + postId.charCodeAt(i);
-    h |= 0;
-  }
-  return TEXT_TILE_COLORS[Math.abs(h) % TEXT_TILE_COLORS.length];
-}
-
 interface WallTileProps {
   media: MediaRecord;
   testId: string;
@@ -332,10 +270,11 @@ export default function UserProfileScreen({ username, provider, onBack }: UserPr
   const [uploadError, setUploadError] = useState<string | null>(null);
   const [draft, setDraft] = useState<Partial<ProfileRecord>>({});
   const [stagingCount, setStagingCount] = useState<number>(0);
-  // Saved collections (D88) — the owner's playlists on the profile's Saved tab.
-  // Loaded only for the owner (the visitor-facing public-collections case is a
-  // follow-up — it needs the node's by-user enumeration + the membership
-  // visibility seam). null = not loaded (anon / visitor → the tab is absent).
+  // Saved collections (D88) — the playlists on the profile's Saved tab.
+  // Owner: all of their collections (getMyCollections). Visitor: only the
+  // owner's PUBLIC collections (readUserPublicCollections — the node's D80
+  // by-user read returns only membership_visibility='public' groups, so a
+  // private collection never surfaces). null = not loaded (the tab is absent).
   const [collections, setCollections] = useState<CollectionRecord[] | null>(null);
   // The file input is PERSISTENT in the DOM (not created on click) so the
   // upload seam is drivable from e2e (setInputFiles) — a createElement-on-
@@ -497,9 +436,17 @@ export default function UserProfileScreen({ username, provider, onBack }: UserPr
         setFollowRecord(fr);
         setFollowing(fr?.status === 'active' || false);
         postsData = pub.posts;
-        // A visitor's profile shows no Saved tab (the public-collections case is
-        // a follow-up) — clear any stale owner state so the tab stays absent.
-        setCollections(null);
+        // A visitor's profile shows the owner's PUBLIC collections on the
+        // Saved tab (D88) — the node's D80 by-user read returns only
+        // membership_visibility='public' groups, so a private collection never
+        // surfaces. Isolated: a failure degrades the tab to absent, never the
+        // profile.
+        setCollections(
+          await readUserPublicCollections(username, provider).catch((e) => {
+            console.error('[social] loadData — readUserPublicCollections failed:', e);
+            return null;
+          }),
+        );
         // The face (avatar / banner) — presigned URLs the query engine minted
         // (author-scoped, so they render for any viewer, not just the owner).
         // Build the media map from the posts' inline-resolved media + the face
@@ -1154,10 +1101,12 @@ export default function UserProfileScreen({ username, provider, onBack }: UserPr
             <div className="absolute bottom-0 inset-x-0 h-0.5 bg-gradient-to-r from-brand to-brand-600" />
           )}
         </button>
-        {/* Saved (D88) — the owner's playlists. Owner-only: the visitor-facing
-            public-collections case is a follow-up, so the tab is absent on
-            someone else's profile (collections === null there). */}
-        {isOwnProfile && collections && (
+        {/* Saved (D88) — the playlists. Owner: all their collections (the tab
+            is always present on the owner's profile, even when empty — the
+            tab's empty state). Visitor: only when the owner has ≥1 PUBLIC
+            collection (a private collection never surfaces — the node's D80
+            by-user read returns only membership_visibility='public' groups). */}
+        {collections && (isOwnProfile || collections.length > 0) && (
           <button
             data-testid="profile-tab-saved"
             aria-current={activeTab === 'saved' ? 'true' : undefined}
@@ -1190,7 +1139,7 @@ export default function UserProfileScreen({ username, provider, onBack }: UserPr
           feed. Media tab: every media item as a wall tile. Saved tab (D88):
           the owner's collection cards (or the open collection's contents). */}
       <div className="px-4 pb-4 pt-2">
-        {activeTab === 'saved' && isOwnProfile && collections ? (
+        {activeTab === 'saved' && collections ? (
           <SavedTab
             username={username}
             collections={collections}

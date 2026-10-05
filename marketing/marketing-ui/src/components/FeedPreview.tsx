@@ -65,24 +65,54 @@ function feedPostToDiscover(post: FeedPost): DiscoverPost {  const author = post
   };
 }
 
-// The marketing comment reader (the public ledger) — injected into the shared
-// card's comment thread. Maps the ledger entries to the package's CommentItem.
-// The public ledger returns the WHOLE flat conversation (top-level + replies),
-// so this is a single page (nextCursor null, no replyCounts) — the thread
-// builds the tree by grouping on parent_id (the marketing mode, comments.md).
+// The marketing comment reader (the public board) — injected into the shared
+// card's comment thread. Reads the `comments` service over the discover group
+// as ANON (no token) through the v3 query engine — the same path the social
+// app's comment read rides, minus the session. The query keys on
+// `body.post_id` (not `ref_value`) so it returns the WHOLE flat conversation
+// (top-level + replies — a reply's `ref_value` is its parent comment, but every
+// comment carries `body.post_id`), so this is a single page (nextCursor null,
+// no replyCounts) and the thread builds the tree by grouping on `parent_id`
+// (the marketing mode, comments.md).
+//
+// The old reader hit `PATCH /public/entries` — the v2 public ledger, which the
+// v3 node no longer exposes (no such route). The fetch 404'd, `resp.ok` was
+// false, it returned `[]`, and every post's comment panel showed "No comments
+// yet." regardless of the post's real comment count.
 const marketingReadComments: ReadComments = async (postId) => {
-  const entries = await fetchComments(postId, undefined, 'public_posts');
+  const safeId = postId.replace(/'/g, "''");
+  const resp = await fetch(`${API_ORIGIN}/v3/query`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    // No token — anon reads the public board (the discover group), the same
+    // rule as the board's posts read above.
+    body: JSON.stringify({
+      sql: `SELECT doc_id, author_key, body, created_at FROM comments WHERE JSONExtractString(body, 'post_id') = '${safeId}' ORDER BY created_at ASC LIMIT 200`,
+      groups: [DISCOVER_GROUP],
+    }),
+  });
+  if (!resp.ok) return { comments: [], nextCursor: null };
+  const data: { rows?: V3CommentRow[] } = await resp.json();
+  const rows = data.rows || [];
   return {
-    comments: entries.map((e) => ({
-      _id: e._id,
-      text: e.payload.text,
-      author_username: e.payload.author_username || e.author,
-      created_at: e.created_at,
-      parent_id: (e.payload as { parent_id?: string }).parent_id,
+    comments: rows.map((r) => ({
+      _id: r.doc_id,
+      text: r.body?.text || '',
+      author_username: r.body?.author_username || r.author_key.split('/').pop() || undefined,
+      created_at: r.created_at,
+      parent_id: r.body?.parent_id || undefined,
     })),
     nextCursor: null,
   };
 };
+
+// One comment row as the v3 query engine returns it (body parsed to an object).
+interface V3CommentRow {
+  doc_id: string;
+  author_key: string;
+  body: Record<string, any> | null;
+  created_at: string;
+}
 
 // A media ref as the v3 read path serves it: resolve_media_urls rewrites a
 // post's media_refs from bare doc_id strings to resolved objects carrying a
@@ -275,37 +305,10 @@ interface TrendingCardProps {
 }
 
 // ── Inline comment panel (anon read, auth-gated compose) ────────────────────
-
-const COMMENT_API = import.meta.env.VITE_API_URL || 'https://api.web10.app';
-
-interface LedgerComment {
-  _id: string;
-  payload: {
-    action: string;
-    text: string;
-    author_username?: string;
-    author_provider?: string;
-    target?: string;
-  };
-  author: string;
-  created_at: string;
-}
-
-async function fetchComments(postId: string, postAuthor?: string, postService?: string): Promise<LedgerComment[]> {
-  const target = postAuthor && postService
-    ? `${postAuthor}/${postService}/${postId}`
-    : `posts:${postId}`;
-  // PATCH /public/entries reads its filters from QUERY PARAMS (FastAPI
-  // Query(...)), not the request body — a body-carried target is ignored and
-  // returns the unfiltered ledger (every post's comments mixed together).
-  const params = new URLSearchParams({ target, limit: '50' });
-  const resp = await fetch(`${COMMENT_API}/public/entries?${params.toString()}`, {
-    method: 'PATCH',
-  });
-  if (!resp.ok) return [];
-  const entries: LedgerComment[] = await resp.json();
-  return entries.filter(e => e.payload?.action === 'comment');
-}
+// The comment read is `marketingReadComments` above (the v3 query engine over
+// the discover group, anon). The old v2 public-ledger reader
+// (`fetchComments` → `PATCH /public/entries`) is gone — the v3 node has no
+// such route, so it 404'd and every panel showed "No comments yet."
 
 function TrendingCard({
   post,

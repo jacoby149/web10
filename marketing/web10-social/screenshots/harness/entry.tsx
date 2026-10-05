@@ -34,6 +34,7 @@ import { ComposerProvider } from '@/context/ComposerContext';
 import { SaveProvider } from '@/context/SaveContext';
 import { NewPostSheet } from '@/components/Feed/NewPostSheet';
 import { SaveSheet } from '@/components/Feed/SaveSheet';
+import { PostDetailHarness } from './PostDetailHarness';
 
 // Fake hls.js — the harness has no backend, so the seeded manifest sigs are
 // not valid against the production API (a real hls.js would 403 → the
@@ -95,6 +96,19 @@ function SavedCollectionRoute() {
   );
 }
 
+// A group collection's detail view (a group is a profile) — the group's
+// playlists. The harness user manages the synthwave-sessions group, so this
+// renders the manager view (the per-item remove + the visibility toggle).
+function GroupSavedCollectionRoute() {
+  const { groupId } = useParams();
+  return (
+    <SavedCollectionScreen
+      groupId={groupId || ''}
+      onBack={() => {}}
+    />
+  );
+}
+
 const params = new URLSearchParams(window.location.search);
 const screen = params.get('screen');
 // Anon mode (?anon=1): a signed-out visitor. The chrome is the anon shell
@@ -105,88 +119,98 @@ const anon = params.get('anon') === '1';
 if (screen === 'install-prompt') {
   window.history.replaceState({}, '', '?pwa-prompt=1');
 }
-const initialRoute =
-  screen === 'settings' ? '/settings'
-  : screen === 'feed' ? '/feed'
-  : screen === 'posts' ? '/feed'
-  : screen === 'posts-following' ? '/feed?tab=following'
-  : screen === 'composer' ? '/composer'
-    : screen === 'notifications' ? '/notifications'
-    : screen === 'notifications-all' ? '/notifications?filter=all'
-    : screen === 'discover' ? '/discover'
-    : screen === 'video' ? '/video'
-    : screen === 'hot-gossip' ? '/hot-gossip'
-    : screen === 'discover-searched' ? '/discover?q=lofi'
-    : screen === 'discover-people-searched' ? '/discover?tab=explore&q=lofi'
-    : screen === 'discover-grid' ? '/discover?view=grid'
-    : screen === 'discover-youtube' ? '/discover?view=youtube'
-   : screen === 'discover-people' ? '/discover?tab=explore'
-   : screen === 'discover-groups' ? '/discover?tab=explore'
-    : screen === 'discover-explore' ? '/discover?tab=explore'
-    : screen === 'watch' ? '/watch/dp-1'
-    : screen === 'shorts' || screen === 'install-prompt' ? '/shorts'
-    : screen === 'shorts-searched' ? '/shorts?q=studio'
-  : screen === 'groups' ? '/groups'
-  : screen === 'groups-discover' ? '/groups?tab=discover'
-  : screen === 'groups-detail' ? '/groups/web10%2Fgroups%2Fusers%2Fnova%2Fsynthwave-sessions'
-  : screen === 'groups-media' ? '/groups/web10%2Fgroups%2Fusers%2Fnova%2Fsynthwave-sessions?tab=media'
-  : screen === 'groups-detail-noface' ? '/groups/web10%2Fgroups%2Fusers%2Fkai%2Flofi-study-room'
-   : screen === 'groups-create' ? '/groups/web10%2Fgroups%2Fusers%2Fme%2Fnew-group?edit=1'
-   : screen === 'chat-group-thread'
-     ? '/messages/group/web10%2Fgroups%2Fusers%2Fnova%2Fchat-the-crew'
-    : screen === 'people' ? '/people'
-     : screen === 'profile' ? '/u/nova'
-     : screen === 'profile-me' ? '/u/me'
-    : screen === 'profile-followers' ? '/u/nova/followers'
-    : screen === 'profile-following' ? '/u/nova/following'
-    : screen === 'profile-feed' ? '/u/nova?view=feed'
-    : screen === 'saved-tab' ? '/u/me?tab=saved'
-    : screen === 'saved-collection' ? '/u/me/saved/web10%2Fgroups%2Fusers%2Fme%2Fsaved-guitar-riffs'
-     : screen === 'monetize' ? '/monetize'
-     : screen === 'monetize-node' ? '/monetize?tab=node'
-    : screen === 'node-settings' ? '/node-settings'
-    : screen === 'node-settings-people' ? '/node-settings?tab=people'
-    : screen === 'node-settings-link' ? '/node-settings?tab=link'
-    : anon ? '/discover'
-    : '/messages';
+// The post-detail capture: the PostLightbox is a fixed overlay, so render it
+// directly (no Layout chrome) — the modal is the whole shot.
+if (screen === 'post-detail') {
+  createRoot(document.getElementById('root')!).render(<PostDetailHarness />);
+} else {
+  const initialRoute =
+    screen === 'settings' ? '/settings'
+    : screen === 'feed' ? '/feed'
+    : screen === 'posts' ? '/feed'
+    : screen === 'posts-following' ? '/feed?tab=following'
+    : screen === 'composer' ? '/composer'
+      : screen === 'notifications' ? '/notifications'
+      : screen === 'notifications-all' ? '/notifications?filter=all'
+      : screen === 'discover' ? '/discover'
+      : screen === 'video' ? '/video'
+      : screen === 'hot-gossip' ? '/hot-gossip'
+      : screen === 'discover-searched' ? '/discover?q=lofi'
+      : screen === 'discover-people-searched' ? '/discover?tab=explore&q=lofi'
+      : screen === 'discover-grid' ? '/discover?view=grid'
+      : screen === 'discover-youtube' ? '/discover?view=youtube'
+     : screen === 'discover-people' ? '/discover?tab=explore'
+     : screen === 'discover-groups' ? '/discover?tab=explore'
+     : screen === 'discover-explore' ? '/discover?tab=explore'
+     : screen === 'watch' ? '/watch/dp-1'
+     : screen === 'shorts' || screen === 'install-prompt' ? '/shorts'
+     : screen === 'shorts-searched' ? '/shorts?q=studio'
+    : screen === 'groups' ? '/groups'
+    : screen === 'groups-discover' ? '/groups?tab=discover'
+    : screen === 'groups-detail' ? '/groups/web10%2Fgroups%2Fusers%2Fnova%2Fsynthwave-sessions'
+    : screen === 'groups-media' ? '/groups/web10%2Fgroups%2Fusers%2Fnova%2Fsynthwave-sessions?tab=media'
+    : screen === 'groups-saved' ? '/groups/web10%2Fgroups%2Fusers%2Fnova%2Fsynthwave-sessions?tab=saved'
+    : screen === 'groups-saved-collection' ? '/groups/web10%2Fgroups%2Fusers%2Fnova%2Fsynthwave-sessions/saved/web10%2Fgroups%2Fusers%2Fnova%2Fsaved-synthwave-sessions-best-of'
+    : screen === 'groups-detail-noface' ? '/groups/web10%2Fgroups%2Fusers%2Fkai%2Flofi-study-room'
+     : screen === 'groups-create' ? '/groups/web10%2Fgroups%2Fusers%2Fme%2Fnew-group?edit=1'
+     : screen === 'chat-group-thread'
+       ? '/messages/group/web10%2Fgroups%2Fusers%2Fnova%2Fchat-the-crew'
+      : screen === 'people' ? '/people'
+       : screen === 'profile' ? '/u/nova'
+       : screen === 'profile-me' ? '/u/me'
+      : screen === 'profile-followers' ? '/u/nova/followers'
+      : screen === 'profile-following' ? '/u/nova/following'
+      : screen === 'profile-feed' ? '/u/nova?view=feed'
+      : screen === 'saved-tab' ? '/u/me?tab=saved'
+      : screen === 'saved-visitor' ? '/u/nova?tab=saved'
+      : screen === 'saved-collection' ? '/u/me/saved/web10%2Fgroups%2Fusers%2Fme%2Fsaved-guitar-riffs'
+       : screen === 'monetize' ? '/monetize'
+       : screen === 'monetize-node' ? '/monetize?tab=node'
+      : screen === 'node-settings' ? '/node-settings'
+      : screen === 'node-settings-people' ? '/node-settings?tab=people'
+      : screen === 'node-settings-link' ? '/node-settings?tab=link'
+      : anon ? '/discover'
+      : '/messages';
 
-createRoot(document.getElementById('root')!).render(
-  <MemoryRouter initialEntries={[initialRoute]}>
-    <RepostProvider>
-    <ComposerProvider>
-    <SaveProvider>
-    <Routes>
-      <Route element={<Layout onLogout={() => {}} onLogin={() => {}} isAnon={anon} onReportBug={() => {}} />}>
-        <Route path="/feed" element={<PostsScreen />} />
-        <Route path="/composer" element={<PostComposer />} />
-        <Route path="/notifications" element={<NotificationsScreen />} />
-        <Route path="/discover" element={<DiscoverScreen />} />
-        <Route path="/video" element={<DiscoverScreen />} />
-        <Route path="/hot-gossip" element={<DiscoverScreen />} />
-        <Route path="/watch/:postId" element={<WatchScreen />} />
-        <Route path="/shorts" element={<ShortsScreen />} />
-        <Route path="/shorts/:postId" element={<ShortsScreen />} />
-        <Route path="/messages/*" element={<DmsScreen />} />
-        <Route path="/settings" element={<SettingsScreen onLogout={() => {}} onReportBug={() => {}} />} />
-        <Route path="/groups" element={<GroupsScreen />} />
-        <Route path="/groups/:groupId" element={<GroupDetailRoute />} />
-        <Route path="/people" element={<DiscoverScreen />} />
-        <Route path="/u/:username" element={<UserProfileRoute />} />
-        <Route path="/u/:username/saved/:collectionId" element={<SavedCollectionRoute />} />
-        <Route path="/u/:username/followers" element={<UserFollowersRoute />} />
-        <Route path="/u/:username/following" element={<UserFollowingRoute />} />
-        <Route path="/monetize" element={<MonetizationScreen />} />
-        <Route path="/node-settings" element={<NodeSettingsScreen />} />
-      </Route>
-    </Routes>
-    {/* D72: the install surface — forced open by ?pwa-prompt=1 for the capture. */}
-    <InstallPrompt />
-    {/* The app-level New Post sheet (the FAB in the Layout opens it). */}
-    <NewPostSheet />
-    {/* The app-level "Save to…" sheet (D88) — opened by a post's kebab. */}
-    <SaveSheet />
-    </SaveProvider>
-    </ComposerProvider>
-    </RepostProvider>
-  </MemoryRouter>,
-);
+  createRoot(document.getElementById('root')!).render(
+    <MemoryRouter initialEntries={[initialRoute]}>
+      <RepostProvider>
+      <ComposerProvider>
+      <SaveProvider>
+      <Routes>
+        <Route element={<Layout onLogout={() => {}} onLogin={() => {}} isAnon={anon} onReportBug={() => {}} />}>
+          <Route path="/feed" element={<PostsScreen />} />
+          <Route path="/composer" element={<PostComposer />} />
+          <Route path="/notifications" element={<NotificationsScreen />} />
+          <Route path="/discover" element={<DiscoverScreen />} />
+          <Route path="/video" element={<DiscoverScreen />} />
+          <Route path="/hot-gossip" element={<DiscoverScreen />} />
+          <Route path="/watch/:postId" element={<WatchScreen />} />
+          <Route path="/shorts" element={<ShortsScreen />} />
+          <Route path="/shorts/:postId" element={<ShortsScreen />} />
+          <Route path="/messages/*" element={<DmsScreen />} />
+          <Route path="/settings" element={<SettingsScreen onLogout={() => {}} onReportBug={() => {}} />} />
+          <Route path="/groups" element={<GroupsScreen />} />
+          <Route path="/groups/:groupId" element={<GroupDetailRoute />} />
+          <Route path="/groups/:groupId/saved/:collectionId" element={<GroupSavedCollectionRoute />} />
+          <Route path="/people" element={<DiscoverScreen />} />
+          <Route path="/u/:username" element={<UserProfileRoute />} />
+          <Route path="/u/:username/saved/:collectionId" element={<SavedCollectionRoute />} />
+          <Route path="/u/:username/followers" element={<UserFollowersRoute />} />
+          <Route path="/u/:username/following" element={<UserFollowingRoute />} />
+          <Route path="/monetize" element={<MonetizationScreen />} />
+          <Route path="/node-settings" element={<NodeSettingsScreen />} />
+        </Route>
+      </Routes>
+      {/* D72: the install surface — forced open by ?pwa-prompt=1 for the capture. */}
+      <InstallPrompt />
+      {/* The app-level New Post sheet (the FAB in the Layout opens it). */}
+      <NewPostSheet />
+      {/* The app-level "Save to…" sheet (D88) — opened by a post's kebab. */}
+      <SaveSheet />
+      </SaveProvider>
+      </ComposerProvider>
+      </RepostProvider>
+    </MemoryRouter>,
+  );
+}

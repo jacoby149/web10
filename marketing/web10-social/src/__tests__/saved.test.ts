@@ -4,19 +4,23 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 // the exact calls (the groupsCreate.test.ts idiom).
 const mockReadToken = vi.fn().mockReturnValue({ provider: 'api.localhost', username: 'jacoby149' });
 const mockCreateGroup = vi.fn().mockResolvedValue({ group_id: 'api.localhost/groups/users/jacoby149/saved-my-collection' });
+const mockUpdateGroup = vi.fn().mockResolvedValue({ group_id: 'api.localhost/groups/users/jacoby149/saved-my-collection' });
 const mockCreate = vi.fn().mockResolvedValue({ doc_id: 's1' });
 const mockRead = vi.fn();
 const mockDelete = vi.fn().mockResolvedValue({ doc_id: 'd1', status: 'deleted' });
 const mockGetGroupMembers = vi.fn().mockResolvedValue([]);
+const mockByUserGroups = vi.fn().mockResolvedValue({ groups: [], limit: 100, offset: 0 });
 
 vi.mock('@/data/v3', () => ({
   getV3Client: () => ({
     readToken: () => mockReadToken(),
     createGroup: (...a: unknown[]) => mockCreateGroup(...a),
+    updateGroup: (...a: unknown[]) => mockUpdateGroup(...a),
     create: (...a: unknown[]) => mockCreate(...a),
     read: (...a: unknown[]) => mockRead(...a),
     delete: (...a: unknown[]) => mockDelete(...a),
     getGroupMembers: (...a: unknown[]) => mockGetGroupMembers(...a),
+    byUserGroups: (...a: unknown[]) => mockByUserGroups(...a),
   }),
 }));
 
@@ -55,6 +59,10 @@ import {
   renameCollection,
   deleteCollection,
   readSavedPostIds,
+  readUserPublicCollections,
+  createGroupCollection,
+  readGroupCollections,
+  readGroupPublicCollections,
 } from '@/data/saved';
 
 const GROUP_ID = 'api.localhost/groups/users/jacoby149/saved-my-collection';
@@ -63,9 +71,11 @@ beforeEach(() => {
   vi.clearAllMocks();
   mockReadToken.mockReturnValue({ provider: 'api.localhost', username: 'jacoby149' });
   mockCreateGroup.mockResolvedValue({ group_id: GROUP_ID });
+  mockUpdateGroup.mockResolvedValue({ group_id: GROUP_ID });
   mockCreate.mockResolvedValue({ doc_id: 's1' });
   mockRead.mockResolvedValue([]);
   mockGetGroupMembers.mockResolvedValue([]);
+  mockByUserGroups.mockResolvedValue({ groups: [], limit: 100, offset: 0 });
   mockReadGroupIdentity.mockResolvedValue({ name: 'My Collection', kind: 'saved', visibility: 'private' });
   mockReadPostById.mockResolvedValue(null);
   mockResolveMediaRefs.mockResolvedValue([]);
@@ -82,8 +92,9 @@ describe('createCollection — private by default (the "sensitive" guard)', () =
     // owner-only — NO `anyone` / `authenticated` row (private by default).
     expect(members).toEqual([{ member_key: 'web10.app/users/jacoby149', role: 'owner' }]);
     expect(members).not.toContainEqual({ member_key: 'anyone', role: 'reader' });
-    // never discoverable + the D78 saved tag.
-    expect(opts).toEqual({ discoverable: false, tags: ['web10-social-saved'] });
+    // never discoverable + the D78 saved tag + D80 hidden membership
+    // (a private collection is not enumerable by-user).
+    expect(opts).toEqual({ discoverable: false, tags: ['web10-social-saved'], membership_visibility: 'hidden' });
     // the face carries kind:'saved' + visibility:'private'.
     expect(mockWriteGroupIdentity).toHaveBeenCalledWith(
       GROUP_ID,
@@ -95,8 +106,10 @@ describe('createCollection — private by default (the "sensitive" guard)', () =
 
   it('a public collection adds the `anyone` reader row (the D58 publicness-is-a-grant idiom)', async () => {
     await createCollection('My Collection', { visibility: 'public' });
-    const [, , , members] = mockCreateGroup.mock.calls[0];
+    const [, , , members, opts] = mockCreateGroup.mock.calls[0];
     expect(members).toContainEqual({ member_key: 'anyone', role: 'reader' });
+    // D80: a public collection is enumerable by-user (membership_visibility='public').
+    expect(opts).toEqual({ discoverable: false, tags: ['web10-social-saved'], membership_visibility: 'public' });
     expect(mockWriteGroupIdentity).toHaveBeenCalledWith(
       GROUP_ID,
       expect.objectContaining({ kind: 'saved', visibility: 'public' }),
@@ -183,15 +196,17 @@ describe('removePostFromCollection — delete the saved doc', () => {
 });
 
 describe('setCollectionVisibility — add/remove the `anyone` reader row', () => {
-  it('public adds the `anyone` reader row + sets the face', async () => {
+  it('public adds the `anyone` reader row + sets the face + D80 public membership', async () => {
     mockGetGroupMembers.mockResolvedValue([{ member_key: 'web10.app/users/jacoby149', role: 'owner' }]);
     await setCollectionVisibility(GROUP_ID, 'public');
     expect(mockAddGroupMember).toHaveBeenCalledWith(GROUP_ID, 'anyone', 'reader');
     expect(mockRemoveGroupMember).not.toHaveBeenCalled();
     expect(mockWriteGroupIdentity).toHaveBeenCalledWith(GROUP_ID, expect.objectContaining({ visibility: 'public' }));
+    // D80: the by-user enumeration's visibility policy follows the face.
+    expect(mockUpdateGroup).toHaveBeenCalledWith(GROUP_ID, { membership_visibility: 'public' });
   });
 
-  it('private removes the `anyone` reader row + sets the face', async () => {
+  it('private removes the `anyone` reader row + sets the face + D80 hidden membership', async () => {
     mockGetGroupMembers.mockResolvedValue([
       { member_key: 'web10.app/users/jacoby149', role: 'owner' },
       { member_key: 'anyone', role: 'reader' },
@@ -200,6 +215,8 @@ describe('setCollectionVisibility — add/remove the `anyone` reader row', () =>
     expect(mockRemoveGroupMember).toHaveBeenCalledWith(GROUP_ID, 'anyone');
     expect(mockAddGroupMember).not.toHaveBeenCalled();
     expect(mockWriteGroupIdentity).toHaveBeenCalledWith(GROUP_ID, expect.objectContaining({ visibility: 'private' }));
+    // D80: a private collection is not enumerable by-user.
+    expect(mockUpdateGroup).toHaveBeenCalledWith(GROUP_ID, { membership_visibility: 'hidden' });
   });
 
   it('is idempotent — public when the `anyone` row already exists does not re-add', async () => {
@@ -238,5 +255,177 @@ describe('readSavedPostIds — the "I saved this" fill', () => {
     mockRead.mockRejectedValue(new Error('boom'));
     const ids = await readSavedPostIds(GROUP_ID);
     expect(ids).toEqual(new Set());
+  });
+});
+
+describe('readUserPublicCollections — the visitor\'s public collections (D80 by-user read)', () => {
+  it('reads the by-user groups by the saved tag and resolves face + item count', async () => {
+    const pubId = 'api.localhost/groups/users/otheruser/saved-tour-sets';
+    mockByUserGroups.mockResolvedValue({
+      groups: [{ group_id: pubId, name: 'saved-tour-sets', owner: 'otheruser', slug: 'saved-tour-sets', role: 'anyone', joined_at: 'x', join_policy: 'invite_only', discoverable: false, tags: ['web10-social-saved'] }],
+      limit: 100,
+      offset: 0,
+    });
+    mockReadGroupIdentity.mockResolvedValue({ name: 'Tour Sets', kind: 'saved', visibility: 'public' });
+    mockRead.mockResolvedValue([
+      { doc_id: 's1', ref_value: 'p1', body: { post_id: 'p1' }, created_at: 'x' },
+      { doc_id: 's2', ref_value: 'p2', body: { post_id: 'p2' }, created_at: 'x' },
+    ]);
+    const collections = await readUserPublicCollections('otheruser');
+    // the D80 by-user read, filtered to the saved tag (the node only returns
+    // membership_visibility='public' groups — a private one never surfaces).
+    expect(mockByUserGroups).toHaveBeenCalledWith('otheruser', { tag: 'web10-social-saved', limit: 100 });
+    expect(collections).toHaveLength(1);
+    expect(collections[0]).toMatchObject({
+      groupId: pubId,
+      name: 'Tour Sets',
+      visibility: 'public',
+      itemCount: 2,
+      slug: 'tour-sets',
+    });
+  });
+
+  it('resolves the member key with the provider when given', async () => {
+    mockByUserGroups.mockResolvedValue({ groups: [], limit: 100, offset: 0 });
+    await readUserPublicCollections('otheruser', 'web10.app');
+    expect(mockByUserGroups).toHaveBeenCalledWith('web10.app/otheruser', { tag: 'web10-social-saved', limit: 100 });
+  });
+
+  it('returns empty when the user has no public collections', async () => {
+    mockByUserGroups.mockResolvedValue({ groups: [], limit: 100, offset: 0 });
+    const collections = await readUserPublicCollections('otheruser');
+    expect(collections).toEqual([]);
+  });
+
+  it('degrades a face-read failure to the slug (never the list)', async () => {
+    const pubId = 'api.localhost/groups/users/otheruser/saved-tour-sets';
+    mockByUserGroups.mockResolvedValue({
+      groups: [{ group_id: pubId, name: 'saved-tour-sets', owner: 'otheruser', slug: 'saved-tour-sets', role: 'anyone', joined_at: 'x', join_policy: 'invite_only', discoverable: false, tags: ['web10-social-saved'] }],
+      limit: 100,
+      offset: 0,
+    });
+    mockReadGroupIdentity.mockRejectedValue(new Error('boom'));
+    mockRead.mockResolvedValue([]);
+    const collections = await readUserPublicCollections('otheruser');
+    expect(collections).toHaveLength(1);
+    expect(collections[0]).toMatchObject({ name: 'tour-sets', itemCount: 0 });
+  });
+});
+
+// ── Group collections (a group's playlists — a group is a profile) ──────────
+const GROUP = 'api.localhost/groups/users/jacoby149/synthwave-sessions';
+const GROUP_COLLECTION_ID = 'api.localhost/groups/users/jacoby149/saved-synthwave-sessions-best-of';
+
+describe('createGroupCollection — the group is the owner (by-group read)', () => {
+  it('creates the group as the owner member + the face carries owner_group', async () => {
+    mockCreateGroup.mockResolvedValue({ group_id: GROUP_COLLECTION_ID });
+    const id = await createGroupCollection(GROUP, 'Best Of');
+    expect(id).toBe(GROUP_COLLECTION_ID);
+    const [slug, joinPolicy, , members, opts] = mockCreateGroup.mock.calls[0];
+    // the slug embeds the group's slug (two groups the manager runs never collide).
+    expect(slug).toBe('saved-synthwave-sessions-best-of');
+    expect(joinPolicy).toBe('invite_only');
+    // the GROUP is the owner member (the D80 by-group read enumerates it).
+    expect(members).toContainEqual({ member_key: GROUP, role: 'owner' });
+    // private by default — no `anyone` reader row.
+    expect(members).not.toContainEqual({ member_key: 'anyone', role: 'reader' });
+    expect(opts).toEqual({ discoverable: false, tags: ['web10-social-saved'], membership_visibility: 'hidden' });
+    // the face carries kind:'saved' + owner_group (the classifier).
+    expect(mockWriteGroupIdentity).toHaveBeenCalledWith(
+      GROUP_COLLECTION_ID,
+      expect.objectContaining({ name: 'Best Of', kind: 'saved', visibility: 'private', owner_group: GROUP }),
+    );
+  });
+
+  it('a public group collection adds the `anyone` reader row + D80 public membership', async () => {
+    mockCreateGroup.mockResolvedValue({ group_id: GROUP_COLLECTION_ID });
+    await createGroupCollection(GROUP, 'Best Of', { visibility: 'public' });
+    const [, , , members, opts] = mockCreateGroup.mock.calls[0];
+    expect(members).toContainEqual({ member_key: 'anyone', role: 'reader' });
+    expect(opts).toEqual({ discoverable: false, tags: ['web10-social-saved'], membership_visibility: 'public' });
+  });
+});
+
+describe('readGroupCollections — the manager\'s read (public + private)', () => {
+  it('selects by the saved tag + filters to owner_group === the group', async () => {
+    const personalId = 'api.localhost/groups/users/jacoby149/saved-personal';
+    mockGetMyGroups.mockResolvedValue([
+      { group_id: GROUP_COLLECTION_ID, join_policy: 'invite_only', my_role: 'owner', member_count: 1 },
+      { group_id: personalId, join_policy: 'invite_only', my_role: 'owner', member_count: 1 },
+    ]);
+    mockReadGroupIdentity.mockImplementation(async (gid: string) =>
+      gid === GROUP_COLLECTION_ID
+        ? { name: 'Best Of', kind: 'saved', visibility: 'private', owner_group: GROUP }
+        : { name: 'Personal', kind: 'saved', visibility: 'private' },
+    );
+    mockRead.mockResolvedValue([]);
+    const collections = await readGroupCollections(GROUP);
+    expect(mockGetMyGroups).toHaveBeenCalledWith({ tags: ['web10-social-saved'] });
+    // only the group's collection (the personal one has no owner_group).
+    expect(collections).toHaveLength(1);
+    expect(collections[0]).toMatchObject({ groupId: GROUP_COLLECTION_ID, name: 'Best Of', visibility: 'private' });
+  });
+});
+
+describe('readGroupPublicCollections — the visitor\'s read (D80 by-group read)', () => {
+  it('reads the by-group groups (the group_id as the member key) by the saved tag', async () => {
+    mockByUserGroups.mockResolvedValue({
+      groups: [{ group_id: GROUP_COLLECTION_ID, name: 'saved-synthwave-sessions-best-of', owner: 'jacoby149', slug: 'saved-synthwave-sessions-best-of', role: 'anyone', joined_at: 'x', join_policy: 'invite_only', discoverable: false, tags: ['web10-social-saved'] }],
+      limit: 100,
+      offset: 0,
+    });
+    mockReadGroupIdentity.mockResolvedValue({ name: 'Best Of', kind: 'saved', visibility: 'public', owner_group: GROUP });
+    mockRead.mockResolvedValue([
+      { doc_id: 's1', ref_value: 'p1', body: { post_id: 'p1' }, created_at: 'x' },
+      { doc_id: 's2', ref_value: 'p2', body: { post_id: 'p2' }, created_at: 'x' },
+    ]);
+    const collections = await readGroupPublicCollections(GROUP);
+    // the D80 by-user read pointed at the GROUP's group_id (the by-group read).
+    expect(mockByUserGroups).toHaveBeenCalledWith(GROUP, { tag: 'web10-social-saved', limit: 100 });
+    expect(collections).toHaveLength(1);
+    expect(collections[0]).toMatchObject({ groupId: GROUP_COLLECTION_ID, name: 'Best Of', visibility: 'public', itemCount: 2 });
+  });
+
+  it('filters to owner_group === the group (a foreign collection is excluded)', async () => {
+    const foreignId = 'api.localhost/groups/users/jacoby149/saved-other-group-best-of';
+    mockByUserGroups.mockResolvedValue({
+      groups: [{ group_id: foreignId, name: 'saved-other-group-best-of', owner: 'jacoby149', slug: 'saved-other-group-best-of', role: 'anyone', joined_at: 'x', join_policy: 'invite_only', discoverable: false, tags: ['web10-social-saved'] }],
+      limit: 100,
+      offset: 0,
+    });
+    mockReadGroupIdentity.mockResolvedValue({ name: 'Other', kind: 'saved', visibility: 'public', owner_group: 'api.localhost/groups/users/jacoby149/other-group' });
+    mockRead.mockResolvedValue([]);
+    const collections = await readGroupPublicCollections(GROUP);
+    expect(collections).toEqual([]);
+  });
+
+  it('returns empty when the group has no public collections', async () => {
+    mockByUserGroups.mockResolvedValue({ groups: [], limit: 100, offset: 0 });
+    const collections = await readGroupPublicCollections(GROUP);
+    expect(collections).toEqual([]);
+  });
+});
+
+describe('personal reads exclude group collections (the owner_group classifier)', () => {
+  it('getMyCollections skips a collection with owner_group set', async () => {
+    mockGetMyGroups.mockResolvedValue([
+      { group_id: GROUP_COLLECTION_ID, join_policy: 'invite_only', my_role: 'owner', member_count: 1 },
+    ]);
+    mockReadGroupIdentity.mockResolvedValue({ name: 'Best Of', kind: 'saved', visibility: 'private', owner_group: GROUP });
+    mockRead.mockResolvedValue([]);
+    const collections = await getMyCollections();
+    expect(collections).toEqual([]);
+  });
+
+  it('readUserPublicCollections skips a collection with owner_group set', async () => {
+    mockByUserGroups.mockResolvedValue({
+      groups: [{ group_id: GROUP_COLLECTION_ID, name: 'saved-synthwave-sessions-best-of', owner: 'jacoby149', slug: 'saved-synthwave-sessions-best-of', role: 'anyone', joined_at: 'x', join_policy: 'invite_only', discoverable: false, tags: ['web10-social-saved'] }],
+      limit: 100,
+      offset: 0,
+    });
+    mockReadGroupIdentity.mockResolvedValue({ name: 'Best Of', kind: 'saved', visibility: 'public', owner_group: GROUP });
+    mockRead.mockResolvedValue([]);
+    const collections = await readUserPublicCollections('jacoby149');
+    expect(collections).toEqual([]);
   });
 });

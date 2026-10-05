@@ -280,4 +280,111 @@ describe('Profile lightbox — Instagram-style post navigation (the side arrows 
       expect(screen.getByText('2 / 2')).toBeInTheDocument();
     });
   });
+
+  it('a multi-frame post on a multi-post profile shows ONLY the post-nav arrows (no double chevrons)', async () => {
+    // The regression: a post with 2 frames opened from a profile with 2 posts
+    // used to render BOTH the in-pane media arrows AND the backdrop post-nav
+    // arrows — two chevrons per side at different heights. Post nav owns the
+    // side arrows, so the in-pane media arrows must be suppressed (the frame
+    // counter stays).
+    const { readMyPosts, resolveMediaRefs } = await import('@/data');
+    vi.mocked(readMyPosts).mockResolvedValue([
+      {
+        _id: 'pn-multi',
+        text: 'multi frame post',
+        media_refs: [{ doc_id: 'm-1' }, { doc_id: 'm-2' }],
+        created_at: new Date().toISOString(),
+      },
+      { _id: 'pn-other', text: 'another post', created_at: new Date().toISOString() },
+    ]);
+    vi.mocked(resolveMediaRefs).mockResolvedValue([
+      { _id: 'm-1', url: 'http://test.com/1.png', mime_type: 'image/png', created_at: new Date().toISOString() },
+      { _id: 'm-2', url: 'http://test.com/2.png', mime_type: 'image/png', created_at: new Date().toISOString() },
+    ]);
+    const { default: UserProfileScreen } = await import('@/components/Bio/UserProfileScreen');
+    render(
+      <MemoryRouter initialEntries={['/u/testuser']}>
+        <UserProfileScreen username="testuser" provider="test.localhost" />
+      </MemoryRouter>,
+    );
+
+    await waitFor(() => {
+      expect(screen.getAllByTestId('profile-post-cell').length).toBe(2);
+    });
+    fireEvent.click(screen.getAllByTestId('profile-post-cell')[0]);
+    await waitFor(() => {
+      expect(screen.getByTestId('post-lightbox')).toBeInTheDocument();
+    });
+
+    // Two posts → post-nav arrows present (they own the side arrows).
+    expect(screen.getByTestId('post-lightbox-prev-post')).toBeInTheDocument();
+    expect(screen.getByTestId('post-lightbox-next-post')).toBeInTheDocument();
+    // Two frames, but post nav is active → the in-pane media arrows are GONE
+    // (no double chevrons). The frame counter still shows.
+    expect(screen.queryByTestId('post-lightbox-prev')).not.toBeInTheDocument();
+    expect(screen.queryByTestId('post-lightbox-next')).not.toBeInTheDocument();
+    expect(screen.getByText('1 / 2')).toBeInTheDocument();
+  });
+
+  it('the media pane is a swipeable scroll-snap strip — swiping (scrolling the strip) pages the carousel', async () => {
+    const { readMyPosts, resolveMediaRefs } = await import('@/data');
+    const multiMediaPost = {
+      _id: 'pn-swipe',
+      text: 'swipe post',
+      media_refs: [
+        { doc_id: 's-1' },
+        { doc_id: 's-2' },
+        { doc_id: 's-3' },
+      ],
+      created_at: new Date().toISOString(),
+    };
+    vi.mocked(readMyPosts).mockResolvedValue([multiMediaPost]);
+    vi.mocked(resolveMediaRefs).mockResolvedValue([
+      { _id: 's-1', url: 'http://test.com/1.png', mime_type: 'image/png', created_at: new Date().toISOString() },
+      { _id: 's-2', url: 'http://test.com/2.png', mime_type: 'image/png', created_at: new Date().toISOString() },
+      { _id: 's-3', url: 'http://test.com/3.png', mime_type: 'image/png', created_at: new Date().toISOString() },
+    ]);
+    const { default: UserProfileScreen } = await import('@/components/Bio/UserProfileScreen');
+    render(
+      <MemoryRouter initialEntries={['/u/testuser']}>
+        <UserProfileScreen username="testuser" provider="test.localhost" />
+      </MemoryRouter>,
+    );
+
+    await waitFor(() => {
+      expect(screen.getAllByTestId('profile-post-cell').length).toBe(1);
+    });
+    fireEvent.click(screen.getByTestId('profile-post-cell'));
+    await waitFor(() => {
+      expect(screen.getByTestId('post-lightbox')).toBeInTheDocument();
+    });
+
+    // The media pane is a scroll-snap strip carrying every frame (the swipe
+    // mechanism — native scroll-snap, no dep).
+    const strip = screen.getByTestId('post-lightbox-strip') as HTMLElement;
+    expect(strip.className).toMatch(/snap-x/);
+    expect(strip.className).toMatch(/snap-mandatory/);
+    expect(strip.className).toMatch(/overflow-x-auto/);
+    expect(screen.getByTestId('post-lightbox-media-0')).toBeInTheDocument();
+    expect(screen.getByTestId('post-lightbox-media-1')).toBeInTheDocument();
+    expect(screen.getByTestId('post-lightbox-media-2')).toBeInTheDocument();
+    expect(screen.getByText('1 / 3')).toBeInTheDocument();
+
+    // A swipe scrolls the strip; the onScroll handler keeps the indicator in
+    // sync (the source of truth for the swipe). Simulate the strip settling on
+    // frame 2 (scrollLeft = 1 frame wide).
+    Object.defineProperty(strip, 'clientWidth', { configurable: true, value: 300 });
+    Object.defineProperty(strip, 'scrollLeft', { configurable: true, value: 300 });
+    fireEvent.scroll(strip);
+    await waitFor(() => {
+      expect(screen.getByText('2 / 3')).toBeInTheDocument();
+    });
+
+    // Swipe back to frame 1.
+    Object.defineProperty(strip, 'scrollLeft', { configurable: true, value: 0 });
+    fireEvent.scroll(strip);
+    await waitFor(() => {
+      expect(screen.getByText('1 / 3')).toBeInTheDocument();
+    });
+  });
 });

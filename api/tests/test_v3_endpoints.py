@@ -567,6 +567,55 @@ class TestUpdateGroup:
         # discoverable omitted → the existing value is preserved.
         assert mock_update.call_args[1]["discoverable"] is True
 
+    def test_set_membership_visibility(self, client, token):
+        existing = {
+            "group_id": "g1",
+            "roles": [],
+            "join_policy": "open",
+            "discoverable": False,
+            "membership_visibility": "hidden",
+            "created_at": "2026-01-01",
+            "updated_at": "2026-01-01",
+        }
+        with (
+            patch(
+                "app.v3.services.clickhouse.get_group_member", return_value={"member_key": "testuser", "role": "admin"}
+            ),
+            patch("app.v3.services.clickhouse.get_group", return_value=existing),
+            patch("app.v3.services.clickhouse.update_group") as mock_update,
+        ):
+            resp = client.post(
+                "/v3/groups/update",
+                json={"token": token, "group_id": "g1", "membership_visibility": "public"},
+            )
+        assert resp.status_code == 200
+        assert mock_update.call_args[1]["membership_visibility"] == "public"
+
+    def test_membership_visibility_none_leaves_unchanged(self, client, token):
+        existing = {
+            "group_id": "g1",
+            "roles": [],
+            "join_policy": "open",
+            "discoverable": False,
+            "membership_visibility": "public",
+            "created_at": "2026-01-01",
+            "updated_at": "2026-01-01",
+        }
+        with (
+            patch(
+                "app.v3.services.clickhouse.get_group_member", return_value={"member_key": "testuser", "role": "admin"}
+            ),
+            patch("app.v3.services.clickhouse.get_group", return_value=existing),
+            patch("app.v3.services.clickhouse.update_group") as mock_update,
+        ):
+            resp = client.post(
+                "/v3/groups/update",
+                json={"token": token, "group_id": "g1", "join_policy": "request"},
+            )
+        assert resp.status_code == 200
+        # omitted → the existing value is preserved (the D80 policy is sticky).
+        assert mock_update.call_args[1]["membership_visibility"] == "public"
+
 
 class TestListGroups:
     def test_get(self, client, token):
@@ -711,6 +760,19 @@ class TestGroupByUser:
             resp = client.get("/v3/groups/by-user", params={"user": "alice", "limit": 10, "offset": 20})
         assert resp.status_code == 200
         m.assert_called_once_with("alice", tag=None, limit=10, offset=20)
+
+    def test_group_id_member_key_passes_through(self, client):
+        """A group_id is a legitimate member key (a group can be a member of
+        another group — e.g. a group collection's owner is the group). The node
+        stores it verbatim, so the by-user read must match it verbatim, not
+        strip it to its last segment (which would match nothing). This is the
+        by-group read a group's public collections are enumerated by."""
+        group_id = "api.localhost/groups/users/bob/synthwave-sessions"
+        with patch("app.v3.services.clickhouse.get_user_public_groups", return_value=[]) as m:
+            resp = client.get("/v3/groups/by-user", params={"user": group_id})
+        assert resp.status_code == 200
+        # the full group_id is passed through (not stripped to "synthwave-sessions").
+        m.assert_called_once_with(group_id, tag=None, limit=50, offset=0)
 
 
 class TestGroupDetail:

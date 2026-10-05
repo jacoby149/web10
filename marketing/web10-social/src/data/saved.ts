@@ -44,6 +44,11 @@ const SAVED_SERVICE = 'saved';
 // never leak into the Groups / Messages surfaces).
 const SAVED_TAG = 'web10-social-saved';
 
+/** The last path segment of a group_id (its slug). */
+function groupSlug(groupId: string): string {
+  return (groupId.split('/').pop() || '').replace(/^saved-/, '');
+}
+
 // The collection's role set. `owner` (the creator) has full control; `reader`
 // is the reserved read-grant role granted to the `anyone` principal when the
 // collection is public (the D58 publicness-is-a-role-grant idiom, the same
@@ -148,7 +153,14 @@ export async function createCollection(
     'invite_only',
     SAVED_ROLES,
     members,
-    { discoverable: false, tags: [SAVED_TAG] },
+    {
+      discoverable: false,
+      tags: [SAVED_TAG],
+      // D80: the by-user enumeration's visibility policy. A public collection
+      // is enumerable by-user (a visitor's profile can list it); a private one
+      // is not (it never surfaces on someone else's profile).
+      membership_visibility: visibility === 'public' ? 'public' : 'hidden',
+    },
   );
   const groupId = res.group_id;
   LOG('createCollection — created', groupId);
@@ -175,10 +187,13 @@ export async function getMyCollections(): Promise<CollectionRecord[]> {
   LOG('getMyCollections —', groups.length, 'collections (by tag)');
 
   const records = await Promise.all(
-    groups.map(async (g) => {
+    groups.map(async (g): Promise<CollectionRecord | null> => {
       const face = await readGroupIdentity(g.group_id);
+      // A group collection (a group's playlist) is not a personal collection —
+      // it surfaces on the group's Saved tab, not the manager's personal one.
+      if (face.owner_group) return null;
       const itemCount = await countSaved(g.group_id);
-      const slug = (g.group_id.split('/').pop() || '').replace(/^saved-/, '');
+      const slug = groupSlug(g.group_id);
       return {
         groupId: g.group_id,
         name: face.name || slug,
@@ -186,11 +201,12 @@ export async function getMyCollections(): Promise<CollectionRecord[]> {
         coverRef: face.avatar_ref,
         itemCount,
         slug,
-      } satisfies CollectionRecord;
+      };
     }),
   );
-  LOG('getMyCollections — resolved', records.length, 'collections');
-  return records;
+  const out = records.filter((r): r is CollectionRecord => r !== null);
+  LOG('getMyCollections — resolved', out.length, 'collections');
+  return out;
 }
 
 /** The number of saved posts in a collection (the card's "N items"). */
@@ -204,6 +220,191 @@ async function countSaved(groupId: string): Promise<number> {
     LOG('countSaved — failed (degrading to 0)', groupId, (e as Error)?.message);
     return 0;
   }
+}
+
+/**
+ * Read a user's PUBLIC saved collections (the visitor's profile Saved tab).
+ * The node's D80 `by-user` read (tag `web10-social-saved`) returns only groups
+ * with `membership_visibility == 'public'` — a private collection never
+ * surfaces, so a visitor can never enumerate what someone saved privately.
+ * Each returned group is resolved to its face (name) + item count. A per-
+ * collection failure degrades that card (never the list).
+ */
+export async function readUserPublicCollections(username: string, provider?: string): Promise<CollectionRecord[]> {
+  const w = getV3Client();
+  const memberKey = provider ? `${provider}/${username}` : username;
+  LOG('readUserPublicCollections — start', memberKey);
+  const page = await w.byUserGroups(memberKey, { tag: SAVED_TAG, limit: 100 });
+  LOG('readUserPublicCollections —', page.groups.length, 'public collections (by-user)');
+
+  const records = await Promise.all(
+    page.groups.map(async (g): Promise<CollectionRecord | null> => {
+      const slug = groupSlug(g.group_id);
+      let face: GroupIdentity = {};
+      try {
+        face = await readGroupIdentity(g.group_id);
+      } catch (e) {
+        // A face-read failure degrades the card to the slug (never the list).
+        LOG('readUserPublicCollections — face read failed (degrading)', g.group_id, (e as Error)?.message);
+      }
+      // A group collection (a group's playlist) is not a personal collection —
+      // it surfaces on the group's Saved tab, not the user's profile.
+      if (face.owner_group) return null;
+      const itemCount = await countSaved(g.group_id);
+      return {
+        groupId: g.group_id,
+        name: face.name || slug,
+        visibility: 'public' as CollectionVisibility,
+        coverRef: face.avatar_ref,
+        itemCount,
+        slug,
+      };
+    }),
+  );
+  const out = records.filter((r): r is CollectionRecord => r !== null);
+  LOG('readUserPublicCollections — resolved', out.length, 'collections');
+  return out;
+}
+
+// ── Group collections (a group's playlists — a group is a profile) ──────────
+// A group collection is the same primitive as a personal collection (a
+// `kind:'saved'` group, the `web10-social-saved` tag, a `saved` doc per saved
+// post, the D58 `anyone` reader row for publicness) — the one difference is
+// WHO OWNS IT: the owner member is the GROUP (its group_id, used as a
+// member_key), not a user. The face carries `owner_group: <group_id>` — the
+// classifier that separates a group collection from a personal one (an
+// ownership/render hint only, never a security boundary). The by-group read is
+// the D80 by-user read pointed at the group's group_id (the group is its
+// collections' owner member); the manager's read (public + private) is the tag
+// read filtered to `owner_group === <group_id>`. Zero node surface (D60).
+
+/**
+ * Create a collection for a group (the group's manager curating a playlist for
+ * the group's audience). The owner member is the group's group_id (so the D80
+ * by-user read enumerates it on the group's page); the manager is also an
+ * owner member (the node's `ensure_creator_owner`) — that's what lets them
+ * manage it. The face carries `owner_group` so it's excluded from the manager's
+ * personal Saved tab. The slug embeds the group's slug so two groups the
+ * manager runs never collide. Returns the group_id.
+ */
+export async function createGroupCollection(
+  groupId: string,
+  name: string,
+  opts: { visibility?: CollectionVisibility; slug?: string } = {},
+): Promise<string> {
+  const w = getV3Client();
+  const visibility: CollectionVisibility = opts.visibility ?? 'private';
+  const slug = opts.slug || slugify(name);
+  const groupSlug = (groupId.split('/').pop() || '');
+  LOG('createGroupCollection — start', { groupId, name, slug, visibility });
+
+  const members: { member_key: string; role: string }[] = [
+    // The group is the collection's owner (the by-group read enumerates it).
+    { member_key: groupId, role: 'owner' },
+  ];
+  if (visibility === 'public') {
+    members.push({ member_key: 'anyone', role: 'reader' });
+  }
+
+  const res = await w.createGroup(
+    `saved-${groupSlug}-${slug}`,
+    'invite_only',
+    SAVED_ROLES,
+    members,
+    {
+      discoverable: false,
+      tags: [SAVED_TAG],
+      // D80: the by-group enumeration's visibility policy (a public collection
+      // is enumerable on the group's page; a private one is not).
+      membership_visibility: visibility === 'public' ? 'public' : 'hidden',
+    },
+  );
+  const collectionId = res.group_id;
+  LOG('createGroupCollection — created', collectionId);
+
+  await writeGroupIdentity(collectionId, {
+    name,
+    kind: 'saved',
+    visibility,
+    owner_group: groupId,
+  });
+  LOG('createGroupCollection — face written', collectionId);
+  return collectionId;
+}
+
+/**
+ * Read a group's collections (the manager's read — public AND private). The
+ * manager is an owner member of the group's collections, so they're in the
+ * manager's group list; select by the tag + filter to `owner_group === groupId`
+ * (a personal collection the manager owns has no `owner_group`, so it's
+ * excluded). Each is resolved to its face + item count.
+ */
+export async function readGroupCollections(groupId: string): Promise<CollectionRecord[]> {
+  const groups = await getMyGroups({ tags: [SAVED_TAG] });
+  LOG('readGroupCollections —', groups.length, 'tagged collections (by tag)');
+
+  const records = await Promise.all(
+    groups.map(async (g): Promise<CollectionRecord | null> => {
+      const face = await readGroupIdentity(g.group_id);
+      // Only this group's collections (the `owner_group` classifier).
+      if (face.owner_group !== groupId) return null;
+      const itemCount = await countSaved(g.group_id);
+      const slug = groupSlug(g.group_id);
+      return {
+        groupId: g.group_id,
+        name: face.name || slug,
+        visibility: (face.visibility as CollectionVisibility) || 'private',
+        coverRef: face.avatar_ref,
+        itemCount,
+        slug,
+      };
+    }),
+  );
+  const out = records.filter((r): r is CollectionRecord => r !== null);
+  LOG('readGroupCollections — resolved', out.length, 'collections');
+  return out;
+}
+
+/**
+ * Read a group's PUBLIC collections (the visitor's read — the group page's
+ * Saved tab for a non-manager). The D80 by-user read pointed at the group's
+ * group_id returns only the group's `membership_visibility == 'public'`
+ * collections (a private one never surfaces). Filtered to `owner_group ===
+ * groupId` (defensive — the group is only ever an owner member of its own
+ * collections). A face-read failure degrades the card to the slug (never the
+ * list).
+ */
+export async function readGroupPublicCollections(groupId: string): Promise<CollectionRecord[]> {
+  const w = getV3Client();
+  LOG('readGroupPublicCollections — start', groupId);
+  const page = await w.byUserGroups(groupId, { tag: SAVED_TAG, limit: 100 });
+  LOG('readGroupPublicCollections —', page.groups.length, 'public collections (by-group)');
+
+  const records = await Promise.all(
+    page.groups.map(async (g): Promise<CollectionRecord | null> => {
+      const slug = groupSlug(g.group_id);
+      let face: GroupIdentity = {};
+      try {
+        face = await readGroupIdentity(g.group_id);
+      } catch (e) {
+        LOG('readGroupPublicCollections — face read failed (degrading)', g.group_id, (e as Error)?.message);
+      }
+      // Only this group's collections (the `owner_group` classifier).
+      if (face.owner_group !== groupId) return null;
+      const itemCount = await countSaved(g.group_id);
+      return {
+        groupId: g.group_id,
+        name: face.name || slug,
+        visibility: 'public' as CollectionVisibility,
+        coverRef: face.avatar_ref,
+        itemCount,
+        slug,
+      };
+    }),
+  );
+  const out = records.filter((r): r is CollectionRecord => r !== null);
+  LOG('readGroupPublicCollections — resolved', out.length, 'collections');
+  return out;
 }
 
 // ── Read a collection ────────────────────────────────────────────────────────
@@ -320,7 +521,10 @@ async function findSavedDoc(groupId: string, postId: string) {
 /**
  * Set a collection's visibility. `public` adds the `anyone` reader row (anyone
  * can read the contents); `private` removes it (owner-only). Also updates the
- * face's `visibility` field (the app's intent).
+ * face's `visibility` field (the app's intent) AND the group's D80
+ * `membership_visibility` — the by-user enumeration only returns
+ * `membership_visibility == 'public'` groups, so a public collection is
+ * enumerable on a visitor's profile and a private one is absent.
  */
 export async function setCollectionVisibility(
   groupId: string,
@@ -340,6 +544,12 @@ export async function setCollectionVisibility(
   // Update the face's visibility field (read the current face, set the field).
   const face = await readGroupIdentity(groupId);
   await writeGroupIdentity(groupId, { ...face, visibility });
+
+  // D80: the by-user enumeration's visibility policy follows the face — a
+  // public collection is enumerable by-user, a private one is not.
+  await w.updateGroup(groupId, {
+    membership_visibility: visibility === 'public' ? 'public' : 'hidden',
+  });
   LOG('setCollectionVisibility — done', groupId, visibility);
 }
 

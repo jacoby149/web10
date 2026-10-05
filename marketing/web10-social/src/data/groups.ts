@@ -408,11 +408,16 @@ export interface CreateGroupInput {
 
 /**
  * The deterministic group_id for a community group: the slug namespaced under
- * the owner (`web10.app/groups/{owner}/{slug}`). The slug is the group's public
+ * the owner in the node's created-group shape
+ * (`{provider}/groups/users/{owner}/{slug}`). The provider is the node's (the
+ * token's provider) — created groups live under the provider, matching the
+ * node's `create_group` derivation (which the client must mirror for the
+ * create-time slug guard to check the right id). The slug is the group's public
  * identity (decision 4); the display name is free to change later.
  */
-export function communityGroupId(ownerUsername: string, slug: string): string {
-  return `web10.app/groups/${ownerUsername}/${slug}`;
+export function communityGroupId(ownerUsername: string, slug: string, provider?: string): string {
+  const p = provider || currentProvider();
+  return `${p}/groups/users/${ownerUsername}/${slug}`;
 }
 
 /**
@@ -482,11 +487,17 @@ export async function createCommunityGroup(
     }
     discoverable = input.discoverable ?? input.visibility === 'public';
   }
-  await w.createGroup(slug, joinPolicy, COMMUNITY_CREATE_ROLES, members, {
+  const created = await w.createGroup(slug, joinPolicy, COMMUNITY_CREATE_ROLES, members, {
     discoverable,
     tags: [GROUP_TAG.community],
   });
-  LOG('createCommunityGroup — created', groupId, { discoverable, joinPolicy, draft });
+  // The node is the source of truth for the group_id (it derives
+  // `{provider}/groups/users/{creator}/{slug}` from the JWT). Use the returned
+  // id for the face write so the doc attaches to the group the node actually
+  // created — never a client-reconstructed id (a provider/shape mismatch there
+  // is a group the author isn't a member of → the D58 write gate 403s).
+  const createdId = created?.group_id || groupId;
+  LOG('createCommunityGroup — created', createdId, { discoverable, joinPolicy, draft });
   const face: GroupIdentity = {
     name: input.name,
     description: input.description || undefined,
@@ -501,9 +512,9 @@ export async function createCommunityGroup(
     join_policy: joinPolicy,
     discoverable,
   };
-  await writeGroupIdentity(groupId, face);
-  LOG('createCommunityGroup — face written', groupId);
-  return groupId;
+  await writeGroupIdentity(createdId, face);
+  LOG('createCommunityGroup — face written', createdId);
+  return createdId;
 }
 
 /**
@@ -550,6 +561,7 @@ export async function writeGroupIdentity(groupId: string, identity: GroupIdentit
   if (identity.banner_ref) body.banner_ref = identity.banner_ref;
   if (identity.avatar_ref) body.avatar_ref = identity.avatar_ref;
   if (identity.kind) body.kind = identity.kind;
+  if (identity.owner_group) body.owner_group = identity.owner_group;
   if (identity.status) body.status = identity.status;
   if (identity.visibility) body.visibility = identity.visibility;
   if (identity.join_policy) body.join_policy = identity.join_policy;
@@ -965,6 +977,17 @@ export interface GroupIdentity {
    * community has no `kind`.
    */
   kind?: 'chat' | 'community' | 'saved';
+  /**
+   * The group a collection belongs to (saved-collections.md, "Group
+   * collections"). Present on a **group collection** (a group's playlist) —
+   * the group_id of the group the collection is curated for. Absent on a
+   * **personal** collection (a user's playlist). Like `kind`, an
+   * ownership/render hint only, never a security boundary (access is group
+   * membership + the D58 gate). A personal Saved tab shows only collections
+   * with no `owner_group`; a group's Saved tab shows only collections whose
+   * `owner_group` matches the group.
+   */
+  owner_group?: string;
   /**
    * The draft/published state (group-as-profile, decision 2). Absent means
    * `published` — every pre-existing group is live. A `draft` group is inert:

@@ -1,75 +1,61 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ChevronLeft, ChevronRight, X, Edit3, Trash2, Eye, EyeOff, Share2, Check, Megaphone, Film } from 'lucide-react';
+import { ChevronLeft, ChevronRight, X, Check } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { Textarea } from '@/components/ui/textarea';
-import { Input } from '@/components/ui/input';
-import type { PostRecord, MediaRecord, AdRecord } from '@/data/types';
+import type { PostRecord, MediaRecord } from '@/data/types';
 import { mediaRefId } from '@/data/types';
 import { getWapi } from '@/data/wapi';
 import {
   toggleReactionKind,
   readReactions,
   countComments,
-  updatePost,
   deletePost,
   movePostVisibility,
-  readMyAds,
   readRepostCounts,
   readMyRepostedIds,
   getDiscoverGroupId,
   type ReactionKind,
-  type AdAlbum,
 } from '@/data';
-import { PostActions } from '@/components/Feed/PostActions';
 import { useRepost } from '@/context/RepostContext';
 import { useComposer } from '@/context/ComposerContext';
-import { PostBody } from '@/components/Feed/PostBody';
+import { PostDetail } from '@/components/Feed/PostDetail';
 import { AttachedAd } from '@/components/Feed/AttachedAd';
-import { AdPicker } from '@/components/Feed/AdPicker';
 import { toast, errorMessage } from '@/components/shared/Toast';
 import { cn } from '@/lib/utils';
 import { VideoPlayer, sourceFromMedia } from '@/components/Feed/VideoPlayer';
 
-/** The lightbox's video pane — the modal modality (video-player.md): the full
- *  player. Transcoded plays the hls.js rack; non-transcoded plays native
- *  controls. Both route through the shared <VideoPlayer>.
- *
- *  A portrait (9:16) clip is capped to a square-ish frame (`maxWidth`) and
- *  centered in a black letterbox — the full-width 9:16 frame would be ~1.78×
- *  the viewport tall (clipped by the modal, the rack stranded off-screen).
- *  The operator liked the square frame; the cap restores it for vertical video. */
-function LightboxVideo({ media }: { media: MediaRecord }) {
-  const source = sourceFromMedia(media);
-  // width/height exist on the hls + file variants (not the youtube embed, which
-  // the lightbox never renders). A portrait clip (width < height) gets the
-  // square-ish cap.
-  const dims = source.type === 'youtube' ? null : { w: source.width, h: source.height };
-  const portrait = !!dims && !!dims.w && !!dims.h && dims.w < dims.h;
+/** A single frame in the lightbox's swipeable media strip. Video renders
+ *  through the full player (the modal modality); an image is an `<img>` fit to
+ *  the frame. The strip (below) lays these out as full-width snap slides so a
+ *  mobile swipe pages the post's frames (native scroll-snap, no dep). */
+function LightboxSlide({ media, testId }: { media: MediaRecord; testId?: string }) {
+  const isVideo = media.mime_type?.startsWith('video/');
+  if (isVideo) {
+    const source = sourceFromMedia(media);
+    // width/height exist on the hls + file variants (not the youtube embed, which
+    // the lightbox never renders). A portrait clip (width < height) gets the
+    // square-ish cap.
+    const dims = source.type === 'youtube' ? null : { w: source.width, h: source.height };
+    const portrait = !!dims && !!dims.w && !!dims.h && dims.w < dims.h;
+    return (
+      <VideoPlayer
+        source={source}
+        mode="full"
+        fit="contain"
+        testId={source.type === 'file' ? testId : undefined}
+        maxWidth={portrait ? 'min(50vh, 100%)' : undefined}
+        className={source.type === 'file' ? 'max-h-[50vh] sm:max-h-[88vh]' : 'w-full'}
+      />
+    );
+  }
   return (
-    <VideoPlayer
-      source={source}
-      mode="full"
-      fit="contain"
-      testId={source.type === 'file' ? 'lightbox-video' : undefined}
-      maxWidth={portrait ? 'min(50vh, 100%)' : undefined}
-      className={source.type === 'file' ? 'max-h-[50vh] sm:max-h-[88vh]' : 'w-full'}
+    <img
+      src={media.url}
+      alt={media.alt_text || ''}
+      className="h-full w-full object-contain"
+      data-testid={testId}
     />
   );
-}
-
-function formatTimeAgo(dateStr: string): string {
-  const then = new Date(dateStr).getTime();
-  if (Number.isNaN(then)) return '';
-  const diff = Date.now() - then;
-  const m = Math.floor(diff / 60000);
-  if (m < 1) return 'just now';
-  if (m < 60) return `${m}m ago`;
-  const h = Math.floor(m / 60);
-  if (h < 24) return `${h}h ago`;
-  const d = Math.floor(h / 24);
-  if (d < 7) return `${d}d ago`;
-  return new Date(dateStr).toLocaleDateString();
 }
 
 interface PostLightboxProps {
@@ -111,7 +97,10 @@ export function PostLightbox({ post, mediaMap, onClose, onReload, postAuthor, po
   // prop.)
   useEffect(() => {
     setCurrentPost(post);
+    indexRef.current = 0;
     setIndex(0);
+    const el = stripRef.current;
+    if (el && typeof el.scrollTo === 'function') el.scrollTo({ left: 0 });
   }, [post]);
 
   // Like state (post-actions.md: the reaction pair — like XOR dislike). The
@@ -125,20 +114,8 @@ export function PostLightbox({ post, mediaMap, onClose, onReload, postAuthor, po
   const [reposted, setReposted] = useState(false);
   const [repostCount, setRepostCount] = useState(0);
 
-  // Comment state (the thread's open/closed state lives in <PostActions>)
+  // Comment state (the thread's open/closed state lives in <PostDetail>)
   const [commentCount, setCommentCount] = useState(0);
-
-  // Editing is NOT inline — it opens the app-level composer sheet in edit mode
-  // (openComposer({ editingPost }) — the ONE edit path, so the lightbox stays
-  // the read surface). No edit state lives here.
-
-  // Delete confirm state. `deleteArmed` reveals the confirm UI (type "delete"
-  // to proceed); `deleteConfirm` is the typed value that gates the confirm
-  // button. (Previously the confirm UI was gated on deleteConfirm === 'delete',
-  // which was unreachable — the input that sets it only rendered after it was
-  // already 'delete', so the delete button did nothing.)
-  const [deleteArmed, setDeleteArmed] = useState(false);
-  const [deleteConfirm, setDeleteConfirm] = useState('');
 
   // Visibility toggle state
   const [togglingVisibility, setTogglingVisibility] = useState(false);
@@ -155,12 +132,42 @@ export function PostLightbox({ post, mediaMap, onClose, onReload, postAuthor, po
     ? isOwnerProp
     : token !== null && post.author_username === token.username;
 
-  const prev = useCallback(() => {
-    setIndex(i => (i - 1 + media.length) % media.length);
-  }, [media.length]);
-  const next = useCallback(() => {
-    setIndex(i => (i + 1) % media.length);
-  }, [media.length]);
+  // The swipeable media strip (mobile): a scroll-snap row of the post's frames.
+  // Swiping the strip (native scroll-snap) + the arrows + the keyboard all
+  // converge on the same `index`. The strip is the source of truth for position
+  // — a swipe updates `index` via `onScroll`, and the arrows/keyboard scroll the
+  // strip to the target frame (so the arrows and the swipe can't disagree).
+  // `indexRef` mirrors `index` so a rapid arrow/keyboard press reads the
+  // settled frame, not a mid-animation `scrollLeft`.
+  const stripRef = useRef<HTMLDivElement>(null);
+  const indexRef = useRef(0);
+
+  const scrollToIndex = useCallback((i: number) => {
+    const el = stripRef.current;
+    indexRef.current = i;
+    setIndex(i);
+    if (el && typeof el.scrollTo === 'function') {
+      el.scrollTo({ left: i * el.clientWidth, behavior: 'smooth' });
+    }
+  }, []);
+
+  // The strip's onScroll (a swipe) keeps `index` in sync with the scroll
+  // position — the indicator follows the finger.
+  function onStripScroll(e: React.UIEvent<HTMLDivElement>) {
+    const el = e.currentTarget;
+    if (!el || el.clientWidth === 0) return;
+    const i = Math.min(media.length - 1, Math.max(0, Math.round(el.scrollLeft / el.clientWidth)));
+    indexRef.current = i;
+    setIndex(i);
+  }
+
+  // The arrows + keyboard page the strip (a swipe updates `index` the same way).
+  const prevFrame = useCallback(() => {
+    scrollToIndex((indexRef.current - 1 + media.length) % media.length);
+  }, [media.length, scrollToIndex]);
+  const nextFrame = useCallback(() => {
+    scrollToIndex((indexRef.current + 1) % media.length);
+  }, [media.length, scrollToIndex]);
 
   const hasPostNav = Boolean(onPrevPost || onNextPost);
 
@@ -172,8 +179,8 @@ export function PostLightbox({ post, mediaMap, onClose, onReload, postAuthor, po
       // post's own media (the multi-frame carousel).
       else if (e.key === 'ArrowLeft' && hasPostNav) onPrevPost?.();
       else if (e.key === 'ArrowRight' && hasPostNav) onNextPost?.();
-      else if (e.key === 'ArrowLeft' && multiple) prev();
-      else if (e.key === 'ArrowRight' && multiple) next();
+      else if (e.key === 'ArrowLeft' && multiple) prevFrame();
+      else if (e.key === 'ArrowRight' && multiple) nextFrame();
     };
     window.addEventListener('keydown', onKey);
     const prevOverflow = document.body.style.overflow;
@@ -182,7 +189,7 @@ export function PostLightbox({ post, mediaMap, onClose, onReload, postAuthor, po
       window.removeEventListener('keydown', onKey);
       document.body.style.overflow = prevOverflow;
     };
-  }, [onClose, prev, next, multiple, hasPostNav, onPrevPost, onNextPost]);
+  }, [onClose, prevFrame, nextFrame, multiple, hasPostNav, onPrevPost, onNextPost]);
 
   // Load reaction + comment state (the lightbox reads fresh — it's a modal,
   // not a feed). The like and dislike counts are derived from the reactions
@@ -323,7 +330,75 @@ export function PostLightbox({ post, mediaMap, onClose, onReload, postAuthor, po
     }
   }
 
-  const current = media[index];
+  const signedIn = token !== null;
+
+  // The lightbox's media (the swipeable carousel) — injected into the shared
+  // post-detail layout between the body and the stats row. The pane is a
+  // scroll-snap strip of the post's frames: on mobile a swipe pages the
+  // carousel (native scroll-snap, no dep), and the arrows + keyboard converge
+  // on the same `index`. A single frame is the same strip with one slide (no
+  // arrows/indicator). The pane sizes to the first frame's ratio (capped) so
+  // the `h-full` slides have a defined box.
+  const frameRatio = media[0]?.width && media[0]?.height ? media[0].width / media[0].height : 4 / 3;
+  const mediaPane = hasMedia && (
+    <div
+      className="relative w-full overflow-hidden rounded-lg bg-black max-h-[50vh] sm:max-h-[88vh]"
+      style={{ aspectRatio: frameRatio }}
+      data-testid="post-lightbox-media-pane"
+    >
+      <div
+        ref={stripRef}
+        onScroll={onStripScroll}
+        data-testid="post-lightbox-strip"
+        className="flex h-full w-full snap-x snap-mandatory overflow-x-auto overscroll-x-contain [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+        role="group"
+        aria-label={`${media.length} media items`}
+      >
+        {media.map((m, i) => (
+          <div
+            key={m._id || i}
+            className="flex h-full w-full shrink-0 snap-start items-center justify-center"
+          >
+            <LightboxSlide media={m} testId={`post-lightbox-media-${i}`} />
+          </div>
+        ))}
+      </div>
+      {/* The in-pane media arrows page the post's own frames. They are
+          suppressed when post nav owns the side arrows (the profile
+          grid's Instagram-style prev/next post) — otherwise a
+          multi-frame post shows TWO chevrons per side (the media
+          arrows here + the post arrows on the backdrop). The frame
+          counter stays either way, so the current frame is always
+          visible. */}
+      {multiple && !hasPostNav && (
+        <>
+          <button
+            type="button"
+            onClick={prevFrame}
+            aria-label="Previous"
+            data-testid="post-lightbox-prev"
+            className="absolute left-2 top-1/2 -translate-y-1/2 rounded-full bg-background/60 p-1.5 text-foreground backdrop-blur-sm transition-colors hover:bg-background/80"
+          >
+            <ChevronLeft className="h-5 w-5" />
+          </button>
+          <button
+            type="button"
+            onClick={nextFrame}
+            aria-label="Next"
+            data-testid="post-lightbox-next"
+            className="absolute right-2 top-1/2 -translate-y-1/2 rounded-full bg-background/60 p-1.5 text-foreground backdrop-blur-sm transition-colors hover:bg-background/80"
+          >
+            <ChevronRight className="h-5 w-5" />
+          </button>
+        </>
+      )}
+      {multiple && (
+        <div className="absolute bottom-2 left-1/2 -translate-x-1/2 rounded-full bg-background/70 px-2 py-0.5 text-xs font-mono tabular-nums text-foreground backdrop-blur-sm">
+          {index + 1} / {media.length}
+        </div>
+      )}
+    </div>
+  );
 
   return (
     <div
@@ -335,7 +410,7 @@ export function PostLightbox({ post, mediaMap, onClose, onReload, postAuthor, po
       data-testid="post-lightbox"
     >
       <div
-        className="relative flex w-full max-w-4xl max-h-[88vh] flex-col overflow-hidden rounded-lg border border-border bg-card shadow-[0_8px_30px_rgb(0_0_0/0.35)] animate-panel-in sm:flex-row"
+        className="relative flex max-h-[88vh] w-full max-w-2xl flex-col overflow-hidden rounded-lg border border-border bg-card shadow-[0_8px_30px_rgb(0_0_0/0.35)] animate-panel-in"
         onClick={e => e.stopPropagation()}
       >
         {/* Close */}
@@ -350,208 +425,52 @@ export function PostLightbox({ post, mediaMap, onClose, onReload, postAuthor, po
           <X className="h-5 w-5" />
         </Button>
 
-        {/* Media pane: the normal viewer. Editing (title / body / media remove)
-            happens in the app-level composer sheet (openComposer({ editingPost })
-            — the ONE edit path), not inline here. */}
-        {hasMedia && (
-          <div className="relative flex min-h-0 flex-1 items-center justify-center bg-black">
-            {current.mime_type?.startsWith('video/') ? (
-              <LightboxVideo media={current} />
-            ) : (
-              <img
-                src={current.url}
-                alt={current.alt_text || ''}
-                className="max-h-[50vh] w-full object-contain sm:max-h-[88vh]"
-              />
-            )}
-            {multiple && (
-              <>
-                <button
-                  type="button"
-                  onClick={prev}
-                  aria-label="Previous"
-                  data-testid="post-lightbox-prev"
-                  className="absolute left-2 top-1/2 -translate-y-1/2 rounded-full bg-background/60 p-1.5 text-foreground backdrop-blur-sm transition-colors hover:bg-background/80"
-                >
-                  <ChevronLeft className="h-5 w-5" />
-                </button>
-                <button
-                  type="button"
-                  onClick={next}
-                  aria-label="Next"
-                  data-testid="post-lightbox-next"
-                  className="absolute right-2 top-1/2 -translate-y-1/2 rounded-full bg-background/60 p-1.5 text-foreground backdrop-blur-sm transition-colors hover:bg-background/80"
-                >
-                  <ChevronRight className="h-5 w-5" />
-                </button>
-                <div className="absolute bottom-2 left-1/2 -translate-x-1/2 rounded-full bg-background/70 px-2 py-0.5 text-xs font-mono tabular-nums text-foreground backdrop-blur-sm">
-                  {index + 1} / {media.length}
-                </div>
-              </>
-            )}
-          </div>
-        )}
-
-        {/* Details pane */}
-        <div className="flex min-h-0 shrink-0 flex-col overflow-y-auto p-5 pr-14 sm:w-80">
-          {/* Timestamp */}
-          <span className="text-xs text-muted-foreground">
-            {formatTimeAgo(currentPost.created_at)}
-          </span>
-
-          {/* Text content. Editing (title / body / media remove) happens in the
-              app-level composer sheet (openComposer({ editingPost }) — the ONE
-              edit path), not inline here. */}
-          {currentPost.title || currentPost.text ? (
-              <div className="mt-3">
-                {currentPost.title && (
-                  <h2 className="mb-1 text-base font-semibold leading-snug text-foreground" data-testid="post-lightbox-title">
-                    {currentPost.title}
-                  </h2>
-                )}
-                {currentPost.text && (
-                  <div className="text-sm leading-relaxed text-foreground">
-                    <PostBody text={currentPost.text} density="full" />
-                  </div>
-                )}
-              </div>
-            ) : (
-              !hasMedia && (
-                <p className="mt-3 text-sm text-muted-foreground">This post has no content.</p>
-              )
-            )}
-
-          {/* Actions bar (post-actions.md): the shared reaction pair +
-              comment entry, with the lightbox's share button trailing. */}
-          <PostActions
-            postId={currentPost._id || ''}
+        {/* The shared post-detail layout (the post-detail system). The modal
+            sizes to content — a text-only post gets a centered reading column
+            (max-w-prose), not 320px-in-896px dead space. The media (the
+            swipeable carousel) is injected between the body and the stats row. */}
+        <div className="min-h-0 overflow-y-auto p-5 pr-14">
+          <PostDetail
+            post={currentPost}
+            authorName={postAuthor}
+            authorAvatar={currentPost.avatar_url}
+            isOwner={isOwner}
+            signedIn={signedIn}
             liked={liked}
             disliked={disliked}
-            reactionCount={likeCount}
+            likeCount={likeCount}
             dislikeCount={dislikeCount}
             commentCount={commentCount}
-            onToggleReaction={handleToggleReaction}
-            onCommentCountChange={setCommentCount}
-            postAuthor={postAuthor}
-            postService={postService}
-            highlightedCommentId={highlightedCommentId}
-            defaultOpen={!!highlightedCommentId}
-            onAuthorClick={(username) => navigate(`/u/${username}`)}
-            dislike="interactive"
-            repost="interactive"
             reposted={reposted}
             repostCount={repostCount}
+            onToggleReaction={handleToggleReaction}
             onToggleRepost={handleRepost}
-            testId="lightbox-post-actions"
-            trailing={
-              <button
-                data-testid="share-button"
-                onClick={handleShare}
-                aria-label={copied ? 'Copied!' : 'Share'}
-                className={cn(
-                  'flex items-center gap-1.5 px-2.5 py-2 rounded-lg min-h-10 text-sm transition-all duration-150',
-                  copied
-                    ? 'text-success'
-                    : 'text-muted-foreground hover:text-foreground hover:bg-elevated/80',
-                )}
-              >
-                {copied ? (
-                  <Check className="w-[18px] h-[18px]" strokeWidth={1.75} />
-                ) : (
-                  <Share2 className="w-[18px] h-[18px]" strokeWidth={1.75} />
-                )}
-              </button>
-            }
+            onShare={handleShare}
+            onCommentCountChange={setCommentCount}
+            shared={copied}
+            postService={postService}
+            highlightedCommentId={highlightedCommentId}
+            onAuthorClick={(username) => navigate(`/u/${username}`)}
+            onEdit={() => openComposer({ editingPost: currentPost })}
+            onToggleVisibility={handleToggleVisibility}
+            visibilityToggling={togglingVisibility}
+            onDelete={handleDelete}
+            media={mediaPane}
+            testId="post-lightbox-detail"
           />
 
           {/* Carried ads (D55 + D57): the creator's pinned ad + the node's ad
-                can both be present — render both, neither suppressing the other.
-                Each renders per its format (attached variant — the compact
-                AdBlock / the post-format card inside the lightbox). The comment
-                thread mounts with the actions bar above (PostActions). */}
+              can both be present — render both, neither suppressing the other.
+              Each renders per its format (attached variant — the compact
+              AdBlock / the post-format card inside the lightbox). */}
           {(currentPost.ad || currentPost.node_ad) && (
             <div className="mt-3 -mx-1 px-4 space-y-2">
               {currentPost.ad && <AttachedAd ad={currentPost.ad} />}
               {currentPost.node_ad && <AttachedAd ad={currentPost.node_ad} />}
             </div>
           )}
-
-          {/* Owner actions */}
-          {isOwner && (
-            <div className="mt-3 pt-3 border-t border-border space-y-2">
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={handleToggleVisibility}
-                disabled={togglingVisibility}
-                className="text-sm text-muted-foreground hover:text-foreground gap-1.5 w-full justify-start"
-                data-testid="post-visibility-toggle-button"
-              >
-                {currentPost.visibility === 'public' ? (
-                  <EyeOff className="w-3.5 h-3.5" />
-                ) : (
-                  <Eye className="w-3.5 h-3.5" />
-                )}
-                {togglingVisibility ? 'Updating…' : currentPost.visibility === 'public' ? 'Make private' : 'Make public'}
-              </Button>
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={() => openComposer({ editingPost: currentPost })}
-                className="text-sm text-muted-foreground hover:text-foreground gap-1.5 w-full justify-start"
-                data-testid="post-edit-button"
-              >
-                <Edit3 className="w-3.5 h-3.5" />
-                Edit post
-              </Button>
-
-              {deleteArmed ? (
-                <div className="space-y-2">
-                  <p className="text-xs text-danger">Type <span className="font-mono font-medium">delete</span> to confirm</p>
-                  <Input
-                    value={deleteConfirm}
-                    onChange={(e) => setDeleteConfirm(e.target.value)}
-                    placeholder="delete"
-                    className="h-8 text-xs"
-                    data-testid="post-delete-confirm-input"
-                  />
-                  <div className="flex gap-2">
-                    <Button
-                      variant="destructive"
-                      size="sm"
-                      onClick={handleDelete}
-                      disabled={deleteConfirm !== 'delete'}
-                      className="text-xs flex-1"
-                      data-testid="post-delete-confirm-button"
-                    >
-                      Confirm Delete
-                    </Button>
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => { setDeleteArmed(false); setDeleteConfirm(''); }}
-                      className="text-xs"
-                    >
-                      Cancel
-                    </Button>
-                  </div>
-                </div>
-              ) : (
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => { setDeleteArmed(true); setDeleteConfirm(''); }}
-                  className="text-sm text-danger hover:text-danger hover:bg-danger-muted gap-1.5 w-full justify-start"
-                  data-testid="post-delete-button"
-                >
-                  <Trash2 className="w-3.5 h-3.5" />
-                  Delete post
-                </Button>
-              )}
-            </div>
-          )}
-          </div>
         </div>
+      </div>
 
       {/* Instagram-style post navigation (the profile grid's modal): the side
           arrows live on the backdrop, outside the panel — the modal steps

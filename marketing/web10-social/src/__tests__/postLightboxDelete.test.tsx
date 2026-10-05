@@ -67,8 +67,16 @@ describe('PostLightbox — delete flow (type "delete" to confirm)', () => {
     vi.clearAllMocks();
   });
 
+  // The owner actions live in the ⋯ menu (the post-detail system) — open it
+  // first, then drive the delete flow.
+  function openOwnerMenu() {
+    fireEvent.click(screen.getByTestId('post-options-button'));
+    expect(screen.getByTestId('post-options-menu')).toBeTruthy();
+  }
+
   it('shows the confirm UI when "Delete post" is clicked (not a dead button)', () => {
     renderLightbox();
+    openOwnerMenu();
     // Initially the plain "Delete post" button is shown, no confirm input.
     expect(screen.getByTestId('post-delete-button')).toBeTruthy();
     expect(screen.queryByTestId('post-delete-confirm-input')).toBeNull();
@@ -81,6 +89,7 @@ describe('PostLightbox — delete flow (type "delete" to confirm)', () => {
 
   it('the confirm button is disabled until "delete" is typed', () => {
     renderLightbox();
+    openOwnerMenu();
     fireEvent.click(screen.getByTestId('post-delete-button'));
     const confirm = screen.getByTestId('post-delete-confirm-button') as HTMLButtonElement;
     expect(confirm).toBeDisabled();
@@ -101,6 +110,7 @@ describe('PostLightbox — delete flow (type "delete" to confirm)', () => {
         <PostLightbox post={post} mediaMap={{}} onClose={onClose} onReload={vi.fn()} isOwner={true} />
       </MemoryRouter>,
     );
+    openOwnerMenu();
     fireEvent.click(screen.getByTestId('post-delete-button'));
     fireEvent.change(screen.getByTestId('post-delete-confirm-input'), { target: { value: 'delete' } });
     fireEvent.click(screen.getByTestId('post-delete-confirm-button'));
@@ -110,6 +120,7 @@ describe('PostLightbox — delete flow (type "delete" to confirm)', () => {
 
   it('cancel disarms the confirm UI', () => {
     renderLightbox();
+    openOwnerMenu();
     fireEvent.click(screen.getByTestId('post-delete-button'));
     expect(screen.getByTestId('post-delete-confirm-input')).toBeTruthy();
     // The Cancel button is the ghost button next to Confirm Delete.
@@ -125,8 +136,10 @@ describe('PostLightbox — ownership fallback (no isOwner prop)', () => {
   // The token is { provider: 'test.localhost', username: 'testuser' }. When a
   // call site omits isOwner (the discover lightbox), ownership must be derived
   // from the post's author — not from "a token exists" (the old fallback that
-  // showed the owner menu on every post while signed in).
-  it('shows owner actions for a post authored by the signed-in user', () => {
+  // showed the owner menu on every post while signed in). The owner's actions
+  // live in the ⋯ menu (the post-detail system), so the affordance to assert
+  // is the menu trigger itself.
+  it('shows the owner menu for a post authored by the signed-in user', () => {
     render(
       <MemoryRouter>
         <PostLightbox
@@ -137,12 +150,15 @@ describe('PostLightbox — ownership fallback (no isOwner prop)', () => {
         />
       </MemoryRouter>,
     );
-    expect(screen.getByTestId('post-edit-button')).toBeTruthy();
+    expect(screen.getByTestId('post-options-button')).toBeTruthy();
+    // Opening it reveals the owner actions (edit / visibility / delete).
+    fireEvent.click(screen.getByTestId('post-options-button'));
+    expect(screen.getByTestId('post-option-edit')).toBeTruthy();
+    expect(screen.getByTestId('post-option-visibility')).toBeTruthy();
     expect(screen.getByTestId('post-delete-button')).toBeTruthy();
-    expect(screen.getByTestId('post-visibility-toggle-button')).toBeTruthy();
   });
 
-  it('hides owner actions for a post authored by someone else', () => {
+  it('hides the owner menu for a post authored by someone else', () => {
     render(
       <MemoryRouter>
         <PostLightbox
@@ -153,8 +169,6 @@ describe('PostLightbox — ownership fallback (no isOwner prop)', () => {
         />
       </MemoryRouter>,
     );
-    expect(screen.queryByTestId('post-edit-button')).toBeNull();
-    expect(screen.queryByTestId('post-delete-button')).toBeNull();
-    expect(screen.queryByTestId('post-visibility-toggle-button')).toBeNull();
+    expect(screen.queryByTestId('post-options-button')).toBeNull();
   });
 });

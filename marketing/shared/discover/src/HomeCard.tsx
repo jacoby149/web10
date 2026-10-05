@@ -76,6 +76,9 @@ export interface HomeCardProps {
   className?: string;
   /** The card's testid (the app keeps its own: `youtube-card`, …). */
   testId?: string;
+  /** Prioritize the thumbnail (above-the-fold tiles load the poster eagerly +
+      high-priority so the first view paints fast). */
+  priority?: boolean;
   // ── Interactive engagement row (the social app wires these) ───────────────
   liked?: boolean;
   disliked?: boolean;
@@ -97,6 +100,7 @@ export function HomeCard({
   id,
   className,
   testId = 'home-card',
+  priority = false,
   liked = false,
   disliked = false,
   reposted = false,
@@ -180,12 +184,14 @@ export function HomeCard({
               testId={`${testId}-hover-video`}
               onTime={(current) => setLiveCurrent(current)}
               onPlayingChange={setPreviewPlaying}
+              priority={priority}
             />
           ) : (
             <img
               src={thumbSrc}
               alt=""
-              loading="lazy"
+              loading={priority ? 'eager' : 'lazy'}
+              fetchPriority={priority ? 'high' : 'auto'}
               className="h-full w-full object-cover transition-transform duration-200 group-hover:scale-[1.03] motion-reduce:transform-none"
             />
           )
