@@ -48,11 +48,12 @@ vi.mock('@/data/wapi', () => ({
 }));
 
 // jsdom has no media loading — mock the metadata + poster probes.
+const getVideoInfoMock = vi.fn().mockResolvedValue({ duration: 10, width: 1920, height: 1080 });
 vi.mock('@/lib/mediaProcessing', async (importOriginal) => {
   const original = await importOriginal() as Record<string, unknown>;
   return {
     ...original,
-    getVideoInfo: vi.fn().mockResolvedValue({ duration: 10, width: 1920, height: 1080 }),
+    getVideoInfo: (...args: unknown[]) => getVideoInfoMock(...args),
     captureVideoPoster: vi.fn().mockResolvedValue({ blob: new Blob(['poster']), mimeType: 'image/webp' }),
   };
 });
@@ -67,6 +68,11 @@ vi.mock('@/lib/videoEditing', async (importOriginal) => {
     editVideo: (...args: unknown[]) => editVideoMock(...args),
   };
 });
+
+// The real VideoMetadataError (the undecodable-codec / corrupt-file signal the
+// metadata probes reject with) — imported from the original module so the
+// composer's `e.name === 'VideoMetadataError'` check sees the real class.
+import { VideoMetadataError } from '@/lib/videoEditing';
 
 // The ffmpeg.wasm engine is mocked too — the real core needs a Web Worker +
 // WebAssembly (jsdom has neither), and the editor sheet pre-warms it on open.
@@ -220,6 +226,44 @@ describe('PostComposer video edit step', () => {
     expect(err).toHaveTextContent('recorder exploded');
     // Sheet stays open, original file untouched (tray still shows source dims).
     expect(screen.getByTestId('video-editor')).toBeInTheDocument();
+  });
+
+  it('an undecodable preview (the browser cannot play the file) shows a codec error, not a blank sheet', async () => {
+    await attachVideo();
+    fireEvent.click(screen.getByTestId('media-edit-button'));
+    const sheet = await screen.findByTestId('video-editor');
+
+    // The preview <video> fires `error` — the classic HEVC/AV1-in-MP4 the
+    // browser cannot decode. jsdom never does this on its own; drive it.
+    const videoEl = within(sheet).getByTestId('video-editor-preview') as HTMLVideoElement;
+    fireEvent.error(videoEl);
+
+    // The user sees WHY (the likely cause + the fix), not a blank preview
+    // with a permanently-disabled Apply and no explanation.
+    const err = await screen.findByTestId('video-editor-error');
+    expect(err).toHaveTextContent(/HEVC/i);
+    expect(err).toHaveTextContent(/H\.264/i);
+    // The sheet stays open (the user can cancel / remove the file).
+    expect(screen.getByTestId('video-editor')).toBeInTheDocument();
+  });
+
+  it('an undecodable video at attach time shows the codec message on the tray item (not the generic line)', async () => {
+    // The metadata probe rejects with a VideoMetadataError (the browser cannot
+    // decode the file — the classic HEVC/AV1-in-MP4 from a phone camera).
+    getVideoInfoMock.mockRejectedValueOnce(new VideoMetadataError('codec'));
+
+    const { default: PostComposer } = await import('@/components/Feed/PostComposer');
+    render(<PostComposer />);
+    const input = document.querySelector('input[type="file"]') as HTMLInputElement;
+    fireEvent.change(input, { target: { files: [VIDEO_FILE] } });
+
+    // The tray item settles into an error state with the SPECIFIC message
+    // (the likely cause + the fix), not the generic "Failed to process media".
+    const tray = await screen.findByTestId('media-tray');
+    await waitFor(() => {
+      expect(tray.textContent).toMatch(/HEVC/i);
+    });
+    expect(tray.textContent).not.toMatch(/Failed to process media\. Try a different file\./);
   });
 });
 

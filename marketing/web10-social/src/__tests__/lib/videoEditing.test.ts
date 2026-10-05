@@ -5,6 +5,7 @@ import {
   editVideo,
   isNoopEdit,
   formatTimecode,
+  VideoMetadataError,
 } from '@/lib/videoEditing';
 
 describe('computeCropGeometry', () => {
@@ -242,5 +243,68 @@ describe('editVideo', () => {
     await expect(editVideo(file, { startTime: 2, endTime: 5 })).rejects.toThrow(
       'ffmpeg exited with code 1',
     );
+  });
+});
+
+// ── readVideoMetadata error paths (via editVideo) ─────────────────────────
+//
+// The browser's <video> element fires `error` (not `loadedmetadata`) when it
+// cannot decode the file — the classic HEVC/AV1-in-MP4 from a phone camera.
+// editVideo must surface that as a VideoMetadataError with a user-facing
+// message, not hang or throw a cryptic "could not read video metadata".
+
+// A <video> that fires `error` when a src is set (undecodable codec).
+class FailingVideoElement extends HTMLElement {
+  muted = false;
+  private _src = '';
+  set src(value: string) {
+    this._src = value;
+    queueMicrotask(() => this.dispatchEvent(new Event('error')));
+  }
+  get src() {
+    return this._src;
+  }
+  remove() {}
+}
+
+if (!customElements.get('failing-video')) {
+  customElements.define('failing-video', FailingVideoElement);
+}
+
+function installFailingVideoMock() {
+  const realDocument = globalThis.document;
+  vi.stubGlobal(
+    'document',
+    {
+      createElement: (tag: string) => {
+        if (tag === 'video') return new FailingVideoElement();
+        return realDocument.createElement(tag);
+      },
+    } as unknown as Document,
+  );
+}
+
+describe('editVideo — undecodable source (the "unable to load metadata" case)', () => {
+  const file = new File(['x'], 'iphone-clip.mp4', { type: 'video/mp4' });
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
+  it('rejects with a VideoMetadataError (codec) when the browser cannot decode the file', async () => {
+    installFailingVideoMock();
+
+    const err = await editVideo(file).catch((e) => e);
+    expect(err).toBeInstanceOf(VideoMetadataError);
+    expect((err as VideoMetadataError).reason).toBe('codec');
+    // The message is user-facing (it names the likely cause + the fix).
+    expect(err.message).toMatch(/HEVC/i);
+    expect(err.message).toMatch(/H\.264/i);
+    // The engine is never reached (the metadata read fails first).
+    expect(transcodeMock).not.toHaveBeenCalled();
   });
 });
