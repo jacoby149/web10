@@ -15,7 +15,17 @@ import {
 function mockV3Client() {
   const mock = {
     readToken: vi.fn(() => ({ provider: 'api.localhost', username: 'jacoby149' })),
-    createGroup: vi.fn().mockResolvedValue({ group_id: 'g' }),
+    // Mirror the node's derivation: `{provider}/groups/users/{creator}/{slug}`.
+    // The full arg list keeps the mock's call tuple shaped like the real createGroup.
+    createGroup: vi.fn(
+      (
+        slug: string,
+        _joinPolicy: string,
+        _roles: Record<string, unknown>[],
+        _members: { member_key: string; role?: string }[],
+        _opts?: { discoverable?: boolean; tags?: string[]; membership_visibility?: string },
+      ) => Promise.resolve({ group_id: `api.localhost/groups/users/jacoby149/${slug}` }),
+    ),
     create: vi.fn().mockResolvedValue({ doc_id: 'doc-1' }),
     read: vi.fn().mockResolvedValue([]),
     getGroup: vi.fn(),
@@ -40,7 +50,7 @@ describe('createCommunityGroup draft mode (G0)', () => {
       { name: 'My Draft', visibility: 'public', join_policy: 'request', draft: true },
       'jacoby149',
     );
-    expect(groupId).toBe('web10.app/groups/jacoby149/my-draft');
+    expect(groupId).toBe('api.localhost/groups/users/jacoby149/my-draft');
     const [slug, joinPolicy, , members, opts] = mock.createGroup.mock.calls[0];
     expect(slug).toBe('my-draft');
     expect(joinPolicy).toBe('request');
@@ -91,9 +101,9 @@ describe('slugTaken (create-time slug guard, decision 1)', () => {
 
   it('true when an active group exists at the slug', async () => {
     const mock = mockV3Client();
-    mock.getGroup.mockResolvedValue({ group_id: 'web10.app/groups/jacoby149/my-group' });
+    mock.getGroup.mockResolvedValue({ group_id: 'api.localhost/groups/users/jacoby149/my-group' });
     expect(await slugTaken('my-group', 'jacoby149')).toBe(true);
-    expect(mock.getGroup).toHaveBeenCalledWith('web10.app/groups/jacoby149/my-group');
+    expect(mock.getGroup).toHaveBeenCalledWith('api.localhost/groups/users/jacoby149/my-group');
   });
 
   it('false when the group is a tombstone (get_group 404s)', async () => {
@@ -111,7 +121,7 @@ describe('slugTaken (create-time slug guard, decision 1)', () => {
   });
 
   it('the slug is namespaced under the owner (communityGroupId)', () => {
-    expect(communityGroupId('jacoby149', 'my-group')).toBe('web10.app/groups/jacoby149/my-group');
+    expect(communityGroupId('jacoby149', 'my-group', 'api.localhost')).toBe('api.localhost/groups/users/jacoby149/my-group');
     expect(slugify('My Group!')).toBe('my-group');
   });
 });
