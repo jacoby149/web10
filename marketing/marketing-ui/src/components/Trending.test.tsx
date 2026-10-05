@@ -139,7 +139,7 @@ describe('TrendingCard comment thread', () => {
   it('remote mode: the compose is a link-out to the post permalink (anon can\'t write)', async () => {
     vi.mocked(fetch).mockResolvedValue({
       ok: true,
-      json: () => Promise.resolve([]),
+      json: () => Promise.resolve({ rows: [] }),
     } as unknown as Response);
     render(
       <TrendingCard post={basePost} rank={5} maxScore={100} onLike={noop} onComment={noop} onRepost={noop} />,
@@ -152,17 +152,29 @@ describe('TrendingCard comment thread', () => {
   });
 
   it('shows existing comments (read side is identical on both apps)', async () => {
-    vi.mocked(fetch).mockResolvedValue({
-      ok: true,
-      json: () => Promise.resolve([
-        {
-          _id: 'comment-123',
-          payload: { action: 'comment', text: 'great post!', author_username: 'replybot' },
-          author: 'replybot',
-          created_at: new Date().toISOString(),
-        },
-      ]),
-    } as unknown as Response);
+    // The comment read is the v3 query engine (POST /v3/query over the
+    // discover group, anon) — NOT the retired v2 public ledger
+    // (PATCH /public/entries, which the v3 node no longer exposes).
+    vi.mocked(fetch).mockImplementation(async (url, init) => {
+      expect(String(url)).toContain('/v3/query');
+      const body = JSON.parse(String(init?.body ?? '{}'));
+      expect(body.groups).toEqual([expect.stringContaining('/groups/web10/discover')]);
+      expect(body.sql).toContain("JSONExtractString(body, 'post_id')");
+      return {
+        ok: true,
+        json: () => Promise.resolve({
+          rows: [
+            {
+              doc_id: 'comment-123',
+              author_key: 'replybot',
+              body: { text: 'great post!', author_username: 'replybot', post_id: 'p1' },
+              created_at: new Date().toISOString(),
+            },
+          ],
+          count: 1,
+        }),
+      } as unknown as Response;
+    });
     render(
       <TrendingCard post={basePost} rank={5} maxScore={100} onLike={noop} onComment={noop} onRepost={noop} />,
     );
@@ -1132,17 +1144,29 @@ describe('Comment thread deep links (remote mode)', () => {
   });
 
   it('shows existing comments (read side is identical on both apps)', async () => {
-    vi.mocked(fetch).mockResolvedValue({
-      ok: true,
-      json: () => Promise.resolve([
-        {
-          _id: 'comment-123',
-          payload: { action: 'comment', text: 'great post!', author_username: 'replybot' },
-          author: 'replybot',
-          created_at: new Date().toISOString(),
-        },
-      ]),
-    } as unknown as Response);
+    // The comment read is the v3 query engine (POST /v3/query over the
+    // discover group, anon) — NOT the retired v2 public ledger
+    // (PATCH /public/entries, which the v3 node no longer exposes).
+    vi.mocked(fetch).mockImplementation(async (url, init) => {
+      expect(String(url)).toContain('/v3/query');
+      const body = JSON.parse(String(init?.body ?? '{}'));
+      expect(body.groups).toEqual([expect.stringContaining('/groups/web10/discover')]);
+      expect(body.sql).toContain("JSONExtractString(body, 'post_id')");
+      return {
+        ok: true,
+        json: () => Promise.resolve({
+          rows: [
+            {
+              doc_id: 'comment-123',
+              author_key: 'replybot',
+              body: { text: 'great post!', author_username: 'replybot', post_id: 'p1' },
+              created_at: new Date().toISOString(),
+            },
+          ],
+          count: 1,
+        }),
+      } as unknown as Response;
+    });
     render(
       <TrendingCard post={basePost} rank={5} maxScore={100} onLike={noop} onComment={noop} onRepost={noop} />,
     );
@@ -1153,7 +1177,7 @@ describe('Comment thread deep links (remote mode)', () => {
   it('remote compose is a link-out to the post permalink (anon can\'t write)', async () => {
     vi.mocked(fetch).mockResolvedValue({
       ok: true,
-      json: () => Promise.resolve([]),
+      json: () => Promise.resolve({ rows: [] }),
     } as unknown as Response);
     render(
       <TrendingCard post={basePost} rank={5} maxScore={100} onLike={noop} onComment={noop} onRepost={noop} />,
