@@ -378,6 +378,20 @@ export default function PostComposer({
         class:
           'composer-editor bg-transparent caret-brand-400 min-h-[180px] max-h-[40vh] overflow-y-auto px-0 py-1 text-lg leading-relaxed text-foreground focus:outline-none',
       },
+      // The browser's native Cmd/Ctrl+U underlines a contenteditable selection
+      // in place — but the write side (turndown) has no rule for `<u>` and
+      // markdown has no underline, so the mark would vanish on save: the editor
+      // would show underlined text that posts as plain. The toolbar is the ONLY
+      // formatting surface (D85, rich-text.md) and it has no underline button,
+      // so the editor must not offer one either. Suppress the native shortcut
+      // so the editor never shows a format it cannot persist.
+      handleKeyDown: (_view, event) => {
+        if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === 'u') {
+          event.preventDefault();
+          return true;
+        }
+        return false;
+      },
     },
   });
 
