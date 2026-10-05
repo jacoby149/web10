@@ -325,4 +325,66 @@ describe('Profile lightbox — Instagram-style post navigation (the side arrows 
     expect(screen.queryByTestId('post-lightbox-next')).not.toBeInTheDocument();
     expect(screen.getByText('1 / 2')).toBeInTheDocument();
   });
+
+  it('the media pane is a swipeable scroll-snap strip — swiping (scrolling the strip) pages the carousel', async () => {
+    const { readMyPosts, resolveMediaRefs } = await import('@/data');
+    const multiMediaPost = {
+      _id: 'pn-swipe',
+      text: 'swipe post',
+      media_refs: [
+        { doc_id: 's-1' },
+        { doc_id: 's-2' },
+        { doc_id: 's-3' },
+      ],
+      created_at: new Date().toISOString(),
+    };
+    vi.mocked(readMyPosts).mockResolvedValue([multiMediaPost]);
+    vi.mocked(resolveMediaRefs).mockResolvedValue([
+      { _id: 's-1', url: 'http://test.com/1.png', mime_type: 'image/png', created_at: new Date().toISOString() },
+      { _id: 's-2', url: 'http://test.com/2.png', mime_type: 'image/png', created_at: new Date().toISOString() },
+      { _id: 's-3', url: 'http://test.com/3.png', mime_type: 'image/png', created_at: new Date().toISOString() },
+    ]);
+    const { default: UserProfileScreen } = await import('@/components/Bio/UserProfileScreen');
+    render(
+      <MemoryRouter initialEntries={['/u/testuser']}>
+        <UserProfileScreen username="testuser" provider="test.localhost" />
+      </MemoryRouter>,
+    );
+
+    await waitFor(() => {
+      expect(screen.getAllByTestId('profile-post-cell').length).toBe(1);
+    });
+    fireEvent.click(screen.getByTestId('profile-post-cell'));
+    await waitFor(() => {
+      expect(screen.getByTestId('post-lightbox')).toBeInTheDocument();
+    });
+
+    // The media pane is a scroll-snap strip carrying every frame (the swipe
+    // mechanism — native scroll-snap, no dep).
+    const strip = screen.getByTestId('post-lightbox-strip') as HTMLElement;
+    expect(strip.className).toMatch(/snap-x/);
+    expect(strip.className).toMatch(/snap-mandatory/);
+    expect(strip.className).toMatch(/overflow-x-auto/);
+    expect(screen.getByTestId('post-lightbox-media-0')).toBeInTheDocument();
+    expect(screen.getByTestId('post-lightbox-media-1')).toBeInTheDocument();
+    expect(screen.getByTestId('post-lightbox-media-2')).toBeInTheDocument();
+    expect(screen.getByText('1 / 3')).toBeInTheDocument();
+
+    // A swipe scrolls the strip; the onScroll handler keeps the indicator in
+    // sync (the source of truth for the swipe). Simulate the strip settling on
+    // frame 2 (scrollLeft = 1 frame wide).
+    Object.defineProperty(strip, 'clientWidth', { configurable: true, value: 300 });
+    Object.defineProperty(strip, 'scrollLeft', { configurable: true, value: 300 });
+    fireEvent.scroll(strip);
+    await waitFor(() => {
+      expect(screen.getByText('2 / 3')).toBeInTheDocument();
+    });
+
+    // Swipe back to frame 1.
+    Object.defineProperty(strip, 'scrollLeft', { configurable: true, value: 0 });
+    fireEvent.scroll(strip);
+    await waitFor(() => {
+      expect(screen.getByText('1 / 3')).toBeInTheDocument();
+    });
+  });
 });
