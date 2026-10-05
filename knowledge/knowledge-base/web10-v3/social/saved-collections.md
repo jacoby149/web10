@@ -57,6 +57,12 @@ group-chat identity:  body = { kind: 'chat',  name: 'The Crew', … }
 community identity:   body = { name: 'Synthwave Sessions', tags: […] }   // no kind
 ```
 
+A **group collection** (a group's playlist, "Group collections" below) adds
+one field to the collection identity: **`owner_group: <group_id>`** — the
+group the collection belongs to. Its presence separates a group collection
+from a personal one (a personal collection has no `owner_group`); like `kind`,
+it is an **ownership/render hint only**, never a security boundary.
+
 **Classification is: read the identity, check `kind`.** A group with no
 identity, or an identity without `kind: 'saved'`, is not a collection
 (backward compatible — every pre-existing group has no `kind: 'saved'`). The
@@ -245,6 +251,111 @@ failure. The control is **owner-of-the-token only** (you save to *your*
 collections; a visitor can't save from someone else's token) — and it is
 hidden in anon mode (a signed-out visitor has no collections).
 
+### Group collections — the group's playlists (a group is a profile)
+
+A **group is a profile** (`group-as-profile.md`): the group page is a profile
+page (hero + Feed + Media tabs). A person's profile has a **Saved** tab (their
+playlists); a group's profile should too — the group's **collections**, the
+lists the group (its owner/manager) curates for the group's audience. A "best
+of" playlist, a "watch first" set, a reading list — pinned on the group's page
+the way a creator pins a playlist on their channel. This is the last tab that
+makes a group's page indistinguishable from a person's profile.
+
+A **group collection** is the *same* primitive as a personal collection — a
+`kind: 'saved'` group with the `web10-social-saved` tag, a `saved`-service doc
+per saved post, the D58 `anyone` reader row for publicness. The one difference
+is **who owns it**: a personal collection's owner member is a *user*
+(`web10.app/users/{owner}`); a group collection's owner member is the *group*
+(the group's own group_id, used as a `member_key`). The face carries
+**`owner_group: <group_id>`** — the single field that separates a group
+collection from a personal one (the same role `kind` plays for collection vs
+chat vs community). `owner_group` is an **ownership/render hint only**, never a
+security boundary (access is still group membership + the D58 gate).
+
+**Why the group is a member (the load-bearing part).** The node's `createGroup`
+always namespaces the group_id under the *acting* user and force-makes them
+owner (`ensure_creator_owner`), so a group collection's group_id is
+`{provider}/groups/users/{manager}/saved-{group-slug}-{slug}` — namespaced
+under the manager, not the group. The group_id is just a storage key; the
+*semantic* owner is the group, recorded two ways: (1) the group's group_id is
+an **owner member row** on the collection (so the D80 by-user read enumerates
+it — below), and (2) the face's `owner_group` field. The manager is *also* an
+owner member (the node's `ensure_creator_owner`) — that's what lets them manage
+it. The `owner_group` field is what keeps the collection out of the manager's
+*personal* Saved tab: a group's playlists are not the manager's personal
+playlists.
+
+**The by-group read (the D80 by-user read, pointed at a group).** The node's
+`GET /v3/groups/by-user?user=X&tag=web10-social-saved` (D80) enumerates the
+groups where `X` is a member with `membership_visibility == 'public'`. Point
+`X` at the **group's group_id** and it returns the group's **public**
+collections (the group is their owner member; a private one is
+`membership_visibility: 'hidden'` and never surfaces). This is the by-group
+read — the exact pattern of the profile's by-user read, **no new node surface**.
+The manager's read (which must also include *private* collections) uses the tag
+read instead: `getMyGroups({ tags: ['web10-social-saved'] })` filtered to
+`owner_group === <group_id>` (the manager is an owner member of the group's
+collections, so they're in the manager's group list).
+
+**Surface disjointness (D78) holds.** A group collection carries the
+`web10-social-saved` tag (never `web10-social-group`), so it's excluded from
+the Groups surface by construction. It's excluded from the *personal* Saved tab
+by the `owner_group` filter (a personal read shows only collections with no
+`owner_group`); it's shown on the *group's* Saved tab by the
+`owner_group === <group_id>` match. No client-side group_id pattern matching —
+the `owner_group` face field is the classifier.
+
+**The data seam** (`src/data/saved.ts`, siblings to the personal fns):
+- `createGroupCollection(groupSlug, name, { visibility })` — the group's
+  manager creates a collection for the group. The owner member is the group's
+  group_id; the face is `{ kind: 'saved', name, visibility, owner_group:
+  <group_id> }`; the slug embeds the group's slug (`saved-{group-slug}-{slug}`)
+  so two groups the manager runs never collide. `membership_visibility`
+  follows the visibility (D80). Returns the group_id.
+- `readGroupCollections(groupId)` — the **manager's** read: the group's
+  collections, public *and* private. `getMyGroups({ tags: [SAVED_TAG] })`
+  filtered to `owner_group === groupId`, each resolved to face + item count.
+- `readGroupPublicCollections(groupId)` — the **visitor's** read: the group's
+  **public** collections only. The D80 by-user read pointed at the group's
+  group_id (`byUserGroups(groupId, { tag: SAVED_TAG })`), filtered to
+  `owner_group === groupId` (defensive — the group is only ever an owner member
+  of its own collections). A face-read failure degrades the card to the slug
+  (never the list).
+- The personal reads filter group collections **out**: `getMyCollections` and
+  `readUserPublicCollections` skip any collection whose face has `owner_group`
+  set — a group's playlists never surface on a person's profile.
+
+**The UI (the group page's Saved tab).** `GroupDetailScreen` gains a third
+tab: **Feed | Media | Saved** (`?tab=saved`, the existing `?tab=` idiom —
+refresh-safe, shareable). The card grid is the profile's `SavedTab` (extracted
+to a shared component — one card shape, two surfaces). **Manager** (canManage):
+the tab is always present (even empty) + a "New collection" affordance (name →
+`createGroupCollection`); the cards are the group's collections (public +
+private, via `readGroupCollections`), tappable to the collection detail (with
+the owner's affordances). **Visitor / member** (non-manager): the tab shows
+only when the group has ≥1 **public** collection (via
+`readGroupPublicCollections`); the cards are read-only. Tapping a card
+navigates to `/groups/:groupId/saved/:collectionId` — the collection detail,
+the profile's `SavedCollectionScreen` reused with a group-owner check
+(`isOwner` = canManage the group, not `token.username === groupId`). The URL
+holds which collection is open (the "address bar is part of the product" rule);
+a public collection's link is shareable.
+
+**What a group collection is not:**
+- **Not a new node surface.** The group primitive, the D80 by-user read, the
+  D58 role grant, the `saved` service, and `ref_value` all exist. This is a
+  client-side composition + one face field (`owner_group`) + a D60-clean
+  member-key normalization (a group_id is a legitimate member key — the by-user
+  read must pass it through, not strip it to its last segment).
+- **Not a personal collection.** A group collection belongs to the group
+  (`owner_group` set), never to a person. It's absent from the manager's
+  personal Saved tab and the manager's public profile; present on the group's
+  page.
+- **Not collaborative curation (yet).** v1: the group's owner/manager curates
+  the group's collections. All-members-curate (a group collection any member
+  can add to) is a follow-up — the group primitive supports N owner-role
+  members.
+
 ## Security invariants
 
 - **I3 holds, role-gated.** A collection's contents are `saved` docs in the
@@ -295,7 +406,9 @@ hidden in anon mode (a signed-out visitor has no collections).
 - **Not cross-user shared collections (yet).** v1: a collection belongs to one
   owner. Collaborative playlists (multiple curators) are a follow-up (the group
   primitive already supports N members — it would be a `kind: 'saved'` group
-  with more than one owner-role member).
+  with more than one owner-role member). A **group collection** (a group's
+  playlist) is the same shape — one owner, the group — and is documented under
+  "Group collections" above.
 
 ## Reference
 
@@ -309,6 +422,9 @@ hidden in anon mode (a signed-out visitor has no collections).
   `./shorts.md`
 - The profile screen + the `?tab=` idiom + the wall/feed render this reuses:
   `../../../../marketing/web10-social/src/components/Bio/UserProfileScreen.tsx`
+- The group page this extends (a group is a profile — the Saved tab is the
+  last tab that makes it indistinguishable from a person's profile):
+  `../../../strategy/group-as-profile.md`
 - The repost `ref_value` graceful-degradation idiom (a dead ref degrades,
   never hard-fails): `./reposts.md`
 - The visual bar (tokens, states, the screenshot test): `../../../strategy/design.md`
