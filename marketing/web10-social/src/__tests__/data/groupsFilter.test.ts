@@ -115,7 +115,7 @@ describe('createCommunityGroup', () => {
 
   it('creates the group with a public read grant (anyone → reader) and writes the face', async () => {
     const mock = mockV3Client('jacoby149');
-    mock.createGroup.mockResolvedValue({ group_id: 'web10.app/groups/jacoby149/my-group' });
+    mock.createGroup.mockResolvedValue({ group_id: 'api.localhost/groups/users/jacoby149/my-group' });
     mock.create.mockResolvedValue({ doc_id: 'identity-doc' });
 
     const groupId = await createCommunityGroup(
@@ -123,7 +123,7 @@ describe('createCommunityGroup', () => {
       'jacoby149',
     );
 
-    expect(groupId).toBe('web10.app/groups/jacoby149/my-group');
+    expect(groupId).toBe('api.localhost/groups/users/jacoby149/my-group');
     // The group is created with a clean slug + the owner + the public read grant (anyone → reader)
     const [name, joinPolicy, roles, members] = mock.createGroup.mock.calls[0];
     expect(name).toBe('my-group');
@@ -151,7 +151,7 @@ describe('createCommunityGroup', () => {
         banner_ref: 'banner-1',
         avatar_ref: 'avatar-1',
       }),
-      { groups: ['web10.app/groups/jacoby149/my-group'] },
+      { groups: ['api.localhost/groups/users/jacoby149/my-group'] },
     );
   });
 
