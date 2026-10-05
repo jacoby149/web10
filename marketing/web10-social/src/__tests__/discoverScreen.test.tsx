@@ -262,6 +262,64 @@ describe('DiscoverScreen', () => {
     expect(railEntries.length).toBeGreaterThanOrEqual(1);
   });
 
+  it('the Top 10 rail tally shows the engagement count, not the normalized score', async () => {
+    // The power-mean score is a 0–1 float — Math.round() of it is always 0,
+    // which is why the rail used to show a wall of zeros. The tally is the
+    // raw engagement count (likes + comments + reposts) instead. The counts
+    // come from the live engagement read (the v3 client), so seed it.
+    (data.getV3Client as ReturnType<typeof vi.fn>).mockReturnValue({
+      read: vi.fn().mockImplementation(async (service: string) =>
+        service === 'reactions'
+          ? [
+              { doc_id: 'r1', author_key: 'test.localhost/other', body: { type: 'like' }, ref_value: 'p1', created_at: new Date().toISOString() },
+              { doc_id: 'r2', author_key: 'test.localhost/other2', body: { type: 'like' }, ref_value: 'p1', created_at: new Date().toISOString() },
+              { doc_id: 'r3', author_key: 'test.localhost/other3', body: { type: 'like' }, ref_value: 'p1', created_at: new Date().toISOString() },
+            ]
+          : service === 'comments'
+            ? [
+                { doc_id: 'c1', author_key: 'test.localhost/other', body: { post_id: 'p1' }, ref_value: 'p1', created_at: new Date().toISOString() },
+                { doc_id: 'c2', author_key: 'test.localhost/other2', body: { post_id: 'p1' }, ref_value: 'p1', created_at: new Date().toISOString() },
+              ]
+            : []
+      ),
+      readToken: vi.fn().mockReturnValue({ provider: 'test.localhost', username: 'testuser' }),
+    });
+    (data.readDiscoverFeed as ReturnType<typeof vi.fn>).mockResolvedValue([
+      {
+        _id: 'p1',
+        author: 'top-user',
+        provider: 'api.web10.app',
+        post_id: 'p1',
+        text: 'Top post',
+        tags: ['trending'],
+        created_at: new Date().toISOString(),
+      },
+      {
+        _id: 'p2',
+        author: 'second-user',
+        provider: 'api.web10.app',
+        post_id: 'p2',
+        text: 'Second post',
+        tags: ['trending'],
+        created_at: new Date().toISOString(),
+      },
+    ]);
+
+    const { default: DiscoverScreen } = await import('@/components/Discover/DiscoverScreen');
+    render(
+      <MemoryRouter initialEntries={['/hot-gossip']}>
+        <DiscoverScreen />
+      </MemoryRouter>,
+    );
+
+    const railEntries = await screen.findAllByTestId('hot-gossip-sidebar-entry');
+    expect(railEntries.length).toBeGreaterThanOrEqual(2);
+    // First post: 3 likes + 2 comments = 5 — a real number, not 0.
+    expect(railEntries[0]).toHaveTextContent('5');
+    // Second post: no engagement — the tally falls back to the dash.
+    expect(railEntries[1]).toHaveTextContent('—');
+  });
+
   it('renders topic filter chips when posts have tags', async () => {
     (data.readDiscoverFeed as ReturnType<typeof vi.fn>).mockResolvedValue([
       {
