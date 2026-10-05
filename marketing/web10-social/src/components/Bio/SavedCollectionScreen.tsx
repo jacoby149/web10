@@ -6,6 +6,7 @@ import {
   setCollectionVisibility,
   renameCollection,
   deleteCollection,
+  getGroupsManages,
   type CollectionContents,
   type CollectionVisibility,
 } from '@/data';
@@ -47,21 +48,31 @@ const LOG = (...args: unknown[]) => console.log('[social:saved-collection]', ...
 // Zero node surface (D60) — a client-side composition of the data seam.
 
 interface SavedCollectionScreenProps {
-  username: string;
-  provider: string;
+  /** The profile's username (the personal-collection owner). Unused in group mode. */
+  username?: string;
+  provider?: string;
+  /**
+   * When set, this is a **group collection** (a group's playlist) on the route
+   * `/groups/:groupId/saved/:collectionId` — the owner is whoever can manage the
+   * group (not `token.username === username`), and the back button returns to
+   * the group's Saved tab. When absent, it's a personal collection on
+   * `/u/:username/saved/:collectionId` (the owner is the profile's username).
+   */
+  groupId?: string;
   onBack?: () => void;
 }
 
-export default function SavedCollectionScreen({ username, provider, onBack }: SavedCollectionScreenProps) {
+export default function SavedCollectionScreen({ username, provider, groupId, onBack }: SavedCollectionScreenProps) {
   const { collectionId = '' } = useParams();
-  const groupId = decodeURIComponent(collectionId);
+  const collectionGroupId = decodeURIComponent(collectionId);
   const navigate = useNavigate();
 
   const token = getWapi().readToken();
-  // v3 ownership is by username alone (the feed's isOwnPost idiom): the owner of
-  // this collection is the profile's username. A visitor (a different username,
-  // or anon) gets the read-only wall.
-  const isOwner = !!token && token.username === username;
+  // A group collection's owner is whoever can manage the group (loaded async —
+  // the group's manager curates the group's playlists). A personal collection's
+  // owner is the profile's username (synchronous, the feed's isOwnPost idiom).
+  const [isGroupManager, setIsGroupManager] = useState(false);
+  const isOwner = !!token && (groupId ? isGroupManager : token.username === username);
 
   const [contents, setContents] = useState<CollectionContents | null>(null);
   const [loading, setLoading] = useState(true);
@@ -76,19 +87,32 @@ export default function SavedCollectionScreen({ username, provider, onBack }: Sa
   const [deleteConfirm, setDeleteConfirm] = useState(false);
 
   const backToSaved = useCallback(
-    () => (onBack ? onBack() : navigate(`/u/${username}?tab=saved`)),
-    [onBack, navigate, username],
+    () => (onBack ? onBack() : navigate(groupId ? `/groups/${encodeURIComponent(groupId)}?tab=saved` : `/u/${username}?tab=saved`)),
+    [onBack, navigate, username, groupId],
   );
+
+  // A group collection's owner is whoever can manage the group (the manager's
+  // read — the group's manager curates the group's playlists). Loaded once.
+  useEffect(() => {
+    if (!groupId) return;
+    let cancelled = false;
+    getGroupsManages()
+      .then((manages) => {
+        if (!cancelled) setIsGroupManager(manages.some((g) => g.group_id === groupId));
+      })
+      .catch(() => {});
+    return () => { cancelled = true; };
+  }, [groupId]);
 
   const load = useCallback(async () => {
     setLoading(true);
     setError(null);
     try {
-      const c = await readCollection(groupId);
+      const c = await readCollection(collectionGroupId);
       setContents(c);
       setVisibility((c.face as { visibility?: CollectionVisibility }).visibility || 'private');
       setRenameValue((c.face as { name?: string }).name || '');
-      LOG('loaded', { groupId, posts: c.posts.length });
+      LOG('loaded', { collectionGroupId, posts: c.posts.length });
     } catch (e) {
       console.error('[social:saved-collection] readCollection failed:', e);
       // A non-owner reading a PRIVATE collection 403s (I3) — the read throws.
@@ -97,7 +121,7 @@ export default function SavedCollectionScreen({ username, provider, onBack }: Sa
     } finally {
       setLoading(false);
     }
-  }, [groupId]);
+  }, [collectionGroupId]);
 
   useEffect(() => {
     load();
@@ -119,7 +143,7 @@ export default function SavedCollectionScreen({ username, provider, onBack }: Sa
     const next: CollectionVisibility = visibility === 'public' ? 'private' : 'public';
     setTogglingVisibility(true);
     try {
-      await setCollectionVisibility(groupId, next);
+      await setCollectionVisibility(collectionGroupId, next);
       setVisibility(next);
       toast.success(next === 'public' ? 'Collection is now public' : 'Collection is now private');
     } catch (e) {
@@ -128,7 +152,7 @@ export default function SavedCollectionScreen({ username, provider, onBack }: Sa
     } finally {
       setTogglingVisibility(false);
     }
-  }, [groupId, visibility]);
+  }, [collectionGroupId, visibility]);
 
   // The owner's per-item remove (delete the `saved` doc — a no-op if already
   // gone). Optimistic: drop the tile now, roll back on failure.
@@ -140,7 +164,7 @@ export default function SavedCollectionScreen({ username, provider, onBack }: Sa
       // Optimistic: remove the tile.
       setContents({ ...contents, posts: contents.posts.filter((sp) => sp.postId !== postId) });
       try {
-        await removePostFromCollection(groupId, postId);
+        await removePostFromCollection(collectionGroupId, postId);
       } catch (e) {
         console.error('[social:saved-collection] remove failed:', e);
         setContents({ ...contents, posts: prev }); // roll back
@@ -149,14 +173,14 @@ export default function SavedCollectionScreen({ username, provider, onBack }: Sa
         setRemovingPostId(null);
       }
     },
-    [contents, groupId],
+    [contents, collectionGroupId],
   );
 
   const handleRename = useCallback(async () => {
     const name = renameValue.trim();
     if (!name) return;
     try {
-      await renameCollection(groupId, name);
+      await renameCollection(collectionGroupId, name);
       setContents((c) => (c ? { ...c, face: { ...c.face, name } } : c));
       setRenaming(false);
       setMenuOpen(false);
@@ -165,18 +189,18 @@ export default function SavedCollectionScreen({ username, provider, onBack }: Sa
       console.error('[social:saved-collection] rename failed:', e);
       toast.error(errorMessage(e, 'Could not rename the collection.'));
     }
-  }, [groupId, renameValue]);
+  }, [collectionGroupId, renameValue]);
 
   const handleDelete = useCallback(async () => {
     try {
-      await deleteCollection(groupId);
+      await deleteCollection(collectionGroupId);
       toast.success('Collection deleted');
-      navigate(`/u/${username}?tab=saved`);
+      navigate(groupId ? `/groups/${encodeURIComponent(groupId)}?tab=saved` : `/u/${username}?tab=saved`);
     } catch (e) {
       console.error('[social:saved-collection] delete failed:', e);
       toast.error(errorMessage(e, 'Could not delete the collection.'));
     }
-  }, [groupId, navigate, username]);
+  }, [collectionGroupId, groupId, navigate, username]);
 
   const name = (contents?.face as { name?: string } | undefined)?.name || 'Collection';
   const posts = contents?.posts ?? [];
@@ -337,7 +361,7 @@ export default function SavedCollectionScreen({ username, provider, onBack }: Sa
                     caption={post.text}
                     postId={post._id}
                     multiCount={post.media_refs?.length}
-                    onClick={() => navigate(`/u/${username}/p/${post._id}`)}
+                    onClick={() => navigate(groupId ? `/watch/${post._id}` : `/u/${username}/p/${post._id}`)}
                   />
                   {/* The owner's per-item remove (top-right, the tile's corner). */}
                   {isOwner && (

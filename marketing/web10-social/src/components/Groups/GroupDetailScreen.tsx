@@ -29,6 +29,10 @@ import {
   refreshMediaUrls,
   groupCreator,
   healGroupOwnership,
+  readGroupCollections,
+  readGroupPublicCollections,
+  createGroupCollection,
+  type CollectionRecord,
   type ReactionKind,
   type GroupDetail,
   type GroupIdentity,
@@ -48,6 +52,7 @@ import { useRepost } from '@/context/RepostContext';
 import { useComposer } from '@/context/ComposerContext';
 import { PostLightbox } from '@/components/Bio/PostLightbox';
 import { ProfileMediaLightbox, type ProfileMediaOption, type FaceCropResult } from '@/components/Bio/ProfileMediaLightbox';
+import { SavedCollectionsGrid } from '@/components/Bio/SavedCollectionsGrid';
 import {
   ArrowLeft,
   Users,
@@ -65,6 +70,8 @@ import {
   Pencil,
   Plus,
   Camera,
+  Bookmark,
+  X,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
@@ -297,16 +304,18 @@ export default function GroupDetailScreen({ groupId }: { groupId: string }) {
   const faceFileInputRef = useRef<HTMLInputElement>(null);
   const facePendingFieldRef = useRef<'avatar' | 'banner' | null>(null);
 
-  // The tabs (G1): Feed (default, bare URL) | Media (?tab=media). The URL holds
+  // The tabs (G1): Feed (default, bare URL) | Media (?tab=media) | Saved
+  // (?tab=saved, the group's playlists — a group is a profile). The URL holds
   // the active tab (the deep-link rule) — refresh restores it, back/forward
   // work, and a shared link carries it. The group page is the profile page with
-  // the tab order flipped (feed first, media second).
+  // the tab order flipped (feed first, media second) + the profile's Saved tab.
   const [searchParams, setSearchParams] = useSearchParams();
-  const tab: 'feed' | 'media' = searchParams.get('tab') === 'media' ? 'media' : 'feed';
-  const selectTab = useCallback((next: 'feed' | 'media') => {
+  const tab: 'feed' | 'media' | 'saved' =
+    searchParams.get('tab') === 'media' ? 'media' : searchParams.get('tab') === 'saved' ? 'saved' : 'feed';
+  const selectTab = useCallback((next: 'feed' | 'media' | 'saved') => {
     const params = new URLSearchParams(searchParams);
-    if (next === 'media') params.set('tab', 'media');
-    else params.delete('tab');
+    if (next === 'feed') params.delete('tab');
+    else params.set('tab', next);
     setSearchParams(params, { replace: true });
     LOG('tab —', next);
   }, [searchParams, setSearchParams]);
@@ -325,6 +334,66 @@ export default function GroupDetailScreen({ groupId }: { groupId: string }) {
   const mediaOffsetRef = useRef(0);
   const mediaInitializedRef = useRef(false);
   const mediaSentinelRef = useRef<HTMLDivElement>(null);
+
+  // The Saved tab (a group is a profile — the group's playlists). Manager: all
+  // the group's collections (public + private) + a "New collection" affordance.
+  // Visitor / member: only the group's PUBLIC collections (read-only). The read
+  // is deferred until the tab is opened (the media tab's lazy-load idiom).
+  const [collections, setCollections] = useState<CollectionRecord[] | null>(null);
+  const [newCollectionOpen, setNewCollectionOpen] = useState(false);
+  const [newCollectionName, setNewCollectionName] = useState('');
+  const [creatingCollection, setCreatingCollection] = useState(false);
+  const collectionsLoadedRef = useRef(false);
+
+  const loadCollections = useCallback(async () => {
+    if (!detail) return;
+    const read = canManage ? readGroupCollections(detail.group_id) : readGroupPublicCollections(detail.group_id);
+    try {
+      const cols = await read;
+      setCollections(cols);
+      LOG('collections — loaded', cols.length, canManage ? '(manager)' : '(public)');
+    } catch (e) {
+      // A read failure degrades the tab to empty (never the group page).
+      console.error('[social:groups:detail] loadCollections failed:', e);
+      setCollections([]);
+    }
+  }, [detail, canManage]);
+
+  // Load the collections when the Saved tab is active (and not yet loaded).
+  useEffect(() => {
+    if (tab === 'saved' && !collectionsLoadedRef.current && detail) {
+      collectionsLoadedRef.current = true;
+      void loadCollections();
+    }
+  }, [tab, detail, loadCollections]);
+
+  const openGroupCollection = useCallback(
+    (collectionGroupId: string) => {
+      if (!detail) return;
+      navigate(`/groups/${encodeURIComponent(detail.group_id)}/saved/${encodeURIComponent(collectionGroupId)}`);
+    },
+    [detail, navigate],
+  );
+
+  const handleCreateCollection = useCallback(async () => {
+    if (!detail) return;
+    const name = newCollectionName.trim();
+    if (!name) return;
+    setCreatingCollection(true);
+    try {
+      await createGroupCollection(detail.group_id, name, { visibility: 'private' });
+      setNewCollectionOpen(false);
+      setNewCollectionName('');
+      collectionsLoadedRef.current = false;
+      setCollections(null);
+      await loadCollections();
+    } catch (e) {
+      console.error('[social:groups:detail] createGroupCollection failed:', e);
+      toast.error(errorMessage(e, 'Could not create the collection.'));
+    } finally {
+      setCreatingCollection(false);
+    }
+  }, [detail, newCollectionName, loadCollections]);
   // The "dead group" heal runs at most once per mount (it reloads after healing,
   // and the ref stops a re-heal loop if a heal doesn't land).
   const healRetriedRef = useRef(false);
@@ -1126,6 +1195,27 @@ export default function GroupDetailScreen({ groupId }: { groupId: string }) {
               <div className="absolute bottom-0 inset-x-0 h-0.5 bg-gradient-to-r from-brand to-brand-600" />
             )}
           </button>
+          {/* Saved (a group is a profile) — the group's playlists. Manager:
+              always present (even empty — the tab's empty state + a "New
+              collection" affordance). Visitor / member: only when the group has
+              ≥1 PUBLIC collection (a private one never surfaces — the D80
+              by-group read returns only membership_visibility='public'). */}
+          {collections !== null && (canManage || collections.length > 0) && (
+            <button
+              data-testid="group-tab-saved"
+              aria-current={tab === 'saved' ? 'true' : undefined}
+              className={cn(
+                'flex-1 min-h-11 py-3 text-sm font-medium text-center transition-all duration-150 relative',
+                tab === 'saved' ? 'text-foreground' : 'text-muted-foreground hover:text-foreground',
+              )}
+              onClick={() => selectTab('saved')}
+            >
+              Saved
+              {tab === 'saved' && (
+                <div className="absolute bottom-0 inset-x-0 h-0.5 bg-gradient-to-r from-brand to-brand-600" />
+              )}
+            </button>
+          )}
         </div>
 
         {/* The feed — the dominant surface (the reference feed card + composer) */}
@@ -1290,6 +1380,82 @@ export default function GroupDetailScreen({ groupId }: { groupId: string }) {
                   to see what's being shared.
                 </p>
               </div>
+            )}
+          </div>
+        )}
+
+        {/* The Saved tab (a group is a profile): the group's playlists — the
+            shared collections card grid. The manager gets a "New collection"
+            affordance above the grid; a visitor / member sees the public
+            collections read-only. */}
+        {tab === 'saved' && (
+          <div className="flex-1" data-testid="group-detail-saved">
+            {canManage && (
+              <div className="px-4 pt-4" data-testid="group-saved-new-container">
+                {newCollectionOpen ? (
+                  <form
+                    onSubmit={(e) => { e.preventDefault(); void handleCreateCollection(); }}
+                    className="flex items-center gap-2"
+                    data-testid="group-saved-new-form"
+                  >
+                    <input
+                      autoFocus
+                      value={newCollectionName}
+                      onChange={(e) => setNewCollectionName(e.target.value)}
+                      placeholder="Collection name"
+                      aria-label="New collection name"
+                      data-testid="group-saved-new-input"
+                      className="min-w-0 flex-1 rounded-md border border-input bg-elevated px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring"
+                    />
+                    <button
+                      type="submit"
+                      disabled={!newCollectionName.trim() || creatingCollection}
+                      className="shrink-0 rounded-md bg-brand px-3 py-2 text-sm font-medium text-brand-foreground hover:bg-brand-600 transition-colors disabled:opacity-50"
+                      data-testid="group-saved-new-create"
+                    >
+                      {creatingCollection ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Create'}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => { setNewCollectionOpen(false); setNewCollectionName(''); }}
+                      aria-label="Cancel"
+                      className="shrink-0 p-2 text-muted-foreground hover:text-foreground transition-colors"
+                      data-testid="group-saved-new-cancel"
+                    >
+                      <X className="w-4 h-4" />
+                    </button>
+                  </form>
+                ) : (
+                  <button
+                    type="button"
+                    onClick={() => setNewCollectionOpen(true)}
+                    className="flex items-center gap-2 rounded-md border border-border bg-elevated px-3 py-2 text-sm font-medium text-foreground hover:border-brand/40 transition-colors"
+                    data-testid="group-saved-new"
+                  >
+                    <Plus className="w-4 h-4 text-brand" strokeWidth={2} />
+                    New collection
+                  </button>
+                )}
+              </div>
+            )}
+            {collections === null ? (
+              <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 px-4 py-4" data-testid="group-saved-loading">
+                {Array.from({ length: 4 }).map((_, i) => (
+                  <div key={i} className="rounded-lg bg-elevated animate-pulse">
+                    <div className="aspect-[4/3]" />
+                    <div className="p-3 space-y-1.5">
+                      <div className="h-3.5 w-3/4 rounded" />
+                      <div className="h-3 w-1/2 rounded" />
+                    </div>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <SavedCollectionsGrid
+                collections={collections}
+                onOpenCollection={openGroupCollection}
+                emptyHint={canManage ? 'Create a collection to curate a playlist for the group.' : 'This group has no public collections yet.'}
+              />
             )}
           </div>
         )}

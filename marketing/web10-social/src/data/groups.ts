@@ -561,6 +561,7 @@ export async function writeGroupIdentity(groupId: string, identity: GroupIdentit
   if (identity.banner_ref) body.banner_ref = identity.banner_ref;
   if (identity.avatar_ref) body.avatar_ref = identity.avatar_ref;
   if (identity.kind) body.kind = identity.kind;
+  if (identity.owner_group) body.owner_group = identity.owner_group;
   if (identity.status) body.status = identity.status;
   if (identity.visibility) body.visibility = identity.visibility;
   if (identity.join_policy) body.join_policy = identity.join_policy;
@@ -976,6 +977,17 @@ export interface GroupIdentity {
    * community has no `kind`.
    */
   kind?: 'chat' | 'community' | 'saved';
+  /**
+   * The group a collection belongs to (saved-collections.md, "Group
+   * collections"). Present on a **group collection** (a group's playlist) —
+   * the group_id of the group the collection is curated for. Absent on a
+   * **personal** collection (a user's playlist). Like `kind`, an
+   * ownership/render hint only, never a security boundary (access is group
+   * membership + the D58 gate). A personal Saved tab shows only collections
+   * with no `owner_group`; a group's Saved tab shows only collections whose
+   * `owner_group` matches the group.
+   */
+  owner_group?: string;
   /**
    * The draft/published state (group-as-profile, decision 2). Absent means
    * `published` — every pre-existing group is live. A `draft` group is inert:

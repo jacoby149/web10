@@ -54,6 +54,10 @@ vi.mock('@/data', async (importOriginal) => {
     createDraftGroup: vi.fn().mockResolvedValue('web10.app/groups/me/new-group'),
     // G4: the create-time slug guard (live in edit mode for a draft).
     slugTaken: vi.fn().mockResolvedValue(false),
+    // Group collections (a group is a profile) — the Saved tab's reads + create.
+    readGroupCollections: vi.fn().mockResolvedValue([]),
+    readGroupPublicCollections: vi.fn().mockResolvedValue([]),
+    createGroupCollection: vi.fn().mockResolvedValue('api.localhost/groups/users/me/saved-gaming-best-of'),
   };
 });
 
@@ -93,6 +97,9 @@ import {
     publishGroup,
     createDraftGroup,
     slugTaken,
+    readGroupCollections,
+    readGroupPublicCollections,
+    createGroupCollection,
 } from '@/data';
 import { uploadMedia } from '@/data/posts';
 
@@ -1389,6 +1396,93 @@ describe('GroupDetailScreen', () => {
       expect(screen.getByTestId('group-media-empty')).toBeInTheDocument();
     });
     expect(screen.getByText('No media yet')).toBeInTheDocument();
+  });
+
+  // ── The Saved tab (a group is a profile) — the group's playlists ──────────
+
+  it('a manager sees the Saved tab + a "New collection" affordance (the manager read)', async () => {
+    vi.mocked(getGroupsManages).mockResolvedValue([{ group_id: GROUP_ID }] as never);
+    vi.mocked(readGroupCollections).mockResolvedValue([
+      { groupId: 'api.localhost/groups/users/me/saved-gaming-best-of', name: 'Best Of', visibility: 'private', itemCount: 3, slug: 'best-of' },
+    ] as never);
+    await renderDetailAt('/groups/x?tab=saved');
+    await waitFor(() => {
+      expect(screen.getByTestId('group-tab-saved')).toBeInTheDocument();
+    });
+    // The manager's read (public + private), not the public read.
+    expect(readGroupCollections).toHaveBeenCalledWith(GROUP_ID);
+    expect(readGroupPublicCollections).not.toHaveBeenCalled();
+    // The "New collection" affordance is manager-only.
+    expect(screen.getByTestId('group-saved-new')).toBeInTheDocument();
+    // The collection card renders (the shared grid).
+    await waitFor(() => {
+      expect(screen.getByTestId('saved-collection-card')).toBeInTheDocument();
+    });
+  });
+
+  it('a non-manager with no public collections sees no Saved tab', async () => {
+    vi.mocked(getGroupsManages).mockResolvedValue([] as never);
+    vi.mocked(readGroupPublicCollections).mockResolvedValue([] as never);
+    await loadDetail();
+    await waitFor(() => {
+      expect(screen.getByTestId('group-detail-tabs')).toBeInTheDocument();
+    });
+    // The tab is absent (no public collections, not a manager).
+    expect(screen.queryByTestId('group-tab-saved')).not.toBeInTheDocument();
+  });
+
+  it('a non-manager with public collections sees the Saved tab (read-only, no "New collection")', async () => {
+    vi.mocked(getGroupsManages).mockResolvedValue([] as never);
+    vi.mocked(readGroupPublicCollections).mockResolvedValue([
+      { groupId: 'api.localhost/groups/users/me/saved-gaming-best-of', name: 'Best Of', visibility: 'public', itemCount: 3, slug: 'best-of' },
+    ] as never);
+    await renderDetailAt('/groups/x?tab=saved');
+    await waitFor(() => {
+      expect(screen.getByTestId('group-tab-saved')).toBeInTheDocument();
+    });
+    // The public read (the visitor's read), not the manager read.
+    expect(readGroupPublicCollections).toHaveBeenCalledWith(GROUP_ID);
+    expect(readGroupCollections).not.toHaveBeenCalled();
+    // No "New collection" affordance for a non-manager.
+    expect(screen.queryByTestId('group-saved-new')).not.toBeInTheDocument();
+    // The public collection card renders read-only.
+    await waitFor(() => {
+      expect(screen.getByTestId('saved-collection-card')).toBeInTheDocument();
+    });
+  });
+
+  it('the manager creates a collection (name → createGroupCollection → reload)', async () => {
+    vi.mocked(getGroupsManages).mockResolvedValue([{ group_id: GROUP_ID }] as never);
+    vi.mocked(readGroupCollections)
+      .mockResolvedValueOnce([] as never)
+      .mockResolvedValueOnce([
+        { groupId: 'api.localhost/groups/users/me/saved-gaming-best-of', name: 'Best Of', visibility: 'private', itemCount: 0, slug: 'best-of' },
+      ] as never);
+    await renderDetailAt('/groups/x?tab=saved');
+    await waitFor(() => {
+      expect(screen.getByTestId('group-saved-new')).toBeInTheDocument();
+    });
+    fireEvent.click(screen.getByTestId('group-saved-new'));
+    const input = await screen.findByTestId('group-saved-new-input');
+    fireEvent.change(input, { target: { value: 'Best Of' } });
+    fireEvent.click(screen.getByTestId('group-saved-new-create'));
+    await waitFor(() => {
+      expect(createGroupCollection).toHaveBeenCalledWith(GROUP_ID, 'Best Of', { visibility: 'private' });
+    });
+    // The new collection appears after the reload.
+    await waitFor(() => {
+      expect(screen.getByTestId('saved-collection-card')).toBeInTheDocument();
+    });
+  });
+
+  it('restores the Saved tab from ?tab=saved (deep link)', async () => {
+    vi.mocked(getGroupsManages).mockResolvedValue([{ group_id: GROUP_ID }] as never);
+    vi.mocked(readGroupCollections).mockResolvedValue([] as never);
+    await renderDetailAt('/groups/x?tab=saved');
+    await waitFor(() => {
+      expect(screen.getByTestId('group-tab-saved')).toHaveAttribute('aria-current', 'true');
+    });
+    expect(screen.queryByTestId('group-detail-posts')).not.toBeInTheDocument();
   });
 
   it('the hero name row sits above the banner (the Edit pencil must be clickable — G5 hit-test fix)', async () => {

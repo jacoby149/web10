@@ -128,6 +128,24 @@ function GroupDetailRoute() {
   return <GroupDetailScreen groupId={groupId!} />;
 }
 
+// A group collection's deep-linkable detail view — /groups/:groupId/saved/:collectionId
+// (the collectionId is the group_id, URL-encoded — the group-detail idiom). The
+// group's manager sees the per-item remove + the visibility toggle; a visitor
+// sees a read-only wall (a private collection's read 403s → the error state).
+// Reuses SavedCollectionScreen with the group-owner check (owner = can manage
+// the group, not the profile's username).
+function GroupSavedCollectionRoute() {
+  const { groupId } = useParams();
+  const navigate = useNavigate();
+
+  return (
+    <SavedCollectionScreen
+      groupId={groupId ? decodeURIComponent(groupId) : undefined}
+      onBack={() => navigate(-1)}
+    />
+  );
+}
+
 function UserProfilePostLinkRoute() {
   const { username, postId } = useParams();
   const [searchParams] = useSearchParams();
@@ -456,6 +474,7 @@ function App() {
           <Route path="/shorts/:postId" element={<ShortsScreen />} />
           <Route path="/groups" element={<GroupsScreen />} />
           <Route path="/groups/:groupId" element={<GroupDetailRoute />} />
+          <Route path="/groups/:groupId/saved/:collectionId" element={<GroupSavedCollectionRoute />} />
           <Route path="/messages/*" element={isAnon ? <Navigate to="/video" replace /> : <DmsScreen />} />
           <Route path="/notifications" element={isAnon ? <Navigate to="/video" replace /> : <NotificationsScreen />} />
           <Route path="/profile" element={isAnon ? <Navigate to="/video" replace /> : <ProfileRedirectRoute />} />

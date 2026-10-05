@@ -60,6 +60,9 @@ import {
   deleteCollection,
   readSavedPostIds,
   readUserPublicCollections,
+  createGroupCollection,
+  readGroupCollections,
+  readGroupPublicCollections,
 } from '@/data/saved';
 
 const GROUP_ID = 'api.localhost/groups/users/jacoby149/saved-my-collection';
@@ -306,5 +309,123 @@ describe('readUserPublicCollections — the visitor\'s public collections (D80 b
     const collections = await readUserPublicCollections('otheruser');
     expect(collections).toHaveLength(1);
     expect(collections[0]).toMatchObject({ name: 'tour-sets', itemCount: 0 });
+  });
+});
+
+// ── Group collections (a group's playlists — a group is a profile) ──────────
+const GROUP = 'api.localhost/groups/users/jacoby149/synthwave-sessions';
+const GROUP_COLLECTION_ID = 'api.localhost/groups/users/jacoby149/saved-synthwave-sessions-best-of';
+
+describe('createGroupCollection — the group is the owner (by-group read)', () => {
+  it('creates the group as the owner member + the face carries owner_group', async () => {
+    mockCreateGroup.mockResolvedValue({ group_id: GROUP_COLLECTION_ID });
+    const id = await createGroupCollection(GROUP, 'Best Of');
+    expect(id).toBe(GROUP_COLLECTION_ID);
+    const [slug, joinPolicy, , members, opts] = mockCreateGroup.mock.calls[0];
+    // the slug embeds the group's slug (two groups the manager runs never collide).
+    expect(slug).toBe('saved-synthwave-sessions-best-of');
+    expect(joinPolicy).toBe('invite_only');
+    // the GROUP is the owner member (the D80 by-group read enumerates it).
+    expect(members).toContainEqual({ member_key: GROUP, role: 'owner' });
+    // private by default — no `anyone` reader row.
+    expect(members).not.toContainEqual({ member_key: 'anyone', role: 'reader' });
+    expect(opts).toEqual({ discoverable: false, tags: ['web10-social-saved'], membership_visibility: 'hidden' });
+    // the face carries kind:'saved' + owner_group (the classifier).
+    expect(mockWriteGroupIdentity).toHaveBeenCalledWith(
+      GROUP_COLLECTION_ID,
+      expect.objectContaining({ name: 'Best Of', kind: 'saved', visibility: 'private', owner_group: GROUP }),
+    );
+  });
+
+  it('a public group collection adds the `anyone` reader row + D80 public membership', async () => {
+    mockCreateGroup.mockResolvedValue({ group_id: GROUP_COLLECTION_ID });
+    await createGroupCollection(GROUP, 'Best Of', { visibility: 'public' });
+    const [, , , members, opts] = mockCreateGroup.mock.calls[0];
+    expect(members).toContainEqual({ member_key: 'anyone', role: 'reader' });
+    expect(opts).toEqual({ discoverable: false, tags: ['web10-social-saved'], membership_visibility: 'public' });
+  });
+});
+
+describe('readGroupCollections — the manager\'s read (public + private)', () => {
+  it('selects by the saved tag + filters to owner_group === the group', async () => {
+    const personalId = 'api.localhost/groups/users/jacoby149/saved-personal';
+    mockGetMyGroups.mockResolvedValue([
+      { group_id: GROUP_COLLECTION_ID, join_policy: 'invite_only', my_role: 'owner', member_count: 1 },
+      { group_id: personalId, join_policy: 'invite_only', my_role: 'owner', member_count: 1 },
+    ]);
+    mockReadGroupIdentity.mockImplementation(async (gid: string) =>
+      gid === GROUP_COLLECTION_ID
+        ? { name: 'Best Of', kind: 'saved', visibility: 'private', owner_group: GROUP }
+        : { name: 'Personal', kind: 'saved', visibility: 'private' },
+    );
+    mockRead.mockResolvedValue([]);
+    const collections = await readGroupCollections(GROUP);
+    expect(mockGetMyGroups).toHaveBeenCalledWith({ tags: ['web10-social-saved'] });
+    // only the group's collection (the personal one has no owner_group).
+    expect(collections).toHaveLength(1);
+    expect(collections[0]).toMatchObject({ groupId: GROUP_COLLECTION_ID, name: 'Best Of', visibility: 'private' });
+  });
+});
+
+describe('readGroupPublicCollections — the visitor\'s read (D80 by-group read)', () => {
+  it('reads the by-group groups (the group_id as the member key) by the saved tag', async () => {
+    mockByUserGroups.mockResolvedValue({
+      groups: [{ group_id: GROUP_COLLECTION_ID, name: 'saved-synthwave-sessions-best-of', owner: 'jacoby149', slug: 'saved-synthwave-sessions-best-of', role: 'anyone', joined_at: 'x', join_policy: 'invite_only', discoverable: false, tags: ['web10-social-saved'] }],
+      limit: 100,
+      offset: 0,
+    });
+    mockReadGroupIdentity.mockResolvedValue({ name: 'Best Of', kind: 'saved', visibility: 'public', owner_group: GROUP });
+    mockRead.mockResolvedValue([
+      { doc_id: 's1', ref_value: 'p1', body: { post_id: 'p1' }, created_at: 'x' },
+      { doc_id: 's2', ref_value: 'p2', body: { post_id: 'p2' }, created_at: 'x' },
+    ]);
+    const collections = await readGroupPublicCollections(GROUP);
+    // the D80 by-user read pointed at the GROUP's group_id (the by-group read).
+    expect(mockByUserGroups).toHaveBeenCalledWith(GROUP, { tag: 'web10-social-saved', limit: 100 });
+    expect(collections).toHaveLength(1);
+    expect(collections[0]).toMatchObject({ groupId: GROUP_COLLECTION_ID, name: 'Best Of', visibility: 'public', itemCount: 2 });
+  });
+
+  it('filters to owner_group === the group (a foreign collection is excluded)', async () => {
+    const foreignId = 'api.localhost/groups/users/jacoby149/saved-other-group-best-of';
+    mockByUserGroups.mockResolvedValue({
+      groups: [{ group_id: foreignId, name: 'saved-other-group-best-of', owner: 'jacoby149', slug: 'saved-other-group-best-of', role: 'anyone', joined_at: 'x', join_policy: 'invite_only', discoverable: false, tags: ['web10-social-saved'] }],
+      limit: 100,
+      offset: 0,
+    });
+    mockReadGroupIdentity.mockResolvedValue({ name: 'Other', kind: 'saved', visibility: 'public', owner_group: 'api.localhost/groups/users/jacoby149/other-group' });
+    mockRead.mockResolvedValue([]);
+    const collections = await readGroupPublicCollections(GROUP);
+    expect(collections).toEqual([]);
+  });
+
+  it('returns empty when the group has no public collections', async () => {
+    mockByUserGroups.mockResolvedValue({ groups: [], limit: 100, offset: 0 });
+    const collections = await readGroupPublicCollections(GROUP);
+    expect(collections).toEqual([]);
+  });
+});
+
+describe('personal reads exclude group collections (the owner_group classifier)', () => {
+  it('getMyCollections skips a collection with owner_group set', async () => {
+    mockGetMyGroups.mockResolvedValue([
+      { group_id: GROUP_COLLECTION_ID, join_policy: 'invite_only', my_role: 'owner', member_count: 1 },
+    ]);
+    mockReadGroupIdentity.mockResolvedValue({ name: 'Best Of', kind: 'saved', visibility: 'private', owner_group: GROUP });
+    mockRead.mockResolvedValue([]);
+    const collections = await getMyCollections();
+    expect(collections).toEqual([]);
+  });
+
+  it('readUserPublicCollections skips a collection with owner_group set', async () => {
+    mockByUserGroups.mockResolvedValue({
+      groups: [{ group_id: GROUP_COLLECTION_ID, name: 'saved-synthwave-sessions-best-of', owner: 'jacoby149', slug: 'saved-synthwave-sessions-best-of', role: 'anyone', joined_at: 'x', join_policy: 'invite_only', discoverable: false, tags: ['web10-social-saved'] }],
+      limit: 100,
+      offset: 0,
+    });
+    mockReadGroupIdentity.mockResolvedValue({ name: 'Best Of', kind: 'saved', visibility: 'public', owner_group: GROUP });
+    mockRead.mockResolvedValue([]);
+    const collections = await readUserPublicCollections('jacoby149');
+    expect(collections).toEqual([]);
   });
 });
