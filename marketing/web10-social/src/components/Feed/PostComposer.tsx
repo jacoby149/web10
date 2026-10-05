@@ -26,6 +26,7 @@ import { AdPicker } from './AdPicker';
 import { VideoEditorSheet } from './VideoEditorSheet';
 import type { VideoEditResult } from './VideoEditorSheet';
 import { editVideo, isNoopEdit } from '@/lib/videoEditing';
+import { markdownToHtml } from '@/lib/markdownHtml';
 
 let nextMediaId = 0;
 
@@ -359,7 +360,10 @@ export default function PostComposer({
         placeholder: repostingTo ? 'Add a comment…' : "What's on your mind?",
       }),
     ],
-    content: editingPost?.text || '',
+    // Edit mode: the stored `text` is markdown, but Tiptap seeds from HTML —
+    // convert it (the inverse of the turndown write) or the editor would show
+    // the raw `**bold**` syntax instead of **bold** (D85, the write side).
+    content: markdownToHtml(editingPost?.text || ''),
     onFocus: () => setFocused(true),
     onBlur: () => setFocused(false),
     // The markdown is NOT computed here — a full turndown walk of the document

@@ -187,6 +187,26 @@ describe('Profile posts view lens (grid | feed)', () => {
     expect(headings[1]).not.toHaveClass('font-display');
   });
 
+  it('renders a caption markdown (bold / italic) in the tile — never the raw ** syntax (D85 read side)', async () => {
+    const { readMyPosts } = await import('@/data');
+    vi.mocked(readMyPosts).mockResolvedValue([
+      { _id: 'md-1', text: 'the layout of web10 is **what** I had in mind', created_at: new Date().toISOString() },
+    ]);
+    const { default: UserProfileScreen } = await import('@/components/Bio/UserProfileScreen');
+    render(
+      <MemoryRouter initialEntries={['/u/testuser']}>
+        <UserProfileScreen username="testuser" provider="test.localhost" />
+      </MemoryRouter>,
+    );
+
+    const heading = await screen.findByTestId('profile-post-cell-text-title');
+    // The markdown is typeset (a real <strong>), not the literal `**what**`.
+    expect(heading.querySelector('strong')).toHaveTextContent('what');
+    expect(heading).not.toHaveTextContent('**');
+    // The inline renderer is the D85 read-side component.
+    expect(heading.querySelector('[data-testid="post-body-inline"]')).toBeInTheDocument();
+  });
+
   it('switching to the feed view renders the facebook-shaped card stream', async () => {
     await renderOwnProfile();
 
