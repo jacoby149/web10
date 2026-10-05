@@ -1,7 +1,16 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 
 // Mock the v3 client seam (the SDK) so we can assert the exact createGroup call.
-const mockCreateGroup = vi.fn().mockResolvedValue({ group_id: 'g1' });
+// The createGroup mock mirrors the node's derivation: `{provider}/groups/users/{creator}/{slug}`.
+// The full arg list keeps the mock's call tuple shaped like the real createGroup.
+const deriveNodeId = (
+  slug: string,
+  _joinPolicy: string,
+  _roles: Record<string, unknown>[],
+  _members: { member_key: string; role?: string }[],
+  _opts?: { discoverable?: boolean; tags?: string[]; membership_visibility?: string },
+) => ({ group_id: `api.localhost/groups/users/jacoby149/${slug}` });
+const mockCreateGroup = vi.fn().mockImplementation(deriveNodeId);
 const mockCreate = vi.fn().mockResolvedValue({ _id: 'doc-1' });
 const mockGetGroup = vi.fn();
 const mockReadToken = vi.fn().mockReturnValue({ provider: 'api.localhost', username: 'jacoby149' });
@@ -20,7 +29,7 @@ import { createCommunityGroup, createDraftGroup } from '@/data/groups';
 describe('createCommunityGroup — the discoverable (D53) fix', () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    mockCreateGroup.mockResolvedValue({ group_id: 'g1' });
+    mockCreateGroup.mockImplementation(deriveNodeId);
     mockCreate.mockResolvedValue({ _id: 'doc-1' });
   });
 
@@ -103,7 +112,7 @@ describe('createCommunityGroup — the discoverable (D53) fix', () => {
 describe('createDraftGroup — the create entry point (G4)', () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    mockCreateGroup.mockResolvedValue({ group_id: 'g1' });
+    mockCreateGroup.mockImplementation(deriveNodeId);
     mockCreate.mockResolvedValue({ _id: 'doc-1' });
     // Default: the slug is free.
     mockGetGroup.mockRejectedValue(Object.assign(new Error('not found'), { status: 404 }));
@@ -111,7 +120,7 @@ describe('createDraftGroup — the create entry point (G4)', () => {
 
   it('creates an inert draft (unlisted, owner-only, face status=draft) and returns the id', async () => {
     const groupId = await createDraftGroup('jacoby149');
-    expect(groupId).toBe('web10.app/groups/jacoby149/new-group');
+    expect(groupId).toBe('api.localhost/groups/users/jacoby149/new-group');
     const [slug, , , members, opts] = mockCreateGroup.mock.calls[0];
     expect(slug).toBe('new-group');
     // Inert: unlisted + owner-only (no reserved reader row) — the directory and
@@ -131,24 +140,24 @@ describe('createDraftGroup — the create entry point (G4)', () => {
   it('the slug guard is live at create: a taken slug gets a numeric suffix', async () => {
     // `new-group` is taken, `new-group-2` is free.
     mockGetGroup.mockImplementation((groupId: string) => {
-      if (groupId === 'web10.app/groups/jacoby149/new-group') {
+      if (groupId === 'api.localhost/groups/users/jacoby149/new-group') {
         return Promise.resolve({ group_id: groupId });
       }
       return Promise.reject(Object.assign(new Error('not found'), { status: 404 }));
     });
     const groupId = await createDraftGroup('jacoby149');
-    expect(groupId).toBe('web10.app/groups/jacoby149/new-group-2');
+    expect(groupId).toBe('api.localhost/groups/users/jacoby149/new-group-2');
     const [slug] = mockCreateGroup.mock.calls[0];
     expect(slug).toBe('new-group-2');
     // The guard checked both slugs (the create-time get_group check, decision 1).
-    expect(mockGetGroup).toHaveBeenCalledWith('web10.app/groups/jacoby149/new-group');
-    expect(mockGetGroup).toHaveBeenCalledWith('web10.app/groups/jacoby149/new-group-2');
+    expect(mockGetGroup).toHaveBeenCalledWith('api.localhost/groups/users/jacoby149/new-group');
+    expect(mockGetGroup).toHaveBeenCalledWith('api.localhost/groups/users/jacoby149/new-group-2');
   });
 
   it('a tombstoned slug does not count (delete-then-recreate is safe, G0)', async () => {
     // get_group 404s (the group was deleted → tombstone) → the slug is free.
     mockGetGroup.mockRejectedValue(Object.assign(new Error('not found'), { status: 404 }));
     const groupId = await createDraftGroup('jacoby149');
-    expect(groupId).toBe('web10.app/groups/jacoby149/new-group');
+    expect(groupId).toBe('api.localhost/groups/users/jacoby149/new-group');
   });
 });
