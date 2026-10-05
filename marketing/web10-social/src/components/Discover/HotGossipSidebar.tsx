@@ -12,7 +12,7 @@ import type { PostRecord } from '@/data';
 interface HotGossipSidebarEntry {
   post: PostRecord;
   rank: number;
-  /** The heat score (the board's display score) — the rail's right-hand tally. */
+  /** The engagement tally (likes + comments + reposts) — the rail's right-hand number. */
   score: number;
 }
 
