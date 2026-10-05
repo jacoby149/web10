@@ -364,7 +364,14 @@ export function PostLightbox({ post, mediaMap, onClose, onReload, postAuthor, po
                 className="max-h-[50vh] w-full object-contain sm:max-h-[88vh]"
               />
             )}
-            {multiple && (
+            {/* The in-pane media arrows page the post's own frames. They are
+                suppressed when post nav owns the side arrows (the profile
+                grid's Instagram-style prev/next post) — otherwise a
+                multi-frame post shows TWO chevrons per side (the media
+                arrows here + the post arrows on the backdrop). The frame
+                counter stays either way, so the current frame is always
+                visible. */}
+            {multiple && !hasPostNav && (
               <>
                 <button
                   type="button"
@@ -384,10 +391,12 @@ export function PostLightbox({ post, mediaMap, onClose, onReload, postAuthor, po
                 >
                   <ChevronRight className="h-5 w-5" />
                 </button>
-                <div className="absolute bottom-2 left-1/2 -translate-x-1/2 rounded-full bg-background/70 px-2 py-0.5 text-xs font-mono tabular-nums text-foreground backdrop-blur-sm">
-                  {index + 1} / {media.length}
-                </div>
               </>
+            )}
+            {multiple && (
+              <div className="absolute bottom-2 left-1/2 -translate-x-1/2 rounded-full bg-background/70 px-2 py-0.5 text-xs font-mono tabular-nums text-foreground backdrop-blur-sm">
+                {index + 1} / {media.length}
+              </div>
             )}
           </div>
         )}
