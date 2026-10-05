@@ -143,33 +143,81 @@ async function fetchGroupsPage(limit: number, offset: number): Promise<{ groups:
   return { groups, hasMore: groups.length >= limit };
 }
 
-// The group's face (D60 identity) — the rich name. Read anon (the `anyone`
-// grant on public groups). A failure leaves the card nameless (the directory
-// name is the fallback).
+// The group's face (D60 identity) — the rich name + banner + avatar. Read anon
+// (the `anyone` grant on public groups). A failure leaves the card nameless +
+// faceless (the directory name + gradient fallback).
 //
-// The banner + avatar are NOT resolved here: a group's face media is a bare
-// `public_media` doc owned by the group owner (not attached to any group), so
-// there is no anon presign path for it — the owner-scoped media endpoints
-// (`/v3/media/list`, `/v3/media/read-url`) require a token, and the
-// anon-capable `/v3/media/thumbnail` 404s on a media doc with no group
-// attachment. The card therefore renders the gradient fallback until the node
-// attaches `public_media` docs to the discover board (the anon presign seam).
+// The face media (banner + avatar) are resolved through the query engine's
+// author-scoped face-prepare (D73) — the SAME mechanism the people path above
+// uses. The identity doc (an app-named service, `web10-social-group-identity`)
+// is attached to the group it is the face of, so the engine's boundary CTE
+// (group-filtered) returns it for a reader who can read the group (anon, via
+// the `anyone` grant). The face-prepare mints the face URL bound to the row's
+// `author_key` (the group owner, who owns the media) — not the viewer — so it
+// works for any reader, anon included. The owner-scoped media endpoints
+// (`/v3/media/list`, `/v3/media/read-url`) can't do this (they're scoped to the
+// reader's own `author_key`), and the anon-capable `/v3/media/thumbnail` 404s
+// on a media doc with no group attachment — the face-prepare is the only anon
+// path. The service name is hyphenated, so it is backtick-quoted in the SQL
+// (a bare name would not parse — the engine quotes the CTE def to match).
 const GROUP_IDENTITY_SERVICE = 'web10-social-group-identity';
-async function readGroupFace(groupId: string): Promise<DiscoverGroupFace> {
+const GROUP_IDENTITY_SQL = `SELECT group_id AS group_id, author_key AS author_key, body AS body FROM \`${GROUP_IDENTITY_SERVICE}\``;
+
+// One face-prepare read over the page's groups: SELECT the identity rows,
+// scoped to the groups, and let the engine mint the presigned URL for
+// `mediaField` (author-scoped to the row's author) onto `urlField`.
+// Anon-capable (no token).
+async function runGroupFaceQuery(
+  groupIds: string[],
+  mediaField: string,
+  urlField: string,
+): Promise<{ rows: Record<string, unknown>[] }> {
   try {
-    const resp = await fetch(`${API_ORIGIN}/v3/read`, {
+    const resp = await fetch(`${API_ORIGIN}/v3/query`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ service: GROUP_IDENTITY_SERVICE, groups: [groupId], limit: 5 }),
+      body: JSON.stringify({
+        sql: GROUP_IDENTITY_SQL,
+        groups: groupIds,
+        prepare: { face: { bodyField: 'body', mediaField, urlField } },
+      }),
     });
-    if (!resp.ok) return {};
-    const docs = await resp.json();
-    if (!Array.isArray(docs) || docs.length === 0) return {};
-    const body = docs[docs.length - 1].body || {};
-    return body.name ? { name: body.name } : {};
+    if (!resp.ok) return { rows: [] };
+    const data = await resp.json();
+    return { rows: Array.isArray(data.rows) ? data.rows : [] };
   } catch {
-    return {};
+    return { rows: [] };
   }
+}
+
+// Resolve a page of groups' face media (avatar + banner) to presigned URLs in
+// TWO batched query-engine reads (one per face field), plus the rich name. A
+// group with no readable face (private, or no identity doc) is absent — that
+// card keeps the directory name + gradient fallback. A failure degrades the
+// whole page to faceless cards, never a throw.
+async function resolveGroupFaces(groups: GroupEntry[]): Promise<Map<string, DiscoverGroupFace>> {
+  const out = new Map<string, DiscoverGroupFace>();
+  if (groups.length === 0) return out;
+  const groupIds = groups.map((g) => g.group_id);
+  const [avatarRes, bannerRes] = await Promise.all([
+    runGroupFaceQuery(groupIds, 'avatar_ref', 'avatar_url'),
+    runGroupFaceQuery(groupIds, 'banner_ref', 'banner_url'),
+  ]);
+  const upsert = (row: Record<string, unknown>) => {
+    const gid = String(row.group_id ?? '');
+    if (!gid) return;
+    const entry = out.get(gid) ?? {};
+    const body = row.body;
+    if (body && typeof body === 'object' && typeof (body as Record<string, unknown>).name === 'string') {
+      entry.name = (body as Record<string, unknown>).name as string;
+    }
+    if (typeof row.avatar_url === 'string') entry.avatar_url = row.avatar_url;
+    if (typeof row.banner_url === 'string') entry.banner_url = row.banner_url;
+    out.set(gid, entry);
+  };
+  for (const row of avatarRes.rows) upsert(row);
+  for (const row of bannerRes.rows) upsert(row);
+  return out;
 }
 
 // ── The browser ──────────────────────────────────────────────────────────────
@@ -295,19 +343,18 @@ export function ProfilesBrowser({ query }: { query: string }) {
     trackFunnel('trending_groups_view');
   }, [loadGroupsPage]);
 
-  // Resolve each group's face (banner + avatar + rich name) so the card
-  // matches the social card. A per-group failure leaves that card faceless.
+  // Resolve each group's face (banner + avatar + rich name) in one batched
+  // query-engine pass so the card matches the social card. A group with no
+  // readable face is absent — that card keeps the directory name + gradient.
   useEffect(() => {
     if (groups.length === 0) return;
     let cancelled = false;
     (async () => {
       const missing = groups.filter((g) => !(g.group_id in groupFaces));
       if (missing.length === 0) return;
-      const entries = await Promise.all(
-        missing.map(async (g): Promise<[string, DiscoverGroupFace]> => [g.group_id, await readGroupFace(g.group_id)]),
-      );
+      const faces = await resolveGroupFaces(missing);
       if (cancelled) return;
-      setGroupFaces((prev) => ({ ...prev, ...Object.fromEntries(entries) }));
+      setGroupFaces((prev) => ({ ...prev, ...Object.fromEntries(faces) }));
     })();
     return () => { cancelled = true; };
   }, [groups, groupFaces]);
