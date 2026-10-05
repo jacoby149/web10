@@ -1009,6 +1009,75 @@ describe('DiscoverScreen', () => {
     expect(screen.getByTestId('discover-home-card')).toHaveTextContent('video creator');
   });
 
+  it('the Video wall does not paint before media resolution (no grey-thumbnail window)', async () => {
+    // Regression: the grid used to render as soon as the posts read landed
+    // (setPosts) — BEFORE the media read resolved (setMediaMap). For that
+    // window the tiles had no media, so HomeCard fell back to the plain grey
+    // gradient; the thumbnails only appeared on the second render. The grid
+    // must not paint until the media (thumbnails) are in hand — the skeleton
+    // covers the gap.
+    let releaseMedia: () => void;
+    const mediaGate = new Promise<void>((resolve) => { releaseMedia = resolve; });
+    (data.readDiscoverFeed as ReturnType<typeof vi.fn>).mockResolvedValue([
+      {
+        author: 'video-creator',
+        author_username: 'video-creator',
+        author_provider: 'api.web10.app',
+        provider: 'api.web10.app',
+        post_id: 'p1',
+        text: 'My amazing video content',
+        tags: ['video'],
+        media_refs: ['m1'],
+        created_at: new Date(Date.now() - 3600000).toISOString(),
+        likes: 42,
+        comments: 8,
+        reposts: 3,
+        score: 53,
+      },
+    ]);
+    (data.resolveMediaRefs as ReturnType<typeof vi.fn>).mockImplementation(async () => {
+      await mediaGate;
+      return [
+        {
+          _id: 'm1',
+          url: 'https://cdn.example/video.mp4',
+          mime_type: 'video/mp4',
+          width: 1920,
+          height: 1080,
+          duration_seconds: 42,
+          thumbnail_url: 'https://cdn.example/thumb.jpg',
+          created_at: new Date().toISOString(),
+        },
+      ];
+    });
+
+    const { default: DiscoverScreen } = await import('@/components/Discover/DiscoverScreen');
+    render(
+      <MemoryRouter initialEntries={['/video']}>
+        <DiscoverScreen />
+      </MemoryRouter>,
+    );
+
+    // The posts read has resolved by now (the media read is still gated) —
+    // the grid must NOT have painted: the skeleton is still up.
+    await waitFor(() => {
+      expect((data.readDiscoverFeed as ReturnType<typeof vi.fn>).mock.results.length).toBe(1);
+    });
+    await new Promise((r) => setTimeout(r, 0));
+    expect(screen.queryByTestId('discover-home-grid')).not.toBeInTheDocument();
+    expect(screen.getByTestId('discover-grid-skeleton')).toBeInTheDocument();
+
+    // Release the media read — the grid paints, and the tile carries the
+    // resolved thumbnail (no grey fallback).
+    releaseMedia!();
+    await waitFor(() => {
+      expect(screen.getByTestId('discover-home-grid')).toBeInTheDocument();
+    });
+    const hoverVideo = screen.getByTestId('discover-home-card-hover-video');
+    const img = hoverVideo.querySelector('img');
+    expect(img).toHaveAttribute('src', 'https://cdn.example/thumb.jpg');
+  });
+
   it('the Hot Gossip destination renders the ranked board (all posts)', async () => {
     (data.readDiscoverFeed as ReturnType<typeof vi.fn>).mockResolvedValue([
       {
