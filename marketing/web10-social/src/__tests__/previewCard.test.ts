@@ -43,13 +43,16 @@ describe('web10-social link-preview card logic (KB: media/thumbnailing.md)', () 
   let profileCard: (u: string) => Promise<string>
   let groupCard: (g: string) => Promise<string>
   let truncate: (s: string, n: number) => string | null
+  let stripMarkdown: (s: string) => string
 
   beforeEach(async () => {
     const mod = await import('../../preview/card.mjs')
+    const md = await import('../../preview/markdown.mjs')
     postCard = mod.postCard
     profileCard = mod.profileCard
     groupCard = mod.groupCard
     truncate = mod.truncate
+    stripMarkdown = md.stripMarkdown
   })
 
   afterEach(() => {
@@ -62,6 +65,66 @@ describe('web10-social link-preview card logic (KB: media/thumbnailing.md)', () 
     const out = truncate(long, 100)
     expect(out!.length).toBeLessThanOrEqual(100)
     expect(out!.endsWith('…')).toBe(true)
+  })
+
+  describe('stripMarkdown — render a markdown string as plain words (D85)', () => {
+    it('strips bold / italic / strikethrough, keeping the words', () => {
+      expect(stripMarkdown('**bold** and *ital* and ~~gone~~')).toBe('bold and ital and gone')
+    })
+    it('strips headings, keeping the line words', () => {
+      expect(stripMarkdown('## A heading\n### A sub')).toBe('A heading\nA sub')
+    })
+    it('strips links to their text (not the url)', () => {
+      expect(stripMarkdown('see [this site](http://x.test) now')).toBe('see this site now')
+    })
+    it('strips inline + fenced code, keeping the code text', () => {
+      expect(stripMarkdown('run `npm i` to start')).toBe('run npm i to start')
+      expect(stripMarkdown('```\nconst a = 1\n```').trim()).toBe('const a = 1')
+    })
+    it('strips list + blockquote markers, keeping the words', () => {
+      expect(stripMarkdown('- one\n> quoted')).toBe('one\nquoted')
+    })
+    it('leaves a plain-text (pre-markdown) string unchanged', () => {
+      expect(stripMarkdown('just words, no syntax')).toBe('just words, no syntax')
+    })
+    it('keeps INTENTIONAL literal punctuation — not real emphasis (the caveat)', () => {
+      // A lone ** / *** / ! with nothing to pair with is literal text, not
+      // markdown — it must show as the user typed it.
+      expect(stripMarkdown('I am so **** happy')).toBe('I am so **** happy')
+      expect(stripMarkdown('wait *** what')).toBe('wait *** what')
+      expect(stripMarkdown('really?!?!')).toBe('really?!?!')
+      // A space inside the markers means it is NOT emphasis (CommonMark
+      // flanking) — literal asterisks the user typed on purpose.
+      expect(stripMarkdown('a * single * star')).toBe('a * single * star')
+      expect(stripMarkdown('a ** b ** c')).toBe('a ** b ** c')
+      expect(stripMarkdown('2 * 3 * 4')).toBe('2 * 3 * 4')
+      // …while REAL emphasis (markers hugging the words) is still stripped.
+      expect(stripMarkdown('this is **bold** text')).toBe('this is bold text')
+      expect(stripMarkdown('a *ital* word')).toBe('a ital word')
+    })
+  })
+
+  it('postCard: a markdown post renders plain words — no ** / # / []() / ``` leak', async () => {
+    mockPlatform({
+      'read:p1': {
+        author_key: 'nova',
+        body: { text: '## Big news\n**bold** and *ital* with [a link](http://x.test) and `code`' },
+      },
+      'thumb:p1': { thumbnail: { url: 'http://minio.test/img.png', alt: null, is_video: false } },
+    })
+    const html = await postCard('nova', 'p1')
+    // The plain words are there…
+    expect(html).toContain('Big news')
+    expect(html).toContain('bold')
+    expect(html).toContain('a link')
+    expect(html).toContain('code')
+    // …and the markdown syntax is gone (the OG card must not leak it).
+    expect(html).not.toContain('**')
+    expect(html).not.toContain('##')
+    expect(html).not.toContain('[](')
+    expect(html).not.toContain('```')
+    // The link's url is not printed either (the text, not the target).
+    expect(html).not.toContain('http://x.test')
   })
 
   it('postCard: a public post with media renders the post text + the media thumbnail', async () => {

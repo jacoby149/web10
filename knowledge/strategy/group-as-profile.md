@@ -94,6 +94,9 @@ operator: feed front and center, insta second):
 - **Feed** (default, bare URL) — today's composer + reference `PostCard` feed.
 - **Media** (`?tab=media`) — the insta grid of the group's media posts (reuse
   the profile's media grid + lightbox).
+- **Saved** (`?tab=saved`, added in 3.208.0) — the group's playlists (a group
+  collection, `saved-collections.md` "Group collections") — the last tab that
+  makes a group's page indistinguishable from a person's profile.
 Deep-linkable (`?tab=`), refresh-safe. The hero (3.116.0) stays above the tabs.
 
 ### 2. Admin editing = the profile's pencil → inline edit mode

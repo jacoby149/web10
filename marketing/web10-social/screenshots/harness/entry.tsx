@@ -96,6 +96,19 @@ function SavedCollectionRoute() {
   );
 }
 
+// A group collection's detail view (a group is a profile) — the group's
+// playlists. The harness user manages the synthwave-sessions group, so this
+// renders the manager view (the per-item remove + the visibility toggle).
+function GroupSavedCollectionRoute() {
+  const { groupId } = useParams();
+  return (
+    <SavedCollectionScreen
+      groupId={groupId || ''}
+      onBack={() => {}}
+    />
+  );
+}
+
 const params = new URLSearchParams(window.location.search);
 const screen = params.get('screen');
 // Anon mode (?anon=1): a signed-out visitor. The chrome is the anon shell
@@ -136,6 +149,8 @@ if (screen === 'post-detail') {
     : screen === 'groups-discover' ? '/groups?tab=discover'
     : screen === 'groups-detail' ? '/groups/web10%2Fgroups%2Fusers%2Fnova%2Fsynthwave-sessions'
     : screen === 'groups-media' ? '/groups/web10%2Fgroups%2Fusers%2Fnova%2Fsynthwave-sessions?tab=media'
+    : screen === 'groups-saved' ? '/groups/web10%2Fgroups%2Fusers%2Fnova%2Fsynthwave-sessions?tab=saved'
+    : screen === 'groups-saved-collection' ? '/groups/web10%2Fgroups%2Fusers%2Fnova%2Fsynthwave-sessions/saved/web10%2Fgroups%2Fusers%2Fnova%2Fsaved-synthwave-sessions-best-of'
     : screen === 'groups-detail-noface' ? '/groups/web10%2Fgroups%2Fusers%2Fkai%2Flofi-study-room'
      : screen === 'groups-create' ? '/groups/web10%2Fgroups%2Fusers%2Fme%2Fnew-group?edit=1'
      : screen === 'chat-group-thread'
@@ -177,6 +192,7 @@ if (screen === 'post-detail') {
           <Route path="/settings" element={<SettingsScreen onLogout={() => {}} onReportBug={() => {}} />} />
           <Route path="/groups" element={<GroupsScreen />} />
           <Route path="/groups/:groupId" element={<GroupDetailRoute />} />
+          <Route path="/groups/:groupId/saved/:collectionId" element={<GroupSavedCollectionRoute />} />
           <Route path="/people" element={<DiscoverScreen />} />
           <Route path="/u/:username" element={<UserProfileRoute />} />
           <Route path="/u/:username/saved/:collectionId" element={<SavedCollectionRoute />} />

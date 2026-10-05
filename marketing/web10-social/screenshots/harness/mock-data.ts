@@ -240,6 +240,24 @@ export async function createCollection(): Promise<string> { return 'web10/groups
 export async function setCollectionVisibility(): Promise<void> {}
 export async function renameCollection(): Promise<void> {}
 export async function deleteCollection(): Promise<void> {}
+// Group collections (a group is a profile) — the group's playlists. Seeded for
+// the synthwave-sessions group (the harness user manages it → the manager view:
+// the Saved tab + a "New collection" affordance).
+const GROUP = 'web10/groups/users/nova/synthwave-sessions';
+const GROUP_COLLECTIONS = [
+  { groupId: 'web10/groups/users/nova/saved-synthwave-sessions-best-of', name: 'Best Of', visibility: 'public', itemCount: 4, slug: 'best-of' },
+  { groupId: 'web10/groups/users/nova/saved-synthwave-sessions-first-sets', name: 'First Sets', visibility: 'private', itemCount: 2, slug: 'first-sets' },
+  { groupId: 'web10/groups/users/nova/saved-synthwave-sessions-live', name: 'Live', visibility: 'public', itemCount: 6, slug: 'live' },
+];
+export async function readGroupCollections(groupId: string): Promise<unknown[]> {
+  return groupId === GROUP ? GROUP_COLLECTIONS : [];
+}
+export async function readGroupPublicCollections(groupId: string): Promise<unknown[]> {
+  return groupId === GROUP ? GROUP_COLLECTIONS.filter((c) => c.visibility === 'public') : [];
+}
+export async function createGroupCollection(): Promise<string> {
+  return 'web10/groups/users/nova/saved-synthwave-sessions-new';
+}
 export async function readCollection(): Promise<unknown> {
   const posts = [
     { _id: 'sc-1', postId: 'pp-1', savedAt: minsAgo(120), unavailable: false, post: PROFILE_POSTS[0] },
