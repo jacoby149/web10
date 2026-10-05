@@ -91,9 +91,16 @@ document, not a syntax box:
   inline autocomplete that fires as you type `@` (the social token, below).
 - **On save:** `editor.getMarkdown()` → the markdown string → `createPost`'s
   `text` (the existing D82 field). One line.
-- **On edit (load):** `editor.commands.setContent(post.text)` → the editor
-  reconstructs the document from the stored markdown. The creator re-opens a
-  post and sees the same rich document they wrote.
+- **On edit (load):** the stored markdown is converted back to the editor's
+  HTML — `markdownToHtml(post.text)` (`markdown-it`, `html:false`) — then the
+  editor is seeded with that HTML. **The editor's `content` is HTML, not
+  markdown** (Tiptap / ProseMirror parse HTML into the document), so seeding it
+  with the raw markdown string would show the syntax as literal text (`**bold**`
+  instead of **bold**). The converter is the exact inverse of the composer's
+  turndown pipeline for the elements the editor produces (bold / italic / H2 /
+  bullet / inline + fenced code / link / line break), so an edit that saves
+  without touching the body round-trips to the identical markdown (lossless).
+  The creator re-opens a post and sees the same rich document they wrote.
 - **The title stays a plain input** (D82). A `title` is a *headline* — one
   short line, not rich text. It is not a markdown document; it is a string.
   Giving it the editor would be over-structure. (Its *treatment* — display
@@ -250,7 +257,7 @@ bare URL) routes through the same `isEmbeddable` / `extractLinks` logic, so a
 YouTube link in a markdown post still becomes a player, not a plain `<a>`. The
 renderer *adds* the type scale on top of the link behavior it already has.
 
-**The two render densities (the card vs. the detail):**
+**The render densities (the card vs. the detail vs. the tile):**
 
 - **Feed cards** (`PostCard`, `DiscoverCard`, `HomeCard`) render **light
   markdown** — inline bold/italic/code/links only — and keep their existing
@@ -260,6 +267,14 @@ renderer *adds* the type scale on top of the link behavior it already has.
   render **full markdown** — headings, lists, code blocks, blockquotes — at a
   reading measure (`max-w-prose`, ~65–75ch, design.md §5). This is the
   "beautiful Notion" surface.
+- **The tile captions** (the profile 9:16 wall's `WallTile`, the media-overlay
+  caption + the text-only quote card) render **inline markdown** — the
+  `<PostBodyInline>` variant: the same locked sanitizer + link handling as
+  `<PostBody>`, but every block element flattened to its inline text and **no
+  wrapping block**, so it drops into a `line-clamp` `<p>` without a stray `<div>`
+  breaking the clamp or the `<p>` structure. A tile caption is a teaser, not a
+  document — bold/italic/code/links typeset, a `##` reads as its words. (The
+  `title` stays plain — a headline, not markdown.)
 
 ## The composer title treatment (the "oooh I'm typing a title" moment)
 
@@ -350,15 +365,24 @@ content. `profileCard` / `groupCard` use `display_name` / `bio` / `name` /
 
 - **Editor:** `marketing/web10-social/src/components/Feed/PostComposer.tsx`
   (the caption `Textarea` → the Tiptap editor + toolbar; `getMarkdown()` on
-  save, `setContent()` on edit). Deps: `@tiptap/react`, `@tiptap/starter-kit`,
-  `@tiptap/extension-link` (the social app — the flagship; the marketing app
-  adopts later).
+  save, `markdownToHtml(post.text)` on edit — the stored markdown is converted
+  to the editor's HTML, since the editor's `content` is HTML, not markdown).
+  Deps: `@tiptap/react`, `@tiptap/starter-kit`, `@tiptap/extension-link` (the
+  social app — the flagship; the marketing app adopts later).
+- **Edit-seed bridge:** `marketing/web10-social/src/lib/markdownHtml.ts`
+  (`markdownToHtml` — `markdown-it`, `html:false`; the inverse of the composer's
+  turndown pipeline for the elements the editor produces, so an untouched edit
+  round-trips to the identical markdown).
 - **Renderer:** a new shared `<PostBody>` (markdown → sanitized HTML + the type
   scale), consumed by `FeedScreen.tsx` (`PostCard`), `PostLightbox.tsx`,
   `WatchScreen.tsx`, the post-permalink route, `ProfileFeed.tsx`, and the shared
   `HomeCard` / `DiscoverCard` (light density). Reconciles with
   `LinkEmbed.tsx` (`TextWithLinks` / `extractLinks` / `isEmbeddable`). Deps:
   `react-markdown`, `remark-gfm`, `rehype-sanitize`.
+- **Tile captions:** `<PostBodyInline>` (`PostBody.tsx`) — the inline variant
+  (block elements flattened, no wrapping block) consumed by the profile wall's
+  `WallTile` (`UserProfileScreen.tsx`) so a tile caption typesets bold/italic
+  inside its `line-clamp` `<p>`.
 - **Title treatment:** `PostComposer.tsx` (display font, caret, focus glow) —
   tokens only, design.md §4/§5.
 - **Post-detail system:** `PostLightbox.tsx` first, then `WatchScreen.tsx` +

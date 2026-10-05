@@ -161,7 +161,10 @@ async function fetchGroupsPage(limit: number, offset: number): Promise<{ groups:
 // path. The service name is hyphenated, so it is backtick-quoted in the SQL
 // (a bare name would not parse — the engine quotes the CTE def to match).
 const GROUP_IDENTITY_SERVICE = 'web10-social-group-identity';
-const GROUP_IDENTITY_SQL = `SELECT group_id AS group_id, author_key AS author_key, body AS body FROM \`${GROUP_IDENTITY_SERVICE}\``;
+// The identity is a replace-on-write doc stream (a new doc per save, newest
+// wins — 3.210.0). The boundary CTE dedups per (doc_id, author_key) but returns
+// every distinct doc in the stream, so QUALIFY picks the latest doc per group.
+const GROUP_IDENTITY_SQL = `SELECT group_id AS group_id, author_key AS author_key, body AS body FROM \`${GROUP_IDENTITY_SERVICE}\` QUALIFY row_number() OVER (PARTITION BY group_id ORDER BY created_at DESC) = 1`;
 
 // One face-prepare read over the page's groups: SELECT the identity rows,
 // scoped to the groups, and let the engine mint the presigned URL for
