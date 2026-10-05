@@ -184,6 +184,9 @@ describe('FeedScreen', () => {
     });
     const ar = parseFloat(screen.getByTestId('media-image').style.aspectRatio);
     expect(ar).toBeCloseTo(4 / 3, 5);
+    // The photo FILLS the reserved frame (object-cover) — the feed's no-shift
+    // guarantee is the reserved aspect-ratio, not a letterboxed object-contain.
+    expect((screen.getByTestId('media-image').querySelector('img') as HTMLImageElement).className).toContain('object-cover');
   });
 
   it('multi-media posts render an inline carousel with a position indicator (all items reachable)', async () => {
@@ -217,6 +220,9 @@ describe('FeedScreen', () => {
     expect(screen.getByTestId('media-carousel-image-2')).toBeInTheDocument();
     // The position indicator shows 1/3 where the old "3" badge was.
     expect(screen.getByTestId('media-carousel-position')).toHaveTextContent('1/3');
+    // Every photo FILLS the first item's frame (object-cover) — later photos
+    // crop to one consistent frame instead of letterboxing (object-contain).
+    expect((screen.getByTestId('media-carousel-image-0') as HTMLImageElement).className).toContain('object-cover');
   });
 
   it('tapping a video in the feed plays it inline and does NOT open the lightbox', async () => {

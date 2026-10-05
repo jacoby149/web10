@@ -281,6 +281,51 @@ describe('Profile lightbox — Instagram-style post navigation (the side arrows 
     });
   });
 
+  it('a multi-frame post on a multi-post profile shows ONLY the post-nav arrows (no double chevrons)', async () => {
+    // The regression: a post with 2 frames opened from a profile with 2 posts
+    // used to render BOTH the in-pane media arrows AND the backdrop post-nav
+    // arrows — two chevrons per side at different heights. Post nav owns the
+    // side arrows, so the in-pane media arrows must be suppressed (the frame
+    // counter stays).
+    const { readMyPosts, resolveMediaRefs } = await import('@/data');
+    vi.mocked(readMyPosts).mockResolvedValue([
+      {
+        _id: 'pn-multi',
+        text: 'multi frame post',
+        media_refs: [{ doc_id: 'm-1' }, { doc_id: 'm-2' }],
+        created_at: new Date().toISOString(),
+      },
+      { _id: 'pn-other', text: 'another post', created_at: new Date().toISOString() },
+    ]);
+    vi.mocked(resolveMediaRefs).mockResolvedValue([
+      { _id: 'm-1', url: 'http://test.com/1.png', mime_type: 'image/png', created_at: new Date().toISOString() },
+      { _id: 'm-2', url: 'http://test.com/2.png', mime_type: 'image/png', created_at: new Date().toISOString() },
+    ]);
+    const { default: UserProfileScreen } = await import('@/components/Bio/UserProfileScreen');
+    render(
+      <MemoryRouter initialEntries={['/u/testuser']}>
+        <UserProfileScreen username="testuser" provider="test.localhost" />
+      </MemoryRouter>,
+    );
+
+    await waitFor(() => {
+      expect(screen.getAllByTestId('profile-post-cell').length).toBe(2);
+    });
+    fireEvent.click(screen.getAllByTestId('profile-post-cell')[0]);
+    await waitFor(() => {
+      expect(screen.getByTestId('post-lightbox')).toBeInTheDocument();
+    });
+
+    // Two posts → post-nav arrows present (they own the side arrows).
+    expect(screen.getByTestId('post-lightbox-prev-post')).toBeInTheDocument();
+    expect(screen.getByTestId('post-lightbox-next-post')).toBeInTheDocument();
+    // Two frames, but post nav is active → the in-pane media arrows are GONE
+    // (no double chevrons). The frame counter still shows.
+    expect(screen.queryByTestId('post-lightbox-prev')).not.toBeInTheDocument();
+    expect(screen.queryByTestId('post-lightbox-next')).not.toBeInTheDocument();
+    expect(screen.getByText('1 / 2')).toBeInTheDocument();
+  });
+
   it('the media pane is a swipeable scroll-snap strip — swiping (scrolling the strip) pages the carousel', async () => {
     const { readMyPosts, resolveMediaRefs } = await import('@/data');
     const multiMediaPost = {
