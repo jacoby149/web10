@@ -121,6 +121,38 @@ describe('CommentThread — paged threaded replies (comments.md, the Facebook mo
     expect(vi.mocked(toggleReactionKind)).toHaveBeenCalledWith('c1', 'like', undefined, 'comments');
   });
 
+  it('tapping a comment like flips the heart + bumps the count optimistically', async () => {
+    await renderThread();
+    const likeC1 = screen.getByTestId('comment-like-c1');
+    // c1 starts unliked, count 2
+    expect(likeC1).toHaveAttribute('aria-pressed', 'false');
+    expect(likeC1).toHaveTextContent('2');
+    fireEvent.click(likeC1);
+    // the flip is synchronous — no waiting on the write
+    expect(likeC1).toHaveAttribute('aria-pressed', 'true');
+    expect(likeC1).toHaveTextContent('3');
+    // tap again → un-likes, count back to 2
+    fireEvent.click(likeC1);
+    expect(likeC1).toHaveAttribute('aria-pressed', 'false');
+    expect(likeC1).toHaveTextContent('2');
+  });
+
+  it('rolls the comment like back when the write rejects', async () => {
+    const { toggleReactionKind } = await import('@/data');
+    vi.mocked(toggleReactionKind).mockRejectedValueOnce(new Error('boom'));
+    await renderThread();
+    const likeC1 = screen.getByTestId('comment-like-c1');
+    expect(likeC1).toHaveAttribute('aria-pressed', 'false');
+    expect(likeC1).toHaveTextContent('2');
+    fireEvent.click(likeC1);
+    // optimistic flip lands first…
+    expect(likeC1).toHaveAttribute('aria-pressed', 'true');
+    expect(likeC1).toHaveTextContent('3');
+    // …then the rejected write rolls it back
+    await waitFor(() => expect(likeC1).toHaveAttribute('aria-pressed', 'false'));
+    expect(likeC1).toHaveTextContent('2');
+  });
+
   it('Reply retargets the single compose box (shows who it replies to)', async () => {
     await renderThread();
     expect(screen.queryByTestId('comment-reply-target')).not.toBeInTheDocument();

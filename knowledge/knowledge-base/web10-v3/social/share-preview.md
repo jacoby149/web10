@@ -76,14 +76,16 @@ The presigned URL is minted fresh on every request (the document-typing rule —
 | Tag | Value |
 |---|---|
 | `og:type` | `article` (a `video.other` hint when the first item is video) |
-| `og:title` | the post text (truncated ~100 chars), else `@{username} on web10` |
-| `og:description` | the post text (truncated ~200 chars), else a generic line |
+| `og:title` | the post text (markdown-stripped, truncated ~100 chars), else `@{username} on web10` |
+| `og:description` | the post text (markdown-stripped, truncated ~200 chars), else a generic line |
 | `og:image` | the thumbnail (above) |
 | `og:image:alt` | the media's `alt_text`, else the title |
 | `og:url` | the canonical permalink (`{SOCIAL_ORIGIN}/u/{username}/p/{post_id}`) |
 | `og:site_name` | `web10` |
 | `twitter:card` | `summary_large_image` |
 | `twitter:title` / `twitter:description` / `twitter:image` | mirror the `og:` values |
+
+**The post text is markdown-stripped before it is truncated** (D85). The post's `text` is markdown (the WYSIWYG composer stores it under the hood), so the card runs it through a tiny generic **markdown → plain-text strip** (`preview/markdown.mjs`, `stripMarkdown` — "render this string as plain words": bold / heading / link / code → the words, the syntax gone) **before** the `~100` / `~200` truncation. A link preview must not leak `**` / `#` / `[]()` / ```. The strip is generic, not a social concept (D60) — it is "render this string as plain text," not "understand a post." `profileCard` / `groupCard` use `display_name` / `bio` / `name` / `description` (not markdown) — untouched.
 
 **The privacy floor (I3 / D41).** A post that is *not* publicly readable never leaks. The endpoint renders a **generic** web10 card — the brand mark, `web10` as the site name, a neutral title/description ("A post on web10") — and **no** post text, **no** media URL, **no** author-specific data. The node is readable *by design* (discovery, search, auditability), but "readable by an authenticated member" is not "readable by anyone," and the preview must respect that line. A followers-only or private post shared to a stranger shows the generic card, not the content.
 
