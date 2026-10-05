@@ -8,6 +8,7 @@ import {
   deleteGroup,
   communityGroupId,
   slugify,
+  readGroupIdentity,
 } from '../../data/groups';
 
 // Mock the v3 client seam (the SDK) so we can assert the exact calls the
@@ -210,5 +211,30 @@ describe('deleteGroup (draft discard)', () => {
     const mock = mockV3Client();
     await deleteGroup('web10.app/groups/jacoby149/my-draft');
     expect(mock.deleteGroup).toHaveBeenCalledWith('web10.app/groups/jacoby149/my-draft');
+  });
+});
+
+describe('readGroupIdentity (replace-on-write doc stream — latest doc wins)', () => {
+  beforeEach(() => vi.clearAllMocks());
+  afterEach(() => vi.restoreAllMocks());
+
+  it('returns the LATEST identity doc (created_at DESC → docs[0]), not the oldest', async () => {
+    const mock = mockV3Client();
+    // The node orders created_at DESC, so docs[0] is the newest. The face is a
+    // replace-on-write stream: an early save wrote the avatar, a later save
+    // added the banner. The reader must return the NEWEST doc (banner +
+    // avatar), not the first-ever doc (avatar only) — the stale-face bug.
+    mock.read.mockResolvedValue([
+      { doc_id: 'doc-new', body: { name: 'Boxin Club', avatar_ref: 'a', banner_ref: 'b' } },
+      { doc_id: 'doc-old', body: { name: 'Boxin Club', avatar_ref: 'a' } },
+    ]);
+    const face = await readGroupIdentity('api.localhost/groups/users/jacoby149/boxin-club');
+    expect(face).toEqual({ name: 'Boxin Club', avatar_ref: 'a', banner_ref: 'b' });
+  });
+
+  it('returns {} when the group has no identity doc', async () => {
+    const mock = mockV3Client();
+    mock.read.mockResolvedValue([]);
+    expect(await readGroupIdentity('g')).toEqual({});
   });
 });
