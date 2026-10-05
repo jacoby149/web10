@@ -1316,9 +1316,83 @@ describe('ProfilesBrowser (C3)', () => {
   });
 });
 
-// The old `Trending | Profiles` tab row retires with the Discover split — the
-// People destination is a flat route (`/trending/people`), covered in "The
-// Discover split (the salad retires)" above.
+// The People tab's face media (the "no pfp/banner" fix): the marketing site
+// reads ANON, so it can't use the owner-scoped media endpoints
+// (`/v3/media/list` + `/v3/media/read-url` — both require a token). The face
+// must resolve through the query engine's AUTHOR-SCOPED face-prepare (D73),
+// which mints the face URL bound to the row's `author_key` (not the viewer),
+// so it works for any reader — anon included. Regression: a person with an
+// avatar_ref/banner_ref renders the real <img> (not the gradient fallback),
+// and the read is the face-prepare (not the phantom `/media/{author}/list`).
+describe('ProfilesBrowser face media (the author-scoped face-prepare)', () => {
+  it('resolves the person avatar + banner via the query-engine face-prepare (anon)', async () => {
+    const { ProfilesBrowser } = await import('@/components/ProfilesBrowser');
+    const users = [
+      { username: 'nova', follower_count: 2, profile: { display_name: 'Nova', avatar_ref: 'av-1', banner_ref: 'bn-1' } },
+    ];
+    const queryCalls: Record<string, any>[] = [];
+    vi.mocked(fetch).mockImplementation(async (input: RequestInfo | URL, init?: RequestInit) => {
+      const url = String(input);
+      if (url.includes('/v3/users/directory')) {
+        return { ok: true, json: () => Promise.resolve({ users, limit: 24, offset: 0 }) } as unknown as Response;
+      }
+      if (url.includes('/v3/groups/directory')) {
+        return { ok: true, json: () => Promise.resolve({ groups: [], limit: 24, offset: 0 }) } as unknown as Response;
+      }
+      if (url.includes('/v3/query')) {
+        queryCalls.push(JSON.parse(String(init?.body)));
+        return {
+          ok: true,
+          json: () => Promise.resolve({ rows: [{ author_key: 'nova', avatar_url: 'https://cdn/av-1.png', banner_url: 'https://cdn/bn-1.png' }], count: 1 }),
+        } as unknown as Response;
+      }
+      return { ok: true, json: () => Promise.resolve([]) } as unknown as Response;
+    });
+    render(<MemoryRouter><ProfilesBrowser query="" /></MemoryRouter>);
+    const card = await screen.findByTestId('trending-person-card');
+    // The real avatar + banner render (not the gradient fallback).
+    const srcs = Array.from(card.querySelectorAll('img')).map((i) => i.getAttribute('src'));
+    expect(srcs).toContain('https://cdn/av-1.png');
+    expect(srcs).toContain('https://cdn/bn-1.png');
+    // The mechanism is the author-scoped face-prepare, scoped to the user's
+    // followers group (the I3 gate) — not the owner-scoped media endpoint.
+    expect(queryCalls.length).toBeGreaterThanOrEqual(1);
+    for (const call of queryCalls) {
+      expect(call.prepare?.face?.bodyField).toBe('body');
+      expect(call.groups).toEqual(expect.arrayContaining([
+        expect.stringMatching(/\/groups\/users\/nova\/followers$/),
+      ]));
+    }
+  });
+
+  it('a faceless person (no avatar/banner ref) renders the gradient, no query', async () => {
+    const { ProfilesBrowser } = await import('@/components/ProfilesBrowser');
+    const users = [
+      { username: 'faceless', follower_count: 1, profile: { display_name: 'Faceless' } },
+    ];
+    let queryCalls = 0;
+    vi.mocked(fetch).mockImplementation(async (input: RequestInfo | URL) => {
+      const url = String(input);
+      if (url.includes('/v3/users/directory')) {
+        return { ok: true, json: () => Promise.resolve({ users, limit: 24, offset: 0 }) } as unknown as Response;
+      }
+      if (url.includes('/v3/groups/directory')) {
+        return { ok: true, json: () => Promise.resolve({ groups: [], limit: 24, offset: 0 }) } as unknown as Response;
+      }
+      if (url.includes('/v3/query')) {
+        queryCalls += 1;
+        return { ok: true, json: () => Promise.resolve({ rows: [], count: 0 }) } as unknown as Response;
+      }
+      return { ok: true, json: () => Promise.resolve([]) } as unknown as Response;
+    });
+    render(<MemoryRouter><ProfilesBrowser query="" /></MemoryRouter>);
+    const card = await screen.findByTestId('trending-person-card');
+    // No face refs → no face-prepare read, and the card shows the initial
+    // fallback (no <img> for the avatar).
+    expect(queryCalls).toBe(0);
+    expect(card.querySelector('img')).toBeNull();
+  });
+});
 
 describe('The People destination (the old Profiles tab)', () => {
   it('the search field filters the browser live (?q= is the query source)', async () => {
