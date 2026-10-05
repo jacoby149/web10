@@ -71,8 +71,7 @@ def _require_moderation_any(group_id: str, user: str, token: str):
 
 
 def _normalize_member_key(user: str) -> str:
-    """Normalize a user identifier to the bare username the node stores as
-    ``member_key``.
+    """Normalize a user identifier to the form the node stores as ``member_key``.
 
     The node writes ``member_key`` from the JWT's ``username`` claim (the bare
     username) on every write path (join, create, the owner row), and the
@@ -82,7 +81,16 @@ def _normalize_member_key(user: str) -> str:
     are hostnames and usernames are ``[a-z0-9-]`` (no ``/``), so ``provider/
     username`` carries exactly one slash — the username is the last segment.
     A bare username (no ``/``) is returned unchanged.
+
+    A **group_id** (``{provider}/groups/…``) is a legitimate member key too —
+    a group can be a member of another group (e.g. a group collection's owner
+    is the group, not a person). The node stores it verbatim, so it must be
+    matched verbatim: return it unchanged. The ``/groups/`` marker is the
+    discriminator — a ``provider/username`` key never contains it (usernames
+    are ``[a-z0-9-]``).
     """
+    if "/groups/" in user:
+        return user
     return user.rsplit("/", 1)[-1] if "/" in user else user
 
 

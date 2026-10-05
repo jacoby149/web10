@@ -28,18 +28,21 @@ import type {
  *   - the thread opens with the first page of TOP-LEVEL comments;
  *   - "View more comments" loads the next top-level page and appends;
  *   - each comment shows its first few replies; "View more replies (N)" loads
- *     that comment's next reply page.
- * A 10k-comment post opens in one bounded read and grows on demand.
- *
- * Comment likes: a `reactions` doc on the comment (same shape as a post
- * like). The app resolves `likeCount` / `likedByMe` per comment and wires
- * `onToggleCommentLike` (optimistic + rollback on the app, the post-like
- * pattern). Absent seam → the like renders display-only (count, no tap
- * target), the same rule as the post like in `remote` mode.
- *
- * The compose box is ONE. "Reply" retargets it (it shows who it replies to);
- * it does not spawn a per-comment input.
- *
+  *     that comment's next reply page.
+  * A 10k-comment post opens in one bounded read and grows on demand.
+  *
+  * Comment likes: a `reactions` doc on the comment (same shape as a post
+  * like). The app resolves `likeCount` / `likedByMe` per comment and wires
+  * `onToggleCommentLike` (the write seam). The thread owns the optimistic
+  * flip + rollback (the post-like pattern): it flips the node's
+  * `likedByMe` / nudges `likeCount` on tap, fires the writer, and rolls back
+  * if the returned write rejects. Absent seam → the like renders
+  * display-only (count, no tap target), the same rule as the post like in
+  * `remote` mode.
+  *
+  * The compose box is ONE. "Reply" retargets it (it shows who it replies to);
+  * it does not spawn a per-comment input.
+  *
  * `remote` mode (the marketing context, no session): the compose box becomes
  * a "Comment on web10 →" link-out to the post permalink — an anon visitor
  * can't write, so a dead tap target is worse than a link. The read side
@@ -92,9 +95,13 @@ export interface CommentThreadProps {
   createComment?: CreateComment;
   /** The comment-photo uploader (injected; absent → no attach control, text-only). */
   uploadMedia?: UploadCommentMedia;
-  /** The comment-like writer (injected; absent in `remote` mode). The app
-   *  owns the optimistic toggle + rollback (the post-like pattern). */
-  onToggleCommentLike?: (commentId: string) => void;
+  /** The comment-like writer (injected; absent in `remote` mode). The thread
+   *  owns the optimistic flip + rollback (the post-like pattern): it flips the
+   *  node's `likedByMe`/`likeCount` immediately, calls this, and rolls back if
+   *  the returned write rejects. Return the write's promise (any shape — the
+   *  thread only awaits it for the rollback); a `void` return is fine (no
+   *  rollback). */
+  onToggleCommentLike?: (commentId: string) => void | Promise<unknown>;
   /** Remote (marketing) mode: compose becomes a link-out to the post permalink. */
   remote?: boolean;
   /** The post permalink the remote compose links to (web10 social). */
@@ -259,6 +266,38 @@ export function CommentThread({
     setReplyingTo(target);
   }
 
+  // Comment like (the post-like pattern): the thread owns the node state, so
+  // it does the optimistic flip here — flip `likedByMe` + nudge `likeCount`
+  // immediately, fire the app's write seam, and roll back to the captured
+  // pre-flip snapshot if the write rejects. The flip is a functional update
+  // (each tap sees the latest state, so rapid taps don't clobber); the
+  // snapshot is read from the current tree for the rollback (the FeedScreen
+  // `wasLiked` idiom). The writer is fire-and-forget from the app's side (the
+  // seam returns the write's promise so the thread can roll back on failure).
+  async function handleToggleLike(id: string) {
+    if (!onToggleCommentLike) return;
+    const prev = findNode(topLevel, id);
+    if (!prev) return;
+    const prevLiked = !!prev.likedByMe;
+    const prevCount = prev.likeCount || 0;
+    setTopLevel((list) => mapNode(list, id, (n) => ({
+      ...n,
+      likedByMe: !n.likedByMe,
+      likeCount: Math.max(0, (n.likeCount || 0) + (n.likedByMe ? -1 : 1)),
+    })));
+    try {
+      await onToggleCommentLike(id);
+    } catch (e) {
+      console.error('[discover:comments] like toggle failed, rolling back:', e);
+      setTopLevel((list) => mapNode(list, id, (n) => ({
+        ...n,
+        likedByMe: prevLiked,
+        likeCount: prevCount,
+      })));
+      onError?.('Could not update your reaction.');
+    }
+  }
+
   // "View more comments" — load the next top-level page and append.
   async function handleViewMoreComments() {
     if (!topCursor || loadingMore) return;
@@ -420,7 +459,8 @@ export function CommentThread({
               canWrite={!!createComment}
               setRef={setCommentRef}
               onReply={handleReply}
-              onToggleLike={onToggleCommentLike}
+              canLike={onToggleCommentLike !== undefined}
+              onTapLike={onToggleCommentLike ? handleToggleLike : undefined}
               onViewMoreReplies={readReplies ? handleViewMoreReplies : undefined}
               onAuthorClick={onAuthorClick}
             />
@@ -565,6 +605,18 @@ function findNode(nodes: CommentNode[], id: string | undefined): CommentNode | u
   return undefined;
 }
 
+// Recursively map a single node by id (the like flip + rollback reach a node
+// at any depth — a top-level comment or a nested reply).
+function mapNode(nodes: CommentNode[], id: string, fn: (n: CommentNode) => CommentNode): CommentNode[] {
+  return nodes.map((n) =>
+    n._id === id
+      ? fn(n)
+      : n.replies.length
+        ? { ...n, replies: mapNode(n.replies, id, fn) }
+        : n,
+  );
+}
+
 // ── One comment row (recursive) ─────────────────────────────────────────────
 
 interface CommentNodeRowProps {
@@ -575,7 +627,10 @@ interface CommentNodeRowProps {
   canWrite: boolean;
   setRef: (id: string) => (el: HTMLLIElement | null) => void;
   onReply: (target: CommentItem) => void;
-  onToggleLike?: (commentId: string) => void;
+  /** A like writer is present (gates the tap target — absent in `remote` mode). */
+  canLike: boolean;
+  /** The optimistic tap handler (flip + fire + rollback). */
+  onTapLike?: (commentId: string) => void;
   /** "View more replies" for this comment (absent → no pager). */
   onViewMoreReplies?: (parentId: string) => void;
   /** The author-click handler (in-app profile navigation) — the comment's
@@ -583,11 +638,11 @@ interface CommentNodeRowProps {
   onAuthorClick?: (username: string, provider?: string) => void;
 }
 
-function CommentNodeRow({ node, depth, highlightedCommentId, canWrite, setRef, onReply, onToggleLike, onViewMoreReplies, onAuthorClick }: CommentNodeRowProps) {
+function CommentNodeRow({ node, depth, highlightedCommentId, canWrite, setRef, onReply, canLike, onTapLike, onViewMoreReplies, onAuthorClick }: CommentNodeRowProps) {
   const id = node._id || '';
   const highlighted = !!id && id === highlightedCommentId;
-  const showLike = onToggleLike !== undefined || node.likeCount !== undefined;
-  const likeInteractive = onToggleLike !== undefined;
+  const showLike = canLike || node.likeCount !== undefined;
+  const likeInteractive = canLike;
 
   return (
     <li
@@ -642,7 +697,7 @@ function CommentNodeRow({ node, depth, highlightedCommentId, canWrite, setRef, o
                 disabled={!likeInteractive}
                 onClick={(e) => {
                   e.stopPropagation();
-                  if (id && onToggleLike) onToggleLike(id);
+                  if (id && onTapLike) onTapLike(id);
                 }}
                 className={cn(
                   'flex items-center gap-1 rounded px-1.5 py-0.5 text-xs transition-all duration-150',
@@ -693,7 +748,8 @@ function CommentNodeRow({ node, depth, highlightedCommentId, canWrite, setRef, o
               canWrite={canWrite}
               setRef={setRef}
               onReply={onReply}
-              onToggleLike={onToggleLike}
+              canLike={canLike}
+              onTapLike={onTapLike}
               onViewMoreReplies={onViewMoreReplies}
               onAuthorClick={onAuthorClick}
             />

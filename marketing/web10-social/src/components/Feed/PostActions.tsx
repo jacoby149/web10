@@ -22,7 +22,9 @@ export function PostActions(props: LegacyPostActionsProps) {
       readReplies={readThreadReplies}
       createComment={createThreadComment}
       onToggleCommentLike={(commentId) => {
-        void toggleReactionKind(commentId, 'like', props.groups, 'comments');
+        // The thread does the optimistic flip + rollback; returning the write's
+        // promise lets it roll back on a failed write.
+        return toggleReactionKind(commentId, 'like', props.groups, 'comments');
       }}
     />
   );
