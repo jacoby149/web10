@@ -504,7 +504,7 @@ export default function GroupsScreen() {
                 variant="brand"
                 size="sm"
                 className="mt-6 gap-2"
-                onClick={() => navigate('/people?show=groups')}
+                onClick={() => navigate('/people?section=groups')}
                 data-testid="groups-my-empty-cta"
               >
                 <Search className="h-4 w-4" strokeWidth={1.75} />
