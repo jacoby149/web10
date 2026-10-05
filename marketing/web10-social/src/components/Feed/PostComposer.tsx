@@ -546,13 +546,19 @@ export default function PostComposer({
           }
         } catch (e) {
           console.error('Media processing error:', e);
+          // A VideoMetadataError carries a user-facing message (undecodable
+          // codec / corrupt file) — surface it instead of the generic line.
+          const message =
+            e instanceof Error && e.name === 'VideoMetadataError'
+              ? e.message
+              : 'Failed to process media. Try a different file.';
           setMediaItems((prev) =>
             prev.map((item) =>
               item.file === file
                 ? {
                     ...item,
                     processing: false,
-                    error: { field: 'type', message: 'Failed to process media. Try a different file.' },
+                    error: { field: 'type', message },
                   }
                 : item,
             ),
