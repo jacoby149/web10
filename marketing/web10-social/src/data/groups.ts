@@ -1075,7 +1075,9 @@ export async function readGroupIdentity(groupId: string): Promise<GroupIdentity>
       LOG('readGroupIdentity — no identity doc', groupId);
       return {};
     }
-    const latest = docs[docs.length - 1];
+    // The face is a replace-on-write doc stream — the LATEST doc wins. The
+    // server orders created_at DESC, so docs[0] is the newest.
+    const latest = docs[0];
     const body = (latest.body || {}) as GroupIdentity;
     LOG('readGroupIdentity — got', body.name, { tags: body.tags?.length });
     return body;

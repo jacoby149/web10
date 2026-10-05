@@ -165,7 +165,9 @@ async function readGroupFace(groupId: string): Promise<DiscoverGroupFace> {
     if (!resp.ok) return {};
     const docs = await resp.json();
     if (!Array.isArray(docs) || docs.length === 0) return {};
-    const body = docs[docs.length - 1].body || {};
+    // The face is a replace-on-write doc stream — the latest doc wins. The
+    // server orders created_at DESC, so docs[0] is the newest.
+    const body = docs[0].body || {};
     return body.name ? { name: body.name } : {};
   } catch {
     return {};
