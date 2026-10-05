@@ -23,6 +23,10 @@ export default defineConfig({
       // D73: the shared discover card + video player (one source, both apps).
       // Aliased to the package source so Vite compiles it as app code (not
       // pre-bundled) — the file: dep in package.json keeps its deps resolvable.
+      // The `/face` subpath is the PURE face resolver (no React) — the data
+      // layer imports it directly so a `vi.mock('@/data')` never drags in the
+      // React barrel. Must precede the barrel alias (string-prefix match).
+      '@web10/discover/face': path.resolve(__dirname, '../shared/discover/src/face.ts'),
       '@web10/discover': path.resolve(__dirname, '../shared/discover/src/index.ts'),
     },
   },

@@ -26,6 +26,7 @@ import { AdPicker } from './AdPicker';
 import { VideoEditorSheet } from './VideoEditorSheet';
 import type { VideoEditResult } from './VideoEditorSheet';
 import { editVideo, isNoopEdit } from '@/lib/videoEditing';
+import { markdownToHtml } from '@/lib/markdownHtml';
 
 let nextMediaId = 0;
 
@@ -359,7 +360,10 @@ export default function PostComposer({
         placeholder: repostingTo ? 'Add a comment…' : "What's on your mind?",
       }),
     ],
-    content: editingPost?.text || '',
+    // Edit mode: the stored `text` is markdown, but Tiptap seeds from HTML —
+    // convert it (the inverse of the turndown write) or the editor would show
+    // the raw `**bold**` syntax instead of **bold** (D85, the write side).
+    content: markdownToHtml(editingPost?.text || ''),
     onFocus: () => setFocused(true),
     onBlur: () => setFocused(false),
     // The markdown is NOT computed here — a full turndown walk of the document
@@ -373,6 +377,20 @@ export default function PostComposer({
         'data-testid': 'composer-textarea',
         class:
           'composer-editor bg-transparent caret-brand-400 min-h-[180px] max-h-[40vh] overflow-y-auto px-0 py-1 text-lg leading-relaxed text-foreground focus:outline-none',
+      },
+      // The browser's native Cmd/Ctrl+U underlines a contenteditable selection
+      // in place — but the write side (turndown) has no rule for `<u>` and
+      // markdown has no underline, so the mark would vanish on save: the editor
+      // would show underlined text that posts as plain. The toolbar is the ONLY
+      // formatting surface (D85, rich-text.md) and it has no underline button,
+      // so the editor must not offer one either. Suppress the native shortcut
+      // so the editor never shows a format it cannot persist.
+      handleKeyDown: (_view, event) => {
+        if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === 'u') {
+          event.preventDefault();
+          return true;
+        }
+        return false;
       },
     },
   });
@@ -542,13 +560,19 @@ export default function PostComposer({
           }
         } catch (e) {
           console.error('Media processing error:', e);
+          // A VideoMetadataError carries a user-facing message (undecodable
+          // codec / corrupt file) — surface it instead of the generic line.
+          const message =
+            e instanceof Error && e.name === 'VideoMetadataError'
+              ? e.message
+              : 'Failed to process media. Try a different file.';
           setMediaItems((prev) =>
             prev.map((item) =>
               item.file === file
                 ? {
                     ...item,
                     processing: false,
-                    error: { field: 'type', message: 'Failed to process media. Try a different file.' },
+                    error: { field: 'type', message },
                   }
                 : item,
             ),

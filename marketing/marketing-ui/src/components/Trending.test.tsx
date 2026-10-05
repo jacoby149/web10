@@ -1242,7 +1242,12 @@ describe('ProfilesBrowser (C3)', () => {
         offset: 0,
       },
     });
-    render(<MemoryRouter><ProfilesBrowser query="" /></MemoryRouter>);
+    // The groups browser is the Groups tab (?section=groups).
+    render(
+      <MemoryRouter initialEntries={['/trending/people?section=groups']}>
+        <ProfilesBrowser query="" />
+      </MemoryRouter>,
+    );
     await waitFor(() => {
       expect(screen.getByTestId('discover-profiles-groups-list')).toBeInTheDocument();
     });
@@ -1307,13 +1312,18 @@ describe('ProfilesBrowser (C3)', () => {
       '/v3/users/directory': { users: [], limit: 24, offset: 0 },
       '/v3/groups/directory': { groups: [], limit: 24, offset: 0 },
     });
-    render(<MemoryRouter><ProfilesBrowser query="" /></MemoryRouter>);
+    // The groups browser is the Groups tab (?section=groups).
+    render(
+      <MemoryRouter initialEntries={['/trending/people?section=groups']}>
+        <ProfilesBrowser query="" />
+      </MemoryRouter>,
+    );
     await waitFor(() => {
       expect(screen.getByTestId('discover-profiles-groups-empty')).toBeInTheDocument();
     });
   });
 
-  it('toggles a section off via the ?show= chips', async () => {
+  it('switches to the groups browser via the Profiles | Groups tab row (?section=)', async () => {
     const { ProfilesBrowser } = await import('@/components/ProfilesBrowser');
     const users = Array.from({ length: 10 }, (_, i) => ({
       username: `user${i}`,
@@ -1328,15 +1338,18 @@ describe('ProfilesBrowser (C3)', () => {
     await waitFor(() => {
       expect(screen.getByTestId('discover-profiles-people-list')).toBeInTheDocument();
     });
-    // Both sections on by default.
-    expect(screen.getByTestId('discover-show-people')).toHaveAttribute('aria-pressed', 'true');
-    expect(screen.getByTestId('discover-show-groups')).toHaveAttribute('aria-pressed', 'true');
-    // Turn People off.
-    fireEvent.click(screen.getByTestId('discover-show-people'));
+    // Profiles is the default tab — the people browser renders, the groups
+    // browser does not (tabs are one-at-a-time, not a mash).
+    expect(screen.getByTestId('discover-profiles-tab-profiles')).toHaveAttribute('aria-selected', 'true');
+    expect(screen.getByTestId('discover-profiles-tab-groups')).toHaveAttribute('aria-selected', 'false');
+    expect(screen.queryByTestId('discover-profiles-groups-section')).not.toBeInTheDocument();
+    // Tap Groups — the groups browser renders, the people browser leaves.
+    fireEvent.click(screen.getByTestId('discover-profiles-tab-groups'));
     await waitFor(() => {
-      expect(screen.queryByTestId('discover-profiles-people-section')).not.toBeInTheDocument();
+      expect(screen.getByTestId('discover-profiles-tab-groups')).toHaveAttribute('aria-selected', 'true');
     });
-    expect(screen.getByTestId('discover-show-people')).toHaveAttribute('aria-pressed', 'false');
+    expect(screen.getByTestId('discover-profiles-groups-section')).toBeInTheDocument();
+    expect(screen.queryByTestId('discover-profiles-people-section')).not.toBeInTheDocument();
   });
 });
 
@@ -1415,6 +1428,105 @@ describe('ProfilesBrowser face media (the author-scoped face-prepare)', () => {
     // fallback (no <img> for the avatar).
     expect(queryCalls).toBe(0);
     expect(card.querySelector('img')).toBeNull();
+  });
+});
+
+// The group face (the "no group profile picture" fix): a group's face media
+// (avatar + banner) is resolved through the query engine's AUTHOR-SCOPED
+// face-prepare (D73) — the same mechanism the people path uses. The identity
+// doc (the app-named `web10-social-group-identity` service) is attached to the
+// group it is the face of, so the engine's boundary CTE returns it for a reader
+// who can read the group (anon, via the `anyone` grant). The face-prepare mints
+// the face URL bound to the row's `author_key` (the group owner, who owns the
+// media) — not the viewer — so it works for any reader, anon included. The
+// service name is hyphenated, so it is backtick-quoted in the SQL. Regression:
+// a group with an avatar_ref/banner_ref renders the real <img> (not the
+// gradient + initial fallback), and the read is the face-prepare scoped to the
+// group (not the owner-scoped media endpoint).
+describe('ProfilesBrowser group face media (the author-scoped face-prepare)', () => {
+  it('resolves the group avatar + banner via the query-engine face-prepare (anon)', async () => {
+    const { ProfilesBrowser } = await import('@/components/ProfilesBrowser');
+    const groups = [
+      { group_id: 'web10/groups/users/nova/synthwave', name: 'synthwave', owner: 'nova', join_policy: 'open', member_count: 128 },
+    ];
+    const queryCalls: Record<string, any>[] = [];
+    vi.mocked(fetch).mockImplementation(async (input: RequestInfo | URL, init?: RequestInit) => {
+      const url = String(input);
+      if (url.includes('/v3/users/directory')) {
+        return { ok: true, json: () => Promise.resolve({ users: [], limit: 24, offset: 0 }) } as unknown as Response;
+      }
+      if (url.includes('/v3/groups/directory')) {
+        return { ok: true, json: () => Promise.resolve({ groups, limit: 24, offset: 0 }) } as unknown as Response;
+      }
+      if (url.includes('/v3/query')) {
+        queryCalls.push(JSON.parse(String(init?.body)));
+        return {
+          ok: true,
+          json: () => Promise.resolve({
+            rows: [{
+              group_id: 'web10/groups/users/nova/synthwave',
+              author_key: 'nova',
+              body: { name: 'Synthwave', avatar_ref: 'av-1', banner_ref: 'bn-1' },
+              avatar_url: 'https://cdn/av-1.png',
+              banner_url: 'https://cdn/bn-1.png',
+            }],
+            count: 1,
+          }),
+        } as unknown as Response;
+      }
+      return { ok: true, json: () => Promise.resolve([]) } as unknown as Response;
+    });
+    render(<MemoryRouter initialEntries={['/trending?section=groups']}><ProfilesBrowser query="" /></MemoryRouter>);
+    const card = await screen.findByTestId('trending-group-card');
+    // The real avatar + banner render (not the gradient + initial fallback).
+    // The face resolves in a separate effect (after the card mounts), so wait
+    // for the <img> to land rather than asserting on the first paint.
+    await waitFor(() => {
+      const srcs = Array.from(card.querySelectorAll('img')).map((i) => i.getAttribute('src'));
+      expect(srcs).toContain('https://cdn/av-1.png');
+      expect(srcs).toContain('https://cdn/bn-1.png');
+    });
+    // The mechanism is the author-scoped face-prepare over the identity
+    // service, scoped to the group (the I3 gate) — not the owner-scoped media
+    // endpoint. The hyphenated service is backtick-quoted in the SQL.
+    expect(queryCalls.length).toBeGreaterThanOrEqual(1);
+    for (const call of queryCalls) {
+      expect(call.prepare?.face?.bodyField).toBe('body');
+      expect(call.groups).toEqual(['web10/groups/users/nova/synthwave']);
+      expect(call.sql).toContain('`web10-social-group-identity`');
+    }
+  });
+
+  it('a faceless group (no readable identity) renders the gradient, no crash', async () => {
+    const { ProfilesBrowser } = await import('@/components/ProfilesBrowser');
+    const groups = [
+      { group_id: 'web10/groups/users/kai/lofi', name: 'lofi', owner: 'kai', join_policy: 'request', member_count: 512 },
+    ];
+    let queryCalls = 0;
+    vi.mocked(fetch).mockImplementation(async (input: RequestInfo | URL) => {
+      const url = String(input);
+      if (url.includes('/v3/users/directory')) {
+        return { ok: true, json: () => Promise.resolve({ users: [], limit: 24, offset: 0 }) } as unknown as Response;
+      }
+      if (url.includes('/v3/groups/directory')) {
+        return { ok: true, json: () => Promise.resolve({ groups, limit: 24, offset: 0 }) } as unknown as Response;
+      }
+      if (url.includes('/v3/query')) {
+        // No readable identity doc → empty rows → the card keeps the directory
+        // name + the gradient/initial fallback (no <img>).
+        queryCalls += 1;
+        return { ok: true, json: () => Promise.resolve({ rows: [], count: 0 }) } as unknown as Response;
+      }
+      return { ok: true, json: () => Promise.resolve([]) } as unknown as Response;
+    });
+    render(<MemoryRouter initialEntries={['/trending?section=groups']}><ProfilesBrowser query="" /></MemoryRouter>);
+    const card = await screen.findByTestId('trending-group-card');
+    // The directory name still shows (the face read returned nothing).
+    expect(screen.getByTestId('groups-discover-card-name')).toHaveTextContent('lofi');
+    // Wait for the face effect to settle (the query to run + resolve empty),
+    // then assert no <img> landed (the gradient banner + initial fallback).
+    await waitFor(() => expect(queryCalls).toBeGreaterThanOrEqual(1));
+    await waitFor(() => expect(card.querySelector('img')).toBeNull());
   });
 });
 

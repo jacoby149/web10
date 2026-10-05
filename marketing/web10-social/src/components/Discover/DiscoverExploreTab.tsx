@@ -39,7 +39,6 @@ import {
 } from './DiscoverGroupsTab';
 import {
   User,
-  Users,
   Hash,
   Search,
   X,
@@ -60,7 +59,7 @@ const SORT_OPTIONS: [PeopleSort, string][] = [
   ['az', 'A–Z'],
 ];
 
-// The People view filters (the "easy filters" the operator asked for — the
+// The Profiles tab filters (the "easy filters" the operator asked for — the
 // social graph, not just discovery). `all` is the bare URL (the public
 // directory); `following` / `followers` are the reader's own graph; `mutuals`
 // is the directory filtered to people you have in common.
@@ -71,7 +70,7 @@ const PEOPLE_FILTERS: [PeopleFilter, string][] = [
   ['followers', 'Followers'],
 ];
 
-// The Groups view filters. `all` is the bare URL (the public directory);
+// The Groups tab filters. `all` is the bare URL (the public directory);
 // `mine` is the groups you're a member of; `discover` is the public directory
 // (the same as `all`'s list, but the explicit "find new groups" framing).
 type GroupFilter = 'all' | 'mine' | 'discover';
@@ -84,30 +83,56 @@ const GROUP_FILTERS: [GroupFilter, string][] = [
 
 type JoinState = 'idle' | 'joining' | 'joined' | 'requested';
 
+// The two destinations (the People tab's tab row, the operator 05.10.2026 —
+// the screenshot of the Posts screen's Discover | Following row): **Profiles**
+// (individual profiles, the one-person glyph) | **Groups** (the hash glyph).
+// The URL holds the active tab (?section=): bare /people = Profiles (the
+// default), ?section=groups = the groups browser. The old ?show= visibility
+// toggle (both / people / groups / none) retires with the mashed stream —
+// tabs are one-at-a-time, so the "both hidden" state class disappears.
+type ExploreSection = 'profiles' | 'groups';
+
+function sectionFromParam(raw: string | null): ExploreSection {
+  return raw === 'groups' ? 'groups' : 'profiles';
+}
+
 interface DiscoverExploreTabProps {
   /** The active query from ?q= (set by the top bar's search, which opens this tab). */
   query: string;
 }
 
-// ── The Explore browser (Discover's second tab) ──────────────────────────────
-// People + groups mashed into ONE browser (the operator: "people are groups in
-// web10"). Both directories are paged; the lists render independently (each
-// keeps its own "View more"), so the two never block each other. The top bar's
-// search opens this tab with ?q= — the query chip shows + clears it. There is
-// no search field of its own (search is the top bar).
-//
-// Each section has a filter chip row (the "easy filters"): People =
-// All | Following | Mutuals | Followers (?personFilter=); Groups =
-// All | My Groups | Discover (?groupFilter=). The chips are the operator's
-// "easy filters for that kind of stuff" — the social graph (who you follow /
-// who follows you / who you have in common) + the groups you're in vs. new
-// ones to find.
+// ── The People browser (the /people destination) ─────────────────────────────
+// Tabs, not a mash: the Profiles | Groups tab row (the X/Threads idiom the
+// Posts screen's Discover | Following row established) holds the active
+// destination in the URL (?section=). Each tab is one browser — the Profiles
+// browser (the paged D0 directory + the social-graph filters) or the Groups
+// browser (the paged D53 directory + the My Groups / Discover filters) — so
+// each keeps its own filter chips, sort, and "View more" without two card
+// types bleeding into one scroll. The top bar's search opens this tab with
+// ?q= — the query chip shows + clears it on either tab. There is no search
+// field of its own (search is the top bar).
 
 export default function DiscoverExploreTab({ query }: DiscoverExploreTabProps) {
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
 
-  // ── People filter (?personFilter=, deep-linkable) ──────────────────────────
+  // ── The active tab (?section=, deep-linkable) ──────────────────────────────
+  const section: ExploreSection = useMemo(
+    () => sectionFromParam(searchParams.get('section')),
+    [searchParams],
+  );
+  const setSection = useCallback(
+    (next: ExploreSection) => {
+      const params = new URLSearchParams(searchParams);
+      if (next === 'profiles') params.delete('section');
+      else params.set('section', next);
+      setSearchParams(params);
+      LOG('section —', next);
+    },
+    [searchParams, setSearchParams],
+  );
+
+  // ── Profiles filter (?personFilter=, deep-linkable) ────────────────────────
   const personFilter: PeopleFilter = useMemo(() => {
     const raw = searchParams.get('personFilter');
     return raw === 'following' || raw === 'mutuals' || raw === 'followers' ? raw : 'all';
@@ -139,7 +164,7 @@ export default function DiscoverExploreTab({ query }: DiscoverExploreTabProps) {
     [searchParams, setSearchParams],
   );
 
-  // ── People (the D0 public directory, paged) ────────────────────────────────
+  // ── Profiles (the D0 public directory, paged) ──────────────────────────────
   const [sort, setSort] = useState<PeopleSort>(DEFAULT_PEOPLE_SORT);
   const [people, setPeople] = useState<PersonCard[]>([]);
   const [peopleLoading, setPeopleLoading] = useState(true);
@@ -176,7 +201,7 @@ export default function DiscoverExploreTab({ query }: DiscoverExploreTabProps) {
     loadPeoplePage(0, false);
   }, [loadPeoplePage]);
 
-  // ── People: own-graph filters (Following / Followers) ──────────────────────
+  // ── Profiles: own-graph filters (Following / Followers) ────────────────────
   // `mutuals` reuses the directory (filtered to mutuals > 0) — no separate
   // read. `following` + `followers` are the reader's own graph (the directory
   // can't express them), so they're separate reads, cached once loaded.
@@ -373,7 +398,7 @@ export default function DiscoverExploreTab({ query }: DiscoverExploreTabProps) {
 
   // ── New group (the create entry — the same flow as the /groups screen) ─────
   // The People tab is the groups browser's home (discover-reorg D3: /groups
-  // redirects here), so the create entry lives in the Groups section header —
+  // redirects here), so the create entry lives in the Groups tab header —
   // the same "New group" button the old Groups screen carried.
   const [creating, setCreating] = useState(false);
   const handleNewGroup = useCallback(async () => {
@@ -400,39 +425,7 @@ export default function DiscoverExploreTab({ query }: DiscoverExploreTabProps) {
     LOG('query cleared');
   }, [searchParams, setSearchParams]);
 
-  // ── The People / Groups visibility toggle (?show=) ────────────────────────
-  // The Explore tab mashes people + groups into one browser. On a node with a
-  // lot of people, the people list would drown out the (usually far fewer)
-  // groups — so each section can be shown or hidden independently. `?show=`
-  // holds the visible set: `both` (the default, the bare URL) | `people` |
-  // `groups` | `none`. Both-off is a real state (a neutral empty state) — the
-  // operator wanted "both selected, neither, or one or the other." Deep-
-  // linkable + refresh-safe (the ?tab= / ?sort= / ?q= idiom).
-  type ShowFilter = 'both' | 'people' | 'groups' | 'none';
-  const show: ShowFilter = useMemo(() => {
-    const raw = searchParams.get('show');
-    return raw === 'people' || raw === 'groups' || raw === 'none' ? raw : 'both';
-  }, [searchParams]);
-  const showPeople = show === 'both' || show === 'people';
-  const showGroups = show === 'both' || show === 'groups';
-
-  const setSectionVisible = useCallback(
-    (section: 'people' | 'groups', visible: boolean) => {
-      // Toggling a section recomputes the visible set from the two booleans.
-      const nextPeople = section === 'people' ? visible : showPeople;
-      const nextGroups = section === 'groups' ? visible : showGroups;
-      const next: ShowFilter =
-        nextPeople && nextGroups ? 'both' : nextPeople ? 'people' : nextGroups ? 'groups' : 'none';
-      const params = new URLSearchParams(searchParams);
-      if (next === 'both') params.delete('show');
-      else params.set('show', next);
-      setSearchParams(params);
-      LOG('show —', next, `(people:${nextPeople}, groups:${nextGroups})`);
-    },
-    [searchParams, setSearchParams, showPeople, showGroups],
-  );
-
-  // ── People display (per filter) ────────────────────────────────────────────
+  // ── Profiles display (per filter) ──────────────────────────────────────────
   const sortedPeople = useMemo(() => sortPeople(people, sort), [people, sort]);
   const filteredPeople = useMemo(() => filterPeople(sortedPeople, query), [sortedPeople, query]);
   // "Mutuals" = the directory filtered to people you have in common.
@@ -465,25 +458,6 @@ export default function DiscoverExploreTab({ query }: DiscoverExploreTabProps) {
       (personFilter === 'followers' && !graphLoading && sortedFollowers.length === 0));
   const groupsNoResults = query.trim() !== '' && groups.length > 0 && filteredGroups.length === 0;
 
-  // The combined no-results state: a query that matches nothing in any VISIBLE
-  // section (a hidden section can't be "empty" — it's just not shown).
-  const peopleEffectivelyEmpty =
-    !peopleLoading &&
-    ((personFilter === 'all' && (peopleNoResults || peopleQuiet || filteredPeople.length === 0)) ||
-      (personFilter === 'mutuals' && (peopleNoResults || mutualPeople.length === 0)) ||
-      (personFilter === 'following' && !graphLoading && sortedFollowing.length === 0) ||
-      (personFilter === 'followers' && !graphLoading && sortedFollowers.length === 0));
-  const groupsEffectivelyEmpty =
-    !groupsLoading &&
-    (groupFilter === 'mine'
-      ? !myGroupsLoading && myGroups.length === 0
-      : groupsNoResults || filteredGroups.length === 0);
-  const bothEmpty =
-    query.trim() !== '' &&
-    (showPeople || showGroups) &&
-    (!showPeople || peopleEffectivelyEmpty) &&
-    (!showGroups || groupsEffectivelyEmpty);
-
   const peopleList =
     personFilter === 'mutuals'
       ? mutualPeople
@@ -497,9 +471,54 @@ export default function DiscoverExploreTab({ query }: DiscoverExploreTabProps) {
 
   return (
     <div data-testid="discover-explore-tab" className="flex flex-col">
+      {/* The tab row — X/Threads-style: Profiles | Groups (the same idiom the
+          Posts screen's Discover | Following row established). Centered, bold,
+          with the brand underline. The URL holds the tab (?section=), so
+          refresh restores it + it's shareable. Profiles is the default (the
+          bare URL). */}
+      <div
+        className="sticky top-0 z-10 border-b border-border bg-background/95 backdrop-blur-md"
+        role="tablist"
+        aria-label="People"
+        data-testid="explore-tab-row"
+      >
+        <div className="mx-auto flex max-w-2xl">
+          {([
+            ['profiles', 'Profiles', User],
+            ['groups', 'Groups', Hash],
+          ] as const).map(([id, label, Icon]) => {
+            const active = section === id;
+            return (
+              <button
+                key={id}
+                type="button"
+                role="tab"
+                aria-selected={active}
+                onClick={() => setSection(id)}
+                data-testid={`explore-tab-${id}`}
+                className={cn(
+                  'relative flex flex-1 items-center justify-center gap-2 py-3.5 text-[0.9375rem] transition-colors duration-150',
+                  'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset',
+                  active ? 'font-semibold text-foreground' : 'font-medium text-muted-foreground hover:text-foreground',
+                )}
+              >
+                <Icon className={cn('h-[18px] w-[18px]', active && 'text-brand')} strokeWidth={active ? 2.25 : 1.75} />
+                <span>{label}</span>
+                {active && (
+                  <span
+                    aria-hidden="true"
+                    className="absolute -bottom-px left-1/2 h-[3px] w-14 -translate-x-1/2 rounded-full bg-brand"
+                  />
+                )}
+              </button>
+            );
+          })}
+        </div>
+      </div>
+
       {/* The active ?q= filter (from the top bar's search) — a chip that shows
-          the query + clears it. No search field of its own (search is the
-          top bar). */}
+          the query + clears it. Rendered on both tabs so the search can be
+          X'd from either. No search field of its own (search is the top bar). */}
       {query.trim() !== '' && (
         <div className="px-4 pt-3 md:px-4 lg:px-6">
           <span
@@ -521,81 +540,37 @@ export default function DiscoverExploreTab({ query }: DiscoverExploreTabProps) {
         </div>
       )}
 
-      {/* The Profiles / Groups visibility toggle (?show=) — chunky icon+label
-          chips so a flood of profiles can't drown out the groups. Each section
-          shows/hides independently: both (default) / people / groups / none.
-          The Profiles chip carries the ONE-person glyph (individual profiles);
-          the People *tab* above it carries the two-people glyph. (The operator,
-          25.09.2026: "in the subtab, it should be profiles and groups … and
-          should be just one person logo".) */}
-      <div className="px-4 pt-3 md:px-4 lg:px-6">
-        <div className="flex items-center gap-2" data-testid="explore-show-toggle" role="group" aria-label="Show sections">
-          {(['people', 'groups'] as const).map((section) => {
-            const active = section === 'people' ? showPeople : showGroups;
-            const Icon = section === 'people' ? User : Hash;
-            return (
+      {section === 'profiles' ? (
+        /* Profiles — the people browser (the paged D0 directory + the social-
+           graph filters). The desktop gutter (md:px-4 lg:px-6) matches the
+           Posts content column. */
+        <section data-testid="explore-people-section" className="flex-1 px-4 pb-4 md:px-4 lg:px-6">
+          {/* The Profiles filter chips (?personFilter=) — the "easy filters". */}
+          <div className="flex items-center gap-1 pt-3" data-testid="explore-people-filter" role="tablist" aria-label="Filter people">
+            {PEOPLE_FILTERS.map(([f, label]) => (
               <button
-                key={section}
+                key={f}
                 type="button"
-                aria-pressed={active}
-                onClick={() => setSectionVisible(section, !active)}
-                data-testid={`explore-show-${section}`}
+                role="tab"
+                aria-selected={personFilter === f}
+                onClick={() => setPersonFilter(f)}
+                data-testid={`explore-people-filter-${f}`}
                 className={cn(
-                  'inline-flex items-center gap-2 rounded-full px-4 py-2 text-sm font-medium transition-colors',
+                  'rounded-lg px-2.5 py-1 text-xs font-medium transition-colors',
                   'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background',
-                  active
+                  personFilter === f
                     ? 'bg-brand-muted text-brand-300'
                     : 'text-muted-foreground hover:text-foreground hover:bg-elevated',
                 )}
               >
-                <Icon className="h-4 w-4" strokeWidth={1.75} />
-                {section === 'people' ? 'Profiles' : 'Groups'}
+                {label}
               </button>
-            );
-          })}
-        </div>
-      </div>
-
-      {/* Mashed list — people and groups render as one stream, each with its
-          own filter chips + pagination (each section honors the ?show=
-          toggle). (The operator: "people are groups in web10.") The desktop
-          gutter (md:px-4 lg:px-6) matches the Trending content column. */}
-      <div className="flex-1 px-4 pb-4 md:px-4 lg:px-6 space-y-6" data-testid="explore-view">
-        {/* People */}
-        {showPeople && (
-        <section data-testid="explore-people-section">
-          <div className="flex items-center justify-between gap-2 pb-2">
-            <h2 className="px-1 text-[0.625rem] font-semibold uppercase tracking-wide text-muted-foreground/70">
-              Profiles
-            </h2>
-            {/* The People filter chips (?personFilter=) — the "easy filters". */}
-            <div className="flex items-center gap-1" data-testid="explore-people-filter" role="tablist" aria-label="Filter people">
-              {PEOPLE_FILTERS.map(([f, label]) => (
-                <button
-                  key={f}
-                  type="button"
-                  role="tab"
-                  aria-selected={personFilter === f}
-                  onClick={() => setPersonFilter(f)}
-                  data-testid={`explore-people-filter-${f}`}
-                  className={cn(
-                    'rounded-lg px-2.5 py-1 text-xs font-medium transition-colors',
-                    'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background',
-                    personFilter === f
-                      ? 'bg-brand-muted text-brand-300'
-                      : 'text-muted-foreground hover:text-foreground hover:bg-elevated',
-                  )}
-                >
-                  {label}
-                </button>
-              ))}
-            </div>
+            ))}
           </div>
 
-          {/* Sort toggle (people only — the groups directory is member-ranked
-              server-side, so a client sort would be a lie). Shown for the
-              directory-backed filters (all / mutuals) + the own-graph filters. */}
-          <div className="px-1 pb-2">
+          {/* Sort toggle (profiles only — the groups directory is member-ranked
+              server-side, so a client sort would be a lie). */}
+          <div className="px-1 pt-2 pb-2">
             <div className="flex items-center gap-1" data-testid="explore-sort-toggle" role="tablist" aria-label="Sort people">
               {SORT_OPTIONS.map(([s, label]) => (
                 <button
@@ -693,16 +668,13 @@ export default function DiscoverExploreTab({ query }: DiscoverExploreTabProps) {
             </>
           )}
         </section>
-        )}
-
-        {/* Groups */}
-        {showGroups && (
-        <section data-testid="explore-groups-section">
-          <div className="flex items-center justify-between gap-2 pb-2">
-            <h2 className="px-1 text-[0.625rem] font-semibold uppercase tracking-wide text-muted-foreground/70">
-              Groups
-            </h2>
-            {/* The Groups filter chips (?groupFilter=) — the "easy filters". */}
+      ) : (
+        /* Groups — the groups browser (the paged D53 directory + the My Groups
+           / Discover filters + the create entry). */
+        <section data-testid="explore-groups-section" className="flex-1 px-4 pb-4 md:px-4 lg:px-6">
+          {/* The Groups filter chips (?groupFilter=) + the "New group" create
+              entry (the People tab is the groups browser's home). */}
+          <div className="flex items-center justify-between gap-2 pt-3">
             <div className="flex items-center gap-1" data-testid="explore-groups-filter" role="tablist" aria-label="Filter groups">
               {GROUP_FILTERS.map(([f, label]) => (
                 <button
@@ -829,43 +801,7 @@ export default function DiscoverExploreTab({ query }: DiscoverExploreTabProps) {
             </>
           )}
         </section>
-        )}
-
-        {/* Both sections hidden (?show=none) — a neutral empty state. */}
-        {!showPeople && !showGroups && (
-          <div
-            data-testid="explore-show-none"
-            className="flex flex-col items-center justify-center py-16 px-8 text-center"
-          >
-            <div className="mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-brand-muted/50">
-              <Users className="h-8 w-8 text-brand-400" strokeWidth={1.5} />
-            </div>
-            <h2 className="font-display text-xl font-semibold text-foreground">Nothing to show</h2>
-            <p className="mt-2 max-w-sm text-sm text-muted-foreground">
-              Both sections are hidden. Turn Profiles or Groups back on above.
-            </p>
-          </div>
-        )}
-
-        {/* The combined no-results state (a query that matches neither). */}
-        {bothEmpty && (
-          <div
-            data-testid="explore-no-results"
-            className="flex flex-col items-center justify-center py-16 px-8 text-center"
-          >
-            <div className="mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-brand-muted/50">
-              <Search className="h-8 w-8 text-brand-400" strokeWidth={1.5} />
-            </div>
-            <h2 className="font-display text-xl font-semibold text-foreground">
-              No one or nothing matches
-            </h2>
-            <p className="mt-2 max-w-sm text-sm text-muted-foreground">
-              No people or groups match “{query.trim()}”. Try a different name,
-              handle, or topic.
-            </p>
-          </div>
-        )}
-      </div>
+      )}
     </div>
   );
 }

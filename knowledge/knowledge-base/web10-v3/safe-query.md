@@ -76,6 +76,17 @@ raw table — it is the caller's own groups, and nothing else. A doc in N readab
 groups surfaces N rows (one per group); `group_id` is the join key for group
 metadata (QE-A0).
 
+**Hyphenated service names are quoted.** A service name that is not a bare
+identifier (`[A-Za-z_][A-Za-z0-9_]*`) — the D60 app-named services, e.g.
+`web10-social-group-identity` — is **backtick-quoted in the CTE definition**
+(`` `web10-social-group-identity` AS (…)` ``) and in the caller's reference. A
+bare hyphenated name is a ClickHouse parse error, so without the quoting the
+compiled query would not even re-parse (the round-trip backstop, step 5, would
+reject it). ClickHouse treats a backtick-quoted and a double-quoted identifier
+as the same, and `sqlglot`'s `Table.name` returns the unquoted name either way —
+so the table walk (step 3) and the re-parse backstop are unaffected. Plain
+service names stay bare (no change).
+
 **Why `NOT IN`, not `LEFT ANTI JOIN`.** The block/sharing/hidden filters are
 `NOT IN` / tuple-`NOT IN` subqueries, not `LEFT ANTI JOIN`. A ClickHouse 24.8
 bug breaks CTE inlining when the CTE body combines a `JOIN` with a
@@ -192,6 +203,7 @@ membrane that must not leak:
 |---|---|
 | boundary CTE injected + group-filtered | `test_simple_service_query_gets_boundary_cte` |
 | empty groups → empty CTE, not error | `test_no_readable_groups_degrades_to_empty_not_error` |
+| hyphenated service CTE is quoted (re-parses) | `test_hyphenated_service_cte_is_quoted` |
 | cross-service self-join | `test_self_join_across_services_injects_both_ctes` |
 | caller CTE ordering (service first) | `test_caller_cte_referencing_service_orders_correctly` |
 | raw table rejected (top / subquery / caller CTE / qualified) | `test_raw_table*`, `test_qualified_raw_table_rejected` |

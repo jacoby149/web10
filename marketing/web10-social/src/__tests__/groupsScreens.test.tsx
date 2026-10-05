@@ -412,10 +412,11 @@ describe('GroupsScreen', () => {
       expect(screen.getByTestId('groups-my-empty')).toBeInTheDocument();
     });
     expect(screen.getByText(/not in any groups yet/i)).toBeInTheDocument();
-    // The CTA now points at the People destination (the directory's new home).
+    // The CTA now points at the People destination's Groups tab (the
+    // directory's new home — ?section=groups deep links straight to it).
     fireEvent.click(screen.getByTestId('groups-my-empty-cta'));
     await waitFor(() => {
-      expect(screen.getByTestId('location-probe')).toHaveTextContent('/people');
+      expect(screen.getByTestId('location-probe')).toHaveTextContent('/people?section=groups');
     });
   });
 

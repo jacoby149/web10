@@ -32,6 +32,29 @@ def test_no_readable_groups_degrades_to_empty_not_error():
     assert "1 = 0" in out  # shape-valid, returns nothing
 
 
+def test_hyphenated_service_cte_is_quoted():
+    # A hyphenated app-named service (e.g. the D60 group face
+    # `web10-social-group-identity`) is not a valid bare ClickHouse identifier —
+    # the CTE definition must be backtick-quoted or the compiled query fails to
+    # parse. The caller references it backtick-quoted too (sqlglot re-emits the
+    # reference double-quoted; ClickHouse treats the two as the same identifier).
+    svc = "web10-social-group-identity"
+    out = build_safe_query(
+        f"SELECT author_key, body FROM `{svc}`",
+        {svc: [DISCOVER]},
+    )
+    # The CTE def is quoted (a bare name would not re-parse).
+    assert f"`{svc}` AS (" in out
+    # The I3 group filter is unchanged — the CTE is group-filtered.
+    assert f"WHERE dg.group_id IN ('{DISCOVER}')" in out
+    assert f"collection_name = '{svc}'" in out
+    # The compiled query re-parses to a single statement (the backstop).
+    import sqlglot
+
+    reparsed = [s for s in sqlglot.parse(out, dialect="clickhouse") if s is not None]
+    assert len(reparsed) == 1
+
+
 def test_self_join_across_services_injects_both_ctes():
     out = build_safe_query(
         "SELECT p.doc_id FROM posts p JOIN comments c ON c.ref_value = p.doc_id",

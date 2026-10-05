@@ -59,8 +59,9 @@ async function readGroupFace(groupId: string): Promise<GroupFace> {
     if (!resp.ok) return {}
     const docs = await resp.json()
     if (!Array.isArray(docs) || docs.length === 0) return {}
-    // The face is a replace-on-write doc stream — the latest doc wins.
-    return (docs[docs.length - 1].body || {}) as GroupFace
+    // The face is a replace-on-write doc stream — the latest doc wins. The
+    // server orders created_at DESC, so docs[0] is the newest.
+    return (docs[0].body || {}) as GroupFace
   } catch {
     return {}
   }

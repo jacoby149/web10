@@ -49,6 +49,8 @@ the end is the backstop that catches a malformed result.
 
 from __future__ import annotations
 
+import re
+
 import sqlglot
 from sqlglot import exp
 
@@ -108,6 +110,20 @@ def _quote_group_ids(group_ids: list[str]) -> str:
     (never caller input), so this is safe; the quoting is defense-in-depth
     against a stray quote."""
     return ", ".join(f"'{g.replace(chr(39), chr(39) * 2)}'" for g in group_ids)
+
+
+_IDENT_SAFE = re.compile(r"^[A-Za-z_][A-Za-z0-9_]*$")
+
+
+def _quote_ident(name: str) -> str:
+    """Quote an identifier for a CTE definition. A plain ``[A-Za-z_][A-Za-z0-9_]*``
+    name is emitted bare; anything else (a hyphenated app-named service like
+    ``web10-social-group-identity``) is backtick-quoted. ClickHouse treats a
+    backtick-quoted and a double-quoted identifier as the same, so the CTE def
+    (backticks) matches the caller's reference (which sqlglot re-emits
+    double-quoted) — and sqlglot's ``Table.name`` returns the unquoted name
+    either way, so the table walk is unaffected."""
+    return name if _IDENT_SAFE.match(name) else f"`{name}`"
 
 
 def _boundary_cte_sql(service: str, readable_groups: list[str], member_key: str) -> str:
@@ -494,7 +510,7 @@ def build_safe_query(
         # ClickHouse; the round-trip re-parse below rejects a malformed result.
         caller_sql = f"{caller_sql} LIMIT {int(max_limit)}"
     cte_defs = [
-        f"{service} AS ({_boundary_cte_sql(service, readable_groups_by_service.get(service, []), member_key)})"
+        f"{_quote_ident(service)} AS ({_boundary_cte_sql(service, readable_groups_by_service.get(service, []), member_key)})"
         for service in sorted(s for s in needed if s != GROUP_META)
     ]
     if GROUP_META in needed and group_meta is not None:

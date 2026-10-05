@@ -139,6 +139,15 @@ export function VideoEditorSheet({
     setEndTime((prev) => (prev === 0 ? d : prev));
   }, []);
 
+  // The preview <video> fires `error` when the browser cannot decode the file
+  // (an undecodable codec — the classic HEVC/AV1-in-MP4 from a phone camera).
+  // Without this the sheet shows a blank preview and Apply stays disabled with
+  // no explanation; with it the user sees why and can re-encode the file.
+  const handlePreviewError = useCallback(() => {
+    console.error('[video-editor] preview failed to load — the browser cannot decode this video (undecodable codec or corrupt file)');
+    setError('This video uses a format the browser cannot play (often HEVC / "High Efficiency" from phone cameras). Re-save it as a standard H.264 MP4 and try again.');
+  }, []);
+
   const seekTo = useCallback((t: number) => {
     const v = videoRef.current;
     if (!v || !isFinite(t)) return;
@@ -303,6 +312,7 @@ export function VideoEditorSheet({
             )}
             onTimeUpdate={handleTimeUpdate}
             onLoadedMetadata={handleDuration}
+            onError={handlePreviewError}
             data-testid="video-editor-preview"
           />
         </div>

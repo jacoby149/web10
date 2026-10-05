@@ -587,9 +587,6 @@ export default function DiscoverScreen({ mode: modeOverride }: { mode?: Discover
         }
       }
 
-      setPosts(results);
-      hasLoadedRef.current = true;
-
       // Resolve profiles for authors. Anon-capable: a public profile face is
       // `anyone`-readable (profiles are public by default, 3.149.0), so an
       // anon visitor sees the author's face too. The own-profile read
@@ -691,6 +688,15 @@ export default function DiscoverScreen({ mode: modeOverride }: { mode?: Discover
           // Media resolution failed — degrade gracefully
         }
       }
+
+      // Paint the grid only AFTER the media (thumbnails) are resolved — the
+      // grid's first render must already carry the thumbnails, not paint grey
+      // and swap them in on a second render (the operator's "grey thumbnails
+      // for quite some time" on the Video tab). The skeleton covers the gap
+      // while the reads are in flight. `setPosts` + `setMediaMap` land in the
+      // same synchronous block, so React batches them into one render.
+      setPosts(results);
+      hasLoadedRef.current = true;
     } catch (e) {
       LOG('loadDiscover — failed:', e);
       // A failed re-read (a knob twist) keeps the previous grid on screen —
@@ -826,8 +832,9 @@ export default function DiscoverScreen({ mode: modeOverride }: { mode?: Discover
 
   // The node returns the board pre-ranked (the D36 power-mean sort,
   // server-side) — `posts` is already in display order, no client re-rank.
-  // The per-post score is computed for DISPLAY only (the Top 10 rail's
-  // tally); it never affects order.
+  // The per-post power-mean score is computed for the watch queue's relatedness
+  // boost only; the Top 10 rail's tally is the raw engagement count
+  // (likes + comments + reposts), not the normalized score.
   const scoredPosts = useMemo(() => {
     return posts.map(p => ({
       ...p,
@@ -1102,7 +1109,7 @@ export default function DiscoverScreen({ mode: modeOverride }: { mode?: Discover
                     entries={scoredPosts
                       .filter(p => activeTag === 'All' || (p.tags?.includes(activeTag) ?? false))
                       .slice(0, 10)
-                      .map((p, i) => ({ post: p, rank: i + 1, score: p.score ?? 0 }))}
+                      .map((p, i) => ({ post: p, rank: i + 1, score: (p.likes || 0) + (p.comments || 0) + (p.reposts || 0) }))}
                     onSelect={jumpToPost}
                   />
                 )}

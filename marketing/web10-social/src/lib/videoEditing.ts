@@ -103,7 +103,28 @@ export function isNoopEdit(opts: VideoEditOptions, duration: number): boolean {
   return noTrim && noCrop;
 }
 
-/** Read a video file's dimensions + duration (metadata only, no playback). */
+/**
+ * Read a video file's dimensions + duration (metadata only, no playback).
+ *
+ * Rejects with a `VideoMetadataError` when the browser cannot decode the file
+ * (undecodable codec — the classic HEVC/AV1-in-MP4 from a phone camera) or when
+ * the metadata never loads (corrupt/truncated file). The error carries a
+ * user-facing `message` the composer can surface directly.
+ */
+export class VideoMetadataError extends Error {
+  /** 'codec' = the browser can't decode this video; 'timeout' = metadata never loaded. */
+  constructor(readonly reason: 'codec' | 'timeout') {
+    super(
+      reason === 'codec'
+        ? 'This video uses a format the browser cannot play (often HEVC / "High Efficiency" from phone cameras). Re-save it as a standard H.264 MP4 and try again.'
+        : 'Could not read this video file. It may be corrupt — try re-exporting or re-recording it.',
+    );
+    this.name = 'VideoMetadataError';
+  }
+}
+
+const METADATA_TIMEOUT_MS = 15000;
+
 async function readVideoMetadata(file: File): Promise<{ width: number; height: number; duration: number }> {
   const url = URL.createObjectURL(file);
   const video = document.createElement('video');
@@ -112,8 +133,19 @@ async function readVideoMetadata(file: File): Promise<{ width: number; height: n
   video.src = url;
   try {
     await new Promise<void>((res, rej) => {
-      video.onloadedmetadata = () => res();
-      video.onerror = () => rej(new Error('could not read video metadata'));
+      const timer = setTimeout(() => {
+        video.onerror = null;
+        video.onloadedmetadata = null;
+        rej(new VideoMetadataError('timeout'));
+      }, METADATA_TIMEOUT_MS);
+      video.onloadedmetadata = () => {
+        clearTimeout(timer);
+        res();
+      };
+      video.onerror = () => {
+        clearTimeout(timer);
+        rej(new VideoMetadataError('codec'));
+      };
     });
     return { width: video.videoWidth, height: video.videoHeight, duration: video.duration };
   } finally {
