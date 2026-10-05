@@ -34,8 +34,10 @@ export function CommentThread(props: CommentThreadProps) {
         // The comment-like tap: the data layer resolves it against the
         // reader's current reaction (like XOR dislike, self-heal,
         // username-alone ownership — the post-like primitives, with
-        // target_service 'comments'). The thread re-reads on the next open.
-        void toggleReactionKind(commentId, 'like', props.groups, 'comments');
+        // target_service 'comments'). The thread does the optimistic flip +
+        // rollback; returning the write's promise lets it roll back on a
+        // failed write.
+        return toggleReactionKind(commentId, 'like', props.groups, 'comments');
       }}
     />
   );
