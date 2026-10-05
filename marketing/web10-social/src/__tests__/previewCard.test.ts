@@ -42,6 +42,8 @@ describe('web10-social link-preview card logic (KB: media/thumbnailing.md)', () 
   let postCard: (u: string, p: string) => Promise<string>
   let profileCard: (u: string) => Promise<string>
   let groupCard: (g: string) => Promise<string>
+  let watchCard: (p: string) => Promise<string>
+  let shortsCard: (p: string) => Promise<string>
   let truncate: (s: string, n: number) => string | null
   let stripMarkdown: (s: string) => string
 
@@ -51,6 +53,8 @@ describe('web10-social link-preview card logic (KB: media/thumbnailing.md)', () 
     postCard = mod.postCard
     profileCard = mod.profileCard
     groupCard = mod.groupCard
+    watchCard = mod.watchCard
+    shortsCard = mod.shortsCard
     truncate = mod.truncate
     stripMarkdown = md.stripMarkdown
   })
@@ -278,5 +282,109 @@ describe('web10-social link-preview card logic (KB: media/thumbnailing.md)', () 
     expect(html).toContain(`http://social.test/groups/${encodeURIComponent('api.web10.app/groups/users/bob/secret')}`)
     // The face must not leak.
     expect(html).not.toContain('secret club name')
+  })
+
+  describe('watchCard — the /watch/:postId share link (the landscape video)', () => {
+    it('renders the post text + the media thumbnail + the watch canonical url', async () => {
+      mockPlatform({
+        'read:p1': { author_key: 'nova', body: { text: 'check out this clip' } },
+        'thumb:p1': { thumbnail: { url: 'http://minio.test/clip.png', alt: null, is_video: true } },
+      })
+      const html = await watchCard('p1')
+      expect(html).toContain('check out this clip')
+      expect(html).toContain('http://minio.test/clip.png')
+      // The canonical url is the WATCH permalink, not the post permalink.
+      expect(html).toContain('http://social.test/watch/p1')
+      expect(html).not.toContain('/u/nova/p/')
+    })
+
+    it('a video post carries is_video in the card spec', async () => {
+      mockPlatform({
+        'read:p1': { author_key: 'nova', body: { text: 'a video' } },
+        'thumb:p1': { thumbnail: { url: 'http://minio.test/clip.png', alt: null, is_video: true } },
+      })
+      const html = await watchCard('p1')
+      expect(html).toContain('"is_video":true')
+    })
+
+    it('a post with no media falls back to the author avatar', async () => {
+      mockPlatform({
+        'read:p1': { author_key: 'nova', body: { text: 'just words' } },
+        'thumb:p1': { thumbnail: null },
+        'read:groups:["web10/groups/users/nova/followers"]': [
+          { author_key: 'nova', body: { display_name: 'Nova', avatar_ref: 'av-1' } },
+        ],
+        'thumb:av-1': { thumbnail: { url: 'http://minio.test/nova/avatar.png', alt: null, is_video: false } },
+      })
+      const html = await watchCard('p1')
+      expect(html).toContain('http://minio.test/nova/avatar.png')
+    })
+
+    it('a private / unreadable post renders a generic card with no content', async () => {
+      mockPlatform({
+        'read:p1': null,
+      })
+      const html = await watchCard('p1')
+      expect(html).toContain('A post on web10')
+      expect(html).toContain('http://social.test/keys-mark.png')
+      expect(html).toContain('http://social.test/watch/p1')
+    })
+
+    it('derives the username from the doc author for the fallback title', async () => {
+      mockPlatform({
+        'read:p1': { author_key: 'web10.app/users/nova', body: { text: null } },
+        'thumb:p1': { thumbnail: { url: 'http://minio.test/clip.png', alt: null, is_video: true } },
+      })
+      const html = await watchCard('p1')
+      // No text → the title falls back to @username (derived from author_key).
+      expect(html).toContain('@nova on web10')
+    })
+  })
+
+  describe('shortsCard — the /shorts/:postId share link (the vertical video)', () => {
+    it('renders the post text + the media thumbnail + the shorts canonical url', async () => {
+      mockPlatform({
+        'read:p1': { author_key: 'nova', body: { text: 'vertical clip' } },
+        'thumb:p1': { thumbnail: { url: 'http://minio.test/short.png', alt: null, is_video: true } },
+      })
+      const html = await shortsCard('p1')
+      expect(html).toContain('vertical clip')
+      expect(html).toContain('http://minio.test/short.png')
+      // The canonical url is the SHORTS permalink, not the post permalink.
+      expect(html).toContain('http://social.test/shorts/p1')
+      expect(html).not.toContain('/u/nova/p/')
+    })
+
+    it('a video post carries is_video in the card spec', async () => {
+      mockPlatform({
+        'read:p1': { author_key: 'nova', body: { text: 'a short' } },
+        'thumb:p1': { thumbnail: { url: 'http://minio.test/short.png', alt: null, is_video: true } },
+      })
+      const html = await shortsCard('p1')
+      expect(html).toContain('"is_video":true')
+    })
+
+    it('a post with no media falls back to the author avatar', async () => {
+      mockPlatform({
+        'read:p1': { author_key: 'nova', body: { text: 'just words' } },
+        'thumb:p1': { thumbnail: null },
+        'read:groups:["web10/groups/users/nova/followers"]': [
+          { author_key: 'nova', body: { display_name: 'Nova', avatar_ref: 'av-1' } },
+        ],
+        'thumb:av-1': { thumbnail: { url: 'http://minio.test/nova/avatar.png', alt: null, is_video: false } },
+      })
+      const html = await shortsCard('p1')
+      expect(html).toContain('http://minio.test/nova/avatar.png')
+    })
+
+    it('a private / unreadable post renders a generic card with no content', async () => {
+      mockPlatform({
+        'read:p1': null,
+      })
+      const html = await shortsCard('p1')
+      expect(html).toContain('A post on web10')
+      expect(html).toContain('http://social.test/keys-mark.png')
+      expect(html).toContain('http://social.test/shorts/p1')
+    })
   })
 })
