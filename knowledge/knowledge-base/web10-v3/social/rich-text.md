@@ -307,16 +307,25 @@ permalink — so it is a system, not a per-screen patch:
 This is design.md §12 territory (the screenshot test, tokens only, all states)
 and it is where the lightbox stops reading as a first try.
 
-## The one node touch: the share preview strips markdown
+## The one preview touch: the link preview strips markdown
 
-The OG / Twitter-card endpoint (`api/app/v3/endpoints/share.py`, D71) puts the
-raw `text` into `og:description`. With markdown, that leaks `**` and `#` into
-link previews. The fix is a **markdown → plain-text strip** (a tiny generic
-util — strip the syntax, keep the words) applied to `og:description` and
-`og:title`. It is **generic, not a social concept** (D60): it is "render this
-string as plain text," usable by any app, not "understand a post." One function,
-one test. The I3/D41 privacy floor is unchanged — a non-public post still
-renders the generic card with no content.
+The OG / Twitter-card for a post permalink is built in the social app's
+**preview server** (`marketing/web10-social/preview/card.mjs`) — not the node
+(the node's `share.py` was deleted in 3.91.0). `postCard` puts the post's
+`text` into the card's `title` + `description`. With markdown, that leaks `**`
+and `#` into link previews. The fix is a **markdown → plain-text strip** (a
+tiny generic util — `preview/markdown.mjs`, `stripMarkdown` — "render this
+string as plain words": bold / heading / link / code → the words, the syntax
+gone) applied to the post's `text` **before** `truncate`. It is **generic, not
+a social concept** (D60): it is "render this string as plain text," usable by
+any app, not "understand a post." Emphasis is stripped only when the markers
+**flank** the words directly (no whitespace inside the markers, per CommonMark)
+— so intentional literal `**` / `***` / `* word *` / `!` show as the user typed
+them, while real `**bold**` / `*ital*` is still stripped. One function, one
+test. The I3/D41 privacy
+floor is unchanged — a non-public post still renders the generic card with no
+content. `profileCard` / `groupCard` use `display_name` / `bio` / `name` /
+`description` (not markdown) — untouched.
 
 ## What it rejects
 
@@ -355,8 +364,11 @@ renders the generic card with no content.
 - **Post-detail system:** `PostLightbox.tsx` first, then `WatchScreen.tsx` +
   the permalink route (identity row, stats row, labeled actions, `⋯` menu,
   content-sized modal).
-- **Node:** `api/app/v3/endpoints/share.py` (the markdown → plain-text strip on
-  `og:description` / `og:title`).
+- **Link preview:** `marketing/web10-social/preview/card.mjs` (the social app's
+  preview server builds the OG / Twitter card) + `preview/markdown.mjs` (the
+  markdown → plain-text strip, `stripMarkdown`) — the strip is applied to the
+  post's `text` before `truncate` so the card's `title` / `description` carry
+  plain words. Client-side, zero node surface (D60).
 - **Data:** unchanged. `PostRecord.text` (D82) is now markdown; `createPost` /
   `updatePost` / `fromV3DocToPost` already carry it opaquely.
 
