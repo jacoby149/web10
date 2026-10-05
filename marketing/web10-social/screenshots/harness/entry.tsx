@@ -147,6 +147,7 @@ if (screen === 'post-detail') {
       : screen === 'profile-following' ? '/u/nova/following'
       : screen === 'profile-feed' ? '/u/nova?view=feed'
       : screen === 'saved-tab' ? '/u/me?tab=saved'
+      : screen === 'saved-visitor' ? '/u/nova?tab=saved'
       : screen === 'saved-collection' ? '/u/me/saved/web10%2Fgroups%2Fusers%2Fme%2Fsaved-guitar-riffs'
        : screen === 'monetize' ? '/monetize'
        : screen === 'monetize-node' ? '/monetize?tab=node'

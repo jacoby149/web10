@@ -22,6 +22,7 @@ import {
   countUserFollowingReal,
   readUserPublicProfile,
   getMyCollections,
+  readUserPublicCollections,
   createPost,
 } from '@/data';
 import { getWapi } from '@/data/wapi';
@@ -64,13 +65,15 @@ interface UserProfileScreenProps {
 }
 
 // ── Saved collections (D88) — the profile's Saved tab ───────────────────────
-// The owner's playlists, YouTube-channel-shaped: a grid of collection cards
+// The playlists, YouTube-channel-shaped: a grid of collection cards
 // (name + "N items"). Tapping a card navigates to the collection's deep-
 // linkable detail view, /u/:username/saved/:collectionId (the "address bar is
 // part of the product" rule) — the owner's per-item remove + the visibility
-// toggle live there (SavedCollectionScreen). This is the owner's own profile;
-// the visitor-facing public-collections case is a follow-up (it needs the
-// node's by-user enumeration + the membership visibility seam).
+// toggle live there (SavedCollectionScreen). On the owner's profile the tab
+// is always present (even when empty — the empty state); on a visitor's
+// profile it shows only when the owner has ≥1 PUBLIC collection (the node's
+// D80 by-user read returns only membership_visibility='public' groups, so a
+// private collection never surfaces) and the cards open read-only.
 
 interface SavedTabProps {
   username: string;
@@ -332,10 +335,11 @@ export default function UserProfileScreen({ username, provider, onBack }: UserPr
   const [uploadError, setUploadError] = useState<string | null>(null);
   const [draft, setDraft] = useState<Partial<ProfileRecord>>({});
   const [stagingCount, setStagingCount] = useState<number>(0);
-  // Saved collections (D88) — the owner's playlists on the profile's Saved tab.
-  // Loaded only for the owner (the visitor-facing public-collections case is a
-  // follow-up — it needs the node's by-user enumeration + the membership
-  // visibility seam). null = not loaded (anon / visitor → the tab is absent).
+  // Saved collections (D88) — the playlists on the profile's Saved tab.
+  // Owner: all of their collections (getMyCollections). Visitor: only the
+  // owner's PUBLIC collections (readUserPublicCollections — the node's D80
+  // by-user read returns only membership_visibility='public' groups, so a
+  // private collection never surfaces). null = not loaded (the tab is absent).
   const [collections, setCollections] = useState<CollectionRecord[] | null>(null);
   // The file input is PERSISTENT in the DOM (not created on click) so the
   // upload seam is drivable from e2e (setInputFiles) — a createElement-on-
@@ -497,9 +501,17 @@ export default function UserProfileScreen({ username, provider, onBack }: UserPr
         setFollowRecord(fr);
         setFollowing(fr?.status === 'active' || false);
         postsData = pub.posts;
-        // A visitor's profile shows no Saved tab (the public-collections case is
-        // a follow-up) — clear any stale owner state so the tab stays absent.
-        setCollections(null);
+        // A visitor's profile shows the owner's PUBLIC collections on the
+        // Saved tab (D88) — the node's D80 by-user read returns only
+        // membership_visibility='public' groups, so a private collection never
+        // surfaces. Isolated: a failure degrades the tab to absent, never the
+        // profile.
+        setCollections(
+          await readUserPublicCollections(username, provider).catch((e) => {
+            console.error('[social] loadData — readUserPublicCollections failed:', e);
+            return null;
+          }),
+        );
         // The face (avatar / banner) — presigned URLs the query engine minted
         // (author-scoped, so they render for any viewer, not just the owner).
         // Build the media map from the posts' inline-resolved media + the face
@@ -1154,10 +1166,12 @@ export default function UserProfileScreen({ username, provider, onBack }: UserPr
             <div className="absolute bottom-0 inset-x-0 h-0.5 bg-gradient-to-r from-brand to-brand-600" />
           )}
         </button>
-        {/* Saved (D88) — the owner's playlists. Owner-only: the visitor-facing
-            public-collections case is a follow-up, so the tab is absent on
-            someone else's profile (collections === null there). */}
-        {isOwnProfile && collections && (
+        {/* Saved (D88) — the playlists. Owner: all their collections (the tab
+            is always present on the owner's profile, even when empty — the
+            tab's empty state). Visitor: only when the owner has ≥1 PUBLIC
+            collection (a private collection never surfaces — the node's D80
+            by-user read returns only membership_visibility='public' groups). */}
+        {collections && (isOwnProfile || collections.length > 0) && (
           <button
             data-testid="profile-tab-saved"
             aria-current={activeTab === 'saved' ? 'true' : undefined}
@@ -1190,7 +1204,7 @@ export default function UserProfileScreen({ username, provider, onBack }: UserPr
           feed. Media tab: every media item as a wall tile. Saved tab (D88):
           the owner's collection cards (or the open collection's contents). */}
       <div className="px-4 pb-4 pt-2">
-        {activeTab === 'saved' && isOwnProfile && collections ? (
+        {activeTab === 'saved' && collections ? (
           <SavedTab
             username={username}
             collections={collections}
