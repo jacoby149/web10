@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { Users, Hash, Search, X, Loader2, AlertTriangle, RefreshCw } from 'lucide-react';
-import { PersonCard, PersonCardSkeleton, GroupCard, GroupCardSkeleton, type DiscoverPerson, type DiscoverGroup, type DiscoverGroupFace } from '@web10/discover';
+import { PersonCard, PersonCardSkeleton, GroupCard, GroupCardSkeleton, type DiscoverPerson, type DiscoverGroup, type DiscoverGroupFace, resolveFaceMedia, peopleFaceSql, GROUP_FACE_SQL, type FaceQueryTransport } from '@web10/discover';
 import { API_ORIGIN, API_HOST, SOCIAL_ORIGIN } from '@/lib/origins';
 import { trackFunnel } from '@/lib/analytics';
 
@@ -51,78 +51,35 @@ function followersGroupId(username: string): string {
   return `${API_HOST}/groups/users/${username}/followers`;
 }
 
-// Resolve a page of people's face media (avatar + banner) to presigned URLs in
-// TWO batched query-engine reads (one per face field), using the author-scoped
-// face-prepare (D73). The D0 directory returns each user's profile face
-// (incl. `avatar_ref` / `banner_ref`), but those are media doc_ids, not URLs.
-// Minting a URL requires a presign SCOPED TO THE AUTHOR (the media owner) — not
-// the reader. The owner-scoped media endpoints (`/v3/media/list`,
-// `/v3/media/read-url`) can't do that: they're scoped to the reader's own
-// `author_key`, so another user's face 404s (anon) or is filtered out
-// (signed-in) — the "people show a gradient + initial" bug. The query engine's
-// face-prepare (`prepare.face`) mints the face URL author-scoped (bound to the
-// row's `author_key`, not the viewer), so it works for any reader — anon
-// included. The read is scoped to the users' followers groups (the I3 gate:
-// only readable faces return). A face the reader can't read (a private
-// profile) is absent → that card keeps the gradient fallback. A failure
-// degrades the whole page to faceless cards, never a throw.
-async function resolvePeopleFaces(users: PeopleEntry[]): Promise<Map<string, { avatar_url?: string; banner_url?: string }>> {
-  const out = new Map<string, { avatar_url?: string; banner_url?: string }>();
-  const withRefs = users.filter((u) => u.profile?.avatar_ref || u.profile?.banner_ref);
-  if (withRefs.length === 0) return out;
-
-  const groups = withRefs.map((u) => followersGroupId(u.username));
-  const inList = withRefs.map((u) => `'${u.username.replace(/'/g, "''")}'`).join(', ');
-  const faceSql = `SELECT author_key AS author_key, body AS body FROM profile WHERE author_key IN (${inList})`;
-
-  const empty: { rows: Record<string, unknown>[] } = { rows: [] };
-  const [avatarRes, bannerRes] = await Promise.all([
-    withRefs.some((u) => u.profile?.avatar_ref)
-      ? runFaceQuery(faceSql, groups, 'avatar_ref', 'avatar_url')
-      : Promise.resolve(empty),
-    withRefs.some((u) => u.profile?.banner_ref)
-      ? runFaceQuery(faceSql, groups, 'banner_ref', 'banner_url')
-      : Promise.resolve(empty),
-  ]);
-
-  const upsert = (row: Record<string, unknown>) => {
-    const author = String(row.author_key ?? '');
-    if (!author) return;
-    const entry = out.get(author) ?? {};
-    if (typeof row.avatar_url === 'string') entry.avatar_url = row.avatar_url;
-    if (typeof row.banner_url === 'string') entry.banner_url = row.banner_url;
-    out.set(author, entry);
-  };
-  for (const row of avatarRes.rows) upsert(row);
-  for (const row of bannerRes.rows) upsert(row);
-  return out;
-}
-
-// One face-prepare read: SELECT the profile rows for the page's authors,
-// scoped to their followers groups, and let the engine mint the presigned URL
-// for `mediaField` (author-scoped) onto `urlField`. Anon-capable (no token).
-async function runFaceQuery(
-  sql: string,
-  groups: string[],
-  mediaField: string,
-  urlField: string,
-): Promise<{ rows: Record<string, unknown>[] }> {
+// The marketing site's face-prepare transport: a `fetch` to `/v3/query` (anon —
+// no token). The SQL builders + the row reduction live in the shared resolver
+// (@web10/discover) — the transport is the only app-specific seam.
+const faceQueryTransport: FaceQueryTransport = async (sql, groups, prepare) => {
   try {
     const resp = await fetch(`${API_ORIGIN}/v3/query`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        sql,
-        groups,
-        prepare: { face: { bodyField: 'body', mediaField, urlField } },
-      }),
+      body: JSON.stringify({ sql, groups, prepare }),
     });
-    if (!resp.ok) return { rows: [] };
+    if (!resp.ok) return [];
     const data = await resp.json();
-    return { rows: Array.isArray(data.rows) ? data.rows : [] };
+    return Array.isArray(data.rows) ? data.rows : [];
   } catch {
-    return { rows: [] };
+    return [];
   }
+};
+
+// Resolve a page of people's face media (avatar + banner) to presigned URLs via
+// the shared resolver's author-scoped face-prepare (D73), scoped to each user's
+// followers group (the I3 gate). A face the reader can't read (a private
+// profile) is absent → that card keeps the gradient fallback. A failure
+// degrades the page to faceless cards, never a throw.
+async function resolvePeopleFaces(users: PeopleEntry[]): Promise<Map<string, { avatar_url?: string; banner_url?: string }>> {
+  const withRefs = users.filter((u) => u.profile?.avatar_ref || u.profile?.banner_ref);
+  if (withRefs.length === 0) return new Map();
+  const groups = withRefs.map((u) => followersGroupId(u.username));
+  const sql = peopleFaceSql(withRefs.map((u) => u.username));
+  return resolveFaceMedia(faceQueryTransport, sql, groups, 'author_key');
 }
 
 // ── Groups (the D53 public directory, paged) ─────────────────────────────────
@@ -143,84 +100,16 @@ async function fetchGroupsPage(limit: number, offset: number): Promise<{ groups:
   return { groups, hasMore: groups.length >= limit };
 }
 
-// The group's face (D60 identity) — the rich name + banner + avatar. Read anon
-// (the `anyone` grant on public groups). A failure leaves the card nameless +
-// faceless (the directory name + gradient fallback).
-//
-// The face media (banner + avatar) are resolved through the query engine's
-// author-scoped face-prepare (D73) — the SAME mechanism the people path above
-// uses. The identity doc (an app-named service, `web10-social-group-identity`)
-// is attached to the group it is the face of, so the engine's boundary CTE
-// (group-filtered) returns it for a reader who can read the group (anon, via
-// the `anyone` grant). The face-prepare mints the face URL bound to the row's
-// `author_key` (the group owner, who owns the media) — not the viewer — so it
-// works for any reader, anon included. The owner-scoped media endpoints
-// (`/v3/media/list`, `/v3/media/read-url`) can't do this (they're scoped to the
-// reader's own `author_key`), and the anon-capable `/v3/media/thumbnail` 404s
-// on a media doc with no group attachment — the face-prepare is the only anon
-// path. The service name is hyphenated, so it is backtick-quoted in the SQL
-// (a bare name would not parse — the engine quotes the CTE def to match).
-const GROUP_IDENTITY_SERVICE = 'web10-social-group-identity';
-// The identity is a replace-on-write doc stream (a new doc per save, newest
-// wins — 3.210.0). The boundary CTE dedups per (doc_id, author_key) but returns
-// every distinct doc in the stream, so QUALIFY picks the latest doc per group.
-const GROUP_IDENTITY_SQL = `SELECT group_id AS group_id, author_key AS author_key, body AS body FROM \`${GROUP_IDENTITY_SERVICE}\` QUALIFY row_number() OVER (PARTITION BY group_id ORDER BY created_at DESC) = 1`;
-
-// One face-prepare read over the page's groups: SELECT the identity rows,
-// scoped to the groups, and let the engine mint the presigned URL for
-// `mediaField` (author-scoped to the row's author) onto `urlField`.
-// Anon-capable (no token).
-async function runGroupFaceQuery(
-  groupIds: string[],
-  mediaField: string,
-  urlField: string,
-): Promise<{ rows: Record<string, unknown>[] }> {
-  try {
-    const resp = await fetch(`${API_ORIGIN}/v3/query`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        sql: GROUP_IDENTITY_SQL,
-        groups: groupIds,
-        prepare: { face: { bodyField: 'body', mediaField, urlField } },
-      }),
-    });
-    if (!resp.ok) return { rows: [] };
-    const data = await resp.json();
-    return { rows: Array.isArray(data.rows) ? data.rows : [] };
-  } catch {
-    return { rows: [] };
-  }
-}
-
-// Resolve a page of groups' face media (avatar + banner) to presigned URLs in
-// TWO batched query-engine reads (one per face field), plus the rich name. A
-// group with no readable face (private, or no identity doc) is absent — that
-// card keeps the directory name + gradient fallback. A failure degrades the
-// whole page to faceless cards, never a throw.
+// Resolve a page of groups' face media (avatar + banner) to presigned URLs via
+// the shared resolver's author-scoped face-prepare (D73), scoped to the groups
+// (the I3 gate — anon reads a public group via its `anyone` grant). The rich
+// name comes off the identity body. A group with no readable face (private, or
+// no identity doc) is absent → that card keeps the directory name + gradient
+// fallback. A failure degrades the page to faceless cards, never a throw.
 async function resolveGroupFaces(groups: GroupEntry[]): Promise<Map<string, DiscoverGroupFace>> {
-  const out = new Map<string, DiscoverGroupFace>();
-  if (groups.length === 0) return out;
+  if (groups.length === 0) return new Map();
   const groupIds = groups.map((g) => g.group_id);
-  const [avatarRes, bannerRes] = await Promise.all([
-    runGroupFaceQuery(groupIds, 'avatar_ref', 'avatar_url'),
-    runGroupFaceQuery(groupIds, 'banner_ref', 'banner_url'),
-  ]);
-  const upsert = (row: Record<string, unknown>) => {
-    const gid = String(row.group_id ?? '');
-    if (!gid) return;
-    const entry = out.get(gid) ?? {};
-    const body = row.body;
-    if (body && typeof body === 'object' && typeof (body as Record<string, unknown>).name === 'string') {
-      entry.name = (body as Record<string, unknown>).name as string;
-    }
-    if (typeof row.avatar_url === 'string') entry.avatar_url = row.avatar_url;
-    if (typeof row.banner_url === 'string') entry.banner_url = row.banner_url;
-    out.set(gid, entry);
-  };
-  for (const row of avatarRes.rows) upsert(row);
-  for (const row of bannerRes.rows) upsert(row);
-  return out;
+  return resolveFaceMedia(faceQueryTransport, GROUP_FACE_SQL, groupIds, 'group_id');
 }
 
 // ── The browser ──────────────────────────────────────────────────────────────
