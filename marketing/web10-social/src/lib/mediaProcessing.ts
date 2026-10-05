@@ -2,6 +2,8 @@
 // Downscale, recompress, extract dimensions, generate thumbnails/posters.
 // Runs entirely in the browser — no server dependency.
 
+import { VideoMetadataError } from './videoEditing';
+
 const MAX_EDGE = 2048;
 const THUMBNAIL_EDGE = 480;
 const IMAGE_QUALITY = 0.8;
@@ -190,7 +192,15 @@ export async function captureVideoPoster(file: File): Promise<Thumbnail> {
   });
 }
 
-/** Get video metadata (duration, dimensions) without playing. */
+const METADATA_TIMEOUT_MS = 15000;
+
+/**
+ * Get video metadata (duration, dimensions) without playing.
+ *
+ * Rejects with a `VideoMetadataError` (a user-facing `message`) when the
+ * browser cannot decode the file (undecodable codec — the classic HEVC/AV1
+ * from a phone camera) or when the metadata never loads (corrupt file).
+ */
 export async function getVideoInfo(file: File): Promise<VideoInfo> {
   return new Promise((resolve, reject) => {
     const url = URL.createObjectURL(file);
@@ -198,21 +208,32 @@ export async function getVideoInfo(file: File): Promise<VideoInfo> {
     video.preload = 'metadata';
     video.muted = true;
 
+    const timer = setTimeout(() => {
+      video.onerror = null;
+      video.onloadedmetadata = null;
+      cleanup();
+      reject(new VideoMetadataError('timeout'));
+    }, METADATA_TIMEOUT_MS);
+
+    const cleanup = () => {
+      clearTimeout(timer);
+      URL.revokeObjectURL(url);
+      video.remove();
+    };
+
     video.onloadedmetadata = () => {
       const info: VideoInfo = {
         duration: video.duration,
         width: video.videoWidth,
         height: video.videoHeight,
       };
-      URL.revokeObjectURL(url);
-      video.remove();
+      cleanup();
       resolve(info);
     };
 
     video.onerror = () => {
-      URL.revokeObjectURL(url);
-      video.remove();
-      reject(new Error('Failed to read video metadata'));
+      cleanup();
+      reject(new VideoMetadataError('codec'));
     };
 
     video.src = url;
