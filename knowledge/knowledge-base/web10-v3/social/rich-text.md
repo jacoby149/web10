@@ -318,7 +318,11 @@ tiny generic util — `preview/markdown.mjs`, `stripMarkdown` — "render this
 string as plain words": bold / heading / link / code → the words, the syntax
 gone) applied to the post's `text` **before** `truncate`. It is **generic, not
 a social concept** (D60): it is "render this string as plain text," usable by
-any app, not "understand a post." One function, one test. The I3/D41 privacy
+any app, not "understand a post." Emphasis is stripped only when the markers
+**flank** the words directly (no whitespace inside the markers, per CommonMark)
+— so intentional literal `**` / `***` / `* word *` / `!` show as the user typed
+them, while real `**bold**` / `*ital*` is still stripped. One function, one
+test. The I3/D41 privacy
 floor is unchanged — a non-public post still renders the generic card with no
 content. `profileCard` / `groupCard` use `display_name` / `bio` / `name` /
 `description` (not markdown) — untouched.

@@ -31,15 +31,22 @@ function stripLinks(s) {
 }
 
 // Strip emphasis / strikethrough markers, keeping the words: **bold**, *ital*,
-// ~~strike~~. Order matters — the double markers first so a lone asterisk left
-// by a bold strip is not misread.
+// ~~strike~~. Only when the markers FLANK the content directly (no whitespace
+// between a marker and the words) — that's what makes it markdown emphasis.
+// `* word *` or `** word **` (a space inside the markers) are literal asterisks
+// the user typed on purpose, not bold, so they pass through unchanged. Same for
+// a lone `**` / `***` / `!` with nothing to pair with. Order matters — the
+// double markers first so a lone asterisk left by a bold strip is not misread.
 function stripEmphasis(s) {
+  // True when the captured content is NOT real emphasis — there's whitespace
+  // between a marker and the words (e.g. `* word *`) → keep the original match.
+  const unflanked = (content) => /^\s|\s$/.test(content)
   return s
-    .replace(/\*\*([^*]+)\*\*/g, '$1')
-    .replace(/__([^_]+)__/g, '$1')
-    .replace(/(^|[\s(])\*([^*\n]+)\*/g, '$1$2')
-    .replace(/(^|[\s(])_([^_\n]+)_/g, '$1$2')
-    .replace(/~~([^~]+)~~/g, '$1')
+    .replace(/\*\*([^*]+)\*\*/g, (m, c) => (unflanked(c) ? m : c))
+    .replace(/__([^_]+)__/g, (m, c) => (unflanked(c) ? m : c))
+    .replace(/(^|[\s(])\*([^*\n]+)\*/g, (m, pre, c) => (unflanked(c) ? m : pre + c))
+    .replace(/(^|[\s(])_([^_\n]+)_/g, (m, pre, c) => (unflanked(c) ? m : pre + c))
+    .replace(/~~([^~]+)~~/g, (m, c) => (unflanked(c) ? m : c))
 }
 
 // Strip heading markers (## / ### …), keeping the line's words.

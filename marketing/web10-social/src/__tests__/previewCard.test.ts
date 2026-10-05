@@ -87,6 +87,21 @@ describe('web10-social link-preview card logic (KB: media/thumbnailing.md)', () 
     it('leaves a plain-text (pre-markdown) string unchanged', () => {
       expect(stripMarkdown('just words, no syntax')).toBe('just words, no syntax')
     })
+    it('keeps INTENTIONAL literal punctuation — not real emphasis (the caveat)', () => {
+      // A lone ** / *** / ! with nothing to pair with is literal text, not
+      // markdown — it must show as the user typed it.
+      expect(stripMarkdown('I am so **** happy')).toBe('I am so **** happy')
+      expect(stripMarkdown('wait *** what')).toBe('wait *** what')
+      expect(stripMarkdown('really?!?!')).toBe('really?!?!')
+      // A space inside the markers means it is NOT emphasis (CommonMark
+      // flanking) — literal asterisks the user typed on purpose.
+      expect(stripMarkdown('a * single * star')).toBe('a * single * star')
+      expect(stripMarkdown('a ** b ** c')).toBe('a ** b ** c')
+      expect(stripMarkdown('2 * 3 * 4')).toBe('2 * 3 * 4')
+      // …while REAL emphasis (markers hugging the words) is still stripped.
+      expect(stripMarkdown('this is **bold** text')).toBe('this is bold text')
+      expect(stripMarkdown('a *ital* word')).toBe('a ital word')
+    })
   })
 
   it('postCard: a markdown post renders plain words — no ** / # / []() / ``` leak', async () => {
