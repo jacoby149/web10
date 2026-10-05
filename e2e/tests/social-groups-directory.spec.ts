@@ -231,10 +231,10 @@ test.describe('social-groups-directory gauntlet — the Discover/Explore browser
     const slug = uniqueUser('gauntlet');
     const groupId = await createGroup(request, owner.token, owner.username, slug, { joinPolicy: 'open', discoverable: true });
 
-    // --- Viewer opens the Discover/Explore browser (the directory's new home) ---
-    // ?tab=explore lands on the Explore tab (people + groups mashed into one
-    // browser); the group directory is the Groups section.
-    await page.goto(`${SOCIAL_BASE}/discover?tab=explore`);
+    // --- Viewer opens the People destination's Groups tab (the directory's home) ---
+    // The People destination is a Profiles | Groups tab row (?section=); the
+    // group directory is the Groups tab (?section=groups).
+    await page.goto(`${SOCIAL_BASE}/people?section=groups`);
     await page.waitForLoadState('networkidle');
     await expect(page.locator('[data-testid="explore-groups-list"]')).toBeVisible();
 
