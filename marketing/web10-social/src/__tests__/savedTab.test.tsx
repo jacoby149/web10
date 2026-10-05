@@ -10,6 +10,7 @@ vi.mock('lucide-react', () => lucideMock);
 // Mock data layer — the saved-collection seams are the ones under test.
 const mockGetMyCollections = vi.fn().mockResolvedValue([]);
 const mockReadCollection = vi.fn().mockResolvedValue({ face: {}, posts: [], mediaMap: {} });
+const mockReadUserPublicCollections = vi.fn().mockResolvedValue([]);
 
 vi.mock('@/data', async (importOriginal) => {
   const original = await importOriginal() as Record<string, unknown>;
@@ -55,6 +56,7 @@ vi.mock('@/data', async (importOriginal) => {
     countStagingPosts: vi.fn().mockResolvedValue(0),
     getMyCollections: mockGetMyCollections,
     readCollection: mockReadCollection,
+    readUserPublicCollections: mockReadUserPublicCollections,
   };
 });
 
@@ -180,10 +182,12 @@ describe('Saved tab (D88) — the visitor\u2019s profile', () => {
     const data = await import('@/data');
     vi.mocked(data.readMyPosts).mockResolvedValue([]);
     vi.mocked(data.readUserPublicProfile).mockResolvedValue({ posts: [], avatarUrl: undefined, bannerUrl: undefined });
-    mockGetMyCollections.mockResolvedValue([...OWN_COLLECTIONS]);
+    // A visitor's profile reads the owner's PUBLIC collections (D80 by-user
+    // read) — not getMyCollections. Default: none (the tab stays absent).
+    mockReadUserPublicCollections.mockResolvedValue([]);
   });
 
-  it('a visitor\u2019s profile shows NO Saved tab (collections are private by default)', async () => {
+  it('a visitor\u2019s profile shows NO Saved tab when the owner has no public collections', async () => {
     // Render someone else\u2019s profile (the token is testuser; the profile is otheruser).
     const { default: UserProfileScreen } = await import('@/components/Bio/UserProfileScreen');
     render(
@@ -192,8 +196,37 @@ describe('Saved tab (D88) — the visitor\u2019s profile', () => {
       </MemoryRouter>,
     );
     await waitFor(() => expect(screen.getByText('Test User')).toBeInTheDocument());
-    // The Saved tab is absent on a visitor\u2019s profile (the public-collections
-    // case is a follow-up; a private collection must not leak).
+    // The Saved tab is absent when the owner has no PUBLIC collection (a
+    // private collection never surfaces — the node's D80 by-user read returns
+    // only membership_visibility='public' groups).
     expect(screen.queryByTestId('profile-tab-saved')).not.toBeInTheDocument();
+  });
+
+  it('a visitor\u2019s profile shows the owner\u2019s PUBLIC collections (read-only)', async () => {
+    const PUBLIC_COLLECTIONS = [
+      { groupId: 'pub1', name: 'Tour Sets', visibility: 'public', itemCount: 2, slug: 'tour-sets' },
+    ];
+    mockReadUserPublicCollections.mockResolvedValue(PUBLIC_COLLECTIONS);
+    const { default: UserProfileScreen } = await import('@/components/Bio/UserProfileScreen');
+    render(
+      <MemoryRouter initialEntries={['/u/otheruser']}>
+        <UserProfileScreen username="otheruser" provider="test.localhost" />
+        <UrlProbe />
+      </MemoryRouter>,
+    );
+    await waitFor(() => expect(screen.getByText('Test User')).toBeInTheDocument());
+    // The tab is present when the owner has ≥1 public collection.
+    expect(screen.getByTestId('profile-tab-saved')).toBeInTheDocument();
+    // The visitor opens it (deep-link ?tab=saved) and sees the public cards.
+    fireEvent.click(screen.getByTestId('profile-tab-saved'));
+    await waitFor(() => expect(screen.getByTestId('url-probe').textContent).toContain('tab=saved'));
+    const cards = await screen.findAllByTestId('saved-collection-card');
+    expect(cards.length).toBe(1);
+    expect(screen.getByText('Tour Sets')).toBeInTheDocument();
+    expect(screen.getByText('2 items')).toBeInTheDocument();
+    // Read-only: the visitor's card navigates to the collection's route (no
+    // owner affordances — those live in SavedCollectionScreen, gated on owner).
+    fireEvent.click(cards[0]);
+    await waitFor(() => expect(screen.getByTestId('url-probe').textContent).toContain('/u/otheruser/saved/pub1'));
   });
 });

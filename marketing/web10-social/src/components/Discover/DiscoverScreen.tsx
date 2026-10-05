@@ -265,6 +265,8 @@ interface DiscoverHomeCardProps {
   onAuthorClick: () => void;
   onToggleReaction: (kind: ReactionKind) => void;
   onToggleRepost: () => void;
+  /** Prioritize the thumbnail (above-the-fold tiles). */
+  priority?: boolean;
 }
 
 function DiscoverHomeCard({
@@ -278,6 +280,7 @@ function DiscoverHomeCard({
   onAuthorClick,
   onToggleReaction,
   onToggleRepost,
+  priority,
 }: DiscoverHomeCardProps) {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
@@ -315,6 +318,7 @@ function DiscoverHomeCard({
       reposted={reposted}
       onToggleReaction={onToggleReaction}
       onToggleRepost={onToggleRepost}
+      priority={priority}
       testId="discover-home-card"
     />
   );
@@ -550,7 +554,11 @@ export default function DiscoverScreen({ mode: modeOverride }: { mode?: Discover
             }
           }
           for (const d of commentDocs) {
-            if (d.ref_value) commentsByPost[d.ref_value] = (commentsByPost[d.ref_value] || 0) + 1;
+            // The TOTAL count (top-level + replies): a reply's `ref_value` is
+            // its parent comment (comments.md), so key on `body.post_id`,
+            // which every comment carries.
+            const pid = (d.body as Record<string, unknown>)?.post_id as string | undefined;
+            if (pid) commentsByPost[pid] = (commentsByPost[pid] || 0) + 1;
           }
           for (const p of results) {
             p.likes = likesByPost[p._id || ''] || 0;
@@ -957,7 +965,7 @@ export default function DiscoverScreen({ mode: modeOverride }: { mode?: Discover
                 gutter (md:px-4 lg:px-6) lets the wall breathe (the operator's
                 "no padding at all on the sides" — a gutter, not full-bleed);
                 mobile stays full-bleed. */}
-          <div className="flex-1 px-4 py-4 md:px-4 lg:px-6">
+          <div className="flex-1 py-4 md:px-4 lg:px-6">
             {isInitialLoad ? (
               <div className="mx-auto w-full max-w-2xl" data-testid="discover-grid-skeleton">
                 {Array.from({ length: 4 }).map((_, i) => (
@@ -968,7 +976,7 @@ export default function DiscoverScreen({ mode: modeOverride }: { mode?: Discover
               /* Home view — videos only, the YouTube-style wall (16:9 thumbs) */
               mediaPosts.length > 0 ? (
                 <div className="grid grid-cols-1 gap-x-4 gap-y-6 sm:grid-cols-2 lg:grid-cols-3" data-testid="discover-home-grid">
-                  {mediaPosts.map((post) => {
+                  {mediaPosts.map((post, index) => {
                     const authorKey = `${post.author_username}@${post.author_provider}`;
                     const profile = profileMap[authorKey];
                     const mediaItems = mediaMap[post._id || ''] || [];
@@ -991,6 +999,7 @@ export default function DiscoverScreen({ mode: modeOverride }: { mode?: Discover
                         onAuthorClick={() => navigateToUserProfile(post.author_username || '', post.author_provider || '')}
                         onToggleReaction={(kind) => handleToggleReaction(post._id || '', kind)}
                         onToggleRepost={() => handleRepost(post)}
+                        priority={index < 6}
                       />
                     );
                   })}

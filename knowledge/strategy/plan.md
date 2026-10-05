@@ -166,6 +166,7 @@ A **saved collection** (a.k.a. playlist) is a group the app creates for the user
 - [✓ 3.202.0] **The collection edit affordances** (the owner's controls on the open collection) — rename / visibility toggle (private ⇄ public) / delete collection / per-item remove. The read-only view already exists inline (3.197.0, `?c=<slug>`); this adds the owner's edit layer. Lane: `social-v3`.
  - [✓ 3.200.0] **The "Save to…" post action** (the `PostActions` / kebab surfaces) — the save sheet, optimistic write, anon-hidden. Lane: `social-v3`.
 - [✓ 3.204.0] **The e2e gauntlet** (`e2e/tests/social-saved.spec.ts`) — API floor (the I3 anti-test: private 403 / public readable / dead-ref degrade) + browser gauntlet (save → tab → open → flip public → second account opens). Lane: `social-v3`.
+- [✓ 3.207.0] **The visitor's public collections** (the "see other people's saved" case) — on a **visitor's** profile the Saved tab shows the owner's **public** collections (a private one never surfaces), openable read-only. The seam: the SDK `createGroup`/`updateGroup` opts gain `membership_visibility` (cross-lane, backward-compatible) + the API `groups/update` passes it through + the data seam sets it on create / visibility flip + `readUserPublicCollections` (the D80 `byUserGroups` read) + `UserProfileScreen` renders the tab for a visitor when ≥1 public collection. Lane: `social-v3`.
 
 ## The Watch Page + the Discover Split (operator pass, 28.09.2026)
 
