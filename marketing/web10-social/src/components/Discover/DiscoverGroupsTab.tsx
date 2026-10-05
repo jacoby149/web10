@@ -9,14 +9,11 @@ import {
   joinGroup,
   requestJoinGroup,
   getMyCommunityGroups,
-  readGroupIdentity,
-  resolveMediaRefs,
   groupDisplayName,
   leaveGroup,
   createDraftGroup,
   getV3Client,
   type GroupDirectoryEntry,
-  type MediaRecord,
 } from '@/data';
 import type { V3Group } from '@/data';
 import { toast, errorMessage } from '@/components/shared/Toast';
@@ -38,7 +35,7 @@ import { cn } from '@/lib/utils';
 // D74 / discover-ia-consistency C1: the group card is SHARED (one source,
 // both apps). The social app renders it in interactive mode (join + in-app
 // open); the marketing Discover renders the same card in remote mode.
-import { GroupCard as SharedGroupCard, GroupCardSkeleton as SharedGroupCardSkeleton } from '@web10/discover';
+import { GroupCard as SharedGroupCard, GroupCardSkeleton as SharedGroupCardSkeleton, resolveFaceMedia, GROUP_FACE_SQL } from '@web10/discover';
 
 const LOG = (...args: unknown[]) => console.log('[social:groups-tab]', ...args);
 
@@ -75,26 +72,28 @@ function formatCount(n: number): string {
   return String(n);
 }
 
-// Resolve a group's face (D60 identity) to a presigned banner + avatar. A
-// failure just returns an empty face (the card falls back to the gradient).
-// Shared by the My Groups list and the Discover directory cards so the two
-// tabs render the same card.
+// Resolve a group's face (D60 identity) to a presigned banner + avatar via the
+// SHARED face resolver (@web10/discover) — the author-scoped face-prepare (D73),
+// the same mechanism the people path + the marketing site use. The transport is
+// the app's wapi `w.query` (token-scoped). A failure just returns an empty face
+// (the card falls back to the gradient). Shared by the My Groups list and the
+// Discover directory cards so the two tabs render the same card.
 export async function resolveGroupFace(groupId: string): Promise<MyGroupFace> {
   try {
-    const identity = await readGroupIdentity(groupId);
-    const refs: string[] = [];
-    if (identity.banner_ref) refs.push(identity.banner_ref);
-    if (identity.avatar_ref) refs.push(identity.avatar_ref);
-    let banner_url: string | undefined;
-    let avatar_url: string | undefined;
-    if (refs.length) {
-      const resolved = await resolveMediaRefs(refs);
-      const map: Record<string, MediaRecord> = {};
-      for (const m of resolved) if (m._id) map[m._id] = m;
-      if (identity.banner_ref) banner_url = map[identity.banner_ref]?.url;
-      if (identity.avatar_ref) avatar_url = map[identity.avatar_ref]?.url;
-    }
-    return { banner_url, avatar_url, name: identity.name, status: identity.status };
+    const w = getV3Client();
+    const transport = async (
+      sql: string,
+      groups: string[],
+      prepare: { face: { bodyField: string; mediaField: string; urlField: string } },
+    ) => (await w.query(sql, { groups, prepare })).rows;
+    const faces = await resolveFaceMedia(transport, GROUP_FACE_SQL, [groupId], 'group_id');
+    const face = faces.get(groupId);
+    return {
+      banner_url: face?.banner_url,
+      avatar_url: face?.avatar_url,
+      name: face?.name,
+      status: face?.status as MyGroupFace['status'],
+    };
   } catch (e) {
     LOG('face — failed for', groupId, ':', e);
     return {};

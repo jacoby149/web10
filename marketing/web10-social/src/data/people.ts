@@ -2,6 +2,7 @@ import { getV3Client } from './v3';
 import { followersGroupId, getGroupMembers } from './groups';
 import { listFollowers } from './follows';
 import { extractUsername } from './types';
+import { peopleFaceSql, reduceFaceRows, facePrepare } from '@web10/discover/face';
 
 const LOG = (...args: unknown[]) => console.log('[social:people]', ...args);
 
@@ -31,33 +32,23 @@ async function resolveFaces(
   const withRefs = people.filter((p) => p.avatar_ref || p.banner_ref);
   if (!withRefs.length) return;
 
+  // The SQL + the row reduction are the shared face resolver (@web10/discover)
+  // — the same builders the marketing site uses, so both apps resolve a face
+  // identically. The transport is the app's wapi `w.query` (token-scoped).
   const groups = withRefs.map((p) => followersGroupId(p.username, p.provider));
-  const inList = withRefs
-    .map((p) => `'${p.username.replace(/'/g, "''")}'`)
-    .join(', ');
-  const faceSql = `SELECT author_key AS author_key, body AS body FROM profile WHERE author_key IN (${inList})`;
+  const sql = peopleFaceSql(withRefs.map((p) => p.username));
 
   const empty: { rows: Record<string, unknown>[]; count: number } = { rows: [], count: 0 };
   const [avatarRes, bannerRes] = await Promise.all([
     withRefs.some((p) => p.avatar_ref)
-      ? w.query(faceSql, { groups, prepare: { face: { bodyField: 'body', mediaField: 'avatar_ref', urlField: 'avatar_url' } } })
+      ? w.query(sql, { groups, prepare: { face: facePrepare('avatar_ref', 'avatar_url') } })
       : Promise.resolve(empty),
     withRefs.some((p) => p.banner_ref)
-      ? w.query(faceSql, { groups, prepare: { face: { bodyField: 'body', mediaField: 'banner_ref', urlField: 'banner_url' } } })
+      ? w.query(sql, { groups, prepare: { face: facePrepare('banner_ref', 'banner_url') } })
       : Promise.resolve(empty),
   ]);
 
-  const byAuthor = new Map<string, { avatar_url?: string; banner_url?: string }>();
-  const upsert = (row: Record<string, unknown>) => {
-    const author = String(row.author_key ?? '');
-    if (!author) return;
-    const entry = byAuthor.get(author) ?? {};
-    if (typeof row.avatar_url === 'string') entry.avatar_url = row.avatar_url;
-    if (typeof row.banner_url === 'string') entry.banner_url = row.banner_url;
-    byAuthor.set(author, entry);
-  };
-  for (const row of avatarRes.rows) upsert(row);
-  for (const row of bannerRes.rows) upsert(row);
+  const byAuthor = reduceFaceRows([...avatarRes.rows, ...bannerRes.rows], 'author_key');
 
   for (const p of withRefs) {
     const face = byAuthor.get(p.username);

@@ -18,6 +18,16 @@ export { CommentThread, type CommentThreadProps } from './CommentThread';
 export { RankBadge, heatTier, HEAT_SHADOW } from './RankBadge';
 export { Badge, IconBtn, Avatar, AvatarFallback, Skeleton, TextInput, Select } from './ui';
 export { cn, formatCount, hashToColor, hashToGradient, timeAgo, parseCreatedAt } from './utils';
+export {
+  GROUP_IDENTITY_SERVICE,
+  facePrepare,
+  peopleFaceSql,
+  GROUP_FACE_SQL,
+  reduceFaceRows,
+  resolveFaceMedia,
+  type FaceUrls,
+  type FaceQueryTransport,
+} from './face';
 export type {
   DiscoverPost,
   MediaItem,
