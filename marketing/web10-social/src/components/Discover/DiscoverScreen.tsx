@@ -826,8 +826,9 @@ export default function DiscoverScreen({ mode: modeOverride }: { mode?: Discover
 
   // The node returns the board pre-ranked (the D36 power-mean sort,
   // server-side) — `posts` is already in display order, no client re-rank.
-  // The per-post score is computed for DISPLAY only (the Top 10 rail's
-  // tally); it never affects order.
+  // The per-post power-mean score is computed for the watch queue's relatedness
+  // boost only; the Top 10 rail's tally is the raw engagement count
+  // (likes + comments + reposts), not the normalized score.
   const scoredPosts = useMemo(() => {
     return posts.map(p => ({
       ...p,
@@ -1102,7 +1103,7 @@ export default function DiscoverScreen({ mode: modeOverride }: { mode?: Discover
                     entries={scoredPosts
                       .filter(p => activeTag === 'All' || (p.tags?.includes(activeTag) ?? false))
                       .slice(0, 10)
-                      .map((p, i) => ({ post: p, rank: i + 1, score: p.score ?? 0 }))}
+                      .map((p, i) => ({ post: p, rank: i + 1, score: (p.likes || 0) + (p.comments || 0) + (p.reposts || 0) }))}
                     onSelect={jumpToPost}
                   />
                 )}
