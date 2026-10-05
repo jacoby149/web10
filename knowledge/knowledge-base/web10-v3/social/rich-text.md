@@ -89,6 +89,13 @@ document, not a syntax box:
   the complexity that made WordPress heavy. The toolbar is the *only*
   formatting surface. The **`@` mention** is not a toolbar button — it is an
   inline autocomplete that fires as you type `@` (the social token, below).
+  **The native Cmd/Ctrl+U underline is suppressed.** A browser underlines a
+  contenteditable selection in place, but there is no underline in markdown
+  and no turndown rule for `<u>` — so the mark would vanish on save: the
+  editor would show underlined text that posts as plain. Because the toolbar
+  is the only formatting surface and it has no underline button, the editor
+  must not offer one either; the composer's `handleKeyDown` cancels the native
+  shortcut so the editor never shows a format it cannot persist.
 - **On save:** `editor.getMarkdown()` → the markdown string → `createPost`'s
   `text` (the existing D82 field). One line.
 - **On edit (load):** the stored markdown is converted back to the editor's

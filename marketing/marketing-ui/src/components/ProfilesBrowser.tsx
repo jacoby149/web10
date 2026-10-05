@@ -1,19 +1,26 @@
 import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { useSearchParams } from 'react-router-dom';
-import { Users, Hash, Search, X, Loader2, AlertTriangle, RefreshCw } from 'lucide-react';
+import { User, Hash, Search, X, Loader2, AlertTriangle, RefreshCw } from 'lucide-react';
 import { PersonCard, PersonCardSkeleton, GroupCard, GroupCardSkeleton, type DiscoverPerson, type DiscoverGroup, type DiscoverGroupFace, resolveFaceMedia, peopleFaceSql, GROUP_FACE_SQL, type FaceQueryTransport } from '@web10/discover';
 import { API_ORIGIN, API_HOST, SOCIAL_ORIGIN } from '@/lib/origins';
 import { trackFunnel } from '@/lib/analytics';
 
 // ── The Profiles browser (discover-ia-consistency C3) ────────────────────────
-// The marketing Discover "Profiles" tab — the SAME mashed People + Groups
-// browser the social app's Discover "Profiles" tab renders (the `?show=`
-// People/Groups toggle, People first then Groups, each paged, the shared
-// banner+avatar cards from C1). Anon (no token) — the public subset (I3).
+// The marketing Discover "Profiles" tab — the SAME Profiles | Groups tab row
+// the social app's People destination renders (the `?section=` tab, Profiles
+// first then Groups, each paged, the shared banner+avatar cards from C1).
+// Anon (no token) — the public subset (I3).
 //
 // The cards are the SHARED @web10/discover PersonCard + GroupCard (remote
 // mode: link-out to web10 social, no follow/join). The social app renders the
 // same cards in interactive mode, so the two apps read as one surface.
+//
+// Tabs, not a mash: the old `?show=` visibility toggle (both / people /
+// groups / none) retires — the active destination is a tab in the URL
+// (`?section=`), so each section renders one-at-a-time and the "both hidden"
+// state class disappears (the same restructure as the social app's
+// DiscoverExploreTab, the operator's 05.10.2026 "look like Discover |
+// Following" pass).
 
 const PAGE_SIZE = 24;
 
@@ -114,33 +121,34 @@ async function resolveGroupFaces(groups: GroupEntry[]): Promise<Map<string, Disc
 
 // ── The browser ──────────────────────────────────────────────────────────────
 
-type ShowFilter = 'both' | 'people' | 'groups' | 'none';
+// The two destinations (the Profiles tab's tab row, the operator 05.10.2026 —
+// the same `?section=` contract as the social app's People destination):
+// **Profiles** (individual profiles, the one-person glyph) | **Groups** (the
+// hash glyph). The URL holds the active tab: bare = Profiles (the default),
+// `?section=groups` = the groups browser.
+type ExploreSection = 'profiles' | 'groups';
+
+function sectionFromParam(raw: string | null): ExploreSection {
+  return raw === 'groups' ? 'groups' : 'profiles';
+}
 
 export function ProfilesBrowser({ query }: { query: string }) {
   const [searchParams, setSearchParams] = useSearchParams();
 
-  // The People / Groups visibility toggle (?show=) — the social Explore tab's
-  // pattern. Each section shows/hides independently; both (default) / one /
-  // neither. Deep-linkable + refresh-safe.
-  const show: ShowFilter = useMemo(() => {
-    const raw = searchParams.get('show');
-    return raw === 'people' || raw === 'groups' || raw === 'none' ? raw : 'both';
-  }, [searchParams]);
-  const showPeople = show === 'both' || show === 'people';
-  const showGroups = show === 'both' || show === 'groups';
-
-  const setSectionVisible = useCallback(
-    (section: 'people' | 'groups', visible: boolean) => {
-      const nextPeople = section === 'people' ? visible : showPeople;
-      const nextGroups = section === 'groups' ? visible : showGroups;
-      const next: ShowFilter =
-        nextPeople && nextGroups ? 'both' : nextPeople ? 'people' : nextGroups ? 'groups' : 'none';
+  // The active tab (?section=, deep-linkable) — the social Explore tab's
+  // pattern. Profiles is the default (the bare URL); Groups is ?section=groups.
+  const section: ExploreSection = useMemo(
+    () => sectionFromParam(searchParams.get('section')),
+    [searchParams],
+  );
+  const setSection = useCallback(
+    (next: ExploreSection) => {
       const params = new URLSearchParams(searchParams);
-      if (next === 'both') params.delete('show');
-      else params.set('show', next);
+      if (next === 'profiles') params.delete('section');
+      else params.set('section', next);
       setSearchParams(params);
     },
-    [searchParams, setSearchParams, showPeople, showGroups],
+    [searchParams, setSearchParams],
   );
 
   const clearQuery = useCallback(() => {
@@ -199,8 +207,6 @@ export function ProfilesBrowser({ query }: { query: string }) {
   }, [people, query]);
 
   const peopleNoResults = query.trim() !== '' && filteredPeople.length === 0;
-  const peopleEffectivelyEmpty =
-    !peopleLoading && (peopleNoResults || filteredPeople.length === 0);
 
   // ── Groups ─────────────────────────────────────────────────────────────────
   const [groups, setGroups] = useState<DiscoverGroup[]>([]);
@@ -261,19 +267,58 @@ export function ProfilesBrowser({ query }: { query: string }) {
   }, [groups, query]);
 
   const groupsNoResults = query.trim() !== '' && groups.length > 0 && filteredGroups.length === 0;
-  const groupsEffectivelyEmpty = !groupsLoading && (groupsNoResults || filteredGroups.length === 0);
-
-  const bothEmpty =
-    query.trim() !== '' &&
-    (showPeople || showGroups) &&
-    (!showPeople || peopleEffectivelyEmpty) &&
-    (!showGroups || groupsEffectivelyEmpty);
 
   return (
     <div data-testid="discover-profiles-browser" className="mx-auto w-full max-w-2xl">
-      {/* The active ?q= filter — a chip that shows the query + clears it. */}
+      {/* The tab row — X/Threads-style: Profiles | Groups (the same idiom the
+          social app's People destination + the Posts screen's Discover |
+          Following row use). Centered, bold, with the brand underline. The
+          URL holds the tab (?section=), so refresh restores it + it's
+          shareable. Profiles is the default (the bare URL). */}
+      <div
+        className="border-b border-border"
+        role="tablist"
+        aria-label="People"
+        data-testid="discover-profiles-tab-row"
+      >
+        <div className="flex">
+          {([
+            ['profiles', 'Profiles', User],
+            ['groups', 'Groups', Hash],
+          ] as const).map(([id, label, Icon]) => {
+            const active = section === id;
+            return (
+              <button
+                key={id}
+                type="button"
+                role="tab"
+                aria-selected={active}
+                onClick={() => setSection(id)}
+                data-testid={`discover-profiles-tab-${id}`}
+                className={[
+                  'relative flex flex-1 items-center justify-center gap-2 py-3.5 text-[0.9375rem] transition-colors duration-150',
+                  'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset',
+                  active ? 'font-semibold text-foreground' : 'font-medium text-muted-foreground hover:text-foreground',
+                ].join(' ')}
+              >
+                <Icon className={active ? 'h-[18px] w-[18px] text-brand' : 'h-[18px] w-[18px]'} strokeWidth={active ? 2.25 : 1.75} />
+                <span>{label}</span>
+                {active && (
+                  <span
+                    aria-hidden="true"
+                    className="absolute -bottom-px left-1/2 h-[3px] w-14 -translate-x-1/2 rounded-full bg-brand"
+                  />
+                )}
+              </button>
+            );
+          })}
+        </div>
+      </div>
+
+      {/* The active ?q= filter — a chip that shows the query + clears it.
+          Rendered on both tabs so the search can be X'd from either. */}
       {query.trim() !== '' && (
-        <div className="pt-1 pb-3">
+        <div className="pt-3 pb-3">
           <span
             data-testid="discover-profiles-query"
             className="inline-flex items-center gap-1.5 rounded-full border border-brand/40 bg-brand-muted/40 px-3 py-1 text-xs text-brand-300"
@@ -293,199 +338,132 @@ export function ProfilesBrowser({ query }: { query: string }) {
         </div>
       )}
 
-      {/* The People / Groups visibility toggle (?show=) — chunky icon+label
-          chips so a flood of people can't drown out the groups. */}
-      <div className="pb-3">
-        <div className="flex items-center gap-2" data-testid="discover-show-toggle" role="group" aria-label="Show sections">
-          {(['people', 'groups'] as const).map((section) => {
-            const active = section === 'people' ? showPeople : showGroups;
-            const Icon = section === 'people' ? Users : Hash;
-            return (
+      {section === 'profiles' ? (
+        /* Profiles — the people browser (the paged D0 directory). */
+        <section data-testid="discover-profiles-people-section" className="pt-3">
+          {peopleError ? (
+            <div data-testid="discover-profiles-people-error" className="flex flex-col items-center justify-center py-10 px-8 text-center">
+              <div className="mb-3 flex h-12 w-12 items-center justify-center rounded-full bg-danger-muted">
+                <AlertTriangle className="h-6 w-6 text-danger" strokeWidth={1.5} />
+              </div>
+              <p className="text-sm text-muted-foreground">Couldn't load people.</p>
               <button
-                key={section}
                 type="button"
-                aria-pressed={active}
-                onClick={() => setSectionVisible(section, !active)}
-                data-testid={`discover-show-${section}`}
-                className={[
-                  'inline-flex items-center gap-2 rounded-full px-4 py-2 text-sm font-medium transition-colors',
-                  'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background',
-                  active
-                    ? 'bg-brand-muted text-brand-300'
-                    : 'text-muted-foreground hover:text-foreground hover:bg-elevated',
-                ].join(' ')}
+                onClick={() => loadPeoplePage(0, false)}
+                data-testid="discover-profiles-people-retry"
+                className="mt-3 inline-flex items-center gap-2 rounded-full border border-border bg-surface px-4 py-2 text-sm font-medium text-foreground transition-colors hover:bg-elevated focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
               >
-                <Icon className="h-4 w-4" strokeWidth={1.75} />
-                {section === 'people' ? 'People' : 'Groups'}
+                <RefreshCw className="h-3.5 w-3.5" strokeWidth={2} />
+                Retry
               </button>
-            );
-          })}
-        </div>
-      </div>
-
-      <div className="space-y-6" data-testid="discover-profiles-view">
-        {/* People */}
-        {showPeople && (
-          <section data-testid="discover-profiles-people-section">
-            <h2 className="px-1 pb-2 text-[0.625rem] font-semibold uppercase tracking-wide text-muted-foreground/70">
-              People
-            </h2>
-            {peopleError ? (
-              <div data-testid="discover-profiles-people-error" className="flex flex-col items-center justify-center py-10 px-8 text-center">
-                <div className="mb-3 flex h-12 w-12 items-center justify-center rounded-full bg-danger-muted">
-                  <AlertTriangle className="h-6 w-6 text-danger" strokeWidth={1.5} />
-                </div>
-                <p className="text-sm text-muted-foreground">Couldn't load people.</p>
-                <button
-                  type="button"
-                  onClick={() => loadPeoplePage(0, false)}
-                  data-testid="discover-profiles-people-retry"
-                  className="mt-3 inline-flex items-center gap-2 rounded-full border border-border bg-surface px-4 py-2 text-sm font-medium text-foreground transition-colors hover:bg-elevated focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-                >
-                  <RefreshCw className="h-3.5 w-3.5" strokeWidth={2} />
-                  Retry
-                </button>
-              </div>
-            ) : peopleLoading ? (
-              <div className="space-y-3" data-testid="discover-profiles-people-skeleton">
-                {Array.from({ length: 4 }).map((_, i) => (
-                  <PersonCardSkeleton key={i} testId="discover-profiles-person-skeleton" />
+            </div>
+          ) : peopleLoading ? (
+            <div className="space-y-3" data-testid="discover-profiles-people-skeleton">
+              {Array.from({ length: 4 }).map((_, i) => (
+                <PersonCardSkeleton key={i} testId="discover-profiles-person-skeleton" />
+              ))}
+            </div>
+          ) : peopleNoResults ? (
+            <p className="px-1 py-2 text-sm text-muted-foreground" data-testid="discover-profiles-people-no-results">
+              No people match “{query.trim()}”.
+            </p>
+          ) : filteredPeople.length === 0 && !query.trim() ? (
+            <p className="px-1 py-2 text-sm text-muted-foreground" data-testid="discover-profiles-people-empty">
+              No people listed yet.
+            </p>
+          ) : (
+            <>
+              <div className="space-y-3" data-testid="discover-profiles-people-list">
+                {filteredPeople.map((p) => (
+                  <PersonCard
+                    key={p.username}
+                    person={p}
+                    profileHref={`${SOCIAL_ORIGIN}/u/${p.username}`}
+                    testId="trending-person-card"
+                  />
                 ))}
               </div>
-            ) : peopleNoResults ? (
-              <p className="px-1 py-2 text-sm text-muted-foreground" data-testid="discover-profiles-people-no-results">
-                No people match “{query.trim()}”.
-              </p>
-            ) : filteredPeople.length === 0 && !query.trim() ? (
-              <p className="px-1 py-2 text-sm text-muted-foreground" data-testid="discover-profiles-people-empty">
-                No people listed yet.
-              </p>
-            ) : (
-              <>
-                <div className="space-y-3" data-testid="discover-profiles-people-list">
-                  {filteredPeople.map((p) => (
-                    <PersonCard
-                      key={p.username}
-                      person={p}
-                      profileHref={`${SOCIAL_ORIGIN}/u/${p.username}`}
-                      testId="trending-person-card"
-                    />
-                  ))}
+              {peopleHasMore && (
+                <div className="mt-4 flex justify-center">
+                  <button
+                    type="button"
+                    onClick={() => loadPeoplePage(peopleNextOffset.current, true)}
+                    disabled={peopleLoadingMore}
+                    data-testid="discover-profiles-people-view-more"
+                    className="inline-flex items-center gap-2 rounded-full border border-brand bg-brand-muted px-5 py-2 text-sm font-medium text-brand-300 transition-colors hover:bg-brand hover:text-brand-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-50"
+                  >
+                    {peopleLoadingMore && <Loader2 className="h-3.5 w-3.5 animate-spin" strokeWidth={2} />}
+                    View more people
+                  </button>
                 </div>
-                {peopleHasMore && (
-                  <div className="mt-4 flex justify-center">
-                    <button
-                      type="button"
-                      onClick={() => loadPeoplePage(peopleNextOffset.current, true)}
-                      disabled={peopleLoadingMore}
-                      data-testid="discover-profiles-people-view-more"
-                      className="inline-flex items-center gap-2 rounded-full border border-brand bg-brand-muted px-5 py-2 text-sm font-medium text-brand-300 transition-colors hover:bg-brand hover:text-brand-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-50"
-                    >
-                      {peopleLoadingMore && <Loader2 className="h-3.5 w-3.5 animate-spin" strokeWidth={2} />}
-                      View more people
-                    </button>
-                  </div>
-                )}
-              </>
-            )}
-          </section>
-        )}
-
-        {/* Groups */}
-        {showGroups && (
-          <section data-testid="discover-profiles-groups-section">
-            <h2 className="px-1 pb-2 text-[0.625rem] font-semibold uppercase tracking-wide text-muted-foreground/70">
-              Groups
-            </h2>
-            {groupsError ? (
-              <div data-testid="discover-profiles-groups-error" className="flex flex-col items-center justify-center py-10 px-8 text-center">
-                <div className="mb-3 flex h-12 w-12 items-center justify-center rounded-full bg-danger-muted">
-                  <AlertTriangle className="h-6 w-6 text-danger" strokeWidth={1.5} />
-                </div>
-                <p className="text-sm text-muted-foreground">Couldn't load groups.</p>
-                <button
-                  type="button"
-                  onClick={() => loadGroupsPage(0, false)}
-                  data-testid="discover-profiles-groups-retry"
-                  className="mt-3 inline-flex items-center gap-2 rounded-full border border-border bg-surface px-4 py-2 text-sm font-medium text-foreground transition-colors hover:bg-elevated focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-                >
-                  <RefreshCw className="h-3.5 w-3.5" strokeWidth={2} />
-                  Retry
-                </button>
+              )}
+            </>
+          )}
+        </section>
+      ) : (
+        /* Groups — the groups browser (the paged D53 directory). */
+        <section data-testid="discover-profiles-groups-section" className="pt-3">
+          {groupsError ? (
+            <div data-testid="discover-profiles-groups-error" className="flex flex-col items-center justify-center py-10 px-8 text-center">
+              <div className="mb-3 flex h-12 w-12 items-center justify-center rounded-full bg-danger-muted">
+                <AlertTriangle className="h-6 w-6 text-danger" strokeWidth={1.5} />
               </div>
-            ) : groupsLoading ? (
-              <div className="space-y-3" data-testid="discover-profiles-groups-skeleton">
-                {Array.from({ length: 4 }).map((_, i) => (
-                  <GroupCardSkeleton key={i} testId="discover-profiles-group-skeleton" />
+              <p className="text-sm text-muted-foreground">Couldn't load groups.</p>
+              <button
+                type="button"
+                onClick={() => loadGroupsPage(0, false)}
+                data-testid="discover-profiles-groups-retry"
+                className="mt-3 inline-flex items-center gap-2 rounded-full border border-border bg-surface px-4 py-2 text-sm font-medium text-foreground transition-colors hover:bg-elevated focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+              >
+                <RefreshCw className="h-3.5 w-3.5" strokeWidth={2} />
+                Retry
+              </button>
+            </div>
+          ) : groupsLoading ? (
+            <div className="space-y-3" data-testid="discover-profiles-groups-skeleton">
+              {Array.from({ length: 4 }).map((_, i) => (
+                <GroupCardSkeleton key={i} testId="discover-profiles-group-skeleton" />
+              ))}
+            </div>
+          ) : groupsNoResults ? (
+            <p className="px-1 py-2 text-sm text-muted-foreground" data-testid="discover-profiles-groups-no-results">
+              No groups match “{query.trim()}”.
+            </p>
+          ) : filteredGroups.length === 0 && !query.trim() ? (
+            <p className="px-1 py-2 text-sm text-muted-foreground" data-testid="discover-profiles-groups-empty">
+              No groups listed yet — when a creator lists a group, it shows up here.
+            </p>
+          ) : (
+            <>
+              <div className="space-y-3" data-testid="discover-profiles-groups-list">
+                {filteredGroups.map((g) => (
+                  <GroupCard
+                    key={g.group_id}
+                    entry={g}
+                    face={groupFaces[g.group_id]}
+                    groupHref={`${SOCIAL_ORIGIN}/groups/${encodeURIComponent(g.group_id)}`}
+                    testId="trending-group-card"
+                  />
                 ))}
               </div>
-            ) : groupsNoResults ? (
-              <p className="px-1 py-2 text-sm text-muted-foreground" data-testid="discover-profiles-groups-no-results">
-                No groups match “{query.trim()}”.
-              </p>
-            ) : filteredGroups.length === 0 && !query.trim() ? (
-              <p className="px-1 py-2 text-sm text-muted-foreground" data-testid="discover-profiles-groups-empty">
-                No groups listed yet — when a creator lists a group, it shows up here.
-              </p>
-            ) : (
-              <>
-                <div className="space-y-3" data-testid="discover-profiles-groups-list">
-                  {filteredGroups.map((g) => (
-                    <GroupCard
-                      key={g.group_id}
-                      entry={g}
-                      face={groupFaces[g.group_id]}
-                      groupHref={`${SOCIAL_ORIGIN}/groups/${encodeURIComponent(g.group_id)}`}
-                      testId="trending-group-card"
-                    />
-                  ))}
+              {groupsHasMore && (
+                <div className="mt-4 flex justify-center">
+                  <button
+                    type="button"
+                    onClick={() => loadGroupsPage(groupsNextOffset.current, true)}
+                    disabled={groupsLoadingMore}
+                    data-testid="discover-profiles-groups-view-more"
+                    className="inline-flex items-center gap-2 rounded-full border border-brand bg-brand-muted px-5 py-2 text-sm font-medium text-brand-300 transition-colors hover:bg-brand hover:text-brand-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-50"
+                  >
+                    {groupsLoadingMore && <Loader2 className="h-3.5 w-3.5 animate-spin" strokeWidth={2} />}
+                    View more groups
+                  </button>
                 </div>
-                {groupsHasMore && (
-                  <div className="mt-4 flex justify-center">
-                    <button
-                      type="button"
-                      onClick={() => loadGroupsPage(groupsNextOffset.current, true)}
-                      disabled={groupsLoadingMore}
-                      data-testid="discover-profiles-groups-view-more"
-                      className="inline-flex items-center gap-2 rounded-full border border-brand bg-brand-muted px-5 py-2 text-sm font-medium text-brand-300 transition-colors hover:bg-brand hover:text-brand-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-50"
-                    >
-                      {groupsLoadingMore && <Loader2 className="h-3.5 w-3.5 animate-spin" strokeWidth={2} />}
-                      View more groups
-                    </button>
-                  </div>
-                )}
-              </>
-            )}
-          </section>
-        )}
-
-        {/* Both sections hidden (?show=none) — a neutral empty state. */}
-        {!showPeople && !showGroups && (
-          <div data-testid="discover-profiles-show-none" className="flex flex-col items-center justify-center py-16 px-8 text-center">
-            <div className="mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-brand-muted/50">
-              <Users className="h-8 w-8 text-brand-400" strokeWidth={1.5} />
-            </div>
-            <h2 className="font-display text-xl font-semibold text-foreground">Nothing to show</h2>
-            <p className="mt-2 max-w-sm text-sm text-muted-foreground">
-              Both sections are hidden. Turn People or Groups back on above.
-            </p>
-          </div>
-        )}
-
-        {/* The combined no-results state (a query that matches neither). */}
-        {bothEmpty && (
-          <div data-testid="discover-profiles-no-results" className="flex flex-col items-center justify-center py-16 px-8 text-center">
-            <div className="mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-brand-muted/50">
-              <Users className="h-8 w-8 text-brand-400" strokeWidth={1.5} />
-            </div>
-            <h2 className="font-display text-xl font-semibold text-foreground">No one or nothing matches</h2>
-            <p className="mt-2 max-w-sm text-sm text-muted-foreground">
-              No people or groups match “{query.trim()}”. Try a different name,
-              handle, or topic.
-            </p>
-          </div>
-        )}
-      </div>
+              )}
+            </>
+          )}
+        </section>
+      )}
     </div>
   );
 }

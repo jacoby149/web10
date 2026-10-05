@@ -1242,7 +1242,12 @@ describe('ProfilesBrowser (C3)', () => {
         offset: 0,
       },
     });
-    render(<MemoryRouter><ProfilesBrowser query="" /></MemoryRouter>);
+    // The groups browser is the Groups tab (?section=groups).
+    render(
+      <MemoryRouter initialEntries={['/trending/people?section=groups']}>
+        <ProfilesBrowser query="" />
+      </MemoryRouter>,
+    );
     await waitFor(() => {
       expect(screen.getByTestId('discover-profiles-groups-list')).toBeInTheDocument();
     });
@@ -1307,13 +1312,18 @@ describe('ProfilesBrowser (C3)', () => {
       '/v3/users/directory': { users: [], limit: 24, offset: 0 },
       '/v3/groups/directory': { groups: [], limit: 24, offset: 0 },
     });
-    render(<MemoryRouter><ProfilesBrowser query="" /></MemoryRouter>);
+    // The groups browser is the Groups tab (?section=groups).
+    render(
+      <MemoryRouter initialEntries={['/trending/people?section=groups']}>
+        <ProfilesBrowser query="" />
+      </MemoryRouter>,
+    );
     await waitFor(() => {
       expect(screen.getByTestId('discover-profiles-groups-empty')).toBeInTheDocument();
     });
   });
 
-  it('toggles a section off via the ?show= chips', async () => {
+  it('switches to the groups browser via the Profiles | Groups tab row (?section=)', async () => {
     const { ProfilesBrowser } = await import('@/components/ProfilesBrowser');
     const users = Array.from({ length: 10 }, (_, i) => ({
       username: `user${i}`,
@@ -1328,15 +1338,18 @@ describe('ProfilesBrowser (C3)', () => {
     await waitFor(() => {
       expect(screen.getByTestId('discover-profiles-people-list')).toBeInTheDocument();
     });
-    // Both sections on by default.
-    expect(screen.getByTestId('discover-show-people')).toHaveAttribute('aria-pressed', 'true');
-    expect(screen.getByTestId('discover-show-groups')).toHaveAttribute('aria-pressed', 'true');
-    // Turn People off.
-    fireEvent.click(screen.getByTestId('discover-show-people'));
+    // Profiles is the default tab — the people browser renders, the groups
+    // browser does not (tabs are one-at-a-time, not a mash).
+    expect(screen.getByTestId('discover-profiles-tab-profiles')).toHaveAttribute('aria-selected', 'true');
+    expect(screen.getByTestId('discover-profiles-tab-groups')).toHaveAttribute('aria-selected', 'false');
+    expect(screen.queryByTestId('discover-profiles-groups-section')).not.toBeInTheDocument();
+    // Tap Groups — the groups browser renders, the people browser leaves.
+    fireEvent.click(screen.getByTestId('discover-profiles-tab-groups'));
     await waitFor(() => {
-      expect(screen.queryByTestId('discover-profiles-people-section')).not.toBeInTheDocument();
+      expect(screen.getByTestId('discover-profiles-tab-groups')).toHaveAttribute('aria-selected', 'true');
     });
-    expect(screen.getByTestId('discover-show-people')).toHaveAttribute('aria-pressed', 'false');
+    expect(screen.getByTestId('discover-profiles-groups-section')).toBeInTheDocument();
+    expect(screen.queryByTestId('discover-profiles-people-section')).not.toBeInTheDocument();
   });
 });
 
@@ -1463,7 +1476,7 @@ describe('ProfilesBrowser group face media (the author-scoped face-prepare)', ()
       }
       return { ok: true, json: () => Promise.resolve([]) } as unknown as Response;
     });
-    render(<MemoryRouter><ProfilesBrowser query="" /></MemoryRouter>);
+    render(<MemoryRouter initialEntries={['/trending?section=groups']}><ProfilesBrowser query="" /></MemoryRouter>);
     const card = await screen.findByTestId('trending-group-card');
     // The real avatar + banner render (not the gradient + initial fallback).
     // The face resolves in a separate effect (after the card mounts), so wait
@@ -1506,7 +1519,7 @@ describe('ProfilesBrowser group face media (the author-scoped face-prepare)', ()
       }
       return { ok: true, json: () => Promise.resolve([]) } as unknown as Response;
     });
-    render(<MemoryRouter><ProfilesBrowser query="" /></MemoryRouter>);
+    render(<MemoryRouter initialEntries={['/trending?section=groups']}><ProfilesBrowser query="" /></MemoryRouter>);
     const card = await screen.findByTestId('trending-group-card');
     // The directory name still shows (the face read returned nothing).
     expect(screen.getByTestId('groups-discover-card-name')).toHaveTextContent('lofi');

@@ -172,6 +172,25 @@ export async function groupCard(groupId) {
 // The post permalink: /u/:username/p/:postId
 export async function postCard(username, postId) {
   const canonicalUrl = `${SOCIAL_ORIGIN}/u/${encodeURIComponent(username)}/p/${encodeURIComponent(postId)}`
+  return buildPostCard(postId, canonicalUrl, username)
+}
+
+// The watch permalink: /watch/:postId
+export async function watchCard(postId) {
+  const canonicalUrl = `${SOCIAL_ORIGIN}/watch/${encodeURIComponent(postId)}`
+  return buildPostCard(postId, canonicalUrl)
+}
+
+// The shorts permalink: /shorts/:postId
+export async function shortsCard(postId) {
+  const canonicalUrl = `${SOCIAL_ORIGIN}/shorts/${encodeURIComponent(postId)}`
+  return buildPostCard(postId, canonicalUrl)
+}
+
+// The shared post-card logic — reads the post, picks the thumbnail, applies
+// the social fallback, and renders the card. The canonical URL differs per
+// surface (permalink / watch / shorts) but the content is the same post.
+async function buildPostCard(postId, canonicalUrl, usernameHint) {
   const doc = await readDocAnon(postId, 'posts')
   if (!doc) {
     // A post that isn't publicly readable (private / followers-only) or a
@@ -197,7 +216,10 @@ export async function postCard(username, postId) {
     imageAlt = null
     isVideo = false
   }
-  const title = truncate(text, TITLE_LIMIT) ?? `@${username} on web10`
+  // Derive the username from the doc's author_key (the last path segment) when
+  // no hint is provided (the watch/shorts routes don't carry a username).
+  const username = usernameHint ?? (doc.author_key?.split('/').pop() || null)
+  const title = truncate(text, TITLE_LIMIT) ?? (username ? `@${username} on web10` : 'A post on web10')
   const description = truncate(text, DESC_LIMIT) ?? 'A post on web10'
   return renderCardAnon({
     title,

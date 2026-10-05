@@ -262,6 +262,64 @@ describe('DiscoverScreen', () => {
     expect(railEntries.length).toBeGreaterThanOrEqual(1);
   });
 
+  it('the Top 10 rail tally shows the engagement count, not the normalized score', async () => {
+    // The power-mean score is a 0–1 float — Math.round() of it is always 0,
+    // which is why the rail used to show a wall of zeros. The tally is the
+    // raw engagement count (likes + comments + reposts) instead. The counts
+    // come from the live engagement read (the v3 client), so seed it.
+    (data.getV3Client as ReturnType<typeof vi.fn>).mockReturnValue({
+      read: vi.fn().mockImplementation(async (service: string) =>
+        service === 'reactions'
+          ? [
+              { doc_id: 'r1', author_key: 'test.localhost/other', body: { type: 'like' }, ref_value: 'p1', created_at: new Date().toISOString() },
+              { doc_id: 'r2', author_key: 'test.localhost/other2', body: { type: 'like' }, ref_value: 'p1', created_at: new Date().toISOString() },
+              { doc_id: 'r3', author_key: 'test.localhost/other3', body: { type: 'like' }, ref_value: 'p1', created_at: new Date().toISOString() },
+            ]
+          : service === 'comments'
+            ? [
+                { doc_id: 'c1', author_key: 'test.localhost/other', body: { post_id: 'p1' }, ref_value: 'p1', created_at: new Date().toISOString() },
+                { doc_id: 'c2', author_key: 'test.localhost/other2', body: { post_id: 'p1' }, ref_value: 'p1', created_at: new Date().toISOString() },
+              ]
+            : []
+      ),
+      readToken: vi.fn().mockReturnValue({ provider: 'test.localhost', username: 'testuser' }),
+    });
+    (data.readDiscoverFeed as ReturnType<typeof vi.fn>).mockResolvedValue([
+      {
+        _id: 'p1',
+        author: 'top-user',
+        provider: 'api.web10.app',
+        post_id: 'p1',
+        text: 'Top post',
+        tags: ['trending'],
+        created_at: new Date().toISOString(),
+      },
+      {
+        _id: 'p2',
+        author: 'second-user',
+        provider: 'api.web10.app',
+        post_id: 'p2',
+        text: 'Second post',
+        tags: ['trending'],
+        created_at: new Date().toISOString(),
+      },
+    ]);
+
+    const { default: DiscoverScreen } = await import('@/components/Discover/DiscoverScreen');
+    render(
+      <MemoryRouter initialEntries={['/hot-gossip']}>
+        <DiscoverScreen />
+      </MemoryRouter>,
+    );
+
+    const railEntries = await screen.findAllByTestId('hot-gossip-sidebar-entry');
+    expect(railEntries.length).toBeGreaterThanOrEqual(2);
+    // First post: 3 likes + 2 comments = 5 — a real number, not 0.
+    expect(railEntries[0]).toHaveTextContent('5');
+    // Second post: no engagement — the tally falls back to the dash.
+    expect(railEntries[1]).toHaveTextContent('—');
+  });
+
   it('renders topic filter chips when posts have tags', async () => {
     (data.readDiscoverFeed as ReturnType<typeof vi.fn>).mockResolvedValue([
       {
@@ -1589,7 +1647,7 @@ describe('DiscoverScreen — the four destinations (the Discover split)', () => 
       expect(screen.getByTestId('discover-explore-tab')).toBeInTheDocument();
     });
     // The People destination is the browser (the old ?tab=explore content).
-    expect(screen.getByTestId('explore-show-toggle')).toBeInTheDocument();
+    expect(screen.getByTestId('explore-tab-row')).toBeInTheDocument();
     expect(screen.queryByTestId('discover-grid')).not.toBeInTheDocument();
   });
 
@@ -1660,7 +1718,12 @@ describe('DiscoverScreen — the four destinations (the Discover split)', () => 
     });
   });
 
-  // ── The People / Groups visibility toggle (?show=) ────────────────────────
+  // ── The Profiles / Groups tab row (?section=) ──────────────────────────────
+  // The People destination is a tab row (the X/Threads idiom the Posts
+  // screen's Discover | Following row established): Profiles (the default,
+  // the bare URL) | Groups (?section=groups). The old ?show= visibility
+  // toggle (both / people / groups / none) retires with the mashed stream —
+  // tabs are one-at-a-time, so the "both hidden" state class disappears.
   // Seed the Explore tab's data so the sections render (the mock's default v3
   // client has no listPeopleDirectory, so fetchPeoplePage would error).
   function seedExploreData() {
@@ -1676,92 +1739,69 @@ describe('DiscoverScreen — the four destinations (the Discover split)', () => 
     ]);
   }
 
-  it('renders the People | Groups toggle with both active by default', async () => {
+  it('renders the Profiles | Groups tab row with Profiles active by default', async () => {
     seedExploreData();
     await renderDiscoverAt('/people');
     await waitFor(() => {
-      expect(screen.getByTestId('explore-show-toggle')).toBeInTheDocument();
+      expect(screen.getByTestId('explore-tab-row')).toBeInTheDocument();
     });
-    expect(screen.getByTestId('explore-show-people')).toHaveAttribute('aria-pressed', 'true');
-    expect(screen.getByTestId('explore-show-groups')).toHaveAttribute('aria-pressed', 'true');
+    expect(screen.getByTestId('explore-tab-profiles')).toHaveAttribute('aria-selected', 'true');
+    expect(screen.getByTestId('explore-tab-groups')).toHaveAttribute('aria-selected', 'false');
+    // Profiles is the default tab — the people browser renders, the groups
+    // browser does not (tabs are one-at-a-time, not a mash).
     expect(screen.getByTestId('explore-people-section')).toBeInTheDocument();
-    expect(screen.getByTestId('explore-groups-section')).toBeInTheDocument();
-  });
-
-  it('hides the people section (and the sort row) when People is toggled off', async () => {
-    seedExploreData();
-    await renderDiscoverAt('/people');
-    await waitFor(() => {
-      expect(screen.getByTestId('explore-show-toggle')).toBeInTheDocument();
-    });
-    expect(screen.getByTestId('explore-sort-toggle')).toBeInTheDocument();
-
-    fireEvent.click(screen.getByTestId('explore-show-people'));
-
-    await waitFor(() => {
-      expect(screen.queryByTestId('explore-people-section')).not.toBeInTheDocument();
-    });
-    expect(screen.getByTestId('explore-show-people')).toHaveAttribute('aria-pressed', 'false');
-    expect(screen.getByTestId('explore-groups-section')).toBeInTheDocument();
-    // The sort row is people-only — it hides with the section.
-    expect(screen.queryByTestId('explore-sort-toggle')).not.toBeInTheDocument();
-    // ?show=groups is written (the bare URL is "both").
-    await waitFor(() => {
-      expect(lastSearch).toContain('show=groups');
-    });
-  });
-
-  it('shows the neutral empty state when both sections are hidden', async () => {
-    seedExploreData();
-    await renderDiscoverAt('/people');
-    await waitFor(() => {
-      expect(screen.getByTestId('explore-show-toggle')).toBeInTheDocument();
-    });
-    fireEvent.click(screen.getByTestId('explore-show-people'));
-    await waitFor(() => {
-      expect(screen.queryByTestId('explore-people-section')).not.toBeInTheDocument();
-    });
-    fireEvent.click(screen.getByTestId('explore-show-groups'));
-    await waitFor(() => {
-      expect(screen.getByTestId('explore-show-none')).toBeInTheDocument();
-    });
     expect(screen.queryByTestId('explore-groups-section')).not.toBeInTheDocument();
+  });
+
+  it('clicking Groups switches to the groups browser (?section=groups)', async () => {
+    seedExploreData();
+    await renderDiscoverAt('/people');
     await waitFor(() => {
-      expect(lastSearch).toContain('show=none');
+      expect(screen.getByTestId('explore-tab-row')).toBeInTheDocument();
+    });
+    fireEvent.click(screen.getByTestId('explore-tab-groups'));
+    await waitFor(() => {
+      expect(screen.getByTestId('explore-tab-groups')).toHaveAttribute('aria-selected', 'true');
+    });
+    // The groups browser renders; the people browser is gone.
+    expect(screen.getByTestId('explore-groups-section')).toBeInTheDocument();
+    expect(screen.queryByTestId('explore-people-section')).not.toBeInTheDocument();
+    // The sort row is profiles-only — it leaves with the people browser.
+    expect(screen.queryByTestId('explore-sort-toggle')).not.toBeInTheDocument();
+    // ?section=groups is written (the bare URL is Profiles).
+    await waitFor(() => {
+      expect(lastSearch).toContain('section=groups');
     });
   });
 
-  it('restores ?show=groups on initial render (deep link)', async () => {
+  it('clicking Profiles returns to the people browser (bare URL)', async () => {
     seedExploreData();
-    await renderDiscoverAt('/people?show=groups');
+    await renderDiscoverAt('/people?section=groups');
     await waitFor(() => {
-      expect(screen.getByTestId('explore-show-toggle')).toBeInTheDocument();
+      expect(screen.getByTestId('explore-tab-row')).toBeInTheDocument();
     });
-    expect(screen.getByTestId('explore-show-people')).toHaveAttribute('aria-pressed', 'false');
-    expect(screen.getByTestId('explore-show-groups')).toHaveAttribute('aria-pressed', 'true');
+    fireEvent.click(screen.getByTestId('explore-tab-profiles'));
+    await waitFor(() => {
+      expect(screen.getByTestId('explore-tab-profiles')).toHaveAttribute('aria-selected', 'true');
+    });
+    expect(screen.getByTestId('explore-people-section')).toBeInTheDocument();
+    expect(screen.queryByTestId('explore-groups-section')).not.toBeInTheDocument();
+    // Back to Profiles — the ?section= param is cleared (bare URL).
+    await waitFor(() => {
+      expect(lastSearch).not.toContain('section=');
+    });
+  });
+
+  it('restores ?section=groups on initial render (deep link)', async () => {
+    seedExploreData();
+    await renderDiscoverAt('/people?section=groups');
+    await waitFor(() => {
+      expect(screen.getByTestId('explore-tab-row')).toBeInTheDocument();
+    });
+    expect(screen.getByTestId('explore-tab-profiles')).toHaveAttribute('aria-selected', 'false');
+    expect(screen.getByTestId('explore-tab-groups')).toHaveAttribute('aria-selected', 'true');
     expect(screen.queryByTestId('explore-people-section')).not.toBeInTheDocument();
     expect(screen.getByTestId('explore-groups-section')).toBeInTheDocument();
-  });
-
-  it('re-shows a hidden section when its toggle is clicked again', async () => {
-    seedExploreData();
-    await renderDiscoverAt('/people');
-    await waitFor(() => {
-      expect(screen.getByTestId('explore-show-toggle')).toBeInTheDocument();
-    });
-    fireEvent.click(screen.getByTestId('explore-show-people'));
-    await waitFor(() => {
-      expect(screen.queryByTestId('explore-people-section')).not.toBeInTheDocument();
-    });
-    fireEvent.click(screen.getByTestId('explore-show-people'));
-    await waitFor(() => {
-      expect(screen.getByTestId('explore-people-section')).toBeInTheDocument();
-    });
-    expect(screen.getByTestId('explore-show-people')).toHaveAttribute('aria-pressed', 'true');
-    // Back to "both" — the ?show= param is cleared (bare URL).
-    await waitFor(() => {
-      expect(lastSearch).not.toContain('show=');
-    });
   });
 
   // ── The People / Groups filter chips (?personFilter= / ?groupFilter=) ──────
@@ -1782,7 +1822,7 @@ describe('DiscoverScreen — the four destinations (the Discover split)', () => 
 
   it('renders the Groups filter chips with All active by default', async () => {
     seedExploreData();
-    await renderDiscoverAt('/people');
+    await renderDiscoverAt('/people?section=groups');
     await waitFor(() => {
       expect(screen.getByTestId('explore-groups-filter')).toBeInTheDocument();
     });
@@ -1865,7 +1905,7 @@ describe('DiscoverScreen — the four destinations (the Discover split)', () => 
     (data.getMyCommunityGroups as ReturnType<typeof vi.fn>).mockResolvedValue([
       { group_id: 'test.localhost/groups/communities/my-crew', join_policy: 'open', my_role: 'member', member_count: 4, tags: [] },
     ]);
-    await renderDiscoverAt('/people');
+    await renderDiscoverAt('/people?section=groups');
     await waitFor(() => {
       expect(screen.getByTestId('explore-groups-filter')).toBeInTheDocument();
     });
@@ -1884,9 +1924,9 @@ describe('DiscoverScreen — the four destinations (the Discover split)', () => 
     });
   });
 
-  it('the Groups section carries the "New group" create entry (the People tab is the groups browser home)', async () => {
+  it('the Groups tab carries the "New group" create entry (the People tab is the groups browser home)', async () => {
     seedExploreData();
-    await renderDiscoverAt('/people');
+    await renderDiscoverAt('/people?section=groups');
     await waitFor(() => {
       expect(screen.getByTestId('explore-groups-filter')).toBeInTheDocument();
     });
@@ -2077,7 +2117,7 @@ describe('DiscoverScreen — the control rows keep the desktop gutter (operator 
     expect(screen.queryByTestId('discover-view-toggle')).not.toBeInTheDocument();
   });
 
-  it('the People tab control rows (query chip, Profiles/Groups toggle) carry the desktop gutter', async () => {
+  it('the People tab control rows (query chip, Profiles/Groups tab row) carry the desktop gutter', async () => {
     const { default: DiscoverScreen } = await import('@/components/Discover/DiscoverScreen');
     render(
       <MemoryRouter initialEntries={['/people?q=jacob']}>
@@ -2093,11 +2133,10 @@ describe('DiscoverScreen — the control rows keep the desktop gutter (operator 
     expect(chipRow.className).toContain('lg:px-6');
     expect(chipRow.className).not.toContain('md:px-0');
 
-    // The Profiles | Groups visibility toggle row.
-    const showToggle = screen.getByTestId('explore-show-toggle');
-    const showRow = showToggle.parentElement as HTMLElement;
-    expect(showRow.className).toContain('md:px-4');
-    expect(showRow.className).toContain('lg:px-6');
-    expect(showRow.className).not.toContain('md:px-0');
+    // The Profiles | Groups tab row is sticky + full-width (the Posts tab row
+    // idiom) — the gutter lives on the content sections, not the tab row.
+    const tabRow = screen.getByTestId('explore-tab-row');
+    expect(tabRow.className).toContain('sticky');
+    expect(tabRow.className).toContain('border-b');
   });
 });
