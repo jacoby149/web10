@@ -109,4 +109,24 @@ describe('PostComposer edit mode — the ONE edit path (title + body + media rem
     const call = (updatePost as ReturnType<typeof vi.fn>).mock.calls[0];
     expect(call[1].title).toBeUndefined();
   });
+
+  it('re-opening a markdown post shows the formatted text in the editor — never the raw `**` syntax (D85 write side)', async () => {
+    // A post whose caption is markdown (the true data, written by the composer).
+    const mdPost: PostRecord = {
+      _id: 'post-md',
+      title: 'all right',
+      text: 'wow **lets** do this :)',
+      author_username: 'testuser',
+      author_provider: 'test.localhost',
+      created_at: new Date().toISOString(),
+      visibility: 'public',
+    };
+    render(<PostComposer editingPost={mdPost} onPostCreated={vi.fn()} />);
+    const caption = await screen.findByTestId('composer-textarea');
+    // The markdown is converted to the editor's HTML (a real <strong>), so the
+    // user sees **lets** as bold — not the literal `**lets**` syntax.
+    expect(caption.querySelector('strong')).toHaveTextContent('lets');
+    expect(caption).not.toHaveTextContent('**');
+  });
 });
+

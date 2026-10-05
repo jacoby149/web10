@@ -32,6 +32,7 @@ import { mediaRefId, fromResolvedMediaRef } from '@/data/types';
 import { MapPin, Globe, Link, Users, UserPlus, UserCheck, Loader2, ArrowLeft, MessageSquare, Play, Camera, Edit3, Check, X, ImagePlus, AlertTriangle, Inbox, LayoutGrid, Clapperboard, User, Bookmark } from 'lucide-react';
 import { PostLightbox } from './PostLightbox';
 import { ProfileFeed } from './ProfileFeed';
+import { PostBodyInline } from '@/components/Feed/PostBody';
 import { ProfileViewToggle, type ProfileViewMode } from './ProfileViewToggle';
 import { ProfileMediaLightbox, type ProfileMediaOption, type FaceCropResult } from './ProfileMediaLightbox';
 import { SavedCollectionsGrid } from './SavedCollectionsGrid';
@@ -209,12 +210,12 @@ export function WallTile({ media, testId, title, caption, postId, multiCount, on
                 className="font-medium text-foreground leading-snug break-words line-clamp-7 text-base sm:text-xl"
                 data-testid={`${testId}-text-title`}
               >
-                {caption}
+                <PostBodyInline text={caption} />
               </p>
             )}
             {title && caption && (
               <p className="mt-1.5 sm:mt-2.5 text-xs sm:text-sm text-foreground/80 leading-snug break-words line-clamp-4" data-testid={`${testId}-text-caption`}>
-                {caption}
+                <PostBodyInline text={caption} />
               </p>
             )}
           </div>
@@ -237,7 +238,7 @@ export function WallTile({ media, testId, title, caption, postId, multiCount, on
           only; a text tile already renders its text as the card face. */}
       {caption && media.url && (
         <div className="absolute inset-x-0 bottom-0 p-2 bg-gradient-to-t from-black/70 via-black/30 to-transparent pointer-events-none">
-          <p className="text-xs text-white line-clamp-2 leading-snug">{caption}</p>
+          <p className="text-xs text-white line-clamp-2 leading-snug"><PostBodyInline text={caption} /></p>
         </div>
       )}
     </div>

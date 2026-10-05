@@ -225,3 +225,53 @@ export function PostBody({ text, density = 'full', className }: PostBodyProps) {
     </div>
   );
 }
+
+interface PostBodyInlineProps {
+  /** The post's markdown `text`. */
+  text: string;
+  className?: string;
+}
+
+/**
+ * The inline markdown renderer (D85, the "teaser" read side): the post's
+ * markdown rendered as **inline** elements only — bold / italic / code /
+ * links — with every block element (headings, paragraphs, lists, code blocks,
+ * blockquotes) flattened to its inline text. It renders **no wrapping block**,
+ * so it drops into a parent that owns the layout (a `line-clamp` caption, a
+ * tile overlay, a single-line label) without a stray `<div>` breaking the
+ * clamp or the `<p>` structure. Same locked sanitizer + link handling as
+ * `<PostBody>` — the one place untrusted content becomes DOM — just inline.
+ * A tile caption is a teaser, not a document, so block structure is dropped
+ * (a `##` heading reads as its words, not a resized heading).
+ */
+export function PostBodyInline({ text, className }: PostBodyInlineProps) {
+  if (!text) return null;
+  const inlineComponents = {
+    h1: ({ children }: { children?: React.ReactNode }) => <>{children}</>,
+    h2: ({ children }: { children?: React.ReactNode }) => <>{children}</>,
+    h3: ({ children }: { children?: React.ReactNode }) => <>{children}</>,
+    h4: ({ children }: { children?: React.ReactNode }) => <>{children}</>,
+    h5: ({ children }: { children?: React.ReactNode }) => <>{children}</>,
+    h6: ({ children }: { children?: React.ReactNode }) => <>{children}</>,
+    p: ({ children }: { children?: React.ReactNode }) => <>{children}</>,
+    ul: ({ children }: { children?: React.ReactNode }) => <>{children}</>,
+    ol: ({ children }: { children?: React.ReactNode }) => <>{children}</>,
+    li: ({ children }: { children?: React.ReactNode }) => <>{children}</>,
+    blockquote: ({ children }: { children?: React.ReactNode }) => <>{children}</>,
+    pre: ({ children }: { children?: React.ReactNode }) => <code className="post-body-inline-code">{children}</code>,
+    code: markdownCode,
+    a: markdownA,
+  };
+  return (
+    <span className={cn('post-body text-foreground break-words', className)} data-testid="post-body-inline">
+      <ReactMarkdown
+        remarkPlugins={[remarkGfm, remarkBreaks]}
+        rehypePlugins={[[rehypeSanitize, sanitizeSchema]]}
+        urlTransform={postUrlTransform}
+        components={inlineComponents}
+      >
+        {text}
+      </ReactMarkdown>
+    </span>
+  );
+}
