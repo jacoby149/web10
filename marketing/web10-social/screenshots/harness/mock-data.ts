@@ -789,6 +789,22 @@ const FEED_POSTS: SeedFeedPost[] = [
     reposts: 2,
   },
   {
+    // A MULTI-PHOTO (2-image) post — the feed's inline carousel (fit="cover").
+    // The frame is the first image's ratio (16:9) and the second (9:16) crops
+    // to fill it instead of letterboxing — the PR shot verifies the cover
+    // behavior on a real image carousel (the "1/2" case).
+    _id: 'fp-multi',
+    author_username: 'kai',
+    author_provider: 'web10',
+    text: 'Two plates, one night. Swipe for the second.',
+    created_at: minsAgo(3),
+    tags: ['food'],
+    likes: 64,
+    comments: 11,
+    reposts: 1,
+    media_refs: ['dm-img-a', 'dm-img-b'],
+  },
+  {
     // A PORTRAIT (9:16) video post — the transcoded (hls) path, the case that
     // used to render a full-width 9:16 box in the feed (~1.78× the card tall).
     // The feed caps it to ≤60vh + centers it in a black letterbox (the PR shot
@@ -1051,6 +1067,12 @@ const DISCOVER_MEDIA: Record<string, Record<string, unknown>> = {
     },
   },
   'dm-portrait3': { ...creative('BACKSTAGE', 720, 1280, '#f59e0b', '#78350f'), _id: 'dm-portrait3' },
+  // Two IMAGE (not video) creatives at DIFFERENT ratios — the feed's
+  // multi-photo carousel (fit="cover") frame is the FIRST item's ratio, so the
+  // second (portrait) crops to fill it instead of letterboxing. The PR shot
+  // verifies the cover behavior on a real image carousel.
+  'dm-img-a': { ...creative('PLATE ONE', 1280, 720, '#8b5cf6', '#2e1065', 'image/png'), _id: 'dm-img-a' },
+  'dm-img-b': { ...creative('PLATE TWO', 720, 1280, '#0ea5e9', '#0c4a6e', 'image/png'), _id: 'dm-img-b' },
   // The post-format ad's creative (dp-1's attached ad) — a distinct image so
   // the ad card reads as its own post, not a repeat of the post's media.
   'dm-ad-synth': { ...creative('NOVA-1S', 1280, 720, '#8b5cf6', '#2e1065', 'image/png'), _id: 'dm-ad-synth' },
