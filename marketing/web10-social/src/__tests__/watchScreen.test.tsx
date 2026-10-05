@@ -24,7 +24,8 @@ const CURRENT = {
   updated_at: at(1),
   tags: ['climbing'],
   body: {
-    text: 'Free soloing the north face',
+    title: 'Free soloing the north face',
+    text: 'The story of the climb, told in one take.',
     media_refs: [{ doc_id: 'm-cur', mime_type: 'video/mp4', read_url: 'https://cdn/v/cur.mp4', width: 1280, height: 720, duration_seconds: 90, thumbnail_url: 'https://cdn/t/cur.jpg' }],
   },
 };
@@ -174,12 +175,12 @@ describe('WatchScreen (the watch page)', () => {
     // The player (a landscape file source → the native full player).
     await waitFor(() => expect(screen.getByTestId('watch-player')).toBeInTheDocument());
     expect(screen.getByTestId('watch-video')).toBeInTheDocument();
-    // The title (the post text).
+    // The title (the post's headline, the display-font anchor).
     expect(screen.getByTestId('watch-title')).toHaveTextContent('Free soloing the north face');
-    // The author row (the profile's display name + the follower count).
+    // The author row (the profile's display name + the @handle).
     await waitFor(() => expect(screen.getByTestId('watch-author-row')).toBeInTheDocument());
     expect(screen.getByTestId('watch-author-row')).toHaveTextContent('Alex Honnold');
-    expect(screen.getByTestId('watch-author-row')).toHaveTextContent('4,200 followers');
+    expect(screen.getByTestId('watch-author-row')).toHaveTextContent('@alex');
     // The follow button (signed-in).
     expect(screen.getByTestId('watch-follow-button')).toHaveTextContent('Follow');
   });
@@ -198,7 +199,7 @@ describe('WatchScreen (the watch page)', () => {
 
   it('renders the dislike + repost buttons (the watch page is a full engagement surface)', async () => {
     await renderWatch();
-    await waitFor(() => expect(screen.getByTestId('watch-post-actions')).toBeInTheDocument());
+    await waitFor(() => expect(screen.getByTestId('watch-actions')).toBeInTheDocument());
     expect(screen.getByTestId('dislike-button')).toBeInTheDocument();
     expect(screen.getByTestId('repost-button')).toBeInTheDocument();
   });
@@ -288,10 +289,10 @@ describe('WatchScreen (the watch page)', () => {
   it('clicking the author navigates to their profile (the "About" is the profile page, not a modal)', async () => {
     await renderWatch();
     await waitFor(() => expect(screen.getByTestId('watch-author-row')).toBeInTheDocument());
-    // The author row's avatar + name is the "About" affordance — clicking it
-    // navigates to /u/:username (the same destination every other surface's
-    // author click uses). There is no overlay / About button on the watch page.
-    fireEvent.click(screen.getByTestId('watch-author-link'));
+    // The author row's name is the "About" affordance — clicking it navigates
+    // to /u/:username (the same destination every other surface's author click
+    // uses). There is no overlay / About button on the watch page.
+    fireEvent.click(screen.getByTestId('watch-author'));
     await waitFor(() => expect(screen.getByTestId('profile-route')).toBeInTheDocument());
     expect(screen.queryByTestId('watch-author-overlay')).not.toBeInTheDocument();
     expect(screen.queryByTestId('watch-about-button')).not.toBeInTheDocument();
