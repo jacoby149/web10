@@ -54,17 +54,15 @@ const messagesItem = { path: '/messages', icon: MessageSquare, label: 'Messages'
 const profileItem = { path: '/profile', icon: User, label: 'Profile', testId: 'nav-profile' };
 const settingsItem = { path: '/settings', icon: Settings, label: 'Settings', testId: 'nav-settings' };
 // Monetization (D75) — every signed-in user: the creator's ad catalog +
-// affiliate onboarding. A first-class nav item (the operator's reorder).
-// Deep-links to the Monetization surface's default (Creator) tab.
+// affiliate onboarding + (node admin) the node-ad inventory. A first-class nav
+// item (the operator's reorder). Deep-links to the Monetization surface; the
+// surface's in-page tab row (My Ads | Node Ads) is the section switcher, so
+// the nav has ONE Monetization entry (no separate Node Monetization row).
 const monetizationItem = { path: '/monetize', icon: DollarSign, label: 'Monetization', testId: 'nav-monetization' };
-// Node Monetization (D75) — rendered ONLY for the node admin (the
-// useNodeAdmin gate). Deep-links to the Monetization surface's Node tab.
-// Stays in the More popover (admin-only, not a core nav item).
-const nodeMonetizationItem = { path: '/monetize?tab=node', icon: DollarSign, label: 'Node Monetization', testId: 'nav-node-monetization' };
 // Node Settings (D59) — the node owner's content-moderation surface, in the
 // social app (not the authenticator — it's social-related). Rendered ONLY for
 // the node admin (the useNodeAdmin gate). Stays in the More popover (admin-only,
-// not a core nav item) — the same home as Node Monetization.
+// not a core nav item).
 const nodeSettingsItem = { path: '/node-settings', icon: Shield, label: 'Node Settings', testId: 'nav-node-settings' };
 
 // Provisional, non-infringing names for the surfaces not yet built. Shorts is
@@ -94,7 +92,7 @@ function Wordmark({ className }: { className?: string }) {
 
 export default function Layout({ onLogout, onLogin, isAnon: isAnonProp, onReportBug, children }: LayoutProps) {
   const navigate = useNavigate();
-  const { pathname, search } = useLocation();
+  const { pathname } = useLocation();
   const token = getWapi().readToken();
   // Anon mode (the operator: "supporting anon login with web10 social"): a
   // signed-out visitor browses the public surfaces (Discover, Shorts,
@@ -166,12 +164,10 @@ export default function Layout({ onLogout, onLogin, isAnon: isAnonProp, onReport
     isOwnProfile;
 
   // The Monetization surface holds its section in the URL (`?tab=node`). The
-  // two nav entries are the switcher — each must highlight on its OWN section,
-  // never both — so the active state reads the query string, not just the
-  // pathname (a pathname-only match lit up both rows on `/monetize`).
-  const monetizeTab = new URLSearchParams(search).get('tab');
-  const isMonetizeCreator = pathname === '/monetize' && monetizeTab !== 'node';
-  const isMonetizeNode = pathname === '/monetize' && monetizeTab === 'node';
+  // nav has ONE Monetization entry — the surface's in-page tab row (My Ads |
+  // Node Ads) is the section switcher — so the row highlights on ANY
+  // /monetize (both sections), not just the Creator section.
+  const isMonetize = pathname === '/monetize';
 
   // The desktop sidebar's account entry point: an avatar row that opens a
   // user menu (Profile / Settings / Report a bug / Log out). This is where
@@ -273,7 +269,7 @@ export default function Layout({ onLogout, onLogin, isAnon: isAnonProp, onReport
   const isActive = (path: string) => {
     if (path === '/profile') return pathname.startsWith('/u/');
     if (path === '/groups') return pathname.startsWith('/groups');
-    if (path === '/monetize') return isMonetizeCreator;
+    if (path === '/monetize') return isMonetize;
     return pathname === path;
   };
 
@@ -305,11 +301,10 @@ export default function Layout({ onLogout, onLogin, isAnon: isAnonProp, onReport
             // "has the same behavior as the profile button, just tells you
             // more you are visiting your own profile").
             const navLabel = path === '/profile' ? displayName || username || 'Profile' : label;
-            // The Monetization row highlights only on its OWN section (the
-            // Creator tab) — never on /monetize?tab=node (where Node
-            // Monetization is the active one). The same query-string rule the
-            // top-bar account row uses.
-            const active = path === '/monetize' ? isMonetizeCreator : isActive(path);
+            // The Monetization row highlights on ANY /monetize section — the
+            // surface's in-page tab row (My Ads | Node Ads) is the section
+            // switcher, so the nav has one entry that lights up for both.
+            const active = path === '/monetize' ? isMonetize : isActive(path);
             return (
             <button
               key={path}
@@ -360,13 +355,13 @@ export default function Layout({ onLogout, onLogin, isAnon: isAnonProp, onReport
             </button>
             );
           })}
-          {/* More — the coming-soon surfaces + Node Monetization (admin-only)
-               in a popover. Monetization is a first-class sidebar item (the
-               operator's reorder); Node Monetization stays here (it's an
-               admin-only surface, not a core nav item). The coming-soon
-               surfaces are not real destinations yet, so they don't hold
-               permanent nav rows; the popover keeps the roadmap discoverable
-               without the dead weight. */}
+          {/* More — the coming-soon surfaces + Node Settings (admin-only) in a
+                popover. Monetization is a first-class sidebar item (the
+                operator's reorder); the node-ad inventory is its in-page Node
+                Ads tab (the surface's tab row), not a separate nav row. The
+                coming-soon surfaces are not real destinations yet, so they
+                don't hold permanent nav rows; the popover keeps the roadmap
+                discoverable without the dead weight. */}
           <div className="relative mt-4" ref={moreMenuRef}>
             <button
               type="button"
@@ -390,22 +385,6 @@ export default function Layout({ onLogout, onLogin, isAnon: isAnonProp, onReport
                 data-testid="more-menu"
                 className="absolute left-0 right-0 bottom-full mb-1 z-30 rounded-lg border border-border bg-popover p-1 shadow-[0_8px_30px_rgb(0,0,0/0.35)] max-h-[min(70vh,420px)] overflow-y-auto"
               >
-                {isNodeAdmin && (
-                  <button
-                    type="button"
-                    role="menuitem"
-                    data-testid={nodeMonetizationItem.testId}
-                    aria-current={isMonetizeNode ? 'page' : undefined}
-                    onClick={() => { setMoreMenuOpen(false); navigate(nodeMonetizationItem.path); }}
-                    className={cn(
-                      'w-full flex items-center gap-3 px-3 py-2 rounded-md text-sm font-medium transition-colors',
-                      isMonetizeNode ? 'bg-brand-muted text-brand-300' : 'text-foreground hover:bg-elevated',
-                    )}
-                  >
-                    <DollarSign className="w-5 h-5" strokeWidth={1.75} />
-                    {nodeMonetizationItem.label}
-                  </button>
-                )}
                 {isNodeAdmin && (
                   <button
                     type="button"
@@ -818,25 +797,12 @@ export default function Layout({ onLogout, onLogin, isAnon: isAnonProp, onReport
                   onClick={() => go(monetizationItem.path)}
                   className={cn(
                     'w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors duration-150',
-                    isMonetizeCreator ? 'bg-brand-muted text-brand-300' : 'text-foreground hover:bg-elevated',
+                    isMonetize ? 'bg-brand-muted text-brand-300' : 'text-foreground hover:bg-elevated',
                   )}
                 >
                   <DollarSign className="w-5 h-5" strokeWidth={1.75} />
                   {monetizationItem.label}
                 </button>
-                {isNodeAdmin && (
-                  <button
-                    data-testid="nav-node-monetization-mobile"
-                    onClick={() => go(nodeMonetizationItem.path)}
-                    className={cn(
-                      'w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors duration-150',
-                      isMonetizeNode ? 'bg-brand-muted text-brand-300' : 'text-foreground hover:bg-elevated',
-                    )}
-                  >
-                    <DollarSign className="w-5 h-5" strokeWidth={1.75} />
-                    {nodeMonetizationItem.label}
-                  </button>
-                )}
                 {isNodeAdmin && (
                   <button
                     data-testid="nav-node-settings-mobile"

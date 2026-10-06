@@ -152,8 +152,8 @@ creator's ad:
   shows. Format-agnostic (a node post ad overwrites a creator inline ad, and
   vice versa).
 
-The toggle lives in the Node Monetization surface (next to the density slider)
-and writes via `/config/update`.
+The toggle lives in the Node Ads tab of the Monetization surface (next to the
+density slider) and writes via `/config/update`.
 
 **The discover group id is canonical.** `get_active_node_ads` scopes its query
 to the **canonical `DISCOVER_GROUP_ID`** (derived from `settings.PROVIDER` — the
@@ -163,9 +163,9 @@ from `settings.PROVIDER` on deployed nodes, and a mismatched id makes the query
 match nothing → node ads silently never attach (the "node ads show up nowhere"
 bug). Pinned by `test_node_ads.py::test_uses_canonical_discover_id_not_config_provider`.
 
-The setting is a `node_config` field. The **Node Monetization** section of
-web10-social's Monetization surface (the operator's surface, D75 — visible
-only to the node admin, `marketing/web10-social/`) is where it's controlled —
+The setting is a `node_config` field. The **Node Ads** tab of web10-social's
+Monetization surface (the operator's surface, D75 — visible only to the node
+admin, `marketing/web10-social/`) is where it's controlled —
 a percentage slider (0-100) that writes `node_ad_percentage` to `node_config`.
 The same section shows:
 
@@ -174,7 +174,7 @@ The same section shows:
 - Create / **edit** / pause / resume / retire node ads
 
 **Node ads are editable, exactly like creator ads** (3.162.0 — parity,
-`ad-improvements.md`): the Node Monetization surface's ad form is the same
+`ad-improvements.md`): the Node Ads tab's ad form is the same
 create-AND-edit form the creator's catalog uses — Edit pre-fills the copy,
 the offer (kind / partner / link / CTA / disclosure), the status, the format
 (inline / post), and the existing media (kept by doc_id unless replaced).

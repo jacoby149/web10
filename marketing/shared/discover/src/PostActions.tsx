@@ -86,6 +86,12 @@ export interface PostActionsProps {
   /** The comment-like writer (absent in `remote` mode). The app owns the
    *  optimistic toggle + rollback (the post-like pattern). */
   onToggleCommentLike?: (commentId: string) => void;
+  /** The comment-text updater (absent → no Edit). Threaded to the mounted
+   *  CommentThread. The thread owns the optimistic swap + rollback. */
+  onUpdateComment?: (commentId: string, text: string) => void | Promise<unknown>;
+  /** The comment deleter (absent → no Delete). Threaded to the mounted
+   *  CommentThread. The thread owns the optimistic removal + rollback. */
+  onDeleteComment?: (commentId: string) => void | Promise<unknown>;
   /** Remote (marketing) mode: like is display-only, compose is a link-out. */
   remote?: boolean;
   /** The post permalink the remote compose links to (web10 social). */
@@ -125,6 +131,8 @@ export function PostActions({
   readReplies,
   createComment,
   onToggleCommentLike,
+  onUpdateComment,
+  onDeleteComment,
   remote = false,
   remoteHref,
   onError,
@@ -313,6 +321,8 @@ export function PostActions({
       readReplies={readReplies}
       createComment={createComment}
       onToggleCommentLike={onToggleCommentLike}
+      onUpdateComment={onUpdateComment}
+      onDeleteComment={onDeleteComment}
       remote={remote}
       remoteHref={remoteHref}
       onError={onError}

@@ -121,6 +121,10 @@ function GroupFeedPost({ post, media, groupId }: { post: PostRecord; media: Medi
   const [repostCount, setRepostCount] = useState(0);
   const [commentCount, setCommentCount] = useState(0);
   const token = getV3Client().readToken();
+  // The comment thread's group scope — memoized so its array identity is
+  // stable across renders (a fresh `[groupId]` literal would re-key the
+  // thread's load effect on every card re-render).
+  const commentGroups = useMemo(() => [groupId], [groupId]);
 
   useEffect(() => {
     let cancelled = false;
@@ -227,7 +231,7 @@ function GroupFeedPost({ post, media, groupId }: { post: PostRecord; media: Medi
       onCommentCountChange={setCommentCount}
       onAuthorClick={(username) => navigate(`/u/${username}`)}
       postAuthor={post.author_username}
-      groups={[groupId]}
+      groups={commentGroups}
       isOwnPost={token ? post.author_username === token.username : false}
       onPostUpdated={() => {}}
       testId="group-post-card"

@@ -12,6 +12,7 @@ import {
   ensureFollowersGroup,
   buildOfferBody,
   updateAd,
+  createNodeAd,
   type AdsCatalogData,
   type AdItem,
   type AlbumItem,
@@ -59,8 +60,12 @@ const AFFILIATE_PROGRAMS: AffiliateProgram[] = [
  * affiliate onboarding. The ad catalog is the creator's posts tagged `ad` in
  * their followers group (+ albums + the posts they're pinned to). Every
  * signed-in user sees it.
+ *
+ * `isAdmin` (the node admin) unlocks the ad form's "Node ad" scope — a node
+ * admin can run an ad as a personal ad OR a node ad from this one surface
+ * (the node ad is written to the discover group, tagged `ad` + `node_ad`).
  */
-export function CreatorMonetization() {
+export function CreatorMonetization({ isAdmin = false }: { isAdmin?: boolean }) {
   const [data, setData] = useState<AdsCatalogData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -154,7 +159,7 @@ export function CreatorMonetization() {
     await getV3Client().update(post.doc.doc_id, {}, { ad_preference: { mode: 'pinned', target: ad.doc.doc_id } });
   };
 
-  const run = (fn: () => Promise<void>, okMsg: string) => {
+  const run = (fn: () => Promise<unknown>, okMsg: string) => {
     fn()
       .then(() => {
         toast.success(okMsg);
@@ -218,13 +223,16 @@ export function CreatorMonetization() {
             <AdForm
               initial={editingAd}
               albums={data?.albums || []}
-              onSubmit={(offer, text, status, albumIds, mediaRefs, format) =>
+              allowNode={isAdmin}
+              onSubmit={(offer, text, status, albumIds, mediaRefs, format, scope) =>
                 run(
                   () =>
                     editingAd
                       ? editAd(editingAd, offer, text, status, albumIds, mediaRefs, format)
-                      : createAd(offer, text, status, albumIds, mediaRefs, format),
-                  editingAd ? 'Ad updated' : 'Ad created',
+                      : scope === 'node'
+                        ? createNodeAd(offer, text, status, mediaRefs, format)
+                        : createAd(offer, text, status, albumIds, mediaRefs, format),
+                  editingAd ? 'Ad updated' : scope === 'node' ? 'Node ad created' : 'Ad created',
                 )
               }
               onCancel={closeAdForm}
@@ -579,10 +587,17 @@ function AlbumRow({ album, ads, onAddAd }: {
  * `initial`; the save keeps the same doc_id (so pins survive). Adds the CTA
  * suggestion chips, the optional `kind` (partner hidden for `none`), the media
  * attach (image/video, one item), and the format toggle (inline / post).
+ *
+ * `allowNode` (the node admin) adds a **scope** toggle (personal / node) to the
+ * CREATE flow: a node admin runs an ad as a personal ad (their followers group)
+ * OR a node ad (the discover group, the operator's inventory) from one surface.
+ * Edit mode has no scope — the ad's home is fixed by where it was created.
  */
-function AdForm({ initial, albums, onSubmit, onCancel }: {
+function AdForm({ initial, albums, allowNode = false, onSubmit, onCancel }: {
   initial: AdItem | null;
   albums: AlbumItem[];
+  /** The node admin can create a node ad (scope = node) from this form. */
+  allowNode?: boolean;
   onSubmit: (
     offer: AdOffer,
     text: string,
@@ -590,6 +605,7 @@ function AdForm({ initial, albums, onSubmit, onCancel }: {
     albumIds: string[],
     mediaRefs: string[],
     format: AdFormat,
+    scope: 'personal' | 'node',
   ) => void;
   onCancel: () => void;
 }) {
@@ -603,6 +619,9 @@ function AdForm({ initial, albums, onSubmit, onCancel }: {
   const [status, setStatus] = useState<'active' | 'paused'>(initial?.status || 'active');
   const [albumIds, setAlbumIds] = useState<string[]>(initial?.albums || []);
   const [format, setFormat] = useState<AdFormat>(initial?.format || 'inline');
+  // The ad's scope (create only, node admin): `personal` (the creator's
+  // followers group) or `node` (the discover group, the operator's inventory).
+  const [scope, setScope] = useState<'personal' | 'node'>('personal');
   const [saving, setSaving] = useState(false);
 
   // The ad's creative media — one item (image or video). `file` = a newly
@@ -658,7 +677,7 @@ function AdForm({ initial, albums, onSubmit, onCancel }: {
         mediaRefs = [media.existingDocId];
       }
       const offer: AdOffer = { kind, partner: partner.trim(), link: link.trim(), cta: cta.trim(), disclosure: disclosure.trim() };
-      onSubmit(offer, text.trim() || 'Untitled ad', status, albumIds, mediaRefs, format);
+      onSubmit(offer, text.trim() || 'Untitled ad', status, albumIds, mediaRefs, format, editing ? 'personal' : scope);
       onCancel();
     } catch (e) {
       toast.error(errorMessage(e, 'Failed to upload media'));
@@ -677,6 +696,33 @@ function AdForm({ initial, albums, onSubmit, onCancel }: {
       <p className="mb-3 text-xs text-muted-foreground">
         A piece of content with the link that pays. The disclosure shows to your audience, always.
       </p>
+
+      {/* Scope (node admin, create only): run this ad as a personal ad (your
+          followers group) OR a node ad (the discover group, the operator's
+          inventory). The node admin runs both kinds from this one surface. */}
+      {allowNode && !editing && (
+        <div className="mb-3 grid gap-1.5">
+          <Label>Run as</Label>
+          <div className="flex gap-2" data-testid="ad-scope-toggle">
+            {([['personal', 'Personal ad', 'your followers group'], ['node', 'Node ad', 'the node\u2019s inventory']] as const).map(([value, title, sub]) => (
+              <button
+                key={value}
+                type="button"
+                onClick={() => setScope(value)}
+                className={cn(
+                  'flex-1 rounded-md border px-3 py-2 text-left text-xs transition-colors',
+                  scope === value ? 'border-brand bg-brand-muted text-brand-300' : 'border-border text-muted-foreground hover:border-brand/50',
+                )}
+                data-testid={`ad-scope-${value}`}
+              >
+                <span className="block font-medium">{title}</span>
+                <span className="block text-[0.6875rem] opacity-80">{sub}</span>
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
+
       <div className="grid gap-3">
         <div className="grid gap-1.5">
           <Label htmlFor="ad-text">Copy</Label>

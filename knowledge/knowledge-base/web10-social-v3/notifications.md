@@ -166,10 +166,23 @@ const history = await w.read('notifications', {
 
 Badge = the unread count (`read: false`). **Mark-read is explicit, not on
 open.** Opening the screen/panel does NOT mark read — the Unread filter needs
-the unread state to persist so the user can see what's new. The badge clears
-via the **"Mark all read"** button (the header action, shown when `unread > 0`)
-or by navigating to a row's destination. This is the durable history + the
-badge, with no node table.
+the unread state to persist so the user can see what's new. A row is marked
+read two ways:
+
+- **"Mark all read"** (the header button, shown when `unread > 0`) — marks
+  everything read + advances the `last_seen` watermark.
+- **Navigating to a row's destination** (a row click) — marks *that row* read
+  via `markRead(id)`, which records the row's key
+  (`{type}:{from}:{ref_doc_id}`) in the `read_keys` list of the same cursor
+  doc. The other rows stay unread. This is what makes the badge clear when
+  the user actually looks at the thing — not only when they hit the button.
+
+The cursor doc therefore carries both fields: `last_seen` (the all-read
+watermark) + `read_keys` (the per-row "I opened this one" record). A row is
+read at seed time if its event time is at/before `last_seen` **or** its key is
+in `read_keys` — the second clause is what keeps a row opened *after* the
+watermark moved (a newer event) read across a re-seed. This is the durable
+history + the badge, with no node table.
 
 ## The Data Flow
 
@@ -180,8 +193,13 @@ User opens /notifications (or the bell panel)
   → render (Unread filter by default; NOT marked read)
 
 User taps "Mark all read"
-  → markAllRead(): flip read:true on all rows + advance the last_seen cursor
+  → markAllRead(): flip read:true on all rows + advance the last_seen watermark
   → the badge + banner clear; the Unread filter now shows "caught up"
+
+User clicks a row
+  → markRead(id): flip that row read + append its key to read_keys
+  → the badge drops by one (clears when it was the last unread); the row
+    navigates to its destination (panel mode also closes the panel)
 
 Real-time (app-wide, any screen):
   → onP2PInbound: a nudge arrives → re-read from CRUD → append + bump the badge

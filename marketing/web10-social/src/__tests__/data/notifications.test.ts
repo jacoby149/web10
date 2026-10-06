@@ -348,6 +348,77 @@ describe('notifications (app-wide store, D69)', () => {
     });
   });
 
+  describe('markRead (a row click marks that row, not everything)', () => {
+    it('flips only the clicked row read + records its key in the read_keys cursor', async () => {
+      client.read = vi.fn(async (collection: string) => {
+        if (collection === 'posts') return [{ doc_id: 'post-1', author_key: 'web10.app/alice', body: { text: 'hi' } }];
+        if (collection === 'reactions') return [
+          { doc_id: 'r1', author_key: 'web10.app/bob', body: { type: 'like', target_id: 'post-1', created_at: '2026-01-01T00:00:00Z' } },
+          { doc_id: 'r2', author_key: 'web10.app/carol', body: { type: 'like', target_id: 'post-1', created_at: '2026-01-02T00:00:00Z' } },
+        ];
+        return [];
+      }) as never;
+      await notifications.initNotifications();
+      expect(notifications.unreadCount()).toBe(2);
+      const [bobRow] = notifications.getNotifications().filter((n) => n.from === 'bob');
+      await notifications.markRead(bobRow.id);
+      // Only bob's row is read; carol's stays unread (the badge drops by one).
+      expect(notifications.unreadCount()).toBe(1);
+      expect(notifications.getNotifications().find((n) => n.from === 'bob')?.read).toBe(true);
+      expect(notifications.getNotifications().find((n) => n.from === 'carol')?.read).toBe(false);
+      // It recorded bob's key (NOT a last_seen watermark) in the cursor doc.
+      expect(client.create).toHaveBeenCalledTimes(1);
+      const createdBody = (client.create as ReturnType<typeof vi.fn>).mock.calls[0][1] as Record<string, unknown>;
+      expect(createdBody).toMatchObject({ last_seen: '', read_keys: [notifications.rowKey({ type: 'reaction', from: 'bob', ref_doc_id: 'post-1' })] });
+    });
+
+    it('is a no-op for an unknown id or an already-read row', async () => {
+      client.read = vi.fn(async (collection: string) => {
+        if (collection === 'posts') return [{ doc_id: 'post-1', author_key: 'web10.app/alice', body: { text: 'hi' } }];
+        if (collection === 'reactions') return [{ doc_id: 'r1', author_key: 'web10.app/bob', body: { type: 'like', target_id: 'post-1', created_at: '2026-01-01T00:00:00Z' } }];
+        return [];
+      }) as never;
+      await notifications.initNotifications();
+      await notifications.markRead('does-not-exist');
+      expect(client.create).not.toHaveBeenCalled();
+      expect(notifications.unreadCount()).toBe(1);
+      const [row] = notifications.getNotifications();
+      await notifications.markRead(row.id);
+      const createsAfterFirst = (client.create as ReturnType<typeof vi.fn>).mock.calls.length;
+      await notifications.markRead(row.id); // already read — no second write
+      expect((client.create as ReturnType<typeof vi.fn>).mock.calls.length).toBe(createsAfterFirst);
+    });
+
+    it('a row newer than last_seen stays read when its key is in read_keys (the re-seed)', async () => {
+      // The cursor has last_seen Jan 1 + bob's reaction key. bob's reaction is
+      // Jan 2 (AFTER last_seen) but was opened (key recorded) → still read.
+      // carol's Jan 3 reaction is after last_seen AND not opened → unread.
+      client.read = vi.fn(async (collection: string) => {
+        if (collection === 'posts') return [{ doc_id: 'post-1', author_key: 'web10.app/alice', body: { text: 'hi' } }];
+        if (collection === 'reactions') return [
+          { doc_id: 'r1', author_key: 'web10.app/bob', body: { type: 'like', target_id: 'post-1', created_at: '2026-01-02T00:00:00Z' } },
+          { doc_id: 'r2', author_key: 'web10.app/carol', body: { type: 'like', target_id: 'post-1', created_at: '2026-01-03T00:00:00Z' } },
+        ];
+        if (collection === 'notifications') return [{ doc_id: 'cursor', author_key: 'web10.app/alice', body: { last_seen: '2026-01-01T00:00:00Z', read_keys: ['reaction:bob:post-1'] } }];
+        return [];
+      }) as never;
+      await notifications.initNotifications();
+      const bob = notifications.getNotifications().find((n) => n.from === 'bob');
+      const carol = notifications.getNotifications().find((n) => n.from === 'carol');
+      expect(bob?.read).toBe(true); // key in read_keys, despite being after last_seen
+      expect(carol?.read).toBe(false);
+      expect(notifications.unreadCount()).toBe(1);
+    });
+  });
+
+  describe('rowKey', () => {
+    it('is the stable (type, from, ref) identity — the nudge + derived row share it', () => {
+      expect(notifications.rowKey({ type: 'reaction', from: 'bob', ref_doc_id: 'post-1' })).toBe('reaction:bob:post-1');
+      expect(notifications.rowKey({ type: 'reaction', from: 'bob' })).toBe('reaction:bob:');
+      expect(notifications.rowKey({ type: 'follow_request', from: 'alice' })).toBe('follow_request:alice:');
+    });
+  });
+
   describe('teardownNotifications', () => {
     it('unsubscribes from the P2P bus + clears the items', async () => {
       await notifications.initNotifications();
