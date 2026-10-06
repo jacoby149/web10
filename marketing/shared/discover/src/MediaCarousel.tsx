@@ -30,6 +30,14 @@ export function MediaCarousel({ items, fit = 'contain', ratio, maxHeight, testId
   const count = items.length;
   const first = items[0];
   const frameRatio = ratio ?? (first?.width && first?.height ? first.width / first.height : 4 / 3);
+  // A height cap only bites for a portrait frame (ratio < 1): a landscape frame
+  // at full width is already shorter than the cap, so the cap is a no-op for it.
+  // A portrait frame's box shrinks to fit the capped height — center it in the
+  // full-width card (the "photobox" letterbox) instead of leaving it left-aligned
+  // with a gap on the right (the same shape the video player's heightCapped cap
+  // produces). An explicit landscape `ratio` (e.g. DiscoverCard's 16:9) is never
+  // affected.
+  const heightCapped = !!maxHeight && frameRatio < 1;
 
   const onScroll = () => {
     const el = stripRef.current;
@@ -38,10 +46,10 @@ export function MediaCarousel({ items, fit = 'contain', ratio, maxHeight, testId
     setIndex(Math.min(count - 1, Math.max(0, i)));
   };
 
-  return (
+  const frame = (
     <div
       data-testid={testId}
-      className={cn('bg-elevated relative overflow-hidden', className)}
+      className={cn('bg-elevated relative overflow-hidden', heightCapped && 'mx-auto', className)}
       style={{ aspectRatio: frameRatio, maxHeight }}
     >
       <div
@@ -100,4 +108,14 @@ export function MediaCarousel({ items, fit = 'contain', ratio, maxHeight, testId
       )}
     </div>
   );
+
+  // A portrait frame (first item's ratio < 1, capped at maxHeight) is centered
+  // in a FULL-WIDTH BLACK "photobox" (the same shape the video player's
+  // heightCapped cap produces: a black outer box, the media centered, black
+  // bars on the sides). A landscape frame is full-width (no cap) and renders
+  // the frame directly.
+  if (heightCapped) {
+    return <div className="w-full bg-black">{frame}</div>;
+  }
+  return frame;
 }
