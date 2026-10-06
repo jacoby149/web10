@@ -312,16 +312,21 @@ test.describe('Social notifications — browser gauntlet (real-time badge, no re
 
         // --- A opens /notifications → the Unread filter (default) shows the
         //     event. Opening does NOT auto-mark-read (the Unread filter needs
-        //     the unread state to persist) — the badge clears via the explicit
-        //     "Mark all read" action. ---
+        //     the unread state to persist) — the badge is still lit. ---
         await pageA.locator('[data-testid="nav-notifications"]').click();
         await expect(pageA.locator('[data-testid="notifications-list"]')).toBeVisible({ timeout: 20_000 });
         // The row describes the reaction ("B reacted to your post").
         const aRow = pageA.locator('[data-testid="notification-row"]', { hasText: 'reacted to your post' });
         await expect(aRow.first()).toBeVisible({ timeout: 20_000 });
-        // The badge is still lit (unread) until the user marks all read.
+        // The badge is still lit (unread) until the user acts on it.
         await expect(pageA.locator('[data-testid="nav-notifications-badge"]')).toHaveText('1');
-        await pageA.locator('[data-testid="mark-all-read-button"]').click();
+
+        // --- A clicks the row → it navigates to the post AND marks THAT row
+        //     read (the badge clears via navigation, not just "Mark all read").
+        //     The panel closes + the URL is now the post permalink. ---
+        await aRow.first().click();
+        await expect(pageA).toHaveURL(/\/u\/nra[^\s]*\/p\//, { timeout: 20_000 });
+        // The row click marked it read — the badge clears (it was the only one).
         await expect(pageA.locator('[data-testid="nav-notifications-badge"]')).toHaveCount(0, { timeout: 20_000 });
 
         // No console errors / uncaught exceptions on either side.

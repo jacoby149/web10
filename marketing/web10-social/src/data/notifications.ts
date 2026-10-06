@@ -16,8 +16,10 @@
 //      re-reads from CRUD for the full record; here we append a lightweight row
 //      so the badge bumps instantly (the screen re-reads for detail).
 //
-// Unread = the count of rows with `read: false`. `markAllRead` flips them on
-// screen open. This is the durable history + the badge, with no node table.
+// Unread = the count of rows with `read: false`. A row is marked read when the
+// user opens its destination (`markRead`, a row click) or marks everything
+// read (`markAllRead`, the header button). This is the durable history + the
+// badge, with no node table.
 
 import { getV3Client } from './v3';
 import { followersGroupId, ensureFollowers, getMyGroups } from './groups';
@@ -289,29 +291,48 @@ export async function initNotifications(): Promise<void> {
 // ── The read side (D69): derive notifications from reads ─────────────────────
 // The source of truth. The app computes "what happened that targets me" from
 // reads it already has permission for — no node table, no new endpoint. The
-// unread cursor (`last_seen`) is a single doc in the user's followers group
-// (the D60 app-owned pattern); unread = derived events with created_at after
-// it. Opening /notifications advances the cursor (markAllRead).
+// read cursor is a single doc in the user's followers group (the D60 app-owned
+// pattern) with TWO fields:
+//   - `last_seen` (ISO): the "Mark all read" watermark — an event is read if
+//     it happened at/before it.
+//   - `read_keys` (string[]): the per-row "I opened this one" record — a row
+//     is also read if its key (`{type}:{from}:{ref_doc_id}`) is in the set,
+//     even when it is newer than `last_seen` (a row click marks just that row;
+//     the watermark only moves when the user marks ALL read).
+// Unread = derived events after `last_seen` AND not in `read_keys`.
 
-// Read the last-seen cursor (ISO string, '' when absent).
-async function readLastSeen(): Promise<string> {
+// The row's stable identity key (the same key the seed/nudge dedupe on) — what
+// the `read_keys` cursor stores. A live nudge's id carries a timestamp tail,
+// but the key does not, so a nudge + its derived row share one read record.
+export function rowKey(n: { type: NotificationType; from: string; ref_doc_id?: string }): string {
+  return `${n.type}:${n.from}:${n.ref_doc_id || ''}`;
+}
+
+// Read the read cursor ({last_seen, read_keys}; empty when absent).
+async function readCursor(): Promise<{ lastSeen: string; readKeys: string[] }> {
   const w = getV3Client();
   const token = w.readToken();
-  if (!token) return '';
+  if (!token) return { lastSeen: '', readKeys: [] };
   try {
     const groupId = await ensureFollowers(token.username, token.provider);
     const docs = await w.read(NOTIFICATIONS_SERVICE, { groups: [groupId] });
     if (docs.length > 0) {
-      return ((docs[0].body as Record<string, unknown>).last_seen as string) || '';
+      const body = docs[0].body as Record<string, unknown>;
+      const keys = Array.isArray(body.read_keys)
+        ? (body.read_keys as unknown[]).filter((k): k is string => typeof k === 'string')
+        : [];
+      return { lastSeen: (body.last_seen as string) || '', readKeys: keys };
     }
   } catch {
     // No cursor yet — treat everything as unread.
   }
-  return '';
+  return { lastSeen: '', readKeys: [] };
 }
 
-// Advance the last-seen cursor (the durable "I looked" record). Best-effort.
-async function writeLastSeen(iso: string): Promise<void> {
+// Persist the read cursor (the durable "I looked" record). Merges with the
+// doc's current fields so a per-row markRead never clobbers a concurrent
+// markAllRead watermark (and vice versa). Best-effort.
+async function writeCursor(patch: { lastSeen?: string; readKeys?: string[] }): Promise<void> {
   const w = getV3Client();
   const token = w.readToken();
   if (!token) return;
@@ -319,13 +340,24 @@ async function writeLastSeen(iso: string): Promise<void> {
     const groupId = await ensureFollowers(token.username, token.provider);
     const docs = await w.read(NOTIFICATIONS_SERVICE, { groups: [groupId] });
     if (docs.length > 0 && docs[0].doc_id) {
-      await w.update(docs[0].doc_id, { last_seen: iso });
+      const body = docs[0].body as Record<string, unknown>;
+      const next: Record<string, unknown> = { ...body };
+      if (patch.lastSeen !== undefined) next.last_seen = patch.lastSeen;
+      if (patch.readKeys !== undefined) next.read_keys = patch.readKeys;
+      await w.update(docs[0].doc_id, next);
     } else {
-      await w.create(NOTIFICATIONS_SERVICE, { last_seen: iso }, { groups: [groupId] });
+      await w.create(
+        NOTIFICATIONS_SERVICE,
+        {
+          last_seen: patch.lastSeen ?? '',
+          read_keys: patch.readKeys ?? [],
+        },
+        { groups: [groupId] },
+      );
     }
-    LOG('writeLastSeen — advanced to', iso);
+    LOG('writeCursor —', patch.lastSeen !== undefined ? `last_seen=${patch.lastSeen}` : '', patch.readKeys !== undefined ? `read_keys(+${patch.readKeys.length})` : '');
   } catch (e) {
-    LOG_ERR('writeLastSeen — persist failed (local badge still cleared):', e);
+    LOG_ERR('writeCursor — persist failed (local badge still cleared):', e);
   }
 }
 
@@ -473,18 +505,23 @@ async function deriveNotifications(): Promise<Notification[]> {
   return out;
 }
 
-// Seed the store: derive from reads (the source of truth) + apply the
-// last-seen cursor (unread = created_at after the cursor). Best-effort — a
-// failure leaves the store as-is (live nudges still append), never throws.
+// Seed the store: derive from reads (the source of truth) + apply the read
+// cursor (unread = created_at after `last_seen` AND key not in `read_keys`).
+// Best-effort — a failure leaves the store as-is (live nudges still append),
+// never throws.
 async function seed(): Promise<void> {
   const token = getV3Client().readToken();
   if (!token) return;
   try {
-    const [derived, lastSeen] = await Promise.all([deriveNotifications(), readLastSeen()]);
-    // Apply the cursor: an event is read if it happened at/before last_seen.
+    const [derived, cursor] = await Promise.all([deriveNotifications(), readCursor()]);
+    // Apply the cursor: an event is read if it happened at/before last_seen,
+    // OR the user opened that specific row (its key is in read_keys).
+    const readKeySet = new Set(cursor.readKeys);
     const seeded = derived.map((n) => ({
       ...n,
-      read: lastSeen !== '' && new Date(n.created_at).getTime() <= new Date(lastSeen).getTime(),
+      read:
+        (cursor.lastSeen !== '' && new Date(n.created_at).getTime() <= new Date(cursor.lastSeen).getTime()) ||
+        readKeySet.has(rowKey(n)),
     }));
     // Merge with any live nudges that arrived before the seed finished (a nudge
     // for an event the derivation already covers is dropped in favor of the
@@ -504,9 +541,33 @@ async function seed(): Promise<void> {
 }
 
 /**
- * Mark every notification read (screen open). Flips `read: true` on all rows +
- * notifies subscribers (the badge clears) + advances the last-seen cursor
- * (the durable "I looked" record, so the next seed marks them read).
+ * Mark one notification read (the user opened its destination — a row click).
+ * Flips `read: true` on the row + notifies subscribers (the badge drops by one)
+ * + records the row's key in the `read_keys` cursor (the durable "I opened
+ * this one" record, so the next seed keeps it read even when it is newer than
+ * `last_seen`). No-op when the row is already read.
+ */
+export async function markRead(id: string): Promise<void> {
+  const target = items.find((it) => it.id === id);
+  if (!target || target.read) {
+    LOG('markRead — nothing to mark:', id);
+    return;
+  }
+  items = items.map((it) => (it.id === id ? { ...it, read: true } : it));
+  LOG('markRead —', id, 'unread:', unreadCount());
+  notify();
+  const key = rowKey(target);
+  const cursor = await readCursor();
+  if (!cursor.readKeys.includes(key)) {
+    await writeCursor({ readKeys: [...cursor.readKeys, key] });
+  }
+}
+
+/**
+ * Mark every notification read (the explicit "Mark all read" action). Flips
+ * `read: true` on all rows + notifies subscribers (the badge clears) +
+ * advances the `last_seen` watermark (the durable "I looked" record, so the
+ * next seed marks everything at/before it read).
  */
 export async function markAllRead(): Promise<void> {
   if (items.every((it) => it.read)) {
@@ -517,7 +578,7 @@ export async function markAllRead(): Promise<void> {
   items = items.map((it) => (it.read ? it : { ...it, read: true }));
   LOG('markAllRead — all read, unread:', unreadCount());
   notify();
-  await writeLastSeen(now);
+  await writeCursor({ lastSeen: now });
 }
 
 /**

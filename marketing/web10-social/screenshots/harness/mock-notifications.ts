@@ -43,6 +43,10 @@ export async function markAllRead(): Promise<void> {
   // No-op in the harness — keep the unread state for the screenshot.
 }
 
+export async function markRead(_id: string): Promise<void> {
+  // No-op in the harness — keep the unread state for the screenshot.
+}
+
 export async function initNotifications(): Promise<void> {}
 export function teardownNotifications(): void {}
 export async function recordNotification(_n: unknown): Promise<void> {}
