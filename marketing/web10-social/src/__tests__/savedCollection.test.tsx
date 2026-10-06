@@ -18,12 +18,16 @@ const {
   mockSetCollectionVisibility,
   mockRenameCollection,
   mockDeleteCollection,
+  mockReorderCollection,
+  mockSetCollectionCover,
 } = vi.hoisted(() => ({
   mockReadCollection: vi.fn(),
   mockRemovePostFromCollection: vi.fn(),
   mockSetCollectionVisibility: vi.fn(),
   mockRenameCollection: vi.fn(),
   mockDeleteCollection: vi.fn(),
+  mockReorderCollection: vi.fn(),
+  mockSetCollectionCover: vi.fn(),
 }));
 
 vi.mock('@/data', async (importOriginal) => {
@@ -35,6 +39,8 @@ vi.mock('@/data', async (importOriginal) => {
     setCollectionVisibility: mockSetCollectionVisibility,
     renameCollection: mockRenameCollection,
     deleteCollection: mockDeleteCollection,
+    reorderCollection: mockReorderCollection,
+    setCollectionCover: mockSetCollectionCover,
   };
 });
 
@@ -65,20 +71,24 @@ function renderCollection(entry = `/u/testuser/saved/${encodeURIComponent(GROUP_
   );
 }
 
-describe('SavedCollectionScreen (D88) — the collection detail view', () => {
-  beforeEach(async () => {
-    vi.clearAllMocks();
-    (globalThis.fetch as ReturnType<typeof vi.fn>).mockResolvedValue({ ok: true, json: () => [] });
-    // Re-establish the token (clearAllMocks wipes the factory's implementation).
-    vi.mocked(getWapi).mockReturnValue({
-      readToken: vi.fn().mockReturnValue({ provider: 'test.localhost', username: 'testuser' }),
-    } as unknown as ReturnType<typeof getWapi>);
-    mockRemovePostFromCollection.mockResolvedValue(undefined);
-    mockSetCollectionVisibility.mockResolvedValue(undefined);
-    mockRenameCollection.mockResolvedValue(undefined);
-    mockDeleteCollection.mockResolvedValue(undefined);
-  });
+// Top-level beforeEach — shared by every describe block in this file (clear
+// the mocks + re-establish the token, since clearAllMocks wipes the factory's
+// implementation).
+beforeEach(async () => {
+  vi.clearAllMocks();
+  (globalThis.fetch as ReturnType<typeof vi.fn>).mockResolvedValue({ ok: true, json: () => [] });
+  vi.mocked(getWapi).mockReturnValue({
+    readToken: vi.fn().mockReturnValue({ provider: 'test.localhost', username: 'testuser' }),
+  } as unknown as ReturnType<typeof getWapi>);
+  mockRemovePostFromCollection.mockResolvedValue(undefined);
+  mockSetCollectionVisibility.mockResolvedValue(undefined);
+  mockRenameCollection.mockResolvedValue(undefined);
+  mockDeleteCollection.mockResolvedValue(undefined);
+  mockReorderCollection.mockResolvedValue(undefined);
+  mockSetCollectionCover.mockResolvedValue(undefined);
+});
 
+describe('SavedCollectionScreen (D88) — the collection detail view', () => {
   it('renders the saved posts as the wall (the profile\u2019s 9:16 grid)', async () => {
     mockReadCollection.mockResolvedValue({
       face: { name: 'Guitar Riffs', visibility: 'private' },
@@ -218,5 +228,147 @@ describe('SavedCollectionScreen (D88) — the collection detail view', () => {
     // The owner affordances are absent for a visitor.
     expect(screen.queryByTestId('saved-collection-visibility')).not.toBeInTheDocument();
     expect(screen.queryByTestId('saved-post-remove')).not.toBeInTheDocument();
+  });
+});
+
+// ── Reorder (playlist order) + the collection's cover ────────────────────────
+
+// A 2-item collection (enough to reorder).
+function twoItemCollection() {
+  return {
+    face: { name: 'Guitar Riffs', visibility: 'private' },
+    posts: [
+      { _id: 's1', postId: 'p1', savedAt: 'x', unavailable: false, post: { _id: 'p1', text: 'a riff', created_at: 'x' } },
+      { _id: 's2', postId: 'p2', savedAt: 'x', unavailable: false, post: { _id: 'p2', text: 'another riff', created_at: 'x' } },
+    ],
+    mediaMap: {},
+  };
+}
+
+describe('SavedCollectionScreen — reorder (the owner\'s playlist order)', () => {
+  it('the owner sees the reorder toggle (≥2 items); a visitor does not', async () => {
+    mockReadCollection.mockResolvedValue(twoItemCollection());
+    renderCollection();
+    await screen.findAllByTestId('saved-post-cell');
+    expect(screen.getByTestId('saved-collection-reorder')).toBeInTheDocument();
+  });
+
+  it('a single-item collection has no reorder toggle (nothing to order)', async () => {
+    mockReadCollection.mockResolvedValue({
+      face: { name: 'Guitar Riffs', visibility: 'private' },
+      posts: [{ _id: 's1', postId: 'p1', savedAt: 'x', unavailable: false, post: { _id: 'p1', text: 'a riff', created_at: 'x' } }],
+      mediaMap: {},
+    });
+    renderCollection();
+    await screen.findByTestId('saved-post-cell');
+    expect(screen.queryByTestId('saved-collection-reorder')).not.toBeInTheDocument();
+  });
+
+  it('entering reorder mode shows the bar + the per-tile up/down controls', async () => {
+    mockReadCollection.mockResolvedValue(twoItemCollection());
+    renderCollection();
+    await screen.findAllByTestId('saved-post-cell');
+    fireEvent.click(screen.getByTestId('saved-collection-reorder'));
+    expect(await screen.findByTestId('saved-reorder-bar')).toBeInTheDocument();
+    expect(screen.getAllByTestId('saved-post-move-up').length).toBe(2);
+    expect(screen.getAllByTestId('saved-post-move-down').length).toBe(2);
+    // The remove affordance is hidden while reordering (the tile is being ordered).
+    expect(screen.queryByTestId('saved-post-remove')).not.toBeInTheDocument();
+  });
+
+  it('the up/down arrows reorder the tiles locally (a move swaps the sequence)', async () => {
+    mockReadCollection.mockResolvedValue(twoItemCollection());
+    renderCollection();
+    await screen.findAllByTestId('saved-post-cell');
+    fireEvent.click(screen.getByTestId('saved-collection-reorder'));
+    await screen.findByTestId('saved-reorder-bar');
+    const order = () => screen.getAllByTestId('saved-post-cell').map((c) => c.getAttribute('aria-label'));
+    const before = order();
+    expect(before[0]).toBe('View a riff');
+    // Move the first item down (index 0 → 1): the wall order flips.
+    fireEvent.click(screen.getAllByTestId('saved-post-move-down')[0]);
+    await waitFor(() => expect(order()[0]).toBe('View another riff'));
+  });
+
+  it('saving the order persists the new sequence (reorderCollection) + exits the mode', async () => {
+    mockReadCollection.mockResolvedValue(twoItemCollection());
+    renderCollection();
+    await screen.findAllByTestId('saved-post-cell');
+    fireEvent.click(screen.getByTestId('saved-collection-reorder'));
+    await screen.findByTestId('saved-reorder-bar');
+    fireEvent.click(screen.getAllByTestId('saved-post-move-down')[0]); // p2 before p1
+    fireEvent.click(screen.getByTestId('saved-reorder-save'));
+    await waitFor(() => expect(mockReorderCollection).toHaveBeenCalledWith(GROUP_ID, ['p2', 'p1']));
+    // The reorder bar is gone (the mode exited).
+    await waitFor(() => expect(screen.queryByTestId('saved-reorder-bar')).not.toBeInTheDocument());
+  });
+
+  it('cancelling reorder mode does not persist (no reorderCollection call)', async () => {
+    mockReadCollection.mockResolvedValue(twoItemCollection());
+    renderCollection();
+    await screen.findAllByTestId('saved-post-cell');
+    fireEvent.click(screen.getByTestId('saved-collection-reorder'));
+    await screen.findByTestId('saved-reorder-bar');
+    fireEvent.click(screen.getByTestId('saved-reorder-cancel'));
+    await waitFor(() => expect(screen.queryByTestId('saved-reorder-bar')).not.toBeInTheDocument());
+    expect(mockReorderCollection).not.toHaveBeenCalled();
+  });
+});
+
+describe('SavedCollectionScreen — the collection\'s cover (Set as cover)', () => {
+  beforeEach(async () => {
+    vi.clearAllMocks();
+    (globalThis.fetch as ReturnType<typeof vi.fn>).mockResolvedValue({ ok: true, json: () => [] });
+    vi.mocked(getWapi).mockReturnValue({
+      readToken: vi.fn().mockReturnValue({ provider: 'test.localhost', username: 'testuser' }),
+    } as unknown as ReturnType<typeof getWapi>);
+    mockRemovePostFromCollection.mockResolvedValue(undefined);
+    mockSetCollectionVisibility.mockResolvedValue(undefined);
+    mockRenameCollection.mockResolvedValue(undefined);
+    mockDeleteCollection.mockResolvedValue(undefined);
+    mockReorderCollection.mockResolvedValue(undefined);
+    mockSetCollectionCover.mockResolvedValue(undefined);
+  });
+
+  it('the owner sees "Set as cover" on a media tile + it calls the seam', async () => {
+    mockReadCollection.mockResolvedValue({
+      face: { name: 'Guitar Riffs', visibility: 'private' },
+      posts: [
+        { _id: 's1', postId: 'p1', savedAt: 'x', unavailable: false, post: { _id: 'p1', text: 'a riff', media_refs: ['m1'], created_at: 'x' } },
+      ],
+      mediaMap: { m1: { _id: 'm1', url: 'https://cdn/m1.webp', created_at: 'x' } },
+    });
+    renderCollection();
+    await screen.findByTestId('saved-post-cell');
+    const coverBtn = screen.getByTestId('saved-post-set-cover');
+    expect(coverBtn).toBeInTheDocument();
+    fireEvent.click(coverBtn);
+    await waitFor(() => expect(mockSetCollectionCover).toHaveBeenCalledWith(GROUP_ID, 'p1'));
+  });
+
+  it('a text-only tile (no media) has no "Set as cover" affordance', async () => {
+    mockReadCollection.mockResolvedValue({
+      face: { name: 'Guitar Riffs', visibility: 'private' },
+      posts: [
+        { _id: 's1', postId: 'p1', savedAt: 'x', unavailable: false, post: { _id: 'p1', text: 'just words', created_at: 'x' } },
+      ],
+      mediaMap: {},
+    });
+    renderCollection();
+    await screen.findByTestId('saved-post-cell');
+    expect(screen.queryByTestId('saved-post-set-cover')).not.toBeInTheDocument();
+  });
+
+  it('a visitor does not see "Set as cover" (owner-only)', async () => {
+    mockReadCollection.mockResolvedValue({
+      face: { name: 'Guitar Riffs', visibility: 'public' },
+      posts: [
+        { _id: 's1', postId: 'p1', savedAt: 'x', unavailable: false, post: { _id: 'p1', text: 'a riff', media_refs: ['m1'], created_at: 'x' } },
+      ],
+      mediaMap: { m1: { _id: 'm1', url: 'https://cdn/m1.webp', created_at: 'x' } },
+    });
+    renderCollection(`/u/otheruser/saved/${encodeURIComponent(GROUP_ID)}`, 'otheruser');
+    await screen.findByTestId('saved-post-cell');
+    expect(screen.queryByTestId('saved-post-set-cover')).not.toBeInTheDocument();
   });
 });

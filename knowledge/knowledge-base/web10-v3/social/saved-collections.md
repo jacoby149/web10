@@ -137,6 +137,55 @@ group:    <the collection group>
   single "save" covers all three — there is no separate "saved videos" /
   "saved shorts" machinery. The collection is a list of post refs, full stop.
 
+### The collection's cover (its thumbnail)
+
+A collection's **cover** is the picture on its card (the Saved tab's grid, the
+"card on profile" the operator named). It is stored as the face's
+**`avatar_ref`** — a media doc_id — the same field a group's photo uses (the
+face is the collection's public metadata; the cover is part of it, readable by
+the same rules as the name). Two ways it gets set:
+
+- **Auto (the default).** The **first** thing saved into an empty collection
+  becomes its cover — the app writes the face's `avatar_ref` to that post's
+  first media when it saves. A text-only post can't be a cover (no media), so
+  the cover stays unset until a media post is saved. This is best-effort: a
+  cover failure degrades to the brand-tinted placeholder, never failing the
+  save.
+- **Pinned (the owner's choice).** The owner can pin **any** item as the cover
+  ("Set as cover" on a tile). This overwrites the face's `avatar_ref` and wins
+  over the auto-set (the auto-set is a no-op once a cover exists).
+
+The card grid resolves each collection's `avatar_ref` to a displayable URL in
+**one batched media read** (the profile wall's resolve idiom); a cover that
+can't be resolved (a text-only collection, a dead media ref) falls back to the
+brand-tinted placeholder (the `hashToColor` idiom). The cover is **metadata
+about the list**, not the list — it carries no content the membership did not
+already grant (the media is the saved post's own media, readable by the post's
+own gate).
+
+### Playlist order (the owner's curated sequence)
+
+A collection is a **playlist** — the owner can order its items, not just
+append them. The order is stored as a **`position`** (0-based) on each `saved`
+doc's body:
+
+- **`readCollection` renders in `position` order** when any item carries one;
+  otherwise it falls back to **newest-save-first** (the saved doc's
+  `created_at`). A mixed state (some positioned, some not) keeps the positioned
+  items first, in position order, then the rest newest-first.
+- **`reorderCollection(groupId, orderedPostIds)`** rewrites each `saved` doc's
+  `body.position` to its index in the new order. The node's `update` **merges**
+  the body (`{**existing, **new}`), so the doc's `post_id` / `note` are
+  preserved — only `position` changes. A doc that is already gone (a removed
+  item) is skipped.
+- Reordering is **owner-only** (the `saved` doc's `updateOwn` — the owner is
+  the doc's author) and is the *only* write the reorder makes. There is no
+  re-save, no new doc, no node surface.
+
+The order is a **render hint the owner controls** — it never changes access
+(a reordered collection is readable by exactly the same principals; the order
+is not a security boundary, the same as `kind`).
+
 ### The group_id + the tag
 
 `createGroup` derives the group_id from the caller's token:
@@ -200,6 +249,21 @@ New module `src/data/saved.ts` (sibling to `groups.ts`):
   a visitor's profile, a private one is absent).
 - `renameCollection(groupId, name)` / `deleteCollection(groupId)` — update the
   face `name` / delete the group (the owner-only group-management ops).
+- `setCollectionCover(groupId, postId)` — pin a saved post's first media as the
+  collection's cover (write the face's `avatar_ref` to the post's first media
+  doc_id). The owner's explicit "Set as cover". A no-op-throw when the post has
+  no media.
+- `reorderCollection(groupId, orderedPostIds)` — rewrite each `saved` doc's
+  `body.position` (0-based, in the given order) so the collection renders in
+  the owner's curated sequence. The `update` merges the body, so `post_id` /
+  `note` are preserved. A removed item is skipped.
+- The list reads (`getMyCollections` / `readUserPublicCollections` /
+  `readGroupCollections` / `readGroupPublicCollections`) each resolve the
+  collections' cover media to a displayable `coverUrl` in one batched media
+  read (the card grid's thumbnails); a cover that can't be resolved keeps no
+  `coverUrl` (the card falls back to the brand-tinted placeholder).
+- `savePostToCollection` auto-sets the cover to the first saved post's media
+  when the collection has none (best-effort, never fails the save).
 
 **The "Save" affordance is a post action, not a collection concept.** The
 save control lives on the post surfaces (the kebab menu / the action bar, the
@@ -222,11 +286,12 @@ for a visitor only when there's something public to show).
 
 The Saved tab lists the user's **collections as cards** (the "card on profile"
 the operator named — the YouTube Playlists-tab card grid): each card shows the
-collection's **cover** (the first saved post's media, or a brand-tinted
-placeholder when empty/unset — the `hashToColor` idiom), the **name**, and an
-**"N items"** meta line. On the owner's own profile the cards are tappable to
-edit (rename, change visibility, delete, reorder); on a visitor's view the
-cards are tappable to *open* a public collection (read-only).
+collection's **cover** (its thumbnail — the first thing saved, or the owner's
+pinned choice; a brand-tinted placeholder when the collection is empty or has
+no media), the **name**, and an **"N items"** meta line. On the owner's own
+profile the cards are tappable to edit (rename, change visibility, delete,
+reorder); on a visitor's view the cards are tappable to *open* a public
+collection (read-only).
 
 ### Opening a collection
 
@@ -237,8 +302,12 @@ wall (the profile's 9:16 `WallTile` grid) or a feed (the `ProfileFeed`
 lens) — the same render the profile's Posts tab uses, so a saved post looks
 exactly like it does everywhere else. A dead ref renders a "no longer
 available" tile. The owner sees the per-item **remove** affordance + the
-collection's **visibility toggle** (private ⇄ public) in the header; a
-visitor sees a read-only wall.
+collection's **visibility toggle** (private ⇄ public) in the header; a visitor
+sees a read-only wall. The owner also gets **playlist controls**: a
+**Reorder** toggle (≥2 items) that enters a reorder mode (drag a tile, or use
+the per-tile up/down arrows, then **Save order** / **Cancel** — the order is
+persisted by `reorderCollection`), and a per-tile **Set as cover** affordance
+(media tiles only) that pins that item's media as the collection's thumbnail.
 
 ### The save affordance (where "Save" lives)
 
