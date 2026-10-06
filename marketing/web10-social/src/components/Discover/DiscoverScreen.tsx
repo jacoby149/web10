@@ -505,141 +505,177 @@ export default function DiscoverScreen({ mode: modeOverride }: { mode?: Discover
 
       const token = getWapi().readToken();
 
-      // Engagement counts (the ref pattern): one read of the reactions +
-      // comments collections over the discover group, counted client-side by
-      // ref_value (the target post's doc_id) — the same pattern the marketing
-      // trending page runs. Without this the knobs only ever see recency.
-      if (token) {
-        try {
-          const w = getV3Client();
-          const discoverId = getDiscoverGroupId();
-          const [reactionDocs, commentDocs, repostCounts, myReposts] = await Promise.all([
-            w.read('reactions', { groups: [discoverId], limit: 500 }),
-            w.read('comments', { groups: [discoverId], limit: 500 }),
-            // Repost (reposts.md: a repost is a POST, not a reaction). The
-            // count is the number of `repost_of` posts (readRepostCounts, the
-            // feed query's I3-scoped join lifted to a surface read) and the
-            // "I reposted this" fill is the reader's own repost post
-            // (readMyRepostedIds, the readFeedReactions own-post read lifted to
-            // a surface read). The legacy `type:'repost'` reaction still fills
-            // for old data (a read-only fallback).
-            readRepostCounts(results.map((p) => p._id || '').filter(Boolean), [discoverId]),
-            readMyRepostedIds(),
-          ]);
-          const likesByPost: Record<string, number> = {};
-          const dislikesByPost: Record<string, number> = {};
-          const commentsByPost: Record<string, number> = {};
-          // The reader's own reaction per post (v3 ownership is by username
-          // alone — the reaction's author_key is the bare username, the
-          // provider implicit, so match on username, not provider).
-          const likedByPost: Record<string, boolean> = {};
-          const dislikedByPost: Record<string, boolean> = {};
-          const legacyRepostedByPost: Record<string, boolean> = {};
-          for (const d of reactionDocs) {
-            if (d.ref_value) {
-              // Each reaction type is counted separately (the heart and the
-              // thumb each show their own tally — post-actions.md). The repost
-              // is NOT counted from reactions anymore (reposts.md — it is a
-              // post); the legacy `type:'repost'` reaction only feeds the
-              // read-only fill fallback for old data.
-              const type = (d.body as Record<string, unknown>)?.type as string | undefined;
-              if (type === 'like') likesByPost[d.ref_value] = (likesByPost[d.ref_value] || 0) + 1;
-              else if (type === 'dislike') dislikesByPost[d.ref_value] = (dislikesByPost[d.ref_value] || 0) + 1;
-              else if (type === 'repost') legacyRepostedByPost[d.ref_value] = true;
-              if (extractUsername(d.author_key) === token.username) {
-                if (type === 'like') likedByPost[d.ref_value] = true;
-                else if (type === 'dislike') dislikedByPost[d.ref_value] = true;
+      // ── Paint the grid NOW — the one read is render-ready ─────────────────
+      // The node's read path already resolved every post's media inline
+      // (resolve_media_urls_in_docs: presigned thumbnail_url + read_url +
+      // dimensions + HLS settings on each media_ref). Building the media map
+      // from those inline refs is synchronous — the wall's first paint carries
+      // the thumbnails after ONE round-trip, instead of waiting on the
+      // per-author profile fan-out + a second media round-trip (the
+      // "grey thumbnails for quite some time" the 3.210.1 paint-after-media
+      // move traded for: the grid no longer paints grey, but it no longer
+      // paints until every enrichment landed either). The avatar + the
+      // string-ref fallback resolution land in the background below and
+      // patch the grid in — the card re-renders from the same maps.
+      const inlineMap: Record<string, MediaRecord[]> = {};
+      for (const p of results) {
+        const inline = (p.media_refs || []).filter((r): r is ResolvedMediaRef => typeof r !== 'string');
+        if (!inline.length) continue;
+        const seen = new Set<string>();
+        const records: MediaRecord[] = [];
+        for (const r of inline) {
+          const id = r.doc_id || '';
+          if (id && !seen.has(id)) {
+            seen.add(id);
+            records.push(fromResolvedMediaRef(r));
+          }
+        }
+        if (records.length) inlineMap[p._id || ''] = records;
+      }
+      if (Object.keys(inlineMap).length) setMediaMap(inlineMap);
+      setPosts(results);
+      hasLoadedRef.current = true;
+      setLoading(false);
+
+      // ── Enrich in the background (never blocks the first paint) ───────────
+      // Everything the grid needs beyond the one read — engagement tallies,
+      // the authors' faces, and the string-ref media fallback — lands here,
+      // in PARALLEL, and patches the grid in. The card re-renders from the
+      // same maps, so the wall fills in: counts, avatars, display names.
+      void (async () => {
+        // (1) Engagement counts (the ref pattern): one read of the reactions +
+        // comments collections over the discover group, counted client-side by
+        // ref_value (the target post's doc_id) — the same pattern the marketing
+        // trending page runs. Without this the knobs only ever see recency.
+        const engagement = (async () => {
+          if (!token) return;
+          try {
+            const w = getV3Client();
+            const discoverId = getDiscoverGroupId();
+            const [reactionDocs, commentDocs, repostCounts, myReposts] = await Promise.all([
+              w.read('reactions', { groups: [discoverId], limit: 500 }),
+              w.read('comments', { groups: [discoverId], limit: 500 }),
+              // Repost (reposts.md: a repost is a POST, not a reaction). The
+              // count is the number of `repost_of` posts (readRepostCounts, the
+              // feed query's I3-scoped join lifted to a surface read) and the
+              // "I reposted this" fill is the reader's own repost post
+              // (readMyRepostedIds, the readFeedReactions own-post read lifted to
+              // a surface read). The legacy `type:'repost'` reaction still fills
+              // for old data (a read-only fallback).
+              readRepostCounts(results.map((p) => p._id || '').filter(Boolean), [discoverId]),
+              readMyRepostedIds(),
+            ]);
+            const likesByPost: Record<string, number> = {};
+            const dislikesByPost: Record<string, number> = {};
+            const commentsByPost: Record<string, number> = {};
+            // The reader's own reaction per post (v3 ownership is by username
+            // alone — the reaction's author_key is the bare username, the
+            // provider implicit, so match on username, not provider).
+            const likedByPost: Record<string, boolean> = {};
+            const dislikedByPost: Record<string, boolean> = {};
+            const legacyRepostedByPost: Record<string, boolean> = {};
+            for (const d of reactionDocs) {
+              if (d.ref_value) {
+                // Each reaction type is counted separately (the heart and the
+                // thumb each show their own tally — post-actions.md). The repost
+                // is NOT counted from reactions anymore (reposts.md — it is a
+                // post); the legacy `type:'repost'` reaction only feeds the
+                // read-only fill fallback for old data.
+                const type = (d.body as Record<string, unknown>)?.type as string | undefined;
+                if (type === 'like') likesByPost[d.ref_value] = (likesByPost[d.ref_value] || 0) + 1;
+                else if (type === 'dislike') dislikesByPost[d.ref_value] = (dislikesByPost[d.ref_value] || 0) + 1;
                 else if (type === 'repost') legacyRepostedByPost[d.ref_value] = true;
-              }
-            }
-          }
-          for (const d of commentDocs) {
-            // The TOTAL count (top-level + replies): a reply's `ref_value` is
-            // its parent comment (comments.md), so key on `body.post_id`,
-            // which every comment carries.
-            const pid = (d.body as Record<string, unknown>)?.post_id as string | undefined;
-            if (pid) commentsByPost[pid] = (commentsByPost[pid] || 0) + 1;
-          }
-          for (const p of results) {
-            p.likes = likesByPost[p._id || ''] || 0;
-            p.dislikes = dislikesByPost[p._id || ''] || 0;
-            p.reposts = repostCounts[p._id || ''] || 0;
-            p.comments = commentsByPost[p._id || ''] || 0;
-          }
-          setLikedMap(likedByPost);
-          setDislikedMap(dislikedByPost);
-          // The repost fill: the reader's own repost post, OR a legacy
-          // `type:'repost'` reaction (old data, read-only fallback).
-          const repostedByPost: Record<string, boolean> = {};
-          for (const p of results) {
-            const id = p._id || '';
-            if (myReposts.has(id) || legacyRepostedByPost[id]) repostedByPost[id] = true;
-          }
-          setRepostedMap(repostedByPost);
-          LOG(
-            'engagement — counted',
-            Object.values(likesByPost).reduce((a, b) => a + b, 0), 'reactions +',
-            Object.values(commentsByPost).reduce((a, b) => a + b, 0), 'comments +',
-            Object.values(repostCounts).reduce((a, b) => a + b, 0), 'reposts',
-          );
-        } catch (e) {
-          LOG('engagement — failed (degrading to zero counts):', e);
-        }
-      }
-
-      // Resolve profiles for authors. Anon-capable: a public profile face is
-      // `anyone`-readable (profiles are public by default, 3.149.0), so an
-      // anon visitor sees the author's face too. The own-profile read
-      // (readProfile) is token-gated; anon always goes through readUserProfile.
-      const profiles: Record<string, ProfileRecord> = {};
-      for (const post of results) {
-        const key = `${post.author_username}@${post.author_provider}`;
-        if (profiles[key]) continue;
-        try {
-          const profile = token && post.author_username === token.username
-            ? await readProfile()
-            : await readUserProfile(post.author_username || '');
-          if (profile) profiles[key] = profile;
-        } catch {
-          // Profile not available — use author name
-        }
-      }
-      setProfileMap(profiles);
-
-      // Resolve media for posts that have media.
-      //
-      // Signed-in: the cross-user `public_media` path (resolveMediaRefs) mints
-      // fresh presigned URLs — the owner's own media uses the `media` service.
-      //
-      // Anon: the read already returned the media inline (the node's
-      // resolve_media_urls_in_docs rewrites media_refs to {doc_id, object_key,
-      // read_url, …} at read time — the same presigned URL the signed-in path
-      // would mint). There's no token to re-presign with, so build the map
-      // straight from the inline refs. (The URLs are fresh at read time; the
-      // 60s expiry is a non-issue for the initial board render.)
-      const postsWithMedia = results.filter(p => p.media_refs?.length);
-      if (postsWithMedia.length) {
-        try {
-          if (!token) {
-            const mMap: Record<string, MediaRecord[]> = {};
-            for (const p of postsWithMedia) {
-              const inline = (p.media_refs || []).filter((r): r is ResolvedMediaRef => typeof r !== 'string');
-              if (!inline.length) continue;
-              const seen = new Set<string>();
-              const records: MediaRecord[] = [];
-              for (const r of inline) {
-                const id = r.doc_id || '';
-                if (id && !seen.has(id)) {
-                  seen.add(id);
-                  records.push(fromResolvedMediaRef(r));
+                if (extractUsername(d.author_key) === token.username) {
+                  if (type === 'like') likedByPost[d.ref_value] = true;
+                  else if (type === 'dislike') dislikedByPost[d.ref_value] = true;
+                  else if (type === 'repost') legacyRepostedByPost[d.ref_value] = true;
                 }
               }
-              if (records.length) mMap[p._id || ''] = records;
             }
-            if (Object.keys(mMap).length) setMediaMap(mMap);
-          } else {
-            const byAuthor = new Map<string, { posts: typeof postsWithMedia; refs: (string | ResolvedMediaRef)[] }>();
-            for (const p of postsWithMedia) {
+            for (const d of commentDocs) {
+              // The TOTAL count (top-level + replies): a reply's `ref_value` is
+              // its parent comment (comments.md), so key on `body.post_id`,
+              // which every comment carries.
+              const pid = (d.body as Record<string, unknown>)?.post_id as string | undefined;
+              if (pid) commentsByPost[pid] = (commentsByPost[pid] || 0) + 1;
+            }
+            for (const p of results) {
+              p.likes = likesByPost[p._id || ''] || 0;
+              p.dislikes = dislikesByPost[p._id || ''] || 0;
+              p.reposts = repostCounts[p._id || ''] || 0;
+              p.comments = commentsByPost[p._id || ''] || 0;
+            }
+            setLikedMap(likedByPost);
+            setDislikedMap(dislikedByPost);
+            // The repost fill: the reader's own repost post, OR a legacy
+            // `type:'repost'` reaction (old data, read-only fallback).
+            const repostedByPost: Record<string, boolean> = {};
+            for (const p of results) {
+              const id = p._id || '';
+              if (myReposts.has(id) || legacyRepostedByPost[id]) repostedByPost[id] = true;
+            }
+            setRepostedMap(repostedByPost);
+            // The tallies above mutated the post objects in place — bump the
+            // array so the `scoredPosts` memo (which spreads each post for the
+            // Top 10 rail's tally) recomputes with the real counts.
+            setPosts((prev) => prev.map((p) => ({ ...p })));
+            LOG(
+              'engagement — counted',
+              Object.values(likesByPost).reduce((a, b) => a + b, 0), 'reactions +',
+              Object.values(commentsByPost).reduce((a, b) => a + b, 0), 'comments +',
+              Object.values(repostCounts).reduce((a, b) => a + b, 0), 'reposts',
+            );
+          } catch (e) {
+            LOG('engagement — failed (degrading to zero counts):', e);
+          }
+        })();
+
+        // (2) Profiles: one PARALLEL fan-out (was a serial per-author await —
+        // N distinct authors = N sequential round-trips holding the paint).
+        // Anon-capable: a public profile face is `anyone`-readable (profiles
+        // are public by default, 3.149.0), so an anon visitor sees the author's
+        // face too. The own-profile read (readProfile) is token-gated.
+        const authors = new Map<string, { username: string; own: boolean }>();
+        for (const post of results) {
+          const key = `${post.author_username}@${post.author_provider}`;
+          if (authors.has(key)) continue;
+          authors.set(key, {
+            username: post.author_username || '',
+            own: !!(token && post.author_username === token.username),
+          });
+        }
+        const profiles = (async () => {
+          const profileEntries = await Promise.all(
+            [...authors.values()].map(async ({ username, own }) => {
+              try {
+                const profile = own ? await readProfile() : await readUserProfile(username);
+                return profile ? ([username, profile] as const) : null;
+              } catch {
+                // Profile not available — the card falls back to the derived name
+                return null;
+              }
+            }),
+          );
+          // Key by the same author@provider key the grid reads.
+          const map: Record<string, ProfileRecord> = {};
+          for (const post of results) {
+            const profile = profileEntries.find((e) => e && e[0] === post.author_username)?.[1];
+            if (profile) map[`${post.author_username}@${post.author_provider}`] = profile;
+          }
+          if (Object.keys(map).length) setProfileMap(map);
+        })();
+
+        // (3) Fallback media: only for posts whose refs are bare doc_id strings
+        // (write-path reads) — the API read path's refs are already inline
+        // objects and never need it. Merges over the inline map.
+        const fallbackMedia = (async () => {
+          const postsWithStrings = results.filter((p) =>
+            (p.media_refs || []).some((r) => typeof r === 'string'),
+          );
+          if (!postsWithStrings.length || !token) return;
+          try {
+            const byAuthor = new Map<string, { posts: typeof postsWithStrings; refs: (string | ResolvedMediaRef)[] }>();
+            for (const p of postsWithStrings) {
               const key = `${p.author_username}@${p.author_provider}`;
               const entry = byAuthor.get(key);
               if (entry) {
@@ -656,8 +692,6 @@ export default function DiscoverScreen({ mode: modeOverride }: { mode?: Discover
             for (const [key, entry] of byAuthor) {
               const [username, provider] = key.split('@');
               const isOwn = username === token.username && provider === token.provider;
-              // Dedupe by doc_id, keeping the original ref shape (resolved
-              // objects carry the cross-user read_url; strings are doc_ids).
               const seen = new Set<string>();
               const uniqueRefs: (string | ResolvedMediaRef)[] = [];
               for (const r of entry.refs) {
@@ -676,27 +710,20 @@ export default function DiscoverScreen({ mode: modeOverride }: { mode?: Discover
               for (const p of entry.posts) {
                 if (p.media_refs?.length) {
                   const postRefIds = new Set((p.media_refs || []).map(mediaRefId));
-                  mMap[p._id || ''] = media.filter(m => postRefIds.has(m._id || ''));
+                  mMap[p._id || ''] = media.filter((m) => postRefIds.has(m._id || ''));
                 }
               }
             }
             if (Object.keys(mMap).length) {
-              setMediaMap(mMap);
+              setMediaMap((prev) => ({ ...prev, ...mMap }));
             }
+          } catch (e) {
+            LOG('background media resolve — failed (degrading to inline):', e);
           }
-        } catch {
-          // Media resolution failed — degrade gracefully
-        }
-      }
+        })();
 
-      // Paint the grid only AFTER the media (thumbnails) are resolved — the
-      // grid's first render must already carry the thumbnails, not paint grey
-      // and swap them in on a second render (the operator's "grey thumbnails
-      // for quite some time" on the Video tab). The skeleton covers the gap
-      // while the reads are in flight. `setPosts` + `setMediaMap` land in the
-      // same synchronous block, so React batches them into one render.
-      setPosts(results);
-      hasLoadedRef.current = true;
+        await Promise.all([engagement, profiles, fallbackMedia]);
+      })();
     } catch (e) {
       LOG('loadDiscover — failed:', e);
       // A failed re-read (a knob twist) keeps the previous grid on screen —
