@@ -438,9 +438,31 @@ export function getV3Client(): unknown {
     readRefCounts: async () => ({}),
     // readById (the watch page's primary read) — return the seeded discover
     // post by doc_id in the node's doc shape (body carries the post fields).
+    // The real read serves media_refs PRE-RESOLVED (resolve_media_urls_in_docs,
+    // documents.py:205), so the harness resolves the string refs against
+    // DISCOVER_MEDIA here — the watch page builds the player's media from these
+    // inline refs (the one-read paint), so the mock must carry them.
     readById: async (docId: string) => {
       const p = DISCOVER_POSTS.find((x) => (x._id as string) === docId);
       if (!p) throw new Error('not found');
+      const resolved = (p.media_refs ?? [])
+        .map((id) => {
+          const m = DISCOVER_MEDIA[id];
+          if (!m) return null;
+          return {
+            doc_id: m._id,
+            object_key: m.object_key ?? null,
+            mime_type: m.mime_type,
+            size_bytes: m.size_bytes ?? null,
+            read_url: m.url,
+            width: m.width ?? null,
+            height: m.height ?? null,
+            duration_seconds: m.duration_seconds ?? null,
+            thumbnail_url: m.thumbnail_url ?? null,
+            transcoding_settings: m.transcoding_settings ?? null,
+          };
+        })
+        .filter(Boolean);
       return {
         doc_id: p._id,
         created_at: p.created_at,
@@ -450,7 +472,7 @@ export function getV3Client(): unknown {
           text: p.text,
           author_username: p.author_username,
           author_provider: p.author_provider,
-          media_refs: p.media_refs,
+          media_refs: resolved,
         },
       };
     },
@@ -1268,7 +1290,36 @@ const DISCOVER_POSTS: SeedDiscoverPost[] = [
   },
 ];
 
-export async function readDiscoverFeed(): Promise<unknown[]> { return DISCOVER_POSTS; }
+// The discover board read — the watch page's "What's next" source. The real
+// read serves media_refs PRE-RESOLVED (objects with read_url + dims +
+// transcoding_settings — the node's resolve_media_urls_in_docs), so the harness
+// resolves string refs against DISCOVER_MEDIA here, the same way readFeedPage
+// does. The watch page builds its queue's media map from these inline refs
+// (no second media round-trip), so the mock must carry them.
+export async function readDiscoverFeed(): Promise<unknown[]> {
+  return DISCOVER_POSTS.map((p) => {
+    if (!p.media_refs?.length) return p;
+    const resolved = p.media_refs
+      .map((id) => {
+        const m = DISCOVER_MEDIA[id];
+        if (!m) return null;
+        return {
+          doc_id: m._id,
+          object_key: m.object_key ?? null,
+          mime_type: m.mime_type,
+          size_bytes: m.size_bytes ?? null,
+          read_url: m.url,
+          width: m.width ?? null,
+          height: m.height ?? null,
+          duration_seconds: m.duration_seconds ?? null,
+          thumbnail_url: m.thumbnail_url ?? null,
+          transcoding_settings: m.transcoding_settings ?? null,
+        };
+      })
+      .filter(Boolean);
+    return { ...p, media_refs: resolved };
+  });
+}
 // The Shorts feed (shorts.md): the discover board filtered to genuine shorts —
 // a post whose single media is a REAL 9:16 video, re-derived from the resolved
 // media (the render-time gate), not the client-asserted `short` tag.

@@ -377,4 +377,75 @@ describe('WatchScreen (the watch page)', () => {
     // render, which would be dozens of times in this window.
     expect(boardReads).toBeLessThanOrEqual(3);
   });
+
+  it('paints the page on the ONE read — the player + title + author row land before the board read resolves (the queue holds its skeleton)', async () => {
+    // Regression: the old screen held the whole-page skeleton until EVERYTHING
+    // landed (the post read + the board read + the profile fan-out + a second
+    // media round-trip) — the "totally gray" wall the operator flagged. The
+    // page must paint after the ONE post read; the queue's skeleton holds the
+    // rail until the board lands.
+    let releaseBoard: () => void = () => {};
+    const boardGate = new Promise<void>((r) => { releaseBoard = r; });
+    (data.readDiscoverFeed as ReturnType<typeof vi.fn>).mockImplementation(async () => {
+      await boardGate;
+      return BOARD.map((b) => ({
+        _id: b.doc_id,
+        text: b.body.text,
+        created_at: b.created_at,
+        tags: b.tags,
+        author_username: b.body.author_username,
+        author_provider: b.body.author_provider,
+        media_refs: b.body.media_refs,
+        likes: 0,
+        comments: 0,
+        reposts: 0,
+      }));
+    });
+
+    await renderWatch();
+    // The post read resolves (the board is still gated) — the page paints:
+    // the player (the video's media is inline on the post read), the title,
+    // the author row, the action bar — and the queue's skeleton holds the rail.
+    await waitFor(() => expect(screen.getByTestId('watch-player')).toBeInTheDocument());
+    expect(screen.getByTestId('watch-title')).toHaveTextContent('Free soloing the north face');
+    expect(screen.getByTestId('watch-author-row')).toBeInTheDocument();
+    expect(screen.getByTestId('watch-actions')).toBeInTheDocument();
+    // The queue is still loading (the board is gated) — the skeleton, not the
+    // cards and not the empty state.
+    expect(screen.getByTestId('watch-queue-skeleton')).toBeInTheDocument();
+    expect(screen.queryByTestId('watch-queue')).not.toBeInTheDocument();
+    expect(screen.queryByTestId('watch-queue-empty')).not.toBeInTheDocument();
+
+    // The board lands — the queue paints with its cards (thumbnails inline on
+    // the board read, so no second media round-trip holds the rail).
+    releaseBoard();
+    await waitFor(() => expect(screen.getByTestId('watch-queue')).toBeInTheDocument());
+    expect(screen.getAllByTestId('watch-queue-card')).toHaveLength(2);
+    expect(screen.queryByTestId('watch-queue-skeleton')).not.toBeInTheDocument();
+  });
+
+  it('the "What\'s next" queue card is the hover-preview shape (HoverVideo) with a full-width 16:9 thumbnail', async () => {
+    // The operator: "cool if this has the same best of both worlds behavior
+    // too :) on the hover of the videos" + "not just dead thumbnails" + "our
+    // whats next, it is quite small thumbnail compared to youtube, we could
+    // definitely make those whats next thumbnails bigger." The queue card's
+    // thumbnail is the shared HoverVideo (poster at rest, muted preview on
+    // hover) in a full-width 16:9 frame (up from the old fixed w-40).
+    await renderWatch();
+    await waitFor(() => expect(screen.getByTestId('watch-queue')).toBeInTheDocument());
+    const cards = screen.getAllByTestId('watch-queue-card');
+    expect(cards).toHaveLength(2);
+    // Each card's thumbnail is the hover preview (the Video wall's component).
+    for (const card of cards) {
+      const hover = card.querySelector('[data-testid="watch-queue-hover-video"]');
+      expect(hover).not.toBeNull();
+      // The thumbnail frame is full-width 16:9 (the YouTube right-rail scale).
+      const frame = hover!.parentElement!;
+      expect(frame.className).toContain('aspect-video');
+      expect(frame.className).toContain('w-full');
+      expect(frame.className).not.toContain('w-40');
+      // The duration badge is present (the video's length).
+      expect(card.querySelector('[data-testid="watch-queue-duration"]')).not.toBeNull();
+    }
+  });
 });
