@@ -165,6 +165,32 @@ describe('Saved tab (D88) — the owner\u2019s playlists on the profile', () => 
     await waitFor(() => expect(screen.getByTestId('url-probe').textContent).toContain('/u/testuser/saved/g1'));
   });
 
+  it('a collection with a cover shows the cover image on its card', async () => {
+    const COVER_COLLECTIONS = [
+      { groupId: 'g1', name: 'Guitar Riffs', visibility: 'private', itemCount: 3, slug: 'guitar-riffs', coverRef: 'm1', coverUrl: 'https://cdn/m1.webp' },
+    ];
+    mockGetMyCollections.mockResolvedValue(COVER_COLLECTIONS);
+    await renderProfile();
+    await waitFor(() => expect(screen.getByText('Me')).toBeInTheDocument());
+    fireEvent.click(screen.getByTestId('profile-tab-saved'));
+    const card = (await screen.findAllByTestId('saved-collection-card'))[0];
+    const img = card.querySelector('img');
+    expect(img).not.toBeNull();
+    expect(img!.getAttribute('src')).toBe('https://cdn/m1.webp');
+  });
+
+  it('a collection without a cover shows the brand-tinted placeholder (no img)', async () => {
+    const NO_COVER = [
+      { groupId: 'g1', name: 'Guitar Riffs', visibility: 'private', itemCount: 3, slug: 'guitar-riffs' },
+    ];
+    mockGetMyCollections.mockResolvedValue(NO_COVER);
+    await renderProfile();
+    await waitFor(() => expect(screen.getByText('Me')).toBeInTheDocument());
+    fireEvent.click(screen.getByTestId('profile-tab-saved'));
+    const card = (await screen.findAllByTestId('saved-collection-card'))[0];
+    expect(card.querySelector('img')).toBeNull();
+  });
+
   it('tapping the second card navigates to its own route', async () => {
     await renderProfile();
     await waitFor(() => expect(screen.getByText('Me')).toBeInTheDocument());

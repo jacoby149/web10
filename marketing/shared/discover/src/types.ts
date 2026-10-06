@@ -71,6 +71,9 @@ export interface CommentItem {
   likeCount?: number;
   /** Whether the reader liked this comment (the app resolves it). */
   likedByMe?: boolean;
+  /** Whether the reader authored this comment (the app resolves it from the
+   *  token). Gates the Edit / Delete actions — absent/`false` → read-only. */
+  isOwn?: boolean;
   /** The comment's photos, resolved to displayable media (the app maps its
    *  resolved `media_refs` onto `MediaItem`). Absent/empty → no media renders. */
   media?: MediaItem[];

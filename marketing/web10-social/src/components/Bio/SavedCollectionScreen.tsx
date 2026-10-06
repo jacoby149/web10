@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import {
   readCollection,
@@ -6,6 +6,8 @@ import {
   setCollectionVisibility,
   renameCollection,
   deleteCollection,
+  reorderCollection,
+  setCollectionCover,
   getGroupsManages,
   type CollectionContents,
   type CollectionVisibility,
@@ -26,6 +28,11 @@ import {
   EyeOff,
   X,
   Check,
+  GripVertical,
+  ChevronUp,
+  ChevronDown,
+  ImagePlus,
+  ListOrdered,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
@@ -85,6 +92,11 @@ export default function SavedCollectionScreen({ username, provider, groupId, onB
   const [renaming, setRenaming] = useState(false);
   const [renameValue, setRenameValue] = useState('');
   const [deleteConfirm, setDeleteConfirm] = useState(false);
+  // The owner's reorder mode (playlist order) + the in-flight cover set.
+  const [reorderMode, setReorderMode] = useState(false);
+  const [savingOrder, setSavingOrder] = useState(false);
+  const [settingCoverId, setSettingCoverId] = useState<string | null>(null);
+  const dragIndexRef = useRef<number | null>(null);
 
   const backToSaved = useCallback(
     () => (onBack ? onBack() : navigate(groupId ? `/groups/${encodeURIComponent(groupId)}?tab=saved` : `/u/${username}?tab=saved`)),
@@ -202,6 +214,75 @@ export default function SavedCollectionScreen({ username, provider, groupId, onB
     }
   }, [collectionGroupId, groupId, navigate, username]);
 
+  // ── Reorder (playlist order) ──────────────────────────────────────────────
+  // The owner's curated sequence. Reorder mode is a local view state (the URL
+  // already holds which collection is open — the "address bar is part of the
+  // product" rule); entering it does not change the URL. The order itself is
+  // persisted by `reorderCollection` (each `saved` doc's `position`), so a
+  // refresh restores the owner's sequence.
+  const availablePosts = contents?.posts.filter((sp) => !sp.unavailable && sp.post) ?? [];
+
+  // Enter reorder mode (a no-op with <2 items — nothing to order).
+  const handleEnterReorder = useCallback(() => {
+    if (availablePosts.length < 2) return;
+    setReorderMode(true);
+  }, [availablePosts.length]);
+
+  // A local move within the current order (drag or the up/down buttons).
+  const moveItem = useCallback((from: number, to: number) => {
+    if (from === to || from < 0 || to < 0) return;
+    setContents((c) => {
+      if (!c) return c;
+      const next = [...c.posts];
+      const [moved] = next.splice(from, 1);
+      next.splice(to, 0, moved);
+      return { ...c, posts: next };
+    });
+  }, []);
+
+  // Persist the current order (the owner's playlist sequence).
+  const handleSaveOrder = useCallback(async () => {
+    if (!contents) return;
+    const orderedPostIds = contents.posts
+      .filter((sp) => !sp.unavailable && sp.post)
+      .map((sp) => sp.postId);
+    setSavingOrder(true);
+    try {
+      await reorderCollection(collectionGroupId, orderedPostIds);
+      setReorderMode(false);
+      toast.success('Order saved');
+    } catch (e) {
+      console.error('[social:saved-collection] reorder failed:', e);
+      toast.error(errorMessage(e, 'Could not save the order.'));
+    } finally {
+      setSavingOrder(false);
+    }
+  }, [contents, collectionGroupId]);
+
+  // Cancel reorder mode — roll back to the persisted order (re-read).
+  const handleCancelReorder = useCallback(() => {
+    setReorderMode(false);
+    void load();
+  }, [load]);
+
+  // The owner's "Set as cover" — pin this item's media as the collection's
+  // thumbnail (the face's avatar_ref).
+  const handleSetCover = useCallback(
+    async (postId: string) => {
+      setSettingCoverId(postId);
+      try {
+        await setCollectionCover(collectionGroupId, postId);
+        toast.success('Cover updated');
+      } catch (e) {
+        console.error('[social:saved-collection] set cover failed:', e);
+        toast.error(errorMessage(e, 'Could not set the cover.'));
+      } finally {
+        setSettingCoverId(null);
+      }
+    },
+    [collectionGroupId],
+  );
+
   const name = (contents?.face as { name?: string } | undefined)?.name || 'Collection';
   const posts = contents?.posts ?? [];
 
@@ -250,6 +331,20 @@ export default function SavedCollectionScreen({ username, provider, groupId, onB
 
         {isOwner && (
           <div className="flex items-center gap-1">
+            {/* The reorder toggle (playlist order) — owner only, ≥2 items. */}
+            {availablePosts.length >= 2 && !reorderMode && (
+              <button
+                type="button"
+                onClick={handleEnterReorder}
+                aria-label="Reorder items"
+                data-testid="saved-collection-reorder"
+                className="flex items-center gap-1.5 rounded-md px-2.5 py-1.5 text-xs font-medium text-foreground hover:bg-elevated transition-colors outline-none focus-visible:ring-2 focus-visible:ring-ring"
+              >
+                <ListOrdered className="w-4 h-4" strokeWidth={2} />
+                <span className="hidden sm:inline">Reorder</span>
+              </button>
+            )}
+
             {/* The visibility toggle (private ⇄ public) — the D58 role-grant. */}
             <button
               type="button"
@@ -321,6 +416,34 @@ export default function SavedCollectionScreen({ username, provider, groupId, onB
         )}
       </div>
 
+      {/* The reorder bar — shown only while the owner is reordering (the
+          playlist sequence). Save persists the order; Cancel rolls back. */}
+      {isOwner && reorderMode && (
+        <div className="flex items-center justify-between gap-3 px-4 py-2 border-b border-border bg-elevated/40" data-testid="saved-reorder-bar">
+          <p className="text-xs text-muted-foreground">Drag items (or use the arrows) to set the order</p>
+          <div className="flex items-center gap-1">
+            <button
+              type="button"
+              onClick={handleCancelReorder}
+              data-testid="saved-reorder-cancel"
+              className="rounded-md px-3 py-1.5 text-xs font-medium text-muted-foreground hover:text-foreground hover:bg-elevated transition-colors outline-none focus-visible:ring-2 focus-visible:ring-ring"
+            >
+              Cancel
+            </button>
+            <button
+              type="button"
+              onClick={() => void handleSaveOrder()}
+              disabled={savingOrder}
+              data-testid="saved-reorder-save"
+              className="flex items-center gap-1.5 rounded-md bg-brand px-3 py-1.5 text-xs font-medium text-brand-foreground hover:bg-brand-600 transition-colors disabled:opacity-50 outline-none focus-visible:ring-2 focus-visible:ring-ring"
+            >
+              {savingOrder ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Check className="w-3.5 h-3.5" strokeWidth={2.5} />}
+              Save order
+            </button>
+          </div>
+        </div>
+      )}
+
       {/* The wall of saved posts (the profile's own 9:16 grid). */}
       <div className="px-4 py-4">
         {loading ? (
@@ -336,7 +459,7 @@ export default function SavedCollectionScreen({ username, provider, groupId, onB
           </div>
         ) : posts.length ? (
           <div className="grid grid-cols-3 gap-0.5 sm:gap-2 lg:grid-cols-4" data-testid="saved-collection-wall">
-            {posts.map((sp) => {
+            {posts.map((sp, index) => {
               if (sp.unavailable || !sp.post) {
                 return (
                   <div
@@ -351,9 +474,37 @@ export default function SavedCollectionScreen({ username, provider, groupId, onB
               }
               const post = sp.post;
               const firstMedia = post.media_refs?.length ? contents!.mediaMap[mediaRefId(post.media_refs[0])] : null;
+              const hasMedia = !!firstMedia;
               const isRemoving = removingPostId === post._id;
+              const isSettingCover = settingCoverId === post._id;
+              // In reorder mode the tile is a draggable row (drag to reorder +
+              // the up/down arrows); the remove/cover affordances are hidden so
+              // the tile reads as "being ordered", not "being managed".
               return (
-                <div key={sp._id || sp.postId} className="relative group/tile">
+                <div
+                  key={sp._id || sp.postId}
+                  className="relative group/tile"
+                  draggable={reorderMode}
+                  onDragStart={(e) => {
+                    if (!reorderMode) return;
+                    dragIndexRef.current = index;
+                    e.dataTransfer.effectAllowed = 'move';
+                  }}
+                  onDragOver={(e) => {
+                    if (!reorderMode) return;
+                    e.preventDefault();
+                    e.dataTransfer.dropEffect = 'move';
+                  }}
+                  onDrop={(e) => {
+                    if (!reorderMode) return;
+                    e.preventDefault();
+                    const from = dragIndexRef.current;
+                    dragIndexRef.current = null;
+                    if (from === null || from === index) return;
+                    moveItem(from, index);
+                  }}
+                  onDragEnd={() => { dragIndexRef.current = null; }}
+                >
                   <WallTile
                     media={firstMedia ?? { _id: post._id, url: '', created_at: '' }}
                     testId="saved-post-cell"
@@ -361,10 +512,57 @@ export default function SavedCollectionScreen({ username, provider, groupId, onB
                     caption={post.text}
                     postId={post._id}
                     multiCount={post.media_refs?.length}
-                    onClick={() => navigate(groupId ? `/watch/${post._id}` : `/u/${username}/p/${post._id}`)}
+                    onClick={() => { if (!reorderMode) navigate(groupId ? `/watch/${post._id}` : `/u/${username}/p/${post._id}`); }}
                   />
-                  {/* The owner's per-item remove (top-right, the tile's corner). */}
-                  {isOwner && (
+
+                  {/* Reorder mode: the grip + up/down arrows (top-left). */}
+                  {isOwner && reorderMode && (
+                    <div className="absolute top-2 left-2 z-10 flex flex-col items-center gap-1">
+                      <span className="flex items-center justify-center w-7 h-7 rounded-md bg-black/60 backdrop-blur-sm text-white cursor-grab active:cursor-grabbing" aria-hidden="true">
+                        <GripVertical className="w-4 h-4" strokeWidth={2} />
+                      </span>
+                      <button
+                        type="button"
+                        onClick={(e) => { e.stopPropagation(); moveItem(index, index - 1); }}
+                        disabled={index === 0}
+                        aria-label="Move up"
+                        data-testid="saved-post-move-up"
+                        className="flex items-center justify-center w-7 h-7 rounded-md bg-black/60 backdrop-blur-sm text-white hover:bg-black/80 disabled:opacity-40 transition-colors outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                      >
+                        <ChevronUp className="w-4 h-4" strokeWidth={2.5} />
+                      </button>
+                      <button
+                        type="button"
+                        onClick={(e) => { e.stopPropagation(); moveItem(index, index + 1); }}
+                        disabled={index === posts.length - 1}
+                        aria-label="Move down"
+                        data-testid="saved-post-move-down"
+                        className="flex items-center justify-center w-7 h-7 rounded-md bg-black/60 backdrop-blur-sm text-white hover:bg-black/80 disabled:opacity-40 transition-colors outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                      >
+                        <ChevronDown className="w-4 h-4" strokeWidth={2.5} />
+                      </button>
+                    </div>
+                  )}
+
+                  {/* Normal mode (owner): "Set as cover" (top-left, media only). */}
+                  {isOwner && !reorderMode && hasMedia && (
+                    <button
+                      type="button"
+                      onClick={(e) => { e.stopPropagation(); void handleSetCover(post._id || ''); }}
+                      disabled={isSettingCover}
+                      aria-label="Set as cover"
+                      data-testid="saved-post-set-cover"
+                      className={cn(
+                        'absolute top-2 left-2 z-10 flex items-center justify-center w-7 h-7 rounded-md bg-black/60 backdrop-blur-sm text-white hover:bg-black/80 disabled:opacity-50',
+                        'opacity-0 group-hover/tile:opacity-100 focus-visible:opacity-100 transition-opacity outline-none focus-visible:ring-2 focus-visible:ring-ring',
+                      )}
+                    >
+                      {isSettingCover ? <Loader2 className="w-4 h-4 animate-spin" /> : <ImagePlus className="w-4 h-4" strokeWidth={2} />}
+                    </button>
+                  )}
+
+                  {/* Normal mode (owner): the per-item remove (top-right). */}
+                  {isOwner && !reorderMode && (
                     <button
                       type="button"
                       onClick={(e) => { e.stopPropagation(); void handleRemovePost(post._id || ''); }}
