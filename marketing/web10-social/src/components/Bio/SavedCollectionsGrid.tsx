@@ -39,26 +39,37 @@ export function SavedCollectionsGrid({ collections, onOpenCollection, emptyHint 
             onClick={() => onOpenCollection(col.groupId)}
             className="group text-left rounded-lg overflow-hidden bg-surface border border-border hover:border-brand/40 transition-colors outline-none focus-visible:ring-2 focus-visible:ring-ring"
           >
-            {/* The cover — a brand-tinted placeholder (the first saved post's
-                media is a follow-up; the face's cover_ref is unset for now).
-                A 4:3 thumbnail (the playlist shape — a collection is a list,
-                not a video) + the name/count below, so the card fits the
-                content column without pushing the label off-screen. */}
+            {/* The cover — the collection's thumbnail (its cover media: the
+                first thing saved, or the owner's pinned choice). A 4:3 frame
+                (the playlist shape — a collection is a list, not a video) +
+                the name/count below. No cover (a text-only collection, or a
+                cover that can't be resolved) → the brand-tinted placeholder. */}
             <div
-              className="relative aspect-[4/3] w-full"
+              className="relative aspect-[4/3] w-full overflow-hidden"
               style={{ backgroundColor: textTileColor(col.groupId) }}
             >
-              <div
-                className="pointer-events-none absolute inset-0"
-                style={{
-                  background:
-                    'radial-gradient(120% 85% at 22% 12%, rgba(255,255,255,0.22), rgba(255,255,255,0.04) 42%, transparent 62%)',
-                }}
-                aria-hidden="true"
-              />
-              <div className="absolute inset-0 flex items-center justify-center">
-                <Bookmark className="w-8 h-8 text-foreground/70" strokeWidth={1.5} />
-              </div>
+              {col.coverUrl ? (
+                <img
+                  src={col.coverUrl}
+                  alt=""
+                  loading="lazy"
+                  className="absolute inset-0 h-full w-full object-cover"
+                />
+              ) : (
+                <>
+                  <div
+                    className="pointer-events-none absolute inset-0"
+                    style={{
+                      background:
+                        'radial-gradient(120% 85% at 22% 12%, rgba(255,255,255,0.22), rgba(255,255,255,0.04) 42%, transparent 62%)',
+                    }}
+                    aria-hidden="true"
+                  />
+                  <div className="absolute inset-0 flex items-center justify-center">
+                    <Bookmark className="w-8 h-8 text-foreground/70" strokeWidth={1.5} />
+                  </div>
+                </>
+              )}
             </div>
             <div className="p-3">
               <p className="text-sm font-medium text-foreground truncate">{col.name}</p>
