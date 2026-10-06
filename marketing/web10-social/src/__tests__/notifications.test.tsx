@@ -33,12 +33,14 @@ vi.mock('@/hooks/useNotifications', () => ({
   },
 }));
 
-// The screen calls markAllRead on open — spy on it. The rest of the module
-// (the deep-link resolvers) keeps its real implementation.
+// The screen calls markRead on a row click (marks that row) + markAllRead on
+// the "Mark all read" button — spies on both. The rest of the module (the
+// deep-link resolvers) keeps its real implementation.
+const markReadMock = vi.fn(async (_id: string) => {});
 const markAllReadMock = vi.fn(async () => {});
 vi.mock('@/data/notifications', async (importOriginal) => {
   const actual = await importOriginal<typeof import('@/data/notifications')>();
-  return { ...actual, markAllRead: () => markAllReadMock() };
+  return { ...actual, markRead: (id: string) => markReadMock(id), markAllRead: () => markAllReadMock() };
 });
 
 // The screen resolves the signed-in user for the deep links — a token with a
@@ -88,6 +90,7 @@ function renderNotificationNav(route = '/notifications') {
 describe('NotificationBell', () => {
   beforeEach(() => {
     mockState = { unread: 0, items: [] };
+    markReadMock.mockClear();
     markAllReadMock.mockClear();
   });
 
@@ -132,6 +135,7 @@ describe('NotificationsScreen', () => {
   beforeEach(() => {
     mockState = { unread: 0, items: [] };
     mockToken = null;
+    markReadMock.mockClear();
     markAllReadMock.mockClear();
   });
 
@@ -190,6 +194,26 @@ describe('NotificationsScreen', () => {
     await vi.waitFor(() => expect(markAllReadMock).toHaveBeenCalled());
   });
 
+  it('clicking a row marks THAT row read (not the others) — the badge clears via navigation', async () => {
+    mockToken = { username: 'me', provider: 'api.localhost' };
+    mockState = {
+      unread: 2,
+      items: [
+        { id: 'reaction:bob:post-1', type: 'reaction', from: 'bob', ref_doc_id: 'post-1', read: false, created_at: new Date().toISOString() },
+        { id: 'reaction:carol:post-1', type: 'reaction', from: 'carol', ref_doc_id: 'post-1', read: false, created_at: new Date().toISOString() },
+      ],
+    };
+    renderNotificationNav();
+    // Click the bob row (the first one).
+    fireEvent.click(screen.getAllByTestId('notification-row')[0]);
+    // It marks bob's row read — by id, not everything.
+    await vi.waitFor(() => expect(markReadMock).toHaveBeenCalledWith('reaction:bob:post-1'));
+    expect(markReadMock).toHaveBeenCalledTimes(1);
+    expect(markAllReadMock).not.toHaveBeenCalled();
+    // It still navigates to the row's destination.
+    expect(screen.getByTestId('nav-probe')).toHaveTextContent('/u/me/p/post-1');
+  });
+
   it('shows a "caught up" empty state when the Unread filter is empty but history exists', () => {
     mockState = {
       unread: 0,
@@ -231,6 +255,7 @@ describe('NotificationsScreen (panel mode — the bell\'s popover, not a page)',
   beforeEach(() => {
     mockState = { unread: 0, items: [] };
     mockToken = { username: 'me', provider: 'api.localhost' };
+    markReadMock.mockClear();
     markAllReadMock.mockClear();
     readByIdMock.mockReset();
   });
@@ -257,7 +282,7 @@ describe('NotificationsScreen (panel mode — the bell\'s popover, not a page)',
     expect(screen.queryByTestId('notifications-close')).not.toBeInTheDocument();
   });
 
-  it('a row click in panel mode navigates AND closes the panel (back where you were)', () => {
+  it('a row click in panel mode navigates AND closes the panel (back where you were)', async () => {
     const onClose = vi.fn();
     mockState = {
       unread: 1,
@@ -274,6 +299,8 @@ describe('NotificationsScreen (panel mode — the bell\'s popover, not a page)',
     fireEvent.click(screen.getByTestId('notification-row'));
     expect(onClose).toHaveBeenCalledTimes(1);
     expect(screen.getByTestId('nav-probe')).toHaveTextContent('/u/me/p/post-1');
+    // Opening the row's destination marks that row read (the badge path).
+    await vi.waitFor(() => expect(markReadMock).toHaveBeenCalledWith('reaction:bob:post-1'));
   });
 
   it('panel mode: opening does NOT auto-mark-read; "Mark all read" clears the badge', async () => {
@@ -299,6 +326,7 @@ describe('notification deep links (row click → the place the event is about)',
   beforeEach(() => {
     mockState = { unread: 0, items: [] };
     mockToken = { username: 'me', provider: 'api.localhost' };
+    markReadMock.mockClear();
     markAllReadMock.mockClear();
     readByIdMock.mockReset();
   });
@@ -363,6 +391,8 @@ describe('notification deep links (row click → the place the event is about)',
     });
     expect(readByIdMock).toHaveBeenNthCalledWith(1, 'cmt-4', 'comments');
     expect(readByIdMock).toHaveBeenNthCalledWith(2, 'post-7', 'posts');
+    // The resolved reply marks its row read too.
+    expect(markReadMock).toHaveBeenCalledWith('reply:dave:cmt-4');
   });
 
   it('a reply row whose chain breaks (deleted post) does not navigate', async () => {

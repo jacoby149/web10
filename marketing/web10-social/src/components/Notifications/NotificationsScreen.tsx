@@ -4,7 +4,7 @@ import { BellOff, CheckCheck, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { useNotifications } from '@/hooks/useNotifications';
-import { markAllRead, notificationHref, resolveReplyHref, type Notification } from '@/data/notifications';
+import { markAllRead, markRead, notificationHref, resolveReplyHref, type Notification } from '@/data/notifications';
 import { getWapi } from '@/data/wapi';
 import { cn } from '@/lib/utils';
 
@@ -53,12 +53,17 @@ function NotificationRow({ n, unread, onClose }: { n: Notification; unread: bool
   const href = me ? notificationHref(n, me) : null;
   const clickable = !!href || n.type === 'reply';
 
+  // Opening a row's destination marks THAT row read (the KB: the badge clears
+  // "by navigating to a row's destination") — the other rows stay unread
+  // until the user marks all. Fire-and-forget: the persist is best-effort,
+  // the local flip is what the badge reacts to.
   const open = () => {
     if (n.type === 'reply') {
       if (!me) return;
       resolveReplyHref(n, me)
         .then((r) => {
           if (!r) return;
+          markRead(n.id).catch(() => {});
           navigate(r);
           onClose?.();
         })
@@ -66,6 +71,7 @@ function NotificationRow({ n, unread, onClose }: { n: Notification; unread: bool
       return;
     }
     if (href) {
+      markRead(n.id).catch(() => {});
       navigate(href);
       onClose?.();
     }
@@ -141,7 +147,8 @@ export default function NotificationsScreen({ onClose }: { onClose?: () => void 
   // Panel mode never changes the URL (the panel's design — "back where you
   // were"), so it uses local state. Opening the screen does NOT mark read —
   // the Unread filter needs the unread state to persist until the user
-  // explicitly clears it (the "Mark all read" button).
+  // clears it: by opening a row's destination (marks that row) or the
+  // explicit "Mark all read" button (marks everything).
   const [panelFilter, setPanelFilter] = useState<Filter>('unread');
   const filter: Filter = isPanel
     ? panelFilter
