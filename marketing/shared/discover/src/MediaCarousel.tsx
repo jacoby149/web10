@@ -46,7 +46,7 @@ export function MediaCarousel({ items, fit = 'contain', ratio, maxHeight, testId
     setIndex(Math.min(count - 1, Math.max(0, i)));
   };
 
-  return (
+  const frame = (
     <div
       data-testid={testId}
       className={cn('bg-elevated relative overflow-hidden', heightCapped && 'mx-auto', className)}
@@ -108,4 +108,14 @@ export function MediaCarousel({ items, fit = 'contain', ratio, maxHeight, testId
       )}
     </div>
   );
+
+  // A portrait frame (first item's ratio < 1, capped at maxHeight) is centered
+  // in a FULL-WIDTH BLACK "photobox" (the same shape the video player's
+  // heightCapped cap produces: a black outer box, the media centered, black
+  // bars on the sides). A landscape frame is full-width (no cap) and renders
+  // the frame directly.
+  if (heightCapped) {
+    return <div className="w-full bg-black">{frame}</div>;
+  }
+  return frame;
 }

@@ -216,10 +216,13 @@ describe('FeedScreen', () => {
     const frame = screen.getByTestId('media-image');
     // The frame reserves the photo's natural portrait ratio…
     expect(parseFloat(frame.style.aspectRatio)).toBeCloseTo(720 / 1280, 5);
-    // …and is centered in the card (the 60vh cap bites for a portrait, so the
-    // shrunken frame is mx-auto, the same shape the video player's heightCapped
-    // cap produces).
+    // …and is centered (mx-auto) in a FULL-WIDTH BLACK "photobox" wrapper — the
+    // black bars on the sides, the same shape the portrait video's letterbox
+    // produces (not a centered box with grey card sides).
     expect(frame.className).toContain('mx-auto');
+    const box = frame.parentElement as HTMLElement;
+    expect(box.className).toContain('bg-black');
+    expect(box.className).toContain('w-full');
   });
 
   it('multi-media posts render an inline carousel with a position indicator (all items reachable)', async () => {

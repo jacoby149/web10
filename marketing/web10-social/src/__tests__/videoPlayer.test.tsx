@@ -63,9 +63,13 @@ describe('VideoPlayer — the shared video surface (video-player.md)', () => {
     const container = screen.getByTestId('vp-portrait');
     // The frame reserves the clip's natural portrait ratio…
     expect(parseFloat(container.style.aspectRatio)).toBeCloseTo(720 / 1280, 5);
-    // …and the 60vh cap bites (portrait), so the shrunken frame is centered
-    // (mx-auto) — the same shape HlsVideoPlayer's heightCapped cap produces.
+    // …and the 60vh cap bites (portrait), so the frame is centered (mx-auto) in
+    // a FULL-WIDTH BLACK "photobox" wrapper — black bars on the sides, the same
+    // shape HlsVideoPlayer's heightCapped cap produces (not grey card sides).
     expect(container.className).toContain('mx-auto');
+    const box = container.parentElement as HTMLElement;
+    expect(box.className).toContain('bg-black');
+    expect(box.className).toContain('w-full');
   });
 
   it('file source + cover + 16:9 renders a uniform aspect-video tile (the discover/youtube case)', async () => {

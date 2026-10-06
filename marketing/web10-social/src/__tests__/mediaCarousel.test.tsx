@@ -60,5 +60,10 @@ describe('MediaCarousel — the shared multi-media carousel (video-player.md)', 
     const frame = screen.getByTestId('mc7');
     expect(parseFloat(frame.style.aspectRatio)).toBeCloseTo(720 / 1280, 5);
     expect(frame.className).toContain('mx-auto');
+    // …and centered in a FULL-WIDTH BLACK "photobox" wrapper (black bars on the
+    // sides, the same shape the video player's heightCapped cap produces).
+    const box = frame.parentElement as HTMLElement;
+    expect(box.className).toContain('bg-black');
+    expect(box.className).toContain('w-full');
   });
 });

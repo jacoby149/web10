@@ -236,6 +236,11 @@ export async function readSavedPostIds(groupId: string): Promise<Set<string>> {
 }
 export async function savePostToCollection(): Promise<boolean> { return true; }
 export async function removePostFromCollection(): Promise<void> {}
+// 3.214.0 (collection thumbnails + playlist reorder) — the harness has no
+// reorder/cover pipeline; the stubs are no-ops so the barrel's named imports
+// resolve (the capture renders the list, not the reorder mode).
+export async function setCollectionCover(): Promise<void> {}
+export async function reorderCollection(): Promise<void> {}
 export async function createCollection(): Promise<string> { return 'web10/groups/users/me/saved-new'; }
 export async function setCollectionVisibility(): Promise<void> {}
 export async function renameCollection(): Promise<void> {}

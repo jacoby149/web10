@@ -569,7 +569,7 @@ export function InlineVideo({ url, poster, width, height, durationSeconds, fit =
   const progress = duration > 0 ? (current / duration) * 100 : 0;
   const rackVisible = controlsVisible || pointerOver;
 
-  return (
+  const player = (
     <div
       data-testid={testId}
       className={cn(
@@ -705,6 +705,16 @@ export function InlineVideo({ url, poster, width, height, durationSeconds, fit =
       )}
     </div>
   );
+
+  // A portrait clip at a height cap is centered in a FULL-WIDTH BLACK "photobox"
+  // (the same shape HlsVideoPlayer's heightCapped cap produces: a black outer
+  // box, the clip centered, black bars on the sides) instead of a centered box
+  // with grey (card) sides. A landscape clip is full-width (no cap) and renders
+  // the player directly.
+  if (heightCapped) {
+    return <div className="w-full bg-black">{player}</div>;
+  }
+  return player;
 }
 
 function YouTubeEmbed({ id, ratio, testId, className }: { id: string; ratio?: number; testId?: string; className?: string }) {

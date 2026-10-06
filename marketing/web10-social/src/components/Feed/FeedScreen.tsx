@@ -134,14 +134,14 @@ function MediaItem({ media }: { media: MediaRecord }) {
   };
   // The 60vh cap only bites for a portrait photo (ratio < 1): a landscape photo
   // at full width is already shorter than the cap, so the cap is a no-op for it.
-  // A portrait photo's frame shrinks to fit the capped height — center it in the
-  // full-width card (the "photobox" letterbox, the same shape the video player's
-  // heightCapped cap produces) instead of leaving it left-aligned with a black
-  // gap on the right.
+  // A portrait photo's frame shrinks to fit the capped height — center it in a
+  // FULL-WIDTH BLACK "photobox" (the same shape the video player's heightCapped
+  // cap produces: a black outer box, the media centered, black bars on the
+  // sides) instead of leaving it left-aligned in the grey card.
   const heightCapped = ratio < 1;
   const containerStyle: React.CSSProperties = { aspectRatio: `${ratio}`, maxHeight: '60vh' };
 
-  return (
+  const frame = (
     <div
       className={cn('bg-elevated overflow-hidden group relative', heightCapped && 'mx-auto')}
       style={containerStyle}
@@ -157,6 +157,18 @@ function MediaItem({ media }: { media: MediaRecord }) {
       <div className="absolute inset-0 bg-gradient-to-t from-black/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-150" />
     </div>
   );
+
+  // A portrait photo is centered in a full-width black box (the "photobox"
+  // letterbox — black bars on the sides, like the portrait video). A landscape
+  // photo is full-width (no cap, no letterbox) and renders the frame directly.
+  if (heightCapped) {
+    return (
+      <div className="w-full bg-black">
+        {frame}
+      </div>
+    );
+  }
+  return frame;
 }
 
 function MediaGrid({ mediaItems }: { mediaItems: MediaRecord[] }) {
