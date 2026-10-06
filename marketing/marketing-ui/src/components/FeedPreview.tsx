@@ -387,12 +387,12 @@ function TrendingCard({
       id={`trending-card-${post.id}`}
       className={className}
       testId="trending-card"
-      // The trending grid is a card wall — a full-width 9:16 box (~1.78× the
+      // The trending board is a card wall — a full-width 9:16 box (~1.78× the
       // card tall) dwarfs the card and buries the video's control rack at its
-      // bottom. Cap the portrait frame to a square-ish box (centered in a black
-      // letterbox) so the whole clip + the rack stay in view. The social app's
-      // single-column Discover leaves this unset (full-bleed, unchanged).
-      videoMaxWidth="min(50vh, 100%)"
+      // bottom. Cap the portrait frame's height (the feed's 60vh cap) so the
+      // clip + the rack stay in view, centered in a black letterbox. The social
+      // app's single-column Discover leaves this unset (full-bleed, unchanged).
+      mediaMaxHeight="60vh"
     />
   );
 }
@@ -403,35 +403,20 @@ function TrendingSkeleton({ featured = false }: { featured?: boolean }) {
       data-testid="trending-skeleton"
       className={['bg-surface', ''].join(' ')}
     >
-      <div className="p-4">
-        <div className="flex items-center justify-between">
-          <Skeleton className="h-5 w-12 rounded-full" />
-          <Skeleton className="h-3 w-8" />
+      <div className="flex items-center gap-2.5 px-4 py-3">
+        <Skeleton className="h-9 w-9 rounded-full" />
+        <div className="min-w-0 flex-1">
+          <Skeleton className="h-3 w-32" />
         </div>
-        <div className="mt-3 flex gap-3">
-          <Skeleton className="h-10 w-10 shrink-0 rounded-full" />
-          <div className="min-w-0 flex-1">
-            <div className="flex gap-2">
-              <Skeleton className="h-4 w-24" />
-              <Skeleton className="h-4 w-20" />
-            </div>
-            <Skeleton className="mt-2 h-4 w-full" />
-            <Skeleton className="mt-1.5 h-4 w-5/6" />
-            <Skeleton className="mt-1.5 h-4 w-3/4" />
-          </div>
-        </div>
-        <div className="mt-3 aspect-[4/3] w-full overflow-hidden rounded-lg">
-          <Skeleton className="h-full w-full" />
-        </div>
-        <div className="mt-3 flex gap-2">
-          <Skeleton className="h-5 w-14 rounded-full" />
-          <Skeleton className="h-5 w-14 rounded-full" />
-        </div>
-        <div className="mt-3 flex gap-6 border-t border-border pt-3">
-          <Skeleton className="h-4 w-10" />
-          <Skeleton className="h-4 w-10" />
-          <Skeleton className="h-4 w-10" />
-        </div>
+      </div>
+      <div className="px-4 pt-3 space-y-2">
+        <Skeleton className="h-3 w-full" />
+        <Skeleton className="h-3 w-2/3" />
+      </div>
+      <div className="flex items-center px-4 py-1.5">
+        <Skeleton className="h-4 w-12" />
+        <Skeleton className="ml-2 h-4 w-12" />
+        <Skeleton className="ml-2 h-4 w-12" />
       </div>
     </Card>
   );
