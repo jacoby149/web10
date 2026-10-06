@@ -100,11 +100,11 @@ vi.mock('@/data/ads-catalog', () => ({
 // Mock the Messages unread store so the Layout's Messages badge is controllable
 // in tests (the real store is empty until initMessagesUnread seeds it).
 const { messagesUnreadState } = vi.hoisted(() => ({
-  messagesUnreadState: { unread: 0 },
+  messagesUnreadState: { unread: 0, unreadConvs: new Set<string>() },
 }));
 vi.mock('@/data/messagesUnread', () => ({
   unreadMessagesCount: () => messagesUnreadState.unread,
-  isConversationUnread: () => false,
+  isConversationUnread: (conv: string) => messagesUnreadState.unreadConvs.has(conv),
   onMessagesUnreadChange: () => () => {},
   initMessagesUnread: vi.fn(async () => {}),
   markConversationRead: vi.fn(async () => {}),
@@ -434,6 +434,8 @@ describe('ProfileScreen', () => {
 describe('DmsScreen', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    messagesUnreadState.unread = 0;
+    messagesUnreadState.unreadConvs.clear();
     // jsdom doesn't implement scrollIntoView (the thread's auto-scroll effect).
     Element.prototype.scrollIntoView = vi.fn();
   });
@@ -600,6 +602,59 @@ describe('DmsScreen', () => {
       expect(screen.getByTestId('dm-conversation-item')).toBeInTheDocument();
     });
     expect(screen.queryByTestId('group-chat-type-badge')).not.toBeInTheDocument();
+  });
+
+  it('bolds the name + preview of an unread DM conversation row', async () => {
+    const convKey = 'test.localhost/testuser--test.localhost/alice';
+    const { listConversations, getLastDm, getMyGroupChats } = await import('@/data');
+    vi.mocked(listConversations).mockResolvedValueOnce([convKey]);
+    vi.mocked(getLastDm).mockResolvedValue({
+      _id: 'dm-1', message: 'hey you', sent_at: new Date().toISOString(),
+      sender_username: 'alice', sender_provider: 'test.localhost',
+      recipient_username: 'testuser', recipient_provider: 'test.localhost',
+    });
+    vi.mocked(getMyGroupChats).mockResolvedValueOnce([]);
+    messagesUnreadState.unreadConvs.add(convKey);
+
+    const { default: DmsScreen } = await import('@/components/Chat/DmsScreen');
+    render(
+      <MemoryRouter initialEntries={['/messages']}>
+        <DmsScreen />
+      </MemoryRouter>,
+    );
+    const row = await screen.findByTestId('dm-conversation-item');
+    // The name span is bolded (font-semibold) when unread.
+    const nameSpan = within(row).getByText('alice');
+    expect(nameSpan.className).toContain('font-semibold');
+    // The preview is bolded + white (text-foreground) when unread.
+    const preview = within(row).getByText('hey you');
+    expect(preview.className).toContain('font-semibold');
+    expect(preview.className).toContain('text-foreground');
+  });
+
+  it('does not bold a read DM conversation row', async () => {
+    const convKey = 'test.localhost/testuser--test.localhost/alice';
+    const { listConversations, getLastDm, getMyGroupChats } = await import('@/data');
+    vi.mocked(listConversations).mockResolvedValueOnce([convKey]);
+    vi.mocked(getLastDm).mockResolvedValue({
+      _id: 'dm-1', message: 'hey you', sent_at: new Date().toISOString(),
+      sender_username: 'alice', sender_provider: 'test.localhost',
+      recipient_username: 'testuser', recipient_provider: 'test.localhost',
+    });
+    vi.mocked(getMyGroupChats).mockResolvedValueOnce([]);
+    // convKey is NOT in unreadConvs → read.
+
+    const { default: DmsScreen } = await import('@/components/Chat/DmsScreen');
+    render(
+      <MemoryRouter initialEntries={['/messages']}>
+        <DmsScreen />
+      </MemoryRouter>,
+    );
+    const row = await screen.findByTestId('dm-conversation-item');
+    const nameSpan = within(row).getByText('alice');
+    expect(nameSpan.className).not.toContain('font-semibold');
+    const preview = within(row).getByText('hey you');
+    expect(preview.className).not.toContain('font-semibold');
   });
 
   it('renders the group thread view — name header, member count, per-sender attribution (group-chat.md)', async () => {
