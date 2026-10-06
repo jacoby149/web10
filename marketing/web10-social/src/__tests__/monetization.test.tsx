@@ -15,6 +15,7 @@ const saveNodeAdPercentage = vi.fn();
 const saveNodeAdOverwrite = vi.fn();
 const updateAd = vi.fn();
 const updateNodeAd = vi.fn();
+const createNodeAd = vi.fn();
 vi.mock('@/data/ads-catalog', () => ({
   checkNodeAdmin: (...a: unknown[]) => checkNodeAdmin(...a),
   readMyCatalog: (...a: unknown[]) => readMyCatalog(...a),
@@ -24,6 +25,7 @@ vi.mock('@/data/ads-catalog', () => ({
   saveNodeAdOverwrite: (...a: unknown[]) => saveNodeAdOverwrite(...a),
   updateAd: (...a: unknown[]) => updateAd(...a),
   updateNodeAd: (...a: unknown[]) => updateNodeAd(...a),
+  createNodeAd: (...a: unknown[]) => createNodeAd(...a),
   buildOfferBody: vi.fn(),
   buildNodeAdBody: vi.fn(),
   splitCatalog: vi.fn(),
@@ -71,9 +73,11 @@ describe('MonetizationScreen', () => {
     renderAt('/monetize');
     expect(await screen.findByTestId('creator-monetization')).toBeInTheDocument();
     expect(screen.queryByTestId('node-monetization')).not.toBeInTheDocument();
-    // No in-page switcher — an admin reaches the Node section via the nav
-    // (deep-link to ?tab=node), not a tab on this screen.
-    expect(screen.queryByTestId('monetization-tabs')).not.toBeInTheDocument();
+    // The node admin gets the in-page tab row (My Ads | Node Ads) — the section
+    // switcher — once the async admin check resolves. My Ads is the default.
+    expect(await screen.findByTestId('monetization-tabs')).toBeInTheDocument();
+    expect(screen.getByTestId('monetization-tab-creator')).toBeInTheDocument();
+    expect(screen.getByTestId('monetization-tab-node')).toBeInTheDocument();
   });
 
   it('lands on the Node section when deep-linked to ?tab=node as an admin', async () => {
@@ -98,6 +102,76 @@ describe('MonetizationScreen', () => {
     expect(await screen.findByTestId('affiliate-programs-card')).toBeInTheDocument();
     // The ad catalog card is present.
     expect(screen.getByTestId('ads-catalog-card')).toBeInTheDocument();
+  });
+});
+
+describe('MonetizationScreen — the in-page tab row (node admin)', () => {
+  it('a node admin switches to the Node Ads tab (the URL holds the section)', async () => {
+    checkNodeAdmin.mockResolvedValue(true);
+    getNodeConfig.mockResolvedValue({ node_ad_percentage: 10, node_ad_overwrite: false });
+    renderAt('/monetize');
+    // My Ads is the default; the tab row appears once the admin check resolves.
+    expect(await screen.findByTestId('monetization-tab-node')).toBeInTheDocument();
+    // Click the Node Ads tab → the node-ad inventory renders.
+    fireEvent.click(screen.getByTestId('monetization-tab-node'));
+    expect(await screen.findByTestId('node-monetization')).toBeInTheDocument();
+    expect(screen.queryByTestId('creator-monetization')).not.toBeInTheDocument();
+    // Click back → My Ads (the section wrapper returns).
+    fireEvent.click(screen.getByTestId('monetization-tab-creator'));
+    expect(await screen.findByTestId('creator-monetization')).toBeInTheDocument();
+  });
+
+  it('a non-admin never sees the tab row (one section, no switcher)', async () => {
+    checkNodeAdmin.mockResolvedValue(false);
+    renderAt('/monetize');
+    expect(await screen.findByTestId('creator-monetization')).toBeInTheDocument();
+    expect(screen.queryByTestId('monetization-tabs')).not.toBeInTheDocument();
+  });
+});
+
+describe('AdForm — the personal / node scope (node admin)', () => {
+  it('the node admin sees the scope toggle on a new ad; a non-admin does not', async () => {
+    checkNodeAdmin.mockResolvedValue(true);
+    readMyCatalog.mockResolvedValue({ ads: [], albums: [], posts: [] });
+    renderAt('/monetize');
+    fireEvent.click(await screen.findByTestId('ads-new-ad'));
+    await screen.findByTestId('ad-new-form');
+    // The scope toggle appears once the async admin check resolves.
+    expect(await screen.findByTestId('ad-scope-toggle')).toBeInTheDocument();
+    expect(screen.getByTestId('ad-scope-personal')).toBeInTheDocument();
+    expect(screen.getByTestId('ad-scope-node')).toBeInTheDocument();
+  });
+
+  it('a non-admin has no scope toggle (personal only)', async () => {
+    checkNodeAdmin.mockResolvedValue(false);
+    readMyCatalog.mockResolvedValue({ ads: [], albums: [], posts: [] });
+    renderAt('/monetize');
+    fireEvent.click(await screen.findByTestId('ads-new-ad'));
+    await screen.findByTestId('ad-new-form');
+    expect(screen.queryByTestId('ad-scope-toggle')).not.toBeInTheDocument();
+  });
+
+  it('creating a node ad (scope = node) writes to the discover group via createNodeAd', async () => {
+    checkNodeAdmin.mockResolvedValue(true);
+    readMyCatalog.mockResolvedValue({ ads: [], albums: [], posts: [] });
+    createNodeAd.mockResolvedValue({ doc_id: 'node-new' });
+    renderAt('/monetize');
+    fireEvent.click(await screen.findByTestId('ads-new-ad'));
+    await screen.findByTestId('ad-new-form');
+    // Fill the required link, pick the node scope (appears once the admin
+    // check resolves), and save.
+    fireEvent.change(screen.getByTestId('ad-link'), { target: { value: 'https://workflowco.com?ref=node' } });
+    fireEvent.click(await screen.findByTestId('ad-scope-node'));
+    fireEvent.click(screen.getByTestId('ad-save'));
+    await waitFor(() => expect(createNodeAd).toHaveBeenCalled());
+    // The personal path (ensureFollowersGroup / createAd) is NOT taken for a node ad.
+    expect(createNodeAd).toHaveBeenCalledWith(
+      expect.objectContaining({ link: 'https://workflowco.com?ref=node' }),
+      'Untitled ad',
+      'active',
+      [],
+      'inline',
+    );
   });
 });
 

@@ -968,11 +968,11 @@ describe('Layout', () => {
     expect(sidebarItems).not.toContain('nav-hot-gossip');
   });
 
-  it('Monetization nav renders for every user; Node Monetization only for the node admin', async () => {
+  it('Monetization is a single nav entry for every user (no separate Node Monetization row)', async () => {
     const { default: Layout } = await import('@/components/Social/Layout');
-    // Non-admin: the "Monetization" entry (the creator's ad catalog +
-    // affiliate onboarding) is a permanent desktop sidebar row; "Node
-    // Monetization" is not.
+    // The "Monetization" entry is a permanent desktop sidebar row for every
+    // signed-in user. There is NO separate "Node Monetization" nav row — the
+    // node-ad inventory is the Monetization surface's in-page Node Ads tab.
     checkNodeAdmin.mockResolvedValue(false);
     const first = render(
       <MemoryRouter initialEntries={['/feed']}>
@@ -983,16 +983,16 @@ describe('Layout', () => {
     );
     // Monetization is a permanent sidebar row (no popover needed).
     expect(await screen.findByTestId('nav-monetization')).toBeInTheDocument();
-    // The admin check has settled — the node entry never appears.
-    await waitFor(() => expect(checkNodeAdmin).toHaveBeenCalled());
+    // The node-ad inventory is NOT a separate nav row (admin or not).
     expect(screen.queryByTestId('nav-node-monetization')).not.toBeInTheDocument();
-    // The More popover no longer carries a Monetization row.
+    // The More popover carries no Monetization row.
     fireEvent.click(screen.getByTestId('nav-more-desktop'));
     const moreMenu = screen.getByTestId('more-menu');
     expect(within(moreMenu).queryByTestId('nav-monetization')).not.toBeInTheDocument();
     first.unmount();
 
-    // Node admin: Monetization in the sidebar + Node Monetization in the More popover.
+    // Node admin: still ONE Monetization row (the node inventory is its in-page
+    // Node Ads tab, not a nav entry).
     checkNodeAdmin.mockResolvedValue(true);
     render(
       <MemoryRouter initialEntries={['/feed']}>
@@ -1002,15 +1002,14 @@ describe('Layout', () => {
       </MemoryRouter>,
     );
     expect(await screen.findByTestId('nav-monetization')).toBeInTheDocument();
-    fireEvent.click(screen.getByTestId('nav-more-desktop'));
-    expect(await screen.findByTestId('nav-node-monetization')).toBeInTheDocument();
+    expect(screen.queryByTestId('nav-node-monetization')).not.toBeInTheDocument();
   });
 
-  it('Monetization nav: only the matching row highlights (never both)', async () => {
+  it('Monetization nav: the single row highlights on any /monetize section', async () => {
     const { default: Layout } = await import('@/components/Social/Layout');
     checkNodeAdmin.mockResolvedValue(true);
 
-    // On /monetize (Creator): only Monetization is highlighted.
+    // On /monetize (My Ads): the Monetization row highlights.
     render(
       <MemoryRouter initialEntries={['/monetize']}>
         <Layout onLogout={() => {}} onReportBug={() => {}}>
@@ -1018,15 +1017,10 @@ describe('Layout', () => {
         </Layout>
       </MemoryRouter>,
     );
-    // Monetization is a permanent sidebar row; open the More popover for the Node row.
-    fireEvent.click(screen.getByTestId('nav-more-desktop'));
-    // The Node row appears only once the async admin check resolves.
-    const nodeRow = await screen.findByTestId('nav-node-monetization');
-    expect(screen.getByTestId('nav-monetization')).toHaveAttribute('aria-current', 'page');
-    expect(nodeRow).not.toHaveAttribute('aria-current');
+    expect(await screen.findByTestId('nav-monetization')).toHaveAttribute('aria-current', 'page');
   });
 
-  it('Monetization nav: on /monetize?tab=node only Node Monetization highlights', async () => {
+  it('Monetization nav: the single row highlights on /monetize?tab=node too', async () => {
     const { default: Layout } = await import('@/components/Social/Layout');
     checkNodeAdmin.mockResolvedValue(true);
     render(
@@ -1036,13 +1030,12 @@ describe('Layout', () => {
         </Layout>
       </MemoryRouter>,
     );
-    // Open the More popover for the Node row (Monetization is a sidebar row).
-    fireEvent.click(screen.getByTestId('nav-more-desktop'));
-    expect(await screen.findByTestId('nav-node-monetization')).toHaveAttribute('aria-current', 'page');
-    expect(screen.getByTestId('nav-monetization')).not.toHaveAttribute('aria-current');
+    // The Node Ads section is the same surface — the one Monetization row
+    // highlights (there is no separate Node row to light up instead).
+    expect(await screen.findByTestId('nav-monetization')).toHaveAttribute('aria-current', 'page');
   });
 
-  it('mobile More sheet: only the matching monetization row highlights', async () => {
+  it('mobile More sheet: the single Monetization row highlights on /monetize?tab=node', async () => {
     const { default: Layout } = await import('@/components/Social/Layout');
     checkNodeAdmin.mockResolvedValue(true);
     render(
@@ -1055,14 +1048,14 @@ describe('Layout', () => {
     fireEvent.click(screen.getByTestId('nav-more-mobile'));
     const sheet = screen.getByTestId('more-sheet');
     // The mobile rows use a class-based highlight, not aria-current; assert the
-    // active styling (bg-brand-muted) is on the Node row only.
-    const nodeRow = await within(sheet).findByTestId('nav-node-monetization-mobile');
-    const creatorRow = within(sheet).getByTestId('nav-monetization-mobile');
-    expect(nodeRow.className).toContain('bg-brand-muted');
-    expect(creatorRow.className).not.toContain('bg-brand-muted');
+    // active styling (bg-brand-muted) is on the Monetization row.
+    const monetizationRow = await within(sheet).findByTestId('nav-monetization-mobile');
+    expect(monetizationRow.className).toContain('bg-brand-muted');
+    // There is no separate Node Monetization mobile row.
+    expect(within(sheet).queryByTestId('nav-node-monetization-mobile')).not.toBeInTheDocument();
   });
 
-  it('mobile More sheet: Monetization for every user, Node Monetization only for the node admin', async () => {
+  it('mobile More sheet: Monetization for every user, no separate Node Monetization row', async () => {
     const { default: Layout } = await import('@/components/Social/Layout');
     checkNodeAdmin.mockResolvedValue(false);
     const first = render(
@@ -1079,7 +1072,7 @@ describe('Layout', () => {
     expect(within(sheet).queryByTestId('nav-node-monetization-mobile')).not.toBeInTheDocument();
     first.unmount();
 
-    // Node admin: the sheet carries both.
+    // Node admin: the sheet still carries ONE Monetization row (no Node row).
     checkNodeAdmin.mockResolvedValue(true);
     render(
       <MemoryRouter initialEntries={['/feed']}>
@@ -1091,7 +1084,7 @@ describe('Layout', () => {
     fireEvent.click(screen.getByTestId('nav-more-mobile'));
     const adminSheet = screen.getByTestId('more-sheet');
     expect(await within(adminSheet).findByTestId('nav-monetization-mobile')).toBeInTheDocument();
-    expect(await within(adminSheet).findByTestId('nav-node-monetization-mobile')).toBeInTheDocument();
+    expect(within(adminSheet).queryByTestId('nav-node-monetization-mobile')).not.toBeInTheDocument();
   });
 
   it('Help (report a bug) moves to the mobile top header, not the bottom bar', async () => {

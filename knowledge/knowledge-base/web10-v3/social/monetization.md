@@ -30,11 +30,20 @@ protocol's.
 
 A deep-linked **`/monetize`** screen in web10-social (the URL holds the state —
 refresh restores it, it's shareable). Two sections, selected by the URL's
-`?tab` param — **there is no in-page Creator/Node tab switcher**; the nav IS
-the switcher (see "The Nav" below), so the screen just renders whichever
-section the URL points at:
+`?tab` param:
 
-### Creator (every signed-in user)
+- **My Ads** (default, the bare URL) — the creator's own monetization.
+- **Node Ads** (`?tab=node`, node admin only) — the operator's ad inventory.
+
+**The in-page tab row is the section switcher.** The node admin gets a
+**My Ads | Node Ads** tab row at the top of the surface (the X/Threads idiom
+the Posts screen's Discover | Following row established); the URL holds the
+section, so refresh restores it + it's deep-linkable. A non-admin never sees
+the row (one section, no switcher — the screen just renders My Ads). The nav
+has ONE Monetization entry (see "The Nav" below) that deep-links here and
+highlights on any section.
+
+### My Ads (every signed-in user)
 
 The creator's own monetization:
 
@@ -48,6 +57,13 @@ The creator's own monetization:
   (`inline` / `post` — see `ads.md` "Two Formats"), a **media attach** (one
   image or video, the creative), CTA suggestion chips, and an optional `kind`
   (`none` = self-promo hides the partner field).
+- **The Run-as scope (node admin only, create)** — the node admin's **New Ad**
+  form gains a **Run as** toggle (Personal ad / Node ad). Personal → the
+  creator's followers group (the existing path). Node → the discover group,
+  tagged `ad` + `node_ad` (the operator's inventory, via `createNodeAd` in
+  `ads-catalog.ts`). A node admin runs an ad as a personal ad OR a node ad from
+  one surface — no separate panel. Edit mode has no scope (an ad's home is fixed
+  by where it was created); a non-admin's form is personal-only (no toggle).
 - **Affiliate onboarding** — the "get started" pointer to the affiliate
   programs worth joining (external sign-up links) + the direct-deals surface.
   This is the old `AffiliateProgramsCard` / `DirectDealsCard`, re-homed. The
@@ -55,16 +71,18 @@ The creator's own monetization:
 
 The data is the owner's own posts over their followers group, filtered
 client-side (a creator's own posts are a small, bounded set) — the house
-pattern. `readMyAds` / `splitCatalog` / `updateAd` in `src/data/ads-catalog.ts`.
+pattern. `readMyCatalog` / `splitCatalog` / `updateAd` / `createNodeAd` in
+`src/data/ads-catalog.ts`.
 
-### Node (node admin only)
+### Node Ads (node admin only)
 
 The operator's ad inventory (D57, the second layer):
 
 - **Node ads** — the `node_ad`-tagged docs on the discover group. Create /
   pause / resume / retire. A node ad supports **both formats** (`inline` /
   `post`) + media, exactly like a creator ad — "node ads and post ads work the
-  same exact way."
+  same exact way." (The node admin can also create a node ad from the My Ads
+  tab's New Ad form via the Run-as scope — the same doc, the same inventory.)
 - **Ad density** — the `node_ad_percentage` node-config slider (0-100): how
   often node ads attach to posts.
 - **Overwrite the creator's ad?** — the `node_ad_overwrite` node-config toggle
@@ -79,9 +97,9 @@ admin node config (`/config`), and writes `node_ad_percentage` +
 
 ## Node-Admin Detection
 
-The "Node" section + the nav icon appear **only when the current user is the
-node admin**. Detection reuses the existing `POST /am_admin` (no new endpoint)
-— the same check the authenticator's `I.checkAdmin()` uses:
+The **Node Ads tab** + the ad form's **Run-as scope** appear **only when the
+current user is the node admin**. Detection reuses the existing `POST /am_admin`
+(no new endpoint) — the same check the authenticator's `I.checkAdmin()` uses:
 
 ```
 POST /am_admin  { token }  →  { admin: boolean }   (never errors)
@@ -89,26 +107,20 @@ POST /am_admin  { token }  →  { admin: boolean }   (never errors)
 
 `src/data/ads-catalog.ts` exposes `checkNodeAdmin(): Promise<boolean>` (calls
 `/am_admin` with the current token; `false` on no token / failure). A
-`useNodeAdmin()` hook caches the result for the session. The nav renders the
-"Node Monetization" icon only when it's `true`.
+`useNodeAdmin()` hook caches the result for the session. The Monetization
+surface renders the Node Ads tab + the ad form's Run-as scope only when it's
+`true`.
 
 ## The Nav
 
-Two entries. The nav **is** the section switcher — there is no in-page
-Creator/Node tab on the surface; each entry deep-links to its own section and
-**only that entry highlights** (the active state reads the URL's `?tab` param,
-not just the pathname — a pathname-only match lit up both rows at once):
-
-- **Monetization** — every signed-in user. A **permanent desktop sidebar row**
-  (the operator, 23.09.2026: "take monetization out of the more menu on
-  desktop, there is space for it") + the mobile "More" sheet. Deep-links to
-  `/monetize` (the Creator section, the default): the creator's ad catalog +
-  affiliate onboarding. Highlights when on `/monetize` **without** `?tab=node`.
-- **Node Monetization** — the node admin only (non-admins never see it).
-  Lives in the **desktop "More" popover** + the mobile "More" sheet (it is
-  admin-only, so it stays tucked rather than holding a permanent sidebar row).
-  Deep-links to `/monetize?tab=node`: the node-ad inventory + density.
-  Highlights only when on `/monetize?tab=node`.
+ONE entry. The nav has a single **Monetization** row (the `$` icon) for every
+signed-in user — a **permanent desktop sidebar row** (the operator, 23.09.2026:
+"take monetization out of the more menu on desktop, there is space for it") +
+the mobile "More" sheet. It deep-links to `/monetize` (My Ads, the default) and
+**highlights on ANY `/monetize` section** (My Ads or Node Ads) — the surface's
+in-page tab row (My Ads | Node Ads) is the section switcher, so the nav has one
+entry that lights up for both. There is NO separate "Node Monetization" nav row
+(the node-ad inventory is the surface's Node Ads tab, not its own nav entry).
 
 ## What Moved Out of the Authenticator
 
