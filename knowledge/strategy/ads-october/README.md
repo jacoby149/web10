@@ -3,8 +3,10 @@
 **Status: OPEN.** The operator is in the middle of making the **ad experience
 solid** — they just made 30 ads in one sitting (the 3.217.0 "one tab, personal
 OR node ad" surface) and the friction surfaced at scale. This folder captures
-that conversation. The `needs/` subfolder holds the five distinct needs that
-came out of it, one topic per doc. **The operator's framing: "this is all
+that conversation. **`focus.md` is the narrowing** — what makes the cut for the
+current focus (two builds: the link-card primitive + the basic earnings calc),
+what's deferred, and why. The `needs/` subfolder holds the five distinct needs
+that came out of it, one topic per doc. **The operator's framing: "this is all
 brainstorming, i think it is productive, to bring up a lot of needs, even if we
 dont address them all."** The needs are captured for the record and to inform
 the build order — not all of them will be built, and the speculative ones
@@ -19,6 +21,58 @@ section below.
 > the `ad-improvements.md` work order is largely merged). What's missing at
 > **scale** is the *labor* of making many ads, and the *visual* of links that
 > pay. Neither is a new protocol — both are app-owned surface work (D60).
+
+## The focus (the narrowing)
+
+**`focus.md`** — what makes the cut for the current focus, what's deferred, and
+why. The operator's framing: *"this needs thing not all of it is going to make
+it into the product, so we are going to have this narrowing kind of a thing.
+really, i need to make some ads, i need to use this stuff more, and i will
+develop some really good opinions here."* The operator's narrowing: *"i think
+the most valid things are getting that amazon storefront parity + just a little
+more ease of use as we use it, like putting in the commision of the products,
+the price of them, and maybe just a little projection that says 100k
+impressions ~ -> $30 approximately."*
+
+**Five builds in the focus:**
+1. **Amazon storefront parity** (the public catalog of the creator's
+   products/ads) — the anchor, "the most valid thing." The "here's everything I
+   recommend" destination; the thing Amazon gates behind a big following, web10
+   gives every creator.
+2. **Product fields on the ad** (the "product section": item price, commission
+   rate, product pics, the target) — "just a little more ease of use as we use
+   it." The operator's refinement: **"all ads objects are ads, and can have the
+   same attributes as products"** — the ad is the *superset* (the creative
+   text + media *plus* the product attributes when it's a product). An ad can
+   advertise a product / a collection / a storefront / nothing. No separate
+   product entity.
+3. **The little projection** ("100k impressions ~ $30 approximately") — a
+   *static* projection using assumed rates, no live measurement. A rough "this
+   ad is worth more than that one" signal.
+4. **Click analytics + the projection-vs-actual tell** (the diagnostic) — the
+   click counter, the **actuals box** ("how much did this actually make?" — the
+   operator logs the payout from their affiliate dashboard), and the
+   **self-calibration** (the operator sets the click→purchase % themselves,
+   from their own clicks + actuals). The projection is the hypothesis, the
+   clicks + actuals are the reality, and the gap is the feedback: *"hey
+   analytics is projecting $$$ but making $$, this isnt good, whats up."*
+5. **The Monetization tab restructure** (Ads | Products | Analytics, all in one
+   place) — the IA decision that *contains* builds 1–4. The creator's
+   Monetization tab (currently My Ads | Node Ads) becomes **Ads | Products |
+   Analytics** (the tab-row idiom, `?tab=` deep-linkable). Products = the
+   storefront's data (builds 1+2); Analytics = the clicks + the tell + the
+   actuals box (builds 3+4). The *tell* works because the projection and the
+   actuals are in the same tab. The Node Ads tab stays separate (a different
+   role). The operator: *"analytics, ads, products, all one screen is that a
+   good idea? all in monetization tab?"* — **yes**, with a structure.
+
+**Deferred:** the link-card primitive (auto-fill the photo from the link — the
+operator accepted the manual-photo pain for now), the impression (shown)
+counter, the interactive calculator + portfolio view, the catalog scale
+(versions, round-robin), the product entity, the in-post product card, and all
+9 gaps (the join side, not the stay). The operator *uses* the five focused
+builds, develops opinions, and the next narrowing happens. Full doc:
+`focus.md`.
 
 ## The needs
 
