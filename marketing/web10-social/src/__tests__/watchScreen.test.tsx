@@ -448,4 +448,57 @@ describe('WatchScreen (the watch page)', () => {
       expect(card.querySelector('[data-testid="watch-queue-duration"]')).not.toBeNull();
     }
   });
+
+  it('infinite scroll: the "What\'s next" queue pages the board (the sentinel loads the next page and re-ranks the whole board)', async () => {
+    // The operator: "if paging here, lets page on all surfaces … videos tab
+    // when clicked in isnt paging on whats next stuff." The queue is the board
+    // re-ranked + filtered to landscape — paging appends the next board page,
+    // then re-ranks the WHOLE board (a new page can re-order the queue).
+    // A landscape board post (the queue keeps these).
+    const landscapePost = (i: number) => ({
+      _id: `board-${i}`,
+      text: `board video ${i}`,
+      created_at: at(10 + i),
+      tags: ['climbing'],
+      author_username: 'kai',
+      author_provider: 'web10',
+      media_refs: [{ doc_id: `m-board-${i}`, mime_type: 'video/mp4', read_url: `https://cdn/v/b${i}.mp4`, width: 1280, height: 720, duration_seconds: 60, thumbnail_url: `https://cdn/t/b${i}.jpg` }],
+      likes: 0,
+      comments: 0,
+      reposts: 0,
+    });
+    // Page 1: a FULL board page (50 posts → hasMore true). Page 2: a short
+    // page (2 posts → hasMore false, the last one).
+    const page1 = Array.from({ length: 50 }, (_, i) => landscapePost(i));
+    const page2 = [landscapePost(100), landscapePost(101)];
+    (data.readDiscoverFeed as ReturnType<typeof vi.fn>).mockImplementation(
+      async (_sort: unknown, _limit: number, _tags: unknown, offset: number) => (offset === 0 ? page1 : page2),
+    );
+
+    await renderWatch();
+    // Page 1 lands — the queue has all 50 board posts (the current post isn't
+    // on the board, so nothing is excluded).
+    await waitFor(() => expect(screen.getAllByTestId('watch-queue-card')).toHaveLength(50));
+    // The sentinel is present (hasMore true — a full board page).
+    expect(screen.getByTestId('watch-queue-sentinel')).toBeInTheDocument();
+
+    // The sentinel is visible → the observer fires → loadMore appends page 2
+    // (offset 50) and re-ranks the whole board.
+    (globalThis as unknown as Record<string, () => void>).fireIntersectionObservers();
+    await waitFor(() => expect(screen.getAllByTestId('watch-queue-card')).toHaveLength(52));
+    // The second page was fetched with the next board offset (PAGE_SIZE = 50).
+    expect(data.readDiscoverFeed).toHaveBeenLastCalledWith(expect.anything(), 50, undefined, 50);
+    // hasMore is now false (page 2 was short) → the sentinel is gone (the board
+    // is exhausted).
+    expect(screen.queryByTestId('watch-queue-sentinel')).toBeNull();
+  });
+
+  it('no queue sentinel when the first board page is the last (hasMore false)', async () => {
+    // The board's first page is short (2 posts < 50) → hasMore false → no
+    // sentinel, no "load more" (the board is exhausted on page one).
+    await renderWatch();
+    await waitFor(() => expect(screen.getByTestId('watch-queue')).toBeInTheDocument());
+    expect(screen.getAllByTestId('watch-queue-card')).toHaveLength(2);
+    expect(screen.queryByTestId('watch-queue-sentinel')).toBeNull();
+  });
 });

@@ -2197,4 +2197,90 @@ describe('DiscoverScreen — the control rows keep the desktop gutter (operator 
     expect(tabRow.className).toContain('sticky');
     expect(tabRow.className).toContain('border-b');
   });
+
+  it('infinite scroll: the board pages (the sentinel loads the next page and appends)', async () => {
+    // The operator: "if paging here, lets page on all surfaces … if the videos
+    // tab … arent paging on their first page." The Hot Gossip board (and the
+    // Video wall) page the discover board until it's exhausted. A full page
+    // (>= 50) means there may be another; a short page is the last one.
+    const boardPost = (i: number) => ({
+      author: `creator-${i}`,
+      provider: 'api.web10.app',
+      post_id: `p-${i}`,
+      text: `board post ${i}`,
+      tags: ['cooking'],
+      created_at: new Date(Date.now() - i * 3600000).toISOString(),
+      likes: i,
+      comments: 0,
+      reposts: 0,
+      score: i,
+    });
+    // Page 1: a FULL board page (50 posts → hasMore true). Page 2: a short
+    // page (2 posts → hasMore false, the last one).
+    const page1 = Array.from({ length: 50 }, (_, i) => boardPost(i));
+    const page2 = [boardPost(100), boardPost(101)];
+    (data.readDiscoverFeed as ReturnType<typeof vi.fn>).mockImplementation(
+      async (_sort: unknown, _limit: number, _tags: unknown, offset: number) => (offset === 0 ? page1 : page2),
+    );
+
+    const { default: DiscoverScreen } = await import('@/components/Discover/DiscoverScreen');
+    render(
+      <MemoryRouter initialEntries={['/hot-gossip']}>
+        <DiscoverScreen />
+      </MemoryRouter>,
+    );
+    // Page 1 lands — the board has all 50 posts.
+    await waitFor(() => expect(screen.getAllByTestId('discover-card')).toHaveLength(50));
+    // The sentinel is present (hasMore true — a full board page).
+    expect(screen.getByTestId('discover-board-sentinel')).toBeInTheDocument();
+
+    // The sentinel is visible → the observer fires → loadMore appends page 2
+    // (offset 50).
+    (globalThis as unknown as Record<string, () => void>).fireIntersectionObservers();
+    await waitFor(() => expect(screen.getAllByTestId('discover-card')).toHaveLength(52));
+    // The second page was fetched with the next board offset (PAGE_SIZE = 50).
+    expect(data.readDiscoverFeed).toHaveBeenLastCalledWith(expect.anything(), 50, undefined, 50);
+    // hasMore is now false (page 2 was short) → the sentinel is gone (the board
+    // is exhausted).
+    expect(screen.queryByTestId('discover-board-sentinel')).toBeNull();
+  });
+
+  it('no board sentinel when the first page is the last (hasMore false)', async () => {
+    // The board's first page is short (2 posts < 50) → hasMore false → no
+    // sentinel, no "load more" (the board is exhausted on page one).
+    (data.readDiscoverFeed as ReturnType<typeof vi.fn>).mockResolvedValue([
+      {
+        author: 'a',
+        provider: 'api.web10.app',
+        post_id: 'p1',
+        text: 'one',
+        tags: ['cooking'],
+        created_at: new Date().toISOString(),
+        likes: 1,
+        comments: 0,
+        reposts: 0,
+        score: 1,
+      },
+      {
+        author: 'b',
+        provider: 'api.web10.app',
+        post_id: 'p2',
+        text: 'two',
+        tags: ['cooking'],
+        created_at: new Date().toISOString(),
+        likes: 2,
+        comments: 0,
+        reposts: 0,
+        score: 2,
+      },
+    ]);
+    const { default: DiscoverScreen } = await import('@/components/Discover/DiscoverScreen');
+    render(
+      <MemoryRouter initialEntries={['/hot-gossip']}>
+        <DiscoverScreen />
+      </MemoryRouter>,
+    );
+    await waitFor(() => expect(screen.getAllByTestId('discover-card')).toHaveLength(2));
+    expect(screen.queryByTestId('discover-board-sentinel')).toBeNull();
+  });
 });
