@@ -44,6 +44,15 @@ A post whose body has `repost_of` renders as a **reposted card** (`PostCard` in 
 
 **The original's ad rides along (D55).** The embed's `readPostById` runs the single-doc read, which attaches the original's creator-pinned ad (`attach_pinned_ads`) — so `original.ad` is populated. `RepostedEmbed` renders that ad (`<AdBlock>`) inside the embed: the repost resurfaces the original's content **and** its monetization, so the original creator earns from the reach the repost gives them (the positive-sum loop the creator platform is built on). Only the **creator's pinned ad** (`original.ad`) renders — never a **node ad** (`original.node_ad`): the repost post's own node ad (D57, attached at read time) already covers the node's inventory, and two ads in a compact embed is too much. A repost post itself carries no creator-pinned ad (`createRepost` sets no `ad_preference`).
 
+## Reposts render across every post surface
+
+A repost is a normal post, so **every post surface renders it the same way** — the "reposted" badge + the embedded original. The two card systems both carry it:
+
+- **The social app's post surfaces** (feed, the Discover Hot-Gossip board, the lightbox, the profile feed, groups) render the social `PostCard` (`FeedScreen.tsx`), which shows the `repost_of` badge + the reposter's quote + `RepostedEmbed` (the original fetched by `readPostById`, I3-scoped). The Discover board uses this same `PostCard` (not the shared card), so it renders reposts identically to the feed.
+- **The marketing discover** (`marketing-ui` `/trending`) renders the **shared** `DiscoverCard` (`@web10/discover`). That card now carries `repost_of` on its `DiscoverPost` + a `readRepostOriginal` seam (injected by the app) + a `RepostEmbed` (the shared, presentational version of `RepostedEmbed`). The marketing feed maps `repost_of` from the post body, reads the **real** repost count (a `/v3/query` `count(DISTINCT doc_id)` over `posts` whose `repost_of` points at the board's posts — was hardcoded `0`), and injects an **anon** `readRepostOriginal` (the node's read-by-id is `user_or_anon` + resolves media server-side — the same rule the post permalink's anon read relies on). A repost the anon reader can't read degrades to "Original post unavailable" (I3).
+
+**The video + shorts surfaces do NOT show reposts** — they are video-only walls (the `HomeCard`), and a repost is a text/quote post, not a video, so it never lands in those walls. Reposts surface on the post surfaces (feed / discover board / lightbox / profile / groups / marketing discover), which is where a post is a post.
+
 ## The count is real
 
 The repost count on a post is the number of **posts whose `repost_of` points at it** — one per reposter, so it is self-healing (delete your repost post and the tally drops). It is stable across refresh (no `1 0 1 0` toggle), because it is a read of the post docs, not a reaction flip.

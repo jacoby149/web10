@@ -109,6 +109,70 @@ describe('TrendingCard interactions', () => {
   });
 });
 
+describe('TrendingCard repost (reposts.md)', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    vi.stubGlobal('fetch', vi.fn());
+    vi.stubGlobal('open', vi.fn());
+  });
+
+  it('a repost shows the "reposted" badge + the embedded original (anon read-by-id)', async () => {
+    // The embed reads the original by repost_of doc_id as anon (the node's
+    // read-by-id is user_or_anon + resolves media server-side).
+    vi.mocked(fetch).mockImplementation(async (_url, init) => {
+      const body = JSON.parse(String(init?.body ?? '{}'));
+      if (body?.doc_id === 'original-1') {
+        return jsonOk({
+          doc_id: 'original-1',
+          author_key: 'originalauthor',
+          body: { text: 'the original post text' },
+          created_at: new Date().toISOString(),
+          service: 'posts',
+        });
+      }
+      return jsonOk({});
+    });
+    const repostPost: FeedPost = {
+      ...basePost,
+      id: 'repost-1',
+      content: 'my comment on the original',
+      repostOf: 'original-1',
+    };
+    render(
+      <TrendingCard post={repostPost} rank={5} maxScore={100} onLike={noop} onComment={noop} onRepost={noop} />,
+    );
+    // The "reposted" badge marks the card as a repost.
+    expect(screen.getByTestId('repost-badge')).toBeInTheDocument();
+    // The embedded original resolves (author + text) from the anon read-by-id.
+    const embed = await screen.findByTestId('repost-embed');
+    expect(within(embed).getByText('the original post text')).toBeInTheDocument();
+    // The author name is username-derived (capitalized) when no display_name.
+    expect(within(embed).getByText('Originalauthor')).toBeInTheDocument();
+  });
+
+  it('a repost whose original the reader can\'t read degrades to "unavailable" (I3)', async () => {
+    vi.mocked(fetch).mockResolvedValue({ ok: false, status: 403 } as unknown as Response);
+    const repostPost: FeedPost = { ...basePost, id: 'repost-2', repostOf: 'original-2' };
+    render(
+      <TrendingCard post={repostPost} rank={5} maxScore={100} onLike={noop} onComment={noop} onRepost={noop} />,
+    );
+    // The badge still shows (it's about the card, not the original)…
+    expect(screen.getByTestId('repost-badge')).toBeInTheDocument();
+    // …but the embed degrades to the unavailable placeholder (a repost never
+    // grants access to the original).
+    expect(await screen.findByTestId('repost-embed-unavailable')).toBeInTheDocument();
+  });
+
+  it('a normal post shows no repost badge + no embed', () => {
+    render(
+      <TrendingCard post={basePost} rank={5} maxScore={100} onLike={noop} onComment={noop} onRepost={noop} />,
+    );
+    expect(screen.queryByTestId('repost-badge')).not.toBeInTheDocument();
+    expect(screen.queryByTestId('repost-embed')).not.toBeInTheDocument();
+    expect(screen.queryByTestId('repost-embed-unavailable')).not.toBeInTheDocument();
+  });
+});
+
 describe('TrendingCard comment thread', () => {
   beforeEach(() => {
     vi.clearAllMocks();
@@ -258,12 +322,21 @@ function makeV3PostsResolvedMedia(n: number) {
 // server-side engagement-count shape for reactions + comments (count: true →
 // a {ref_value: count} map). The mock returns the right shape per service
 // (reactions/comments default to {} → zero engagement).
-function mockDiscoverFeed(posts: unknown[] = makeV3Posts(20), reactions: Record<string, number> = {}, comments: Record<string, number> = {}) {
+function mockDiscoverFeed(
+  posts: unknown[] = makeV3Posts(20),
+  reactions: Record<string, number> = {},
+  comments: Record<string, number> = {},
+  reposts: Record<string, number> = {},
+) {
   vi.mocked(fetch).mockImplementation(async (_url, init) => {
     const body = JSON.parse(String(init?.body ?? '{}'));
     if (body?.service === 'posts') return jsonOk(posts);
     if (body?.service === 'reactions') return jsonOk(reactions);
     if (body?.service === 'comments') return jsonOk(comments);
+    // The repost count (reposts.md) is a /v3/query over the discover group
+    // (count(DISTINCT doc_id) of posts whose body.repost_of points at the
+    // board's posts). Default: no reposts.
+    if (body?.sql) return jsonOk({ rows: Object.entries(reposts).map(([repost_of, n]) => ({ repost_of, n })) });
     return jsonOk({});
   });
 }
@@ -372,6 +445,24 @@ describe('Trending page', () => {
     expect(like.textContent).toBe(beforeText);
     // No interactive like → no window.open (the anon visitor can't like).
     expect(window.open).not.toHaveBeenCalled();
+  });
+
+  it('the repost count is real (not hardcoded 0) — the board reads repost_of posts', async () => {
+    // A repost is a POST (reposts.md), counted as the number of posts whose
+    // body.repost_of points at the board's posts. The board read carries the
+    // count into the card's repeat-icon tally (was hardcoded 0).
+    const posts = [
+      v3Post(0, { doc_id: 'post-0', author_key: 'user0', body: { text: 'a reposted post' } }),
+      ...makeV3Posts(3),
+    ];
+    mockDiscoverFeed(posts, {}, {}, { 'post-0': 7 });
+    const { default: Trending } = await import('@/pages/Trending');
+    render(<MemoryRouter initialEntries={['/trending/hot-gossip' + window.location.search]}><Trending /></MemoryRouter>);
+    await waitFor(() => expect(screen.getByTestId('trending-grid')).toBeInTheDocument());
+    const card = screen.getAllByTestId('trending-card').find(c => c.id === 'trending-card-post-0');
+    expect(card).toBeDefined();
+    // The repeat icon's tally shows the real repost count (7), not 0.
+    expect(within(card!).getByLabelText('7 reposts')).toBeInTheDocument();
   });
 
   it('never renders ad-tagged docs as board posts (ads are attached at read time, not ranked)', async () => {
