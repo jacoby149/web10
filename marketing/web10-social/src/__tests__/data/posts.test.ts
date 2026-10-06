@@ -2,6 +2,8 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import * as v3 from '../../data/v3';
 import {
   readMyPosts,
+  readUserPosts,
+  readUserPublicProfile,
   createRepost,
   readRepostCounts,
   readMyRepostedIds,
@@ -199,6 +201,52 @@ describe('posts v3 data layer', () => {
       const result = await readMyPosts();
       expect(result).toEqual([]);
       expect(mock.read).not.toHaveBeenCalled();
+    });
+
+    it('drops ad-tagged docs (ads are inventory, not profile content)', async () => {
+      const docs = [
+        { doc_id: 'p1', author_key: 'web10.app/users/alice', body: { text: 'my post' }, created_at: '2026-07-19T00:00:00Z' },
+        { doc_id: 'ad1', author_key: 'web10.app/users/alice', body: { text: 'my ad' }, tags: ['ad'], created_at: '2026-07-20T00:00:00Z' },
+        { doc_id: 'ad2', author_key: 'web10.app/users/alice', body: { text: 'node ad' }, tags: ['ad', 'node_ad'], created_at: '2026-07-21T00:00:00Z' },
+      ];
+      mock.read.mockResolvedValue(docs);
+      const result = await readMyPosts();
+      // Only the non-ad post survives — the ad docs (tagged `ad`) are ad
+      // inventory, not content tiles.
+      expect(result.map((p) => p._id)).toEqual(['p1']);
+    });
+  });
+
+  describe('readUserPosts (v3: a user\'s followers-group posts)', () => {
+    it('drops ad-tagged docs (a visitor\'s profile grid shows no ad tiles)', async () => {
+      const docs = [
+        { doc_id: 'p1', author_key: 'web10.app/users/bob', body: { text: 'bob post' }, created_at: '2026-07-19T00:00:00Z' },
+        { doc_id: 'ad1', author_key: 'web10.app/users/bob', body: { text: 'bob ad' }, tags: ['ad'], created_at: '2026-07-20T00:00:00Z' },
+      ];
+      mock.read.mockResolvedValue(docs);
+      const result = await readUserPosts('bob');
+      expect(mock.read).toHaveBeenCalledWith('posts', {
+        groups: ['web10.app/groups/users/bob/followers'],
+      });
+      expect(result.map((p) => p._id)).toEqual(['p1']);
+    });
+  });
+
+  describe('readUserPublicProfile (v3: the viewer path)', () => {
+    it('drops ad-tagged posts from the returned list', async () => {
+      const postRows = [
+        { doc_id: 'p1', author_key: 'web10.app/users/bob', body: { text: 'bob post' }, tags: [], created_at: '2026-07-19T00:00:00Z' },
+        { doc_id: 'ad1', author_key: 'web10.app/users/bob', body: { text: 'bob ad' }, tags: ['ad'], created_at: '2026-07-20T00:00:00Z' },
+      ];
+      // Three queries in the Promise.all: posts, avatar face, banner face.
+      mock.query
+        .mockResolvedValueOnce({ rows: postRows })
+        .mockResolvedValueOnce({ rows: [{ author_key: 'web10.app/users/bob', body: {}, avatar_url: 'https://x/a.png' }] })
+        .mockResolvedValueOnce({ rows: [{ author_key: 'web10.app/users/bob', body: {}, banner_url: 'https://x/b.png' }] });
+      const result = await readUserPublicProfile('bob');
+      expect(result.posts.map((p) => p._id)).toEqual(['p1']);
+      expect(result.avatarUrl).toBe('https://x/a.png');
+      expect(result.bannerUrl).toBe('https://x/b.png');
     });
   });
 
