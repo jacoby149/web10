@@ -268,7 +268,12 @@ export async function readMyPosts(opts?: { limit?: number }): Promise<PostRecord
   if (!token) return [];
   const myGroups = [followersGroupId(token.username), closeFriendsGroupId(token.username)];
   console.log('[social-feed] readMyPosts — own groups:', JSON.stringify(myGroups));
-  return readPosts(myGroups, opts);
+  // Ad docs (tagged `ad`) live in the same followers group as regular posts
+  // (ads-catalog.ts writes them there). They are ad inventory, not content —
+  // the feed drops them via `dropAdPosts`; the profile reads must too, or
+  // every ad the creator made shows up as a tile in their profile grid.
+  const posts = await readPosts(myGroups, opts);
+  return posts.filter((p) => !p.tags?.includes('ad'));
 }
 
 /**
@@ -278,7 +283,10 @@ export async function readMyPosts(opts?: { limit?: number }): Promise<PostRecord
  */
 export async function readUserPosts(username: string, optsOrProvider?: { limit?: number } | string): Promise<PostRecord[]> {
   const opts = typeof optsOrProvider === 'string' ? undefined : optsOrProvider;
-  return readPosts([followersGroupId(username)], opts);
+  const posts = await readPosts([followersGroupId(username)], opts);
+  // Same ad-inventory drop as readMyPosts — the profile grid (visitor path)
+  // must not render the creator's ads as content tiles.
+  return posts.filter((p) => !p.tags?.includes('ad'));
 }
 
 /**
@@ -358,10 +366,14 @@ export async function readUserPublicProfile(
     seenPostIds.add(post._id);
     return true;
   });
+  // Ad docs (tagged `ad`) are ad inventory, not content — the same drop the
+  // feed + the owner's profile reads apply. Without it, a visitor's profile
+  // grid renders the creator's ads as content tiles.
+  const contentPosts = uniquePosts.filter((p) => !p.tags?.includes('ad'));
   const avatarUrl = (avatarRes.rows[0] as { avatar_url?: string } | undefined)?.avatar_url;
   const bannerUrl = (bannerRes.rows[0] as { banner_url?: string } | undefined)?.banner_url;
 
-  return { posts: uniquePosts, avatarUrl, bannerUrl };
+  return { posts: contentPosts, avatarUrl, bannerUrl };
 }
 
 /**
