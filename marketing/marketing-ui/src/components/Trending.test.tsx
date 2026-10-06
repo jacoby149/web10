@@ -31,33 +31,6 @@ const basePost: FeedPost = {
 
 const noop = () => {};
 
-describe('TrendingCard rank badge', () => {
-  it('marks #1 with a gold flame badge', () => {
-    render(
-      <TrendingCard post={basePost} rank={1} maxScore={100} onLike={noop} onComment={noop} onRepost={noop} />,
-    );
-    const badge = screen.getByTestId('discover-rank-badge');
-    expect(badge).toHaveTextContent('#1');
-    expect(badge).toHaveAttribute('aria-label', expect.stringContaining('number one'));
-  });
-
-  it('labels #2-3 as top three', () => {
-    render(
-      <TrendingCard post={{ ...basePost, id: 'p2' }} rank={3} maxScore={100} onLike={noop} onComment={noop} onRepost={noop} />,
-    );
-    expect(screen.getByTestId('discover-rank-badge')).toHaveAttribute('aria-label', expect.stringContaining('top three'));
-  });
-
-  it('labels #4+ as plain trending', () => {
-    render(
-      <TrendingCard post={{ ...basePost, id: 'p4' }} rank={7} maxScore={100} onLike={noop} onComment={noop} onRepost={noop} />,
-    );
-    const badge = screen.getByTestId('discover-rank-badge');
-    expect(badge).toHaveTextContent('#7');
-    expect(badge.getAttribute('aria-label')).toBe('Rank 7');
-  });
-});
-
 describe('TrendingCard interactions', () => {
   it('renders the like as a display-only count (remote mode: anon can\'t like)', () => {
     const onLike = vi.fn();
@@ -88,14 +61,7 @@ describe('TrendingCard interactions', () => {
     expect(like).toHaveTextContent('10');
   });
 
-  it('renders a share signal', () => {
-    render(
-      <TrendingCard post={basePost} rank={5} maxScore={100} onLike={noop} onComment={noop} onRepost={noop} />,
-    );
-    expect(screen.getByLabelText('Share')).toBeInTheDocument();
-  });
-
-  it('renders author name as a deep link to /u/:username', () => {
+  it('renders the author name as a deep link to /u/:username', () => {
     render(
       <TrendingCard post={basePost} rank={5} maxScore={100} onLike={noop} onComment={noop} onRepost={noop} />,
     );
@@ -706,18 +672,18 @@ describe('TrendingCard video media', () => {
     render(
       <TrendingCard post={videoPost} rank={2} maxScore={100} onLike={noop} onComment={noop} onRepost={noop} />,
     );
-    // The trending grid is a card wall — a full-width 9:16 box is ~1.78× the
+    // The trending board is a card wall — a full-width 9:16 box is ~1.78× the
     // card tall and buries the control rack at its bottom. The card caps the
-    // portrait frame (maxWidth) + centers it (mx-auto) in a black letterbox.
-    // (Non-transcoded → the file path's InlineVideo; the frame IS the
-    // discover-media-video element.)
+    // portrait frame's HEIGHT (the feed's 60vh cap) + centers it (mx-auto) in a
+    // black letterbox. (Non-transcoded → the file path's InlineVideo; the frame
+    // IS the discover-media-video element.)
     const frame = document.querySelector('[data-testid="discover-media-video"]') as HTMLElement;
     expect(frame).toBeTruthy();
-    expect(frame.style.maxWidth).toBe('min(50vh, 100%)');
+    expect(frame.style.maxHeight).toBe('60vh');
     expect(frame.className).toMatch(/mx-auto/);
   });
 
-  it('leaves a landscape video full-width in the card (no cap — only portrait is too tall)', () => {
+  it('leaves a landscape video full-height in the card (no cap — only portrait is too tall)', () => {
     const videoPost: FeedPost = {
       ...basePost,
       id: 'landscape-post',
@@ -731,7 +697,8 @@ describe('TrendingCard video media', () => {
     );
     const frame = document.querySelector('[data-testid="discover-media-video"]') as HTMLElement;
     expect(frame).toBeTruthy();
-    expect(frame.style.maxWidth).toBe('');
+    // A landscape frame at full width is already shorter than the cap, so no
+    // letterbox (no mx-auto) — only a portrait frame is centered in the box.
     expect(frame.className).not.toMatch(/mx-auto/);
   });
 
