@@ -7,6 +7,7 @@ const mockCreateGroup = vi.fn().mockResolvedValue({ group_id: 'api.localhost/gro
 const mockUpdateGroup = vi.fn().mockResolvedValue({ group_id: 'api.localhost/groups/users/jacoby149/saved-my-collection' });
 const mockCreate = vi.fn().mockResolvedValue({ doc_id: 's1' });
 const mockRead = vi.fn();
+const mockUpdate = vi.fn().mockResolvedValue({ doc_id: 's1' });
 const mockDelete = vi.fn().mockResolvedValue({ doc_id: 'd1', status: 'deleted' });
 const mockGetGroupMembers = vi.fn().mockResolvedValue([]);
 const mockByUserGroups = vi.fn().mockResolvedValue({ groups: [], limit: 100, offset: 0 });
@@ -18,6 +19,7 @@ vi.mock('@/data/v3', () => ({
     updateGroup: (...a: unknown[]) => mockUpdateGroup(...a),
     create: (...a: unknown[]) => mockCreate(...a),
     read: (...a: unknown[]) => mockRead(...a),
+    update: (...a: unknown[]) => mockUpdate(...a),
     delete: (...a: unknown[]) => mockDelete(...a),
     getGroupMembers: (...a: unknown[]) => mockGetGroupMembers(...a),
     byUserGroups: (...a: unknown[]) => mockByUserGroups(...a),
@@ -63,6 +65,8 @@ import {
   createGroupCollection,
   readGroupCollections,
   readGroupPublicCollections,
+  setCollectionCover,
+  reorderCollection,
 } from '@/data/saved';
 
 const GROUP_ID = 'api.localhost/groups/users/jacoby149/saved-my-collection';
@@ -74,6 +78,7 @@ beforeEach(() => {
   mockUpdateGroup.mockResolvedValue({ group_id: GROUP_ID });
   mockCreate.mockResolvedValue({ doc_id: 's1' });
   mockRead.mockResolvedValue([]);
+  mockUpdate.mockResolvedValue({ doc_id: 's1' });
   mockGetGroupMembers.mockResolvedValue([]);
   mockByUserGroups.mockResolvedValue({ groups: [], limit: 100, offset: 0 });
   mockReadGroupIdentity.mockResolvedValue({ name: 'My Collection', kind: 'saved', visibility: 'private' });
@@ -427,5 +432,128 @@ describe('personal reads exclude group collections (the owner_group classifier)'
     mockRead.mockResolvedValue([]);
     const collections = await readUserPublicCollections('jacoby149');
     expect(collections).toEqual([]);
+  });
+});
+
+// ── Playlist order (the owner's curated sequence) ────────────────────────────
+
+describe('readCollection — the owner\'s curated order (position) wins over newest-first', () => {
+  it('renders in position order when items carry a position', async () => {
+    mockRead.mockResolvedValue([
+      // saved newest-first by created_at, but the owner reordered: p3 → p1 → p2.
+      { doc_id: 's3', ref_value: 'p3', body: { post_id: 'p3', position: 0 }, created_at: '2026-09-30T00:00:00Z' },
+      { doc_id: 's1', ref_value: 'p1', body: { post_id: 'p1', position: 1 }, created_at: '2026-09-29T00:00:00Z' },
+      { doc_id: 's2', ref_value: 'p2', body: { post_id: 'p2', position: 2 }, created_at: '2026-09-28T00:00:00Z' },
+    ]);
+    mockReadPostById.mockImplementation(async (id: string) => ({ _id: id, text: id, created_at: 'x' }));
+    const { posts } = await readCollection(GROUP_ID);
+    expect(posts.map((p) => p.postId)).toEqual(['p3', 'p1', 'p2']);
+    expect(posts.map((p) => p.position)).toEqual([0, 1, 2]);
+  });
+
+  it('falls back to newest-save-first when no item carries a position', async () => {
+    mockRead.mockResolvedValue([
+      { doc_id: 's1', ref_value: 'p1', body: { post_id: 'p1' }, created_at: '2026-09-30T00:00:00Z' },
+      { doc_id: 's2', ref_value: 'p2', body: { post_id: 'p2' }, created_at: '2026-09-29T00:00:00Z' },
+    ]);
+    mockReadPostById.mockImplementation(async (id: string) => ({ _id: id, text: id, created_at: 'x' }));
+    const { posts } = await readCollection(GROUP_ID);
+    expect(posts.map((p) => p.postId)).toEqual(['p1', 'p2']);
+    expect(posts.every((p) => p.position === undefined)).toBe(true);
+  });
+});
+
+describe('reorderCollection — rewrite each saved doc\'s position (the playlist order)', () => {
+  it('writes the new 0-based position to each item in the given order', async () => {
+    mockRead.mockResolvedValue([
+      { doc_id: 's1', ref_value: 'p1', body: { post_id: 'p1' }, created_at: 'x' },
+      { doc_id: 's2', ref_value: 'p2', body: { post_id: 'p2' }, created_at: 'x' },
+      { doc_id: 's3', ref_value: 'p3', body: { post_id: 'p3' }, created_at: 'x' },
+    ]);
+    await reorderCollection(GROUP_ID, ['p3', 'p1', 'p2']);
+    // Each item's doc is updated to its new index (the update merges the body,
+    // so post_id / note are preserved by the node).
+    expect(mockUpdate).toHaveBeenCalledWith('s3', { position: 0 });
+    expect(mockUpdate).toHaveBeenCalledWith('s1', { position: 1 });
+    expect(mockUpdate).toHaveBeenCalledWith('s2', { position: 2 });
+    expect(mockUpdate).toHaveBeenCalledTimes(3);
+  });
+
+  it('skips an item that is no longer in the collection (a removed save)', async () => {
+    mockRead.mockResolvedValue([
+      { doc_id: 's1', ref_value: 'p1', body: { post_id: 'p1' }, created_at: 'x' },
+      { doc_id: 's2', ref_value: 'p2', body: { post_id: 'p2' }, created_at: 'x' },
+    ]);
+    // p3 is in the requested order but not in the collection (already removed).
+    await reorderCollection(GROUP_ID, ['p3', 'p1', 'p2']);
+    expect(mockUpdate).toHaveBeenCalledWith('s1', { position: 1 });
+    expect(mockUpdate).toHaveBeenCalledWith('s2', { position: 2 });
+    expect(mockUpdate).toHaveBeenCalledTimes(2);
+  });
+});
+
+// ── The collection's cover (its thumbnail) ───────────────────────────────────
+
+describe('setCollectionCover — pin a saved post\'s media as the cover (the face\'s avatar_ref)', () => {
+  it('writes the post\'s first media doc_id to the face\'s avatar_ref', async () => {
+    mockReadPostById.mockResolvedValue({ _id: 'p1', text: 'a riff', media_refs: ['m1', 'm2'], created_at: 'x' });
+    await setCollectionCover(GROUP_ID, 'p1');
+    expect(mockWriteGroupIdentity).toHaveBeenCalledWith(GROUP_ID, expect.objectContaining({ avatar_ref: 'm1' }));
+  });
+
+  it('throws when the post has no media (a text-only post can\'t be a cover)', async () => {
+    mockReadPostById.mockResolvedValue({ _id: 'p1', text: 'just words', created_at: 'x' });
+    await expect(setCollectionCover(GROUP_ID, 'p1')).rejects.toThrow(/no media/);
+    expect(mockWriteGroupIdentity).not.toHaveBeenCalled();
+  });
+});
+
+describe('savePostToCollection — the first save becomes the cover (best-effort)', () => {
+  it('sets the cover to the first saved post\'s media when the collection has none', async () => {
+    mockRead.mockResolvedValue([]); // not saved yet
+    mockReadPostById.mockResolvedValue({ _id: 'p1', text: 'a riff', media_refs: ['m1'], created_at: 'x' });
+    await savePostToCollection(GROUP_ID, 'p1');
+    // The cover is the first media of the first thing saved.
+    expect(mockWriteGroupIdentity).toHaveBeenCalledWith(GROUP_ID, expect.objectContaining({ avatar_ref: 'm1' }));
+  });
+
+  it('does NOT clobber an existing cover (the owner\'s explicit choice wins)', async () => {
+    mockRead.mockResolvedValue([]);
+    mockReadGroupIdentity.mockResolvedValue({ name: 'My Collection', kind: 'saved', visibility: 'private', avatar_ref: 'existing-cover' });
+    mockReadPostById.mockResolvedValue({ _id: 'p1', text: 'a riff', media_refs: ['m1'], created_at: 'x' });
+    await savePostToCollection(GROUP_ID, 'p1');
+    // The face is re-read (it carries the existing cover) but the cover is NOT rewritten.
+    expect(mockWriteGroupIdentity).not.toHaveBeenCalled();
+  });
+
+  it('a text-only first save sets no cover (best-effort, never fails the save)', async () => {
+    mockRead.mockResolvedValue([]);
+    mockReadPostById.mockResolvedValue({ _id: 'p1', text: 'just words', created_at: 'x' });
+    const wrote = await savePostToCollection(GROUP_ID, 'p1');
+    expect(wrote).toBe(true); // the save still happened
+    expect(mockWriteGroupIdentity).not.toHaveBeenCalled();
+  });
+});
+
+describe('getMyCollections — resolves the cover media to a displayable URL', () => {
+  it('resolves a collection\'s coverRef to a coverUrl (one batched media read)', async () => {
+    mockGetMyGroups.mockResolvedValue([{ group_id: GROUP_ID, join_policy: 'invite_only', my_role: 'owner', member_count: 1 }]);
+    mockReadGroupIdentity.mockResolvedValue({ name: 'My Collection', kind: 'saved', visibility: 'private', avatar_ref: 'm1' });
+    mockRead.mockImplementation(async (service: string) => (service === 'saved' ? [{ doc_id: 's1', ref_value: 'p1', body: { post_id: 'p1' }, created_at: 'x' }] : []));
+    mockResolveMediaRefs.mockResolvedValue([{ _id: 'm1', url: 'https://cdn/m1.webp', created_at: 'x' }]);
+    const collections = await getMyCollections();
+    expect(collections[0]).toMatchObject({ coverRef: 'm1', coverUrl: 'https://cdn/m1.webp' });
+    // One batched resolve for the grid's covers.
+    expect(mockResolveMediaRefs).toHaveBeenCalledWith(['m1']);
+  });
+
+  it('a collection with no cover resolves no media (the card falls back to the placeholder)', async () => {
+    mockGetMyGroups.mockResolvedValue([{ group_id: GROUP_ID, join_policy: 'invite_only', my_role: 'owner', member_count: 1 }]);
+    mockReadGroupIdentity.mockResolvedValue({ name: 'My Collection', kind: 'saved', visibility: 'private' });
+    mockRead.mockResolvedValue([]);
+    const collections = await getMyCollections();
+    expect(collections[0].coverRef).toBeUndefined();
+    expect(collections[0].coverUrl).toBeUndefined();
+    expect(mockResolveMediaRefs).not.toHaveBeenCalled();
   });
 });
