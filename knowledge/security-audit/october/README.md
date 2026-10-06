@@ -36,6 +36,10 @@ hygiene** problem (secrets in source). Details in `backend.md`.
 
 ## How much code is in scope
 
+> **Full per-layer / per-file breakdown: [`loc-breakdown.md`](./loc-breakdown.md)** —
+> the v3 surface split into services / endpoints / models, the security-critical
+> core file-by-file, and every SDK file. The table below is the summary.
+
 The backend is small. The security-relevant core is very small.
 
 | Surface | Total | Security-critical core |
