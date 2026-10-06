@@ -189,6 +189,42 @@ describe('FeedScreen', () => {
     expect((screen.getByTestId('media-image').querySelector('img') as HTMLImageElement).className).toContain('object-cover');
   });
 
+  it('a portrait (tall) photo is centered in the card (the "photobox" letterbox), not left-aligned', async () => {
+    const { readFeedPage } = await import('@/data');
+    // A 9:16 photo: its reserved frame is capped at 60vh, so the frame width
+    // shrinks below the card width. It must be centered (mx-auto) — the
+    // "photobox" letterbox — not left-aligned with a black gap on the right.
+    vi.mocked(readFeedPage).mockResolvedValueOnce({
+      posts: [
+        {
+          _id: 'ptall', text: 'a tall photo', author_username: 'testuser', author_provider: 'test.localhost',
+          created_at: new Date().toISOString(),
+          media_refs: [{ doc_id: 'mt', read_url: 'http://test.com/tall.png', mime_type: 'image/png', width: 720, height: 1280 }],
+        },
+      ],
+      has_more: false, next_cursor: null,
+    });
+    const { default: FeedScreen } = await import('@/components/Feed/FeedScreen');
+    render(
+      <MemoryRouter>
+        <FeedScreen />
+      </MemoryRouter>,
+    );
+    await waitFor(() => {
+      expect(screen.getByTestId('media-image')).toBeInTheDocument();
+    });
+    const frame = screen.getByTestId('media-image');
+    // The frame reserves the photo's natural portrait ratio…
+    expect(parseFloat(frame.style.aspectRatio)).toBeCloseTo(720 / 1280, 5);
+    // …and is centered (mx-auto) in a FULL-WIDTH BLACK "photobox" wrapper — the
+    // black bars on the sides, the same shape the portrait video's letterbox
+    // produces (not a centered box with grey card sides).
+    expect(frame.className).toContain('mx-auto');
+    const box = frame.parentElement as HTMLElement;
+    expect(box.className).toContain('bg-black');
+    expect(box.className).toContain('w-full');
+  });
+
   it('multi-media posts render an inline carousel with a position indicator (all items reachable)', async () => {
     const { readFeedPage } = await import('@/data');
     vi.mocked(readFeedPage).mockResolvedValueOnce({
