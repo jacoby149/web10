@@ -62,6 +62,7 @@ function feedPostToDiscover(post: FeedPost): DiscoverPost {  const author = post
     reposts: post.repostsCount,
     score: post.engagementScore,
     media: feedPostToMediaItems(post.mediaRefs),
+    repost_of: post.repostOf,
   };
 }
 
@@ -113,6 +114,35 @@ interface V3CommentRow {
   body: Record<string, any> | null;
   created_at: string;
 }
+
+// The repost-embed original reader (reposts.md) — injected into the shared
+// card's `RepostEmbed`. Reads the original post by `repost_of` doc_id as ANON
+// (no token) through the v3 read-by-id path (the node's read-by-id is
+// `user_or_anon` and resolves media server-side — the same rule the post
+// permalink's anon read relies on). Returns the original's author / text /
+// media for the embed; `null` when the reader can't read it (I3 — the embed
+// degrades to "unavailable"). A repost never grants access to the original
+// beyond what the reader can already read.
+const marketingReadRepostOriginal: import('@web10/discover').ReadRepostOriginal = async (repostOf) => {
+  const safeId = repostOf.replace(/'/g, "''");
+  const resp = await fetch(`${API_ORIGIN}/v3/read`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    // No token — anon reads the public post (the discover board's read-by-id).
+    body: JSON.stringify({ doc_id: safeId, service: 'posts' }),
+  });
+  if (!resp.ok) return null;
+  const doc: V3Doc | null = await resp.json();
+  if (!doc || !doc.doc_id) return null;
+  const mediaRefs: (string | ResolvedMediaRef)[] = doc.body?.media_refs || [];
+  return {
+    author_username: doc.author_key,
+    display_name: (doc.body?.display_name as string) || undefined,
+    text: doc.body?.text || undefined,
+    created_at: doc.created_at,
+    media: feedPostToMediaItems(mediaRefs),
+  };
+};
 
 // A media ref as the v3 read path serves it: resolve_media_urls rewrites a
 // post's media_refs from bare doc_id strings to resolved objects carrying a
@@ -168,6 +198,10 @@ interface DiscoveryPost {
   media_refs?: (string | ResolvedMediaRef)[];
   has_media?: boolean;
   first_attachment_mime?: string;
+  /** A repost (reposts.md): the doc_id of the post this one reposts. Absent on
+      a normal post. The card renders the "reposted" badge + the embedded
+      original (fetched via `readRepostOriginal`). */
+  repost_of?: string;
 }
 
 interface FeedPost {
@@ -193,6 +227,8 @@ interface FeedPost {
   commentsCount: number;
   repostsCount: number;
   createdAt: string;
+  /** A repost (reposts.md): the doc_id of the post this one reposts. */
+  repostOf?: string;
 }
 
 const AVATAR_COLORS = [
@@ -281,6 +317,7 @@ function mapDiscoveryToFeedPost(d: DiscoveryPost): FeedPost {
     commentsCount: d.engagement.comments ?? 0,
     repostsCount: d.engagement.reposts ?? 0,
     createdAt: d.created_at,
+    repostOf: d.repost_of,
   };
 }
 
@@ -346,6 +383,7 @@ function TrendingCard({
       postHref={resolvedPostHref}
       authorHref={resolvedAuthorHref}
       readComments={marketingReadComments}
+      readRepostOriginal={marketingReadRepostOriginal}
       id={`trending-card-${post.id}`}
       className={className}
       testId="trending-card"
@@ -456,6 +494,32 @@ async function readGroupRefCounts(service: string, ref: string[]): Promise<Recor
   return resp.json();
 }
 
+// The repost count (reposts.md: a repost is a POST, not a reaction). A repost
+// is a `posts` doc whose `body.repost_of` points at the original, so the count
+// is the number of such posts the reader can read (I3: scoped to the discover
+// group, anon-capable — the public board's repost tally). `count(DISTINCT
+// doc_id)` — a post attached to N readable groups surfaces N rows in the
+// boundary CTE; one reposter is one repost, not N. Anon (no token).
+async function readGroupRepostCounts(postIds: string[]): Promise<Record<string, number>> {
+  if (!postIds.length) return {};
+  const quoted = postIds.map((id) => `'${id.replace(/'/g, "''")}'`).join(', ');
+  const resp = await fetch(`${API_ORIGIN}/v3/query`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      sql: `SELECT JSONExtractString(body, 'repost_of') AS repost_of, count(DISTINCT doc_id) AS n FROM posts WHERE JSONExtractString(body, 'repost_of') IN (${quoted}) GROUP BY JSONExtractString(body, 'repost_of')`,
+      groups: [DISCOVER_GROUP],
+    }),
+  });
+  if (!resp.ok) return {};
+  const data: { rows?: { repost_of: string; n: number }[] } = await resp.json();
+  const counts: Record<string, number> = {};
+  for (const row of data.rows || []) {
+    if (row.repost_of) counts[row.repost_of] = Number(row.n) || 0;
+  }
+  return counts;
+}
+
 // One board doc → the DiscoveryPost shape. `likesByPost` / `commentsByPost`
 // are the server-side engagement counts ({} for a search — the page's knob
 // pipeline re-scores on the raw post signals, not the board's tally).
@@ -463,6 +527,7 @@ function mapV3DocToDiscovery(
   p: V3Doc,
   likesByPost: Record<string, number>,
   commentsByPost: Record<string, number>,
+  repostsByPost: Record<string, number> = {},
 ): DiscoveryPost {
   // The v3 read serves media_refs pre-resolved (objects with mime_type +
   // read_url). Derive the first attachment's mime from the first resolved
@@ -482,12 +547,17 @@ function mapV3DocToDiscovery(
     engagement: {
       likes: likesByPost[p.doc_id] || 0,
       comments: commentsByPost[p.doc_id] || 0,
-      reposts: 0,
+      reposts: repostsByPost[p.doc_id] || 0,
     },
-    engagement_score: (likesByPost[p.doc_id] || 0) + (commentsByPost[p.doc_id] || 0),
+    engagement_score:
+      (likesByPost[p.doc_id] || 0) + (commentsByPost[p.doc_id] || 0) + (repostsByPost[p.doc_id] || 0),
     media_refs: mediaRefs,
     has_media: mediaRefs.length > 0,
     first_attachment_mime: firstAttachmentMime,
+    // A repost (reposts.md): the doc_id of the post this one reposts. The
+    // board read carries it in the body; the card renders the "reposted" badge
+    // + the embedded original (fetched via readRepostOriginal).
+    repost_of: (p.body?.repost_of as string) || undefined,
   };
 }
 
@@ -498,12 +568,13 @@ async function fetchDiscoverFeed(sort: 'recent' | 'trending', limit = 6): Promis
   // board's posts — exact, no cap.
   const posts = dropAdDocs(await readGroup('posts', 200));
   const postIds = posts.map((p) => p.doc_id);
-  const [likesByPost, commentsByPost] = await Promise.all([
+  const [likesByPost, commentsByPost, repostsByPost] = await Promise.all([
     readGroupRefCounts('reactions', postIds),
     readGroupRefCounts('comments', postIds),
+    readGroupRepostCounts(postIds),
   ]);
 
-  const mapped: DiscoveryPost[] = posts.map((p) => mapV3DocToDiscovery(p, likesByPost, commentsByPost));
+  const mapped: DiscoveryPost[] = posts.map((p) => mapV3DocToDiscovery(p, likesByPost, commentsByPost, repostsByPost));
   console.log(
     '[trending] discover feed —', posts.length, 'posts;',
     mapped.filter(p => p.has_media).length, 'with media;',
