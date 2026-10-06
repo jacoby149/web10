@@ -99,10 +99,10 @@ function NotificationRow({ n, unread, onClose }: { n: Notification; unread: bool
         )}
       </div>
       <div className="flex-1 min-w-0">
-        <p className="text-sm truncate text-foreground/90">
+        <p className={cn('text-sm truncate', unread ? 'font-semibold text-foreground' : 'text-foreground/90')}>
           {describe(n)}
         </p>
-        <p className="text-xs text-muted-foreground mt-0.5">{timeAgo(n.created_at)}</p>
+        <p className={cn('text-xs mt-0.5', unread ? 'font-semibold text-foreground' : 'text-muted-foreground')}>{timeAgo(n.created_at)}</p>
       </div>
     </>
   );

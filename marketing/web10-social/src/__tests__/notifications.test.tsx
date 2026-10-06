@@ -166,6 +166,24 @@ describe('NotificationsScreen', () => {
     expect(screen.getByText('carol commented on your post')).toBeInTheDocument();
   });
 
+  it('bolds + brightens the unread row (the PR 1131 unread effect); read rows stay muted', () => {
+    mockState = {
+      unread: 1,
+      items: [
+        { id: 'n1', type: 'reaction', from: 'bob', ref_doc_id: 'post-1', read: false, created_at: new Date().toISOString() },
+        { id: 'n2', type: 'comment', from: 'carol', ref_doc_id: 'post-1', read: true, created_at: new Date().toISOString() },
+      ],
+    };
+    renderWithRouter(<NotificationsScreen />, '/notifications');
+    // Show both rows (All) so the unread vs read styling can be compared.
+    fireEvent.click(screen.getByTestId('notifications-filter-all'));
+    // The unread row's description is bold + full-foreground.
+    expect(screen.getByText('bob reacted to your post')).toHaveClass('font-semibold', 'text-foreground');
+    // The read row's description is not bolded (the muted variant).
+    expect(screen.getByText('carol commented on your post')).not.toHaveClass('font-semibold');
+    expect(screen.getByText('carol commented on your post')).toHaveClass('text-foreground/90');
+  });
+
   it('does NOT auto-mark-read on open (the Unread filter needs the unread state)', () => {
     mockState = {
       unread: 2,
