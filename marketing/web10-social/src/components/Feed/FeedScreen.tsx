@@ -132,11 +132,18 @@ function MediaItem({ media }: { media: MediaRecord }) {
     if (knownRatio) return;
     if (el.naturalWidth && el.naturalHeight) setMeasuredRatio(el.naturalWidth / el.naturalHeight);
   };
+  // The 60vh cap only bites for a portrait photo (ratio < 1): a landscape photo
+  // at full width is already shorter than the cap, so the cap is a no-op for it.
+  // A portrait photo's frame shrinks to fit the capped height — center it in the
+  // full-width card (the "photobox" letterbox, the same shape the video player's
+  // heightCapped cap produces) instead of leaving it left-aligned with a black
+  // gap on the right.
+  const heightCapped = ratio < 1;
   const containerStyle: React.CSSProperties = { aspectRatio: `${ratio}`, maxHeight: '60vh' };
 
   return (
     <div
-      className="bg-elevated overflow-hidden group relative"
+      className={cn('bg-elevated overflow-hidden group relative', heightCapped && 'mx-auto')}
       style={containerStyle}
       data-testid="media-image"
     >

@@ -559,6 +559,12 @@ export function InlineVideo({ url, poster, width, height, durationSeconds, fit =
   const effectiveRatio = ratio ?? (width && height ? width / height : 4 / 3);
   const isAspectVideo = !fill && !immersive && cover && Math.abs(effectiveRatio - 16 / 9) < 0.001;
   const capped = !fill && !immersive && !!maxWidth;
+  // A height cap only bites for a portrait clip (ratio < 1): a landscape clip at
+  // full width is already shorter than the cap, so the cap is a no-op for it. A
+  // portrait clip's frame shrinks to fit the capped height — center it in the
+  // full-width black letterbox (the same shape HlsVideoPlayer's heightCapped
+  // cap produces) instead of leaving it left-aligned with a gap on the right.
+  const heightCapped = !fill && !immersive && !isAspectVideo && !!maxHeight && effectiveRatio < 1;
   const containerStyle: CSSProperties = fill || immersive ? {} : isAspectVideo ? {} : { aspectRatio: effectiveRatio, maxHeight, ...(capped ? { maxWidth } : {}) };
   const progress = duration > 0 ? (current / duration) * 100 : 0;
   const rackVisible = controlsVisible || pointerOver;
@@ -569,7 +575,7 @@ export function InlineVideo({ url, poster, width, height, durationSeconds, fit =
       className={cn(
         'overflow-hidden group relative cursor-pointer bg-black',
         fill || immersive ? 'h-full w-full' : isAspectVideo && 'aspect-video',
-        capped && 'mx-auto',
+        (capped || heightCapped) && 'mx-auto',
         className,
       )}
       style={containerStyle}
