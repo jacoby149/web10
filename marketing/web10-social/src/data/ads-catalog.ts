@@ -214,6 +214,23 @@ export function buildNodeAdBody(
 }
 
 /**
+ * Create a node ad (the operator's inventory) on the discover group. The
+ * unified ad form's "Node ad" scope (the node admin can run an ad as a personal
+ * ad OR a node ad from one surface). No albums (a node ad is the operator's
+ * inventory, not a creator's catalog).
+ */
+export async function createNodeAd(
+  offer: AdOffer,
+  text: string,
+  status: 'active' | 'paused',
+  mediaRefs?: string[],
+  format: 'inline' | 'post' = 'inline',
+): Promise<V3Document> {
+  const w = getV3Client();
+  return w.create('posts', buildNodeAdBody(offer, text, status, mediaRefs, format), { groups: [getDiscoverGroupId()] });
+}
+
+/**
  * Update an existing ad (the Edit flow, ad-improvements.md). Same `doc_id` —
  * an update is a new version, so any post that has this ad pinned keeps
  * pointing at it and the new creative/offer/format shows immediately.
