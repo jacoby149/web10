@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useCallback } from 'react';
+import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { Send, ExternalLink, Heart, X, Image as ImageIcon } from 'lucide-react';
 import { cn } from './utils';
 import { TextInput, IconBtn, Skeleton } from './ui';
@@ -102,6 +102,20 @@ export interface CommentThreadProps {
    *  thread only awaits it for the rollback); a `void` return is fine (no
    *  rollback). */
   onToggleCommentLike?: (commentId: string) => void | Promise<unknown>;
+  /** The comment-text updater (injected; absent → no Edit). The thread owns the
+   *  optimistic swap + rollback (the like pattern): it swaps the node's text
+   *  immediately, calls this, and restores the captured text if the write
+   *  rejects. Only offered on the reader's OWN comments (the app resolves
+   *  `isOwn` per comment). Return the write's promise so the thread can roll
+   *  back on failure; a `void` return is fine (no rollback). */
+  onUpdateComment?: (commentId: string, text: string) => void | Promise<unknown>;
+  /** The comment deleter (injected; absent → no Delete). The thread removes the
+   *  node from the tree immediately (a deleted comment's replies are dropped
+   *  with it — the node's subtree is gone), calls this, and restores the
+   *  captured subtree if the write rejects. Only offered on the reader's OWN
+   *  comments. Return the write's promise so the thread can roll back on
+   *  failure; a `void` return is fine (no rollback). */
+  onDeleteComment?: (commentId: string) => void | Promise<unknown>;
   /** Remote (marketing) mode: compose becomes a link-out to the post permalink. */
   remote?: boolean;
   /** The post permalink the remote compose links to (web10 social). */
@@ -126,6 +140,8 @@ export function CommentThread({
   createComment,
   uploadMedia,
   onToggleCommentLike,
+  onUpdateComment,
+  onDeleteComment,
   remote = false,
   remoteHref,
   onError,
@@ -141,6 +157,13 @@ export function CommentThread({
   const [replyingTo, setReplyingTo] = useState<CommentItem | null>(null);
   /** Photos picked for the draft (local previews; uploaded on send). */
   const [attached, setAttached] = useState<AttachedPhoto[]>([]);
+  /** The comment being edited (absent = no edit in progress). Editing reuses
+   *  the single compose box, retargeted — the same idiom as "Reply". */
+  const [editing, setEditing] = useState<CommentItem | null>(null);
+  /** The comment's delete is armed (two-tap: Delete → confirm). */
+  const [deleteArmed, setDeleteArmed] = useState<string | null>(null);
+  /** The in-progress write (edit/delete) — disables the row's actions. */
+  const [busyId, setBusyId] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const commentRefs = useRef<Record<string, HTMLLIElement | null>>({});
   const hasScrolled = useRef(false);
@@ -217,6 +240,16 @@ export function CommentThread({
     });
   }, [readReplies, groups, toNode]);
 
+  // The load effect's group key: a PRIMITIVE, never the array. Callers pass
+  // `groups` as a fresh array literal on every render (e.g.
+  // `groups={[getDiscoverGroupId()]}`), and a parent that re-renders on a
+  // timer (the watch page's ?t= write-back) would then re-run this effect —
+  // tearing down + refetching the whole thread (the "comments keep reloading"
+  // loop). Keying on the joined string is stable across renders for the same
+  // groups; the array itself is only read inside the callbacks (below), where
+  // a fresh identity is harmless.
+  const groupsKey = useMemo(() => (groups ? groups.join('\u0000') : ''), [groups]);
+
   // Initial load: the first page of top-level comments (+ their first reply
   // pages, when the reader provides replyCounts).
   useEffect(() => {
@@ -245,8 +278,12 @@ export function CommentThread({
     return () => {
       cancelled = true;
     };
+    // `groups` is deliberately NOT a dep — its identity is unstable (a fresh
+    // array literal per caller render) and only its VALUE matters, which
+    // `groupsKey` carries. The same guard the watch page applies to its post
+    // load (stable primitives, never fresh objects).
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isOpen, postId, groups]);
+  }, [isOpen, postId, groupsKey]);
 
   // Scroll to + flash the anchored comment once comments are loaded
   useEffect(() => {
@@ -264,6 +301,7 @@ export function CommentThread({
 
   function handleReply(target: CommentItem) {
     setReplyingTo(target);
+    setEditing(null);
   }
 
   // Comment like (the post-like pattern): the thread owns the node state, so
@@ -295,6 +333,75 @@ export function CommentThread({
         likeCount: prevCount,
       })));
       onError?.('Could not update your reaction.');
+    }
+  }
+
+  // Edit a comment (the like pattern): the thread owns the node state, so it
+  // does the optimistic swap here — swap the node's text immediately, fire the
+  // app's write seam, and restore the captured text if the write rejects.
+  // Editing reuses the single compose box (retargeted, like "Reply").
+  function handleStartEdit(node: CommentItem) {
+    if (!onUpdateComment || !node._id) return;
+    setEditing(node);
+    setReplyingTo(null);
+    setDraft(node.text || '');
+  }
+
+  function handleCancelEdit() {
+    setEditing(null);
+    setDraft('');
+  }
+
+  async function handleSaveEdit() {
+    const node = editing;
+    if (!node?._id || !onUpdateComment) return;
+    const id = node._id;
+    const text = draft.trim();
+    if (!text) return;
+    const prevText = node.text || '';
+    if (text === prevText) {
+      handleCancelEdit();
+      return;
+    }
+    setBusyId(id);
+    setTopLevel((list) => mapNode(list, id, (n) => ({ ...n, text })));
+    try {
+      await onUpdateComment(id, text);
+      handleCancelEdit();
+    } catch (e) {
+      console.error('[discover:comments] edit failed, rolling back:', e);
+      setTopLevel((list) => mapNode(list, id, (n) => ({ ...n, text: prevText })));
+      onError?.('Could not save your comment.');
+    } finally {
+      setBusyId(null);
+    }
+  }
+
+  // Delete a comment (two-tap, the post-delete idiom): the thread removes the
+  // node's subtree immediately, fires the app's write seam, and restores the
+  // captured subtree if the write rejects. A deleted comment's replies are
+  // dropped with it (the node's subtree is gone) — the node tombstones the
+  // doc, not its replies, so a re-fetch would re-surface orphaned replies as
+  // top-level; the local removal is the honest render of the author's intent.
+  async function handleDelete(id: string) {
+    if (!onDeleteComment) return;
+    const prev = findNode(topLevel, id);
+    if (!prev) return;
+    setBusyId(id);
+    setDeleteArmed(null);
+    setTopLevel((list) => removeNode(list, id));
+    try {
+      await onDeleteComment(id);
+      setTopLevel((list) => {
+        onCountChange(countTree(list));
+        return list;
+      });
+    } catch (e) {
+      console.error('[discover:comments] delete failed, rolling back:', e);
+      setTopLevel((list) => insertNode(list, prev, prev.parent_id));
+      onError?.('Could not delete your comment.');
+    } finally {
+      setBusyId(null);
     }
   }
 
@@ -461,6 +568,15 @@ export function CommentThread({
               onReply={handleReply}
               canLike={onToggleCommentLike !== undefined}
               onTapLike={onToggleCommentLike ? handleToggleLike : undefined}
+              canEdit={onUpdateComment !== undefined}
+              canDelete={onDeleteComment !== undefined}
+              onEdit={onUpdateComment ? handleStartEdit : undefined}
+              onDelete={onDeleteComment ? handleDelete : undefined}
+              deleteArmed={deleteArmed}
+              onDisarmDelete={() => setDeleteArmed(null)}
+              onArmDelete={(cid) => setDeleteArmed(cid)}
+              busyId={busyId}
+              editingId={editing?._id}
               onViewMoreReplies={readReplies ? handleViewMoreReplies : undefined}
               onAuthorClick={onAuthorClick}
             />
@@ -501,11 +617,30 @@ export function CommentThread({
         <form
           onSubmit={(e) => {
             e.preventDefault();
-            handleSend();
+            if (editing) handleSaveEdit();
+            else handleSend();
           }}
           className="space-y-1.5"
         >
-          {replyingTo && (
+          {editing ? (
+            <div
+              className="flex items-center gap-2 text-xs text-muted-foreground"
+              data-testid="comment-edit-target"
+            >
+              <span className="truncate">
+                Editing your comment
+              </span>
+              <button
+                type="button"
+                aria-label="Cancel edit"
+                data-testid="comment-edit-cancel"
+                onClick={handleCancelEdit}
+                className="rounded p-0.5 transition-colors duration-150 hover:bg-elevated hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+              >
+                <X className="w-3.5 h-3.5" />
+              </button>
+            </div>
+          ) : replyingTo ? (
             <div
               className="flex items-center gap-2 text-xs text-muted-foreground"
               data-testid="comment-reply-target"
@@ -523,7 +658,7 @@ export function CommentThread({
                 <X className="w-3.5 h-3.5" />
               </button>
             </div>
-          )}
+          ) : null}
           {attached.length > 0 && (
             <div className="flex flex-wrap gap-2" data-testid="comment-photo-tray">
               {attached.map((p) => (
@@ -548,7 +683,7 @@ export function CommentThread({
             </div>
           )}
           <div className="flex items-center gap-2">
-            {uploadMedia && attached.length < MAX_COMMENT_PHOTOS && (
+            {uploadMedia && !editing && attached.length < MAX_COMMENT_PHOTOS && (
               <IconBtn
                 type="button"
                 data-testid="comment-attach-photo"
@@ -563,20 +698,32 @@ export function CommentThread({
             <TextInput
               value={draft}
               onChange={(e) => setDraft(e.target.value)}
-              placeholder={replyingTo ? 'Write a reply…' : 'Add a comment…'}
+              placeholder={editing ? 'Edit your comment…' : replyingTo ? 'Write a reply…' : 'Add a comment…'}
               data-testid="comment-input"
-              disabled={sending}
+              disabled={sending || busyId !== null}
               className="h-9"
             />
-            <IconBtn
-              type="submit"
-              data-testid="comment-send"
-              disabled={sending || (!draft.trim() && attached.length === 0)}
-              aria-label={replyingTo ? 'Send reply' : 'Send comment'}
-              className="h-9 w-9"
-            >
-              <Send className="w-4 h-4" />
-            </IconBtn>
+            {editing ? (
+              <IconBtn
+                type="submit"
+                data-testid="comment-save"
+                disabled={busyId !== null || !draft.trim() || draft.trim() === (editing.text || '')}
+                aria-label="Save comment"
+                className="h-9 w-9"
+              >
+                <Send className="w-4 h-4" />
+              </IconBtn>
+            ) : (
+              <IconBtn
+                type="submit"
+                data-testid="comment-send"
+                disabled={sending || (!draft.trim() && attached.length === 0)}
+                aria-label={replyingTo ? 'Send reply' : 'Send comment'}
+                className="h-9 w-9"
+              >
+                <Send className="w-4 h-4" />
+              </IconBtn>
+            )}
           </div>
           <input
             ref={fileInputRef}
@@ -617,6 +764,27 @@ function mapNode(nodes: CommentNode[], id: string, fn: (n: CommentNode) => Comme
   );
 }
 
+// Remove a node's subtree by id (the delete flip). Returns the new tree.
+function removeNode(nodes: CommentNode[], id: string): CommentNode[] {
+  return nodes
+    .filter((n) => n._id !== id)
+    .map((n) => (n.replies.length ? { ...n, replies: removeNode(n.replies, id) } : n));
+}
+
+// Re-insert a captured node (the delete rollback). `parentId` is the node's
+// parent (its `parent_id` for a reply; undefined for a top-level comment) —
+// the node goes back where it came from.
+function insertNode(nodes: CommentNode[], node: CommentNode, parentId?: string): CommentNode[] {
+  if (!parentId) return [...nodes, node];
+  return nodes.map((n) =>
+    n._id === parentId
+      ? { ...n, replies: [...n.replies, node] }
+      : n.replies.length
+        ? { ...n, replies: insertNode(n.replies, node, parentId) }
+        : n,
+  );
+}
+
 // ── One comment row (recursive) ─────────────────────────────────────────────
 
 interface CommentNodeRowProps {
@@ -631,6 +799,25 @@ interface CommentNodeRowProps {
   canLike: boolean;
   /** The optimistic tap handler (flip + fire + rollback). */
   onTapLike?: (commentId: string) => void;
+  /** An edit writer is present (gates the Edit action — absent in `remote` mode). */
+  canEdit: boolean;
+  /** A delete writer is present (gates the Delete action — absent in `remote` mode). */
+  canDelete: boolean;
+  /** Enters edit mode for a comment (the compose box retargets). */
+  onEdit?: (node: CommentItem) => void;
+  /** Deletes a comment (two-tap confirm; the thread owns the optimistic
+   *  removal + rollback). */
+  onDelete?: (commentId: string) => void;
+  /** The comment whose delete is currently armed (the two-tap confirm). */
+  deleteArmed?: string | null;
+  /** Disarms the delete confirm (the "No" tap). */
+  onDisarmDelete?: () => void;
+  /** Arms the delete confirm (the first "Delete" tap). */
+  onArmDelete?: (commentId: string) => void;
+  /** The comment with an in-flight write (edit/delete) — its actions disable. */
+  busyId?: string | null;
+  /** The comment currently in edit mode (its row shows no Edit/Delete). */
+  editingId?: string;
   /** "View more replies" for this comment (absent → no pager). */
   onViewMoreReplies?: (parentId: string) => void;
   /** The author-click handler (in-app profile navigation) — the comment's
@@ -638,11 +825,20 @@ interface CommentNodeRowProps {
   onAuthorClick?: (username: string, provider?: string) => void;
 }
 
-function CommentNodeRow({ node, depth, highlightedCommentId, canWrite, setRef, onReply, canLike, onTapLike, onViewMoreReplies, onAuthorClick }: CommentNodeRowProps) {
+function CommentNodeRow({ node, depth, highlightedCommentId, canWrite, setRef, onReply, canLike, onTapLike, canEdit, canDelete, onEdit, onDelete, deleteArmed, onDisarmDelete, onArmDelete, busyId, editingId, onViewMoreReplies, onAuthorClick }: CommentNodeRowProps) {
   const id = node._id || '';
   const highlighted = !!id && id === highlightedCommentId;
   const showLike = canLike || node.likeCount !== undefined;
   const likeInteractive = canLike;
+  // Edit/Delete only on the reader's OWN comments (the app resolves `isOwn`).
+  // While a write is in flight (any row) or this row is being edited, the
+  // actions hide/disable so a double-tap can't race.
+  const isOwn = !!node.isOwn;
+  const isEditing = id === editingId;
+  const isBusy = busyId !== null;
+  const isArmed = id === deleteArmed;
+  const showEdit = canEdit && isOwn && !isEditing && !isBusy;
+  const showDelete = canDelete && isOwn && !isEditing && !isBusy;
 
   return (
     <li
@@ -734,6 +930,67 @@ function CommentNodeRow({ node, depth, highlightedCommentId, canWrite, setRef, o
                 Reply
               </button>
             )}
+            {showEdit && (
+              <button
+                type="button"
+                data-testid={id ? `comment-edit-${id}` : undefined}
+                aria-label="Edit comment"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  if (id && onEdit) onEdit(node);
+                }}
+                className="rounded px-1.5 py-0.5 text-xs text-muted-foreground transition-colors duration-150 hover:text-foreground hover:bg-elevated/80 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+              >
+                Edit
+              </button>
+            )}
+            {showDelete && (
+              isArmed ? (
+                <span
+                  className="flex items-center gap-1.5 px-1.5 py-0.5 text-xs"
+                  data-testid={id ? `comment-delete-confirm-${id}` : undefined}
+                >
+                  <span className="text-danger">Delete?</span>
+                  <button
+                    type="button"
+                    aria-label="Confirm delete comment"
+                    data-testid={id ? `comment-delete-confirm-btn-${id}` : undefined}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      if (id && onDelete) onDelete(id);
+                    }}
+                    className="rounded bg-danger px-1.5 py-0.5 font-medium text-foreground transition-colors duration-150 hover:bg-danger/90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                  >
+                    Yes
+                  </button>
+                  <button
+                    type="button"
+                    aria-label="Cancel delete comment"
+                    data-testid={id ? `comment-delete-cancel-${id}` : undefined}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      onDisarmDelete?.();
+                    }}
+                    className="rounded px-1.5 py-0.5 text-muted-foreground transition-colors duration-150 hover:text-foreground hover:bg-elevated/80 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                  >
+                    No
+                  </button>
+                </span>
+              ) : (
+                <button
+                  type="button"
+                  data-testid={id ? `comment-delete-${id}` : undefined}
+                  aria-label="Delete comment"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    if (id) onArmDelete?.(id);
+                  }}
+                  className="rounded px-1.5 py-0.5 text-xs text-muted-foreground transition-colors duration-150 hover:text-danger hover:bg-danger-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                >
+                  Delete
+                </button>
+              )
+            )}
           </div>
         </div>
       </div>
@@ -750,6 +1007,15 @@ function CommentNodeRow({ node, depth, highlightedCommentId, canWrite, setRef, o
               onReply={onReply}
               canLike={canLike}
               onTapLike={onTapLike}
+              canEdit={canEdit}
+              canDelete={canDelete}
+              onEdit={onEdit}
+              onDelete={onDelete}
+              deleteArmed={deleteArmed}
+              onDisarmDelete={onDisarmDelete}
+              onArmDelete={onArmDelete}
+              busyId={busyId}
+              editingId={editingId}
               onViewMoreReplies={onViewMoreReplies}
               onAuthorClick={onAuthorClick}
             />

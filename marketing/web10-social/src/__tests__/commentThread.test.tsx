@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen, fireEvent, waitFor } from '@testing-library/react';
+import { render, screen, fireEvent, waitFor, act } from '@testing-library/react';
 import '@testing-library/jest-dom';
 import { lucideMock } from './helpers/lucideMock';
 vi.mock('lucide-react', () => lucideMock);
@@ -16,6 +16,8 @@ vi.mock('@/data', async (importOriginal) => {
     createThreadComment: vi.fn().mockResolvedValue(null),
     uploadCommentPhoto: vi.fn(),
     toggleReactionKind: vi.fn().mockResolvedValue('like'),
+    updateComment: vi.fn().mockResolvedValue({}),
+    deleteComment: vi.fn().mockResolvedValue(undefined),
   };
 });
 
@@ -26,9 +28,10 @@ URL.createObjectURL = vi.fn(() => `blob:mock-${objectUrlCounter++}`);
 URL.revokeObjectURL = vi.fn();
 
 // The conversation: two top-level comments. c1 has 7 replies (the first page
-// of 5 loads, "view more replies" loads the rest); c2 has none.
-const C1 = { _id: 'c1', post_id: 'p1', text: 'first', author_username: 'alice', created_at: '2026-01-01T00:00:00Z', likeCount: 2, likedByMe: false };
-const C2 = { _id: 'c2', post_id: 'p1', text: 'second', author_username: 'bob', created_at: '2026-01-01T01:00:00Z', likeCount: 0, likedByMe: true };
+// of 5 loads, "view more replies" loads the rest); c2 has none. c1 is the
+// reader's OWN comment (isOwn → Edit/Delete show); c2 is someone else's.
+const C1 = { _id: 'c1', post_id: 'p1', text: 'first', author_username: 'me', created_at: '2026-01-01T00:00:00Z', likeCount: 2, likedByMe: false, isOwn: true };
+const C2 = { _id: 'c2', post_id: 'p1', text: 'second', author_username: 'bob', created_at: '2026-01-01T01:00:00Z', likeCount: 0, likedByMe: true, isOwn: false };
 const C3 = { _id: 'c3', post_id: 'p1', text: 'third (page 2)', author_username: 'carol', created_at: '2026-01-01T06:00:00Z', likeCount: 0, likedByMe: false };
 const reply = (id: string, n: number) => ({
   _id: id,
@@ -156,8 +159,8 @@ describe('CommentThread — paged threaded replies (comments.md, the Facebook mo
   it('Reply retargets the single compose box (shows who it replies to)', async () => {
     await renderThread();
     expect(screen.queryByTestId('comment-reply-target')).not.toBeInTheDocument();
-    fireEvent.click(screen.getByTestId('comment-reply-c1'));
-    expect(screen.getByTestId('comment-reply-target')).toHaveTextContent('alice');
+    fireEvent.click(screen.getByTestId('comment-reply-c2'));
+    expect(screen.getByTestId('comment-reply-target')).toHaveTextContent('bob');
     expect(screen.getByTestId('comment-input')).toHaveAttribute('placeholder', 'Write a reply…');
     fireEvent.click(screen.getByTestId('comment-reply-cancel'));
     expect(screen.queryByTestId('comment-reply-target')).not.toBeInTheDocument();
@@ -301,6 +304,193 @@ describe('CommentThread — paged threaded replies (comments.md, the Facebook mo
     it('a comment with no photos renders no media grid', async () => {
       await renderThread();
       expect(screen.queryByTestId(/^comment-media-/)).not.toBeInTheDocument();
+    });
+  });
+
+  describe('edit / delete your own comments (the owner controls, comments.md)', () => {
+    it('shows Edit + Delete only on the reader\'s OWN comments (isOwn), never on others\'', async () => {
+      await renderThread();
+      // c1 is isOwn → both controls present
+      expect(screen.getByTestId('comment-edit-c1')).toBeInTheDocument();
+      expect(screen.getByTestId('comment-delete-c1')).toBeInTheDocument();
+      // c2 is not isOwn → no controls (a dead tap target is worse than none)
+      expect(screen.queryByTestId('comment-edit-c2')).not.toBeInTheDocument();
+      expect(screen.queryByTestId('comment-delete-c2')).not.toBeInTheDocument();
+    });
+
+    it('Edit retargets the compose box pre-filled; Save writes updateComment(id, text) + swaps the text', async () => {
+      const { updateComment } = await import('@/data');
+      await renderThread();
+      fireEvent.click(screen.getByTestId('comment-edit-c1'));
+      // the compose box is retargeted to edit mode, pre-filled with c1's text
+      expect(screen.getByTestId('comment-edit-target')).toBeInTheDocument();
+      expect(screen.getByTestId('comment-input')).toHaveValue('first');
+      expect(screen.getByTestId('comment-save')).toBeInTheDocument();
+      // the row's Edit/Delete hide while editing
+      expect(screen.queryByTestId('comment-edit-c1')).not.toBeInTheDocument();
+      expect(screen.queryByTestId('comment-delete-c1')).not.toBeInTheDocument();
+      // save with no change is a no-op (the Save button is disabled)
+      expect(screen.getByTestId('comment-save')).toBeDisabled();
+      // change the text + save
+      fireEvent.change(screen.getByTestId('comment-input'), { target: { value: 'first (edited)' } });
+      expect(screen.getByTestId('comment-save')).not.toBeDisabled();
+      fireEvent.click(screen.getByTestId('comment-save'));
+      await waitFor(() =>
+        expect(vi.mocked(updateComment)).toHaveBeenCalledWith('c1', { text: 'first (edited)' }),
+      );
+      // the text swaps optimistically (the write resolves)
+      await waitFor(() =>
+        expect(screen.getByTestId('comment-c1')).toHaveTextContent('first (edited)'),
+      );
+      // edit mode exits
+      await waitFor(() =>
+        expect(screen.queryByTestId('comment-edit-target')).not.toBeInTheDocument(),
+      );
+    });
+
+    it('rolls the edit back + keeps the old text when updateComment rejects', async () => {
+      const { updateComment } = await import('@/data');
+      vi.mocked(updateComment).mockRejectedValueOnce(new Error('boom'));
+      await renderThread();
+      fireEvent.click(screen.getByTestId('comment-edit-c1'));
+      fireEvent.change(screen.getByTestId('comment-input'), { target: { value: 'first (edited)' } });
+      fireEvent.click(screen.getByTestId('comment-save'));
+      // optimistic swap lands first…
+      expect(screen.getByTestId('comment-c1')).toHaveTextContent('first (edited)');
+      // …then the rejected write restores the original text (the "(edited)"
+      // suffix is gone — an unambiguous discriminator, since "first" alone is
+      // a substring of "first (edited)").
+      await waitFor(() =>
+        expect(screen.getByTestId('comment-c1')).not.toHaveTextContent('(edited)'),
+      );
+    });
+
+    it('Delete is two-tap: arm → confirm writes deleteComment(id) + removes the node', async () => {
+      const { deleteComment } = await import('@/data');
+      await renderThread();
+      // first tap arms the confirm (no write yet)
+      fireEvent.click(screen.getByTestId('comment-delete-c1'));
+      expect(screen.getByTestId('comment-delete-confirm-c1')).toBeInTheDocument();
+      expect(vi.mocked(deleteComment)).not.toHaveBeenCalled();
+      // confirm → the write fires + the node is removed from the tree
+      fireEvent.click(screen.getByTestId('comment-delete-confirm-btn-c1'));
+      await waitFor(() =>
+        expect(vi.mocked(deleteComment)).toHaveBeenCalledWith('c1'),
+      );
+      await waitFor(() =>
+        expect(screen.queryByTestId('comment-c1')).not.toBeInTheDocument(),
+      );
+    });
+
+    it('Delete cancel (the "No" tap) disarms without a write', async () => {
+      const { deleteComment } = await import('@/data');
+      await renderThread();
+      fireEvent.click(screen.getByTestId('comment-delete-c1'));
+      expect(screen.getByTestId('comment-delete-confirm-c1')).toBeInTheDocument();
+      fireEvent.click(screen.getByTestId('comment-delete-cancel-c1'));
+      expect(vi.mocked(deleteComment)).not.toHaveBeenCalled();
+      expect(screen.queryByTestId('comment-delete-confirm-c1')).not.toBeInTheDocument();
+      // the node is still there
+      expect(screen.getByTestId('comment-c1')).toBeInTheDocument();
+    });
+
+    it('rolls the delete back (re-inserts the subtree) when deleteComment rejects', async () => {
+      const { deleteComment } = await import('@/data');
+      vi.mocked(deleteComment).mockRejectedValueOnce(new Error('boom'));
+      await renderThread();
+      fireEvent.click(screen.getByTestId('comment-delete-c1'));
+      fireEvent.click(screen.getByTestId('comment-delete-confirm-btn-c1'));
+      // optimistic removal lands first…
+      await waitFor(() =>
+        expect(screen.queryByTestId('comment-c1')).not.toBeInTheDocument(),
+      );
+      // …then the rejected write re-inserts the node (with its replies)
+      await waitFor(() =>
+        expect(screen.getByTestId('comment-c1')).toBeInTheDocument(),
+      );
+      expect(screen.getByTestId('comment-r1')).toBeInTheDocument();
+    });
+  });
+
+  describe('the reload loop (the "comments keep reloading" bug)', () => {
+    it('does NOT re-fetch when the caller re-renders with a fresh `groups` array (same value)', async () => {
+      // The regression: WatchScreen passes `groups={[getDiscoverGroupId()]}` —
+      // a fresh array literal every render — and re-renders every ~5s (the ?t=
+      // write-back). The old effect keyed on the array's IDENTITY, so each
+      // re-render tore down + refetched the whole thread (the skeleton flash).
+      // Keying on the joined value (groupsKey) makes a same-value fresh array
+      // a no-op.
+      const { readThreadComments } = await import('@/data');
+      vi.mocked(readThreadComments).mockImplementation(async () => ({
+        comments: [C1, C2],
+        nextCursor: null,
+        replyCounts: { c1: 0, c2: 0 },
+      }));
+      const { CommentThread } = await import('@/components/Feed/CommentThread');
+      const { rerender } = render(
+        <CommentThread
+          postId="p1"
+          isOpen
+          count={0}
+          onCountChange={() => {}}
+          groups={['web10/groups/web10/discover']}
+        />,
+      );
+      await waitFor(() => expect(screen.getByTestId('comment-list')).toBeInTheDocument());
+      expect(vi.mocked(readThreadComments)).toHaveBeenCalledTimes(1);
+
+      // Simulate the parent re-rendering with a NEW array of the SAME value —
+      // exactly what `groups={[getDiscoverGroupId()]}` does each render.
+      act(() => {
+        rerender(
+          <CommentThread
+            postId="p1"
+            isOpen
+            count={0}
+            onCountChange={() => {}}
+            groups={['web10/groups/web10/discover']}
+          />,
+        );
+      });
+      // give any (buggy) effect a tick to fire
+      await new Promise((r) => setTimeout(r, 0));
+      // still exactly one fetch — the fresh array did NOT re-trigger the load
+      expect(vi.mocked(readThreadComments)).toHaveBeenCalledTimes(1);
+    });
+
+    it('DOES re-fetch when the groups VALUE actually changes', async () => {
+      // The guard in the other direction: a real group change (a group post vs
+      // the discover board) must still reload the thread from the new group.
+      const { readThreadComments } = await import('@/data');
+      vi.mocked(readThreadComments).mockImplementation(async (_postId, groups) => ({
+        comments: [
+          {
+            _id: `c-${(groups as string[])[0]}`,
+            post_id: 'p1',
+            text: `from ${(groups as string[])[0]}`,
+            author_username: 'me',
+            created_at: '2026-01-01T00:00:00Z',
+            isOwn: true,
+          },
+        ],
+        nextCursor: null,
+        replyCounts: {},
+      }));
+      const { CommentThread } = await import('@/components/Feed/CommentThread');
+      const { rerender } = render(
+        <CommentThread postId="p1" isOpen count={0} onCountChange={() => {}} groups={['group-a']} />,
+      );
+      await waitFor(() => expect(screen.getByTestId('comment-c-group-a')).toBeInTheDocument());
+      expect(vi.mocked(readThreadComments)).toHaveBeenCalledTimes(1);
+
+      act(() => {
+        rerender(
+          <CommentThread postId="p1" isOpen count={0} onCountChange={() => {}} groups={['group-b']} />,
+        );
+      });
+      // the value changed → a fresh fetch from the new group
+      await waitFor(() => expect(screen.getByTestId('comment-c-group-b')).toBeInTheDocument());
+      expect(vi.mocked(readThreadComments)).toHaveBeenCalledTimes(2);
     });
   });
 });

@@ -255,6 +255,9 @@ export async function deleteComment(
 export interface ThreadComment extends CommentRecord {
   likeCount?: number;
   likedByMe?: boolean;
+  /** The reader authored this comment (the Edit/Delete gate, username-alone
+   *  ownership — the post's isOwnPost rule). Resolved in `enrichLikes`. */
+  isOwn?: boolean;
   /** The comment's photos, resolved to displayable media for the shared thread
    *  (the node's read path resolves `media_refs`; we map them to `MediaRecord`,
    *  which is structurally the shared package's `MediaItem`). */
@@ -319,10 +322,15 @@ async function enrichLikes(comments: CommentRecord[], groups: string[]): Promise
     Object.keys(likedByMe).length, 'by me',
   );
 
+  // isOwn (the Edit/Delete gate): the reader authored this comment. v3
+  // ownership is by username alone (the author_key is the bare username; the
+  // token's username is the reader's) — the same rule as the post's
+  // isOwnPost + the like's likedByMe. Absent token (anon) → never own.
   return comments.map((c) => ({
     ...c,
     likeCount: c._id ? likeCount[c._id] ?? 0 : 0,
     likedByMe: c._id ? !!likedByMe[c._id] : false,
+    isOwn: !!token && !!c.author_username && c.author_username === token.username,
   }));
 }
 
