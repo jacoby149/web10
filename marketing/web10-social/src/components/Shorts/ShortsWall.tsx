@@ -2,6 +2,7 @@ import { useEffect, useState, useCallback, useRef } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { Play, Search, X, Loader2 } from 'lucide-react';
 import { readShortsPage, type ShortPost } from '@/data';
+import { HoverVideo } from '@web10/discover';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 
 const LOG = (...args: unknown[]) => console.log('[shorts-wall]', ...args);
@@ -229,16 +230,26 @@ export default function ShortsWall() {
             onClick={() => navigate(`/shorts/${short.post._id}`)}
             className="relative aspect-[9/16] w-full bg-elevated overflow-hidden rounded-lg group cursor-pointer outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset text-left"
           >
-            <video
-              src={short.media.url}
+            {/* The hover preview (the Video wall's "best of both worlds",
+                applied to the 9:16 wall): the poster at rest, the clip playing
+                MUTED on hover (desktop) / on a scroll-dwell (touch) with a
+                top-right speaker toggle + a bottom scrubber. The frame is inert
+                — the <button> owns the click (hover plays, click navigates to
+                the lens). The source follows the same transcoded-HLS rule as
+                every other video surface (sourceFromMedia): a transcoded short
+                plays through hls.js, anything else the direct file — so the
+                raw-file greyed-out-tile (HEVC/AV1 in mobile Chrome) is gone.
+                At most one tile plays at a time (the module-level coordinator). */}
+            <HoverVideo
+              media={short.media}
               poster={short.media.thumbnail_url}
-              className="w-full h-full object-cover transition-transform duration-150 group-hover:scale-105"
-              preload="metadata"
-              playsInline
-              muted
+              testId={`short-wall-hover-${short.post._id}`}
+              className="absolute inset-0"
             />
-            {/* The play badge (the video affordance, top-right). */}
-            <div className="absolute top-2 right-2 flex items-center justify-center w-6 h-6 rounded-md bg-black/50 backdrop-blur-sm" aria-hidden="true">
+            {/* The play badge (the video affordance, top-right). It recedes
+                while the hover preview plays (the still's affordance — the
+                preview replaces it), the Video wall's pattern. */}
+            <div className="absolute top-2 right-2 flex items-center justify-center w-6 h-6 rounded-md bg-black/50 backdrop-blur-sm transition-opacity duration-150 group-hover:opacity-0 pointer-events-none" aria-hidden="true">
               <Play className="w-3.5 h-3.5 text-white ml-px" fill="currentColor" strokeWidth={0} />
             </div>
             {/* The author + caption overlay (the TikTok/Instagram position). */}
