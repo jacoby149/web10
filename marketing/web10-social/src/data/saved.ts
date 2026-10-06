@@ -10,7 +10,7 @@ import {
   type GroupIdentity,
 } from './groups';
 import { readPostById, resolveMediaRefs } from './posts';
-import type { PostRecord, MediaRecord, ResolvedMediaRef } from './types';
+import { mediaRefId, type PostRecord, type MediaRecord, type ResolvedMediaRef } from './types';
 
 // ── Saved collections (D87) ─────────────────────────────────────────────────
 // A saved collection (a.k.a. playlist) is a GROUP the app creates for the user
@@ -93,7 +93,10 @@ export interface CollectionRecord {
   groupId: string;
   name: string;
   visibility: CollectionVisibility;
+  /** The cover media's doc_id (the face's `avatar_ref`) — the collection's thumbnail. */
   coverRef?: string;
+  /** The cover media's displayable URL (resolved from `coverRef`); absent when the cover can't be resolved (the card falls back to the brand-tinted placeholder). */
+  coverUrl?: string;
   itemCount: number;
   /** The collection's slug (the group_id's last segment, `saved-` stripped). */
   slug: string;
@@ -109,6 +112,12 @@ export interface SavedPost {
   note?: string;
   /** When the save was made (the saved doc's created_at). */
   savedAt: string;
+  /**
+   * The item's position in the collection (0-based, the owner's curated order —
+   * "playlist" order). Set by `reorderCollection`; absent until the owner has
+   * reordered, in which case the collection renders newest-save-first.
+   */
+  position?: number;
   /** The resolved target post, or null when it can no longer be read (dead ref). */
   post: PostRecord | null;
   /** True when the target post could not be resolved (deleted / no longer readable). */
@@ -206,7 +215,7 @@ export async function getMyCollections(): Promise<CollectionRecord[]> {
   );
   const out = records.filter((r): r is CollectionRecord => r !== null);
   LOG('getMyCollections — resolved', out.length, 'collections');
-  return out;
+  return resolveCoverUrls(out);
 }
 
 /** The number of saved posts in a collection (the card's "N items"). */
@@ -220,6 +229,25 @@ async function countSaved(groupId: string): Promise<number> {
     LOG('countSaved — failed (degrading to 0)', groupId, (e as Error)?.message);
     return 0;
   }
+}
+
+/**
+ * Resolve a set of collection cover media doc_ids to displayable URLs (ONE
+ * batched media read for the whole grid — the profile wall's resolve idiom). A
+ * cover that can't be resolved keeps no `coverUrl` (the card falls back to the
+ * brand-tinted placeholder). Never throws.
+ */
+async function resolveCoverUrls(records: CollectionRecord[]): Promise<CollectionRecord[]> {
+  const refs = [...new Set(records.map((r) => r.coverRef).filter((r): r is string => !!r))];
+  if (!refs.length) return records;
+  let urlByRef: Record<string, string> = {};
+  try {
+    const media = await resolveMediaRefs(refs);
+    for (const m of media) if (m._id && m.url) urlByRef[m._id] = m.url;
+  } catch (e) {
+    LOG('resolveCoverUrls — failed (degrading to placeholders)', (e as Error)?.message);
+  }
+  return records.map((r) => (r.coverRef && urlByRef[r.coverRef] ? { ...r, coverUrl: urlByRef[r.coverRef] } : r));
 }
 
 /**
@@ -263,7 +291,7 @@ export async function readUserPublicCollections(username: string, provider?: str
   );
   const out = records.filter((r): r is CollectionRecord => r !== null);
   LOG('readUserPublicCollections — resolved', out.length, 'collections');
-  return out;
+  return resolveCoverUrls(out);
 }
 
 // ── Group collections (a group's playlists — a group is a profile) ──────────
@@ -362,7 +390,7 @@ export async function readGroupCollections(groupId: string): Promise<CollectionR
   );
   const out = records.filter((r): r is CollectionRecord => r !== null);
   LOG('readGroupCollections — resolved', out.length, 'collections');
-  return out;
+  return resolveCoverUrls(out);
 }
 
 /**
@@ -404,7 +432,7 @@ export async function readGroupPublicCollections(groupId: string): Promise<Colle
   );
   const out = records.filter((r): r is CollectionRecord => r !== null);
   LOG('readGroupPublicCollections — resolved', out.length, 'collections');
-  return out;
+  return resolveCoverUrls(out);
 }
 
 // ── Read a collection ────────────────────────────────────────────────────────
@@ -425,8 +453,19 @@ export async function readCollection(groupId: string): Promise<CollectionContent
     w.read(SAVED_SERVICE, { groups: [groupId], limit: 1000 }),
   ]);
 
-  // Newest save first (the saved doc's created_at).
-  const ordered = [...savedDocs].sort((a, b) => (b.created_at || '').localeCompare(a.created_at || ''));
+  // The owner's curated order (playlist order) wins when any item carries a
+  // `position` (set by `reorderCollection`); otherwise newest-save-first (the
+  // saved doc's created_at). A mixed state (some positioned, some not) keeps
+  // the positioned items first, in position order, then the rest newest-first.
+  const anyPositioned = savedDocs.some((d) => (d.body as Record<string, unknown>)?.position != null);
+  const ordered = [...savedDocs].sort((a, b) => {
+    const pa = (a.body as Record<string, unknown>)?.position;
+    const pb = (b.body as Record<string, unknown>)?.position;
+    if (anyPositioned && pa != null && pb != null) return Number(pa) - Number(pb);
+    if (anyPositioned && pa != null) return -1;
+    if (anyPositioned && pb != null) return 1;
+    return (b.created_at || '').localeCompare(a.created_at || '');
+  });
 
   const posts: SavedPost[] = [];
   const mediaRefs: (string | ResolvedMediaRef)[] = [];
@@ -445,6 +484,7 @@ export async function readCollection(groupId: string): Promise<CollectionContent
       postId,
       note: (body.note as string) || undefined,
       savedAt,
+      position: body.position != null ? Number(body.position) : undefined,
       post,
       unavailable: !post,
     });
@@ -490,7 +530,34 @@ export async function savePostToCollection(
   if (note) body.note = note;
   await w.create(SAVED_SERVICE, body, { groups: [groupId], ref_value: postId });
   LOG('savePostToCollection — saved', postId);
+  // The collection's thumbnail defaults to the first thing saved into it (the
+  // owner can later pin any item via "Set as cover"). Best-effort — it never
+  // fails the save.
+  await ensureCollectionCover(groupId, postId);
   return true;
+}
+
+/**
+ * Auto-set a collection's cover to a saved post's first media (best-effort) —
+ * the collection's thumbnail defaults to the first thing saved into it. A
+ * no-op when the collection already has a cover (the owner's explicit choice
+ * wins) or the post has no media (a text-only post can't be a cover). Never
+ * throws — a cover failure degrades to the brand-tinted placeholder.
+ */
+async function ensureCollectionCover(groupId: string, postId: string): Promise<void> {
+  try {
+    const face = await readGroupIdentity(groupId);
+    if (face.avatar_ref) return; // an explicit cover already — don't clobber it
+    const post = await readPostById(postId);
+    const firstRef = post?.media_refs?.[0];
+    if (!firstRef) return; // a text-only post can't be a cover
+    const mediaId = mediaRefId(firstRef);
+    if (!mediaId) return;
+    await writeGroupIdentity(groupId, { ...face, avatar_ref: mediaId });
+    LOG('ensureCollectionCover — set cover', groupId, mediaId);
+  } catch (e) {
+    LOG('ensureCollectionCover — failed (degrading)', groupId, (e as Error)?.message);
+  }
 }
 
 /**
@@ -558,6 +625,48 @@ export async function renameCollection(groupId: string, name: string): Promise<v
   const face = await readGroupIdentity(groupId);
   await writeGroupIdentity(groupId, { ...face, name });
   LOG('renameCollection — done', groupId, name);
+}
+
+/**
+ * Set a collection's cover (its thumbnail) to a saved post's first media (the
+ * owner's explicit "Set as cover" choice). Writes the face's `avatar_ref` to
+ * the post's first media doc_id. A no-op when the post has no media.
+ */
+export async function setCollectionCover(groupId: string, postId: string): Promise<void> {
+  const post = await readPostById(postId);
+  const firstRef = post?.media_refs?.[0];
+  if (!firstRef) throw new Error('that post has no media to use as a cover');
+  const mediaId = mediaRefId(firstRef);
+  if (!mediaId) throw new Error('that post has no media to use as a cover');
+  const face = await readGroupIdentity(groupId);
+  await writeGroupIdentity(groupId, { ...face, avatar_ref: mediaId });
+  LOG('setCollectionCover — done', groupId, mediaId);
+}
+
+/**
+ * Reorder a collection's items (the owner's "playlist" order). Rewrites each
+ * `saved` doc's `body.position` (0-based, in the new order) so `readCollection`
+ * renders in the owner's chosen sequence. The `update` merges the body, so the
+ * doc's `post_id` / `note` are preserved. A best-effort no-op when a doc is
+ * already gone (a removed item).
+ */
+export async function reorderCollection(groupId: string, orderedPostIds: string[]): Promise<void> {
+  const w = getV3Client();
+  LOG('reorderCollection — start', groupId, orderedPostIds.length, 'items');
+  const docs = await w.read(SAVED_SERVICE, { groups: [groupId], limit: 1000 });
+  const byPostId = new Map<string, string>(); // postId → saved doc_id
+  for (const d of docs) {
+    const pid = d.ref_value || (d.body as Record<string, unknown>)?.post_id;
+    if (pid) byPostId.set(String(pid), d.doc_id);
+  }
+  await Promise.all(
+    orderedPostIds.map(async (postId, index) => {
+      const docId = byPostId.get(postId);
+      if (!docId) return; // already removed — skip
+      await w.update(docId, { position: index });
+    }),
+  );
+  LOG('reorderCollection — done', groupId);
 }
 
 /** Delete a collection (owner only — the group's `deleteGroup` op). */
