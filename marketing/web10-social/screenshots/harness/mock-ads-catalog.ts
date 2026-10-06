@@ -69,6 +69,9 @@ export async function updateAd() {
 export async function updateNodeAd() {
   return { doc_id: 'node-1' };
 }
+export async function createNodeAd() {
+  return { doc_id: 'node-new' };
+}
 export async function ensureFollowersGroup() {
   return 'web10.app/groups/users/testuser/followers';
 }

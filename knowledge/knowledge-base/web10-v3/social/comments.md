@@ -216,13 +216,39 @@ Rules:
   filled when the reader liked it), and a Reply action. The reply action
   opens the compose box *targeting that comment* (the box shows who it
   replies to; cancel returns to the post-level compose).
+- **The owner controls: Edit + Delete, on the reader's OWN comments only.**
+  A comment the reader authored (`isOwn`, resolved by the app from the token
+  — username-alone ownership, the post's `isOwnPost` rule) shows two extra
+  actions after Reply: **Edit** and **Delete**. Someone else's comment shows
+  neither (a dead tap target is worse than none). **Edit** retargets the
+  single compose box (the same box "Reply" uses) pre-filled with the comment's
+  text; Save writes the new text and swaps it in optimistically. **Delete** is
+  two-tap (Delete → a "Delete? Yes / No" confirm, the post-delete idiom);
+  confirming removes the node's subtree from the tree optimistically. Both are
+  the like pattern: the thread owns the optimistic change + rollback, and a
+  rejected write restores the captured state (the old text, or the removed
+  subtree re-inserted). A deleted comment's replies are dropped with it (the
+  node's subtree is gone) — the node tombstones the doc, not its replies.
 - **The compose box is one.** There is a single compose input at the bottom
   of the thread. "Reply" retargets it (it shows `Replying to @name —` with a
-  cancel); it does not spawn a per-comment input. The post-level compose and
-  a reply compose are the same box in two states.
+  cancel); "Edit" retargets it too (it shows `Editing your comment` with a
+  cancel, pre-filled with the comment's text). It does not spawn a per-comment
+  input. The post-level compose, a reply compose, and an edit compose are the
+  same box in three states.
 - **Counts are live.** A newly posted comment/reply appends to the loaded
   tree and ticks the visible count; the badge total is the decoupled count
   (see above), not a re-read of the thread.
+- **The load effect keys on a primitive, never the `groups` array.** The
+  thread's initial-load effect is keyed on `[isOpen, postId, groupsKey]`
+  where `groupsKey` is the joined group ids — a stable *string*, not the
+  array. Callers pass `groups` as a fresh array literal on every render
+  (e.g. `groups={[getDiscoverGroupId()]}`), and a parent that re-renders on a
+  timer (the watch page's `?t=` write-back, ~every 5s) would otherwise
+  re-key the effect on the array's *identity* — tearing down + refetching the
+  whole thread on every render (the "comments keep reloading" loop, the same
+  failure class the watch page's post load guards against with stable
+  primitives). A same-value fresh array is a no-op; a real group change
+  (discover board → a group post) still reloads.
 
 ## The data seam
 
@@ -249,11 +275,21 @@ injected, the same way the discover card injects its data (D74). The seam is
   thread only awaits it for the rollback); a `void` return is fine (no
   rollback). Absent (e.g. `remote` mode) → the like renders display-only
   (count, no tap target), the same rule as the post like in remote mode.
+- `onUpdateComment?(commentId, text)` — the app's comment-text writer (the
+  Edit action). Same pattern as the like: the thread swaps the node's text
+  optimistically, calls this, and restores the captured text if the write
+  rejects. Only offered on the reader's OWN comments (the thread gates on
+  `isOwn`). Absent → no Edit action.
+- `onDeleteComment?(commentId)` — the app's comment deleter (the Delete
+  action, two-tap). The thread removes the node's subtree optimistically,
+  calls this, and re-inserts the captured subtree if the write rejects. Only
+  offered on the reader's OWN comments. Absent → no Delete action.
 
-Each page's comments carry `likeCount` + `likedByMe` when the app resolves
-them (web10-social does, from the reactions read — over the *loaded*
-comments only, never the whole thread); the thread renders what it is given
-and degrades to no like UI when a seam is absent.
+Each page's comments carry `likeCount` + `likedByMe` + `isOwn` when the app
+resolves them (web10-social does — `likeCount`/`likedByMe` from the reactions
+read over the *loaded* comments only, `isOwn` from the token's username vs the
+comment's `author_username`); the thread renders what it is given and degrades
+(no like UI, no owner controls) when a seam or field is absent.
 
 ## Security invariants
 
@@ -267,6 +303,13 @@ and degrades to no like UI when a seam is absent.
   Liking a comment grants nothing the thread read did not.
 - **The `parent_id` is not a security boundary** — it is a render hint.
   Access is decided by the group + `ref_value` read, never by the body.
+- **Edit/Delete are enforced by the node, not the client.** The `isOwn` gate
+  (the Edit/Delete actions only render on the reader's own comments) is a UX
+  affordance, not the boundary. The node's `/v3/update` + `/v3/delete`
+  enforce `updateOwn` / `deleteOwn` on the `comments` service (the app
+  contract grants them) and scope the write to the token's own `author_key` —
+  a reader cannot update or delete another user's comment even if the client
+  sent the call. The client gate just keeps the dead tap target off the row.
 
 ## What this is not
 

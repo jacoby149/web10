@@ -39,4 +39,6 @@ export type {
   ReadReplies,
   CreateComment,
   UploadCommentMedia,
+  RepostOriginal,
+  ReadRepostOriginal,
 } from './types';

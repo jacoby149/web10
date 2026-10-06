@@ -7,7 +7,7 @@
 // entire state: no client-side preservation — ?t= is the playback position,
 // ?knobs= is the ranking, ?related= is the relatedness. Refresh / back / share
 // all rebuild the exact state.
-import { useState, useEffect, useCallback, useRef } from 'react';
+import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { useParams, useSearchParams, useNavigate } from 'react-router-dom';
 import { User } from 'lucide-react';
 import { VideoPlayer, sourceFromMedia } from '@/components/Feed/VideoPlayer';
@@ -226,6 +226,12 @@ export default function WatchScreen() {
   const [reposted, setReposted] = useState(false);
   // The comment thread's open state (the "Comment" action toggles it).
   const [commentsOpen, setCommentsOpen] = useState(false);
+  // The comment thread's group scope — memoized so its array identity is
+  // stable across renders. A fresh `[getDiscoverGroupId()]` literal here would
+  // be a new array every render, and the thread's load effect (keyed on the
+  // groups) would tear down + refetch on every WatchScreen re-render — the
+  // ?t= write-back re-renders every ~5s, so the comments would reload forever.
+  const commentGroups = useMemo(() => [getDiscoverGroupId()], []);
   // The share button's "Copied!" state (the clipboard write).
   const [copied, setCopied] = useState(false);
 
@@ -592,7 +598,7 @@ export default function WatchScreen() {
               count={comments}
               onCountChange={setComments}
               postAuthor={author || undefined}
-              groups={[getDiscoverGroupId()]}
+              groups={commentGroups}
               onAuthorClick={(username, provider) => navigate(`/u/${username}`, { state: { provider: provider || '' } })}
             />
           </div>

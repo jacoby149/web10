@@ -49,6 +49,29 @@ describe('VideoPlayer — the shared video surface (video-player.md)', () => {
     expect(container.querySelector('video')?.getAttribute('src')).toBe('http://x/v.mp4');
   });
 
+  it('a portrait file clip at a height cap is centered (the "photobox" letterbox), not left-aligned', async () => {
+    const { VideoPlayer } = await import('@/components/Feed/VideoPlayer');
+    render(
+      <VideoPlayer
+        source={{ type: 'file', url: 'http://x/v.mp4', width: 720, height: 1280, durationSeconds: 42 }}
+        mode="inline"
+        fit="contain"
+        maxHeight="60vh"
+        testId="vp-portrait"
+      />,
+    );
+    const container = screen.getByTestId('vp-portrait');
+    // The frame reserves the clip's natural portrait ratio…
+    expect(parseFloat(container.style.aspectRatio)).toBeCloseTo(720 / 1280, 5);
+    // …and the 60vh cap bites (portrait), so the frame is centered (mx-auto) in
+    // a FULL-WIDTH BLACK "photobox" wrapper — black bars on the sides, the same
+    // shape HlsVideoPlayer's heightCapped cap produces (not grey card sides).
+    expect(container.className).toContain('mx-auto');
+    const box = container.parentElement as HTMLElement;
+    expect(box.className).toContain('bg-black');
+    expect(box.className).toContain('w-full');
+  });
+
   it('file source + cover + 16:9 renders a uniform aspect-video tile (the discover/youtube case)', async () => {
     const { VideoPlayer } = await import('@/components/Feed/VideoPlayer');
     render(

@@ -3,7 +3,7 @@
 // consumer API (no data props) by injecting the wapi-backed thread seams
 // (comments.md): readThreadComments (the whole conversation + comment likes),
 // createThreadComment (top-level or reply), and the comment-like writer.
-import { readThreadComments, readThreadReplies, createThreadComment, uploadCommentPhoto, toggleReactionKind } from '@/data';
+import { readThreadComments, readThreadReplies, createThreadComment, uploadCommentPhoto, toggleReactionKind, updateComment, deleteComment } from '@/data';
 import { CommentThread as SharedCommentThread } from '@web10/discover';
 
 interface CommentThreadProps {
@@ -38,6 +38,18 @@ export function CommentThread(props: CommentThreadProps) {
         // rollback; returning the write's promise lets it roll back on a
         // failed write.
         return toggleReactionKind(commentId, 'like', props.groups, 'comments');
+      }}
+      onUpdateComment={(commentId, text) => {
+        // The comment-edit write: the thread does the optimistic text swap +
+        // rollback; returning the write's promise lets it roll back on a
+        // failed write. Only reachable on the reader's OWN comments (the
+        // thread gates on `isOwn`, resolved in the data layer).
+        return updateComment(commentId, { text });
+      }}
+      onDeleteComment={(commentId) => {
+        // The comment-delete write: the thread removes the node's subtree
+        // optimistically + rolls back on a failed write.
+        return deleteComment(commentId);
       }}
     />
   );

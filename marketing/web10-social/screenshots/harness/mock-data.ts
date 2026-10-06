@@ -236,6 +236,11 @@ export async function readSavedPostIds(groupId: string): Promise<Set<string>> {
 }
 export async function savePostToCollection(): Promise<boolean> { return true; }
 export async function removePostFromCollection(): Promise<void> {}
+// 3.214.0 (collection thumbnails + playlist reorder) — the harness has no
+// reorder/cover pipeline; the stubs are no-ops so the barrel's named imports
+// resolve (the capture renders the list, not the reorder mode).
+export async function setCollectionCover(): Promise<void> {}
+export async function reorderCollection(): Promise<void> {}
 export async function createCollection(): Promise<string> { return 'web10/groups/users/me/saved-new'; }
 export async function setCollectionVisibility(): Promise<void> {}
 export async function renameCollection(): Promise<void> {}
@@ -1091,6 +1096,10 @@ const DISCOVER_MEDIA: Record<string, Record<string, unknown>> = {
   // verifies the cover behavior on a real image carousel.
   'dm-img-a': { ...creative('PLATE ONE', 1280, 720, '#8b5cf6', '#2e1065', 'image/png'), _id: 'dm-img-a' },
   'dm-img-b': { ...creative('PLATE TWO', 720, 1280, '#0ea5e9', '#0c4a6e', 'image/png'), _id: 'dm-img-b' },
+  // A TALL single image (9:16) — the discover board's "photobox" case: a
+  // portrait photo whose reserved frame is capped at 60vh. The PR shot verifies
+  // the frame is centered (not left-aligned with a black gap on the right).
+  'dm-tallimg': { ...creative('TALL SHOT', 720, 1280, '#f59e0b', '#78350f', 'image/png'), _id: 'dm-tallimg' },
   // The post-format ad's creative (dp-1's attached ad) — a distinct image so
   // the ad card reads as its own post, not a repeat of the post's media.
   'dm-ad-synth': { ...creative('NOVA-1S', 1280, 720, '#8b5cf6', '#2e1065', 'image/png'), _id: 'dm-ad-synth' },
@@ -1240,6 +1249,22 @@ const DISCOVER_POSTS: SeedDiscoverPost[] = [
     comments: 11,
     reposts: 2,
     media_refs: ['dm-portrait3'],
+  },
+  {
+    // A TALL (9:16) single-image post — the board's "photobox" case. The
+    // reserved frame is capped at 60vh; the PR shot verifies it is centered
+    // (not left-aligned with a black gap on the right).
+    _id: 'dp-tall',
+    author: 'nova',
+    author_username: 'nova',
+    author_provider: 'web10',
+    text: 'Full-length rack shot — the whole thing, top to bottom.',
+    created_at: minsAgo(150),
+    tags: ['homelab'],
+    likes: 54,
+    comments: 6,
+    reposts: 0,
+    media_refs: ['dm-tallimg'],
   },
 ];
 

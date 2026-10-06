@@ -1,12 +1,12 @@
-import type { ReactNode } from 'react';
-import { Share2, Image as ImageIcon, Film, Music2 } from 'lucide-react';
+import { useEffect, useState, type ReactNode } from 'react';
+import { Share2, Image as ImageIcon, Film, Music2, Repeat2 } from 'lucide-react';
 import { cn, hashToColor, timeAgo } from './utils';
-import { Avatar, AvatarFallback, Badge } from './ui';
+import { Avatar, AvatarFallback, Badge, Skeleton } from './ui';
 import { RankBadge, heatTier, HEAT_SHADOW } from './RankBadge';
 import { VideoPlayer, sourceFromMedia } from './VideoPlayer';
 import { MediaCarousel } from './MediaCarousel';
 import { PostActions, type ReactionKind } from './PostActions';
-import type { DiscoverPost, MediaItem, ReadComments, ReadReplies, CreateComment, DiscoverAd } from './types';
+import type { DiscoverPost, MediaItem, ReadComments, ReadReplies, CreateComment, DiscoverAd, RepostOriginal, ReadRepostOriginal } from './types';
 
 /**
  * The shared discover card (D73) — the one both apps' discover surfaces
@@ -96,6 +96,136 @@ function DiscoverVideo({ media, maxWidth }: { media: MediaItem; maxWidth?: strin
   );
 }
 
+/**
+ * The embedded original post inside a repost card (reposts.md) — the X/Twitter
+ * quote-tweet layout, shared by both apps' discover surfaces. Fetches the
+ * original by `repost_of` doc_id through the injected `readRepostOriginal` seam
+ * and renders it as a nested, read-only block (author, text, media). I3: the
+ * reader must be able to read the original — a post the reader can't read
+ * degrades to an "unavailable" placeholder (a repost never grants access to the
+ * original). Absent `readRepostOriginal` (a surface that doesn't resolve
+ * reposts) → nothing renders.
+ */
+function RepostEmbed({
+  repostOf,
+  readRepostOriginal,
+  onAuthorClick,
+}: {
+  repostOf: string;
+  readRepostOriginal?: ReadRepostOriginal;
+  onAuthorClick?: (username: string, provider?: string) => void;
+}) {
+  const [original, setOriginal] = useState<RepostOriginal | null>(null);
+  const [state, setState] = useState<'loading' | 'ready' | 'unavailable'>('loading');
+
+  useEffect(() => {
+    if (!readRepostOriginal) {
+      setState('unavailable');
+      return;
+    }
+    let cancelled = false;
+    setState('loading');
+    readRepostOriginal(repostOf)
+      .then((o) => {
+        if (cancelled) return;
+        setOriginal(o);
+        setState(o ? 'ready' : 'unavailable');
+      })
+      .catch(() => {
+        if (!cancelled) setState('unavailable');
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [repostOf, readRepostOriginal]);
+
+  if (state === 'loading') {
+    return (
+      <div className="mt-3 rounded-lg border border-border bg-elevated/40 p-3" data-testid="repost-embed-loading">
+        <div className="flex items-center gap-2.5">
+          <Skeleton className="h-8 w-8 rounded-full" />
+          <Skeleton className="h-3 w-32" />
+        </div>
+        <Skeleton className="mt-3 h-3 w-full" />
+        <Skeleton className="mt-2 h-3 w-2/3" />
+      </div>
+    );
+  }
+
+  if (state === 'unavailable' || !original) {
+    return (
+      <div
+        className="mt-3 rounded-lg border border-border bg-elevated/40 px-3 py-2.5 text-sm text-muted-foreground"
+        data-testid="repost-embed-unavailable"
+      >
+        Original post unavailable
+      </div>
+    );
+  }
+
+  const username = original.author_username || '';
+  const derivedName = username.replace(/[-_]/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase());
+  const displayName = original.display_name || derivedName;
+  const initial = (username || '?').charAt(0).toUpperCase();
+  const avatarColor = hashToColor(username || '?');
+  const media = original.media || [];
+  const first = media[0];
+  const isVideo = first?.mime_type?.startsWith('video/');
+
+  return (
+    <div className="mt-3 rounded-lg border border-border bg-elevated/30 overflow-hidden" data-testid="repost-embed">
+      <div className="flex items-center gap-2.5 px-3 py-2.5">
+        <Avatar className={`h-8 w-8 ${avatarColor}`}>
+          {original.avatar_url ? (
+            <img src={original.avatar_url} alt={displayName} className="h-full w-full object-cover" />
+          ) : (
+            <AvatarFallback className="text-xs font-semibold">{initial}</AvatarFallback>
+          )}
+        </Avatar>
+        <div className="flex min-w-0 flex-1 items-baseline gap-1.5">
+          {username && onAuthorClick ? (
+            <button
+              type="button"
+              className="truncate text-sm font-semibold text-foreground hover:text-brand-300 transition-colors duration-150"
+              onClick={() => onAuthorClick(username)}
+              aria-label={`View ${displayName}'s profile`}
+              data-testid="repost-embed-author-link"
+            >
+              {displayName}
+            </button>
+          ) : (
+            <span className="truncate text-sm font-semibold text-foreground">{displayName}</span>
+          )}
+          {original.created_at && (
+            <span className="shrink-0 text-xs text-muted-foreground">· {timeAgo(original.created_at)}</span>
+          )}
+        </div>
+      </div>
+      {original.text ? (
+        <div className="px-3 pb-2.5 text-sm text-foreground line-clamp-6">{original.text}</div>
+      ) : null}
+      {media.length > 0 && (
+        <div className="pb-2">
+          {media.length > 1 ? (
+            <MediaCarousel items={media} fit="cover" ratio={16 / 9} testId="repost-embed-carousel" />
+          ) : isVideo && first?.url ? (
+            <DiscoverVideo media={first} />
+          ) : first?.url ? (
+            <div className="aspect-[4/3] w-full overflow-hidden rounded-md">
+              <img
+                src={first.thumbnail_url || first.url}
+                alt={first.alt_text || ''}
+                className="h-full w-full object-cover"
+                loading="lazy"
+              />
+            </div>
+          ) : null}
+        </div>
+      )}
+    </div>
+  );
+}
+
 export interface DiscoverCardProps {
   post: DiscoverPost;
   rank: number;
@@ -122,6 +252,9 @@ export interface DiscoverCardProps {
   readReplies?: ReadReplies;
   /** The comment writer (injected; absent in remote mode). */
   createComment?: CreateComment;
+  /** The repost-embed original reader (injected; absent → no repost embed).
+   *  Resolves `post.repost_of` to the original's author / text / media. */
+  readRepostOriginal?: ReadRepostOriginal;
   /** Error sink (the app wires its toast). */
   onError?: (message: string) => void;
   /** The group the post lives in (group posts). */
@@ -171,6 +304,7 @@ export function DiscoverCard({
   readComments,
   readReplies,
   createComment,
+  readRepostOriginal,
   onError,
   groups,
   postService = 'posts',
@@ -296,11 +430,24 @@ export function DiscoverCard({
             ) : (
               <div className="flex items-center gap-1.5 truncate text-left">{authorInner}</div>
             )}
+            {/* Repost (reposts.md): the "reposted" badge marks a post that is a
+                repost of another (the X/Twitter quote-tweet tell). */}
+            {post.repost_of && (
+              <span
+                className="mt-1 inline-flex items-center gap-1 text-xs text-brand-300"
+                data-testid="repost-badge"
+              >
+                <Repeat2 className="w-3.5 h-3.5" strokeWidth={2} />
+                reposted
+              </span>
+            )}
             {/* The post's two bodies (D82): the title (the headline) as a top
                 line when present, then the caption (`text`) as the body. A
                 caption-only post (no title) shows just the text — the plain
                 Threads shape. The title is a headline, not a link (the author
-                row + media carry the navigation). */}
+                row + media carry the navigation). A repost's `text` is the
+                reposter's comment (the quote) — the original is the embed
+                below, not the card's own media. */}
             {post.title && (
               <p className="mt-1 text-sm font-semibold leading-snug text-foreground">{post.title}</p>
             )}
@@ -358,6 +505,17 @@ export function DiscoverCard({
               <MediaPlaceholder type={mediaType} />
             )}
           </div>
+        )}
+
+        {/* Repost (reposts.md): the embedded original post — the quote-tweet
+            layout. A repost carries no media of its own; the original's media
+            lives in the embed. */}
+        {post.repost_of && (
+          <RepostEmbed
+            repostOf={post.repost_of}
+            readRepostOriginal={readRepostOriginal}
+            onAuthorClick={onAuthorClick ? () => onAuthorClick() : undefined}
+          />
         )}
 
         {/* Tags */}

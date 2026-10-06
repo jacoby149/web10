@@ -9,6 +9,7 @@ import { getWapi } from '@/data/wapi';
 import { listConversations, readDms, sendDm, getLastDm, readContacts, startConversation, conversationKey as deriveConversationKey, readFollows, addContact, deleteDm, updateDm, deleteConversation, lookupUserProfile, type UserFace, getMyGroupChats, readGroupChatFace, readGroupChatMessages, sendGroupChatMessage, createGroupChat, groupChatRouteKey, groupIdFromRouteKey, getGroupMembers, type GroupChatSummary } from '@/data';
 import { sendP2P, onP2PInbound, isP2PReady, getOnlinePeers, peerIdFor, onPresenceChange, probePresence } from '@/data/p2p';
 import { markConversationRead } from '@/data/messagesUnread';
+import { useMessagesUnread } from '@/hooks/useMessagesUnread';
 import type { DmRecord, ContactRecord, FollowRecord } from '@/data/types';
 import { Send, ChevronLeft, Plus, X, Search, Users, MoreVertical, Edit3, Trash2, Check, Loader2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
@@ -929,6 +930,7 @@ export default function DmsScreen() {
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const token = getWapi().readToken();
   const onlinePeers = useOnlinePeers();
+  const { isUnread } = useMessagesUnread();
 
   // ── Group chat (group-chat.md, D77) ────────────────────────────────────────
   // The open conversation is either a DM (`provider/user--provider/user`) or a
@@ -1532,6 +1534,7 @@ export default function DmsScreen() {
         {convItems.map((item) => {
           const isDm = item.type === 'dm';
           const lastMsg = item.lastMsg;
+          const unread = isDm && isUnread(item.key);
           // Presence is a 1:1 concept — only DM rows get the online dot.
           let cOnline = false;
           if (isDm) {
@@ -1573,7 +1576,7 @@ export default function DmsScreen() {
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center justify-between gap-2">
                     <span className="flex items-center gap-1.5 min-w-0">
-                      <span className="font-medium text-sm text-foreground truncate">{item.name}</span>
+                      <span className={cn('text-sm truncate', unread ? 'font-semibold text-foreground' : 'font-medium text-foreground')}>{item.name}</span>
                       {!isDm && (
                         <Badge variant="brand" className="normal-case tracking-normal shrink-0" data-testid="group-chat-type-badge">
                           <Users className="w-3 h-3 mr-1" aria-hidden="true" />
@@ -1581,11 +1584,11 @@ export default function DmsScreen() {
                         </Badge>
                       )}
                     </span>
-                    <span className="text-xs text-muted-foreground shrink-0">
+                    <span className={cn('text-xs shrink-0', unread ? 'font-semibold text-foreground' : 'text-muted-foreground')}>
                       {lastMsg ? formatTime(lastMsg.sent_at) : ''}
                     </span>
                   </div>
-                  <p className="text-sm text-muted-foreground truncate mt-0.5">
+                  <p className={cn('truncate mt-0.5', unread ? 'font-semibold text-foreground text-sm' : 'text-sm text-muted-foreground')}>
                     {lastMsg?.message || 'No messages yet'}
                   </p>
                 </div>

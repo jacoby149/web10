@@ -71,6 +71,9 @@ export interface CommentItem {
   likeCount?: number;
   /** Whether the reader liked this comment (the app resolves it). */
   likedByMe?: boolean;
+  /** Whether the reader authored this comment (the app resolves it from the
+   *  token). Gates the Edit / Delete actions — absent/`false` → read-only. */
+  isOwn?: boolean;
   /** The comment's photos, resolved to displayable media (the app maps its
    *  resolved `media_refs` onto `MediaItem`). Absent/empty → no media renders. */
   media?: MediaItem[];
@@ -196,9 +199,48 @@ export interface DiscoverPost {
   reposts?: number;
   score?: number;
   media?: MediaItem[];
+  /**
+   * A repost (reposts.md): when set, this post is a REPOST of the post whose
+   * doc_id is `repost_of`. It is a real post doc that carries the reposter's
+   * optional comment in `text` and references the original by doc_id. The card
+   * renders it as a "reposted" card with the original embedded (fetched via the
+   * `readRepostOriginal` seam). Absent on a normal post.
+   */
+  repost_of?: string;
   /** The creator's pinned ad (the read serves it inline, I3-checked). */
   ad?: DiscoverAd;
   /** The node's ad (attached at the operator's percentage, D57). */
   node_ad?: DiscoverAd;
 }
+
+/**
+ * The original post a repost embeds (reposts.md). The app resolves it by
+ * `repost_of` doc_id (I3: the reader must be able to read the original — a post
+ * the reader can't read degrades to the "unavailable" placeholder). The shared
+ * card renders it as a nested, read-only block (author, text, media).
+ */
+export interface RepostOriginal {
+  /** The original's author username (the handle). */
+  author_username?: string;
+  /** The original's display name (falls back to the username-derived name). */
+  display_name?: string;
+  /** The original's avatar (a displayable URL; absent → the initial fallback). */
+  avatar_url?: string;
+  /** The original's caption (the longer body). */
+  text?: string;
+  /** The original's media, resolved to displayable items. */
+  media?: MediaItem[];
+  /** The original's creation time (the embed's "· 3h" line). */
+  created_at?: string;
+}
+
+/**
+ * Resolves the original a repost embeds (the `repost_of` doc_id → the original's
+ * author / text / media). Injected by the app (the data seam) — the shared card
+ * is presentational and knows nothing about wapi or the public ledger. Returns
+ * `null` when the reader can't read the original (I3 — the embed degrades to
+ * "unavailable"). Absent (e.g. a surface that doesn't resolve reposts) → the
+ * card renders no embed.
+ */
+export type ReadRepostOriginal = (repostOf: string) => Promise<RepostOriginal | null>;
 

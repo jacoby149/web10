@@ -48,4 +48,22 @@ describe('MediaCarousel — the shared multi-media carousel (video-player.md)', 
     render(<MediaCarousel items={[img('a', 'http://x/a.png')]} fit="contain" testId="mc6" />);
     expect(screen.getByTestId('mc6-image-0').className).toMatch(/object-contain/);
   });
+
+  it('a portrait first frame at a height cap is centered (the "photobox" letterbox), not left-aligned', async () => {
+    const { MediaCarousel } = await import('@/components/Feed/MediaCarousel');
+    const portrait = (id: string, url: string) => ({
+      _id: id, url, created_at: '', mime_type: 'image/png', width: 720, height: 1280, thumbnail_url: url,
+    });
+    // No explicit ratio → the frame is the first item's natural (portrait) ratio,
+    // capped at maxHeight. The frame must be centered (mx-auto), not left-aligned.
+    render(<MediaCarousel items={[portrait('a', 'http://x/a.png'), portrait('b', 'http://x/b.png')]} maxHeight="60vh" testId="mc7" />);
+    const frame = screen.getByTestId('mc7');
+    expect(parseFloat(frame.style.aspectRatio)).toBeCloseTo(720 / 1280, 5);
+    expect(frame.className).toContain('mx-auto');
+    // …and centered in a FULL-WIDTH BLACK "photobox" wrapper (black bars on the
+    // sides, the same shape the video player's heightCapped cap produces).
+    const box = frame.parentElement as HTMLElement;
+    expect(box.className).toContain('bg-black');
+    expect(box.className).toContain('w-full');
+  });
 });
