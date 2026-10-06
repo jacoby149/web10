@@ -92,7 +92,12 @@ export function fromV3DocToPost(doc: V3Document): PostRecord {
     _id: doc.doc_id,
     title: (body.title as string) || undefined,
     text: (body.text as string) || undefined,
-    media_refs: (body.media_refs as string[]) || undefined,
+    // The API read path (resolve_media_urls) rewrites media_refs to resolved
+    // objects (presigned read_url + thumbnail_url + dimensions + HLS settings)
+    // — preserve them. A surface that paints from the one read (the Video
+    // wall) renders thumbnails straight from these without a second media
+    // round-trip; a write-path doc still carries bare doc_id strings.
+    media_refs: (body.media_refs as (string | ResolvedMediaRef)[]) || undefined,
     created_at: doc.created_at,
     updated_at: doc.updated_at,
     origin: (body.origin as Origin) || undefined,

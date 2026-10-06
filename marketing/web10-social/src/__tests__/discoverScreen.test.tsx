@@ -1009,13 +1009,78 @@ describe('DiscoverScreen', () => {
     expect(screen.getByTestId('discover-home-card')).toHaveTextContent('video creator');
   });
 
-  it('the Video wall does not paint before media resolution (no grey-thumbnail window)', async () => {
-    // Regression: the grid used to render as soon as the posts read landed
-    // (setPosts) — BEFORE the media read resolved (setMediaMap). For that
-    // window the tiles had no media, so HomeCard fell back to the plain grey
-    // gradient; the thumbnails only appeared on the second render. The grid
-    // must not paint until the media (thumbnails) are in hand — the skeleton
-    // covers the gap.
+  it('the Video wall paints from the ONE read — inline media, no second media round-trip, no grey window', async () => {
+    // The node's read path returns media_refs PRE-RESOLVED (presigned
+    // thumbnail_url + read_url + dimensions on each ref object). The wall must
+    // paint its thumbnails straight from those inline refs after the single
+    // posts read — no per-author profile fan-out, no second `resolveMediaRefs`
+    // round-trip holding the first paint (the "grey thumbnails for quite some
+    // time" complaint). The media read is gated behind a promise that is never
+    // released: if the grid still painted, the wall is waiting on a round-trip
+    // it never needs.
+    let releaseMedia: () => void;
+    const mediaGate = new Promise<void>((resolve) => { releaseMedia = resolve; });
+    (data.readDiscoverFeed as ReturnType<typeof vi.fn>).mockResolvedValue([
+      {
+        author: 'video-creator',
+        author_username: 'video-creator',
+        author_provider: 'api.web10.app',
+        provider: 'api.web10.app',
+        post_id: 'p1',
+        text: 'My amazing video content',
+        tags: ['video'],
+        // The API read shape: a resolved ref object (not a bare doc_id string).
+        media_refs: [
+          {
+            doc_id: 'm1',
+            read_url: 'https://cdn.example/video.mp4?sig=x',
+            mime_type: 'video/mp4',
+            width: 1920,
+            height: 1080,
+            duration_seconds: 42,
+            thumbnail_url: 'https://cdn.example/thumb.jpg',
+          },
+        ],
+        created_at: new Date(Date.now() - 3600000).toISOString(),
+        likes: 42,
+        comments: 8,
+        reposts: 3,
+        score: 53,
+      },
+    ]);
+    (data.resolveMediaRefs as ReturnType<typeof vi.fn>).mockImplementation(async () => {
+      await mediaGate;
+      return [];
+    });
+
+    const { default: DiscoverScreen } = await import('@/components/Discover/DiscoverScreen');
+    render(
+      <MemoryRouter initialEntries={['/video']}>
+        <DiscoverScreen />
+      </MemoryRouter>,
+    );
+
+    // The posts read has resolved — the grid paints IMMEDIATELY, and the tile
+    // already carries the inline-resolved thumbnail (no grey fallback, no
+    // second render swap).
+    await waitFor(() => {
+      expect(screen.getByTestId('discover-home-grid')).toBeInTheDocument();
+    });
+    const hoverVideo = screen.getByTestId('discover-home-card-hover-video');
+    const img = hoverVideo.querySelector('img');
+    expect(img).toHaveAttribute('src', 'https://cdn.example/thumb.jpg');
+    // The second media round-trip is never the paint's dependency: with
+    // inline-resolved refs the wall does not call it at all (it was still
+    // gated when the grid painted, and the fallback only runs for string refs).
+    expect(data.resolveMediaRefs).not.toHaveBeenCalled();
+    void releaseMedia; // the gate is never released — the paint must not need it
+  });
+
+  it('string media refs (write-path reads) still resolve via the background fallback', async () => {
+    // A post whose media_refs are bare doc_id strings (the write-path read
+    // shape, not the API read's resolved objects) has no inline thumbnails —
+    // the grid paints (skeleton-free, from the one read) and the background
+    // fallback resolves the refs, patching the thumbnails in.
     let releaseMedia: () => void;
     const mediaGate = new Promise<void>((resolve) => { releaseMedia = resolve; });
     (data.readDiscoverFeed as ReturnType<typeof vi.fn>).mockResolvedValue([
@@ -1058,24 +1123,17 @@ describe('DiscoverScreen', () => {
       </MemoryRouter>,
     );
 
-    // The posts read has resolved by now (the media read is still gated) —
-    // the grid must NOT have painted: the skeleton is still up.
-    await waitFor(() => {
-      expect((data.readDiscoverFeed as ReturnType<typeof vi.fn>).mock.results.length).toBe(1);
-    });
-    await new Promise((r) => setTimeout(r, 0));
-    expect(screen.queryByTestId('discover-home-grid')).not.toBeInTheDocument();
-    expect(screen.getByTestId('discover-grid-skeleton')).toBeInTheDocument();
-
-    // Release the media read — the grid paints, and the tile carries the
-    // resolved thumbnail (no grey fallback).
-    releaseMedia!();
+    // The grid paints from the one read (no grey-thumbnail skeleton window)…
     await waitFor(() => {
       expect(screen.getByTestId('discover-home-grid')).toBeInTheDocument();
     });
-    const hoverVideo = screen.getByTestId('discover-home-card-hover-video');
-    const img = hoverVideo.querySelector('img');
-    expect(img).toHaveAttribute('src', 'https://cdn.example/thumb.jpg');
+    // …and the background fallback resolves the string refs, patching the
+    // thumbnail in on a second render.
+    releaseMedia!();
+    await waitFor(() => {
+      const hoverVideo = screen.getByTestId('discover-home-card-hover-video');
+      expect(hoverVideo.querySelector('img')).toHaveAttribute('src', 'https://cdn.example/thumb.jpg');
+    });
   });
 
   it('the Hot Gossip destination renders the ranked board (all posts)', async () => {
