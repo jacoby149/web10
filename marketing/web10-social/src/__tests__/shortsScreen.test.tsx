@@ -631,6 +631,37 @@ describe('ShortsScreen — the explore wall (/shorts, the "before you pick a sho
     expect(screen.getByText('first')).toBeInTheDocument();
   });
 
+  it('each tile is the hover preview — poster at rest, the clip plays muted on hover (the Video wall pattern)', async () => {
+    (data.readShortsPage as ReturnType<typeof vi.fn>).mockResolvedValue({
+      shorts: [hlsShort({ id: 's1', author: 'luna' })],
+      hasMore: false,
+    });
+    await renderWall();
+
+    await waitFor(() => {
+      expect(screen.getByTestId('short-wall-tile-s1')).toBeInTheDocument();
+    });
+    const frame = screen.getByTestId('short-wall-hover-s1');
+    const video = frame.querySelector('video') as HTMLVideoElement;
+    // At rest: the poster is the face, nothing is attached (no hls instance,
+    // no source) — the wall does not mint N players at rest.
+    expect(frame.querySelector('img')).not.toBeNull();
+    expect(video.getAttribute('src')).toBeNull();
+    expect(FakeHls.instances).toHaveLength(0);
+
+    // Hover: the transcoded source attaches through hls.js + the preview plays
+    // muted (the autoplay policy).
+    const play = vi.spyOn(video, 'play').mockResolvedValue(undefined);
+    fireEvent.mouseEnter(frame);
+    await waitFor(() => {
+      expect(FakeHls.instances.length).toBeGreaterThan(0);
+      expect(play).toHaveBeenCalled();
+    });
+    expect(video.muted).toBe(true);
+    // The raw source file is NOT used (the greyed-out-tile rule).
+    expect(video.getAttribute('src')).toBeNull();
+  });
+
   it('infinite scroll: the sentinel loads the next page and appends (the wall pages the board)', async () => {
     // Page 1: two shorts, hasMore true (a full board page).
     // Page 2: two more shorts, hasMore false (the last page).
