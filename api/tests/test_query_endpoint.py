@@ -23,12 +23,19 @@ from app.main import app as fastapi_app
 from app.v3.services.clickhouse import QueryExecutionError
 
 
+@pytest.fixture(autouse=True)
+def query_test_signing_key():
+    with patch.object(settings, "PRIVATE_KEY", "query-tests-only-signing-key-at-least-32-bytes"):
+        yield
+
+
 def _make_token(username="testuser", **extra):
     payload = {
         "username": username,
         "site": "auth.localhost",
         "target": settings.PROVIDER,
         "provider": settings.PROVIDER,
+        "credential_kind": "self",
         "expires": (datetime.utcnow() + timedelta(minutes=60)).isoformat(),
         **extra,
     }
@@ -37,6 +44,7 @@ def _make_token(username="testuser", **extra):
 
 @pytest.fixture
 def client():
+    query_ep._query_log.clear()
     with patch("app.v3.services.clickhouse.client"):
         yield TestClient(fastapi_app)
 
@@ -207,41 +215,47 @@ class TestHappyPath:
 
 
 class TestAppContractGate:
+    @pytest.fixture
+    def token(self):
+        return _make_token(credential_kind="app", app_origin="https://app.example")
+
     def test_ungranted_service_is_403(self, client, token):
         # The app's contract grants readAll on `posts` only; the query
         # touches `comments` → rejected before any group work.
         with (
             patch("app.v3.services.clickhouse.get_app_permissions", return_value={"posts": ["readAll"]}),
+            patch("app.v3.services.clickhouse.is_origin_allowed", return_value=True),
             patch("app.v3.services.clickhouse.get_user_groups") as mock_groups,
         ):
             resp = client.post(
                 "/v3/query",
                 json={"token": token, "sql": "SELECT doc_id FROM comments"},
-                headers={"origin": "http://app.example"},
+                headers={"origin": "https://app.example"},
             )
         assert resp.status_code == 403
         assert "comments" in resp.json()["detail"]
         mock_groups.assert_not_called()
 
     def test_no_contract_for_origin_is_403(self, client, token):
-        with patch("app.v3.services.clickhouse.get_app_permissions", return_value={}):
+        with patch("app.v3.services.clickhouse.is_origin_allowed", return_value=False):
             resp = client.post(
                 "/v3/query",
                 json={"token": token, "sql": "SELECT doc_id FROM posts"},
-                headers={"origin": "http://app.example"},
+                headers={"origin": "https://app.example"},
             )
         assert resp.status_code == 403
 
-    def test_no_origin_header_skips_the_contract_check(self, client, token):
-        # The read path's skip rule: no Origin = same-origin / direct call →
-        # no contract gate (the boundary CTE is still the wall).
+    def test_no_origin_header_still_checks_signed_contract(self, client, token):
         with (
+            patch("app.v3.services.clickhouse.is_origin_allowed", return_value=True),
+            patch("app.v3.services.clickhouse.get_app_permissions", return_value={"posts": ["readAll"]}) as permissions,
             patch("app.v3.services.clickhouse.get_user_groups", return_value=[{"group_id": "g1"}]),
             patch("app.v3.services.clickhouse.readable_groups", return_value=["g1"]),
             patch("app.v3.services.clickhouse.execute_query", return_value=([], [])),
         ):
             resp = client.post("/v3/query", json={"token": token, "sql": "SELECT doc_id FROM posts"})
         assert resp.status_code == 200
+        permissions.assert_called_with("testuser", "https://app.example")
 
 
 class TestGroupMeta:
@@ -358,8 +372,7 @@ class TestUnsafeQueries:
 
 class TestExecution:
     def test_caller_sql_error_is_400(self, client, token):
-        # The compiled query is safe; a ClickHouse failure is the caller's
-        # SQL (e.g. a column the boundary CTE doesn't expose) → 400.
+        # Backend failures stay generic: even a column error can carry secrets.
         with (
             patch("app.v3.services.clickhouse.get_user_groups", return_value=[{"group_id": "g1"}]),
             patch("app.v3.services.clickhouse.readable_groups", return_value=["g1"]),
@@ -370,7 +383,8 @@ class TestExecution:
         ):
             resp = client.post("/v3/query", json={"token": token, "sql": "SELECT nope FROM posts"})
         assert resp.status_code == 400
-        assert "nope" in resp.json()["detail"]
+        assert resp.json()["detail"].startswith("query execution failed (reference: ")
+        assert "nope" not in resp.json()["detail"]
 
     def test_limit_is_injected_for_unbounded_queries(self, client, token):
         with (
@@ -403,18 +417,18 @@ class TestExecution:
         ):
             resp = client.post("/v3/query", json={"token": token, "sql": "SELECT * FROM posts"})
         assert resp.status_code == 200
-        assert mock_exec.call_args[1]["settings"] == {"max_execution_time": 10}
+        assert mock_exec.call_args[1]["settings"] == {
+            "max_execution_time": 10,
+            "max_result_rows": 1000,
+            "max_result_bytes": query_ep.MAX_RESULT_BYTES,
+            "result_overflow_mode": "throw",
+            "readonly": 1,
+        }
 
 
 class TestPrepare:
-    """The prepare pass (D73): mint media + HLS + ads + face on the result
-    rows so a single ``w.query()`` returns render-ready rows. These pin the
-    orchestration — the order (ads before media, so the ads' media is resolved
-    by the media pass), the args, and the face resolution. The passes
-    themselves are pinned in their own tests; here they're mocked to verify the
-    wiring. The row is doc-shaped (the feed-as-query shape): ``body`` is parsed
-    by the row serializer, ``profile_body`` (an aliased body column) stays a
-    JSON string the face pass must parse."""
+    """Canonical carrier orchestration; the actual gate has adversarial tests
+    in test_query_security.py."""
 
     def _doc_rows(self):
         return (
@@ -435,6 +449,17 @@ class TestPrepare:
             patch("app.v3.services.clickhouse.get_user_groups", return_value=[{"group_id": "g1"}]),
             patch("app.v3.services.clickhouse.readable_groups", return_value=["g1"]),
             patch("app.v3.services.clickhouse.execute_query", return_value=self._doc_rows()),
+            patch.object(
+                query_ep,
+                "_canonical_prepare_doc",
+                return_value={
+                    "doc_id": "d1",
+                    "author_key": "alice",
+                    "body": {"media_refs": ["m1"]},
+                    "ad_mode": "none",
+                    "ad_target": "",
+                },
+            ),
         ):
             return client.post("/v3/query", json=payload)
 
@@ -445,7 +470,7 @@ class TestPrepare:
         assert row["body"] == {"media_refs": ["m1"]}  # parsed, untouched
         assert "avatar_url" not in row  # no face minting
 
-    def test_prepare_media_mints_media_and_hls(self, client, token):
+    def test_prepare_media_mints_canonical_data(self, client, token):
         with (
             patch(
                 "app.v3.services.clickhouse.resolve_media_urls_in_docs",
@@ -462,14 +487,10 @@ class TestPrepare:
         assert resp.status_code == 200
         mock_resolve.assert_called_once()
         mock_hls.assert_called_once()
-        # The sig's D58 principal flag rides from the query's reader (a token
-        # here → authenticated=True — the re-check can't upgrade an anon read).
-        minted_docs, minted_reader, minted_auth = mock_hls.call_args.args
-        assert minted_reader == "testuser"
-        assert minted_auth is True
+        assert mock_hls.call_args.args[1:] == ("testuser", True)
         assert resp.json()["rows"][0]["body"]["media_refs"][0]["read_url"] == "https://cdn/m1"
 
-    def test_prepare_ads_runs_before_media(self, client, token):
+    def test_prepare_ads_runs_before_media_on_canonical_carrier(self, client, token):
         # Order matters: ads first (so their media is resolved by the media
         # pass), then media + HLS. Pin the call order.
         calls = []
@@ -491,11 +512,8 @@ class TestPrepare:
         assert resp.status_code == 200
         assert calls == ["pinned", "node", "media", "hls"]
 
-    def test_prepare_face_resolves_the_avatar(self, client, token):
-        # The face: presign profile_body.avatar_ref (author-scoped to the row's
-        # author_key), set avatar_url. profile_body is a JSON string (an
-        # aliased body column the row serializer doesn't parse) — the face
-        # pass parses it.
+    def test_prepare_face_unverified_projection_does_not_mint(self, client, token):
+        # The canonical body does not corroborate the projected avatar ref.
         with patch(
             "app.v3.services.clickhouse.resolve_media_urls",
             return_value={"media_refs": [{"read_url": "https://cdn/av1"}]},
@@ -513,11 +531,10 @@ class TestPrepare:
                 },
             )
         assert resp.status_code == 200
-        # Author-scoped to the row's author (alice), not the reader.
-        mock_resolve.assert_called_once_with({"media_refs": ["av1"]}, "alice")
-        assert resp.json()["rows"][0]["avatar_url"] == "https://cdn/av1"
+        assert "prepare_disabled" not in resp.json()
+        mock_resolve.assert_not_called()
 
-    def test_prepare_face_degrades_when_the_author_has_no_face(self, client, token):
+    def test_prepare_face_without_media_ref_is_noop(self, client, token):
         # A row with no face media (no avatar_ref) → no avatar_url, no error.
         with (
             patch("app.v3.services.clickhouse.get_user_groups", return_value=[{"group_id": "g1"}]),
@@ -539,7 +556,7 @@ class TestPrepare:
                 },
             )
         assert resp.status_code == 200
-        assert "avatar_url" not in resp.json()["rows"][0]
+        assert "prepare_disabled" not in resp.json()
 
 
 class TestRateLimit:
@@ -561,11 +578,12 @@ class TestRateLimit:
                 query_ep._check_query_rate_limit("user")  # over budget
         assert exc.value.status_code == 429
 
-    def test_anon_is_not_rate_limited(self):
-        # Anon has no verified user_key — not per-user-limited (D65).
+    def test_anon_has_shared_budget(self):
         with patch.object(query_ep, "_MAX_QUERIES_PER_WINDOW", 1):
-            for _ in range(5):
-                query_ep._check_query_rate_limit("anon")  # never raises
+            query_ep._check_query_rate_limit("anon")
+            with pytest.raises(HTTPException) as exc:
+                query_ep._check_query_rate_limit("anon")
+        assert exc.value.status_code == 429
 
     def test_users_have_independent_budgets(self):
         with patch.object(query_ep, "_MAX_QUERIES_PER_WINDOW", 2):

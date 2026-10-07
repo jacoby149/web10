@@ -1,18 +1,91 @@
 """Tests for the import worker (app/v3/services/import_worker.py).
 
 Focus: the pure/semi-pure logic — archive extraction (tar + zip), the write
-pipeline's ordering + the D62 comment join + idempotency, and the job-row
-updated_at monotonicity invariant. The durable-queue / thread lifecycle is
-integration-level (e2e), not unit-testable here.
+pipeline's ordering + the D62 comment join + idempotency, job-row updated_at
+monotonicity, and bounded queue admission / recovery.
 """
 
 import io
+import queue
 import tarfile
 import zipfile
 from datetime import datetime
 from unittest.mock import MagicMock, patch
 
+import pytest
+
 from app.v3.services import import_worker as iw
+
+
+class TestQueueLimits:
+    def test_stale_completed_job_is_not_requeued(self, monkeypatch):
+        jobs = queue.Queue(maxsize=1)
+        monkeypatch.setattr(iw, "_job_queue", jobs)
+        monkeypatch.setattr(iw, "_submitted_jobs", set())
+        with (
+            patch.object(iw, "_ensure_started"),
+            patch.object(iw, "get_import_job", return_value={"phase": iw.COMPLETE}),
+            patch.object(iw, "update_import_job") as update,
+        ):
+            iw.submit_import_job("done")
+        update.assert_not_called()
+        assert jobs.empty()
+
+    def test_full_queue_does_not_persist_or_block(self, monkeypatch):
+        jobs = queue.Queue(maxsize=1)
+        jobs.put_nowait("existing")
+        monkeypatch.setattr(iw, "_job_queue", jobs)
+        monkeypatch.setattr(iw, "_submitted_jobs", set())
+        with patch.object(iw, "_ensure_started"), patch.object(iw, "update_import_job") as update:
+            with pytest.raises(queue.Full):
+                iw.submit_import_job("new")
+        update.assert_not_called()
+        assert jobs.get_nowait() == "existing"
+
+    def test_duplicate_job_uses_one_slot(self, monkeypatch):
+        jobs = queue.Queue(maxsize=1)
+        monkeypatch.setattr(iw, "_job_queue", jobs)
+        monkeypatch.setattr(iw, "_submitted_jobs", set())
+        with patch.object(iw, "_ensure_started"), patch.object(iw, "update_import_job") as update:
+            iw.submit_import_job("new")
+            iw.submit_import_job("new")
+        update.assert_called_once()
+        assert jobs.qsize() == 1
+
+    def test_recovery_pages_and_retries_full_queue(self):
+        page = MagicMock(result_rows=[("a",), ("b",)])
+        empty = MagicMock(result_rows=[])
+        with (
+            patch.object(iw.ch.client, "query", side_effect=[page, empty]) as query,
+            patch.object(iw, "submit_import_job", side_effect=[queue.Full, None, None]) as submit,
+            patch.object(iw.time, "sleep"),
+        ):
+            iw._resubmit_active_jobs()
+        assert [c.args[0] for c in submit.call_args_list] == ["a", "a", "b"]
+        assert query.call_args.args[1] == {"last_job_id": "b"}
+        assert "LIMIT 100" in query.call_args.args[0]
+
+
+class TestDownloadLimits:
+    @pytest.mark.parametrize("advertised,actual", [(9, 9), (8, 9), (8, 7)])
+    def test_oversized_or_changed_download(self, tmp_path, monkeypatch, advertised, actual):
+        monkeypatch.setattr(iw, "MAX_PART_BYTES", 8)
+        body = io.BytesIO(b"x" * actual)
+        with patch.object(iw.media_svc, "get_s3_client") as s3:
+            s3.return_value.get_object.return_value = {"ContentLength": advertised, "Body": body}
+            with pytest.raises(ValueError, match="size"):
+                iw._download_parts(["k"], tmp_path)
+        assert body.closed
+
+    def test_streamed_download_at_limit(self, tmp_path, monkeypatch):
+        monkeypatch.setattr(iw, "MAX_PART_BYTES", 8)
+        body = io.BytesIO(b"x" * 8)
+        with patch.object(iw.media_svc, "get_s3_client") as s3:
+            s3.return_value.get_object.return_value = {"ContentLength": 8, "Body": body}
+            iw._download_parts(["k"], tmp_path)
+        assert (tmp_path / "part-000").read_bytes() == b"x" * 8
+        assert body.closed
+
 
 # ---------------------------------------------------------------------------
 # _parse_iso_utc
@@ -85,6 +158,95 @@ def _make_zip(path, members):
 
 
 class TestExtractDataEntries:
+    def test_tar_extension_header_limit(self, tmp_path, monkeypatch):
+        header = tarfile.TarInfo("././@PaxHeader")
+        header.type = tarfile.XHDTYPE
+        header.size = 33
+        (tmp_path / "part-000").write_bytes(header.tobuf() + b"x" * 33)
+        monkeypatch.setattr(iw, "MAX_TAR_HEADER_BYTES", 32)
+        with pytest.raises(ValueError, match="extension header"):
+            iw._extract_data_entries(tmp_path)
+
+    @pytest.mark.parametrize("make_archive", [_make_zip, _make_tar])
+    @pytest.mark.parametrize("extension", ["csv", "json"])
+    def test_metadata_limit_before_read(self, tmp_path, monkeypatch, make_archive, extension):
+        make_archive(tmp_path / "part-000", [(f"data.{extension}", b"x" * 33)])
+        monkeypatch.setattr(iw, "MAX_METADATA_MEMBER_BYTES", 32)
+        with patch.object(zipfile.ZipFile, "open", side_effect=AssertionError("must not read")):
+            with pytest.raises(ValueError, match="metadata size"):
+                iw._extract_data_entries(tmp_path)
+
+    def test_deflated_zip_bomb(self, tmp_path, monkeypatch):
+        with zipfile.ZipFile(tmp_path / "part-000", "w", compression=zipfile.ZIP_DEFLATED) as zf:
+            zf.writestr("data.csv", b"0" * 100_000)
+        monkeypatch.setattr(iw, "MAX_METADATA_MEMBER_BYTES", 1000)
+        with patch.object(zipfile.ZipFile, "open", side_effect=AssertionError("must not decompress")):
+            with pytest.raises(ValueError, match="metadata size"):
+                iw._extract_data_entries(tmp_path)
+
+    @pytest.mark.parametrize("make_archive", [_make_zip, _make_tar])
+    def test_expanded_size_includes_ignored_video(self, tmp_path, monkeypatch, make_archive):
+        make_archive(tmp_path / "part-000", [("video.mp4", b"x" * 33)])
+        monkeypatch.setattr(iw, "MAX_EXPANDED_PART_BYTES", 32)
+        with pytest.raises(ValueError, match="expanded size"):
+            iw._extract_data_entries(tmp_path)
+
+    def test_zip_directory_preflight(self, tmp_path, monkeypatch):
+        _make_zip(tmp_path / "part-000", [("video.mp4", b"x")])
+        monkeypatch.setattr(iw, "MAX_ZIP_DIRECTORY_BYTES", 1)
+        with patch.object(zipfile, "ZipFile", side_effect=AssertionError("must not allocate directory")):
+            with pytest.raises(ValueError, match="directory"):
+                iw._extract_data_entries(tmp_path)
+
+    @pytest.mark.parametrize("make_archive", [_make_zip, _make_tar])
+    def test_member_count(self, tmp_path, monkeypatch, make_archive):
+        make_archive(tmp_path / "part-000", [("a.mp4", b"x"), ("b.mp4", b"x")])
+        monkeypatch.setattr(iw, "MAX_ARCHIVE_MEMBERS", 1)
+        with pytest.raises(ValueError, match="count|directory"):
+            iw._extract_data_entries(tmp_path)
+
+    def test_metadata_budget_across_parts(self, tmp_path, monkeypatch):
+        _make_zip(tmp_path / "part-000", [("a.csv", b"x" * 16)])
+        _make_tar(tmp_path / "part-001", [("b.json", b"x" * 17)])
+        monkeypatch.setattr(iw, "MAX_METADATA_BYTES", 32)
+        with pytest.raises(ValueError, match="metadata size"):
+            iw._extract_data_entries(tmp_path)
+
+    def test_member_budget_across_parts(self, tmp_path, monkeypatch):
+        _make_zip(tmp_path / "part-000", [("a.mp4", b"x")])
+        _make_tar(tmp_path / "part-001", [("b.mp4", b"x")])
+        monkeypatch.setattr(iw, "MAX_ARCHIVE_MEMBERS", 1)
+        with pytest.raises(ValueError, match="member count"):
+            iw._extract_data_entries(tmp_path)
+
+    def test_gzip_tar_metadata_bomb(self, tmp_path, monkeypatch):
+        with tarfile.open(tmp_path / "part-000", "w:gz") as tf:
+            member = tarfile.TarInfo("data.csv")
+            member.size = 100_000
+            tf.addfile(member, io.BytesIO(b"x" * member.size))
+        monkeypatch.setattr(iw, "MAX_METADATA_MEMBER_BYTES", 1000)
+        with patch.object(tarfile.TarFile, "extractfile", side_effect=AssertionError("must not read")):
+            with pytest.raises(ValueError, match="metadata size"):
+                iw._extract_data_entries(tmp_path)
+
+    def test_compressed_part_limit(self, tmp_path, monkeypatch):
+        _make_zip(tmp_path / "part-000", [("a.csv", b"x")])
+        monkeypatch.setattr(iw, "MAX_PART_BYTES", 1)
+        with pytest.raises(ValueError, match="upload size"):
+            iw._extract_data_entries(tmp_path)
+
+    def test_large_video_is_not_opened(self, tmp_path, monkeypatch):
+        _make_zip(tmp_path / "part-000", [("video.mp4", b"x" * 1000), ("a.csv", b"ok")])
+        monkeypatch.setattr(iw, "MAX_METADATA_MEMBER_BYTES", 2)
+        original = zipfile.ZipFile.open
+
+        def checked_open(zf, info, *args, **kwargs):
+            assert info.filename == "a.csv"
+            return original(zf, info, *args, **kwargs)
+
+        with patch.object(zipfile.ZipFile, "open", checked_open):
+            assert iw._extract_data_entries(tmp_path) == [("a.csv", b"ok")]
+
     def test_tar(self, tmp_path):
         part = tmp_path / "part-000"
         _make_tar(

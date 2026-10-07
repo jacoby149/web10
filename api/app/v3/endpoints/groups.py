@@ -1,12 +1,13 @@
+import logging
 from types import SimpleNamespace
 
-from fastapi import APIRouter
+from fastapi import APIRouter, HTTPException
 
 import app.exceptions as exceptions
 from app.models.auth import Token
 from app.services.auth import check_admin, decode_token
+from app.v3.endpoints.auth_helper import require_app_permission, self_user, user_or_anon
 from app.v3.endpoints.auth_helper import user as _user
-from app.v3.endpoints.auth_helper import user_or_anon
 from app.v3.models import (
     AcceptInvite,
     AddGroupMember,
@@ -33,16 +34,20 @@ from app.v3.models.common import TokenOnly
 from app.v3.services import clickhouse as ch
 
 router = APIRouter(tags=["group-contracts"])
+log = logging.getLogger(__name__)
 
 
-def _require_group_permission(group_id: str, user: str, permission: str):
+def _require_group_permission(group_id: str, user: str, permission: str, data=None):
     """Check that the user's effective role grants the management `permission`
     (D58 — management ops live under the reserved 'group' key; the legacy flat
     shape is checked via the '*' wildcard during the transition). Raises CRUD
     if not granted, ENTRY_NOT_FOUND if the group doesn't exist."""
+    if data is not None:
+        require_app_permission(data, "group", permission)
     if not ch.get_group(group_id):
         raise exceptions.ENTRY_NOT_FOUND
     if not ch.has_mgmt_permission(group_id, user, permission):
+        log.warning("[groups] denied group=%s user=%s permission=%s", group_id, user, permission)
         raise exceptions.CRUD
 
 
@@ -55,8 +60,14 @@ def _require_moderation(group_id: str, user: str, token: str, service: str):
     the public board (which has no moderator role) gets moderated.
     """
     if ch.can_moderate_service(group_id, user, service):
-        return
-    check_admin(Token(token=token))
+        try:
+            require_app_permission(Token(token=token), service, "hideAll")
+        except HTTPException as error:
+            if error.status_code != 403:
+                raise
+        else:
+            return
+    check_admin(Token(token=token), required_capability="moderate")
 
 
 def _require_moderation_any(group_id: str, user: str, token: str):
@@ -67,7 +78,7 @@ def _require_moderation_any(group_id: str, user: str, token: str):
     """
     if ch.can_moderate_group(group_id, user):
         return
-    check_admin(Token(token=token))
+    check_admin(Token(token=token), required_capability="moderate")
 
 
 def _normalize_member_key(user: str) -> str:
@@ -148,18 +159,18 @@ def create_group(data: CreateGroup):
     guard each login appends a second row for the same group_id.
     """
     creator = _user(data)
+    require_app_permission(data, "group", "createGroup")
     decoded = decode_token(data.token, private_key=True)
     group_id = f"{data.name.lower().replace(' ', '-')}"
     group_id = f"{decoded.provider}/groups/users/{creator}/{group_id}"
 
-    if not ch.get_group(group_id):
+    existing = ch.get_group(group_id)
+    if existing:
+        _require_group_permission(group_id, creator, "assignRoles", data)
+    else:
         ch.create_group(
             group_id, data.roles, data.join_policy, data.discoverable, data.tags, data.membership_visibility
         )
-
-    for m in data.members:
-        if not ch.get_group_member(group_id, m["member_key"]):
-            ch.add_group_member(group_id, m["member_key"], m.get("role", "member"))
 
     for m in data.members:
         if not ch.get_group_member(group_id, m["member_key"]):
@@ -169,7 +180,8 @@ def create_group(data: CreateGroup):
     # pass the creator's member row in a key form the node's permission checks
     # do not resolve (the "dead group" bug). It is a no-op when the contract
     # has no owner role or the creator is already the owner.
-    ch.ensure_creator_owner(group_id, creator, data.roles)
+    if not existing:
+        ch.ensure_creator_owner(group_id, creator, data.roles)
 
     return {"group_id": group_id}
 
@@ -199,16 +211,13 @@ def get_group(data: GetGroup):
 def update_group(data: UpdateGroup):
     """Update group settings."""
     user = _user(data)
-    member = ch.get_group_member(data.group_id, user)
-    if not member:
-        raise exceptions.CRUD
+    _require_group_permission(data.group_id, user, "manageRoles", data)
 
     existing = ch.get_group(data.group_id)
     if not existing:
         raise exceptions.ENTRY_NOT_FOUND
 
-    # discoverable follows the same gate as the rest of the update (a member);
-    # None leaves it unchanged.
+    # All contract settings are structural; None leaves them unchanged.
     discoverable = data.discoverable if data.discoverable is not None else existing["discoverable"]
     # tags (D78): None leaves it unchanged; a list replaces.
     # membership_visibility (D80): None leaves it unchanged; 'public' /
@@ -256,7 +265,7 @@ def get_group_members(data: ListGroupMembers):
 def add_group_member(data: AddGroupMember):
     """Add a member to a group."""
     user = _user(data)
-    _require_group_permission(data.group_id, user, "assignRoles")
+    _require_group_permission(data.group_id, user, "assignRoles", data)
     ch.add_group_member(data.group_id, data.member_key, data.role)
     return {"group_id": data.group_id, "member_key": data.member_key, "role": data.role}
 
@@ -265,7 +274,7 @@ def add_group_member(data: AddGroupMember):
 def remove_group_member(data: RemoveGroupMember):
     """Remove a member from a group."""
     user = _user(data)
-    _require_group_permission(data.group_id, user, "revokeRoles")
+    _require_group_permission(data.group_id, user, "revokeRoles", data)
     ch.remove_group_member(data.group_id, data.member_key)
     return {"group_id": data.group_id, "member_key": data.member_key, "status": "removed"}
 
@@ -274,6 +283,7 @@ def remove_group_member(data: RemoveGroupMember):
 def join_group(data: JoinGroup):
     """Join a group (open or request)."""
     user = _user(data)
+    require_app_permission(data, "group", "joinGroup")
     existing = ch.get_group(data.group_id)
     if not existing:
         raise exceptions.ENTRY_NOT_FOUND
@@ -292,22 +302,28 @@ def join_group(data: JoinGroup):
 def invite_member(data: InviteMember):
     """Invite a member to a group."""
     user = _user(data)
-    _require_group_permission(data.group_id, user, "assignRoles")
+    _require_group_permission(data.group_id, user, "assignRoles", data)
     ch.create_join_request(data.group_id, data.member_key, "invited", data.role)
     return {"group_id": data.group_id, "invited_key": data.member_key, "status": "invited"}
 
 
 @router.post("/accept-invite")
 def accept_invite(data: AcceptInvite):
-    """Accept a group invite or join request."""
+    """Accept a manager-issued invite; pending joins require manager approval."""
     user = _user(data)
-    if not ch.has_pending_or_invited_request(data.group_id, user):
-        raise exceptions.CRUD
+    require_app_permission(data, "group", "joinGroup")
     pending = ch.get_pending_requests(data.group_id)
     invite = next((r for r in pending if r["requester_key"] == user), None)
-    role = invite.get("role", "member") if invite and invite.get("role") else "member"
+    # get_pending_requests deduplicates before filtering. Only /invite, gated
+    # by assignRoles, issues invited rows; /join issues pending rows.
+    if not invite or invite["status"] != "invited":
+        log.warning("[groups] invite acceptance denied group=%s user=%s", data.group_id, user)
+        raise exceptions.CRUD
+    role = invite.get("role") or "member"
+    log.info("[groups] accepting invite group=%s user=%s role=%s", data.group_id, user, role)
     ch.resolve_join_request(data.group_id, user, "approved")
     ch.add_group_member(data.group_id, user, role)
+    log.info("[groups] invite accepted group=%s user=%s", data.group_id, user)
     return {"group_id": data.group_id, "role": role}
 
 
@@ -315,6 +331,7 @@ def accept_invite(data: AcceptInvite):
 def decline_invite(data: DeclineInvite):
     """Decline a group invite or join request."""
     user = _user(data)
+    require_app_permission(data, "group", "leaveGroup")
     if not ch.has_pending_or_invited_request(data.group_id, user):
         raise exceptions.CRUD
     ch.resolve_join_request(data.group_id, user, "declined")
@@ -325,6 +342,7 @@ def decline_invite(data: DeclineInvite):
 def leave_group(data: LeaveGroup):
     """Leave a group."""
     user = _user(data)
+    require_app_permission(data, "group", "leaveGroup")
     ch.remove_group_member(data.group_id, user)
     return {"group_id": data.group_id, "member_key": user, "status": "left"}
 
@@ -333,7 +351,7 @@ def leave_group(data: LeaveGroup):
 def list_join_requests(data: ListJoinRequests):
     """List pending join/invite requests for a group (owner/moderator only)."""
     user = _user(data)
-    _require_group_permission(data.group_id, user, "assignRoles")
+    _require_group_permission(data.group_id, user, "assignRoles", data)
     return ch.get_pending_requests(data.group_id)
 
 
@@ -341,7 +359,7 @@ def list_join_requests(data: ListJoinRequests):
 def approve_join_request(data: JoinRequestOp):
     """Approve a pending join or invite request (owner/moderator only)."""
     user = _user(data)
-    _require_group_permission(data.group_id, user, "assignRoles")
+    _require_group_permission(data.group_id, user, "assignRoles", data)
     if not ch.has_pending_or_invited_request(data.group_id, data.requester_key):
         raise exceptions.CRUD
     pending = ch.get_pending_requests(data.group_id)
@@ -356,7 +374,7 @@ def approve_join_request(data: JoinRequestOp):
 def deny_join_request(data: JoinRequestOp):
     """Deny a pending join or invite request (owner/moderator only)."""
     user = _user(data)
-    _require_group_permission(data.group_id, user, "assignRoles")
+    _require_group_permission(data.group_id, user, "assignRoles", data)
     if not ch.has_pending_or_invited_request(data.group_id, data.requester_key):
         raise exceptions.CRUD
     ch.resolve_join_request(data.group_id, data.requester_key, "denied")
@@ -481,11 +499,16 @@ def group_detail(group_id: str, token: str | None = None):
         "posts": [],
     }
     if is_member:
+        if token:
+            require_app_permission(SimpleNamespace(token=token), "posts", "readAll")
+        if not ch.can_read_group(group_id, principal, "posts", principal != "anon"):
+            raise HTTPException(status_code=403, detail="no read access to the requested service")
         out["posts"] = ch.read_documents_in_groups(
             group_ids=[group_id],
             member_key=principal,
             service="posts",
             limit=20,
+            require_membership=False,
         )
     return out
 
@@ -494,6 +517,7 @@ def group_detail(group_id: str, token: str | None = None):
 def block_user_in_group(data: BlockUserInGroup):
     """Block a user from seeing your content in this group."""
     user = _user(data)
+    _require_group_permission(data.group_id, user, "blockMembers", data)
     ch.block_user_in_group(user, data.group_id, data.blocked_key)
     return {"user_key": user, "group_id": data.group_id, "blocked_key": data.blocked_key}
 
@@ -502,6 +526,7 @@ def block_user_in_group(data: BlockUserInGroup):
 def unblock_user_in_group(data: BlockUserInGroup):
     """Unblock a user in a group."""
     user = _user(data)
+    _require_group_permission(data.group_id, user, "blockMembers", data)
     ch.unblock_user_in_group(user, data.group_id, data.blocked_key)
     return {"user_key": user, "group_id": data.group_id, "blocked_key": data.blocked_key}
 
@@ -510,6 +535,7 @@ def unblock_user_in_group(data: BlockUserInGroup):
 def set_sharing(data: SetSharing):
     """Set sharing toggle for a group."""
     user = _user(data)
+    _require_group_permission(data.group_id, user, "manageSharing", data)
     ch.set_user_group_sharing(user, data.group_id, data.enabled)
     return {"user_key": user, "group_id": data.group_id, "sharing_enabled": data.enabled}
 
@@ -518,7 +544,7 @@ def set_sharing(data: SetSharing):
 def delete_group(data: DeleteGroup):
     """Delete a group (requires deleteGroup permission)."""
     user = _user(data)
-    _require_group_permission(data.group_id, user, "deleteGroup")
+    _require_group_permission(data.group_id, user, "deleteGroup", data)
     ch.delete_group(data.group_id)
     return {"group_id": data.group_id, "status": "deleted"}
 
@@ -535,7 +561,7 @@ def heal_group_owner(data: GetGroup):
     no-op when the group already has the creator as owner or defines no
     owner role.
     """
-    user = _user(data)
+    user = self_user(data)
     group = ch.get_group(data.group_id)
     if not group:
         raise exceptions.ENTRY_NOT_FOUND
@@ -583,4 +609,15 @@ def list_hidden_docs(data: ListHiddenDocs):
     """List the documents currently hidden from a group's discover."""
     user = _user(data)
     _require_moderation_any(data.group_id, user, data.token)
-    return {"hidden": ch.get_hidden_docs(data.group_id)}
+    hidden = ch.get_hidden_docs(data.group_id)
+    allowed = []
+    for row in hidden:
+        doc = ch.get_document_any_author(row["doc_id"])
+        if not doc:
+            continue
+        try:
+            _require_moderation(data.group_id, user, data.token, doc["service"])
+        except Exception:
+            continue
+        allowed.append(row)
+    return {"hidden": allowed}

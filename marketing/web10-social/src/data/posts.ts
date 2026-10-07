@@ -515,7 +515,7 @@ export async function uploadMedia(request: MediaUploadRequest): Promise<MediaRec
     duration_seconds: request.durationSeconds ?? null,
     thumbnail_object_key: thumbnailObjectKey,
     alt_text: request.altText ?? null,
-    service: request.service || 'media',
+    service: request.service === 'public_media' ? 'public_media' : 'media_metadata',
   };
   // D44: the transcode worker reads the raw file from this leaf (the doc is
   // the status surface — transcoding_settings goes processing → done|failed).
@@ -576,7 +576,7 @@ export async function readMedia(opts?: { limit?: number; offset?: number }): Pro
 export async function readMediaRecord(docId: string): Promise<MediaRecord | null> {
   const w = getV3Client();
   try {
-    const doc = await w.readById(docId, 'media');
+    const doc = await w.readById(docId, 'media_metadata');
     return fromV3DocToMedia(doc);
   } catch {
     return null;

@@ -88,6 +88,16 @@ describe('readModerationFlags', () => {
     vi.stubGlobal('fetch', vi.fn().mockResolvedValue({ ok: false, status: 403, json: async () => ({ detail: 'not admin' }) }));
     await expect(moderation.readModerationFlags()).rejects.toThrow('not admin');
   });
+
+  it('a missing delegated grant explains consent and never retries with another credential', async () => {
+    setToken('app-jwt');
+    const request = vi.fn().mockResolvedValue({ ok: false, status: 403,
+      json: async () => ({ detail: 'App permission denied' }) });
+    vi.stubGlobal('fetch', request);
+    await expect(moderation.readModerationFlags()).rejects.toThrow('Log in again and approve');
+    expect(request).toHaveBeenCalledTimes(1);
+    expect(JSON.parse(request.mock.calls[0][1].body).token).toBe('app-jwt');
+  });
 });
 
 describe('setUserAutoHidden', () => {

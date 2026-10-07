@@ -48,6 +48,7 @@ def _make_token(username="carol") -> str:
         "site": "auth.localhost",
         "target": settings.PROVIDER,
         "provider": settings.PROVIDER,
+        "credential_kind": "self",
         "expires": (datetime.utcnow() + timedelta(minutes=60)).isoformat(),
     }
     return jwt.encode(payload, settings.PRIVATE_KEY, algorithm=settings.ALGORITHM)
@@ -112,7 +113,7 @@ def _dispatch(reader: str, authenticated: bool):
                 [(f"doc-{u}", u, json.dumps(FACES[u]), [], "2026-01-01T00:00:00", "", "none", "") for u in FACES]
             )
         if "FROM group_members WHERE member_key = %(member_key)s" in sql:
-            return _rows([(g,) for g in member_groups])
+            return _rows([(g, "owner" if g == fgid("carol") else "member") for g in member_groups])
         if "FROM group_members WHERE member_key IN" in sql:
             return _rows(class_roles)
         if "FROM group_contracts WHERE group_id IN" in sql:
@@ -164,13 +165,13 @@ class TestListPublicUsersComposition:
             mock_client.query.side_effect = _dispatch("carol", True)
             result = ch.list_public_users("carol", True, limit=20, offset=0)
         usernames = [r["username"] for r in result]
-        # carol follows eve (private) -> sees her; anon could not. carol also
-        # sees herself (owner of her own followers group).
-        assert "eve" in usernames
+        # Following grants posts, not a private profile. Owner wildcard still
+        # grants carol her own profile; public grants still cover alice/bob/dave.
+        assert "eve" not in usernames
         assert "carol" in usernames
         # still ranked by follower count desc.
-        assert usernames == ["bob", "eve", "alice", "carol", "dave"]
-        assert [r["follower_count"] for r in result] == [10, 7, 5, 3, 2]
+        assert usernames == ["bob", "alice", "carol", "dave"]
+        assert [r["follower_count"] for r in result] == [10, 5, 3, 2]
 
     def test_follower_count_is_membership_aggregate(self):
         """The count comes from count(group_members), not a stored field."""
@@ -257,8 +258,8 @@ class TestListPublicUsersComposition:
         with patch.object(ch, "client") as mock_client:
             mock_client.query.side_effect = _dispatch("carol", True)
             page = ch.list_public_users("carol", True, limit=2, offset=1)
-        # full order: bob(10), eve(7), alice(5), carol(3), dave(2); page 2 of size 2
-        assert [r["username"] for r in page] == ["eve", "alice"]
+        # full order: bob(10), alice(5), carol(3), dave(2)
+        assert [r["username"] for r in page] == ["alice", "carol"]
 
 
 class TestPeopleDirectoryEndpoint:

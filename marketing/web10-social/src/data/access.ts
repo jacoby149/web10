@@ -19,37 +19,13 @@ import { getV3Client } from './v3';
 import type { AccessVerdict } from './v3';
 import { ensureFollowers } from './groups';
 import { getSocialAuth } from '../interfaces/auth';
+import { SOCIAL_ACCESS_CHECKS } from '../interfaces/permissions';
 
 const LOG = (...args: unknown[]) => console.log('[access]', ...args);
 const LOG_ERR = (...args: unknown[]) => console.error('[access]', ...args);
 // A transient "oracle unreachable" is a retry-later, not an error — warn, not
 // error (console.error would trip the e2e console-error assertions).
 const LOG_WARN = (...args: unknown[]) => console.warn('[access]', ...args);
-
-// The services the social app needs — the recovery verifies these. The signal
-// is platform-level (the node checks them); this list is the app's policy.
-// Must stay in lockstep with SOCIAL_SERVICES in src/interfaces/auth.ts (the
-// login contract): a service the app writes but the oracle doesn't verify is
-// invisible to the recovery — a partial contract (e.g. a pre-fix login missing
-// the group-identity service) would never trigger the reauth that merges the
-// missing grant in (the auth UI's applyACR merges on re-consent).
-const SOCIAL_SERVICES = [
-  'posts',
-  'media',
-  'public_media',
-  'profile',
-  'settings',
-  'comments',
-  'reactions',
-  'contacts',
-  'staging_posts',
-  'web10-social-group-identity',
-  'notifications',
-  // The saved-collection store (D88) — a `saved` doc in a collection group.
-  // Must stay in lockstep with SOCIAL_SERVICES in src/interfaces/auth.ts.
-  'saved',
-];
-const SOCIAL_OPERATIONS = ['readAll', 'create'];
 
 // Cooldown: max one auto-recovery per action-class per window. After the
 // window, the recovery stops acting and surfaces a manual "Log in again" signal
@@ -105,7 +81,12 @@ export async function verifyAndRecover(
 
   let verdict: AccessVerdict;
   try {
-    verdict = await w.verifyAccess({ services: SOCIAL_SERVICES, operations: SOCIAL_OPERATIONS });
+    verdict = await w.verifyAccess(SOCIAL_ACCESS_CHECKS[0]);
+    for (const check of SOCIAL_ACCESS_CHECKS.slice(1)) {
+      if (verdict.status !== 'ok') break;
+      LOG('verifyAndRecover — checking app grants:', JSON.stringify(check));
+      verdict = await w.verifyAccess(check);
+    }
   } catch (e) {
     // The verify call itself failed (network / 5xx) — a transient infra
     // error, NOT a bad session. No action (definite-NO-vs-UNKNOWN).
@@ -145,11 +126,9 @@ export async function verifyAndRecover(
     return executed.length ? { outcome: 'recovered', actions: executed } : { outcome: 'ok' };
   }
 
-  // ok or degraded — the token is valid. First the app's own followers-group
-  // heal (D60: the oracle is generic, so the social app ensures its OWN group
-  // here — idempotent, a no-op when healthy). It runs BEFORE the reauth
-  // deferral check so it still runs on mount (the token is valid there).
-  if (!inCooldown('heal_followers_group')) {
+  // The heal can create groups/change roles. Never attempt it with a partial
+  // contract: consent must grant management before any management work runs.
+  if (verdict.status === 'ok' && !inCooldown('heal_followers_group')) {
     try {
       LOG('verifyAndRecover — ensuring the followers group for', token.username);
       await ensureFollowers(token.username, token.provider);

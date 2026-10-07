@@ -1,6 +1,6 @@
 """Tests for auth service: certify_with_remote_provider, check_admin."""
 
-from unittest.mock import MagicMock, patch
+from unittest.mock import patch
 
 import pytest
 
@@ -15,33 +15,11 @@ from app.services.auth import (
 
 
 class TestCertifyWithRemoteProvider:
-    def test_remote_certifies(self):
-        token = Token(token="remote_token")
-        mock_response = MagicMock()
-        mock_response.status_code = 200
-        with patch("app.services.auth.decode_token") as mock_decode:
-            mock_decode.return_value = TokenData(provider="https://remote.provider")
-            with patch("app.services.auth.requests.post", return_value=mock_response):
-                result = certify_with_remote_provider(token)
-                assert result is True
-
-    def test_remote_fails(self):
-        token = Token(token="remote_token")
-        mock_response = MagicMock()
-        mock_response.status_code = 401
-        with patch("app.services.auth.decode_token") as mock_decode:
-            mock_decode.return_value = TokenData(provider="https://remote.provider")
-            with patch("app.services.auth.requests.post", return_value=mock_response):
-                result = certify_with_remote_provider(token)
-                assert result is False
-
-    def test_remote_request_exception(self):
-        token = Token(token="remote_token")
-        with patch("app.services.auth.decode_token") as mock_decode:
-            mock_decode.return_value = TokenData(provider="https://remote.provider")
-            with patch("app.services.auth.requests.post", side_effect=Exception("timeout")):
-                with pytest.raises(Exception):
-                    certify_with_remote_provider(token)
+    def test_remote_rejected_without_network(self):
+        with patch("requests.post") as post:
+            with pytest.raises(Exception):
+                certify_with_remote_provider(Token(token="remote_token"))
+            post.assert_not_called()
 
 
 class TestCheckAdmin:

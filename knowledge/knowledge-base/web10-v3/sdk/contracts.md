@@ -32,7 +32,7 @@ The contract is with the app, not the service. When music.web10.com asks for acc
 ```sql
 CREATE TABLE app_contracts (
     user_key String,           -- owner of the data
-    allowed_origin String,     -- 'music.web10.com'
+    allowed_origin String,     -- 'https://music.web10.com'
     permissions String,        -- JSON: { "posts": ["readAll", "create"], "playlists": ["readAll", "create", "updateOwn", "deleteOwn"] }
     created_at DateTime64(3),
     updated_at DateTime64(3),
@@ -45,7 +45,7 @@ ORDER BY (user_key, allowed_origin);
 
 ```json
 {
-  "allowed_origin": "music.web10.com",
+  "allowed_origin": "https://music.web10.com",
   "permissions": {
     "posts": ["readAll", "create"],
     "playlists": ["readAll", "create", "updateOwn", "deleteOwn"],
@@ -58,24 +58,49 @@ ORDER BY (user_key, allowed_origin);
 ```sql
 SELECT permissions FROM app_contracts
 WHERE user_key = 'alice'
-  AND allowed_origin = 'music.web10.com'
+  AND allowed_origin = 'https://music.web10.com'
   AND deleted = 0
 LIMIT 1;
 -- Check: has 'posts' key? Does the permissions array contain 'readAll'?
 ```
 
-The API checks two things for every operation:
-1. **Origin check** — does this origin have an active contract for this user?
+The API checks two things for every checked app operation:
+1. **Signed origin check** — does the verified app credential's exact canonical `app_origin` have an active latest contract for this user? A supplied mismatching Origin is rejected; absence does not skip checks.
 2. **Permission check** — does the contract's permissions object cover this service with this operation?
 
 If either fails, the operation is denied. Groups run after — the app gets through the door, the person's role decides what they see inside.
+
+The SQL above illustrates identity lookup, not the production latest-row query.
+`is_origin_allowed` and `get_app_permissions` select the latest version first,
+then check `deleted`. Filtering tombstones out before choosing latest would
+resurrect a revoked grant while background merges are pending. Current checked
+requests observe revocation/permission reduction without waiting for merges;
+this is app-wide revocation, not a per-token denylist.
+
+App credentials cannot approve/revoke their own contracts or delegate again.
+`*` covers document services only, never reserved `group`, `node`, `user` or
+`imports`. Structural operations require the exact `group` grant; `node` grants
+are `moderate` and `manageMonetization`, each intersected with current admin
+authority. `user` grants `blockUsers`; `imports` grants `create` and `read`.
+Full capabilities and self-only
+operations are in [delegation](../auth/delegation.md). Wildcard browser CORS is
+not the contract enforcement mechanism, and web10-social has no app bypass.
+
+Delegated import jobs are owner/app-origin-private and persist initiating
+kind/origin/expiry, not the token. Admission does not freeze authority: worker
+writes recheck current grants, lifetime and target authority. See
+[operations](../security/operations.md#delegated-import-jobs) for affected services.
+Media document grants use `media_metadata`/`public_media`, not legacy `media`.
+Group membership still needs effective service `readAll`/`create` for reading
+and attachment. Arbitrary old group roles are not automatically upgraded; the
+social app reconciles only its own canonical followers contract.
 
 **Kill switch:** revoke one app = one row tombstoned.
 ```sql
 INSERT INTO app_contracts (user_key, allowed_origin, permissions, created_at, updated_at, deleted)
 SELECT user_key, allowed_origin, permissions, created_at, now(), 1
 FROM app_contracts
-WHERE user_key = 'alice' AND allowed_origin = 'music.web10.com' AND deleted = 0;
+WHERE user_key = 'alice' AND allowed_origin = 'https://music.web10.com' AND deleted = 0;
 ```
 
 Revoke all apps = tombstone every row for the user.

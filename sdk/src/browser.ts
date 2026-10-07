@@ -18,6 +18,8 @@ import {
   isTokenExpired,
 } from './token'
 import { Web10Error } from './http'
+import { popupOrigin, trustedPopupMessage, trustPopup } from './popup'
+import { appContractCovers } from './v3'
 
 // ── Popup auth helpers (browser-only) ───────────────────────────────────────
 
@@ -60,6 +62,8 @@ function openAuthPortal(authOrigin: string, options: { handoff?: 'token' | 'none
   )
   console.log('[wapi] openAuthPortal — popup returned:', _authPopup ? 'open' : 'blocked/null')
   _popupReady = false
+  const popup = _authPopup
+  if (popup) trustPopup(popup, authOrigin)
   // Clean up old listener
   if (_readyListener) {
     window.removeEventListener('message', _readyListener)
@@ -67,7 +71,7 @@ function openAuthPortal(authOrigin: string, options: { handoff?: 'token' | 'none
   }
   // Listen for auth_ready — popup sends it once on mount
   _readyListener = (e: MessageEvent) => {
-    if (e.data?.type === 'auth_ready') {
+    if (popup && trustedPopupMessage(e, popup) && e.data?.type === 'auth_ready') {
       console.log('[wapi] message event received — type: auth_ready, source:', e.source, 'origin:', e.origin)
       _popupReady = true
       console.log('[wapi] auth_ready — popup is ready, flag set')
@@ -80,18 +84,38 @@ function openAuthPortal(authOrigin: string, options: { handoff?: 'token' | 'none
 
 /**
  * Listen for auth events from the popup.
+ * Pass the client's apiOrigin for nodes other than api.web10.app.
  */
 function authListen(
   onSignedIn: (signedIn: boolean) => void,
+  options: { apiOrigin?: string } = {},
 ): () => void {
+  const expectedProvider = new URL(options.apiOrigin ?? 'https://api.web10.app').hostname
+  let lastAcceptedToken: string | null = null
   const handler = (e: MessageEvent) => {
-    if (e.data?.type === 'auth' && e.data?.token) {
+    if (trustedPopupMessage(e) && e.data?.type === 'auth' && typeof e.data?.token === 'string') {
       // Identity check (D42 + the cookie-torture anti-tests): the popup acts for
       // its OWN cookie's user. If that user differs from the one this app is
       // already acting as, storing the token would silently hijack the app's
       // identity. Reject it — the app keeps its current user. A first login
       // (no current token) always accepts.
       const incoming = decodeJwt(e.data.token)
+      if (incoming?.credential_kind !== 'app' || incoming.app_origin !== window.location.origin) {
+        console.warn('[wapi] auth event rejected: expected an app credential for this origin')
+        return
+      }
+      // The node verifies signatures; these are usability/binding checks on a
+      // trusted popup handoff. Legacy cookies may migrate, incoming sessions may not.
+      const expires = incoming.expires
+      const expiresMs = typeof expires === 'string' && /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d+)?(?:[zZ]|[+-]\d{2}:?\d{2})?$/.test(expires)
+        ? Date.parse(/[zZ]|[+-]\d{2}:?\d{2}$/.test(expires) ? expires : `${expires}Z`)
+        : NaN
+      if (typeof incoming.username !== 'string' || !incoming.username.trim() ||
+          incoming.provider !== expectedProvider || !Number.isFinite(expiresMs) ||
+          expiresMs <= Date.now()) {
+        console.warn('[wapi] auth event rejected: unusable session or unexpected provider')
+        return
+      }
       const current = readTokenCookie()
       const currentDecoded = current ? decodeJwt(current) : null
       if (
@@ -108,24 +132,16 @@ function authListen(
         )
         return
       }
-      // Dedupe: the popup hands back the token on every "return to app" (the
-      // login popup AND the lazy group popup each send an `auth` message). If
-      // the app is already acting as this user, the cookie already proves it —
-      // re-firing the callback would make the app re-initialize for nothing
-      // (duplicate UI state, e.g. "sharing group ready" printed twice). The
-      // cookie is still refreshed (a same-user token can carry a newer
-      // expiry); the "signed in" signal fires only on a real transition. A
-      // user switch is rejected above, so the only fire is a first login.
-      const sameUser =
-        !!currentDecoded?.username &&
-        !!incoming?.username &&
-        currentDecoded.username === incoming.username
-      console.log(
-        '[wapi] auth event received from popup, setting token cookie' +
-          (sameUser ? ' (same user — skipping signed-in callback)' : ''),
-      )
+      // Notify state-first clients on refresh and legacy-cookie migration too.
+      // Only an identical accepted handoff is redundant, not a same-user token.
+      if (e.data.token === lastAcceptedToken) {
+        console.log('[wapi] auth event: duplicate accepted token, skipping handoff')
+        return
+      }
+      console.log('[wapi] auth event received from popup, setting token cookie')
       setTokenCookie(e.data.token)
-      if (!sameUser) onSignedIn(true)
+      lastAcceptedToken = e.data.token
+      onSignedIn(true)
     }
   }
   window.addEventListener('message', handler)
@@ -152,7 +168,7 @@ function createV3Client(options?: Parameters<typeof _createV3Client>[0]): V3Clie
     // is a UX bug. If a popup IS open (from openAuthPortal), use the normal
     // flow — the popup handles the existing session.
     const token = readTokenCookie()
-    if (token && !(_authPopup && !_authPopup.closed)) {
+    if (token && !isTokenExpired(token) && !(_authPopup && !_authPopup.closed)) {
       checkExistingContracts(client, contracts, token).then((allExist) => {
         if (allExist) {
           console.log('[wapi] contractRequest — all contracts already exist, skipping popup')
@@ -171,14 +187,14 @@ function createV3Client(options?: Parameters<typeof _createV3Client>[0]): V3Clie
 
     function doContractRequest() {
     const popup = _authPopup
-    if (popup && !popup.closed) {
+    if (popup && !popup.closed && popupOrigin(popup) === new URL(authOrigin).origin) {
       console.log('[wapi] contractRequest — reusing existing popup (not closed)')
       let contractSent = false
       let readyHandler: ((e: MessageEvent) => void) | null = null
       let timeoutId: ReturnType<typeof setTimeout> | null = null
 
       const responseHandler = (e: MessageEvent) => {
-        if (e.data?.type === 'contract_response') {
+        if (trustedPopupMessage(e, popup) && e.data?.type === 'contract_response') {
           console.log('[wapi] contract_response received:', e.data)
           window.removeEventListener('message', responseHandler)
           if (readyHandler) window.removeEventListener('message', readyHandler)
@@ -198,7 +214,7 @@ function createV3Client(options?: Parameters<typeof _createV3Client>[0]): V3Clie
         if (timeoutId) clearTimeout(timeoutId)
         console.log('[wapi] contractRequest — sending contract to popup')
         try {
-          popup.postMessage({ type: 'contract', contracts }, '*')
+          popup.postMessage({ type: 'contract', contracts }, popupOrigin(popup)!)
           console.log('[wapi] contractRequest — contract sent via postMessage')
         } catch (err) {
           console.error('[wapi] postMessage to popup failed:', err)
@@ -216,7 +232,7 @@ function createV3Client(options?: Parameters<typeof _createV3Client>[0]): V3Clie
 
       // Otherwise wait for auth_ready
       readyHandler = (e: MessageEvent) => {
-        if (e.data?.type === 'auth_ready' && !contractSent) {
+        if (trustedPopupMessage(e, popup) && e.data?.type === 'auth_ready' && !contractSent) {
           console.log('[wapi] auth_ready received, sending contract to popup')
           sendContract()
         }
@@ -261,7 +277,7 @@ async function checkExistingContracts(
     if (c.kind === 'app') {
       const list = await client.listAppContracts()
       const origin = c.app_origin as string
-      if (!list.some((ac) => ac.allowed_origin === origin)) return false
+       if (!list.some((ac) => appContractCovers(ac, origin, c.permissions))) return false
     } else if (c.kind === 'group') {
       const token = readTokenCookie()
       const decoded = token ? decodeJwt(token) : null
@@ -286,7 +302,7 @@ async function checkExistingContracts(
 function closeAuthPopup(): void {
   if (_authPopup && !_authPopup.closed) {
     console.log('[wapi] closeAuthPopup — sending close_popup to popup')
-    _authPopup.postMessage({ type: 'close_popup' }, '*')
+    _authPopup.postMessage({ type: 'close_popup' }, popupOrigin(_authPopup)!)
   }
 }
 

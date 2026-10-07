@@ -1,10 +1,51 @@
 # October 2026 Audit — Backend (`api/`)
 
+> **Historical snapshot, explicitly superseded (06.10.2026).** The “ON LOCK”
+> statements below were too strong: qualified/CTE SQL escapes, fabricated
+> prepare capabilities, direct service-role reads and pre-latest tombstones
+> contradicted them. Retained for audit history, not as current assurance.
+> Current source-reviewed fixes, local tests and the merges-disabled live
+> direct-read regression are recorded as SEC-001 through SEC-028 in the
+> [findings ledger](../../knowledge-base/web10-v3/security/findings.md).
+> Local RS256/JWKS now exists; foreign issuers fail closed, not federate.
+> Recovery atomicity, stolen self sessions, raw media CRUD and operator
+> rotation/log cleanup remain unresolved. No deployment status is asserted.
+> The original source/default fragments below are historical and abbreviated;
+> do not add real secret values to this record.
+
+> **Refresh:** [SEC-022](../../knowledge-base/web10-v3/security/findings.md)
+> supersedes the intermediate self-only import/blocking description: imports
+> and user blocking now have explicit delegated grants; ratings also delegate
+> through exact `user:rateApps`. Rating test bodies were inspected, not run in
+> this follow-up. Persisted import worker scope/revocation checks passed
+> focused regressions. Current `can_read_group`/`can_write_group` and batched
+> read gates now require effective actual-service `readAll`/`create` grants,
+> not literal membership: **fixed-in-worktree** (SEC-011/013/022). The operator
+> reports **1708 API passes + 5 opt-in live passes**; the inspected live fixture
+> covers point/batch equivalence, service queries and read-only write denial
+> before merges. Independent latest reruns: **not run** in this refresh.
+> SEC-026 manifest SSRF repair is also **fixed-in-worktree**: approved app,
+> all-address validation, pinned IP, HTTPS hostname checks, no redirects/retries,
+> bounded read. Actual network/TLS/proxy validation: **not run**.
+> Existing follower contracts reconcile canonical comment/reaction/media/profile
+> grants; stored custom community/close-friends contracts are not auto-migrated.
+> Exhaustive route composition and atomic revocation remain unproven; no deploy claim.
+
+> **Additional source-only residuals:** SEC-029 documents RTC's unsigned-provider
+> remote-certification fallback and lack of live socket/app revocation; SEC-030
+> documents public/non-atomic setup and config-before-account creation. Media-ref
+> tombstones can still remint URLs (SEC-012/015), queued transcodes retain no app
+> scope (SEC-016), and thumbnail HTTP responses remain uncapped with default
+> redirects (SEC-019). No new execution evidence or closure is claimed.
+
 The node is the trust root. This pass audits the backend against the invariants
 I1–I6 (`knowledge-base/web10-v3/security/overview.md`). Every claim is
 `file:line`-verified against the code.
 
 ## The crown jewels: I3 and the query engine — **ON LOCK**
+
+**Withdrawn historical conclusion:** this heading and the claims below describe
+the original audit, contradicted by SEC-008/009/011/012. They are not current proof.
 
 These two are the part that matters most, and they hold.
 
@@ -186,6 +227,10 @@ body** — and so is any document body being written.
 - **Recommendation:** redact the `token` field from the logged request body
   (it's the one field that is a credential, not data). Keep logging the rest.
 
+**Recommendation withdrawn:** readable-by-design is not permission to persist
+credentials or hosted content in diagnostic logs. Current middleware records safe
+route metadata, not bodies; historical logs and other sinks remain SEC-005 work.
+
 ### B-5 — Medium — CORS is `allow_origins=["*"]` (a load-bearing assumption)
 
 `api/app/main.py:38-43` sets wildcard CORS, and the comment (`:31-37`) explains
@@ -194,6 +239,12 @@ cross-origin page can't exfiltrate it via credentialed CORS. That is correct —
 **as long as no credentialed (cookie/`Authorization`-header) path is ever
 added.** The moment a cookie or header-based auth is introduced, wildcard CORS
 becomes an exfiltration vector.
+
+**Historical claim corrected:** an explicitly supplied bearer `Authorization`
+header is not an ambient credential by itself. Wildcard CORS is not authorization;
+cookie/credentialed transport needs a specific threat review, not a blanket claim
+that adding any header automatically permits exfiltration. Current CORS has
+`allow_credentials=False`; SEC-006 addresses the signed app-scope boundary.
 
 **Recommendation:** this is a defensible design choice, but it is a *load-
 bearing assumption*. Pin it with a test (the `test_cors_trust_boundary.py`
@@ -222,6 +273,10 @@ renewal, or adding a per-token revocation list. Low because the token is
 scoped (I5) and the contract can be revoked.
 
 ## What holds (the good news)
+
+**Original assertions, superseded:** these bullets are historical, not a current
+security summary. In particular the Python fetch repair says nothing about RTC's
+separate remote-200 path (SEC-029), and generic exception text was not safe (SEC-005).
 
 - **I3 is on lock** — the read gate + query boundary are the strongest part.
 - **I2 holds in practice** — all real auth paths verify the signature.

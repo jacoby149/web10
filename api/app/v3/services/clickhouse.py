@@ -941,8 +941,10 @@ def get_document(doc_id: str, author_key: str) -> dict | None:
     """Get a single document by doc_id and author_key."""
     result = client.query(
         "SELECT doc_id, author_key, collection_name, body, ref_value, tags, created_at, updated_at, ad_mode, ad_target "
-        "FROM documents WHERE doc_id = %(doc_id)s AND author_key = %(author_key)s AND deleted = 0 "
-        "ORDER BY updated_at DESC LIMIT 1",
+        "FROM (SELECT *, row_number() OVER (PARTITION BY doc_id, author_key "
+        "ORDER BY updated_at DESC, deleted DESC) AS rn FROM documents "
+        "WHERE doc_id = %(doc_id)s AND author_key = %(author_key)s) "
+        "WHERE rn = 1 AND deleted = 0 LIMIT 1",
         {"doc_id": doc_id, "author_key": author_key},
     )
     if not result.result_rows:
@@ -972,8 +974,9 @@ def get_document_any_author(doc_id: str) -> dict | None:
     """
     result = client.query(
         "SELECT doc_id, author_key, collection_name, body, ref_value, tags, created_at, updated_at "
-        "FROM documents WHERE doc_id = %(doc_id)s AND deleted = 0 "
-        "ORDER BY updated_at DESC LIMIT 1",
+        "FROM (SELECT *, row_number() OVER (PARTITION BY doc_id, author_key "
+        "ORDER BY updated_at DESC, deleted DESC) AS rn FROM documents WHERE doc_id = %(doc_id)s) "
+        "WHERE rn = 1 AND deleted = 0 ORDER BY updated_at DESC LIMIT 1",
         {"doc_id": doc_id},
     )
     if not result.result_rows:
@@ -1018,18 +1021,21 @@ def can_read_carrier_post(media_doc_id: str, media_author: str, reader: str, aut
     The match is against the quoted form.
     """
     result = client.query(
-        "SELECT DISTINCT pg.group_id "
-        "FROM (SELECT doc_id AS post_id FROM ("
-        "SELECT doc_id, row_number() OVER (PARTITION BY doc_id, author_key ORDER BY updated_at DESC) AS rn "
+        "SELECT doc_id, collection_name FROM ("
+        "SELECT doc_id, collection_name, body, deleted, "
+        "row_number() OVER (PARTITION BY doc_id, author_key ORDER BY updated_at DESC, deleted DESC) AS rn "
         "FROM documents "
-        "WHERE author_key = %(author)s AND deleted = 0 "
-        "AND has(JSONExtractArrayRaw(body, 'media_refs'), %(media)s)"
-        ") WHERE rn = 1) posts "
-        "JOIN doc_groups pg ON pg.doc_id = posts.post_id AND pg.deleted = 0",
+        "WHERE author_key = %(author)s"
+        ") WHERE rn = 1 AND deleted = 0 "
+        "AND has(JSONExtractArrayRaw(body, 'media_refs'), %(media)s)",
         {"media": f'"{media_doc_id}"', "author": media_author},
     )
-    group_ids = [row[0] for row in result.result_rows]
-    return any(can_read_group(g, reader, "posts", authenticated) for g in group_ids)
+    for doc_id, service in result.result_rows:
+        if read_document_by_id(doc_id, reader, service, authenticated) and any(
+            can_read_group(g, reader, service, authenticated) for g in get_doc_groups(doc_id)
+        ):
+            return True
+    return False
 
 
 # ---------------------------------------------------------------------------
@@ -1065,7 +1071,9 @@ def replace_doc_groups(doc_id: str, group_ids: list[str]):
 def get_doc_groups(doc_id: str) -> list[str]:
     """Get active group IDs for a document."""
     result = client.query(
-        "SELECT group_id FROM doc_groups WHERE doc_id = %(doc_id)s AND deleted = 0",
+        "SELECT group_id FROM (SELECT group_id, deleted, row_number() OVER "
+        "(PARTITION BY doc_id, group_id ORDER BY updated_at DESC, deleted DESC) AS rn "
+        "FROM doc_groups WHERE doc_id = %(doc_id)s) WHERE rn = 1 AND deleted = 0",
         {"doc_id": doc_id},
     )
     return [row[0] for row in result.result_rows]
@@ -1427,12 +1435,8 @@ def _effective_allows(perms: dict, service: str, op: str) -> bool:
 def can_read_group(group_id: str, principal: str, service: str, authenticated: bool = False) -> bool:
     """Can `principal` read `service` in `group_id` (D58 read gate)?
 
-    A **member** can read all services in the group (membership grants read —
-    the existing behavior; the per-service role scopes *write* access, not
-    read). A **non-member** can read if the `anyone`/`authenticated` grant
-    grants `readAll` on the service (D58: public / signed-in-only groups)."""
-    if is_group_member(group_id, principal):
-        return True
+    The union of member, public, and authenticated grants must grant
+    `readAll` on the service (or the document-service wildcard)."""
     perms = effective_role_perms(group_id, principal, authenticated)
     return _effective_allows(perms, service, "readAll")
 
@@ -1441,15 +1445,8 @@ def can_write_group(group_id: str, principal: str, service: str, authenticated: 
     """Can `principal` create `service` content in `group_id` (D58 write gate —
     closes the attach hole)?
 
-    A **member** can write to the group's content (membership grants write —
-    the existing behavior; the per-service role scopes fine-grained control,
-    e.g. a persona posts AND reacts on the board even though the board's member
-    role lists only `posts`). A **non-member** can write only if the
-    `anyone`/`authenticated` grant grants `create` on the service (a public
-    board where anyone can post) — a bystander of a private group writes
-    nothing (the attach hole stays closed)."""
-    if is_group_member(group_id, principal):
-        return True
+    The union of member, public, and authenticated grants must grant
+    `create` on the service (or the document-service wildcard)."""
     perms = effective_role_perms(group_id, principal, authenticated)
     return _effective_allows(perms, service, "create")
 
@@ -1472,9 +1469,8 @@ def readable_groups_batched(
     people directory — every user's followers group at once).
 
     Identical semantics to :func:`readable_groups` (order-preserving; a group
-    is readable iff the principal is a member, or — for a real principal — the
-    group's ``anyone``/``authenticated`` grant allows ``readAll`` on
-    ``service``), but it resolves the whole candidate set in three batched
+    is readable iff the union of member/public/authenticated roles grants
+    ``readAll`` on ``service``), but it resolves the whole candidate set in three batched
     queries instead of a handful of point queries per group.
 
     Membership is deduped the same way the read path dedupes (latest row per
@@ -1492,13 +1488,13 @@ def readable_groups_batched(
 
     # 1. The principal's own active memberships among the candidates.
     result = client.query(
-        "SELECT group_id FROM (SELECT group_id, deleted, "
+        "SELECT group_id, role FROM (SELECT group_id, role, deleted, "
         "row_number() OVER (PARTITION BY group_id, member_key ORDER BY updated_at DESC, deleted DESC) as rn "
         f"FROM group_members WHERE member_key = %(member_key)s AND group_id IN ({in_clause})) "
         "WHERE rn = 1 AND deleted = 0",
         {"member_key": principal, **params},
     )
-    member_groups = {row[0] for row in result.result_rows}
+    member_roles = {row[0]: row[1] for row in result.result_rows} if principal and principal != "anon" else {}
 
     # 2. The reserved public-class member rows among the candidates.
     class_keys = ["anyone", "anon"]
@@ -1527,16 +1523,17 @@ def readable_groups_batched(
     )
     roles_by_group: dict[str, list[dict]] = {row[0]: _parse_json(row[1]) for row in result.result_rows}
 
-    readable: set[str] = set(member_groups)
+    readable: set[str] = set()
     for gid in gids:
-        if gid in readable:
-            continue
         roles = roles_by_group.get(gid)
         if not roles:
             continue
         roles_by_name = {r.get("name"): r for r in roles if isinstance(r, dict)}
         merged: dict[str, list[str]] = {}
-        for member_key, role_name in class_roles.get(gid, {}).items():
+        role_names = list(class_roles.get(gid, {}).values())
+        if gid in member_roles:
+            role_names.append(member_roles[gid])
+        for role_name in role_names:
             for svc, ops in _normalize_role_perms(roles_by_name.get(role_name, {})).items():
                 bucket = merged.setdefault(svc, [])
                 for op in ops:
@@ -2080,6 +2077,8 @@ def has_permission(user_key: str, allowed_origin: str, service_name: str, operat
     if not perms:
         return False
     service_perms = perms.get(service_name, [])
+    if service_name not in ("group", "node", "user", "imports"):
+        service_perms = [*service_perms, *perms.get("*", [])]
     return operation in service_perms
 
 
@@ -2731,53 +2730,21 @@ def read_ref_counts_by_ref(
 
 
 def read_document_by_id(doc_id: str, member_key: str, service: str, authenticated: bool = False) -> dict | None:
-    """Read a single document by doc_id with group permission check.
+    """Read through the service-role gate and the query engine's full visibility boundary."""
+    from app.v3.services.safe_query import _boundary_cte_sql
 
-    Returns the doc's `ad_mode`/`ad_target` so the caller can serve the pinned
-    ad inline (the post detail deep link is a read — same as the feed read).
-
-    The read gate is the D58 principal-class half (the same gate the board
-    read's `can_read_group` applies): the reader reads the doc if they're a
-    literal member of a group it belongs to, OR the group carries the
-    `anyone` grant (always — the public class), OR the `authenticated` grant
-    (real users). Without the class rows, anon (reader = "anon") can't read a
-    public (discover) post by id — the discover group's public member is the
-    `anyone` class (D58 renamed the legacy `anon` row), so a literal
-    `member_key = "anon"` join 404s. That is the watch page's post read.
-
-    The user_blacklist anti-join dedups first (latest row per key,
-    tombstones included) then filters deleted = 0 — same reason as
-    read_documents_in_groups: a raw `deleted = 0` join keeps matching the
-    stale pre-unblock row until a background merge.
-    """
-    # The reader's allowed member_keys: their own membership + the reserved
-    # public-class rows (anyone — always; authenticated — for real users).
-    class_keys = ["anyone"] + (["authenticated"] if authenticated else [])
-    keys = [member_key, *class_keys]
-    key_ph = ", ".join(f"%(key{i})s" for i in range(len(keys)))
-    params: dict = {
-        "doc_id": doc_id,
-        "coll": service,
-        "member_key": member_key,
-        **{f"key{i}": k for i, k in enumerate(keys)},
-    }
+    groups = readable_groups(member_key, service, authenticated, get_doc_groups(doc_id))
+    # Membership alone is not a service permission, even on legacy read gates.
+    groups = [
+        g for g in groups if _effective_allows(effective_role_perms(g, member_key, authenticated), service, "readAll")
+    ]
+    if not groups:
+        return None
     result = client.query(
-        "SELECT p.doc_id, p.author_key, p.body, p.tags, p.created_at, p.ref_value, p.ad_mode, p.ad_target "
-        "FROM documents p "
-        "LEFT SEMI JOIN ( "
-        "SELECT pg.doc_id FROM doc_groups pg "
-        "JOIN group_members gm ON pg.group_id = gm.group_id "
-        f"WHERE gm.member_key IN ({key_ph}) AND pg.deleted = 0 AND gm.deleted = 0 "
-        ") membership ON membership.doc_id = p.doc_id "
-        "LEFT ANTI JOIN (SELECT user_key, blocked_key FROM (SELECT user_key, blocked_key, deleted, "
-        "row_number() OVER (PARTITION BY user_key, blocked_key ORDER BY updated_at DESC, deleted DESC) AS rn "
-        "FROM user_blacklist) WHERE rn = 1 AND deleted = 0) ub "
-        "ON ub.user_key = p.author_key AND ub.blocked_key = %(member_key)s "
-        "WHERE p.doc_id = %(doc_id)s "
-        "AND p.deleted = 0 "
-        "AND p.collection_name = %(coll)s "
-        "ORDER BY p.updated_at DESC LIMIT 1",
-        params,
+        "SELECT doc_id, author_key, body, tags, created_at, ref_value, ad_mode, ad_target FROM ("
+        + _boundary_cte_sql(service, groups, member_key)
+        + ") WHERE doc_id = %(doc_id)s ORDER BY updated_at DESC LIMIT 1",
+        {"doc_id": doc_id},
     )
     if not result.result_rows:
         return None
@@ -2875,22 +2842,29 @@ def get_active_node_ads() -> list[dict]:
     deployed nodes → the query matched nothing → node ads never attached.)
     """
     try:
+        from app.services.config import list_admins
+
+        admins = list_admins()
+        if not admins:
+            return []
         result = client.query(
             "SELECT doc_id, author_key, body, tags "
             "FROM (SELECT doc_id, author_key, body, tags, deleted, updated_at, "
-            "row_number() OVER (PARTITION BY doc_id, author_key ORDER BY updated_at DESC) AS rn "
+            "row_number() OVER (PARTITION BY doc_id, author_key ORDER BY updated_at DESC, deleted DESC) AS rn "
             "FROM documents "
-            "WHERE has(tags, 'node_ad') AND deleted = 0) "
-            "WHERE rn = 1 "
-            "AND doc_id IN (SELECT pg.doc_id FROM doc_groups pg "
-            "WHERE pg.group_id = %(discover)s AND pg.deleted = 0) "
+            "WHERE author_key IN %(admins)s) "
+            "WHERE rn = 1 AND deleted = 0 AND has(tags, 'node_ad') AND has(tags, 'ad') "
+            "AND JSONExtractString(body, 'status') = 'active' "
+            "AND doc_id IN (SELECT doc_id FROM (SELECT doc_id, deleted, "
+            "row_number() OVER (PARTITION BY doc_id, group_id ORDER BY updated_at DESC, deleted DESC) AS rn "
+            "FROM doc_groups WHERE group_id = %(discover)s) WHERE rn = 1 AND deleted = 0) "
             "ORDER BY updated_at DESC LIMIT 20",
-            {"discover": DISCOVER_GROUP_ID},
+            {"discover": DISCOVER_GROUP_ID, "admins": admins},
         )
         ads = []
         for row in result.result_rows:
             body = _parse_json(row[2])
-            if body.get("status") == "active":
+            if body.get("status") == "active" and row[1] in admins:
                 ads.append(
                     {
                         "doc_id": row[0],
@@ -3122,6 +3096,8 @@ def resolve_media_urls(doc_body: dict, user_key: str) -> dict:
     stale `processing` row meant the feed missed the `transcoding_settings`
     (and the minted manifest_url) and fell back to the raw MP4.
     """
+    from fastapi import HTTPException
+
     media_refs = doc_body.get("media_refs") or []
     if not media_refs:
         return doc_body
@@ -3144,7 +3120,13 @@ def resolve_media_urls(doc_body: dict, user_key: str) -> dict:
     # Build lookup: doc_id -> metadata
     meta_map = {}
     for row in result.result_rows:
-        meta_map[row[0]] = _parse_json(row[1])
+        meta = _parse_json(row[1])
+        try:
+            validate_media_metadata(user_key, meta, require_object_key=False)
+        except HTTPException:
+            log.warning("[media] refusing foreign media keys author=%s doc=%s", user_key, row[0])
+            continue
+        meta_map[row[0]] = meta
 
     # Fresh presigned URLs for every object_key + thumbnail_object_key
     # (offline — no network call).
@@ -3212,7 +3194,7 @@ def _collect_minio_keys(obj, keys: list):
             _collect_minio_keys(item, keys)
 
 
-def _resolve_minio_types(obj, signing_client):
+def _resolve_minio_types(obj, signing_client, author_key=None):
     """Add a fresh presigned `url` to every {type: 'minio', value} leaf value.
 
     Returns a new structure (does not mutate the input). The `value` (object
@@ -3221,20 +3203,25 @@ def _resolve_minio_types(obj, signing_client):
     """
     if isinstance(obj, dict):
         if obj.get("type") == "minio" and obj.get("value"):
-            object_key = str(obj["value"])
+            from app.services.hls import owns_object_key
+
+            object_key = obj["value"]
+            if not owns_object_key(author_key, object_key):
+                log.warning("[media] refusing foreign minio key author=%s", author_key)
+                return {k: v for k, v in obj.items() if k != "url"}
             presigned = signing_client.generate_presigned_url(
                 "get_object",
                 Params={"Bucket": settings.S3_BUCKET, "Key": object_key},
                 ExpiresIn=settings.READ_URL_EXPIRY,
             )
             return {**obj, "url": presigned}
-        return {k: _resolve_minio_types(v, signing_client) for k, v in obj.items()}
+        return {k: _resolve_minio_types(v, signing_client, author_key) for k, v in obj.items()}
     if isinstance(obj, list):
-        return [_resolve_minio_types(item, signing_client) for item in obj]
+        return [_resolve_minio_types(item, signing_client, author_key) for item in obj]
     return obj
 
 
-def resolve_minio_types(doc_body: dict) -> dict:
+def resolve_minio_types(doc_body: dict, author_key: str | None = None) -> dict:
     """Resolve minio types in a document body to fresh presigned URLs.
 
     A body with no minio types is returned unchanged (and no S3 client is
@@ -3245,7 +3232,7 @@ def resolve_minio_types(doc_body: dict) -> dict:
     _collect_minio_keys(doc_body, keys)
     if not keys:
         return doc_body
-    return _resolve_minio_types(doc_body, get_s3_signing_client())
+    return _resolve_minio_types(doc_body, get_s3_signing_client(), author_key)
 
 
 def resolve_media_urls_in_docs(docs: list[dict]) -> list[dict]:
@@ -3264,7 +3251,7 @@ def resolve_media_urls_in_docs(docs: list[dict]) -> list[dict]:
         if body.get("media_refs"):
             author = doc.get("author_key", "")
             body = resolve_media_urls(body, author)
-        body = resolve_minio_types(body)
+        body = resolve_minio_types(body, doc.get("author_key"))
         doc_with_media = dict(doc)
         doc_with_media["body"] = body
         # The v3 pinned ad (inline, `doc["ad"]`) — resolve its media the same
@@ -3275,7 +3262,7 @@ def resolve_media_urls_in_docs(docs: list[dict]) -> list[dict]:
             ad_body = ad.get("body", {})
             if ad_body.get("media_refs"):
                 ad_body = resolve_media_urls(ad_body, ad.get("author_key", ""))
-            ad_body = resolve_minio_types(ad_body)
+            ad_body = resolve_minio_types(ad_body, ad.get("author_key"))
             doc_with_media["ad"] = {**ad, "body": ad_body}
         # The node ad (D57, `doc["node_ad"]`) — resolve its media the same way.
         node_ad = doc.get("node_ad")
@@ -3283,7 +3270,7 @@ def resolve_media_urls_in_docs(docs: list[dict]) -> list[dict]:
             na_body = node_ad.get("body", {})
             if na_body.get("media_refs"):
                 na_body = resolve_media_urls(na_body, node_ad.get("author_key", ""))
-            na_body = resolve_minio_types(na_body)
+            na_body = resolve_minio_types(na_body, node_ad.get("author_key"))
             doc_with_media["node_ad"] = {**node_ad, "body": na_body}
         resolved.append(doc_with_media)
     return resolved
@@ -3904,6 +3891,20 @@ def check_recovery_code(contact: str, code: str) -> bool:
 # ---------------------------------------------------------------------------
 
 
+def validate_media_metadata(user_key: str, metadata: dict, require_object_key: bool = True) -> None:
+    from fastapi import HTTPException
+
+    from app.services.hls import owns_object_key
+
+    keys = []
+    _collect_minio_keys(metadata, keys)
+    keys.extend(metadata[k] for k in ("object_key", "thumbnail_object_key") if metadata.get(k))
+    if (require_object_key and not metadata.get("object_key")) or any(
+        not owns_object_key(user_key, key) for key in keys
+    ):
+        raise HTTPException(status_code=403, detail="media key is not owned by this user")
+
+
 def confirm_media_upload(user_key: str, metadata: dict) -> dict:
     """Confirm a media upload by storing metadata in documents table.
 
@@ -3912,6 +3913,7 @@ def confirm_media_upload(user_key: str, metadata: dict) -> dict:
     every client that maps the response through the V3Document shape
     (web10-social's profile photo upload 500'd into a client TypeError).
     """
+    validate_media_metadata(user_key, metadata)
     now = _now()
     doc_id = _gen_doc_id()
     # Positional insert — must match the documents column count (11, including
@@ -3938,6 +3940,7 @@ def list_media(
     limit: int = 50,
     offset: int = 0,
     doc_ids: list[str] | None = None,
+    services: list[str] | None = None,
 ) -> list[dict]:
     """List media metadata for a user.
 
@@ -3951,7 +3954,12 @@ def list_media(
     rows until a background merge; without the dedup the list served an
     arbitrary version).
     """
-    params: dict = {"user_key": user_key, "limit": limit, "offset": offset}
+    params: dict = {
+        "user_key": user_key,
+        "limit": limit,
+        "offset": offset,
+        "services": services if services is not None else ["media_metadata", "public_media"],
+    }
     doc_id_filter = ""
     if doc_ids:
         placeholders = ", ".join(f"%(d{i})s" for i in range(len(doc_ids)))
@@ -3960,12 +3968,10 @@ def list_media(
     result = client.query(
         "SELECT doc_id, author_key, collection_name, body, ref_value, tags, created_at, updated_at FROM ("
         "SELECT doc_id, author_key, collection_name, body, ref_value, tags, created_at, updated_at, "
-        "row_number() OVER (PARTITION BY doc_id, author_key ORDER BY updated_at DESC) AS rn "
+        "deleted, row_number() OVER (PARTITION BY doc_id, author_key ORDER BY updated_at DESC, deleted DESC) AS rn "
         "FROM documents "
-        "WHERE author_key = %(user_key)s "
-        "AND collection_name IN ('media_metadata', 'public_media') "
-        "AND deleted = 0 " + doc_id_filter + ") "
-        "WHERE rn = 1 ORDER BY created_at DESC "
+        "WHERE author_key = %(user_key)s " + doc_id_filter + ") "
+        "WHERE rn = 1 AND deleted = 0 AND collection_name IN %(services)s ORDER BY created_at DESC "
         "LIMIT %(limit)s OFFSET %(offset)s",
         params,
     )
@@ -3986,12 +3992,31 @@ def list_media(
 
 def delete_media(user_key: str, doc_id: str):
     """Tombstone a media record."""
-    client.command(
-        "INSERT INTO documents (doc_id, author_key, collection_name, body, ref_value, tags, created_at, updated_at, deleted) "
-        "SELECT doc_id, author_key, collection_name, body, ref_value, tags, created_at, now(), 1 "
-        "FROM documents WHERE doc_id = %(doc_id)s AND author_key = %(user_key)s AND deleted = 0",
-        {"doc_id": doc_id, "user_key": user_key},
+    from fastapi import HTTPException
+
+    doc = get_document(doc_id, user_key)
+    if not doc or doc["service"] not in ("media_metadata", "public_media"):
+        raise HTTPException(status_code=404, detail="media record not found")
+    delete_document(doc_id, user_key, doc["service"])
+
+
+def get_media_by_object_key(user_key: str, object_key: str) -> dict | None:
+    """Resolve an owned object to its current media service, not a caller hint."""
+    result = client.query(
+        "SELECT doc_id, collection_name FROM ("
+        "SELECT doc_id, collection_name, body, deleted, "
+        "row_number() OVER (PARTITION BY doc_id, author_key ORDER BY updated_at DESC, deleted DESC) AS rn "
+        "FROM documents WHERE author_key = %(user_key)s) "
+        "WHERE rn = 1 AND deleted = 0 AND collection_name IN ('media_metadata', 'public_media') "
+        "AND (JSONExtractString(body, 'object_key') = %(object_key)s "
+        "OR JSONExtractString(body, 'thumbnail_object_key') = %(object_key)s "
+        "OR JSONExtractString(body, 'video', 'value') = %(object_key)s) LIMIT 1",
+        {"user_key": user_key, "object_key": object_key},
     )
+    if not result.result_rows:
+        return None
+    row = result.result_rows[0]
+    return {"doc_id": row[0], "service": row[1]}
 
 
 # ---------------------------------------------------------------------------

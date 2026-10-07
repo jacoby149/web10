@@ -1,7 +1,11 @@
+import ipaddress
 import json
 import logging
+import re
+import socket
+from urllib.parse import urlsplit
 
-import requests
+import urllib3
 from fastapi import APIRouter, HTTPException, Request
 from fastapi.responses import RedirectResponse
 
@@ -14,10 +18,13 @@ from app.models.config import (
 )
 from app.services import config as config_svc
 from app.services.auth import certify, check_admin, decode_token, get_password_hash
+from app.v3.endpoints.auth_helper import app_contract_origin
 from app.v3.services import clickhouse as ch
 
 router = APIRouter()
 log = logging.getLogger(__name__)
+MODERATION_POLICY_FIELDS = {"sensitive_words", "auto_moderate", "moderation_enabled", "auto_hide_users"}
+MONETIZATION_POLICY_FIELDS = {"node_ad_percentage", "node_ad_overwrite"}
 
 
 @router.post("/")
@@ -136,6 +143,21 @@ def get_config(token: Token):
     operator's own admin surface (check_admin: node-signed JWT + admin
     list), and the panel's job is to show what the node runs.
     """
+    decoded = decode_token(token.token)
+    if decoded.credential_kind == "app":
+        origin = app_contract_origin(token)
+        permissions = ch.get_app_permissions(decoded.username, origin).get("node", [])
+        fields = set()
+        if "moderate" in permissions:
+            check_admin(token, required_capability="moderate")
+            fields.update(MODERATION_POLICY_FIELDS)
+        if "manageMonetization" in permissions:
+            check_admin(token, required_capability="manageMonetization")
+            fields.update(MONETIZATION_POLICY_FIELDS)
+        if not fields:
+            raise HTTPException(status_code=403, detail="App permission denied")
+        cfg = config_svc.effective_config()
+        return {k: v for k, v in cfg.items() if k in fields}
     check_admin(token)
     cfg = config_svc.effective_config()
     safe = {k: v for k, v in cfg.items() if k != "private_key"}
@@ -152,8 +174,9 @@ def am_admin(token: Token):
     admin list to non-admins.
     """
     try:
-        check_admin(token)
-        return {"admin": True}
+        decoded = decode_token(token.token)
+        app_contract_origin(token)
+        return {"admin": config_svc.is_admin(decoded.username)}
     except Exception:
         return {"admin": False}
 
@@ -161,9 +184,18 @@ def am_admin(token: Token):
 @router.post("/config/update", tags=["admin"])
 def patch_config(token: Token, update: ConfigUpdate):
     """Partially update node config (admin only)."""
-    check_admin(token)
-    current = config_svc.get_config()
     changes = update.model_dump(exclude_none=True)
+    decoded = decode_token(token.token)
+    if decoded.credential_kind == "app":
+        if not changes or set(changes) - (MODERATION_POLICY_FIELDS | MONETIZATION_POLICY_FIELDS):
+            raise HTTPException(status_code=403, detail="App cannot change node authority or credentials")
+        if set(changes) & MODERATION_POLICY_FIELDS:
+            check_admin(token, required_capability="moderate")
+        if set(changes) & MONETIZATION_POLICY_FIELDS:
+            check_admin(token, required_capability="manageMonetization")
+    else:
+        check_admin(token)
+    current = config_svc.get_config()
     current.update(changes)
     config_svc.save_config(current)
     return {"status": "updated", "changed": list(changes.keys())}
@@ -258,8 +290,9 @@ def ready():
     try:
         ch.client.command("SELECT 1")
         return {"status": "ok", "configured": config_svc.node_is_configured()}
-    except Exception as e:
-        raise HTTPException(status_code=503, detail=f"DB unreachable: {e}")
+    except Exception:
+        log.exception("[ready] DB unreachable")
+        raise HTTPException(status_code=503, detail="DB unreachable") from None
 
 
 # --- App store listing ---
@@ -275,31 +308,106 @@ def pwa_listing(url: str):
     /manifest.json — so a registered path with or without a trailing slash
     resolves the same (a path IS an app, D47).
     """
-    manifest_url = url.rstrip("/") + "/manifest.json"
     # Hard cap on manifest size (hardening #7): a real PWA manifest is a few
     # KB; an unbounded read is a memory spike the store would absorb on every
     # render. Over the cap → treat as no manifest.
     _MANIFEST_MAX_BYTES = 256 * 1024
     try:
-        with requests.get(manifest_url, headers={"Accept": "application/json"}, timeout=1, stream=True) as resp:
-            resp.raise_for_status()
-            chunks = []
-            total = 0
-            for chunk in resp.iter_content(chunk_size=8192):
-                total += len(chunk)
-                if total > _MANIFEST_MAX_BYTES:
+        # Reject parser ambiguities before either registration lookup or DNS.
+        if any(ord(c) <= 32 or ord(c) == 127 for c in url) or "\\" in url:
+            raise ValueError("invalid URL")
+        parsed = urlsplit(url)
+        host = parsed.hostname
+        if (
+            parsed.scheme not in ("http", "https")
+            or not host
+            or parsed.username is not None
+            or parsed.password is not None
+            or parsed.query
+            or parsed.fragment
+            or "%" in parsed.netloc
+        ):
+            raise ValueError("invalid URL")
+        port = parsed.port or (443 if parsed.scheme == "https" else 80)
+        if parsed.port == 0:
+            raise ValueError("invalid port")
+        host = host.encode("idna").decode("ascii").lower().rstrip(".")
+        try:
+            literal = ipaddress.ip_address(host)
+        except ValueError:
+            # Do not accept libc's legacy inet_aton forms (integer, hex, octal,
+            # shortened IPv4), or single-label / local search-domain names.
+            if (
+                "." not in host
+                or host.endswith((".localhost", ".local", ".internal"))
+                or not re.fullmatch(r"[a-z0-9.-]+", host)
+                or all(re.fullmatch(r"(?:0x[0-9a-f]+|[0-9]+)", p) for p in host.split("."))
+            ):
+                raise ValueError("invalid host")
+        else:
+            if (
+                not literal.is_global
+                or literal.is_multicast
+                or literal.is_reserved
+                or getattr(literal, "ipv4_mapped", None) is not None
+            ):
+                raise ValueError("non-public address")
+        app = ch.get_app(url)
+        if not app or not app.get("approved"):
+            log.info("[pwa_listing] unknown or unapproved app rejected")
+            raise exceptions.NO_PWA
+        addresses = socket.getaddrinfo(host, port, type=socket.SOCK_STREAM)
+        if not addresses:
+            raise ValueError("no DNS addresses")
+        for address in addresses:
+            ip = ipaddress.ip_address(address[4][0])
+            if (
+                not ip.is_global
+                or ip.is_multicast
+                or ip.is_reserved
+                or getattr(ip, "ipv4_mapped", None) is not None
+                or (
+                    ip.version == 6
+                    and (
+                        ip not in ipaddress.ip_network("2000::/3") or ip.sixtofour is not None or ip.teredo is not None
+                    )
+                )
+            ):
+                raise ValueError("non-public DNS address")
+        pinned_ip = addresses[0][4][0]
+        authority = f"[{host}]" if ":" in host else host
+        if parsed.port is not None:
+            authority += f":{port}"
+        pool_type = urllib3.HTTPSConnectionPool if parsed.scheme == "https" else urllib3.HTTPConnectionPool
+        tls = (
+            {"server_hostname": host, "assert_hostname": host, "cert_reqs": "CERT_REQUIRED"}
+            if parsed.scheme == "https"
+            else {}
+        )
+        # The pool's host is a numeric, validated address: connection-time DNS
+        # can never resolve the attacker-controlled hostname a second time.
+        with pool_type(pinned_ip, port=port, timeout=1, **tls) as pool:
+            log.info("[pwa_listing] fetching manifest from pinned public address")
+            resp = pool.urlopen(
+                "GET",
+                (parsed.path.rstrip("/") or "") + "/manifest.json",
+                headers={"Accept": "application/json", "Host": authority},
+                redirect=False,
+                retries=False,
+                preload_content=False,
+            )
+            try:
+                if not 200 <= resp.status < 300:
                     raise exceptions.NO_PWA
-                chunks.append(chunk)
-            return json.loads(b"".join(chunks))
-    except requests.exceptions.RequestException:
-        log.info("[pwa_listing] fetch failed for %s — NO_PWA", manifest_url)
-        raise exceptions.NO_PWA
-    except (json.JSONDecodeError, UnicodeDecodeError):
-        # A 200 with a non-JSON body (an SPA fallback returning HTML, a text
-        # file, ...) means there is no manifest at that path — the store
-        # falls back to the registered name. Not a server error.
-        log.info("[pwa_listing] non-JSON manifest body at %s — NO_PWA", manifest_url)
-        raise exceptions.NO_PWA
+                body = resp.read(_MANIFEST_MAX_BYTES + 1, decode_content=True)
+                if len(body) > _MANIFEST_MAX_BYTES:
+                    raise exceptions.NO_PWA
+                return json.loads(body)
+            finally:
+                resp.close()
+    except (ValueError, UnicodeError, OSError, urllib3.exceptions.HTTPError):
+        log.info("[pwa_listing] invalid destination or manifest fetch failed - NO_PWA")
+        raise exceptions.NO_PWA from None
 
 
 # --- Issue Tracking (bug reports) ---

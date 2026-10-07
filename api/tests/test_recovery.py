@@ -73,7 +73,7 @@ class TestRequest:
             resp = client.post("/v3/recovery/request", json={"contact": "+15551234567"})
         assert resp.status_code == 200
         assert resp.json() == {"sent": True, "kind": "phone"}
-        m.assert_called_once_with("+15551234567")
+        m.assert_called_once_with("15551234567")
 
     def test_request_email_sends_code(self, client):
         with patch("app.services.twilio.send_verification", return_value="VA123") as m:
@@ -166,7 +166,7 @@ class TestComplete:
                 "username": "alice",
                 "phone": "+15551234567",
                 "email": "",
-                "phone_verified": False,
+                "phone_verified": True,
                 "email_verified": False,
             },
         ):
@@ -174,7 +174,7 @@ class TestComplete:
                 resp = client.post("/v3/recovery/complete", json={"verify_token": token, "username": "alice"})
         assert resp.status_code == 200
         assert resp.json()["token"]
-        vp.assert_called_once_with("alice")
+        vp.assert_not_called()
 
     def test_complete_creates_new_account_with_contact(self, client):
         token = _make_verify_token("+15551234567", "phone")
@@ -270,7 +270,7 @@ class TestComplete:
                 "username": "alice",
                 "phone": "15551234567",
                 "email": "",
-                "phone_verified": False,
+                "phone_verified": True,
                 "email_verified": False,
             },
         ):

@@ -38,6 +38,7 @@ app = FastAPI(
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
+    allow_credentials=False,
     allow_methods=["*"],
     allow_headers=["*"],
 )
@@ -142,22 +143,17 @@ async def bare_exception_handler(request: Request, exc: Exception):
     resp = _mapped_response(exc)
     if resp is not None:
         return resp
-    # Unhandled exception. Surface the type + message (and a correlation id) in
-    # the response body so the failure is diagnosable from the browser console
-    # without shelling into the box to read the traceback. This is safe: the
-    # code is open source, so the exception class + message reveal nothing the
-    # source doesn't. The full traceback (which can carry runtime secrets — the
-    # star record's password hash, tokens, another user's data) stays in the
-    # server log ONLY, keyed to the same error_id for correlation.
+    # Exception text and tracebacks can contain runtime credentials. Correlate
+    # the failure without serializing the exception or the request.
     error_id = uuid.uuid4().hex[:12]
-    logging.error(f"{request}: [{error_id}] unhandled {type(exc).__name__}: {exc}", exc_info=True)
+    logging.error("[api] [%s] unhandled exception", error_id)
     return JSONResponse(
         status_code=500,
         content={
             "status_code": 500,
             "message": "internal server error",
-            "error": type(exc).__name__,
-            "detail": str(exc),
+            "error": "internal_server_error",
+            "detail": "internal server error",
             "error_id": error_id,
             "data": None,
         },
@@ -167,10 +163,10 @@ async def bare_exception_handler(request: Request, exc: Exception):
 
 @app.exception_handler(RequestValidationError)
 async def validation_exception_handler(request: Request, exc: RequestValidationError):
-    exc_str = f"{exc}".replace("\n", " ").replace("   ", " ")
-    logging.error(f"{request}: {exc_str}")
+    # Validation input, custom messages and even field locations are untrusted.
+    logging.warning("[api] request validation failed")
     return JSONResponse(
-        content={"status_code": 10422, "message": exc_str, "data": None},
+        content={"status_code": 10422, "message": "request validation failed", "data": None},
         status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
         headers=_with_cors(),
     )

@@ -1,86 +1,61 @@
-import { describe, it, expect, beforeEach } from 'vitest'
-import {
-  vaultToken,
-  getVaultedToken,
-  removeVaultedToken,
-  vaultedAccountsFor,
-} from '../lib/tokenVault'
+import { describe, it, expect, beforeEach } from 'vitest';
+import { vaultToken, getVaultedToken, removeVaultedToken, vaultedAccountsFor } from '../lib/tokenVault';
+
+const jwt = (claims: object) => `${btoa(JSON.stringify({ alg: 'HS256', typ: 'JWT' })).replace(/=/g, '')}.${btoa(JSON.stringify(claims)).replace(/=/g, '')}.signature`;
+const entry = (username: string, provider = 'api.web10.app', revision = 1) => ({ username, provider, token: jwt({
+  username, provider, site: provider, credential_kind: 'self', expires: '2099-01-01T00:00:00Z', revision,
+}) });
 
 describe('tokenVault', () => {
-  beforeEach(() => {
-    localStorage.clear()
-  })
-
-  it('starts empty', () => {
-    expect(vaultedAccountsFor('api.web10.app')).toEqual([])
-  })
-
-  it('vaults a token and reads it back', () => {
-    vaultToken({ username: 'alice', provider: 'api.web10.app', token: 'tok-alice' })
-    expect(getVaultedToken('alice', 'api.web10.app')).toBe('tok-alice')
-  })
-
-  it('returns null for an unknown account', () => {
-    expect(getVaultedToken('nobody', 'api.web10.app')).toBeNull()
-  })
-
-  it('moves a re-vaulted account to the front (most recent first)', () => {
-    vaultToken({ username: 'alice', provider: 'api.web10.app', token: 'tok-a1' })
-    vaultToken({ username: 'bob', provider: 'api.web10.app', token: 'tok-b' })
-    vaultToken({ username: 'alice', provider: 'api.web10.app', token: 'tok-a2' })
-    const accounts = vaultedAccountsFor('api.web10.app')
-    expect(accounts.map((a) => a.username)).toEqual(['alice', 'bob'])
-    // The re-vault replaced the token.
-    expect(getVaultedToken('alice', 'api.web10.app')).toBe('tok-a2')
-  })
-
-  it('dedupes by (provider, username)', () => {
-    vaultToken({ username: 'alice', provider: 'api.web10.app', token: 'tok-a1' })
-    vaultToken({ username: 'alice', provider: 'api.web10.app', token: 'tok-a2' })
-    expect(vaultedAccountsFor('api.web10.app')).toHaveLength(1)
-  })
-
-  it('keeps the same username on a different provider distinct', () => {
-    vaultToken({ username: 'alice', provider: 'api.web10.app', token: 'tok-a' })
-    vaultToken({ username: 'alice', provider: 'api.other.app', token: 'tok-b' })
-    expect(vaultedAccountsFor('api.web10.app')).toHaveLength(1)
-    expect(vaultedAccountsFor('api.other.app')).toHaveLength(1)
-  })
-
-  it('caps at 5, dropping the oldest', () => {
-    for (let i = 1; i <= 6; i++) {
-      vaultToken({ username: `u${i}`, provider: 'api.web10.app', token: `tok-${i}` })
-    }
-    const accounts = vaultedAccountsFor('api.web10.app')
-    expect(accounts).toHaveLength(5)
-    expect(accounts.map((a) => a.username)).toEqual(['u6', 'u5', 'u4', 'u3', 'u2'])
-  })
-
-  it('vaultedAccountsFor filters to the expected provider', () => {
-    vaultToken({ username: 'alice', provider: 'api.web10.app', token: 'tok-a' })
-    vaultToken({ username: 'bob', provider: 'api.other.app', token: 'tok-b' })
-    // Only the token from THIS node is offered for a one-tap switch — a
-    // token from another provider would 401 here.
-    expect(vaultedAccountsFor('api.web10.app').map((a) => a.username)).toEqual(['alice'])
-    // An empty expected provider returns everything (no filtering).
-    expect(vaultedAccountsFor('').map((a) => a.username)).toEqual(['bob', 'alice'])
-  })
-
+  beforeEach(() => localStorage.clear());
+  it('starts empty and returns null for unknown accounts', () => {
+    expect(vaultedAccountsFor('api.web10.app')).toEqual([]);
+    expect(getVaultedToken('nobody', 'api.web10.app')).toBeNull();
+  });
+  it('vaults a self token and reads it back', () => {
+    vaultToken(entry('alice'));
+    expect(getVaultedToken('alice', 'api.web10.app')).toBe(entry('alice').token);
+  });
+  it('replaces and deduplicates an account, moving it to the front', () => {
+    vaultToken(entry('alice'));
+    vaultToken(entry('bob'));
+    vaultToken(entry('alice', 'api.web10.app', 2));
+    expect(vaultedAccountsFor('api.web10.app').map((a) => a.username)).toEqual(['alice', 'bob']);
+    expect(getVaultedToken('alice', 'api.web10.app')).toBe(entry('alice', 'api.web10.app', 2).token);
+  });
+  it('keeps providers distinct and offers only the current provider', () => {
+    vaultToken(entry('alice'));
+    vaultToken(entry('alice', 'api.other.app'));
+    expect(vaultedAccountsFor('api.web10.app')).toEqual([entry('alice')]);
+    expect(vaultedAccountsFor('api.other.app')).toEqual([entry('alice', 'api.other.app')]);
+    expect(vaultedAccountsFor('')).toHaveLength(2);
+  });
+  it('caps at five, dropping the oldest', () => {
+    for (let i = 1; i <= 6; i++) vaultToken(entry(`u${i}`));
+    expect(vaultedAccountsFor('api.web10.app').map((a) => a.username)).toEqual(['u6', 'u5', 'u4', 'u3', 'u2']);
+  });
   it('removes a vaulted token', () => {
-    vaultToken({ username: 'alice', provider: 'api.web10.app', token: 'tok-a' })
-    vaultToken({ username: 'bob', provider: 'api.web10.app', token: 'tok-b' })
-    removeVaultedToken('alice', 'api.web10.app')
-    expect(getVaultedToken('alice', 'api.web10.app')).toBeNull()
-    expect(getVaultedToken('bob', 'api.web10.app')).toBe('tok-b')
-  })
-
-  it('ignores malformed stored data', () => {
-    localStorage.setItem('web10.tokenVault', 'not-json')
-    expect(vaultedAccountsFor('api.web10.app')).toEqual([])
-    localStorage.setItem(
-      'web10.tokenVault',
-      JSON.stringify([{ username: 'x', provider: 'api.web10.app' }]),
-    )
-    expect(vaultedAccountsFor('api.web10.app')).toEqual([])
-  })
-})
+    vaultToken(entry('alice'));
+    vaultToken(entry('bob'));
+    removeVaultedToken('alice', 'api.web10.app');
+    expect(getVaultedToken('alice', 'api.web10.app')).toBeNull();
+    expect(getVaultedToken('bob', 'api.web10.app')).toBe(entry('bob').token);
+  });
+  it.each([
+    { credential_kind: undefined }, { credential_kind: 'app', app_origin: 'https://app.example' },
+    { expires: undefined }, { expires: 'invalid' }, { expires: '2000-01-01T00:00:00Z' },
+    { site: 'auth.web10.app' }, { username: 'bob' }, { provider: 'api.other.app' },
+  ])('purges invalid persisted tokens and rejects new vault entries: %j', (override) => {
+    const invalid = { ...entry('alice'), token: jwt({ username: 'alice', provider: 'api.web10.app', site: 'api.web10.app',
+      credential_kind: 'self', expires: '2099-01-01T00:00:00Z', ...override }) };
+    localStorage.setItem('web10.tokenVault', JSON.stringify([invalid, entry('bob')]));
+    expect(getVaultedToken('alice', 'api.web10.app')).toBeNull();
+    expect(JSON.parse(localStorage.getItem('web10.tokenVault')!)).toEqual([entry('bob')]);
+    vaultToken(invalid);
+    expect(vaultedAccountsFor('api.web10.app')).toEqual([entry('bob')]);
+  });
+  it.each(['not-json', '{}', '[{"username":"x","provider":"api.web10.app","token":"broken"}]'])('ignores malformed storage: %s', (raw) => {
+    localStorage.setItem('web10.tokenVault', raw);
+    expect(vaultedAccountsFor('api.web10.app')).toEqual([]);
+  });
+});

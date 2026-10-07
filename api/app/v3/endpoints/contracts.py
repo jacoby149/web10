@@ -1,7 +1,9 @@
 from fastapi import APIRouter, HTTPException, Request
 
 from app import settings
-from app.v3.endpoints.auth_helper import user as _user
+from app.services.auth import decode_token, validate_app_origin
+from app.v3.endpoints.auth_helper import app_contract_origin
+from app.v3.endpoints.auth_helper import self_user as _user
 from app.v3.models import AddAppContract, RevokeAppContract
 from app.v3.models.common import TokenOnly
 from app.v3.services import clickhouse as ch
@@ -34,15 +36,18 @@ def add_app_contract(request: Request, data: AddAppContract):
             detail="App contract creation is only allowed from the authenticator. Apps must go through the consent popup.",
         )
     user = _user(data)
-    result = ch.add_app_contract(user, data.allowed_origin, data.permissions)
+    origin = validate_app_origin(data.allowed_origin)
+    result = ch.add_app_contract(user, origin, data.permissions)
     return result
 
 
 @router.post("/list")
 def get_app_contracts(data: TokenOnly):
     """Get active app contracts."""
-    user = _user(data)
-    return ch.get_app_contracts(user)
+    decoded = decode_token(data.token)
+    origin = app_contract_origin(data)
+    contracts = ch.get_app_contracts(decoded.username)
+    return [c for c in contracts if c["allowed_origin"] == origin] if origin else contracts
 
 
 @router.post("/revoke")

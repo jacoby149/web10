@@ -13,7 +13,15 @@ the try/except swallows it, so node ads silently never attach.
 
 from unittest.mock import MagicMock, patch
 
+import pytest
+
 from app.v3.services import clickhouse as ch
+
+
+@pytest.fixture(autouse=True)
+def operator_authority():
+    with patch("app.services.config.list_admins", return_value=["nodeops@web10"]):
+        yield
 
 
 def _mock_result_rows(rows):

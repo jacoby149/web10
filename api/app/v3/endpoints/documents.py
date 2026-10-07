@@ -3,9 +3,11 @@ import logging
 from fastapi import APIRouter, HTTPException, Request
 
 import app.exceptions as exceptions
+from app.models.auth import Token
+from app.services.auth import check_admin
 from app.services.hls import hls_prefix, mint_sig
+from app.v3.endpoints.auth_helper import app_contract_origin, user_or_anon
 from app.v3.endpoints.auth_helper import user as _user
-from app.v3.endpoints.auth_helper import user_or_anon
 from app.v3.models import CreateDocument, DeleteDocument, ReadDocuments, UpdateDocument
 from app.v3.services import clickhouse as ch
 from app.v3.services import moderation
@@ -128,11 +130,11 @@ def _mint_hls_manifest_urls(docs: list[dict], reader_key: str, authenticated: bo
     return out
 
 
-def _check_app_permission(request: Request, user_key: str, service: str, operation: str) -> None:
+def _check_app_permission(request: Request, data, user_key: str, service: str, operation: str) -> None:
     """Enforce app contract permissions. Raises 403 if no valid contract."""
-    origin = request.headers.get("origin", "")
-    if not origin:
-        return  # same-origin or direct API call — skip contract check
+    origin = app_contract_origin(data, request)
+    if origin is None:
+        return  # Only the signed self credential carries owner authority.
     if not ch.has_permission(user_key, origin, service, operation):
         raise HTTPException(
             status_code=403,
@@ -144,7 +146,9 @@ def _check_app_permission(request: Request, user_key: str, service: str, operati
 def create_document(request: Request, data: CreateDocument):
     """Create a document in a service. User from JWT. Server generates doc_id."""
     author = _user(data)
-    _check_app_permission(request, author, data.service, "create")
+    _check_app_permission(request, data, author, data.service, "create")
+    if "node_ad" in data.body.get("tags", []):
+        check_admin(Token(token=data.token), required_capability="manageMonetization")
     result = ch.insert_document(
         author_key=author,
         service=data.service,
@@ -191,7 +195,7 @@ def read_documents(request: Request, data: ReadDocuments):
     # class in the effective-role union.
     authenticated = reader != "anon"
     if authenticated:
-        _check_app_permission(request, reader, data.service, "readAll")
+        _check_app_permission(request, data, reader, data.service, "readAll")
 
     if data.doc_id:
         doc = ch.read_document_by_id(data.doc_id, reader, data.service, authenticated)
@@ -288,7 +292,19 @@ def update_document(request: Request, data: UpdateDocument):
     existing = ch.get_document(data.doc_id, author)
     if not existing:
         raise exceptions.ENTRY_NOT_FOUND
-    _check_app_permission(request, author, existing["service"], "updateOwn")
+    _check_app_permission(request, data, author, existing["service"], "updateOwn")
+    if (
+        "node_ad" in existing.get("tags", [])
+        or "node_ad" in existing["body"].get("tags", [])
+        or "node_ad" in data.body.get("tags", [])
+    ):
+        check_admin(Token(token=data.token), required_capability="manageMonetization")
+
+    if data.groups is not None:
+        denied = [g for g in data.groups if not ch.can_write_group(g, author, existing["service"])]
+        if denied:
+            log.warning("[documents] attachment denied doc=%s author=%s groups=%s", data.doc_id, author, denied)
+            raise HTTPException(status_code=403, detail="no write access to the requested group")
 
     merged_body = {**existing["body"], **data.body}
     # Preserve the existing ad preference unless the update sets one.
@@ -321,7 +337,9 @@ def delete_document(request: Request, data: DeleteDocument):
     existing = ch.get_document(data.doc_id, author)
     if not existing:
         raise exceptions.ENTRY_NOT_FOUND
-    _check_app_permission(request, author, existing["service"], "deleteOwn")
+    _check_app_permission(request, data, author, existing["service"], "deleteOwn")
+    if "node_ad" in existing.get("tags", []) or "node_ad" in existing["body"].get("tags", []):
+        check_admin(Token(token=data.token), required_capability="manageMonetization")
 
     ch.delete_document(data.doc_id, author, existing["service"])
     ch.detach_doc_from_groups(data.doc_id)

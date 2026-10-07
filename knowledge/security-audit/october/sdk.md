@@ -1,5 +1,32 @@
 # October 2026 Audit — SDK (`sdk/`)
 
+> **Historical snapshot, superseded where noted (06.10.2026).** S-1/S-6 are
+> addressed in the current worktree by source **and** exact-origin popup
+> binding, not merely the original proposed one-line origin check. D89
+> handoff requires an app-scoped credential; same-user refresh callbacks now
+> update state while identical accepted handoffs are deduplicated. The focused
+> SDK popup suite passed **10 tests** in this documentation pass. UI restoration
+> was source-reviewed, not independently browser-tested here. See
+> [SEC-006, SEC-007 and SEC-023](../../knowledge-base/web10-v3/security/findings.md)
+> for current evidence and remaining XSS/session/revocation risks. S-2's old
+> middleware logging composition is mitigated in the worktree, but historical
+> logs still need operator cleanup. Nothing here claims merged or deployed.
+
+> **Refresh:** the backend now requires exact `user:blockUsers` and
+> `imports:create/read` delegation; rating/review submission now requires exact
+> `user:rateApps`, not self-only access. Its test bodies were inspected, not run
+> in this follow-up. Current SDK `appContractCovers` excludes
+> `group`, `node`, `user`, and `imports` from document wildcard comparison:
+> **fixed-in-worktree**, alongside same-user refresh callbacks and session-shape
+> checks (app kind/origin, username, provider, finite future ISO expiry).
+> The operator reports **184 SDK tests passed**; independent latest rerun and
+> browser E2E: **not run** in this refresh. See
+> [SEC-014/023](../../knowledge-base/web10-v3/security/findings.md) for the
+> separate remaining query namespace-policy issue and XSS/session risks.
+> Canonical role reconciliation fills missing grants in matching named roles;
+> social follower contracts use it, stored custom community/close-friends
+> contracts are not auto-migrated. No merge, deployment or migration claim.
+
 The SDK (`wapi.js`) is the client-side trust surface: it stores the token,
 sends it, and receives it from the auth popup. It is small (~2.4k LOC source)
 and **all of it** is security-relevant. The KB's own security model
@@ -152,7 +179,19 @@ given the design. The 60-day window matches the node's 60-day token TTL
   expiry returns `false` (not expired), matching the server's anon treatment.
   Documented and intentional, not a bug.
 
+**Historical conclusion withdrawn:** malformed expiry is not safe session
+acceptance or anonymous fallback. The helper remains an unverified UX hint;
+current server verification and popup handoff reject unusable non-anonymous
+session expiry (SEC-003/023). The original transport-as-CORS-defense explanation
+also overstates the role of bodies: explicit bearer headers are not ambient
+credentials; signed app scope and live grants are the authorization boundary.
+
 ## The SDK verdict
+
+**Original verdict, superseded:** the proposed origin-only one-line repair was
+insufficient; current popup checks bind both origin and Window source, and hand
+off app credentials only. JS-readable storage, persistent vaults and revocation
+limits remain security risks, not certified-safe cookie behavior (SEC-006/007/023).
 
 The SDK is **mostly sound** — the cookie flags, the body transport, the
 identity-hijack check, and the no-token-in-URL discipline are all correct. The

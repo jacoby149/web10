@@ -60,6 +60,24 @@ const POST_DOC = {
   updated_at: '2026-01-01T00:00:00Z',
 };
 
+describe('delegated node monetization', () => {
+  afterEach(() => {
+    vi.unstubAllGlobals();
+    document.cookie = 'token=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT';
+  });
+
+  it.each([false, true])('a denied policy write explains consent without elevating (overwrite=%s)', async (overwrite) => {
+    document.cookie = 'token=app-jwt; path=/';
+    const request = vi.fn().mockResolvedValue({ ok: false, status: 403,
+      json: async () => ({ detail: 'App permission denied' }) });
+    vi.stubGlobal('fetch', request);
+    await expect(overwrite ? adsCatalog.saveNodeAdOverwrite(true) : adsCatalog.saveNodeAdPercentage(20))
+      .rejects.toThrow('Log in again and approve');
+    expect(request).toHaveBeenCalledTimes(1);
+    expect(JSON.parse(request.mock.calls[0][1].body).token).toEqual({ token: 'app-jwt' });
+  });
+});
+
 describe('splitCatalog', () => {
   it('splits a feed read into ads / albums / posts', () => {
     const out = adsCatalog.splitCatalog([AD_DOC as any, ALBUM_DOC as any, POST_DOC as any]);

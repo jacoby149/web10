@@ -209,15 +209,23 @@ class TestDeliverBugReport:
             patch.object(bugbot.config_svc, "list_admins", return_value=["jacoby149", "ada"]),
         ):
             # get_user → bot present; get_group → groups absent (create both);
-            # is_group_member → member row present (the write gate passes).
+            # The write gate resolves the contract and the bot's member role.
             mock_client.query.side_effect = [
                 _mock_result_rows([("bugbot", "$2b$10$hash", "", 0, "", 0, "t")]),  # get_user
                 _mock_result_rows([]),  # get_group (bot shape, jacoby149)
                 _mock_result_rows([]),  # get_group (admin shape, jacoby149)
-                _mock_result_rows([("bugbot", "member", "t")]),  # is_group_member (jacoby149)
+                _mock_result_rows([("g", ch._json(bugbot.DM_ROLES), "invite_only", 0, [], "hidden", "t", "t")]),
+                _mock_result_rows([]),  # anyone
+                _mock_result_rows([]),  # legacy anon
+                _mock_result_rows([]),  # authenticated
+                _mock_result_rows([("bugbot", "member", "t")]),
                 _mock_result_rows([]),  # get_group (bot shape, ada)
                 _mock_result_rows([]),  # get_group (admin shape, ada)
-                _mock_result_rows([("bugbot", "member", "t")]),  # is_group_member (ada)
+                _mock_result_rows([("g", ch._json(bugbot.DM_ROLES), "invite_only", 0, [], "hidden", "t", "t")]),
+                _mock_result_rows([]),
+                _mock_result_rows([]),
+                _mock_result_rows([]),
+                _mock_result_rows([("bugbot", "member", "t")]),
             ]
             delivered = bugbot.deliver_bug_report(_report())
             assert len(delivered) == 2
@@ -242,7 +250,11 @@ class TestDeliverBugReport:
                 _mock_result_rows([("bugbot", "$2b$10$hash", "", 0, "", 0, "t")]),  # get_user
                 _mock_result_rows([]),  # get_group (bot shape)
                 _mock_result_rows([]),  # get_group (admin shape)
-                _mock_result_rows([("bugbot", "member", "t")]),  # is_group_member
+                _mock_result_rows([("g", ch._json(bugbot.DM_ROLES), "invite_only", 0, [], "hidden", "t", "t")]),
+                _mock_result_rows([]),  # anyone
+                _mock_result_rows([]),  # legacy anon
+                _mock_result_rows([]),  # authenticated
+                _mock_result_rows([("bugbot", "member", "t")]),
             ]
             bugbot.deliver_bug_report(_report())
             doc_row = next(c[0][1][0] for c in mock_client.insert.call_args_list if c[0][0] == "documents")

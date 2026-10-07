@@ -68,7 +68,9 @@ async function adminPost<T>(path: string, body: Record<string, unknown>): Promis
       const d = (await resp.json()) as { detail?: string };
       if (d?.detail) detail = d.detail;
     } catch { /* keep the status */ }
-    throw new Error(detail);
+    throw new Error(detail === 'App permission denied'
+      ? 'Moderation permission is missing. Log in again and approve the requested app permissions; node-admin or group-moderator authority is still required.'
+      : detail);
   }
   return (await resp.json()) as T;
 }
@@ -117,7 +119,9 @@ export async function saveModerationConfig(
       const d = (await resp.json()) as { detail?: string };
       if (d?.detail) detail = d.detail;
     } catch { /* keep the status */ }
-    throw new Error(detail);
+    throw new Error(detail === 'App permission denied'
+      ? 'Moderation permission is missing. Log in again and approve the requested app permissions; node-admin authority is still required.'
+      : detail);
   }
 }
 

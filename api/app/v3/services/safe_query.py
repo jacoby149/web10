@@ -53,6 +53,7 @@ import re
 
 import sqlglot
 from sqlglot import exp
+from sqlglot.optimizer.scope import traverse_scope
 
 DIALECT = "clickhouse"
 
@@ -100,6 +101,13 @@ _CTE_COLUMNS = "doc_id, author_key, body, ref_value, tags, created_at, updated_a
 GROUP_META = "group_meta"
 
 
+def document_service_allowed(service: str, allowed: frozenset[str] | set[str] | None) -> bool:
+    """Document wildcards never grant infrastructure or management namespaces."""
+    return service not in RAW_TABLES | {GROUP_META, "group", "node"} and (
+        allowed is None or service in allowed or "*" in allowed
+    )
+
+
 class UnsafeQueryError(Exception):
     """A caller's query references something it must not. The query is
     rejected and nothing is executed."""
@@ -123,7 +131,7 @@ def _quote_ident(name: str) -> str:
     (backticks) matches the caller's reference (which sqlglot re-emits
     double-quoted) — and sqlglot's ``Table.name`` returns the unquoted name
     either way, so the table walk is unaffected."""
-    return name if _IDENT_SAFE.match(name) else f"`{name}`"
+    return name if _IDENT_SAFE.match(name) else exp.Identifier(this=name, quoted=True).sql(dialect=DIALECT)
 
 
 def _boundary_cte_sql(service: str, readable_groups: list[str], member_key: str) -> str:
@@ -172,7 +180,7 @@ def _boundary_cte_sql(service: str, readable_groups: list[str], member_key: str)
         f"SELECT {_CTE_COLUMNS} FROM ("
         f"SELECT {_CTE_COLUMNS}, deleted, "
         f"row_number() OVER (PARTITION BY doc_id, author_key ORDER BY updated_at DESC) AS rn "
-        f"FROM documents WHERE collection_name = '{service}'"
+        f"FROM documents WHERE collection_name = '{service.replace(chr(39), chr(39) * 2)}'"
         f") WHERE rn = 1 AND deleted = 0"
     )
     dedup_groups = (
@@ -319,15 +327,9 @@ def _group_meta_cte_sql(readable_group_ids: list[str], candidate_group_ids: list
     )
 
 
-def _caller_cte_names(tree: exp.Expression) -> set[str]:
-    """The names of CTEs the caller defines in its own WITH clause."""
-    return {cte.alias_or_name for cte in tree.find_all(exp.CTE) if cte.alias_or_name}
-
-
 def _validate(
     tree: exp.Expression,
     allowed: frozenset[str] | None,
-    caller_ctes: set[str],
     group_meta: bool = False,
 ) -> set[str]:
     """Walk every table reference in the caller's query. Reject raw tables,
@@ -348,8 +350,16 @@ def _validate(
     (``group_members``, ``group_contracts``) stay in ``RAW_TABLES`` and are
     rejected regardless of the flag: the wall extends, it does not weaken."""
     needed: set[str] = set()
+    if any(node.args.get("settings") for node in tree.walk()):
+        raise UnsafeQueryError("caller query settings are not allowed")
+    # A CTE in a nested/sibling query is not visible to the outer query.
+    lexical_cte_tables = {
+        id(table) for scope in traverse_scope(tree) for table in scope.tables if table.name in scope.cte_sources
+    }
     for table in tree.find_all(exp.Table):
         name = table.name
+        if table.args.get("db") is not None or table.args.get("catalog") is not None:
+            raise UnsafeQueryError("database/catalog qualified tables are not allowed")
         if not name:
             # A Table with no name is a table function (file(), numbers(),
             # s3(), ...) — an escape hatch off the node. Reject.
@@ -361,14 +371,16 @@ def _validate(
                 raise UnsafeQueryError(f"query references unknown table '{name}'")
             needed.add(name)
             continue
+        if name in {"group", "node"}:
+            raise UnsafeQueryError(f"query references reserved namespace '{name}'")
         if allowed is not None and name in allowed:
             needed.add(name)
-        elif name in caller_ctes:
+        elif id(table) in lexical_cte_tables:
             continue  # caller-defined CTE, derived from services
-        elif allowed is not None:
-            raise UnsafeQueryError(f"query references unknown table '{name}'")
+        elif document_service_allowed(name, allowed):
+            needed.add(name)
         else:
-            needed.add(name)  # unrestricted: any non-raw table is a service
+            raise UnsafeQueryError(f"query references unknown table '{name}'")
     return needed
 
 
@@ -430,8 +442,7 @@ def query_services(
         raise UnsafeQueryError(f"only SELECT queries are allowed, got {type(tree).__name__}")
 
     # 3. Validate every table reference; collect the services the query uses.
-    caller_ctes = _caller_cte_names(tree)
-    needed = _validate(tree, allowed, caller_ctes, group_meta)
+    needed = _validate(tree, allowed, group_meta)
     needed.discard(GROUP_META)
     return needed
 
@@ -459,11 +470,8 @@ def build_safe_query(
             existing read path.
         allowed_services: the services the caller may query (from the app
             contract). Defaults to the keys of ``readable_groups_by_service``.
-        max_limit: a performance bound, not a security one (the boundary CTEs
-            already wall the data). When set and the query carries no LIMIT
-            of its own, ``LIMIT <max_limit>`` is appended so an unbounded
-            ``SELECT *`` cannot drag a shared node's whole boundary into a
-            single response. A caller-supplied LIMIT is always honored as-is.
+        max_limit: hard result row bound, including caller limits and set
+            operations. Smaller simple limits are preserved.
         group_meta: (QE-A) when set to ``(readable_group_ids,
             candidate_group_ids)``, the query may reference the API-built
             ``group_meta`` CTE (group metadata, visibility-enforced via
@@ -499,8 +507,7 @@ def build_safe_query(
         raise UnsafeQueryError(f"only SELECT queries are allowed, got {type(tree).__name__}")
 
     # 3. Validate every table reference; collect the tables the query uses.
-    caller_ctes = _caller_cte_names(tree)
-    needed = _validate(tree, allowed, caller_ctes, group_meta is not None)
+    needed = _validate(tree, allowed, group_meta is not None)
 
     # 4. Re-emit the (validated) caller query, then inject the boundary CTEs
     #    first so caller CTEs that reference a service resolve.
@@ -522,6 +529,19 @@ def build_safe_query(
         final_sql = f"WITH {', '.join(cte_defs)}, {caller_sql[5:].strip()}"
     else:
         final_sql = f"WITH {', '.join(cte_defs)} {caller_sql}"
+
+    if max_limit is not None and (_has_limit(tree) or not isinstance(tree, exp.Select)):
+        limit = tree.args.get("limit")
+        count = limit.expression if limit is not None else None
+        small_limit = (
+            isinstance(tree, exp.Select)
+            and isinstance(count, exp.Literal)
+            and count.is_int
+            and 0 <= int(count.this) <= max_limit
+            and not limit.args.get("limit_options")
+        )
+        if not small_limit:
+            final_sql = f"SELECT * FROM ({final_sql}) LIMIT {int(max_limit)}"
 
     # 5. Round-trip backstop: the result must re-parse as exactly one
     #    statement (a malformed injection would break this).

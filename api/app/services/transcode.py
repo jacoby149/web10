@@ -25,12 +25,12 @@ from pathlib import Path
 
 import app.settings as settings
 from app.services import media as media_svc
-from app.services.hls import hls_prefix
+from app.services.hls import MAX_MEDIA_BYTES, hls_prefix, owns_object_key
 from app.v3.services import clickhouse as ch
 
 logger = logging.getLogger("web10-transcode")
 
-_job_queue: queue.Queue = queue.Queue()
+_job_queue: queue.Queue = queue.Queue(maxsize=64)
 _start_lock = threading.Lock()
 _started = False
 
@@ -41,7 +41,7 @@ def submit_transcode_job(doc_id: str, author_key: str) -> None:
     re-runs the worker (last write wins on the document)."""
     _ensure_started()
     logger.info("[transcode] job queued — doc_id=%s author=%s queue_size=%s", doc_id, author_key, _job_queue.qsize())
-    _job_queue.put((doc_id, author_key))
+    _job_queue.put_nowait((doc_id, author_key))
 
 
 def start_workers() -> None:
@@ -173,7 +173,7 @@ def _thumbnail_dims(src_w: int, src_h: int, box_w: int = 640, box_h: int = 360) 
 
 
 def _run_ffmpeg(args: list[str], label: str) -> None:
-    cmd = ["ffmpeg", "-hide_banner", "-loglevel", "error", "-y", *args]
+    cmd = ["ffmpeg", "-hide_banner", "-loglevel", "error", "-y", "-protocol_whitelist", "file,pipe", *args]
     logger.info("[transcode] ffmpeg %s — %s", label, " ".join(cmd))
     proc = subprocess.run(cmd, capture_output=True, text=True, timeout=settings.HLS_FFMPEG_TIMEOUT)
     if proc.returncode != 0:
@@ -187,6 +187,8 @@ def _probe_duration(path: Path) -> float:
         proc = subprocess.run(
             [
                 "ffprobe",
+                "-protocol_whitelist",
+                "file,pipe",
                 "-v",
                 "error",
                 "-show_entries",
@@ -212,6 +214,8 @@ def _probe_dimensions(path: Path) -> tuple[int, int, float]:
     proc = subprocess.run(
         [
             "ffprobe",
+            "-protocol_whitelist",
+            "file,pipe",
             "-v",
             "error",
             "-select_streams",
@@ -241,7 +245,9 @@ def _process_job(doc_id: str, author_key: str) -> None:
         raise RuntimeError(f"document {doc_id} not found")
     body = doc["body"]
     video_ref = _find_video_ref(body)
-    object_key = str(video_ref["value"])
+    object_key = video_ref["value"]
+    if not owns_object_key(author_key, object_key):
+        raise RuntimeError("video key is not owned by document author")
     prefix = hls_prefix(object_key)
     renditions = _parse_renditions(settings.HLS_RENDITIONS)
 
@@ -254,12 +260,16 @@ def _process_job(doc_id: str, author_key: str) -> None:
     )
 
     s3 = media_svc.get_s3_client()
+    if not 0 < s3.head_object(Bucket=settings.S3_BUCKET, Key=object_key)["ContentLength"] <= MAX_MEDIA_BYTES:
+        raise RuntimeError("media exceeds upload size limit")
     tmp = Path(tempfile.mkdtemp(prefix="hls-"))
     try:
         # 1. Pull the raw file from the object store (internal endpoint).
         raw_path = tmp / "raw"
         logger.info("[transcode] downloading raw — key=%s", object_key)
         s3.download_file(settings.S3_BUCKET, object_key, str(raw_path))
+        if not 0 < raw_path.stat().st_size <= MAX_MEDIA_BYTES:
+            raise RuntimeError("downloaded media exceeds upload size limit")
         duration = _probe_duration(raw_path)
         src_w, src_h, fps = _probe_dimensions(raw_path)
         logger.info(

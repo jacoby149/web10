@@ -1,42 +1,41 @@
+import json
 import logging
 import time
+from copy import deepcopy
 from datetime import datetime
 from decimal import Decimal
+from uuid import uuid4
 
 from fastapi import APIRouter, HTTPException, Request
+from sqlglot import exp
 
 import app.exceptions as exceptions
 import app.v3.services.safe_query as sq
-from app.v3.endpoints.auth_helper import user_or_anon
+from app.v3.endpoints.auth_helper import app_contract_origin, user_or_anon
 from app.v3.endpoints.documents import _mint_hls_manifest_urls
-from app.v3.models import PrepareFace, PrepareSpec, QueryRequest
+from app.v3.models import PrepareSpec, QueryRequest
 from app.v3.services import clickhouse as ch
 
 router = APIRouter(tags=["query"])
 log = logging.getLogger(__name__)
 
-# Performance bounds, not security (the boundary CTEs are the wall): an
-# unbounded SELECT gets a LIMIT appended, and the query must finish inside
-# the execution time. A caller-supplied LIMIT is always honored as-is.
+# Result size and execution time are bounded regardless of caller SQL.
 MAX_ROWS = 1000
+MAX_RESULT_BYTES = 8 * 1024 * 1024
 MAX_EXECUTION_TIME_S = 10
 
 # Per-user query rate limit (D65): abuse prevention, not security. Keyed on
 # the verified user_key (not IP — the node sits behind a proxy, so XFF is
 # spoofable; D49/D64). In-memory, per-worker (the recovery idiom — a best-
 # effort backstop; N workers ≈ N× the limit). Anon has no verified user_key,
-# so it is not per-user-limited (a separate, deferred concern).
+# so it shares a worker-wide anonymous budget (no spoofable IP headers).
 _QUERY_WINDOW_S = 60
 _MAX_QUERIES_PER_WINDOW = 60
 _query_log: dict[str, list[float]] = {}
 
 
 def _check_query_rate_limit(reader: str) -> None:
-    """Per-user query rate limit. Raises RATE_LIMIT (429) when a user exceeds
-    the budget within the window. Anon is skipped (no verified user_key — the
-    honest key; D65)."""
-    if reader == "anon":
-        return
+    """Per-user budget plus a shared anonymous budget, per worker."""
     now = time.time()
     recent = [t for t in _query_log.get(reader, []) if now - t < _QUERY_WINDOW_S]
     if len(recent) >= _MAX_QUERIES_PER_WINDOW:
@@ -75,68 +74,181 @@ def _serialize_row(row: dict) -> dict:
     return out
 
 
-def _prepare_face(docs: list[dict], face: PrepareFace) -> list[dict]:
-    """Mint the author's face media (D73): presign ``<bodyField>.<mediaField>``,
-    author-scoped to ``<authorColumn>``, set on ``<urlField>``.
-
-    For a query that JOINs the author's profile service, this is the avatar
-    (``profile_body.avatar_ref`` → ``avatar_url``). The face body may be a
-    parsed dict or a JSON string (an aliased ``body`` column the row serializer
-    doesn't parse) — both are handled. A resolve failure degrades to no face
-    (the client renders the fallback initials) — the face is an enhancement.
-    """
-    author_col = face.authorColumn or "author_key"
-    out = []
-    for doc in docs:
-        doc = dict(doc)
-        raw = doc.get(face.bodyField)
-        face_body = raw
-        if isinstance(raw, str):
-            try:
-                face_body = ch._parse_json(raw)
-            except (ValueError, TypeError):
-                face_body = None
-        if not isinstance(face_body, dict):
-            out.append(doc)
+def _canonical_prepare_doc(doc_id, reader, authenticated, services, allowed, candidates=None):
+    """Locate by id, then re-fetch through the full current query read boundary."""
+    if not isinstance(doc_id, str) or not doc_id:
+        return None
+    for service in sorted(services):
+        if not sq.document_service_allowed(service, allowed):
             continue
-        media_ref = face_body.get(face.mediaField)
-        author = doc.get(author_col) or ""
-        if media_ref and author:
-            try:
-                resolved = ch.resolve_media_urls({"media_refs": [media_ref]}, author)
-                refs = resolved.get("media_refs") or []
-                if refs and isinstance(refs[0], dict) and refs[0].get("read_url"):
-                    doc[face.urlField] = refs[0]["read_url"]
-            except Exception as e:
-                log.warning("[query] face resolve failed author=%s: %s", author, e)
-        out.append(doc)
-    return out
+        log.info("[query] canonical read start doc=%s service=%s reader=%s", doc_id, service, reader)
+        located = ch.read_document_by_id(doc_id, reader, service, authenticated)
+        if not located or located.get("doc_id") != doc_id:
+            continue
+        groups = candidates if candidates is not None else ch.get_doc_groups(doc_id)
+        readable = ch.readable_groups(reader, service, authenticated, groups)
+        if not readable:
+            continue
+        sql = (
+            exp.select("*")
+            .from_(exp.Table(this=exp.Identifier(this=service, quoted=True)))
+            .where(exp.column("doc_id").eq(exp.Literal.string(doc_id)))
+            .sql(dialect=sq.DIALECT)
+        )
+        compiled = sq.build_safe_query(
+            sql, {service: readable}, member_key=reader, allowed_services=allowed, max_limit=1
+        )
+        columns, results = ch.execute_query(
+            compiled,
+            settings={
+                "max_execution_time": MAX_EXECUTION_TIME_S,
+                "max_result_rows": 1,
+                "max_result_bytes": MAX_RESULT_BYTES,
+                "result_overflow_mode": "throw",
+                "readonly": 1,
+            },
+        )
+        if not results:
+            log.info("[query] canonical read denied doc=%s service=%s", doc_id, service)
+            continue
+        canonical = _serialize_row(dict(zip(columns, results[0])))
+        if (
+            canonical.get("doc_id") != doc_id
+            or canonical.get("author_key") != located.get("author_key")
+            or not isinstance(canonical.get("body"), dict)
+        ):
+            continue
+        canonical["service"] = service
+        log.info("[query] canonical read authorized doc=%s service=%s", doc_id, service)
+        return canonical
+    return None
 
 
-def _prepare_rows(rows: list[dict], reader: str, prepare: PrepareSpec, authenticated: bool = False) -> list[dict]:
-    """The prepare pass (D73): mint the result rows so a single ``w.query()``
-    returns render-ready rows. Reuses the read path's passes verbatim
-    (``attach_pinned_ads`` + ``attach_node_ads`` + ``resolve_media_urls_in_docs``
-    + ``_mint_hls_manifest_urls``), applied to the query's rows.
-
-    Order matches the read path: ads first (so their media is resolved by the
-    media pass), then media + HLS. The boundary CTEs already proved the reader
-    can read every row, so minting capabilities for them is no escalation.
-    Non-doc rows (aggregates, join columns without ``body``) no-op through the
-    passes (they check ``body`` / ``ad_mode`` and skip).
-    """
-    if not rows:
-        return rows
-    docs = rows
-    if prepare.ads:
-        docs = ch.attach_pinned_ads(docs, reader)
-        docs = ch.attach_node_ads(docs, reader)
-    if prepare.media:
-        docs = ch.resolve_media_urls_in_docs(docs)
-        docs = _mint_hls_manifest_urls(docs, reader, authenticated)
+def _prepare_rows(
+    rows: list[dict],
+    reader: str,
+    prepare: PrepareSpec,
+    authenticated: bool = False,
+    services=(),
+    allowed=None,
+    candidates=None,
+) -> list[dict]:
+    """Preserve query extras, but mint only canonical authorized carrier data."""
     if prepare.face:
-        docs = _prepare_face(docs, prepare.face)
-    return docs
+        face = prepare.face
+        face_cache = {}
+        prepared = []
+        for row in rows:
+            row = dict(row)
+            # Projections are hints, not provenance. Re-prove the author/ref
+            # pair against current service boundary CTEs before signing.
+            row.pop(face.urlField, None)
+            body = row.get(face.bodyField)
+            if isinstance(body, str):
+                try:
+                    body = json.loads(body)
+                except ValueError:
+                    body = None
+            author = row.get(face.authorColumn or "author_key")
+            ref = body.get(face.mediaField) if isinstance(body, dict) else None
+            if isinstance(author, str) and author and isinstance(ref, str) and ref:
+                key = (author, ref)
+                if key not in face_cache:
+                    face_cache[key] = None
+                    for service in sorted(services):
+                        if not sq.document_service_allowed(service, allowed):
+                            continue
+                        readable = ch.readable_groups(reader, service, authenticated, candidates or [])
+                        if not readable:
+                            continue
+                        sql = (
+                            exp.select("doc_id", "author_key", "body")
+                            .from_(exp.Table(this=exp.Identifier(this=service, quoted=True)))
+                            .where(
+                                exp.column("author_key").eq(exp.Literal.string(author)),
+                                exp.Anonymous(
+                                    this="JSONExtractString",
+                                    expressions=[exp.column("body"), exp.Literal.string(face.mediaField)],
+                                ).eq(exp.Literal.string(ref)),
+                            )
+                            .sql(dialect=sq.DIALECT)
+                        )
+                        compiled = sq.build_safe_query(
+                            sql, {service: readable}, member_key=reader, allowed_services=allowed, max_limit=1
+                        )
+                        log.info("[query] canonical face read start service=%s reader=%s", service, reader)
+                        columns, results = ch.execute_query(
+                            compiled,
+                            settings={
+                                "max_execution_time": MAX_EXECUTION_TIME_S,
+                                "max_result_rows": 1,
+                                "max_result_bytes": MAX_RESULT_BYTES,
+                                "result_overflow_mode": "throw",
+                                "readonly": 1,
+                            },
+                        )
+                        if not results:
+                            continue
+                        canonical = _serialize_row(dict(zip(columns, results[0])))
+                        canonical_body = canonical.get("body")
+                        if (
+                            not canonical.get("doc_id")
+                            or canonical.get("author_key") != author
+                            or not isinstance(canonical_body, dict)
+                            or canonical_body.get(face.mediaField) != ref
+                        ):
+                            continue
+                        log.info("[query] canonical face authorized service=%s doc=%s", service, canonical["doc_id"])
+                        resolved = ch.resolve_media_urls({"media_refs": [ref]}, canonical["author_key"])
+                        media = resolved.get("media_refs") or []
+                        if media and isinstance(media[0], dict):
+                            face_cache[key] = media[0].get("read_url")
+                        break
+                    log.info("[query] face prepare resolved=%s reader=%s", bool(face_cache[key]), reader)
+                if face_cache[key]:
+                    row[face.urlField] = face_cache[key]
+            prepared.append(row)
+        rows = prepared
+    if not (prepare.media or prepare.ads):
+        return rows
+    out = []
+    cache = {}
+    for row in rows:
+        doc_id = row.get("doc_id")
+        if not isinstance(doc_id, str) or not doc_id:
+            out.append(row)
+            continue
+        if doc_id not in cache:
+            cache[doc_id] = _canonical_prepare_doc(doc_id, reader, authenticated, services, allowed, candidates)
+        canonical = cache[doc_id]
+        if canonical is None:
+            log.warning("[query] prepare skipped unauthorized carrier doc=%s", doc_id)
+            out.append(row)
+            continue
+        doc = deepcopy(canonical)
+        if prepare.ads:
+            docs = ch.attach_node_ads(ch.attach_pinned_ads([doc], reader), reader)
+            doc = docs[0]
+            # Ad helpers are selectors, not authorization or provenance gates.
+            for key in ("ad", "node_ad"):
+                selected = doc.pop(key, None)
+                if not isinstance(selected, dict):
+                    continue
+                target = selected.get("doc_id")
+                metadata = ch.get_document_any_author(target) if isinstance(target, str) else None
+                if not metadata or not isinstance(metadata.get("service"), str):
+                    continue
+                ad = _canonical_prepare_doc(target, reader, authenticated, [metadata["service"]], allowed)
+                if ad:
+                    doc[key] = ad
+        if prepare.media:
+            doc = _mint_hls_manifest_urls(ch.resolve_media_urls_in_docs([doc]), reader, authenticated)[0]
+        merged = dict(row)
+        for key in ("ad", "node_ad"):
+            merged.pop(key, None)
+        merged.update(doc)
+        out.append(merged)
+    return out
 
 
 @router.post("/query")
@@ -150,20 +262,19 @@ def run_query(request: Request, data: QueryRequest):
     Anon-capable: a missing token reads as the node's `anon` member (the
     public board) — the same rule as the group read (D41: the node is
     readable by design). The app-contract gate applies to real users only,
-    with the same skip rule as the read path (no Origin header = same-origin
-    / direct call = no contract check).
+    based on the signed app origin, never an absent or spoofed Origin header.
     """
     reader = user_or_anon(data)
     authenticated = reader != "anon"
 
     # Per-user rate limit (D65) — fail fast before any contract/group/query
-    # work. Keyed on the verified user_key; anon is skipped.
+    # work. Anon shares a worker-wide budget.
     _check_query_rate_limit(reader)
 
     # App-contract gate: the query may only touch services the app's contract
     # grants readAll on.
-    origin = request.headers.get("origin", "")
-    if authenticated and origin:
+    origin = app_contract_origin(data, request) if authenticated else None
+    if origin is not None:
         perms = ch.get_app_permissions(reader, origin) or {}
         allowed = frozenset(svc for svc, ops in perms.items() if "readAll" in (ops or []))
     else:
@@ -230,25 +341,34 @@ def run_query(request: Request, data: QueryRequest):
         raise HTTPException(status_code=403, detail=str(e))
 
     log.info(
-        "[query] reader=%s services=%s group_meta=%s candidates=%d sql=%s compiled=%s",
+        "[query] reader=%s services=%s group_meta=%s candidates=%d",
         reader,
         sorted(needed),
         bool(data.withGroupMeta),
         len(candidates),
-        data.sql[:200],
-        compiled[:400],
     )
 
     try:
-        column_names, rows = ch.execute_query(compiled, settings={"max_execution_time": MAX_EXECUTION_TIME_S})
-    except ch.QueryExecutionError as e:
-        # The compiled query is structurally safe; a ClickHouse failure here
-        # is the caller's SQL (a column the boundary CTE doesn't expose, a
-        # bad function arg, ...).
-        log.warning("[query] execution failed reader=%s: %s", reader, e)
-        raise HTTPException(status_code=400, detail=f"query execution failed: {e}")
+        column_names, rows = ch.execute_query(
+            compiled,
+            settings={
+                "max_execution_time": MAX_EXECUTION_TIME_S,
+                "max_result_rows": MAX_ROWS,
+                "max_result_bytes": MAX_RESULT_BYTES,
+                "result_overflow_mode": "throw",
+                "readonly": 1,
+            },
+        )
+    except ch.QueryExecutionError:
+        error_id = uuid4().hex
+        log.warning("[query] execution failed reader=%s error_id=%s", reader, error_id)
+        raise HTTPException(status_code=400, detail=f"query execution failed (reference: {error_id})") from None
 
+    if len(rows) > MAX_ROWS:
+        raise HTTPException(status_code=400, detail="query result exceeds row limit")
     out = [_serialize_row(dict(zip(column_names, row))) for row in rows]
+    if len(json.dumps({"rows": out, "count": len(out)}, ensure_ascii=False).encode("utf-8")) > MAX_RESULT_BYTES:
+        raise HTTPException(status_code=400, detail="query result exceeds byte limit")
     # The result column names are the row→client contract: the prepare pass
     # and the client duck-type on `body` / `author_key` / `ad_mode`. A mangled
     # name (ClickHouse qualifies a result column `p.body` when another joined
@@ -261,10 +381,16 @@ def run_query(request: Request, data: QueryRequest):
         len(rows),
         column_names,
     )
-    # The prepare pass (D73): mint media + HLS + ads + face on the result rows
-    # so the query returns render-ready rows in one round-trip (the feed-as-
-    # query pattern). The boundary CTEs already gated the rows (I3); the mint
-    # only touches docs in the result.
     if data.prepare:
-        out = _prepare_rows(out, reader, data.prepare, authenticated)
-    return {"rows": out, "count": len(out)}
+        try:
+            out = _prepare_rows(out, reader, data.prepare, authenticated, needed, allowed, candidates)
+        except ch.QueryExecutionError:
+            error_id = uuid4().hex
+            log.warning("[query] canonical preparation failed reader=%s error_id=%s", reader, error_id)
+            raise HTTPException(
+                status_code=400, detail=f"canonical query preparation failed (reference: {error_id})"
+            ) from None
+    result = {"rows": out, "count": len(out)}
+    if len(json.dumps(result, ensure_ascii=False).encode("utf-8")) > MAX_RESULT_BYTES:
+        raise HTTPException(status_code=400, detail="prepared query result exceeds byte limit")
+    return result

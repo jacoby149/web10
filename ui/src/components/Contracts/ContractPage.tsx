@@ -3,6 +3,7 @@ import AppShell from '../shared/AppShell';
 import RecoveryNudgeBanner from '../shared/RecoveryNudgeBanner';
 import { Button } from '@/components/ui/button';
 import React from 'react';
+import { permissionLabel, hasManagementPermissions, managementWarning } from '@/lib/permissionLabels';
 
 // ── App contract card (v3: one row per origin, permissions is JSON) ──
 
@@ -65,6 +66,7 @@ function AppContractCard({ I, contract }: { I: Record<string, any>; contract: { 
 
       {open && (
         <>
+          {hasManagementPermissions(perms) && <p className="border-t border-warning/30 bg-warning/10 px-4 py-3 text-sm text-foreground">{managementWarning(perms)}</p>}
           <div className="border-b border-border" />
           <div className="px-4 py-3">
             {/* Permissions breakdown — service → operations */}
@@ -78,7 +80,7 @@ function AppContractCard({ I, contract }: { I: Record<string, any>; contract: { 
                       className="inline-flex items-center gap-1 rounded-full bg-brand-muted px-2 py-0.5 text-[11px] font-medium text-brand-300"
                     >
                       <Shield className="h-3 w-3" strokeWidth={2} />
-                      {op}
+                      {permissionLabel(service, op)}
                     </span>
                   ))}
                 </div>
@@ -106,7 +108,7 @@ function AppContractCard({ I, contract }: { I: Record<string, any>; contract: { 
         <div className="border-t border-border px-4 py-3">
           <p className="text-sm text-danger">
             Revoke access for <strong className="text-foreground">{label}</strong>?
-            This app will lose all data access immediately.
+            This app will lose all data and management access on subsequent requests, even with an unexpired app token.
           </p>
           <div className="mt-2 flex gap-2">
             <Button

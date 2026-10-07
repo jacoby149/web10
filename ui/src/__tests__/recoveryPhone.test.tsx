@@ -35,7 +35,8 @@ const mockWapi = {
   readToken: () => ({
     username: 'alice',
     provider: 'api.localhost',
-    site: 'auth.localhost',
+    site: 'api.localhost',
+    credential_kind: 'self',
     expires: new Date(Date.now() + 3600_000).toISOString(),
   }),
   scrubToken: vi.fn(),
@@ -55,7 +56,8 @@ vi.mock('web10-npm', () => ({
     readToken: () => ({
       username: 'alice',
       provider: 'api.localhost',
-      site: 'auth.localhost',
+      site: 'api.localhost',
+      credential_kind: 'self',
       expires: new Date(Date.now() + 3600_000).toISOString(),
     }),
     scrubToken: vi.fn(),

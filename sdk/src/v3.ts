@@ -32,8 +32,24 @@
  */
 
 import { authPost, authGet, Web10Error } from './http'
-import { decodeJwt, readTokenCookie, setTokenCookie, scrubTokenCookie } from './token'
+import { decodeJwt, readTokenCookie, setTokenCookie, scrubTokenCookie, isTokenExpired } from './token'
 import type { TokenPayload } from './types'
+import { trustPopup, trustedPopupMessage } from './popup'
+
+export function appContractCovers(
+  contract: V3ServiceContract,
+  origin: string,
+  permissions: Record<string, string[]>,
+): boolean {
+  if (contract.allowed_origin !== new URL(origin).origin) return false
+  return Object.entries(permissions).every(([service, ops]) => {
+    const granted = new Set(contract.permissions?.[service] ?? [])
+    if (!['group', 'node', 'user', 'imports'].includes(service)) {
+      for (const op of contract.permissions?.['*'] ?? []) granted.add(op)
+    }
+    return ops.every((op) => granted.has(op))
+  })
+}
 
 // ── Options & State ────────────────────────────────────────────────────────
 
@@ -702,6 +718,13 @@ export function createV3Client(options: V3ClientOptions = {}): V3Client {
     },
 
     // ── Auth ──────────────────────────────────────────────────────────────
+
+    async delegateApp(appOrigin: string): Promise<{ token: string }> {
+      console.log('[wapi] delegateApp: requesting app credential', appOrigin)
+      const result = await v3Post<{ token: string }>('delegate', { app_origin: appOrigin })
+      console.log('[wapi] delegateApp: app credential received')
+      return result
+    },
 
     async login(username: string, password: string, site?: string): Promise<V3LoginResponse> {
       const res = await authPost<V3LoginResponse>(
@@ -1386,19 +1409,25 @@ export function createV3Client(options: V3ClientOptions = {}): V3Client {
         return
       }
 
+      const targetOrigin = new URL(authOrigin).origin
+      const openPopup = () => {
+      const currentToken = readTokenCookie() ?? state.token
+      const username = currentToken ? decodeJwt(currentToken)?.username : undefined
+      const as = username ? `&as=${encodeURIComponent(username)}` : ''
       const popup = window.open(
-        `${authOrigin}`,
-        'web10-consent',
+        `${authOrigin}?redirect=${encodeURIComponent(window.location.href)}${as}`,
+        `web10-consent-${Date.now()}-${Math.random().toString(36).slice(2)}`,
         'width=480,height=720,scrollbars=yes',
       )
       if (!popup) {
         if (callback) callback({ status: 'error', errors: ['Popup blocked — allow popups and try again'] })
         return
       }
+      trustPopup(popup, targetOrigin)
 
       // Listen for contract_response from the auth UI
       const responseHandler = (e: MessageEvent) => {
-        if (e.data?.type === 'contract_response') {
+        if (trustedPopupMessage(e, popup) && e.data?.type === 'contract_response') {
           window.removeEventListener('message', responseHandler)
           window.removeEventListener('message', readyHandler)
           clearTimeout(timeoutId)
@@ -1409,10 +1438,10 @@ export function createV3Client(options: V3ClientOptions = {}): V3Client {
 
       // Wait for auth UI to signal readiness before sending contracts
       const readyHandler = (e: MessageEvent) => {
-        if (e.data?.type === 'auth_ready') {
+        if (trustedPopupMessage(e, popup) && e.data?.type === 'auth_ready') {
           window.removeEventListener('message', readyHandler)
           try {
-            popup.postMessage({ type: 'contract', contracts }, authOrigin)
+            popup.postMessage({ type: 'contract', contracts }, targetOrigin)
           } catch {
             window.removeEventListener('message', responseHandler)
             clearTimeout(timeoutId)
@@ -1428,6 +1457,19 @@ export function createV3Client(options: V3ClientOptions = {}): V3Client {
         window.removeEventListener('message', readyHandler)
         callback?.({ status: 'error', errors: ['Auth popup closed — request cancelled'] })
       }, 30000)
+      }
+      const token = state.token ?? readTokenCookie()
+      if (token && !isTokenExpired(token) && contracts.every((c) => c.kind === 'app')) {
+        client.listAppContracts().then((list) => {
+          if (contracts.every((c) => c.kind === 'app' && list.some((ac) => appContractCovers(ac, c.app_origin, c.permissions)))) {
+            console.log('[wapi] contractRequest: active grants cover requested operations')
+            callback?.({ status: 'approved' })
+          } else {
+            console.log('[wapi] contractRequest: consent upgrade required')
+            openPopup()
+          }
+        }).catch(openPopup)
+      } else openPopup()
     },
 
     /**
@@ -1442,9 +1484,15 @@ contracts: V3CR[],
         if (callback) callback({ status: 'error', errors: ['No opener window — not in a popup'] })
         return
       }
+      const opener = window.opener
+      if (!document.referrer) {
+        callback?.({ status: 'error', errors: ['Unknown opener origin'] })
+        return
+      }
+      const openerOrigin = new URL(document.referrer).origin
       if (callback) {
         const handler = (e: MessageEvent) => {
-          if (e.data?.type === 'contract_response') {
+          if (e.source === opener && e.origin === openerOrigin && e.data?.type === 'contract_response') {
             window.removeEventListener('message', handler)
             callback(e.data)
           }
@@ -1453,7 +1501,7 @@ contracts: V3CR[],
       }
       window.opener.postMessage(
         { type: 'contract', contracts },
-        '*',
+        openerOrigin,
       )
     },
   }
@@ -1470,6 +1518,8 @@ contracts: V3CR[],
  * The v3 client interface.
  */
 export interface V3Client {
+  /** Issue an app credential using the current self session; does not store it. */
+  delegateApp(appOrigin: string): Promise<{ token: string }>
   state: {
     apiOrigin: string
     token: string | null

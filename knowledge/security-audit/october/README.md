@@ -1,5 +1,38 @@
 # October 2026 — web10 Security Audit
 
+> **06.10.2026 correction:** the original snapshot and raw reasoning below are
+> retained as historical evidence, not current assurance. Its “I3 is on lock”
+> verdict is **superseded** by verified query, direct-read, capability and
+> delegation findings. The current-tree source/test evidence, stable IDs,
+> remaining gaps and attack hypotheses live in the
+> [security findings ledger](../../knowledge-base/web10-v3/security/findings.md).
+> Fixes described there are **fixed-in-worktree**, not claimed merged or deployed.
+> The original conformance file contains ellipsis-only stubs; its passing does
+> not prove the invariant claims below. Original line numbers and LOC counts
+> refer to 05.10.2026 and must not be used as current code coordinates.
+
+> **Current-tree refresh:** ledger SEC-022 now records delegated imports
+> (`imports:create/read`, persisted scope and worker live-grant checks) and
+> blocking (`user:blockUsers`). Ratings now delegate through exact `user:rateApps`;
+> the new rating test bodies were inspected, not run in this follow-up. Earlier focused runs:
+> **190 alternate-route/import tests + 51 import-delegation tests passed**.
+> Latest source-reviewed group helpers and batching now require effective
+> actual-service `readAll`/`create`, not blanket membership: **fixed-in-worktree**
+> (SEC-009/011/013/022). SDK reserved wildcard comparison now excludes
+> `group`/`node`/`user`/`imports`; refresh callbacks and session shape are fixed
+> (SEC-014/023). Operator-reported latest results: **1708 API passes + 5 opt-in
+> live passes + 184 SDK passes**. Independent latest reruns: **not run** here.
+> SEC-026 manifest fetch repair is **fixed-in-worktree**, not pending; actual
+> network/TLS/proxy validation remains **not run**. The narrower query namespace
+> policy gap remains in SEC-014. Existing follower contracts reconcile canonical
+> comments/reactions/media/profile grants; custom stored community/close-friends
+> contracts are not auto-migrated. Original SEC-001 through SEC-028 remain;
+> SEC-029 records RTC's unsigned-provider/remote-200 certification and revocation
+> gap, and SEC-030 records public/non-atomic bootstrap. SEC-012/015 retain stale
+> media-reference signing; SEC-016 retains queued-transcode authorization limits;
+> SEC-019 retains uncapped thumbnail fetching. These additions are source-only,
+> not new test results, closures or deployment claims.
+
 A line-by-line, invariant-driven security audit of the web10 node. **Backend
 first** (the node is the trust root — if it's on lock, the rest is contained),
 then the **SDK** (the client-side token/cookie/postMessage surface), then the
@@ -27,7 +60,7 @@ each claim is re-checkable.
   today.
 - **Low** — hardening / hygiene.
 
-**What "on lock" means here:** the backend is on lock **for I3** (no query
+**Original, withdrawn assurance wording:** the backend is on lock **for I3** (no query
 returns another user's documents) and **for the query engine** (the caller's
 SQL cannot reach a raw table) — those two are the crown jewels and they hold.
 It is **not** on lock for **I1** (token verification is single-node symmetric
@@ -73,6 +106,9 @@ actually pinned, not just asserted.
 
 ## Findings — summary table
 
+This is the original 05.10.2026 table, not current severity or remediation status.
+Use the SEC ledger for corrected impact, source boundaries and evidence.
+
 | # | Sev | Surface | Finding | Invariant | Status |
 |---|---|---|---|---|---|
 | B-1 | **Critical** | backend | **I1 is single-node symmetric: one shared HS256 key signs + verifies every token. Any node (or anyone with the key) can mint a valid token for any user.** | I1, I5 | Known gap (D7) — **confirmed in code**, see backend.md |
@@ -93,6 +129,10 @@ surface, the markdown render) is **pass 2** — not yet started. The D85 decisio
 the audit verifies that claim against every render surface.
 
 ## The verdict
+
+**Historical verdict, withdrawn:** the bullets below preserve the original
+reasoning, not current assurance. Input-table filtering did not prevent the
+documented SQL/projection escapes, and conformance stubs were not invariant proof.
 
 - **I3 (the data-isolation invariant) is on lock.** The read gate
   (`can_read_group` / `effective_role_perms`, `clickhouse.py:1379-1465`) and the

@@ -16,7 +16,7 @@ export interface Web10Mock {
   decodeJwt: ReturnType<typeof vi.fn>;
   isTokenExpired: ReturnType<typeof vi.fn>;
   /** The client createV3Client returns — assert contractRequest on it. */
-  client: { contractRequest: ReturnType<typeof vi.fn> };
+  client: { contractRequest: ReturnType<typeof vi.fn>; addAppContract: ReturnType<typeof vi.fn> };
 }
 
 export function installWeb10Mock(
@@ -24,7 +24,7 @@ export function installWeb10Mock(
 ): Web10Mock {
   const token = overrides.token ?? null;
   const payload = overrides.payload ?? null;
-  const client = { contractRequest: vi.fn() };
+  const client = { contractRequest: vi.fn(), addAppContract: vi.fn() };
   const mock = {
     createV3Client: vi.fn(() => client),
     openAuthPortal: vi.fn(() => window),

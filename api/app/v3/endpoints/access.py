@@ -15,7 +15,6 @@ every user into a re-auth loop.
 """
 
 import logging
-from datetime import datetime
 
 import jwt
 from fastapi import APIRouter, Request
@@ -48,16 +47,6 @@ def _check_token(token: str | None) -> tuple[str, str | None, str | None]:
     if not decoded.username or decoded.username == "anon":
         # Well-formed but not a user session.
         return "invalid", None, None
-    # User tokens carry a custom `expires` claim (ISO string), NOT the standard
-    # `exp` — PyJWT doesn't check it, so check it here. This mirrors the SDK's
-    # isTokenExpired (the client-side check); the server otherwise would report
-    # a lapsed token as "valid".
-    if decoded.expires:
-        try:
-            if datetime.utcnow() >= datetime.fromisoformat(decoded.expires):
-                return "expired", None, None
-        except ValueError:
-            pass  # unparseable expires — signature still valid, not expired
     provider = decoded.provider or settings.PROVIDER
     return "valid", decoded.username, provider
 
@@ -72,6 +61,9 @@ def verify_access(request: Request, data: VerifySession):
     group) is the app's job, client-side.
     """
     token_state, username, provider = _check_token(data.token)
+    decoded = decode_token(data.token) if token_state == "valid" else None
+    if decoded and decoded.credential_kind == "app" and request.headers.get("origin") not in (None, decoded.app_origin):
+        token_state = "invalid"
 
     # user: exists | not_found | unknown (only checkable with a valid token)
     user_state = "unknown"
@@ -91,15 +83,26 @@ def verify_access(request: Request, data: VerifySession):
             user_state = "unknown"
 
         # --- app-contract check (needs the request Origin) ---
-        if data.services:
+        if data.services or decoded.credential_kind == "app":
             contract_checked = True
-            origin = request.headers.get("origin", "")
+            origin = decoded.app_origin if decoded.credential_kind == "app" else request.headers.get("origin", "")
             try:
                 perms = ch.get_app_permissions(username, origin)
                 missing_services = [
-                    svc for svc in data.services if not all(op in perms.get(svc, []) for op in data.operations)
+                    svc
+                    for svc in data.services
+                    if not all(
+                        op
+                        in [
+                            *perms.get(svc, []),
+                            *(perms.get("*", []) if svc not in ("group", "node", "user", "imports") else []),
+                        ]
+                        for op in data.operations
+                    )
                 ]
-                if not missing_services:
+                if decoded.credential_kind == "app" and not ch.is_origin_allowed(username, origin):
+                    contract_state = "missing"
+                elif not missing_services:
                     contract_state = "granted"
                 elif len(missing_services) < len(data.services):
                     contract_state = "partial"

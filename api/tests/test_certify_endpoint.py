@@ -42,6 +42,7 @@ def _token(provider: str, key: str, minutes_from_now: int = 60) -> str:
         "site": "auth.localhost",
         "target": settings.PROVIDER,
         "provider": provider,
+        "credential_kind": "self",
         "expires": (datetime.datetime.utcnow() + datetime.timedelta(minutes=minutes_from_now)).isoformat(),
     }
     return jwt.encode(payload, key, algorithm=settings.ALGORITHM)

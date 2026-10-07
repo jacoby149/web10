@@ -18,6 +18,8 @@
 // signed by that node) — `vaultedAccountsFor` filters by the expected
 // provider so the picker never offers a one-tap switch that would 401.
 
+import { decodeSessionClaims, isSelfSession } from './sessionClaims';
+
 export interface VaultedToken {
   username: string;
   provider: string;
@@ -33,12 +35,13 @@ function read(): VaultedToken[] {
     if (!raw) return [];
     const parsed = JSON.parse(raw);
     if (!Array.isArray(parsed)) return [];
-    return parsed.filter(
-      (a): a is VaultedToken =>
-        !!a && typeof a.username === 'string' && a.username.length > 0 &&
-        typeof a.provider === 'string' && a.provider.length > 0 &&
-        typeof a.token === 'string' && a.token.length > 0,
-    );
+    const valid = parsed.filter((a): a is VaultedToken => {
+      if (!a || typeof a.username !== 'string' || typeof a.provider !== 'string') return false;
+      const claims = decodeSessionClaims(a.token);
+      return isSelfSession(claims, a.provider) && claims.username === a.username;
+    });
+    if (valid.length !== parsed.length) write(valid);
+    return valid;
   } catch {
     return [];
   }
@@ -59,7 +62,11 @@ function keyOf(username: string, provider: string): string {
 // Upsert: move the account to the front (most recent), dedup by
 // (provider, username), cap at MAX.
 export function vaultToken(entry: VaultedToken): void {
-  if (!entry || !entry.username || !entry.provider || !entry.token) return;
+  const claims = decodeSessionClaims(entry?.token);
+  if (!entry || !isSelfSession(claims, entry.provider) || claims.username !== entry.username) {
+    if (entry?.username && entry?.provider) removeVaultedToken(entry.username, entry.provider);
+    return;
+  }
   const rest = read().filter(
     (a) => keyOf(a.username, a.provider) !== keyOf(entry.username, entry.provider),
   );

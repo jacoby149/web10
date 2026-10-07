@@ -139,7 +139,7 @@ class TestKosher:
 
 
 class TestDecodeToken:
-    def test_decode_without_verification(self):
+    def test_decode_cannot_disable_verification(self):
         payload = {
             "username": "u1",
             "site": "s1",
@@ -148,11 +148,8 @@ class TestDecodeToken:
             "expires": "2099-01-01T00:00:00",
         }
         token = jwt.encode(payload, "any-key", algorithm="HS256")
-        data = decode_token(token, private_key=False)
-        assert data.username == "u1"
-        assert data.site == "s1"
-        assert data.target == "t1"
-        assert data.provider == "p1"
+        with pytest.raises(jwt.InvalidTokenError):
+            decode_token(token, private_key=False)
 
     def test_decode_with_private_key(self, valid_token, valid_token_payload):
         data = decode_token(valid_token, private_key=True)

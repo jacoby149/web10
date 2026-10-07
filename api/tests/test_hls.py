@@ -17,6 +17,13 @@ import app.settings as settings
 from app.main import app as fastapi_app
 from app.services import hls, transcode
 
+
+@pytest.fixture(autouse=True)
+def explicit_test_signing_key(monkeypatch):
+    monkeypatch.delenv("HLS_SIGNING_KEY", raising=False)
+    monkeypatch.setattr(settings, "PRIVATE_KEY", "media-test-explicit-secret-32-bytes-long")
+
+
 # ---------------------------------------------------------------------------
 # Pure helpers
 # ---------------------------------------------------------------------------
@@ -69,7 +76,9 @@ class TestSig:
         # A valid node token (different secret shape is impossible — same
         # secret — but a token WITHOUT the hls claims must be rejected).
         foreign = jwt.encode(
-            {"username": "alice", "doc_id": "doc-1"}, settings.PRIVATE_KEY, algorithm=settings.ALGORITHM
+            {"username": "alice", "doc_id": "doc-1", "iat": 1, "exp": 9999999999},
+            settings.PRIVATE_KEY,
+            algorithm=settings.ALGORITHM,
         )
         with pytest.raises(ValueError, match="malformed"):
             hls.verify_sig(foreign, "doc-1")
@@ -379,7 +388,8 @@ class TestCanViewDoc:
         with (
             patch("app.services.hls.ch.get_document_any_author", return_value=self._media_doc()),
             patch("app.services.hls.ch.get_doc_groups", return_value=["g/media"]),
-            patch("app.services.hls.ch.is_group_member", return_value=True),
+            patch("app.services.hls.ch.can_read_group", return_value=True),
+            patch("app.services.hls.ch.read_document_by_id", return_value=self._media_doc()),
             patch("app.services.hls.ch.can_read_carrier_post") as carrier,
         ):
             assert hls.can_view_doc("media-1", "bob") is not None
@@ -470,7 +480,7 @@ def _doc_with_hls():
 
 @pytest.fixture
 def client():
-    with patch("app.v3.services.clickhouse.client"):
+    with patch("app.v3.services.clickhouse.client"), patch("app.v3.endpoints.media._user", return_value="alice"):
         yield TestClient(fastapi_app)
 
 
@@ -640,6 +650,7 @@ def _make_token(username="alice", **extra):
         "site": "auth.localhost",
         "target": settings.PROVIDER,
         "provider": settings.PROVIDER,
+        "credential_kind": "self",
         "expires": (datetime.utcnow() + timedelta(minutes=60)).isoformat(),
         **extra,
     }

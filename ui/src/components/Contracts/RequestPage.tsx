@@ -3,6 +3,7 @@ import React from 'react';
 import { CircleCheck } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import { permissionLabel, hasManagementPermissions, managementWarning } from '@/lib/permissionLabels';
 
 // Derive a readable origin label from the ACR's allowed_origin.
 function originLabel(origin: string): string {
@@ -38,7 +39,7 @@ function Requests({ I }: { I: Record<string, any> }) {
         </div>
       ) : (
         pendingACRs.map((acr: any, idx: number) => {
-          const origin = acr.allowed_origin;
+          const origin = acr.app_origin || acr.allowed_origin;
           const perms = acr.permissions || {};
           const services = Object.keys(perms);
 
@@ -52,6 +53,7 @@ function Requests({ I }: { I: Record<string, any> }) {
                   <span className="font-medium text-foreground">{originLabel(origin)}</span>
                 </div>
                 <div className="p-4">
+                  {hasManagementPermissions(perms) && <p className="mb-4 rounded border border-warning/30 bg-warning/10 px-4 py-3 text-sm text-foreground">{managementWarning(perms)}</p>}
                   <div className="mb-2">
                     <span className="text-sm font-medium text-muted-foreground">Site:</span>
                     <div className="mt-1 flex flex-wrap gap-1.5">
@@ -63,7 +65,7 @@ function Requests({ I }: { I: Record<string, any> }) {
                       <span className="text-sm font-medium text-muted-foreground">Permissions ({svc}):</span>
                       <div className="mt-1 flex flex-wrap gap-1.5">
                         {(perms[svc] || []).map((p: string, i: number) => (
-                          <Badge key={i} variant="success">{p}</Badge>
+                          <Badge key={i} variant="success">{permissionLabel(svc, p)}</Badge>
                         ))}
                       </div>
                     </div>

@@ -1,6 +1,7 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import * as v3 from '../../data/v3';
 import * as groups from '../../data/groups';
+import { startConversation } from '../../data/dms';
 
 function mockV3Client() {
   const mock = {
@@ -49,6 +50,19 @@ describe('dms v3 data layer', () => {
   });
 
   describe('sendDm (v3: create post in DM group)', () => {
+    it('the actual conversation flow creates explicit equal-member roles without management', async () => {
+      mock.getMyGroups.mockResolvedValue([]);
+      mock.createGroup.mockResolvedValue({ group_id: 'web10.app/groups/users/alice/dm-alice-bob' });
+      mock.create.mockResolvedValue({ doc_id: 'dm1', author_key: 'alice', body: { message: 'hello' } });
+      await startConversation({ username: 'bob', provider: 'web10.app' }, 'hello');
+      expect(mock.createGroup.mock.calls[0][2]).toEqual([{
+        name: 'member', permissions: {
+          posts: ['readAll', 'create', 'updateOwn', 'deleteOwn'],
+          comments: ['readAll', 'create', 'updateOwn', 'deleteOwn'],
+        },
+      }]);
+    });
+
     it('creates a post in the DM group', async () => {
       const doc = { doc_id: 'dm1', body: { message: 'hello' } };
       mock.create.mockResolvedValue(doc);

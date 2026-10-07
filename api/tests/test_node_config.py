@@ -33,6 +33,7 @@ def token():
         "site": "auth.localhost",
         "target": settings.PROVIDER,
         "provider": settings.PROVIDER,
+        "credential_kind": "self",
         "expires": (datetime.utcnow() + timedelta(minutes=60)).isoformat(),
     }
     return jwt.encode(payload, settings.PRIVATE_KEY, algorithm=settings.ALGORITHM)
@@ -87,14 +88,13 @@ class TestListAdmins:
             admins = config_svc.list_admins()
         assert list(settings.DEFAULT_ADMINS) == admins
 
-    def test_config_admins_union_with_baseline(self, client):
+    def test_config_admins_replace_baseline(self, client):
         from app.services import config as config_svc
 
         with patch("app.v3.services.clickhouse.client") as mock_ch:
             mock_ch.query.return_value = _config_result({"admins": ["otheradmin"]})
             admins = config_svc.list_admins()
-        assert "otheradmin" in admins
-        assert all(a in admins for a in settings.DEFAULT_ADMINS)
+        assert admins == ["otheradmin"]
 
     def test_is_admin(self, client):
         from app.services import config as config_svc
@@ -252,7 +252,7 @@ class TestGetConfigEndpoint:
         assert data["db_name"] == settings.CLICKHOUSE_DATABASE
         assert "private_key" not in data
         assert "testuser" in data["admins"]
-        assert all(a in data["admins"] for a in settings.DEFAULT_ADMINS)
+        assert data["admins"] == ["testuser"]
 
     def test_saved_values_surface_to_admin(self, client, token):
         with patch("app.v3.services.clickhouse.client") as mock_ch:
@@ -435,6 +435,7 @@ class TestMarketingEvents:
                 "site": "auth.localhost",
                 "target": settings.PROVIDER,
                 "provider": settings.PROVIDER,
+                "credential_kind": "self",
                 "expires": (datetime.utcnow() + timedelta(minutes=60)).isoformat(),
             },
             settings.PRIVATE_KEY,

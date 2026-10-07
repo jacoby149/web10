@@ -162,6 +162,30 @@ describe('follows v3 data layer', () => {
       expect(mock.getMyGroups).not.toHaveBeenCalled();
     });
 
+    it('creation and reconciliation share explicit audience services without member management', async () => {
+      mock.getGroup.mockRejectedValueOnce(new Error('not found'));
+      mock.createGroup.mockResolvedValue({ group_id: 'web10.app/groups/users/alice/followers' });
+      await groups.ensureFollowers('alice');
+      const createdRoles = mock.createGroup.mock.calls[0][2];
+      const member = createdRoles.find((role: any) => role.name === 'member');
+      expect(member.permissions).toEqual({
+        posts: ['readAll'], profile: ['readAll'],
+        comments: ['readAll', 'create', 'updateOwn', 'deleteOwn'],
+        reactions: ['readAll', 'create', 'updateOwn', 'deleteOwn'],
+        media_metadata: ['readAll'], public_media: ['readAll'],
+      });
+      expect(member.permissions.group).toBeUndefined();
+      expect(member.permissions['*']).toBeUndefined();
+      expect(createdRoles.find((role: any) => role.name === 'reader').permissions)
+        .toEqual({ profile: ['readAll'] });
+      mock.getGroup.mockResolvedValue({ group_id: 'web10.app/groups/users/alice/followers' });
+      mock.getMyGroups.mockResolvedValue([{ group_id: 'web10.app/groups/users/alice/followers', my_role: 'owner' }]);
+      mock.reconcileGroupContract.mockResolvedValue({ healed: false });
+      await groups.ensureFollowers('alice');
+      expect(mock.reconcileGroupContract.mock.calls[0][1].roles).toEqual(createdRoles);
+      expect(mock.reconcileGroupContract.mock.calls[0][1].members).toBeUndefined();
+    });
+
     it('returns existing group if it exists and the user is a member, and self-heals the contract', async () => {
       mock.getGroup.mockResolvedValue({ group_id: 'web10.app/groups/users/alice/followers' });
       mock.getMyGroups.mockResolvedValue([

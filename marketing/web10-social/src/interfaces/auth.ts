@@ -3,9 +3,9 @@
 // (docs/hello/script.js is the reference): openAuthPortal opens the popup,
 // contractRequest sends the app contract into it (reusing the popup, never a
 // second blocked window), and authListen hands back the token into the
-// `token=` cookie. The SDK's authListen dedupes (D45) — the callback fires
-// only on a real transition (first login), not on the redundant same-user
-// delivery from the lazy group popup.
+// `token=` cookie. The SDK's authListen dedupes identical accepted tokens,
+// not usernames: a distinct accepted token for the same user fires the
+// callback too, so refreshed app credentials reach the data client.
 //
 // The SDK surface comes from the self-hosted browser build at /wapi.js
 // (window.web10 — index.html loads it before the app bundle). The ESM
@@ -23,6 +23,7 @@
 
 import { API_ORIGIN, AUTH_ORIGIN } from '../lib/origins';
 import { getV3Client } from '../data/v3';
+import { SOCIAL_PERMISSIONS } from './permissions';
 import type { TokenPayload, V3AppCR, V3Client } from 'web10-npm';
 
 const LOG = (...args: unknown[]) => console.log('[social]', ...args);
@@ -35,53 +36,19 @@ export interface SocialAuth {
   isSignedIn: () => boolean;
   /** Scrub the token cookie (the session is cookie-backed). */
   signOut: () => void;
-  /** Register the signed-in callback (D45-deduped by the SDK). */
+  /** Register the callback for each distinct token accepted by the SDK. */
   authListen: (callback: () => void) => void;
   /** Decode the cookie token — null when signed out. */
   readToken: () => { provider: string; username: string } | null;
 }
 
-// The v3 services the data layer (src/data/*) touches. The app contract
-// grants this app's origin these services on the user's node; the API
-// enforces per-service operations on the request Origin header
-// (api/app/v3/endpoints/documents.py).
-const SOCIAL_SERVICES = [
-  'posts',
-  'media',
-  'public_media',
-  'profile',
-  'settings',
-  'comments',
-  'reactions',
-  'contacts',
-  'staging_posts',
-  // The group's face (D60) — documents in an app-named service, written by
-  // the create-group flow + the face editor (writeGroupIdentity). Without it
-  // in the contract, every group create/edit 403s at the app-contract gate
-  // ("No app contract … to create on web10-social-group-identity").
-  'web10-social-group-identity',
-  // The D69 notification store — a `notifications` doc (the last_seen cursor)
-  // in the followers group, read/created/updated by the notification store.
-  'notifications',
-  // The saved-collection store (D88) — a `saved` doc (a ref_value pointer at a
-  // post) in a collection group, written by the "Save to…" action + read by the
-  // Saved tab / collection view. Without it in the contract, every save/read
-  // 403s at the app-contract gate (the API does strict per-service matching).
-  'saved',
-] as const;
-
-// The four operations the documents endpoint enforces (create / read /
-// update / delete).
-const SOCIAL_OPERATIONS = ['create', 'readAll', 'updateOwn', 'deleteOwn'] as const;
-
 function socialAppContract(): V3AppCR {
   return {
     kind: 'app',
-    // The origin that actually makes the API calls — the API matches the
-    // request Origin header against allowed_origin exactly.
+    // D89 binds the app credential and active contract to this exact origin.
     app_origin: window.location.origin,
     permissions: Object.fromEntries(
-      SOCIAL_SERVICES.map((service) => [service, [...SOCIAL_OPERATIONS]]),
+      Object.entries(SOCIAL_PERMISSIONS).map(([service, operations]) => [service, [...operations]]),
     ),
   };
 }
@@ -169,16 +136,14 @@ function createSocialAuth(): SocialAuth {
       LOG('authListen fired — signed in as', JSON.stringify(readToken()));
       // The SDK's authListen set the cookie but not the data client's
       // state.token (its v3Post is state-first). Re-sync state with the
-      // cookie so a same-session re-login acts as the NEW user, not the
-      // previous one — the successor to the old adapter's
-      // syncDataLayerToken mirror.
+      // cookie on every distinct accepted token, including same-user refreshes.
       const token = web10.readTokenCookie();
       if (token) {
         getV3Client().setToken(token);
         LOG('authListen — data client token re-synced from cookie');
       }
       callback();
-    });
+    }, { apiOrigin });
   }
 
   return { login, isSignedIn, signOut, authListen, readToken };

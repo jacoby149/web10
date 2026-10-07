@@ -5,6 +5,7 @@ mocked; the tests pin the endpoint's contract (validation, ownership, the
 presigned-upload shape, the start gating).
 """
 
+import queue
 from datetime import datetime
 from unittest.mock import MagicMock, patch
 
@@ -23,6 +24,7 @@ def _make_token(username="testuser", **extra):
         "site": "auth.localhost",
         "target": settings.PROVIDER,
         "provider": settings.PROVIDER,
+        "credential_kind": "self",
         "expires": (datetime.utcnow() + __import__("datetime").timedelta(minutes=60)).isoformat(),
         **extra,
     }
@@ -31,7 +33,13 @@ def _make_token(username="testuser", **extra):
 
 @pytest.fixture
 def client():
-    with patch("app.v3.services.clickhouse.client"):
+    with (
+        patch("app.v3.services.clickhouse.client"),
+        patch.object(iw.ch, "get_group", return_value=None),
+        patch.object(iw.ch, "can_write_group", return_value=True),
+        patch.object(iw.ch, "has_mgmt_permission", return_value=True),
+        patch.object(iw, "update_import_job", return_value={}),
+    ):
         yield TestClient(fastapi_app)
 
 
@@ -56,6 +64,7 @@ def _job(user="testuser", phase=iw.PENDING, keys=None):
         "message": "m",
         "created_at": "2026-01-01T00:00:00",
         "updated_at": "2026-01-01T00:00:00",
+        "authorization": {"credential_kind": "self", "expires": "2099-01-01T00:00:00Z"},
     }
 
 
@@ -129,6 +138,8 @@ class TestCreate:
         # the job was created with the object keys
         args, _ = create.call_args
         assert len(args[3]) == 2  # object_keys
+        for call in signer.return_value.generate_presigned_post.call_args_list:
+            assert ["content-length-range", 1, iw.MAX_PART_BYTES] in call.kwargs["Conditions"]
 
     def test_invalid_token(self, client):
         # A present-but-invalid token is a 401 (a missing token is a 422
@@ -229,6 +240,7 @@ class TestStart:
         def head(Bucket, Key):
             if Key == "k2":
                 raise Exception("404")
+            return {"ContentLength": 1}
 
         s3.head_object.side_effect = head
         with (
@@ -242,6 +254,7 @@ class TestStart:
     def test_happy_path(self, client, token):
         keys = ["k1"]
         s3 = MagicMock()
+        s3.head_object.return_value = {"ContentLength": iw.MAX_PART_BYTES}
         with (
             patch("app.v3.services.import_worker.get_import_job", return_value=_job(keys=keys)),
             patch("app.v3.endpoints.imports.get_s3_client", return_value=s3),
@@ -258,6 +271,42 @@ class TestStart:
             resp = client.post("/v3/imports/start", json={"token": token, "job_id": "job-1"})
         assert resp.status_code == 200
         assert resp.json()["status"] == "complete"
+
+    @pytest.mark.parametrize("size", [0, iw.MAX_PART_BYTES + 1])
+    def test_oversized_storage_part(self, client, token, size):
+        with (
+            patch.object(iw, "get_import_job", return_value=_job(keys=["k"])),
+            patch("app.v3.endpoints.imports.get_s3_client") as s3,
+            patch.object(iw, "submit_import_job") as submit,
+        ):
+            s3.return_value.head_object.return_value = {"ContentLength": size}
+            resp = client.post("/v3/imports/start", json={"token": token, "job_id": "job-1"})
+        assert resp.status_code == 413
+        submit.assert_not_called()
+
+    def test_queue_full(self, client, token):
+        with (
+            patch.object(iw, "get_import_job", return_value=_job(keys=["k"])),
+            patch("app.v3.endpoints.imports.get_s3_client") as s3,
+            patch.object(iw, "submit_import_job", side_effect=queue.Full),
+            patch.object(iw, "update_import_job") as update,
+        ):
+            s3.return_value.head_object.return_value = {"ContentLength": 1}
+            resp = client.post("/v3/imports/start", json={"token": token, "job_id": "job-1"})
+        assert resp.status_code == 503
+        assert resp.headers["Retry-After"] == "30"
+        assert all("phase" not in call.kwargs for call in update.call_args_list)
+
+
+@pytest.mark.parametrize("size", [0, iw.MAX_PART_BYTES + 1])
+def test_create_rejects_invalid_part_size(client, token, size):
+    with patch.object(iw, "create_import_job") as create:
+        resp = client.post(
+            "/v3/imports",
+            json={"token": token, "platform": "youtube", "parts": [{"filename": "a.zip", "size_bytes": size}]},
+        )
+    assert resp.status_code == 413
+    create.assert_not_called()
 
 
 # ---------------------------------------------------------------------------

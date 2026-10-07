@@ -166,6 +166,14 @@ describe('ConsentView — signed-out opener with a live session (account switch)
     expect(I.goToApp).not.toHaveBeenCalled()
   })
 
+  it('a failed approval or delegation stays visible even if all loaded grants cover the request', () => {
+    const I = signedInHarness({ _expectedUser: 'alice', connectionError: 'Delegation refused' })
+    render(<ConsentView I={I} />)
+    expect(screen.getByRole('alert').textContent).toBe('Delegation refused')
+    expect(screen.queryByTestId('consent-connecting')).toBeNull()
+    expect(I.goToApp).not.toHaveBeenCalled()
+  })
+
   it('the tall login form scrolls inside the card — the "Signed in as" footer never overlaps it', () => {
     // The screenshot bug: with a live session + the remembered-accounts picker,
     // the login form is tall enough to overflow the popup. The form must scroll

@@ -105,7 +105,23 @@ describe('access recovery — verifyAndRecover', () => {
     expect(mockEnsureFollowers).not.toHaveBeenCalled();
   });
 
-  it('a missing contract heals the group + re-auths', async () => {
+  it.each(['group', 'node', 'imports', 'user', 'media_metadata'])('an old CRUD contract missing %s grants requires consent before management', async (service) => {
+    mockVerifyAccess.mockImplementation(async (check: { services: string[] }) =>
+      check.services.includes(service)
+        ? verdict({ status: 'degraded', contract: { state: 'partial', missing_services: [service] }, actions: ['reauth'] })
+        : verdict());
+    expect(await verifyAndRecover({ allowReauth: false })).toEqual({
+      outcome: 'needs_manual', reason: 'reauth_deferred',
+    });
+    expect(mockEnsureFollowers).not.toHaveBeenCalled();
+    expect(mockLogin).not.toHaveBeenCalled();
+    expect(await verifyAndRecover()).toEqual({ outcome: 'recovered', actions: ['reauth'] });
+    expect(mockLogin).toHaveBeenCalledTimes(1);
+    expect(mockEnsureFollowers).not.toHaveBeenCalled();
+    expect(mockSignOut).not.toHaveBeenCalled();
+  });
+
+  it('a missing contract re-auths without attempting management', async () => {
     mockVerifyAccess.mockResolvedValue(
       verdict({
         status: 'degraded',
@@ -116,9 +132,8 @@ describe('access recovery — verifyAndRecover', () => {
     const res = await verifyAndRecover();
     expect(res.outcome).toBe('recovered');
     if (res.outcome !== 'recovered') return;
-    // heal first (the token is valid), then reauth (fix the contract).
-    expect(res.actions).toEqual(['heal_followers_group', 'reauth']);
-    expect(mockEnsureFollowers).toHaveBeenCalledTimes(1);
+    expect(res.actions).toEqual(['reauth']);
+    expect(mockEnsureFollowers).not.toHaveBeenCalled();
     expect(mockLogin).toHaveBeenCalledTimes(1);
   });
 
@@ -172,10 +187,10 @@ describe('access recovery — verifyAndRecover', () => {
     expect(mockEnsureFollowers).not.toHaveBeenCalled();
   });
 
-  it('on mount (allowReauth: false) a missing contract heals the group but defers reauth', async () => {
+  it('on mount (allowReauth: false) a missing contract defers reauth and management', async () => {
     // A popup on page load would be glitchy — the mount recovery defers reauth
     // (surfacing a soft signal) and lets an actual failure trigger it. The heal
-    // (a safe local action) still runs on mount.
+    // must wait for explicit management approval.
     mockVerifyAccess.mockResolvedValue(
       verdict({
         status: 'degraded',
@@ -188,7 +203,7 @@ describe('access recovery — verifyAndRecover', () => {
     if (res.outcome !== 'needs_manual') return;
     expect(res.reason).toBe('reauth_deferred');
     expect(mockLogin).not.toHaveBeenCalled(); // no popup on mount
-    expect(mockEnsureFollowers).toHaveBeenCalledTimes(1); // the heal still ran
+    expect(mockEnsureFollowers).not.toHaveBeenCalled();
   });
 
   it('the cooldown defers a repeat recovery to manual (the loop-breaker)', async () => {
@@ -198,7 +213,7 @@ describe('access recovery — verifyAndRecover', () => {
     );
     await verifyAndRecover();
     expect(mockLogin).toHaveBeenCalledTimes(1);
-    expect(mockEnsureFollowers).toHaveBeenCalledTimes(1);
+    expect(mockEnsureFollowers).not.toHaveBeenCalled();
 
     // Second degraded verdict (store still down / still broken) within the
     // cooldown → no second auto-reauth; hand the user the wheel.

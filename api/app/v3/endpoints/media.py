@@ -2,9 +2,14 @@ from fastapi import APIRouter, HTTPException
 from fastapi.responses import Response
 
 import app.settings as settings
+from app.models.auth import Token
 from app.services import transcode
+from app.services.auth import check_admin
 from app.services.hls import (
+    MAX_MEDIA_BYTES,
     can_view_doc,
+    hls_prefix,
+    owns_object_key,
     rewrite_variant_manifest,
     segment_key,
     synthesize_master_manifest,
@@ -17,8 +22,8 @@ from app.services.media import (
     get_s3_signing_client,
     make_object_key,
 )
+from app.v3.endpoints.auth_helper import app_contract_origin, require_app_permission, user_or_anon
 from app.v3.endpoints.auth_helper import user as _user
-from app.v3.endpoints.auth_helper import user_or_anon
 from app.v3.models import (
     ConfirmMedia,
     DeleteMedia,
@@ -38,9 +43,19 @@ router = APIRouter(tags=["media"])
 def upload_url(data: UploadUrlRequest):
     """Request a presigned POST form for uploading a file to S3."""
     user = _user(data)
+    service = data.body.get("service", "media_metadata")
+    if service not in ("media_metadata", "public_media"):
+        raise HTTPException(status_code=400, detail="invalid media service")
+    require_app_permission(data, service, "create")
     filename = data.body.get("filename")
     mime_type = data.body.get("mime_type") or "application/octet-stream"
-    if not filename:
+    if (
+        not isinstance(filename, str)
+        or not filename
+        or filename in (".", "..")
+        or any(c in filename for c in "/\\")
+        or any(ord(c) < 32 for c in filename)
+    ):
         raise HTTPException(status_code=400, detail="filename is required")
 
     ensure_bucket(get_s3_client())
@@ -52,6 +67,7 @@ def upload_url(data: UploadUrlRequest):
         Fields={"Content-Type": mime_type},
         Conditions=[
             {"Content-Type": mime_type},
+            ["content-length-range", 1, MAX_MEDIA_BYTES],
         ],
         ExpiresIn=settings.UPLOAD_URL_EXPIRY,
     )
@@ -66,10 +82,22 @@ def upload_url(data: UploadUrlRequest):
 @router.post("/read-url")
 def read_url(data: ReadUrlRequest):
     """Request a presigned GET URL for reading a file from S3."""
-    _user(data)  # validate token
+    user = _user(data)
     object_key = data.body.get("object_key")
     if not object_key:
         raise HTTPException(status_code=400, detail="object_key is required")
+    if not owns_object_key(user, object_key):
+        raise HTTPException(status_code=403, detail="object key is not owned by this user")
+    origin = app_contract_origin(data)
+    if origin is not None:
+        if not any(
+            ch.has_permission(user, origin, service, "readAll") for service in ("media_metadata", "public_media")
+        ):
+            raise HTTPException(status_code=403, detail="App permission denied")
+        doc = ch.get_media_by_object_key(user, object_key)
+        if not doc:
+            raise HTTPException(status_code=404, detail="media record not found")
+        require_app_permission(data, doc["service"], "readAll")
 
     ensure_bucket(get_s3_client())
     presigned_url = get_s3_signing_client().generate_presigned_url(
@@ -87,6 +115,16 @@ def read_url(data: ReadUrlRequest):
 def confirm_media(data: ConfirmMedia):
     """Confirm a media upload by storing metadata."""
     user = _user(data)
+    require_app_permission(data, "media_metadata", "create")
+    ch.validate_media_metadata(user, data.body)
+    for key in (data.body.get("object_key"), data.body.get("thumbnail_object_key")):
+        if key:
+            try:
+                size = get_s3_client().head_object(Bucket=settings.S3_BUCKET, Key=key)["ContentLength"]
+            except Exception:
+                raise HTTPException(status_code=400, detail="uploaded object not found")
+            if not 0 < size <= MAX_MEDIA_BYTES:
+                raise HTTPException(status_code=413, detail="media exceeds upload size limit")
     return ch.confirm_media_upload(user, data.body)
 
 
@@ -94,13 +132,30 @@ def confirm_media(data: ConfirmMedia):
 def list_media(data: ListMedia):
     """List media for the user. Optional doc_ids narrows to specific docs."""
     user = _user(data)
-    return ch.list_media(user, limit=data.limit, offset=data.offset, doc_ids=data.doc_ids)
+    services = []
+    for service in ("media_metadata", "public_media"):
+        try:
+            require_app_permission(data, service, "readAll")
+        except HTTPException as error:
+            if error.status_code != 403:
+                raise
+        else:
+            services.append(service)
+    if not services:
+        raise HTTPException(status_code=403, detail="App permission denied")
+    return ch.list_media(user, limit=data.limit, offset=data.offset, doc_ids=data.doc_ids, services=services)
 
 
 @router.post("/delete")
 def delete_media(data: DeleteMedia):
     """Delete a media record."""
     user = _user(data)
+    doc = ch.get_document(data.doc_id, user)
+    if not doc or doc["service"] not in ("media_metadata", "public_media"):
+        raise HTTPException(status_code=404, detail="media record not found")
+    require_app_permission(data, doc["service"], "deleteOwn")
+    if "node_ad" in doc.get("tags", []) or "node_ad" in (doc.get("body") or {}).get("tags", []):
+        check_admin(Token(token=data.token), required_capability="manageMonetization")
     ch.delete_media(user, data.doc_id)
     return {"doc_id": data.doc_id, "status": "deleted"}
 
@@ -135,6 +190,8 @@ def get_thumbnail(data: ThumbnailRequest):
     if not doc:
         raise HTTPException(status_code=404, detail="not found")
     service = doc["service"]
+    if data.token:
+        require_app_permission(data, service, "readAll")
     # I3: the reader must be able to read the doc's service in one of its
     # groups (the same gate the read path + the social preview server use).
     if not any(ch.can_read_group(gid, reader, service, authenticated) for gid in ch.get_doc_groups(data.doc_id)):
@@ -185,13 +242,21 @@ def transcode_media(data: TranscodeRequest):
     doc = ch.get_document(data.doc_id, user)
     if not doc:
         raise HTTPException(status_code=404, detail="document not found")
+    require_app_permission(data, doc["service"], "updateOwn")
+    if "node_ad" in doc.get("tags", []) or "node_ad" in (doc.get("body") or {}).get("tags", []):
+        check_admin(Token(token=data.token), required_capability="manageMonetization")
     video = (doc["body"] or {}).get("video")
     if not (isinstance(video, dict) and video.get("type") == "minio" and video.get("value")):
         raise HTTPException(status_code=400, detail="document has no video minio ref")
+    if not owns_object_key(user, video["value"]):
+        raise HTTPException(status_code=403, detail="video key is not owned by this user")
     ts = (doc["body"] or {}).get("transcoding_settings") or {}
     if ts.get("status") == "processing":
         return {"doc_id": data.doc_id, "status": "processing"}
-    transcode.submit_transcode_job(data.doc_id, user)
+    try:
+        transcode.submit_transcode_job(data.doc_id, user)
+    except transcode.queue.Full:
+        raise HTTPException(status_code=503, detail="transcode queue is full")
     return {"doc_id": data.doc_id, "status": "queued"}
 
 
@@ -211,6 +276,10 @@ def _hls_doc(doc_id: str, sig: str) -> dict:
     doc = can_view_doc(doc_id, payload["username"], payload.get("authenticated", False))
     if not doc:
         raise HTTPException(status_code=403, detail="not a member of the requested group")
+    video = (doc.get("body") or {}).get("video") or {}
+    key = video.get("value") or (doc.get("body") or {}).get("object_key")
+    if not owns_object_key(doc["author_key"], key) or hls_prefix(key) != payload["prefix"]:
+        raise HTTPException(status_code=403, detail="stream prefix does not match document")
     return doc
 
 
@@ -234,7 +303,11 @@ def hls_variant(doc_id: str, variant: str, sig: str = ""):
     v = next((x for x in ts.get("variants", []) if variant_tag(x) == variant), None)
     if not v:
         raise HTTPException(status_code=404, detail=f"no such variant: {variant}")
-    obj = get_s3_client().get_object(Bucket=settings.S3_BUCKET, Key=str(v["url"]["value"]))
+    prefix = verify_sig(sig, doc_id)["prefix"]
+    expected = f"{prefix}/{variant}/index.m3u8"
+    if (v.get("url") or {}).get("value") != expected:
+        raise HTTPException(status_code=403, detail="variant key does not match stream prefix")
+    obj = get_s3_client().get_object(Bucket=settings.S3_BUCKET, Key=expected)
     manifest_text = obj["Body"].read().decode("utf-8")
     body = rewrite_variant_manifest(doc_id, variant, sig, manifest_text)
     return Response(body, media_type="application/vnd.apple.mpegurl", headers={"Cache-Control": "no-store"})

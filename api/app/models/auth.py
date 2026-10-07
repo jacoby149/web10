@@ -17,6 +17,8 @@ class TokenData(BaseModel):
     target: str = None
     provider: str = None
     expires: str = None
+    credential_kind: str | None = None
+    app_origin: str | None = None
 
     def populate_from_payload(self, payload):
         self.username: str = payload.get("username")
@@ -24,6 +26,8 @@ class TokenData(BaseModel):
         self.target: str = payload.get("target")
         self.provider: str = payload.get("provider")
         self.expires: str = payload.get("expires")
+        self.credential_kind = payload.get("credential_kind")
+        self.app_origin = payload.get("app_origin")
 
     def populate_from_token_form(self, token_form):
         self.username: str = token_form.username
