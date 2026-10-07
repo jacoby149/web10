@@ -291,7 +291,7 @@ describe('FeedScreen', () => {
     expect(screen.queryByTestId('post-lightbox')).not.toBeInTheDocument();
   });
 
-  it('own posts expose an owner menu (share / edit / visibility / delete) instead of a lightbox', async () => {
+  it('own posts expose an owner menu (edit / visibility / delete) + row share/save instead of a lightbox', async () => {
     const { readFeedPage } = await import('@/data');
     vi.mocked(readFeedPage).mockResolvedValueOnce({
       posts: [
@@ -307,11 +307,16 @@ describe('FeedScreen', () => {
     );
     const options = await screen.findByTestId('post-options-button');
     expect(screen.queryByTestId('post-lightbox')).not.toBeInTheDocument();
+    // Share + save-to-collection live in the engagement row (right-aligned),
+    // not the kebab menu (the Twitter/X action cluster).
+    expect(screen.getByTestId('post-action-share')).toBeInTheDocument();
+    expect(screen.getByTestId('post-action-save')).toBeInTheDocument();
     fireEvent.click(options);
     await waitFor(() => {
       expect(screen.getByTestId('post-options-menu')).toBeInTheDocument();
     });
-    expect(screen.getByTestId('post-option-share')).toBeInTheDocument();
+    // The kebab menu now holds only the owner actions (share/save moved to the row).
+    expect(screen.queryByTestId('post-option-share')).not.toBeInTheDocument();
     expect(screen.getByTestId('post-option-edit')).toBeInTheDocument();
     expect(screen.getByTestId('post-option-visibility')).toBeInTheDocument();
     expect(screen.getByTestId('post-option-delete')).toBeInTheDocument();
@@ -346,7 +351,7 @@ describe('FeedScreen', () => {
     expect(screen.getByTestId('post-option-delete')).toBeInTheDocument();
   });
 
-  it('non-own posts show the kebab (for Save) but no owner actions (no lightbox)', async () => {
+  it('non-own posts show the row save/share but no kebab (no owner actions, no lightbox)', async () => {
     const { readFeedPage } = await import('@/data');
     vi.mocked(readFeedPage).mockResolvedValueOnce({
       posts: [
@@ -363,16 +368,12 @@ describe('FeedScreen', () => {
     await waitFor(() => {
       expect(screen.getByTestId('post-card')).toBeInTheDocument();
     });
-    // A signed-in visitor sees the kebab (the "Save to…" affordance, D88) —
-    // the owner actions (edit / delete / visibility) are NOT in the menu.
-    const options = screen.getByTestId('post-options-button');
-    fireEvent.click(options);
-    await waitFor(() => {
-      expect(screen.getByTestId('post-options-menu')).toBeInTheDocument();
-    });
-    expect(screen.getByTestId('post-option-save')).toBeInTheDocument();
-    expect(screen.queryByTestId('post-option-edit')).not.toBeInTheDocument();
-    expect(screen.queryByTestId('post-option-delete')).not.toBeInTheDocument();
+    // A signed-in visitor sees the row save-to-collection affordance (D88) —
+    // the owner actions (edit / delete / visibility) are NOT available, and the
+    // kebab menu is own-posts-only (share/save moved to the engagement row).
+    expect(screen.getByTestId('post-action-save')).toBeInTheDocument();
+    expect(screen.getByTestId('post-action-share')).toBeInTheDocument();
+    expect(screen.queryByTestId('post-options-button')).not.toBeInTheDocument();
     expect(screen.queryByTestId('post-lightbox')).not.toBeInTheDocument();
   });
 

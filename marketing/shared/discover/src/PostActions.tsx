@@ -384,10 +384,10 @@ export function PostActions({
 
   const rowClass =
     layout === 'compact'
-      ? 'flex items-center gap-1 px-3 py-1.5'
+      ? 'flex items-center gap-2.5 px-3 py-2'
       : layout === 'row'
-        ? 'flex items-center gap-1 px-2 py-2'
-        : 'flex items-center gap-6 border-t border-border px-4 pt-3 pb-3';
+        ? 'flex items-center gap-2.5 px-2 py-2'
+        : 'flex items-center gap-3 border-t border-border px-4 pt-3 pb-3';
 
   return (
     <div data-testid={testId}>
