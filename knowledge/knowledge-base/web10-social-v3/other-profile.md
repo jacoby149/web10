@@ -65,15 +65,32 @@ const counts = await w.aggregate('posts', [
 
 ## The Data Flow
 
+The visitor's profile **paints on the ONE read** (3.223.0 — the same model the
+Video wall 3.219.1, Shorts wall 3.220.0, and Watch page 3.221.0 got): the first
+paint is one round-trip, and the non-critical reads (the Saved-tab collections,
+the follower / following counts) land in the background and patch in. The posts
+are read through the D73 query engine (`readUserPublicProfile`) — the author's
+public posts, scoped to `[followers, discover]`, with the media resolved inline
++ the face URLs (avatar / banner) minted by the prepare pass. The grid's media
+map is built synchronously from those inline refs — no second media round-trip
+holds the first paint.
+
 ```
 User opens /alice
-  → w.read('profile', { groups: ['me'], username: 'alice' })  (avatar, bio)
-  → w.getGroups({ member: 'jacoby149' })                      (groups you belong to)
-  → w.read('posts', { groups: [...], $sort: { created_at: -1 } })  (posts in shared groups)
-  → render
+  → Promise.all([ readUserProfile, readFollow, readUserPublicProfile ])
+  → build the media map from the posts' inline refs + the face URLs (synchronous)
+  → PAINT (banner, avatar, name, bio, follow, the grid with thumbnails) — one round-trip
+  → background (patches in, never blocks the paint):
+      readUserPublicCollections (the Saved tab) + countFollowers + countUserFollowingReal
 ```
 
-Same three-call pattern. The groups filter what's visible. No special permissions. No "public" flag on posts — the group membership is the permission.
+**The wall pages** (3.223.0, the feed-paging lane): `readUserPublicProfile`
+takes an `offset` (the D73 query applies `LIMIT … OFFSET`); a sentinel
+(`profile-wall-sentinel`, `IntersectionObserver` `rootMargin: 200px`) appends
+the next page (offset +50, deduped by id, the page's inline media merged into
+the map); `hasMore` keys off the page size (`page.length >= 50`). The visitor's
+face is re-merged from a ref on each page (the face query is `LIMIT 1` — only
+page one carries it).
 
 ## The Follow Flow
 
