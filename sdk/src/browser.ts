@@ -195,7 +195,9 @@ function createV3Client(options?: Parameters<typeof _createV3Client>[0]): V3Clie
       let timeoutId: ReturnType<typeof setTimeout> | null = null
 
       const responseHandler = (e: MessageEvent) => {
-        if (isTrustedPopupMessage(e) && e.source === popup && e.origin === origin && e.data?.type === 'contract_response') {
+        // Consent-only popups close immediately after posting their response.
+        // Authenticate the queued message even if its sender has since closed.
+        if (_authPopup === popup && _authOrigin === origin && e.source === popup && e.origin === origin && e.data?.type === 'contract_response') {
           console.log('[wapi] contract_response received:', e.data)
           window.removeEventListener('message', responseHandler)
           if (readyHandler) window.removeEventListener('message', readyHandler)

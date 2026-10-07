@@ -1425,7 +1425,8 @@ export function createV3Client(options: V3ClientOptions = {}): V3Client {
 
       // Listen for contract_response from the auth UI
       const responseHandler = (e: MessageEvent) => {
-        if (!popup.closed && e.origin === origin && e.source === popup && e.data?.type === 'contract_response') {
+        // A consent-only popup can close before its queued response is delivered.
+        if (e.origin === origin && e.source === popup && e.data?.type === 'contract_response') {
           window.removeEventListener('message', responseHandler)
           window.removeEventListener('message', readyHandler)
           clearTimeout(timeoutId)

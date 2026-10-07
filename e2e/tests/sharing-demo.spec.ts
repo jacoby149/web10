@@ -471,10 +471,8 @@ test.describe('Sharing demo — browser gauntlet', () => {
   });
 
   test('redundant auth token does not re-init (no duplicate "sharing group ready")', async ({ page, context, request }) => {
-    // The consent popup hands back the token on every "return to app" — the
-    // login popup AND the lazy group popup each send an `auth` message, so the
-    // demo can receive the same token twice. Re-running initApp on the second
-    // delivery used to append "sharing group ready" a second time.
+    // A repeat login handoff refreshes the token, without re-running initApp.
+    // Lazy group popups are consent-only and do not deliver another token.
     await setupSignedInDemo(page, context, request, true);
     const full = captureFull(page);
 
@@ -482,19 +480,41 @@ test.describe('Sharing demo — browser gauntlet', () => {
     await page.waitForLoadState('networkidle');
     await expect(page.locator('#message')).toContainText('sharing group ready', { timeout: 10000 });
 
-    // Simulate the duplicate delivery: post the current cookie's token as an
-    // `auth` message, exactly as the popup's goToApp would on a second
-    // "return to app". The SDK dedupes it (same user already in the cookie) —
-    // it refreshes the cookie but does NOT re-fire the signed-in callback, so
-    // the demo never re-inits.
+    // Anti-test: a self-post is not an authenticator handoff. Wait for its
+    // delivery before checking that the SDK ignored it.
     await page.evaluate(() => {
-      const m = document.cookie.match(/(?:^|;\s*)token=([^;]+)/);
-      window.postMessage({ type: 'auth', token: m ? m[1] : null }, '*');
+      return new Promise<void>((resolve) => {
+        const token = (window as any).web10.readTokenCookie();
+        window.addEventListener('message', function delivered(event) {
+          if (event.source === window && event.data?.type === 'auth') {
+            window.removeEventListener('message', delivered);
+            resolve();
+          }
+        });
+        window.postMessage({ type: 'auth', token }, window.location.origin);
+      });
     });
+    expect(full.console.some((l) => l.includes('auth event received from popup'))).toBe(false);
+
+    // Open through the actual SDK so the authenticator WindowProxy is tracked.
+    // The existing grant + seeded authenticator session auto-complete through
+    // the real UI's goToApp, rather than manufacturing a MessageEvent source.
+    const popupPromise = context.waitForEvent('page', { timeout: 15000 });
+    await page.evaluate(({ authOrigin, service }) => {
+      const sdk = (window as any).web10;
+      sdk.openAuthPortal(authOrigin);
+      sdk.createV3Client().contractRequest([{
+        kind: 'app',
+        app_origin: window.location.origin,
+        permissions: { [service]: ['readAll', 'create', 'updateOwn', 'deleteOwn'] },
+      }], authOrigin);
+    }, { authOrigin: AUTH_BASE, service: SERVICE });
+    const popup = await popupPromise;
+    const popupFull = captureFull(popup);
 
     // The SDK receives the redundant event and skips the callback...
     await expect
-      .poll(() => full.console.some((l) => l.includes('same user — skipping signed-in callback')))
+      .poll(() => full.console.some((l) => l.includes('same user — skipping signed-in callback')), { timeout: 15000 })
       .toBeTruthy();
 
     // ...so "sharing group ready" appears exactly once.
@@ -504,6 +524,7 @@ test.describe('Sharing demo — browser gauntlet', () => {
     expect(readyCount, '"sharing group ready" must appear exactly once').toBe(1);
 
     expect(full.errors, `pageerrors:\n${full.errors.join('\n')}`).toHaveLength(0);
+    expect(popupFull.errors, `popup pageerrors:\n${popupFull.errors.join('\n')}`).toHaveLength(0);
   });
 
   test('per-group block via UI: hidden from member, unblock restores', async ({ page, context, request }) => {

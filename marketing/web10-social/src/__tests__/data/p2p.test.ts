@@ -48,7 +48,7 @@ function mockConnection(
 
 // A mock connector that captures the onInbound callback + the connections it
 // hands out, so tests can drive inbound P2P + connection close/open.
-function mockConnector() {
+function mockConnector(initialization?: Promise<void>) {
   const autoPongRef = { value: true };
   const c = {
     destroy: vi.fn(),
@@ -74,6 +74,7 @@ function mockConnector() {
           | null,
       ) => {
         c._onInbound = onInbound;
+        await initialization;
       },
     ),
     connect: vi.fn((provider: string, username: string, origin: string, label?: string) => {
@@ -121,12 +122,103 @@ describe('p2p (WebRTC P2P seam)', () => {
   });
 
   describe('initP2P', () => {
+    it('coalesces concurrent slow initialization and starts one valid ping loop', async () => {
+      vi.useFakeTimers();
+      let resolve!: () => void;
+      connector = mockConnector(new Promise<void>((r) => { resolve = r; }));
+      vi.mocked(rtcModule.createRTC).mockReturnValue(connector as never);
+      const first = p2p.initP2P();
+      const second = p2p.initP2P();
+      expect(rtcModule.createRTC).toHaveBeenCalledTimes(1);
+      expect(connector.initP2P).toHaveBeenCalledTimes(1);
+      expect(p2p.isP2PReady()).toBe(false);
+      resolve();
+      expect(await Promise.all([first, second])).toEqual([true, true]);
+      expect(p2p.isP2PReady()).toBe(true);
+      p2p.probePresence('web10.app', 'bob');
+      expect(p2p.getOnlinePeers().size).toBe(1);
+      connector.connect.mockClear();
+      vi.advanceTimersByTime(10_000);
+      expect(connector.connect).toHaveBeenCalledTimes(1);
+    });
+
+    it('cannot restore readiness, inbound delivery, or timers after teardown during init', async () => {
+      vi.useFakeTimers();
+      let resolve!: () => void;
+      connector = mockConnector(new Promise<void>((r) => { resolve = r; }));
+      vi.mocked(rtcModule.createRTC).mockReturnValue(connector as never);
+      const pending = p2p.initP2P();
+      p2p.teardownP2P();
+      const inbound = vi.fn();
+      const presence = vi.fn();
+      const unsub = p2p.onP2PInbound(inbound);
+      const unsubPresence = p2p.onPresenceChange(presence);
+      resolve();
+      expect(await pending).toBe(false);
+      connector._onInbound!({ peer: 'web10_app bob web10 web10-social' }, { message: 'stale' });
+      expect(connector.destroy).toHaveBeenCalledTimes(1);
+      expect(p2p.isP2PReady()).toBe(false);
+      expect(p2p.getOnlinePeers().size).toBe(0);
+      expect(inbound).not.toHaveBeenCalled();
+      expect(presence).not.toHaveBeenCalled();
+      expect(vi.getTimerCount()).toBe(0);
+      vi.advanceTimersByTime(30_000);
+      expect(connector.connect).not.toHaveBeenCalled();
+      unsub();
+      unsubPresence();
+    });
+
+    it.each(['resolve', 'reject'])('stale %s cannot clear replacement pending initialization or readiness', async (outcome) => {
+      let resolveOld!: () => void;
+      let rejectOld!: (e: Error) => void;
+      const old = mockConnector(new Promise<void>((resolve, reject) => { resolveOld = resolve; rejectOld = reject; }));
+      let resolveNew!: () => void;
+      connector = mockConnector(new Promise<void>((resolve) => { resolveNew = resolve; }));
+      vi.mocked(rtcModule.createRTC).mockReturnValueOnce(old as never).mockReturnValue(connector as never);
+      const stale = p2p.initP2P();
+      p2p.teardownP2P();
+      const current = p2p.initP2P();
+      if (outcome === 'resolve') resolveOld();
+      else rejectOld(new Error('old session rejected'));
+      expect(await stale).toBe(false);
+      expect(p2p.isP2PReady()).toBe(false);
+      const concurrent = p2p.initP2P();
+      expect(rtcModule.createRTC).toHaveBeenCalledTimes(2);
+      resolveNew();
+      expect(await Promise.all([current, concurrent])).toEqual([true, true]);
+      expect(p2p.isP2PReady()).toBe(true);
+      expect(old.destroy).toHaveBeenCalledTimes(1);
+      expect(connector.destroy).not.toHaveBeenCalled();
+    });
+
     it('returns false and does not create a connector when there is no token', async () => {
       vi.spyOn(v3, 'getV3Client').mockReturnValue(mockClient({ token: null }) as never);
       const ok = await p2p.initP2P();
       expect(ok).toBe(false);
       expect(rtcModule.createRTC).not.toHaveBeenCalled();
       expect(p2p.isP2PReady()).toBe(false);
+    });
+
+    it.each(['resolve', 'reject'])('stale %s preserves an already-ready replacement and its ping loop', async (outcome) => {
+      vi.useFakeTimers();
+      let resolveOld!: () => void;
+      let rejectOld!: (e: Error) => void;
+      const old = mockConnector(new Promise<void>((resolve, reject) => { resolveOld = resolve; rejectOld = reject; }));
+      vi.mocked(rtcModule.createRTC).mockReturnValueOnce(old as never).mockReturnValue(connector as never);
+      const stale = p2p.initP2P();
+      p2p.teardownP2P();
+      expect(await p2p.initP2P()).toBe(true);
+      p2p.probePresence('web10.app', 'bob');
+      if (outcome === 'resolve') resolveOld();
+      else rejectOld(new Error('old session rejected'));
+      expect(await stale).toBe(false);
+      expect(p2p.isP2PReady()).toBe(true);
+      expect(await p2p.initP2P()).toBe(true);
+      expect(rtcModule.createRTC).toHaveBeenCalledTimes(2);
+      connector.connect.mockClear();
+      vi.advanceTimersByTime(10_000);
+      expect(connector.connect).toHaveBeenCalledTimes(1);
+      expect(p2p.getOnlinePeers().size).toBe(1);
     });
 
     it('creates the connector, inits the peer, and reports ready', async () => {
@@ -394,6 +486,42 @@ describe('p2p (WebRTC P2P seam)', () => {
   });
 
   describe('teardownP2P', () => {
+    it('ignores old inbound and delayed channel open/close events in a ready replacement session', async () => {
+      vi.useFakeTimers();
+      await p2p.initP2P();
+      const old = connector;
+      const queuedSend = mockConnection({ open: false });
+      const queuedPing = mockConnection({ open: false });
+      old.connect.mockReturnValueOnce(queuedSend).mockReturnValueOnce(queuedPing);
+      p2p.sendP2P('web10.app', 'bob', { message: 'old' });
+      p2p.probePresence('web10.app', 'bob');
+      p2p.teardownP2P();
+      connector = mockConnector();
+      vi.mocked(rtcModule.createRTC).mockReturnValue(connector as never);
+      expect(await p2p.initP2P()).toBe(true);
+      p2p.probePresence('web10.app', 'bob');
+      const inbound = vi.fn();
+      const presence = vi.fn();
+      const unsub = p2p.onP2PInbound(inbound);
+      const unsubPresence = p2p.onPresenceChange(presence);
+      old._onInbound!({ peer: 'web10_app carol web10 web10-social' }, { message: 'old' });
+      queuedSend._emit('open');
+      queuedPing._emit('open');
+      queuedSend._emit('close');
+      queuedPing._emit('close');
+      expect(queuedSend.send).not.toHaveBeenCalled();
+      expect(queuedPing.send).not.toHaveBeenCalled();
+      expect(inbound).not.toHaveBeenCalled();
+      expect(presence).not.toHaveBeenCalled();
+      expect(p2p.getOnlinePeers().size).toBe(1);
+      expect(p2p.isP2PReady()).toBe(true);
+      connector.connect.mockClear();
+      vi.advanceTimersByTime(10_000);
+      expect(connector.connect).toHaveBeenCalledTimes(1);
+      unsub();
+      unsubPresence();
+    });
+
     it('clears ready + the online set and notifies presence subscribers', async () => {
       await p2p.initP2P();
       p2p.sendP2P('web10.app', 'bob', { message: 'hi' });

@@ -116,6 +116,26 @@ describe('popup auth trust', () => {
 })
 
 describe.each(['browser', 'v3'] as const)('%s contract messaging', (path) => {
+  it.each(['approved', 'denied'])('accepts a queued %s response after the trusted consent popup closes', async (status) => {
+    const win = popup()
+    vi.spyOn(window, 'open').mockReturnValue(win)
+    const client = path === 'browser' ? web10.createV3Client() : (await import('./v3')).createV3Client()
+    const callback = vi.fn()
+    client.contractRequest([], portal, callback)
+    message({ type: 'auth_ready' }, win)
+    expect(win.postMessage).toHaveBeenCalledExactlyOnceWith({ type: 'contract', contracts: [] }, origin)
+    Object.assign(win, { closed: true })
+    const response = { type: 'contract_response', status }
+    message(response, win, 'https://evil.example.com')
+    message(response, popup())
+    message(response, null)
+    expect(callback).not.toHaveBeenCalled()
+    message(response, win)
+    message(response, win)
+    vi.advanceTimersByTime(30000)
+    expect(callback).toHaveBeenCalledExactlyOnceWith(response)
+  })
+
   it('requires both origin and source for readiness and responses, then completes once', async () => {
     const win = popup()
     vi.spyOn(window, 'open').mockReturnValue(win)
@@ -159,6 +179,19 @@ it('browser contractRequest alone registers the popup for one-argument authListe
   message({ type: 'auth', token: jwt('alice') }, win)
   expect(readTokenCookie()).toBe(jwt('alice'))
   expect(signedIn).toHaveBeenCalledExactlyOnceWith(true)
+})
+
+it('rejects a queued contract response from a replaced browser popup', () => {
+  const old = popup()
+  const current = popup()
+  vi.spyOn(window, 'open').mockReturnValueOnce(old).mockReturnValueOnce(current)
+  const callback = vi.fn()
+  web10.createV3Client().contractRequest([], portal, callback)
+  message({ type: 'auth_ready' }, old)
+  web10.openAuthPortal(portal)
+  Object.assign(old, { closed: true })
+  message({ type: 'contract_response', status: 'approved' }, old)
+  expect(callback).not.toHaveBeenCalled()
 })
 
 it('ignores forged cached readiness and reuses only a popup for the requested origin', () => {
