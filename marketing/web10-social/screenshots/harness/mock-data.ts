@@ -1461,9 +1461,21 @@ export async function fetchSuggestedUsers(): Promise<unknown[]> {
 // quiet-here threshold of 10, so the capture shows the list) across a mix of
 // face states: banner+avatar, avatar-only (gradient banner), no-face (initial
 // fallback), and the Following vs Follow button states.
-export async function fetchPeoplePage(_opts: { limit: number; offset: number }): Promise<{ people: unknown[]; hasMore: boolean }> {
+// The People tab's background enrichment (faces + the mutuals fan-out) —
+// no-ops in the harness (the fetchPeoplePage seed pre-sets each card's face +
+// mutuals, so the enrichment has nothing to patch). Keeps the screen's
+// background pass a clean no-op (the real fan-out is not exercised in the
+// screenshot harness).
+export async function enrichPeopleFaces(_w: unknown, _people: unknown[]): Promise<void> {}
+export async function enrichPeopleMutuals(_people: unknown[], _myFollowing: Set<string>): Promise<void> {}
+
+export async function fetchPeoplePage(_opts: { limit: number; offset: number }): Promise<{ people: unknown[]; hasMore: boolean; myFollowing: Set<string> }> {
   return {
     hasMore: false,
+    // The base read's following set (paint-on-read, 3.224.0) — empty in the
+    // harness (the seed pre-sets each card's mutuals + face, so the background
+    // enrichment is a no-op below).
+    myFollowing: new Set(),
     people: [
       {
         username: 'pixel', provider: 'web10', display_name: 'Pixel',

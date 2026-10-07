@@ -47,9 +47,12 @@ describe('PeopleScreen (the D0-backed People browser)', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     // Default: a full first page (12 people, popular order) + no more pages.
+    // myFollowing is the base read's following set (paint-on-read, 3.224.0) —
+    // empty here (the tests don't exercise the mutuals fan-out).
     vi.mocked(fetchPeoplePage).mockResolvedValue({
       people: makePeople(12),
       hasMore: false,
+      myFollowing: new Set(),
     });
   });
 
@@ -134,6 +137,7 @@ describe('PeopleScreen (the D0-backed People browser)', () => {
     vi.mocked(fetchPeoplePage).mockResolvedValue({
       people: makePeople(3),
       hasMore: false,
+      myFollowing: new Set(),
     });
     await renderPeople();
     await waitFor(() => {
@@ -147,6 +151,7 @@ describe('PeopleScreen (the D0-backed People browser)', () => {
     vi.mocked(fetchPeoplePage).mockResolvedValue({
       people: makePeople(10),
       hasMore: false,
+      myFollowing: new Set(),
     });
     await renderPeople();
     await waitFor(() => {
@@ -160,8 +165,8 @@ describe('PeopleScreen (the D0-backed People browser)', () => {
     const page1 = makePeople(12);
     const page2 = makePeople(5, 500); // lower followers (later page)
     vi.mocked(fetchPeoplePage).mockImplementation(async ({ offset }) => {
-      if (offset === 0) return { people: page1, hasMore: true };
-      return { people: page2, hasMore: false };
+      if (offset === 0) return { people: page1, hasMore: true, myFollowing: new Set() };
+      return { people: page2, hasMore: false, myFollowing: new Set() };
     });
 
     await renderPeople();
@@ -184,7 +189,7 @@ describe('PeopleScreen (the D0-backed People browser)', () => {
   it('renders banner image when banner_url present, gradient fallback when absent', async () => {
     const people = makePeople(12);
     people[0] = { ...people[0], avatar_url: 'http://x/alpha.png', banner_url: 'http://x/alpha-banner.png' };
-    vi.mocked(fetchPeoplePage).mockResolvedValue({ people, hasMore: false });
+    vi.mocked(fetchPeoplePage).mockResolvedValue({ people, hasMore: false, myFollowing: new Set() });
     await renderPeople();
     await waitFor(() => {
       expect(screen.getByTestId('people-list')).toBeInTheDocument();
@@ -200,7 +205,7 @@ describe('PeopleScreen (the D0-backed People browser)', () => {
   it('shows Following state for is_following users', async () => {
     const people = makePeople(12);
     people[0] = { ...people[0], is_following: true };
-    vi.mocked(fetchPeoplePage).mockResolvedValue({ people, hasMore: false });
+    vi.mocked(fetchPeoplePage).mockResolvedValue({ people, hasMore: false, myFollowing: new Set() });
     await renderPeople();
     await waitFor(() => {
       expect(screen.getByTestId('people-list')).toBeInTheDocument();
@@ -211,7 +216,7 @@ describe('PeopleScreen (the D0-backed People browser)', () => {
 
   it('clicking Follow calls followUser and flips to Following', async () => {
     const people = makePeople(12);
-    vi.mocked(fetchPeoplePage).mockResolvedValue({ people, hasMore: false });
+    vi.mocked(fetchPeoplePage).mockResolvedValue({ people, hasMore: false, myFollowing: new Set() });
     await renderPeople();
     await waitFor(() => {
       expect(screen.getByTestId('people-list')).toBeInTheDocument();
@@ -249,7 +254,7 @@ describe('PeopleScreen (the D0-backed People browser)', () => {
     await waitFor(() => {
       expect(screen.getByTestId('people-error')).toBeInTheDocument();
     });
-    vi.mocked(fetchPeoplePage).mockResolvedValue({ people: makePeople(12), hasMore: false });
+    vi.mocked(fetchPeoplePage).mockResolvedValue({ people: makePeople(12), hasMore: false, myFollowing: new Set() });
     fireEvent.click(screen.getByTestId('people-retry'));
     await waitFor(() => {
       expect(screen.getByTestId('people-list')).toBeInTheDocument();
@@ -257,13 +262,13 @@ describe('PeopleScreen (the D0-backed People browser)', () => {
   });
 
   it('shows skeleton on initial load', async () => {
-    let resolveFetch: (v: { people: PersonCard[]; hasMore: boolean }) => void;
+    let resolveFetch: (v: { people: PersonCard[]; hasMore: boolean; myFollowing: Set<string> }) => void;
     vi.mocked(fetchPeoplePage).mockImplementation(
       () => new Promise((r) => { resolveFetch = r; }),
     );
     await renderPeople();
     expect(screen.getByTestId('people-skeleton')).toBeInTheDocument();
-    resolveFetch!({ people: makePeople(12), hasMore: false });
+    resolveFetch!({ people: makePeople(12), hasMore: false, myFollowing: new Set() });
     await waitFor(() => {
       expect(screen.getByTestId('people-list')).toBeInTheDocument();
     });

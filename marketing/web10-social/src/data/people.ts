@@ -147,15 +147,29 @@ export interface PeoplePage {
   people: PersonCard[];
   /** True when the page came back full — there may be another page. */
   hasMore: boolean;
+  /**
+   * The reader's following set (usernames) — follows are group membership, so
+   * it is exactly the set of `/followers` groups the reader belongs to. Returned
+   * so the background mutuals enrichment (`enrichPeopleMutuals`) can reuse it
+   * instead of re-reading `getMyGroups`. Anon (no token) → empty set.
+   */
+  myFollowing: Set<string>;
 }
 
 /**
- * Fetch one page of the People browser from the node's public directory (D0).
+ * Fetch one page of the People browser from the node's public directory (D0) —
+ * the BASE read (paint-on-read, 3.224.0).
  *
  * The D0 read returns `{ username, follower_count, profile }` per user, paged
- * + follower-ranked + I3-gated. This wraps it with the per-card enrichment the
- * card needs: the reader's own follow flag (one my-follows read, shared across
- * the page) and the presigned face media (avatar/banner).
+ * + follower-ranked + I3-gated. This wraps it with ONLY the enrichment that is
+ * a single read (the reader's own follow flag, from one `getMyGroups` read, run
+ * in parallel with the directory read so the base is one round-trip). The
+ * per-card enrichment that is a FAN-OUT — the presigned face media
+ * (`enrichPeopleFaces`) and the "N mutuals" signal (`enrichPeopleMutuals`, an
+ * N-way `getGroupMembers` fan-out, one per person) — is NOT here: it runs in
+ * the background after the list paints (the profile's model, 3.223.0). Holding
+ * the list's first paint behind the N-way mutuals fan-out was the "People tab
+ * stuck on skeleton" bug — the fan-out grows linearly with the page size.
  */
 export async function fetchPeoplePage(opts: {
   limit: number;
@@ -166,28 +180,25 @@ export async function fetchPeoplePage(opts: {
   const provider = token?.provider || 'web10';
 
   LOG('fetchPeoplePage — start, limit:', opts.limit, 'offset:', opts.offset);
-  const page = await w.listPeopleDirectory({
-    limit: opts.limit,
-    offset: opts.offset,
-  });
+  // The base read: the D0 directory + the reader's following set (for
+  // is_following). Both are single reads (no fan-out) — run them in parallel
+  // so the base is one round-trip. Anon (no token) has no following set.
+  const [page, myGroups] = await Promise.all([
+    w.listPeopleDirectory({ limit: opts.limit, offset: opts.offset }),
+    token
+      ? w.getMyGroups().catch((e) => {
+          LOG('fetchPeoplePage — my-follows read failed (degrading to no follows):', e);
+          return [];
+        })
+      : Promise.resolve([]),
+  ]);
   LOG('fetchPeoplePage — got', page.users.length, 'user(s)');
 
-  // My following set — follows are group membership, so it is exactly the set
-  // of `/followers` groups I belong to (one read, shared across the page).
-  // Anon (no token) has no following set — every card is is_following: false.
-  let myFollowing = new Set<string>();
-  if (token) {
-    try {
-      const myGroups = await w.getMyGroups();
-      myFollowing = new Set(
-        myGroups
-          .filter((g) => g.group_id.endsWith('/followers'))
-          .map((g) => g.group_id.split('/').slice(-2, -1)[0]),
-      );
-    } catch (e) {
-      LOG('fetchPeoplePage — my-follows read failed (degrading to no follows):', e);
-    }
-  }
+  const myFollowing = new Set(
+    myGroups
+      .filter((g) => g.group_id.endsWith('/followers'))
+      .map((g) => g.group_id.split('/').slice(-2, -1)[0]),
+  );
 
   const people: PersonCard[] = page.users.map((u) => {
     const profile = (u.profile || {}) as Record<string, unknown>;
@@ -199,47 +210,65 @@ export async function fetchPeoplePage(opts: {
       avatar_ref: (profile.avatar_ref as string) || undefined,
       banner_ref: (profile.banner_ref as string) || undefined,
       followers_count: u.follower_count,
+      // The mutuals badge is a background enrichment (enrichPeopleMutuals) —
+      // 0 until it lands. The list paints without it.
       mutuals: 0,
       is_following: myFollowing.has(u.username),
     };
   });
 
-  // Per-card enrichment: (1) the presigned face media (avatar/banner) — one
-  // batched author-scoped face-prepare over the page (see resolveFaces); (2)
-  // the "N mutuals" signal — how many of this person's followers the reader
-  // also follows. Mutuals are derived CLIENT-side from the generic membership
-  // primitive (a user's followers = the member list of their followers group,
-  // `getGroupMembers`), intersected with the reader's own following set — the
-  // node stays generic (D60), it never computes an app's social signal. Anon
-  // has no following set → mutuals stay 0.
-  await Promise.all(
-    people.map(async (card) => {
-      // Mutuals — the generic membership primitive (bounded by the page).
-      if (token && myFollowing.size > 0) {
-        try {
-          const members = await getGroupMembers(followersGroupId(card.username, card.provider));
-          card.mutuals = members.filter((m) => myFollowing.has(extractUsername(m.member_key))).length;
-        } catch (e) {
-          LOG('fetchPeoplePage — mutuals read failed for', card.username, '(degrading to 0):', e);
-        }
-      }
-    }),
-  );
+  // A full page means there may be another; a short page is the last one.
+  const hasMore = page.users.length >= opts.limit;
+  LOG('fetchPeoplePage — returned', people.length, 'card(s), hasMore:', hasMore, '(faces + mutuals enrich in the background)');
+  return { people, hasMore, myFollowing };
+}
 
-  // Face media (avatar + banner) — one batched author-scoped face-prepare over
-  // the page (I3-gated; a face the reader can't read keeps the gradient
-  // fallback). A failure degrades the whole page to faceless cards, never a
-  // throw.
+/**
+ * The per-card face enrichment (avatar + banner) — a BACKGROUND pass (the list
+ * paints after the base read, the faces patch in). One batched author-scoped
+ * face-prepare over the page (I3-gated; see `resolveFaces`). Mutates the cards
+ * in place (sets `avatar_url` / `banner_url`); the caller re-sets the list to
+ * force the re-render. A failure degrades the page to faceless cards (the
+ * gradient fallback), never a throw.
+ */
+export async function enrichPeopleFaces(
+  w: ReturnType<typeof getV3Client>,
+  people: PersonCard[],
+): Promise<void> {
   try {
     await resolveFaces(w, people);
   } catch (e) {
-    LOG('fetchPeoplePage — face media failed (degrading to faceless cards):', e);
+    LOG('enrichPeopleFaces — face media failed (degrading to faceless cards):', e);
   }
+}
 
-  // A full page means there may be another; a short page is the last one.
-  const hasMore = page.users.length >= opts.limit;
-  LOG('fetchPeoplePage — returned', people.length, 'card(s), hasMore:', hasMore);
-  return { people, hasMore };
+/**
+ * The per-card mutuals enrichment (the "N mutuals" badge) — a BACKGROUND pass.
+ * Mutuals are derived CLIENT-side from the generic membership primitive: a
+ * user's followers = the member list of their followers group
+ * (`getGroupMembers`), intersected with the reader's own following set — the
+ * node stays generic (D60), it never computes an app's social signal. This is
+ * the N-way fan-out (one `getGroupMembers` per person) that used to hold the
+ * list's first paint; now it runs after the list is up. `myFollowing` is the
+ * reader's following set from `fetchPeoplePage` (reused, not re-read). Anon /
+ * no-follows → mutuals stay 0 (no fan-out). Mutates the cards in place (sets
+ * `mutuals`); the caller re-sets the list to force the re-render.
+ */
+export async function enrichPeopleMutuals(
+  people: PersonCard[],
+  myFollowing: Set<string>,
+): Promise<void> {
+  if (myFollowing.size === 0) return;
+  await Promise.all(
+    people.map(async (card) => {
+      try {
+        const members = await getGroupMembers(followersGroupId(card.username, card.provider));
+        card.mutuals = members.filter((m) => myFollowing.has(extractUsername(m.member_key))).length;
+      } catch (e) {
+        LOG('enrichPeopleMutuals — mutuals read failed for', card.username, '(degrading to 0):', e);
+      }
+    }),
+  );
 }
 
 /**
