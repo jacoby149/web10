@@ -18,6 +18,7 @@ def _make_token(username="testuser", **extra):
         "site": "auth.localhost",
         "target": settings.PROVIDER,
         "provider": settings.PROVIDER,
+        "credential_kind": "self",
         "expires": (datetime.utcnow() + __import__("datetime").timedelta(minutes=60)).isoformat(),
         **extra,
     }
@@ -470,6 +471,7 @@ class TestCreateGroup:
         }
         with (
             patch("app.v3.services.clickhouse.get_group", return_value=created),
+            patch("app.v3.services.clickhouse.has_mgmt_permission", return_value=True),
             patch(
                 "app.v3.services.clickhouse.get_group_member",
                 return_value={"member_key": "testuser", "role": "member", "joined_at": "2026-01-01"},
@@ -520,6 +522,11 @@ class TestCreateGroup:
 
 
 class TestUpdateGroup:
+    @pytest.fixture(autouse=True)
+    def management_permission(self):
+        with patch("app.v3.services.clickhouse.has_mgmt_permission", return_value=True):
+            yield
+
     def test_set_discoverable(self, client, token):
         existing = {
             "group_id": "g1",
@@ -780,7 +787,7 @@ class TestGroupDetail:
 
     _GROUP = {
         "group_id": "web10.app/groups/alice/jazz",
-        "roles": [{"name": "member", "permissions": ["readAll"]}],
+        "roles": [{"name": "member", "permissions": {"posts": ["readAll"]}}],
         "join_policy": "open",
         "discoverable": False,  # non-discoverable on purpose — the unlisted case
         "created_at": "2026-01-01",
@@ -792,7 +799,12 @@ class TestGroupDetail:
         return (
             patch("app.v3.services.clickhouse.get_group", return_value=self._GROUP),
             patch("app.v3.services.clickhouse._get_group_member_counts", return_value={self._ID: 7}),
-            patch("app.v3.services.clickhouse.is_group_member", return_value=is_member),
+            patch(
+                "app.v3.services.clickhouse.get_group_member",
+                side_effect=lambda gid, principal: (
+                    {"role": "member"} if is_member and principal == "testuser" else None
+                ),
+            ),
             patch("app.v3.services.clickhouse.read_documents_in_groups", return_value=posts or []),
         )
 
@@ -889,7 +901,7 @@ class TestAcceptInvite:
         assert resp.json()["role"] == "member"
 
     def test_no_invite(self, client, token):
-        with patch("app.v3.services.clickhouse.has_pending_or_invited_request", return_value=False):
+        with patch("app.v3.services.clickhouse.get_pending_requests", return_value=[]):
             resp = client.post("/v3/groups/accept-invite", json={"token": token, "group_id": "g1"})
         assert resp.status_code == 401
 
@@ -1217,13 +1229,13 @@ class TestAppContracts:
             "/v3/app-contracts/add",
             json={
                 "token": token,
-                "allowed_origin": "myapp.com",
+                "allowed_origin": "https://myapp.com",
                 "permissions": {"posts": ["readAll", "create"], "playlists": ["readAll"]},
             },
             headers={"Origin": "https://auth.localhost"},
         )
         assert resp.status_code == 200
-        assert resp.json()["allowed_origin"] == "myapp.com"
+        assert resp.json()["allowed_origin"] == "https://myapp.com"
         assert "posts" in resp.json()["permissions"]
 
     def test_add_missing_permissions(self, client, token):
@@ -1299,6 +1311,14 @@ class TestBlocking:
 
 
 class TestSharing:
+    @pytest.fixture(autouse=True)
+    def authority(self):
+        with (
+            patch("app.v3.services.clickhouse.get_group", return_value={"group_id": "g1"}),
+            patch("app.v3.services.clickhouse.has_mgmt_permission", return_value=True),
+        ):
+            yield
+
     def test_disable_sharing(self, client, token):
         resp = client.post(
             "/v3/groups/sharing/set",
@@ -1334,7 +1354,12 @@ class TestReadById:
         mock_rows = [
             ("doc-1", "bob", '{"text":"hello"}', [], datetime(2026, 1, 1), "", "none", ""),
         ]
-        with patch("app.v3.services.clickhouse.client") as mock_ch:
+        with (
+            patch("app.v3.services.clickhouse.client") as mock_ch,
+            patch("app.v3.services.clickhouse.get_doc_groups", return_value=["g1"]),
+            patch("app.v3.services.clickhouse.readable_groups", return_value=["g1"]),
+            patch("app.v3.services.clickhouse.effective_role_perms", return_value={"posts": ["readAll"]}),
+        ):
             mock_ch.query.return_value = MagicMock(result_rows=mock_rows)
             resp = client.post(
                 "/v3/read",
@@ -1443,6 +1468,14 @@ class TestGroupMembersList:
 
 
 class TestBlockInGroup:
+    @pytest.fixture(autouse=True)
+    def authority(self):
+        with (
+            patch("app.v3.services.clickhouse.get_group", return_value={"group_id": "g1"}),
+            patch("app.v3.services.clickhouse.has_mgmt_permission", return_value=True),
+        ):
+            yield
+
     def test_block_in_group(self, client, token):
         resp = client.post(
             "/v3/groups/block",
@@ -1645,10 +1678,14 @@ class TestSetEmail:
 
 class TestVerifyPhone:
     def test_verify_phone(self, client, token):
-        resp = client.post(
-            "/v3/verify-phone",
-            json={"token": token, "code": "123456"},
-        )
+        with (
+            patch("app.v3.services.clickhouse.get_phone_number", return_value="+15551234567"),
+            patch("app.services.twilio.check_verification"),
+        ):
+            resp = client.post(
+                "/v3/verify-phone",
+                json={"token": token, "code": "123456"},
+            )
         assert resp.status_code == 200
 
 
@@ -1704,14 +1741,19 @@ class TestSetRecoveryPhone:
 
 
 class TestMediaConfirm:
-    def test_confirm(self, client, token):
-        resp = client.post(
-            "/v3/media/confirm",
-            json={
-                "token": token,
-                "body": {"filename": "a.png", "object_key": "alice/a.png", "mime_type": "image/png"},
-            },
-        )
+    def test_confirm(self, client):
+        with (
+            patch("app.v3.endpoints.media.get_s3_client") as s3,
+            patch("app.v3.endpoints.media._user", return_value="alice"),
+        ):
+            s3.return_value.head_object.return_value = {"ContentLength": 123}
+            resp = client.post(
+                "/v3/media/confirm",
+                json={
+                    "token": _make_token("alice"),
+                    "body": {"filename": "a.png", "object_key": "alice/a.png", "mime_type": "image/png"},
+                },
+            )
         assert resp.status_code == 200
         # Document envelope — the metadata is the body (clients map the
         # response through the V3Document shape).
@@ -1738,10 +1780,11 @@ class TestMediaList:
 
 class TestMediaDelete:
     def test_delete(self, client, token):
-        resp = client.post(
-            "/v3/media/delete",
-            json={"token": token, "doc_id": "doc-1"},
-        )
+        with patch("app.v3.services.clickhouse.get_document", return_value={"service": "media_metadata", "body": {}}):
+            resp = client.post(
+                "/v3/media/delete",
+                json={"token": token, "doc_id": "doc-1"},
+            )
         assert resp.status_code == 200
 
 
@@ -1753,61 +1796,74 @@ class TestMediaDelete:
 class TestPwaListing:
     """GET /pwa_listing — the store's manifest proxy (D47: a path is an app)."""
 
+    @pytest.fixture(autouse=True)
+    def public_registered_app(self):
+        with (
+            patch("app.endpoints.system.ch.get_app", return_value={"approved": True}),
+            patch(
+                "app.endpoints.system.socket.getaddrinfo",
+                return_value=[
+                    (2, 1, 6, "", ("93.184.216.34", 443)),
+                ],
+            ),
+        ):
+            yield
+
     def _ok_manifest(self, payload: dict | None = None):
         import json as _json
 
         fake = MagicMock()
-        # pwa_listing uses requests.get(..., stream=True) as a context manager
-        # and reads via iter_content (hardening #7 byte cap).
-        fake.__enter__ = MagicMock(return_value=fake)
-        fake.__exit__ = MagicMock(return_value=False)
-        fake.raise_for_status = MagicMock()
-        fake.iter_content = MagicMock(return_value=iter([_json.dumps(payload or {"name": "Notes"}).encode()]))
+        fake.status = 200
+        fake.read.return_value = _json.dumps(payload or {"name": "Notes"}).encode()
         return fake
 
     def test_manifest_url_with_trailing_slash(self, client):
-        with patch("app.endpoints.system.requests.get", return_value=self._ok_manifest()) as mock_get:
-            resp = client.get("/pwa_listing", params={"url": "https://host/docs/notes/"})
+        with patch(
+            "app.endpoints.system.urllib3.HTTPSConnectionPool.urlopen", return_value=self._ok_manifest()
+        ) as mock_get:
+            resp = client.get("/pwa_listing", params={"url": "https://host.example.com/docs/notes/"})
         assert resp.status_code == 200
         assert resp.json() == {"name": "Notes"}
-        assert mock_get.call_args[0][0] == "https://host/docs/notes/manifest.json"
+        assert mock_get.call_args[0][1] == "/docs/notes/manifest.json"
 
     def test_manifest_url_without_trailing_slash(self, client):
         """A registered path without a trailing slash resolves the same."""
-        with patch("app.endpoints.system.requests.get", return_value=self._ok_manifest()) as mock_get:
-            resp = client.get("/pwa_listing", params={"url": "https://host/docs/notes"})
+        with patch(
+            "app.endpoints.system.urllib3.HTTPSConnectionPool.urlopen", return_value=self._ok_manifest()
+        ) as mock_get:
+            resp = client.get("/pwa_listing", params={"url": "https://host.example.com/docs/notes"})
         assert resp.status_code == 200
-        assert mock_get.call_args[0][0] == "https://host/docs/notes/manifest.json"
+        assert mock_get.call_args[0][1] == "/docs/notes/manifest.json"
 
     def test_manifest_url_root(self, client):
-        with patch("app.endpoints.system.requests.get", return_value=self._ok_manifest()) as mock_get:
+        with patch(
+            "app.endpoints.system.urllib3.HTTPSConnectionPool.urlopen", return_value=self._ok_manifest()
+        ) as mock_get:
             resp = client.get("/pwa_listing", params={"url": "https://host.example.com/"})
         assert resp.status_code == 200
-        assert mock_get.call_args[0][0] == "https://host.example.com/manifest.json"
+        assert mock_get.call_args[0][1] == "/manifest.json"
 
     def test_oversized_manifest_rejected(self, client):
         """Hardening #7: a manifest over the byte cap → NO_PWA (no memory spike)."""
         import json as _json
 
         fake = MagicMock()
-        fake.__enter__ = MagicMock(return_value=fake)
-        fake.__exit__ = MagicMock(return_value=False)
-        fake.raise_for_status = MagicMock()
+        fake.status = 200
         # two chunks that together exceed the 256 KiB cap
         big = _json.dumps({"name": "x", "pad": "a" * (140 * 1024)}).encode()
-        fake.iter_content = MagicMock(return_value=iter([big, big]))
-        with patch("app.endpoints.system.requests.get", return_value=fake):
-            resp = client.get("/pwa_listing", params={"url": "https://host/docs/notes/"})
+        fake.read.return_value = big + big
+        with patch("app.endpoints.system.urllib3.HTTPSConnectionPool.urlopen", return_value=fake):
+            resp = client.get("/pwa_listing", params={"url": "https://host.example.com/docs/notes/"})
         assert resp.status_code == 401  # NO_PWA
 
     def test_no_manifest_returns_no_pwa(self, client):
-        import requests as req
+        import urllib3
 
         with patch(
-            "app.endpoints.system.requests.get",
-            side_effect=req.exceptions.RequestException("down"),
+            "app.endpoints.system.urllib3.HTTPSConnectionPool.urlopen",
+            side_effect=urllib3.exceptions.HTTPError("down"),
         ):
-            resp = client.get("/pwa_listing", params={"url": "https://host/docs/notes/"})
+            resp = client.get("/pwa_listing", params={"url": "https://host.example.com/docs/notes/"})
         assert resp.status_code == 401  # NO_PWA — the store falls back to the registered name
 
     def test_non_json_200_body_returns_no_pwa(self, client):
@@ -1818,12 +1874,10 @@ class TestPwaListing:
         fallback answers with HTML + 200 — json.loads used to 500 on it.
         """
         fake = MagicMock()
-        fake.__enter__ = MagicMock(return_value=fake)
-        fake.__exit__ = MagicMock(return_value=False)
-        fake.raise_for_status = MagicMock()
-        fake.iter_content = MagicMock(return_value=iter([b"<!DOCTYPE html><html></html>"]))
-        with patch("app.endpoints.system.requests.get", return_value=fake):
-            resp = client.get("/pwa_listing", params={"url": "https://host/docs/media/index.html"})
+        fake.status = 200
+        fake.read.return_value = b"<!DOCTYPE html><html></html>"
+        with patch("app.endpoints.system.urllib3.HTTPSConnectionPool.urlopen", return_value=fake):
+            resp = client.get("/pwa_listing", params={"url": "https://host.example.com/docs/media/index.html"})
         assert resp.status_code == 401  # NO_PWA — never a 500
 
 
@@ -2452,6 +2506,8 @@ class TestGroupModeration:
     def test_hidden_list(self, client, token):
         with (
             patch("app.v3.endpoints.groups._require_moderation_any"),
+            patch("app.v3.endpoints.groups._require_moderation"),
+            patch("app.v3.services.clickhouse.get_document_any_author", return_value=self._DOC),
             patch(
                 "app.v3.services.clickhouse.get_hidden_docs",
                 return_value=[
@@ -2482,10 +2538,10 @@ class TestGroupModeration:
             ) as mock_gate,
             patch("app.v3.services.clickhouse.hide_doc_from_group") as mock_hide,
         ):
-            with pytest.raises(Exception, match="NOT_ADMIN"):
-                client.post(
-                    "/v3/groups/hide",
-                    json={"token": token, "group_id": "g1", "doc_id": "doc-1"},
-                )
+            resp = client.post(
+                "/v3/groups/hide",
+                json={"token": token, "group_id": "g1", "doc_id": "doc-1"},
+            )
+            assert resp.status_code == 403
         mock_gate.assert_called_once()
         mock_hide.assert_not_called()

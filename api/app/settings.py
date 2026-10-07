@@ -17,9 +17,14 @@ CORS_SERVICE_MANAGERS = """
 # Usernames that may read/write the node config when no admins list has been
 # saved yet (bootstrap). Once an admin edits the list in the Node Config UI,
 # that saved list takes over. Override with the DEFAULT_ADMINS env (comma-sep).
-DEFAULT_ADMINS = ["jacoby149"]
+DEFAULT_ADMINS = []
 ALGORITHM = "HS256"
-PRIVATE_KEY = "8cbec8....."
+PRIVATE_KEY = ""
+# RS256 auth migration: provision a persistent per-node PEM key. PRIVATE_KEY
+# remains the explicitly configured legacy key, never a published/shared default.
+AUTH_SIGNING_KEY = ""
+AUTH_KEY_ID = "node-1"
+AUTH_LEGACY_VERIFY_UNTIL = ""
 TOKEN_EXPIRE_MINUTES = 87840
 COST_CREATE = 0.000025
 COST_UPDATE = 0.000025
@@ -34,18 +39,18 @@ FREE_CREDITS = 0.10
 FREE_SPACE = 8
 BETA_REQUIRED = False
 VERIFY_REQUIRED = False
-BETA_CODE = "web10betacode"
-TWILIO_SERVICE = "VAbce...."
-TWILIO_ACCOUNT_SID = "AC3594...."
-TWILIO_AUTH_TOKEN = "460d....."
-TWILIO_NUMBER = "+12764004437"
+BETA_CODE = ""
+TWILIO_SERVICE = ""
+TWILIO_ACCOUNT_SID = ""
+TWILIO_AUTH_TOKEN = ""
+TWILIO_NUMBER = ""
 # E2E / local mode — when truthy, the recovery flow uses a deterministic
 # in-memory code store instead of calling Twilio (CI has no real credentials).
 # Never set in prod. See services/twilio.py.
 TWILIO_E2E = ""
 STRIPE_STATUS = "live"
-STRIPE_TEST_KEY = "sk_test_51Khy....."
-STRIPE_LIVE_KEY = "sk_live_51Khyui......"
+STRIPE_TEST_KEY = ""
+STRIPE_LIVE_KEY = ""
 DEV_PAY_PCT = 98
 
 # S3-compatible object storage (media service)
@@ -56,7 +61,7 @@ CLICKHOUSE_HOST = os.getenv("CLICKHOUSE_HOST", "clickhouse")
 CLICKHOUSE_PORT = int(os.getenv("CLICKHOUSE_PORT", "8123"))
 CLICKHOUSE_DATABASE = os.getenv("CLICKHOUSE_DATABASE", "web10")
 CLICKHOUSE_USER = os.getenv("CLICKHOUSE_USER", "web10")
-CLICKHOUSE_PASSWORD = os.getenv("CLICKHOUSE_PASSWORD", "web10")
+CLICKHOUSE_PASSWORD = os.getenv("CLICKHOUSE_PASSWORD", "")
 CLICKHOUSE_SECURE = os.getenv("CLICKHOUSE_SECURE", "false").lower() == "true"
 # Presigned URLs are handed to the BROWSER, so they must embed a host the
 # browser can reach over the page's scheme (HTTPS in prod). S3_ENDPOINT is the
@@ -68,8 +73,8 @@ CLICKHOUSE_SECURE = os.getenv("CLICKHOUSE_SECURE", "false").lower() == "true"
 # it. Defaults to S3_ENDPOINT so local/e2e (one host for both) are unchanged.
 S3_PUBLIC_ENDPOINT = os.getenv("S3_PUBLIC_ENDPOINT", S3_ENDPOINT)
 S3_BUCKET = os.getenv("S3_BUCKET", "web10-media")
-S3_ACCESS_KEY = os.getenv("S3_ACCESS_KEY", "minioadmin")
-S3_SECRET_KEY = os.getenv("S3_SECRET_KEY", "minioadmin")
+S3_ACCESS_KEY = os.getenv("S3_ACCESS_KEY", "")
+S3_SECRET_KEY = os.getenv("S3_SECRET_KEY", "")
 S3_REGION = os.getenv("S3_REGION", "us-east-1")
 S3_USE_SSL = os.getenv("S3_USE_SSL", "false").lower() == "true"
 # SSL for the public signing endpoint; defaults to on when it's an https URL.
@@ -110,9 +115,21 @@ IMPORT_MAX_PARTS = int(os.getenv("IMPORT_MAX_PARTS", "10"))
 for v in list(globals()):
     env_val = os.getenv(v)
     if env_val is not None:
-        globals()[v] = env_val
+        current = globals()[v]
+        if isinstance(current, bool):
+            if env_val.lower() not in ("true", "false", "1", "0"):
+                raise ValueError(f"{v} must be a boolean")
+            globals()[v] = env_val.lower() in ("true", "1")
+        elif isinstance(current, int):
+            globals()[v] = int(env_val)
+        elif isinstance(current, float):
+            globals()[v] = float(env_val)
+        else:
+            globals()[v] = env_val
 
 # Initiate some quality of life variables around the config.
+if isinstance(DEFAULT_ADMINS, str):
+    DEFAULT_ADMINS = [name.strip() for name in DEFAULT_ADMINS.split(",") if name.strip()]
 CORS_SERVICE_MANAGERS = [site.strip() for site in CORS_SERVICE_MANAGERS.split(",")]
 COST = {}
 COST["create"] = COST_CREATE
@@ -120,6 +137,3 @@ COST["read"] = COST_READ
 COST["update"] = COST_UPDATE
 COST["delete"] = COST_DELETE
 COST["aggregate"] = COST_AGGREGATE
-
-if __name__ == "__main__":
-    print(globals())

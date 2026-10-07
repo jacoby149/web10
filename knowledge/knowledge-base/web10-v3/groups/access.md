@@ -9,8 +9,9 @@ disagree, this doc and D58 win.
 Every access question has two answers, and **both must pass**:
 
 1. **App trust** — *can this app do this?* The app contract (ACR) grants an
-   app origin per-service ops. Enforced by CORS + the app-permission check on
-   every document op. This is the outer wall.
+   signed app origin per-service ops. Enforced by current server-side contract
+   checks, not CORS or a caller-selected Origin header. Self credentials are
+   owner authority; app credentials remain scoped. This is the outer wall.
 2. **Person trust** — *can this principal do this, in this group?* The group
    role (this doc) grants a principal per-service ops. Enforced on the read
    and write of group content, and on group-management ops. This is the inner
@@ -24,6 +25,20 @@ request: app A, principal P, group G, service S, op O
 ```
 
 The app contract is unchanged by D58. This doc is the person-trust layer.
+
+For delegated management, the app must also hold the exact reserved `group`
+capability and the person must have the corresponding authority described here.
+Document `*` never grants reserved `group`, `node`, `user` or `imports` operations. Node grants
+additionally require current node-admin status; group membership cannot confer
+node power. See [delegation](../auth/delegation.md) for the complete app capability
+list. App approval does not modify a person's role or bypass this layer.
+
+`user: blockUsers` handles user-wide blocking, distinct from group-scoped
+`group: blockMembers`. `imports: create/read` allows delegated import admission
+and that app's progress reads; worker execution still requires current service
+grants, expiry, target ownership and group authority. Imports are not self-only.
+Jobs persist kind/origin/expiry without bearer tokens and remain private to the
+owning user and initiating app origin. See [operations](../security/operations.md#delegated-import-jobs).
 
 ## The role shape: a per-service map
 
@@ -112,6 +127,19 @@ at least what a signed-in stranger sees.** You cannot make a member see less
 than a bystander — the model won't let you express it.
 
 ## What is gated what way
+
+Current `can_read_group` requires effective `readAll` for the actual service;
+`can_write_group` requires effective `create`. Point reads, batched readable-group
+selection and query service boundaries enforce the effective role union, not mere
+membership. Read-only roles cannot attach content. Media document services are
+`media_metadata`/`public_media`; references in a body are not a service grant.
+
+Old custom groups without explicit service grants must be repaired deliberately.
+There is no blanket automatic role migration or membership fallback. The social
+app's `ensureFollowers` reconciles its own canonical followers contract, including
+comment/reaction creation and media read grants; it does not upgrade arbitrary
+custom groups. Keep role migration separate from app consent: both layers must
+authorize the operation after repair.
 
 | surface | read gate | write gate |
 |---|---|---|

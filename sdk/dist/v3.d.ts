@@ -31,6 +31,7 @@
  * ```
  */
 import type { TokenPayload } from './types';
+export declare function appContractCovers(contract: V3ServiceContract, origin: string, permissions: Record<string, string[]>): boolean;
 export interface V3ClientOptions {
     /** API origin (e.g. "https://api.web10.app" or "http://api.localhost") */
     apiOrigin?: string;
@@ -385,6 +386,10 @@ export declare function createV3Client(options?: V3ClientOptions): V3Client;
  * The v3 client interface.
  */
 export interface V3Client {
+    /** Issue an app credential using the current self session; does not store it. */
+    delegateApp(appOrigin: string): Promise<{
+        token: string;
+    }>;
     state: {
         apiOrigin: string;
         token: string | null;

@@ -7,6 +7,8 @@ import re
 from datetime import datetime, timedelta
 from unittest.mock import MagicMock, patch
 
+import pytest
+
 from app.v3.services import clickhouse as ch
 
 # ---------------------------------------------------------------------------
@@ -925,6 +927,15 @@ class TestReadDocumentsInGroups:
 
 
 class TestReadDocumentById:
+    @pytest.fixture(autouse=True)
+    def readable_role(self):
+        with (
+            patch.object(ch, "get_doc_groups", return_value=["g1"]),
+            patch.object(ch, "readable_groups", return_value=["g1"]) as gate,
+            patch.object(ch, "effective_role_perms", return_value={"posts": ["readAll"]}),
+        ):
+            yield gate
+
     def test_found(self):
         with _patch_client() as mock_client:
             mock_client.query.return_value = _mock_result_rows(
@@ -942,7 +953,7 @@ class TestReadDocumentById:
             mock_client.query.return_value = _mock_result_rows([])
             assert ch.read_document_by_id("doc-1", "alice", "posts") is None
 
-    def test_anon_read_includes_the_anyone_class(self):
+    def test_anon_read_includes_the_anyone_class(self, readable_role):
         """The read-by-id must include the `anyone` principal-class row (D58) —
         otherwise anon (reader = "anon") can't read a public (discover) post by
         id: the discover group's public member is the `anyone` class (the legacy
@@ -951,27 +962,16 @@ class TestReadDocumentById:
         with _patch_client() as mock_client:
             mock_client.query.return_value = _mock_result_rows([])
             ch.read_document_by_id("doc-1", "anon", "posts")
-            params = mock_client.query.call_args[0][1]
-            allowed_keys = [params[f"key{i}"] for i in range(len(params) - 3)]
-            # The reader's own key + the `anyone` class.
-            assert "anon" in allowed_keys
-            assert "anyone" in allowed_keys
-            # Anon is not a real user — the `authenticated` class must NOT be
-            # included (it would let anon read signed-in-only groups).
-            assert "authenticated" not in allowed_keys
+            readable_role.assert_called_once_with("anon", "posts", False, ["g1"])
 
-    def test_authenticated_read_includes_the_authenticated_class(self):
+    def test_authenticated_read_includes_the_authenticated_class(self, readable_role):
         """A real user's read-by-id includes BOTH the `anyone` and
         `authenticated` principal-class rows (D58) — a real user reads public
         groups via `anyone` AND signed-in-only groups via `authenticated`."""
         with _patch_client() as mock_client:
             mock_client.query.return_value = _mock_result_rows([])
             ch.read_document_by_id("doc-1", "alice", "posts", authenticated=True)
-            params = mock_client.query.call_args[0][1]
-            allowed_keys = [params[f"key{i}"] for i in range(len(params) - 3)]
-            assert "alice" in allowed_keys
-            assert "anyone" in allowed_keys
-            assert "authenticated" in allowed_keys
+            readable_role.assert_called_once_with("alice", "posts", True, ["g1"])
 
 
 # ---------------------------------------------------------------------------
@@ -1289,6 +1289,14 @@ class TestResolvePinnedAdsServiceAgnostic:
 
 
 class TestCanReadCarrierPost:
+    @pytest.fixture(autouse=True)
+    def canonical_carrier(self):
+        with (
+            patch.object(ch, "read_document_by_id", return_value={"doc_id": "carrier"}),
+            patch.object(ch, "get_doc_groups", return_value=["api.web10.app/groups/web10/discover"]),
+        ):
+            yield
+
     def test_true_when_reader_can_read_a_carrier_post_group(self):
         """D68 — the cross-user feed path: a post (by the media's author)
         carries the media doc and the reader can read one of the post's
@@ -1296,7 +1304,7 @@ class TestCanReadCarrierPost:
         — the SAME predicate the read path uses, so a public board's reader
         (not a member; reads through the group's `anyone` grant) passes."""
         with _patch_client() as mock_client:
-            mock_client.query.return_value = _mock_result_rows([("api.web10.app/groups/web10/discover",)])
+            mock_client.query.return_value = _mock_result_rows([("carrier", "posts")])
             with patch.object(ch, "can_read_group", return_value=True) as crg:
                 assert ch.can_read_carrier_post("media-1", "alice", "bob") is True
         sql = mock_client.query.call_args[0][0]
@@ -1330,7 +1338,7 @@ class TestCanReadCarrierPost:
         """I3 at the stream layer: the carrier exists, but the reader's
         effective role grants no read on its group → no stream."""
         with _patch_client() as mock_client:
-            mock_client.query.return_value = _mock_result_rows([("api.web10.app/groups/web10/private",)])
+            mock_client.query.return_value = _mock_result_rows([("carrier", "posts")])
             with patch.object(ch, "can_read_group", return_value=False):
                 assert ch.can_read_carrier_post("media-1", "alice", "bob") is False
 
@@ -1341,7 +1349,7 @@ class TestCanReadCarrierPost:
         check must hand `anon` to the same gate the read path uses, with
         authenticated=False (the sig's mint-time flag)."""
         with _patch_client() as mock_client:
-            mock_client.query.return_value = _mock_result_rows([("api.web10.app/groups/web10/discover",)])
+            mock_client.query.return_value = _mock_result_rows([("carrier", "posts")])
             with patch.object(ch, "can_read_group", return_value=True) as crg:
                 assert ch.can_read_carrier_post("media-1", "alice", "anon", False) is True
         crg.assert_called_once_with("api.web10.app/groups/web10/discover", "anon", "posts", False)
@@ -1351,7 +1359,7 @@ class TestResolveMinioTypes:
     def test_no_minio_types_unchanged(self):
         body = {"text": "hello", "age": {"type": "number", "value": 5}}
         with patch.object(ch, "get_s3_signing_client") as mock_signing:
-            result = ch.resolve_minio_types(body)
+            result = ch.resolve_minio_types(body, "alice")
             assert result == body
             mock_signing.assert_not_called()
 
@@ -1361,7 +1369,7 @@ class TestResolveMinioTypes:
             mock_client = MagicMock()
             mock_client.generate_presigned_url.return_value = "http://minio/alice/cat.png?sig=abc"
             mock_signing.return_value = mock_client
-            result = ch.resolve_minio_types(body)
+            result = ch.resolve_minio_types(body, "alice")
             # type + value are kept, a fresh presigned url is added
             assert result["image"]["type"] == "minio"
             assert result["image"]["value"] == "alice/cat.png"
@@ -1383,7 +1391,7 @@ class TestResolveMinioTypes:
             mock_client = MagicMock()
             mock_client.generate_presigned_url.side_effect = lambda *a, **k: f"http://minio/{k['Params']['Key']}?sig=x"
             mock_signing.return_value = mock_client
-            result = ch.resolve_minio_types(body)
+            result = ch.resolve_minio_types(body, "alice")
             assert result["cat-vids"][0]["url"] == "http://minio/alice/henry.mp4?sig=x"
             assert result["cat-vids"][1]["url"] == "http://minio/alice/henry2.mp4?sig=x"
             assert result["nested"]["deep"]["pic"]["url"] == "http://minio/alice/pic.jpg?sig=x"
@@ -1976,7 +1984,7 @@ class TestUsersMutatorTimestampShape:
 class TestMedia:
     def test_confirm_upload(self):
         with _patch_client() as mock_client:
-            result = ch.confirm_media_upload("alice", {"url": "http://x", "filename": "a.png"})
+            result = ch.confirm_media_upload("alice", {"object_key": "alice/id/a.png", "filename": "a.png"})
             # The confirm response is a document envelope (same shape as
             # create/read) — the metadata is the document's body. A flat
             # {doc_id, **metadata} broke clients mapping the response
@@ -1986,7 +1994,7 @@ class TestMedia:
             assert result["author_key"] == "alice"
             assert result["service"] == "media_metadata"
             assert result["body"]["filename"] == "a.png"
-            assert result["body"]["url"] == "http://x"
+            assert result["body"]["object_key"] == "alice/id/a.png"
             assert result["ref_value"] == ""
             assert result["tags"] == []
             assert result["created_at"]
@@ -2048,7 +2056,10 @@ class TestMedia:
             assert "doc_id IN" not in query
 
     def test_delete_media(self):
-        with _patch_client() as mock_client:
+        with (
+            _patch_client() as mock_client,
+            patch.object(ch, "get_document", return_value={"service": "media_metadata"}),
+        ):
             ch.delete_media("alice", "doc-1")
             mock_client.command.assert_called_once()
 

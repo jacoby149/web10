@@ -295,7 +295,7 @@ does not merge.
 
 ## Auth model
 
-JWT tokens with `username, site, target, provider, expires`. Server verifies signature, checks app contracts + group membership. Full auth flow: `knowledge/knowledge-base/web10-v3/auth/auth.md`.
+JWT sessions carry `username, site, target, provider, expires` plus explicit `credential_kind` (`self` or `app`); app sessions bind a canonical signed `app_origin`. Ambiguous legacy sessions must log in again. The authenticator retains self authority and hands apps distinct scoped credentials. Server checks signatures, local issuer, expiry, live app contracts and effective service/group roles; management requires both an exact app grant and current person authority. Local RS256 signing/JWKS is supported with provisioned keys; foreign federation remains disabled pending verified identity migration. Full flow: `knowledge/knowledge-base/web10-v3/auth/auth.md` and `auth/delegation.md`.
 
 ## Security invariants
 

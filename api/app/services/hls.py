@@ -17,6 +17,7 @@ individually. Instead:
 """
 
 import logging
+import os
 import re
 import time
 
@@ -31,6 +32,32 @@ logger = logging.getLogger("web10-hls")
 # anything with a slash or a dot-dot is a traversal attempt, not a segment.
 _VARIANT_RE = re.compile(r"^\d+p$")
 _SEG_RE = re.compile(r"^seg\d+\.ts$")
+
+MAX_MEDIA_BYTES = max(1, min(settings.MAX_UPLOAD_SIZE, 1024 * 1024 * 1024))
+
+
+def owns_object_key(owner: str, key) -> bool:
+    """S3 keys are opaque, but only the authenticated author's tree is writable."""
+    return (
+        isinstance(key, str)
+        and bool(owner)
+        and key.startswith(owner + "/")
+        and all(p and p not in (".", "..") for p in key.split("/"))
+        and not any(ord(c) < 32 or c == "\\" for c in key)
+    )
+
+
+def _signing_config():
+    # Dedicated HLS secret does not depend on federation's asymmetric keypair.
+    key = os.environ.get("HLS_SIGNING_KEY")
+    if key:
+        if len(key.encode()) < 32:
+            raise ValueError("HLS_SIGNING_KEY must contain at least 32 bytes")
+        return key, "HS256"
+    if not settings.PRIVATE_KEY:
+        raise ValueError("HLS signing is not configured")
+    # Existing deployments explicitly configured PRIVATE_KEY for these sigs.
+    return settings.PRIVATE_KEY, settings.ALGORITHM
 
 
 def hls_prefix(video_object_key: str) -> str:
@@ -55,6 +82,9 @@ def mint_sig(username: str, doc_id: str, prefix: str, authenticated: bool = Fals
     can only confirm what the read already granted, never more).
     """
     now = int(time.time())
+    if not isinstance(prefix, str) or not prefix.endswith("/hls") or not owns_object_key(prefix.split("/")[0], prefix):
+        raise ValueError("invalid HLS prefix")
+    key, algorithm = _signing_config()
     return jwt.encode(
         {
             "username": username,
@@ -64,8 +94,8 @@ def mint_sig(username: str, doc_id: str, prefix: str, authenticated: bool = Fals
             "iat": now,
             "exp": now + settings.HLS_SIG_TTL,
         },
-        settings.PRIVATE_KEY,
-        algorithm=settings.ALGORITHM,
+        key,
+        algorithm=algorithm,
     )
 
 
@@ -78,13 +108,19 @@ def verify_sig(sig: str, doc_id: str) -> dict:
     if not sig:
         raise ValueError("missing sig")
     try:
-        payload = jwt.decode(sig, settings.PRIVATE_KEY, algorithms=[settings.ALGORITHM])
+        key, algorithm = _signing_config()
+        payload = jwt.decode(sig, key, algorithms=[algorithm], options={"require": ["exp", "iat"]})
     except jwt.PyJWTError as e:
         raise ValueError(f"invalid or expired stream token: {e}")
     if payload.get("doc_id") != doc_id:
         raise ValueError("stream token does not match this document")
     if not payload.get("username") or not payload.get("prefix"):
         raise ValueError("malformed stream token")
+    prefix = payload["prefix"]
+    if not isinstance(prefix, str) or not prefix.endswith("/hls") or not owns_object_key(prefix.split("/")[0], prefix):
+        raise ValueError("malformed stream token prefix")
+    if not isinstance(payload.get("authenticated", False), bool):
+        raise ValueError("malformed stream principal")
     return payload
 
 
@@ -115,8 +151,9 @@ def can_view_doc(doc_id: str, username: str, authenticated: bool = False) -> dic
     if doc["author_key"] == username:
         return doc
     for group_id in ch.get_doc_groups(doc_id):
-        if ch.is_group_member(group_id, username):
-            return doc
+        if ch.can_read_group(group_id, username, doc.get("service", "media"), authenticated):
+            if ch.read_document_by_id(doc_id, username, doc.get("service", "media"), authenticated):
+                return doc
     if ch.can_read_carrier_post(doc_id, doc["author_key"], username, authenticated):
         return doc
     return None
@@ -165,8 +202,8 @@ def segment_key(prefix: str, variant: str, seg: str) -> str:
     Raises ValueError on traversal-shaped input — the sig's prefix is the
     only addressable tree, and variant/seg are strictly `360p` / `seg001.ts`.
     """
-    if not _VARIANT_RE.match(variant):
+    if not _VARIANT_RE.fullmatch(variant):
         raise ValueError(f"bad variant: {variant!r}")
-    if not _SEG_RE.match(seg):
+    if not _SEG_RE.fullmatch(seg):
         raise ValueError(f"bad segment: {seg!r}")
     return f"{prefix}/{variant}/{seg}"

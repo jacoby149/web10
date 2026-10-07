@@ -1,5 +1,11 @@
 # Audit Surface — Lines of Code
 
+> Historical measurement (05.10.2026), not recounted after the concurrent
+> security changes. LOC is a scoping aid, not security coverage. Current
+> findings and independently executed focused tests are in the
+> [ledger](../../knowledge-base/web10-v3/security/findings.md); the old
+> conformance skeleton is not blanket invariant evidence.
+
 How much code is in scope for the security audit, and where the weight is.
 Measured with `wc -l` over `.py` (api) / `.ts` source (sdk), excluding
 `__pycache__` / `node_modules`. Dated 05.10.2026.

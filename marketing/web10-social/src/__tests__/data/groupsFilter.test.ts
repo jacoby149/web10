@@ -132,6 +132,21 @@ describe('createCommunityGroup', () => {
     expect(roleNames).toContain('reader');
     expect(roleNames).toContain('member');
     expect(roleNames).toContain('owner');
+    const memberPermissions = roles.find((role: any) => role.name === 'member').permissions;
+    expect(memberPermissions).toEqual({
+      posts: ['readAll', 'create', 'updateOwn', 'deleteOwn'],
+      comments: ['readAll', 'create', 'updateOwn', 'deleteOwn'],
+      reactions: ['readAll', 'create', 'updateOwn', 'deleteOwn'],
+      media_metadata: ['readAll'], public_media: ['readAll'],
+      'web10-social-group-identity': ['readAll'],
+    });
+    expect(memberPermissions.group).toBeUndefined();
+    expect(memberPermissions['*']).toBeUndefined();
+    const moderatorPermissions = roles.find((role: any) => role.name === 'moderator').permissions;
+    expect(moderatorPermissions.reactions).toEqual(memberPermissions.reactions);
+    expect(moderatorPermissions.group).toEqual(['assignRoles', 'revokeRoles']);
+    expect(roles.find((role: any) => role.name === 'page-curator').permissions)
+      .toEqual({ 'web10-social-group-identity': ['readAll', 'create', 'updateOwn', 'deleteOwn'] });
     expect(members).toEqual([
       { member_key: 'jacoby149', role: 'owner' },
       { member_key: 'anyone', role: 'reader' },

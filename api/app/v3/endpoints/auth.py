@@ -1,14 +1,46 @@
 import re
+from datetime import UTC, datetime, timedelta
 
-from fastapi import APIRouter
+from fastapi import APIRouter, HTTPException
 
 import app.exceptions as exceptions
-from app.services.auth import get_password_hash
+from app import settings
+from app.services.auth import _utc, decode_token, encode_token, get_password_hash, public_jwks, validate_app_origin
 from app.services.config import effective_config
+from app.v3.endpoints.auth_helper import self_user
 from app.v3.models import Login, Signup
+from app.v3.models.auth import DelegateToken
 from app.v3.services import clickhouse as ch
 
 router = APIRouter(tags=["auth"])
+
+
+@router.get("/.well-known/jwks.json")
+def jwks():
+    return public_jwks()
+
+
+@router.post("/delegate")
+def delegate(data: DelegateToken):
+    username = self_user(data)
+    parent = decode_token(data.token)
+    origin = validate_app_origin(data.app_origin)
+    if not ch.is_origin_allowed(username, origin):
+        raise HTTPException(status_code=403, detail="App contract missing or revoked")
+    expiry = min(_utc(parent.expires), datetime.now(UTC) + timedelta(minutes=settings.TOKEN_EXPIRE_MINUTES))
+    return {
+        "token": encode_token(
+            {
+                "username": username,
+                "provider": parent.provider,
+                "site": origin,
+                "app_origin": origin,
+                "credential_kind": "app",
+                "expires": expiry.isoformat(),
+            }
+        )
+    }
+
 
 _USERNAME_RE = re.compile(r"^[a-z0-9](?:[a-z0-9-]{0,28}[a-z0-9])?$")
 
@@ -55,16 +87,13 @@ def login(data: Login):
     username = data.username.lower()
     if not ch.authenticate_user(username, data.password):
         raise exceptions.LOGIN
-    from datetime import datetime, timedelta
-
-    import jwt
-
     import app.settings as settings
 
     token_data = {
         "username": username,
         "provider": settings.PROVIDER,
-        "site": data.site or "web10",
-        "expires": (datetime.utcnow() + timedelta(minutes=settings.TOKEN_EXPIRE_MINUTES)).isoformat(),
+        "site": settings.PROVIDER,
+        "credential_kind": "self",
+        "expires": (datetime.now(UTC) + timedelta(minutes=settings.TOKEN_EXPIRE_MINUTES)).isoformat(),
     }
-    return {"token": jwt.encode(token_data, settings.PRIVATE_KEY, algorithm=settings.ALGORITHM)}
+    return {"token": encode_token(token_data)}

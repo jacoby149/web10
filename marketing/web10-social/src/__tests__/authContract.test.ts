@@ -51,8 +51,18 @@ describe('the social app contract covers every CRUD service the data layer touch
     expect(contract.permissions['saved']).toEqual(ops);
     // The pre-existing services stay granted (no regression on the rest).
     for (const svc of ['posts', 'media', 'public_media', 'profile', 'settings', 'comments', 'reactions', 'contacts', 'staging_posts']) {
-      expect(contract.permissions[svc]).toEqual(ops);
+      expect(contract.permissions[svc]).toEqual(
+        ['posts', 'comments'].includes(svc) ? [...ops, 'hideAll'] : ops,
+      );
     }
+    expect(contract.permissions.group).toEqual(['createGroup', 'manageRoles', 'assignRoles',
+      'revokeRoles', 'deleteGroup', 'joinGroup', 'leaveGroup', 'manageSharing', 'blockMembers']);
+    expect(contract.permissions.node).toEqual(['moderate', 'manageMonetization']);
+    expect(contract.permissions.imports).toEqual(['create', 'read']);
+    expect(contract.permissions.user).toEqual(['blockUsers']);
+    expect(contract.permissions.media_metadata).toEqual(ops);
+    expect(contract.permissions['*']).toBeUndefined();
+    expect(mock.client.addAppContract).not.toHaveBeenCalled();
   });
 
   it('the session-health oracle verifies the same service set as the login contract', async () => {
@@ -92,25 +102,11 @@ describe('the social app contract covers every CRUD service the data layer touch
     const { verifyAndRecover } = await import('@/data/access');
     await verifyAndRecover();
 
-    expect(mockVerifyAccess).toHaveBeenCalledTimes(1);
-    const [args] = mockVerifyAccess.mock.calls[0] as unknown as [{ services: string[]; operations: string[] }];
-    expect(args.services).toContain('web10-social-group-identity');
-    expect(args.services).toContain('notifications');
-    expect(args.services).toContain('saved');
-    // The oracle list is the contract list — same services, same order.
-    expect(args.services).toEqual([
-      'posts',
-      'media',
-      'public_media',
-      'profile',
-      'settings',
-      'comments',
-      'reactions',
-      'contacts',
-      'staging_posts',
-      'web10-social-group-identity',
-      'notifications',
-      'saved',
-    ]);
+    const { SOCIAL_PERMISSIONS } = await import('@/interfaces/permissions');
+    const checked: Record<string, string[]> = {};
+    for (const [args] of mockVerifyAccess.mock.calls) {
+      for (const service of args.services) checked[service] = args.operations;
+    }
+    expect(checked).toEqual(SOCIAL_PERMISSIONS);
   });
 });

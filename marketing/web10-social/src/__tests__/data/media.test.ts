@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import * as v3 from '../../data/v3';
-import { uploadMedia, refreshMediaUrls, refreshMediaUrl, resolveMediaRefs } from '../../data/posts';
+import { uploadMedia, readMediaRecord, refreshMediaUrls, refreshMediaUrl, resolveMediaRefs } from '../../data/posts';
 import { API_ORIGIN } from '../../lib/origins';
 
 // A tiny valid 1x1 PNG (base64 — no Buffer in the browser tsconfig)
@@ -59,6 +59,18 @@ describe('media data layer (v3) — the real functions', () => {
   });
 
   describe('uploadMedia — the presigned flow', () => {
+    it('reads a media record using the actual metadata service', async () => {
+      const readById = vi.fn().mockResolvedValue({ doc_id: 'media-1', service: 'media_metadata', body: {} });
+      mockV3Client({ readById });
+      expect((await readMediaRecord('media-1'))?._id).toBe('media-1');
+      expect(readById).toHaveBeenCalledWith('media-1', 'media_metadata');
+    });
+
+    it.each([undefined, 'media'] as const)('private uploads use the actual media_metadata service (input=%s)', async (service) => {
+      await uploadMedia({ file: pngFile(), service });
+      expect(mock.confirmMediaUpload).toHaveBeenCalledWith(expect.objectContaining({ service: 'media_metadata' }));
+    });
+
     it('requests a presigned form, uploads the file, confirms with the object_key', async () => {
       const record = await uploadMedia({ file: pngFile(), service: 'public_media' });
 

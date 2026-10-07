@@ -20,8 +20,11 @@ declare function openAuthPortal(authOrigin: string, options?: {
 }): Window | null;
 /**
  * Listen for auth events from the popup.
+ * Pass the client's apiOrigin for nodes other than api.web10.app.
  */
-declare function authListen(onSignedIn: (signedIn: boolean) => void): () => void;
+declare function authListen(onSignedIn: (signedIn: boolean) => void, options?: {
+    apiOrigin?: string;
+}): () => void;
 /**
  * Create a v3 client with contractRequest patched to reuse the auth popup
  * when it's still open (avoiding a second popup that gets blocked).

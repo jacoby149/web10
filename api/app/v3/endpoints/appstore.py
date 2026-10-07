@@ -3,6 +3,7 @@ from fastapi import APIRouter, Query
 import app.exceptions as exceptions
 from app.models.auth import Token
 from app.services.auth import check_admin, decode_token
+from app.v3.endpoints.auth_helper import require_app_permission, user
 from app.v3.models import (
     ApproveApp,
     AppsAdmin,
@@ -50,6 +51,8 @@ def list_apps(data: ListStoreApps):
 @router.post("/rating")
 def create_app_rating(data: CreateAppRating):
     """Submit a 1-5 star rating for an app, with an optional review comment."""
+    user(data)
+    require_app_permission(data, "user", "rateApps")
     decoded = decode_token(data.token, private_key=True)
     if not decoded.username or decoded.username == "anon":
         raise exceptions.TOKEN

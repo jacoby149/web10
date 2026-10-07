@@ -377,7 +377,9 @@ export async function saveNodeAdPercentage(pct: number): Promise<void> {
       const d = (await resp.json()) as { detail?: string };
       if (d?.detail) detail = d.detail;
     } catch { /* keep the status */ }
-    throw new Error(detail);
+    throw new Error(detail === 'App permission denied'
+      ? 'Node monetization permission is missing. Log in again and approve the requested app permissions; node-admin authority is still required.'
+      : detail);
   }
 }
 
@@ -400,7 +402,9 @@ export async function saveNodeAdOverwrite(overwrite: boolean): Promise<void> {
       const d = (await resp.json()) as { detail?: string };
       if (d?.detail) detail = d.detail;
     } catch { /* keep the status */ }
-    throw new Error(detail);
+    throw new Error(detail === 'App permission denied'
+      ? 'Node monetization permission is missing. Log in again and approve the requested app permissions; node-admin authority is still required.'
+      : detail);
   }
 }
 

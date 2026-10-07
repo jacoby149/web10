@@ -6,6 +6,7 @@ import SignupForm from '../CredentialPage/SignupForm';
 import ForgotForm from '../CredentialPage/ForgotForm';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
+import { permissionLabel, hasManagementPermissions, managementWarning } from '@/lib/permissionLabels';
 
 // diff two string lists → {added, removed, same}
 function diffStrings(current: string[], next: string[]) {
@@ -57,11 +58,9 @@ function originLabel(origin: string): string {
 // Build a one-line summary of what an ACR grants.
 function summarizeACR(acr: any): string {
   const perms = acr.permissions || {};
-  const services = Object.keys(perms);
-  const actions = new Set<string>();
-  Object.values(perms).forEach((ops: string[]) => ops.forEach((a) => actions.add(a)));
-  const verbs = actions.size ? Array.from(actions).join('/') : 'access';
-  return `${verbs} on ${services.join(', ')}`;
+  return Object.entries(perms).map(([service, ops]: [string, string[]]) =>
+    `${service === '*' ? 'All document services' : service}: ${ops.map((op) => permissionLabel(service, op)).join(', ')}`,
+  ).join('; ');
 }
 
 // Build a one-line summary of what a group CR requests.
@@ -87,14 +86,16 @@ function RequestRow({
   onApprove,
   onDeny,
   idx,
+  busy,
 }: {
   contract: any;
   current: any | undefined;
   onApprove: () => void;
   onDeny: () => void;
   idx: number;
+  busy?: boolean;
 }) {
-  const [open, setOpen] = React.useState(false);
+  const [open, setOpen] = React.useState(hasManagementPermissions(contract.permissions || {}));
   const isACR = contract.kind === 'app';
   const isGCR = contract.kind === 'group';
   const origin = contract.app_origin || contract.allowed_origin;
@@ -116,31 +117,31 @@ function RequestRow({
 
   return (
     <div className="rounded-lg border border-border bg-elevated" data-testid={`consent-req-${idx}`}>
-      <div className="flex items-center gap-3 p-3.5">
+      <div className="flex flex-wrap items-center gap-3 p-4">
         <button
           type="button"
           onClick={() => setOpen((o) => !o)}
           aria-expanded={open}
-          className="flex min-w-0 flex-1 items-center gap-2.5 rounded text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+          className="flex min-h-11 min-w-0 flex-1 basis-full items-center gap-2.5 rounded text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring sm:basis-auto"
           data-testid={`consent-details-${idx}`}
         >
           <span className="shrink-0 text-muted-foreground">
             {open ? <ChevronDown className="h-4 w-4" strokeWidth={1.5} /> : <ChevronRight className="h-4 w-4" strokeWidth={1.5} />}
           </span>
           <span className="min-w-0">
-            <span className="flex items-center gap-2">
+            <span className="flex flex-wrap items-center gap-2">
               <span className="truncate font-medium text-foreground">{originLabel(origin)}</span>
               <span className="shrink-0 rounded-full bg-brand-muted px-2 py-0.5 text-[11px] font-medium text-brand-300">
                 {isACR ? 'access request' : 'group request'}
               </span>
             </span>
-            <span className="mt-0.5 block truncate text-xs text-muted-foreground">
+            <span className="mt-0.5 block text-xs text-muted-foreground">
               {isACR ? summarizeACR(contract) : summarizeGCR(contract)}
             </span>
           </span>
         </button>
         <div className="flex shrink-0 items-center gap-1.5">
-          <Button variant="brand" size="sm" onClick={onApprove} data-testid={`consent-approve-${idx}`}>
+          <Button variant="brand" size="sm" disabled={busy} className="min-h-11" onClick={onApprove} data-testid={`consent-approve-${idx}`}>
             <Check className="mr-1 h-4 w-4" strokeWidth={2} />
             Allow
           </Button>
@@ -148,14 +149,19 @@ function RequestRow({
             variant="ghost"
             size="sm"
             onClick={onDeny}
+            disabled={busy}
             aria-label={`Deny ${originLabel(origin)}`}
             data-testid={`consent-deny-${idx}`}
-            className="text-muted-foreground hover:text-danger"
+            className="min-h-11 min-w-11 text-muted-foreground hover:text-danger"
           >
             <X className="h-4 w-4" strokeWidth={2} />
           </Button>
         </div>
       </div>
+
+      {isACR && hasManagementPermissions(perms) && (
+        <p className="border-t border-warning/30 bg-warning/10 px-4 py-3 text-sm text-foreground" data-testid="consent-management-warning">{managementWarning(perms)}</p>
+      )}
 
           {open && (
             <div className="border-t border-border px-3.5 py-3 text-sm">
@@ -168,13 +174,13 @@ function RequestRow({
               {current && permDiffs[svc] ? (
                 <>
                   {permDiffs[svc].same.map((p, i) => (
-                    <Chip key={`s${i}`}>{p}</Chip>
+                    <Chip key={`s${i}`}>{permissionLabel(svc, p)}</Chip>
                   ))}
                   {permDiffs[svc].added.map((p, i) => (
-                    <Chip key={`a${i}`} tone="add">{p}</Chip>
+                    <Chip key={`a${i}`} tone="add">{permissionLabel(svc, p)}</Chip>
                   ))}
                   {permDiffs[svc].removed.map((p, i) => (
-                    <Chip key={`r${i}`} tone="remove">{p}</Chip>
+                    <Chip key={`r${i}`} tone="remove">{permissionLabel(svc, p)}</Chip>
                   ))}
                   {permDiffs[svc].same.length + permDiffs[svc].added.length + permDiffs[svc].removed.length === 0 && (
                     <span className="text-xs text-muted-foreground">No permissions</span>
@@ -182,7 +188,7 @@ function RequestRow({
                 </>
               ) : (
                 (perms[svc] || []).map((p: string, i: number) => (
-                  <Chip key={i} tone="add">{p}</Chip>
+                  <Chip key={i} tone="add">{permissionLabel(svc, p)}</Chip>
                 ))
               )}
             </DetailRow>
@@ -291,7 +297,7 @@ function ConsentView({ I }: { I: Record<string, any> }) {
   // This replaces the old "all set" screen + Close-window tap: the return run
   // (already granted) and the first login (after the user approves) both settle
   // here with zero taps.
-  const allSettled = !!(nothingToShow && (openerSignedIn || userConfirmed));
+   const allSettled = !!(nothingToShow && (openerSignedIn || userConfirmed) && !I.connectionError && !I.consentBusy);
   console.log('[consent] authed:', authed, 'contractReceived:', I._contractReceived, 'pending:', pendingContracts.length, 'displayContracts:', displayContracts.length, 'mismatch:', mismatch, 'username:', username || '(none)', 'allSettled:', allSettled);
 
   React.useEffect(() => {
@@ -309,12 +315,13 @@ function ConsentView({ I }: { I: Record<string, any> }) {
         className="pointer-events-none absolute left-1/2 top-0 h-72 w-72 -translate-x-1/2 rounded-full bg-brand/20 blur-[120px]"
       />
 
-      <div className="relative flex w-full max-w-md flex-col" style={{ maxHeight: 'calc(100vh - 4rem)' }}>
+        <div className="relative flex max-h-[calc(100vh-4rem)] w-full max-w-md flex-col">
         <div className="mb-6 flex shrink-0 justify-center">
           <Branding I={I} size="lg" tagline={false} />
         </div>
 
         <div className="flex min-h-0 flex-col rounded-lg border border-border bg-card shadow-[0_8px_30px_rgb(0_0_0/0.35)]">
+        {I.connectionError && <p role="alert" className="border-b border-danger/30 bg-danger-muted px-4 py-3 text-sm text-foreground">{I.connectionError}</p>}
         {showLoginForm ? (
           <div className="min-h-0 flex-1 overflow-y-auto p-6 sm:p-8">
             <div className="mb-6 text-center">
@@ -392,7 +399,8 @@ function ConsentView({ I }: { I: Record<string, any> }) {
                   <RequestRow
                     key={(contract.app_origin || contract.allowed_origin) + '-' + idx}
                     contract={contract}
-                    idx={idx}
+                     idx={idx}
+                     busy={I.consentBusy}
                     current={contract.kind === 'app' ? v3Contracts.find((c: any) => c.allowed_origin === (contract.app_origin || contract.allowed_origin)) : undefined}
                     onApprove={() => I.approveContract(contract)}
                     onDeny={() => I.denyContract(contract)}
@@ -405,11 +413,12 @@ function ConsentView({ I }: { I: Record<string, any> }) {
                 {I.status && (
                   <p className="text-center text-sm text-muted-foreground" role="status">{I.status}</p>
                 )}
-                <Button variant="brand" className="w-full" onClick={() => I.approveAll()} data-testid="consent-approve-all">
+                 <Button variant="brand" className="w-full" disabled={I.consentBusy} onClick={() => I.approveAll()} data-testid="consent-approve-all">
                   Approve all & continue
                 </Button>
                 <Button
-                  variant="ghost"
+                   variant="ghost"
+                   disabled={I.consentBusy}
                   className="w-full text-muted-foreground hover:text-foreground"
                   onClick={() => I.goToApp()}
                   data-testid="consent-skip"

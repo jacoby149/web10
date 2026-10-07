@@ -94,7 +94,14 @@ const FOLLOWER_ROLES = [
   },
   {
     name: 'member',
-    permissions: { 'posts': ['readAll'] },
+    permissions: {
+      posts: ['readAll'],
+      profile: ['readAll'],
+      comments: ['readAll', 'create', 'updateOwn', 'deleteOwn'],
+      reactions: ['readAll', 'create', 'updateOwn', 'deleteOwn'],
+      media_metadata: ['readAll'],
+      public_media: ['readAll'],
+    },
   },
   // The public profile grant (D41 + D58 point 7): the `anyone` principal class
   // reads the `profile` service — the face (avatar / banner / bio / display
@@ -116,7 +123,12 @@ const CLOSE_FRIENDS_ROLES = [
   },
   {
     name: 'member',
-    permissions: { 'posts': ['readAll', 'create', 'updateOwn', 'deleteOwn'], 'comments': ['readAll', 'create', 'updateOwn', 'deleteOwn'] },
+    permissions: {
+      posts: ['readAll', 'create', 'updateOwn', 'deleteOwn'],
+      comments: ['readAll', 'create', 'updateOwn', 'deleteOwn'],
+      reactions: ['readAll', 'create', 'updateOwn', 'deleteOwn'],
+      media_metadata: ['readAll'], public_media: ['readAll'],
+    },
   },
 ];
 
@@ -127,7 +139,14 @@ const COMMUNITY_ROLES = [
   },
   {
     name: 'moderator',
-    permissions: { 'posts': ['readAll', 'create', 'updateOwn', 'deleteOwn', 'hideAll'], 'comments': ['readAll', 'create', 'updateOwn', 'deleteOwn', 'hideAll'], 'group': ['assignRoles', 'revokeRoles'] },
+    permissions: {
+      posts: ['readAll', 'create', 'updateOwn', 'deleteOwn', 'hideAll'],
+      comments: ['readAll', 'create', 'updateOwn', 'deleteOwn', 'hideAll'],
+      reactions: ['readAll', 'create', 'updateOwn', 'deleteOwn'],
+      media_metadata: ['readAll'], public_media: ['readAll'],
+      'web10-social-group-identity': ['readAll'],
+      group: ['assignRoles', 'revokeRoles'],
+    },
   },
   {
     name: 'page-curator',
@@ -135,7 +154,13 @@ const COMMUNITY_ROLES = [
   },
   {
     name: 'member',
-    permissions: { 'posts': ['readAll', 'create', 'updateOwn', 'deleteOwn'], 'comments': ['readAll', 'create', 'updateOwn', 'deleteOwn'] },
+    permissions: {
+      posts: ['readAll', 'create', 'updateOwn', 'deleteOwn'],
+      comments: ['readAll', 'create', 'updateOwn', 'deleteOwn'],
+      reactions: ['readAll', 'create', 'updateOwn', 'deleteOwn'],
+      media_metadata: ['readAll'], public_media: ['readAll'],
+      'web10-social-group-identity': ['readAll'],
+    },
   },
 ];
 
@@ -349,22 +374,7 @@ export type GroupJoinPolicy = 'open' | 'request' | 'invite_only';
  * adds no reserved member row (members only).
  */
 const COMMUNITY_CREATE_ROLES = [
-  {
-    name: 'owner',
-    permissions: { '*': ['readAll', 'create', 'updateOwn', 'updateAll', 'deleteOwn', 'deleteAll', 'hideAll'], 'group': ['manageRoles', 'assignRoles', 'revokeRoles', 'deleteGroup'] },
-  },
-  {
-    name: 'moderator',
-    permissions: { 'posts': ['readAll', 'create', 'updateOwn', 'deleteOwn', 'hideAll'], 'comments': ['readAll', 'create', 'updateOwn', 'deleteOwn', 'hideAll'], 'group': ['assignRoles', 'revokeRoles'] },
-  },
-  {
-    name: 'page-curator',
-    permissions: { 'web10-social-group-identity': ['readAll', 'create', 'updateOwn', 'deleteOwn'] },
-  },
-  {
-    name: 'member',
-    permissions: { 'posts': ['readAll', 'create', 'updateOwn', 'deleteOwn'], 'comments': ['readAll', 'create', 'updateOwn', 'deleteOwn'] },
-  },
+  ...COMMUNITY_ROLES,
   {
     name: 'reader',
     permissions: { 'posts': ['readAll'], 'web10-social-group-identity': ['readAll'] },

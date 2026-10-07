@@ -18,7 +18,7 @@ log = logging.getLogger(__name__)
 def moderation_flags(data: ModerationFlags):
     """The content-moderation review queue (D59): users with auto-hidden /
     flagged posts, newest first. Admin only."""
-    check_admin(Token(token=data.token))
+    check_admin(Token(token=data.token), required_capability="moderate")
     return {"flags": moderation.get_flags()}
 
 
@@ -31,7 +31,7 @@ def moderation_auto_hide(data: ModerationAutoHide):
     existing discover posts. The write-path hook still governs future posts.
     Admin only.
     """
-    check_admin(Token(token=data.token))
+    check_admin(Token(token=data.token), required_capability="moderate")
     current = config_svc.get_config()
     users = list(current.get("auto_hide_users") or [])
     username = data.username.strip()
@@ -75,7 +75,7 @@ def moderation_ban(data: ModerationBan):
     not node_config. The read path enforces the ban via a LEFT ANTI JOIN
     against the table (no config read, no inlined list).
     """
-    check_admin(Token(token=data.token))
+    check_admin(Token(token=data.token), required_capability="moderate")
     username = data.username.strip()
     if not username:
         raise exceptions.CRUD
@@ -95,5 +95,5 @@ def moderation_banned_list(data: ModerationFlags):
     Reads from the ``banned_users`` ClickHouse table (not node_config).
     Returns the active (non-tombstoned) banned usernames with metadata.
     """
-    check_admin(Token(token=data.token))
+    check_admin(Token(token=data.token), required_capability="moderate")
     return {"banned_users": ch.get_banned_users_list()}

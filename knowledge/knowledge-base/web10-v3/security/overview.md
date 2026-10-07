@@ -1,134 +1,140 @@
 # Security Model
 
-web10 nodes hold people's data and creators' money. The security model is defined as five invariants. Every architectural decision is judged against them.
+A creator needs to give an app enough access to work, without giving it the
+keys to the node. This reference defines the target and the current enforcement
+boundary. It is not a certification that every endpoint is secure.
 
-## The Invariants
+## Six Invariants
 
-Five guarantees that must hold every phase. The conformance/permission test suite enforces them mechanically.
-
-| Invariant | Guarantee |
+| Invariant | Required property |
 |---|---|
-| **I1** | A provider verifies any token's issuer cryptographically, without trusting the token's own claims. |
-| **I2** | Authorization decisions use only verified token data — never an unsigned decode. |
-| **I3** | No query returns documents for an `author_key` the token doesn't own, unless group membership grants access. |
-| **I4** | The node is a readable, accountable broker: content is node-readable by design (discovery, search, auditability). Operator-blindness is explicitly **not** a goal (D41). Access is controlled by terms (I3); the operator is legally liable for hosted data. |
-| **I5** | Every actor (app, agent, LLM) acts under a scoped, expiring, revocable token enforced by app contracts. |
-| **I6** | The cross-node boundary is the HTTP API + a verified token. No node ever queries another node's ClickHouse; remote data is content, never control (never query input, never a key into the local store, never a grant). |
+| **I1** | Verify a token's issuer cryptographically; never trust its own issuer or key-location claims. |
+| **I2** | Authorization uses verified claims, never unsigned payload decoding. |
+| **I3** | Reads return owned documents or documents authorized through the relevant group/service grants; references and query projections are not grants. |
+| **I4** | The node is a readable, accountable broker. Operator-blindness is not a goal; content is node-readable by design (D41). |
+| **I5** | Delegated actors operate under scoped, expiring credentials and current, revocable app contracts. Self credentials are owner authority, not app credentials. |
+| **I6** | Cross-node interaction uses the HTTP API and verified credentials, never another node's ClickHouse. Remote content is data, not local query control or a grant. |
 
-**Known gap:** I1 is partially broken — symmetric HS256 signing means providers can't verify each other's tokens. The fix (RS256/EdDSA + JWKS, D7) is in flight. Do not add code that deepens the HS256 assumption.
+These are review targets. Tests supply evidence for particular paths, not a
+blanket guarantee. See [the threat model](threat-model.md) for adversaries and
+[operations](operations.md) for the deployment and live-assurance gates.
 
-**I6 (federation, D84):** the multi-node read model is **client-side fan-out** — the user's client queries each node and merges; a node never proxies another's data. The cross-node boundary is the HTTP API with a JWKS-verified token (I1), **never** a cross-ClickHouse query (`remote()`/`cluster()` are for trusted clusters and are rejected for federation). The feed merge is a result-set *union* of independently I3-authorized reads, so a foreign node's data can't steer what the local node queries — a data reference is not a grant (the same property that stops a local user reading other posts). Full model + the "mine Node A from Node B" walk-through: `knowledge/strategy/multi-node.md`.
+## Trace an App Request
 
-## How ClickHouse Enforces I3
+1. Password login or contact recovery issues `credential_kind: "self"` to the
+   authenticator. Old sessions without an explicit kind must log in again.
+2. The person approves a contract for an exact canonical origin, such as
+   `https://notes.example.com`. `/v3/delegate` requires a self credential and
+   an active contract, then issues `credential_kind: "app"` with signed
+   `app_origin`. It does not hand the self credential to the app.
+3. The API verifies the signature, local provider/issuer, target when present,
+   credential kind and expiry. App origins must be canonical HTTPS origins
+   (HTTP is allowed for localhost development only).
+4. App checks look up the latest contract by verified username and signed
+   `app_origin`. Missing or revoked contracts deny access. A supplied `Origin`
+   must match; omitting or spoofing the header does not select another contract.
+5. The current contract must grant the operation. Document `*` permissions
+   never grant reserved `group`, `node`, `user` or `imports` capabilities.
+6. The person's group role or current node-admin status must independently
+   authorize management. A grant to an app cannot manufacture person authority.
 
-v3 uses a single `documents` table. There is no per-user collection to isolate access. The enforcement is query-level:
+The API deliberately serves wildcard, non-credentialed CORS. CORS is not the
+authorization wall; signed credentials and server-side checks are. web10-social
+uses the same consent boundary as any other app.
 
-```
-Every read query must:
-  1. Filter by author_key = token.username (own documents), OR
-  2. Traverse through doc_groups + group_members (group-discovered documents)
-```
+The exact reserved capability list, consent behavior and popup binding are in
+[delegation](../auth/delegation.md). Account credentials, contacts, contract
+approval/revocation, node secrets and the admin list remain self-only. Delegated
+node configuration exposes only moderation/monetization policy allowlists.
 
-There is no sandboxed aggregation pipeline (v2). There is no cross-collection stage (v2). The ClickHouse queries are constructed by the API layer — they always include the `author_key` or group membership filter.
+The reserved app keys are `group` (the exact structural operations listed in
+delegation), `node` (`moderate`, `manageMonetization`), `user` (`blockUsers`, `rateApps`) and
+`imports` (`create`, `read`). Imports are delegated, not self-only: job access
+is owner- and app-origin-scoped, and worker writes recheck persisted credential
+scope, expiry, current grants and target authority without storing bearer tokens.
+See [operations](operations.md#delegated-import-jobs) for the execution boundary.
 
-**The membership check includes the reserved principal-class rows (D58).** A reader reads a group's documents if they're a literal member (`member_key = reader`) **OR** the group carries the `anyone` grant (always — the public class) **OR** the `authenticated` grant (real users only). This is why the public (discover) board is anon-readable: the discover group's public member is the `anyone` class (the legacy `anon` row was renamed), not a literal `anon` membership. Every read path — the group read, the **read-by-id** (`read_document_by_id`, the watch page's post read), the people directory — applies this same principal-class gate. A read path that checks only literal membership (`member_key = reader`) silently 404s for anon on public groups (the watch-page bug, 3.172.1).
+## Document and Query Boundary
 
-```mermaid
-flowchart TD
-    A["API receives request"] --> B{"Token username?"}
-    B --> C["author_key = :username"]
-    B --> D["OR group membership check"]
-    D --> E["doc_groups JOIN group_members"]
-    E --> F["member_key = :username"]
-    C --> G["UNION"]
-    F --> G
-    G --> H["Filter deleted = 0"]
-    H --> I["EXCEPT group_hidden_docs"]
-    I --> J["Return results"]
-```
+The shared `documents` table is not an isolation mechanism on its own. Direct
+reads and writes must check author identity, actual service, group permissions,
+and the operation's app grant. Group reads combine literal membership with
+reserved `anyone` and `authenticated` grants, per service. Blocking, sharing,
+hidden documents and node bans further constrain applicable reads.
 
-## Two-Contract Access Model
+Membership alone grants neither reading nor creation. `can_read_group` requires
+effective `readAll` for the actual service; `can_write_group` requires effective
+`create`. Point, batched and query-boundary reads use the effective role union.
+Old custom groups need explicit service grants; there is no blanket automatic
+role migration. The social app reconciles its own canonical followers contract,
+not arbitrary groups. Media metadata uses `media_metadata` (or `public_media`),
+not a legacy `media` permission key; body references cannot change that scope.
 
-v3 has two contract types that enforce completely different concerns. Both must pass for a request to succeed.
+Caller SQL is hostile input. `safe_query.py` replaces permitted document-service
+tables with API-built, visibility-filtered boundary CTEs, rejects raw tables and
+table functions, and bounds results. Joins and aggregation operate inside that
+boundary. The prepare pass re-fetches canonical authorized carrier/face/ad data
+before minting media capabilities; a projected `doc_id`, author or media ref is
+not provenance. These paths require both regression tests and live ClickHouse
+evidence, including tests with background merges disabled.
 
-```mermaid
-sequenceDiagram
-    participant App as Client App
-    participant API as API Server
-    participant AC as App Contracts
-    participant GC as Group Contracts
-    participant D as Documents
+Canonical carrier checks do not certify every referenced record: media-reference
+resolution still filters tombstones before latest-version selection and may mint
+fresh URLs from deleted metadata while objects remain (SEC-012/015).
 
-    App->>API: GET /alice/posts
-    API->>AC: Check app contract for origin
-    AC-->>API: Allowed (posts/readAll)
-    API->>GC: Check group membership
-    GC-->>API: Member of jazz-collectors
-    API->>D: SELECT WHERE author_key = 'alice' AND doc IN groups
-    D-->>API: post-1, post-2
-    API-->>App: Return results
-```
+## Signing and Federation Status
 
-**App contract** — Infrastructure trust. "What can this app do with my data?"
-- One contract per origin
-- Per-service permissions: `readAll`, `create`, `updateOwn`, `deleteOwn`
-- CORS-enforced in the browser
-- Server-enforced on every API call
-- Stored in `app_contracts` table
+`services/auth.py` issues RS256 when `AUTH_SIGNING_KEY` is configured. Its RSA
+private key must be at least 2048 bits. The local public key is published at
+`GET /v3/.well-known/jwks.json`, with `AUTH_KEY_ID` as `kid`. Verification selects
+only locally configured keys; it does not fetch token-supplied `jku`, `x5u` or
+provider URLs.
 
-**Group contract** — Social access. "Who gets to see this content?"
-- Roles define permissions scoped to services
-- Membership defines who is in the group
-- Content is attached to groups via `doc_groups`
-- Read queries filter through group membership
-- Stored in `group_contracts` + `group_members` tables
+Explicitly configured HS256 `PRIVATE_KEY` remains a legacy mode. With RSA
+enabled, HS256 verification additionally requires a future
+`AUTH_LEGACY_VERIFY_UNTIL` deadline. Without RSA, explicit HS256 mode does not
+enforce that deadline. Operations requires RSA plus a bounded legacy migration,
+not indefinite legacy mode.
 
-## Token Security
+Foreign providers/issuers are rejected. Local asymmetric signing is progress
+toward I1, **not completed federation**: canonical issuer-qualified principals,
+foreign key trust and cross-node authorization remain future work. Current
+bare local usernames must not be populated from foreign claims. I6 remains the
+architectural constraint for that future implementation.
 
-JWT tokens carry `username`, `site`, `target`, `provider`, `expires`. The SDK stores them in a `SameSite=Lax`, `Secure` cookie (60-day max age).
+This local Python verifier is not a stack-wide verification guarantee. RTC still
+unsigned-decodes `provider` to select a remote certification destination when
+`CERTIFY_BASE_URL` is absent, then trusts HTTP 200 (SEC-029). That separate trust
+path remains open; local JWKS publication does not repair it.
 
-Server-side verification:
-- `decode_token` verifies the JWT signature before extracting claims
-- Token username is used to scope all queries
-- Token expiry is checked on every request
+## Credential Exposure and Revocation
 
-Client-side:
-- `postMessage` tokens are only accepted from the configured `authOrigin`
-- Tokens are posted only to the referrer origin, never to `'*'`
-- No token in URL — cookie and request body only
+SDK cookies are script-readable, `SameSite=Lax`, and `Secure` on HTTPS; the
+default cookie lifetime is 60 days. The authenticator also keeps up to five
+self credentials in its persistent account vault. XSS on an app can steal its
+app credential; XSS on the authenticator can steal owner credentials, with a
+much larger blast radius. Client-side JWT decoding is a UI hint, not I2 proof.
 
-## Blocking and Sharing
+The server default session lifetime is `TOKEN_EXPIRE_MINUTES=87840` (61 days).
+Delegation cannot outlive the parent session. Revocation or permission reduction
+is enforced on subsequent checked requests through latest-row contract reads,
+without waiting for ClickHouse merges. There is no per-token denylist; logout
+or a password change is not server-side invalidation of an already stolen self
+JWT. Already minted storage/HLS capabilities have their own expiry windows.
 
-Two levels of user-controlled blocking:
+Imports recheck recorded app scope during execution; queued transcodes do not
+retain that scope or recheck live app grants. Local RTC certification checks
+session validity, not app revocation, and its handler does not periodically
+revalidate connected sockets. These exceptions remain open, not covered by a
+blanket revocation promise. Public first-run setup also remains unauthenticated
+and non-atomic (SEC-030); provision it privately before exposing the node.
 
-**User-wide blacklist** — block someone entirely. They can't see any of your content, anywhere. Stored in `user_blacklist`.
+## Further Reading
 
-**Per-group blacklist** — block someone from seeing your content in a specific group. They're still a member. They still see everyone else's content. Just not yours. Stored in `group_blacklist`.
-
-**Sharing toggle** — per-user, per-group. "Pause sharing without leaving." You stay a member. You still see their content. They can't see yours. Stored in `user_group_sharing`.
-
-## No E2E by design (D41)
-
-web10 is a data-policy platform, not a privacy platform (D41, `thesis.md`). The
-node is readable by design — discovery, search, and auditability all require it,
-and "discoverable" and "hidden from the node" are mutually exclusive. Access is
-controlled by the terms/permission model (I3), not by cryptography; trust in the
-operator is legal (they can be sued), not cryptographic.
-
-E2E is not banned — it is not the default and not our product. A user or third
-party may build their own e2e layer on the SDK + WebRTC. If a real creator asks
-for operator-blind DMs, that becomes an opt-in tier, never the default. The
-former e2e design (phone-as-keychain, wrapped keys, CP-ABE, MLS) was reversed in
-D41; the mobile encryptor app is deleted.
-
-## Federation (I1 — in flight)
-
-The federation signing weakness is being fixed: HS256 → RS256/EdDSA + JWKS. Asymmetric signing, per-node keypair, public keys published at a well-known JWKS URL, offline verification. Dual-verify during migration, then drop HS256.
-
-## See Also
-
-- `../auth/auth.md` — auth flow, token structure, ACR
-- `../db/clickhouse.md` — schema: documents, doc_groups, group_contracts, group_members, app_contracts
-- `../groups/overview.md` — group contracts, roles, join policies
-- `../sdk/contracts.md` — app contracts, group contracts, blacklists
-- `../sdk/implementation.md` — SQL behind every SDK call (author_key + group membership filters)
+- [Authentication](../auth/auth.md): token and contact flows.
+- [Operations](operations.md): provisioning, rotation, limits and gauntlet.
+- [Threat model](threat-model.md): trust assumptions and assurance layers.
+- [Group access](../groups/access.md): principal classes and person authority.
+- [Contract schemas](../sdk/contracts.md): persisted app/group permissions.
+- [Findings ledger](findings.md): remediation evidence and open issues (separately maintained).
+- [October audit](../../../security-audit/october/README.md): historical audit snapshot, not a verdict on the current working tree.

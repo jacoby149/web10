@@ -228,14 +228,13 @@ def list_admins() -> list:
     Source of truth is the saved config's ``admins`` list; until an admin sets
     one, fall back to settings.DEFAULT_ADMINS so the node isn't locked out.
     """
-    admins = list(settings.DEFAULT_ADMINS)  # always include baseline
-    cfg_admins = get_config().get("admins")
-    if cfg_admins:
-        admins = list(set(admins) | set(cfg_admins))
-    # DEFAULT_ADMINS may arrive as a comma-separated string via env override
+    config = get_config()
+    admins = config["admins"] if "admins" in config else settings.DEFAULT_ADMINS
     if isinstance(admins, str):
         admins = [a.strip() for a in admins.split(",") if a.strip()]
-    return list(admins)
+    if not isinstance(admins, list) or any(not isinstance(a, str) for a in admins):
+        return []
+    return list(dict.fromkeys(a.strip() for a in admins if a.strip()))
 
 
 def is_admin(username: str) -> bool:

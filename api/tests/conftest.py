@@ -31,7 +31,16 @@ import pytest
 import app.settings as settings
 
 
+@pytest.fixture(autouse=True)
+def test_signing_key(monkeypatch):
+    monkeypatch.setattr(settings, "PRIVATE_KEY", "api-tests-only-signing-key-at-least-32-bytes")
+    monkeypatch.setattr(settings, "AUTH_SIGNING_KEY", "")
+    monkeypatch.setattr(settings, "ALGORITHM", "HS256")
+    monkeypatch.setattr(settings, "DEFAULT_ADMINS", ["testadmin"])
+
+
 def _make_token(payload: dict) -> str:
+    payload = {"credential_kind": "self", **payload}
     return jwt.encode(payload, settings.PRIVATE_KEY, algorithm=settings.ALGORITHM)
 
 
@@ -131,12 +140,12 @@ def mock_twilio():
 
 @pytest.fixture
 def mock_requests_post():
-    with patch("app.services.auth.requests.post") as m:
+    with patch("requests.post") as m:
         m.return_value.status_code = 200
         yield m
 
 
 @pytest.fixture
 def mock_requests_get():
-    with patch("app.endpoints.system.requests.get") as m:
+    with patch("requests.get") as m:
         yield m

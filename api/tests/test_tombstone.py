@@ -43,7 +43,7 @@ def _patch_client():
 
 class TestDocumentTombstone:
     def test_get_document_returns_latest_version(self):
-        """Stale + current rows — get_document must use ORDER BY updated_at DESC LIMIT 1."""
+        """Latest version wins before filtering tombstones."""
         with _patch_client() as mock_client:
             mock_client.query.return_value = _mock_result_rows(
                 [
@@ -53,29 +53,12 @@ class TestDocumentTombstone:
             result = ch.get_document("doc-1", "alice")
             assert result["body"]["text"] == "latest"
             call_args = mock_client.query.call_args[0][0]
-            assert "ORDER BY updated_at DESC LIMIT 1" in call_args
+            assert "ORDER BY updated_at DESC, deleted DESC" in call_args
+            assert "WHERE rn = 1 AND deleted = 0" in call_args
 
     def test_get_document_tombstoned_returns_none(self):
-        """Current version is tombstoned (deleted=1), stale is deleted=0.
-        With ORDER BY updated_at DESC LIMIT 1, the tombstoned row comes first
-        but is filtered out. The stale row should NOT be returned because
-        ClickHouse would return the tombstoned row first, and it's filtered.
-        Actually — the query filters deleted=0, so only non-deleted rows match.
-        The stale row (deleted=0, older) would still match."""
+        """A latest tombstone suppresses the stale live row before merges."""
         with _patch_client() as mock_client:
-            # The mock simulates what ClickHouse returns AFTER filtering deleted=0.
-            # If the current version is tombstoned, ClickHouse returns nothing
-            # (both rows: one deleted=1 filtered, one deleted=0 but old).
-            # But with ORDER BY updated_at DESC LIMIT 1, we only see the latest
-            # non-deleted row. If the latest is deleted, the stale one is still
-            # returned. This is the expected behavior — the tombstone hasn't
-            # compacted yet, so the stale row is visible.
-            # The real-world scenario: after a tombstone INSERT, there are two
-            # rows. The newer one has deleted=1. The older has deleted=0.
-            # The WHERE deleted=0 filter keeps only the old row.
-            # ORDER BY updated_at DESC LIMIT 1 returns the old row.
-            # This is correct — the tombstone is an INSERT, not a DELETE.
-            # The old row is still valid until background merges compact it.
             mock_client.query.return_value = _mock_result_rows([])
             result = ch.get_document("doc-1", "alice")
             assert result is None
@@ -96,7 +79,12 @@ class TestDocumentTombstone:
 
     def test_read_document_by_id_returns_latest(self):
         """read_document_by_id must return the latest version."""
-        with _patch_client() as mock_client:
+        with (
+            _patch_client() as mock_client,
+            patch.object(ch, "get_doc_groups", return_value=["g1"]),
+            patch.object(ch, "readable_groups", return_value=["g1"]),
+            patch.object(ch, "effective_role_perms", return_value={"posts": ["readAll"]}),
+        ):
             mock_client.query.return_value = _mock_result_rows(
                 [
                     ("doc-1", "alice", '{"text":"new"}', [], OLD, "", "none", ""),
@@ -105,7 +93,8 @@ class TestDocumentTombstone:
             result = ch.read_document_by_id("doc-1", "alice", "posts")
             assert result["body"]["text"] == "new"
             call_args = mock_client.query.call_args[0][0]
-            assert "ORDER BY p.updated_at DESC LIMIT 1" in call_args
+            assert "ORDER BY updated_at DESC LIMIT 1" in call_args
+            assert "WHERE rn = 1 AND deleted = 0" in call_args
 
 
 # ---------------------------------------------------------------------------

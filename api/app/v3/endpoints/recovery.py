@@ -11,17 +11,17 @@ A thin per-contact send rate-limit backs up Twilio Verify's own limits (each
 send costs a real SMS/email); it is best-effort, per-worker.
 """
 
+import math
 import re
 import secrets
 import time
 from datetime import datetime, timedelta
 
-import jwt
 from fastapi import APIRouter
 
 import app.exceptions as exceptions
 import app.settings as settings
-from app.services.auth import get_password_hash
+from app.services.auth import encode_token, get_password_hash, verified_payload
 from app.v3.models import RecoveryComplete, RecoveryRequest, RecoveryVerify
 from app.v3.services import clickhouse as ch
 
@@ -77,30 +77,42 @@ def _check_send_rate_limit(contact: str) -> None:
 
 
 def _mint_verify_token(contact: str, kind: str) -> str:
-    return jwt.encode(
+    return encode_token(
         {
             "contact": contact,
             "kind": kind,
             "purpose": "recovery",
             "exp": datetime.utcnow() + timedelta(minutes=_VERIFY_TTL_MINUTES),
         },
-        settings.PRIVATE_KEY,
-        algorithm=settings.ALGORITHM,
     )
 
 
 def _check_verify_token(token: str) -> dict:
     try:
-        payload = jwt.decode(token, settings.PRIVATE_KEY, algorithms=[settings.ALGORITHM])
+        payload = verified_payload(token)
     except Exception:
         raise exceptions.TOKEN
     if payload.get("purpose") != "recovery":
+        raise exceptions.TOKEN
+    if not isinstance(payload.get("exp"), (int, float)) or isinstance(payload["exp"], bool):
+        raise exceptions.TOKEN
+    if not math.isfinite(payload["exp"]):
+        raise exceptions.TOKEN
+    if payload.get("provider", settings.PROVIDER) != settings.PROVIDER:
+        raise exceptions.TOKEN
+    if payload.get("iss", settings.PROVIDER) != settings.PROVIDER:
+        raise exceptions.TOKEN
+    if payload.get("kind") not in ("phone", "email") or not isinstance(payload.get("contact"), str):
+        raise exceptions.TOKEN
+    if _contact_kind(payload["contact"]) != payload["kind"]:
         raise exceptions.TOKEN
     return payload
 
 
 def _account_has_contact(user: dict, contact: str, kind: str) -> bool:
     field = "email" if kind == "email" else "phone"
+    if not user.get(field + "_verified"):
+        return False
     stored = user.get(field) or ""
     if kind == "email":
         return stored.lower() == (contact or "").lower()
@@ -111,10 +123,11 @@ def _mint_login_token(username: str, site: str = "web10") -> str:
     token_data = {
         "username": username,
         "provider": settings.PROVIDER,
-        "site": site,
+        "site": settings.PROVIDER,
+        "credential_kind": "self",
         "expires": (datetime.utcnow() + timedelta(minutes=settings.TOKEN_EXPIRE_MINUTES)).isoformat(),
     }
-    return jwt.encode(token_data, settings.PRIVATE_KEY, algorithm=settings.ALGORITHM)
+    return encode_token(token_data)
 
 
 @router.post("/request")
@@ -128,7 +141,7 @@ def request_code(data: RecoveryRequest):
     _check_send_rate_limit(data.contact)
     from app.services import twilio as mobile
 
-    mobile.send_verification(data.contact.strip())
+    mobile.send_verification(data.contact.strip() if kind == "email" else _digits(data.contact))
     return {"sent": True, "kind": kind}
 
 
@@ -142,8 +155,12 @@ def verify_code(data: RecoveryVerify):
     kind = _contact_kind(data.contact)
     from app.services import twilio as mobile
 
-    mobile.check_verification(data.contact.strip(), data.code)  # raises WRONG_CODE
-    users = ch.get_users_by_contact(data.contact.strip())
+    mobile.check_verification(data.contact.strip() if kind == "email" else _digits(data.contact), data.code)
+    users = [
+        user
+        for user in ch.get_users_by_contact(data.contact.strip())
+        if _account_has_contact(user, data.contact.strip(), kind)
+    ]
     return {
         "accounts": [{"username": u["username"], "email": u["email"]} for u in users],
         "verify_token": _mint_verify_token(data.contact.strip(), kind),
@@ -185,9 +202,9 @@ def complete(data: RecoveryComplete):
         )
         if not created:
             raise exceptions.EXISTS
-    # Mark the contact verified on the account.
-    if kind == "phone":
-        ch.verify_phone(username)
-    else:
-        ch.verify_email(username)
+        # Only a newly created account needs its OTP-proven contact activated.
+        if kind == "phone":
+            ch.verify_phone(username)
+        else:
+            ch.verify_email(username)
     return {"token": _mint_login_token(username)}

@@ -29,8 +29,10 @@ export function dmGroupName(a: string, b: string): string {
 const DM_ROLES = [
   {
     name: 'member',
-    services: ['posts', 'comments'],
-    permissions: ['readAll', 'create', 'updateOwn', 'deleteOwn'],
+    permissions: {
+      posts: ['readAll', 'create', 'updateOwn', 'deleteOwn'],
+      comments: ['readAll', 'create', 'updateOwn', 'deleteOwn'],
+    },
   },
 ];
 

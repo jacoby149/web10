@@ -26,6 +26,7 @@ def _make_token(username="testuser", expired=False, **extra):
         "site": "auth.localhost",
         "target": settings.PROVIDER,
         "provider": settings.PROVIDER,
+        "credential_kind": "self",
         "expires": (datetime.utcnow() + timedelta(minutes=delta)).isoformat(),
         **extra,
     }

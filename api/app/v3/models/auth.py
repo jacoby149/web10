@@ -14,6 +14,11 @@ class Login(BaseModel):
     site: str | None = None
 
 
+class DelegateToken(BaseModel):
+    token: str
+    app_origin: str
+
+
 class ChangePass(BaseModel):
     token: str
     password: str

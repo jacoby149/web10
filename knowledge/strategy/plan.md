@@ -33,6 +33,11 @@ If a lower layer contradicts its source above, the source wins. Always.
 
 ## Phases
 
+## Security — Explicit App Management Delegation (D89)
+
+- [✓ 3.221.1] **Security knowledge-base recovery and findings refresh** — interrupted-work findings, threat model, operations and delegation documented; October conclusions corrected and residual RTC/bootstrap/media/worker risks recorded. Verified: 1717 API passes (one opt-in live skip), 187 SDK passes, SDK type checking and whitespace validation. Documentation complete; implementation and live/browser/deployment gates remain open.
+- [~] **Scoped app credentials and opt-in management** — implement `auth/delegation.md`: separate self/app credentials, signed-origin app contracts, explicit group/node grants intersected with person authority, exact-origin popup handoff, readable consent and web10-social requests. Gates: adversarial API permission matrix, SDK/UI/social tests and type checks, desktop + 375px consent screenshots. Never declare the entire API independently audited or federation complete.
+
 <!--
 Format per phase:
 

@@ -9,6 +9,19 @@ Status legend: [decided] intent set · [in-progress] · [open] still debating.
 
 ---
 
+### D89 — Explicit app management delegation, not unrestricted authenticator handoff [decided]
+
+Operator, 06.10.2026: "nah all in web10 social ... making it possible to have permissions that let you manage it from another app, you have to say yes though."
+
+Apps may request explicit, revocable group-management, service-moderation,
+node-moderation, and node-monetization grants in the existing app contract.
+The person approves once; routine actions stay in the app. The API checks the
+app grant AND the person's current authority on every operation. A signed
+app-origin credential replaces unrestricted self-token handoff. No social-app
+exemption, no implicit upgrade of old contracts, no management power from a
+document wildcard. Credentials, recovery contacts, app grants, and admin-list
+changes remain self-only. Specification: `auth/delegation.md` in the v3 KB.
+
 ### D88 — Saved collections: a playlist is a private-by-default group on the profile, publicness is a role grant — zero node surface [decided]
 
 Operator, 30.09.2026 — "there is no concept of a playlist, saved videos, saved shorts, saved posts, should be on your own profile, and see other peoples profiles saved collections kind of a feature" + "with being able to private your saved stuff, since that can be sensitive" + (on the surface) "profile card is the most like youtube channels, card on profile i mean, that makes a TON of sense, so A."

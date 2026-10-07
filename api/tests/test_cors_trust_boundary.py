@@ -130,6 +130,6 @@ class TestErrorResponsesHaveCors:
         assert resp.status_code == 500
         assert resp.headers.get("access-control-allow-origin") == "*"
         body = resp.json()
-        assert body["error"] == "RuntimeError"
-        assert body["detail"] == "boom"
+        assert body["error"] == "internal_server_error"
+        assert "boom" not in str(body)
         assert body["error_id"] and len(body["error_id"]) == 12

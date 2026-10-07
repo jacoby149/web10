@@ -6,8 +6,12 @@ isolate the endpoint logic. The mock provides valid group + member data (the
 endpoint tests mock the clickhouse client too coarsely for this).
 """
 
+import json
 from contextlib import ExitStack
+from types import SimpleNamespace
 from unittest.mock import patch
+
+import pytest
 
 import app.v3.services.clickhouse as ch
 
@@ -147,6 +151,32 @@ class TestEffectiveRolePerms:
 
 
 class TestReadWriteGates:
+    @pytest.mark.parametrize("role", ["missing", "empty", "reader", "writer"])
+    def test_membership_requires_each_operation(self, role):
+        roles = [
+            {"name": "empty", "permissions": {}},
+            {"name": "reader", "permissions": {"posts": ["readAll"]}},
+            {"name": "writer", "permissions": {"posts": ["create"]}},
+        ]
+        with _mock(roles, {"bob": role}):
+            assert ch.can_read_group("g1", "bob", "posts", True) == (role == "reader")
+            assert ch.can_write_group("g1", "bob", "posts") == (role == "writer")
+            assert not ch.can_read_group("g1", "bob", "comments", True)
+            assert not ch.can_write_group("g1", "bob", "comments")
+
+    def test_member_inherits_public_and_authenticated_service_grants(self):
+        roles = MEMBER + [
+            {"name": "public", "permissions": {"profile": ["readAll"], "comments": ["create"]}},
+            {"name": "signed-in", "permissions": {"comments": ["readAll"], "reactions": ["create"]}},
+        ]
+        with _mock(roles, {"bob": "member", "anyone": "public", "authenticated": "signed-in"}):
+            assert ch.can_read_group("g1", "bob", "profile", True)
+            assert ch.can_read_group("g1", "bob", "comments", True)
+            assert ch.can_write_group("g1", "bob", "comments")
+            assert ch.can_write_group("g1", "bob", "reactions")
+            assert not ch.can_read_group("g1", "anon", "comments", False)
+            assert not ch.can_write_group("g1", "anon", "reactions", False)
+
     def test_anon_reads_public_group(self):
         with _mock(PUBLIC_READER, {"anyone": "public-reader"}):
             assert ch.can_read_group("g1", "anon", "posts", authenticated=False) is True
@@ -166,15 +196,12 @@ class TestReadWriteGates:
             assert ch.can_read_group("g1", "bob", "posts", authenticated=True) is True
             assert ch.can_write_group("g1", "bob", "posts") is True
 
-    def test_member_writes_service_their_role_does_not_list(self):
-        # A member's role lists only posts, but membership grants write to the
-        # group's content — so a persona can react/comment on the board even
-        # though the board's member role lists only `posts`.
+    def test_member_cannot_write_service_their_role_does_not_list(self):
         member_posts_only = [{"name": "member", "permissions": {"posts": ["readAll", "create"]}}]
         with _mock(member_posts_only, {"bob": "member"}):
             assert ch.can_write_group("g1", "bob", "posts") is True
-            assert ch.can_write_group("g1", "bob", "reactions") is True
-            assert ch.can_write_group("g1", "bob", "comments") is True
+            assert ch.can_write_group("g1", "bob", "reactions") is False
+            assert ch.can_write_group("g1", "bob", "comments") is False
 
     def test_bystander_cannot_write_private_group(self):
         # The attach hole: a non-member of a private group (no anyone grant)
@@ -188,15 +215,11 @@ class TestReadWriteGates:
             assert ch.can_read_group("g1", "alice", "posts", authenticated=True) is True
             assert ch.can_write_group("g1", "alice", "comments") is True
 
-    def test_member_reads_service_their_role_does_not_grant(self):
-        # A member's role only grants readAll on posts, but membership grants
-        # read-all — so they can read the profile service too (the social app's
-        # profile read relies on this: a follower reads a creator's profile,
-        # which is in the 'profile' service, not 'posts').
+    def test_member_cannot_read_service_their_role_does_not_grant(self):
         member_posts_only = [{"name": "member", "permissions": {"posts": ["readAll"]}}]
         with _mock(member_posts_only, {"bob": "member"}):
             assert ch.can_read_group("g1", "bob", "posts", authenticated=True) is True
-            assert ch.can_read_group("g1", "bob", "profile", authenticated=True) is True
+            assert ch.can_read_group("g1", "bob", "profile", authenticated=True) is False
 
 
 # ---------------------------------------------------------------------------
@@ -241,6 +264,62 @@ class TestReadableGroups:
             # bob (a member) can read g1; anon cannot.
             assert ch.readable_groups("bob", "posts", True, ["g1"]) == ["g1"]
             assert ch.readable_groups("anon", "posts", False, ["g1"]) == []
+
+
+@pytest.mark.parametrize("principal,authenticated", [("bob", True), ("stranger", True), ("anon", False)])
+@pytest.mark.parametrize("service", ["posts", "profile", "comments", "secret"])
+def test_batched_matches_point_role_union(principal, authenticated, service):
+    roles = (
+        MEMBER
+        + OWNER
+        + [
+            {"name": "public", "permissions": {"profile": ["readAll"]}},
+            {"name": "signed-in", "permissions": {"comments": ["readAll"]}},
+            {"name": "empty", "permissions": {}},
+        ]
+    )
+    grants = {
+        "scoped": {"bob": "member"},
+        "union": {"bob": "empty", "anyone": "public", "authenticated": "signed-in"},
+        "wildcard": {"bob": "owner"},
+        "missing-role": {"bob": "undefined"},
+        "empty-role": {"bob": "empty"},
+        "unknown-group": {"bob": "owner"},
+        "revoked": {},
+        "legacy": {"anon": "public"},
+    }
+    groups = {g: {"roles": roles} for g in grants if g != "unknown-group"}
+    candidates = [*grants, "scoped", "union"]
+    class_keys = {"anyone", "anon"} | ({"authenticated"} if authenticated else set())
+    responses = [
+        [(g, m[principal]) for g, m in grants.items() if principal in m],
+        [(g, k, r) for g, m in grants.items() for k, r in m.items() if k in class_keys],
+        [(g, json.dumps(roles)) for g in groups],
+    ]
+
+    def member(g, p):
+        role = grants.get(g, {}).get(p)
+        return {"role": role} if role else None
+
+    with (
+        patch.object(ch, "get_group", side_effect=groups.get),
+        patch.object(ch, "get_group_member", side_effect=member),
+        patch.object(ch, "client") as client,
+    ):
+        expected = ch.readable_groups(principal, service, authenticated, candidates)
+        client.query.side_effect = [SimpleNamespace(result_rows=r) for r in responses]
+        assert ch.readable_groups_batched(principal, service, authenticated, candidates) == expected
+    assert client.query.call_count == 3
+    for call in client.query.call_args_list:
+        sql = call.args[0]
+        assert "ORDER BY updated_at DESC, deleted DESC" in sql
+        assert "deleted = 0" not in sql.split("WHERE rn = 1")[0]
+
+
+def test_empty_batch_does_not_query():
+    with patch.object(ch, "client") as client:
+        assert ch.readable_groups_batched("bob", "posts", True, []) == []
+    client.query.assert_not_called()
 
 
 # ---------------------------------------------------------------------------

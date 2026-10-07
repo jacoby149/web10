@@ -8,5 +8,7 @@ export interface TokenPayload {
     provider: string;
     expires?: string;
     type?: string;
+    credential_kind?: 'self' | 'app';
+    app_origin?: string;
 }
 //# sourceMappingURL=types.d.ts.map

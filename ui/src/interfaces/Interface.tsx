@@ -2,7 +2,8 @@ import React from 'react';
 import web10AuthAdapterInit from './authAdapter'
 import { config } from '../config';
 import { rememberAccount, getRememberedAccounts } from '../lib/rememberedAccounts';
-import { vaultToken, getVaultedToken, vaultedAccountsFor } from '../lib/tokenVault';
+import { vaultToken, getVaultedToken, vaultedAccountsFor, removeVaultedToken } from '../lib/tokenVault';
+import { decodeSessionClaims, hasSessionIdentity, isSelfSession } from '../lib/sessionClaims';
 
 // ── v3 API helpers (ClickHouse-backed service contracts + groups) ──────────
 
@@ -145,6 +146,21 @@ function useInterface() {
     // Build the v3 client — all auth goes through ClickHouse (v3).
     const adapter = web10AuthAdapterInit();
     const v3 = adapter.v3;
+    const openerBinding = React.useRef<{ source: Window; origin: string } | null>(null);
+    const initialized = React.useRef(false);
+    const handoffBusy = React.useRef(false);
+    [I.connectionError, I.setConnectionError] = React.useState<string | null>(null);
+    [I.consentBusy, I.setConsentBusy] = React.useState(false);
+    const host = window.location.hostname;
+    const isDev = host === 'dev.web10.app' || host.endsWith('.dev.web10.app');
+    const isLocal = host === 'localhost' || host === '127.0.0.1' || host.endsWith('.localhost');
+    const expectedProvider = isLocal ? 'api.localhost' : isDev ? 'api.dev.web10.app' : config.REACT_APP_DEFAULT_API;
+    const readSelfSession = () => {
+        try {
+            const claims = v3.readToken?.();
+            return isSelfSession(claims, expectedProvider) ? claims : null;
+        } catch { return null; }
+    };
 
     // Restore auth from the "token=" cookie on load. A dead (expired) token
     // must NOT present the authenticated view (B7: it used to land the user on
@@ -153,20 +169,8 @@ function useInterface() {
     // on dev or vice versa) — the JWT provider must match this node. Runs once,
     // in the lazy initializer, not every render.
     const restoreAuth = (): boolean => {
-        const t = v3.readToken?.();
-        if (!t) return false;
-        const expires = t.expires ? Date.parse(t.expires) : NaN;
-        if (!Number.isNaN(expires) && expires < Date.now()) {
-            v3.scrubToken?.();
-            return false;
-        }
-        // Provider mismatch: a prod token on dev (or vice versa) is useless —
-        // the API won't recognize it. Scrub so the user gets a login prompt.
-        const host = window.location.hostname;
-    const isDev = host === 'dev.web10.app' || host.endsWith('.dev.web10.app');
-        const isLocal = host === 'localhost' || host === '127.0.0.1' || host.endsWith('.localhost');
-        const expectedProvider = isLocal ? 'api.localhost' : isDev ? 'api.dev.web10.app' : config.REACT_APP_DEFAULT_API;
-        if (t.provider !== expectedProvider && !isLocal) {
+        if (!readSelfSession()) {
+            console.log('[auth-ui] restoreAuth: no usable self session; fresh login required');
             v3.scrubToken?.();
             return false;
         }
@@ -235,6 +239,20 @@ function useInterface() {
     [I.v3Invites, I.setV3Invites] = React.useState<any[]>([]);
 
     I.v3 = v3;
+    I.requireFreshLogin = function () {
+        I.v3.scrubToken?.();
+        I.setAuth(false);
+        I.setUserConfirmed(false);
+        I.setIsAdmin(false);
+        I.setVerified(false);
+        I.setPhone('');
+        I.setV3Contracts([]);
+        I.setV3Groups([]);
+        I.setV3ManagedGroups([]);
+        I.setV3Invites([]);
+        I.setMode('login');
+        I.setStatus('Your session is no longer usable. Please log in again.');
+    };
 
     // The remembered-accounts list for the login screen's picker. Read fresh
     // every render (useInterface re-runs on each render) so a login that just
@@ -244,13 +262,7 @@ function useInterface() {
     // The expected provider for THIS node (mirrors restoreAuth's check) — the
     // vault only offers one-tap switches for tokens from this node; a token
     // from another provider would 401 here.
-    const _expectedProvider = (() => {
-        const host = window.location.hostname;
-        const isDev = host === 'dev.web10.app' || host.endsWith('.dev.web10.app');
-        const isLocal = host === 'localhost' || host === '127.0.0.1' || host.endsWith('.localhost');
-        return isLocal ? 'api.localhost' : isDev ? 'api.dev.web10.app' : config.REACT_APP_DEFAULT_API;
-    })();
-    I.vaultedAccounts = vaultedAccountsFor(_expectedProvider);
+    I.vaultedAccounts = vaultedAccountsFor(expectedProvider);
 
     // One-tap account switch from the picker: adopt the vaulted token as the
     // live session and confirm the identity (so the consent popup settles).
@@ -259,8 +271,10 @@ function useInterface() {
     // surfaces as the normal error and the vault entry is dropped.
     I.switchAccount = function (username: string, provider: string) {
         const token = getVaultedToken(username, provider);
-        if (!token) {
-            console.warn('[auth-ui] switchAccount — no vaulted token for', username, provider);
+        if (!token || provider !== expectedProvider) {
+            console.warn('[auth-ui] switchAccount: rejecting unusable or foreign self session', username, provider);
+            removeVaultedToken(username, provider);
+            I.requireFreshLogin();
             return;
         }
         console.log('[auth-ui] switchAccount — adopting vaulted token for', username);
@@ -359,13 +373,12 @@ function useInterface() {
     // Guard flag — this function must only run once per page load.
     // The contract listener needs to be active immediately (popup or not),
     // because the app may send a contract before the user logs in.
-    let _authenticatorInitialized = false;
     I.initAuthenticator = function () {
-        if (_authenticatorInitialized) {
+        if (initialized.current) {
             console.log('[auth-ui] initAuthenticator — already initialized, skipping')
             return
         }
-        _authenticatorInitialized = true;
+        initialized.current = true;
         if (typeof window === 'undefined') return;
 
         console.log('[auth-ui] initAuthenticator — initializing, window.opener:', window.opener ? 'present' : 'none')
@@ -374,11 +387,26 @@ function useInterface() {
         // The app sends the contract as soon as it gets auth_ready, which may
         // be before the user logs in (if they have a session cookie).
         window.addEventListener('message', (e) => {
-            if (!e.origin) return;
+            if (!window.opener || e.source !== window.opener || !/^https?:\/\//.test(e.origin)) return;
+            if (!['auth_init', 'acr', 'contract', 'close_popup'].includes(e.data?.type)) return;
+            const binding = openerBinding.current;
+            if (binding && (e.source !== binding.source || e.origin !== binding.origin)) return;
+            if (!binding) openerBinding.current = { source: window.opener, origin: e.origin };
+            if (e.data?.type === 'auth_init') {
+                window.opener.postMessage({ type: 'auth_ready' }, e.origin);
+                return;
+            }
             console.log('[auth-ui] message event — type:', e.data?.type, 'origin:', e.origin)
             if (e.data?.type === 'acr' || e.data?.type === 'contract') {
                 console.log('[auth-ui] contract message received — raw data:', JSON.stringify(e.data))
                 const normalized = normalizeContracts(e.data, e.source);
+                if (normalized.some((cr) => cr.app_origin !== e.origin)) {
+                    console.warn('[auth-ui] rejecting contract: app origin does not match opener');
+                    I.setConnectionError('Request rejected: app origin does not match the opener.');
+                    window.opener.postMessage({ type: 'contract_response', status: 'error', errors: ['App origin mismatch'] }, e.origin);
+                    return;
+                }
+                I.setConnectionError(null);
                 console.log('[auth-ui] normalized contracts:', toLogString(normalized))
                 I.setPendingContracts(normalized);
                 // D42: a contract was sent to this popup. The auto-complete
@@ -402,9 +430,26 @@ function useInterface() {
         // headless browsers can deliver the contract before the listener is
         // ready to process it, and the popup shows "nothing to review".
         if (window.opener) {
+            let readyOrigin = '';
+            try {
+                const origin = document.referrer ? new URL(document.referrer).origin : '';
+                if (/^https?:\/\//.test(origin)) {
+                    openerBinding.current = { source: window.opener, origin };
+                    readyOrigin = origin;
+                } else {
+                    // SDK redirect is only a readiness target, never evidence of caller identity.
+                    const redirect = new URLSearchParams(window.location.search).get('redirect');
+                    if (redirect) {
+                        const candidate = new URL(redirect).origin;
+                        if (/^https?:\/\//.test(candidate)) readyOrigin = candidate;
+                    }
+                }
+            } catch { /* Wait for a source-bound handshake when referrer is absent. */ }
             setTimeout(() => {
                 try {
-                    window.opener.postMessage({ type: 'auth_ready' }, '*');
+                    const binding = openerBinding.current;
+                    if (binding) binding.source.postMessage({ type: 'auth_ready' }, binding.origin);
+                    else if (readyOrigin && window.opener) window.opener.postMessage({ type: 'auth_ready' }, readyOrigin);
                     console.log('[auth-ui] auth_ready sent to opener via postMessage')
                 } catch (err) {
                     console.error('[auth-ui] auth_ready postMessage failed:', err)
@@ -525,6 +570,11 @@ function useInterface() {
     }
 
     I.finishLogin = function () {
+        if (!readSelfSession()) {
+            console.warn('[auth-ui] finishLogin: rejecting non-self or invalid session');
+            I.requireFreshLogin();
+            return;
+        }
         console.log('[auth-ui] finishLogin — setting auth=true, mode=contracts')
         I.setAuth(true);
         // The user just confirmed their identity (a login) — this is what lets
@@ -567,7 +617,7 @@ function useInterface() {
                 // jacoby149). Only adopt the cookie's session when it IS the
                 // account the user just tried to log in as (the offline case:
                 // the API is unreachable but the user's own session is live).
-                const cookieUser = I.v3.readToken?.()?.username;
+                const cookieUser = readSelfSession()?.username;
                 const attempted = String(username).trim().toLowerCase();
                 if (cookieUser && cookieUser.toLowerCase() === attempted) {
                     console.log('[auth-ui] login — cookie session matches the attempted user, finishing login')
@@ -954,11 +1004,11 @@ function applyACR(cr: any) {
             return
         }
         try {
-            const target = '*';
-            if (isPostableWindow(windowSource)) {
+            const binding = openerBinding.current;
+            if (binding && windowSource === binding.source && isPostableWindow(windowSource)) {
                 const payload = { type: 'contract_response', status, errors }
                 console.log('[auth-ui] sendContractResponse — posting:', JSON.stringify(payload))
-                windowSource.postMessage(payload, target);
+                windowSource.postMessage(payload, binding.origin);
             } else {
                 console.warn('[auth-ui] sendContractResponse — source is not a Window:', windowSource)
             }
@@ -974,8 +1024,8 @@ function applyACR(cr: any) {
     // from the group's response. Re-throws on failure so the caller can react.
     function approveOne(contract: any): Promise<void> {
         const windowSource = contract._windowSource;
-        const apply = contract.kind === 'group' ? applyGCR(contract) : applyACR(contract);
-        return apply
+        return Promise.resolve()
+            .then(() => contract.kind === 'group' ? applyGCR(contract) : applyACR(contract))
             .then(() => {
                 // Approving a contract is an identity confirmation (the user is
                 // acting as this account) — let the popup settle once the pending
@@ -991,9 +1041,12 @@ function applyACR(cr: any) {
 
     // Approve a single contract (app or group).
     I.approveContract = function (contract: any) {
+        if (I.consentBusy) return;
+        I.setConnectionError(null);
+        I.setConsentBusy(true);
         console.log('[auth-ui] approveContract — kind:', contract.kind, 'origin:', contract.app_origin)
         I.setStatus(contract.kind === 'group' ? "Creating group..." : "Approving contract...");
-        approveOne(contract)
+        return approveOne(contract)
             .then(() => {
                 console.log('[auth-ui] approveContract — applied successfully')
                 I.setStatus(contract.kind === 'group' ? "Group created!" : "Contract granted!");
@@ -1004,7 +1057,8 @@ function applyACR(cr: any) {
             .catch((e) => {
                 console.error('[auth-ui] approveContract — failed:', e)
                 I.setStatus((contract.kind === 'group' ? "Failed to create group: " : "Failed to approve: ") + (e.message || String(e)));
-            });
+                I.setConnectionError(e.message || String(e));
+            }).finally(() => I.setConsentBusy(false));
     }
 
     // Remove a single contract from the pending list (after approve or deny).
@@ -1034,22 +1088,30 @@ function applyACR(cr: any) {
     }
 
     // Approve every pending contract in one shot, then return to the app.
-    I.approveAll = function () {
+    I.approveAll = async function () {
+        if (I.consentBusy) return;
         if (!I.pendingContracts || I.pendingContracts.length === 0) { I.goToApp(); return; }
+        I.setConsentBusy(true);
+        I.setConnectionError(null);
         I.setStatus("Approving all…");
         // approveOne sends each contract's own response (approve-all used to
         // drop the app-contract response — see the helper's comment).
-        const ops: Promise<any>[] = I.pendingContracts.map((c: any) => approveOne(c));
-        Promise.allSettled(ops)
-            .then(() => {
-                I.v3ContractsLoad?.();
-                I.v3GroupsLoad?.();
-                I.v3GroupsManagesLoad?.();
-                I.setPendingContracts([]);
-                I.setStatus(null);
-                I.goToApp();
-            })
-            .catch((e: any) => I.setStatus("Failed to approve all: " + (e.message || String(e))));
+        try {
+            for (const contract of I.pendingContracts) {
+                await approveOne(contract);
+                I.removePendingContract(contract);
+            }
+            I.v3ContractsLoad?.();
+            I.v3GroupsLoad?.();
+            I.v3GroupsManagesLoad?.();
+            I.setPendingContracts([]);
+            I.setStatus(null);
+            await I.goToApp();
+        } catch (e: any) {
+            console.error('[auth-ui] approveAll failed:', e);
+            I.setStatus("Failed to approve all: " + (e.message || String(e)));
+            I.setConnectionError(e.message || String(e));
+        } finally { I.setConsentBusy(false); }
     }
 
     // Legacy aliases — keep old names working for tests + existing callers
@@ -1059,17 +1121,38 @@ function applyACR(cr: any) {
     I.denyACR = (c: any) => I.denyContract({ ...c, kind: c.kind || 'app' });
     I.removePendingACR = (c: any) => I.removePendingContract({ ...c, kind: c.kind || 'app' });
 
-    I.goToApp = function () {
-        const token = I.v3.state?.token;
+    I.goToApp = async function () {
+        if (handoffBusy.current) return;
+        const binding = openerBinding.current;
         const handoffNone = I._handoff === 'none';
-        console.log('[auth-ui] goToApp — token:', token ? 'present' : 'none', 'handoff:', handoffNone ? 'none' : 'token', 'window.opener:', window.opener ? 'present' : 'none')
-        if (token && window.opener && !handoffNone) {
+        if (!binding || window.opener !== binding.source) {
+            I.setConnectionError('Cannot connect: no trusted app opener.');
+            return;
+        }
+        if (!handoffNone) {
+            handoffBusy.current = true;
             try {
-                const referrer = document.referrer;
-                const target = referrer ? new URL(referrer).origin : '*';
-                console.log('[auth-ui] goToApp — sending auth token to opener, target:', target, 'referrer:', referrer)
+                console.log('[auth-ui] delegateApp starting:', binding.origin);
                 I.setStatus("Connecting…");
-                window.opener.postMessage({ type: 'auth', token }, target);
+                const session = readSelfSession();
+                if (!session) {
+                    I.requireFreshLogin();
+                    throw new Error('A usable self session is required.');
+                }
+                const { token } = await v3.delegateApp(binding.origin);
+                if (!token || token === I.v3.state?.token) throw new Error('No distinct app credential returned.');
+                const claims = decodeSessionClaims(token);
+                const currentSession = readSelfSession();
+                if (!hasSessionIdentity(claims) || claims.credential_kind !== 'app' ||
+                    claims.username !== session.username || claims.provider !== session.provider ||
+                    claims.app_origin !== binding.origin || claims.site !== binding.origin ||
+                    new URL(claims.app_origin).origin !== claims.app_origin ||
+                    !currentSession || currentSession.username !== session.username || currentSession.provider !== session.provider) {
+                    throw new Error('Invalid app credential returned.');
+                }
+                if (window.opener !== binding.source || openerBinding.current !== binding) throw new Error('App opener changed.');
+                console.log('[auth-ui] delegateApp completed, posting app credential:', binding.origin);
+                binding.source.postMessage({ type: 'auth', token }, binding.origin);
                 // D42: each popup is self-contained — after handing back the
                 // token, close. (The group contract, if needed, is a separate
                 // lazy popup opened from a button click.) The short delay lets
@@ -1079,6 +1162,8 @@ function applyACR(cr: any) {
             } catch (err) {
                 console.error('[auth-ui] goToApp — postMessage failed:', err)
                 I.setStatus("Failed to connect to app.");
+                I.setConnectionError('Failed to connect to app. Please try again.');
+                handoffBusy.current = false;
             }
         } else if (window.opener) {
             // handoff=none (consent-only popup, e.g. the lazy group contract)
@@ -1213,7 +1298,7 @@ function applyACR(cr: any) {
     // browser (e.g. the token came from a prior session). Idempotent: vaulting
     // the same (provider, username) just re-orders it to the front.
     React.useEffect(() => {
-        const who = I.v3?.readToken?.();
+        const who = readSelfSession();
         if (who?.username && who?.provider) {
             const token = I.v3.state?.token;
             if (token) {

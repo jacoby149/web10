@@ -130,7 +130,29 @@ function isTokenExpired(token) {
   return Date.now() >= expiresMs;
 }
 
+// src/popup.ts
+var popups = new WeakMap;
+function trustPopup(popup, authOrigin) {
+  popups.set(popup, new URL(authOrigin).origin);
+}
+function trustedPopupMessage(event, popup) {
+  const source = event.source;
+  return !!source && (!popup || source === popup) && popups.get(source) === event.origin;
+}
+
 // src/v3.ts
+function appContractCovers(contract, origin, permissions) {
+  if (contract.allowed_origin !== new URL(origin).origin)
+    return false;
+  return Object.entries(permissions).every(([service, ops]) => {
+    const granted = new Set(contract.permissions?.[service] ?? []);
+    if (!["group", "node", "user", "imports"].includes(service)) {
+      for (const op of contract.permissions?.["*"] ?? [])
+        granted.add(op);
+    }
+    return ops.every((op) => granted.has(op));
+  });
+}
 function pickThumbnail(resolvedMedia) {
   for (const ref of resolvedMedia ?? []) {
     if (!ref || typeof ref !== "object")
@@ -275,6 +297,12 @@ function createV3Client(options = {}) {
     },
     signOut() {
       this.scrubToken();
+    },
+    async delegateApp(appOrigin) {
+      console.log("[wapi] delegateApp: requesting app credential", appOrigin);
+      const result = await v3Post("delegate", { app_origin: appOrigin });
+      console.log("[wapi] delegateApp: app credential received");
+      return result;
     },
     async login(username, password, site) {
       const res = await authPost(`${apiOrigin}/v3/login`, { username, password, site: site ?? window?.location?.hostname ?? "web10" });
@@ -642,39 +670,59 @@ function createV3Client(options = {}) {
           callback({ status: "error", errors: ["Not in a browser"] });
         return;
       }
-      const popup = window.open(`${authOrigin}`, "web10-consent", "width=480,height=720,scrollbars=yes");
-      if (!popup) {
-        if (callback)
-          callback({ status: "error", errors: ["Popup blocked — allow popups and try again"] });
-        return;
-      }
-      const responseHandler = (e) => {
-        if (e.data?.type === "contract_response") {
+      const targetOrigin = new URL(authOrigin).origin;
+      const openPopup = () => {
+        const currentToken = readTokenCookie() ?? state.token;
+        const username = currentToken ? decodeJwt(currentToken)?.username : undefined;
+        const as = username ? `&as=${encodeURIComponent(username)}` : "";
+        const popup = window.open(`${authOrigin}?redirect=${encodeURIComponent(window.location.href)}${as}`, `web10-consent-${Date.now()}-${Math.random().toString(36).slice(2)}`, "width=480,height=720,scrollbars=yes");
+        if (!popup) {
+          if (callback)
+            callback({ status: "error", errors: ["Popup blocked — allow popups and try again"] });
+          return;
+        }
+        trustPopup(popup, targetOrigin);
+        const responseHandler = (e) => {
+          if (trustedPopupMessage(e, popup) && e.data?.type === "contract_response") {
+            window.removeEventListener("message", responseHandler);
+            window.removeEventListener("message", readyHandler);
+            clearTimeout(timeoutId);
+            callback?.(e.data);
+          }
+        };
+        window.addEventListener("message", responseHandler);
+        const readyHandler = (e) => {
+          if (trustedPopupMessage(e, popup) && e.data?.type === "auth_ready") {
+            window.removeEventListener("message", readyHandler);
+            try {
+              popup.postMessage({ type: "contract", contracts }, targetOrigin);
+            } catch {
+              window.removeEventListener("message", responseHandler);
+              clearTimeout(timeoutId);
+              callback?.({ status: "error", errors: ["Failed to send contract request to auth UI"] });
+            }
+          }
+        };
+        window.addEventListener("message", readyHandler);
+        const timeoutId = setTimeout(() => {
           window.removeEventListener("message", responseHandler);
           window.removeEventListener("message", readyHandler);
-          clearTimeout(timeoutId);
-          callback?.(e.data);
-        }
+          callback?.({ status: "error", errors: ["Auth popup closed — request cancelled"] });
+        }, 30000);
       };
-      window.addEventListener("message", responseHandler);
-      const readyHandler = (e) => {
-        if (e.data?.type === "auth_ready") {
-          window.removeEventListener("message", readyHandler);
-          try {
-            popup.postMessage({ type: "contract", contracts }, authOrigin);
-          } catch {
-            window.removeEventListener("message", responseHandler);
-            clearTimeout(timeoutId);
-            callback?.({ status: "error", errors: ["Failed to send contract request to auth UI"] });
+      const token = state.token ?? readTokenCookie();
+      if (token && !isTokenExpired(token) && contracts.every((c) => c.kind === "app")) {
+        client.listAppContracts().then((list) => {
+          if (contracts.every((c) => c.kind === "app" && list.some((ac) => appContractCovers(ac, c.app_origin, c.permissions)))) {
+            console.log("[wapi] contractRequest: active grants cover requested operations");
+            callback?.({ status: "approved" });
+          } else {
+            console.log("[wapi] contractRequest: consent upgrade required");
+            openPopup();
           }
-        }
-      };
-      window.addEventListener("message", readyHandler);
-      const timeoutId = setTimeout(() => {
-        window.removeEventListener("message", responseHandler);
-        window.removeEventListener("message", readyHandler);
-        callback?.({ status: "error", errors: ["Auth popup closed — request cancelled"] });
-      }, 30000);
+        }).catch(openPopup);
+      } else
+        openPopup();
     },
     contractOnReady(contracts, callback) {
       if (typeof window === "undefined" || !window.opener) {
@@ -682,16 +730,22 @@ function createV3Client(options = {}) {
           callback({ status: "error", errors: ["No opener window — not in a popup"] });
         return;
       }
+      const opener = window.opener;
+      if (!document.referrer) {
+        callback?.({ status: "error", errors: ["Unknown opener origin"] });
+        return;
+      }
+      const openerOrigin = new URL(document.referrer).origin;
       if (callback) {
         const handler = (e) => {
-          if (e.data?.type === "contract_response") {
+          if (e.source === opener && e.origin === openerOrigin && e.data?.type === "contract_response") {
             window.removeEventListener("message", handler);
             callback(e.data);
           }
         };
         window.addEventListener("message", handler);
       }
-      window.opener.postMessage({ type: "contract", contracts }, "*");
+      window.opener.postMessage({ type: "contract", contracts }, openerOrigin);
     }
   };
   pingAppRegister();

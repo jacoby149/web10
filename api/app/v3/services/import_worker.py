@@ -36,10 +36,11 @@ import time
 import uuid
 import zipfile
 from concurrent.futures import ThreadPoolExecutor, as_completed
-from datetime import datetime, timedelta
+from datetime import UTC, datetime, timedelta
 from pathlib import Path
 
 import requests
+from fastapi import HTTPException
 
 import app.settings as settings
 from app.services import media as media_svc
@@ -74,7 +75,20 @@ FOLLOWER_ROLES = [
     },
 ]
 
-_job_queue: queue.Queue = queue.Queue()
+# Takeout supports 50 GiB parts; MAX_UPLOAD_SIZE is for individual media, not
+# exports. Metadata stays in RAM, while video members are never read here.
+MAX_PART_BYTES = 50 * 1024**3
+MAX_EXPANDED_PART_BYTES = 100 * 1024**3
+MAX_METADATA_MEMBER_BYTES = 64 * 1024**2
+MAX_METADATA_BYTES = 128 * 1024**2  # across ALL parts in a job
+MAX_ARCHIVE_MEMBERS = 100_000  # across all parts, including ignored files
+MAX_ZIP_DIRECTORY_BYTES = 32 * 1024**2
+MAX_TAR_HEADER_BYTES = 1024**2  # PAX / GNU long-name payloads are read by tarfile
+MAX_QUEUED_JOBS = 100
+
+_job_queue: queue.Queue = queue.Queue(maxsize=MAX_QUEUED_JOBS)
+_submission_lock = threading.Lock()
+_submitted_jobs: set[str] = set()
 _start_lock = threading.Lock()
 _started = False
 
@@ -94,7 +108,8 @@ CREATE TABLE IF NOT EXISTS import_jobs (
     message String DEFAULT '',
     created_at DateTime64(3),
     updated_at DateTime64(3),
-    deleted UInt8 DEFAULT 0
+    deleted UInt8 DEFAULT 0,
+    authorization String DEFAULT ''
 ) ENGINE = ReplacingMergeTree(updated_at)
 ORDER BY job_id
 """
@@ -115,6 +130,7 @@ _JOB_COLUMNS = [
     "created_at",
     "updated_at",
     "deleted",
+    "authorization",
 ]
 
 
@@ -137,6 +153,7 @@ def ensure_import_jobs_schema() -> None:
         # (the pre-group-targeting default). Pre-existing volumes predate the
         # column; ADD COLUMN appends it at the end.
         ch.client.command("ALTER TABLE import_jobs ADD COLUMN IF NOT EXISTS target_group_id String DEFAULT ''")
+        ch.client.command("ALTER TABLE import_jobs ADD COLUMN IF NOT EXISTS authorization String DEFAULT ''")
     except Exception as e:
         logger.warning("[import] import_jobs schema ensure skipped: %s: %s", type(e).__name__, e)
 
@@ -157,7 +174,12 @@ def _parse_json(s) -> object:
 
 
 def create_import_job(
-    job_id: str, user_key: str, platform: str, object_keys: list[str], target_group_id: str = ""
+    job_id: str,
+    user_key: str,
+    platform: str,
+    object_keys: list[str],
+    target_group_id: str = "",
+    authorization: dict | None = None,
 ) -> dict:
     now = _now()
     ch.client.insert(
@@ -179,6 +201,7 @@ def create_import_job(
                 now,
                 now,
                 0,
+                _json(authorization) if authorization else "",
             ]
         ],
         column_names=_JOB_COLUMNS,
@@ -189,7 +212,7 @@ def create_import_job(
 def get_import_job(job_id: str) -> dict | None:
     result = ch.client.query(
         "SELECT job_id, user_key, platform, phase, object_keys, target_group_id, "
-        "total_records, written_records, skipped_records, progress, errors, message, created_at, updated_at "
+        "total_records, written_records, skipped_records, progress, errors, message, created_at, updated_at, authorization "
         "FROM (SELECT *, row_number() OVER (PARTITION BY job_id ORDER BY updated_at DESC) AS rn "
         "FROM import_jobs WHERE job_id = %(job_id)s AND deleted = 0) WHERE rn = 1",
         {"job_id": job_id},
@@ -212,6 +235,7 @@ def get_import_job(job_id: str) -> dict | None:
         "message": row[11],
         "created_at": row[12].isoformat() if isinstance(row[12], datetime) else row[12],
         "updated_at": row[13].isoformat() if isinstance(row[13], datetime) else row[13],
+        "authorization": _parse_json(row[14]) if len(row) > 14 else None,
     }
 
 
@@ -262,6 +286,9 @@ def update_import_job(job_id: str, **fields) -> dict:
                 datetime.fromisoformat(existing["created_at"]) if existing["created_at"] else now,
                 now,
                 0,
+                _json(fields.get("authorization", existing.get("authorization")))
+                if fields.get("authorization", existing.get("authorization"))
+                else "",
             ]
         ],
         column_names=_JOB_COLUMNS,
@@ -273,14 +300,27 @@ def _resubmit_active_jobs() -> None:
     """At boot: re-queue every job in a non-terminal phase (a restart must not
     lose an import — the pipeline is idempotent, so a re-run is safe)."""
     try:
-        result = ch.client.query(
-            "SELECT job_id FROM (SELECT job_id, phase, "
-            "row_number() OVER (PARTITION BY job_id ORDER BY updated_at DESC) AS rn "
-            "FROM import_jobs WHERE deleted = 0) WHERE rn = 1 AND phase IN ('queued', 'processing')"
-        )
-        for (job_id,) in result.result_rows:
-            logger.info("[import] boot: re-submitting active job %s", job_id)
-            _job_queue.put(job_id)
+        last_job_id = ""
+        while True:
+            result = ch.client.query(
+                "SELECT job_id FROM (SELECT job_id, phase, "
+                "row_number() OVER (PARTITION BY job_id ORDER BY updated_at DESC) AS rn "
+                "FROM import_jobs WHERE deleted = 0) WHERE rn = 1 AND phase IN ('queued', 'processing') "
+                "AND job_id > %(last_job_id)s ORDER BY job_id LIMIT 100",
+                {"last_job_id": last_job_id},
+            )
+            if not result.result_rows:
+                break
+            # Advance by the last key instead of OFFSET: completed jobs vanish
+            # from the active set while recovery is running.
+            for (job_id,) in result.result_rows:
+                while True:
+                    try:
+                        submit_import_job(job_id)
+                        break
+                    except queue.Full:
+                        time.sleep(0.1)
+            last_job_id = result.result_rows[-1][0]
     except Exception as e:
         logger.warning("[import] boot resubmit skipped: %s: %s", type(e).__name__, e)
 
@@ -293,8 +333,21 @@ def _resubmit_active_jobs() -> None:
 def submit_import_job(job_id: str) -> None:
     """Enqueue an import job for the worker threads."""
     _ensure_started()
-    logger.info("[import] job queued — job_id=%s queue_size=%s", job_id, _job_queue.qsize())
-    _job_queue.put(job_id)
+    with _submission_lock:
+        if job_id in _submitted_jobs:
+            return
+        # A recovery page or concurrent start may be stale by admission time.
+        job = get_import_job(job_id)
+        if job and job["phase"] == COMPLETE:
+            return
+        if _job_queue.full():
+            logger.warning("[import] queue full — job_id=%s", job_id)
+            raise queue.Full
+        # Persist only after admission, and before a worker can pick it up.
+        update_import_job(job_id, phase=QUEUED, message="Queued — waiting for a worker...")
+        _submitted_jobs.add(job_id)
+        _job_queue.put_nowait(job_id)
+        logger.info("[import] job queued — job_id=%s queue_size=%s", job_id, _job_queue.qsize())
 
 
 def start_workers() -> None:
@@ -308,11 +361,11 @@ def _ensure_started() -> None:
         if _started:
             return
         ensure_import_jobs_schema()
-        _resubmit_active_jobs()
         for i in range(max(1, settings.IMPORT_WORKER_CONCURRENCY)):
             t = threading.Thread(target=_worker_loop, daemon=True, name=f"import-worker-{i}")
             t.start()
         _started = True
+        threading.Thread(target=_resubmit_active_jobs, daemon=True, name="import-recovery").start()
         logger.info("[import] worker started — concurrency=%s", settings.IMPORT_WORKER_CONCURRENCY)
 
 
@@ -327,6 +380,8 @@ def _worker_loop() -> None:
             logger.exception("[import] job FAILED — job_id=%s: %s", job_id, e)
             _mark_error(job_id, str(e))
         finally:
+            with _submission_lock:
+                _submitted_jobs.discard(job_id)
             _job_queue.task_done()
 
 
@@ -355,6 +410,16 @@ def _process_job(job_id: str) -> None:
         return
 
     user = job["user_key"]
+
+    def authorize():
+        authorize_import_job(job)
+
+    try:
+        authorize()
+    except Exception:
+        # A terminal authorization failure must not retain the raw export.
+        _delete_parts(job["object_keys"])
+        raise
     update_import_job(job_id, phase=PROCESSING, progress=0, message="Downloading export from storage...")
 
     tmp_dir = Path(tempfile.mkdtemp(prefix=f"import-{job_id[:8]}-"))
@@ -386,13 +451,14 @@ def _process_job(job_id: str) -> None:
         # group's face (group-as-profile, D60). Absent → the legacy followers
         # group + personal profile.
         target_group_id = job.get("target_group_id") or ""
+        authorize()
         if target_group_id:
             target_group = target_group_id
             as_page = True
         else:
-            target_group = ensure_followers_group(user)
+            target_group = ensure_followers_group(user, authorize)
             as_page = False
-        written, skipped, errors = _write_records(job_id, user, records, target_group, as_page)
+        written, skipped, errors = _write_records(job_id, user, records, target_group, as_page, authorize)
         update_import_job(
             job_id,
             phase=COMPLETE,
@@ -409,11 +475,28 @@ def _process_job(job_id: str) -> None:
 
 
 def _download_parts(object_keys: list[str], tmp_dir: Path) -> None:
+    if not 1 <= len(object_keys) <= settings.IMPORT_MAX_PARTS:
+        raise ValueError("import part count exceeds limit")
     s3 = media_svc.get_s3_client()
     for i, key in enumerate(object_keys):
         dest = tmp_dir / f"part-{i:03d}"
         logger.info("[import] downloading part %s/%s — %s", i + 1, len(object_keys), key)
-        s3.download_file(settings.S3_BUCKET, key, str(dest))
+        response = s3.get_object(Bucket=settings.S3_BUCKET, Key=key)
+        body = response["Body"]
+        try:
+            if not 0 < response["ContentLength"] <= MAX_PART_BYTES:
+                raise ValueError("import part exceeds upload size limit")
+            size = 0
+            with dest.open("wb") as output:
+                while chunk := body.read(1024 * 1024):
+                    size += len(chunk)
+                    if size > MAX_PART_BYTES:
+                        raise ValueError("import part exceeds upload size limit")
+                    output.write(chunk)
+            if size != response["ContentLength"]:
+                raise ValueError("import part size changed during download")
+        finally:
+            body.close()
 
 
 def _is_zip(path: Path) -> bool:
@@ -428,25 +511,85 @@ def _extract_data_entries(tmp_dir: Path) -> list[tuple[str, bytes]]:
     MP4s are deliberately NOT read here (27GB) — the metadata import only.
     Split exports are multiple parts; each is a standalone archive."""
     entries: list[tuple[str, bytes]] = []
+    metadata_bytes = 0
+    member_count = 0
     exts = (".csv", ".json")
-    for part in sorted(tmp_dir.iterdir()):
+    parts = sorted(tmp_dir.iterdir())
+    if len(parts) > settings.IMPORT_MAX_PARTS:
+        raise ValueError("import part count exceeds limit")
+    for part in parts:
         if not part.is_file() or part.stat().st_size == 0:
             continue
+        if part.stat().st_size > MAX_PART_BYTES:
+            raise ValueError("import part exceeds upload size limit")
+        expanded_bytes = 0
+
+        def check_member(name, size):
+            nonlocal member_count, expanded_bytes, metadata_bytes
+            member_count += 1
+            expanded_bytes += size
+            if member_count > MAX_ARCHIVE_MEMBERS or expanded_bytes > MAX_EXPANDED_PART_BYTES:
+                raise ValueError("archive member count or expanded size exceeds limit")
+            if name.lower().endswith(exts):
+                metadata_bytes += size
+                if size > MAX_METADATA_MEMBER_BYTES or metadata_bytes > MAX_METADATA_BYTES:
+                    raise ValueError("archive metadata size exceeds limit")
+
         if _is_zip(part):
+            # ZipFile materializes the central directory before infolist().
+            # Inspect its EOCD (including ZIP64) first to bound that allocation.
+            with part.open("rb") as source:
+                end = zipfile._EndRecData(source)
+            if (
+                not end
+                or end[zipfile._ECD_SIZE] > MAX_ZIP_DIRECTORY_BYTES
+                or end[zipfile._ECD_ENTRIES_TOTAL] + member_count > MAX_ARCHIVE_MEMBERS
+            ):
+                raise ValueError("ZIP directory exceeds limit")
             with zipfile.ZipFile(part, "r") as zf:
+                for info in zf.infolist():
+                    check_member(info.filename, info.file_size)
                 for info in zf.infolist():
                     if info.is_dir() or not info.filename.lower().endswith(exts):
                         continue
-                    entries.append((info.filename, zf.read(info.filename)))
+                    with zf.open(info) as source:
+                        data = source.read(min(MAX_METADATA_MEMBER_BYTES, info.file_size) + 1)
+                    if len(data) != info.file_size:
+                        raise ValueError("ZIP metadata size mismatch")
+                    entries.append((info.filename, data))
         else:
-            with tarfile.open(part, "r:*") as tf:
-                for member in tf.getmembers():
+
+            class BoundedTarInfo(tarfile.TarInfo):
+                def _proc_member(self, archive):
+                    # Extension headers are consumed inside tarfile before
+                    # iteration yields a member, so gate their reads there.
+                    if self.type in (
+                        tarfile.XHDTYPE,
+                        tarfile.XGLTYPE,
+                        tarfile.SOLARIS_XHDTYPE,
+                        tarfile.GNUTYPE_LONGNAME,
+                        tarfile.GNUTYPE_LONGLINK,
+                    ):
+                        if self.size > MAX_TAR_HEADER_BYTES:
+                            raise ValueError("tar extension header exceeds limit")
+                        check_member(self.name, self.size)
+                    return super()._proc_member(archive)
+
+            # Streaming mode avoids an unbounded getmembers() list. Large
+            # ignored video members are traversed, not materialized in RAM.
+            with tarfile.open(part, "r|*", tarinfo=BoundedTarInfo) as tf:
+                for member in tf:
+                    check_member(member.name, member.size)
                     if not member.isfile() or not member.name.lower().endswith(exts):
                         continue
                     f = tf.extractfile(member)
                     if f is None:
                         continue
-                    entries.append((member.name, f.read()))
+                    with f:
+                        data = f.read(min(MAX_METADATA_MEMBER_BYTES, member.size) + 1)
+                    if len(data) != member.size:
+                        raise ValueError("tar metadata size mismatch")
+                    entries.append((member.name, data))
     return entries
 
 
@@ -472,15 +615,22 @@ def followers_group_id(user: str) -> str:
     return f"{settings.PROVIDER}/groups/users/{user}/followers"
 
 
-def ensure_followers_group(user: str) -> str:
+def ensure_followers_group(user: str, authorize=None) -> str:
     """Ensure the user's followers group exists with the canonical roles and
     the user as owner member (the node-side twin of the social app's
     ensureFollowers). Idempotent."""
     group_id = followers_group_id(user)
     if not ch.get_group(group_id):
+        if authorize:
+            authorize()
         ch.create_group(group_id, FOLLOWER_ROLES, "open")
         logger.info("[import] followers group created — %s", group_id)
+        # The initial owner row is part of creating the authorized new group.
+        ch.add_group_member(group_id, user, "owner")
+        return group_id
     if not ch.get_group_member(group_id, user):
+        if authorize:
+            authorize()
         ch.add_group_member(group_id, user, "owner")
         logger.info("[import] user enrolled as owner — %s in %s", user, group_id)
     return group_id
@@ -490,6 +640,60 @@ def ensure_followers_group(user: str) -> str:
 # app-named service, not a platform table). The social app's constant is
 # `web10-social-group-identity`; the page import writes the channel into it.
 GROUP_IDENTITY_SERVICE = "web10-social-group-identity"
+
+
+def import_permissions(target_group_id: str) -> dict:
+    # Match the existing pipeline's reads/writes; do not grant the importer
+    # authority over any new service or app concept.
+    required = {
+        service: ["readAll", "create"] for service in ("staging_posts", "comments", "media_metadata", "profile")
+    }
+    if target_group_id:
+        required["profile"] = ["readAll"]
+        required[GROUP_IDENTITY_SERVICE] = ["readAll", "create"]
+    required["imports"] = ["create"]
+    required["group"] = ["createGroup", "manageRoles", "assignRoles"]
+    return required
+
+
+def authorize_import_job(job: dict) -> None:
+    """Re-check recorded credential lifetime, live contract, and current roles."""
+    from app.services.auth import _utc, validate_app_origin
+
+    scope = job.get("authorization") or {}
+    if scope.get("credential_kind") not in ("self", "app"):
+        raise HTTPException(status_code=403, detail="Import requires renewed authorization")
+    try:
+        expires = _utc(scope.get("expires"))
+    except (ValueError, TypeError):
+        raise HTTPException(status_code=403, detail="Import authorization invalid") from None
+    if expires <= datetime.now(UTC):
+        raise HTTPException(status_code=403, detail="Import authorization expired")
+    user = job["user_key"]
+    target = job.get("target_group_id") or ""
+    if scope["credential_kind"] == "app":
+        origin = validate_app_origin(scope.get("app_origin"))
+        if not ch.is_origin_allowed(user, origin):
+            raise HTTPException(status_code=403, detail="Import app contract revoked")
+        permissions = ch.get_app_permissions(user, origin)
+        for service, operations in import_permissions(target).items():
+            granted = permissions.get(service, [])
+            if service not in ("imports", "group"):
+                granted = [*granted, *permissions.get("*", [])]
+            if any(op not in granted for op in operations):
+                raise HTTPException(status_code=403, detail="Import app permission denied")
+    group_id = target or followers_group_id(user)
+    group = ch.get_group(group_id)
+    if target and not group:
+        raise HTTPException(status_code=403, detail="Import target no longer exists")
+    if group:
+        if not user_owns_group(user, group_id):
+            raise HTTPException(status_code=403, detail="Import target authority revoked")
+        services = ("staging_posts", "comments", GROUP_IDENTITY_SERVICE if target else "profile")
+        if not all(ch.can_write_group(group_id, user, service) for service in services):
+            raise HTTPException(status_code=403, detail="Import target write permission denied")
+        if not all(ch.has_mgmt_permission(group_id, user, operation) for operation in ("manageRoles", "assignRoles")):
+            raise HTTPException(status_code=403, detail="Import group management authority revoked")
 
 
 def user_owns_group(user: str, group_id: str) -> bool:
@@ -567,14 +771,18 @@ def _user_has_profile(user: str) -> bool:
     return int(result.result_rows[0][0]) > 0
 
 
-def _upload_thumbnail(user: str, url: str, origin_id: str, title: str | None) -> str:
+def _upload_thumbnail(user: str, url: str, origin_id: str, title: str | None, authorize=None) -> str:
     """Download a YouTube thumbnail and land it in the node's media store.
     Returns the media_metadata doc_id (the post's media_refs entry)."""
+    if authorize:
+        authorize()
     resp = requests.get(url, timeout=15)
     resp.raise_for_status()
     data = resp.content  # thumbnails are small (tens of KB)
     filename = f"import-thumb-{uuid.uuid4().hex[:12]}.jpg"
     object_key = media_svc.make_object_key(user, filename)
+    if authorize:
+        authorize()
     media_svc.get_s3_client().put_object(Bucket=settings.S3_BUCKET, Key=object_key, Body=data, ContentType="image/jpeg")
     metadata = {
         "object_key": object_key,
@@ -587,12 +795,14 @@ def _upload_thumbnail(user: str, url: str, origin_id: str, title: str | None) ->
         "origin_id": f"thumb_{origin_id}",
         "caption": (title or "")[:200] or None,
     }
+    if authorize:
+        authorize()
     doc = ch.confirm_media_upload(user, metadata)
     return doc["doc_id"]
 
 
 def _write_records(
-    job_id: str, user: str, records: list[dict], target_group: str, as_page: bool = False
+    job_id: str, user: str, records: list[dict], target_group: str, as_page: bool = False, authorize=None
 ) -> tuple[int, int, list[str]]:
     """Write the parsed records to the node. Returns (written, skipped, errors).
 
@@ -609,6 +819,8 @@ def _write_records(
     skipped = 0
     done = 0  # parsed records processed (written or skipped) — the progress numerator
     total = len(records)
+    if authorize:
+        authorize()
     existing, existing_post_ids = _existing_origin_ids(user)
 
     def _progress(message: str) -> None:
@@ -644,6 +856,7 @@ def _write_records(
                     r["media_url"],
                     r["origin_id"],
                     (r["body"].get("text") or "").split("\n")[0],
+                    authorize,
                 ): r
                 for r in todo
             }
@@ -675,6 +888,8 @@ def _write_records(
         original_created = _parse_iso_utc(body.pop("created_at", None))
         if oid in media_doc_ids:
             body["media_refs"] = [media_doc_ids[oid]]
+        if authorize:
+            authorize()
         doc = ch.insert_document(
             author_key=user,
             service="staging_posts",
@@ -682,6 +897,8 @@ def _write_records(
             tags=body.get("tags", []),
             created_at=original_created,
         )
+        if authorize:
+            authorize()
         ch.attach_doc_to_groups(doc["doc_id"], [target_group])
         post_doc_ids[oid] = doc["doc_id"]
         written += 1
@@ -709,6 +926,8 @@ def _write_records(
             continue
         body = dict(rec["body"])
         original_created = _parse_iso_utc(body.pop("created_at", None))
+        if authorize:
+            authorize()
         doc = ch.insert_document(
             author_key=user,
             service="comments",
@@ -716,6 +935,8 @@ def _write_records(
             ref_value=ref,
             created_at=original_created,
         )
+        if authorize:
+            authorize()
         ch.attach_doc_to_groups(doc["doc_id"], [target_group])
         written += 1
         done += 1
@@ -729,6 +950,8 @@ def _write_records(
     # an existing face/profile — the current one wins.
     profile_recs = [r for r in records if r["service"] == "profile"]
     if profile_recs:
+        if authorize:
+            authorize()
         if as_page:
             if _group_has_face(target_group):
                 skipped += 1
@@ -743,7 +966,11 @@ def _write_records(
                     "origin": "youtube",
                     "origin_id": profile_recs[0].get("origin_id"),
                 }
+                if authorize:
+                    authorize()
                 doc = ch.insert_document(author_key=user, service=GROUP_IDENTITY_SERVICE, body=face)
+                if authorize:
+                    authorize()
                 ch.attach_doc_to_groups(doc["doc_id"], [target_group])
                 written += 1
                 done += 1
@@ -755,7 +982,11 @@ def _write_records(
                 _progress("Profile: kept the existing one (not overwritten by the import)")
             else:
                 body = dict(profile_recs[0]["body"])
+                if authorize:
+                    authorize()
                 doc = ch.insert_document(author_key=user, service="profile", body=body)
+                if authorize:
+                    authorize()
                 ch.attach_doc_to_groups(doc["doc_id"], [target_group])
                 written += 1
                 done += 1

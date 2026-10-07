@@ -1,5 +1,15 @@
 # October 2026 Audit — D60: Is the node generic?
 
+> **Historical architecture assessment, corrected 06.10.2026:** original source
+> coordinates and recommendations below are retained, not binding remediation
+> decisions or current security assurance. D60 explicitly retains configurable
+> ranked reads; D75 retains the generic node ad mechanism, and D89 authorizes
+> explicit node monetization/moderation delegation. Moving all ranking/ads to
+> clients needs an approved architectural decision, not an audit assertion.
+> Hardcoded social service/topology coupling must be assessed separately from
+> whether a configurable capability is universal. No architecture change,
+> deployment or test result is claimed by this correction.
+
 **The question:** is the backend (`api/`) generic to *any* app, or has it taken
 the shape of web10-social? The D60 test: *"Would a notes app, a music app, or a
 shop use this endpoint / table / column / field?"* If the honest answer is "no,
@@ -111,6 +121,11 @@ policy (`moderation.py`).
 
 ### G-5 — Medium — **hardcoded service names** in node logic
 
+**Current-source correction:** `clickhouse.py::can_read_carrier_post` now reads
+the carrier's actual service and passes it to the read gate; the historical
+hardcoded `posts` item below no longer describes that path. This does not certify
+all media resolution: stale referenced metadata remains SEC-012/015.
+
 - `documents.py:27`: `if service != "posts" or …` — the moderation hook special-
   cases the literal string `"posts"`.
 - `clickhouse.py:1032`: `can_read_group(g, reader, "posts", …)` — the HLS
@@ -162,6 +177,13 @@ access, and runs the app's queries. It does not *rank feeds*, *attach ads*, or
   security pass as well).
 
 ## Recommended order of attack
+
+**Historical proposals, not approved work orders:** G-2/G-3 removal conflicts with
+the retained capabilities in D60/D75 and requires an explicit ADR. Security
+repairs must preserve current app/person authorization regardless of where a
+product capability eventually lives. The original blanket "correct and clean"
+primitive claims are superseded by the security findings ledger, including SQL,
+projection, service-role and tombstone findings; genericity is not security proof.
 
 1. **G-2 (feed rank)** — move the power-mean rank to the client query. Biggest
    "app shape in the node," and the query-engine seam already supports it.
