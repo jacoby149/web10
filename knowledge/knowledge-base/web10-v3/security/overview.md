@@ -1,10 +1,31 @@
 # Security Model
 
-web10 nodes hold people's data and creators' money. The security model is defined as five invariants. Every architectural decision is judged against them.
+web10 nodes hold people's data and creators' money. The security model is defined as six invariants. Every architectural decision is judged against them.
+
+## Implementation Map
+
+This page states the guarantees and their qualifications. For implementation
+details and the October repair record, read:
+
+- [credentials.md](credentials.md): password/session custody, popup trust,
+  cookie/runtime/vault storage, recipient trust, logout, and diagnostic risks.
+- [rtc-admission.md](rtc-admission.md): exact one-use ticket exchange,
+  pre-upgrade enforcement, reconnect, resource limits, and deployment/scale.
+- [logging.md](logging.md): credential fields/echo redaction, response
+  preservation, pathological-body handling, and the limits of the sanitizer.
+- [audit-runbook.md](audit-runbook.md): negative-test matrix, executable
+  commands, receipt scope, and separately approved historical-exposure work.
+- [hardening-2026-10.md](hardening-2026-10.md): findings, repairs, current
+  evidence, unresolved boundaries, and rollout requirements for this cohort.
+
+An invariant is the target, not proof of universal enforcement. The known
+issuer gap and the shared-helper custom-expiry gap below remain open.
 
 ## The Invariants
 
-Five guarantees that must hold every phase. The conformance/permission test suite enforces them mechanically.
+Six guarantees that must hold every phase. The conformance/permission suites
+exercise covered paths; they do not replace a caller audit or prove the absence
+of the known enforcement gaps recorded below.
 
 | Invariant | Guarantee |
 |---|---|
@@ -88,14 +109,53 @@ sequenceDiagram
 JWT tokens carry `username`, `site`, `target`, `provider`, `expires`. The SDK stores them in a `SameSite=Lax`, `Secure` cookie (60-day max age).
 
 Server-side verification:
-- `decode_token` verifies the JWT signature before extracting claims
+- `decode_token(..., private_key=True)` verifies the JWT signature before extracting claims; its default unsigned decode is metadata-only, never authority
 - Token username is used to scope all queries
-- Token expiry is checked on every request
+- `certify` checks the local provider and custom `expires` claim; RTC authorization and the repaired group-detail path explicitly use it
+
+**Known I5 enforcement gap:** `v3/endpoints/auth_helper.py` `user` and
+`user_or_anon` call verified decode but do not themselves check custom
+`expires` or provider. PyJWT's standard `exp` validation does not enforce a
+field named `expires`. A local synthetic session with `expires` in 2000 was
+still returned as a principal by `user_or_anon`. This repair does not establish
+expiry enforcement on every other caller; shared-helper repair and a caller
+audit remain urgent follow-ups. See the current hardening receipt.
 
 Client-side:
-- `postMessage` tokens are only accepted from the configured `authOrigin`
+- `postMessage` tokens, readiness, and consent responses require both the configured `authOrigin` and the actual SDK-opened popup window. Without an active popup, token handoff fails closed.
 - Tokens are posted only to the referrer origin, never to `'*'`
-- No token in URL — cookie and request body only
+- No session token in URL - cookie and request body only. RTC URLs carry only single-use signaling admission tickets.
+
+**RTC admission (06.10.2026):** the SDK exchanges its session JWT in a POST
+body to the configured RTC host's `/ticket`. RTC calls only its configured
+trusted API's `/rtc/authorize` (never an unsigned provider's URL), which
+verifies the session and derives the peer ID. RTC issues a cryptographically
+random opaque ticket, bound to that ID, valid for 30 seconds and consumed
+atomically before the WebSocket upgrade. Tickets cannot authenticate API
+requests. They grant one signaling admission, not data access; established
+sockets are not terminated when the admission window expires. Invalid,
+expired, wrong-ID, or replayed tickets never reach PeerJS. Ticket state is
+bounded and local to the RTC process: restart revokes all tickets; a replicated
+deployment requires instance affinity or a shared atomic ticket store. SDK
+reconnects exchange a fresh ticket, never reusing the URL credential. Production
+requires HTTPS/WSS; insecure signaling is allowed only on localhost.
+
+**Group-detail transport:** the social app uses SDK `getGroupDetail`, which
+POSTs `{group_id, token?}`. GET remains anonymous; either method rejects a
+`token` query parameter. Invalid present body credentials are rejected, not
+downgraded to anonymous. Both methods share the existing detail read and do not
+change membership/listing semantics; see [../groups/detail.md](../groups/detail.md).
+
+HTTP SDK requests reject redirects and
+omit ambient cookies so a 307/308 cannot replay credential-bearing bodies.
+The JavaScript-readable token cookie is not an XSS boundary: all same-page
+scripts, including telemetry vendors, remain trusted with the session.
+
+API request logging recursively redacts credential fields and their echoed
+values from request/response bodies, validation inputs, errors, and metadata
+before truncation. Non-JSON bodies are omitted from logs. Response bytes are
+unchanged. This prevents new credential logs; it does not erase historical
+records or revoke credentials already exposed.
 
 ## Blocking and Sharing
 

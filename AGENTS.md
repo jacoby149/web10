@@ -297,6 +297,23 @@ does not merge.
 
 JWT tokens with `username, site, target, provider, expires`. Server verifies signature, checks app contracts + group membership. Full auth flow: `knowledge/knowledge-base/web10-v3/auth/auth.md`.
 
+RTC uses a separate admission credential: SDK POSTs the session token to the
+trusted RTC host's `/ticket`; RTC asks its fixed `CERTIFY_BASE_URL` API's
+`/rtc/authorize` for verified identity, then issues a one-use, 30-second opaque
+ticket. Only the ticket enters the WebSocket URL. It is consumed before
+upgrade, never accepted as an API session. No unsigned provider selects the
+verifier. API, RTC, SDK, and demo RTC bundles must deploy together; old JWT
+signaling is deliberately rejected. RTC replicas need instance affinity or a
+shared atomic ticket store. Full model: `security/overview.md` in the v3 KB.
+
+Group-detail credentials use SDK `getGroupDetail` -> POST `/v3/groups/detail`
+JSON `{group_id, token?}`. Public GET detail remains anonymous; either method
+rejects a query `token`. Security implementation docs and the findings/receipt
+map are under `knowledge/knowledge-base/web10-v3/security/`.
+Known I5 follow-up: shared v3 principal helpers verify signatures but do not
+themselves enforce the custom `expires` claim/provider; RTC and group-detail
+explicitly call `certify`. Do not assume every route has that extra check.
+
 ## Security invariants
 
 Defined in the KB: `knowledge/knowledge-base/web10-v3/security/overview.md`. Short version — I1: cryptographic issuer verification, I2: no unsigned decode, I3: no query returns documents for an `author_key` the token doesn't own (unless group membership grants access), I4: node-readable by design — operator-blindness is not a goal, access is terms-controlled (D41), I5: scoped/expiring/revocable tokens enforced by app contracts. Enforced by the conformance/permission test suite.
@@ -345,10 +362,11 @@ apps, etc.
 **Rules:**
 - Log **before** and **after** every async operation (fetch, postMessage,
   setState)
-- Log the **payload** (JSON.stringify it) so the operator can see what
-  actually moved
+- Log the **sanitized payload** so the operator can see what moved. Never log
+  tokens, passwords, admission tickets, signing keys, or credential echoes.
 - Log **which path** was taken in conditionals
-- Log **errors** with `console.error` and the full error object
+- Log **errors** with `console.error`; redact credentials before logging error
+  objects (HTTP-client errors often retain request bodies).
 - **Do not strip logging after the fix.** Keep it.
 - If you touch a flow that has no logging, add it. If sparse, make dense.
 

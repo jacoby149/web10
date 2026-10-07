@@ -31,6 +31,24 @@ says what can happen **at the same time**.
 
 ## Lanes
 
+### Lane: sdk-security (October Audit)
+**Owns:** `sdk/`; generated SDK copies in `marketing/web10-social/public/wapi.js` and `marketing/marketing-ui/public/docs/wapi.js`.
+
+- [✓ 3.222.1] **SDK popup and transport hardening** - verified local implementation: origin AND source checks, exact targets, credential redirect rejection, cookie hardening, regression tests, rebuilt consumer bundles, and social credential-custody audit. Full findings and remaining risks: `knowledge/security-audit/october/sdk.md`.
+- [✓ 4.0.0] **Scoped RTC signaling ticket** - pre-upgrade, one-use opaque tickets issued by RTC after fixed-API verified identity; 30-second expiry, ID binding, fresh-ticket reconnect, production TLS, social logout cleanup, and rebuilt SDK/demo RTC. Coordinated backend + signaling + deployment work completed locally. Replay/expiry/scope/redirect, SDK renewal, and real Python-to-SDK-to-WebSocket admission tests pass; full browser data-channel round-trip not yet run. D89: deploy the cohort together; old JWT signaling rejected; replicas need affinity/shared atomic state.
+- [✓ 4.0.0] **Backend credential-log redaction** - cross-lane repair in `api/app/middleware.py`: known fields and echoes removed from request/response/error/meta logs before truncation; non-JSON/deeply nested logs omitted safely. 38 regressions green; existing logs/credentials not purged/rotated.
+- [✓ 4.0.0] **Body-authenticated group-detail read** - coordinated API/SDK/social transport migration; anonymous GET retained, query tokens rejected on both methods, body credentials certified, no access-model expansion. 29 API detail cases plus SDK/social transport regressions green; E2E specs migrated/discovered, full Docker browser run outstanding.
+- [✓ 4.0.0] **Extensive security KB and evidence ledger** - focused credential, RTC admission, logging, audit-runbook, and October finding/repair/receipt documents under the v3 security KB; unresolved boundaries and deploy/exposure follow-ups explicit.
+- [ ] **Shared v3 expiry/provider enforcement (I5)** - API cross-lane follow-up: verified-decode helpers do not enforce custom expiry/provider; expired synthetic principal confirmed. Owns `api/app/v3/endpoints/auth_helper.py` and caller/test matrix by coordination. Acceptance: invalid/expired credentials rejected before store access, valid/anon paths and conformance preserved.
+- [ ] **Authenticator handoff destination** - UI cross-lane follow-up: remove wildcard token-send fallback and verify intended opener origin across missing-referrer/navigation paths. Owns `ui/src/interfaces/Interface.tsx` and popup tests by coordination; real consent forks must remain green.
+- [ ] **Credential diagnostic redaction** - redact credentials from SDK error details and app error-reporting sinks without suppressing useful boundary logs. Cross-lane gate: coordinate social diagnostics ownership. Acceptance: credential-echo API errors and secret-bearing rejected promises never emit raw credentials.
+
+**Cross-lane status:** group-detail URL credentials and backend B-4 are repaired locally. Shared-helper expiry enforcement, authenticator token sending, and SDK/app diagnostic sinks remain independent repairs; current evidence and missing browser/deployment receipts are in `security/hardening-2026-10.md`.
+
+**Operator gate:** reconcile overlapping API/KB fixes with PR #1157 before
+starting the open API items or merging this cohort. The next action is review
+and coordination, not more API implementation ahead of that PR.
+
 <!--
 Format per lane:
 

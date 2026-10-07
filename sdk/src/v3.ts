@@ -130,6 +130,22 @@ export interface V3Group {
   membership_visibility?: string
 }
 
+/** Principal-based detail envelope, distinct from the raw group contract. */
+export interface V3GroupDetail {
+  group_id: string
+  name: string
+  owner: string
+  slug: string
+  join_policy: string
+  discoverable: boolean
+  member_count: number
+  roles: Record<string, unknown>[]
+  permission_summary: string
+  is_member: boolean
+  posts_state: 'ok' | 'join_to_view'
+  posts: V3Document[]
+}
+
 // A resolved media ref — the shape the platform read produces
 // (`resolve_media_urls`): a fresh presigned `read_url` (and `thumbnail_url` for
 // video posters), the mime type, and the natural dimensions. The thumbnail
@@ -659,6 +675,8 @@ export function createV3Client(options: V3ClientOptions = {}): V3Client {
       if (token) body.token = token
       fetch(`${apiOrigin}/v3/apps/register`, {
         method: 'POST',
+        redirect: 'error',
+        credentials: 'omit',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ body }),
       }).catch(() => {})
@@ -1026,6 +1044,13 @@ export function createV3Client(options: V3ClientOptions = {}): V3Client {
       return v3Post<V3Group>('groups/get', { group_id: groupId })
     },
 
+    async getGroupDetail(groupId: string): Promise<V3GroupDetail> {
+      const body: V3Body = { group_id: groupId }
+      const token = state.token ?? readTokenCookie()
+      if (token) body.token = token
+      return authPost<V3GroupDetail>(`${apiOrigin}/v3/groups/detail`, body)
+    },
+
     async getMyGroups(opts?: { tags?: string[] }): Promise<V3Group[]> {
       const payload: V3Body = {}
       if (opts?.tags) payload.tags = opts.tags
@@ -1154,8 +1179,8 @@ export function createV3Client(options: V3ClientOptions = {}): V3Client {
 
     /**
      * D80: the public "what groups is user X in?" read. Anon-capable (like
-     * `listPeopleDirectory`): the token rides along when present, but a missing
-     * token reads as the node's anon member. Returns the user's memberships in
+     * `listPeopleDirectory`): this GET always reads as the node's anon member,
+     * without sending a token in its URL. Returns the user's memberships in
      * **public-visibility groups only** (followers / community) — hidden groups
      * (dm / close-friends) never surface. `tag` filters to one tag (e.g. the
      * followers tag for the following-list). Paged (limit / offset).
@@ -1386,6 +1411,8 @@ export function createV3Client(options: V3ClientOptions = {}): V3Client {
         return
       }
 
+      const origin = new URL(authOrigin).origin
+      if (origin === 'null') throw new Error('Auth portal must have a non-opaque origin')
       const popup = window.open(
         `${authOrigin}`,
         'web10-consent',
@@ -1398,7 +1425,7 @@ export function createV3Client(options: V3ClientOptions = {}): V3Client {
 
       // Listen for contract_response from the auth UI
       const responseHandler = (e: MessageEvent) => {
-        if (e.data?.type === 'contract_response') {
+        if (!popup.closed && e.origin === origin && e.source === popup && e.data?.type === 'contract_response') {
           window.removeEventListener('message', responseHandler)
           window.removeEventListener('message', readyHandler)
           clearTimeout(timeoutId)
@@ -1409,10 +1436,10 @@ export function createV3Client(options: V3ClientOptions = {}): V3Client {
 
       // Wait for auth UI to signal readiness before sending contracts
       const readyHandler = (e: MessageEvent) => {
-        if (e.data?.type === 'auth_ready') {
+        if (!popup.closed && e.origin === origin && e.source === popup && e.data?.type === 'auth_ready') {
           window.removeEventListener('message', readyHandler)
           try {
-            popup.postMessage({ type: 'contract', contracts }, authOrigin)
+            popup.postMessage({ type: 'contract', contracts }, origin)
           } catch {
             window.removeEventListener('message', responseHandler)
             clearTimeout(timeoutId)
@@ -1442,18 +1469,29 @@ contracts: V3CR[],
         if (callback) callback({ status: 'error', errors: ['No opener window — not in a popup'] })
         return
       }
+      // The browser supplies the opener's referrer; never broadcast to an
+      // opener that has navigated elsewhere, or trust another window's reply.
+      const opener = window.opener
+      let origin: string
+      try {
+        origin = new URL(document.referrer).origin
+        if (origin === 'null') throw new Error('Opaque opener')
+      } catch {
+        callback?.({ status: 'error', errors: ['No trusted opener origin'] })
+        return
+      }
       if (callback) {
         const handler = (e: MessageEvent) => {
-          if (e.data?.type === 'contract_response') {
+          if (e.source === opener && e.origin === origin && e.data?.type === 'contract_response') {
             window.removeEventListener('message', handler)
             callback(e.data)
           }
         }
         window.addEventListener('message', handler)
       }
-      window.opener.postMessage(
+      opener.postMessage(
         { type: 'contract', contracts },
-        '*',
+        origin,
       )
     },
   }
@@ -1521,6 +1559,8 @@ export interface V3Client {
   // Groups
   createGroup(name: string, joinPolicy: string, roles: Record<string, unknown>[], members: { member_key: string; role?: string }[], opts?: { discoverable?: boolean; tags?: string[]; membership_visibility?: string }): Promise<{ group_id: string }>
   getGroup(groupId: string): Promise<V3Group>
+  /** Optional-token detail read. Credentials are sent only in the POST body. */
+  getGroupDetail(groupId: string): Promise<V3GroupDetail>
   getMyGroups(opts?: { tags?: string[] }): Promise<V3Group[]>
   getGroupsManages(): Promise<V3Group[]>
   updateGroup(groupId: string, opts?: { join_policy?: string; roles?: Record<string, unknown>[]; discoverable?: boolean; tags?: string[]; membership_visibility?: string }): Promise<V3Group>

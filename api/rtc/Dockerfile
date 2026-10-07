@@ -7,7 +7,7 @@ WORKDIR /rtc
 COPY package.json bun.lock ./
 RUN bun install --frozen-lockfile
 
-COPY tsconfig.json index.ts ./
+COPY tsconfig.json index.ts server.ts ./
 
 EXPOSE 80
 CMD ["bun", "run", "index.ts"]

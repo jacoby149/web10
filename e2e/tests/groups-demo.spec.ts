@@ -460,14 +460,14 @@ test.describe('Groups directory + detail — API floor (D53)', () => {
     expect(post.ok, `post failed: ${JSON.stringify(post.body)}`).toBeTruthy();
 
     // a (member) sees the post
-    const asMember = await v3Get(request, 'groups/detail', { group_id: groupId, token: a.token });
+    const asMember = await v3Post(request, 'groups/detail', { group_id: groupId, token: a.token });
     expect(asMember.ok).toBeTruthy();
     expect(asMember.body.is_member).toBe(true);
     expect(asMember.body.posts_state).toBe('ok');
     expect((asMember.body.posts as any[]).length).toBe(1);
 
     // b (non-member) gets "join to view" — no posts
-    const asOutsider = await v3Get(request, 'groups/detail', { group_id: groupId, token: b.token });
+    const asOutsider = await v3Post(request, 'groups/detail', { group_id: groupId, token: b.token });
     expect(asOutsider.ok).toBeTruthy();
     expect(asOutsider.body.is_member).toBe(false);
     expect(asOutsider.body.posts_state).toBe('join_to_view');

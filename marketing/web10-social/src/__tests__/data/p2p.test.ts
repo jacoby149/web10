@@ -51,6 +51,7 @@ function mockConnection(
 function mockConnector() {
   const autoPongRef = { value: true };
   const c = {
+    destroy: vi.fn(),
     _onInbound: null as null | (
       (conn: { peer: string; on?: (e: string, h: () => void) => void; close?: () => void }, data: unknown) => void
     ),
@@ -405,6 +406,7 @@ describe('p2p (WebRTC P2P seam)', () => {
       });
       p2p.teardownP2P();
       expect(p2p.isP2PReady()).toBe(false);
+      expect(connector.destroy).toHaveBeenCalledTimes(1);
       expect(p2p.getOnlinePeers().size).toBe(0);
       expect(ticks).toBe(1);
       unsub();

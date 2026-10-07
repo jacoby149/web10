@@ -92,6 +92,21 @@ export interface V3Group {
      *  'hidden'). Optional for forward-compat (older nodes predate the column). */
     membership_visibility?: string;
 }
+/** Principal-based detail envelope, distinct from the raw group contract. */
+export interface V3GroupDetail {
+    group_id: string;
+    name: string;
+    owner: string;
+    slug: string;
+    join_policy: string;
+    discoverable: boolean;
+    member_count: number;
+    roles: Record<string, unknown>[];
+    permission_summary: string;
+    is_member: boolean;
+    posts_state: 'ok' | 'join_to_view';
+    posts: V3Document[];
+}
 export interface V3ResolvedMedia {
     doc_id?: string;
     object_key?: string | null;
@@ -486,6 +501,8 @@ export interface V3Client {
         group_id: string;
     }>;
     getGroup(groupId: string): Promise<V3Group>;
+    /** Optional-token detail read. Credentials are sent only in the POST body. */
+    getGroupDetail(groupId: string): Promise<V3GroupDetail>;
     getMyGroups(opts?: {
         tags?: string[];
     }): Promise<V3Group[]>;

@@ -1,5 +1,112 @@
 # October 2026 Audit — SDK (`sdk/`)
 
+## Follow-up: 06.10.2026
+
+The original findings below describe the pre-fix code; their line numbers are
+historical. This follow-up is a static SDK and social credential-custody audit,
+not an independent penetration test or a security certification.
+
+**Fixed in this workspace:** S-1 and S-6. `sdk/src/browser.ts` now tracks the
+opened popup's origin and window reference; auth, readiness, and consent
+responses require BOTH. No popup means no token acceptance. Contract delivery
+and close messages use exact origins. The ESM `contractRequest` has the same
+sender checks; legacy opener delivery is referrer-origin-bound and fails
+closed without a referrer. Regression tests drive forged origins, other
+windows, null sources, popup replacement, blocked popups, valid login,
+same-user deduplication, and both browser/ESM consent paths.
+
+**Also fixed:** `sdk/src/http.ts` and the registration fetch in `v3.ts` reject
+redirects (`redirect: 'error'`) and omit ambient cookies. Otherwise 307/308
+responses could replay token/password JSON bodies to another recipient.
+`token.ts` encodes cookie values, ignores malformed percent-encoded cookies,
+uses a prototype-free cookie dictionary, and decodes UTF-8 base64url JWT
+metadata with an explicit warning against authorization use. S-3's misleading
+comment is corrected: `byUserGroups` is anonymous, not a token-bearing GET.
+Source fixes are rebuilt into `sdk/dist` and both tracked public `wapi.js`
+copies; source-only repairs would leave the deployed auth path vulnerable.
+
+**RTC continuation:** the old RTC check ran AFTER PeerJS registration and
+selected its default verifier URL from unsigned claims. Both are removed.
+`api/rtc/server.ts` issues 256-bit opaque, ID-bound, one-use tickets after
+calling the fixed API `/rtc/authorize`; the ticket expires in 30 seconds and
+is consumed before WebSocket upgrade. The SDK puts only this ticket in the
+URL, uses HTTPS/WSS outside localhost, and obtains a fresh ticket for reconnect.
+Social logout destroys the peer and cancels renewal. The demo's `rtc.js` is
+rebuilt from the same SDK source. Tickets cannot be used as API sessions.
+
+**Backend logging (B-4/S-2) fixed:** credential fields and echoed values are
+redacted recursively in request/response logs, validation inputs, error
+messages, and metadata before truncation; non-JSON bodies are omitted. Actual
+HTTP responses are preserved. Existing logs are NOT purged and already-exposed
+credentials are NOT rotated by this change.
+
+**Group-detail transport fixed locally:** SDK `getGroupDetail` sends optional
+credentials only in POST JSON; the social wrapper delegates to it. Anonymous
+GET remains, while GET and POST both reject any query `token`. Body credentials
+are explicitly certified for signature/provider/custom expiry before principal
+derivation. The existing member/unlisted/metadata semantics are retained, with
+the literal-membership envelope qualification documented separately.
+
+**The canonical implementation record is now the KB:**
+[`security/hardening-2026-10.md`](../../knowledge-base/web10-v3/security/hardening-2026-10.md)
+maps every finding to its repair, owning code, tests, rollout requirement, and
+unresolved boundary. The linked credential, RTC, logging, and audit-runbook
+documents explain the mechanics and future verification procedure in depth.
+
+**Deployment:** API, RTC, SDK, and consumer RTC bundles must deploy together;
+legacy JWT signaling is rejected. `CERTIFY_BASE_URL` is required and configured
+in all checked compose stacks. Ticket state is process-local and bounded;
+restart revokes it. Multiple RTC replicas need affinity or a shared atomic
+store. Admission expiry does not disconnect an already-admitted peer, and
+does not provide server-side revocation of an existing socket.
+
+**Still open, in priority order:**
+
+1. **Shared-helper expiry enforcement (I5):** v3 `user`/`user_or_anon` verify
+   signatures but do not themselves certify custom expiry/provider. A local
+   expired synthetic session still resolved to a principal. Group detail and
+   RTC explicitly certify first; other callers need a dedicated repair/audit.
+2. **Authenticator sender:** `I.goToApp` retains a wildcard target fallback
+   when there is no referrer. SDK receiver fixes do not repair that sender.
+3. **Recipient trust** (`sdk/src/v3.ts` client construction/registration). A configured
+   `apiOrigin` receives the cookie token, including on the automatic registration
+   ping. Today this is caller-supplied configuration, not a destination selected
+   by a document ID. Never derive it from untrusted content. Federation needs
+   an explicit credential-recipient policy before arbitrary-node fan-out.
+4. **Diagnostics and XSS** remain independent app boundaries. The SDK keeps
+   raw API error bodies (`http.ts`); the social error reporter forwards strings
+   without credential redaction (`src/lib/analytics.ts:188-199`). An actual
+   credential-bearing diagnostic was not demonstrated. XSS/third-party script
+   compromise can read the cookie; masking telemetry content is not sandboxing.
+
+**Social credential custody:** no app-owned password persistence or token copy
+in localStorage/sessionStorage/IndexedDB was found. Login uses the authenticator
+popup; SDK code persists the cookie. The app DOES handle credentials itself:
+`src/interfaces/auth.ts:175-178` copies the cookie into the data-client state;
+`src/data/{ads-catalog,moderation,imports,posts}.ts` contain direct authenticated
+requests outside SDK transport. Logout clears the local cookie/client token,
+not proven server-side revocation. Therefore "SDK secure => social secure" is
+false even without a second persistent credential store. The authenticator's
+separate account vault is outside the social origin and outside this pass.
+
+**Verification:** 214 SDK tests, 13 real RTC HTTP/WebSocket tests, all 1,185 API
+tests (including conformance/permissions), and 1,385 social tests passed.
+Typechecks, Ruff on touched Python files, and SDK/RTC builds passed. The RTC
+suite starts the real Python authorization router (unused storage imports
+mocked), verifies a signed session, and drives the actual SDK ticket exchange
+into a real WebSocket admission. It also witnesses pre-upgrade denial, replay,
+expiry, wrong-ID, capacity, and verifier redirect failures. SDK tests cover
+fresh-ticket renewal/backoff/logout. Full browser login, WebRTC data-channel
+round-trip, and production proxy behavior are NOT covered by this pass.
+
+Pre-PR review additionally moved ticket issuance AFTER ICE configuration: a
+slow `/ice` call must not consume the 30-second ticket window before PeerJS
+starts. A synthetic 31-second ICE delay now exercises that ordering.
+Coordinate overlapping API/KB repairs with PR #1157 before acting on the open
+API findings; their status is scoped to this checkout.
+
+## Historical Findings (05.10.2026)
+
 The SDK (`wapi.js`) is the client-side trust surface: it stores the token,
 sends it, and receives it from the auth popup. It is small (~2.4k LOC source)
 and **all of it** is security-relevant. The KB's own security model

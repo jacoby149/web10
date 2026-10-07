@@ -31,6 +31,29 @@ So `discoverable` answers "is it blasted?" and the effective role answers "can t
 
 ## The Read Is Principal-Based
 
+### Credential Transport
+
+Authenticated reads use `POST /v3/groups/detail` with JSON
+`{ "group_id": "provider/groups/alice/jazz", "token": "<session JWT>" }`.
+The token is optional: omission/null/empty reads anonymously through the same
+`user_or_anon` seam. A present invalid token is rejected, not downgraded to
+anonymous. SDK consumers use `w.getGroupDetail(groupId)`; this is not the raw
+contract returned by `w.getGroup(groupId)`.
+
+`GET /v3/groups/detail?group_id=...` remains an anonymous read for public
+clients, including the marketing site. A `token` query parameter is rejected
+on either method: a bearer credential must not enter a URL, even when HTTPS
+protects the connection. URLs are routinely logged outside API middleware.
+GET and POST share the detail implementation and response shape. Migration
+changes credential transport, not group permissions or listing semantics.
+
+**Implementation qualification:** the existing detail envelope marks
+`is_member` using literal membership and only enters its recent-posts read
+for that membership; the nested read enforces role permissions. The broader
+`anyone`/`authenticated` detail behavior described below is the intended model,
+not a guarantee established by this transport repair. Keep that discrepancy
+visible and test it separately rather than quietly expanding access here.
+
 The detail takes a **token (optional)** and reads as that principal — the same `user_or_anon` seam the anon-capable `/v3/read` already uses (3.16.2):
 
 - **No token** → reads as `anon`.

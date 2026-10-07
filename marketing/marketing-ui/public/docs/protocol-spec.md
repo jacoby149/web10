@@ -624,9 +624,14 @@ POST /v3/groups/requests/join/deny    Body: { token, group_id, requester_key }
 GET /v3/groups/directory?limit=50&offset=0     // anon-browsable; discoverable groups only
 → { "groups": [ { "group_id", "name", "owner", "join_policy", "member_count", "permission_summary" } ], "limit", "offset" }
 
-GET /v3/groups/detail?group_id=...&token=...   // unlisted-model: any existing group is reachable
+GET /v3/groups/detail?group_id=...            // anonymous; unlisted-model: any existing group is reachable
+POST /v3/groups/detail Body: { group_id, token? } // signed-in or anonymous principal
 → { "group_id", "join_policy", "discoverable", "member_count", "roles", "is_member", "posts_state": "ok" | "join_to_view", "posts" }
 ```
+
+Session credentials belong only in the POST JSON body. Both methods reject a
+`token` query parameter, including an empty one. SDK apps use
+`w.getGroupDetail(groupId)`; `w.getGroup(groupId)` remains the raw-contract read.
 
 **Group-scoped blocking + sharing:**
 

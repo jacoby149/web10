@@ -517,6 +517,7 @@ export function onPresenceChange(listener: () => void): () => void {
  */
 export function teardownP2P(): void {
   p2pReady = false;
+  rtc?.destroy();
   rtc = null;
   inboundListeners.clear();
   stopSweep();

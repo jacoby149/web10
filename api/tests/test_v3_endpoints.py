@@ -796,16 +796,20 @@ class TestGroupDetail:
             patch("app.v3.services.clickhouse.read_documents_in_groups", return_value=posts or []),
         )
 
-    def test_nonexistent_group_404s(self, client):
+    @pytest.mark.parametrize("method", ["get", "post"])
+    def test_nonexistent_group_404s(self, client, method):
         with patch("app.v3.services.clickhouse.get_group", return_value=None):
-            resp = client.get("/v3/groups/detail", params={"group_id": "web10.app/groups/nobody/nope"})
+            data = {"group_id": "web10.app/groups/nobody/nope"}
+            resp = getattr(client, method)("/v3/groups/detail", **{("params" if method == "get" else "json"): data})
         assert resp.status_code == 404
 
-    def test_non_discoverable_group_is_reachable(self, client):
+    @pytest.mark.parametrize("method", ["get", "post"])
+    def test_non_discoverable_group_is_reachable(self, client, method):
         """Unlisted-model: a discoverable=False group does NOT 404."""
         p1, p2, p3, p4 = self._apply(is_member=False)
         with p1, p2, p3, p4:
-            resp = client.get("/v3/groups/detail", params={"group_id": self._ID})
+            data = {"group_id": self._ID}
+            resp = getattr(client, method)("/v3/groups/detail", **{("params" if method == "get" else "json"): data})
         assert resp.status_code == 200
         data = resp.json()
         assert data["discoverable"] is False
@@ -814,11 +818,13 @@ class TestGroupDetail:
         assert data["posts_state"] == "join_to_view"
         assert data["posts"] == []
 
-    def test_member_sees_posts(self, client, token):
+    def test_member_sees_posts(self, client):
         posts = [{"doc_id": "p1", "author_key": "web10.app/users/alice", "body": {"text": "hi"}}]
         p1, p2, p3, p4 = self._apply(is_member=True, posts=posts)
-        with p1, p2, p3, p4:
-            resp = client.get("/v3/groups/detail", params={"group_id": self._ID, "token": token})
+        with p1, p2, p3 as membership, p4 as read:
+            resp = client.post("/v3/groups/detail", json={"group_id": self._ID, "token": _make_token("alice")})
+        membership.assert_called_once_with(self._ID, "alice")
+        read.assert_called_once_with(group_ids=[self._ID], member_key="alice", service="posts", limit=20)
         assert resp.status_code == 200
         data = resp.json()
         assert data["is_member"] is True
@@ -832,6 +838,96 @@ class TestGroupDetail:
             resp = client.get("/v3/groups/detail", params={"group_id": self._ID})
         assert resp.status_code == 200
         assert resp.json()["posts_state"] == "join_to_view"
+
+    @pytest.mark.parametrize("credential", [{}, {"token": None}, {"token": ""}])
+    def test_anonymous_post_get_parity(self, client, credential):
+        p1, p2, p3, p4 = self._apply(is_member=False)
+        with p1, p2, p3 as membership, p4 as read:
+            post = client.post("/v3/groups/detail", json={"group_id": self._ID, **credential})
+            get = client.get("/v3/groups/detail", params={"group_id": self._ID})
+        assert post.status_code == get.status_code == 200
+        assert post.json() == get.json()
+        assert membership.call_count == 2
+        membership.assert_called_with(self._ID, "anon")
+        read.assert_not_called()
+
+    def test_outsider_post_does_not_read_posts(self, client, token):
+        p1, p2, p3, p4 = self._apply(is_member=False)
+        with p1, p2, p3 as membership, p4 as read:
+            resp = client.post("/v3/groups/detail", json={"group_id": self._ID, "token": token})
+        assert resp.status_code == 200
+        assert resp.json()["posts"] == []
+        assert resp.json()["posts_state"] == "join_to_view"
+        membership.assert_called_once_with(self._ID, "testuser")
+        read.assert_not_called()
+
+    def test_member_post_keeps_nested_read_boundary(self, client):
+        with (
+            patch("app.v3.services.clickhouse.get_group", return_value=self._GROUP),
+            patch("app.v3.services.clickhouse._get_group_member_counts", return_value={self._ID: 7}),
+            patch("app.v3.services.clickhouse.is_group_member", return_value=True),
+            patch("app.v3.services.clickhouse.client") as db,
+        ):
+            db.query.return_value = MagicMock(result_rows=[])
+            resp = client.post("/v3/groups/detail", json={"group_id": self._ID, "token": _make_token("alice")})
+        assert resp.status_code == 200
+        assert resp.json()["posts"] == []
+        sql, params = db.query.call_args.args
+        assert "gm.member_key = %(member_key)s" in sql
+        assert params["member_key"] == "alice"
+        assert params["g0"] == self._ID
+        assert params["coll"] == "posts"
+        assert params["limit"] == 20
+
+    @pytest.mark.parametrize("kind", ["malformed", "signature", "expired", "recovery"])
+    def test_invalid_token_never_falls_back_to_anon(self, client, kind):
+        tokens = {
+            "malformed": "not-a-jwt",
+            "signature": jwt.encode({"username": "alice"}, "wrong-signing-key", algorithm=settings.ALGORITHM),
+            "expired": _make_token("alice", expires="2000-01-01T00:00:00"),
+            "recovery": jwt.encode(
+                {"contact": "+15551234567", "kind": "phone", "purpose": "recovery", "exp": 4102444800},
+                settings.PRIVATE_KEY,
+                algorithm=settings.ALGORITHM,
+            ),
+        }
+        with patch("app.v3.services.clickhouse.get_group") as group:
+            resp = client.post("/v3/groups/detail", json={"group_id": self._ID, "token": tokens[kind]})
+        assert resp.status_code == 401
+        group.assert_not_called()
+
+    @pytest.mark.parametrize("method", ["get", "post"])
+    @pytest.mark.parametrize("query", ["token=", "token=secret-marker", "token=&token=secret-marker"])
+    def test_query_token_rejected_without_echo(self, client, method, query):
+        with patch("app.v3.services.clickhouse.get_group") as group:
+            resp = getattr(client, method)(
+                f"/v3/groups/detail?group_id={self._ID}&{query}",
+                **({"json": {"group_id": self._ID, "token": _make_token("alice")}} if method == "post" else {}),
+            )
+        assert resp.status_code == 400
+        assert resp.json() == {"detail": "Token query parameters are not allowed; use the JSON body."}
+        assert "secret-marker" not in resp.text
+        group.assert_not_called()
+
+    @pytest.mark.parametrize("method", ["get", "post"])
+    def test_query_jwt_rejected_without_echo(self, client, token, method):
+        resp = getattr(client, method)(
+            "/v3/groups/detail",
+            params={"group_id": self._ID, "token": token},
+            **({"json": {"group_id": self._ID}} if method == "post" else {}),
+        )
+        assert resp.status_code == 400
+        assert token not in resp.text
+
+    @pytest.mark.parametrize(
+        "body",
+        [{}, {"group_id": None}, {"group_id": []}, {"group_id": "g", "token": {}}, {"group_id": "g", "token": 42}, []],
+    )
+    def test_wrong_body_shape(self, client, body):
+        with patch("app.v3.services.clickhouse.get_group") as group:
+            resp = client.post("/v3/groups/detail", json=body)
+        assert resp.status_code == 422
+        group.assert_not_called()
 
 
 class TestJoinGroup:

@@ -1,10 +1,10 @@
 from types import SimpleNamespace
 
-from fastapi import APIRouter
+from fastapi import APIRouter, Depends, HTTPException, Request
 
 import app.exceptions as exceptions
 from app.models.auth import Token
-from app.services.auth import check_admin, decode_token
+from app.services.auth import certify, check_admin, decode_token
 from app.v3.endpoints.auth_helper import user as _user
 from app.v3.endpoints.auth_helper import user_or_anon
 from app.v3.models import (
@@ -30,6 +30,7 @@ from app.v3.models import (
     UpdateGroup,
 )
 from app.v3.models.common import TokenOnly
+from app.v3.models.groups import GroupDetail
 from app.v3.services import clickhouse as ch
 
 router = APIRouter(tags=["group-contracts"])
@@ -445,8 +446,24 @@ def list_user_groups(user: str, tag: str | None = None, limit: int = 50, offset:
     return {"groups": out, "limit": limit, "offset": offset}
 
 
-@router.get("/detail")
-def group_detail(group_id: str, token: str | None = None):
+def _reject_detail_query_token(request: Request):
+    if "token" in request.query_params:
+        raise HTTPException(status_code=400, detail="Token query parameters are not allowed; use the JSON body.")
+
+
+@router.get("/detail", dependencies=[Depends(_reject_detail_query_token)])
+def group_detail(group_id: str):
+    """Anonymous detail read for public clients; credentials never belong in URLs."""
+    return _group_detail(group_id)
+
+
+@router.post("/detail", dependencies=[Depends(_reject_detail_query_token)])
+def post_group_detail(data: GroupDetail):
+    """Principal-based detail read with an optional body credential."""
+    return _group_detail(data.group_id, data.token)
+
+
+def _group_detail(group_id: str, token: str | None = None):
     """The flexible group detail (by ID). Unlisted-model (D53).
 
     Principal-based: reads as the token's user, or `anon` with no token. Only a
@@ -457,6 +474,11 @@ def group_detail(group_id: str, token: str | None = None):
     app-named identity service (D60) — the platform detail does not render it;
     a surface fetches the face from the app's service and composes it here.
     """
+    if token:
+        try:
+            certify(Token(token=token))
+        except Exception:
+            raise exceptions.TOKEN from None
     principal = user_or_anon(SimpleNamespace(token=token or ""))
     group = ch.get_group(group_id)
     if not group:

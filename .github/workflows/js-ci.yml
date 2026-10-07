@@ -37,7 +37,14 @@ jobs:
             sdk: sdk/**
             web10-social: marketing/web10-social/**
             marketing-ui: marketing/marketing-ui/**
-            rtc: api/rtc/**
+            rtc:
+              - api/rtc/**
+              - api/app/endpoints/system.py
+              - api/app/services/auth.py
+              - api/tests/conftest.py
+              - api/pyproject.toml
+              - api/uv.lock
+              - sdk/src/**
             workflows: .github/workflows/js-ci.yml, .github/workflows/js.yml
 
   ui:
@@ -74,4 +81,3 @@ jobs:
     uses: ./.github/workflows/js.yml
     with:
       package: api/rtc
-      tests: false

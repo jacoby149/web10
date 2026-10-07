@@ -1,4 +1,4 @@
-import { getV3Client, readTokenCookie, extractDetail, Web10Error, type V3Group, type V3Document, type V3Client, type V3GroupContractSpec } from './v3';
+import { getV3Client, extractDetail, type V3Group, type V3Document, type V3Client, type V3GroupContractSpec, type V3GroupDetail } from './v3';
 import { extractUsername, fromV3DocToPost, type PostRecord } from './types';
 import { API_HOST, API_ORIGIN } from '../lib/origins';
 
@@ -944,21 +944,8 @@ export interface GroupDirectoryEntry {
   permission_summary: string;
 }
 
-/** The group detail (D53 unlisted-model) from `GET /v3/groups/detail`. */
-export interface GroupDetail {
-  group_id: string;
-  name: string;
-  owner: string;
-  slug: string;
-  join_policy: string;
-  discoverable: boolean;
-  member_count: number;
-  roles: Record<string, unknown>[];
-  permission_summary: string;
-  is_member: boolean;
-  posts_state: 'ok' | 'join_to_view';
-  posts: V3Document[];
-}
+/** The group detail (D53 unlisted-model), read through SDK POST transport. */
+export type GroupDetail = V3GroupDetail;
 
 /** The group's face (D60: documents in an app-named service, not a table). */
 export interface GroupIdentity {
@@ -1039,26 +1026,19 @@ export async function readGroupDirectory(
  */
 export async function readGroupDetail(groupId: string): Promise<GroupDetail> {
   LOG('readGroupDetail — start', groupId);
-  const token = readTokenCookie();
-  const params = new URLSearchParams({ group_id: groupId });
-  if (token) params.set('token', token);
-  const res = await fetch(`${API_ORIGIN}/v3/groups/detail?${params.toString()}`, {
-    headers: { 'Content-Type': 'application/json' },
-  });
-  if (!res.ok) {
-    const detail = await res.text().then(extractDetail).catch(() => null);
-    LOG('readGroupDetail — failed', res.status, groupId, detail ?? '');
-    // A Web10Error carries the status so the detail screen can still key its
-    // "not found" state off a 404 (a ghost group) vs. a real error; the
-    // message is the API's detail (informative) with a status fallback.
-    throw new Web10Error(detail ?? `Group detail read failed: ${res.status}`, res.status);
+  try {
+    const data = await getV3Client().getGroupDetail(groupId);
+    LOG('readGroupDetail — got', data.name, {
+      is_member: data.is_member,
+      posts_state: data.posts_state,
+    });
+    return data;
+  } catch (error) {
+    // Preserve the SDK's status/error for the screen, without logging a body
+    // that an API error could use to echo credentials.
+    LOG('readGroupDetail — failed', groupId);
+    throw error;
   }
-  const data = (await res.json()) as GroupDetail;
-  LOG('readGroupDetail — got', data.name, {
-    is_member: data.is_member,
-    posts_state: data.posts_state,
-  });
-  return data;
 }
 
 /**

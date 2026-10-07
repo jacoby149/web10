@@ -22,7 +22,8 @@
   "scripts": {
     "build": "bun build src/index.ts --outdir dist --target browser --format esm && tsc --emitDeclarationOnly --outDir dist",
     "build:rtc": "bun build src/rtc/index.ts --outdir dist/rtc --target browser --format esm && tsc --emitDeclarationOnly --outDir dist",
-    "build:all": "bun run build && bun run build:rtc",
+    "build:rtc:browser": "bun build src/rtc/browser.ts --outfile dist/rtc/browser.js --target browser --format iife",
+    "build:all": "bun run build && bun run build:rtc && bun run build:rtc:browser",
     "build:browser": "bun build src/browser.ts --outdir dist/browser --target browser --format iife && mv dist/browser/browser.js dist/browser.js && rmdir dist/browser",
     "test": "vitest run",
     "test:run": "vitest run",

@@ -9,6 +9,29 @@ Status legend: [decided] intent set · [in-progress] · [open] still debating.
 
 ---
 
+### D89 - RTC uses one-use admission tickets, not session JWTs in URLs [decided]
+
+06.10.2026 security continuation: replace the SDK's session JWT in PeerJS's
+URL with a random 256-bit opaque ticket. The trusted RTC host exchanges the
+session in a POST body with its fixed API `/rtc/authorize`; the node verifies
+signature/provider/expiry and derives the generic peer ID. RTC binds the
+ticket to that ID, expires it after 30 seconds, and consumes it synchronously
+BEFORE HTTP 101/PeerJS registration. Reconnect mints another ticket. No signing
+key leaves the API, and no unsigned token claim selects an outbound verifier.
+
+The store is bounded and process-local: restart revokes tickets rather than
+making them replayable. The current deployment has one RTC instance; replicas
+require affinity or a shared atomic store. Admission expiry is not a socket
+session lifetime or server-side revocation mechanism. HTTPS/WSS is required
+outside localhost. Reject legacy JWT signaling rather than retaining the
+credential leak as a fallback; API, RTC, SDK, and the demo bundle deploy as one
+cohort. This is a breaking RTC wire-protocol change, not a new social API.
+
+Rejected: unsigned provider-directed `/certify`, asynchronous checks after
+PeerJS has registered a peer, replayable signed tickets without state, and
+sharing the node's session-signing secret with RTC. API logs redact credential
+fields/echoes before truncation; observability must not become another vault.
+
 ### D88 — Saved collections: a playlist is a private-by-default group on the profile, publicness is a role grant — zero node surface [decided]
 
 Operator, 30.09.2026 — "there is no concept of a playlist, saved videos, saved shorts, saved posts, should be on your own profile, and see other peoples profiles saved collections kind of a feature" + "with being able to private your saved stuff, since that can be sensitive" + (on the surface) "profile card is the most like youtube channels, card on profile i mean, that makes a TON of sense, so A."

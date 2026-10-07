@@ -7,8 +7,7 @@ on:
         required: true
         type: string
       tests:
-        # rtc has no test suite yet — callers set this false rather than
-        # letting the test step fail on a package with nothing to run
+        # Packages can opt out only when they have no test suite.
         required: false
         type: boolean
         default: true
@@ -40,6 +39,15 @@ jobs:
 
       - name: bun install
         run: bun install --frozen-lockfile
+
+      - name: Set up Python for RTC interoperability tests
+        if: ${{ inputs.package == 'api/rtc' }}
+        uses: astral-sh/setup-uv@v7
+
+      - name: Install RTC test backend dependencies
+        if: ${{ inputs.package == 'api/rtc' }}
+        working-directory: api
+        run: uv sync --frozen
 
       - name: typecheck
         run: bun run tsc --noEmit || bunx tsc --noEmit
