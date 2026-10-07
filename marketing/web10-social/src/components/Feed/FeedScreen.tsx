@@ -324,6 +324,10 @@ export interface PostCardProps {
   reactionCount: number;
   dislikeCount?: number;
   commentCount: number;
+  /** Impressions (D86) — total delivery events, the eye icon. Display-only. */
+  impressions?: number;
+  /** Reach (D86) — distinct readers, the person icon. Display-only. */
+  reach?: number;
   liked: boolean;
   disliked: boolean;
   /** Whether the reader has reposted this post (the repeat icon fills). */
@@ -367,6 +371,8 @@ export function PostCard({
   reactionCount,
   dislikeCount,
   commentCount,
+  impressions = 0,
+  reach = 0,
   liked,
   disliked,
   reposted = false,
@@ -656,6 +662,8 @@ export function PostCard({
             reactionCount={reactionCount}
             dislikeCount={dislikeCount}
             commentCount={commentCount}
+            impressions={impressions}
+            reach={reach}
             onToggleReaction={onToggleReaction}
             onCommentCountChange={onCommentCountChange}
             postAuthor={postAuthor}
@@ -1073,6 +1081,8 @@ export default function FeedScreen({ onAuthorClick, onRepost }: { onAuthorClick?
                   dislikeCount={dislikeCountMap[post._id || ''] || 0}
                   repostCount={repostCountMap[post._id || ''] || 0}
                   commentCount={commentMap[post._id || ''] || 0}
+                  impressions={post.impressions || 0}
+                  reach={post.reach || 0}
                   liked={!!likedMap[post._id || '']}
                   disliked={!!dislikedMap[post._id || '']}
                   reposted={!!repostedMap[post._id || '']}

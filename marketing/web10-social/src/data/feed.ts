@@ -39,6 +39,7 @@ export async function readDiscoverFeed(
   limit = 50,
   tags?: string[],
   offset = 0,
+  surface?: string,
 ): Promise<PostRecord[]> {
   const w = getV3Client();
   try {
@@ -48,6 +49,11 @@ export async function readDiscoverFeed(
       offset,
       ...(sort ? { sort } : {}),
       ...(tags ? { tags } : {}),
+      // The D86 surface label: when present, the node logs a delivery
+      // impression per returned post (the read path's delivery capture — the
+      // discover/shorts "view"). The on-surface "N views" is the reach over
+      // these deliveries.
+      ...(surface ? { surface } : {}),
     });
     const posts = docs.map(fromV3DocToPost);
     // Without a server sort, keep the chronological default (newest first).
@@ -105,7 +111,9 @@ export interface ShortsPage {
  * filter; this is the same read, paged.
  */
 export async function readShortsPage(limit = 50, offset = 0): Promise<ShortsPage> {
-  const posts = await readDiscoverFeed(null, limit, ['short'], offset);
+  // surface: 'shorts' — the D86 delivery capture for the shorts wall (the
+  // on-surface "N views" is the reach over these deliveries).
+  const posts = await readDiscoverFeed(null, limit, ['short'], offset, 'shorts');
   // The board page size (before the 9:16 gate) — the paging signal.
   const hasMore = posts.length >= limit;
   const withMedia = posts.filter((p) => p.media_refs?.length);
@@ -519,9 +527,13 @@ export async function readFeedPage(opts: {
   const limit = opts.limit ?? 20;
   const sql = buildFeedQuery(sort, opts.cursor ?? null, limit);
   // The prepare pass (D73): mint media + HLS + ads + the author's face so the
-  // query returns render-ready rows in one round-trip.
+  // query returns render-ready rows in one round-trip. The D86 surface label +
+  // content service: the node logs a delivery impression per returned post
+  // (the server-side, un-gameable floor) — the feed-as-query's delivery capture.
   const result = await w.query(sql, {
     groups: feedGroups,
+    surface: 'feed',
+    contentService: 'posts',
     prepare: {
       media: true,
       ads: true,
@@ -532,15 +544,30 @@ export async function readFeedPage(opts: {
   // The in-query reaction / comment joins are filtered to the feed's follower
   // groups, but the data lives in the discover group — so they return 0. Read
   // the real tallies from the discover group and merge them over the posts
-  // (the same place the DiscoverScreen counts from).
+  // (the same place the DiscoverScreen counts from). The view count (D86) is
+  // the engine's reach over the discover group — the same object the dashboard
+  // shows, not a client-written counter.
   const postIds = posts.map((p) => p._id || '').filter(Boolean);
   if (postIds.length) {
-    const counts = await readFeedEngagementCounts(postIds, feedGroups);
+    const [counts, viewCounts] = await Promise.all([
+      readFeedEngagementCounts(postIds, feedGroups),
+      // The view metrics (D86): impressions + reach over the discover group —
+      // the same object the dashboard shows, not a client-written counter.
+      // I3-scoped server-side (a post the reader can't read returns no metrics).
+      w
+        .contentViews({ service: 'posts', docIds: postIds, groups: [getDiscoverGroupId()] })
+        .catch((e) => {
+          console.warn('[social-feed] contentViews failed (degrading to {}):', e);
+          return {} as Record<string, { impressions: number; reach: number }>;
+        }),
+    ]);
     for (const p of posts) {
       const id = p._id || '';
       p.likes = counts.likes[id] ?? 0;
       p.dislikes = counts.dislikes[id] ?? 0;
       p.comments = counts.comments[id] ?? 0;
+      p.impressions = viewCounts[id]?.impressions ?? 0;
+      p.reach = viewCounts[id]?.reach ?? 0;
     }
   }
   const has_more = posts.length > limit;

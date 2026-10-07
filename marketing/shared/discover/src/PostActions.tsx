@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState, type ReactNode } from 'react';
-import { Heart, ThumbsDown, MessageCircle, Repeat2 } from 'lucide-react';
-import { cn } from './utils';
+import { Heart, ThumbsDown, MessageCircle, Repeat2, BarChart3, Users } from 'lucide-react';
+import { cn, formatCount } from './utils';
 import { CommentThread } from './CommentThread';
 import type { ReadComments, ReadReplies, CreateComment } from './types';
 
@@ -43,8 +43,14 @@ export interface PostActionsProps {
    *  count renders on the heart (post-actions.md: likes and dislikes are the
    *  same, each shows its own tally). */
   dislikeCount?: number;
-  /** The comment count (seed — the thread's live count wins once open). */
+   /** The comment count (seed — the thread's live count wins once open). */
   commentCount: number;
+  /** Impressions (D86) — total delivery events, the eye icon. Display-only.
+   *  Absent/0 → the slot is hidden. */
+  impressions?: number;
+  /** Reach (D86) — distinct readers, the person icon. Display-only. Absent/0
+   *  → the slot is hidden. */
+  reach?: number;
   /** The surface's reaction writer (optimistic + rollback on the surface). */
   onToggleReaction?: (kind: ReactionKind) => void;
   /** The surface's repost writer (optimistic + rollback on the surface). */
@@ -111,6 +117,8 @@ export function PostActions({
   reactionCount,
   dislikeCount = 0,
   commentCount,
+  impressions = 0,
+  reach = 0,
   onToggleReaction,
   onToggleRepost,
   reposted = false,
@@ -297,12 +305,43 @@ export function PostActions({
     </span>
   );
 
+  // The D86 view metrics: impressions (total delivery events, the bar-chart) +
+  // reach (distinct readers, the person). Both are display-only (not tappable).
+  // Each is hidden when 0. Numbers are compact (12.4k) via formatCount for
+  // polish. This is the SAME object the creator dashboard reads — one source
+  // of truth (the content_events delivery).
+  const viewsDisplay = (
+    <>
+      {impressions > 0 && (
+        <span
+          className="flex items-center gap-1.5 text-muted-foreground"
+          aria-label={`${formatCount(impressions)} impressions`}
+          data-testid="post-actions-impressions"
+        >
+          <BarChart3 className={iconSize} strokeWidth={1.75} />
+          <span className="tabular-nums">{formatCount(impressions)}</span>
+        </span>
+      )}
+      {reach > 0 && (
+        <span
+          className="flex items-center gap-1.5 text-muted-foreground"
+          aria-label={`${formatCount(reach)} people reached`}
+          data-testid="post-actions-reach"
+        >
+          <Users className={iconSize} strokeWidth={1.75} />
+          <span className="tabular-nums">{formatCount(reach)}</span>
+        </span>
+      )}
+    </>
+  );
+
   const bar = (
     <>
       {showLike && (likeButton || likeDisplay)}
       {dislikeButton}
       {commentButton}
       {repostButton || repostDisplay}
+      {viewsDisplay}
       {trailing}
     </>
   );

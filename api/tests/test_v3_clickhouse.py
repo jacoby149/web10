@@ -43,6 +43,7 @@ class TestEnsureAppsSchema:
         assert any("CREATE TABLE IF NOT EXISTS app_visits" in c for c in commands)
         assert any("ALTER TABLE apps ADD COLUMN IF NOT EXISTS visits" in c for c in commands)
         assert any("CREATE TABLE IF NOT EXISTS node_config" in c for c in commands)
+        assert any("CREATE TABLE IF NOT EXISTS content_events" in c for c in commands)
 
 
 # ---------------------------------------------------------------------------
@@ -2234,6 +2235,257 @@ class TestCountAppVisit:
             mock_client.query.return_value = _mock_result_rows([(datetime.utcnow() - timedelta(hours=4),)])
             ch._count_app_visit("https://a.com/", "alice")
             mock_client.insert.assert_called_once()  # >3h — counted
+
+
+class TestLogContentDeliveries:
+    """The D86 delivery ingest: one delivery row per (doc, reader, surface)
+    per 24h window, batched (one dedupe query + one multi-row insert)."""
+
+    def test_first_delivery_inserts_all_docs(self):
+        with _patch_client() as mock_client:
+            mock_client.query.return_value = _mock_result_rows([])  # no prior rows
+            ch.log_content_deliveries(["p1", "p2", "p3"], "posts", "alice", "feed")
+            mock_client.insert.assert_called_once()
+            table, rows = mock_client.insert.call_args[0]
+            assert table == "content_events"
+            assert len(rows) == 3
+            # row: [doc_id, service, reader_key, surface, event_type, payload, seen_at]
+            assert rows[0][0] == "p1"
+            assert rows[0][1] == "posts"
+            assert rows[0][2] == "alice"
+            assert rows[0][3] == "feed"
+            assert rows[0][4] == "delivery"
+
+    def test_within_window_gated(self):
+        with _patch_client() as mock_client:
+            # p1 was delivered 1h ago (within the 24h window) — gated out.
+            mock_client.query.return_value = _mock_result_rows(
+                [("p1", datetime.utcnow() - timedelta(hours=1))]
+            )
+            ch.log_content_deliveries(["p1", "p2"], "posts", "alice", "feed")
+            mock_client.insert.assert_called_once()
+            table, rows = mock_client.insert.call_args[0]
+            # only p2 is outside the window
+            assert [r[0] for r in rows] == ["p2"]
+
+    def test_outside_window_inserts(self):
+        with _patch_client() as mock_client:
+            # p1 was delivered 2 days ago (outside the 24h window) — re-counted.
+            mock_client.query.return_value = _mock_result_rows(
+                [("p1", datetime.utcnow() - timedelta(days=2))]
+            )
+            ch.log_content_deliveries(["p1"], "posts", "alice", "feed")
+            mock_client.insert.assert_called_once()
+            table, rows = mock_client.insert.call_args[0]
+            assert [r[0] for r in rows] == ["p1"]
+
+    def test_anon_dropped(self):
+        with _patch_client() as mock_client:
+            ch.log_content_deliveries(["p1"], "posts", "anon", "feed")
+            mock_client.query.assert_not_called()
+            mock_client.insert.assert_not_called()
+
+    def test_empty_doc_ids_noop(self):
+        with _patch_client() as mock_client:
+            ch.log_content_deliveries([], "posts", "alice", "feed")
+            mock_client.query.assert_not_called()
+            mock_client.insert.assert_not_called()
+
+    def test_failure_never_raises(self):
+        with _patch_client() as mock_client:
+            mock_client.query.side_effect = Exception("boom")
+            # a metrics failure must not raise (the read path calls this)
+            ch.log_content_deliveries(["p1"], "posts", "alice", "feed")
+
+
+class TestRecordContentEvent:
+    """The D86 client-signal gate: a viewport/click is accepted only if the
+    node served the doc to the reader (preceding delivery) AND no same-type
+    row within the 1h window."""
+
+    def _delivery_gate(self, mock_client, served: bool):
+        """The first query is the preceding-delivery check (count())."""
+        mock_client.query.return_value = _mock_result_rows([(1 if served else 0,)])
+
+    def test_no_preceding_delivery_dropped(self):
+        with _patch_client() as mock_client:
+            self._delivery_gate(mock_client, served=False)
+            recorded = ch.record_content_event("p1", "posts", "alice", "feed", "viewport", '{"watched_ms":1000}')
+            assert recorded is False  # gated out (no preceding delivery)
+            mock_client.insert.assert_not_called()  # and no row
+
+    def test_with_preceding_delivery_inserts(self):
+        with _patch_client() as mock_client:
+            # first query: preceding delivery exists (count=1); second query:
+            # no prior viewport row (max(seen_at) is None).
+            mock_client.query.side_effect = [
+                _mock_result_rows([(1,)]),
+                _mock_result_rows([(None,)]),
+            ]
+            ch.record_content_event("p1", "posts", "alice", "feed", "viewport", '{"watched_ms":1000}')
+            mock_client.insert.assert_called_once()
+            table, rows = mock_client.insert.call_args[0]
+            assert table == "content_events"
+            row = rows[0]
+            assert row[0] == "p1"
+            assert row[4] == "viewport"
+            assert row[5] == '{"watched_ms":1000}'
+
+    def test_within_signal_window_gated(self):
+        with _patch_client() as mock_client:
+            # preceding delivery exists; a viewport row already within 1h.
+            mock_client.query.side_effect = [
+                _mock_result_rows([(1,)]),
+                _mock_result_rows([(datetime.utcnow() - timedelta(minutes=5),)]),
+            ]
+            ch.record_content_event("p1", "posts", "alice", "feed", "viewport", '{"watched_ms":1000}')
+            mock_client.insert.assert_not_called()  # within the 1h window — gated out
+
+    def test_anon_rejected(self):
+        with _patch_client() as mock_client:
+            ch.record_content_event("p1", "posts", "anon", "feed", "click", '{"cta_id":"x"}')
+            mock_client.query.assert_not_called()
+            mock_client.insert.assert_not_called()
+
+
+class TestContentEventReach:
+    """The D86 reach read: distinct readers per doc (the on-surface 'N views')."""
+
+    def test_reach_per_doc(self):
+        with _patch_client() as mock_client:
+            mock_client.query.return_value = _mock_result_rows([("p1", 5), ("p2", 2)])
+            result = ch.content_event_reach(["p1", "p2"], "posts")
+            assert result == {"p1": 5, "p2": 2}
+
+    def test_empty_doc_ids(self):
+        with _patch_client() as mock_client:
+            assert ch.content_event_reach([], "posts") == {}
+            mock_client.query.assert_not_called()
+
+
+class TestContentEventMetrics:
+    """The D86 per-doc metrics: impressions, reach, clicks, avg watch %."""
+
+    def test_metrics(self):
+        with _patch_client() as mock_client:
+            mock_client.query.return_value = _mock_result_rows(
+                [("p1", 100, 40, 7, 0.62)]
+            )
+            result = ch.content_event_metrics(["p1"], "posts")
+            assert result["p1"] == {
+                "impressions": 100,
+                "reach": 40,
+                "clicks": 7,
+                "avg_watch_pct": 0.62,
+            }
+
+    def test_null_watch_pct(self):
+        with _patch_client() as mock_client:
+            mock_client.query.return_value = _mock_result_rows([("p1", 10, 3, 0, None)])
+            result = ch.content_event_metrics(["p1"], "posts")
+            assert result["p1"]["avg_watch_pct"] is None
+
+
+class TestContentEventSurfaceBreakdown:
+    def test_breakdown(self):
+        with _patch_client() as mock_client:
+            mock_client.query.return_value = _mock_result_rows(
+                [("p1", "feed", 60), ("p1", "shorts", 30), ("p1", "discover", 10)]
+            )
+            result = ch.content_event_surface_breakdown(["p1"], "posts")
+            assert result == {"p1": {"feed": 60, "shorts": 30, "discover": 10}}
+
+
+class TestContentEventTimeseries:
+    def test_timeseries(self):
+        with _patch_client() as mock_client:
+            mock_client.query.return_value = _mock_result_rows(
+                [("p1", "2026-10-01", 10), ("p1", "2026-10-02", 20)]
+            )
+            result = ch.content_event_timeseries(["p1"], "posts")
+            assert result == {"p1": {"2026-10-01": 10, "2026-10-02": 20}}
+
+
+class TestContentEventViewsForDocs:
+    """The D86 on-surface view read — I3-scoped to the reader's readable
+    groups (the doc_groups join), global impressions + reach counts."""
+
+    def test_views_per_doc(self):
+        with _patch_client() as mock_client:
+            # (doc_id, impressions, reach)
+            mock_client.query.return_value = _mock_result_rows([("p1", 50, 5), ("p2", 20, 2)])
+            result = ch.content_event_views_for_docs(["p1", "p2"], "posts", ["g1"])
+            assert result == {
+                "p1": {"impressions": 50, "reach": 5},
+                "p2": {"impressions": 20, "reach": 2},
+            }
+
+    def test_scopes_to_readable_groups(self):
+        with _patch_client() as mock_client:
+            mock_client.query.return_value = _mock_result_rows([("p1", 50, 5)])
+            ch.content_event_views_for_docs(["p1"], "posts", ["g1", "g2"])
+            sql = mock_client.query.call_args[0][0]
+            # the I3 boundary: the doc must be in a readable group
+            assert "FROM doc_groups WHERE group_id IN" in sql
+            assert "deleted = 0" in sql
+            params = mock_client.query.call_args[0][1]
+            assert params["g0"] == "g1"
+            assert params["g1"] == "g2"
+
+    def test_counts_both_metrics(self):
+        with _patch_client() as mock_client:
+            mock_client.query.return_value = _mock_result_rows([("p1", 50, 5)])
+            ch.content_event_views_for_docs(["p1"], "posts", ["g1"])
+            sql = mock_client.query.call_args[0][0]
+            # impressions = count(), reach = countDistinct(reader_key)
+            assert "count() AS impressions" in sql
+            assert "countDistinct(e.reader_key) AS reach" in sql
+
+    def test_empty_doc_ids(self):
+        with _patch_client() as mock_client:
+            assert ch.content_event_views_for_docs([], "posts", ["g1"]) == {}
+            mock_client.query.assert_not_called()
+
+    def test_empty_groups(self):
+        with _patch_client() as mock_client:
+            assert ch.content_event_views_for_docs(["p1"], "posts", []) == {}
+            mock_client.query.assert_not_called()
+
+
+class TestContentEventCreatorRows:
+    """The D86 creator aggregate — I3-bound to the caller's OWN docs (the
+    author_key subquery scopes the events to docs the creator authored)."""
+
+    def test_scopes_to_authors_own_docs(self):
+        with _patch_client() as mock_client:
+            mock_client.query.return_value = _mock_result_rows(
+                [("p1", "feed", "2026-10-01", 100, 40, 7, 0.62)]
+            )
+            result = ch.content_event_creator_rows("alice", "posts", 30)
+            assert len(result) == 1
+            assert result[0]["doc_id"] == "p1"
+            assert result[0]["surface"] == "feed"
+            assert result[0]["day"] == "2026-10-01"
+            assert result[0]["impressions"] == 100
+            assert result[0]["reach"] == 40
+            assert result[0]["clicks"] == 7
+            assert result[0]["avg_watch_pct"] == 0.62
+            # the I3 boundary: the subquery scopes to the author's own docs
+            sql = mock_client.query.call_args[0][0]
+            assert "author_key = %(author)s" in sql
+            assert "collection_name = %(svc)s" in sql
+            assert "deleted = 0" in sql
+            params = mock_client.query.call_args[0][1]
+            assert params["author"] == "alice"
+            assert params["svc"] == "posts"
+
+    def test_null_watch_pct(self):
+        with _patch_client() as mock_client:
+            mock_client.query.return_value = _mock_result_rows(
+                [("p1", "feed", "2026-10-01", 10, 3, 0, None)]
+            )
+            result = ch.content_event_creator_rows("alice", "posts", 30)
+            assert result[0]["avg_watch_pct"] is None
 
 
 class TestListApps:

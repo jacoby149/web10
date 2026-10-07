@@ -342,6 +342,8 @@ function createV3Client(options = {}) {
         payload.cursor = opts.cursor;
       if (opts.order != null)
         payload.order = opts.order;
+      if (opts.surface != null)
+        payload.surface = opts.surface;
       const token = state.token ?? readTokenCookie();
       if (token)
         payload.token = token;
@@ -354,8 +356,40 @@ function createV3Client(options = {}) {
         payload.token = token;
       return authPost(`${apiOrigin}/v3/read`, payload);
     },
-    async readById(docId, collection) {
+    async trackContentEvent(docId, opts) {
+      const payload = {
+        doc_id: docId,
+        service: opts.service,
+        surface: opts.surface,
+        type: opts.type
+      };
+      if (opts.payload != null)
+        payload.payload = opts.payload;
+      const token = state.token ?? readTokenCookie();
+      if (token)
+        payload.token = token;
+      return authPost(`${apiOrigin}/v3/trackContentEvent`, payload);
+    },
+    async contentAnalytics(opts) {
+      const payload = { service: opts.service };
+      if (opts.windowDays != null)
+        payload.window_days = opts.windowDays;
+      const token = state.token ?? readTokenCookie();
+      if (token)
+        payload.token = token;
+      return authPost(`${apiOrigin}/v3/contentAnalytics`, payload);
+    },
+    async contentViews(opts) {
+      const payload = { service: opts.service, doc_ids: opts.docIds, groups: opts.groups };
+      const token = state.token ?? readTokenCookie();
+      if (token)
+        payload.token = token;
+      return authPost(`${apiOrigin}/v3/contentViews`, payload);
+    },
+    async readById(docId, collection, opts) {
       const payload = { doc_id: docId, service: collection };
+      if (opts?.surface != null)
+        payload.surface = opts.surface;
       const token = state.token ?? readTokenCookie();
       if (token)
         payload.token = token;
@@ -369,6 +403,10 @@ function createV3Client(options = {}) {
         payload.withGroupMeta = true;
       if (opts?.prepare)
         payload.prepare = opts.prepare;
+      if (opts?.surface != null)
+        payload.surface = opts.surface;
+      if (opts?.contentService != null)
+        payload.content_service = opts.contentService;
       const token = state.token ?? readTokenCookie();
       if (token)
         payload.token = token;

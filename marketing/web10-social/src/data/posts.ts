@@ -379,10 +379,13 @@ export async function readUserPublicProfile(
 /**
  * Read a single post by ID.
  */
-export async function readPostById(docId: string): Promise<PostRecord | null> {
+export async function readPostById(docId: string, surface?: string): Promise<PostRecord | null> {
   const w = getV3Client();
   try {
-    const doc = await w.readById(docId, 'posts');
+    // The D86 surface label: when present, the node logs a delivery impression
+    // for this doc (the read path's delivery capture — the watch/short/permalink
+    // "view"). The on-surface "N views" is the reach over these deliveries.
+    const doc = await w.readById(docId, 'posts', surface ? { surface } : undefined);
     return fromV3DocToPost(doc);
   } catch {
     return null;

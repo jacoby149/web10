@@ -62,6 +62,12 @@ export interface PostRecord {
   dislikes?: number;
   comments?: number;
   reposts?: number;
+  /** Impressions (D86) — total delivery events for this post (the eye icon).
+   *  A passive reach metric (not a ranking signal). Sourced from the D86
+   *  engine's contentViews read, the same object the creator dashboard uses. */
+  impressions?: number;
+  /** Reach (D86) — distinct readers who saw this post (the person icon). */
+  reach?: number;
   score?: number;
   // The v3 pinned ad (ads-dissemination.md): the read serves a pinned post with
   // its ad inline; the ad block renders it under the post.
@@ -145,6 +151,8 @@ export function fromV3FeedPost(doc: V3FeedPost): PostRecord {
     dislikes: (doc as { dislikes?: number }).dislikes,
     reposts: (doc as { reposts?: number }).reposts,
     comments: doc.comments,
+    impressions: (doc as { impressions?: number }).impressions,
+    reach: (doc as { reach?: number }).reach,
     score: doc.score,
     profile: doc.profile ? fromV3DocToProfile({ ...doc, body: doc.profile } as unknown as V3Document) : undefined,
     avatar_url: doc.avatar_url ?? undefined,

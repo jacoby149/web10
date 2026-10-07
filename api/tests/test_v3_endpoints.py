@@ -2489,3 +2489,152 @@ class TestGroupModeration:
                 )
         mock_gate.assert_called_once()
         mock_hide.assert_not_called()
+
+
+class TestTrackContentEvent:
+    """The D86 client-signal endpoint: gated on a preceding delivery, deduped,
+    anon rejected. The gate logic is unit-tested in test_v3_clickhouse.py; here
+    we isolate the endpoint's wiring (token → reader, service, surface, type,
+    payload)."""
+
+    def test_records_and_returns_recorded(self, client, token):
+        with patch("app.v3.services.clickhouse.record_content_event", return_value=True) as mock_rec:
+            resp = client.post(
+                "/v3/trackContentEvent",
+                json={
+                    "token": token,
+                    "doc_id": "doc-1",
+                    "service": "posts",
+                    "surface": "feed",
+                    "type": "viewport",
+                    "payload": '{"watched_ms": 1000, "duration_ms": 60000}',
+                },
+            )
+        assert resp.status_code == 200
+        assert resp.json()["recorded"] is True
+        mock_rec.assert_called_once()
+        kwargs = mock_rec.call_args.kwargs
+        assert kwargs["doc_id"] == "doc-1"
+        assert kwargs["service"] == "posts"
+        assert kwargs["reader_key"] == "testuser"
+        assert kwargs["surface"] == "feed"
+        assert kwargs["event_type"] == "viewport"
+        assert kwargs["payload"] == '{"watched_ms": 1000, "duration_ms": 60000}'
+
+    def test_gated_out_returns_false(self, client, token):
+        with patch("app.v3.services.clickhouse.record_content_event", return_value=False):
+            resp = client.post(
+                "/v3/trackContentEvent",
+                json={
+                    "token": token,
+                    "doc_id": "doc-1",
+                    "service": "posts",
+                    "surface": "feed",
+                    "type": "click",
+                },
+            )
+        assert resp.status_code == 200
+        assert resp.json()["recorded"] is False
+
+    def test_anon_rejected(self, client):
+        # An anon token has no verified reader — the endpoint raises TOKEN.
+        anon = _make_token(username="anon")
+        resp = client.post(
+            "/v3/trackContentEvent",
+            json={
+                "token": anon,
+                "doc_id": "doc-1",
+                "service": "posts",
+                "surface": "feed",
+                "type": "click",
+            },
+        )
+        assert resp.status_code == 401
+
+    def test_missing_token_rejected(self, client):
+        resp = client.post(
+            "/v3/trackContentEvent",
+            json={
+                "token": "",
+                "doc_id": "doc-1",
+                "service": "posts",
+                "surface": "feed",
+                "type": "click",
+            },
+        )
+        assert resp.status_code == 401
+
+
+class TestContentAnalytics:
+    """The D86 creator-metrics endpoint — I3-bound to the caller's own docs.
+    The I3 scoping (author_key subquery) is unit-tested in
+    test_v3_clickhouse.py; here we isolate the endpoint's wiring (token →
+    reader, service, window)."""
+
+    def test_returns_rows(self, client, token):
+        rows = [{"doc_id": "p1", "surface": "feed", "day": "2026-10-01", "impressions": 100, "reach": 40, "clicks": 7, "avg_watch_pct": 0.62}]
+        with patch("app.v3.services.clickhouse.content_event_creator_rows", return_value=rows) as mock_rows:
+            resp = client.post(
+                "/v3/contentAnalytics",
+                json={"token": token, "service": "posts", "window_days": 30},
+            )
+        assert resp.status_code == 200
+        assert resp.json()["count"] == 1
+        assert resp.json()["rows"][0]["reach"] == 40
+        mock_rows.assert_called_once_with("testuser", "posts", 30)
+
+    def test_scopes_to_caller_not_another_creator(self, client, token):
+        # The reader (testuser) is passed as the author — the I3 boundary.
+        with patch("app.v3.services.clickhouse.content_event_creator_rows", return_value=[]) as mock_rows:
+            client.post("/v3/contentAnalytics", json={"token": token, "service": "posts"})
+        # default window_days is 30
+        mock_rows.assert_called_once_with("testuser", "posts", 30)
+
+    def test_anon_rejected(self, client):
+        anon = _make_token(username="anon")
+        resp = client.post(
+            "/v3/contentAnalytics",
+            json={"token": anon, "service": "posts"},
+        )
+        assert resp.status_code == 401
+
+
+class TestContentViews:
+    """The D86 on-surface view read (impressions + reach) — anon-capable,
+    I3-scoped to the reader's readable groups. The I3 scoping (doc_groups join)
+    is unit-tested in test_v3_clickhouse.py; here we isolate the endpoint's
+    wiring."""
+
+    def test_returns_views_map(self, client, token):
+        with (
+            patch("app.v3.services.clickhouse.readable_groups", return_value=["g1"]) as mock_groups,
+            patch(
+                "app.v3.services.clickhouse.content_event_views_for_docs",
+                return_value={"p1": {"impressions": 50, "reach": 5}},
+            ) as mock_views,
+        ):
+            resp = client.post(
+                "/v3/contentViews",
+                json={"token": token, "service": "posts", "doc_ids": ["p1"], "groups": ["g1"]},
+            )
+        assert resp.status_code == 200
+        assert resp.json() == {"p1": {"impressions": 50, "reach": 5}}
+        mock_groups.assert_called_once()
+        mock_views.assert_called_once_with(["p1"], "posts", ["g1"])
+
+    def test_anon_reads_public_board(self, client):
+        # Anon (no token) reads as the node's anon member — the public board's
+        # view metrics are visible to a signed-out visitor.
+        with (
+            patch("app.v3.services.clickhouse.readable_groups", return_value=["discover"]),
+            patch(
+                "app.v3.services.clickhouse.content_event_views_for_docs",
+                return_value={"p1": {"impressions": 420, "reach": 42}},
+            ),
+        ):
+            resp = client.post(
+                "/v3/contentViews",
+                json={"service": "posts", "doc_ids": ["p1"], "groups": ["discover"]},
+            )
+        assert resp.status_code == 200
+        assert resp.json() == {"p1": {"impressions": 420, "reach": 42}}

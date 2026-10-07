@@ -26,6 +26,7 @@ import {
   toggleReactionKind,
   readRepostCounts,
   readMyRepostedIds,
+  readViewCount,
   readUserProfile,
   isFollowing,
   followUser,
@@ -221,6 +222,8 @@ export default function WatchScreen() {
   const [dislikes, setDislikes] = useState(0);
   const [comments, setComments] = useState(0);
   const [reposts, setReposts] = useState(0);
+  const [viewsImpressions, setViewsImpressions] = useState(0);
+  const [viewsReach, setViewsReach] = useState(0);
   const [liked, setLiked] = useState(false);
   const [disliked, setDisliked] = useState(false);
   const [reposted, setReposted] = useState(false);
@@ -255,7 +258,7 @@ export default function WatchScreen() {
       //    the doc's `author_key` — the post body carries no author fields
       //    (the write path never puts them there), so a body read renders
       //    "Unknown". It also carries the post's `title` (D82).
-      const p = await readPostById(postId);
+      const p = await readPostById(postId, 'watch');
       if (!p) { setNotFound(true); setLoading(false); return; }
       setPost(p);
 
@@ -310,11 +313,12 @@ export default function WatchScreen() {
       // 6. Engagement for the current post (the ref pattern — count the
       //    reactions + comments over the discover group, scoped to this post).
       try {
-        const [reactionDocs, commentDocs, repostCounts, myReposts] = await Promise.all([
+        const [reactionDocs, commentDocs, repostCounts, myReposts, viewCount] = await Promise.all([
           w.read('reactions', { groups: [discoverId], limit: 500 }),
           w.read('comments', { groups: [discoverId], limit: 500 }),
           readRepostCounts([postId], [discoverId]),
           readMyRepostedIds(),
+          readViewCount(postId, [discoverId]),
         ]);
         let l = 0, d = 0, c = 0, likedMe = false, dislikedMe = false;
         for (const r of reactionDocs) {
@@ -333,6 +337,13 @@ export default function WatchScreen() {
         setLiked(likedMe); setDisliked(dislikedMe);
         setReposts(repostCounts[postId] || 0);
         setReposted(myReposts.has(postId));
+        setViewsImpressions(viewCount.impressions);
+        setViewsReach(viewCount.reach);
+        // The view itself is the delivery — logged server-side by the post read
+        // above (readPostById(postId, 'watch') passes the D86 surface, so the
+        // node records a delivery impression). No client-side "record a view"
+        // write: it would be redundant (the node already recorded the delivery)
+        // and gameable.
       } catch (e) {
         LOG('engagement — failed (degrading to zero counts):', e);
       }
@@ -567,8 +578,8 @@ export default function WatchScreen() {
           </div>
         )}
 
-        {/* Stats row — a quiet "N likes · M comments" line above the actions. */}
-        <PostStatsRow likeCount={likes} commentCount={comments} testId="watch" />
+        {/* Stats row — a quiet "N views · M people · K likes · L comments" line above the actions. */}
+        <PostStatsRow impressions={viewsImpressions} reach={viewsReach} likeCount={likes} commentCount={comments} testId="watch" />
 
         {/* Action bar — LABELED (icon + text + count), not bare icons. */}
         <PostActionBar

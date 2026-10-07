@@ -25,6 +25,7 @@ import {
   MoreHorizontal, Globe, Lock, Edit3, Eye, EyeOff, Trash2, Bookmark,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { formatCount } from '@web10/discover';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { PostBody } from '@/components/Feed/PostBody';
 import { CommentThread } from '@/components/Feed/CommentThread';
@@ -300,21 +301,41 @@ export function PostIdentityRow({
 }
 
 /**
- * The quiet stats row (the post-detail system): "N likes · M comments" — a
- * muted, tabular line above the action bar. The watch page and the lightbox
- * share it so the engagement reads identically at every "full" zoom level.
+ * The quiet stats row (the post-detail system): "N views · M people · K likes
+ * · L comments" — a muted, tabular line above the action bar. Impressions
+ * (total views) + reach (distinct people) lead (the YouTube idiom — the reach
+ * metrics are the headline numbers), then likes + comments. The watch page and
+ * the lightbox share it so the engagement reads identically at every "full"
+ * zoom level. Both view metrics come from the D86 engine (the same object the
+ * creator dashboard reads).
  */
-export function PostStatsRow({ likeCount, commentCount, testId = 'post-detail' }: {
+export function PostStatsRow({ impressions = 0, reach = 0, likeCount, commentCount, testId = 'post-detail' }: {
+  impressions?: number;
+  reach?: number;
   likeCount: number;
   commentCount: number;
   testId?: string;
 }) {
   return (
     <div className="mt-3 flex items-center gap-1 text-[0.8125rem] text-muted-foreground" data-testid={`${testId}-stats`}>
-      <span className="tabular-nums">{likeCount}</span>
+      {impressions > 0 && (
+        <>
+          <span className="tabular-nums">{formatCount(impressions)}</span>
+          <span>view{impressions === 1 ? '' : 's'}</span>
+          <span className="px-0.5">·</span>
+        </>
+      )}
+      {reach > 0 && (
+        <>
+          <span className="tabular-nums">{formatCount(reach)}</span>
+          <span>people</span>
+          <span className="px-0.5">·</span>
+        </>
+      )}
+      <span className="tabular-nums">{formatCount(likeCount)}</span>
       <span>like{likeCount === 1 ? '' : 's'}</span>
       <span className="px-0.5">·</span>
-      <span className="tabular-nums">{commentCount}</span>
+      <span className="tabular-nums">{formatCount(commentCount)}</span>
       <span>comment{commentCount === 1 ? '' : 's'}</span>
     </div>
   );
@@ -444,6 +465,10 @@ export interface PostDetailProps {
   likeCount: number;
   dislikeCount: number;
   commentCount: number;
+  /** Impressions (D86) — total delivery events, shown in the stats row. */
+  impressions?: number;
+  /** Reach (D86) — distinct readers, shown in the stats row. */
+  reach?: number;
   reposted: boolean;
   repostCount: number;
   // Engagement handlers (the surface's writers).
@@ -484,6 +509,8 @@ export function PostDetail({
   likeCount,
   dislikeCount,
   commentCount,
+  impressions = 0,
+  reach = 0,
   reposted,
   repostCount,
   onToggleReaction,
@@ -547,8 +574,8 @@ export function PostDetail({
           player), between the body and the stats row. */}
       {media && <div className="mt-3">{media}</div>}
 
-      {/* Stats row — a quiet "N likes · M comments" line above the actions. */}
-      <PostStatsRow likeCount={likeCount} commentCount={commentCount} testId={testId} />
+      {/* Stats row — a quiet "N views · M people · K likes · L comments" line above the actions. */}
+      <PostStatsRow impressions={impressions} reach={reach} likeCount={likeCount} commentCount={commentCount} testId={testId} />
 
       {/* Action bar — LABELED (icon + text + count), not bare icons. */}
       <PostActionBar

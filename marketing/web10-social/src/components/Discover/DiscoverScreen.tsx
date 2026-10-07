@@ -12,6 +12,7 @@ import {
   toggleReactionKind,
   readRepostCounts,
   readMyRepostedIds,
+  readViewCounts,
   extractUsername,
   type ReactionKind,
 } from '@/data';
@@ -127,6 +128,8 @@ function postRecordToDiscoverPost(post: PostRecord, mediaItems: MediaRecord[], d
     dislikes: post.dislikes,
     comments: post.comments,
     reposts: post.reposts,
+    impressions: post.impressions,
+    reach: post.reach,
     score: post.score,
     media: mediaItems,
     // The attached ads (ad-improvements.md) — the creator's pinned ad + the
@@ -500,7 +503,11 @@ export default function DiscoverScreen({ mode: modeOverride }: { mode?: Discover
     try {
       // The node ranks the board (the D36 power-mean sort, server-side) — a
       // knob twist is a re-read, not a client-side shuffle of the same 50.
-      const results = await readDiscoverFeed(sort, 50);
+      // The D86 surface label: the node logs a delivery impression per post
+      // (the read path's delivery capture — the on-surface "N views" is the
+      // reach over these). 'video' for the video wall, 'discover' for the
+      // board (the /feed default + hot-gossip).
+      const results = await readDiscoverFeed(sort, 50, undefined, 0, mode === 'video' ? 'video' : 'discover');
       LOG('loadDiscover — got', results.length, 'posts');
 
       const token = getWapi().readToken();
@@ -552,7 +559,7 @@ export default function DiscoverScreen({ mode: modeOverride }: { mode?: Discover
           try {
             const w = getV3Client();
             const discoverId = getDiscoverGroupId();
-            const [reactionDocs, commentDocs, repostCounts, myReposts] = await Promise.all([
+            const [reactionDocs, commentDocs, repostCounts, myReposts, viewCounts] = await Promise.all([
               w.read('reactions', { groups: [discoverId], limit: 500 }),
               w.read('comments', { groups: [discoverId], limit: 500 }),
               // Repost (reposts.md: a repost is a POST, not a reaction). The
@@ -564,6 +571,9 @@ export default function DiscoverScreen({ mode: modeOverride }: { mode?: Discover
               // for old data (a read-only fallback).
               readRepostCounts(results.map((p) => p._id || '').filter(Boolean), [discoverId]),
               readMyRepostedIds(),
+              // Views / impressions (D86): impressions + reach per post — the
+              // engine's delivery metrics (the same object the dashboard reads).
+              readViewCounts(results.map((p) => p._id || '').filter(Boolean), [discoverId]),
             ]);
             const likesByPost: Record<string, number> = {};
             const dislikesByPost: Record<string, number> = {};
@@ -604,6 +614,8 @@ export default function DiscoverScreen({ mode: modeOverride }: { mode?: Discover
               p.dislikes = dislikesByPost[p._id || ''] || 0;
               p.reposts = repostCounts[p._id || ''] || 0;
               p.comments = commentsByPost[p._id || ''] || 0;
+              p.impressions = viewCounts[p._id || '']?.impressions || 0;
+              p.reach = viewCounts[p._id || '']?.reach || 0;
             }
             setLikedMap(likedByPost);
             setDislikedMap(dislikedByPost);
@@ -1092,12 +1104,14 @@ export default function DiscoverScreen({ mode: modeOverride }: { mode?: Discover
                               : undefined
                           }
                           mediaItems={mediaItems}
-                          reactionCount={post.likes || 0}
-                          dislikeCount={post.dislikes || 0}
-                          commentCount={post.comments || 0}
-                          repostCount={post.reposts || 0}
-                          liked={!!likedMap[post._id || '']}
-                          disliked={!!dislikedMap[post._id || '']}
+                           reactionCount={post.likes || 0}
+                           dislikeCount={post.dislikes || 0}
+                           commentCount={post.comments || 0}
+                           repostCount={post.reposts || 0}
+                           impressions={post.impressions || 0}
+                           reach={post.reach || 0}
+                           liked={!!likedMap[post._id || '']}
+                           disliked={!!dislikedMap[post._id || '']}
                           reposted={!!repostedMap[post._id || '']}
                           timestamp={post.created_at}
                           onToggleReaction={(kind) => handleToggleReaction(post._id || '', kind)}

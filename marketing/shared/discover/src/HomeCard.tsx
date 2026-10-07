@@ -1,6 +1,6 @@
 import { Play, Film, Heart, ThumbsDown, MessageCircle, Repeat2 } from 'lucide-react';
 import { useState } from 'react';
-import { cn, hashToColor, timeAgo } from './utils';
+import { cn, hashToColor, timeAgo, formatCount } from './utils';
 import { Avatar, AvatarFallback } from './ui';
 import { HoverVideo } from './HoverVideo';
 import type { DiscoverPost, MediaItem } from './types';
@@ -256,7 +256,9 @@ export function HomeCard({
         >
           {displayName}
         </a>
-        <span className="shrink-0 text-xs text-muted-foreground">{timeAgo(post.created_at)}</span>
+        <span className="shrink-0 text-xs text-muted-foreground" data-testid={`${testId}-views`}>
+          {(post.impressions ?? 0) > 0 ? `${formatCount(post.impressions!)} views · ` : ''}{timeAgo(post.created_at)}
+        </span>
       </div>
 
       {/* 4. The compact engagement row (interactive mode only). */}

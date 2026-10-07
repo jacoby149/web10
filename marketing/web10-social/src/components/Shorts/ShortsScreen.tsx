@@ -1,14 +1,15 @@
 import { useEffect, useRef, useState, useCallback } from 'react';
 import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
-import { Heart, MessageCircle, Share2, X, Volume2, VolumeX, ChevronLeft, Search } from 'lucide-react';
+import { Heart, MessageCircle, Share2, X, Volume2, VolumeX, ChevronLeft, Search, BarChart3, Users } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { getWapi } from '@/data/wapi';
-import { readShortsFeed, toggleReactionKind, getV3Client, getDiscoverGroupId, extractUsername, type ShortPost } from '@/data';
+import { readShortsFeed, toggleReactionKind, getV3Client, getDiscoverGroupId, extractUsername, readViewCounts, type ShortPost } from '@/data';
 import { VideoPlayer, sourceFromMedia } from '@/components/Feed/VideoPlayer';
 import { CommentThread } from '@/components/Feed/CommentThread';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
 import { requestInstallPrompt, isMobile } from '@/lib/pwa';
+import { formatCount } from '@web10/discover';
 import ShortsWall from './ShortsWall';
 
 const LOG = (...args: unknown[]) => console.log('[shorts]', ...args);
@@ -71,6 +72,7 @@ function ShortsLens({ postId }: { postId: string }) {
   const [error, setError] = useState<string | null>(null);
   const [likedMap, setLikedMap] = useState<Record<string, boolean>>({});
   const [reactionMap, setReactionMap] = useState<Record<string, number>>({});
+  const [viewsMap, setViewsMap] = useState<Record<string, { impressions: number; reach: number }>>({});
   const [activeIndex, setActiveIndex] = useState(0);
   // The slide whose comment thread is open (one at a time — the active short's
   // comments, the TikTok "tap comments → overlay" behavior).
@@ -154,9 +156,10 @@ function ShortsLens({ postId }: { postId: string }) {
         try {
           const w = getV3Client();
           const discoverId = getDiscoverGroupId();
-          const [reactionDocs, commentDocs] = await Promise.all([
+          const [reactionDocs, commentDocs, viewCounts] = await Promise.all([
             w.read('reactions', { groups: [discoverId], limit: 500 }),
             w.read('comments', { groups: [discoverId], limit: 500 }),
+            readViewCounts(result.map((s) => s.post._id || '').filter(Boolean), [discoverId]),
           ]);
           const likesByPost: Record<string, number> = {};
           const commentsByPost: Record<string, number> = {};
@@ -181,8 +184,11 @@ function ShortsLens({ postId }: { postId: string }) {
             const id = s.post._id || '';
             s.post.likes = likesByPost[id] || 0;
             s.post.comments = commentsByPost[id] || 0;
+            s.post.impressions = viewCounts[id]?.impressions || 0;
+            s.post.reach = viewCounts[id]?.reach || 0;
           }
           setLikedMap(likedByPost);
+          setViewsMap(viewCounts);
           LOG(
             'engagement — counted',
             Object.values(likesByPost).reduce((a, b) => a + b, 0), 'likes +',
@@ -251,6 +257,25 @@ function ShortsLens({ postId }: { postId: string }) {
     slideEls().forEach((child) => observer.observe(child));
     return () => observer.disconnect();
   }, [visibleShorts, activeIndex]);
+
+  // Bump the rail's impression count locally when a short becomes the active
+  // slide — a transient UI nudge so the rail feels live without a re-read. The
+  // real count is the D86 engine's delivery metrics (readViewCounts); the
+  // delivery that backs it is logged server-side by the shorts board read
+  // (surface: 'shorts'). No client-side "record a view" write — the node
+  // already recorded the delivery.
+  const viewedThisSession = useRef<Set<string>>(new Set());
+  useEffect(() => {
+    const active = visibleShorts[activeIndex];
+    if (!active?.post._id) return;
+    const id = active.post._id;
+    if (viewedThisSession.current.has(id)) return;
+    viewedThisSession.current.add(id);
+    setViewsMap((prev) => {
+      const cur = prev[id] ?? { impressions: 0, reach: 0 };
+      return { ...prev, [id]: { ...cur, impressions: cur.impressions + 1 } };
+    });
+  }, [activeIndex, visibleShorts]);
 
   // The swipe, keyboard edition: ArrowUp/ArrowDown + PageUp/PageDown scroll
   // one slide (the desktop equivalent of the swipe). The container is the
@@ -508,6 +533,36 @@ function ShortsLens({ postId }: { postId: string }) {
                   {(reactionMap[short.post._id!] ?? short.post.likes ?? 0) || ''}
                 </span>
               </button>
+              {/* The view metrics (D86) — impressions (eye) + reach (person),
+                  display-only (the TikTok/YouTube idiom). Both come from the
+                  engine's delivery — the same object the dashboard reads. */}
+              <div
+                data-testid={`short-views-${i}`}
+                className="flex flex-col items-center gap-2 text-white/90"
+              >
+                {(viewsMap[short.post._id!]?.impressions ?? short.post.impressions ?? 0) > 0 && (
+                  <span
+                    className="flex flex-col items-center gap-1"
+                    aria-label={`${viewsMap[short.post._id!]?.impressions ?? short.post.impressions ?? 0} impressions`}
+                  >
+                    <BarChart3 className="w-6 h-6" strokeWidth={1.75} />
+                    <span className="text-[0.625rem] font-medium">
+                      {formatCount(viewsMap[short.post._id!]?.impressions ?? short.post.impressions ?? 0) || ''}
+                    </span>
+                  </span>
+                )}
+                {(viewsMap[short.post._id!]?.reach ?? short.post.reach ?? 0) > 0 && (
+                  <span
+                    className="flex flex-col items-center gap-1"
+                    aria-label={`${viewsMap[short.post._id!]?.reach ?? short.post.reach ?? 0} people reached`}
+                  >
+                    <Users className="w-6 h-6" strokeWidth={1.75} />
+                    <span className="text-[0.625rem] font-medium">
+                      {formatCount(viewsMap[short.post._id!]?.reach ?? short.post.reach ?? 0) || ''}
+                    </span>
+                  </span>
+                )}
+              </div>
               <button
                 data-testid={`short-comment-${i}`}
                 onClick={() => handleToggleComments(short.post._id!)}
