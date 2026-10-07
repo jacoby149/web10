@@ -58,26 +58,31 @@ beforeEach(() => {
 });
 
 describe('MonetizationScreen', () => {
-  it('renders the Creator section by default for a non-admin', async () => {
+  it('renders the Ads section by default for a non-admin (the tab row is always present)', async () => {
     checkNodeAdmin.mockResolvedValue(false);
     renderAt('/monetize');
     expect(await screen.findByTestId('creator-monetization')).toBeInTheDocument();
     // The Node section is never rendered for a non-admin.
     expect(screen.queryByTestId('node-monetization')).not.toBeInTheDocument();
-    // There is no in-page tab switcher — the nav is the switcher.
-    expect(screen.queryByTestId('monetization-tabs')).not.toBeInTheDocument();
+    // The tab row (Ads | Products | Analytics) is always present — the section
+    // switcher. Ads is the default; the Node tab is admin-only (absent here).
+    expect(screen.getByTestId('monetization-tabs')).toBeInTheDocument();
+    expect(screen.getByTestId('monetization-tab-ads')).toBeInTheDocument();
+    expect(screen.getByTestId('monetization-tab-products')).toBeInTheDocument();
+    expect(screen.getByTestId('monetization-tab-analytics')).toBeInTheDocument();
+    expect(screen.queryByTestId('monetization-tab-node')).not.toBeInTheDocument();
   });
 
-  it('renders the Creator section by default for a node admin too', async () => {
+  it('renders the Ads section by default for a node admin too (with the Node tab)', async () => {
     checkNodeAdmin.mockResolvedValue(true);
     renderAt('/monetize');
     expect(await screen.findByTestId('creator-monetization')).toBeInTheDocument();
     expect(screen.queryByTestId('node-monetization')).not.toBeInTheDocument();
-    // The node admin gets the in-page tab row (My Ads | Node Ads) — the section
-    // switcher — once the async admin check resolves. My Ads is the default.
+    // The node admin gets the Node tab in the row (the section switcher) —
+    // once the async admin check resolves.
     expect(await screen.findByTestId('monetization-tabs')).toBeInTheDocument();
-    expect(screen.getByTestId('monetization-tab-creator')).toBeInTheDocument();
-    expect(screen.getByTestId('monetization-tab-node')).toBeInTheDocument();
+    expect(screen.getByTestId('monetization-tab-ads')).toBeInTheDocument();
+    expect(await screen.findByTestId('monetization-tab-node')).toBeInTheDocument();
   });
 
   it('lands on the Node section when deep-linked to ?tab=node as an admin', async () => {
@@ -88,7 +93,7 @@ describe('MonetizationScreen', () => {
     expect(screen.getByTestId('node-ads-density')).toBeInTheDocument();
   });
 
-  it('falls back to Creator when a non-admin is deep-linked to ?tab=node', async () => {
+  it('falls back to Ads when a non-admin is deep-linked to ?tab=node', async () => {
     checkNodeAdmin.mockResolvedValue(false);
     renderAt('/monetize?tab=node');
     // The Node section is never rendered for a non-admin.
@@ -96,36 +101,57 @@ describe('MonetizationScreen', () => {
     expect(screen.queryByTestId('node-monetization')).not.toBeInTheDocument();
   });
 
-  it('renders the affiliate onboarding in the Creator section', async () => {
+  it('renders the affiliate onboarding in the Ads section', async () => {
     checkNodeAdmin.mockResolvedValue(false);
     renderAt('/monetize');
     expect(await screen.findByTestId('affiliate-programs-card')).toBeInTheDocument();
     // The ad catalog card is present.
     expect(screen.getByTestId('ads-catalog-card')).toBeInTheDocument();
   });
+
+  it('switches to the Products section (the URL holds the section)', async () => {
+    checkNodeAdmin.mockResolvedValue(false);
+    renderAt('/monetize');
+    expect(await screen.findByTestId('monetization-tab-products')).toBeInTheDocument();
+    fireEvent.click(screen.getByTestId('monetization-tab-products'));
+    expect(await screen.findByTestId('products-section')).toBeInTheDocument();
+    expect(screen.queryByTestId('creator-monetization')).not.toBeInTheDocument();
+  });
+
+  it('switches to the Analytics section (the URL holds the section)', async () => {
+    checkNodeAdmin.mockResolvedValue(false);
+    renderAt('/monetize');
+    expect(await screen.findByTestId('monetization-tab-analytics')).toBeInTheDocument();
+    fireEvent.click(screen.getByTestId('monetization-tab-analytics'));
+    expect(await screen.findByTestId('analytics-section')).toBeInTheDocument();
+    expect(screen.queryByTestId('creator-monetization')).not.toBeInTheDocument();
+  });
 });
 
-describe('MonetizationScreen — the in-page tab row (node admin)', () => {
-  it('a node admin switches to the Node Ads tab (the URL holds the section)', async () => {
+describe('MonetizationScreen — the in-page tab row', () => {
+  it('a node admin switches to the Node tab (the URL holds the section)', async () => {
     checkNodeAdmin.mockResolvedValue(true);
     getNodeConfig.mockResolvedValue({ node_ad_percentage: 10, node_ad_overwrite: false });
     renderAt('/monetize');
-    // My Ads is the default; the tab row appears once the admin check resolves.
+    // Ads is the default; the tab row appears once the admin check resolves.
     expect(await screen.findByTestId('monetization-tab-node')).toBeInTheDocument();
-    // Click the Node Ads tab → the node-ad inventory renders.
+    // Click the Node tab → the node-ad inventory renders.
     fireEvent.click(screen.getByTestId('monetization-tab-node'));
     expect(await screen.findByTestId('node-monetization')).toBeInTheDocument();
     expect(screen.queryByTestId('creator-monetization')).not.toBeInTheDocument();
-    // Click back → My Ads (the section wrapper returns).
-    fireEvent.click(screen.getByTestId('monetization-tab-creator'));
+    // Click back → Ads (the section wrapper returns).
+    fireEvent.click(screen.getByTestId('monetization-tab-ads'));
     expect(await screen.findByTestId('creator-monetization')).toBeInTheDocument();
   });
 
-  it('a non-admin never sees the tab row (one section, no switcher)', async () => {
+  it('a non-admin never sees the Node tab (the row is present, minus Node)', async () => {
     checkNodeAdmin.mockResolvedValue(false);
     renderAt('/monetize');
     expect(await screen.findByTestId('creator-monetization')).toBeInTheDocument();
-    expect(screen.queryByTestId('monetization-tabs')).not.toBeInTheDocument();
+    // The tab row is present for everyone (Ads | Products | Analytics); the
+    // Node tab is the admin-only addition.
+    expect(screen.getByTestId('monetization-tabs')).toBeInTheDocument();
+    expect(screen.queryByTestId('monetization-tab-node')).not.toBeInTheDocument();
   });
 });
 
@@ -171,6 +197,7 @@ describe('AdForm — the personal / node scope (node admin)', () => {
       'active',
       [],
       'inline',
+      null, // no product section (a pure ad)
     );
   });
 });
@@ -239,6 +266,80 @@ describe('AdForm (create + edit, ad-improvements.md)', () => {
     expect(call[0].doc.doc_id).toBe('ad-1'); // same doc_id (pins survive)
     expect(call[1].link).toBe('https://amzn.to/abc'); // offer preserved
     expect(call[6]).toBe('post'); // format passed through
+  });
+});
+
+describe('AdForm — the product section (ads-october focus #2)', () => {
+  const AD_ITEM = {
+    doc: { doc_id: 'ad-1', tags: ['ad'] },
+    text: 'Everything I use, linked.',
+    offer: { kind: 'affiliate', partner: 'Amazon', link: 'https://amzn.to/abc', cta: 'Get it', disclosure: 'I may earn.' },
+    status: 'active' as const,
+    media_refs: undefined,
+    format: 'inline' as const,
+    albums: [] as string[],
+  };
+
+  beforeEach(() => {
+    updateAd.mockResolvedValue({ doc_id: 'ad-1' });
+  });
+
+  it('the product section is off by default (a pure ad) and toggles on', async () => {
+    checkNodeAdmin.mockResolvedValue(false);
+    readMyCatalog.mockResolvedValue({ ads: [], albums: [], posts: [] });
+    renderAt('/monetize');
+    fireEvent.click(await screen.findByTestId('ads-new-ad'));
+    await screen.findByTestId('ad-new-form');
+    const toggle = screen.getByTestId('ad-product-toggle');
+    expect(toggle).toHaveAttribute('aria-checked', 'false');
+    // The product fields are hidden when off.
+    expect(screen.queryByTestId('ad-product-price')).not.toBeInTheDocument();
+    fireEvent.click(toggle);
+    expect(toggle).toHaveAttribute('aria-checked', 'true');
+    expect(screen.getByTestId('ad-product-price')).toBeInTheDocument();
+    expect(screen.getByTestId('ad-product-commission')).toBeInTheDocument();
+  });
+
+  it('the live projection updates as the operator types the price + commission', async () => {
+    checkNodeAdmin.mockResolvedValue(false);
+    readMyCatalog.mockResolvedValue({ ads: [], albums: [], posts: [] });
+    renderAt('/monetize');
+    fireEvent.click(await screen.findByTestId('ads-new-ad'));
+    await screen.findByTestId('ad-new-form');
+    fireEvent.click(screen.getByTestId('ad-product-toggle'));
+    // No product yet → the projection is the em dash.
+    expect(screen.getByTestId('ad-projection-line')).toHaveTextContent('—');
+    // $30 item at 10% commission = $3/sale → 100k × 1% × 1% × $3 = $30.
+    fireEvent.change(screen.getByTestId('ad-product-price'), { target: { value: '30' } });
+    fireEvent.change(screen.getByTestId('ad-product-commission'), { target: { value: '10' } });
+    expect(screen.getByTestId('ad-projection-line')).toHaveTextContent('$30');
+  });
+
+  it('saving with a product passes the product through to updateAd', async () => {
+    checkNodeAdmin.mockResolvedValue(false);
+    readMyCatalog.mockResolvedValue({ ads: [AD_ITEM], albums: [], posts: [] });
+    renderAt('/monetize');
+    fireEvent.click(await screen.findByTestId('ads-edit-ad-1'));
+    await screen.findByTestId('ad-edit-form');
+    // Turn on the product section + fill it.
+    fireEvent.click(screen.getByTestId('ad-product-toggle'));
+    fireEvent.change(screen.getByTestId('ad-product-name'), { target: { value: 'The good coffee grinder' } });
+    fireEvent.change(screen.getByTestId('ad-product-price'), { target: { value: '30' } });
+    fireEvent.change(screen.getByTestId('ad-product-commission'), { target: { value: '10' } });
+    fireEvent.change(screen.getByTestId('ad-product-actuals'), { target: { value: '22' } });
+    fireEvent.click(screen.getByTestId('ad-save'));
+    await waitFor(() => expect(updateAd).toHaveBeenCalled());
+    const call = (updateAd as any).mock.calls[0];
+    // The product is the 9th arg (index 8).
+    expect(call[8]).toEqual({
+      target: 'product',
+      name: 'The good coffee grinder',
+      price: 30,
+      commission: 10,
+      commission_is_percent: true,
+      actuals: 22,
+      calibration: undefined,
+    });
   });
 });
 
