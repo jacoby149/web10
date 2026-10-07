@@ -247,6 +247,47 @@ describe('feed v3 data layer', () => {
       expect(feedSql).toContain('AS reposts');
     });
 
+    it('excludes ad-tagged posts in the SQL (before the LIMIT), not just after it', async () => {
+      // Regression: the feed page is `LIMIT limit+1` newest-first, then
+      // `dropAdPosts` strips ad-tagged posts AFTER the limit. When a creator's
+      // most-recent posts are all ads (a batch of ads outranks every real post),
+      // the whole page is ads → all dropped → an empty feed, even though real
+      // posts sit just below the ad block. The ad exclusion must ride in the
+      // WHERE clause (before the LIMIT) so the page is filled with real posts.
+      const captured: string[] = [];
+      mock.query.mockImplementation(async (sql: string) => {
+        captured.push(sql);
+        if (sql.includes('FROM posts p')) return { rows: [feedRow()], count: 1 };
+        return { rows: [], count: 0 };
+      });
+      await readFeedPage({ limit: 20 });
+      const feedSql = captured.find((s) => s.includes('FROM posts p'))!;
+      // The ad exclusion is the FIRST WHERE condition (before the cursor
+      // condition, before the ORDER BY / LIMIT) — so the page is filled with
+      // real posts, not ads that get dropped after the LIMIT.
+      expect(feedSql).toContain('WHERE not has(p.tags, \'ad\')');
+    });
+
+    it('an all-ad page does not come back empty — real posts below the ad block surface', async () => {
+      // The shape of the prod bug: the newest 21 posts are all ads, but real
+      // posts exist below them. With the ad exclusion in the SQL, the page
+      // returns the real posts (the mock returns them as if the WHERE filtered
+      // the ads out) — not an empty page.
+      const realPost = feedRow({ doc_id: 'real1', tags: [], created_at: '2026-10-05T17:20:00Z' });
+      mock.query.mockImplementation(async (sql: string) => {
+        if (sql.includes('FROM posts p')) {
+          // The feed query must carry the ad exclusion — assert it, then return
+          // the real (non-ad) posts the WHERE would have selected.
+          expect(sql).toContain("not has(p.tags, 'ad')");
+          return { rows: [realPost], count: 1 };
+        }
+        return { rows: [], count: 0 };
+      });
+      const page = await readFeedPage({ limit: 20 });
+      expect(page.posts).toHaveLength(1);
+      expect(page.posts[0]._id).toBe('real1');
+    });
+
     it('counts comments as the TOTAL (top-level + replies) — keyed on body.post_id, not ref_value (comments.md)', async () => {
       // Regression: a reply's `ref_value` is its parent comment (3.107.0), so
       // a comment count keyed on `ref_value` sees only top-level comments —

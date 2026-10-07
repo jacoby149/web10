@@ -344,12 +344,20 @@ function buildFeedQuery(sort: FeedRanking | null, cursor: { created_at?: string;
   // Newest (all-zero, or recency-only) → the cursor rides on created_at; a
   // tuned sort → the cursor rides on the score.
   const newest = (s.recency <= 0 && s.likes <= 0 && s.comments <= 0) || (s.recency > 0 && s.likes <= 0 && s.comments <= 0);
-  let cursorClause = '';
+  // Ad docs (tagged `ad` — personal or node ads) are ad inventory, not feed
+  // content. They are excluded at the SQL level (before the LIMIT), not just
+  // dropped after it: a page that is all ads would otherwise return zero posts
+  // even though real posts sit just below the ad block (the "feed is empty
+  // because I made 30 ads" bug — the 32 ads a creator batch-created outrank
+  // every real post in the newest-first page). `dropAdPosts` stays as the
+  // backstop for the attached-ad join.
+  const conditions = ["not has(p.tags, 'ad')"];
   if (newest) {
-    if (cursor?.created_at) cursorClause = `WHERE toUnixTimestamp64Milli(p.created_at) < toUnixTimestamp64Milli('${cursor.created_at}') `;
+    if (cursor?.created_at) conditions.push(`toUnixTimestamp64Milli(p.created_at) < toUnixTimestamp64Milli('${cursor.created_at}')`);
   } else if (cursor?.score != null) {
-    cursorClause = `WHERE (${score}) < ${cursor.score} `;
+    conditions.push(`(${score}) < ${cursor.score}`);
   }
+  const whereClause = `WHERE ${conditions.join(' AND ')} `;
   const orderBy = newest ? 'toUnixTimestamp64Milli(p.created_at) DESC' : `${score} DESC`;
   // Every selected column carries an explicit alias. ClickHouse names a
   // result column after the qualified expression (`p.body`) whenever another
@@ -376,7 +384,7 @@ function buildFeedQuery(sort: FeedRanking | null, cursor: { created_at?: string;
     // counts top-level only. Every comment carries `body.post_id`.
     "LEFT JOIN (SELECT JSONExtractString(body, 'post_id') AS post_id, count() AS comment_count FROM comments WHERE JSONExtractString(body, 'post_id') != '' GROUP BY post_id) cmt ON cmt.post_id = p.doc_id " +
     'LEFT JOIN (SELECT author_key, body FROM profile QUALIFY row_number() OVER (PARTITION BY author_key ORDER BY updated_at DESC) = 1) pr ON pr.author_key = p.author_key ' +
-    cursorClause +
+    whereClause +
     'ORDER BY ' + orderBy + ' ' +
     `LIMIT ${limit + 1}`
   );
