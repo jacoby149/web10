@@ -3,6 +3,8 @@ import { useNavigate, useSearchParams } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import {
   fetchPeoplePage,
+  enrichPeopleFaces,
+  enrichPeopleMutuals,
   sortPeople,
   filterPeople,
   fetchMyFollowersCards,
@@ -174,6 +176,9 @@ export default function DiscoverExploreTab({ query }: DiscoverExploreTabProps) {
   const [peopleFollowLoading, setPeopleFollowLoading] = useState<Record<string, boolean>>({});
   const peopleNextOffsetRef = useRef(0);
   const peopleFirstPageCountRef = useRef<number | null>(null);
+  // The reader's following set (from the base read) — reused by the background
+  // mutuals enrichment (enrichPeopleMutuals) instead of re-reading getMyGroups.
+  const myFollowingRef = useRef<Set<string>>(new Set());
 
   const loadPeoplePage = useCallback(async (offset: number, append: boolean) => {
     if (append) setPeopleLoadingMore(true);
@@ -183,11 +188,35 @@ export default function DiscoverExploreTab({ query }: DiscoverExploreTabProps) {
     }
     LOG('loadPeoplePage — offset:', offset, 'append:', append);
     try {
-      const { people: page, hasMore } = await fetchPeoplePage({ limit: PAGE_SIZE, offset });
+      // The BASE read (paint-on-read, 3.224.0): the directory + is_following
+      // (one round-trip). The list paints from this — the face media + the
+      // mutuals badge (the N-way getGroupMembers fan-out) enrich in the
+      // background and patch in (the profile's model, 3.223.0). Holding the
+      // list's first paint behind the fan-out was the "People tab stuck on
+      // skeleton" bug (the fan-out grows linearly with the page size).
+      const { people: page, hasMore, myFollowing } = await fetchPeoplePage({ limit: PAGE_SIZE, offset });
       if (!append) peopleFirstPageCountRef.current = page.length;
       peopleNextOffsetRef.current = offset + page.length;
+      myFollowingRef.current = myFollowing;
       setPeople((prev) => (append ? [...prev, ...page] : page));
       setPeopleHasMore(hasMore);
+      // Enrich the new page in the background (never blocks the paint): the
+      // face media (one batched author-scoped face-prepare) + the mutuals
+      // badge (the N-way fan-out). Both mutate the cards in place; a re-set
+      // forces the re-render. A failed re-set is a no-op (the cards are
+      // already painted).
+      void (async () => {
+        try {
+          const w = getV3Client();
+          await Promise.all([
+            enrichPeopleFaces(w, page),
+            enrichPeopleMutuals(page, myFollowing),
+          ]);
+          setPeople((prev) => prev.map((p) => ({ ...p })));
+        } catch (e) {
+          LOG('loadPeoplePage — background enrichment failed (degraded):', e);
+        }
+      })();
     } catch (e) {
       LOG('loadPeoplePage — failed:', e);
       if (!append) setPeopleError(true);

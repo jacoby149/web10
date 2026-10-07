@@ -26,7 +26,16 @@ vi.mock('@/data', async (importOriginal) => {
     toggleReactionKind: vi.fn().mockResolvedValue('like'),
     // The Explore tab's paged reads (people = the D0 directory, groups = the
     // D53 directory) — mocked so the Explore section tests control the data.
-    fetchPeoplePage: vi.fn().mockResolvedValue({ people: [], hasMore: false }),
+    // fetchPeoplePage returns the BASE read (paint-on-read, 3.224.0): the
+    // cards + hasMore + the reader's following set (myFollowing). The tests
+    // seed the cards with their final mutuals/face (the enrichment is a no-op
+    // mock below, so the preset data is what's asserted).
+    fetchPeoplePage: vi.fn().mockResolvedValue({ people: [], hasMore: false, myFollowing: new Set() }),
+    // The People tab's background enrichment (faces + the mutuals fan-out) —
+    // no-ops in the Explore tests (the mock fetchPeoplePage seeds the final
+    // cards; the enrichment is the real fan-out, not under test here).
+    enrichPeopleFaces: vi.fn().mockResolvedValue(undefined),
+    enrichPeopleMutuals: vi.fn().mockResolvedValue(undefined),
     readGroupDirectory: vi.fn().mockResolvedValue([]),
     // The Explore tab's own-graph reads (the Following / Followers / My Groups
     // filters) — mocked so the filter tests control the data.
@@ -1791,6 +1800,7 @@ describe('DiscoverScreen — the four destinations (the Discover split)', () => 
         { username: 'bob', provider: 'test.localhost', followers_count: 5, mutuals: 0, is_following: false },
       ],
       hasMore: false,
+      myFollowing: new Set(),
     });
     (data.readGroupDirectory as ReturnType<typeof vi.fn>).mockResolvedValue([
       { group_id: 'g1', name: 'Lofi', owner: 'alice', tags: ['music'] },

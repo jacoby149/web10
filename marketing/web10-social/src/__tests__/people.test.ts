@@ -27,10 +27,13 @@ vi.mock('@/data/groups', () => ({
 
 import {
   fetchPeoplePage,
+  enrichPeopleFaces,
+  enrichPeopleMutuals,
   sortPeople,
   filterPeople,
   type PersonCard,
 } from '@/data/people';
+import { getV3Client } from '@/data/v3';
 
 // A D0 directory user: { username, follower_count, profile }. The node stays
 // generic (D60) — it returns the universal primitives only; mutuals are
@@ -156,7 +159,12 @@ describe('fetchPeoplePage', () => {
       offset: 0,
     });
 
-    const { people } = await fetchPeoplePage({ limit: 20, offset: 0 });
+    const { people, myFollowing } = await fetchPeoplePage({ limit: 20, offset: 0 });
+    // The mutuals badge is a BACKGROUND enrichment (the N-way getGroupMembers
+    // fan-out) — the base read returns mutuals: 0, then enrichPeopleMutuals
+    // patches it in (the paint-on-read model, 3.224.0).
+    expect(people.find((p) => p.username === 'alice')!.mutuals).toBe(0);
+    await enrichPeopleMutuals(people, myFollowing);
     expect(people.find((p) => p.username === 'alice')!.mutuals).toBe(1);
     expect(people.find((p) => p.username === 'bob')!.mutuals).toBe(0);
   });
@@ -214,6 +222,10 @@ describe('fetchPeoplePage', () => {
     );
 
     const { people } = await fetchPeoplePage({ limit: 20, offset: 0 });
+    // The face is a BACKGROUND enrichment (the base read paints faceless) —
+    // enrichPeopleFaces patches the presigned URLs in (paint-on-read, 3.224.0).
+    expect(people[0].avatar_url).toBeUndefined();
+    await enrichPeopleFaces(getV3Client(), people);
     expect(people[0].avatar_url).toBe('http://x/avatar.png');
     expect(people[0].banner_url).toBe('http://x/banner.png');
     // The face-prepare is scoped to the person's followers group (the I3 gate).
@@ -258,6 +270,11 @@ describe('fetchPeoplePage', () => {
     mockQuery.mockRejectedValue(new Error('boom'));
 
     const { people } = await fetchPeoplePage({ limit: 20, offset: 0 });
+    // The base read paints faceless; the background face enrichment degrades to
+    // the fallback (avatar_url stays undefined, the ref is kept) when the
+    // face-prepare read fails — never a throw.
+    expect(people[0].avatar_url).toBeUndefined();
+    await enrichPeopleFaces(getV3Client(), people);
     expect(people[0].avatar_url).toBeUndefined();
     expect(people[0].avatar_ref).toBe('av-1');
   });
@@ -292,7 +309,50 @@ describe('fetchPeoplePage', () => {
     );
 
     const { people } = await fetchPeoplePage({ limit: 20, offset: 0 });
+    // The face is a BACKGROUND enrichment (the base read paints faceless) —
+    // enrichPeopleFaces patches the presigned URLs in.
+    await enrichPeopleFaces(getV3Client(), people);
     expect(people[0].avatar_url).toBe('http://x/avatar.png');
     expect(people[0].banner_url).toBe('http://x/banner.png');
+  });
+
+  it('paints on the ONE read — the base returns before the mutuals fan-out resolves (no skeleton hold)', async () => {
+    // Regression (3.224.0): the old fetchPeoplePage held its return behind an
+    // N-way getGroupMembers fan-out (one per person, for the mutuals badge) —
+    // the "People tab stuck on skeleton" bug (the fan-out grows linearly with
+    // the page size). The base read must return the list (mutuals: 0) WITHOUT
+    // waiting on the fan-out; the fan-out runs in the background
+    // (enrichPeopleMutuals) and patches the badge in. Gate the fan-out behind
+    // a promise that is NEVER released: if fetchPeoplePage still returns, the
+    // base is not waiting on the fan-out.
+    let releaseMutuals: () => void;
+    const mutualsGate = new Promise<void>((resolve) => { releaseMutuals = resolve; });
+    mockGetMyGroups.mockResolvedValue([
+      { group_id: 'api.localhost/groups/users/carol/followers', join_policy: 'open', my_role: 'member', member_count: 1 },
+    ]);
+    mockGetGroupMembers.mockImplementation(async () => {
+      await mutualsGate; // the fan-out is gated — never released
+      return [{ member_key: 'carol' }];
+    });
+    mockListPeopleDirectory.mockResolvedValue({
+      users: [dirUser('alice', 120, {}), dirUser('bob', 40, {})],
+      limit: 20,
+      offset: 0,
+    });
+
+    // The base read resolves (the mutuals fan-out is still gated) — the list
+    // is ready to paint, mutuals still 0, and the fan-out has NOT run yet.
+    const { people, myFollowing } = await fetchPeoplePage({ limit: 20, offset: 0 });
+    expect(people).toHaveLength(2);
+    expect(people.find((p) => p.username === 'alice')!.mutuals).toBe(0);
+    expect(mockGetGroupMembers).not.toHaveBeenCalled();
+    // is_following is computed from the base read's following set (one read,
+    // not the fan-out) — alice is followed (carol is in my following set… the
+    // following set is derived from getMyGroups, not per-person).
+    expect(myFollowing.has('carol')).toBe(true);
+    // Releasing the gate + running the background enrichment patches the badge.
+    releaseMutuals!();
+    await enrichPeopleMutuals(people, myFollowing);
+    expect(people.find((p) => p.username === 'alice')!.mutuals).toBe(1);
   });
 });
