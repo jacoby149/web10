@@ -61,6 +61,10 @@ import {
 
 const LOG = (...args: unknown[]) => console.log('[social:watch]', ...args);
 
+// The page size for the board read (the "What's next" queue's "load more"
+// increment — the same PAGE_SIZE the Video wall + Shorts wall page at).
+const PAGE_SIZE = 50;
+
 // ── ?knobs= parsing (the same 5-detent encoding DiscoverScreen uses) ─────────
 const KNOB_KEYS: (keyof KnobState)[] = ['recency', 'likes', 'comments', 'halfLife', 'character'];
 
@@ -91,6 +95,61 @@ function firstVideoMedia(media: MediaRecord[]): MediaRecord | undefined {
 /** The post's lead media (video preferred, else the first) — the queue thumbnail. */
 function leadMedia(media: MediaRecord[]): MediaRecord | undefined {
   return firstVideoMedia(media) ?? media[0];
+}
+
+/**
+ * Build the synchronous inline-media map for a set of posts. The node's read
+ * path resolves every post's media inline (presigned thumbnail_url + read_url
+ * + dimensions + HLS settings on each media_ref), so the map is built without
+ * a round-trip — the wall's first paint carries the thumbnails after ONE read.
+ * Returns a post_id → MediaRecord[] map.
+ */
+function inlineMediaMap(posts: PostRecord[]): Record<string, MediaRecord[]> {
+  const inlineMap: Record<string, MediaRecord[]> = {};
+  for (const p of posts) {
+    const inline = (p.media_refs || []).filter((r): r is ResolvedMediaRef => typeof r !== 'string');
+    if (!inline.length) continue;
+    const seen = new Set<string>();
+    const records: MediaRecord[] = [];
+    for (const r of inline) {
+      const id = r.doc_id || '';
+      if (id && !seen.has(id)) {
+        seen.add(id);
+        records.push(fromResolvedMediaRef(r));
+      }
+    }
+    if (records.length) inlineMap[p._id || ''] = records;
+  }
+  return inlineMap;
+}
+
+/**
+ * The "What's next" queue: the board re-ranked for similarity to the current
+ * video (the tunable relatedness), then filtered to LANDSCAPE videos only.
+ * The "What's next" is a video queue — the Video wall is landscape-only, so
+ * the queue is too. Portrait videos are shorts (the TikTok shape) — they live
+ * in the Shorts destination, not the YouTube-shaped watch queue. The
+ * aspect-ratio split keeps the two from bleeding into each other. `mediaMap`
+ * is the board's inline-media map (the landscape/portrait signal).
+ */
+function computeQueue(
+  board: PostRecord[],
+  current: PostRecord,
+  mediaMap: Record<string, MediaRecord[]>,
+  knobState: KnobState,
+  relatedness: RelatednessId,
+): PostRecord[] {
+  const ranked = rankWatchQueue(board, current, knobState, relatedness);
+  return ranked.filter((q) => {
+    const ms = mediaMap[q._id || ''] || [];
+    const hasVideo = ms.some((m) => m.mime_type?.startsWith('video/'));
+    if (!hasVideo) return false;
+    // Exclude portrait (9:16) shorts — the queue is landscape only.
+    const isPortrait = ms.some(
+      (m) => m.mime_type?.startsWith('video/') && !!m.width && !!m.height && m.width < m.height,
+    );
+    return !isPortrait;
+  });
 }
 
 /**
@@ -281,6 +340,18 @@ export default function WatchScreen() {
   // The board read is in flight (the queue's skeleton holds the rail until the
   // board lands — the page itself is already painted, the queue just isn't).
   const [queueLoaded, setQueueLoaded] = useState(false);
+  // Infinite scroll (the Shorts wall's pattern): the "What's next" queue pages
+  // the board until it's exhausted. `boardRef` is the FULL loaded board (the
+  // queue is the board re-ranked + filtered to landscape — paging appends to
+  // the board, then re-ranks the whole thing); `hasMore` keys off the board
+  // page size (a full page means there may be another); `nextOffsetRef` is the
+  // next offset to fetch (a ref so the stable `loadMore` reads the latest
+  // without a stale closure); `loadingMore` guards against double-fires.
+  const boardRef = useRef<PostRecord[]>([]);
+  const [hasMore, setHasMore] = useState(false);
+  const [loadingMore, setLoadingMore] = useState(false);
+  const nextOffsetRef = useRef(0);
+  const sentinelRef = useRef<HTMLDivElement>(null);
   const [profile, setProfile] = useState<ProfileRecord | null>(null);
   const [authorAvatarUrl, setAuthorAvatarUrl] = useState<string | undefined>(undefined);
   const [following, setFollowing] = useState(false);
@@ -316,11 +387,15 @@ export default function WatchScreen() {
     setNotFound(false);
     // The whole-page skeleton + the queue's skeleton only reset for a NEW
     // video. A knob re-read (same postId) keeps the page + queue on screen
-    // (no skeleton flash per twist) and patches the ranking in place.
+    // (no skeleton flash per twist) and patches the ranking in place. A new
+    // video also resets the queue's paging (the board is re-read from page one).
     const isNewVideo = loadedPostIdRef.current !== postId;
     if (isNewVideo) {
       setLoading(true);
       setQueueLoaded(false);
+      boardRef.current = [];
+      nextOffsetRef.current = 0;
+      setHasMore(false);
     }
     // Read the token inside the callback (the ShortsScreen idiom). `readToken()`
     // returns a fresh object every call — capturing it as a `useCallback` dep
@@ -384,9 +459,14 @@ export default function WatchScreen() {
       //    runs, with the ?knobs= ranking. Re-ranked client-side by
       //    relatedness. Lands in the background: the queue's skeleton holds
       //    the rail until it arrives (the thumbnails are inline on the board
-      //    read, so the queue paints with them in one patch).
+      //    read, so the queue paints with them in one patch). PAGE ONE (the
+      //    queue pages the board via `loadMore`, the Shorts wall's pattern).
       const sortConfig: PowerMeanSortConfig | null = knobStateToSort(knobState);
-      const board = await readDiscoverFeed(sortConfig, 50);
+      const board = await readDiscoverFeed(sortConfig, PAGE_SIZE, undefined, 0);
+      // The board page size (before the landscape filter) — the paging signal.
+      // A full page (>= PAGE_SIZE) means there may be another.
+      setHasMore(board.length >= PAGE_SIZE);
+      nextOffsetRef.current = PAGE_SIZE;
 
       // 3. The author's face (the row's display name + avatar). The profile
       //    read gives the display name; the avatar is resolved from the
@@ -414,40 +494,17 @@ export default function WatchScreen() {
       //    the map from those inline refs is synchronous, so the queue paints
       //    with its thumbnails the moment the board lands — no second media
       //    round-trip holding the rail.
-      const boardInline: Record<string, MediaRecord[]> = {};
-      for (const b of board) {
-        const bInline = (b.media_refs || []).filter((r): r is ResolvedMediaRef => typeof r !== 'string');
-        if (!bInline.length) continue;
-        const seen = new Set<string>();
-        const records: MediaRecord[] = [];
-        for (const r of bInline) {
-          const id = r.doc_id || '';
-          if (id && !seen.has(id)) {
-            seen.add(id);
-            records.push(fromResolvedMediaRef(r));
-          }
-        }
-        if (records.length) boardInline[b._id || ''] = records;
-      }
+      const boardInline = inlineMediaMap(board);
       setMediaMap((prev) => ({ ...prev, ...boardInline }));
 
-      // 5. The queue: the board re-ranked for similarity to the current video.
-      //    Landscape videos only (the "What's next" is a video queue — the
-      //    Video wall is landscape-only, so the queue is too). Portrait videos
-      //    are shorts (the TikTok shape) — they live in the Shorts destination,
-      //    not the YouTube-shaped watch queue. The aspect-ratio split keeps the
-      //    two from bleeding into each other.
-      const ranked = rankWatchQueue(board, p, knobState, relatedness);
-      const videoQueue = ranked.filter((q) => {
-        const ms = boardInline[q._id || ''] || [];
-        const hasVideo = ms.some((m) => m.mime_type?.startsWith('video/'));
-        if (!hasVideo) return false;
-        // Exclude portrait (9:16) shorts — the queue is landscape only.
-        const isPortrait = ms.some(
-          (m) => m.mime_type?.startsWith('video/') && !!m.width && !!m.height && m.width < m.height,
-        );
-        return !isPortrait;
-      });
+      // 5. The queue: the board re-ranked for similarity to the current video,
+      //    landscape-only (the "What's next" is a video queue — the Video wall
+      //    is landscape-only, so the queue is too; portrait shorts live in the
+      //    Shorts destination). The board is kept in `boardRef` so `loadMore`
+      //    can append the next page and re-rank the WHOLE board (the queue is a
+      //    re-rank, not a filter — a new page can re-order the queue).
+      boardRef.current = board;
+      const videoQueue = computeQueue(board, p, boardInline, knobState, relatedness);
       setQueue(videoQueue);
       setQueueLoaded(true);
 
@@ -513,6 +570,58 @@ export default function WatchScreen() {
   }, [postId, knobsKey, relatedness]);
 
   useEffect(() => { void load(); }, [load]);
+
+  // ── Infinite scroll: the "What's next" queue pages the board ───────────────
+  // Append the next board page (the sentinel's IntersectionObserver fires this).
+  // A full page means there may be another; a short page is the last one. The
+  // page's posts are APPENDED to `boardRef` (deduped by id — offset paging can
+  // surface a post twice if the board shifts between page reads), then the
+  // WHOLE board is re-ranked (the queue is a re-rank, not a filter — a new page
+  // can re-order the queue). The page's inline media is merged into the map so
+  // the new cards' thumbnails paint.
+  const loadMore = useCallback(async () => {
+    if (loadingMore || !hasMore || !post) return;
+    setLoadingMore(true);
+    try {
+      const knobState = parseWatchKnobs(knobsKey || null);
+      const sortConfig: PowerMeanSortConfig | null = knobStateToSort(knobState);
+      const page = await readDiscoverFeed(sortConfig, PAGE_SIZE, undefined, nextOffsetRef.current);
+      LOG('loadMore — got', page.length, 'more board posts');
+      // Advance by the BOARD page size (not the filtered count) — the queue
+      // filters to landscape videos, so advancing by page.length would re-read
+      // posts. A full board page (hasMore true) is exactly PAGE_SIZE.
+      nextOffsetRef.current += PAGE_SIZE;
+      setHasMore(page.length >= PAGE_SIZE);
+      // Append (deduped by id) to the board, then re-rank the whole board.
+      const seen = new Set(boardRef.current.map((b) => b._id).filter(Boolean));
+      boardRef.current = [...boardRef.current, ...page.filter((b) => !b._id || !seen.has(b._id))];
+      const pageInline = inlineMediaMap(page);
+      if (Object.keys(pageInline).length) setMediaMap((prev) => ({ ...prev, ...pageInline }));
+      const allInline = inlineMediaMap(boardRef.current);
+      setQueue(computeQueue(boardRef.current, post, allInline, knobState, relatedness));
+    } catch (e) {
+      LOG('loadMore — failed:', e);
+    } finally {
+      setLoadingMore(false);
+    }
+  }, [loadingMore, hasMore, post, knobsKey, relatedness]);
+
+  // Infinite scroll: a sentinel at the bottom of the queue triggers loadMore
+  // when it scrolls into view (rootMargin prefetches a page early). Only active
+  // once the queue has painted (queueLoaded) and there's another page.
+  useEffect(() => {
+    if (!queueLoaded || !hasMore) return;
+    const sentinel = sentinelRef.current;
+    if (!sentinel) return;
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries[0].isIntersecting) loadMore();
+      },
+      { rootMargin: '200px' },
+    );
+    observer.observe(sentinel);
+    return () => observer.disconnect();
+  }, [queueLoaded, hasMore, loadMore, queue.length]);
 
   // ── ?t= write-back (throttled, replace — no history flood) ─────────────────
   const lastTWrite = useRef(0);
@@ -830,6 +939,23 @@ export default function WatchScreen() {
                 />
               );
             })}
+            {/* Infinite scroll sentinel — triggers loadMore when it scrolls into
+                view (the Shorts wall's pattern). Only present when there's
+                another board page to load. */}
+            {hasMore && (
+              <div
+                ref={sentinelRef}
+                data-testid="watch-queue-sentinel"
+                className="flex items-center justify-center py-4"
+              >
+                {loadingMore && (
+                  <div className="flex flex-col items-center gap-2">
+                    <div className="h-5 w-5 border-2 border-brand border-t-transparent rounded-full animate-spin" />
+                    <p className="text-xs text-muted-foreground">Loading more…</p>
+                  </div>
+                )}
+              </div>
+            )}
           </div>
         ) : (
           <p className="rounded-lg border border-border bg-surface px-4 py-6 text-center text-sm text-muted-foreground" data-testid="watch-queue-empty">
