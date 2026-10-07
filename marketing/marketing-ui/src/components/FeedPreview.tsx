@@ -1,7 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
-import { Card } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Textarea } from '@/components/ui/textarea';
 import { Button } from '@/components/ui/button';
@@ -399,9 +398,9 @@ function TrendingCard({
 
 function TrendingSkeleton({ featured = false }: { featured?: boolean }) {
   return (
-    <Card
+    <article
       data-testid="trending-skeleton"
-      className={['bg-surface', ''].join(' ')}
+      className="overflow-hidden border-b border-border bg-card"
     >
       <div className="flex items-center gap-2.5 px-4 py-3">
         <Skeleton className="h-9 w-9 rounded-full" />
@@ -418,7 +417,7 @@ function TrendingSkeleton({ featured = false }: { featured?: boolean }) {
         <Skeleton className="ml-2 h-4 w-12" />
         <Skeleton className="ml-2 h-4 w-12" />
       </div>
-    </Card>
+    </article>
   );
 }
 
