@@ -140,6 +140,7 @@ services:
     command: ["bun", "run", "index.ts"]
     environment:
       PORT: "80"
+      CERTIFY_BASE_URL: http://${STACK}-api
     restart: unless-stopped
     networks:
       proxy:

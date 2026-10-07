@@ -87,6 +87,8 @@
   async function authPost(url, body) {
     const res = await fetch(url, {
       method: "POST",
+      redirect: "error",
+      credentials: "omit",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(body)
     });
@@ -104,7 +106,7 @@
     }
     const sep = url.includes("?") ? "&" : "?";
     const full = qs.toString() ? `${url}${sep}${qs.toString()}` : url;
-    const res = await fetch(full, { method: "GET", headers: { Accept: "application/json" } });
+    const res = await fetch(full, { method: "GET", credentials: "omit", redirect: "error", headers: { Accept: "application/json" } });
     if (!res.ok) {
       const text = await res.text().catch(() => "");
       throw httpError(res.status, res.statusText, text);
@@ -122,13 +124,19 @@
         return res;
       const key = c.substring(0, eq).trim();
       const val = c.substring(eq + 1).trim();
+      let decoded;
       try {
-        res[key] = JSON.parse(decodeURIComponent(val));
+        decoded = decodeURIComponent(val);
       } catch {
-        res[key] = decodeURIComponent(val);
+        return res;
+      }
+      try {
+        res[key] = JSON.parse(decoded);
+      } catch {
+        res[key] = decoded;
       }
       return res;
-    }, {});
+    }, Object.create(null));
   }
   function readTokenCookie() {
     const cookies = cookieDict();
@@ -146,7 +154,7 @@
       return;
     const age = 3600 * 24 * maxAgeDays;
     const secure = typeof location !== "undefined" && location.protocol === "https:" ? "Secure;" : "";
-    document.cookie = `token=${token};${secure}path=/;max-age=${age};SameSite=Lax;`;
+    document.cookie = `token=${encodeURIComponent(token)};${secure}path=/;max-age=${age};SameSite=Lax;`;
   }
   function scrubTokenCookie() {
     if (typeof document === "undefined")
@@ -158,9 +166,12 @@
       return null;
     try {
       const parts = token.split(".");
-      if (parts.length < 2)
+      if (parts.length !== 3)
         return null;
-      return JSON.parse(atob(parts[1]));
+      const base64 = parts[1].replace(/-/g, "+").replace(/_/g, "/");
+      const bytes = Uint8Array.from(atob(base64), (c) => c.charCodeAt(0));
+      const payload = JSON.parse(new TextDecoder().decode(bytes));
+      return payload && typeof payload === "object" && !Array.isArray(payload) ? payload : null;
     } catch {
       return null;
     }
@@ -256,6 +267,8 @@
           body.token = token;
         fetch(`${apiOrigin}/v3/apps/register`, {
           method: "POST",
+          redirect: "error",
+          credentials: "omit",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ body })
         }).catch(() => {});
@@ -437,6 +450,13 @@
       },
       async getGroup(groupId) {
         return v3Post("groups/get", { group_id: groupId });
+      },
+      async getGroupDetail(groupId) {
+        const body = { group_id: groupId };
+        const token = state.token ?? readTokenCookie();
+        if (token)
+          body.token = token;
+        return authPost(`${apiOrigin}/v3/groups/detail`, body);
       },
       async getMyGroups(opts) {
         const payload = {};
@@ -651,6 +671,9 @@
             callback({ status: "error", errors: ["Not in a browser"] });
           return;
         }
+        const origin = new URL(authOrigin).origin;
+        if (origin === "null")
+          throw new Error("Auth portal must have a non-opaque origin");
         const popup = window.open(`${authOrigin}`, "web10-consent", "width=480,height=720,scrollbars=yes");
         if (!popup) {
           if (callback)
@@ -658,7 +681,7 @@
           return;
         }
         const responseHandler = (e) => {
-          if (e.data?.type === "contract_response") {
+          if (!popup.closed && e.origin === origin && e.source === popup && e.data?.type === "contract_response") {
             window.removeEventListener("message", responseHandler);
             window.removeEventListener("message", readyHandler);
             clearTimeout(timeoutId);
@@ -667,10 +690,10 @@
         };
         window.addEventListener("message", responseHandler);
         const readyHandler = (e) => {
-          if (e.data?.type === "auth_ready") {
+          if (!popup.closed && e.origin === origin && e.source === popup && e.data?.type === "auth_ready") {
             window.removeEventListener("message", readyHandler);
             try {
-              popup.postMessage({ type: "contract", contracts }, authOrigin);
+              popup.postMessage({ type: "contract", contracts }, origin);
             } catch {
               window.removeEventListener("message", responseHandler);
               clearTimeout(timeoutId);
@@ -691,16 +714,26 @@
             callback({ status: "error", errors: ["No opener window — not in a popup"] });
           return;
         }
+        const opener = window.opener;
+        let origin;
+        try {
+          origin = new URL(document.referrer).origin;
+          if (origin === "null")
+            throw new Error("Opaque opener");
+        } catch {
+          callback?.({ status: "error", errors: ["No trusted opener origin"] });
+          return;
+        }
         if (callback) {
           const handler = (e) => {
-            if (e.data?.type === "contract_response") {
+            if (e.source === opener && e.origin === origin && e.data?.type === "contract_response") {
               window.removeEventListener("message", handler);
               callback(e.data);
             }
           };
           window.addEventListener("message", handler);
         }
-        window.opener.postMessage({ type: "contract", contracts }, "*");
+        opener.postMessage({ type: "contract", contracts }, origin);
       }
     };
     pingAppRegister();
@@ -709,9 +742,19 @@
 
   // src/browser.ts
   var _authPopup = null;
+  var _authOrigin = null;
+  function isTrustedPopupMessage(e) {
+    return !!_authPopup && !_authPopup.closed && !!_authOrigin && e.origin === _authOrigin && e.source === _authPopup;
+  }
   var _popupReady = false;
   var _readyListener = null;
   function openAuthPortal(authOrigin, options = {}) {
+    _authPopup = null;
+    _authOrigin = null;
+    _popupReady = false;
+    const origin = new URL(authOrigin).origin;
+    if (origin === "null")
+      throw new Error("Auth portal must have a non-opaque origin");
     const token = readTokenCookie();
     const decoded = token ? decodeJwt(token) : null;
     const as = decoded?.username ? `&as=${encodeURIComponent(decoded.username)}` : "";
@@ -720,6 +763,7 @@
     console.log("[wapi] openAuthPortal — opening popup:", url, "as:", decoded?.username || "(none)", "handoff:", options.handoff || "token");
     const winName = `web10-auth-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`;
     _authPopup = window.open(url, winName, "width=480,height=720,scrollbars=yes");
+    _authOrigin = _authPopup ? origin : null;
     console.log("[wapi] openAuthPortal — popup returned:", _authPopup ? "open" : "blocked/null");
     _popupReady = false;
     if (_readyListener) {
@@ -727,7 +771,7 @@
       console.log("[wapi] openAuthPortal — removed old auth_ready listener");
     }
     _readyListener = (e) => {
-      if (e.data?.type === "auth_ready") {
+      if (isTrustedPopupMessage(e) && e.data?.type === "auth_ready") {
         console.log("[wapi] message event received — type: auth_ready, source:", e.source, "origin:", e.origin);
         _popupReady = true;
         console.log("[wapi] auth_ready — popup is ready, flag set");
@@ -739,8 +783,12 @@
   }
   function authListen(onSignedIn) {
     const handler = (e) => {
-      if (e.data?.type === "auth" && e.data?.token) {
+      if (isTrustedPopupMessage(e) && e.data?.type === "auth" && typeof e.data.token === "string") {
         const incoming = decodeJwt(e.data.token);
+        if (typeof incoming?.username !== "string" || !incoming.username.trim()) {
+          console.warn("[wapi] auth event - rejecting malformed token or username");
+          return;
+        }
         const current = readTokenCookie();
         const currentDecoded = current ? decodeJwt(current) : null;
         if (currentDecoded?.username && incoming?.username && currentDecoded.username !== incoming.username) {
@@ -759,7 +807,6 @@
   }
   function createV3Client2(options) {
     const client = createV3Client(options);
-    const originalContractRequest = client.contractRequest;
     client.contractRequest = function(contracts, authOrigin, callback) {
       console.log("[wapi] contractRequest — called with", contracts.length, "contract(s):", JSON.stringify(contracts));
       const token = readTokenCookie();
@@ -778,14 +825,17 @@
       }
       doContractRequest();
       function doContractRequest() {
+        const origin = new URL(authOrigin).origin;
+        if (origin === "null")
+          throw new Error("Auth portal must have a non-opaque origin");
         const popup = _authPopup;
-        if (popup && !popup.closed) {
+        if (popup && !popup.closed && _authOrigin === origin) {
           console.log("[wapi] contractRequest — reusing existing popup (not closed)");
           let contractSent = false;
           let readyHandler = null;
           let timeoutId = null;
           const responseHandler = (e) => {
-            if (e.data?.type === "contract_response") {
+            if (isTrustedPopupMessage(e) && e.source === popup && e.origin === origin && e.data?.type === "contract_response") {
               console.log("[wapi] contract_response received:", e.data);
               window.removeEventListener("message", responseHandler);
               if (readyHandler)
@@ -807,7 +857,7 @@
               clearTimeout(timeoutId);
             console.log("[wapi] contractRequest — sending contract to popup");
             try {
-              popup.postMessage({ type: "contract", contracts }, "*");
+              popup.postMessage({ type: "contract", contracts }, origin);
               console.log("[wapi] contractRequest — contract sent via postMessage");
             } catch (err) {
               console.error("[wapi] postMessage to popup failed:", err);
@@ -821,7 +871,7 @@
             return;
           }
           readyHandler = (e) => {
-            if (e.data?.type === "auth_ready" && !contractSent) {
+            if (isTrustedPopupMessage(e) && e.source === popup && e.origin === origin && e.data?.type === "auth_ready" && !contractSent) {
               console.log("[wapi] auth_ready received, sending contract to popup");
               sendContract();
             }
@@ -842,7 +892,11 @@
           return;
         }
         console.log("[wapi] contractRequest — no existing popup, opening new one");
-        originalContractRequest(contracts, authOrigin, callback);
+        if (!openAuthPortal(authOrigin)) {
+          callback?.({ status: "error", errors: ["Popup blocked - allow popups and try again"] });
+          return;
+        }
+        doContractRequest();
       }
     };
     return client;
@@ -873,9 +927,9 @@
     return true;
   }
   function closeAuthPopup() {
-    if (_authPopup && !_authPopup.closed) {
+    if (_authPopup && !_authPopup.closed && _authOrigin) {
       console.log("[wapi] closeAuthPopup — sending close_popup to popup");
-      _authPopup.postMessage({ type: "close_popup" }, "*");
+      _authPopup.postMessage({ type: "close_popup" }, _authOrigin);
     }
   }
   var web10 = {

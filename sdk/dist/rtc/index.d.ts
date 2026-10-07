@@ -43,6 +43,8 @@ export declare function createRTC(wapi: V3Client): RTCConnector;
  * RTC/P2P connector interface.
  */
 export interface RTCConnector {
+    /** Close signaling/data channels and cancel ticket renewal (logout). */
+    destroy(): void;
     /** Generate a peer ID */
     peerId(provider: string, user: string, origin: string, label?: string): string;
     /** Initialize P2P (resolves when the local peer is open) */
@@ -73,6 +75,11 @@ interface PeerConnection {
 interface PeerInstance {
     id: string;
     open: boolean;
+    options: PeerJSOptions;
+    disconnected: boolean;
+    destroyed: boolean;
+    reconnect(): void;
+    destroy(): void;
     on(event: string, handler: (...args: unknown[]) => void): void;
     connect(id: string): PeerConnection;
 }

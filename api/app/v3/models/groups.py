@@ -25,6 +25,11 @@ class GetGroup(BaseModel):
     group_id: str
 
 
+class GroupDetail(BaseModel):
+    group_id: str
+    token: str | None = None
+
+
 class UpdateGroup(BaseModel):
     token: str
     group_id: str

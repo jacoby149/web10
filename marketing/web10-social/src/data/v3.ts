@@ -42,6 +42,7 @@ export type {
   V3Prepare,
   V3PrepareFace,
   V3Group,
+  V3GroupDetail,
   V3GroupMember,
   V3UserGroupMembership,
   V3UserGroupsPage,

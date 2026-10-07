@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, afterEach } from 'vitest'
-import { authPost, Web10Error } from './http'
+import { authGet, authPost, Web10Error } from './http'
 
 /** Build a Response-like object for a non-2xx API reply. */
 function badResponse(status: number, statusText: string, body: string) {
@@ -14,6 +14,24 @@ function badResponse(status: number, statusText: string, body: string) {
 describe('authPost error surfacing', () => {
   afterEach(() => {
     vi.unstubAllGlobals()
+  })
+
+  it('rejects redirects and never sends ambient cookies with credentials', async () => {
+    const fetchMock = vi.fn().mockResolvedValue({ ok: true, json: async () => ({}) })
+    vi.stubGlobal('fetch', fetchMock)
+    await authPost('https://api.example/login', { password: 'secret' })
+    expect(fetchMock).toHaveBeenCalledWith('https://api.example/login', expect.objectContaining({
+      redirect: 'error', credentials: 'omit',
+    }))
+  })
+
+  it('keeps anonymous GETs free of ambient cookies and redirect following', async () => {
+    const fetchMock = vi.fn().mockResolvedValue({ ok: true, json: async () => ({}) })
+    vi.stubGlobal('fetch', fetchMock)
+    await authGet('https://api.example/groups', { user: 'alice' })
+    expect(fetchMock).toHaveBeenCalledWith('https://api.example/groups?user=alice', expect.objectContaining({
+      redirect: 'error', credentials: 'omit',
+    }))
   })
 
   it('surfaces a FastAPI string detail as the message', async () => {

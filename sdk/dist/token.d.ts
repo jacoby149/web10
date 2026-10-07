@@ -23,6 +23,7 @@ export declare function scrubTokenCookie(): void;
 /**
  * Decode a JWT payload without verification.
  * Returns `null` if the token is missing or malformed.
+ * Metadata only: NEVER use these unverified claims for authorization.
  *
  * @param token - JWT string
  */

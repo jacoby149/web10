@@ -1,5 +1,19 @@
 # October 2026 — web10 Security Audit
 
+**06.10.2026 follow-up:** SDK popup sender validation and credential-redirect
+protection, pre-upgrade RTC ticket admission, and backend credential-log
+redaction are implemented locally, with rebuilt consumer bundles. The
+original table below is the historical audit snapshot. Current fix status,
+group-detail body transport and the social credential-custody result are
+at the top of [`sdk.md`](./sdk.md); these remaining risks prevent a full
+security claim.
+
+The extensive current implementation guide and findings receipt live at
+[`knowledge-base/web10-v3/security/hardening-2026-10.md`](../../knowledge-base/web10-v3/security/hardening-2026-10.md),
+with focused credential/RTC/logging docs and an audit runbook. Shared v3
+custom-expiry enforcement and authenticator wildcard sending remain explicit
+open items; the historical table must not be read as a current all-clear.
+
 A line-by-line, invariant-driven security audit of the web10 node. **Backend
 first** (the node is the trust root — if it's on lock, the rest is contained),
 then the **SDK** (the client-side token/cookie/postMessage surface), then the

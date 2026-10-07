@@ -14,13 +14,19 @@ export function cookieDict(): Record<string, string> {
     if (eq === -1) return res
     const key = c.substring(0, eq).trim()
     const val = c.substring(eq + 1).trim()
+    let decoded: string
     try {
-      res[key] = JSON.parse(decodeURIComponent(val))
+      decoded = decodeURIComponent(val)
     } catch {
-      res[key] = decodeURIComponent(val)
+      return res
+    }
+    try {
+      res[key] = JSON.parse(decoded)
+    } catch {
+      res[key] = decoded
     }
     return res
-  }, {} as Record<string, string>)
+  }, Object.create(null) as Record<string, string>)
 }
 
 /**
@@ -48,7 +54,7 @@ export function setTokenCookie(token: string, maxAgeDays = 60): void {
   const age = 3600 * 24 * maxAgeDays
   // Only set Secure flag on HTTPS origins
   const secure = typeof location !== 'undefined' && location.protocol === 'https:' ? 'Secure;' : ''
-  document.cookie = `token=${token};${secure}path=/;max-age=${age};SameSite=Lax;`
+  document.cookie = `token=${encodeURIComponent(token)};${secure}path=/;max-age=${age};SameSite=Lax;`
 }
 
 /**
@@ -62,6 +68,7 @@ export function scrubTokenCookie(): void {
 /**
  * Decode a JWT payload without verification.
  * Returns `null` if the token is missing or malformed.
+ * Metadata only: NEVER use these unverified claims for authorization.
  *
  * @param token - JWT string
  */
@@ -69,8 +76,11 @@ export function decodeJwt(token: string | null): TokenPayload | null {
   if (!token) return null
   try {
     const parts = token.split('.')
-    if (parts.length < 2) return null
-    return JSON.parse(atob(parts[1])) as TokenPayload
+    if (parts.length !== 3) return null
+    const base64 = parts[1].replace(/-/g, '+').replace(/_/g, '/')
+    const bytes = Uint8Array.from(atob(base64), (c) => c.charCodeAt(0))
+    const payload = JSON.parse(new TextDecoder().decode(bytes))
+    return payload && typeof payload === 'object' && !Array.isArray(payload) ? payload as TokenPayload : null
   } catch {
     return null
   }

@@ -4,6 +4,7 @@ import logging
 import requests
 from fastapi import APIRouter, HTTPException, Request
 from fastapi.responses import RedirectResponse
+from pydantic import BaseModel, Field
 
 import app.exceptions as exceptions
 from app.models.auth import Token
@@ -18,6 +19,35 @@ from app.v3.services import clickhouse as ch
 
 router = APIRouter()
 log = logging.getLogger(__name__)
+
+
+class RTCAuthorizeRequest(BaseModel):
+    token: str = Field(min_length=1)
+    label: str = Field(max_length=64, pattern=r"^[A-Za-z0-9_-]*$")
+
+
+@router.post("/rtc/authorize", tags=["system"])
+def rtc_authorize(req: RTCAuthorizeRequest):
+    """Verify a local session and derive its generic signaling identity."""
+    try:
+        certify(Token(token=req.token))
+        decoded = decode_token(req.token, private_key=True)
+    except Exception:
+        log.info("[rtc-authorize] denied: invalid session")
+        raise HTTPException(status_code=401, detail="Invalid session") from None
+
+    site = "web10" if decoded.site is None or decoded.site == "" else decoded.site
+    components = (decoded.provider, decoded.username, site)
+    if any(not isinstance(value, str) or not value or any(c.isspace() for c in value) for value in components):
+        log.info("[rtc-authorize] denied: malformed identity")
+        raise HTTPException(status_code=401, detail="Invalid identity")
+    if decoded.username == "anon":
+        log.info("[rtc-authorize] denied: anonymous session")
+        raise HTTPException(status_code=401, detail="Authentication required")
+
+    peer_id = " ".join((*components, req.label)).replace(".", "_")
+    log.info("[rtc-authorize] authorized signaling identity")
+    return {"peer_id": peer_id}
 
 
 @router.post("/")

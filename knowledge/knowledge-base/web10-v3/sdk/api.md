@@ -425,6 +425,25 @@ const groups = await w.getMyGroups()
 const managed = await w.getGroupsManages()
 ```
 
+### Read Group Detail
+
+```ts
+const detail = await w.getGroupDetail('provider.example/groups/users/alice/jazz')
+// detail: V3GroupDetail - metadata, membership state, and the existing recent-posts envelope
+```
+
+This uses `POST /v3/groups/detail` with `{ group_id, token? }`. The credential
+comes from SDK state with cookie fallback and stays in the JSON body; without
+a token it reads anonymously. Present invalid credentials are not retried as
+anonymous. `authPost` rejects redirects and omits ambient cookies, and preserves
+`Web10Error.status` for not-found/access handling.
+
+It is distinct from `getGroup`, the authenticated raw-contract read used by
+contract reconciliation. Anonymous public GET detail remains available without
+credentials; query-token authentication is rejected on either method. See
+`groups/detail.md` for the existing membership-envelope qualification and
+`security/credentials.md` for the complete credential-recipient model.
+
 ### Join a Group
 
 ```ts

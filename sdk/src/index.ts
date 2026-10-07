@@ -19,6 +19,7 @@ export type {
   V3PrepareFace,
   V3FeedPost,
   V3Group,
+  V3GroupDetail,
   V3GroupMember,
   V3GroupContractSpec,
   V3GroupContractDiff,

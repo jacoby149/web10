@@ -23,6 +23,12 @@ import { Web10Error } from './http'
 
 // Track the last opened auth popup so contractRequest can reuse it
 let _authPopup: Window | null = null
+let _authOrigin: string | null = null
+
+function isTrustedPopupMessage(e: MessageEvent): boolean {
+  return !!_authPopup && !_authPopup.closed && !!_authOrigin &&
+    e.origin === _authOrigin && e.source === _authPopup
+}
 // Track if we received auth_ready from the popup
 let _popupReady = false
 // Track the ready listener so we can clean it up
@@ -34,6 +40,11 @@ let _readyListener: ((e: MessageEvent) => void) | null = null
  * once on mount, then the app sends its contract.
  */
 function openAuthPortal(authOrigin: string, options: { handoff?: 'token' | 'none' } = {}): Window | null {
+  _authPopup = null
+  _authOrigin = null
+  _popupReady = false
+  const origin = new URL(authOrigin).origin
+  if (origin === 'null') throw new Error('Auth portal must have a non-opaque origin')
   // Tell the popup who the opener is acting as, so it can detect a session
   // mismatch (its own cookie's user ≠ the opener's user) instead of silently
   // acting for the wrong user. Only present when the opener has a token.
@@ -58,6 +69,7 @@ function openAuthPortal(authOrigin: string, options: { handoff?: 'token' | 'none
     winName,
     'width=480,height=720,scrollbars=yes',
   )
+  _authOrigin = _authPopup ? origin : null
   console.log('[wapi] openAuthPortal — popup returned:', _authPopup ? 'open' : 'blocked/null')
   _popupReady = false
   // Clean up old listener
@@ -67,7 +79,7 @@ function openAuthPortal(authOrigin: string, options: { handoff?: 'token' | 'none
   }
   // Listen for auth_ready — popup sends it once on mount
   _readyListener = (e: MessageEvent) => {
-    if (e.data?.type === 'auth_ready') {
+    if (isTrustedPopupMessage(e) && e.data?.type === 'auth_ready') {
       console.log('[wapi] message event received — type: auth_ready, source:', e.source, 'origin:', e.origin)
       _popupReady = true
       console.log('[wapi] auth_ready — popup is ready, flag set')
@@ -85,13 +97,17 @@ function authListen(
   onSignedIn: (signedIn: boolean) => void,
 ): () => void {
   const handler = (e: MessageEvent) => {
-    if (e.data?.type === 'auth' && e.data?.token) {
+    if (isTrustedPopupMessage(e) && e.data?.type === 'auth' && typeof e.data.token === 'string') {
       // Identity check (D42 + the cookie-torture anti-tests): the popup acts for
       // its OWN cookie's user. If that user differs from the one this app is
       // already acting as, storing the token would silently hijack the app's
       // identity. Reject it — the app keeps its current user. A first login
       // (no current token) always accepts.
       const incoming = decodeJwt(e.data.token)
+      if (typeof incoming?.username !== 'string' || !incoming.username.trim()) {
+        console.warn('[wapi] auth event - rejecting malformed token or username')
+        return
+      }
       const current = readTokenCookie()
       const currentDecoded = current ? decodeJwt(current) : null
       if (
@@ -138,7 +154,6 @@ function authListen(
  */
 function createV3Client(options?: Parameters<typeof _createV3Client>[0]): V3Client {
   const client = _createV3Client(options)
-  const originalContractRequest = client.contractRequest
 
   client.contractRequest = function (
     contracts: V3CR[],
@@ -170,15 +185,19 @@ function createV3Client(options?: Parameters<typeof _createV3Client>[0]): V3Clie
     doContractRequest()
 
     function doContractRequest() {
+    const origin = new URL(authOrigin).origin
+    if (origin === 'null') throw new Error('Auth portal must have a non-opaque origin')
     const popup = _authPopup
-    if (popup && !popup.closed) {
+    if (popup && !popup.closed && _authOrigin === origin) {
       console.log('[wapi] contractRequest — reusing existing popup (not closed)')
       let contractSent = false
       let readyHandler: ((e: MessageEvent) => void) | null = null
       let timeoutId: ReturnType<typeof setTimeout> | null = null
 
       const responseHandler = (e: MessageEvent) => {
-        if (e.data?.type === 'contract_response') {
+        // Consent-only popups close immediately after posting their response.
+        // Authenticate the queued message even if its sender has since closed.
+        if (_authPopup === popup && _authOrigin === origin && e.source === popup && e.origin === origin && e.data?.type === 'contract_response') {
           console.log('[wapi] contract_response received:', e.data)
           window.removeEventListener('message', responseHandler)
           if (readyHandler) window.removeEventListener('message', readyHandler)
@@ -198,7 +217,7 @@ function createV3Client(options?: Parameters<typeof _createV3Client>[0]): V3Clie
         if (timeoutId) clearTimeout(timeoutId)
         console.log('[wapi] contractRequest — sending contract to popup')
         try {
-          popup.postMessage({ type: 'contract', contracts }, '*')
+          popup.postMessage({ type: 'contract', contracts }, origin)
           console.log('[wapi] contractRequest — contract sent via postMessage')
         } catch (err) {
           console.error('[wapi] postMessage to popup failed:', err)
@@ -216,7 +235,7 @@ function createV3Client(options?: Parameters<typeof _createV3Client>[0]): V3Clie
 
       // Otherwise wait for auth_ready
       readyHandler = (e: MessageEvent) => {
-        if (e.data?.type === 'auth_ready' && !contractSent) {
+        if (isTrustedPopupMessage(e) && e.source === popup && e.origin === origin && e.data?.type === 'auth_ready' && !contractSent) {
           console.log('[wapi] auth_ready received, sending contract to popup')
           sendContract()
         }
@@ -240,7 +259,11 @@ function createV3Client(options?: Parameters<typeof _createV3Client>[0]): V3Clie
 
     // No existing popup — fall back to opening a new one
     console.log('[wapi] contractRequest — no existing popup, opening new one')
-    originalContractRequest(contracts, authOrigin, callback)
+    if (!openAuthPortal(authOrigin)) {
+      callback?.({ status: 'error', errors: ['Popup blocked - allow popups and try again'] })
+      return
+    }
+    doContractRequest()
     }
   }
 
@@ -284,9 +307,9 @@ async function checkExistingContracts(
  * Close the auth popup (called by the app after all contracts are done).
  */
 function closeAuthPopup(): void {
-  if (_authPopup && !_authPopup.closed) {
+  if (_authPopup && !_authPopup.closed && _authOrigin) {
     console.log('[wapi] closeAuthPopup — sending close_popup to popup')
-    _authPopup.postMessage({ type: 'close_popup' }, '*')
+    _authPopup.postMessage({ type: 'close_popup' }, _authOrigin)
   }
 }
 

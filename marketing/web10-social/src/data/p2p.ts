@@ -49,6 +49,8 @@ export interface P2PInboundConn {
 type InboundListener = (conn: P2PInboundConn, data: unknown) => void;
 
 let rtc: RTCConnector | null = null;
+let pendingInit: Promise<boolean> | null = null;
+let generation = 0;
 let p2pReady = false;
 let site = 'web10';
 const inboundListeners = new Set<InboundListener>();
@@ -162,7 +164,10 @@ function markOffline(peerId: string): void {
 function registerConn(peerId: string, conn: P2PInboundConn): void {
   if (!peerId || !conn) return;
   openConns.set(peerId, conn);
-  conn.on?.('close', () => markOffline(peerId));
+  const ownerGeneration = generation;
+  conn.on?.('close', () => {
+    if (generation === ownerGeneration) markOffline(peerId);
+  });
 }
 
 // A pong from a peer: the round trip succeeded → they're online right now.
@@ -221,7 +226,9 @@ function sendPing(peerId: string, identity: { provider: string; username: string
     if (conn.open) {
       conn.send?.({ __p2p: 'ping' });
     } else {
+      const ownerGeneration = generation;
       conn.on?.('open', () => {
+        if (generation !== ownerGeneration) return;
         try {
           conn.send?.({ __p2p: 'ping' });
         } catch {
@@ -371,7 +378,7 @@ function identityFromPeerId(peerId: string): { provider: string; username: strin
 /**
  * Initialize the P2P peer. Resolves true once the local peer is open (online),
  * false if there's no token or the signaling server is unreachable. Idempotent
- * — a second call while ready is a no-op.
+ * — concurrent calls share initialization; a call while ready is a no-op.
  *
  * The token must be present (set on sign-in) — the SDK reads it for the peer
  * id + the signaling auth token.
@@ -387,26 +394,54 @@ export async function initP2P(): Promise<boolean> {
     LOG('initP2P — already ready, no-op');
     return true;
   }
+  if (pendingInit) {
+    LOG('initP2P — initialization pending, joining');
+    return pendingInit;
+  }
   site = token.site || 'web10';
   LOG('initP2P — initializing, rtcServer:', w.state.rtcServer, 'label:', P2P_LABEL, 'site:', site);
   try {
     rtc = createRTC(w);
+    const owner = rtc;
+    const ownerGeneration = generation;
     // secure: the signaling server's protocol matches the API origin's (the RTC
     // host tracks the API host — http://api.localhost → ws://rtc.localhost,
     // https://api.web10.app → wss://rtc.web10.app). Deriving it from the page
     // protocol would be wrong when the app is served over http but the node is
     // https (or vice versa).
     const secure = API_ORIGIN.startsWith('https');
-    await rtc.initP2P((conn, data) => dispatchInbound(conn as P2PInboundConn, data), P2P_LABEL, secure);
-    p2pReady = true;
-    // Keep tracked peers' channels warm + their liveness fresh (instant sends,
-    // and a quiet-but-online peer stays online while a dead one flips offline
-    // on the ping timeout). No-op until a peer is tracked, so it costs nothing
-    // when idle.
-    startPingLoop();
-    const id = rtc.peerId(token.provider, token.username, site, P2P_LABEL);
-    LOG('initP2P — READY, peerId:', id);
-    return true;
+    pendingInit = (async () => {
+      try {
+        await owner.initP2P((conn, data) => {
+          if (generation !== ownerGeneration || rtc !== owner) return;
+          dispatchInbound(conn as P2PInboundConn, data);
+        }, P2P_LABEL, secure);
+        if (generation !== ownerGeneration || rtc !== owner) {
+          LOG('initP2P — stale completion ignored');
+          return false;
+        }
+        p2pReady = true;
+        // Keep tracked peers' channels warm + their liveness fresh (instant sends,
+        // and a quiet-but-online peer stays online while a dead one flips offline
+        // on the ping timeout). No-op until a peer is tracked, so it costs nothing
+        // when idle.
+        startPingLoop();
+        const id = owner.peerId(token.provider, token.username, site, P2P_LABEL);
+        LOG('initP2P — READY, peerId:', id);
+        return true;
+      } catch (e) {
+        if (generation !== ownerGeneration || rtc !== owner) {
+          LOG('initP2P — stale failure ignored');
+          return false;
+        }
+        LOG_ERR('initP2P FAILED:', e);
+        p2pReady = false;
+        return false;
+      }
+    })().finally(() => {
+      if (generation === ownerGeneration && rtc === owner) pendingInit = null;
+    });
+    return pendingInit;
   } catch (e) {
     LOG_ERR('initP2P FAILED:', e);
     p2pReady = false;
@@ -445,7 +480,9 @@ export function sendP2P(
       return true;
     }
     // Channel not open yet — send once it opens (the recipient is connecting).
+    const ownerGeneration = generation;
     conn.on?.('open', () => {
+      if (generation !== ownerGeneration) return;
       try {
         conn.send?.(payload);
       } catch {
@@ -516,8 +553,12 @@ export function onPresenceChange(listener: () => void): () => void {
  * subsequent sign-in as a different user starts clean.
  */
 export function teardownP2P(): void {
+  generation += 1;
+  pendingInit = null;
   p2pReady = false;
+  const old = rtc;
   rtc = null;
+  old?.destroy();
   inboundListeners.clear();
   stopSweep();
   stopPingLoop();
@@ -526,10 +567,10 @@ export function teardownP2P(): void {
   pendingPings.clear();
   missedPings.clear();
   openConns.clear();
+  lastSeen.clear();
+  peerIdentity.clear();
   if (onlinePeers.size > 0) {
     onlinePeers.clear();
-    lastSeen.clear();
-    peerIdentity.clear();
     for (const l of presenceListeners) {
       try {
         l();

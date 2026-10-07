@@ -21,6 +21,7 @@
  */
 
 import type { V3Client } from '../v3'
+import { readTokenCookie } from '../token'
 
 // Lazy import — peerjs is a peer dependency, optional
 let PeerClass: { new (id: string, opts: PeerJSOptions): PeerInstance } | null = null
@@ -78,6 +79,8 @@ function getPeer(): { new (id: string, opts: PeerJSOptions): PeerInstance } {
  */
 export function createRTC(wapi: V3Client): RTCConnector {
   let peer: PeerInstance | null = null
+  let stopped = false
+  let reconnectTimer: ReturnType<typeof setTimeout> | null = null
   const outbound = new Map<string, PeerConnection>()
   const inbound = new Map<string, PeerConnection>()
   // The app's inbound handler, kept so outbound connections can also deliver
@@ -99,14 +102,40 @@ export function createRTC(wapi: V3Client): RTCConnector {
      * signaling connection is established), so callers can wait for readiness
      * before calling `connect`/`send`. PeerJS drops a `connect()` issued
      * before `open`, so sending too early silently loses the message. The
-     * promise also resolves after a 10s timeout so an unreachable signaling
-     * server cannot hang the caller forever.
+     * promise rejects after a 10s timeout; an unreachable signaling server
+     * must never be reported as ready.
      */
     async initP2P(onInbound: ((conn: PeerConnection, data: unknown) => void) | null, label: string = '', secure: boolean = true): Promise<void> {
       const PC = getPeer()
       const token = wapi.readToken()
       if (!token) throw new Error('Cannot init P2P without a token')
-      const id = this.peerId(token.provider, token.username, token.site, label)
+      const id = this.peerId(token.provider, token.username, token.site || 'web10', label)
+      const origin = new URL(`${secure ? 'https' : 'http'}://${wapi.state.rtcServer}`)
+      if (origin.username || origin.password || origin.pathname !== '/' || origin.search || origin.hash) {
+        throw new Error('RTC server must be a host, optionally with a port')
+      }
+      const local = origin.hostname === 'localhost' || origin.hostname.endsWith('.localhost') ||
+        origin.hostname === '127.0.0.1' || origin.hostname === '[::1]'
+      if (!secure && !local) throw new Error('Insecure RTC signaling is restricted to localhost')
+      if (!/^[A-Za-z0-9_-]{0,64}$/.test(label)) throw new Error('Invalid RTC label')
+      stopped = false
+      const requestTicket = async (): Promise<string> => {
+        const session = wapi.state.token ?? readTokenCookie()
+        if (!session || stopped) throw new Error('No active RTC session')
+        console.log('[wapi-rtc] ticket request started')
+        const response = await fetch(`${origin.origin}/ticket`, {
+          method: 'POST', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ token: session, label }),
+          credentials: 'omit', redirect: 'error', signal: AbortSignal.timeout(10_000),
+        })
+        console.log('[wapi-rtc] ticket request finished', { status: response.status })
+        if (!response.ok) throw new Error('RTC ticket authorization failed')
+        const result = await response.json()
+        if (typeof result?.ticket !== 'string' || !/^[A-Za-z0-9_-]{43}$/.test(result.ticket) || result.peer_id !== id) {
+          throw new Error('Invalid RTC ticket response')
+        }
+        return result.ticket
+      }
       // ICE servers: use the client's explicit config if provided; otherwise
       // fetch the node's ICE config (STUN + optional TURN) from the /ice
       // endpoint. Falls back to the built-in STUN default if the fetch fails.
@@ -120,14 +149,43 @@ export function createRTC(wapi: V3Client): RTCConnector {
           iceServers = defaultIceServers()
         }
       }
-      peer = new PC(id, {
-        host: wapi.state.rtcServer,
+      if (stopped) throw new Error('RTC initialization cancelled')
+      // Mint only after ICE discovery so a slow config request cannot exhaust
+      // the ticket's 30-second admission window before signaling starts.
+      const ticket = await requestTicket()
+      if (stopped) throw new Error('RTC initialization cancelled')
+      const currentPeer = new PC(id, {
+        host: origin.hostname,
         secure,
-        port: secure ? 443 : 80,
+        port: Number(origin.port || (secure ? 443 : 80)),
         path: '/',
-        token: `${wapi.state.token}~${label}`,
+        token: ticket,
         iceServers,
       })
+      peer = currentPeer
+      let reconnecting = false
+      let retryDelay = 1000
+      const reconnect = async () => {
+        if (stopped || reconnecting || currentPeer.destroyed || !currentPeer.disconnected) return
+        reconnecting = true
+        try {
+          const fresh = await requestTicket()
+          if (!stopped && !currentPeer.destroyed && currentPeer.disconnected) {
+            currentPeer.options.token = fresh
+            currentPeer.reconnect()
+            retryDelay = 1000
+          }
+        } catch {
+          console.warn('[wapi-rtc] reconnect authorization failed; retry scheduled')
+        } finally {
+          reconnecting = false
+          if (!stopped && !currentPeer.destroyed && currentPeer.disconnected) {
+            reconnectTimer = setTimeout(reconnect, retryDelay)
+            retryDelay = Math.min(retryDelay * 2, 30_000)
+          }
+        }
+      }
+      currentPeer.on('disconnected', reconnect)
       if (onInbound && peer) {
         onInboundRef = onInbound
         peer.on('connection', (raw: unknown) => {
@@ -137,18 +195,42 @@ export function createRTC(wapi: V3Client): RTCConnector {
           conn.on('close', () => inbound.delete(conn.peer))
         })
       }
-      return new Promise<void>((resolve) => {
-        if (!peer) {
+      return new Promise<void>((resolve, reject) => {
+        if (currentPeer.open) {
           resolve()
           return
         }
-        if (peer.open) {
-          resolve()
-          return
-        }
-        peer.on('open', () => resolve())
-        setTimeout(resolve, 10000)
+        const timeout = setTimeout(() => {
+          this.destroy()
+          reject(new Error('RTC signaling connection timed out'))
+        }, 10_000)
+        let ready = false
+        currentPeer.on('open', () => { ready = true; clearTimeout(timeout); resolve() })
+        currentPeer.on('error', () => {
+          if (ready) {
+            console.warn('[wapi-rtc] signaling error after admission')
+            return
+          }
+          clearTimeout(timeout)
+          this.destroy()
+          reject(new Error('RTC signaling connection failed'))
+        })
+        currentPeer.on('close', () => {
+          clearTimeout(timeout)
+          if (!ready) reject(new Error('RTC initialization cancelled'))
+        })
       })
+    },
+
+    destroy(): void {
+      stopped = true
+      if (reconnectTimer) clearTimeout(reconnectTimer)
+      reconnectTimer = null
+      peer?.destroy()
+      peer = null
+      outbound.clear()
+      inbound.clear()
+      onInboundRef = null
     },
 
     /** Get or create an outbound connection to a peer */
@@ -189,6 +271,8 @@ export function createRTC(wapi: V3Client): RTCConnector {
  * RTC/P2P connector interface.
  */
 export interface RTCConnector {
+  /** Close signaling/data channels and cancel ticket renewal (logout). */
+  destroy(): void
   /** Generate a peer ID */
   peerId(provider: string, user: string, origin: string, label?: string): string
   /** Initialize P2P (resolves when the local peer is open) */
@@ -222,6 +306,11 @@ interface PeerConnection {
 interface PeerInstance {
   id: string
   open: boolean
+  options: PeerJSOptions
+  disconnected: boolean
+  destroyed: boolean
+  reconnect(): void
+  destroy(): void
   on(event: string, handler: (...args: unknown[]) => void): void
   connect(id: string): PeerConnection
 }

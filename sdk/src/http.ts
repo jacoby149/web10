@@ -72,6 +72,9 @@ function httpError(status: number, statusText: string, body: string): Web10Error
 export async function authPost<T>(url: string, body: Record<string, unknown>): Promise<T> {
   const res = await fetch(url, {
     method: 'POST',
+    // A 307/308 must never replay a credential-bearing body to another URL.
+    redirect: 'error',
+    credentials: 'omit',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(body),
   })
@@ -84,8 +87,8 @@ export async function authPost<T>(url: string, body: Record<string, unknown>): P
 
 /**
  * Anon-capable GET with query params (D80: the public `by-user` read). The
- * token rides along as a query param when present, but a missing token is fine
- * — the endpoint reads as the node's anon member (the public subset).
+ * endpoint reads as the node's anon member (the public subset). Credentials
+ * must not be supplied as query parameters.
  */
 export async function authGet<T>(url: string, params?: Record<string, unknown>): Promise<T> {
   const qs = new URLSearchParams()
@@ -94,7 +97,7 @@ export async function authGet<T>(url: string, params?: Record<string, unknown>):
   }
   const sep = url.includes('?') ? '&' : '?'
   const full = qs.toString() ? `${url}${sep}${qs.toString()}` : url
-  const res = await fetch(full, { method: 'GET', headers: { Accept: 'application/json' } })
+  const res = await fetch(full, { method: 'GET', credentials: 'omit', redirect: 'error', headers: { Accept: 'application/json' } })
   if (!res.ok) {
     const text = await res.text().catch(() => '')
     throw httpError(res.status, res.statusText, text)

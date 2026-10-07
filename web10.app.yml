@@ -44,6 +44,7 @@ services:
     environment:
       PORT: 80
       VIRTUAL_HOST: rtc.web10.app
+      CERTIFY_BASE_URL: http://prod-api
       CHOKIDAR_USEPOLLING: "true"
     ports:
       - '10003:80'

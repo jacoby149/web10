@@ -33,6 +33,16 @@ If a lower layer contradicts its source above, the source wins. Always.
 
 ## Phases
 
+## SDK Security Follow-up (06.10.2026)
+
+- [✓ 3.222.1] **SDK popup and transport hardening** (`sdk/` + tracked public SDK bundles) - origin AND popup-source checks for auth/readiness/consent, exact message targets, redirect rejection, ambient-cookie omission, cookie parsing/value hardening, and regression tests. Social credential custody audited; no independent persistent password/token store found, but direct credential handling remains. See `knowledge/security-audit/october/sdk.md` follow-up. Implemented locally; not a full security certification.
+- [✓ 4.0.0] **Scoped RTC signaling ticket** (`api/rtc/`, `api/`, `sdk/src/rtc/`) - one-use 30-second opaque ticket bound to the node-verified peer ID; consumed before upgrade, fixed API verifier, HTTPS/WSS outside localhost, fresh-ticket reconnect/backoff, and social logout cleanup. API/RTC/SDK/demo bundles deploy together; old JWT signaling rejected. Replay/expiry/scope/redirect and real SDK-to-Python-to-WebSocket admission tests green (D89).
+- [✓ 4.0.0] **Backend credential-log redaction** (`api/app/middleware.py`) - recursively redact known credential fields/echoes and validation inputs before truncation; omit non-JSON logs, preserve response bytes, and test error-message/meta leaks. Existing logs/credentials are not purged/rotated.
+- [✓ 4.0.0] **Body-authenticated group-detail read** (`api/`, `sdk/`, `marketing/web10-social/src/data/groups.ts`) - optional-token POST through SDK `getGroupDetail`; anonymous GET retained, query tokens rejected on both methods, present credentials certified before principal derivation. Member/outsider/anon/invalid/expired/404 and URL-free transport regressions green; E2E floor specs migrated/discovered, Docker browser execution remains outstanding.
+- [✓ 4.0.0] **Extensive security implementation KB** (`knowledge/knowledge-base/web10-v3/security/`) - credential custody, RTC admission, log redaction, repeatable audit runbook, and a full October finding/repair/evidence/rollout ledger. Fixed-local work is distinguished from deployed verification and open issuer/expiry/sender/diagnostic/script/retention risks.
+- [ ] **Shared v3 session-expiry/provider enforcement (I5)** (`api/app/v3/endpoints/auth_helper.py` + callers/tests) - shared helpers return a principal for a synthetic session whose custom `expires` is past. Repair before claiming expiry enforced on every route. Acceptance: expired/wrong-provider/malformed custom-expiry credentials denied before lookup/mutation, anonymous/valid flows preserved, conformance and caller matrix green.
+- [ ] **Authenticator handoff destination** (`ui/src/interfaces/Interface.tsx`) - remove wildcard token sending when referrer is missing; bind the intended opener origin before transmission. Acceptance: absent/opaque referrer and opener-navigation race cannot receive a credential; real popup consent/login forks preserved.
+
 <!--
 Format per phase:
 

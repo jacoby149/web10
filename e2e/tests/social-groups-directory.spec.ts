@@ -9,7 +9,7 @@ import { v3Post, v3Login, v3Signup } from '../v3-helpers';
  * This is a DISTINCT surface from `social-groups.spec.ts` (follows = followers
  * groups). Here the app drives the D53 directory + detail reads:
  *   - GET /v3/groups/directory  (anon, the minimal list of discoverable groups)
- *   - GET /v3/groups/detail     (principal-based: metadata always, posts only
+ *   - POST /v3/groups/detail    (principal-based: metadata always, posts only
  *     for members, only a non-existent group 404s)
  *   - POST /v3/groups/join      (open → instant member; request → pending)
  *   - POST /v3/groups/leave
@@ -104,9 +104,7 @@ async function appDirectoryRead(request: APIRequestContext): Promise<{ group_id:
 
 /** The app's exact detail read (readGroupDetail in src/data/groups.ts). */
 async function appDetailRead(request: APIRequestContext, token: string | null, groupId: string) {
-  const params = new URLSearchParams({ group_id: groupId });
-  if (token) params.set('token', token);
-  return request.get(`${API_BASE}/v3/groups/detail?${params.toString()}`);
+  return request.post(`${API_BASE}/v3/groups/detail`, { data: { group_id: groupId, token } });
 }
 
 function setTokenCookie(context: any, domain: string, token: string) {
@@ -129,6 +127,19 @@ function captureConsoleLogs(page: Page, prefix: string): string[] {
 // ---------------------------------------------------------------------------
 
 test.describe('social-groups-directory — API floor (D53 directory + detail)', () => {
+  test('detail rejects query JWTs instead of silently reading anonymously', async ({ request }) => {
+    const owner = await signupAndLogin(request, 'sgdq');
+    const groupId = await createGroup(request, owner.token, owner.username, 'query-token');
+    for (const method of ['get', 'post'] as const) {
+      const params = new URLSearchParams({ group_id: groupId, token: owner.token });
+      const res = await request[method](`${API_BASE}/v3/groups/detail?${params}`, {
+        ...(method === 'post' ? { data: { group_id: groupId, token: owner.token } } : {}),
+      });
+      expect(res.status()).toBe(400);
+      expect(await res.text()).not.toContain(owner.token);
+    }
+  });
+
   test('directory lists discoverable groups and excludes non-discoverable ones', async ({ request }) => {
     const owner = await signupAndLogin(request, 'sgdo');
     await addAppContract(request, owner.token);

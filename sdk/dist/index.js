@@ -42,6 +42,8 @@ function httpError(status, statusText, body) {
 async function authPost(url, body) {
   const res = await fetch(url, {
     method: "POST",
+    redirect: "error",
+    credentials: "omit",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(body)
   });
@@ -59,7 +61,7 @@ async function authGet(url, params) {
   }
   const sep = url.includes("?") ? "&" : "?";
   const full = qs.toString() ? `${url}${sep}${qs.toString()}` : url;
-  const res = await fetch(full, { method: "GET", headers: { Accept: "application/json" } });
+  const res = await fetch(full, { method: "GET", credentials: "omit", redirect: "error", headers: { Accept: "application/json" } });
   if (!res.ok) {
     const text = await res.text().catch(() => "");
     throw httpError(res.status, res.statusText, text);
@@ -77,13 +79,19 @@ function cookieDict() {
       return res;
     const key = c.substring(0, eq).trim();
     const val = c.substring(eq + 1).trim();
+    let decoded;
     try {
-      res[key] = JSON.parse(decodeURIComponent(val));
+      decoded = decodeURIComponent(val);
     } catch {
-      res[key] = decodeURIComponent(val);
+      return res;
+    }
+    try {
+      res[key] = JSON.parse(decoded);
+    } catch {
+      res[key] = decoded;
     }
     return res;
-  }, {});
+  }, Object.create(null));
 }
 function readTokenCookie() {
   const cookies = cookieDict();
@@ -101,7 +109,7 @@ function setTokenCookie(token, maxAgeDays = 60) {
     return;
   const age = 3600 * 24 * maxAgeDays;
   const secure = typeof location !== "undefined" && location.protocol === "https:" ? "Secure;" : "";
-  document.cookie = `token=${token};${secure}path=/;max-age=${age};SameSite=Lax;`;
+  document.cookie = `token=${encodeURIComponent(token)};${secure}path=/;max-age=${age};SameSite=Lax;`;
 }
 function scrubTokenCookie() {
   if (typeof document === "undefined")
@@ -113,9 +121,12 @@ function decodeJwt(token) {
     return null;
   try {
     const parts = token.split(".");
-    if (parts.length < 2)
+    if (parts.length !== 3)
       return null;
-    return JSON.parse(atob(parts[1]));
+    const base64 = parts[1].replace(/-/g, "+").replace(/_/g, "/");
+    const bytes = Uint8Array.from(atob(base64), (c) => c.charCodeAt(0));
+    const payload = JSON.parse(new TextDecoder().decode(bytes));
+    return payload && typeof payload === "object" && !Array.isArray(payload) ? payload : null;
   } catch {
     return null;
   }
@@ -247,6 +258,8 @@ function createV3Client(options = {}) {
         body.token = token;
       fetch(`${apiOrigin}/v3/apps/register`, {
         method: "POST",
+        redirect: "error",
+        credentials: "omit",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ body })
       }).catch(() => {});
@@ -428,6 +441,13 @@ function createV3Client(options = {}) {
     },
     async getGroup(groupId) {
       return v3Post("groups/get", { group_id: groupId });
+    },
+    async getGroupDetail(groupId) {
+      const body = { group_id: groupId };
+      const token = state.token ?? readTokenCookie();
+      if (token)
+        body.token = token;
+      return authPost(`${apiOrigin}/v3/groups/detail`, body);
     },
     async getMyGroups(opts) {
       const payload = {};
@@ -642,6 +662,9 @@ function createV3Client(options = {}) {
           callback({ status: "error", errors: ["Not in a browser"] });
         return;
       }
+      const origin = new URL(authOrigin).origin;
+      if (origin === "null")
+        throw new Error("Auth portal must have a non-opaque origin");
       const popup = window.open(`${authOrigin}`, "web10-consent", "width=480,height=720,scrollbars=yes");
       if (!popup) {
         if (callback)
@@ -649,7 +672,7 @@ function createV3Client(options = {}) {
         return;
       }
       const responseHandler = (e) => {
-        if (e.data?.type === "contract_response") {
+        if (!popup.closed && e.origin === origin && e.source === popup && e.data?.type === "contract_response") {
           window.removeEventListener("message", responseHandler);
           window.removeEventListener("message", readyHandler);
           clearTimeout(timeoutId);
@@ -658,10 +681,10 @@ function createV3Client(options = {}) {
       };
       window.addEventListener("message", responseHandler);
       const readyHandler = (e) => {
-        if (e.data?.type === "auth_ready") {
+        if (!popup.closed && e.origin === origin && e.source === popup && e.data?.type === "auth_ready") {
           window.removeEventListener("message", readyHandler);
           try {
-            popup.postMessage({ type: "contract", contracts }, authOrigin);
+            popup.postMessage({ type: "contract", contracts }, origin);
           } catch {
             window.removeEventListener("message", responseHandler);
             clearTimeout(timeoutId);
@@ -682,16 +705,26 @@ function createV3Client(options = {}) {
           callback({ status: "error", errors: ["No opener window — not in a popup"] });
         return;
       }
+      const opener = window.opener;
+      let origin;
+      try {
+        origin = new URL(document.referrer).origin;
+        if (origin === "null")
+          throw new Error("Opaque opener");
+      } catch {
+        callback?.({ status: "error", errors: ["No trusted opener origin"] });
+        return;
+      }
       if (callback) {
         const handler = (e) => {
-          if (e.data?.type === "contract_response") {
+          if (e.source === opener && e.origin === origin && e.data?.type === "contract_response") {
             window.removeEventListener("message", handler);
             callback(e.data);
           }
         };
         window.addEventListener("message", handler);
       }
-      window.opener.postMessage({ type: "contract", contracts }, "*");
+      opener.postMessage({ type: "contract", contracts }, origin);
     }
   };
   pingAppRegister();
