@@ -11,6 +11,14 @@ const AD_1 = {
   media_refs: undefined,
   format: 'inline' as const,
   albums: [] as string[],
+  product: {
+    target: 'product' as const,
+    name: 'The good coffee grinder',
+    price: 30,
+    commission: 10,
+    commission_is_percent: true,
+    actuals: 22,
+  },
 };
 
 const AD_2 = {
@@ -21,6 +29,14 @@ const AD_2 = {
   media_refs: undefined,
   format: 'post' as const,
   albums: [] as string[],
+  product: {
+    target: 'product' as const,
+    name: 'The studio headphones',
+    price: 149,
+    commission: 15,
+    commission_is_percent: true,
+    actuals: 88,
+  },
 };
 
 const ALBUM_1 = {
@@ -47,6 +63,12 @@ const NODE_AD_1 = {
 
 export async function readMyCatalog() {
   return { ads: [AD_1, AD_2], albums: [ALBUM_1], posts: [POST_1] };
+}
+export async function readUserAds() {
+  return { ads: [AD_1, AD_2], albums: [ALBUM_1], posts: [POST_1] };
+}
+export async function readStorefront() {
+  return [AD_1, AD_2];
 }
 export async function readNodeAds() {
   return [NODE_AD_1];

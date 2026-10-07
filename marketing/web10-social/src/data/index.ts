@@ -5,6 +5,7 @@ export * from './groups';
 export * from './posts';
 export * from './ads';
 export * from './ads-catalog';
+export * from './ad-projection';
 export * from './comments';
 export * from './reactions';
 export * from './follows';
