@@ -32,6 +32,14 @@ const basePost: FeedPost = {
 const noop = () => {};
 
 describe('TrendingCard interactions', () => {
+  it('uses the social feed engagement spacing without an extra padded wrapper', () => {
+    render(
+      <TrendingCard post={basePost} rank={5} maxScore={100} onLike={noop} onComment={noop} onRepost={noop} />,
+    );
+    expect(screen.getByTestId('discover-post-actions').parentElement).toHaveClass('flex', 'items-center');
+    expect(screen.getByTestId('discover-post-actions').parentElement).not.toHaveClass('px-1', 'py-1');
+  });
+
   it('renders the like as a display-only count (remote mode: anon can\'t like)', () => {
     const onLike = vi.fn();
     render(
@@ -359,6 +367,10 @@ describe('Trending page', () => {
     render(<MemoryRouter initialEntries={['/trending/hot-gossip' + window.location.search]}><Trending /></MemoryRouter>);
     await waitFor(() => expect(screen.getByTestId('trending-grid')).toBeInTheDocument());
     expect(screen.getAllByTestId('trending-card')).toHaveLength(20);
+    expect(screen.getByTestId('trending-grid').className).not.toMatch(/\bgap-/);
+    for (const card of screen.getAllByTestId('trending-card')) {
+      expect(card).toHaveClass('border-b');
+    }
     const sidebar = screen.getByTestId('trending-sidebar');
     expect(within(sidebar).getAllByTestId('trending-sidebar-entry')).toHaveLength(10);
   });
@@ -376,6 +388,18 @@ describe('Trending page', () => {
     expect(initialCalls).toBeGreaterThan(0);
     fireEvent.click(loadMore);
     await waitFor(() => expect(readCalls()).toBeGreaterThan(initialCalls));
+  });
+
+  it.each(['', '?q=spacing'])('loading posts use flat touching placeholders (%s)', async (query) => {
+    vi.mocked(fetch).mockReturnValue(new Promise(() => {}));
+    const { default: Trending } = await import('@/pages/Trending');
+    render(<MemoryRouter initialEntries={['/trending/hot-gossip' + query]}><Trending /></MemoryRouter>);
+    const list = await screen.findByTestId('trending-grid-skeleton');
+    expect(list.className).not.toMatch(/\bgap-/);
+    for (const skeleton of within(list).getAllByTestId('trending-skeleton')) {
+      expect(skeleton).toHaveClass('border-b', 'bg-card');
+      expect(skeleton.className).not.toMatch(/\brounded/);
+    }
   });
 
   it('renders the empty story beat when the network is quiet', async () => {
