@@ -591,7 +591,7 @@ export function DiscoverCard({
           Remote mode (marketing-ui, anon): the like is display-only (an anon
           visitor can't like) + no dislike. The comment thread mounts below the
           row, full-width (the feed's PostCard shape). */}
-      <div className="flex items-center px-1 py-1">
+      <div className="flex items-center">
         <PostActions
           postId={post.id}
           liked={liked}

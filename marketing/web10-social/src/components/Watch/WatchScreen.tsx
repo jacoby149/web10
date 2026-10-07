@@ -32,6 +32,7 @@ import {
   unfollowUser,
   saveSettings,
   mediaRefId,
+  fromResolvedMediaRef,
   type PostRecord,
   type MediaRecord,
   type ProfileRecord,
@@ -50,8 +51,19 @@ import {
   type RelatednessId,
 } from '@/lib/watchQueue';
 import { cn } from '@/lib/utils';
+import {
+  HoverVideo,
+  Avatar,
+  AvatarFallback,
+  hashToColor,
+  timeAgo,
+} from '@web10/discover';
 
 const LOG = (...args: unknown[]) => console.log('[social:watch]', ...args);
+
+// The page size for the board read (the "What's next" queue's "load more"
+// increment — the same PAGE_SIZE the Video wall + Shorts wall page at).
+const PAGE_SIZE = 50;
 
 // ── ?knobs= parsing (the same 5-detent encoding DiscoverScreen uses) ─────────
 const KNOB_KEYS: (keyof KnobState)[] = ['recency', 'likes', 'comments', 'halfLife', 'character'];
@@ -83,6 +95,61 @@ function firstVideoMedia(media: MediaRecord[]): MediaRecord | undefined {
 /** The post's lead media (video preferred, else the first) — the queue thumbnail. */
 function leadMedia(media: MediaRecord[]): MediaRecord | undefined {
   return firstVideoMedia(media) ?? media[0];
+}
+
+/**
+ * Build the synchronous inline-media map for a set of posts. The node's read
+ * path resolves every post's media inline (presigned thumbnail_url + read_url
+ * + dimensions + HLS settings on each media_ref), so the map is built without
+ * a round-trip — the wall's first paint carries the thumbnails after ONE read.
+ * Returns a post_id → MediaRecord[] map.
+ */
+function inlineMediaMap(posts: PostRecord[]): Record<string, MediaRecord[]> {
+  const inlineMap: Record<string, MediaRecord[]> = {};
+  for (const p of posts) {
+    const inline = (p.media_refs || []).filter((r): r is ResolvedMediaRef => typeof r !== 'string');
+    if (!inline.length) continue;
+    const seen = new Set<string>();
+    const records: MediaRecord[] = [];
+    for (const r of inline) {
+      const id = r.doc_id || '';
+      if (id && !seen.has(id)) {
+        seen.add(id);
+        records.push(fromResolvedMediaRef(r));
+      }
+    }
+    if (records.length) inlineMap[p._id || ''] = records;
+  }
+  return inlineMap;
+}
+
+/**
+ * The "What's next" queue: the board re-ranked for similarity to the current
+ * video (the tunable relatedness), then filtered to LANDSCAPE videos only.
+ * The "What's next" is a video queue — the Video wall is landscape-only, so
+ * the queue is too. Portrait videos are shorts (the TikTok shape) — they live
+ * in the Shorts destination, not the YouTube-shaped watch queue. The
+ * aspect-ratio split keeps the two from bleeding into each other. `mediaMap`
+ * is the board's inline-media map (the landscape/portrait signal).
+ */
+function computeQueue(
+  board: PostRecord[],
+  current: PostRecord,
+  mediaMap: Record<string, MediaRecord[]>,
+  knobState: KnobState,
+  relatedness: RelatednessId,
+): PostRecord[] {
+  const ranked = rankWatchQueue(board, current, knobState, relatedness);
+  return ranked.filter((q) => {
+    const ms = mediaMap[q._id || ''] || [];
+    const hasVideo = ms.some((m) => m.mime_type?.startsWith('video/'));
+    if (!hasVideo) return false;
+    // Exclude portrait (9:16) shorts — the queue is landscape only.
+    const isPortrait = ms.some(
+      (m) => m.mime_type?.startsWith('video/') && !!m.width && !!m.height && m.width < m.height,
+    );
+    return !isPortrait;
+  });
 }
 
 /**
@@ -133,6 +200,25 @@ async function resolvePostsMedia(posts: PostRecord[]): Promise<Record<string, Me
 }
 
 // ── The queue card (the "What's next" row — YouTube's right-rail shape) ──────
+//
+// The card is the `HomeCard` shape, YouTube-scale: a big 16:9 thumbnail that
+// fills the rail (the operator: "our whats next, it is quite small thumbnail
+// compared to youtube, we could definitely make those whats next thumbnails
+// bigger"), the title in the small display step, and the author + a relative
+// time. The thumbnail is the shared **`HoverVideo`** — the same component the
+// Video wall's `HomeCard` uses: the poster at rest, the clip playing muted on
+// hover with the speaker toggle + scrubber, the scroll-dwell analog on touch,
+// one preview at a time (the wall's module-level coordinator). The "best of
+// both worlds" the wall got in 3.219.1/3.220.0, applied to the queue: instant
+// thumbnails, and a live preview before you click.
+
+/** m:ss — the badge's shape (the same format the wall's duration badge uses). */
+function formatDurationBadge(seconds?: number): string | null {
+  if (!seconds || !Number.isFinite(seconds) || seconds <= 0) return null;
+  const m = Math.floor(seconds / 60);
+  const s = Math.round(seconds % 60);
+  return `${m}:${String(s).padStart(2, '0')}`;
+}
 
 function QueueCard({ post, media, authorName, authorAvatar, onOpen, active }: {
   post: PostRecord;
@@ -142,36 +228,75 @@ function QueueCard({ post, media, authorName, authorAvatar, onOpen, active }: {
   onOpen: () => void;
   active?: boolean;
 }) {
-  const thumb = media?.thumbnail_url || (media?.mime_type?.startsWith('video/') ? undefined : media?.url);
-  const duration = media?.duration_seconds;
+  const isVideo = media?.mime_type?.startsWith('video/');
+  const thumb = media?.thumbnail_url || (isVideo ? undefined : media?.url);
+  const total = formatDurationBadge(media?.duration_seconds);
+  const initial = authorName.charAt(0).toUpperCase() || '?';
+
+  // The hover preview's live position (the time-lapse badge). At rest the
+  // badge shows the clip's total length; while the preview plays it counts up
+  // the elapsed position (the YouTube home behavior — the badge is a live
+  // clock, not a frozen length). `HoverVideo` reports the position as it
+  // plays; the badge resets to the total when the pointer leaves.
+  const [liveCurrent, setLiveCurrent] = useState(0);
+  const [previewPlaying, setPreviewPlaying] = useState(false);
+
   return (
     <button
       type="button"
       data-testid="watch-queue-card"
       onClick={onOpen}
       className={cn(
-        'group flex w-full gap-3 rounded-lg p-2 text-left transition-colors',
+        'group flex w-full flex-col rounded-lg p-2 text-left transition-colors',
         'hover:bg-elevated focus-visible:bg-elevated focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background',
         active && 'bg-elevated/60',
       )}
     >
-      <div className="relative aspect-video w-40 shrink-0 overflow-hidden rounded-md bg-elevated">
-        {thumb ? (
+      {/* The thumbnail — a 16:9 frame that fills the rail's width (the
+          YouTube right-rail scale, up from the old fixed `w-40`). For a video
+          it is the hover preview: the poster at rest, the clip playing muted
+          on hover (the frame is inert — the button owns the click). */}
+      <div className="relative aspect-video w-full overflow-hidden rounded-md bg-elevated">
+        {thumb && isVideo && media ? (
+          <HoverVideo
+            media={media}
+            poster={thumb}
+            testId="watch-queue-hover-video"
+            onTime={(current) => setLiveCurrent(current)}
+            onPlayingChange={setPreviewPlaying}
+          />
+        ) : thumb ? (
           <img src={thumb} alt="" className="h-full w-full object-cover" loading="lazy" />
         ) : (
           <div className="flex h-full w-full items-center justify-center">
             <User className="h-5 w-5 text-muted-foreground/40" />
           </div>
         )}
-        {duration ? (
-          <span className="absolute bottom-1 right-1 rounded bg-background/80 px-1 text-[0.625rem] font-mono tabular-nums text-foreground">
-            {Math.floor(duration / 60)}:{String(Math.round(duration % 60)).padStart(2, '0')}
+        {/* The duration badge (bottom-right). At rest it shows the clip's
+            total length; while the hover preview plays it is a live
+            time-lapse — the elapsed position counting up. */}
+        {total && (
+          <span
+            data-testid="watch-queue-duration"
+            className="pointer-events-none absolute bottom-1.5 right-1.5 rounded bg-background/85 px-1.5 py-0.5 text-[0.6875rem] font-medium tabular-nums text-foreground"
+          >
+            {previewPlaying ? formatDurationBadge(liveCurrent) : total}
           </span>
-        ) : null}
+        )}
       </div>
-      <div className="flex min-w-0 flex-1 flex-col">
+      <div className="mt-2 flex min-w-0 flex-1 flex-col">
         <p className="line-clamp-2 text-sm font-medium leading-snug text-foreground">{post.title || post.text || 'Untitled'}</p>
-        <p className="mt-1 truncate text-xs text-muted-foreground">{authorName}</p>
+        <div className="mt-1.5 flex items-center gap-1.5">
+          <Avatar className={cn('h-5 w-5 shrink-0', hashToColor(authorName))}>
+            {authorAvatar ? (
+              <img src={authorAvatar} alt="" className="h-full w-full object-cover" />
+            ) : (
+              <AvatarFallback className="text-[0.625rem] font-semibold">{initial}</AvatarFallback>
+            )}
+          </Avatar>
+          <span className="min-w-0 truncate text-xs text-muted-foreground">{authorName}</span>
+          <span className="shrink-0 text-xs text-muted-foreground">· {timeAgo(post.created_at)}</span>
+        </div>
       </div>
     </button>
   );
@@ -212,6 +337,21 @@ export default function WatchScreen() {
   const [post, setPost] = useState<PostRecord | null>(null);
   const [mediaMap, setMediaMap] = useState<Record<string, MediaRecord[]>>({});
   const [queue, setQueue] = useState<PostRecord[]>([]);
+  // The board read is in flight (the queue's skeleton holds the rail until the
+  // board lands — the page itself is already painted, the queue just isn't).
+  const [queueLoaded, setQueueLoaded] = useState(false);
+  // Infinite scroll (the Shorts wall's pattern): the "What's next" queue pages
+  // the board until it's exhausted. `boardRef` is the FULL loaded board (the
+  // queue is the board re-ranked + filtered to landscape — paging appends to
+  // the board, then re-ranks the whole thing); `hasMore` keys off the board
+  // page size (a full page means there may be another); `nextOffsetRef` is the
+  // next offset to fetch (a ref so the stable `loadMore` reads the latest
+  // without a stale closure); `loadingMore` guards against double-fires.
+  const boardRef = useRef<PostRecord[]>([]);
+  const [hasMore, setHasMore] = useState(false);
+  const [loadingMore, setLoadingMore] = useState(false);
+  const nextOffsetRef = useRef(0);
+  const sentinelRef = useRef<HTMLDivElement>(null);
   const [profile, setProfile] = useState<ProfileRecord | null>(null);
   const [authorAvatarUrl, setAuthorAvatarUrl] = useState<string | undefined>(undefined);
   const [following, setFollowing] = useState(false);
@@ -235,10 +375,28 @@ export default function WatchScreen() {
   // The share button's "Copied!" state (the clipboard write).
   const [copied, setCopied] = useState(false);
 
+  // The last video whose load painted the page. A knob re-read (same postId)
+  // keeps the queue on screen (no skeleton flash per twist); a new video
+  // resets the queue to its skeleton (the rail's content is changing).
+  const loadedPostIdRef = useRef<string | null>(null);
+
   const load = useCallback(async () => {
     if (!postId) { setNotFound(true); setLoading(false); return; }
-    setLoading(true);
+    // A new load attempt always clears the not-found state (a queue video that
+    // 404'd must not poison a back-navigation to the previous valid video).
     setNotFound(false);
+    // The whole-page skeleton + the queue's skeleton only reset for a NEW
+    // video. A knob re-read (same postId) keeps the page + queue on screen
+    // (no skeleton flash per twist) and patches the ranking in place. A new
+    // video also resets the queue's paging (the board is re-read from page one).
+    const isNewVideo = loadedPostIdRef.current !== postId;
+    if (isNewVideo) {
+      setLoading(true);
+      setQueueLoaded(false);
+      boardRef.current = [];
+      nextOffsetRef.current = 0;
+      setHasMore(false);
+    }
     // Read the token inside the callback (the ShortsScreen idiom). `readToken()`
     // returns a fresh object every call — capturing it as a `useCallback` dep
     // would recreate `load` on every render and re-run the effect forever.
@@ -257,16 +415,64 @@ export default function WatchScreen() {
       //    "Unknown". It also carries the post's `title` (D82).
       const p = await readPostById(postId);
       if (!p) { setNotFound(true); setLoading(false); return; }
+
+      // ── Paint NOW — the one read is render-ready (the Video wall's model,
+      //    3.219.1) ─────────────────────────────────────────────────────────
+      // The node's read path already resolved the post's media inline
+      // (resolve_media_urls_in_docs: presigned thumbnail_url + read_url +
+      // dimensions + HLS settings on each media_ref). Building the media map
+      // from those inline refs is synchronous — the page's first paint
+      // (player + title + author row + action bar + the queue's skeletons)
+      // lands after ONE round-trip, instead of waiting on the board read +
+      // the per-author profile fan-out + a second media round-trip (the
+      // "totally gray" wall the operator flagged: the old screen held the
+      // skeleton until EVERYTHING landed). Everything else — the board, the
+      // author's face, the media fallback, the engagement tallies — lands in
+      // the background below and patches the page in.
+      //
+      // MERGE (not replace): a knob re-read (same postId) re-runs this with the
+      // same post's inline refs; replacing the map here would wipe the board's
+      // media (added by step 4 on the previous load) and flash the queue's
+      // thumbnails to empty for the window before step 4 re-adds them. Merging
+      // keeps the board's media; the post's entry is the same post's media
+      // (a new video is a new doc_id, so there is no collision).
+      const inlineMap: Record<string, MediaRecord[]> = {};
+      const inline = (p.media_refs || []).filter((r): r is ResolvedMediaRef => typeof r !== 'string');
+      if (inline.length) {
+        const seen = new Set<string>();
+        const records: MediaRecord[] = [];
+        for (const r of inline) {
+          const id = r.doc_id || '';
+          if (id && !seen.has(id)) {
+            seen.add(id);
+            records.push(fromResolvedMediaRef(r));
+          }
+        }
+        if (records.length) inlineMap[p._id || ''] = records;
+      }
+      setMediaMap((prev) => ({ ...prev, ...inlineMap }));
       setPost(p);
+      loadedPostIdRef.current = postId;
+      setLoading(false);
 
       // 2. The board (the "What's next" source) — the same read the Video wall
-      //    runs, with the ?knobs= ranking. Re-ranked client-side by relatedness.
+      //    runs, with the ?knobs= ranking. Re-ranked client-side by
+      //    relatedness. Lands in the background: the queue's skeleton holds
+      //    the rail until it arrives (the thumbnails are inline on the board
+      //    read, so the queue paints with them in one patch). PAGE ONE (the
+      //    queue pages the board via `loadMore`, the Shorts wall's pattern).
       const sortConfig: PowerMeanSortConfig | null = knobStateToSort(knobState);
-      const board = await readDiscoverFeed(sortConfig, 50);
+      const board = await readDiscoverFeed(sortConfig, PAGE_SIZE, undefined, 0);
+      // The board page size (before the landscape filter) — the paging signal.
+      // A full page (>= PAGE_SIZE) means there may be another.
+      setHasMore(board.length >= PAGE_SIZE);
+      nextOffsetRef.current = PAGE_SIZE;
 
-      // 3. The author's face (the row's display name + avatar). The profile read
-      //    gives the display name; the avatar is resolved from the profile's
-      //    avatar_ref (the profile's own media — a separate presign, best-effort).
+      // 3. The author's face (the row's display name + avatar). The profile
+      //    read gives the display name; the avatar is resolved from the
+      //    profile's avatar_ref (the profile's own media — a separate
+      //    presign, best-effort). Lands in the background: the row falls
+      //    back to the author_key username until it arrives.
       const author = p.author_username || '';
       let profile: ProfileRecord | null = null;
       if (author) {
@@ -283,32 +489,46 @@ export default function WatchScreen() {
         }
       }
 
-      // 4. Resolve media for the current post + the board (batched by author —
-      //    one presign round-trip per author).
-      const media = await resolvePostsMedia([p, ...board]);
-      setMediaMap(media);
+      // 4. The board's media — inline on the board read (the node's read path
+      //    resolves every post's media inline, same as the post read). Building
+      //    the map from those inline refs is synchronous, so the queue paints
+      //    with its thumbnails the moment the board lands — no second media
+      //    round-trip holding the rail.
+      const boardInline = inlineMediaMap(board);
+      setMediaMap((prev) => ({ ...prev, ...boardInline }));
 
-      // 5. The queue: the board re-ranked for similarity to the current video.
-      //    Landscape videos only (the "What's next" is a video queue — the
-      //    Video wall is landscape-only, so the queue is too). Portrait videos
-      //    are shorts (the TikTok shape) — they live in the Shorts destination,
-      //    not the YouTube-shaped watch queue. The aspect-ratio split keeps the
-      //    two from bleeding into each other.
-      const ranked = rankWatchQueue(board, p, knobState, relatedness);
-      const videoQueue = ranked.filter((q) => {
-        const ms = media[q._id || ''] || [];
-        const hasVideo = ms.some((m) => m.mime_type?.startsWith('video/'));
-        if (!hasVideo) return false;
-        // Exclude portrait (9:16) shorts — the queue is landscape only.
-        const isPortrait = ms.some(
-          (m) => m.mime_type?.startsWith('video/') && !!m.width && !!m.height && m.width < m.height,
-        );
-        return !isPortrait;
-      });
+      // 5. The queue: the board re-ranked for similarity to the current video,
+      //    landscape-only (the "What's next" is a video queue — the Video wall
+      //    is landscape-only, so the queue is too; portrait shorts live in the
+      //    Shorts destination). The board is kept in `boardRef` so `loadMore`
+      //    can append the next page and re-rank the WHOLE board (the queue is a
+      //    re-rank, not a filter — a new page can re-order the queue).
+      boardRef.current = board;
+      const videoQueue = computeQueue(board, p, boardInline, knobState, relatedness);
       setQueue(videoQueue);
+      setQueueLoaded(true);
+
+      // 5b. Fallback media: only for board posts whose refs are bare doc_id
+      //     strings (write-path reads) — the API read path's refs are already
+      //     inline objects and never need it. Lands in the background; the
+      //     queue's thumbnails patch in when it resolves.
+      void (async () => {
+        const withStrings = board.filter((b) =>
+          (b.media_refs || []).some((r) => typeof r === 'string'),
+        );
+        if (!withStrings.length || !token) return;
+        try {
+          const mMap = await resolvePostsMedia(withStrings);
+          if (Object.keys(mMap).length) setMediaMap((prev) => ({ ...prev, ...mMap }));
+        } catch (e) {
+          LOG('background board media — failed (degrading to inline):', e);
+        }
+      })();
 
       // 6. Engagement for the current post (the ref pattern — count the
       //    reactions + comments over the discover group, scoped to this post).
+      //    Lands in the background: the stats row + action bar paint with
+      //    zero counts and patch in when the tallies arrive.
       try {
         const [reactionDocs, commentDocs, repostCounts, myReposts] = await Promise.all([
           w.read('reactions', { groups: [discoverId], limit: 500 }),
@@ -350,6 +570,58 @@ export default function WatchScreen() {
   }, [postId, knobsKey, relatedness]);
 
   useEffect(() => { void load(); }, [load]);
+
+  // ── Infinite scroll: the "What's next" queue pages the board ───────────────
+  // Append the next board page (the sentinel's IntersectionObserver fires this).
+  // A full page means there may be another; a short page is the last one. The
+  // page's posts are APPENDED to `boardRef` (deduped by id — offset paging can
+  // surface a post twice if the board shifts between page reads), then the
+  // WHOLE board is re-ranked (the queue is a re-rank, not a filter — a new page
+  // can re-order the queue). The page's inline media is merged into the map so
+  // the new cards' thumbnails paint.
+  const loadMore = useCallback(async () => {
+    if (loadingMore || !hasMore || !post) return;
+    setLoadingMore(true);
+    try {
+      const knobState = parseWatchKnobs(knobsKey || null);
+      const sortConfig: PowerMeanSortConfig | null = knobStateToSort(knobState);
+      const page = await readDiscoverFeed(sortConfig, PAGE_SIZE, undefined, nextOffsetRef.current);
+      LOG('loadMore — got', page.length, 'more board posts');
+      // Advance by the BOARD page size (not the filtered count) — the queue
+      // filters to landscape videos, so advancing by page.length would re-read
+      // posts. A full board page (hasMore true) is exactly PAGE_SIZE.
+      nextOffsetRef.current += PAGE_SIZE;
+      setHasMore(page.length >= PAGE_SIZE);
+      // Append (deduped by id) to the board, then re-rank the whole board.
+      const seen = new Set(boardRef.current.map((b) => b._id).filter(Boolean));
+      boardRef.current = [...boardRef.current, ...page.filter((b) => !b._id || !seen.has(b._id))];
+      const pageInline = inlineMediaMap(page);
+      if (Object.keys(pageInline).length) setMediaMap((prev) => ({ ...prev, ...pageInline }));
+      const allInline = inlineMediaMap(boardRef.current);
+      setQueue(computeQueue(boardRef.current, post, allInline, knobState, relatedness));
+    } catch (e) {
+      LOG('loadMore — failed:', e);
+    } finally {
+      setLoadingMore(false);
+    }
+  }, [loadingMore, hasMore, post, knobsKey, relatedness]);
+
+  // Infinite scroll: a sentinel at the bottom of the queue triggers loadMore
+  // when it scrolls into view (rootMargin prefetches a page early). Only active
+  // once the queue has painted (queueLoaded) and there's another page.
+  useEffect(() => {
+    if (!queueLoaded || !hasMore) return;
+    const sentinel = sentinelRef.current;
+    if (!sentinel) return;
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries[0].isIntersecting) loadMore();
+      },
+      { rootMargin: '200px' },
+    );
+    observer.observe(sentinel);
+    return () => observer.disconnect();
+  }, [queueLoaded, hasMore, loadMore, queue.length]);
 
   // ── ?t= write-back (throttled, replace — no history flood) ─────────────────
   const lastTWrite = useRef(0);
@@ -636,7 +908,21 @@ export default function WatchScreen() {
           ))}
         </div>
 
-        {queue.length > 0 ? (
+        {!queueLoaded ? (
+          // The board read is in flight — the rail holds a skeleton (the page
+          // itself is already painted; only the queue is loading). The
+          // skeleton's shape matches the queue card (a 16:9 frame + two text
+          // lines) so the rail doesn't shift when the cards land.
+          <div className="space-y-2" data-testid="watch-queue-skeleton">
+            {Array.from({ length: 5 }).map((_, i) => (
+              <div key={i} className="rounded-lg p-2">
+                <Skeleton className="aspect-video w-full rounded-md" />
+                <Skeleton className="mt-2 h-4 w-4/5" />
+                <Skeleton className="mt-1.5 h-3 w-2/5" />
+              </div>
+            ))}
+          </div>
+        ) : queue.length > 0 ? (
           <div className="space-y-1" data-testid="watch-queue">
             {queue.map((q) => {
               const qMedia = leadMedia(mediaMap[q._id || ''] || []);
@@ -653,6 +939,23 @@ export default function WatchScreen() {
                 />
               );
             })}
+            {/* Infinite scroll sentinel — triggers loadMore when it scrolls into
+                view (the Shorts wall's pattern). Only present when there's
+                another board page to load. */}
+            {hasMore && (
+              <div
+                ref={sentinelRef}
+                data-testid="watch-queue-sentinel"
+                className="flex items-center justify-center py-4"
+              >
+                {loadingMore && (
+                  <div className="flex flex-col items-center gap-2">
+                    <div className="h-5 w-5 border-2 border-brand border-t-transparent rounded-full animate-spin" />
+                    <p className="text-xs text-muted-foreground">Loading more…</p>
+                  </div>
+                )}
+              </div>
+            )}
           </div>
         ) : (
           <p className="rounded-lg border border-border bg-surface px-4 py-6 text-center text-sm text-muted-foreground" data-testid="watch-queue-empty">

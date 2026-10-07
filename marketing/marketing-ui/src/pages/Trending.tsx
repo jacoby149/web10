@@ -686,7 +686,7 @@ function Trending() {
               searchLoading ? (
                 <div
                   data-testid="trending-grid-skeleton"
-                  className="mx-auto grid w-full max-w-2xl grid-cols-1 gap-4"
+                  className="mx-auto grid w-full max-w-2xl grid-cols-1"
                 >
                   <TrendingSkeleton featured />
                   {Array.from({ length: 5 }).map((_, i) => (
@@ -731,7 +731,7 @@ function Trending() {
                       </p>
                       <div
                         data-testid="trending-grid"
-                        className="mx-auto grid w-full max-w-2xl grid-cols-1 gap-4"
+                        className="mx-auto grid w-full max-w-2xl grid-cols-1"
                       >
                         {visibleSearchResults.map(post => (
                           <TrendingCard
@@ -776,10 +776,14 @@ function Trending() {
             ) : isInitialLoad ? (
               <div
                 data-testid="trending-grid-skeleton"
-                className={`grid w-full gap-x-4 gap-y-6 ${dest === 'shorts' ? 'grid-cols-2 sm:grid-cols-3 lg:grid-cols-4' : 'grid-cols-1 sm:grid-cols-2 lg:grid-cols-3'}`}
+                className={dest === 'hot-gossip'
+                  ? 'mx-auto grid w-full max-w-2xl grid-cols-1'
+                  : `grid w-full gap-x-4 gap-y-6 ${dest === 'shorts' ? 'grid-cols-2 sm:grid-cols-3 lg:grid-cols-4' : 'grid-cols-1 sm:grid-cols-2 lg:grid-cols-3'}`}
               >
                 {Array.from({ length: 8 }).map((_, i) => (
-                  <YouTubeSkeleton key={i} portrait={dest === 'shorts'} />
+                  dest === 'hot-gossip'
+                    ? <TrendingSkeleton key={i} />
+                    : <YouTubeSkeleton key={i} portrait={dest === 'shorts'} />
                 ))}
               </div>
             ) : dest === 'video' ? (
@@ -902,7 +906,7 @@ function Trending() {
               <>
                 <div
                   data-testid="trending-grid"
-                  className="mx-auto grid w-full max-w-2xl grid-cols-1 gap-4"
+                  className="mx-auto grid w-full max-w-2xl grid-cols-1"
                 >
                   {visible.map(post => (
                     <TrendingCard
@@ -921,7 +925,7 @@ function Trending() {
                   ))}
                 </div>
                 {loadingMore && (
-                  <div className="mx-auto mt-4 grid w-full max-w-2xl grid-cols-1 gap-4">
+                  <div data-testid="trending-append-skeleton" className="mx-auto grid w-full max-w-2xl grid-cols-1">
                     {Array.from({ length: 3 }).map((_, i) => (
                       <TrendingSkeleton key={`more-${i}`} />
                     ))}
