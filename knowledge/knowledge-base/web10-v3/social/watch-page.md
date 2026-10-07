@@ -45,6 +45,30 @@ The consequence the operator asked for: **a watch link gets you back to the watc
 
 **The `?t=` write-back:** the player's `timeupdate` (throttled) writes `?t=` via `setSearchParams({ replace: true })` so the address bar tracks the position without flooding the history. On load, the player seeks to `?t=` once metadata is ready. This is the only "state" the page holds, and it lives in the URL, not in a ref.
 
+## The loading model — the page paints on the ONE read (no "totally gray")
+
+The watch page is the one destination that used to show the "totally gray" wall the Video wall (3.219.1) and the Shorts wall (3.220.0) had already fixed: `load` held the whole-screen skeleton until EVERYTHING landed — the post read, the board read, a serial per-author profile fan-out, a second media round-trip, and the engagement read. The operator (06.10.2026, an all-grey watch-page screenshot): "when you click and get into the videos tab, it being totally gray like this, it works well for the posts tab when it is loading, but videos tab, pulls you out of it… loading the likes the comments those things i feel like there are things that could load first."
+
+**The model (the Video wall's one-read paint, applied to the watch page):** the node's `/v3/read` already returns `media_refs` **pre-resolved** (presigned `thumbnail_url` + `read_url` + dimensions + HLS settings on each ref object — `documents.py:205` for the single-doc read, `:281` for the board read). So the page's first paint never needs a second media round-trip:
+
+- **The page paints after ONE read.** The post's media map is built synchronously from the inline resolved refs; `setPost` + `setLoading(false)` fire right after the post read. The player (the video's media is inline), the title, the author row, the action bar, and the stats row are all up after one round-trip.
+- **Everything else lands in the background** and patches the page in: the board read (the "What's next" source), the author's face (the row falls back to the `author_key` username until it lands), the board's media (inline on the board read — the queue's thumbnails need no second round-trip), the engagement tallies (the stats row + action bar paint with zero counts and patch in), and the following state.
+- **The queue holds a skeleton** (its designed loading state — a 16:9 frame + two text lines per slot, so the rail doesn't shift when the cards land) until the board read arrives. A knob re-read (same `postId`) keeps the queue on screen (no skeleton flash per twist); a new video resets it.
+
+The "totally gray" is gone: the page is up after one read, and the things that "could load first" (the video, the title, the author, the actions) do.
+
+## The "What's next" queue card — the `HomeCard` shape, YouTube-scale, hover-preview
+
+The operator (06.10.2026): "cool if this has the same best of both worlds behavior too :) on the hover of the videos" + "not just dead thumbnails, for the whats next" + "our whats next, it is quite small thumbnail compared to youtube, we could definitely make those whats next thumbnails bigger."
+
+The queue card is the `HomeCard` shape (the Video wall's card), YouTube-scale:
+
+- **The thumbnail is a full-width 16:9 frame** (up from the old fixed `w-40` — "quite small thumbnail compared to youtube"). The card is vertical: the 16:9 frame on top, the title in the small step, and the author + a relative time below (the `HomeCard` attribution — the `Avatar` + `hashToColor` + `timeAgo` idiom).
+- **The thumbnail is the shared `HoverVideo`** — the exact component the Video wall's `HomeCard` uses (3.219.1/3.220.0): the poster at rest, the clip **playing muted on hover** (desktop) / on a **scroll-dwell** (touch), the top-right speaker toggle + bottom scrubber, and **at most one card playing at a time** (the module-level coordinator). The "best of both worlds" the walls got, applied to the queue: instant thumbnails, and a live preview before you click.
+- **The duration badge is the wall's time-lapse** (the total at rest, the elapsed position counting up while the preview plays). The source follows the same transcoded-HLS rule (`sourceFromMedia`); a failed attach degrades to the poster (the card stays a working link).
+
+The card is still a link to `/watch/:nextPostId?from=discover&knobs=…` (a new history entry, so back steps through the queue the way YouTube does). The frame is inert — the card's button owns the click (hover plays, click navigates).
+
 ## The layout
 
 ### Desktop (the YouTube watch shape)

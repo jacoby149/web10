@@ -377,4 +377,128 @@ describe('WatchScreen (the watch page)', () => {
     // render, which would be dozens of times in this window.
     expect(boardReads).toBeLessThanOrEqual(3);
   });
+
+  it('paints the page on the ONE read — the player + title + author row land before the board read resolves (the queue holds its skeleton)', async () => {
+    // Regression: the old screen held the whole-page skeleton until EVERYTHING
+    // landed (the post read + the board read + the profile fan-out + a second
+    // media round-trip) — the "totally gray" wall the operator flagged. The
+    // page must paint after the ONE post read; the queue's skeleton holds the
+    // rail until the board lands.
+    let releaseBoard: () => void = () => {};
+    const boardGate = new Promise<void>((r) => { releaseBoard = r; });
+    (data.readDiscoverFeed as ReturnType<typeof vi.fn>).mockImplementation(async () => {
+      await boardGate;
+      return BOARD.map((b) => ({
+        _id: b.doc_id,
+        text: b.body.text,
+        created_at: b.created_at,
+        tags: b.tags,
+        author_username: b.body.author_username,
+        author_provider: b.body.author_provider,
+        media_refs: b.body.media_refs,
+        likes: 0,
+        comments: 0,
+        reposts: 0,
+      }));
+    });
+
+    await renderWatch();
+    // The post read resolves (the board is still gated) — the page paints:
+    // the player (the video's media is inline on the post read), the title,
+    // the author row, the action bar — and the queue's skeleton holds the rail.
+    await waitFor(() => expect(screen.getByTestId('watch-player')).toBeInTheDocument());
+    expect(screen.getByTestId('watch-title')).toHaveTextContent('Free soloing the north face');
+    expect(screen.getByTestId('watch-author-row')).toBeInTheDocument();
+    expect(screen.getByTestId('watch-actions')).toBeInTheDocument();
+    // The queue is still loading (the board is gated) — the skeleton, not the
+    // cards and not the empty state.
+    expect(screen.getByTestId('watch-queue-skeleton')).toBeInTheDocument();
+    expect(screen.queryByTestId('watch-queue')).not.toBeInTheDocument();
+    expect(screen.queryByTestId('watch-queue-empty')).not.toBeInTheDocument();
+
+    // The board lands — the queue paints with its cards (thumbnails inline on
+    // the board read, so no second media round-trip holds the rail).
+    releaseBoard();
+    await waitFor(() => expect(screen.getByTestId('watch-queue')).toBeInTheDocument());
+    expect(screen.getAllByTestId('watch-queue-card')).toHaveLength(2);
+    expect(screen.queryByTestId('watch-queue-skeleton')).not.toBeInTheDocument();
+  });
+
+  it('the "What\'s next" queue card is the hover-preview shape (HoverVideo) with a full-width 16:9 thumbnail', async () => {
+    // The operator: "cool if this has the same best of both worlds behavior
+    // too :) on the hover of the videos" + "not just dead thumbnails" + "our
+    // whats next, it is quite small thumbnail compared to youtube, we could
+    // definitely make those whats next thumbnails bigger." The queue card's
+    // thumbnail is the shared HoverVideo (poster at rest, muted preview on
+    // hover) in a full-width 16:9 frame (up from the old fixed w-40).
+    await renderWatch();
+    await waitFor(() => expect(screen.getByTestId('watch-queue')).toBeInTheDocument());
+    const cards = screen.getAllByTestId('watch-queue-card');
+    expect(cards).toHaveLength(2);
+    // Each card's thumbnail is the hover preview (the Video wall's component).
+    for (const card of cards) {
+      const hover = card.querySelector('[data-testid="watch-queue-hover-video"]');
+      expect(hover).not.toBeNull();
+      // The thumbnail frame is full-width 16:9 (the YouTube right-rail scale).
+      const frame = hover!.parentElement!;
+      expect(frame.className).toContain('aspect-video');
+      expect(frame.className).toContain('w-full');
+      expect(frame.className).not.toContain('w-40');
+      // The duration badge is present (the video's length).
+      expect(card.querySelector('[data-testid="watch-queue-duration"]')).not.toBeNull();
+    }
+  });
+
+  it('infinite scroll: the "What\'s next" queue pages the board (the sentinel loads the next page and re-ranks the whole board)', async () => {
+    // The operator: "if paging here, lets page on all surfaces … videos tab
+    // when clicked in isnt paging on whats next stuff." The queue is the board
+    // re-ranked + filtered to landscape — paging appends the next board page,
+    // then re-ranks the WHOLE board (a new page can re-order the queue).
+    // A landscape board post (the queue keeps these).
+    const landscapePost = (i: number) => ({
+      _id: `board-${i}`,
+      text: `board video ${i}`,
+      created_at: at(10 + i),
+      tags: ['climbing'],
+      author_username: 'kai',
+      author_provider: 'web10',
+      media_refs: [{ doc_id: `m-board-${i}`, mime_type: 'video/mp4', read_url: `https://cdn/v/b${i}.mp4`, width: 1280, height: 720, duration_seconds: 60, thumbnail_url: `https://cdn/t/b${i}.jpg` }],
+      likes: 0,
+      comments: 0,
+      reposts: 0,
+    });
+    // Page 1: a FULL board page (50 posts → hasMore true). Page 2: a short
+    // page (2 posts → hasMore false, the last one).
+    const page1 = Array.from({ length: 50 }, (_, i) => landscapePost(i));
+    const page2 = [landscapePost(100), landscapePost(101)];
+    (data.readDiscoverFeed as ReturnType<typeof vi.fn>).mockImplementation(
+      async (_sort: unknown, _limit: number, _tags: unknown, offset: number) => (offset === 0 ? page1 : page2),
+    );
+
+    await renderWatch();
+    // Page 1 lands — the queue has all 50 board posts (the current post isn't
+    // on the board, so nothing is excluded).
+    await waitFor(() => expect(screen.getAllByTestId('watch-queue-card')).toHaveLength(50));
+    // The sentinel is present (hasMore true — a full board page).
+    expect(screen.getByTestId('watch-queue-sentinel')).toBeInTheDocument();
+
+    // The sentinel is visible → the observer fires → loadMore appends page 2
+    // (offset 50) and re-ranks the whole board.
+    (globalThis as unknown as Record<string, () => void>).fireIntersectionObservers();
+    await waitFor(() => expect(screen.getAllByTestId('watch-queue-card')).toHaveLength(52));
+    // The second page was fetched with the next board offset (PAGE_SIZE = 50).
+    expect(data.readDiscoverFeed).toHaveBeenLastCalledWith(expect.anything(), 50, undefined, 50);
+    // hasMore is now false (page 2 was short) → the sentinel is gone (the board
+    // is exhausted).
+    expect(screen.queryByTestId('watch-queue-sentinel')).toBeNull();
+  });
+
+  it('no queue sentinel when the first board page is the last (hasMore false)', async () => {
+    // The board's first page is short (2 posts < 50) → hasMore false → no
+    // sentinel, no "load more" (the board is exhausted on page one).
+    await renderWatch();
+    await waitFor(() => expect(screen.getByTestId('watch-queue')).toBeInTheDocument());
+    expect(screen.getAllByTestId('watch-queue-card')).toHaveLength(2);
+    expect(screen.queryByTestId('watch-queue-sentinel')).toBeNull();
+  });
 });
