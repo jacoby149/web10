@@ -310,11 +310,20 @@ export function PostActions({
   // Each is hidden when 0. Numbers are compact (12.4k) via formatCount for
   // polish. This is the SAME object the creator dashboard reads — one source
   // of truth (the content_events delivery).
+  //
+  // Spacing: the like/comment/repost are buttons with horizontal padding (for
+  // the hover background); the views are display-only spans, so they carry the
+  // SAME horizontal padding to be equal-width flex children. That keeps the
+  // parent gap uniform across every metric (no tighter gap between the two
+  // view numbers than between the other number→icon pairs).
+  const viewBase = compact
+    ? 'flex items-center gap-1.5 px-2 py-1.5 rounded-md text-xs'
+    : 'flex items-center gap-1.5 px-2.5 py-2 rounded-lg min-h-10 text-sm';
   const viewsDisplay = (
     <>
       {impressions > 0 && (
         <span
-          className="flex items-center gap-1.5 text-muted-foreground"
+          className={cn(viewBase, 'text-muted-foreground')}
           aria-label={`${formatCount(impressions)} impressions`}
           data-testid="post-actions-impressions"
         >
@@ -324,7 +333,7 @@ export function PostActions({
       )}
       {reach > 0 && (
         <span
-          className="flex items-center gap-1.5 text-muted-foreground"
+          className={cn(viewBase, 'text-muted-foreground')}
           aria-label={`${formatCount(reach)} people reached`}
           data-testid="post-actions-reach"
         >
@@ -375,10 +384,10 @@ export function PostActions({
 
   const rowClass =
     layout === 'compact'
-      ? 'flex items-center gap-1 px-3 py-1.5'
+      ? 'flex items-center justify-end gap-1 px-3 py-1.5'
       : layout === 'row'
-        ? 'flex items-center gap-1 px-2 py-2'
-        : 'flex items-center gap-6 border-t border-border px-4 pt-3 pb-3';
+        ? 'flex items-center justify-end gap-1 px-2 py-2'
+        : 'flex items-center justify-end gap-6 border-t border-border px-4 pt-3 pb-3';
 
   return (
     <div data-testid={testId}>
