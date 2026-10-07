@@ -12,6 +12,7 @@ import {
   readMyPosts,
   resolveMediaRefs,
   uploadMedia,
+  refreshMediaUrls,
   countStagingPosts,
   followUser,
   unfollowUser,
@@ -615,6 +616,14 @@ export default function UserProfileScreen({ username, provider, onBack }: UserPr
       console.log('[social] handleFaceCrop — uploading crop for', field, result.width, 'x', result.height, result.blob.size, 'bytes');
       const media = await uploadMedia({ file, service: 'public_media', width: result.width, height: result.height });
       console.log('[social] handleFaceCrop — uploaded, media _id:', media._id);
+      // The crop ships as a NEW media doc — patch the mediaMap with its fresh
+      // presigned URL so the face renders immediately (the profile points at
+      // this doc; without the map entry the avatar/banner would fall back to
+      // the letter/gradient until a reload).
+      if (media._id) {
+        const [presigned] = await refreshMediaUrls([media]);
+        setMediaMap((prev) => ({ ...prev, [media._id!]: presigned }));
+      }
       const updated = { ...(profile || {}), [field === 'avatar' ? 'avatar_ref' : 'banner_ref']: media._id || '' };
       const saved = await saveProfile(updated);
       setProfile(saved);
@@ -642,6 +651,14 @@ export default function UserProfileScreen({ username, provider, onBack }: UserPr
       console.log('[social] handleFaceUploadCrop — uploading crop for', field, result.width, 'x', result.height, result.blob.size, 'bytes', 'postOnBehalf:', opts.postOnBehalf);
       const media = await uploadMedia({ file, service: 'public_media', width: result.width, height: result.height });
       console.log('[social] handleFaceUploadCrop — uploaded, media _id:', media._id);
+      // The crop ships as a NEW media doc — patch the mediaMap with its fresh
+      // presigned URL so the face renders immediately (the profile points at
+      // this doc; without the map entry the avatar/banner would fall back to
+      // the letter/gradient until a reload).
+      if (media._id) {
+        const [presigned] = await refreshMediaUrls([media]);
+        setMediaMap((prev) => ({ ...prev, [media._id!]: presigned }));
+      }
       const updated = { ...(profile || {}), [field === 'avatar' ? 'avatar_ref' : 'banner_ref']: media._id || '' };
       const saved = await saveProfile(updated);
       setProfile(saved);
