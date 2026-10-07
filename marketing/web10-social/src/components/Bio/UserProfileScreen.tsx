@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -12,7 +12,6 @@ import {
   readMyPosts,
   resolveMediaRefs,
   uploadMedia,
-  refreshMediaUrls,
   countStagingPosts,
   followUser,
   unfollowUser,
@@ -29,7 +28,7 @@ import { getWapi } from '@/data/wapi';
 import type { ProfileRecord, PostRecord, MediaRecord, FollowRecord } from '@/data/types';
 import type { CollectionRecord } from '@/data/saved';
 import { mediaRefId, fromResolvedMediaRef } from '@/data/types';
-import { MapPin, Globe, Link, Users, UserPlus, UserCheck, Loader2, ArrowLeft, MessageSquare, Play, Camera, Edit3, Check, X, ImagePlus, AlertTriangle, Inbox, LayoutGrid, Clapperboard, User, Bookmark } from 'lucide-react';
+import { MapPin, Globe, Link, Users, UserPlus, UserCheck, Loader2, ArrowLeft, MessageSquare, Play, Camera, Edit3, Check, X, ImagePlus, Inbox, LayoutGrid, Clapperboard, User, Bookmark } from 'lucide-react';
 import { PostLightbox } from './PostLightbox';
 import { ProfileFeed } from './ProfileFeed';
 import { PostBodyInline } from '@/components/Feed/PostBody';
@@ -267,8 +266,6 @@ export default function UserProfileScreen({ username, provider, onBack }: UserPr
   // Owner-edit state
   const [editing, setEditing] = useState(false);
   const [saving, setSaving] = useState(false);
-  const [uploading, setUploading] = useState(false);
-  const [uploadError, setUploadError] = useState<string | null>(null);
   const [draft, setDraft] = useState<Partial<ProfileRecord>>({});
   const [stagingCount, setStagingCount] = useState<number>(0);
   // Saved collections (D88) — the playlists on the profile's Saved tab.
@@ -277,11 +274,6 @@ export default function UserProfileScreen({ username, provider, onBack }: UserPr
   // by-user read returns only membership_visibility='public' groups, so a
   // private collection never surfaces). null = not loaded (the tab is absent).
   const [collections, setCollections] = useState<CollectionRecord[] | null>(null);
-  // The file input is PERSISTENT in the DOM (not created on click) so the
-  // upload seam is drivable from e2e (setInputFiles) — a createElement-on-
-  // click input is unreachable from Playwright.
-  const fileInputRef = useRef<HTMLInputElement>(null);
-  const pendingFieldRef = useRef<'avatar_ref' | 'banner_ref' | null>(null);
   const navigate = useNavigate();
   // Deep-link: the active tab from ?tab= (refresh-safe, shareable) — the
   // address bar holds the screen state (the deep-link rule).
@@ -577,43 +569,6 @@ export default function UserProfileScreen({ username, provider, onBack }: UserPr
     }
   }
 
-  function startUpload(field: 'avatar_ref' | 'banner_ref') {
-    pendingFieldRef.current = field;
-    fileInputRef.current?.click();
-  }
-
-  async function handleFileChange(e: React.ChangeEvent<HTMLInputElement>) {
-    const file = e.target.files?.[0];
-    // Reset so the same file can be re-selected on a second upload
-    e.target.value = '';
-    const field = pendingFieldRef.current;
-    pendingFieldRef.current = null;
-    if (!file || !field) return;
-    console.log('[social] handleFileChange — uploading', file.name, file.type, file.size, 'for', field);
-    setUploadError(null);
-    setUploading(true);
-    try {
-      const media = await uploadMedia({ file, service: 'public_media' });
-      console.log('[social] handleFileChange — uploaded, media _id:', media._id, 'object_key:', media.object_key);
-      if (media._id) {
-        const [presigned] = await refreshMediaUrls([media]);
-        setMediaMap((prev) => ({ ...prev, [media._id!]: presigned }));
-      }
-      const updated = { ...(profile || {}), [field]: media._id || '' };
-      setDraft(updated);
-      const saved = await saveProfile(updated);
-      setProfile(saved);
-      console.log('[social] handleFileChange — profile saved, profile _id:', saved._id);
-    } catch (err) {
-      console.error('Failed to upload image:', err);
-      setUploadError(
-        err instanceof Error ? err.message : 'Upload failed. Please try again.',
-      );
-    } finally {
-      setUploading(false);
-    }
-  }
-
   // The owner's pick-from-your-posts source (the Facebook-like "your profile
   // picture is a post you selected"): every resolved media ref across the
   // owner's own posts. The ref is the resolved object — it carries the url the
@@ -719,15 +674,6 @@ export default function UserProfileScreen({ username, provider, onBack }: UserPr
 
   return (
     <div className="w-full">
-      {/* Persistent file input — the avatar/banner upload seam (e2e: setInputFiles) */}
-      <input
-        ref={fileInputRef}
-        type="file"
-        accept="image/*"
-        data-testid="profile-file-input"
-        className="hidden"
-        onChange={handleFileChange}
-      />
       {/* Back button (mobile) */}
       {onBack && (
         <div className="md:hidden px-3 py-2 border-b border-border">
@@ -770,8 +716,7 @@ export default function UserProfileScreen({ username, provider, onBack }: UserPr
         )}
         {isOwnProfile && (
           <button
-            onClick={(e) => { e.stopPropagation(); startUpload('banner_ref'); }}
-            disabled={uploading}
+            onClick={(e) => { e.stopPropagation(); setFaceLightbox('banner'); }}
             aria-label="Change banner"
             data-testid="edit-banner-button"
             className="absolute bottom-2 right-2 flex items-center gap-1.5 px-2.5 h-9 rounded-lg bg-background/70 border border-border text-xs text-foreground opacity-0 group-hover:opacity-100 focus-visible:opacity-100 transition-opacity backdrop-blur-sm hover:border-brand/30 hover:bg-background/90"
@@ -821,14 +766,9 @@ export default function UserProfileScreen({ username, provider, onBack }: UserPr
                 className="absolute bottom-0 right-0 flex items-center justify-center h-7 w-7 rounded-full bg-background border border-border shadow-md opacity-0 group-hover:opacity-100 focus-visible:opacity-100 transition-opacity hover:border-brand/30"
                 aria-label="Change avatar"
                 data-testid="edit-avatar-button"
-                disabled={uploading}
-                onClick={(e) => { e.stopPropagation(); startUpload('avatar_ref'); }}
+                onClick={(e) => { e.stopPropagation(); setFaceLightbox('avatar'); }}
               >
-                {uploading ? (
-                  <Loader2 className="w-3.5 h-3.5 text-foreground animate-spin" />
-                ) : (
-                  <Camera className="w-3.5 h-3.5 text-foreground" />
-                )}
+                <Camera className="w-3.5 h-3.5 text-foreground" />
               </button>
             )}
           </div>
@@ -1021,17 +961,6 @@ export default function UserProfileScreen({ username, provider, onBack }: UserPr
                 </div>
               )}
             </div>
-
-            {uploadError && (
-              <div
-                className="mt-3 flex items-center gap-2 text-sm text-danger"
-                role="alert"
-                data-testid="profile-upload-error"
-              >
-                <AlertTriangle className="w-4 h-4 shrink-0" />
-                {uploadError}
-              </div>
-            )}
 
             {/* Staging entry point — only shown to owner when N > 0 */}
             {isOwnProfile && stagingCount > 0 && (
