@@ -262,7 +262,7 @@ export async function readPosts(
  * + communities + DMs + app-storage groups). Reading the feed groups here was
  * the "my profile shows everybody's posts" bug.
  */
-export async function readMyPosts(opts?: { limit?: number }): Promise<PostRecord[]> {
+export async function readMyPosts(opts?: { limit?: number; offset?: number }): Promise<PostRecord[]> {
   const w = getV3Client();
   const token = w.readToken();
   if (!token) return [];
@@ -327,6 +327,7 @@ export async function readUserPublicProfile(
   username: string,
   provider?: string,
   limit = 50,
+  offset = 0,
 ): Promise<{ posts: PostRecord[]; avatarUrl?: string; bannerUrl?: string }> {
   const w = getV3Client();
   const groups = [followersGroupId(username, provider), getDiscoverGroupId()];
@@ -335,12 +336,14 @@ export async function readUserPublicProfile(
   const escaped = username.replace(/'/g, "''");
   // The posts, author-filtered, scoped to [followers, discover]. The prepare
   // pass mints the rows (media + HLS + ads) — the feed's render-ready shape.
+  // `offset` pages the wall (the profile's infinite scroll — the same pattern
+  // the Video wall got in 3.222.0); 0 is the first page (the default).
   const postsSql =
     'SELECT p.doc_id AS doc_id, p.author_key AS author_key, p.body AS body, p.tags AS tags, ' +
     'p.created_at AS created_at, p.ref_value AS ref_value, p.ad_mode AS ad_mode, p.ad_target AS ad_target ' +
     `FROM posts p WHERE p.author_key = '${escaped}' ` +
     'ORDER BY toUnixTimestamp64Milli(p.created_at) DESC ' +
-    `LIMIT ${limit}`;
+    `LIMIT ${limit} OFFSET ${offset}`;
   // The face (avatar + banner) — two queries over the `profile` row, each with
   // a face prepare (the face-prepare resolves ONE media field per query). The
   // profile row is anon-readable (the followers group's `anyone` grant reads

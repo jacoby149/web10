@@ -63,16 +63,39 @@ const posts = await w.read('posts', {
 
 ## The Data Flow
 
+The profile **paints on the ONE read** (3.223.0 — the same model the Video wall
+3.219.1, Shorts wall 3.220.0, and Watch page 3.221.0 got): the first paint is
+one round-trip, and everything non-critical lands in the background and patches
+in. The node's read path returns every post's `media_refs` **pre-resolved**
+(presigned `thumbnail_url` + `read_url` + dimensions + HLS settings on each ref
+object), so the grid's media map is built synchronously from those inline refs
+— no second media round-trip holds the first paint.
+
 ```
-User opens /jacoby149
-  → w.read('profile', { groups: ['me'] })     (avatar, bio)
-  → w.getGroups({ member: 'jacoby149' })      (groups list)
-  → w.read('posts', { groups: ['me'] })       (your posts)
-  → parallel: all three calls
-  → render
+Owner (/u/<me>):
+  → Promise.all([ readProfile, readMyPosts, countFollows, countFollowers, countStagingPosts ])
+  → build the media map from the posts' inline refs (synchronous)
+  → PAINT (banner, avatar, name, bio, stats, the grid with thumbnails) — one round-trip
+  → background (patches in, never blocks the paint):
+      getMyCollections (the Saved tab) + the face/string-ref media fallback
+
+Visitor (/u/<other>):
+  → Promise.all([ readUserProfile, readFollow, readUserPublicProfile ])
+  → build the media map from the posts' inline refs + the face URLs (synchronous)
+  → PAINT (banner, avatar, name, bio, follow, the grid with thumbnails) — one round-trip
+  → background (patches in, never blocks the paint):
+      readUserPublicCollections (the Saved tab) + countFollowers + countUserFollowingReal
 ```
 
-Three parallel calls. No joins. No mirrors.
+**The wall pages** (3.223.0, the feed-paging lane): the posts read is paged
+(`readMyPosts` / `readUserPublicProfile` take an `offset`; the node's
+`read_documents_in_groups` + the D73 query already apply `LIMIT … OFFSET`). A
+sentinel (`profile-wall-sentinel`, `IntersectionObserver` `rootMargin: 200px`)
+appends the next page (offset +50, deduped by id, the page's inline media
+merged into the map); `hasMore` keys off the page size (`page.length >= 50`),
+so a creator with N > 50 posts sees more than the first page and a short last
+page ends the scroll. The visitor's face is re-merged from a ref on each page
+(the face query is `LIMIT 1` — only page one carries it).
 
 ## The Face (avatar + banner)
 
@@ -130,9 +153,12 @@ surface has no "post on my behalf" (a group face is not a user post).
 - [x] Avatar upload flow — `w.upload()` then update profile with minio ref (the face lightbox's upload tile + crop step, 3.204.0)
 - [ ] Bio edit — update profile document
 - [ ] Group join policy display — fetch from group metadata
-- [ ] Post list pagination — keyset pagination on created_at
+- [x] Post list pagination — the wall pages on `offset` (the node's `LIMIT … OFFSET`), 3.223.0
 - [ ] Follower count caching — Redis counter, increment/decrement on group membership change
 
 ## Proof
 
-Your profile is one collection read, one groups call, and some counts. No dedicated profile endpoint. No user table. No followers table. The protocol handles it.
+Your profile is one read (the posts, media resolved inline) + the face + some
+counts, painted on that one read; the rest (collections, the face fallback, the
+counts) lands in the background. No dedicated profile endpoint. No user table.
+No followers table. The protocol handles it.

@@ -108,6 +108,30 @@ function isVideo(m: MediaRecord | undefined | null): boolean {
   return !!m?.mime_type?.startsWith('video/');
 }
 
+// The profile wall's page size (the node's default read limit). A full page
+// means there may be another (the infinite-scroll signal, the Video wall's
+// pattern — 3.222.0).
+const PROFILE_PAGE_SIZE = 50;
+
+/**
+ * Build the synchronous inline-media map for a set of posts. The node's read
+ * path resolves every post's media inline (presigned thumbnail_url + read_url
+ * + dimensions + HLS settings on each media_ref), so the map is built without
+ * a round-trip — the wall's first paint carries the thumbnails after ONE read
+ * (the Video wall's model, 3.219.1). Returns a media doc_id → MediaRecord map.
+ */
+function buildInlineMediaMap(posts: PostRecord[]): Record<string, MediaRecord> {
+  const map: Record<string, MediaRecord> = {};
+  for (const p of posts) {
+    for (const ref of p.media_refs || []) {
+      if (typeof ref === 'string') continue; // unresolved — nothing to render
+      const id = mediaRefId(ref);
+      if (id && !map[id]) map[id] = fromResolvedMediaRef(ref);
+    }
+  }
+  return map;
+}
+
 /**
  * The text-tile palette (design.md §13) — the deep, brand-tinted backgrounds a
  * text-only post renders on. A text-only post picks one **deterministically**
@@ -299,6 +323,20 @@ export default function UserProfileScreen({ username, provider, onBack }: UserPr
   const [viewMode, setViewMode] = useState<ProfileViewMode>(
     () => (searchParams.get('view') === 'feed' ? 'feed' : 'grid'),
   );
+  // The wall's infinite scroll (the Video wall's pattern, 3.222.0): the profile
+  // pages its posts (a creator with N > 50 posts sees more than the first page).
+  // `hasMore` keys off the PAGE size (a full page means there may be another);
+  // `nextOffsetRef` advances by the page size; `loadingMore` guards the
+  // sentinel from double-firing.
+  const [hasMore, setHasMore] = useState(false);
+  const [loadingMore, setLoadingMore] = useState(false);
+  const nextOffsetRef = useRef(0);
+  const sentinelRef = useRef<HTMLDivElement>(null);
+  // `hasLoadedRef` gates the initial skeleton: `loadData` sets `loading` true
+  // only on the FIRST load (a reload — a new post, a lightbox delete — keeps
+  // the previous grid on screen, no skeleton flash). The Video wall's pattern
+  // (3.219.1).
+  const hasLoadedRef = useRef(false);
 
   const selectTab = useCallback((tab: 'posts' | 'media' | 'saved') => {
     setActiveTab(tab);
@@ -341,11 +379,30 @@ export default function UserProfileScreen({ username, provider, onBack }: UserPr
   }, [searchParams, activeTab, viewMode]);
 
   useEffect(() => {
+    // A new profile (username / provider change) is a fresh load — reset the
+    // initial-skeleton gate so the skeleton shows for the new user (the
+    // component instance is reused across /u/:username navigations).
+    hasLoadedRef.current = false;
     loadData();
   }, [username, provider]);
 
+  // The visitor's face URLs (avatar / banner) — the query engine mints them
+  // ONLY on the first page read (the face query is `LIMIT 1`, not paged). A
+  // ref persists them across `loadMore` pages so the face doesn't drop when
+  // the next page's posts arrive (the face records are keyed by avatar_ref /
+  // banner_ref, which are absent from the paged posts' inline media).
+  const faceUrlsRef = useRef<{ avatarUrl?: string; bannerUrl?: string }>({});
+  // A ref to the current profile (for `loadMore`'s face re-merge — the
+  // callback's closure would capture a stale `profile` otherwise). Updated
+  // every render (the "latest ref" idiom).
+  const profileRef = useRef<ProfileRecord | null>(null);
+  profileRef.current = profile;
+
   const loadData = useCallback(async () => {
-    setLoading(true);
+    // `loading` is the INITIAL skeleton only — a reload (a new post, a lightbox
+    // delete) keeps the previous grid on screen (no skeleton flash). The Video
+    // wall's pattern (3.219.1): paint on the ONE read, enrich in the background.
+    if (!hasLoadedRef.current) setLoading(true);
     try {
       const token = getWapi().readToken();
       // v3 ownership is by username alone: a post's/author's `author_key` is
@@ -359,13 +416,10 @@ export default function UserProfileScreen({ username, provider, onBack }: UserPr
       const isOwn = token && token.username === username;
       setIsOwnProfile(!!isOwn);
 
-      let profile: ProfileRecord | null = null;
-      let postsData: PostRecord[] = [];
-      let fc = 0;
-      // null = count not loaded (hide the tile); 0 is a REAL count (render it) —
-      // `0 || null` here hid the Followers tile for every zero-follower profile
-      // (gauntlet step-3 regression, #434).
-      let fCount: number | null = null;
+      // Reset the wall's paging (a reload is a fresh page one — the ranking /
+      // the post set changed, so the offset resets, the Video wall's rule).
+      nextOffsetRef.current = 0;
+      setHasMore(false);
 
       if (isOwn) {
         // Owner path: read from own collections (same as ProfileScreen).
@@ -381,7 +435,7 @@ export default function UserProfileScreen({ username, provider, onBack }: UserPr
             console.error('[social] loadData — readProfile failed:', e);
             return null;
           }),
-          readMyPosts().catch((e) => {
+          readMyPosts({ limit: PROFILE_PAGE_SIZE }).catch((e) => {
             console.error('[social] loadData — readMyPosts failed:', e);
             return [];
           }),
@@ -398,24 +452,67 @@ export default function UserProfileScreen({ username, provider, onBack }: UserPr
             return 0;
           }),
         ]);
-        profile = p;
-        postsData = postsRes || [];
+        const postsData = postsRes || [];
+        // The wall's first paint carries the thumbnails: the node's read path
+        // resolves every post's media inline (presigned thumbnail_url +
+        // read_url + dimensions + HLS settings on each media_ref), so the map
+        // is built synchronously — NO second media round-trip (the old
+        // `resolveMediaRefs` re-read what the read already returned).
+        const inlineMap = buildInlineMediaMap(postsData);
+        // Paint the page NOW — the one read is render-ready (the Video wall's
+        // model, 3.219.1). One round-trip to first paint: the banner, the
+        // avatar, the name, the bio, the stats, the grid with thumbnails.
+        setProfile(p);
+        setDraft(p || {});
+        setPosts(postsData);
+        setMediaMap(inlineMap);
         if (fC === null) {
           setFollowingCountError(true);
         } else {
-          fc = fC;
           setFollowingCountError(false);
+          setFollowingCount(fC);
         }
-        fCount = fCnt; // null = ledger unavailable → hide the tile
+        setFollowerCount(fCnt); // null = ledger unavailable → hide the tile
         setStagingCount(stgCount);
-        // Saved collections (D88) — the owner's playlists for the Saved tab.
-        // Isolated: a failure degrades the tab to empty, never the profile.
-        setCollections(
-          await getMyCollections().catch((e) => {
+        nextOffsetRef.current = PROFILE_PAGE_SIZE;
+        setHasMore(postsData.length >= PROFILE_PAGE_SIZE);
+        hasLoadedRef.current = true;
+        setLoading(false);
+        // Enrich in the background (never blocks the first paint): the Saved
+        // tab's collections (D88) + the media fallback. The node's read path
+        // resolves every post's media inline (the API read shape — the common
+        // case, no fallback needed), but a write-path read carries bare doc_id
+        // strings (no inline thumbnails) — those resolve here, patching the
+        // grid in. The face (avatar / banner) is a bare doc_id too (never
+        // inline on the posts) — it resolves in the same pass.
+        void (async () => {
+          try {
+            const cols = await getMyCollections();
+            setCollections(cols);
+          } catch (e) {
             console.error('[social] loadData — getMyCollections failed:', e);
-            return [] as CollectionRecord[];
-          }),
-        );
+            setCollections([] as CollectionRecord[]);
+          }
+          const stringRefs = postsData.flatMap((post) =>
+            (post.media_refs || []).filter((r): r is string => typeof r === 'string'),
+          );
+          const faceRefs = [p?.avatar_ref, p?.banner_ref].filter(Boolean) as string[];
+          const fallbackRefs = [...new Set([...stringRefs, ...faceRefs])];
+          if (fallbackRefs.length) {
+            try {
+              const media = await resolveMediaRefs(fallbackRefs);
+              if (media.length) {
+                setMediaMap((prev) => {
+                  const next = { ...prev };
+                  media.forEach((m) => { if (m._id) next[m._id] = m; });
+                  return next;
+                });
+              }
+            } catch (e) {
+              console.error('[social] loadData — media fallback failed (degraded):', e);
+            }
+          }
+        })();
       } else {
         // Viewer path (anon or a signed-in non-owner): read the author's
         // PUBLIC profile through the D73 query engine (readUserPublicProfile).
@@ -428,97 +525,134 @@ export default function UserProfileScreen({ username, provider, onBack }: UserPr
         const [p, fr, pub] = await Promise.all([
           readUserProfile(username).catch(() => null),
           readFollow(username).catch(() => null),
-          readUserPublicProfile(username, provider).catch((e) => {
+          readUserPublicProfile(username, provider, PROFILE_PAGE_SIZE).catch((e) => {
             console.error('[social] loadData — readUserPublicProfile failed:', e);
             return { posts: [] as PostRecord[], avatarUrl: undefined, bannerUrl: undefined };
           }),
         ]);
-        profile = p;
-        setFollowRecord(fr);
-        setFollowing(fr?.status === 'active' || false);
-        postsData = pub.posts;
-        // A visitor's profile shows the owner's PUBLIC collections on the
-        // Saved tab (D88) — the node's D80 by-user read returns only
-        // membership_visibility='public' groups, so a private collection never
-        // surfaces. Isolated: a failure degrades the tab to absent, never the
-        // profile.
-        setCollections(
-          await readUserPublicCollections(username, provider).catch((e) => {
-            console.error('[social] loadData — readUserPublicCollections failed:', e);
-            return null;
-          }),
-        );
+        const postsData = pub.posts;
         // The face (avatar / banner) — presigned URLs the query engine minted
         // (author-scoped, so they render for any viewer, not just the owner).
-        // Build the media map from the posts' inline-resolved media + the face
-        // records (the grid / banner look up mediaMap by the media doc_id).
-        const mediaMapInit: Record<string, MediaRecord> = {};
-        for (const post of pub.posts) {
-          for (const ref of post.media_refs || []) {
-            if (typeof ref === 'string') continue; // unresolved — nothing to render
-            const id = mediaRefId(ref);
-            if (id && !mediaMapInit[id]) mediaMapInit[id] = fromResolvedMediaRef(ref);
-          }
+        // Persist them in a ref so `loadMore` pages can re-merge the face
+        // (the face query is `LIMIT 1`, not paged — only page one carries it).
+        faceUrlsRef.current = { avatarUrl: pub.avatarUrl, bannerUrl: pub.bannerUrl };
+        const mediaMapInit: Record<string, MediaRecord> = buildInlineMediaMap(postsData);
+        if (p?.avatar_ref && pub.avatarUrl) {
+          mediaMapInit[p.avatar_ref] = { _id: p.avatar_ref, url: pub.avatarUrl, created_at: '' };
         }
-        if (profile?.avatar_ref && pub.avatarUrl) {
-          mediaMapInit[profile.avatar_ref] = { _id: profile.avatar_ref, url: pub.avatarUrl, created_at: '' };
+        if (p?.banner_ref && pub.bannerUrl) {
+          mediaMapInit[p.banner_ref] = { _id: p.banner_ref, url: pub.bannerUrl, created_at: '' };
         }
-        if (profile?.banner_ref && pub.bannerUrl) {
-          mediaMapInit[profile.banner_ref] = { _id: profile.banner_ref, url: pub.bannerUrl, created_at: '' };
-        }
+        // Paint the page NOW — the one read is render-ready (the Video wall's
+        // model, 3.219.1). One round-trip to first paint: the banner, the
+        // avatar, the name, the bio, the follow button, the grid with
+        // thumbnails.
+        setProfile(p);
+        setFollowRecord(fr);
+        setFollowing(fr?.status === 'active' || false);
+        setPosts(postsData);
         setMediaMap(mediaMapInit);
-
-        // Follower count from the public ledger (per-user, never the viewer's)
-        try {
-          fCount = await countFollowers(username, provider);
-        } catch {
-          // Ledger unavailable — fCount stays null (hide tile)
-        }
-
-        // Following count from the public ledger (per-user, never the viewer's).
-        // D80: the REAL following read (who X follows) — the old
-        // `countUserFollowing` miscounted X's followers, not who X follows.
-        try {
-          fc = await countUserFollowingReal(username, provider);
-        } catch {
-          setFollowingCountError(true);
-        }
-      }
-
-      setProfile(profile);
-      if (isOwn) {
-        setDraft(profile || {});
-      }
-      setPosts(postsData);
-      setFollowingCount(fc);
-      setFollowerCount(fCount);
-
-      // Resolve media refs (owner path only — the viewer path built its media
-      // map from the query engine's inline-resolved media above). Isolated: a
-      // media-read failure degrades the images, never the profile/posts/counts
-      // already set.
-      if (isOwn) {
-        const allRefs = postsData.flatMap((post) => post.media_refs || []);
-        if (profile?.avatar_ref) allRefs.push(profile.avatar_ref);
-        if (profile?.banner_ref) allRefs.push(profile.banner_ref);
-        const mediaMapInit: Record<string, MediaRecord> = {};
-        if (allRefs.length) {
+        nextOffsetRef.current = PROFILE_PAGE_SIZE;
+        setHasMore(postsData.length >= PROFILE_PAGE_SIZE);
+        hasLoadedRef.current = true;
+        setLoading(false);
+        // Enrich in the background (never blocks the first paint): the Saved
+        // tab's collections (D88) + the follower / following counts (the
+        // stats row paints with the post count and patches the counts in).
+        void (async () => {
           try {
-            const media = await resolveMediaRefs([...new Set(allRefs)]);
-            media.forEach((m) => {
-              if (m._id) mediaMapInit[m._id] = m;
-            });
+            const cols = await readUserPublicCollections(username, provider);
+            setCollections(cols);
           } catch (e) {
-            console.error('[social] loadData — media resolution failed (degraded):', e);
+            console.error('[social] loadData — readUserPublicCollections failed:', e);
+            setCollections(null);
           }
-        }
-        setMediaMap(mediaMapInit);
+          let fCount: number | null = null;
+          try {
+            fCount = await countFollowers(username, provider);
+          } catch {
+            // Ledger unavailable — fCount stays null (hide tile)
+          }
+          setFollowerCount(fCount);
+          try {
+            const fc = await countUserFollowingReal(username, provider);
+            setFollowingCount(fc);
+            setFollowingCountError(false);
+          } catch {
+            setFollowingCountError(true);
+          }
+        })();
       }
     } catch (e) {
       console.error('Failed to load user profile:', e);
+      if (!hasLoadedRef.current) setPosts([]);
+    } finally {
+      setLoading(false);
     }
-    setLoading(false);
   }, [username, provider]);
+
+  // The wall's infinite scroll (the Video wall's pattern, 3.222.0): append the
+  // next page of posts when the sentinel scrolls into view. A full page means
+  // there may be another (`hasMore` keys off the PAGE size, not the filtered
+  // subset). The page's inline media is merged into the map so the new tiles'
+  // thumbnails paint; the visitor's face is re-merged (the face query is
+  // `LIMIT 1`, only page one carries it).
+  const loadMore = useCallback(async () => {
+    if (loadingMore || !hasMore) return;
+    setLoadingMore(true);
+    try {
+      const token = getWapi().readToken();
+      const isOwn = token && token.username === username;
+      const offset = nextOffsetRef.current;
+      const postsData = isOwn
+        ? await readMyPosts({ limit: PROFILE_PAGE_SIZE, offset })
+        : (await readUserPublicProfile(username, provider, PROFILE_PAGE_SIZE, offset)).posts;
+      nextOffsetRef.current += PROFILE_PAGE_SIZE;
+      setHasMore(postsData.length >= PROFILE_PAGE_SIZE);
+      const inlineMap = buildInlineMediaMap(postsData);
+      // Re-merge the visitor's face (the face query is `LIMIT 1`, only page
+      // one carries it — the ref persists it across pages).
+      if (!isOwn) {
+        const { avatarUrl, bannerUrl } = faceUrlsRef.current;
+        const profile = profileRef.current;
+        if (profile?.avatar_ref && avatarUrl) {
+          inlineMap[profile.avatar_ref] = { _id: profile.avatar_ref, url: avatarUrl, created_at: '' };
+        }
+        if (profile?.banner_ref && bannerUrl) {
+          inlineMap[profile.banner_ref] = { _id: profile.banner_ref, url: bannerUrl, created_at: '' };
+        }
+      }
+      setMediaMap((prev) => ({ ...prev, ...inlineMap }));
+      setPosts((prev) => {
+        const seen = new Set(prev.map((p) => p._id).filter(Boolean));
+        return [...prev, ...postsData.filter((p) => !p._id || !seen.has(p._id))];
+      });
+    } catch (e) {
+      console.error('[social] loadMore failed:', e);
+    } finally {
+      setLoadingMore(false);
+    }
+  }, [loadingMore, hasMore, username, provider]);
+
+  // The wall's infinite-scroll sentinel (the Video wall's pattern, 3.222.0):
+  // an IntersectionObserver on a sentinel at the bottom of the posts grid
+  // triggers `loadMore` when it scrolls into view (rootMargin prefetches a
+  // page early). Active only on the posts tab (the media / saved tabs are
+  // derived from the loaded posts, not paged separately) and while there's
+  // another page to load.
+  useEffect(() => {
+    if (activeTab !== 'posts' || !hasMore) return;
+    const sentinel = sentinelRef.current;
+    if (!sentinel) return;
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries[0].isIntersecting) loadMore();
+      },
+      { rootMargin: '200px' },
+    );
+    observer.observe(sentinel);
+    return () => observer.disconnect();
+  }, [activeTab, hasMore, loadMore, posts.length]);
 
   // The app-level New Post sheet fires `post-created` (NewPostSheet) when a
   // post lands — reload the profile so the fresh post shows up (the seam
@@ -1201,6 +1335,23 @@ export default function UserProfileScreen({ username, provider, onBack }: UserPr
                     import your archive
                   </button>
                 </p>
+              )}
+            </div>
+          )}
+          {/* The wall's infinite-scroll sentinel (the Video wall's pattern,
+              3.222.0): triggers loadMore when it scrolls into view. Present
+              only while there's another page to load (a full first page). */}
+          {hasMore && (
+            <div
+              ref={sentinelRef}
+              data-testid="profile-wall-sentinel"
+              className="flex items-center justify-center py-6"
+            >
+              {loadingMore && (
+                <div className="flex flex-col items-center gap-2">
+                  <div className="h-6 w-6 border-2 border-brand border-t-transparent rounded-full animate-spin" />
+                  <p className="text-xs text-muted-foreground">Loading more…</p>
+                </div>
               )}
             </div>
           )}
