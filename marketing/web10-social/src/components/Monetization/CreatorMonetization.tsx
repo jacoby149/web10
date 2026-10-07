@@ -18,7 +18,8 @@ import {
   type AlbumItem,
   type PostItem,
 } from '@/data/ads-catalog';
-import { getV3Client, type AdOffer, type AdFormat } from '@/data';
+import { getV3Client, type AdOffer, type AdFormat, type AdProduct } from '@/data';
+import { projectEarnings, formatProjection, DEFAULT_RATES } from '@/data/ad-projection';
 import { uploadMedia, resolveMediaRefs } from '@/data';
 import { processImage, generateThumbnail, captureVideoPoster, getVideoInfo } from '@/lib/mediaProcessing';
 import type { MediaRecord } from '@/data';
@@ -115,10 +116,11 @@ export function CreatorMonetization({ isAdmin = false }: { isAdmin?: boolean }) 
     albumIds: string[],
     mediaRefs?: string[],
     format: AdFormat = 'inline',
+    product?: AdProduct | null,
   ) => {
     const w = getV3Client();
     const group = await ensureFollowersGroup(username(), provider());
-    await w.create('posts', buildOfferBody(offer, text, status, albumIds, mediaRefs, format), { groups: [group] });
+    await w.create('posts', buildOfferBody(offer, text, status, albumIds, mediaRefs, format, undefined, product), { groups: [group] });
   };
 
   const editAd = async (
@@ -129,8 +131,9 @@ export function CreatorMonetization({ isAdmin = false }: { isAdmin?: boolean }) 
     albumIds: string[],
     mediaRefs?: string[],
     format: AdFormat = 'inline',
+    product?: AdProduct | null,
   ) => {
-    await updateAd(ad, offer, text, status, albumIds, mediaRefs, format);
+    await updateAd(ad, offer, text, status, albumIds, mediaRefs, format, undefined, product);
   };
 
   const createAlbum = async (name: string) => {
@@ -224,14 +227,14 @@ export function CreatorMonetization({ isAdmin = false }: { isAdmin?: boolean }) 
               initial={editingAd}
               albums={data?.albums || []}
               allowNode={isAdmin}
-              onSubmit={(offer, text, status, albumIds, mediaRefs, format, scope) =>
+              onSubmit={(offer, text, status, albumIds, mediaRefs, format, scope, product) =>
                 run(
                   () =>
                     editingAd
-                      ? editAd(editingAd, offer, text, status, albumIds, mediaRefs, format)
+                      ? editAd(editingAd, offer, text, status, albumIds, mediaRefs, format, product)
                       : scope === 'node'
-                        ? createNodeAd(offer, text, status, mediaRefs, format)
-                        : createAd(offer, text, status, albumIds, mediaRefs, format),
+                        ? createNodeAd(offer, text, status, mediaRefs, format, product)
+                        : createAd(offer, text, status, albumIds, mediaRefs, format, product),
                   editingAd ? 'Ad updated' : scope === 'node' ? 'Node ad created' : 'Ad created',
                 )
               }
@@ -606,6 +609,7 @@ function AdForm({ initial, albums, allowNode = false, onSubmit, onCancel }: {
     mediaRefs: string[],
     format: AdFormat,
     scope: 'personal' | 'node',
+    product?: AdProduct | null,
   ) => void;
   onCancel: () => void;
 }) {
@@ -623,6 +627,44 @@ function AdForm({ initial, albums, allowNode = false, onSubmit, onCancel }: {
   // followers group) or `node` (the discover group, the operator's inventory).
   const [scope, setScope] = useState<'personal' | 'node'>('personal');
   const [saving, setSaving] = useState(false);
+
+  // The product section (ads-october focus #2) — the ad is the superset: the
+  // creative (text + media) PLUS the product attributes when it's a product.
+  // `productOn` gates the section (off = a pure ad, no product).
+  const [productOn, setProductOn] = useState(!!initial?.product);
+  const [pTarget, setPTarget] = useState<AdProduct['target']>(initial?.product?.target || 'product');
+  const [pName, setPName] = useState(initial?.product?.name || '');
+  const [pPrice, setPPrice] = useState(initial?.product?.price !== undefined ? String(initial.product.price) : '');
+  const [pCommission, setPCommission] = useState(initial?.product?.commission !== undefined ? String(initial.product.commission) : '');
+  const [pCommissionPct, setPCommissionPct] = useState(initial?.product?.commission_is_percent !== false);
+  const [pActuals, setPActuals] = useState(initial?.product?.actuals !== undefined ? String(initial.product.actuals) : '');
+  const [pCalibration, setPCalibration] = useState(initial?.product?.calibration !== undefined ? String(initial.product.calibration) : '');
+
+  // Assemble the product object (or null when the section is off / empty).
+  const buildProduct = (): AdProduct | null => {
+    if (!productOn) return null;
+    const price = pPrice.trim() === '' ? undefined : Number(pPrice);
+    const commission = pCommission.trim() === '' ? undefined : Number(pCommission);
+    const actuals = pActuals.trim() === '' ? undefined : Number(pActuals);
+    const calibration = pCalibration.trim() === '' ? undefined : Number(pCalibration);
+    const p: AdProduct = {
+      target: pTarget,
+      name: pName.trim() || undefined,
+      price: Number.isFinite(price as number) ? price : undefined,
+      commission: Number.isFinite(commission as number) ? commission : undefined,
+      commission_is_percent: pCommissionPct,
+      actuals: Number.isFinite(actuals as number) ? actuals : undefined,
+      calibration: Number.isFinite(calibration as number) ? calibration : undefined,
+    };
+    // A product section with no fields is "off" (a pure ad).
+    if (!p.name && p.price === undefined && p.commission === undefined && p.actuals === undefined && p.calibration === undefined) return null;
+    return p;
+  };
+
+  // The live projection (focus #3): "100k impressions ~ $X" — updates as the
+  // operator types the price + commission. The self-calibration (focus #4)
+  // overrides the assumed conversion when set.
+  const liveProjection = formatProjection(projectEarnings(100_000, buildProduct() || undefined, DEFAULT_RATES));
 
   // The ad's creative media — one item (image or video). `file` = a newly
   // picked file (uploaded on submit); `existingDocId` = the current media kept
@@ -677,7 +719,7 @@ function AdForm({ initial, albums, allowNode = false, onSubmit, onCancel }: {
         mediaRefs = [media.existingDocId];
       }
       const offer: AdOffer = { kind, partner: partner.trim(), link: link.trim(), cta: cta.trim(), disclosure: disclosure.trim() };
-      onSubmit(offer, text.trim() || 'Untitled ad', status, albumIds, mediaRefs, format, editing ? 'personal' : scope);
+      onSubmit(offer, text.trim() || 'Untitled ad', status, albumIds, mediaRefs, format, editing ? 'personal' : scope, buildProduct());
       onCancel();
     } catch (e) {
       toast.error(errorMessage(e, 'Failed to upload media'));
@@ -804,6 +846,110 @@ function AdForm({ initial, albums, allowNode = false, onSubmit, onCancel }: {
             <div className="grid gap-1.5">
               <Label htmlFor="ad-partner">Partner</Label>
               <Input id="ad-partner" placeholder="e.g. Amazon (optional)" value={partner} onChange={(e) => setPartner(e.target.value)} data-testid="ad-partner" />
+            </div>
+          )}
+        </div>
+
+        {/* The product section (ads-october focus #2) — the ad is the superset:
+            the creative PLUS the product attributes when it's a product. Off =
+            a pure ad (no product). The live projection (focus #3) shows as the
+            operator types the price + commission. */}
+        <div className="rounded-md border border-border bg-background/40 p-3" data-testid="ad-product-section">
+          <div className="flex items-center justify-between">
+            <div>
+              <Label className="text-xs">Product</Label>
+              <p className="mt-0.5 text-[0.6875rem] text-muted-foreground">
+                What this ad sells — price + commission. Leave off for a pure ad.
+              </p>
+            </div>
+            <button
+              type="button"
+              role="switch"
+              aria-checked={productOn}
+              onClick={() => setProductOn((v) => !v)}
+              className={cn(
+                'relative h-6 w-11 flex-shrink-0 rounded-full border transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
+                productOn ? 'border-brand bg-brand-muted' : 'border-border bg-elevated',
+              )}
+              data-testid="ad-product-toggle"
+            >
+              <span
+                aria-hidden="true"
+                className={cn(
+                  'absolute top-0.5 rounded-full bg-foreground transition-all',
+                  productOn ? 'left-[calc(100%-1.25rem)]' : 'left-0.5',
+                )}
+                style={{ height: '1.125rem', width: '1.125rem' }}
+              />
+            </button>
+          </div>
+
+          {productOn && (
+            <div className="mt-3 grid gap-3">
+              <div className="grid grid-cols-2 gap-3">
+                <div className="grid gap-1.5">
+                  <Label htmlFor="ad-product-target">Advertises</Label>
+                  <select
+                    id="ad-product-target"
+                    value={pTarget}
+                    onChange={(e) => setPTarget(e.target.value as AdProduct['target'])}
+                    className="h-9 w-full rounded-md border border-input bg-elevated px-3 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-ring"
+                    data-testid="ad-product-target"
+                  >
+                    <option value="product">a product</option>
+                    <option value="collection">a collection</option>
+                    <option value="storefront">my storefront</option>
+                    <option value="none">nothing (pure ad)</option>
+                  </select>
+                </div>
+                <div className="grid gap-1.5">
+                  <Label htmlFor="ad-product-name">Product name</Label>
+                  <Input id="ad-product-name" placeholder="e.g. The good coffee grinder" value={pName} onChange={(e) => setPName(e.target.value)} data-testid="ad-product-name" />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div className="grid gap-1.5">
+                  <Label htmlFor="ad-product-price">Item price ($)</Label>
+                  <Input id="ad-product-price" type="number" min="0" step="0.01" placeholder="30" value={pPrice} onChange={(e) => setPPrice(e.target.value)} data-testid="ad-product-price" />
+                </div>
+                <div className="grid gap-1.5">
+                  <Label htmlFor="ad-product-commission">Commission</Label>
+                  <div className="flex gap-1.5">
+                    <Input id="ad-product-commission" type="number" min="0" step="0.01" placeholder="10" value={pCommission} onChange={(e) => setPCommission(e.target.value)} data-testid="ad-product-commission" />
+                    <button
+                      type="button"
+                      onClick={() => setPCommissionPct((v) => !v)}
+                      className={cn(
+                        'flex-shrink-0 rounded-md border px-2.5 text-xs transition-colors',
+                        pCommissionPct ? 'border-brand bg-brand-muted text-brand-300' : 'border-border text-muted-foreground hover:border-brand/50',
+                      )}
+                      data-testid="ad-product-commission-unit"
+                    >
+                      {pCommissionPct ? '%' : '$'}
+                    </button>
+                  </div>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div className="grid gap-1.5">
+                  <Label htmlFor="ad-product-actuals">Actuals ($ made)</Label>
+                  <Input id="ad-product-actuals" type="number" min="0" step="0.01" placeholder="22" value={pActuals} onChange={(e) => setPActuals(e.target.value)} data-testid="ad-product-actuals" />
+                </div>
+                <div className="grid gap-1.5">
+                  <Label htmlFor="ad-product-calibration">My click→sale %</Label>
+                  <Input id="ad-product-calibration" type="number" min="0" max="100" step="0.1" placeholder="1" value={pCalibration} onChange={(e) => setPCalibration(e.target.value)} data-testid="ad-product-calibration" />
+                </div>
+              </div>
+
+              {/* The little projection (focus #3) — a static "100k impressions ~
+                  $X" line using assumed rates (the self-calibration overrides
+                  the conversion when set). */}
+              <div className="flex items-center justify-between rounded-md bg-elevated/60 px-3 py-2" data-testid="ad-projection-line">
+                <span className="text-[0.6875rem] text-muted-foreground">100k impressions ~</span>
+                <span className="font-display text-sm font-medium tabular-nums text-foreground">{liveProjection} <span className="text-[0.6875rem] font-normal text-muted-foreground">approx.</span></span>
+              </div>
             </div>
           )}
         </div>
