@@ -115,6 +115,15 @@ The actuals box is **human-in-the-loop**: web10 can't see the affiliate payout
 (off-platform, no API), so the operator logs the number web10 can't measure —
 the "organic, no-integration" trade-off. The **self-calibration** (the operator
 sets their own click→purchase %) overrides the projection's assumed conversion.
+
+The **portfolio view** (the "net's total catch") summarizes the whole catalog at
+the top: product count + the total projected value (the sum of the per-100k
+projections) + the total actuals logged — so 30 ads read as a portfolio, not a
+pile. The **what-if calculator** (the interactive projection) is a per-ad
+impressions slider: drag it and the projected $ moves live (the "do I care
+about this ad" decision made concrete). Both are pure client-side math over the
+product fields — no node surface (D60).
+
 Data: `readMyCatalog` filtered to product ads (`AnalyticsSection.tsx`). No node
 surface (D60).
 
