@@ -150,6 +150,7 @@ if (screen === 'post-detail') {
     : screen === 'groups-discover' ? '/groups?tab=discover'
     : screen === 'groups-detail' ? '/groups/web10%2Fgroups%2Fusers%2Fnova%2Fsynthwave-sessions'
     : screen === 'groups-media' ? '/groups/web10%2Fgroups%2Fusers%2Fnova%2Fsynthwave-sessions?tab=media'
+    : screen === 'groups-grid' ? '/groups/web10%2Fgroups%2Fusers%2Fnova%2Fsynthwave-sessions?view=grid'
     : screen === 'groups-saved' ? '/groups/web10%2Fgroups%2Fusers%2Fnova%2Fsynthwave-sessions?tab=saved'
     : screen === 'groups-saved-collection' ? '/groups/web10%2Fgroups%2Fusers%2Fnova%2Fsynthwave-sessions/saved/web10%2Fgroups%2Fusers%2Fnova%2Fsaved-synthwave-sessions-best-of'
     : screen === 'groups-detail-noface' ? '/groups/web10%2Fgroups%2Fusers%2Fkai%2Flofi-study-room'
