@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
+import { useIsMobile } from '@/lib/pwa';
 import { useSearchParams } from 'react-router-dom';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
@@ -324,6 +325,10 @@ export interface PostCardProps {
   reactionCount: number;
   dislikeCount?: number;
   commentCount: number;
+  /** Impressions (D86) — total delivery events, the eye icon. Display-only. */
+  impressions?: number;
+  /** Reach (D86) — distinct readers, the person icon. Display-only. */
+  reach?: number;
   liked: boolean;
   disliked: boolean;
   /** Whether the reader has reposted this post (the repeat icon fills). */
@@ -367,6 +372,8 @@ export function PostCard({
   reactionCount,
   dislikeCount,
   commentCount,
+  impressions = 0,
+  reach = 0,
   liked,
   disliked,
   reposted = false,
@@ -391,6 +398,7 @@ export function PostCard({
   // (the ONE edit path, so the card stays the read surface).
   const { openComposer } = useComposer();
   const { openSave } = useSave();
+  const isMobile = useIsMobile();
   const [menuOpen, setMenuOpen] = useState(false);
   const [deleteConfirm, setDeleteConfirm] = useState(false);
   const [copied, setCopied] = useState(false);
@@ -502,7 +510,11 @@ export function PostCard({
             </span>
           )}
         </div>
-        {(signedIn || isOwnPost) && (
+        {/* Owner menu (⋯): own posts always (edit / visibility / delete). On
+            mobile it's also shown for signed-in visitors — the share + save
+            affordances live here on a phone (the row is too narrow for them),
+            so a signed-in visitor can still save/share any post. */}
+        {(isOwnPost || (signedIn && isMobile)) && (
           <div className="relative shrink-0">
             <button
               type="button"
@@ -526,19 +538,22 @@ export function PostCard({
                   data-testid="post-options-menu"
                   onClick={(e) => e.stopPropagation()}
                 >
-                  {signedIn && (
-                    <button
-                      type="button"
-                      onClick={(e) => { e.stopPropagation(); setMenuOpen(false); openSave(post); }}
-                      className="flex w-full items-center gap-2 rounded-md px-3 py-2 text-left text-sm text-foreground hover:bg-elevated transition-colors"
-                      data-testid="post-option-save"
-                    >
-                      <Bookmark className="w-4 h-4" />
-                      Save to…
-                    </button>
-                  )}
-                  {isOwnPost && (
+                  {/* Share + save-to-collection: mobile-only (on desktop they're
+                      in the engagement row, right-aligned). Share is for
+                      everyone; save is signed-in only. */}
+                  {isMobile && (
                     <>
+                      {signedIn && (
+                        <button
+                          type="button"
+                          onClick={(e) => { e.stopPropagation(); setMenuOpen(false); openSave(post); }}
+                          className="flex w-full items-center gap-2 rounded-md px-3 py-2 text-left text-sm text-foreground hover:bg-elevated transition-colors"
+                          data-testid="post-option-save"
+                        >
+                          <Bookmark className="w-4 h-4" />
+                          Save to…
+                        </button>
+                      )}
                       <button
                         type="button"
                         onClick={(e) => { e.stopPropagation(); handleShare(); }}
@@ -548,6 +563,10 @@ export function PostCard({
                         {copied ? <Check className="w-4 h-4 text-success" /> : <Share2 className="w-4 h-4" />}
                         {copied ? 'Copied!' : 'Share'}
                       </button>
+                    </>
+                  )}
+                  {isOwnPost && (
+                    <>
                       <button
                         type="button"
                         onClick={(e) => { e.stopPropagation(); setMenuOpen(false); openComposer({ editingPost: post }); }}
@@ -656,6 +675,9 @@ export function PostCard({
             reactionCount={reactionCount}
             dislikeCount={dislikeCount}
             commentCount={commentCount}
+            impressions={impressions}
+            reach={reach}
+            hideReach={isMobile}
             onToggleReaction={onToggleReaction}
             onCommentCountChange={onCommentCountChange}
             postAuthor={postAuthor}
@@ -670,8 +692,37 @@ export function PostCard({
             layout="compact"
           />
         </div>
+        {/* Save-to-collection + share — right-aligned on desktop (the
+            Twitter/X action cluster, a touch looser). On mobile the row is too
+            narrow, so these move into the kebab menu (below). Save is
+            signed-in only (anon has no collections); share is for everyone (a
+            link, not a data write). */}
+        {!isMobile && (
+          <div className="flex shrink-0 items-center gap-1 pr-1">
+            {signedIn && (
+              <button
+                type="button"
+                aria-label="Save to collection"
+                data-testid="post-action-save"
+                onClick={(e) => { e.stopPropagation(); openSave(post); }}
+                className="rounded-full p-2 text-muted-foreground transition-all duration-150 hover:bg-elevated hover:text-foreground"
+              >
+                <Bookmark className="h-4 w-4" strokeWidth={1.75} />
+              </button>
+            )}
+            <button
+              type="button"
+              aria-label={copied ? 'Link copied' : 'Share'}
+              data-testid="post-action-share"
+              onClick={(e) => { e.stopPropagation(); handleShare(); }}
+              className="rounded-full p-2 text-muted-foreground transition-all duration-150 hover:bg-elevated hover:text-foreground"
+            >
+              {copied ? <Check className="h-4 w-4 text-success" strokeWidth={1.75} /> : <Share2 className="h-4 w-4" strokeWidth={1.75} />}
+            </button>
+          </div>
+        )}
         {(post.origin || 'web10') !== 'web10' && (
-          <Badge variant="brand_glow" className="ml-auto mr-2 shrink-0">
+          <Badge variant="brand_glow" className="ml-1 mr-1 shrink-0">
             {post.origin}
           </Badge>
         )}
@@ -1073,6 +1124,8 @@ export default function FeedScreen({ onAuthorClick, onRepost }: { onAuthorClick?
                   dislikeCount={dislikeCountMap[post._id || ''] || 0}
                   repostCount={repostCountMap[post._id || ''] || 0}
                   commentCount={commentMap[post._id || ''] || 0}
+                  impressions={post.impressions || 0}
+                  reach={post.reach || 0}
                   liked={!!likedMap[post._id || '']}
                   disliked={!!dislikedMap[post._id || '']}
                   reposted={!!repostedMap[post._id || '']}

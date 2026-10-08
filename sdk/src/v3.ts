@@ -90,6 +90,20 @@ export interface PowerMeanSort {
   character?: number
 }
 
+// The D86 content-analytics row: one (doc, surface, day) aggregate over the
+// creator's own content events. The client aggregates these up to totals /
+// per-surface / time-series / per-doc. `avg_watch_pct` is null when there is
+// no viewport data (a text post, or no dwell reported).
+export interface V3ContentEventRow {
+  doc_id: string
+  surface: string
+  day: string
+  impressions: number
+  reach: number
+  clicks: number
+  avg_watch_pct: number | null
+}
+
 export interface V3Document {
   doc_id: string
   author_key: string
@@ -784,7 +798,7 @@ export function createV3Client(options: V3ClientOptions = {}): V3Client {
 
     async read(
       collection: string,
-      opts: { groups: string[]; limit?: number; offset?: number; ref?: string | string[]; sort?: PowerMeanSort; tags?: string[]; cursor?: string; order?: "asc" | "desc" },
+      opts: { groups: string[]; limit?: number; offset?: number; ref?: string | string[]; sort?: PowerMeanSort; tags?: string[]; cursor?: string; order?: "asc" | "desc"; surface?: string },
     ): Promise<V3Document[]> {
       const payload: V3Body = { service: collection, groups: opts.groups }
       if (opts.limit != null) payload.limit = opts.limit
@@ -808,6 +822,12 @@ export function createV3Client(options: V3ClientOptions = {}): V3Client {
       // and returns the next page after the cursor.
       if (opts.cursor != null) payload.cursor = opts.cursor
       if (opts.order != null) payload.order = opts.order
+      // The surface label (D86): the screen the app shows the content on
+      // ("feed" / "shorts" / "discover" / …). When present + the reader is
+      // verified, the node logs a delivery impression per returned doc — the
+      // server-side, un-gameable floor. The node stores the label verbatim
+      // (D60: the app owns the surface's meaning).
+      if (opts.surface != null) payload.surface = opts.surface
       // Anon-capable (like the node's read endpoint, `user_or_anon`): the
       // token rides along when present, but a missing token reads as the
       // node's anon member (the public board — D58 `anyone` grant). This is
@@ -834,9 +854,69 @@ export function createV3Client(options: V3ClientOptions = {}): V3Client {
       return authPost<Record<string, number>>(`${apiOrigin}/v3/read`, payload)
     },
 
+    // The D86 client-signal: record a `viewport` (the reader saw the doc for
+    // Ns / M%), a `click` (a CTA tapped), or an app-defined event type. The
+    // node gates it on a preceding delivery (the reader must have been served
+    // this doc on this surface) + dedupes per (doc, reader, surface, type) per
+    // window — so a reader cannot report on a doc they were never shown, and a
+    // re-report within the window is a no-op. Anon is rejected (only a
+    // verified reader is counted). The `payload` is a JSON string the app fills
+    // (e.g. `{"watched_ms":1000,"duration_ms":60000}`) — the node stores it
+    // verbatim, content-free (D60: the app owns the payload's meaning).
+    // Fire-and-forget from the UI: a failure never blocks the surface.
+    async trackContentEvent(
+      docId: string,
+      opts: { service: string; surface: string; type: string; payload?: string },
+    ): Promise<{ doc_id: string; recorded: boolean }> {
+      const payload: V3Body = {
+        doc_id: docId,
+        service: opts.service,
+        surface: opts.surface,
+        type: opts.type,
+      }
+      if (opts.payload != null) payload.payload = opts.payload
+      const token = state.token ?? readTokenCookie()
+      if (token) payload.token = token
+      return authPost<{ doc_id: string; recorded: boolean }>(`${apiOrigin}/v3/trackContentEvent`, payload)
+    },
+
+    // The D86 creator's own content metrics — the dashboard's data source.
+    // I3-bound by construction: the node scopes the aggregate to docs the
+    // caller AUTHORED, so a creator can only ever see their own content's
+    // events. Returns one row per (doc, surface, day); the client aggregates
+    // up to totals / per-surface / time-series / per-doc. `service` is the
+    // content service (e.g. "posts"); `windowDays` the trailing window.
+    async contentAnalytics(
+      opts: { service: string; windowDays?: number },
+    ): Promise<{ rows: V3ContentEventRow[]; count: number }> {
+      const payload: V3Body = { service: opts.service }
+      if (opts.windowDays != null) payload.window_days = opts.windowDays
+      const token = state.token ?? readTokenCookie()
+      if (token) payload.token = token
+      return authPost<{ rows: V3ContentEventRow[]; count: number }>(`${apiOrigin}/v3/contentAnalytics`, payload)
+    },
+
+    // The on-surface view metrics (D86): **impressions** (total delivery
+    // events) + **reach** (distinct readers) per doc, read by the VIEWER for
+    // docs they can read. Anon-capable (a signed-out visitor on the public
+    // board sees the metrics too). I3-scoped server-side: a doc only returns
+    // metrics if it is in one of the reader's readable groups for the service.
+    // Returns {doc_id: {impressions, reach}}; a doc with no events is absent
+    // (treat absent as 0). This is the SAME object the D86 engine records (the
+    // delivery impression) — one source of truth with the dashboard.
+    async contentViews(
+      opts: { service: string; docIds: string[]; groups: string[] },
+    ): Promise<Record<string, { impressions: number; reach: number }>> {
+      const payload: V3Body = { service: opts.service, doc_ids: opts.docIds, groups: opts.groups }
+      const token = state.token ?? readTokenCookie()
+      if (token) payload.token = token
+      return authPost<Record<string, { impressions: number; reach: number }>>(`${apiOrigin}/v3/contentViews`, payload)
+    },
+
     async readById(
       docId: string,
       collection: string,
+      opts?: { surface?: string },
     ): Promise<V3Document> {
       // The API merged read-by-id into read (optional doc_id param, #537) —
       // the doc_id path returns a single document, not an array.
@@ -844,6 +924,10 @@ export function createV3Client(options: V3ClientOptions = {}): V3Client {
       // for a signed-out visitor (the node's read-by-id path is `user_or_anon`
       // and resolves media server-side).
       const payload: V3Body = { doc_id: docId, service: collection }
+      // The D86 surface label: when present, the node logs a delivery
+      // impression for this doc (the read path's delivery capture — the
+      // watch/short/permalink "view").
+      if (opts?.surface != null) payload.surface = opts.surface
       const token = state.token ?? readTokenCookie()
       if (token) payload.token = token
       return authPost<V3Document>(`${apiOrigin}/v3/read`, payload)
@@ -931,13 +1015,19 @@ export function createV3Client(options: V3ClientOptions = {}): V3Client {
       * `, { withGroupMeta: true })
       * ```
       */
-    async query(sql: string, opts?: { groups?: string[]; prepare?: V3Prepare; withGroupMeta?: boolean }): Promise<V3QueryResult> {
+    async query(sql: string, opts?: { groups?: string[]; prepare?: V3Prepare; withGroupMeta?: boolean; surface?: string; contentService?: string }): Promise<V3QueryResult> {
       const payload: Record<string, unknown> = { sql }
       if (opts?.groups) payload.groups = opts.groups
       if (opts?.withGroupMeta) payload.withGroupMeta = true
       // The prepare pass (D73): the engine mints the result rows (media + HLS
       // + ads + face) so the query returns render-ready rows in one round-trip.
       if (opts?.prepare) payload.prepare = opts.prepare
+      // The D86 surface label + content service: when present, the node logs a
+      // delivery impression per returned doc (the query-path analog of the read
+      // path's delivery capture — the feed-as-query, D73). The app declares the
+      // content service it's showing (the feed's `posts`).
+      if (opts?.surface != null) payload.surface = opts.surface
+      if (opts?.contentService != null) payload.content_service = opts.contentService
       // Anon-capable (like the read endpoint): the token rides along when
       // present, but a missing token reads as the node's anon member.
       const token = state.token ?? readTokenCookie()
@@ -1499,10 +1589,13 @@ export interface V3Client {
 
   // CRUD with groups
   create(collection: string, body: Record<string, unknown>, opts?: { groups?: string[]; ad_preference?: V3AdPreference; ref_value?: string }): Promise<V3Document>
-  read(collection: string, opts: { groups: string[]; limit?: number; offset?: number; ref?: string | string[]; sort?: PowerMeanSort; tags?: string[]; cursor?: string; order?: "asc" | "desc" }): Promise<V3Document[]>
+  read(collection: string, opts: { groups: string[]; limit?: number; offset?: number; ref?: string | string[]; sort?: PowerMeanSort; tags?: string[]; cursor?: string; order?: "asc" | "desc"; surface?: string }): Promise<V3Document[]>
   readRefCounts(collection: string, opts: { groups: string[]; ref: string | string[] }): Promise<Record<string, number>>
-  readById(docId: string, collection: string): Promise<V3Document>
-  query(sql: string, opts?: { groups?: string[]; prepare?: V3Prepare; withGroupMeta?: boolean }): Promise<V3QueryResult>
+  trackContentEvent(docId: string, opts: { service: string; surface: string; type: string; payload?: string }): Promise<{ doc_id: string; recorded: boolean }>
+  contentAnalytics(opts: { service: string; windowDays?: number }): Promise<{ rows: V3ContentEventRow[]; count: number }>
+  contentViews(opts: { service: string; docIds: string[]; groups: string[] }): Promise<Record<string, { impressions: number; reach: number }>>
+  readById(docId: string, collection: string, opts?: { surface?: string }): Promise<V3Document>
+  query(sql: string, opts?: { groups?: string[]; prepare?: V3Prepare; withGroupMeta?: boolean; surface?: string; contentService?: string }): Promise<V3QueryResult>
   listPeopleDirectory(opts?: { limit?: number; offset?: number }): Promise<V3PeoplePage>
   update(docId: string, body: Record<string, unknown>, opts?: { groups?: string[]; ad_preference?: V3AdPreference }): Promise<V3Document>
   delete(docId: string): Promise<{ doc_id: string; status: string }>

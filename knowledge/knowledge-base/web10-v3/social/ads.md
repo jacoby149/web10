@@ -57,6 +57,48 @@ An ad is a `posts` document. `collection_name = 'posts'`, `author_key` = the cre
 
 **No `stats` in v0.** The first draft kept impression/click counters in the doc. They are gone: a counter is a write on a read path (a tombstone + insert per click), it is the one part of the object that is not "a piece of media and a link," and it is the v4 layer's job (revenue settlement, impression verification). The catalog shows the offer's state, not click counts, in v0.
 
+### The Product Section (the "ad is the superset")
+
+An ad's body can carry an optional **`product`** section (ads-october focus #2)
+— the product attributes when the ad advertises a product. The refinement:
+**"all ads objects are ads, and can have the same attributes as products"** —
+the ad is the *superset* (the creative: text + media, *plus* the product
+attributes when it's a product). An ad can advertise a **single product** (it
+*has* the section), a **collection**, a **storefront**, or **nothing** (a pure
+ad — no section). There is **no separate product entity** (the `product-entity`
+need's Option C is rejected — the product should be a *consequence* of making
+ads, not a *prerequisite*):
+
+```json
+{
+  "product": {
+    "target":             { "type": "text", "value": "product" },
+    "name":               { "type": "text", "value": "The good coffee grinder" },
+    "price":              { "type": "number", "value": 30 },
+    "commission":         { "type": "number", "value": 10 },
+    "commission_is_percent": true,
+    "pics":               ["<product photo doc_id>"],
+    "actuals":            { "type": "number", "value": 22 },
+    "calibration":        { "type": "number", "value": 2 }
+  }
+}
+```
+
+- **`target`** — what the ad advertises: `product` | `collection` | `storefront` | `none`.
+- **`name`** / **`price`** / **`commission`** (+ `commission_is_percent`, a % or a flat $) — the "ease of use" the operator named (the inputs for the projection).
+- **`pics`** — the **product pics** (the "base" layer — the product's own photos, the Amazon product images, the merch shots). Separate from the ad's creative `media_refs` (the "overlay" — the ad's own video/carousel/lifestyle content). The ad *layers the creative on top of the product*: the product pics say "this is the thing"; the creative says "here's why you want it." The Products tab + the storefront tile prefer `pics[0]` over the creative media as the tile photo.
+- **`actuals`** — the **actuals box** (focus #4): the operator logs the payout from their affiliate dashboard (web10 can't see it — off-platform, no API; the "organic, no-integration" trade-off).
+- **`calibration`** — the **self-calibration** (focus #4): the operator's own click→purchase %, set from their own clicks + actuals. Overrides the projection's assumed conversion.
+
+The `number` leaves are `number`-typed (sortable/filterable), the rest `text`
+(`../sdk/document-typing.md`). **The projection** (focus #3) is a *static*
+"100k impressions ~ $X" line computed client-side from `price` × `commission`
+× assumed CTR/conversion (`ad-projection.ts`) — no node surface, no live
+measurement (the *live* version is the D86 engine, next narrowing). The
+**Products tab** + the **storefront** (`monetization.md`) render this section;
+the **Analytics tab** runs the projection-vs-actual tell on it. App-owned (D75)
+— the node stores the field but doesn't read it.
+
 ### The Creative Is Data; the HTML Is the App's
 
 The operator wanted *"more of an html control over the ads."* The answer is a split, not a new type:

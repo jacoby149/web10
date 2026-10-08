@@ -252,4 +252,20 @@ describe('PostActions — the shared engagement bar (post-actions.md)', () => {
     await vi.waitFor(() => expect(screen.getByText('alice')).toBeInTheDocument());
     expect(screen.queryByTestId('comment-author-c1')).not.toBeInTheDocument();
   });
+
+  it('the D86 view metrics: impressions (bar-chart) + reach (person) both show when > 0', async () => {
+    const { PostActions } = await import('@/components/Feed/PostActions');
+    render(<PostActions {...base} impressions={12400} reach={1240} />);
+    expect(screen.getByTestId('post-actions-impressions')).toHaveTextContent('12.4k');
+    expect(screen.getByTestId('post-actions-reach')).toHaveTextContent('1.2k');
+  });
+
+  it('hideReach: the reach (person) slot is hidden even when reach > 0 (the mobile feed — the row is too narrow for all six)', async () => {
+    const { PostActions } = await import('@/components/Feed/PostActions');
+    render(<PostActions {...base} impressions={12400} reach={1240} hideReach />);
+    // impressions still shows (it carries the number on a phone)
+    expect(screen.getByTestId('post-actions-impressions')).toHaveTextContent('12.4k');
+    // reach is suppressed
+    expect(screen.queryByTestId('post-actions-reach')).not.toBeInTheDocument();
+  });
 });

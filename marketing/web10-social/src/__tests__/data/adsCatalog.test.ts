@@ -236,6 +236,131 @@ describe('isNodeAd / splitNodeAds', () => {
   });
 });
 
+describe('the product section (ads-october focus #2)', () => {
+  const PRODUCT_DOC = {
+    ...AD_DOC,
+    body: {
+      ...AD_DOC.body,
+      product: {
+        target: { type: 'text', value: 'product' },
+        name: { type: 'text', value: 'The good coffee grinder' },
+        price: { type: 'number', value: 30 },
+        commission: { type: 'number', value: 10 },
+        commission_is_percent: true,
+        actuals: { type: 'number', value: 22 },
+        calibration: { type: 'number', value: 2 },
+      },
+    },
+  };
+
+  it('parseAd reads the product section from the body', () => {
+    const ad = adsCatalog.parseAd(PRODUCT_DOC as any);
+    expect(ad.product).toEqual({
+      target: 'product',
+      name: 'The good coffee grinder',
+      price: 30,
+      commission: 10,
+      commission_is_percent: true,
+      pics: undefined,
+      actuals: 22,
+      calibration: 2,
+    });
+  });
+
+  it('parseAd returns no product for a pure ad (no product key)', () => {
+    const ad = adsCatalog.parseAd(AD_DOC as any);
+    expect(ad.product).toBeUndefined();
+  });
+
+  it('buildOfferBody writes the product section (leaf-typed)', () => {
+    const body = adsCatalog.buildOfferBody(
+      { kind: 'affiliate', partner: 'Amazon', link: 'https://amzn.to/abc', cta: 'Get it', disclosure: 'I may earn.' },
+      'My ad',
+      'active',
+      [],
+      undefined,
+      'inline',
+      undefined,
+      { target: 'product', name: 'The good coffee grinder', price: 30, commission: 10, commission_is_percent: true },
+    );
+    expect(body.product).toEqual({
+      target: { type: 'text', value: 'product' },
+      name: { type: 'text', value: 'The good coffee grinder' },
+      price: { type: 'number', value: 30 },
+      commission: { type: 'number', value: 10 },
+      commission_is_percent: true,
+    });
+  });
+
+  it('the product pics round-trip (the "base" layer, separate from the creative)', () => {
+    // buildOfferBody writes the pics (a plain array of doc_ids).
+    const body = adsCatalog.buildOfferBody(
+      { kind: 'affiliate', partner: 'Amazon', link: 'https://amzn.to/abc', cta: 'Get it', disclosure: '' },
+      'My ad',
+      'active',
+      [],
+      undefined,
+      'inline',
+      undefined,
+      { target: 'product', name: 'Grinder', price: 30, commission: 10, commission_is_percent: true, pics: ['pic-1'] },
+    );
+    expect((body.product as Record<string, unknown>).pics).toEqual(['pic-1']);
+    // parseAd reads them back.
+    const doc = { ...AD_DOC, body: { ...AD_DOC.body, product: { target: { type: 'text', value: 'product' }, name: { type: 'text', value: 'Grinder' }, pics: ['pic-1'] } } };
+    expect(adsCatalog.parseAd(doc as any).product?.pics).toEqual(['pic-1']);
+    // No pics → no pics key (a product with just the attributes).
+    const noPics = adsCatalog.buildOfferBody(
+      { kind: 'none', partner: '', link: 'https://x.com', cta: '', disclosure: '' },
+      'My ad',
+      'active',
+      [],
+      undefined,
+      'inline',
+      undefined,
+      { target: 'product', name: 'Grinder', price: 30, commission: 10, commission_is_percent: true },
+    );
+    expect((noPics.product as Record<string, unknown>).pics).toBeUndefined();
+  });
+
+  it('buildOfferBody writes product: null for a pure ad (so an update clears it)', () => {
+    const body = adsCatalog.buildOfferBody(
+      { kind: 'none', partner: '', link: 'https://x.com', cta: '', disclosure: '' },
+      'My ad',
+      'active',
+      [],
+    );
+    expect(body.product).toBeNull();
+  });
+
+  it('updateAd passes the product through (same doc_id)', async () => {
+    const mock = v3.getV3Client() as any;
+    const ad = adsCatalog.parseAd(AD_DOC as any);
+    await adsCatalog.updateAd(
+      ad,
+      { kind: 'affiliate', partner: 'Amazon', link: 'https://amzn.to/abc', cta: 'Get it', disclosure: 'I may earn.' },
+      'Updated copy',
+      'active',
+      [],
+      undefined,
+      'inline',
+      undefined,
+      { target: 'product', name: 'Grinder', price: 30, commission: 10, commission_is_percent: true },
+    );
+    expect(mock.update).toHaveBeenCalledWith(
+      'ad-1',
+      expect.objectContaining({
+        product: {
+          target: { type: 'text', value: 'product' },
+          name: { type: 'text', value: 'Grinder' },
+          price: { type: 'number', value: 30 },
+          commission: { type: 'number', value: 10 },
+          commission_is_percent: true,
+        },
+      }),
+    );
+  });
+});
+
 describe('readMyCatalog / readNodeAds', () => {
   beforeEach(mockV3Client);
 

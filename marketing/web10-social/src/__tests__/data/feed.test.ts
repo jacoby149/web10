@@ -17,6 +17,8 @@ function mockV3Client() {
     listMedia: vi.fn(),
     getMyGroups: vi.fn(),
     query: vi.fn(),
+    contentViews: vi.fn().mockResolvedValue({}),
+    trackContentEvent: vi.fn().mockResolvedValue({ recorded: true }),
   };
   vi.spyOn(v3, 'getV3Client').mockReturnValue(mock as any);
   return mock;
@@ -110,38 +112,54 @@ describe('feed v3 data layer', () => {
       ]);
     });
 
-    it('runs the feed as a w.query with the prepare pass (media + ads + face), then reads engagement counts from the discover group', async () => {
-      // The feed query returns the prepared post rows; the two follow-up
-      // queries (reactions / comments, scoped to the discover group where the
-      // engagement docs actually live) return the tallies.
+    it('runs the feed as a w.query with the prepare pass (media + ads + face) + the D86 surface, then reads engagement + reach from the discover group', async () => {
+      // The feed query returns the prepared post rows; the follow-up queries
+      // (reactions / comments, scoped to the discover group where the
+      // engagement docs actually live) return the tallies. View metrics come
+      // from the D86 engine's contentViews (not a `views` join).
       mock.query.mockImplementation(async (sql: string) => {
         if (sql.includes('FROM posts p')) return { rows: [feedRow()], count: 1 };
         if (sql.includes('FROM reactions')) return { rows: [{ ref_value: 'p1', like_count: 5, dislike_count: 0 }], count: 1 };
         if (sql.includes('FROM comments')) return { rows: [{ post_id: 'p1', comment_count: 2 }], count: 1 };
         return { rows: [], count: 0 };
       });
+      mock.contentViews.mockResolvedValue({ p1: { impressions: 420, reach: 42 } });
 
       const page = await readFeedPage({ limit: 20 });
 
-      // One feed query + one reactions-count query + one comments-count query.
+      // One feed query + one reactions-count query + one comments-count query
+      // (views come from contentReach, not a query).
       expect(mock.query).toHaveBeenCalledTimes(3);
       const [sql, opts] = mock.query.mock.calls[0];
       expect(opts.groups).toEqual(['web10.app/groups/users/alice/followers', 'web10.app/groups/users/bob/followers']);
+      // The D86 surface label + content service (the feed-as-query's delivery capture).
+      expect(opts.surface).toBe('feed');
+      expect(opts.contentService).toBe('posts');
       expect(opts.prepare).toEqual({
         media: true,
         ads: true,
         face: { bodyField: 'profile_body', mediaField: 'avatar_ref', authorColumn: 'author_key', urlField: 'avatar_url' },
       });
       // The query is the feed shape: the posts board + the engagement joins +
-      // the profile join + the keyset limit (page + 1).
+      // the profile join + the keyset limit (page + 1). No `views` join — the
+      // view count is the D86 engine's reach, not a `views` service.
       expect(sql).toContain('FROM posts p');
       expect(sql).toContain('FROM reactions');
       expect(sql).toContain('FROM comments');
+      expect(sql).not.toContain('FROM views');
       expect(sql).toContain('FROM profile');
       expect(sql).toContain('LIMIT 21');
       // The Most recent preset (no knobState) → chronological, cursor on created_at.
       expect(sql).toContain('ORDER BY toUnixTimestamp64Milli(p.created_at) DESC');
       expect(page.posts).toHaveLength(1);
+      // The view metrics ride the D86 engine's contentViews (impressions + reach).
+      expect(page.posts[0].impressions).toBe(420);
+      expect(page.posts[0].reach).toBe(42);
+      expect(mock.contentViews).toHaveBeenCalledWith({
+        service: 'posts',
+        docIds: ['p1'],
+        groups: ['web10.app/groups/web10/discover'],
+      });
       // The engagement-count queries are scoped to the feed groups + discover
       // (the group the reactions / comments are written to).
       const [, reactionOpts] = mock.query.mock.calls[1];
@@ -245,6 +263,47 @@ describe('feed v3 data layer', () => {
       // The repost count column is still selected + coalesced into `reposts`.
       expect(feedSql).toContain('repost_count');
       expect(feedSql).toContain('AS reposts');
+    });
+
+    it('excludes ad-tagged posts in the SQL (before the LIMIT), not just after it', async () => {
+      // Regression: the feed page is `LIMIT limit+1` newest-first, then
+      // `dropAdPosts` strips ad-tagged posts AFTER the limit. When a creator's
+      // most-recent posts are all ads (a batch of ads outranks every real post),
+      // the whole page is ads → all dropped → an empty feed, even though real
+      // posts sit just below the ad block. The ad exclusion must ride in the
+      // WHERE clause (before the LIMIT) so the page is filled with real posts.
+      const captured: string[] = [];
+      mock.query.mockImplementation(async (sql: string) => {
+        captured.push(sql);
+        if (sql.includes('FROM posts p')) return { rows: [feedRow()], count: 1 };
+        return { rows: [], count: 0 };
+      });
+      await readFeedPage({ limit: 20 });
+      const feedSql = captured.find((s) => s.includes('FROM posts p'))!;
+      // The ad exclusion is the FIRST WHERE condition (before the cursor
+      // condition, before the ORDER BY / LIMIT) — so the page is filled with
+      // real posts, not ads that get dropped after the LIMIT.
+      expect(feedSql).toContain('WHERE not has(p.tags, \'ad\')');
+    });
+
+    it('an all-ad page does not come back empty — real posts below the ad block surface', async () => {
+      // The shape of the prod bug: the newest 21 posts are all ads, but real
+      // posts exist below them. With the ad exclusion in the SQL, the page
+      // returns the real posts (the mock returns them as if the WHERE filtered
+      // the ads out) — not an empty page.
+      const realPost = feedRow({ doc_id: 'real1', tags: [], created_at: '2026-10-05T17:20:00Z' });
+      mock.query.mockImplementation(async (sql: string) => {
+        if (sql.includes('FROM posts p')) {
+          // The feed query must carry the ad exclusion — assert it, then return
+          // the real (non-ad) posts the WHERE would have selected.
+          expect(sql).toContain("not has(p.tags, 'ad')");
+          return { rows: [realPost], count: 1 };
+        }
+        return { rows: [], count: 0 };
+      });
+      const page = await readFeedPage({ limit: 20 });
+      expect(page.posts).toHaveLength(1);
+      expect(page.posts[0]._id).toBe('real1');
     });
 
     it('counts comments as the TOTAL (top-level + replies) — keyed on body.post_id, not ref_value (comments.md)', async () => {

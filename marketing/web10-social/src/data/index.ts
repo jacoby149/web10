@@ -5,6 +5,7 @@ export * from './groups';
 export * from './posts';
 export * from './ads';
 export * from './ads-catalog';
+export * from './ad-projection';
 export * from './comments';
 export * from './reactions';
 export * from './follows';
@@ -19,6 +20,7 @@ export * from './imports';
 export * from './feed';
 export * from './access';
 export * from './moderation';
+export * from './views';
 
 // contacts — re-export from contacts.ts (types ContactRecord/CrmStatus already
 // exported via types.ts, so we only re-export the functions)

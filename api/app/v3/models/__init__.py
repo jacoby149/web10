@@ -22,9 +22,12 @@ from app.v3.models.blocking import BlockUser, BlockUserInGroup, SetSharing
 from app.v3.models.contracts import AddAppContract, RevokeAppContract
 from app.v3.models.documents import (
     AdPreference,
+    ContentAnalyticsRequest,
+    ContentViewsRequest,
     CreateDocument,
     DeleteDocument,
     ReadDocuments,
+    TrackContentEvent,
     UpdateDocument,
 )
 from app.v3.models.groups import (
@@ -88,6 +91,9 @@ __all__ = [
     "ReadDocuments",
     "UpdateDocument",
     "DeleteDocument",
+    "TrackContentEvent",
+    "ContentAnalyticsRequest",
+    "ContentViewsRequest",
     "AdPreference",
     # query (the flexible read)
     "QueryRequest",

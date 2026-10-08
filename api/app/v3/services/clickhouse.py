@@ -232,8 +232,25 @@ def ensure_apps_schema():
             "updated_at DateTime64(3), deleted UInt8 DEFAULT 0"
             ") ENGINE = ReplacingMergeTree(updated_at) ORDER BY username"
         )
+        # content_events — the per-content performance log (D86). The generic
+        # analytics engine: one row per (doc, reader, surface, event) the node
+        # recorded. `delivery` rows are written by the read path (server-side,
+        # un-gameable); `viewport`/`click` rows are written by the gated
+        # trackContentEvent endpoint (client-reported, gated on a preceding
+        # delivery). Content-free: doc_id + reader_key + surface + event_type +
+        # payload + seen_at, never the doc's body. D60-generic — keyed on the
+        # document, no app-specific columns; the app interprets `surface` +
+        # `payload`. Pre-existing volumes predate the table; the DDL template
+        # covers fresh volumes.
+        client.command(
+            "CREATE TABLE IF NOT EXISTS content_events ("
+            "doc_id String, service String, reader_key String, surface String, "
+            "event_type String, payload String, seen_at DateTime64(3)"
+            ") ENGINE = MergeTree ORDER BY (doc_id, reader_key, surface, event_type, seen_at)"
+            " TTL toDateTime(seen_at) + INTERVAL 1 YEAR"
+        )
         log.info(
-            "[v3] schema ensured (apps.visits + app_ratings.comment + node_config + app_visits + group_contracts.discoverable + group_contracts.tags + group_contracts.membership_visibility + documents.ad_mode/ad_target + moderation_flags + bug_reports + marketing_events + banned_users present)"
+            "[v3] schema ensured (apps.visits + app_ratings.comment + node_config + app_visits + group_contracts.discoverable + group_contracts.tags + group_contracts.membership_visibility + documents.ad_mode/ad_target + moderation_flags + bug_reports + marketing_events + banned_users + content_events present)"
         )
         # Data migration (idempotent): re-home demo apps registered under
         # their directory-index file URLs onto their directory URLs.
@@ -4072,6 +4089,323 @@ def _count_app_visit(app_url: str, username: str) -> None:
         [[app_url, username, datetime.utcnow()]],
         column_names=["app_url", "username", "seen_at"],
     )
+
+
+# ---------------------------------------------------------------------------
+# D86 content analytics — the generic per-content performance engine
+# ---------------------------------------------------------------------------
+#
+# `content_events` is the generic analytics log (D86): one row per (doc,
+# reader, surface, event) the node recorded. Two tiers of impression:
+#   - `delivery` — written by the read path (server-side, un-gameable). The
+#     node returned the doc to the reader, so it counts; the client has no
+#     lever to fire it.
+#   - `viewport` / `click` — written by the gated `trackContentEvent` endpoint
+#     (client-reported, gated on a preceding delivery so a reader cannot report
+#     on a doc the node never served them).
+#
+# It is `app_visits` (D49) generalized from the *app* level to the *document*
+# level, and it obeys the D60 test: a notes app wants "how many times was my
+# note read," a music app "how many plays," a shop "how many views." Same
+# table, no app-specific columns — the app interprets `surface` + `payload`.
+#
+# Anti-gaming (the D49 pattern, generalized): only a *verified* reader is
+# counted (anon reads log nothing — D41's "readable by design" is for the
+# board, not the metrics), and every event is deduped + windowed so a reader
+# refreshing 100× produces one row, not 100.
+
+# Delivery is deduped per (doc, reader, surface) per this window: a reader
+# refreshing the feed 100× in a day produces one delivery row per (doc,
+# surface), not 100. 24h is the "a reader counts once a day per surface"
+# rule (D86; app_visits' 3h generalized to the document level).
+_CONTENT_EVENT_DELIVERY_WINDOW_S = 24 * 3600
+# Viewport / click are deduped per (doc, reader, surface, type) per this
+# window — a reader re-watching a short or re-clicking a CTA within the window
+# is one event, not N. 1h is the "a reader counts once an hour" rule.
+_CONTENT_EVENT_SIGNAL_WINDOW_S = 3600
+
+
+def log_content_deliveries(doc_ids: list[str], service: str, reader_key: str, surface: str) -> None:
+    """Log a delivery impression per returned doc (the read path's side effect).
+
+    Called by the read path after it has resolved the docs it is serving to
+    the reader — the server-side, un-gameable floor (D86). Anon is dropped by
+    the caller (only a verified reader is counted). Best-effort: a failure
+    here never fails the read (metrics are an enhancement, not the read).
+
+    Batched: ONE dedupe query (the latest delivery per doc for this reader +
+    surface) + ONE multi-row insert (the docs outside the window). A feed of N
+    docs is 2 round-trips, not 2N."""
+    if not doc_ids or reader_key == "anon":
+        return
+    try:
+        unique = list(dict.fromkeys(doc_ids))  # dedupe, preserve order
+        placeholders = ", ".join(f"%(d{i})s" for i in range(len(unique)))
+        params = {f"d{i}": d for i, d in enumerate(unique)}
+        result = client.query(
+            f"SELECT doc_id, max(seen_at) FROM content_events "
+            f"WHERE service = %(svc)s AND reader_key = %(r)s AND surface = %(u)s "
+            f"AND event_type = 'delivery' AND doc_id IN ({placeholders}) "
+            f"GROUP BY doc_id",
+            {"svc": service, "r": reader_key, "u": surface, **params},
+        )
+        last_by_doc = {row[0]: row[1] for row in result.result_rows}
+        now = datetime.utcnow()
+        rows = []
+        for doc_id in unique:
+            last = last_by_doc.get(doc_id)
+            if last is not None:
+                last_dt = last if isinstance(last, datetime) else _from_iso_utc(last)
+                if (now - last_dt).total_seconds() < _CONTENT_EVENT_DELIVERY_WINDOW_S:
+                    continue  # within the window — gated out
+            rows.append([doc_id, service, reader_key, surface, "delivery", "", now])
+        if rows:
+            client.insert(
+                "content_events",
+                rows,
+                column_names=["doc_id", "service", "reader_key", "surface", "event_type", "payload", "seen_at"],
+            )
+    except Exception as e:
+        log.warning("[content_events] delivery log failed (non-fatal) reader=%s: %s", reader_key, e)
+
+
+def _has_preceding_delivery(doc_id: str, service: str, reader_key: str, surface: str) -> bool:
+    """True if the node served this doc to this reader on this surface within
+    the delivery window — the gate that keeps a client from reporting a
+    viewport/click on a doc it was never shown (D86: bounded gaming)."""
+    result = client.query(
+        "SELECT count() FROM content_events "
+        "WHERE doc_id = %(d)s AND service = %(s)s AND reader_key = %(r)s "
+        "AND surface = %(u)s AND event_type = 'delivery' "
+        "AND seen_at > now() - INTERVAL 1 DAY",
+        {"d": doc_id, "s": service, "r": reader_key, "u": surface},
+    )
+    return bool(result.result_rows and result.result_rows[0][0] > 0)
+
+
+def _log_content_signal(
+    doc_id: str, service: str, reader_key: str, surface: str, event_type: str, payload: str
+) -> bool:
+    """Append a `viewport`/`click` content_event if the gate allows: a
+    preceding delivery exists AND no same-type row within the signal window.
+    The gate is the anti-gaming move — a reader cannot report on a doc the
+    node never served them (D86). Returns True if a row was appended, False if
+    gated out."""
+    if not _has_preceding_delivery(doc_id, service, reader_key, surface):
+        return False  # no preceding delivery — drop (the reader was never served this doc)
+    result = client.query(
+        "SELECT max(seen_at) FROM content_events "
+        "WHERE doc_id = %(d)s AND service = %(s)s AND reader_key = %(r)s "
+        "AND surface = %(u)s AND event_type = %(t)s",
+        {"d": doc_id, "s": service, "r": reader_key, "u": surface, "t": event_type},
+    )
+    last = result.result_rows[0][0] if result.result_rows else None
+    if last is not None:
+        last_dt = last if isinstance(last, datetime) else _from_iso_utc(last)
+        if (datetime.utcnow() - last_dt).total_seconds() < _CONTENT_EVENT_SIGNAL_WINDOW_S:
+            return False  # within the window — gated out, no row
+    client.insert(
+        "content_events",
+        [[doc_id, service, reader_key, surface, event_type, payload or "", datetime.utcnow()]],
+        column_names=["doc_id", "service", "reader_key", "surface", "event_type", "payload", "seen_at"],
+    )
+    return True
+
+
+def record_content_event(
+    doc_id: str, service: str, reader_key: str, surface: str, event_type: str, payload: str = ""
+) -> bool:
+    """Record a client-reported content event (viewport / click / app-defined).
+
+    Gated on a preceding delivery (the reader must have been served this doc
+    on this surface) + deduped per (doc, reader, surface, type) per window
+    (D86). Returns True if a row was appended, False if gated out. Anon is
+    dropped by the caller (only a verified reader is counted)."""
+    if reader_key == "anon":
+        return False
+    return _log_content_signal(doc_id, service, reader_key, surface, event_type, payload)
+
+
+def content_event_reach(doc_ids: list[str], service: str, window_days: int = 30) -> dict[str, int]:
+    """Reach per doc: the count of DISTINCT readers who saw the doc (D86).
+
+    This is the on-surface "N views" number — distinct readers, not
+    revisits. `countDistinct(reader_key)` over delivery rows in the trailing
+    window. A doc with no events is absent (the caller treats absent as 0).
+    """
+    if not doc_ids:
+        return {}
+    placeholders = ", ".join(f"%(d{i})s" for i in range(len(doc_ids)))
+    params = {f"d{i}": d for i, d in enumerate(doc_ids)}
+    result = client.query(
+        f"SELECT doc_id, countDistinct(reader_key) AS reach "
+        f"FROM content_events "
+        f"WHERE service = %(svc)s AND doc_id IN ({placeholders}) "
+        f"AND event_type = 'delivery' "
+        f"AND seen_at > now() - INTERVAL {int(window_days)} DAY "
+        f"GROUP BY doc_id",
+        {"svc": service, **params},
+    )
+    return {row[0]: int(row[1]) for row in result.result_rows}
+
+
+def content_event_metrics(doc_ids: list[str], service: str, window_days: int = 30) -> dict[str, dict]:
+    """Per-doc content metrics over the trailing window (D86): impressions
+    (delivery rows), reach (distinct readers), clicks (click rows), and avg
+    watch % (mean of payload.watched_ms / payload.duration_ms over viewport
+    rows). A doc with no events is absent (the caller treats absent as 0)."""
+    if not doc_ids:
+        return {}
+    placeholders = ", ".join(f"%(d{i})s" for i in range(len(doc_ids)))
+    params = {f"d{i}": d for i, d in enumerate(doc_ids)}
+    result = client.query(
+        f"SELECT doc_id, "
+        f"countIf(event_type = 'delivery') AS impressions, "
+        f"countDistinctIf(reader_key, event_type = 'delivery') AS reach, "
+        f"countIf(event_type = 'click') AS clicks, "
+        f"avgIf(JSONExtractFloat(payload, 'watched_ms') / "
+        f"nullIf(JSONExtractFloat(payload, 'duration_ms'), 0), event_type = 'viewport') AS avg_watch_pct "
+        f"FROM content_events "
+        f"WHERE service = %(svc)s AND doc_id IN ({placeholders}) "
+        f"AND seen_at > now() - INTERVAL {int(window_days)} DAY "
+        f"GROUP BY doc_id",
+        {"svc": service, **params},
+    )
+    out = {}
+    for row in result.result_rows:
+        doc_id, impressions, reach, clicks, avg_watch = row
+        out[doc_id] = {
+            "impressions": int(impressions or 0),
+            "reach": int(reach or 0),
+            "clicks": int(clicks or 0),
+            "avg_watch_pct": float(avg_watch) if avg_watch is not None else None,
+        }
+    return out
+
+
+def content_event_surface_breakdown(
+    doc_ids: list[str], service: str, window_days: int = 30
+) -> dict[str, dict[str, int]]:
+    """Impressions per doc, grouped by surface (D86): the "where is my content
+    finding an audience" breakdown (YouTube's "views by source"). Returns
+    {doc_id: {surface: impressions}}. A doc with no events is absent."""
+    if not doc_ids:
+        return {}
+    placeholders = ", ".join(f"%(d{i})s" for i in range(len(doc_ids)))
+    params = {f"d{i}": d for i, d in enumerate(doc_ids)}
+    result = client.query(
+        f"SELECT doc_id, surface, count() AS n "
+        f"FROM content_events "
+        f"WHERE service = %(svc)s AND doc_id IN ({placeholders}) "
+        f"AND event_type = 'delivery' "
+        f"AND seen_at > now() - INTERVAL {int(window_days)} DAY "
+        f"GROUP BY doc_id, surface",
+        {"svc": service, **params},
+    )
+    out: dict[str, dict[str, int]] = {}
+    for doc_id, surface, n in result.result_rows:
+        out.setdefault(doc_id, {})[surface] = int(n)
+    return out
+
+
+def content_event_timeseries(doc_ids: list[str], service: str, window_days: int = 30) -> dict[str, dict[str, int]]:
+    """Impressions per doc per day over the trailing window (D86): the
+    time-series line graph. Returns {doc_id: {date: impressions}} where date
+    is `YYYY-MM-DD`. A doc with no events is absent."""
+    if not doc_ids:
+        return {}
+    placeholders = ", ".join(f"%(d{i})s" for i in range(len(doc_ids)))
+    params = {f"d{i}": d for i, d in enumerate(doc_ids)}
+    result = client.query(
+        f"SELECT doc_id, toString(toDate(seen_at)) AS day, count() AS n "
+        f"FROM content_events "
+        f"WHERE service = %(svc)s AND doc_id IN ({placeholders}) "
+        f"AND event_type = 'delivery' "
+        f"AND seen_at > now() - INTERVAL {int(window_days)} DAY "
+        f"GROUP BY doc_id, day",
+        {"svc": service, **params},
+    )
+    out: dict[str, dict[str, int]] = {}
+    for doc_id, day, n in result.result_rows:
+        out.setdefault(doc_id, {})[day] = int(n)
+    return out
+
+
+def content_event_views_for_docs(doc_ids: list[str], service: str, group_ids: list[str]) -> dict[str, dict]:
+    """On-surface view metrics per doc (D86): **impressions** (total delivery
+    events — `count()`) + **reach** (distinct readers — `countDistinct`). The
+    on-surface "N views" shows both (the eye = impressions, the person = reach).
+    I3-scoped: the doc must be in one of the reader's readable groups for the
+    service (the ``doc_groups`` join), so a reader only sees the metrics for
+    docs they can read. The counts themselves are global — the group filter
+    limits WHICH docs the reader can query, not the count. No window filter:
+    the on-surface number is a lifetime count (bounded by the table's 1-year
+    TTL). A doc with no events is absent (the caller treats absent as 0)."""
+    if not doc_ids or not group_ids:
+        return {}
+    unique = list(dict.fromkeys(doc_ids))
+    placeholders = ", ".join(f"%(d{i})s" for i in range(len(unique)))
+    group_placeholders = ", ".join(f"%(g{i})s" for i in range(len(group_ids)))
+    params = {f"d{i}": d for i, d in enumerate(unique)}
+    params.update({f"g{i}": g for i, g in enumerate(group_ids)})
+    result = client.query(
+        f"SELECT e.doc_id, "
+        f"count() AS impressions, "
+        f"countDistinct(e.reader_key) AS reach "
+        f"FROM content_events e "
+        f"WHERE e.service = %(svc)s "
+        f"AND e.event_type = 'delivery' "
+        f"AND e.doc_id IN ({placeholders}) "
+        f"AND e.doc_id IN (SELECT doc_id FROM doc_groups WHERE group_id IN ({group_placeholders}) AND deleted = 0) "
+        f"GROUP BY e.doc_id",
+        {"svc": service, **params},
+    )
+    return {row[0]: {"impressions": int(row[1] or 0), "reach": int(row[2] or 0)} for row in result.result_rows}
+
+
+def content_event_creator_rows(author_key: str, service: str, window_days: int = 30) -> list[dict]:
+    """The creator's own content metrics over the trailing window (D86) — the
+    dashboard's data source. I3-bound by construction: the aggregate is scoped
+    to docs the caller AUTHORED (``documents.author_key = author_key``), so a
+    creator can only ever see their own content's events — never another
+    creator's. The doc-id subquery dedupes the ReplacingMergeTree versions
+    (``GROUP BY doc_id``) so a doc's multiple versions don't multiply rows.
+
+    Returns one row per (doc, surface, day) at the finest granularity the
+    dashboard needs: the client aggregates up to totals / per-surface /
+    time-series / per-doc as it renders. A doc with no events is absent.
+    """
+    result = client.query(
+        "SELECT e.doc_id AS doc_id, e.surface AS surface, "
+        "toString(toDate(e.seen_at)) AS day, "
+        "countIf(e.event_type = 'delivery') AS impressions, "
+        "countDistinctIf(e.reader_key, e.event_type = 'delivery') AS reach, "
+        "countIf(e.event_type = 'click') AS clicks, "
+        "avgIf(JSONExtractFloat(e.payload, 'watched_ms') / "
+        "nullIf(JSONExtractFloat(e.payload, 'duration_ms'), 0), e.event_type = 'viewport') AS avg_watch_pct "
+        "FROM content_events e "
+        "WHERE e.service = %(svc)s "
+        "AND e.doc_id IN (SELECT doc_id FROM documents "
+        "WHERE author_key = %(author)s AND collection_name = %(svc)s AND deleted = 0 "
+        "GROUP BY doc_id) "
+        f"AND e.seen_at > now() - INTERVAL {int(window_days)} DAY "
+        "GROUP BY e.doc_id, e.surface, day",
+        {"svc": service, "author": author_key},
+    )
+    out: list[dict] = []
+    for doc_id, surface, day, impressions, reach, clicks, avg_watch in result.result_rows:
+        out.append(
+            {
+                "doc_id": doc_id,
+                "surface": surface,
+                "day": day,
+                "impressions": int(impressions or 0),
+                "reach": int(reach or 0),
+                "clicks": int(clicks or 0),
+                "avg_watch_pct": float(avg_watch) if avg_watch is not None else None,
+            }
+        )
+    return out
 
 
 def register_app(app_info: dict) -> dict:
