@@ -142,6 +142,7 @@ export function VideoPlayer({ source, mode = 'inline', fit = 'contain', ratio, m
           muted={muted}
           testId={testId}
           className={className}
+          onTimeUpdate={onTimeUpdate}
         />
       );
     }
@@ -262,17 +263,23 @@ function formatDuration(seconds: number): string {
   return m > 0 ? `${m}:${String(s).padStart(2, '0')}` : `${s}s`;
 }
 
-export function ImmersiveHls({ manifestUrl, poster, width, height, active = false, muted = true, testId, className }: {
+export function ImmersiveHls({ manifestUrl, poster, width, height, active = false, muted = true, testId, className, onTimeUpdate }: {
   manifestUrl: string;
   poster?: string;
   width?: number;
   height?: number;
   active?: boolean;
   /** The sound seam (default `true` — muted autoplay). The surface's speaker
-    *  toggle passes `false` so the user can hear the video (shorts.md). */
+     *  toggle passes `false` so the user can hear the video (shorts.md). */
   muted?: boolean;
   testId?: string;
   className?: string;
+  /**
+   * Fired on every `timeupdate` with the current playback position (seconds) —
+   * the D86 viewport tier's `watched_ms` source (the surface reports how far
+   * the reader got through the clip). Absent → no callback (unchanged).
+   */
+  onTimeUpdate?: (t: number) => void;
 }) {
   const videoRef = useRef<HTMLVideoElement>(null);
   const hlsRef = useRef<HlsInstance | null>(null);
@@ -329,6 +336,17 @@ export function ImmersiveHls({ manifestUrl, poster, width, height, active = fals
     el.addEventListener('playing', onPlaying);
     return () => el.removeEventListener('playing', onPlaying);
   }, []);
+
+  // The D86 viewport tier: report the playback position (watched_ms) on every
+  // timeupdate. The surface accumulates the max position and reports it when
+  // the slide leaves. Absent → no listener (unchanged).
+  useEffect(() => {
+    const el = videoRef.current;
+    if (!el || !onTimeUpdate) return;
+    const onTime = () => onTimeUpdate(el.currentTime);
+    el.addEventListener('timeupdate', onTime);
+    return () => el.removeEventListener('timeupdate', onTime);
+  }, [onTimeUpdate]);
 
   useEffect(() => {
     const el = videoRef.current;

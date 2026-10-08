@@ -27,6 +27,7 @@ import {
   readRepostCounts,
   readMyRepostedIds,
   readViewCount,
+  trackVideoViewport,
   readUserProfile,
   isFollowing,
   followUser,
@@ -636,7 +637,43 @@ export default function WatchScreen() {
 
   // ── ?t= write-back (throttled, replace — no history flood) ─────────────────
   const lastTWrite = useRef(0);
+  // D86 viewport tier (watched_ms): the furthest position the reader reached in
+  // the CURRENT video (the loop is off here, so max = furthest watched). The
+  // ref holds the current post id + duration so the stable `handleTimeUpdate`
+  // can accumulate without re-attaching; reported once when the video changes
+  // or the page unmounts, gated on the delivery the post read already logged
+  // (surface: 'watch'). A sub-500ms flash is dropped.
+  const watchedMsRef = useRef(0);
+  const watchPostIdRef = useRef<string>('');
+  const watchDurationMsRef = useRef<number | undefined>(undefined);
+  const reportWatch = useCallback(() => {
+    const id = watchPostIdRef.current;
+    const ms = watchedMsRef.current;
+    if (!id || ms < 500) return;
+    trackVideoViewport(id, 'watch', ms, watchDurationMsRef.current);
+  }, []);
+  // Report the CURRENT video when the post changes (cleanup) or on unmount.
+  // Declared BEFORE the reset effect so its cleanup runs first — the report
+  // reads the accumulator before the reset clears it.
+  useEffect(() => {
+    return () => reportWatch();
+  }, [postId, reportWatch]);
+  // Reset the accumulator when the video changes (a new post is a new watch).
+  useEffect(() => {
+    watchedMsRef.current = 0;
+    watchPostIdRef.current = post?._id || '';
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [postId]);
+  // The video's duration lands async (the media resolve) — sync it whenever it
+  // becomes available so the reported payload carries duration_ms (watch %).
+  useEffect(() => {
+    const dur = firstVideoMedia(mediaMap[post?._id || ''] || [])?.duration_seconds;
+    if (dur) watchDurationMsRef.current = dur * 1000;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [mediaMap, post?._id]);
   const handleTimeUpdate = useCallback((t: number) => {
+    const ms = Math.round(t * 1000);
+    if (ms > watchedMsRef.current) watchedMsRef.current = ms;
     const now = Date.now();
     if (now - lastTWrite.current < 5000) return;
     lastTWrite.current = now;

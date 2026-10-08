@@ -3,6 +3,8 @@ import * as v3 from '../../data/v3';
 import {
   readViewCounts,
   readViewCount,
+  trackPostViewport,
+  trackVideoViewport,
 } from '../../data/views';
 
 function mockV3Client() {
@@ -75,6 +77,71 @@ describe('views v3 data layer (D86 — the content analytics engine)', () => {
     it('returns empty metrics for an empty post id', async () => {
       await expect(readViewCount('')).resolves.toEqual({ impressions: 0, reach: 0 });
       expect(mock.contentViews).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('trackPostViewport (the D86 client-gated viewport tier)', () => {
+    it('fires a viewport signal with dwell_ms + visible_pct', () => {
+      trackPostViewport('p1', 'feed', 4200, 0.8);
+      expect(mock.trackContentEvent).toHaveBeenCalledWith('p1', {
+        service: 'posts',
+        surface: 'feed',
+        type: 'viewport',
+        payload: JSON.stringify({ dwell_ms: 4200, visible_pct: 0.8 }),
+      });
+    });
+
+    it('omits visible_pct when not provided', () => {
+      trackPostViewport('p1', 'discover', 1500);
+      expect(mock.trackContentEvent).toHaveBeenCalledWith('p1', {
+        service: 'posts',
+        surface: 'discover',
+        type: 'viewport',
+        payload: JSON.stringify({ dwell_ms: 1500 }),
+      });
+    });
+
+    it('does not fire for a zero/negative dwell (a scroll-past)', () => {
+      trackPostViewport('p1', 'feed', 0);
+      trackPostViewport('p1', 'feed', -5);
+      expect(mock.trackContentEvent).not.toHaveBeenCalled();
+    });
+
+    it('does not fire for an empty post id', () => {
+      trackPostViewport('', 'feed', 4200);
+      expect(mock.trackContentEvent).not.toHaveBeenCalled();
+    });
+
+    it('never throws on a network failure (fire-and-forget)', () => {
+      mock.trackContentEvent.mockRejectedValue(new Error('boom'));
+      expect(() => trackPostViewport('p1', 'feed', 4200)).not.toThrow();
+    });
+  });
+
+  describe('trackVideoViewport (the D86 watched_ms tier)', () => {
+    it('fires a viewport signal with watched_ms + duration_ms', () => {
+      trackVideoViewport('p1', 'shorts', 12500, 60000);
+      expect(mock.trackContentEvent).toHaveBeenCalledWith('p1', {
+        service: 'posts',
+        surface: 'shorts',
+        type: 'viewport',
+        payload: JSON.stringify({ watched_ms: 12500, duration_ms: 60000 }),
+      });
+    });
+
+    it('omits duration_ms when unknown', () => {
+      trackVideoViewport('p1', 'watch', 30000);
+      expect(mock.trackContentEvent).toHaveBeenCalledWith('p1', {
+        service: 'posts',
+        surface: 'watch',
+        type: 'viewport',
+        payload: JSON.stringify({ watched_ms: 30000 }),
+      });
+    });
+
+    it('does not fire for a zero watched_ms', () => {
+      trackVideoViewport('p1', 'shorts', 0, 60000);
+      expect(mock.trackContentEvent).not.toHaveBeenCalled();
     });
   });
 });
