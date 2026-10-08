@@ -29,7 +29,7 @@ import { getWapi } from '@/data/wapi';
 import type { ProfileRecord, PostRecord, MediaRecord, FollowRecord } from '@/data/types';
 import type { CollectionRecord } from '@/data/saved';
 import { mediaRefId, fromResolvedMediaRef } from '@/data/types';
-import { MapPin, Globe, Link, Users, UserPlus, UserCheck, Loader2, ArrowLeft, MessageSquare, Play, Camera, Edit3, Check, X, ImagePlus, Inbox, LayoutGrid, Clapperboard, User, Bookmark } from 'lucide-react';
+import { MapPin, Globe, Link, Users, UserPlus, UserCheck, Loader2, ArrowLeft, MessageSquare, Play, Camera, Edit3, Check, X, ImagePlus, Inbox, LayoutGrid, Clapperboard, User, Bookmark, Store } from 'lucide-react';
 import { PostLightbox } from './PostLightbox';
 import { ProfileFeed } from './ProfileFeed';
 import { PostBodyInline } from '@/components/Feed/PostBody';
@@ -856,19 +856,41 @@ export default function UserProfileScreen({ username, provider, onBack }: UserPr
                       <MessageSquare className="w-3.5 h-3.5" />
                       Message
                     </Button>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="gap-1.5 flex-1 sm:flex-none sm:min-w-[100px] border-border hover:bg-elevated"
+                      data-testid="storefront-button"
+                      onClick={() => navigate(`/u/${username}/store`, { state: { provider } })}
+                    >
+                      <Store className="w-3.5 h-3.5" />
+                      Store
+                    </Button>
                   </>
                 )}
                 {isOwnProfile && !editing && (
-                  <Button
-                    variant="brand_subtle"
-                    size="sm"
-                    className="gap-1.5 flex-1 sm:flex-none"
-                    data-testid="edit-profile-button"
-                    onClick={() => setEditing(true)}
-                  >
-                    <Edit3 className="w-3.5 h-3.5" />
-                    Edit profile
-                  </Button>
+                  <>
+                    <Button
+                      variant="brand_subtle"
+                      size="sm"
+                      className="gap-1.5 flex-1 sm:flex-none"
+                      data-testid="edit-profile-button"
+                      onClick={() => setEditing(true)}
+                    >
+                      <Edit3 className="w-3.5 h-3.5" />
+                      Edit profile
+                    </Button>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="gap-1.5 flex-1 sm:flex-none border-border hover:bg-elevated"
+                      data-testid="storefront-button"
+                      onClick={() => navigate(`/u/${username}/store`, { state: { provider } })}
+                    >
+                      <Store className="w-3.5 h-3.5" />
+                      Store
+                    </Button>
+                  </>
                 )}
               </div>
             </div>

@@ -27,6 +27,7 @@ import SavedCollectionScreen from '@/components/Bio/SavedCollectionScreen';
 import UserFollowListScreen from '@/components/Bio/UserFollowListScreen';
 import PostComposer from '@/components/Feed/PostComposer';
 import MonetizationScreen from '@/components/Monetization/MonetizationScreen';
+import StorefrontScreen from '@/components/Monetization/StorefrontScreen';
 import NodeSettingsScreen from '@/components/NodeSettings/NodeSettingsScreen';
 import { InstallPrompt } from '@/components/shared/InstallPrompt';
 import { RepostProvider } from '@/context/RepostContext';
@@ -166,8 +167,11 @@ if (screen === 'post-detail') {
       : screen === 'saved-tab' ? '/u/me?tab=saved'
       : screen === 'saved-visitor' ? '/u/nova?tab=saved'
       : screen === 'saved-collection' ? '/u/me/saved/web10%2Fgroups%2Fusers%2Fme%2Fsaved-guitar-riffs'
-       : screen === 'monetize' ? '/monetize'
-       : screen === 'monetize-node' ? '/monetize?tab=node'
+        : screen === 'monetize' ? '/monetize'
+        : screen === 'monetize-products' ? '/monetize?tab=products'
+        : screen === 'monetize-analytics' ? '/monetize?tab=analytics'
+        : screen === 'monetize-node' ? '/monetize?tab=node'
+        : screen === 'storefront' ? '/u/nova/store'
       : screen === 'node-settings' ? '/node-settings'
       : screen === 'node-settings-people' ? '/node-settings?tab=people'
       : screen === 'node-settings-link' ? '/node-settings?tab=link'
@@ -197,6 +201,7 @@ if (screen === 'post-detail') {
           <Route path="/groups/:groupId/saved/:collectionId" element={<GroupSavedCollectionRoute />} />
           <Route path="/people" element={<DiscoverScreen />} />
           <Route path="/u/:username" element={<UserProfileRoute />} />
+          <Route path="/u/:username/store" element={<StorefrontScreen />} />
           <Route path="/u/:username/saved/:collectionId" element={<SavedCollectionRoute />} />
           <Route path="/u/:username/followers" element={<UserFollowersRoute />} />
           <Route path="/u/:username/following" element={<UserFollowingRoute />} />
