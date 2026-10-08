@@ -300,6 +300,19 @@ describe('AdForm — the product section (ads-october focus #2)', () => {
     expect(screen.getByTestId('ad-product-commission')).toBeInTheDocument();
   });
 
+  it('the product section has a product-photo attach (the "base" layer)', async () => {
+    checkNodeAdmin.mockResolvedValue(false);
+    readMyCatalog.mockResolvedValue({ ads: [], albums: [], posts: [] });
+    renderAt('/monetize');
+    fireEvent.click(await screen.findByTestId('ads-new-ad'));
+    await screen.findByTestId('ad-new-form');
+    // Off by default → no product photo attach.
+    expect(screen.queryByTestId('ad-product-pic-add')).not.toBeInTheDocument();
+    // Toggle the product section on → the product-photo attach appears.
+    fireEvent.click(screen.getByTestId('ad-product-toggle'));
+    expect(screen.getByTestId('ad-product-pic-add')).toBeInTheDocument();
+  });
+
   it('the live projection updates as the operator types the price + commission', async () => {
     checkNodeAdmin.mockResolvedValue(false);
     readMyCatalog.mockResolvedValue({ ads: [], albums: [], posts: [] });
