@@ -181,6 +181,24 @@ describe('Profile face lightbox — click avatar/banner to view enlarged', () =>
     fireEvent.click(screen.getByTestId('profile-media-lightbox-close'));
     await waitFor(() => expect(screen.queryByTestId('profile-media-lightbox')).not.toBeInTheDocument());
   });
+
+  it('the avatar camera button opens the crop editor (same as tapping the photo)', async () => {
+    await renderOwnProfile();
+    fireEvent.click(screen.getByTestId('edit-avatar-button'));
+    // The button opens the face lightbox (the crop editor), not a raw file picker.
+    await screen.findByTestId('profile-media-lightbox');
+    // The owner's picker (with the upload tile) is present.
+    expect(screen.getByTestId('profile-media-picker')).toBeInTheDocument();
+    expect(screen.getByTestId('profile-media-upload')).toBeInTheDocument();
+  });
+
+  it('the banner button opens the crop editor (same as tapping the photo)', async () => {
+    await renderOwnProfile();
+    fireEvent.click(screen.getByTestId('edit-banner-button'));
+    await screen.findByTestId('profile-media-lightbox');
+    expect(screen.getByTestId('profile-media-picker')).toBeInTheDocument();
+    expect(screen.getByTestId('profile-media-upload')).toBeInTheDocument();
+  });
 });
 
 describe('Profile face lightbox — the Facebook-like "your profile picture is a post you selected"', () => {

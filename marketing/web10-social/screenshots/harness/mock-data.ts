@@ -571,6 +571,21 @@ export async function readGroupDetail(groupId: string): Promise<unknown> {
     };
   }
   const entry = DIRECTORY.find((g) => g.group_id === groupId) ?? DIRECTORY[0];
+  // The feed posts: a mix of media + text-only so the feed tab's grid lens
+  // (the profile's 9:16 wall, mirrored) renders a real wall of tiles. The
+  // media refs are the same docs the Media tab's grid uses (one per cell).
+  const feedPosts =
+    entry.group_id === 'web10/groups/users/nova/synthwave-sessions'
+      ? [
+          { doc_id: 'gp-1', author_key: entry.owner, collection_name: 'posts', body: { text: 'First drop of the week is live — feedback welcome 🎧', media_refs: ['grp-med-1'] }, created_at: minsAgo(42), updated_at: minsAgo(42) },
+          { doc_id: 'gp-2', author_key: 'kai', collection_name: 'posts', body: { text: 'Who is in for the Friday session?', media_refs: ['grp-med-2'] }, created_at: minsAgo(60 * 5), updated_at: minsAgo(60 * 5) },
+          { doc_id: 'gp-3', author_key: 'nova', collection_name: 'posts', body: { text: 'Latest clip from the live set', media_refs: ['grp-med-3'] }, created_at: minsAgo(60 * 8), updated_at: minsAgo(60 * 8) },
+          { doc_id: 'gp-4', author_key: 'kai', collection_name: 'posts', body: { text: 'A thought on the new build — no media, just words.' }, created_at: minsAgo(60 * 12), updated_at: minsAgo(60 * 12) },
+        ]
+      : [
+          { doc_id: 'gp-1', author_key: entry.owner, collection_name: 'posts', body: { text: 'First drop of the week is live — feedback welcome 🎧' }, created_at: minsAgo(42), updated_at: minsAgo(42) },
+          { doc_id: 'gp-2', author_key: 'kai', collection_name: 'posts', body: { text: 'Who is in for the Friday session?' }, created_at: minsAgo(60 * 5), updated_at: minsAgo(60 * 5) },
+        ];
   return {
     group_id: entry.group_id,
     name: entry.name,
@@ -588,10 +603,7 @@ export async function readGroupDetail(groupId: string): Promise<unknown> {
     tags: entry.tags,
     is_member: true,
     posts_state: 'ok',
-    posts: [
-      { doc_id: 'gp-1', author_key: entry.owner, collection_name: 'posts', body: { text: 'First drop of the week is live — feedback welcome 🎧' }, created_at: minsAgo(42), updated_at: minsAgo(42) },
-      { doc_id: 'gp-2', author_key: 'kai', collection_name: 'posts', body: { text: 'Who is in for the Friday session?' }, created_at: minsAgo(60 * 5), updated_at: minsAgo(60 * 5) },
-    ],
+    posts: feedPosts,
   };
 }
 export async function joinGroup(): Promise<unknown> { return { status: 'joined' }; }
