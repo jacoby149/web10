@@ -6,10 +6,19 @@ export function cn(...inputs: ClassValue[]): string {
   return twMerge(clsx(inputs));
 }
 
-/** 1234 → 1.2k, 12000 → 12k, 999 → 999. The discover card's count format. */
+/** Compact count format: 1240 → 1.2k, 12000 → 12k, 1500000 → 1.5m,
+ *  1200000000 → 1.2b, 999 → 999. Units: k (thousand), m (million), b (billion),
+ *  t (trillion). >= 100 of a unit → whole number (12k); < 100 → 1 decimal with
+ *  a trailing .0 dropped (1.2k, 12k). The discover card / view-metric format. */
 export function formatCount(n: number): string {
-  if (n >= 10000) return `${(n / 1000).toFixed(1)}k`;
-  if (n >= 1000) return `${(n / 1000).toFixed(1)}k`;
+  const fmt = (v: number, suffix: string): string => {
+    const s = v >= 100 ? Math.round(v).toString() : v.toFixed(1).replace(/\.0$/, '');
+    return `${s}${suffix}`;
+  };
+  if (n >= 1e12) return fmt(n / 1e12, 't');
+  if (n >= 1e9) return fmt(n / 1e9, 'b');
+  if (n >= 1e6) return fmt(n / 1e6, 'm');
+  if (n >= 1e3) return fmt(n / 1e3, 'k');
   return String(n);
 }
 

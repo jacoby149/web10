@@ -20,6 +20,7 @@ export * from './imports';
 export * from './feed';
 export * from './access';
 export * from './moderation';
+export * from './views';
 
 // contacts — re-export from contacts.ts (types ContactRecord/CrmStatus already
 // exported via types.ts, so we only re-export the functions)

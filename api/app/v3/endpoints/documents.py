@@ -6,12 +6,31 @@ import app.exceptions as exceptions
 from app.services.hls import hls_prefix, mint_sig
 from app.v3.endpoints.auth_helper import user as _user
 from app.v3.endpoints.auth_helper import user_or_anon
-from app.v3.models import CreateDocument, DeleteDocument, ReadDocuments, UpdateDocument
+from app.v3.models import (
+    ContentAnalyticsRequest,
+    ContentViewsRequest,
+    CreateDocument,
+    DeleteDocument,
+    ReadDocuments,
+    TrackContentEvent,
+    UpdateDocument,
+)
 from app.v3.services import clickhouse as ch
 from app.v3.services import moderation
 
 router = APIRouter(tags=["documents"])
 log = logging.getLogger(__name__)
+
+
+def _log_deliveries(docs: list[dict], reader: str, service: str, surface: str | None) -> None:
+    """Log a delivery impression per returned doc (D86, the read path's side
+    effect — the server-side, un-gameable floor). Only when the app passed a
+    `surface` label AND the reader is verified (anon is dropped). Best-effort:
+    a metrics failure never fails the read. Count/ref reads do NOT call this
+    (a count query is not a content view)."""
+    if not surface or reader == "anon" or not docs:
+        return
+    ch.log_content_deliveries([d["doc_id"] for d in docs], service, reader, surface)
 
 
 def _moderate_post(author: str, doc_id: str, service: str, body: dict, groups: list[str]) -> None:
@@ -197,6 +216,9 @@ def read_documents(request: Request, data: ReadDocuments):
         doc = ch.read_document_by_id(data.doc_id, reader, data.service, authenticated)
         if not doc:
             raise exceptions.ENTRY_NOT_FOUND
+        # D86: a single-doc read is a content view (the watch/short/permalink
+        # surface) — log the delivery impression (the un-gameable floor).
+        _log_deliveries([doc], reader, data.service, data.surface)
         # v3 ad preference: the single-doc read serves the pinned ad inline
         # too (the post detail deep link is a read, I3-checked).
         doc = ch.attach_pinned_ads([doc], reader)[0]
@@ -274,6 +296,9 @@ def read_documents(request: Request, data: ReadDocuments):
         # first consumer (["short"]); the render-time gate stays the backstop.
         tags=data.tags,
     )
+    # D86: a group read is a content view (the feed/discover/profile/board
+    # surfaces) — log a delivery impression per returned doc.
+    _log_deliveries(docs, reader, data.service, data.surface)
     # v3 ad preference: serve each pinned doc with its ad inline (I3-checked).
     docs = ch.attach_pinned_ads(docs, reader)
     # D57: node ad attachment (the third join — doc.ad + doc.node_ad).
@@ -326,3 +351,83 @@ def delete_document(request: Request, data: DeleteDocument):
     ch.delete_document(data.doc_id, author, existing["service"])
     ch.detach_doc_from_groups(data.doc_id)
     return {"doc_id": data.doc_id, "status": "deleted"}
+
+
+@router.post("/trackContentEvent")
+def track_content_event(request: Request, data: TrackContentEvent):
+    """Record a client-reported content event (D86): a `viewport` (the reader
+    saw the doc for Ns / M%), a `click` (a CTA tapped), or an app-defined type.
+
+    The anti-gaming boundary is the **preceding-delivery gate**: the node only
+    accepts a viewport/click for a doc it actually served to this reader on
+    this surface (within the delivery window), so a reader in devtools cannot
+    fabricate dwell on a post they were never shown. It is also deduped per
+    (doc, reader, surface, type) per window (a re-report within the window is a
+    no-op). Anon is rejected (only a verified reader is counted — D41's
+    "readable by design" is for the board, not the metrics). The `payload` is
+    stored verbatim, content-free (D60: the app owns the payload's meaning).
+    """
+    reader = _user(data)  # verified reader only (anon rejected)
+    _check_app_permission(request, reader, data.service, "readAll")
+    recorded = ch.record_content_event(
+        doc_id=data.doc_id,
+        service=data.service,
+        reader_key=reader,
+        surface=data.surface,
+        event_type=data.type,
+        payload=data.payload,
+    )
+    return {"doc_id": data.doc_id, "recorded": recorded}
+
+
+@router.post("/contentAnalytics")
+def content_analytics(request: Request, data: ContentAnalyticsRequest):
+    """The creator's own content metrics (D86) — the dashboard's data source.
+
+    I3-bound by construction: the aggregate is scoped to docs the caller
+    **authored** (``documents.author_key = reader``), so a creator can only
+    ever see their own content's events — never another creator's. (The
+    generic query engine cannot reach ``content_events`` — it is a raw node
+    table, not a service — so this is the dedicated, author-scoped read the
+    D86 plan calls for: "creator/admin-scoped, I3-bound to the caller's own
+    docs.") ``service`` is the content service; ``window_days`` the trailing
+    window. Returns one row per (doc, surface, day); the client aggregates up
+    to totals / per-surface / time-series / per-doc.
+    """
+    reader = _user(data)  # verified creator only (anon rejected)
+    _check_app_permission(request, reader, data.service, "readAll")
+    rows = ch.content_event_creator_rows(reader, data.service, data.window_days)
+    return {"rows": rows, "count": len(rows)}
+
+
+@router.post("/contentViews")
+def content_views(request: Request, data: ContentViewsRequest):
+    """The on-surface view metrics (D86): **impressions** (total delivery
+    events) + **reach** (distinct readers) per doc, read by the VIEWER for docs
+    they can read. The on-surface "N views" shows both — the eye icon =
+    impressions, the person icon = reach.
+
+    Anon-capable (like the board read): a signed-out visitor on the public
+    board sees the metrics too. I3-scoped: a doc only returns metrics if it is
+    in one of the reader's readable groups for the service (the ``doc_groups``
+    join) — a reader sees a post's metrics only if they can read that post. The
+    counts themselves are global; the group filter limits WHICH docs the reader
+    can query, not the count. No window filter — the on-surface number is a
+    lifetime count (bounded by the table's 1-year TTL). This is the SAME object
+    the D86 engine records (the delivery impression), so the on-surface number
+    and the dashboard are one source of truth.
+
+    NOTE (anon gap, planned): delivery is currently logged for verified readers
+    only, so signed-out viewers don't yet count toward impressions/reach.
+    Supporting anon (coarse IP dedupe) is a planned follow-up — see the D86
+    anon-delivery plan item.
+    """
+    reader = user_or_anon(data)
+    authenticated = reader != "anon"
+    if authenticated:
+        _check_app_permission(request, reader, data.service, "readAll")
+    # D58 read gate: filter to the groups the reader's effective role grants
+    # readAll on this service (the same gate the group read uses). Anon reads
+    # the public board (the `anyone` grant).
+    group_ids = ch.readable_groups(reader, data.service, authenticated, data.groups)
+    return ch.content_event_views_for_docs(data.doc_ids, data.service, group_ids)

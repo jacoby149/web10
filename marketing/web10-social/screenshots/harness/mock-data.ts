@@ -501,6 +501,12 @@ export async function updateFollowNotify(): Promise<void> {}
 export async function setReaction(): Promise<null> { return null; }
 export async function toggleReactionKind(): Promise<null> { return null; }
 export async function toggleRepost(): Promise<boolean> { return true; }
+// Views / impressions (D86) — the harness has no backend, so view counts
+// degrade to empty (no tallies). There is no `recordView` (the view is the
+// server-side delivery, not a client write). The barrel's named imports must
+// resolve or the module errors at load.
+export async function readViewCounts(): Promise<Record<string, number>> { return {}; }
+export async function readViewCount(): Promise<number> { return 0; }
 
 // ── Groups (screenshot seed) ───────────────────────────────────────────────
 // The Groups screen (My Groups + Discover) and its detail read these. Seeded
@@ -797,6 +803,10 @@ interface SeedFeedPost {
   likes: number;
   comments: number;
   reposts: number;
+  // The D86 view metrics — impressions (eye) + reach (person), shown under the
+  // post. Seeded so the PR shot shows both tallies.
+  impressions: number;
+  reach: number;
   // A repost (reposts.md): the doc_id of the post this one reposts. The feed
   // renders it as a "reposted" card with the original embedded.
   repost_of?: string;
@@ -848,6 +858,8 @@ const FEED_POSTS: SeedFeedPost[] = [
     likes: 88,
     comments: 9,
     reposts: 2,
+    impressions: 12400,
+    reach: 1240,
   },
   {
     // A MULTI-PHOTO (2-image) post — the feed's inline carousel (fit="cover").

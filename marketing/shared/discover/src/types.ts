@@ -197,6 +197,11 @@ export interface DiscoverPost {
   dislikes?: number;
   comments?: number;
   reposts?: number;
+  /** Impressions (D86) — total delivery events. The video wall (HomeCard) shows
+   *  it YouTube-style in the metadata line ("N views"). */
+  impressions?: number;
+  /** Reach (D86) — distinct readers who saw the post. */
+  reach?: number;
   score?: number;
   media?: MediaItem[];
   /**

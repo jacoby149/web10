@@ -13,6 +13,7 @@ export type {
   V3ClientOptions,
   V3AdPreference,
   PowerMeanSort,
+  V3ContentEventRow,
   V3Document,
   V3QueryResult,
   V3Prepare,

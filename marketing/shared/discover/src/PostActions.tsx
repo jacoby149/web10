@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState, type ReactNode } from 'react';
-import { Heart, ThumbsDown, MessageCircle, Repeat2 } from 'lucide-react';
-import { cn } from './utils';
+import { Heart, ThumbsDown, MessageCircle, Repeat2, BarChart3, Users } from 'lucide-react';
+import { cn, formatCount } from './utils';
 import { CommentThread } from './CommentThread';
 import type { ReadComments, ReadReplies, CreateComment } from './types';
 
@@ -43,8 +43,18 @@ export interface PostActionsProps {
    *  count renders on the heart (post-actions.md: likes and dislikes are the
    *  same, each shows its own tally). */
   dislikeCount?: number;
-  /** The comment count (seed — the thread's live count wins once open). */
+   /** The comment count (seed — the thread's live count wins once open). */
   commentCount: number;
+  /** Impressions (D86) — total delivery events, the eye icon. Display-only.
+   *  Absent/0 → the slot is hidden. */
+  impressions?: number;
+  /** Reach (D86) — distinct readers, the person icon. Display-only. Absent/0
+   *  → the slot is hidden. */
+  reach?: number;
+  /** Hide the reach (person) slot even when `reach > 0`. The surface decides
+   *  (e.g. the feed hides it on a phone where the compact row is too narrow
+   *  for all six metrics — impressions alone carries the number there). */
+  hideReach?: boolean;
   /** The surface's reaction writer (optimistic + rollback on the surface). */
   onToggleReaction?: (kind: ReactionKind) => void;
   /** The surface's repost writer (optimistic + rollback on the surface). */
@@ -111,6 +121,9 @@ export function PostActions({
   reactionCount,
   dislikeCount = 0,
   commentCount,
+  impressions = 0,
+  reach = 0,
+  hideReach = false,
   onToggleReaction,
   onToggleRepost,
   reposted = false,
@@ -297,12 +310,52 @@ export function PostActions({
     </span>
   );
 
+  // The D86 view metrics: impressions (total delivery events, the bar-chart) +
+  // reach (distinct readers, the person). Both are display-only (not tappable).
+  // Each is hidden when 0. Numbers are compact (12.4k) via formatCount for
+  // polish. This is the SAME object the creator dashboard reads — one source
+  // of truth (the content_events delivery).
+  //
+  // Spacing: the like/comment/repost are buttons with horizontal padding (for
+  // the hover background); the views are display-only spans, so they carry the
+  // SAME horizontal padding to be equal-width flex children. That keeps the
+  // parent gap uniform across every metric (no tighter gap between the two
+  // view numbers than between the other number→icon pairs).
+  const viewBase = compact
+    ? 'flex items-center gap-1.5 px-2 py-1.5 rounded-md text-xs'
+    : 'flex items-center gap-1.5 px-2.5 py-2 rounded-lg min-h-10 text-sm';
+  const viewsDisplay = (
+    <>
+      {impressions > 0 && (
+        <span
+          className={cn(viewBase, 'text-muted-foreground')}
+          aria-label={`${formatCount(impressions)} impressions`}
+          data-testid="post-actions-impressions"
+        >
+          <BarChart3 className={iconSize} strokeWidth={1.75} />
+          <span className="tabular-nums">{formatCount(impressions)}</span>
+        </span>
+      )}
+      {reach > 0 && !hideReach && (
+        <span
+          className={cn(viewBase, 'text-muted-foreground')}
+          aria-label={`${formatCount(reach)} people reached`}
+          data-testid="post-actions-reach"
+        >
+          <Users className={iconSize} strokeWidth={1.75} />
+          <span className="tabular-nums">{formatCount(reach)}</span>
+        </span>
+      )}
+    </>
+  );
+
   const bar = (
     <>
       {showLike && (likeButton || likeDisplay)}
       {dislikeButton}
       {commentButton}
       {repostButton || repostDisplay}
+      {viewsDisplay}
       {trailing}
     </>
   );
@@ -336,10 +389,10 @@ export function PostActions({
 
   const rowClass =
     layout === 'compact'
-      ? 'flex items-center gap-1 px-3 py-1.5'
+      ? 'flex items-center gap-2.5 px-3 py-2'
       : layout === 'row'
-        ? 'flex items-center gap-1 px-2 py-2'
-        : 'flex items-center gap-6 border-t border-border px-4 pt-3 pb-3';
+        ? 'flex items-center gap-2.5 px-2 py-2'
+        : 'flex items-center gap-3 border-t border-border px-4 pt-3 pb-3';
 
   return (
     <div data-testid={testId}>

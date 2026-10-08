@@ -469,6 +469,99 @@ describe('v3 client', () => {
       expect(call.tags).toEqual(['short'])
     })
 
+    it('read with surface sends the D86 surface label (the delivery impression)', async () => {
+      const mockResponse = [{ doc_id: 'abc', collection_name: 'posts', body: {} }]
+      vi.spyOn(http, 'authPost').mockResolvedValueOnce(mockResponse as any)
+
+      await client.read('posts', { groups: ['g'], surface: 'feed' })
+      const call = (vi.mocked(http.authPost).mock.calls[0][1] as any)
+      expect(call.surface).toBe('feed')
+    })
+
+    it('read without surface omits the field (no delivery logged)', async () => {
+      const mockResponse = [{ doc_id: 'abc', collection_name: 'posts', body: {} }]
+      vi.spyOn(http, 'authPost').mockResolvedValueOnce(mockResponse as any)
+
+      await client.read('posts', { groups: ['g'] })
+      const call = (vi.mocked(http.authPost).mock.calls[0][1] as any)
+      expect(call.surface).toBeUndefined()
+    })
+
+    it('trackContentEvent posts the D86 client signal (viewport/click)', async () => {
+      const mockResponse = { doc_id: 'abc', recorded: true }
+      vi.spyOn(http, 'authPost').mockResolvedValueOnce(mockResponse as any)
+
+      const result = await client.trackContentEvent('abc', {
+        service: 'posts',
+        surface: 'feed',
+        type: 'viewport',
+        payload: '{"watched_ms":1000,"duration_ms":60000}',
+      })
+      expect(result).toEqual(mockResponse)
+      const call = (vi.mocked(http.authPost).mock.calls[0][1] as any)
+      expect(call.doc_id).toBe('abc')
+      expect(call.service).toBe('posts')
+      expect(call.surface).toBe('feed')
+      expect(call.type).toBe('viewport')
+      expect(call.payload).toBe('{"watched_ms":1000,"duration_ms":60000}')
+    })
+
+    it('trackContentEvent omits payload when absent (a click)', async () => {
+      const mockResponse = { doc_id: 'abc', recorded: true }
+      vi.spyOn(http, 'authPost').mockResolvedValueOnce(mockResponse as any)
+
+      await client.trackContentEvent('abc', { service: 'posts', surface: 'feed', type: 'click' })
+      const call = (vi.mocked(http.authPost).mock.calls[0][1] as any)
+      expect(call.type).toBe('click')
+      expect(call.payload).toBeUndefined()
+    })
+
+    it('trackContentEvent posts to the /v3/trackContentEvent endpoint', async () => {
+      vi.spyOn(http, 'authPost').mockResolvedValueOnce({ doc_id: 'abc', recorded: true } as any)
+
+      await client.trackContentEvent('abc', { service: 'posts', surface: 'feed', type: 'click' })
+      const url = vi.mocked(http.authPost).mock.calls[0][0]
+      expect(url).toContain('/v3/trackContentEvent')
+    })
+
+    it('contentAnalytics posts the D86 creator-metrics read (the dashboard source)', async () => {
+      const mockResponse = {
+        rows: [{ doc_id: 'p1', surface: 'feed', day: '2026-10-01', impressions: 100, reach: 40, clicks: 7, avg_watch_pct: 0.62 }],
+        count: 1,
+      }
+      vi.spyOn(http, 'authPost').mockResolvedValueOnce(mockResponse as any)
+
+      const result = await client.contentAnalytics({ service: 'posts', windowDays: 30 })
+      expect(result.count).toBe(1)
+      const call = (vi.mocked(http.authPost).mock.calls[0][1] as any)
+      expect(call.service).toBe('posts')
+      expect(call.window_days).toBe(30)
+      const url = vi.mocked(http.authPost).mock.calls[0][0]
+      expect(url).toContain('/v3/contentAnalytics')
+    })
+
+    it('contentAnalytics omits window_days when absent (the default window)', async () => {
+      vi.spyOn(http, 'authPost').mockResolvedValueOnce({ rows: [], count: 0 } as any)
+
+      await client.contentAnalytics({ service: 'posts' })
+      const call = (vi.mocked(http.authPost).mock.calls[0][1] as any)
+      expect(call.window_days).toBeUndefined()
+    })
+
+    it('contentViews returns the on-surface view metrics (impressions + reach)', async () => {
+      const mockResponse = { p1: { impressions: 50, reach: 5 }, p2: { impressions: 120, reach: 12 } }
+      vi.spyOn(http, 'authPost').mockResolvedValueOnce(mockResponse as any)
+
+      const result = await client.contentViews({ service: 'posts', docIds: ['p1', 'p2'], groups: ['g1'] })
+      expect(result).toEqual({ p1: { impressions: 50, reach: 5 }, p2: { impressions: 120, reach: 12 } })
+      const call = (vi.mocked(http.authPost).mock.calls[0][1] as any)
+      expect(call.service).toBe('posts')
+      expect(call.doc_ids).toEqual(['p1', 'p2'])
+      expect(call.groups).toEqual(['g1'])
+      const url = vi.mocked(http.authPost).mock.calls[0][0]
+      expect(url).toContain('/v3/contentViews')
+    })
+
     it('read without tags omits the field (the unfiltered board read)', async () => {
       const mockResponse = [{ doc_id: 'abc', collection_name: 'posts', body: {} }]
       vi.spyOn(http, 'authPost').mockResolvedValueOnce(mockResponse as any)

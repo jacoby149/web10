@@ -94,6 +94,14 @@ class ReadDocuments(BaseModel):
     # Page order for the ref read: "asc" (oldest first — the thread's
     # "most recent" reading order) or "desc" (newest first). Default "asc".
     order: str = "asc"
+    # The surface label the app shows the content on (D86): "feed" / "shorts" /
+    # "discover" / "profile" / "group" for web10-social; "list" / "detail" for a
+    # notes app. The node records it verbatim on the delivery impression — it
+    # does not know what the label means (D60: the app owns the surface). When
+    # present + the reader is verified, the read path logs a delivery
+    # impression per returned doc (the server-side, un-gameable floor). Absent
+    # = no delivery logged (the read is not a "view" the app is measuring).
+    surface: str | None = None
 
 
 class UpdateDocument(BaseModel):
@@ -113,3 +121,61 @@ class DeleteDocument(BaseModel):
 
     token: str
     doc_id: str
+
+
+class TrackContentEvent(BaseModel):
+    """Record a client-reported content event (D86): a `viewport` (the reader
+    saw the doc for Ns / M%), a `click` (a CTA tapped), or an app-defined type.
+
+    Gated on a preceding delivery (the node must have served this doc to this
+    reader on this surface) + deduped per (doc, reader, surface, type) per
+    window — so a reader cannot report on a doc they were never shown, and a
+    re-report within the window is a no-op (D86 anti-gaming). Anon is dropped
+    (only a verified reader is counted). The `payload` is a JSON string the app
+    fills (e.g. `{"watched_ms": 12000, "duration_ms": 60000}`) — the node
+    stores it verbatim, content-free (D60: the app owns the payload's meaning).
+    """
+
+    token: str
+    doc_id: str
+    service: str
+    surface: str
+    type: str
+    payload: str = ""
+
+
+class ContentAnalyticsRequest(BaseModel):
+    """The creator's own content metrics (D86) — the dashboard's data source.
+
+    I3-bound by construction: the aggregate is scoped to docs the caller
+    **authored** (``documents.author_key = reader``), so a creator can only
+    ever see their own content's events — never another creator's. ``service``
+    is the content service (``posts`` for web10-social; a notes app's notes
+    service, a shop's products service — D60-generic). ``window_days`` is the
+    trailing window (default 30). Returns one row per (doc, surface, day); the
+    client aggregates up to totals / per-surface / time-series / per-doc.
+    """
+
+    token: str
+    service: str
+    window_days: int = 30
+
+
+class ContentViewsRequest(BaseModel):
+    """The on-surface view metrics (D86): impressions (total delivery events) +
+    reach (distinct readers) per doc, read by the VIEWER for docs they can read.
+
+    I3-scoped: a doc only returns metrics if it is in one of the reader's
+    readable groups for the service (the ``doc_groups`` join) — a reader sees a
+    post's metrics only if they can read that post. The counts themselves are
+    global; the group filter limits WHICH docs the reader can query, not the
+    count. No window filter — the on-surface number is a lifetime count (bounded
+    by the table's 1-year TTL). This is the SAME object the D86 engine records
+    (the delivery impression), so the on-surface number and the dashboard are
+    one source of truth.
+    """
+
+    token: str | None = None
+    service: str
+    doc_ids: list[str]
+    groups: list[str]
