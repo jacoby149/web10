@@ -174,6 +174,34 @@ export interface AdOffer {
 }
 
 /**
+ * The ad's product attributes (ads-october focus #2 — "the ad is the superset").
+ * An ad can advertise a single product (it HAS these), a collection, a
+ * storefront, or nothing (a pure ad — no product). These are a *section* of the
+ * ad, not a separate product entity: the inputs for the projection (focus #3)
+ * and the "what is this ad worth" number. Leaf-typed on the doc body
+ * (`price`/`commission`/`actuals`/`calibration` are `number` leaves so they're
+ * sortable/filterable; the rest are `text`).
+ */
+export interface AdProduct {
+  /** What the ad advertises: a product / a collection / a storefront / nothing. */
+  target?: 'product' | 'collection' | 'storefront' | 'none';
+  name?: string;
+  /** The product's price (the "cost of the item"). */
+  price?: number;
+  /** The commission the affiliate program pays — a % (0–100) or a flat $. */
+  commission?: number;
+  commission_is_percent?: boolean;
+  /** The product's own photos (the base layer, separate from the creative). */
+  pics?: string[];
+  /** The actuals box (focus #4): the operator logs the payout from their
+   *  affiliate dashboard — the "how much did this actually make?" number. */
+  actuals?: number;
+  /** Self-calibration (focus #4): the operator's own click→purchase % (0–100),
+   *  set from their own clicks + actuals. Overrides the assumed rate. */
+  calibration?: number;
+}
+
+/**
  * The ad's provenance — who made it. Drives the ad block's color scheme +
  * the disclosure line (design: ads-as-posts, creator vs node dressing).
  * - `creator`: a web10 account's own monetization (tagged `ad`). The
@@ -216,6 +244,9 @@ export interface AdRecord {
   format?: AdFormat;
   /** album doc_ids this ad belongs to (from its `album:<id>` tags) */
   albums?: string[];
+  /** The ad's product attributes (ads-october focus #2) — present when the ad
+   *  advertises a product. The storefront + Products tab render these. */
+  product?: AdProduct;
 }
 
 /** Extract a leaf-typed value: {type, value} → value, string → itself. */
@@ -226,6 +257,47 @@ function leafValue(v: unknown): string | undefined {
     return s;
   }
   return undefined;
+}
+
+/** Extract a leaf-typed number: {type:'number', value} → number, number → itself. */
+function numValue(v: unknown): number | undefined {
+  if (typeof v === 'number' && Number.isFinite(v)) return v;
+  if (v && typeof v === 'object' && 'value' in v) {
+    const n = Number((v as { value?: unknown }).value);
+    return Number.isFinite(n) ? n : undefined;
+  }
+  return undefined;
+}
+
+/** Parse the ad's product section (ads-october focus #2) from the doc body. */
+export function parseProduct(body: Record<string, unknown>): AdProduct | undefined {
+  const p = body.product;
+  if (!p || typeof p !== 'object') return undefined;
+  const raw = p as Record<string, unknown>;
+  const target = leafValue(raw.target) as AdProduct['target'];
+  const name = leafValue(raw.name);
+  const price = numValue(raw.price);
+  const commission = numValue(raw.commission);
+  const pics = Array.isArray(raw.pics)
+    ? raw.pics.map((x) => (typeof x === 'string' ? x : leafValue(x))).filter((x): x is string => !!x)
+    : undefined;
+  const actuals = numValue(raw.actuals);
+  const calibration = numValue(raw.calibration);
+  const isPct = raw.commission_is_percent === true || leafValue(raw.commission_is_percent) === 'true';
+  // A product section is "present" if it has any of its fields.
+  if (!target && !name && price === undefined && commission === undefined && !pics?.length && actuals === undefined && calibration === undefined) {
+    return undefined;
+  }
+  return {
+    target: target || (name || price !== undefined || commission !== undefined ? 'product' : 'none'),
+    name,
+    price,
+    commission,
+    commission_is_percent: isPct,
+    pics: pics?.length ? pics : undefined,
+    actuals,
+    calibration,
+  };
 }
 
 export function fromV3DocToAd(doc: V3Document): AdRecord {
@@ -254,6 +326,9 @@ export function fromV3DocToAd(doc: V3Document): AdRecord {
     // compact AdBlock; `post` renders as a full post. App-owned (D75).
     format: body.format === 'post' ? 'post' : 'inline',
     albums: tags.filter((t) => t.startsWith('album:')).map((t) => t.slice('album:'.length)),
+    // The ad's product section (ads-october focus #2) — the storefront +
+    // Products tab render these; the projection reads price/commission.
+    product: parseProduct(body),
   };
 }
 

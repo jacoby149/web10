@@ -29,23 +29,30 @@ protocol's.
 ## The Surface
 
 A deep-linked **`/monetize`** screen in web10-social (the URL holds the state —
-refresh restores it, it's shareable). Two sections, selected by the URL's
-`?tab` param:
+refresh restores it, it's shareable). The creator's Monetization tab is
+**Ads | Products | Analytics** (the ads-october focus #5 restructure — the
+"stay" in one place: what's running, what they're selling, how it's
+performing), plus **Node** (node admin only — the operator's inventory, a
+different role). Selected by the URL's `?tab` param:
 
-- **My Ads** (default, the bare URL) — the creator's own monetization.
-- **Node Ads** (`?tab=node`, node admin only) — the operator's ad inventory.
+- **Ads** (default, the bare URL) — the creator's own monetization (the old
+  "My Ads").
+- **Products** (`?tab=products`) — the catalog of the ad's product attributes
+  (the "what I'm selling" view — the storefront's data).
+- **Analytics** (`?tab=analytics`) — the projection-vs-actual tell (the "how
+  it's performing" view).
+- **Node** (`?tab=node`, node admin only) — the operator's ad inventory.
 
-**The in-page tab row is the section switcher.** The node admin gets a
-**My Ads | Node Ads** tab row at the top of the surface (the X/Threads idiom
-the Posts screen's Discover | Following row established); the URL holds the
-section, so refresh restores it + it's deep-linkable. A non-admin never sees
-the row (one section, no switcher — the screen just renders My Ads). The nav
+**The in-page tab row is the section switcher** — the X/Threads idiom the Posts
+screen's Discover | Following row established. Every signed-in user gets the
+**Ads | Products | Analytics** row; the node admin also gets the **Node** tab.
+The URL holds the section, so refresh restores it + it's deep-linkable. The nav
 has ONE Monetization entry (see "The Nav" below) that deep-links here and
 highlights on any section.
 
-### My Ads (every signed-in user)
+### Ads (every signed-in user)
 
-The creator's own monetization:
+The creator's own monetization (the old "My Ads"):
 
 - **The ad catalog** — the creator's ads (posts tagged `ad` in their followers
   group) + albums (posts tagged `ad_album`) + the posts they're pinned to.
@@ -73,6 +80,58 @@ The data is the owner's own posts over their followers group, filtered
 client-side (a creator's own posts are a small, bounded set) — the house
 pattern. `readMyCatalog` / `splitCatalog` / `updateAd` / `createNodeAd` in
 `src/data/ads-catalog.ts`.
+
+### Products (every signed-in user)
+
+The catalog of the ad's **product attributes** (ads-october focus #2 — "the ad
+is the superset"): the ads that carry a product section (name, price,
+commission, the link), rendered as a grid of product tiles (picture + name +
+price + the `$ / sale` + the `~$ / 100k` projection + the offer CTA). This is
+the **private management face** of the storefront — the "what I'm selling"
+view. An ad with a product shows here; a pure ad (no product) doesn't.
+
+The **public storefront** (focus #1) is the *shareable browsing face* of this
+same data — a deep-linkable `/u/:username/store` route (the "here's everything
+I recommend" destination). Same data, two surfaces: Products is the owner's
+management view, the storefront is what the audience browses. See "The
+Storefront" below.
+
+Data: `readMyCatalog` filtered to product ads (`ProductsSection.tsx`). No node
+surface (D60).
+
+### Analytics (every signed-in user)
+
+The "how it's performing" view (ads-october focus #4 — the diagnostic). For
+each product ad it shows the **projection** (the hypothesis — the static
+"100k impressions ~ $X" line, assumed rates, focus #3) vs the **actuals** (the
+reality — the $ the operator logged from their affiliate dashboard, the
+"actuals box"). The **gap is the tell**: a badge (winner / on track /
+underperforming / not matching) + a note. The **click counter** (the measured
+half) is the **D86 content-analytics engine** — a separate lane, not built yet —
+so this section shows a "clicks coming soon" note and runs the tell on
+projection-vs-actuals for now.
+
+The actuals box is **human-in-the-loop**: web10 can't see the affiliate payout
+(off-platform, no API), so the operator logs the number web10 can't measure —
+the "organic, no-integration" trade-off. The **self-calibration** (the operator
+sets their own click→purchase %) overrides the projection's assumed conversion.
+Data: `readMyCatalog` filtered to product ads (`AnalyticsSection.tsx`). No node
+surface (D60).
+
+### The Storefront (public, deep-linkable)
+
+**`/u/:username/store`** — the "here's everything I recommend" destination
+(ads-october focus #1, "Amazon storefront parity"). A shareable page that
+renders the creator's product ads as a browsable grid (each tile = a product:
+picture + name + price + the `$ / sale` + the `~$ / 100k` + the offer CTA).
+The thing Amazon gates behind a big following, web10 gives every creator.
+
+Access is **group-gated (I3)**: the owner + the creator's followers can read
+the followers group's `posts` service; an anon / non-follower read 403s → the
+"follow to browse" state (the web10 "public to your audience" model — no new
+grants, D60-clean). The profile header has a **Store** button (owner + visitor)
+that deep-links here. Data: `readUserAds` / `readStorefront` in
+`ads-catalog.ts` (`StorefrontScreen.tsx`).
 
 ### Node Ads (node admin only)
 
@@ -142,7 +201,11 @@ groups / node-config.
 
 The `offer` (the leaf-typed link that pays) + `status` are on the ad's body
 (`ads.md`). Carrying an ad is the *post's* `ad_preference` (`pinned` +
-`target`), not the ad's `ref_value` (`ads-dissemination.md`).
+`target`), not the ad's `ref_value` (`ads-dissemination.md`). The ad's optional
+**product section** (the "ad is the superset" — name / price / commission /
+actuals / calibration, leaf-typed `number` + `text`) is also on the ad's body
+(`ads.md` "The Product Section") — the input for the projection + the
+Products/storefront views.
 
 ## Out of Scope
 

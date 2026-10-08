@@ -15,7 +15,7 @@ import { getV3Client } from './v3';
 import { followersGroupId, getDiscoverGroupId } from './groups';
 import { API_ORIGIN } from '../lib/origins';
 import type { V3Document } from 'web10-npm';
-import type { AdOffer } from './types';
+import { parseProduct, type AdOffer, type AdProduct } from './types';
 
 // ── The v3 ad model (ads-dissemination.md, D55) ─────────────────────────────
 
@@ -33,6 +33,9 @@ export interface AdItem {
   format: 'inline' | 'post';
   /** album doc_ids this ad belongs to (from `album:<id>` tags) */
   albums: string[];
+  /** The ad's product attributes (ads-october focus #2) — present when the ad
+   *  advertises a product. The storefront + Products tab render these. */
+  product?: AdProduct;
 }
 
 export interface AlbumItem {
@@ -84,6 +87,7 @@ export function parseAd(doc: V3Document): AdItem {
     media_refs: (body.media_refs as (string | Record<string, unknown>)[]) || undefined,
     format: body.format === 'post' ? 'post' : 'inline',
     albums: tags.filter((t) => t.startsWith('album:')).map((t) => t.slice('album:'.length)),
+    product: parseProduct(body),
   };
 }
 
@@ -131,6 +135,31 @@ export function splitCatalog(docs: V3Document[]): AdsCatalogData {
 // ── Offer builders (leaf-typed, D55) ────────────────────────────────────────
 
 /**
+ * Build the ad's product section as leaf-typed body (ads-october focus #2).
+ * `number` leaves for price/commission/actuals/calibration (sortable), `text`
+ * for target/name, a plain array of doc_ids for pics. `undefined` product →
+ * no `product` key (a pure ad). Always emitted as `{}`-free: an absent product
+ * means the key is omitted so an update can clear it (the node merges the body,
+ * so we write `product: undefined`-free by only including it when present —
+ * callers pass `null` to clear).
+ */
+export function buildProductBody(product?: AdProduct | null): Record<string, unknown> | undefined {
+  if (!product) return undefined;
+  const out: Record<string, unknown> = {};
+  if (product.target) out.target = { type: 'text', value: product.target };
+  if (product.name) out.name = { type: 'text', value: product.name };
+  if (product.price !== undefined) out.price = { type: 'number', value: product.price };
+  if (product.commission !== undefined) {
+    out.commission = { type: 'number', value: product.commission };
+    out.commission_is_percent = product.commission_is_percent !== false;
+  }
+  if (product.pics?.length) out.pics = product.pics;
+  if (product.actuals !== undefined) out.actuals = { type: 'number', value: product.actuals };
+  if (product.calibration !== undefined) out.calibration = { type: 'number', value: product.calibration };
+  return Object.keys(out).length ? out : undefined;
+}
+
+/**
  * Build an ad's body (the `posts` doc tagged `ad`).
  *
  * `mediaRefs` — the ad's creative media (doc_ids). Present for a post-format
@@ -138,6 +167,8 @@ export function splitCatalog(docs: V3Document[]): AdsCatalogData {
  * square thumbnail). Absent/empty → no `media_refs` key (a text-only ad).
  * `format` — `inline` (default) or `post`. Written to the body so the renderer
  * knows how to render the attached ad (app-owned, D75).
+ * `product` — the ad's product section (ads-october focus #2). `undefined`/
+ * `null` → no `product` key (a pure ad).
  */
 export function buildOfferBody(
   offer: AdOffer,
@@ -147,8 +178,10 @@ export function buildOfferBody(
   mediaRefs?: string[],
   format: 'inline' | 'post' = 'inline',
   title?: string,
+  product?: AdProduct | null,
 ): Record<string, unknown> {
   const tags = ['ad', ...albumIds.map((id) => `album:${id}`)];
+  const productBody = buildProductBody(product);
   return {
     // The post's two bodies of text (D82): the optional `title` headline + the
     // `text` caption. An ad is a `posts` doc, so it carries the same fields.
@@ -167,6 +200,10 @@ export function buildOfferBody(
     // Always emitted (default `[]`) so an UPDATE can remove media — the node's
     // update merges the body, so an absent key would keep the old media_refs.
     media_refs: mediaRefs ?? [],
+    // The product section (ads-october focus #2). Emitted only when present;
+    // a `null`/`undefined` product writes `product: null` so an UPDATE clears
+    // it (the node merges the body — an absent key would keep the old product).
+    product: productBody ?? null,
   };
 }
 
@@ -194,7 +231,9 @@ export function buildNodeAdBody(
   mediaRefs?: string[],
   format: 'inline' | 'post' = 'inline',
   title?: string,
+  product?: AdProduct | null,
 ): Record<string, unknown> {
+  const productBody = buildProductBody(product);
   return {
     title,
     text,
@@ -210,6 +249,8 @@ export function buildNodeAdBody(
     format,
     // Always emitted (default `[]`) so an UPDATE can remove media.
     media_refs: mediaRefs ?? [],
+    // The product section (ads-october focus #2) — node ads can carry it too.
+    product: productBody ?? null,
   };
 }
 
@@ -225,9 +266,10 @@ export async function createNodeAd(
   status: 'active' | 'paused',
   mediaRefs?: string[],
   format: 'inline' | 'post' = 'inline',
+  product?: AdProduct | null,
 ): Promise<V3Document> {
   const w = getV3Client();
-  return w.create('posts', buildNodeAdBody(offer, text, status, mediaRefs, format), { groups: [getDiscoverGroupId()] });
+  return w.create('posts', buildNodeAdBody(offer, text, status, mediaRefs, format, undefined, product), { groups: [getDiscoverGroupId()] });
 }
 
 /**
@@ -244,9 +286,10 @@ export async function updateAd(
   mediaRefs?: string[],
   format: 'inline' | 'post' = 'inline',
   title?: string,
+  product?: AdProduct | null,
 ): Promise<V3Document> {
   const w = getV3Client();
-  const body = buildOfferBody(offer, text, status, albumIds, mediaRefs, format, title);
+  const body = buildOfferBody(offer, text, status, albumIds, mediaRefs, format, title, product);
   return w.update(ad.doc.doc_id, body);
 }
 
@@ -265,9 +308,10 @@ export async function updateNodeAd(
   mediaRefs?: string[],
   format: 'inline' | 'post' = 'inline',
   title?: string,
+  product?: AdProduct | null,
 ): Promise<V3Document> {
   const w = getV3Client();
-  const body = buildNodeAdBody(offer, text, status, mediaRefs, format, title);
+  const body = buildNodeAdBody(offer, text, status, mediaRefs, format, title, product);
   return w.update(ad.doc.doc_id, body);
 }
 
@@ -287,6 +331,36 @@ export async function readMyCatalog(): Promise<AdsCatalogData> {
   const provider = token.provider;
   const docs = await w.read('posts', { groups: [followersGroupId(username, provider)] });
   return splitCatalog(docs || []);
+}
+
+/**
+ * Read another user's ads (the storefront / Products tab, ads-october focus #1).
+ * One read over THAT user's followers group, split client-side. Returns the
+ * full catalog (ads + albums + posts); the caller filters to product ads.
+ *
+ * Access is group-gated (I3): the owner + the creator's followers can read the
+ * followers group's `posts` service; an anon / non-follower read 403s → we
+ * return empty (the storefront shows its "follow to browse" state, not an
+ * error). No new grants, no node surface — the storefront is a *read + render*
+ * of the catalog that's already there (D60).
+ */
+export async function readUserAds(username: string, provider?: string): Promise<AdsCatalogData> {
+  const w = getV3Client();
+  const token = w.readToken();
+  const prov = provider || token?.provider;
+  if (!prov) return { ads: [], albums: [], posts: [] };
+  const docs = await w.read('posts', { groups: [followersGroupId(username, prov)] });
+  return splitCatalog(docs || []);
+}
+
+/**
+ * The storefront's product grid (ads-october focus #1): the creator's ads that
+ * carry a product section, organized by album. The "here's everything I
+ * recommend" destination — the public face of the Products tab.
+ */
+export async function readStorefront(username: string, provider?: string): Promise<AdItem[]> {
+  const { ads } = await readUserAds(username, provider);
+  return ads.filter((ad) => ad.product);
 }
 
 /**

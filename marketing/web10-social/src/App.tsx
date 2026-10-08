@@ -19,6 +19,7 @@ import NotificationsScreen from '@/components/Notifications/NotificationsScreen'
 import StagingScreen from '@/components/Staging/StagingScreen';
 import SettingsScreen from '@/components/Settings/SettingsScreen';
 import MonetizationScreen from '@/components/Monetization/MonetizationScreen';
+import StorefrontScreen from '@/components/Monetization/StorefrontScreen';
 import NodeSettingsScreen from '@/components/NodeSettings/NodeSettingsScreen';
 import { ErrorBoundary } from '@/components/shared/ErrorBoundary';
 import { ReportBug } from '@/components/shared/ReportBug';
@@ -479,6 +480,7 @@ function App() {
           <Route path="/notifications" element={isAnon ? <Navigate to="/video" replace /> : <NotificationsScreen />} />
           <Route path="/profile" element={isAnon ? <Navigate to="/video" replace /> : <ProfileRedirectRoute />} />
           <Route path="/u/:username" element={<UserProfileRoute />} />
+          <Route path="/u/:username/store" element={<StorefrontScreen />} />
           <Route path="/u/:username/saved/:collectionId" element={<SavedCollectionRoute />} />
           <Route path="/u/:username/followers" element={isAnon ? <Navigate to="/video" replace /> : <UserFollowersRoute />} />
           <Route path="/u/:username/following" element={isAnon ? <Navigate to="/video" replace /> : <UserFollowingRoute />} />
