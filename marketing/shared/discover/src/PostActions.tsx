@@ -51,6 +51,10 @@ export interface PostActionsProps {
   /** Reach (D86) — distinct readers, the person icon. Display-only. Absent/0
    *  → the slot is hidden. */
   reach?: number;
+  /** Hide the reach (person) slot even when `reach > 0`. The surface decides
+   *  (e.g. the feed hides it on a phone where the compact row is too narrow
+   *  for all six metrics — impressions alone carries the number there). */
+  hideReach?: boolean;
   /** The surface's reaction writer (optimistic + rollback on the surface). */
   onToggleReaction?: (kind: ReactionKind) => void;
   /** The surface's repost writer (optimistic + rollback on the surface). */
@@ -119,6 +123,7 @@ export function PostActions({
   commentCount,
   impressions = 0,
   reach = 0,
+  hideReach = false,
   onToggleReaction,
   onToggleRepost,
   reposted = false,
@@ -331,7 +336,7 @@ export function PostActions({
           <span className="tabular-nums">{formatCount(impressions)}</span>
         </span>
       )}
-      {reach > 0 && (
+      {reach > 0 && !hideReach && (
         <span
           className={cn(viewBase, 'text-muted-foreground')}
           aria-label={`${formatCount(reach)} people reached`}

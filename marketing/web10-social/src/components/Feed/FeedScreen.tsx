@@ -677,6 +677,7 @@ export function PostCard({
             commentCount={commentCount}
             impressions={impressions}
             reach={reach}
+            hideReach={isMobile}
             onToggleReaction={onToggleReaction}
             onCommentCountChange={onCommentCountChange}
             postAuthor={postAuthor}
