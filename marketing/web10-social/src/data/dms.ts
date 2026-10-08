@@ -180,31 +180,68 @@ export async function listConversations(): Promise<string[]> {
   if (!token) return [];
 
   const groups = await getMyGroups();
-  const conversations = new Set<string>();
-
-  for (const g of groups) {
+  // DM groups: the 2-member groups whose slug is the deterministic name
+  // dm-{first}-{second}. The other party is resolved from membership (the
+  // name alone is ambiguous — usernames may contain dashes).
+  const dmGroups = groups.filter((g) => {
     const slug = g.group_id.split('/').pop() || '';
-    if (!slug.startsWith('dm-') || g.member_count !== 2) continue;
-    const members = await w.getGroupMembers(g.group_id);
-    const other = members.find((m) => m.member_key !== token.username);
-    if (!other) continue;
-    const otherProvider = g.group_id.split('/')[0] || token.provider;
-    conversations.add(conversationKey(
-      { provider: token.provider, username: token.username },
-      { provider: otherProvider, username: other.member_key },
-    ));
-  }
+    return slug.startsWith('dm-') && g.member_count === 2;
+  });
+
+  // The member fan-out is PARALLEL (paint-on-read, 3.225.0): the old
+  // for…await resolved the other party one group at a time — a serial
+  // round-trip per conversation that held the Messages list's first paint.
+  // A failed member read degrades that one conversation to skipped (the
+  // conversation still appears on the next read), never a throw.
+  const conversations = new Set<string>();
+  await Promise.all(
+    dmGroups.map(async (g) => {
+      try {
+        const members = await w.getGroupMembers(g.group_id);
+        const other = members.find((m) => m.member_key !== token.username);
+        if (!other) return;
+        const otherProvider = g.group_id.split('/')[0] || token.provider;
+        conversations.add(conversationKey(
+          { provider: token.provider, username: token.username },
+          { provider: otherProvider, username: other.member_key },
+        ));
+      } catch (e) {
+        console.log('[social-dms] listConversations — member read failed for', g.group_id, '(skipping):', e);
+      }
+    }),
+  );
 
   console.log('[social-dms] listConversations —', conversations.size, 'conversations');
   return [...conversations];
 }
 
 /**
- * Get the last message from a conversation.
+ * Get the last message from a conversation — a SINGLE read (paint-on-read,
+ * 3.225.0). The old path ran `readDms` (the FULL history: a `getMyGroups`
+ * re-read to re-find the group + an unbounded posts read) and took the tail —
+ * two round-trips and a full-history transfer to get one message. The node's
+ * group read orders `created_at DESC` (newest first), so `limit: 1` returns
+ * exactly the last message: one round-trip, one doc.
  */
 export async function getLastDm(conversation: string): Promise<DmRecord | null> {
-  const messages = await readDms(conversation);
-  return messages[messages.length - 1] || null;
+  const w = getV3Client();
+  const token = w.readToken();
+  if (!token) return null;
+
+  const parts = conversation.split('--');
+  const meKey = `${token.provider}/${token.username}`;
+  const themKey = parts.find((p) => p !== meKey) || parts[0];
+  const [, otherUsername] = themKey.split('/');
+
+  const groupId = await findDmGroup(token.username, otherUsername);
+  if (!groupId) {
+    console.log('[social-dms] getLastDm — no DM group yet for', otherUsername, '— null');
+    return null;
+  }
+  const docs = await w.read('posts', { groups: [groupId], limit: 1 });
+  const last = docs[0] ? fromV3DocToDm(docs[0]) : null;
+  console.log('[social-dms] getLastDm —', last ? last._id : 'none', 'from', groupId);
+  return last;
 }
 
 /**

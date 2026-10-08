@@ -614,29 +614,41 @@ test.describe('Profiles gauntlet — real flow + log sequence', () => {
     // No avatar yet — the fallback letter renders, no avatar <img>.
     expect(await page.locator('[data-testid="avatar-image"]').count()).toBe(0);
 
-    // Drive the real upload seam: click the avatar button (the user's real
-    // path — the click's transient activation carries into the hidden
-    // input.click(), so the file chooser opens) and feed the file through it
-    // (→ the real handleFileChange → uploadMedia's presigned flow → confirm →
-    // saveProfile). The file is a tiny 1x1 PNG.
+    // Drive the real upload seam: click the avatar button → the face lightbox
+    // (the crop editor) opens. Click the upload tile in the lightbox → the
+    // file chooser opens. Feed the file → the crop view opens. Confirm →
+    // uploadMedia's presigned flow → saveProfile. The file is a tiny 1x1 PNG.
     const tinyPng = Buffer.from(
       'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8D4HwAFBQIAX8jx0gAAAABJRU5ErkJggg==',
       'base64',
     );
+    await page.locator('[data-testid="edit-avatar-button"]').click();
+    await expect(page.locator('[data-testid="profile-media-lightbox"]')).toBeVisible({ timeout: 10000 });
     const [fileChooser] = await Promise.all([
       page.waitForEvent('filechooser'),
-      page.locator('[data-testid="edit-avatar-button"]').click(),
+      page.locator('[data-testid="profile-media-upload"]').click(),
     ]);
     await fileChooser.setFiles({
       name: 'avatar.png',
       mimeType: 'image/png',
       buffer: tinyPng,
     });
+    // The crop view opens with the uploaded image.
+    await expect(page.locator('[data-testid="face-crop-view"]')).toBeVisible({ timeout: 10000 });
+    // The confirm button is disabled until the crop image loads (natural dims
+    // known) — wait for it to be enabled, then confirm.
+    await expect(page.locator('[data-testid="face-crop-confirm"]')).toBeEnabled({ timeout: 10000 });
+    // Confirm the crop → the crop is re-encoded + uploaded + saved. The confirm
+    // fires the async upload in the background; the lightbox closes once the
+    // upload + save land (setFaceLightbox(null)), so waiting for it to hide is
+    // the signal the face was written.
+    await page.locator('[data-testid="face-crop-confirm"]').click();
+    await expect(page.locator('[data-testid="profile-media-lightbox"]')).toBeHidden({ timeout: 30000 });
 
     // The avatar renders from a FRESH presigned URL (S3 v4 signature in the
     // src — the object store is private, a bare key 403s).
     const avatarImg = page.locator('[data-testid="avatar-image"]');
-    await expect(avatarImg).toBeVisible({ timeout: 30000 });
+    await expect(avatarImg).toBeVisible({ timeout: 15000 });
     const src = await avatarImg.getAttribute('src');
     expect(src).toBeTruthy();
     expect(src).toContain('X-Amz-Signature');
@@ -673,9 +685,10 @@ test.describe('Profiles gauntlet — real flow + log sequence', () => {
     expect(reloadedSrc).toContain('X-Amz-Signature');
 
     // The upload seam logged its sequence (the gradient for the next debug).
+    // The face is set through the crop editor (the lightbox's upload tile →
+    // crop step → handleFaceUploadCrop), not the retired raw file picker.
     const logStr = logs.join('\n');
-    expect(logStr).toContain('[social] handleFileChange — uploaded, media _id:');
-    expect(logStr).toContain('[social] handleFileChange — profile saved');
+    expect(logStr).toContain('[social] handleFaceUploadCrop — uploaded, media _id:');
   });
 
   test('the /u/:username/p/:postId deep link lands on the post', async ({ page, context, request }) => {

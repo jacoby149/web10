@@ -86,8 +86,8 @@ export async function createGroupChat(
  * The current user's group chats — selected by the `web10-social-chat` tag
  * (D78, server-side), then read each group's face for the name + avatar. The
  * tag is the authoritative classifier (a chat is a chat); the face's `kind` is
- * a render hint. Per-group identity reads (the list is small; batching is a
- * later optimization).
+ * a render hint. The per-group identity reads run in PARALLEL (paint-on-read,
+ * 3.225.0) — one round-trip of latency for the whole list, not one per chat.
  */
 export async function getMyGroupChats(): Promise<GroupChatSummary[]> {
   const w = getV3Client();
@@ -97,15 +97,21 @@ export async function getMyGroupChats(): Promise<GroupChatSummary[]> {
   // authoritative classifier (a `web10-social-chat` group is a chat). Read each
   // face for the name + avatar (the render data).
   const groups = await getMyGroups({ tags: [GROUP_TAG.chat] });
-  const chats: GroupChatSummary[] = [];
-  for (const g of groups) {
-    const identity = await readGroupIdentity(g.group_id).catch((): GroupIdentity => ({}));
-    chats.push({
-      groupId: g.group_id,
-      name: identity.name || groupDisplayName(g.group_id),
-      avatarRef: identity.avatar_ref,
-    });
-  }
+  // The face fan-out is PARALLEL (paint-on-read, 3.225.0): the old for…await
+  // read each chat's identity one at a time — a serial round-trip per chat that
+  // held the Messages list's first paint. Order is preserved (map over the
+  // groups array); a failed face read degrades that chat to the slug name,
+  // never a throw.
+  const chats = await Promise.all(
+    groups.map(async (g) => {
+      const identity = await readGroupIdentity(g.group_id).catch((): GroupIdentity => ({}));
+      return {
+        groupId: g.group_id,
+        name: identity.name || groupDisplayName(g.group_id),
+        avatarRef: identity.avatar_ref,
+      };
+    }),
+  );
   LOG('getMyGroupChats —', groups.length, 'chats (by tag)');
   return chats;
 }
@@ -126,6 +132,21 @@ export async function readGroupChatMessages(groupId: string): Promise<DmRecord[]
   return docs.map(fromV3DocToDm).sort(
     (a, b) => new Date(a.sent_at).getTime() - new Date(b.sent_at).getTime(),
   );
+}
+
+/**
+ * The last message in a group chat (the list preview) — a SINGLE read
+ * (paint-on-read, 3.225.0). The old path ran `readGroupChatMessages` (the FULL
+ * history) and took the tail — a full-history transfer to get one message. The
+ * node's group read orders `created_at DESC` (newest first), so `limit: 1`
+ * returns exactly the last message: one round-trip, one doc.
+ */
+export async function readGroupChatLastMessage(groupId: string): Promise<DmRecord | null> {
+  const w = getV3Client();
+  const docs = await w.read('posts', { groups: [groupId], limit: 1 });
+  const last = docs[0] ? fromV3DocToDm(docs[0]) : null;
+  LOG('readGroupChatLastMessage —', last ? last._id : 'none', 'from', groupId);
+  return last;
 }
 
 /**
