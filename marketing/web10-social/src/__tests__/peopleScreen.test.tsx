@@ -61,7 +61,7 @@ describe('PeopleScreen (the D0-backed People browser)', () => {
     const cards = screen.getAllByTestId('people-card');
     expect(cards.length).toBe(12);
     // user00 (1000 followers) first, user01 (990) second.
-    expect(within(cards[0]).getByTestId('people-followers')).toHaveTextContent('1.0k followers');
+    expect(within(cards[0]).getByTestId('people-followers')).toHaveTextContent('1k followers');
     expect(within(cards[1]).getByTestId('people-followers')).toHaveTextContent('990 followers');
   });
 

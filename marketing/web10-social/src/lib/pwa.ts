@@ -67,8 +67,27 @@ export function isIOSDevice(): boolean {
  * → false).
  */
 export function isMobile(): boolean {
-  if (typeof window === 'undefined' || typeof window.matchMedia !== 'function') return false;
+  if (typeof window === undefined || typeof window.matchMedia !== 'function') return false;
   return window.matchMedia('(max-width: 767px)').matches;
+}
+
+/**
+ * Reactive mobile check (the hook form of {@link isMobile}): true on a
+ * phone-width viewport, re-renders on resize. Safe in jsdom (no matchMedia →
+ * false, no listener). Used to switch surface chrome between the desktop and
+ * mobile layouts (e.g. the post card's share/save: row on desktop, kebab on
+ * mobile where the row is too narrow).
+ */
+export function useIsMobile(): boolean {
+  const [mobile, setMobile] = useState<boolean>(() => isMobile());
+  useEffect(() => {
+    if (typeof window === 'undefined' || typeof window.matchMedia !== 'function') return;
+    const mql = window.matchMedia('(max-width: 767px)');
+    const onChange = () => setMobile(mql.matches);
+    mql.addEventListener('change', onChange);
+    return () => mql.removeEventListener('change', onChange);
+  }, []);
+  return mobile;
 }
 
 function isDismissed(): boolean {

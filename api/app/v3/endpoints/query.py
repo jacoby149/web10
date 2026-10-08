@@ -249,6 +249,16 @@ def run_query(request: Request, data: QueryRequest):
         raise HTTPException(status_code=400, detail=f"query execution failed: {e}")
 
     out = [_serialize_row(dict(zip(column_names, row))) for row in rows]
+    # D86: a content query is a content view (the feed-as-query, D73) — log a
+    # delivery impression per returned doc (the server-side, un-gameable floor).
+    # The query engine can't reference content_events (a raw node table), so the
+    # delivery is a side effect here, the same principle as the read path: the
+    # node logs what it actually served. The app declares the content service
+    # (the feed's `posts`) + the surface; the node logs per returned doc_id.
+    # Best-effort: a metrics failure never fails the query.
+    if data.surface and data.content_service and reader != "anon" and out:
+        doc_ids = [r["doc_id"] for r in out if isinstance(r, dict) and r.get("doc_id")]
+        ch.log_content_deliveries(doc_ids, data.content_service, reader, data.surface)
     # The result column names are the row→client contract: the prepare pass
     # and the client duck-type on `body` / `author_key` / `ad_mode`. A mangled
     # name (ClickHouse qualifies a result column `p.body` when another joined

@@ -60,6 +60,15 @@ export interface PowerMeanSort {
     half_life_ms?: number;
     character?: number;
 }
+export interface V3ContentEventRow {
+    doc_id: string;
+    surface: string;
+    day: string;
+    impressions: number;
+    reach: number;
+    clicks: number;
+    avg_watch_pct: number | null;
+}
 export interface V3Document {
     doc_id: string;
     author_key: string;
@@ -439,16 +448,45 @@ export interface V3Client {
         tags?: string[];
         cursor?: string;
         order?: "asc" | "desc";
+        surface?: string;
     }): Promise<V3Document[]>;
     readRefCounts(collection: string, opts: {
         groups: string[];
         ref: string | string[];
     }): Promise<Record<string, number>>;
-    readById(docId: string, collection: string): Promise<V3Document>;
+    trackContentEvent(docId: string, opts: {
+        service: string;
+        surface: string;
+        type: string;
+        payload?: string;
+    }): Promise<{
+        doc_id: string;
+        recorded: boolean;
+    }>;
+    contentAnalytics(opts: {
+        service: string;
+        windowDays?: number;
+    }): Promise<{
+        rows: V3ContentEventRow[];
+        count: number;
+    }>;
+    contentViews(opts: {
+        service: string;
+        docIds: string[];
+        groups: string[];
+    }): Promise<Record<string, {
+        impressions: number;
+        reach: number;
+    }>>;
+    readById(docId: string, collection: string, opts?: {
+        surface?: string;
+    }): Promise<V3Document>;
     query(sql: string, opts?: {
         groups?: string[];
         prepare?: V3Prepare;
         withGroupMeta?: boolean;
+        surface?: string;
+        contentService?: string;
     }): Promise<V3QueryResult>;
     listPeopleDirectory(opts?: {
         limit?: number;

@@ -13,6 +13,7 @@ import {
   movePostVisibility,
   readRepostCounts,
   readMyRepostedIds,
+  readViewCount,
   getDiscoverGroupId,
   type ReactionKind,
 } from '@/data';
@@ -116,6 +117,9 @@ export function PostLightbox({ post, mediaMap, onClose, onReload, postAuthor, po
 
   // Comment state (the thread's open/closed state lives in <PostDetail>)
   const [commentCount, setCommentCount] = useState(0);
+  // The view metrics (D86) — impressions + reach in the stats row.
+  const [viewImpressions, setViewImpressions] = useState(0);
+  const [viewReach, setViewReach] = useState(0);
 
   // Visibility toggle state
   const [togglingVisibility, setTogglingVisibility] = useState(false);
@@ -209,7 +213,8 @@ export function PostLightbox({ post, mediaMap, onClose, onReload, postAuthor, po
       countComments(postId),
       readRepostCounts([postId], [getDiscoverGroupId()]),
       readMyRepostedIds(),
-    ]).then(([reactions, cCount, repostCounts, myReposts]) => {
+      readViewCount(postId, [getDiscoverGroupId()]),
+    ]).then(([reactions, cCount, repostCounts, myReposts, vCount]) => {
       if (cancelled) return;
       setLikeCount(reactions.filter((r) => r.type === 'like').length);
       setDislikeCount(reactions.filter((r) => r.type === 'dislike').length);
@@ -235,6 +240,12 @@ export function PostLightbox({ post, mediaMap, onClose, onReload, postAuthor, po
         ),
       );
       setCommentCount(cCount);
+      setViewImpressions(vCount.impressions);
+      setViewReach(vCount.reach);
+      // The view itself is the delivery — logged server-side when the post was
+      // served (the feed/grid/permalink read that opened this lightbox passes
+      // the D86 surface). No client-side "record a view" write: the node already
+      // recorded the delivery, and a client write would be redundant + gameable.
     }).catch(console.error);
     return () => { cancelled = true; };
   }, [currentPost._id, token]);
@@ -441,6 +452,8 @@ export function PostLightbox({ post, mediaMap, onClose, onReload, postAuthor, po
             likeCount={likeCount}
             dislikeCount={dislikeCount}
             commentCount={commentCount}
+            impressions={viewImpressions}
+            reach={viewReach}
             reposted={reposted}
             repostCount={repostCount}
             onToggleReaction={handleToggleReaction}

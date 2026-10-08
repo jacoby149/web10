@@ -17,6 +17,8 @@ function mockV3Client() {
     listMedia: vi.fn(),
     getMyGroups: vi.fn(),
     query: vi.fn(),
+    contentViews: vi.fn().mockResolvedValue({}),
+    trackContentEvent: vi.fn().mockResolvedValue({ recorded: true }),
   };
   vi.spyOn(v3, 'getV3Client').mockReturnValue(mock as any);
   return mock;
@@ -110,38 +112,54 @@ describe('feed v3 data layer', () => {
       ]);
     });
 
-    it('runs the feed as a w.query with the prepare pass (media + ads + face), then reads engagement counts from the discover group', async () => {
-      // The feed query returns the prepared post rows; the two follow-up
-      // queries (reactions / comments, scoped to the discover group where the
-      // engagement docs actually live) return the tallies.
+    it('runs the feed as a w.query with the prepare pass (media + ads + face) + the D86 surface, then reads engagement + reach from the discover group', async () => {
+      // The feed query returns the prepared post rows; the follow-up queries
+      // (reactions / comments, scoped to the discover group where the
+      // engagement docs actually live) return the tallies. View metrics come
+      // from the D86 engine's contentViews (not a `views` join).
       mock.query.mockImplementation(async (sql: string) => {
         if (sql.includes('FROM posts p')) return { rows: [feedRow()], count: 1 };
         if (sql.includes('FROM reactions')) return { rows: [{ ref_value: 'p1', like_count: 5, dislike_count: 0 }], count: 1 };
         if (sql.includes('FROM comments')) return { rows: [{ post_id: 'p1', comment_count: 2 }], count: 1 };
         return { rows: [], count: 0 };
       });
+      mock.contentViews.mockResolvedValue({ p1: { impressions: 420, reach: 42 } });
 
       const page = await readFeedPage({ limit: 20 });
 
-      // One feed query + one reactions-count query + one comments-count query.
+      // One feed query + one reactions-count query + one comments-count query
+      // (views come from contentReach, not a query).
       expect(mock.query).toHaveBeenCalledTimes(3);
       const [sql, opts] = mock.query.mock.calls[0];
       expect(opts.groups).toEqual(['web10.app/groups/users/alice/followers', 'web10.app/groups/users/bob/followers']);
+      // The D86 surface label + content service (the feed-as-query's delivery capture).
+      expect(opts.surface).toBe('feed');
+      expect(opts.contentService).toBe('posts');
       expect(opts.prepare).toEqual({
         media: true,
         ads: true,
         face: { bodyField: 'profile_body', mediaField: 'avatar_ref', authorColumn: 'author_key', urlField: 'avatar_url' },
       });
       // The query is the feed shape: the posts board + the engagement joins +
-      // the profile join + the keyset limit (page + 1).
+      // the profile join + the keyset limit (page + 1). No `views` join — the
+      // view count is the D86 engine's reach, not a `views` service.
       expect(sql).toContain('FROM posts p');
       expect(sql).toContain('FROM reactions');
       expect(sql).toContain('FROM comments');
+      expect(sql).not.toContain('FROM views');
       expect(sql).toContain('FROM profile');
       expect(sql).toContain('LIMIT 21');
       // The Most recent preset (no knobState) → chronological, cursor on created_at.
       expect(sql).toContain('ORDER BY toUnixTimestamp64Milli(p.created_at) DESC');
       expect(page.posts).toHaveLength(1);
+      // The view metrics ride the D86 engine's contentViews (impressions + reach).
+      expect(page.posts[0].impressions).toBe(420);
+      expect(page.posts[0].reach).toBe(42);
+      expect(mock.contentViews).toHaveBeenCalledWith({
+        service: 'posts',
+        docIds: ['p1'],
+        groups: ['web10.app/groups/web10/discover'],
+      });
       // The engagement-count queries are scoped to the feed groups + discover
       // (the group the reactions / comments are written to).
       const [, reactionOpts] = mock.query.mock.calls[1];

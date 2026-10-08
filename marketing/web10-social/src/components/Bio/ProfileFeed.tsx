@@ -5,6 +5,7 @@ import {
   toggleReactionKind,
   readRepostCounts,
   readMyRepostedIds,
+  readViewCounts,
   getDiscoverGroupId,
   type ReactionKind,
 } from '@/data';
@@ -62,6 +63,7 @@ export function ProfileFeed({
   const [likedMap, setLikedMap] = useState<Record<string, boolean>>({});
   const [dislikedMap, setDislikedMap] = useState<Record<string, boolean>>({});
   const [repostedMap, setRepostedMap] = useState<Record<string, boolean>>({});
+  const [viewsMap, setViewsMap] = useState<Record<string, { impressions: number; reach: number }>>({});
   const [engagementReady, setEngagementReady] = useState(false);
   // Re-key the engagement read when the post set changes (a new post after an
   // edit/delete, a profile switch) — without re-reading on every mediaMap
@@ -86,9 +88,10 @@ export function ProfileFeed({
       // once for the whole profile, not per post. The legacy `type:'repost'`
       // reaction still fills for old data (a read-only fallback).
       const ids = posts.map((p) => p._id || '').filter(Boolean);
-      const [repostCounts, myReposts] = await Promise.all([
+      const [repostCounts, myReposts, viewCounts] = await Promise.all([
         readRepostCounts(ids, [getDiscoverGroupId()]),
         readMyRepostedIds(),
+        readViewCounts(ids, [getDiscoverGroupId()]),
       ]);
       // Per-post isolation: one rejected read degrades that card's counts to
       // zero (the feed's 3.25.x pattern), it never blanks the view.
@@ -132,6 +135,7 @@ export function ProfileFeed({
         }),
       );
       if (!cancelled) {
+        setViewsMap(viewCounts);
         setEngagementReady(true);
         LOG('engagement ready');
       }
@@ -154,6 +158,7 @@ export function ProfileFeed({
     setLikedMap({});
     setDislikedMap({});
     setRepostedMap({});
+    setViewsMap({});
     setEngagementReady(false);
   }
 
@@ -226,6 +231,8 @@ export function ProfileFeed({
             dislikeCount={dislikeCountMap[id] || 0}
             repostCount={repostCountMap[id] || 0}
             commentCount={commentMap[id] || 0}
+            impressions={viewsMap[id]?.impressions || 0}
+            reach={viewsMap[id]?.reach || 0}
             liked={!!likedMap[id]}
             disliked={!!dislikedMap[id]}
             reposted={!!repostedMap[id]}

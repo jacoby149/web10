@@ -21,6 +21,7 @@ import {
   toggleReactionKind,
   readRepostCounts,
   readMyRepostedIds,
+  readViewCount,
   getDiscoverGroupId,
   saveGroup,
   publishGroup,
@@ -121,6 +122,8 @@ function GroupFeedPost({ post, media, groupId }: { post: PostRecord; media: Medi
   const [reposted, setReposted] = useState(false);
   const [repostCount, setRepostCount] = useState(0);
   const [commentCount, setCommentCount] = useState(0);
+  const [viewImpressions, setViewImpressions] = useState(0);
+  const [viewReach, setViewReach] = useState(0);
   const token = getV3Client().readToken();
   // The comment thread's group scope — memoized so its array identity is
   // stable across renders (a fresh `[groupId]` literal would re-key the
@@ -142,9 +145,15 @@ function GroupFeedPost({ post, media, groupId }: { post: PostRecord; media: Medi
       // fallback).
       readRepostCounts([postId], [getDiscoverGroupId()]),
       readMyRepostedIds(),
-    ]).then(([cCount, reactions, repostCounts, myReposts]) => {
+      readViewCount(postId, [getDiscoverGroupId()]),
+    ]).then(([cCount, reactions, repostCounts, myReposts, vCount]) => {
       if (cancelled) return;
       setCommentCount(cCount);
+      setViewImpressions(vCount.impressions);
+      setViewReach(vCount.reach);
+      // The view itself is the delivery — logged server-side by the group post
+      // read (which passes the D86 surface). No client-side "record a view"
+      // write: the node already recorded the delivery.
       if (!token) return;
       // v3 ownership is by username alone (a reaction's author_key is the
       // bare username — the provider compare was the v2 rule, 3.79.3 class).
@@ -222,6 +231,8 @@ function GroupFeedPost({ post, media, groupId }: { post: PostRecord; media: Medi
       reactionCount={likeCount}
       dislikeCount={dislikeCount}
       commentCount={commentCount}
+      impressions={viewImpressions}
+      reach={viewReach}
       liked={liked}
       disliked={disliked}
       reposted={reposted}

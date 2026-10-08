@@ -274,3 +274,22 @@ CREATE TABLE IF NOT EXISTS marketing_events (
 ) ENGINE = MergeTree
 ORDER BY (event_type, created_at)
 TTL toDateTime(created_at) + INTERVAL 1 YEAR;
+
+-- content_events — the per-content performance log (D86). The generic
+-- analytics engine: one row per (doc, reader, surface, event) the node
+-- recorded. `delivery` rows are written by the read path (server-side,
+-- un-gameable); `viewport`/`click` rows by the gated trackContentEvent
+-- endpoint. Content-free: doc_id + reader_key + surface + event_type + payload
+-- + seen_at, never the doc's body. D60-generic — keyed on the document, no
+-- app-specific columns; the app interprets `surface` + `payload`.
+CREATE TABLE IF NOT EXISTS content_events (
+    doc_id String,
+    service String,
+    reader_key String,
+    surface String,
+    event_type String,
+    payload String,
+    seen_at DateTime64(3)
+) ENGINE = MergeTree
+ORDER BY (doc_id, reader_key, surface, event_type, seen_at)
+TTL toDateTime(seen_at) + INTERVAL 1 YEAR;

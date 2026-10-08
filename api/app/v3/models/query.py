@@ -76,3 +76,16 @@ class QueryRequest(BaseModel):
     groups: list[str] | None = None
     prepare: PrepareSpec | None = None
     withGroupMeta: bool = False
+    # The surface label (D86): the screen the app shows the content on
+    # ("feed" / "shorts" / "discover" / …). When present + the reader is
+    # verified, the node logs a delivery impression per returned doc (the
+    # server-side, un-gameable floor) — the query-path analog of the read
+    # path's delivery capture. The feed-as-query (D73) is the first consumer.
+    surface: str | None = None
+    # The content service this query is SHOWING the reader (D86): the service
+    # whose docs the query surfaces (the feed's `posts`), as opposed to the
+    # engagement services it joins (`reactions` / `comments`). The app declares
+    # it (it knows what content it's showing); the node logs a delivery per
+    # returned `doc_id` for this service. Absent = no delivery logged (the
+    # query is not a content view — e.g. an aggregate / analytics query).
+    content_service: str | None = None
