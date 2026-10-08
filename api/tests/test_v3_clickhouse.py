@@ -2259,9 +2259,7 @@ class TestLogContentDeliveries:
     def test_within_window_gated(self):
         with _patch_client() as mock_client:
             # p1 was delivered 1h ago (within the 24h window) — gated out.
-            mock_client.query.return_value = _mock_result_rows(
-                [("p1", datetime.utcnow() - timedelta(hours=1))]
-            )
+            mock_client.query.return_value = _mock_result_rows([("p1", datetime.utcnow() - timedelta(hours=1))])
             ch.log_content_deliveries(["p1", "p2"], "posts", "alice", "feed")
             mock_client.insert.assert_called_once()
             table, rows = mock_client.insert.call_args[0]
@@ -2271,9 +2269,7 @@ class TestLogContentDeliveries:
     def test_outside_window_inserts(self):
         with _patch_client() as mock_client:
             # p1 was delivered 2 days ago (outside the 24h window) — re-counted.
-            mock_client.query.return_value = _mock_result_rows(
-                [("p1", datetime.utcnow() - timedelta(days=2))]
-            )
+            mock_client.query.return_value = _mock_result_rows([("p1", datetime.utcnow() - timedelta(days=2))])
             ch.log_content_deliveries(["p1"], "posts", "alice", "feed")
             mock_client.insert.assert_called_once()
             table, rows = mock_client.insert.call_args[0]
@@ -2368,9 +2364,7 @@ class TestContentEventMetrics:
 
     def test_metrics(self):
         with _patch_client() as mock_client:
-            mock_client.query.return_value = _mock_result_rows(
-                [("p1", 100, 40, 7, 0.62)]
-            )
+            mock_client.query.return_value = _mock_result_rows([("p1", 100, 40, 7, 0.62)])
             result = ch.content_event_metrics(["p1"], "posts")
             assert result["p1"] == {
                 "impressions": 100,
@@ -2399,9 +2393,7 @@ class TestContentEventSurfaceBreakdown:
 class TestContentEventTimeseries:
     def test_timeseries(self):
         with _patch_client() as mock_client:
-            mock_client.query.return_value = _mock_result_rows(
-                [("p1", "2026-10-01", 10), ("p1", "2026-10-02", 20)]
-            )
+            mock_client.query.return_value = _mock_result_rows([("p1", "2026-10-01", 10), ("p1", "2026-10-02", 20)])
             result = ch.content_event_timeseries(["p1"], "posts")
             assert result == {"p1": {"2026-10-01": 10, "2026-10-02": 20}}
 
@@ -2458,9 +2450,7 @@ class TestContentEventCreatorRows:
 
     def test_scopes_to_authors_own_docs(self):
         with _patch_client() as mock_client:
-            mock_client.query.return_value = _mock_result_rows(
-                [("p1", "feed", "2026-10-01", 100, 40, 7, 0.62)]
-            )
+            mock_client.query.return_value = _mock_result_rows([("p1", "feed", "2026-10-01", 100, 40, 7, 0.62)])
             result = ch.content_event_creator_rows("alice", "posts", 30)
             assert len(result) == 1
             assert result[0]["doc_id"] == "p1"
@@ -2481,9 +2471,7 @@ class TestContentEventCreatorRows:
 
     def test_null_watch_pct(self):
         with _patch_client() as mock_client:
-            mock_client.query.return_value = _mock_result_rows(
-                [("p1", "feed", "2026-10-01", 10, 3, 0, None)]
-            )
+            mock_client.query.return_value = _mock_result_rows([("p1", "feed", "2026-10-01", 10, 3, 0, None)])
             result = ch.content_event_creator_rows("alice", "posts", 30)
             assert result[0]["avg_watch_pct"] is None
 

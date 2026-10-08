@@ -2572,7 +2572,17 @@ class TestContentAnalytics:
     reader, service, window)."""
 
     def test_returns_rows(self, client, token):
-        rows = [{"doc_id": "p1", "surface": "feed", "day": "2026-10-01", "impressions": 100, "reach": 40, "clicks": 7, "avg_watch_pct": 0.62}]
+        rows = [
+            {
+                "doc_id": "p1",
+                "surface": "feed",
+                "day": "2026-10-01",
+                "impressions": 100,
+                "reach": 40,
+                "clicks": 7,
+                "avg_watch_pct": 0.62,
+            }
+        ]
         with patch("app.v3.services.clickhouse.content_event_creator_rows", return_value=rows) as mock_rows:
             resp = client.post(
                 "/v3/contentAnalytics",

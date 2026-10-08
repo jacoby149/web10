@@ -4226,9 +4226,7 @@ def record_content_event(
     return _log_content_signal(doc_id, service, reader_key, surface, event_type, payload)
 
 
-def content_event_reach(
-    doc_ids: list[str], service: str, window_days: int = 30
-) -> dict[str, int]:
+def content_event_reach(doc_ids: list[str], service: str, window_days: int = 30) -> dict[str, int]:
     """Reach per doc: the count of DISTINCT readers who saw the doc (D86).
 
     This is the on-surface "N views" number — distinct readers, not
@@ -4251,9 +4249,7 @@ def content_event_reach(
     return {row[0]: int(row[1]) for row in result.result_rows}
 
 
-def content_event_metrics(
-    doc_ids: list[str], service: str, window_days: int = 30
-) -> dict[str, dict]:
+def content_event_metrics(doc_ids: list[str], service: str, window_days: int = 30) -> dict[str, dict]:
     """Per-doc content metrics over the trailing window (D86): impressions
     (delivery rows), reach (distinct readers), clicks (click rows), and avg
     watch % (mean of payload.watched_ms / payload.duration_ms over viewport
@@ -4312,9 +4308,7 @@ def content_event_surface_breakdown(
     return out
 
 
-def content_event_timeseries(
-    doc_ids: list[str], service: str, window_days: int = 30
-) -> dict[str, dict[str, int]]:
+def content_event_timeseries(doc_ids: list[str], service: str, window_days: int = 30) -> dict[str, dict[str, int]]:
     """Impressions per doc per day over the trailing window (D86): the
     time-series line graph. Returns {doc_id: {date: impressions}} where date
     is `YYYY-MM-DD`. A doc with no events is absent."""
@@ -4337,9 +4331,7 @@ def content_event_timeseries(
     return out
 
 
-def content_event_views_for_docs(
-    doc_ids: list[str], service: str, group_ids: list[str]
-) -> dict[str, dict]:
+def content_event_views_for_docs(doc_ids: list[str], service: str, group_ids: list[str]) -> dict[str, dict]:
     """On-surface view metrics per doc (D86): **impressions** (total delivery
     events — `count()`) + **reach** (distinct readers — `countDistinct`). The
     on-surface "N views" shows both (the eye = impressions, the person = reach).
@@ -4368,15 +4360,10 @@ def content_event_views_for_docs(
         f"GROUP BY e.doc_id",
         {"svc": service, **params},
     )
-    return {
-        row[0]: {"impressions": int(row[1] or 0), "reach": int(row[2] or 0)}
-        for row in result.result_rows
-    }
+    return {row[0]: {"impressions": int(row[1] or 0), "reach": int(row[2] or 0)} for row in result.result_rows}
 
 
-def content_event_creator_rows(
-    author_key: str, service: str, window_days: int = 30
-) -> list[dict]:
+def content_event_creator_rows(author_key: str, service: str, window_days: int = 30) -> list[dict]:
     """The creator's own content metrics over the trailing window (D86) — the
     dashboard's data source. I3-bound by construction: the aggregate is scoped
     to docs the caller AUTHORED (``documents.author_key = author_key``), so a
