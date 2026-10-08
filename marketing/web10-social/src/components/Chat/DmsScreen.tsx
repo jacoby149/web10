@@ -6,7 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Skeleton } from '@/components/ui/skeleton';
 import { getWapi } from '@/data/wapi';
-import { listConversations, readDms, sendDm, getLastDm, readContacts, startConversation, conversationKey as deriveConversationKey, readFollows, addContact, deleteDm, updateDm, deleteConversation, lookupUserProfile, type UserFace, getMyGroupChats, readGroupChatFace, readGroupChatMessages, sendGroupChatMessage, createGroupChat, groupChatRouteKey, groupIdFromRouteKey, getGroupMembers, type GroupChatSummary } from '@/data';
+import { listConversations, readDms, sendDm, getLastDm, readContacts, startConversation, conversationKey as deriveConversationKey, readFollows, addContact, deleteDm, updateDm, deleteConversation, lookupUserProfile, type UserFace, getMyGroupChats, readGroupChatFace, readGroupChatMessages, readGroupChatLastMessage, sendGroupChatMessage, createGroupChat, groupChatRouteKey, groupIdFromRouteKey, getGroupMembers, type GroupChatSummary } from '@/data';
 import { sendP2P, onP2PInbound, isP2PReady, getOnlinePeers, peerIdFor, onPresenceChange, probePresence } from '@/data/p2p';
 import { markConversationRead } from '@/data/messagesUnread';
 import { useMessagesUnread } from '@/hooks/useMessagesUnread';
@@ -994,10 +994,20 @@ export default function DmsScreen() {
       // Refresh the list preview (last message per conversation) so a message
       // arriving while the list is showing updates the row — without the
       // loading skeleton (loadData toggles `loading`, which would flash it).
+      // The per-conversation re-reads run in PARALLEL (paint-on-read, 3.225.0)
+      // — the old for…await was a serial round-trip per conversation.
       listConversations()
         .then(async (convs) => {
           const lastMsgs: Record<string, DmRecord | null> = {};
-          for (const conv of convs) lastMsgs[conv] = await getLastDm(conv);
+          await Promise.all(
+            convs.map(async (conv) => {
+              try {
+                lastMsgs[conv] = await getLastDm(conv);
+              } catch {
+                lastMsgs[conv] = null;
+              }
+            }),
+          );
           setLastMessages(lastMsgs);
         })
         .catch(() => {
@@ -1106,6 +1116,17 @@ export default function DmsScreen() {
   async function loadData() {
     setLoading(true);
     try {
+      // The BASE read (paint-on-read, 3.225.0): the conversation keys, the
+      // contacts (display names), and the group chats (name + avatar) — three
+      // single reads in parallel, each render-ready. The list PAINTS after this
+      // batch (names + group rows). The last-message PREVIEWS (the per-DM
+      // getLastDm + the per-chat readGroupChatLastMessage fan-outs) are NOT
+      // here — they enrich in the background and patch the rows in (the
+      // profile's model, 3.223.0 / the People tab's, 3.224.0). Holding the
+      // list behind them was the "Messages stuck on skeleton" bug: ~3N+2M
+      // sequential round-trips (the old getLastDm was 2 reads EACH — a
+      // getMyGroups re-read + the full history — and the group previews read
+      // the full chat history).
       const [convs, contactsData, chats] = await Promise.all([
         listConversations(),
         readContacts(),
@@ -1118,42 +1139,68 @@ export default function DmsScreen() {
       });
       setContactMap(cMap);
 
-      const lastMsgs: Record<string, DmRecord | null> = {};
-      for (const conv of convs) {
-        lastMsgs[conv] = await getLastDm(conv);
-      }
-      // Group chats: their last message (the list preview) under the route key.
-      for (const chat of chats) {
-        const key = groupChatRouteKey(chat.groupId);
-        const msgs = await readGroupChatMessages(chat.groupId).catch(() => [] as DmRecord[]);
-        lastMsgs[key] = msgs[msgs.length - 1] || null;
-      }
-      setLastMessages(lastMsgs);
+      // The group chats paint with the base (their name is base data — the
+      // identity read is inside getMyGroupChats, already parallel).
       setGroupChats(chats);
 
-      // Sort conversations by last-message recency, newest first
-      // (operator, 29.07: the list was in insertion order — oldest on top).
-      const sorted = [...convs].sort((a, b) => {
-        const aTime = lastMsgs[a] ? new Date(lastMsgs[a]!.sent_at).getTime() : 0;
-        const bTime = lastMsgs[b] ? new Date(lastMsgs[b]!.sent_at).getTime() : 0;
-        return bTime - aTime;
-      });
-      setConversations(sorted);
+      // Paint the list NOW (one round-trip to first paint). Base order — the
+      // DM keys as returned; the previews re-sort by recency when they land.
+      setConversations([...convs]);
       setContacts(contactsData);
+      setLoading(false);
 
       // Probe every conversation peer the moment the list loads — presence for
       // the whole list, not just the open conversation. The channel handshake
       // is the presence check; the heartbeat (p2p.ts) then keeps each warm.
       // Best-effort and fire-and-forget — never blocks the list render.
-      for (const conv of sorted) {
+      for (const conv of convs) {
         const other = getOtherUser(conv);
         const [prov, user] = other.split('/');
         if (prov && user) probePresence(prov, user);
       }
+
+      // The last-message previews — a BACKGROUND pass (never blocks the
+      // paint): the per-DM getLastDm (now a single read each) + the per-chat
+      // readGroupChatLastMessage (single read each), all in parallel. When
+      // they land, the rows patch in their preview + time, and the list
+      // re-sorts by last-message recency (the operator's 29.07 rule: newest
+      // conversation on top). A failed preview degrades that row to
+      // "No messages yet", never a throw.
+      void (async () => {
+        const lastMsgs: Record<string, DmRecord | null> = {};
+        const [dmLasts, chatLasts] = await Promise.all([
+          Promise.all(convs.map(async (conv) => {
+            try {
+              return [conv, await getLastDm(conv)] as const;
+            } catch (e) {
+              console.log('[social-dms] last-message preview failed for', conv, '(degrading to none):', e);
+              return [conv, null] as const;
+            }
+          })),
+          Promise.all(chats.map(async (chat) => {
+            try {
+              return [groupChatRouteKey(chat.groupId), await readGroupChatLastMessage(chat.groupId)] as const;
+            } catch (e) {
+              console.log('[social-dms] chat preview failed for', chat.groupId, '(degrading to none):', e);
+              return [groupChatRouteKey(chat.groupId), null] as const;
+            }
+          })),
+        ]);
+        for (const [conv, last] of dmLasts) lastMsgs[conv] = last;
+        for (const [key, last] of chatLasts) lastMsgs[key] = last;
+        setLastMessages(lastMsgs);
+        // Re-sort the DM rows by last-message recency (the previews just
+        // landed — the base order was the read's order, not recency).
+        setConversations((prev) => [...prev].sort((a, b) => {
+          const aTime = lastMsgs[a] ? new Date(lastMsgs[a]!.sent_at).getTime() : 0;
+          const bTime = lastMsgs[b] ? new Date(lastMsgs[b]!.sent_at).getTime() : 0;
+          return bTime - aTime;
+        }));
+      })();
     } catch (e) {
       console.error('Failed to load DMs:', e);
+      setLoading(false);
     }
-    setLoading(false);
   }
 
   async function openConversation(conv: string) {

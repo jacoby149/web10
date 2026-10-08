@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { render, screen, fireEvent, waitFor, within } from '@testing-library/react';
 import { MemoryRouter, Routes, Route } from 'react-router-dom';
 import '@testing-library/jest-dom';
@@ -46,6 +46,7 @@ vi.mock('@/data', async (importOriginal) => {
     getMyGroupChats: vi.fn().mockResolvedValue([]),
     readGroupChatFace: vi.fn().mockResolvedValue({ name: 'The Crew' }),
     readGroupChatMessages: vi.fn().mockResolvedValue([]),
+    readGroupChatLastMessage: vi.fn().mockResolvedValue(null),
     sendGroupChatMessage: vi.fn().mockResolvedValue({ _id: 'gm-1', message: '', sent_at: new Date().toISOString(), sender_username: 'testuser', sender_provider: 'test.localhost', recipient_username: '', recipient_provider: '' }),
     createGroupChat: vi.fn().mockResolvedValue('test.localhost/groups/users/testuser/chat-crew'),
     getGroupMembers: vi.fn().mockResolvedValue([]),
@@ -469,12 +470,20 @@ describe('ProfileScreen', () => {
 });
 
 describe('DmsScreen', () => {
+  // The paint-on-read regression's preview gate (3.225.0) — released by the
+  // test, AND by this afterEach as a backstop (a failed assertion must not
+  // leave the gated mock hanging for the rest of the file).
+  let releasePreviewGate: (() => void) | null = null;
   beforeEach(() => {
     vi.clearAllMocks();
     messagesUnreadState.unread = 0;
     messagesUnreadState.unreadConvs.clear();
     // jsdom doesn't implement scrollIntoView (the thread's auto-scroll effect).
     Element.prototype.scrollIntoView = vi.fn();
+  });
+  afterEach(() => {
+    releasePreviewGate?.();
+    releasePreviewGate = null;
   });
 
   it('renders empty state with subtle import link', async () => {
@@ -742,6 +751,73 @@ describe('DmsScreen', () => {
       expect(screen.getByTestId('dm-conversation')).toBeInTheDocument();
     }, { timeout: 2000 });
     expect(screen.queryByTestId('dm-contact-picker')).not.toBeInTheDocument();
+  });
+
+  it('paints the conversation list on the ONE read — the preview fan-out does not hold the paint (3.225.0)', async () => {
+    // Regression (3.225.0): the old loadData held the whole-screen skeleton
+    // behind FOUR serial fan-outs — per-DM getLastDm (2 reads each: a
+    // getMyGroups re-read + the full history) + per-chat readGroupChatMessages
+    // (the full history) — ~3N+2M sequential round-trips before
+    // setLoading(false). The list must paint after the BASE batch
+    // (listConversations + readContacts + getMyGroupChats); the previews
+    // enrich in the background. Gate the preview fan-out behind a promise that
+    // is NEVER released: if the rows still paint, the paint is not waiting on
+    // the fan-out.
+    const { listConversations, getLastDm, getMyGroupChats, readGroupChatLastMessage } = await import('@/data');
+    let releasePreviews: () => void;
+    const previewGate = new Promise<void>((resolve) => { releasePreviews = resolve; });
+    // The describe-level afterEach releases the gate as a backstop (a failed
+    // assertion must not leave the gated mock hanging for the rest of the file).
+    releasePreviewGate = releasePreviews;
+    vi.mocked(listConversations).mockResolvedValue([
+      'test.localhost/testuser--test.localhost/alice',
+      'test.localhost/testuser--test.localhost/bob',
+    ]);
+    vi.mocked(getMyGroupChats).mockResolvedValue([
+      { groupId: 'test.localhost/groups/users/testuser/chat-crew', name: 'The Crew', avatarRef: undefined },
+    ]);
+    vi.mocked(getLastDm).mockImplementation(async () => {
+      await previewGate; // the DM preview fan-out is gated — never released until below
+      return {
+        _id: 'dm-1', message: 'hey you', sent_at: new Date().toISOString(),
+        sender_username: 'alice', sender_provider: 'test.localhost',
+        recipient_username: 'testuser', recipient_provider: 'test.localhost',
+      };
+    });
+    vi.mocked(readGroupChatLastMessage).mockImplementation(async () => {
+      await previewGate; // the chat preview fan-out is gated too
+      return {
+        _id: 'gm-1', message: 'crew preview', sent_at: new Date().toISOString(),
+        sender_username: 'alice', sender_provider: 'test.localhost',
+        recipient_username: '', recipient_provider: '',
+      };
+    });
+
+    const { default: DmsScreen } = await import('@/components/Chat/DmsScreen');
+    render(
+      <MemoryRouter initialEntries={['/messages']}>
+        <DmsScreen />
+      </MemoryRouter>,
+    );
+
+    // The list PAINTS while the preview fan-out is still gated: both DM rows
+    // + the group row are up (the skeleton is gone).
+    await waitFor(() => {
+      expect(screen.getAllByTestId('dm-conversation-item')).toHaveLength(2);
+    });
+    expect(screen.getByTestId('group-chat-item')).toBeInTheDocument();
+    // The previews have not landed yet — every row shows the fallback.
+    expect(screen.getAllByText('No messages yet')).toHaveLength(3);
+
+    // Release the gate — the background pass patches the previews in. Both DM
+    // rows show the same mock preview (the gate returns one message for every
+    // conversation), so assert with getAllByText.
+    releasePreviews!();
+    await waitFor(() => {
+      expect(screen.getAllByText('hey you')).toHaveLength(2);
+    });
+    expect(screen.getByText('crew preview')).toBeInTheDocument();
+    expect(screen.queryByText('No messages yet')).not.toBeInTheDocument();
   });
 });
 
