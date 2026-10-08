@@ -4,6 +4,7 @@ import {
   createGroupChat,
   getMyGroupChats,
   readGroupChatMessages,
+  readGroupChatLastMessage,
   sendGroupChatMessage,
   groupChatRouteKey,
   groupIdFromRouteKey,
@@ -119,6 +120,25 @@ describe('groupChat v3 data layer (group-chat.md, D77)', () => {
       const msgs = await readGroupChatMessages('api.localhost/groups/users/me/chat-crew');
       expect(mock.read).toHaveBeenCalledWith('posts', { groups: ['api.localhost/groups/users/me/chat-crew'] });
       expect(msgs.map((m) => m.message)).toEqual(['first', 'second']);
+    });
+  });
+
+  describe('readGroupChatLastMessage (paint-on-read, 3.225.0)', () => {
+    it('reads a SINGLE doc (limit 1 — the server orders created_at DESC, so [0] is the last)', async () => {
+      const groupId = 'api.localhost/groups/users/me/chat-crew';
+      mock.read.mockResolvedValue([
+        { doc_id: 'm2', author_key: 'api.localhost/alice', created_at: '2026-01-01T02:00:00Z', body: { message: 'second', sender_username: 'alice' } },
+      ]);
+      const last = await readGroupChatLastMessage(groupId);
+      // The list preview is one round-trip, one doc — not the full history.
+      expect(mock.read).toHaveBeenCalledWith('posts', { groups: [groupId], limit: 1 });
+      expect(last?.message).toBe('second');
+    });
+
+    it('returns null for an empty chat (no throw)', async () => {
+      mock.read.mockResolvedValue([]);
+      const last = await readGroupChatLastMessage('api.localhost/groups/users/me/chat-crew');
+      expect(last).toBeNull();
     });
   });
 
