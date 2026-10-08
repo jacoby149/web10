@@ -1275,6 +1275,95 @@ describe('GroupDetailScreen', () => {
     expect(screen.queryByTestId('group-detail-media')).not.toBeInTheDocument();
   });
 
+  // ── The feed tab's view lens (grid | feed, the profile's toggle) ──────────
+
+  const gridDetail = {
+    ...mockDetailMember,
+    posts: [
+      {
+        doc_id: 'doc-g1',
+        author_key: 'carol',
+        collection_name: 'posts',
+        body: { text: 'a photo post', media_refs: ['gm1'] },
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+      },
+      {
+        doc_id: 'doc-g2',
+        author_key: 'carol',
+        collection_name: 'posts',
+        body: { text: 'a text-only post' },
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+      },
+    ],
+  };
+
+  async function loadGridDetail() {
+    vi.mocked(readGroupDetail).mockResolvedValue(gridDetail as never);
+    vi.mocked(resolveMediaRefs).mockResolvedValue([
+      { _id: 'gm1', url: 'http://x/gm1.png', mime_type: 'image/png', created_at: '' },
+    ] as never);
+    await loadDetail();
+    await waitFor(() => {
+      expect(screen.getByTestId('group-detail-tabs')).toBeInTheDocument();
+    });
+  }
+
+  it('the feed tab shows the Grid | Feed view toggle (feed is the default lens)', async () => {
+    await loadGridDetail();
+    // The toggle renders on the feed tab; feed is the selected lens.
+    expect(screen.getByTestId('profile-view-toggle')).toBeInTheDocument();
+    expect(screen.getByTestId('profile-view-feed')).toHaveAttribute('aria-selected', 'true');
+    expect(screen.getByTestId('profile-view-grid')).toHaveAttribute('aria-selected', 'false');
+    // The feed lens is the default surface (full cards, not the wall).
+    expect(screen.getByTestId('group-detail-posts')).toBeInTheDocument();
+    expect(screen.queryByTestId('group-detail-grid')).not.toBeInTheDocument();
+  });
+
+  it('switching to the grid lens renders the 9:16 wall of tiles (the profile shape)', async () => {
+    await loadGridDetail();
+    fireEvent.click(screen.getByTestId('profile-view-grid'));
+    await waitFor(() => {
+      expect(screen.getByTestId('group-detail-grid')).toBeInTheDocument();
+    });
+    // One tile per post (media + text-only), the insta-shaped wall.
+    expect(screen.getAllByTestId('group-grid-cell').length).toBe(2);
+    // The feed (full cards) is gone; the grid lens is selected.
+    expect(screen.queryByTestId('group-detail-posts')).not.toBeInTheDocument();
+    expect(screen.getByTestId('profile-view-grid')).toHaveAttribute('aria-selected', 'true');
+  });
+
+  it('the grid lens deep-links (?view=grid restores it; switching back cleans the URL)', async () => {
+    vi.mocked(readGroupDetail).mockResolvedValue(gridDetail as never);
+    vi.mocked(resolveMediaRefs).mockResolvedValue([
+      { _id: 'gm1', url: 'http://x/gm1.png', mime_type: 'image/png', created_at: '' },
+    ] as never);
+    await renderDetailAt('/groups/x?view=grid');
+    // ?view=grid restores the grid lens on load (refresh-safe, shareable).
+    await waitFor(() => {
+      expect(screen.getByTestId('group-detail-grid')).toBeInTheDocument();
+    });
+    expect(screen.getByTestId('profile-view-grid')).toHaveAttribute('aria-selected', 'true');
+
+    // Switching back to the feed drops the param (the default is the bare URL).
+    fireEvent.click(screen.getByTestId('profile-view-feed'));
+    await waitFor(() => {
+      expect(screen.getByTestId('group-detail-posts')).toBeInTheDocument();
+    });
+    expect(screen.getByTestId('profile-view-feed')).toHaveAttribute('aria-selected', 'true');
+  });
+
+  it('the media tab hides the view toggle (the lens is a feed-tab concept)', async () => {
+    await loadGridDetail();
+    expect(screen.getByTestId('profile-view-toggle')).toBeInTheDocument();
+    fireEvent.click(screen.getByTestId('group-tab-media'));
+    await waitFor(() => {
+      expect(screen.getByTestId('group-tab-media')).toHaveAttribute('aria-current', 'true');
+    });
+    expect(screen.queryByTestId('profile-view-toggle')).not.toBeInTheDocument();
+  });
+
   it('clicking the Media tab switches to the media grid and sets ?tab=media', async () => {
     vi.mocked(readGroupMediaPage).mockResolvedValue({
       posts: [
@@ -1705,18 +1794,35 @@ describe('GroupDetailScreen — quick face edit (shared face lightbox)', () => {
     });
   }
 
-  it('a manager sees the quick-edit hover buttons + file input on the hero', async () => {
+  it('a manager sees the quick-edit hover buttons on the hero', async () => {
     await loadFaceDetail(true);
     expect(screen.getByTestId('group-edit-banner-button')).toBeInTheDocument();
     expect(screen.getByTestId('group-edit-avatar-button')).toBeInTheDocument();
-    expect(screen.getByTestId('group-face-file-input')).toBeInTheDocument();
   });
 
   it('a non-manager sees no quick-edit affordances', async () => {
     await loadFaceDetail(false);
     expect(screen.queryByTestId('group-edit-banner-button')).not.toBeInTheDocument();
     expect(screen.queryByTestId('group-edit-avatar-button')).not.toBeInTheDocument();
-    expect(screen.queryByTestId('group-face-file-input')).not.toBeInTheDocument();
+  });
+
+  it('a manager tapping the cover button opens the shared face lightbox (the crop editor)', async () => {
+    await loadFaceDetail(true);
+    fireEvent.click(screen.getByTestId('group-edit-banner-button'));
+    await waitFor(() => {
+      expect(screen.getByTestId('profile-media-lightbox')).toBeInTheDocument();
+    });
+    // The lightbox is the crop editor (the upload tile is present for a manager).
+    expect(screen.getByTestId('profile-media-upload')).toBeInTheDocument();
+  });
+
+  it('a manager tapping the avatar button opens the shared face lightbox (the crop editor)', async () => {
+    await loadFaceDetail(true);
+    fireEvent.click(screen.getByTestId('group-edit-avatar-button'));
+    await waitFor(() => {
+      expect(screen.getByTestId('profile-media-lightbox')).toBeInTheDocument();
+    });
+    expect(screen.getByTestId('profile-media-upload')).toBeInTheDocument();
   });
 
   it('a manager tapping the avatar opens the shared face lightbox', async () => {

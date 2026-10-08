@@ -26,7 +26,6 @@ import {
   publishGroup,
   writeGroupIdentity,
   uploadMedia,
-  refreshMediaUrls,
   groupCreator,
   healGroupOwnership,
   readGroupCollections,
@@ -52,6 +51,8 @@ import { useRepost } from '@/context/RepostContext';
 import { useComposer } from '@/context/ComposerContext';
 import { PostLightbox } from '@/components/Bio/PostLightbox';
 import { ProfileMediaLightbox, type ProfileMediaOption, type FaceCropResult } from '@/components/Bio/ProfileMediaLightbox';
+import { ProfileViewToggle, type ProfileViewMode } from '@/components/Bio/ProfileViewToggle';
+import { WallTile } from '@/components/Bio/UserProfileScreen';
 import { SavedCollectionsGrid } from '@/components/Bio/SavedCollectionsGrid';
 import {
   ArrowLeft,
@@ -298,15 +299,10 @@ export default function GroupDetailScreen({ groupId }: { groupId: string }) {
   // exists at the draft's slug. Gates Publish (the guard is live in edit mode).
   const [slugTaken, setSlugTaken] = useState(false);
   // Quick face edit (the profile's face lightbox, shared): tapping the banner
-  // or avatar opens the enlarged view + pick-from-posts + crop. The hover
-  // buttons upload a new file directly. Both paths write the face doc.
+  // or avatar opens the enlarged view + pick-from-posts + crop. The lightbox's
+  // upload tile is the file path (the crop step is the single edit surface).
   const [faceLightbox, setFaceLightbox] = useState<'avatar' | 'banner' | null>(null);
   const [faceSaving, setFaceSaving] = useState(false);
-  const [faceUploading, setFaceUploading] = useState(false);
-  // The file input is PERSISTENT in the DOM (not created on click) so the
-  // upload seam is drivable from e2e (setInputFiles).
-  const faceFileInputRef = useRef<HTMLInputElement>(null);
-  const facePendingFieldRef = useRef<'avatar' | 'banner' | null>(null);
 
   // The tabs (G1): Feed (default, bare URL) | Media (?tab=media) | Saved
   // (?tab=saved, the group's playlists — a group is a profile). The URL holds
@@ -316,6 +312,19 @@ export default function GroupDetailScreen({ groupId }: { groupId: string }) {
   const [searchParams, setSearchParams] = useSearchParams();
   const tab: 'feed' | 'media' | 'saved' =
     searchParams.get('tab') === 'media' ? 'media' : searchParams.get('tab') === 'saved' ? 'saved' : 'feed';
+  // The feed tab's view lens (the profile's grid | feed toggle, mirrored here —
+  // a group is a profile). Screen state, so the URL holds it (?view=grid —
+  // refresh restores it, a shared link carries it; the default feed is the
+  // bare URL).
+  const feedView: ProfileViewMode =
+    searchParams.get('view') === 'grid' ? 'grid' : 'feed';
+  const selectView = useCallback((mode: ProfileViewMode) => {
+    const params = new URLSearchParams(searchParams);
+    if (mode === 'grid') params.set('view', 'grid');
+    else params.delete('view');
+    setSearchParams(params, { replace: true });
+    LOG('view —', mode);
+  }, [searchParams, setSearchParams]);
   const selectTab = useCallback((next: 'feed' | 'media' | 'saved') => {
     const params = new URLSearchParams(searchParams);
     if (next === 'feed') params.delete('tab');
@@ -335,6 +344,9 @@ export default function GroupDetailScreen({ groupId }: { groupId: string }) {
   const [mediaLoadingMore, setMediaLoadingMore] = useState(false);
   const [mediaGridMap, setMediaGridMap] = useState<Record<string, MediaRecord>>({});
   const [mediaLightboxPost, setMediaLightboxPost] = useState<PostRecord | null>(null);
+  // The feed tab's grid view (the profile's posts grid, mirrored — a group is
+  // a profile): a tapped tile opens the post lightbox.
+  const [gridLightboxPost, setGridLightboxPost] = useState<PostRecord | null>(null);
   const mediaOffsetRef = useRef(0);
   const mediaInitializedRef = useRef(false);
   const mediaSentinelRef = useRef<HTMLDivElement>(null);
@@ -572,6 +584,7 @@ export default function GroupDetailScreen({ groupId }: { groupId: string }) {
     setMediaHasMore(false);
     setMediaGridMap({});
     setMediaLightboxPost(null);
+    setGridLightboxPost(null);
   }, [id]);
 
   // Load page one when the Media tab is active (and not yet loaded). The feed
@@ -715,49 +728,9 @@ export default function GroupDetailScreen({ groupId }: { groupId: string }) {
 
   // ── Quick face edit (shared profile face lightbox) ─────────────────────
   // Managers can tap the banner/avatar to view it enlarged and pick a group
-  // post's media as the new face, or use the hover buttons to upload a file.
-  // Both paths write the group identity face doc and reload the detail view.
-  const startFaceUpload = useCallback((field: 'avatar' | 'banner') => {
-    LOG('quick face upload — open file picker for', field);
-    facePendingFieldRef.current = field;
-    faceFileInputRef.current?.click();
-  }, []);
-
-  const handleFaceFileChange = useCallback(
-    async (e: React.ChangeEvent<HTMLInputElement>) => {
-      const file = e.target.files?.[0];
-      e.target.value = '';
-      const field = facePendingFieldRef.current;
-      facePendingFieldRef.current = null;
-      if (!file || !field || !detail) return;
-
-      LOG('quick face file upload — start', field, file.name, file.type, file.size);
-      setFaceUploading(true);
-      setUploading(true);
-      try {
-        const media = await uploadMedia({ file, service: 'public_media' });
-        LOG('quick face file upload — uploaded media _id:', media._id);
-        const [presigned] = await refreshMediaUrls([media]);
-        if (media._id) {
-          setMediaMap((prev) => ({ ...prev, [media._id!]: presigned }));
-        }
-        await writeGroupIdentity(detail.group_id, {
-          ...identity,
-          [field === 'avatar' ? 'avatar_ref' : 'banner_ref']: media._id || '',
-        });
-        LOG('quick face file upload — identity written, reloading');
-        await load();
-      } catch (err) {
-        console.error('[social:groups:detail] quick face file upload failed:', err);
-        toast.error(errorMessage(err, 'Upload failed. Please try again.'));
-      } finally {
-        setFaceUploading(false);
-        setUploading(false);
-      }
-    },
-    [detail, identity, load],
-  );
-
+  // post's media as the new face, or use the lightbox's upload tile to upload
+  // a file (the crop step is the single edit surface — the hover buttons open
+  // the lightbox, not a raw file picker).
   const handleFaceCrop = useCallback(
     async (field: 'avatar' | 'banner', result: FaceCropResult) => {
       if (!detail) return;
@@ -963,17 +936,12 @@ export default function GroupDetailScreen({ groupId }: { groupId: string }) {
             {canManage && (
               <button
                 type="button"
-                onClick={(e) => { e.stopPropagation(); startFaceUpload('banner'); }}
-                disabled={faceUploading}
+                onClick={(e) => { e.stopPropagation(); setFaceLightbox('banner'); }}
                 aria-label="Change cover"
                 data-testid="group-edit-banner-button"
                 className="absolute bottom-2 right-2 flex items-center gap-1.5 px-2.5 h-9 rounded-lg bg-background/70 border border-border text-xs text-foreground opacity-0 group-hover:opacity-100 focus-visible:opacity-100 transition-opacity backdrop-blur-sm hover:border-brand/30 hover:bg-background/90"
               >
-                {faceUploading ? (
-                  <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                ) : (
-                  <ImagePlus className="w-3.5 h-3.5" />
-                )}
+                <ImagePlus className="w-3.5 h-3.5" />
                 Cover
               </button>
             )}
@@ -1012,14 +980,9 @@ export default function GroupDetailScreen({ groupId }: { groupId: string }) {
                     className="absolute bottom-0 right-0 flex items-center justify-center h-7 w-7 rounded-full bg-background border border-border shadow-md opacity-0 group-hover:opacity-100 focus-visible:opacity-100 transition-opacity hover:border-brand/30"
                     aria-label="Change group photo"
                     data-testid="group-edit-avatar-button"
-                    disabled={faceUploading}
-                    onClick={(e) => { e.stopPropagation(); startFaceUpload('avatar'); }}
+                    onClick={(e) => { e.stopPropagation(); setFaceLightbox('avatar'); }}
                   >
-                    {faceUploading ? (
-                      <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                    ) : (
-                      <Camera className="w-3.5 h-3.5 text-foreground" />
-                    )}
+                    <Camera className="w-3.5 h-3.5 text-foreground" />
                   </button>
                 )}
               </div>
@@ -1204,23 +1167,28 @@ export default function GroupDetailScreen({ groupId }: { groupId: string }) {
               collection" affordance). Visitor / member: only when the group has
               ≥1 PUBLIC collection (a private one never surfaces — the D80
               by-group read returns only membership_visibility='public'). */}
-          {collections !== null && (canManage || collections.length > 0) && (
-            <button
-              data-testid="group-tab-saved"
-              aria-current={tab === 'saved' ? 'true' : undefined}
-              className={cn(
-                'flex-1 min-h-11 py-3 text-sm font-medium text-center transition-all duration-150 relative',
-                tab === 'saved' ? 'text-foreground' : 'text-muted-foreground hover:text-foreground',
-              )}
-              onClick={() => selectTab('saved')}
-            >
-              Saved
-              {tab === 'saved' && (
-                <div className="absolute bottom-0 inset-x-0 h-0.5 bg-gradient-to-r from-brand to-brand-600" />
-              )}
-            </button>
-          )}
-        </div>
+           {collections !== null && (canManage || collections.length > 0) && (
+             <button
+               data-testid="group-tab-saved"
+               aria-current={tab === 'saved' ? 'true' : undefined}
+               className={cn(
+                 'flex-1 min-h-11 py-3 text-sm font-medium text-center transition-all duration-150 relative',
+                 tab === 'saved' ? 'text-foreground' : 'text-muted-foreground hover:text-foreground',
+               )}
+               onClick={() => selectTab('saved')}
+             >
+               Saved
+               {tab === 'saved' && (
+                 <div className="absolute bottom-0 inset-x-0 h-0.5 bg-gradient-to-r from-brand to-brand-600" />
+               )}
+             </button>
+           )}
+           {tab === 'feed' && (
+             <div className="flex items-center shrink-0 pr-2 pb-2">
+               <ProfileViewToggle value={feedView} onChange={selectView} />
+             </div>
+           )}
+         </div>
 
         {/* The feed — the dominant surface (the reference feed card + composer) */}
         {tab === 'feed' && (
@@ -1243,31 +1211,56 @@ export default function GroupDetailScreen({ groupId }: { groupId: string }) {
                     Post to this group
                   </button>
                 )}
-                <div data-testid="group-detail-posts">
-                  {postRecords.length > 0 ? (
-                    postRecords.map((p) => (
-                      <GroupFeedPost
-                        key={p._id || p.created_at}
-                        post={p}
-                        media={(p.media_refs || []).map((r) => mediaMap[mediaRefId(r)]).filter(Boolean)}
-                        groupId={detail.group_id}
-                      />
-                    ))
-                  ) : (
-                    <div
-                      data-testid="group-detail-posts-empty"
-                      className="flex flex-col items-center justify-center py-12 px-8 text-center rounded-lg border border-border bg-card"
-                    >
-                      <div className="mb-3 flex h-12 w-12 items-center justify-center rounded-full bg-brand-muted/50">
-                        <Users className="h-6 w-6 text-brand-400" strokeWidth={1.5} />
-                      </div>
-                      <p className="text-sm font-medium text-foreground">No posts yet</p>
-                      <p className="mt-1 text-xs text-muted-foreground">
-                        Be the first to share something with the group.
-                      </p>
+                {postRecords.length > 0 ? (
+                  feedView === 'grid' ? (
+                    /* The grid lens (the profile's posts grid, mirrored — a
+                       group is a profile): the insta-shaped 9:16 wall of
+                       tiles, one per post (video-first, text tiles for
+                       text-only posts). A tapped tile opens the post
+                       lightbox. */
+                    <div className="grid grid-cols-3 gap-0.5 sm:gap-2 lg:grid-cols-4" data-testid="group-detail-grid">
+                      {postRecords.map((post) => {
+                        const firstMedia = post.media_refs?.[0] ? mediaMap[mediaRefId(post.media_refs[0])] : null;
+                        return (
+                          <WallTile
+                            key={post._id}
+                            media={firstMedia ?? { _id: post._id, url: '', created_at: '' }}
+                            testId="group-grid-cell"
+                            title={post.title}
+                            caption={post.text}
+                            postId={post._id}
+                            multiCount={post.media_refs?.length}
+                            onClick={() => setGridLightboxPost(post)}
+                          />
+                        );
+                      })}
                     </div>
-                  )}
-                </div>
+                  ) : (
+                    <div data-testid="group-detail-posts">
+                      {postRecords.map((p) => (
+                        <GroupFeedPost
+                          key={p._id || p.created_at}
+                          post={p}
+                          media={(p.media_refs || []).map((r) => mediaMap[mediaRefId(r)]).filter(Boolean)}
+                          groupId={detail.group_id}
+                        />
+                      ))}
+                    </div>
+                  )
+                ) : (
+                  <div
+                    data-testid="group-detail-posts-empty"
+                    className="flex flex-col items-center justify-center py-12 px-8 text-center rounded-lg border border-border bg-card"
+                  >
+                    <div className="mb-3 flex h-12 w-12 items-center justify-center rounded-full bg-brand-muted/50">
+                      <Users className="h-6 w-6 text-brand-400" strokeWidth={1.5} />
+                    </div>
+                    <p className="text-sm font-medium text-foreground">No posts yet</p>
+                    <p className="mt-1 text-xs text-muted-foreground">
+                      Be the first to share something with the group.
+                    </p>
+                  </div>
+                )}
               </>
             ) : (
               <div
@@ -1489,6 +1482,26 @@ export default function GroupDetailScreen({ groupId }: { groupId: string }) {
         />
       )}
 
+      {/* The grid lightbox (the feed tab's grid lens): the tapped tile's post,
+          with Instagram-style post nav through the group's posts (wrapping). */}
+      {gridLightboxPost && (() => {
+        const idx = postRecords.findIndex((p) => p._id === gridLightboxPost._id);
+        const canNav = idx >= 0 && postRecords.length > 1;
+        return (
+          <PostLightbox
+            post={gridLightboxPost}
+            mediaMap={mediaMap}
+            onClose={() => setGridLightboxPost(null)}
+            onReload={load}
+            postAuthor={gridLightboxPost.author_username}
+            postService="posts"
+            isOwner={getV3Client().readToken()?.username === gridLightboxPost.author_username}
+            onPrevPost={canNav ? () => setGridLightboxPost(postRecords[(idx - 1 + postRecords.length) % postRecords.length]) : undefined}
+            onNextPost={canNav ? () => setGridLightboxPost(postRecords[(idx + 1) % postRecords.length]) : undefined}
+          />
+        );
+      })()}
+
       {/* The nav-away-mid-upload warning (G2, decision 3): leaving while a
           cover/avatar upload is in flight would cancel it. Stay / Leave. */}
       {uploadWarning && (
@@ -1525,18 +1538,6 @@ export default function GroupDetailScreen({ groupId }: { groupId: string }) {
             </div>
           </div>
         </div>
-      )}
-
-      {/* Persistent file input for quick face upload (e2e: setInputFiles) */}
-      {canManage && (
-        <input
-          ref={faceFileInputRef}
-          type="file"
-          accept="image/*"
-          data-testid="group-face-file-input"
-          className="hidden"
-          onChange={handleFaceFileChange}
-        />
       )}
 
       {/* Quick face lightbox (shared with profile) */}
