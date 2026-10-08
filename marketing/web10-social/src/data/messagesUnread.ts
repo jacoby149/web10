@@ -122,14 +122,22 @@ function onInbound(_conn: P2PInboundConn, data: unknown): void {
 }
 
 // Read the last message of every conversation (the source of truth for the
-// badge). Best-effort — a failure leaves the cache as-is.
+// badge). Best-effort — a failure leaves the cache as-is. The per-conversation
+// reads run in PARALLEL (paint-on-read, 3.225.0) — the old for…await was a
+// serial round-trip per conversation.
 async function recomputeAll(): Promise<void> {
   try {
     const convs = await listConversations();
     const last: Record<string, DmRecord | null> = {};
-    for (const conv of convs) {
-      last[conv] = await getLastDm(conv);
-    }
+    await Promise.all(
+      convs.map(async (conv) => {
+        try {
+          last[conv] = await getLastDm(conv);
+        } catch {
+          last[conv] = null;
+        }
+      }),
+    );
     lastMessages = last;
     notify();
   } catch (e) {

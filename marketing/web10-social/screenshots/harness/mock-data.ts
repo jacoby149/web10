@@ -720,6 +720,10 @@ export async function readGroupChatMessages(): Promise<unknown[]> {
     { _id: 'gc-3', message: 'the reach on that reel was unreal 🔥', sent_at: minsAgo(6), sender_username: 'luna', sender_provider: 'web10', recipient_username: '', recipient_provider: '' },
   ];
 }
+// The list preview (paint-on-read, 3.225.0) — the last message, single read.
+export async function readGroupChatLastMessage(): Promise<unknown> {
+  return { _id: 'gc-3', message: 'the reach on that reel was unreal 🔥', sent_at: minsAgo(6), sender_username: 'luna', sender_provider: 'web10', recipient_username: '', recipient_provider: '' };
+}
 export async function sendGroupChatMessage(): Promise<unknown> {
   return { _id: 'gc-new', message: '', sent_at: new Date().toISOString(), sender_username: 'nova', sender_provider: 'web10', recipient_username: '', recipient_provider: '' };
 }
