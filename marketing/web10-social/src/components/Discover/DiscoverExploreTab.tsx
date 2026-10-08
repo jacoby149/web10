@@ -674,7 +674,7 @@ export default function DiscoverExploreTab({ query }: DiscoverExploreTabProps) {
         <section data-testid="explore-groups-section" className="flex-1 px-4 pb-4 md:px-4 lg:px-6">
           {/* The Groups filter chips (?groupFilter=) + the "New group" create
               entry (the People tab is the groups browser's home). */}
-          <div className="flex items-center justify-between gap-2 pt-3">
+          <div className="flex items-center justify-between gap-2 pt-3 pb-3">
             <div className="flex items-center gap-1" data-testid="explore-groups-filter" role="tablist" aria-label="Filter groups">
               {GROUP_FILTERS.map(([f, label]) => (
                 <button
