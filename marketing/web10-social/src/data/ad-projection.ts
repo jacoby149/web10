@@ -78,7 +78,10 @@ export function projectEarnings(
  */
 export function formatProjection(usd: number | undefined): string {
   if (usd === undefined) return '—';
-  if (usd >= 100) return `$${Math.round(usd).toLocaleString()}`;
-  if (usd >= 1) return `$${usd.toFixed(1)}`;
-  return `$${usd.toFixed(2)}`;
+  // Round to cents first — kills the float noise (149 × 0.15 = 22.34999…, not
+  // 22.35) so $253.50 doesn't display as $253. Money is in cents.
+  const v = Math.round(usd * 100) / 100;
+  if (v >= 100) return `$${Math.round(v).toLocaleString()}`;
+  if (v >= 1) return `$${v.toFixed(1)}`;
+  return `$${v.toFixed(2)}`;
 }

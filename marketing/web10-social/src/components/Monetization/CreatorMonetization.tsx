@@ -640,8 +640,20 @@ function AdForm({ initial, albums, allowNode = false, onSubmit, onCancel }: {
   const [pActuals, setPActuals] = useState(initial?.product?.actuals !== undefined ? String(initial.product.actuals) : '');
   const [pCalibration, setPCalibration] = useState(initial?.product?.calibration !== undefined ? String(initial.product.calibration) : '');
 
+  // The product pics (the "base" layer — the product's own photos, separate
+  // from the creative media). v1: one pic (the storefront tile's image); the
+  // data field is an array so it can grow. `file` = new (uploaded on submit);
+  // `existingDocId` = kept (edit mode); `previewUrl` = what to show.
+  const [productPic, setProductPic] = useState<{
+    file?: File;
+    previewUrl?: string;
+    existingDocId?: string;
+  } | null>(null);
+  const productPicInputRef = useRef<HTMLInputElement>(null);
+
   // Assemble the product object (or null when the section is off / empty).
-  const buildProduct = (): AdProduct | null => {
+  // `pics` is passed in (the product photo is uploaded in submit, async).
+  const buildProduct = (pics?: string[]): AdProduct | null => {
     if (!productOn) return null;
     const price = pPrice.trim() === '' ? undefined : Number(pPrice);
     const commission = pCommission.trim() === '' ? undefined : Number(pCommission);
@@ -655,9 +667,10 @@ function AdForm({ initial, albums, allowNode = false, onSubmit, onCancel }: {
       commission_is_percent: pCommissionPct,
       actuals: Number.isFinite(actuals as number) ? actuals : undefined,
       calibration: Number.isFinite(calibration as number) ? calibration : undefined,
+      pics: pics?.length ? pics : undefined,
     };
     // A product section with no fields is "off" (a pure ad).
-    if (!p.name && p.price === undefined && p.commission === undefined && p.actuals === undefined && p.calibration === undefined) return null;
+    if (!p.name && p.price === undefined && p.commission === undefined && p.actuals === undefined && p.calibration === undefined && !p.pics?.length) return null;
     return p;
   };
 
@@ -702,9 +715,34 @@ function AdForm({ initial, albums, allowNode = false, onSubmit, onCancel }: {
     return () => { live = false; };
   }, [initial]);
 
+  // Edit mode: resolve the existing product pic to a preview URL.
+  useEffect(() => {
+    let live = true;
+    const picDocId = initial?.product?.pics?.[0];
+    if (picDocId) {
+      setProductPic({ existingDocId: picDocId });
+      resolveMediaRefs([picDocId])
+        .then((m) => {
+          if (!live) return;
+          const rec = m[0];
+          setProductPic((prev) =>
+            prev && prev.existingDocId === picDocId
+              ? { ...prev, previewUrl: rec?.thumbnail_url || rec?.url }
+              : prev,
+          );
+        })
+        .catch(() => {});
+    }
+    return () => { live = false; };
+  }, [initial]);
+
   const pickMedia = (file: File) => {
     const isVideo = file.type.startsWith('video/');
     setMedia({ file, previewUrl: URL.createObjectURL(file), isVideo });
+  };
+
+  const pickProductPic = (file: File) => {
+    setProductPic({ file, previewUrl: URL.createObjectURL(file) });
   };
 
   const submit = async () => {
@@ -718,8 +756,17 @@ function AdForm({ initial, albums, allowNode = false, onSubmit, onCancel }: {
       } else if (media?.existingDocId) {
         mediaRefs = [media.existingDocId];
       }
+      // The product photo (the "base" layer) — uploaded on submit, like the
+      // creative media. Kept by doc_id in edit mode unless replaced.
+      let productPics: string[] = [];
+      if (productPic?.file) {
+        const record = await uploadAdMedia(productPic.file);
+        if (record._id) productPics = [record._id];
+      } else if (productPic?.existingDocId) {
+        productPics = [productPic.existingDocId];
+      }
       const offer: AdOffer = { kind, partner: partner.trim(), link: link.trim(), cta: cta.trim(), disclosure: disclosure.trim() };
-      onSubmit(offer, text.trim() || 'Untitled ad', status, albumIds, mediaRefs, format, editing ? 'personal' : scope, buildProduct());
+      onSubmit(offer, text.trim() || 'Untitled ad', status, albumIds, mediaRefs, format, editing ? 'personal' : scope, buildProduct(productPics));
       onCancel();
     } catch (e) {
       toast.error(errorMessage(e, 'Failed to upload media'));
@@ -906,6 +953,38 @@ function AdForm({ initial, albums, allowNode = false, onSubmit, onCancel }: {
                   <Label htmlFor="ad-product-name">Product name</Label>
                   <Input id="ad-product-name" placeholder="e.g. The good coffee grinder" value={pName} onChange={(e) => setPName(e.target.value)} data-testid="ad-product-name" />
                 </div>
+              </div>
+
+              {/* The product photo (the "base" layer — the product's own photo,
+                  separate from the creative media). v1: one pic (the storefront
+                  tile's image). The creative media stays the "overlay." */}
+              <div className="grid gap-1.5">
+                <Label>Product photo</Label>
+                <input
+                  ref={productPicInputRef}
+                  type="file"
+                  accept="image/*"
+                  className="hidden"
+                  onChange={(e) => { const f = e.target.files?.[0]; if (f) pickProductPic(f); e.target.value = ''; }}
+                  data-testid="ad-product-pic-input"
+                />
+                {productPic ? (
+                  <div className="relative overflow-hidden rounded-md border border-border" data-testid="ad-product-pic-preview">
+                    <img src={productPic.previewUrl} alt="" className="max-h-40 w-full object-cover bg-elevated" />
+                    <div className="absolute right-2 top-2 flex gap-1">
+                      <Button variant="ghost" size="sm" className="h-7 w-7 p-0 bg-background/70" onClick={() => productPicInputRef.current?.click()} aria-label="Replace product photo" data-testid="ad-product-pic-replace">
+                        <ImagePlus className="h-3.5 w-3.5" />
+                      </Button>
+                      <Button variant="ghost" size="sm" className="h-7 w-7 p-0 bg-background/70 hover:text-danger" onClick={() => setProductPic(null)} aria-label="Remove product photo" data-testid="ad-product-pic-remove">
+                        <X className="h-3.5 w-3.5" />
+                      </Button>
+                    </div>
+                  </div>
+                ) : (
+                  <Button variant="outline" size="sm" onClick={() => productPicInputRef.current?.click()} data-testid="ad-product-pic-add">
+                    <ImagePlus className="mr-1 h-3.5 w-3.5" /> Add product photo
+                  </Button>
+                )}
               </div>
 
               <div className="grid grid-cols-2 gap-3">

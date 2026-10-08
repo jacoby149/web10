@@ -300,6 +300,19 @@ describe('AdForm — the product section (ads-october focus #2)', () => {
     expect(screen.getByTestId('ad-product-commission')).toBeInTheDocument();
   });
 
+  it('the product section has a product-photo attach (the "base" layer)', async () => {
+    checkNodeAdmin.mockResolvedValue(false);
+    readMyCatalog.mockResolvedValue({ ads: [], albums: [], posts: [] });
+    renderAt('/monetize');
+    fireEvent.click(await screen.findByTestId('ads-new-ad'));
+    await screen.findByTestId('ad-new-form');
+    // Off by default → no product photo attach.
+    expect(screen.queryByTestId('ad-product-pic-add')).not.toBeInTheDocument();
+    // Toggle the product section on → the product-photo attach appears.
+    fireEvent.click(screen.getByTestId('ad-product-toggle'));
+    expect(screen.getByTestId('ad-product-pic-add')).toBeInTheDocument();
+  });
+
   it('the live projection updates as the operator types the price + commission', async () => {
     checkNodeAdmin.mockResolvedValue(false);
     readMyCatalog.mockResolvedValue({ ads: [], albums: [], posts: [] });
@@ -340,6 +353,61 @@ describe('AdForm — the product section (ads-october focus #2)', () => {
       actuals: 22,
       calibration: undefined,
     });
+  });
+});
+
+describe('AnalyticsSection — the portfolio + what-if (ads-october deferred)', () => {
+  const PRODUCT_ADS = {
+    ads: [
+      {
+        doc: { doc_id: 'ad-1', tags: ['ad'] },
+        text: 'The grinder',
+        offer: { kind: 'affiliate', partner: 'Amazon', link: 'https://amzn.to/abc', cta: 'Get it', disclosure: '' },
+        status: 'active' as const,
+        format: 'inline' as const,
+        albums: [] as string[],
+        product: { target: 'product' as const, name: 'The good coffee grinder', price: 30, commission: 10, commission_is_percent: true, actuals: 22 },
+      },
+      {
+        doc: { doc_id: 'ad-2', tags: ['ad'] },
+        text: 'The headphones',
+        offer: { kind: 'affiliate', partner: 'Amazon', link: 'https://amzn.to/def', cta: 'Get it', disclosure: '' },
+        status: 'active' as const,
+        format: 'inline' as const,
+        albums: [] as string[],
+        product: { target: 'product' as const, name: 'The studio headphones', price: 149, commission: 15, commission_is_percent: true, actuals: 88 },
+      },
+    ],
+    albums: [],
+    posts: [],
+  };
+
+  it('the portfolio summarizes the catalog (count + projected total + total actuals)', async () => {
+    checkNodeAdmin.mockResolvedValue(false);
+    readMyCatalog.mockResolvedValue(PRODUCT_ADS);
+    renderAt('/monetize?tab=analytics');
+    const portfolio = await screen.findByTestId('analytics-portfolio');
+    expect(portfolio).toBeInTheDocument();
+    // 2 products; projected total = $30 (grinder) + $223.50 (headphones) per 100k
+    // each = $253.50 → $254 (rounded to cents, then whole dollars); total actuals
+    // = $22 + $88 = $110.
+    expect(portfolio).toHaveTextContent('Products');
+    expect(portfolio).toHaveTextContent('2');
+    expect(portfolio).toHaveTextContent('$254');
+    expect(portfolio).toHaveTextContent('$110'); // 22 + 88
+  });
+
+  it('the what-if slider updates the projection live', async () => {
+    checkNodeAdmin.mockResolvedValue(false);
+    readMyCatalog.mockResolvedValue(PRODUCT_ADS);
+    renderAt('/monetize?tab=analytics');
+    const slider = await screen.findByTestId('analytics-whatif-slider-ad-1');
+    // Default 100k → the grinder projects $30.
+    const row = screen.getByTestId('analytics-row-ad-1');
+    expect(row).toHaveTextContent('$30.0');
+    // Drag to 500k → $150 (linear in impressions).
+    fireEvent.change(slider, { target: { value: '500000' } });
+    expect(row).toHaveTextContent('$150');
   });
 });
 

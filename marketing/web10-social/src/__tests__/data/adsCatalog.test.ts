@@ -292,6 +292,36 @@ describe('the product section (ads-october focus #2)', () => {
     });
   });
 
+  it('the product pics round-trip (the "base" layer, separate from the creative)', () => {
+    // buildOfferBody writes the pics (a plain array of doc_ids).
+    const body = adsCatalog.buildOfferBody(
+      { kind: 'affiliate', partner: 'Amazon', link: 'https://amzn.to/abc', cta: 'Get it', disclosure: '' },
+      'My ad',
+      'active',
+      [],
+      undefined,
+      'inline',
+      undefined,
+      { target: 'product', name: 'Grinder', price: 30, commission: 10, commission_is_percent: true, pics: ['pic-1'] },
+    );
+    expect((body.product as Record<string, unknown>).pics).toEqual(['pic-1']);
+    // parseAd reads them back.
+    const doc = { ...AD_DOC, body: { ...AD_DOC.body, product: { target: { type: 'text', value: 'product' }, name: { type: 'text', value: 'Grinder' }, pics: ['pic-1'] } } };
+    expect(adsCatalog.parseAd(doc as any).product?.pics).toEqual(['pic-1']);
+    // No pics → no pics key (a product with just the attributes).
+    const noPics = adsCatalog.buildOfferBody(
+      { kind: 'none', partner: '', link: 'https://x.com', cta: '', disclosure: '' },
+      'My ad',
+      'active',
+      [],
+      undefined,
+      'inline',
+      undefined,
+      { target: 'product', name: 'Grinder', price: 30, commission: 10, commission_is_percent: true },
+    );
+    expect((noPics.product as Record<string, unknown>).pics).toBeUndefined();
+  });
+
   it('buildOfferBody writes product: null for a pure ad (so an update clears it)', () => {
     const body = adsCatalog.buildOfferBody(
       { kind: 'none', partner: '', link: 'https://x.com', cta: '', disclosure: '' },

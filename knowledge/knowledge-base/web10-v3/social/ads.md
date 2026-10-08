@@ -77,6 +77,7 @@ ads, not a *prerequisite*):
     "price":              { "type": "number", "value": 30 },
     "commission":         { "type": "number", "value": 10 },
     "commission_is_percent": true,
+    "pics":               ["<product photo doc_id>"],
     "actuals":            { "type": "number", "value": 22 },
     "calibration":        { "type": "number", "value": 2 }
   }
@@ -85,6 +86,7 @@ ads, not a *prerequisite*):
 
 - **`target`** — what the ad advertises: `product` | `collection` | `storefront` | `none`.
 - **`name`** / **`price`** / **`commission`** (+ `commission_is_percent`, a % or a flat $) — the "ease of use" the operator named (the inputs for the projection).
+- **`pics`** — the **product pics** (the "base" layer — the product's own photos, the Amazon product images, the merch shots). Separate from the ad's creative `media_refs` (the "overlay" — the ad's own video/carousel/lifestyle content). The ad *layers the creative on top of the product*: the product pics say "this is the thing"; the creative says "here's why you want it." The Products tab + the storefront tile prefer `pics[0]` over the creative media as the tile photo.
 - **`actuals`** — the **actuals box** (focus #4): the operator logs the payout from their affiliate dashboard (web10 can't see it — off-platform, no API; the "organic, no-integration" trade-off).
 - **`calibration`** — the **self-calibration** (focus #4): the operator's own click→purchase %, set from their own clicks + actuals. Overrides the projection's assumed conversion.
 
