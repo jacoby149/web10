@@ -138,3 +138,6 @@ export function buildProductBody() {
 export async function checkNodeAdmin() {
   return true;
 }
+export function isNodeAd(doc: { tags?: string[] }) {
+  return (doc?.tags || []).includes('node_ad');
+}
