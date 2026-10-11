@@ -1,7 +1,7 @@
-3.229.2 || 11.10.2026
+3.229.4 || 11.10.2026
 docs(security): **require source-code research before extraction edits** — all eight hardening kickoffs now explicitly require the pinned implementations and tests to be read, exact line/symbol/hunk receipts, three-way comparison with current dev, caller/helper tracing, baseline evidence and a visible research checkpoint. Function lists are navigation aids, not permission to reconstruct security code from summaries. Missing sources and unresolved shared-boundary conflicts block affected edits. Documentation only; no security fixes claimed.
 
-3.229.1 || 11.10.2026
+3.229.3 || 11.10.2026
 docs(security): **plan the least-loss extraction of overlapping PRs #1157 and #1159 into eight workspaces** — `knowledge/strategy/security-hardening-extraction.md` pins both source heads, supplies eight detailed paste-ready kickoff blocks, assigns semantic/shared-hunk ownership, and records 39 coverage rows plus test/artifact/documentation/operational accounting. Dependency and coordinated-release gates prevent partial credential migrations; deferred protections keep affected slices release-held. Plan and lane queues distinguish completed planning from still-open implementation. Diff-based review corrected shared exports and RTC addressing requirements. No application changes, source PR mutations, commits, deployments, or security-completion claims.
 
 3.229.1 || 11.10.2026

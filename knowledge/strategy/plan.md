@@ -41,8 +41,8 @@ Kickoffs, ownership, dependencies and release gates:
 `security-hardening-extraction.md`. Planning is complete; security fixes below
 remain open. Eight workspaces do not imply eight independently safe releases.
 
-- [✓ 3.229.1] **Extraction planning** — eight detailed kickoff blocks, semantic coverage ledger and final no-silent-omission audit gate.
-- [✓ 3.229.2] **Source-reading gate** — every kickoff requires actual pinned code/test research, exact hunk receipts, current-dev comparison and baseline evidence before application edits.
+- [✓ 3.229.3] **Extraction planning** — eight detailed kickoff blocks, semantic coverage ledger and final no-silent-omission audit gate.
+- [✓ 3.229.4] **Source-reading gate** — every kickoff requires actual pinned code/test research, exact hunk receipts, current-dev comparison and baseline evidence before application edits.
 - [ ] **S1: Exposure and operations** — metadata-only logs, SDK credential hygiene, settings and manifest-fetch boundaries.
 - [ ] **S2: Unified popup lifecycle** — reconcile sender/window/origin binding and regenerate combined SDK artifacts.
 - [ ] **S3: Issuer, delegation and coordinated consumer rollout** — verified self/app model, exact management grants, consent and integration accounting.
