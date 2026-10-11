@@ -37,6 +37,16 @@ vi.mock('@/data/ads-catalog', () => ({
   ensureFollowersGroup: vi.fn(),
 }));
 
+// Mock the creator-analytics data layer (the D86 dashboard read).
+const readCreatorAnalytics = vi.fn();
+vi.mock('@/data/creator-analytics', () => ({
+  readCreatorAnalytics: (...a: unknown[]) => readCreatorAnalytics(...a),
+}));
+
+vi.mock('@web10/discover', () => ({
+  formatCount: (n: number) => n.toString(),
+}));
+
 import MonetizationScreen from '@/components/Monetization/MonetizationScreen';
 
 function renderAt(path: string) {
@@ -49,12 +59,21 @@ function renderAt(path: string) {
 
 const EMPTY_CATALOG = { ads: [], albums: [], posts: [] };
 
+// The empty creator-analytics shape (no views in the window).
+const EMPTY_ANALYTICS = {
+  daily: [],
+  bySurface: [],
+  topPosts: [],
+  totals: { impressions: 0, reach: 0 },
+};
+
 beforeEach(() => {
   vi.clearAllMocks();
   readMyCatalog.mockResolvedValue(EMPTY_CATALOG);
   readNodeAds.mockResolvedValue([]);
   getNodeConfig.mockResolvedValue({ node_ad_percentage: 10 });
   saveNodeAdPercentage.mockResolvedValue(undefined);
+  readCreatorAnalytics.mockResolvedValue(EMPTY_ANALYTICS);
 });
 
 describe('MonetizationScreen', () => {
@@ -408,6 +427,106 @@ describe('AnalyticsSection — the portfolio + what-if (ads-october deferred)', 
     // Drag to 500k → $150 (linear in impressions).
     fireEvent.change(slider, { target: { value: '500000' } });
     expect(row).toHaveTextContent('$150');
+  });
+});
+
+describe('AnalyticsSection — Reach charts + Potential Calculator (funnel)', () => {
+  it('shows the Reach charts and Calculator even with no product ads (empty catalog)', async () => {
+    checkNodeAdmin.mockResolvedValue(false);
+    readMyCatalog.mockResolvedValue(EMPTY_CATALOG);
+    readCreatorAnalytics.mockResolvedValue(EMPTY_ANALYTICS);
+    renderAt('/monetize?tab=analytics');
+    // The reach hero (totals + time-series) is always present.
+    expect(await screen.findByTestId('analytics-reach')).toBeInTheDocument();
+    // The surface breakdown + top posts are always present.
+    expect(screen.getByTestId('analytics-by-surface')).toBeInTheDocument();
+    expect(screen.getByTestId('analytics-top-posts')).toBeInTheDocument();
+    // The window toggle (7d / 30d / 90d) is present.
+    expect(screen.getByTestId('analytics-window-toggle')).toBeInTheDocument();
+    // Calculator is always present.
+    expect(screen.getByTestId('analytics-calculator')).toBeInTheDocument();
+    // No product ads → no portfolio or performance cards.
+    expect(screen.queryByTestId('analytics-portfolio')).not.toBeInTheDocument();
+    // The CTA to add a product is visible.
+    expect(screen.getByTestId('analytics-calc-cta')).toBeInTheDocument();
+  });
+
+  it('shows real impression + reach totals from the D86 creator analytics', async () => {
+    checkNodeAdmin.mockResolvedValue(false);
+    readMyCatalog.mockResolvedValue(EMPTY_CATALOG);
+    readCreatorAnalytics.mockResolvedValue({
+      daily: [{ day: '2026-10-10', impressions: 5000, reach: 1200 }],
+      bySurface: [{ surface: 'feed', impressions: 5000, reach: 1200 }],
+      topPosts: [{ doc_id: 'p1', impressions: 5000, reach: 1200, avgWatchPct: null }],
+      totals: { impressions: 5000, reach: 1200 },
+    });
+    renderAt('/monetize?tab=analytics');
+    expect(await screen.findByTestId('analytics-total-impressions')).toHaveTextContent('5000');
+    expect(screen.getByTestId('analytics-total-reach')).toHaveTextContent('1200');
+    // The surface breakdown shows the surface + its count.
+    expect(screen.getByTestId('analytics-by-surface')).toHaveTextContent('feed');
+    // The top posts list shows the post.
+    expect(screen.getByTestId('analytics-top-posts')).toBeInTheDocument();
+  });
+
+  it('the window toggle switches the selected window', async () => {
+    checkNodeAdmin.mockResolvedValue(false);
+    readMyCatalog.mockResolvedValue(EMPTY_CATALOG);
+    readCreatorAnalytics.mockResolvedValue(EMPTY_ANALYTICS);
+    renderAt('/monetize?tab=analytics');
+    // 30d is the default (pressed).
+    const w30 = await screen.findByTestId('analytics-window-30');
+    expect(w30).toHaveAttribute('aria-pressed', 'true');
+    // Switch to 7d — the toggle updates in place (no blank flash, so it stays
+    // in the DOM while the new window's data loads).
+    fireEvent.click(screen.getByTestId('analytics-window-7'));
+    expect(screen.getByTestId('analytics-window-7')).toHaveAttribute('aria-pressed', 'true');
+    expect(screen.getByTestId('analytics-window-30')).toHaveAttribute('aria-pressed', 'false');
+    // The read is (re-)run for the new window.
+    await waitFor(() => expect(readCreatorAnalytics).toHaveBeenCalledWith(7));
+  });
+
+  it('calculator updates projected earnings when price/commission change', async () => {
+    checkNodeAdmin.mockResolvedValue(false);
+    readMyCatalog.mockResolvedValue(EMPTY_CATALOG);
+    readCreatorAnalytics.mockResolvedValue(EMPTY_ANALYTICS);
+    renderAt('/monetize?tab=analytics');
+    const result = await screen.findByTestId('analytics-calc-result');
+    // Default: 100k impressions, $30 price, 10% commission → 100000×0.01×0.01×$3 = $30
+    expect(result).toHaveTextContent('$30.0');
+    // Change price to $60 → $60
+    fireEvent.change(screen.getByTestId('analytics-calc-price'), { target: { value: '60' } });
+    expect(result).toHaveTextContent('$60.0');
+    // Change commission to 20% (price is now $60) → 100000×0.01×0.01×$12 = $120
+    fireEvent.change(screen.getByTestId('analytics-calc-commission'), { target: { value: '20' } });
+    expect(result).toHaveTextContent('$120');
+  });
+
+  it('calculator slider changes the impression base', async () => {
+    checkNodeAdmin.mockResolvedValue(false);
+    readMyCatalog.mockResolvedValue(EMPTY_CATALOG);
+    readCreatorAnalytics.mockResolvedValue(EMPTY_ANALYTICS);
+    renderAt('/monetize?tab=analytics');
+    const result = await screen.findByTestId('analytics-calc-result');
+    // Default 100k → $30.0
+    expect(result).toHaveTextContent('$30.0');
+    // Drag to 500k → $150
+    fireEvent.change(screen.getByTestId('analytics-calc-impressions-slider'), { target: { value: '500000' } });
+    expect(result).toHaveTextContent('$150');
+  });
+
+  it('seeds calculator impressions from real D86 data when available', async () => {
+    checkNodeAdmin.mockResolvedValue(false);
+    readMyCatalog.mockResolvedValue(EMPTY_CATALOG);
+    readCreatorAnalytics.mockResolvedValue({
+      daily: [],
+      bySurface: [],
+      topPosts: [],
+      totals: { impressions: 250000, reach: 50000 },
+    });
+    renderAt('/monetize?tab=analytics');
+    const slider = await screen.findByTestId('analytics-calc-impressions-slider');
+    expect(slider).toHaveValue('250000');
   });
 });
 
