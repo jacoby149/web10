@@ -174,11 +174,16 @@ export interface AdOffer {
 }
 
 /**
- * The ad's product attributes (ads-october focus #2 — "the ad is the superset").
- * An ad can advertise a single product (it HAS these), a collection, a
- * storefront, or nothing (a pure ad — no product). These are a *section* of the
- * ad, not a separate product entity: the inputs for the projection (focus #3)
- * and the "what is this ad worth" number. Leaf-typed on the doc body
+ * The product (D89 — the first-class entity). A `posts` doc tagged `product`
+ * in the creator's followers group. It is the *stable* thing the ad is about:
+ * the affiliate `link` / `partner` / `kind` (moved from the ad's `offer` in
+ * D89 — the product is the single source of truth for the link) + the
+ * `name` / `price` / `commission` (the projection inputs) + the `pics` (the
+ * base layer) + the private business metrics (`actuals` / `calibration`). An
+ * ad references it by `product_id` (the variable thing — the creative).
+ *
+ * Also the shape of an ad's *resolved* product (from the `product_id`, or the
+ * legacy embedded `product` section on older ads). Leaf-typed on the doc body
  * (`price`/`commission`/`actuals`/`calibration` are `number` leaves so they're
  * sortable/filterable; the rest are `text`).
  */
@@ -199,6 +204,13 @@ export interface AdProduct {
   /** Self-calibration (focus #4): the operator's own click→purchase % (0–100),
    *  set from their own clicks + actuals. Overrides the assumed rate. */
   calibration?: number;
+  /** The affiliate link (D89 — moved from the ad's `offer`; the product is the
+   *  single source of truth for the link). */
+  link?: string;
+  /** The affiliate partner ("Amazon" / "PartnerStack" / etc.). */
+  partner?: string;
+  /** The offer kind: `affiliate` | `direct` | `own_store` | `none`. */
+  kind?: string;
 }
 
 /**
@@ -244,8 +256,13 @@ export interface AdRecord {
   format?: AdFormat;
   /** album doc_ids this ad belongs to (from its `album:<id>` tags) */
   albums?: string[];
-  /** The ad's product attributes (ads-october focus #2) — present when the ad
-   *  advertises a product. The storefront + Products tab render these. */
+  /** The ad's product_id (D89) — the ref to the product doc (a `posts` doc
+   *  tagged `product`). Present on new-model ads; the `product` below is the
+   *  resolved product (from the product_id, or the legacy embedded section). */
+  product_id?: string;
+  /** The ad's product (D89) — the resolved product (from the `product_id`, or
+   *  the legacy embedded `product` section on older ads). The storefront +
+   *  Products tab render these. */
   product?: AdProduct;
 }
 
@@ -269,27 +286,31 @@ function numValue(v: unknown): number | undefined {
   return undefined;
 }
 
-/** Parse the ad's product section (ads-october focus #2) from the doc body. */
-export function parseProduct(body: Record<string, unknown>): AdProduct | undefined {
-  const p = body.product;
-  if (!p || typeof p !== 'object') return undefined;
-  const raw = p as Record<string, unknown>;
-  const target = leafValue(raw.target) as AdProduct['target'];
-  const name = leafValue(raw.name);
-  const price = numValue(raw.price);
-  const commission = numValue(raw.commission);
-  const pics = Array.isArray(raw.pics)
-    ? raw.pics.map((x) => (typeof x === 'string' ? x : leafValue(x))).filter((x): x is string => !!x)
+/** Parse the product attributes (D89) from a raw product object — the embedded
+ *  `product` section on an ad, or a product doc's body. `undefined` when there
+ *  are no product fields. */
+export function parseProductFields(raw: unknown): AdProduct | undefined {
+  if (!raw || typeof raw !== 'object') return undefined;
+  const r = raw as Record<string, unknown>;
+  const target = leafValue(r.target) as AdProduct['target'];
+  const name = leafValue(r.name);
+  const price = numValue(r.price);
+  const commission = numValue(r.commission);
+  const pics = Array.isArray(r.pics)
+    ? r.pics.map((x) => (typeof x === 'string' ? x : leafValue(x))).filter((x): x is string => !!x)
     : undefined;
-  const actuals = numValue(raw.actuals);
-  const calibration = numValue(raw.calibration);
-  const isPct = raw.commission_is_percent === true || leafValue(raw.commission_is_percent) === 'true';
-  // A product section is "present" if it has any of its fields.
-  if (!target && !name && price === undefined && commission === undefined && !pics?.length && actuals === undefined && calibration === undefined) {
+  const actuals = numValue(r.actuals);
+  const calibration = numValue(r.calibration);
+  const isPct = r.commission_is_percent === true || leafValue(r.commission_is_percent) === 'true';
+  const link = leafValue(r.link);
+  const partner = leafValue(r.partner);
+  const kind = leafValue(r.kind);
+  // A product is "present" if it has any of its fields.
+  if (!target && !name && price === undefined && commission === undefined && !pics?.length && actuals === undefined && calibration === undefined && !link && !partner && !kind) {
     return undefined;
   }
   return {
-    target: target || (name || price !== undefined || commission !== undefined ? 'product' : 'none'),
+    target: target || (name || price !== undefined || commission !== undefined || link ? 'product' : 'none'),
     name,
     price,
     commission,
@@ -297,7 +318,22 @@ export function parseProduct(body: Record<string, unknown>): AdProduct | undefin
     pics: pics?.length ? pics : undefined,
     actuals,
     calibration,
+    link,
+    partner,
+    kind,
   };
+}
+
+/** Parse the ad's embedded product section (the legacy model — the product as
+ *  a section on the ad, pre-D89) from the doc body. */
+export function parseProduct(body: Record<string, unknown>): AdProduct | undefined {
+  return parseProductFields(body.product);
+}
+
+/** Parse a product doc (a `posts` doc tagged `product`, D89) — the doc's body
+ *  IS the product attributes. */
+export function parseProductDoc(doc: V3Document): AdProduct | undefined {
+  return parseProductFields((doc.body || {}) as Record<string, unknown>);
 }
 
 export function fromV3DocToAd(doc: V3Document): AdRecord {
@@ -326,8 +362,12 @@ export function fromV3DocToAd(doc: V3Document): AdRecord {
     // compact AdBlock; `post` renders as a full post. App-owned (D75).
     format: body.format === 'post' ? 'post' : 'inline',
     albums: tags.filter((t) => t.startsWith('album:')).map((t) => t.slice('album:'.length)),
-    // The ad's product section (ads-october focus #2) — the storefront +
-    // Products tab render these; the projection reads price/commission.
+    // The ad's product ref (D89) — the product_id (the new model). The `product`
+    // below is the resolved product (from the product_id, or the legacy
+    // embedded section); the projection reads price/commission.
+    product_id: leafValue(body.product_id) || undefined,
+    // The ad's product (D89) — the resolved product (from the product_id, or
+    // the legacy embedded `product` section on older ads).
     product: parseProduct(body),
   };
 }

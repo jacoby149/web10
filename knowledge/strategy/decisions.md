@@ -9,6 +9,32 @@ Status legend: [decided] intent set · [in-progress] · [open] still debating.
 
 ---
 
+### D89 — The product is a first-class entity: the affiliate link lives on the product, ads reference it — the "ad is the superset" refinement is reversed [decided]
+
+Operator, 11.10.2026 — "the product feature in the monetization is good! however the affiliate link should be on the product, then you can make multiple different ads for the same product" → then, on the shape (explicit entity vs. implicit grouping): "1. that is probably for the best, a little more work, but worth it" (the explicit product entity — Option C in `ads-october/needs/product-entity.md`).
+
+**The decision.** The **product** is a **first-class entity** — a `posts` doc tagged **`product`** in the creator's followers group (the same group as the ads + albums, so one read returns all of them). It is the **stable** thing: the **affiliate `link`**, the `partner`, the `kind` (affiliate/direct/own_store), the `name`, the `price`, the `commission` (+ `commission_is_percent`), the `pics`, and the private business metrics (`actuals`, `calibration`). An **ad** is the **variable** thing — the creative (text + media + title + format) + the `cta` + the `disclosure` + a **`product_id`** ref to the product it advertises. "Make an ad off a product" = pick a product, write the angle. Change the link or the commission once, on the product, and every ad that references it is updated (a client-side sync, below).
+
+This **reverses** the 05.10.2026 "the ad is the superset" refinement (`ads.md` "The Product Section"), which rejected the separate product entity (Option C) in favor of the product being an optional *section* on the ad. The operator's new call: the product is the stable thing the ad is *about*, and the affiliate link belongs on it — so multiple ads can share one product (one link, one commission, one set of pics) instead of repeating it per ad.
+
+**The denormalized snapshot (the load-bearing read-path call).** The public feed's ad block (the `AdBlock` / `PostAdCard` / `AdPicker` renderers) needs the **link + partner** to render the CTA, but the product lives in the **gated** followers group (I3: owner + followers) and the node's read-time attach (D55/D57) attaches the *ad*, not the product (D60 — the node doesn't know about products). So the ad's `offer` carries a **denormalized snapshot** of the product's `link` + `partner` + `kind` (`offer.link` / `offer.partner` / `offer.kind` are copies of the product's, written when the ad is created/edited off the product). The public feed renders the CTA from the snapshot (no extra read, no node change). The **product is the master** (the single source of truth the creator manages in the Products tab); the snapshot is the ad's read-time copy for the public feed. When the creator edits the product's link/partner, the client offers to **apply to all ads** (a bulk update of the snapshots on the ads that reference it) — the "change once, all update" is a client-side sync, not an automatic node-side one.
+
+**The shape (what moves where):**
+- **Product** (a `posts` doc tagged `product`, followers group): `name`, `price`, `commission` (+ `commission_is_percent`), `pics`, **`link`**, **`partner`**, **`kind`**, `actuals`, `calibration`.
+- **Ad** (a `posts` doc tagged `ad`, followers group): the creative (`text`, `media_refs`, `title`, `format`), `cta`, `disclosure`, **`product_id`** (the ref), and the `offer` snapshot (`link` / `partner` / `kind` copied from the product, + `cta` / `disclosure`).
+
+**The surfaces:**
+- **Products tab** (`/monetize?tab=products`) — the **product maker**: create/edit products (the master), each with a "make an ad" affordance.
+- **The ad form** — a **product picker** (select an existing product, or create one inline) replaces the old "product section"; picking a product auto-fills the offer's `link` / `partner` / `kind` (the snapshot).
+- **The storefront** (`/u/:username/store`) — shows the **products** (the master), not the product-ads.
+- **The feed renderers** — unchanged (they read `ad.offer.link` / `partner` / `cta` / `disclosure`, the snapshot).
+
+**Backward compatibility.** Existing ads carry the old `product` *section* (no `product_id`). The reader resolves the ad's product from **either** the `product_id` (the new model) or the embedded `product` section (the old model), so old ads keep rendering without a migration. New ads use the product entity.
+
+**Rejects.** (1) **The product as a section on the ad (the 05.10.2026 refinement, now reversed)** — it repeats the link/commission/pics per ad; "make multiple ads for the same product" means re-typing the link on each. (2) **A node-side product attach (the node resolving the `product_id` in the read-time attach)** — the node learning "the ad has a product" is the D60 smell (the node stays generic; the app owns the product schema). (3) **A separate `products` service** — the product lives in the followers group (the same group as the ads), so one read returns the ads + the products (no extra group, no extra read for the owner/follower surfaces). (4) **A public product group** — the `actuals` (the operator-logged payout) would be public; the product stays in the gated followers group, and the public feed uses the denormalized snapshot.
+
+**Gates / open.** The "apply to all ads" bulk sync is the follow-up (the MVP ships the product entity + the picker + the master surfaces; the bulk sync lands next). The storefront's per-product "current ad" (the creative overlay) is a follow-up. Full model: `ads.md` "The Product" + `monetization.md` "Products" + `ads-october/needs/product-entity.md` (the refinement, updated).
+
 ### D88 — Saved collections: a playlist is a private-by-default group on the profile, publicness is a role grant — zero node surface [decided]
 
 Operator, 30.09.2026 — "there is no concept of a playlist, saved videos, saved shorts, saved posts, should be on your own profile, and see other peoples profiles saved collections kind of a feature" + "with being able to private your saved stuff, since that can be sensitive" + (on the surface) "profile card is the most like youtube channels, card on profile i mean, that makes a TON of sense, so A."

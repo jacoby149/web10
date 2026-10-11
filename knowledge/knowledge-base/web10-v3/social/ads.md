@@ -57,47 +57,67 @@ An ad is a `posts` document. `collection_name = 'posts'`, `author_key` = the cre
 
 **No `stats` in v0.** The first draft kept impression/click counters in the doc. They are gone: a counter is a write on a read path (a tombstone + insert per click), it is the one part of the object that is not "a piece of media and a link," and it is the v4 layer's job (revenue settlement, impression verification). The catalog shows the offer's state, not click counts, in v0.
 
-### The Product Section (the "ad is the superset")
+### The Product (a first-class entity — D89)
 
-An ad's body can carry an optional **`product`** section (ads-october focus #2)
-— the product attributes when the ad advertises a product. The refinement:
-**"all ads objects are ads, and can have the same attributes as products"** —
-the ad is the *superset* (the creative: text + media, *plus* the product
-attributes when it's a product). An ad can advertise a **single product** (it
-*has* the section), a **collection**, a **storefront**, or **nothing** (a pure
-ad — no section). There is **no separate product entity** (the `product-entity`
-need's Option C is rejected — the product should be a *consequence* of making
-ads, not a *prerequisite*):
+The **product** is a **first-class entity** (D89) — a `posts` doc tagged
+**`product`** in the creator's followers group (the same group as the ads +
+albums, so one read returns all of them). It is the **stable** thing the ad is
+*about*: the **affiliate `link`**, the `partner`, the `kind`, the `name`, the
+`price`, the `commission`, the `pics`, and the private business metrics
+(`actuals`, `calibration`). An **ad** is the **variable** thing — the creative
+(text + media + title + format) + the `cta` + the `disclosure` + a
+**`product_id`** ref to the product it advertises. "Make an ad off a product" =
+pick a product, write the angle. This **reverses** the 05.10.2026 "the ad is
+the superset" refinement (the product was an optional *section* on the ad); the
+operator's call (11.10.2026): the affiliate link belongs on the product, so
+multiple ads can share one product (one link, one commission, one set of pics).
+
+**The product doc** (a `posts` doc tagged `product`):
 
 ```json
 {
-  "product": {
-    "target":             { "type": "text", "value": "product" },
-    "name":               { "type": "text", "value": "The good coffee grinder" },
-    "price":              { "type": "number", "value": 30 },
-    "commission":         { "type": "number", "value": 10 },
-    "commission_is_percent": true,
-    "pics":               ["<product photo doc_id>"],
-    "actuals":            { "type": "number", "value": 22 },
-    "calibration":        { "type": "number", "value": 2 }
-  }
+  "name":                { "type": "text", "value": "The good coffee grinder" },
+  "price":               { "type": "number", "value": 30 },
+  "commission":          { "type": "number", "value": 10 },
+  "commission_is_percent": true,
+  "pics":                ["<product photo doc_id>"],
+  "link":                { "type": "text", "value": "https://amzn.to/…?tag=me" },
+  "partner":             { "type": "text", "value": "Amazon" },
+  "kind":                { "type": "text", "value": "affiliate" },
+  "actuals":             { "type": "number", "value": 22 },
+  "calibration":         { "type": "number", "value": 2 }
 }
 ```
 
-- **`target`** — what the ad advertises: `product` | `collection` | `storefront` | `none`.
-- **`name`** / **`price`** / **`commission`** (+ `commission_is_percent`, a % or a flat $) — the "ease of use" the operator named (the inputs for the projection).
-- **`pics`** — the **product pics** (the "base" layer — the product's own photos, the Amazon product images, the merch shots). Separate from the ad's creative `media_refs` (the "overlay" — the ad's own video/carousel/lifestyle content). The ad *layers the creative on top of the product*: the product pics say "this is the thing"; the creative says "here's why you want it." The Products tab + the storefront tile prefer `pics[0]` over the creative media as the tile photo.
-- **`actuals`** — the **actuals box** (focus #4): the operator logs the payout from their affiliate dashboard (web10 can't see it — off-platform, no API; the "organic, no-integration" trade-off).
-- **`calibration`** — the **self-calibration** (focus #4): the operator's own click→purchase %, set from their own clicks + actuals. Overrides the projection's assumed conversion.
+- **`link`** / **`partner`** / **`kind`** — the affiliate offer (moved from the ad's `offer` in D89). The product is the single source of truth for the link.
+- **`name`** / **`price`** / **`commission`** (+ `commission_is_percent`, a % or a flat $) — the inputs for the projection.
+- **`pics`** — the **product pics** (the "base" layer — the product's own photos, the Amazon product images, the merch shots). Separate from the ad's creative `media_refs` (the "overlay"). The Products tab + the storefront tile prefer `pics[0]` as the tile photo.
+- **`actuals`** / **`calibration`** — the private business metrics (focus #4): the operator-logged payout + the self-calibration (overrides the projection's assumed conversion).
+
+**The ad's `product_id` + the denormalized snapshot.** The ad's body carries a
+**`product_id`** (the ref to the product doc) + the creative + the `cta` + the
+`disclosure`. Because the public feed's ad block needs the **link + partner**
+to render the CTA, but the product is in the **gated** followers group (I3) and
+the node's read-time attach doesn't resolve the `product_id` (D60), the ad's
+`offer` carries a **denormalized snapshot** of the product's `link` + `partner`
++ `kind` (copied when the ad is created/edited off the product). The public feed
+renders the CTA from the snapshot (no extra read, no node change). The product
+is the **master**; the snapshot is the ad's read-time copy. Editing the product's
+link/partner offers an **apply-to-all-ads** sync (the follow-up).
+
+**Backward compatibility.** Old ads carry the embedded `product` *section* (no
+`product_id`). The reader resolves the ad's product from **either** the
+`product_id` (new) or the embedded section (old), so old ads keep rendering
+without a migration.
 
 The `number` leaves are `number`-typed (sortable/filterable), the rest `text`
 (`../sdk/document-typing.md`). **The projection** (focus #3) is a *static*
-"100k impressions ~ $X" line computed client-side from `price` × `commission`
-× assumed CTR/conversion (`ad-projection.ts`) — no node surface, no live
-measurement (the *live* version is the D86 engine, next narrowing). The
-**Products tab** + the **storefront** (`monetization.md`) render this section;
-the **Analytics tab** runs the projection-vs-actual tell on it. App-owned (D75)
-— the node stores the field but doesn't read it.
+"100k impressions ~ $X" line computed client-side from the product's `price` ×
+`commission` × assumed CTR/conversion (`ad-projection.ts`) — no node surface,
+no live measurement (the *live* version is the D86 engine). The **Products tab**
+(the product maker, D89) + the **storefront** (`monetization.md`) render the
+products; the **Analytics tab** runs the projection-vs-actual tell on them.
+App-owned (D75) — the node stores the field but doesn't read it.
 
 ### The Creative Is Data; the HTML Is the App's
 

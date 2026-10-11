@@ -111,23 +111,26 @@ This is the old `AdInventoryCard`, re-homed + merged into the Ads tab. It reads
 the discover group + the admin node config (`/config`), and writes
 `node_ad_percentage` + `node_ad_overwrite` via `/config/update`.
 
-### Products (every signed-in user)
+### Products (every signed-in user) — the product maker (D89)
 
-The catalog of the ad's **product attributes** (ads-october focus #2 — "the ad
-is the superset"): the ads that carry a product section (name, price,
-commission, the link), rendered as a grid of product tiles (picture + name +
-price + the `$ / sale` + the `~$ / 100k` projection + the offer CTA). This is
-the **private management face** of the storefront — the "what I'm selling"
-view. An ad with a product shows here; a pure ad (no product) doesn't.
+The **product maker** (D89): the creator's **products** (the first-class
+entities — a `posts` doc tagged `product` in the followers group), rendered as
+a grid of product tiles (picture + name + price + the commission badge + the
+`$ / sale` + the `~$ / 100k` projection + the offer CTA). This is the
+**private management face** of the storefront — the "what I'm selling" view.
+Each product is the **master** (the single source of truth for the affiliate
+link, the price, the commission, the pics); the ads reference it by
+`product_id`. A product tile has a **make-an-ad** affordance (create a new ad
+off the product) + an **edit** affordance (edit the master).
 
 The **public storefront** (focus #1) is the *shareable browsing face* of this
 same data — a deep-linkable `/u/:username/store` route (the "here's everything
 I recommend" destination). Same data, two surfaces: Products is the owner's
-management view, the storefront is what the audience browses. See "The
-Storefront" below.
+management view (the product maker), the storefront is what the audience
+browses. See "The Storefront" below.
 
-Data: `readMyCatalog` filtered to product ads (`ProductsSection.tsx`). No node
-surface (D60).
+Data: `readMyCatalog` split to the `product`-tagged docs (`ProductsSection.tsx`).
+No node surface (D60).
 
 ### Analytics (every signed-in user)
 
@@ -161,8 +164,9 @@ surface (D60).
 
 **`/u/:username/store`** — the "here's everything I recommend" destination
 (ads-october focus #1, "Amazon storefront parity"). A shareable page that
-renders the creator's product ads as a browsable grid (each tile = a product:
-picture + name + price + the `$ / sale` + the `~$ / 100k` + the offer CTA).
+renders the creator's **products** (the master, D89) as a browsable grid (each
+tile = a product: picture + name + price + the `$ / sale` + the `~$ / 100k` +
+the offer CTA).
 The thing Amazon gates behind a big following, web10 gives every creator.
 
 Access is **group-gated (I3)**: the owner + the creator's followers can read

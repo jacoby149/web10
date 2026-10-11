@@ -15,7 +15,7 @@ import { getV3Client } from './v3';
 import { followersGroupId, getDiscoverGroupId } from './groups';
 import { API_ORIGIN } from '../lib/origins';
 import type { V3Document } from 'web10-npm';
-import { parseProduct, type AdOffer, type AdProduct } from './types';
+import { parseProduct, parseProductDoc, type AdOffer, type AdProduct } from './types';
 
 // ── The v3 ad model (ads-dissemination.md, D55) ─────────────────────────────
 
@@ -33,9 +33,21 @@ export interface AdItem {
   format: 'inline' | 'post';
   /** album doc_ids this ad belongs to (from `album:<id>` tags) */
   albums: string[];
-  /** The ad's product attributes (ads-october focus #2) — present when the ad
-   *  advertises a product. The storefront + Products tab render these. */
+  /** The ad's product ref (D89) — the product_id (the new model). */
+  product_id?: string;
+  /** The ad's product (D89) — the resolved product (from the `product_id`, or
+   *  the legacy embedded `product` section on older ads). The storefront +
+   *  Products tab render these. */
   product?: AdProduct;
+}
+
+/** A product (D89) — a `posts` doc tagged `product` in the followers group.
+ *  The stable thing the ad is about (the affiliate link, the price, the
+ *  commission, the pics). The Products tab (the product maker) + the storefront
+ *  render these. */
+export interface ProductItem {
+  doc: V3Document;
+  product: AdProduct;
 }
 
 export interface AlbumItem {
@@ -54,6 +66,8 @@ export interface PostItem {
 
 export interface AdsCatalogData {
   ads: AdItem[];
+  /** The creator's products (D89) — the `posts` docs tagged `product`. */
+  products: ProductItem[];
   albums: AlbumItem[];
   posts: PostItem[];
 }
@@ -87,6 +101,10 @@ export function parseAd(doc: V3Document): AdItem {
     media_refs: (body.media_refs as (string | Record<string, unknown>)[]) || undefined,
     format: body.format === 'post' ? 'post' : 'inline',
     albums: tags.filter((t) => t.startsWith('album:')).map((t) => t.slice('album:'.length)),
+    // The ad's product ref (D89) — the product_id (the new model). The `product`
+    // below is the legacy embedded section; splitCatalog resolves the product
+    // from the product_id when present.
+    product_id: leaf(body.product_id) || undefined,
     product: parseProduct(body),
   };
 }
@@ -104,12 +122,17 @@ export function parseAlbum(doc: V3Document): AlbumItem {
 
 export function splitCatalog(docs: V3Document[]): AdsCatalogData {
   const ads: AdItem[] = [];
+  const products: ProductItem[] = [];
   const albums: AlbumItem[] = [];
   const posts: PostItem[] = [];
   for (const doc of docs) {
     const tags = doc.tags || [];
     if (tags.includes('ad_album')) {
       albums.push(parseAlbum(doc));
+    } else if (tags.includes('product')) {
+      // A product (D89) — a `posts` doc tagged `product` in the followers group.
+      const p = parseProductDoc(doc);
+      if (p) products.push({ doc, product: p });
     } else if (tags.includes('ad')) {
       ads.push(parseAd(doc));
     } else {
@@ -118,6 +141,17 @@ export function splitCatalog(docs: V3Document[]): AdsCatalogData {
         text: leaf((doc.body || {}).text),
         pinnedAdTarget: doc.ad_target || '',
       });
+    }
+  }
+  // Resolve each ad's product from its product_id (D89 — the new model). The
+  // legacy model (the embedded `product` section) is already on the ad from
+  // parseAd; the product_id takes precedence when present.
+  const productById = new Map<string, AdProduct>();
+  for (const p of products) productById.set(p.doc.doc_id, p.product);
+  for (const ad of ads) {
+    if (ad.product_id) {
+      const resolved = productById.get(ad.product_id);
+      if (resolved) ad.product = resolved;
     }
   }
   const countByAlbum = new Map<string, number>();
@@ -129,7 +163,7 @@ export function splitCatalog(docs: V3Document[]): AdsCatalogData {
   for (const album of albums) {
     album.adCount = countByAlbum.get(album.doc.doc_id) || 0;
   }
-  return { ads, albums, posts };
+  return { ads, products, albums, posts };
 }
 
 // ── Offer builders (leaf-typed, D55) ────────────────────────────────────────
@@ -156,6 +190,11 @@ export function buildProductBody(product?: AdProduct | null): Record<string, unk
   if (product.pics?.length) out.pics = product.pics;
   if (product.actuals !== undefined) out.actuals = { type: 'number', value: product.actuals };
   if (product.calibration !== undefined) out.calibration = { type: 'number', value: product.calibration };
+  // The affiliate offer (D89 — moved from the ad's `offer`; the product is the
+  // single source of truth for the link).
+  if (product.link) out.link = { type: 'text', value: product.link };
+  if (product.partner) out.partner = { type: 'text', value: product.partner };
+  if (product.kind) out.kind = { type: 'text', value: product.kind };
   return Object.keys(out).length ? out : undefined;
 }
 
@@ -179,6 +218,7 @@ export function buildOfferBody(
   format: 'inline' | 'post' = 'inline',
   title?: string,
   product?: AdProduct | null,
+  productId?: string,
 ): Record<string, unknown> {
   const tags = ['ad', ...albumIds.map((id) => `album:${id}`)];
   const productBody = buildProductBody(product);
@@ -188,6 +228,10 @@ export function buildOfferBody(
     title,
     text,
     tags,
+    // The offer. In D89 the `link` / `partner` / `kind` are a denormalized
+    // snapshot of the product's (the product is the master); `cta` /
+    // `disclosure` are ad-level. The public feed renders the CTA from the
+    // snapshot (no node-side product attach — D60).
     offer: {
       kind: { type: 'text', value: offer.kind },
       partner: { type: 'text', value: offer.partner },
@@ -200,10 +244,14 @@ export function buildOfferBody(
     // Always emitted (default `[]`) so an UPDATE can remove media — the node's
     // update merges the body, so an absent key would keep the old media_refs.
     media_refs: mediaRefs ?? [],
-    // The product section (ads-october focus #2). Emitted only when present;
-    // a `null`/`undefined` product writes `product: null` so an UPDATE clears
-    // it (the node merges the body — an absent key would keep the old product).
-    product: productBody ?? null,
+    // The product ref (D89 — the new model): the ad references the product doc
+    // (the master) by doc_id. Emitted when present.
+    ...(productId ? { product_id: productId } : {}),
+    // The product section (the legacy model). Emitted only when there's no
+    // product_id (the new model uses the product_id ref); a `null`/`undefined`
+    // product writes `product: null` so an UPDATE clears it (the node merges
+    // the body — an absent key would keep the old product).
+    product: productId ? null : (productBody ?? null),
   };
 }
 
@@ -287,9 +335,10 @@ export async function updateAd(
   format: 'inline' | 'post' = 'inline',
   title?: string,
   product?: AdProduct | null,
+  productId?: string,
 ): Promise<V3Document> {
   const w = getV3Client();
-  const body = buildOfferBody(offer, text, status, albumIds, mediaRefs, format, title, product);
+  const body = buildOfferBody(offer, text, status, albumIds, mediaRefs, format, title, product, productId);
   return w.update(ad.doc.doc_id, body);
 }
 
@@ -326,7 +375,7 @@ export async function updateNodeAd(
 export async function readMyCatalog(): Promise<AdsCatalogData> {
   const w = getV3Client();
   const token = w.readToken();
-  if (!token) return { ads: [], albums: [], posts: [] };
+  if (!token) return { ads: [], products: [], albums: [], posts: [] };
   const username = token.username;
   const provider = token.provider;
   const docs = await w.read('posts', { groups: [followersGroupId(username, provider)] });
@@ -348,19 +397,61 @@ export async function readUserAds(username: string, provider?: string): Promise<
   const w = getV3Client();
   const token = w.readToken();
   const prov = provider || token?.provider;
-  if (!prov) return { ads: [], albums: [], posts: [] };
+  if (!prov) return { ads: [], products: [], albums: [], posts: [] };
   const docs = await w.read('posts', { groups: [followersGroupId(username, prov)] });
   return splitCatalog(docs || []);
 }
 
 /**
- * The storefront's product grid (ads-october focus #1): the creator's ads that
- * carry a product section, organized by album. The "here's everything I
- * recommend" destination — the public face of the Products tab.
+ * The storefront's product grid (D89): the creator's products (the master —
+ * the `posts` docs tagged `product`). The "here's everything I recommend"
+ * destination — the public face of the Products tab.
  */
-export async function readStorefront(username: string, provider?: string): Promise<AdItem[]> {
-  const { ads } = await readUserAds(username, provider);
-  return ads.filter((ad) => ad.product);
+export async function readStorefront(username: string, provider?: string): Promise<ProductItem[]> {
+  const { products } = await readUserAds(username, provider);
+  return products;
+}
+
+// ── Products (D89) — the first-class entity (the master) ────────────────────
+
+/**
+ * Create a product (D89) — a `posts` doc tagged `product` in the creator's
+ * followers group (the same group as the ads, so one read returns both). The
+ * product is the stable thing (the affiliate link, the price, the commission,
+ * the pics); the ads reference it by `product_id`.
+ */
+export async function createProduct(product: AdProduct): Promise<V3Document> {
+  const w = getV3Client();
+  const token = w.readToken();
+  if (!token) throw new Error('not signed in');
+  const group = await ensureFollowersGroup(token.username, token.provider);
+  const body = buildProductBody(product) ?? {};
+  body.tags = ['product'];
+  return w.create('posts', body, { groups: [group] });
+}
+
+/**
+ * Update a product (D89) — same `doc_id` (an update is a new version). The
+ * product is the master; the ads that reference it keep pointing at it (the
+ * denormalized snapshot on the ad is a separate sync — the follow-up).
+ */
+export async function updateProduct(productDoc: V3Document, product: AdProduct | null): Promise<V3Document> {
+  const w = getV3Client();
+  const body = buildProductBody(product) ?? {};
+  body.tags = ['product'];
+  return w.update(productDoc.doc_id, body);
+}
+
+/**
+ * Read the creator's products (D89) — the `posts` docs tagged `product` in the
+ * followers group. One read, split client-side.
+ */
+export async function readProducts(): Promise<ProductItem[]> {
+  const w = getV3Client();
+  const token = w.readToken();
+  if (!token) return [];
+  const docs = await w.read('posts', { groups: [followersGroupId(token.username, token.provider)] });
+  return splitCatalog(docs || []).products;
 }
 
 /**

@@ -1675,3 +1675,7 @@ const PROFILE_POSTS = [
     tags: ['studio'],
   },
 ];
+
+// ── views (D86) — no-op stubs for the screenshot harness ────────────────────
+export function trackPostViewport() {}
+export function trackVideoViewport() {}
