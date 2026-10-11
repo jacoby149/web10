@@ -114,6 +114,9 @@ export async function updateAd() {
 export async function updateNodeAd() {
   return { doc_id: 'node-1' };
 }
+export async function convertAdScope() {
+  return { doc_id: 'converted' };
+}
 export async function createNodeAd() {
   return { doc_id: 'node-new' };
 }
