@@ -6,11 +6,6 @@ import type { DmRecord, ContactRecord } from '@/data/types';
 
 const ME = 'web10/me';
 
-// D86 viewport/dwell tracking (data/views.ts) — fire-and-forget in the real
-// app; no-ops in the harness (no backend to report to).
-export function trackPostViewport(): void {}
-export function trackVideoViewport(): void {}
-
 // Deterministic conversation key — mirrors data/dms.ts conversationKey().
 export function conversationKey(
   a: { provider: string; username: string },
@@ -23,6 +18,12 @@ export function conversationKey(
 }
 
 const minsAgo = (n: number) => new Date(Date.now() - n * 60_000).toISOString();
+
+// ── views (D86 content-analytics) — no-op stubs for the harness ──────────────
+// The barrel re-exports `./views`; the harness has no backend, so the dwell /
+// viewport signals are no-ops. (readViewCounts / readViewCount live below.)
+export function trackPostViewport(): void {}
+export function trackVideoViewport(): void {}
 
 interface Peer {
   username: string;

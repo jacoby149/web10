@@ -163,10 +163,10 @@ export default function Layout({ onLogout, onLogin, isAnon: isAnonProp, onReport
     pathname === '/shorts' ||
     isOwnProfile;
 
-  // The Monetization surface holds its section in the URL (`?tab=node`). The
-  // nav has ONE Monetization entry — the surface's in-page tab row (My Ads |
-  // Node Ads) is the section switcher — so the row highlights on ANY
-  // /monetize (both sections), not just the Creator section.
+  // The Monetization surface holds its section in the URL (`?tab=`). The nav
+  // has ONE Monetization entry — the surface's in-page tab row (Ads | Products
+  // | Analytics) is the section switcher — so the row highlights on ANY
+  // /monetize section, not just the default.
   const isMonetize = pathname === '/monetize';
 
   // The desktop sidebar's account entry point: an avatar row that opens a
@@ -447,16 +447,6 @@ export default function Layout({ onLogout, onLogin, isAnon: isAnonProp, onReport
                   open={notificationsOpen}
                   onToggle={() => setNotificationsOpen((o) => !o)}
                 />
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  data-testid="report-bug-button-mobile"
-                  className="h-11 w-11 text-muted-foreground hover:text-foreground"
-                  aria-label="Report a bug"
-                  onClick={onReportBug}
-                >
-                  <Bug className="w-5 h-5" strokeWidth={1.75} />
-                </Button>
                 <Button
                   variant="ghost"
                   size="icon"
