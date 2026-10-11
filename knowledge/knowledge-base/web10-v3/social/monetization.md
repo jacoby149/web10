@@ -29,26 +29,29 @@ protocol's.
 ## The Surface
 
 A deep-linked **`/monetize`** screen in web10-social (the URL holds the state —
-refresh restores it, it's shareable). The creator's Monetization tab is
-**Ads | Products | Analytics** (the ads-october focus #5 restructure — the
-"stay" in one place: what's running, what they're selling, how it's
-performing), plus **Node** (node admin only — the operator's inventory, a
-different role). Selected by the URL's `?tab` param:
+refresh restores it, it's shareable). The Monetization tab is **Ads | Products
+| Analytics** for every signed-in user (the ads-october focus #5 restructure —
+the "stay" in one place: what's running, what they're selling, how it's
+performing). There is **no separate Node tab**: a node admin's node-ad
+inventory (the density + overwrite knobs + the node ads) is **folded into the
+Ads tab**, where the ad list is unified (regular ads + node ads, filtered by
+scope). Selected by the URL's `?tab` param:
 
-- **Ads** (default, the bare URL) — the creator's own monetization (the old
-  "My Ads").
+- **Ads** (default, the bare URL) — the ad catalog + affiliate onboarding. For
+  a node admin, the node-ad controls (density + overwrite) + the node ads are
+  folded in (the scope filter: All | Regular | Node).
 - **Products** (`?tab=products`) — the catalog of the ad's product attributes
   (the "what I'm selling" view — the storefront's data).
 - **Analytics** (`?tab=analytics`) — the projection-vs-actual tell (the "how
   it's performing" view).
-- **Node** (`?tab=node`, node admin only) — the operator's ad inventory.
 
 **The in-page tab row is the section switcher** — the X/Threads idiom the Posts
 screen's Discover | Following row established. Every signed-in user gets the
-**Ads | Products | Analytics** row; the node admin also gets the **Node** tab.
-The URL holds the section, so refresh restores it + it's deep-linkable. The nav
-has ONE Monetization entry (see "The Nav" below) that deep-links here and
-highlights on any section.
+**Ads | Products | Analytics** row (three tabs, for everyone). The URL holds the
+section, so refresh restores it + it's deep-linkable. A stale `?tab=node` deep
+link (the retired Node tab) falls back to the Ads tab, where the node inventory
+now lives. The nav has ONE Monetization entry (see "The Nav" below) that
+deep-links here and highlights on any section.
 
 ### Ads (every signed-in user)
 
@@ -81,23 +84,53 @@ client-side (a creator's own posts are a small, bounded set) — the house
 pattern. `readMyCatalog` / `splitCatalog` / `updateAd` / `createNodeAd` in
 `src/data/ads-catalog.ts`.
 
-### Products (every signed-in user)
+#### The node-ad inventory (node admin only, folded into the Ads tab)
 
-The catalog of the ad's **product attributes** (ads-october focus #2 — "the ad
-is the superset"): the ads that carry a product section (name, price,
-commission, the link), rendered as a grid of product tiles (picture + name +
-price + the `$ / sale` + the `~$ / 100k` projection + the offer CTA). This is
-the **private management face** of the storefront — the "what I'm selling"
-view. An ad with a product shows here; a pure ad (no product) doesn't.
+There is **no separate Node tab** — the operator's node-ad inventory (D57, the
+second layer) lives **inside the Ads tab**, because a node owner's ads are just
+ads with a scope (regular vs node), not a different product. Two pieces:
+
+- **The node-ad controls** (`NodeAdControls.tsx`, the "Node Ads" card at the top
+  of the Ads tab) — the two operator knobs: **Ad density** (`node_ad_percentage`,
+  0-100: how often node ads attach to posts) + **Overwrite the creator's ad?**
+  (`node_ad_overwrite`, default **off**). When on, a node ad **replaces** the
+  creator's ad on the same post (only the node ad shows); off (the D57
+  non-steal principle) → both show, the creator's monetization is never
+  suppressed. Reads the effective node config (admin); a non-admin gets a 403 →
+  the controls degrade to read-only.
+- **The unified ad list** — the operator's regular ads + the node ads (the
+  discover group, tagged `ad` + `node_ad`) in **one list**, with a **scope
+  filter** (All | Regular | Node) to narrow by kind. A node ad row carries a
+  **NODE** badge and has **no Pin control** (a node ad is the operator's
+  inventory — it attaches at the density, not by pinning to a post); a regular
+  ad row has Pin. Editing a node ad uses `updateNodeAd` (keeps the `node_ad`
+  tag); editing a regular ad uses `updateAd`. The New Ad form's **Run as** scope
+  is how a node admin creates either kind.
+
+This is the old `AdInventoryCard`, re-homed + merged into the Ads tab. It reads
+the discover group + the admin node config (`/config`), and writes
+`node_ad_percentage` + `node_ad_overwrite` via `/config/update`.
+
+### Products (every signed-in user) — the product maker (D89)
+
+The **product maker** (D89): the creator's **products** (the first-class
+entities — a `posts` doc tagged `product` in the followers group), rendered as
+a grid of product tiles (picture + name + price + the commission badge + the
+`$ / sale` + the `~$ / 100k` projection + the offer CTA). This is the
+**private management face** of the storefront — the "what I'm selling" view.
+Each product is the **master** (the single source of truth for the affiliate
+link, the price, the commission, the pics); the ads reference it by
+`product_id`. A product tile has a **make-an-ad** affordance (create a new ad
+off the product) + an **edit** affordance (edit the master).
 
 The **public storefront** (focus #1) is the *shareable browsing face* of this
 same data — a deep-linkable `/u/:username/store` route (the "here's everything
 I recommend" destination). Same data, two surfaces: Products is the owner's
-management view, the storefront is what the audience browses. See "The
-Storefront" below.
+management view (the product maker), the storefront is what the audience
+browses. See "The Storefront" below.
 
-Data: `readMyCatalog` filtered to product ads (`ProductsSection.tsx`). No node
-surface (D60).
+Data: `readMyCatalog` split to the `product`-tagged docs (`ProductsSection.tsx`).
+No node surface (D60).
 
 ### Analytics (every signed-in user)
 
@@ -131,8 +164,9 @@ surface (D60).
 
 **`/u/:username/store`** — the "here's everything I recommend" destination
 (ads-october focus #1, "Amazon storefront parity"). A shareable page that
-renders the creator's product ads as a browsable grid (each tile = a product:
-picture + name + price + the `$ / sale` + the `~$ / 100k` + the offer CTA).
+renders the creator's **products** (the master, D89) as a browsable grid (each
+tile = a product: picture + name + price + the `$ / sale` + the `~$ / 100k` +
+the offer CTA).
 The thing Amazon gates behind a big following, web10 gives every creator.
 
 Access is **group-gated (I3)**: the owner + the creator's followers can read
@@ -144,30 +178,21 @@ that deep-links here. Data: `readUserAds` / `readStorefront` in
 
 ### Node Ads (node admin only)
 
-The operator's ad inventory (D57, the second layer):
-
-- **Node ads** — the `node_ad`-tagged docs on the discover group. Create /
-  pause / resume / retire. A node ad supports **both formats** (`inline` /
-  `post`) + media, exactly like a creator ad — "node ads and post ads work the
-  same exact way." (The node admin can also create a node ad from the My Ads
-  tab's New Ad form via the Run-as scope — the same doc, the same inventory.)
-- **Ad density** — the `node_ad_percentage` node-config slider (0-100): how
-  often node ads attach to posts.
-- **Overwrite the creator's ad?** — the `node_ad_overwrite` node-config toggle
-  (default **off**). When a node ad fires on a post that also has a creator's
-  ad: **off** (default, the D57 non-steal principle) → both show, the creator's
-  monetization is never suppressed; **on** → the node ad **replaces** the
-  creator's ad (only the node ad shows). Format-agnostic.
-
-This is the old `AdInventoryCard`, re-homed. It reads the discover group + the
-admin node config (`/config`), and writes `node_ad_percentage` +
-`node_ad_overwrite` via `/config/update`.
+The operator's ad inventory (D57, the second layer) is **folded into the Ads
+tab** (see "The node-ad inventory" above) — there is no separate Node tab. The
+node ads are the `node_ad`-tagged docs on the discover group, managed in the
+unified ad list (create / pause / resume / retire) + the node-ad controls
+(density + overwrite). A node ad supports **both formats** (`inline` / `post`) +
+media, exactly like a creator ad — "node ads and post ads work the same exact
+way."
 
 ## Node-Admin Detection
 
-The **Node Ads tab** + the ad form's **Run-as scope** appear **only when the
-current user is the node admin**. Detection reuses the existing `POST /am_admin`
-(no new endpoint) — the same check the authenticator's `I.checkAdmin()` uses:
+The **node-ad inventory** (the Ads tab's Node Ads card + the unified ad list's
+node ads + the scope filter) + the ad form's **Run-as scope** appear **only when
+the current user is the node admin**. Detection reuses the existing `POST
+/am_admin` (no new endpoint) — the same check the authenticator's
+`I.checkAdmin()` uses:
 
 ```
 POST /am_admin  { token }  →  { admin: boolean }   (never errors)
@@ -176,19 +201,19 @@ POST /am_admin  { token }  →  { admin: boolean }   (never errors)
 `src/data/ads-catalog.ts` exposes `checkNodeAdmin(): Promise<boolean>` (calls
 `/am_admin` with the current token; `false` on no token / failure). A
 `useNodeAdmin()` hook caches the result for the session. The Monetization
-surface renders the Node Ads tab + the ad form's Run-as scope only when it's
-`true`.
+surface renders the node-ad controls + the scope filter + the ad form's Run-as
+scope only when it's `true`.
 
 ## The Nav
 
 ONE entry. The nav has a single **Monetization** row (the `$` icon) for every
 signed-in user — a **permanent desktop sidebar row** (the operator, 23.09.2026:
 "take monetization out of the more menu on desktop, there is space for it") +
-the mobile "More" sheet. It deep-links to `/monetize` (My Ads, the default) and
-**highlights on ANY `/monetize` section** (My Ads or Node Ads) — the surface's
-in-page tab row (My Ads | Node Ads) is the section switcher, so the nav has one
-entry that lights up for both. There is NO separate "Node Monetization" nav row
-(the node-ad inventory is the surface's Node Ads tab, not its own nav entry).
+the mobile "More" sheet. It deep-links to `/monetize` (Ads, the default) and
+**highlights on ANY `/monetize` section** (Ads / Products / Analytics) — the
+surface's in-page tab row is the section switcher, so the nav has one entry that
+lights up for all three. There is NO separate "Node Monetization" nav row (the
+node-ad inventory is folded into the Ads tab, not its own nav entry).
 
 ## What Moved Out of the Authenticator
 

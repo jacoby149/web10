@@ -1,34 +1,34 @@
-import { useState, useEffect, useCallback, useMemo } from 'react';
-import { BarChart3, AlertTriangle, RefreshCw, MousePointerClick, Wallet, SlidersHorizontal } from 'lucide-react';
-import { cn } from '@/lib/utils';
+import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { BarChart3, AlertTriangle, RefreshCw, Wallet, SlidersHorizontal, TrendingUp } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 import { errorMessage } from '@/components/shared/Toast';
 import { readMyCatalog, type AdItem } from '@/data/ads-catalog';
 import { projectEarnings, formatProjection, DEFAULT_RATES } from '@/data/ad-projection';
+import { readCreatorAnalytics, type CreatorAnalytics } from '@/data/creator-analytics';
+import { ReachCharts } from './ReachCharts';
 
 // The Analytics section (ads-october focus #5) — the "how it's performing"
-// view. The diagnostic (focus #4): the **projection** (the hypothesis — assumed
-// rates, "100k impressions ~ $30") vs the **actuals** (the reality — the $ the
-// operator logged from their affiliate dashboard). The gap between them is the
-// tell: "hey analytics is projecting $$$ but making $$, this isnt good, whats
-// up."
+// view. A funnel, top to bottom:
 //
-// The **portfolio view** (the deferred "net's total catch") + the **what-if
-// calculator** (the deferred interactive projection): the portfolio summarizes
-// the whole catalog (total projected value + total actuals) so 30 ads read as a
-// portfolio, not a pile; the what-if slider lets the operator drag impressions
-// and watch the projected $ move (the "do I care about this ad" decision made
-// concrete).
+// 1. **Your Reach** (Tier 1) — the D86 engine's real reach as charts (the
+//    "Google/YouTube Analytics" feel): the two big numbers, the time-series
+//    (impressions + reach), the surface breakdown, and the top posts. Shown
+//    even with zero ads — the funnel's first beat: "your content is already
+//    being seen."
+// 2. **What you could be making** (Tier 3) — a what-if calculator (impressions
+//    slider + price + commission) that projects earnings from the audience the
+//    creator already has. Works with or without a product; the CTA nudges
+//    toward the Ads tab when no product ad exists yet.
+// 3. **Portfolio + Performance** (Tier 4) — the projection-vs-actual tell
+//    (focus #4), only rendered when at least one product ad exists.
 //
-// The **click counter** is the D86 content-analytics engine (a separate lane,
-// not built yet) — so this section shows the projection-vs-actual tell now and
-// a "clicks coming soon" note for the measured half. The actuals box is
-// human-in-the-loop (the operator logs the payout web10 can't see — no Stripe
-// integration, the "organic" trade-off in focus.md).
+// Data: the owner's own catalog (readMyCatalog) + the D86 contentAnalytics
+// read (the creator's own content, I3-bound). No node surface (D60).
 //
-// Data: the owner's own product ads (readMyCatalog). No node surface (D60).
+// KB: knowledge/knowledge-base/web10-v3/analytics/creator-dashboard.md
 
 type Tell = { label: string; variant: 'success' | 'warning' | 'danger' | 'brand' | 'default'; note: string };
 
@@ -50,29 +50,90 @@ function formatImpressions(n: number): string {
   return `${Math.round(n / 1000)}k`;
 }
 
+const EMPTY_ANALYTICS: CreatorAnalytics = {
+  daily: [],
+  bySurface: [],
+  topPosts: [],
+  totals: { impressions: 0, reach: 0 },
+};
+
 export function AnalyticsSection() {
+  const navigate = useNavigate();
   const [ads, setAds] = useState<AdItem[] | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [analytics, setAnalytics] = useState<CreatorAnalytics>(EMPTY_ANALYTICS);
+  // The time-series window (7d / 30d / 90d). Default 30d (the GA/YouTube default).
+  const [windowDays, setWindowDays] = useState(30);
+  // True once the first load has completed. The first load shows the skeleton;
+  // a window switch (7d/30d/90d) refreshes the charts in place (no blank flash,
+  // so the window toggle stays in the DOM while the new data loads).
+  const hasLoadedRef = useRef(false);
+
+  // What-if calculator state (the "what you could be making" funnel).
+  // Defaults: 100k impressions (the canonical "100k ~ $30" baseline), $30
+  // price, 10% commission — the operator's own example from focus.md.
+  const [calcImpressions, setCalcImpressions] = useState(100_000);
+  const [calcPrice, setCalcPrice] = useState(30);
+  const [calcCommission, setCalcCommission] = useState(10);
 
   const load = useCallback(async () => {
-    setLoading(true);
+    // Only the FIRST load blanks the section (the skeleton). A window switch
+    // (7d/30d/90d) refreshes the charts in place — no blank flash, so the
+    // window toggle stays in the DOM while the new data loads.
+    if (!hasLoadedRef.current) setLoading(true);
     setError(null);
     try {
-      const { ads } = await readMyCatalog();
-      setAds(ads.filter((a) => a.product));
+      const catalog = await readMyCatalog();
+      const productAds = catalog.ads.filter((a) => a.product);
+      setAds(productAds);
+
+      // The D86 creator analytics over the selected window (the creator's own
+      // content, I3-bound). A read failure degrades to the empty shape (the
+      // reach charts show their empty state, never an error) — the reach card
+      // is a funnel beat, not a hard dependency.
+      const a = await readCreatorAnalytics(windowDays);
+      setAnalytics(a);
+      // Seed the calculator with the real total when there is one — the funnel
+      // starts from the audience the creator already has (clamped to the slider
+      // range, 10k–1M).
+      if (a.totals.impressions > 0) {
+        setCalcImpressions(Math.min(Math.max(a.totals.impressions, 10_000), 1_000_000));
+      }
     } catch (e) {
       const msg = errorMessage(e, 'Failed to load your analytics');
       if (/403|not a member/i.test(msg)) setAds([]);
       else setError(msg);
     } finally {
+      hasLoadedRef.current = true;
       setLoading(false);
     }
-  }, []);
+  }, [windowDays]);
 
   useEffect(() => { load(); }, [load]);
 
   const productAds = useMemo(() => ads || [], [ads]);
+
+  // doc_id → a short label (title or truncated text) for the top-posts list.
+  // Built from the catalog (ads + posts + albums) so the drill-down shows the
+  // post's own text, not a raw doc_id.
+  const postLabels = useMemo(() => {
+    const m = new Map<string, string>();
+    if (!ads) return m;
+    for (const ad of ads) m.set(ad.doc.doc_id, ad.title || ad.text || 'Ad');
+    return m;
+  }, [ads]);
+
+  // The what-if projection: same math as the per-ad projection, but driven by
+  // the creator's own assumed price + commission (no product required).
+  const projectedEarnings = useMemo(() => {
+    const tempProduct = {
+      price: calcPrice,
+      commission: calcCommission,
+      commission_is_percent: true,
+    };
+    return projectEarnings(calcImpressions, tempProduct, DEFAULT_RATES);
+  }, [calcImpressions, calcPrice, calcCommission]);
 
   // The portfolio (the "net's total catch"): the sum of the per-100k projections
   // across the catalog + the total actuals logged. 30 ads read as a portfolio.
@@ -88,28 +149,140 @@ export function AnalyticsSection() {
     return { count: productAds.length, projected, hasProjection, actuals };
   }, [productAds]);
 
+  const hasProductAds = productAds.length > 0;
+
   return (
     <div className="space-y-6" data-testid="analytics-section">
-      {/* The click counter — the D86 engine (next narrowing). */}
-      <div className="rounded border border-border bg-card p-5" data-testid="analytics-clicks-note">
+      {/* Your Reach (Tier 1) — the D86 engine's real reach as charts, always
+          shown. The funnel's first beat: "your content is already being seen." */}
+      {loading ? (
+        <div className="rounded border border-border bg-card p-5" data-testid="analytics-loading">
+          <Skeleton className="h-5 w-1/3" />
+          <Skeleton className="mt-3 h-16 w-full" />
+          <Skeleton className="mt-2 h-56 w-full" />
+        </div>
+      ) : error ? (
+        <div className="rounded border border-danger/40 bg-danger-muted/30 p-4" data-testid="analytics-error" role="alert">
+          <div className="flex items-start gap-3">
+            <AlertTriangle className="mt-0.5 h-5 w-5 flex-shrink-0 text-danger" strokeWidth={1.5} />
+            <div className="flex-1">
+              <p className="text-sm font-medium text-foreground">Couldn&apos;t load your analytics</p>
+              <p className="mt-1 text-xs text-muted-foreground break-all">{error}</p>
+              <Button variant="outline" size="sm" className="mt-3" onClick={load} data-testid="analytics-retry">
+                <RefreshCw className="mr-1 h-3.5 w-3.5" /> Retry
+              </Button>
+            </div>
+          </div>
+        </div>
+      ) : (
+        <ReachCharts
+          analytics={analytics}
+          windowDays={windowDays}
+          onWindowChange={setWindowDays}
+          postLabels={postLabels}
+        />
+      )}
+
+      {/* What you could be making (Tier 3) — the what-if calculator. Always
+          shown; the funnel's "potential" beat. Seeded with the real reach. */}
+      <div className="rounded border border-border bg-card p-5" data-testid="analytics-calculator">
         <div className="flex items-start gap-3">
           <div className="flex h-12 w-12 flex-shrink-0 items-center justify-center rounded bg-elevated text-muted-foreground">
-            <MousePointerClick className="h-6 w-6" strokeWidth={1.5} />
+            <TrendingUp className="h-6 w-6" strokeWidth={1.5} />
           </div>
           <div className="flex-1">
-            <div className="flex items-center gap-2">
-              <h3 className="font-display text-lg font-medium text-foreground">Clicks</h3>
-              <Badge variant="outline">coming soon</Badge>
-            </div>
+            <h3 className="font-display text-lg font-medium text-foreground">What you could be making</h3>
             <p className="mt-1 text-sm text-muted-foreground">
-              The per-ad click counter (the measured half of the tell) is the content-analytics engine — it lands next. Until then, the tell below runs on your projection vs the actuals you log.
+              Drag the slider, set a price and a commission — the projection updates live.
             </p>
           </div>
         </div>
+
+        <div className="mt-4 space-y-4">
+          {/* Impressions slider */}
+          <div data-testid="analytics-calc-impressions">
+            <div className="flex items-center justify-between">
+              <label htmlFor="calc-impressions" className="flex items-center gap-1.5 text-[0.6875rem] text-muted-foreground">
+                <SlidersHorizontal className="h-3 w-3" strokeWidth={1.75} /> Impressions
+              </label>
+              <span className="text-[0.6875rem] tabular-nums text-foreground">{formatImpressions(calcImpressions)}</span>
+            </div>
+            <input
+              id="calc-impressions"
+              type="range"
+              min={10_000}
+              max={1_000_000}
+              step={10_000}
+              value={calcImpressions}
+              onChange={(e) => setCalcImpressions(Number(e.target.value))}
+              className="mt-1.5 h-1.5 w-full cursor-pointer appearance-none rounded-full bg-elevated accent-[var(--brand)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+              data-testid="analytics-calc-impressions-slider"
+            />
+          </div>
+
+          {/* Price + commission inputs */}
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label htmlFor="calc-price" className="text-[0.6875rem] text-muted-foreground">Price ($)</label>
+              <input
+                id="calc-price"
+                type="number"
+                min={0}
+                step={1}
+                value={calcPrice}
+                onChange={(e) => setCalcPrice(Math.max(0, Number(e.target.value)))}
+                className="mt-1 w-full rounded border border-border bg-elevated/50 px-2 py-1 text-sm tabular-nums text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                data-testid="analytics-calc-price"
+              />
+            </div>
+            <div>
+              <label htmlFor="calc-commission" className="text-[0.6875rem] text-muted-foreground">Commission (%)</label>
+              <input
+                id="calc-commission"
+                type="number"
+                min={0}
+                max={100}
+                step={1}
+                value={calcCommission}
+                onChange={(e) => setCalcCommission(Math.min(100, Math.max(0, Number(e.target.value))))}
+                className="mt-1 w-full rounded border border-border bg-elevated/50 px-2 py-1 text-sm tabular-nums text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                data-testid="analytics-calc-commission"
+              />
+            </div>
+          </div>
+
+          {/* Projected earnings */}
+          <div className="rounded bg-elevated/50 p-3" data-testid="analytics-calc-result">
+            <p className="text-[0.6875rem] uppercase tracking-wide text-muted-foreground">Projected earnings</p>
+            <p className="mt-1 font-display text-2xl font-medium tabular-nums text-success">
+              {formatProjection(projectedEarnings)}
+            </p>
+            <p className="text-[0.6875rem] text-muted-foreground">
+              at {formatImpressions(calcImpressions)} impressions · ${calcPrice} item · {calcCommission}% commission
+            </p>
+          </div>
+
+          {/* Funnel CTA — only when no product ad exists yet */}
+          {!hasProductAds && (
+            <div className="flex items-center justify-between gap-3 rounded border border-dashed border-border p-3">
+              <p className="text-xs text-muted-foreground">
+                No product ad yet — add one to turn this projection into a real ad.
+              </p>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => navigate('/monetize')}
+                data-testid="analytics-calc-cta"
+              >
+                Add a product
+              </Button>
+            </div>
+          )}
+        </div>
       </div>
 
-      {/* The portfolio (the "net's total catch"). */}
-      {!loading && !error && productAds.length > 0 && (
+      {/* The portfolio (Tier 4) — only when product ads exist. */}
+      {!loading && !error && hasProductAds && (
         <div className="rounded border border-border bg-card p-5" data-testid="analytics-portfolio">
           <div className="flex items-start gap-3">
             <div className="flex h-12 w-12 flex-shrink-0 items-center justify-center rounded bg-elevated text-muted-foreground">
@@ -146,59 +319,28 @@ export function AnalyticsSection() {
         </div>
       )}
 
-      <div className="rounded border border-border bg-card p-5">
-        <div className="flex items-start gap-3">
-          <div className="flex h-12 w-12 flex-shrink-0 items-center justify-center rounded bg-elevated text-muted-foreground">
-            <BarChart3 className="h-6 w-6" strokeWidth={1.5} />
-          </div>
-          <div className="flex-1">
-            <h3 className="font-display text-lg font-medium text-foreground">Performance</h3>
-            <p className="mt-1 text-sm text-muted-foreground">
-              Your projection (the hypothesis) vs the actuals you log (the reality). The gap is the tell. Drag the slider to see the what-if.
-            </p>
-          </div>
-        </div>
-
-        <div className="mt-4">
-          {loading ? (
-            <div className="space-y-3" data-testid="analytics-loading">
-              {[0, 1].map((i) => (
-                <div key={i} className="rounded border border-border p-4">
-                  <Skeleton className="h-4 w-1/3" />
-                  <Skeleton className="mt-2 h-3 w-2/3" />
-                </div>
-              ))}
+      {/* Performance (Tier 4) — the projection-vs-actual tell, only when product ads exist. */}
+      {!loading && !error && hasProductAds && (
+        <div className="rounded border border-border bg-card p-5">
+          <div className="flex items-start gap-3">
+            <div className="flex h-12 w-12 flex-shrink-0 items-center justify-center rounded bg-elevated text-muted-foreground">
+              <BarChart3 className="h-6 w-6" strokeWidth={1.5} />
             </div>
-          ) : error ? (
-            <div className="rounded border border-danger/40 bg-danger-muted/30 p-4" data-testid="analytics-error" role="alert">
-              <div className="flex items-start gap-3">
-                <AlertTriangle className="mt-0.5 h-5 w-5 flex-shrink-0 text-danger" strokeWidth={1.5} />
-                <div className="flex-1">
-                  <p className="text-sm font-medium text-foreground">Couldn&apos;t load your analytics</p>
-                  <p className="mt-1 text-xs text-muted-foreground break-all">{error}</p>
-                  <Button variant="outline" size="sm" className="mt-3" onClick={load} data-testid="analytics-retry">
-                    <RefreshCw className="mr-1 h-3.5 w-3.5" /> Retry
-                  </Button>
-                </div>
-              </div>
-            </div>
-          ) : productAds.length === 0 ? (
-            <div className="rounded border border-dashed border-border p-8 text-center" data-testid="analytics-empty">
-              <BarChart3 className="mx-auto h-8 w-8 text-muted-foreground" strokeWidth={1.25} />
-              <p className="mt-3 text-sm font-medium text-foreground">Nothing to measure yet</p>
-              <p className="mx-auto mt-1 max-w-sm text-xs text-muted-foreground">
-                Add a product to an ad (price + commission) to get a projection, then log the actuals from your affiliate dashboard to see the tell.
+            <div className="flex-1">
+              <h3 className="font-display text-lg font-medium text-foreground">Performance</h3>
+              <p className="mt-1 text-sm text-muted-foreground">
+                Your projection (the hypothesis) vs the actuals you log (the reality). The gap is the tell. Drag the slider to see the what-if.
               </p>
             </div>
-          ) : (
-            <div className="space-y-3">
-              {productAds.map((ad) => (
-                <AnalyticsRow key={ad.doc.doc_id} ad={ad} />
-              ))}
-            </div>
-          )}
+          </div>
+
+          <div className="mt-4 space-y-3">
+            {productAds.map((ad) => (
+              <AnalyticsRow key={ad.doc.doc_id} ad={ad} />
+            ))}
+          </div>
         </div>
-      </div>
+      )}
     </div>
   );
 }

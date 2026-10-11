@@ -20,10 +20,10 @@ import Everything from './pages/Everything'
 // is labeled Trending). The experience shell owns the four-destination nav
 // (Video · Shorts · Hot Gossip · People); each destination is a flat route
 // under `/trending`.
-function App({ onReportBug }: { onReportBug: () => void }) {
+function App() {
   return (
     <StarsProvider>
-      <Navbar onReportBug={onReportBug} />
+      <Navbar />
       <Routes>
         {/* The pitch (the SELL) — the dedicated landing page. The business case:
             manifesto + reach gap + stats + CTA. (design.md §10: a creator's

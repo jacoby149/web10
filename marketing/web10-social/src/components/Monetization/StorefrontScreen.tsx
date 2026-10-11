@@ -5,28 +5,29 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 import { errorMessage } from '@/components/shared/Toast';
-import { readUserAds, type AdItem } from '@/data/ads-catalog';
+import { readStorefront, type ProductItem } from '@/data/ads-catalog';
 import { resolveMediaRefs, getV3Client } from '@/data';
 import { projectEarnings, formatProjection, commissionPerSale, DEFAULT_RATES } from '@/data/ad-projection';
 import type { MediaRecord } from '@/data';
 
-// The public storefront (ads-october focus #1) — the "here's everything I
-// recommend" destination. A deep-linkable, shareable page that renders the
-// creator's product ads as a browsable grid (each tile = a product: picture +
-// name + price + the offer CTA). The "Amazon storefront parity" — the thing
+// The public storefront (D89) — the "here's everything I recommend"
+// destination. A deep-linkable, shareable page that renders the creator's
+// **products** (the master) as a browsable grid (each tile = a product: picture
+// + name + price + the offer CTA). The "Amazon storefront parity" — the thing
 // Amazon gates behind a big following, web10 gives every creator.
 //
-// Data: a read of the creator's followers group (readUserAds), filtered to
-// product ads. Access is group-gated (I3): the owner + the creator's followers
-// can read it; an anon / non-follower read 403s → the "follow to browse" state
-// (the web10 "public to your audience" model — no new grants, D60-clean).
+// Data: a read of the creator's followers group (readStorefront), split to the
+// `product`-tagged docs. Access is group-gated (I3): the owner + the creator's
+// followers can read it; an anon / non-follower read 403s → the "follow to
+// browse" state (the web10 "public to your audience" model — no new grants,
+// D60-clean).
 export default function StorefrontScreen() {
   const { username } = useParams();
   const location = useLocation();
   const navigate = useNavigate();
   const provider = location.state?.provider || getV3Client().readToken()?.provider || '';
 
-  const [ads, setAds] = useState<AdItem[] | null>(null);
+  const [products, setProducts] = useState<ProductItem[] | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [mediaMap, setMediaMap] = useState<Record<string, MediaRecord>>({});
@@ -37,12 +38,11 @@ export default function StorefrontScreen() {
     setLoading(true);
     setError(null);
     try {
-      const { ads } = await readUserAds(username!, provider);
-      const products = ads.filter((a) => a.product);
-      setAds(products);
+      const items = await readStorefront(username!, provider);
+      setProducts(items);
       const refIds = new Set<string>();
-      for (const ad of products) {
-        const first = ad.product?.pics?.[0] || ad.media_refs?.[0];
+      for (const p of items) {
+        const first = p.product.pics?.[0];
         if (typeof first === 'string') refIds.add(first);
       }
       if (refIds.size) {
@@ -55,7 +55,7 @@ export default function StorefrontScreen() {
       // A 403 (not a member / anon on a private catalog) is the "follow to
       // browse" state, not an error.
       const msg = errorMessage(e, 'Failed to load the storefront');
-      if (/403|not a member/i.test(msg)) setAds([]);
+      if (/403|not a member/i.test(msg)) setProducts([]);
       else setError(msg);
     } finally {
       setLoading(false);
@@ -64,7 +64,7 @@ export default function StorefrontScreen() {
 
   useEffect(() => { load(); }, [load]);
 
-  const products = ads || [];
+  const items = products || [];
 
   return (
     <div className="w-full">
@@ -112,7 +112,7 @@ export default function StorefrontScreen() {
                 </div>
               </div>
             </div>
-          ) : products.length === 0 ? (
+          ) : items.length === 0 ? (
             <div className="rounded border border-dashed border-border p-8 text-center" data-testid="storefront-empty">
               <Package className="mx-auto h-8 w-8 text-muted-foreground" strokeWidth={1.25} />
               <p className="mt-3 text-sm font-medium text-foreground">
@@ -120,7 +120,7 @@ export default function StorefrontScreen() {
               </p>
               <p className="mx-auto mt-1 max-w-sm text-xs text-muted-foreground">
                 {isOwn
-                  ? 'Add a product to an ad (the "Product" section in the ad form) and it shows up here.'
+                  ? 'Make a product (in the Monetization tab) and it shows up here.'
                   : 'Follow to see their recommendations as they add them.'}
               </p>
               {!isOwn && (
@@ -137,8 +137,8 @@ export default function StorefrontScreen() {
             </div>
           ) : (
             <div className="grid gap-3 sm:grid-cols-2">
-              {products.map((ad) => (
-                <StorefrontTile key={ad.doc.doc_id} ad={ad} mediaMap={mediaMap} />
+              {items.map((p) => (
+                <StorefrontTile key={p.doc.doc_id} item={p} mediaMap={mediaMap} />
               ))}
             </div>
           )}
@@ -148,10 +148,9 @@ export default function StorefrontScreen() {
   );
 }
 
-function StorefrontTile({ ad, mediaMap }: { ad: AdItem; mediaMap: Record<string, MediaRecord> }) {
-  const p = ad.product!;
-  const picRef = p.pics?.[0] ?? ad.media_refs?.[0];
-  const picId = typeof picRef === 'string' ? picRef : undefined;
+function StorefrontTile({ item, mediaMap }: { item: ProductItem; mediaMap: Record<string, MediaRecord> }) {
+  const p = item.product;
+  const picId = p.pics?.[0];
   const media = picId ? mediaMap[picId] : undefined;
   const imgSrc = media?.thumbnail_url || media?.url;
 
@@ -159,7 +158,7 @@ function StorefrontTile({ ad, mediaMap }: { ad: AdItem; mediaMap: Record<string,
   const projection = formatProjection(projectEarnings(100_000, p, DEFAULT_RATES));
 
   return (
-    <div className="overflow-hidden rounded border border-border bg-elevated/30" data-testid={`storefront-tile-${ad.doc.doc_id}`}>
+    <div className="overflow-hidden rounded border border-border bg-elevated/30" data-testid={`storefront-tile-${item.doc.doc_id}`}>
       {imgSrc ? (
         <div className="aspect-square w-full overflow-hidden bg-elevated">
           <img src={imgSrc} alt={p.name || 'Product'} className="h-full w-full object-cover" />
@@ -171,26 +170,31 @@ function StorefrontTile({ ad, mediaMap }: { ad: AdItem; mediaMap: Record<string,
       )}
       <div className="p-3">
         <div className="flex items-start justify-between gap-2">
-          <span className="min-w-0 flex-1 truncate text-sm font-medium text-foreground">{p.name || ad.text || 'Untitled product'}</span>
+          <span className="min-w-0 flex-1 truncate text-sm font-medium text-foreground">{p.name || 'Untitled product'}</span>
           {p.price !== undefined && (
             <span className="flex-shrink-0 font-display text-sm font-medium tabular-nums text-foreground">${p.price.toLocaleString()}</span>
           )}
         </div>
         <div className="mt-1.5 flex flex-wrap items-center gap-1.5">
+          {p.commission !== undefined && (
+            <Badge variant="outline" className="tabular-nums normal-case">
+              {p.commission_is_percent !== false ? `${p.commission}%` : `$${p.commission}`} {p.commission_is_percent !== false ? 'commission' : 'per sale'}
+            </Badge>
+          )}
           {perSale !== undefined && (
             <Badge variant="brand" className="tabular-nums normal-case">${perSale.toFixed(2)}/sale</Badge>
           )}
           <Badge variant="outline" className="tabular-nums normal-case">~{projection}/100k</Badge>
         </div>
-        {ad.offer.link && (
+        {p.link && (
           <a
-            href={ad.offer.link}
+            href={p.link}
             target="_blank"
             rel="noopener noreferrer"
             className="mt-2 inline-flex items-center gap-1 rounded-md bg-brand-muted px-3 py-1.5 text-xs font-medium text-brand-300 transition-colors hover:bg-brand/20"
-            data-testid={`storefront-cta-${ad.doc.doc_id}`}
+            data-testid={`storefront-cta-${item.doc.doc_id}`}
           >
-            {ad.offer.cta || 'Check it out'}
+            {p.partner || 'Check it out'}
           </a>
         )}
       </div>

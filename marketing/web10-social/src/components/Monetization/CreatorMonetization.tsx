@@ -1,5 +1,5 @@
-import { useState, useEffect, useCallback, useRef } from 'react';
-import { Megaphone, Plus, Pause, Play, Trash2, Pin, FolderPlus, AlertTriangle, RefreshCw, GraduationCap, ArrowUpRight, X, Pencil, ImagePlus } from 'lucide-react';
+import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
+import { Megaphone, Plus, Pause, Play, Trash2, Pin, FolderPlus, AlertTriangle, RefreshCw, GraduationCap, ArrowUpRight, X, Pencil, ImagePlus, Radio } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -9,19 +9,24 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { toast, errorMessage } from '@/components/shared/Toast';
 import {
   readMyCatalog,
+  readNodeAds,
   ensureFollowersGroup,
   buildOfferBody,
   updateAd,
+  updateNodeAd,
   createNodeAd,
+  isNodeAd,
   type AdsCatalogData,
   type AdItem,
   type AlbumItem,
   type PostItem,
+  type ProductItem,
 } from '@/data/ads-catalog';
 import { getV3Client, type AdOffer, type AdFormat, type AdProduct } from '@/data';
 import { projectEarnings, formatProjection, DEFAULT_RATES } from '@/data/ad-projection';
 import { uploadMedia, resolveMediaRefs } from '@/data';
 import { processImage, generateThumbnail, captureVideoPoster, getVideoInfo } from '@/lib/mediaProcessing';
+import { NodeAdControls } from './NodeAdControls';
 import type { MediaRecord } from '@/data';
 
 // `none` is the default (self-promo — most creator ads aren't affiliate).
@@ -31,7 +36,7 @@ const OFFER_KINDS = ['none', 'affiliate', 'direct', 'own_store'] as const;
 // just fill the field. "Check it out" / "Learn more" fit services + buzz, not
 // just products.
 const CTA_SUGGESTIONS = ['Check it out', 'Learn more', 'Shop now', 'Sign up', 'Book now', 'Get it'];
-const EMPTY: AdsCatalogData = { ads: [], albums: [], posts: [] };
+const EMPTY: AdsCatalogData = { ads: [], products: [], albums: [], posts: [] };
 
 // The monetization bootcamp shortlist (KB: monetization-bootcamp.md). The
 // "get started" pointer — sign up for the programs that match what you post,
@@ -57,25 +62,37 @@ const AFFILIATE_PROGRAMS: AffiliateProgram[] = [
 ];
 
 /**
- * The Creator Monetization section (D55, D75) — the creator's own ads + the
- * affiliate onboarding. The ad catalog is the creator's posts tagged `ad` in
- * their followers group (+ albums + the posts they're pinned to). Every
- * signed-in user sees it.
+ * The Monetization Ads section (D55, D57, D75) — the ad catalog, the affiliate
+ * onboarding, and (for the node admin) the node-ad inventory.
  *
- * `isAdmin` (the node admin) unlocks the ad form's "Node ad" scope — a node
- * admin can run an ad as a personal ad OR a node ad from this one surface
- * (the node ad is written to the discover group, tagged `ad` + `node_ad`).
+ * Every signed-in user sees their own ads + albums + the affiliate onboarding.
+ *
+ * `isAdmin` (the node admin) folds the **node-ad inventory** into this same
+ * surface (there is no separate Node tab): the **node-ad controls** (the
+ * density + overwrite knobs, `NodeAdControls`) sit above the catalog, and the
+ * ad list is **unified** — the operator's regular ads + the node ads (the
+ * discover group, tagged `ad` + `node_ad`) in one list, filterable by scope
+ * (All | Regular | Node). A node ad is edited via `updateNodeAd` (it keeps the
+ * `node_ad` tag); a regular ad via `updateAd`. The New Ad form's **Run as**
+ * scope (Personal / Node) is how a node admin creates either kind.
  */
 export function CreatorMonetization({ isAdmin = false }: { isAdmin?: boolean }) {
   const [data, setData] = useState<AdsCatalogData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
+  // The node ads (the operator's inventory, the discover group) — loaded in
+  // parallel with the catalog, only for the node admin. Unified into the ad
+  // list below (the scope filter: All | Regular | Node).
+  const [nodeAds, setNodeAds] = useState<AdItem[]>([]);
+
   const [adFormOpen, setAdFormOpen] = useState(false);
   const [editingAd, setEditingAd] = useState<AdItem | null>(null);
   const [showNewAlbum, setShowNewAlbum] = useState(false);
   const [pinAd, setPinAd] = useState<AdItem | null>(null);
   const [filterAlbum, setFilterAlbum] = useState<string | null>(null);
+  // The ad-list scope filter (node admin only): all | regular | node.
+  const [scopeFilter, setScopeFilter] = useState<'all' | 'regular' | 'node'>('all');
 
   const openNewAd = () => { setEditingAd(null); setAdFormOpen(true); };
   const openEditAd = (ad: AdItem) => { setEditingAd(ad); setAdFormOpen(true); };
@@ -85,7 +102,14 @@ export function CreatorMonetization({ isAdmin = false }: { isAdmin?: boolean }) 
     setLoading(true);
     setError(null);
     try {
-      setData(await readMyCatalog());
+      // The catalog + (admin) the node ads load in parallel — the node ads are
+      // the operator's inventory on the discover group, a separate read.
+      const [catalog, node] = await Promise.all([
+        readMyCatalog(),
+        isAdmin ? readNodeAds() : Promise.resolve([]),
+      ]);
+      setData(catalog);
+      setNodeAds(node || []);
     } catch (e) {
       const msg = errorMessage(e, 'Failed to load your ads');
       // A fresh creator has no followers group yet — the read 403s (not a
@@ -98,7 +122,7 @@ export function CreatorMonetization({ isAdmin = false }: { isAdmin?: boolean }) 
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [isAdmin]);
 
   useEffect(() => {
     load();
@@ -117,10 +141,11 @@ export function CreatorMonetization({ isAdmin = false }: { isAdmin?: boolean }) 
     mediaRefs?: string[],
     format: AdFormat = 'inline',
     product?: AdProduct | null,
+    productId?: string,
   ) => {
     const w = getV3Client();
     const group = await ensureFollowersGroup(username(), provider());
-    await w.create('posts', buildOfferBody(offer, text, status, albumIds, mediaRefs, format, undefined, product), { groups: [group] });
+    await w.create('posts', buildOfferBody(offer, text, status, albumIds, mediaRefs, format, undefined, product, productId), { groups: [group] });
   };
 
   const editAd = async (
@@ -132,8 +157,23 @@ export function CreatorMonetization({ isAdmin = false }: { isAdmin?: boolean }) 
     mediaRefs?: string[],
     format: AdFormat = 'inline',
     product?: AdProduct | null,
+    productId?: string,
   ) => {
-    await updateAd(ad, offer, text, status, albumIds, mediaRefs, format, undefined, product);
+    await updateAd(ad, offer, text, status, albumIds, mediaRefs, format, undefined, product, productId);
+  };
+
+  // Edit a NODE ad (the operator's inventory) — keeps the `node_ad` tag (the
+  // discover-group home), unlike `editAd` (a regular ad's followers group).
+  const editNodeAd = async (
+    ad: AdItem,
+    offer: AdOffer,
+    text: string,
+    status: 'active' | 'paused',
+    mediaRefs?: string[],
+    format: AdFormat = 'inline',
+    product?: AdProduct | null,
+  ) => {
+    await updateNodeAd(ad, offer, text, status, mediaRefs, format, undefined, product);
   };
 
   const createAlbum = async (name: string) => {
@@ -171,6 +211,21 @@ export function CreatorMonetization({ isAdmin = false }: { isAdmin?: boolean }) 
       .catch((e) => toast.error(errorMessage(e, 'Failed')));
   };
 
+  // The unified ad list (node admin): the operator's regular ads + the node
+  // ads (the discover group). A non-admin just sees their own regular ads.
+  const regularAds = data?.ads || [];
+  const nodeAdsList = isAdmin ? nodeAds : [];
+  const unifiedAds = [...regularAds, ...nodeAdsList];
+  // The scope filter narrows by kind; the album filter (regular ads only)
+  // narrows further. Node ads have no albums, so the album filter is a no-op
+  // when the scope is `node`.
+  const scopedAds = scopeFilter === 'node' ? nodeAdsList : scopeFilter === 'regular' ? regularAds : unifiedAds;
+  const visibleAds = filterAlbum && scopeFilter !== 'node'
+    ? scopedAds.filter((ad) => !isNodeAd(ad.doc) && ad.albums.includes(filterAlbum))
+    : scopedAds;
+  // The album filter chips show for regular ads (never when the scope is node).
+  const showAlbumFilter = !isAdmin || scopeFilter !== 'node';
+
   return (
     <div className="space-y-6" data-testid="creator-monetization">
       {/* The affiliate onboarding — "get started". */}
@@ -204,6 +259,28 @@ export function CreatorMonetization({ isAdmin = false }: { isAdmin?: boolean }) 
         </p>
       </div>
 
+      {/* The node-ad controls (node admin only) — the density + overwrite
+          knobs, folded into the Ads tab (the separate Node tab is retired). */}
+      {isAdmin && (
+        <div className="rounded border border-border bg-card p-5" data-testid="node-ad-controls-card">
+          <div className="mb-4 flex items-start gap-3">
+            <div className="flex h-12 w-12 flex-shrink-0 items-center justify-center rounded bg-elevated text-warning">
+              <Radio className="h-6 w-6" strokeWidth={1.5} />
+            </div>
+            <div className="min-w-0 flex-1">
+              <div className="flex items-center gap-2">
+                <h3 className="font-display text-lg font-medium text-foreground">Node Ads</h3>
+                <Badge variant="outline">node admin</Badge>
+              </div>
+              <p className="mt-1 text-sm text-muted-foreground">
+                Your node&apos;s ad inventory — the second layer. Node ads run on top of creators&apos; own ads; neither replaces the other.
+              </p>
+            </div>
+          </div>
+          <NodeAdControls />
+        </div>
+      )}
+
       {/* The ad catalog. */}
       <div className="rounded border border-border bg-card p-5" data-testid="ads-catalog-card">
         <div className="flex items-start gap-3">
@@ -226,15 +303,18 @@ export function CreatorMonetization({ isAdmin = false }: { isAdmin?: boolean }) 
             <AdForm
               initial={editingAd}
               albums={data?.albums || []}
+              products={data?.products || []}
               allowNode={isAdmin}
-              onSubmit={(offer, text, status, albumIds, mediaRefs, format, scope, product) =>
+              onSubmit={(offer, text, status, albumIds, mediaRefs, format, scope, product, productId) =>
                 run(
                   () =>
                     editingAd
-                      ? editAd(editingAd, offer, text, status, albumIds, mediaRefs, format, product)
+                      ? isNodeAd(editingAd.doc)
+                        ? editNodeAd(editingAd, offer, text, status, mediaRefs, format, product)
+                        : editAd(editingAd, offer, text, status, albumIds, mediaRefs, format, product, productId)
                       : scope === 'node'
                         ? createNodeAd(offer, text, status, mediaRefs, format, product)
-                        : createAd(offer, text, status, albumIds, mediaRefs, format, product),
+                        : createAd(offer, text, status, albumIds, mediaRefs, format, product, productId),
                   editingAd ? 'Ad updated' : scope === 'node' ? 'Node ad created' : 'Ad created',
                 )
               }
@@ -248,27 +328,39 @@ export function CreatorMonetization({ isAdmin = false }: { isAdmin?: boolean }) 
             <CatalogSkeleton />
           ) : error ? (
             <ErrorState message={error} onRetry={load} />
-          ) : data && data.ads.length === 0 && data.albums.length === 0 ? (
+          ) : visibleAds.length === 0 && data?.albums.length === 0 ? (
             <EmptyState onNewAd={openNewAd} />
           ) : data ? (
             <>
+              {/* The scope filter (node admin only) — All | Regular | Node. */}
+              {isAdmin && (
+                <div className="mb-3 flex flex-wrap items-center gap-2" data-testid="ads-scope-filter">
+                  <ScopeChip label="All" active={scopeFilter === 'all'} onClick={() => setScopeFilter('all')} count={unifiedAds.length} />
+                  <ScopeChip label="Regular" active={scopeFilter === 'regular'} onClick={() => setScopeFilter('regular')} count={regularAds.length} />
+                  <ScopeChip label="Node" active={scopeFilter === 'node'} onClick={() => setScopeFilter('node')} count={nodeAdsList.length} />
+                </div>
+              )}
               <CatalogSection
-                ads={data.ads}
+                ads={visibleAds}
                 albums={data.albums}
-                filterAlbum={filterAlbum}
+                filterAlbum={showAlbumFilter ? filterAlbum : null}
                 onFilterAlbum={setFilterAlbum}
+                showAlbumFilter={showAlbumFilter}
+                allCount={regularAds.length}
                 onEdit={openEditAd}
                 onPin={(ad) => setPinAd(ad)}
-                onPause={(ad) => run(() => setStatus(ad, 'paused'), 'Ad paused')}
-                onResume={(ad) => run(() => setStatus(ad, 'active'), 'Ad active')}
-                onRetire={(ad) => run(() => retireAd(ad), 'Ad retired')}
+                onPause={(ad) => run(() => setStatus(ad, 'paused'), isNodeAd(ad.doc) ? 'Node ad paused' : 'Ad paused')}
+                onResume={(ad) => run(() => setStatus(ad, 'active'), isNodeAd(ad.doc) ? 'Node ad active' : 'Ad active')}
+                onRetire={(ad) => run(() => retireAd(ad), isNodeAd(ad.doc) ? 'Node ad retired' : 'Ad retired')}
               />
-              <AlbumsSection
-                albums={data.albums}
-                ads={data.ads}
-                onNewAlbum={() => setShowNewAlbum((v) => !v)}
-                onAddAd={(ad, album) => run(() => addAdToAlbum(ad, album), 'Added to album')}
-              />
+              {showAlbumFilter && (
+                <AlbumsSection
+                  albums={data.albums}
+                  ads={regularAds}
+                  onNewAlbum={() => setShowNewAlbum((v) => !v)}
+                  onAddAd={(ad, album) => run(() => addAdToAlbum(ad, album), 'Added to album')}
+                />
+              )}
             </>
           ) : null}
         </div>
@@ -366,6 +458,8 @@ function CatalogSection({
   albums,
   filterAlbum,
   onFilterAlbum,
+  showAlbumFilter = true,
+  allCount,
   onEdit,
   onPin,
   onPause,
@@ -376,37 +470,44 @@ function CatalogSection({
   albums: AlbumItem[];
   filterAlbum: string | null;
   onFilterAlbum: (albumId: string | null) => void;
+  /** Show the album filter chips (off when the scope is `node` — node ads
+      have no albums). */
+  showAlbumFilter?: boolean;
+  /** The "All" chip's count (the full regular-ad count, before the album
+      filter) — so the chip stays meaningful when an album is selected. */
+  allCount?: number;
   onEdit: (ad: AdItem) => void;
   onPin: (ad: AdItem) => void;
   onPause: (ad: AdItem) => void;
   onResume: (ad: AdItem) => void;
   onRetire: (ad: AdItem) => void;
 }) {
-  const visible = filterAlbum ? ads.filter((ad) => ad.albums.includes(filterAlbum)) : ads;
   return (
     <div className="mb-6">
       <div className="mb-3 flex flex-wrap items-center gap-2">
         <h4 className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Catalog</h4>
-        <div className="flex flex-wrap gap-1.5">
-          <FilterChip label="All" active={filterAlbum === null} onClick={() => onFilterAlbum(null)} count={ads.length} />
-          {albums.map((album) => (
-            <FilterChip
-              key={album.doc.doc_id}
-              label={album.name}
-              active={filterAlbum === album.doc.doc_id}
-              onClick={() => onFilterAlbum(album.doc.doc_id)}
-              count={album.adCount}
-            />
-          ))}
-        </div>
+        {showAlbumFilter && (
+          <div className="flex flex-wrap gap-1.5">
+            <FilterChip label="All" active={filterAlbum === null} onClick={() => onFilterAlbum(null)} count={allCount ?? ads.length} />
+            {albums.map((album) => (
+              <FilterChip
+                key={album.doc.doc_id}
+                label={album.name}
+                active={filterAlbum === album.doc.doc_id}
+                onClick={() => onFilterAlbum(album.doc.doc_id)}
+                count={album.adCount}
+              />
+            ))}
+          </div>
+        )}
       </div>
-      {visible.length === 0 ? (
+      {ads.length === 0 ? (
         <p className="rounded border border-dashed border-border p-4 text-center text-xs text-muted-foreground">
           {filterAlbum ? 'No ads in this album yet.' : 'No ads yet.'}
         </p>
       ) : (
         <div className="space-y-3">
-          {visible.map((ad) => (
+          {ads.map((ad) => (
             <AdRow
               key={ad.doc.doc_id}
               ad={ad}
@@ -444,6 +545,29 @@ function FilterChip({ label, active, onClick, count }: {
   );
 }
 
+// The ad-list scope filter (node admin only) — All | Regular | Node. The
+// node admin's ads are unified (regular + node); this narrows the list by kind.
+function ScopeChip({ label, active, onClick, count }: {
+  label: string;
+  active: boolean;
+  onClick: () => void;
+  count: number;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className={cn(
+        'rounded-full border px-3 py-1 text-xs transition-colors',
+        active ? 'border-brand bg-brand-muted text-brand-300' : 'border-border text-muted-foreground hover:border-brand/50',
+      )}
+      data-testid={`ads-scope-${label.toLowerCase()}`}
+    >
+      {label} <span className="tabular-nums opacity-70">{count}</span>
+    </button>
+  );
+}
+
 function AdRow({ ad, onEdit, onPin, onPause, onResume, onRetire }: {
   ad: AdItem;
   onEdit: () => void;
@@ -453,6 +577,7 @@ function AdRow({ ad, onEdit, onPin, onPause, onResume, onRetire }: {
   onRetire: () => void;
 }) {
   const active = ad.status === 'active';
+  const isNode = isNodeAd(ad.doc);
   return (
     <div
       className={cn('rounded border p-4 transition-colors', active ? 'border-border' : 'border-border opacity-70')}
@@ -462,6 +587,7 @@ function AdRow({ ad, onEdit, onPin, onPause, onResume, onRetire }: {
         <div className="min-w-0 flex-1">
           <div className="flex flex-wrap items-center gap-2">
             <span className="truncate text-sm font-medium text-foreground">{ad.text || 'Untitled ad'}</span>
+            {isNode && <Badge variant="outline" className="text-warning">NODE</Badge>}
             <Badge variant={active ? 'success' : 'default'}>{active ? 'ACTIVE' : 'PAUSED'}</Badge>
             <Badge variant="outline">{ad.format === 'post' ? 'POST AD' : 'INLINE'}</Badge>
             {ad.offer.kind && <Badge variant="outline">{ad.offer.kind}</Badge>}
@@ -476,9 +602,14 @@ function AdRow({ ad, onEdit, onPin, onPause, onResume, onRetire }: {
           <Button variant="outline" size="sm" onClick={onEdit} data-testid={`ads-edit-${ad.doc.doc_id}`} aria-label="Edit ad">
             <Pencil className="h-3.5 w-3.5" /> Edit
           </Button>
-          <Button variant="outline" size="sm" onClick={onPin} data-testid={`ads-pin-${ad.doc.doc_id}`} aria-label="Pin ad to a post">
-            <Pin className="h-3.5 w-3.5" /> Pin
-          </Button>
+          {/* Pin is for regular ads (pin to a post in the followers group). A
+              node ad is the operator's inventory — it attaches at the density,
+              not by pinning — so it has no Pin control. */}
+          {!isNode && (
+            <Button variant="outline" size="sm" onClick={onPin} data-testid={`ads-pin-${ad.doc.doc_id}`} aria-label="Pin ad to a post">
+              <Pin className="h-3.5 w-3.5" /> Pin
+            </Button>
+          )}
           {active ? (
             <Button variant="ghost" size="sm" onClick={onPause} aria-label="Pause ad" data-testid={`ads-pause-${ad.doc.doc_id}`}>
               <Pause className="h-3.5 w-3.5" />
@@ -596,9 +727,11 @@ function AlbumRow({ album, ads, onAddAd }: {
  * OR a node ad (the discover group, the operator's inventory) from one surface.
  * Edit mode has no scope — the ad's home is fixed by where it was created.
  */
-function AdForm({ initial, albums, allowNode = false, onSubmit, onCancel }: {
+function AdForm({ initial, albums, products, allowNode = false, onSubmit, onCancel }: {
   initial: AdItem | null;
   albums: AlbumItem[];
+  /** The creator's products (D89) — the product picker's options. */
+  products: ProductItem[];
   /** The node admin can create a node ad (scope = node) from this form. */
   allowNode?: boolean;
   onSubmit: (
@@ -610,10 +743,14 @@ function AdForm({ initial, albums, allowNode = false, onSubmit, onCancel }: {
     format: AdFormat,
     scope: 'personal' | 'node',
     product?: AdProduct | null,
+    productId?: string,
   ) => void;
   onCancel: () => void;
 }) {
   const editing = !!initial;
+  // Editing a node ad (the operator's inventory) — no albums (node ads have no
+  // albums), and the scope is fixed (the ad's home is where it was created).
+  const isNode = !!initial && isNodeAd(initial.doc);
   const [text, setText] = useState(initial?.text || '');
   const [kind, setKind] = useState<string>(initial?.offer.kind || 'none');
   const [partner, setPartner] = useState(initial?.offer.partner || '');
@@ -628,56 +765,26 @@ function AdForm({ initial, albums, allowNode = false, onSubmit, onCancel }: {
   const [scope, setScope] = useState<'personal' | 'node'>('personal');
   const [saving, setSaving] = useState(false);
 
-  // The product section (ads-october focus #2) — the ad is the superset: the
-  // creative (text + media) PLUS the product attributes when it's a product.
-  // `productOn` gates the section (off = a pure ad, no product).
-  const [productOn, setProductOn] = useState(!!initial?.product);
-  const [pTarget, setPTarget] = useState<AdProduct['target']>(initial?.product?.target || 'product');
-  const [pName, setPName] = useState(initial?.product?.name || '');
-  const [pPrice, setPPrice] = useState(initial?.product?.price !== undefined ? String(initial.product.price) : '');
-  const [pCommission, setPCommission] = useState(initial?.product?.commission !== undefined ? String(initial.product.commission) : '');
-  const [pCommissionPct, setPCommissionPct] = useState(initial?.product?.commission_is_percent !== false);
-  const [pActuals, setPActuals] = useState(initial?.product?.actuals !== undefined ? String(initial.product.actuals) : '');
-  const [pCalibration, setPCalibration] = useState(initial?.product?.calibration !== undefined ? String(initial.product.calibration) : '');
-
-  // The product pics (the "base" layer — the product's own photos, separate
-  // from the creative media). v1: one pic (the storefront tile's image); the
-  // data field is an array so it can grow. `file` = new (uploaded on submit);
-  // `existingDocId` = kept (edit mode); `previewUrl` = what to show.
-  const [productPic, setProductPic] = useState<{
-    file?: File;
-    previewUrl?: string;
-    existingDocId?: string;
-  } | null>(null);
-  const productPicInputRef = useRef<HTMLInputElement>(null);
-
-  // Assemble the product object (or null when the section is off / empty).
-  // `pics` is passed in (the product photo is uploaded in submit, async).
-  const buildProduct = (pics?: string[]): AdProduct | null => {
-    if (!productOn) return null;
-    const price = pPrice.trim() === '' ? undefined : Number(pPrice);
-    const commission = pCommission.trim() === '' ? undefined : Number(pCommission);
-    const actuals = pActuals.trim() === '' ? undefined : Number(pActuals);
-    const calibration = pCalibration.trim() === '' ? undefined : Number(pCalibration);
-    const p: AdProduct = {
-      target: pTarget,
-      name: pName.trim() || undefined,
-      price: Number.isFinite(price as number) ? price : undefined,
-      commission: Number.isFinite(commission as number) ? commission : undefined,
-      commission_is_percent: pCommissionPct,
-      actuals: Number.isFinite(actuals as number) ? actuals : undefined,
-      calibration: Number.isFinite(calibration as number) ? calibration : undefined,
-      pics: pics?.length ? pics : undefined,
-    };
-    // A product section with no fields is "off" (a pure ad).
-    if (!p.name && p.price === undefined && p.commission === undefined && p.actuals === undefined && p.calibration === undefined && !p.pics?.length) return null;
-    return p;
+  // The product picker (D89) — the ad references a product (the master) by
+  // `product_id`. Selecting a product auto-fills the offer's `link` / `partner`
+  // / `kind` (the denormalized snapshot — the product is the single source of
+  // truth for the link). `productId` = '' means a pure ad (no product).
+  const [productId, setProductId] = useState<string>(initial?.product_id || '');
+  const selectedProduct = useMemo(
+    () => products.find((p) => p.doc.doc_id === productId) || null,
+    [products, productId],
+  );
+  // Selecting a product copies its link / partner / kind into the offer (the
+  // snapshot). The CTA + disclosure stay ad-level (the user edits them).
+  const selectProduct = (id: string) => {
+    setProductId(id);
+    const p = products.find((x) => x.doc.doc_id === id);
+    if (p) {
+      if (p.product.link) setLink(p.product.link);
+      if (p.product.partner !== undefined) setPartner(p.product.partner);
+      if (p.product.kind) setKind(p.product.kind);
+    }
   };
-
-  // The live projection (focus #3): "100k impressions ~ $X" — updates as the
-  // operator types the price + commission. The self-calibration (focus #4)
-  // overrides the assumed conversion when set.
-  const liveProjection = formatProjection(projectEarnings(100_000, buildProduct() || undefined, DEFAULT_RATES));
 
   // The ad's creative media — one item (image or video). `file` = a newly
   // picked file (uploaded on submit); `existingDocId` = the current media kept
@@ -715,34 +822,9 @@ function AdForm({ initial, albums, allowNode = false, onSubmit, onCancel }: {
     return () => { live = false; };
   }, [initial]);
 
-  // Edit mode: resolve the existing product pic to a preview URL.
-  useEffect(() => {
-    let live = true;
-    const picDocId = initial?.product?.pics?.[0];
-    if (picDocId) {
-      setProductPic({ existingDocId: picDocId });
-      resolveMediaRefs([picDocId])
-        .then((m) => {
-          if (!live) return;
-          const rec = m[0];
-          setProductPic((prev) =>
-            prev && prev.existingDocId === picDocId
-              ? { ...prev, previewUrl: rec?.thumbnail_url || rec?.url }
-              : prev,
-          );
-        })
-        .catch(() => {});
-    }
-    return () => { live = false; };
-  }, [initial]);
-
   const pickMedia = (file: File) => {
     const isVideo = file.type.startsWith('video/');
     setMedia({ file, previewUrl: URL.createObjectURL(file), isVideo });
-  };
-
-  const pickProductPic = (file: File) => {
-    setProductPic({ file, previewUrl: URL.createObjectURL(file) });
   };
 
   const submit = async () => {
@@ -756,17 +838,12 @@ function AdForm({ initial, albums, allowNode = false, onSubmit, onCancel }: {
       } else if (media?.existingDocId) {
         mediaRefs = [media.existingDocId];
       }
-      // The product photo (the "base" layer) — uploaded on submit, like the
-      // creative media. Kept by doc_id in edit mode unless replaced.
-      let productPics: string[] = [];
-      if (productPic?.file) {
-        const record = await uploadAdMedia(productPic.file);
-        if (record._id) productPics = [record._id];
-      } else if (productPic?.existingDocId) {
-        productPics = [productPic.existingDocId];
-      }
       const offer: AdOffer = { kind, partner: partner.trim(), link: link.trim(), cta: cta.trim(), disclosure: disclosure.trim() };
-      onSubmit(offer, text.trim() || 'Untitled ad', status, albumIds, mediaRefs, format, editing ? 'personal' : scope, buildProduct(productPics));
+      // D89: when a product is selected, the ad references it by `product_id`
+      // (the master) + the offer snapshot (link + partner + kind). When no
+      // product is selected, the ad is a pure ad (no product_id). The product
+      // attributes (price, commission, pics) live on the product, not the ad.
+      onSubmit(offer, text.trim() || 'Untitled ad', status, albumIds, mediaRefs, format, editing ? 'personal' : scope, null, productId || undefined);
       onCancel();
     } catch (e) {
       toast.error(errorMessage(e, 'Failed to upload media'));
@@ -897,138 +974,40 @@ function AdForm({ initial, albums, allowNode = false, onSubmit, onCancel }: {
           )}
         </div>
 
-        {/* The product section (ads-october focus #2) — the ad is the superset:
-            the creative PLUS the product attributes when it's a product. Off =
-            a pure ad (no product). The live projection (focus #3) shows as the
-            operator types the price + commission. */}
-        <div className="rounded-md border border-border bg-background/40 p-3" data-testid="ad-product-section">
-          <div className="flex items-center justify-between">
-            <div>
-              <Label className="text-xs">Product</Label>
-              <p className="mt-0.5 text-[0.6875rem] text-muted-foreground">
-                What this ad sells — price + commission. Leave off for a pure ad.
-              </p>
-            </div>
-            <button
-              type="button"
-              role="switch"
-              aria-checked={productOn}
-              onClick={() => setProductOn((v) => !v)}
-              className={cn(
-                'relative h-6 w-11 flex-shrink-0 rounded-full border transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
-                productOn ? 'border-brand bg-brand-muted' : 'border-border bg-elevated',
-              )}
-              data-testid="ad-product-toggle"
+        {/* The product picker (D89) — the ad references a product (the master)
+            by product_id. Selecting a product auto-fills the offer's link /
+            partner / kind (the denormalized snapshot — the product is the single
+            source of truth for the link). "No product" = a pure ad. The product
+            attributes (price, commission, pics) live on the product, not the ad. */}
+        <div className="rounded-md border border-border bg-background/40 p-3" data-testid="ad-product-picker">
+          <div className="grid gap-1.5">
+            <Label htmlFor="ad-product-picker-select">Product</Label>
+            <p className="text-[0.6875rem] text-muted-foreground">
+              What this ad sells. Pick a product to auto-fill the link + partner — or leave it off for a pure ad.
+            </p>
+            <select
+              id="ad-product-picker-select"
+              value={productId}
+              onChange={(e) => selectProduct(e.target.value)}
+              className="h-9 w-full rounded-md border border-input bg-elevated px-3 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-ring"
+              data-testid="ad-product-picker-select"
             >
-              <span
-                aria-hidden="true"
-                className={cn(
-                  'absolute top-0.5 rounded-full bg-foreground transition-all',
-                  productOn ? 'left-[calc(100%-1.25rem)]' : 'left-0.5',
-                )}
-                style={{ height: '1.125rem', width: '1.125rem' }}
-              />
-            </button>
+              <option value="">No product (pure ad)</option>
+              {products.map((p) => (
+                <option key={p.doc.doc_id} value={p.doc.doc_id}>{p.product.name || 'Untitled product'}</option>
+              ))}
+            </select>
           </div>
-
-          {productOn && (
-            <div className="mt-3 grid gap-3">
-              <div className="grid grid-cols-2 gap-3">
-                <div className="grid gap-1.5">
-                  <Label htmlFor="ad-product-target">Advertises</Label>
-                  <select
-                    id="ad-product-target"
-                    value={pTarget}
-                    onChange={(e) => setPTarget(e.target.value as AdProduct['target'])}
-                    className="h-9 w-full rounded-md border border-input bg-elevated px-3 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-ring"
-                    data-testid="ad-product-target"
-                  >
-                    <option value="product">a product</option>
-                    <option value="collection">a collection</option>
-                    <option value="storefront">my storefront</option>
-                    <option value="none">nothing (pure ad)</option>
-                  </select>
-                </div>
-                <div className="grid gap-1.5">
-                  <Label htmlFor="ad-product-name">Product name</Label>
-                  <Input id="ad-product-name" placeholder="e.g. The good coffee grinder" value={pName} onChange={(e) => setPName(e.target.value)} data-testid="ad-product-name" />
-                </div>
-              </div>
-
-              {/* The product photo (the "base" layer — the product's own photo,
-                  separate from the creative media). v1: one pic (the storefront
-                  tile's image). The creative media stays the "overlay." */}
-              <div className="grid gap-1.5">
-                <Label>Product photo</Label>
-                <input
-                  ref={productPicInputRef}
-                  type="file"
-                  accept="image/*"
-                  className="hidden"
-                  onChange={(e) => { const f = e.target.files?.[0]; if (f) pickProductPic(f); e.target.value = ''; }}
-                  data-testid="ad-product-pic-input"
-                />
-                {productPic ? (
-                  <div className="relative overflow-hidden rounded-md border border-border" data-testid="ad-product-pic-preview">
-                    <img src={productPic.previewUrl} alt="" className="max-h-40 w-full object-cover bg-elevated" />
-                    <div className="absolute right-2 top-2 flex gap-1">
-                      <Button variant="ghost" size="sm" className="h-7 w-7 p-0 bg-background/70" onClick={() => productPicInputRef.current?.click()} aria-label="Replace product photo" data-testid="ad-product-pic-replace">
-                        <ImagePlus className="h-3.5 w-3.5" />
-                      </Button>
-                      <Button variant="ghost" size="sm" className="h-7 w-7 p-0 bg-background/70 hover:text-danger" onClick={() => setProductPic(null)} aria-label="Remove product photo" data-testid="ad-product-pic-remove">
-                        <X className="h-3.5 w-3.5" />
-                      </Button>
-                    </div>
-                  </div>
-                ) : (
-                  <Button variant="outline" size="sm" onClick={() => productPicInputRef.current?.click()} data-testid="ad-product-pic-add">
-                    <ImagePlus className="mr-1 h-3.5 w-3.5" /> Add product photo
-                  </Button>
-                )}
-              </div>
-
-              <div className="grid grid-cols-2 gap-3">
-                <div className="grid gap-1.5">
-                  <Label htmlFor="ad-product-price">Item price ($)</Label>
-                  <Input id="ad-product-price" type="number" min="0" step="0.01" placeholder="30" value={pPrice} onChange={(e) => setPPrice(e.target.value)} data-testid="ad-product-price" />
-                </div>
-                <div className="grid gap-1.5">
-                  <Label htmlFor="ad-product-commission">Commission</Label>
-                  <div className="flex gap-1.5">
-                    <Input id="ad-product-commission" type="number" min="0" step="0.01" placeholder="10" value={pCommission} onChange={(e) => setPCommission(e.target.value)} data-testid="ad-product-commission" />
-                    <button
-                      type="button"
-                      onClick={() => setPCommissionPct((v) => !v)}
-                      className={cn(
-                        'flex-shrink-0 rounded-md border px-2.5 text-xs transition-colors',
-                        pCommissionPct ? 'border-brand bg-brand-muted text-brand-300' : 'border-border text-muted-foreground hover:border-brand/50',
-                      )}
-                      data-testid="ad-product-commission-unit"
-                    >
-                      {pCommissionPct ? '%' : '$'}
-                    </button>
-                  </div>
-                </div>
-              </div>
-
-              <div className="grid grid-cols-2 gap-3">
-                <div className="grid gap-1.5">
-                  <Label htmlFor="ad-product-actuals">Actuals ($ made)</Label>
-                  <Input id="ad-product-actuals" type="number" min="0" step="0.01" placeholder="22" value={pActuals} onChange={(e) => setPActuals(e.target.value)} data-testid="ad-product-actuals" />
-                </div>
-                <div className="grid gap-1.5">
-                  <Label htmlFor="ad-product-calibration">My click→sale %</Label>
-                  <Input id="ad-product-calibration" type="number" min="0" max="100" step="0.1" placeholder="1" value={pCalibration} onChange={(e) => setPCalibration(e.target.value)} data-testid="ad-product-calibration" />
-                </div>
-              </div>
-
-              {/* The little projection (focus #3) — a static "100k impressions ~
-                  $X" line using assumed rates (the self-calibration overrides
-                  the conversion when set). */}
-              <div className="flex items-center justify-between rounded-md bg-elevated/60 px-3 py-2" data-testid="ad-projection-line">
-                <span className="text-[0.6875rem] text-muted-foreground">100k impressions ~</span>
-                <span className="font-display text-sm font-medium tabular-nums text-foreground">{liveProjection} <span className="text-[0.6875rem] font-normal text-muted-foreground">approx.</span></span>
-              </div>
+          {selectedProduct && (
+            <div className="mt-2 flex items-center justify-between rounded-md bg-elevated/60 px-3 py-2" data-testid="ad-product-summary">
+              <span className="truncate text-[0.6875rem] text-muted-foreground">
+                {selectedProduct.product.name || 'Untitled product'}
+                {selectedProduct.product.price !== undefined && ` · $${selectedProduct.product.price}`}
+                {selectedProduct.product.commission !== undefined && ` · ${selectedProduct.product.commission_is_percent !== false ? `${selectedProduct.product.commission}%` : `$${selectedProduct.product.commission}`}`}
+              </span>
+              <span className="font-display text-sm font-medium tabular-nums text-foreground">
+                {formatProjection(projectEarnings(100_000, selectedProduct.product, DEFAULT_RATES))} <span className="text-[0.6875rem] font-normal text-muted-foreground">/ 100k</span>
+              </span>
             </div>
           )}
         </div>
@@ -1079,7 +1058,9 @@ function AdForm({ initial, albums, allowNode = false, onSubmit, onCancel }: {
           </div>
         </div>
 
-        {albums.length > 0 && (
+        {/* Albums (regular ads only) — a node ad is the operator's inventory,
+            not a creator's catalog, so it has no albums. */}
+        {!isNode && albums.length > 0 && (
           <div className="grid gap-1.5">
             <Label>Albums</Label>
             <div className="flex flex-wrap gap-2">
@@ -1114,8 +1095,10 @@ function AdForm({ initial, albums, allowNode = false, onSubmit, onCancel }: {
   );
 }
 
-/** Upload an ad's creative media (image or video) → a MediaRecord. */
-async function uploadAdMedia(file: File): Promise<MediaRecord> {
+/** Upload an ad's creative media (image or video) → a MediaRecord. Exported
+ *  so the product maker (ProductsSection) reuses the same pipeline for the
+ *  product pics (the "base" layer). */
+export async function uploadAdMedia(file: File): Promise<MediaRecord> {
   if (file.type.startsWith('video/')) {
     const info = await getVideoInfo(file);
     const poster = await captureVideoPoster(file);

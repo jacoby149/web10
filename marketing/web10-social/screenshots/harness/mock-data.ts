@@ -19,6 +19,12 @@ export function conversationKey(
 
 const minsAgo = (n: number) => new Date(Date.now() - n * 60_000).toISOString();
 
+// ── views (D86 content-analytics) — no-op stubs for the harness ──────────────
+// The barrel re-exports `./views`; the harness has no backend, so the dwell /
+// viewport signals are no-ops. (readViewCounts / readViewCount live below.)
+export function trackPostViewport(): void {}
+export function trackVideoViewport(): void {}
+
 interface Peer {
   username: string;
   provider: string;
@@ -1669,3 +1675,7 @@ const PROFILE_POSTS = [
     tags: ['studio'],
   },
 ];
+
+// ── views (D86) — no-op stubs for the screenshot harness ────────────────────
+export function trackPostViewport() {}
+export function trackVideoViewport() {}
