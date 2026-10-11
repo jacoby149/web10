@@ -272,6 +272,9 @@ describe('Profile lightbox — Instagram-style post navigation (the side arrows 
 
     // One post → no post-nav arrows; two frames → the in-pane carousel arrows.
     expect(screen.queryByTestId('post-lightbox-next-post')).not.toBeInTheDocument();
+    // Frame 1 of 2: the prev arrow is HIDDEN (no frame before it — an
+    // impossible action), the next arrow is shown.
+    expect(screen.queryByTestId('post-lightbox-prev')).not.toBeInTheDocument();
     expect(screen.getByTestId('post-lightbox-next')).toBeInTheDocument();
 
     // The in-pane next pages to frame 2 of the SAME post.
@@ -279,14 +282,20 @@ describe('Profile lightbox — Instagram-style post navigation (the side arrows 
     await waitFor(() => {
       expect(screen.getByText('2 / 2')).toBeInTheDocument();
     });
+    // Frame 2 of 2: the next arrow is HIDDEN (no frame after it), the prev
+    // arrow is now shown (frame 2 has a frame before it).
+    expect(screen.queryByTestId('post-lightbox-next')).not.toBeInTheDocument();
+    expect(screen.getByTestId('post-lightbox-prev')).toBeInTheDocument();
   });
 
-  it('a multi-frame post on a multi-post profile shows ONLY the post-nav arrows (no double chevrons)', async () => {
-    // The regression: a post with 2 frames opened from a profile with 2 posts
-    // used to render BOTH the in-pane media arrows AND the backdrop post-nav
-    // arrows — two chevrons per side at different heights. Post nav owns the
-    // side arrows, so the in-pane media arrows must be suppressed (the frame
-    // counter stays).
+  it('a multi-frame post on a multi-post profile shows BOTH the in-pane media arrows AND the post-nav arrows (frames vs posts)', async () => {
+    // A post with 2 frames opened from a profile with 2 posts. The in-pane
+    // media arrows (at the media pane's edges) page the post's own frames;
+    // the backdrop post-nav arrows (at the viewport's edges) step through
+    // the profile's posts. Both render at the same size (p-2, h-6 w-6) —
+    // they serve different purposes and sit at different positions. (The
+    // old behavior suppressed the in-pane arrows here, leaving the user
+    // stuck on frame 1 with no way to advance frames on desktop.)
     const { readMyPosts, resolveMediaRefs } = await import('@/data');
     vi.mocked(readMyPosts).mockResolvedValue([
       {
@@ -316,14 +325,86 @@ describe('Profile lightbox — Instagram-style post navigation (the side arrows 
       expect(screen.getByTestId('post-lightbox')).toBeInTheDocument();
     });
 
-    // Two posts → post-nav arrows present (they own the side arrows).
+    // Two posts → post-nav arrows present (they step through the profile's posts).
     expect(screen.getByTestId('post-lightbox-prev-post')).toBeInTheDocument();
     expect(screen.getByTestId('post-lightbox-next-post')).toBeInTheDocument();
-    // Two frames, but post nav is active → the in-pane media arrows are GONE
-    // (no double chevrons). The frame counter still shows.
+    // Frame 1 of 2 → the in-pane prev arrow is HIDDEN (no frame before it),
+    // the in-pane next arrow is shown. Both arrow sets coexist.
     expect(screen.queryByTestId('post-lightbox-prev')).not.toBeInTheDocument();
-    expect(screen.queryByTestId('post-lightbox-next')).not.toBeInTheDocument();
+    expect(screen.getByTestId('post-lightbox-next')).toBeInTheDocument();
     expect(screen.getByText('1 / 2')).toBeInTheDocument();
+
+    // The in-pane next pages to frame 2 of the SAME post (not the next post).
+    fireEvent.click(screen.getByTestId('post-lightbox-next'));
+    await waitFor(() => {
+      expect(screen.getByText('2 / 2')).toBeInTheDocument();
+    });
+    // Frame 2 of 2 → the in-pane next arrow is HIDDEN (no frame after it),
+    // the in-pane prev arrow is now shown.
+    expect(screen.queryByTestId('post-lightbox-next')).not.toBeInTheDocument();
+    expect(screen.getByTestId('post-lightbox-prev')).toBeInTheDocument();
+    // Still on the first post (the text is unchanged).
+    expect(within(screen.getByTestId('post-lightbox')).getByText('multi frame post')).toBeInTheDocument();
+
+    // The backdrop next-post steps to the NEXT post (the frame resets to 1).
+    fireEvent.click(screen.getByTestId('post-lightbox-next-post'));
+    await waitFor(() => {
+      expect(within(screen.getByTestId('post-lightbox')).getByText('another post')).toBeInTheDocument();
+    });
+  });
+
+  it('the keyboard pages frames first, then hands off to the next post when the carousel is exhausted', async () => {
+    // A multi-frame post on a multi-post profile. ArrowRight pages the post's
+    // own frames first; only on the LAST frame does it hand off to the next
+    // post. ArrowLeft mirrors: on the FIRST frame it goes to the prev post.
+    const { readMyPosts, resolveMediaRefs } = await import('@/data');
+    vi.mocked(readMyPosts).mockResolvedValue([
+      {
+        _id: 'pn-multi',
+        text: 'multi frame post',
+        media_refs: [{ doc_id: 'm-1' }, { doc_id: 'm-2' }],
+        created_at: new Date().toISOString(),
+      },
+      { _id: 'pn-other', text: 'another post', created_at: new Date().toISOString() },
+    ]);
+    vi.mocked(resolveMediaRefs).mockResolvedValue([
+      { _id: 'm-1', url: 'http://test.com/1.png', mime_type: 'image/png', created_at: new Date().toISOString() },
+      { _id: 'm-2', url: 'http://test.com/2.png', mime_type: 'image/png', created_at: new Date().toISOString() },
+    ]);
+    const { default: UserProfileScreen } = await import('@/components/Bio/UserProfileScreen');
+    render(
+      <MemoryRouter initialEntries={['/u/testuser']}>
+        <UserProfileScreen username="testuser" provider="test.localhost" />
+      </MemoryRouter>,
+    );
+
+    await waitFor(() => {
+      expect(screen.getAllByTestId('profile-post-cell').length).toBe(2);
+    });
+    fireEvent.click(screen.getAllByTestId('profile-post-cell')[0]);
+    await waitFor(() => {
+      expect(screen.getByTestId('post-lightbox')).toBeInTheDocument();
+    });
+    expect(screen.getByText('1 / 2')).toBeInTheDocument();
+
+    // ArrowRight on frame 1 → frame 2 (still the same post).
+    fireEvent.keyDown(window, { key: 'ArrowRight' });
+    await waitFor(() => {
+      expect(screen.getByText('2 / 2')).toBeInTheDocument();
+    });
+    expect(within(screen.getByTestId('post-lightbox')).getByText('multi frame post')).toBeInTheDocument();
+
+    // ArrowRight on the LAST frame → hands off to the next post.
+    fireEvent.keyDown(window, { key: 'ArrowRight' });
+    await waitFor(() => {
+      expect(within(screen.getByTestId('post-lightbox')).getByText('another post')).toBeInTheDocument();
+    });
+
+    // ArrowLeft on the (single-frame) next post → back to the prev post.
+    fireEvent.keyDown(window, { key: 'ArrowLeft' });
+    await waitFor(() => {
+      expect(within(screen.getByTestId('post-lightbox')).getByText('multi frame post')).toBeInTheDocument();
+    });
   });
 
   it('the media pane is a swipeable scroll-snap strip — swiping (scrolling the strip) pages the carousel', async () => {
