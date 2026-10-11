@@ -1,6 +1,6 @@
 import { useState, useCallback, useRef, useEffect } from 'react'
 import { Link, useLocation } from 'react-router-dom'
-import { Bug, Menu, X, Search, Link as LinkIcon, ChevronDown } from 'lucide-react'
+import { Menu, X, Search, Link as LinkIcon, ChevronDown } from 'lucide-react'
 import { Button } from './ui/button'
 import GitHubStarButton from './GitHubStarButton'
 import { trackFunnel } from '../lib/analytics'
@@ -29,7 +29,7 @@ const learnItems = [
   { path: '/docs', label: 'Docs' },
 ]
 
-function Navbar({ onReportBug }: { onReportBug: () => void }) {
+function Navbar() {
   const location = useLocation()
   const [mobileOpen, setMobileOpen] = useState(false)
   const [learnOpen, setLearnOpen] = useState(false)
@@ -148,10 +148,6 @@ function Navbar({ onReportBug }: { onReportBug: () => void }) {
           >
             <Search className="h-4 w-4" strokeWidth={1.75} />
           </Link>
-          <Button variant="outline" size="sm" onClick={onReportBug}>
-            <Bug className="h-4 w-4" strokeWidth={1.75} />
-            Report bug
-          </Button>
           <Button variant="brand" size="sm" onClick={() => { trackFunnel('sign_in_click'); window.location.href = SOCIAL_ORIGIN }}>
             Sign In
           </Button>
@@ -209,15 +205,6 @@ function Navbar({ onReportBug }: { onReportBug: () => void }) {
             ))}
           </div>
           <div className="mt-2 flex flex-col gap-2">
-            <Button
-              variant="outline"
-              size="sm"
-              className="w-full justify-center"
-              onClick={() => { setMobileOpen(false); onReportBug() }}
-            >
-              <Bug className="h-4 w-4" strokeWidth={1.75} />
-              Report bug
-            </Button>
             <Button variant="brand" size="sm" className="w-full justify-center" onClick={() => { setMobileOpen(false); trackFunnel('sign_in_click'); window.location.href = SOCIAL_ORIGIN }}>
               Sign In
             </Button>
