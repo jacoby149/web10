@@ -38,8 +38,8 @@ and documentation; each workspace writes its own extraction evidence report.
 Read the detailed dependency table before implementation or release. Reference
 PRs must not be mutated by extraction agents. No implementation is complete yet.
 
-- [✓ 3.227.2] **Planning** — eight copy/paste kickoffs and no-silent-omission coverage contract drafted and reviewed.
-- [✓ 3.227.3] **Research checkpoint instructions** — mandatory actual-source reading and per-slice evidence receipts added to every kickoff; implementation remains open.
+- [✓ 3.229.1] **Planning** — eight copy/paste kickoffs and no-silent-omission coverage contract drafted and reviewed.
+- [✓ 3.229.2] **Research checkpoint instructions** — mandatory actual-source reading and per-slice evidence receipts added to every kickoff; implementation remains open.
 - [ ] **S1: Exposure and operations** — kickoff S1; independently safe hygiene slices, provisioning and auth-context handoffs gated.
 - [ ] **S2: Unified popup lifecycle** — kickoff S2; app-only acceptance depends on S3; serializes generated artifacts.
 - [ ] **S3: Issuer, delegation and coordinated consumer rollout** — kickoff S3; bounded PRs with coherent release cohort, not a mega-PR.
