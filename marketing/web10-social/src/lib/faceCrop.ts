@@ -99,13 +99,54 @@ export function faceCropRect(
 }
 
 /**
+ * Decode an already-fetched image blob to a drawable source + its natural
+ * dims. `createImageBitmap` is the fast path, but it is STRICTER than `<img>`
+ * and can fail with `InvalidStateError: The source image could not be decoded`
+ * on some images (certain tiny / edge-case PNGs) that the `<img>` preview
+ * decodes fine — which would leave the crop preview showing an image the
+ * confirm button can't actually crop. Fall back to an `<img>` loaded from an
+ * object URL: same-origin, so the canvas stays untainted (the same guarantee
+ * the blob fetch gives us, for the presigned-URL pick path too).
+ */
+async function decodeSource(
+  blob: Blob,
+): Promise<{ source: CanvasImageSource; width: number; height: number; cleanup: () => void }> {
+  try {
+    const bitmap = await createImageBitmap(blob);
+    return { source: bitmap, width: bitmap.width, height: bitmap.height, cleanup: () => bitmap.close() };
+  } catch {
+    // The <img> decode path — what the preview uses. An object URL is
+    // same-origin, so drawing it to a canvas never taints it.
+    const objUrl = URL.createObjectURL(blob);
+    try {
+      const img = await new Promise<HTMLImageElement>((resolve, reject) => {
+        const el = new Image();
+        el.onload = () => resolve(el);
+        el.onerror = () => reject(new Error('Failed to decode image'));
+        el.src = objUrl;
+      });
+      return {
+        source: img,
+        width: img.naturalWidth,
+        height: img.naturalHeight,
+        cleanup: () => URL.revokeObjectURL(objUrl),
+      };
+    } catch (e) {
+      URL.revokeObjectURL(objUrl);
+      throw e;
+    }
+  }
+}
+
+/**
  * Crop the image to the visible window and encode it. Output is the crop at
  * source resolution (never upscaled), longest edge capped at 2048 (the
  * mediaProcessing MAX_EDGE — a face is displayed at ≤ 768px wide).
  *
  * The image is fetched as a blob (not an <img>) so the canvas stays
  * untainted regardless of the presigned URL's CORS posture — the same
- * createImageBitmap + canvas + toBlob idiom as mediaProcessing.ts.
+ * createImageBitmap + canvas + toBlob idiom as mediaProcessing.ts (with the
+ * `<img>` decode fallback for the images createImageBitmap can't handle).
  */
 export async function cropFaceImage(
   url: string,
@@ -116,9 +157,9 @@ export async function cropFaceImage(
 ): Promise<{ blob: Blob; width: number; height: number; mimeType: string }> {
   const res = await fetch(url);
   if (!res.ok) throw new Error(`Failed to load image: ${res.status}`);
-  const bitmap = await createImageBitmap(await res.blob());
+  const { source, width, height, cleanup } = await decodeSource(await res.blob());
   try {
-    const rect = faceCropRect(state, bitmap.width, bitmap.height, frameW, frameH);
+    const rect = faceCropRect(state, width, height, frameW, frameH);
     let outW = Math.round(rect.sw);
     let outH = Math.round(rect.sh);
     if (out.size) {
@@ -144,13 +185,13 @@ export async function cropFaceImage(
     canvas.height = Math.max(1, outH);
     const ctx = canvas.getContext('2d');
     if (!ctx) throw new Error('Canvas 2D context unavailable');
-    ctx.drawImage(bitmap, rect.sx, rect.sy, rect.sw, rect.sh, 0, 0, canvas.width, canvas.height);
+    ctx.drawImage(source, rect.sx, rect.sy, rect.sw, rect.sh, 0, 0, canvas.width, canvas.height);
     const mimeType = 'image/jpeg';
     const blob = await new Promise<Blob>((resolve, reject) => {
       canvas.toBlob((b) => (b ? resolve(b) : reject(new Error('Image crop failed'))), mimeType, 0.9);
     });
     return { blob, width: canvas.width, height: canvas.height, mimeType };
   } finally {
-    bitmap.close();
+    cleanup();
   }
 }

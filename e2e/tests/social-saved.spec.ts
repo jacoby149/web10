@@ -417,9 +417,12 @@ test.describe('Saved collections gauntlet — real flow through the app contract
     const card = page.locator('[data-testid="post-card"]', { hasText: postText }).first();
     await expect(card).toBeVisible({ timeout: 15000 });
 
-    // Open the post's kebab → "Save to…".
-    await card.locator('[data-testid="post-options-button"]').click();
-    await page.locator('[data-testid="post-option-save"]').click();
+    // Open the save sheet. The e2e runs at a DESKTOP viewport (Desktop Chrome,
+    // 1280px), where the Save control is the engagement-row button
+    // (`post-action-save`) — the kebab's "Save to…" (`post-option-save`) is
+    // mobile-only (the row is too narrow on a phone, so it moves into the
+    // kebab). Drive the desktop control.
+    await card.locator('[data-testid="post-action-save"]').click();
     await expect(page.locator('[data-testid="save-sheet"]')).toBeVisible({ timeout: 15000 });
 
     // New collection → name → Create (createCollection + savePostToCollection,

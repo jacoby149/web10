@@ -67,3 +67,71 @@ export async function readViewCount(postId: string, groups?: string[]): Promise<
   const counts = await readViewCounts([postId], groups);
   return counts[postId] ?? EMPTY_VIEWS;
 }
+
+// ── Viewport / dwell signals (D86 — the client-gated tier) ───────────────────
+// The delivery (above) is the server-side floor: the node counts a doc the
+// moment it serves it. The **viewport** tier is the client's "how long did the
+// reader actually look" — inherently client-side knowledge (the server has no
+// idea which of the 50 docs a reader stared at). The app fires it from its own
+// UI (an IntersectionObserver for a feed card, a video `timeupdate` for a
+// short); the node **gates** it on a preceding delivery (a reader cannot report
+// on a doc the node never served them) + dedupes per (doc, reader, surface,
+// type) per window. Fire-and-forget: a failure never blocks the surface.
+
+/**
+ * Report a `viewport` dwell signal for a post (D86). `dwellMs` is how long the
+ * post was in the reader's viewport; `visiblePct` the fraction of the
+ * observation window it was visible (0..1). Fire-and-forget — the node gates it
+ * on a preceding delivery + dedupes, so a no-op (within the window / never
+ * served) is fine.
+ */
+export function trackPostViewport(
+  postId: string,
+  surface: string,
+  dwellMs: number,
+  visiblePct?: number,
+): void {
+  if (!postId || dwellMs <= 0) return;
+  const w = getV3Client();
+  const payload: Record<string, unknown> = { dwell_ms: Math.round(dwellMs) };
+  if (visiblePct != null) payload.visible_pct = Math.round(visiblePct * 100) / 100;
+  const p = w.trackContentEvent(postId, {
+    service: 'posts',
+    surface,
+    type: 'viewport',
+    payload: JSON.stringify(payload),
+  });
+  if (p && typeof (p as Promise<unknown>).catch === 'function') {
+    (p as Promise<unknown>).catch((e) => {
+      console.warn('[social:views] trackPostViewport failed (non-fatal):', e);
+    });
+  }
+}
+
+/**
+ * Report a `viewport` watch signal for a video post (D86). `watchedMs` is how
+ * much of the video the reader watched; `durationMs` the video's total length
+ * (so the dashboard can compute watch %). Fire-and-forget, same gate + dedupe.
+ */
+export function trackVideoViewport(
+  postId: string,
+  surface: string,
+  watchedMs: number,
+  durationMs?: number,
+): void {
+  if (!postId || watchedMs <= 0) return;
+  const w = getV3Client();
+  const payload: Record<string, unknown> = { watched_ms: Math.round(watchedMs) };
+  if (durationMs && durationMs > 0) payload.duration_ms = Math.round(durationMs);
+  const p = w.trackContentEvent(postId, {
+    service: 'posts',
+    surface,
+    type: 'viewport',
+    payload: JSON.stringify(payload),
+  });
+  if (p && typeof (p as Promise<unknown>).catch === 'function') {
+    (p as Promise<unknown>).catch((e) => {
+      console.warn('[social:views] trackVideoViewport failed (non-fatal):', e);
+    });
+  }
+}

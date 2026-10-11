@@ -1198,12 +1198,13 @@ export default function DiscoverScreen({ mode: modeOverride }: { mode?: Discover
                           onToggleRepost={() => handleRepost(post)}
                           onCommentCountChange={() => {}}
                           onAuthorClick={(username, provider) => navigateToUserProfile(username, provider)}
-                          isOwnPost={isOwnPost}
-                          onPostUpdated={() => loadDiscover(sortConfig)}
-                          testId="discover-card"
-                          id={isHighlighted ? 'hot-gossip-highlight' : undefined}
-                          className={isHighlighted ? 'ring-2 ring-brand border-brand shadow-[0_0_24px_-4px_var(--color-glow-intense)]' : undefined}
-                        />
+                           isOwnPost={isOwnPost}
+                           onPostUpdated={() => loadDiscover(sortConfig)}
+                           testId="discover-card"
+                           id={isHighlighted ? 'hot-gossip-highlight' : undefined}
+                           className={isHighlighted ? 'ring-2 ring-brand border-brand shadow-[0_0_24px_-4px_var(--color-glow-intense)]' : undefined}
+                           surface="discover"
+                         />
                       );
 
                       if (!attached.length) return [card];

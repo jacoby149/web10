@@ -3,7 +3,7 @@ import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import { Heart, MessageCircle, Share2, X, Volume2, VolumeX, ChevronLeft, Search, BarChart3, Users } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { getWapi } from '@/data/wapi';
-import { readShortsFeed, toggleReactionKind, getV3Client, getDiscoverGroupId, extractUsername, readViewCounts, type ShortPost } from '@/data';
+import { readShortsFeed, toggleReactionKind, getV3Client, getDiscoverGroupId, extractUsername, readViewCounts, trackVideoViewport, type ShortPost } from '@/data';
 import { VideoPlayer, sourceFromMedia } from '@/components/Feed/VideoPlayer';
 import { CommentThread } from '@/components/Feed/CommentThread';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
@@ -277,6 +277,48 @@ function ShortsLens({ postId }: { postId: string }) {
     });
   }, [activeIndex, visibleShorts]);
 
+  // D86 viewport tier (watched_ms): how far the reader got through the ACTIVE
+  // short. The video's `timeupdate` accumulates the max position (the loop
+  // resets currentTime to 0, so max = furthest watched); when the reader swipes
+  // away (or leaves the lens) we report it once, gated on the delivery the
+  // shorts board read already logged (surface: 'shorts'). A sub-500ms flash
+  // (a scroll-past) is dropped.
+  const watchedMsRef = useRef<Record<string, number>>({});
+  const activeWatchIdRef = useRef<string | null>(null);
+  const shortsRef = useRef(visibleShorts);
+  shortsRef.current = visibleShorts;
+  const reportWatch = useCallback((id: string) => {
+    const ms = watchedMsRef.current[id];
+    if (!ms || ms < 500) return;
+    const short = shortsRef.current.find((s) => s.post._id === id);
+    const durationMs = short?.media.duration_seconds ? short.media.duration_seconds * 1000 : undefined;
+    trackVideoViewport(id, 'shorts', ms, durationMs);
+  }, []);
+  // Flush the previous short when the active slide changes (swipe away).
+  useEffect(() => {
+    const active = visibleShorts[activeIndex];
+    const prev = activeWatchIdRef.current;
+    if (prev && prev !== active?.post._id) reportWatch(prev);
+    activeWatchIdRef.current = active?.post._id ?? null;
+  }, [activeIndex, visibleShorts, reportWatch]);
+  // Flush the active short on unmount (leaving the lens).
+  useEffect(() => {
+    return () => {
+      if (activeWatchIdRef.current) reportWatch(activeWatchIdRef.current);
+    };
+  }, [reportWatch]);
+  // The stable timeupdate seam: accumulate the max position for the active
+  // short. The ref keeps the latest callback so the player's listener (attached
+  // once) always calls the current one without re-attaching on every render.
+  const timeUpdateRef = useRef<(t: number) => void>(() => {});
+  timeUpdateRef.current = (t: number) => {
+    const id = activeWatchIdRef.current;
+    if (!id) return;
+    const ms = Math.round(t * 1000);
+    if (ms > (watchedMsRef.current[id] ?? 0)) watchedMsRef.current[id] = ms;
+  };
+  const handleShortTimeUpdate = useCallback((t: number) => timeUpdateRef.current(t), []);
+
   // The swipe, keyboard edition: ArrowUp/ArrowDown + PageUp/PageDown scroll
   // one slide (the desktop equivalent of the swipe). The container is the
   // only scroller on the screen, so a keypress always lands on a neighbor.
@@ -467,6 +509,7 @@ function ShortsLens({ postId }: { postId: string }) {
               testId={`short-video-${i}`}
               className="absolute inset-0 w-full h-full"
               showDuration={false}
+              onTimeUpdate={i === activeIndex ? handleShortTimeUpdate : undefined}
             />
 
             {/* Bottom gradient overlay */}

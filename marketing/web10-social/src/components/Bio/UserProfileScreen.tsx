@@ -374,7 +374,7 @@ export default function UserProfileScreen({ username, provider, onBack }: UserPr
             console.error('[social] loadData — readProfile failed:', e);
             return null;
           }),
-          readMyPosts().catch((e) => {
+          readMyPosts({ surface: 'profile' }).catch((e) => {
             console.error('[social] loadData — readMyPosts failed:', e);
             return [];
           }),
@@ -421,7 +421,7 @@ export default function UserProfileScreen({ username, provider, onBack }: UserPr
         const [p, fr, pub] = await Promise.all([
           readUserProfile(username).catch(() => null),
           readFollow(username).catch(() => null),
-          readUserPublicProfile(username, provider).catch((e) => {
+          readUserPublicProfile(username, provider, 50, 'profile').catch((e) => {
             console.error('[social] loadData — readUserPublicProfile failed:', e);
             return { posts: [] as PostRecord[], avatarUrl: undefined, bannerUrl: undefined };
           }),
