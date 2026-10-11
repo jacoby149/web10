@@ -1,13 +1,27 @@
 # NEED — a "product" entity (the thing an ad is *about*)
 
-**Status: BRAINSTORMING → REFINED.** Filed from the operator's ad-experience
+**Status: REFINED → REVERSED (D89, 11.10.2026).** Filed from the operator's ad-experience
 pass (05.10.2026). The operator's own framing: *"this is all brainstorming, i
 think it is productive, to bring up a lot of needs, even if we dont address
 them all."* This is the most speculative of the needs — a data-model idea, not
 a surface gap. **The operator refined the model on 05.10.2026** (see "The
 operator's refinement: the ad is the superset" below) — the refinement
 supersedes the three options (A/B/C) that follow. The options are kept for the
-record; the refinement is the direction.
+record.
+
+**The reversal (D89, 11.10.2026):** the operator reversed the refinement —
+*"the affiliate link should be on the product, then you can make multiple
+different ads for the same product"* → *"that is probably for the best, a
+little more work, but worth it."* The **explicit product entity (Option C)**
+is now the model: the product is a first-class `posts` doc tagged `product`
+(the stable thing — the affiliate `link`, `partner`, `kind`, `name`, `price`,
+`commission`, `pics`, `actuals`, `calibration`), and the ad references it by
+`product_id` (the variable thing — the creative + `cta` + `disclosure`). The
+ad's `offer` carries a **denormalized snapshot** of the product's `link` +
+`partner` + `kind` (so the public feed's ad block renders the CTA without a
+node-side product attach — D60). The "ad is the superset" refinement below is
+**superseded**; the three options are kept for the record, and **Option C is
+the direction**.
 
 ## The operator's refinement (05.10.2026): the ad is the superset
 

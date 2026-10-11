@@ -269,7 +269,19 @@ describe('AdForm (create + edit, ad-improvements.md)', () => {
   });
 });
 
-describe('AdForm — the product section (ads-october focus #2)', () => {
+describe('AdForm — the product picker (D89)', () => {
+  const PRODUCT = {
+    doc: { doc_id: 'prod-1', tags: ['product'] },
+    product: {
+      name: 'The good coffee grinder',
+      price: 30,
+      commission: 10,
+      commission_is_percent: true,
+      link: 'https://amzn.to/grinder?tag=me',
+      partner: 'Amazon',
+      kind: 'affiliate',
+    },
+  };
   const AD_ITEM = {
     doc: { doc_id: 'ad-1', tags: ['ad'] },
     text: 'Everything I use, linked.',
@@ -278,81 +290,54 @@ describe('AdForm — the product section (ads-october focus #2)', () => {
     media_refs: undefined,
     format: 'inline' as const,
     albums: [] as string[],
+    product_id: 'prod-1',
   };
 
   beforeEach(() => {
     updateAd.mockResolvedValue({ doc_id: 'ad-1' });
   });
 
-  it('the product section is off by default (a pure ad) and toggles on', async () => {
+  it('the product picker is present with the products as options', async () => {
     checkNodeAdmin.mockResolvedValue(false);
-    readMyCatalog.mockResolvedValue({ ads: [], albums: [], posts: [] });
+    readMyCatalog.mockResolvedValue({ ads: [], products: [PRODUCT], albums: [], posts: [] });
     renderAt('/monetize');
     fireEvent.click(await screen.findByTestId('ads-new-ad'));
     await screen.findByTestId('ad-new-form');
-    const toggle = screen.getByTestId('ad-product-toggle');
-    expect(toggle).toHaveAttribute('aria-checked', 'false');
-    // The product fields are hidden when off.
-    expect(screen.queryByTestId('ad-product-price')).not.toBeInTheDocument();
-    fireEvent.click(toggle);
-    expect(toggle).toHaveAttribute('aria-checked', 'true');
-    expect(screen.getByTestId('ad-product-price')).toBeInTheDocument();
-    expect(screen.getByTestId('ad-product-commission')).toBeInTheDocument();
+    // The product picker is present with the "No product" default + the product.
+    const select = screen.getByTestId('ad-product-picker-select');
+    expect(select).toBeInTheDocument();
+    expect(select).toHaveValue('');
+    expect(screen.getByRole('option', { name: /The good coffee grinder/ })).toBeInTheDocument();
   });
 
-  it('the product section has a product-photo attach (the "base" layer)', async () => {
+  it('selecting a product auto-fills the offer link + partner + kind (the snapshot)', async () => {
     checkNodeAdmin.mockResolvedValue(false);
-    readMyCatalog.mockResolvedValue({ ads: [], albums: [], posts: [] });
+    readMyCatalog.mockResolvedValue({ ads: [], products: [PRODUCT], albums: [], posts: [] });
     renderAt('/monetize');
     fireEvent.click(await screen.findByTestId('ads-new-ad'));
     await screen.findByTestId('ad-new-form');
-    // Off by default → no product photo attach.
-    expect(screen.queryByTestId('ad-product-pic-add')).not.toBeInTheDocument();
-    // Toggle the product section on → the product-photo attach appears.
-    fireEvent.click(screen.getByTestId('ad-product-toggle'));
-    expect(screen.getByTestId('ad-product-pic-add')).toBeInTheDocument();
+    // Select the product → the offer's link + partner + kind are auto-filled.
+    fireEvent.change(screen.getByTestId('ad-product-picker-select'), { target: { value: 'prod-1' } });
+    expect(screen.getByTestId('ad-link')).toHaveValue('https://amzn.to/grinder?tag=me');
+    expect(screen.getByTestId('ad-partner')).toHaveValue('Amazon');
+    expect(screen.getByTestId('ad-kind')).toHaveValue('affiliate');
+    // The product summary (the projection) appears.
+    expect(screen.getByTestId('ad-product-summary')).toBeInTheDocument();
   });
 
-  it('the live projection updates as the operator types the price + commission', async () => {
+  it('saving an ad with a product passes the product_id to updateAd', async () => {
     checkNodeAdmin.mockResolvedValue(false);
-    readMyCatalog.mockResolvedValue({ ads: [], albums: [], posts: [] });
-    renderAt('/monetize');
-    fireEvent.click(await screen.findByTestId('ads-new-ad'));
-    await screen.findByTestId('ad-new-form');
-    fireEvent.click(screen.getByTestId('ad-product-toggle'));
-    // No product yet → the projection is the em dash.
-    expect(screen.getByTestId('ad-projection-line')).toHaveTextContent('—');
-    // $30 item at 10% commission = $3/sale → 100k × 1% × 1% × $3 = $30.
-    fireEvent.change(screen.getByTestId('ad-product-price'), { target: { value: '30' } });
-    fireEvent.change(screen.getByTestId('ad-product-commission'), { target: { value: '10' } });
-    expect(screen.getByTestId('ad-projection-line')).toHaveTextContent('$30');
-  });
-
-  it('saving with a product passes the product through to updateAd', async () => {
-    checkNodeAdmin.mockResolvedValue(false);
-    readMyCatalog.mockResolvedValue({ ads: [AD_ITEM], albums: [], posts: [] });
+    readMyCatalog.mockResolvedValue({ ads: [AD_ITEM], products: [PRODUCT], albums: [], posts: [] });
     renderAt('/monetize');
     fireEvent.click(await screen.findByTestId('ads-edit-ad-1'));
     await screen.findByTestId('ad-edit-form');
-    // Turn on the product section + fill it.
-    fireEvent.click(screen.getByTestId('ad-product-toggle'));
-    fireEvent.change(screen.getByTestId('ad-product-name'), { target: { value: 'The good coffee grinder' } });
-    fireEvent.change(screen.getByTestId('ad-product-price'), { target: { value: '30' } });
-    fireEvent.change(screen.getByTestId('ad-product-commission'), { target: { value: '10' } });
-    fireEvent.change(screen.getByTestId('ad-product-actuals'), { target: { value: '22' } });
+    // The edit form pre-fills the product picker with the ad's product_id.
+    expect(screen.getByTestId('ad-product-picker-select')).toHaveValue('prod-1');
     fireEvent.click(screen.getByTestId('ad-save'));
     await waitFor(() => expect(updateAd).toHaveBeenCalled());
     const call = (updateAd as any).mock.calls[0];
-    // The product is the 9th arg (index 8).
-    expect(call[8]).toEqual({
-      target: 'product',
-      name: 'The good coffee grinder',
-      price: 30,
-      commission: 10,
-      commission_is_percent: true,
-      actuals: 22,
-      calibration: undefined,
-    });
+    // The product_id is the 10th arg (index 9).
+    expect(call[9]).toBe('prod-1');
   });
 });
 

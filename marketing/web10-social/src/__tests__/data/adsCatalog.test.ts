@@ -81,7 +81,7 @@ describe('splitCatalog', () => {
 
   it('returns empty for an empty read', () => {
     const out = adsCatalog.splitCatalog([]);
-    expect(out).toEqual({ ads: [], albums: [], posts: [] });
+    expect(out).toEqual({ ads: [], products: [], albums: [], posts: [] });
   });
 });
 
@@ -377,7 +377,7 @@ describe('readMyCatalog / readNodeAds', () => {
     const mock = v3.getV3Client() as any;
     mock.readToken.mockReturnValue(null);
     const out = await adsCatalog.readMyCatalog();
-    expect(out).toEqual({ ads: [], albums: [], posts: [] });
+    expect(out).toEqual({ ads: [], products: [], albums: [], posts: [] });
     expect(mock.read).not.toHaveBeenCalled();
   });
 
