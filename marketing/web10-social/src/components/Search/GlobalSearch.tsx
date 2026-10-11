@@ -619,12 +619,15 @@ export default function GlobalSearch({ variant }: GlobalSearchProps) {
 
   const resultsContent =
     query.trim() === '' ? (
+      // No leading search glyph here — the field above already carries the
+      // magnifying glass. A second icon stacked under it read as a second
+      // clickable field ("do I have to click below and type?"), so the idle
+      // hint is plain text: a message, not another field.
       <div
         data-testid="global-search-type-to-search"
-        className="flex items-center gap-3 px-4 py-8 text-sm text-muted-foreground"
+        className="px-4 py-8 text-sm text-muted-foreground"
       >
-        <Search className="w-5 h-5 shrink-0" strokeWidth={1.5} aria-hidden="true" />
-        <span>Type to search people, groups, and posts</span>
+        Type to search people, groups, and posts
       </div>
     ) : (
       <div className="py-1">
