@@ -33,6 +33,26 @@ If a lower layer contradicts its source above, the source wins. Always.
 
 ## Phases
 
+## Security Hardening Extraction (PRs 1157 / 1159)
+
+The two overlapping implementations are pinned references, not final merge
+candidates. Extract by security boundary with full source-hunk accounting.
+Kickoffs, ownership, dependencies and release gates:
+`security-hardening-extraction.md`. Planning is complete; security fixes below
+remain open. Eight workspaces do not imply eight independently safe releases.
+
+- [✓ 3.229.3] **Extraction planning** — eight detailed kickoff blocks, semantic coverage ledger and final no-silent-omission audit gate.
+- [✓ 3.229.4] **Source-reading gate** — every kickoff requires actual pinned code/test research, exact hunk receipts, current-dev comparison and baseline evidence before application edits.
+- [ ] **S1: Exposure and operations** — metadata-only logs, SDK credential hygiene, settings and manifest-fetch boundaries.
+- [ ] **S2: Unified popup lifecycle** — reconcile sender/window/origin binding and regenerate combined SDK artifacts.
+- [ ] **S3: Issuer, delegation and coordinated consumer rollout** — verified self/app model, exact management grants, consent and integration accounting.
+- [ ] **S4: Document, group and query authority** — role/tombstone gates, query boundary and canonical capability preparation.
+- [ ] **S5: Media, HLS and import safety** — ownership, resource limits, persisted authorization and provisioning.
+- [ ] **S6: RTC admission, logout and deployment** — one-use tickets, coherent addressing, teardown and runtime wiring.
+- [ ] **S7: Group detail transport and auth** — body-authenticated reads without weakening service/app authority.
+- [ ] **S8: Account, contact and recovery** — verified contacts, OTP checks and purpose/self credential integration.
+- [ ] **Final integration sweep** — every source hunk and test disposition evidenced; combined live seams, deployment prerequisites and deferred protections release-gated.
+
 <!--
 Format per phase:
 
