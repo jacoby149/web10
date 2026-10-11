@@ -450,16 +450,6 @@ export default function Layout({ onLogout, onLogin, isAnon: isAnonProp, onReport
                 <Button
                   variant="ghost"
                   size="icon"
-                  data-testid="report-bug-button-mobile"
-                  className="h-11 w-11 text-muted-foreground hover:text-foreground"
-                  aria-label="Report a bug"
-                  onClick={onReportBug}
-                >
-                  <Bug className="w-5 h-5" strokeWidth={1.75} />
-                </Button>
-                <Button
-                  variant="ghost"
-                  size="icon"
                   data-testid="logout-button-mobile"
                   className="h-11 w-11 text-muted-foreground hover:text-foreground"
                   aria-label="Log out"

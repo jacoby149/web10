@@ -1200,7 +1200,7 @@ describe('Layout', () => {
     expect(within(adminSheet).queryByTestId('nav-node-monetization-mobile')).not.toBeInTheDocument();
   });
 
-  it('Help (report a bug) moves to the mobile top header, not the bottom bar', async () => {
+  it('report-a-bug is out of the mobile top header (the operator: "that is for us, this is for them")', async () => {
     const { default: Layout } = await import('@/components/Social/Layout');
     render(
       <MemoryRouter initialEntries={['/feed']}>
@@ -1209,9 +1209,10 @@ describe('Layout', () => {
         </Layout>
       </MemoryRouter>,
     );
-    // The header's report-a-bug icon button is present…
-    expect(screen.getByTestId('report-bug-button-mobile')).toBeInTheDocument();
-    // …and the bottom bar no longer carries a "Help" tab.
+    // The header no longer carries the report-a-bug icon button (top-bar space
+    // is for the user, not our tooling)…
+    expect(screen.queryByTestId('report-bug-button-mobile')).not.toBeInTheDocument();
+    // …and the bottom bar never carried one either.
     const mobileNav = screen.getByLabelText('Primary mobile');
     expect(within(mobileNav).queryByTestId('report-bug-button-mobile')).not.toBeInTheDocument();
     expect(within(mobileNav).queryByText('Help')).not.toBeInTheDocument();

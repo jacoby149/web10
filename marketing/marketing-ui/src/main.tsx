@@ -40,30 +40,26 @@ function ErrorFallback({ onReport, onReload }: { onReport: () => void; onReload:
 
 function AppWithAnalytics() {
   const [showReportBug, setShowReportBug] = useState(false)
-  const [reportTrigger, setReportTrigger] = useState<'button' | 'error-boundary'>('button')
 
-  const handleReportBug = useCallback((trigger: 'button' | 'error-boundary' = 'button') => {
-    setReportTrigger(trigger)
-    setShowReportBug(true)
-  }, [])
-
+  // The report dialog is error-boundary-only now (the operator: bug reporting
+  // is for us, not front and center for them) — the navbar button is gone.
   const handleBoundaryFallback = useCallback(
     (_info: { error: Error; stackTrace: string | null }) => (
       <ErrorFallback
-        onReport={() => handleReportBug('error-boundary')}
+        onReport={() => setShowReportBug(true)}
         onReload={() => window.location.reload()}
       />
     ),
-    [handleReportBug],
+    [],
   )
 
   return (
     <ErrorBoundary fallback={handleBoundaryFallback}>
       <AnalyticsTracker />
-      <App onReportBug={() => handleReportBug('button')} />
+      <App />
       {showReportBug && (
         <ReportBug
-          trigger={reportTrigger}
+          trigger="error-boundary"
           onClose={() => setShowReportBug(false)}
         />
       )}
