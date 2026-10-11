@@ -44,10 +44,6 @@ vi.mock('@/data/creator-analytics', () => ({
   readCreatorAnalytics: (...a: unknown[]) => readCreatorAnalytics(...a),
 }));
 
-vi.mock('@web10/discover', () => ({
-  formatCount: (n: number) => n.toString(),
-}));
-
 import MonetizationScreen from '@/components/Monetization/MonetizationScreen';
 
 function renderAt(path: string) {
@@ -465,8 +461,9 @@ describe('AnalyticsSection — Reach charts + Potential Calculator (funnel)', ()
       totals: { impressions: 5000, reach: 1200 },
     });
     renderAt('/monetize?tab=analytics');
-    expect(await screen.findByTestId('analytics-total-impressions')).toHaveTextContent('5000');
-    expect(screen.getByTestId('analytics-total-reach')).toHaveTextContent('1200');
+    // The real formatCount renders 5000 as "5k" and 1200 as "1.2k".
+    expect(await screen.findByTestId('analytics-total-impressions')).toHaveTextContent('5k');
+    expect(screen.getByTestId('analytics-total-reach')).toHaveTextContent('1.2k');
     // The surface breakdown shows the surface + its count.
     expect(screen.getByTestId('analytics-by-surface')).toHaveTextContent('feed');
     // The top posts list shows the post.
