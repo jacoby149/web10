@@ -632,8 +632,10 @@ describe('Unified ad list — the scope filter (All | Regular | Node, node admin
     expect(screen.getByTestId('ads-scope-regular')).toBeInTheDocument();
     expect(screen.getByTestId('ads-scope-node')).toBeInTheDocument();
     // All (default) → both the regular ad and the node ad are in the list.
-    expect(screen.getByTestId('ads-row-ad-1')).toBeInTheDocument();
-    expect(screen.getByTestId('ads-row-node-1')).toBeInTheDocument();
+    // `findByTestId` (async) — the node ad loads in parallel with the catalog;
+    // a synchronous check races the render (flaky in CI).
+    expect(await screen.findByTestId('ads-row-ad-1')).toBeInTheDocument();
+    expect(await screen.findByTestId('ads-row-node-1')).toBeInTheDocument();
   });
 
   it('the Node scope shows only the node ad; Regular shows only the regular ad', async () => {
