@@ -19,6 +19,12 @@ export function conversationKey(
 
 const minsAgo = (n: number) => new Date(Date.now() - n * 60_000).toISOString();
 
+// ── views (D86 content-analytics) — no-op stubs for the harness ──────────────
+// The barrel re-exports `./views`; the harness has no backend, so the dwell /
+// viewport signals are no-ops. (readViewCounts / readViewCount live below.)
+export function trackPostViewport(): void {}
+export function trackVideoViewport(): void {}
+
 interface Peer {
   username: string;
   provider: string;
@@ -507,6 +513,10 @@ export async function toggleRepost(): Promise<boolean> { return true; }
 // resolve or the module errors at load.
 export async function readViewCounts(): Promise<Record<string, number>> { return {}; }
 export async function readViewCount(): Promise<number> { return 0; }
+// The D86 client-gated viewport/dwell signals (3.227.0) — fire-and-forget in
+// the real app; no-ops in the harness (no backend to gate them against).
+export function trackPostViewport(): void { /* no-op */ }
+export function trackVideoViewport(): void { /* no-op */ }
 
 // ── Groups (screenshot seed) ───────────────────────────────────────────────
 // The Groups screen (My Groups + Discover) and its detail read these. Seeded

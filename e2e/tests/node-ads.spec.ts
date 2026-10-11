@@ -19,11 +19,12 @@ import { API_BASE, v3Login, v3Signup } from '../v3-helpers';
  * `doc.node_ad`. Percentage 0 = no node ads; percentage 100 = every post gets
  * one.
  *
- * The browser gauntlet drives the real surfaces (pre-authed via the token
- * cookie): the operator creates a node ad via the Node Monetization surface
- * (web10-social's /monetize, the node-admin-gated tab, D75), and a follower's
- * feed (web10-social) renders a post with the "Sponsored" node ad block. A
- * creator's pinned post shows BOTH the creator's ad AND the node's ad.
+  * The browser gauntlet drives the real surfaces (pre-authed via the token
+  * cookie): the operator creates a node ad via the Monetization Ads tab
+  * (web10-social's /monetize, the node-ad inventory folded into the Ads tab,
+  * D75 — the New Ad form's Run-as Node scope), and a follower's feed
+  * (web10-social) renders a post with the "Sponsored" node ad block. A
+  * creator's pinned post shows BOTH the creator's ad AND the node's ad.
  */
 
 const port = process.env.E2E_HTTP_PORT || '80';
@@ -379,7 +380,7 @@ test.describe('Node ads (D57)', () => {
 // ---------------------------------------------------------------------------
 
 test.describe('Node ads gauntlet — Node Monetization surface → follower feed renders the Sponsored block', () => {
-  test('operator creates a node ad via the Node Monetization surface; the follower\'s feed renders the Sponsored node ad block', async ({ browser, request }) => {
+  test('operator creates a node ad via the Monetization Ads tab (Run-as Node); the follower\'s feed renders the Sponsored node ad block', async ({ browser, request }) => {
     // Setup (API): a creator with a followers group + a target post in it; a
     // follower who follows the creator (so the target post is in their feed —
     // the feed reads all groups EXCEPT discover, so the target must be on a
@@ -401,23 +402,28 @@ test.describe('Node ads gauntlet — Node Monetization surface → follower feed
     await joinGroup(request, follower.token, f);
     await setNodeAdPercentage(request, admin, 100);
 
-    // --- The OPERATOR creates a node ad via the Node Monetization surface (D75) ---
+    // --- The OPERATOR creates a node ad via the Monetization Ads tab (D75) ---
+    // The node-ad inventory is folded into the Ads tab (the separate Node tab is
+    // retired): the operator's "New Ad" form has a Run-as scope (Personal /
+    // Node); picking Node writes to the discover group, tagged `ad` + `node_ad`.
     const ctxOp = await browser.newContext();
     const pageOp = await ctxOp.newPage();
     const opErrors = capturePageErrors(pageOp);
     // Pre-auth as the node admin via the token cookie (the social app reads it).
     await setTokenCookie(ctxOp, 'social.localhost', admin);
     await setTokenCookie(ctxOp, 'auth.localhost', admin);
-    // Navigate to the Node Monetization surface (the node-admin-gated tab).
-    await pageOp.goto(`${SOCIAL_BASE}/monetize?tab=node`);
-    await expect(pageOp.locator('[data-testid="node-monetization"]')).toBeVisible({ timeout: 20000 });
+    // Navigate to the Monetization Ads tab (the node inventory lives here now).
+    await pageOp.goto(`${SOCIAL_BASE}/monetize`);
+    await expect(pageOp.locator('[data-testid="ads-catalog-card"]')).toBeVisible({ timeout: 20000 });
 
-    // Create a node ad through the surface.
+    // Create a node ad through the surface: New Ad → Run as Node → fill → save.
     const nodeAdText = `gauntlet node ad ${Date.now()}`;
-    await pageOp.locator('[data-testid="node-ads-new"]').click();
-    await pageOp.locator('[data-testid="node-ad-text"]').fill(nodeAdText);
-    await pageOp.locator('[data-testid="node-ad-link"]').fill('https://workflowco.com?ref=gauntlet');
-    await pageOp.locator('[data-testid="node-ad-save"]').click();
+    await pageOp.locator('[data-testid="ads-new-ad"]').click();
+    await expect(pageOp.locator('[data-testid="ad-scope-toggle"]')).toBeVisible({ timeout: 20000 });
+    await pageOp.locator('[data-testid="ad-scope-node"]').click();
+    await pageOp.locator('[data-testid="ad-text"]').fill(nodeAdText);
+    await pageOp.locator('[data-testid="ad-link"]').fill('https://workflowco.com?ref=gauntlet');
+    await pageOp.locator('[data-testid="ad-save"]').click();
     // The surface reloads and shows the new node ad (poll for CH consistency).
     await expect(pageOp.locator(`text=${nodeAdText}`)).toBeVisible({ timeout: 20000 });
     expect(opErrors, 'operator pageerrors').toEqual([]);
