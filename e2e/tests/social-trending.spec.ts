@@ -313,6 +313,22 @@ test.describe('Social trending gauntlet — /discover board + D36 knobs + deep l
     const postB = `trending new post ${Date.now()}`;
     await postToDiscover(request, c1.token, postB);
 
+    // --- Wait until the seeded engagement is actually VISIBLE before loading
+    // the board. The client makes ONE engagement read (limit 500, counted by
+    // ref_value) and paints the tallies from it; a read that lands before the
+    // ClickHouse inserts are visible undercounts the "5 likes" (the flake that
+    // failed 6/6 on one run and passed on retry on another — same commit).
+    // Poll the API at the client's own limit until all 5 likes + 2 comments are
+    // in the read window, so the page load sees the final counts.
+    await expect(async () => {
+      const reactions = (await (await anonRead(request, 'reactions', [DISCOVER_GROUP_ID], 500)).json()) as any[];
+      const comments = (await (await anonRead(request, 'comments', [DISCOVER_GROUP_ID], 500)).json()) as any[];
+      const likes = reactions.filter((d) => d.ref_value === docA && (d.body as Record<string, unknown>)?.type === 'like').length;
+      const commentsCount = comments.filter((d) => d.ref_value === docA).length;
+      expect(likes, `only ${likes}/5 seeded likes visible yet`).toBe(5);
+      expect(commentsCount, `only ${commentsCount}/2 seeded comments visible yet`).toBe(2);
+    }).toPass({ timeout: 30_000 });
+
     // --- Load the board (pre-authed: the token cookie is the session) ---
     // ?view=grid — the Home view (the video wall) is the default; this test
     // exercises the Hot Gossip board (the ranked post grid).
