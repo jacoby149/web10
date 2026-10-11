@@ -31,6 +31,25 @@ says what can happen **at the same time**.
 
 ## Lanes
 
+### Lane: security-hardening-extraction (PRs 1157 / 1159)
+**Owns:** Domain/function hunks as assigned in `security-hardening-extraction.md`,
+not blanket ownership of API/SDK/UI directories. S3 coordinates shared contracts
+and documentation; each workspace writes its own extraction evidence report.
+Read the detailed dependency table before implementation or release. Reference
+PRs must not be mutated by extraction agents. No implementation is complete yet.
+
+- [✓ 3.227.2] **Planning** — eight copy/paste kickoffs and no-silent-omission coverage contract drafted and reviewed.
+- [✓ 3.227.3] **Research checkpoint instructions** — mandatory actual-source reading and per-slice evidence receipts added to every kickoff; implementation remains open.
+- [ ] **S1: Exposure and operations** — kickoff S1; independently safe hygiene slices, provisioning and auth-context handoffs gated.
+- [ ] **S2: Unified popup lifecycle** — kickoff S2; app-only acceptance depends on S3; serializes generated artifacts.
+- [ ] **S3: Issuer, delegation and coordinated consumer rollout** — kickoff S3; bounded PRs with coherent release cohort, not a mega-PR.
+- [ ] **S4: Document, group and query authority** — kickoff S4; canonical preparation depends on S5 media boundary and app gates on S3.
+- [ ] **S5: Media, HLS and import safety** — kickoff S5; resource fixes can precede S3/S4-dependent persisted authorization.
+- [ ] **S6: RTC admission, logout and deployment** — kickoff S6; API/RTC/client protocol and delegated addressing deploy together.
+- [ ] **S7: Group detail transport and auth** — kickoff S7; coordinate route/SDK/consumer rollout and S3/S4 gates.
+- [ ] **S8: Account, contact and recovery** — kickoff S8; contact fixes can precede S3-dependent self/purpose credential enforcement.
+- [ ] **Final integration sweep** — S3 collects S1-S8 reports and performs immutable hunk accounting plus reverse audit; deferred protections keep affected releases held.
+
 <!--
 Format per lane:
 
