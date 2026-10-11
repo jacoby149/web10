@@ -30,7 +30,8 @@ vi.mock('@/data/ads-catalog', () => ({
   buildNodeAdBody: vi.fn(),
   splitCatalog: vi.fn(),
   splitNodeAds: vi.fn(),
-  isNodeAd: vi.fn(),
+  // Faithful to the real implementation: a node ad is a doc tagged `node_ad`.
+  isNodeAd: (doc: { tags?: string[] }) => (doc?.tags || []).includes('node_ad'),
   parseAd: vi.fn(),
   parseAlbum: vi.fn(),
   readMyAds: vi.fn(),
@@ -62,10 +63,8 @@ describe('MonetizationScreen', () => {
     checkNodeAdmin.mockResolvedValue(false);
     renderAt('/monetize');
     expect(await screen.findByTestId('creator-monetization')).toBeInTheDocument();
-    // The Node section is never rendered for a non-admin.
-    expect(screen.queryByTestId('node-monetization')).not.toBeInTheDocument();
-    // The tab row (Ads | Products | Analytics) is always present — the section
-    // switcher. Ads is the default; the Node tab is admin-only (absent here).
+    // The node inventory is admin-only — never rendered for a non-admin.
+    expect(screen.queryByTestId('node-ad-controls')).not.toBeInTheDocument();
     expect(screen.getByTestId('monetization-tabs')).toBeInTheDocument();
     expect(screen.getByTestId('monetization-tab-ads')).toBeInTheDocument();
     expect(screen.getByTestId('monetization-tab-products')).toBeInTheDocument();
@@ -73,32 +72,38 @@ describe('MonetizationScreen', () => {
     expect(screen.queryByTestId('monetization-tab-node')).not.toBeInTheDocument();
   });
 
-  it('renders the Ads section by default for a node admin too (with the Node tab)', async () => {
+  it('renders the Ads section by default for a node admin too (node controls folded in, no Node tab)', async () => {
     checkNodeAdmin.mockResolvedValue(true);
     renderAt('/monetize');
     expect(await screen.findByTestId('creator-monetization')).toBeInTheDocument();
-    expect(screen.queryByTestId('node-monetization')).not.toBeInTheDocument();
-    // The node admin gets the Node tab in the row (the section switcher) —
-    // once the async admin check resolves.
-    expect(await screen.findByTestId('monetization-tabs')).toBeInTheDocument();
+    // The node admin's node-ad inventory is folded into the Ads tab (the
+    // separate Node tab is retired) — the node controls (density + overwrite)
+    // render in the Ads tab.
+    expect(await screen.findByTestId('node-ad-controls')).toBeInTheDocument();
+    // There is NO Node tab in the row (three tabs: Ads | Products | Analytics).
+    expect(screen.queryByTestId('monetization-tab-node')).not.toBeInTheDocument();
     expect(screen.getByTestId('monetization-tab-ads')).toBeInTheDocument();
-    expect(await screen.findByTestId('monetization-tab-node')).toBeInTheDocument();
+    expect(screen.getByTestId('monetization-tab-products')).toBeInTheDocument();
+    expect(screen.getByTestId('monetization-tab-analytics')).toBeInTheDocument();
   });
 
-  it('lands on the Node section when deep-linked to ?tab=node as an admin', async () => {
+  it('a stale ?tab=node deep link lands on the Ads tab (the Node tab is retired)', async () => {
     checkNodeAdmin.mockResolvedValue(true);
     renderAt('/monetize?tab=node');
-    expect(await screen.findByTestId('node-monetization')).toBeInTheDocument();
-    // The density control (the node-ad percentage slider) is present.
-    expect(screen.getByTestId('node-ads-density')).toBeInTheDocument();
+    // The node inventory now lives in the Ads tab — the stale ?tab=node lands
+    // there (with the node controls), not a separate Node section.
+    expect(await screen.findByTestId('creator-monetization')).toBeInTheDocument();
+    expect(await screen.findByTestId('node-ad-controls')).toBeInTheDocument();
+    expect(screen.queryByTestId('monetization-tab-node')).not.toBeInTheDocument();
   });
 
   it('falls back to Ads when a non-admin is deep-linked to ?tab=node', async () => {
     checkNodeAdmin.mockResolvedValue(false);
     renderAt('/monetize?tab=node');
-    // The Node section is never rendered for a non-admin.
+    // The node inventory is admin-only; a non-admin on ?tab=node lands on the
+    // Ads tab with no node controls.
     expect(await screen.findByTestId('creator-monetization')).toBeInTheDocument();
-    expect(screen.queryByTestId('node-monetization')).not.toBeInTheDocument();
+    expect(screen.queryByTestId('node-ad-controls')).not.toBeInTheDocument();
   });
 
   it('renders the affiliate onboarding in the Ads section', async () => {
@@ -129,27 +134,26 @@ describe('MonetizationScreen', () => {
 });
 
 describe('MonetizationScreen — the in-page tab row', () => {
-  it('a node admin switches to the Node tab (the URL holds the section)', async () => {
+  it('a node admin has three tabs (no Node tab — the inventory is in the Ads tab)', async () => {
     checkNodeAdmin.mockResolvedValue(true);
     getNodeConfig.mockResolvedValue({ node_ad_percentage: 10, node_ad_overwrite: false });
     renderAt('/monetize');
-    // Ads is the default; the tab row appears once the admin check resolves.
-    expect(await screen.findByTestId('monetization-tab-node')).toBeInTheDocument();
-    // Click the Node tab → the node-ad inventory renders.
-    fireEvent.click(screen.getByTestId('monetization-tab-node'));
-    expect(await screen.findByTestId('node-monetization')).toBeInTheDocument();
-    expect(screen.queryByTestId('creator-monetization')).not.toBeInTheDocument();
-    // Click back → Ads (the section wrapper returns).
-    fireEvent.click(screen.getByTestId('monetization-tab-ads'));
-    expect(await screen.findByTestId('creator-monetization')).toBeInTheDocument();
+    // The tab row is three tabs for everyone (Ads | Products | Analytics) —
+    // there is no Node tab (the node inventory is folded into the Ads tab).
+    expect(screen.getByTestId('monetization-tab-ads')).toBeInTheDocument();
+    expect(screen.getByTestId('monetization-tab-products')).toBeInTheDocument();
+    expect(screen.getByTestId('monetization-tab-analytics')).toBeInTheDocument();
+    expect(screen.queryByTestId('monetization-tab-node')).not.toBeInTheDocument();
+    // The node controls (density + overwrite) are in the Ads tab.
+    expect(await screen.findByTestId('node-ad-controls')).toBeInTheDocument();
   });
 
-  it('a non-admin never sees the Node tab (the row is present, minus Node)', async () => {
+  it('a non-admin never sees the Node tab (the row is present, three tabs)', async () => {
     checkNodeAdmin.mockResolvedValue(false);
     renderAt('/monetize');
     expect(await screen.findByTestId('creator-monetization')).toBeInTheDocument();
-    // The tab row is present for everyone (Ads | Products | Analytics); the
-    // Node tab is the admin-only addition.
+    // The tab row is present for everyone (Ads | Products | Analytics); there
+    // is no Node tab at all (the node inventory is folded into the Ads tab).
     expect(screen.getByTestId('monetization-tabs')).toBeInTheDocument();
     expect(screen.queryByTestId('monetization-tab-node')).not.toBeInTheDocument();
   });
@@ -411,12 +415,13 @@ describe('AnalyticsSection — the portfolio + what-if (ads-october deferred)', 
   });
 });
 
-describe('NodeMonetization — overwrite knob (ad-improvements.md)', () => {
-  it('shows the overwrite toggle for a node admin', async () => {
+describe('NodeAdControls — the overwrite knob (in the Ads tab, node admin)', () => {
+  it('shows the overwrite toggle for a node admin (in the Ads tab)', async () => {
     checkNodeAdmin.mockResolvedValue(true);
     getNodeConfig.mockResolvedValue({ node_ad_percentage: 10, node_ad_overwrite: false });
-    renderAt('/monetize?tab=node');
-    expect(await screen.findByTestId('node-monetization')).toBeInTheDocument();
+    renderAt('/monetize');
+    // The node controls (density + overwrite) live in the Ads tab for the admin.
+    expect(await screen.findByTestId('node-ad-controls')).toBeInTheDocument();
     expect(screen.getByTestId('node-ads-overwrite')).toBeInTheDocument();
     const toggle = screen.getByTestId('node-ads-overwrite-toggle');
     expect(toggle).toHaveAttribute('aria-checked', 'false');
@@ -426,7 +431,7 @@ describe('NodeMonetization — overwrite knob (ad-improvements.md)', () => {
     checkNodeAdmin.mockResolvedValue(true);
     getNodeConfig.mockResolvedValue({ node_ad_percentage: 10, node_ad_overwrite: false });
     saveNodeAdOverwrite.mockResolvedValue(undefined);
-    renderAt('/monetize?tab=node');
+    renderAt('/monetize');
     const toggle = await screen.findByTestId('node-ads-overwrite-toggle');
     // The toggle is disabled until the config loads (pctLoaded) — wait for it.
     await waitFor(() => expect(toggle).not.toBeDisabled());
@@ -435,7 +440,7 @@ describe('NodeMonetization — overwrite knob (ad-improvements.md)', () => {
   });
 });
 
-describe('NodeMonetization — node ad edit (parity with creator ads)', () => {
+describe('Unified ad list — the node ad (in the Ads tab, node admin)', () => {
   const NODE_AD_ITEM = {
     doc: { doc_id: 'node-1', tags: ['ad', 'node_ad'] },
     text: 'Sick of Youtube? Try exporting to web10!',
@@ -453,40 +458,101 @@ describe('NodeMonetization — node ad edit (parity with creator ads)', () => {
     updateNodeAd.mockResolvedValue({ doc_id: 'node-1' });
   });
 
-  it('the node ad row has an Edit button that opens the edit form pre-filled', async () => {
-    renderAt('/monetize?tab=node');
-    const editBtn = await screen.findByTestId('node-ads-edit-node-1');
-    fireEvent.click(editBtn);
-    // The edit form opens (not the new form), pre-filled with the ad's copy.
-    expect(await screen.findByTestId('node-ad-edit-form')).toBeInTheDocument();
-    expect(screen.getByTestId('node-ad-text')).toHaveValue('Sick of Youtube? Try exporting to web10!');
-    expect(screen.getByTestId('node-ad-link')).toHaveValue('https://web10.app/export');
+  it('the node ad appears in the unified Ads list with a NODE badge', async () => {
+    renderAt('/monetize');
+    // The node ad is in the Ads tab's unified list (the operator's inventory is
+    // folded in, not a separate Node tab).
+    const row = await screen.findByTestId('ads-row-node-1');
+    expect(row).toBeInTheDocument();
+    // The NODE badge distinguishes it from a regular ad.
+    expect(row).toHaveTextContent('NODE');
+    // A node ad has no Pin control (it attaches at the density, not by pinning).
+    expect(screen.queryByTestId('ads-pin-node-1')).not.toBeInTheDocument();
   });
 
-  it('saving an edit calls updateNodeAd with the same doc_id', async () => {
-    renderAt('/monetize?tab=node');
-    fireEvent.click(await screen.findByTestId('node-ads-edit-node-1'));
-    await screen.findByTestId('node-ad-edit-form');
+  it('the node ad row has an Edit button that opens the edit form pre-filled', async () => {
+    renderAt('/monetize');
+    const editBtn = await screen.findByTestId('ads-edit-node-1');
+    fireEvent.click(editBtn);
+    // The edit form opens (the shared AdForm), pre-filled with the ad's copy.
+    expect(await screen.findByTestId('ad-edit-form')).toBeInTheDocument();
+    expect(screen.getByTestId('ad-text')).toHaveValue('Sick of Youtube? Try exporting to web10!');
+    expect(screen.getByTestId('ad-link')).toHaveValue('https://web10.app/export');
+  });
+
+  it('saving a node ad edit calls updateNodeAd with the same doc_id', async () => {
+    renderAt('/monetize');
+    fireEvent.click(await screen.findByTestId('ads-edit-node-1'));
+    await screen.findByTestId('ad-edit-form');
     // Change the copy + pick the post format, then save.
-    fireEvent.change(screen.getByTestId('node-ad-text'), { target: { value: 'Updated node ad copy' } });
-    fireEvent.click(screen.getByTestId('node-ad-format-post'));
-    fireEvent.click(screen.getByTestId('node-ad-save'));
+    fireEvent.change(screen.getByTestId('ad-text'), { target: { value: 'Updated node ad copy' } });
+    fireEvent.click(screen.getByTestId('ad-format-post'));
+    fireEvent.click(screen.getByTestId('ad-save'));
     await waitFor(() => expect(updateNodeAd).toHaveBeenCalled());
     const call = (updateNodeAd as any).mock.calls[0];
     expect(call[0].doc.doc_id).toBe('node-1'); // same doc_id (the attach picks up the new version)
     expect(call[1].link).toBe('https://web10.app/export'); // offer preserved
     expect(call[5]).toBe('post'); // format passed through
   });
+});
 
-  it('the New Node Ad form keeps the create flow', async () => {
-    renderAt('/monetize?tab=node');
-    // The button is disabled until the ads load (loading=true) — a click while
-    // disabled is a no-op, so wait for the enabled state before opening the form.
-    const newBtn = await screen.findByTestId('node-ads-new');
-    await waitFor(() => expect(newBtn).not.toBeDisabled());
-    fireEvent.click(newBtn);
-    expect(await screen.findByTestId('node-ad-new-form')).toBeInTheDocument();
-    // The CTA suggestion chips are present (parity with the creator's form).
-    expect(screen.getByTestId('node-ad-cta-suggest-check-it-out')).toBeInTheDocument();
+describe('Unified ad list — the scope filter (All | Regular | Node, node admin)', () => {
+  const REGULAR_AD = {
+    doc: { doc_id: 'ad-1', tags: ['ad'] },
+    text: 'Everything I use, linked.',
+    offer: { kind: 'affiliate', partner: 'Amazon', link: 'https://amzn.to/abc', cta: 'Get it', disclosure: '' },
+    status: 'active' as const,
+    media_refs: undefined,
+    format: 'inline' as const,
+    albums: [] as string[],
+  };
+  const NODE_AD = {
+    doc: { doc_id: 'node-1', tags: ['ad', 'node_ad'] },
+    text: 'Try the new workflow tool.',
+    offer: { kind: 'direct', partner: '', link: 'https://workflowco.com?ref=node', cta: 'Learn more', disclosure: 'Sponsored' },
+    status: 'active' as const,
+    media_refs: undefined,
+    format: 'inline' as const,
+    albums: [] as string[],
+  };
+
+  beforeEach(() => {
+    checkNodeAdmin.mockResolvedValue(true);
+    getNodeConfig.mockResolvedValue({ node_ad_percentage: 10, node_ad_overwrite: false });
+    readMyCatalog.mockResolvedValue({ ads: [REGULAR_AD], albums: [], posts: [] });
+    readNodeAds.mockResolvedValue([NODE_AD]);
+  });
+
+  it('the node admin sees the scope filter with both ads in the unified list (All)', async () => {
+    renderAt('/monetize');
+    // The scope filter is present (admin only) with All | Regular | Node.
+    expect(await screen.findByTestId('ads-scope-filter')).toBeInTheDocument();
+    expect(screen.getByTestId('ads-scope-all')).toBeInTheDocument();
+    expect(screen.getByTestId('ads-scope-regular')).toBeInTheDocument();
+    expect(screen.getByTestId('ads-scope-node')).toBeInTheDocument();
+    // All (default) → both the regular ad and the node ad are in the list.
+    expect(screen.getByTestId('ads-row-ad-1')).toBeInTheDocument();
+    expect(screen.getByTestId('ads-row-node-1')).toBeInTheDocument();
+  });
+
+  it('the Node scope shows only the node ad; Regular shows only the regular ad', async () => {
+    renderAt('/monetize');
+    await screen.findByTestId('ads-scope-filter');
+    // Node scope → only the node ad.
+    fireEvent.click(screen.getByTestId('ads-scope-node'));
+    expect(await screen.findByTestId('ads-row-node-1')).toBeInTheDocument();
+    expect(screen.queryByTestId('ads-row-ad-1')).not.toBeInTheDocument();
+    // Regular scope → only the regular ad.
+    fireEvent.click(screen.getByTestId('ads-scope-regular'));
+    expect(await screen.findByTestId('ads-row-ad-1')).toBeInTheDocument();
+    expect(screen.queryByTestId('ads-row-node-1')).not.toBeInTheDocument();
+  });
+
+  it('a non-admin has no scope filter (one list, their own ads)', async () => {
+    checkNodeAdmin.mockResolvedValue(false);
+    readMyCatalog.mockResolvedValue({ ads: [REGULAR_AD], albums: [], posts: [] });
+    renderAt('/monetize');
+    expect(await screen.findByTestId('creator-monetization')).toBeInTheDocument();
+    expect(screen.queryByTestId('ads-scope-filter')).not.toBeInTheDocument();
   });
 });

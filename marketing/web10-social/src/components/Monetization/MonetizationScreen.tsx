@@ -1,7 +1,6 @@
 import { useSearchParams } from 'react-router-dom';
 import { cn } from '@/lib/utils';
 import { CreatorMonetization } from './CreatorMonetization';
-import { NodeMonetization } from './NodeMonetization';
 import { useNodeAdmin } from './useNodeAdmin';
 import { ProductsSection } from './ProductsSection';
 import { AnalyticsSection } from './AnalyticsSection';
@@ -11,23 +10,27 @@ import { AnalyticsSection } from './AnalyticsSection';
 // it's deep-linkable (the X/Threads tab-row idiom the Posts screen's
 // Discover | Following row established).
 //
-// The creator's Monetization tab is **Ads | Products | Analytics** (the
-// ads-october focus #5 restructure — the "stay" in one place: what's running,
-// what they're selling, how it's performing). The **Node** tab (admin only) is
-// the node operator's inventory — a different role, kept separate.
+// The Monetization tab is **Ads | Products | Analytics** for every signed-in
+// user (the ads-october focus #5 restructure — the "stay" in one place:
+// what's running, what they're selling, how it's performing). There is no
+// separate **Node** tab: a node admin's node-ad inventory (the density +
+// overwrite knobs + the node ads) lives INSIDE the Ads tab, where the ad list
+// is unified (regular ads + node ads, filtered by scope).
 //
-// - **Ads** (default): the creator's ad catalog + affiliate onboarding.
+// - **Ads** (default): the ad catalog + affiliate onboarding. For a node
+//   admin, the node-ad controls (density + overwrite) + the node ads are
+//   folded in (the scope filter: All | Regular | Node).
 // - **Products**: the catalog of the ad's product attributes (the storefront's
 //   data — the "what I'm selling" view).
 // - **Analytics**: the projection-vs-actual tell (the "how it's performing"
 //   view). The click counter is the D86 engine (next narrowing).
-// - **Node** (node admin only): the node-ad inventory + density + overwrite.
-type MonetizationTab = 'ads' | 'products' | 'analytics' | 'node';
+type MonetizationTab = 'ads' | 'products' | 'analytics';
 
-function tabFromParam(raw: string | null, isAdmin: boolean): MonetizationTab {
-  if (raw === 'node' && isAdmin) return 'node';
+function tabFromParam(raw: string | null): MonetizationTab {
   if (raw === 'products') return 'products';
   if (raw === 'analytics') return 'analytics';
+  // `node` (the retired Node tab) falls back to Ads — the node inventory now
+  // lives in the Ads tab, so a stale `?tab=node` deep link lands there.
   return 'ads';
 }
 
@@ -70,13 +73,12 @@ export default function MonetizationScreen() {
   const [searchParams, setSearchParams] = useSearchParams();
   const { isAdmin, loading: adminLoading } = useNodeAdmin();
 
-  // The section: the URL holds it. `node` only when the node admin; a non-admin
-  // on a stale `?tab=node` falls back to `ads`.
+  // The section: the URL holds it. The Node tab is retired — the node admin's
+  // node-ad inventory lives in the Ads tab — so `?tab=node` falls back to ads.
   const rawTab = searchParams.get('tab');
-  const tab: MonetizationTab = tabFromParam(rawTab, isAdmin);
+  const tab: MonetizationTab = tabFromParam(rawTab);
 
   const setTab = (next: MonetizationTab) => {
-    if (next === 'node' && !isAdmin) return; // the Node tab is admin-only
     const params = new URLSearchParams(searchParams);
     if (next === 'ads') params.delete('tab');
     else params.set('tab', next);
@@ -85,9 +87,10 @@ export default function MonetizationScreen() {
 
   return (
     <div className="flex flex-col min-h-full bg-background">
-      {/* The tab row — Ads | Products | Analytics (every signed-in user) +
-          Node (the node admin only). The URL holds the tab (?tab=), so refresh
-          restores it + it's deep-linkable. Ads is the default (the bare URL). */}
+      {/* The tab row — Ads | Products | Analytics (every signed-in user). The
+          URL holds the tab (?tab=), so refresh restores it + it's deep-linkable.
+          Ads is the default (the bare URL). The node admin's node-ad inventory
+          is folded into the Ads tab (no separate Node tab). */}
       <div
         className="sticky top-0 z-10 border-b border-border bg-background/95 backdrop-blur-md"
         role="tablist"
@@ -98,9 +101,6 @@ export default function MonetizationScreen() {
           <TabButton active={tab === 'ads'} onClick={() => setTab('ads')} testId="monetization-tab-ads" label="Ads" />
           <TabButton active={tab === 'products'} onClick={() => setTab('products')} testId="monetization-tab-products" label="Products" />
           <TabButton active={tab === 'analytics'} onClick={() => setTab('analytics')} testId="monetization-tab-analytics" label="Analytics" />
-          {isAdmin && (
-            <TabButton active={tab === 'node'} onClick={() => setTab('node')} testId="monetization-tab-node" label="Node" />
-          )}
         </div>
       </div>
 
@@ -111,9 +111,7 @@ export default function MonetizationScreen() {
         </p>
 
         <div className="mt-5">
-          {tab === 'node' ? (
-            <NodeMonetization />
-          ) : tab === 'products' ? (
+          {tab === 'products' ? (
             <ProductsSection />
           ) : tab === 'analytics' ? (
             <AnalyticsSection />
@@ -122,7 +120,8 @@ export default function MonetizationScreen() {
           )}
         </div>
 
-        {/* The admin check is still pending — the Node tab may appear. */}
+        {/* The admin check is still pending — the Ads tab's node-ad controls
+            (density + overwrite + the node ads) may appear once it resolves. */}
         {adminLoading && !isAdmin && (
           <p className="mt-3 text-xs text-muted-foreground" data-testid="monetization-admin-checking">
             Checking node admin…
