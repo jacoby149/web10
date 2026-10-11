@@ -11,6 +11,43 @@ Not all MinIO files need the same auth. Video HLS is the only thing that breaks 
 
 ## Why Bifurcated
 
+### Object-Media Safety Boundary
+
+The independent E20 object-media slice restricts signing to an author's own
+object tree. `owns_object_key` requires the exact `author/` prefix, nonempty
+components other than `.` or `..`, and no control characters or backslashes.
+This is lexical ownership validation, not proof of an upload ticket or permission
+to read the document.
+
+`POST /v3/media/upload-url` accepts only `media_metadata` or `public_media`
+(default `media_metadata`), validates a single filename component, and signs an
+exact-key POST with a byte range from 1 through
+`max(1, min(MAX_UPLOAD_SIZE, 1 GiB))`. Confirmation still writes a
+`media_metadata` document envelope. It validates the object key, thumbnail key,
+and nested minio references before any storage read, then HEAD-checks the
+top-level object and optional thumbnail for existence and that same byte bound.
+Nested references are ownership-checked, not individually HEAD-checked. Claimed
+metadata sizes are not the evidence; actual object lengths are.
+
+Raw `read-url` requests verify the existing token and reject keys outside that
+user's tree. An owned raw key does not need a metadata record in this independent
+slice. No delegated permission or current-service lookup is added here.
+
+On document resolution, referenced metadata is validated before signing.
+Recursive minio leaves use the supplied document author; pinned ads and node ads
+use their own authors, not the enclosing document's author or the reader.
+Unsafe leaves lose their existing `url`; rejected metadata yields unresolved refs
+without a fresh read capability. Existing URL-only media metadata remains readable
+without new object signing, but new confirmation requires an owned object key.
+
+These helpers do **not** prove that a query-projected author/body/ref is canonical.
+S4 must establish current carrier, face and ad provenance before calling them.
+Media-reference lookup still filters tombstones before latest-version selection;
+deleted metadata can therefore remint owned-object URLs while storage remains.
+Generic CRUD can bypass confirmation existence/size checks, and HEAD plus insert
+is not an atomic immutable-object binding. Those residuals, delegated gates, full
+visibility, HLS signing and playback changes are not closed by this slice.
+
 ### The Problem with Presigned URLs for Video
 
 A 10-minute video transcoded to HLS produces 100+ `.ts` segments. Each segment is a separate HTTP request. MinIO presigned URLs are per-object — you can't presign "this prefix for 10 minutes."

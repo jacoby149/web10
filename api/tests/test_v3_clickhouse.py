@@ -1352,7 +1352,7 @@ class TestResolveMinioTypes:
     def test_no_minio_types_unchanged(self):
         body = {"text": "hello", "age": {"type": "number", "value": 5}}
         with patch.object(ch, "get_s3_signing_client") as mock_signing:
-            result = ch.resolve_minio_types(body)
+            result = ch.resolve_minio_types(body, "alice")
             assert result == body
             mock_signing.assert_not_called()
 
@@ -1362,7 +1362,7 @@ class TestResolveMinioTypes:
             mock_client = MagicMock()
             mock_client.generate_presigned_url.return_value = "http://minio/alice/cat.png?sig=abc"
             mock_signing.return_value = mock_client
-            result = ch.resolve_minio_types(body)
+            result = ch.resolve_minio_types(body, "alice")
             # type + value are kept, a fresh presigned url is added
             assert result["image"]["type"] == "minio"
             assert result["image"]["value"] == "alice/cat.png"
@@ -1384,7 +1384,7 @@ class TestResolveMinioTypes:
             mock_client = MagicMock()
             mock_client.generate_presigned_url.side_effect = lambda *a, **k: f"http://minio/{k['Params']['Key']}?sig=x"
             mock_signing.return_value = mock_client
-            result = ch.resolve_minio_types(body)
+            result = ch.resolve_minio_types(body, "alice")
             assert result["cat-vids"][0]["url"] == "http://minio/alice/henry.mp4?sig=x"
             assert result["cat-vids"][1]["url"] == "http://minio/alice/henry2.mp4?sig=x"
             assert result["nested"]["deep"]["pic"]["url"] == "http://minio/alice/pic.jpg?sig=x"
@@ -1977,7 +1977,7 @@ class TestUsersMutatorTimestampShape:
 class TestMedia:
     def test_confirm_upload(self):
         with _patch_client() as mock_client:
-            result = ch.confirm_media_upload("alice", {"url": "http://x", "filename": "a.png"})
+            result = ch.confirm_media_upload("alice", {"object_key": "alice/id/a.png", "filename": "a.png"})
             # The confirm response is a document envelope (same shape as
             # create/read) — the metadata is the document's body. A flat
             # {doc_id, **metadata} broke clients mapping the response
@@ -1987,7 +1987,7 @@ class TestMedia:
             assert result["author_key"] == "alice"
             assert result["service"] == "media_metadata"
             assert result["body"]["filename"] == "a.png"
-            assert result["body"]["url"] == "http://x"
+            assert result["body"]["object_key"] == "alice/id/a.png"
             assert result["ref_value"] == ""
             assert result["tags"] == []
             assert result["created_at"]

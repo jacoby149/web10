@@ -32,6 +32,19 @@ logger = logging.getLogger("web10-hls")
 _VARIANT_RE = re.compile(r"^\d+p$")
 _SEG_RE = re.compile(r"^seg\d+\.ts$")
 
+MAX_MEDIA_BYTES = max(1, min(settings.MAX_UPLOAD_SIZE, 1024 * 1024 * 1024))
+
+
+def owns_object_key(owner: str, key) -> bool:
+    """Object keys are opaque; only the author's own tree may be signed."""
+    return (
+        isinstance(key, str)
+        and bool(owner)
+        and key.startswith(owner + "/")
+        and all(p and p not in (".", "..") for p in key.split("/"))
+        and not any(ord(c) < 32 or c == "\\" for c in key)
+    )
+
 
 def hls_prefix(video_object_key: str) -> str:
     """The MinIO prefix the worker writes HLS output under.

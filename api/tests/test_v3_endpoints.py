@@ -1705,13 +1705,15 @@ class TestSetRecoveryPhone:
 
 class TestMediaConfirm:
     def test_confirm(self, client, token):
-        resp = client.post(
-            "/v3/media/confirm",
-            json={
-                "token": token,
-                "body": {"filename": "a.png", "object_key": "alice/a.png", "mime_type": "image/png"},
-            },
-        )
+        with patch("app.v3.endpoints.media.get_s3_client") as s3:
+            s3.return_value.head_object.return_value = {"ContentLength": 123}
+            resp = client.post(
+                "/v3/media/confirm",
+                json={
+                    "token": token,
+                    "body": {"filename": "a.png", "object_key": "testuser/a.png", "mime_type": "image/png"},
+                },
+            )
         assert resp.status_code == 200
         # Document envelope — the metadata is the body (clients map the
         # response through the V3Document shape).
@@ -1719,7 +1721,7 @@ class TestMediaConfirm:
         assert data["doc_id"]
         assert data["service"] == "media_metadata"
         assert data["body"]["filename"] == "a.png"
-        assert data["body"]["object_key"] == "alice/a.png"
+        assert data["body"]["object_key"] == "testuser/a.png"
         assert data["created_at"]
 
 
