@@ -240,13 +240,18 @@ function determinePostGroups(visibility: Visibility, username: string): string[]
  */
 export async function readPosts(
   groups: string[],
-  opts?: { limit?: number; offset?: number },
+  opts?: { limit?: number; offset?: number; surface?: string },
 ): Promise<PostRecord[]> {
   const w = getV3Client();
   const docs = await w.read('posts', {
     groups,
     limit: opts?.limit,
     offset: opts?.offset,
+    // The D86 surface label: when present, the node logs a delivery impression
+    // per returned post (the read path's delivery capture). A surface that
+    // tracks dwell (profile) passes its label so the client-gated viewport
+    // signals are gated on a same-surface delivery.
+    ...(opts?.surface ? { surface: opts.surface } : {}),
   });
   return docs.map(fromV3DocToPost);
 }
@@ -262,7 +267,7 @@ export async function readPosts(
  * + communities + DMs + app-storage groups). Reading the feed groups here was
  * the "my profile shows everybody's posts" bug.
  */
-export async function readMyPosts(opts?: { limit?: number }): Promise<PostRecord[]> {
+export async function readMyPosts(opts?: { limit?: number; surface?: string }): Promise<PostRecord[]> {
   const w = getV3Client();
   const token = w.readToken();
   if (!token) return [];
@@ -327,6 +332,7 @@ export async function readUserPublicProfile(
   username: string,
   provider?: string,
   limit = 50,
+  surface?: string,
 ): Promise<{ posts: PostRecord[]; avatarUrl?: string; bannerUrl?: string }> {
   const w = getV3Client();
   const groups = [followersGroupId(username, provider), getDiscoverGroupId()];
@@ -349,7 +355,10 @@ export async function readUserPublicProfile(
   const faceSql = `SELECT author_key AS author_key, body AS body FROM profile WHERE author_key = '${escaped}' LIMIT 1`;
 
   const [postsRes, avatarRes, bannerRes] = await Promise.all([
-    w.query(postsSql, { groups, prepare: { media: true, ads: true } }),
+    // The D86 surface label + content service: when present, the node logs a
+    // delivery impression per returned post (the query path's delivery capture)
+    // — the profile surface's delivery, which gates the card's dwell signals.
+    w.query(postsSql, { groups, prepare: { media: true, ads: true }, ...(surface ? { surface, contentService: 'posts' } : {}) }),
     w.query(faceSql, { groups, prepare: { face: { bodyField: 'body', mediaField: 'avatar_ref', urlField: 'avatar_url' } } }),
     w.query(faceSql, { groups, prepare: { face: { bodyField: 'body', mediaField: 'banner_ref', urlField: 'banner_url' } } }),
   ]);

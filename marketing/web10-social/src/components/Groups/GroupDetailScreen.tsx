@@ -247,6 +247,7 @@ function GroupFeedPost({ post, media, groupId }: { post: PostRecord; media: Medi
       isOwnPost={token ? post.author_username === token.username : false}
       onPostUpdated={() => {}}
       testId="group-post-card"
+      surface="group"
     />
   );
 }

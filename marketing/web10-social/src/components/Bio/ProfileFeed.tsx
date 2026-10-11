@@ -245,6 +245,7 @@ export function ProfileFeed({
             postService="public_posts"
             isOwnPost={isOwnProfile}
             onPostUpdated={onPostUpdated}
+            surface="profile"
           />
         );
       })}

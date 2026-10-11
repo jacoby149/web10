@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { useIsMobile } from '@/lib/pwa';
+import { useDwellTracking } from '@/hooks/useDwellTracking';
 import { useSearchParams } from 'react-router-dom';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
@@ -358,6 +359,11 @@ export interface PostCardProps {
   id?: string;
   /** Extra classes (the Discover board's ?post= highlight ring). */
   className?: string;
+  /** The D86 surface label for dwell tracking (the screen that shows the card —
+   *  `feed` / `discover` / `profile` / `group`). When set, the card reports its
+   *  viewport dwell to the D86 engine (the client-gated tier, gated on the
+   *  delivery the read already logged). Absent → no dwell tracking. */
+  surface?: string;
 }
 
 // Exported so other surfaces (the profile's feed view) can compose the same
@@ -392,6 +398,7 @@ export function PostCard({
   testId = 'post-card',
   id,
   className,
+  surface,
 }: PostCardProps) {
   // Owner actions (previously the lightbox's job — the feed is now inline).
   // Editing is NOT inline — it opens the app-level composer sheet in edit mode
@@ -399,6 +406,11 @@ export function PostCard({
   const { openComposer } = useComposer();
   const { openSave } = useSave();
   const isMobile = useIsMobile();
+  // D86 dwell tracking: how long this card is in the reader's viewport,
+  // reported to the engine when it leaves (gated on the delivery the read
+  // logged). No-op when `surface` is absent or the post id is unresolved.
+  const cardRef = useRef<HTMLElement | null>(null);
+  useDwellTracking(cardRef, post._id, surface || '');
   const [menuOpen, setMenuOpen] = useState(false);
   const [deleteConfirm, setDeleteConfirm] = useState(false);
   const [copied, setCopied] = useState(false);
@@ -464,6 +476,7 @@ export function PostCard({
 
   return (
     <article
+      ref={cardRef}
       data-testid={testId}
       id={id}
       className={cn(
@@ -1137,10 +1150,11 @@ export default function FeedScreen({ onAuthorClick, onRepost }: { onAuthorClick?
                   }
                   onAuthorClick={onAuthorClick}
                   onPostUpdated={() => loadFeed(null, knobState)}
-                  isOwnPost={isOwnPost(post)}
-                  signedIn={!!token}
-                />
-              );
+                   isOwnPost={isOwnPost(post)}
+                   signedIn={!!token}
+                   surface="feed"
+                 />
+               );
 
               if (!attached.length) return [card];
               return [
