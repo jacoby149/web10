@@ -163,10 +163,10 @@ export default function Layout({ onLogout, onLogin, isAnon: isAnonProp, onReport
     pathname === '/shorts' ||
     isOwnProfile;
 
-  // The Monetization surface holds its section in the URL (`?tab=node`). The
-  // nav has ONE Monetization entry — the surface's in-page tab row (My Ads |
-  // Node Ads) is the section switcher — so the row highlights on ANY
-  // /monetize (both sections), not just the Creator section.
+  // The Monetization surface holds its section in the URL (`?tab=`). The nav
+  // has ONE Monetization entry — the surface's in-page tab row (Ads | Products
+  // | Analytics) is the section switcher — so the row highlights on ANY
+  // /monetize section, not just the default.
   const isMonetize = pathname === '/monetize';
 
   // The desktop sidebar's account entry point: an avatar row that opens a
