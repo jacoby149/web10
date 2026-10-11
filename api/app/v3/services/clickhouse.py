@@ -3139,6 +3139,8 @@ def resolve_media_urls(doc_body: dict, user_key: str) -> dict:
     stale `processing` row meant the feed missed the `transcoding_settings`
     (and the minted manifest_url) and fell back to the raw MP4.
     """
+    from fastapi import HTTPException
+
     media_refs = doc_body.get("media_refs") or []
     if not media_refs:
         return doc_body
@@ -3161,7 +3163,13 @@ def resolve_media_urls(doc_body: dict, user_key: str) -> dict:
     # Build lookup: doc_id -> metadata
     meta_map = {}
     for row in result.result_rows:
-        meta_map[row[0]] = _parse_json(row[1])
+        meta = _parse_json(row[1])
+        try:
+            validate_media_metadata(user_key, meta, require_object_key=False)
+        except HTTPException:
+            log.warning("[media] refusing unsafe referenced object metadata")
+            continue
+        meta_map[row[0]] = meta
 
     # Fresh presigned URLs for every object_key + thumbnail_object_key
     # (offline — no network call).
@@ -3229,7 +3237,7 @@ def _collect_minio_keys(obj, keys: list):
             _collect_minio_keys(item, keys)
 
 
-def _resolve_minio_types(obj, signing_client):
+def _resolve_minio_types(obj, signing_client, author_key):
     """Add a fresh presigned `url` to every {type: 'minio', value} leaf value.
 
     Returns a new structure (does not mutate the input). The `value` (object
@@ -3238,20 +3246,25 @@ def _resolve_minio_types(obj, signing_client):
     """
     if isinstance(obj, dict):
         if obj.get("type") == "minio" and obj.get("value"):
-            object_key = str(obj["value"])
+            from app.services.hls import owns_object_key
+
+            object_key = obj["value"]
+            if not owns_object_key(author_key, object_key):
+                log.warning("[media] refusing unsafe minio object reference")
+                return {k: v for k, v in obj.items() if k != "url"}
             presigned = signing_client.generate_presigned_url(
                 "get_object",
                 Params={"Bucket": settings.S3_BUCKET, "Key": object_key},
                 ExpiresIn=settings.READ_URL_EXPIRY,
             )
             return {**obj, "url": presigned}
-        return {k: _resolve_minio_types(v, signing_client) for k, v in obj.items()}
+        return {k: _resolve_minio_types(v, signing_client, author_key) for k, v in obj.items()}
     if isinstance(obj, list):
-        return [_resolve_minio_types(item, signing_client) for item in obj]
+        return [_resolve_minio_types(item, signing_client, author_key) for item in obj]
     return obj
 
 
-def resolve_minio_types(doc_body: dict) -> dict:
+def resolve_minio_types(doc_body: dict, author_key: str | None) -> dict:
     """Resolve minio types in a document body to fresh presigned URLs.
 
     A body with no minio types is returned unchanged (and no S3 client is
@@ -3262,7 +3275,7 @@ def resolve_minio_types(doc_body: dict) -> dict:
     _collect_minio_keys(doc_body, keys)
     if not keys:
         return doc_body
-    return _resolve_minio_types(doc_body, get_s3_signing_client())
+    return _resolve_minio_types(doc_body, get_s3_signing_client(), author_key)
 
 
 def resolve_media_urls_in_docs(docs: list[dict]) -> list[dict]:
@@ -3281,7 +3294,7 @@ def resolve_media_urls_in_docs(docs: list[dict]) -> list[dict]:
         if body.get("media_refs"):
             author = doc.get("author_key", "")
             body = resolve_media_urls(body, author)
-        body = resolve_minio_types(body)
+        body = resolve_minio_types(body, doc.get("author_key"))
         doc_with_media = dict(doc)
         doc_with_media["body"] = body
         # The v3 pinned ad (inline, `doc["ad"]`) — resolve its media the same
@@ -3292,7 +3305,7 @@ def resolve_media_urls_in_docs(docs: list[dict]) -> list[dict]:
             ad_body = ad.get("body", {})
             if ad_body.get("media_refs"):
                 ad_body = resolve_media_urls(ad_body, ad.get("author_key", ""))
-            ad_body = resolve_minio_types(ad_body)
+            ad_body = resolve_minio_types(ad_body, ad.get("author_key"))
             doc_with_media["ad"] = {**ad, "body": ad_body}
         # The node ad (D57, `doc["node_ad"]`) — resolve its media the same way.
         node_ad = doc.get("node_ad")
@@ -3300,7 +3313,7 @@ def resolve_media_urls_in_docs(docs: list[dict]) -> list[dict]:
             na_body = node_ad.get("body", {})
             if na_body.get("media_refs"):
                 na_body = resolve_media_urls(na_body, node_ad.get("author_key", ""))
-            na_body = resolve_minio_types(na_body)
+            na_body = resolve_minio_types(na_body, node_ad.get("author_key"))
             doc_with_media["node_ad"] = {**node_ad, "body": na_body}
         resolved.append(doc_with_media)
     return resolved
@@ -3921,6 +3934,20 @@ def check_recovery_code(contact: str, code: str) -> bool:
 # ---------------------------------------------------------------------------
 
 
+def validate_media_metadata(user_key: str, metadata: dict, require_object_key: bool = True) -> None:
+    from fastapi import HTTPException
+
+    from app.services.hls import owns_object_key
+
+    keys = []
+    _collect_minio_keys(metadata, keys)
+    keys.extend(metadata[k] for k in ("object_key", "thumbnail_object_key") if metadata.get(k))
+    if (require_object_key and not metadata.get("object_key")) or any(
+        not owns_object_key(user_key, key) for key in keys
+    ):
+        raise HTTPException(status_code=403, detail="media key is not owned by this user")
+
+
 def confirm_media_upload(user_key: str, metadata: dict) -> dict:
     """Confirm a media upload by storing metadata in documents table.
 
@@ -3929,6 +3956,7 @@ def confirm_media_upload(user_key: str, metadata: dict) -> dict:
     every client that maps the response through the V3Document shape
     (web10-social's profile photo upload 500'd into a client TypeError).
     """
+    validate_media_metadata(user_key, metadata)
     now = _now()
     doc_id = _gen_doc_id()
     # Positional insert — must match the documents column count (11, including

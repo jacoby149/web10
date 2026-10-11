@@ -4,7 +4,9 @@ from fastapi.responses import Response
 import app.settings as settings
 from app.services import transcode
 from app.services.hls import (
+    MAX_MEDIA_BYTES,
     can_view_doc,
+    owns_object_key,
     rewrite_variant_manifest,
     segment_key,
     synthesize_master_manifest,
@@ -38,9 +40,18 @@ router = APIRouter(tags=["media"])
 def upload_url(data: UploadUrlRequest):
     """Request a presigned POST form for uploading a file to S3."""
     user = _user(data)
+    service = data.body.get("service", "media_metadata")
+    if service not in ("media_metadata", "public_media"):
+        raise HTTPException(status_code=400, detail="invalid media service")
     filename = data.body.get("filename")
     mime_type = data.body.get("mime_type") or "application/octet-stream"
-    if not filename:
+    if (
+        not isinstance(filename, str)
+        or not filename
+        or filename in (".", "..")
+        or any(c in filename for c in "/\\")
+        or any(ord(c) < 32 for c in filename)
+    ):
         raise HTTPException(status_code=400, detail="filename is required")
 
     ensure_bucket(get_s3_client())
@@ -52,6 +63,7 @@ def upload_url(data: UploadUrlRequest):
         Fields={"Content-Type": mime_type},
         Conditions=[
             {"Content-Type": mime_type},
+            ["content-length-range", 1, MAX_MEDIA_BYTES],
         ],
         ExpiresIn=settings.UPLOAD_URL_EXPIRY,
     )
@@ -66,10 +78,12 @@ def upload_url(data: UploadUrlRequest):
 @router.post("/read-url")
 def read_url(data: ReadUrlRequest):
     """Request a presigned GET URL for reading a file from S3."""
-    _user(data)  # validate token
+    user = _user(data)
     object_key = data.body.get("object_key")
     if not object_key:
         raise HTTPException(status_code=400, detail="object_key is required")
+    if not owns_object_key(user, object_key):
+        raise HTTPException(status_code=403, detail="object key is not owned by this user")
 
     ensure_bucket(get_s3_client())
     presigned_url = get_s3_signing_client().generate_presigned_url(
@@ -87,6 +101,15 @@ def read_url(data: ReadUrlRequest):
 def confirm_media(data: ConfirmMedia):
     """Confirm a media upload by storing metadata."""
     user = _user(data)
+    ch.validate_media_metadata(user, data.body)
+    for key in (data.body.get("object_key"), data.body.get("thumbnail_object_key")):
+        if key:
+            try:
+                size = get_s3_client().head_object(Bucket=settings.S3_BUCKET, Key=key)["ContentLength"]
+            except Exception:
+                raise HTTPException(status_code=400, detail="uploaded object not found")
+            if not 0 < size <= MAX_MEDIA_BYTES:
+                raise HTTPException(status_code=413, detail="media exceeds upload size limit")
     return ch.confirm_media_upload(user, data.body)
 
 
@@ -188,10 +211,15 @@ def transcode_media(data: TranscodeRequest):
     video = (doc["body"] or {}).get("video")
     if not (isinstance(video, dict) and video.get("type") == "minio" and video.get("value")):
         raise HTTPException(status_code=400, detail="document has no video minio ref")
+    if not owns_object_key(user, video["value"]):
+        raise HTTPException(status_code=403, detail="video key is not owned by this user")
     ts = (doc["body"] or {}).get("transcoding_settings") or {}
     if ts.get("status") == "processing":
         return {"doc_id": data.doc_id, "status": "processing"}
-    transcode.submit_transcode_job(data.doc_id, user)
+    try:
+        transcode.submit_transcode_job(data.doc_id, user)
+    except transcode.queue.Full:
+        raise HTTPException(status_code=503, detail="transcode queue is full") from None
     return {"doc_id": data.doc_id, "status": "queued"}
 
 

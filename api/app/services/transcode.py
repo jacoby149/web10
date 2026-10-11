@@ -25,14 +25,18 @@ from pathlib import Path
 
 import app.settings as settings
 from app.services import media as media_svc
-from app.services.hls import hls_prefix
+from app.services.hls import MAX_MEDIA_BYTES, hls_prefix, owns_object_key
 from app.v3.services import clickhouse as ch
 
 logger = logging.getLogger("web10-transcode")
 
-_job_queue: queue.Queue = queue.Queue()
+_job_queue: queue.Queue = queue.Queue(maxsize=64)
 _start_lock = threading.Lock()
 _started = False
+_FAILURE_CODES = frozenset({
+    "document_missing", "video_ref_missing", "source_not_owned", "source_size_invalid",
+    "source_size_mismatch", "ffmpeg_failed", "probe_failed", "job_failed",
+})
 
 
 def submit_transcode_job(doc_id: str, author_key: str) -> None:
@@ -40,8 +44,8 @@ def submit_transcode_job(doc_id: str, author_key: str) -> None:
     checks the document's status before submitting, so a double-submit just
     re-runs the worker (last write wins on the document)."""
     _ensure_started()
-    logger.info("[transcode] job queued — doc_id=%s author=%s queue_size=%s", doc_id, author_key, _job_queue.qsize())
-    _job_queue.put((doc_id, author_key))
+    _job_queue.put_nowait((doc_id, author_key))
+    logger.info("[transcode] outcome=queued queue_size=%s", _job_queue.qsize())
 
 
 def start_workers() -> None:
@@ -69,8 +73,9 @@ def _worker_loop() -> None:
             _process_job(doc_id, author_key)
             logger.info("[transcode] job done — doc_id=%s in %.1fs", doc_id, time.time() - started)
         except Exception as e:
-            logger.exception("[transcode] job FAILED — doc_id=%s: %s", doc_id, e)
-            _mark_failed(doc_id, author_key, str(e))
+            code = str(e) if type(e) is RuntimeError and str(e) in _FAILURE_CODES else "job_failed"
+            logger.error("[transcode] outcome=%s", code)
+            _mark_failed(doc_id, author_key, code)
         finally:
             _job_queue.task_done()
 
@@ -85,7 +90,7 @@ def _find_video_ref(body: dict) -> dict:
     video = body.get("video")
     if isinstance(video, dict) and video.get("type") == "minio" and video.get("value"):
         return video
-    raise RuntimeError(f"document has no video minio ref (body.video={video!r})")
+    raise RuntimeError("video_ref_missing")
 
 
 def _set_transcoding_settings(doc_id: str, author_key: str, base_body: dict, ts: dict, service: str) -> None:
@@ -101,6 +106,7 @@ def _set_transcoding_settings(doc_id: str, author_key: str, base_body: dict, ts:
 
 
 def _mark_failed(doc_id: str, author_key: str, error: str) -> None:
+    error = error if error in _FAILURE_CODES else "job_failed"
     try:
         doc = ch.get_document(doc_id, author_key)
         if doc:
@@ -112,7 +118,7 @@ def _mark_failed(doc_id: str, author_key: str, error: str) -> None:
                 doc.get("service") or "media",
             )
     except Exception:
-        logger.exception("[transcode] could not mark doc failed — doc_id=%s", doc_id)
+        logger.error("[transcode] outcome=mark_failed_error")
 
 
 def _parse_renditions(spec: str) -> list[dict]:
@@ -172,21 +178,33 @@ def _thumbnail_dims(src_w: int, src_h: int, box_w: int = 640, box_h: int = 360) 
     return max(2, int(src_w * scale // 2) * 2), max(2, int(src_h * scale // 2) * 2)
 
 
-def _run_ffmpeg(args: list[str], label: str) -> None:
-    cmd = ["ffmpeg", "-hide_banner", "-loglevel", "error", "-y", *args]
-    logger.info("[transcode] ffmpeg %s — %s", label, " ".join(cmd))
-    proc = subprocess.run(cmd, capture_output=True, text=True, timeout=settings.HLS_FFMPEG_TIMEOUT)
+def _run_subprocess(cmd: list[str], timeout: int, failure: str):
+    # Never expose tool output or commands: media can inject paths/content into stderr.
+    try:
+        proc = subprocess.run(cmd, capture_output=True, text=True, timeout=timeout)
+    except (OSError, subprocess.SubprocessError):
+        raise RuntimeError(failure) from None
     if proc.returncode != 0:
-        raise RuntimeError(f"ffmpeg {label} failed (rc={proc.returncode}): {proc.stderr[-2000:]}")
+        raise RuntimeError(failure)
+    return proc
+
+
+def _run_ffmpeg(args: list[str], label: str) -> None:
+    cmd = ["ffmpeg", "-hide_banner", "-loglevel", "error", "-y", "-protocol_whitelist", "file,pipe", *args]
+    logger.info("[transcode] outcome=ffmpeg_started")
+    _run_subprocess(cmd, settings.HLS_FFMPEG_TIMEOUT, "ffmpeg_failed")
+    logger.info("[transcode] outcome=ffmpeg_done")
 
 
 def _probe_duration(path: Path) -> float:
     # Format duration first; webm (browser MediaRecorder output) often has
     # format.duration = N/A — fall back to the video stream's duration.
     for entries in ("format=duration", "stream=duration"):
-        proc = subprocess.run(
+        proc = _run_subprocess(
             [
                 "ffprobe",
+                "-protocol_whitelist",
+                "file,pipe",
                 "-v",
                 "error",
                 "-show_entries",
@@ -195,23 +213,25 @@ def _probe_duration(path: Path) -> float:
                 "default=noprint_wrappers=1:nokey=1",
                 str(path),
             ],
-            capture_output=True,
-            text=True,
-            timeout=30,
+            30,
+            "probe_failed",
         )
-        if proc.returncode != 0:
-            raise RuntimeError(f"ffprobe failed: {proc.stderr[-500:]}")
         val = proc.stdout.strip().splitlines()[0].strip() if proc.stdout.strip() else ""
         if val and val != "N/A":
-            return float(val)
+            try:
+                return float(val)
+            except ValueError:
+                raise RuntimeError("probe_failed") from None
     return 0.0
 
 
 def _probe_dimensions(path: Path) -> tuple[int, int, float]:
     """(width, height, fps) of the first video stream."""
-    proc = subprocess.run(
+    proc = _run_subprocess(
         [
             "ffprobe",
+            "-protocol_whitelist",
+            "file,pipe",
             "-v",
             "error",
             "-select_streams",
@@ -222,26 +242,28 @@ def _probe_dimensions(path: Path) -> tuple[int, int, float]:
             "csv=p=0",
             str(path),
         ],
-        capture_output=True,
-        text=True,
-        timeout=30,
+        30,
+        "probe_failed",
     )
-    if proc.returncode != 0:
-        raise RuntimeError(f"ffprobe dimensions failed: {proc.stderr[-500:]}")
     # csv=p=0 → "720,1280,15/1" (width,height,r_frame_rate) — three values.
-    w_s, h_s, fps_s = proc.stdout.strip().split(",")
-    num, _, den = fps_s.partition("/")
-    fps = float(num) / float(den or 1)
-    return int(w_s), int(h_s), round(fps) or 30
+    try:
+        w_s, h_s, fps_s = proc.stdout.strip().split(",")
+        num, _, den = fps_s.partition("/")
+        fps = float(num) / float(den or 1)
+        return int(w_s), int(h_s), round(fps) or 30
+    except (ValueError, ZeroDivisionError, OverflowError):
+        raise RuntimeError("probe_failed") from None
 
 
 def _process_job(doc_id: str, author_key: str) -> None:
     doc = ch.get_document(doc_id, author_key)
     if not doc:
-        raise RuntimeError(f"document {doc_id} not found")
+        raise RuntimeError("document_missing")
     body = doc["body"]
     video_ref = _find_video_ref(body)
-    object_key = str(video_ref["value"])
+    object_key = video_ref["value"]
+    if not owns_object_key(author_key, object_key):
+        raise RuntimeError("source_not_owned")
     prefix = hls_prefix(object_key)
     renditions = _parse_renditions(settings.HLS_RENDITIONS)
 
@@ -254,12 +276,36 @@ def _process_job(doc_id: str, author_key: str) -> None:
     )
 
     s3 = media_svc.get_s3_client()
+    logger.info("[transcode] outcome=head_started")
+    size = s3.head_object(Bucket=settings.S3_BUCKET, Key=object_key).get("ContentLength")
+    if type(size) is not int or not 0 < size <= MAX_MEDIA_BYTES:
+        raise RuntimeError("source_size_invalid")
+    logger.info("[transcode] outcome=head_done bytes=%s", size)
     tmp = Path(tempfile.mkdtemp(prefix="hls-"))
     try:
         # 1. Pull the raw file from the object store (internal endpoint).
         raw_path = tmp / "raw"
-        logger.info("[transcode] downloading raw — key=%s", object_key)
-        s3.download_file(settings.S3_BUCKET, object_key, str(raw_path))
+        logger.info("[transcode] outcome=download_started")
+        obj = s3.get_object(Bucket=settings.S3_BUCKET, Key=object_key)
+        stream = obj["Body"]
+        try:
+            advertised = obj.get("ContentLength")
+            if type(advertised) is not int or advertised != size:
+                raise RuntimeError("source_size_mismatch")
+            downloaded = 0
+            with raw_path.open("wb") as output:
+                while True:
+                    chunk = stream.read(min(1024 * 1024, size - downloaded + 1))
+                    if not chunk:
+                        break
+                    downloaded += len(chunk)
+                    if downloaded > size or downloaded > MAX_MEDIA_BYTES:
+                        raise RuntimeError("source_size_mismatch")
+                    output.write(chunk)
+            if downloaded != size:
+                raise RuntimeError("source_size_mismatch")
+        finally:
+            stream.close()
         duration = _probe_duration(raw_path)
         src_w, src_h, fps = _probe_dimensions(raw_path)
         logger.info(
@@ -310,7 +356,7 @@ def _process_job(doc_id: str, author_key: str) -> None:
                 label=f"rendition {tag}",
             )
             files = sorted(out_dir.iterdir())
-            logger.info("[transcode] rendition %s — %s files, uploading to %s/", tag, len(files), f"{prefix}/{tag}")
+            logger.info("[transcode] rendition %s - %s files, uploading", tag, len(files))
             for f in files:
                 s3.upload_file(str(f), settings.S3_BUCKET, f"{prefix}/{tag}/{f.name}")
             variants.append(
