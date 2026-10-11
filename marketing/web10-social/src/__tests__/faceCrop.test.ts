@@ -177,4 +177,36 @@ describe('cropFaceImage — the canvas crop (fetch → bitmap → canvas → blo
     await expect(cropFaceImage('https://cdn/404.png', { scale: 1, x: 0, y: 0 }, 200, 200, { size: 512 }))
       .rejects.toThrow('Failed to load image: 404');
   });
+
+  it('falls back to <img> decoding when createImageBitmap fails (the preview-decodes-but-bitmap-doesnt case)', async () => {
+    // createImageBitmap rejects (the InvalidStateError the e2e hit on a tiny
+    // PNG) — the crop must still succeed via the <img> decode path, using the
+    // image's natural dims.
+    vi.stubGlobal('createImageBitmap', vi.fn().mockRejectedValue(new Error('InvalidStateError: The source image could not be decoded.')));
+    const createObjectURL = vi.fn().mockReturnValue('blob:obj');
+    const revokeObjectURL = vi.fn();
+    const realURL = globalThis.URL;
+    vi.stubGlobal('URL', Object.assign(Object.create(realURL), { createObjectURL, revokeObjectURL }));
+    // The <img> mock: an 800×600 natural image whose onload fires async after
+    // src is set (mirrors a real decode).
+    const imgEl: Record<string, unknown> = { naturalWidth: 800, naturalHeight: 600, onload: null, onerror: null, src: '' };
+    vi.stubGlobal('Image', vi.fn().mockImplementation(function () {
+      return new Proxy(imgEl, {
+        set(target, prop, value) {
+          target[String(prop)] = value;
+          if (prop === 'src') setTimeout(() => (target.onload as (() => void) | null)?.(), 0);
+          return true;
+        },
+      });
+    }));
+
+    const result = await cropFaceImage('https://cdn/x.png', { scale: 1, x: 0, y: 0 }, 200, 200, { size: 512 });
+    expect(result.width).toBe(512);
+    expect(result.height).toBe(512);
+    // The <img> was the draw source (an 800×600 image in a square frame
+    // cover-crops to the full source).
+    expect(drawImageMock).toHaveBeenCalledWith(imgEl, expect.any(Number), expect.any(Number), expect.any(Number), expect.any(Number), 0, 0, 512, 512);
+    expect(createObjectURL).toHaveBeenCalled();
+    expect(revokeObjectURL).toHaveBeenCalledWith('blob:obj');
+  });
 });
