@@ -364,6 +364,43 @@ export async function updateNodeAd(
   return w.update(ad.doc.doc_id, body);
 }
 
+/**
+ * Convert an ad's scope (node admin only): flip a regular ad (the creator's
+ * followers group, tagged `ad`) to a node ad (the discover group, tagged
+ * `ad` + `node_ad`), or back. Same `doc_id` — the node's `update` replaces the
+ * doc's group attachments when `groups` is passed, so the conversion is a
+ * single update (new group + new tags + rebuilt body), not a create + delete.
+ *
+ * The body is rebuilt from the ad's current offer / text / status / media /
+ * format so the content carries over. Albums are dropped for a node ad (the
+ * operator's inventory has no albums); a node ad converted back to regular
+ * starts with the `albumIds` the form passes (empty unless re-selected). The
+ * offer's denormalized snapshot (link / partner / kind) is what the public
+ * feed renders, so it survives the move either direction.
+ */
+export async function convertAdScope(
+  ad: AdItem,
+  target: 'personal' | 'node',
+  offer: AdOffer,
+  text: string,
+  status: 'active' | 'paused',
+  albumIds: string[],
+  mediaRefs?: string[],
+  format: 'inline' | 'post' = 'inline',
+  product?: AdProduct | null,
+  productId?: string,
+): Promise<V3Document> {
+  const w = getV3Client();
+  if (target === 'node') {
+    const body = buildNodeAdBody(offer, text, status, mediaRefs, format, undefined, product);
+    return w.update(ad.doc.doc_id, body, { groups: [getDiscoverGroupId()] });
+  }
+  const token = w.readToken();
+  const group = await ensureFollowersGroup(token!.username, token!.provider);
+  const body = buildOfferBody(offer, text, status, albumIds, mediaRefs, format, undefined, product, productId);
+  return w.update(ad.doc.doc_id, body, { groups: [group] });
+}
+
 // ── The creator's catalog (the owner's own posts over their followers group) ─
 
 /**

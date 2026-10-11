@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
+import { useState, useEffect, useCallback, useRef, useMemo, type ReactNode } from 'react';
 import { Megaphone, Plus, Pause, Play, Trash2, Pin, FolderPlus, AlertTriangle, RefreshCw, GraduationCap, ArrowUpRight, X, Pencil, ImagePlus, Radio } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Badge } from '@/components/ui/badge';
@@ -14,6 +14,7 @@ import {
   buildOfferBody,
   updateAd,
   updateNodeAd,
+  convertAdScope,
   createNodeAd,
   isNodeAd,
   type AdsCatalogData,
@@ -86,17 +87,20 @@ export function CreatorMonetization({ isAdmin = false }: { isAdmin?: boolean }) 
   // list below (the scope filter: All | Regular | Node).
   const [nodeAds, setNodeAds] = useState<AdItem[]>([]);
 
-  const [adFormOpen, setAdFormOpen] = useState(false);
-  const [editingAd, setEditingAd] = useState<AdItem | null>(null);
+  // The "New Ad" form (rendered at the top of the catalog card).
+  const [newAdOpen, setNewAdOpen] = useState(false);
+  // The ad being edited INLINE (by doc_id) — its row swaps to the AdForm in
+  // place, so editing the 30th ad doesn't send you scrolling back to the top.
+  const [editingAdId, setEditingAdId] = useState<string | null>(null);
   const [showNewAlbum, setShowNewAlbum] = useState(false);
   const [pinAd, setPinAd] = useState<AdItem | null>(null);
   const [filterAlbum, setFilterAlbum] = useState<string | null>(null);
   // The ad-list scope filter (node admin only): all | regular | node.
   const [scopeFilter, setScopeFilter] = useState<'all' | 'regular' | 'node'>('all');
 
-  const openNewAd = () => { setEditingAd(null); setAdFormOpen(true); };
-  const openEditAd = (ad: AdItem) => { setEditingAd(ad); setAdFormOpen(true); };
-  const closeAdForm = () => { setAdFormOpen(false); setEditingAd(null); };
+  const openNewAd = () => { setEditingAdId(null); setNewAdOpen(true); };
+  const openEditAd = (ad: AdItem) => { setNewAdOpen(false); setEditingAdId(ad.doc.doc_id); };
+  const closeAdForm = () => { setNewAdOpen(false); setEditingAdId(null); };
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -174,6 +178,64 @@ export function CreatorMonetization({ isAdmin = false }: { isAdmin?: boolean }) 
     product?: AdProduct | null,
   ) => {
     await updateNodeAd(ad, offer, text, status, mediaRefs, format, undefined, product);
+  };
+
+  // The one submit path for the ad form (create AND edit, inline or top).
+  // `ad` is null for a new ad; otherwise it's the ad being edited. The form's
+  // `scope` (Personal / Node) decides the destination:
+  //   - new ad            → create in that scope's group
+  //   - edit, same scope  → a normal update (same doc_id, pins survive)
+  //   - edit, new scope   → convert (move the doc between groups + retag)
+  const handleAdSubmit = (
+    ad: AdItem | null,
+    offer: AdOffer,
+    text: string,
+    status: 'active' | 'paused',
+    albumIds: string[],
+    mediaRefs: string[],
+    format: AdFormat,
+    scope: 'personal' | 'node',
+    product?: AdProduct | null,
+    productId?: string,
+  ) => {
+    if (!ad) {
+      run(
+        () =>
+          scope === 'node'
+            ? createNodeAd(offer, text, status, mediaRefs, format, product)
+            : createAd(offer, text, status, albumIds, mediaRefs, format, product, productId),
+        scope === 'node' ? 'Node ad created' : 'Ad created',
+      );
+      return;
+    }
+    const wasNode = isNodeAd(ad.doc);
+    const isNodeNow = scope === 'node';
+    if (wasNode === isNodeNow) {
+      run(
+        () =>
+          wasNode
+            ? editNodeAd(ad, offer, text, status, mediaRefs, format, product)
+            : editAd(ad, offer, text, status, albumIds, mediaRefs, format, product, productId),
+        'Ad updated',
+      );
+    } else {
+      run(
+        () =>
+          convertAdScope(
+            ad,
+            isNodeNow ? 'node' : 'personal',
+            offer,
+            text,
+            status,
+            albumIds,
+            mediaRefs,
+            format,
+            product,
+            productId,
+          ),
+        isNodeNow ? 'Ad is now a node ad' : 'Ad is now a regular ad',
+      );
+    }
   };
 
   const createAlbum = async (name: string) => {
@@ -298,25 +360,15 @@ export function CreatorMonetization({ isAdmin = false }: { isAdmin?: boolean }) 
           </Button>
         </div>
 
-        {adFormOpen && (
+        {newAdOpen && (
           <div className="mt-4">
             <AdForm
-              initial={editingAd}
+              initial={null}
               albums={data?.albums || []}
               products={data?.products || []}
               allowNode={isAdmin}
               onSubmit={(offer, text, status, albumIds, mediaRefs, format, scope, product, productId) =>
-                run(
-                  () =>
-                    editingAd
-                      ? isNodeAd(editingAd.doc)
-                        ? editNodeAd(editingAd, offer, text, status, mediaRefs, format, product)
-                        : editAd(editingAd, offer, text, status, albumIds, mediaRefs, format, product, productId)
-                      : scope === 'node'
-                        ? createNodeAd(offer, text, status, mediaRefs, format, product)
-                        : createAd(offer, text, status, albumIds, mediaRefs, format, product, productId),
-                  editingAd ? 'Ad updated' : scope === 'node' ? 'Node ad created' : 'Ad created',
-                )
+                handleAdSubmit(null, offer, text, status, albumIds, mediaRefs, format, scope, product, productId)
               }
               onCancel={closeAdForm}
             />
@@ -352,6 +404,19 @@ export function CreatorMonetization({ isAdmin = false }: { isAdmin?: boolean }) 
                 onPause={(ad) => run(() => setStatus(ad, 'paused'), isNodeAd(ad.doc) ? 'Node ad paused' : 'Ad paused')}
                 onResume={(ad) => run(() => setStatus(ad, 'active'), isNodeAd(ad.doc) ? 'Node ad active' : 'Ad active')}
                 onRetire={(ad) => run(() => retireAd(ad), isNodeAd(ad.doc) ? 'Node ad retired' : 'Ad retired')}
+                editingAdId={editingAdId}
+                renderEditForm={(ad) => (
+                  <AdForm
+                    initial={ad}
+                    albums={data?.albums || []}
+                    products={data?.products || []}
+                    allowNode={isAdmin}
+                    onSubmit={(offer, text, status, albumIds, mediaRefs, format, scope, product, productId) =>
+                      handleAdSubmit(ad, offer, text, status, albumIds, mediaRefs, format, scope, product, productId)
+                    }
+                    onCancel={closeAdForm}
+                  />
+                )}
               />
               {showAlbumFilter && (
                 <AlbumsSection
@@ -465,6 +530,8 @@ function CatalogSection({
   onPause,
   onResume,
   onRetire,
+  editingAdId,
+  renderEditForm,
 }: {
   ads: AdItem[];
   albums: AlbumItem[];
@@ -481,6 +548,10 @@ function CatalogSection({
   onPause: (ad: AdItem) => void;
   onResume: (ad: AdItem) => void;
   onRetire: (ad: AdItem) => void;
+  /** The doc_id of the ad being edited inline (its row swaps to the form). */
+  editingAdId: string | null;
+  /** Render the inline edit form for a given ad (in place of its row). */
+  renderEditForm: (ad: AdItem) => ReactNode;
 }) {
   return (
     <div className="mb-6">
@@ -507,17 +578,23 @@ function CatalogSection({
         </p>
       ) : (
         <div className="space-y-3">
-          {ads.map((ad) => (
-            <AdRow
-              key={ad.doc.doc_id}
-              ad={ad}
-              onEdit={() => onEdit(ad)}
-              onPin={() => onPin(ad)}
-              onPause={() => onPause(ad)}
-              onResume={() => onResume(ad)}
-              onRetire={() => onRetire(ad)}
-            />
-          ))}
+          {ads.map((ad) =>
+            editingAdId === ad.doc.doc_id ? (
+              <div key={ad.doc.doc_id} data-testid={`ads-editing-${ad.doc.doc_id}`}>
+                {renderEditForm(ad)}
+              </div>
+            ) : (
+              <AdRow
+                key={ad.doc.doc_id}
+                ad={ad}
+                onEdit={() => onEdit(ad)}
+                onPin={() => onPin(ad)}
+                onPause={() => onPause(ad)}
+                onResume={() => onResume(ad)}
+                onRetire={() => onRetire(ad)}
+              />
+            ),
+          )}
         </div>
       )}
     </div>
@@ -760,9 +837,12 @@ function AdForm({ initial, albums, products, allowNode = false, onSubmit, onCanc
   const [status, setStatus] = useState<'active' | 'paused'>(initial?.status || 'active');
   const [albumIds, setAlbumIds] = useState<string[]>(initial?.albums || []);
   const [format, setFormat] = useState<AdFormat>(initial?.format || 'inline');
-  // The ad's scope (create only, node admin): `personal` (the creator's
-  // followers group) or `node` (the discover group, the operator's inventory).
-  const [scope, setScope] = useState<'personal' | 'node'>('personal');
+  // The ad's scope: `personal` (the creator's followers group) or `node` (the
+  // discover group, the operator's inventory). Create defaults to personal;
+  // edit seeds from the ad's CURRENT scope (a node ad starts on "Node"). The
+  // node admin can change it in edit mode too (a scope change converts the ad
+  // — moves it between groups + retags, same doc_id).
+  const [scope, setScope] = useState<'personal' | 'node'>(isNode ? 'node' : 'personal');
   const [saving, setSaving] = useState(false);
 
   // The product picker (D89) — the ad references a product (the master) by
@@ -843,7 +923,9 @@ function AdForm({ initial, albums, products, allowNode = false, onSubmit, onCanc
       // (the master) + the offer snapshot (link + partner + kind). When no
       // product is selected, the ad is a pure ad (no product_id). The product
       // attributes (price, commission, pics) live on the product, not the ad.
-      onSubmit(offer, text.trim() || 'Untitled ad', status, albumIds, mediaRefs, format, editing ? 'personal' : scope, null, productId || undefined);
+      // `scope` is always the form's current scope — in edit mode a change
+      // from the ad's current scope triggers a conversion (the parent decides).
+      onSubmit(offer, text.trim() || 'Untitled ad', status, albumIds, mediaRefs, format, scope, null, productId || undefined);
       onCancel();
     } catch (e) {
       toast.error(errorMessage(e, 'Failed to upload media'));
@@ -852,7 +934,10 @@ function AdForm({ initial, albums, products, allowNode = false, onSubmit, onCanc
   };
 
   return (
-    <div className="rounded border border-border bg-elevated/30 p-4" data-testid={editing ? 'ad-edit-form' : 'ad-new-form'}>
+    <div
+      className={cn('rounded border bg-elevated/30 p-4', editing ? 'border-brand/40' : 'border-border')}
+      data-testid={editing ? 'ad-edit-form' : 'ad-new-form'}
+    >
       <div className="mb-3 flex items-center justify-between">
         <h4 className="text-sm font-medium text-foreground">{editing ? 'Edit ad' : 'New ad'}</h4>
         <Button variant="ghost" size="sm" onClick={onCancel} aria-label="Cancel">
@@ -863,10 +948,11 @@ function AdForm({ initial, albums, products, allowNode = false, onSubmit, onCanc
         A piece of content with the link that pays. The disclosure shows to your audience, always.
       </p>
 
-      {/* Scope (node admin, create only): run this ad as a personal ad (your
-          followers group) OR a node ad (the discover group, the operator's
-          inventory). The node admin runs both kinds from this one surface. */}
-      {allowNode && !editing && (
+      {/* Scope (node admin): run this ad as a personal ad (your followers
+          group) OR a node ad (the discover group, the operator's inventory).
+          Create picks the home; in edit mode a change CONVERTS the ad (moves
+          it between groups + retags, same doc_id). Non-admins never see it. */}
+      {allowNode && (
         <div className="mb-3 grid gap-1.5">
           <Label>Run as</Label>
           <div className="flex gap-2" data-testid="ad-scope-toggle">
@@ -886,6 +972,11 @@ function AdForm({ initial, albums, products, allowNode = false, onSubmit, onCanc
               </button>
             ))}
           </div>
+          {editing && scope !== (isNode ? 'node' : 'personal') && (
+            <p className="text-[0.6875rem] text-warning" data-testid="ad-scope-converting">
+              Saving moves this {isNode ? 'node ad' : 'ad'} to the {scope === 'node' ? 'node inventory' : 'personal catalog'} — same ad, new home.
+            </p>
+          )}
         </div>
       )}
 
@@ -1058,9 +1149,11 @@ function AdForm({ initial, albums, products, allowNode = false, onSubmit, onCanc
           </div>
         </div>
 
-        {/* Albums (regular ads only) — a node ad is the operator's inventory,
-            not a creator's catalog, so it has no albums. */}
-        {!isNode && albums.length > 0 && (
+        {/* Albums (personal/regular ads only) — a node ad is the operator's
+            inventory, not a creator's catalog, so it has no albums. Keyed on
+            the TARGET scope so converting a node ad → personal re-enables
+            album selection. */}
+        {scope !== 'node' && albums.length > 0 && (
           <div className="grid gap-1.5">
             <Label>Albums</Label>
             <div className="flex flex-wrap gap-2">
@@ -1086,7 +1179,7 @@ function AdForm({ initial, albums, products, allowNode = false, onSubmit, onCanc
         )}
       </div>
       <div className="mt-4 flex justify-end gap-2">
-        <Button variant="outline" size="sm" onClick={onCancel}>Cancel</Button>
+        <Button variant="outline" size="sm" onClick={onCancel} data-testid="ad-cancel">Cancel</Button>
         <Button variant="brand" size="sm" onClick={submit} disabled={saving || !link.trim()} data-testid="ad-save">
           {saving ? 'Saving…' : editing ? 'Save Ad' : 'Create Ad'}
         </Button>
