@@ -64,6 +64,16 @@ default — every user is a member (auto-enrolled at signup), anon is a
 member. So the node ad is readable by everyone, the same as any discover
 post. No special I3 handling needed.
 
+**A node ad is just a regular ad with a different home.** The two differ only
+by group (discover vs the creator's followers group) + the `node_ad` tag. So a
+node admin can **convert** an ad either way from the ad editor (the Run-as
+scope toggle, `monetization.md`): a regular ad → node ad (move to the discover
+group + add `node_ad`) or a node ad → regular ad (move back + drop `node_ad`).
+The conversion is a single `update` (new group + retagged body, same `doc_id`
+— `convertAdScope` in `ads-catalog.ts`), not a create + delete. For a regular
+user the scope is fixed (their ads are always personal); conversion is a
+node-admin-only affordance.
+
 ## How the Read Attaches Node Ads
 
 The read (`/v3/read`) already resolves `ad_preference` for pinned ads. The

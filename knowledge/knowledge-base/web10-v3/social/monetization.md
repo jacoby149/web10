@@ -67,13 +67,17 @@ The creator's own monetization (the old "My Ads"):
   (`inline` / `post` — see `ads.md` "Two Formats"), a **media attach** (one
   image or video, the creative), CTA suggestion chips, and an optional `kind`
   (`none` = self-promo hides the partner field).
-- **The Run-as scope (node admin only, create)** — the node admin's **New Ad**
-  form gains a **Run as** toggle (Personal ad / Node ad). Personal → the
-  creator's followers group (the existing path). Node → the discover group,
-  tagged `ad` + `node_ad` (the operator's inventory, via `createNodeAd` in
-  `ads-catalog.ts`). A node admin runs an ad as a personal ad OR a node ad from
-  one surface — no separate panel. Edit mode has no scope (an ad's home is fixed
-  by where it was created); a non-admin's form is personal-only (no toggle).
+- **The Run-as scope (node admin only)** — the node admin's ad form carries a
+  **Run as** toggle (Personal ad / Node ad). Personal → the creator's followers
+  group (the existing path). Node → the discover group, tagged `ad` + `node_ad`
+  (the operator's inventory, via `createNodeAd` in `ads-catalog.ts`). A node
+  admin runs an ad as a personal ad OR a node ad from one surface — no separate
+  panel. The toggle is on **both create and edit**: on create it picks the
+  ad's home; on edit it is seeded to the ad's **current** scope, and changing
+  it **converts** the ad — a single `update` that moves the doc between groups
+  + retags it (same `doc_id`, via `convertAdScope` in `ads-catalog.ts`). A
+  non-admin's form is personal-only (no toggle, no conversion) — for a regular
+  user the scope is fixed and never comes up.
 - **Affiliate onboarding** — the "get started" pointer to the affiliate
   programs worth joining (external sign-up links) + the direct-deals surface.
   This is the old `AffiliateProgramsCard` / `DirectDealsCard`, re-homed. The
@@ -103,9 +107,13 @@ ads with a scope (regular vs node), not a different product. Two pieces:
   filter** (All | Regular | Node) to narrow by kind. A node ad row carries a
   **NODE** badge and has **no Pin control** (a node ad is the operator's
   inventory — it attaches at the density, not by pinning to a post); a regular
-  ad row has Pin. Editing a node ad uses `updateNodeAd` (keeps the `node_ad`
-  tag); editing a regular ad uses `updateAd`. The New Ad form's **Run as** scope
-  is how a node admin creates either kind.
+  ad row has Pin. **Editing is inline**: tapping Edit on a row swaps that row
+  for the ad form in place (the 30th ad's editor sits at the 30th ad, not at
+  the top of the list — no scroll-to-top on a long catalog). Saving a same-scope
+  edit is a normal update (`updateNodeAd` keeps the `node_ad` tag; `updateAd`
+  for a regular ad); saving a **changed** scope converts the ad (see "The
+  Run-as scope" above). The form's **Run as** scope is how a node admin creates
+  either kind — or flips an existing one.
 
 This is the old `AdInventoryCard`, re-homed + merged into the Ads tab. It reads
 the discover group + the admin node config (`/config`), and writes

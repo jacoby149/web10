@@ -15,6 +15,7 @@ const saveNodeAdPercentage = vi.fn();
 const saveNodeAdOverwrite = vi.fn();
 const updateAd = vi.fn();
 const updateNodeAd = vi.fn();
+const convertAdScope = vi.fn();
 const createNodeAd = vi.fn();
 vi.mock('@/data/ads-catalog', () => ({
   checkNodeAdmin: (...a: unknown[]) => checkNodeAdmin(...a),
@@ -25,6 +26,7 @@ vi.mock('@/data/ads-catalog', () => ({
   saveNodeAdOverwrite: (...a: unknown[]) => saveNodeAdOverwrite(...a),
   updateAd: (...a: unknown[]) => updateAd(...a),
   updateNodeAd: (...a: unknown[]) => updateNodeAd(...a),
+  convertAdScope: (...a: unknown[]) => convertAdScope(...a),
   createNodeAd: (...a: unknown[]) => createNodeAd(...a),
   buildOfferBody: vi.fn(),
   buildNodeAdBody: vi.fn(),
@@ -285,6 +287,131 @@ describe('AdForm (create + edit, ad-improvements.md)', () => {
     expect(call[0].doc.doc_id).toBe('ad-1'); // same doc_id (pins survive)
     expect(call[1].link).toBe('https://amzn.to/abc'); // offer preserved
     expect(call[6]).toBe('post'); // format passed through
+  });
+
+  it('editing an ad swaps its row to the inline form in place (no scroll-to-top)', async () => {
+    checkNodeAdmin.mockResolvedValue(false);
+    readMyCatalog.mockResolvedValue({ ads: [AD_ITEM], albums: [], posts: [] });
+    renderAt('/monetize');
+    // The row is present before editing.
+    expect(await screen.findByTestId('ads-row-ad-1')).toBeInTheDocument();
+    fireEvent.click(screen.getByTestId('ads-edit-ad-1'));
+    // The form opens IN PLACE — the row is replaced by the editing wrapper,
+    // so the 30th ad's editor sits at the 30th ad, not at the top of the list.
+    expect(await screen.findByTestId('ads-editing-ad-1')).toBeInTheDocument();
+    expect(screen.getByTestId('ad-edit-form')).toBeInTheDocument();
+    // The original row is gone (swapped for the inline form).
+    expect(screen.queryByTestId('ads-row-ad-1')).not.toBeInTheDocument();
+  });
+
+  it('cancelling the inline edit restores the ad row', async () => {
+    checkNodeAdmin.mockResolvedValue(false);
+    readMyCatalog.mockResolvedValue({ ads: [AD_ITEM], albums: [], posts: [] });
+    renderAt('/monetize');
+    fireEvent.click(await screen.findByTestId('ads-edit-ad-1'));
+    await screen.findByTestId('ad-edit-form');
+    // Cancel → the row comes back, the form is gone.
+    fireEvent.click(screen.getByTestId('ad-cancel'));
+    expect(await screen.findByTestId('ads-row-ad-1')).toBeInTheDocument();
+    expect(screen.queryByTestId('ad-edit-form')).not.toBeInTheDocument();
+  });
+});
+
+describe('AdForm — the scope conversion (node admin, edit mode)', () => {
+  const REGULAR_AD = {
+    doc: { doc_id: 'ad-1', tags: ['ad'] },
+    text: 'Everything I use, linked.',
+    offer: { kind: 'affiliate', partner: 'Amazon', link: 'https://amzn.to/abc', cta: 'Get it', disclosure: '' },
+    status: 'active' as const,
+    media_refs: undefined,
+    format: 'inline' as const,
+    albums: [] as string[],
+  };
+  const NODE_AD = {
+    doc: { doc_id: 'node-1', tags: ['ad', 'node_ad'] },
+    text: 'Try the new workflow tool.',
+    offer: { kind: 'direct', partner: '', link: 'https://workflowco.com?ref=node', cta: 'Learn more', disclosure: 'Sponsored' },
+    status: 'active' as const,
+    media_refs: undefined,
+    format: 'inline' as const,
+    albums: [] as string[],
+  };
+
+  beforeEach(() => {
+    checkNodeAdmin.mockResolvedValue(true);
+    getNodeConfig.mockResolvedValue({ node_ad_percentage: 10, node_ad_overwrite: false });
+    convertAdScope.mockResolvedValue({ doc_id: 'x' });
+    updateAd.mockResolvedValue({ doc_id: 'ad-1' });
+    updateNodeAd.mockResolvedValue({ doc_id: 'node-1' });
+  });
+
+  it('the scope toggle is present in EDIT mode for a node admin (seeded to the ad\'s current scope)', async () => {
+    readMyCatalog.mockResolvedValue({ ads: [REGULAR_AD], albums: [], posts: [] });
+    renderAt('/monetize');
+    fireEvent.click(await screen.findByTestId('ads-edit-ad-1'));
+    await screen.findByTestId('ad-edit-form');
+    // A regular ad seeds the toggle to "Personal" (appears once the async
+    // admin check resolves).
+    const toggle = await screen.findByTestId('ad-scope-toggle');
+    expect(toggle).toBeInTheDocument();
+    expect(screen.getByTestId('ad-scope-personal')).toBeInTheDocument();
+    expect(screen.getByTestId('ad-scope-node')).toBeInTheDocument();
+    // No conversion hint yet (the scope hasn't changed).
+    expect(screen.queryByTestId('ad-scope-converting')).not.toBeInTheDocument();
+  });
+
+  it('a non-admin has no scope toggle in edit mode (personal only)', async () => {
+    checkNodeAdmin.mockResolvedValue(false);
+    readMyCatalog.mockResolvedValue({ ads: [REGULAR_AD], albums: [], posts: [] });
+    renderAt('/monetize');
+    fireEvent.click(await screen.findByTestId('ads-edit-ad-1'));
+    await screen.findByTestId('ad-edit-form');
+    expect(screen.queryByTestId('ad-scope-toggle')).not.toBeInTheDocument();
+  });
+
+  it('converting a regular ad → node calls convertAdScope (target node), not updateAd', async () => {
+    readMyCatalog.mockResolvedValue({ ads: [REGULAR_AD], albums: [], posts: [] });
+    renderAt('/monetize');
+    fireEvent.click(await screen.findByTestId('ads-edit-ad-1'));
+    await screen.findByTestId('ad-edit-form');
+    // The scope toggle appears once the async admin check resolves. Switch to
+    // node → the conversion hint appears → save converts.
+    fireEvent.click(await screen.findByTestId('ad-scope-node'));
+    expect(screen.getByTestId('ad-scope-converting')).toBeInTheDocument();
+    fireEvent.click(screen.getByTestId('ad-save'));
+    await waitFor(() => expect(convertAdScope).toHaveBeenCalled());
+    const call = (convertAdScope as any).mock.calls[0];
+    expect(call[0].doc.doc_id).toBe('ad-1'); // same doc_id
+    expect(call[1]).toBe('node'); // target scope
+    expect(updateAd).not.toHaveBeenCalled();
+  });
+
+  it('converting a node ad → personal calls convertAdScope (target personal), not updateNodeAd', async () => {
+    readMyCatalog.mockResolvedValue({ ads: [], albums: [], posts: [] });
+    readNodeAds.mockResolvedValue([NODE_AD]);
+    renderAt('/monetize');
+    fireEvent.click(await screen.findByTestId('ads-edit-node-1'));
+    await screen.findByTestId('ad-edit-form');
+    // A node ad seeds the toggle to "Node". Switch to personal → save converts.
+    fireEvent.click(await screen.findByTestId('ad-scope-personal'));
+    expect(screen.getByTestId('ad-scope-converting')).toBeInTheDocument();
+    fireEvent.click(screen.getByTestId('ad-save'));
+    await waitFor(() => expect(convertAdScope).toHaveBeenCalled());
+    const call = (convertAdScope as any).mock.calls[0];
+    expect(call[0].doc.doc_id).toBe('node-1'); // same doc_id
+    expect(call[1]).toBe('personal'); // target scope
+    expect(updateNodeAd).not.toHaveBeenCalled();
+  });
+
+  it('editing a regular ad with the SAME scope (personal) is a normal update, not a conversion', async () => {
+    readMyCatalog.mockResolvedValue({ ads: [REGULAR_AD], albums: [], posts: [] });
+    renderAt('/monetize');
+    fireEvent.click(await screen.findByTestId('ads-edit-ad-1'));
+    await screen.findByTestId('ad-edit-form');
+    // Keep the scope personal (the default) + save → a normal update.
+    fireEvent.click(screen.getByTestId('ad-save'));
+    await waitFor(() => expect(updateAd).toHaveBeenCalled());
+    expect(convertAdScope).not.toHaveBeenCalled();
   });
 });
 
