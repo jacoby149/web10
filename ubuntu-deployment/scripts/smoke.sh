@@ -44,7 +44,7 @@ for env in dev prod; do
 
   # v3 smoke — full auth flow: signup → login → use token.
   # DEV ONLY for now: prod is still v2 (1.0.302) until the Phase 4 cutover
-  # (gated — see knowledge/strategy/plan.md). Re-enable for both envs when
+  # (gated — see knowledge-base/strategy/plan.md). Re-enable for both envs when
   # the cutover lands; the HTTP checks above stay on both.
   if [[ "$env" == dev ]]; then
   echo "  -- v3 --"

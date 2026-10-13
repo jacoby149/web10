@@ -11,7 +11,7 @@ Best-effort by contract: a delivery failure (any admin, any step) is logged
 and swallowed — the report is already durable, and a DM hiccup must never
 fail the submitter's request.
 
-KB: knowledge/knowledge-base/web10-v3/social/bug-reports.md
+KB: knowledge-base/web10-v3/social/bug-reports.md
 """
 
 import logging

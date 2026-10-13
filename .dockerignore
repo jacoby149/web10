@@ -51,7 +51,8 @@ marketing/web10-cli/node_modules
 mobile/node_modules
 
 # Editor docs + research dumps the build never reads.
-knowledge/**/*.md
+knowledge-base/**/*.md
+ai-pack/**/*.md
 e2e/screenshots
 e2e/.playwright
 
