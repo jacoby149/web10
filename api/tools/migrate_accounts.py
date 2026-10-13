@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """
 migrate_accounts.py — Phase 1 (pilot) + Phase 3 (full) of the v2→v3 account
-migration (knowledge/knowledge-base/web10-v3/migration/v2-to-v3-accounts.md).
+migration (knowledge-base/web10-v3/migration/v2-to-v3-accounts.md).
 
 Reads the Phase 0 manifest and idempotently migrates accounts into the v3
 ClickHouse users table — the bcrypt hash carried over verbatim (no re-hash) —

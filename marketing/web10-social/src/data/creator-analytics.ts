@@ -13,7 +13,7 @@
 // No node surface (D60) — the read already exists (3.223.3); this is pure
 // client-side aggregation. The dashboard is reporting, not a new engine.
 //
-// KB: knowledge/knowledge-base/web10-v3/analytics/creator-dashboard.md
+// KB: knowledge-base/web10-v3/analytics/creator-dashboard.md
 
 import { getV3Client } from './v3';
 

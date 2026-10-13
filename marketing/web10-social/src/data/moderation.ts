@@ -9,7 +9,7 @@
 // pattern from ads-catalog.ts (the /am_admin + /config seams) — the admin
 // endpoints are system endpoints, not the /v3 CRUD surface the SDK wraps.
 //
-// KB: knowledge/knowledge-base/web10-v3/social/content-moderation.md
+// KB: knowledge-base/web10-v3/social/content-moderation.md
 
 import { API_ORIGIN } from '../lib/origins';
 import { getDiscoverGroupId } from './groups';

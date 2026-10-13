@@ -1,6 +1,6 @@
 """HLS streaming helpers (D44 — the video spine).
 
-The auth model is bifurcated (`knowledge/knowledge-base/web10-v3/media/
+The auth model is bifurcated (`knowledge-base/web10-v3/media/
 minio-auth-bifurcated.md`): everything in MinIO uses presigned URLs EXCEPT
 video HLS, where 100+ segments over minutes can't be presigned
 individually. Instead:

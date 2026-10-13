@@ -28,7 +28,7 @@ import { ReachCharts } from './ReachCharts';
 // Data: the owner's own catalog (readMyCatalog) + the D86 contentAnalytics
 // read (the creator's own content, I3-bound). No node surface (D60).
 //
-// KB: knowledge/knowledge-base/web10-v3/analytics/creator-dashboard.md
+// KB: knowledge-base/web10-v3/analytics/creator-dashboard.md
 
 type Tell = { label: string; variant: 'success' | 'warning' | 'danger' | 'brand' | 'default'; note: string };
 

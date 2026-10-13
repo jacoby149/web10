@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """
 extract_accounts.py — read-only extraction of v2 user accounts for the v2→v3
-migration (Phase 0 of knowledge/knowledge-base/web10-v3/migration/v2-to-v3-accounts.md).
+migration (Phase 0 of knowledge-base/web10-v3/migration/v2-to-v3-accounts.md).
 
 Reads every user collection's star record from the prod mongo and emits a JSON
 manifest of {username, password_hash, phone, phone_verified, email,

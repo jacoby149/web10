@@ -634,7 +634,7 @@ end-to-end encrypted by default (see below).
 ## Encryption (not a default feature)
 
 web10 is a data-policy platform, not a privacy platform (D41,
-`knowledge/strategy/thesis.md`). The node is readable by design — discovery,
+`knowledge-base/strategy/thesis.md`). The node is readable by design — discovery,
 search, and auditability require it — and access is controlled by your terms,
 not by cryptography. So web10 does **not** ship end-to-end encryption by
 default, and there is no phone-as-keychain / mobile encryptor app.

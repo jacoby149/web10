@@ -1,5 +1,5 @@
 -- web10 v3 ClickHouse schema
--- Source: knowledge/knowledge-base/web10-v3/db/clickhouse.md
+-- Source: knowledge-base/web10-v3/db/clickhouse.md
 
 CREATE TABLE IF NOT EXISTS documents (
     doc_id String,

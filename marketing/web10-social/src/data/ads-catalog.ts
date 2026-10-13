@@ -4,7 +4,7 @@
 // are app-owned: web10-social shapes an ad as a `posts` doc tagged `ad` (the
 // social shape). This module is the data layer for the /monetize surface.
 //
-// KB: knowledge/knowledge-base/web10-v3/social/monetization.md (D75) +
+// KB: knowledge-base/web10-v3/social/monetization.md (D75) +
 // ads.md (the object) + ads-dissemination.md (the ad_preference) + node-ads.md
 // (the operator's inventory).
 //
