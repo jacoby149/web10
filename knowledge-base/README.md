@@ -22,8 +22,10 @@ pyramid, how to write docs) is not here — that's the portable cartridge in
   execution lanes.
 - **[`changelogs/`](./changelogs/)** — what web10 has **shipped**. The memory,
   newest first.
-- **[`security-audit/`](./security-audit/)** — what must **never break**. The
-  invariants, the audit.
+- **[`security/`](./security/)** — what must **never break**. The invariants
+  (I1–I6), the scan ledger (the coverage record), the big-picture backlog, and the
+  scan records. The *method* for how security work is done lives in the cartridge:
+  [`ai-pack/ai-security-theory/`](../ai-pack/ai-security-theory/).
 
 ## Reading Order
 

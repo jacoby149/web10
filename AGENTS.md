@@ -25,9 +25,18 @@ refactoring — the four-phase task flow (**orient → generate → compare
 something breaks, do not speculate: run the flow. When building new
 features, build the pyramid bottom-up — the KB alignment is what saves
 you from reimplementation due to misalignment. The KB is the root of trust — keep
-it aligned with the code before you trust any of it. For read-only tasks
-(answering questions, explaining code, searching), this protocol does not
-apply.
+ it aligned with the code before you trust any of it. For read-only tasks
+ (answering questions, explaining code, searching), this protocol does not
+ apply.
+
+**Load `ai-pack/ai-security-theory/README.md` before doing security work**
+(hardening, scanning, or any PR that touches a trust boundary — auth, tokens,
+the DB read gate, federation, the SDK's credential surface). Security is
+*coverage, not convergence*: scan read-only and ledger it, fix in tiny PRs
+(≤500 lines, one finding each, a pinning test), L1 across every file before any
+L2, and re-scan on a 3–6 month cadence. The ledger in
+`knowledge-base/security/scan-ledger.md` is the root of trust for every security
+claim — a surface is only as secure as its last scan. No 90-file security PRs.
 
 ## GREETING BEHAVIOR
 
@@ -72,13 +81,17 @@ The tour, in this order:
      groups). We're on v3.
    - `strategy/` — the plan, decisions, design standard, manifesto,
      timeline, execution lanes.
-   - `changelogs/` — what shipped and why, newest first.
-   - `security-audit/` — the invariants, the audit.
-3. **The AI method (the cartridge)** — `ai-pack/`. The portable operating
-   method that travels to any repo:
-   - `ai-use-theory/` — KB is the root of trust; the pyramid (KB → logs →
-     tests → features) + four-phase flow (orient → generate → compare →
-     repair).
+    - `changelogs/` — what shipped and why, newest first.
+    - `security/` — the invariants (I1–I6), the scan ledger, the big-picture
+      backlog, and the scan records.
+ 3. **The AI method (the cartridge)** — `ai-pack/`. The portable operating
+    method that travels to any repo:
+    - `ai-use-theory/` — KB is the root of trust; the pyramid (KB → logs →
+      tests → features) + four-phase flow (orient → generate → compare →
+      repair).
+    - `ai-security-theory/` — security as coverage, not convergence: the
+      read-only Scanner + the Architect backlog, the ledger (root of trust for
+      security claims), the 3–6 month re-scan ratchet.
    - how to write — `knowledge-theories/` (Why/How/What),
      `writing-styles/`, `voices/`, `visual-styles/`, `editing-styles/`.
 4. **Commands** —
