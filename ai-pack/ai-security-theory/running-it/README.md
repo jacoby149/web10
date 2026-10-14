@@ -87,7 +87,33 @@ that's a small subset of the surface, not the whole thing. The honest total: a
 moderate, *bounded* investment that amortizes over the 3–6 month cadence — not a
 $100k engagement, and not free. The point is that the parallelism makes the
 thorough version *cheap enough to actually run*, which is what a good-but-expensive
-process never gets.
+ process never gets.
+
+## The fix order (within a layer) + day-1 bootstrap
+
+**Layer by layer is already the rule** (L1 → L2 → L3 → L4, each to 100% before the
+next). Within a layer, don't do pure first-in-first-out — a critical I3 break found
+fifth shouldn't wait behind a low-severity hygiene item found first. The order that
+makes it *easier* to implement (not harder) is two obvious sorts + one override:
+
+1. **Severity first** — critical invariant break → high → medium → low.
+2. **Tiebreak: crown jewels first** — a High in `clickhouse.py` before a High in the
+   marketing UI (the criticality gradient).
+3. **Override: root-cause-first** — if one fix is a *prerequisite* for another
+   (removing the root cause closes the symptom), do the root cause first. This is
+   the one case where you jump the severity order, and it's what actually saves
+   rework.
+
+No ranking matrix — just *severe first, backend first, root-cause-first when one
+fix kills another.*
+
+**Day-1 bootstrap:** don't derive where to start — start with the **security-critical
+core at L1, backend-first**: `clickhouse.py` (the I3 read gate), `safe_query.py`
+(the query-engine boundary), `auth.py` (token verify), then `middleware.py` /
+`main.py` / `settings.py` and the endpoints, then the SDK (`browser.ts` / `token.ts`
+/ `http.ts`). That is the crown jewels — the files where a wrong change breaks a
+guarantee. Scan those L1 first (parallel scanners), fix the findings (severity
+order), and *then* widen to the rest of the surface, then L2, L3, L4.
 
 ## 2. The scan → fix flow (exploit-first)
 
