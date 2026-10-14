@@ -118,15 +118,49 @@ own gauntlet — it does not get folded into I1–I6.)*
   resolved request) that a read path fails to filter, so a revoked grant still
   reads as active.
 
-### 6. Secrets & config
+### 6. Bad practices / hygiene (L1 — check and clean as you go)
 
-- **Secret in source** — a key, token, password, or signing secret as a
-  module-level default or literal, instead of env-injected. *(web10 B-2: the JWT
-  signing key + Stripe/Twilio/ClickHouse creds sat in `settings.py` source.)*
-- **Secret in a log line** — a token, credential, or sensitive body field written
-  to a log. *(web10 B-4: `middleware.py` logged full request/response bodies.)*
-- **Insecure default** — a security-relevant setting that defaults to the open
-  value (CORS `*`, debug on, verification off) rather than the closed one.
+Not "hackable from the outside" in the active-attack sense — **straight-up
+practices that compromise the security posture by convention.** Each is a *local*
+property (this line, this config, this default), so it is an **L1** finding. The
+rule that keeps this from becoming noise: **catch and clean it at L1 as you go — a
+bad practice you fix when you find it never stacks into a bigger problem.** (If you
+let them accumulate, a few *can* compound into an exploit path none had alone; the
+fix is simply not to let them accumulate.)
+
+**Weighted for an open-source project** (web10 is public — the code is already
+readable by everyone, so the priorities shift):
+
+- **Secret in public source — HIGH.** A key, token, password, or signing secret as
+  a literal / module default instead of env-injected. In a *closed* project this is
+  a leak to an attacker who breaks in; in an **open-source** project it is a leak to
+  *everyone, immediately*. This is the #1 hygiene finding here. *(web10 B-2: the
+  JWT signing key + Stripe/Twilio/ClickHouse creds sat in `settings.py` source.)*
+- **Secret in a build artifact** — a key/credential baked into a bundle, image, or
+  published package (not just source — the *shipped* artifact). Same world-leak
+  logic as above.
+- **Secret in a log line** — a token, credential, or sensitive body field written to
+  a log. *(web10 B-4: `middleware.py` logged full request/response bodies.)*
+- **Weak / default / hardcoded credentials** — a default password, a `password`/
+  `password123` in a fixture that ships, a shared test cred that leaked into prod
+  config.
+- **Insecure default** — a security-relevant setting that defaults to the open value
+  (CORS `*`, verification off, auth disabled) rather than the closed one.
+- **Long-lived secret with no rotation** — a key/token that never rotates (a leaked
+  one is leaked *forever*).
+- **Over-broad permission / mode** — a file, bucket, or port that is more open than
+  it needs to be (world-readable secret, public bucket, exposed admin port).
+- **Debug / verbose / stack-trace in prod — LOW here.** In a *closed* project this
+  leaks internals; in an **open-source** project the code is public anyway, so it is
+  mostly a nuisance, not a leak. *(Deprioritized for web10 — check it, don't fret
+  over it.)*
+
+**Close condition:** most of these have a trivial "exploit" (the secret *is* the
+exploit — read the source, here's the key) and close red→green like any finding.
+The pure-hygiene ones (insecure default, over-broad mode, no rotation) have no clean
+exploit — they close with a **static check** (a lint rule / config assertion / "grep
+for the pattern returns nothing"), not a red→green test. Either way, it is ledgered
+and cleaned at L1.
 
 ## The render choke point (XSS, stated as a checkable claim)
 

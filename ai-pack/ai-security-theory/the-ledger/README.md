@@ -126,9 +126,18 @@ This is the same idea as the use-theory's **anti-test** ("the KB with teeth — 
   explanation withstand scrutiny," not "here's a deterministic PoC." Note the
   division of labor: the **deterministic L1/L2 tests on the *components* are what
   heal the race** (pin each side of the check-then-act); the L3/L4 explanation
-  covers the composition the components can't see. So the hard cases aren't
-  unverified — they're verified at the zoom where they're verifiable, and explained
-  (and scrutinized) where they aren't.
+   covers the composition the components can't see. So the hard cases aren't
+   unverified — they're verified at the zoom where they're verifiable, and explained
+   (and scrutinized) where they aren't.
+- **Hygiene findings close with a static check, not an exploit.** Bad practices /
+   hygiene (secret in source, insecure default, over-broad mode, no rotation — see
+   [the checklist](../the-scope-ladder/the-checklist.md)) are **L1** findings caught
+   and cleaned as you go. The ones with a trivial exploit (the secret *is* the
+   exploit) close red→green like any finding; the pure-hygiene ones close with a
+   **static check** (a lint rule / config assertion / "grep returns nothing") — the
+   practice is *gone*, not "exploited and denied." The rule that keeps hygiene from
+   stacking into a real vuln: **fix it at L1 when you find it.** Don't let bad
+   practices accumulate.
  - **A failed exploit is a learning (the negative result).** When the scanner
    *suspects* a vuln, builds the exploit, and **it fails**, that is not a discarded
    false positive — it is a **confirmed non-vulnerability**. Record it in the
