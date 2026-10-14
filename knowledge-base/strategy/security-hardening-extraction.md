@@ -81,7 +81,7 @@ output by domain; the first 100 files in a PR view are not a complete inventory.
 ## Mandatory Source-Reading Checkpoint
 
 Before application edits, each workspace must create the research section of
-its own `knowledge-base/security-audit/october/extraction/Sn.md`. Documentation of
+its own `knowledge-base/security/scans/2026-10/extraction/Sn.md`. Documentation of
 this research can be edited now. Application extraction starts only after the
 following evidence exists for the next bounded slice; do not wait for every
 future slice to be researched before starting an independent one.
@@ -254,8 +254,8 @@ read them before mapping; E01-E39 are extraction rows, not invented audit findin
 - S3 owns `auth/auth.md`, `auth/delegation.md`, `sdk/contracts.md`, integrated `security/overview.md`, `threat-model.md`, `findings.md`, `operations.md`, `audit-runbook.md`, `hardening-2026-10.md`, and shared strategy/AGENTS integration. Collect source content from both pins, preserve historical findings as historical, and qualify status by destination evidence.
 - S4 owns `groups/access.md` authority/query evidence; S7 owns `groups/detail.md`; S6 owns `security/rtc-admission.md`; S1 owns `security/credentials.md` and `security/logging.md`. If current dev already has these, reconcile hunks rather than replacing them.
 - S5 and S8 update relevant existing media/import/recovery/account KB pages identified during inventory and hand cross-domain findings/operations sections to S3. No source document may be discarded merely because its title lacks a lane owner.
-- S3 integrates `knowledge-base/security-audit/october/{README,backend,d60-genericity,loc-breakdown,sdk}.md` corrections from all owners. Preserve D60 warnings and original unresolved risks; recalculating LOC must distinguish old snapshot from current measurement.
-- Each implementation workspace checks in `knowledge-base/security-audit/october/extraction/S1.md` through `S8.md` respectively. These reports do not exist just because this plan mentions them. Record source pins/bases, original finding IDs, complete owned-file/hunk and test inventories, disposition, commits/PRs, exact commands/results, screenshots, dependency holds, residual risks, and handoffs.
+- S3 integrates `knowledge-base/security/scans/2026-10/{README,backend,d60-genericity,loc-breakdown,sdk}.md` corrections from all owners. Preserve D60 warnings and original unresolved risks; recalculating LOC must distinguish old snapshot from current measurement.
+- Each implementation workspace checks in `knowledge-base/security/scans/2026-10/extraction/S1.md` through `S8.md` respectively. These reports do not exist just because this plan mentions them. Record source pins/bases, original finding IDs, complete owned-file/hunk and test inventories, disposition, commits/PRs, exact commands/results, screenshots, dependency holds, residual risks, and handoffs.
 
 ## Eight Copy/Paste Workspace Blocks
 
@@ -328,7 +328,7 @@ test_log_redaction.py; SDK http.test.ts/token.test.ts. Account for every source
 test hunk, including shared broad suites. Run targeted tests then full API/SDK
 suites and lint/type/build/whitespace checks from current manifests. Test actual
 redirect refusal and no-cookie transport, not only parser snapshots.
-Write extraction/S1.md under knowledge-base/security-audit/october with both pins,
+Write extraction/S1.md under knowledge-base/security/scans/2026-10 with both pins,
 bases, original finding IDs, hunk/test dispositions, results and S3 handoffs.
 Own security/credentials.md and logging.md; send operations/threat/findings/
 historical audit/AGENTS/tracker hunks to S3 coordinator for serialized integration.
@@ -406,7 +406,7 @@ tests/types/build, affected UI/social tests and browser popup round-trip E2E;
 report unavailable live/browser runs honestly, never call fixtures full E2E.
 Before visible changes read design.md and keep brand/tokens/URL state; use
 self-booting harness and inspect desktop then 375px, never foreground dev.
-Write knowledge-base/security-audit/october/extraction/S2.md with both pins/bases,
+Write knowledge-base/security/scans/2026-10/extraction/S2.md with both pins/bases,
 original finding IDs, full hunk/test/output inventory, stronger replacements,
 results, dependencies and S3 handoffs; send SDK audit/overview/tracker proposals
 to S3 coordinator. E07/E36 are primary; E08/E34 are shared with S3.
