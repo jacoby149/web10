@@ -87,6 +87,21 @@ naming?). Then every fix **writes back** to the learnings, so the next orient is
 smarter. This is the piece that makes the theory lean on the KB the way the
 use-theory does — see [the-orient/](./the-orient/README.md).
 
+## The exploit is the test (exploit-first)
+
+The security unit test is **an exploit** — a working hack, not an assertion of
+intended behavior. The workflow is **exploit-first**: build the exploit → it works
+(**red** = the vuln is real) → fix → the same exploit is denied (**green** = the hole
+is closed). The exploit is the primary artifact, and it has a dual life: it is the
+**proof** the finding is real (it kills the false positive) and the **pinning test**
+that guards against regression. One artifact, three jobs: proof, repro-gate,
+ratchet. **A finding is not real until you can demonstrate it** — a scanner that says
+"this looks vulnerable" without a working exploit is guessing, and that is the
+sycophancy the whole theory exists to kill. This is the same idea as the use-theory's
+**anti-test** ("the KB with teeth") and the **hacker-model gauntlet** in
+`scans/late-stage/` — the repro gate is that idea made a close-condition. Full
+treatment in [the-ledger/](./the-ledger/README.md).
+
 ## The gate: passing the AI pentest
 
 When **L1 + L2 + L3 + L4 are all passed** — every unit ledgered, every finding

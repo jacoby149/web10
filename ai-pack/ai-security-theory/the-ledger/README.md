@@ -75,10 +75,25 @@ A finding goes OPEN → PASS(fixed) only when the **repro gate** is met. This is
 piece that stops a "fixed" from being a false green — the security version of the
 use-theory's *corrupted measure*.
 
-> **The anti-test is the exploit, replayed.** A finding is not closed by "I added a
-> check." It is closed by **re-running the specific exploit that worked before, and
-> watching it now get denied.**
+> **The security unit test is an exploit. The workflow is exploit-first.**
 
+Not "find vuln → fix → add a test." It is **build the exploit → it works (red = the
+vuln is real) → fix → the same exploit is denied (green = the hole is closed).** The
+exploit is not a verification afterthought — it is the **primary artifact**, and it
+has a dual life: it is the **proof** the finding is real (before the fix, it kills
+the false positive) and the **pinning test** that guards against regression (after
+the fix). One artifact, three jobs: **proof, repro-gate, ratchet.**
+
+This is the same idea as the use-theory's **anti-test** ("the KB with teeth — it
+*fails* when the invariant breaks," `ai-use-theory/testing.md`) and the
+**hacker-model gauntlet** in `scans/late-stage/` (fuzzing = generating exploits, the
+"non-negotiable repro gate"). The repro gate is that idea made a close-condition.
+
+- **A finding is not real until you can demonstrate it.** A scanner that says "this
+  looks vulnerable" without a working exploit is *guessing* — and that is the
+  sycophancy the whole theory exists to kill. The exploit is the re-checkable claim,
+  made executable (the October audit's "verified against the actual code, not
+  inferred," as a test).
 - **The pinning test is the exploit, not the assertion.** Not "the endpoint now
   returns 403" (that asserts the *symptom* changed). It is "send the request the
   attacker sent, assert the exploit's *effect* no longer happens." For the
@@ -86,16 +101,24 @@ use-theory's *corrupted measure*.
   **not** appear in the log store. For the origin-check case: `postMessage` from a
   wrong origin, assert it is **rejected**. For the I3 case: query as user A for
   user B's doc, assert **404/403**, and assert the doc body is not in the response.
-- **Red first, green second.** The repro test is written *against the vulnerable
-  code* first (it passes = the vuln is real), then the fix lands and the same test
-  goes green (the hole is closed). A pinning test that was green from the moment it
-  was written proved nothing.
+- **It holds across the whole ladder, even the "basic basics."** The exploit for
+  "secret in source" is *read the file, here's the key*; for "missing origin check"
+  it's *postMessage from a wrong origin, here's the token I stole*; for the
+  availability gap it's *the unbounded query that scans the table*. Every finding
+  has an exploit form, even when the exploit is simple.
+- **Red first, green second.** The exploit is run *against the vulnerable code*
+  first (it works = the vuln is real), then the fix lands and the same exploit is
+  denied (the hole is closed). A pinning test that was green from the moment it was
+  written proved nothing.
+- **Where the exploit lives.** The **scan** (read-only) *identifies* the vuln and
+  records a **PoC** (the demonstration) with the finding. The **fix PR** commits the
+  exploit as the permanent pinning test and shows red→green. The scan stays
+  code-free; the exploit test ships with the fix.
 - **Trust-boundary units get a second pair of eyes.** A PASS on a unit that sits on
   a trust boundary (auth, the I3 read gate, tokens, federation) should be confirmed
   by a **re-scan or a second model**, not just the model that wrote the fix. The
   repro gate is the floor; the second-eyes confirm is the ceiling for the crown
-  jewels. (This is the "repro gate" your `scans/late-stage/` gauntlet gestures at,
-  made a close-condition.)
+  jewels.
 
 A finding closed without the repro gate is a corrupted measure wearing a PASS mask —
 it looks done, but nobody proved the hole is actually closed.

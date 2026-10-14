@@ -71,25 +71,35 @@ then SDK, authenticator, social, marketing UI — see
 - **Scope size rule of thumb:** small enough to read line by line in one session
   without skimming. If a scope is too big to actually read, split it.
 
-## 2. The scan → fix flow
+## 2. The scan → fix flow (exploit-first)
+
+The whole flow is **led by the exploit** — the security unit test *is* a working
+hack, and a finding is not real until you can demonstrate it. See
+[the-ledger/](../the-ledger/README.md) (the repro gate) for the full treatment.
 
 1. **Scan** (read-only). A workspace reads its scope against
    [the checklist](../the-scope-ladder/the-checklist.md), at the current level
-   (L1, then L2, then L3, then L4). It writes ledger rows (PASS / OPEN / STALE)
-   and, for each finding, a backlog entry. It opens a **scan PR** that touches only
-   the ledger + backlog.
+   (L1, then L2, then L3, then L4). For each vuln it finds, it **builds the
+   exploit** — a PoC that demonstrates the break (the hack that works) — and writes
+   a ledger row (PASS / OPEN / STALE) + the finding + the PoC. It opens a **scan PR**
+   that touches only the ledger + backlog (the PoC is recorded with the finding, not
+   committed as a permanent test). A finding with no working exploit is a guess, not
+   a finding — reject it.
 2. **Merge the scan PR.** Ledger-only, zero code risk, lands in parallel with
-   anything. The surface is now *known*: the ledger shows exactly what is owed.
-3. **Fix, one finding at a time.** Each OPEN L1/L2 finding becomes a **fix PR**:
-   ≤500 lines, target ~100, one finding, and a **repro-gate test** — the exploit
-   that worked, replayed, now denied (red first, green second). The PR references
-   the finding (and the ledger row).
+   anything. The surface is now *known*: the ledger shows exactly what is owed, and
+   every OPEN finding has a demonstrated exploit behind it.
+3. **Fix, one finding at a time, exploit-first.** Each OPEN L1/L2 finding becomes a
+   **fix PR**: ≤500 lines, target ~100, one finding. The PR **commits the exploit as
+   the pinning test and shows red→green** — the exploit works against the vulnerable
+   code (red = the vuln is real), the fix lands, the same exploit is now denied
+   (green = the hole is closed). A pinning test that was green from the moment it was
+   written proved nothing. The PR references the finding (and the ledger row).
 4. **Write-back.** When the fix lands, **append the learning to the KB**
    ([the-orient/](../the-orient/README.md)): the finding + fix as a dated learning,
    any new assumption / threat class, and if a concern is retired, move it to
    considered-and-declined. This is what makes the next orient smarter.
-5. **Close the row.** The row goes PASS when the **repro gate** is met (see
-   [the-ledger/](../the-ledger/README.md)). If the finding was L3/L4
+5. **Close the row.** The row goes PASS when the **repro gate** is met (the exploit
+   is denied) — see [the-ledger/](../the-ledger/README.md). If the finding was L3/L4
    (architectural), it was already deferred to a `BP-n` item; the row reads
    `PASS (1 finding → BP-n)` and the big-picture backlog carries the work.
 6. **L1 → L2 → L3 → L4, each to 100%.** Finish L1 across the whole surface, then
