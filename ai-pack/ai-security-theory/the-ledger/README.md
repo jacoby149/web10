@@ -17,19 +17,20 @@ thing is queryable.
 
 ```
 clickhouse.py :: read_documents_in_groups()
-  L1 file-scan              PASS   model=qwen3.6-27b   13.10.2026  last-pass=8ce363e   sys=query-engine
-  L2 immediate-neighborhood PASS   model=qwen3.6-27b   13.10.2026  last-pass=8ce363e   sys=query-engine
-  L3 project-wide           PASS   model=sol6.1        11.10.2026  last-pass=D7-fed    sys=query-engine
+  L1 file-scan      PASS   model=qwen3.6-27b   13.10.2026  last-pass=8ce363e   sys=query-engine
+  L2 call-graph     PASS   model=qwen3.6-27b   13.10.2026  last-pass=8ce363e   sys=query-engine
+  L3 service        PASS   model=qwen3.6-27b   12.10.2026  last-pass=8ce363e   sys=query-engine
+  L4 project-wide   PASS   model=sol6.1        11.10.2026  last-pass=D7-fed    sys=query-engine
 ```
 
 | Field | Meaning |
 |---|---|
 | `file :: unit` | What was scanned. The unit is freestyle — a function, a line-range, or the whole file (see below). |
-| `L1 file-scan` / `L2 immediate-neighborhood-scan` / `L3 project-wide-scan` | Which zoom of the [scope ladder](../the-scope-ladder/README.md). L1 = the file; L2 = the file + its neighborhood; L3 = the whole surface, cross-file. |
+| `L1 file-scan` / `L2 call-graph-scan` / `L3 service-scan` / `L4 project-wide-scan` | Which zoom of the [scope ladder](../the-scope-ladder/README.md). L1 = the file; L2 = the file + its direct call graph (one hop); L3 = the whole service; L4 = the whole project. |
 | `PASS` / `OPEN` / `STALE` | Status (below). |
 | `model=` | Which model did the check. Transparency for going back — *which* model looked at this. Not a hard gate; the audit trail. |
 | date | When the check ran. |
-| `last-pass=` | The commit (L1/L2) or decision/milestone (L3) the check was valid against. The staleness anchor. |
+| `last-pass=` | The commit (L1/L2/L3) or decision/milestone (L4) the check was valid against. The staleness anchor. |
 | `sys=` | The subsystem the unit belongs to (`query-engine`, `auth`, `media`, …). Groups siblings for repair-scope. |
 
 ## Granularity is freestyle
@@ -67,6 +68,37 @@ architectural item). The row is PASS *at L1* (the scan is complete and the debt 
 tracked) while the backlog item carries the actual work. This keeps the L1 ledger
 binary and clean — **L1 PASS means the scan is done and nothing is hiding** —
 without pretending an architectural risk does not exist.
+
+### The repro gate (how a finding actually closes)
+
+A finding goes OPEN → PASS(fixed) only when the **repro gate** is met. This is the
+piece that stops a "fixed" from being a false green — the security version of the
+use-theory's *corrupted measure*.
+
+> **The anti-test is the exploit, replayed.** A finding is not closed by "I added a
+> check." It is closed by **re-running the specific exploit that worked before, and
+> watching it now get denied.**
+
+- **The pinning test is the exploit, not the assertion.** Not "the endpoint now
+  returns 403" (that asserts the *symptom* changed). It is "send the request the
+  attacker sent, assert the exploit's *effect* no longer happens." For the
+  token→log case: send a request carrying a token, assert the token string does
+  **not** appear in the log store. For the origin-check case: `postMessage` from a
+  wrong origin, assert it is **rejected**. For the I3 case: query as user A for
+  user B's doc, assert **404/403**, and assert the doc body is not in the response.
+- **Red first, green second.** The repro test is written *against the vulnerable
+  code* first (it passes = the vuln is real), then the fix lands and the same test
+  goes green (the hole is closed). A pinning test that was green from the moment it
+  was written proved nothing.
+- **Trust-boundary units get a second pair of eyes.** A PASS on a unit that sits on
+  a trust boundary (auth, the I3 read gate, tokens, federation) should be confirmed
+  by a **re-scan or a second model**, not just the model that wrote the fix. The
+  repro gate is the floor; the second-eyes confirm is the ceiling for the crown
+  jewels. (This is the "repro gate" your `scans/late-stage/` gauntlet gestures at,
+  made a close-condition.)
+
+A finding closed without the repro gate is a corrupted measure wearing a PASS mask —
+it looks done, but nobody proved the hole is actually closed.
 
 ## What the ledger is NOT
 

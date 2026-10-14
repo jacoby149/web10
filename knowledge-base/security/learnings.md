@@ -1,0 +1,106 @@
+# Security Learnings — web10's security memory
+
+The **knowledge** root of trust (the ledger is the *coverage* root of trust). This
+is the record the [orient phase](../../ai-pack/ai-security-theory/the-orient/README.md)
+reads before every scan: what web10 has *figured out* about its own security — the
+invariants as they've evolved, every finding→fix as a dated learning, the known
+gaps, and what we've *decided not* to do.
+
+> **The loop:** orient reads this → the scan is aimed → every fix **writes back**
+> here. It is not a static doc; it is the accumulated memory of every security
+> decision. A new agent (or you, six months later) reads this and knows the terrain
+> without re-deriving it.
+
+## The invariants (as they've evolved)
+
+The model is I1–I6 in
+[`web10-v3/security/overview.md`](../web10-v3/security/overview.md). The evolution
+that matters for orient:
+
+- **I1 (verify the issuer) is the known weak one.** It *assumes* a trusted key
+  source. That assumption was **false** under single-node symmetric HS256 (anyone
+  with the key mints any token) — the D7 gap. The fix (RS256/EdDSA + JWKS, per-node
+  keypair) is the `BP-1` item. **Orient check:** is I1 still riding on an
+  unverified assumption? (Until BP-1 lands, yes.)
+- **I3 (no cross-user read) is the crown jewel and it holds** — but *only* because
+  every read path goes through the gate. That is a **load-bearing assumption**: one
+  read path that bypasses the gate is a total break, and there is **no
+  defense-in-depth at the storage layer** (ClickHouse has no per-row ACL; the
+  enforcement is entirely at the query boundary). **Orient check:** is there a read
+  path that doesn't go through the gate?
+- **The invariants cover confidentiality + integrity, not availability.** Unbounded
+  query, unbounded fan-out, unbounded upload, ReDoS are *not* invariants — they are
+  a threat class we scan for (in the checklist) but do not *guarantee*. **This is
+  the standing "obvious gap":** we guarantee the data stays private and intact, but
+  we have no invariant that the node stays *up*.
+
+## Findings → fixes (the dated learnings)
+
+Seeded from the October 2026 audit
+([`scans/2026-10/`](./scans/2026-10/README.md)). **Honesty note:** the hardening
+(PR 1157/1159) is **in flight, not merged** — so these are *learned* but not yet
+*closed*; the repro gate is not yet green. Each closes when its fix lands + the
+exploit is replayed and denied.
+
+| ID | Date | Unit | Learning (vuln → fix) | Status |
+|---|---|---|---|---|
+| B-1 | 2026-10 | `auth.py`, federation | I1 symmetric HS256 — one shared key mints any token → RS256/EdDSA + JWKS (D7) | learned; fix in 1157 (unmerged) → `BP-1` |
+| B-2 | 2026-10 | `settings.py` | signing key + Stripe/Twilio/CH creds in source → env-injected, no defaults | learned; fix in 1157 (unmerged) |
+| B-3 | 2026-10 | `auth.py :: decode_token` | `private_key=False` unsigned decode on an auth path → verify signature before any authz | learned; fix in 1157 (unmerged) |
+| B-4 | 2026-10 | `middleware.py` | full request/response body logged (token in body → token in log) → redact the token field | learned; fix in 1159 (unmerged) |
+| B-5 | 2026-10 | `main.py` CORS | `allow_origins=["*"]` defended only by "token in body" → pin the assumption in a test | learned; needs a pinning test |
+| B-6 | 2026-10 | `clickhouse.py :: get_document_any_author` | reads without author scoping, bounded by a doc-bound sig → verify the sig is checked first | learned; verify |
+| S-1 | 2026-10 | `sdk/browser.ts :: authListen` | `postMessage` token accepted with no origin check → `e.origin === authOrigin` gate | learned; fix in 1159 (unmerged) |
+| S-2 | 2026-10 | `sdk/v3.ts` (token-in-body) | token in JSON body composes with B-4 (body logged) → the body transport is by design; the log redaction (B-4) is the fix | learned; see B-4 |
+| S-3 | 2026-10 | `sdk/http.ts :: authGet` | `byUserGroups` sends no token — functional gap, not a leak → decide: send the token or drop the comment | learned; open decision |
+| S-4 | 2026-10 | `sdk/token.ts :: decodeJwt` | unsigned base64 decode — fine for reading claims, a footgun for authz → doc: never use for authorization | learned; documented |
+| S-5 | 2026-10 | `sdk/token.ts` cookie | `SameSite=Lax`+`Secure`, no HttpOnly (impossible by design), 60-day → acceptable; note the 60-day window | learned; accepted |
+
+**The L2 lesson (why the call-graph rung exists):** B-4 + S-2 is a single
+*relationship* — the token (source, `v3.ts`) flows to the log (sink, `middleware.py`)
+with no redaction between. Neither file is vulnerable in isolation; only the **edge**
+is. That is exactly what L2 (the direct call graph) catches and L1 (one file)
+cannot. Keep this as the worked example when explaining the ladder.
+
+## Known gaps (the "obvious gap" register)
+
+Gaps the orient has surfaced. Each is either a `BP-n` or a standing note:
+
+- **Availability is not an invariant.** We guarantee confidentiality + integrity,
+  not liveness. Unbounded query / fan-out / upload / ReDoS are scanned for but not
+  guaranteed. *(Standing note — decide whether to make availability an invariant
+  (I7) or keep it a scanned-for class.)*
+- **No defense-in-depth at the storage layer.** I3 is enforced only at the query
+  boundary; ClickHouse has no per-row ACL. One boundary bug = total loss, no
+  backstop. *(Standing note — it's a strength (boundary on the input) and a risk
+  (no backstop); the query-engine gauntlet is the mitigation.)*
+- **The query engine is a triple-threat** (I3 + injection + DoS) and is the natural
+  home for a dedicated gauntlet (`scans/late-stage/`). *(Standing note.)*
+
+## Considered and declined (decided — don't re-raise)
+
+The orient checks this list so it doesn't re-raise a decided question:
+
+- **No E2E encryption by default (D41).** web10 is a data-policy platform, not a
+  privacy platform. The node is readable by design (discovery, search,
+  auditability); access is terms-controlled (I3), not cryptographic. E2E is
+  opt-in / third-party, never the default. The phone-as-keychain encryptor app was
+  deleted. *(Do not re-raise "should we add e2e?" — it's decided.)*
+- **Token in the request body, not a header (by design).** This is the CORS
+  defense (a credentialed cookie path would break `allow_origins=["*"]`). The risk
+  is the *log* (B-4), not the transport. *(Don't "fix" the transport; fix the log.)*
+- **Cookie is not HttpOnly (impossible by design).** The SDK (JS) must read the
+  token, so HttpOnly is off the table. The mitigations are `Secure` + `SameSite=Lax`
+  + the 60-day cap. *(Don't re-raise HttpOnly.)*
+
+## How to update this file
+
+- **A fix lands** → append a row to Findings→fixes (date, unit, vuln→fix, status),
+  and flip the matching ledger row to PASS (repro gate met).
+- **A new assumption or threat class is found** → add it to the invariants / known
+  gaps, and add the signature to the checklist.
+- **A concern is decided against** → move it to Considered-and-declined with the
+  decision + the D-number.
+- **A recession is found** (orient prompt 2) → the pinning test goes red (code
+  recession) or this file notes the eroded consideration (conceptual recession);
+  either way it re-opens the finding.

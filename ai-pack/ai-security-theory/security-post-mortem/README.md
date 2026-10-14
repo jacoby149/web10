@@ -103,9 +103,9 @@ changes — and that is the thing that was broken.**
 
 | The failure | The answer |
 |---|---|
-| Open-ended scope → a sprawl | The **scope ladder** — L1 file → L2 neighborhood → L3 project-wide, each a bounded pass ([the-scope-ladder/](../the-scope-ladder/README.md)) |
+| Open-ended scope → a sprawl | The **scope ladder** — L1 file → L2 call-graph → L3 service → L4 project-wide, each a bounded pass ([the-scope-ladder/](../the-scope-ladder/README.md)) |
 | No provable done → merge on faith | **The ledger** — a row per (unit, level) is the done ([the-ledger/](../the-ledger/README.md)) |
-| 90-file PR → unreviewable, un-bisectable | **Bite-sized fix PRs** — ≤500 lines, one finding, a pinning test ([running-it/](../running-it/README.md)) |
+| 90-file PR → unreviewable, un-bisectable | **Bite-sized fix PRs** — ≤500 lines, one finding, a repro-gate test ([running-it/](../running-it/README.md)) |
 | "Do I know what was checked?" → no | **The ledger is the root of trust** — model, date, commit, status, per unit |
 | The scary stuff buried | **L3 + the big-picture backlog** — counted and ordered, not hidden |
 | One-off, then it rots | **The 3–6 month re-scan cadence** — it ratchets, it doesn't rot ([the-ledger/staleness-and-cadence.md](../the-ledger/staleness-and-cadence.md)) |

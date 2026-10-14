@@ -1,9 +1,10 @@
-# Big-Picture Backlog — the L3 debt
+# Big-Picture Backlog — the L3/L4 debt
 
-The cross-file / architectural findings — the **L3 project-wide-scan** findings.
-These are *judgments*, not signatures — they span files, change a design or a
-protocol, or force a breaking / coordinated rollout. They are done **one at a time,
-after L1 + L2 are 100%**. Format and rules live in the cartridge:
+The cross-file / architectural findings — the **L3 service-scan** and **L4
+project-wide-scan** findings. These are *judgments*, not signatures — they span
+files, change a design or a protocol, or force a breaking / coordinated rollout.
+They are done **one at a time, after L1 + L2 are 100%**. Format and rules live in
+the cartridge:
 [`ai-pack/ai-security-theory/the-scope-ladder/`](../../ai-pack/ai-security-theory/the-scope-ladder/README.md).
 
 > **Why this file exists:** in the first hardening pass (1157/1159) the

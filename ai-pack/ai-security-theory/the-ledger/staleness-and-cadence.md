@@ -24,19 +24,20 @@ representative of the code it claims to cover?*
   commit touches the auth path, the query boundary, or a trust boundary, the row
   re-queues immediately. Time does not matter; the change does.
 
-So a row's `last-pass=` (commit for L1/L2, decision/milestone for L3) is the
+So a row's `last-pass=` (commit for L1/L2/L3, decision/milestone for L4) is the
 anchor, and staleness is a *judgment against that anchor*, not a boolean on commit
 count. The ledger shows the date and the anchor; the reader (or a CI check) decides
 "relatively stale?" from those two.
 
 ### The levels age differently
 
-- **L1 file-scan + L2 immediate-neighborhood-scan** age on **time +
-  security-relevant commits** to the unit. Cheap to re-run, so the bar is tight.
-- **L3 project-wide-scan** ages on **architectural change** — a decision lands, a
+- **L1 file-scan + L2 call-graph-scan + L3 service-scan** age on **time +
+  security-relevant commits** to the unit. They are code-scoped, so the bar is
+  time + change.
+- **L4 project-wide-scan** ages on **architectural change** — a decision lands, a
   boundary moves, the threat model shifts — *not* on a single file's commit.
-  Re-running frontier judgment on every commit is waste. Tie L3 freshness to the
-  decision/milestone in `last-pass=`, and re-check when that thing changes.
+  Re-running system-level judgment on every commit is waste. Tie L4 freshness to
+  the decision/milestone in `last-pass=`, and re-check when that thing changes.
 
 ## The re-scan cadence (the clock)
 

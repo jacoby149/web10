@@ -16,6 +16,12 @@ able to prove both from the ledger).
 > every security claim. The KB tells you what the system is *supposed* to
 > guarantee (the invariants); the ledger tells you what has actually been
 > *checked* against those guarantees, and when.
+>
+> There are **two roots of trust**, and they are different: the **ledger** records
+> *coverage* (what was scanned, when, by what model); the **learnings** KB records
+> *knowledge* (the invariants as they've evolved, every finding→fix, the gaps, the
+> "considered and declined" list). You orient against the learnings before you scan,
+> and every fix writes back to them — see [the-orient/](./the-orient/README.md).
 
 ## Start here: the post-mortem
 
@@ -40,35 +46,53 @@ monotonically, and you can point at the ledger and show it.**
 
 ## The scope ladder (not two engines)
 
-Security scanning is **one activity at three zooms**, not two different engines.
-You run the same line-by-line, ledgered scan at each level, one at a time, each to
-100% before the next:
+Security scanning is **one activity at four zooms**, not two different engines. You
+run the same line-by-line, ledgered scan at each level, one at a time, each to 100%
+before the next:
 
 ```mermaid
 flowchart LR
     S[Security-critical surface] --> L1
     S --> L2
     S --> L3
+    S --> L4
     L1[L1 file-scan<br/>the file itself,<br/>line by line]
-    L2[L2 immediate-neighborhood-scan<br/>the file + what it touches:<br/>its callees, its module, its boundary]
-    L3[L3 project-wide-scan<br/>the whole surface, cross-file:<br/>the architectural / the-1157-class]
-    L1 -->|100%| L2 -->|100%| L3
+    L2[L2 call-graph-scan<br/>the file + its DIRECT<br/>call graph — one hop]
+    L3[L3 service-scan<br/>the whole service,<br/>transitive closure]
+    L4[L4 project-wide-scan<br/>all services together:<br/>the final boss]
+    L1 -->|100%| L2 -->|100%| L3 -->|100%| L4
 ```
 
 | Level | Scope | Catches |
 |---|---|---|
 | **L1 file-scan** | the file itself, line by line | the basic basics — secret in source, unsigned decode, missing origin check, no auth gate, token in a log |
-| **L2 immediate-neighborhood-scan** | the file + its callees, its module, the boundary it sits on | "the bug lives in the helper" — the finding that only makes sense with the neighbor in view |
-| **L3 project-wide-scan** | the whole surface, cross-file | the architectural — the federation key model, the coordinated rollout, "these services must deploy together or the guarantee is broken" |
+| **L2 call-graph-scan** | the file + its **direct** call graph (one hop) | the edge vuln — source and sink **one hop apart**, no check between |
+| **L3 service-scan** | the whole service / library / module | the transitive vuln — source and sink **several hops apart**; the intra-service pattern |
+| **L4 project-wide-scan** | the whole project (all services) | the final boss — the cross-service architecture: federation, the coordinated deploy |
 
-Full detail in [the-scope-ladder/](./the-scope-ladder/README.md). The signature
-list the scan checks against is [the-scope-ladder/the-checklist.md](./the-scope-ladder/the-checklist.md).
+The **L2/L3 boundary is the hop count** (one hop = L2, more = L3) — that's what
+keeps the rungs from collapsing. Full detail in
+[the-scope-ladder/](./the-scope-ladder/README.md). The ladder is run **backend-first**
+(the criticality gradient — a backend vuln needs no human to exploit; a frontend
+one does). The signature list the scan checks against is
+[the-scope-ladder/the-checklist.md](./the-scope-ladder/the-checklist.md).
+
+## Orient first (the security Phase 1)
+
+You do **not** start by scanning. You start by reading the learnings KB and running
+three prompts — **onboarding** (what's been considered), **recession** (did any
+invariant / handled thing quietly break again), and **the obvious gap**
+(assumption-enumerate the invariants; is there a threat class we aren't even
+naming?). Then every fix **writes back** to the learnings, so the next orient is
+smarter. This is the piece that makes the theory lean on the KB the way the
+use-theory does — see [the-orient/](./the-orient/README.md).
 
 ## The gate: passing the AI pentest
 
-When **L1 + L2 + L3 are all passed** — every unit ledgered, every finding fixed or
-explicitly deferred, every fix pinned by a test — the surface has **passed the AI
-pentest.** That is the done-state, and it is a claim the ledger backs. See
+When **L1 + L2 + L3 + L4 are all passed** — every unit ledgered, every finding
+fixed or explicitly deferred, every fix passing the **repro gate** (the exploit
+replayed and denied) — the surface has **passed the AI pentest.** That is the
+done-state, and it is a claim the ledger backs. See
 [the-pentest-gate/](./the-pentest-gate/README.md).
 
 The pitch: this is the **alternative to hiring a $100k+ human pentest** — and
@@ -83,23 +107,27 @@ record.**
 | Directory | What it covers |
 |---|---|
 | [security-post-mortem/](./security-post-mortem/README.md) | Why the old way fails — the 1157/1159 story, the money-bleed, the no-peace-of-mind ending, and the merge-breakage closer |
-| [the-scope-ladder/](./the-scope-ladder/README.md) | L1 file-scan → L2 immediate-neighborhood-scan → L3 project-wide-scan. Plus [the-checklist.md](./the-scope-ladder/the-checklist.md), the signature list |
-| [the-ledger/](./the-ledger/README.md) | The altitude — the format, PASS/OPEN/STALE + the deferral reference, freestyle granularity. Plus [staleness-and-cadence.md](./the-ledger/staleness-and-cadence.md), relative staleness + the 3–6 month clock + the ratchet |
+| [the-orient/](./the-orient/README.md) | Phase 1 — read the learnings KB first: onboarding, recession, the obvious gap (assumption-enumeration), and the write-back that makes the next orient smarter |
+| [the-scope-ladder/](./the-scope-ladder/README.md) | L1 file-scan → L2 call-graph-scan → L3 service-scan → L4 project-wide-scan, the hop-count L2/L3 boundary, and the criticality gradient. Plus [the-checklist.md](./the-scope-ladder/the-checklist.md), the signature list (Python/JS-shaped, by threat class) |
+| [the-ledger/](./the-ledger/README.md) | The altitude — the format, PASS/OPEN/STALE + the deferral reference + the **repro gate** (how a finding closes), freestyle granularity. Plus [staleness-and-cadence.md](./the-ledger/staleness-and-cadence.md), relative staleness + the 3–6 month clock + the ratchet |
 | [the-pentest-gate/](./the-pentest-gate/README.md) | The done-state — what "passed the AI pentest" means, and why it beats a $100k human pentest |
-| [running-it/](./running-it/README.md) | The operation — scope slicing, the scan→fix PR flow, the L1→L2→L3 order, and the seven enforceable rules |
+| [running-it/](./running-it/README.md) | The operation — orient, scope slicing backend-first, the scan→fix PR flow (repro gate + write-back), the L1→L2→L3→L4 order, and the seven enforceable rules |
 
 ## The seven rules (the enforceable summary)
 
 1. **No security PR over 500 lines. Target ~100.** One finding = one fix PR.
 2. **The scan is read-only.** It produces a ledger PR + backlog tasks, never code.
-3. **L1 → L2 → L3, each to 100% before the next.** The zooms, in order.
-4. **Every scan is ledgered** — file/unit, level, model, date, commit, subsystem,
-   status. No scan that isn't in the ledger happened.
-5. **Every fix lands a pinning test.** Coverage ratchets; it does not regress.
-6. **Re-scan on a 3–6 month cadence.** Staleness is relative; the cadence is the
-   clock.
-7. **Parallelize the scan, not the fix.** Many read-only scanners at once; fix PRs
-   land one finding at a time.
+3. **Orient before you scan.** Read the learnings KB, check recession + the gap. A
+   scan without an orient is blind.
+4. **L1 → L2 → L3 → L4, each to 100% before the next, backend-first.** The zooms,
+   in order, the crown jewels first.
+5. **Every fix passes the repro gate** — the exploit replayed, denied, red-then-
+   green. A fix with no repro-gate test is not done.
+6. **Every fix writes back to the KB** — the learning is appended to the learnings
+   record, so the next orient is smarter.
+7. **Re-scan on a 3–6 month cadence.** Staleness is relative; the cadence is the
+   clock. (And: parallelize the *scan*, not the *fix* — many read-only scanners at
+   once, fix PRs one finding at a time.)
 
 ## Where the state lives
 
