@@ -113,9 +113,12 @@ done-state, and it is a claim the ledger backs. See
 The pitch: this is the **alternative to hiring a $100k+ human pentest** — and
 potentially *more* thorough, because it is ledgered (you can point at what was
 checked, by which model, when), repeatable (re-run on the 3–6 month cadence, not a
-one-off report), and it ratchets (pinning tests mean it only gets more secure). A
-human pentest hands you a PDF and leaves; this leaves you a **living coverage
-record.**
+one-off report), and it **ratchets three ways** — pinning tests (a fix can't
+regress), the re-scan (drift is caught), and the **model upgrade** (each pass runs
+on a stronger model than the last, inheriting every learning). A human pentest hands
+you a PDF and leaves; this leaves you a **living coverage record** that gets more
+secure every cycle. The AI is never a true oracle — but the ratchet means you don't
+need one: **every play of the game is strictly more secure than the last.**
 
 ## The map
 
@@ -126,9 +129,9 @@ record.**
 | [the-scope-ladder/](./the-scope-ladder/README.md) | L1 file-scan → L2 call-graph-scan → L3 service-scan → L4 project-wide-scan, the hop-count L2/L3 boundary, and the criticality gradient. Plus [the-checklist.md](./the-scope-ladder/the-checklist.md), the signature list (Python/JS-shaped, by threat class) |
 | [the-ledger/](./the-ledger/README.md) | The altitude — the format, PASS/OPEN/STALE + the deferral reference + the **repro gate** (how a finding closes), freestyle granularity. Plus [staleness-and-cadence.md](./the-ledger/staleness-and-cadence.md), relative staleness + the 3–6 month clock + the ratchet |
 | [the-pentest-gate/](./the-pentest-gate/README.md) | The done-state — what "passed the AI pentest" means, and why it beats a $100k human pentest |
-| [running-it/](./running-it/README.md) | The operation — orient, scope slicing backend-first, the scan→fix PR flow (repro gate + write-back), the L1→L2→L3→L4 order, and the seven enforceable rules |
+| [running-it/](./running-it/README.md) | The operation — orient, scope slicing backend-first, the scan→fix PR flow (exploit-first + repro gate + write-back), the L1→L2→L3→L4 order, the **convergence review** (fresh untainted reviewer, run until 3-dry), and the enforceable rules |
 
-## The seven rules (the enforceable summary)
+## The rules (the enforceable summary)
 
 1. **No security PR over 500 lines. Target ~100.** One finding = one fix PR.
 2. **The scan is read-only.** It produces a ledger PR + backlog tasks, never code.
@@ -138,11 +141,16 @@ record.**
    in order, the crown jewels first.
 5. **Every fix passes the repro gate** — the exploit replayed, denied, red-then-
    green. A fix with no repro-gate test is not done.
-6. **Every fix writes back to the KB** — the learning is appended to the learnings
-   record, so the next orient is smarter.
-7. **Re-scan on a 3–6 month cadence.** Staleness is relative; the cadence is the
-   clock. (And: parallelize the *scan*, not the *fix* — many read-only scanners at
-   once, fix PRs one finding at a time.)
+6. **Every result writes back to the KB** — a fix *and* a failed exploit (a
+   confirmed non-vulnerability is a learning, not a discarded false positive).
+7. **Re-scan on a 3–6 month cadence, on a stronger model.** Staleness is relative;
+   the cadence is the clock; the model upgrade is the third ratchet.
+8. **Trust-boundary units need the convergence review** — three consecutive dry
+   passes by a fresh, untainted reviewer. A PASS without three-dry is a claim, not
+   a verification.
+
+*(And: parallelize the scan, not the fix — many read-only scanners at once, fix PRs
+one finding at a time.)*
 
 ## Where the state lives
 

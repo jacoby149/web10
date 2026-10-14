@@ -58,7 +58,7 @@ parallel.
 
 ## The ratchet: coverage only goes up
 
-Two mechanisms make coverage monotonic:
+Three mechanisms make coverage monotonic:
 
 **1. Pinning tests.** Every fix PR lands a test that **fails if the vulnerability
 regresses** — the security analog of the anti-test in
@@ -67,7 +67,13 @@ regresses** — the security analog of the anti-test in
 So the suite only grows stricter; it never moves backward.
 
 **2. The cadence re-scan.** The schedule re-covers the surface, so new code and
-drift get picked up. Combined with the pinning tests, the net effect is:
+drift get picked up.
+
+**3. The model upgrade.** Each re-scan runs on a **stronger model than the last** —
+the frontier keeps getting smarter every few months. So the *capability* of the
+scan ratchets up too: a pass in six months finds what a pass today misses, on the
+same code. And it starts from a bigger map — it inherits every learning (positive
+*and* negative) from the passes before it.
 
 ```
  scan debt  ┤██████████┐
@@ -75,13 +81,27 @@ drift get picked up. Combined with the pinning tests, the net effect is:
             │             └──┐
             │                └──────┐   L3 items, one at a time
             │                      └──────────►  ~0 debt
-            │   (re-scan every 3–6 mo keeps it there)
+            │   (re-scan every 3–6 mo, on a stronger model, keeps it there)
             └──────────────────────────────────────────── time
 ```
 
 Coverage ratchets: each fix is pinned (can't regress), each re-scan adds coverage
-(can't silently lose it). **You get more and more secure over time, and the ledger
-is the graph of it.**
+(can't silently lose it), and each re-scan is *smarter* than the last (the model
+upgrade). **You get more and more secure over time, and the ledger is the graph of
+it.**
+
+### Why the ratchet matters more than the oracle
+
+The AI is never a true oracle — no single pass is guaranteed to find every
+vulnerability. That limit is real, and the theory does not pretend otherwise. But
+the ratchet means you **don't need an oracle to get guaranteed forward progress.**
+You don't bet on any single pass being perfect — you bet on *monotonicity*: the
+coverage only goes up, the floor only gets stricter, and the model only gets
+better, so **every play of the game is strictly more secure than the last.** The
+no-true-oracle limit doesn't break that, because the ratchet doesn't need an
+oracle — it needs monotonicity, and the three mechanisms above provide it. That is
+the whole thesis in one line: *run the play over and over, and every time you play
+it, there is a productive gain in security.*
 
 ## The anti-sycophancy check
 

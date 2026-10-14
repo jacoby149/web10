@@ -109,4 +109,4 @@ changes — and that is the thing that was broken.**
 | "Do I know what was checked?" → no | **The ledger is the root of trust** — model, date, commit, status, per unit |
 | The scary stuff buried | **L3 + the big-picture backlog** — counted and ordered, not hidden |
 | One-off, then it rots | **The 3–6 month re-scan cadence** — it ratchets, it doesn't rot ([the-ledger/staleness-and-cadence.md](../the-ledger/staleness-and-cadence.md)) |
-| "Is it actually secure?" → a vibe | **The AI pentest gate** — L1+L2+L3 all passed = a claim the ledger backs ([the-pentest-gate/](../the-pentest-gate/README.md)) |
+| "Is it actually secure?" → a vibe | **The AI pentest gate** — L1+L2+L3+L4 all passed = a claim the ledger backs ([the-pentest-gate/](../the-pentest-gate/README.md)) |

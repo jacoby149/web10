@@ -114,11 +114,27 @@ This is the same idea as the use-theory's **anti-test** ("the KB with teeth — 
   records a **PoC** (the demonstration) with the finding. The **fix PR** commits the
   exploit as the permanent pinning test and shows red→green. The scan stays
   code-free; the exploit test ships with the fix.
-- **Trust-boundary units get a second pair of eyes.** A PASS on a unit that sits on
-  a trust boundary (auth, the I3 read gate, tokens, federation) should be confirmed
-  by a **re-scan or a second model**, not just the model that wrote the fix. The
-  repro gate is the floor; the second-eyes confirm is the ceiling for the crown
-  jewels.
+ - **A failed exploit is a learning (the negative result).** When the scanner
+   *suspects* a vuln, builds the exploit, and **it fails**, that is not a discarded
+   false positive — it is a **confirmed non-vulnerability**. Record it in the
+   learnings as a dated negative: *"on `<date>`, `<unit>` looked like `<vuln>`;
+   exploit attempted; **failed** because `<reason>`. Confirmed not vulnerable (as of
+   this commit)."* This is the anti-sycophancy check in the other direction: the
+   scanner can't wave things away ("looks fine") *or* claim things ("looks
+   vulnerable") — it has to *try*, and the result (exploit works / exploit fails) is
+   the evidence either way. A suspicion with no attempted exploit is noise; a
+   suspicion with a failed exploit is a *learning*. And it is the **recession
+   early-warning**: a negative says "this was safe *because of* `<reason>`" — if a
+   later change removes that reason, the negative is stale, and that is exactly the
+   conceptual recession the orient catches. So the learnings map is not just "what's
+   vulnerable," it is **"what we've proven safe, and why."**
+- **Trust-boundary units get the convergence review.** A PASS on a unit that sits on
+  a trust boundary (auth, the I3 read gate, tokens, federation) is confirmed by the
+  **review-until-dry** loop — an unbiased, untainted reviewer run **three times**,
+  dry all three (see [running-it/](../running-it/README.md)). The repro gate is the
+  floor; three-dry is the ceiling for the crown jewels. It is not an oracle — it is
+  **bounded, evidenced uncertainty**: "reviewed three times by a clean reviewer,
+  empty each time, and everything it did find is in the ledger."
 
 A finding closed without the repro gate is a corrupted measure wearing a PASS mask —
 it looks done, but nobody proved the hole is actually closed.

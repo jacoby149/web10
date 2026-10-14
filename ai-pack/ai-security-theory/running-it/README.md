@@ -26,7 +26,9 @@ flowchart TD
     J -->|L1 100%| K[L2 across the surface]
     J -->|L2 100%| M[L3 per service, backend-first]
     J -->|L3 100%| P[L4 project-wide — the final boss]
-    J -->|L4 100%| N[Passed the AI pentest]
+    J -->|L4 100%| CR[Convergence review — fresh untainted reviewer, run until 3-dry]
+    CR -->|found a real L1-L4 not in ledger| F
+    CR -->|3 consecutive dry| N[Passed the AI pentest]
     K --> B
     M --> B
     P --> B
@@ -104,10 +106,56 @@ hack, and a finding is not real until you can demonstrate it. See
    `PASS (1 finding → BP-n)` and the big-picture backlog carries the work.
 6. **L1 → L2 → L3 → L4, each to 100%.** Finish L1 across the whole surface, then
    L2, then L3 per service, then L4 project-wide (the final boss). When all four
-   are 100%, the surface has **passed the AI pentest** — see
-   [the-pentest-gate/](../the-pentest-gate/README.md).
+    are 100%, the surface has **passed the AI pentest** — see
+    [the-pentest-gate/](../the-pentest-gate/README.md).
 
-## The seven rules (enforceable)
+## 3. The convergence review (run until dry)
+
+The ladder says "L1–L4 are 100%." The convergence review answers the harder
+question: **"is it *actually* done, or did the scan just stop finding things?"** It
+is the second pair of eyes, made a rule — and it is what lets you answer "but is the
+AI a true oracle?" with *"no, but it was reviewed three times by a clean reviewer
+and came up empty each time."*
+
+**The loop:**
+
+1. **A fresh, unbiased, untainted reviewer** — a clean context that has **not** seen
+   the code, the fix, or the original scan. It is not anchored on what was already
+   found, so it finds *different* things. (This is the anti-sycophancy move: the
+   reviewer that wrote the fix can't be the one who signs it off.)
+2. It reviews the unit / surface for **L1–L4 findings not already in the ledger.**
+3. **Anything real it raises gets added** — to the ledger as OPEN (needs an exploit
+   + fix) or to the plan / big-picture backlog. It then goes through the normal
+   exploit-first flow (build the exploit, fix, repro gate, write-back).
+4. **Re-run the review** (a fresh reviewer again).
+5. **Stop on three consecutive dry reviews** — three in a row where the reviewer
+   comes back with nothing new ("I'm out of ideas"). Before you hit three-dry, it is
+   still bringing up real stuff; three-dry is the convergence signal.
+
+```mermaid
+flowchart TD
+    A[Fresh untainted reviewer] --> B{Found a real L1-L4<br/>not in the ledger?}
+    B -->|yes| C[Add to ledger as OPEN<br/>→ exploit + fix + write-back]
+    C --> D[Re-run: fresh reviewer]
+    D --> B
+    B -->|no — dry| E{Dry count}
+    E -->|1 or 2| D
+    E -->|3 consecutive| F[Converged — the unit is done]
+```
+
+**Why three, not one:** a single dry review is luck; three independent fresh
+reviews all coming up empty is *evidence*. The number is a judgment (three is the
+default), but the principle is **convergence detection with a margin** — you don't
+call it done on the first quiet pass, you call it done when it's been quiet
+repeatedly.
+
+**What it is:** not an oracle. It is **bounded, evidenced uncertainty.** The claim
+you can make is not "this is secure" — it is *"this was reviewed three times by a
+clean reviewer, empty each time, and everything any review ever found is in the
+ledger."* That is the honest best, and it is strong, because the uncertainty is
+*bounded* (three-dry) and *evidenced* (the ledger), not a vibe.
+
+## The rules (enforceable)
 
 These are the whole theory compressed to what a reviewer can check on any PR:
 
@@ -121,10 +169,14 @@ These are the whole theory compressed to what a reviewer can check on any PR:
    L1-PASS; no L3 until L2-PASS; no L4 until L3-PASS.
 5. **Every fix passes the repro gate** — the exploit replayed, denied, red-then-
    green. A fix PR with no repro-gate test is not done.
-6. **Every fix writes back to the KB.** A fix PR that doesn't append the learning
-   to the learnings record breaks the orient loop — reject it.
+6. **Every fix writes back to the KB** — and so does every *failed* exploit (a
+   confirmed non-vulnerability is a learning, not a discarded false positive). A PR
+   that doesn't append the learning breaks the orient loop — reject it.
 7. **Re-scan on a 3–6 month cadence.** Staleness is relative; the cadence is the
    clock. A surface with no re-scan in 6+ months is STALE by default.
+8. **Trust-boundary units need the convergence review** — three consecutive dry
+   passes by a fresh, untainted reviewer. A PASS without three-dry is a claim, not
+   a verification.
 
 *(Parallelize the scan, not the fix, is the operating note under rules 1–2: many
 read-only scanners at once; fix PRs land one finding at a time.)*
@@ -139,10 +191,12 @@ A surface is **done** — it has **passed the AI pentest** — when:
 - every **OPEN** finding is a tracked item — a fix PR (L1/L2) or a big-picture
   backlog entry (L3/L4) — nothing found is unlogged,
 - every **fix** passed the **repro gate** (the exploit is replayed and denied), and
+- every **trust-boundary unit** passed the **convergence review** (three
+  consecutive dry passes by a fresh, untainted reviewer), and
 - the **big-picture backlog** is visible and ordered (the architectural debt is
   counted, not hidden).
 
 "Done" is not "secure." It is *oriented, fully scanned, fully accounted for,
-repro-verified, and ratcheting.* That is the most a one-dev project can honestly
-claim — and the ledger + learnings are the proof. See
+repro-verified, convergence-reviewed, and ratcheting.* That is the most a one-dev
+project can honestly claim — and the ledger + learnings are the proof. See
 [the-pentest-gate/](../the-pentest-gate/README.md) for the claim, stated.

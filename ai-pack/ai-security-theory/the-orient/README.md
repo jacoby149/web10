@@ -76,7 +76,8 @@ in the learnings* — so the next orient starts smarter.
 ## The write-back (what makes the next orient smarter)
 
 This is the piece that makes the theory *lean on the KB* the way the use-theory
-does. **Every fix writes back to the learnings record.** When a fix PR lands:
+does. **Every result writes back to the learnings record** — a fix *and* a failed
+exploit. When a fix PR lands:
 
 - the finding + the fix is appended as a **dated learning** ("on `<date>`,
   `<unit>` had `<vuln>`; fixed by `<change>`; pinned by `<test>`"),
@@ -85,10 +86,26 @@ does. **Every fix writes back to the learnings record.** When a fix PR lands:
 - if the fix **retires** a concern, it moves to the **considered-and-declined** list
   (so the next orient doesn't re-raise a decided question).
 
+**A failed exploit writes back too — as a *negative* learning.** When the scanner
+suspects a vuln, builds the exploit, and **it fails**, that is a **confirmed
+non-vulnerability**, not a discarded false positive. It is recorded as: "on
+`<date>`, `<unit>` looked like `<vuln>`; exploit attempted; **failed** because
+`<reason>`; **confirmed not vulnerable** (as of `<commit>`)." Two things fall out:
+
+- **It is the anti-sycophancy check in the other direction.** The scanner can't wave
+  things away ("looks fine") *or* claim things ("looks vulnerable") — it has to
+  *try*, and the result is the evidence either way. A suspicion with no attempted
+  exploit is noise; a suspicion with a failed exploit is a *learning*.
+- **It is the recession early-warning.** A negative says "this was safe *because
+  of* `<reason>`." If a later change removes that reason, the negative is stale —
+  and that is exactly the conceptual recession prompt 2 catches. So the learnings
+  map is not just "what's vulnerable," it is **"what we've proven safe, and why."**
+
 The learnings record is therefore *not* a static doc — it is the **accumulated
-memory of every security decision**, and it is what the orient reads. Scan → fix →
-write-back → next orient is smarter. That loop is the security version of the
-use-theory's "the KB is the root of trust, keep it aligned."
+memory of every security decision, positive and negative**, and it is what the
+orient reads. Scan → (fix *or* failed exploit) → write-back → next orient is
+smarter. That loop is the security version of the use-theory's "the KB is the root
+of trust, keep it aligned."
 
 ## Why orient-first (and not scan-first)
 

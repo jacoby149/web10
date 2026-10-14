@@ -93,14 +93,32 @@ The orient checks this list so it doesn't re-raise a decided question:
   token, so HttpOnly is off the table. The mitigations are `Secure` + `SameSite=Lax`
   + the 60-day cap. *(Don't re-raise HttpOnly.)*
 
+## Considered and found-safe (negative learnings)
+
+The other half of the map. A **failed exploit** — the scanner suspected a vuln,
+built the exploit, and it **failed** — is a *confirmed non-vulnerability*, recorded
+here so the orient doesn't re-investigate it. Each entry says **why it's safe**
+(because of `<reason>`), because that reason is what a future change might remove —
+and when it does, this entry goes stale and the orient's recession prompt catches
+it. *(Empty until the first exploit-first scan runs; this is where the negative
+results land.)*
+
+| Date | Unit | Looked like | Exploit result | Why it's safe | As of commit |
+|---|---|---|---|---|---|
+| — | — | — | — | — | — |
+
 ## How to update this file
 
 - **A fix lands** → append a row to Findings→fixes (date, unit, vuln→fix, status),
   and flip the matching ledger row to PASS (repro gate met).
+- **An exploit is attempted and fails** → append a row to Considered-and-found-safe
+  (date, unit, what it looked like, the failed result, *why it's safe*, commit). A
+  negative result is a learning, not a discarded false positive.
 - **A new assumption or threat class is found** → add it to the invariants / known
   gaps, and add the signature to the checklist.
 - **A concern is decided against** → move it to Considered-and-declined with the
   decision + the D-number.
 - **A recession is found** (orient prompt 2) → the pinning test goes red (code
   recession) or this file notes the eroded consideration (conceptual recession);
-  either way it re-opens the finding.
+  either way it re-opens the finding. A found-safe entry whose "why it's safe"
+  reason was just removed is a recession too.
