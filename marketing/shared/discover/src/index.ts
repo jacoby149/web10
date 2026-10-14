@@ -6,6 +6,7 @@
 // presentational and knows nothing about wapi or the public ledger.
 
 export { DiscoverCard, type DiscoverCardProps } from './DiscoverCard';
+export { MarkdownText } from './MarkdownText';
 export { HomeCard, truncateTitle, HOME_TITLE_LIMIT, type HomeCardProps } from './HomeCard';
 export { HoverVideo, __dwellState, __resetDwellForTests, type HoverVideoProps } from './HoverVideo';
 export { PersonCard, PersonCardSkeleton, type PersonCardProps, type DiscoverPerson } from './PersonCard';
