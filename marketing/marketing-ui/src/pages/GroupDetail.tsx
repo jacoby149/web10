@@ -3,6 +3,7 @@ import { useParams, Link } from 'react-router-dom'
 import { ArrowLeft, Users, Lock, LockOpen, Shield, MessageSquareLock } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { SOCIAL_ORIGIN } from '@/lib/origins'
+import { MarkdownText } from '@web10/discover'
 
 function nodeApi(): string {
   if (typeof window !== 'undefined') {
@@ -233,7 +234,7 @@ function GroupDetail() {
                       <span className="ml-auto text-xs text-muted-foreground">{formatDate(p.created_at)}</span>
                     </div>
                     {p.body?.text ? (
-                      <p className="mt-2 text-sm leading-relaxed text-foreground">{p.body.text}</p>
+                      <p className="mt-2 text-sm leading-relaxed text-foreground"><MarkdownText text={p.body.text} /></p>
                     ) : (
                       <p className="mt-2 text-sm italic text-muted-foreground">(media post)</p>
                     )}

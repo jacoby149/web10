@@ -2,6 +2,7 @@ import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { Send, ExternalLink, Heart, X, Image as ImageIcon } from 'lucide-react';
 import { cn } from './utils';
 import { TextInput, IconBtn, Skeleton } from './ui';
+import { MarkdownText } from './MarkdownText';
 import type {
   CommentItem,
   CommentPageResult,
@@ -878,7 +879,7 @@ function CommentNodeRow({ node, depth, highlightedCommentId, canWrite, setRef, o
                 'you'
               )}
             </span>
-            <span className="text-sm leading-relaxed text-foreground break-words">{node.text}</span>
+            <span className="text-sm leading-relaxed text-foreground break-words"><MarkdownText text={node.text} /></span>
           </div>
           {node.media && node.media.length > 0 && (
             <CommentMedia media={node.media} id={id} />

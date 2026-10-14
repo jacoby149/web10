@@ -18,6 +18,10 @@
   "dependencies": {
     "clsx": "^2.1.1",
     "lucide-react": "^1.25.0",
+    "react-markdown": "^10.1.0",
+    "rehype-sanitize": "^6.0.0",
+    "remark-breaks": "^4.0.0",
+    "remark-gfm": "^4.0.1",
     "tailwind-merge": "^3.0.0"
   },
   "devDependencies": {
