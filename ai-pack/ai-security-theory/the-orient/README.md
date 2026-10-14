@@ -61,13 +61,16 @@ Worked examples:
 - **I5** (scoped, expiring, revocable) *assumes* tokens are always verified.
   Assumption false → an unsigned decode on an auth path (B-3).
 
-And the gap can be a **whole missing class**, not just a broken assumption: the
-invariants I1–I6 are all *confidentiality + integrity*. **Availability is not in
-the list** — unbounded query, unbounded fan-out, unbounded upload, ReDoS. That is
-an *obvious gap* the orient should name: "we guarantee the data stays private and
-intact, but we have no invariant that the node stays *up*." (It's in the
-checklist as a class to scan for, but it is not an *invariant* — and that
-asymmetry is worth stating.)
+And the gap can be a **whole missing class**, not just a broken assumption. The
+invariants I1–I6 are all *confidentiality + integrity* of the **node's own code and
+data** — but they assume the **dependencies are trustworthy**. A compromised
+`react-markdown`, a malicious transitive dependency, a poisoned lockfile — that is a
+C+I break the invariants don't name. That is the shape of a class-level gap: not
+"one assumption is false," but "there is a whole category of threat the closed list
+doesn't even consider." (Note what is *not* a security gap: **availability / DoS** —
+unbounded query, fan-out, upload, ReDoS. That is *reliability*, a different
+discipline. It is out of scope for the security invariants, not a hole in them. If
+DoS ever becomes a real concern it is its own track, not an invariant to add.)
 
 The gap prompt's output is either a new **BP-n** (a threat we weren't considering)
 or a confirmation that the closed list is still closed. Either way, it is *recorded

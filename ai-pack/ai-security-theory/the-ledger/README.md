@@ -103,9 +103,9 @@ This is the same idea as the use-theory's **anti-test** ("the KB with teeth — 
   user B's doc, assert **404/403**, and assert the doc body is not in the response.
 - **It holds across the whole ladder, even the "basic basics."** The exploit for
   "secret in source" is *read the file, here's the key*; for "missing origin check"
-  it's *postMessage from a wrong origin, here's the token I stole*; for the
-  availability gap it's *the unbounded query that scans the table*. Every finding
-  has an exploit form, even when the exploit is simple.
+  it's *postMessage from a wrong origin, here's the token I stole*; for the I3 read
+  gate it's *query as user A for user B's doc, here's the leak*. Every finding has
+  an exploit form, even when the exploit is simple.
 - **Red first, green second.** The exploit is run *against the vulnerable code*
   first (it works = the vuln is real), then the fix lands and the same exploit is
   denied (the hole is closed). A pinning test that was green from the moment it was
@@ -114,6 +114,21 @@ This is the same idea as the use-theory's **anti-test** ("the KB with teeth — 
   records a **PoC** (the demonstration) with the finding. The **fix PR** commits the
   exploit as the permanent pinning test and shows red→green. The scan stays
   code-free; the exploit test ships with the fix.
+- **Two forms, by level.** The repro gate is a deterministic exploit **at L1/L2** —
+  and it *always* can be, because **mocking forces the conditions**: mock the clock
+  to force the race timing, mock the second actor, mock the payload size. A
+  one-hop or two-hop vuln is always reducible to a deterministic test. **At L3/L4**
+  (multi-hop, timing, cross-service) a deterministic exploit is sometimes *not
+  feasible* — and that's where the gate accepts a **scrutinized explanation**
+  instead: the exact sequence, why it's real, and what (if anything) prevents it —
+  which **other agents then check** (the convergence review applied to the
+  explanation, not an exploit). The bar is "could this happen, and did the
+  explanation withstand scrutiny," not "here's a deterministic PoC." Note the
+  division of labor: the **deterministic L1/L2 tests on the *components* are what
+  heal the race** (pin each side of the check-then-act); the L3/L4 explanation
+  covers the composition the components can't see. So the hard cases aren't
+  unverified — they're verified at the zoom where they're verifiable, and explained
+  (and scrutinized) where they aren't.
  - **A failed exploit is a learning (the negative result).** When the scanner
    *suspects* a vuln, builds the exploit, and **it fails**, that is not a discarded
    false positive — it is a **confirmed non-vulnerability**. Record it in the

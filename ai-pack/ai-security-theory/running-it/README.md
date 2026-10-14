@@ -70,8 +70,24 @@ then SDK, authenticator, social, marketing UI — see
 - **Why parallel is also the anti-sycophancy move:** a workspace scanning a narrow
   scope actually reads line by line. A workspace told to "scan everything"
   skims and says "totally secure." Narrow scope = honest scan.
-- **Scope size rule of thumb:** small enough to read line by line in one session
-  without skimming. If a scope is too big to actually read, split it.
+ - **Scope size rule of thumb:** small enough to read line by line in one session
+   without skimming. If a scope is too big to actually read, split it.
+
+## The cost (a quick win, not a program)
+
+The security-critical core is small enough to scope by file, and the read-only scan
+**parallelizes for free** — that is the whole point of the design. For web10: the
+~13k-LOC security-critical core (`clickhouse.py`, `safe_query.py`, `auth.py`,
+`middleware.py`, `main.py`, `settings.py`, the endpoints, the SDK) split across
+**~40 parallel read-only scanners**, each doing L1+L2 on a few files and PRing
+**100–200-line fixes**. That is a *batch*, not a program — a day or two of parallel
+work, not months. L3 (per service) and L4 (project-wide) run the same way, after.
+The convergence review adds cost on trust-boundary units (three fresh reviews), but
+that's a small subset of the surface, not the whole thing. The honest total: a
+moderate, *bounded* investment that amortizes over the 3–6 month cadence — not a
+$100k engagement, and not free. The point is that the parallelism makes the
+thorough version *cheap enough to actually run*, which is what a good-but-expensive
+process never gets.
 
 ## 2. The scan → fix flow (exploit-first)
 
@@ -155,6 +171,34 @@ clean reviewer, empty each time, and everything any review ever found is in the
 ledger."* That is the honest best, and it is strong, because the uncertainty is
 *bounded* (three-dry) and *evidenced* (the ledger), not a vibe.
 
+### Model diversity (hitting the class-level blind spots)
+
+Three fresh reviews of the *same model family* reduce **anchoring** risk (the
+reviewer doesn't know what was already found) but not **capability** risk — if the
+model *family* shares a blind spot (all trained on similar data, all missing a
+certain vuln type), three-dry won't catch it. The fix is **model diversity**, and
+the ledger's `model=` field is the hook that makes it possible:
+
+- **Layer different model families.** Run the scan (and the convergence review)
+  with *different* models, one after another — a frontier model, a different
+  vendor's model, a smaller workhorse. Each family has different blind spots; the
+  **union** of their findings is more complete than any one. The `model=` field on
+  each ledger row records *which* model found what, so you can see the coverage per
+  family.
+- **Transparency makes the blind spots visible.** Because every row says which
+  model produced it, you can *see* if a whole family never finds a certain class —
+  and that's the signal to add a different family (or the late-stage gauntlet's
+  fuzzing) for that class.
+- **It's an extension, not a requirement.** The base loop works with one model
+  family (three-dry, same family). Model diversity is the *upgrade* you add as the
+  stakes rise (crown jewels, pre-production) — and it composes with the late-stage
+  hacker gauntlet (frontier models + fuzzing) for the classes even a diverse model
+  set misses.
+
+So the convergence review's "not an oracle" limit is *narrowed* by model diversity:
+you're not betting on one brain, you're betting on the union of several, and the
+ledger shows you exactly which brain found what.
+
 ## The rules (enforceable)
 
 These are the whole theory compressed to what a reviewer can check on any PR:
@@ -168,18 +212,29 @@ These are the whole theory compressed to what a reviewer can check on any PR:
 4. **L1 → L2 → L3 → L4, each to 100% before the next, backend-first.** No L2 until
    L1-PASS; no L3 until L2-PASS; no L4 until L3-PASS.
 5. **Every fix passes the repro gate** — the exploit replayed, denied, red-then-
-   green. A fix PR with no repro-gate test is not done.
+   green. **L1/L2: a deterministic exploit** (mocking forces the conditions — mock
+   the clock for the race, the second actor, the payload). **L3/L4: deterministic
+   when feasible, else a scrutinized explanation** (the exact sequence, why it's
+   real, what prevents it — adversarially checked). A fix PR with no repro-gate test
+   (or L3/L4 explanation) is not done.
 6. **Every fix writes back to the KB** — and so does every *failed* exploit (a
    confirmed non-vulnerability is a learning, not a discarded false positive). A PR
    that doesn't append the learning breaks the orient loop — reject it.
-7. **Re-scan on a 3–6 month cadence.** Staleness is relative; the cadence is the
-   clock. A surface with no re-scan in 6+ months is STALE by default.
+7. **Re-scan on a 3–6 month cadence, on a stronger model.** Staleness is relative;
+   the cadence is the clock; the model upgrade is the third ratchet. A surface with
+   no re-scan in 6+ months is STALE by default.
 8. **Trust-boundary units need the convergence review** — three consecutive dry
-   passes by a fresh, untainted reviewer. A PASS without three-dry is a claim, not
+   passes by a fresh, untainted reviewer, **across different model families** (the
+   `model=` field is the diversity hook). A PASS without three-dry is a claim, not
    a verification.
+9. **The gauntlet + gate enforce it** — the accumulated exploits run in CI on every
+   PR (a regression fails the build); a trust-boundary PR must pass the gate (≤500
+   lines, red→green test or scrutinized explanation, ledger updated). See
+   [the-gauntlet/](../the-gauntlet/README.md). The wrong way doesn't merge.
 
-*(Parallelize the scan, not the fix, is the operating note under rules 1–2: many
-read-only scanners at once; fix PRs land one finding at a time.)*
+*(Parallelize the scan, not the fix, is the operating note under rules 1–2: ~40
+read-only scanners at once across the core; fix PRs land one finding at a time.
+That's what makes it a quick win, not a program.)*
 
 ## The gate (what "done" means)
 

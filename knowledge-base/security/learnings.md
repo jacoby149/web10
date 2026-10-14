@@ -28,11 +28,10 @@ that matters for orient:
   defense-in-depth at the storage layer** (ClickHouse has no per-row ACL; the
   enforcement is entirely at the query boundary). **Orient check:** is there a read
   path that doesn't go through the gate?
-- **The invariants cover confidentiality + integrity, not availability.** Unbounded
-  query, unbounded fan-out, unbounded upload, ReDoS are *not* invariants — they are
-  a threat class we scan for (in the checklist) but do not *guarantee*. **This is
-  the standing "obvious gap":** we guarantee the data stays private and intact, but
-  we have no invariant that the node stays *up*.
+ - **The invariants are C+I, not availability.** Unbounded query, unbounded fan-out,
+   unbounded upload, ReDoS are *reliability / DoS* — a different discipline, **out of
+   scope for the security invariants** (not a hole in them). If DoS ever becomes a
+   real concern it is its own track + its own invariants, not an addition to I1–I6.
 
 ## Findings → fixes (the dated learnings)
 
@@ -66,16 +65,21 @@ cannot. Keep this as the worked example when explaining the ladder.
 
 Gaps the orient has surfaced. Each is either a `BP-n` or a standing note:
 
-- **Availability is not an invariant.** We guarantee confidentiality + integrity,
-  not liveness. Unbounded query / fan-out / upload / ReDoS are scanned for but not
-  guaranteed. *(Standing note — decide whether to make availability an invariant
-  (I7) or keep it a scanned-for class.)*
+- **Supply chain is not in the invariants.** I1–I6 are C+I of the *node's own code
+  and data*; they assume the **dependencies are trustworthy**. A compromised
+  `react-markdown`, a malicious transitive dep, a poisoned lockfile is a C+I break
+  the invariants don't name. *(Standing note — mitigate with frozen lockfiles +
+  dependabot + a dependency-integrity check; decide whether it warrants an
+  invariant.)*
 - **No defense-in-depth at the storage layer.** I3 is enforced only at the query
   boundary; ClickHouse has no per-row ACL. One boundary bug = total loss, no
   backstop. *(Standing note — it's a strength (boundary on the input) and a risk
   (no backstop); the query-engine gauntlet is the mitigation.)*
 - **The query engine is a triple-threat** (I3 + injection + DoS) and is the natural
   home for a dedicated gauntlet (`scans/late-stage/`). *(Standing note.)*
+
+*(Not a gap: **availability / DoS** is reliability, a different discipline — out of
+scope for the security invariants, its own track if it ever becomes a concern.)*
 
 ## Considered and declined (decided — don't re-raise)
 

@@ -83,11 +83,15 @@ ask that if the list is organized by class.
   cloud metadata endpoint (`169.254.169.254`). Check every outbound fetch for a
   user-controlled destination.
 
-### 4. Availability / DoS — the class the invariants don't name
+### 4. Availability / DoS — out of scope (a separate track)
 
-The invariants I1–I6 are all *confidentiality + integrity*. **Availability is not
-in the list** — which is exactly the "obvious gap" the KB-orient should surface.
-Check it anyway:
+**This is not a security invariant gap.** Availability (the system stays up and
+usable) is *reliability / DoS resistance* — a different discipline from security
+(confidentiality + integrity). The invariants I1–I6 deliberately do not cover it,
+and that is correct, not a hole: a security theory that guarantees data isolation
+is not the same as one that guarantees uptime. **DoS is its own track.** Listed here
+only so a scanner recognizes the patterns and *routes them to the reliability track*
+instead of treating them as security findings:
 
 - **Unbounded query** — a user query (the query engine!) that can scan the whole
   table / join the whole dataset. Rate limiting is not a bound; the *query itself*
@@ -98,6 +102,9 @@ Check it anyway:
 - **ReDoS** — a regex (user-influenced or not) with catastrophic backtracking.
 - **Unbounded pagination / group size** — a read that returns "all" when it should
   page.
+
+*(If DoS becomes a real concern for the project, it gets its own invariants + its
+own gauntlet — it does not get folded into I1–I6.)*
 
 ### 5. Data lifecycle
 
@@ -162,7 +169,7 @@ answer is "run the gauntlet," not "it's probably fine."
   as a system).
 - **L4 project-wide-scan** — the **invariants as a system** (does the token model
   hold across nodes? do the boundaries compose? does the deploy coupling preserve
-  the guarantee?) + the cross-service availability (unbounded fan-out).
+  the guarantee?).
 
 ## Keeping the list honest
 
@@ -170,8 +177,9 @@ answer is "run the gauntlet," not "it's probably fine."
   docs PR. The list grows with every scan.
 - **A pattern that fires constantly with no real finding = noise.** Demote it or
   tighten the match. A checklist that screams on everything stops getting read.
-- **A whole class missing = the "obvious gap."** If a threat class (availability,
-  supply chain, …) has no signatures, the KB-orient should raise it.
+- **A whole class missing = the "obvious gap."** If a C+I threat class (supply
+  chain, the client-side / browser-hostile surface, …) has no signatures, the
+  KB-orient should raise it.
 - **The list is per-repo in the KB, the *shape* of a list is portable.** This doc
   is the template; a repo's live list lives with its ledger (e.g.
   `knowledge-base/security/`).

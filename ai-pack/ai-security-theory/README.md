@@ -129,7 +129,8 @@ need one: **every play of the game is strictly more secure than the last.**
 | [the-scope-ladder/](./the-scope-ladder/README.md) | L1 file-scan → L2 call-graph-scan → L3 service-scan → L4 project-wide-scan, the hop-count L2/L3 boundary, and the criticality gradient. Plus [the-checklist.md](./the-scope-ladder/the-checklist.md), the signature list (Python/JS-shaped, by threat class) |
 | [the-ledger/](./the-ledger/README.md) | The altitude — the format, PASS/OPEN/STALE + the deferral reference + the **repro gate** (how a finding closes), freestyle granularity. Plus [staleness-and-cadence.md](./the-ledger/staleness-and-cadence.md), relative staleness + the 3–6 month clock + the ratchet |
 | [the-pentest-gate/](./the-pentest-gate/README.md) | The done-state — what "passed the AI pentest" means, and why it beats a $100k human pentest |
-| [running-it/](./running-it/README.md) | The operation — orient, scope slicing backend-first, the scan→fix PR flow (exploit-first + repro gate + write-back), the L1→L2→L3→L4 order, the **convergence review** (fresh untainted reviewer, run until 3-dry), and the enforceable rules |
+| [the-gauntlet/](./the-gauntlet/README.md) | **The enforcement** — the security gauntlet (the accumulated exploits, run in CI on every PR like the e2e gauntlets) + the per-PR gate (≤500 lines, red→green test, ledger updated). The "wrong way doesn't merge" piece |
+| [running-it/](./running-it/README.md) | The operation — orient, scope slicing backend-first, the scan→fix PR flow (exploit-first + repro gate + write-back), the L1→L2→L3→L4 order, the **convergence review** (fresh untainted reviewer, run until 3-dry, with model diversity), and the enforceable rules |
 
 ## The rules (the enforceable summary)
 
@@ -140,17 +141,25 @@ need one: **every play of the game is strictly more secure than the last.**
 4. **L1 → L2 → L3 → L4, each to 100% before the next, backend-first.** The zooms,
    in order, the crown jewels first.
 5. **Every fix passes the repro gate** — the exploit replayed, denied, red-then-
-   green. A fix with no repro-gate test is not done.
+   green. **L1/L2: a deterministic exploit** (mocking forces the conditions). **L3/L4:
+   a deterministic exploit when feasible, else a scrutinized explanation** (the exact
+   sequence, why it's real, what prevents it — adversarially checked by other agents).
 6. **Every result writes back to the KB** — a fix *and* a failed exploit (a
    confirmed non-vulnerability is a learning, not a discarded false positive).
 7. **Re-scan on a 3–6 month cadence, on a stronger model.** Staleness is relative;
    the cadence is the clock; the model upgrade is the third ratchet.
 8. **Trust-boundary units need the convergence review** — three consecutive dry
-   passes by a fresh, untainted reviewer. A PASS without three-dry is a claim, not
-   a verification.
+   passes by a fresh, untainted reviewer, **across different model families** (the
+   `model=` field is the hook for diversity — the union of several brains beats one).
+   A PASS without three-dry is a claim, not a verification.
+9. **The gauntlet + gate enforce it.** The accumulated exploits run in CI on every
+   PR (a regression fails the build); a trust-boundary PR must pass the gate (≤500
+   lines, red→green test or scrutinized explanation, ledger updated). The wrong way
+   doesn't merge.
 
-*(And: parallelize the scan, not the fix — many read-only scanners at once, fix PRs
-one finding at a time.)*
+*(And: parallelize the scan, not the fix — ~40 read-only scanners at once across the
+core, fix PRs one finding at a time. That's what makes it a quick win, not a
+program.)*
 
 ## Where the state lives
 
