@@ -16,9 +16,10 @@ it's going) lives in [`knowledge-base/`](../knowledge-base/).
   traits, the four-phase task flow (orient → generate → compare → repair), the
   pyramid (KB → logs → tests → features), convergence, and the one assumption.
 - **[`ai-security-theory/`](./ai-security-theory/)** — the security method.
-  Security as *coverage, not convergence*: the two engines (the read-only Scanner
-  + the Architect backlog), the scan/fix split, the ledger (the root of trust for
-  security claims), and the 3–6 month re-scan ratchet.
+  Security as *coverage, not convergence*: the scope ladder (L1 file-scan → L2
+  immediate-neighborhood-scan → L3 project-wide-scan), the scan/fix split, the
+  ledger (the root of trust for security claims), the AI pentest gate, and the
+  3–6 month re-scan ratchet.
 - **[`knowledge-theories/`](./knowledge-theories/)** — how to *organize* a
   doc: the Why / How / What layers.
 - **[`writing-styles/`](./writing-styles/)** — how to *structure* a doc.

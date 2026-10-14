@@ -3,8 +3,9 @@
 [← back to AI Security Theory](../README.md)
 
 The theory is only as good as the loop that runs it. This is the operational
-shape: how workspaces are sliced, how a scan becomes a fix, and the seven rules
-that keep the whole thing from decaying back into the giant-PR trap.
+shape: how workspaces are sliced, how a scan becomes a fix, the L1→L2→L3 order,
+and the seven rules that keep the whole thing from decaying back into the
+giant-PR trap.
 
 ## The loop
 
@@ -14,16 +15,19 @@ flowchart TD
     B --> C[Each scan: read-only, writes ledger rows + findings]
     C --> D[Scan PRs — ledger-only, merge in parallel, zero code risk]
     D --> E{Findings?}
-    E -->|L1 finding| F[Fix PR — ≤500 lines, 1 finding, + pinning test]
-    E -->|L2 finding| G[Big-picture backlog item BP-n]
+    E -->|L1 / L2 finding| F[Fix PR — ≤500 lines, 1 finding, + pinning test]
+    E -->|L3 finding| G[Big-picture backlog item BP-n]
     F --> H[Row → PASS, coverage +1]
-    G -->|after L1 = 100%| I[Architect PRs — one item at a time]
-    H --> J{Scope done?}
+    G -->|L1 + L2 = 100%| I[L3 items — one at a time]
+    H --> J{Level done?}
     I --> J
-    J -->|no| B
-    J -->|yes, all scopes| K[Surface at 100% L1]
-    K --> L[3–6 month re-scan cadence]
-    L --> B
+    J -->|L1 100%| K[L2 across the surface]
+    J -->|L2 100%| M[L3 across the surface]
+    J -->|L3 100%| N[Passed the AI pentest]
+    K --> B
+    M --> B
+    N --> O[3–6 month re-scan cadence]
+    O --> B
 ```
 
 ## Slicing the surface (parallelization)
@@ -53,19 +57,22 @@ firehose.
 ## The scan → fix flow
 
 1. **Scan** (read-only). A workspace reads its scope line by line against
-   [the checklist](../the-scanner/the-checklist.md). It writes ledger rows
-   (PASS / OPEN / STALE) and, for each finding, a backlog entry. It opens a
-   **scan PR** that touches only the ledger + backlog.
+   [the checklist](../the-scope-ladder/the-checklist.md), at the current level
+   (L1, then L2, then L3). It writes ledger rows (PASS / OPEN / STALE) and, for
+   each finding, a backlog entry. It opens a **scan PR** that touches only the
+   ledger + backlog.
 2. **Merge the scan PR.** Ledger-only, zero code risk, lands in parallel with
    anything. The surface is now *known*: the ledger shows exactly what is owed.
-3. **Fix, one finding at a time.** Each OPEN finding becomes a **fix PR**: ≤500
-   lines, target ~100, one finding, and a **pinning test** that fails if it
+3. **Fix, one finding at a time.** Each OPEN L1/L2 finding becomes a **fix PR**:
+   ≤500 lines, target ~100, one finding, and a **pinning test** that fails if it
    regresses. The PR references the finding (and the ledger row).
 4. **Close the row.** When the fix lands, the row goes PASS. If the finding was
-   architectural, it was already deferred to a `BP-n` item; the row reads
-   `PASS (1 finding → BP-n)` and the L2 backlog carries the work.
-5. **L2 after L1 = 100%.** Only when every scope is L1-PASS do the `BP-n` items
-   start, one at a time, each as its own bounded PR(s).
+   architectural (L3), it was already deferred to a `BP-n` item; the row reads
+   `PASS (1 finding → BP-n)` and the big-picture backlog carries the work.
+5. **L1 → L2 → L3, each to 100%.** Finish L1 across the whole surface, then L2,
+   then L3. Only when L1 + L2 are 100% do the L3 `BP-n` items start, one at a
+   time, each as its own bounded PR(s). When all three are 100%, the surface has
+   **passed the AI pentest** — see [the-pentest-gate/](../the-pentest-gate/README.md).
 
 ## The seven rules (enforceable)
 
@@ -75,8 +82,8 @@ These are the whole theory compressed to what a reviewer can check on any PR:
    *(A 90-file security PR is a review rejection.)*
 2. **The scan is read-only.** A scan PR touches only the ledger + backlog. If a
    "scan" PR touches application code, it is not a scan — reject it.
-3. **L1 across every file before any L2.** No architectural PR until the scope is
-   L1-PASS.
+3. **L1 → L2 → L3, each to 100% before the next.** No L2 until the surface is
+   L1-PASS; no L3 until it is L2-PASS.
 4. **Every scan is ledgered.** A security claim with no ledger row behind it did
    not happen. No row, no PASS.
 5. **Every fix lands a pinning test.** A fix PR with no regression test is not
@@ -88,15 +95,17 @@ These are the whole theory compressed to what a reviewer can check on any PR:
 
 ## The gate (what "done" means)
 
-A surface is **done** when:
+A surface is **done** — it has **passed the AI pentest** — when:
 
-- every unit in the scope has an **L1 row** that is PASS or STALE-requeued (no
-  silent gaps),
-- every **OPEN** finding is a tracked backlog entry (nothing found is unlogged),
+- every unit in the scope has a row at **every level** it is in scope for (L1, L2,
+  L3) that is PASS or STALE-requeued (no silent gaps),
+- every **OPEN** finding is a tracked item — a fix PR (L1/L2) or a big-picture
+  backlog entry (L3) — nothing found is unlogged,
 - every **fix** has a pinning test, and
-- the **L2 backlog** is visible and ordered (the architectural debt is counted, not
-  hidden).
+- the **big-picture backlog** is visible and ordered (the architectural debt is
+  counted, not hidden).
 
 "Done" is not "secure." It is *fully scanned, fully accounted for, and ratcheting.*
 That is the most a one-dev project can honestly claim — and the ledger is the
-proof.
+proof. See [the-pentest-gate/](../the-pentest-gate/README.md) for the claim,
+stated.

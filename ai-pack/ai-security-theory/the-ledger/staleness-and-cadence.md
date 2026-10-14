@@ -24,18 +24,18 @@ representative of the code it claims to cover?*
   commit touches the auth path, the query boundary, or a trust boundary, the row
   re-queues immediately. Time does not matter; the change does.
 
-So a row's `last-pass=` (commit for L1, decision/milestone for L2) is the anchor,
-and staleness is a *judgment against that anchor*, not a boolean on commit count.
-The ledger shows the date and the anchor; the reader (or a CI check) decides
+So a row's `last-pass=` (commit for L1/L2, decision/milestone for L3) is the
+anchor, and staleness is a *judgment against that anchor*, not a boolean on commit
+count. The ledger shows the date and the anchor; the reader (or a CI check) decides
 "relatively stale?" from those two.
 
-### L1 and L2 age differently
+### The levels age differently
 
-- **L1 (component)** ages on **time + security-relevant commits** to the unit.
-  Cheap to re-run, so the bar is tight.
-- **L2 (big-picture)** ages on **architectural change** — a decision lands, a
+- **L1 file-scan + L2 immediate-neighborhood-scan** age on **time +
+  security-relevant commits** to the unit. Cheap to re-run, so the bar is tight.
+- **L3 project-wide-scan** ages on **architectural change** — a decision lands, a
   boundary moves, the threat model shifts — *not* on a single file's commit.
-  Re-running frontier judgment on every commit is waste. Tie L2 freshness to the
+  Re-running frontier judgment on every commit is waste. Tie L3 freshness to the
   decision/milestone in `last-pass=`, and re-check when that thing changes.
 
 ## The re-scan cadence (the clock)
@@ -69,13 +69,13 @@ So the suite only grows stricter; it never moves backward.
 drift get picked up. Combined with the pinning tests, the net effect is:
 
 ```
-scan debt  ┤██████████┐
-           │          └──┐   L1 findings fixed, one tiny PR each
-           │             └──┐
-           │                └──────┐   L2 items, one at a time
-           │                      └──────────►  ~0 debt
-           │   (re-scan every 3–6 mo keeps it there)
-           └──────────────────────────────────────────── time
+ scan debt  ┤██████████┐
+            │          └──┐   L1/L2 findings fixed, one tiny PR each
+            │             └──┐
+            │                └──────┐   L3 items, one at a time
+            │                      └──────────►  ~0 debt
+            │   (re-scan every 3–6 mo keeps it there)
+            └──────────────────────────────────────────── time
 ```
 
 Coverage ratchets: each fix is pinned (can't regress), each re-scan adds coverage

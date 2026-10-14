@@ -13,7 +13,7 @@ folder is where that method's output lands for this repo.
 | Path | What it is |
 |---|---|
 | [`scan-ledger.md`](./scan-ledger.md) | **The altitude.** One row per (unit, level): what was scanned, by which model, when, against which commit, and the status (PASS / OPEN / STALE). This is the coverage record. |
-| [`big-picture-backlog.md`](./big-picture-backlog.md) | **The L2 debt.** The cross-file / architectural findings (`BP-n`), done one at a time after L1 is 100%. |
+| [`big-picture-backlog.md`](./big-picture-backlog.md) | **The L3 debt.** The cross-file / architectural (project-wide) findings (`BP-n`), done one at a time after L1 + L2 are 100%. |
 | [`scans/`](./scans/) | **The scan records.** Each scan is a folder (e.g. [`scans/2026-10/`](./scans/2026-10/README.md), the October invariant-driven audit). A scan record is the evidence behind a ledger row — the `file:line` findings, the model, the date. |
 
 ## How to read it

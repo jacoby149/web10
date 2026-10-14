@@ -89,9 +89,10 @@ The tour, in this order:
     - `ai-use-theory/` — KB is the root of trust; the pyramid (KB → logs →
       tests → features) + four-phase flow (orient → generate → compare →
       repair).
-    - `ai-security-theory/` — security as coverage, not convergence: the
-      read-only Scanner + the Architect backlog, the ledger (root of trust for
-      security claims), the 3–6 month re-scan ratchet.
+    - `ai-security-theory/` — security as coverage, not convergence: the scope
+      ladder (L1 file-scan → L2 neighborhood → L3 project-wide), the ledger (root
+      of trust for security claims), the AI pentest gate, the 3–6 month re-scan
+      ratchet.
    - how to write — `knowledge-theories/` (Why/How/What),
      `writing-styles/`, `voices/`, `visual-styles/`, `editing-styles/`.
 4. **Commands** —

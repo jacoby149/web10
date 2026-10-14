@@ -1,8 +1,9 @@
-# The Checklist — the L1 signature list
+# The Checklist — the signature list
 
-[← back to The Scanner](./README.md)
+[← back to The Scope Ladder](./README.md)
 
-The Scanner checks each unit against this list. Two sources, combined:
+The scan (at every level) checks each unit against this list. Two sources,
+combined:
 
 1. **The invariants** — the system's stated security guarantees (for web10,
    I1–I6 in `knowledge-base/web10-v3/security/overview.md`). A finding is "the
@@ -79,6 +80,18 @@ Each is a pattern you can match line-by-line without architectural judgment.
 | **I4** | Is node-readability by design respected (no accidental operator-blindness, no over-exposure beyond terms)? |
 | **I5** | Does every actor act under a scoped, expiring, revocable token enforced by a contract? |
 | **I6** | Does the cross-node boundary stay the HTTP API + verified token — no cross-store query, no remote data as control? |
+
+## Which level uses which part of the list
+
+- **L1 file-scan** — the whole "basic basics" list, applied line by line within the
+  file.
+- **L2 immediate-neighborhood-scan** — the same list, but applied to the file *and
+  its neighborhood* (a pattern that only fires when you can see the callee / the
+  boundary / the data flow).
+- **L3 project-wide-scan** — the **invariants**, applied to the *architecture*
+  (does the token model hold across nodes? do the boundaries compose? does the
+  deploy coupling preserve the guarantee?). The basic basics are mostly done by
+  L1/L2; L3 is where the invariants get checked as a *system*, not a line.
 
 ## Keeping the list honest
 

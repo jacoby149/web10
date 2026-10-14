@@ -7,6 +7,12 @@ live in the cartridge: [`ai-pack/ai-security-theory/the-ledger/`](../../ai-pack/
 > **Status key:** `PASS` = no open backlog for this unit at this level (everything
 > found is fixed or deferred to a `BP-n`). `OPEN` = scanned, has unfixed/undeferred
 > findings (live scan debt). `STALE` = last check relatively old, re-scan owed.
+>
+> **Level key (the scope ladder):** `L1` = file-scan (the file itself) · `L2` =
+> immediate-neighborhood-scan (the file + what it touches) · `L3` = project-wide-scan
+> (the whole surface, cross-file / architectural). The order is L1 → L2 → L3, each to
+> 100% before the next. When all three are 100%, the surface has **passed the AI
+> pentest**.
 
 ## Seed state — from the October 2026 audit
 
@@ -30,9 +36,9 @@ measure. Re-scan after the hardening merges to flip them.
 | `sdk/src/http.ts :: authGet` | L1 | **OPEN** | (audit) | 2026-10 | — | sdk-auth | S-3 `byUserGroups` sends no token — functional gap, not a leak |
 | `sdk/src/token.ts :: decodeJwt` | L1 | PASS | (audit) | 2026-10 | — | sdk-auth | S-4 unsigned base64 decode — acceptable for reading claims; doc: never for authz |
 | `sdk/src/token.ts :: cookie` | L1 | PASS | (audit) | 2026-10 | — | sdk-auth | S-5 `SameSite=Lax`+`Secure`, no HttpOnly (impossible by design), 60-day — acceptable, noted |
-| `api/rtc/` (admission) | L2 | **OPEN** | — | — | — | rtc | RTC socket admission / certify gate — see `BP-3`. Hardening in 1159 (unmerged) |
-| federation signing (I1) | L2 | **OPEN** | — | — | — | federation | B-1 / D7 — HS256 → RS256/EdDSA + JWKS. See `BP-1` |
-| delegation model (I5) | L2 | **OPEN** | — | — | — | auth | scoped app-management delegation. See `BP-2`. Hardening in 1157 (unmerged) |
+| `api/rtc/` (admission) | L3 | **OPEN** | — | — | — | rtc | RTC socket admission / certify gate — see `BP-3`. Hardening in 1159 (unmerged) |
+| federation signing (I1) | L3 | **OPEN** | — | — | — | federation | B-1 / D7 — HS256 → RS256/EdDSA + JWKS. See `BP-1` |
+| delegation model (I5) | L3 | **OPEN** | — | — | — | auth | scoped app-management delegation. See `BP-2`. Hardening in 1157 (unmerged) |
 
 ## Not yet scanned (scan debt)
 

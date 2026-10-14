@@ -17,18 +17,19 @@ thing is queryable.
 
 ```
 clickhouse.py :: read_documents_in_groups()
-  L1 component    PASS   model=qwen3.6-27b   13.10.2026  last-pass=8ce363e   sys=query-engine
-  L2 big-picture  PASS   model=sol6.1        11.10.2026  last-pass=D7-fed    sys=query-engine
+  L1 file-scan              PASS   model=qwen3.6-27b   13.10.2026  last-pass=8ce363e   sys=query-engine
+  L2 immediate-neighborhood PASS   model=qwen3.6-27b   13.10.2026  last-pass=8ce363e   sys=query-engine
+  L3 project-wide           PASS   model=sol6.1        11.10.2026  last-pass=D7-fed    sys=query-engine
 ```
 
 | Field | Meaning |
 |---|---|
 | `file :: unit` | What was scanned. The unit is freestyle — a function, a line-range, or the whole file (see below). |
-| `L1 component` / `L2 big-picture` | Which engine / level. L1 = the signature scan; L2 = the architectural check. |
+| `L1 file-scan` / `L2 immediate-neighborhood-scan` / `L3 project-wide-scan` | Which zoom of the [scope ladder](../the-scope-ladder/README.md). L1 = the file; L2 = the file + its neighborhood; L3 = the whole surface, cross-file. |
 | `PASS` / `OPEN` / `STALE` | Status (below). |
 | `model=` | Which model did the check. Transparency for going back — *which* model looked at this. Not a hard gate; the audit trail. |
 | date | When the check ran. |
-| `last-pass=` | The commit (L1) or decision/milestone (L2) the check was valid against. The staleness anchor. |
+| `last-pass=` | The commit (L1/L2) or decision/milestone (L3) the check was valid against. The staleness anchor. |
 | `sys=` | The subsystem the unit belongs to (`query-engine`, `auth`, `media`, …). Groups siblings for repair-scope. |
 
 ## Granularity is freestyle
@@ -58,14 +59,14 @@ So a row can read:
 
 ```
 hls.py :: resolve_segment()
-  L1 component  PASS (1 finding → BP-9)   model=qwen3.6-27b  13.10.2026  last-pass=8ce363e  sys=media
+  L1 file-scan  PASS (1 finding → BP-9)   model=qwen3.6-27b  13.10.2026  last-pass=8ce363e  sys=media
 ```
 
-The finding is real but deferred to `BP-9` in the big-picture backlog. The row is
-PASS *at L1* (the scan is complete and the debt is tracked) while the L2 item
-carries the actual work. This keeps the L1 ledger binary and clean — **L1 PASS
-means the scan is done and nothing is hiding** — without pretending an architectural
-risk does not exist.
+The finding is real but deferred to `BP-9` in the big-picture backlog (an L3 /
+architectural item). The row is PASS *at L1* (the scan is complete and the debt is
+tracked) while the backlog item carries the actual work. This keeps the L1 ledger
+binary and clean — **L1 PASS means the scan is done and nothing is hiding** —
+without pretending an architectural risk does not exist.
 
 ## What the ledger is NOT
 
@@ -75,8 +76,12 @@ risk does not exist.
 - **Not a gate on model tier.** A one-dev project is not going to refuse a PASS
   because a workhorse did it instead of a frontier model. The `model=` field is the
   audit trail, not a quality gate. (The late-stage strategy *does* spend frontier
-  models on L2 — that is a budget decision, recorded here, not a pass/fail rule.)
+  models on L3 — that is a budget decision, recorded here, not a pass/fail rule.)
 - **Not commit-strict.** It is relative — see the next doc.
+
+When every in-scope unit has a row at every level, all findings are fixed or
+deferred, and every fix is pinned, the surface has **passed the AI pentest** — see
+[the-pentest-gate/](../the-pentest-gate/README.md).
 
 ## Where it lives
 
