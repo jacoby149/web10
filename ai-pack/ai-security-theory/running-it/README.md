@@ -7,34 +7,49 @@ shape: orient first, then the L1→L2→L3→L4 ladder in criticality order, how
 becomes a fix (with the repro gate), the write-back to the KB, and the seven rules
 that keep the whole thing from decaying back into the giant-PR trap.
 
-## The loop
+## The loop (per level — the inner loop)
+
+The ladder ([the-scope-ladder/](../the-scope-ladder/README.md)) is the **outer**
+loop: L1 → L2 → L3 → L4, each to 100% before the next. **This** diagram is the
+**inner** loop — what happens at *any single* L[N], on *one service or module*. It
+is the same at every level; only the zoom changes.
+
+**The input is a service / library / module** (plus the last run's state). The
+theory hardens a service at a time; a multi-service project (web10) is the
+*sequence* of its services, run **sequentially, backend-first** (API → SDK → auth
+UI → social UI → marketing UI). **You can stop at any level** — the state is saved
+in the ledger + learnings, so you resume the next run. That is the X-time/Y-money
+flexibility: run L1 on the API now, come back and run L2–L4 (or the other services)
+later.
+
+The repro gate has two forms, **by determinism, not level**: a **deterministic
+exploit** (at *any* level, whenever feasible — L3/L4 included) and a **scrutinized
+explanation** (only when the finding is genuinely non-deterministic, usually L3/L4).
 
 ```mermaid
 flowchart TD
-    O[ORIENT — read the learnings KB<br/>onboarding + recession + the obvious gap] --> A[Slice the surface into scopes, backend-first]
-    A --> B[Run scan workspaces — one per scope, in parallel]
-    B --> C[Each scan: read-only, writes ledger rows + findings]
-    C --> D[Scan PRs — ledger-only, merge in parallel, zero code risk]
-    D --> E{Findings?}
-    E -->|L1 / L2 finding| F[Fix PR — ≤500 lines, 1 finding, + repro-gate test]
-    E -->|L3 / L4 finding| G[Big-picture backlog item BP-n]
-    F --> W[Write-back: append the learning to the KB]
-    W --> H[Row → PASS, coverage +1]
-    G -->|L1 + L2 = 100%| I[L3 per service, then L4 final boss]
-    H --> J{Level done?}
-    I --> J
-    J -->|L1 100%| K[L2 across the surface]
-    J -->|L2 100%| M[L3 per service, backend-first]
-    J -->|L3 100%| P[L4 project-wide — the final boss]
-    J -->|L4 100%| CR[Convergence review — fresh untainted reviewer, run until 3-dry]
-    CR -->|found a real L1-L4 not in ledger| F
-    CR -->|3 consecutive dry| N[Passed the AI pentest]
-    K --> B
-    M --> B
-    P --> B
-    N --> O2[3–6 month re-scan cadence → re-ORIENT]
-    O2 --> O
+    IN["Input: one service / module<br/>+ the last run's state"] --> O["ORIENT — read the learnings KB<br/>onboarding + recession + the obvious gap"]
+    O --> A["Slice L[N] into scopes, backend-first"]
+    A --> B["Scan — parallel, read-only<br/>ledger rows + findings"]
+    B --> E{Finding?}
+    E -->|yes| F["Fix PR — ≤500 lines, 1 finding"]
+    F --> RG{Repro gate}
+    RG -->|deterministic — any level| X1["Deterministic exploit<br/>red → green"]
+    RG -->|non-deterministic — usually L3/L4| X2["Scrutinized explanation<br/>sequence + why real + what prevents it<br/>— adversarially reviewed"]
+    X1 --> W["Write-back: the learning to the KB"]
+    X2 --> W
+    W --> H["Row → PASS"]
+    H --> E
+    E -->|level 100%| STOP{"Stop here, or continue?"}
+    STOP -->|stop — resume next run| DONE["Terminate — state saved"]
+    STOP -->|continue| G["L[N+1]"]
+    G --> O
 ```
+
+The **convergence review** (trust-boundary units, 3-dry) and the **3–6 month
+re-scan cadence** sit *around* this loop, not inside it — see
+[the convergence review](#3-the-convergence-review-run-until-dry) and
+[staleness-and-cadence](../the-ledger/staleness-and-cadence.md).
 
 ## 0. Orient first (before any scan)
 
@@ -237,12 +252,14 @@ These are the whole theory compressed to what a reviewer can check on any PR:
    recession/gap check) is blind — reject it.
 4. **L1 → L2 → L3 → L4, each to 100% before the next, backend-first.** No L2 until
    L1-PASS; no L3 until L2-PASS; no L4 until L3-PASS.
-5. **Every fix passes the repro gate** — the exploit replayed, denied, red-then-
-   green. **L1/L2: a deterministic exploit** (mocking forces the conditions — mock
-   the clock for the race, the second actor, the payload). **L3/L4: deterministic
-   when feasible, else a scrutinized explanation** (the exact sequence, why it's
-   real, what prevents it — adversarially checked). A fix PR with no repro-gate test
-   (or L3/L4 explanation) is not done.
+ 5. **Every fix passes the repro gate** — the exploit replayed, denied, red-then-
+    green. **By determinism, not level:** a **deterministic exploit at any level
+    (L1–L4)** whenever feasible (mocking forces the conditions — the clock for the
+    race, the second actor, the payload); a **scrutinized explanation only when the
+    finding is genuinely non-deterministic** (usually L3/L4 — the exact sequence,
+    why it's real, what prevents it — adversarially checked). Don't lazily default
+    L3/L4 to the explanation — if you can make it deterministic, make the exploit. A
+    fix PR with no repro-gate test (or a non-deterministic explanation) is not done.
 6. **Every fix writes back to the KB** — and so does every *failed* exploit (a
    confirmed non-vulnerability is a learning, not a discarded false positive). A PR
    that doesn't append the learning breaks the orient loop — reject it.

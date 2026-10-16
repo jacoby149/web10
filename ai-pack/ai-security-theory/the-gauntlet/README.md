@@ -39,10 +39,11 @@ federation, the SDK's credential surface, the query engine), a CI check (a scrip
   rejection — the 1157/1159 failure mode, made un-mergeable.
 - **It has a red→green repro test** — a test that was red against the vulnerable
   code and green after the fix (the repro gate, *evidenced in the PR*, not just
-  claimed). For L3/L4 findings where a deterministic exploit isn't feasible, the
-  gate accepts a **scrutinized explanation** instead (see
-  [the-ledger/](../the-ledger/README.md)) — but it requires the explanation to be
-  present and to have passed the convergence review.
+   claimed). For findings where a deterministic exploit **isn't feasible** (genuinely
+   non-deterministic — usually L3/L4), the gate accepts a **scrutinized explanation**
+   instead (see [the-ledger/](../the-ledger/README.md)) — but it requires the
+   explanation to be present and to have passed the convergence review. A
+   deterministic L3/L4 finding still needs its **real exploit**, not just a note.
 - **It updated the ledger** — a new/changed row for the unit it touched. A
   trust-boundary PR that doesn't touch the ledger is a claim with no record —
   reject it.
