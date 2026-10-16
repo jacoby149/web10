@@ -42,8 +42,10 @@ vi.mock('@/data/ads-catalog', () => ({
 
 // Mock the creator-analytics data layer (the D86 dashboard read).
 const readCreatorAnalytics = vi.fn();
+const enrichTopPosts = vi.fn();
 vi.mock('@/data/creator-analytics', () => ({
   readCreatorAnalytics: (...a: unknown[]) => readCreatorAnalytics(...a),
+  enrichTopPosts: (...a: unknown[]) => enrichTopPosts(...a),
 }));
 
 import MonetizationScreen from '@/components/Monetization/MonetizationScreen';
@@ -73,6 +75,7 @@ beforeEach(() => {
   getNodeConfig.mockResolvedValue({ node_ad_percentage: 10 });
   saveNodeAdPercentage.mockResolvedValue(undefined);
   readCreatorAnalytics.mockResolvedValue(EMPTY_ANALYTICS);
+  enrichTopPosts.mockResolvedValue([]);
 });
 
 describe('MonetizationScreen', () => {
