@@ -1,4 +1,4 @@
-import { useMemo } from 'react';
+import { useMemo, useState } from 'react';
 import {
   ResponsiveContainer,
   ComposedChart,
@@ -12,10 +12,10 @@ import {
   Tooltip,
   Cell,
 } from 'recharts';
-import { Eye, Users, TrendingUp, BarChart3 } from 'lucide-react';
+import { Eye, Users, TrendingUp, BarChart3, Image, Play, Music, Megaphone } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { formatCount } from '@web10/discover';
-import type { CreatorAnalytics } from '@/data/creator-analytics';
+import type { CreatorAnalytics, TopPostDetail } from '@/data/creator-analytics';
 
 // ── ReachCharts — Tier 1 of the creator analytics dashboard ─────────────────
 // The funnel's first beat: "your content is already being seen." Renders the
@@ -54,16 +54,64 @@ function dayLabel(day: string): string {
   return d.toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
 }
 
+type TopTab = 'content' | 'ads';
+type ContentSubFilter = 'all' | 'post' | 'video' | 'short';
+type AdSubFilter = 'all' | 'inline' | 'post';
+
+const CONTENT_SUB_FILTERS: { value: ContentSubFilter; label: string }[] = [
+  { value: 'all', label: 'All' },
+  { value: 'post', label: 'Posts' },
+  { value: 'video', label: 'Videos' },
+  { value: 'short', label: 'Shorts' },
+];
+
+const AD_SUB_FILTERS: { value: AdSubFilter; label: string }[] = [
+  { value: 'all', label: 'All' },
+  { value: 'inline', label: 'Inline' },
+  { value: 'post', label: 'Post' },
+];
+
 interface ReachChartsProps {
   analytics: CreatorAnalytics;
   windowDays: number;
   onWindowChange: (days: number) => void;
-  /** doc_id → a short label (title or truncated text) for the top-posts list. */
-  postLabels: Map<string, string>;
+  /** Enriched top-post details (title, thumbnail, content type, ad format). */
+  topPostDetails: TopPostDetail[];
 }
 
-export function ReachCharts({ analytics, windowDays, onWindowChange, postLabels }: ReachChartsProps) {
+export function ReachCharts({ analytics, windowDays, onWindowChange, topPostDetails }: ReachChartsProps) {
   const { daily, bySurface, topPosts, totals } = analytics;
+  const [topTab, setTopTab] = useState<TopTab>('content');
+  const [contentSub, setContentSub] = useState<ContentSubFilter>('all');
+  const [adSub, setAdSub] = useState<AdSubFilter>('all');
+
+  // Filter the enriched top posts by the selected tab + sub-filter.
+  const filteredPosts = useMemo(() => {
+    if (topTab === 'content') {
+      return topPostDetails.filter((p) => {
+        if (p.isAd) return false;
+        if (contentSub === 'all') return true;
+        return p.contentType === contentSub;
+      });
+    }
+    return topPostDetails.filter((p) => {
+      if (!p.isAd) return false;
+      if (adSub === 'all') return true;
+      return p.adFormat === adSub;
+    });
+  }, [topPostDetails, topTab, contentSub, adSub]);
+
+  const subFilters = topTab === 'content' ? CONTENT_SUB_FILTERS : AD_SUB_FILTERS;
+  const activeSub = topTab === 'content' ? contentSub : adSub;
+  const handleSubChange = (value: string) => {
+    if (topTab === 'content') setContentSub(value as ContentSubFilter);
+    else setAdSub(value as AdSubFilter);
+  };
+  const handleTabChange = (tab: TopTab) => {
+    setTopTab(tab);
+    setContentSub('all');
+    setAdSub('all');
+  };
 
   // The time-series data: one point per day (impressions + reach).
   const series = useMemo(
@@ -257,21 +305,65 @@ export function ReachCharts({ analytics, windowDays, onWindowChange, postLabels 
           </div>
         </div>
 
-        {/* Top posts — the ranked list (the Tier 2 drill-down entry point). */}
+        {/* Top posts — the ranked list with content previews + type filtering. */}
         <div className="rounded border border-border bg-card p-5" data-testid="analytics-top-posts">
           <div className="flex items-start gap-3">
             <div className="flex h-12 w-12 flex-shrink-0 items-center justify-center rounded bg-elevated text-muted-foreground">
               <TrendingUp className="h-6 w-6" strokeWidth={1.5} />
             </div>
-            <div>
+            <div className="min-w-0 flex-1">
               <h3 className="font-display text-lg font-medium text-foreground">Top Posts</h3>
-              <p className="mt-1 text-sm text-muted-foreground">Your best-performing posts this window.</p>
+              <p className="mt-1 text-sm text-muted-foreground">Your best-performing content this window.</p>
             </div>
           </div>
-          <div className="mt-4">
-            {topPosts.length > 0 ? (
+
+          {/* The two-level filter: Content/Ads toggle + sub-filter row. */}
+          <div className="mt-4 space-y-2">
+            <div className="flex rounded-md border border-border p-0.5" data-testid="analytics-top-tab">
+              {(['content', 'ads'] as const).map((tab) => (
+                <button
+                  key={tab}
+                  type="button"
+                  onClick={() => handleTabChange(tab)}
+                  className={cn(
+                    'flex-1 rounded px-2.5 py-1 text-xs font-medium capitalize transition-colors',
+                    topTab === tab
+                      ? 'bg-elevated text-foreground'
+                      : 'text-muted-foreground hover:text-foreground',
+                  )}
+                  data-testid={`analytics-top-tab-${tab}`}
+                  aria-pressed={topTab === tab}
+                >
+                  {tab}
+                </button>
+              ))}
+            </div>
+            <div className="flex gap-1" data-testid="analytics-top-subfilter">
+              {subFilters.map((f) => (
+                <button
+                  key={f.value}
+                  type="button"
+                  onClick={() => handleSubChange(f.value)}
+                  className={cn(
+                    'rounded-full border px-2.5 py-0.5 text-[0.6875rem] font-medium transition-colors',
+                    activeSub === f.value
+                      ? 'border-brand bg-brand/10 text-brand'
+                      : 'border-border text-muted-foreground hover:text-foreground',
+                  )}
+                  data-testid={`analytics-top-sub-${f.value}`}
+                  aria-pressed={activeSub === f.value}
+                >
+                  {f.label}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* The ranked list. */}
+          <div className="mt-3">
+            {filteredPosts.length > 0 ? (
               <ol className="space-y-2">
-                {topPosts.slice(0, 5).map((p, i) => (
+                {filteredPosts.slice(0, 5).map((p, i) => (
                   <li
                     key={p.doc_id}
                     className="flex items-center gap-3 rounded border border-border p-2.5"
@@ -280,9 +372,27 @@ export function ReachCharts({ analytics, windowDays, onWindowChange, postLabels 
                     <span className="flex h-6 w-6 flex-shrink-0 items-center justify-center rounded bg-elevated text-xs font-medium tabular-nums text-muted-foreground">
                       {i + 1}
                     </span>
-                    <span className="min-w-0 flex-1 truncate text-sm text-foreground">
-                      {postLabels.get(p.doc_id) || 'Untitled post'}
-                    </span>
+                    {p.thumbnailUrl ? (
+                      <img
+                        src={p.thumbnailUrl}
+                        alt=""
+                        className="h-8 w-8 flex-shrink-0 rounded object-cover"
+                        data-testid={`analytics-top-post-thumb-${i}`}
+                      />
+                    ) : (
+                      <span className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded bg-elevated text-muted-foreground">
+                        {p.isAd ? (
+                          <Megaphone className="h-3.5 w-3.5" strokeWidth={1.5} />
+                        ) : p.contentType === 'short' ? (
+                          <Music className="h-3.5 w-3.5" strokeWidth={1.5} />
+                        ) : p.contentType === 'video' ? (
+                          <Play className="h-3.5 w-3.5" strokeWidth={1.5} />
+                        ) : (
+                          <Image className="h-3.5 w-3.5" strokeWidth={1.5} />
+                        )}
+                      </span>
+                    )}
+                    <span className="min-w-0 flex-1 truncate text-sm text-foreground">{p.label}</span>
                     <span className="flex-shrink-0 text-xs tabular-nums text-muted-foreground">
                       {formatCount(p.impressions)}
                     </span>
@@ -290,7 +400,11 @@ export function ReachCharts({ analytics, windowDays, onWindowChange, postLabels 
                 ))}
               </ol>
             ) : (
-              <p className="text-xs text-muted-foreground">No posts with views in this window yet.</p>
+              <p className="text-xs text-muted-foreground">
+                {topPostDetails.length === 0
+                  ? 'No posts with views in this window yet.'
+                  : 'Nothing in this filter yet.'}
+              </p>
             )}
           </div>
         </div>

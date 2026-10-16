@@ -16,6 +16,7 @@
 // KB: knowledge-base/web10-v3/analytics/creator-dashboard.md
 
 import { getV3Client } from './v3';
+import { pickThumbnail, type V3Document, type V3ResolvedMedia } from 'web10-npm';
 
 /** One day's totals (the time-series point). `day` is `YYYY-MM-DD`. */
 export interface DailyMetric {
@@ -168,4 +169,106 @@ export function aggregateRows(
   const topPosts = [...byDoc.values()].sort((a, b) => b.impressions - a.impressions);
 
   return { daily, bySurface: surfaces, topPosts, totals: { impressions: totalImpressions, reach: totalReach } };
+}
+
+// ── Top-post enrichment (content previews + type classification) ────────────
+
+/** Content type for a non-ad post. */
+export type ContentType = 'post' | 'video' | 'short';
+
+/** Ad format (only meaningful when `isAd`). */
+export type AdFormat = 'inline' | 'post';
+
+/** An enriched top-post entry: analytics metrics + the doc's identity. */
+export interface TopPostDetail {
+  doc_id: string;
+  impressions: number;
+  reach: number;
+  avgWatchPct: number | null;
+  /** The post's title (or truncated text fallback). */
+  label: string;
+  /** The thumbnail URL (or null if no media). */
+  thumbnailUrl: string | null;
+  /** Whether this doc is an ad. */
+  isAd: boolean;
+  /** The content type (for non-ads). */
+  contentType: ContentType;
+  /** The ad format (for ads). */
+  adFormat: AdFormat;
+}
+
+/** Classify a V3Document into content/ad type. */
+function classifyDoc(doc: V3Document): { isAd: boolean; contentType: ContentType; adFormat: AdFormat } {
+  const tags = doc.tags ?? [];
+  const isAd = tags.includes('ad');
+  const isShort = tags.includes('short');
+  const body = doc.body;
+  const rawRefs = Array.isArray(body.media_refs) ? body.media_refs : [];
+  const hasVideo = rawRefs.some(
+    (m) => typeof m === 'object' && m !== null && 'mime_type' in m && String((m as V3ResolvedMedia).mime_type ?? '').startsWith('video/'),
+  );
+  const adFormat: AdFormat = body.format === 'post' ? 'post' : 'inline';
+
+  let contentType: ContentType;
+  if (isShort) contentType = 'short';
+  else if (hasVideo) contentType = 'video';
+  else contentType = 'post';
+
+  return { isAd, contentType, adFormat };
+}
+
+/** Extract a short label from a doc (title > truncated plain text > 'Untitled'). */
+function extractLabel(doc: V3Document): string {
+  const body = doc.body;
+  const title = typeof body.title === 'string' ? body.title.trim() : '';
+  if (title) return title;
+  const text = typeof body.text === 'string' ? body.text : '';
+  if (text) {
+    const plain = text.replace(/[#*`>\[\]!]/g, '').replace(/\n+/g, ' ').trim();
+    return plain.length > 60 ? plain.slice(0, 57) + '…' : plain;
+  }
+  return 'Untitled';
+}
+
+/**
+ * Enrich the top-N post metrics with their doc identity: title, thumbnail,
+ * content type, ad format. Reads each doc via `readById` (no surface label —
+ * the read does NOT log a delivery impression). A read failure for one doc
+ * degrades to a minimal entry (no thumbnail, "Untitled").
+ *
+ * The caller passes the `topPosts` array (already sorted by impressions desc)
+ * and gets back the same entries enriched with the doc's identity.
+ */
+export async function enrichTopPosts(topPosts: PostMetric[]): Promise<TopPostDetail[]> {
+  if (!topPosts.length) return [];
+  const w = getV3Client();
+  const docIds = topPosts.slice(0, 10).map((p) => p.doc_id);
+
+  const results = await Promise.allSettled(
+    docIds.map(async (docId) => {
+      const doc = await w.readById(docId, 'posts');
+      const { isAd, contentType, adFormat } = classifyDoc(doc);
+      const rawRefs = Array.isArray(doc.body.media_refs) ? doc.body.media_refs : [];
+      const resolvedMedia = rawRefs.filter(
+        (m): m is V3ResolvedMedia => typeof m === 'object' && m !== null && 'mime_type' in m,
+      );
+      const thumb = pickThumbnail(resolvedMedia);
+      const metric = topPosts.find((p) => p.doc_id === docId)!;
+      return {
+        doc_id: docId,
+        impressions: metric.impressions,
+        reach: metric.reach,
+        avgWatchPct: metric.avgWatchPct,
+        label: extractLabel(doc),
+        thumbnailUrl: thumb?.url ?? null,
+        isAd,
+        contentType,
+        adFormat,
+      } satisfies TopPostDetail;
+    }),
+  );
+
+  return results
+    .filter((r): r is PromiseFulfilledResult<TopPostDetail> => r.status === 'fulfilled')
+    .map((r) => r.value);
 }
